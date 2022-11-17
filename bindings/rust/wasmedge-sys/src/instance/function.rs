@@ -2,14 +2,16 @@
 
 use crate::{
     error::{FuncError, HostFuncError, WasmEdgeError},
-    ffi,
-    r#async::FiberFuture,
-    BoxedFn, CallingFrame, Engine, WasmEdgeResult, WasmValue, ASYNC_STATE, HOST_FUNCS,
+    ffi, BoxedFn, CallingFrame, Engine, WasmEdgeResult, WasmValue, HOST_FUNCS,
 };
+#[cfg(feature = "async")]
+use crate::{r#async::FiberFuture, ASYNC_STATE};
 use core::ffi::c_void;
 use parking_lot::Mutex;
 use rand::Rng;
-use std::{convert::TryInto, pin::Pin, sync::Arc};
+#[cfg(feature = "async")]
+use std::pin::Pin;
+use std::{convert::TryInto, sync::Arc};
 use wasmedge_types::ValType;
 
 // Wrapper function for thread-safe scenarios.
@@ -262,6 +264,7 @@ impl Function {
     /// // create a Function instance
     /// let func = Function::create_async(&func_ty, Box::new(real_add), 0).expect("fail to create a Function instance");
     /// ```
+    #[cfg(feature = "async")]
     pub fn create_async(
         ty: &FuncType,
         real_fn: impl Fn(
@@ -401,6 +404,7 @@ impl Function {
     ///
     /// If fail to run the host function, then an error is returned.
     ///
+    #[cfg(feature = "async")]
     pub async fn call_async<E: Engine + Send + Sync>(
         &self,
         engine: &mut E,

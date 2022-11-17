@@ -15,7 +15,7 @@
 //! ```bash
 //! cd <wasmedge-root-dir>/bindings/rust/
 //!
-//! cargo run -p wasmedge-sys --example async_host_func_indirect
+//! cargo run -p wasmedge-sys --features async --example async_host_func_indirect
 //! ```
 
 #[cfg(feature = "async")]

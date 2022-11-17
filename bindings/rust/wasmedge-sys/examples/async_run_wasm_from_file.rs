@@ -5,7 +5,7 @@
 //! ```bash
 //! cd <wasmedge-root-dir>/bindings/rust/
 //!
-//! cargo run -p wasmedge-sys --example async_run_wasm_from_file
+//! cargo run -p wasmedge-sys --features async --example async_run_wasm_from_file
 //! ```
 
 #[cfg(feature = "async")]

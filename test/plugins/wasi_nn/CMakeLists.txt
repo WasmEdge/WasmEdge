@@ -61,7 +61,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
 endforeach()
 
 target_link_libraries(wasiNNTests
-  PUBLIC
+  PRIVATE
   ${GTEST_BOTH_LIBRARIES}
   wasmedgePlugin
   wasmedgePluginWasiNN

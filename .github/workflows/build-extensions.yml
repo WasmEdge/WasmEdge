@@ -420,28 +420,28 @@ jobs:
             test_bin: wasiNNTests
             cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO"
             build_type: Release
-          # - name: WASI-Crypto
-          #   tar_name: wasi_crypto
-          #   system: MacOS 11
-          #   host_runner: macos-11
-          #   darwin_version: darwin_20
-          #   output_path: plugins/wasi_crypto
-          #   output_bin: libwasmedgePluginWasiCrypto.dylib
-          #   test_path: test/plugins/wasi_crypto
-          #   test_bin: wasiCryptoTests
-          #   build_type: Release
-          #   cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON"
-          # - name: WASI-Crypto
-          #   tar_name: wasi_crypto
-          #   system: MacOS 12
-          #   host_runner: macos-12
-          #   darwin_version: darwin_21
-          #   output_path: plugins/wasi_crypto
-          #   output_bin: libwasmedgePluginWasiCrypto.dylib
-          #   test_path: test/plugins/wasi_crypto
-          #   test_bin: wasiCryptoTests
-          #   build_type: Release
-          #   cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON"
+          - name: WASI-Crypto
+            tar_name: wasi_crypto
+            system: MacOS 11
+            host_runner: macos-11
+            darwin_version: darwin_20
+            output_path: plugins/wasi_crypto
+            output_bin: libwasmedgePluginWasiCrypto.dylib
+            test_path: test/plugins/wasi_crypto
+            test_bin: wasiCryptoTests
+            build_type: Release
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
+          - name: WASI-Crypto
+            tar_name: wasi_crypto
+            system: MacOS 12
+            host_runner: macos-12
+            darwin_version: darwin_21
+            output_path: plugins/wasi_crypto
+            output_bin: libwasmedgePluginWasiCrypto.dylib
+            test_path: test/plugins/wasi_crypto
+            test_bin: wasiCryptoTests
+            build_type: Release
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
     name: ${{ matrix.system }} WasmEdge ${{ matrix.name }} plugin with clang++ ${{ matrix.build_type }}
     runs-on: ${{ matrix.host_runner }}
     needs: [get_version_v2]
@@ -460,10 +460,9 @@ jobs:
           export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
           export CC=clang
           export CXX=clang++
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" ${{ matrix.cmake_plugin_option }} -DWASMEDGE_BUILD_TESTS=ON .          
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" ${{ matrix.cmake_plugin_option }} -DWASMEDGE_BUILD_TESTS=ON .
           cd build
           ninja wasmedge
-          ls -l tools/wasmedge/wasmedge
       - name: Test WasmEdge ${{ matrix.name }} plugin using clang++ with ${{ matrix.build_type }} mode
         continue-on-error: true
         run: |
@@ -472,7 +471,6 @@ jobs:
           fi
           cd build
           ninja ${{ matrix.test_bin }}
-          cd ${{ matrix.test_path }}
       - name: Prepare the WasmEdge ${{ matrix.name }} plugin tar.gz package
         run: |
           cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}

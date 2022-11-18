@@ -243,7 +243,7 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
     }
 
     // Store the loaded graph.
-    *GraphId = uint32_t(Env.NNGraph.size() - 1);
+    *GraphId = static_cast<uint32_t>(Env.NNGraph.size() - 1);
 
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
@@ -375,7 +375,7 @@ Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
       return static_cast<uint32_t>(WASINN::ErrNo::Busy);
     }
 
-    *Context = uint32_t(Env.NNContext.size() - 1);
+    *Context = static_cast<uint32_t>(Env.NNContext.size() - 1);
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built. use "

@@ -17,7 +17,6 @@ if cat /etc/*release | grep ^NAME | grep CentOS; then
   yum install yum-utils python3 -y
   yum-config-manager --add-repo https://yum.repos.intel.com/openvino/$OPENVINO_YEAR/setup/intel-openvino-$OPENVINO_YEAR.repo
   rpm --import https://yum.repos.intel.com/openvino/$OPENVINO_YEAR/setup/RPM-GPG-KEY-INTEL-OPENVINO-$OPENVINO_YEAR
-  # export PATH=$PATH:/opt/python/cp38-cp38/bin
   yum install intel-openvino-runtime-centos7-$OPENVINO_VERSION -y
   
 elif cat /etc/*release | grep ^NAME | grep Ubuntu; then

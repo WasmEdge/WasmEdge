@@ -39,11 +39,6 @@ impl Executor {
         })
     }
 }
-impl From<sys::Executor> for Executor {
-    fn from(v: sys::Executor) -> Self {
-        Executor { inner: v }
-    }
-}
 impl Engine for Executor {
     fn run_func(
         &self,

@@ -49,3 +49,35 @@ jobs:
         run: |
           export WASMEDGE_DIR="$(pwd)/../../"
           cargo +nightly test -p wasmedge-sdk --all --examples --features standalone
+
+  build_macos:
+    name: MacOS
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-11, macos-12]
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly
+          components: rustfmt, clippy
+
+      - name: Install build tools
+        run: brew install llvm@14 ninja boost cmake
+
+      - name: Install libwasmedge
+        working-directory: bindings/rust/
+        run: |
+          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          export CC=clang
+          export CXX=clang++
+          export DYLD_LIBRARY_PATH="/Users/runner/.wasmedge/lib"
+          export WASMEDGE_DIR="$(pwd)/../../"
+          cargo +nightly test -p wasmedge-sdk --all --examples --features standalone

@@ -306,7 +306,7 @@ fn gen_runtime_error(code: u32) -> WasmEdgeResult<()> {
             CoreExecutionError::UnalignedAtomicAccess,
         )))),
         0x90 => Err(Box::new(WasmEdgeError::Core(CoreError::Execution(
-            CoreExecutionError::WaitOnUnsharedMemory,
+            CoreExecutionError::ExpectSharedMemory,
         )))),
 
         _ => panic!("unknown error code: {code}"),

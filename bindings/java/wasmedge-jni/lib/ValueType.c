@@ -41,9 +41,6 @@ WasmEdge_Value JavaValueToWasmEdgeValue(JNIEnv *env, jobject jVal) {
   case WasmEdge_ValType_FuncRef:
     return WasmEdge_ValueGenFuncRef(
         (WasmEdge_FunctionInstanceContext *)getLongVal(env, jVal));
-    // TODO handle none type
-  case WasmEdge_ValType_None:
-    return WasmEdge_ValueGenNullRef(WasmEdge_RefType_ExternRef);
   }
 }
 
@@ -71,9 +68,6 @@ jobject WasmEdgeValueToJavaValue(JNIEnv *env, WasmEdge_Value value) {
   case WasmEdge_ValType_FuncRef:
     valClassName = "org/wasmedge/WasmEdgeFuncRef";
     break;
-    // TODO handle valtype none.
-  case WasmEdge_ValType_None:
-    return NULL;
   }
   jclass valClass = (*env)->FindClass(env, valClassName);
 

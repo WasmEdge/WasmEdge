@@ -197,16 +197,22 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Loop:
   case OpCode::If:
     // Read the block return type.
-    if (auto Res = FMgr.readS32()) {
+    if (auto Res = FMgr.readS33()) {
       if (*Res < 0) {
         // Value type case.
-        ValType VType = static_cast<ValType>((*Res) & INT32_C(0x7F));
-        if (auto Check = checkValTypeProposals(
-                VType, true, FMgr.getLastOffset(), ASTNodeAttr::Instruction);
-            unlikely(!Check)) {
-          return Unexpect(Check);
+        // TODO: may check whether the `TypeByte` exceed the range.
+        Byte TypeByte = static_cast<Byte>((*Res) & INT64_C(0x7F));
+        if (TypeByte == 0x40) {
+          Instr.setEmptyBlockType();
+        } else {
+          ValType VType = static_cast<ValType>(TypeByte);
+          if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
+                                                 ASTNodeAttr::Instruction);
+              unlikely(!Check)) {
+            return Unexpect(Check);
+          }
+          Instr.setBlockType(VType);
         }
-        Instr.setBlockType(VType);
       } else {
         // Type index case.
         if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
@@ -315,7 +321,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       } else {
         VType = static_cast<ValType>(*T);
       }
-      if (auto Check = checkValTypeProposals(VType, false, FMgr.getLastOffset(),
+      if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
                                              ASTNodeAttr::Instruction);
           unlikely(!Check)) {
         return Unexpect(Check);

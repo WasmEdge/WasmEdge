@@ -89,7 +89,12 @@ using ValVariant =
 
 /// BlockType definition.
 struct BlockType {
-  bool IsValType;
+  enum class TypeEnum : uint8_t {
+    Empty,
+    ValType,
+    TypeIdx,
+  };
+  TypeEnum TypeFlag;
   union {
     ValType Type;
     uint32_t Idx;
@@ -97,14 +102,17 @@ struct BlockType {
   BlockType() = default;
   BlockType(ValType VType) { setData(VType); }
   BlockType(uint32_t Idx) { setData(Idx); }
+  void setEmpty() { TypeFlag = TypeEnum::Empty; }
   void setData(ValType VType) {
-    IsValType = true;
+    TypeFlag = TypeEnum::ValType;
     Data.Type = VType;
   }
   void setData(uint32_t Idx) {
-    IsValType = false;
+    TypeFlag = TypeEnum::TypeIdx;
     Data.Idx = Idx;
   }
+  bool isEmpty() const { return TypeFlag == TypeEnum::Empty; }
+  bool isValType() const { return TypeFlag == TypeEnum::ValType; }
 };
 
 /// NumType and RefType conversions.
@@ -269,7 +277,6 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   case ValType::FuncRef:
   case ValType::ExternRef:
     return UnknownRef();
-  case ValType::None:
   default:
     assumingUnreachable();
   }

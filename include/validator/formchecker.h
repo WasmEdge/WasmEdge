@@ -28,24 +28,20 @@
 namespace WasmEdge {
 namespace Validator {
 
-enum class VType : uint8_t {
-  Unknown,
-  I32,
-  I64,
-  F32,
-  F64,
-  V128,
-  FuncRef,
-  ExternRef
-};
+typedef std::optional<ValType> VType;
+
+static inline constexpr VType unreachableVType() {
+  return VType();
+}
 
 static inline constexpr bool isNumType(const VType V) {
-  return V == VType::I32 || V == VType::I64 || V == VType::F32 ||
-         V == VType::F64 || V == VType::V128 || V == VType::Unknown;
+  
+  return !V || *V == ValType::I32 || *V == ValType::I64 || *V == ValType::F32 ||
+         *V == ValType::F64 || *V == ValType::V128;
 }
 
 static inline constexpr bool isRefType(const VType V) {
-  return V == VType::FuncRef || V == VType::ExternRef || V == VType::Unknown;
+  return !V || *V == ValType::FuncRef || *V == ValType::ExternRef;
 }
 
 class FormChecker {

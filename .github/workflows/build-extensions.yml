@@ -276,6 +276,7 @@ jobs:
             output_bin: libwasmedgePluginWasiNN.so
             cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
             build_type: Release
+            test: true
           - name: WASI-NN OpenVINO
             tar_name: wasi_nn-openvino
             backend: OpenVINO

@@ -1038,7 +1038,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   // SIMD Memory Instruction.
   case OpCode::V128__load:
-    return checkAlignAndTrans(128, {VType(ValType::I32)}, {VType(ValType::V128)});
+    return checkAlignAndTrans(128, {VType(ValType::I32)},
+                              {VType(ValType::V128)});
   case OpCode::V128__load8x8_s:
   case OpCode::V128__load8x8_u:
   case OpCode::V128__load16x4_s:
@@ -1047,16 +1048,20 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::V128__load32x2_u:
   case OpCode::V128__load64_splat:
   case OpCode::V128__load64_zero:
-    return checkAlignAndTrans(64, {VType(ValType::I32)}, {VType(ValType::V128)});
+    return checkAlignAndTrans(64, {VType(ValType::I32)},
+                              {VType(ValType::V128)});
   case OpCode::V128__load8_splat:
     return checkAlignAndTrans(8, {VType(ValType::I32)}, {VType(ValType::V128)});
   case OpCode::V128__load16_splat:
-    return checkAlignAndTrans(16, {VType(ValType::I32)}, {VType(ValType::V128)});
+    return checkAlignAndTrans(16, {VType(ValType::I32)},
+                              {VType(ValType::V128)});
   case OpCode::V128__load32_splat:
   case OpCode::V128__load32_zero:
-    return checkAlignAndTrans(32, {VType(ValType::I32)}, {VType(ValType::V128)});
+    return checkAlignAndTrans(32, {VType(ValType::I32)},
+                              {VType(ValType::V128)});
   case OpCode::V128__store:
-    return checkAlignAndTrans(128, {VType(ValType::I32), VType(ValType::V128)}, {});
+    return checkAlignAndTrans(128, {VType(ValType::I32), VType(ValType::V128)},
+                              {});
   case OpCode::V128__load8_lane:
     return checkAlignAndTrans(8, {VType(ValType::I32), VType(ValType::V128)},
                               {VType(ValType::V128)}, true);
@@ -1070,17 +1075,17 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return checkAlignAndTrans(64, {VType(ValType::I32), VType(ValType::V128)},
                               {VType(ValType::V128)}, true);
   case OpCode::V128__store8_lane:
-    return checkAlignAndTrans(8, {VType(ValType::I32), VType(ValType::V128)}, {},
-                              true);
+    return checkAlignAndTrans(8, {VType(ValType::I32), VType(ValType::V128)},
+                              {}, true);
   case OpCode::V128__store16_lane:
-    return checkAlignAndTrans(16, {VType(ValType::I32), VType(ValType::V128)}, {},
-                              true);
+    return checkAlignAndTrans(16, {VType(ValType::I32), VType(ValType::V128)},
+                              {}, true);
   case OpCode::V128__store32_lane:
-    return checkAlignAndTrans(32, {VType(ValType::I32), VType(ValType::V128)}, {},
-                              true);
+    return checkAlignAndTrans(32, {VType(ValType::I32), VType(ValType::V128)},
+                              {}, true);
   case OpCode::V128__store64_lane:
-    return checkAlignAndTrans(64, {VType(ValType::I32), VType(ValType::V128)}, {},
-                              true);
+    return checkAlignAndTrans(64, {VType(ValType::I32), VType(ValType::V128)},
+                              {}, true);
 
   // SIMD Const Instruction.
   case OpCode::V128__const:
@@ -1096,7 +1101,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       spdlog::error(ErrCode::Value::InvalidLaneIdx);
       return Unexpect(ErrCode::Value::InvalidLaneIdx);
     }
-    return StackTrans({VType(ValType::V128), VType(ValType::V128)}, {VType(ValType::V128)});
+    return StackTrans({VType(ValType::V128), VType(ValType::V128)},
+                      {VType(ValType::V128)});
   }
 
   // SIMD Lane Instructions.
@@ -1315,10 +1321,12 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F64x2__pmin:
   case OpCode::F64x2__pmax:
   case OpCode::I32x4__dot_i16x8_s:
-    return StackTrans({VType(ValType::V128), VType(ValType::V128)}, {VType(ValType::V128)});
-  case OpCode::V128__bitselect:
-    return StackTrans({VType(ValType::V128), VType(ValType::V128), VType(ValType::V128)},
+    return StackTrans({VType(ValType::V128), VType(ValType::V128)},
                       {VType(ValType::V128)});
+  case OpCode::V128__bitselect:
+    return StackTrans(
+        {VType(ValType::V128), VType(ValType::V128), VType(ValType::V128)},
+        {VType(ValType::V128)});
   case OpCode::V128__any_true:
   case OpCode::I8x16__all_true:
   case OpCode::I8x16__bitmask:
@@ -1341,7 +1349,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I64x2__shl:
   case OpCode::I64x2__shr_s:
   case OpCode::I64x2__shr_u:
-    return StackTrans({VType(ValType::V128), VType(ValType::I32)}, {VType(ValType::V128)});
+    return StackTrans({VType(ValType::V128), VType(ValType::I32)},
+                      {VType(ValType::V128)});
 
   case OpCode::Atomic__fence:
     return {};
@@ -1351,13 +1360,17 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         32, std::array{VType(ValType::I32), VType(ValType::I32)},
         std::array{VType(ValType::I32)});
   case OpCode::Memory__atomic__wait32:
-    return checkAlignAndTrans(
-        32, std::array{VType(ValType::I32), VType(ValType::I32), VType(ValType::I64)},
-        std::array{VType(ValType::I32)});
+    return checkAlignAndTrans(32,
+                              std::array{VType(ValType::I32),
+                                         VType(ValType::I32),
+                                         VType(ValType::I64)},
+                              std::array{VType(ValType::I32)});
   case OpCode::Memory__atomic__wait64:
-    return checkAlignAndTrans(
-        64, std::array{VType(ValType::I32), VType(ValType::I64), VType(ValType::I64)},
-        std::array{VType(ValType::I32)});
+    return checkAlignAndTrans(64,
+                              std::array{VType(ValType::I32),
+                                         VType(ValType::I64),
+                                         VType(ValType::I64)},
+                              std::array{VType(ValType::I32)});
 
   case OpCode::I32__atomic__load:
     return checkAlignAndTrans(32, std::array{VType(ValType::I32)},
@@ -1570,33 +1583,47 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         32, std::array{VType(ValType::I32), VType(ValType::I64)},
         std::array{VType(ValType::I64)});
   case OpCode::I32__atomic__rmw__cmpxchg:
-    return checkAlignAndTrans(
-        32, std::array{VType(ValType::I32), VType(ValType::I32), VType(ValType::I32)},
-        std::array{VType(ValType::I32)});
+    return checkAlignAndTrans(32,
+                              std::array{VType(ValType::I32),
+                                         VType(ValType::I32),
+                                         VType(ValType::I32)},
+                              std::array{VType(ValType::I32)});
   case OpCode::I64__atomic__rmw__cmpxchg:
-    return checkAlignAndTrans(
-        64, std::array{VType(ValType::I32), VType(ValType::I64), VType(ValType::I64)},
-        std::array{VType(ValType::I64)});
+    return checkAlignAndTrans(64,
+                              std::array{VType(ValType::I32),
+                                         VType(ValType::I64),
+                                         VType(ValType::I64)},
+                              std::array{VType(ValType::I64)});
   case OpCode::I32__atomic__rmw8__cmpxchg_u:
-    return checkAlignAndTrans(
-        8, std::array{VType(ValType::I32), VType(ValType::I32), VType(ValType::I32)},
-        std::array{VType(ValType::I32)});
+    return checkAlignAndTrans(8,
+                              std::array{VType(ValType::I32),
+                                         VType(ValType::I32),
+                                         VType(ValType::I32)},
+                              std::array{VType(ValType::I32)});
   case OpCode::I32__atomic__rmw16__cmpxchg_u:
-    return checkAlignAndTrans(
-        16, std::array{VType(ValType::I32), VType(ValType::I32), VType(ValType::I32)},
-        std::array{VType(ValType::I32)});
+    return checkAlignAndTrans(16,
+                              std::array{VType(ValType::I32),
+                                         VType(ValType::I32),
+                                         VType(ValType::I32)},
+                              std::array{VType(ValType::I32)});
   case OpCode::I64__atomic__rmw8__cmpxchg_u:
-    return checkAlignAndTrans(
-        8, std::array{VType(ValType::I32), VType(ValType::I64), VType(ValType::I64)},
-        std::array{VType(ValType::I64)});
+    return checkAlignAndTrans(8,
+                              std::array{VType(ValType::I32),
+                                         VType(ValType::I64),
+                                         VType(ValType::I64)},
+                              std::array{VType(ValType::I64)});
   case OpCode::I64__atomic__rmw16__cmpxchg_u:
-    return checkAlignAndTrans(
-        16, std::array{VType(ValType::I32), VType(ValType::I64), VType(ValType::I64)},
-        std::array{VType(ValType::I64)});
+    return checkAlignAndTrans(16,
+                              std::array{VType(ValType::I32),
+                                         VType(ValType::I64),
+                                         VType(ValType::I64)},
+                              std::array{VType(ValType::I64)});
   case OpCode::I64__atomic__rmw32__cmpxchg_u:
-    return checkAlignAndTrans(
-        32, std::array{VType(ValType::I32), VType(ValType::I64), VType(ValType::I64)},
-        std::array{VType(ValType::I64)});
+    return checkAlignAndTrans(32,
+                              std::array{VType(ValType::I32),
+                                         VType(ValType::I64),
+                                         VType(ValType::I64)},
+                              std::array{VType(ValType::I64)});
 
   default:
     assumingUnreachable();

@@ -30,12 +30,10 @@ namespace Validator {
 
 typedef std::optional<ValType> VType;
 
-static inline constexpr VType unreachableVType() {
-  return VType();
-}
+static inline constexpr VType unreachableVType() { return VType(); }
 
 static inline constexpr bool isNumType(const VType V) {
-  
+
   return !V || *V == ValType::I32 || *V == ValType::I64 || *V == ValType::F32 ||
          *V == ValType::F64 || *V == ValType::V128;
 }

@@ -112,10 +112,6 @@ private:
     spdlog::error(ErrInfo::InfoAST(Node));
     return Unexpect(Code);
   }
-  Expect<FullValType> checkValTypeProposals(FullValType VType, uint64_t Off,
-                                            ASTNodeAttr Node) const noexcept;
-  Expect<FullRefType> checkRefTypeProposals(FullRefType RType, uint64_t Off,
-                                            ASTNodeAttr Node) const noexcept;
   Expect<void> checkInstrProposals(OpCode Code, uint64_t Offset) const noexcept;
   /// @}
 
@@ -200,6 +196,7 @@ private:
   Expect<void> loadDesc(AST::ExportDesc &ExpDesc);
   Expect<void> loadLimit(AST::Limit &Lim);
   Expect<FullValType> loadFullValType();
+  Expect<FullValType> loadFullValType(uint8_t TypeCode);
   Expect<FullRefType> loadFullRefType();
   Expect<void> loadType(AST::FunctionType &FuncType);
   Expect<void> loadType(AST::MemoryType &MemType);

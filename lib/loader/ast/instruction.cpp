@@ -205,13 +205,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
         if (TypeByte == 0x40) {
           Instr.setEmptyBlockType();
         } else {
-          FullValType VType = static_cast<ValType>(TypeByte);
-          if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
-                                                 ASTNodeAttr::Instruction);
-              unlikely(!Check)) {
-            return Unexpect(Check);
+          if (auto Res = loadFullValType(TypeByte)) {
+            Instr.setBlockType(*Res);
+          } else {
+            return logLoadError(Res.error(), FMgr.getLastOffset(),
+                                ASTNodeAttr::Instruction);
           }
-          Instr.setBlockType(VType);
         }
       } else {
         // Type index case.

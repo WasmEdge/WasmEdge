@@ -64,6 +64,38 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
   return {};
 }
 
+Expect<void> Loader::loadType(FullValType &FullValType) {
+  if (auto Res = FMgr.readByte()) {
+    ValType Type = static_cast<ValType>(*Res);
+    FullValType.setTypeCode(Type);
+    if (auto Check = checkValTypeProposals(FullValType, FMgr.getLastOffset(),
+                                           ASTNodeAttr::Type_ValType);
+        !Check) {
+      return Unexpect(Check);
+    }
+  } else {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_ValType);
+  }
+  return {};
+}
+
+Expect<void> Loader::loadType(FullRefType &FullRefType) {
+  if (auto Res = FMgr.readByte()) {
+    RefType Type = static_cast<RefType>(*Res);
+    FullRefType.setTypeCode(Type);
+    if (auto Check = checkRefTypeProposals(FullRefType, FMgr.getLastOffset(),
+                                           ASTNodeAttr::Type_ValType);
+        !Check) {
+      return Unexpect(Check);
+    }
+  } else {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_ValType);
+  }
+  return {};
+}
+
 // Load binary to construct FunctionType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   uint32_t VecCnt = 0;
@@ -93,14 +125,9 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
                         ASTNodeAttr::Type_Function);
   }
   for (uint32_t I = 0; I < VecCnt; ++I) {
-    if (auto Res = FMgr.readByte()) {
-      ValType Type = static_cast<ValType>(*Res);
-      if (auto Check = checkValTypeProposals(Type, FMgr.getLastOffset(),
-                                             ASTNodeAttr::Type_Function);
-          !Check) {
-        return Unexpect(Check);
-      }
-      FuncType.getParamTypes().push_back(Type);
+    FullValType VType;
+    if (auto Res = loadType(VType)) {
+      FuncType.getParamTypes().push_back(VType);
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Type_Function);
@@ -126,14 +153,9 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
                            ASTNodeAttr::Type_Function);
   }
   for (uint32_t I = 0; I < VecCnt; ++I) {
-    if (auto Res = FMgr.readByte()) {
-      ValType Type = static_cast<ValType>(*Res);
-      if (auto Check = checkValTypeProposals(Type, FMgr.getLastOffset(),
-                                             ASTNodeAttr::Type_Function);
-          !Check) {
-        return Unexpect(Check);
-      }
-      FuncType.getReturnTypes().push_back(Type);
+    FullValType VType;
+    if (auto Res = loadType(VType)) {
+      FuncType.getReturnTypes().push_back(VType);
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Type_Function);
@@ -155,14 +177,9 @@ Expect<void> Loader::loadType(AST::MemoryType &MemType) {
 // Load binary to construct TableType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::TableType &TabType) {
   // Read reference type.
-  if (auto Res = FMgr.readByte()) {
-    TabType.setRefType(static_cast<RefType>(*Res));
-    if (auto Check =
-            checkRefTypeProposals(TabType.getRefType(), FMgr.getLastOffset(),
-                                  ASTNodeAttr::Type_Table);
-        !Check) {
-      return Unexpect(Check);
-    }
+  FullRefType RType;
+  if (auto Res = loadType(RType)) {
+    TabType.setRefType(RType);
   } else {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Table);
@@ -179,14 +196,9 @@ Expect<void> Loader::loadType(AST::TableType &TabType) {
 // Load binary to construct GlobalType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::GlobalType &GlobType) {
   // Read value type.
-  if (auto Res = FMgr.readByte()) {
-    GlobType.setValType(static_cast<ValType>(*Res));
-    if (auto Check =
-            checkValTypeProposals(GlobType.getValType(), FMgr.getLastOffset(),
-                                  ASTNodeAttr::Type_Global);
-        !Check) {
-      return Unexpect(Check);
-    }
+  FullValType VType;
+  if (auto Res = loadType(VType)) {
+    GlobType.setValType(VType);
   } else {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Global);

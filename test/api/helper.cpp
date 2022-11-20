@@ -41,30 +41,30 @@ ErrCode convResult(WasmEdge_Result Res) {
   return static_cast<ErrCode::Value>(WasmEdge_ResultGetCode(Res));
 }
 
-std::vector<std::pair<ValVariant, ValType>>
+std::vector<std::pair<ValVariant, FullValType>>
 convToValVec(const std::vector<WasmEdge_Value> &CVals) {
-  std::vector<std::pair<ValVariant, ValType>> Vals(CVals.size());
+  std::vector<std::pair<ValVariant, FullValType>> Vals(CVals.size());
   std::transform(CVals.cbegin(), CVals.cend(), Vals.begin(),
                  [](const WasmEdge_Value &Val) {
 #if defined(__x86_64__) || defined(__aarch64__)
-                   return std::make_pair(ValVariant(Val.Value),
-                                         static_cast<ValType>(Val.Type));
+                   return std::make_pair(ValVariant(Val.Value), Val.Type);
 #else
                    return std::make_pair(ValVariant(WasmEdge::uint128_t(
                                              Val.Value.High, Val.Value.Low)),
-                                         static_cast<ValType>(Val.Type));
+                                         Val.Type);
 #endif
                  });
   return Vals;
 }
 
-std::vector<WasmEdge_Value> convFromValVec(const std::vector<ValVariant> &Vals,
-                                           const std::vector<ValType> &Types) {
+std::vector<WasmEdge_Value>
+convFromValVec(const std::vector<ValVariant> &Vals,
+               const std::vector<FullValType> &Types) {
   std::vector<WasmEdge_Value> CVals(Vals.size());
   for (uint32_t I = 0; I < Vals.size(); I++) {
 #if defined(__x86_64__) || defined(__aarch64__)
     CVals[I] = WasmEdge_Value{.Value = Vals[I].get<WasmEdge::uint128_t>(),
-                              .Type = static_cast<WasmEdge_ValType>(Types[I])};
+                              .Type = Types[I].asCStruct()};
 #else
     WasmEdge::uint128_t Val = Vals[I].get<WasmEdge::uint128_t>();
     CVals[I] = WasmEdge_Value{

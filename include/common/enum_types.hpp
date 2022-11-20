@@ -15,6 +15,7 @@
 #pragma once
 
 #include "dense_enum_map.h"
+#include "enum_types.h"
 #include "spare_enum_map.h"
 
 #include <cstdint>
@@ -60,6 +61,73 @@ enum class RefType : uint8_t {
 #include "enum.inc"
 #undef Line
 #undef UseRefType
+};
+
+class FullRefType {
+public:
+  FullRefType() = default;
+  FullRefType(const RefType TypeCode) : TypeCode(TypeCode) {}
+  void setTypeCode(const RefType TypeCode) { this->TypeCode = TypeCode; }
+  RefType getTypeCode() const { return TypeCode; }
+  WasmEdge_ValTypeExt getExt() const { return Ext; }
+
+  friend bool operator==(const FullRefType &LHS,
+                         const FullRefType &RHS) noexcept {
+    return LHS.TypeCode == RHS.TypeCode;
+  }
+  friend bool operator!=(const FullRefType &LHS,
+                         const FullRefType &RHS) noexcept {
+    return !(LHS.TypeCode == RHS.TypeCode);
+  }
+
+private:
+  RefType TypeCode;
+  WasmEdge_ValTypeExt Ext;
+};
+
+class FullValType {
+public:
+  FullValType() = default;
+  FullValType(const ValType TypeCode) : TypeCode(TypeCode) {}
+  FullValType(const RefType RType) {
+    switch (RType) {
+    case RefType::ExternRef: {
+      TypeCode = ValType::ExternRef;
+      break;
+    }
+    case RefType::FuncRef: {
+      TypeCode = ValType::FuncRef;
+      break;
+    }
+    }
+  }
+  FullValType(const WasmEdge_FullValType VType)
+      : TypeCode(static_cast<ValType>(VType.TypeCode)), Ext(VType.Ext) {}
+  FullValType(const FullRefType VType)
+      : TypeCode(static_cast<ValType>(VType.getTypeCode())),
+        Ext(VType.getExt()) {}
+
+  void setTypeCode(const ValType TypeCode) { this->TypeCode = TypeCode; }
+  ValType getTypeCode() const { return TypeCode; }
+  WasmEdge_FullValType asCStruct() const {
+    return WasmEdge_FullValType{
+        .TypeCode = static_cast<WasmEdge_ValType>(TypeCode),
+        .Ext = Ext,
+    };
+  }
+
+  friend bool operator==(const FullValType &LHS,
+                         const FullValType &RHS) noexcept {
+    return LHS.TypeCode == RHS.TypeCode;
+  }
+  friend bool operator!=(const FullValType &LHS,
+                         const FullValType &RHS) noexcept {
+    return !(LHS.TypeCode == RHS.TypeCode);
+  }
+
+private:
+  ValType TypeCode;
+  WasmEdge_ValTypeExt Ext;
 };
 
 /// WASM Mutability C++ enumeration class.

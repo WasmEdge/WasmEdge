@@ -28,20 +28,26 @@
 namespace WasmEdge {
 namespace Validator {
 
-typedef std::optional<ValType> VType;
+typedef std::optional<FullValType> VType;
 
-static inline constexpr VType unreachableVType() {
-  return VType();
-}
+static inline constexpr VType unreachableVType() { return VType(); }
 
 static inline constexpr bool isNumType(const VType V) {
-  
-  return !V || *V == ValType::I32 || *V == ValType::I64 || *V == ValType::F32 ||
-         *V == ValType::F64 || *V == ValType::V128;
+  if (!V) {
+    return true;
+  }
+  auto TypeCode = V->getTypeCode();
+  return TypeCode == ValType::I32 || TypeCode == ValType::I64 ||
+         TypeCode == ValType::F32 || TypeCode == ValType::F64 ||
+         TypeCode == ValType::V128;
 }
 
 static inline constexpr bool isRefType(const VType V) {
-  return !V || *V == ValType::FuncRef || *V == ValType::ExternRef;
+  if (!V) {
+    return true;
+  }
+  auto TypeCode = V->getTypeCode();
+  return TypeCode == ValType::FuncRef || TypeCode == ValType::ExternRef;
 }
 
 class FormChecker {
@@ -50,7 +56,7 @@ public:
   ~FormChecker() = default;
 
   void reset(bool CleanGlobal = false);
-  Expect<void> validate(AST::InstrView Instrs, Span<const ValType> RetVals);
+  Expect<void> validate(AST::InstrView Instrs, Span<const FullValType> RetVals);
   Expect<void> validate(AST::InstrView Instrs, Span<const VType> RetVals);
 
   /// Adder of contexts
@@ -75,10 +81,7 @@ public:
   uint32_t getNumImportGlobals() const { return NumImportGlobals; }
 
   /// Helper function
-  VType ASTToVType(const ValType &V);
-  VType ASTToVType(const NumType &V);
-  VType ASTToVType(const RefType &V);
-  ValType VTypeToAST(const VType &V);
+  FullValType VTypeToAST(const VType &V);
 
   struct CtrlFrame {
     CtrlFrame() = default;
@@ -129,10 +132,10 @@ private:
   /// Contexts.
   std::vector<std::pair<std::vector<VType>, std::vector<VType>>> Types;
   std::vector<uint32_t> Funcs;
-  std::vector<RefType> Tables;
+  std::vector<FullRefType> Tables;
   uint32_t Mems = 0;
   std::vector<std::pair<VType, ValMut>> Globals;
-  std::vector<RefType> Elems;
+  std::vector<FullRefType> Elems;
   std::vector<uint32_t> Datas;
   std::unordered_set<uint32_t> Refs;
   uint32_t NumImportFuncs = 0;

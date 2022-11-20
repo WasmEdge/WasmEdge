@@ -330,11 +330,11 @@ int Tool(int Argc, const char *Argv[]) noexcept {
     }
 
     std::vector<ValVariant> FuncArgs;
-    std::vector<ValType> FuncArgTypes;
+    std::vector<FullValType> FuncArgTypes;
     for (size_t I = 0;
          I < FuncType.getParamTypes().size() && I + 1 < Args.value().size();
          ++I) {
-      switch (FuncType.getParamTypes()[I]) {
+      switch (FuncType.getParamTypes()[I].getTypeCode()) {
       case ValType::I32: {
         const uint32_t Value =
             static_cast<uint32_t>(std::stol(Args.value()[I + 1]));
@@ -385,7 +385,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
     if (auto Result = AsyncResult.get()) {
       /// Print results.
       for (size_t I = 0; I < Result->size(); ++I) {
-        switch ((*Result)[I].second) {
+        switch ((*Result)[I].second.getTypeCode()) {
         case ValType::I32:
           std::cout << (*Result)[I].first.get<uint32_t>() << '\n';
           break;

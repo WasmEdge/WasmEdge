@@ -115,14 +115,6 @@ struct BlockType {
   bool isValType() const { return TypeFlag == TypeEnum::ValType; }
 };
 
-/// NumType and RefType conversions.
-inline constexpr ValType ToValType(const NumType Val) noexcept {
-  return static_cast<ValType>(Val);
-}
-inline constexpr ValType ToValType(const RefType Val) noexcept {
-  return static_cast<ValType>(Val);
-}
-
 // <<<<<<<< Type definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> Const expressions to checking value types >>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -225,37 +217,37 @@ toUnsigned(T Val) {
 
 // >>>>>>>> Template to get value type from type >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-template <typename T> inline ValType ValTypeFromType() noexcept;
+template <typename T> inline FullValType ValTypeFromType() noexcept;
 
-template <> inline ValType ValTypeFromType<uint32_t>() noexcept {
-  return ValType::I32;
+template <> inline FullValType ValTypeFromType<uint32_t>() noexcept {
+  return FullValType(ValType::I32);
 }
-template <> inline ValType ValTypeFromType<int32_t>() noexcept {
-  return ValType::I32;
+template <> inline FullValType ValTypeFromType<int32_t>() noexcept {
+  return FullValType(ValType::I32);
 }
-template <> inline ValType ValTypeFromType<uint64_t>() noexcept {
-  return ValType::I64;
+template <> inline FullValType ValTypeFromType<uint64_t>() noexcept {
+  return FullValType(ValType::I64);
 }
-template <> inline ValType ValTypeFromType<int64_t>() noexcept {
-  return ValType::I64;
+template <> inline FullValType ValTypeFromType<int64_t>() noexcept {
+  return FullValType(ValType::I64);
 }
-template <> inline ValType ValTypeFromType<uint128_t>() noexcept {
-  return ValType::V128;
+template <> inline FullValType ValTypeFromType<uint128_t>() noexcept {
+  return FullValType(ValType::V128);
 }
-template <> inline ValType ValTypeFromType<int128_t>() noexcept {
-  return ValType::V128;
+template <> inline FullValType ValTypeFromType<int128_t>() noexcept {
+  return FullValType(ValType::V128);
 }
-template <> inline ValType ValTypeFromType<float>() noexcept {
-  return ValType::F32;
+template <> inline FullValType ValTypeFromType<float>() noexcept {
+  return FullValType(ValType::F32);
 }
-template <> inline ValType ValTypeFromType<double>() noexcept {
-  return ValType::F64;
+template <> inline FullValType ValTypeFromType<double>() noexcept {
+  return FullValType(ValType::F64);
 }
-template <> inline ValType ValTypeFromType<FuncRef>() noexcept {
-  return ValType::FuncRef;
+template <> inline FullValType ValTypeFromType<FuncRef>() noexcept {
+  return FullValType(ValType::FuncRef);
 }
-template <> inline ValType ValTypeFromType<ExternRef>() noexcept {
-  return ValType::ExternRef;
+template <> inline FullValType ValTypeFromType<ExternRef>() noexcept {
+  return FullValType(ValType::ExternRef);
 }
 
 // <<<<<<<< Template to get value type from type <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

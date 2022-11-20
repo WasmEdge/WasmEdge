@@ -316,9 +316,3 @@ Serialize::serializeDataCountSection(AST::DataCountSection &DataCountSec) {
 
 } // namespace Serialize
 } // namespace WasmEdge
-
-// https://compiler-explorer.com/z/jEejhGqfh
-//
-// https://onlinegdb.com/G8hPAzlNQE
-
-// https://onlinegdb.com/gdLD0amq-Z

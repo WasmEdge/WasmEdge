@@ -1166,6 +1166,14 @@ WasmEdge_GlobalTypeCreate(const enum WasmEdge_ValType ValType,
 WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ValType
 WasmEdge_GlobalTypeGetValType(const WasmEdge_GlobalTypeContext *Cxt);
 
+/// Get the full extended value type from a global type.
+///
+/// \param Cxt the WasmEdge_GlobalTypeContext.
+///
+/// \returns the full extended value type of the global type.
+WASMEDGE_CAPI_EXPORT WasmEdge_FullValType
+WasmEdge_GlobalTypeGetFullValType(const WasmEdge_GlobalTypeContext *Cxt);
+
 /// Get the mutability from a global type.
 ///
 /// \param Cxt the WasmEdge_GlobalTypeContext.

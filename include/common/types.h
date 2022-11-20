@@ -96,14 +96,14 @@ struct BlockType {
   };
   TypeEnum TypeFlag;
   union {
-    ValType Type;
+    FullValType Type;
     uint32_t Idx;
   } Data;
   BlockType() = default;
-  BlockType(ValType VType) { setData(VType); }
+  BlockType(FullValType VType) { setData(VType); }
   BlockType(uint32_t Idx) { setData(Idx); }
   void setEmpty() { TypeFlag = TypeEnum::Empty; }
-  void setData(ValType VType) {
+  void setData(FullValType VType) {
     TypeFlag = TypeEnum::ValType;
     Data.Type = VType;
   }
@@ -254,8 +254,8 @@ template <> inline FullValType ValTypeFromType<ExternRef>() noexcept {
 
 // >>>>>>>> Const expression to generate value from value type >>>>>>>>>>>>>>>>>
 
-inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
-  switch (Type) {
+inline ValVariant ValueFromType(FullValType Type) noexcept {
+  switch (Type.getTypeCode()) {
   case ValType::I32:
     return uint32_t(0U);
   case ValType::I64:

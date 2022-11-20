@@ -67,7 +67,6 @@ class FullRefType {
 public:
   FullRefType() = default;
   FullRefType(const RefType TypeCode) : TypeCode(TypeCode) {}
-  void setTypeCode(const RefType TypeCode) { this->TypeCode = TypeCode; }
   RefType getTypeCode() const { return TypeCode; }
   WasmEdge_ValTypeExt getExt() const { return Ext; }
 
@@ -103,11 +102,18 @@ public:
   }
   FullValType(const WasmEdge_FullValType VType)
       : TypeCode(static_cast<ValType>(VType.TypeCode)), Ext(VType.Ext) {}
-  FullValType(const FullRefType VType)
-      : TypeCode(static_cast<ValType>(VType.getTypeCode())),
-        Ext(VType.getExt()) {}
-
-  void setTypeCode(const ValType TypeCode) { this->TypeCode = TypeCode; }
+  FullValType(const FullRefType VType) : Ext(VType.getExt()) {
+    switch (VType.getTypeCode()) {
+    case RefType::ExternRef: {
+      TypeCode = ValType::ExternRef;
+      break;
+    }
+    case RefType::FuncRef: {
+      TypeCode = ValType::FuncRef;
+      break;
+    }
+    }
+  }
   ValType getTypeCode() const { return TypeCode; }
   WasmEdge_FullValType asCStruct() const {
     return WasmEdge_FullValType{

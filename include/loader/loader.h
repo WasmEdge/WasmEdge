@@ -199,9 +199,9 @@ private:
   Expect<void> loadDesc(AST::ImportDesc &ImpDesc);
   Expect<void> loadDesc(AST::ExportDesc &ExpDesc);
   Expect<void> loadLimit(AST::Limit &Lim);
+  Expect<FullValType> loadFullValType();
+  Expect<FullRefType> loadFullRefType();
   Expect<void> loadType(AST::FunctionType &FuncType);
-  Expect<void> loadType(FullValType &FullValType);
-  Expect<void> loadType(FullRefType &FullRefType);
   Expect<void> loadType(AST::MemoryType &MemType);
   Expect<void> loadType(AST::TableType &TabType);
   Expect<void> loadType(AST::GlobalType &GlobType);

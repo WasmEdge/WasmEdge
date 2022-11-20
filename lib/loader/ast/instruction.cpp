@@ -205,7 +205,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
         if (TypeByte == 0x40) {
           Instr.setEmptyBlockType();
         } else {
-          ValType VType = static_cast<ValType>(TypeByte);
+          FullValType VType = static_cast<ValType>(TypeByte);
           if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
                                                  ASTNodeAttr::Instruction);
               unlikely(!Check)) {
@@ -280,17 +280,11 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    if (auto Res = FMgr.readByte(); unlikely(!Res)) {
+    if (auto Res = loadFullRefType()) {
+      Instr.setRefType(*Res);
+    } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
-    } else {
-      Instr.setRefType(static_cast<RefType>(*Res));
-      if (auto Check =
-              checkRefTypeProposals(Instr.getRefType(), FMgr.getLastOffset(),
-                                    ASTNodeAttr::Instruction);
-          unlikely(!Check)) {
-        return Unexpect(Check);
-      }
     }
     return {};
   case OpCode::Ref__is_null:
@@ -314,19 +308,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     }
     Instr.setValTypeListSize(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
-      ValType VType;
-      if (auto T = FMgr.readByte(); unlikely(!T)) {
-        return logLoadError(T.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::Instruction);
+      if (auto Res = loadFullValType()) {
+        Instr.getValTypeList()[I] = *Res;
       } else {
-        VType = static_cast<ValType>(*T);
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::Instruction);
       }
-      if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
-                                             ASTNodeAttr::Instruction);
-          unlikely(!Check)) {
-        return Unexpect(Check);
-      }
-      Instr.getValTypeList()[I] = VType;
     }
     return {};
   }

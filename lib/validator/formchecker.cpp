@@ -108,7 +108,7 @@ void FormChecker::addElem(const AST::ElementSegment &Elem) {
 
 void FormChecker::addRef(const uint32_t FuncIdx) { Refs.emplace(FuncIdx); }
 
-void FormChecker::addLocal(const ValType &V) { Locals.push_back(V); }
+void FormChecker::addLocal(const FullValType &V) { Locals.push_back(V); }
 
 void FormChecker::addLocal(const VType &V) { Locals.push_back(V); }
 

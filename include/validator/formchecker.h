@@ -68,7 +68,7 @@ public:
   void addElem(const AST::ElementSegment &Elem);
   void addData(const AST::DataSegment &Data);
   void addRef(const uint32_t FuncIdx);
-  void addLocal(const ValType &V);
+  void addLocal(const FullValType &V);
   void addLocal(const VType &V);
 
   std::vector<VType> result() { return ValStack; }

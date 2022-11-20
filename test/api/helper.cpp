@@ -69,7 +69,7 @@ convFromValVec(const std::vector<ValVariant> &Vals,
     WasmEdge::uint128_t Val = Vals[I].get<WasmEdge::uint128_t>();
     CVals[I] = WasmEdge_Value{
         .Value = {.Low = Val.low(), .High = static_cast<uint64_t>(Val.high())},
-        .Type = static_cast<WasmEdge_ValType>(Types[I])};
+        .Type = Types[I].asCStruct()};
 #endif
   }
   return CVals;

@@ -479,7 +479,8 @@ static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
 }
 
 static std::vector<llvm::Type *>
-toLLVMTypeVector(llvm::LLVMContext &LLContext, Span<const FullValType> ValTypes) {
+toLLVMTypeVector(llvm::LLVMContext &LLContext,
+                 Span<const FullValType> ValTypes) {
   std::vector<llvm::Type *> Result;
   Result.reserve(ValTypes.size());
   for (const auto &Type : ValTypes) {
@@ -488,8 +489,9 @@ toLLVMTypeVector(llvm::LLVMContext &LLContext, Span<const FullValType> ValTypes)
   return Result;
 }
 
-static std::vector<llvm::Type *> toLLVMArgsType(llvm::PointerType *ExecCtxPtrTy,
-                                                Span<const FullValType> ValTypes) {
+static std::vector<llvm::Type *>
+toLLVMArgsType(llvm::PointerType *ExecCtxPtrTy,
+               Span<const FullValType> ValTypes) {
   auto Result = toLLVMTypeVector(ExecCtxPtrTy->getContext(), ValTypes);
   Result.insert(Result.begin(), ExecCtxPtrTy);
   return Result;
@@ -596,8 +598,9 @@ public:
     return BB;
   }
 
-  void compile(const AST::CodeSegment &Code,
-               std::pair<std::vector<FullValType>, std::vector<FullValType>> Type) {
+  void
+  compile(const AST::CodeSegment &Code,
+          std::pair<std::vector<FullValType>, std::vector<FullValType>> Type) {
     auto *RetBB = llvm::BasicBlock::Create(LLContext, "ret", F);
     Type.first.clear();
     enterBlock(RetBB, nullptr, nullptr, {}, std::move(Type));

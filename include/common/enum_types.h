@@ -27,8 +27,8 @@ enum WasmEdge_ValType {
 union WasmEdge_ValTypeExt {};
 
 typedef struct WasmEdge_FullValType {
-    enum WasmEdge_ValType TypeCode;
-    union WasmEdge_ValTypeExt Ext;
+  enum WasmEdge_ValType TypeCode;
+  union WasmEdge_ValTypeExt Ext;
 } WasmEdge_FullValType;
 
 /// WASM Number type C enumeration.

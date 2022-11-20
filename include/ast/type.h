@@ -178,7 +178,8 @@ class GlobalType {
 public:
   /// Constructors.
   GlobalType() noexcept : Type(ValType::I32), Mut(ValMut::Const) {}
-  GlobalType(FullValType VType, ValMut VMut) noexcept : Type(VType), Mut(VMut) {}
+  GlobalType(FullValType VType, ValMut VMut) noexcept
+      : Type(VType), Mut(VMut) {}
 
   /// `==` and `!=` operator overloadings.
   friend bool operator==(const GlobalType &LHS,

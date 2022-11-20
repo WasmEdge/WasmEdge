@@ -113,9 +113,9 @@ private:
     return Unexpect(Code);
   }
   Expect<FullValType> checkValTypeProposals(FullValType VType, uint64_t Off,
-                                        ASTNodeAttr Node) const noexcept;
+                                            ASTNodeAttr Node) const noexcept;
   Expect<FullRefType> checkRefTypeProposals(FullRefType RType, uint64_t Off,
-                                        ASTNodeAttr Node) const noexcept;
+                                            ASTNodeAttr Node) const noexcept;
   Expect<void> checkInstrProposals(OpCode Code, uint64_t Offset) const noexcept;
   /// @}
 

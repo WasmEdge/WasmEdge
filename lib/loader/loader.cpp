@@ -172,9 +172,11 @@ Loader::parseModule(Span<const uint8_t> Code) {
 }
 
 // Helper function of checking the valid value types.
-Expect<FullValType> Loader::checkValTypeProposals(FullValType VType, uint64_t Off,
-                                              ASTNodeAttr Node) const noexcept {
-  if (VType.getTypeCode() == ValType::V128 && !Conf.hasProposal(Proposal::SIMD)) {
+Expect<FullValType>
+Loader::checkValTypeProposals(FullValType VType, uint64_t Off,
+                              ASTNodeAttr Node) const noexcept {
+  if (VType.getTypeCode() == ValType::V128 &&
+      !Conf.hasProposal(Proposal::SIMD)) {
     return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::SIMD,
                            Off, Node);
   }
@@ -201,8 +203,9 @@ Expect<FullValType> Loader::checkValTypeProposals(FullValType VType, uint64_t Of
 }
 
 // Helper function of checking the valid reference types.
-Expect<FullRefType> Loader::checkRefTypeProposals(FullRefType RType, uint64_t Off,
-                                              ASTNodeAttr Node) const noexcept {
+Expect<FullRefType>
+Loader::checkRefTypeProposals(FullRefType RType, uint64_t Off,
+                              ASTNodeAttr Node) const noexcept {
   switch (RType.getTypeCode()) {
   case RefType::ExternRef:
     if (!Conf.hasProposal(Proposal::ReferenceTypes)) {

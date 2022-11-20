@@ -125,9 +125,9 @@ pub struct WasmValue {
 impl std::fmt::Debug for ffi::WasmEdge_Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WasmEdge_Value")
-        .field("value", &self.Value)
-        .field("type", &self.Type.TypeCode)
-        .finish()
+            .field("value", &self.Value)
+            .field("type", &self.Type.TypeCode)
+            .finish()
     }
 }
 

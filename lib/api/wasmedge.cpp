@@ -1174,6 +1174,7 @@ WasmEdge_GlobalTypeGetFullValType(const WasmEdge_GlobalTypeContext *Cxt) {
   }
   return WasmEdge_FullValType{
       .TypeCode = WasmEdge_ValType_I32,
+      .Ext = WasmEdge_ValTypeExt(),
   };
 }
 

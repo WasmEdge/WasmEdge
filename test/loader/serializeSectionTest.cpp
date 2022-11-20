@@ -45,7 +45,9 @@ TEST(SerializeSectionTest, SerializeTypeSection) {
   FT3.getParamTypes() = {};
   FT3.getReturnTypes() = {Type};
 
-  TypeSec.getContent() = {FT1, FT2, FT3};
+  TypeSec.getContent().push_back(FT1);
+  TypeSec.getContent().push_back(FT2);
+  TypeSec.getContent().push_back(FT3);
 
   std::vector<uint8_t> Output = Ser.serializeTypeSection(TypeSec);
   std::vector<uint8_t> Expected = {
@@ -88,7 +90,9 @@ TEST(SerializeSectionTest, SerializeImportSection) {
   ID3.getExternalGlobalType().setValMut(valmut);
 
   WasmEdge::AST::ImportSection ImpSec;
-  ImpSec.getContent() = {ID1, ID2, ID3};
+  ImpSec.getContent().push_back(ID1);
+  ImpSec.getContent().push_back(ID2);
+  ImpSec.getContent().push_back(ID3);
 
   std::vector<uint8_t> Output = Ser.serializeImportSection(ImpSec);
   std::vector<uint8_t> Expected = {
@@ -141,7 +145,8 @@ TEST(SerializeSectionTest, SerializeTableSection) {
   TT2.getLimit().setMax(0);
   TT2.getLimit().setMax(14);
 
-  TableSec.getContent() = {TT1, TT2};
+  TableSec.getContent().push_back(TT1);
+  TableSec.getContent().push_back(TT2);
 
   std::vector<uint8_t> Output = Ser.serializeTableSection(TableSec);
 
@@ -169,7 +174,9 @@ TEST(SerializeSectionTest, SerializeMemorySection) {
   MT3.getLimit().setMin(0x00U);
   MT3.getLimit().setMax(0x0D);
 
-  MemSec.getContent() = {MT1, MT2, MT3};
+  MemSec.getContent().push_back(MT1);
+  MemSec.getContent().push_back(MT2);
+  MemSec.getContent().push_back(MT3);
 
   std::vector<uint8_t> Output = Ser.serializeMemorySection(MemSec);
 
@@ -198,7 +205,8 @@ TEST(SerializeSectionTest, SerializeExportSection) {
   ED2.setExternalName("Loader");
   ED2.setExternalIndex(30);
 
-  ExpSec.getContent() = {ED1, ED2};
+  ExpSec.getContent().push_back(ED1);
+  ExpSec.getContent().push_back(ED2);
 
   std::vector<uint8_t> Output = Ser.serializeExportSection(ExpSec);
   std::vector<uint8_t> Expected = {

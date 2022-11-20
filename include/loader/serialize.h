@@ -10,9 +10,7 @@ namespace Serialize {
 
 class Serialize {
 public:
-  // Serialize Module
-  // std::vector<uint8_t> serializeModule(const AST::Module &Mod);
-
+  
   // Serialize Types
   std::vector<uint8_t> serializeFunctionType(AST::FunctionType &FuncType);
   std::vector<uint8_t> serializeTableType(AST::TableType &TabType);

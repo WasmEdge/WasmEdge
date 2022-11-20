@@ -122,7 +122,7 @@ std::vector<uint8_t> serializeSectionContent(T Sec, B Byte, L Func) {
   return {};
 }
 
-// // serialize Module
+// serialize Module
 // std::vector<uint8_t> Serialize::serializeModule(const AST::Module &Mod) {
 
 //   std::vector<uint8_t> serializedModule;
@@ -156,10 +156,10 @@ std::vector<uint8_t> serializeSectionContent(T Sec, B Byte, L Func) {
 //   serializedModule.insert(serializedModule.end(), serializedMemory.begin(),
 //                           serializedMemory.end());
 
-//   // std::vector<uint8_t> serializedGlobal =
-//   //     serializeGlobalSection(Mod.getGlobalSection());
-//   // serializedModule.insert(serializedModule.end(), serializedGlobal.begin(),
-//   //                         serializedGlobal.end());
+//   std::vector<uint8_t> serializedGlobal =
+//       serializeGlobalSection(Mod.getGlobalSection());
+//   serializedModule.insert(serializedModule.end(), serializedGlobal.begin(),
+//                           serializedGlobal.end());
 
 //   std::vector<uint8_t> serializedExport =
 //       serializeExportSection(Mod.getExportSection());
@@ -171,20 +171,20 @@ std::vector<uint8_t> serializeSectionContent(T Sec, B Byte, L Func) {
 //   serializedModule.insert(serializedModule.end(), serializedStart.begin(),
 //                           serializedStart.end());
 
-//   // std::vector<uint8_t> serializedElement =
-//   //     serializeElementSection(Mod.getElementSection());
-//   // serializedModule.insert(serializedModule.end(), serializedElement.begin(),
-//   //                         serializedElement.end());
+//   std::vector<uint8_t> serializedElement =
+//       serializeElementSection(Mod.getElementSection());
+//   serializedModule.insert(serializedModule.end(), serializedElement.begin(),
+//                           serializedElement.end());
 
-//   // std::vector<uint8_t> serializedCode =
-//   //     serializeCodeSection(Mod.getCodeSection());
-//   // serializedModule.insert(serializedModule.end(), serializedCode.begin(),
-//   //                         serializedCode.end());
+//   std::vector<uint8_t> serializedCode =
+//       serializeCodeSection(Mod.getCodeSection());
+//   serializedModule.insert(serializedModule.end(), serializedCode.begin(),
+//                           serializedCode.end());
 
-//   // std::vector<uint8_t> serializedData =
-//   //     serializeDataSection(Mod.getDataSection());
-//   // serializedModule.insert(serializedModule.end(), serializedData.begin(),
-//   //                         serializedData.end());
+//   std::vector<uint8_t> serializedData =
+//       serializeDataSection(Mod.getDataSection());
+//   serializedModule.insert(serializedModule.end(), serializedData.begin(),
+//                           serializedData.end());
 
 //   std::vector<uint8_t> serializedDataCount =
 //       serializeDataCountSection(Mod.getDataCountSection());

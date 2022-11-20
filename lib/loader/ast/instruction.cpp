@@ -205,10 +205,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
         if (TypeByte == 0x40) {
           Instr.setEmptyBlockType();
         } else {
-          if (auto Res = loadFullValType(TypeByte)) {
-            Instr.setBlockType(*Res);
+          if (auto TypeRes = loadFullValType(TypeByte)) {
+            Instr.setBlockType(*TypeRes);
           } else {
-            return logLoadError(Res.error(), FMgr.getLastOffset(),
+            return logLoadError(TypeRes.error(), FMgr.getLastOffset(),
                                 ASTNodeAttr::Instruction);
           }
         }

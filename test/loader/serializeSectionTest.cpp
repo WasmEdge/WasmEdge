@@ -23,7 +23,7 @@ TEST(SerializeSectionTest, SerializeCustomSection) {
       0x0BU,                            // Content size = 11
       0x04U,                            // Name length = 4
       0x6EU, 0x61U, 0x6D,  0x65,        // Name
-      0x05U,                            // Vec size
+      0x05U,                            // Vec size = 5
       0x01U, 0x02U, 0x03U, 0x04U, 0x05U // Vec content
   };
   EXPECT_EQ(Output, Expected);
@@ -124,8 +124,8 @@ TEST(SerializeSectionTest, SerializeFunctionSection) {
 
   std::vector<uint8_t> Expected = {
       0x03U,                     // section ID
-      0x05U,                     // Content size = 6
-      0x04U,                     // Vector length = 5
+      0x05U,                     // Content size = 5
+      0x04U,                     // Vector length = 4
       0x01U, 0x02U, 0x01U, 0x01U // vec[0]
   };
   EXPECT_EQ(Output, Expected);
@@ -188,6 +188,7 @@ TEST(SerializeSectionTest, SerializeMemorySection) {
       0x01U, 0x00U, 0x0EU, // vec[1]
       0x01U, 0x00U, 0x0DU  // vec[2]
   };
+  EXPECT_EQ(Output, Expected);
 }
 
 TEST(SerializeSectionTest, SerializeExportSection) {
@@ -211,16 +212,16 @@ TEST(SerializeSectionTest, SerializeExportSection) {
   std::vector<uint8_t> Output = Ser.serializeExportSection(ExpSec);
   std::vector<uint8_t> Expected = {
       0x07U, // section ID
-      0x13U, // Content size = 40
+      0x14U, // Content size = 20
       0x02U, // Vector length = 2
       // vec[0]
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // ExtName: Loader
-      0x00U, 0x91U,                                    // function type
+      0x00U, 0x91U, 0x01U,                             // function type
       // vec[1]
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // ExtName: Loader
       0x01U, 0x1EU                                     // Table type
   };
-  //   EXPECT_EQ(Output, Expected);
+  EXPECT_EQ(Output, Expected);
 }
 
 TEST(SerializeSectionTest, SerializeStartSection) {

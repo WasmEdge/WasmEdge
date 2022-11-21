@@ -48,15 +48,10 @@ OutIterator encodeRange(RangeIterator F, RangeIterator L, OutIterator OutItr,
     auto const *Bytes = reinterpret_cast<uint8_t const *>(std::addressof(*F));
     return std::copy(Bytes, Bytes + NoOfElements * sizeof(Val), OutItr);
 
-  } else if (encodeRangeTypeFlag == 1) {
+  } else {
     // size:u32, bytes
     auto const *Bytes = reinterpret_cast<uint8_t const *>(std::addressof(*F));
     return std::copy(Bytes, Bytes + NoOfElements * sizeof(Val),
-                     encodeLEB128(NoOfElements, OutItr));
-  } else {
-    // size:u32, bytes
-    auto const *Bytes = reinterpret_cast<uint32_t const *>(std::addressof(*F));
-    return std::copy(Bytes, Bytes + NoOfElements,
                      encodeLEB128(NoOfElements, OutItr));
   }
 }
@@ -68,15 +63,10 @@ OutIterator encodeRange(R const &Range, OutIterator outItr,
                      encodeRangeTypeFlag);
 }
 
-template <typename R> size_t rangeLen(R const &Range, int RangeLenTypeFlag) {
+template <typename R> size_t rangeLen(R const &Range) {
   using Val = decltype(*std::begin(Range));
   size_t NoOfElements = Range.size();
-  if (RangeLenTypeFlag == 1 || RangeLenTypeFlag == 0) {
-    return leb128Len(NoOfElements) + NoOfElements * sizeof(Val);
-
-  } else {
-    return leb128Len(NoOfElements) + NoOfElements;
-  }
+  return leb128Len(NoOfElements) + NoOfElements * sizeof(Val);
 }
 
 std::vector<uint8_t> encodeU32(uint32_t Num) {
@@ -127,7 +117,7 @@ std::vector<uint8_t>
 Serialize::serializeCustomSection(AST::CustomSection &CustomSec) {
   std::string_view Name = CustomSec.getName();
   std::vector<uint8_t> Content = CustomSec.getContent();
-  auto const ContentSize = rangeLen(Name, 1) + rangeLen(Content, 1);
+  auto const ContentSize = rangeLen(Name) + rangeLen(Content);
 
   std::vector<uint8_t> SerializeSection(1 + leb128Len(ContentSize) +
                                         ContentSize);
@@ -162,8 +152,16 @@ Serialize::serializeImportSection(AST::ImportSection &ImportSec) {
 std::vector<uint8_t>
 Serialize::serializeFunctionSection(AST::FunctionSection &FunctionSec) {
   if (FunctionSec.getContent().size()) {
-    std::vector<uint32_t> Section = FunctionSec.getContent();
-    auto SectionSize = rangeLen(Section, 3);
+    std::vector<uint32_t> Content = FunctionSec.getContent();
+    std::vector<uint8_t> Section;
+
+    for (uint32_t TypeIdx : Content) {
+      std::vector<uint8_t> encodedTypeIdx = encodeU32(TypeIdx);
+      Section.insert(Section.end(), encodedTypeIdx.begin(),
+                     encodedTypeIdx.end());
+    }
+
+    auto SectionSize = rangeLen(Section);
     std::vector<uint8_t> SerializeSection(1 + leb128Len(SectionSize) +
                                           SectionSize);
     std::vector<uint8_t>::iterator Iterator = SerializeSection.begin();
@@ -171,7 +169,7 @@ Serialize::serializeFunctionSection(AST::FunctionSection &FunctionSec) {
     // U32 size of the contents in bytes
     Iterator = encodeLEB128(SectionSize, Iterator);
     // Connect the section content.
-    Iterator = encodeRange(Section, Iterator, 3);
+    Iterator = encodeRange(Section, Iterator, 1);
     return SerializeSection;
   } else {
     return {};

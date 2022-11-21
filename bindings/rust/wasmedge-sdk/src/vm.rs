@@ -315,15 +315,15 @@ impl Vm {
         match mod_name {
             Some(mod_name) => {
                 // run a function in the registered module
-                let fut =
-                    self.inner
-                        .run_registered_function_async(mod_name, func_name.as_ref(), args);
-                return fut.await;
+                self.inner
+                    .run_registered_function_async(mod_name, func_name.as_ref(), args)
+                    .await
             }
             None => {
                 // run a function in the active module
-                let fut = self.inner.run_function_async(func_name.as_ref(), args);
-                return fut.await;
+                self.inner
+                    .run_function_async(func_name.as_ref(), args)
+                    .await
             }
         }
     }

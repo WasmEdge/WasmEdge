@@ -1278,7 +1278,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32, !>("add", real_add, None)
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -1547,7 +1547,6 @@ mod tests {
     fn real_add(
         _frame: CallingFrame,
         inputs: Vec<WasmValue>,
-        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

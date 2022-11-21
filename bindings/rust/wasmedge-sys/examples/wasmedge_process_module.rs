@@ -1,7 +1,5 @@
 //! Please set the environment variable `WASMEDGE_PLUGIN_PATH` to the directory containing the plugins to enable the wasmedge-process plugin.
 
-#![feature(never_type)]
-
 #[cfg(target_os = "linux")]
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::utils;

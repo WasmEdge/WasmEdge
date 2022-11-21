@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // create a host function
         let async_host_func = Function::create_async(
             &func_ty,
-            |_frame, _input, _data| {
+            |_frame, _input| {
                 Box::new(async {
                     println!("Hello, world!");
                     tokio::time::sleep(std::time::Duration::from_secs(1)).await;

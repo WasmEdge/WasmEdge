@@ -33,7 +33,6 @@ use wasmedge_types::{error::HostFuncError, ValType};
 async fn real_add(
     _frame: CallingFrame,
     input: Vec<WasmValue>,
-    // _data: *mut c_void,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 

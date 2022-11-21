@@ -1,5 +1,3 @@
-#![feature(never_type)]
-
 #[cfg(target_os = "linux")]
 use wasmedge_macro::sys_host_function;
 #[cfg(target_os = "linux")]

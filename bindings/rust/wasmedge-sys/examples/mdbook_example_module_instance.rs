@@ -84,7 +84,7 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
 
         // add host function
         let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32])?;
-        let host_func = Function::create::<!>(&func_ty, Box::new(real_add), None, 0)?;
+        let host_func = Function::create(&func_ty, Box::new(real_add), 0)?;
         import.add_func("add", host_func);
 
         // add table

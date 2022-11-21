@@ -647,7 +647,7 @@ mod tests {
         PluginManager::load_from_default_paths();
 
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32, !>("add", real_add, None)
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host func")
             .build_as_wasmedge_process(None, false);
         assert!(result.is_ok());

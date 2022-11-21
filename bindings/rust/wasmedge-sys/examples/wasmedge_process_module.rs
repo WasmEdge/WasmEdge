@@ -116,7 +116,7 @@ fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error:
 
     // add host function
     let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32])?;
-    let host_func = Function::create::<!>(&func_ty, Box::new(real_add), None, 0)?;
+    let host_func = Function::create(&func_ty, Box::new(real_add), 0)?;
     import_process.add_func("add", host_func);
 
     // register the WasmEdgeProcess module

@@ -57,7 +57,7 @@ impl Compiler {
                 Some("wat") => {
                     let bytes = wat::parse_file(wasm_file.as_ref())
                         .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
-                    self.compile_from_bytes(&bytes, aot_file)
+                    self.compile_from_bytes(bytes, aot_file)
                 }
                 _ => Err(Box::new(WasmEdgeError::Operation(
                     "The wasm file's extension should be `wasm` or `wat`".into(),

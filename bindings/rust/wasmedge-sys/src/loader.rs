@@ -63,13 +63,13 @@ impl Loader {
                 #[cfg(target_os = "macos")]
                 Some("dylib") => self.load_from_wasm_or_aot_file(&file),
                 #[cfg(target_os = "linux")]
-                Some("so") => self.from_wasm_or_aot_file(&file),
+                Some("so") => self.load_from_wasm_or_aot_file(&file),
                 #[cfg(target_os = "windows")]
-                Some("dll") => self.from_wasm_or_aot_file(&file),
+                Some("dll") => self.load_from_wasm_or_aot_file(&file),
                 Some("wat") => {
                     let bytes = wat::parse_file(file.as_ref())
                         .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
-                    self.from_bytes(&bytes)
+                    self.from_bytes(bytes)
                 }
                 _ => Err(Box::new(WasmEdgeError::Operation(
                     "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),

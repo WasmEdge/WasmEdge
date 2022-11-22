@@ -131,45 +131,9 @@ impl Vm {
         mod_name: impl AsRef<str>,
         file: impl AsRef<Path>,
     ) -> WasmEdgeResult<Self> {
-        match file.as_ref().extension() {
-            Some(extension) => match extension.to_str() {
-                Some("wasm") => {
-                    self.inner
-                        .register_wasm_from_file(mod_name, file.as_ref())?;
-                    Ok(self)
-                }
-                #[cfg(target_os = "macos")]
-                Some("dylib") => {
-                    self.inner
-                        .register_wasm_from_file(mod_name, file.as_ref())?;
-                    Ok(self)
-                }
-                #[cfg(target_os = "linux")]
-                Some("so") => {
-                    self.inner
-                        .register_wasm_from_file(mod_name, file.as_ref())?;
-                    Ok(self)
-                }
-                #[cfg(target_os = "windows")]
-                Some("dll") => {
-                    self.inner
-                        .register_wasm_from_file(mod_name, file.as_ref())?;
-                    Ok(self)
-                }
-                Some("wat") => {
-                    let bytes = wat::parse_file(file.as_ref())
-                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
-                    self.inner.register_wasm_from_bytes(mod_name, &bytes)?;
-                    Ok(self)
-                }
-                _ => Err(Box::new(WasmEdgeError::Operation(
-                    "Invalid file extension".into(),
-                ))),
-            },
-            None => Err(Box::new(WasmEdgeError::Operation(
-                "Invalid file extension".into(),
-            ))),
-        }
+        self.inner
+            .register_wasm_from_file(mod_name, file.as_ref())?;
+        Ok(self)
     }
 
     /// Registers a WASM module from then given in-memory wasm bytes into the [Vm], and instantiates it.

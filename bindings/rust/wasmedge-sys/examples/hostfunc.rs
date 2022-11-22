@@ -17,8 +17,6 @@
 //! cargo run --example hostfunc -- --nocapture
 //! ```
 
-#![feature(never_type)]
-
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Loader, Vm,
@@ -63,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     assert!(result.is_ok());
     let func_ty = result.unwrap();
-    let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
+    let result = Function::create(&func_ty, Box::new(real_add), 0);
     assert!(result.is_ok());
     let host_func = result.unwrap();
 

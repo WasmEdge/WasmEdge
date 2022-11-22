@@ -5,7 +5,6 @@
 // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 // #![feature(explicit_generic_args_with_impl_trait)]
 #![allow(clippy::vec_init_then_push)]
-#![feature(never_type)]
 
 //! # Overview
 //!
@@ -76,7 +75,6 @@
 //!  ```rust
 //!  // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 //!  // #![feature(explicit_generic_args_with_impl_trait)]
-//!  #![feature(never_type)]
 //!
 //!  use wasmedge_sdk::{Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Store, error::HostFuncError, WasmValue, wat2wasm, Caller, host_function};
 //!  
@@ -111,7 +109,7 @@
 //!  
 //!      // create an import module
 //!      let import = ImportObjectBuilder::new()
-//!          .with_func::<(), (), !>("say_hello", Box::new(say_hello_world), None)?
+//!          .with_func::<(), ()>("say_hello", Box::new(say_hello_world))?
 //!          .build("env")?;
 //!  
 //!      // loads a wasm module from the given in-memory bytes

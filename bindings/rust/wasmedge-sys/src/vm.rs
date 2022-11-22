@@ -94,7 +94,7 @@ impl Vm {
     ///
     /// * `mod_name` - The name for the WASM module to be registered.
     ///
-    /// * `path` - The file path to the target WASM file.
+    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
     ///
     /// # Error
     ///
@@ -102,9 +102,38 @@ impl Vm {
     pub fn register_wasm_from_file(
         &self,
         mod_name: impl AsRef<str>,
-        path: impl AsRef<Path>,
+        file: impl AsRef<Path>,
     ) -> WasmEdgeResult<()> {
-        let path = utils::path_to_cstring(path.as_ref())?;
+        match file.as_ref().extension() {
+            Some(extension) => match extension.to_str() {
+                Some("wasm") => self.register_from_wasm_or_aot_file(mod_name, file),
+                #[cfg(target_os = "macos")]
+                Some("dylib") => self.register_from_wasm_or_aot_file(mod_name, file),
+                #[cfg(target_os = "linux")]
+                Some("so") => self.register_from_wasm_or_aot_file(mod_name, file),
+                #[cfg(target_os = "windows")]
+                Some("dll") => self.register_from_wasm_or_aot_file(mod_name, file),
+                Some("wat") => {
+                    let bytes = wat::parse_file(file.as_ref())
+                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
+                    self.register_wasm_from_bytes(mod_name, &bytes)
+                }
+                _ => Err(Box::new(WasmEdgeError::Operation(
+                    "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
+                ))),
+            },
+            None => Err(Box::new(WasmEdgeError::Operation(
+                "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
+            ))),
+        }
+    }
+
+    fn register_from_wasm_or_aot_file(
+        &self,
+        mod_name: impl AsRef<str>,
+        file: impl AsRef<Path>,
+    ) -> WasmEdgeResult<()> {
+        let path = utils::path_to_cstring(file.as_ref())?;
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
             check(ffi::WasmEdge_VMRegisterModuleFromFile(
@@ -301,7 +330,7 @@ impl Vm {
     ///
     /// # Arguments
     ///
-    /// * `path` - The file path to a WASM file.
+    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
     ///
     /// * `func_name` - The name of the [function](crate::Function).
     ///
@@ -312,12 +341,12 @@ impl Vm {
     /// If fail to run, then an error is returned.
     pub fn run_wasm_from_file(
         &self,
-        path: impl AsRef<Path>,
+        file: impl AsRef<Path>,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         // load
-        self.load_wasm_from_file(path)?;
+        self.load_wasm_from_file(file)?;
 
         // validate
         self.validate()?;
@@ -333,7 +362,7 @@ impl Vm {
     ///
     /// # Arguments
     ///
-    /// * `path` - The file path to a WASM file.
+    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
     ///
     /// * `func_name` - The name of the [function](crate::Function).
     ///
@@ -345,12 +374,12 @@ impl Vm {
     #[cfg(feature = "async")]
     pub async fn run_wasm_from_file_async(
         &self,
-        path: impl AsRef<Path>,
+        file: impl AsRef<Path>,
         func_name: impl AsRef<str> + Send,
         params: impl IntoIterator<Item = WasmValue> + Send,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         // load
-        self.load_wasm_from_file(path)?;
+        self.load_wasm_from_file(file)?;
 
         // validate
         self.validate()?;
@@ -553,12 +582,37 @@ impl Vm {
     ///
     /// # Argument
     ///
-    /// * `path` - The path to a WASM file.
+    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
     ///
     /// # Error
     ///
     /// If fail to load, then an error is returned.  The loaded module is not validated.
-    pub fn load_wasm_from_file(&self, path: impl AsRef<Path>) -> WasmEdgeResult<()> {
+    pub fn load_wasm_from_file(&self, file: impl AsRef<Path>) -> WasmEdgeResult<()> {
+        match file.as_ref().extension() {
+            Some(extension) => match extension.to_str() {
+                Some("wasm") => self.load_from_wasm_or_aot_file(&file),
+                #[cfg(target_os = "macos")]
+                Some("dylib") => self.load_from_wasm_or_aot_file(&file),
+                #[cfg(target_os = "linux")]
+                Some("so") => self.load_from_wasm_or_aot_file(&file),
+                #[cfg(target_os = "windows")]
+                Some("dll") => self.load_from_wasm_or_aot_file(&file),
+                Some("wat") => {
+                    let bytes = wat::parse_file(file.as_ref())
+                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
+                    self.load_wasm_from_bytes(&bytes)
+                }
+                _ => Err(Box::new(WasmEdgeError::Operation(
+                    "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
+                ))),
+            },
+            None => Err(Box::new(WasmEdgeError::Operation(
+                "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
+            ))),
+        }
+    }
+
+    fn load_from_wasm_or_aot_file(&self, path: impl AsRef<Path>) -> WasmEdgeResult<()> {
         let path = utils::path_to_cstring(path.as_ref())?;
         unsafe {
             check(ffi::WasmEdge_VMLoadWasmFromFile(
@@ -1271,7 +1325,7 @@ mod tests {
         assert!(result.is_ok());
 
         // load a wasm module from a non-existent file
-        let result = vm.load_wasm_from_file("no_file");
+        let result = vm.load_wasm_from_file("no_file.wasm");
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1586,7 +1640,7 @@ mod tests {
         let vm = result.unwrap();
 
         // register a wasm module from a non-existed file
-        let result = vm.register_wasm_from_file("reg-wasm-file", "no_file");
+        let result = vm.register_wasm_from_file("reg-wasm-file", "no_file.wasm");
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1820,14 +1874,14 @@ mod tests {
 
         // run a function from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
         let result = vm.run_wasm_from_file(&path, "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 8);
 
         // run a function from a non-existent file
-        let result = vm.run_wasm_from_file("no_file", "fib", [WasmValue::from_i32(5)]);
+        let result = vm.run_wasm_from_file("no_file.wasm", "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),

@@ -44,7 +44,7 @@ impl Loader {
     ///
     /// # Arguments
     ///
-    /// * `file` - The path to the target WASM file.
+    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
     ///
     /// # Error
     ///
@@ -57,6 +57,31 @@ impl Loader {
     /// let module = loader.from_file(file)?;
     /// ```
     pub fn from_file(&self, file: impl AsRef<Path>) -> WasmEdgeResult<Module> {
+        match file.as_ref().extension() {
+            Some(extension) => match extension.to_str() {
+                Some("wasm") => self.load_from_wasm_or_aot_file(&file),
+                #[cfg(target_os = "macos")]
+                Some("dylib") => self.load_from_wasm_or_aot_file(&file),
+                #[cfg(target_os = "linux")]
+                Some("so") => self.from_wasm_or_aot_file(&file),
+                #[cfg(target_os = "windows")]
+                Some("dll") => self.from_wasm_or_aot_file(&file),
+                Some("wat") => {
+                    let bytes = wat::parse_file(file.as_ref())
+                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
+                    self.from_bytes(&bytes)
+                }
+                _ => Err(Box::new(WasmEdgeError::Operation(
+                    "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
+                ))),
+            },
+            None => Err(Box::new(WasmEdgeError::Operation(
+                "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
+            ))),
+        }
+    }
+
+    fn load_from_wasm_or_aot_file(&self, file: impl AsRef<Path>) -> WasmEdgeResult<Module> {
         let c_path = utils::path_to_cstring(file.as_ref())?;
         let mut mod_ctx = std::ptr::null_mut();
         unsafe {
@@ -181,19 +206,12 @@ mod tests {
             let module = result.unwrap();
             assert!(!module.inner.0.is_null());
 
-            // Not support .wat file
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
                 .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
             let result = loader.from_file(path);
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                Box::new(WasmEdgeError::Core(CoreError::Load(
-                    CoreLoadError::MalformedMagic
-                )))
-            );
+            assert!(result.is_ok());
 
-            let result = loader.from_file("not_exist_file");
+            let result = loader.from_file("not_exist_file.wasm");
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),

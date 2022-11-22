@@ -1079,7 +1079,7 @@ WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
   return {};
 }
 
-WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *, uint32_t *,
+WasiExpect<void> INode::sockGetLocalAddr(uint8_t *, uint32_t *,
                                          uint32_t *) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }

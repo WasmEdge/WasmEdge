@@ -2458,7 +2458,7 @@ Expect<uint32_t> WasiSockGetLocalAddr::body(const Runtime::CallingFrame &Frame,
   const __wasi_fd_t WasiFd = Fd;
 
   if (auto Res =
-          Env.sockGetLoaclAddr(WasiFd, AddressBuf, RoAddressType, RoPort);
+          Env.sockGetLocalAddr(WasiFd, AddressBuf, RoAddressType, RoPort);
       unlikely(!Res)) {
     return Res.error();
   }

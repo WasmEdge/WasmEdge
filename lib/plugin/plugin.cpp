@@ -404,13 +404,14 @@ const PluginModule *Plugin::findModule(std::string_view Name) const noexcept {
   return nullptr;
 }
 
-[[gnu::visibility("default")]] PluginRegister::PluginRegister(
-    const Plugin::PluginDescriptor *Desc) noexcept {
+extern "C" WASMEDGE_CAPI_PLUGIN_EXPORT
+PluginRegister::PluginRegister(const Plugin::PluginDescriptor *Desc) noexcept {
   IncreaseNiftyCounter();
   Plugin::registerPlugin(Desc);
 }
 
-[[gnu::visibility("default")]] PluginRegister::~PluginRegister() noexcept {
+extern "C" WASMEDGE_CAPI_PLUGIN_EXPORT
+    PluginRegister::~PluginRegister() noexcept {
   DecreaseNiftyCounter();
 }
 

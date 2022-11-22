@@ -11,6 +11,11 @@ target_include_directories(wasmedgePlugin
   ${PROJECT_SOURCE_DIR}/include/api
 )
 
+target_compile_options(wasmedgePlugin
+  PUBLIC
+  -DWASMEDGE_PLUGIN
+)
+
 target_link_libraries(wasmedgePlugin
   PUBLIC
   wasmedgeCommon

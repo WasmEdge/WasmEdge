@@ -277,6 +277,20 @@ jobs:
             cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
             build_type: Release
             test: true
+          - name: WASI-NN OpenVINO
+            tar_name: wasi_nn-openvino
+            backend: OpenVINO
+            system: manylinux2014 x86_64
+            host_runner: ubuntu-latest
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            test_path: test/plugins/wasi_nn
+            test_bin: wasiNNTests
+            deps_path: "utils/wasi-nn/install-openvino.sh"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO"
+            build_type: Release
+            test: true
           - name: WASI-Crypto
             tar_name: wasi_crypto
             system: manylinux2014 x86_64
@@ -333,14 +347,25 @@ jobs:
       - name: Build ${{ matrix.name }} dependency
         if: matrix.deps_path
         env:
+          OPENVINO_VERSION: "2021.4.582"
+          OPENVINO_YEAR: "2021"
           PYTORCH_VERSION: "1.8.2"
         run: |
+          yum install -y python3
           bash ${{ matrix.deps_path }}
+          if [[ "${{ matrix.name }}" == *"OpenVINO"* ]]; then
+            source /opt/intel/openvino_2021/bin/setupvars.sh
+            ldconfig
+          fi
       - name: Build ${{ matrix.name }} plugin
         shell: bash
         run: |
           if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
             export Torch_DIR=$(pwd)/libtorch
+          fi
+          if [[ "${{ matrix.name }}" == *"OpenVINO"* ]]; then
+            source /opt/intel/openvino_2021/bin/setupvars.sh
+            ldconfig
           fi
           if ${{ matrix.test }}; then
             bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja ${{ matrix.cmake_plugin_option }} -DWASMEDGE_BUILD_TESTS=ON
@@ -354,6 +379,10 @@ jobs:
       - name: Test WasmEdge ${{ matrix.name }} plugin using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         if: matrix.test
         run: |
+          if [[ "${{ matrix.name }}" == *"OpenVINO"* ]]; then
+            source /opt/intel/openvino_2021/bin/setupvars.sh
+            ldconfig
+          fi
           cd build/${{ matrix.test_path }}
           ./${{ matrix.test_bin }}
       - name: Prepare the WasmEdge ${{ matrix.name }} plugin tar.gz package
@@ -370,6 +399,28 @@ jobs:
     strategy:
       matrix:
         include:
+          - name: WASI-NN OpenVINO
+            tar_name: wasi_nn-openvino
+            backend: OpenVINO
+            host_runner: macos-11
+            darwin_version: darwin_20
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.dylib
+            test_path: test/plugins/wasi_nn
+            test_bin: wasiNNTests
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO"
+            build_type: Release
+          - name: WASI-NN OpenVINO
+            tar_name: wasi_nn-openvino
+            backend: OpenVINO
+            host_runner: macos-12
+            darwin_version: darwin_21
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.dylib
+            test_path: test/plugins/wasi_nn
+            test_bin: wasiNNTests
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO"
+            build_type: Release
           - name: WASI-Crypto
             tar_name: wasi_crypto
             system: MacOS 11
@@ -380,6 +431,7 @@ jobs:
             test_path: test/plugins/wasi_crypto
             test_bin: wasiCryptoTests
             build_type: Release
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
           - name: WASI-Crypto
             tar_name: wasi_crypto
             system: MacOS 12
@@ -390,6 +442,7 @@ jobs:
             test_path: test/plugins/wasi_crypto
             test_bin: wasiCryptoTests
             build_type: Release
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
     name: ${{ matrix.system }} WasmEdge ${{ matrix.name }} plugin with clang++ ${{ matrix.build_type }}
     runs-on: ${{ matrix.host_runner }}
     needs: [get_version_v2]
@@ -399,20 +452,26 @@ jobs:
           fetch-depth: 0
       - name: Build WasmEdge ${{ matrix.name }} plugin using clang++ with ${{ matrix.build_type }} mode
         run: |
-          brew install llvm@14 ninja boost cmake openssl@1.1
+          brew install llvm@14 ninja boost cmake 
+          if [[ "${{ matrix.name }}" == *"WASI-Crypto"* ]]; then
+            brew install openssl@1.1
+          elif [[ "${{ matrix.name }}" == *"OpenVINO"* ]]; then
+            brew install python@3.8
+          fi
           export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
           export CC=clang
           export CXX=clang++
-          mkdir -p build
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" ${{ matrix.cmake_plugin_option }} -DWASMEDGE_BUILD_TESTS=ON .
           cd build
-          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_BUILD_TESTS=ON ..
-          cd ${{ matrix.test_path }}
-          make -j
+          ninja wasmedge
       - name: Test WasmEdge ${{ matrix.name }} plugin using clang++ with ${{ matrix.build_type }} mode
         continue-on-error: true
         run: |
-          cd build/${{ matrix.test_path }}
-          ./${{ matrix.test_bin }}
+          if [[ "${{ matrix.name }}" == *"OpenVINO"* ]]; then
+            source build/_deps/wasmopenvino-src/setupvars.sh -pyver 3.8
+          fi
+          cd build
+          ninja ${{ matrix.test_bin }}
       - name: Prepare the WasmEdge ${{ matrix.name }} plugin tar.gz package
         run: |
           cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}

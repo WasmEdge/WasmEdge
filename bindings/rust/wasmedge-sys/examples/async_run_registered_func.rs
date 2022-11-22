@@ -10,6 +10,8 @@
 
 #[cfg(feature = "async")]
 use wasmedge_sys::{Config, Store, Vm, WasmValue};
+#[cfg(feature = "async")]
+use wasmedge_types::wat2wasm;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -33,12 +35,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let vm = result.unwrap();
 
         // register a wasm module from a buffer
-        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-        let result = std::fs::read(path);
-        assert!(result.is_ok());
-        let buffer = result.unwrap();
-        let result = vm.register_wasm_from_bytes("extern", &buffer);
+        let wasm_bytes = wat2wasm(
+            br#"
+        (module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )           
+    "#,
+        )?;
+        let result = vm.register_wasm_from_bytes("extern", &wasm_bytes);
         assert!(result.is_ok());
 
         // async run function

@@ -51,7 +51,7 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
 
     // compile the "module2" into AOT mode
     let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-        .join("bindings/rust/wasmedge-sys/examples/data/module2.wasm");
+        .join("bindings/rust/wasmedge-sys/examples/data/module2.wat");
     let out_path = std::path::PathBuf::from("module2-uni.wasm");
     let compiler = Compiler::create(Some(Config::create()?))?;
     compiler.compile_from_file(in_path, &out_path)?;
@@ -61,7 +61,7 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
 
     // register an active module from "module1.wasm"
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-        .join("bindings/rust/wasmedge-sys/examples/data/module1.wasm");
+        .join("bindings/rust/wasmedge-sys/examples/data/module1.wat");
     vm.load_wasm_from_file(wasm_file)?;
     vm.validate()?;
     vm.instantiate()?;

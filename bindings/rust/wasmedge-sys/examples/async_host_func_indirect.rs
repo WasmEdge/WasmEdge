@@ -26,7 +26,7 @@ use wasmedge_sys::{
     Vm, WasmValue,
 };
 #[cfg(feature = "async")]
-use wasmedge_types::{error::HostFuncError, ValType};
+use wasmedge_types::{error::HostFuncError, wat2wasm, ValType};
 
 #[cfg(feature = "async")]
 #[sys_async_host_function]
@@ -64,13 +64,26 @@ async fn real_add(
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "async")]
     {
-        let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/examples/data/funcs.wasm");
+        let wasm_bytes = wat2wasm(
+            br#"
+            (module
+                (type (;0;) (func (param externref i32 i32) (result i32)))
+                (import "extern_module" "add" (func (;0;) (type 0)))
+                (func (;1;) (type 0) (param externref i32 i32) (result i32)
+                  local.get 0
+                  local.get 1
+                  local.get 2
+                  call 0)
+                (memory (;0;) 1)
+                (export "call_add" (func 1))
+                (export "memory" (memory 0)))
+        "#,
+        )?;
 
         // load module from file
         let config = Config::create()?;
         let loader = Loader::create(Some(config))?;
-        let module = loader.from_file(wasm_file)?;
+        let module = loader.from_bytes(&wasm_bytes)?;
 
         // create a Vm context
         let config = Config::create()?;

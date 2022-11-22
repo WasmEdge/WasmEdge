@@ -52,7 +52,12 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
     // compile the "module2" into AOT mode
     let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("bindings/rust/wasmedge-sys/examples/data/module2.wat");
-    let out_path = std::path::PathBuf::from("module2-uni.wasm");
+    #[cfg(target_os = "linux")]
+    let out_path = std::path::PathBuf::from("module2-uni.so");
+    #[cfg(target_os = "macos")]
+    let out_path = std::path::PathBuf::from("module2-uni.dylib");
+    #[cfg(target_os = "windows")]
+    let out_path = std::path::PathBuf::from("module2-uni.dll");
     let compiler = Compiler::create(Some(Config::create()?))?;
     compiler.compile_from_file(in_path, &out_path)?;
 
@@ -119,13 +124,18 @@ fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
 
     // register a named module from "module2.wasm"
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-        .join("bindings/rust/wasmedge-sys/examples/data/module2.wasm");
+        .join("bindings/rust/wasmedge-sys/examples/data/module2.wat");
     vm.register_wasm_from_file("module", wasm_file)?;
 
     // compile the "module1" into AOT mode
     let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-        .join("bindings/rust/wasmedge-sys/examples/data/module1.wasm");
-    let out_path = std::path::PathBuf::from("module1-uni.wasm");
+        .join("bindings/rust/wasmedge-sys/examples/data/module1.wat");
+    #[cfg(target_os = "linux")]
+    let out_path = std::path::PathBuf::from("module1-uni.so");
+    #[cfg(target_os = "macos")]
+    let out_path = std::path::PathBuf::from("module1-uni.dylib");
+    #[cfg(target_os = "windows")]
+    let out_path = std::path::PathBuf::from("module1-uni.dll");
     let compiler = Compiler::create(Some(Config::create()?))?;
     compiler.compile_from_file(in_path, &out_path)?;
 

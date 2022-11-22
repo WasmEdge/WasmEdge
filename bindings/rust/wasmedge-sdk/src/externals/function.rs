@@ -151,6 +151,7 @@ impl Func {
     /// # Error
     ///
     /// If fail to create the host function, then an error is returned.
+    #[cfg(feature = "async")]
     pub fn wrap_async<Args, Rets>(
         real_func: impl Fn(
                 CallingFrame,

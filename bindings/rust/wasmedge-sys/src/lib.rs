@@ -154,6 +154,7 @@ pub mod ffi {
 #[doc(hidden)]
 pub mod ast_module;
 #[doc(hidden)]
+#[cfg(feature = "async")]
 pub mod r#async;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
@@ -247,6 +248,7 @@ lazy_static! {
         ));
 }
 
+#[cfg(feature = "async")]
 lazy_static! {
     static ref ASYNC_STATE: RwLock<r#async::AsyncState> = RwLock::new(r#async::AsyncState::new());
 }

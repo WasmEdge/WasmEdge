@@ -185,6 +185,7 @@ impl ImportObjectBuilder {
     /// # error
     ///
     /// If fail to create or add the [host function](crate::Func), then an error is returned.
+    #[cfg(feature = "async")]
     pub fn with_func_async<Args, Rets>(
         mut self,
         name: impl AsRef<str>,

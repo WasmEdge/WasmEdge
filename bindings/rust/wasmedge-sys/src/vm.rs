@@ -1,5 +1,7 @@
 //! Defines WasmEdge Vm struct.
 
+#[cfg(feature = "async")]
+use crate::r#async::FiberFuture;
 #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
 use crate::WasiNnModule;
 #[cfg(target_os = "linux")]
@@ -13,7 +15,6 @@ use crate::{
         module::InnerInstance,
     },
     loader::{InnerLoader, Loader},
-    r#async::FiberFuture,
     statistics::{InnerStat, Statistics},
     store::{InnerStore, Store},
     types::WasmEdgeString,
@@ -21,7 +22,6 @@ use crate::{
     validator::{InnerValidator, Validator},
     Config, Engine, ImportObject, Instance, Module, WasiModule, WasmEdgeResult, WasmValue,
 };
-
 #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 use crate::{
     WasiCrypto, WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
@@ -342,6 +342,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_wasm_from_file_async(
         &self,
         path: impl AsRef<Path>,
@@ -412,6 +413,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_wasm_from_bytes_async(
         &self,
         bytes: &[u8],
@@ -482,6 +484,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_wasm_from_module_async(
         &self,
         module: Module,
@@ -650,6 +653,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run the WASM function, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_function_async(
         &self,
         func_name: impl AsRef<str> + Send,
@@ -722,6 +726,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run the WASM function, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_registered_function_async(
         &self,
         mod_name: impl AsRef<str> + Send,
@@ -1862,6 +1867,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_vm_run_wasm_from_file_async() {
         // create a Config context
@@ -2037,6 +2043,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_vm_run_wasm_from_bytes_async() {
         // create a Config context
@@ -2204,6 +2211,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_vm_run_wasm_from_module_async() {
         // create a Config context

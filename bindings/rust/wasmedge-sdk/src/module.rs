@@ -3,7 +3,6 @@
 use crate::{config::Config, ExternalInstanceType, WasmEdgeResult};
 use std::{borrow::Cow, marker::PhantomData, path::Path};
 use wasmedge_sys as sys;
-use wasmedge_types::error::WasmEdgeError;
 
 /// Defines compiled in-memory representation of an input WASM binary.
 ///

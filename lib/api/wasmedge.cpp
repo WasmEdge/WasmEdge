@@ -184,34 +184,43 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
   for (uint32_t I = 0; I < Len; I++) {
     TVec[I] = Val[I].Type;
     switch (TVec[I].getTypeCode()) {
-    case ValType::I32:
+    case ValTypeCode::I32:
       VVec[I] = ValVariant::wrap<uint32_t>(
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
       break;
-    case ValType::I64:
+    case ValTypeCode::I64:
       VVec[I] = ValVariant::wrap<uint64_t>(
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
       break;
-    case ValType::F32:
+    case ValTypeCode::F32:
       VVec[I] = ValVariant::wrap<float>(
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
       break;
-    case ValType::F64:
+    case ValTypeCode::F64:
       VVec[I] = ValVariant::wrap<double>(
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
       break;
-    case ValType::V128:
+    case ValTypeCode::V128:
       VVec[I] = ValVariant::wrap<WasmEdge::uint128_t>(
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
       break;
-    case ValType::FuncRef:
-      VVec[I] = ValVariant::wrap<FuncRef>(
-          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
-      break;
-    case ValType::ExternRef:
-      VVec[I] = ValVariant::wrap<ExternRef>(
-          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
-      break;
+    case ValTypeCode::Ref:
+    case ValTypeCode::RefNull: {
+      switch (TVec[I].getExt().RefTypeExt.HeapType) {
+      case WasmEdge_HeapType_Func: {
+        VVec[I] = ValVariant::wrap<FuncRef>(
+            to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
+        break;
+      }
+      case WasmEdge_HeapType_Extern: {
+        VVec[I] = ValVariant::wrap<ExternRef>(
+            to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
+        break;
+      }
+      default:
+        assumingUnreachable();
+      }
+    }
     default:
       // TODO: Return error
       assumingUnreachable();
@@ -1173,7 +1182,7 @@ WasmEdge_GlobalTypeGetFullValType(const WasmEdge_GlobalTypeContext *Cxt) {
     return fromGlobTypeCxt(Cxt)->getValType().asCStruct();
   }
   return WasmEdge_FullValType{
-      .TypeCode = WasmEdge_ValType_I32,
+      .TypeCode = WasmEdge_ValTypeCode_I32,
       .Ext = WasmEdge_ValTypeExt(),
   };
 }

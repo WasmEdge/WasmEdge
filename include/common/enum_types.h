@@ -24,12 +24,40 @@ enum WasmEdge_ValType {
 #undef UseValType
 };
 
+enum WasmEdge_ValTypeCode {
+#define UseNumType
+#define Line(NAME, VALUE) WasmEdge_ValTypeCode_##NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseNumType
+
+#define UseRefType
+#define Line(NAME, VALUE) WasmEdge_ValTypeCode_##NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseRefType
+};
+
+enum WasmEdge_HeapType {
+#define UseHeapType
+#define Line(NAME, VALUE) WasmEdge_HeapType_##NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseHeapType
+  WasmEdge_HeapType_Defined,
+};
+
+typedef struct WasmEdge_RefTypeExt {
+  enum WasmEdge_HeapType HeapType;
+  uint32_t DefinedTypeIdx;
+} WasmEdge_RefTypeExt;
+
 union WasmEdge_ValTypeExt {
-  uint32_t TypeIdx;
+  WasmEdge_RefTypeExt RefTypeExt;
 };
 
 typedef struct WasmEdge_FullValType {
-  enum WasmEdge_ValType TypeCode;
+  enum WasmEdge_ValTypeCode TypeCode;
   union WasmEdge_ValTypeExt Ext;
 } WasmEdge_FullValType;
 
@@ -49,6 +77,15 @@ enum WasmEdge_RefType {
 #include "enum.inc"
 #undef Line
 #undef UseRefType
+};
+
+
+enum WasmEdge_RefTypeCode {
+#define UseRefTypeCode
+#define Line(NAME, VALUE) WasmEdge_RefTypeCode_##NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseRefTypeCode
 };
 
 /// WASM Mutability C enumeration.

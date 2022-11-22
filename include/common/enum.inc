@@ -907,6 +907,8 @@ I(Lane, "lane")
 
 // enum_types.h
 
+// The raw ValType definition is deprecated. If you want to support more
+// ValType, add to the new definition of NumType or RefType.
 #ifdef UseValType
 #define V Line
 
@@ -933,6 +935,26 @@ N(V128, 0x7B)
 #undef N
 #endif // UseNumType
 
+#ifdef UseHeapType
+#define H Line
+
+H(Extern, 0x6F)
+H(Func, 0x70)
+
+#undef V
+#endif // UseHeapType
+
+#ifdef UseRefTypeCode
+#define R Line
+
+R(Ref, 0x6B)
+R(RefNull, 0x6C)
+
+#undef R
+#endif // UseRefTypeCode
+
+// The raw RefType definition is deprecated. If you want to support more
+// RefType, add to HeapType and RefTypeCode.
 #ifdef UseRefType
 #define R Line
 

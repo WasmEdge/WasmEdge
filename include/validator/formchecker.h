@@ -37,9 +37,9 @@ static inline constexpr bool isNumType(const VType V) {
     return true;
   }
   auto TypeCode = V->getTypeCode();
-  return TypeCode == ValType::I32 || TypeCode == ValType::I64 ||
-         TypeCode == ValType::F32 || TypeCode == ValType::F64 ||
-         TypeCode == ValType::V128;
+  return TypeCode == ValTypeCode::I32 || TypeCode == ValTypeCode::I64 ||
+         TypeCode == ValTypeCode::F32 || TypeCode == ValTypeCode::F64 ||
+         TypeCode == ValTypeCode::V128;
 }
 
 static inline constexpr bool isRefType(const VType V) {
@@ -47,7 +47,7 @@ static inline constexpr bool isRefType(const VType V) {
     return true;
   }
   auto TypeCode = V->getTypeCode();
-  return TypeCode == ValType::FuncRef || TypeCode == ValType::ExternRef;
+  return TypeCode == ValTypeCode::Ref || TypeCode == ValTypeCode::RefNull;
 }
 
 class FormChecker {

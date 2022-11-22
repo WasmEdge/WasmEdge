@@ -66,35 +66,35 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
 
 Expect<FullValType> Loader::loadFullValType(uint8_t TypeCode) {
   switch (TypeCode) {
-  case (uint8_t)ValType::I32:
-    return ValType::I32;
-  case (uint8_t)ValType::I64:
-    return ValType::I64;
-  case (uint8_t)ValType::F32:
-    return ValType::F32;
-  case (uint8_t)ValType::F64:
-    return ValType::F64;
-  case (uint8_t)ValType::V128:
+  case (uint8_t)NumType::I32:
+    return NumType::I32;
+  case (uint8_t)NumType::I64:
+    return NumType::I64;
+  case (uint8_t)NumType::F32:
+    return NumType::F32;
+  case (uint8_t)NumType::F64:
+    return NumType::F64;
+  case (uint8_t)NumType::V128:
     if (!Conf.hasProposal(Proposal::SIMD)) {
       return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::SIMD,
                              FMgr.getLastOffset(), ASTNodeAttr::Type_ValType);
     }
-    return ValType::V128;
-  case (uint8_t)ValType::ExternRef:
+    return NumType::V128;
+  case (uint8_t)HeapType::Extern:
     if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logNeedProposal(ErrCode::Value::MalformedElemType,
                              Proposal::ReferenceTypes, FMgr.getLastOffset(),
                              ASTNodeAttr::Type_ValType);
     }
-    return ValType::ExternRef;
-  case (uint8_t)ValType::FuncRef:
+    return FullRefType(HeapType::Extern);
+  case (uint8_t)HeapType::Func:
     if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
         !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
       return logNeedProposal(ErrCode::Value::MalformedElemType,
                              Proposal::ReferenceTypes, FMgr.getLastOffset(),
                              ASTNodeAttr::Type_ValType);
     }
-    return ValType::FuncRef;
+    return FullRefType(HeapType::Func);
   default:
     return logLoadError(ErrCode::Value::MalformedValType, FMgr.getLastOffset(),
                         ASTNodeAttr::Type_ValType);
@@ -119,15 +119,15 @@ Expect<FullRefType> Loader::loadFullRefType() {
                         ASTNodeAttr::Type_RefType);
   }
   switch (TypeCode) {
-  case (uint8_t)RefType::ExternRef:
+  case (uint8_t)HeapType::Extern:
     if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logNeedProposal(ErrCode::Value::MalformedElemType,
                              Proposal::ReferenceTypes, FMgr.getLastOffset(),
                              ASTNodeAttr::Type_RefType);
     }
-    [[fallthrough]];
-  case (uint8_t)RefType::FuncRef:
-    return static_cast<RefType>(TypeCode);
+    return HeapType::Extern;
+  case (uint8_t)HeapType::Func:
+    return HeapType::Func;
   default:
     if (Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logLoadError(ErrCode::Value::MalformedRefType,

@@ -1,3 +1,5 @@
+//! Defines WasmEdge VmDock and Param types.
+
 use crate::{
     error::{InstanceError, WasmEdgeError},
     params, Memory, Vm, WasmEdgeResult, WasmVal, WasmValue,
@@ -6,21 +8,39 @@ use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::any::Any;
 
-/// A dock for extending Vm
+/// Extends a [Vm](crate::Vm) instance by supporting function arguments of Rust built-in types.
+#[derive(Debug)]
 pub struct VmDock {
     pub(crate) vm: Box<Vm>, // Can't use Arc because vm can be get_mut after cloned for hostfunc
 }
 impl VmDock {
+    /// Creates a new [VmDock] to be associated with the given [Vm](crate::Vm).
+    ///
+    /// # Arguments
+    ///
+    /// * `vm` - The [Vm] instance to be extended.
+    ///
     pub fn new(vm: Vm) -> Self {
         VmDock { vm: Box::new(vm) }
     }
 
+    /// Runs an exported WASM function registered in a named or active module.
+    ///
+    /// # Arguments
+    ///
+    /// * `func_name` - The name of the exported WASM function to run.
+    ///
+    /// * `params` - The parameter values passed to the exported WASM function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run the WASM function, then an error is returned.
     pub fn run_func(
         &self,
         func_name: impl AsRef<str>,
-        inputs: Vec<Param>,
+        params: Vec<Param>,
     ) -> WasmEdgeResult<Result<Vec<Box<dyn Any + Send + Sync>>, String>> {
-        let inputs_count = inputs.len() as i32;
+        let inputs_count = params.len() as i32;
 
         // allocate new frame for passing pointers
         let pointer_of_pointers = match self.alloc(None, params!(inputs_count * 4 * 2)) {
@@ -34,7 +54,7 @@ impl VmDock {
             WasmEdgeError::Instance(InstanceError::NotFoundMem("memory".to_string()))
         })?;
 
-        for (pos, param) in inputs.iter().enumerate() {
+        for (pos, param) in params.iter().enumerate() {
             let sr = param.settle(self, &mut memory);
             let (pointer, length_of_input) = match sr {
                 Ok(r) => (r.0, r.1),
@@ -243,6 +263,7 @@ impl VmDock {
 unsafe impl Send for VmDock {}
 unsafe impl Sync for VmDock {}
 
+/// Defines a type container that wraps a value of Rust built-in type.
 #[derive(Debug)]
 pub enum Param<'a> {
     I8(i8),
@@ -266,7 +287,6 @@ pub enum Param<'a> {
     VecU64(&'a Vec<u64>),
     String(&'a str),
 }
-
 impl<'a> Param<'a> {
     fn settle(&self, vm: &VmDock, mem: &mut Memory) -> WasmEdgeResult<(i32, i32)> {
         match self {

@@ -70,7 +70,7 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           cargo clippy -V
-          cargo clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+          cargo clippy --lib --examples --all-features -- -D warnings
 
       - name: Test Rust Bindings
         working-directory: bindings/rust/
@@ -132,7 +132,7 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           cargo clippy -V
-          cargo clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+          cargo clippy --lib --examples --all-features -- -D warnings
 
       - name: Test Rust Bindings
         working-directory: bindings/rust/
@@ -210,7 +210,7 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           cd bindings/rust/
           cargo clippy -V
-          cargo clippy --verbose --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+          cargo clippy --lib --examples --all-features -- -D warnings
 
       - name: Test Rust Bindings
         run: |

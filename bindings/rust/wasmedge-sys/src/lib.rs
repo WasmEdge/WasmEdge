@@ -138,7 +138,6 @@
 //!
 
 #![deny(rust_2018_idioms, unreachable_pub)]
-#![feature(never_type)]
 
 #[macro_use]
 extern crate lazy_static;
@@ -154,6 +153,7 @@ pub mod ffi {
 #[doc(hidden)]
 pub mod ast_module;
 #[doc(hidden)]
+#[cfg(feature = "async")]
 pub mod r#async;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
@@ -227,11 +227,7 @@ use wasmedge_types::{error, WasmEdgeResult};
 
 /// Type alias for a boxed native function. This type is used in thread-safe cases.
 pub type BoxedFn = Box<
-    dyn Fn(
-            CallingFrame,
-            Vec<WasmValue>,
-            *mut std::os::raw::c_void,
-        ) -> Result<Vec<WasmValue>, error::HostFuncError>
+    dyn Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, error::HostFuncError>
         + Send
         + Sync,
 >;
@@ -247,6 +243,7 @@ lazy_static! {
         ));
 }
 
+#[cfg(feature = "async")]
 lazy_static! {
     static ref ASYNC_STATE: RwLock<r#async::AsyncState> = RwLock::new(r#async::AsyncState::new());
 }

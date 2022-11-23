@@ -300,6 +300,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run the WASM function, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_func_async<M, N, A>(
         &self,
         mod_name: Option<M>,
@@ -314,15 +315,15 @@ impl Vm {
         match mod_name {
             Some(mod_name) => {
                 // run a function in the registered module
-                let fut =
-                    self.inner
-                        .run_registered_function_async(mod_name, func_name.as_ref(), args);
-                return fut.await;
+                self.inner
+                    .run_registered_function_async(mod_name, func_name.as_ref(), args)
+                    .await
             }
             None => {
                 // run a function in the active module
-                let fut = self.inner.run_function_async(func_name.as_ref(), args);
-                return fut.await;
+                self.inner
+                    .run_function_async(func_name.as_ref(), args)
+                    .await
             }
         }
     }
@@ -421,6 +422,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_func_from_file_async<P, N, A>(
         &self,
         file: P,
@@ -510,6 +512,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_func_from_bytes_async<N, A>(
         &self,
         bytes: &[u8],
@@ -561,6 +564,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_func_from_module_async<N, A>(
         &self,
         module: Module,
@@ -1274,7 +1278,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32, !>("add", real_add, None)
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -1543,7 +1547,6 @@ mod tests {
     fn real_add(
         _frame: CallingFrame,
         inputs: Vec<WasmValue>,
-        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

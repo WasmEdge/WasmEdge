@@ -1,12 +1,10 @@
-#![feature(never_type)]
-
 use wasmedge_sdk::{
     error::HostFuncError, host_function, params, Caller, Executor, Func, ImportObjectBuilder,
     ValType, Vm, WasmVal, WasmValue,
 };
 
 #[host_function]
-fn func(_frame: Caller, _input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn func(_caller: Caller, _input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Entering host function: func");
 
     // spawn a new thread to create another host function
@@ -41,7 +39,7 @@ fn func(_frame: Caller, _input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFu
         }
 
         // create a host function
-        let result = Func::wrap::<(i32, i32), i32, !>(real_add, None);
+        let result = Func::wrap::<(i32, i32), i32>(real_add);
         assert!(result.is_ok());
         let func = result.unwrap();
 
@@ -64,7 +62,7 @@ fn func(_frame: Caller, _input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFu
 fn main() -> anyhow::Result<()> {
     // create an import module
     let import = ImportObjectBuilder::new()
-        .with_func::<(), (), !>("outer-func", func, None)?
+        .with_func::<(), ()>("outer-func", func)?
         .build("extern")?;
 
     let _ = Vm::new(None)?.register_import_module(import)?.run_func(

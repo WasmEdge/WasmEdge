@@ -1,7 +1,5 @@
 //! This example demonstrates that the function in interpreter mode calls the functions in AOT mode, and vise versa.
 
-#![feature(never_type)]
-
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm,
@@ -40,12 +38,12 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
 
     // import host_print_i32 as a host function
     let func_ty = FuncType::create([ValType::I32], [])?;
-    let host_func_print_i32 = Function::create::<!>(&func_ty, Box::new(host_print_i32), None, 0)?;
+    let host_func_print_i32 = Function::create(&func_ty, Box::new(host_print_i32), 0)?;
     import.add_func("host_printI32", host_func_print_i32);
 
     // import host_print_f64 as a host function
     let func_ty = FuncType::create([ValType::F64], [])?;
-    let host_func_print_f64 = Function::create::<!>(&func_ty, Box::new(host_print_f64), None, 0)?;
+    let host_func_print_f64 = Function::create(&func_ty, Box::new(host_print_f64), 0)?;
     import.add_func("host_printF64", host_func_print_f64);
 
     // register the import module
@@ -108,12 +106,12 @@ fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
 
     // import host_print_i32 as a host function
     let func_ty = FuncType::create([ValType::I32], [])?;
-    let host_func_print_i32 = Function::create::<!>(&func_ty, Box::new(host_print_i32), None, 0)?;
+    let host_func_print_i32 = Function::create(&func_ty, Box::new(host_print_i32), 0)?;
     import.add_func("host_printI32", host_func_print_i32);
 
     // import host_print_f64 as a host function
     let func_ty = FuncType::create([ValType::F64], [])?;
-    let host_func_print_f64 = Function::create::<!>(&func_ty, Box::new(host_print_f64), None, 0)?;
+    let host_func_print_f64 = Function::create(&func_ty, Box::new(host_print_f64), 0)?;
     import.add_func("host_printF64", host_func_print_f64);
 
     // register the import module

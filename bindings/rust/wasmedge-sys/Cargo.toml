@@ -33,6 +33,7 @@ tokio = {version = "1", features = ["full"]}
 
 [features]
 aot = []
+async = []
 default = ["aot"]
 standalone = []
 wasi_crypto = []

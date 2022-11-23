@@ -15,21 +15,24 @@
 //! ```bash
 //! cd <wasmedge-root-dir>/bindings/rust/
 //!
-//! cargo run -p wasmedge-sys --example async_host_func_indirect
+//! cargo run -p wasmedge-sys --features async --example async_host_func_indirect
 //! ```
 
+#[cfg(feature = "async")]
 use wasmedge_macro::sys_async_host_function;
+#[cfg(feature = "async")]
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Loader, Store,
     Vm, WasmValue,
 };
+#[cfg(feature = "async")]
 use wasmedge_types::{error::HostFuncError, ValType};
 
+#[cfg(feature = "async")]
 #[sys_async_host_function]
 async fn real_add(
     _frame: CallingFrame,
     input: Vec<WasmValue>,
-    // _data: *mut c_void,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
@@ -59,44 +62,48 @@ async fn real_add(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-        .join("bindings/rust/wasmedge-sys/examples/data/funcs.wasm");
+    #[cfg(feature = "async")]
+    {
+        let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/examples/data/funcs.wasm");
 
-    // load module from file
-    let config = Config::create()?;
-    let loader = Loader::create(Some(config))?;
-    let module = loader.from_file(wasm_file)?;
+        // load module from file
+        let config = Config::create()?;
+        let loader = Loader::create(Some(config))?;
+        let module = loader.from_file(wasm_file)?;
 
-    // create a Vm context
-    let config = Config::create()?;
-    let mut store = Store::create()?;
-    let mut vm = Vm::create(Some(config), Some(&mut store))?;
+        // create a Vm context
+        let config = Config::create()?;
+        let mut store = Store::create()?;
+        let mut vm = Vm::create(Some(config), Some(&mut store))?;
 
-    let func_ty = FuncType::create(
-        vec![ValType::ExternRef, ValType::I32, ValType::I32],
-        vec![ValType::I32],
-    )?;
-    let add_ref = WasmValue::from_extern_ref(&mut real_add);
-    let host_func = Function::create_async(&func_ty, Box::new(real_add), 0)?;
+        let func_ty = FuncType::create(
+            vec![ValType::ExternRef, ValType::I32, ValType::I32],
+            vec![ValType::I32],
+        )?;
+        let add_ref = WasmValue::from_extern_ref(&mut real_add);
+        let host_func = Function::create_async(&func_ty, Box::new(real_add), 0)?;
 
-    // create an ImportObject module
-    let mut import = ImportModule::create("extern_module")?;
-    import.add_func("add", host_func);
-    vm.load_wasm_from_module(&module)?;
-    vm.register_wasm_from_import(ImportObject::Import(import))?;
+        // create an ImportObject module
+        let mut import = ImportModule::create("extern_module")?;
+        import.add_func("add", host_func);
+        vm.load_wasm_from_module(&module)?;
+        vm.register_wasm_from_import(ImportObject::Import(import))?;
 
-    tokio::spawn(async move {
-        let res = vm
-            .run_wasm_from_module_async(
-                module,
-                String::from("call_add"),
-                vec![add_ref, WasmValue::from_i32(5), WasmValue::from_i32(10)],
-            )
-            .await
-            .unwrap();
-        assert_eq!(res[0].to_i32(), 15);
-    })
-    .await?;
+        tokio::spawn(async move {
+            let res = vm
+                .run_wasm_from_module_async(
+                    module,
+                    String::from("call_add"),
+                    vec![add_ref, WasmValue::from_i32(5), WasmValue::from_i32(10)],
+                )
+                .await
+                .unwrap();
+            assert_eq!(res[0].to_i32(), 15);
+        })
+        .await?;
+    }
+
     println!("main thread");
     Ok(())
 }

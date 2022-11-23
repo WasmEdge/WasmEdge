@@ -28,9 +28,9 @@ jobs:
           sudo apt-get install -y libssl-dev pkg-config gh
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
           override: true
 

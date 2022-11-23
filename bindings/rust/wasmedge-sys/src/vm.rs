@@ -1320,7 +1320,7 @@ mod tests {
 
         // load wasm module from a specified file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = vm.load_wasm_from_file(path);
         assert!(result.is_ok());
 
@@ -1356,12 +1356,44 @@ mod tests {
         let vm = result.unwrap();
 
         // load wasm module from buffer
-        let wasm_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-        let result = std::fs::read(wasm_path);
+        let result = wat2wasm(
+            br#"
+            (module
+                (export "fib" (func $fib))
+                (func $fib (param $n i32) (result i32)
+                 (if
+                  (i32.lt_s
+                   (get_local $n)
+                   (i32.const 2)
+                  )
+                  (return
+                   (i32.const 1)
+                  )
+                 )
+                 (return
+                  (i32.add
+                   (call $fib
+                    (i32.sub
+                     (get_local $n)
+                     (i32.const 2)
+                    )
+                   )
+                   (call $fib
+                    (i32.sub
+                     (get_local $n)
+                     (i32.const 1)
+                    )
+                   )
+                  )
+                 )
+                )
+               )
+    "#,
+        );
         assert!(result.is_ok());
-        let buffer = result.unwrap();
-        let result = vm.load_wasm_from_bytes(&buffer);
+        let wasm_bytes = result.unwrap();
+
+        let result = vm.load_wasm_from_bytes(&wasm_bytes);
         assert!(result.is_ok());
 
         // load wasm module from an empty buffer
@@ -1408,7 +1440,7 @@ mod tests {
 
         // load a AST module from a file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = loader.from_file(path);
         assert!(result.is_ok());
         let module = result.unwrap();
@@ -1446,7 +1478,7 @@ mod tests {
 
         // load a AST module from a file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = loader.from_file(path);
         assert!(result.is_ok());
         let module = result.unwrap();
@@ -1487,7 +1519,7 @@ mod tests {
 
         // load a AST module from a file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = loader.from_file(path);
         assert!(result.is_ok());
         let module = result.unwrap();
@@ -1515,7 +1547,7 @@ mod tests {
     #[allow(clippy::assertions_on_result_states)]
     fn test_vm_invoke_wasm_function_step_by_step() {
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = Config::create();
         assert!(result.is_ok());
         let mut config = result.unwrap();
@@ -1651,7 +1683,7 @@ mod tests {
 
         // register a wasm module from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = vm.register_wasm_from_file("reg-wasm-file", path);
         assert!(result.is_ok());
     }
@@ -1688,7 +1720,7 @@ mod tests {
 
         // load a AST module from a file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = loader.from_file(path);
         assert!(result.is_ok());
         let module = result.unwrap();
@@ -1844,12 +1876,43 @@ mod tests {
         let vm = result.unwrap();
 
         // register a wasm module from a buffer
-        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-        let result = std::fs::read(path);
+        let result = wat2wasm(
+            br#"
+            (module
+                (export "fib" (func $fib))
+                (func $fib (param $n i32) (result i32)
+                 (if
+                  (i32.lt_s
+                   (get_local $n)
+                   (i32.const 2)
+                  )
+                  (return
+                   (i32.const 1)
+                  )
+                 )
+                 (return
+                  (i32.add
+                   (call $fib
+                    (i32.sub
+                     (get_local $n)
+                     (i32.const 2)
+                    )
+                   )
+                   (call $fib
+                    (i32.sub
+                     (get_local $n)
+                     (i32.const 1)
+                    )
+                   )
+                  )
+                 )
+                )
+               )
+    "#,
+        );
         assert!(result.is_ok());
-        let buffer = result.unwrap();
-        let result = vm.register_wasm_from_bytes("reg-wasm-buffer", &buffer);
+        let wasm_bytes = result.unwrap();
+        let result = vm.register_wasm_from_bytes("reg-wasm-buffer", &wasm_bytes);
         assert!(result.is_ok());
     }
 
@@ -2352,7 +2415,7 @@ mod tests {
         let handle = thread::spawn(move || {
             // run a function from a wasm file
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+                .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
             let result = vm.run_wasm_from_file(path, "fib", [WasmValue::from_i32(5)]);
             assert!(result.is_ok());
             let returns = result.unwrap();
@@ -2389,7 +2452,7 @@ mod tests {
 
             // run a function from a wasm file
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+                .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
             let result = vm.run_wasm_from_file(path, "fib", [WasmValue::from_i32(5)]);
             assert!(result.is_ok());
             let returns = result.unwrap();
@@ -2769,7 +2832,7 @@ mod tests {
         assert!(result.is_ok());
         let loader = result.unwrap();
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = loader.from_file(path);
         assert!(result.is_ok());
         result.unwrap()

@@ -302,7 +302,7 @@ mod tests {
 
         // register a wasm module from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = vm.register_wasm_from_file("extern", path);
         assert!(result.is_ok());
 

@@ -169,7 +169,7 @@ mod tests {
 
             // compile a file for universal WASM output format
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/test.wasm");
+                .join("bindings/rust/wasmedge-sys/examples/data/test.wat");
             #[cfg(target_os = "linux")]
             let out_path = std::path::PathBuf::from("test_aot.so");
             #[cfg(target_os = "macos")]
@@ -204,7 +204,7 @@ mod tests {
             assert!(result.is_ok());
             let compiler = result.unwrap();
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/test.wasm");
+                .join("bindings/rust/wasmedge-sys/examples/data/test.wat");
             #[cfg(target_os = "linux")]
             let out_path = std::path::PathBuf::from("test_aot_from_file.so");
             #[cfg(target_os = "macos")]

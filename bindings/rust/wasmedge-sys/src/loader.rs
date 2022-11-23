@@ -200,14 +200,14 @@ mod tests {
         {
             // load .wasm file
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+                .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
             let result = loader.from_file(path);
             assert!(result.is_ok());
             let module = result.unwrap();
             assert!(!module.inner.0.is_null());
 
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
+                .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
             let result = loader.from_file(path);
             assert!(result.is_ok());
 

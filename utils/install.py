@@ -1469,7 +1469,7 @@ def main(args):
 
         # Check if wasmedge binary works
         wasmedge_output = run_shell_command(
-            "{0}/bin/wasmedge --version".format(args.path)
+            ". {0}/env && {0}/bin/wasmedge --version".format(args.path)
         )
 
         if args.version in wasmedge_output:

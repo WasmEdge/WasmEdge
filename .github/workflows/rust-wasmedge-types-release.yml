@@ -27,12 +27,11 @@ jobs:
           sudo apt-get install -y gcc g++
           sudo apt-get install -y libssl-dev pkg-config gh
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust v1.65
+        uses: dtolnay/rust-toolchain@1.65
         with:
-          toolchain: stable
-          profile: minimal
-          override: true
+          toolchain: 1.65
+          components: rustfmt, clippy
 
       - name: Set git credentials
         run: |

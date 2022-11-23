@@ -15,8 +15,8 @@ test_diff_env() {
     cp "$_path_"/env "$HOME"/env
     diff -u \
         <(sed '1,/Please/d' "$HOME"/env.old | sed -e 's/\/\//\//g' |
-            sed -e '/^#\/usr/! s/include\/wasmedge/include/g' | sed 's/\/$//' |
-            sed -e 's/lib\/wasmedge$/lib/g' | sort | while read -r line; do [ -f "${line/##/}" ] && echo "$line"; done;) \
+            sed 's/\/$//' | sed -e 's/lib\/wasmedge$/lib/g' | sort |
+            while read -r line; do [ -f "${line/##/}" ] && echo "$line"; done;) \
         <(sed '1,/Please/d' "$HOME"/env | sed '\/bin$/d' |
             sort | while read -r line; do [ -f "${line/##/}" ] &&
                 [[ ! $line =~ (((tensorflow|framework)\.so\.[0-9]\.[0-9]$)|((tensorflow|framework)\.[0-9]\.[0-9]\.dylib$)) ]] &&

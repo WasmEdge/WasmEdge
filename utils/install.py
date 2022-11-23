@@ -151,9 +151,7 @@ def extract_archive(
 
                 # replace wasmedge folder name with include
                 if is_default_path(args):
-                    fname = fname.replace("include/wasmedge", "include").replace(
-                        "/lib64/", "/" + CONST_lib_dir + "/"
-                    )
+                    fname = fname.replace("/lib64/", "/" + CONST_lib_dir + "/")
                 if fname.endswith("/lib64"):
                     fname = fname[:-5] + "lib"
                 if fname.startswith("/usr") and "lib64" in fname:
@@ -1467,9 +1465,7 @@ def main(args):
                         if any("Plugin" in s for s in listdir(sub_folder)):
                             # Handle plugins
                             copytree(sub_folder, join(args.path, "plugin"), True)
-                        else:
-                            copytree(sub_folder, path, True)
-                        shutil.rmtree(sub_folder)
+                            shutil.rmtree(sub_folder)
 
         # Check if wasmedge binary works
         wasmedge_output = run_shell_command(

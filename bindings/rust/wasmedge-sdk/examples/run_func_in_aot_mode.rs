@@ -1,3 +1,10 @@
+//!
+//! To run this example, use the following command:
+//! ```bash
+//! cd bindings/rust
+//! cargo run -p wasmedge-sdk --example run_func_in_aot_mode -- --nocapture
+//! ```
+
 use wasmedge_sdk::{
     config::{
         CommonConfigOptions, CompilerConfigOptions, ConfigBuilder, HostRegistrationConfigOptions,
@@ -17,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
 
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-        .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        .join("bindings/rust/wasmedge-sdk/examples/data/fibonacci.wat");
     let out_dir = std::env::current_dir()?;
     let aot_filename = "example_aot_fibonacci";
 

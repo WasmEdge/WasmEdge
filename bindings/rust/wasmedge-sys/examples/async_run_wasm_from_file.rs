@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let vm = Vm::create(Some(config), None)?;
         // run a function from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
 
         let fut1 = vm.run_wasm_from_file_async(&path, "fib", [WasmValue::from_i32(20)]);
         let fut2 = vm.run_wasm_from_file_async(&path, "fib", [WasmValue::from_i32(5)]);

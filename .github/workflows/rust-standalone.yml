@@ -38,17 +38,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Nightly Rust
-        uses: dtolnay/rust-toolchain@nightly
+      - name: Install Rust v1.65
+        uses: dtolnay/rust-toolchain@1.65
         with:
-          toolchain: nightly
+          toolchain: 1.65
           components: rustfmt, clippy
 
       - name: Install libwasmedge
         working-directory: bindings/rust/
         run: |
           export WASMEDGE_DIR="$(pwd)/../../"
-          cargo +nightly test -p wasmedge-sdk --all --examples --features standalone
+          cargo test -p wasmedge-sdk --all --examples --features standalone
 
   build_macos:
     name: MacOS
@@ -63,10 +63,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install nightly toolchain
-        uses: dtolnay/rust-toolchain@nightly
+      - name: Install Rust v1.65
+        uses: dtolnay/rust-toolchain@1.65
         with:
-          toolchain: nightly
+          toolchain: 1.65
           components: rustfmt, clippy
 
       - name: Install build tools
@@ -80,4 +80,4 @@ jobs:
           export CXX=clang++
           export DYLD_LIBRARY_PATH="/Users/runner/.wasmedge/lib"
           export WASMEDGE_DIR="$(pwd)/../../"
-          cargo +nightly test -p wasmedge-sdk --all --examples --features standalone
+          cargo test -p wasmedge-sdk --all --examples --features standalone

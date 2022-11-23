@@ -38,10 +38,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Nightly Rust
-        uses: dtolnay/rust-toolchain@nightly
+      - name: Install Rust v1.65
+        uses: dtolnay/rust-toolchain@1.65
         with:
-          toolchain: nightly
+          toolchain: 1.65
           components: rustfmt, clippy
 
       - name: Build WasmEdge with Release mode
@@ -70,7 +70,7 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           cargo clippy -V
-          cargo clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+          cargo clippy --lib --examples --all-features -- -D warnings
 
       - name: Test Rust Bindings
         working-directory: bindings/rust/
@@ -94,10 +94,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install nightly toolchain
-        uses: dtolnay/rust-toolchain@nightly
+      - name: Install Rust v1.65
+        uses: dtolnay/rust-toolchain@1.65
         with:
-          toolchain: nightly
+          toolchain: 1.65
           components: rustfmt, clippy
 
       - name: Install build tools
@@ -132,7 +132,7 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           cargo clippy -V
-          cargo clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+          cargo clippy --lib --examples --all-features -- -D warnings
 
       - name: Test Rust Bindings
         working-directory: bindings/rust/
@@ -165,10 +165,10 @@ jobs:
         with:
           sdk-version: 19041
 
-      - name: Install Nightly Rust
-        uses: dtolnay/rust-toolchain@nightly
+      - name: Install Rust v1.65
+        uses: dtolnay/rust-toolchain@1.65
         with:
-          toolchain: nightly
+          toolchain: 1.65
           components: rustfmt, clippy
 
       - name: Rustfmt
@@ -210,13 +210,13 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           cd bindings/rust/
           cargo clippy -V
-          cargo clippy --verbose --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+          cargo clippy --lib --examples --all-features -- -D warnings
 
       - name: Test Rust Bindings
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\nightly-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge\WasmEdge\build\lib\api"
+          $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge\WasmEdge\build\lib\api"
           cd bindings\rust
           cargo test --workspace --examples --locked

@@ -13,8 +13,8 @@
 //! To run this example, follow the commands below:
 //!
 //! ```bash
-//! // go into the directory: bindings/rust/wasmedge-sys
-//! cargo run --example hostfunc -- --nocapture
+//! // go into the directory: bindings/rust
+//! cargo run -p wasmedge-sys --example hostfunc -- --nocapture
 //! ```
 
 use wasmedge_macro::sys_host_function;
@@ -22,7 +22,7 @@ use wasmedge_sys::{
     AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Loader, Vm,
     WasmValue,
 };
-use wasmedge_types::{error::HostFuncError, ValType};
+use wasmedge_types::{error::HostFuncError, wat2wasm, ValType};
 
 #[sys_host_function]
 fn real_add(_frame: CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
@@ -53,7 +53,21 @@ fn real_add(_frame: CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let hostfunc_path = std::env::current_dir()?.join("examples/data/funcs.wasm");
+    let wasm_bytes = wat2wasm(
+        br#"
+        (module
+            (type (;0;) (func (param externref i32 i32) (result i32)))
+            (import "extern_module" "add" (func (;0;) (type 0)))
+            (func (;1;) (type 0) (param externref i32 i32) (result i32)
+              local.get 0
+              local.get 1
+              local.get 2
+              call 0)
+            (memory (;0;) 1)
+            (export "call_add" (func 1))
+            (export "memory" (memory 0)))
+    "#,
+    )?;
 
     let result = FuncType::create(
         vec![ValType::ExternRef, ValType::I32, ValType::I32],
@@ -72,7 +86,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // load module from file
     let config = Config::create()?;
     let loader = Loader::create(Some(config))?;
-    let module = loader.from_file(hostfunc_path)?;
+    let module = loader.from_bytes(wasm_bytes)?;
 
     // create a Vm context
     let config = Config::create()?;

@@ -10,13 +10,48 @@
 
 #[cfg(feature = "async")]
 use wasmedge_sys::{Config, Loader, Store, Vm, WasmValue};
+#[cfg(feature = "async")]
+use wasmedge_types::wat2wasm;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "async")]
     {
-        let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let wasm_bytes = wat2wasm(
+            br#"
+        (module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )           
+    "#,
+        )?;
+
         let result = Config::create();
         assert!(result.is_ok());
         let mut config = result.unwrap();
@@ -27,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let result = Loader::create(Some(config));
         assert!(result.is_ok());
         let loader = result.unwrap();
-        let result = loader.from_file(wasm_file);
+        let result = loader.from_bytes(&wasm_bytes);
         assert!(result.is_ok());
         let ast_module = result.unwrap();
 

@@ -152,7 +152,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -238,7 +238,7 @@ mod tests {
             let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
-            let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
+            let result = Function::create(&func_ty, Box::new(real_add), 0);
             assert!(result.is_ok());
             let host_func = result.unwrap();
             import.add_func("add", host_func);
@@ -302,7 +302,7 @@ mod tests {
 
         // register a wasm module from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = vm.register_wasm_from_file("extern", path);
         assert!(result.is_ok());
 
@@ -339,11 +339,7 @@ mod tests {
         assert_eq!(return_types, [ValType::I32]);
     }
 
-    fn real_add(
-        _: CallingFrame,
-        inputs: Vec<WasmValue>,
-        _data: *mut std::os::raw::c_void,
-    ) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(_: CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }

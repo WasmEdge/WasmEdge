@@ -3,7 +3,6 @@
 use crate::{config::Config, ExternalInstanceType, WasmEdgeResult};
 use std::{borrow::Cow, marker::PhantomData, path::Path};
 use wasmedge_sys as sys;
-use wasmedge_types::error::WasmEdgeError;
 
 /// Defines compiled in-memory representation of an input WASM binary.
 ///
@@ -25,35 +24,6 @@ impl Module {
     ///
     /// If fail to load and valiate a module from a file, returns an error.
     pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> WasmEdgeResult<Self> {
-        match file.as_ref().extension() {
-            Some(extension) => match extension.to_str() {
-                Some("wasm") => Module::from_wasm_or_aot_file(config, &file),
-                #[cfg(target_os = "macos")]
-                Some("dylib") => Module::from_wasm_or_aot_file(config, &file),
-                #[cfg(target_os = "linux")]
-                Some("so") => Module::from_wasm_or_aot_file(config, &file),
-                #[cfg(target_os = "windows")]
-                Some("dll") => Module::from_wasm_or_aot_file(config, &file),
-                Some("wat") => {
-                    let bytes = wat::parse_file(file.as_ref())
-                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
-                    Self::from_bytes(config, bytes)
-                }
-                _ => Err(Box::new(WasmEdgeError::Operation(
-                    "Invalid file extension".into(),
-                ))),
-            },
-            None => Err(Box::new(WasmEdgeError::Operation(
-                "Invalid file extension".into(),
-            ))),
-        }
-    }
-
-    /// Returns a validated module from a wasm or aot file.
-    fn from_wasm_or_aot_file(
-        config: Option<&Config>,
-        file: &impl AsRef<Path>,
-    ) -> WasmEdgeResult<Self> {
         let inner_config = config.map(|c| c.inner.clone());
         let inner_loader = sys::Loader::create(inner_config)?;
         // load module

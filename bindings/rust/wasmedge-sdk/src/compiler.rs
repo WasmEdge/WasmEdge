@@ -6,11 +6,9 @@ use wasmedge_sys as sys;
 
 /// Defines WasmEdge ahead-of-time(AOT) compiler and the relevant APIs.
 #[derive(Debug)]
-#[cfg(feature = "aot")]
 pub struct Compiler {
     pub(crate) inner: sys::Compiler,
 }
-#[cfg(feature = "aot")]
 impl Compiler {
     /// Creates a new AOT [compiler](crate::Compiler).
     ///
@@ -91,7 +89,6 @@ impl Compiler {
     }
 }
 
-#[cfg(feature = "aot")]
 #[cfg(test)]
 mod tests {
     use super::*;

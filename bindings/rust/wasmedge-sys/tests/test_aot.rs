@@ -1,5 +1,3 @@
-#![feature(never_type)]
-
 #[cfg(feature = "aot")]
 use wasmedge_sys::{
     AsImport, CallingFrame, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm,
@@ -43,8 +41,13 @@ fn test_aot() {
 
     // compile a file for universal WASM output format
     let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-        .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-    let out_path = std::path::PathBuf::from("fibonacci_aot.wasm");
+        .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
+    #[cfg(target_os = "macos")]
+    let out_path = std::path::PathBuf::from("fibonacci_aot.dylib");
+    #[cfg(target_os = "linux")]
+    let out_path = std::path::PathBuf::from("fibonacci_aot.so");
+    #[cfg(target_os = "windows")]
+    let out_path = std::path::PathBuf::from("fibonacci_aot.dll");
     assert!(!out_path.exists());
     let result = compiler.compile_from_file(in_path, &out_path);
     assert!(result.is_ok());
@@ -91,7 +94,7 @@ fn create_spec_test_module() -> ImportModule {
     let result = FuncType::create([], []);
     assert!(result.is_ok());
     let func_ty = result.unwrap();
-    let result = Function::create::<!>(&func_ty, Box::new(spec_test_print), None, 0);
+    let result = Function::create(&func_ty, Box::new(spec_test_print), 0);
     assert!(result.is_ok());
     let host_func = result.unwrap();
     // add host function "print"
@@ -102,7 +105,6 @@ fn create_spec_test_module() -> ImportModule {
 fn spec_test_print(
     _frame: CallingFrame,
     _inputs: Vec<WasmValue>,
-    _data: *mut std::os::raw::c_void,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
     Ok(vec![])
 }

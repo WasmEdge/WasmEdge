@@ -12,15 +12,19 @@ version = "0.7.0"
 
 [dependencies]
 anyhow = "1.0"
+num-derive = "0.3"
+num-traits = "0.2"
 thiserror = "1.0.30"
-wasmedge-macro = {path = "../wasmedge-macro", version = "0.2"}
-wasmedge-sys = {path = "../wasmedge-sys", version = "0.11", default-features = false}
+wasmedge-macro = {path = "../wasmedge-macro", version = "0.3"}
+wasmedge-sys = {path = "../wasmedge-sys", version = "0.12", default-features = false}
 wasmedge-types = {path = "../wasmedge-types", version = "0.3"}
 wat = "1.0"
 
 [features]
 aot = ["wasmedge-sys/aot"]
+async = ["wasmedge-sys/async"]
 default = ["aot"]
+standalone = ["wasmedge-sys/standalone"]
 wasi_crypto = ["wasmedge-sys/wasi_crypto"]
 wasi_nn = ["wasmedge-sys/wasi_nn"]
 

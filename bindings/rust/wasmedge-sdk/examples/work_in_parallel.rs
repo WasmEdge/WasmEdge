@@ -29,8 +29,9 @@ use std::{
     time::Instant,
 };
 use wasmedge_sdk::{
-    config::{CommonConfigOptions, ConfigBuilder},
-    params, ImportObjectBuilder, Memory, MemoryType, Vm, WasmEdgeResult, WasmVal,
+    config::{CommonConfigOptions, CompilerConfigOptions, ConfigBuilder},
+    params, Compiler, CompilerOutputFormat, ImportObjectBuilder, Memory, MemoryType, Vm,
+    WasmEdgeResult, WasmVal,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -46,6 +47,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_memory("memory", mem)?
         .build("env")?;
 
+    let config = ConfigBuilder::new(CommonConfigOptions::new().threads(true))
+        .with_compiler_config(CompilerConfigOptions::new().out_format(CompilerOutputFormat::Native))
+        .build()?;
+    let compiler = Compiler::new(Some(&config))?;
+    let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+        .join("bindings/rust/wasmedge-sdk/examples/data/mandelbrot.wat");
+    let out_dir = std::env::current_dir()?;
+    let aot_filename = "mandelbrot";
+    let aot_file_path = compiler.compile_from_file(wasm_file, aot_filename, out_dir)?;
+    assert!(aot_file_path.exists());
+    #[cfg(target_os = "macos")]
+    assert!(aot_file_path.ends_with("mandelbrot.dylib"));
+    #[cfg(target_os = "linux")]
+    assert!(aot_file_path.ends_with("mandelbrot.so"));
+    #[cfg(target_os = "windows")]
+    assert!(aot_file_path.ends_with("mandelbrot.dll"));
+
     // create a Vm instance
     let config = ConfigBuilder::new(
         CommonConfigOptions::new()
@@ -55,7 +73,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     .build()?;
     let vm = Vm::new(Some(config))?
         .register_import_module(import)?
-        .register_module_from_file("mandelbrot", "wasmedge-sdk/examples/data/mandelbrot.so")?;
+        .register_module_from_file("mandelbrot", aot_file_path)?;
 
     // parallelly renders the image
     let x: f64 = -0.743644786;
@@ -95,7 +113,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let height = 800;
     let buffer = memory.read(offset as u32, width * height * 4)?;
     // dump the image to a binary file
-    fs::write("output-wasmedge.bin", buffer)?;
+    fs::write("mandelbrot-image.bin", buffer)?;
 
     Ok(())
 }

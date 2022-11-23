@@ -8,7 +8,7 @@
 //!
 //! For developers, it is strongly recommended that the APIs in `wasmedge-sys` are used to construct high-level libraries, while `wasmedge-sdk` is for building up business applications.
 //!
-//! Notice that `WasmEdge Rust SDK` uses nightly version of Rust. It's strongly recommended to use the latest nightly version of Rust.
+//! Notice that `WasmEdge Rust SDK` requires Rust v1.63+ in the stable channel.
 //!
 //! ## Versioning Table
 //!
@@ -16,6 +16,7 @@
 //!
 //! | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types| wasmedge-macro|
 //! | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
+//! | 0.7.0         | 0.11.2        | 0.12          | 0.3.1         | 0.3.0         |
 //! | 0.6.0         | 0.11.2        | 0.11          | 0.3.0         | 0.2.0         |
 //! | 0.5.0         | 0.11.1        | 0.10          | 0.3.0         | 0.1.0         |
 //! | 0.4.0         | 0.11.0        | 0.9           | 0.2.1         | -             |
@@ -138,7 +139,6 @@
 //!
 
 #![deny(rust_2018_idioms, unreachable_pub)]
-#![feature(never_type)]
 
 #[macro_use]
 extern crate lazy_static;
@@ -154,6 +154,7 @@ pub mod ffi {
 #[doc(hidden)]
 pub mod ast_module;
 #[doc(hidden)]
+#[cfg(feature = "async")]
 pub mod r#async;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
@@ -227,11 +228,7 @@ use wasmedge_types::{error, WasmEdgeResult};
 
 /// Type alias for a boxed native function. This type is used in thread-safe cases.
 pub type BoxedFn = Box<
-    dyn Fn(
-            CallingFrame,
-            Vec<WasmValue>,
-            *mut std::os::raw::c_void,
-        ) -> Result<Vec<WasmValue>, error::HostFuncError>
+    dyn Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, error::HostFuncError>
         + Send
         + Sync,
 >;
@@ -247,6 +244,7 @@ lazy_static! {
         ));
 }
 
+#[cfg(feature = "async")]
 lazy_static! {
     static ref ASYNC_STATE: RwLock<r#async::AsyncState> = RwLock::new(r#async::AsyncState::new());
 }

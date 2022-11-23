@@ -578,7 +578,7 @@ TEST(WasiTest, SockOpt) {
   }
 }
 
-TEST(WasiTest, SockGetLoaclAddr_4) {
+TEST(WasiTest, SockGetLocalAddr_4) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -664,7 +664,7 @@ TEST(WasiTest, SockGetLoaclAddr_4) {
   }
 }
 
-TEST(WasiTest, SockGetLoaclAddr_6) {
+TEST(WasiTest, SockGetLocalAddr_6) {
   if (!TestIPv6Enabled()) {
     GTEST_SKIP();
   }

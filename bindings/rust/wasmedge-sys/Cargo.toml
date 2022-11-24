@@ -21,7 +21,7 @@ rand = "0.8.4"
 thiserror = "1.0.30"
 wasmedge-macro = {path = "../wasmedge-macro", version = "0.3"}
 wasmedge-types = {path = "../wasmedge-types", version = "0.3"}
-wasmtime-fiber = "2"
+wasmtime-fiber = {version = "2", optional = true}
 wat = "1.0"
 
 [build-dependencies]
@@ -34,7 +34,7 @@ tokio = {version = "1", features = ["full"]}
 
 [features]
 aot = []
-async = []
+async = ["wasmtime-fiber"]
 default = []
 standalone = []
 wasi_crypto = []

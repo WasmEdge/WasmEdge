@@ -10,7 +10,7 @@
 //!
 //! The [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) crate defines a group of high-level Rust APIs, which are used to build up business applications.
 //!
-//! Notice that `WasmEdge Rust SDK` requires Rust v1.63+ in the stable channel.
+//! Notice that [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) requires **Rust v1.63 or above** in the **stable** channel.
 //!
 //! ## Versioning Table
 //!
@@ -144,8 +144,6 @@
 //!
 //! * [WasmEdge Runtime](https://wasmedge.org/)
 //! * [WasmEdge C API Documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md)
-//! * [wasmedge-sys: WasmEdge Low-level Rust APIs](https://crates.io/crates/wasmedge-sys)
-//! * [wasmedge-types: WasmEdge Types](https://crates.io/crates/wasmedge-types)
 //!
 
 #[doc(hidden)]

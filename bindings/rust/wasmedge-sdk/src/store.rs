@@ -265,7 +265,7 @@ mod tests {
 
         // load wasm module
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sdk/examples/data/fibonacci.wat");
 
         let result = Module::from_file(Some(&config), file);
         assert!(result.is_ok());
@@ -309,7 +309,7 @@ mod tests {
 
         // load wasm module
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sdk/examples/data/fibonacci.wat");
 
         let result = Module::from_file(Some(&config), file);
         assert!(result.is_ok());

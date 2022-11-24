@@ -3,6 +3,7 @@ use wasmedge_sys::{
     AsImport, CallingFrame, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm,
     WasmValue,
 };
+#[cfg(feature = "aot")]
 use wasmedge_types::{error::HostFuncError, CompilerOptimizationLevel, CompilerOutputFormat};
 
 #[cfg(feature = "aot")]
@@ -84,6 +85,7 @@ fn test_aot() {
     assert!(std::fs::remove_file(&out_path).is_ok());
 }
 
+#[cfg(feature = "aot")]
 fn create_spec_test_module() -> ImportModule {
     // create an ImportObj module
     let result = ImportModule::create("spectest");
@@ -102,6 +104,7 @@ fn create_spec_test_module() -> ImportModule {
     import
 }
 
+#[cfg(feature = "aot")]
 fn spec_test_print(
     _frame: CallingFrame,
     _inputs: Vec<WasmValue>,

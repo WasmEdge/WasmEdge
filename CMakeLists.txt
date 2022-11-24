@@ -74,6 +74,7 @@ set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge Wasi-NN plu
 # Currently supported WASI-NN backend: "OpenVINO" on Linux x86_64
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge Wasi-crypto plugin." OFF)
 option(WASMEDGE_PLUGIN_HTTPSREQ "Enable WasmEdge httpsreq plugin." OFF)
+option(WASMEDGE_PLUGIN_OPENCV "Enable WasmEdge OpenCV plugin." OFF)
 
 if(WASMEDGE_BUILD_TOOLS AND WASMEDGE_BUILD_FUZZING)
   message(FATAL_ERROR "wasmedge tool and fuzzing tool are exclusive options.")

@@ -22,12 +22,14 @@
 //! plt.imshow(resized_data)
 //! ```
 
+#[cfg(feature = "aot")]
 use std::{
     fs,
     sync::{Arc, Mutex},
     thread,
     time::Instant,
 };
+#[cfg(feature = "aot")]
 use wasmedge_sdk::{
     config::{CommonConfigOptions, CompilerConfigOptions, ConfigBuilder},
     params, Compiler, CompilerOutputFormat, ImportObjectBuilder, Memory, MemoryType, Vm,
@@ -35,85 +37,90 @@ use wasmedge_sdk::{
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // number of theads to spawn
-    let num_threads: i32 = 4;
+    #[cfg(feature = "aot")]
+    {
+        // number of theads to spawn
+        let num_threads: i32 = 4;
 
-    // create a shared memory instance
-    let mem_ty = MemoryType::new(60, Some(60), true)?;
-    let mem = Memory::new(mem_ty)?;
+        // create a shared memory instance
+        let mem_ty = MemoryType::new(60, Some(60), true)?;
+        let mem = Memory::new(mem_ty)?;
 
-    // create an import object containing the shared memory
-    let import = ImportObjectBuilder::new()
-        .with_memory("memory", mem)?
-        .build("env")?;
+        // create an import object containing the shared memory
+        let import = ImportObjectBuilder::new()
+            .with_memory("memory", mem)?
+            .build("env")?;
 
-    let config = ConfigBuilder::new(CommonConfigOptions::new().threads(true))
-        .with_compiler_config(CompilerConfigOptions::new().out_format(CompilerOutputFormat::Native))
+        let config = ConfigBuilder::new(CommonConfigOptions::new().threads(true))
+            .with_compiler_config(
+                CompilerConfigOptions::new().out_format(CompilerOutputFormat::Native),
+            )
+            .build()?;
+        let compiler = Compiler::new(Some(&config))?;
+        let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sdk/examples/data/mandelbrot.wat");
+        let out_dir = std::env::current_dir()?;
+        let aot_filename = "mandelbrot";
+        let aot_file_path = compiler.compile_from_file(wasm_file, aot_filename, out_dir)?;
+        assert!(aot_file_path.exists());
+        #[cfg(target_os = "macos")]
+        assert!(aot_file_path.ends_with("mandelbrot.dylib"));
+        #[cfg(target_os = "linux")]
+        assert!(aot_file_path.ends_with("mandelbrot.so"));
+        #[cfg(target_os = "windows")]
+        assert!(aot_file_path.ends_with("mandelbrot.dll"));
+
+        // create a Vm instance
+        let config = ConfigBuilder::new(
+            CommonConfigOptions::new()
+                .multi_memories(true)
+                .reference_types(false),
+        )
         .build()?;
-    let compiler = Compiler::new(Some(&config))?;
-    let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-        .join("bindings/rust/wasmedge-sdk/examples/data/mandelbrot.wat");
-    let out_dir = std::env::current_dir()?;
-    let aot_filename = "mandelbrot";
-    let aot_file_path = compiler.compile_from_file(wasm_file, aot_filename, out_dir)?;
-    assert!(aot_file_path.exists());
-    #[cfg(target_os = "macos")]
-    assert!(aot_file_path.ends_with("mandelbrot.dylib"));
-    #[cfg(target_os = "linux")]
-    assert!(aot_file_path.ends_with("mandelbrot.so"));
-    #[cfg(target_os = "windows")]
-    assert!(aot_file_path.ends_with("mandelbrot.dll"));
+        let vm = Vm::new(Some(config))?
+            .register_import_module(import)?
+            .register_module_from_file("mandelbrot", aot_file_path)?;
 
-    // create a Vm instance
-    let config = ConfigBuilder::new(
-        CommonConfigOptions::new()
-            .multi_memories(true)
-            .reference_types(false),
-    )
-    .build()?;
-    let vm = Vm::new(Some(config))?
-        .register_import_module(import)?
-        .register_module_from_file("mandelbrot", aot_file_path)?;
+        // parallelly renders the image
+        let x: f64 = -0.743644786;
+        let y: f64 = 0.1318252536;
+        let d: f64 = 0.00029336;
+        let max_iter: i32 = 10_000;
+        let mut handles = vec![];
+        let p_vm = Arc::new(Mutex::new(vm));
+        for rank in 0..num_threads {
+            let vm_cloned = Arc::clone(&p_vm);
+            let handle = thread::spawn(move || -> WasmEdgeResult<()> {
+                let vm = vm_cloned.lock().unwrap();
+                vm.run_func(
+                    Some("mandelbrot"),
+                    "mandelbrotThread",
+                    params!(max_iter, num_threads, rank, x, y, d),
+                )?;
 
-    // parallelly renders the image
-    let x: f64 = -0.743644786;
-    let y: f64 = 0.1318252536;
-    let d: f64 = 0.00029336;
-    let max_iter: i32 = 10_000;
-    let mut handles = vec![];
-    let p_vm = Arc::new(Mutex::new(vm));
-    for rank in 0..num_threads {
-        let vm_cloned = Arc::clone(&p_vm);
-        let handle = thread::spawn(move || -> WasmEdgeResult<()> {
-            let vm = vm_cloned.lock().unwrap();
-            vm.run_func(
-                Some("mandelbrot"),
-                "mandelbrotThread",
-                params!(max_iter, num_threads, rank, x, y, d),
-            )?;
+                Ok(())
+            });
 
-            Ok(())
-        });
+            handles.push(handle);
+        }
+        let start = Instant::now();
+        for handle in handles {
+            handle.join().unwrap()?;
+        }
+        println!("Time elapsed: {:.2?}", start.elapsed());
 
-        handles.push(handle);
+        // get the final image
+        let vm = p_vm.lock().unwrap();
+        let returns = vm.run_func(Some("mandelbrot"), "getImage", params!())?;
+        let offset = returns[0].to_i32();
+        let env_instance = vm.named_module("env")?;
+        let memory = env_instance.memory("memory").unwrap();
+        let width = 1200;
+        let height = 800;
+        let buffer = memory.read(offset as u32, width * height * 4)?;
+        // dump the image to a binary file
+        fs::write("mandelbrot-image.bin", buffer)?;
     }
-    let start = Instant::now();
-    for handle in handles {
-        handle.join().unwrap()?;
-    }
-    println!("Time elapsed: {:.2?}", start.elapsed());
-
-    // get the final image
-    let vm = p_vm.lock().unwrap();
-    let returns = vm.run_func(Some("mandelbrot"), "getImage", params!())?;
-    let offset = returns[0].to_i32();
-    let env_instance = vm.named_module("env")?;
-    let memory = env_instance.memory("memory").unwrap();
-    let width = 1200;
-    let height = 800;
-    let buffer = memory.read(offset as u32, width * height * 4)?;
-    // dump the image to a binary file
-    fs::write("mandelbrot-image.bin", buffer)?;
 
     Ok(())
 }

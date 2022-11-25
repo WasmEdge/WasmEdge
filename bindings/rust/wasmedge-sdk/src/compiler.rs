@@ -108,7 +108,7 @@ mod tests {
 
         let compiler = Compiler::new(Some(&config))?;
         let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sdk/examples/data/fibonacci.wat");
         let out_dir = std::env::current_dir()?;
         let aot_filename = "aot_fibonacci_1";
         let aot_file_path = compiler.compile_from_file(wasm_file, aot_filename, out_dir)?;

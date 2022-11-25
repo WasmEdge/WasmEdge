@@ -1,11 +1,14 @@
 //! This example demonstrates that the function in interpreter mode calls the functions in AOT mode, and vise versa.
 
 use wasmedge_macro::sys_host_function;
+#[cfg(feature = "aot")]
 use wasmedge_sys::{
-    AsImport, CallingFrame, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm,
-    WasmValue,
+    AsImport, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm,
 };
-use wasmedge_types::{error::HostFuncError, ValType};
+use wasmedge_sys::{CallingFrame, WasmValue};
+use wasmedge_types::error::HostFuncError;
+#[cfg(feature = "aot")]
+use wasmedge_types::ValType;
 
 #[sys_host_function]
 fn host_print_i32(
@@ -29,6 +32,7 @@ fn host_print_f64(
 
 /// The function in interpreter mode (defined in module1) calls the functions in AOT mode (defined in module2)
 #[allow(clippy::assertions_on_result_states)]
+#[cfg(feature = "aot")]
 fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
     // create a Vm instance
     let mut vm = Vm::create(Some(Config::create()?), None)?;
@@ -102,6 +106,7 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[allow(clippy::assertions_on_result_states)]
+#[cfg(feature = "aot")]
 fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
     // create a Vm instance
     let mut vm = Vm::create(Some(Config::create()?), None)?;
@@ -176,9 +181,11 @@ fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The function in interpreter mode calls the functions in AOT mode
+    #[cfg(feature = "aot")]
     interpreter_call_aot()?;
 
     // The function in AOT mode calls the functions in interpreter mode
+    #[cfg(feature = "aot")]
     aot_call_interpreter()?;
 
     Ok(())

@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
     branches:
       - master
+      - "rust/refactor-ci-workflows"
 
 jobs:
   crate_release:

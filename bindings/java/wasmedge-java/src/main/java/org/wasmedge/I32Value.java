@@ -2,14 +2,14 @@ package org.wasmedge;
 
 import org.wasmedge.enums.ValueType;
 
-public final class WasmEdgeI32Value implements WasmEdgeValue {
+public final class I32Value implements Value {
     private int value;
 
-    public WasmEdgeI32Value() {
+    public I32Value() {
 
     }
 
-    public WasmEdgeI32Value(int value) {
+    public I32Value(int value) {
         this.value = value;
     }
 

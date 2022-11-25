@@ -7,24 +7,18 @@
 #include "wasmedge/wasmedge.h"
 #include <stdlib.h>
 
-WasmEdge_StatisticsContext *getStatisticsContext(JNIEnv *env,
-                                                 jobject jStatCxt) {
-  if (jStatCxt == NULL) {
-    return NULL;
-  }
-  return (WasmEdge_StatisticsContext *)getPointer(env, jStatCxt);
-}
+GETTER(StatisticsContext)
 
 jobject
 CreateJavaStatisticsContext(JNIEnv *env,
                             WasmEdge_StatisticsContext *statisticsContext) {
-  jclass statClass = findJavaClass(env, "org/wasmedge/StatisticsContext");
+  jclass statClass = findJavaClass(env, ORG_WASMEDGE_STATISTICSCONTEXT);
 
-  jmethodID constructor = (*env)->GetMethodID(env, statClass, "<init>", "(J)V");
+  jmethodID constructor = (*env)->GetMethodID(env, statClass, DEFAULT_CONSTRUCTOR, LONG_VOID);
 
   jobject jStatContext =
       (*env)->NewObject(env, statClass, constructor, (long)statisticsContext);
-  checkAndHandleException(env, "error creating stat context");
+  checkAndHandleException(env, ERR_CREATE_STATICS_CONTEXT_FAILED);
 
   return jStatContext;
 }

@@ -2,14 +2,14 @@ package org.wasmedge;
 
 import org.wasmedge.enums.ValueType;
 
-public final class WasmEdgeF64Value implements WasmEdgeValue {
+public final class F64Value implements Value {
     private double value;
 
-    public WasmEdgeF64Value(double value) {
+    public F64Value(double value) {
         this.value = value;
     }
 
-    public WasmEdgeF64Value() {
+    public F64Value() {
 
     }
 

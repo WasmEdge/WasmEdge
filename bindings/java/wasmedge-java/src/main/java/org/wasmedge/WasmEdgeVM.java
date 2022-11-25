@@ -44,10 +44,10 @@ public class WasmEdgeVM {
 
     private native void runWasmFromFile(String file,
                                         String funcName,
-                                        WasmEdgeValue[] params,
+                                        Value[] params,
                                         int paramSize,
                                         int[] paramTypes,
-                                        WasmEdgeValue[] returns,
+                                        Value[] returns,
                                         int returnSize,
                                         int[] returnTypes
     );
@@ -62,45 +62,45 @@ public class WasmEdgeVM {
      */
     public void runWasmFromFile(String file,
                                 String funcName,
-                                List<WasmEdgeValue> params,
-                                List<WasmEdgeValue> returns) {
-        WasmEdgeValue[] paramsArray = valueListToArray(params);
+                                List<Value> params,
+                                List<Value> returns) {
+        Value[] paramsArray = valueListToArray(params);
         int[] paramTypes = getValueTypeArray(params);
 
-        WasmEdgeValue[] returnsArray = valueListToArray(returns);
+        Value[] returnsArray = valueListToArray(returns);
         int[] returnTypes = getValueTypeArray(returns);
 
         runWasmFromFile(file, funcName, paramsArray, params.size(), paramTypes,
                 returnsArray, returns.size(), returnTypes);
     }
 
-    public void runWasmFromBuffer(byte[] buffer, String funcName, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
-        WasmEdgeValue[] paramsArray = valueListToArray(params);
+    public void runWasmFromBuffer(byte[] buffer, String funcName, List<Value> params, List<Value> returns) {
+        Value[] paramsArray = valueListToArray(params);
         int[] paramTypes = getValueTypeArray(params);
 
-        WasmEdgeValue[] returnsArray = valueListToArray(returns);
+        Value[] returnsArray = valueListToArray(returns);
         int[] returnTypes = getValueTypeArray(returns);
 
         runWasmFromBuffer(buffer, funcName, paramsArray, paramTypes, returnsArray, returnTypes);
     }
 
-    private native void runWasmFromBuffer(byte[] buffer, String funcName, WasmEdgeValue[] params, int[] paramTypes, WasmEdgeValue[] returns, int[] returnTypes);
+    private native void runWasmFromBuffer(byte[] buffer, String funcName, Value[] params, int[] paramTypes, Value[] returns, int[] returnTypes);
 
 
-    public void runWasmFromASTModule(ASTModuleContext astModuleContext, String funcName, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
-        WasmEdgeValue[] paramsArray = valueListToArray(params);
+    public void runWasmFromASTModule(ASTModuleContext astModuleContext, String funcName, List<Value> params, List<Value> returns) {
+        Value[] paramsArray = valueListToArray(params);
         int[] paramTypes = getValueTypeArray(params);
 
-        WasmEdgeValue[] returnsArray = valueListToArray(returns);
+        Value[] returnsArray = valueListToArray(returns);
         int[] returnTypes = getValueTypeArray(returns);
 
         runWasmFromASTModule(astModuleContext, funcName, paramsArray, paramTypes, returnsArray, returnTypes);
     }
 
-    private native void runWasmFromASTModule(ASTModuleContext astModuleContext, String funcName, WasmEdgeValue[] params, int[] paramTypes, WasmEdgeValue[] returns, int[] returnTypes);
+    private native void runWasmFromASTModule(ASTModuleContext astModuleContext, String funcName, Value[] params, int[] paramTypes, Value[] returns, int[] returnTypes);
 
 
-    private int[] getValueTypeArray(List<WasmEdgeValue> values) {
+    private int[] getValueTypeArray(List<Value> values) {
 
         int[] types = new int[values.size()];
 
@@ -110,8 +110,8 @@ public class WasmEdgeVM {
         return types;
     }
 
-    private WasmEdgeValue[] valueListToArray(List<WasmEdgeValue> values) {
-        WasmEdgeValue[] valuesArray = new WasmEdgeValue[values.size()];
+    private Value[] valueListToArray(List<Value> values) {
+        Value[] valuesArray = new Value[values.size()];
         values.toArray(valuesArray);
         return valuesArray;
     }
@@ -126,20 +126,20 @@ public class WasmEdgeVM {
 
     public native void instantiate();
 
-    public void execute(String funcName, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
-        WasmEdgeValue[] paramsArray = valueListToArray(params);
+    public void execute(String funcName, List<Value> params, List<Value> returns) {
+        Value[] paramsArray = valueListToArray(params);
         int[] paramTypes = getValueTypeArray(params);
 
-        WasmEdgeValue[] returnsArray = valueListToArray(returns);
+        Value[] returnsArray = valueListToArray(returns);
         int[] returnTypes = getValueTypeArray(returns);
 
         execute(funcName, paramsArray, params.size(), paramTypes, returnsArray, returns.size(), returnTypes);
     }
 
-    public native void execute(String funcName, WasmEdgeValue[] params,
+    public native void execute(String funcName, Value[] params,
                                int paramSize,
                                int[] paramTypes,
-                               WasmEdgeValue[] returns,
+                               Value[] returns,
                                int returnSize,
                                int[] returnTypes);
 
@@ -164,18 +164,18 @@ public class WasmEdgeVM {
 
     public native void registerModuleFromASTModule(String moduleName, ASTModuleContext astModuleContext);
 
-    public void executeRegistered(String modName, String funcName, List<WasmEdgeValue> params,
-                                  List<WasmEdgeValue> returns) {
-        WasmEdgeValue[] paramsArray = valueListToArray(params);
+    public void executeRegistered(String modName, String funcName, List<Value> params,
+                                  List<Value> returns) {
+        Value[] paramsArray = valueListToArray(params);
         int[] paramTypes = getValueTypeArray(params);
 
-        WasmEdgeValue[] returnsArray = valueListToArray(returns);
+        Value[] returnsArray = valueListToArray(returns);
         int[] returnTypes = getValueTypeArray(returns);
         executeRegistered(modName, funcName, paramsArray, paramTypes, returnsArray, returnTypes);
     }
 
-    private native void executeRegistered(String modName, String funcName, WasmEdgeValue[] params,
-                                          int[] paramTypes, WasmEdgeValue[] returns, int[] returnTypes);
+    private native void executeRegistered(String modName, String funcName, Value[] params,
+                                          int[] paramTypes, Value[] returns, int[] returnTypes);
 
     private native void getFunctionList(List<FunctionTypeContext> functionList);
 
@@ -208,12 +208,12 @@ public class WasmEdgeVM {
     // Async API
     private native WasmEdgeAsync asyncRunWasmFromFile(
             String path, String funcName,
-            WasmEdgeValue[] params, int[] paramTypes);
+            Value[] params, int[] paramTypes);
 
     public WasmEdgeAsync asyncRunWasmFromFile(
             String path, String funcName,
-            List<WasmEdgeValue> params){
-                WasmEdgeValue[] paramsArray = valueListToArray(params);
+            List<Value> params){
+                Value[] paramsArray = valueListToArray(params);
                 int[] paramTypes = getValueTypeArray(params);
 
                 return asyncRunWasmFromFile(path, funcName, paramsArray, paramTypes);
@@ -221,13 +221,13 @@ public class WasmEdgeVM {
 
     private native WasmEdgeAsync asyncRunWasmFromBuffer(
             byte[] buffer,
-            String funcName, WasmEdgeValue[] params,
+            String funcName, Value[] params,
             int[] paramTypes);
 
     public WasmEdgeAsync asyncRunWasmFromBuffer(
             byte[] buffer,
-            String funcName, List<WasmEdgeValue> params){
-                WasmEdgeValue[] paramsArray = valueListToArray(params);
+            String funcName, List<Value> params){
+                Value[] paramsArray = valueListToArray(params);
                 int[] paramTypes = getValueTypeArray(params);
 
                 return asyncRunWasmFromBuffer(buffer, funcName, paramsArray, paramTypes);
@@ -235,13 +235,13 @@ public class WasmEdgeVM {
             
     private native WasmEdgeAsync asyncRunWasmFromASTModule(
             ASTModuleContext astCxt,
-            String funcName, WasmEdgeValue[] params,
+            String funcName, Value[] params,
             int[] paramTypes);
 
     public WasmEdgeAsync asyncRunWasmFromASTModule(
             ASTModuleContext astCxt,
-            String funcName, List<WasmEdgeValue> params){
-                WasmEdgeValue[] paramsArray = valueListToArray(params);
+            String funcName, List<Value> params){
+                Value[] paramsArray = valueListToArray(params);
                 int[] paramTypes = getValueTypeArray(params);
 
                 return asyncRunWasmFromASTModule(astCxt, funcName, paramsArray, paramTypes);
@@ -249,25 +249,25 @@ public class WasmEdgeVM {
 
     private native WasmEdgeAsync
     asyncExecute(String funcName,
-                            WasmEdgeValue[] params, int[] paramTypes);
+                 Value[] params, int[] paramTypes);
 
     public WasmEdgeAsync
-    asyncExecute(String funcName, List<WasmEdgeValue> params){
-         WasmEdgeValue[] paramsArray = valueListToArray(params);
+    asyncExecute(String funcName, List<Value> params){
+         Value[] paramsArray = valueListToArray(params);
         int[] paramTypes = getValueTypeArray(params);
         return asyncExecute(funcName, paramsArray, paramTypes);
                             }
 
     private native WasmEdgeAsync asyncExecuteRegistered(
             String moduleName,
-            String funcName, WasmEdgeValue[] params,
+            String funcName, Value[] params,
             int[] paramTypes);
 
     public WasmEdgeAsync asyncExecuteRegistered(
             String moduleName,
-            String funcName, List<WasmEdgeValue> params
+            String funcName, List<Value> params
             ){
-                WasmEdgeValue[] paramsArray = valueListToArray(params);
+                Value[] paramsArray = valueListToArray(params);
         int[] paramTypes = getValueTypeArray(params);
 
         return asyncExecuteRegistered(moduleName, funcName, paramsArray, paramTypes);

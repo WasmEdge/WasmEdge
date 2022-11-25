@@ -6,18 +6,13 @@
 #include "wasmedge/wasmedge.h"
 #include <stdint.h>
 
+GETTER(ConfigureContext)
+
+
 JNIEXPORT void JNICALL
 Java_org_wasmedge_ConfigureContext_nativeInit(JNIEnv *env, jobject thisObj) {
   WasmEdge_ConfigureContext *ConfigureContext = WasmEdge_ConfigureCreate();
   setPointer(env, thisObj, (jlong)ConfigureContext);
-}
-
-WasmEdge_ConfigureContext *getConfigureContext(JNIEnv *env,
-                                               jobject jConfigureContext) {
-  if (jConfigureContext == NULL) {
-    return NULL;
-  }
-  return (WasmEdge_ConfigureContext *)getPointer(env, jConfigureContext);
 }
 
 JNIEXPORT void JNICALL

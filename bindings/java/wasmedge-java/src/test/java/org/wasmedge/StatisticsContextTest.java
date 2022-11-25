@@ -37,14 +37,14 @@ public class StatisticsContextTest extends BaseTest {
         statisticsContext.setCostTable(costTable);
         statisticsContext.setCostLimit(500000);
 
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         vm.runWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params, returns);
-        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        Assert.assertEquals(3, ((I32Value) returns.get(0)).getValue());
 
         long cost = statisticsContext.getTotalCost();
         double ips = statisticsContext.getInstrPerSecond();

@@ -5,7 +5,7 @@ import org.junit.Test;
 import org.wasmedge.enums.ExternalType;
 import org.wasmedge.enums.RefType;
 import org.wasmedge.enums.ValueType;
-import org.wasmedge.enums.WasmEdgeMutability;
+import org.wasmedge.enums.Mutability;
 
 import java.util.List;
 
@@ -73,7 +73,7 @@ public class ImportTypeContextTest extends BaseTest {
 
         List<ImportTypeContext> impTypes = mod.listImports();
         Assert.assertEquals(impTypes.get(11).getTableType().getRefType(), RefType.EXTERREF);
-        Assert.assertEquals(impTypes.get(11).getTableType().getLimit(), new WasmEdgeLimit(true, 10, 30));
+        Assert.assertEquals(impTypes.get(11).getTableType().getLimit(), new Limit(true, 10, 30));
         loaderContext.delete();
         mod.delete();
     }
@@ -85,7 +85,7 @@ public class ImportTypeContextTest extends BaseTest {
         ASTModuleContext mod = loaderContext.parseFromFile(getResourcePath(IMPORT_WASM_PATH));
 
         List<ImportTypeContext> impTypes = mod.listImports();
-        Assert.assertEquals(impTypes.get(13).getMemoryType().getLimit(), new WasmEdgeLimit(false, 2, 2));
+        Assert.assertEquals(impTypes.get(13).getMemoryType().getLimit(), new Limit(false, 2, 2));
         loaderContext.delete();
         mod.delete();
     }
@@ -99,7 +99,7 @@ public class ImportTypeContextTest extends BaseTest {
 
         List<ImportTypeContext> impTypes = mod.listImports();
         Assert.assertEquals(impTypes.get(7).getGlobalType().getValueType(), ValueType.i64);
-        Assert.assertEquals(impTypes.get(7).getGlobalType().getMutability(), WasmEdgeMutability.CONST);
+        Assert.assertEquals(impTypes.get(7).getGlobalType().getMutability(), Mutability.CONST);
         loaderContext.delete();
         mod.delete();
     }

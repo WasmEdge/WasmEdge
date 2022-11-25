@@ -94,9 +94,9 @@ public class ExecutorContextTest extends BaseTest {
 
     @Test
     public void testInvokeFunction() {
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
-        List<WasmEdgeValue> returns = new ArrayList<>();
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
+        List<Value> returns = new ArrayList<>();
 
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
@@ -110,16 +110,16 @@ public class ExecutorContextTest extends BaseTest {
         ModuleInstanceContext moduleInstanceContext = executorContext.instantiate(storeContext, moduleContext);
         FunctionInstanceContext functionInstanceContext = moduleInstanceContext.findFunction(FUNC_NAME);
         executorContext.invoke(functionInstanceContext, params, returns);
-        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        Assert.assertEquals(3, ((I32Value) returns.get(0)).getValue());
     }
 
     @Test(expected = Exception.class)
     public void testInvokeFunctionParamMismatch() {
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
-        params.add(new WasmEdgeI32Value(3));
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
+        params.add(new I32Value(3));
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
@@ -137,17 +137,17 @@ public class ExecutorContextTest extends BaseTest {
     @Ignore
     public void testInvokeFunctionNullParam() {
         String funcName = "func-mul-2";
-        List<WasmEdgeValue> returns = new ArrayList<>();
+        List<Value> returns = new ArrayList<>();
         ExecutorContext executorContext = new ExecutorContext(new ConfigureContext(), new StatisticsContext());
     }
 
     @Test(expected = Exception.class)
     @Ignore
     public void testInvokeFunctionFunctionNotFound() {
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
@@ -189,13 +189,13 @@ public class ExecutorContextTest extends BaseTest {
         Assert.assertNotNull(tab);
 
         // call add
-        List<WasmEdgeValue> param = new ArrayList<>();
-        param.add(new WasmEdgeI32Value(777));
+        List<Value> param = new ArrayList<>();
+        param.add(new I32Value(777));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
+        List<Value> returns = new ArrayList<>();
         FunctionInstanceContext hostFunc = moduleInstanceContext.findFunction("func-host-add");
         exeCxt.invoke(hostFunc, param, returns);
 
-        Assert.assertEquals(778, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        Assert.assertEquals(778, ((I32Value) returns.get(0)).getValue());
     }
 }

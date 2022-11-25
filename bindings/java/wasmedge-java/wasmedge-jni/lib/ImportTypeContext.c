@@ -11,14 +11,7 @@
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
 
-WasmEdge_ImportTypeContext *getImportTypeContext(JNIEnv *env,
-                                                 jobject jExpType) {
-  if (jExpType == NULL) {
-    return NULL;
-  }
-
-  return (WasmEdge_ImportTypeContext *)getPointer(env, jExpType);
-}
+GETTER(ImportTypeContext)
 
 JNIEXPORT jstring JNICALL Java_org_wasmedge_ImportTypeContext_getModuleName(
     JNIEnv *env, jobject thisObject) {
@@ -127,9 +120,9 @@ jobject createImportTypeContext(JNIEnv *env,
                                 const WasmEdge_ImportTypeContext *cxt,
                                 jobject jAstMod) {
 
-  jclass cls = findJavaClass(env, "org/wasmedge/ImportTypeContext");
+  jclass cls = findJavaClass(env, ORG_WASMEDGE_IMPORTTYPECONTEXT);
   jmethodID constructor =
-      findJavaMethod(env, cls, "<init>", "(JLorg/wasmedge/ASTModuleContext;)V");
+      findJavaMethod(env, cls, DEFAULT_CONSTRUCTOR, ASTMODULECONTEXT_VOID);
   jobject obj = (*env)->NewObject(env, cls, constructor, (long)cxt, jAstMod);
   return obj;
 }

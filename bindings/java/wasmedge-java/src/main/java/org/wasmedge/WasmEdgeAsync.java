@@ -20,12 +20,12 @@ public class WasmEdgeAsync {
 
     // turn returns to an array
     private native void wasmEdge_AsyncGet(
-             WasmEdgeValue[] returns, int[] returnTypes);
+            Value[] returns, int[] returnTypes);
 
     public void wasmEdge_AsyncGet(
-            List<WasmEdgeValue> returns) {
+            List<Value> returns) {
 
-            WasmEdgeValue[] valuesArray = new WasmEdgeValue[returns.size()];
+            Value[] valuesArray = new Value[returns.size()];
             returns.toArray(valuesArray);
             int[] types = new int[returns.size()];
 

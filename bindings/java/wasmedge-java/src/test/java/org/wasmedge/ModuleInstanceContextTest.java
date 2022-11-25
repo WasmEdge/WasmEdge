@@ -5,7 +5,7 @@ import org.junit.Test;
 import org.wasmedge.enums.HostRegistration;
 import org.wasmedge.enums.RefType;
 import org.wasmedge.enums.ValueType;
-import org.wasmedge.enums.WasmEdgeMutability;
+import org.wasmedge.enums.Mutability;
 
 import java.util.List;
 import java.util.UUID;
@@ -48,7 +48,7 @@ public class ModuleInstanceContextTest extends BaseTest {
     public void testAddHostFunction() {
         HostFunction addHostFunc = new HostFunction() {
             @Override
-            public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            public Result apply(MemoryInstanceContext mem, List<Value> params, List<Value> returns) {
                 return new Result();
             }
         };
@@ -62,7 +62,7 @@ public class ModuleInstanceContextTest extends BaseTest {
 
     @Test
     public void testAddHostTable() {
-        WasmEdgeLimit limit = new WasmEdgeLimit(true, 10, 20);
+        Limit limit = new Limit(true, 10, 20);
         TableTypeContext tableType = new TableTypeContext(RefType.FUNCREF, limit);
         TableInstanceContext tabIns = new TableInstanceContext(tableType);
         ModuleInstanceContext impCxt = new ModuleInstanceContext("extern");
@@ -71,7 +71,7 @@ public class ModuleInstanceContextTest extends BaseTest {
 
     @Test
     public void testAddHostMemory() {
-        WasmEdgeLimit limit = new WasmEdgeLimit(true, 1, 2);
+        Limit limit = new Limit(true, 1, 2);
         MemoryTypeContext memType = new MemoryTypeContext(limit);
         MemoryInstanceContext memIns = new MemoryInstanceContext(memType);
         ModuleInstanceContext impCxt = new ModuleInstanceContext("extern");
@@ -80,8 +80,8 @@ public class ModuleInstanceContextTest extends BaseTest {
 
     @Test
     public void testAddHostGlobal() {
-        GlobalTypeContext glbType = new GlobalTypeContext(ValueType.i32, WasmEdgeMutability.CONST);
-        GlobalInstanceContext glbIns = new GlobalInstanceContext(glbType, new WasmEdgeI32Value(666));
+        GlobalTypeContext glbType = new GlobalTypeContext(ValueType.i32, Mutability.CONST);
+        GlobalInstanceContext glbIns = new GlobalInstanceContext(glbType, new I32Value(666));
         ModuleInstanceContext impCxt = new ModuleInstanceContext("extern");
         impCxt.addGlobal("global_i32", glbIns);
     }

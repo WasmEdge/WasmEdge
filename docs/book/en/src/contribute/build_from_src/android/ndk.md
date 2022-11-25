@@ -47,8 +47,8 @@ int main(int argc, char *argv[]) {
   WasmEdge_ConfigureDelete(ConfCxt);
   
   /* Create the image and TFLite import objects. */
-  WasmEdge_ModuleInstanceContext *ImageImpObj = WasmEdge_Image_ImportObjectCreate();
-  WasmEdge_ModuleInstanceContext *TFLiteImpObj = WasmEdge_TensorflowLite_ImportObjectCreate();
+  WasmEdge_ModuleInstanceContext *ImageImpObj = WasmEdge_Image_ModuleInstanceCreate();
+  WasmEdge_ModuleInstanceContext *TFLiteImpObj = WasmEdge_Image_ModuleInstanceCreate();
   WasmEdge_ModuleInstanceContext *TFDummyImpObj = WasmEdge_Tensorflow_ImportObjectCreateDummy();
 
   /* Register into VM. */

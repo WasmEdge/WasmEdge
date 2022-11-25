@@ -47,9 +47,9 @@ int main(int argc, char *argv[]) {
   WasmEdge_ConfigureDelete(ConfCxt);
   
   /* Create the image and TFLite import objects. */
-  WasmEdge_ImportObjectContext *ImageImpObj = WasmEdge_Image_ImportObjectCreate();
-  WasmEdge_ImportObjectContext *TFLiteImpObj = WasmEdge_TensorflowLite_ImportObjectCreate();
-  WasmEdge_ImportObjectContext *TFDummyImpObj = WasmEdge_Tensorflow_ImportObjectCreateDummy();
+  WasmEdge_ModuleInstanceContext *ImageImpObj = WasmEdge_Image_ImportObjectCreate();
+  WasmEdge_ModuleInstanceContext *TFLiteImpObj = WasmEdge_TensorflowLite_ImportObjectCreate();
+  WasmEdge_ModuleInstanceContext *TFDummyImpObj = WasmEdge_Tensorflow_ImportObjectCreateDummy();
 
   /* Register into VM. */
   WasmEdge_VMRegisterModuleFromImport(VMCxt, ImageImpObj);
@@ -59,8 +59,8 @@ int main(int argc, char *argv[]) {
   /* Init WASI. */
   const char *Preopens[] = {".:."};
   const char *Args[] = {argv[1], argv[2], argv[3]};
-  WasmEdge_ImportObjectContext *WASIImpObj = WasmEdge_VMGetImportModuleContext(VMCxt, WasmEdge_HostRegistration_Wasi);
-  WasmEdge_ImportObjectInitWASI(WASIImpObj, Args, 3, NULL, 0, Preopens, 1);
+  WasmEdge_ModuleInstanceContext *WASIImpObj = WasmEdge_VMGetImportModuleContext(VMCxt, WasmEdge_HostRegistration_Wasi);
+  WasmEdge_ModuleInstanceInitWASI(WASIImpObj, Args, 3, NULL, 0, Preopens, 1);
 
   /* Run WASM file. */
   WasmEdge_String FuncName = WasmEdge_StringCreateByCString("_start");
@@ -73,9 +73,9 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  WasmEdge_ImportObjectDelete(ImageImpObj);
-  WasmEdge_ImportObjectDelete(TFLiteImpObj);
-  WasmEdge_ImportObjectDelete(TFDummyImpObj);
+  WasmEdge_ModuleInstanceDelete(ImageImpObj);
+  WasmEdge_ModuleInstanceDelete(TFLiteImpObj);
+  WasmEdge_ModuleInstanceDelete(TFDummyImpObj);
   WasmEdge_VMDelete(VMCxt);
   return 0;
 }

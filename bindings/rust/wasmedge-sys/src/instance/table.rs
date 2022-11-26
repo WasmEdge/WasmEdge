@@ -326,7 +326,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -444,11 +444,7 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(
-        _: CallingFrame,
-        input: Vec<WasmValue>,
-        _data: *mut std::os::raw::c_void,
-    ) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(_: CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         println!("Rust: Entering Rust function real_add");
 
         if input.len() != 2 {

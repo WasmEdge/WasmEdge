@@ -131,45 +131,9 @@ impl Vm {
         mod_name: impl AsRef<str>,
         file: impl AsRef<Path>,
     ) -> WasmEdgeResult<Self> {
-        match file.as_ref().extension() {
-            Some(extension) => match extension.to_str() {
-                Some("wasm") => {
-                    self.inner
-                        .register_wasm_from_file(mod_name, file.as_ref())?;
-                    Ok(self)
-                }
-                #[cfg(target_os = "macos")]
-                Some("dylib") => {
-                    self.inner
-                        .register_wasm_from_file(mod_name, file.as_ref())?;
-                    Ok(self)
-                }
-                #[cfg(target_os = "linux")]
-                Some("so") => {
-                    self.inner
-                        .register_wasm_from_file(mod_name, file.as_ref())?;
-                    Ok(self)
-                }
-                #[cfg(target_os = "windows")]
-                Some("dll") => {
-                    self.inner
-                        .register_wasm_from_file(mod_name, file.as_ref())?;
-                    Ok(self)
-                }
-                Some("wat") => {
-                    let bytes = wat::parse_file(file.as_ref())
-                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
-                    self.inner.register_wasm_from_bytes(mod_name, &bytes)?;
-                    Ok(self)
-                }
-                _ => Err(Box::new(WasmEdgeError::Operation(
-                    "Invalid file extension".into(),
-                ))),
-            },
-            None => Err(Box::new(WasmEdgeError::Operation(
-                "Invalid file extension".into(),
-            ))),
-        }
+        self.inner
+            .register_wasm_from_file(mod_name, file.as_ref())?;
+        Ok(self)
     }
 
     /// Registers a WASM module from then given in-memory wasm bytes into the [Vm], and instantiates it.
@@ -270,8 +234,8 @@ impl Vm {
         &self,
         mod_name: Option<&str>,
         func_name: impl AsRef<str>,
-        args: impl IntoIterator<Item = sys::WasmValue>,
-    ) -> WasmEdgeResult<Vec<sys::WasmValue>> {
+        args: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
         let returns = match mod_name {
             Some(mod_name) => {
                 // run a function in the registered module
@@ -300,6 +264,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run the WASM function, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_func_async<M, N, A>(
         &self,
         mod_name: Option<M>,
@@ -314,15 +279,15 @@ impl Vm {
         match mod_name {
             Some(mod_name) => {
                 // run a function in the registered module
-                let fut =
-                    self.inner
-                        .run_registered_function_async(mod_name, func_name.as_ref(), args);
-                return fut.await;
+                self.inner
+                    .run_registered_function_async(mod_name, func_name.as_ref(), args)
+                    .await
             }
             None => {
                 // run a function in the active module
-                let fut = self.inner.run_function_async(func_name.as_ref(), args);
-                return fut.await;
+                self.inner
+                    .run_function_async(func_name.as_ref(), args)
+                    .await
             }
         }
     }
@@ -421,6 +386,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_func_from_file_async<P, N, A>(
         &self,
         file: P,
@@ -510,6 +476,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_func_from_bytes_async<N, A>(
         &self,
         bytes: &[u8],
@@ -561,6 +528,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_func_from_module_async<N, A>(
         &self,
         module: Module,
@@ -794,7 +762,7 @@ mod tests {
 
         // register a wasm module from a specified wasm file
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sdk/examples/data/fibonacci.wat");
 
         // run `fib` function from the wasm file
         let result = vm.run_func_from_file(file, "fib", params!(10));
@@ -1165,7 +1133,7 @@ mod tests {
 
             // register a wasm module from a specified wasm file
             let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+                .join("bindings/rust/wasmedge-sdk/examples/data/fibonacci.wat");
             let result = vm.register_module_from_file("extern", file);
             assert!(result.is_ok());
             let vm = result.unwrap();
@@ -1274,7 +1242,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32, !>("add", real_add, None)
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -1543,7 +1511,6 @@ mod tests {
     fn real_add(
         _frame: CallingFrame,
         inputs: Vec<WasmValue>,
-        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

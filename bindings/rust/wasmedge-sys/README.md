@@ -4,7 +4,7 @@ The [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crate defines a group 
 
 For developers, it is recommended that the APIs in `wasmedge-sys` are used to construct high-level libraries, while `wasmedge-sdk` is for building up business applications.
 
-Notice that `WasmEdge Rust SDK` uses nightly version of Rust. It's strongly recommended to use the latest nightly version of Rust.
+Notice that [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) requires **Rust v1.63 or above** in the **stable** channel.
 
 ## Versioning Table
 
@@ -12,6 +12,7 @@ The following table provides the versioning information about each crate of Wasm
 
 | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types| wasmedge-macro|
 | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
+| 0.7.0         | 0.11.2        | 0.12          | 0.3.1         | 0.3.0         |
 | 0.6.0         | 0.11.2        | 0.11          | 0.3.0         | 0.2.0         |
 | 0.5.0         | 0.11.1        | 0.10          | 0.3.0         | 0.1.0         |
 | 0.4.0         | 0.11.0        | 0.9           | 0.2.1         | -             |

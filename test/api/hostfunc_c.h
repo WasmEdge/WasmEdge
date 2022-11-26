@@ -33,6 +33,11 @@ WasmEdge_Result
 SpecTestPrintI32(void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
                  const WasmEdge_Value *In, WasmEdge_Value *Out);
 
+// Function type: {i64} -> {}
+WasmEdge_Result
+SpecTestPrintI64(void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
+                 const WasmEdge_Value *In, WasmEdge_Value *Out);
+
 // Function type: {f32} -> {}
 WasmEdge_Result
 SpecTestPrintF32(void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,

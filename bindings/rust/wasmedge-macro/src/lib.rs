@@ -10,7 +10,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, parse_quote, spanned::Spanned, FnArg, Item, Pat, PatIdent, PatType};
 
-/// Expand a synchronous host function defined with `wasmedge-sdk` crate.
+/// Declare a native function that will be used to create a host function instance.
 #[proc_macro_attribute]
 pub fn host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);
@@ -33,7 +33,6 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
     let wrapper_fn_inputs: syn::punctuated::Punctuated<FnArg, syn::token::Comma> = parse_quote!(
         frame: wasmedge_sdk::CallingFrame,
         args: Vec<wasmedge_sdk::WasmValue>,
-        data: *mut std::os::raw::c_void
     );
     // return type of wrapper function
     let wrapper_fn_return = item_fn.sig.output.clone();
@@ -65,75 +64,6 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
                     let caller = Caller::new(frame);
 
                     #inner_fn_name_ident(caller, args)
-                }
-            )
-        }
-        3 => {
-            let data_arg = item_fn.sig.inputs.last().unwrap().clone();
-            let ty_ptr = match &data_arg {
-                FnArg::Typed(PatType { ref ty, .. }) => match **ty {
-                    syn::Type::Reference(syn::TypeReference { ref elem, .. }) => syn::TypePtr {
-                        star_token: parse_quote!(*),
-                        const_token: None,
-                        mutability: Some(parse_quote!(mut)),
-                        elem: elem.clone(),
-                    },
-                    syn::Type::Path(syn::TypePath { ref path, .. }) => match path.segments.last() {
-                        Some(segment) => {
-                            let id = segment.ident.to_string();
-                            match id == "Option" {
-                                true => match segment.arguments {
-                                    syn::PathArguments::AngleBracketed(
-                                        syn::AngleBracketedGenericArguments { ref args, .. },
-                                    ) => {
-                                        let last_generic_arg = args.last();
-                                        match last_generic_arg {
-                                            Some(arg) => match arg {
-                                                syn::GenericArgument::Type(ty) => match ty {
-                                                    syn::Type::Reference(syn::TypeReference {
-                                                        ref elem,
-                                                        ..
-                                                    }) => syn::TypePtr {
-                                                        star_token: parse_quote!(*),
-                                                        const_token: None,
-                                                        mutability: Some(parse_quote!(mut)),
-                                                        elem: elem.clone(),
-                                                    },
-                                                    _ => panic!("Not found syn::Type::Reference"),
-                                                },
-                                                _ => {
-                                                    panic!("Not found syn::GenericArgument::Type")
-                                                }
-                                            },
-                                            None => panic!("Not found the last GenericArgument"),
-                                        }
-                                    }
-                                    _ => panic!("Not found syn::PathArguments::AngleBracketed"),
-                                },
-                                false => panic!("Not found segment ident: Option"),
-                            }
-                        }
-                        None => panic!("Not found path segments"),
-                    },
-                    _ => panic!("Unsupported syn::Type type"),
-                },
-                _ => panic!("Unsupported syn::FnArg type"),
-            };
-
-            // generate token stream
-            quote!(
-                # wrapper_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
-                    // define inner function
-                    fn #inner_fn_name_ident (#inner_fn_inputs) #inner_fn_return {
-                        #inner_fn_block
-                    }
-
-                    // create a Caller instance
-                    let caller = Caller::new(frame);
-
-                    let data = unsafe { &mut *(data as #ty_ptr) };
-
-                    #inner_fn_name_ident(caller, args, data)
                 }
             )
         }
@@ -253,7 +183,7 @@ fn expand_async_host_func2(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::To
     Ok(ret)
 }
 
-/// Expand an asynchronous host function defined with `wasmedge-sys` crate.
+/// Declare a native async function that will be used to create an async host function instance.
 #[proc_macro_attribute]
 pub fn async_host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);
@@ -297,8 +227,6 @@ fn expand_async_host_func_with_two_args(item_fn: &syn::ItemFn) -> proc_macro2::T
         // replace the first argument
         *first = parse_quote!(frame: wasmedge_sdk::CallingFrame);
     }
-    // insert the third argument
-    fn_inputs.push(parse_quote!(_data: *mut std::os::raw::c_void));
 
     // * prepare the function body
     let fn_block = &item_fn.block;
@@ -428,7 +356,6 @@ fn sys_expand_async_host_func_switcher2(
     Ok(ret)
 }
 
-/// Expand a synchronous host function defined with `wasmedge-sys` crate.
 #[proc_macro_attribute]
 pub fn sys_host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);
@@ -485,8 +412,7 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
     let ret = match item_fn.sig.inputs.len() {
         2 => {
             // insert the third argument
-            let mut wrapper_fn_inputs = item_fn.sig.inputs.clone();
-            wrapper_fn_inputs.push(parse_quote!(_data: *mut std::os::raw::c_void));
+            let wrapper_fn_inputs = item_fn.sig.inputs.clone();
 
             quote!(
                 #wrapper_fn_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
@@ -499,84 +425,12 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
                 }
             )
         }
-        3 => {
-            let data_arg = item_fn.sig.inputs.last().unwrap().clone();
-            let ty_ptr = match &data_arg {
-                FnArg::Typed(PatType { ref ty, .. }) => match **ty {
-                    syn::Type::Reference(syn::TypeReference { ref elem, .. }) => syn::TypePtr {
-                        star_token: parse_quote!(*),
-                        const_token: None,
-                        mutability: Some(parse_quote!(mut)),
-                        elem: elem.clone(),
-                    },
-                    syn::Type::Path(syn::TypePath { ref path, .. }) => match path.segments.last() {
-                        Some(segment) => {
-                            let id = segment.ident.to_string();
-                            match id == "Option" {
-                                true => match segment.arguments {
-                                    syn::PathArguments::AngleBracketed(
-                                        syn::AngleBracketedGenericArguments { ref args, .. },
-                                    ) => {
-                                        let last_generic_arg = args.last();
-                                        match last_generic_arg {
-                                            Some(arg) => match arg {
-                                                syn::GenericArgument::Type(ty) => match ty {
-                                                    syn::Type::Reference(syn::TypeReference {
-                                                        ref elem,
-                                                        ..
-                                                    }) => syn::TypePtr {
-                                                        star_token: parse_quote!(*),
-                                                        const_token: None,
-                                                        mutability: Some(parse_quote!(mut)),
-                                                        elem: elem.clone(),
-                                                    },
-                                                    _ => panic!("Not found syn::Type::Reference"),
-                                                },
-                                                _ => {
-                                                    panic!("Not found syn::GenericArgument::Type")
-                                                }
-                                            },
-                                            None => panic!("Not found the last GenericArgument"),
-                                        }
-                                    }
-                                    _ => panic!("Not found syn::PathArguments::AngleBracketed"),
-                                },
-                                false => panic!("Not found segment ident: Option"),
-                            }
-                        }
-                        None => panic!("Not found path segments"),
-                    },
-                    _ => panic!("Unsupported syn::Type type"),
-                },
-                _ => panic!("Unsupported syn::FnArg type"),
-            };
-
-            // inputs of wrapper function
-            let mut wrapper_fn_inputs = item_fn.sig.inputs.clone();
-            wrapper_fn_inputs.pop();
-            wrapper_fn_inputs.push(parse_quote!(data: *mut std::os::raw::c_void));
-
-            // generate token stream
-            quote!(
-                #wrapper_fn_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
-                    // define inner function
-                    fn #inner_fn_name_ident (#inner_fn_inputs) #inner_fn_return {
-                        #inner_fn_block
-                    }
-
-                    let data = unsafe { &mut *(data as #ty_ptr) };
-
-                    #inner_fn_name_ident(#arg1, #arg2, data)
-                }
-            )
-        }
         _ => panic!("Invalid numbers of host function arguments"),
     };
 
     Ok(ret)
 }
 
-/// Expand an asynchronous host function defined with `wasmedge-sys` crate.
 #[proc_macro_attribute]
 pub fn sys_async_host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);
@@ -603,10 +457,7 @@ fn sys_expand_async_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2:
 fn sys_expand_async_host_func_with_two_args(item_fn: &syn::ItemFn) -> proc_macro2::TokenStream {
     let fn_name_ident = &item_fn.sig.ident;
     let fn_visibility = &item_fn.vis;
-
-    // insert the third argument
-    let mut fn_inputs = item_fn.sig.inputs.clone();
-    fn_inputs.push(parse_quote!(_data: *mut std::os::raw::c_void));
+    let fn_inputs = item_fn.sig.inputs.clone();
 
     let fn_block = &item_fn.block;
 

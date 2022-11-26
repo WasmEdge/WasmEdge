@@ -12,7 +12,6 @@
 //! User error: OutOfUpperBound
 //! ```
 //! which means that the one or two input numbers of i32 type of the host function are out of upper bound (here is 100).
-#![feature(never_type)]
 
 use thiserror::Error;
 use wasmedge_sdk::{
@@ -97,7 +96,7 @@ fn real_add(_caller: Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, Ho
 fn main() -> anyhow::Result<()> {
     // create import module
     let import = ImportObjectBuilder::new()
-        .with_func::<(ExternRef, i32, i32), i32, !>("add", real_add, None)?
+        .with_func::<(ExternRef, i32, i32), i32>("add", real_add)?
         .build("extern_module")?;
 
     // create a vm instance

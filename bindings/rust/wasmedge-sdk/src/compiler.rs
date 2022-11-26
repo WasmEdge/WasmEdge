@@ -6,11 +6,9 @@ use wasmedge_sys as sys;
 
 /// Defines WasmEdge ahead-of-time(AOT) compiler and the relevant APIs.
 #[derive(Debug)]
-#[cfg(feature = "aot")]
 pub struct Compiler {
     pub(crate) inner: sys::Compiler,
 }
-#[cfg(feature = "aot")]
 impl Compiler {
     /// Creates a new AOT [compiler](crate::Compiler).
     ///
@@ -91,7 +89,6 @@ impl Compiler {
     }
 }
 
-#[cfg(feature = "aot")]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -111,7 +108,7 @@ mod tests {
 
         let compiler = Compiler::new(Some(&config))?;
         let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sdk/examples/data/fibonacci.wat");
         let out_dir = std::env::current_dir()?;
         let aot_filename = "aot_fibonacci_1";
         let aot_file_path = compiler.compile_from_file(wasm_file, aot_filename, out_dir)?;

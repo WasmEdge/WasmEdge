@@ -1,0 +1,83 @@
+name: rust-standalone-test
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+      - "rust/*"
+    paths:
+      - ".github/workflows/rust-standalone.yml"
+      - "bindings/rust/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/rust-standalone.yml"
+      - "bindings/rust/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
+
+jobs:
+  build_ubuntu:
+    name: Ubuntu
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04]
+    container:
+      image: wasmedge/wasmedge:ubuntu-build-clang
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust v1.65
+        uses: dtolnay/rust-toolchain@1.65
+        with:
+          toolchain: 1.65
+          components: rustfmt, clippy
+
+      - name: Install libwasmedge
+        working-directory: bindings/rust/
+        run: |
+          export WASMEDGE_DIR="$(pwd)/../../"
+          cargo test -p wasmedge-sdk --all --examples --features standalone
+
+  build_macos:
+    name: MacOS
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-11, macos-12]
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust v1.65
+        uses: dtolnay/rust-toolchain@1.65
+        with:
+          toolchain: 1.65
+          components: rustfmt, clippy
+
+      - name: Install build tools
+        run: brew install llvm@14 ninja boost cmake
+
+      - name: Install libwasmedge
+        working-directory: bindings/rust/
+        run: |
+          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          export CC=clang
+          export CXX=clang++
+          export DYLD_LIBRARY_PATH="/Users/runner/.wasmedge/lib"
+          export WASMEDGE_DIR="$(pwd)/../../"
+          cargo test -p wasmedge-sdk --all --examples --features standalone

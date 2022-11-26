@@ -79,7 +79,6 @@ enum WasmEdge_RefType {
 #undef UseRefType
 };
 
-
 enum WasmEdge_RefTypeCode {
 #define UseRefTypeCode
 #define Line(NAME, VALUE) WasmEdge_RefTypeCode_##NAME = VALUE,

@@ -332,7 +332,7 @@ impl From<ffi::WasmEdge_Value> for WasmValue {
                 ctx: raw_val,
                 ty: ValType::ExternRef,
             },
-            _ => panic!("unknown WasmEdge_ValType `{}`", raw_val.Type.TypeCode),
+            _ => panic!("unknown WasmEdge_ValType `{:?}`", raw_val),
         }
     }
 }

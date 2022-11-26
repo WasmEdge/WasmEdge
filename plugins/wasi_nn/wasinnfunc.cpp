@@ -382,7 +382,7 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
     Env.NNGraph.emplace_back(static_cast<WASINN::Backend>(Encoding));
 
     auto &Graph = Env.NNGraph.back();
-    TF_Status *TFStat = nullptr;
+    TF_Status *TFStat = TF_NewStatus();
 
     Graph.TFGraph = TF_NewGraph();
     Graph.TFBuffer = TF_NewBufferFromString(BinPtr, BinLen);
@@ -391,6 +391,15 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
                            TFStat);
     if (TF_GetCode(TFStat) != TF_OK) {
       spdlog::error(std::string("[WASI-NN] Cannot import graph: ") +
+                    TF_Message(TFStat));
+      Env.NNGraph.pop_back();
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    Graph.TFSessionOpts = TF_NewSessionOptions();
+    Graph.TFSession = TF_NewSession(Graph.TFGraph, Graph.TFSessionOpts, TFStat);
+    if (TF_GetCode(TFStat) != TF_OK) {
+      spdlog::error(std::string("[WASI-NN] Unable to "
+                                "create session: ") +
                     TF_Message(TFStat));
       Env.NNGraph.pop_back();
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);

@@ -75,6 +75,7 @@ public:
     }
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    TF_Status *TFStat = TF_NewStatus();
     if (TFGraphOpts) {
       TF_DeleteImportGraphDefOptions(TFGraphOpts);
     }
@@ -84,6 +85,14 @@ public:
     if (TFGraph) {
       TF_DeleteGraph(TFGraph);
     }
+    if (TFSessionOpts) {
+      TF_DeleteSessionOptions(TFSessionOpts);
+    }
+    if (TFSession) {
+      TF_CloseSession(TFSession, TFStat);
+      TF_DeleteSession(TFSession, TFStat);
+    }
+    TF_DeleteStatus(TFStat);
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     if (TFLiteMod) {
@@ -107,6 +116,8 @@ public:
   TF_ImportGraphDefOptions *TFGraphOpts = nullptr;
   TF_Buffer *TFBuffer = nullptr;
   TF_Graph *TFGraph = nullptr;
+  TF_SessionOptions *TFSessionOpts = nullptr;
+  TF_Session *TFSession = nullptr;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
   TfLiteModel *TFLiteMod = nullptr;

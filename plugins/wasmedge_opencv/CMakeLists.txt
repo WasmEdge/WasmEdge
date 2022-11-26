@@ -6,7 +6,6 @@ find_package(OpenCV REQUIRED)
 wasmedge_add_library(wasmedgePluginOpenCV 
 	SHARED
 	opencvenv.cpp
-	coremodule.cpp
 )
 
 target_compile_options(wasmedgePluginOpenCV
@@ -22,17 +21,26 @@ if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   )
 endif()
 
+option(WASMEDGE_OPENCV_CORE "Link OpenCV core module" ON)
+
+if(WASMEDGE_OPENCV_CORE)
+	add_subdirectory(core)
+	list(APPEND EXTRA_LIBS core)
+	list(APPEND EXTRA_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/core")
+endif()
+
 target_include_directories(wasmedgePluginOpenCV
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
-  ${OpenCV_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(wasmedgePluginOpenCV
   PUBLIC
+  ${EXTRA_LIBS}
   ${OpenCV_LIBS}
 )
+
 if(WASMEDGE_LINK_PUGLINS_STATIC)
   target_link_libraries(wasmedgePluginOpenCV
     PRIVATE

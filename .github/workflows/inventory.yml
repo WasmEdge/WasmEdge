@@ -59,6 +59,7 @@ jobs:
           WasmEdge_AsyncWaitFor
           WasmEdge_VMAsyncExecute
           WasmEdge_VMAsyncExecuteRegistered
+          WasmEdge_GlobalTypeGetFullValType
           EOF
           echo "===Allowlist==="
           cat allowlist.txt

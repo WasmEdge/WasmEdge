@@ -674,9 +674,9 @@ public:
     return Node.sockSetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
   }
 
-  WasiExpect<void> sockGetLoaclAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetLocalAddr(uint8_t *Address, uint32_t *AddrTypePtr,
                                     uint32_t *PortPtr) const noexcept {
-    return Node.sockGetLoaclAddr(Address, AddrTypePtr, PortPtr);
+    return Node.sockGetLocalAddr(Address, AddrTypePtr, PortPtr);
   }
 
   WasiExpect<void> sockGetPeerAddr(uint8_t *Address, uint32_t *AddrTypePtr,

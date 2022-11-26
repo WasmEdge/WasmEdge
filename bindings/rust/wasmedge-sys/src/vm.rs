@@ -1,5 +1,7 @@
 //! Defines WasmEdge Vm struct.
 
+#[cfg(feature = "async")]
+use crate::r#async::FiberFuture;
 #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
 use crate::WasiNnModule;
 #[cfg(target_os = "linux")]
@@ -13,7 +15,6 @@ use crate::{
         module::InnerInstance,
     },
     loader::{InnerLoader, Loader},
-    r#async::FiberFuture,
     statistics::{InnerStat, Statistics},
     store::{InnerStore, Store},
     types::WasmEdgeString,
@@ -21,7 +22,6 @@ use crate::{
     validator::{InnerValidator, Validator},
     Config, Engine, ImportObject, Instance, Module, WasiModule, WasmEdgeResult, WasmValue,
 };
-
 #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 use crate::{
     WasiCrypto, WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
@@ -94,7 +94,7 @@ impl Vm {
     ///
     /// * `mod_name` - The name for the WASM module to be registered.
     ///
-    /// * `path` - The file path to the target WASM file.
+    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
     ///
     /// # Error
     ///
@@ -102,9 +102,38 @@ impl Vm {
     pub fn register_wasm_from_file(
         &self,
         mod_name: impl AsRef<str>,
-        path: impl AsRef<Path>,
+        file: impl AsRef<Path>,
     ) -> WasmEdgeResult<()> {
-        let path = utils::path_to_cstring(path.as_ref())?;
+        match file.as_ref().extension() {
+            Some(extension) => match extension.to_str() {
+                Some("wasm") => self.register_from_wasm_or_aot_file(mod_name, file),
+                #[cfg(target_os = "macos")]
+                Some("dylib") => self.register_from_wasm_or_aot_file(mod_name, file),
+                #[cfg(target_os = "linux")]
+                Some("so") => self.register_from_wasm_or_aot_file(mod_name, file),
+                #[cfg(target_os = "windows")]
+                Some("dll") => self.register_from_wasm_or_aot_file(mod_name, file),
+                Some("wat") => {
+                    let bytes = wat::parse_file(file.as_ref())
+                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
+                    self.register_wasm_from_bytes(mod_name, &bytes)
+                }
+                _ => Err(Box::new(WasmEdgeError::Operation(
+                    "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
+                ))),
+            },
+            None => Err(Box::new(WasmEdgeError::Operation(
+                "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
+            ))),
+        }
+    }
+
+    fn register_from_wasm_or_aot_file(
+        &self,
+        mod_name: impl AsRef<str>,
+        file: impl AsRef<Path>,
+    ) -> WasmEdgeResult<()> {
+        let path = utils::path_to_cstring(file.as_ref())?;
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
             check(ffi::WasmEdge_VMRegisterModuleFromFile(
@@ -301,7 +330,7 @@ impl Vm {
     ///
     /// # Arguments
     ///
-    /// * `path` - The file path to a WASM file.
+    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
     ///
     /// * `func_name` - The name of the [function](crate::Function).
     ///
@@ -312,12 +341,12 @@ impl Vm {
     /// If fail to run, then an error is returned.
     pub fn run_wasm_from_file(
         &self,
-        path: impl AsRef<Path>,
+        file: impl AsRef<Path>,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         // load
-        self.load_wasm_from_file(path)?;
+        self.load_wasm_from_file(file)?;
 
         // validate
         self.validate()?;
@@ -333,7 +362,7 @@ impl Vm {
     ///
     /// # Arguments
     ///
-    /// * `path` - The file path to a WASM file.
+    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
     ///
     /// * `func_name` - The name of the [function](crate::Function).
     ///
@@ -342,14 +371,15 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_wasm_from_file_async(
         &self,
-        path: impl AsRef<Path>,
+        file: impl AsRef<Path>,
         func_name: impl AsRef<str> + Send,
         params: impl IntoIterator<Item = WasmValue> + Send,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         // load
-        self.load_wasm_from_file(path)?;
+        self.load_wasm_from_file(file)?;
 
         // validate
         self.validate()?;
@@ -412,6 +442,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_wasm_from_bytes_async(
         &self,
         bytes: &[u8],
@@ -482,6 +513,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_wasm_from_module_async(
         &self,
         module: Module,
@@ -550,12 +582,37 @@ impl Vm {
     ///
     /// # Argument
     ///
-    /// * `path` - The path to a WASM file.
+    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
     ///
     /// # Error
     ///
     /// If fail to load, then an error is returned.  The loaded module is not validated.
-    pub fn load_wasm_from_file(&self, path: impl AsRef<Path>) -> WasmEdgeResult<()> {
+    pub fn load_wasm_from_file(&self, file: impl AsRef<Path>) -> WasmEdgeResult<()> {
+        match file.as_ref().extension() {
+            Some(extension) => match extension.to_str() {
+                Some("wasm") => self.load_from_wasm_or_aot_file(&file),
+                #[cfg(target_os = "macos")]
+                Some("dylib") => self.load_from_wasm_or_aot_file(&file),
+                #[cfg(target_os = "linux")]
+                Some("so") => self.load_from_wasm_or_aot_file(&file),
+                #[cfg(target_os = "windows")]
+                Some("dll") => self.load_from_wasm_or_aot_file(&file),
+                Some("wat") => {
+                    let bytes = wat::parse_file(file.as_ref())
+                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
+                    self.load_wasm_from_bytes(&bytes)
+                }
+                _ => Err(Box::new(WasmEdgeError::Operation(
+                    "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
+                ))),
+            },
+            None => Err(Box::new(WasmEdgeError::Operation(
+                "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
+            ))),
+        }
+    }
+
+    fn load_from_wasm_or_aot_file(&self, path: impl AsRef<Path>) -> WasmEdgeResult<()> {
         let path = utils::path_to_cstring(path.as_ref())?;
         unsafe {
             check(ffi::WasmEdge_VMLoadWasmFromFile(
@@ -650,6 +707,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run the WASM function, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_function_async(
         &self,
         func_name: impl AsRef<str> + Send,
@@ -722,6 +780,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run the WASM function, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_registered_function_async(
         &self,
         mod_name: impl AsRef<str> + Send,
@@ -1261,12 +1320,12 @@ mod tests {
 
         // load wasm module from a specified file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = vm.load_wasm_from_file(path);
         assert!(result.is_ok());
 
         // load a wasm module from a non-existent file
-        let result = vm.load_wasm_from_file("no_file");
+        let result = vm.load_wasm_from_file("no_file.wasm");
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1297,12 +1356,44 @@ mod tests {
         let vm = result.unwrap();
 
         // load wasm module from buffer
-        let wasm_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-        let result = std::fs::read(wasm_path);
+        let result = wat2wasm(
+            br#"
+            (module
+                (export "fib" (func $fib))
+                (func $fib (param $n i32) (result i32)
+                 (if
+                  (i32.lt_s
+                   (get_local $n)
+                   (i32.const 2)
+                  )
+                  (return
+                   (i32.const 1)
+                  )
+                 )
+                 (return
+                  (i32.add
+                   (call $fib
+                    (i32.sub
+                     (get_local $n)
+                     (i32.const 2)
+                    )
+                   )
+                   (call $fib
+                    (i32.sub
+                     (get_local $n)
+                     (i32.const 1)
+                    )
+                   )
+                  )
+                 )
+                )
+               )
+    "#,
+        );
         assert!(result.is_ok());
-        let buffer = result.unwrap();
-        let result = vm.load_wasm_from_bytes(&buffer);
+        let wasm_bytes = result.unwrap();
+
+        let result = vm.load_wasm_from_bytes(&wasm_bytes);
         assert!(result.is_ok());
 
         // load wasm module from an empty buffer
@@ -1349,7 +1440,7 @@ mod tests {
 
         // load a AST module from a file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = loader.from_file(path);
         assert!(result.is_ok());
         let module = result.unwrap();
@@ -1387,7 +1478,7 @@ mod tests {
 
         // load a AST module from a file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = loader.from_file(path);
         assert!(result.is_ok());
         let module = result.unwrap();
@@ -1428,7 +1519,7 @@ mod tests {
 
         // load a AST module from a file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = loader.from_file(path);
         assert!(result.is_ok());
         let module = result.unwrap();
@@ -1456,7 +1547,7 @@ mod tests {
     #[allow(clippy::assertions_on_result_states)]
     fn test_vm_invoke_wasm_function_step_by_step() {
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = Config::create();
         assert!(result.is_ok());
         let mut config = result.unwrap();
@@ -1581,7 +1672,7 @@ mod tests {
         let vm = result.unwrap();
 
         // register a wasm module from a non-existed file
-        let result = vm.register_wasm_from_file("reg-wasm-file", "no_file");
+        let result = vm.register_wasm_from_file("reg-wasm-file", "no_file.wasm");
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1592,7 +1683,7 @@ mod tests {
 
         // register a wasm module from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = vm.register_wasm_from_file("reg-wasm-file", path);
         assert!(result.is_ok());
     }
@@ -1629,7 +1720,7 @@ mod tests {
 
         // load a AST module from a file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = loader.from_file(path);
         assert!(result.is_ok());
         let module = result.unwrap();
@@ -1734,7 +1825,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -1785,12 +1876,43 @@ mod tests {
         let vm = result.unwrap();
 
         // register a wasm module from a buffer
-        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-        let result = std::fs::read(path);
+        let result = wat2wasm(
+            br#"
+            (module
+                (export "fib" (func $fib))
+                (func $fib (param $n i32) (result i32)
+                 (if
+                  (i32.lt_s
+                   (get_local $n)
+                   (i32.const 2)
+                  )
+                  (return
+                   (i32.const 1)
+                  )
+                 )
+                 (return
+                  (i32.add
+                   (call $fib
+                    (i32.sub
+                     (get_local $n)
+                     (i32.const 2)
+                    )
+                   )
+                   (call $fib
+                    (i32.sub
+                     (get_local $n)
+                     (i32.const 1)
+                    )
+                   )
+                  )
+                 )
+                )
+               )
+    "#,
+        );
         assert!(result.is_ok());
-        let buffer = result.unwrap();
-        let result = vm.register_wasm_from_bytes("reg-wasm-buffer", &buffer);
+        let wasm_bytes = result.unwrap();
+        let result = vm.register_wasm_from_bytes("reg-wasm-buffer", &wasm_bytes);
         assert!(result.is_ok());
     }
 
@@ -1815,14 +1937,14 @@ mod tests {
 
         // run a function from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
         let result = vm.run_wasm_from_file(&path, "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 8);
 
         // run a function from a non-existent file
-        let result = vm.run_wasm_from_file("no_file", "fib", [WasmValue::from_i32(5)]);
+        let result = vm.run_wasm_from_file("no_file.wasm", "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1862,6 +1984,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_vm_run_wasm_from_file_async() {
         // create a Config context
@@ -2037,6 +2160,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_vm_run_wasm_from_bytes_async() {
         // create a Config context
@@ -2204,6 +2328,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_vm_run_wasm_from_module_async() {
         // create a Config context
@@ -2290,7 +2415,7 @@ mod tests {
         let handle = thread::spawn(move || {
             // run a function from a wasm file
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+                .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
             let result = vm.run_wasm_from_file(path, "fib", [WasmValue::from_i32(5)]);
             assert!(result.is_ok());
             let returns = result.unwrap();
@@ -2327,7 +2452,7 @@ mod tests {
 
             // run a function from a wasm file
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+                .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
             let result = vm.run_wasm_from_file(path, "fib", [WasmValue::from_i32(5)]);
             assert!(result.is_ok());
             let returns = result.unwrap();
@@ -2420,7 +2545,7 @@ mod tests {
             let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
-            let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
+            let result = Function::create(&func_ty, Box::new(real_add), 0);
             assert!(result.is_ok());
             let host_func = result.unwrap();
             import_wasi.add_func("add", host_func);
@@ -2541,7 +2666,7 @@ mod tests {
             let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
-            let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
+            let result = Function::create(&func_ty, Box::new(real_add), 0);
             assert!(result.is_ok());
             let host_func = result.unwrap();
             import_process.add_func("add", host_func);
@@ -2707,18 +2832,14 @@ mod tests {
         assert!(result.is_ok());
         let loader = result.unwrap();
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = loader.from_file(path);
         assert!(result.is_ok());
         result.unwrap()
     }
 
     #[cfg(unix)]
-    fn real_add(
-        _: CallingFrame,
-        inputs: Vec<WasmValue>,
-        _data: *mut std::os::raw::c_void,
-    ) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(_: CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }

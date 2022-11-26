@@ -1,17 +1,18 @@
 # wasmedge-java
 
+## Prerequisites
+- JDK 11 or later
+- Gradle 6.3 or later
+
 ## Installation
 
 ### 1. Build & install shared library
-- Follow [build.md](https://github.com/WasmEdge/WasmEdge/blob/master/docs/build.md) to build and install WasmEdge
-- Then go to `bindings/java/wasmedge-jni` directory
-- Next run `mkdir build && cd build`
-- Then run `cmake .. && make && make install`
+- Follow [this link](https://wasmedge.org/book/en/contribute/build_from_src.html) to build and install WasmEdge
 
 ### 2. Build `wasmedge-java`
 - Go to `bindings/java/wasmedge-java`
 - Install gradle
-- Run `gradle jar`
+- Run `./gradlew build`
 
 ### 3. How to use
 - Add `build\libs\wasmedge-java.jar` as a dependency of your java project.

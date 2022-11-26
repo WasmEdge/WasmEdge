@@ -2,7 +2,7 @@
 
 The [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) crate defines a group of high-level Rust APIs, which are used to build up business applications.
 
-Notice that `WasmEdge Rust SDK` uses nightly version of Rust. It's strongly recommended to use the latest nightly version of Rust.
+Notice that [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) requires **Rust v1.63 or above** in the **stable** channel.
 
 ## Versioning Table
 
@@ -10,6 +10,7 @@ The following table provides the versioning information about each crate of Wasm
 
 | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types| wasmedge-macro|
 | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
+| 0.7.0         | 0.11.2        | 0.12          | 0.3.1         | 0.3.0         |
 | 0.6.0         | 0.11.2        | 0.11          | 0.3.0         | 0.2.0         |
 | 0.5.0         | 0.11.1        | 0.10          | 0.3.0         | 0.1.0         |
 | 0.4.0         | 0.11.0        | 0.9           | 0.2.1         | -             |
@@ -137,5 +138,3 @@ A quick-start example below is using `wasmedge-sdk` to run a WebAssembly module 
 
 - [WasmEdge Runtime](https://wasmedge.org/)
 - [WasmEdge C API Documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md)
-- [wasmedge-sys: WasmEdge Low-level Rust APIs](https://crates.io/crates/wasmedge-sys)
-- [wasmedge-types: WasmEdge Types](https://crates.io/crates/wasmedge-types)

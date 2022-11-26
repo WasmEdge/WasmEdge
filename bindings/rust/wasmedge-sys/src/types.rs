@@ -122,15 +122,6 @@ pub struct WasmValue {
     ty: ValType,
 }
 
-impl std::fmt::Debug for ffi::WasmEdge_Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WasmEdge_Value")
-            .field("value", &self.Value)
-            .field("type", &self.Type.TypeCode)
-            .finish()
-    }
-}
-
 impl WasmValue {
     /// Returns the raw `WasmEdge_Value`.
     pub fn as_raw(&self) -> ffi::WasmEdge_Value {

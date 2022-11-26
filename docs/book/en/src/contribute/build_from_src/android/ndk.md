@@ -48,8 +48,8 @@ int main(int argc, char *argv[]) {
   
   /* Create the image and TFLite import objects. */
   WasmEdge_ModuleInstanceContext *ImageImpObj = WasmEdge_Image_ModuleInstanceCreate();
-  WasmEdge_ModuleInstanceContext *TFLiteImpObj = WasmEdge_Image_ModuleInstanceCreate();
-  WasmEdge_ModuleInstanceContext *TFDummyImpObj = WasmEdge_Tensorflow_ImportObjectCreateDummy();
+  WasmEdge_ModuleInstanceContext *TFLiteImpObj = WasmEdge_TensorflowLite_ModuleInstanceCreate();
+  WasmEdge_ModuleInstanceContext *TFDummyImpObj = WasmEdge_Tensorflow_ModuleInstanceCreateDummy();
 
   /* Register into VM. */
   WasmEdge_VMRegisterModuleFromImport(VMCxt, ImageImpObj);

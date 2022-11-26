@@ -707,7 +707,7 @@ INode::fdFilestatSetSize(__wasi_filesize_t Size) const noexcept {
       } else if (unlikely(WriteResult == FALSE)) {
         return WasiUnexpect(fromWinError(GetLastError()));
       }
-      Count++;
+      Count--;
     }
 
     // Restore pointer

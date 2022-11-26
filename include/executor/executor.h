@@ -637,12 +637,12 @@ public:
   static const AST::Module::IntrinsicsTable Intrinsics;
 
 private:
-  Expect<uint32_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
-                                uint32_t Address, uint32_t Count) noexcept;
   template <typename T>
   Expect<uint32_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
                               uint32_t Address, T Expected,
                               int64_t Timeout) noexcept;
+  Expect<uint32_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
+                                uint32_t Address, uint32_t Count) noexcept;
   void atomicNotifyAll() noexcept;
 
   struct Waiter {

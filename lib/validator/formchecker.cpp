@@ -368,7 +368,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
             const uint32_t Idx = IdxN - 1;
             // Cannot use popTypes() here because we need the popped value.
             if (auto Res = popType(NTypes[Idx])) {
-              // Have to check is `ValType::Unknown` occured for the case of
+              // Have to check is `unreachableVType` occured for the case of
               // `unreachable` instruction appeared before the `br_table`
               // instruction.
               if (CtrlStack.back().IsUnreachable) {

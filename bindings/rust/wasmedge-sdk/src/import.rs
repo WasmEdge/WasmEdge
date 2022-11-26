@@ -13,7 +13,6 @@ use wasmedge_sys::{self as sys, AsImport};
 /// ```rust
 /// // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 /// // #![feature(explicit_generic_args_with_impl_trait)]
-/// #![feature(never_type)]
 ///
 /// use wasmedge_sdk::{
 ///     types::Val,
@@ -64,7 +63,7 @@ use wasmedge_sys::{self as sys, AsImport};
 ///     let module_name = "extern";
 ///     let _import = ImportObjectBuilder::new()
 ///         // add a function
-///         .with_func::<(i32, i32), i32, !>("add", real_add, None)?
+///         .with_func::<(i32, i32), i32>("add", real_add)?
 ///         // add a global
 ///         .with_global("global", global_const)?
 ///         // add a memory
@@ -106,23 +105,16 @@ impl ImportObjectBuilder {
     ///
     /// * `real_func` - The native function.
     ///
-    /// * `data` - The additional data object to set to this host function context.
-    ///
     /// # error
     ///
     /// If fail to create or add the [host function](crate::Func), then an error is returned.
-    pub fn with_func<Args, Rets, T>(
+    pub fn with_func<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
-        real_func: impl Fn(
-                CallingFrame,
-                Vec<WasmValue>,
-                *mut std::os::raw::c_void,
-            ) -> Result<Vec<WasmValue>, HostFuncError>
+        real_func: impl Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
             + Send
             + Sync
             + 'static,
-        data: Option<&mut T>,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -132,7 +124,7 @@ impl ImportObjectBuilder {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner_func = sys::Function::create::<T>(&ty.into(), boxed_func, data, 0)?;
+        let inner_func = sys::Function::create(&ty.into(), boxed_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }
@@ -152,22 +144,17 @@ impl ImportObjectBuilder {
     /// # error
     ///
     /// If fail to create or add the [host function](crate::Func), then an error is returned.
-    pub fn with_func_by_type<T>(
+    pub fn with_func_by_type(
         mut self,
         name: impl AsRef<str>,
         ty: FuncType,
-        real_func: impl Fn(
-                CallingFrame,
-                Vec<WasmValue>,
-                *mut std::os::raw::c_void,
-            ) -> Result<Vec<WasmValue>, HostFuncError>
+        real_func: impl Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
             + Send
             + Sync
             + 'static,
-        data: Option<&mut T>,
     ) -> WasmEdgeResult<Self> {
         let boxed_func = Box::new(real_func);
-        let inner_func = sys::Function::create::<T>(&ty.into(), boxed_func, data, 0)?;
+        let inner_func = sys::Function::create(&ty.into(), boxed_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }
@@ -185,13 +172,13 @@ impl ImportObjectBuilder {
     /// # error
     ///
     /// If fail to create or add the [host function](crate::Func), then an error is returned.
+    #[cfg(feature = "async")]
     pub fn with_func_async<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
         real_func: impl Fn(
                 CallingFrame,
                 Vec<WasmValue>,
-                *mut std::os::raw::c_void,
             ) -> Box<
                 dyn std::future::Future<
                         Output = Result<Vec<WasmValue>, crate::error::HostFuncError>,
@@ -658,7 +645,7 @@ mod tests {
         PluginManager::load_from_default_paths();
 
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32, !>("add", real_add, None)
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host func")
             .build_as_wasmedge_process(None, false);
         assert!(result.is_ok());
@@ -720,7 +707,7 @@ mod tests {
     fn test_import_new_wasi() {
         // create a wasi module
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32, !>("add", real_add, None)
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host func")
             .build_as_wasi(None, None, None);
         assert!(result.is_ok());
@@ -773,21 +760,10 @@ mod tests {
     #[test]
     #[allow(clippy::assertions_on_result_states)]
     fn test_import_add_func() {
-        #[derive(Debug)]
-        struct Data<T, S> {
-            _x: i32,
-            _y: String,
-            _v: Vec<T>,
-            _s: Vec<S>,
-        }
-
         fn real_add(
             _frame: CallingFrame,
             inputs: Vec<WasmValue>,
-            data: *mut std::os::raw::c_void,
         ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-            println!("data: {data:?}");
-
             if inputs.len() != 2 {
                 return Err(HostFuncError::User(1));
             }
@@ -809,17 +785,9 @@ mod tests {
             Ok(vec![WasmValue::from_i32(c)])
         }
 
-        // The additional data object to set to host function context
-        let mut data: Data<i32, &str> = Data {
-            _x: 12,
-            _y: "hello".to_string(),
-            _v: vec![1, 2, 3],
-            _s: vec!["macos", "linux", "windows"],
-        };
-
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32, Data<i32, &str>>("add", real_add, Some(&mut data))
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host func")
             .build("extern");
         assert!(result.is_ok());
@@ -1076,7 +1044,7 @@ mod tests {
 
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32, !>("add", real_add, None)
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host func")
             .with_table("table", table)
             .expect("failed to add table")
@@ -1210,7 +1178,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32, !>("add", real_add, None)
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -1336,7 +1304,7 @@ mod tests {
 
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32, !>("add", real_add, None)
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -1451,7 +1419,6 @@ mod tests {
     fn real_add(
         _frame: CallingFrame,
         inputs: Vec<WasmValue>,
-        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

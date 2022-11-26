@@ -860,11 +860,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::F64x2__floor:
   case OpCode::F64x2__trunc:
   case OpCode::F64x2__nearest:
-
-  case OpCode::Atomic__fence:
     return {};
 
   // Atomic Memory Instructions.
+  case OpCode::Atomic__fence:
+    return readCheckZero(Instr.getTargetIndex());
+
   case OpCode::Memory__atomic__notify:
   case OpCode::Memory__atomic__wait32:
   case OpCode::Memory__atomic__wait64:

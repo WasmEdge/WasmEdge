@@ -1046,14 +1046,14 @@ public:
     }
   }
 
-  WasiExpect<void> sockGetLoaclAddr(__wasi_fd_t Fd, uint8_t *Address,
+  WasiExpect<void> sockGetLocalAddr(__wasi_fd_t Fd, uint8_t *Address,
                                     uint32_t *AddrTypePtr,
                                     uint32_t *PortPtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockGetLoaclAddr(Address, AddrTypePtr, PortPtr);
+      return Node->sockGetLocalAddr(Address, AddrTypePtr, PortPtr);
     }
   }
 

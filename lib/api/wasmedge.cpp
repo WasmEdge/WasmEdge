@@ -206,13 +206,13 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
       break;
     case ValTypeCode::Ref:
     case ValTypeCode::RefNull: {
-      switch (TVec[I].getExt().RefTypeExt.HeapType) {
-      case WasmEdge_HeapType_Func: {
+      switch (TVec[I].asRefType().getExt().getHType()) {
+      case HeapType::Func: {
         VVec[I] = ValVariant::wrap<FuncRef>(
             to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
         break;
       }
-      case WasmEdge_HeapType_Extern: {
+      case HeapType::Extern: {
         VVec[I] = ValVariant::wrap<ExternRef>(
             to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
         break;
@@ -1184,7 +1184,7 @@ WasmEdge_GlobalTypeGetFullValType(const WasmEdge_GlobalTypeContext *Cxt) {
   }
   return WasmEdge_FullValType{
       .TypeCode = WasmEdge_ValTypeCode_I32,
-      .Ext = WasmEdge_ValTypeExt(),
+      .Ext = {},
   };
 }
 

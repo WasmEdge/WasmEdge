@@ -144,14 +144,14 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoMismatch &Rhs) {
     break;
   case MismatchCategory::Table:
     OS << "Expected: TableType {RefType{"
-       << RefTypeCodeStr[Rhs.ExpRefType.getTypeCode()] << "} Limit{"
-       << Rhs.ExpLimMin;
+       << ValTypeCodeStr[static_cast<ValTypeCode>(Rhs.ExpRefType.getTypeCode())]
+       << "} Limit{" << Rhs.ExpLimMin;
     if (Rhs.ExpLimHasMax) {
       OS << " , " << Rhs.ExpLimMax;
     }
     OS << "}} , Got: TableType {RefType{"
-       << RefTypeCodeStr[Rhs.GotRefType.getTypeCode()] << "} Limit{"
-       << Rhs.GotLimMin;
+       << ValTypeCodeStr[static_cast<ValTypeCode>(Rhs.GotRefType.getTypeCode())]
+       << "} Limit{" << Rhs.GotLimMin;
     if (Rhs.GotLimHasMax) {
       OS << " , " << Rhs.GotLimMax;
     }

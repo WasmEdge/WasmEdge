@@ -229,6 +229,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Br:
   case OpCode::Br_if:
+  case OpCode::Br_on_null:
+  case OpCode::br_on_non_null:
     return readU32(Instr.getJump().TargetIndex);
 
   case OpCode::Br_table: {
@@ -255,6 +257,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Call:
   case OpCode::Return_call:
+  case OpCode::Call_ref:
+  case OpCode::Return_call_ref:
     return readU32(Instr.getTargetIndex());
 
   case OpCode::Call_indirect:
@@ -279,8 +283,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    if (auto Res = loadFullRefType()) {
-      Instr.setRefType(*Res);
+    if (auto Res = loadHeapType()) {
+      Instr.setHeapType(*Res);
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);

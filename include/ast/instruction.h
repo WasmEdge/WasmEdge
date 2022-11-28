@@ -105,8 +105,8 @@ public:
   void setJumpElse(const uint32_t Cnt) noexcept { Data.Blocks.JumpElse = Cnt; }
 
   /// Getter and setter of reference type.
-  FullRefType getRefType() const noexcept { return Data.ReferenceType; }
-  void setRefType(FullRefType RType) noexcept { Data.ReferenceType = RType; }
+  HeapType getHeapType() const noexcept { return Data.HType; }
+  void setHeapType(HeapType HType) noexcept { Data.HType = HType; }
 
   /// Getter and setter of label list.
   void setLabelListSize(uint32_t Size) {
@@ -239,8 +239,8 @@ private:
       uint32_t LabelListSize;
       JumpDescriptor *LabelList;
     } BrTable;
-    // Type 5: RefType.
-    FullRefType ReferenceType;
+    // Type 5: HeapType.
+    HeapType HType;
     // Type 6: ValTypeList.
     struct {
       uint32_t ValTypeListSize;

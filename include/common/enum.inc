@@ -74,11 +74,16 @@ O(Call, 0x10, "call")
 O(Call_indirect, 0x11, "call_indirect")
 O(Return_call, 0x12, "return_call")
 O(Return_call_indirect, 0x13, "return_call_indirect")
+O(Call_ref, 0x14, "call_ref")
+O(Return_call_ref, 0x15, "return_call_ref")
 
 // Reference Instructions
 O(Ref__null, 0xD0, "ref.null")
 O(Ref__is_null, 0xD1, "ref.is_null")
 O(Ref__func, 0xD2, "ref.func")
+O(Ref__as_non_null, 0xD3, "ref.as_non_null")
+O(Br_on_null, 0xD4, "br_on_null")
+O(br_on_non_null, 0xD6, "br_on_non_null")
 
 // Parametric Instructions
 O(Drop, 0x1A, "drop")

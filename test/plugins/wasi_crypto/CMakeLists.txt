@@ -14,11 +14,28 @@ wasmedge_add_executable(wasiCryptoTests
   signatures.cpp
 )
 
+add_dependencies(wasiCryptoTests wasmedgePluginWasiCrypto)
+
+target_include_directories(wasiCryptoTests
+  PUBLIC
+  $<TARGET_PROPERTY:wasmedgePluginWasiCrypto,INCLUDE_DIRECTORIES>
+)
+
 target_link_libraries(wasiCryptoTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
-  wasmedgePlugin
-  wasmedgePluginWasiCrypto
 )
+
+if(WASMEDGE_LINK_PLUGINS_STATIC)
+  target_link_libraries(wasiCryptoTests
+    PRIVATE
+    wasmedgeCAPI
+  )
+else()
+  target_link_libraries(wasiCryptoTests
+    PRIVATE
+    wasmedge_shared
+  )
+endif()
 
 add_test(wasiCryptoTests wasiCryptoTests)

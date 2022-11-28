@@ -5,11 +5,28 @@ wasmedge_add_executable(wasmedgeHttpsReqTests
   httpsreq.cpp
 )
 
+add_dependencies(wasmedgeHttpsReqTests wasmedgePluginHttpsReq)
+
+target_include_directories(wasmedgeHttpsReqTests
+  PUBLIC
+  $<TARGET_PROPERTY:wasmedgePluginHttpsReq,INCLUDE_DIRECTORIES>
+)
+
 target_link_libraries(wasmedgeHttpsReqTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
-  wasmedgePlugin
-  wasmedgePluginHttpsReq
 )
+
+if(WASMEDGE_LINK_PLUGINS_STATIC)
+  target_link_libraries(wasmedgeHttpsReqTests
+    PRIVATE
+    wasmedgeCAPI
+  )
+else()
+  target_link_libraries(wasmedgeHttpsReqTests
+    PRIVATE
+    wasmedge_shared
+  )
+endif()
 
 add_test(wasmedgeHttpsReqTests wasmedgeHttpsReqTests)

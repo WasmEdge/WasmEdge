@@ -95,6 +95,20 @@ Expect<FullValType> Loader::loadFullValType(uint8_t TypeCode) {
                              ASTNodeAttr::Type_ValType);
     }
     return FullRefType(HeapTypeCode::Func);
+  case (uint8_t)RefTypeCode::Ref:
+  case (uint8_t)RefTypeCode::RefNull:
+    if (!Conf.hasProposal(Proposal::FunctionReferences)) {
+      return logNeedProposal(ErrCode::Value::MalformedElemType,
+                             Proposal::FunctionReferences, FMgr.getLastOffset(),
+                             ASTNodeAttr::Type_ValType);
+    }
+    if (auto Res = loadHeapType()) {
+      return FullRefType(static_cast<RefTypeCode>(TypeCode), *Res);
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Type_ValType);
+    }
+
   default:
     return logLoadError(ErrCode::Value::MalformedValType, FMgr.getLastOffset(),
                         ASTNodeAttr::Type_ValType);
@@ -120,14 +134,26 @@ Expect<FullRefType> Loader::loadFullRefType() {
   }
   switch (TypeCode) {
   case (uint8_t)HeapTypeCode::Extern:
+  case (uint8_t)HeapTypeCode::Func:
     if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logNeedProposal(ErrCode::Value::MalformedElemType,
                              Proposal::ReferenceTypes, FMgr.getLastOffset(),
                              ASTNodeAttr::Type_RefType);
     }
-    return HeapTypeCode::Extern;
-  case (uint8_t)HeapTypeCode::Func:
-    return HeapTypeCode::Func;
+    return static_cast<HeapTypeCode>(TypeCode);
+  case (uint8_t)RefTypeCode::Ref:
+  case (uint8_t)RefTypeCode::RefNull:
+    if (!Conf.hasProposal(Proposal::FunctionReferences)) {
+      return logNeedProposal(ErrCode::Value::MalformedElemType,
+                             Proposal::FunctionReferences, FMgr.getLastOffset(),
+                             ASTNodeAttr::Type_ValType);
+    }
+    if (auto Res = loadHeapType()) {
+      return FullRefType(static_cast<RefTypeCode>(TypeCode), *Res);
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Type_ValType);
+    }
   default:
     if (Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logLoadError(ErrCode::Value::MalformedRefType,
@@ -136,6 +162,27 @@ Expect<FullRefType> Loader::loadFullRefType() {
       return logLoadError(ErrCode::Value::MalformedElemType,
                           FMgr.getLastOffset(), ASTNodeAttr::Type_RefType);
     }
+  }
+}
+
+Expect<HeapType> Loader::loadHeapType() {
+  if (auto Res = FMgr.readS33()) {
+    if (*Res >= 0) {
+      return HeapType((uint32_t)*Res);
+    } else {
+      uint8_t HTypeCode = -*Res;
+      switch (HTypeCode) {
+      case (uint8_t)HeapTypeCode::Func:
+      case (uint8_t)HeapTypeCode::Extern:
+        return HeapType(static_cast<HeapTypeCode>(HTypeCode));
+      default:
+        return logLoadError(ErrCode::Value::MalformedRefType,
+                            FMgr.getLastOffset(), ASTNodeAttr::Type_RefType);
+      }
+    }
+  } else {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_ValType);
   }
 }
 

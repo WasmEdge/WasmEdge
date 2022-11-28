@@ -198,6 +198,7 @@ private:
   Expect<FullValType> loadFullValType();
   Expect<FullValType> loadFullValType(uint8_t TypeCode);
   Expect<FullRefType> loadFullRefType();
+  Expect<HeapType> loadHeapType();
   Expect<void> loadType(AST::FunctionType &FuncType);
   Expect<void> loadType(AST::MemoryType &MemType);
   Expect<void> loadType(AST::TableType &TabType);

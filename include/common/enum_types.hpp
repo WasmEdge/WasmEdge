@@ -64,14 +64,12 @@ enum class RefType : uint8_t {
 #undef UseRefType
 };
 
-enum class HeapType : uint8_t {
-#define UseHeapType
+enum class HeapTypeCode : uint8_t {
+#define UseHeapTypeCode
 #define Line(NAME, VALUE) NAME = VALUE,
 #include "enum.inc"
 #undef Line
-#undef UseHeapType
-
-  Defined,
+#undef UseHeapTypeCode
 };
 
 enum class ValTypeCode : uint8_t {
@@ -115,41 +113,41 @@ enum RefTypeCode : uint8_t {
 #undef UseRefTypeCode
 };
 
-class RefTypeExt {
+class HeapType {
 public:
-  RefTypeExt() = default;
-  RefTypeExt(HeapType HType) : HType(HType), DefinedTypeIdx(0) {
-    assuming(HType != HeapType::Defined);
+  HeapType() = default;
+  HeapType(HeapTypeCode HTypeCode) : HTypeCode(HTypeCode), DefinedTypeIdx(0) {
+    assuming(HTypeCode != HeapTypeCode::Defined);
   }
-  RefTypeExt(uint32_t TypeIdx)
-      : HType(HeapType::Defined), DefinedTypeIdx(TypeIdx) {}
+  HeapType(uint32_t TypeIdx)
+      : HTypeCode(HeapTypeCode::Defined), DefinedTypeIdx(TypeIdx) {}
 
-  RefTypeExt(WasmEdge_RefTypeExt Ext)
-      : HType(static_cast<HeapType>(Ext.HeapType)),
-        DefinedTypeIdx(Ext.DefinedTypeIdx) {
-    switch (Ext.HeapType) {
-    case (uint8_t)HeapType::Func:
-    case (uint8_t)HeapType::Extern:
-    case (uint8_t)HeapType::Defined:
+  HeapType(WasmEdge_HeapType HType)
+      : HTypeCode(static_cast<HeapTypeCode>(HType.HeapTypeCode)),
+        DefinedTypeIdx(HType.DefinedTypeIdx) {
+    switch (HType.HeapTypeCode) {
+    case (uint8_t)HeapTypeCode::Func:
+    case (uint8_t)HeapTypeCode::Extern:
+    case (uint8_t)HeapTypeCode::Defined:
       break;
     default:
       assumingUnreachable();
     }
   }
 
-  WasmEdge_RefTypeExt asCStruct() const {
-    return WasmEdge_RefTypeExt{
-        .HeapType = static_cast<WasmEdge_HeapType>(HType),
+  WasmEdge_HeapType asCStruct() const {
+    return WasmEdge_HeapType{
+        .HeapTypeCode = static_cast<WasmEdge_HeapTypeCode>(HTypeCode),
         .DefinedTypeIdx = DefinedTypeIdx,
     };
   }
 
-  HeapType getHType() const { return HType; }
+  HeapTypeCode getHTypeCode() const { return HTypeCode; }
 
   uint32_t getDefinedTypeIdx() const { return DefinedTypeIdx; }
 
 private:
-  HeapType HType;
+  HeapTypeCode HTypeCode;
   uint32_t DefinedTypeIdx;
 };
 
@@ -157,32 +155,33 @@ class FullRefType {
 public:
   FullRefType() = default;
   FullRefType(const RefType RType)
-      : TypeCode(RefTypeCode::RefNull), Ext(static_cast<HeapType>(RType)) {}
-  FullRefType(const HeapType HType)
-      : TypeCode(RefTypeCode::RefNull), Ext(HType) {
-    assuming(HType != HeapType::Defined);
+      : TypeCode(RefTypeCode::RefNull),
+        HType(static_cast<HeapTypeCode>(RType)) {}
+  FullRefType(const HeapTypeCode HTypeCode)
+      : TypeCode(RefTypeCode::RefNull), HType(HTypeCode) {
+    assuming(HTypeCode != HeapTypeCode::Defined);
   }
-  FullRefType(const RefTypeCode TypeCode, const HeapType HType)
-      : TypeCode(TypeCode), Ext(HType) {
-    assuming(HType != HeapType::Defined);
+  FullRefType(const RefTypeCode TypeCode, const HeapTypeCode HTypeCode)
+      : TypeCode(TypeCode), HType(HTypeCode) {
+    assuming(HTypeCode != HeapTypeCode::Defined);
   }
   FullRefType(const RefTypeCode TypeCode, const uint32_t TypeIdx)
-      : TypeCode(TypeCode), Ext(TypeIdx) {}
-  FullRefType(const RefTypeCode TypeCode, const RefTypeExt Ext)
-      : TypeCode(TypeCode), Ext(Ext) {}
+      : TypeCode(TypeCode), HType(TypeIdx) {}
+  FullRefType(const RefTypeCode TypeCode, const HeapType HType)
+      : TypeCode(TypeCode), HType(HType) {}
   RefTypeCode getTypeCode() const { return TypeCode; }
-  RefTypeExt getExt() const { return Ext; }
+  HeapType getHeapType() const { return HType; }
 
   friend bool operator==(const FullRefType &LHS,
                          const FullRefType &RHS) noexcept {
     if (LHS.TypeCode != RHS.TypeCode) {
       return false;
     }
-    if (LHS.Ext.getHType() != RHS.Ext.getHType()) {
+    if (LHS.HType.getHTypeCode() != RHS.HType.getHTypeCode()) {
       return false;
     }
-    if (LHS.Ext.getHType() == HeapType::Defined) {
-      return LHS.Ext.getDefinedTypeIdx() == RHS.Ext.getDefinedTypeIdx();
+    if (LHS.HType.getHTypeCode() == HeapTypeCode::Defined) {
+      return LHS.HType.getDefinedTypeIdx() == RHS.HType.getDefinedTypeIdx();
     } else {
       return true;
     }
@@ -194,7 +193,7 @@ public:
 
 private:
   RefTypeCode TypeCode;
-  RefTypeExt Ext;
+  HeapType HType;
 };
 
 class FullValType {
@@ -222,12 +221,12 @@ public:
   FullValType(const WasmEdge_FullValType VType)
       : TypeCode(static_cast<ValTypeCode>(VType.TypeCode)), Ext({}) {
     if (isRefType()) {
-      Ext.RTypeExt = VType.Ext.RefTypeExt;
+      Ext.HType = VType.Ext.HeapType;
     }
   }
   FullValType(const FullRefType RType)
       : TypeCode(static_cast<ValTypeCode>(RType.getTypeCode())),
-        Ext({.RTypeExt = RType.getExt()}) {}
+        Ext({.HType = RType.getHeapType()}) {}
   ValTypeCode getTypeCode() const { return TypeCode; }
   bool isNumType() const {
     switch (TypeCode) {
@@ -259,13 +258,13 @@ public:
     } else {
       return WasmEdge_FullValType{
           .TypeCode = static_cast<WasmEdge_ValTypeCode>(TypeCode),
-          .Ext = {.RefTypeExt = Ext.RTypeExt.asCStruct()}};
+          .Ext = {.HeapType = Ext.HType.asCStruct()}};
     }
   }
 
   FullRefType asRefType() const {
     assuming(isRefType());
-    return FullRefType(static_cast<RefTypeCode>(TypeCode), Ext.RTypeExt);
+    return FullRefType(static_cast<RefTypeCode>(TypeCode), Ext.HType);
   }
 
   friend bool operator==(const FullValType &LHS,
@@ -288,7 +287,7 @@ public:
 private:
   ValTypeCode TypeCode;
   union ValTypeExt {
-    RefTypeExt RTypeExt;
+    HeapType HType;
   } Ext;
 };
 

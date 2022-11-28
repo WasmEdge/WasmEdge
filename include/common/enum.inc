@@ -935,14 +935,17 @@ N(V128, 0x7B)
 #undef N
 #endif // UseNumType
 
-#ifdef UseHeapType
+#ifdef UseHeapTypeCode
 #define H Line
 
 H(Extern, 0x6F)
 H(Func, 0x70)
+// This stands for type defined in wasm module. The value `0xFF` is an arbitary
+// value.
+H(Defined, 0xFF)
 
 #undef V
-#endif // UseHeapType
+#endif // UseHeapTypeCode
 
 #ifdef UseRefTypeCode
 #define R Line

@@ -38,22 +38,21 @@ enum WasmEdge_ValTypeCode {
 #undef UseRefType
 };
 
-enum WasmEdge_HeapType {
-#define UseHeapType
-#define Line(NAME, VALUE) WasmEdge_HeapType_##NAME = VALUE,
+enum WasmEdge_HeapTypeCode {
+#define UseHeapTypeCode
+#define Line(NAME, VALUE) WasmEdge_HeapTypeCode_##NAME = VALUE,
 #include "enum.inc"
 #undef Line
-#undef UseHeapType
-  WasmEdge_HeapType_Defined,
+#undef UseHeapTypeCode
 };
 
-typedef struct WasmEdge_RefTypeExt {
-  enum WasmEdge_HeapType HeapType;
+typedef struct WasmEdge_HeapType {
+  enum WasmEdge_HeapTypeCode HeapTypeCode;
   uint32_t DefinedTypeIdx;
-} WasmEdge_RefTypeExt;
+} WasmEdge_HeapType;
 
 union WasmEdge_ValTypeExt {
-  WasmEdge_RefTypeExt RefTypeExt;
+  WasmEdge_HeapType HeapType;
 };
 
 typedef struct WasmEdge_FullValType {

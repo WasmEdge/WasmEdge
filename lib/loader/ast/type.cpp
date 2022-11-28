@@ -80,21 +80,21 @@ Expect<FullValType> Loader::loadFullValType(uint8_t TypeCode) {
                              FMgr.getLastOffset(), ASTNodeAttr::Type_ValType);
     }
     return NumType::V128;
-  case (uint8_t)HeapType::Extern:
+  case (uint8_t)HeapTypeCode::Extern:
     if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logNeedProposal(ErrCode::Value::MalformedElemType,
                              Proposal::ReferenceTypes, FMgr.getLastOffset(),
                              ASTNodeAttr::Type_ValType);
     }
-    return FullRefType(HeapType::Extern);
-  case (uint8_t)HeapType::Func:
+    return FullRefType(HeapTypeCode::Extern);
+  case (uint8_t)HeapTypeCode::Func:
     if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
         !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
       return logNeedProposal(ErrCode::Value::MalformedElemType,
                              Proposal::ReferenceTypes, FMgr.getLastOffset(),
                              ASTNodeAttr::Type_ValType);
     }
-    return FullRefType(HeapType::Func);
+    return FullRefType(HeapTypeCode::Func);
   default:
     return logLoadError(ErrCode::Value::MalformedValType, FMgr.getLastOffset(),
                         ASTNodeAttr::Type_ValType);
@@ -119,15 +119,15 @@ Expect<FullRefType> Loader::loadFullRefType() {
                         ASTNodeAttr::Type_RefType);
   }
   switch (TypeCode) {
-  case (uint8_t)HeapType::Extern:
+  case (uint8_t)HeapTypeCode::Extern:
     if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logNeedProposal(ErrCode::Value::MalformedElemType,
                              Proposal::ReferenceTypes, FMgr.getLastOffset(),
                              ASTNodeAttr::Type_RefType);
     }
-    return HeapType::Extern;
-  case (uint8_t)HeapType::Func:
-    return HeapType::Func;
+    return HeapTypeCode::Extern;
+  case (uint8_t)HeapTypeCode::Func:
+    return HeapTypeCode::Func;
   default:
     if (Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logLoadError(ErrCode::Value::MalformedRefType,

@@ -281,7 +281,8 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
     if (Got.second.getTypeCode() != ValTypeCode::RefNull) {
       return false;
     }
-    if (Got.second.asRefType().getExt().getHType() != HeapType::Func) {
+    if (Got.second.asRefType().getHeapType().getHTypeCode() !=
+        HeapTypeCode::Func) {
       return false;
     }
     if (ValStr == "null"sv) {
@@ -298,7 +299,8 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
     if (Got.second.getTypeCode() != ValTypeCode::RefNull) {
       return false;
     }
-    if (Got.second.asRefType().getExt().getHType() != HeapType::Extern) {
+    if (Got.second.asRefType().getHeapType().getHTypeCode() !=
+        HeapTypeCode::Extern) {
       return false;
     }
     if (ValStr == "null"sv) {

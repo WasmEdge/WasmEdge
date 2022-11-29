@@ -9,7 +9,6 @@ on:
     branches:
       - master
       - "rust/*"
-      - "ci/refactor-rust-standalone"
     paths:
       - ".github/workflows/rust-standalone.yml"
       - "bindings/rust/**"

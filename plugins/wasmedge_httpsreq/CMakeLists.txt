@@ -36,7 +36,7 @@ target_link_libraries(wasmedgePluginHttpsReq
   OpenSSL::Crypto
   OpenSSL::SSL
 )
-if(WASMEDGE_LINK_PUGLINS_STATIC)
+if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmedgePluginHttpsReq
     PRIVATE
     wasmedgeCAPI

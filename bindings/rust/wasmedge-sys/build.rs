@@ -209,4 +209,11 @@ fn install_libwasmedge() {
         "cargo:warning=[wasmedge-sys] Run libwasmedge installation script: {:?}",
         output
     );
+
+    let output = Command::new("/bin/bash")
+        .arg("-c")
+        .arg("source $HOME/.wasmedge/env")
+        .output()
+        .expect("[wasmedge-sys] Failed to source the env");
+    println!("cargo:warning=[wasmedge-sys] source the env: {:?}", output);
 }

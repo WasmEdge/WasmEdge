@@ -457,8 +457,8 @@ pub enum CoreExecutionError {
     RefTypeMismatch,
     #[error("unaligned atomic")]
     UnalignedAtomicAccess,
-    #[error("expected shared memory")]
-    ExpectSharedMemory,
+    #[error("wait on unshared memory")]
+    WaitOnUnsharedMemory,
 }
 
 #[derive(Error, Clone, Debug, PartialEq, Eq)]

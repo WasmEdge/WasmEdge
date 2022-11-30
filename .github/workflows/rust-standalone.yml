@@ -83,7 +83,7 @@ jobs:
       - name: Run in the standalone mode
         working-directory: bindings/rust/
         run: |
-          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          export LLVM_DIR="/usr/local/opt/llvm@12/lib/cmake"
           export CC=clang
           export CXX=clang++
           export LD_LIBRARY_PATH=$HOME/.wasmedge/lib

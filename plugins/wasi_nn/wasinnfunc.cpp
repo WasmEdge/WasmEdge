@@ -666,7 +666,6 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
     uint32_t TensorDataLen = Tensor[4];
-    uint32_t TensorType = Tensor[2];
     uint8_t *TensorDataBuf =
         MemInst->getPointer<uint8_t *>(Tensor[3], TensorDataLen);
     if (unlikely(TensorDataBuf == nullptr)) {
@@ -674,32 +673,32 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
 
+    WASINN::TensorType RType = static_cast<WASINN::TensorType>(Tensor[2]);
     auto *HoldTensor =
         TfLiteInterpreterGetInputTensor(CxtRef.TFLiteInterp, Index);
-    TfLiteType LiteType = TfLiteTensorType(HoldTensor);
-    WASINN::TensorType NNType;
-
-    switch (LiteType) {
+    WASINN::TensorType LiteType;
+    switch (TfLiteTensorType(HoldTensor)) {
     case TfLiteType::kTfLiteUInt8:
-      NNType = WASINN::TensorType::U8;
+      LiteType = WASINN::TensorType::U8;
       break;
     case TfLiteType::kTfLiteFloat16:
-      NNType = WASINN::TensorType::F16;
+      LiteType = WASINN::TensorType::F16;
       break;
     case TfLiteType::kTfLiteFloat32:
-      NNType = WASINN::TensorType::F32;
+      LiteType = WASINN::TensorType::F32;
       break;
     case TfLiteType::kTfLiteInt32:
-      NNType = WASINN::TensorType::I32;
+      LiteType = WASINN::TensorType::I32;
       break;
     default:
       spdlog::error("[WASI-NN] Unsupported TFLite type: {}", LiteType);
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
 
-    if (unlikely(TensorType != static_cast<uint32_t>(NNType))) {
+    if (unlikely(LiteType != RType)) {
       spdlog::error("[WASI-NN] Expect tensor type {}, but got {}",
-                    static_cast<uint32_t>(NNType), TensorType);
+                    static_cast<uint32_t>(LiteType),
+                    static_cast<uint32_t>(RType));
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
     TfLiteStatus Stat =

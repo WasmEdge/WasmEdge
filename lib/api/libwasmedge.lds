@@ -4,6 +4,10 @@ WASMEDGE_0.16 {
     extern "C++" {
       WasmEdge::*
     };
+    extern "C++" {
+      wasm::*
+    };
+    wasm_*;
 
   local:
     # Internal names of the 0.16 backward-compat shims (see

@@ -66,8 +66,6 @@ set(WASMEDGE_CAPI_HEADERS
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/enum_errcode.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/enum_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/int128.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/wasm/wasm.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/wasm/wasm.hh
 )
 
 # Object library of the C API wrapper.
@@ -93,6 +91,7 @@ target_include_directories(wasmedgeCAPI
   PUBLIC
   ${PROJECT_BINARY_DIR}/include/api
   ${PROJECT_SOURCE_DIR}/include/api
+  ${PROJECT_SOURCE_DIR}/thirdparty/wasm
 )
 
 if(WASMEDGE_BUILD_SHARED_LIB)

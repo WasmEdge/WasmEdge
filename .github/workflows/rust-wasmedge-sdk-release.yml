@@ -28,7 +28,7 @@ jobs:
           apt install -y llvm-12-dev liblld-12-dev
 
       - name: Install Rust v1.65
-        uses: dtolnay/rust-toolchain@1.65
+        uses: dtolnay/rust-toolchain@1.70
         with:
           toolchain: 1.65
           components: rustfmt, clippy

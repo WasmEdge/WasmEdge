@@ -17,7 +17,7 @@ num-traits = "0.2"
 thiserror = "1.0.30"
 wasmedge-macro = {path = "../wasmedge-macro", version = "0.3"}
 wasmedge-sys = {path = "../wasmedge-sys", version = "0.12", default-features = false}
-wasmedge-types = {path = "../wasmedge-types", version = "0.3"}
+wasmedge-types = {path = "../wasmedge-types", version = "0.4"}
 wat = "1.0"
 
 [features]

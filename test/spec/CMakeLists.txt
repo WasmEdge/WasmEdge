@@ -7,7 +7,7 @@ message(STATUS "Downloading the WASM spec test suite")
 FetchContent_Declare(
   wasmedge_unit_test
   GIT_REPOSITORY https://github.com/second-state/WasmEdge-unittest
-  GIT_TAG        wasm-dev-0.11.0
+  GIT_TAG        wasm-dev
 )
 FetchContent_MakeAvailable(wasmedge_unit_test)
 message(STATUS "Downloading the WASM spec test suite -- done")
@@ -46,7 +46,7 @@ if(NOT RapidJSON_FOUND)
 endif()
 
 add_library(RapidJSON INTERFACE)
-if(RapidJSON_FOUND)
+if(RAPIDJSON_INCLUDE_DIRS)
   target_include_directories(RapidJSON INTERFACE ${RAPIDJSON_INCLUDE_DIRS})
 else()
   target_include_directories(RapidJSON INTERFACE ${RapidJSON_SOURCE_DIR}/include)

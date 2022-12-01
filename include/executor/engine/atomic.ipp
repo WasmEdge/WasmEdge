@@ -14,9 +14,9 @@ template <typename T>
 TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::MemoryInstance &MemInst,
                                    const AST::Instruction &Instr) {
-  ValVariant RawAddress = StackMgr.pop();
+  ValVariant RawTimeout = StackMgr.pop();
   ValVariant RawValue = StackMgr.pop();
-  ValVariant &RawTimeout = StackMgr.getTop();
+  ValVariant &RawAddress = StackMgr.getTop();
 
   uint32_t Address = RawAddress.get<uint32_t>();
   if (Address >
@@ -38,23 +38,16 @@ TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
-  if (auto *AtomicObj = MemInst.getPointer<std::atomic<T> *>(Address);
-      !AtomicObj) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-  }
-
   int64_t Timeout = RawTimeout.get<int64_t>();
 
   if (auto Res = atomicWait<T>(MemInst, Address, RawValue.get<T>(), Timeout);
       unlikely(!Res)) {
+    spdlog::error(Res.error());
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
   } else {
-    RawTimeout.emplace<uint32_t>(*Res);
+    RawAddress.emplace<uint32_t>(*Res);
   }
   return {};
 }
@@ -442,9 +435,15 @@ template <typename T>
 Expect<uint32_t>
 Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
                      uint32_t Address, T Expected, int64_t Timeout) noexcept {
+  // The error message should be handled by the caller, or the AOT mode will
+  // produce the duplicated messages.
   if (!MemInst.isShared()) {
-    spdlog::error(ErrCode::Value::WaitOnUnsharedMemory);
-    return Unexpect(ErrCode::Value::WaitOnUnsharedMemory);
+    return Unexpect(ErrCode::Value::ExpectSharedMemory);
+  }
+
+  if (auto *AtomicObj = MemInst.getPointer<std::atomic<T> *>(Address);
+      !AtomicObj) {
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 
   std::optional<std::chrono::time_point<std::chrono::steady_clock>> Until;
@@ -481,7 +480,6 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
       WaitResult = WaiterIterator->second.Cond.wait_until(Locker, *Until);
     }
     if (unlikely(StopToken.load(std::memory_order_relaxed) != 0)) {
-      spdlog::error(ErrCode::Value::Interrupted);
       return Unexpect(ErrCode::Value::Interrupted);
     }
     if (likely(AtomicObj->load() != Expected)) {

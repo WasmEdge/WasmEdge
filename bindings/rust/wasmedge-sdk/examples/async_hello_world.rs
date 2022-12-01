@@ -1,9 +1,17 @@
+//! To run this example, use the following command:
+//! ```bash
+//! cd <wasmedge-root-dir>/bindings/rust/
+//! cargo run -p wasmedge-sdk --features async --example async_hello_world -- --nocapture
+//! ```
+//!
+#[cfg(feature = "async")]
 use wasmedge_sdk::{
     async_host_function, error::HostFuncError, params, Caller, ImportObjectBuilder, Vm, WasmValue,
 };
 
+#[cfg(feature = "async")]
 #[async_host_function]
-fn say_hello(caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+async fn say_hello(caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     println!("Hello, world!");
 
@@ -30,20 +38,24 @@ fn say_hello(caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, Ho
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // create an import module
-    let import = ImportObjectBuilder::new()
-        .with_func_async::<(), ()>("say_hello", say_hello)?
-        .build("extern")?;
+    #[cfg(feature = "async")]
+    {
+        // create an import module
+        let import = ImportObjectBuilder::new()
+            .with_func_async::<(), ()>("say_hello", say_hello)?
+            .build("extern")?;
 
-    let vm = Vm::new(None)?.register_import_module(import)?;
+        let vm = Vm::new(None)?.register_import_module(import)?;
 
-    tokio::spawn(async move {
-        let _ = vm
-            .run_func_async(Some("extern"), "say_hello", params!())
-            .await
-            .unwrap();
-    })
-    .await?;
+        tokio::spawn(async move {
+            let _ = vm
+                .run_func_async(Some("extern"), "say_hello", params!())
+                .await
+                .unwrap();
+        })
+        .await?;
+    }
+
     println!("main thread");
     Ok(())
 }

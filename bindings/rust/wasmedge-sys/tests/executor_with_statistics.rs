@@ -1,5 +1,3 @@
-#![feature(never_type)]
-
 mod common;
 use wasmedge_sys::{
     Config, Engine, Executor, ImportObject, Loader, Statistics, Store, Validator, WasmValue,
@@ -25,7 +23,7 @@ fn test_executor_with_statistics() {
     assert!(result.is_ok());
     let mut stat = result.unwrap();
     // set cost table
-    stat.set_cost_table(&mut []);
+    stat.set_cost_table([]);
     let mut cost_table = vec![20u64; 512];
     stat.set_cost_table(&mut cost_table);
     // set cost limit
@@ -57,7 +55,7 @@ fn test_executor_with_statistics() {
     assert!(result.is_ok());
     let loader = result.unwrap();
     let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-        .join("bindings/rust/wasmedge-sys/tests/data/test.wasm");
+        .join("bindings/rust/wasmedge-sys/tests/data/test.wat");
     let result = loader.from_file(path);
     assert!(result.is_ok());
     let module = result.unwrap();
@@ -84,7 +82,7 @@ fn test_executor_with_statistics() {
     assert!(result.is_ok());
     let loader = result.unwrap();
     let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-        .join("bindings/rust/wasmedge-sys/tests/data/test.wasm");
+        .join("bindings/rust/wasmedge-sys/tests/data/test.wat");
     let result = loader.from_file(path);
     assert!(result.is_ok());
     let module = result.unwrap();

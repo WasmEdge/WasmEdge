@@ -212,7 +212,6 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
       VVec[I] = ValVariant::wrap<ExternRef>(
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
       break;
-    case ValType::None:
     default:
       // TODO: Return error
       assumingUnreachable();

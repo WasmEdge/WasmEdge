@@ -1,6 +1,5 @@
 // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 // #![feature(explicit_generic_args_with_impl_trait)]
-#![feature(never_type)]
 
 use wasmedge_sdk::{
     error::HostFuncError, host_function, params, wat2wasm, Caller, Executor, ImportObjectBuilder,
@@ -10,7 +9,7 @@ use wasmedge_sdk::{
 // We define a function to act as our "env" "say_hello" function imported in the
 // Wasm program above.
 #[host_function]
-fn say_hello(caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+pub fn say_hello(caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Hello, world!");
 
     // get executor from caller
@@ -38,7 +37,7 @@ fn say_hello(caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, Ho
 fn main() -> anyhow::Result<()> {
     // create an import module
     let import = ImportObjectBuilder::new()
-        .with_func::<(), (), !>("say_hello", say_hello, None)?
+        .with_func::<(), ()>("say_hello", say_hello)?
         .build("env")?;
 
     let wasm_bytes = wat2wasm(

@@ -839,7 +839,7 @@ E(RefTypeMismatch, 0x8E, "reference type mismatch")
 // Unaligned atomic memory access
 E(UnalignedAtomicAccess, 0x8F, "unaligned atomic")
 // wait32/wait64 on unshared memory
-E(WaitOnUnsharedMemory, 0x90, "wait on unshared memory")
+E(ExpectSharedMemory, 0x90, "expected shared memory")
 // @}
 
 #undef E
@@ -908,7 +908,6 @@ I(Lane, "lane")
 #ifdef UseValType
 #define V Line
 
-V(None, 0x40, "none")
 V(I32, 0x7F, "i32")
 V(I64, 0x7E, "i64")
 V(F32, 0x7D, "f32")

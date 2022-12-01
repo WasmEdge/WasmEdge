@@ -5,13 +5,12 @@
 // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 // #![feature(explicit_generic_args_with_impl_trait)]
 #![allow(clippy::vec_init_then_push)]
-#![feature(never_type)]
 
 //! # Overview
 //!
 //! The [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) crate defines a group of high-level Rust APIs, which are used to build up business applications.
 //!
-//! Notice that `WasmEdge Rust SDK` uses nightly version of Rust. It's strongly recommended to use the latest nightly version of Rust.
+//! Notice that [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) requires **Rust v1.63 or above** in the **stable** channel.
 //!
 //! ## Versioning Table
 //!
@@ -19,6 +18,8 @@
 //!
 //! | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types| wasmedge-macro|
 //! | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
+//! | 0.7.1         | 0.11.2        | 0.12.2        | 0.3.1         | 0.3.0         |
+//! | 0.7.0         | 0.11.2        | 0.12          | 0.3.1         | 0.3.0         |
 //! | 0.6.0         | 0.11.2        | 0.11          | 0.3.0         | 0.2.0         |
 //! | 0.5.0         | 0.11.1        | 0.10          | 0.3.0         | 0.1.0         |
 //! | 0.4.0         | 0.11.0        | 0.9           | 0.2.1         | -             |
@@ -76,7 +77,6 @@
 //!  ```rust
 //!  // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 //!  // #![feature(explicit_generic_args_with_impl_trait)]
-//!  #![feature(never_type)]
 //!
 //!  use wasmedge_sdk::{Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Store, error::HostFuncError, WasmValue, wat2wasm, Caller, host_function};
 //!  
@@ -111,7 +111,7 @@
 //!  
 //!      // create an import module
 //!      let import = ImportObjectBuilder::new()
-//!          .with_func::<(), (), !>("say_hello", Box::new(say_hello_world), None)?
+//!          .with_func::<(), ()>("say_hello", Box::new(say_hello_world))?
 //!          .build("env")?;
 //!  
 //!      // loads a wasm module from the given in-memory bytes
@@ -145,8 +145,6 @@
 //!
 //! * [WasmEdge Runtime](https://wasmedge.org/)
 //! * [WasmEdge C API Documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md)
-//! * [wasmedge-sys: WasmEdge Low-level Rust APIs](https://crates.io/crates/wasmedge-sys)
-//! * [wasmedge-types: WasmEdge Types](https://crates.io/crates/wasmedge-types)
 //!
 
 #[doc(hidden)]
@@ -155,6 +153,7 @@ pub mod caller;
 #[cfg(feature = "aot")]
 mod compiler;
 pub mod config;
+pub mod dock;
 mod executor;
 mod externals;
 mod import;

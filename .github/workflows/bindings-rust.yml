@@ -39,7 +39,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Rust v1.65
-        uses: dtolnay/rust-toolchain@1.65
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.65
           components: rustfmt, clippy
@@ -96,7 +96,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Rust v1.65
-        uses: dtolnay/rust-toolchain@1.65
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.65
           components: rustfmt, clippy
@@ -168,7 +168,7 @@ jobs:
           sdk-version: 19041
 
       - name: Install Rust v1.65
-        uses: dtolnay/rust-toolchain@1.65
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.65
           components: rustfmt, clippy

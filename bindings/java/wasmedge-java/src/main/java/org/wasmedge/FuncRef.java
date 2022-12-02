@@ -2,14 +2,14 @@ package org.wasmedge;
 
 import org.wasmedge.enums.ValueType;
 
-public class WasmEdgeFuncRef implements WasmEdgeValue {
+public class FuncRef implements Value {
     private long value;
 
-    public WasmEdgeFuncRef() {
+    public FuncRef() {
 
     }
 
-    public WasmEdgeFuncRef(long index) {
+    public FuncRef(long index) {
         this.value = index;
     }
 

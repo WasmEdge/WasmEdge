@@ -95,7 +95,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncDelete(
 
 jobject createJAsyncObject(JNIEnv *env, WasmEdge_Async *asyncObj) {
 
-  jclass clazz = (*env)->FindClass(env, "org/wasmedge/WasmEdgeAsync");
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+  jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_WASMEDGEASYNC);
+  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
   return (*env)->NewObject(env, clazz, constructorId, (long)asyncObj);
 }

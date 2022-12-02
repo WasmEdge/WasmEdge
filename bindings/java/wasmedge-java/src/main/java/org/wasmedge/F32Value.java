@@ -2,14 +2,14 @@ package org.wasmedge;
 
 import org.wasmedge.enums.ValueType;
 
-public final class WasmEdgeF32Value implements WasmEdgeValue {
+public final class F32Value implements Value {
     private float value;
 
-    public WasmEdgeF32Value() {
+    public F32Value() {
 
     }
 
-    public WasmEdgeF32Value(float value) {
+    public F32Value(float value) {
         this.value = value;
     }
 

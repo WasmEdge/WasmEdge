@@ -1,11 +1,11 @@
 package org.wasmedge;
 
-public class WasmEdgeLimit {
+public class Limit {
     private final boolean hasMax;
     private final long min;
     private final long max;
 
-    public WasmEdgeLimit(boolean hasMax, long min, long max) {
+    public Limit(boolean hasMax, long min, long max) {
         this.hasMax = hasMax;
         this.min = min;
         this.max = max;
@@ -25,8 +25,8 @@ public class WasmEdgeLimit {
 
     @Override
     public boolean equals(Object other) {
-        if (other instanceof WasmEdgeLimit) {
-            WasmEdgeLimit that = (WasmEdgeLimit) other;
+        if (other instanceof Limit) {
+            Limit that = (Limit) other;
             return this.hasMax == that.hasMax
                     && this.min == that.min
                     && (!this.hasMax || (this.max == that.max));

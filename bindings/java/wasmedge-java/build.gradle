@@ -42,7 +42,7 @@ task compileJNI {
 }
 
 clean.doFirst {
-    delete fileTree('src/main/include') {
+    delete fileTree('wasmedge-jni/jni') {
         include '*.h'
     }
 }

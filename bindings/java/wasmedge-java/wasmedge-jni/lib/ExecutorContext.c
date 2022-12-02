@@ -13,13 +13,7 @@
 #include "wasmedge/wasmedge.h"
 #include <stdlib.h>
 
-WasmEdge_ExecutorContext *getExecutorContext(JNIEnv *env, jobject jExeCtx) {
-  if (jExeCtx == NULL) {
-    return NULL;
-  }
-
-  return (WasmEdge_ExecutorContext *)getPointer(env, jExeCtx);
-}
+GETTER(ExecutorContext)
 
 JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_nativeInit(
     JNIEnv *env, jobject thisObject, jobject jConfigContext, jobject jStatCxt) {

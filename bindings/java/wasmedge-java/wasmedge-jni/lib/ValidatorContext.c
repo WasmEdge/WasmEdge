@@ -8,13 +8,7 @@
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
 
-WasmEdge_ValidatorContext *getValidatorContext(JNIEnv *env,
-                                               jobject thisObject) {
-  if (thisObject == NULL) {
-    return NULL;
-  }
-  return (WasmEdge_ValidatorContext *)getPointer(env, thisObject);
-}
+GETTER(ValidatorContext)
 
 JNIEXPORT void JNICALL Java_org_wasmedge_ValidatorContext_validate(
     JNIEnv *env, jobject thisObject, jobject jAstModCxt) {

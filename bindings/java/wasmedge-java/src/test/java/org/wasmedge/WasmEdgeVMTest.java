@@ -16,14 +16,14 @@ public class WasmEdgeVMTest extends BaseTest {
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
         WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         vm.runWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params, returns);
-        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        Assert.assertEquals(3, ((I32Value) returns.get(0)).getValue());
         vm.destroy();
     }
 
@@ -35,14 +35,14 @@ public class WasmEdgeVMTest extends BaseTest {
         vm.loadWasmFromFile(getResourcePath(FIB_WASM_PATH));
         vm.validate();
         vm.instantiate();
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
         vm.execute("fib", params, returns);
 
-        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        Assert.assertEquals(3, ((I32Value) returns.get(0)).getValue());
         vm.destroy();
     }
 
@@ -58,11 +58,11 @@ public class WasmEdgeVMTest extends BaseTest {
         vm.loadWasmFromFile(getResourcePath(FIB_WASM_PATH));
         vm.validate();
         vm.instantiate();
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
         vm.execute(UUID.randomUUID().toString(), params, returns);
     }
 
@@ -135,14 +135,14 @@ public class WasmEdgeVMTest extends BaseTest {
         String modName = "module";
         vm.registerModuleFromBuffer(modName, loadFile(getResourcePath(FIB_WASM_PATH)));
 
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         vm.executeRegistered(modName, FUNC_NAME, params, returns);
-        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        Assert.assertEquals(3, ((I32Value) returns.get(0)).getValue());
         vm.destroy();
     }
 
@@ -163,14 +163,14 @@ public class WasmEdgeVMTest extends BaseTest {
         byte[] data = loadFile(getResourcePath(FIB_WASM_PATH));
         WasmEdgeVM vm = new WasmEdgeVM(null, null);
 
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
         vm.runWasmFromBuffer(data, FUNC_NAME, params, returns);
 
-        WasmEdgeI32Value value = (WasmEdgeI32Value) returns.get(0);
+        I32Value value = (I32Value) returns.get(0);
         Assert.assertEquals(3, value.getValue());
     }
 
@@ -181,14 +181,14 @@ public class WasmEdgeVMTest extends BaseTest {
 
         WasmEdgeVM vm = new WasmEdgeVM(null, null);
 
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         vm.runWasmFromASTModule(mod, FUNC_NAME, params, returns);
-        WasmEdgeI32Value value = (WasmEdgeI32Value) returns.get(0);
+        I32Value value = (I32Value) returns.get(0);
         Assert.assertEquals(3, value.getValue());
     }
     
@@ -197,15 +197,15 @@ public class WasmEdgeVMTest extends BaseTest {
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
         WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
         async.wasmEdge_AsyncGet(returns);
-        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        Assert.assertEquals(3, ((I32Value) returns.get(0)).getValue());
         vm.destroy();
     }
 
@@ -217,14 +217,14 @@ public class WasmEdgeVMTest extends BaseTest {
         vm.loadWasmFromFile(getResourcePath(FIB_WASM_PATH));
         vm.validate();
         vm.instantiate();
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
         WasmEdgeAsync async = vm.asyncExecute("fib", params);
         async.wasmEdge_AsyncGet(returns);
-        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        Assert.assertEquals(3, ((I32Value) returns.get(0)).getValue());
         vm.destroy();
     }
 
@@ -234,15 +234,15 @@ public class WasmEdgeVMTest extends BaseTest {
         String modName = "module";
         vm.registerModuleFromBuffer(modName, loadFile(getResourcePath(FIB_WASM_PATH)));
 
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         WasmEdgeAsync async = vm.asyncExecuteRegistered(modName, FUNC_NAME, params);
         async.wasmEdge_AsyncGet(returns);
-        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        Assert.assertEquals(3, ((I32Value) returns.get(0)).getValue());
         vm.destroy();
     }
 
@@ -251,14 +251,14 @@ public class WasmEdgeVMTest extends BaseTest {
         byte[] data = loadFile(getResourcePath(FIB_WASM_PATH));
         WasmEdgeVM vm = new WasmEdgeVM(null, null);
 
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
         WasmEdgeAsync async = vm.asyncRunWasmFromBuffer(data, FUNC_NAME, params);
         async.wasmEdge_AsyncGet(returns);
-        WasmEdgeI32Value value = (WasmEdgeI32Value) returns.get(0);
+        I32Value value = (I32Value) returns.get(0);
         Assert.assertEquals(3, value.getValue());
     }
 
@@ -269,15 +269,15 @@ public class WasmEdgeVMTest extends BaseTest {
 
         WasmEdgeVM vm = new WasmEdgeVM(null, null);
 
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         WasmEdgeAsync async = vm.asyncRunWasmFromASTModule(mod, FUNC_NAME, params);
         async.wasmEdge_AsyncGet(returns);
-        WasmEdgeI32Value value = (WasmEdgeI32Value) returns.get(0);
+        I32Value value = (I32Value) returns.get(0);
         Assert.assertEquals(3, value.getValue());
     }
 }

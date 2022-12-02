@@ -14,15 +14,15 @@ public class WasmEdgeAsyncTest extends BaseTest{
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
         WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
         async.wasmEdge_AsyncGet(returns);
-        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        Assert.assertEquals(3, ((I32Value) returns.get(0)).getValue());
         async.wasmEdge_AsyncDelete();
         vm.destroy();
     }
@@ -32,11 +32,11 @@ public class WasmEdgeAsyncTest extends BaseTest{
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
         WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
         int len = async.wasmEdge_AsyncGetReturnsLength();
@@ -49,16 +49,16 @@ public class WasmEdgeAsyncTest extends BaseTest{
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
         WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
         async.wasmEdge_AsyncWait();
         async.wasmEdge_AsyncGet(returns);
-        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        Assert.assertEquals(3, ((I32Value) returns.get(0)).getValue());
         vm.destroy();
     }
 
@@ -67,11 +67,11 @@ public class WasmEdgeAsyncTest extends BaseTest{
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
         WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
         boolean isEnd = async.wasmEdge_AsyncWaitFor(100);
@@ -85,11 +85,11 @@ public class WasmEdgeAsyncTest extends BaseTest{
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
         WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(35));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(35));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
         boolean isEnd = async.wasmEdge_AsyncWaitFor(100);
@@ -105,18 +105,18 @@ public class WasmEdgeAsyncTest extends BaseTest{
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
         WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(35));
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(35));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
         boolean isEnd = async.wasmEdge_AsyncWaitFor(100);
         if (!isEnd){
             async.wasmEdge_AsyncCancel();
         }
-        Assert.assertEquals(0, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        Assert.assertEquals(0, ((I32Value) returns.get(0)).getValue());
         vm.destroy();
     }
     

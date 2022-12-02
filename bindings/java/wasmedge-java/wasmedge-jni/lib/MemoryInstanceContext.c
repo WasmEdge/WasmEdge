@@ -7,18 +7,7 @@
 #include "wasmedge/wasmedge.h"
 #include <stdlib.h>
 
-WasmEdge_MemoryInstanceContext *
-getMemoryInstanceContext(JNIEnv *env, jobject jMemoryInstanceContext) {
-
-  if (jMemoryInstanceContext == NULL) {
-    return NULL;
-  }
-  WasmEdge_MemoryInstanceContext *memoryInstanceContext =
-      (struct WasmEdge_MemoryInstanceContext *)getPointer(
-          env, jMemoryInstanceContext);
-
-  return memoryInstanceContext;
-}
+GETTER(MemoryInstanceContext)
 
 JNIEXPORT void JNICALL Java_org_wasmedge_MemoryInstanceContext_nativeInit(
     JNIEnv *env, jobject thisObject, jobject jMemoryTypeContext) {
@@ -106,7 +95,7 @@ jobject createJMemoryInstanceContext(
     return NULL;
   }
 
-  jclass clazz = (*env)->FindClass(env, "org/wasmedge/MemoryInstanceContext");
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+  jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_MEMORYINSTANCECONTEXT);
+  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
   return (*env)->NewObject(env, clazz, constructorId, (long)memInstance);
 }

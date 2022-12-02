@@ -63,7 +63,7 @@ public class FunctionTypeContext {
 
     public native void delete();
 
-    private int[] getValueTypeArray(List<WasmEdgeValue> values) {
+    private int[] getValueTypeArray(List<Value> values) {
 
         int[] types = new int[values.size()];
 
@@ -73,8 +73,8 @@ public class FunctionTypeContext {
         return types;
     }
 
-    private WasmEdgeValue[] valueListToArray(List<WasmEdgeValue> values) {
-        WasmEdgeValue[] valuesArray = new WasmEdgeValue[values.size()];
+    private Value[] valueListToArray(List<Value> values) {
+        Value[] valuesArray = new Value[values.size()];
         values.toArray(valuesArray);
         return valuesArray;
     }

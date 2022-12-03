@@ -40,6 +40,19 @@ static inline constexpr bool isRefType(const VType V) {
   return !V || V->isRefType();
 }
 
+class LocalType {
+public:
+  LocalType(FullValType VType) : VType(VType) { IsSet = VType.isDefaultable(); }
+
+  const FullValType &getValType() const noexcept { return VType; }
+  bool isSet() const noexcept { return IsSet; }
+  void set() noexcept { IsSet = true; }
+
+private:
+  bool IsSet;
+  FullValType VType;
+};
+
 class FormChecker {
 public:
   FormChecker() = default;
@@ -132,7 +145,7 @@ private:
   std::unordered_set<uint32_t> Refs;
   uint32_t NumImportFuncs = 0;
   uint32_t NumImportGlobals = 0;
-  std::vector<FullValType> Locals;
+  std::vector<LocalType> Locals;
   std::vector<FullValType> Returns;
 
   /// Running stack.

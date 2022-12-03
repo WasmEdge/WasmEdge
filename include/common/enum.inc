@@ -797,6 +797,8 @@ E(InvalidMemPages, 0x53, "memory size must be at most 65536 pages (4GiB)")
 E(InvalidStartFunc, 0x54, "start function")
 // Invalid lane index
 E(InvalidLaneIdx, 0x55, "invalid lane index")
+// Read unset local
+E(ReadUnsetLocal, 0x56, "read unset local")
 // @}
 
 // Instantiation phase

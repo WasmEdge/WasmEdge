@@ -712,16 +712,23 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
           ErrCode::Value::InvalidLocalIdx, ErrInfo::IndexCategory::Local,
           Instr.getTargetIndex(), static_cast<uint32_t>(Locals.size()));
     }
-    auto TExpect = Locals[Instr.getTargetIndex()];
+    auto &TExpect = Locals[Instr.getTargetIndex()];
     const_cast<AST::Instruction &>(Instr).getStackOffset() =
         static_cast<uint32_t>(ValStack.size() +
                               (Locals.size() - Instr.getTargetIndex()));
     if (Instr.getOpCode() == OpCode::Local__get) {
-      return StackTrans({}, {TExpect});
+      if (!TExpect.isSet()) {
+        return Unexpect(ErrCode::Value::ReadUnsetLocal);
+      }
+      return StackTrans({}, {TExpect.getValType()});
     } else if (Instr.getOpCode() == OpCode::Local__set) {
-      return StackTrans({TExpect}, {});
+      TExpect.set();
+      return StackTrans({TExpect.getValType()}, {});
+    } else if (Instr.getOpCode() == OpCode::Local__tee) {
+      TExpect.set();
+      return StackTrans({TExpect.getValType()}, {TExpect.getValType()});
     } else {
-      return StackTrans({TExpect}, {TExpect});
+      assumingUnreachable();
     }
   }
   case OpCode::Global__set:

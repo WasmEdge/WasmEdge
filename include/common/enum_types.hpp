@@ -240,6 +240,9 @@ public:
       return false;
     }
   }
+  bool isDefaultable() const {
+    return TypeCode != ValTypeCode::Ref;
+  }
   bool isRefType() const {
     switch (TypeCode) {
     case ValTypeCode::Ref:

@@ -146,6 +146,17 @@ public:
 
   uint32_t getDefinedTypeIdx() const { return DefinedTypeIdx; }
 
+  friend bool operator==(const HeapType &LHS, const HeapType &RHS) noexcept {
+    if (LHS.getHTypeCode() != RHS.getHTypeCode()) {
+      return false;
+    }
+    if (LHS.getHTypeCode() == HeapTypeCode::Defined) {
+      return LHS.getDefinedTypeIdx() == RHS.getDefinedTypeIdx();
+    } else {
+      return true;
+    }
+  }
+
 private:
   HeapTypeCode HTypeCode;
   uint32_t DefinedTypeIdx;
@@ -177,14 +188,7 @@ public:
     if (LHS.TypeCode != RHS.TypeCode) {
       return false;
     }
-    if (LHS.HType.getHTypeCode() != RHS.HType.getHTypeCode()) {
-      return false;
-    }
-    if (LHS.HType.getHTypeCode() == HeapTypeCode::Defined) {
-      return LHS.HType.getDefinedTypeIdx() == RHS.HType.getDefinedTypeIdx();
-    } else {
-      return true;
-    }
+    return LHS.HType == RHS.HType;
   }
   friend bool operator!=(const FullRefType &LHS,
                          const FullRefType &RHS) noexcept {
@@ -240,9 +244,7 @@ public:
       return false;
     }
   }
-  bool isDefaultable() const {
-    return TypeCode != ValTypeCode::Ref;
-  }
+  bool isDefaultable() const { return TypeCode != ValTypeCode::Ref; }
   bool isRefType() const {
     switch (TypeCode) {
     case ValTypeCode::Ref:

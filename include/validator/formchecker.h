@@ -42,7 +42,8 @@ static inline constexpr bool isRefType(const VType V) {
 
 class LocalType {
 public:
-  LocalType(FullValType VType) : VType(VType) { IsSet = VType.isDefaultable(); }
+  LocalType(FullValType VType, bool Initialized)
+      : IsSet(Initialized || VType.isDefaultable()), VType(VType) {}
 
   const FullValType &getValType() const noexcept { return VType; }
   bool isSet() const noexcept { return IsSet; }
@@ -70,7 +71,64 @@ public:
   void addElem(const AST::ElementSegment &Elem);
   void addData(const AST::DataSegment &Data);
   void addRef(const uint32_t FuncIdx);
-  void addLocal(const FullValType &V);
+  void addLocal(const FullValType &V, bool Initialized);
+
+  bool match_type(const FullValType &LHS,
+                  const FullValType &RHS) const noexcept {
+    if (LHS == RHS) {
+      return true;
+    }
+    if (LHS.isRefType() && RHS.isRefType()) {
+      return match_type(LHS.asRefType(), RHS.asRefType());
+    }
+    return false;
+  }
+
+  bool match_type(const FullRefType &LHS,
+                  const FullRefType &RHS) const noexcept {
+    if (!match_type(LHS.getHeapType(), RHS.getHeapType())) {
+      return false;
+    }
+    return LHS.getTypeCode() == RefTypeCode::Ref ||
+           RHS.getTypeCode() == RefTypeCode::RefNull;
+  }
+
+  bool match_type(const HeapType &LHS, const HeapType &RHS) const noexcept {
+    if (LHS == RHS) {
+      return true;
+    }
+    if (LHS.getHTypeCode() == HeapTypeCode::Defined) {
+      if (RHS.getHTypeCode() == HeapTypeCode::Func) {
+        return true;
+      }
+      if (RHS.getHTypeCode() == HeapTypeCode::Defined &&
+          match_type(LHS.getDefinedTypeIdx(), RHS.getDefinedTypeIdx())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool match_type(uint32_t LTypeIdx, uint32_t RTypeIdx) const noexcept {
+    assuming(LTypeIdx < Types.size());
+    assuming(RTypeIdx < Types.size());
+    // Note: In future versions of WebAssembly, subtyping on function types may
+    // be relaxed to support co- and contra-variance.
+    return Types[LTypeIdx].first == Types[RTypeIdx].first &&
+           Types[LTypeIdx].second == Types[RTypeIdx].second;
+  }
+
+  bool match_type(Span<const FullValType> LHS, Span<const FullValType> RHS) const noexcept {
+    if (LHS.size() != RHS.size()) {
+      return false;
+    }
+    for (uint32_t I = 0; I < LHS.size(); I++) {
+      if (!match_type(LHS[I], RHS[I])) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   std::vector<VType> result() { return ValStack; }
   auto &getTypes() { return Types; }

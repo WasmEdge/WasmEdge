@@ -228,12 +228,13 @@ Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
   Checker.reset();
   // Add parameters into this frame.
   for (auto Val : Checker.getTypes()[TypeIdx].first) {
-    Checker.addLocal(Val);
+    // Local passed as function parameters should be initialized
+    Checker.addLocal(Val, true);
   }
   // Add locals into this frame.
   for (auto Val : CodeSeg.getLocals()) {
     for (uint32_t Cnt = 0; Cnt < Val.first; ++Cnt) {
-      Checker.addLocal(Val.second);
+      Checker.addLocal(Val.second, false);
     }
   }
   // Validate function body expression.

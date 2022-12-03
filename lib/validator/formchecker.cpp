@@ -100,7 +100,9 @@ void FormChecker::addElem(const AST::ElementSegment &Elem) {
 
 void FormChecker::addRef(const uint32_t FuncIdx) { Refs.emplace(FuncIdx); }
 
-void FormChecker::addLocal(const FullValType &V) { Locals.push_back(V); }
+void FormChecker::addLocal(const FullValType &V, bool Initialized) {
+  Locals.push_back(LocalType(V, Initialized));
+}
 
 FullValType FormChecker::VTypeToAST(const VType &V) {
   if (!V) {
@@ -217,10 +219,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   };
 
   // Helper lambda for checking vtypes matching.
-  auto checkTypesMatching = [](Span<const FullValType> Exp,
-                               Span<const FullValType> Got) -> Expect<void> {
-    if (Exp.size() != Got.size() ||
-        !std::equal(Exp.begin(), Exp.end(), Got.begin())) {
+  auto checkTypesMatching =
+      [this](Span<const FullValType> Exp,
+             Span<const FullValType> Got) -> Expect<void> {
+    if (!match_type(Exp, Got)) {
       std::vector<FullValType> ExpV, GotV;
       ExpV.reserve(Exp.size());
       for (auto &I : Exp) {
@@ -446,7 +448,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       if (NTypes.empty()) {
         return Unexpect(ErrCode::Value::InvalidLabelIdx);
       }
-      if (NTypes.back() != RType) {
+      if (!match_type(NTypes.back(), RType)) {
         return Unexpect(ErrCode::Value::InvalidLabelIdx);
       }
       if (auto Res = popTypes(NTypes); !Res) {
@@ -489,7 +491,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            ErrInfo::IndexCategory::Table, T,
                            static_cast<uint32_t>(Tables.size()));
     }
-    if (Tables[T] != RefType::FuncRef) {
+    if (!match_type(Tables[T], RefType::FuncRef)) {
       spdlog::error(ErrCode::Value::InvalidTableIdx);
       return Unexpect(ErrCode::Value::InvalidTableIdx);
     }
@@ -525,7 +527,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                                    static_cast<uint32_t>(Funcs.size())));
       return Unexpect(ErrCode::Value::InvalidFuncIdx);
     }
-    if (Types[Funcs[N]].second != Returns) {
+    if (!match_type(Types[Funcs[N]].second, Returns)) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       // TODO: Print the error info of types.
       return Unexpect(ErrCode::Value::TypeCheckFailed);
@@ -546,7 +548,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                                    static_cast<uint32_t>(Tables.size())));
       return Unexpect(ErrCode::Value::InvalidTableIdx);
     }
-    if (Tables[T] != RefType::FuncRef) {
+    if (!match_type(Tables[T], RefType::FuncRef)) {
       spdlog::error(ErrCode::Value::InvalidTableIdx);
       return Unexpect(ErrCode::Value::InvalidTableIdx);
     }
@@ -558,7 +560,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                                    static_cast<uint32_t>(Types.size())));
       return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
     }
-    if (Types[N].second != Returns) {
+    if (!match_type(Types[N].second, Returns)) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       // TODO: Print the error info of types.
       return Unexpect(ErrCode::Value::TypeCheckFailed);
@@ -581,7 +583,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
           static_cast<uint32_t>(Types.size())));
       return Unexpect(ErrCode::Value::InvalidFuncIdx);
     }
-    if (Types[TypeIdx].second != Returns) {
+    if (!match_type(Types[TypeIdx].second, Returns)) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       // TODO: Print the error info of types.
       return Unexpect(ErrCode::Value::TypeCheckFailed);
@@ -718,6 +720,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                               (Locals.size() - Instr.getTargetIndex()));
     if (Instr.getOpCode() == OpCode::Local__get) {
       if (!TExpect.isSet()) {
+        spdlog::error("read uninitialized local");
         return Unexpect(ErrCode::Value::ReadUnsetLocal);
       }
       return StackTrans({}, {TExpect.getValType()});
@@ -789,7 +792,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
             Instr.getSourceIndex(), static_cast<uint32_t>(Elems.size()));
       }
       // Check is the reference types matched.
-      if (Elems[Instr.getSourceIndex()] != Tables[Instr.getTargetIndex()]) {
+      if (!match_type(Elems[Instr.getSourceIndex()],
+                      Tables[Instr.getTargetIndex()])) {
         spdlog::error(ErrCode::Value::TypeCheckFailed);
         spdlog::error(ErrInfo::InfoMismatch(Tables[Instr.getTargetIndex()],
                                             Elems[Instr.getSourceIndex()]));
@@ -798,7 +802,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return StackTrans({FullValType(ValType::I32), FullValType(ValType::I32),
                          FullValType(ValType::I32)},
                         {});
-    } else {
+    } else if (Instr.getOpCode() == OpCode::Table__copy) {
       // Check source table index for copying.
       if (Instr.getSourceIndex() >= Tables.size()) {
         return logOutOfRange(
@@ -806,7 +810,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
             Instr.getSourceIndex(), static_cast<uint32_t>(Tables.size()));
       }
       // Check is the reference types matched.
-      if (Tables[Instr.getSourceIndex()] != Tables[Instr.getTargetIndex()]) {
+      if (!match_type(Tables[Instr.getSourceIndex()],
+                      Tables[Instr.getTargetIndex()])) {
         spdlog::error(ErrCode::Value::TypeCheckFailed);
         spdlog::error(ErrInfo::InfoMismatch(Tables[Instr.getTargetIndex()],
                                             Tables[Instr.getSourceIndex()]));
@@ -815,6 +820,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return StackTrans({FullValType(ValType::I32), FullValType(ValType::I32),
                          FullValType(ValType::I32)},
                         {});
+    } else {
+      assumingUnreachable();
     }
   }
   case OpCode::Elem__drop:
@@ -1784,8 +1791,8 @@ Expect<VType> FormChecker::popType(FullValType E) {
   if (*Res == unreachableVType()) {
     return E;
   }
-  // TODO: may consider subtyping
-  if (*Res != E) {
+
+  if (!match_type(**Res, E)) {
     // Expect value on value stack is not matched
     spdlog::error(ErrCode::Value::TypeCheckFailed);
     spdlog::error(ErrInfo::InfoMismatch(VTypeToAST(E), VTypeToAST(*Res)));

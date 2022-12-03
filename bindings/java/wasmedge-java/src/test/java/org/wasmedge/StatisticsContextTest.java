@@ -17,7 +17,7 @@ public class StatisticsContextTest extends BaseTest {
         configureContext.setStatisticsSetTimeMeasuring(true);
 
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
-        WasmEdgeVM vm = new WasmEdgeVM(configureContext, new StoreContext());
+        WasmEdgeVm vm = new WasmEdgeVm(configureContext, new StoreContext());
 
         StatisticsContext statisticsContext = vm.getStatisticsContext();
 

@@ -2,6 +2,9 @@ package org.wasmedge;
 
 import org.wasmedge.enums.ValueType;
 
+/**
+ * f32 value.
+ */
 public final class F32Value implements Value {
     private float value;
 

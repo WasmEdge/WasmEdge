@@ -23,7 +23,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_nativeInit(
   setPointer(env, thisObject, (long)impCxt);
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_initWASI(
+JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_initWasi(
     JNIEnv *env, jobject thisObject, jobjectArray jArgs, jobjectArray jEnvs,
     jobjectArray jPreopens) {
 
@@ -42,7 +42,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_initWASI(
   ReleaseCString(env, jPreopens, preopens);
 }
 
-JNIEXPORT jint JNICALL Java_org_wasmedge_ModuleInstanceContext_getWASIExitCode(
+JNIEXPORT jint JNICALL Java_org_wasmedge_ModuleInstanceContext_getWasiExitCode(
     JNIEnv *env, jobject thisObject) {
   return WasmEdge_ModuleInstanceWASIGetExitCode(
       getModuleInstanceContext(env, thisObject));
@@ -126,7 +126,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_delete(
   setPointer(env, thisObject, 0);
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_ModuleInstanceContext_CreateWASI(
+JNIEXPORT jobject JNICALL Java_org_wasmedge_ModuleInstanceContext_createWasi(
     JNIEnv *env, jclass thisClass, jobjectArray jArgs, jobjectArray jEnvs,
     jobjectArray jPreopens) {
 

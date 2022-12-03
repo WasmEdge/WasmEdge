@@ -2,7 +2,11 @@ package org.wasmedge;
 
 import org.wasmedge.enums.ValueType;
 
+/**
+ * func ref.
+ */
 public class FuncRef implements Value {
+
     private long value;
 
     public FuncRef() {

@@ -2,6 +2,9 @@ package org.wasmedge;
 
 import org.wasmedge.enums.RefType;
 
+/**
+ * Table type.
+ */
 public class TableTypeContext {
 
     private long pointer;

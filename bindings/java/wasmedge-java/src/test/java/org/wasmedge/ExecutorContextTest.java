@@ -21,7 +21,7 @@ public class ExecutorContextTest extends BaseTest {
         configureContext.setStatisticsSetCostMeasuring(true);
         configureContext.setStatisticsSetTimeMeasuring(true);
 
-        ASTModuleContext astModuleContext = loadMod(configureContext, TEST_WASM_PATH);
+        AstModuleContext astModuleContext = loadMod(configureContext, TEST_WASM_PATH);
         ValidatorContext validatorContext = new ValidatorContext(configureContext);
         validatorContext.validate(astModuleContext);
     }
@@ -30,7 +30,7 @@ public class ExecutorContextTest extends BaseTest {
     public void testRegisterWasmModule() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
-        ASTModuleContext mod = loadMod(configureContext, FIB_WASM_PATH);
+        AstModuleContext mod = loadMod(configureContext, FIB_WASM_PATH);
         ValidatorContext validatorContext = new ValidatorContext(configureContext);
         validatorContext.validate(mod);
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
@@ -43,14 +43,14 @@ public class ExecutorContextTest extends BaseTest {
     public void testRegisterWasmModuleNameConflict() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
-        ASTModuleContext mod = loadMod(configureContext, FIB_WASM_PATH);
+        AstModuleContext mod = loadMod(configureContext, FIB_WASM_PATH);
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
 
         String modName2 = "extern";
         executorContext.register(storeContext, mod, modName2);
 
-        ASTModuleContext mod2 = loadMod(configureContext, FIB_WASM_PATH);
+        AstModuleContext mod2 = loadMod(configureContext, FIB_WASM_PATH);
         executorContext.register(storeContext, mod2, modName2);
     }
 
@@ -58,7 +58,7 @@ public class ExecutorContextTest extends BaseTest {
     public void testInstantiateModule() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
-        ASTModuleContext mod = loadMod(configureContext, TEST_WASM_PATH);
+        AstModuleContext mod = loadMod(configureContext, TEST_WASM_PATH);
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
         executorContext.instantiate(storeContext, mod);
@@ -68,7 +68,7 @@ public class ExecutorContextTest extends BaseTest {
     public void testInstantiateModuleWithNullStore() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
-        ASTModuleContext mod = loadMod(configureContext, TEST_WASM_PATH);
+        AstModuleContext mod = loadMod(configureContext, TEST_WASM_PATH);
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         executorContext.instantiate(null, mod);
     }
@@ -86,7 +86,7 @@ public class ExecutorContextTest extends BaseTest {
     public void testOverrideInstantiatedModule() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
-        ASTModuleContext mod = loadMod(configureContext, TEST_WASM_PATH);
+        AstModuleContext mod = loadMod(configureContext, TEST_WASM_PATH);
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
         executorContext.instantiate(storeContext, mod);
@@ -102,7 +102,7 @@ public class ExecutorContextTest extends BaseTest {
         StatisticsContext statisticsContext = new StatisticsContext();
 
         LoaderContext loaderContext = new LoaderContext(null);
-        ASTModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
+        AstModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
         ValidatorContext validatorContext = new ValidatorContext(configureContext);
         validatorContext.validate(moduleContext);
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
@@ -125,7 +125,7 @@ public class ExecutorContextTest extends BaseTest {
         StatisticsContext statisticsContext = new StatisticsContext();
 
         LoaderContext loaderContext = new LoaderContext(null);
-        ASTModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
+        AstModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
         ModuleInstanceContext moduleInstanceContext = executorContext.instantiate(storeContext, moduleContext);
@@ -153,7 +153,7 @@ public class ExecutorContextTest extends BaseTest {
         StatisticsContext statisticsContext = new StatisticsContext();
 
         LoaderContext loaderContext = new LoaderContext(null);
-        ASTModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
+        AstModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
         ModuleInstanceContext moduleInstanceContext = executorContext.instantiate(storeContext, moduleContext);
@@ -171,7 +171,7 @@ public class ExecutorContextTest extends BaseTest {
     @Test
     public void testCallHostFunc() {
         ConfigureContext conf = new ConfigureContext();
-        ASTModuleContext mod = loadMod(conf, TEST_WASM_PATH);
+        AstModuleContext mod = loadMod(conf, TEST_WASM_PATH);
         ValidatorContext validatorContext = new ValidatorContext(conf);
         validatorContext.validate(mod);
 

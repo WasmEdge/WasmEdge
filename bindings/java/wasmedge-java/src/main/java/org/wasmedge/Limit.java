@@ -1,10 +1,20 @@
 package org.wasmedge;
 
+/**
+ * Limitation for memory.
+ */
 public class Limit {
     private final boolean hasMax;
     private final long min;
     private final long max;
 
+    /**
+     * Create a limit.
+     *
+     * @param hasMax has max or not.
+     * @param min min value.
+     * @param max max, not valid when hasMax is false.
+     */
     public Limit(boolean hasMax, long min, long max) {
         this.hasMax = hasMax;
         this.min = min;

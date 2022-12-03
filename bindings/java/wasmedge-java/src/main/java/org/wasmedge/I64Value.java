@@ -2,6 +2,9 @@ package org.wasmedge;
 
 import org.wasmedge.enums.ValueType;
 
+/**
+ * i64 value.
+ */
 public final class I64Value implements Value {
     private long value;
 

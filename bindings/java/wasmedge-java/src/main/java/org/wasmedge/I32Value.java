@@ -2,6 +2,9 @@ package org.wasmedge;
 
 import org.wasmedge.enums.ValueType;
 
+/**
+ * i32 value.
+ */
 public final class I32Value implements Value {
     private int value;
 

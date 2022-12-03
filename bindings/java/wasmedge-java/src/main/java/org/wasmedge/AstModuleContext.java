@@ -2,13 +2,16 @@ package org.wasmedge;
 
 import java.util.List;
 
-public class ASTModuleContext {
+/**
+ * Context for AST Module, including imports and exports.
+ */
+public class AstModuleContext {
     private long pointer;
 
-    public ASTModuleContext() {
+    public AstModuleContext() {
     }
 
-    private ASTModuleContext(long pointer) {
+    private AstModuleContext(long pointer) {
         this.pointer = pointer;
     }
 

@@ -400,6 +400,71 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
   }
 
+  case OpCode::Br_on_null:
+    // D is the last D element of control stack.
+    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex()); !D) {
+      return Unexpect(D);
+    } else {
+      auto TypeIdx = Instr.getTargetIndex();
+      if (TypeIdx >= Types.size()) {
+        return logOutOfRange(ErrCode::Value::InvalidFuncTypeIdx,
+                             ErrInfo::IndexCategory::FunctionType, TypeIdx,
+                             Types.size());
+      }
+      if (auto Res = popType(FullRefType(RefTypeCode::RefNull, TypeIdx));
+          !Res) {
+        return Unexpect(Res);
+      }
+      const auto NTypes = getLabelTypes(CtrlStack[*D]);
+      if (auto Res = popTypes(NTypes); !Res) {
+        return Unexpect(Res);
+      }
+      const uint32_t Remain =
+          static_cast<uint32_t>(ValStack.size() - CtrlStack[*D].Height);
+      const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
+      auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
+      Jump.StackEraseBegin = Remain + Arity;
+      Jump.StackEraseEnd = Arity;
+      Jump.PCOffset = static_cast<int32_t>(CtrlStack[*D].Jump - &Instr);
+      pushTypes(NTypes);
+      pushType(FullRefType(RefTypeCode::Ref, TypeIdx));
+      return {};
+    }
+  case OpCode::br_on_non_null:
+    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex()); !D) {
+      return Unexpect(D);
+    } else {
+      auto TypeIdx = Instr.getTargetIndex();
+      if (TypeIdx >= Types.size()) {
+        return logOutOfRange(ErrCode::Value::InvalidFuncTypeIdx,
+                             ErrInfo::IndexCategory::FunctionType, TypeIdx,
+                             Types.size());
+      }
+      FullValType RType = FullRefType(RefTypeCode::RefNull, TypeIdx);
+      auto LabelTypes = getLabelTypes(CtrlStack[*D]);
+      std::vector<FullValType> NTypes(LabelTypes.begin(), LabelTypes.end());
+      if (NTypes.empty()) {
+        return Unexpect(ErrCode::Value::InvalidLabelIdx);
+      }
+      if (NTypes.back() != RType) {
+        return Unexpect(ErrCode::Value::InvalidLabelIdx);
+      }
+      if (auto Res = popTypes(NTypes); !Res) {
+        return Unexpect(Res);
+      }
+      const uint32_t Remain =
+          static_cast<uint32_t>(ValStack.size() - CtrlStack[*D].Height);
+      const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
+      auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
+      Jump.StackEraseBegin = Remain + Arity;
+      Jump.StackEraseEnd = Arity;
+      Jump.PCOffset = static_cast<int32_t>(CtrlStack[*D].Jump - &Instr);
+      // remove the ref type at the end.
+      NTypes.pop_back();
+      pushTypes(NTypes);
+      return {};
+    }
+
   case OpCode::Return:
     if (auto Res = popTypes(Returns); !Res) {
       return Unexpect(Res);
@@ -438,6 +503,17 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(Res);
     }
     return StackTrans(Types[N].first, Types[N].second);
+  }
+  case OpCode::Call_ref: {
+    auto TypeIdx = Instr.getTargetIndex();
+    if (TypeIdx >= Types.size()) {
+      return logOutOfRange(ErrCode::Value::InvalidFuncTypeIdx,
+                           ErrInfo::IndexCategory::FunctionType, TypeIdx,
+                           Types.size());
+    }
+    std::vector<FullValType> Input = Types[TypeIdx].first;
+    Input.push_back(FullRefType(RefTypeCode::RefNull, TypeIdx));
+    return StackTrans(Input, Types[TypeIdx].second);
   }
   case OpCode::Return_call: {
     auto N = Instr.getTargetIndex();
@@ -495,6 +571,28 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
     return unreachable();
   }
+  case OpCode::Return_call_ref: {
+    auto TypeIdx = Instr.getTargetIndex();
+    if (TypeIdx >= Types.size()) {
+      // Call function index out of range
+      spdlog::error(ErrCode::Value::InvalidFuncIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::FunctionType, TypeIdx,
+          static_cast<uint32_t>(Types.size())));
+      return Unexpect(ErrCode::Value::InvalidFuncIdx);
+    }
+    if (Types[TypeIdx].second != Returns) {
+      spdlog::error(ErrCode::Value::TypeCheckFailed);
+      // TODO: Print the error info of types.
+      return Unexpect(ErrCode::Value::TypeCheckFailed);
+    }
+    std::vector<FullValType> Input = Types[TypeIdx].first;
+    Input.push_back(FullRefType(RefTypeCode::RefNull, TypeIdx));
+    if (auto Res = popTypes(Input); !Res) {
+      return Unexpect(Res);
+    }
+    return unreachable();
+  }
 
   // Reference Instructions.
   case OpCode::Ref__null:
@@ -512,14 +610,40 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(Res);
     }
     return StackTrans({}, {FullValType(ValType::I32)});
-  case OpCode::Ref__func:
-    if (Refs.find(Instr.getTargetIndex()) == Refs.cend()) {
+  case OpCode::Ref__func: {
+    auto FuncIdx = Instr.getTargetIndex();
+    if (Refs.find(FuncIdx) == Refs.cend()) {
       // Undeclared function reference.
       spdlog::error(ErrCode::Value::InvalidRefIdx);
       return Unexpect(ErrCode::Value::InvalidRefIdx);
     }
-    return StackTrans({}, {FullValType(ValType::FuncRef)});
 
+    assuming(FuncIdx < Funcs.size());
+    auto TypeIdx = Funcs[FuncIdx];
+    assuming(TypeIdx < Types.size());
+
+    return StackTrans({},
+                      {FullValType(FullRefType(RefTypeCode::Ref, TypeIdx))});
+  }
+  case OpCode::Ref__as_non_null: {
+    if (auto Res = popType()) {
+      if (!isRefType(*Res)) {
+        spdlog::error(ErrCode::Value::TypeCheckFailed);
+        spdlog::error(
+            ErrInfo::InfoMismatch(ValType::FuncRef, VTypeToAST(*Res)));
+        return Unexpect(ErrCode::Value::TypeCheckFailed);
+      }
+      if (*Res == unreachableVType()) {
+        // TODO: return ref any when support GC
+        return StackTrans({}, {FullValType(FullRefType(HeapTypeCode::Func))});
+      }
+      auto RType = (*Res)->asRefType();
+      return StackTrans({}, {FullValType(FullRefType(RefTypeCode::Ref,
+                                                     RType.getHeapType()))});
+    } else {
+      return Unexpect(Res);
+    }
+  }
   // Parametric Instructions.
   case OpCode::Drop:
     return StackPopAny();

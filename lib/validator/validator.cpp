@@ -21,8 +21,10 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   Checker.reset(true);
 
   // Register type definitions into FormChecker.
-  for (auto &Type : Mod.getTypeSection().getContent()) {
-    Checker.addType(Type);
+  if (auto Res = validate(Mod.getTypeSection()); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Type));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return Unexpect(Res);
   }
 
   // Validate and register import section into FormChecker.
@@ -129,7 +131,12 @@ Expect<void> Validator::validate(const AST::Limit &Lim) {
 
 // Validate Table type. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::Table &Tab) {
-  // TODO: validate the init expr is constant
+  if (auto Res =
+          validateConstExpr(Tab.getInitExpr().getInstrs(),
+                            {FullValType(Tab.getTableType().getRefType())});
+      !Res) {
+    return Unexpect(Res);
+  }
   if (auto Res = validate(Tab.getTableType()); !Res) {
     return Unexpect(Res);
   }
@@ -353,6 +360,39 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
     return {};
   default:
     break;
+  }
+  return {};
+}
+
+Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
+  auto TypeCount = TypeSec.getContent().size();
+  auto validateValType = [TypeCount](const FullValType &VType) -> Expect<void> {
+    if (VType.isRefType()) {
+      auto HeapType = VType.asRefType().getHeapType();
+      if (HeapType.getHTypeCode() == HeapTypeCode::Defined) {
+        if (HeapType.getDefinedTypeIdx() >= TypeCount) {
+          spdlog::error(ErrCode::Value::InvalidTableIdx);
+          spdlog::error(ErrInfo::InfoForbidIndex(
+              ErrInfo::IndexCategory::FunctionType,
+              HeapType.getDefinedTypeIdx(), TypeCount));
+          return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+        }
+      }
+    }
+    return {};
+  };
+  for (const auto &Type : TypeSec.getContent()) {
+    for (auto &ParamType : Type.getParamTypes()) {
+      if (auto Res = validateValType(ParamType); !Res) {
+        return Unexpect(Res);
+      }
+    }
+    for (auto &ParamType : Type.getReturnTypes()) {
+      if (auto Res = validateValType(ParamType); !Res) {
+        return Unexpect(Res);
+      }
+    }
+    Checker.addType(Type);
   }
   return {};
 }

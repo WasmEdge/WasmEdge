@@ -747,6 +747,8 @@ E(ENDCodeExpected, 0x38, "END opcode expected")
 E(IllegalGrammar, 0x39, "invalid wasm grammar")
 // Shared memory must have max
 E(SharedMemoryNoMax, 0x3A, "shared memory must have maximum")
+// Malformed table (Ref-types proposal)
+E(MalformedTable, 0x3B, "malformed table")
 // @}
 
 // Validation phase

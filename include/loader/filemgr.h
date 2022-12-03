@@ -54,6 +54,9 @@ public:
   /// Set the binary data.
   Expect<void> setCode(std::vector<Byte> CodeData);
 
+  /// Test read one byte. The pointer will not be advanced
+  Expect<Byte> testReadByte();
+
   /// Read one byte.
   Expect<Byte> readByte();
 

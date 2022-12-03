@@ -202,6 +202,7 @@ private:
   Expect<void> loadType(AST::FunctionType &FuncType);
   Expect<void> loadType(AST::MemoryType &MemType);
   Expect<void> loadType(AST::TableType &TabType);
+  Expect<void> loadType(AST::Table &Table);
   Expect<void> loadType(AST::GlobalType &GlobType);
   Expect<void> loadExpression(AST::Expression &Expr,
                               std::optional<uint64_t> SizeBound = std::nullopt);

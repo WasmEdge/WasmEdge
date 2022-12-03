@@ -30,7 +30,14 @@ class TableInstance {
 public:
   TableInstance() = delete;
   TableInstance(const AST::TableType &TType) noexcept
-      : TabType(TType), Refs(TType.getLimit().getMin(), UnknownRef()) {}
+      : TabType(TType), Refs(TType.getLimit().getMin(), UnknownRef()) {
+    // TODO: check whether the ref type of table type is nullable
+  }
+  TableInstance(const AST::Table &Table) noexcept
+      : TabType(Table.getTableType()),
+        Refs(Table.getTableType().getLimit().getMin(), UnknownRef()) {
+    // TODO: initialized the table instance by Table.getInitExpr()
+  }
 
   /// Get size of table.refs
   uint32_t getSize() const noexcept {

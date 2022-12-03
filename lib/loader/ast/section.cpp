@@ -91,7 +91,7 @@ Expect<void> Loader::loadSection(AST::FunctionSection &Sec) {
 Expect<void> Loader::loadSection(AST::TableSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
-        Sec, [this](AST::TableType &TabType) { return loadType(TabType); });
+        Sec, [this](AST::Table &Table) { return loadType(Table); });
   });
 }
 

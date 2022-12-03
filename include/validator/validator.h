@@ -37,6 +37,7 @@ private:
   /// Validate AST::Types
   Expect<void> validate(const AST::Limit &Lim);
   Expect<void> validate(const AST::TableType &Tab);
+  Expect<void> validate(const AST::Table &Tab);
   Expect<void> validate(const AST::MemoryType &Mem);
   /// GlobalType is always valid.
 

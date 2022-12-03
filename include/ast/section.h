@@ -106,13 +106,13 @@ private:
 class TableSection : public Section {
 public:
   /// Getter of content vector.
-  Span<const TableType> getContent() const noexcept { return Content; }
-  std::vector<TableType> &getContent() noexcept { return Content; }
+  Span<const Table> getContent() const noexcept { return Content; }
+  std::vector<Table> &getContent() noexcept { return Content; }
 
 private:
   /// \name Data of TableSection.
   /// @{
-  std::vector<TableType> Content;
+  std::vector<Table> Content;
   /// @}
 };
 

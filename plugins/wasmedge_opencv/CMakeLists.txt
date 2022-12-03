@@ -22,11 +22,18 @@ if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 endif()
 
 option(WASMEDGE_OPENCV_CORE "Link OpenCV core module" ON)
+option(WASMEDGE_OPENCV_IMGCODECS "Link OpenCV imgcodecs module" ON) 
 
 if(WASMEDGE_OPENCV_CORE)
 	add_subdirectory(core)
 	list(APPEND EXTRA_LIBS core)
 	list(APPEND EXTRA_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/core")
+endif()
+
+if(WASMEDGE_OPENCV_IMGCODECS)
+	add_subdirectory(imgcodecs)
+	list(APPEND EXTRA_LIBS imgcodecs)
+	list(APPEND EXTRA_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/imgcodecs")
 endif()
 
 target_include_directories(wasmedgePluginOpenCV

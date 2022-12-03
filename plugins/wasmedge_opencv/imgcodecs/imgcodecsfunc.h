@@ -3,18 +3,27 @@
 
 #pragma once
 
-#include "imgocodecsbase.h"
-#include <opencv2/imgcodecs.hpp>
+#include "opencvbase.h"
 
 namespace WasmEdge {
 namespace Host {
-using namespace cv;
 class WasmEdgeOpenCvImgcodecsImread
-    : public WasmEdgeOpenCvImgcodecs<WasmEdgeOpenCvImgcodecsImread> {
+    : public WasmEdgeOpenCv<WasmEdgeOpenCvImgcodecsImread> {
 public:
-  WasmEdgeOpenCvImgcodecsImread(WasmEdgeOpenCvImgcodecsEnvoronment &HostEnv)
-      : WasmEdgeOpenCvImgcodecs(HostEnv) {}
-  Expect<Mat> body(const Runtime::CallingFrame &Frame, uint32_t filename);
+  WasmEdgeOpenCvImgcodecsImread(WasmEdgeOpenCvEnvironment &HostEnv)
+      : WasmEdgeOpenCv(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
+				    uint32_t ImgPtr,
+                                    uint32_t FilenamePtr);
+};
+
+class WasmEdgeOpenCvImgcodecsImwrite
+    : public WasmEdgeOpenCv<WasmEdgeOpenCvImgcodecsImwrite> {
+public:
+  WasmEdgeOpenCvImgcodecsImwrite(WasmEdgeOpenCvEnvironment &HostEnv)
+      : WasmEdgeOpenCv(HostEnv) {}
+  Expect<void> body(const Runtime::CallingFrame &Frame,
+                                     uint32_t FilenamePtr, uint32_t ImgPtr);
 };
 
 } // namespace Host

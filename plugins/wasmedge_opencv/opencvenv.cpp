@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "opencvenv.h"
-#include "coremodule.h"
+
+#include "imgcodecs/imgcodecsmodule.h"
+#include "core/coremodule.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -9,22 +11,22 @@ namespace Host {
 namespace {
 
 Runtime::Instance::ModuleInstance *
-create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-  return new WasmEdgeOpenCVCore;
+createImgcodecs(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
+  return new WasmEdgeOpenCvImgcodecsModule;
 }
 
 Plugin::Plugin::PluginDescriptor Descriptor{
     .Name = "wasmedge_opencv",
     .Description = "",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
-    .Version = {0, 10, 1, 0},
+    .Version = {0,0, 0, 0},
     .ModuleCount = 1,
     .ModuleDescriptions =
         (Plugin::PluginModule::ModuleDescriptor[]){
             {
-                .Name = "wasmedge_opencv",
-                .Description = "",
-                .Create = create,
+                .Name = "wasmedge_opencv_imgcodecs",
+                .Description = "OpenCV imgcodecs module",
+                .Create = createImgcodecs,
             },
         },
     .AddOptions = nullptr,
@@ -32,7 +34,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
 
 } // namespace
 
-Plugin::PluginRegister WasmEdgeOpenCVEnvironment::Register(&Descriptor);
+Plugin::PluginRegister WasmEdgeOpenCvEnvironment::Register(&Descriptor);
 
 } // namespace Host
 } // namespace WasmEdge

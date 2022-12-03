@@ -11,12 +11,14 @@
 namespace WasmEdge {
 namespace Host {
 
-class WasmEdgeOpenCVEnvironment {
+class WasmEdgeOpenCvEnvironment {
 public:
   std::string Rcv;
 
   /// Initial Configurations
   static Plugin::PluginRegister Register;
+
+  uint32_t ExitCode = 0;
 };
 
 } // namespace Host

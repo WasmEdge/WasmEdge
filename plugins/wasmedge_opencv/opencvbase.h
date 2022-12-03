@@ -12,13 +12,13 @@
 namespace WasmEdge {
 namespace Host {
 
-template <typename T> class WasmEdgeOpenCV : public Runtime::HostFunction<T> {
+template <typename T> class WasmEdgeOpenCv : public Runtime::HostFunction<T> {
 public:
-  WasmEdgeOpenCV(WasmEdgeOpenCVEnvironment &HostEnv)
+  WasmEdgeOpenCv(WasmEdgeOpenCvEnvironment &HostEnv)
       : Runtime::HostFunction<T>(0), Env(HostEnv) {}
 
 protected:
-  WasmEdgeOpenCVEnvironment &Env;
+  WasmEdgeOpenCvEnvironment &Env;
 };
 
 } // namespace Host

@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "imgcodecsenv.h"
 #include "runtime/instance/module.h"
+#include "opencvenv.h"
 #include <cstdint>
 
 namespace WasmEdge {
@@ -14,10 +14,10 @@ class WasmEdgeOpenCvImgcodecsModule : public Runtime::Instance::ModuleInstance {
 public:
   WasmEdgeOpenCvImgcodecsModule();
 
-  WasmEdgeOpenCvImgcodecsEnvoronment &getEnv() { return Env; }
+  WasmEdgeOpenCvEnvironment &getEnv() { return Env; }
 
 private:
-  WasmEdgeOpenCvImgcodecsEnvoronment Env;
+  WasmEdgeOpenCvEnvironment Env;
 };
 
 } // namespace Host

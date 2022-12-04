@@ -2102,8 +2102,14 @@ WasmEdge_FunctionInstanceDelete(WasmEdge_FunctionInstanceContext *Cxt) {
 WASMEDGE_CAPI_EXPORT WasmEdge_TableInstanceContext *
 WasmEdge_TableInstanceCreate(const WasmEdge_TableTypeContext *TabType) {
   if (TabType) {
-    return toTabCxt(new WasmEdge::Runtime::Instance::TableInstance(
-        *fromTabTypeCxt(TabType)));
+    AST::TableType TType = *fromTabTypeCxt(TabType);
+    if (TType.getRefType().getTypeCode() == RefTypeCode::Ref) {
+      spdlog::error("cannot create table instance without specifying init "
+                    "value for non-nulltable ref type");
+      return nullptr;
+    }
+    return toTabCxt(
+        new WasmEdge::Runtime::Instance::TableInstance(TType, RefVariant()));
   }
   return nullptr;
 }

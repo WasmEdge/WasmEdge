@@ -29,15 +29,10 @@ namespace Instance {
 class TableInstance {
 public:
   TableInstance() = delete;
-  TableInstance(const AST::TableType &TType) noexcept
-      : TabType(TType), Refs(TType.getLimit().getMin(), RefVariant()) {
-    // TODO: check whether the ref type of table type is nullable
-  }
-  TableInstance(const AST::Table &Table) noexcept
-      : TabType(Table.getTableType()),
-        Refs(Table.getTableType().getLimit().getMin(), RefVariant()) {
-    // TODO: initialized the table instance by Table.getInitExpr()
-  }
+  TableInstance(const AST::TableType &TType,
+                const RefVariant InitValue) noexcept
+      : TabType(TType), Refs(TType.getLimit().getMin(), InitValue),
+        InitValue(InitValue) {}
 
   /// Get size of table.refs
   uint32_t getSize() const noexcept {
@@ -78,8 +73,7 @@ public:
     return true;
   }
   bool growTable(uint32_t Count) noexcept {
-    // TODO: use the value defined in InitExpr
-    return growTable(Count, RefVariant());
+    return growTable(Count, InitValue);
   }
 
   /// Get slice of Refs[Offset : Offset + Length - 1]
@@ -160,6 +154,7 @@ private:
   /// @{
   AST::TableType TabType;
   std::vector<RefVariant> Refs;
+  RefVariant InitValue;
   /// @}
 };
 

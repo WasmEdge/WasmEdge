@@ -27,10 +27,7 @@ struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StackManager &,
     if (unlikely(!Res)) {
       Fault::emitFault(Res.error());
     }
-    if constexpr (std::is_same_v<RetT, RefVariant>) {
-      // Take raw value for matching calling conventions
-      return Res->template get<UnknownRef>().Value;
-    } else if constexpr (!std::is_void_v<RetT>) {
+    if constexpr (!std::is_void_v<RetT>) {
       return *Res;
     }
   }
@@ -126,7 +123,7 @@ Expect<void *> Executor::ptrFunc(Runtime::StackManager &StackMgr,
 
   auto Ref = TabInst->getRefAddr(FuncIdx);
   assuming(Ref);
-  if (unlikely(isNullRef(*Ref))) {
+  if (unlikely(Ref->isNull())) {
     return Unexpect(ErrCode::Value::UninitializedElement);
   }
 
@@ -161,7 +158,7 @@ Executor::callIndirect(Runtime::StackManager &StackMgr, const uint32_t TableIdx,
 
   auto Ref = TabInst->getRefAddr(FuncIdx);
   assuming(Ref);
-  if (unlikely(isNullRef(*Ref))) {
+  if (unlikely(Ref->isNull())) {
     return Unexpect(ErrCode::Value::UninitializedElement);
   }
 
@@ -394,7 +391,7 @@ Expect<RefVariant> Executor::refFunc(Runtime::StackManager &StackMgr,
   assuming(ModInst);
   const auto FuncInst = ModInst->getFunc(FuncIdx);
   assuming(FuncInst && *FuncInst);
-  return FuncRef(*FuncInst);
+  return RefVariant(*FuncInst);
 }
 
 Expect<uint32_t> Executor::memoryAtomicNotify(Runtime::StackManager &StackMgr,

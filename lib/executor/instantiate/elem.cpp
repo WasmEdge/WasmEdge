@@ -28,7 +28,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
         return Unexpect(Res);
       }
       // Pop result from stack.
-      InitVals.push_back(StackMgr.pop().get<UnknownRef>());
+      InitVals.push_back(StackMgr.pop().get<RefVariant>());
     }
 
     uint32_t Offset = 0;

@@ -1167,17 +1167,6 @@ WasmEdge_GlobalTypeGetValType(const WasmEdge_GlobalTypeContext *Cxt) {
   return WasmEdge_ValType_I32;
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_FullValType
-WasmEdge_GlobalTypeGetFullValType(const WasmEdge_GlobalTypeContext *Cxt) {
-  if (Cxt) {
-    return fromGlobTypeCxt(Cxt)->getValType().asCStruct();
-  }
-  return WasmEdge_FullValType{
-      .TypeCode = WasmEdge_ValType_I32,
-      .Ext = WasmEdge_ValTypeExt(),
-  };
-}
-
 WASMEDGE_CAPI_EXPORT enum WasmEdge_Mutability
 WasmEdge_GlobalTypeGetMutability(const WasmEdge_GlobalTypeContext *Cxt) {
   if (Cxt) {

@@ -2,6 +2,9 @@ package org.wasmedge;
 
 import java.util.List;
 
+/**
+ * Module instance.
+ */
 public class ModuleInstanceContext {
     private long pointer;
 
@@ -13,15 +16,17 @@ public class ModuleInstanceContext {
         this.pointer = pointer;
     }
 
-    public native static ModuleInstanceContext createWasmEdgeProcess(String[] allowedCmds, boolean allowAll);
+    public static native ModuleInstanceContext createWasmEdgeProcess(String[] allowedCmds,
+                                                                     boolean allowAll);
 
-    public native static ModuleInstanceContext CreateWASI(String[] args, String[] envs, String[] preopens);
+    public static native ModuleInstanceContext createWasi(String[] args, String[] envs,
+                                                          String[] preopens);
 
     private native void nativeInit(String moduleName);
 
-    public native void initWASI(String[] args, String[] envs, String[] preopens);
+    public native void initWasi(String[] args, String[] envs, String[] preopens);
 
-    public native int getWASIExitCode();
+    public native int getWasiExitCode();
 
     public native void initWasmEdgeProcess(String[] allowedCmds, boolean allowAll);
 
@@ -39,7 +44,8 @@ public class ModuleInstanceContext {
 
     public native FunctionInstanceContext findFunction(String funcName);
 
-    public native FunctionInstanceContext findFunctionRegistered(String moduleName, String funcName);
+    public native FunctionInstanceContext findFunctionRegistered(String moduleName,
+                                                                 String funcName);
 
     public native List<String> listTable();
 
@@ -55,8 +61,7 @@ public class ModuleInstanceContext {
 
     public native MemoryInstanceContext findMemory(String memoryName);
 
-    public native MemoryInstanceContext findMemoryRegistered(String moduleName,
-                                                             String memoryName);
+    public native MemoryInstanceContext findMemoryRegistered(String moduleName, String memoryName);
 
     public native List<String> listGlobal();
 
@@ -64,8 +69,7 @@ public class ModuleInstanceContext {
 
     public native GlobalInstanceContext findGlobal(String name);
 
-    public native GlobalInstanceContext findGlobalRegistered(String moduleName,
-                                                             String globalName);
+    public native GlobalInstanceContext findGlobalRegistered(String moduleName, String globalName);
 
     public native void delete();
 }

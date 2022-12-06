@@ -2,6 +2,9 @@ package org.wasmedge;
 
 import org.wasmedge.enums.ValueType;
 
+/**
+ * Table instance.
+ */
 public class TableInstanceContext {
 
     private long pointer;

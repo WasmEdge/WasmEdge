@@ -8,22 +8,22 @@ import org.wasmedge.enums.HostRegistration;
 
 import org.junit.Assert;
 
-public class WasmEdgeAsyncTest extends BaseTest{
+public class AsyncTest extends BaseTest{
     @Test
     public void testAsyncGet() throws Exception {
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
-        WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
+        WasmEdgeVm vm = new WasmEdgeVm(configureContext, null);
         List<Value> params = new ArrayList<>();
         params.add(new I32Value(3));
 
         List<Value> returns = new ArrayList<>();
         returns.add(new I32Value());
 
-        WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
-        async.wasmEdge_AsyncGet(returns);
+        Async async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
+        async.get(returns);
         Assert.assertEquals(3, ((I32Value) returns.get(0)).getValue());
-        async.wasmEdge_AsyncDelete();
+        async.delete();
         vm.destroy();
     }
 
@@ -31,15 +31,15 @@ public class WasmEdgeAsyncTest extends BaseTest{
     public void testAsyncGetLength() throws Exception {
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
-        WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
+        WasmEdgeVm vm = new WasmEdgeVm(configureContext, null);
         List<Value> params = new ArrayList<>();
         params.add(new I32Value(3));
 
         List<Value> returns = new ArrayList<>();
         returns.add(new I32Value());
 
-        WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
-        int len = async.wasmEdge_AsyncGetReturnsLength();
+        Async async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
+        int len = async.getReturnsLength();
         Assert.assertEquals(1, len);
         vm.destroy();
     }
@@ -48,16 +48,16 @@ public class WasmEdgeAsyncTest extends BaseTest{
     public void testAsyncWait() throws Exception {
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
-        WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
+        WasmEdgeVm vm = new WasmEdgeVm(configureContext, null);
         List<Value> params = new ArrayList<>();
         params.add(new I32Value(3));
 
         List<Value> returns = new ArrayList<>();
         returns.add(new I32Value());
 
-        WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
-        async.wasmEdge_AsyncWait();
-        async.wasmEdge_AsyncGet(returns);
+        Async async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
+        async.asyncWait();
+        async.get(returns);
         Assert.assertEquals(3, ((I32Value) returns.get(0)).getValue());
         vm.destroy();
     }
@@ -66,17 +66,17 @@ public class WasmEdgeAsyncTest extends BaseTest{
     public void testAsyncWaitForInTime() throws Exception {
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
-        WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
+        WasmEdgeVm vm = new WasmEdgeVm(configureContext, null);
         List<Value> params = new ArrayList<>();
         params.add(new I32Value(3));
 
         List<Value> returns = new ArrayList<>();
         returns.add(new I32Value());
 
-        WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
-        boolean isEnd = async.wasmEdge_AsyncWaitFor(100);
+        Async async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
+        boolean isEnd = async.waitFor(100);
         Assert.assertEquals(true, isEnd);
-        async.wasmEdge_AsyncDelete();
+        async.delete();
         vm.destroy();
     }
 
@@ -84,18 +84,18 @@ public class WasmEdgeAsyncTest extends BaseTest{
     public void testAsyncWaitForOutOfTime() throws Exception {
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
-        WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
+        WasmEdgeVm vm = new WasmEdgeVm(configureContext, null);
         List<Value> params = new ArrayList<>();
         params.add(new I32Value(35));
 
         List<Value> returns = new ArrayList<>();
         returns.add(new I32Value());
 
-        WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
-        boolean isEnd = async.wasmEdge_AsyncWaitFor(100);
+        Async async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
+        boolean isEnd = async.waitFor(100);
         Assert.assertEquals(false, isEnd);
         if (!isEnd){
-            async.wasmEdge_AsyncCancel();
+            async.cancel();
         }
         vm.destroy();
     }
@@ -104,17 +104,17 @@ public class WasmEdgeAsyncTest extends BaseTest{
     public void testAsyncCancel() throws Exception {
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
-        WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
+        WasmEdgeVm vm = new WasmEdgeVm(configureContext, null);
         List<Value> params = new ArrayList<>();
         params.add(new I32Value(35));
 
         List<Value> returns = new ArrayList<>();
         returns.add(new I32Value());
 
-        WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
-        boolean isEnd = async.wasmEdge_AsyncWaitFor(100);
+        Async async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
+        boolean isEnd = async.waitFor(100);
         if (!isEnd){
-            async.wasmEdge_AsyncCancel();
+            async.cancel();
         }
         Assert.assertEquals(0, ((I32Value) returns.get(0)).getValue());
         vm.destroy();

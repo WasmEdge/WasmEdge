@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "../jni/org_wasmedge_WasmEdgeAsync.h"
 #include "ExportTypeContext.h"
 #include "ImportTypeContext.h"
 #include "ValueType.h"
@@ -19,14 +18,13 @@ WasmEdge_Async *getAsync(JNIEnv *env, jobject thisObject) {
   return (WasmEdge_Async *)getPointer(env, thisObject);
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncWait(
+JNIEXPORT void JNICALL Java_org_wasmedge_Async_asyncWait(
     JNIEnv *env, jobject thisobject) {
   WasmEdge_Async *ctx = getAsync(env, thisobject);
   WasmEdge_AsyncWait(ctx);
 }
 
-JNIEXPORT jboolean JNICALL
-Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncWaitFor(JNIEnv *env,
+JNIEXPORT jboolean JNICALL Java_org_wasmedge_Async_waitFor(JNIEnv *env,
                                                        jobject thisobject,
                                                        jlong milliseconds) {
   WasmEdge_Async *ctx = getAsync(env, thisobject);
@@ -34,20 +32,20 @@ Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncWaitFor(JNIEnv *env,
   return WasmEdge_AsyncWaitFor(ctx, Milliseconds);
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncCancel(
+JNIEXPORT void JNICALL Java_org_wasmedge_Async_cancel(
     JNIEnv *env, jobject thisobject) {
   WasmEdge_Async *ctx = getAsync(env, thisobject);
   WasmEdge_AsyncCancel(ctx);
 }
 
 JNIEXPORT jint JNICALL
-Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGetReturnsLength(
+Java_org_wasmedge_Async_getReturnsLength(
     JNIEnv *env, jobject thisobject) {
   WasmEdge_Async *ctx = getAsync(env, thisobject);
   return (jint)WasmEdge_AsyncGetReturnsLength(ctx);
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGet(
+JNIEXPORT void JNICALL Java_org_wasmedge_Async_get(
     JNIEnv *env, jobject thisobject, jobjectArray jreturns,
     jintArray jReturnTypes) {
   WasmEdge_Async *ctx = getAsync(env, thisobject);
@@ -87,7 +85,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGet(
   }
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncDelete(
+JNIEXPORT void JNICALL Java_org_wasmedge_Async_delete(
     JNIEnv *env, jobject thisobject) {
   WasmEdge_Async *ctx = getAsync(env, thisobject);
   WasmEdge_AsyncDelete(ctx);
@@ -95,7 +93,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncDelete(
 
 jobject createJAsyncObject(JNIEnv *env, WasmEdge_Async *asyncObj) {
 
-  jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_WASMEDGEASYNC);
+  jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_ASYNC);
   jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
   return (*env)->NewObject(env, clazz, constructorId, (long)asyncObj);
 }

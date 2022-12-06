@@ -105,14 +105,14 @@ Java_org_wasmedge_ConfigureContext_nativeGetCompilerOutputFormat(
       getConfigureContext(env, thisObject));
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_setCompilerIsDumpIR(
+JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_setCompilerIsDumpIr(
     JNIEnv *env, jobject thisObject, jboolean isDumpIR) {
   WasmEdge_ConfigureCompilerSetDumpIR(getConfigureContext(env, thisObject),
                                       isDumpIR);
 }
 
 JNIEXPORT jboolean JNICALL
-Java_org_wasmedge_ConfigureContext_getCompilerIsDumpIR(JNIEnv *env,
+Java_org_wasmedge_ConfigureContext_getCompilerIsDumpIr(JNIEnv *env,
                                                        jobject thisObject) {
   return WasmEdge_ConfigureCompilerIsDumpIR(
       getConfigureContext(env, thisObject));

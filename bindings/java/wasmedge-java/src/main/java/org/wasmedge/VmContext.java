@@ -1,5 +1,7 @@
 package org.wasmedge;
 
+import java.io.Closeable;
+
 /**
  * Vm context, for manipulating vm.
  */

@@ -8,10 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ExecutorContextTest extends BaseTest {
-    @Test
-    public void testCreation() {
-
-    }
 
     @Test
     public void testExecutorWithStatistics() {

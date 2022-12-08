@@ -18,7 +18,7 @@ public class CompilerContextTest extends BaseTest {
 
     @After
     public void tearDown() {
-        target.delete();
+        target.close();
     }
 
     @Test

@@ -120,8 +120,11 @@ public class ModuleInstanceContextTest extends BaseTest {
 
     @Test
     public void testFindFunction() {
+        System.out.println("Start test");
         ModuleInstanceContext moduleInstanceContext = initModuleInstance();
+        System.out.println("Start list func");
         List<String> funcNames = moduleInstanceContext.listFunction();
+        System.out.println("End list func");
         Assert.assertEquals(11, funcNames.size());
 
         for (int i = 0; i < FUNC_NAMES.length; i++) {

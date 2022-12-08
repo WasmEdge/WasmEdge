@@ -8,8 +8,7 @@ import org.wasmedge.enums.ValueType;
  *
  * @param <T> Type of external ref
  */
-public class ExternRef<T> implements Value {
-    private long pointer;
+public class ExternRef<T> extends NativeResource implements Value {
     private String value;
 
     /**
@@ -18,6 +17,7 @@ public class ExternRef<T> implements Value {
      * @param val the value to be referred.
      */
     public ExternRef(T val) {
+        super();
         final String key = UUID.randomUUID().toString();
         this.value = key;
         WasmEdgeVm.addExternRef(key, val);
@@ -48,6 +48,6 @@ public class ExternRef<T> implements Value {
         return ValueType.ExternRef;
     }
 
-    public native void delete();
+    public native void close();
 
 }

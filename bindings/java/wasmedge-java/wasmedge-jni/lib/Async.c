@@ -85,7 +85,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_Async_get(
   }
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_Async_delete(
+JNIEXPORT void JNICALL Java_org_wasmedge_Async_close(
     JNIEnv *env, jobject thisobject) {
   WasmEdge_Async *ctx = getAsync(env, thisobject);
   WasmEdge_AsyncDelete(ctx);

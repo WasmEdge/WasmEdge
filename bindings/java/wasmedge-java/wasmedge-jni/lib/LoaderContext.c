@@ -54,7 +54,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_LoaderContext_nativeInit(
 }
 
 JNIEXPORT void JNICALL
-Java_org_wasmedge_LoaderContext_delete(JNIEnv *env, jobject thisObject) {
+Java_org_wasmedge_LoaderContext_close(JNIEnv *env, jobject thisObject) {
 
   WasmEdge_LoaderContext *loader = getLoaderContext(env, thisObject);
   WasmEdge_LoaderDelete(loader);

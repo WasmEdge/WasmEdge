@@ -292,6 +292,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   case OpCode::Ref__is_null:
     return {};
+  case OpCode::Ref__as_non_null:
+    return {};
   case OpCode::Ref__func:
     return readU32(Instr.getTargetIndex());
 

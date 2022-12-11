@@ -442,7 +442,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                              ErrInfo::IndexCategory::FunctionType, TypeIdx,
                              Types.size());
       }
-      FullValType RType = FullRefType(RefTypeCode::RefNull, TypeIdx);
+      FullValType RType = FullRefType(RefTypeCode::Ref, TypeIdx);
+      FullValType RNullType = FullRefType(RefTypeCode::RefNull, TypeIdx);
       auto LabelTypes = getLabelTypes(CtrlStack[*D]);
       std::vector<FullValType> NTypes(LabelTypes.begin(), LabelTypes.end());
       if (NTypes.empty()) {
@@ -451,6 +452,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       if (!match_type(NTypes.back(), RType)) {
         return Unexpect(ErrCode::Value::InvalidLabelIdx);
       }
+      NTypes.pop_back();
+      NTypes.push_back(RNullType);
       if (auto Res = popTypes(NTypes); !Res) {
         return Unexpect(Res);
       }

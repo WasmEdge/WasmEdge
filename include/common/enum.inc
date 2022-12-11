@@ -799,6 +799,8 @@ E(InvalidStartFunc, 0x54, "start function")
 E(InvalidLaneIdx, 0x55, "invalid lane index")
 // Read unset local
 E(ReadUnsetLocal, 0x56, "read unset local")
+// Invalid Br ref type
+E(InvalidBrRefType, 0x57, "invalid br ref type")
 // @}
 
 // Instantiation phase

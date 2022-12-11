@@ -407,17 +407,21 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     if (auto D = checkCtrlStackDepth(Instr.getTargetIndex()); !D) {
       return Unexpect(D);
     } else {
-      auto TypeIdx = Instr.getTargetIndex();
-      if (TypeIdx >= Types.size()) {
-        return logOutOfRange(ErrCode::Value::InvalidFuncTypeIdx,
-                             ErrInfo::IndexCategory::FunctionType, TypeIdx,
-                             Types.size());
-      }
-      if (auto Res = popType(FullRefType(RefTypeCode::RefNull, TypeIdx));
-          !Res) {
+      const auto NTypes = getLabelTypes(CtrlStack[*D]);
+      FullRefType RType;
+      if (auto Res = popType()) {
+        if (*Res == unreachableVType()) {
+          // will not reach here. Validation succeeds.
+          return {};
+        }
+        if (!(*Res)->isRefType()) {
+          // TODO: add log
+          return Unexpect(ErrCode::ErrCode::Value::InvalidBrRefType);
+        }
+        RType = (*Res)->asRefType();
+      } else {
         return Unexpect(Res);
       }
-      const auto NTypes = getLabelTypes(CtrlStack[*D]);
       if (auto Res = popTypes(NTypes); !Res) {
         return Unexpect(Res);
       }
@@ -429,43 +433,50 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       Jump.StackEraseEnd = Arity;
       Jump.PCOffset = static_cast<int32_t>(CtrlStack[*D].Jump - &Instr);
       pushTypes(NTypes);
-      pushType(FullRefType(RefTypeCode::Ref, TypeIdx));
+      pushType(FullRefType(RefTypeCode::Ref, RType.getHeapType()));
       return {};
     }
   case OpCode::br_on_non_null:
     if (auto D = checkCtrlStackDepth(Instr.getTargetIndex()); !D) {
       return Unexpect(D);
     } else {
-      auto TypeIdx = Instr.getTargetIndex();
-      if (TypeIdx >= Types.size()) {
-        return logOutOfRange(ErrCode::Value::InvalidFuncTypeIdx,
-                             ErrInfo::IndexCategory::FunctionType, TypeIdx,
-                             Types.size());
-      }
-      FullValType RType = FullRefType(RefTypeCode::Ref, TypeIdx);
-      FullValType RNullType = FullRefType(RefTypeCode::RefNull, TypeIdx);
       auto LabelTypes = getLabelTypes(CtrlStack[*D]);
       std::vector<FullValType> NTypes(LabelTypes.begin(), LabelTypes.end());
       if (NTypes.empty()) {
-        return Unexpect(ErrCode::Value::InvalidLabelIdx);
+        // TODO: add log
+        return Unexpect(ErrCode::Value::InvalidBrRefType);
       }
-      if (!match_type(NTypes.back(), RType)) {
-        return Unexpect(ErrCode::Value::InvalidLabelIdx);
+      FullRefType RType;
+      if (!NTypes.back().isRefType()) {
+        // TODO: add log
+        return Unexpect(ErrCode::Value::InvalidBrRefType);
+      } else {
+        RType = NTypes.back().asRefType();
+        NTypes.pop_back();
       }
-      NTypes.pop_back();
-      NTypes.push_back(RNullType);
+      if (RType.getTypeCode() != RefTypeCode::Ref) {
+        // TODO: add log
+        return Unexpect(ErrCode::Value::InvalidBrRefType);
+      }
+      if (auto Res =
+              popType(FullRefType(RefTypeCode::RefNull, RType.getHeapType()));
+          !Res) {
+        // TODO: add log
+        return Unexpect(ErrCode::Value::InvalidBrRefType);
+      }
       if (auto Res = popTypes(NTypes); !Res) {
-        return Unexpect(Res);
+        // TODO: add log
+        return Unexpect(ErrCode::Value::InvalidBrRefType);
       }
       const uint32_t Remain =
           static_cast<uint32_t>(ValStack.size() - CtrlStack[*D].Height);
-      const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
+      const uint32_t Arity = static_cast<uint32_t>(
+          NTypes.size() +
+          1); // We plus 1 here because we did `pop_back` on `NTypes`
       auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
       Jump.StackEraseBegin = Remain + Arity;
       Jump.StackEraseEnd = Arity;
       Jump.PCOffset = static_cast<int32_t>(CtrlStack[*D].Jump - &Instr);
-      // remove the ref type at the end.
-      NTypes.pop_back();
       pushTypes(NTypes);
       return {};
     }

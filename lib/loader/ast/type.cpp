@@ -170,7 +170,11 @@ Expect<HeapType> Loader::loadHeapType() {
     if (*Res >= 0) {
       return HeapType((uint32_t)*Res);
     } else {
-      uint8_t HTypeCode = -*Res;
+      if (-*Res >= 0x80) {
+        return logLoadError(ErrCode::Value::MalformedRefType,
+                            FMgr.getLastOffset(), ASTNodeAttr::Type_RefType);
+      }
+      uint8_t HTypeCode = 0x80 + *Res;
       switch (HTypeCode) {
       case (uint8_t)HeapTypeCode::Func:
       case (uint8_t)HeapTypeCode::Extern:

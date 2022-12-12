@@ -436,7 +436,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       pushType(FullRefType(RefTypeCode::Ref, RType.getHeapType()));
       return {};
     }
-  case OpCode::br_on_non_null:
+  case OpCode::Br_on_non_null:
     if (auto D = checkCtrlStackDepth(Instr.getTargetIndex()); !D) {
       return Unexpect(D);
     } else {

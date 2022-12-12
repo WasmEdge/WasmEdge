@@ -83,7 +83,7 @@ O(Ref__is_null, 0xD1, "ref.is_null")
 O(Ref__func, 0xD2, "ref.func")
 O(Ref__as_non_null, 0xD3, "ref.as_non_null")
 O(Br_on_null, 0xD4, "br_on_null")
-O(br_on_non_null, 0xD6, "br_on_non_null")
+O(Br_on_non_null, 0xD6, "br_on_non_null")
 
 // Parametric Instructions
 O(Drop, 0x1A, "drop")

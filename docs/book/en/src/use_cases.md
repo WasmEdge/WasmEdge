@@ -10,7 +10,7 @@ Featuring AOT compiler optimization, WasmEdge is one of the fastest WebAssembly 
 
 * [Smart device apps](use_cases/smart_device.md) could embed WasmEdge as a middleware runtime to render interactive content on the UI, connect to native device drivers, and access specialized hardware features (i.e, the GPU for AI inference). The benefits of the WasmEdge runtime over native-compiled machine code include security, safety, portability, manageability, and developer productivity. WasmEdge runs on Android, OpenHarmony, and seL4 RTOS devices.
 
-* WasmEdge could support [high performance DSLs (Domain Specifc Languages) or act as a cloud-native JavaScript runtime](use_cases/js_or_dsl_runtime.md) by embedding a JS execution engine or interpreter.
+* WasmEdge could support [high performance DSLs (Domain Specific Languages) or act as a cloud-native JavaScript runtime](use_cases/js_or_dsl_runtime.md) by embedding a JS execution engine or interpreter.
 
 * Developers can leverage container tools such as [Kubernetes](use_cases/kubernetes.md), Docker and CRI-O to deploy, manage, and run lightweight WebAssembly applications.
 

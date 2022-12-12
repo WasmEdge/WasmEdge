@@ -643,15 +643,15 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   }
   case OpCode::Ref__as_non_null: {
     if (auto Res = popType()) {
-      if (!isRefType(*Res)) {
+      if (*Res == unreachableVType()) {
+        pushType(unreachableVType());
+        return {};
+      }
+      if (!(**Res).isRefType()) {
         spdlog::error(ErrCode::Value::TypeCheckFailed);
         spdlog::error(
             ErrInfo::InfoMismatch(ValType::FuncRef, VTypeToAST(*Res)));
         return Unexpect(ErrCode::Value::TypeCheckFailed);
-      }
-      if (*Res == unreachableVType()) {
-        // TODO: return ref any when support GC
-        return StackTrans({}, {FullValType(FullRefType(HeapTypeCode::Func))});
       }
       auto RType = (*Res)->asRefType();
       return StackTrans({}, {FullValType(FullRefType(RefTypeCode::Ref,

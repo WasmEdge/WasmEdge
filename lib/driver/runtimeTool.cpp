@@ -257,12 +257,6 @@ int Tool(int Argc, const char *Argv[]) noexcept {
     return EXIT_FAILURE;
   }
 
-  if (Conf.hasProposal(Proposal::FunctionReferences)) {
-    std::cerr << "function reference is only ready for loading and validating"
-              << std::endl;
-    return EXIT_FAILURE;
-  }
-
   if (auto Result = VM.instantiate(); !Result) {
     return EXIT_FAILURE;
   }

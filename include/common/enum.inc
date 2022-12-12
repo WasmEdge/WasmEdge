@@ -853,6 +853,8 @@ E(RefTypeMismatch, 0x8E, "reference type mismatch")
 E(UnalignedAtomicAccess, 0x8F, "unaligned atomic")
 // wait32/wait64 on unshared memory
 E(ExpectSharedMemory, 0x90, "expected shared memory")
+// cast null pointer to non null
+E(CastNullptrToNonNull, 0x91, "cast null pointer to non null")
 // @}
 
 #undef E

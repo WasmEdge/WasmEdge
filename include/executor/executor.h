@@ -267,6 +267,12 @@ private:
   Expect<void> runBrIfOp(Runtime::StackManager &StackMgr,
                          const AST::Instruction &Instr,
                          AST::InstrView::iterator &PC) noexcept;
+  Expect<void> runBrOnNull(Runtime::StackManager &StackMgr,
+                           const AST::Instruction &Instr,
+                           AST::InstrView::iterator &PC) noexcept;
+  Expect<void> runBrOnNonNull(Runtime::StackManager &StackMgr,
+                              const AST::Instruction &Instr,
+                              AST::InstrView::iterator &PC) noexcept;
   Expect<void> runBrTableOp(Runtime::StackManager &StackMgr,
                             const AST::Instruction &Instr,
                             AST::InstrView::iterator &PC) noexcept;
@@ -276,6 +282,9 @@ private:
                          const AST::Instruction &Instr,
                          AST::InstrView::iterator &PC,
                          bool IsTailCall = false) noexcept;
+  Expect<void> runCallRefOp(Runtime::StackManager &StackMgr,
+                            AST::InstrView::iterator &PC,
+                            bool IsTailCall = false) noexcept;
   Expect<void> runCallIndirectOp(Runtime::StackManager &StackMgr,
                                  const AST::Instruction &Instr,
                                  AST::InstrView::iterator &PC,

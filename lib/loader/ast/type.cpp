@@ -321,6 +321,7 @@ Expect<void> Loader::loadType(AST::Table &Table) {
       AST::Instruction Instr(OpCode::Ref__null);
       Instr.setHeapType(Table.getTableType().getRefType().getHeapType());
       Instrs.push_back(Instr);
+      Instrs.push_back(AST::Instruction(OpCode::End));
       return {};
     }
   } else {

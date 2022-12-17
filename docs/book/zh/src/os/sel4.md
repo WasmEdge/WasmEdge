@@ -30,7 +30,7 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/sel4_build
 (docker) root#
 ```
 
-> 如果你不想自己搭建 seL4 系统模拟器，你可以从我们的 GitHub Actions 下载 [build artifact](https://github.com/second-state/wasmedge-seL4/actions/runs/1374510169), 并直接跳到 [启动-wasmedge-seL4](#boot-wasmedge-sel4)。
+> 如果你不想自己搭建 seL4 系统模拟器，你可以从我们的 GitHub Actions 下载 [build artifact](https://github.com/second-state/wasmedge-seL4/actions/runs/1374510169), 并直接跳到 [启动-wasmedge-seL4](#启动-wasmedge-sel4)。
 
 ### 自动安装：一体化脚本
 

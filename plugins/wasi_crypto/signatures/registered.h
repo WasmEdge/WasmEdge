@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasmedge/plugins/wasi_crypto/signatures/registered.h - Registered -----===//
+//===-- wasmedge/plugins/wasi_crypto/signatures/registered.h - Registered
+//-----===//
 //
 // Part of the WasmEdge Project.
 //
@@ -38,11 +39,11 @@ template <typename... T> struct Registered {
 
 using RegistedAlg =
     Registered<EcdsaK256, EcdsaP256, EcdsaP384, Eddsa, RSA_PKCS1_2048_SHA256,
-             RSA_PKCS1_2048_SHA384, RSA_PKCS1_2048_SHA512,
-             RSA_PKCS1_3072_SHA384, RSA_PKCS1_3072_SHA512,
-             RSA_PKCS1_4096_SHA512, RSA_PSS_2048_SHA256, RSA_PSS_2048_SHA384,
-             RSA_PSS_2048_SHA512, RSA_PSS_3072_SHA384, RSA_PSS_3072_SHA512,
-             RSA_PSS_4096_SHA512>;
+               RSA_PKCS1_2048_SHA384, RSA_PKCS1_2048_SHA512,
+               RSA_PKCS1_3072_SHA384, RSA_PKCS1_3072_SHA512,
+               RSA_PKCS1_4096_SHA512, RSA_PSS_2048_SHA256, RSA_PSS_2048_SHA384,
+               RSA_PSS_2048_SHA512, RSA_PSS_3072_SHA384, RSA_PSS_3072_SHA512,
+               RSA_PSS_4096_SHA512>;
 
 using Algorithm = RegistedAlg::Variant;
 

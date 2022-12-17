@@ -8,8 +8,8 @@ WebAssembly 系统接口（WASI）提供了一种设计模式，可以让沙箱�
 
 ## 目录
 
-* [一个 Rust 示例](#a-rust-example)
-* [部署选项](#deployment-options)
+* [一个 Rust 示例](#一个-rust-示例)
+* [部署选项](#部署选项)
 
 ## 一个 Rust 示例
 

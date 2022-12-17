@@ -57,7 +57,7 @@ Due to the WasmEdge-Go API breaking changes, this document shows the guideline o
 
 5. The `Module`-based resource management.
 
-   Except the creation of `Module` instance for the host functons, the `Executor` will output a `Module` instance after instantiation. No matter the anonymous or named modules, developers have the responsibility to destroy them by `(*wasmedge.Module).Release()` API.
+   Except the creation of `Module` instance for the host functions, the `Executor` will output a `Module` instance after instantiation. No matter the anonymous or named modules, developers have the responsibility to destroy them by `(*wasmedge.Module).Release()` API.
    The `Store` will link to the named `Module` instance after registering. After the destroyment of a `Module` instance, the `Store` will unlink to that automatically; after the destroyment of the `Store`, the all `Module` instances the `Store` linked to will unlink to that `Store` automatically.
 
 ## WasmEdge-Go VM changes
@@ -149,8 +149,8 @@ globinst := mod.FindGlobal("global_i32")
 
     Then the WASM module is instantiated into an anonymous module instance and handled by the `Store`.
     If a new WASM module is instantiated by this API, the old instantiated module instance will be cleaned.
-    After the WasmEdge-Go `v0.10.0` version, the instantiated anonymous module will be outputed and handled by caller, and not only 1 anonymous module instance can be instantiated.
-    Developers have the responsibility to release the outputed module instances.
+    After the WasmEdge-Go `v0.10.0` version, the instantiated anonymous module will be outputted and handled by caller, and not only 1 anonymous module instance can be instantiated.
+    Developers have the responsibility to release the outputted module instances.
 
     ```go
     var ast1 *wasmedge.AST
@@ -204,7 +204,7 @@ globinst := mod.FindGlobal("global_i32")
     mod.Release()
     ```
 
-    Developers have the responsibility to release the outputed module instances.
+    Developers have the responsibility to release the outputted module instances.
 
 3. Host module registration
 
@@ -436,7 +436,7 @@ if err != nil {
   return
 }
 
-// Now, developers can retrieve the exported instances from the module instaces.
+// Now, developers can retrieve the exported instances from the module instances.
 // Take the exported functions as example. This WASM exports the function "fib".
 // Find the function "fib" from the instantiated anonymous module.
 func1 := anonymousmod.FindFunction("fib")

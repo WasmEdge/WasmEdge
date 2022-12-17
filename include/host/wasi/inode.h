@@ -195,7 +195,7 @@ public:
 
   /// Open a file or directory.
   ///
-  /// @param[in] Path The absolut path of the file or directory to open.
+  /// @param[in] Path The absolute path of the file or directory to open.
   /// @param[in] OpenFlags The method by which to open the file.
   /// @param[in] FdFlags The method by which to open the file.
   /// @param[in] VFSFlags The method by which to open the file.

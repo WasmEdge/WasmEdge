@@ -179,7 +179,7 @@ Java_org_wasmedge_WasmEdgeVm_instantiate(JNIEnv *env, jobject thisObject) {
 
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVm_execute(
     JNIEnv *env, jobject thisObject, jstring funcName, jobjectArray params,
-    jint paramSize, jintArray paramTypes, jobjectArray retuns, jint returnSize,
+    jint paramSize, jintArray paramTypes, jobjectArray returns, jint returnSize,
     jintArray returnTypes) {
 
   WasmEdge_VMContext *VMCxt = getVmContext(env, thisObject);
@@ -230,7 +230,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVm_execute(
   if (WasmEdge_ResultOK(Res)) {
     for (int i = 0; i < returnSize; ++i) {
       setJavaValueObject(env, Returns[i],
-                         (*env)->GetObjectArrayElement(env, retuns, i));
+                         (*env)->GetObjectArrayElement(env, returns, i));
     }
   }
 

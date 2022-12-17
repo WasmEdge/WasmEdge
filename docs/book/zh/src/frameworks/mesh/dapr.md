@@ -245,12 +245,12 @@ func imageHandlerWASI(_ context.Context, in *common.InvocationEvent) (out *commo
   vm.Validate()
   vm.Instantiate()
   res, err := vm.ExecuteBindgen("infer", wasmedge.Bindgen_return_array, image)
-  ans := string(res.([]byte))
+  and := string(res.([]byte))
   
   vm.Delete()
   conf.Delete()
   out = &common.Content{
-    Data:    []byte(ans),
+    Data:    []byte(and),
     ContentType: in.ContentType,
     DataTypeURL: in.DataTypeURL,
   }

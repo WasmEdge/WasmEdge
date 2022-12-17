@@ -81,7 +81,7 @@ cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
         if (PositionalIter == PositionalList.cend()) {
           return cxx20::unexpected<Error>(
               std::in_place, ErrCode::InvalidArgument,
-              "positional argument exceeds maxinum consuming."s);
+              "positional argument exceeds maximum consuming."s);
         }
         if (auto Res =
                 consume_argument(ArgumentDescriptors[*PositionalIter], Arg);

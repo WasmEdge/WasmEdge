@@ -43,14 +43,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a VM context
     let vm = Vm::create(None, None)?;
 
-    // load a wasm module from a in-memory bytes, and the loaded wasm module works as an anoymous
+    // load a wasm module from a in-memory bytes, and the loaded wasm module works as an anonymous
     // module (aka. active module in WasmEdge terminology)
     vm.load_wasm_from_bytes(&wasm_bytes)?;
 
     // validate the loaded active module
     vm.validate()?;
 
-    // instatiate the loaded active module
+    // instantiate the loaded active module
     vm.instantiate()?;
 
     // get the active module instance

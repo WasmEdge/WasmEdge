@@ -32,7 +32,7 @@ Fixed issues:
 * Fixed the repeatedly compilation of universal WASM format.
   * If users use the `wasmedgec` tool to compile the universal WASM file, the AOT compiled WASM data will be appended into the output.
   * In the cases of duplicated AOT compiled universal WASM file which has more than 1 section of AOT compiled WASM data, the WasmEdge runtime will use the latest appended one when execution.
-* Hided the local symbols of the WasmEdge shared library.
+* Hidden the local symbols of the WasmEdge shared library.
 * Loaded the default plug-in path from the path related to the WasmEdge shared library.
   * This only fixed on the MacOS and Linux platforms now.
 * Updated the minimum CMake required version on Android.
@@ -120,16 +120,16 @@ Breaking changes:
     * The first parameter of `WasmEdge_WrapFunc_t` is replaced by `const WasmEdge_CallingFrameContext *`.
   * Extended the content of `WasmEdge_Result`.
   * Added the const qualifier of some APIs.
-    * Added the const qualifer of the first parameter of `WasmEdge_StoreFindModule()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_AsyncWait()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_AsyncWaitFor()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_AsyncGetReturnsLength()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_AsyncGet()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_VMGetFunctionType()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_VMGetFunctionTypeRegistered()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_VMGetFunctionListLength()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_VMGetFunctionList()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_VMGetImportModuleContext()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_StoreFindModule()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_AsyncWait()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_AsyncWaitFor()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_AsyncGetReturnsLength()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_AsyncGet()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetFunctionType()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetFunctionTypeRegistered()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetFunctionListLength()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetFunctionList()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetImportModuleContext()`.
   * Renamed the plugin API.
     * Renamed `WasmEdge_Plugin_loadWithDefaultPluginPaths()` to `WasmEdge_PluginLoadWithDefaultPaths()`.
 * Dropped the manylinux1 and manylinux2010 support. Please refer to the [deprecation notice](https://github.com/WasmEdge/WasmEdge/discussions/1780).
@@ -153,7 +153,7 @@ Features:
   * New `WasmEdge_CallingFrameContext` struct.
   * Developers can use `WasmEdge_CallingFrameGetModuleInstance()` API to get the module instance of current top frame in calling stack in host function body.
   * Developers can use `WasmEdge_CallingFrameGetMemoryInstance()` API to get the memory instance by index in host function body.
-    * To quickly upgrate from the previous WasmEdge versions, developer can use the `WasmEdge_CallingFrameGetMemoryInstance(Context, 0)` to get the same memory instance of the previous host function definition.
+    * To quickly upgrade from the previous WasmEdge versions, developer can use the `WasmEdge_CallingFrameGetMemoryInstance(Context, 0)` to get the same memory instance of the previous host function definition.
   * Developers can use `WasmEdge_CallingFrameGetExecutor()` API to get the executor context in host function body.
 * Extended the `WasmEdge_Result` struct to support user defined error codes of host functions.
   * Added `WasmEdge_ResultGen()` API to generate the `WasmEdge_Result` struct of user defined error code.
@@ -184,7 +184,7 @@ Fixed issues:
 
 Refactor:
 
-* Reorginized the CI workflows to reuse the similar jobs.
+* Reorganized the CI workflows to reuse the similar jobs.
 * Refactored the enum related headers.
   * Separated the C and C++ enum definition headers.
   * Not to package the C++ related headers.
@@ -497,7 +497,7 @@ Breaking changes:
   * To enable instruction counting, please use `--enable-instruction-count`.
   * To enable gas measuring, please use `--enable-gas-measuring`.
   * To enable time  measuring, please use `--enable-time-measuring`.
-  * For the convinence, use `--enable-all-statistics` will enable all available statistics options.
+  * For the convenience, use `--enable-all-statistics` will enable all available statistics options.
 * `wasmedgec` AOT compiler tool behavior changes.
   * For the output file name with extension `.so`, `wasmedgec` will output the AOT compiled WASM in shared library format.
   * For the output file name with extension `.wasm` or other cases, `wasmedgec` will output the WASM file with adding the AOT compiled binary in custom sections. `wasmedge` runtime will run in AOT mode when it executes the output WASM file.

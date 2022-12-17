@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "symmetric/registed.h"
+#include "symmetric/registered.h"
 
 namespace WasmEdge {
 namespace Host {

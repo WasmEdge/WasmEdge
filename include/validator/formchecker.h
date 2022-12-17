@@ -131,7 +131,7 @@ private:
   uint32_t Mems = 0;
   std::vector<std::pair<VType, ValMut>> Globals;
   std::vector<RefType> Elems;
-  std::vector<uint32_t> Datas;
+  std::vector<uint32_t> Data;
   std::unordered_set<uint32_t> Refs;
   uint32_t NumImportFuncs = 0;
   uint32_t NumImportGlobals = 0;

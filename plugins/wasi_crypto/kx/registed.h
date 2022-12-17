@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasmedge/plugins/wasi_crypto/kx/registed.h - Registed -------------===//
+//===-- wasmedge/plugins/wasi_crypto/kx/registered.h - Registered -------------===//
 //
 // Part of the WasmEdge Project.
 //
@@ -25,14 +25,14 @@ namespace Host {
 namespace WasiCrypto {
 namespace Kx {
 
-template <typename... T> struct Registed {
+template <typename... T> struct Registered {
   using PkVariant = std::variant<typename T::PublicKey...>;
   using SkVariant = std::variant<typename T::SecretKey...>;
   using KpVariant = std::variant<typename T::KeyPair...>;
   using Variant = std::variant<T...>;
 };
 
-using RegistedAlg = Registed<X25519, EcdsaP256, EcdsaP384>;
+using RegistedAlg = Registered<X25519, EcdsaP256, EcdsaP384>;
 
 using Algorithm = RegistedAlg::Variant;
 

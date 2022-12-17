@@ -127,7 +127,7 @@ public:
     return Span<Byte>(&DataPtr[Offset], Length);
   }
 
-  /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Legnth - 1]
+  /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Length - 1]
   Expect<void> setBytes(Span<const Byte> Slice, uint32_t Offset, uint32_t Start,
                         uint32_t Length) noexcept {
     // Check the memory boundary.

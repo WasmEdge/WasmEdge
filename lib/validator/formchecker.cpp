@@ -38,7 +38,7 @@ void FormChecker::reset(bool CleanGlobal) {
     Tables.clear();
     Mems = 0;
     Globals.clear();
-    Datas.clear();
+    Data.clear();
     Elems.clear();
     Refs.clear();
     NumImportFuncs = 0;
@@ -99,7 +99,7 @@ void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
 }
 
 void FormChecker::addData(const AST::DataSegment &) {
-  Datas.emplace_back(Datas.size());
+  Data.emplace_back(Data.size());
 }
 
 void FormChecker::addElem(const AST::ElementSegment &Elem) {
@@ -419,7 +419,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
             const uint32_t Idx = IdxN - 1;
             // Cannot use popTypes() here because we need the popped value.
             if (auto Res = popType(NTypes[Idx])) {
-              // Have to check is `unreachableVType` occured for the case of
+              // Have to check is `unreachableVType` occurred for the case of
               // `unreachable` instruction appeared before the `br_table`
               // instruction.
               if (CtrlStack.back().IsUnreachable) {
@@ -625,7 +625,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return {};
   }
   case OpCode::Select_t: {
-    // Note: There may be multiple values choise in the future.
+    // Note: There may be multiple values choice in the future.
     if (Instr.getValTypeList().size() != 1) {
       spdlog::error(ErrCode::Value::InvalidResultArity);
       return Unexpect(ErrCode::Value::InvalidResultArity);
@@ -815,10 +815,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            Instr.getTargetIndex(), Mems);
     }
     // Check the source data index.
-    if (Instr.getSourceIndex() >= Datas.size()) {
+    if (Instr.getSourceIndex() >= Data.size()) {
       return logOutOfRange(ErrCode::Value::InvalidDataIdx,
                            ErrInfo::IndexCategory::Data, Instr.getSourceIndex(),
-                           static_cast<uint32_t>(Datas.size()));
+                           static_cast<uint32_t>(Data.size()));
     }
     return StackTrans(
         {VType(ValType::I32), VType(ValType::I32), VType(ValType::I32)}, {});
@@ -835,10 +835,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         {VType(ValType::I32), VType(ValType::I32), VType(ValType::I32)}, {});
   case OpCode::Data__drop:
     // Check the target data index.
-    if (Instr.getTargetIndex() >= Datas.size()) {
+    if (Instr.getTargetIndex() >= Data.size()) {
       return logOutOfRange(ErrCode::Value::InvalidDataIdx,
                            ErrInfo::IndexCategory::Data, Instr.getTargetIndex(),
-                           static_cast<uint32_t>(Datas.size()));
+                           static_cast<uint32_t>(Data.size()));
     }
     return {};
 

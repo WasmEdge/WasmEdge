@@ -1052,7 +1052,7 @@ mod tests {
         assert!(config.is_time_measuring());
         assert!(config.interpreter_mode_enabled());
 
-        // set maxmimum memory pages
+        // set maximum memory pages
         config.set_max_memory_pages(10);
         assert_eq!(config.get_max_memory_pages(), 10);
         #[cfg(feature = "aot")]

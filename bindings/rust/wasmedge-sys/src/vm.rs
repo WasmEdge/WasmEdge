@@ -429,7 +429,7 @@ impl Vm {
         self.run_function(func_name, params)
     }
 
-    /// Asychronously runs a [function](crate::Function) from a in-memory wasm bytes.
+    /// Asynchronously runs a [function](crate::Function) from a in-memory wasm bytes.
     ///
     /// # Arguments
     ///
@@ -676,7 +676,7 @@ impl Vm {
         // prepare returns
         let func_type = self.get_function_type(func_name.as_ref())?;
 
-        // get the info of the funtion return
+        // get the info of the function return
         let returns_len = unsafe { ffi::WasmEdge_FunctionTypeGetReturnsLength(func_type.inner.0) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
@@ -745,7 +745,7 @@ impl Vm {
         // prepare returns
         let func_type = self.get_registered_function_type(mod_name.as_ref(), func_name.as_ref())?;
 
-        // get the info of the funtion return
+        // get the info of the function return
         let returns_len = unsafe { ffi::WasmEdge_FunctionTypeGetReturnsLength(func_type.inner.0) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
@@ -1615,7 +1615,7 @@ mod tests {
             )))
         );
 
-        // run a function: the specified function name is non-existant
+        // run a function: the specified function name is non-existent
         let result = vm.run_function("fib2", [WasmValue::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
@@ -1973,7 +1973,7 @@ mod tests {
             )))
         );
 
-        // fun a function: the specified function name is non-existant
+        // fun a function: the specified function name is non-existent
         let result = vm.run_wasm_from_file(&path, "fib2", [WasmValue::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
@@ -2045,7 +2045,7 @@ mod tests {
             )))
         );
 
-        // fun a function: the specified function name is non-existant
+        // fun a function: the specified function name is non-existent
         let result = vm
             .run_wasm_from_file_async(&path, "fib2", [WasmValue::from_i32(5)])
             .await;
@@ -2149,7 +2149,7 @@ mod tests {
             )))
         );
 
-        // fun a function: the specified function name is non-existant
+        // fun a function: the specified function name is non-existent
         let result = vm.run_wasm_from_bytes(&wasm_bytes, "fib2", [WasmValue::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
@@ -2255,7 +2255,7 @@ mod tests {
             )))
         );
 
-        // fun a function: the specified function name is non-existant
+        // fun a function: the specified function name is non-existent
         let result = vm
             .run_wasm_from_bytes_async(&wasm_bytes, "fib2", [WasmValue::from_i64(5)])
             .await;
@@ -2316,7 +2316,7 @@ mod tests {
             )))
         );
 
-        // fun a function: the specified function name is non-existant
+        // fun a function: the specified function name is non-existent
         let module = load_fib_module();
         let result = vm.run_wasm_from_module(module, "fib2", [WasmValue::from_i64(5)]);
         assert!(result.is_err());
@@ -2378,7 +2378,7 @@ mod tests {
             )))
         );
 
-        // fun a function: the specified function name is non-existant
+        // fun a function: the specified function name is non-existent
         let module = load_fib_module();
         let result = vm
             .run_wasm_from_module_async(module, "fib2", [WasmValue::from_i64(5)])

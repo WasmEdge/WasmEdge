@@ -1,6 +1,6 @@
-# JavaScript or Domain Specifc Language Runtime
+# JavaScript or Domain Specific Language Runtime
 
-In order for WebAssembly to be widely adopted by developers as a runtime, it must support "easy" languages like JavaScript. Or, better yet, through its advanced compiler toolchain, WasmEdge could support high performance DSLs (Domain Specifc Languages), which are low code solutions designed for specific tasks.
+In order for WebAssembly to be widely adopted by developers as a runtime, it must support "easy" languages like JavaScript. Or, better yet, through its advanced compiler toolchain, WasmEdge could support high performance DSLs (Domain Specific Languages), which are low code solutions designed for specific tasks.
 
 ## JavaScript
 
@@ -22,4 +22,4 @@ The image classification DSL is a YAML format that allows the user to specify a 
 
 ## DSL for chatbots
 
-A chatbot DSL function takes an input string and responds with a reply string. The DSL specifies the internal state transtions of the chatbot, as well as AI models for language understanding. This work is in progress.
+A chatbot DSL function takes an input string and responds with a reply string. The DSL specifies the internal state transitions of the chatbot, as well as AI models for language understanding. This work is in progress.

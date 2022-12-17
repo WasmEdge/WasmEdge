@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasmedge/plugins/wasi_crypto/signatures/registed.h - Registed -----===//
+//===-- wasmedge/plugins/wasi_crypto/signatures/registered.h - Registered -----===//
 //
 // Part of the WasmEdge Project.
 //
@@ -25,7 +25,7 @@ namespace Host {
 namespace WasiCrypto {
 namespace Signatures {
 
-template <typename... T> struct Registed {
+template <typename... T> struct Registered {
   using PkVariant = std::variant<typename T::PublicKey...>;
   using SkVariant = std::variant<typename T::SecretKey...>;
   using KpVariant = std::variant<typename T::KeyPair...>;
@@ -37,7 +37,7 @@ template <typename... T> struct Registed {
 };
 
 using RegistedAlg =
-    Registed<EcdsaK256, EcdsaP256, EcdsaP384, Eddsa, RSA_PKCS1_2048_SHA256,
+    Registered<EcdsaK256, EcdsaP256, EcdsaP384, Eddsa, RSA_PKCS1_2048_SHA256,
              RSA_PKCS1_2048_SHA384, RSA_PKCS1_2048_SHA512,
              RSA_PKCS1_3072_SHA384, RSA_PKCS1_3072_SHA512,
              RSA_PKCS1_4096_SHA512, RSA_PSS_2048_SHA256, RSA_PSS_2048_SHA384,

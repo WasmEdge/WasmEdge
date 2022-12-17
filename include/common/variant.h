@@ -142,7 +142,7 @@ template <typename... Types> class Variant {
   static_assert(!(std::is_void_v<Types> || ...),
                 "variant must have no void alternative");
   static_assert((std::is_trivially_copyable_v<Types> && ...),
-                "variant must be trivially copyable");
+                "variant must be trivially copiable");
   static_assert((std::is_trivially_destructible_v<Types> && ...),
                 "variant must be trivially destructible");
 

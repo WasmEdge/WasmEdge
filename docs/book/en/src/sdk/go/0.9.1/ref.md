@@ -1,6 +1,6 @@
 # WasmEdge Go v0.9.1 API Documentation
 
-The followings are the guides to working with the WasmEdge-Go SDK at WasmEdge version `0.9.1` and WasmEdge-Go version `v0.9.2`.
+The following are the guides to working with the WasmEdge-Go SDK at WasmEdge version `0.9.1` and WasmEdge-Go version `v0.9.2`.
 
 **Please install WasmEdge 0.9.1 to use this Go package.**
 
@@ -870,7 +870,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     ```go
     conf := wasmedge.NewConfigure()
 
-    // By default, the intruction counting is `false` when running a compiled-WASM or a pure-WASM.
+    // By default, the instruction counting is `false` when running a compiled-WASM or a pure-WASM.
     conf.SetStatisticsInstructionCounting(true)
     // By default, the cost measurement is `false` when running a compiled-WASM or a pure-WASM.
     conf.SetStatisticsTimeMeasuring(true)
@@ -1543,7 +1543,7 @@ The `VM` object supplies the APIs to retrieve the instances.
     // Assume that a WASM module is instantiated in `vm` which is a `wasmedge.VM` object.
     functype := vm.GetFunctionType("fib")
     // Developers can get the function types of functions in the registered modules via the 
-    // `(*VM).GetFunctionTypeRegistered` API with the functon name and the module name.
+    // `(*VM).GetFunctionTypeRegistered` API with the function name and the module name.
     // If the function is not found, these APIs will return `nil`.
     // Developers should __NOT__ call the `(*FunctionType).Release` function of the returned object.
     ```

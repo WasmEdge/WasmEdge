@@ -275,7 +275,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(memory.size(), 15);
 
-        // get memory from instance agains
+        // get memory from instance again
         let result = instance.memory("memory");
         assert!(result.is_some());
         let memory = result.unwrap();

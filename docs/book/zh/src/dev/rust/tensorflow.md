@@ -126,7 +126,7 @@ It is very likely a <a href='https://www.google.com/search?q=military uniform'>m
 * [AWS Lambda](https://github.com/second-state/aws-lambda-wasm-runtime)
 * [腾讯 Serverless 函数](https://github.com/second-state/tencent-scf-wasm-runtime) (中文)
 
-### Second Sate FaaS 和 Node.js
+### Second State FaaS 和 Node.js
 
 以下的教程展示了如何在 Second State FaaS 平台上部署使用 Rust 编写的 WebAssembly 程序。由于 FaaS 服务在 Node.js 上运行，你可以按照这些教程在你自己的 Node.js 服务器上运行这些函数。
 

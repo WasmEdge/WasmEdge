@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasmedge/common/filesystem.h - std::filesystem selection
-//-----------===//
+//===-- wasmedge/common/filesystem.h - std::filesystem selection ----------===//
 //
 // Part of the WasmEdge Project.
 //

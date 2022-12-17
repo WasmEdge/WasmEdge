@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasmedge/plugins/wasi_crypto/symmetric/registered.h - Registered
-//------===//
+//===-- wasmedge/plugins/wasi_crypto/symmetric/registered.h - Registered --===//
 //
 // Part of the WasmEdge Project.
 //

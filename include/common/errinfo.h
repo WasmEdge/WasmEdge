@@ -172,8 +172,8 @@ struct InfoMismatch {
   }
 
   /// Case 5: unexpected external types
-  InfoMismatch(const ExternalType expect, const ExternalType GotExt) noexcept
-      : Category(MismatchCategory::ExternalType), ExpExtType(expect),
+  InfoMismatch(const ExternalType ExpExt, const ExternalType GotExt) noexcept
+      : Category(MismatchCategory::ExternalType), ExpExtType(ExpExt),
         GotExtType(GotExt) {}
 
   /// Case 6: unexpected function types

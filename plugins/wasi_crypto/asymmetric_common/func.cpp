@@ -199,9 +199,9 @@ Expect<uint32_t> KeypairId::body(const Runtime::CallingFrame &Frame,
       unlikely(!Res)) {
     return Res.error();
   } else {
-    auto [resize, ResVersion] = *Res;
+    auto [ResSize, ResVersion] = *Res;
 
-    auto SafeResSize = toWasiSize(resize);
+    auto SafeResSize = toWasiSize(ResSize);
     if (unlikely(!SafeResSize)) {
       return SafeResSize.error();
     }

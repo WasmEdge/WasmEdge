@@ -239,8 +239,8 @@ public:
   void setOSType(uint8_t Type) noexcept { OSType = Type; }
 
   /// Getter and setter of arch type.
-  uint8_t getArchType() const noexcept { return archetype; }
-  void setArchType(uint8_t Type) noexcept { archetype = Type; }
+  uint8_t getArchType() const noexcept { return ArchType; }
+  void setArchType(uint8_t Type) noexcept { ArchType = Type; }
 
   /// Getter and setter of version address.
   uint64_t getVersionAddress() const noexcept { return VersionAddress; }
@@ -273,7 +273,7 @@ private:
   /// @{
   uint32_t Version;
   uint8_t OSType;
-  uint8_t archetype;
+  uint8_t ArchType;
   uint64_t VersionAddress;
   uint64_t IntrinsicsAddress;
   std::vector<uintptr_t> TypesAddress;

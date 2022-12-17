@@ -245,7 +245,7 @@ func imageHandlerWASI(_ context.Context, in *common.InvocationEvent) (out *commo
   vm.Validate()
   vm.Instantiate()
   res, err := vm.ExecuteBindgen("infer", wasmedge.Bindgen_return_array, image)
-  and := string(res.([]byte))
+  ans := string(res.([]byte))
   
   vm.Delete()
   conf.Delete()

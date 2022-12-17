@@ -44,7 +44,7 @@
     ;;; Argument list too long.
     $2big
     ;;; Permission denied.
-    $access
+    $acces
     ;;; Address in use.
     $addrinuse
     ;;; Address not available.
@@ -461,7 +461,7 @@
 (typename $oflags
   (flags (@witx repr u16)
     ;;; Create file if it does not exist.
-    $create
+    $creat
     ;;; Fail if not a directory.
     $directory
     ;;; Fail if file already exists.

@@ -15,4 +15,5 @@ jobs:
       - name: check spell
         run: |
           pip install codespell
-          git ls-files | grep -v "thirdparty" | xargs -t codespell --ignore-words .github/workflows/ignore_words 2>/dev/null
+          # exclude files which may be synchronized from other places
+          git ls-files | grep -v "^thirdparty" | grep -v '^docs/witx' |xargs -t codespell --ignore-words .github/workflows/ignore_words 2>/dev/null

@@ -250,7 +250,7 @@ func imageHandlerWASI(_ context.Context, in *common.InvocationEvent) (out *commo
   vm.Delete()
   conf.Delete()
   out = &common.Content{
-    Data:    []byte(and),
+    Data:    []byte(ans),
     ContentType: in.ContentType,
     DataTypeURL: in.DataTypeURL,
   }

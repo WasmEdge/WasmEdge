@@ -38,7 +38,7 @@ void FormChecker::reset(bool CleanGlobal) {
     Tables.clear();
     Mems = 0;
     Globals.clear();
-    Data.clear();
+    Datas.clear();
     Elems.clear();
     Refs.clear();
     NumImportFuncs = 0;
@@ -99,7 +99,7 @@ void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
 }
 
 void FormChecker::addData(const AST::DataSegment &) {
-  Data.emplace_back(Data.size());
+  Datas.emplace_back(Datas.size());
 }
 
 void FormChecker::addElem(const AST::ElementSegment &Elem) {
@@ -815,10 +815,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            Instr.getTargetIndex(), Mems);
     }
     // Check the source data index.
-    if (Instr.getSourceIndex() >= Data.size()) {
+    if (Instr.getSourceIndex() >= Datas.size()) {
       return logOutOfRange(ErrCode::Value::InvalidDataIdx,
                            ErrInfo::IndexCategory::Data, Instr.getSourceIndex(),
-                           static_cast<uint32_t>(Data.size()));
+                           static_cast<uint32_t>(Datas.size()));
     }
     return StackTrans(
         {VType(ValType::I32), VType(ValType::I32), VType(ValType::I32)}, {});
@@ -835,10 +835,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         {VType(ValType::I32), VType(ValType::I32), VType(ValType::I32)}, {});
   case OpCode::Data__drop:
     // Check the target data index.
-    if (Instr.getTargetIndex() >= Data.size()) {
+    if (Instr.getTargetIndex() >= Datas.size()) {
       return logOutOfRange(ErrCode::Value::InvalidDataIdx,
                            ErrInfo::IndexCategory::Data, Instr.getTargetIndex(),
-                           static_cast<uint32_t>(Data.size()));
+                           static_cast<uint32_t>(Datas.size()));
     }
     return {};
 

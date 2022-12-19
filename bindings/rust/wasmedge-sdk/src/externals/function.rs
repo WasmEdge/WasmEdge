@@ -316,7 +316,7 @@ impl FuncRef {
     ///
     pub fn call<E: Engine>(
         &self,
-        engine: &mut E,
+        engine: &E,
         args: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         engine.run_func_ref(self, args)

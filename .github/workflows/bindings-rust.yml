@@ -89,6 +89,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-11, macos-12]
+        rust: [1.64, 1.65]
 
     steps:
       - name: Checkout sources
@@ -96,10 +97,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Rust v1.65
+      - name: Install Rust-stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.65
+          toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
       - name: Install build tools
@@ -111,7 +112,7 @@ jobs:
           export CC=clang
           export CXX=clang++
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .
           cmake --build build
 
       - name: Test WasmEdge
@@ -149,6 +150,9 @@ jobs:
   build_windows:
     name: Windows
     runs-on: windows-2022
+    strategy:
+      matrix:
+        rust: [1.64, 1.65]
     env:
       WASMEDGE_DIR: ${{ github.workspace }}
       WASMEDGE_BUILD_DIR: ${{ github.workspace }}\build
@@ -168,10 +172,10 @@ jobs:
         with:
           sdk-version: 19041
 
-      - name: Install Rust v1.65
+      - name: Install Rust-stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.65
+          toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
       - name: Rustfmt

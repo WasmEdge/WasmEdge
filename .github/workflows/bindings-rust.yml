@@ -30,6 +30,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]
+        rust: [1.64, 1.65]
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
@@ -38,10 +39,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Rust v1.65
+      - name: Install Rust-stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.65
+          toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
       - name: Build WasmEdge with Release mode

@@ -30,7 +30,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]
-        rust: [1.64, 1.65]
+        rust: [1.64, 1.65, 1.66]
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
@@ -89,7 +89,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-11, macos-12]
-        rust: [1.64, 1.65]
+        rust: [1.64, 1.65, 1.66]
 
     steps:
       - name: Checkout sources
@@ -152,7 +152,7 @@ jobs:
     runs-on: windows-2022
     strategy:
       matrix:
-        rust: [1.64, 1.65]
+        rust: [1.64, 1.65, 1.66]
     env:
       WASMEDGE_DIR: ${{ github.workspace }}
       WASMEDGE_BUILD_DIR: ${{ github.workspace }}\build

@@ -56,7 +56,7 @@ const WASMEDGE_RELEASE_VERSION: &str = "0.11.2";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // This is the directory where the static library is located.
-    let libdir_path = PathBuf::from("/root/workspace/me/WasmEdge/build/lib/api");
+    let libdir_path = PathBuf::from("/Volumes/Dev/secondstate/me/WasmEdge/build/lib/api");
     let libdir_path_str = libdir_path
         .to_str()
         .unwrap_or_else(|| panic!("`{}` must be a utf-8 path", libdir_path.display()));
@@ -65,7 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         libdir_path_str
     );
 
-    let incdir_path = PathBuf::from("/root/workspace/me/WasmEdge/build/include/api");
+    let incdir_path = PathBuf::from("/Volumes/Dev/secondstate/me/WasmEdge/build/include/api");
     let incdir_path_str = incdir_path
         .to_str()
         .unwrap_or_else(|| panic!("`{}` must be a utf-8 path", incdir_path.display()));
@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Tell cargo to look for shared libraries in the specified directory
-    println!("cargo:rustc-link-search=static={}", libdir_path_str);
+    println!("cargo:rustc-link-search=native={}", libdir_path_str);
 
     // Tell cargo to tell rustc to link our `wasmedge` library. Cargo will
     // automatically know it must look for a `libwasmedge.a` file.

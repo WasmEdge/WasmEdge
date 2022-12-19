@@ -513,7 +513,7 @@ inline constexpr __wasi_protocol_t fromProtocal(int Protocol) noexcept {
   }
 }
 
-inline constexpr int toProtocal(__wasi_protocol_t Protocol) noexcept {
+inline constexpr int toProtocol(__wasi_protocol_t Protocol) noexcept {
   switch (Protocol) {
   case __WASI_PROTOCOL_IPPROTO_IP:
     return IPPROTO_IP;

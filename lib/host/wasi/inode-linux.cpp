@@ -819,7 +819,7 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
   SysHint.ai_flags = toAIFlags(Hint.ai_flags);
   SysHint.ai_family = toAddressFamily(Hint.ai_family);
   SysHint.ai_socktype = toSockType(Hint.ai_socktype);
-  SysHint.ai_protocol = toProtocal(Hint.ai_protocol);
+  SysHint.ai_protocol = toProtocol(Hint.ai_protocol);
   SysHint.ai_addrlen = Hint.ai_addrlen;
   SysHint.ai_addr = nullptr;
   SysHint.ai_canonname = nullptr;

@@ -10,7 +10,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, parse_quote, spanned::Spanned, FnArg, Item, Pat, PatIdent, PatType};
 
-/// Expand a synchronous host function defined with `wasmedge-sdk` crate.
+/// Declare a native function that will be used to create a host function instance.
 #[proc_macro_attribute]
 pub fn host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);
@@ -183,7 +183,7 @@ fn expand_async_host_func2(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::To
     Ok(ret)
 }
 
-/// Expand an asynchronous host function defined with `wasmedge-sys` crate.
+/// Declare a native async function that will be used to create an async host function instance.
 #[proc_macro_attribute]
 pub fn async_host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);
@@ -356,7 +356,6 @@ fn sys_expand_async_host_func_switcher2(
     Ok(ret)
 }
 
-/// Expand a synchronous host function defined with `wasmedge-sys` crate.
 #[proc_macro_attribute]
 pub fn sys_host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);
@@ -432,7 +431,6 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
     Ok(ret)
 }
 
-/// Expand an asynchronous host function defined with `wasmedge-sys` crate.
 #[proc_macro_attribute]
 pub fn sys_async_host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);

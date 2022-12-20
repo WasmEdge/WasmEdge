@@ -30,6 +30,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]
+        rust: [1.64, 1.65, 1.66]
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
@@ -38,10 +39,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Rust v1.65
-        uses: dtolnay/rust-toolchain@1.65
+      - name: Install Rust-stable
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.65
+          toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
       - name: Build WasmEdge with Release mode
@@ -79,7 +80,8 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --workspace --examples --locked
+          cargo test --workspace --locked
+          cargo test --examples --locked
 
   build_macos:
     name: MacOS
@@ -87,6 +89,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-11, macos-12]
+        rust: [1.64, 1.65, 1.66]
 
     steps:
       - name: Checkout sources
@@ -94,10 +97,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Rust v1.65
-        uses: dtolnay/rust-toolchain@1.65
+      - name: Install Rust-stable
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.65
+          toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
       - name: Install build tools
@@ -109,7 +112,7 @@ jobs:
           export CC=clang
           export CXX=clang++
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .
           cmake --build build
 
       - name: Test WasmEdge
@@ -141,11 +144,15 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export DYLD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --workspace --examples --locked
+          cargo test --workspace --locked
+          cargo test --examples --locked
 
   build_windows:
     name: Windows
     runs-on: windows-2022
+    strategy:
+      matrix:
+        rust: [1.64, 1.65, 1.66]
     env:
       WASMEDGE_DIR: ${{ github.workspace }}
       WASMEDGE_BUILD_DIR: ${{ github.workspace }}\build
@@ -165,10 +172,10 @@ jobs:
         with:
           sdk-version: 19041
 
-      - name: Install Rust v1.65
-        uses: dtolnay/rust-toolchain@1.65
+      - name: Install Rust-stable
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.65
+          toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
       - name: Rustfmt
@@ -219,4 +226,5 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge\WasmEdge\build\lib\api"
           cd bindings\rust
-          cargo test --workspace --examples --locked
+          cargo test --workspace --locked
+          cargo test --examples --locked

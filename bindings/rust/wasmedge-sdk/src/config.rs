@@ -1,6 +1,8 @@
 //! Defines the structs used to construct configurations.
 
-use crate::{CompilerOptimizationLevel, CompilerOutputFormat, WasmEdgeResult};
+use crate::WasmEdgeResult;
+#[cfg(feature = "aot")]
+use crate::{CompilerOptimizationLevel, CompilerOutputFormat};
 use wasmedge_sys as sys;
 
 /// Defines a builder for creating a [Config].
@@ -8,6 +10,7 @@ use wasmedge_sys as sys;
 pub struct ConfigBuilder {
     common_config: CommonConfigOptions,
     stat_config: Option<StatisticsConfigOptions>,
+    #[cfg(feature = "aot")]
     compiler_config: Option<CompilerConfigOptions>,
     runtime_config: Option<RuntimeConfigOptions>,
     host_config: Option<HostRegistrationConfigOptions>,
@@ -18,6 +21,7 @@ impl ConfigBuilder {
         Self {
             common_config: options,
             stat_config: None,
+            #[cfg(feature = "aot")]
             compiler_config: None,
             runtime_config: None,
             host_config: None,
@@ -98,6 +102,7 @@ impl ConfigBuilder {
             inner.measure_cost(stat_config.measure_cost);
             inner.measure_time(stat_config.measure_time);
         }
+        #[cfg(feature = "aot")]
         if let Some(compiler_config) = self.compiler_config {
             inner.set_aot_compiler_output_format(compiler_config.out_format);
             inner.set_aot_optimization_level(compiler_config.opt_level);
@@ -137,7 +142,8 @@ impl ConfigBuilder {
 /// The following code shows how to create a [Config] with [ConfigBuilder].
 ///
 /// ```rust
-/// use wasmedge_sdk::{config::{Config, ConfigBuilder, CommonConfigOptions, StatisticsConfigOptions, CompilerConfigOptions, RuntimeConfigOptions, HostRegistrationConfigOptions}};
+///
+/// use wasmedge_sdk::{config::{Config, ConfigBuilder, CommonConfigOptions, StatisticsConfigOptions, RuntimeConfigOptions, HostRegistrationConfigOptions}};
 /// use wasmedge_types::{CompilerOutputFormat, CompilerOptimizationLevel};
 ///
 /// let common_options = CommonConfigOptions::default()
@@ -148,13 +154,6 @@ impl ConfigBuilder {
 ///     .reference_types(true)
 ///     .sign_extension_operators(true)
 ///     .simd(true);
-///
-/// let compiler_options = CompilerConfigOptions::default()
-///     .dump_ir(true)
-///     .generic_binary(true)
-///     .interruptible(true)
-///     .optimization_level(CompilerOptimizationLevel::O0)
-///     .out_format(CompilerOutputFormat::Native);
 ///
 /// let stat_options = StatisticsConfigOptions::default()
 ///     .count_instructions(true)
@@ -168,7 +167,6 @@ impl ConfigBuilder {
 ///
 /// let result = ConfigBuilder::new(common_options)
 ///     .with_statistics_config(stat_options)
-///     .with_compiler_config(compiler_options)
 ///     .with_runtime_config(runtime_options)
 ///     .with_host_registration_config(host_options)
 ///     .build();
@@ -599,8 +597,8 @@ impl Default for CommonConfigOptions {
 ///  - `interruptible` determines if AOT compiler generates interruptible binary or not.
 ///  
 ///  The configuration options above are only effective to [AOT compiler](crate::Compiler).
-#[derive(Debug)]
 #[cfg(feature = "aot")]
+#[derive(Debug)]
 pub struct CompilerConfigOptions {
     out_format: CompilerOutputFormat,
     opt_level: CompilerOptimizationLevel,
@@ -608,6 +606,7 @@ pub struct CompilerConfigOptions {
     generic_binary: bool,
     interruptible: bool,
 }
+#[cfg(feature = "aot")]
 impl CompilerConfigOptions {
     /// Creates a new instance of [CompilerConfigOptions].
     pub fn new() -> Self {
@@ -682,6 +681,7 @@ impl CompilerConfigOptions {
         }
     }
 }
+#[cfg(feature = "aot")]
 impl Default for CompilerConfigOptions {
     fn default() -> Self {
         Self::new()
@@ -895,6 +895,7 @@ impl HostRegistrationConfigOptions {
 }
 
 #[cfg(test)]
+#[cfg(feature = "aot")]
 mod tests {
     use super::*;
 

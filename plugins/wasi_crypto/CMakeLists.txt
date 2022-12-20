@@ -76,7 +76,7 @@ target_link_libraries(wasmedgePluginWasiCrypto
   wasmedge_shared
   OpenSSL::Crypto
 )
-if(WASMEDGE_LINK_PUGLINS_STATIC)
+if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmedgePluginWasiCrypto
     PRIVATE
     wasmedgeCAPI

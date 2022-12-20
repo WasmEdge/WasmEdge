@@ -35,6 +35,15 @@ SpecTestPrintI32(void *Data __attribute__((unused)),
 }
 
 WasmEdge_Result
+SpecTestPrintI64(void *Data __attribute__((unused)),
+                 const WasmEdge_CallingFrameContext *CallFrameCxt
+                 __attribute__((unused)),
+                 const WasmEdge_Value *In __attribute__((unused)),
+                 WasmEdge_Value *Out __attribute__((unused))) {
+  return WasmEdge_Result_Success;
+}
+
+WasmEdge_Result
 SpecTestPrintF32(void *Data __attribute__((unused)),
                  const WasmEdge_CallingFrameContext *CallFrameCxt
                  __attribute__((unused)),
@@ -105,6 +114,16 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
       WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintI32, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("print_i32");
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
+  WasmEdge_StringDelete(HostName);
+
+  // Add host function "print_i64": {i64} -> {}
+  Param[0] = WasmEdge_ValType_I64;
+  HostFType = WasmEdge_FunctionTypeCreate(Param, 1, NULL, 0);
+  HostFunc =
+      WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintI64, NULL, 0);
+  WasmEdge_FunctionTypeDelete(HostFType);
+  HostName = WasmEdge_StringCreateByCString("print_i64");
   WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 

@@ -2,11 +2,14 @@ package org.wasmedge;
 
 import org.wasmedge.enums.RefType;
 
+/**
+ * Table type.
+ */
 public class TableTypeContext {
 
     private long pointer;
 
-    public TableTypeContext(RefType refType, WasmEdgeLimit limit) {
+    public TableTypeContext(RefType refType, Limit limit) {
         nativeInit(refType.getVal(), limit);
     }
 
@@ -14,9 +17,9 @@ public class TableTypeContext {
         this.pointer = pointer;
     }
 
-    private native void nativeInit(int refType, WasmEdgeLimit limit);
+    private native void nativeInit(int refType, Limit limit);
 
-    public native WasmEdgeLimit getLimit();
+    public native Limit getLimit();
 
     public RefType getRefType() {
         return RefType.getType(nativeGetRefType());

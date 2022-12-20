@@ -10,7 +10,7 @@ public class ValidatorContextTest extends BaseTest {
 
         LoaderContext loaderContext = new LoaderContext(configureContext);
 
-        ASTModuleContext astModuleContext = loaderContext.parseFromFile(getResourcePath(TEST_WASM_PATH));
+        AstModuleContext astModuleContext = loaderContext.parseFromFile(getResourcePath(TEST_WASM_PATH));
 
         ValidatorContext validatorContext = new ValidatorContext(null);
         validatorContext.validate(astModuleContext);

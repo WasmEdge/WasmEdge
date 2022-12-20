@@ -173,25 +173,28 @@ import (
 
 func main() {}
 
-// export greet
-func greet(subject *int32) *byte {
+//export greet
+func greet(subject *int32) *int32 {
   nth := 0
   var subjectStr strings.Builder
   pointer := uintptr(unsafe.Pointer(subject))
   for {
     s := *(*int32)(unsafe.Pointer(pointer + uintptr(nth)))
     if s == 0 {
-      break;
+      break
     }
 
     subjectStr.WriteByte(byte(s))
     nth++
   }
 
-  output := subjectStr.String()
-  output = "Hello, " + output + "!"
+  output := []byte("Hello, " + subjectStr.String() + "!")
 
-  return &(([]byte)(output)[0])
+  r := make([]int32, 2)
+  r[0] = int32(uintptr(unsafe.Pointer(&(output[0]))))
+  r[1] = int32(len(output))
+
+  return &r[0]
 }
 ```
 
@@ -211,7 +214,7 @@ package main
 import (
   "fmt"
   "os"
-  "strings"
+  "encoding/binary"
 
   "github.com/second-state/WasmEdge-go/wasmedge"
 )
@@ -256,26 +259,16 @@ func main() {
   greetResult, _ := vm.Execute("greet", inputPointer)
   outputPointer := greetResult[0].(int32)
 
-  pageSize := mem.GetPageSize()
+  memData, _ = mem.GetData(uint(outputPointer), 8)
+  resultPointer := binary.LittleEndian.Uint32(memData[:4])
+  resultLength := binary.LittleEndian.Uint32(memData[4:])
+
   // Read the result of the `greet` function.
-  memData, _ = mem.GetData(uint(0), uint(pageSize * 65536))
-  nth := 0
-  var output strings.Builder
-
-  for {
-    if memData[int(outputPointer) + nth] == 0 {
-      break
-    }
-
-    output.WriteByte(memData[int(outputPointer) + nth])
-    nth++
-  }
-
-  fmt.Println(output.String())
+  memData, _ = mem.GetData(uint(resultPointer), uint(resultLength))
+  fmt.Println(string(memData))
 
   // Deallocate the subject, and the output.
   vm.Execute("free", inputPointer)
-  vm.Execute("free", outputPointer)
 
   vm.Release()
   conf.Release()

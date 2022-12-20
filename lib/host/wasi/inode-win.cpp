@@ -1734,7 +1734,7 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
     auto &CurAddrinfo = WasiAddrinfoArray[Idx];
     CurAddrinfo->ai_flags = fromAIFlags(SysResItem->ai_flags);
     CurAddrinfo->ai_socktype = fromSockType(SysResItem->ai_socktype);
-    CurAddrinfo->ai_protocol = fromProtocal(SysResItem->ai_protocol);
+    CurAddrinfo->ai_protocol = fromProtocol(SysResItem->ai_protocol);
     CurAddrinfo->ai_family = fromAddressFamily(SysResItem->ai_family);
     CurAddrinfo->ai_addrlen = static_cast<uint32_t>(SysResItem->ai_addrlen);
 

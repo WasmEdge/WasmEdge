@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: ❓ Simple question - Discord chat
+    url: https://discord.gg/U4B5sFTkFc
+    about: This issue tracker is not for technical support. Please use our Discord chat, and ask the community for help.
+  - name: ❓ Advanced question - GitHub Discussions
+    url: https://github.com/WasmEdge/WasmEdge/discussions
+    about: Use GitHub Discussions for advanced and unanswered questions only, requiring a maintainer's answer. Make sure the question wasn't already asked.

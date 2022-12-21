@@ -16,6 +16,7 @@ import argparse
 from os.path import expanduser, join, dirname, abspath, exists, islink, lexists, isdir
 from os import (
     getenv,
+    geteuid,
     listdir,
     makedirs,
     mkdir,
@@ -91,6 +92,35 @@ def opened_w_error(filename, mode="r"):
         finally:
             f.close()
 
+def _check_cmd(cmd):
+    try:
+        logging.debug("check %s", cmd)
+        _ = subprocess.check_output([cmd, "&>/dev/null"], shell=True)
+        logging.debug("check %s -- success", cmd)
+        return True
+    except subprocess.CalledProcessError:
+        logging.debug("check %s -- fail", cmd)
+        return False
+
+def _ldconfig(path):
+    if geteuid() == 0:
+        # Only run ldconfig or update_dyld_shared_cache when user is root/sudoer
+        if _check_cmd("ldconfig"):
+            try:
+                logging.debug("ldconfig %s", path)
+                _ = subprocess.check_output(["ldconfig", path], shell=True)
+            except subprocess.CalledProcessError as e:
+                logging.error("ldconfig failed")
+                print("Exception on process, rc=", e.returncode, "output=", e.output, e.cmd)
+        if _check_cmd("update_dyld_shared_cache"):
+            try:
+                logging.debug("update_dyld_shared_cache %s", path)
+                _ = subprocess.check_output(["update_dyld_shared_cache", path], shell=True)
+            except subprocess.CalledProcessError as e:
+                logging.error("ldconfig failed")
+                print("Exception on process, rc=", e.returncode, "output=", e.output, e.cmd)
+    else:
+        logging.debug("Not root or sudoer, skip ldconfig")
 
 def _is_tarxz(filename):
     return filename.endswith(".tar.xz")
@@ -785,6 +815,8 @@ def install_image_extension(args, compat):
 
     fix_gnu_sparse(args)
 
+    _ldconfig(join(args.path, CONST_lib_dir))
+
     return 0
 
 
@@ -1073,6 +1105,8 @@ def install_tensorflow_extension(args, compat):
                             join(args.path, "bin", _file),
                         )
 
+    _ldconfig(join(args.path, CONST_lib_dir))
+
     if download_tf:
         # Check if wasmedge binary works
         wasmedge_tf_output = run_shell_command(
@@ -1217,7 +1251,6 @@ def set_consts(args, compat):
             args.tf_tools_version, CONST_release_pkg
         ),
     }
-
 
 def run_shell_command(cmd):
     try:
@@ -1466,6 +1499,8 @@ def main(args):
                             # Handle plugins
                             copytree(sub_folder, join(args.path, "plugin"), True)
                             shutil.rmtree(sub_folder)
+
+        _ldconfig(join(args.path, CONST_lib_dir))
 
         # Check if wasmedge binary works
         wasmedge_output = run_shell_command(

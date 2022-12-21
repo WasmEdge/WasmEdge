@@ -16,6 +16,7 @@ import argparse
 from os.path import expanduser, join, dirname, abspath, exists, islink, lexists, isdir
 from os import (
     getenv,
+    geteuid,
     listdir,
     makedirs,
     mkdir,
@@ -532,6 +533,23 @@ def fix_gnu_sparse(args):
                     )
                 if len(listdir(join(args.path, dir, sub_dir))) == 0:
                     shutil.rmtree(join(args.path, dir, sub_dir))
+
+
+def ldconfig(args, compat):
+    if geteuid() == 0:
+        # Only run ldconfig or update_dyld_shared_cache when user is root/sudoer
+        if compat.platform == "Linux":
+            cmd = "ldconfig {0}".format(join(args.path, CONST_lib_dir))
+            output = run_shell_command(cmd)
+            logging.debug("%s: %s", cmd, output)
+        elif compat.platform == "Darwin":
+            cmd = "update_dyld_shared_cache {0}".format(join(args.path, CONST_lib_dir))
+            output = run_shell_command(cmd)
+            logging.debug("%s: %s", cmd, output)
+        else:
+            logging.warning("Help adding ldconfig for your platform")
+    else:
+        logging.debug("Not root or sudoer, skip ldconfig")
 
 
 def is_default_path(args):
@@ -1492,6 +1510,8 @@ def main(args):
                 print("Tensorflow extension installed")
 
         install_plugins(args, compat)
+
+        ldconfig(args, compat)
 
         # Cleanup
         shutil.rmtree(TEMP_PATH)

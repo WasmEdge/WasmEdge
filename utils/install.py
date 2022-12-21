@@ -539,11 +539,11 @@ def ldconfig(args, compat):
     if geteuid() == 0:
         # Only run ldconfig or update_dyld_shared_cache when user is root/sudoer
         if compat.platform == "Linux":
-            cmd = "ldconfig %s".format(join(args.path, CONST_lib_dir))
+            cmd = "ldconfig {0}".format(join(args.path, CONST_lib_dir))
             output = run_shell_command(cmd)
             logging.debug("%s: %s", cmd, output)
         elif compat.platform == "Darwin":
-            cmd = "update_dyld_shared_cache %s".format(join(args.path, CONST_lib_dir))
+            cmd = "update_dyld_shared_cache {0}".format(join(args.path, CONST_lib_dir))
             output = run_shell_command(cmd)
             logging.debug("%s: %s", cmd, output)
         else:

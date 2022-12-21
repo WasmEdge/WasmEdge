@@ -92,35 +92,6 @@ def opened_w_error(filename, mode="r"):
         finally:
             f.close()
 
-def _check_cmd(cmd):
-    try:
-        logging.debug("check %s", cmd)
-        _ = subprocess.check_output([cmd, "&>/dev/null"], shell=True)
-        logging.debug("check %s -- success", cmd)
-        return True
-    except subprocess.CalledProcessError:
-        logging.debug("check %s -- fail", cmd)
-        return False
-
-def _ldconfig(path):
-    if geteuid() == 0:
-        # Only run ldconfig or update_dyld_shared_cache when user is root/sudoer
-        if _check_cmd("ldconfig"):
-            try:
-                logging.debug("ldconfig %s", path)
-                _ = subprocess.check_output(["ldconfig", path], shell=True)
-            except subprocess.CalledProcessError as e:
-                logging.error("ldconfig failed")
-                print("Exception on process, rc=", e.returncode, "output=", e.output, e.cmd)
-        if _check_cmd("update_dyld_shared_cache"):
-            try:
-                logging.debug("update_dyld_shared_cache %s", path)
-                _ = subprocess.check_output(["update_dyld_shared_cache", path], shell=True)
-            except subprocess.CalledProcessError as e:
-                logging.error("ldconfig failed")
-                print("Exception on process, rc=", e.returncode, "output=", e.output, e.cmd)
-    else:
-        logging.debug("Not root or sudoer, skip ldconfig")
 
 def _is_tarxz(filename):
     return filename.endswith(".tar.xz")
@@ -564,6 +535,23 @@ def fix_gnu_sparse(args):
                     shutil.rmtree(join(args.path, dir, sub_dir))
 
 
+def ldconfig(args, compat):
+    if geteuid() == 0:
+        # Only run ldconfig or update_dyld_shared_cache when user is root/sudoer
+        if compat.platform == "Linux":
+            cmd = "ldconfig %s".format(join(args.path, CONST_lib_dir))
+            output = run_shell_command(cmd)
+            logging.debug("%s: %s", cmd, output)
+        elif compat.platform == "Darwin":
+            cmd = "update_dyld_shared_cache %s".format(join(args.path, CONST_lib_dir))
+            output = run_shell_command(cmd)
+            logging.debug("%s: %s", cmd, output)
+        else:
+            logging.warning("Help adding ldconfig for your platform")
+    else:
+        logging.debug("Not root or sudoer, skip ldconfig")
+
+
 def is_default_path(args):
     global PATH
     return args.path == abspath(PATH) or args.path[:4] != "/usr"
@@ -814,8 +802,6 @@ def install_image_extension(args, compat):
         logging.debug("Image deps not needed: {0}".format(compat.prefix()))
 
     fix_gnu_sparse(args)
-
-    _ldconfig(join(args.path, CONST_lib_dir))
 
     return 0
 
@@ -1105,8 +1091,6 @@ def install_tensorflow_extension(args, compat):
                             join(args.path, "bin", _file),
                         )
 
-    _ldconfig(join(args.path, CONST_lib_dir))
-
     if download_tf:
         # Check if wasmedge binary works
         wasmedge_tf_output = run_shell_command(
@@ -1251,6 +1235,7 @@ def set_consts(args, compat):
             args.tf_tools_version, CONST_release_pkg
         ),
     }
+
 
 def run_shell_command(cmd):
     try:
@@ -1500,8 +1485,6 @@ def main(args):
                             copytree(sub_folder, join(args.path, "plugin"), True)
                             shutil.rmtree(sub_folder)
 
-        _ldconfig(join(args.path, CONST_lib_dir))
-
         # Check if wasmedge binary works
         wasmedge_output = run_shell_command(
             ". {0}/env && {0}/bin/wasmedge --version".format(args.path)
@@ -1527,6 +1510,8 @@ def main(args):
                 print("Tensorflow extension installed")
 
         install_plugins(args, compat)
+
+        ldconfig(args, compat)
 
         # Cleanup
         shutil.rmtree(TEMP_PATH)

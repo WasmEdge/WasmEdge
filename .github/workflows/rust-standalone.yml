@@ -5,19 +5,10 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  push:
+  workflow_dispatch:
     branches:
       - master
       - "rust/*"
-    paths:
-      - ".github/workflows/rust-standalone.yml"
-      - "bindings/rust/**"
-  pull_request:
-    branches:
-      - master
-    paths:
-      - ".github/workflows/rust-standalone.yml"
-      - "bindings/rust/**"
 
 jobs:
   build_ubuntu_2204:

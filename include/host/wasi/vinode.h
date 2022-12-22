@@ -610,10 +610,11 @@ public:
   /// @return Nothing or WASI error.
   WasiExpect<void> sockRecvFrom(Span<Span<uint8_t>> RiData,
                                 __wasi_riflags_t RiFlags, uint8_t *Address,
-                                uint8_t AddressLength, __wasi_size_t &NRead,
+                                uint8_t AddressLength, uint32_t *PortPtr,
+                                __wasi_size_t &NRead,
                                 __wasi_roflags_t &RoFlags) const noexcept {
-    return Node.sockRecvFrom(RiData, RiFlags, Address, AddressLength, NRead,
-                             RoFlags);
+    return Node.sockRecvFrom(RiData, RiFlags, Address, AddressLength, PortPtr,
+                             NRead, RoFlags);
   }
 
   /// Send a message on a socket.
@@ -674,14 +675,14 @@ public:
     return Node.sockSetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
   }
 
-  WasiExpect<void> sockGetLocalAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetLoaclAddr(uint8_t *Address,
                                     uint32_t *PortPtr) const noexcept {
-    return Node.sockGetLocalAddr(Address, AddrTypePtr, PortPtr);
+    return Node.sockGetLoaclAddr(Address, PortPtr);
   }
 
-  WasiExpect<void> sockGetPeerAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetPeerAddr(uint8_t *Address,
                                    uint32_t *PortPtr) const noexcept {
-    return Node.sockGetPeerAddr(Address, AddrTypePtr, PortPtr);
+    return Node.sockGetPeerAddr(Address, PortPtr);
   }
 
   __wasi_rights_t fsRightsBase() const noexcept { return FsRightsBase; }

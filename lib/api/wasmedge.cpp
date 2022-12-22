@@ -1490,9 +1490,11 @@ WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt) {
 WASMEDGE_CAPI_EXPORT WasmEdge_LoaderContext *
 WasmEdge_LoaderCreate(const WasmEdge_ConfigureContext *ConfCxt) {
   if (ConfCxt) {
-    return toLoaderCxt(new WasmEdge::Loader::Loader(ConfCxt->Conf));
+    return toLoaderCxt(new WasmEdge::Loader::Loader(
+        ConfCxt->Conf, &WasmEdge::Executor::Executor::Intrinsics));
   } else {
-    return toLoaderCxt(new WasmEdge::Loader::Loader(WasmEdge::Configure()));
+    return toLoaderCxt(new WasmEdge::Loader::Loader(
+        WasmEdge::Configure(), &WasmEdge::Executor::Executor::Intrinsics));
   }
 }
 

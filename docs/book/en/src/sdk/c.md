@@ -120,5 +120,6 @@ sys 0m0.011s
 
 ## Examples
 
+- Link with the [WasmEdge library](c/library.md)
 - Use the [external reference](c/externref.md) of WebAssembly input and output in C/C++
 - Implement the [host functions](c/hostfunction.md) in C/C++

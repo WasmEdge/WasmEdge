@@ -12,7 +12,6 @@
 //! User error: OutOfUpperBound
 //! ```
 //! which means that the one or two input numbers of i32 type of the host function are out of upper bound (here is 100).
-#![feature(never_type)]
 
 use thiserror::Error;
 use wasmedge_sdk::{
@@ -59,7 +58,7 @@ impl From<u32> for MyError {
 
 // compute the sum of two numbers, which are less than 100
 #[host_function]
-fn real_add(_caller: &Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn real_add(_caller: Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     if input.len() != 3 {
         return Err(HostFuncError::User(MyError::InvalidArguments.into()));
     }
@@ -97,19 +96,19 @@ fn real_add(_caller: &Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, H
 fn main() -> anyhow::Result<()> {
     // create import module
     let import = ImportObjectBuilder::new()
-        .with_func::<(ExternRef, i32, i32), i32, !>("add", real_add, None)?
+        .with_func::<(ExternRef, i32, i32), i32>("add", real_add)?
         .build("extern_module")?;
 
     // create a vm instance
     let config = ConfigBuilder::default().build()?;
-    let mut vm = Vm::new(Some(config))?.register_import_module(import)?;
+    let vm = Vm::new(Some(config))?.register_import_module(import)?;
 
     // run the export wasm function named "call_add" from func.wasm
     let wasm_file = std::env::current_dir()?.join("examples/data/funcs.wasm");
     let add_ref = ExternRef::new(&mut real_add);
     let a: i32 = 1234;
     let b: i32 = 5678;
-    match vm.run_func_from_file(&wasm_file, "call_add", params!(add_ref, a, b)) {
+    match vm.run_func_from_file(wasm_file, "call_add", params!(add_ref, a, b)) {
         Ok(returns) => {
             let ret = returns[0].to_i32();
             assert_eq!(ret, 1234 + 5678);

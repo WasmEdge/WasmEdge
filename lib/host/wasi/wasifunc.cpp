@@ -1793,7 +1793,8 @@ Expect<uint32_t> WasiSockBind::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 4 && InnerAddress->buf_len != 16) {
+  if (InnerAddress->buf_len != 128 && InnerAddress->buf_len != 4 &&
+      InnerAddress->buf_len != 16) {
     return __WASI_ERRNO_INVAL;
   }
 
@@ -1859,7 +1860,8 @@ Expect<uint32_t> WasiSockConnect::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 4 && InnerAddress->buf_len != 16) {
+  if (InnerAddress->buf_len != 128 && InnerAddress->buf_len != 4 &&
+      InnerAddress->buf_len != 16) {
     return __WASI_ERRNO_INVAL;
   }
 
@@ -1956,6 +1958,7 @@ Expect<uint32_t> WasiSockRecvFrom::body(const Runtime::CallingFrame &Frame,
                                         int32_t Fd, uint32_t RiDataPtr,
                                         uint32_t RiDataLen, uint32_t AddressPtr,
                                         uint32_t RiFlags,
+                                        uint32_t /* Out */ PortPtr,
                                         uint32_t /* Out */ RoDataLenPtr,
                                         uint32_t /* Out */ RoFlagsPtr) {
   // Check memory instance from module.
@@ -1970,7 +1973,8 @@ Expect<uint32_t> WasiSockRecvFrom::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 4 && InnerAddress->buf_len != 16) {
+  if (InnerAddress->buf_len != 128 && InnerAddress->buf_len != 4 &&
+      InnerAddress->buf_len != 16) {
     return __WASI_ERRNO_INVAL;
   }
 
@@ -1993,6 +1997,11 @@ Expect<uint32_t> WasiSockRecvFrom::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check for invalid address.
+  uint32_t *const RoPort = MemInst->getPointer<uint32_t *>(PortPtr);
+  if (RoPort == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
   auto *const RiDataArray =
       MemInst->getPointer<__wasi_iovec_t *>(RiDataPtr, WasiRiDataLen);
   if (unlikely(RiDataArray == nullptr)) {
@@ -2032,9 +2041,10 @@ Expect<uint32_t> WasiSockRecvFrom::body(const Runtime::CallingFrame &Frame,
 
   const __wasi_fd_t WasiFd = Fd;
 
-  if (auto Res = Env.sockRecvFrom(
-          WasiFd, {WasiRiData.data(), WasiRiDataLen}, WasiRiFlags, AddressBuf,
-          static_cast<uint8_t>(InnerAddress->buf_len), *RoDataLen, *RoFlags);
+  if (auto Res = Env.sockRecvFrom(WasiFd, {WasiRiData.data(), WasiRiDataLen},
+                                  WasiRiFlags, AddressBuf,
+                                  static_cast<uint8_t>(InnerAddress->buf_len),
+                                  RoPort, *RoDataLen, *RoFlags);
       unlikely(!Res)) {
     return Res.error();
   }
@@ -2125,7 +2135,8 @@ Expect<uint32_t> WasiSockSendTo::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 4 && InnerAddress->buf_len != 16) {
+  if (InnerAddress->buf_len != 128 && InnerAddress->buf_len != 4 &&
+      InnerAddress->buf_len != 16) {
     return __WASI_ERRNO_INVAL;
   }
 
@@ -2422,7 +2433,6 @@ Expect<uint32_t> WasiGetAddrinfo::body(const Runtime::CallingFrame &Frame,
 
 Expect<uint32_t> WasiSockGetLocalAddr::body(const Runtime::CallingFrame &Frame,
                                             int32_t Fd, uint32_t AddressPtr,
-                                            uint32_t AddressTypePtr,
                                             uint32_t PortPtr) {
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -2434,19 +2444,13 @@ Expect<uint32_t> WasiSockGetLocalAddr::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 16) {
+  if (InnerAddress->buf_len != 128) {
     return __WASI_ERRNO_INVAL;
   }
 
   uint8_t *AddressBuf =
       MemInst->getPointer<uint8_t *>(InnerAddress->buf, InnerAddress->buf_len);
   if (AddressBuf == nullptr) {
-    return __WASI_ERRNO_FAULT;
-  }
-
-  uint32_t *const RoAddressType =
-      MemInst->getPointer<uint32_t *>(AddressTypePtr);
-  if (RoAddressType == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2457,8 +2461,7 @@ Expect<uint32_t> WasiSockGetLocalAddr::body(const Runtime::CallingFrame &Frame,
 
   const __wasi_fd_t WasiFd = Fd;
 
-  if (auto Res =
-          Env.sockGetLoaclAddr(WasiFd, AddressBuf, RoAddressType, RoPort);
+  if (auto Res = Env.sockGetLoaclAddr(WasiFd, AddressBuf, RoPort);
       unlikely(!Res)) {
     return Res.error();
   }
@@ -2467,7 +2470,6 @@ Expect<uint32_t> WasiSockGetLocalAddr::body(const Runtime::CallingFrame &Frame,
 
 Expect<uint32_t> WasiSockGetPeerAddr::body(const Runtime::CallingFrame &Frame,
                                            int32_t Fd, uint32_t AddressPtr,
-                                           uint32_t AddressTypePtr,
                                            uint32_t PortPtr) {
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -2489,12 +2491,6 @@ Expect<uint32_t> WasiSockGetPeerAddr::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  uint32_t *const RoAddressType =
-      MemInst->getPointer<uint32_t *>(AddressTypePtr);
-  if (RoAddressType == nullptr) {
-    return __WASI_ERRNO_FAULT;
-  }
-
   uint32_t *const RoPort = MemInst->getPointer<uint32_t *>(PortPtr);
   if (RoPort == nullptr) {
     return __WASI_ERRNO_FAULT;
@@ -2502,7 +2498,7 @@ Expect<uint32_t> WasiSockGetPeerAddr::body(const Runtime::CallingFrame &Frame,
 
   const __wasi_fd_t WasiFd = Fd;
 
-  if (auto Res = Env.sockGetPeerAddr(WasiFd, AddressBuf, RoAddressType, RoPort);
+  if (auto Res = Env.sockGetPeerAddr(WasiFd, AddressBuf, RoPort);
       unlikely(!Res)) {
     return Res.error();
   }

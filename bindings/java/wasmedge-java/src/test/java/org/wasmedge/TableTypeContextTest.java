@@ -9,7 +9,7 @@ public class TableTypeContextTest extends BaseTest {
     @Test
     public void testCreateExtRef() {
         RefType refType = RefType.EXTERREF;
-        WasmEdgeLimit limit = new WasmEdgeLimit(true, 1, 1000);
+        Limit limit = new Limit(true, 1, 1000);
         TableTypeContext tableTypeContext = new TableTypeContext(refType, limit);
 
         Assert.assertEquals(tableTypeContext.getRefType(), refType);
@@ -21,7 +21,7 @@ public class TableTypeContextTest extends BaseTest {
     @Test
     public void testCreateFunRef() {
         RefType refType = RefType.FUNCREF;
-        WasmEdgeLimit limit = new WasmEdgeLimit(true, 1, 1000);
+        Limit limit = new Limit(true, 1, 1000);
         TableTypeContext tableTypeContext = new TableTypeContext(refType, limit);
 
         Assert.assertEquals(tableTypeContext.getRefType(), refType);

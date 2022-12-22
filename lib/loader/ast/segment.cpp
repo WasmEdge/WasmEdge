@@ -213,37 +213,38 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
 
   // Read the vector of local variable counts and types.
   uint32_t TotalLocalCnt = 0;
-  auto Res = loadVec(
-      CodeSeg.getLocals(),
-      [this,
-       &TotalLocalCnt](std::pair<uint32_t, ValType> &Local) -> Expect<void> {
-        uint32_t LocalCnt;
-        ValType LocalType;
-        if (auto Res = FMgr.readU32(); unlikely(!Res)) {
-          return Unexpect(Res);
-        } else {
-          LocalCnt = *Res;
-        }
-        // Total local variables should not more than 2^32. Capped at 2^26.
-        if (UINT32_C(67108864) - TotalLocalCnt < LocalCnt) {
-          return Unexpect(ErrCode::Value::TooManyLocals);
-        }
-        TotalLocalCnt += LocalCnt;
-        // Read the number type.
-        if (auto Res = FMgr.readByte(); unlikely(!Res)) {
-          return Unexpect(Res);
-        } else {
-          LocalType = static_cast<ValType>(*Res);
-        }
-        if (auto Res = checkValTypeProposals(
-                LocalType, false, FMgr.getLastOffset(), ASTNodeAttr::Seg_Code);
-            unlikely(!Res)) {
-          return Unexpect(Res);
-        }
-        Local.first = LocalCnt;
-        Local.second = LocalType;
-        return {};
-      });
+  auto Res =
+      loadVec(CodeSeg.getLocals(),
+              [this, &TotalLocalCnt](
+                  std::pair<uint32_t, ValType> &Local) -> Expect<void> {
+                uint32_t LocalCnt;
+                ValType LocalType;
+                if (auto Res = FMgr.readU32(); unlikely(!Res)) {
+                  return Unexpect(Res);
+                } else {
+                  LocalCnt = *Res;
+                }
+                // Total local variables should not more than 2^32. Capped at
+                // 2^26.
+                if (UINT32_C(67108864) - TotalLocalCnt < LocalCnt) {
+                  return Unexpect(ErrCode::Value::TooManyLocals);
+                }
+                TotalLocalCnt += LocalCnt;
+                // Read the number type.
+                if (auto Res = FMgr.readByte(); unlikely(!Res)) {
+                  return Unexpect(Res);
+                } else {
+                  LocalType = static_cast<ValType>(*Res);
+                }
+                if (auto Res = checkValTypeProposals(
+                        LocalType, FMgr.getLastOffset(), ASTNodeAttr::Seg_Code);
+                    unlikely(!Res)) {
+                  return Unexpect(Res);
+                }
+                Local.first = LocalCnt;
+                Local.second = LocalType;
+                return {};
+              });
 
   if (!Res) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),

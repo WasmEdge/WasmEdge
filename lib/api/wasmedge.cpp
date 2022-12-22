@@ -212,7 +212,6 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
       VVec[I] = ValVariant::wrap<ExternRef>(
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
       break;
-    case ValType::None:
     default:
       // TODO: Return error
       assumingUnreachable();
@@ -1491,9 +1490,11 @@ WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt) {
 WASMEDGE_CAPI_EXPORT WasmEdge_LoaderContext *
 WasmEdge_LoaderCreate(const WasmEdge_ConfigureContext *ConfCxt) {
   if (ConfCxt) {
-    return toLoaderCxt(new WasmEdge::Loader::Loader(ConfCxt->Conf));
+    return toLoaderCxt(new WasmEdge::Loader::Loader(
+        ConfCxt->Conf, &WasmEdge::Executor::Executor::Intrinsics));
   } else {
-    return toLoaderCxt(new WasmEdge::Loader::Loader(WasmEdge::Configure()));
+    return toLoaderCxt(new WasmEdge::Loader::Loader(
+        WasmEdge::Configure(), &WasmEdge::Executor::Executor::Intrinsics));
   }
 }
 

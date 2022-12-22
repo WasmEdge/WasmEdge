@@ -1,5 +1,8 @@
 package org.wasmedge.enums;
 
+/**
+ * Compiler optimization leve enums.
+ */
 public enum CompilerOptimizationLevel {
     /// Disable as many optimizations as possible.
     WasmEdge_CompilerOptimizationLevel_O0,

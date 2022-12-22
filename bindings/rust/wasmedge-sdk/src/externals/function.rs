@@ -16,13 +16,12 @@ use wasmedge_sys as sys;
 /// ```rust
 /// // If the version of rust used is less than v1.63,
 /// // #![feature(explicit_generic_args_with_impl_trait)]
-/// #![feature(never_type)]
 ///
 /// use wasmedge_sdk::{Func, Executor, params, WasmVal, error::HostFuncError, WasmValue, ValType, Caller, host_function};
 ///
 /// // A native function to be wrapped as a host function
 /// #[host_function]
-/// fn real_add(_: &Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+/// fn real_add(_: Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
 ///     if input.len() != 2 {
 ///         return Err(HostFuncError::User(1));
 ///     }
@@ -44,7 +43,7 @@ use wasmedge_sys as sys;
 /// }
 ///
 /// // create a host function
-/// let result = Func::wrap::<(i32, i32), i32, !>(real_add, None);
+/// let result = Func::wrap::<(i32, i32), i32>(real_add);
 /// assert!(result.is_ok());
 /// let func = result.unwrap();
 ///
@@ -76,25 +75,18 @@ impl Func {
     ///
     /// * `real_func` - The native function that will be wrapped as a host function.
     ///
-    /// * `data` - The additional data object to set to this host function context.
-    ///
     /// # Error
     ///
     /// If fail to create the host function, then an error is returned.
-    pub fn new<T>(
+    pub fn new(
         ty: FuncType,
-        real_func: impl Fn(
-                &CallingFrame,
-                Vec<WasmValue>,
-                *mut std::os::raw::c_void,
-            ) -> Result<Vec<WasmValue>, HostFuncError>
+        real_func: impl Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
             + Send
             + Sync
             + 'static,
-        data: Option<&mut T>,
     ) -> WasmEdgeResult<Self> {
         let boxed_func = Box::new(real_func);
-        let inner = sys::Function::create::<T>(&ty.into(), boxed_func, data, 0)?;
+        let inner = sys::Function::create(&ty.into(), boxed_func, 0)?;
         Ok(Self {
             inner,
             name: None,
@@ -110,21 +102,14 @@ impl Func {
     ///
     /// * `real_func` - The native function to be wrapped.
     ///
-    /// * `data` - The additional data object to set to this host function context.
-    ///
     /// # Error
     ///
     /// If fail to create the host function, then an error is returned.
-    pub fn wrap<Args, Rets, T>(
-        real_func: impl Fn(
-                &CallingFrame,
-                Vec<WasmValue>,
-                *mut std::os::raw::c_void,
-            ) -> Result<Vec<WasmValue>, HostFuncError>
+    pub fn wrap<Args, Rets>(
+        real_func: impl Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
             + Send
             + Sync
             + 'static,
-        data: Option<&mut T>,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -134,7 +119,45 @@ impl Func {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner = sys::Function::create::<T>(&ty.into(), boxed_func, data, 0)?;
+        let inner = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        Ok(Self {
+            inner,
+            name: None,
+            mod_name: None,
+        })
+    }
+
+    /// Creates an asynchronous host function by wrapping a native function.
+    ///
+    /// # Arguments
+    ///
+    /// * `real_func` - The native function to be wrapped.
+    ///
+    /// # Error
+    ///
+    /// If fail to create the host function, then an error is returned.
+    #[cfg(feature = "async")]
+    pub fn wrap_async<Args, Rets>(
+        real_func: impl Fn(
+                CallingFrame,
+                Vec<WasmValue>,
+            ) -> Box<
+                dyn std::future::Future<
+                        Output = Result<Vec<WasmValue>, crate::error::HostFuncError>,
+                    > + Send,
+            > + Send
+            + Sync
+            + 'static,
+    ) -> WasmEdgeResult<Self>
+    where
+        Args: WasmValTypeList,
+        Rets: WasmValTypeList,
+    {
+        let boxed_func = Box::new(real_func);
+        let args = Args::wasm_types();
+        let returns = Rets::wasm_types();
+        let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
+        let inner = sys::Function::create_async(&ty.into(), boxed_func, 0)?;
         Ok(Self {
             inner,
             name: None,
@@ -190,7 +213,7 @@ impl Func {
     ///
     pub fn call<E: Engine>(
         &self,
-        engine: &mut E,
+        engine: &E,
         args: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         engine.run_func(self, args)
@@ -293,7 +316,7 @@ impl FuncRef {
     ///
     pub fn call<E: Engine>(
         &self,
-        engine: &mut E,
+        engine: &E,
         args: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         engine.run_func_ref(self, args)
@@ -306,9 +329,8 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::HostFuncError,
-        params, Executor, ImportObjectBuilder, Statistics, Store, WasmVal,
+        params, Executor, ImportObjectBuilder, Statistics, Store, WasmVal, WasmValue,
     };
-    use wasmedge_sys::WasmValue;
 
     #[test]
     fn test_func_signature() {
@@ -367,7 +389,7 @@ mod tests {
     fn test_func_basic() {
         // create an ImportModule
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32, !>("add", real_add, None)
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host func")
             .build("extern");
         assert!(result.is_ok());
@@ -424,7 +446,7 @@ mod tests {
     #[test]
     fn test_func_wrap() {
         // create a host function
-        let result = Func::wrap::<(i32, i32), i32, !>(real_add, None);
+        let result = Func::wrap::<(i32, i32), i32>(real_add);
         assert!(result.is_ok());
         let func = result.unwrap();
 
@@ -439,9 +461,8 @@ mod tests {
     }
 
     fn real_add(
-        _: &CallingFrame,
+        _frame: CallingFrame,
         inputs: Vec<WasmValue>,
-        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

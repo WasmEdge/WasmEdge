@@ -42,11 +42,6 @@ jobs:
           java-version: '11'
           cache: 'gradle'
 
-      - name: Clean up
-        run: |
-          cd bindings/java/wasmedge-jni/
-          rm -f build
-
       - name: Install clang-format-12
         run: |
           apt-get update
@@ -66,35 +61,20 @@ jobs:
           make -j
           make install
 
-      - name: Build WasmEdge JNI
-        run: |
-          export WasmEdge_ROOT=$(pwd)/build
-          cd bindings/java/wasmedge-jni
-          mkdir -p build
-          cd build
-          cmake ..
-          make
-
       - name: Build WasmEdge Java
         run: |
-          export LD_LIBRARY_PATH=$(pwd)/bindings/java/wasmedge-jni/build
+          export WasmEdge_ROOT=$(pwd)/build
           cd bindings/java/wasmedge-java
           ./gradlew clean 
-          ./gradlew assemble
-
-      - name: Run Tests
-        run: |
-          export LIB_JNI_PATH=$(pwd)/bindings/java/wasmedge-jni/build
-          cd bindings/java/wasmedge-java
-          ./gradlew test
+          ./gradlew build
 
       - name: Upload JNI lib
         uses: actions/upload-artifact@v3
         with:
           name: jni-libs
           path: |
-            bindings/java/wasmedge-jni/build/libwasmedge_jni.*
-            bindings/java/wasmedge-jni/build/wasmedge-version.properties
+            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*
+            bindings/java/wasmedge-java/build/native/wasmedge-version.properties
 
   build_macos:
     name: MacOS
@@ -138,18 +118,9 @@ jobs:
           java-version: '11'
           cache: 'gradle'
 
-      - name: Build WasmEdge JNI
-        run: |
-          export WasmEdge_ROOT=$(pwd)/build
-          cd bindings/java/wasmedge-jni
-          mkdir -p build
-          cd build
-          cmake ..
-          make
-
       - name: Build WasmEdge Java
         run: |
-          export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$(pwd)/bindings/java/wasmedge-jni/build:$DYLD_LIBRARY_PATH"
+          export WasmEdge_ROOT=$(pwd)/build
           cd bindings/java/wasmedge-java
           ./gradlew clean 
           ./gradlew assemble
@@ -166,8 +137,7 @@ jobs:
         with:
           name: jni-libs
           path: |
-            bindings/java/wasmedge-jni/build/libwasmedge_jni.*
-            bindings/java/wasmedge-jni/build/wasmedge-version.properties
+            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*
 
   build_windows:
     name: Windows
@@ -228,7 +198,7 @@ jobs:
       - name: Build WasmEdge JNI
         run: |
           $Env:WasmEdge_ROOT="$pwd\\build"
-          cd bindings/java/wasmedge-jni
+          cd bindings/java/wasmedge-java/
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
@@ -239,13 +209,7 @@ jobs:
           $Env:CC = "clang-cl"
           $Env:CXX = "clang-cl"
           $cmake_sys_version = "10.0.19041.0"
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_PACKAGE="ZIP" .
-          cmake --build build
-
-      - name: Build WasmEdge Java
-        run: |
           $Env:PATH += ";$pwd\\build\\lib\\api"
-          cd bindings/java/wasmedge-java
           ./gradlew clean 
           ./gradlew assemble
 
@@ -264,5 +228,4 @@ jobs:
         with:
           name: jni-libs
           path: |
-            bindings/java/wasmedge-jni/build/wasmedge_jni.*
-            bindings/java/wasmedge-jni/build/wasmedge-version.properties
+            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*

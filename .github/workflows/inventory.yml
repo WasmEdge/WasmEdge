@@ -51,6 +51,14 @@ jobs:
           WasmEdge_VMRunWasmFromFile
           WasmEdge_StringWrap
           WasmEdge_Plugin_GetDescriptor
+          WasmEdge_AsyncCancel
+          WasmEdge_AsyncDelete
+          WasmEdge_AsyncGet
+          WasmEdge_AsyncGetReturnsLength
+          WasmEdge_AsyncWait
+          WasmEdge_AsyncWaitFor
+          WasmEdge_VMAsyncExecute
+          WasmEdge_VMAsyncExecuteRegistered
           EOF
           echo "===Allowlist==="
           cat allowlist.txt

@@ -172,8 +172,7 @@ Loader::parseModule(Span<const uint8_t> Code) {
 }
 
 // Helper function of checking the valid value types.
-Expect<ValType> Loader::checkValTypeProposals(ValType VType, bool AcceptNone,
-                                              uint64_t Off,
+Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
                                               ASTNodeAttr Node) const noexcept {
   if (VType == ValType::V128 && !Conf.hasProposal(Proposal::SIMD)) {
     return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::SIMD,
@@ -196,11 +195,6 @@ Expect<ValType> Loader::checkValTypeProposals(ValType VType, bool AcceptNone,
   case ValType::ExternRef:
   case ValType::FuncRef:
     return VType;
-  case ValType::None:
-    if (AcceptNone) {
-      return VType;
-    }
-    [[fallthrough]];
   default:
     return logLoadError(ErrCode::Value::MalformedValType, Off, Node);
   }

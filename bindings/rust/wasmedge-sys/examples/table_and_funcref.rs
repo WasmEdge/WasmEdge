@@ -1,5 +1,3 @@
-#![feature(never_type)]
-
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Table,
@@ -8,7 +6,7 @@ use wasmedge_sys::{
 use wasmedge_types::{error::HostFuncError, RefType, ValType};
 
 #[sys_host_function]
-fn real_add(_frame: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn real_add(_frame: CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 2 {
@@ -39,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a FuncType
     let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32])?;
     // create a host function
-    let host_func = Function::create::<!>(&func_ty, Box::new(real_add), None, 0)?;
+    let host_func = Function::create(&func_ty, Box::new(real_add), 0)?;
 
     // create a TableType instance
     let ty = TableType::create(RefType::FuncRef, 10, Some(20))?;

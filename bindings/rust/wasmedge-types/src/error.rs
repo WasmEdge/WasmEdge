@@ -70,6 +70,8 @@ pub enum WasmEdgeError {
     NotFoundNulByte(#[from] std::ffi::FromBytesWithNulError),
     #[error("Fail to interpret a sequence of u8 as a string")]
     Utf8(#[from] std::str::Utf8Error),
+    #[error("Fail to convert a vector of bytes to a string")]
+    FromUtf8(#[from] std::string::FromUtf8Error),
 
     // Windows platform
     #[error("Fail to convert path on Windows: {0}")]
@@ -455,8 +457,8 @@ pub enum CoreExecutionError {
     RefTypeMismatch,
     #[error("unaligned atomic")]
     UnalignedAtomicAccess,
-    #[error("wait on unshared memory")]
-    WaitOnUnsharedMemory,
+    #[error("expected shared memory")]
+    ExpectSharedMemory,
 }
 
 #[derive(Error, Clone, Debug, PartialEq, Eq)]

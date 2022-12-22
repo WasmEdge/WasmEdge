@@ -306,7 +306,7 @@ fn gen_runtime_error(code: u32) -> WasmEdgeResult<()> {
             CoreExecutionError::UnalignedAtomicAccess,
         )))),
         0x90 => Err(Box::new(WasmEdgeError::Core(CoreError::Execution(
-            CoreExecutionError::WaitOnUnsharedMemory,
+            CoreExecutionError::ExpectSharedMemory,
         )))),
 
         _ => panic!("unknown error code: {code}"),
@@ -393,4 +393,3 @@ where
 
     unsafe { ffi::WasmEdge_Driver_Tool(c_args.len() as std::os::raw::c_int, c_args.as_mut_ptr()) }
 }
-// }

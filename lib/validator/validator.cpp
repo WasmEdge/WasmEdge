@@ -189,8 +189,11 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
     }
     if (TableVec[ElemSeg.getIdx()] != ElemSeg.getRefType()) {
       // Reference type not matched.
-      spdlog::error(ErrCode::Value::InvalidTableIdx);
-      return Unexpect(ErrCode::Value::InvalidTableIdx);
+      spdlog::error(ErrCode::Value::TypeCheckFailed);
+      spdlog::error(ErrInfo::InfoMismatch(
+          static_cast<ValType>(TableVec[ElemSeg.getIdx()]),
+          static_cast<ValType>(ElemSeg.getRefType())));
+      return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
     // Check table initialization is a const expression.
     if (auto Res =

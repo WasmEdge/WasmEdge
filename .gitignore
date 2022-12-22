@@ -50,6 +50,7 @@ Cargo.lock
 bindings/rust/target
 bindings/rust/wasmedge-sdk/target
 bindings/rust/wasmedge-sys/target
+bindings/rust/wasmedge-sys/examples/wasi_print_env/target
 
 #==============================================================================#
 # Directories to ignore (do not add trailing '/'s, they skip symlinks).
@@ -91,3 +92,6 @@ node_modules/
 **/cmake-build-debug
 **/cmake-build-debug-remote-host
 **/cmake-build-release
+
+# generated jni files
+bindings/java/wasmedge-java/wasmedge-jni/jni/*.h

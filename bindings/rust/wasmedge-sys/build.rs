@@ -1,6 +1,10 @@
 use std::path::PathBuf;
+#[cfg(all(feature = "standalone", target_family = "unix"))]
+use std::{env, process::Command};
 
 const WASMEDGE_H: &str = "wasmedge.h";
+#[cfg(all(feature = "standalone", target_family = "unix"))]
+const WASMEDGE_RELEASE_VERSION: &str = "0.11.2";
 
 macro_rules! env_path {
     ($env_var:literal) => {
@@ -15,7 +19,10 @@ struct Paths {
     inc_dir: PathBuf,
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(all(feature = "standalone", target_family = "unix"))]
+    install_libwasmedge();
+
     let Paths {
         header,
         lib_dir,
@@ -43,10 +50,32 @@ fn main() {
     println!("cargo:rustc-env=LD_LIBRARY_PATH={}", lib_dir.display());
     println!("cargo:rustc-link-search={}", lib_dir.display());
     println!("cargo:rustc-link-lib=dylib=wasmedge");
+
+    Ok(())
 }
 
 /// Check header and Returns the location of wasmedge.h and libwasmedge_c.(dylib|so)
 fn find_wasmedge() -> Option<Paths> {
+    // search in /usr/local/
+    let inc_dir = PathBuf::from("/usr/local/include");
+    let lib_dir = if PathBuf::from("/usr/local/lib64").exists() {
+        PathBuf::from("/usr/local/lib64")
+    } else {
+        PathBuf::from("/usr/local/lib")
+    };
+    let header = inc_dir.join("wasmedge").join(WASMEDGE_H);
+    if inc_dir.join("wasmedge").exists() && lib_dir.join("wasmedge").exists() && header.exists() {
+        println!(
+            "cargo:warning=[wasmedge-sys] libwasmedge found in {}",
+            lib_dir.to_str().unwrap()
+        );
+        return Some(Paths {
+            header,
+            inc_dir,
+            lib_dir,
+        });
+    }
+
     // search in the env variables: WASMEDGE_INCLUDE_DIR, WASMEDGE_LIB_DIR
     let inc_dir = env_path!("WASMEDGE_INCLUDE_DIR");
     let lib_dir = env_path!("WASMEDGE_LIB_DIR");
@@ -56,12 +85,8 @@ fn find_wasmedge() -> Option<Paths> {
             let header = header.join(WASMEDGE_H);
             if inc_dir.exists() && lib_dir.exists() && header.exists() {
                 println!(
-                    "cargo:warning=[wasmedge-sys] Use WASMEDGE_INCLUDE_DIR: {:?}",
-                    inc_dir
-                );
-                println!(
-                    "cargo:warning=[wasmedge-sys] Use WASMEDGE_LIB_DIR: {:?}",
-                    lib_dir
+                    "cargo:warning=[wasmedge-sys] libwasmedge found in {}",
+                    lib_dir.to_str().unwrap()
                 );
                 return Some(Paths {
                     header,
@@ -91,8 +116,8 @@ fn find_wasmedge() -> Option<Paths> {
 
         if build_dir.exists() && inc_dir.exists() && lib_dir.exists() && header.exists() {
             println!(
-                "cargo:warning=[wasmedge-sys] Use WASMEDGE_BUILD_DIR: {:?}",
-                build_dir
+                "cargo:warning=[wasmedge-sys] libwasmedge found in {}",
+                lib_dir.to_str().unwrap()
             );
             return Some(Paths {
                 header,
@@ -120,8 +145,8 @@ fn find_wasmedge() -> Option<Paths> {
 
         if default_dir.exists() && inc_dir.exists() && lib_dir.exists() && header.exists() {
             println!(
-                "cargo:warning=[wasmedge-sys] Use default dir: {:?}",
-                default_dir
+                "cargo:warning=[wasmedge-sys] libwasmedge found in {}",
+                lib_dir.to_str().unwrap(),
             );
             return Some(Paths {
                 header,
@@ -143,7 +168,10 @@ fn find_wasmedge() -> Option<Paths> {
         };
 
         if xdg_dir.exists() && inc_dir.exists() && lib_dir.exists() && header.exists() {
-            println!("cargo:warning=[wasmedge-sys] Use xdg path: {xdg_dir:?}");
+            println!(
+                "cargo:warning=[wasmedge-sys] libwasmedge found in {}",
+                lib_dir.to_str().unwrap()
+            );
             return Some(Paths {
                 header,
                 lib_dir,
@@ -152,20 +180,40 @@ fn find_wasmedge() -> Option<Paths> {
         }
     }
 
-    // search in /usr/local/
-    let inc_dir = PathBuf::from("/usr/local/include");
-    let lib_dir = PathBuf::from("/usr/local/lib");
-    let header = inc_dir.join("wasmedge").join(WASMEDGE_H);
-    if inc_dir.join("wasmedge").exists() && lib_dir.join("wasmedge").exists() && header.exists() {
-        println!("cargo:warning=[wasmedge-sys] Use path: /usr/local/");
-        return Some(Paths {
-            header,
-            inc_dir,
-            lib_dir,
-        });
-    }
-
     println!("cargo:warning=[wasmedge-sys] Failed to locate lib_dir, include_dir, or header.",);
 
     None
+}
+
+#[cfg(all(feature = "standalone", target_family = "unix"))]
+fn install_libwasmedge() {
+    let out_dir = env::var("OUT_DIR").expect("[wasmedge-sys] Failed to get OUT_DIR");
+    println!("cargo:warning=[wasmedge-sys] OUT_DIR: {}", &out_dir);
+
+    let output = Command::new("wget")
+        .current_dir(&out_dir)
+        .arg("https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh")
+        .output()
+        .expect("[wasmedge-sys] Failed to download libwasmedge installation script");
+    println!(
+        "cargo:warning=[wasmedge-sys] Download libwasmedge installation script: {:?}",
+        output
+    );
+
+    let output = Command::new("bash")
+        .current_dir(&out_dir)
+        .args(["install.sh", "-v", WASMEDGE_RELEASE_VERSION])
+        .output()
+        .expect("[wasmedge-sys] Failed to run libwasmedge installation script");
+    println!(
+        "cargo:warning=[wasmedge-sys] Run libwasmedge installation script: {:?}",
+        output
+    );
+
+    let output = Command::new("/bin/bash")
+        .arg("-c")
+        .arg("source $HOME/.wasmedge/env")
+        .output()
+        .expect("[wasmedge-sys] Failed to source the env");
+    println!("cargo:warning=[wasmedge-sys] source the env: {:?}", output);
 }

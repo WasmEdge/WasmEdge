@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 3 commits contributed to the release over the course of 442 calendar days.
+ - 3 commits contributed to the release over the course of 460 calendar days.
  - 0 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#322](https://github.com/apepkuss/WasmEdge/issues/322)
 

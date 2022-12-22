@@ -5,6 +5,9 @@ import org.wasmedge.enums.CompilerOutputFormat;
 import org.wasmedge.enums.HostRegistration;
 import org.wasmedge.enums.Proposal;
 
+/**
+ * Configure Context for WasmEdge VM.
+ */
 public class ConfigureContext {
     private long pointer;
 
@@ -80,9 +83,9 @@ public class ConfigureContext {
 
     private native int nativeGetCompilerOutputFormat();
 
-    public native boolean getCompilerIsDumpIR();
+    public native boolean getCompilerIsDumpIr();
 
-    public native void setCompilerIsDumpIR(boolean isDumpIR);
+    public native void setCompilerIsDumpIr(boolean isDumpIr);
 
     public native boolean getCompilerIsGenericBinary();
 
@@ -90,7 +93,8 @@ public class ConfigureContext {
 
     public native boolean isStatisticsSetInstructionCounting();
 
-    public native void setStatisticsSetInstructionCounting(boolean statisticsSetInstructionCounting);
+    public native void setStatisticsSetInstructionCounting(
+        boolean statisticsSetInstructionCounting);
 
     public native boolean isStatisticsSetCostMeasuring();
 

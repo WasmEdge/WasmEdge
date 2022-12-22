@@ -1,6 +1,7 @@
 //! Defines WasmEdge Config struct.
 
 use crate::{error::WasmEdgeError, ffi, WasmEdgeResult};
+#[cfg(feature = "aot")]
 use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
 /// Defines Config struct used to check/set the configuration options.
@@ -981,20 +982,26 @@ mod tests {
         #[cfg(target_os = "linux")]
         assert!(!config.wasmedge_process_enabled());
         assert!(!config.is_cost_measuring());
+        #[cfg(feature = "aot")]
         assert!(!config.dump_ir_enabled());
+        #[cfg(feature = "aot")]
+        #[cfg(feature = "aot")]
         assert!(!config.generic_binary_enabled());
         assert!(!config.is_instruction_counting());
         assert!(!config.is_time_measuring());
         assert_eq!(config.get_max_memory_pages(), 65536);
+        #[cfg(feature = "aot")]
         assert_eq!(
             config.get_aot_optimization_level(),
             CompilerOptimizationLevel::O3,
         );
+        #[cfg(feature = "aot")]
         assert_eq!(
             config.get_aot_compiler_output_format(),
             CompilerOutputFormat::Wasm,
         );
         assert!(!config.interpreter_mode_enabled());
+        #[cfg(feature = "aot")]
         assert!(!config.interruptible_enabled());
 
         // set options
@@ -1014,7 +1021,9 @@ mod tests {
         config.threads(true);
         config.measure_cost(true);
         config.measure_time(true);
+        #[cfg(feature = "aot")]
         config.dump_ir(true);
+        #[cfg(feature = "aot")]
         config.generic_binary(true);
         config.count_instructions(true);
         config.interpreter_mode(true);
@@ -1035,7 +1044,9 @@ mod tests {
         assert!(config.tail_call_enabled());
         assert!(config.threads_enabled());
         assert!(config.is_cost_measuring());
+        #[cfg(feature = "aot")]
         assert!(config.dump_ir_enabled());
+        #[cfg(feature = "aot")]
         assert!(config.generic_binary_enabled());
         assert!(config.is_instruction_counting());
         assert!(config.is_time_measuring());
@@ -1044,12 +1055,16 @@ mod tests {
         // set maxmimum memory pages
         config.set_max_memory_pages(10);
         assert_eq!(config.get_max_memory_pages(), 10);
+        #[cfg(feature = "aot")]
         config.set_aot_optimization_level(CompilerOptimizationLevel::Oz);
+        #[cfg(feature = "aot")]
         assert_eq!(
             config.get_aot_optimization_level(),
             CompilerOptimizationLevel::Oz
         );
+        #[cfg(feature = "aot")]
         config.set_aot_compiler_output_format(CompilerOutputFormat::Native);
+        #[cfg(feature = "aot")]
         assert_eq!(
             config.get_aot_compiler_output_format(),
             CompilerOutputFormat::Native,
@@ -1076,15 +1091,19 @@ mod tests {
             assert!(!config.tail_call_enabled());
             assert!(!config.threads_enabled());
             assert!(!config.is_cost_measuring());
+            #[cfg(feature = "aot")]
             assert!(!config.dump_ir_enabled());
+            #[cfg(feature = "aot")]
             assert!(!config.generic_binary_enabled());
             assert!(!config.is_instruction_counting());
             assert!(!config.is_time_measuring());
             assert_eq!(config.get_max_memory_pages(), 65536);
+            #[cfg(feature = "aot")]
             assert_eq!(
                 config.get_aot_optimization_level(),
                 CompilerOptimizationLevel::O3,
             );
+            #[cfg(feature = "aot")]
             assert_eq!(
                 config.get_aot_compiler_output_format(),
                 CompilerOutputFormat::Wasm,
@@ -1103,7 +1122,9 @@ mod tests {
             config.threads(true);
             config.measure_cost(true);
             config.measure_time(true);
+            #[cfg(feature = "aot")]
             config.dump_ir(true);
+            #[cfg(feature = "aot")]
             config.generic_binary(true);
             config.count_instructions(true);
 
@@ -1119,7 +1140,9 @@ mod tests {
             assert!(config.tail_call_enabled());
             assert!(config.threads_enabled());
             assert!(config.is_cost_measuring());
+            #[cfg(feature = "aot")]
             assert!(config.dump_ir_enabled());
+            #[cfg(feature = "aot")]
             assert!(config.generic_binary_enabled());
             assert!(config.is_instruction_counting());
             assert!(config.is_time_measuring());
@@ -1153,15 +1176,19 @@ mod tests {
             assert!(!config.tail_call_enabled());
             assert!(!config.threads_enabled());
             assert!(!config.is_cost_measuring());
+            #[cfg(feature = "aot")]
             assert!(!config.dump_ir_enabled());
+            #[cfg(feature = "aot")]
             assert!(!config.generic_binary_enabled());
             assert!(!config.is_instruction_counting());
             assert!(!config.is_time_measuring());
             assert_eq!(config.get_max_memory_pages(), 65536);
+            #[cfg(feature = "aot")]
             assert_eq!(
                 config.get_aot_optimization_level(),
                 CompilerOptimizationLevel::O3,
             );
+            #[cfg(feature = "aot")]
             assert_eq!(
                 config.get_aot_compiler_output_format(),
                 CompilerOutputFormat::Wasm,
@@ -1181,7 +1208,9 @@ mod tests {
             config_mut.threads(true);
             config_mut.measure_cost(true);
             config_mut.measure_time(true);
+            #[cfg(feature = "aot")]
             config_mut.dump_ir(true);
+            #[cfg(feature = "aot")]
             config_mut.generic_binary(true);
             config_mut.count_instructions(true);
 
@@ -1197,7 +1226,9 @@ mod tests {
             assert!(config.tail_call_enabled());
             assert!(config.threads_enabled());
             assert!(config.is_cost_measuring());
+            #[cfg(feature = "aot")]
             assert!(config.dump_ir_enabled());
+            #[cfg(feature = "aot")]
             assert!(config.generic_binary_enabled());
             assert!(config.is_instruction_counting());
             assert!(config.is_time_measuring());
@@ -1231,7 +1262,9 @@ mod tests {
         config.threads(true);
         config.measure_cost(true);
         config.measure_time(true);
+        #[cfg(feature = "aot")]
         config.dump_ir(true);
+        #[cfg(feature = "aot")]
         config.generic_binary(true);
         config.count_instructions(true);
 
@@ -1253,7 +1286,9 @@ mod tests {
         assert!(config_clone.tail_call_enabled());
         assert!(config_clone.threads_enabled());
         assert!(config_clone.is_cost_measuring());
+        #[cfg(feature = "aot")]
         assert!(config_clone.dump_ir_enabled());
+        #[cfg(feature = "aot")]
         assert!(config_clone.generic_binary_enabled());
         assert!(config_clone.is_instruction_counting());
         assert!(config_clone.is_time_measuring());

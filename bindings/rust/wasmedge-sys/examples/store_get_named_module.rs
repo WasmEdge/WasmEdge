@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut store = Store::create()?;
 
     // create a Vm context with the given Config and Store
-    let mut vm = Vm::create(Some(config), Some(&mut store))?;
+    let vm = Vm::create(Some(config), Some(&mut store))?;
 
     // register a wasm module from a in-memory wasm bytes.
     vm.register_wasm_from_bytes("extern", &wasm_bytes)?;

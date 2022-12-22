@@ -27,7 +27,7 @@ target_include_directories(wasmedgePluginWasmEdgeProcess
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-if(WASMEDGE_LINK_PUGLINS_STATIC)
+if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmedgePluginWasmEdgeProcess
     PRIVATE
     wasmedgeCAPI

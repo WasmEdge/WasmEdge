@@ -17,6 +17,10 @@ Expect<void> LDMgr::setPath(const std::filesystem::path &FilePath) {
 
   const auto IntrinsicsTable = getSymbol<const void *>("intrinsics");
   if (IntrinsicsTable) {
+    if (unlikely(!Intrinsics)) {
+      spdlog::error(ErrCode::Value::IntrinsicsTableNotFound);
+      return Unexpect(ErrCode::Value::IntrinsicsTableNotFound);
+    }
     *IntrinsicsTable = Intrinsics;
   }
   return {};

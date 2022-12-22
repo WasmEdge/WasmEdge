@@ -49,16 +49,8 @@ jobs:
         run: |
           apt update
           apt install -y software-properties-common libboost-all-dev llvm-12-dev liblld-12-dev ninja-build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release .
           cmake --build build
-
-      - name: Test WasmEdge
-        run: |
-          export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
-          cd build
-          ./tools/wasmedge/wasmedge -v
-          ctest
-          cd -
 
       - name: Rustfmt
         working-directory: bindings/rust/
@@ -112,17 +104,8 @@ jobs:
           export CC=clang
           export CXX=clang++
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release .
           cmake --build build
-
-      - name: Test WasmEdge
-        continue-on-error: true
-        run: |
-          export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
-          cd build
-          ./tools/wasmedge/wasmedge -v
-          ctest
-          cd -
 
       - name: Run cargo fmt
         working-directory: bindings/rust/
@@ -195,20 +178,8 @@ jobs:
           $Env:CC = "clang-cl"
           $Env:CXX = "clang-cl"
           $cmake_sys_version = "10.0.19041.0"
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="ZIP" .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_PACKAGE="ZIP" .
           cmake --build build
-
-      - name: Test WasmEdge
-        continue-on-error: true
-        run: |
-          $vsPath = (vswhere -latest -property installationPath)
-          Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $Env:PATH += ";$pwd\\build\\lib\\api"
-          cd build
-          tools\wasmedge\wasmedge -v
-          ctest
-          cd -
 
       - name: Clippy
         run: |

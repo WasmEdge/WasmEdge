@@ -141,7 +141,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
     [[fallthrough]];
 
   case 0x00: {
-    auto Res = loadVec(
+    auto VecRes = loadVec(
         ElemSeg.getInitExprs(), [this](AST::Expression &Expr) -> Expect<void> {
           AST::Instruction RefFunc(OpCode::Ref__func);
           AST::Instruction End(OpCode::End);
@@ -152,8 +152,8 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
           Expr.getInstrs().emplace_back(std::move(End));
           return {};
         });
-    if (unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
+    if (unlikely(!VecRes)) {
+      return logLoadError(VecRes.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Element);
     }
     break;

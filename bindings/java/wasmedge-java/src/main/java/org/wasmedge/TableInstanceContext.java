@@ -2,6 +2,9 @@ package org.wasmedge;
 
 import org.wasmedge.enums.ValueType;
 
+/**
+ * Table instance.
+ */
 public class TableInstanceContext {
 
     private long pointer;
@@ -25,9 +28,9 @@ public class TableInstanceContext {
         return this.tableTypeContext;
     }
 
-    public native void setData(WasmEdgeValue value, int index);
+    public native void setData(Value value, int index);
 
-    public native WasmEdgeValue getData(ValueType valueType, int offSet);
+    public native Value getData(ValueType valueType, int offSet);
 
     public native int getSize();
 

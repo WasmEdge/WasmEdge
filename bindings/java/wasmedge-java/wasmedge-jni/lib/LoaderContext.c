@@ -7,13 +7,11 @@
 #include "common.h"
 #include "wasmedge/wasmedge.h"
 
-WasmEdge_LoaderContext *getLoader(JNIEnv *env, jobject jLoader) {
-  return (WasmEdge_LoaderContext *)getPointer(env, jLoader);
-}
+GETTER(LoaderContext)
 
 JNIEXPORT jobject JNICALL Java_org_wasmedge_LoaderContext_parseFromFile(
     JNIEnv *env, jobject thisObject, jstring jInputPath) {
-  WasmEdge_LoaderContext *loader = getLoader(env, thisObject);
+  WasmEdge_LoaderContext *loader = getLoaderContext(env, thisObject);
 
   const char *inputPath = (*env)->GetStringUTFChars(env, jInputPath, NULL);
 
@@ -33,7 +31,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_LoaderContext_parseFromFile(
 
 JNIEXPORT jobject JNICALL Java_org_wasmedge_LoaderContext_parseFromBuffer(
     JNIEnv *env, jobject thisObject, jbyteArray jBuf, jint jSize) {
-  WasmEdge_LoaderContext *loader = getLoader(env, thisObject);
+  WasmEdge_LoaderContext *loader = getLoaderContext(env, thisObject);
 
   WasmEdge_ASTModuleContext *mod = NULL;
 
@@ -58,6 +56,6 @@ JNIEXPORT void JNICALL Java_org_wasmedge_LoaderContext_nativeInit(
 JNIEXPORT void JNICALL
 Java_org_wasmedge_LoaderContext_delete(JNIEnv *env, jobject thisObject) {
 
-  WasmEdge_LoaderContext *loader = getLoader(env, thisObject);
+  WasmEdge_LoaderContext *loader = getLoaderContext(env, thisObject);
   WasmEdge_LoaderDelete(loader);
 }

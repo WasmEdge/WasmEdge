@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "../jni/org_wasmedge_ASTModuleContext.h"
+#include "../jni/org_wasmedge_AstModuleContext.h"
 #include "ExportTypeContext.h"
 #include "ImportTypeContext.h"
 #include "common.h"
@@ -9,15 +9,9 @@
 #include "wasmedge/wasmedge.h"
 #include <stdlib.h>
 
-WasmEdge_ASTModuleContext *getASTModuleContext(JNIEnv *env,
-                                               jobject thisObject) {
-  if (thisObject == NULL) {
-    return NULL;
-  }
-  return (WasmEdge_ASTModuleContext *)getPointer(env, thisObject);
-}
+GETTER(ASTModuleContext)
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_ASTModuleContext_listImports(
+JNIEXPORT jobject JNICALL Java_org_wasmedge_AstModuleContext_listImports(
     JNIEnv *env, jobject thisObject) {
   WasmEdge_ASTModuleContext *cxt = getASTModuleContext(env, thisObject);
   uint32_t len = WasmEdge_ASTModuleListImportsLength(cxt);
@@ -41,7 +35,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_ASTModuleContext_listImports(
   return importList;
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_ASTModuleContext_listExports(
+JNIEXPORT jobject JNICALL Java_org_wasmedge_AstModuleContext_listExports(
     JNIEnv *env, jobject thisObject) {
   WasmEdge_ASTModuleContext *cxt = getASTModuleContext(env, thisObject);
   uint32_t len = WasmEdge_ASTModuleListExportsLength(cxt);
@@ -65,15 +59,15 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_ASTModuleContext_listExports(
 jobject createAstModuleContext(JNIEnv *env,
                                const WasmEdge_ASTModuleContext *mod) {
 
-  jclass cls = findJavaClass(env, "org/wasmedge/ASTModuleContext");
-  jmethodID constructor = findJavaMethod(env, cls, "<init>", "()V");
+  jclass cls = findJavaClass(env, ORG_WASMEDGE_ASTMODULECONTEXT);
+  jmethodID constructor = findJavaMethod(env, cls, DEFAULT_CONSTRUCTOR, VOID_VOID);
   jobject obj = (*env)->NewObject(env, cls, constructor);
   setPointer(env, obj, (long)mod);
   return obj;
 }
 
 JNIEXPORT void JNICALL
-Java_org_wasmedge_ASTModuleContext_delete(JNIEnv *env, jobject thisObject) {
+Java_org_wasmedge_AstModuleContext_delete(JNIEnv *env, jobject thisObject) {
   WasmEdge_ASTModuleContext *mod = getASTModuleContext(env, thisObject);
   WasmEdge_ASTModuleDelete(mod);
 }

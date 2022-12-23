@@ -213,7 +213,7 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
 
   // Read the vector of local variable counts and types.
   uint32_t TotalLocalCnt = 0;
-  auto Res =
+  auto VecRes =
       loadVec(CodeSeg.getLocals(),
               [this, &TotalLocalCnt](
                   std::pair<uint32_t, ValType> &Local) -> Expect<void> {
@@ -246,8 +246,8 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
                 return {};
               });
 
-  if (!Res) {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
+  if (!VecRes) {
+    return logLoadError(VecRes.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Seg_Code);
   }
 

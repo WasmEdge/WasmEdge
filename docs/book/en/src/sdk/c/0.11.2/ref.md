@@ -1,8 +1,14 @@
-# WasmEdge C 0.12.0 API Documentation
+# WasmEdge C 0.11.2 API Documentation
 
 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge.
 
-**This document is for the `0.12.0` version. For the older `0.12.0` version, please refer to the [document here](0.12.0/ref.md).**
+**Please notice that the WasmEdge C API provides SONAME and SOVERSION after the `0.11.0` release.**
+
+**Please notice that `libwasmedge_c.so` is renamed to `libwasmedge.so` after the `0.11.0` release. Please use `-lwasmedge` instead of `-lwasmedge_c` for the linker option.**
+
+**This document is for the `0.11.2` version. For the older `0.10.1` version, please refer to the [document here](0.10.1/ref.md).**
+
+**Developers can refer to [here to upgrade to 0.11.0](0.10.1/upgrade_to_0.11.0.md).**
 
 ## Table of Contents
 
@@ -50,7 +56,7 @@
 The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.12.0
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.11.2
 ```
 
 For more details, please refer to the [Installation Guide](../../quick_start/install.md) for the WasmEdge installation.
@@ -80,12 +86,12 @@ After the installation of WasmEdge, the following guide can help you to test for
 
     ```bash
     $ ./a.out
-    WasmEdge version: 0.12.0
+    WasmEdge version: 0.11.2
     ```
 
 ### ABI Compatibility
 
-WasmEdge C API introduces SONAME and SOVERSION since the 0.11.0 release to present the compatibility between different C API versions.
+WasmEdge C API introduces SONAME and SOVERSION in the 0.11.0 release to present the compatibility between different C API versions.
 
 The releases before 0.11.0 are all unversioned. Please make sure the library version is the same as the corresponding C API version you used.
 
@@ -93,8 +99,7 @@ The releases before 0.11.0 are all unversioned. Please make sure the library ver
 | ---              | ---                         | ---                   | ---                      |
 | < 0.11.0         | libwasmedge\_c.so           | Unversioned           | Unversioned              |
 | 0.11.0 to 0.11.1 | libwasmedge.so              | libwasmedge.so.0      | libwasmedge.so.0.0.0     |
-| 0.11.2           | libwasmedge.so              | libwasmedge.so.0      | libwasmedge.so.0.0.1     |
-| Since 0.12.0     | libwasmedge.so              | libwasmedge.so.0      | libwasmedge.so.0.0.2     |
+| since 0.11.2     | libwasmedge.so              | libwasmedge.so.0      | libwasmedge.so.0.0.1     |
 
 ## WasmEdge Basics
 
@@ -116,7 +121,7 @@ printf("WasmEdge version patch: %u\n", WasmEdge_VersionGetPatch());
 
 The `WasmEdge_LogSetErrorLevel()` and `WasmEdge_LogSetDebugLevel()` APIs can set the logging system to debug level or error level. By default, the error level is set, and the debug info is hidden.
 
-Developers can also use the `WasmEdge_LogOff()` API to disable all logging.
+Developers can also use the `WasmEdge_LogOff()` API to disable all logging. (`0.11.2` or upper only)
 
 ### Value Types
 
@@ -644,7 +649,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     WasmEdge_ConfigureDelete(ConfCxt);
     ```
 
-4. Forcibly interpreter mode
+4. Forcibly interpreter mode (`0.11.2` or upper only)
 
     If developers want to execute the WASM file or the AOT compiled WASM in interpreter mode forcibly, they can turn on the configuration.
 

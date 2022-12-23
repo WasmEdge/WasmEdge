@@ -163,7 +163,7 @@ private:
     // Read the vector size.
     if (auto Res = FMgr.readU32()) {
       // Question: why we used to divide by 2 here?
-      if (*Res > FMgr.getRemainSize()) {
+      if (*Res / 2 > FMgr.getRemainSize()) {
         return Unexpect(ErrCode::Value::IntegerTooLong);
       }
       return *Res;

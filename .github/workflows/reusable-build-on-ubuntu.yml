@@ -6,7 +6,7 @@ on:
       version:
         type: string
         required: true
-      matrix: # [ { runner, docker_tag }, ... ]
+      matrix: # [ { name, runner, docker_tag }, ... ]
         type: string
         required: true
       tests:

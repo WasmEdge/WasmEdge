@@ -70,7 +70,7 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-ubuntu.yml
     with:
       version: ${{ needs.create_release.outputs.version }}
-      matrix: "[{'compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-build-clang','coverage':false}]"
+      matrix: "[{'name':'ubuntu-20.04','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-build-clang','coverage':false}]"
       release: true
       upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
     secrets: inherit
@@ -80,7 +80,8 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-manylinux.yml
     with:
       version: ${{ needs.create_release.outputs.version }}
-      matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},{'runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
+      matrix: "[{'name':'manylinux 2014 x86_64','runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},
+                {'name':'manylinux 2014 aarch64','runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
       release: true
       upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
     secrets: inherit

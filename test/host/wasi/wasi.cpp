@@ -601,7 +601,7 @@ TEST(WasiTest, PollOneoffSocket) {
   std::mutex Mutex;
   std::condition_variable ActionRequested;
   std::condition_variable ActionProcessed;
-  const std::array<uint8_t, 4> Address{127, 0, 0, 1};
+  const std::array<uint8_t, 128> Address{1, 0, 127, 0, 0, 1};
   const uint32_t Port = 18000;
 
   std::thread Server([&]() {

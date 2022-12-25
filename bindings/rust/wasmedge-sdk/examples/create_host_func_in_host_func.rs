@@ -44,10 +44,10 @@ fn func(_caller: Caller, _input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostF
         let func = result.unwrap();
 
         // create an executor
-        let mut executor = Executor::new(None, None).unwrap();
+        let executor = Executor::new(None, None).unwrap();
 
         // call the host function
-        let result = func.call(&mut executor, params!(2, 3));
+        let result = func.call(&executor, params!(2, 3));
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 5);

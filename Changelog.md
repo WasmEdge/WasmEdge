@@ -1,3 +1,62 @@
+### 0.12.0-alpha.1 (2022-12-23)
+
+Features:
+
+* Updated the WasmEdge shared library.
+  * Due to the breaking change of ABI, bump the `SOVERSION` to `0.0.2`.
+* Introduced the python version WasmEdge installer.
+* Updated the ABI of the `wasi_ephemeral_sock`.
+  * Added the output port of the `sock_recv_from`.
+  * Updated the API of `sock_getlocaladdr`.
+  * Unified the socket address size to 128-bit.
+* Supported using `libtool` to archive the WasmEdge static library.
+
+Fixed issues:
+
+* Fixed WASI-NN issues.
+  * Fixed the definition of `wasi_nn::TensorType` to prevent from comparing with dirty data.
+* Fixed the lost intrinsics table in AOT mode when using the WasmEdge C API.
+* Fixed the implementation in `threads` proposal.
+  * Fixed the error in `atomic.nofify` and `atomic.wait` instructions.
+  * Fixed the decoding of `atomic.fence` instruction.
+  * Corrected the error message of waiting on unshared memory.
+
+Refactor:
+
+* Refactored the implementation of number loading in the file manager.
+  * Supported `s33` and `sn` loading and decoding.
+* Refactored the `WasmEdge::ValType`.
+  * Removed the `WasmEdge::ValType::None`.
+  * Used the flag in `WasmEdge::BlockType` for supporting the type index.
+  * Removed the `WasmEdge::Validator::VType` and used the `WasmEdge::ValType` instead.
+
+Known issues:
+
+* Universal WASM format failed on MacOS platforms.
+  * In current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause bus error when execution.
+  * We are trying to fix this issue. For working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+* Plug-in linking on MacOS platforms.
+  * The plug-in on MacOS platforms will cause symbol not found when dynamic linking.
+  * We are trying to fix this issue. For working around, please implement the host modules instead of plug-ins.
+
+Documentations:
+
+* Fixed various typos.
+* Updated the [Android NDK example](https://wasmedge.org/book/en/contribute/build_from_src/android/ndk.html).
+* Added the [static library linking guide](https://wasmedge.org/book/en/sdk/c/library.html#link-with-wasmedge-static-library).
+
+Tests:
+
+* Updated the WASM spec tests to the date 2022/12/15.
+
+Thank all the contributors that made this release possible!
+
+DarumaDocker, Harry Chiang, Justin Echternach, Kenvi Zhu, LFsWang, Lîm Tsú-thuàn, MediosZ, Puelloc, Rafael Fernández López, Shreyas Atre, Sylveon, Xin Liu, Xiongsheng Wang, YiYing He, alabulei1, dm4, hydai, jeongkyu, little-willy
+
+If you want to build from source, please use WasmEdge-0.12.0-alpha.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.11.2 (2022-11-03)
 
 Features:

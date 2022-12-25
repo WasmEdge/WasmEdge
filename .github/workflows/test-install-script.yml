@@ -255,6 +255,6 @@ jobs:
     - name: Latest Release Check
       run: |
         _res_git_=$(git ls-remote --refs --tags "https://github.com/WasmEdge/WasmEdge.git" | cut -d '/' -f 3 | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' | grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' | tail -1)
-        _res_curl_=$(curl -w "%{url_effective}\n" -I -L -s -S https://github.com/WasmEdge/WasmEdge/releases/latest -o /dev/null | grep -Eo '[0-9]+.[0-9]+.[0-9]+*')
+        _res_curl_=$(curl -w "%{url_effective}\n" -I -L -s -S https://github.com/WasmEdge/WasmEdge/releases/latest -o /dev/null | grep -Eo '[0-9]+.[0-9]+.[0-9]+')
         [ "$_res_git_" = "$_res_curl_" ] && echo "Pass: Fetched version equals release" ||
         (echo "Fail: Fetched version does not equal GitHub Ref\nFetched:$_res_git_\nCI:$_res_curl_" && exit 1)

@@ -172,11 +172,13 @@ jobs:
         grep -qE *.wasmedge/env* ~/.bashrc && echo "Failed: Source Lines found" || echo "Pass: Source Lines Removed"
         grep -qE *.wasmedge/env* ~/.bash_profile && echo "Failed: Source Lines found" || echo "Pass: Source Lines Removed"
         grep -qE *.wasmedge/env* ~/.profile && echo "Failed: Source Lines found" || echo "Pass: Source Lines Removed"
-    - name: Tensorflow changes - libtensorflow_cc.so.2.6.0 will replace the old libtensorflow.so.2.6.0
+    - name: Tensorflow changes - libtensorflow_cc 2.6.0 will replace the old libtensorflow 2.6.0
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         bash utils/install.sh -v 0.12.0-alpha.1 -e tensorflow --tf-version 0.12.0-alpha.1 --tf-deps-version 0.12.0-alpha.1 --tf-tools-version 0.12.0-alpha.1
         ls ~/.wasmedge/lib/ | grep libtensorflow_cc* && echo "Pass: libtensorflow_cc found" || (echo "Fail: libtensorflow_cc found not found" && exit 1)
     - name: Uninstall WasmEdge
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         bash utils/uninstall.sh -q -V
     - name: Plugins Install check
@@ -243,7 +245,7 @@ jobs:
         # MacOS container does not have access for /usr directory
         # bash utils/install.sh -v 0.10.0-alpha.1 -p /usr
         # ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-    - name: Tensorflow changes - libtensorflow_cc.so.2.6.0 will replace the old libtensorflow.so.2.6.0
+    - name: Tensorflow changes - libtensorflow_cc 2.6.0 will replace the old libtensorflow 2.6.0
       run: |
         bash utils/install.sh -v 0.12.0-alpha.1 -e tensorflow --tf-version 0.12.0-alpha.1 --tf-deps-version 0.12.0-alpha.1 --tf-tools-version 0.12.0-alpha.1
         ls ~/.wasmedge/lib/ | grep libtensorflow_cc* && echo "Pass: libtensorflow_cc found" || (echo "Fail: libtensorflow_cc found not found" && exit 1)

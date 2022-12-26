@@ -169,10 +169,10 @@ jobs:
     - name: No Tensorflow tools from 0.9.0-rc.1
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
-        echo "$(${{ matrix.python2_ex }} utils/install.py -e tensorflow -v 0.9.0-rc.1 --tf-version 0.9.0-rc.1 --tf-tools-version 0.9.0-rc.1 --tf-deps-version 0.9.0-rc.1 -D 2>&1 | tee output.log)" | grep -qE *-tools-* && echo "Failed: tools found in 0.9.0-rc.1" \
-        && (cat output.log && exit 1) || echo "Pass: tools not found in 0.9.0-rc.1"
-        echo "$(${{ matrix.python3_ex }} utils/install.py -e tensorflow -v 0.9.0-rc.1 --tf-version 0.9.0-rc.1 --tf-tools-version 0.9.0-rc.1 --tf-deps-version 0.9.0-rc.1 -D 2>&1 | tee output.log)" | grep -qE *-tools-* && echo "Failed: tools found in 0.9.0-rc.1" \
-        && (cat output.log && exit 1) || echo "Pass: tools not found in 0.9.0-rc.1"
+        echo "$(${{ matrix.python2_ex }} utils/install.py -e tensorflow -v 0.9.0-rc.1 --tf-version 0.9.0-rc.1 --tf-tools-version 0.9.0-rc.1 --tf-deps-version 0.9.0-rc.1 -D 2>&1 | tee output.log)" | grep -qE *-tools-* && (echo "Failed: tools found in 0.9.0-rc.1" \
+        && cat output.log && exit 1 || echo "Pass: tools not found in 0.9.0-rc.1")
+        echo "$(${{ matrix.python3_ex }} utils/install.py -e tensorflow -v 0.9.0-rc.1 --tf-version 0.9.0-rc.1 --tf-tools-version 0.9.0-rc.1 --tf-deps-version 0.9.0-rc.1 -D 2>&1 | tee output.log)" | grep -qE *-tools-* && (echo "Failed: tools found in 0.9.0-rc.1" \
+        && cat output.log && exit 1 || echo "Pass: tools not found in 0.9.0-rc.1")
     - name: Uninstall WasmEdge
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
@@ -189,14 +189,14 @@ jobs:
     - name: Uninstall WasmEdge and Source Line removal check
       run: |
         ${{ matrix.python2_ex }} utils/install.py && bash utils/uninstall.sh -q
-        grep -qE *.wasmedge/env* ~/.bashrc && (echo "Failed: Source Lines found" && exit 1) || echo "Pass: Source Lines Removed"
-        grep -qE *.wasmedge/env* ~/.bash_profile && (echo "Failed: Source Lines found" && exit 1) || echo "Pass: Source Lines Removed"
-        grep -qE *.wasmedge/env* ~/.profile && (echo "Failed: Source Lines found" && exit 1) || echo "Pass: Source Lines Removed"
+        grep -qE *.wasmedge/env* ~/.bashrc && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
+        grep -qE *.wasmedge/env* ~/.bash_profile && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
+        grep -qE *.wasmedge/env* ~/.profile && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
 
         ${{ matrix.python3_ex }} utils/install.py && bash utils/uninstall.sh -q
-        grep -qE *.wasmedge/env* ~/.bashrc && (echo "Failed: Source Lines found" && exit 1) || echo "Pass: Source Lines Removed"
-        grep -qE *.wasmedge/env* ~/.bash_profile && (echo "Failed: Source Lines found" && exit 1) || echo "Pass: Source Lines Removed"
-        grep -qE *.wasmedge/env* ~/.profile && (echo "Failed: Source Lines found" && exit 1) || echo "Pass: Source Lines Removed"
+        grep -qE *.wasmedge/env* ~/.bashrc && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
+        grep -qE *.wasmedge/env* ~/.bash_profile && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
+        grep -qE *.wasmedge/env* ~/.profile && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
     - name: Plugins Install check
       run: |
         ${{ matrix.python2_ex }} utils/install.py -v 0.10.0-alpha.1

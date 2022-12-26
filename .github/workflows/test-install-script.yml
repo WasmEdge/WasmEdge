@@ -147,14 +147,14 @@ jobs:
     - name: Don't install wasmedge-image-deps with 0.9.0-rc.1
       run: |
         echo "$(bash utils/install.sh -e image -v 0.9.0-rc.1 --image-version=0.9.0-rc.1 --image-deps-version=0.9.0-rc.1 2>&1 | tee output.log)" | grep -qE deps && (echo "Failed: Deps found in 0.9.0-rc.1" \
-        && cat output.log && exit 1) || echo "Pass: Deps not found in 0.9.0-rc.1"
+        && cat output.log && exit 1 || echo "Pass: Deps not found in 0.9.0-rc.1")
     - name: Uninstall WasmEdge with Image extensions
       run: |
         bash utils/uninstall.sh -q -V
     - name: No Tensorflow tools from 0.9.0-rc.1
       run: |
         echo "$(bash utils/install.sh -e tensorflow -v 0.9.0-rc.1 --tf-version=0.9.0-rc.1 --tf-deps-version=0.9.0-rc.1  --tf-tools-version=0.9.0-rc.1 2>&1 | tee output.log)" | grep -qE *-tools-* && (echo "Failed: tools found in 0.9.0-rc.1" \
-        && cat output.log && exit 1) || echo "Pass: tools not found in 0.9.0-rc.1"
+        && cat output.log && exit 1 || echo "Pass: tools not found in 0.9.0-rc.1")
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
@@ -169,9 +169,9 @@ jobs:
     - name: Uninstall WasmEdge and Source Line removal check
       run: |
         bash utils/install.sh && bash utils/uninstall.sh -q
-        grep -qE *.wasmedge/env* ~/.bashrc && echo "Failed: Source Lines found" || echo "Pass: Source Lines Removed"
-        grep -qE *.wasmedge/env* ~/.bash_profile && echo "Failed: Source Lines found" || echo "Pass: Source Lines Removed"
-        grep -qE *.wasmedge/env* ~/.profile && echo "Failed: Source Lines found" || echo "Pass: Source Lines Removed"
+        grep -qE *.wasmedge/env* ~/.bashrc && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
+        grep -qE *.wasmedge/env* ~/.bash_profile && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
+        grep -qE *.wasmedge/env* ~/.profile && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
     - name: Tensorflow changes - libtensorflow_cc 2.6.0 will replace the old libtensorflow 2.6.0
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
@@ -221,7 +221,7 @@ jobs:
     - name: Check for bashrc generation
       run: |
         bash utils/install.sh -D
-        ls -a ~ | grep .bashrc && (echo "Fail: Bashrc found" && exit 1) || (echo "Pass: Bashrc not found")
+        ls -a ~ | grep .bashrc && (echo "Fail: Bashrc found" && exit 1 || echo "Pass: Bashrc not found" )
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V

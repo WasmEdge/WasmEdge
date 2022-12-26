@@ -1059,10 +1059,8 @@ def install_tensorflow_extension(args, compat):
                     ):
                         copytree(
                             join(wasmedge_tf_folder, _file),
-                            join(args.path, "include"),
+                            join(args.path, "include", "wasmedge"),
                         )
-                        if isdir(join(args.path, "include", _file)):
-                            shutil.rmtree(join(args.path, "include", _file))
                     elif CONST_lib_ext in _file:
                         if isdir(join(args.path, CONST_lib_dir)):
                             shutil.move(

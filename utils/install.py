@@ -1595,35 +1595,35 @@ if __name__ == "__main__":
         "--tf-version",
         dest="tf_version",
         required=False,
-        default=get_latest_github_release("WasmEdge/WasmEdge"),
+        default=None,
         help="Tensorflow and tensorflow lite version",
     )
     parser.add_argument(
         "--tf-deps-version",
         dest="tf_deps_version",
         required=False,
-        default=get_latest_github_release("WasmEdge/WasmEdge"),
+        default=None,
         help="Tensorflow and tensorflow lite deps version",
     )
     parser.add_argument(
         "--tf-tools-version",
         dest="tf_tools_version",
         required=False,
-        default=get_latest_github_release("WasmEdge/WasmEdge"),
+        default=None,
         help="Tensorflow and tensorflow lite tools version",
     )
     parser.add_argument(
         "--image-version",
         dest="image_version",
         required=False,
-        default=get_latest_github_release("second-state/WasmEdge-image"),
+        default=None,
         help="Image extension version",
     )
     parser.add_argument(
         "--image-deps-version",
         dest="image_deps_version",
         required=False,
-        default=get_latest_github_release("second-state/WasmEdge-image"),
+        default=None,
         help="Image Deps version",
     )
     parser.add_argument(
@@ -1652,6 +1652,21 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(levelname)-8s- %(message)s", level=args.loglevel)
 
     args.path = abspath(args.path)
+
+    if args.tf_version is None:
+        args.tf_version = args.version
+
+    if args.tf_deps_version is None:
+        args.tf_deps_version = args.version
+
+    if args.tf_tools_version is None:
+        args.tf_tools_version = args.version
+
+    if args.image_version is None:
+        args.image_version = args.version
+
+    if args.image_deps_version is None:
+        args.image_deps_version = args.version
 
     logging.debug("Python Version: %s", sys.version_info)
     main(args)

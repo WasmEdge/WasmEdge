@@ -607,13 +607,10 @@ def install_image_extension(args, compat):
     for dir in listdir(wasmedge_image_temp):
         wasmedge_image_temp_dir = join(wasmedge_image_temp, dir)
         for file in listdir(wasmedge_image_temp_dir):
-            if (
-                isdir(join(wasmedge_image_temp_dir, file))
-                and is_default_path(args)
-                and "wasmedge" == file
-            ):
+            if isdir(join(wasmedge_image_temp_dir, file)) and "wasmedge" == file:
                 copytree(
-                    join(wasmedge_image_temp_dir, file), join(args.path, "include")
+                    join(wasmedge_image_temp_dir, file),
+                    join(args.path, "include", "wasmedge"),
                 )
             elif CONST_lib_ext in file:
                 if isdir(join(args.path, CONST_lib_dir)):

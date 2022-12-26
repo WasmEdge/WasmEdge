@@ -441,7 +441,7 @@ esac
             logging.error("Not able to write to env file")
 
 
-def shell_configure(args):
+def shell_configure(args, compat):
 
     global CONST_shell_profile, CONST_shell_config
 
@@ -465,7 +465,12 @@ def shell_configure(args):
                 if source_string not in shell_config.read():
                     write_shell = True
 
-        if write_shell:
+        # On Darwin: Append to shell only if shell_profile does not exist
+        # On Linux: Append to shell anyway
+        if write_shell and (
+            compat.platform == "Linux"
+            or (compat.platform == "Darwin" and not exists(CONST_shell_profile))
+        ):
             with opened_w_error(CONST_shell_config, "a") as shell_config:
                 if shell_config is not None:
                     shell_config.write(source_string)
@@ -602,13 +607,10 @@ def install_image_extension(args, compat):
     for dir in listdir(wasmedge_image_temp):
         wasmedge_image_temp_dir = join(wasmedge_image_temp, dir)
         for file in listdir(wasmedge_image_temp_dir):
-            if (
-                isdir(join(wasmedge_image_temp_dir, file))
-                and is_default_path(args)
-                and "wasmedge" == file
-            ):
+            if isdir(join(wasmedge_image_temp_dir, file)) and "wasmedge" == file:
                 copytree(
-                    join(wasmedge_image_temp_dir, file), join(args.path, "include")
+                    join(wasmedge_image_temp_dir, file),
+                    join(args.path, "include", "wasmedge"),
                 )
             elif CONST_lib_ext in file:
                 if isdir(join(args.path, CONST_lib_dir)):
@@ -1057,10 +1059,8 @@ def install_tensorflow_extension(args, compat):
                     ):
                         copytree(
                             join(wasmedge_tf_folder, _file),
-                            join(args.path, "include"),
+                            join(args.path, "include", "wasmedge"),
                         )
-                        if isdir(join(args.path, "include", _file)):
-                            shutil.rmtree(join(args.path, "include", _file))
                     elif CONST_lib_ext in _file:
                         if isdir(join(args.path, CONST_lib_dir)):
                             shutil.move(
@@ -1441,7 +1441,7 @@ def main(args):
         if getenv("SHELL") != SHELL:
             logging.warning("SHELL variable not found. Using %s as SHELL", SHELL)
 
-        if shell_configure(args) != 0:
+        if shell_configure(args, compat) != 0:
             logging.error("Error in configuring shell")
 
         logging.debug("CONST_shell_profile: %s", CONST_shell_profile)
@@ -1590,35 +1590,35 @@ if __name__ == "__main__":
         "--tf-version",
         dest="tf_version",
         required=False,
-        default=get_latest_github_release("WasmEdge/WasmEdge"),
+        default=None,
         help="Tensorflow and tensorflow lite version",
     )
     parser.add_argument(
         "--tf-deps-version",
         dest="tf_deps_version",
         required=False,
-        default=get_latest_github_release("WasmEdge/WasmEdge"),
+        default=None,
         help="Tensorflow and tensorflow lite deps version",
     )
     parser.add_argument(
         "--tf-tools-version",
         dest="tf_tools_version",
         required=False,
-        default=get_latest_github_release("WasmEdge/WasmEdge"),
+        default=None,
         help="Tensorflow and tensorflow lite tools version",
     )
     parser.add_argument(
         "--image-version",
         dest="image_version",
         required=False,
-        default=get_latest_github_release("second-state/WasmEdge-image"),
+        default=None,
         help="Image extension version",
     )
     parser.add_argument(
         "--image-deps-version",
         dest="image_deps_version",
         required=False,
-        default=get_latest_github_release("second-state/WasmEdge-image"),
+        default=None,
         help="Image Deps version",
     )
     parser.add_argument(
@@ -1647,6 +1647,21 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(levelname)-8s- %(message)s", level=args.loglevel)
 
     args.path = abspath(args.path)
+
+    if args.tf_version is None:
+        args.tf_version = args.version
+
+    if args.tf_deps_version is None:
+        args.tf_deps_version = args.version
+
+    if args.tf_tools_version is None:
+        args.tf_tools_version = args.version
+
+    if args.image_version is None:
+        args.image_version = args.version
+
+    if args.image_deps_version is None:
+        args.image_deps_version = args.version
 
     logging.debug("Python Version: %s", sys.version_info)
     main(args)

@@ -218,6 +218,13 @@ jobs:
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
+    - name: Check for bashrc generation
+      run: |
+        bash utils/install.sh -D
+        ls -a ~ | grep .bashrc && (echo "Pass: Bashrc found" && exit 1) || (echo "Pass: Bashrc not found")
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
     - name: Install WasmEdge latest release with all extensions
       run: |
         bash utils/install.sh -e all -D

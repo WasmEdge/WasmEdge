@@ -441,7 +441,7 @@ esac
             logging.error("Not able to write to env file")
 
 
-def shell_configure(args):
+def shell_configure(args, compat):
 
     global CONST_shell_profile, CONST_shell_config
 
@@ -465,7 +465,12 @@ def shell_configure(args):
                 if source_string not in shell_config.read():
                     write_shell = True
 
-        if write_shell:
+        # On Darwin: Append to shell only if shell_profile does not exist
+        # On Linux: Append to shell anyway
+        if write_shell and (
+            compat.platform == "Linux"
+            or (compat.platform == "Darwin" and not exists(CONST_shell_profile))
+        ):
             with opened_w_error(CONST_shell_config, "a") as shell_config:
                 if shell_config is not None:
                     shell_config.write(source_string)
@@ -1441,7 +1446,7 @@ def main(args):
         if getenv("SHELL") != SHELL:
             logging.warning("SHELL variable not found. Using %s as SHELL", SHELL)
 
-        if shell_configure(args) != 0:
+        if shell_configure(args, compat) != 0:
             logging.error("Error in configuring shell")
 
         logging.debug("CONST_shell_profile: %s", CONST_shell_profile)

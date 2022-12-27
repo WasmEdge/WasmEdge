@@ -44,7 +44,7 @@ usage() {
     Usage: $0 -p </path/to/uninstall> [-V]
     WasmEdge uninstallation and extensions uninstall.
     Mandatory arguments to long options are mandatory for short options too.
-    Long options should be assingned with '='
+    Long options should be assigned with '='
 
     -h,             --help                      Display help
     -q,             --quick                     Uninstall everything without

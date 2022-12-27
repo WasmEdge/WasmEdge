@@ -4,7 +4,7 @@ In this section, we will show you how to build a "regular" Android app (i.e., an
 
 ## Quickstart
 
-The demo project is [available here](https://github.com/WasmEdge/WasmEdge/tree/master/utils/android/app). You can build the project using the Gradle tool or using the Android Stuido IDE.
+The demo project is [available here](https://github.com/WasmEdge/WasmEdge/tree/master/utils/android/app). You can build the project using the Gradle tool or using the Android Studio IDE.
 
 ### Building Project with Gradle
 
@@ -124,4 +124,4 @@ The `factorial.wat` is a [handwritten WebAssembly script](https://github.com/Was
 
 ### Build dependencies
 
-Android Studio and Gradle use CMake to build the C shared library. The [CMakeLists.txt file](https://github.com/WasmEdge/WasmEdge/blob/master/utils/android/app/lib/src/main/cpp/CMakeLists.txt) builds the WasmEdge source into Android shared library files and embeds them into the final APK application. In this case, there is no seperate step to install WasmEdge share libraries onto the Android device.
+Android Studio and Gradle use CMake to build the C shared library. The [CMakeLists.txt file](https://github.com/WasmEdge/WasmEdge/blob/master/utils/android/app/lib/src/main/cpp/CMakeLists.txt) builds the WasmEdge source into Android shared library files and embeds them into the final APK application. In this case, there is no separate step to install WasmEdge share libraries onto the Android device.

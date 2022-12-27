@@ -18,7 +18,7 @@ pub struct Loader {
 impl Loader {
     /// Create a new [Loader](crate::Loader) to be associated with the given global configuration.
     ///
-    /// # Arguements
+    /// # Arguments
     ///
     /// * `config` - A global configuration.
     ///

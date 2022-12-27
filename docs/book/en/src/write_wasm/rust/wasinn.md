@@ -242,7 +242,7 @@ fn image_to_tensor(path: String, height: u32, width: u32) -> Vec<u8> {
 }
 ```
 
-And use this helper funcion to convert the input image:
+And use this helper function to convert the input image:
 
 ```rust
 let tensor_data = image_to_tensor(image_name.to_string(), 224, 224);
@@ -354,7 +354,7 @@ fn image_to_tensor(path: String, height: u32, width: u32) -> Vec<u8> {
 }
 ```
 
-And use this helper funcion to convert the input image:
+And use this helper function to convert the input image:
 
 ```rust
 let tensor_data = image_to_tensor(image_name.to_string(), 224, 224);
@@ -445,7 +445,7 @@ fn image_to_tensor(path: String, height: u32, width: u32) -> Vec<u8> {
 }
 ```
 
-And use this helper funcion to convert the input image:
+And use this helper function to convert the input image:
 
 ```rust
 let tensor_data = image_to_tensor(image_name.to_string(), 224, 224);

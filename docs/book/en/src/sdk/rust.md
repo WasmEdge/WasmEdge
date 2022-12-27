@@ -128,7 +128,7 @@ wasmedge-sdk = "0.4"
 
 ## `wasmedge-sys` crate
 
-`wasmedge-sys` serves as a wraper layer of `WasmEdge` C-API, and provides a group of safe low-level Rust interfaces.
+`wasmedge-sys` serves as a wrapper layer of `WasmEdge` C-API, and provides a group of safe low-level Rust interfaces.
 For those who are interested in using `wasmedge-sys` in their projects, you should also deploy the `WasmEdge` library on your local system as described in the [wasmedge-sdk crate](#build) section.
 Then, copy/paste the following code in the `Cargo.toml` file of your project.
 For details, please refer to [README](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys/README.md).

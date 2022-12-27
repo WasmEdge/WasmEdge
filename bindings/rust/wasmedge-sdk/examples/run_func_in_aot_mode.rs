@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let out_dir = std::env::current_dir()?;
         let aot_filename = "example_aot_fibonacci";
 
-        // compile wasm to so for runing in the `aot` mode
+        // compile wasm to so for running in the `aot` mode
         let compiler = Compiler::new(Some(&config))?;
         let aot_file_path = compiler.compile_from_file(wasm_file, aot_filename, out_dir)?;
         assert!(&aot_file_path.exists());

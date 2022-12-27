@@ -1208,7 +1208,7 @@ def set_consts(args, compat):
 
     CONST_urls = {
         WASMEDGE: "https://github.com/WasmEdge/WasmEdge/releases/download/{0}/WasmEdge-{0}-{1}".format(
-            args.version, CONST_release_pkg
+            args.version, compat.release_package_wasmedge
         ),
         WASMEDGE_UNINSTALLER: "https://raw.githubusercontent.com/WasmEdge/WasmEdge/{0}/utils/uninstall.sh".format(
             args.uninstall_script_tag
@@ -1295,17 +1295,21 @@ class Compat:
         self.lib_extension = None
         self.ld_library_path = None
         self.dist = dist_
+        self.release_package_wasmedge = None
 
         if self.platform == "Linux":
             self.install_package_name = "WasmEdge-{0}-Linux".format(self.version)
             self.lib_extension = ".so"
             self.ld_library_path = "LD_LIBRARY_PATH"
+
             if self.machine in ["arm64", "armv8", "aarch64"]:
                 self.release_package = "manylinux2014_aarch64.tar.gz"
             elif self.machine in ["x86_64", "amd64"]:
                 self.release_package = "manylinux2014_x86_64.tar.gz"
             else:
                 reraise(Exception("Unsupported arch: {0}".format(self.machine)))
+
+            self.release_package_wasmedge = self.release_package
 
             if self.dist is None:
                 if sys.version_info[0] == 2:
@@ -1327,10 +1331,21 @@ class Compat:
                         self.dist = "ubuntu20.04"
                     else:
                         self.dist = "manylinux2014"
+
+            # Below version 0.11.1 different distributions for wasmedge binary do not exist
+            if self.version.compare("0.11.1") != -1:
+                if self.machine in ["arm64", "armv8", "aarch64"]:
+                    self.release_package_wasmedge = self.dist + "_aarch64.tar.gz"
+                elif self.machine in ["x86_64", "amd64"]:
+                    self.release_package_wasmedge = self.dist + "_x86_64.tar.gz"
+                else:
+                    reraise(Exception("Unsupported arch: {0}".format(self.machine)))
+
         elif self.platform == "Darwin":
             self.ld_library_path = "DYLD_LIBRARY_PATH"
             self.install_package_name = "WasmEdge-{0}-Darwin".format(self.version)
             self.release_package = "darwin_{0}.tar.gz".format(self.machine)
+            self.release_package_wasmedge = self.release_package
             self.lib_extension = ".dylib"
             if self.dist is None:
                 self.dist = "darwin"

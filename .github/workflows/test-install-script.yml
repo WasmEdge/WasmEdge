@@ -213,8 +213,9 @@ jobs:
         bash utils/uninstall.sh -q -V
     - name: Check for bashrc generation
       run: |
+        rm ~/.bashrc
         bash utils/install.sh -D
-        ls -a ~ | grep .bashrc && (echo "Fail: Bashrc found" && exit 1 || echo "Pass: Bashrc not found" )
+        if ls -a ~ | grep .bashrc; then echo "Fail: Bashrc found" && exit 1; else echo "Pass: Bashrc not found"; fi;
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V

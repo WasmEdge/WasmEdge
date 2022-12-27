@@ -488,7 +488,7 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
       // End of entries
       break;
     }
-    Dir.Cookie = SysDirent->d_seekoff;
+    Dir.Cookie = ::telldir(Dir.Dir);
     std::string_view Name = SysDirent->d_name;
 
     Dir.Buffer.resize(sizeof(__wasi_dirent_t) + Name.size());

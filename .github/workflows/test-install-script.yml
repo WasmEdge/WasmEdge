@@ -162,9 +162,9 @@ jobs:
     - name: Uninstall WasmEdge and Source Line removal check
       run: |
         bash utils/install.sh && bash utils/uninstall.sh -q
-        grep -qE *.wasmedge/env* ~/.bashrc && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
-        grep -qE *.wasmedge/env* ~/.bash_profile && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
-        grep -qE *.wasmedge/env* ~/.profile && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
+        if echo >> ~/.bashrc && grep -qE *.wasmedge/env* ~/.bashrc; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
+        if echo >> ~/.bash_profile && grep -qE *.wasmedge/env* ~/.bash_profile; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
+        if echo >> ~/.profile && grep -qE *.wasmedge/env* ~/.profile; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
     - name: Tensorflow changes - libtensorflow_cc 2.6.0 will replace the old libtensorflow 2.6.0
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |

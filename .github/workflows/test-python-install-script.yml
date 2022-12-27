@@ -178,14 +178,14 @@ jobs:
     - name: Uninstall WasmEdge and Source Line removal check
       run: |
         ${{ matrix.python2_ex }} utils/install.py && bash utils/uninstall.sh -q
-        grep -qE *.wasmedge/env* ~/.bashrc && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
-        grep -qE *.wasmedge/env* ~/.bash_profile && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
-        grep -qE *.wasmedge/env* ~/.profile && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
+        if echo >> ~/.bashrc && grep -qE *.wasmedge/env* ~/.bashrc; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
+        if echo >> ~/.bash_profile && grep -qE *.wasmedge/env* ~/.bash_profile; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
+        if echo >> ~/.profile && grep -qE *.wasmedge/env* ~/.profile; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
 
         ${{ matrix.python3_ex }} utils/install.py && bash utils/uninstall.sh -q
-        grep -qE *.wasmedge/env* ~/.bashrc && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
-        grep -qE *.wasmedge/env* ~/.bash_profile && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
-        grep -qE *.wasmedge/env* ~/.profile && (echo "Failed: Source Lines found" && exit 1 || echo "Pass: Source Lines Removed")
+        if echo >> ~/.bashrc && grep -qE *.wasmedge/env* ~/.bashrc; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
+        if echo >> ~/.bash_profile && grep -qE *.wasmedge/env* ~/.bash_profile; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
+        if echo >> ~/.profile && grep -qE *.wasmedge/env* ~/.profile; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
     - name: Plugins Install check
       run: |
         ${{ matrix.python2_ex }} utils/install.py -v 0.10.0-alpha.1

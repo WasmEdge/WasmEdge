@@ -129,8 +129,8 @@ jobs:
     - name: Install wasmedge-image-deps with 0.8.2
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
-        echo "$(bash utils/install.sh -e image -v 0.8.2 --image-version=0.8.2 --image-deps-version=0.8.2 2>&1 | tee output.log)" | grep -qE deps && echo "Pass: Deps found in 0.8.2" \
-        || (echo "Failed: Deps not found in 0.8.2" && cat output.log && exit 1)
+        if echo "$(bash utils/install.sh -e image -v 0.8.2 --image-version=0.8.2 --image-deps-version=0.8.2 2>&1 | tee output.log)" | grep -qE deps;then echo "Pass: Deps found in 0.8.2";\
+        else echo "Failed: Deps not found in 0.8.2" && cat output.log && exit 1; fi;
     - name: Uninstall WasmEdge with Image extensions
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
@@ -146,8 +146,8 @@ jobs:
         bash utils/uninstall.sh -q -V
     - name: Don't install wasmedge-image-deps with 0.9.0-rc.1
       run: |
-        echo "$(bash utils/install.sh -e image -v 0.9.0-rc.1 --image-version=0.9.0-rc.1 --image-deps-version=0.9.0-rc.1 2>&1 | tee output.log)" | grep -qE deps && (echo "Failed: Deps found in 0.9.0-rc.1" \
-        && cat output.log && exit 1 || echo "Pass: Deps not found in 0.9.0-rc.1")
+        if echo "$(bash utils/install.sh -e image -v 0.9.0-rc.1 --image-version=0.9.0-rc.1 --image-deps-version=0.9.0-rc.1 2>&1 | tee output.log)" | grep -qE deps;then echo "Failed: Deps found in 0.9.0-rc.1" \
+        && cat output.log && exit 1; else echo "Pass: Deps not found in 0.9.0-rc.1"; fi;
     - name: Uninstall WasmEdge with Image extensions
       run: |
         bash utils/uninstall.sh -q -V

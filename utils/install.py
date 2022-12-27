@@ -445,7 +445,7 @@ def shell_configure(args, compat):
 
     global CONST_shell_profile, CONST_shell_config
 
-    source_string = "\n. {0}\n".format(join(args.path, "env"))
+    source_string = '\n. "{0}"\n'.format(join(args.path, "env"))
 
     if ("bash" in SHELL) or ("zsh" in SHELL):
 

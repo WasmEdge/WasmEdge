@@ -166,17 +166,6 @@ jobs:
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         bash utils/uninstall.sh -q -V
-    - name: No Tensorflow tools from 0.9.0-rc.1
-      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
-      run: |
-        echo "$(${{ matrix.python2_ex }} utils/install.py -e tensorflow -v 0.9.0-rc.1 --tf-version 0.9.0-rc.1 --tf-tools-version 0.9.0-rc.1 --tf-deps-version 0.9.0-rc.1 -D 2>&1 | tee output.log)" | grep -qE *-tools-* && (echo "Failed: tools found in 0.9.0-rc.1" \
-        && cat output.log && exit 1 || echo "Pass: tools not found in 0.9.0-rc.1")
-        echo "$(${{ matrix.python3_ex }} utils/install.py -e tensorflow -v 0.9.0-rc.1 --tf-version 0.9.0-rc.1 --tf-tools-version 0.9.0-rc.1 --tf-deps-version 0.9.0-rc.1 -D 2>&1 | tee output.log)" | grep -qE *-tools-* && (echo "Failed: tools found in 0.9.0-rc.1" \
-        && cat output.log && exit 1 || echo "Pass: tools not found in 0.9.0-rc.1")
-    - name: Uninstall WasmEdge
-      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
-      run: |
-        bash utils/uninstall.sh -q -V
     - name: Install versions multiple times
       run: |
         ${{ matrix.python2_ex }} utils/install.py -e all -D

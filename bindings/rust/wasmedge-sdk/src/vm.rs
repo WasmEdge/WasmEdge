@@ -10,8 +10,8 @@ use crate::wasi::{
 #[cfg(target_os = "linux")]
 use crate::WasmEdgeProcessInstance;
 use crate::{
-    config::Config, error::WasmEdgeError, wasi::WasiInstance, Engine, Func, FuncRef, FuncType,
-    ImportObject, Instance, Module, Statistics, WasmEdgeResult, WasmValue,
+    config::Config, wasi::WasiInstance, Engine, Func, FuncRef, FuncType, ImportObject, Instance,
+    Module, Statistics, WasmEdgeResult, WasmValue,
 };
 use std::{marker::PhantomData, path::Path};
 use wasmedge_sys::{self as sys, Engine as sys_engine};

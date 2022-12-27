@@ -121,7 +121,7 @@ impl Vm {
     ///
     /// * `mod_name` - The name for the WASM module to be registered.
     ///
-    /// * `file` - The `wasm` or `wat` file.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// # Error
     ///
@@ -322,7 +322,7 @@ impl Vm {
     ///
     /// # Arguments
     ///
-    /// * `file` - The `wasm` or `wat` file.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// * `func_name` - The name of the target exported function to run.
     ///
@@ -337,47 +337,15 @@ impl Vm {
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = sys::WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        match file.as_ref().extension() {
-            Some(extension) => match extension.to_str() {
-                Some("wasm") => {
-                    self.inner
-                        .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
-                }
-                #[cfg(target_os = "macos")]
-                Some("dylib") => {
-                    self.inner
-                        .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
-                }
-                #[cfg(target_os = "linux")]
-                Some("so") => {
-                    self.inner
-                        .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
-                }
-                #[cfg(target_os = "windows")]
-                Some("dll") => {
-                    self.inner
-                        .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
-                }
-                Some("wat") => {
-                    let bytes = wat::parse_file(file.as_ref())
-                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
-                    self.inner.run_wasm_from_bytes(&bytes, func_name, args)
-                }
-                _ => Err(Box::new(WasmEdgeError::Operation(
-                    "Invalid file extension".into(),
-                ))),
-            },
-            None => Err(Box::new(WasmEdgeError::Operation(
-                "Invalid file extension".into(),
-            ))),
-        }
+        self.inner
+            .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
     }
 
     /// Asynchronously runs an exported function from the given wasm file.
     ///
     /// # Arguments
     ///
-    /// * `file` - The `wasm` or `wat` file.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// * `func_name` - The name of the target exported function to run.
     ///
@@ -398,46 +366,9 @@ impl Vm {
         N: AsRef<str> + Send,
         A: IntoIterator<Item = WasmValue> + Send,
     {
-        match file.as_ref().extension() {
-            Some(extension) => match extension.to_str() {
-                Some("wasm") => {
-                    self.inner
-                        .run_wasm_from_file_async(file.as_ref(), func_name.as_ref(), args)
-                        .await
-                }
-                #[cfg(target_os = "macos")]
-                Some("dylib") => {
-                    self.inner
-                        .run_wasm_from_file_async(file.as_ref(), func_name.as_ref(), args)
-                        .await
-                }
-                #[cfg(target_os = "linux")]
-                Some("so") => {
-                    self.inner
-                        .run_wasm_from_file_async(file.as_ref(), func_name.as_ref(), args)
-                        .await
-                }
-                #[cfg(target_os = "windows")]
-                Some("dll") => {
-                    self.inner
-                        .run_wasm_from_file_async(file.as_ref(), func_name.as_ref(), args)
-                        .await
-                }
-                Some("wat") => {
-                    let bytes = wat::parse_file(file.as_ref())
-                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
-                    self.inner
-                        .run_wasm_from_bytes_async(&bytes, func_name.as_ref(), args)
-                        .await
-                }
-                _ => Err(Box::new(WasmEdgeError::Operation(
-                    "Invalid file extension".into(),
-                ))),
-            },
-            None => Err(Box::new(WasmEdgeError::Operation(
-                "Invalid file extension".into(),
-            ))),
-        }
+        self.inner
+            .run_wasm_from_file_async(file.as_ref(), func_name.as_ref(), args)
+            .await
     }
 
     /// Runs an exported function from the given in-memory wasm bytes.

@@ -1516,7 +1516,10 @@ def main(args):
         # Cleanup
         shutil.rmtree(TEMP_PATH)
 
-        print("Run:\nsource {0}".format(CONST_shell_config))
+        if compat.platform != "Darwin":
+            print("Run:\nsource {0}".format(CONST_shell_config))
+        else:
+            print("Run:\nsource {0}".format(CONST_shell_profile))
     else:
         reraise(Exception("Incompatible with your machine\n{0}".format(compat)))
 

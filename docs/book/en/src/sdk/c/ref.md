@@ -1,6 +1,6 @@
 # WasmEdge C 0.12.0 API Documentation
 
-[WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge.
+[WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The following are the guides to working with the C APIs of WasmEdge.
 
 **This document is for the `0.12.0` version. For the older `0.12.0` version, please refer to the [document here](0.12.0/ref.md).**
 
@@ -147,7 +147,7 @@ In WasmEdge, developers should convert the values to `WasmEdge_Value` objects th
     void *Ptr;
     bool IsNull;
     uint32_t Num = 10;
-    /* Genreate a externref to NULL. */
+    /* Generate a externref to NULL. */
     Val = WasmEdge_ValueGenNullRef(WasmEdge_RefType_ExternRef);
     IsNull = WasmEdge_ValueIsNullRef(Val);
     /* The `IsNull` will be `TRUE`. */
@@ -156,13 +156,13 @@ In WasmEdge, developers should convert the values to `WasmEdge_Value` objects th
 
     /* Get the function instance by creation or from module instance. */
     const WasmEdge_FunctionInstanceContext *FuncCxt = ...;
-    /* Genreate a funcref with the given function instance context. */
+    /* Generate a funcref with the given function instance context. */
     Val = WasmEdge_ValueGenFuncRef(FuncCxt);
     const WasmEdge_FunctionInstanceContext *GotFuncCxt =
         WasmEdge_ValueGetFuncRef(Val);
     /* The `GotFuncCxt` will be the same as `FuncCxt`. */
 
-    /* Genreate a externref to `Num`. */
+    /* Generate a externref to `Num`. */
     Val = WasmEdge_ValueGenExternRef(&Num);
     Ptr = WasmEdge_ValueGetExternRef(Val);
     /* The `Ptr` will be `&Num`. */
@@ -491,7 +491,7 @@ Developers own the object and should call the `WasmEdge_AsyncDelete()` API to de
 
     Or developers can wait for a time limit.
     If the time limit exceeded, developers can choose to cancel the execution.
-    For the interruptible execution in AOT mode, developers should set `TRUE` thourgh the `WasmEdge_ConfigureCompilerSetInterruptible()` API into the configure context for the AOT compiler.
+    For the interruptible execution in AOT mode, developers should set `TRUE` through the `WasmEdge_ConfigureCompilerSetInterruptible()` API into the configure context for the AOT compiler.
 
     ```c
     WasmEdge_Async *Async = ...; /* Ignored. Asynchronous execute a function. */
@@ -717,7 +717,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     ```c
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
     /*
-     * By default, the intruction counting is `FALSE` when running a
+     * By default, the instruction counting is `FALSE` when running a
      * compiled-WASM or a pure-WASM.
      */
     WasmEdge_ConfigureStatisticsSetInstructionCounting(ConfCxt, TRUE);
@@ -1138,7 +1138,7 @@ WasmEdge provides the following built-in pre-registrations.
 
     ```c
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
-    /* The WASI-Crypto related configures are suggested to turn on togeter. */
+    /* The WASI-Crypto related configures are suggested to turn on together. */
     WasmEdge_ConfigureAddHostRegistration(
         ConfCxt, WasmEdge_HostRegistration_WasiCrypto_Common);
     WasmEdge_ConfigureAddHostRegistration(

@@ -327,7 +327,7 @@ void ReleaseCString(JNIEnv *env, jarray jStrArray, const char **ptr) {
 
   for (int i = 0; i < len; i++) {
     jstring jStr = (*env)->GetObjectArrayElement(env, jStrArray, i);
-    // TODO fixeme
+    // TODO fixme
     //(*env)->ReleaseStringUTFChars(env, jStr, ptr[i]);
   }
 }

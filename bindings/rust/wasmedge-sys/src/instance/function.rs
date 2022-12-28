@@ -425,7 +425,7 @@ impl FuncType {
     ///
     /// # Arguments
     ///
-    /// * `args` - The agrgument types of a [Function].
+    /// * `args` - The argument types of a [Function].
     ///
     /// * `returns` - The types of the returns of a [Function].
     ///

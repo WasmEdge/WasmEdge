@@ -1,4 +1,4 @@
-//! This example demonstrates that the function in interpreter mode calls the functions in AOT mode, and vise versa.
+//! This example demonstrates that the function in interpreter mode calls the functions in AOT mode, and vice versa.
 
 use wasmedge_macro::sys_host_function;
 #[cfg(feature = "aot")]

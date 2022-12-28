@@ -1,6 +1,6 @@
 # `fetch` API
 
-`fetch` API 被广泛用于浏览器和基于 Node 的 JavaScript 应用程序中，用来通过网络获取内容。WasmEdge QuickJS Runtime 在其非阻塞的 Aysnc Socket API 的基础上支持 `fetch` API。这使得很多 JS 的 API 和模块可以开箱即用。
+`fetch` API 被广泛用于浏览器和基于 Node 的 JavaScript 应用程序中，用来通过网络获取内容。WasmEdge QuickJS Runtime 在其非阻塞的 Async Socket API 的基础上支持 `fetch` API。这使得很多 JS 的 API 和模块可以开箱即用。
 
 [example_js/wasi_http_fetch.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_http_fetch.js) 例子展示了如何在 WasmEdge 中使用 `fetch` API。下面的代码片段显示了一个异步的 HTTP GET 请求。当程序等待和处理 GET 内容的时候，它可以开始另一个请求。
 

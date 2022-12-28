@@ -42,7 +42,7 @@ Now we have a fresh `crun` binary with wasmedge enabled under `/data/crun/crun` 
 
 ## Replace crun and configure containerd
 
-Both runc and crun implement the OCI runtime spec and they have the same CLI parametes. Therefore we can just replace the runc binary with our crun-wasmedge binary we created before.
+Both runc and crun implement the OCI runtime spec and they have the same CLI parameters. Therefore we can just replace the runc binary with our crun-wasmedge binary we created before.
 
 Since crun is using some shared libraries we need to install libyajl, wasmedge and criu to make our crun work.
 

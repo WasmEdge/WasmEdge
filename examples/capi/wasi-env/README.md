@@ -23,7 +23,7 @@ pub fn print_env() {
 }
 ```
 
-The `print_env` is the function to print the environment variables and the command line argument in the WASM virtual environtment.
+The `print_env` is the function to print the environment variables and the command line argument in the WASM virtual environment.
 
 The example C program use the WasmEdge C API to initialize the WASI environment as following:
 
@@ -45,7 +45,7 @@ The example C program use the WasmEdge C API to initialize the WASI environment 
   WasmEdge_ModuleInstanceInitWASI(WasiCxt, argv, argc, Envs, 3, NULL, 0);
 ```
 
-The command line arguments are set as the same as the args of the C program, and the enviroment variables are set as the list `ENV1=VAL1, ENV2=VAL2, ENV3=VAL3`.
+The command line arguments are set as the same as the args of the C program, and the environment variables are set as the list `ENV1=VAL1, ENV2=VAL2, ENV3=VAL3`.
 
 ## Installation
 

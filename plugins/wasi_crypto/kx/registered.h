@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasmedge/plugins/wasi_crypto/asymmetric/registed.h - Registed -----===//
+//===-- wasmedge/plugins/wasi_crypto/kx/registered.h - Registered ---------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the register asymmetric common algorithm definitions.
+/// This file contains the register key exchange algorithm definitions.
 ///
 //===----------------------------------------------------------------------===//
 
 #pragma once
 
-#include "kx/registed.h"
-#include "signatures/registed.h"
+#include "kx/dh/ecdsa.h"
+#include "kx/dh/x25519.h"
 #include "utils/error.h"
 
 #include <variant>
@@ -23,26 +23,20 @@
 namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
-namespace AsymmetricCommon {
+namespace Kx {
 
-template <typename... T> struct Registed {
+template <typename... T> struct Registered {
   using PkVariant = std::variant<typename T::PublicKey...>;
   using SkVariant = std::variant<typename T::SecretKey...>;
   using KpVariant = std::variant<typename T::KeyPair...>;
   using Variant = std::variant<T...>;
 };
 
-template <typename... Ts1, typename... Ts2>
-struct Registed<Signatures::Registed<Ts1...>, Kx::Registed<Ts2...>> {
-  using Alg = Registed<Ts1..., Ts2...>;
-};
-
-/// Combine the signatures and kx algoritms.
-using RegistedAlg = Registed<Signatures::RegistedAlg, Kx::RegistedAlg>::Alg;
+using RegistedAlg = Registered<X25519, EcdsaP256, EcdsaP384>;
 
 using Algorithm = RegistedAlg::Variant;
 
-} // namespace AsymmetricCommon
+} // namespace Kx
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

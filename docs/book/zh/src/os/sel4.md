@@ -30,7 +30,7 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/sel4_build
 (docker) root#
 ```
 
-> 如果你不想自己搭建 seL4 系统模拟器，你可以从我们的 GitHub Actions 下载 [build artifact](https://github.com/second-state/wasmedge-seL4/actions/runs/1374510169), 并直接跳到 [启动-wasmedge-seL4](#boot-wasmedge-sel4)。
+> 如果你不想自己搭建 seL4 系统模拟器，你可以从我们的 GitHub Actions 下载 [build artifact](https://github.com/second-state/wasmedge-seL4/actions/runs/1374510169), 并直接跳到 [启动-wasmedge-seL4](#启动-wasmedge-sel4)。
 
 ### 自动安装：一体化脚本
 
@@ -127,10 +127,10 @@ Initializing random number generator... [    3.512482] random: dd: uninitialized
 done.
 Starting network: OK
 [    4.086059] connection: loading out-of-tree module taints kernel.
-[    4.114686] Event Bar (dev-0) initalised
-[    4.123771] 2 Dataports (dev-0) initalised
-[    4.130626] Event Bar (dev-1) initalised
-[    4.136096] 2 Dataports (dev-1) initalised
+[    4.114686] Event Bar (dev-0) initialised
+[    4.123771] 2 Dataports (dev-0) initialised
+[    4.130626] Event Bar (dev-1) initialised
+[    4.136096] 2 Dataports (dev-1) initialised
 
 Welcome to Buildroot
 buildroot login:

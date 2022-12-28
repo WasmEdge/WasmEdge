@@ -30,7 +30,7 @@ The options of the `wasmedgec` CLI tool are as follows.
 3. (Optional) `--dump`: Dump the LLVM IR to `wasm.ll` and `wasm-opt.ll`.
 4. (Optional) `--interruptible`: Generate the binary which supports interruptible execution.
     * By default, the AOT-compiled WASM not supports [interruptions in asynchronous executions](../sdk/c/ref.md#async).
-5. (Optional) Statistics informations:
+5. (Optional) Statistics information:
     * By default, the AOT-compiled WASM not supports all statistics even if the options are turned on when running the `wasmedge` tool.
     * Use `--enable-time-measuring` to generate code for enabling the statistics of time measuring in execution.
     * Use `--enable-gas-measuring` to generate code for enabling the statistics of gas measuring in execution.

@@ -62,13 +62,12 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           cargo clippy -V
-          cargo clippy --lib --examples --all-features -- -D warnings
+          cargo clippy --lib --examples --features static -- -D warnings
 
       - name: Test Rust Bindings
         working-directory: bindings/rust/
         run: |
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
-          export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --workspace --locked
-          cargo test --examples --locked
+          cargo test --workspace --features static --locked
+          cargo test --examples --features static --locked

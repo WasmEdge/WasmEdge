@@ -1999,7 +1999,7 @@ mod tests {
 
         // run a function from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
         let result = vm
             .run_wasm_from_file_async(&path, "fib", [WasmValue::from_i32(5)])
             .await;

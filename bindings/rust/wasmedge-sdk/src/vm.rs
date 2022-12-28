@@ -669,7 +669,7 @@ impl Engine for Vm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(feature = "static")))]
     use crate::PluginManager;
     use crate::{
         config::{
@@ -1005,7 +1005,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(feature = "static")))]
     fn test_vm_wasmedge_process_module() {
         // load wasmedge_process plugin
         PluginManager::load_from_default_paths();

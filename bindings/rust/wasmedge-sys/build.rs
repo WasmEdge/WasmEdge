@@ -1,9 +1,17 @@
 use std::path::PathBuf;
-#[cfg(all(feature = "standalone", target_family = "unix"))]
+#[cfg(all(
+    feature = "standalone",
+    target_family = "unix",
+    not(feature = "static")
+))]
 use std::{env, process::Command};
 
 const WASMEDGE_H: &str = "wasmedge.h";
-#[cfg(all(feature = "standalone", target_family = "unix"))]
+#[cfg(all(
+    feature = "standalone",
+    target_family = "unix",
+    not(feature = "static")
+))]
 const WASMEDGE_RELEASE_VERSION: &str = "0.11.2";
 
 macro_rules! env_path {

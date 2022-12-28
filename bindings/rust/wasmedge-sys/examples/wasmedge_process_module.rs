@@ -2,11 +2,10 @@
 
 #[cfg(all(not(feature = "static"), target_os = "linux"))]
 use wasmedge_macro::sys_host_function;
-use wasmedge_sys::utils;
 #[cfg(all(not(feature = "static"), target_os = "linux"))]
 use wasmedge_sys::{
-    AsImport, CallingFrame, Config, FuncType, Function, ImportObject, Vm, WasmEdgeProcessModule,
-    WasmValue,
+    utils, AsImport, CallingFrame, Config, FuncType, Function, ImportObject, Vm,
+    WasmEdgeProcessModule, WasmValue,
 };
 #[cfg(all(not(feature = "static"), target_os = "linux"))]
 use wasmedge_types::{

@@ -1,26 +1,26 @@
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 use wasmedge_macro::sys_host_function;
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 use wasmedge_sys::{
     utils, AsImport, CallingFrame, Config, Executor, FuncType, Function, Global, GlobalType,
     ImportModule, ImportObject, Loader, MemType, Memory, Store, Table, TableType, Validator, Vm,
     WasmValue,
 };
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 use wasmedge_types::{error::HostFuncError, wat2wasm, Mutability, RefType, ValType};
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(target_os = "linux")]
+    #[cfg(all(not(feature = "static"), target_os = "linux"))]
     vm_apis()?;
 
-    #[cfg(target_os = "linux")]
+    #[cfg(all(not(feature = "static"), target_os = "linux"))]
     executor_apis()?;
 
     Ok(())
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 #[allow(clippy::assertions_on_result_states)]
 fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
     // load wasmedge_process plugins
@@ -170,7 +170,7 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 #[allow(clippy::assertions_on_result_states)]
 fn executor_apis() -> Result<(), Box<dyn std::error::Error>> {
     // create an Executor context

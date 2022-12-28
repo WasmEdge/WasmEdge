@@ -1,14 +1,14 @@
 //! Please set the environment variable `WASMEDGE_PLUGIN_PATH` to the directory containing the plugins to enable the wasmedge-process plugin.
 
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::utils;
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, FuncType, Function, ImportObject, Vm, WasmEdgeProcessModule,
     WasmValue,
 };
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 use wasmedge_types::{
     error::{CoreError, CoreInstantiationError, HostFuncError, VmError, WasmEdgeError},
     ValType,
@@ -17,20 +17,21 @@ use wasmedge_types::{
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // load wasmedge_process plugins
+    #[cfg(all(not(feature = "static"), target_os = "linux"))]
     utils::load_plugin_from_default_paths();
 
     // A WasmEdgeProcessModule can be created implicitly inside a Vm by passing the Vm a config argument in which the wasmedge_process option is enabled.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(not(feature = "static"), target_os = "linux"))]
     create_wasmedge_process_module_implicitly()?;
 
     // WasmEdgeProcessModule implements ImportInstance trait, therefore it can be used to register function, table, memory and global instances.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(not(feature = "static"), target_os = "linux"))]
     create_wasmedge_process_module_explicitly()?;
 
     Ok(())
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 #[allow(clippy::assertions_on_result_states)]
 fn create_wasmedge_process_module_implicitly() -> Result<(), Box<dyn std::error::Error>> {
     // create a Config context
@@ -64,7 +65,7 @@ fn create_wasmedge_process_module_implicitly() -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 #[allow(clippy::assertions_on_result_states)]
 fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error::Error>> {
     // create a Config context, not enable wasi and wasmedge_process options.

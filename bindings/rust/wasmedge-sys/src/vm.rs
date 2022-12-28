@@ -1190,6 +1190,8 @@ unsafe impl Sync for InnerVm {}
 #[cfg(test)]
 mod tests {
     use super::Vm;
+    #[cfg(target_os = "linux")]
+    use crate::ImportModule;
     use crate::{
         error::{
             CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, InstanceError, VmError,
@@ -1202,8 +1204,6 @@ mod tests {
         error::{CoreInstantiationError, HostFuncError},
         AsImport, CallingFrame, FuncType, Function, ImportObject, WasiModule,
     };
-    #[cfg(target_os = "linux")]
-    use crate::{utils, ImportModule, WasmEdgeProcessModule};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -2580,9 +2580,11 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target_os = "linux")]
+    #[cfg(all(not(feature = "static"), target_os = "linux"))]
     #[allow(clippy::assertions_on_result_states)]
     fn test_vm_get_wasmedge_process_module() {
+        use crate::{utils, WasmEdgeProcessModule};
+
         // load wasmedge_process plugins
         utils::load_plugin_from_default_paths();
 

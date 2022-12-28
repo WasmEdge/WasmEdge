@@ -63,7 +63,7 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           cargo clippy -V
-          cargo clippy --lib --examples --all-features -- -D warnings
+          cargo clippy --lib --examples --features aot,async,wasi_crypto,wasi_nn -- -D warnings
 
       - name: Test Rust Bindings
         working-directory: bindings/rust/
@@ -72,8 +72,8 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --workspace --locked
-          cargo test --examples --locked
+          cargo test --workspace --features aot,async,wasi_crypto,wasi_nn --locked
+          cargo test --examples --features aot,async,wasi_crypto,wasi_nn --locked
 
   build_macos:
     name: MacOS
@@ -118,7 +118,7 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           cargo clippy -V
-          cargo clippy --lib --examples --all-features -- -D warnings
+          cargo clippy --lib --examples --features aot,async,wasi_crypto,wasi_nn -- -D warnings
 
       - name: Test Rust Bindings
         working-directory: bindings/rust/
@@ -127,8 +127,8 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export DYLD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --workspace --locked
-          cargo test --examples --locked
+          cargo test --workspace --features aot,async,wasi_crypto,wasi_nn --locked
+          cargo test --examples --features aot,async,wasi_crypto,wasi_nn --locked
 
   build_windows:
     name: Windows
@@ -188,7 +188,7 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           cd bindings/rust/
           cargo clippy -V
-          cargo clippy --lib --examples --all-features -- -D warnings
+          cargo clippy --lib --examples --features aot,async,wasi_crypto,wasi_nn -- -D warnings
 
       - name: Test Rust Bindings
         run: |
@@ -197,5 +197,5 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge\WasmEdge\build\lib\api"
           cd bindings\rust
-          cargo test --workspace --locked
-          cargo test --examples --locked
+          cargo test --workspace --features aot,async,wasi_crypto,wasi_nn --locked
+          cargo test --examples --features aot,async,wasi_crypto,wasi_nn --locked

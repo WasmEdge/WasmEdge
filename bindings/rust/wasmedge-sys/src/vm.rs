@@ -2707,7 +2707,7 @@ mod tests {
     #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
     #[allow(clippy::assertions_on_result_states)]
     fn test_vm_get_wasinn_module() {
-        use crate::AsInstance;
+        use crate::{utils, AsInstance};
 
         utils::load_plugin_from_default_paths();
 

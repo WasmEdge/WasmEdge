@@ -130,8 +130,8 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export DYLD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --workspace --features aot,async,wasi_crypto,wasi_nn --locked
-          cargo test --examples --features aot,async,wasi_crypto,wasi_nn --locked
+          cargo test -p wasmedge-sdk --features aot,async,wasi_crypto,wasi_nn
+          cargo test -p wasmedge-sdk --features aot,async,wasi_crypto,wasi_nn --examples
 
   build_windows:
     name: Windows

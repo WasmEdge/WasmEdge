@@ -32,7 +32,7 @@ jobs:
         os: [ubuntu-20.04, ubuntu-22.04]
         rust: [1.64, 1.65, 1.66]
     container:
-      image: wasmedge/wasmedge:ubuntu-build-clang
+      image: wasmedge/wasmedge:latest
 
     steps:
       - uses: actions/checkout@v3
@@ -72,8 +72,11 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --workspace --features aot,async,wasi_crypto,wasi_nn --locked
-          cargo test --examples --features aot,async,wasi_crypto,wasi_nn --locked
+          cargo test -p wasmedge-sdk --features aot,async,wasi_crypto,wasi_nn
+          cargo test -p wasmedge-sdk --features aot,async,wasi_crypto,wasi_nn --examples
+          cargo clean
+          cargo test -p wasmedge-sys --features aot,async,wasi_crypto,wasi_nn
+          cargo test -p wasmedge-sys --features aot,async,wasi_crypto,wasi_nn --examples
 
   build_macos:
     name: MacOS

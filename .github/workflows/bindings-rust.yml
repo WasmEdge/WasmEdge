@@ -127,8 +127,8 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export DYLD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test -p wasmedge-sdk --features aot,async
-          cargo test -p wasmedge-sdk --features aot,async --examples
+          cargo test --workspace --locked --features aot,async
+          cargo test --examples --locked --features aot,async
 
   build_windows:
     name: Windows

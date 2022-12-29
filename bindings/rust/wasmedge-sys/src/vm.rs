@@ -94,7 +94,7 @@ impl Vm {
     ///
     /// * `mod_name` - The name for the WASM module to be registered.
     ///
-    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// # Error
     ///
@@ -122,9 +122,7 @@ impl Vm {
                     "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
                 ))),
             },
-            None => Err(Box::new(WasmEdgeError::Operation(
-                "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
-            ))),
+            None => self.register_from_wasm_or_aot_file(mod_name, file),
         }
     }
 
@@ -330,7 +328,7 @@ impl Vm {
     ///
     /// # Arguments
     ///
-    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// * `func_name` - The name of the [function](crate::Function).
     ///
@@ -362,7 +360,7 @@ impl Vm {
     ///
     /// # Arguments
     ///
-    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// * `func_name` - The name of the [function](crate::Function).
     ///
@@ -582,7 +580,7 @@ impl Vm {
     ///
     /// # Argument
     ///
-    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// # Error
     ///
@@ -606,9 +604,7 @@ impl Vm {
                     "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
                 ))),
             },
-            None => Err(Box::new(WasmEdgeError::Operation(
-                "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
-            ))),
+            None => self.load_from_wasm_or_aot_file(&file),
         }
     }
 

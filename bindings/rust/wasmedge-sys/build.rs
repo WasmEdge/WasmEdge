@@ -326,7 +326,7 @@ fn find_libwasmedge() -> Option<Paths> {
         PathBuf::from("/usr/local/lib")
     };
     let header = inc_dir.join("wasmedge").join(WASMEDGE_H);
-    if inc_dir.join("wasmedge").exists() && lib_dir.join("wasmedge").exists() && header.exists() {
+    if inc_dir.join("wasmedge").exists() && lib_dir.exists() && header.exists() {
         println!(
             "cargo:warning=[wasmedge-sys] libwasmedge found in {}",
             lib_dir.to_str().unwrap()

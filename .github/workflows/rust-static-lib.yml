@@ -1,0 +1,73 @@
+name: binding-rust-static-lib
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+      - "rust/*"
+    paths:
+      - ".github/workflows/rust-static-lib.yml"
+      - "bindings/rust/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/rust-static-lib.yml"
+      - "bindings/rust/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
+
+jobs:
+  build_ubuntu:
+    name: Ubuntu
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04]
+        rust: [1.64, 1.65, 1.66]
+    container:
+      image: wasmedge/wasmedge:latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust-stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+
+      - name: Build WasmEdge with Release mode
+        run: |
+          apt update
+          apt install -y software-properties-common libboost-all-dev llvm-12-dev liblld-12-dev ninja-build
+          cmake cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_SHARED_LIB=OFF -DWASMEDGE_BUILD_STATIC_LIB=ON -DWASMEDGE_LINK_TOOLS_STATIC=ON -DWASMEDGE_BUILD_PLUGINS=OFF .
+          cmake --build build
+
+      - name: Rustfmt
+        working-directory: bindings/rust/
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        working-directory: bindings/rust/
+        run: |
+          export WASMEDGE_DIR="$(pwd)/../../"
+          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
+          cargo clippy -V
+          cargo clippy --lib --examples --features static -- -D warnings
+
+      - name: Test Rust Bindings
+        working-directory: bindings/rust/
+        run: |
+          export WASMEDGE_DIR="$(pwd)/../../"
+          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
+          cargo test --workspace --features static --locked
+          cargo test --examples --features static --locked

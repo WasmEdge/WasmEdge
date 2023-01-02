@@ -235,21 +235,23 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Br_table: {
     uint32_t VecCnt = 0;
-    // Read the vector of labels.
-    if (auto Res = readU32(VecCnt); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-    if (VecCnt / 2 > FMgr.getRemainSize()) {
-      // Too many label for Br_table.
-      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
+    if (auto Res = loadVecCnt()) {
+      VecCnt = *Res;
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     Instr.setLabelListSize(VecCnt + 1);
-    for (uint32_t I = 0; I < VecCnt; ++I) {
-      if (auto Res = readU32(Instr.getLabelList()[I].TargetIndex);
-          unlikely(!Res)) {
-        return Unexpect(Res);
-      }
+    // Read the vector of labels.
+    if (auto Res = loadVecContent(
+            Instr.getLabelList(),
+            [readU32](AST::Instruction::JumpDescriptor &JumpDesc) {
+              return readU32(JumpDesc.TargetIndex);
+            },
+            VecCnt);
+        unlikely(!Res)) {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
     }
     // Read default label.
     return readU32(Instr.getLabelList()[VecCnt].TargetIndex);

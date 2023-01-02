@@ -192,8 +192,6 @@ Expect<HeapType> Loader::loadHeapType() {
 
 // Load binary to construct FunctionType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
-  uint32_t VecCnt = 0;
-
   // Read function type (0x60).
   if (auto Res = FMgr.readByte()) {
     if (*Res != 0x60U) {
@@ -205,53 +203,33 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
                         ASTNodeAttr::Type_Function);
   }
 
+  auto loadValTypeList = [this](std::vector<FullValType> &ValTypeList) {
+    return loadVec(ValTypeList, [this](FullValType &VType) -> Expect<void> {
+      if (auto Res = loadFullValType()) {
+        VType = *Res;
+        return {};
+      } else {
+        return Unexpect(Res);
+      }
+    });
+  };
+
   // Read vector of parameter types.
-  if (auto Res = FMgr.readU32()) {
-    VecCnt = *Res;
-    if (VecCnt / 2 > FMgr.getRemainSize()) {
-      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
-                          ASTNodeAttr::Type_Function);
-    }
-    FuncType.getParamTypes().clear();
-    FuncType.getParamTypes().reserve(VecCnt);
-  } else {
+  if (auto Res = loadValTypeList(FuncType.getParamTypes()); !Res) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Function);
-  }
-  for (uint32_t I = 0; I < VecCnt; ++I) {
-    if (auto Res = loadFullValType()) {
-      FuncType.getParamTypes().push_back(*Res);
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Type_Function);
-    }
   }
 
   // Read vector of result types.
-  if (auto Res = FMgr.readU32()) {
-    VecCnt = *Res;
-    if (VecCnt / 2 > FMgr.getRemainSize()) {
-      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
-                          ASTNodeAttr::Type_Function);
-    }
-    FuncType.getReturnTypes().clear();
-    FuncType.getReturnTypes().reserve(VecCnt);
-  } else {
+  if (auto Res = loadValTypeList(FuncType.getReturnTypes()); !Res) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Function);
   }
-  if (unlikely(!Conf.hasProposal(Proposal::MultiValue)) && VecCnt > 1) {
+  if (unlikely(!Conf.hasProposal(Proposal::MultiValue)) &&
+      FuncType.getReturnTypes().size() > 1) {
     return logNeedProposal(ErrCode::Value::MalformedValType,
                            Proposal::MultiValue, FMgr.getLastOffset(),
                            ASTNodeAttr::Type_Function);
-  }
-  for (uint32_t I = 0; I < VecCnt; ++I) {
-    if (auto Res = loadFullValType()) {
-      FuncType.getReturnTypes().push_back(*Res);
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Type_Function);
-    }
   }
   return {};
 }

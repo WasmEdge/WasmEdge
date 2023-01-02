@@ -1,13 +1,16 @@
 package org.wasmedge;
 
+import org.wasmedge.enums.Mutability;
 import org.wasmedge.enums.ValueType;
-import org.wasmedge.enums.WasmEdgeMutability;
 
+/**
+ * Global type.
+ */
 public class GlobalTypeContext {
     private long pointer;
 
-    public GlobalTypeContext(ValueType valueType, WasmEdgeMutability wasmEdgeMutability) {
-        nativeInit(valueType.getValue(), wasmEdgeMutability.getValue());
+    public GlobalTypeContext(ValueType valueType, Mutability mutability) {
+        nativeInit(valueType.getValue(), mutability.getValue());
     }
 
     private GlobalTypeContext(long pointer) {
@@ -24,8 +27,8 @@ public class GlobalTypeContext {
 
     private native int nativeGetValueType();
 
-    public WasmEdgeMutability getMutability() {
-        return WasmEdgeMutability.parseMutability(nativeGetMutability());
+    public Mutability getMutability() {
+        return Mutability.parseMutability(nativeGetMutability());
     }
 
     private native int nativeGetMutability();

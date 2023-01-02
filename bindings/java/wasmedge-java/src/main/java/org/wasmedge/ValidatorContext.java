@@ -1,5 +1,8 @@
 package org.wasmedge;
 
+/**
+ * Validator, for validating AstModule.
+ */
 public class ValidatorContext {
     private long pointer;
 
@@ -7,7 +10,7 @@ public class ValidatorContext {
         nativeInit(configureContext);
     }
 
-    public native void validate(ASTModuleContext astCtx);
+    public native void validate(AstModuleContext astCtx);
 
     private native void nativeInit(ConfigureContext configureContext);
 

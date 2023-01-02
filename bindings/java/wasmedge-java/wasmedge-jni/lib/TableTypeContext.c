@@ -5,30 +5,20 @@
 #include "common.h"
 #include "wasmedge/wasmedge.h"
 
-WasmEdge_TableTypeContext *getTableTypeContext(JNIEnv *env,
-                                               jobject jTableTypeContext) {
-
-  if (jTableTypeContext == NULL) {
-    return NULL;
-  }
-  WasmEdge_TableTypeContext *tableTypeContext =
-      (WasmEdge_TableTypeContext *)getPointer(env, jTableTypeContext);
-
-  return tableTypeContext;
-}
+GETTER(TableTypeContext)
 
 JNIEXPORT void JNICALL Java_org_wasmedge_TableTypeContext_nativeInit(
     JNIEnv *env, jobject thisObject, jint refType, jobject jLimit) {
 
   jclass cls = (*env)->GetObjectClass(env, jLimit);
 
-  jmethodID hasMaxMid = (*env)->GetMethodID(env, cls, "isHasMax", "()Z");
+  jmethodID hasMaxMid = (*env)->GetMethodID(env, cls, LIMIT_IS_HAS_MAX, VOID_BOOL);
   jboolean hasMax = (*env)->CallBooleanMethod(env, jLimit, hasMaxMid);
 
-  jmethodID maxMid = (*env)->GetMethodID(env, cls, "getMax", "()J");
+  jmethodID maxMid = (*env)->GetMethodID(env, cls, LIMIT_GET_MAX, VOID_LONG);
   jlong max = (*env)->CallLongMethod(env, jLimit, maxMid);
 
-  jmethodID minMid = (*env)->GetMethodID(env, cls, "getMin", "()J");
+  jmethodID minMid = (*env)->GetMethodID(env, cls, LIMIT_GET_MIN, VOID_LONG);
   jlong min = (*env)->CallLongMethod(env, jLimit, minMid);
 
   WasmEdge_Limit tableLimit = {.HasMax = hasMax, .Min = min, .Max = max};
@@ -44,9 +34,9 @@ Java_org_wasmedge_TableTypeContext_getLimit(JNIEnv *env, jobject thisObject) {
 
   WasmEdge_Limit limit = WasmEdge_TableTypeGetLimit(tableTypeContext);
 
-  jclass limitClass = findJavaClass(env, "org/wasmedge/WasmEdgeLimit");
+  jclass limitClass = findJavaClass(env, ORG_WASMEDGE_LIMIT);
 
-  jmethodID constructor = findJavaMethod(env, limitClass, "<init>", "(ZJJ)V");
+  jmethodID constructor = findJavaMethod(env, limitClass, DEFAULT_CONSTRUCTOR, BOOLLONGLONG_VOID);
 
   return (*env)->NewObject(env, limitClass, constructor, (jboolean)limit.HasMax,
                            (jlong)limit.Min, (jlong)limit.Max);
@@ -71,9 +61,9 @@ jobject
 createJTableTypeContext(JNIEnv *env,
                         const WasmEdge_TableTypeContext *tableTypeContext) {
 
-  jclass clazz = (*env)->FindClass(env, "org/wasmedge/TableTypeContext");
+  jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_TABLETYPECONTEXT);
 
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
 
   jobject table =
       (*env)->NewObject(env, clazz, constructorId, (long)tableTypeContext);

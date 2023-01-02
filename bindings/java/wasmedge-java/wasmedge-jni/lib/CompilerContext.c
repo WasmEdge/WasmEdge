@@ -6,13 +6,7 @@
 #include "common.h"
 #include "wasmedge/wasmedge.h"
 
-WasmEdge_CompilerContext *getCompilerContext(JNIEnv *env,
-                                             jobject jCompilerContext) {
-  if (jCompilerContext == NULL) {
-    return NULL;
-  }
-  return (WasmEdge_CompilerContext *)getPointer(env, jCompilerContext);
-}
+GETTER(CompilerContext)
 
 JNIEXPORT void JNICALL Java_org_wasmedge_CompilerContext_nativeInit(
     JNIEnv *env, jobject thisObject, jobject jConfigContext) {

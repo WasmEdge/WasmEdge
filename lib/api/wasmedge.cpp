@@ -1177,17 +1177,6 @@ WasmEdge_GlobalTypeGetValType(const WasmEdge_GlobalTypeContext *Cxt) {
   return WasmEdge_ValType_I32;
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_FullValType
-WasmEdge_GlobalTypeGetFullValType(const WasmEdge_GlobalTypeContext *Cxt) {
-  if (Cxt) {
-    return fromGlobTypeCxt(Cxt)->getValType().asCStruct();
-  }
-  return WasmEdge_FullValType{
-      .TypeCode = WasmEdge_ValTypeCode_I32,
-      .Ext = {},
-  };
-}
-
 WASMEDGE_CAPI_EXPORT enum WasmEdge_Mutability
 WasmEdge_GlobalTypeGetMutability(const WasmEdge_GlobalTypeContext *Cxt) {
   if (Cxt) {
@@ -1509,9 +1498,11 @@ WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt) {
 WASMEDGE_CAPI_EXPORT WasmEdge_LoaderContext *
 WasmEdge_LoaderCreate(const WasmEdge_ConfigureContext *ConfCxt) {
   if (ConfCxt) {
-    return toLoaderCxt(new WasmEdge::Loader::Loader(ConfCxt->Conf));
+    return toLoaderCxt(new WasmEdge::Loader::Loader(
+        ConfCxt->Conf, &WasmEdge::Executor::Executor::Intrinsics));
   } else {
-    return toLoaderCxt(new WasmEdge::Loader::Loader(WasmEdge::Configure()));
+    return toLoaderCxt(new WasmEdge::Loader::Loader(
+        WasmEdge::Configure(), &WasmEdge::Executor::Executor::Intrinsics));
   }
 }
 

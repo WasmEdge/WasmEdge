@@ -6,18 +6,13 @@
 #include "wasmedge/wasmedge.h"
 #include <stdint.h>
 
+GETTER(ConfigureContext)
+
+
 JNIEXPORT void JNICALL
 Java_org_wasmedge_ConfigureContext_nativeInit(JNIEnv *env, jobject thisObj) {
   WasmEdge_ConfigureContext *ConfigureContext = WasmEdge_ConfigureCreate();
   setPointer(env, thisObj, (jlong)ConfigureContext);
-}
-
-WasmEdge_ConfigureContext *getConfigureContext(JNIEnv *env,
-                                               jobject jConfigureContext) {
-  if (jConfigureContext == NULL) {
-    return NULL;
-  }
-  return (WasmEdge_ConfigureContext *)getPointer(env, jConfigureContext);
 }
 
 JNIEXPORT void JNICALL
@@ -110,14 +105,14 @@ Java_org_wasmedge_ConfigureContext_nativeGetCompilerOutputFormat(
       getConfigureContext(env, thisObject));
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_setCompilerIsDumpIR(
+JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_setCompilerIsDumpIr(
     JNIEnv *env, jobject thisObject, jboolean isDumpIR) {
   WasmEdge_ConfigureCompilerSetDumpIR(getConfigureContext(env, thisObject),
                                       isDumpIR);
 }
 
 JNIEXPORT jboolean JNICALL
-Java_org_wasmedge_ConfigureContext_getCompilerIsDumpIR(JNIEnv *env,
+Java_org_wasmedge_ConfigureContext_getCompilerIsDumpIr(JNIEnv *env,
                                                        jobject thisObject) {
   return WasmEdge_ConfigureCompilerIsDumpIR(
       getConfigureContext(env, thisObject));

@@ -1,5 +1,8 @@
 package org.wasmedge;
 
+/**
+ * Memory instance.
+ */
 public class MemoryInstanceContext {
 
     private long pointer;

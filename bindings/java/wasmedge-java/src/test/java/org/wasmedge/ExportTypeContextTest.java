@@ -5,7 +5,7 @@ import org.junit.Test;
 import org.wasmedge.enums.ExternalType;
 import org.wasmedge.enums.RefType;
 import org.wasmedge.enums.ValueType;
-import org.wasmedge.enums.WasmEdgeMutability;
+import org.wasmedge.enums.Mutability;
 
 import java.util.List;
 
@@ -32,7 +32,7 @@ public class ExportTypeContextTest extends BaseTest {
 
         LoaderContext loaderContext = new LoaderContext(null);
 
-        ASTModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(IMPORT_WASM_PATH));
+        AstModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(IMPORT_WASM_PATH));
 
         List<ExportTypeContext> exportList = moduleContext.listExports();
 
@@ -51,7 +51,7 @@ public class ExportTypeContextTest extends BaseTest {
     public void testGetFunctionType() {
         LoaderContext loaderContext = new LoaderContext(null);
 
-        ASTModuleContext mod = loaderContext.parseFromFile(getResourcePath(IMPORT_WASM_PATH));
+        AstModuleContext mod = loaderContext.parseFromFile(getResourcePath(IMPORT_WASM_PATH));
 
         List<ExportTypeContext> expTypes = mod.listExports();
         Assert.assertEquals(expTypes.get(4).getFunctionType().getParameters().size(), 2);
@@ -64,11 +64,11 @@ public class ExportTypeContextTest extends BaseTest {
     public void testGetTableType() {
         LoaderContext loaderContext = new LoaderContext(null);
 
-        ASTModuleContext mod = loaderContext.parseFromFile(getResourcePath(IMPORT_WASM_PATH));
+        AstModuleContext mod = loaderContext.parseFromFile(getResourcePath(IMPORT_WASM_PATH));
 
         List<ExportTypeContext> expTypes = mod.listExports();
         Assert.assertEquals(expTypes.get(12).getTableType().getRefType(), RefType.EXTERREF);
-        Assert.assertEquals(expTypes.get(12).getTableType().getLimit(), new WasmEdgeLimit(false, 10, 10));
+        Assert.assertEquals(expTypes.get(12).getTableType().getLimit(), new Limit(false, 10, 10));
         loaderContext.delete();
         mod.delete();
     }
@@ -77,10 +77,10 @@ public class ExportTypeContextTest extends BaseTest {
     public void testGetMemoryType() {
         LoaderContext loaderContext = new LoaderContext(null);
 
-        ASTModuleContext mod = loaderContext.parseFromFile(getResourcePath(IMPORT_WASM_PATH));
+        AstModuleContext mod = loaderContext.parseFromFile(getResourcePath(IMPORT_WASM_PATH));
 
         List<ExportTypeContext> expTypes = mod.listExports();
-        Assert.assertEquals(expTypes.get(13).getMemoryType().getLimit(), new WasmEdgeLimit(true, 1, 3));
+        Assert.assertEquals(expTypes.get(13).getMemoryType().getLimit(), new Limit(true, 1, 3));
         loaderContext.delete();
         mod.delete();
     }
@@ -90,11 +90,11 @@ public class ExportTypeContextTest extends BaseTest {
     public void testGetGlobalType() {
         LoaderContext loaderContext = new LoaderContext(null);
 
-        ASTModuleContext mod = loaderContext.parseFromFile(getResourcePath(IMPORT_WASM_PATH));
+        AstModuleContext mod = loaderContext.parseFromFile(getResourcePath(IMPORT_WASM_PATH));
 
         List<ExportTypeContext> expTypes = mod.listExports();
         Assert.assertEquals(expTypes.get(15).getGlobalType().getValueType(), ValueType.f32);
-        Assert.assertEquals(expTypes.get(15).getGlobalType().getMutability(), WasmEdgeMutability.CONST);
+        Assert.assertEquals(expTypes.get(15).getGlobalType().getMutability(), Mutability.CONST);
         loaderContext.delete();
         mod.delete();
     }

@@ -72,26 +72,28 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-macos.yml
     with:
       version: ${{ needs.get_version_v2.outputs.version }}
-      matrix: "[{'name':'MacOS 11 (x86_64)','runner':'macos-11','darwin_version':20},{'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21}]"
+      matrix: "[{'name':'MacOS 11 (x86_64)','runner':'macos-11','darwin_version':20},
+                {'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21}]"
 
   build_on_manylinux_2014:
     needs: [get_version_v2, lint]
     uses: ./.github/workflows/reusable-build-on-manylinux.yml
     with:
       version: ${{ needs.get_version_v2.outputs.version }}
-      matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},{'runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
+      matrix: "[{'name':'manylinux 2014 x86_64','runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},
+                {'name':'manylinux 2014 aarch64','runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
 
   build_on_ubuntu_20_04:
     needs: [get_version_v2, lint]
     uses: ./.github/workflows/reusable-build-on-ubuntu.yml
     with:
       version: ${{ needs.get_version_v2.outputs.version }}
-      matrix: "[{'compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-build-gcc','coverage':false},
-                {'compiler':'g++','build_type':'Release','docker_tag':'ubuntu-build-gcc','coverage':false},
-                {'compiler':'clang++','build_type':'Debug','docker_tag':'ubuntu-build-clang','coverage':false},
-                {'compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-build-clang','coverage':false},
-                {'compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-build-gcc','coverage':true}]"
-      tests: true
+      matrix: "[{'name':'ubuntu-20.04','compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-build-gcc','coverage':false,'tests':true},
+                {'name':'ubuntu-20.04','compiler':'g++','build_type':'Release','docker_tag':'ubuntu-build-gcc','coverage':false,'tests':true},
+                {'name':'ubuntu-20.04','compiler':'clang++','build_type':'Debug','docker_tag':'ubuntu-build-clang','coverage':false,'tests':true},
+                {'name':'ubuntu-20.04','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-build-clang','coverage':false,'tests':true},
+                {'name':'linux-static','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-build-clang','coverage':false,'tests':false,'options':'-DWASMEDGE_BUILD_SHARED_LIB=Off -DWASMEDGE_BUILD_STATIC_LIB=On -DWASMEDGE_LINK_TOOLS_STATIC=On -DWASMEDGE_BUILD_PLUGINS=Off'},
+                {'name':'ubuntu-20.04-coverage','compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-build-gcc','coverage':true,'tests':true}]"
 
   build_on_windows:
     needs: [get_version_v2, lint]

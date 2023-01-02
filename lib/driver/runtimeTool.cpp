@@ -40,7 +40,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
                              PO::MetaVar("ARG"sv));
 
   PO::Option<PO::Toggle> Reactor(PO::Description(
-      "Enable reactor mode. Reactor mode calls `_initialize` if exported."));
+      "Enable reactor mode. Reactor mode calls `_initialize` if exported."sv));
 
   PO::List<std::string> Dir(
       PO::Description(
@@ -282,7 +282,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
 
   if (EnterCommandMode) {
     // command mode
-    auto AsyncResult = VM.asyncExecute("_start");
+    auto AsyncResult = VM.asyncExecute("_start"sv);
     if (Timeout.has_value()) {
       if (!AsyncResult.waitUntil(*Timeout)) {
         AsyncResult.cancel();

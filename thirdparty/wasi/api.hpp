@@ -1687,7 +1687,7 @@ static_assert(alignof(__wasi_signal_t) == 1, "witx calculated align");
 /**
  * Socket address family
  */
-enum __wasi_address_family_t : uint8_t {
+enum __wasi_address_family_t : uint16_t {
   __WASI_ADDRESS_FAMILY_UNSPEC = 0,
 
   __WASI_ADDRESS_FAMILY_INET4 = 1,
@@ -1695,8 +1695,8 @@ enum __wasi_address_family_t : uint8_t {
   __WASI_ADDRESS_FAMILY_INET6 = 2,
 
 };
-static_assert(sizeof(__wasi_address_family_t) == 1, "witx calculated size");
-static_assert(alignof(__wasi_address_family_t) == 1, "witx calculated align");
+static_assert(sizeof(__wasi_address_family_t) == 2, "witx calculated size");
+static_assert(alignof(__wasi_address_family_t) == 2, "witx calculated align");
 
 /**
  * Socket address
@@ -1906,9 +1906,9 @@ static_assert(offsetof(__wasi_addrinfo_t, ai_flags) == 0,
               "witx calculated offset");
 static_assert(offsetof(__wasi_addrinfo_t, ai_family) == 2,
               "witx calculated offset");
-static_assert(offsetof(__wasi_addrinfo_t, ai_socktype) == 3,
+static_assert(offsetof(__wasi_addrinfo_t, ai_socktype) == 4,
               "witx calculated offset");
-static_assert(offsetof(__wasi_addrinfo_t, ai_protocol) == 4,
+static_assert(offsetof(__wasi_addrinfo_t, ai_protocol) == 5,
               "witx calculated offset");
 static_assert(offsetof(__wasi_addrinfo_t, ai_addrlen) == 8,
               "witx calculated offset");

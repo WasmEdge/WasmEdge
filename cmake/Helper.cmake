@@ -199,7 +199,6 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_BUILD_A
     else()
       # If not build static lib, dynamic link libz and libtinfo.
       list(APPEND WASMEDGE_LLVM_LINK_SHARED_COMPONENTS
-        rt
         z
         tinfo
       )

@@ -10,6 +10,8 @@
 #include "wasmedge/wasmedge.h"
 #include <stdlib.h>
 
+GETTER(FunctionInstanceContext)
+
 WasmEdge_Result HostFuncWrap(void *This, void *Data,
                              const WasmEdge_CallingFrameContext *Mem,
                              const WasmEdge_Value *In, const unsigned int InLen,
@@ -21,10 +23,9 @@ WasmEdge_Result HostFuncWrap(void *This, void *Data,
 
   jstring jFuncKey = (*env)->NewStringUTF(env, funcKey);
 
-  jclass clazz = (*env)->FindClass(env, "org/wasmedge/WasmEdgeVM");
+  jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_WASMEDGEVM);
   jmethodID funcGetter = (*env)->GetStaticMethodID(
-      env, clazz, "getHostFunc",
-      "(Ljava/lang/String;)Lorg/wasmedge/HostFunction;");
+      env, clazz, GET_HOST_FUNC, STRING_HOSTFUNCTION);
 
   jobject jFunc =
       (*env)->CallStaticObjectMethod(env, clazz, funcGetter, jFuncKey);
@@ -32,9 +33,8 @@ WasmEdge_Result HostFuncWrap(void *This, void *Data,
   jclass jFuncClass = (*env)->GetObjectClass(env, jFunc);
 
   jmethodID funcMethod =
-      (*env)->GetMethodID(env, jFuncClass, "apply",
-                          "(Lorg/wasmedge/MemoryInstanceContext;Ljava/util/"
-                          "List;Ljava/util/List;)Lorg/wasmedge/Result;");
+      (*env)->GetMethodID(env, jFuncClass, APPLY,
+                          MEMORYINSTANCECONTEXTLIST_RESULT);
 
   // TODO replace with CallingFrameContext
   jobject jMem =
@@ -55,18 +55,6 @@ WasmEdge_Result HostFuncWrap(void *This, void *Data,
   }
 
   return WasmEdge_Result_Success;
-}
-
-WasmEdge_FunctionInstanceContext *
-getFunctionInstanceContext(JNIEnv *env, jobject jFuncInstance) {
-
-  if (jFuncInstance == NULL) {
-    return NULL;
-  }
-  WasmEdge_FunctionInstanceContext *funcInstance =
-      (struct WasmEdge_FunctionInstanceContext *)getPointer(env, jFuncInstance);
-
-  return funcInstance;
 }
 
 JNIEXPORT jobject JNICALL
@@ -108,8 +96,8 @@ jobject createJFunctionInstanceContext(
     return NULL;
   }
 
-  jclass clazz = (*env)->FindClass(env, "org/wasmedge/FunctionInstanceContext");
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+  jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_FUNCTIONINSTANCECONTEXT);
+  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
   return (*env)->NewObject(env, clazz, constructorId, (long)funcInstance);
 }
 

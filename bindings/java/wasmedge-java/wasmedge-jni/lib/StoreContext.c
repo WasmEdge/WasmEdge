@@ -10,29 +10,20 @@
 #include "wasmedge/wasmedge.h"
 #include <stdlib.h>
 
+GETTER(StoreContext)
+
 JNIEXPORT void JNICALL
 Java_org_wasmedge_StoreContext_nativeInit(JNIEnv *env, jobject thisObj) {
   WasmEdge_StoreContext *StoreContext = WasmEdge_StoreCreate();
   setPointer(env, thisObj, (jlong)StoreContext);
 }
 
-WasmEdge_StoreContext *getStoreContext(JNIEnv *env, jobject jStoreContext) {
-
-  if (jStoreContext == NULL) {
-    return NULL;
-  }
-  WasmEdge_StoreContext *StoreContext =
-      (WasmEdge_StoreContext *)getPointer(env, jStoreContext);
-
-  return StoreContext;
-}
-
 jobject CreateJavaStoreContext(JNIEnv *env,
                                WasmEdge_StoreContext *storeContext) {
-  jclass storeClass = findJavaClass(env, "org/wasmedge/StoreContext");
+  jclass storeClass = findJavaClass(env, ORG_WASMEDGE_STORECONTEXT);
 
   jmethodID constructor =
-      (*env)->GetMethodID(env, storeClass, "<init>", "(J)V");
+      (*env)->GetMethodID(env, storeClass, DEFAULT_CONSTRUCTOR, LONG_VOID);
 
   jobject jStoreContext =
       (*env)->NewObject(env, storeClass, constructor, (long)storeContext);

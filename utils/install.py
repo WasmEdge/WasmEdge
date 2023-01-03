@@ -1314,7 +1314,7 @@ class Compat:
             if self.dist is None:
                 if sys.version_info[0] == 2:
                     if (
-                        "Ubuntu" in platform.dist() and "20.14" in platform.dist()
+                        "Ubuntu" in platform.dist() and "20.04" in platform.dist()
                     ) or "Ubuntu 20.04" in run_shell_command(
                         "lsb_release -d | awk -F'\t' '{print $2}'"
                     ):

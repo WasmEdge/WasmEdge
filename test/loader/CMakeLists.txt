@@ -27,13 +27,23 @@ wasmedge_add_executable(wasmedgeLoaderASTTests
   typeTest.cpp
   expressionTest.cpp
   instructionTest.cpp
-  serializeSectionTest.cpp
-
 )
 
 add_test(wasmedgeLoaderASTTests wasmedgeLoaderASTTests)
 
 target_link_libraries(wasmedgeLoaderASTTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedgeLoader
+)
+
+wasmedge_add_executable(wasmedgeLoaderSerializerTests
+  serializeSectionTest.cpp
+)
+
+add_test(wasmedgeLoaderSerializerTests wasmedgeLoaderSerializerTests)
+
+target_link_libraries(wasmedgeLoaderSerializerTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeLoader

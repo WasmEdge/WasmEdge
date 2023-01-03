@@ -445,7 +445,7 @@ def shell_configure(args, compat):
 
     global CONST_shell_profile, CONST_shell_config
 
-    source_string = "\n. {0}\n".format(join(args.path, "env"))
+    source_string = '\n. "{0}"\n'.format(join(args.path, "env"))
 
     if ("bash" in SHELL) or ("zsh" in SHELL):
 
@@ -456,21 +456,21 @@ def shell_configure(args, compat):
         else:
             CONST_shell_profile = join(HOME, "." + SHELL + "_profile")
 
-        if not exists(CONST_shell_config):
+        # On Darwin: Create shell config only if shell_profile does not exist
+        # On Linux: Create shell config anyway
+        if not exists(CONST_shell_config) and compat.platform != "Darwin":
             open(CONST_shell_config, "a").close()
 
         write_shell = False
-        with opened_w_error(CONST_shell_config, "r") as shell_config:
-            if shell_config is not None:
-                if source_string not in shell_config.read():
-                    write_shell = True
+        if compat.platform != "Darwin":
+            with opened_w_error(CONST_shell_config, "r") as shell_config:
+                if shell_config is not None:
+                    if source_string not in shell_config.read():
+                        write_shell = True
 
-        # On Darwin: Append to shell only if shell_profile does not exist
-        # On Linux: Append to shell anyway
-        if write_shell and (
-            compat.platform == "Linux"
-            or (compat.platform == "Darwin" and not exists(CONST_shell_profile))
-        ):
+        # On Darwin: Append to shell config only if shell_profile does not exist
+        # On Linux: Append to shell config anyway
+        if write_shell and compat.platform != "Darwin":
             with opened_w_error(CONST_shell_config, "a") as shell_config:
                 if shell_config is not None:
                     shell_config.write(source_string)
@@ -1208,7 +1208,7 @@ def set_consts(args, compat):
 
     CONST_urls = {
         WASMEDGE: "https://github.com/WasmEdge/WasmEdge/releases/download/{0}/WasmEdge-{0}-{1}".format(
-            args.version, CONST_release_pkg
+            args.version, compat.release_package_wasmedge
         ),
         WASMEDGE_UNINSTALLER: "https://raw.githubusercontent.com/WasmEdge/WasmEdge/{0}/utils/uninstall.sh".format(
             args.uninstall_script_tag
@@ -1295,11 +1295,13 @@ class Compat:
         self.lib_extension = None
         self.ld_library_path = None
         self.dist = dist_
+        self.release_package_wasmedge = None
 
         if self.platform == "Linux":
             self.install_package_name = "WasmEdge-{0}-Linux".format(self.version)
             self.lib_extension = ".so"
             self.ld_library_path = "LD_LIBRARY_PATH"
+
             if self.machine in ["arm64", "armv8", "aarch64"]:
                 self.release_package = "manylinux2014_aarch64.tar.gz"
             elif self.machine in ["x86_64", "amd64"]:
@@ -1307,10 +1309,12 @@ class Compat:
             else:
                 reraise(Exception("Unsupported arch: {0}".format(self.machine)))
 
+            self.release_package_wasmedge = self.release_package
+
             if self.dist is None:
                 if sys.version_info[0] == 2:
                     if (
-                        "Ubuntu" in platform.dist() and "20.14" in platform.dist()
+                        "Ubuntu" in platform.dist() and "20.04" in platform.dist()
                     ) or "Ubuntu 20.04" in run_shell_command(
                         "lsb_release -d | awk -F'\t' '{print $2}'"
                     ):
@@ -1327,10 +1331,21 @@ class Compat:
                         self.dist = "ubuntu20.04"
                     else:
                         self.dist = "manylinux2014"
+
+            # Below version 0.11.1 different distributions for wasmedge binary do not exist
+            if self.version.compare("0.11.1") != -1:
+                if self.machine in ["arm64", "armv8", "aarch64"]:
+                    self.release_package_wasmedge = self.dist + "_aarch64.tar.gz"
+                elif self.machine in ["x86_64", "amd64"]:
+                    self.release_package_wasmedge = self.dist + "_x86_64.tar.gz"
+                else:
+                    reraise(Exception("Unsupported arch: {0}".format(self.machine)))
+
         elif self.platform == "Darwin":
             self.ld_library_path = "DYLD_LIBRARY_PATH"
             self.install_package_name = "WasmEdge-{0}-Darwin".format(self.version)
             self.release_package = "darwin_{0}.tar.gz".format(self.machine)
+            self.release_package_wasmedge = self.release_package
             self.lib_extension = ".dylib"
             if self.dist is None:
                 self.dist = "darwin"
@@ -1516,7 +1531,10 @@ def main(args):
         # Cleanup
         shutil.rmtree(TEMP_PATH)
 
-        print("Run:\nsource {0}".format(CONST_shell_config))
+        if compat.platform != "Darwin":
+            print("Run:\nsource {0}".format(CONST_shell_config))
+        else:
+            print("Run:\nsource {0}".format(CONST_shell_profile))
     else:
         reraise(Exception("Incompatible with your machine\n{0}".format(compat)))
 

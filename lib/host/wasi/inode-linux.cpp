@@ -887,6 +887,9 @@ WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
   case __WASI_ADDRESS_FAMILY_INET6:
     SysDomain = AF_INET6;
     break;
+  case __WASI_ADDRESS_FAMILY_AF_UNIX:
+    SysDomain = AF_UNIX;
+    break;
   default:
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
@@ -911,34 +914,56 @@ WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
   }
 }
 
-WasiExpect<void> INode::sockBind(__wasi_address_family_t AddressFamily,
-                                 Span<const uint8_t> Address,
-                                 uint16_t Port) noexcept {
-  Variant<sockaddr, sockaddr_in, sockaddr_in6> ServerAddr;
-  size_t Size;
+static std::vector<uint8_t>
+sockAddressAssignHelper(__wasi_address_family_t AddrFamily,
+                        const Span<const uint8_t> &Address, uint16_t Port) {
+  std::vector<uint8_t> Buffer;
+  // Do nothing if Address is not existing.
+  if (Address.size() == 0)
+    return {};
 
-  if (AddressFamily == __WASI_ADDRESS_FAMILY_INET4) {
-    auto &ServerAddr4 = ServerAddr.emplace<sockaddr_in>();
-    Size = sizeof(ServerAddr4);
+  if (AddrFamily == __WASI_ADDRESS_FAMILY_INET4) {
+    Buffer.resize(sizeof(sockaddr_in));
+    auto *ServerAddr4 = reinterpret_cast<struct sockaddr_in *>(Buffer.data());
 
-    ServerAddr4.sin_family = AF_INET;
-    ServerAddr4.sin_port = htons(Port);
+    ServerAddr4->sin_family = AF_INET;
+    ServerAddr4->sin_port = htons(Port);
     assuming(Address.size() >= sizeof(in_addr));
-    std::memcpy(&ServerAddr4.sin_addr, Address.data(), sizeof(in_addr));
-  } else if (AddressFamily == __WASI_ADDRESS_FAMILY_INET6) {
-    auto &ServerAddr6 = ServerAddr.emplace<sockaddr_in6>();
-    Size = sizeof(ServerAddr6);
+    std::memcpy(&ServerAddr4->sin_addr, Address.data(), sizeof(in_addr));
+  } else if (AddrFamily == __WASI_ADDRESS_FAMILY_INET6) {
+    Buffer.resize(sizeof(sockaddr_in6));
+    auto *ServerAddr6 = reinterpret_cast<struct sockaddr_in6 *>(Buffer.data());
 
-    ServerAddr6.sin6_family = AF_INET6;
-    ServerAddr6.sin6_port = htons(Port);
+    ServerAddr6->sin6_family = AF_INET6;
+    ServerAddr6->sin6_port = htons(Port);
+    ServerAddr6->sin6_flowinfo = 0;
     assuming(Address.size() >= sizeof(in6_addr));
-    std::memcpy(&ServerAddr6.sin6_addr, Address.data(), sizeof(in6_addr));
+    std::memcpy(&ServerAddr6->sin6_addr, Address.data(), sizeof(in6_addr));
+  } else if (AddrFamily == __WASI_ADDRESS_FAMILY_AF_UNIX) {
+    Buffer.resize(sizeof(sockaddr_un));
+    auto *ServerAddrUN = reinterpret_cast<struct sockaddr_un *>(Buffer.data());
+
+    ServerAddrUN->sun_family = AF_UNIX;
+    // TODO: check the spec of sockaddr_un::sun_path
+    assuming(Address.size() >= sizeof(sockaddr_un::sun_path));
+    std::memcpy(&ServerAddrUN->sun_path, Address.data(),
+                sizeof(sockaddr_un::sun_path));
   } else {
     assumingUnreachable();
   }
 
-  if (auto Res = ::bind(Fd, &ServerAddr.get<sockaddr>(), Size);
-      unlikely(Res < 0)) {
+  return Buffer;
+}
+
+WasiExpect<void> INode::sockBind(__wasi_address_family_t AddressFamily,
+                                 Span<const uint8_t> Address,
+                                 uint16_t Port) noexcept {
+  auto AddressBuffer = sockAddressAssignHelper(AddressFamily, Address, Port);
+
+  auto ServerAddr = reinterpret_cast<struct sockaddr *>(AddressBuffer.data());
+  int Size = static_cast<int>(AddressBuffer.size());
+
+  if (auto Res = ::bind(Fd, ServerAddr, Size); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
   return {};
@@ -973,31 +998,12 @@ WasiExpect<INode> INode::sockAccept(__wasi_fdflags_t FdFlags) noexcept {
 WasiExpect<void> INode::sockConnect(__wasi_address_family_t AddressFamily,
                                     Span<const uint8_t> Address,
                                     uint16_t Port) noexcept {
-  Variant<sockaddr, sockaddr_in, sockaddr_in6> ClientAddr;
-  size_t Size;
+  auto AddressBuffer = sockAddressAssignHelper(AddressFamily, Address, Port);
 
-  if (AddressFamily == __WASI_ADDRESS_FAMILY_INET4) {
-    auto &ClientAddr4 = ClientAddr.emplace<sockaddr_in>();
-    Size = sizeof(ClientAddr4);
+  auto ClientAddr = reinterpret_cast<struct sockaddr *>(AddressBuffer.data());
+  int Size = static_cast<int>(AddressBuffer.size());
 
-    ClientAddr4.sin_family = AF_INET;
-    ClientAddr4.sin_port = htons(Port);
-    assuming(Address.size() >= sizeof(in_addr));
-    std::memcpy(&ClientAddr4.sin_addr, Address.data(), sizeof(in_addr));
-  } else if (AddressFamily == __WASI_ADDRESS_FAMILY_INET6) {
-    auto &ClientAddr6 = ClientAddr.emplace<sockaddr_in6>();
-    Size = sizeof(ClientAddr6);
-
-    ClientAddr6.sin6_family = AF_INET6;
-    ClientAddr6.sin6_port = htons(Port);
-    assuming(Address.size() >= sizeof(in6_addr));
-    std::memcpy(&ClientAddr6.sin6_addr, Address.data(), sizeof(in6_addr));
-  } else {
-    assumingUnreachable();
-  }
-
-  if (auto Res = ::connect(Fd, &ClientAddr.get<sockaddr>(), Size);
-      unlikely(Res < 0)) {
+  if (auto Res = ::connect(Fd, ClientAddr, Size); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
 
@@ -1034,7 +1040,7 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
 
   const bool NeedAddress =
       AddressFamilyPtr != nullptr || !Address.empty() || PortPtr != nullptr;
-  Variant<sockaddr_storage, sockaddr_in, sockaddr_in6> SockAddr;
+  Variant<sockaddr_storage, sockaddr_in, sockaddr_in6, sockaddr_un> SockAddr;
   msghdr SysMsgHdr;
   if (NeedAddress) {
     SysMsgHdr.msg_name = &SockAddr;
@@ -1058,6 +1064,11 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
 
   if (NeedAddress) {
     switch (SockAddr.get<sockaddr_storage>().ss_family) {
+    case AF_UNSPEC: {
+      // if ss_family is AF_UNSPEC, the access of the other members are
+      // undefined.
+      break;
+    }
     case AF_INET: {
       const auto &SockAddr4 = SockAddr.get<sockaddr_in>();
       if (AddressFamilyPtr) {
@@ -1081,6 +1092,17 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
       }
       if (PortPtr != nullptr) {
         *PortPtr = SockAddr6.sin6_port;
+      }
+      break;
+    }
+    case AF_UNIX: {
+      const auto &SockAddrUN = SockAddr.get<sockaddr_un>();
+      if (AddressFamilyPtr) {
+        *AddressFamilyPtr = __WASI_ADDRESS_FAMILY_AF_UNIX;
+      }
+      if (Address.size() >= sizeof(sockaddr_un::sun_path)) {
+        std::memcpy(Address.data(), &SockAddrUN.sun_path,
+                    sizeof(sockaddr_un::sun_path));
       }
       break;
     }
@@ -1110,26 +1132,14 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
                                    Span<const uint8_t> Address, uint16_t Port,
                                    __wasi_size_t &NWritten) const noexcept {
   int SysSiFlags = MSG_NOSIGNAL;
-  Variant<sockaddr, sockaddr_in, sockaddr_in6> ClientAddr;
+  sockaddr *ClientAddr = nullptr;
   socklen_t MsgNameLen = 0;
+  std::vector<uint8_t> AddressBuffer;
 
-  if (AddressFamily == __WASI_ADDRESS_FAMILY_INET4) {
-    auto &ClientAddr4 = ClientAddr.emplace<sockaddr_in>();
-    MsgNameLen = sizeof(ClientAddr4);
-
-    ClientAddr4.sin_family = AF_INET;
-    ClientAddr4.sin_port = htons(Port);
-    assuming(Address.size() >= sizeof(in_addr));
-    std::memcpy(&ClientAddr4.sin_addr, Address.data(), sizeof(in_addr));
-  } else if (AddressFamily == __WASI_ADDRESS_FAMILY_INET6) {
-    auto &ClientAddr6 = ClientAddr.emplace<sockaddr_in6>();
-    MsgNameLen = sizeof(ClientAddr6);
-
-    ClientAddr6.sin6_family = AF_INET6;
-    ClientAddr6.sin6_flowinfo = 0;
-    ClientAddr6.sin6_port = htons(Port);
-    assuming(Address.size() >= sizeof(in6_addr));
-    std::memcpy(&ClientAddr6.sin6_addr, Address.data(), sizeof(in6_addr));
+  if (Address.size()) {
+    AddressBuffer = sockAddressAssignHelper(AddressFamily, Address, Port);
+    ClientAddr = reinterpret_cast<struct sockaddr *>(AddressBuffer.data());
+    MsgNameLen = AddressBuffer.size();
   }
 
   iovec SysIOVs[kIOVMax];
@@ -1141,7 +1151,7 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
   }
 
   msghdr SysMsgHdr;
-  SysMsgHdr.msg_name = MsgNameLen == 0 ? nullptr : &ClientAddr.get<sockaddr>();
+  SysMsgHdr.msg_name = MsgNameLen == 0 ? nullptr : ClientAddr;
   SysMsgHdr.msg_namelen = MsgNameLen;
   SysMsgHdr.msg_iov = SysIOVs;
   SysMsgHdr.msg_iovlen = SysIOVsSize;

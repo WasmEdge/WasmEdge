@@ -265,6 +265,7 @@ cast<__wasi_address_family_t>(uint64_t Family) noexcept {
   switch (WasiRawTypeT<__wasi_address_family_t>(Family)) {
   case __WASI_ADDRESS_FAMILY_INET4:
   case __WASI_ADDRESS_FAMILY_INET6:
+  case __WASI_ADDRESS_FAMILY_AF_UNIX:
     return static_cast<__wasi_address_family_t>(Family);
   default:
     return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);

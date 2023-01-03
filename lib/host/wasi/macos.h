@@ -25,6 +25,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+#include <sys/un.h>
 #include <unistd.h>
 
 namespace WasmEdge {
@@ -488,6 +489,8 @@ fromAddressFamily(int AddressFamily) noexcept {
     return __WASI_ADDRESS_FAMILY_INET4;
   case PF_INET6:
     return __WASI_ADDRESS_FAMILY_INET6;
+  case PF_UNIX:
+    return __WASI_ADDRESS_FAMILY_AF_UNIX;
   default:
     assumingUnreachable();
   }
@@ -502,6 +505,8 @@ toAddressFamily(__wasi_address_family_t AddressFamily) noexcept {
     return PF_INET;
   case __WASI_ADDRESS_FAMILY_INET6:
     return PF_INET6;
+  case __WASI_ADDRESS_FAMILY_AF_UNIX:
+    return PF_UNIX;
   default:
     assumingUnreachable();
   }

@@ -556,11 +556,7 @@ def ldconfig(args, compat):
 
 def is_default_path(args):
     global PATH
-    return args.path == abspath(PATH)
-
-
-def is_non_sys(args):
-    return args.path[:4] != "/usr"
+    return args.path == abspath(PATH) or args.path[:4] != "/usr"
 
 
 def install_image_extension(args, compat):

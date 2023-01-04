@@ -9,7 +9,6 @@ from __future__ import (
     with_statement,
 )
 from contextlib import contextmanager
-from posixpath import lexists
 import shutil
 import sys
 import argparse
@@ -33,17 +32,10 @@ import subprocess
 import re
 import logging
 
-try:
-    from future_builtins import ascii, filter, hex, map, oct, zip
-except:
-    pass
-
 download_url = None
 
 # Define version specific things
 if sys.version_info[0] == 3:
-    xrange = range
-
     import urllib.request
 
     download_url = urllib.request.urlretrieve
@@ -272,16 +264,6 @@ TENSORFLOW_TOOLS = "tensorflow_tools"
 IMAGE = "image"
 IMAGE_DEPS = "image_deps"
 EXTENSIONS = [TENSORFLOW, IMAGE]
-
-DEPENDENCIES = {
-    TENSORFLOW: [
-        TENSORFLOW_DEPS,
-        TENSORFLOW_TOOLS,
-    ],
-    IMAGE: [
-        IMAGE_DEPS,
-    ],
-}
 
 SUPPORTED_EXTENSIONS = {
     "Linux" + "x86_64": EXTENSIONS,

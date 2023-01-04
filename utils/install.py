@@ -151,9 +151,9 @@ def extract_archive(
                     fname = fname.replace("lib64", "lib", 1)
                 if "Plugin" in fname:
                     if is_default_path(args):
-                        fname = fname.replace("lib64/wasmedge", "plugin").replace(
-                            "lib/wasmedge", "plugin"
-                        )
+                        fname = join(ipath, "plugin", fname)
+                    else:
+                        fname = join(ipath, CONST_lib_dir, "wasmedge", fname)
                 else:
                     if ipath not in fname:
                         fname = join(ipath, fname)
@@ -1149,9 +1149,7 @@ def install_plugins(args, compat):
                 continue
             else:
                 if plugin_version_supplied is None:
-                    plugin_version_supplied = SUPPORTTED_PLUGINS[
-                        compat.dist + compat.machine + plugin_name
-                    ].version
+                    plugin_version_supplied = args.version
                 elif (
                     SUPPORTTED_PLUGINS[
                         compat.dist + compat.machine + plugin_name
@@ -1181,7 +1179,7 @@ def install_plugins(args, compat):
                 )
                 extract_archive(
                     join(TEMP_PATH, "Plugin" + plugin_name + ".tar.gz"),
-                    join(args.path, CONST_lib_dir),
+                    join(args.path),
                     join(TEMP_PATH, "Plugins"),
                     env_file_path=CONST_env_path,
                     remove_finished=True,

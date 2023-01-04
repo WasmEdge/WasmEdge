@@ -223,19 +223,19 @@ jobs:
       if: ${{ matrix.name == 'Ubuntu 20.04' }}
       run: |
         # Multiple plugin download
-        ${{ matrix.python2_ex }} utils/install.py --plugins wasi_nn-openvino wasi_crypto -D
-        ls ~/.wasmedge/plugin/ | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        ${{ matrix.python2_ex }} utils/install.py -p ~/new_wasmedge --plugins wasi_nn-openvino wasi_crypto -D
-        ls ~/new_wasmedge/plugin/ | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        ${{ matrix.python2_ex }} utils/install.py -p /usr --plugins wasi_nn-openvino wasi_crypto -D
-        (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py --plugins wasi_nn-openvino wasi_crypto wasi_nn-pytorch wasi_nn-tensorflowlite wasmedge_httpsreq -D
+        ls ~/.wasmedge/plugin/ | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so\|libwasmedgePluginHttpsReq.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -p ~/new_wasmedge --plugins wasi_nn-openvino wasi_crypto wasi_nn-pytorch wasi_nn-tensorflowlite wasmedge_httpsreq -D
+        ls ~/new_wasmedge/plugin/ | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so \|libwasmedgePluginHttpsReq.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -p /usr --plugins wasi_nn-openvino wasi_crypto -wasi_nn-pytorch wasi_nn-tensorflowlite wasmedge_httpsreq -D
+        (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so\|libwasmedgePluginHttpsReq.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
     
-        ${{ matrix.python3_ex }} utils/install.py --plugins wasi_nn-openvino wasi_crypto -D
-        ls ~/.wasmedge/plugin/ | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        ${{ matrix.python3_ex }} utils/install.py -p ~/new_wasmedge --plugins wasi_nn-openvino wasi_crypto -D
-        ls ~/new_wasmedge/plugin/ | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        ${{ matrix.python3_ex }} utils/install.py -p /usr --plugins wasi_nn-openvino wasi_crypto -D
-        (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so  && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py --plugins wasi_nn-openvino wasi_crypto wasi_nn-pytorch wasi_nn-tensorflowlite wasmedge_httpsreq -D
+        ls ~/.wasmedge/plugin/ | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so\|libwasmedgePluginHttpsReq.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -p ~/new_wasmedge --plugins wasi_nn-openvino wasi_crypto wasi_nn-pytorch wasi_nn-tensorflowlite wasmedge_httpsreq -D
+        ls ~/new_wasmedge/plugin/ | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so\|libwasmedgePluginHttpsReq.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -p /usr --plugins wasi_nn-openvino wasi_crypto wasi_nn-pytorch wasi_nn-tensorflowlite wasmedge_httpsreq -D
+        (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so\|libwasmedgePluginHttpsReq.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
   
     - name: Externally Specified plugins install check (wrong name)(Ubuntu)
       if: ${{ matrix.name == 'Ubuntu 20.04' }}
@@ -250,18 +250,18 @@ jobs:
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         # Single plugin download
-        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-alpha.1 --plugins wasi_crypto -D
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-rc.1 --plugins wasi_crypto -D
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-alpha.1 -p ~/new_wasmedge --plugins wasi_crypto -D
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-rc.1 -p ~/new_wasmedge --plugins wasi_crypto -D
         ls ~/new_wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-alpha.1 -p /usr --plugins wasi_crypto -D
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-rc.1 -p /usr --plugins wasi_crypto -D
         (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
     
-        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-alpha.1 --plugins wasi_crypto -D
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-rc.1 --plugins wasi_crypto -D
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-alpha.1 -p ~/new_wasmedge --plugins wasi_crypto -D
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-rc.1 -p ~/new_wasmedge --plugins wasi_crypto -D
         ls ~/new_wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-alpha.1 -p /usr --plugins wasi_crypto -D
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-rc.1 -p /usr --plugins wasi_crypto -D
         (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
     
     - name: Check for differences in the installation

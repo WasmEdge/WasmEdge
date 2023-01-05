@@ -12,7 +12,7 @@ function hello(){
 export {hello};
 ```
 
-[module_def_async.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/es6_module_demo/module_def_async.js) 文件定义并导出了一个 aysnc 函数和一个变量。
+[module_def_async.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/es6_module_demo/module_def_async.js) 文件定义并导出了一个 async 函数和一个变量。
 
 ```javascript
 export async function hello() {

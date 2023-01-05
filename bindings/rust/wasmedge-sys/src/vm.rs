@@ -94,7 +94,7 @@ impl Vm {
     ///
     /// * `mod_name` - The name for the WASM module to be registered.
     ///
-    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// # Error
     ///
@@ -122,9 +122,7 @@ impl Vm {
                     "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
                 ))),
             },
-            None => Err(Box::new(WasmEdgeError::Operation(
-                "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
-            ))),
+            None => self.register_from_wasm_or_aot_file(mod_name, file),
         }
     }
 
@@ -330,7 +328,7 @@ impl Vm {
     ///
     /// # Arguments
     ///
-    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// * `func_name` - The name of the [function](crate::Function).
     ///
@@ -362,7 +360,7 @@ impl Vm {
     ///
     /// # Arguments
     ///
-    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// * `func_name` - The name of the [function](crate::Function).
     ///
@@ -429,7 +427,7 @@ impl Vm {
         self.run_function(func_name, params)
     }
 
-    /// Asychronously runs a [function](crate::Function) from a in-memory wasm bytes.
+    /// Asynchronously runs a [function](crate::Function) from a in-memory wasm bytes.
     ///
     /// # Arguments
     ///
@@ -582,7 +580,7 @@ impl Vm {
     ///
     /// # Argument
     ///
-    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// # Error
     ///
@@ -606,9 +604,7 @@ impl Vm {
                     "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
                 ))),
             },
-            None => Err(Box::new(WasmEdgeError::Operation(
-                "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
-            ))),
+            None => self.load_from_wasm_or_aot_file(&file),
         }
     }
 
@@ -676,7 +672,7 @@ impl Vm {
         // prepare returns
         let func_type = self.get_function_type(func_name.as_ref())?;
 
-        // get the info of the funtion return
+        // get the info of the function return
         let returns_len = unsafe { ffi::WasmEdge_FunctionTypeGetReturnsLength(func_type.inner.0) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
@@ -745,7 +741,7 @@ impl Vm {
         // prepare returns
         let func_type = self.get_registered_function_type(mod_name.as_ref(), func_name.as_ref())?;
 
-        // get the info of the funtion return
+        // get the info of the function return
         let returns_len = unsafe { ffi::WasmEdge_FunctionTypeGetReturnsLength(func_type.inner.0) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
@@ -1194,6 +1190,8 @@ unsafe impl Sync for InnerVm {}
 #[cfg(test)]
 mod tests {
     use super::Vm;
+    #[cfg(target_os = "linux")]
+    use crate::ImportModule;
     use crate::{
         error::{
             CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, InstanceError, VmError,
@@ -1206,8 +1204,6 @@ mod tests {
         error::{CoreInstantiationError, HostFuncError},
         AsImport, CallingFrame, FuncType, Function, ImportObject, WasiModule,
     };
-    #[cfg(target_os = "linux")]
-    use crate::{utils, ImportModule, WasmEdgeProcessModule};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -1615,7 +1611,7 @@ mod tests {
             )))
         );
 
-        // run a function: the specified function name is non-existant
+        // run a function: the specified function name is non-existent
         let result = vm.run_function("fib2", [WasmValue::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
@@ -1973,7 +1969,7 @@ mod tests {
             )))
         );
 
-        // fun a function: the specified function name is non-existant
+        // fun a function: the specified function name is non-existent
         let result = vm.run_wasm_from_file(&path, "fib2", [WasmValue::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
@@ -2003,7 +1999,7 @@ mod tests {
 
         // run a function from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
         let result = vm
             .run_wasm_from_file_async(&path, "fib", [WasmValue::from_i32(5)])
             .await;
@@ -2045,7 +2041,7 @@ mod tests {
             )))
         );
 
-        // fun a function: the specified function name is non-existant
+        // fun a function: the specified function name is non-existent
         let result = vm
             .run_wasm_from_file_async(&path, "fib2", [WasmValue::from_i32(5)])
             .await;
@@ -2149,7 +2145,7 @@ mod tests {
             )))
         );
 
-        // fun a function: the specified function name is non-existant
+        // fun a function: the specified function name is non-existent
         let result = vm.run_wasm_from_bytes(&wasm_bytes, "fib2", [WasmValue::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
@@ -2255,7 +2251,7 @@ mod tests {
             )))
         );
 
-        // fun a function: the specified function name is non-existant
+        // fun a function: the specified function name is non-existent
         let result = vm
             .run_wasm_from_bytes_async(&wasm_bytes, "fib2", [WasmValue::from_i64(5)])
             .await;
@@ -2316,7 +2312,7 @@ mod tests {
             )))
         );
 
-        // fun a function: the specified function name is non-existant
+        // fun a function: the specified function name is non-existent
         let module = load_fib_module();
         let result = vm.run_wasm_from_module(module, "fib2", [WasmValue::from_i64(5)]);
         assert!(result.is_err());
@@ -2378,7 +2374,7 @@ mod tests {
             )))
         );
 
-        // fun a function: the specified function name is non-existant
+        // fun a function: the specified function name is non-existent
         let module = load_fib_module();
         let result = vm
             .run_wasm_from_module_async(module, "fib2", [WasmValue::from_i64(5)])
@@ -2584,9 +2580,11 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target_os = "linux")]
+    #[cfg(all(not(feature = "static"), target_os = "linux"))]
     #[allow(clippy::assertions_on_result_states)]
     fn test_vm_get_wasmedge_process_module() {
+        use crate::{utils, WasmEdgeProcessModule};
+
         // load wasmedge_process plugins
         utils::load_plugin_from_default_paths();
 
@@ -2709,7 +2707,7 @@ mod tests {
     #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
     #[allow(clippy::assertions_on_result_states)]
     fn test_vm_get_wasinn_module() {
-        use crate::AsInstance;
+        use crate::{utils, AsInstance};
 
         utils::load_plugin_from_default_paths();
 

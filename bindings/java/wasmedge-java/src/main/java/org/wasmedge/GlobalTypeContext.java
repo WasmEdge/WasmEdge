@@ -1,8 +1,11 @@
 package org.wasmedge;
 
-import org.wasmedge.enums.ValueType;
 import org.wasmedge.enums.Mutability;
+import org.wasmedge.enums.ValueType;
 
+/**
+ * Global type.
+ */
 public class GlobalTypeContext {
     private long pointer;
 

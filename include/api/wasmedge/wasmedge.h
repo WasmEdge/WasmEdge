@@ -173,7 +173,7 @@ typedef struct WasmEdge_ProgramOption {
   const void *DefaultValue;
 } WasmEdge_ProgramOption;
 
-/// Module descriptior for plugins.
+/// Module descriptor for plugins.
 typedef struct WasmEdge_ModuleDescriptor {
   const char *Name;
   const char *Description;
@@ -189,7 +189,7 @@ typedef struct WasmEdge_PluginVersionData {
   uint32_t Build;
 } WasmEdge_PluginVersionData;
 
-/// Plugin descriptior for plugins.
+/// Plugin descriptor for plugins.
 typedef struct WasmEdge_PluginDescriptor {
   const char *Name;
   const char *Description;
@@ -1583,7 +1583,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorInstantiate(
 /// the other modules can import the instances for linking when instantiation.
 /// Developers should guarantee the life cycle of this registered module
 /// instance, or the error will occur when in execution after the module
-/// instance destoryed if it has been imported by other modules.
+/// instance destroyed if it has been imported by other modules.
 ///
 /// \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
 /// \param [out] ModuleCxt the output WasmEdge_ModuleInstanceContext if
@@ -1608,7 +1608,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorRegister(
 /// store, and the other modules can import the instances for linking when
 /// instantiation. Developers should guarantee the life cycle of this registered
 /// module instance, or the error will occur when in execution after the module
-/// instance destoryed if it has been imported by other modules.
+/// instance destroyed if it has been imported by other modules.
 ///
 /// \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
 /// \param StoreCxt the WasmEdge_StoreContext to store the instantiated module.
@@ -2013,7 +2013,7 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListFunctionLength(
 /// List the exported function names of a module instance.
 ///
 /// The returned function names filled into the `Names` array are linked to the
-/// exported names of functions of the module intance context, and the caller
+/// exported names of functions of the module instance context, and the caller
 /// should __NOT__ call the `WasmEdge_StringDelete`.
 /// If the `Names` buffer length is smaller than the result of the exported
 /// function list size, the overflowed return values will be discarded.
@@ -2672,7 +2672,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncWait(const WasmEdge_Async *Cxt);
 /// \param Milliseconds times to wait.
 ///
 /// \returns Result of waiting, true for execution ended, false for timeout
-/// occured.
+/// occurred.
 WASMEDGE_CAPI_EXPORT bool WasmEdge_AsyncWaitFor(const WasmEdge_Async *Cxt,
                                                 uint64_t Milliseconds);
 
@@ -2811,7 +2811,7 @@ WasmEdge_VMRegisterModuleFromASTModule(WasmEdge_VMContext *Cxt,
 /// store in VM, and the other modules can import the instances for linking when
 /// instantiating other modules. Developers should guarantee the life cycle of
 /// this registered module instance, or the error will occur when in execution
-/// after the module instance destoryed if it has been imported by other
+/// after the module instance destroyed if it has been imported by other
 /// modules.
 ///
 /// This function is thread-safe.
@@ -3419,7 +3419,7 @@ WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Tool(int Argc,
 /// Load plugins with default search path.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_PluginLoadWithDefaultPaths(void);
 
-/// Implement by plugins for returning plugin descriptior.
+/// Implement by plugins for returning plugin descriptor.
 WASMEDGE_CAPI_PLUGIN_EXPORT extern const WasmEdge_PluginDescriptor *
 WasmEdge_Plugin_GetDescriptor(void);
 

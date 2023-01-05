@@ -343,7 +343,7 @@ impl ImportObjectBuilder {
     /// # Error
     ///
     /// If fail to create a wasmedge process import module, then an error is returned.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(feature = "static")))]
     pub fn build_as_wasmedge_process(
         self,
         allowed_cmds: Option<Vec<&str>>,
@@ -590,7 +590,7 @@ impl ImportObject {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(feature = "static")))]
     use crate::PluginManager;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
@@ -625,7 +625,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(feature = "static")))]
     #[allow(clippy::assertions_on_result_states)]
     fn test_import_builder_wasmedge_process() {
         // load wasmedge_process plugin
@@ -638,7 +638,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(feature = "static")))]
     #[allow(clippy::assertions_on_result_states)]
     fn test_import_new_wasmedgeprocess() {
         // load wasmedge_process plugin
@@ -905,7 +905,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(memory.size(), 15);
 
-        // get memory from instance agains
+        // get memory from instance again
         let result = instance.memory("memory");
         assert!(result.is_some());
         let memory = result.unwrap();

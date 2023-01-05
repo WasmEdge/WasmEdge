@@ -139,7 +139,7 @@ mod tests {
         assert!(!store.inner.0.is_null());
         assert!(!store.registered);
 
-        // check the length of registered module list in store before instatiation
+        // check the length of registered module list in store before instantiation
         assert_eq!(store.module_len(), 0);
         assert!(store.module_names().is_none());
 

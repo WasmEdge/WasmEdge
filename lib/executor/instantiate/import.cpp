@@ -138,7 +138,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       return Unexpect(Res);
     }
 
-    // Add the imports into module istance.
+    // Add the imports into module instance.
     switch (ExtType) {
     case ExternalType::Function: {
       // Get function type index. External type checked in validation.

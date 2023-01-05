@@ -228,7 +228,7 @@ pub trait Engine {
     ///
     /// * `params` - The arguments to pass to the function.
     ///
-    /// # Erros
+    /// # Errors
     ///
     /// If fail to run the host function, then an error is returned.
     fn run_func(
@@ -245,7 +245,7 @@ pub trait Engine {
     ///
     /// * `params` - The arguments to pass to the function.
     ///
-    /// # Erros
+    /// # Errors
     ///
     /// If fail to run the host function, then an error is returned.
     fn run_func_ref(

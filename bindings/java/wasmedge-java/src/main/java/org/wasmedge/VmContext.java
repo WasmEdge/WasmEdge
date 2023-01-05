@@ -1,9 +1,12 @@
 package org.wasmedge;
 
-public class VMContext {
+/**
+ * Vm context, for manipulating vm.
+ */
+public class VmContext {
     private long pointer;
 
-    public VMContext(ConfigureContext configContext, StoreContext storeContext) {
+    public VmContext(ConfigureContext configContext, StoreContext storeContext) {
         initNative(configContext, storeContext);
     }
 

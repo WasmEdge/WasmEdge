@@ -2,6 +2,9 @@ package org.wasmedge;
 
 import org.wasmedge.enums.ValueType;
 
+/**
+ * f4 value.
+ */
 public final class F64Value implements Value {
     private double value;
 

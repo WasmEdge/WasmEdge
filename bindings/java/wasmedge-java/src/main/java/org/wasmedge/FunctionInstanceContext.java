@@ -1,5 +1,8 @@
 package org.wasmedge;
 
+/**
+ * function instance context.
+ */
 public class FunctionInstanceContext {
     private long pointer;
 
@@ -10,7 +13,7 @@ public class FunctionInstanceContext {
     public FunctionInstanceContext(FunctionTypeContext type,
                                    HostFunction hostFunction, Object data,
                                    long cost) {
-        String funcKey = WasmEdgeVM.addHostFunc(hostFunction);
+        String funcKey = WasmEdgeVm.addHostFunc(hostFunction);
         nativeCreateFunction(type, funcKey, data, cost);
     }
 
@@ -21,7 +24,8 @@ public class FunctionInstanceContext {
         nativeCreateBinding(type, wrapFunction, binding, data, cost);
     }
 
-    private native void nativeCreateFunction(FunctionTypeContext typeContext, String funcKey, Object data, long cost);
+    private native void nativeCreateFunction(FunctionTypeContext typeContext,
+                                             String funcKey, Object data, long cost);
 
     private native void nativeCreateBinding(FunctionTypeContext typeContext,
                                             WrapFunction wrapFunction,

@@ -8,7 +8,7 @@ license = "Apache-2.0"
 name = "wasmedge-sdk"
 readme = "README.md"
 repository = "https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sdk"
-version = "0.7.1"
+version = "0.8.0"
 
 [dependencies]
 anyhow = "1.0"
@@ -27,6 +27,7 @@ default = []
 standalone = ["wasmedge-sys/standalone"]
 wasi_crypto = ["wasmedge-sys/wasi_crypto"]
 wasi_nn = ["wasmedge-sys/wasi_nn"]
+static = ["wasmedge-sys/static"]
 
 [dev-dependencies]
 tokio = {version = "1", features = ["full"]}

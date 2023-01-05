@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "asymmetric_common/registed.h"
+#include "asymmetric_common/registered.h"
 #include "utils/error.h"
 
 #include <cstdint>

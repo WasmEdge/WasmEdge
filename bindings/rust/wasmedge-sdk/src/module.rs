@@ -18,7 +18,7 @@ impl Module {
     ///
     /// * `config` - The global configuration.
     ///
-    /// * `file` - The `wasm`, `wat` or shared (aot) library file. If a shared (aot) library file is present, the extension is 'dylib' for 'macOS', 'so' for 'Linux', or 'dll' for 'Windows'.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// # Error
     ///

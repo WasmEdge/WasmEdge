@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "signatures/registed.h"
+#include "signatures/registered.h"
 #include "utils/error.h"
 
 namespace WasmEdge {

@@ -64,9 +64,9 @@ public class BaseTest {
 
     byte[] WASM_MAGIC = {0x00, 0x61, 0x73, 0x6D};
 
-    public static ASTModuleContext loadMod(ConfigureContext configureContext, String path) {
+    public static AstModuleContext loadMod(ConfigureContext configureContext, String path) {
         LoaderContext loaderContext = new LoaderContext(configureContext);
-        ASTModuleContext astModuleContext = loaderContext.parseFromFile(getResourcePath(path));
+        AstModuleContext astModuleContext = loaderContext.parseFromFile(getResourcePath(path));
         loaderContext.delete();
         return astModuleContext;
     }

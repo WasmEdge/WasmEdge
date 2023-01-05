@@ -148,7 +148,7 @@ let buf = &self.inner.parse_msg();
 
 To add the host function to a crate that can be used by Rust code, we also implement the [httpreq module](https://github.com/second-state/wasmedge_http_req).
 
-### Implemention of httpsreq host function
+### Implementation of httpsreq host function
 
 The httpsreq host has three functions (i.e. `send_data`, `get_rcv_len` and `get_rcv`)
 The `send_data` function uses the OpenSSL library to send the data to the server. The `send_data` function receives three inputs, that is, the host, the port and the parsed request.

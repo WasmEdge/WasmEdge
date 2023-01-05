@@ -6,7 +6,7 @@ on:
       version:
         type: string
         required: true
-      matrix: # [ { runner, docker_tag }, ... ]
+      matrix: # [ { name, runner, docker_tag }, ... ]
         type: string
         required: true
       tests:
@@ -22,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(inputs.matrix) }}
-    name: Build on Ubuntu with ${{ matrix.compiler }} ${{ matrix.build_type }}
+    name: Build on ${{ matrix.name }} with ${{ matrix.compiler }} ${{ matrix.build_type }}
     runs-on: ubuntu-latest
     env:
       BUILD_TESTS: OFF
@@ -43,9 +43,9 @@ jobs:
         run: |
           git config --global --add safe.directory $(pwd)
           if [[ "${{ matrix.compiler }}" == "clang++" ]]; then
-            cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+            cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_BUILD_PACKAGE="TGZ" ${{ matrix.options }} .
           else
-            cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+            cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_BUILD_PACKAGE="TGZ" ${{ matrix.options }} .
           fi
           cmake --build build
           cmake --build build --target package
@@ -71,7 +71,7 @@ jobs:
         if: ${{ !inputs.release && !matrix.coverage }}
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-${{ inputs.version }}-ubuntu-20.04-${{ matrix.compiler }}-${{ matrix.build_type }}.tar.gz
+          name: WasmEdge-${{ inputs.version }}-${{ matrix.name }}-${{ matrix.compiler }}-${{ matrix.build_type }}.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
       - name: Upload package tarball
         if: ${{ inputs.release }}

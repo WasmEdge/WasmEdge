@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.10.2)
 cmake_policy(SET CMP0091 NEW)
 project(WasmEdge)
 
-set(WASMEDGE_CAPI_VERSION "0.0.1" CACHE STRING "WasmEdge C API library version")
+set(WASMEDGE_CAPI_VERSION "0.0.2" CACHE STRING "WasmEdge C API library version")
 set(WASMEDGE_CAPI_SOVERSION "0" CACHE STRING "WasmEdge C API library soversion")
 
 find_program(GIT_CMD git)
@@ -91,8 +91,10 @@ if(WASMEDGE_BUILD_TOOLS)
     # Static tools will link LLVM statically.
     set(WASMEDGE_LINK_LLVM_STATIC ON)
     # Tools will forcefully turn on the static library building.
-    set(WASMEDGE_LINK_TOOLS_STATIC ON)
-    message(WARNING "For tuning on the WASMEDGE_LINK_TOOLS_STATIC option, the plugins will not work.")
+    set(WASMEDGE_BUILD_STATIC_LIB ON)
+    if(WASMEDGE_BUILD_PLUGINS)
+      message(WARNING "For tuning on the WASMEDGE_LINK_TOOLS_STATIC option, the plugins will not work.")
+    endif()
   else()
     # Tools will forcefully turn on the shared library building.
     set(WASMEDGE_BUILD_SHARED_LIB ON)

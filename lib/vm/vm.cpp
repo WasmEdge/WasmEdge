@@ -73,7 +73,7 @@ void VM::unsafeInitVM() {
     if (Conf.isForbiddenPlugins(Plugin.name())) {
       continue;
     }
-    // skip WasmEdge_Process, wasi_nn, ans wasi_crypto.
+    // skip WasmEdge_Process, wasi_nn, and wasi_crypto.
     if (Plugin.name() == "wasmedge_process"sv || Plugin.name() == "wasi_nn"sv ||
         Plugin.name() == "wasi_crypto"sv) {
       continue;

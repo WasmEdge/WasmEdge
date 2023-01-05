@@ -1,6 +1,6 @@
 # WasmEdge Command Line Tools
 
-After the [WasmEdge installataion](quick_start/install.md), the `wasmedge` and `wasmedgec` tools are installed.
+After the [WasmEdge installation](quick_start/install.md), the `wasmedge` and `wasmedgec` tools are installed.
 
 Users can use these WasmEdge CLI tools to execute the WebAssembly files quickly.
 

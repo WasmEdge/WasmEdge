@@ -1,5 +1,8 @@
 package org.wasmedge;
 
+/**
+ * Memory type.
+ */
 public class MemoryTypeContext {
     private long pointer;
     private Limit limit;

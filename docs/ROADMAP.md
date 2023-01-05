@@ -23,7 +23,7 @@ Last Updated: Sep 2022
 | Proposal                  | WASI signature proposal | Q1 / 2022 |
 | Feature                   | Enhance info/debug logging, provide verbose mode (wasmedge a.wasm –verbose=3) | Q1 / 2022 |
 | Feature                   | Apply WasmEdge-bindgen to Rust SDK | Q1 / 2022 |
-| Host function             | Databse connetor | Q1 / 2022 |
+| Host function             | Database connector | Q1 / 2022 |
 | Languages Bindings        | Rust SDK | Q1 / 2022 |
 | Languages Bindings        | Python SDK | Q1 / 2022 |
 | Languages Bindings        | Update the Node.js SDK to make it compatible with C API | Q1 / 2022 |

@@ -929,14 +929,17 @@ impl AsImport for WasiModule {
 /// Notice that before creating or initiating a [WasmEdgeProcessModule], it MUST be guaranteed that the `wasmedge_process` plugins are loaded. If not, use the [load_plugin_from_default_paths](crate::utils::load_plugin_from_default_paths) function to load the relevant plugins from the default paths, shown as the code below.
 ///
 /// ```rust
-/// use wasmedge_sys::{utils, WasmEdgeProcessModule};
+/// #[cfg(all(not(feature = "static"), target_os = "linux"))]
+/// {
+///     use wasmedge_sys::{utils, WasmEdgeProcessModule};
 ///
-/// // load plugins from default paths
-/// utils::load_plugin_from_default_paths();
+///     // load plugins from default paths
+///     utils::load_plugin_from_default_paths();
 ///
-/// // create wasmedge_process
-/// let result = WasmEdgeProcessModule::create(Some(vec!["arg1", "arg2"]), true);
-/// assert!(result.is_ok());
+///     // create wasmedge_process
+///     let result = WasmEdgeProcessModule::create(Some(vec!["arg1", "arg2"]), true);
+///     assert!(result.is_ok());
+/// }
 /// ```
 ///
 ///
@@ -2951,8 +2954,6 @@ pub enum WasiCrypto {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(target_os = "linux")]
-    use crate::utils;
     use crate::{
         CallingFrame, Config, Executor, FuncType, GlobalType, ImportModule, MemType, Store,
         TableType, Vm, WasmValue,
@@ -3212,8 +3213,10 @@ mod tests {
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
-    #[cfg(target_os = "linux")]
+    #[cfg(all(not(feature = "static"), target_os = "linux"))]
     fn test_instance_wasmedge_process() {
+        use crate::utils;
+
         // load plugins
         utils::load_plugin_from_default_paths();
 
@@ -3369,7 +3372,7 @@ mod tests {
         assert!(!store.inner.0.is_null());
         assert!(!store.registered);
 
-        // check the length of registered module list in store before instatiation
+        // check the length of registered module list in store before instantiation
         assert_eq!(store.module_len(), 0);
         assert!(store.module_names().is_none());
 

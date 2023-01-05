@@ -29,7 +29,7 @@ public class ModuleInstanceContextTest extends BaseTest {
         executorContext.registerImport(storeContext, hostMod);
 
         // load mod
-        ASTModuleContext mod = loadMod(conf, TEST_WASM_PATH);
+        AstModuleContext mod = loadMod(conf, TEST_WASM_PATH);
         ValidatorContext validator = new ValidatorContext(conf);
         validator.validate(mod);
         executorContext.register(storeContext, mod, "module");
@@ -88,8 +88,8 @@ public class ModuleInstanceContextTest extends BaseTest {
 
     @Test
     public void testCreateWASI() {
-        ModuleInstanceContext moduleInstanceContext = ModuleInstanceContext.CreateWASI(args, envs, preopens);
-        int code = moduleInstanceContext.getWASIExitCode();
+        ModuleInstanceContext moduleInstanceContext = ModuleInstanceContext.createWasi(args, envs, preopens);
+        int code = moduleInstanceContext.getWasiExitCode();
         Assert.assertEquals(0, code);
     }
 
@@ -97,9 +97,9 @@ public class ModuleInstanceContextTest extends BaseTest {
     public void testInitWasiInVM() {
         ConfigureContext config = new ConfigureContext();
         config.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
-        WasmEdgeVM vm = new WasmEdgeVM(config, null);
+        WasmEdgeVm vm = new WasmEdgeVm(config, null);
         ModuleInstanceContext moduleInstanceContext = vm.getImportModuleContext(HostRegistration.WasmEdge_HostRegistration_Wasi);
-        moduleInstanceContext.initWASI(args, envs, preopens);
+        moduleInstanceContext.initWasi(args, envs, preopens);
     }
 
     @Test
@@ -113,7 +113,7 @@ public class ModuleInstanceContextTest extends BaseTest {
     public void testInitWasmEdgeProcessInVM() {
         ConfigureContext config = new ConfigureContext();
         config.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_WasmEdge_Process);
-        WasmEdgeVM vm = new WasmEdgeVM(config, null);
+        WasmEdgeVm vm = new WasmEdgeVm(config, null);
         ModuleInstanceContext moduleInstanceContext = vm.getImportModuleContext(HostRegistration.WasmEdge_HostRegistration_WasmEdge_Process);
         moduleInstanceContext.initWasmEdgeProcess(args, false);
     }

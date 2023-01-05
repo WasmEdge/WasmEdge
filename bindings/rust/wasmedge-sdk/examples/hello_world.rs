@@ -79,7 +79,7 @@ fn main() -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::Error::msg("Not found exported function named 'run'."))?;
 
     // run host function
-    run.call(&mut executor, params!())?;
+    run.call(&executor, params!())?;
 
     Ok(())
 }

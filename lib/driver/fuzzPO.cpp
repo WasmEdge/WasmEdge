@@ -120,10 +120,10 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
       .add_option("memory-page-limit"sv, MemLim)
       .add_option("forbidden-plugin"sv, ForbiddenPlugins);
 
-  static constexpr const std::array<char, 4> Separater = {'\xde', '\xad',
+  static constexpr const std::array<char, 4> Separator = {'\xde', '\xad',
                                                           '\xbe', '\xef'};
   static const boost::algorithm::boyer_moore_horspool Searcher(
-      Separater.begin(), Separater.end());
+      Separator.begin(), Separator.end());
   Span<const char> RawArgs(reinterpret_cast<const char *>(Data), Size);
   std::vector<std::string> ArgvStr;
   std::vector<const char *> Argv;

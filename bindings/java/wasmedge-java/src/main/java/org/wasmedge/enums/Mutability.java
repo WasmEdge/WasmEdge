@@ -2,6 +2,9 @@ package org.wasmedge.enums;
 
 import java.util.Arrays;
 
+/**
+ * Enum for mutability.
+ */
 public enum Mutability {
     CONST(0x00),
     VAR(0x01);

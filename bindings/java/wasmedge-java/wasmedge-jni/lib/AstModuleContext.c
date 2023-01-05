@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "../jni/org_wasmedge_ASTModuleContext.h"
+#include "../jni/org_wasmedge_AstModuleContext.h"
 #include "ExportTypeContext.h"
 #include "ImportTypeContext.h"
 #include "common.h"
@@ -11,7 +11,7 @@
 
 GETTER(ASTModuleContext)
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_ASTModuleContext_listImports(
+JNIEXPORT jobject JNICALL Java_org_wasmedge_AstModuleContext_listImports(
     JNIEnv *env, jobject thisObject) {
   WasmEdge_ASTModuleContext *cxt = getASTModuleContext(env, thisObject);
   uint32_t len = WasmEdge_ASTModuleListImportsLength(cxt);
@@ -35,7 +35,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_ASTModuleContext_listImports(
   return importList;
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_ASTModuleContext_listExports(
+JNIEXPORT jobject JNICALL Java_org_wasmedge_AstModuleContext_listExports(
     JNIEnv *env, jobject thisObject) {
   WasmEdge_ASTModuleContext *cxt = getASTModuleContext(env, thisObject);
   uint32_t len = WasmEdge_ASTModuleListExportsLength(cxt);
@@ -67,7 +67,7 @@ jobject createAstModuleContext(JNIEnv *env,
 }
 
 JNIEXPORT void JNICALL
-Java_org_wasmedge_ASTModuleContext_delete(JNIEnv *env, jobject thisObject) {
+Java_org_wasmedge_AstModuleContext_delete(JNIEnv *env, jobject thisObject) {
   WasmEdge_ASTModuleContext *mod = getASTModuleContext(env, thisObject);
   WasmEdge_ASTModuleDelete(mod);
 }

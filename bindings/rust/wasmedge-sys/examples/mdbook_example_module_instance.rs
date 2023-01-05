@@ -1,26 +1,26 @@
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 use wasmedge_macro::sys_host_function;
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 use wasmedge_sys::{
     utils, AsImport, CallingFrame, Config, Executor, FuncType, Function, Global, GlobalType,
     ImportModule, ImportObject, Loader, MemType, Memory, Store, Table, TableType, Validator, Vm,
     WasmValue,
 };
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 use wasmedge_types::{error::HostFuncError, wat2wasm, Mutability, RefType, ValType};
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(target_os = "linux")]
+    #[cfg(all(not(feature = "static"), target_os = "linux"))]
     vm_apis()?;
 
-    #[cfg(target_os = "linux")]
+    #[cfg(all(not(feature = "static"), target_os = "linux"))]
     executor_apis()?;
 
     Ok(())
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 #[allow(clippy::assertions_on_result_states)]
 fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
     // load wasmedge_process plugins
@@ -152,14 +152,14 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
     "#,
         )?;
 
-        // load a wasm module from a in-memory bytes, and the loaded wasm module works as an anoymous
+        // load a wasm module from a in-memory bytes, and the loaded wasm module works as an anonymous
         // module (aka. active module in WasmEdge terminology)
         vm.load_wasm_from_bytes(&wasm_bytes)?;
 
         // validate the loaded active module
         vm.validate()?;
 
-        // instatiate the loaded active module
+        // instantiate the loaded active module
         vm.instantiate()?;
 
         // get the active module instance
@@ -170,7 +170,7 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 #[allow(clippy::assertions_on_result_states)]
 fn executor_apis() -> Result<(), Box<dyn std::error::Error>> {
     // create an Executor context

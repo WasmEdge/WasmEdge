@@ -30,7 +30,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_nativeInit(
  * Signature: (Lorg/wasmedge/StoreContext;Lorg/wasmedge/ASTModuleContext;)V
  */
 JNIEXPORT jobject JNICALL
-Java_org_wasmedge_ExecutorContext_instantiate__Lorg_wasmedge_StoreContext_2Lorg_wasmedge_ASTModuleContext_2(
+Java_org_wasmedge_ExecutorContext_instantiate(
     JNIEnv *env, jobject thisObject, jobject jStoreCxt, jobject jAstModCxt) {
   WasmEdge_ExecutorContext *exeCxt = getExecutorContext(env, thisObject);
   WasmEdge_StoreContext *storeCxt = getStoreContext(env, jStoreCxt);

@@ -1639,6 +1639,7 @@ if __name__ == "__main__":
         required=False,
         default=platform.system(),
         choices=["Linux", "Darwin"],
+        type=lambda s: s.title(),
         help="Platform ex- Linux, Darwin, Windows",
     )
     parser.add_argument(
@@ -1648,6 +1649,7 @@ if __name__ == "__main__":
         required=False,
         default=platform.machine(),
         choices=["x86_64", "aarch64", "arm", "arm64"],
+        type=lambda s: s.lower(),
         help="Machine ex- x86_64, aarch64",
     )
     parser.add_argument(
@@ -1656,6 +1658,7 @@ if __name__ == "__main__":
         required=False,
         default=None,
         choices=["ubuntu20.04", "manylinux2014"],
+        type=lambda s: s.lower(),
         help="Dist ex- ubuntu20.04,manylinux2014",
     )
     args = parser.parse_args()

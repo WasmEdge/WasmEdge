@@ -1634,16 +1634,20 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--platform",
+        "--os",
         dest="platform",
         required=False,
         default=platform.system(),
+        choices=["Linux", "Darwin"],
         help="Platform ex- Linux, Darwin, Windows",
     )
     parser.add_argument(
         "--machine",
+        "--arch",
         dest="machine",
         required=False,
         default=platform.machine(),
+        choices=["x86_64", "aarch64", "arm", "arm64"],
         help="Machine ex- x86_64, aarch64",
     )
     parser.add_argument(
@@ -1651,6 +1655,7 @@ if __name__ == "__main__":
         dest="dist",
         required=False,
         default=None,
+        choices=["ubuntu20.04", "manylinux2014"],
         help="Dist ex- ubuntu20.04,manylinux2014",
     )
     args = parser.parse_args()

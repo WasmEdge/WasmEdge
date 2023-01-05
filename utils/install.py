@@ -244,14 +244,14 @@ SUPPORTED_PLATFORM_MACHINE = {
 }
 
 SUPPORTED_MIN_VERSION = {
-    "Linux" + "x86_64": VersionString("0.8.0"),
-    "Linux" + "amd64": VersionString("0.8.0"),
-    "Linux" + "arm64": VersionString("0.8.0"),
-    "Linux" + "armv8": VersionString("0.8.1"),
-    "Linux" + "aarch64": VersionString("0.8.1"),
-    "Darwin" + "x86_64": VersionString("0.8.2"),
-    "Darwin" + "arm64": VersionString("0.8.2"),
-    "Darwin" + "arm": VersionString("0.8.2"),
+    "Linux" + "x86_64": VersionString("0.9.0"),
+    "Linux" + "amd64": VersionString("0.9.0"),
+    "Linux" + "arm64": VersionString("0.9.0"),
+    "Linux" + "armv8": VersionString("0.9.0"),
+    "Linux" + "aarch64": VersionString("0.9.0"),
+    "Darwin" + "x86_64": VersionString("0.9.0"),
+    "Darwin" + "arm64": VersionString("0.9.0"),
+    "Darwin" + "arm": VersionString("0.9.0"),
 }
 
 WASMEDGE = "WasmEdge"
@@ -277,23 +277,21 @@ SUPPORTED_EXTENSIONS = {
 }
 
 SUPPORTED_EXTENSIONS_VERSION = {
-    "Linux" + "x86_64" + TENSORFLOW: VersionString("0.8.1"),
-    "Linux" + "x86_64" + IMAGE: VersionString("0.8.1"),
-    "Linux" + "x86_64" + IMAGE_DEPS: VersionString("0.8.2"),
-    "Linux" + "amd64" + TENSORFLOW: VersionString("0.8.1"),
-    "Linux" + "amd64" + IMAGE: VersionString("0.8.1"),
-    "Linux" + "arm64" + TENSORFLOW: VersionString("0.8.1"),
-    "Linux" + "arm64" + IMAGE: VersionString("0.8.1"),
-    "Linux" + "armv8" + TENSORFLOW: VersionString("0.8.1"),
-    "Linux" + "armv8" + IMAGE: VersionString("0.8.1"),
+    "Linux" + "x86_64" + TENSORFLOW: VersionString("0.9.0"),
+    "Linux" + "x86_64" + IMAGE: VersionString("0.9.0"),
+    "Linux" + "x86_64" + IMAGE_DEPS: VersionString("0.9.0"),
+    "Linux" + "amd64" + TENSORFLOW: VersionString("0.9.0"),
+    "Linux" + "amd64" + IMAGE: VersionString("0.9.0"),
+    "Linux" + "arm64" + TENSORFLOW: VersionString("0.9.0"),
+    "Linux" + "arm64" + IMAGE: VersionString("0.9.0"),
+    "Linux" + "armv8" + TENSORFLOW: VersionString("0.9.0"),
+    "Linux" + "armv8" + IMAGE: VersionString("0.9.0"),
     "Linux" + "aarch64" + TENSORFLOW: VersionString("0.9.1-beta.1"),
     "Linux" + "aarch64" + IMAGE: VersionString("0.9.1-beta.1"),
     "Darwin" + "x86_64" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
     "Darwin" + "x86_64" + IMAGE: VersionString("0.10.0-alpha.1"),
     "Darwin" + "arm64" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
-    # "Darwin" + "arm64" + IMAGE: VersionString("0.8.1"),
     "Darwin" + "arm" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
-    # "Darwin" + "arm" + IMAGE: VersionString("0.8.1"),
 }
 
 WASI_NN_OPENVINO = "wasi_nn-openvino"
@@ -643,7 +641,7 @@ def install_image_extension(args, compat):
             SUPPORTED_EXTENSIONS_VERSION[compat.prefix() + IMAGE_DEPS].compare(
                 args.image_deps_version
             )
-            >= 0
+            > 0
         ):
             print("Installing image deps")
             image_deps_pkg = (

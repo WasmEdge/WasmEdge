@@ -8,7 +8,6 @@ To get started with WasmEdge, follow these steps:
 
 Install the WasmEdge C/C++ SDK: Download C++ SDK from the WasmEdge [website](https://wasmedge.org/book/en/quick_start/install.html) and follow the instructions to install it on your developement machine
 
-
 ```cpp
 #include <wasmedge/wasmedge.h>
 #include <iostream>
@@ -42,11 +41,12 @@ int main(int argc, char** argv) {
   return 0;
 }
 ```
+
 You can use the -I flag to specify the include directories and the -L and -l flags to specify the library directories and library names, respectively.
 Then you can compile the code and run: ( the 40th fibonacci number is 102334155)
 
 ```bash
-$ gcc example.cpp -x c++ -I/path/to/wasmedge/include -L/path/to/wasmedge/lib -lwasmedge -o example
+gcc example.cpp -x c++ -I/path/to/wasmedge/include -L/path/to/wasmedge/lib -lwasmedge -o example
 ```
 
 To run the `example` executable that was created in the previous step, you can use the following command
@@ -54,6 +54,7 @@ To run the `example` executable that was created in the previous step, you can u
 ```bash
 ./example
 ```
+
 ## Quick Start Guide in AOT compiler
 
 ```cpp

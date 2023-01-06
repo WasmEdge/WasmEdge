@@ -1224,6 +1224,17 @@ class Compat:
                     )
                 )
             )
+
+        if not get_remote_version_availability(
+            "WasmEdge/WasmEdge", self.version.version
+        ):
+            reraise(
+                Exception(
+                    "Version {0} does not exist in remote repository of WasmEdge".format(
+                        self.version.version
+                    )
+                )
+            )
         return True
 
     def prefix(self):

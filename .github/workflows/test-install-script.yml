@@ -122,7 +122,7 @@ jobs:
       run: |
         bash utils/install.sh -e all --version=0.9.1-beta.1 \
         --tf-version=0.9.1-beta.1 --tf-deps-version=0.9.1-beta.1  --tf-tools-version=0.9.1-beta.1  \
-        --image-version=0.9.1-beta.1 --image-deps-version=0.9.1-beta.1
+        --image-version=0.9.1-beta.1
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V 

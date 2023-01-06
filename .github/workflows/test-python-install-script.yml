@@ -126,10 +126,10 @@ jobs:
       run: |
         ${{ matrix.python2_ex }} utils/install.py -e all --version=0.9.1-beta.1 \
         --tf-version=0.9.1-beta.1 --tf-deps-version=0.9.1-beta.1  --tf-tools-version=0.9.1-beta.1  \
-        --image-version=0.9.1-beta.1 --image-deps-version=0.9.1-beta.1 -D
+        --image-version=0.9.1-beta.1 -D
         ${{ matrix.python3_ex }} utils/install.py -e all --version=0.9.1-beta.1 \
         --tf-version=0.9.1-beta.1 --tf-deps-version=0.9.1-beta.1  --tf-tools-version=0.9.1-beta.1  \
-        --image-version=0.9.1-beta.1 --image-deps-version=0.9.1-beta.1 -D
+        --image-version=0.9.1-beta.1 -D
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V

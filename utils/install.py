@@ -262,7 +262,6 @@ TENSORFLOW_DEPS = "tensorflow_deps"
 TENSORFLOW_LITE_DEPS = "tensorflow_lite_deps"
 TENSORFLOW_TOOLS = "tensorflow_tools"
 IMAGE = "image"
-IMAGE_DEPS = "image_deps"
 EXTENSIONS = [TENSORFLOW, IMAGE]
 
 SUPPORTED_EXTENSIONS = {
@@ -279,7 +278,6 @@ SUPPORTED_EXTENSIONS = {
 SUPPORTED_EXTENSIONS_VERSION = {
     "Linux" + "x86_64" + TENSORFLOW: VersionString("0.9.0"),
     "Linux" + "x86_64" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "x86_64" + IMAGE_DEPS: VersionString("0.9.0"),
     "Linux" + "amd64" + TENSORFLOW: VersionString("0.9.0"),
     "Linux" + "amd64" + IMAGE: VersionString("0.9.0"),
     "Linux" + "arm64" + TENSORFLOW: VersionString("0.9.0"),
@@ -635,168 +633,6 @@ def install_image_extension(args, compat):
                     join(wasmedge_image_temp_dir, file),
                     join(args.path, "bin", file),
                 )
-
-    if compat.prefix() + IMAGE_DEPS in SUPPORTED_EXTENSIONS_VERSION:
-        if (
-            SUPPORTED_EXTENSIONS_VERSION[compat.prefix() + IMAGE_DEPS].compare(
-                args.image_deps_version
-            )
-            > 0
-        ):
-            print("Installing image deps")
-            image_deps_pkg = (
-                "WasmEdge-image-deps-"
-                + args.image_deps_version
-                + "-"
-                + "manylinux1_x86_64.tar.gz"
-            )
-            download_url(
-                CONST_urls[IMAGE_DEPS], join(TEMP_PATH, image_deps_pkg), show_progress
-            )
-
-            # Extract archieve
-            extract_archive(
-                join(TEMP_PATH, image_deps_pkg),
-                join(args.path, CONST_lib_dir),
-                join(TEMP_PATH, "WasmEdge-image-deps"),
-                env_file_path=CONST_env_path,
-                remove_finished=True,
-            )
-
-            copytree(
-                join(TEMP_PATH, "WasmEdge-image-deps"), join(args.path, CONST_lib_dir)
-            )
-
-            for file in listdir(join(args.path, CONST_lib_dir)):
-                if ("jpeg" not in file) and ("png" not in file):
-                    continue
-                try:
-                    # check if it contains any digits
-                    if not any(i.isdigit() for i in file):
-                        continue
-                    if compat.platform == "Linux":
-                        name, version = file.split(CONST_lib_ext, 1)
-                        if version[0] == ".":
-                            version = version[1:]
-                        no_v_env_path = join(
-                            args.path,
-                            CONST_lib_dir,
-                            name + CONST_lib_ext,
-                        )
-                        symlink(
-                            join(args.path, CONST_lib_dir, file),
-                            no_v_env_path,
-                        )
-                        single_v_env_path = join(
-                            args.path,
-                            CONST_lib_dir,
-                            name + CONST_lib_ext + "." + version.split(".")[0],
-                        )
-                        symlink(
-                            join(args.path, CONST_lib_dir, file),
-                            single_v_env_path,
-                        )
-                        double_v_env_path = join(
-                            args.path,
-                            CONST_lib_dir,
-                            name
-                            + CONST_lib_ext
-                            + "."
-                            + version.split(".")[0]
-                            + "."
-                            + version.split(".")[1],
-                        )
-                        symlink(
-                            join(args.path, CONST_lib_dir, file),
-                            double_v_env_path,
-                        )
-                        no_v_png_path = None
-                        if "png16" in name:
-                            no_v_png_path = join(
-                                args.path,
-                                CONST_lib_dir,
-                                name.split("16")[0] + CONST_lib_ext,
-                            )
-                            symlink(
-                                join(args.path, CONST_lib_dir, file),
-                                no_v_png_path,
-                            )
-                    elif compat.platform == "Darwin":
-                        name, version = file.split(CONST_lib_ext, 1)[0].split(".", 1)
-                        no_v_env_path = join(
-                            args.path,
-                            CONST_lib_dir,
-                            name + CONST_lib_ext,
-                        )
-                        symlink(
-                            join(args.path, CONST_lib_dir, file),
-                            no_v_env_path,
-                        )
-                        single_v_env_path = join(
-                            args.path,
-                            CONST_lib_dir,
-                            name + "." + version.split(".")[0] + CONST_lib_ext,
-                        )
-                        symlink(
-                            join(args.path, CONST_lib_dir, file),
-                            single_v_env_path,
-                        )
-                        double_v_env_path = join(
-                            args.path,
-                            CONST_lib_dir,
-                            name
-                            + "."
-                            + version.split(".")[0]
-                            + "."
-                            + version.split(".")[1]
-                            + CONST_lib_ext,
-                        )
-                        symlink(
-                            join(args.path, CONST_lib_dir, file),
-                            double_v_env_path,
-                        )
-                        no_v_png_path = None
-                        if "png16" in name:
-                            no_v_png_path = join(
-                                args.path,
-                                CONST_lib_dir,
-                                name.split("16")[0] + CONST_lib_ext,
-                            )
-                            symlink(
-                                join(args.path, CONST_lib_dir, file),
-                                no_v_png_path,
-                            )
-                    else:
-                        reraise(
-                            Exception(
-                                "Functionality not implemented for platform {0}".format(
-                                    compat.platform
-                                )
-                            )
-                        )
-                    with opened_w_error(CONST_env_path, "a") as env_file:
-                        if env_file is not None:
-                            env_file.write("#" + no_v_env_path + "\n")
-                            logging.debug("Appending:%s", no_v_env_path)
-                            env_file.write("#" + single_v_env_path + "\n")
-                            logging.debug("Appending:%s", single_v_env_path)
-                            env_file.write("#" + double_v_env_path + "\n")
-                            logging.debug("Appending:%s", double_v_env_path)
-                            if no_v_png_path is not None:
-                                env_file.write("#" + no_v_png_path + "\n")
-                                logging.debug("Appending:%s", no_v_png_path)
-                        else:
-                            logging.error(
-                                "Not able to append installed files to env file"
-                            )
-
-                except Exception as e:
-                    logging.critical(e)
-
-        else:
-            logging.debug("Image deps not needed: {0}".format(args.image_deps_version))
-    else:
-        logging.debug("Image deps not needed: {0}".format(compat.prefix()))
 
     fix_gnu_sparse(args)
 
@@ -1208,9 +1044,6 @@ def set_consts(args, compat):
         ),
         IMAGE: "https://github.com/second-state/WasmEdge-image/releases/download/{0}/WasmEdge-image-{0}-{1}".format(
             args.image_version, CONST_release_pkg
-        ),
-        IMAGE_DEPS: "https://github.com/second-state/WasmEdge-image/releases/download/{0}/WasmEdge-image-deps-{0}-{1}".format(
-            args.image_deps_version, "manylinux1_x86_64.tar.gz"
         ),
         TENSORFLOW_DEPS: "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{0}/WasmEdge-tensorflow-deps-TF-{0}-{1}".format(
             args.tf_deps_version, CONST_release_pkg
@@ -1626,13 +1459,6 @@ if __name__ == "__main__":
         help="Image extension version",
     )
     parser.add_argument(
-        "--image-deps-version",
-        dest="image_deps_version",
-        required=False,
-        default=None,
-        help="Image Deps version",
-    )
-    parser.add_argument(
         "--platform",
         "--os",
         dest="platform",
@@ -1678,9 +1504,6 @@ if __name__ == "__main__":
 
     if args.image_version is None:
         args.image_version = args.version
-
-    if args.image_deps_version is None:
-        args.image_deps_version = args.version
 
     logging.debug("Python Version: %s", sys.version_info)
     main(args)

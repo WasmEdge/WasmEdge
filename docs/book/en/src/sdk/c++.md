@@ -6,7 +6,7 @@ The WasmEdge C++ SDK is a collection of headers and libraries that allow you to 
 
 To get started with WasmEdge, follow these steps:
 
-Install the WasmEdge C/C++ SDK: Download C++ SDK from the WasmEdge [website](https://wasmedge.org/book/en/quick_start/install.html) and follow the instructions to install it on your developement machine
+Install the WasmEdge C/C++ SDK: Download C++ SDK from the WasmEdge [website](https://wasmedge.org/book/en/quick_start/install.html) and follow the instructions to install it on your development machine
 
 ```cpp
 #include <wasmedge/wasmedge.h>

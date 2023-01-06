@@ -1196,9 +1196,9 @@ class Compat:
     def bool_overload(self):
         if self.platform not in SUPPORTED_PLATFORM_MACHINE:
             reraise(Exception("Unsupported platform: {0}".format(self.platform)))
-        elif self.machine not in SUPPORTED_PLATFORM_MACHINE[self.platform]:
+        if self.machine not in SUPPORTED_PLATFORM_MACHINE[self.platform]:
             reraise(Exception("Unsupported machine: {0}".format(self.machine)))
-        elif self.extensions is not None and len(self.extensions) > 0:
+        if self.extensions is not None and len(self.extensions) > 0:
             if not (
                 set(self.extensions)
                 <= set(SUPPORTED_EXTENSIONS[self.platform + self.machine])
@@ -1211,7 +1211,7 @@ class Compat:
                         )
                     )
                 )
-        elif (
+        if (
             self.version.compare(
                 version2=SUPPORTED_MIN_VERSION[self.platform + self.machine].version
             )

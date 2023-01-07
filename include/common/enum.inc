@@ -42,6 +42,14 @@ A(Seg_Element, "element segment")
 A(Seg_Code, "code segment")
 A(Seg_Data, "data segment")
 A(Type_Function, "function type")
+A(Type_Defined, "defined type")
+A(Type_Rec, "rec type")
+A(Type_Sub, "sub type")
+A(Type_Struct, "struct type")
+A(Type_Array, "array type")
+A(Type_Structure, "structure type")
+A(Type_Field, "field type")
+A(Type_Storage, "storage type")
 A(Type_ValType, "value type")
 A(Type_RefType, "reference type")
 A(Type_Limit, "limit")
@@ -639,6 +647,7 @@ P(ExceptionHandling, "Exception handling")
 P(ExtendedConst, "Extended const")
 P(Threads, "Threads")
 P(FunctionReferences, "Typed Function References")
+P(GC, "GC proposal")
 #undef P
 #endif // UseProposal
 
@@ -950,11 +959,21 @@ N(V128, 0x7B)
 #undef N
 #endif // UseNumType
 
+#define NegativeOpCode(NUM) (0x80 + (NUM)) // Only used for gc proposal op code
+
 #ifdef UseHeapTypeCode
 #define H Line
 
-H(Extern, 0x6F)
-H(Func, 0x70)
+H(Func, 0x70)   // NegativeOpCode(-0x10)
+H(Extern, 0x6F) // NegativeOpCode(-0x11)
+H(Any, NegativeOpCode(-0x12))
+H(Eq, NegativeOpCode(-0x13))
+H(I31, NegativeOpCode(-0x16))
+H(NoFunc, NegativeOpCode(-0x17))
+H(NoExtern, NegativeOpCode(-0x18))
+H(Struct, NegativeOpCode(-0x19))
+H(Array, NegativeOpCode(-0x1A))
+H(None, NegativeOpCode(-0x1B))
 // This stands for type defined in wasm module. The value `0xFF` is an arbitary
 // value.
 H(Defined, 0xFF)
@@ -1001,5 +1020,28 @@ E(Global, 0x03U, "global")
 
 #undef E
 #endif // UseExternalType
+
+#ifdef UsePackedType
+#define T Line
+T(I8, NegativeOpCode(-0x06), "i8")
+T(I16, NegativeOpCode(-0x07), "i16")
+
+#undef T
+#endif // UsePackedType
+
+#ifdef UseDefinedTypeOpCode
+#define T Line
+
+T(Func, NegativeOpCode(-0x20), "func")
+T(Struct, NegativeOpCode(-0x21), "struct")
+T(Array, NegativeOpCode(-0x22), "array")
+T(Sub, NegativeOpCode(-0x30), "sub-type")
+T(Rec, NegativeOpCode(-0x31), "rec-type")
+T(SubFinal, NegativeOpCode(-0x32), "sub-final-type")
+
+#undef T
+#endif // UseDefinedTypeOpCode
+
+#undef NegativeOpCode
 
 // vim: ft=cpp

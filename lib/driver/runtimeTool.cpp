@@ -78,6 +78,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       PO::Description("Enable Threads proposal"sv));
   PO::Option<PO::Toggle> PropFunctionReference(
       PO::Description("Enable Function Reference proposal"sv));
+  PO::Option<PO::Toggle> PropGc(PO::Description("Enable GC proposal"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
 
   PO::Option<PO::Toggle> ConfEnableInstructionCounting(PO::Description(
@@ -132,6 +133,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       .add_option("enable-extended-const"sv, PropExtendConst)
       .add_option("enable-threads"sv, PropThreads)
       .add_option("enable-function-reference"sv, PropFunctionReference)
+      .add_option("enable-gc"sv, PropGc)
       .add_option("enable-all"sv, PropAll)
       .add_option("time-limit"sv, TimeLim)
       .add_option("gas-limit"sv, GasLim)
@@ -190,6 +192,15 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       return EXIT_FAILURE;
     }
     Conf.addProposal(Proposal::FunctionReferences);
+  }
+  if (PropGc.value()) {
+    if (!PropFunctionReference.value()) {
+      std::cerr << "GC proposal is based on Function References "
+                   "proposal, which is not enabled."
+                << std::endl;
+      return EXIT_FAILURE;
+    }
+    Conf.addProposal(Proposal::GC);
   }
   if (PropAll.value()) {
     Conf.addProposal(Proposal::MultiMemories);
@@ -250,6 +261,11 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       VM.getImportModule(HostRegistration::Wasi));
 
   if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
+    return EXIT_FAILURE;
+  }
+
+  if (Conf.hasProposal(Proposal::GC)) {
+    std::cerr << "GC proposal is only ready for loading phase" << std::endl;
     return EXIT_FAILURE;
   }
 

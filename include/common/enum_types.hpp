@@ -327,6 +327,22 @@ enum class ExternalType : uint8_t {
 #undef UseExternalType
 };
 
+enum class PackedType : uint8_t {
+#define UsePackedType
+#define Line(NAME, VALUE, STRING) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UsePackedType
+};
+
+enum class DefinedTypeOpCode : uint8_t {
+#define UseDefinedTypeOpCode
+#define Line(NAME, VALUE, STRING) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseDefinedTypeOpCode
+};
+
 static inline constexpr auto ExternalTypeStr = []() constexpr {
   using namespace std::literals::string_view_literals;
   std::pair<ExternalType, std::string_view> Array[] = {

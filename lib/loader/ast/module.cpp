@@ -297,13 +297,13 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
     auto CodeSymbols = Library->getCodes<void>();
     auto IntrinsicsSymbol =
         Library->getIntrinsics<const AST::Module::IntrinsicsTable *>();
-    auto &FuncTypes = Mod->getTypeSection().getContent();
+    auto &DefinedTypes = Mod->getTypeSection().getContent();
     auto &CodeSegs = Mod->getCodeSection().getContent();
     if (!FallBackInterpreter &&
-        unlikely(FuncTypeSymbols.size() != FuncTypes.size())) {
+        unlikely(FuncTypeSymbols.size() != DefinedTypes.size())) {
       spdlog::error("    AOT section -- number of types not matching:{} {}, "
                     "use interpreter mode instead.",
-                    FuncTypeSymbols.size(), FuncTypes.size());
+                    FuncTypeSymbols.size(), DefinedTypes.size());
       FallBackInterpreter = true;
     }
     if (!FallBackInterpreter &&
@@ -321,8 +321,8 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
 
     // Set the symbols into the module.
     if (!FallBackInterpreter) {
-      for (size_t I = 0; I < FuncTypes.size(); ++I) {
-        FuncTypes[I].setSymbol(std::move(FuncTypeSymbols[I]));
+      for (size_t I = 0; I < DefinedTypes.size(); ++I) {
+        DefinedTypes[I].asFunctionType().setSymbol(std::move(FuncTypeSymbols[I]));
       }
       for (size_t I = 0; I < CodeSegs.size(); ++I) {
         CodeSegs[I].setSymbol(std::move(CodeSymbols[I]));
@@ -344,12 +344,12 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
 
 // Load compiled function from loadable manager. See "include/loader/loader.h".
 Expect<void> Loader::loadCompiled(AST::Module &Mod) {
-  auto &FuncTypes = Mod.getTypeSection().getContent();
-  for (size_t I = 0; I < FuncTypes.size(); ++I) {
+  auto &DefinedTypes = Mod.getTypeSection().getContent();
+  for (size_t I = 0; I < DefinedTypes.size(); ++I) {
     const std::string Name = "t" + std::to_string(I);
     if (auto Symbol =
             LMgr.getSymbol<AST::FunctionType::Wrapper>(Name.c_str())) {
-      FuncTypes[I].setSymbol(std::move(Symbol));
+      DefinedTypes[I].asFunctionType().setSymbol(std::move(Symbol));
     }
   }
   size_t Offset = 0;

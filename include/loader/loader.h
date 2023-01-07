@@ -69,6 +69,9 @@ template <> inline ASTNodeAttr NodeAttrFromAST<AST::CodeSection>() noexcept {
 template <> inline ASTNodeAttr NodeAttrFromAST<AST::DataSection>() noexcept {
   return ASTNodeAttr::Sec_Data;
 }
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::StructType>() noexcept {
+  return ASTNodeAttr::Type_Struct;
+}
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::DataCountSection>() noexcept {
   return ASTNodeAttr::Sec_DataCount;
@@ -219,6 +222,15 @@ private:
   Expect<FullValType> loadFullValType(uint8_t TypeCode);
   Expect<FullRefType> loadFullRefType();
   Expect<HeapType> loadHeapType();
+  Expect<void> loadRecursiveTypeGroup(std::vector<AST::DefinedType> &);
+  Expect<AST::DefinedType> loadSubType();
+  Expect<AST::DefinedType> loadSubType(bool IsFinal);
+  Expect<AST::StructType> loadStructType();
+  Expect<AST::ArrayType> loadArrayType();
+  Expect<AST::StructureType> loadStructureType();
+  Expect<AST::StorageType> loadStorageType();
+
+  Expect<void> loadType(AST::FieldType &FieldType);
   Expect<void> loadType(AST::FunctionType &FuncType);
   Expect<void> loadType(AST::MemoryType &MemType);
   Expect<void> loadType(AST::TableType &TabType);

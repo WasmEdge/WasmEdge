@@ -382,7 +382,8 @@ Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
     }
     return {};
   };
-  for (const auto &Type : TypeSec.getContent()) {
+  for (const auto &DefinedType : TypeSec.getContent()) {
+    auto Type = DefinedType.asFunctionType();
     for (auto &ParamType : Type.getParamTypes()) {
       if (auto Res = validateValType(ParamType); !Res) {
         return Unexpect(Res);

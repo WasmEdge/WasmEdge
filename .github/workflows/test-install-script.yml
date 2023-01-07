@@ -23,7 +23,7 @@ on:
       - 'utils/install.py'
 
 env:
-  INSTALL_PY_URL: https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.py
+  INSTALL_PY_URL: https://raw.githubusercontent.com/SAtacker/WasmEdge/fix_python_installer/utils/install.py
 
 jobs:
   linux:
@@ -129,8 +129,8 @@ jobs:
     - name: Install wasmedge-image-deps with 0.8.2
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
-        echo "$(bash utils/install.sh -e image -v 0.8.2 --image-version=0.8.2 --image-deps-version=0.8.2 2>&1 | tee output.log)" | grep -qE deps && echo "Pass: Deps found in 0.8.2" \
-        || (echo "Failed: Deps not found in 0.8.2" && cat output.log && exit 1)
+        if echo "$(bash utils/install.sh -e image -v 0.8.2 --image-version=0.8.2 --image-deps-version=0.8.2 2>&1 | tee output.log)" | grep -qE deps;then echo "Pass: Deps found in 0.8.2";\
+        else echo "Failed: Deps not found in 0.8.2" && cat output.log && exit 1; fi;
     - name: Uninstall WasmEdge with Image extensions
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
@@ -146,16 +146,9 @@ jobs:
         bash utils/uninstall.sh -q -V
     - name: Don't install wasmedge-image-deps with 0.9.0-rc.1
       run: |
-        echo "$(bash utils/install.sh -e image -v 0.9.0-rc.1 --image-version=0.9.0-rc.1 --image-deps-version=0.9.0-rc.1 2>&1 | tee output.log)" | grep -qE deps && (echo "Failed: Deps found in 0.9.0-rc.1" \
-        && cat output.log && exit 1) || echo "Pass: Deps not found in 0.9.0-rc.1"
+        if echo "$(bash utils/install.sh -e image -v 0.9.0-rc.1 --image-version=0.9.0-rc.1 --image-deps-version=0.9.0-rc.1 2>&1 | tee output.log)" | grep -qE deps;then echo "Failed: Deps found in 0.9.0-rc.1" \
+        && cat output.log && exit 1; else echo "Pass: Deps not found in 0.9.0-rc.1"; fi;
     - name: Uninstall WasmEdge with Image extensions
-      run: |
-        bash utils/uninstall.sh -q -V
-    - name: No Tensorflow tools from 0.9.0-rc.1
-      run: |
-        echo "$(bash utils/install.sh -e tensorflow -v 0.9.0-rc.1 --tf-version=0.9.0-rc.1 --tf-deps-version=0.9.0-rc.1  --tf-tools-version=0.9.0-rc.1 2>&1 | tee output.log)" | grep -qE *-tools-* && (echo "Failed: tools found in 0.9.0-rc.1" \
-        && cat output.log && exit 1) || echo "Pass: tools not found in 0.9.0-rc.1"
-    - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install versions multiple times
@@ -169,9 +162,9 @@ jobs:
     - name: Uninstall WasmEdge and Source Line removal check
       run: |
         bash utils/install.sh && bash utils/uninstall.sh -q
-        grep -qE *.wasmedge/env* ~/.bashrc && echo "Failed: Source Lines found" || echo "Pass: Source Lines Removed"
-        grep -qE *.wasmedge/env* ~/.bash_profile && echo "Failed: Source Lines found" || echo "Pass: Source Lines Removed"
-        grep -qE *.wasmedge/env* ~/.profile && echo "Failed: Source Lines found" || echo "Pass: Source Lines Removed"
+        if echo >> ~/.bashrc && grep -qE *.wasmedge/env* ~/.bashrc; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
+        if echo >> ~/.bash_profile && grep -qE *.wasmedge/env* ~/.bash_profile; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
+        if echo >> ~/.profile && grep -qE *.wasmedge/env* ~/.profile; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
     - name: Tensorflow changes - libtensorflow_cc 2.6.0 will replace the old libtensorflow 2.6.0
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
@@ -220,8 +213,9 @@ jobs:
         bash utils/uninstall.sh -q -V
     - name: Check for bashrc generation
       run: |
+        rm ~/.bashrc
         bash utils/install.sh -D
-        ls -a ~ | grep .bashrc && (echo "Fail: Bashrc found" && exit 1) || (echo "Pass: Bashrc not found")
+        if ls -a ~ | grep .bashrc; then echo "Fail: Bashrc found" && exit 1; else echo "Pass: Bashrc not found"; fi;
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V

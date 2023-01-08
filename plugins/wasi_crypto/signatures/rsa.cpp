@@ -228,9 +228,10 @@ template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::KeyPair>
 Rsa<PadMode, KeyBits, ShaNid>::KeyPair::generate(
     OptionalRef<const Options>) noexcept {
-  EvpPkeyCtxPtr Ctx{EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr)};
+  const auto Id = PadMode == RSA_PKCS1_PADDING ? EVP_PKEY_RSA 
+                                               : EVP_PKEY_RSA_PSS;
+  EvpPkeyCtxPtr Ctx{EVP_PKEY_CTX_new_id(Id, nullptr)};
   EVP_PKEY_keygen_init(Ctx.get());
-  EVP_PKEY_CTX_set_rsa_padding(Ctx.get(), PadMode);
   EVP_PKEY_CTX_set_rsa_keygen_bits(Ctx.get(), KeyBits);
   EVP_PKEY_CTX_set_signature_md(Ctx.get(), getShaCtx());
 

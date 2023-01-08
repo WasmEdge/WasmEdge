@@ -193,7 +193,7 @@ template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::KeyPair>
 Rsa<PadMode, KeyBits, ShaNid>::KeyPair::importPem(
     Span<const uint8_t> Encoded) noexcept {
-  return checkValid(EvpPkeyPtr{d2iPrivateKey(Encoded)});
+  return checkValid(EvpPkeyPtr{pemReadPrivateKey(Encoded)});
 }
 
 template <int PadMode, int KeyBits, int ShaNid>

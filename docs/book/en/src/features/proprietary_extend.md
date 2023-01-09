@@ -9,3 +9,15 @@ A key differentiator of WasmEdge from other WebAssembly runtimes is its support 
 * [Command interface](https://github.com/second-state/wasmedge_process_interface). WasmEdge enables webassembly functions execute native commands in the host operating system. It supports passing arguments, environment variables, `STDIN`/`STDOUT` pipes, and security policies for host access.
 * [Ethereum](https://github.com/second-state/wasmedge-evmc). The WasmEdge Ewasm extension supports Ethereum smart contracts compiled to WebAssembly. It is a leading implementation for Ethereum flavored WebAssembly (Ewasm).
 * [Substrate](https://github.com/second-state/substrate-ssvm-node). The [Pallet](https://github.com/second-state/pallet-ssvm) allows WasmEdge to act as an Ethereum smart contract execution engine on any Substrate based blockchains.
+
+## Extension Supported Platforms
+
+| Extension                     | Description                                             | `x86_64 Linux` | `aarch64 Linux` | `arm64 Android` | `x86_64 Darwin` |
+| ----------------------------- | ------------------------------------------------------- | -------------- | --------------- | --------------- | --------------- |
+| [WasmEdge-Image][]            | Image host function extension with shared library.      | since `0.9.0`  | since `0.9.1`   | since `0.9.1`   | since `0.10.0`  |
+| [WasmEdge-Tensorflow][]       | TensorFlow host function extension with shared library. | TensorFlow and TensorFlow-Lite since `0.9.0` | TensorFlow-Lite since `0.9.1` | TensorFlow-Lite since `0.9.1` | TensorFlow and TensorFlow-Lite since `0.10.0` |
+| [WasmEdge-Tensorflow-Tools][] | WasmEdge CLI tools with TensorFlow and image extension. | since `0.9.0`  | since `0.9.1`   | since `0.9.1`   | since `0.10.0`  |
+
+[WasmEdge-Image]: https://github.com/second-state/wasmedge-image
+[WasmEdge-Tensorflow]: https://github.com/second-state/wasmedge-tensorflow
+[WasmEdge-Tensorflow-Tools]: https://github.com/second-state/wasmedge-tensorflow-tools

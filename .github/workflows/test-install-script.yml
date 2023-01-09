@@ -109,53 +109,28 @@ jobs:
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V
-    - name: Install deprecated WasmEdge specific release (0.8.2)
+    - name: Install deprecated WasmEdge specific release (0.9.0)
       run: |
-        bash utils/install.sh -v 0.8.2 -D
+        bash utils/install.sh -v 0.9.0 -D
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
-    - name: Install WasmEdge specific release (0.8.2) with all extensions
+    - name: Install WasmEdge specific release (0.9.0) with all extensions
       run: |
-        bash utils/install.sh -e all -v 0.8.2 -D
+        bash utils/install.sh -e all -v 0.9.0 -D
     - name: Install WasmEdge and test for arm extension installation
       run: |
         bash utils/install.sh -e all --version=0.9.1-beta.1 \
         --tf-version=0.9.1-beta.1 --tf-deps-version=0.9.1-beta.1  --tf-tools-version=0.9.1-beta.1  \
-        --image-version=0.9.1-beta.1 --image-deps-version=0.9.1-beta.1
+        --image-version=0.9.1-beta.1
     - name: Uninstall WasmEdge with all extensions
       run: |
-        bash utils/uninstall.sh -q -V
-    - name: Install wasmedge-image-deps with 0.8.2
-      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
-      run: |
-        if echo "$(bash utils/install.sh -e image -v 0.8.2 --image-version=0.8.2 --image-deps-version=0.8.2 2>&1 | tee output.log)" | grep -qE deps;then echo "Pass: Deps found in 0.8.2";\
-        else echo "Failed: Deps not found in 0.8.2" && cat output.log && exit 1; fi;
-    - name: Uninstall WasmEdge with Image extensions
-      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
-      run: |
-        bash utils/uninstall.sh -q -V
-    - name: Installs wasmedge-image-deps with 0.8.1
-      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
-      run: |
-        echo "$(bash utils/install.sh -e image -v 0.8.1 --image-version=0.8.1 --image-deps-version=0.8.1 2>&1 | tee output.log)" | grep -qE deps && echo "Pass: Deps found in 0.8.1" \
-        || (echo "Failed: Deps not found in 0.8.1" && cat output.log && exit 1)
-    - name: Uninstall WasmEdge with Image extensions
-      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
-      run: |
-        bash utils/uninstall.sh -q -V
-    - name: Don't install wasmedge-image-deps with 0.9.0-rc.1
-      run: |
-        if echo "$(bash utils/install.sh -e image -v 0.9.0-rc.1 --image-version=0.9.0-rc.1 --image-deps-version=0.9.0-rc.1 2>&1 | tee output.log)" | grep -qE deps;then echo "Failed: Deps found in 0.9.0-rc.1" \
-        && cat output.log && exit 1; else echo "Pass: Deps not found in 0.9.0-rc.1"; fi;
-    - name: Uninstall WasmEdge with Image extensions
-      run: |
-        bash utils/uninstall.sh -q -V
+        bash utils/uninstall.sh -q -V 
     - name: Install versions multiple times
       run: |
         bash utils/install.sh -e all -D
-        bash utils/install.sh -e all -v 0.9.0-rc.1 -D
-        bash utils/install.sh -e all -v 0.8.1 -D
+        bash utils/install.sh -e all -v 0.9.1 -D
+        bash utils/install.sh -e all -v 0.9.0 -D
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
@@ -225,15 +200,15 @@ jobs:
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V
-    - name: Install deprecated WasmEdge specific release (0.8.2)
+    - name: Install deprecated WasmEdge specific release (0.9.0)
       run: |
-        bash utils/install.sh -v 0.8.2 -D
+        bash utils/install.sh -v 0.9.0 -D
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
-    - name: Install WasmEdge specific release (0.8.2) with all extensions
+    - name: Install WasmEdge specific release (0.9.0) with all extensions
       run: |
-        bash utils/install.sh -e all -v 0.8.2 -D
+        bash utils/install.sh -e all -v 0.9.0 -D
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V

@@ -151,6 +151,10 @@ def extract_archive(
                     fname = fname.replace("lib64", "lib", 1)
                 if "Plugin" in fname:
                     if is_default_path(args):
+                        fname = fname.replace(
+                            join(ipath, CONST_lib_dir, "wasmedge/"), ""
+                        )
+
                         fname = join(ipath, "plugin", fname)
                     else:
                         fname = join(ipath, CONST_lib_dir, "wasmedge", fname)

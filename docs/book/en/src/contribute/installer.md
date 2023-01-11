@@ -64,6 +64,7 @@ The real installer handles all stuff. It supports python2.7 (not tested on earli
 * Full Option: `--path PATH`
 * Description: Install WasmEdge into the given PATH. The default Path is `$HOME/.wasmedge`.
 * Note - In any path other than the ones starting with `/usr` are treated as non system paths in the internals of the installer. The consequences are different directory structures for both.
+* Note - If the path does not exist it is created.
 
 ### Uninstall existed version
 
@@ -135,3 +136,16 @@ The real installer handles all stuff. It supports python2.7 (not tested on earli
 * Description: Install the given `MACHINE` or `ARCH` version of WasmEdge.
 * Available Value: "x86_64", "aarch64".
 
+
+## Behaviour
+
+* If there exists an installation at `$HOME/.wasmedge` which is to be noted as the default installation path, it is removed with or without uninstaller's invocation.
+* WasmEdge installation appends all the files it installs to a file which is located in the installer directory named `env` with it's path as `$INSTALLATION_PATH/env`
+
+### Shell and it's configuration
+
+* Source string in shell configuration is given as `. $INSTALLATION_PATH/env` so that it exports the necessary environment variables for WasmEdge.
+* Shell configuration file is appended with source string if it cannot find the source string in that file.
+* Currently it detects only `Bash` and `zsh` shells.
+* If the above shells are found, then their respective configuration files `$HOME/.bashrc` and `$HOME/.zshrc` are updated along with `$HOME/.zprofile` and `$HOME/.bash_profile` in case of Linux.
+* In case of `Darwin`, only `$HOME/.zprofile` is updated with the source string.

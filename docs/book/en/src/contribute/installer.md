@@ -28,16 +28,17 @@ The installer entry point.
 
 1. Check if the `git` is installed; otherwise, exit with an error `Please install git`.
 2. If `PYTHON_EXECUTABLE` is given, then try to use `$PYTHON_EXECUTABLE` to execute the `install.py`. Otherwise, go to step 3.
-3. Check if the `python3` is installed. If so, go to step 6. Otherwise, go to step 4.
-4. Check if the `python2` is installed. If so, go to step 6. Otherwise, go to step 5.
-5. Check if the `python` is installed. If so, go to step 6. Otherwise, exit with an error `Please install python or provide python path via $PYTHON_EXECUTABLE`.
-6. Print the detected python version `Using Python: $PYTHON_EXECUTABLE`.
-7. Download `install.py` with `curl` or `wget`. If the URL of `install.py` is unreachable due to a network issue, exit with an error `$INSTALL_PY_URL not reachable`. If the `curl` and `wget` are not available, exit with an error `curl or wget could not be found`.
-8. Execute the `install.py` with all received arguments.
+3. If `PYTHON_EXECUTABLE` is not set, `which` command is needed to determine the python-X executable. If it is not found installer exits else it moves on to the next step.
+4. Check if the `python3` is installed. If so, go to step 6. Otherwise, go to step 5.
+5. Check if the `python2` is installed. If so, go to step 6. Otherwise, go to step 6.
+6. Check if the `python` is installed. If so, go to step 7. Otherwise, exit with an error `Please install python or provide python path via $PYTHON_EXECUTABLE`.
+7. Print the detected python version `Using Python: $PYTHON_EXECUTABLE`.
+8. Download `install.py` with `curl` or `wget`. If the URL of `install.py` is unreachable due to a network issue, exit with an error `$INSTALL_PY_URL not reachable`. If the `curl` and `wget` are not available, exit with an error `curl or wget could not be found`.
+9. Execute the `install.py` with all received arguments.
 
 ### `install.py`
 
-The real installer handles all stuff.
+The real installer handles all stuff. It supports python2.7 (not tested on earlier versions) as well as the latest python versions python3.x.
 
 ## Options
 
@@ -56,11 +57,13 @@ The real installer handles all stuff.
 * Full Option: `--version VERSION`
 * Description: Install the given VERSION of WasmEdge
 * Available Value: VERSION `0.11.2` or other valid release versions.
+* Note - In case if an invalid or non existing version is suppliead the installer exits with an error.
 
 ### Install Path
 * Short Option: `-p PATH`
 * Full Option: `--path PATH`
 * Description: Install WasmEdge into the given PATH. The default Path is `$HOME/.wasmedge`.
+* Note - In any path other than the ones starting with `/usr` are treated as non system paths in the internals of the installer. The consequences are different directory structures for both.
 
 ### Uninstall existed version
 
@@ -78,35 +81,47 @@ The real installer handles all stuff.
 * Short Option: `-e [EXTENSIONS [EXTENSIONS ...]]`
 * Full Option: `--extension [EXTENSIONS [EXTENSIONS ...]]`
 * Description: Install wasmedge-extension tools.
-* Available Value: Supported Extensions `'tensorflow', 'image', 'all'`.
+* Available Value (case sensitive): Supported Extensions `'tensorflow', 'image', 'all'`.
 
 #### Tensorflow Extensions Library Version
 * Full Option: `--tf-version TF_VERSION`
 * Description: Install the given VERSION of the library of the Tensorflow and Tensorflow lite extension. Only available when the `Extensions` is set to `all` or `tensorflow`.
+* Note - It's value is same as that of wasmedge version if not specified. 
 
 #### Tensorflow Extensions Dependencies Version
 * Full Option: `--tf-deps-version TF_DEPS_VERSION`
 * Description: Install the given VERSION of the dependencies of the Tensorflow and Tensorflow lite extension. Only available when the `Extensions` is set to `all` or `tensorflow`.
+* Note - It's value is same as that of wasmedge version if not specified. 
 
 #### Tensorflow Extensions Tools Version
 * Full Option: `--tf-tools-version TF_TOOLS_VERSION`
 * Description: Install the given VERSION of the tools of the Tensorflow and Tensorflow lite extension. Only available when the `Extensions` is set to `all` or `tensorflow`.
+* Note - It's value is same as that of wasmedge version if not specified. 
 
 #### Image Extensions Version
 * Full Option: `--image-version IMAGE_VERSION`
 * Description: Install the given VERSION of the Image extension. Only available when the `Extensions` is set to `all` or `image`.
+* Note - It's value is same as that of wasmedge version if not specified. 
 
 #### Image Extensions Dependencies Version
 * Full Option: `--image-deps-version IMAGE_DEPS_VERSION`
 * Description: Install the given VERSION of the dependencies of the Image extension. Only available when the `Extensions` is set to `all` or `image`.
+* Note - It's value is same as that of wasmedge version if not specified. 
 
 ### Plugins
 
-TBD.
+* Note - Currently `--plugins` is an experimental option.
+
+* Full Option: `--plugins wasi_crypto:0.11.0`
+
+* Note - The format for this argument is `<plugin_name>:<version_number>`. `<version_number>` is not compulsory. For example `--plugins wasi_crypto` is a valid option.
+* Note - `<plugin_name>` is cases sensitive. Allowed values are stated [here](https://wasmedge.org/book/en/plugin.html) in the `Rust Crate` column. The logic is that the release name should be the same.
+* Note - It's value is same as that of wasmedge version if not specified. 
 
 ### DIST
 
-TBD.
+* Full Option: `--dist ubuntu20.04` or `--dist manylinux2014`
+* Note - the `ubuntu20.04` and `manylinux2014` values are case insensitive and only these two are currently supported.
 
 ### Platform and OS
 * Full Option: `--platform PLATFORM` or `--os OS`
@@ -117,3 +132,4 @@ TBD.
 * Full Option: `--machine MACHINE` or `--arch ARCH`
 * Description: Install the given `MACHINE` or `ARCH` version of WasmEdge.
 * Available Value: "x86_64", "aarch64".
+

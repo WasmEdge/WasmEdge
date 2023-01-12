@@ -195,6 +195,9 @@ public:
 
   /// Getter of store set in VM.
   Runtime::StoreManager &getStoreManager() noexcept { return StoreRef; }
+  const Runtime::StoreManager &getStoreManager() const noexcept {
+    return StoreRef;
+  }
 
   /// Getter of loader in VM.
   Loader::Loader &getLoader() noexcept { return LoaderEngine; }

@@ -21,14 +21,17 @@ impl Executor {
     ///
     /// If fail to create a [executor](crate::Executor), then an error is returned.
     pub fn new(config: Option<&Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
-        let inner_config = match config {
-            Some(config) => Some(Config::copy_from(config)?.inner),
-            None => None,
-        };
-
-        let inner_executor = match stat {
-            Some(stat) => sys::Executor::create(inner_config, Some(&mut stat.inner))?,
-            None => sys::Executor::create(inner_config, None)?,
+        let inner_executor = match config {
+            Some(config) => match stat {
+                Some(stat) => {
+                    sys::Executor::create(Some(config.inner.clone()), Some(&mut stat.inner))?
+                }
+                None => sys::Executor::create(Some(config.inner.clone()), None)?,
+            },
+            None => match stat {
+                Some(stat) => sys::Executor::create(None, Some(&mut stat.inner))?,
+                None => sys::Executor::create(None, None)?,
+            },
         };
 
         Ok(Self {
@@ -38,7 +41,7 @@ impl Executor {
 }
 impl Engine for Executor {
     fn run_func(
-        &mut self,
+        &self,
         func: &Func,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
@@ -47,7 +50,7 @@ impl Engine for Executor {
     }
 
     fn run_func_ref(
-        &mut self,
+        &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
@@ -61,10 +64,11 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        params, Module, Statistics, Store, WasmVal,
+        params, wat2wasm, Module, Statistics, Store, WasmVal,
     };
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_executor_create() {
         {
             let result = Executor::new(None, None);
@@ -130,11 +134,44 @@ mod tests {
         assert!(result.is_ok());
         let mut store = result.unwrap();
 
-        // load wasm module
-        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-
-        let result = Module::from_file(Some(&config), file);
+        // read the wasm bytes of fibonacci.wasm
+        let result = wat2wasm(
+            br#"
+        (module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+"#,
+        );
+        assert!(result.is_ok());
+        let wasm_bytes = result.unwrap();
+        let result = Module::from_bytes(Some(&config), wasm_bytes);
         assert!(result.is_ok());
         let module = result.unwrap();
 

@@ -3,34 +3,35 @@
 
 use wasmedge_sdk::{
     config::{CommonConfigOptions, ConfigBuilder},
-    params,
+    error::HostFuncError,
+    host_function, params,
     types::Val,
-    Executor, Func, ImportObjectBuilder, Store, Table, WasmVal,
+    Caller, Executor, Func, ImportObjectBuilder, RefType, Store, Table, TableType, ValType,
+    WasmVal, WasmValue,
 };
-use wasmedge_sys::WasmValue;
-use wasmedge_types::{RefType, TableType, ValType};
 
-fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+#[host_function]
+fn real_add(_: Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 2 {
-        return Err(1);
+        return Err(HostFuncError::User(1));
     }
 
     let a = if input[0].ty() == ValType::I32 {
         input[0].to_i32()
     } else {
-        return Err(2);
+        return Err(HostFuncError::User(2));
     };
 
     let b = if input[1].ty() == ValType::I32 {
         input[1].to_i32()
     } else {
-        return Err(3);
+        return Err(HostFuncError::User(3));
     };
 
     let c = a + b;
-    println!("Rust: calcuating in real_add c: {:?}", c);
+    println!("Rust: calcuating in real_add c: {c:?}");
 
     println!("Rust: Leaving Rust function real_add");
     Ok(vec![WasmValue::from_i32(c)])
@@ -91,7 +92,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(return_tys, [ValType::I32]);
 
         // call the function by func_ref
-        let returns = func_ref.call(&mut executor, params!(1, 2))?;
+        let returns = func_ref.call(&executor, params!(1, 2))?;
         assert_eq!(returns.len(), 1);
         assert_eq!(returns[0].to_i32(), 3);
     }

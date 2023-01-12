@@ -22,8 +22,14 @@
 #else
 #define WASMEDGE_CAPI_EXPORT __declspec(dllimport)
 #endif // WASMEDGE_COMPILE_LIBRARY
+#ifdef WASMEDGE_PLUGIN
+#define WASMEDGE_CAPI_PLUGIN_EXPORT __declspec(dllexport)
+#else
+#define WASMEDGE_CAPI_PLUGIN_EXPORT __declspec(dllimport)
+#endif // WASMEDGE_PLUGIN
 #else
 #define WASMEDGE_CAPI_EXPORT __attribute__((visibility("default")))
+#define WASMEDGE_CAPI_PLUGIN_EXPORT __attribute__((visibility("default")))
 #endif // _WIN32
 
 #include <stdbool.h>
@@ -51,9 +57,9 @@ typedef struct WasmEdge_String {
   const char *Buf;
 } WasmEdge_String;
 
-/// Opaque struct of WASM execution result.
+/// WasmEdge result struct.
 typedef struct WasmEdge_Result {
-  uint8_t Code;
+  uint32_t Code;
 } WasmEdge_Result;
 #define WasmEdge_Result_Success ((WasmEdge_Result){.Code = 0x00})
 #define WasmEdge_Result_Terminate ((WasmEdge_Result){.Code = 0x01})
@@ -129,11 +135,71 @@ typedef struct WasmEdge_MemoryInstanceContext WasmEdge_MemoryInstanceContext;
 /// Opaque struct of WasmEdge global instance.
 typedef struct WasmEdge_GlobalInstanceContext WasmEdge_GlobalInstanceContext;
 
+/// Opaque struct of WasmEdge calling frame.
+typedef struct WasmEdge_CallingFrameContext WasmEdge_CallingFrameContext;
+
 /// Opaque struct of WasmEdge asynchronous result.
 typedef struct WasmEdge_Async WasmEdge_Async;
 
 /// Opaque struct of WasmEdge VM.
 typedef struct WasmEdge_VMContext WasmEdge_VMContext;
+
+/// Type of option value.
+typedef enum WasmEdge_ProgramOptionType {
+  /// No option value.
+  WasmEdge_ProgramOptionType_None,
+  /// Boolean value.
+  WasmEdge_ProgramOptionType_Toggle,
+  WasmEdge_ProgramOptionType_Int8,
+  WasmEdge_ProgramOptionType_Int16,
+  WasmEdge_ProgramOptionType_Int32,
+  WasmEdge_ProgramOptionType_Int64,
+  WasmEdge_ProgramOptionType_UInt8,
+  WasmEdge_ProgramOptionType_UInt16,
+  WasmEdge_ProgramOptionType_UInt32,
+  WasmEdge_ProgramOptionType_UInt64,
+  WasmEdge_ProgramOptionType_Float,
+  WasmEdge_ProgramOptionType_Double,
+  /// WasmEdge_String.
+  WasmEdge_ProgramOptionType_String,
+} WasmEdge_ProgramOptionType;
+
+/// Program option for plugins.
+typedef struct WasmEdge_ProgramOption {
+  const char *Name;
+  const char *Description;
+  WasmEdge_ProgramOptionType Type;
+  void *Storage;
+  const void *DefaultValue;
+} WasmEdge_ProgramOption;
+
+/// Module descriptor for plugins.
+typedef struct WasmEdge_ModuleDescriptor {
+  const char *Name;
+  const char *Description;
+  WasmEdge_ModuleInstanceContext *(*Create)(
+      const struct WasmEdge_ModuleDescriptor *);
+} WasmEdge_ModuleDescriptor;
+
+/// Version data for plugins.
+typedef struct WasmEdge_PluginVersionData {
+  uint32_t Major;
+  uint32_t Minor;
+  uint32_t Patch;
+  uint32_t Build;
+} WasmEdge_PluginVersionData;
+
+/// Plugin descriptor for plugins.
+typedef struct WasmEdge_PluginDescriptor {
+  const char *Name;
+  const char *Description;
+  uint32_t APIVersion;
+  WasmEdge_PluginVersionData Version;
+  uint32_t ModuleCount;
+  uint32_t ProgramOptionCount;
+  WasmEdge_ModuleDescriptor *ModuleDescriptions;
+  WasmEdge_ProgramOption *ProgramOptions;
+} WasmEdge_PluginDescriptor;
 
 #ifdef __cplusplus
 extern "C" {
@@ -172,6 +238,9 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetErrorLevel(void);
 
 /// Set the logging system to filter to debug level.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetDebugLevel(void);
+
+/// Set the logging system off.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogOff(void);
 
 // <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -406,17 +475,38 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_StringDelete(WasmEdge_String Str);
 /// WasmEdge_Result_Terminate, false for others.
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ResultOK(const WasmEdge_Result Res);
 
+/// Generate the result with code.
+///
+/// \param Category the WasmEdge_ErrCategory to specify the error category.
+/// \param Code the 24-bit length error code. The data exceeds 24 bits will be
+/// stripped.
+///
+/// \returns WasmEdge_Result struct with the given data.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_ResultGen(const enum WasmEdge_ErrCategory Category,
+                   const uint32_t Code);
+
 /// Get the result code.
 ///
 /// \param Res the WasmEdge_Result struct.
 ///
-/// \returns corresponding result code.
+/// \returns result code (24-bit size data) in the WasmEdge_Result struct.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ResultGetCode(const WasmEdge_Result Res);
+
+/// Get the error category.
+///
+/// \param Res the WasmEdge_Result struct.
+///
+/// \returns error category in the WasmEdge_Result struct.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ErrCategory
+WasmEdge_ResultGetCategory(const WasmEdge_Result Res);
 
 /// Get the result message.
 ///
 /// The returned string must __NOT__ be destroyed.
+/// If the error category of the result is __NOT__ `WasmEdge_ErrCategory_WASM`,
+/// the message will always be "user defined error code".
 ///
 /// \param Res the WasmEdge_Result struct.
 ///
@@ -557,6 +647,28 @@ WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
 /// \returns the page count limitation value.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the force interpreter mode execution option.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param isForceInterpreter the boolean value to determine to forcibly run
+/// WASM in interpreter mode or not.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
+                                      const bool isForceInterpreter);
+
+/// Get the force interpreter mode execution option.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to forcibly run WASM in interpreter
+/// mode or not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ConfigureIsForceInterpreter(const WasmEdge_ConfigureContext *Cxt);
 
 /// Set the optimization level of AOT compiler.
 ///
@@ -792,7 +904,7 @@ WasmEdge_StatisticsSetCostTable(WasmEdge_StatisticsContext *Cxt,
 /// Set the cost limit in execution.
 ///
 /// The WASM execution will be aborted if the instruction costs exceeded the
-/// limit and the ErrCode::CostLimitExceeded will be returned.
+/// limit and the ErrCode::Value::CostLimitExceeded will be returned.
 ///
 /// \param Cxt the WasmEdge_StatisticsContext to set the cost table.
 /// \param Limit the cost limit.
@@ -1292,6 +1404,22 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt, const char *InPath,
                          const char *OutPath);
 
+/// Compile the input WASM from the given buffer.
+///
+/// The compiler compiles the WASM from the given buffer for the
+/// ahead-of-time mode and store the result to the output file path.
+///
+/// \param Cxt the WasmEdge_CompilerContext.
+/// \param InBuffer the input WASM binary buffer.
+/// \param InBufferLen the length of the input WASM binary buffer.
+/// \param OutPath the output WASM file path.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_CompilerCompileFromBuffer(
+    WasmEdge_CompilerContext *Cxt, const uint8_t *InBuffer,
+    const uint64_t InBufferLen, const char *OutPath);
+
 /// Deletion of the WasmEdge_CompilerContext.
 ///
 /// After calling this function, the context will be destroyed and should
@@ -1455,7 +1583,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorInstantiate(
 /// the other modules can import the instances for linking when instantiation.
 /// Developers should guarantee the life cycle of this registered module
 /// instance, or the error will occur when in execution after the module
-/// instance destoryed if it has been imported by other modules.
+/// instance destroyed if it has been imported by other modules.
 ///
 /// \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
 /// \param [out] ModuleCxt the output WasmEdge_ModuleInstanceContext if
@@ -1480,7 +1608,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorRegister(
 /// store, and the other modules can import the instances for linking when
 /// instantiation. Developers should guarantee the life cycle of this registered
 /// module instance, or the error will occur when in execution after the module
-/// instance destoryed if it has been imported by other modules.
+/// instance destroyed if it has been imported by other modules.
 ///
 /// \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
 /// \param StoreCxt the WasmEdge_StoreContext to store the instantiated module.
@@ -1546,7 +1674,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_StoreContext *WasmEdge_StoreCreate(void);
 ///
 /// \returns pointer to the module instance context. NULL if not found.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_ModuleInstanceContext *
-WasmEdge_StoreFindModule(WasmEdge_StoreContext *Cxt,
+WasmEdge_StoreFindModule(const WasmEdge_StoreContext *Cxt,
                          const WasmEdge_String Name);
 
 /// Get the length of registered module list in store.
@@ -1664,6 +1792,23 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWASI(
 /// `EXIT_FAILURE` if the `Cxt` is NULL or not a WASI host module.
 WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceWASIGetExitCode(
     const WasmEdge_ModuleInstanceContext *Cxt);
+
+/// Get the native handler from the WASI mapped FD/Handler.
+///
+/// This function will return the raw FD/Handler from a given mapped Fd
+/// or Handler.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext of WASI import object.
+/// \param Fd the WASI mapped Fd.
+/// \param [out] NativeHandler the raw Fd/Handler.
+///
+/// \returns the error code. Return `0` if the Native Handler is found.
+/// Return `1` if the `Cxt` is `NULL`.
+/// Return `2` if the given mapped Fd/handler is not found.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ModuleInstanceWASIGetNativeHandler(
+    const WasmEdge_ModuleInstanceContext *Cxt, int32_t Fd,
+    uint64_t *NativeHandler);
 
 /// Creation of the WasmEdge_ModuleInstanceContext for the wasi_nn
 /// specification.
@@ -1868,7 +2013,7 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListFunctionLength(
 /// List the exported function names of a module instance.
 ///
 /// The returned function names filled into the `Names` array are linked to the
-/// exported names of functions of the module intance context, and the caller
+/// exported names of functions of the module instance context, and the caller
 /// should __NOT__ call the `WasmEdge_StringDelete`.
 /// If the `Names` buffer length is smaller than the result of the exported
 /// function list size, the overflowed return values will be discarded.
@@ -2049,7 +2194,7 @@ WasmEdge_ModuleInstanceDelete(WasmEdge_ModuleInstanceContext *Cxt);
 // >>>>>>>> WasmEdge function instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
-    void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+    void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
     const WasmEdge_Value *Params, WasmEdge_Value *Returns);
 /// Creation of the WasmEdge_FunctionInstanceContext for host functions.
 ///
@@ -2058,13 +2203,14 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 /// `WasmEdge_ModuleInstanceContext`. The following is an example to create a
 /// host function context.
 /// ```c
-/// WasmEdge_Result FuncAdd(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+/// WasmEdge_Result FuncAdd(void *Data,
+///                         const WasmEdge_CallingFrameContext *CallFrameCxt,
 ///                         const WasmEdge_Value *In, WasmEdge_Value *Out) {
-///   /// Function to return A + B.
+///   // Function to return A + B.
 ///   int32_t A = WasmEdge_ValueGetI32(In[0]);
 ///   int32_t B = WasmEdge_ValueGetI32(In[1]);
 ///   Out[0] = WasmEdge_ValueGenI32(A + B);
-///   /// Return execution status
+///   // Return execution status
 ///   return WasmEdge_Result_Success;
 /// }
 ///
@@ -2086,7 +2232,7 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 /// ```c
 /// typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 ///     void *Data,
-///     WasmEdge_MemoryInstanceContext *MemCxt,
+///     const WasmEdge_CallingFrameContext *CallFrameCxt,
 ///     const WasmEdge_Value *Params,
 ///     WasmEdge_Value *Returns);
 /// ```
@@ -2107,7 +2253,7 @@ WasmEdge_FunctionInstanceCreate(const WasmEdge_FunctionTypeContext *Type,
                                 const uint64_t Cost);
 
 typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
-    void *This, void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+    void *This, void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
     const WasmEdge_Value *Params, const uint32_t ParamLen,
     WasmEdge_Value *Returns, const uint32_t ReturnLen);
 /// Creation of the WasmEdge_FunctionInstanceContext for host functions.
@@ -2119,23 +2265,24 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 /// The following is an example to create a host function context for other
 /// languages.
 /// ```c
-/// /// `RealFunc` is the pointer to the function in other languages.
+/// // `RealFunc` is the pointer to the function in other languages.
 ///
-/// WasmEdge_Result FuncAddWrap(void *This, void *Data,
-///                             WasmEdge_MemoryInstanceContext *MemCxt,
-///                             const WasmEdge_Value *In, const uint32_t InLen,
-///                             WasmEdge_Value *Out, const uint32_t OutLen) {
-///   /// Wrapper function of host function to return A + B.
+/// WasmEdge_Result FuncAddWrap(
+///     void *This, void *Data,
+///     const WasmEdge_CallingFrameContext *CallFrameCxt,
+///     const WasmEdge_Value *In, const uint32_t InLen, WasmEdge_Value *Out,
+///     const uint32_t OutLen) {
+///   // Wrapper function of host function to return A + B.
 ///
-///   /// `This` is the same as `RealFunc`.
+///   // `This` is the same as `RealFunc`.
 ///   int32_t A = WasmEdge_ValueGetI32(In[0]);
 ///   int32_t B = WasmEdge_ValueGetI32(In[1]);
 ///
-///   /// Call the function of `This` in the host language ...
+///   // Call the function of `This` in the host language ...
 ///   int32_t Result = ...;
 ///
 ///   Out[0] = Result;
-///   /// Return the execution status
+///   // Return the execution status.
 ///   return WasmEdge_Result_Success;
 /// }
 ///
@@ -2159,7 +2306,7 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 /// typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 ///     void *This,
 ///     void *Data,
-///     WasmEdge_MemoryInstanceContext *MemCxt,
+///     WasmEdge_CallingFrameContext *FrameCxt,
 ///     const WasmEdge_Value *Params,
 ///     const uint32_t ParamLen,
 ///     WasmEdge_Value *Returns,
@@ -2464,12 +2611,60 @@ WasmEdge_GlobalInstanceDelete(WasmEdge_GlobalInstanceContext *Cxt);
 
 // <<<<<<<< WasmEdge global instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> WasmEdge calling frame functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Get the executor context from the current calling frame.
+///
+/// \param Cxt the WasmEdge_CallingFrameContext.
+///
+/// \returns the executor context, NULL if the Cxt is NULL.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ExecutorContext *
+WasmEdge_CallingFrameGetExecutor(const WasmEdge_CallingFrameContext *Cxt);
+
+/// Get the module instance of the current calling frame.
+///
+/// When a WASM function is executing and start to call a host function, a frame
+/// with the module instance which the WASM function belongs to will be pushed
+/// onto the stack. And therefore the calling frame context will record that
+/// module instance.
+/// So in one case that the module instance will be `NULL`: developers execute
+/// the function instance which is a host function and not added into a module
+/// instance.
+///
+/// \param Cxt the WasmEdge_CallingFrameContext.
+///
+/// \returns the module instance of the current calling frame.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_ModuleInstanceContext *
+WasmEdge_CallingFrameGetModuleInstance(const WasmEdge_CallingFrameContext *Cxt);
+
+/// Get the memory instance by index from the module instance of the current
+/// calling frame.
+///
+/// By default, a WASM module only have one memory instance after instantiation.
+/// Therefore, developers can use:
+///   `WasmEdge_CallingFrameGetMemoryInstance(Cxt, 0)`
+/// to get the memory instance in host function body.
+/// This extension is for the WASM multiple memories proposal. After enabling
+/// the proposal, there may be greater than 1 memory instances in a WASM module.
+/// So developers can use this function to access the memory instances which are
+/// not in 0 index.
+///
+/// \param Cxt the WasmEdge_CallingFrameContext.
+/// \param Idx the index of memory instance in the module instance.
+///
+/// \returns the memory instance, NULL if not found.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryInstanceContext *
+WasmEdge_CallingFrameGetMemoryInstance(const WasmEdge_CallingFrameContext *Cxt,
+                                       const uint32_t Idx);
+
+// <<<<<<<< WasmEdge calling frame functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 // >>>>>>>> WasmEdge Async functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Wait a WasmEdge_Async execution.
 ///
 /// \param Cxt the WasmEdge_ASync.
-WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncWait(WasmEdge_Async *Cxt);
+WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncWait(const WasmEdge_Async *Cxt);
 
 /// Wait a WasmEdge_Async execution with timeout.
 ///
@@ -2477,8 +2672,8 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncWait(WasmEdge_Async *Cxt);
 /// \param Milliseconds times to wait.
 ///
 /// \returns Result of waiting, true for execution ended, false for timeout
-/// occured.
-WASMEDGE_CAPI_EXPORT bool WasmEdge_AsyncWaitFor(WasmEdge_Async *Cxt,
+/// occurred.
+WASMEDGE_CAPI_EXPORT bool WasmEdge_AsyncWaitFor(const WasmEdge_Async *Cxt,
                                                 uint64_t Milliseconds);
 
 /// Cancel a WasmEdge_Async execution.
@@ -2498,7 +2693,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncCancel(WasmEdge_Async *Cxt);
 ///
 /// \returns the return list length of the executed function.
 WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_AsyncGetReturnsLength(WasmEdge_Async *Cxt);
+WasmEdge_AsyncGetReturnsLength(const WasmEdge_Async *Cxt);
 
 /// Wait and get the result of WasmEdge_Async execution.
 ///
@@ -2513,8 +2708,9 @@ WasmEdge_AsyncGetReturnsLength(WasmEdge_Async *Cxt);
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_AsyncGet(
-    WasmEdge_Async *Cxt, WasmEdge_Value *Returns, const uint32_t ReturnLen);
+WASMEDGE_CAPI_EXPORT WasmEdge_Result
+WasmEdge_AsyncGet(const WasmEdge_Async *Cxt, WasmEdge_Value *Returns,
+                  const uint32_t ReturnLen);
 
 /// Deletion of the WasmEdge_Async.
 ///
@@ -2615,7 +2811,7 @@ WasmEdge_VMRegisterModuleFromASTModule(WasmEdge_VMContext *Cxt,
 /// store in VM, and the other modules can import the instances for linking when
 /// instantiating other modules. Developers should guarantee the life cycle of
 /// this registered module instance, or the error will occur when in execution
-/// after the module instance destoryed if it has been imported by other
+/// after the module instance destroyed if it has been imported by other
 /// modules.
 ///
 /// This function is thread-safe.
@@ -3007,7 +3203,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncExecuteRegistered(
 ///
 /// \returns the function type. NULL if the function not found.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
-WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
+WasmEdge_VMGetFunctionType(const WasmEdge_VMContext *Cxt,
                            const WasmEdge_String FuncName);
 
 /// Get the function type by function name.
@@ -3027,7 +3223,7 @@ WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
 ///
 /// \returns the function type. NULL if the function not found.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
-WasmEdge_VMGetFunctionTypeRegistered(WasmEdge_VMContext *Cxt,
+WasmEdge_VMGetFunctionTypeRegistered(const WasmEdge_VMContext *Cxt,
                                      const WasmEdge_String ModuleName,
                                      const WasmEdge_String FuncName);
 
@@ -3049,7 +3245,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt);
 ///
 /// \returns length of exported function list.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_VMGetFunctionListLength(WasmEdge_VMContext *Cxt);
+WasmEdge_VMGetFunctionListLength(const WasmEdge_VMContext *Cxt);
 
 /// Get the exported function list.
 ///
@@ -3074,10 +3270,9 @@ WasmEdge_VMGetFunctionListLength(WasmEdge_VMContext *Cxt);
 /// \param Len the buffer length.
 ///
 /// \returns actual exported function list size.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_VMGetFunctionList(WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
-                           const WasmEdge_FunctionTypeContext **FuncTypes,
-                           const uint32_t Len);
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VMGetFunctionList(
+    const WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
+    const WasmEdge_FunctionTypeContext **FuncTypes, const uint32_t Len);
 
 /// Get the module instance corresponding to the WasmEdge_HostRegistration
 /// settings.
@@ -3109,7 +3304,7 @@ WasmEdge_VMGetFunctionList(WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
 ///
 /// \returns pointer to the module instance context. NULL if not found.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
-WasmEdge_VMGetImportModuleContext(WasmEdge_VMContext *Cxt,
+WasmEdge_VMGetImportModuleContext(const WasmEdge_VMContext *Cxt,
                                   const enum WasmEdge_HostRegistration Reg);
 
 /// Get the current instantiated module in VM.
@@ -3210,18 +3405,23 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt);
 // >>>>>>>> WasmEdge Driver functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Entrypoint for the compiler.
-WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Compiler(int Argc, const char *Argv[]);
+WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Compiler(int Argc,
+                                                         const char *Argv[]);
 
 /// Entrypoint for the general tool.
-WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Tool(int Argc, const char *Argv[]);
+WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Tool(int Argc,
+                                                     const char *Argv[]);
 
 // <<<<<<<< WasmEdge Driver functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge Plugin functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Load plugins with default search path.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_Plugin_loadWithDefaultPluginPaths(void);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_PluginLoadWithDefaultPaths(void);
+
+/// Implement by plugins for returning plugin descriptor.
+WASMEDGE_CAPI_PLUGIN_EXPORT extern const WasmEdge_PluginDescriptor *
+WasmEdge_Plugin_GetDescriptor(void);
 
 // <<<<<<<< WasmEdge Pluginfunctions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

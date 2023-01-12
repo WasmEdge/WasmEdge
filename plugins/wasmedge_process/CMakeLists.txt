@@ -27,10 +27,16 @@ target_include_directories(wasmedgePluginWasmEdgeProcess
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(wasmedgePluginWasmEdgeProcess
-  PUBLIC
-  wasmedgeCommon
-  wasmedgeSystem
-)
+if(WASMEDGE_LINK_PLUGINS_STATIC)
+  target_link_libraries(wasmedgePluginWasmEdgeProcess
+    PRIVATE
+    wasmedgeCAPI
+  )
+else()
+  target_link_libraries(wasmedgePluginWasmEdgeProcess
+    PRIVATE
+    wasmedge_shared
+  )
+endif()
 
 install(TARGETS wasmedgePluginWasmEdgeProcess DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)

@@ -13,12 +13,13 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/enum_ast.h"
-#include "common/enum_configure.h"
-#include "common/enum_errcode.h"
-#include "common/enum_errinfo.h"
-#include "common/enum_types.h"
+#include "common/enum_ast.hpp"
+#include "common/enum_configure.hpp"
+#include "common/enum_errcode.hpp"
+#include "common/enum_errinfo.hpp"
+#include "common/enum_types.hpp"
 #include "common/filesystem.h"
+#include "common/log.h"
 #include "common/types.h"
 
 #include <cstdint>
@@ -297,3 +298,38 @@ struct InfoProposal {
 
 } // namespace ErrInfo
 } // namespace WasmEdge
+
+#if FMT_VERSION >= 90000
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoFile> : ostream_formatter {};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoLoading> : ostream_formatter {};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoAST> : ostream_formatter {};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoInstanceBound>
+    : ostream_formatter {};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoForbidIndex> : ostream_formatter {
+};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoExporting> : ostream_formatter {};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoLimit> : ostream_formatter {};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoRegistering> : ostream_formatter {
+};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoLinking> : ostream_formatter {};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoExecuting> : ostream_formatter {};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoMismatch> : ostream_formatter {};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoInstruction> : ostream_formatter {
+};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoBoundary> : ostream_formatter {};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoProposal> : ostream_formatter {};
+#endif

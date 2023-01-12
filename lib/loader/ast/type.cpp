@@ -21,11 +21,11 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
       break;
     case AST::Limit::LimitType::SharedNoMax:
       if (Conf.hasProposal(Proposal::Threads)) {
-        return logLoadError(ErrCode::SharedMemoryNoMax, FMgr.getLastOffset(),
-                            ASTNodeAttr::Type_Limit);
+        return logLoadError(ErrCode::Value::SharedMemoryNoMax,
+                            FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
       } else {
-        return logLoadError(ErrCode::IntegerTooLarge, FMgr.getLastOffset(),
-                            ASTNodeAttr::Type_Limit);
+        return logLoadError(ErrCode::Value::IntegerTooLarge,
+                            FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
       }
     case AST::Limit::LimitType::Shared:
       Lim.setType(AST::Limit::LimitType::Shared);
@@ -33,11 +33,11 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
     default:
       if (*Res == 0x80 || *Res == 0x81) {
         // LEB128 cases will fail.
-        return logLoadError(ErrCode::IntegerTooLong, FMgr.getLastOffset(),
-                            ASTNodeAttr::Type_Limit);
+        return logLoadError(ErrCode::Value::IntegerTooLong,
+                            FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
       } else {
-        return logLoadError(ErrCode::IntegerTooLarge, FMgr.getLastOffset(),
-                            ASTNodeAttr::Type_Limit);
+        return logLoadError(ErrCode::Value::IntegerTooLarge,
+                            FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
       }
     }
   } else {
@@ -71,7 +71,7 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   // Read function type (0x60).
   if (auto Res = FMgr.readByte()) {
     if (*Res != 0x60U) {
-      return logLoadError(ErrCode::IntegerTooLong, FMgr.getLastOffset(),
+      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
                           ASTNodeAttr::Type_Function);
     }
   } else {
@@ -82,6 +82,10 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   // Read vector of parameter types.
   if (auto Res = FMgr.readU32()) {
     VecCnt = *Res;
+    if (VecCnt / 2 > FMgr.getRemainSize()) {
+      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
+                          ASTNodeAttr::Type_Function);
+    }
     FuncType.getParamTypes().clear();
     FuncType.getParamTypes().reserve(VecCnt);
   } else {
@@ -106,6 +110,10 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   // Read vector of result types.
   if (auto Res = FMgr.readU32()) {
     VecCnt = *Res;
+    if (VecCnt / 2 > FMgr.getRemainSize()) {
+      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
+                          ASTNodeAttr::Type_Function);
+    }
     FuncType.getReturnTypes().clear();
     FuncType.getReturnTypes().reserve(VecCnt);
   } else {
@@ -113,8 +121,9 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
                         ASTNodeAttr::Type_Function);
   }
   if (unlikely(!Conf.hasProposal(Proposal::MultiValue)) && VecCnt > 1) {
-    return logNeedProposal(ErrCode::MalformedValType, Proposal::MultiValue,
-                           FMgr.getLastOffset(), ASTNodeAttr::Type_Function);
+    return logNeedProposal(ErrCode::Value::MalformedValType,
+                           Proposal::MultiValue, FMgr.getLastOffset(),
+                           ASTNodeAttr::Type_Function);
   }
   for (uint32_t I = 0; I < VecCnt; ++I) {
     if (auto Res = FMgr.readByte()) {
@@ -191,7 +200,7 @@ Expect<void> Loader::loadType(AST::GlobalType &GlobType) {
     case ValMut::Var:
       break;
     default:
-      return logLoadError(ErrCode::InvalidMut, FMgr.getLastOffset(),
+      return logLoadError(ErrCode::Value::InvalidMut, FMgr.getLastOffset(),
                           ASTNodeAttr::Type_Global);
     }
   } else {

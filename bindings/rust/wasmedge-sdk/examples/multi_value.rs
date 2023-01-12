@@ -17,7 +17,7 @@ fn main() -> anyhow::Result<()> {
   (export "swap" (func $swap)))
 "#,
     )?;
-    let module = Module::from_bytes(None, &wasm_bytes)?;
+    let module = Module::from_bytes(None, wasm_bytes)?;
 
     let mut executor = Executor::new(None, None)?;
     let mut store = Store::new()?;
@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
         .func("swap")
         .expect("Not found a host function named 'swap'.");
 
-    let returns = swap.call(&mut executor, params!(2, 3))?;
+    let returns = swap.call(&executor, params!(2, 3))?;
     assert_eq!(returns.len(), 2);
 
     println!(

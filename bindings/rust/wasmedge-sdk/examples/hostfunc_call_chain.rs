@@ -17,8 +17,10 @@
 //! ```
 
 use std::sync::{Arc, Mutex};
-use wasmedge_sdk::{params, ImportObjectBuilder, Module, Vm, WasmValue};
-use wasmedge_types::wat2wasm;
+use wasmedge_sdk::{
+    error::HostFuncError, params, wat2wasm, CallingFrame, ImportObjectBuilder, Module, Vm,
+    WasmValue,
+};
 
 struct Wrapper(*const Vm);
 unsafe impl Send for Wrapper {}
@@ -27,13 +29,16 @@ unsafe impl Send for Wrapper {}
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let vm = Vm::new(None)?;
 
-    let host_layer1 = |_: Vec<WasmValue>| -> Result<Vec<WasmValue>, u8> {
-        println!("There is layer1!");
-        Ok(vec![])
-    };
+    let host_layer1 =
+        |_frame: CallingFrame, _args: Vec<WasmValue>| -> Result<Vec<WasmValue>, HostFuncError> {
+            println!("There is layer1!");
+            Ok(vec![])
+        };
 
     let s = Arc::new(Mutex::new(Wrapper(&vm as *const Vm)));
-    let host_layer2 = move |_: Vec<WasmValue>| -> Result<Vec<WasmValue>, u8> {
+    let host_layer2 = move |_frame: CallingFrame,
+                            _args: Vec<WasmValue>|
+          -> Result<Vec<WasmValue>, HostFuncError> {
         unsafe {
             (*s.lock().unwrap().0)
                 .run_func(None, "layer1", params!())
@@ -44,8 +49,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let import = ImportObjectBuilder::new()
-        .with_func_single_thread::<(), ()>("layer1", host_layer1)?
-        .with_func_single_thread::<(), ()>("layer2", host_layer2)?
+        .with_func::<(), ()>("layer1", host_layer1)?
+        .with_func::<(), ()>("layer2", host_layer2)?
         .build("host")?;
 
     let vm = vm.register_import_module(import)?;

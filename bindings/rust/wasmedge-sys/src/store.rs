@@ -23,7 +23,7 @@ impl Store {
     pub fn create() -> WasmEdgeResult<Self> {
         let ctx = unsafe { ffi::WasmEdge_StoreCreate() };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Store(StoreError::Create)),
+            true => Err(Box::new(WasmEdgeError::Store(StoreError::Create))),
             false => Ok(Store {
                 inner: InnerStore(ctx),
                 registered: false,
@@ -74,11 +74,11 @@ impl Store {
         let mod_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe { ffi::WasmEdge_StoreFindModule(self.inner.0, mod_name.as_raw()) };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Store(StoreError::NotFoundModule(
+            true => Err(Box::new(WasmEdgeError::Store(StoreError::NotFoundModule(
                 name.as_ref().to_string(),
-            ))),
+            )))),
             false => Ok(Instance {
-                inner: InnerInstance(ctx as *mut _),
+                inner: std::sync::Arc::new(InnerInstance(ctx as *mut _)),
                 registered: true,
             }),
         }
@@ -120,15 +120,16 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::WasmValue,
-        Config, Engine, Executor, FuncType, ImportInstance, ImportModule, ImportObject, Vm,
+        AsImport, CallingFrame, Config, Engine, Executor, FuncType, ImportModule, ImportObject, Vm,
     };
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
-    use wasmedge_types::{Mutability, RefType, ValType};
+    use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_store_basic() {
         let module_name = "extern_module";
 
@@ -138,7 +139,7 @@ mod tests {
         assert!(!store.inner.0.is_null());
         assert!(!store.registered);
 
-        // check the length of registered module list in store before instatiation
+        // check the length of registered module list in store before instantiation
         assert_eq!(store.module_len(), 0);
         assert!(store.module_names().is_none());
 
@@ -203,6 +204,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_store_send() {
         let result = Store::create();
         assert!(result.is_ok());
@@ -219,6 +221,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_store_sync() {
         let result = Store::create();
         assert!(result.is_ok());
@@ -278,6 +281,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_store_named_module() {
         // create a Config context
         let result = Config::create();
@@ -294,11 +298,11 @@ mod tests {
         // create a Vm context with the given Config and Store
         let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let vm = result.unwrap();
 
         // register a wasm module from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
         let result = vm.register_wasm_from_file("extern", path);
         assert!(result.is_ok());
 
@@ -335,21 +339,21 @@ mod tests {
         assert_eq!(return_types, [ValType::I32]);
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    fn real_add(_: CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

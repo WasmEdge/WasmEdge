@@ -194,10 +194,7 @@ public:
 private:
   static constexpr size_t getSigSize() { return KeyBits / 8; }
 
-  static void *getShaCtx() {
-    return static_cast<void *>(
-        const_cast<EVP_MD *>(EVP_get_digestbynid(ShaNid)));
-  }
+  static const EVP_MD *getShaCtx() { return EVP_get_digestbynid(ShaNid); }
 };
 
 using RSA_PKCS1_2048_SHA256 = Rsa<RSA_PKCS1_PADDING, 2048, NID_sha256>;

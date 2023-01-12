@@ -43,6 +43,7 @@ class Executor;
 namespace Runtime {
 
 class StoreManager;
+class CallingFrame;
 
 namespace Instance {
 
@@ -83,13 +84,14 @@ public:
   void addHostFunc(std::string_view Name,
                    std::unique_ptr<HostFunctionBase> &&Func) {
     std::unique_lock Lock(Mutex);
-    unsafeAddHostInstance(
-        Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
-        std::make_unique<Runtime::Instance::FunctionInstance>(std::move(Func)));
+    unsafeAddHostInstance(Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
+                          std::make_unique<Runtime::Instance::FunctionInstance>(
+                              this, std::move(Func)));
   }
   void addHostFunc(std::string_view Name,
                    std::unique_ptr<Instance::FunctionInstance> &&Func) {
     std::unique_lock Lock(Mutex);
+    Func->setModule(this);
     unsafeAddHostInstance(Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
                           std::move(Func));
   }
@@ -170,8 +172,9 @@ public:
     return std::forward<CallbackT>(CallBack)(ExpGlobals);
   }
 
-private:
+protected:
   friend class Executor::Executor;
+  friend class Runtime::CallingFrame;
 
   /// Copy the function types in type section to this module instance.
   void addFuncType(const AST::FunctionType &FuncType) {
@@ -182,7 +185,8 @@ private:
   /// Create and add instances into this module instance.
   template <typename... Args> void addFunc(Args &&...Values) {
     std::unique_lock Lock(Mutex);
-    unsafeAddInstance(OwnedFuncInsts, FuncInsts, std::forward<Args>(Values)...);
+    unsafeAddInstance(OwnedFuncInsts, FuncInsts, this,
+                      std::forward<Args>(Values)...);
   }
   template <typename... Args> void addTable(Args &&...Values) {
     std::unique_lock Lock(Mutex);
@@ -247,7 +251,7 @@ private:
     std::shared_lock Lock(Mutex);
     if (unlikely(Idx >= FuncTypes.size())) {
       // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceIndex);
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return &FuncTypes[Idx];
   }
@@ -257,7 +261,7 @@ private:
     std::shared_lock Lock(Mutex);
     if (Idx >= FuncInsts.size()) {
       // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceIndex);
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return FuncInsts[Idx];
   }
@@ -265,7 +269,7 @@ private:
     std::shared_lock Lock(Mutex);
     if (Idx >= TabInsts.size()) {
       // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceIndex);
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetTable(Idx);
   }
@@ -276,7 +280,7 @@ private:
     std::shared_lock Lock(Mutex);
     if (Idx >= MemInsts.size()) {
       // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceIndex);
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetMemory(Idx);
   }
@@ -287,7 +291,7 @@ private:
     std::shared_lock Lock(Mutex);
     if (Idx >= GlobInsts.size()) {
       // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceIndex);
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetGlobal(Idx);
   }
@@ -298,7 +302,7 @@ private:
     std::shared_lock Lock(Mutex);
     if (Idx >= ElemInsts.size()) {
       // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceIndex);
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetElem(Idx);
   }
@@ -309,7 +313,7 @@ private:
     std::shared_lock Lock(Mutex);
     if (Idx >= DataInsts.size()) {
       // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceIndex);
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetData(Idx);
   }

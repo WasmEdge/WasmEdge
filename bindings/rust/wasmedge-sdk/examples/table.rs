@@ -1,9 +1,10 @@
 // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 // #![feature(explicit_generic_args_with_impl_trait)]
 
-use wasmedge_sdk::{params, types::Val, Executor, Func, Module, Store, WasmVal};
-use wasmedge_sys::types::WasmValue;
-use wasmedge_types::{wat2wasm, RefType, TableType, ValType};
+use wasmedge_sdk::{
+    error::HostFuncError, host_function, params, types::Val, wat2wasm, Caller, Executor, Func,
+    Module, RefType, Store, TableType, ValType, WasmVal, WasmValue,
+};
 
 #[cfg_attr(test, test)]
 fn main() -> anyhow::Result<()> {
@@ -66,7 +67,7 @@ fn main() -> anyhow::Result<()> {
 
     // call the exported function named "call_callback"
     // the first argument is the table index, while the other two arguments are passed to the function found in the table.
-    let returns = call_via_table.call(&mut executor, params!(1, 2, 7))?;
+    let returns = call_via_table.call(&executor, params!(1, 2, 7))?;
     assert_eq!(returns[0].to_i32(), 18);
 
     // get module instance
@@ -87,21 +88,25 @@ fn main() -> anyhow::Result<()> {
     // * setting elements in a table
 
     /// A function we'll call through a table.
-    fn host_callback(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+    #[host_function]
+    fn host_callback(
+        _: Caller,
+        inputs: Vec<WasmValue>,
+    ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;
@@ -117,7 +122,7 @@ fn main() -> anyhow::Result<()> {
 
     // We then repeat the call from before but this time it will find the host function
     // that we put at table index 1.
-    let returns = call_via_table.call(&mut executor, params!(1, 2, 7))?;
+    let returns = call_via_table.call(&executor, params!(1, 2, 7))?;
     assert_eq!(returns[0].to_i32(), 9);
 
     // * growing a table
@@ -134,7 +139,7 @@ fn main() -> anyhow::Result<()> {
     // Now demonstrate that the function we grew the table with is actually in the table.
     for idx in 3..6 {
         if let Val::FuncRef(Some(func_ref)) = guest_table.get(idx)? {
-            let returns = func_ref.call(&mut executor, params!(1, 9))?;
+            let returns = func_ref.call(&executor, params!(1, 9))?;
             assert_eq!(returns[0].to_i32(), 10);
         } else {
             panic!("expected to find funcref in table!");
@@ -142,26 +147,26 @@ fn main() -> anyhow::Result<()> {
     }
 
     // Call function at index 0 to show that it's still the same.
-    let returns = call_via_table.call(&mut executor, params!(0, 2, 7))?;
+    let returns = call_via_table.call(&executor, params!(0, 2, 7))?;
     assert_eq!(returns[0].to_i32(), 18);
 
     // Now overwrite index 0 with our host_callback.
     let func = Func::wrap::<(i32, i32), i32>(Box::new(host_callback))?;
     guest_table.set(0, Val::FuncRef(Some(func.as_ref())))?;
     // And verify that it does what we expect.
-    let returns = call_via_table.call(&mut executor, params!(0, 2, 7))?;
+    let returns = call_via_table.call(&executor, params!(0, 2, 7))?;
     assert_eq!(returns[0].to_i32(), 9);
 
     // Now demonstrate that the host and guest see the same table and that both
     // get the same result.
     for idx in 3..6 {
         if let Val::FuncRef(Some(func_ref)) = guest_table.get(idx)? {
-            let returns = func_ref.call(&mut executor, params!(1, 9))?;
+            let returns = func_ref.call(&executor, params!(1, 9))?;
             assert_eq!(returns[0].to_i32(), 10);
         } else {
             panic!("expected to find funcref in table!");
         }
-        let returns = call_via_table.call(&mut executor, params!(idx as i32, 1, 9))?;
+        let returns = call_via_table.call(&executor, params!(idx as i32, 1, 9))?;
         assert_eq!(returns[0].to_i32(), 10);
     }
 

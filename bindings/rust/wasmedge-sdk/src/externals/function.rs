@@ -1,7 +1,9 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-use crate::{io::WasmValTypeList, Engine, WasmEdgeResult};
-use wasmedge_sys::{self as sys, WasmValue};
-use wasmedge_types::{FuncType, ValType};
+use crate::{
+    error::HostFuncError, io::WasmValTypeList, CallingFrame, Engine, FuncType, ValType,
+    WasmEdgeResult, WasmValue,
+};
+use wasmedge_sys as sys;
 
 /// Defines a host function instance.
 ///
@@ -15,26 +17,25 @@ use wasmedge_types::{FuncType, ValType};
 /// // If the version of rust used is less than v1.63,
 /// // #![feature(explicit_generic_args_with_impl_trait)]
 ///
-/// use wasmedge_sdk::{Func, Executor, params, WasmVal};
-/// use wasmedge_sys::WasmValue;
-/// use wasmedge_types::ValType;
+/// use wasmedge_sdk::{Func, Executor, params, WasmVal, error::HostFuncError, WasmValue, ValType, Caller, host_function};
 ///
 /// // A native function to be wrapped as a host function
-/// fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+/// #[host_function]
+/// fn real_add(_: Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
 ///     if input.len() != 2 {
-///         return Err(1);
+///         return Err(HostFuncError::User(1));
 ///     }
 ///
 ///     let a = if input[0].ty() == ValType::I32 {
 ///         input[0].to_i32()
 ///     } else {
-///         return Err(2);
+///         return Err(HostFuncError::User(2));
 ///     };
 ///
 ///     let b = if input[1].ty() == ValType::I32 {
 ///         input[1].to_i32()
 ///     } else {
-///         return Err(3);
+///         return Err(HostFuncError::User(3));
 ///     };
 ///
 ///     let c = a + b;
@@ -64,9 +65,38 @@ pub struct Func {
     pub(crate) mod_name: Option<String>,
 }
 impl Func {
+    /// Creates a host function of the given func type.
+    ///
+    /// N.B. that this function can be used in thread-safe scenarios.
+    ///
+    /// # Arguments
+    ///
+    /// * `ty` - The function type.
+    ///
+    /// * `real_func` - The native function that will be wrapped as a host function.
+    ///
+    /// # Error
+    ///
+    /// If fail to create the host function, then an error is returned.
+    pub fn new(
+        ty: FuncType,
+        real_func: impl Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+            + Send
+            + Sync
+            + 'static,
+    ) -> WasmEdgeResult<Self> {
+        let boxed_func = Box::new(real_func);
+        let inner = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        Ok(Self {
+            inner,
+            name: None,
+            mod_name: None,
+        })
+    }
+
     /// Creates a host function by wrapping a native function.
     ///
-    /// N.B. that this function is used for thread-safe scenarios.
+    /// N.B. that this function can be used in thread-safe scenarios.
     ///
     /// # Arguments
     ///
@@ -76,7 +106,10 @@ impl Func {
     ///
     /// If fail to create the host function, then an error is returned.
     pub fn wrap<Args, Rets>(
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync + 'static,
+        real_func: impl Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+            + Send
+            + Sync
+            + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -94,9 +127,7 @@ impl Func {
         })
     }
 
-    /// Creates a host function by wrapping a native function.
-    ///
-    /// N.B. that this function is used for single-threaded scenarios. If you would like to use hostfunc call chaining design, you should use this method to create a [Func] instance.
+    /// Creates an asynchronous host function by wrapping a native function.
     ///
     /// # Arguments
     ///
@@ -105,8 +136,18 @@ impl Func {
     /// # Error
     ///
     /// If fail to create the host function, then an error is returned.
-    pub fn wrap_single_thread<Args, Rets>(
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + 'static,
+    #[cfg(feature = "async")]
+    pub fn wrap_async<Args, Rets>(
+        real_func: impl Fn(
+                CallingFrame,
+                Vec<WasmValue>,
+            ) -> Box<
+                dyn std::future::Future<
+                        Output = Result<Vec<WasmValue>, crate::error::HostFuncError>,
+                    > + Send,
+            > + Send
+            + Sync
+            + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -116,7 +157,7 @@ impl Func {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner = sys::Function::create_single_thread(&ty.into(), boxed_func, 0)?;
+        let inner = sys::Function::create_async(&ty.into(), boxed_func, 0)?;
         Ok(Self {
             inner,
             name: None,
@@ -162,7 +203,7 @@ impl Func {
     ///
     /// # Arguments
     ///
-    /// * `engine` - The object implements Engine trait.
+    /// * `engine` - The object implementing the [Engine](crate::Engine) trait.
     ///
     /// * `args` - The arguments passed to the host function.
     ///
@@ -172,7 +213,7 @@ impl Func {
     ///
     pub fn call<E: Engine>(
         &self,
-        engine: &mut E,
+        engine: &E,
         args: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         engine.run_func(self, args)
@@ -265,7 +306,7 @@ impl FuncRef {
     ///
     /// # Arguments
     ///
-    /// * `engine` - The object implements Engine trait.
+    /// * `engine` - The object implementing the [Engine](crate::Engine) trait.
     ///
     /// * `args` - The arguments passed to the host function.
     ///
@@ -275,7 +316,7 @@ impl FuncRef {
     ///
     pub fn call<E: Engine>(
         &self,
-        engine: &mut E,
+        engine: &E,
         args: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         engine.run_func_ref(self, args)
@@ -287,9 +328,9 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        params, Executor, ImportObjectBuilder, Statistics, Store, WasmVal,
+        error::HostFuncError,
+        params, Executor, ImportObjectBuilder, Statistics, Store, WasmVal, WasmValue,
     };
-    use wasmedge_sys::WasmValue;
 
     #[test]
     fn test_func_signature() {
@@ -344,6 +385,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_func_basic() {
         // create an ImportModule
         let result = ImportObjectBuilder::new()
@@ -418,21 +460,24 @@ mod tests {
         assert_eq!(returns[0].to_i32(), 5);
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+    fn real_add(
+        _frame: CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

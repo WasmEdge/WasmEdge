@@ -16,13 +16,15 @@ namespace Loader {
 
 // Load binary to construct Module node. See "include/loader/loader.h".
 Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
+  // When entering this function, the `Loader::WASMType` should be
+  // `Loader::InputType::SharedLibrary` or `Loader::InputType::WASM`.
+
   auto Mod = std::make_unique<AST::Module>();
-  IsUniversalWASM = false;
   // Read Magic and Version sequences.
   if (auto Res = FMgr.readBytes(4)) {
     std::vector<Byte> WasmMagic = {0x00, 0x61, 0x73, 0x6D};
     if (*Res != WasmMagic) {
-      return logLoadError(ErrCode::MalformedMagic, FMgr.getLastOffset(),
+      return logLoadError(ErrCode::Value::MalformedMagic, FMgr.getLastOffset(),
                           ASTNodeAttr::Module);
     }
     Mod->getMagic() = *Res;
@@ -32,8 +34,8 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
   if (auto Res = FMgr.readBytes(4)) {
     std::vector<Byte> WasmVersion = {0x01, 0x00, 0x00, 0x00};
     if (*Res != WasmVersion) {
-      return logLoadError(ErrCode::MalformedVersion, FMgr.getLastOffset(),
-                          ASTNodeAttr::Module);
+      return logLoadError(ErrCode::Value::MalformedVersion,
+                          FMgr.getLastOffset(), ASTNodeAttr::Module);
     }
     Mod->getVersion() = *Res;
   } else {
@@ -41,9 +43,12 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
   }
 
   // Find and Read the AOT custom section first. Jump the others.
-  while (true && !IsSharedLibraryWASM) {
+  // This loop is for checking the input is an universal WASM or not.
+  // Therefore, if the configure is set as force interpreter mode, skip this.
+  while (!Conf.getRuntimeConfigure().isForceInterpreter() &&
+         WASMType != InputType::SharedLibrary) {
     // This loop only overview the custom sections and read the AOT section.
-    // For the other general errors, break and handle in the sequencially
+    // For the other general errors, break and handle in the sequentially
     // parsing below.
     uint8_t NewSectionId = 0x00;
     if (auto Res = FMgr.readByte()) {
@@ -58,6 +63,9 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
       if (auto Res = FMgr.readU32()) {
         ContentSize = *Res;
       } else {
+        break;
+      }
+      if (ContentSize > FMgr.getRemainSize()) {
         break;
       }
 
@@ -93,16 +101,16 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
         if (auto Res = loadSection(VecMgr, NewAOTSection)) {
           // Also handle the duplicated AOT sections case.
           // If the new AOT section discovered, use the new one.
-          IsUniversalWASM = true;
+          WASMType = InputType::UniversalWASM;
           Mod->getAOTSection() = std::move(NewAOTSection);
         } else {
           // If the new AOT section load failed, use the old one or the
           // interpreter mode.
-          if (IsUniversalWASM) {
-            spdlog::error(
+          if (WASMType == InputType::UniversalWASM) {
+            spdlog::info(
                 "    Load AOT section failed. Use the previous succeeded one.");
           } else {
-            spdlog::error(
+            spdlog::info(
                 "    Load AOT section failed. Use interpreter mode instead.");
           }
         }
@@ -132,7 +140,7 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
     if (auto Res = FMgr.readByte()) {
       NewSectionId = *Res;
     } else {
-      if (Res.error() == ErrCode::UnexpectedEnd) {
+      if (Res.error() == ErrCode::Value::UnexpectedEnd) {
         break;
       } else {
         return logLoadError(Res.error(), FMgr.getLastOffset(),
@@ -143,7 +151,7 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
     // Sections except the custom section should be unique.
     if (NewSectionId > 0x00U && NewSectionId < 0x0DU &&
         Secs.test(NewSectionId)) {
-      return logLoadError(ErrCode::JunkSection, FMgr.getLastOffset(),
+      return logLoadError(ErrCode::Value::JunkSection, FMgr.getLastOffset(),
                           ASTNodeAttr::Module);
     }
 
@@ -236,7 +244,7 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
       // This section is for BulkMemoryOperations or ReferenceTypes proposal.
       if (!Conf.hasProposal(Proposal::BulkMemoryOperations) &&
           !Conf.hasProposal(Proposal::ReferenceTypes)) {
-        return logNeedProposal(ErrCode::MalformedSection,
+        return logNeedProposal(ErrCode::Value::MalformedSection,
                                Proposal::BulkMemoryOperations,
                                FMgr.getLastOffset(), ASTNodeAttr::Module);
       }
@@ -248,37 +256,40 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
       Secs.set(NewSectionId);
       break;
     default:
-      return logLoadError(ErrCode::MalformedSection, FMgr.getLastOffset(),
-                          ASTNodeAttr::Module);
+      return logLoadError(ErrCode::Value::MalformedSection,
+                          FMgr.getLastOffset(), ASTNodeAttr::Module);
     }
   }
 
   // Verify the function section and code section are matched.
   if (Mod->getFunctionSection().getContent().size() !=
       Mod->getCodeSection().getContent().size()) {
-    spdlog::error(ErrCode::IncompatibleFuncCode);
+    spdlog::error(ErrCode::Value::IncompatibleFuncCode);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-    return Unexpect(ErrCode::IncompatibleFuncCode);
+    return Unexpect(ErrCode::Value::IncompatibleFuncCode);
   }
 
   // Verify the data count section and data segments are matched.
   if (Mod->getDataCountSection().getContent()) {
     if (Mod->getDataSection().getContent().size() !=
         *(Mod->getDataCountSection().getContent())) {
-      spdlog::error(ErrCode::IncompatibleDataCount);
+      spdlog::error(ErrCode::Value::IncompatibleDataCount);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-      return Unexpect(ErrCode::IncompatibleDataCount);
+      return Unexpect(ErrCode::Value::IncompatibleDataCount);
     }
   }
 
   // Load library from AOT Section for the universal WASM case.
-  if (IsUniversalWASM) {
+  // For the force interpreter mode, skip this.
+  if (WASMType == InputType::UniversalWASM &&
+      !Conf.getRuntimeConfigure().isForceInterpreter()) {
+    bool FallBackInterpreter = false;
     auto Library = std::make_shared<SharedLibrary>();
     if (auto Res = Library->load(Mod->getAOTSection()); unlikely(!Res)) {
       spdlog::error("    AOT section -- library load failed:{} , use "
                     "interpreter mode instead.",
                     Res.error());
-      IsUniversalWASM = false;
+      FallBackInterpreter = true;
     }
 
     // Check the symbols.
@@ -288,27 +299,28 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
         Library->getIntrinsics<const AST::Module::IntrinsicsTable *>();
     auto &FuncTypes = Mod->getTypeSection().getContent();
     auto &CodeSegs = Mod->getCodeSection().getContent();
-    if (IsUniversalWASM &&
+    if (!FallBackInterpreter &&
         unlikely(FuncTypeSymbols.size() != FuncTypes.size())) {
       spdlog::error("    AOT section -- number of types not matching:{} {}, "
                     "use interpreter mode instead.",
                     FuncTypeSymbols.size(), FuncTypes.size());
-      IsUniversalWASM = false;
+      FallBackInterpreter = true;
     }
-    if (IsUniversalWASM && unlikely(CodeSymbols.size() != CodeSegs.size())) {
+    if (!FallBackInterpreter &&
+        unlikely(CodeSymbols.size() != CodeSegs.size())) {
       spdlog::error("    AOT section -- number of codes not matching:{} {}, "
                     "use interpreter mode instead.",
                     CodeSymbols.size(), CodeSegs.size());
-      IsUniversalWASM = false;
+      FallBackInterpreter = true;
     }
-    if (IsUniversalWASM && unlikely(!IntrinsicsSymbol)) {
+    if (!FallBackInterpreter && unlikely(!IntrinsicsSymbol)) {
       spdlog::error("    AOT section -- intrinsics table symbol not found, use "
                     "interpreter mode instead.");
-      IsUniversalWASM = false;
+      FallBackInterpreter = true;
     }
 
     // Set the symbols into the module.
-    if (IsUniversalWASM) {
+    if (!FallBackInterpreter) {
       for (size_t I = 0; I < FuncTypes.size(); ++I) {
         FuncTypes[I].setSymbol(std::move(FuncTypeSymbols[I]));
       }
@@ -318,6 +330,7 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
       Mod->setSymbol(std::move(IntrinsicsSymbol));
     } else {
       // Fallback to the interpreter mode case: Re-read the code section.
+      WASMType = InputType::WASM;
       FMgr.seek(Mod->getCodeSection().getStartOffset());
       if (auto Res = loadSection(Mod->getCodeSection()); !Res) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));

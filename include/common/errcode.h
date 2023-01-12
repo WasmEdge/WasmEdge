@@ -13,9 +13,10 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/enum_errcode.h"
+#include "common/enum_errcode.hpp"
 #include "common/expected.h"
 #include "common/hexstr.h"
+#include "common/log.h"
 
 #include <cassert>
 #include <ostream>
@@ -32,13 +33,17 @@
 
 namespace WasmEdge {
 
-static inline WasmPhase getErrCodePhase(ErrCode Code) {
-  return static_cast<WasmPhase>((static_cast<uint8_t>(Code) & 0xF0) >> 5);
+static inline WasmPhase getErrCodePhase(const ErrCode &Code) {
+  return static_cast<WasmPhase>(Code.getCategory() == ErrCategory::WASM
+                                    ? ((Code.getCode() & 0xF0U) >> 5)
+                                    : 0x05U // WasmPhase::UserDefined
+  );
 }
 
-static inline std::ostream &operator<<(std::ostream &OS, const ErrCode Code) {
-  OS << WasmPhaseStr[getErrCodePhase(Code)] << " failed: " << ErrCodeStr[Code]
-     << ", Code: " << convertUIntToHexStr(static_cast<uint32_t>(Code), 2);
+static inline std::ostream &operator<<(std::ostream &OS, const ErrCode &Code) {
+  OS << WasmPhaseStr[getErrCodePhase(Code)]
+     << " failed: " << ErrCodeStr[Code.getEnum()]
+     << ", Code: " << convertUIntToHexStr(Code.getCode(), 2);
   return OS;
 }
 
@@ -54,8 +59,16 @@ template <typename T> using Expect = Expected<T, ErrCode>;
 
 /// Helper function for Unexpected<ErrCode>.
 constexpr auto Unexpect(const ErrCode &Val) { return Unexpected<ErrCode>(Val); }
+template <typename... ArgsT> constexpr auto Unexpect(ArgsT... Args) {
+  return Unexpected<ErrCode>(ErrCode(Args...));
+}
 template <typename T> constexpr auto Unexpect(const Expect<T> &Val) {
   return Unexpected<ErrCode>(Val.error());
 }
 
 } // namespace WasmEdge
+
+#if FMT_VERSION >= 90000
+template <>
+struct fmt::formatter<WasmEdge::ErrCode::Value> : ostream_formatter {};
+#endif

@@ -1,3 +1,285 @@
+### 0.12.0-alpha.1 (2022-12-23)
+
+Features:
+
+* Updated the WasmEdge shared library.
+  * Due to the breaking change of ABI, bump the `SOVERSION` to `0.0.2`.
+* Introduced the python version WasmEdge installer.
+* Updated the ABI of the `wasi_ephemeral_sock`.
+  * Added the output port of the `sock_recv_from`.
+  * Updated the API of `sock_getlocaladdr`.
+  * Unified the socket address size to 128-bit.
+* Supported using `libtool` to archive the WasmEdge static library.
+
+Fixed issues:
+
+* Fixed WASI-NN issues.
+  * Fixed the definition of `wasi_nn::TensorType` to prevent from comparing with dirty data.
+* Fixed the lost intrinsics table in AOT mode when using the WasmEdge C API.
+* Fixed the implementation in `threads` proposal.
+  * Fixed the error in `atomic.nofify` and `atomic.wait` instructions.
+  * Fixed the decoding of `atomic.fence` instruction.
+  * Corrected the error message of waiting on unshared memory.
+
+Refactor:
+
+* Refactored the implementation of number loading in the file manager.
+  * Supported `s33` and `sn` loading and decoding.
+* Refactored the `WasmEdge::ValType`.
+  * Removed the `WasmEdge::ValType::None`.
+  * Used the flag in `WasmEdge::BlockType` for supporting the type index.
+  * Removed the `WasmEdge::Validator::VType` and used the `WasmEdge::ValType` instead.
+
+Known issues:
+
+* Universal WASM format failed on MacOS platforms.
+  * In current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause bus error when execution.
+  * We are trying to fix this issue. For working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+* Plug-in linking on MacOS platforms.
+  * The plug-in on MacOS platforms will cause symbol not found when dynamic linking.
+  * We are trying to fix this issue. For working around, please implement the host modules instead of plug-ins.
+
+Documentations:
+
+* Fixed various typos.
+* Updated the [Android NDK example](https://wasmedge.org/book/en/contribute/build_from_src/android/ndk.html).
+* Added the [static library linking guide](https://wasmedge.org/book/en/sdk/c/library.html#link-with-wasmedge-static-library).
+
+Tests:
+
+* Updated the WASM spec tests to the date 2022/12/15.
+
+Thank all the contributors that made this release possible!
+
+DarumaDocker, Harry Chiang, Justin Echternach, Kenvi Zhu, LFsWang, Lîm Tsú-thuàn, MediosZ, Puelloc, Rafael Fernández López, Shreyas Atre, Sylveon, Xin Liu, Xiongsheng Wang, YiYing He, alabulei1, dm4, hydai, jeongkyu, little-willy
+
+If you want to build from source, please use WasmEdge-0.12.0-alpha.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
+### 0.11.2 (2022-11-03)
+
+Features:
+
+* Added the new WasmEdge C API.
+  * Added the `WasmEdge_ConfigureSetForceInterpreter()` API to set the force interpreter mode.
+  * Added the `WasmEdge_ConfigureIsForceInterpreter()` API to check the force interpreter mode in configurations.
+  * Added the `WasmEdge_LogOff()` API to turn off the logging.
+  * Due to introducing the new APIs, bump the `SOVERSION` to `0.0.1`.
+* Added the additional hint messages if import not found when in instantiation.
+* Added the forcibly interpreter execution mode in WasmEdge CLI.
+  * Users can use the `--force-interpreter` option in the `wasmedge` tool to forcibly execute WASM files (includes the AOT compiled WASM files) in interpreter mode.
+* Supported WASI-NN plug-in with TensorFlow-Lite backend on Ubuntu 20.04 x86_64.
+  * Users can refer to the [WASI-NN document](https://wasmedge.org/book/en/write_wasm/rust/wasinn.html) for the information.
+  * For building with enabling WASI-NN with TensorFlow-Lite backend, please add the `-DWASMEDGE_PLUGIN_WASI_NN_BACKEND="TensorFlowLite"` in `cmake`.
+* Bump the `fmt` format of logging to `9.0.0`.
+* Added the new experimental edge-triggered epoll API `epollOneoff` in the WASI component.
+
+Fixed issues:
+
+* Detected the valid `_start` function of the WasmEdge CLI command mode.
+  * For the invalid `_start` function, the WasmEdge CLI will execute that function in the reactor mode.
+* Fixed the non-English WasmEdge CLI arguments error on Windows.
+* Fixed the AOT compiler issues.
+  * Fixed the operand of `frintn` on `arm64` platforms.
+  * Corrected the `unreachable` status to record on every control stacks.
+* Refined the Loader performance.
+  * Capped the maximum local counts to 67108864 (2^26).
+  * Rejected wrong data when loading the universal WASM.
+  * Rejected the unreasonable long vector sizes.
+* Fixed the lost `std` namespace in the `experimental::expected`.
+* Fixed the repeatedly compilation of universal WASM format.
+  * If users use the `wasmedgec` tool to compile the universal WASM file, the AOT compiled WASM data will be appended into the output.
+  * In the cases of duplicated AOT compiled universal WASM file which has more than 1 section of AOT compiled WASM data, the WasmEdge runtime will use the latest appended one when execution.
+* Hidden the local symbols of the WasmEdge shared library.
+* Loaded the default plug-in path from the path related to the WasmEdge shared library.
+  * This only fixed on the MacOS and Linux platforms now.
+* Updated the minimum CMake required version on Android.
+
+Known issues:
+
+* Universal WASM format failed on MacOS platforms.
+  * In current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause bus error when execution.
+  * We are trying to fix this issue. For working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+* Plug-in linking on MacOS platforms.
+  * The plug-in on MacOS platforms will cause symbol not found when dynamic linking.
+  * We are trying to fix this issue. For working around, please implement the host modules instead of plug-ins.
+
+Documentations:
+
+* Updated the [WasmEdge-Go document](https://wasmedge.org/book/en/sdk/go/ref.html) to `v0.11.0`.
+
+Tests:
+
+* Added the WASI-NN TensorFlow-Lite backend unit test.
+* Added the new C API unit tests.
+* Applied more fuzz tests for WasmEdge CLI.
+
+Thank all the contributors that made this release possible!
+
+Abhinandan Udupa, Gustavo Ye, HangedFish, Harry Chiang, Hiroaki Nakamura, Kenvi Zhu, LFsWang, MediosZ, Shen-Ta Hsieh, Shreyas Atre, Xin Liu, YiYing He, abhinandanudupa, dm4, he11c, hydai, vincent, yyy1000, zhlhahaha
+
+If you want to build from source, please use WasmEdge-0.11.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
+### 0.11.1 (2022-10-03)
+
+Features:
+
+* Supported WASI-NN plug-in with PyTorch backend on Ubuntu 20.04 x86_64.
+  * Users can refer to the [WASI-NN document](https://wasmedge.org/book/en/write_wasm/rust/wasinn.html) for the information.
+  * For building with enabling WASI-NN with PyTorch backend, please add the `-DWASMEDGE_PLUGIN_WASI_NN_BACKEND="PyTorch"` in `cmake`.
+* Updated the WASI-Crypto proposal and supported OpenSSL 3.0.
+* Supported LLVM 15.
+* Added the plug-in C API.
+* Extended WasmEdge CLI.
+  * Allow the optimization level assignment in `wasmedgec` tool.
+  * Supported the `v128` value type printing in `wasmedge` tool.
+* Released Ubuntu 20.04 version with statically linked LLVM.
+
+Fixed issues:
+
+* Fixed the `private` members into the `protected` in the module instance class.
+* Fixed the type mismatch for IntrinsicsTable initialization statement in the AOT compiler.
+
+Known issues:
+
+* Universal WASM format failed on MacOS platforms.
+  * In current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause bus error when execution.
+  * We are trying to fix this issue. For working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+* Plug-in linking on MacOS platforms.
+  * The plug-in on MacOS platforms will cause symbol not found when dynamic linking.
+  * We are trying to fix this issue. For working around, please implement the host modules instead of plug-ins.
+
+Documentations:
+
+* Refactored the [WasmEdge book](https://wasmedge.org/book/en/).
+
+Tests:
+
+* Added the WASI-NN PyTorch backend unit test.
+* Added fuzzing tests for WasmEdge CLI.
+
+Thank all the contributors that made this release possible!
+
+DarumaDocker, Faidon Liambotis, Gustavo Ye, LFsWang, MediosZ, Michael Yuan, Shen-Ta Hsieh, Tricster, Xin Liu, Yeongju Kang, YiYing He, Zhou Zhou, hydai, jeeeerrrpop, sonder-joker, vincent
+
+If you want to build from source, please use WasmEdge-0.11.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
+### 0.11.0 (2022-08-31)
+
+Breaking changes:
+
+* WasmEdge C API changes.
+  * Refactored the host function definition to export the calling frame.
+    * The first parameter of `WasmEdge_HostFunc_t` is replaced by `const WasmEdge_CallingFrameContext *`.
+    * The first parameter of `WasmEdge_WrapFunc_t` is replaced by `const WasmEdge_CallingFrameContext *`.
+  * Extended the content of `WasmEdge_Result`.
+  * Added the const qualifier of some APIs.
+    * Added the const qualifier of the first parameter of `WasmEdge_StoreFindModule()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_AsyncWait()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_AsyncWaitFor()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_AsyncGetReturnsLength()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_AsyncGet()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetFunctionType()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetFunctionTypeRegistered()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetFunctionListLength()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetFunctionList()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetImportModuleContext()`.
+  * Renamed the plugin API.
+    * Renamed `WasmEdge_Plugin_loadWithDefaultPluginPaths()` to `WasmEdge_PluginLoadWithDefaultPaths()`.
+* Dropped the manylinux1 and manylinux2010 support. Please refer to the [deprecation notice](https://github.com/WasmEdge/WasmEdge/discussions/1780).
+* Standardize the SONAME and SOVERSION for WasmEdge C API
+  * The name of the library is changed to `libwasmedge.so`, `libwasmedge.dyld`, and `wasmedge.dll`.
+  * Users should change the linker flag from `lwasmedge_c` to `lwasmedge`.
+  * The initialized SONAME is set to `libwasmedge.so.0`.
+  * The initialized SOVERSION is set to `libwasmedge.so.0.0.0`.
+
+Features:
+
+* Updated CMake options of WasmEdge project.
+  * Added `WASMEDGE_LINK_LLVM_STATIC` option to link the LLVM statically into WasmEdge shared library or tools.
+  * Removed the `WASMEDGE_BUILD_STATIC_TOOLS` option and replaced by the `WASMEDGE_LINK_TOOLS_STATIC` option.
+  * For details, please refer to the [documentation](https://wasmedge.org/book/en/extend/build.html#building-options).
+  * After this version, our releases on MacOS platforms will link the LLVM library statically to reduce the installation of LLVM from Homebrew for the users.
+* Supported the user-defined error code for host functions.
+  * The 24-bit size user-defined error code is supported (smaller than 16777216).
+  * Developers can use the `WasmEdge_ResultGen()` API to generate the result and return.
+* Exported the `CallingFrame` instead of the memory instance in host functions.
+  * New `WasmEdge_CallingFrameContext` struct.
+  * Developers can use `WasmEdge_CallingFrameGetModuleInstance()` API to get the module instance of current top frame in calling stack in host function body.
+  * Developers can use `WasmEdge_CallingFrameGetMemoryInstance()` API to get the memory instance by index in host function body.
+    * To quickly upgrade from the previous WasmEdge versions, developer can use the `WasmEdge_CallingFrameGetMemoryInstance(Context, 0)` to get the same memory instance of the previous host function definition.
+  * Developers can use `WasmEdge_CallingFrameGetExecutor()` API to get the executor context in host function body.
+* Extended the `WasmEdge_Result` struct to support user defined error codes of host functions.
+  * Added `WasmEdge_ResultGen()` API to generate the `WasmEdge_Result` struct of user defined error code.
+  * Added `WasmEdge_ResultGetCategory()` API to get the error code category.
+* Added a new API for looking up the native handler from a given WASI mapped Fd/Handler.
+  * Added `WasmEdge_ModuleInstanceWASIGetNativeHandler` to get the native handler.
+* Added a new API for compiling a given WASM byte array.
+  * Added `WasmEdge_CompilerCompileFromBuffer` to compile from buffer.
+* Added `httpsreq` plugin on Linux platforms.
+
+Fixed issues:
+
+* Fixed the binary format loading.
+  * Fixed the error of immediate loading of const instructions in debug mode.
+  * Updated the `memarg` of memory instructions for the multiple memories proposal changes.
+* Fixed the AOT issues.
+  * Fixed the missed mask of shift operands.
+  * Fixed the fallback case of vector instructions if the `SSE4.1` is not supported on the x86_64 platforms or the `NEON` is not supported on the aarch64 platforms.
+  * Fixed the `sdk_version` of `lld` warning on MacOS with LLVM 14.
+* Fixed the unexpected error message when execution.
+  * Refined the terminated case to prevent from printing the unexpected error message.
+* Refined the symbols of output WasmEdge shared libraries.
+  * Removed the weak symbol of WasmEdge plugins.
+  * Hide the `lld` symbols of WasmEdge shared library.
+* Fixed the release packaging.
+  * Fixed the lost of statically linking LLVM into WasmEdge shared library.
+  * Fixed the lost of files when packaging on Windows.
+
+Refactor:
+
+* Reorganized the CI workflows to reuse the similar jobs.
+* Refactored the enum related headers.
+  * Separated the C and C++ enum definition headers.
+  * Not to package the C++ related headers.
+* Updated the WASI and plugin host functions for the API change.
+
+Known issues:
+
+* Universal WASM format failed on MacOS platforms.
+  * In current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause bus error when execution.
+  * We are trying to fix this issue. For working around, please use the shared library format output of the AOT mode, or set the compiler optimization level to `O0` in WasmEdge C API.
+  * Developers can specify the extension name as `.dylib` on MacOS for the shared library format output when using `wasmedgec` tool.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+* Plug-in linking on MacOS platforms.
+  * The plug-in on MacOS platforms will cause symbol not found when dynamic linking.
+  * We are trying to fix this issue. For working around, please implement the host modules instead of plug-ins.
+
+Documentations:
+
+* Updated the [WasmEdge build options documentation](https://wasmedge.org/book/en/extend/build.html#building-options).
+* Updated the [WasmEdge C API documentation](https://wasmedge.org/book/en/embed/c/ref.html) for the breaking change.
+  * For upgrading from `0.10.1` to `0.11.0`, please refer to [the document](https://wasmedge.org/book/en/embed/c/0.10.1/upgrade_to_0.11.0.html).
+  * For the old API of `0.10.1`, please refer to [the document](https://wasmedge.org/book/en/embed/c/0.10.1/ref.html).
+
+Tests:
+
+* Updated the spec tests to the date `20220712`.
+* Updated the test suite of the multiple memories proposal.
+* Updated the plugin tests for the host function API breaking change.
+
+Thank all the contributors that made this release possible!
+
+Cheng-En Lee, Chih-Hsuan Yen, Galden, GreyBalloonYU, HeZean, Michael Yuan, Shen-Ta Hsieh, Xin Liu, Yi Huang, Yi-Ying He, Zhenghao Lu, Zhou Zhou, dm4, hydai
+
+If you want to build from source, please use WasmEdge-0.11.0-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.10.1 (2022-07-28)
 
 Features:
@@ -60,7 +342,7 @@ Thank all the contributors that made this release possible!
 
 Abhinandan Udupa, Chris Ho, Faidon Liambotis, Frank Lin, Jianbai Ye, Kevin O'Neal, LFsWang, Lokesh Mandvekar, Michael Yuan, O3Ol, RichardAH, Shen-Ta Hsieh, Shreyas Atre, Sylveon, Tricster, William Wen, 罗泽轩, Xin Liu, Yi Huang, Yi-Ying He, Yixing Jia, Yukang, abhinandanudupa, alabulei1, dm4, eat4toast, eee4017, hydai, sonder-joker, spacewander, swartz-k, yale
 
-If you want to build from source, please use WasmEdge-0.10.1-alpha.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.10.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.10.0 (2022-05-26)
 
@@ -274,7 +556,7 @@ Breaking changes:
   * To enable instruction counting, please use `--enable-instruction-count`.
   * To enable gas measuring, please use `--enable-gas-measuring`.
   * To enable time  measuring, please use `--enable-time-measuring`.
-  * For the convinence, use `--enable-all-statistics` will enable all available statistics options.
+  * For the convenience, use `--enable-all-statistics` will enable all available statistics options.
 * `wasmedgec` AOT compiler tool behavior changes.
   * For the output file name with extension `.so`, `wasmedgec` will output the AOT compiled WASM in shared library format.
   * For the output file name with extension `.wasm` or other cases, `wasmedgec` will output the WASM file with adding the AOT compiled binary in custom sections. `wasmedge` runtime will run in AOT mode when it executes the output WASM file.

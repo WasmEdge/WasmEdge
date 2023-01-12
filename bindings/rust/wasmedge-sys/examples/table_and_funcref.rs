@@ -1,30 +1,32 @@
+use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
-    Config, FuncType, Function, ImportInstance, ImportModule, ImportObject, Table, TableType, Vm,
-    WasmValue,
+    AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Table,
+    TableType, Vm, WasmValue,
 };
-use wasmedge_types::{RefType, ValType};
+use wasmedge_types::{error::HostFuncError, RefType, ValType};
 
-fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+#[sys_host_function]
+fn real_add(_frame: CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 2 {
-        return Err(1);
+        return Err(HostFuncError::User(1));
     }
 
     let a = if input[0].ty() == ValType::I32 {
         input[0].to_i32()
     } else {
-        return Err(2);
+        return Err(HostFuncError::User(2));
     };
 
     let b = if input[1].ty() == ValType::I32 {
         input[1].to_i32()
     } else {
-        return Err(3);
+        return Err(HostFuncError::User(3));
     };
 
     let c = a + b;
-    println!("Rust: calcuating in real_add c: {:?}", c);
+    println!("Rust: calcuating in real_add c: {c:?}");
 
     println!("Rust: Leaving Rust function real_add");
     Ok(vec![WasmValue::from_i32(c)])

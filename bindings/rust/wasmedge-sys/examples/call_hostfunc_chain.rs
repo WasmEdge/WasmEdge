@@ -18,7 +18,7 @@
 
 use std::sync::{Arc, Mutex};
 use wasmedge_sys::*;
-use wasmedge_types::wat2wasm;
+use wasmedge_types::{error::HostFuncError, wat2wasm};
 
 struct Wrapper(*const Vm);
 unsafe impl Send for Wrapper {}
@@ -43,13 +43,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     vm.load_wasm_from_bytes(&wasm_bytes)?;
     vm.validate()?;
 
-    let host_layer1 = |_: Vec<WasmValue>| -> Result<Vec<WasmValue>, u8> {
-        println!("There is layer1!");
-        Ok(vec![])
-    };
+    let host_layer1 =
+        |_frame: CallingFrame, _args: Vec<WasmValue>| -> Result<Vec<WasmValue>, HostFuncError> {
+            println!("There is layer1!");
+            Ok(vec![])
+        };
 
     let s = Arc::new(Mutex::new(Wrapper(&vm as *const Vm)));
-    let host_layer2 = move |_: Vec<WasmValue>| -> Result<Vec<WasmValue>, u8> {
+    let host_layer2 = move |_frame: CallingFrame,
+                            _args: Vec<WasmValue>|
+          -> Result<Vec<WasmValue>, HostFuncError> {
         unsafe {
             (*s.lock().unwrap().0).run_function("layer1", []).unwrap();
         }
@@ -58,8 +61,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let func_ty = FuncType::create(vec![], vec![]).unwrap();
-    let host_layer1 = Function::create_single_thread(&func_ty, Box::new(host_layer1), 0)?;
-    let host_layer2 = Function::create_single_thread(&func_ty, Box::new(host_layer2), 0)?;
+    let host_layer1 = Function::create(&func_ty, Box::new(host_layer1), 0)?;
+    let host_layer2 = Function::create(&func_ty, Box::new(host_layer2), 0)?;
 
     let mut import = ImportModule::create("host")?;
     import.add_func("layer1", host_layer1);

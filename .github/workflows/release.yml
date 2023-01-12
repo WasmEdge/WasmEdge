@@ -1,16 +1,16 @@
 name: release
 
 concurrency:
-  group: release-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 on:
   workflow_dispatch:
     inputs:
       logLevel:
-        description: 'Log level'
+        description: "Log level"
         required: true
-        default: 'info'
+        default: "info"
   push:
     tags:
       - "[0-9]+.[0-9]+.[0-9]+*"
@@ -26,7 +26,7 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Get version
         id: prep
         run: |
@@ -47,229 +47,99 @@ jobs:
           prerelease: true
 
   create_source_tarball:
-    name: Create source tarball
-    runs-on: ubuntu-latest
     needs: create_release
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Propagate version information for tarball
-      run: |
-        echo -n $VERSION | tee VERSION
-      env:
-        VERSION: ${{ needs.create_release.outputs.version }}
-    - name: Create source tarball
-      run: |
-        TEMPDIR=$(mktemp -d)
-        SRCDIR="$TEMPDIR/wasmedge/"
-        mkdir -p "$SRCDIR"
-        git checkout-index -a --prefix="$SRCDIR"
-        cp -v VERSION $SRCDIR
-        tar --owner 0 --group 0 -czf "$GITHUB_WORKSPACE/WasmEdge-$VERSION.tar.gz" -C "$TEMPDIR" "wasmedge"
-      env:
-        VERSION: ${{ needs.create_release.outputs.version }}
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: WasmEdge-${{ needs.create_release.outputs.version }}-src.tar.gz
-        path: WasmEdge-${{ needs.create_release.outputs.version }}.tar.gz
-    - name: Upload source tarball
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-src.tar.gz
-        asset_path: WasmEdge-${{ needs.create_release.outputs.version }}.tar.gz
-        asset_content_type: application/x-gzip
+    uses: ./.github/workflows/reusable-create-source-tarball.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      release: true
+      upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
+    secrets: inherit
 
   build_on_macos:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: macos x86_64
-            os: darwin
-    name: Build and upload WasmEdge on ${{ matrix.name }} platform
     needs: create_release
-    runs-on: macos-11
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build package
-        run: |
-          brew install llvm ninja boost cmake
-          export PATH="/usr/local/opt/llvm/bin:$PATH"
-          export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
-          export CPPFLAGS="-I/usr/local/opt/llvm/include"
-          export CC=clang
-          export CXX=clang++
-          rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" .
-          cmake --build build
-          cmake --build build --target package
-      - name: Upload tar.gz package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Darwin.tar.gz
-          asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.os }}_x86_64.tar.gz
-          asset_content_type: application/x-gzip
+    uses: ./.github/workflows/reusable-build-on-macos.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      matrix: "[{'name':'MacOS 11 (x86_64)','runner':'macos-11','darwin_version':20}]"
+      release: true
+      upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
+    secrets: inherit
 
-  build_on_manylinux_legacy:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: manylinux1_x86_64
-            docker_tag: manylinux1_x86_64
-          - name: manylinux2010_x86_64
-            docker_tag: manylinux2010_x86_64
-    name: Build on ${{ matrix.name }} platform
+  build_on_ubuntu_20_04:
     needs: create_release
-    runs-on: ubuntu-latest
-    container:
-      image: wasmedge/wasmedge:${{ matrix.docker_tag }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v1
-      - name: Build ${{ matrix.name }} package
-        run: |
-          bash utils/docker/build-manylinux.sh
-      - name: Upload ${{ matrix.name }} rpm package to artifact
-        uses: actions/upload-artifact@v1
-        with:
-          name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.rpm
-          path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.rpm
-      - name: Upload ${{ matrix.name }} tar.gz package to artifact
-        uses: actions/upload-artifact@v1
-        with:
-          name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.gz
-          path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.gz
-      - name: Upload ${{ matrix.name }} tar.xz package to artifact
-        uses: actions/upload-artifact@v1
-        with:
-          name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.xz
-          path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.xz
+    uses: ./.github/workflows/reusable-build-on-ubuntu.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      matrix: "[{'name':'ubuntu-20.04','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-build-clang','coverage':false}]"
+      release: true
+      upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
+    secrets: inherit
 
   build_on_manylinux2014:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: manylinux2014_x86_64
-            docker_tag: manylinux2014_x86_64
-            host_runner: ubuntu-latest
-          - name: manylinux2014_aarch64
-            docker_tag: manylinux2014_aarch64
-            host_runner: ARM64
-    name: Build on ${{ matrix.name }} platform
     needs: create_release
-    runs-on: ${{ matrix.host_runner }}
-    container:
-      image: wasmedge/wasmedge:${{ matrix.docker_tag }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build ${{ matrix.name }} package
-        run: |
-          bash utils/docker/build-manylinux.sh
-      - name: Upload ${{ matrix.name }} rpm package to artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.rpm
-          path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.rpm
-      - name: Upload ${{ matrix.name }} tar.gz package to artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.gz
-          path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.gz
-      - name: Upload ${{ matrix.name }} tar.xz package to artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.xz
-          path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.xz
+    uses: ./.github/workflows/reusable-build-on-manylinux.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      matrix: "[{'name':'manylinux 2014 x86_64','runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},
+                {'name':'manylinux 2014 aarch64','runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
+      release: true
+      upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
+    secrets: inherit
 
-  upload_manylinux:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: manylinux1_x86_64
-          - name: manylinux2010_x86_64
-          - name: manylinux2014_x86_64
-          - name: manylinux2014_aarch64
-    name: Upload WasmEdge ${{ matrix.name }} package
-    needs: [create_release, build_on_manylinux_legacy, build_on_manylinux2014]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Download ${{ matrix.name }} rpm artifact
-        uses: actions/download-artifact@v1
-        with:
-          name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.rpm
-      - name: Verify the arifact
-        run: |
-          ls -alh .
-          ls -alh WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.rpm
-      - name: Upload ${{ matrix.name }} rpm package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.rpm/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.rpm
-          asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.rpm
-          asset_content_type: application/x-rpm
-      - name: Download ${{ matrix.name }} tar.gz artifact
-        uses: actions/download-artifact@v1
-        with:
-          name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.gz
-      - name: Sleep 5 second to avoid GitHub ECONNRESET error
-        run: |
-          sleep 5
-      - name: Upload ${{ matrix.name }} tar.gz package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.gz/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.gz
-          asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.gz
-          asset_content_type: application/x-gzip
-      - name: Download ${{ matrix.name }} tar.xz artifact
-        uses: actions/download-artifact@v1
-        with:
-          name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.xz
-      - name: Sleep 5 second to avoid GitHub ECONNRESET error
-        run: |
-          sleep 5
-      - name: Upload ${{ matrix.name }} tar.xz package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.xz/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.xz
-          asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.xz
-          asset_content_type: application/x-xz
+  build_on_windows:
+    needs: create_release
+    uses: ./.github/workflows/reusable-build-on-windows.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      release: true
+      upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
+    secrets: inherit
+
+  build_on_android:
+    needs: create_release
+    uses: ./.github/workflows/reusable-build-on-android.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      release: true
+      upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
+    secrets: inherit
+
+  build_fedora_srpm:
+    needs: [create_release, create_source_tarball]
+    uses: ./.github/workflows/reusable-build-srpm.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      release: true
+      upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
+    secrets: inherit
 
   build_and_upload_plugin_ubuntu:
     strategy:
       matrix:
         include:
           - name: WASI-NN OpenVINO
+            backend: OpenVINO
             output_path: plugins/wasi_nn
             output_bin: libwasmedgePluginWasiNN.so
             tar_name: wasi_nn-openvino
+          - name: WASI-NN PyTorch
+            backend: PyTorch
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            tar_name: wasi_nn-pytorch
+          - name: WASI-NN TensorFlowLite
+            backend: TensorFlowLite
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            tar_name: wasi_nn-tensorflowlite
           - name: WASI-Crypto
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
             tar_name: wasi_crypto
+          - name: WasmEdge-HttpsReq
+            output_path: plugins/wasmedge_httpsreq
+            output_bin: libwasmedgePluginHttpsReq.so
+            tar_name: wasmedge_httpsreq
     name: Build and upload WasmEdge ${{ matrix.name }} plugin on Ubuntu 20.04
     needs: create_release
     runs-on: ubuntu-latest
@@ -277,22 +147,33 @@ jobs:
       image: wasmedge/wasmedge:latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build WasmEdge WASI-NN OpenVINO plugin
-        if: contains(matrix.name, 'OpenVINO')
+        uses: actions/checkout@v3
+      - name: Build WasmEdge WASI-NN ${{ matrix.backend }} plugin
+        shell: bash
+        if: contains(matrix.name, 'WASI-NN')
         env:
           OPENVINO_VERSION: "2021.4.582"
           OPENVINO_YEAR: "2021"
+          PYTORCH_VERSION: "1.8.2"
+          PYTORCH_INSTALL_TO: "build"
         run: |
-          bash utils/wasi-nn/install-openvino.sh
-          bash -c "\
-          source /opt/intel/openvino_2021/bin/setupvars.sh;\
-          ldconfig;\
-          mkdir -p build;\
-          cd build;\
-          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="OpenVINO" ..;\
-          cd ${{ matrix.output_path }};\
-          make -j;"
+          mkdir -p build
+          if [[ "${{ matrix.name }}" == *"OpenVINO"* ]]; then
+            bash utils/wasi-nn/install-openvino.sh
+            source /opt/intel/openvino_2021/bin/setupvars.sh
+            ldconfig
+          fi
+          if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
+            apt update
+            apt install unzip
+            bash utils/wasi-nn/install-pytorch.sh
+            export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
+            export LD_LIBRARY_PATH=$Torch_DIR/lib:$LD_LIBRARY_PATH
+          fi
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="${{ matrix.backend }}" ..
+          cd ${{ matrix.output_path }}
+          make -j
       - name: Build WasmEdge WASI-Crypto plugin
         if: contains(matrix.name, 'WASI-Crypto')
         run: |
@@ -301,6 +182,16 @@ jobs:
           mkdir -p build
           cd build
           cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_CRYPTO=On ..
+          cd ${{ matrix.output_path }}
+          make -j
+      - name: Build WasmEdge-HttpsReq plugin
+        if: contains(matrix.name, 'WasmEdge-HttpsReq')
+        run: |
+          apt update
+          apt install -y libssl-dev
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_HTTPSREQ=On ..
           cd ${{ matrix.output_path }}
           make -j
       - name: Prepare the WasmEdge ${{ matrix.name }} plugin tar.gz package
@@ -321,18 +212,60 @@ jobs:
     strategy:
       matrix:
         include:
+          - name: WasmEdge-HttpsReq
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasmedge_httpsreq
+            output_bin: libwasmedgePluginHttpsReq.so
+            deps_path: "utils/wasmedge_httpsreq/build-openssl.sh"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
+            tar_name: wasmedge_httpsreq
+            host_runner: ubuntu-latest
+          - name: WasmEdge-HttpsReq
+            docker_tag: manylinux2014_aarch64
+            output_path: plugins/wasmedge_httpsreq
+            output_bin: libwasmedgePluginHttpsReq.so
+            deps_path: "utils/wasmedge_httpsreq/build-openssl.sh"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
+            tar_name: wasmedge_httpsreq
+            host_runner: linux-arm64
+          - name: WASI-NN PyTorch
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            deps_path: "utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch"
+            tar_name: wasi_nn-pytorch
+            host_runner: ubuntu-latest
+          - name: WASI-NN TensorflowLite
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
+            tar_name: wasi_nn-tensorflowlite
+            host_runner: ubuntu-latest
+          - name: WASI-NN TensorflowLite
+            docker_tag: manylinux2014_aarch64
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
+            tar_name: wasi_nn-tensorflowlite
+            host_runner: linux-arm64
           - name: WASI-Crypto
             docker_tag: manylinux2014_x86_64
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
+            deps_path: "utils/wasi-crypto/build-openssl.sh"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             tar_name: wasi_crypto
             host_runner: ubuntu-latest
           - name: WASI-Crypto
             docker_tag: manylinux2014_aarch64
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
+            deps_path: "utils/wasi-crypto/build-openssl.sh"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             tar_name: wasi_crypto
-            host_runner: ARM64
+            host_runner: linux-arm64
     name: Build and upload WasmEdge ${{ matrix.name }} plugin on ${{ matrix.docker_tag }}
     needs: create_release
     runs-on: ${{ matrix.host_runner }}
@@ -340,14 +273,17 @@ jobs:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build WASI-Crypto dependency
-        if: contains(matrix.name, 'WASI-Crypto')
+        uses: actions/checkout@v3
+      - name: Build ${{ matrix.name }} dependency
+        if: matrix.deps_path
         run: |
-          bash utils/wasi-crypto/build-openssl.sh
-      - name: Build WasmEdge ${{ matrix.name }} plugin
+          bash ${{ matrix.deps_path }}
+      - name: Build ${{ matrix.name }} plugin
         run: |
-          bash utils/docker/build-manylinux.sh --not-build --not-ninja -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
+          if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
+            export Torch_DIR=$(pwd)/libtorch
+          fi
+          bash utils/docker/build-manylinux.sh --not-build --not-ninja ${{ matrix.cmake_plugin_option }}
           cd build
           cd ${{ matrix.output_path }}
           make -j
@@ -365,158 +301,6 @@ jobs:
           asset_name: WasmEdge-plugin-${{ matrix.tar_name }}-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           asset_content_type: application/x-gzip
 
-  build_windows:
-    name: Windows server 2022
-    runs-on: windows-2022
-    needs: create_release
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Install dependency
-      uses: crazy-max/ghaction-chocolatey@v1
-      with:
-        args: install cmake ninja vswhere
-    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
-      with:
-        sdk-version: 19041
-    - name: Build WasmEdge
-      run: |
-        $vsPath = (vswhere -latest -property installationPath)
-        Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-        Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-        $llvm = "LLVM-13.0.1-win64.zip"
-        curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.1/LLVM-13.0.1-win64.zip -o $llvm
-        Expand-Archive -Path $llvm
-        $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
-        $Env:CC = "clang-cl"
-        $Env:CXX = "clang-cl"
-        cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION=10.0.19041.0 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_PACKAGE="ZIP" .
-        cmake --build build
-    - name: Create WasmEdge Package
-      run: |
-        $vsPath = (vswhere -latest -property installationPath)
-        Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-        Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-        cmake --build build --target package
-    - name: Upload Windows 10 zip package
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: build\\WasmEdge-${{ needs.create_release.outputs.version }}-Windows.zip
-        asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-windows.zip
-        asset_content_type: application/zip
-    - name: Package Windows Installer
-      run: |
-        $Env:product_version = ("${{ needs.create_release.outputs.version }}").split("-")[0]
-        . "$Env:WIX\bin\candle.exe" -arch x64 -o build\wasmedge.wixobj .github\scripts\wasmedge.wxs
-        . "$Env:WIX\bin\light.exe" -out build\WasmEdge-${{ needs.create_release.outputs.version }}-windows.msi build\wasmedge.wixobj
-    - name: Upload Windows Installer
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: build\\WasmEdge-${{ needs.create_release.outputs.version }}-windows.msi
-        asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-windows.msi
-        asset_content_type: application/octet-stream
-
-  build_android:
-    name: Android
-    runs-on: ubuntu-latest
-    needs: create_release
-    container:
-      image: wasmedge/wasmedge:latest
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Install dependency
-      run: |
-        apt update && apt install -y unzip
-        apt remove -y cmake
-        curl -sLO https://github.com/Kitware/CMake/releases/download/v3.22.2/cmake-3.22.2-linux-x86_64.tar.gz
-        tar -zxf cmake-3.22.2-linux-x86_64.tar.gz
-        cp -r cmake-3.22.2-linux-x86_64/bin /usr/local
-        cp -r cmake-3.22.2-linux-x86_64/share /usr/local
-        curl -sLO https://dl.google.com/android/repository/android-ndk-r23b-linux.zip
-        unzip -q android-ndk-r23b-linux.zip
-    - name: Build WasmEdge for Android
-      run: |
-        git config --global --add safe.directory $(pwd)
-        export ANDROID_NDK_HOME=$(pwd)/android-ndk-r23b/
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=23 -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a -DCMAKE_ANDROID_NDK=$ANDROID_NDK_HOME -DCMAKE_ANDROID_STL_TYPE=c++_static
-        cmake --build build
-        cmake --build build --target package
-    - name: Upload tar.gz package
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Android.tar.gz
-        asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-android_aarch64.tar.gz
-        asset_content_type: application/x-gzip
-
-  build_fedora_srpm:
-    name: Build and upload WasmEdge Fedora SRPM
-    needs: [create_release, create_source_tarball]
-    runs-on: ubuntu-latest
-    container:
-      image: fedora:rawhide
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-    - name: Install requirements
-      run: |
-        dnf update -y
-        dnf install -y git gcc-c++ cmake ninja-build boost-devel spdlog-devel llvm-devel lld-devel rpm-build
-    - name: Prepare source tarball for SRPM
-      uses: actions/download-artifact@v3
-      with:
-        name: WasmEdge-${{ needs.create_release.outputs.version }}-src.tar.gz
-        path: /github/home/rpmbuild/SOURCES
-    - name: Rename source tarball
-      working-directory: /github/home/rpmbuild/SOURCES
-      run: |
-        mv WasmEdge-${{ needs.create_release.outputs.version }}.tar.gz WasmEdge-${{ needs.create_release.outputs.version }}-src.tar.gz
-    - name: Prepare SRPM version
-      run: |
-        VERSION=${{ needs.create_release.outputs.version }}
-        SRPM_VERSION=$(echo $VERSION | tr '-' '~')
-        echo "srpm_version=$SRPM_VERSION" >> $GITHUB_ENV
-    - name: Build WasmEdge SRPM
-      run: |
-        git config --global --add safe.directory $(pwd)
-        echo -n ${{ needs.create_release.outputs.version }} | tee VERSION
-        mkdir -p build
-        cd build
-        cmake ..
-        rpmbuild -ba rpm/wasmedge.spec
-    - name: Upload Fedora spec file
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: build/rpm/wasmedge.spec
-        asset_name: wasmedge.spec
-        asset_content_type: text/plain
-    - name: Sleep 5 second to avoid GitHub ECONNRESET error
-      run: |
-        sleep 5
-    - name: Upload Fedora SRPM
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: /github/home/rpmbuild/SRPMS/wasmedge-${{ env.srpm_version }}-1.fc37.src.rpm
-        asset_name: wasmedge-${{ env.srpm_version }}-1.fc37.src.rpm
-        asset_content_type: application/x-rpm
-
   build_manylinux2014_runtime_only:
     name: Build runtime only on manylinux2014 platform
     needs: create_release
@@ -525,12 +309,12 @@ jobs:
       image: wasmedge/wasmedge:manylinux2014_x86_64
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build runtime only manylinux2014 package
         run: |
           bash utils/docker/build-manylinux.sh -DWASMEDGE_BUILD_AOT_RUNTIME=OFF
       - name: Upload ${{ matrix.name }} tar.gz package to artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: build_manylinux2014_runtime_only
           path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.gz
@@ -539,55 +323,61 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: release-${{ needs.create_release.outputs.version }}
+          - name: wasmedge/slim:${{ needs.create_release.outputs.version }}
             artifact_name: WasmEdge-${{ needs.create_release.outputs.version }}-manylinux2014_x86_64.tar.gz
             include_bin: "--include-bin /usr/local/bin/wasmedge --include-bin /usr/local/bin/wasmedgec"
-          - name: release-${{ needs.create_release.outputs.version }}-runtime
+          - name: wasmedge/slim-runtime:${{ needs.create_release.outputs.version }}
             artifact_name: build_manylinux2014_runtime_only
             include_bin: "--include-bin /usr/local/bin/wasmedge"
     name: Build DockerSlim Images
-    needs: [create_release, build_on_manylinux2014, build_manylinux2014_runtime_only]
+    needs:
+      [create_release, build_on_manylinux2014, build_manylinux2014_runtime_only]
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-    - name: Prepare tarball
-      uses: actions/download-artifact@v3
-      with:
-        name: ${{ matrix.artifact_name }}
-        path: utils/docker
-    - name: Install requirements
-      run: |
-        curl -sL https://raw.githubusercontent.com/docker-slim/docker-slim/master/scripts/install-dockerslim.sh | sudo -E bash -
-    - name: Prepare docker env
-      id: docker_env
-      run: |
-        echo ::set-output name=docker_image::wasmedge/wasmedge:${{ matrix.name }}
-        echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
-    - name: Login to DockerHub
-      uses: docker/login-action@v1
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-    - name: Run docker-slim
-      run: |
-        docker-slim build \
-          --dockerfile Dockerfile.release \
-          --dockerfile-context utils/docker \
-          --tag ${{ steps.docker_env.outputs.docker_image }} \
-          --http-probe-off \
-          ${{ matrix.include_bin }} \
-          --cbo-build-arg VERSION="${{ needs.create_release.outputs.version }}" \
-          --cbo-label org.opencontainers.image.title="${{ github.event.repository.name }}" \
-          --cbo-label org.opencontainers.image.description="${{ github.event.repository.description }}" \
-          --cbo-label org.opencontainers.image.url="${{ github.event.repository.html_url }}" \
-          --cbo-label org.opencontainers.image.source="${{ github.event.repository.clone_url }}" \
-          --cbo-label org.opencontainers.image.version="${{ needs.create_release.outputs.version }}" \
-          --cbo-label org.opencontainers.image.created="${{ steps.docker_env.outputs.created }}" \
-          --cbo-label org.opencontainers.image.revision="${{ github.sha }}" \
-          --cbo-label org.opencontainers.image.licenses="${{ github.event.repository.license.spdx_id }}"
-    - name: Push to DockerHub
-      run: |
-        docker push ${{ steps.docker_env.outputs.docker_image }}
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Prepare tarball
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: utils/docker
+      - name: Install requirements
+        run: |
+          curl -sL https://raw.githubusercontent.com/docker-slim/docker-slim/master/scripts/install-dockerslim.sh | sudo -E bash -
+      - name: Prepare docker env
+        id: docker_env
+        run: |
+          echo ::set-output name=docker_image::${{ matrix.name }}
+          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+      - name: Run docker-slim
+        run: |
+          docker-slim build \
+            --dockerfile Dockerfile.release \
+            --dockerfile-context utils/docker \
+            --tag ${{ steps.docker_env.outputs.docker_image }} \
+            --http-probe-off \
+            --include-bin /usr/lib/x86_64-linux-gnu/libnss_compat.so.2 \
+            --include-bin /usr/lib/x86_64-linux-gnu/libnss_dns.so.2 \
+            --include-bin /usr/lib/x86_64-linux-gnu/libnss_files.so.2 \
+            --include-bin /usr/lib/x86_64-linux-gnu/libresolv.so.2 \
+            --include-path /etc/services \
+            ${{ matrix.include_bin }} \
+            --cbo-build-arg VERSION="${{ needs.create_release.outputs.version }}" \
+            --cbo-label org.opencontainers.image.title="${{ github.event.repository.name }}" \
+            --cbo-label org.opencontainers.image.description="${{ github.event.repository.description }}" \
+            --cbo-label org.opencontainers.image.url="${{ github.event.repository.html_url }}" \
+            --cbo-label org.opencontainers.image.source="${{ github.event.repository.clone_url }}" \
+            --cbo-label org.opencontainers.image.version="${{ needs.create_release.outputs.version }}" \
+            --cbo-label org.opencontainers.image.created="${{ steps.docker_env.outputs.created }}" \
+            --cbo-label org.opencontainers.image.revision="${{ github.sha }}" \
+            --cbo-label org.opencontainers.image.licenses="${{ github.event.repository.license.spdx_id }}"
+      - name: Push to DockerHub
+        run: |
+          docker push ${{ steps.docker_env.outputs.docker_image }}

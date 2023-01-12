@@ -4,7 +4,6 @@ use crate::{error::WasmEdgeError, ffi, utils, utils::check, Config, WasmEdgeResu
 use std::path::Path;
 
 /// Defines WasmEdge ahead-of-time(AOT) compiler and the relevant APIs.
-#[cfg(feature = "aot")]
 #[derive(Debug)]
 pub struct Compiler {
     pub(crate) inner: InnerCompiler,
@@ -22,44 +21,61 @@ impl Compiler {
     /// # Error
     ///
     /// If fail to create a AOT [compiler](crate::Compiler), then an error is returned.
-    #[cfg(feature = "aot")]
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
-            Some(mut config) => {
-                let ctx = unsafe { ffi::WasmEdge_CompilerCreate(config.inner.0) };
-                config.inner.0 = std::ptr::null_mut();
-                ctx
-            }
+            Some(config) => unsafe { ffi::WasmEdge_CompilerCreate(config.inner.0) },
             None => unsafe { ffi::WasmEdge_CompilerCreate(std::ptr::null_mut()) },
         };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::CompilerCreate),
+            true => Err(Box::new(WasmEdgeError::CompilerCreate)),
             false => Ok(Self {
                 inner: InnerCompiler(ctx),
             }),
         }
     }
 
-    /// The compiler compiles the input WASM from the given file path for the AOT mode and stores the result to the output file path.
+    /// Compiles the input WASM from the given file path for the AOT mode and stores the result to the output file path.
     ///
     /// # Arguments
     ///
-    /// * `in_path` - The input WASM file path.
+    /// * `wasm_file` - The input wasm file, of which the file extension should be one of `wasm` or`wat`.
     ///
-    /// * `out_path` - The output WASM file path.
+    /// * `aot_file` - The generated AOT wasm file, of which the file extension should be `dylib` on macOS, `so` on Linux or `dll` on Windows.
     ///
     /// # Error
     ///
     /// If fail to compile, then an error is returned.
-    #[cfg(feature = "aot")]
-    pub fn compile(
+    pub fn compile_from_file(
         &self,
-        in_path: impl AsRef<Path>,
-        out_path: impl AsRef<Path>,
+        wasm_file: impl AsRef<Path>,
+        aot_file: impl AsRef<Path>,
     ) -> WasmEdgeResult<()> {
-        let in_path = utils::path_to_cstring(in_path.as_ref())?;
-        let out_path = utils::path_to_cstring(out_path.as_ref())?;
+        match wasm_file.as_ref().extension() {
+            Some(extension) => match extension.to_str() {
+                Some("wasm") => self.compile_from_wasm_file(wasm_file, aot_file),
+                Some("wat") => {
+                    let bytes = wat::parse_file(wasm_file.as_ref())
+                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
+                    self.compile_from_bytes(bytes, aot_file)
+                }
+                _ => Err(Box::new(WasmEdgeError::Operation(
+                    "The wasm file's extension should be `wasm` or `wat`".into(),
+                ))),
+            },
+            None => Err(Box::new(WasmEdgeError::Operation(
+                "The wasm file's extension should be `wasm` or `wat`".into(),
+            ))),
+        }
+    }
+
+    fn compile_from_wasm_file(
+        &self,
+        wasm_file: impl AsRef<Path>,
+        aot_file: impl AsRef<Path>,
+    ) -> WasmEdgeResult<()> {
+        let in_path = utils::path_to_cstring(wasm_file.as_ref())?;
+        let out_path = utils::path_to_cstring(aot_file.as_ref())?;
         unsafe {
             check(ffi::WasmEdge_CompilerCompile(
                 self.inner.0,
@@ -68,15 +84,58 @@ impl Compiler {
             ))
         }
     }
+
+    /// Compiles the input WASM from the given bytes for the AOT mode and stores the result to the output file path.
+    ///
+    /// # Argument
+    ///
+    /// * `wasm_bytes` - The in-memory WASM bytes.
+    ///
+    /// * `aot_file` - The generated AOT wasm file, of which the file extension should be `dylib` on macOS, `so` on Linux or `dll` on Windows.
+    ///
+    /// # Error
+    ///
+    /// If fail to compile, then an error is returned.
+    pub fn compile_from_bytes(
+        &self,
+        wasm_bytes: impl AsRef<[u8]>,
+        aot_file: impl AsRef<Path>,
+    ) -> WasmEdgeResult<()> {
+        let out_path = utils::path_to_cstring(aot_file.as_ref())?;
+        unsafe {
+            let ptr = libc::malloc(wasm_bytes.as_ref().len());
+            let dst = ::core::slice::from_raw_parts_mut(
+                ptr.cast::<std::mem::MaybeUninit<u8>>(),
+                wasm_bytes.as_ref().len(),
+            );
+            let src = ::core::slice::from_raw_parts(
+                wasm_bytes
+                    .as_ref()
+                    .as_ptr()
+                    .cast::<std::mem::MaybeUninit<u8>>(),
+                wasm_bytes.as_ref().len(),
+            );
+            dst.copy_from_slice(src);
+
+            check(ffi::WasmEdge_CompilerCompileFromBuffer(
+                self.inner.0,
+                ptr as *const u8,
+                wasm_bytes.as_ref().len() as u64,
+                out_path.as_ptr(),
+            ))?;
+
+            libc::free(ptr as *mut libc::c_void);
+        }
+
+        Ok(())
+    }
 }
 
-#[cfg(feature = "aot")]
 #[derive(Debug)]
 pub(crate) struct InnerCompiler(pub(crate) *mut ffi::WasmEdge_CompilerContext);
 unsafe impl Send for InnerCompiler {}
 unsafe impl Sync for InnerCompiler {}
 
-#[cfg(feature = "aot")]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -89,9 +148,10 @@ mod tests {
         sync::{Arc, Mutex},
         thread,
     };
-    use wasmedge_types::CompilerOutputFormat;
+    use wasmedge_types::{wat2wasm, CompilerOptimizationLevel, CompilerOutputFormat};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_compiler() {
         {
             let result = Config::create();
@@ -109,20 +169,27 @@ mod tests {
 
             // compile a file for universal WASM output format
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/test.wasm");
-            let out_path = std::path::PathBuf::from("test_aot.wasm");
+                .join("bindings/rust/wasmedge-sys/examples/data/test.wat");
+            #[cfg(target_os = "linux")]
+            let out_path = std::path::PathBuf::from("test_aot.so");
+            #[cfg(target_os = "macos")]
+            let out_path = std::path::PathBuf::from("test_aot.dylib");
+            #[cfg(target_os = "windows")]
+            let out_path = std::path::PathBuf::from("test_aot.dll");
             assert!(!out_path.exists());
-            let result = compiler.compile(&in_path, &out_path);
+            let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
             assert!(out_path.exists());
             assert!(std::fs::remove_file(out_path).is_ok());
 
             // compile a virtual file
-            let result = compiler.compile("not_exist.wasm", "not_exist_ast.wasm");
+            let result = compiler.compile_from_file("not_exist.wasm", "not_exist_ast.wasm");
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::IllegalPath
+                )))
             );
         }
 
@@ -137,10 +204,15 @@ mod tests {
             assert!(result.is_ok());
             let compiler = result.unwrap();
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/test.wasm");
-            let out_path = std::path::PathBuf::from("test_aot.so");
+                .join("bindings/rust/wasmedge-sys/examples/data/test.wat");
+            #[cfg(target_os = "linux")]
+            let out_path = std::path::PathBuf::from("test_aot_from_file.so");
+            #[cfg(target_os = "macos")]
+            let out_path = std::path::PathBuf::from("test_aot_from_file.dylib");
+            #[cfg(target_os = "windows")]
+            let out_path = std::path::PathBuf::from("test_aot_from_file.dll");
             assert!(!out_path.exists());
-            let result = compiler.compile(&in_path, &out_path);
+            let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
             assert!(out_path.exists());
 
@@ -154,12 +226,75 @@ mod tests {
             let wasm_magic: [u8; 4] = [0x00, 0x61, 0x73, 0x6D];
             assert_ne!(buffer, wasm_magic);
 
+            // cleanup
+            assert!(std::fs::remove_file(out_path).is_ok());
+        }
+
+        {
+            let result = wat2wasm(
+                br#"(module
+                    (export "fib" (func $fib))
+                    (func $fib (param $n i32) (result i32)
+                     (if
+                      (i32.lt_s
+                       (get_local $n)
+                       (i32.const 2)
+                      )
+                      (return
+                       (i32.const 1)
+                      )
+                     )
+                     (return
+                      (i32.add
+                       (call $fib
+                        (i32.sub
+                         (get_local $n)
+                         (i32.const 2)
+                        )
+                       )
+                       (call $fib
+                        (i32.sub
+                         (get_local $n)
+                         (i32.const 1)
+                        )
+                       )
+                      )
+                     )
+                    )
+                   )
+              "#,
+            );
+            assert!(result.is_ok());
+            let wasm_bytes = result.unwrap();
+
+            let result = Config::create();
+            assert!(result.is_ok());
+            let mut config = result.unwrap();
+            config.set_aot_optimization_level(CompilerOptimizationLevel::O0);
+            config.set_aot_compiler_output_format(CompilerOutputFormat::Native);
+
+            let result = Compiler::create(Some(config));
+            assert!(result.is_ok());
+            let compiler = result.unwrap();
+            #[cfg(target_os = "linux")]
+            let out_path = std::path::PathBuf::from("test_aot_from_bytes.so");
+            #[cfg(target_os = "macos")]
+            let out_path = std::path::PathBuf::from("test_aot_from_bytes.dylib");
+            #[cfg(target_os = "windows")]
+            let out_path = std::path::PathBuf::from("test_aot_from_bytes.dll");
+            assert!(!out_path.exists());
+            let result = compiler.compile_from_bytes(wasm_bytes, &out_path);
+            assert!(result.is_ok());
+            assert!(out_path.exists());
+
+            // cleanup
             assert!(std::fs::remove_file(out_path).is_ok());
         }
     }
 
     #[test]
     #[ignore]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_compiler_send() {
         let result = Config::create();
         assert!(result.is_ok());
@@ -178,9 +313,14 @@ mod tests {
             // compile a file for universal WASM output format
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
                 .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wasm");
-            let out_path = std::path::PathBuf::from("fibonacci_send_thread_aot.wasm");
+            #[cfg(target_os = "linux")]
+            let out_path = std::path::PathBuf::from("test_aot_fib_send.so");
+            #[cfg(target_os = "macos")]
+            let out_path = std::path::PathBuf::from("test_aot_fib_send.dylib");
+            #[cfg(target_os = "windows")]
+            let out_path = std::path::PathBuf::from("test_aot_fib_send.dll");
             assert!(!out_path.exists());
-            let result = compiler.compile(&in_path, &out_path);
+            let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
             assert!(out_path.exists());
             assert!(std::fs::remove_file(out_path).is_ok());
@@ -191,6 +331,7 @@ mod tests {
 
     #[test]
     #[ignore]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_compiler_sync() {
         let result = Config::create();
         assert!(result.is_ok());
@@ -216,7 +357,7 @@ mod tests {
                 .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wasm");
             let out_path = std::path::PathBuf::from("fibonacci_sync_thread_aot.wasm");
             assert!(!out_path.exists());
-            let result = compiler.compile(&in_path, &out_path);
+            let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
             assert!(out_path.exists());
             assert!(std::fs::remove_file(out_path).is_ok());
@@ -229,9 +370,14 @@ mod tests {
             // compile a file for universal WASM output format
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
                 .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wasm");
-            let out_path = std::path::PathBuf::from("fibonacci_sync_main_aot.wasm");
+            #[cfg(target_os = "linux")]
+            let out_path = std::path::PathBuf::from("test_aot_fib_sync.so");
+            #[cfg(target_os = "macos")]
+            let out_path = std::path::PathBuf::from("test_aot_fib_sync.dylib");
+            #[cfg(target_os = "windows")]
+            let out_path = std::path::PathBuf::from("test_aot_fib_sync.dll");
             assert!(!out_path.exists());
-            let result = compiler_main.compile(&in_path, &out_path);
+            let result = compiler_main.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
             assert!(out_path.exists());
             assert!(std::fs::remove_file(out_path).is_ok());

@@ -10,16 +10,21 @@
 //!
 //! The [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) crate defines a group of high-level Rust APIs, which are used to build up business applications.
 //!
-//! Notice that `WasmEdge Rust SDK` uses nightly version of Rust. It's strongly recommended to use the latest nightly version of Rust.
+//! Notice that [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) requires **Rust v1.63 or above** in the **stable** channel.
 //!
 //! ## Versioning Table
 //!
 //! The following table provides the versioning information about each crate of WasmEdge Rust bindings.
 //!
-//! | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types|
-//! | :-----------: | :-----------: | :-----------: | :-----------: |
-//! | 0.2.0         | 0.10.1        | 0.8           | 0.2           |
-//! | 0.1.0         | 0.10.0        | 0.7           | 0.1           |
+//! | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types| wasmedge-macro|
+//! | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
+//! | 0.7.1         | 0.11.2        | 0.12.2        | 0.3.1         | 0.3.0         |
+//! | 0.7.0         | 0.11.2        | 0.12          | 0.3.1         | 0.3.0         |
+//! | 0.6.0         | 0.11.2        | 0.11          | 0.3.0         | 0.2.0         |
+//! | 0.5.0         | 0.11.1        | 0.10          | 0.3.0         | 0.1.0         |
+//! | 0.4.0         | 0.11.0        | 0.9           | 0.2.1         | -             |
+//! | 0.3.0         | 0.10.1        | 0.8           | 0.2           | -             |
+//! | 0.1.0         | 0.10.0        | 0.7           | 0.1           | -             |
 //!
 //! ## Build
 //!
@@ -42,13 +47,11 @@
 //!    |   `-- wasmedgec
 //!    |-- include
 //!    |   `-- wasmedge
-//!    |       |-- dense_enum_map.h
 //!    |       |-- enum.inc
 //!    |       |-- enum_configure.h
 //!    |       |-- enum_errcode.h
 //!    |       |-- enum_types.h
 //!    |       |-- int128.h
-//!    |       |-- spare_enum_map.h
 //!    |       |-- version.h
 //!    |       `-- wasmedge.h
 //!    `-- lib64
@@ -56,8 +59,16 @@
 //!        `-- wasmedge
 //!            `-- libwasmedgePluginWasmEdgeProcess.so
 //!
-//!    5 directories, 13 files
+//!    5 directories, 11 files
 //!    ```
+//!
+//! ### Enable WasmEdge Plugins
+//!
+//! If you'd like to enable WasmEdge Plugins (currently, only available on Linux platform), please use `WASMEDGE_PLUGIN_PATH` environment variable to specify the path to the directory containing the plugins. For example, use the following commands to specify the path on Ubuntu 20.04:
+//!
+//! ```bash
+//! export WASMEDGE_PLUGIN_PATH=$HOME/.wasmedge/lib/wasmedge
+//! ```
 //!
 //! ## Example
 //!
@@ -67,9 +78,7 @@
 //!  // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 //!  // #![feature(explicit_generic_args_with_impl_trait)]
 //!
-//!  use wasmedge_sdk::{Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Store};
-//!  use wasmedge_sys::WasmValue;
-//!  use wasmedge_types::wat2wasm;
+//!  use wasmedge_sdk::{Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Store, error::HostFuncError, WasmValue, wat2wasm, Caller, host_function};
 //!  
 //!  #[cfg_attr(test, test)]
 //!  fn main() -> anyhow::Result<()> {
@@ -93,7 +102,8 @@
 //!  
 //!      // We define a function to act as our "env" "say_hello" function imported in the
 //!      // Wasm program above.
-//!      fn say_hello_world(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+//!      #[host_function]
+//!      fn say_hello_world(_: Caller, _: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
 //!          println!("Hello, world!");
 //!  
 //!          Ok(vec![])
@@ -135,29 +145,36 @@
 //!
 //! * [WasmEdge Runtime](https://wasmedge.org/)
 //! * [WasmEdge C API Documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md)
-//! * [wasmedge-sys: WasmEdge Low-level Rust APIs](https://crates.io/crates/wasmedge-sys)
-//! * [wasmedge-types: WasmEdge Types](https://crates.io/crates/wasmedge-types)
 //!
 
-use wasmedge_types::WasmEdgeResult;
-
+#[doc(hidden)]
+pub mod caller;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
 mod compiler;
 pub mod config;
+pub mod dock;
 mod executor;
 mod externals;
 mod import;
 mod instance;
 #[doc(hidden)]
 pub mod io;
+#[doc(hidden)]
+pub mod log;
 mod module;
+#[doc(hidden)]
+pub mod plugin;
 mod statistics;
 mod store;
 pub mod types;
 #[doc(hidden)]
+pub mod utils;
+#[doc(hidden)]
 pub mod vm;
+pub mod wasi;
 
+pub use caller::Caller;
 #[doc(inline)]
 #[cfg(feature = "aot")]
 pub use compiler::Compiler;
@@ -170,19 +187,36 @@ pub use import::{ImportObject, ImportObjectBuilder};
 #[cfg(target_os = "linux")]
 #[doc(inline)]
 pub use instance::WasmEdgeProcessInstance;
-pub use instance::{Instance, WasiInstance};
+pub use instance::{AsInstance, Instance};
 #[doc(inline)]
 pub use io::{WasmVal, WasmValType, WasmValTypeList};
 #[doc(inline)]
+pub use log::LogManager;
+#[doc(inline)]
 pub use module::{ExportType, ImportType, Module};
+#[doc(inline)]
+pub use plugin::PluginManager;
 #[doc(inline)]
 pub use statistics::Statistics;
 #[doc(inline)]
 pub use store::Store;
 #[doc(inline)]
+pub use utils::Driver;
+#[doc(inline)]
 pub use vm::Vm;
 
+/// Parses in-memory bytes as either the [WebAssembly Text format](http://webassembly.github.io/spec/core/text/index.html), or a binary WebAssembly module
+pub use wasmedge_types::{
+    error, wat2wasm, CompilerOptimizationLevel, CompilerOutputFormat, ExternalInstanceType,
+    FuncType, GlobalType, MemoryType, Mutability, RefType, TableType, ValType, WasmEdgeResult,
+};
+
+pub use wasmedge_macro::{async_host_function, host_function};
+
+/// WebAssembly value type.
 pub type WasmValue = wasmedge_sys::types::WasmValue;
+
+pub type CallingFrame = wasmedge_sys::CallingFrame;
 
 /// The object that is used to perform a [host function](crate::Func) is required to implement this trait.
 pub trait Engine {
@@ -194,11 +228,11 @@ pub trait Engine {
     ///
     /// * `params` - The arguments to pass to the function.
     ///
-    /// # Erros
+    /// # Errors
     ///
     /// If fail to run the host function, then an error is returned.
     fn run_func(
-        &mut self,
+        &self,
         func: &Func,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>>;
@@ -211,11 +245,11 @@ pub trait Engine {
     ///
     /// * `params` - The arguments to pass to the function.
     ///
-    /// # Erros
+    /// # Errors
     ///
     /// If fail to run the host function, then an error is returned.
     fn run_func_ref(
-        &mut self,
+        &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>>;

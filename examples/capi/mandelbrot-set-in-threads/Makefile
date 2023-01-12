@@ -10,11 +10,11 @@ mandelbrot.wasm: mandelbrot.o
 mandelbrot.wat: mandelbrot.wasm
 	wasm2wat --enable-all mandelbrot.wasm -o mandelbrot.wat
 
-mandelbrot.so: mandelbrot.wasm 
+mandelbrot.so: mandelbrot.wasm
 	wasmedgec --enable-threads mandelbrot.wasm mandelbrot.so
 
 main: main.cc
-	clang++ -lwasmedge_c -std=c++17 -pthread -o $@ $^
+	clang++ -lwasmedge -std=c++17 -pthread -o $@ $^
 
 clean:
 	rm -f main mandelbrot.wasm mandelbrot.so mandelbrot.o mandelbrot.wat output-*.bin

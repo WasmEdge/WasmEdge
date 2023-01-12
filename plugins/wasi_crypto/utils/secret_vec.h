@@ -29,7 +29,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
 
-/// A vector wrapper, but swipe the secret key info on destory.
+/// A vector wrapper, but swipe the secret key info on destroy.
 class SecretVec {
 public:
   SecretVec(const SecretVec &) = default;

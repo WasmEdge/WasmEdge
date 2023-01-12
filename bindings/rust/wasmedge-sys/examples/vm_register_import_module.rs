@@ -1,8 +1,9 @@
+use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
-    FuncType, Function, Global, GlobalType, ImportInstance, ImportModule, ImportObject, MemType,
-    Memory, Table, TableType, Vm, WasmValue,
+    AsImport, CallingFrame, FuncType, Function, Global, GlobalType, ImportModule, ImportObject,
+    MemType, Memory, Table, TableType, Vm, WasmValue,
 };
-use wasmedge_types::{Mutability, RefType, ValType};
+use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -12,21 +13,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut import = ImportModule::create(module_name)?;
 
     // a function to import
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    #[sys_host_function]
+    fn real_add(
+        _frame: CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

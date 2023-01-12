@@ -1,0 +1,56 @@
+name: Build on Android
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+      upload_asset_url:
+        type: string
+
+jobs:
+  build_on_android:
+    name: Build on Android
+    runs-on: ubuntu-latest
+    container:
+      image: wasmedge/wasmedge:latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install dependency
+        run: |
+          apt update && apt install -y unzip
+          apt remove -y cmake
+          curl -sLO https://github.com/Kitware/CMake/releases/download/v3.22.2/cmake-3.22.2-linux-x86_64.tar.gz
+          tar -zxf cmake-3.22.2-linux-x86_64.tar.gz
+          cp -r cmake-3.22.2-linux-x86_64/bin /usr/local
+          cp -r cmake-3.22.2-linux-x86_64/share /usr/local
+          curl -sLO https://dl.google.com/android/repository/android-ndk-r23b-linux.zip
+          unzip -q android-ndk-r23b-linux.zip
+      - name: Build WasmEdge
+        run: |
+          git config --global --add safe.directory $(pwd)
+          export ANDROID_NDK_HOME=$(pwd)/android-ndk-r23b/
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=23 -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a -DCMAKE_ANDROID_NDK=$ANDROID_NDK_HOME -DCMAKE_ANDROID_STL_TYPE=c++_static
+          cmake --build build
+          cmake --build build --target package
+      - name: Upload artifact
+        if: ${{ !inputs.release }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-${{ inputs.version }}-android_aarch64.tar.gz
+          path: build/WasmEdge-${{ inputs.version }}-Android.tar.gz
+      - name: Upload tar.gz package
+        if: ${{ inputs.release }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ inputs.upload_asset_url }}
+          asset_name: WasmEdge-${{ inputs.version }}-android_aarch64.tar.gz
+          asset_path: build/WasmEdge-${{ inputs.version }}-Android.tar.gz
+          asset_content_type: application/x-gzip

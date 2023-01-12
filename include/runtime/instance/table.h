@@ -79,31 +79,31 @@ public:
                                          uint32_t Length) const noexcept {
     // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
-      spdlog::error(ErrCode::TableOutOfBounds);
+      spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
-      return Unexpect(ErrCode::TableOutOfBounds);
+      return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
     return Span<const RefVariant>(Refs.begin() + Offset, Length);
   }
 
-  /// Replace the Refs[Offset :] by Slice[Start : Start + Legnth - 1]
+  /// Replace the Refs[Offset :] by Slice[Start : Start + Length - 1]
   Expect<void> setRefs(Span<const RefVariant> Slice, uint32_t Offset,
                        uint32_t Start, uint32_t Length) noexcept {
     // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
-      spdlog::error(ErrCode::TableOutOfBounds);
+      spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
-      return Unexpect(ErrCode::TableOutOfBounds);
+      return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
 
     // Check the input data validation.
     if (Start + Length > Slice.size()) {
-      spdlog::error(ErrCode::TableOutOfBounds);
+      spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(
           Start, Length,
           std::max(static_cast<uint32_t>(Slice.size()), UINT32_C(1)) -
               UINT32_C(1)));
-      return Unexpect(ErrCode::TableOutOfBounds);
+      return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
 
     // Copy the references.
@@ -116,9 +116,9 @@ public:
                         uint32_t Length) noexcept {
     // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
-      spdlog::error(ErrCode::TableOutOfBounds);
+      spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
-      return Unexpect(ErrCode::TableOutOfBounds);
+      return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
 
     // Fill the references.
@@ -129,9 +129,9 @@ public:
   /// Get the elem address.
   Expect<RefVariant> getRefAddr(uint32_t Idx) const noexcept {
     if (Idx >= Refs.size()) {
-      spdlog::error(ErrCode::TableOutOfBounds);
+      spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getBoundIdx()));
-      return Unexpect(ErrCode::TableOutOfBounds);
+      return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
     return Refs[Idx];
   }
@@ -139,9 +139,9 @@ public:
   /// Set the elem address.
   Expect<void> setRefAddr(uint32_t Idx, RefVariant Val) {
     if (Idx >= Refs.size()) {
-      spdlog::error(ErrCode::TableOutOfBounds);
+      spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getBoundIdx()));
-      return Unexpect(ErrCode::TableOutOfBounds);
+      return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
     Refs[Idx] = Val;
     return {};

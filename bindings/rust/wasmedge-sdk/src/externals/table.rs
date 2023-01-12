@@ -63,7 +63,7 @@ impl Table {
         self.inner.capacity() as u32
     }
 
-    /// Grows the size of this table by `delta`, initializating the elements with the provided init value if `init` is given.
+    /// Grows the size of this table by `delta`, initializing the elements with the provided init value if `init` is given.
     ///
     /// # Arguments
     ///
@@ -123,12 +123,14 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        error::HostFuncError,
         types::Val,
-        Executor, ImportObjectBuilder, Statistics, Store, WasmValue,
+        CallingFrame, Executor, ImportObjectBuilder, RefType, Statistics, Store, ValType,
+        WasmValue,
     };
-    use wasmedge_types::{RefType, ValType};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_table_type() {
         // create a TableType instance
         let ty = TableType::new(RefType::FuncRef, 10, Some(20));
@@ -142,6 +144,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_table_basic() {
         // create a table instance
         let result = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)));
@@ -261,21 +264,24 @@ mod tests {
         }
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+    fn real_add(
+        _frame: CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

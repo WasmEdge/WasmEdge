@@ -27,7 +27,7 @@
     ;; 8 -> pointer to result
     (drop (call $fd_write (i32.const 1) (i32.const 16) (i32.const 1) (i32.const 8)))
     ;; call proc_exit
-    ;; 0 -> successfull exit
+    ;; 0 -> successful exit
     (call $proc_exit (i32.const 0))
   )
 )

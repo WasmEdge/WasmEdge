@@ -42,7 +42,7 @@ TEST_F(WasiCryptoTest, Options) {
     WASI_CRYPTO_EXPECT_TRUE(
         optionsSetU64(SymmetricOptionsHandle, "parallelism"sv, 0));
 
-    // Unsupport options.
+    // Unsupported options.
     WASI_CRYPTO_EXPECT_FAILURE(
         optionsSet(SymmetricOptionsHandle, "foo"sv, "foo"_u8),
         __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
@@ -56,7 +56,7 @@ TEST_F(WasiCryptoTest, Options) {
     auto *Func = getHostFunc<Common::OptionsSetGuestBuffer>(
         WasiCryptoCommonMod, "options_set_guest_buffer");
     ASSERT_NE(Func, nullptr);
-    EXPECT_TRUE(Func->run(&MemInst,
+    EXPECT_TRUE(Func->run(CallFrame,
                           std::initializer_list<WasmEdge::ValVariant>{
                               SymmetricOptionsHandle, 0, NameSize, 0, NameSize},
                           Errno));
@@ -71,7 +71,7 @@ TEST_F(WasiCryptoTest, Options) {
     WASI_CRYPTO_EXPECT_SUCCESS(SigOptionsHandle,
                                optionsOpen(__WASI_ALGORITHM_TYPE_SIGNATURES));
 
-    // Unsupport options.
+    // Unsupported options.
     WASI_CRYPTO_EXPECT_FAILURE(optionsSet(SigOptionsHandle, "foo"sv, "foo"_u8),
                                __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
 
@@ -84,7 +84,7 @@ TEST_F(WasiCryptoTest, Options) {
     auto *Func = getHostFunc<Common::OptionsSetGuestBuffer>(
         WasiCryptoCommonMod, "options_set_guest_buffer");
     ASSERT_NE(Func, nullptr);
-    EXPECT_TRUE(Func->run(&MemInst,
+    EXPECT_TRUE(Func->run(CallFrame,
                           std::initializer_list<WasmEdge::ValVariant>{
                               SigOptionsHandle, 0, NameSize, 0, NameSize},
                           Errno));
@@ -99,7 +99,7 @@ TEST_F(WasiCryptoTest, Options) {
     // Open options.
     WASI_CRYPTO_EXPECT_SUCCESS(KxOptionsHandle,
                                optionsOpen(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE));
-    // Unsupport options.
+    // Unsupported options.
     WASI_CRYPTO_EXPECT_FAILURE(optionsSet(KxOptionsHandle, "foo"sv, "foo"_u8),
                                __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
 
@@ -112,7 +112,7 @@ TEST_F(WasiCryptoTest, Options) {
     auto *Func = getHostFunc<Common::OptionsSetGuestBuffer>(
         WasiCryptoCommonMod, "options_set_guest_buffer");
     ASSERT_NE(Func, nullptr);
-    EXPECT_TRUE(Func->run(&MemInst,
+    EXPECT_TRUE(Func->run(CallFrame,
                           std::initializer_list<WasmEdge::ValVariant>{
                               KxOptionsHandle, 0, NameSize, 0, NameSize},
                           Errno));

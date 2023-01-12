@@ -1,0 +1,74 @@
+name: Build on manylinux
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      matrix: # [ { name, runner, docker_tag }, ... ]
+        type: string
+        required: true
+      release:
+        type: boolean
+      upload_asset_url:
+        type: string
+
+jobs:
+  build_on_manylinux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.matrix) }}
+    name: Build on ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    container: wasmedge/wasmedge:${{ matrix.docker_tag }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Build ${{ matrix.docker_tag }} package
+        run: |
+          bash utils/docker/build-manylinux.sh
+          ./build/tools/wasmedge/wasmedge -v
+      - name: Upload artifact (v2)
+        uses: actions/upload-artifact@v3
+        with:
+          path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
+          name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
+      - name: Upload rpm package
+        if: ${{ inputs.release }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ inputs.upload_asset_url }}
+          asset_path: build/WasmEdge-${{ inputs.version }}-Linux.rpm
+          asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.rpm
+          asset_content_type: application/x-rpm
+      - name: Sleep 5 second to avoid GitHub ECONNRESET error
+        run: |
+          sleep 5
+      - name: Upload tar.gz package
+        if: ${{ inputs.release }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ inputs.upload_asset_url }}
+          asset_path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
+          asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          asset_content_type: application/x-gzip
+      - name: Sleep 5 second to avoid GitHub ECONNRESET error
+        run: |
+          sleep 5
+      - name: Upload tar.xz package
+        if: ${{ inputs.release }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ inputs.upload_asset_url }}
+          asset_path: build/WasmEdge-${{ inputs.version }}-Linux.tar.xz
+          asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.xz
+          asset_content_type: application/x-xz

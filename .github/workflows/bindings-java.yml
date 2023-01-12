@@ -1,0 +1,231 @@
+name: binding-java
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/bindings-java.yml"
+      - "bindings/java/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/bindings-java.yml"
+      - "bindings/java/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
+
+jobs:
+  build_ubuntu:
+    name: Ubuntu 20.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04]
+    container:
+      image: wasmedge/wasmedge:ubuntu-build-clang
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin' # See 'Supported distributions' for available options
+          java-version: '11'
+          cache: 'gradle'
+
+      - name: Install clang-format-12
+        run: |
+          apt-get update
+          apt-get install clang-format-12
+
+      - name: Lint
+        run: |
+          find bindings/java/wasmedge-jni/lib -type f -iname "*.[ch]" | xargs -n1 `which clang-format-12` -i -style=file -Werror --dry-run
+
+      - name: Build & Install WasmEdge
+        run: |
+          apt-get update
+          apt-get install -y make
+          mkdir -p build
+          cd build
+          cmake -DWASMEDGE_BUILD_TESTS=ON ..
+          make -j
+          make install
+
+      - name: Build WasmEdge Java
+        run: |
+          export WasmEdge_ROOT=$(pwd)/build
+          cd bindings/java/wasmedge-java
+          ./gradlew clean 
+          ./gradlew build
+
+      - name: Upload JNI lib
+        uses: actions/upload-artifact@v3
+        with:
+          name: jni-libs
+          path: |
+            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*
+            bindings/java/wasmedge-java/build/native/wasmedge-version.properties
+
+  build_macos:
+    name: MacOS
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-12]
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install build tools
+        run: |
+          brew install llvm@14 ninja boost cmake
+
+      - name: Build WasmEdge with Release mode
+        run: |
+          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          export CC=clang
+          export CXX=clang++
+          rm -rf build
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release .
+          cmake --build build
+
+      - name: Test WasmEdge
+        continue-on-error: true
+        run: |
+          export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
+          cd build
+          ./tools/wasmedge/wasmedge -v
+          ctest
+          cd -
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin' # See 'Supported distributions' for available options
+          java-version: '11'
+          cache: 'gradle'
+
+      - name: Build WasmEdge Java
+        run: |
+          export WasmEdge_ROOT=$(pwd)/build
+          cd bindings/java/wasmedge-java
+          ./gradlew clean 
+          ./gradlew assemble
+
+      - name: Run Tests
+        if: ${{ false }}
+        run: |
+          export LIB_JNI_PATH=$(pwd)/bindings/java/wasmedge-jni/build
+          cd bindings/java/wasmedge-java
+          ./gradlew test
+
+      - name: Upload JNI lib
+        uses: actions/upload-artifact@v3
+        with:
+          name: jni-libs
+          path: |
+            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*
+
+  build_windows:
+    name: Windows
+    runs-on: windows-2022
+    env:
+      WASMEDGE_DIR: ${{ github.workspace }}
+      WASMEDGE_BUILD_DIR: ${{ github.workspace }}\build
+      WASMEDGE_PLUGIN_PATH: ${{ github.workspace }}\build\wasmedge\plugins\wasmedge_process
+      LD_LIBRARY_PATH: ${{ github.workspace }}\build\lib\api
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install dependency
+        uses: crazy-max/ghaction-chocolatey@v2
+        with:
+          args: install cmake ninja vswhere
+
+      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
+        with:
+          sdk-version: 19041
+
+      - name: Set up java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin' # See 'Supported distributions' for available options
+          java-version: '11'
+          cache: 'gradle'
+
+      - name: Build WasmEdge with Release mode
+        run: |
+          $vsPath = (vswhere -latest -property installationPath)
+          Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
+          $llvm = "LLVM-13.0.1-win64.zip"
+          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.1/LLVM-13.0.1-win64.zip -o $llvm
+          Expand-Archive -Path $llvm
+          $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
+          $Env:CC = "clang-cl"
+          $Env:CXX = "clang-cl"
+          $cmake_sys_version = "10.0.19041.0"
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="ZIP" .
+          cmake --build build
+
+      - name: Test WasmEdge
+        continue-on-error: true
+        run: |
+          $vsPath = (vswhere -latest -property installationPath)
+          Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
+          $Env:PATH += ";$pwd\\build\\lib\\api"
+          cd build
+          tools\wasmedge\wasmedge -v
+          ctest
+          cd -
+
+      - name: Build WasmEdge JNI
+        run: |
+          $Env:WasmEdge_ROOT="$pwd\\build"
+          cd bindings/java/wasmedge-java/
+          $vsPath = (vswhere -latest -property installationPath)
+          Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
+          $llvm = "LLVM-13.0.1-win64.zip"
+          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.1/LLVM-13.0.1-win64.zip -o $llvm
+          Expand-Archive -Path $llvm
+          $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
+          $Env:CC = "clang-cl"
+          $Env:CXX = "clang-cl"
+          $cmake_sys_version = "10.0.19041.0"
+          $Env:PATH += ";$pwd\\build\\lib\\api"
+          ./gradlew clean 
+          ./gradlew assemble
+
+      - name: Run Tests
+        if: ${{ false }}
+        run: |
+          $env:Path="$env:Path;$pwd\\build\\lib\\api"
+          $Env:LIB_JNI_PATH="$pwd\\bindings\\java\\wasmedge-jni\\build"
+          $vsPath = (vswhere -latest -property installationPath)
+          Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
+          cd bindings/java/wasmedge-java
+          ./gradlew test
+      - name: Upload JNI lib
+        uses: actions/upload-artifact@v3
+        with:
+          name: jni-libs
+          path: |
+            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*

@@ -30,19 +30,19 @@ namespace Host {
 namespace WasiCrypto {
 namespace Kx {
 
-class Ecdsa {
+template <int CurveNid> class Ecdsa {
 
 public:
   class PublicKey;
   class SecretKey;
   class KeyPair;
-  using Base = AsymmetricCommon::Ecdsa<NID_X9_62_prime256v1, PublicKey,
-                                       SecretKey, KeyPair, Options>;
+  using Base =
+      AsymmetricCommon::Ecdsa<CurveNid, PublicKey, SecretKey, KeyPair, Options>;
   class PublicKey : public Base::PublicKeyBase {
   public:
     using Base::PublicKeyBase::PublicKeyBase;
 
-    const auto &raw() const { return Ctx; }
+    const auto &raw() const { return this->Ctx; }
   };
 
   class SecretKey : public Base::SecretKeyBase {
@@ -57,6 +57,9 @@ public:
     using Base::KeyPairBase::KeyPairBase;
   };
 };
+
+using EcdsaP256 = Ecdsa<NID_X9_62_prime256v1>;
+using EcdsaP384 = Ecdsa<NID_secp384r1>;
 
 } // namespace Kx
 } // namespace WasiCrypto

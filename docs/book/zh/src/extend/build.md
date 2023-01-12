@@ -39,8 +39,6 @@ docker pull wasmedge/wasmedge # 等同于 wasmedge/wasmedge:latest
 | `ubuntu2004_x86_64`     | x86\_64  | Ubuntu 20.04 LTS   | 10.0.0    | CC=gcc, CXX=g++       | Ubuntu 20.04+            | 这个提供给熟悉 Ubuntu 20.04 LTS 版本的开发者使用                    |
 | `manylinux2014_x86_64`  | x86\_64  | CentOS 7, 7.9.2009 | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 这个提供给熟悉 CentOS x86\_64 架构的开发者使用                      |
 | `manylinux2014_aarch64` | aarch64  | CentOS 7, 7.9.2009 | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 这个提供给熟悉 CentOS aarch64 架构的开发者使用                      |
-| `manylinux2010_x86_64`  | x86\_64  | CentOS 6, 6.10     | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 6+ | 这个提供给熟悉基于 x86\_64 架构的过时系统的开发者使用，后续不再维护 |
-| `manylinux1_x86_64`     | x86\_64  | CentOS 5, 5.11     | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 5+ | 这个提供给熟悉基于 x86\_64 架构的过时系统的开发者使用，后续不再维护 |
 
 ### 在 Ubuntu 20.04 上手动安装依赖
 
@@ -73,8 +71,6 @@ sudo apt install -y clang
 
 | 可移植的 Linux 发行版标签                  | 基础镜像      | 提供的依赖                                                              | Docker 镜像                              |
 | ---                                     | ---         | ---                                                                   | ---                                      |
-| `manylinux1`                            | CentOS 5.11 | GLIBC <= 2.5</br>CXXABI <= 3.4.8</br>GLIBCXX <= 3.4.9</br>GCC <= 4.2.0   | wasmedge/wasmedge:manylinux1\_x86\_64    |
-| `manylinux2010`                         | CentOS 6.10 | GLIBC <= 2.12</br>CXXABI <= 1.3.3</br>GLIBCXX <= 3.4.13</br>GCC <= 4.5.0 | wasmedge/wasmedge:manylinux2010\_x86\_64 |
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_x86\_64 |
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_aarch64 |
 
@@ -89,8 +85,8 @@ WasmEdge 提供了丰富的工具来支撑更好的性能以及更多样的运�
 2. `wasmedgec` 是一个 `WASM` 预编译器。
    - `wasmedgec` 将一个通用的 `WASM` 文件编译成 `so` 文件。
    - 你可以通过将 CMAKE 配置项 `WASMEDGE_BUILD_AOT_RUNTIME` 设置成 `OFF`来禁止构建预编译器。
-3. `libwasmedge_c.so` 是 WasmEdge C API 的共享库。
-   - `libwasmedge_c.so` 提供了访问预编译器和 WASM 运行时的 C 语言 API。
+3. `libwasmedge.so` 是 WasmEdge C API 的共享库。
+   - `libwasmedge.so` 提供了访问预编译器和 WASM 运行时的 C 语言 API。
    - 如果 `WASMEDGE_BUILD_AOT_RUNTIME` 配置项被设置成 `OFF`， 那么与预编译器相关的 API 都将会返回错误。
 4. `ssvm-qitc` 是用来支持 AI 应用的，它支持基于 ONNX 格式的 AI 模型的 ONNC 运行时。
    - 如果你想尝试使用 `ssvm-qitc`，请参考 [ONNC-Wasm](https://github.com/ONNC/onnc-wasm) 项目来设置运行环境，并且运行几个示例。

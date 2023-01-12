@@ -52,9 +52,9 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
         assuming(TabInst);
         if (!TabInst->checkAccessBound(
                 Offset, static_cast<uint32_t>(InitVals.size()))) {
-          spdlog::error(ErrCode::ElemSegDoesNotFit);
+          spdlog::error(ErrCode::Value::ElemSegDoesNotFit);
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-          return Unexpect(ErrCode::ElemSegDoesNotFit);
+          return Unexpect(ErrCode::Value::ElemSegDoesNotFit);
         }
       }
     }

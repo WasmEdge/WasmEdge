@@ -1,0 +1,48 @@
+name: Build on Fedora
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+      upload_asset_url:
+        type: string
+
+jobs:
+  build_fedora:
+    name: Fedora 35
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+    steps:
+      - name: Install dependency
+        run: |
+          dnf update -y
+          dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Build WasmEdge
+        run: |
+          git config --global --add safe.directory $(pwd)
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
+          cmake --build build
+      - name: Test WasmEdge
+        run: |
+          export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
+          cd build
+          ./tools/wasmedge/wasmedge -v
+          ctest
+          cd -
+      - name: Create package tarball
+        run: |
+          cmake --build build --target package
+      - name: Upload artifact
+        if: ${{ !inputs.release }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-${{ inputs.version }}-fedora35.tar.gz
+          path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz

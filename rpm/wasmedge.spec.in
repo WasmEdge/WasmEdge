@@ -1,12 +1,14 @@
 %global gittag @WASMEDGE_GIT_VERSION@
 %global srpm_version @WASMEDGE_SRPM_VERSION@
 %global reponame WasmEdge
+%global capi_soname @WASMEDGE_CAPI_SOVERSION@
+%global capi_version @WASMEDGE_CAPI_VERSION@
 
 Name:    wasmedge
 Version: %{srpm_version}
 Release: %autorelease
 Summary: High performance WebAssembly Virtual Machine
-# The entire source code is ASL 2.0 except LICENSE.spdx which is CC0
+#The entire source code is ASL 2.0 except LICENSE.spdx which is CC0
 License: ASL 2.0 and CC0
 URL:     https://github.com/%{reponame}/%{reponame}
 Source0: %{url}/releases/download/%{gittag}/%{reponame}-%{gittag}-src.tar.gz
@@ -19,7 +21,7 @@ BuildRequires: llvm-devel
 BuildRequires: ninja-build
 BuildRequires: spdlog-devel
 Requires:      llvm
-# Currently wasmedge could only be built on specific arches
+#Currently wasmedge could only be built on specific arches
 ExclusiveArch: x86_64 aarch64
 Provides: %{reponame} = %{version}-%{release}
 Provides: bundled(blake3) = 1.2.0
@@ -46,9 +48,7 @@ This package contains necessary header files for %{reponame} development.
 
 %install
 %cmake_install
-mv %{buildroot}%{_libdir}/lib%{name}_c.so %{buildroot}%{_libdir}/lib%{name}_c.so.%{gittag}
 mv %{buildroot}%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so %{buildroot}%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so.%{gittag}
-ln -s lib%{name}_c.so.%{gittag} %{buildroot}%{_libdir}/lib%{name}_c.so
 ln -s lib%{name}Plugin%{reponame}Process.so.%{gittag} %{buildroot}%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so
 
 %files
@@ -56,22 +56,24 @@ ln -s lib%{name}Plugin%{reponame}Process.so.%{gittag} %{buildroot}%{_libdir}/%{n
 %doc Changelog.md README.md SECURITY.md
 %{_bindir}/wasmedge
 %{_bindir}/wasmedgec
-%{_libdir}/lib%{name}_c.so.%{gittag}
+%{_libdir}/lib%{name}.so.%{capi_version}
+%{_libdir}/lib%{name}.so.%{capi_soname}
+%{_libdir}/lib%{name}.so
 %dir %{_libdir}/%{name}
 %{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so.%{gittag}
 
 %files devel
 %dir %{_includedir}/%{name}
-%{_includedir}/%{name}/dense_enum_map.h
 %{_includedir}/%{name}/enum.inc
 %{_includedir}/%{name}/enum_configure.h
 %{_includedir}/%{name}/enum_errcode.h
 %{_includedir}/%{name}/enum_types.h
 %{_includedir}/%{name}/int128.h
-%{_includedir}/%{name}/spare_enum_map.h
 %{_includedir}/%{name}/version.h
 %{_includedir}/%{name}/wasmedge.h
-%{_libdir}/lib%{name}_c.so
+%{_libdir}/lib%{name}.so.%{capi_version}
+%{_libdir}/lib%{name}.so.%{capi_soname}
+%{_libdir}/lib%{name}.so
 %dir %{_libdir}/%{name}
 %{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so
 

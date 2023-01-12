@@ -14,9 +14,10 @@ namespace {
 inline const size_t SharedSecretSize = 32;
 } // namespace
 
+template <int CurveNid>
 WasiCryptoExpect<SecretVec>
-Ecdsa::SecretKey::dh(const PublicKey &Pk) const noexcept {
-  EvpPkeyCtxPtr SkCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
+Ecdsa<CurveNid>::SecretKey::dh(const PublicKey &Pk) const noexcept {
+  EvpPkeyCtxPtr SkCtx{EVP_PKEY_CTX_new(this->Ctx.get(), nullptr)};
   opensslCheck(EVP_PKEY_derive_init(SkCtx.get()));
 
   // Set peer key.
@@ -32,6 +33,9 @@ Ecdsa::SecretKey::dh(const PublicKey &Pk) const noexcept {
 
   return Res;
 }
+
+template class Ecdsa<NID_X9_62_prime256v1>;
+template class Ecdsa<NID_secp384r1>;
 
 } // namespace Kx
 } // namespace WasiCrypto

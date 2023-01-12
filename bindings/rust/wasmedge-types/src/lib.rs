@@ -20,7 +20,7 @@ impl From<u32> for RefType {
         match value {
             112 => RefType::FuncRef,
             111 => RefType::ExternRef,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_RefType: {:#X}", value),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_RefType: {value:#X}"),
         }
     }
 }
@@ -37,7 +37,7 @@ impl From<i32> for RefType {
         match value {
             112 => RefType::FuncRef,
             111 => RefType::ExternRef,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_RefType: {:#X}", value),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_RefType: {value:#X}"),
         }
     }
 }
@@ -74,8 +74,6 @@ pub enum ValType {
     FuncRef,
     /// A reference to object.
     ExternRef,
-    /// Unknown.
-    None,
 }
 impl From<u32> for ValType {
     fn from(value: u32) -> Self {
@@ -87,8 +85,7 @@ impl From<u32> for ValType {
             123 => ValType::V128,
             112 => ValType::FuncRef,
             111 => ValType::ExternRef,
-            64 => ValType::None,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {:#X}", value),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {value:#X}"),
         }
     }
 }
@@ -102,7 +99,6 @@ impl From<ValType> for u32 {
             ValType::V128 => 123,
             ValType::FuncRef => 112,
             ValType::ExternRef => 111,
-            ValType::None => 64,
         }
     }
 }
@@ -116,8 +112,7 @@ impl From<i32> for ValType {
             123 => ValType::V128,
             112 => ValType::FuncRef,
             111 => ValType::ExternRef,
-            64 => ValType::None,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {:#X}", value),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {value:#X}"),
         }
     }
 }
@@ -131,7 +126,6 @@ impl From<ValType> for i32 {
             ValType::V128 => 123,
             ValType::FuncRef => 112,
             ValType::ExternRef => 111,
-            ValType::None => 64,
         }
     }
 }
@@ -151,7 +145,7 @@ impl From<u32> for Mutability {
         match value {
             0 => Mutability::Const,
             1 => Mutability::Var,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_Mutability: {:#X}", value),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_Mutability: {value:#X}"),
         }
     }
 }
@@ -168,7 +162,7 @@ impl From<i32> for Mutability {
         match value {
             0 => Mutability::Const,
             1 => Mutability::Var,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_Mutability: {:#X}", value),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_Mutability: {value:#X}"),
         }
     }
 }
@@ -212,7 +206,7 @@ impl From<u32> for CompilerOptimizationLevel {
             3 => CompilerOptimizationLevel::O3,
             4 => CompilerOptimizationLevel::Os,
             5 => CompilerOptimizationLevel::Oz,
-            _ => panic!("Unknown CompilerOptimizationLevel value: {}", val),
+            _ => panic!("Unknown CompilerOptimizationLevel value: {val}"),
         }
     }
 }
@@ -237,7 +231,7 @@ impl From<i32> for CompilerOptimizationLevel {
             3 => CompilerOptimizationLevel::O3,
             4 => CompilerOptimizationLevel::Os,
             5 => CompilerOptimizationLevel::Oz,
-            _ => panic!("Unknown CompilerOptimizationLevel value: {}", val),
+            _ => panic!("Unknown CompilerOptimizationLevel value: {val}"),
         }
     }
 }
@@ -268,7 +262,7 @@ impl From<u32> for CompilerOutputFormat {
         match val {
             0 => CompilerOutputFormat::Native,
             1 => CompilerOutputFormat::Wasm,
-            _ => panic!("Unknown CompilerOutputFormat value: {}", val),
+            _ => panic!("Unknown CompilerOutputFormat value: {val}"),
         }
     }
 }
@@ -285,7 +279,7 @@ impl From<i32> for CompilerOutputFormat {
         match val {
             0 => CompilerOutputFormat::Native,
             1 => CompilerOutputFormat::Wasm,
-            _ => panic!("Unknown CompilerOutputFormat value: {}", val),
+            _ => panic!("Unknown CompilerOutputFormat value: {val}"),
         }
     }
 }
@@ -309,7 +303,7 @@ impl From<u32> for HostRegistration {
         match val {
             0 => HostRegistration::Wasi,
             1 => HostRegistration::WasmEdgeProcess,
-            _ => panic!("Unknown WasmEdge_HostRegistration value: {}", val),
+            _ => panic!("Unknown WasmEdge_HostRegistration value: {val}"),
         }
     }
 }
@@ -370,7 +364,7 @@ impl std::fmt::Display for ExternalInstanceType {
             ExternalInstanceType::Memory(_) => "memory",
             ExternalInstanceType::Global(_) => "global",
         };
-        write!(f, "{}", message)
+        write!(f, "{message}")
     }
 }
 
@@ -491,10 +485,14 @@ impl MemoryType {
     ///
     /// * `min` - The minimum size of the memory to be created.
     ///
-    /// * `max` - The maximum size of the memory to be created.
+    /// * `max` - The maximum size of the memory to be created. If `shared` is set to true, `max` must be set.
+    ///
+    /// * `shared` - Enables shared memory if true.
     pub fn new(min: u32, max: Option<u32>, shared: bool) -> WasmEdgeResult<Self> {
         if shared && max.is_none() {
-            return Err(error::WasmEdgeError::Mem(error::MemError::CreateSharedType));
+            return Err(Box::new(error::WasmEdgeError::Mem(
+                error::MemError::CreateSharedType,
+            )));
         }
         Ok(Self { min, max, shared })
     }
@@ -558,4 +556,4 @@ impl Default for GlobalType {
 pub use wat::parse_bytes as wat2wasm;
 
 /// The WasmEdge result type.
-pub type WasmEdgeResult<T> = Result<T, error::WasmEdgeError>;
+pub type WasmEdgeResult<T> = Result<T, Box<error::WasmEdgeError>>;

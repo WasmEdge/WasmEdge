@@ -22,10 +22,10 @@ WasmEdge （前名為 SSVM ） 是為邊緣運算最佳化的輕量級、高性�
 
 # 快速開始指引
 
-🚀 [安装](docs/install.md) WasmEdge\
-🤖 [編譯](docs/build-zh-TW.md) 並[貢獻](docs/CONTRIBUTING.md) WasmEdge\
-⌨️ [從 CLI 執行](docs/run.md)一個獨立的 Wasm 程式或 [JavaScript 程式](docs/run_javascript.md) \
-🔌 在 [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) 、 [Go 语言](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)、或是 [Rust 應用程式](https://www.secondstate.io/articles/getting-started-with-rust-function/)嵌入 Wasm 函式 \
+🚀 [安装](docs/book/zh-TW/src/start/install.md) WasmEdge\
+🤖 [編譯](docs/book/zh-TW/src/extend/build.md) 並[貢獻](docs/book/en/src/contribute.md) WasmEdge\
+⌨️ [從 CLI 執行](docs/book/zh-TW/src/start/cli.md)一個獨立的 Wasm 程式或 [JavaScript 程式](docs/book/zh-TW/src/intro/use/js.md) \
+🔌 在 [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) 、 [Go 語言](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)、或是 [Rust 應用程式](https://www.secondstate.io/articles/getting-started-with-rust-function/)嵌入 Wasm 函式 \
 🛠 使用 [Docker 工具](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/)、[即時資料流框架](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/), 和 [區塊鏈](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) 管理和編排 Wasm runtimes
 
 # 簡介
@@ -34,7 +34,7 @@ WasmEdge 為其執行的 Wasm bytecode 程式提供了一個有良好定義的�
 
 <div align="center">
   
-**檢視 WasmEdge 的[使用情境](docs/use_cases-zh-TW.md)。**
+**檢視 WasmEdge 的[使用情境](docs/book/zh-TW/src/intro/use.md)。**
 
 </div>
 

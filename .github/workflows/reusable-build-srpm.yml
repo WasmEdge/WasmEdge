@@ -1,0 +1,74 @@
+name: Build SRPM on Fedora
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+      upload_asset_url:
+        type: string
+
+jobs:
+  build_srpm:
+    name: Build SRPM on Fedora
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:rawhide
+    steps:
+      - name: Install dependency
+        run: |
+          dnf update -y
+          dnf install -y git gcc-c++ cmake ninja-build boost-devel spdlog-devel llvm-devel lld-devel rpm-build
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Prepare source tarball for SRPM
+        uses: actions/download-artifact@v3
+        with:
+          name: WasmEdge-${{ inputs.version }}-src.tar.gz
+          path: /github/home/rpmbuild/SOURCES
+      - name: Rename source tarball
+        working-directory: /github/home/rpmbuild/SOURCES
+        run: |
+          mv WasmEdge-${{ inputs.version }}.tar.gz WasmEdge-${{ inputs.version }}-src.tar.gz
+      - name: Prepare SRPM version
+        run: |
+          GIT_TAG=${{ inputs.version }}
+          SRPM_VERSION=$(echo $GIT_TAG | tr '-' '~')
+          echo "srpm_version=$SRPM_VERSION" >> $GITHUB_ENV
+      - name: Build WasmEdge SRPM
+        run: |
+          git config --global --add safe.directory $(pwd)
+          mkdir -p build
+          cd build
+          cmake ..
+          rpmbuild -ba rpm/wasmedge.spec
+      - name: Upload artifact
+        if: ${{ !inputs.release }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-${{ env.srpm_version }}-1.fc38.src.rpm
+          path: /github/home/rpmbuild/SRPMS/wasmedge-${{ env.srpm_version }}-1.fc38.src.rpm
+      - name: Upload Fedora spec file
+        if: ${{ inputs.release }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ inputs.upload_asset_url }}
+          asset_name: wasmedge.spec
+          asset_path: build/rpm/wasmedge.spec
+          asset_content_type: text/plain
+      - name: Upload Fedora SRPM
+        if: ${{ inputs.release }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ inputs.upload_asset_url }}
+          asset_name: wasmedge-${{ env.srpm_version }}-1.fc38.src.rpm
+          asset_path: /github/home/rpmbuild/SRPMS/wasmedge-${{ env.srpm_version }}-1.fc38.src.rpm
+          asset_content_type: application/x-rpm

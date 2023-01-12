@@ -215,7 +215,7 @@ int main() {
 3. 编译
 
     ```bash
-    gcc main.c -lwasmedge_c
+    gcc main.c -lwasmedge
     # 或者你可以在 C++ 场景下使用 g++，或者使用 clang。
     ```
 

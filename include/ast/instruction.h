@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/enum_ast.h"
+#include "common/enum_ast.hpp"
 #include "common/span.h"
 #include "common/types.h"
 
@@ -95,6 +95,7 @@ public:
     Data.Blocks.ResType.setData(VType);
   }
   void setBlockType(uint32_t Idx) noexcept { Data.Blocks.ResType.setData(Idx); }
+  void setEmptyBlockType() noexcept { Data.Blocks.ResType.setEmpty(); }
 
   /// Getter and setter of jump count to End instruction.
   uint32_t getJumpEnd() const noexcept { return Data.Blocks.JumpEnd; }

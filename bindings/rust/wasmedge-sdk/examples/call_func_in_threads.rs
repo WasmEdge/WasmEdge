@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
            )
 "#,
     )?;
-    let module = Module::from_bytes(Some(&config), &wasm_bytes)?;
+    let module = Module::from_bytes(Some(&config), wasm_bytes)?;
 
     // register the wasm module into store
     let extern_instance = store.register_named_module(&mut executor, "extern", &module)?;
@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let executor_cloned = Arc::clone(&executor);
     let instance_cloned = Arc::clone(&instance);
     let handle_a = thread::spawn(move || {
-        let mut executor = executor_cloned.lock().unwrap();
+        let executor = executor_cloned.lock().unwrap();
         let instance = instance_cloned.lock().unwrap();
 
         // get the exported wasm function "fib"
@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("fail to compute fib(4)");
 
         let fib4 = returns[0].to_i32();
-        println!("fib(4) by child thread: {}", fib4);
+        println!("fib(4) by child thread: {fib4}");
 
         fib4
     });
@@ -93,7 +93,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let executor_cloned = Arc::clone(&executor);
     let instance_cloned = Arc::clone(&instance);
     let handle_b = thread::spawn(move || {
-        let mut executor = executor_cloned.lock().unwrap();
+        let executor = executor_cloned.lock().unwrap();
         let instance = instance_cloned.lock().unwrap();
 
         // get the exported wasm function "fib"
@@ -107,7 +107,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("fail to compute fib(5)");
 
         let fib5 = returns[0].to_i32();
-        println!("fib(5) by child thread: {}", fib5);
+        println!("fib(5) by child thread: {fib5}");
 
         fib5
     });

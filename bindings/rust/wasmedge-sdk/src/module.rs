@@ -1,14 +1,13 @@
 //! Defines WasmEdge AST Module, ImportType, and ExportType.
 
-use crate::{config::Config, WasmEdgeResult};
+use crate::{config::Config, ExternalInstanceType, WasmEdgeResult};
 use std::{borrow::Cow, marker::PhantomData, path::Path};
 use wasmedge_sys as sys;
-use wasmedge_types::ExternalInstanceType;
 
 /// Defines compiled in-memory representation of an input WASM binary.
 ///
 /// A [Module] is a compiled in-memory representation of an input WebAssembly binary. In the instantiation process, a [Module] is instatiated to a module [instance](crate::Instance), from which the exported [function](crate::Func), [table](crate::Table), [memory](crate::Memory), and [global](crate::Global) instances can be fetched.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Module {
     pub(crate) inner: sys::Module,
 }
@@ -17,30 +16,22 @@ impl Module {
     ///
     /// # Arguments
     ///
-    /// - `config` specifies a global configuration.
+    /// * `config` - The global configuration.
     ///
-    /// - `file` specifies the path to the target WASM file.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// # Error
     ///
     /// If fail to load and valiate a module from a file, returns an error.
     pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> WasmEdgeResult<Self> {
-        let inner_config = match config {
-            Some(config) => Some(Config::copy_from(config)?.inner),
-            None => None,
-        };
+        let inner_config = config.map(|c| c.inner.clone());
         let inner_loader = sys::Loader::create(inner_config)?;
         // load module
         let inner = inner_loader.from_file(file.as_ref())?;
-
-        let inner_config = match config {
-            Some(config) => Some(Config::copy_from(config)?.inner),
-            None => None,
-        };
+        let inner_config = config.map(|c| c.inner.clone());
         let inner_validator = sys::Validator::create(inner_config)?;
         // validate module
         inner_validator.validate(&inner)?;
-
         Ok(Self { inner })
     }
 
@@ -48,26 +39,20 @@ impl Module {
     ///
     /// # Arguments
     ///
-    /// - `config` specifies a global configuration.
+    /// * `config` - The global configuration.
     ///
-    /// - `bytes` specifies the in-memory bytes to be parsed.
+    /// * `bytes` - The in-memory bytes to be parsed.
     ///
     /// # Error
     ///
     /// If fail to load and valiate the WebAssembly module from the given in-memory bytes, returns an error.
     pub fn from_bytes(config: Option<&Config>, bytes: impl AsRef<[u8]>) -> WasmEdgeResult<Self> {
-        let inner_config = match config {
-            Some(config) => Some(Config::copy_from(config)?.inner),
-            None => None,
-        };
+        let inner_config = config.map(|c| c.inner.clone());
         let inner_loader = sys::Loader::create(inner_config)?;
         // load a module from a wasm buffer
         let inner = inner_loader.from_bytes(bytes.as_ref())?;
 
-        let inner_config = match config {
-            Some(config) => Some(Config::copy_from(config)?.inner),
-            None => None,
-        };
+        let inner_config = config.map(|c| c.inner.clone());
         let inner_validator = sys::Validator::create(inner_config)?;
         // validate module
         inner_validator.validate(&inner)?;
@@ -115,7 +100,7 @@ impl Module {
     ///
     /// # Argument
     ///
-    /// - `name` specifies the name of the target exported WasmEdge instance.
+    /// * `name` - The name of the target exported WasmEdge instance.
     pub fn get_export(&self, name: impl AsRef<str>) -> Option<ExternalInstanceType> {
         let exports = self
             .exports()
@@ -175,13 +160,17 @@ impl<'module> ExportType<'module> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wasmedge_types::error::{CoreError, CoreLoadError, WasmEdgeError};
+    use crate::{
+        error::{CoreError, CoreLoadError, WasmEdgeError},
+        wat2wasm,
+    };
 
     #[test]
-    fn test_module_from_file() {
+    #[allow(clippy::assertions_on_result_states)]
+    fn test_module_from_wasm() {
         // load wasm module from a specified wasm file
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sdk/examples/data/fibonacci.wat");
 
         let result = Module::from_file(None, file);
         assert!(result.is_ok());
@@ -191,26 +180,123 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::IllegalPath
+            )))
         );
     }
 
     #[test]
-    fn test_module_from_bytes() {
+    #[allow(clippy::assertions_on_result_states)]
+    fn test_module_from_wat() {
+        // load wasm module from a specified wasm file
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-        let result = std::fs::read(file);
-        assert!(result.is_ok());
-        let buffer = result.unwrap();
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
 
-        let result = Module::from_bytes(None, &buffer);
+        let result = Module::from_file(None, file);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[allow(clippy::assertions_on_result_states)]
+    fn test_module_from_bytes() {
+        // read the wasm bytes
+        let wasm_bytes = wat2wasm(
+            br#"
+        (module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+"#,
+        )
+        .unwrap();
+
+        let result = Module::from_bytes(None, wasm_bytes);
         assert!(result.is_ok());
 
         // attempt to load an empty buffer
-        let result = Module::from_bytes(None, &[]);
+        let result = Module::from_bytes(None, []);
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd)),
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::UnexpectedEnd
+            ))),
         );
+    }
+
+    #[test]
+    #[allow(clippy::assertions_on_result_states)]
+    fn test_module_clone() {
+        // read the wasm bytes
+        let wasm_bytes = wat2wasm(
+            br#"
+        (module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+"#,
+        )
+        .unwrap();
+
+        let result = Module::from_bytes(None, wasm_bytes);
+        assert!(result.is_ok());
+        let module = result.unwrap();
+        assert_eq!(module.exports().len(), 1);
+
+        // clone the module
+        let module_clone = module.clone();
+        assert_eq!(module.exports().len(), module_clone.exports().len());
     }
 }

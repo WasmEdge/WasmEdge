@@ -1,6 +1,8 @@
 //! Defines WasmEdge Executor.
 
 use super::ffi;
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+use crate::WasiCrypto;
 use crate::{
     error::WasmEdgeError, instance::module::InnerInstance, types::WasmEdgeString, utils::check,
     Config, Engine, FuncRef, Function, ImportObject, Instance, Module, Statistics, Store,
@@ -27,19 +29,11 @@ impl Executor {
     /// If fail to create a [executor](crate::Executor), then an error is returned.
     pub fn create(config: Option<Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
         let ctx = match config {
-            Some(mut config) => match stat {
-                Some(stat) => {
-                    let ctx = unsafe { ffi::WasmEdge_ExecutorCreate(config.inner.0, stat.inner.0) };
-                    config.inner.0 = std::ptr::null_mut();
-                    ctx
-                }
-                None => {
-                    let ctx = unsafe {
-                        ffi::WasmEdge_ExecutorCreate(config.inner.0, std::ptr::null_mut())
-                    };
-                    config.inner.0 = std::ptr::null_mut();
-                    ctx
-                }
+            Some(config) => match stat {
+                Some(stat) => unsafe { ffi::WasmEdge_ExecutorCreate(config.inner.0, stat.inner.0) },
+                None => unsafe {
+                    ffi::WasmEdge_ExecutorCreate(config.inner.0, std::ptr::null_mut())
+                },
             },
             None => match stat {
                 Some(stat) => unsafe {
@@ -52,7 +46,7 @@ impl Executor {
         };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::ExecutorCreate),
+            true => Err(Box::new(WasmEdgeError::ExecutorCreate)),
             false => Ok(Executor {
                 inner: InnerExecutor(ctx),
                 registered: false,
@@ -99,6 +93,54 @@ impl Executor {
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+            ImportObject::Nn(import) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            ImportObject::Crypto(WasiCrypto::Common(import)) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            ImportObject::Crypto(WasiCrypto::AsymmetricCommon(import)) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            ImportObject::Crypto(WasiCrypto::SymmetricOptionations(import)) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            ImportObject::Crypto(WasiCrypto::KeyExchange(import)) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            ImportObject::Crypto(WasiCrypto::Signatures(import)) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
         }
 
         Ok(())
@@ -138,7 +180,7 @@ impl Executor {
         }
 
         Ok(Instance {
-            inner: InnerInstance(instance_ctx),
+            inner: std::sync::Arc::new(InnerInstance(instance_ctx)),
             registered: false,
         })
     }
@@ -173,7 +215,7 @@ impl Executor {
             ))?;
         }
         Ok(Instance {
-            inner: InnerInstance(instance_ctx),
+            inner: std::sync::Arc::new(InnerInstance(instance_ctx)),
             registered: false,
         })
     }
@@ -187,7 +229,7 @@ impl Drop for Executor {
 }
 impl Engine for Executor {
     fn run_func(
-        &mut self,
+        &self,
         func: &Function,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
@@ -214,7 +256,7 @@ impl Engine for Executor {
     }
 
     fn run_func_ref(
-        &mut self,
+        &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
@@ -250,16 +292,17 @@ unsafe impl Sync for InnerExecutor {}
 mod tests {
     use super::*;
     use crate::{
-        Config, FuncType, Function, Global, GlobalType, ImportInstance, ImportModule, MemType,
-        Memory, Statistics, Table, TableType,
+        AsImport, CallingFrame, Config, FuncType, Function, Global, GlobalType, ImportModule,
+        MemType, Memory, Statistics, Table, TableType,
     };
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
-    use wasmedge_types::{Mutability, RefType, ValType};
+    use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_executor_create() {
         {
             // create an Executor context without configuration and statistics
@@ -309,6 +352,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_executor_register_import() {
         // create an Executor
         let result = Executor::create(None, None);
@@ -398,6 +442,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_executor_send() {
         // create an Executor context with the given configuration and statistics.
         let result = Config::create();
@@ -422,6 +467,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_executor_sync() {
         // create an Executor context with the given configuration and statistics.
         let result = Config::create();
@@ -448,21 +494,21 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    fn real_add(_: CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

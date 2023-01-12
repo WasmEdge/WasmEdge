@@ -310,7 +310,7 @@ TEST(FileManagerTest, File__ReadUnsigned32TooLong) {
   WasmEdge::Expect<uint32_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readU32TestTooLong.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readU32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadUnsigned32TooLarge) {
@@ -318,7 +318,7 @@ TEST(FileManagerTest, File__ReadUnsigned32TooLarge) {
   WasmEdge::Expect<uint32_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readU32TestTooLarge.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readU32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadSigned32TooLong) {
@@ -326,7 +326,7 @@ TEST(FileManagerTest, File__ReadSigned32TooLong) {
   WasmEdge::Expect<int32_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readS32TestTooLong.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readS32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadSigned32TooLarge) {
@@ -334,7 +334,7 @@ TEST(FileManagerTest, File__ReadSigned32TooLarge) {
   WasmEdge::Expect<int32_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readS32TestTooLarge.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readS32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadUnsigned64TooLong) {
@@ -342,7 +342,7 @@ TEST(FileManagerTest, File__ReadUnsigned64TooLong) {
   WasmEdge::Expect<uint64_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readU64TestTooLong.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readU64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadUnsigned64TooLarge) {
@@ -350,7 +350,7 @@ TEST(FileManagerTest, File__ReadUnsigned64TooLarge) {
   WasmEdge::Expect<uint64_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readU64TestTooLarge.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readU64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadSigned64TooLong) {
@@ -358,7 +358,7 @@ TEST(FileManagerTest, File__ReadSigned64TooLong) {
   WasmEdge::Expect<int64_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readS64TestTooLong.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readS64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadSigned64TooLarge) {
@@ -366,7 +366,7 @@ TEST(FileManagerTest, File__ReadSigned64TooLarge) {
   WasmEdge::Expect<int64_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readS64TestTooLarge.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readS64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadByte) {
@@ -683,7 +683,7 @@ TEST(FileManagerTest, Vector__ReadUnsigned32TooLong) {
   ASSERT_TRUE(
       Mgr.setCode(std::vector<uint8_t>{0x80, 0x80, 0x80, 0x80, 0x80, 0x00}));
   ASSERT_FALSE(ReadNum = Mgr.readU32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadUnsigned32TooLarge) {
@@ -691,7 +691,7 @@ TEST(FileManagerTest, Vector__ReadUnsigned32TooLarge) {
   WasmEdge::Expect<uint32_t> ReadNum;
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0x80, 0x80, 0x80, 0x80, 0x1F}));
   ASSERT_FALSE(ReadNum = Mgr.readU32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadSigned32TooLong) {
@@ -700,7 +700,7 @@ TEST(FileManagerTest, Vector__ReadSigned32TooLong) {
   ASSERT_TRUE(
       Mgr.setCode(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
   ASSERT_FALSE(ReadNum = Mgr.readS32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadSigned32TooLarge) {
@@ -708,7 +708,7 @@ TEST(FileManagerTest, Vector__ReadSigned32TooLarge) {
   WasmEdge::Expect<int32_t> ReadNum;
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0x4F}));
   ASSERT_FALSE(ReadNum = Mgr.readS32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadUnsigned64TooLong) {
@@ -717,7 +717,7 @@ TEST(FileManagerTest, Vector__ReadUnsigned64TooLong) {
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{
       0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00}));
   ASSERT_FALSE(ReadNum = Mgr.readU64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadUnsigned64TooLarge) {
@@ -726,7 +726,7 @@ TEST(FileManagerTest, Vector__ReadUnsigned64TooLarge) {
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0x80, 0x80, 0x80, 0x80, 0x80,
                                                0x80, 0x80, 0x80, 0x80, 0x7E}));
   ASSERT_FALSE(ReadNum = Mgr.readU64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadSigned64TooLong) {
@@ -735,7 +735,7 @@ TEST(FileManagerTest, Vector__ReadSigned64TooLong) {
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{
       0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
   ASSERT_FALSE(ReadNum = Mgr.readS64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadSigned64TooLarge) {
@@ -744,7 +744,108 @@ TEST(FileManagerTest, Vector__ReadSigned64TooLarge) {
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                                                0xFF, 0xFF, 0xFF, 0xFF, 0x41}));
   ASSERT_FALSE(ReadNum = Mgr.readS64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
+}
+
+TEST(FileManagerTest, File__ReadSigned33) {
+  // 36. Test signed 33bit integer decoding.
+  WasmEdge::Expect<int64_t> ReadNum;
+  // Reuse the test data of reading S32
+  ASSERT_TRUE(Mgr.setPath("filemgrTestData/readS32Test.bin"));
+  EXPECT_EQ(0U, Mgr.getOffset());
+  ASSERT_TRUE(ReadNum = Mgr.readS33());
+  EXPECT_EQ(0, ReadNum.value());
+  ASSERT_TRUE(ReadNum = Mgr.readS33());
+  EXPECT_EQ(INT32_MAX, ReadNum.value());
+  ASSERT_TRUE(ReadNum = Mgr.readS33());
+  EXPECT_EQ(INT32_MIN, ReadNum.value());
+  ASSERT_TRUE(ReadNum = Mgr.readS33());
+  EXPECT_EQ(-1, ReadNum.value());
+  ASSERT_TRUE(ReadNum = Mgr.readS33());
+  EXPECT_EQ(1, ReadNum.value());
+  ASSERT_TRUE(ReadNum = Mgr.readS33());
+  EXPECT_EQ(134, ReadNum.value());
+  ASSERT_TRUE(ReadNum = Mgr.readS33());
+  EXPECT_EQ(-348415746, ReadNum.value());
+  ASSERT_TRUE(ReadNum = Mgr.readS33());
+  EXPECT_EQ(13018, ReadNum.value());
+  ASSERT_TRUE(ReadNum = Mgr.readS33());
+  EXPECT_EQ(-98765432, ReadNum.value());
+  ASSERT_TRUE(ReadNum = Mgr.readS33());
+  EXPECT_EQ(891055, ReadNum.value());
+  ASSERT_FALSE(ReadNum = Mgr.readS33());
+  EXPECT_EQ(30U, Mgr.getOffset());
+
+  std::vector<uint8_t> TestData = {
+      // First number.
+      // The first 4 bytes are 0b11111111, which indicates 4*7=28 lowest bits
+      // be 1.
+      // The last byte is 0b00001111. The highest bit is 0, indicating that this
+      // is the last byte. The fifth lowest bit is 0, indicating this number is
+      // a positive number. Therefore, the sixth and seventh bit must also be 0.
+      // The lowest 4 bits are all 1.
+      // In total, the represented number is 2^32 - 1.
+      0xFF,
+      0xFF,
+      0xFF,
+      0xFF,
+      0x0F,
+      // Second number.
+      // The first 4 bytes are 0b10000000, which indicates 4*7=28 lowest bits
+      // be 0.
+      // The last byte is 0b01110000. The highest bit is 0, indicating that this
+      // is the last byte. The fifth lowest bit is 1, indicating this number is
+      // a negative number. Therefore, the sixth and seventh bit must also be 1.
+      // The lowest 4 bits are all 0.
+      // In total, the represented number is 0b1 with 32 tailing zeros, which is
+      // -2^32.
+      0x80,
+      0x80,
+      0x80,
+      0x80,
+      0x70,
+  };
+
+  ASSERT_TRUE(Mgr.setCode(std::move(TestData)));
+  ASSERT_EQ((1LL << 32) - 1, Mgr.readS33().value());
+  ASSERT_EQ(5, Mgr.getOffset());
+  ASSERT_EQ(-(1LL << 32), Mgr.readS33().value());
+  ASSERT_EQ(10, Mgr.getOffset());
+}
+
+TEST(FileManagerTest, File__ReadSigned33TooLong) {
+  // 37. Test signed 33bit integer decoding in too long case.
+  WasmEdge::Expect<int64_t> ReadNum;
+  // Reuse the test data of reading S32. Loading too long for S32 is the same as
+  // S33, since both of them occupy at most 5 bytes.
+  ASSERT_TRUE(Mgr.setPath("filemgrTestData/readS32TestTooLong.bin"));
+  ASSERT_FALSE(ReadNum = Mgr.readS33());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
+}
+
+TEST(FileManagerTest, File__ReadSigned33TooLarge) {
+  // 38. Test signed 33bit integer decoding in too large case.
+  WasmEdge::Expect<int64_t> ReadNum;
+  // The first 4 bytes starts with bit 1, which indicates there is a coming
+  // fifth byte. The last byte is 0b00101111. The highest bit is 0, indicating
+  // that this is the last byte. The fifth lowest bit is 0, indicating this
+  // number is a positive number. Therefore, the sixth and seventh bit must also
+  // be 0. However, the sixth lowest bit is 1, which will cause loading a too
+  // large positive number.
+  ASSERT_TRUE(
+      Mgr.setCode(std::vector<uint8_t>({0xFF, 0xFF, 0xFF, 0xFF, 0x1F})));
+  ASSERT_FALSE(ReadNum = Mgr.readS33());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
+  // The first 4 bytes starts with bit 1, which indicates there is a coming
+  // fifth byte. The last byte is 0b01011111. The highest bit is 0, indicating
+  // that this is the last byte. The fifth lowest bit is 1, indicating this
+  // number is a negative number. Therefore, the sixth and seventh bit must also
+  // be 1. However, the sixth lowest bit is 0, which will cause loading a too
+  // large negative number.
+  ASSERT_TRUE(
+      Mgr.setCode(std::vector<uint8_t>({0xFF, 0xFF, 0xFF, 0xFF, 0x5F})));
+  ASSERT_FALSE(ReadNum = Mgr.readS33());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 } // namespace
 

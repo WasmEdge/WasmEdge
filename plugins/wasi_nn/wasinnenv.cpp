@@ -9,7 +9,8 @@ namespace Host {
 
 namespace {
 
-Runtime::Instance::ModuleInstance *create(void) noexcept {
+Runtime::Instance::ModuleInstance *
+create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
   return new WasiNNModule;
 }
 

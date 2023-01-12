@@ -1,7 +1,7 @@
-name: Scan WasmEdge with IWYU on Linux and macOS
+name: IWYU cheker
 
 concurrency:
-  group: IWYU-scan-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 on:
@@ -40,7 +40,7 @@ jobs:
     outputs:
       version: ${{ steps.prep.outputs.version }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Get version
@@ -48,10 +48,11 @@ jobs:
       run: |
         # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
         git fetch --tags --force
+        git config --global --add safe.directory $(pwd)
         echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
 
   build_fedora:
-    name: Fedora 35
+    name: Fedora latest
     needs: get_version_v2
     runs-on: ubuntu-latest
     container:
@@ -62,15 +63,15 @@ jobs:
       run: |
         dnf update -y
         dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev clang-devel
-        curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.18.zip
-        unzip  0.18.zip
+        curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.19.zip
+        unzip  0.19.zip
         mkdir build && cd build
-        cmake -G "Unix Makefiles" ../include-what-you-use-0.18
+        cmake -G "Unix Makefiles" ../include-what-you-use-0.19
         make -j
         make install
         cd ..
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
@@ -91,17 +92,18 @@ jobs:
     needs: get_version_v2
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
     - name: Build and scan WasmEdge with IWYU
+      shell: bash
       run: |
-        brew install llvm ninja boost cmake
+        brew install llvm@14 ninja boost cmake
 
-        export PATH="/usr/local/opt/llvm/bin:$PATH"
-        export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
-        export CPPFLAGS="-I/usr/local/opt/llvm/include"
+        export PATH="/usr/local/opt/llvm@14/bin:$PATH"
+        export LDFLAGS="-L/usr/local/opt/llvm@14/lib -Wl,-rpath,/usr/local/opt/llvm@14/lib"
+        export CPPFLAGS="-I/usr/local/opt/llvm@14/include"
         export CC=clang
         export CXX=clang++
 
@@ -113,8 +115,7 @@ jobs:
         make -j install
         cd ../WasmEdge/WasmEdge
 
-        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DCMAKE_CXX_INCLUDE_WHAT_YOU_USE=include-what-you-use .
-        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DCMAKE_CXX_INCLUDE_WHAT_YOU_USE=include-what-you-use -DWASMEDGE_BUILD_PACKAGE="TGZ" .
         cmake --build build > iwyu_macos.log
 
     - uses: actions/upload-artifact@v3

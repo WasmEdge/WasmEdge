@@ -21,6 +21,7 @@ namespace WASI {
 
 class VFS;
 class VPoller;
+class VEpoller;
 class VINode : public std::enable_shared_from_this<VINode> {
 public:
   VINode(const VINode &) = delete;
@@ -542,6 +543,15 @@ public:
   static inline WasiExpect<VPoller>
   pollOneoff(__wasi_size_t NSubscriptions) noexcept;
 
+  /// Concurrently poll for the occurrence of a set of events in edge-triggered
+  /// mode.
+  ///
+  /// @param[in] NSubscriptions Both the number of subscriptions and events.
+  /// @param[in] Fd Epoll Descriptor.
+  /// @return Poll helper or WASI error.
+  static inline WasiExpect<VEpoller> epollOneoff(__wasi_size_t NSubscriptions,
+                                                 int Fd) noexcept;
+
   static WasiExpect<void>
   getAddrinfo(std::string_view Node, std::string_view Service,
               const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
@@ -600,10 +610,11 @@ public:
   /// @return Nothing or WASI error.
   WasiExpect<void> sockRecvFrom(Span<Span<uint8_t>> RiData,
                                 __wasi_riflags_t RiFlags, uint8_t *Address,
-                                uint8_t AddressLength, __wasi_size_t &NRead,
+                                uint8_t AddressLength, uint32_t *PortPtr,
+                                __wasi_size_t &NRead,
                                 __wasi_roflags_t &RoFlags) const noexcept {
-    return Node.sockRecvFrom(RiData, RiFlags, Address, AddressLength, NRead,
-                             RoFlags);
+    return Node.sockRecvFrom(RiData, RiFlags, Address, AddressLength, PortPtr,
+                             NRead, RoFlags);
   }
 
   /// Send a message on a socket.
@@ -664,14 +675,14 @@ public:
     return Node.sockSetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
   }
 
-  WasiExpect<void> sockGetLoaclAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetLoaclAddr(uint8_t *Address,
                                     uint32_t *PortPtr) const noexcept {
-    return Node.sockGetLoaclAddr(Address, AddrTypePtr, PortPtr);
+    return Node.sockGetLoaclAddr(Address, PortPtr);
   }
 
-  WasiExpect<void> sockGetPeerAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetPeerAddr(uint8_t *Address,
                                    uint32_t *PortPtr) const noexcept {
-    return Node.sockGetPeerAddr(Address, AddrTypePtr, PortPtr);
+    return Node.sockGetPeerAddr(Address, PortPtr);
   }
 
   __wasi_rights_t fsRightsBase() const noexcept { return FsRightsBase; }
@@ -717,6 +728,7 @@ private:
   std::string Name;
 
   friend class VPoller;
+  friend class VEpoller;
 
   /// Open path without resolve.
   /// @param Path Path, contains one element only.
@@ -763,10 +775,49 @@ public:
   }
 };
 
+class VEpoller : private Epoller {
+public:
+  using Epoller::CallbackType;
+  using Epoller::clock;
+  using Epoller::getFd;
+  using Epoller::wait;
+
+  VEpoller(Epoller &&P) : Epoller(std::move(P)) {}
+
+  WasiExpect<void>
+  read(std::shared_ptr<VINode> Fd, __wasi_userdata_t UserData,
+       std::unordered_map<int, uint32_t> &Registration) noexcept {
+    if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
+        !Fd->can(__WASI_RIGHTS_FD_READ)) {
+      return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
+    }
+    return Epoller::read(Fd->Node, UserData, Registration);
+  }
+
+  WasiExpect<void>
+  write(std::shared_ptr<VINode> Fd, __wasi_userdata_t UserData,
+        std::unordered_map<int, uint32_t> &Registration) noexcept {
+    return Epoller::write(Fd->Node, UserData, Registration);
+  }
+  WasiExpect<void>
+  wait(CallbackType Callback,
+       std::unordered_map<int, uint32_t> &Registration) noexcept {
+    return Epoller::wait(Callback, Registration);
+  }
+  int getFd() noexcept { return Epoller::getFd(); }
+};
+
 inline WasiExpect<VPoller>
 VINode::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
   return INode::pollOneoff(NSubscriptions).map([](Poller &&P) {
     return VPoller(std::move(P));
+  });
+}
+
+inline WasiExpect<VEpoller> VINode::epollOneoff(__wasi_size_t NSubscriptions,
+                                                int Fd) noexcept {
+  return INode::epollOneoff(NSubscriptions, Fd).map([](Epoller &&P) {
+    return VEpoller(std::move(P));
   });
 }
 

@@ -1,31 +1,37 @@
-use wasmedge_sys::utils;
-#[cfg(target_os = "linux")]
+//! Please set the environment variable `WASMEDGE_PLUGIN_PATH` to the directory containing the plugins to enable the wasmedge-process plugin.
+
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
+use wasmedge_macro::sys_host_function;
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 use wasmedge_sys::{
-    Config, FuncType, Function, ImportInstance, ImportObject, Vm, WasmEdgeProcessModule, WasmValue,
+    utils, AsImport, CallingFrame, Config, FuncType, Function, ImportObject, Vm,
+    WasmEdgeProcessModule, WasmValue,
 };
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
 use wasmedge_types::{
-    error::{CoreError, CoreInstantiationError, VmError, WasmEdgeError},
+    error::{CoreError, CoreInstantiationError, HostFuncError, VmError, WasmEdgeError},
     ValType,
 };
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // load wasmedge_process plugins
+    #[cfg(all(not(feature = "static"), target_os = "linux"))]
     utils::load_plugin_from_default_paths();
 
     // A WasmEdgeProcessModule can be created implicitly inside a Vm by passing the Vm a config argument in which the wasmedge_process option is enabled.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(not(feature = "static"), target_os = "linux"))]
     create_wasmedge_process_module_implicitly()?;
 
     // WasmEdgeProcessModule implements ImportInstance trait, therefore it can be used to register function, table, memory and global instances.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(not(feature = "static"), target_os = "linux"))]
     create_wasmedge_process_module_explicitly()?;
 
     Ok(())
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
+#[allow(clippy::assertions_on_result_states)]
 fn create_wasmedge_process_module_implicitly() -> Result<(), Box<dyn std::error::Error>> {
     // create a Config context
     let mut config = Config::create()?;
@@ -50,15 +56,16 @@ fn create_wasmedge_process_module_implicitly() -> Result<(), Box<dyn std::error:
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Core(CoreError::Instantiation(
+        Box::new(WasmEdgeError::Core(CoreError::Instantiation(
             CoreInstantiationError::ModuleNameConflict
-        ))
+        )))
     );
 
     Ok(())
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "static"), target_os = "linux"))]
+#[allow(clippy::assertions_on_result_states)]
 fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error::Error>> {
     // create a Config context, not enable wasi and wasmedge_process options.
     let mut config = Config::create()?;
@@ -72,7 +79,7 @@ fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error:
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule)
+        Box::new(WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule))
     );
 
     // *** try to add a WasmEdgeProcess module.
@@ -81,21 +88,25 @@ fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error:
     let mut import_process = WasmEdgeProcessModule::create(None, false)?;
 
     // a function to import
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    #[sys_host_function]
+    fn real_add(
+        _frame: CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;
@@ -116,7 +127,7 @@ fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error:
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule)
+        Box::new(WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule))
     );
 
     // get store from vm

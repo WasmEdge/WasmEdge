@@ -11,7 +11,7 @@ namespace WasiCrypto {
 using namespace std::literals;
 
 TEST_F(WasiCryptoTest, Signatures) {
-  // Use the generated data to sign and verfiy.
+  // Use the generated data to sign and verify.
   auto SigTest = [this](__wasi_algorithm_type_e_t AlgType,
                         std::string_view Alg) {
     SCOPED_TRACE(Alg);
@@ -37,6 +37,7 @@ TEST_F(WasiCryptoTest, Signatures) {
   };
   SigTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "ECDSA_P256_SHA256"sv);
   SigTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "ECDSA_K256_SHA256"sv);
+  SigTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "ECDSA_P384_SHA384"sv);
   SigTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv);
   SigTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "RSA_PKCS1_2048_SHA256"sv);
   SigTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "RSA_PKCS1_2048_SHA384"sv);

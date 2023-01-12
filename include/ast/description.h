@@ -15,7 +15,7 @@
 #pragma once
 
 #include "ast/type.h"
-#include "common/enum_types.h"
+#include "common/enum_types.hpp"
 
 #include <string>
 #include <string_view>

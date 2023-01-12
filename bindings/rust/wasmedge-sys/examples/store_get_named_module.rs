@@ -2,6 +2,7 @@ use wasmedge_sys::{Config, Store, Vm};
 use wasmedge_types::wat2wasm;
 
 #[cfg_attr(test, test)]
+#[allow(clippy::assertions_on_result_states)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // read the wasm bytes
     let wasm_bytes = wat2wasm(
@@ -48,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut store = Store::create()?;
 
     // create a Vm context with the given Config and Store
-    let mut vm = Vm::create(Some(config), Some(&mut store))?;
+    let vm = Vm::create(Some(config), Some(&mut store))?;
 
     // register a wasm module from a in-memory wasm bytes.
     vm.register_wasm_from_bytes("extern", &wasm_bytes)?;

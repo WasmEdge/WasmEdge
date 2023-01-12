@@ -14,7 +14,7 @@
 
 namespace {
 
-// The followings are the functions and class definitions to pass as
+// The following are the functions and class definitions to pass as
 // references.
 
 // Test: function to pass as function pointer
@@ -31,10 +31,11 @@ struct SquareStruct {
   uint32_t operator()(uint32_t Val) const { return Val * Val; }
 };
 
-// The followings are the host function definitions.
+// The following are the host function definitions.
 
 // Host function to call functor by external reference
-WasmEdge_Result ExternFunctorSquare(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternFunctorSquare(void *,
+                                    const WasmEdge_CallingFrameContext *,
                                     const WasmEdge_Value *In,
                                     WasmEdge_Value *Out) {
   // Function type: {externref, i32} -> {i32}
@@ -46,7 +47,7 @@ WasmEdge_Result ExternFunctorSquare(void *, WasmEdge_MemoryInstanceContext *,
 }
 
 // Host function to access class by external reference
-WasmEdge_Result ExternClassAdd(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternClassAdd(void *, const WasmEdge_CallingFrameContext *,
                                const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // Function type: {externref, i32, i32} -> {i32}
   void *Ptr = WasmEdge_ValueGetExternRef(In[0]);
@@ -58,7 +59,7 @@ WasmEdge_Result ExternClassAdd(void *, WasmEdge_MemoryInstanceContext *,
 }
 
 // Host function to call function by external reference as a function pointer
-WasmEdge_Result ExternFuncMul(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternFuncMul(void *, const WasmEdge_CallingFrameContext *,
                               const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // Function type: {externref, i32, i32} -> {i32}
   void *Ptr = WasmEdge_ValueGetExternRef(In[0]);
@@ -71,7 +72,8 @@ WasmEdge_Result ExternFuncMul(void *, WasmEdge_MemoryInstanceContext *,
 }
 
 // Host function to output std::string through std::ostream
-WasmEdge_Result ExternSTLOStreamStr(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternSTLOStreamStr(void *,
+                                    const WasmEdge_CallingFrameContext *,
                                     const WasmEdge_Value *In,
                                     WasmEdge_Value *) {
   // Function type: {externref, externref} -> {}
@@ -84,7 +86,8 @@ WasmEdge_Result ExternSTLOStreamStr(void *, WasmEdge_MemoryInstanceContext *,
 }
 
 // Host function to output uint32_t through std::ostream
-WasmEdge_Result ExternSTLOStreamU32(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternSTLOStreamU32(void *,
+                                    const WasmEdge_CallingFrameContext *,
                                     const WasmEdge_Value *In,
                                     WasmEdge_Value *) {
   // Function type: {externref, i32} -> {}
@@ -95,7 +98,7 @@ WasmEdge_Result ExternSTLOStreamU32(void *, WasmEdge_MemoryInstanceContext *,
 }
 
 // Host function to insert {key, val} to std::map<std::string, std::string>
-WasmEdge_Result ExternSTLMapInsert(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternSTLMapInsert(void *, const WasmEdge_CallingFrameContext *,
                                    const WasmEdge_Value *In, WasmEdge_Value *) {
   // Function type: {externref, externref, externref} -> {}
   void *Ptr0 = WasmEdge_ValueGetExternRef(In[0]);
@@ -109,7 +112,7 @@ WasmEdge_Result ExternSTLMapInsert(void *, WasmEdge_MemoryInstanceContext *,
 }
 
 // Host function to erase std::map<std::string, std::string> with key
-WasmEdge_Result ExternSTLMapErase(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternSTLMapErase(void *, const WasmEdge_CallingFrameContext *,
                                   const WasmEdge_Value *In, WasmEdge_Value *) {
   // Function type: {externref, externref} -> {}
   void *Ptr0 = WasmEdge_ValueGetExternRef(In[0]);
@@ -121,7 +124,7 @@ WasmEdge_Result ExternSTLMapErase(void *, WasmEdge_MemoryInstanceContext *,
 }
 
 // Host function to insert key to std::set<uint32_t>
-WasmEdge_Result ExternSTLSetInsert(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternSTLSetInsert(void *, const WasmEdge_CallingFrameContext *,
                                    const WasmEdge_Value *In, WasmEdge_Value *) {
   // Function type: {externref, i32} -> {}
   void *Ptr = WasmEdge_ValueGetExternRef(In[0]);
@@ -131,7 +134,7 @@ WasmEdge_Result ExternSTLSetInsert(void *, WasmEdge_MemoryInstanceContext *,
 }
 
 // Host function to erase std::set<uint32_t> with key
-WasmEdge_Result ExternSTLSetErase(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternSTLSetErase(void *, const WasmEdge_CallingFrameContext *,
                                   const WasmEdge_Value *In, WasmEdge_Value *) {
   // Function type: {externref, i32} -> {}
   void *Ptr = WasmEdge_ValueGetExternRef(In[0]);
@@ -141,7 +144,8 @@ WasmEdge_Result ExternSTLSetErase(void *, WasmEdge_MemoryInstanceContext *,
 }
 
 // Host function to push value into std::vector<uint32_t>
-WasmEdge_Result ExternSTLVectorPush(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternSTLVectorPush(void *,
+                                    const WasmEdge_CallingFrameContext *,
                                     const WasmEdge_Value *In,
                                     WasmEdge_Value *) {
   // Function type: {externref, i32} -> {}
@@ -152,7 +156,7 @@ WasmEdge_Result ExternSTLVectorPush(void *, WasmEdge_MemoryInstanceContext *,
 }
 
 // Host function to summarize value in slice of std::vector<uint32_t>
-WasmEdge_Result ExternSTLVectorSum(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternSTLVectorSum(void *, const WasmEdge_CallingFrameContext *,
                                    const WasmEdge_Value *In,
                                    WasmEdge_Value *Out) {
   // Function type: {externref, externref} -> {i32}

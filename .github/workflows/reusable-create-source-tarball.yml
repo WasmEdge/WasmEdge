@@ -1,0 +1,52 @@
+name: Create Source Tarball
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+      upload_asset_url:
+        type: string
+
+jobs:
+  create_source_tarball:
+    name: Create source tarball
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Propagate version information
+        run: |
+          echo -n $VERSION | tee VERSION
+        env:
+          VERSION: ${{ inputs.version }}
+      - name: Create source tarball
+        run: |
+          echo "Get version: $VERSION"
+          TEMPDIR=$(mktemp -d)
+          SRCDIR="$TEMPDIR/wasmedge/"
+          mkdir -p "$SRCDIR"
+          git checkout-index -a --prefix="$SRCDIR"
+          cp -v VERSION $SRCDIR
+          tar --owner 0 --group 0 -czf "$GITHUB_WORKSPACE/WasmEdge-$VERSION.tar.gz" -C "$TEMPDIR" "wasmedge"
+        env:
+          VERSION: ${{ inputs.version }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-${{ inputs.version }}-src.tar.gz
+          path: WasmEdge-${{ inputs.version }}.tar.gz
+      - name: Upload source tarball
+        if: ${{ inputs.release }} # Only for release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ inputs.upload_asset_url }}
+          asset_name: WasmEdge-${{ inputs.version }}-src.tar.gz
+          asset_path: WasmEdge-${{ inputs.version }}.tar.gz
+          asset_content_type: application/x-gzip

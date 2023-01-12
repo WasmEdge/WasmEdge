@@ -3,14 +3,20 @@
 
 #pragma once
 
+#include "common/log.h"
 #include "plugin/plugin.h"
-
 #include <cstdint>
 #include <vector>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-#include "common/log.h"
 #include <c_api/ie_c_api.h>
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
+#include <torch/script.h>
+#endif
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+#include "tensorflow/lite/c/c_api.h"
 #endif
 
 namespace WasmEdge {
@@ -24,18 +30,28 @@ enum class ErrNo : uint32_t {
   Busy = 3             // Device or resource busy.
 };
 
+enum class TensorType : uint8_t { F16 = 0, F32 = 1, U8 = 2, I32 = 3 };
+
 enum class Backend : uint8_t {
   OpenVINO = 0,
+  ONNX = 1,
+  Tensorflow = 2,
+  PyTorch = 3,
+  TensorflowLite = 4
 };
 
 class Graph {
 public:
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
   Graph() = delete;
-  Graph(Backend BE) noexcept
-      : GraphBackend(BE), OpenVINONetwork(nullptr),
-        OpenVINOExecNetwork(nullptr), OpenVINOWeightBlob(nullptr) {}
+  Graph(Backend BE) noexcept : GraphBackend(BE) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
+    OpenVINONetwork = nullptr;
+    OpenVINOExecNetwork = nullptr;
+    OpenVINOWeightBlob = nullptr;
+#endif
+  }
   ~Graph() noexcept {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
     if (OpenVINONetwork) {
       ie_network_free(&OpenVINONetwork);
     }
@@ -55,10 +71,13 @@ public:
         ie_network_name_free(&I);
       }
     }
-  }
-#else
-  Graph() noexcept = default;
 #endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+    if (TFLiteMod) {
+      TfLiteModelDelete(TFLiteMod);
+    }
+#endif
+  }
 
   Backend GraphBackend;
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
@@ -68,26 +87,54 @@ public:
   std::vector<char *> OpenVINOInputNames;
   std::vector<char *> OpenVINOOutputNames;
 #endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
+  torch::jit::Module TorchModel;
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+  TfLiteModel *TFLiteMod = nullptr;
+#endif
 };
 
 class Context {
 public:
   Context() = delete;
+
+  Context(Graph &G) noexcept : GraphRef(G) {
+    if (G.GraphBackend == Backend::OpenVINO) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-  Context(Graph &G, ie_infer_request_t *InferReq) noexcept
-      : GraphRef(G), OpenVINOInferRequest(InferReq) {}
+      IEStatusCode Status = ie_exec_network_create_infer_request(
+          G.OpenVINOExecNetwork, &OpenVINOInferRequest);
+      if (Status != IEStatusCode::OK) {
+        OpenVINOInferRequest = nullptr;
+        spdlog::error("[WASI-NN] Unable to create infer request for OpenVINO");
+      }
+#endif
+    }
+  }
+
   ~Context() noexcept {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
     if (OpenVINOInferRequest) {
       ie_infer_request_free(&OpenVINOInferRequest);
     }
-  }
-#else
-  Context(Graph &G) noexcept : GraphRef(G) {}
 #endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+    if (TFLiteInterp) {
+      TfLiteInterpreterDelete(TFLiteInterp);
+    }
+#endif
+  }
 
   Graph &GraphRef;
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-  ie_infer_request_t *OpenVINOInferRequest;
+  ie_infer_request_t *OpenVINOInferRequest = nullptr;
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
+  std::vector<torch::jit::IValue> TorchInputs;
+  std::vector<at::Tensor> TorchOutputs;
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+  TfLiteInterpreter *TFLiteInterp = nullptr;
 #endif
 };
 

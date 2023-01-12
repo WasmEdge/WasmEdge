@@ -158,7 +158,6 @@ rustwasmc build
 # 生成的 WASM 在 pkg/rust_bindgen_funcs_lib_bg.wasm
 ```
 
-
 在 WasmEdge 中运行 WebAssembly 函数的 [Golang 源码](https://github.com/second-state/WasmEdge-go-examples/blob/master/go_BindgenFuncs/bindgen_funcs.go) 如下。`ExecuteBindgen()` 函数调用 WebAssembly 函数并在 `wasm-bindgen` 支持下传递参数。
 
 ```go
@@ -314,7 +313,6 @@ rustup target add wasm32-wasi
 cargo build --release --target=wasm32-wasi
 #  输出的 wasm 将位于 `target/wasm32-wasi/release/rust_readfile.wasm`。
 ```
-
 
 在 Go 程序里面嵌入 WasmEdge 运行 WebAssembly 函数，Go 程序代码如下。
 
@@ -909,6 +907,7 @@ WASM 数据结构用于创建实例或可以从实例上下文中查询。
     ```
 
     下图解释了 `VM` 对象的状态。
+
     ```text
                            |========================|
                   |------->|      虚拟机: 已初始化     |
@@ -949,7 +948,7 @@ WASM 数据结构用于创建实例或可以从实例上下文中查询。
     你也可以在任何状态下加载 WASM，并且在函数调用之前应该验证和实例化 WASM 模块。
     当处于 `Instantiated` 状态时，你可以再次实例化 WASM 模块以重置旧的 WASM Runtime 结构。
 
-5. Wasm-bindgen 支持
+3. Wasm-bindgen 支持
 
    `(*VM).ExecuteBindgen` 和 `(*VM).ExecuteBindgenRegistered` 是支持 `wasm-bindgen` 函数执行的特殊函数。在 WasmEdge-go 中，我们支持以下 `wasm-bindgen` 函数的返回类型：
 
@@ -992,7 +991,7 @@ WASM 数据结构用于创建实例或可以从实例上下文中查询。
 
 ### 创建 VM
 
-`VM` 的创建 API 接收 `Configure` 对象和 `Store` 对象。    
+`VM` 的创建 API 接收 `Configure` 对象和 `Store` 对象。
 请注意，如果 `VM` 使用外部 `Store` 对象创建，则 `VM` 将在该 `Store` 对象上执行 WASM。如果将`Store`对象设置成多个`VM`对象，在执行时可能会造成数据冲突。
 `Store` 对象的详细信息将在 [Store](#Store) 中介绍。
 
@@ -1188,7 +1187,7 @@ wasiobj.Release()
     ```go
     store := wasmedge.NewStore()
     vm := wasmedge.NewVMWithStore(store)
-	
+ 
     storemock := vm.GetStore()
     // `store` 和 `storemock` 的内部存储上下文是相同的。
 
@@ -1400,7 +1399,7 @@ Get fibonacci[30]: 1346269
 
 ### 加载器
 
-`Loader` 对象从文件或缓冲区加载 WASM 二进制文件。   
+`Loader` 对象从文件或缓冲区加载 WASM 二进制文件。
 支持 [WasmEdge AOT Compiler](#WasmEdge-AOT-Compiler) 中的 WASM 和已编译的 WASM。
 
 ```go
@@ -1459,7 +1458,7 @@ validator.Release()
 
 ### 执行器
 
-`Executor` 对象是 WASM 和编译型 WASM 的执行器。   
+`Executor` 对象是 WASM 和编译型 WASM 的执行器。
 这个对象应该基于 `Store` 对象工作。`Store` 对象的详细信息，请参考 [下一章](#Store)。
 
 1. 注册模块
@@ -1561,7 +1560,7 @@ ast.Release()
 
 ### Store
 
-[Store](https://webassembly.github.io/spec/core/exec/runtime.html#store) 是 runtime 结构，用于表示在抽象机（Abstract Machine）的生命周期分配的所有 `Function`、 `Table`、`Memory` 和 `Global` 实例。    
+[Store](https://webassembly.github.io/spec/core/exec/runtime.html#store) 是 runtime 结构，用于表示在抽象机（Abstract Machine）的生命周期分配的所有 `Function`、 `Table`、`Memory` 和 `Global` 实例。
 WasmEdge-go 中的 Store 对象提供了 API 来列出导出的实例及其名称或通过导出的名称查找实例。要将实例添加到 `Store` 对象中，请通过 `Executor` API 实例化或注册 WASM 模块或 `ImportObject` 对象。
 
 1. 列出实例
@@ -1638,8 +1637,8 @@ WasmEdge-go 中的 Store 对象提供了 API 来列出导出的实例及其名�
     ```
 
    1. 表实例
-   
-       在 WasmEdge 中，你可以创建 `Table` 对象并将它们添加到 `ImportObject` 对象中，以便注册到 `VM` 或 `Store` 中。   
+
+       在 WasmEdge 中，你可以创建 `Table` 对象并将它们添加到 `ImportObject` 对象中，以便注册到 `VM` 或 `Store` 中。
        `Table` 对象提供 API 来控制表实例中的数据。
 
        ```go
@@ -1721,7 +1720,7 @@ WasmEdge-go 中的 Store 对象提供了 API 来列出导出的实例及其名�
 
 3. 全局实例
 
-   在 WasmEdge 中，你可以创建 `Global` 对象并将它们添加到 `ImportObject` 对象中，以便注册到 `VM` 或 `Store` 中。    
+   在 WasmEdge 中，你可以创建 `Global` 对象并将它们添加到 `ImportObject` 对象中，以便注册到 `VM` 或 `Store` 中。
    `Global` 对象提供 API 来控制全局实例中的值。
 
     ```go
@@ -1753,7 +1752,7 @@ WasmEdge-go 中的 Store 对象提供了 API 来列出导出的实例及其名�
 
 ### Host 函数
 
-[Host 函数](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) 是 WebAssembly 之外的函数，并作为导入传递给 WASM 模块。   
+[Host 函数](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) 是 WebAssembly 之外的函数，并作为导入传递给 WASM 模块。
 在 WasmEdge-go 中，你可以创建 `Function`、`Memory`、`Table` 和 `Global` 对象并将它们添加到 `ImportObject` 对象中，以便注册到 `VM` 或 `Store` 中。
 
 1. Host 功能分配
@@ -1857,9 +1856,9 @@ WasmEdge-go 中的 Store 对象提供了 API 来列出导出的实例及其名�
 
 3. 指定导入对象
 
-    `wasmedge.NewWasiImportObject()` API 可以创建和初始化 `WASI` 导入对象。    
-    `wasmedge.NewWasmEdgeProcessImportObject()` API 可以创建和初始化 `wasmedge_process` 导入对象。    
-    你可以创建这些导入对象对象并将它们注册到 `Store` 或 `VM` 对象中，而不是调整 `Configure` 对象中的设置。    
+    `wasmedge.NewWasiImportObject()` API 可以创建和初始化 `WASI` 导入对象。
+    `wasmedge.NewWasmEdgeProcessImportObject()` API 可以创建和初始化 `wasmedge_process` 导入对象。
+    你可以创建这些导入对象对象并将它们注册到 `Store` 或 `VM` 对象中，而不是调整 `Configure` 对象中的设置。
 
     ```go
     wasiobj := wasmedge.NewWasiImportObject(
@@ -1929,7 +1928,7 @@ WasmEdge-go 中的 Store 对象提供了 API 来列出导出的实例及其名�
         res := params[0].(int32) + params[1].(int32)
 
         // 设置返回
-		    returns := make([]interface{}, 1)
+      returns := make([]interface{}, 1)
         returns[0] = res
 
         // 返回
@@ -2110,7 +2109,7 @@ WasmEdge-go 中的 Store 对象提供了 API 来列出导出的实例及其名�
 
 ## WasmEdge AOT 编译器
 
-在本部分中，我们将介绍 WasmEdge AOT 编译器和 Go 中的选项。WasmEdge 以解释器模式运行 WASM 文件，并且 WasmEdge 还支持在不修改任何代码的情况下运行 AOT (ahead-of-time) 模式。WasmEdge AOT（提前）编译器编译 WASM 文件以在 AOT 模式下运行，这比解释器模式快得多。你可以将 WASM 文件编译成共享库格式的已编译 WASM 文件，用于 AOT 模式执行的通用 WASM 格式。     
+在本部分中，我们将介绍 WasmEdge AOT 编译器和 Go 中的选项。WasmEdge 以解释器模式运行 WASM 文件，并且 WasmEdge 还支持在不修改任何代码的情况下运行 AOT (ahead-of-time) 模式。WasmEdge AOT（提前）编译器编译 WASM 文件以在 AOT 模式下运行，这比解释器模式快得多。你可以将 WASM 文件编译成共享库格式的已编译 WASM 文件，用于 AOT 模式执行的通用 WASM 格式。
 
 ### 编译示例
 

@@ -6,6 +6,14 @@ use thiserror::Error;
 /// The error types used by both wasmedge-sys and wasmedge crates.
 #[derive(Error, Clone, Debug, PartialEq, Eq)]
 pub enum WasmEdgeError {
+    // For general operation error
+    #[error("{0}")]
+    Operation(String),
+
+    // For user-defined error
+    #[error("{0}")]
+    User(u32),
+
     /// Errors raised by WasmEdge Core.
     #[error("{0}")]
     Core(CoreError),
@@ -62,7 +70,10 @@ pub enum WasmEdgeError {
     NotFoundNulByte(#[from] std::ffi::FromBytesWithNulError),
     #[error("Fail to interpret a sequence of u8 as a string")]
     Utf8(#[from] std::str::Utf8Error),
+    #[error("Fail to convert a vector of bytes to a string")]
+    FromUtf8(#[from] std::string::FromUtf8Error),
 
+    // Windows platform
     #[error("Fail to convert path on Windows: {0}")]
     WindowsPathConversion(String),
 }
@@ -164,14 +175,16 @@ pub enum InstanceError {
     CreateWasmEdgeProcess,
     #[error("Fail to create ImportModule context")]
     CreateImportModule,
-    #[error("Fail to find the target function ({0})")]
+    #[error("Not found the target function ({0})")]
     NotFoundFunc(String),
-    #[error("Fail to find the target table ({0})")]
+    #[error("Not found the target table ({0})")]
     NotFoundTable(String),
-    #[error("Fail to find the target memory ({0})")]
+    #[error("Not found the target memory ({0})")]
     NotFoundMem(String),
-    #[error("Fail to find the target global ({0})")]
+    #[error("Not found the target global ({0})")]
     NotFoundGlobal(String),
+    #[error("Not found the given mapped Fd/handler")]
+    NotFoundMappedFdHandler,
 }
 
 /// The error types for WasmEdge Store.
@@ -220,6 +233,18 @@ pub enum VmError {
     NotFoundWasiModule,
     #[error("Fail to get WasmEdge_Process module instance")]
     NotFoundWasmEdgeProcessModule,
+    #[error("Fail to get WasiNn module instance")]
+    NotFoundWasiNnModule,
+    #[error("Fail to get WasiCryptoCommon module instance")]
+    NotFoundWasiCryptoCommonModule,
+    #[error("Fail to get WasiCryptoAsymmetricCommon module instance")]
+    NotFoundWasiCryptoAsymmetricCommonModule,
+    #[error("Fail to get WasiCryptoSymmetric module instance")]
+    NotFoundWasiCryptoSymmetricModule,
+    #[error("Fail to get WasiCryptoKx module instance")]
+    NotFoundWasiCryptoKxModule,
+    #[error("Fail to get WasiCryptoSignatures module instance")]
+    NotFoundWasiCryptoSignaturesModule,
     #[error("Fail to get Store context")]
     NotFoundStore,
     #[error("Fail to get Statistics context")]
@@ -272,6 +297,10 @@ pub enum CoreCommonError {
     AOTDisabled,
     #[error("execution interrupted")]
     Interrupted,
+    #[error("user defined error code")]
+    UserDefError,
+    #[error("wasm module hasn't passed validation yet")]
+    NotValidated,
 }
 
 /// The error type for the load phase from WasmEdge Core.
@@ -423,7 +452,19 @@ pub enum CoreExecutionError {
     #[error("indirect call type mismatch")]
     IndirectCallTypeMismatch,
     #[error("host function failed")]
-    ExecutionFailed,
+    HostFuncFailed,
     #[error("reference type mismatch")]
     RefTypeMismatch,
+    #[error("unaligned atomic")]
+    UnalignedAtomicAccess,
+    #[error("expected shared memory")]
+    ExpectSharedMemory,
+}
+
+#[derive(Error, Clone, Debug, PartialEq, Eq)]
+pub enum HostFuncError {
+    #[error("User error: {0}")]
+    User(u32),
+    #[error("Runtime error: {0}")]
+    Runtime(u32),
 }

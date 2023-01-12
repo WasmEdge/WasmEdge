@@ -17,5 +17,5 @@ target_link_libraries(wasmedgeExternrefTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
   std::filesystem
-  wasmedge_c_shared
+  wasmedge_shared
 )

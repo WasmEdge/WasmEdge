@@ -1,0 +1,88 @@
+name: Build on MacOS
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      matrix: # [ { name, runner, darwin_version }, ... ]
+        type: string
+        required: true
+      release:
+        type: boolean
+      upload_asset_url:
+        type: string
+
+jobs:
+  build_on_macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.matrix) }}
+    name: Build on ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      BUILD_TESTS: ON
+      BUILD_TYPE: Debug
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Setup build environment
+        run: |
+          brew install llvm@14 ninja boost cmake
+      - name: Set environment variables for release
+        if: ${{ inputs.release }}
+        run: |
+          echo "BUILD_TESTS=OFF" | tee -a $GITHUB_ENV
+          echo "BUILD_TYPE=Release" | tee -a $GITHUB_ENV
+      - name: Build WasmEdge
+        run: |
+          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          export CC=clang
+          export CXX=clang++
+          rm -rf build
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          cmake --build build
+      - name: Test WasmEdge
+        continue-on-error: true
+        run: |
+          export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
+          cd build
+          ./tools/wasmedge/wasmedge -v
+          ctest
+          cd -
+      - name: Create package tarball
+        run: |
+          cmake --build build --target package
+      - name: Test Standalone WasmEdge without LLVM
+        run: |
+          brew uninstall llvm@14
+          export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
+          echo "otool -L ./build/tools/wasmedge/wasmedge:"
+          otool -L ./build/tools/wasmedge/wasmedge
+          echo "otool -L ./build/tools/wasmedge/wasmedgec:"
+          otool -L ./build/tools/wasmedge/wasmedgec
+          echo "otool -L ./build/lib/api/libwasmedge.dylib:"
+          otool -L ./build/lib/api/libwasmedge.dylib
+          echo "./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib.dylib"
+          ./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib.dylib
+          echo "./build/tools/wasmedge/wasmedge --reactor fib.dylib fib 20"
+          ./build/tools/wasmedge/wasmedge --reactor fib.dylib fib 20
+      - name: Upload artifact
+        if: ${{ !inputs.release }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-${{ inputs.version }}-darwin_${{ matrix.darwin_version }}_x86_64.tar.gz
+          path: build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz
+      - name: Upload package tarball
+        if: ${{ inputs.release }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ inputs.upload_asset_url }}
+          asset_name: WasmEdge-${{ inputs.version }}-darwin_x86_64.tar.gz
+          asset_path: build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz
+          asset_content_type: application/x-gzip

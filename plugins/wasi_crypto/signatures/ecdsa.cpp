@@ -118,6 +118,7 @@ Ecdsa<CurveNid>::VerificationState::verify(const Signature &Sig) noexcept {
 
 template class Ecdsa<NID_X9_62_prime256v1>;
 template class Ecdsa<NID_secp256k1>;
+template class Ecdsa<NID_secp384r1>;
 
 } // namespace Signatures
 } // namespace WasiCrypto

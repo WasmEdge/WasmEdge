@@ -98,18 +98,18 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   // Multiple tables is for the ReferenceTypes proposal.
   if (Checker.getTables().size() > 1 &&
       !Conf.hasProposal(Proposal::ReferenceTypes)) {
-    spdlog::error(ErrCode::MultiTables);
+    spdlog::error(ErrCode::Value::MultiTables);
     spdlog::error(ErrInfo::InfoProposal(Proposal::ReferenceTypes));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-    return Unexpect(ErrCode::MultiTables);
+    return Unexpect(ErrCode::Value::MultiTables);
   }
 
   // Multiple memories is for the MultiMemories proposal.
   if (Checker.getMemories() > 1 && !Conf.hasProposal(Proposal::MultiMemories)) {
-    spdlog::error(ErrCode::MultiMemories);
+    spdlog::error(ErrCode::Value::MultiMemories);
     spdlog::error(ErrInfo::InfoProposal(Proposal::MultiMemories));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-    return Unexpect(ErrCode::MultiMemories);
+    return Unexpect(ErrCode::Value::MultiMemories);
   }
 
   // Set the validated flag.
@@ -120,9 +120,9 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
 // Validate Limit type. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::Limit &Lim) {
   if (Lim.hasMax() && Lim.getMin() > Lim.getMax()) {
-    spdlog::error(ErrCode::InvalidLimit);
+    spdlog::error(ErrCode::Value::InvalidLimit);
     spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
-    return Unexpect(ErrCode::InvalidLimit);
+    return Unexpect(ErrCode::Value::InvalidLimit);
   }
   return {};
 }
@@ -145,9 +145,9 @@ Expect<void> Validator::validate(const AST::MemoryType &Mem) {
   }
   if (Lim.getMin() > LIMIT_MEMORYTYPE ||
       (Lim.hasMax() && Lim.getMax() > LIMIT_MEMORYTYPE)) {
-    spdlog::error(ErrCode::InvalidMemPages);
+    spdlog::error(ErrCode::Value::InvalidMemPages);
     spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
-    return Unexpect(ErrCode::InvalidMemPages);
+    return Unexpect(ErrCode::Value::InvalidMemPages);
   }
   return {};
 }
@@ -181,16 +181,19 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
     // Check table index and reference type in context.
     const auto &TableVec = Checker.getTables();
     if (ElemSeg.getIdx() >= TableVec.size()) {
-      spdlog::error(ErrCode::InvalidTableIdx);
+      spdlog::error(ErrCode::Value::InvalidTableIdx);
       spdlog::error(ErrInfo::InfoForbidIndex(
           ErrInfo::IndexCategory::Table, ElemSeg.getIdx(),
           static_cast<uint32_t>(TableVec.size())));
-      return Unexpect(ErrCode::InvalidTableIdx);
+      return Unexpect(ErrCode::Value::InvalidTableIdx);
     }
     if (TableVec[ElemSeg.getIdx()] != ElemSeg.getRefType()) {
       // Reference type not matched.
-      spdlog::error(ErrCode::InvalidTableIdx);
-      return Unexpect(ErrCode::InvalidTableIdx);
+      spdlog::error(ErrCode::Value::TypeCheckFailed);
+      spdlog::error(ErrInfo::InfoMismatch(
+          static_cast<ValType>(TableVec[ElemSeg.getIdx()]),
+          static_cast<ValType>(ElemSeg.getRefType())));
+      return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
     // Check table initialization is a const expression.
     if (auto Res =
@@ -234,10 +237,10 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
     // Check memory index in context.
     const auto &MemNum = Checker.getMemories();
     if (DataSeg.getIdx() >= MemNum) {
-      spdlog::error(ErrCode::InvalidMemoryIdx);
+      spdlog::error(ErrCode::Value::InvalidMemoryIdx);
       spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory,
                                              DataSeg.getIdx(), MemNum));
-      return Unexpect(ErrCode::InvalidMemoryIdx);
+      return Unexpect(ErrCode::Value::InvalidMemoryIdx);
     }
     // Check memory initialization is a const expression.
     if (auto Res =
@@ -260,11 +263,11 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
     const auto TId = ImpDesc.getExternalFuncTypeIdx();
     // Function type index must exist in context.
     if (TId >= Checker.getTypes().size()) {
-      spdlog::error(ErrCode::InvalidFuncTypeIdx);
+      spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
       spdlog::error(ErrInfo::InfoForbidIndex(
           ErrInfo::IndexCategory::FunctionType, TId,
           static_cast<uint32_t>(Checker.getTypes().size())));
-      return Unexpect(ErrCode::InvalidFuncTypeIdx);
+      return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
     }
     Checker.addRef(static_cast<uint32_t>(Checker.getFunctions().size()));
     Checker.addFunc(TId, true);
@@ -306,38 +309,38 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
   switch (ExpDesc.getExternalType()) {
   case ExternalType::Function:
     if (Id >= Checker.getFunctions().size()) {
-      spdlog::error(ErrCode::InvalidFuncIdx);
+      spdlog::error(ErrCode::Value::InvalidFuncIdx);
       spdlog::error(ErrInfo::InfoForbidIndex(
           ErrInfo::IndexCategory::Function, Id,
           static_cast<uint32_t>(Checker.getFunctions().size())));
-      return Unexpect(ErrCode::InvalidFuncIdx);
+      return Unexpect(ErrCode::Value::InvalidFuncIdx);
     }
     Checker.addRef(Id);
     return {};
   case ExternalType::Table:
     if (Id >= Checker.getTables().size()) {
-      spdlog::error(ErrCode::InvalidTableIdx);
+      spdlog::error(ErrCode::Value::InvalidTableIdx);
       spdlog::error(ErrInfo::InfoForbidIndex(
           ErrInfo::IndexCategory::Table, Id,
           static_cast<uint32_t>(Checker.getTables().size())));
-      return Unexpect(ErrCode::InvalidTableIdx);
+      return Unexpect(ErrCode::Value::InvalidTableIdx);
     }
     return {};
   case ExternalType::Memory:
     if (Id >= Checker.getMemories()) {
-      spdlog::error(ErrCode::InvalidMemoryIdx);
+      spdlog::error(ErrCode::Value::InvalidMemoryIdx);
       spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, Id,
                                              Checker.getMemories()));
-      return Unexpect(ErrCode::InvalidMemoryIdx);
+      return Unexpect(ErrCode::Value::InvalidMemoryIdx);
     }
     return {};
   case ExternalType::Global:
     if (Id >= Checker.getGlobals().size()) {
-      spdlog::error(ErrCode::InvalidGlobalIdx);
+      spdlog::error(ErrCode::Value::InvalidGlobalIdx);
       spdlog::error(ErrInfo::InfoForbidIndex(
           ErrInfo::IndexCategory::Global, Id,
           static_cast<uint32_t>(Checker.getGlobals().size())));
-      return Unexpect(ErrCode::InvalidGlobalIdx);
+      return Unexpect(ErrCode::Value::InvalidGlobalIdx);
     }
     return {};
   default:
@@ -365,11 +368,11 @@ Expect<void> Validator::validate(const AST::FunctionSection &FuncSec) {
   // Check if type id of function is valid in context.
   for (auto &TId : FuncVec) {
     if (TId >= TypeVec.size()) {
-      spdlog::error(ErrCode::InvalidFuncTypeIdx);
+      spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
       spdlog::error(
           ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::FunctionType, TId,
                                    static_cast<uint32_t>(TypeVec.size())));
-      return Unexpect(ErrCode::InvalidFuncTypeIdx);
+      return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
     }
     Checker.addFunc(TId);
   }
@@ -438,11 +441,11 @@ Expect<void> Validator::validate(const AST::CodeSection &CodeSec) {
     // Added functions contains imported functions.
     uint32_t TId = Id + static_cast<uint32_t>(Checker.getNumImportFuncs());
     if (TId >= static_cast<uint32_t>(FuncVec.size())) {
-      spdlog::error(ErrCode::InvalidFuncIdx);
+      spdlog::error(ErrCode::Value::InvalidFuncIdx);
       spdlog::error(
           ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function, TId,
                                    static_cast<uint32_t>(FuncVec.size())));
-      return Unexpect(ErrCode::InvalidFuncIdx);
+      return Unexpect(ErrCode::Value::InvalidFuncIdx);
     }
     if (auto Res = validate(CodeVec[Id], FuncVec[TId]); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Code));
@@ -470,11 +473,11 @@ Expect<void> Validator::validate(const AST::StartSection &StartSec) {
   if (StartSec.getContent()) {
     auto FId = *StartSec.getContent();
     if (FId >= Checker.getFunctions().size()) {
-      spdlog::error(ErrCode::InvalidFuncIdx);
+      spdlog::error(ErrCode::Value::InvalidFuncIdx);
       spdlog::error(ErrInfo::InfoForbidIndex(
           ErrInfo::IndexCategory::Function, FId,
           static_cast<uint32_t>(Checker.getFunctions().size())));
-      return Unexpect(ErrCode::InvalidFuncIdx);
+      return Unexpect(ErrCode::Value::InvalidFuncIdx);
     }
     auto TId = Checker.getFunctions()[FId];
     auto &Type = Checker.getTypes()[TId];
@@ -487,9 +490,9 @@ Expect<void> Validator::validate(const AST::StartSection &StartSec) {
       for (auto &V : Type.second) {
         Returns.push_back(Checker.VTypeToAST(V));
       }
-      spdlog::error(ErrCode::InvalidStartFunc);
+      spdlog::error(ErrCode::Value::InvalidStartFunc);
       spdlog::error(ErrInfo::InfoMismatch({}, {}, Params, Returns));
-      return Unexpect(ErrCode::InvalidStartFunc);
+      return Unexpect(ErrCode::Value::InvalidStartFunc);
     }
   }
   return {};
@@ -502,9 +505,9 @@ Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
     auto Result = ExportNames.emplace(ExportDesc.getExternalName());
     if (!Result.second) {
       // Duplicated export name.
-      spdlog::error(ErrCode::DupExportName);
+      spdlog::error(ErrCode::Value::DupExportName);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Desc_Export));
-      return Unexpect(ErrCode::DupExportName);
+      return Unexpect(ErrCode::Value::DupExportName);
     }
     if (auto Res = validate(ExportDesc); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Desc_Export));
@@ -524,19 +527,19 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
       // For initialization case, global indices must be imported globals.
       auto GlobIdx = Instr.getTargetIndex();
       if (GlobIdx >= Checker.getNumImportGlobals()) {
-        spdlog::error(ErrCode::InvalidGlobalIdx);
+        spdlog::error(ErrCode::Value::InvalidGlobalIdx);
         spdlog::error(ErrInfo::InfoForbidIndex(
             ErrInfo::IndexCategory::Global, GlobIdx,
             static_cast<uint32_t>(Checker.getNumImportGlobals())));
         spdlog::error(
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-        return Unexpect(ErrCode::InvalidGlobalIdx);
+        return Unexpect(ErrCode::Value::InvalidGlobalIdx);
       }
       if (Checker.getGlobals()[GlobIdx].second != ValMut::Const) {
-        spdlog::error(ErrCode::ConstExprRequired);
+        spdlog::error(ErrCode::Value::ConstExprRequired);
         spdlog::error(
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-        return Unexpect(ErrCode::ConstExprRequired);
+        return Unexpect(ErrCode::Value::ConstExprRequired);
       }
       break;
     }
@@ -545,13 +548,13 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
       auto FuncIdx = Instr.getTargetIndex();
       if (FuncIdx >= Checker.getFunctions().size()) {
         // Function index out of range.
-        spdlog::error(ErrCode::InvalidFuncIdx);
+        spdlog::error(ErrCode::Value::InvalidFuncIdx);
         spdlog::error(ErrInfo::InfoForbidIndex(
             ErrInfo::IndexCategory::Function, FuncIdx,
             static_cast<uint32_t>(Checker.getFunctions().size())));
         spdlog::error(
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-        return Unexpect(ErrCode::InvalidFuncIdx);
+        return Unexpect(ErrCode::Value::InvalidFuncIdx);
       }
       Checker.addRef(Instr.getTargetIndex());
       break;
@@ -575,17 +578,17 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
       if (Conf.hasProposal(Proposal::ExtendedConst)) {
         break;
       }
-      spdlog::error(ErrCode::ConstExprRequired);
+      spdlog::error(ErrCode::Value::ConstExprRequired);
       spdlog::error(ErrInfo::InfoProposal(Proposal::ExtendedConst));
       spdlog::error(
           ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-      return Unexpect(ErrCode::ConstExprRequired);
+      return Unexpect(ErrCode::Value::ConstExprRequired);
 
     default:
-      spdlog::error(ErrCode::ConstExprRequired);
+      spdlog::error(ErrCode::Value::ConstExprRequired);
       spdlog::error(
           ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-      return Unexpect(ErrCode::ConstExprRequired);
+      return Unexpect(ErrCode::Value::ConstExprRequired);
     }
   }
   // Validate expression with result types.

@@ -4,16 +4,21 @@ The [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crate defines a group 
 
 For developers, it is recommended that the APIs in `wasmedge-sys` are used to construct high-level libraries, while `wasmedge-sdk` is for building up business applications.
 
-Notice that `WasmEdge Rust SDK` uses nightly version of Rust. It's strongly recommended to use the latest nightly version of Rust.
+Notice that [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) requires **Rust v1.63 or above** in the **stable** channel.
 
 ## Versioning Table
 
 The following table provides the versioning information about each crate of WasmEdge Rust bindings.
 
-| wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types|
-| :-----------: | :-----------: | :-----------: | :-----------: |
-| 0.2.0         | 0.10.1        | 0.8           | 0.2           |
-| 0.1.0         | 0.10.0        | 0.7           | 0.1           |
+| wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types| wasmedge-macro|
+| :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
+| 0.7.1         | 0.11.2        | 0.12.2        | 0.3.1         | 0.3.0         |
+| 0.7.0         | 0.11.2        | 0.12          | 0.3.1         | 0.3.0         |
+| 0.6.0         | 0.11.2        | 0.11          | 0.3.0         | 0.2.0         |
+| 0.5.0         | 0.11.1        | 0.10          | 0.3.0         | 0.1.0         |
+| 0.4.0         | 0.11.0        | 0.9           | 0.2.1         | -             |
+| 0.3.0         | 0.10.1        | 0.8           | 0.2           | -             |
+| 0.1.0         | 0.10.0        | 0.7           | 0.1           | -             |
 
 ## Build
 
@@ -36,13 +41,11 @@ To use or build the `wasmedge-sys` crate, the `WasmEdge` library is required.
    |   `-- wasmedgec
    |-- include
    |   `-- wasmedge
-   |       |-- dense_enum_map.h
    |       |-- enum.inc
    |       |-- enum_configure.h
    |       |-- enum_errcode.h
    |       |-- enum_types.h
    |       |-- int128.h
-   |       |-- spare_enum_map.h
    |       |-- version.h
    |       `-- wasmedge.h
    `-- lib64
@@ -50,8 +53,16 @@ To use or build the `wasmedge-sys` crate, the `WasmEdge` library is required.
        `-- wasmedge
            `-- libwasmedgePluginWasmEdgeProcess.so
 
-   5 directories, 13 files
+   5 directories, 11 files
    ```
+
+### Enable WasmEdge Plugins
+
+If you'd like to enable WasmEdge Plugins (currently, only available on Linux platform), please use `WASMEDGE_PLUGIN_PATH` environment variable to specify the path to the directory containing the plugins. For example, use the following commands to specify the path on Ubuntu 20.04:
+
+```bash
+export WASMEDGE_PLUGIN_PATH=$HOME/.wasmedge/lib/wasmedge
+```
 
 ## Example
 

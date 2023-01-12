@@ -60,7 +60,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   // Check > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
   if (Check > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations) &&
       !Conf.hasProposal(Proposal::ReferenceTypes)) {
-    return logNeedProposal(ErrCode::ExpectedZeroByte,
+    return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
                            Proposal::BulkMemoryOperations, FMgr.getLastOffset(),
                            ASTNodeAttr::Seg_Element);
   }
@@ -86,7 +86,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
 
   default:
     // TODO: Correctness the error code once there's spec test.
-    return logLoadError(ErrCode::IllegalGrammar, FMgr.getLastOffset(),
+    return logLoadError(ErrCode::Value::IllegalGrammar, FMgr.getLastOffset(),
                         ASTNodeAttr::Seg_Element);
   }
 
@@ -131,8 +131,8 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   case 0x03:
     if (auto Res = FMgr.readByte()) {
       if (*Res != 0x00U) {
-        return logLoadError(ErrCode::ExpectedZeroByte, FMgr.getLastOffset(),
-                            ASTNodeAttr::Seg_Element);
+        return logLoadError(ErrCode::Value::ExpectedZeroByte,
+                            FMgr.getLastOffset(), ASTNodeAttr::Seg_Element);
       }
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
@@ -193,6 +193,10 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
                           ASTNodeAttr::Seg_Element);
     } else {
       VecCnt = *Res;
+      if (VecCnt / 2 > FMgr.getRemainSize()) {
+        return logLoadError(ErrCode::Value::IntegerTooLong,
+                            FMgr.getLastOffset(), ASTNodeAttr::Seg_Element);
+      }
     }
     ElemSeg.getInitExprs().clear();
     ElemSeg.getInitExprs().reserve(VecCnt);
@@ -229,6 +233,11 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
   uint32_t VecCnt = 0;
   if (auto Res = FMgr.readU32()) {
     VecCnt = *Res;
+    if (VecCnt / 2 > FMgr.getRemainSize()) {
+      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
+                          ASTNodeAttr::Seg_Code);
+    }
+
     CodeSeg.getLocals().clear();
     CodeSeg.getLocals().reserve(VecCnt);
   } else {
@@ -238,16 +247,16 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
   uint32_t TotalLocalCnt = 0;
   for (uint32_t I = 0; I < VecCnt; ++I) {
     uint32_t LocalCnt = 0;
-    ValType LocalType = ValType::None;
+    ValType LocalType;
     if (auto Res = FMgr.readU32(); unlikely(!Res)) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Code);
     } else {
       LocalCnt = *Res;
     }
-    // Total local variables should not more than 2^32.
-    if (UINT32_MAX - TotalLocalCnt < LocalCnt) {
-      return logLoadError(ErrCode::TooManyLocals, FMgr.getLastOffset(),
+    // Total local variables should not more than 2^32. Capped at 2^26.
+    if (UINT32_C(67108864) - TotalLocalCnt < LocalCnt) {
+      return logLoadError(ErrCode::Value::TooManyLocals, FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Code);
     }
     TotalLocalCnt += LocalCnt;
@@ -266,8 +275,10 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     CodeSeg.getLocals().push_back(std::make_pair(LocalCnt, LocalType));
   }
 
-  if (IsUniversalWASM || IsSharedLibraryWASM) {
-    // For the AOT mode, skip the function body.
+  if (!Conf.getRuntimeConfigure().isForceInterpreter() &&
+      WASMType != InputType::WASM) {
+    // For the AOT mode and not force interpreter in configure, skip the
+    // function body.
     FMgr.seek(ExprSizeBound);
   } else {
     // Read function body with expected expression size.
@@ -310,7 +321,7 @@ Expect<void> Loader::loadSegment(AST::DataSegment &DataSeg) {
   // Check > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
   if (Check > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations) &&
       !Conf.hasProposal(Proposal::ReferenceTypes)) {
-    return logNeedProposal(ErrCode::ExpectedZeroByte,
+    return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
                            Proposal::BulkMemoryOperations, FMgr.getLastOffset(),
                            ASTNodeAttr::Seg_Data);
   }
@@ -341,6 +352,10 @@ Expect<void> Loader::loadSegment(AST::DataSegment &DataSeg) {
     uint32_t VecCnt = 0;
     if (auto Res = FMgr.readU32()) {
       VecCnt = *Res;
+      if (VecCnt / 2 > FMgr.getRemainSize()) {
+        return logLoadError(ErrCode::Value::IntegerTooLong,
+                            FMgr.getLastOffset(), ASTNodeAttr::Seg_Data);
+      }
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Data);
@@ -355,7 +370,7 @@ Expect<void> Loader::loadSegment(AST::DataSegment &DataSeg) {
   }
   default:
     // TODO: Correctness the error code once there's spec test.
-    return logLoadError(ErrCode::IllegalGrammar, FMgr.getLastOffset(),
+    return logLoadError(ErrCode::Value::IllegalGrammar, FMgr.getLastOffset(),
                         ASTNodeAttr::Seg_Data);
   }
   return {};

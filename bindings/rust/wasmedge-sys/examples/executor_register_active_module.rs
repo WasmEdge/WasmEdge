@@ -2,6 +2,7 @@ use wasmedge_sys::{Config, Executor, Loader, Store, Validator};
 use wasmedge_types::wat2wasm;
 
 #[cfg_attr(test, test)]
+#[allow(clippy::assertions_on_result_states)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // read the wasm bytes
     let wasm_bytes = wat2wasm(
@@ -42,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // load module from a wasm file
     let config = Config::create()?;
     let loader = Loader::create(Some(config))?;
-    let module = loader.from_bytes(&wasm_bytes)?;
+    let module = loader.from_bytes(wasm_bytes)?;
 
     // validate module
     let config = Config::create()?;

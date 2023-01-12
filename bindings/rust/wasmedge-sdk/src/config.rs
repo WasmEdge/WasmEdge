@@ -1,14 +1,16 @@
 //! Defines the structs used to construct configurations.
 
 use crate::WasmEdgeResult;
+#[cfg(feature = "aot")]
+use crate::{CompilerOptimizationLevel, CompilerOutputFormat};
 use wasmedge_sys as sys;
-use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
 /// Defines a builder for creating a [Config].
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ConfigBuilder {
     common_config: CommonConfigOptions,
     stat_config: Option<StatisticsConfigOptions>,
+    #[cfg(feature = "aot")]
     compiler_config: Option<CompilerConfigOptions>,
     runtime_config: Option<RuntimeConfigOptions>,
     host_config: Option<HostRegistrationConfigOptions>,
@@ -19,6 +21,7 @@ impl ConfigBuilder {
         Self {
             common_config: options,
             stat_config: None,
+            #[cfg(feature = "aot")]
             compiler_config: None,
             runtime_config: None,
             host_config: None,
@@ -89,12 +92,17 @@ impl ConfigBuilder {
         inner.reference_types(self.common_config.reference_types);
         inner.simd(self.common_config.simd);
         inner.multi_memories(self.common_config.multi_memories);
+        inner.threads(self.common_config.threads);
+        inner.tail_call(self.common_config.tail_call);
+        inner.function_references(self.common_config.function_references);
+        inner.interpreter_mode(self.common_config.interpreter_mode);
 
         if let Some(stat_config) = self.stat_config {
             inner.count_instructions(stat_config.count_instructions);
             inner.measure_cost(stat_config.measure_cost);
             inner.measure_time(stat_config.measure_time);
         }
+        #[cfg(feature = "aot")]
         if let Some(compiler_config) = self.compiler_config {
             inner.set_aot_compiler_output_format(compiler_config.out_format);
             inner.set_aot_optimization_level(compiler_config.opt_level);
@@ -109,6 +117,18 @@ impl ConfigBuilder {
             inner.wasi(host_config.wasi);
             #[cfg(target_os = "linux")]
             inner.wasmedge_process(host_config.wasmedge_process);
+            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+            inner.wasi_nn(host_config.wasi_nn);
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            inner.wasi_crypto_common(host_config.wasi_crypto_common);
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            inner.wasi_crypto_asymmetric_common(host_config.wasi_crypto_asymmetric_common);
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            inner.wasi_crypto_symmetric(host_config.wasi_crypto_symmetric);
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            inner.wasi_crypto_kx(host_config.wasi_crypto_kx);
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            inner.wasi_crypto_signatures(host_config.wasi_crypto_signatures);
         }
 
         Ok(Config { inner })
@@ -122,7 +142,8 @@ impl ConfigBuilder {
 /// The following code shows how to create a [Config] with [ConfigBuilder].
 ///
 /// ```rust
-/// use wasmedge_sdk::{config::{Config, ConfigBuilder, CommonConfigOptions, StatisticsConfigOptions, CompilerConfigOptions, RuntimeConfigOptions, HostRegistrationConfigOptions}};
+///
+/// use wasmedge_sdk::{config::{Config, ConfigBuilder, CommonConfigOptions, StatisticsConfigOptions, RuntimeConfigOptions, HostRegistrationConfigOptions}};
 /// use wasmedge_types::{CompilerOutputFormat, CompilerOptimizationLevel};
 ///
 /// let common_options = CommonConfigOptions::default()
@@ -133,13 +154,6 @@ impl ConfigBuilder {
 ///     .reference_types(true)
 ///     .sign_extension_operators(true)
 ///     .simd(true);
-///
-/// let compiler_options = CompilerConfigOptions::default()
-///     .dump_ir(true)
-///     .generic_binary(true)
-///     .interruptible(true)
-///     .optimization_level(CompilerOptimizationLevel::O0)
-///     .out_format(CompilerOutputFormat::Native);
 ///
 /// let stat_options = StatisticsConfigOptions::default()
 ///     .count_instructions(true)
@@ -153,30 +167,17 @@ impl ConfigBuilder {
 ///
 /// let result = ConfigBuilder::new(common_options)
 ///     .with_statistics_config(stat_options)
-///     .with_compiler_config(compiler_options)
 ///     .with_runtime_config(runtime_options)
 ///     .with_host_registration_config(host_options)
 ///     .build();
 /// assert!(result.is_ok());
 /// let config = result.unwrap();
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
     pub(crate) inner: sys::Config,
 }
 impl Config {
-    /// Creates a new [Config](crate::config::Config) from an existed one.
-    ///
-    /// - `src` specifies the source [Config](crate::config::Config).
-    ///
-    /// # Error
-    ///
-    /// If fail to create, then an error is returned.
-    pub fn copy_from(src: &Config) -> WasmEdgeResult<Self> {
-        let inner = sys::Config::copy_from(&src.inner)?;
-        Ok(Self { inner })
-    }
-
     /// Checks if the host registration wasi option turns on or not.
     pub fn wasi_enabled(&self) -> bool {
         self.inner.wasi_enabled()
@@ -186,6 +187,36 @@ impl Config {
     #[cfg(target_os = "linux")]
     pub fn wasmedge_process_enabled(&self) -> bool {
         self.inner.wasmedge_process_enabled()
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    pub fn wasi_nn_enabled(&self) -> bool {
+        self.inner.wasi_nn_enabled()
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_common_enabled(&self) -> bool {
+        self.inner.wasi_crypto_common_enabled()
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_asymmetric_common_enabled(&self) -> bool {
+        self.inner.wasi_crypto_asymmetric_common_enabled()
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_symmetric_enabled(&self) -> bool {
+        self.inner.wasi_crypto_symmetric_enabled()
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_kx_enabled(&self) -> bool {
+        self.inner.wasi_crypto_kx_enabled()
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_signatures_enabled(&self) -> bool {
+        self.inner.wasi_crypto_signatures_enabled()
     }
 
     /// Returns the number of the memory pages available.
@@ -231,6 +262,26 @@ impl Config {
     /// Checks if the MultiMemories option turns on or not.
     pub fn multi_memories_enabled(&self) -> bool {
         self.inner.multi_memories_enabled()
+    }
+
+    /// Checks if the Threads option turns on or not.
+    pub fn threads_enabled(&self) -> bool {
+        self.inner.threads_enabled()
+    }
+
+    /// Checks if the TailCall option turns on or not.
+    pub fn tail_call_enabled(&self) -> bool {
+        self.inner.tail_call_enabled()
+    }
+
+    /// Checks if the FunctionReferences option turns on or not.
+    pub fn function_references_enabled(&self) -> bool {
+        self.inner.function_references_enabled()
+    }
+
+    /// Checks if the `ForceInterpreter` option turns on or not.
+    pub fn interpreter_mode_enabled(&self) -> bool {
+        self.inner.interpreter_mode_enabled()
     }
 
     /// Returns the optimization level of AOT compiler.
@@ -320,9 +371,27 @@ pub struct CommonConfigOptions {
     reference_types: bool,
     simd: bool,
     multi_memories: bool,
+    threads: bool,
+    tail_call: bool,
+    function_references: bool,
+    interpreter_mode: bool,
 }
 impl CommonConfigOptions {
     /// Creates a new instance of [CommonConfigOptions].
+    ///
+    /// The default options are:
+    /// * mutable_globals: true,
+    /// * non_trap_conversions: true,
+    /// * sign_extension_operators: true,
+    /// * multi_value: true,
+    /// * bulk_memory_operations: true,
+    /// * reference_types: true,
+    /// * simd: true,
+    /// * multi_memories: false,
+    /// * threads: false,
+    /// * tail_call: false,
+    /// * function_references: false,
+    /// * interpreter_mode: false,
     pub fn new() -> Self {
         Self {
             mutable_globals: true,
@@ -333,6 +402,10 @@ impl CommonConfigOptions {
             reference_types: true,
             simd: true,
             multi_memories: false,
+            threads: false,
+            tail_call: false,
+            function_references: false,
+            interpreter_mode: false,
         }
     }
 
@@ -431,8 +504,71 @@ impl CommonConfigOptions {
             ..self
         }
     }
+
+    /// Enables or disables the Threads option.
+    ///
+    /// # Argument
+    ///
+    /// - `enable` specifies if the option turns on or not.
+    pub fn threads(self, enable: bool) -> Self {
+        Self {
+            threads: enable,
+            ..self
+        }
+    }
+
+    /// Enables or disables the TailCall option.
+    ///
+    /// # Argument
+    ///
+    /// - `enable` specifies if the option turns on or not.
+    pub fn tail_call(self, enable: bool) -> Self {
+        Self {
+            tail_call: enable,
+            ..self
+        }
+    }
+
+    /// Enables or disables the FunctionReferences option.
+    ///
+    /// # Argument
+    ///
+    /// * `enable` - Whether the option turns on or not.
+    pub fn function_references(self, enable: bool) -> Self {
+        Self {
+            function_references: enable,
+            ..self
+        }
+    }
+
+    /// Enables or disables the `ForceInterpreter` option.
+    ///
+    /// # Argument
+    ///
+    /// * `enable` - Whether the option turns on or not.
+    pub fn interpreter_mode(self, enable: bool) -> Self {
+        Self {
+            interpreter_mode: enable,
+            ..self
+        }
+    }
 }
 impl Default for CommonConfigOptions {
+    /// Creates a new default instance of [CommonConfigOptions].
+    ///
+    /// The default options are:
+    /// * mutable_globals: true,
+    /// * non_trap_conversions: true,
+    /// * sign_extension_operators: true,
+    /// * multi_value: true,
+    /// * bulk_memory_operations: true,
+    /// * reference_types: true,
+    /// * simd: true,
+    /// * multi_memories: false,
+    /// * threads: false,
+    /// * tail_call: false,
+    /// * function_references: false,
+    /// * interpreter_mode: false,
     fn default() -> Self {
         Self::new()
     }
@@ -461,8 +597,8 @@ impl Default for CommonConfigOptions {
 ///  - `interruptible` determines if AOT compiler generates interruptible binary or not.
 ///  
 ///  The configuration options above are only effective to [AOT compiler](crate::Compiler).
-#[derive(Debug)]
 #[cfg(feature = "aot")]
+#[derive(Debug)]
 pub struct CompilerConfigOptions {
     out_format: CompilerOutputFormat,
     opt_level: CompilerOptimizationLevel,
@@ -470,6 +606,7 @@ pub struct CompilerConfigOptions {
     generic_binary: bool,
     interruptible: bool,
 }
+#[cfg(feature = "aot")]
 impl CompilerConfigOptions {
     /// Creates a new instance of [CompilerConfigOptions].
     pub fn new() -> Self {
@@ -544,6 +681,7 @@ impl CompilerConfigOptions {
         }
     }
 }
+#[cfg(feature = "aot")]
 impl Default for CompilerConfigOptions {
     fn default() -> Self {
         Self::new()
@@ -655,17 +793,20 @@ pub struct HostRegistrationConfigOptions {
     wasi: bool,
     #[cfg(target_os = "linux")]
     wasmedge_process: bool,
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    wasi_nn: bool,
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    wasi_crypto_common: bool,
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    wasi_crypto_asymmetric_common: bool,
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    wasi_crypto_symmetric: bool,
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    wasi_crypto_kx: bool,
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    wasi_crypto_signatures: bool,
 }
 impl HostRegistrationConfigOptions {
-    /// Creates a new instance of [HostRegistrationConfigOptions].
-    pub fn new() -> Self {
-        Self {
-            wasi: false,
-            #[cfg(target_os = "linux")]
-            wasmedge_process: false,
-        }
-    }
-
     /// Enables or disables host registration wasi.
     ///
     /// # Argument
@@ -676,6 +817,18 @@ impl HostRegistrationConfigOptions {
             wasi: enable,
             #[cfg(target_os = "linux")]
             wasmedge_process: self.wasmedge_process,
+            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+            wasi_nn: self.wasi_nn,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_common: self.wasi_crypto_common,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_asymmetric_common: self.wasi_crypto_asymmetric_common,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_symmetric: self.wasi_crypto_symmetric,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_kx: self.wasi_crypto_kx,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_signatures: self.wasi_crypto_signatures,
         }
     }
 
@@ -691,12 +844,60 @@ impl HostRegistrationConfigOptions {
             ..self
         }
     }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    pub fn wasi_nn(self, enable: bool) -> Self {
+        Self {
+            wasi_nn: enable,
+            ..self
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_common(self, enable: bool) -> Self {
+        Self {
+            wasi_crypto_common: enable,
+            ..self
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_asymmetric_common(self, enable: bool) -> Self {
+        Self {
+            wasi_crypto_asymmetric_common: enable,
+            ..self
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_symmetric(self, enable: bool) -> Self {
+        Self {
+            wasi_crypto_symmetric: enable,
+            ..self
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_kx(self, enable: bool) -> Self {
+        Self {
+            wasi_crypto_kx: enable,
+            ..self
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_signatures(self, enable: bool) -> Self {
+        Self {
+            wasi_crypto_signatures: enable,
+            ..self
+        }
+    }
 }
 
 #[cfg(test)]
+#[cfg(feature = "aot")]
 mod tests {
     use super::*;
-    use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
     #[test]
     fn test_config_create() {
@@ -708,7 +909,8 @@ mod tests {
             .reference_types(true)
             .sign_extension_operators(true)
             .simd(true)
-            .multi_memories(true);
+            .multi_memories(true)
+            .interpreter_mode(true);
 
         let compiler_options = CompilerConfigOptions::default()
             .dump_ir(true)
@@ -744,6 +946,7 @@ mod tests {
         assert!(config.sign_extension_operators_enabled());
         assert!(config.simd_enabled());
         assert!(config.multi_memories_enabled());
+        assert!(config.interpreter_mode_enabled());
 
         // check compiler config options
         assert!(config.dump_ir_enabled());
@@ -790,9 +993,7 @@ mod tests {
         assert!(config.wasi_enabled());
 
         // make a copy
-        let result = Config::copy_from(&config);
-        assert!(result.is_ok());
-        let config_copied = result.unwrap();
+        let config_copied = config.clone();
         assert!(!config_copied.simd_enabled());
         assert!(config_copied.multi_memories_enabled());
         assert_eq!(

@@ -120,28 +120,28 @@ public:
   Expect<Span<Byte>> getBytes(uint32_t Offset, uint32_t Length) const noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
-      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
-      return Unexpect(ErrCode::MemoryOutOfBounds);
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
     return Span<Byte>(&DataPtr[Offset], Length);
   }
 
-  /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Legnth - 1]
+  /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Length - 1]
   Expect<void> setBytes(Span<const Byte> Slice, uint32_t Offset, uint32_t Start,
                         uint32_t Length) noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
-      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
-      return Unexpect(ErrCode::MemoryOutOfBounds);
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
 
     // Check the input data validation.
     if (unlikely(Start + Length > Slice.size())) {
-      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
-      return Unexpect(ErrCode::MemoryOutOfBounds);
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
 
     // Copy the data.
@@ -157,9 +157,9 @@ public:
                          uint32_t Length) noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
-      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
-      return Unexpect(ErrCode::MemoryOutOfBounds);
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
 
     // Copy the data.
@@ -174,9 +174,9 @@ public:
                         bool IsReverse = false) const noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
-      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
-      return Unexpect(ErrCode::MemoryOutOfBounds);
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
     if (likely(Length > 0)) {
       // Copy the data.
@@ -194,9 +194,9 @@ public:
                         bool IsReverse = false) noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
-      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
-      return Unexpect(ErrCode::MemoryOutOfBounds);
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
     if (likely(Length > 0)) {
       // Copy the data.
@@ -249,9 +249,9 @@ public:
     static_assert(Length <= sizeof(T));
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
-      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
-      return Unexpect(ErrCode::MemoryOutOfBounds);
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
     // Load the data to the value.
     if (likely(Length > 0)) {
@@ -296,9 +296,9 @@ public:
     static_assert(Length <= sizeof(T));
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
-      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
-      return Unexpect(ErrCode::MemoryOutOfBounds);
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
     // Copy the stored data to the value.
     if (likely(Length > 0)) {

@@ -8,6 +8,7 @@ use std::{
     thread,
 };
 use wasmedge_sys::{Config, Store, Vm, WasmValue};
+use wasmedge_types::wat2wasm;
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,12 +20,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut store = Store::create()?;
 
     // create a Vm context with the given Config and Store
-    let mut vm = Vm::create(Some(config), Some(&mut store))?;
+    let vm = Vm::create(Some(config), Some(&mut store))?;
 
     // register a wasm module from a wasm file
-    let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-        .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-    vm.register_wasm_from_file("extern", file)?;
+    let wasm_bytes = wat2wasm(
+        br#"
+        (module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+"#,
+    )?;
+    vm.register_wasm_from_bytes("extern", &wasm_bytes)?;
 
     let vm = Arc::new(Mutex::new(vm));
 
@@ -37,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("fail to compute fib(4)");
 
         let fib4 = returns[0].to_i32();
-        println!("fib(4) by child thread: {}", fib4);
+        println!("fib(4) by child thread: {fib4}");
 
         fib4
     });
@@ -51,7 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("fail to compute fib(5)");
 
         let fib5 = returns[0].to_i32();
-        println!("fib(5) by child thread: {}", fib5);
+        println!("fib(5) by child thread: {fib5}");
 
         fib5
     });

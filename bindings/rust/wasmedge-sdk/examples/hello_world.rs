@@ -1,23 +1,43 @@
 // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 // #![feature(explicit_generic_args_with_impl_trait)]
 
-use wasmedge_sdk::{params, Executor, ImportObjectBuilder, Module, Store};
-use wasmedge_sys::WasmValue;
-use wasmedge_types::wat2wasm;
+use wasmedge_sdk::{
+    error::HostFuncError, host_function, params, wat2wasm, Caller, Executor, ImportObjectBuilder,
+    Module, Store, WasmValue,
+};
+
+// We define a function to act as our "env" "say_hello" function imported in the
+// Wasm program above.
+#[host_function]
+pub fn say_hello(caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    println!("Hello, world!");
+
+    // get executor from caller
+    let executor = caller.executor();
+    assert!(executor.is_some());
+
+    // get module instance from caller
+    let instance = caller.instance();
+    if let Some(instance) = instance {
+        assert_eq!(instance.name(), Some("extern".to_string()));
+        assert_eq!(instance.func_count(), 1);
+        assert_eq!(instance.memory_count(), 0);
+        assert_eq!(instance.global_count(), 0);
+        assert_eq!(instance.table_count(), 0);
+    }
+
+    // get memory from caller
+    let mem = caller.memory(0);
+    assert!(mem.is_none());
+
+    Ok(vec![])
+}
 
 #[cfg_attr(test, test)]
 fn main() -> anyhow::Result<()> {
-    // We define a function to act as our "env" "say_hello" function imported in the
-    // Wasm program above.
-    fn say_hello_world(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
-        println!("Hello, world!");
-
-        Ok(vec![])
-    }
-
     // create an import module
     let import = ImportObjectBuilder::new()
-        .with_func::<(), ()>("say_hello", say_hello_world)?
+        .with_func::<(), ()>("say_hello", say_hello)?
         .build("env")?;
 
     let wasm_bytes = wat2wasm(
@@ -39,7 +59,7 @@ fn main() -> anyhow::Result<()> {
     )?;
 
     // loads a wasm module from the given in-memory bytes
-    let module = Module::from_bytes(None, &wasm_bytes)?;
+    let module = Module::from_bytes(None, wasm_bytes)?;
 
     // create an executor
     let mut executor = Executor::new(None, None)?;
@@ -59,7 +79,7 @@ fn main() -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::Error::msg("Not found exported function named 'run'."))?;
 
     // run host function
-    run.call(&mut executor, params!())?;
+    run.call(&executor, params!())?;
 
     Ok(())
 }

@@ -17,42 +17,46 @@
 #pragma once
 
 #include "common/errcode.h"
+#include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 
 namespace WasmEdge {
 
 class SpecTestPrint : public Runtime::HostFunction<SpecTestPrint> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *) { return {}; }
+  Expect<void> body(const Runtime::CallingFrame &) { return {}; }
 };
 
 class SpecTestPrintI32 : public Runtime::HostFunction<SpecTestPrintI32> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t) {
-    return {};
-  }
+  Expect<void> body(const Runtime::CallingFrame &, uint32_t) { return {}; }
+};
+
+class SpecTestPrintI64 : public Runtime::HostFunction<SpecTestPrintI64> {
+public:
+  Expect<void> body(const Runtime::CallingFrame &, uint64_t) { return {}; }
 };
 
 class SpecTestPrintF32 : public Runtime::HostFunction<SpecTestPrintF32> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *, float) { return {}; }
+  Expect<void> body(const Runtime::CallingFrame &, float) { return {}; }
 };
 
 class SpecTestPrintF64 : public Runtime::HostFunction<SpecTestPrintF64> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *, double) { return {}; }
+  Expect<void> body(const Runtime::CallingFrame &, double) { return {}; }
 };
 
 class SpecTestPrintI32F32 : public Runtime::HostFunction<SpecTestPrintI32F32> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t, float) {
+  Expect<void> body(const Runtime::CallingFrame &, uint32_t, float) {
     return {};
   }
 };
 
 class SpecTestPrintF64F64 : public Runtime::HostFunction<SpecTestPrintF64F64> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *, double, double) {
+  Expect<void> body(const Runtime::CallingFrame &, double, double) {
     return {};
   }
 };
@@ -62,6 +66,7 @@ public:
   SpecTestModule() : ModuleInstance("spectest") {
     addHostFunc("print", std::make_unique<SpecTestPrint>());
     addHostFunc("print_i32", std::make_unique<SpecTestPrintI32>());
+    addHostFunc("print_i64", std::make_unique<SpecTestPrintI64>());
     addHostFunc("print_f32", std::make_unique<SpecTestPrintF32>());
     addHostFunc("print_f64", std::make_unique<SpecTestPrintF64>());
     addHostFunc("print_i32_f32", std::make_unique<SpecTestPrintI32F32>());

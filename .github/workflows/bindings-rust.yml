@@ -1,13 +1,14 @@
 name: binding-rust
 
 concurrency:
-  group: bindings-rust-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 on:
   push:
     branches:
       - master
+      - "rust/*"
     paths:
       - ".github/workflows/bindings-rust.yml"
       - "bindings/rust/**"
@@ -24,65 +25,55 @@ on:
 
 jobs:
   build_ubuntu:
-    name: Ubuntu 20.04
+    name: Ubuntu
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04]
+        os: [ubuntu-20.04, ubuntu-22.04]
+        rust: [1.64, 1.65, 1.66]
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Install Nightly Rust
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust-stable
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly
+          toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
-
-      - name: Rustfmt
-        run: |
-          cd bindings/rust/
-          cargo +nightly fmt --all -- --check
-          cd -
 
       - name: Build WasmEdge with Release mode
         run: |
           apt update
           apt install -y software-properties-common libboost-all-dev llvm-12-dev liblld-12-dev ninja-build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release .
           cmake --build build
 
-      - name: Test WasmEdge
-        run: |
-          export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
-          cd build
-          ./tools/wasmedge/wasmedge -v
-          ctest
-          cd -
+      - name: Rustfmt
+        working-directory: bindings/rust/
+        run: cargo fmt --all -- --check
 
       - name: Clippy
+        working-directory: bindings/rust/
         run: |
-          cd bindings/rust/
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-          cargo +nightly clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
-          cd -
+          cargo clippy -V
+          cargo clippy --lib --examples --features aot,async,wasi_crypto,wasi_nn -- -D warnings
 
       - name: Test Rust Bindings
+        working-directory: bindings/rust/
         run: |
-          cd bindings/rust/
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo +nightly test --lib --examples --locked
-          cargo +nightly test --doc --locked
-          cd -
+          cargo test --workspace --locked --features aot,async
+          cargo test --examples --locked --features aot,async
 
   build_macos:
     name: MacOS
@@ -90,71 +81,73 @@ jobs:
     strategy:
       matrix:
         os: [macos-11, macos-12]
+        rust: [1.64, 1.65, 1.66]
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Install nightly toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust-stable
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly
+          toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
-      - name: Run cargo fmt
-        run: |
-          cd bindings/rust/
-          cargo +nightly fmt --all -- --check
-          cd -
+      - name: Install build tools
+        run: brew install llvm@14 ninja boost cmake
 
       - name: Build WasmEdge with Release mode
         run: |
-          brew install llvm ninja boost cmake
-          export PATH="/usr/local/opt/llvm/bin:$PATH"
-          export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
-          export CPPFLAGS="-I/usr/local/opt/llvm/include"
+          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
           export CC=clang
           export CXX=clang++
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          rm -rf build
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release .
           cmake --build build
 
+      - name: Run cargo fmt
+        working-directory: bindings/rust/
+        run: cargo fmt --all -- --check
+
       - name: Clippy
+        working-directory: bindings/rust/
         run: |
-          cd bindings/rust/
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-          cargo +nightly clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
-          cd -
+          cargo clippy -V
+          cargo clippy --lib --examples --features aot,async -- -D warnings
 
       - name: Test Rust Bindings
+        working-directory: bindings/rust/
         run: |
-          cd bindings/rust/
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export DYLD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo +nightly test --lib --examples --locked
-          cargo +nightly test --doc --locked
-          cd -
+          cargo test --workspace --locked --features aot,async
+          cargo test --examples --locked --features aot,async
 
   build_windows:
     name: Windows
     runs-on: windows-2022
+    strategy:
+      matrix:
+        rust: [1.64, 1.65, 1.66]
     env:
       WASMEDGE_DIR: ${{ github.workspace }}
       WASMEDGE_BUILD_DIR: ${{ github.workspace }}\build
       WASMEDGE_PLUGIN_PATH: ${{ github.workspace }}\build\wasmedge\plugins\wasmedge_process
       LD_LIBRARY_PATH: ${{ github.workspace }}\build\lib\api
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Install dependency
-        uses: crazy-max/ghaction-chocolatey@v1
+        uses: crazy-max/ghaction-chocolatey@v2
         with:
           args: install cmake ninja vswhere
 
@@ -162,16 +155,16 @@ jobs:
         with:
           sdk-version: 19041
 
-      - name: Install Nightly Rust
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust-stable
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly
+          toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
       - name: Rustfmt
         run: |
           cd bindings/rust/
-          cargo +nightly fmt --all -- --check
+          cargo fmt --all -- --check
 
       - name: Build WasmEdge with Release mode
         run: |
@@ -185,20 +178,8 @@ jobs:
           $Env:CC = "clang-cl"
           $Env:CXX = "clang-cl"
           $cmake_sys_version = "10.0.19041.0"
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="ZIP" .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_PACKAGE="ZIP" .
           cmake --build build
-
-      - name: Test WasmEdge
-        continue-on-error: true
-        run: |
-          $vsPath = (vswhere -latest -property installationPath)
-          Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $Env:PATH += ";$pwd\\build\\lib\\api"
-          cd build
-          tools\wasmedge\wasmedge -v
-          ctest
-          cd -
 
       - name: Clippy
         run: |
@@ -206,13 +187,15 @@ jobs:
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           cd bindings/rust/
-          cargo +nightly clippy --verbose --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+          cargo clippy -V
+          cargo clippy --lib --examples --features aot,async -- -D warnings
 
       - name: Test Rust Bindings
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\nightly-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge\WasmEdge\build\lib\api"
+          $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge\WasmEdge\build\lib\api"
           cd bindings\rust
-          cargo +nightly test --lib --examples --locked --verbose
+          cargo test --workspace --features aot,async --locked
+          cargo test --examples --features aot,async --locked

@@ -137,12 +137,14 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        error::HostFuncError,
         types::Val,
-        Executor, Global, ImportObjectBuilder, Memory, Module, Statistics, Table, WasmValue,
+        CallingFrame, Executor, Global, GlobalType, ImportObjectBuilder, Memory, MemoryType,
+        Module, Mutability, RefType, Statistics, Table, TableType, ValType, WasmValue,
     };
-    use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_store_create() {
         let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
@@ -163,6 +165,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_store_register_import_module() {
         // create a Const global instance
         let result = Global::new(
@@ -240,6 +243,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_store_register_named_module() {
         // create an executor
         let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
@@ -261,7 +265,7 @@ mod tests {
 
         // load wasm module
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sdk/examples/data/fibonacci.wat");
 
         let result = Module::from_file(Some(&config), file);
         assert!(result.is_ok());
@@ -305,7 +309,7 @@ mod tests {
 
         // load wasm module
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sdk/examples/data/fibonacci.wat");
 
         let result = Module::from_file(Some(&config), file);
         assert!(result.is_ok());
@@ -324,6 +328,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_store_basic() {
         // create an executor
         let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
@@ -414,21 +419,24 @@ mod tests {
         assert_eq!(instance.name().unwrap(), mod_names[1]);
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+    fn real_add(
+        _frame: CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

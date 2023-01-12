@@ -13,7 +13,7 @@ fn match_value(s: &str) -> WasmValue {
         "f32" => WasmValue::from_f32(0.),
         "f64" => WasmValue::from_f64(0.),
         "u128" => WasmValue::from_v128(0),
-        _ => panic!("unsupport type for WasmFnIO"),
+        _ => panic!("unsupported type for WasmFnIO"),
     }
 }
 pub trait WasmFnIO {

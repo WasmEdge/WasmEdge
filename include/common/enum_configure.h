@@ -15,43 +15,6 @@
 #ifndef WASMEDGE_C_API_ENUM_CONFIGURE_H
 #define WASMEDGE_C_API_ENUM_CONFIGURE_H
 
-#if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
-    (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
-#include "dense_enum_map.h"
-#include <cstdint>
-#include <string_view>
-#endif
-
-#if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
-    (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
-namespace WasmEdge {
-
-/// WASM Proposal C++ enumeration class.
-enum class Proposal : uint8_t {
-#define UseProposal
-#define Line(NAME, STRING) NAME,
-#include "enum.inc"
-#undef Line
-#undef UseProposal
-  Max
-};
-
-static inline constexpr auto ProposalStr = []() constexpr {
-  using namespace std::literals::string_view_literals;
-  std::pair<Proposal, std::string_view> Array[] = {
-#define UseProposal
-#define Line(NAME, STRING) {Proposal::NAME, STRING##sv},
-#include "enum.inc"
-#undef Line
-#undef UseProposal
-  };
-  return DenseEnumMap(Array);
-}
-();
-
-} // namespace WasmEdge
-#endif
-
 /// WASM Proposal C enumeration.
 enum WasmEdge_Proposal {
 #define UseProposal
@@ -60,23 +23,6 @@ enum WasmEdge_Proposal {
 #undef Line
 #undef UseProposal
 };
-
-#if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
-    (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
-namespace WasmEdge {
-
-/// Host Module Registration C++ enumeration class.
-enum class HostRegistration : uint8_t {
-#define UseHostRegistration
-#define Line(NAME) NAME,
-#include "enum.inc"
-#undef Line
-#undef UseHostRegistration
-  Max
-};
-
-} // namespace WasmEdge
-#endif
 
 /// Host Module Registration C enumeration.
 enum WasmEdge_HostRegistration {

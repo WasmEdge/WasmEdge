@@ -49,7 +49,7 @@ impl Table {
         let ctx = unsafe { ffi::WasmEdge_TableInstanceCreate(ty.inner.0) };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Table(TableError::Create)),
+            true => Err(Box::new(WasmEdgeError::Table(TableError::Create))),
             false => Ok(Table {
                 inner: InnerTable(ctx),
                 registered: false,
@@ -65,7 +65,7 @@ impl Table {
     pub fn ty(&self) -> WasmEdgeResult<TableType> {
         let ty_ctx = unsafe { ffi::WasmEdge_TableInstanceGetTableType(self.inner.0) };
         match ty_ctx.is_null() {
-            true => Err(WasmEdgeError::Table(TableError::Type)),
+            true => Err(Box::new(WasmEdgeError::Table(TableError::Type))),
             false => Ok(TableType {
                 inner: InnerTableType(ty_ctx as *mut _),
                 registered: true,
@@ -210,7 +210,7 @@ impl TableType {
             )
         };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::TableTypeCreate),
+            true => Err(Box::new(WasmEdgeError::TableTypeCreate)),
             false => Ok(Self {
                 inner: InnerTableType(ctx),
                 registered: false,
@@ -259,14 +259,15 @@ unsafe impl Sync for InnerTableType {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{FuncType, Function};
+    use crate::{CallingFrame, FuncType, Function};
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
-    use wasmedge_types::{RefType, ValType};
+    use wasmedge_types::{error::HostFuncError, RefType, ValType};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_table_type() {
         // create a TableType instance
         let result = TableType::create(RefType::FuncRef, 10, Some(20));
@@ -283,6 +284,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_table() {
         // create a TableType instance
         let result = TableType::create(RefType::FuncRef, 10, Some(20));
@@ -317,6 +319,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_table_data() {
         // create a FuncType
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
@@ -441,27 +444,27 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    fn real_add(_: CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         println!("Rust: Entering Rust function real_add");
 
         if input.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if input[0].ty() == ValType::I32 {
             input[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if input[1].ty() == ValType::I32 {
             input[0].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;
-        println!("Rust: calcuating in real_add c: {:?}", c);
+        println!("Rust: calcuating in real_add c: {c:?}");
 
         println!("Rust: Leaving Rust function real_add");
         Ok(vec![WasmValue::from_i32(c)])

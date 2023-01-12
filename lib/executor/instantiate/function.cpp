@@ -29,14 +29,14 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
     for (uint32_t I = 0; I < CodeSegs.size(); ++I) {
       auto *FuncType = *ModInst.getFuncType(TypeIdxs[I]);
       auto Symbol = CodeSegs[I].getSymbol();
-      ModInst.addFunc(&ModInst, *FuncType, std::move(Symbol));
+      ModInst.addFunc(*FuncType, std::move(Symbol));
     }
   } else {
     // Iterate through the code segments to instantiate function instances.
     for (uint32_t I = 0; I < CodeSegs.size(); ++I) {
       // Create and add the function instance into the module instance.
       auto *FuncType = *ModInst.getFuncType(TypeIdxs[I]);
-      ModInst.addFunc(&ModInst, *FuncType, CodeSegs[I].getLocals(),
+      ModInst.addFunc(*FuncType, CodeSegs[I].getLocals(),
                       CodeSegs[I].getExpr().getInstrs());
     }
   }

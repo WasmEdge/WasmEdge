@@ -1,0 +1,74 @@
+import org.apache.tools.ant.taskdefs.condition.Os
+
+apply plugin: 'java'
+apply plugin: 'java-library'
+apply plugin: 'checkstyle'
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+    checkstyleConfig
+}
+
+checkstyle {
+    toolVersion = '10.5.0'
+    configFile = file("$projectDir/config/checkstyle/checkstyle.xml")
+    showViolations = true
+    ignoreFailures = false
+    checkstyleTest.enabled = false
+}
+
+dependencies {
+    testImplementation('junit:junit:4.13.2')
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDirs "src/main/resources", "build/natives/lib"
+        }
+    }
+}
+
+compileJava {
+    options.compilerArgs += ["-h", file("wasmedge-jni/jni/")]
+}
+
+task compileJNI {
+    dependsOn compileJava
+
+    doLast {
+        exec {
+            if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+                commandLine 'cmd', '-c', 'mkdir -p build/native && cd build/ && cmake -Bnative -GNinja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_PACKAGE="ZIP" ../wasmedge-jni && dir /s . && cmake --build native'
+            } else if (Os.isFamily(Os.FAMILY_MAC) || Os.isFamily(Os.FAMILY_UNIX)) {
+                commandLine 'sh', '-c', 'mkdir -p build/native && cd build/native && cmake ../../wasmedge-jni && make'
+            }
+        }
+    }
+}
+
+clean.doFirst {
+    delete fileTree('wasmedge-jni/jni') {
+        include '*.h'
+    }
+}
+
+processResources {
+    dependsOn compileJNI
+}
+
+
+tasks.withType(Test) {
+    systemProperty "java.library.path", "build/native/"
+    testLogging.showStandardStreams = false
+}
+
+def libPath = System.getenv("LIB_JNI_PATH")
+task buildJarWithJni(type : Jar) {
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+    from new File(project.buildDir, 'jni-libs')
+}

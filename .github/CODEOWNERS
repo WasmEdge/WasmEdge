@@ -4,15 +4,16 @@
 .github/                        @hydai
 bindings/                       @hydai
 bindings/rust/                  @hydai @yanganto
+bindings/java/                  @dannypsnl
 cmake/                          @ibmibmibm
 docs/                           @hydai
 include/                        @q82419
 lib/                            @q82419
 **/aot/                         @ibmibmibm
 **/host/wasi/                   @ibmibmibm
-**/host/wasmedge_process/       @ibmibmibm
 **/system/                      @ibmibmibm
 **/api/                         @q82419
+plugins/                        @ibmibmibm
 rpm/                            @hydai @dm4
 test/                           @q82419
 test/aot/                       @ibmibmibm

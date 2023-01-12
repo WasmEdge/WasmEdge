@@ -12,8 +12,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef WASMEDGE_C_API_DENSE_ENUM_MAP_H
-#define WASMEDGE_C_API_DENSE_ENUM_MAP_H
+#pragma once
 
 #include <array>
 #include <memory>
@@ -199,5 +198,3 @@ private:
 };
 
 } // namespace WasmEdge
-
-#endif // WASMEDGE_C_API_DENSE_ENUM_MAP_H

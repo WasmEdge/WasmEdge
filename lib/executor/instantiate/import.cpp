@@ -17,19 +17,19 @@ namespace {
 template <typename... Args>
 auto logMatchError(std::string_view ModName, std::string_view ExtName,
                    ExternalType ExtType, Args &&...Values) {
-  spdlog::error(ErrCode::IncompatibleImportType);
+  spdlog::error(ErrCode::Value::IncompatibleImportType);
   spdlog::error(ErrInfo::InfoMismatch(std::forward<Args>(Values)...));
   spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
   spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Desc_Import));
-  return Unexpect(ErrCode::IncompatibleImportType);
+  return Unexpect(ErrCode::Value::IncompatibleImportType);
 }
 
 auto logUnknownError(std::string_view ModName, std::string_view ExtName,
                      ExternalType ExtType) {
-  spdlog::error(ErrCode::UnknownImport);
+  spdlog::error(ErrCode::Value::UnknownImport);
   spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
   spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Desc_Import));
-  return Unexpect(ErrCode::UnknownImport);
+  return Unexpect(ErrCode::Value::UnknownImport);
 }
 
 bool isLimitMatched(const AST::Limit &Lim1, const AST::Limit &Lim2) {
@@ -108,7 +108,29 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     auto ExtName = ImpDesc.getExternalName();
     const auto *TargetModInst = StoreMgr.findModule(ModName);
     if (unlikely(TargetModInst == nullptr)) {
-      return logUnknownError(ModName, ExtName, ExtType);
+      auto Res = logUnknownError(ModName, ExtName, ExtType);
+      if (ModName == "wasi_snapshot_preview1") {
+        spdlog::error("    This is a WASI related import. Please ensure that "
+                      "you've turned on the WASI configuration.");
+      } else if (ModName == "wasi_nn") {
+        spdlog::error("    This is a WASI-NN related import. Please ensure "
+                      "that you've turned on the WASI-NN configuration and "
+                      "installed the WASI-NN plug-in.");
+      } else if (ModName == "wasi_crypto_common" ||
+                 ModName == "wasi_crypto_asymmetric_common" ||
+                 ModName == "wasi_crypto_kx" ||
+                 ModName == "wasi_crypto_signatures" ||
+                 ModName == "wasi_crypto_symmetric") {
+        spdlog::error("    This is a WASI-Crypto related import. Please ensure "
+                      "that you've turned on the WASI-Crypto configuration and "
+                      "installed the WASI-Crypto plug-in.");
+      } else if (ModName == "env") {
+        spdlog::error(
+            "    This may be the import of host environment like JavaScript or "
+            "Golang. Please check that you've registered the necessary host "
+            "modules from the host programming language.");
+      }
+      return Res;
     }
     if (auto Res =
             checkImportMatched(ModName, ExtName, ExtType, *TargetModInst);
@@ -116,7 +138,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       return Unexpect(Res);
     }
 
-    // Add the imports into module istance.
+    // Add the imports into module instance.
     switch (ExtType) {
     case ExternalType::Function: {
       // Get function type index. External type checked in validation.

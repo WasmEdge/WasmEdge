@@ -1,4 +1,4 @@
-use crate::WasmEdgeResult;
+use crate::{error::WasmEdgeError, WasmEdgeResult};
 use wasmedge_sys as sys;
 use wasmedge_types::MemoryType;
 
@@ -80,6 +80,24 @@ impl Memory {
         Ok(data)
     }
 
+    /// Returns a string of byte length `len` from `memory`, starting at `offset`.
+    ///
+    /// # Arguments
+    ///
+    /// * `offset` - The offset from which to read.
+    ///
+    /// * `len` - the length of bytes to read.
+    ///
+    /// # Error
+    ///
+    /// If fail to read, then an error is returned.
+    pub fn read_string(&self, offset: u32, len: u32) -> WasmEdgeResult<String> {
+        let slice = self.read(offset, len)?;
+        Ok(std::str::from_utf8(&slice)
+            .map_err(WasmEdgeError::Utf8)?
+            .to_string())
+    }
+
     /// Safely writes contents of a buffer to this memory at the given offset.
     ///
     /// # Arguments
@@ -91,7 +109,7 @@ impl Memory {
     /// # Error
     ///
     /// If fail to write to the memory, then an error is returned.
-    pub fn write(&mut self, data: impl IntoIterator<Item = u8>, offset: u32) -> WasmEdgeResult<()> {
+    pub fn write(&mut self, data: impl AsRef<[u8]>, offset: u32) -> WasmEdgeResult<()> {
         self.inner.set_data(data, offset)?;
         Ok(())
     }
@@ -109,6 +127,40 @@ impl Memory {
         self.inner.grow(count)?;
         Ok(())
     }
+
+    /// Returns the const data pointer to the [Memory].
+    ///
+    /// # Arguments
+    ///
+    /// * `offset` - The data start offset in the [Memory].
+    ///
+    /// * `len` - The requested data length. If the size of `offset` + `len` is larger
+    /// than the data size in the [Memory]
+    ///   
+    ///
+    /// # Errors
+    ///
+    /// If fail to get the data pointer, then an error is returned.
+    ///
+    pub fn data_pointer(&self, offset: u32, len: u32) -> WasmEdgeResult<&u8> {
+        self.inner.data_pointer(offset, len)
+    }
+
+    /// Returns the data pointer to the [Memory].
+    ///
+    /// # Arguments
+    ///
+    /// * `offset` - The data start offset in the [Memory].
+    ///
+    /// * `len` - The requested data length. If the size of `offset` + `len` is larger than the data size in the [Memory]
+    ///
+    /// # Errors
+    ///
+    /// If fail to get the data pointer, then an error is returned.
+    ///
+    pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<&mut u8> {
+        self.inner.data_pointer_mut(offset, len)
+    }
 }
 
 #[cfg(test)]
@@ -120,6 +172,7 @@ mod tests {
     };
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_memory_type() {
         let result = MemoryType::new(0, None, false);
         assert!(result.is_ok());
@@ -135,6 +188,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_memory() {
         // create a memory instance
         let result = MemoryType::new(10, Some(20), false);
@@ -205,7 +259,10 @@ mod tests {
         assert_eq!(data, vec![0; 10]);
 
         // write data
-        let result = memory.write(vec![1; 10], 10);
+        // ! debug
+        let data = vec![1; 10];
+        let result = memory.write(data.as_slice(), 10);
+        // let result = memory.write(vec![1; 10], 10);
         assert!(result.is_ok());
         // read data after write data
         let result = memory.read(10, 10);
@@ -218,10 +275,42 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(memory.size(), 15);
 
-        // get memory from instance agains
+        // get memory from instance again
         let result = instance.memory("memory");
         assert!(result.is_some());
         let memory = result.unwrap();
         assert_eq!(memory.size(), 15);
+    }
+
+    #[test]
+    fn test_memory_read() {
+        let result = MemoryType::new(10, Some(20), false);
+        assert!(result.is_ok());
+        let memory_type = result.unwrap();
+        let result = Memory::new(memory_type);
+        assert!(result.is_ok());
+        let mut memory = result.unwrap();
+
+        let result = memory.read(0, 10);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data, vec![0; 10]);
+
+        let s = String::from("hello");
+        let bytes = s.as_bytes();
+        let len = bytes.len();
+
+        let result = memory.write(bytes, 0);
+        assert!(result.is_ok());
+
+        let result = memory.read(0, len as u32);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data, bytes);
+
+        let result = memory.read_string(0, len as u32);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data, s);
     }
 }

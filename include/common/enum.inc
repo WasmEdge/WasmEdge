@@ -16,10 +16,11 @@
 #error "this header file must not be included directly"
 #endif
 
-// enum_ast.h
+// enum_ast.hpp
 
 #ifdef UseASTNodeAttr
 #define A Line
+
 A(Module, "module")
 A(Sec_Custom, "custom section")
 A(Sec_Type, "type section")
@@ -48,6 +49,7 @@ A(Type_Global, "global type")
 A(Expression, "expression")
 A(Instruction, "instruction")
 A(Sec_AOT, "aot section")
+
 #undef A
 #endif // UseASTNodeAttr
 
@@ -648,6 +650,15 @@ H(WasiCrypto_Symmetric)
 
 // enum_errcode.h
 
+#ifdef UseErrCategory
+#define C Line
+
+C(WASM, 0x00)
+C(UserLevelError, 0x01)
+
+#undef C
+#endif // UseErrCategory
+
 #ifdef UseErrCode
 #define E Line
 
@@ -668,6 +679,8 @@ E(AOTDisabled, 0x06, "AOT runtime is disabled in this build")
 E(Interrupted, 0x07, "execution interrupted")
 // Not validated module
 E(NotValidated, 0x08, "wasm module hasn't passed validation yet")
+// User defined error
+E(UserDefError, 0x09, "user defined error code")
 
 // Load phase
 // @{
@@ -727,6 +740,8 @@ E(ENDCodeExpected, 0x38, "END opcode expected")
 E(IllegalGrammar, 0x39, "invalid wasm grammar")
 // Shared memory must have max
 E(SharedMemoryNoMax, 0x3A, "shared memory must have maximum")
+// Intrinsics table not found
+E(IntrinsicsTableNotFound, 0x3B, "intrinsics table not found")
 // @}
 
 // Validation phase
@@ -820,13 +835,13 @@ E(UndefinedElement, 0x8B, "undefined element")
 // Func type mismatch in call_indirect
 E(IndirectCallTypeMismatch, 0x8C, "indirect call type mismatch")
 // Host function execution failed
-E(ExecutionFailed, 0x8D, "host function failed")
+E(HostFuncError, 0x8D, "host function failed")
 // Reference type not match
 E(RefTypeMismatch, 0x8E, "reference type mismatch")
 // Unaligned atomic memory access
 E(UnalignedAtomicAccess, 0x8F, "unaligned atomic")
 // wait32/wait64 on unshared memory
-E(WaitOnUnsharedMemory, 0x90, "wait on unshared memory")
+E(ExpectSharedMemory, 0x90, "expected shared memory")
 // @}
 
 #undef E
@@ -840,11 +855,12 @@ P(Loading, 0x01, "loading")
 P(Validation, 0x02, "validation")
 P(Instantiation, 0x03, "instantiation")
 P(Execution, 0x04, "execution")
+P(UserDefined, 0x05, "user defined")
 
 #undef P
 #endif // UseWasmPhase
 
-// enum_errinfo.h
+// enum_errinfo.hpp
 
 #ifdef UsePtrType
 #define P Line
@@ -894,7 +910,6 @@ I(Lane, "lane")
 #ifdef UseValType
 #define V Line
 
-V(None, 0x40, "none")
 V(I32, 0x7F, "i32")
 V(I64, 0x7E, "i64")
 V(F32, 0x7D, "f32")

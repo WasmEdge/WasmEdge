@@ -7,7 +7,7 @@ use crate::{
     utils::check,
     Config, WasmEdgeResult,
 };
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 /// [Loader](crate::Loader) is used to load WASM modules from the given WASM files or buffers.
 #[derive(Debug)]
@@ -18,7 +18,7 @@ pub struct Loader {
 impl Loader {
     /// Create a new [Loader](crate::Loader) to be associated with the given global configuration.
     ///
-    /// # Arguements
+    /// # Arguments
     ///
     /// * `config` - A global configuration.
     ///
@@ -27,16 +27,12 @@ impl Loader {
     /// If fail to create a [Loader](crate), then an error is returned.
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
-            Some(mut config) => {
-                let ctx = unsafe { ffi::WasmEdge_LoaderCreate(config.inner.0) };
-                config.inner.0 = std::ptr::null_mut();
-                ctx
-            }
+            Some(config) => unsafe { ffi::WasmEdge_LoaderCreate(config.inner.0) },
             None => unsafe { ffi::WasmEdge_LoaderCreate(std::ptr::null_mut()) },
         };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::LoaderCreate),
+            true => Err(Box::new(WasmEdgeError::LoaderCreate)),
             false => Ok(Self {
                 inner: InnerLoader(ctx),
                 registered: false,
@@ -44,11 +40,11 @@ impl Loader {
         }
     }
 
-    /// Loads a WASM module from a WASM file with the suffix `.wasm`.
+    /// Loads a WASM module from a WASM file.
     ///
     /// # Arguments
     ///
-    /// * `file` - The path to the target WASM file.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// # Error
     ///
@@ -61,6 +57,29 @@ impl Loader {
     /// let module = loader.from_file(file)?;
     /// ```
     pub fn from_file(&self, file: impl AsRef<Path>) -> WasmEdgeResult<Module> {
+        match file.as_ref().extension() {
+            Some(extension) => match extension.to_str() {
+                Some("wasm") => self.load_from_wasm_or_aot_file(&file),
+                #[cfg(target_os = "macos")]
+                Some("dylib") => self.load_from_wasm_or_aot_file(&file),
+                #[cfg(target_os = "linux")]
+                Some("so") => self.load_from_wasm_or_aot_file(&file),
+                #[cfg(target_os = "windows")]
+                Some("dll") => self.load_from_wasm_or_aot_file(&file),
+                Some("wat") => {
+                    let bytes = wat::parse_file(file.as_ref())
+                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
+                    self.from_bytes(bytes)
+                }
+                _ => Err(Box::new(WasmEdgeError::Operation(
+                    "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
+                ))),
+            },
+            None => self.load_from_wasm_or_aot_file(&file),
+        }
+    }
+
+    fn load_from_wasm_or_aot_file(&self, file: impl AsRef<Path>) -> WasmEdgeResult<Module> {
         let c_path = utils::path_to_cstring(file.as_ref())?;
         let mut mod_ctx = std::ptr::null_mut();
         unsafe {
@@ -72,9 +91,9 @@ impl Loader {
         }
 
         match mod_ctx.is_null() {
-            true => Err(WasmEdgeError::ModuleCreate),
+            true => Err(Box::new(WasmEdgeError::ModuleCreate)),
             false => Ok(Module {
-                inner: InnerModule(mod_ctx),
+                inner: Arc::new(InnerModule(mod_ctx)),
             }),
         }
     }
@@ -127,9 +146,9 @@ impl Loader {
         }
 
         match mod_ctx.is_null() {
-            true => Err(WasmEdgeError::ModuleCreate),
+            true => Err(Box::new(WasmEdgeError::ModuleCreate)),
             false => Ok(Module {
-                inner: InnerModule(mod_ctx),
+                inner: Arc::new(InnerModule(mod_ctx)),
             }),
         }
     }
@@ -160,6 +179,7 @@ mod tests {
     };
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_loader() {
         // create a Loader instance without configuration
         let result = Loader::create(None);
@@ -178,34 +198,31 @@ mod tests {
         {
             // load .wasm file
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+                .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
             let result = loader.from_file(path);
             assert!(result.is_ok());
             let module = result.unwrap();
             assert!(!module.inner.0.is_null());
 
-            // Not support .wat file
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
+                .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
             let result = loader.from_file(path);
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::MalformedMagic))
-            );
+            assert!(result.is_ok());
 
-            let result = loader.from_file("not_exist_file");
+            let result = loader.from_file("not_exist_file.wasm");
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::IllegalPath
+                )))
             );
         }
 
         // load from buffer
         {
             let buffer = b"\0asm\x01\0\0\0";
-            let result = loader.from_bytes(&buffer);
+            let result = loader.from_bytes(buffer);
             assert!(result.is_ok());
             let module = result.unwrap();
             assert!(!module.inner.0.is_null());
@@ -215,20 +232,25 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::MalformedMagic))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::MalformedMagic
+                )))
             );
 
             // empty is not accepted
-            let result = loader.from_bytes(&[]);
+            let result = loader.from_bytes([]);
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::UnexpectedEnd
+                )))
             );
         }
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_loader_send() {
         // create a Loader instance without configuration
         let result = Loader::create(None);
@@ -252,6 +274,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_loader_sync() {
         // create a Loader instance without configuration
         let result = Loader::create(None);

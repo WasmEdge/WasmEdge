@@ -7,41 +7,50 @@ message(STATUS "Downloading the WASM spec test suite")
 FetchContent_Declare(
   wasmedge_unit_test
   GIT_REPOSITORY https://github.com/second-state/WasmEdge-unittest
-  GIT_TAG        wasm-dev-0.10.1
+  GIT_TAG        wasm-dev-0.12.0
 )
 FetchContent_MakeAvailable(wasmedge_unit_test)
 message(STATUS "Downloading the WASM spec test suite -- done")
 
-message(STATUS "Downloading rapidjson source")
-FetchContent_Declare(
-  rapidjson
-  GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
-  GIT_TAG        master
-  GIT_SHALLOW    TRUE
-)
-get_property(
-  compile_options
-  DIRECTORY
-  PROPERTY COMPILE_OPTIONS
-)
-set_property(
-  DIRECTORY
-  APPEND
-  PROPERTY COMPILE_OPTIONS
-  -Wno-conditional-uninitialized
-  -Wno-implicit-int-conversion
-  -Wno-zero-as-null-pointer-constant
-)
-unset(compile_options)
-set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "Build rapidjson documentation." FORCE)
-set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "Build rapidjson examples." FORCE)
-set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "Build rapidjson perftests and unittests." FORCE)
-set(RAPIDJSON_BUILD_CXX11 OFF CACHE BOOL "Build rapidjson with C++11" FORCE)
-set(RAPIDJSON_BUILD_CXX17 ON CACHE BOOL "Build rapidjson with C++17" FORCE)
-FetchContent_MakeAvailable(rapidjson)
-message(STATUS "Downloading rapidjson source -- done")
-add_library(rapidjson INTERFACE)
-target_include_directories(rapidjson INTERFACE ${rapidjson_SOURCE_DIR}/include)
+find_package(RapidJSON QUIET)
+if(NOT RapidJSON_FOUND)
+  message(STATUS "Downloading RapidJSON source")
+  FetchContent_Declare(
+    RapidJSON
+    GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
+    GIT_TAG        master
+    GIT_SHALLOW    TRUE
+    )
+
+  get_property(
+    compile_options
+    DIRECTORY
+    PROPERTY COMPILE_OPTIONS
+    )
+  set_property(
+    DIRECTORY
+    APPEND
+    PROPERTY COMPILE_OPTIONS
+    -Wno-conditional-uninitialized
+    -Wno-implicit-int-conversion
+    -Wno-zero-as-null-pointer-constant
+    )
+  unset(compile_options)
+  set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "Build RapidJSON documentation." FORCE)
+  set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "Build RapidJSON examples." FORCE)
+  set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "Build RapidJSON perftests and unittests." FORCE)
+  set(RAPIDJSON_BUILD_CXX11 OFF CACHE BOOL "Build RapidJSON with C++11" FORCE)
+  set(RAPIDJSON_BUILD_CXX17 ON CACHE BOOL "Build RapidJSON with C++17" FORCE)
+  FetchContent_MakeAvailable(RapidJSON)
+  message(STATUS "Downloading RapidJSON source -- done")
+endif()
+
+add_library(RapidJSON INTERFACE)
+if(RAPIDJSON_INCLUDE_DIRS)
+  target_include_directories(RapidJSON INTERFACE ${RAPIDJSON_INCLUDE_DIRS})
+else()
+  target_include_directories(RapidJSON INTERFACE ${RapidJSON_SOURCE_DIR}/include)
+endif()
 
 function(wasmedge_copy_spec_testsuite proposal)
   message(STATUS "Copying test suite to ${CMAKE_CURRENT_BINARY_DIR}/testSuites/${proposal}")
@@ -63,7 +72,7 @@ wasmedge_add_library(wasmedgeTestSpec
 
 target_link_libraries(wasmedgeTestSpec
   PRIVATE
-  rapidjson
+  RapidJSON
   PUBLIC
   std::filesystem
   wasmedgeCommon

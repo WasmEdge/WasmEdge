@@ -12,19 +12,23 @@
 #include <string_view>
 #include <vector>
 
-#if WASMEDGE_OS_LINUX
-#include <unordered_map>
-#endif
-
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <dirent.h>
 #include <sys/stat.h>
+#include <unordered_map>
 
 #include <boost/align/aligned_allocator.hpp>
 #endif
 
 #if WASMEDGE_OS_WINDOWS
 #include <boost/winapi/basic_types.hpp>
+
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+
+#include <Pathcch.h>
+#include <Shlwapi.h>
+
 #endif
 
 #if WASMEDGE_OS_LINUX
@@ -50,7 +54,8 @@ namespace WASI {
 struct FdHolder {
   FdHolder(const FdHolder &) = delete;
   FdHolder &operator=(const FdHolder &) = delete;
-  FdHolder(FdHolder &&RHS) noexcept : Fd(std::exchange(RHS.Fd, -1)) {}
+  FdHolder(FdHolder &&RHS) noexcept
+      : Fd(std::exchange(RHS.Fd, -1)), Cleanup(RHS.Cleanup) {}
   FdHolder &operator=(FdHolder &&RHS) noexcept {
     using std::swap;
     swap(Fd, RHS.Fd);
@@ -58,8 +63,13 @@ struct FdHolder {
   }
 
   constexpr FdHolder() noexcept = default;
-  ~FdHolder() noexcept { reset(); }
-  explicit constexpr FdHolder(int Fd) noexcept : Fd(Fd) {}
+  ~FdHolder() noexcept {
+    if (Cleanup) {
+      reset();
+    }
+  }
+  explicit constexpr FdHolder(int Fd, bool Cleanup = true) noexcept
+      : Fd(Fd), Cleanup(Cleanup) {}
   constexpr bool ok() const noexcept { return Fd >= 0; }
   void reset() noexcept;
   int release() noexcept { return std::exchange(Fd, -1); }
@@ -67,7 +77,9 @@ struct FdHolder {
     reset();
     Fd = NewFd;
   }
+  int getFd() noexcept { return Fd; }
   int Fd = -1;
+  bool Cleanup = true;
 };
 
 struct DirHolder {
@@ -160,6 +172,7 @@ struct HandleHolder {
 #endif
 
 class Poller;
+class Epoller;
 
 class INode
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
@@ -182,7 +195,7 @@ public:
 
   /// Open a file or directory.
   ///
-  /// @param[in] Path The absolut path of the file or directory to open.
+  /// @param[in] Path The absolute path of the file or directory to open.
   /// @param[in] OpenFlags The method by which to open the file.
   /// @param[in] FdFlags The method by which to open the file.
   /// @param[in] VFSFlags The method by which to open the file.
@@ -223,7 +236,8 @@ public:
 
   /// Get the attributes of a file descriptor.
   ///
-  /// Note: This returns similar flags to `fsync(fd, F_GETFL)` in POSIX, as well
+  /// Note: This returns similar flags to `fsync(fd, F_GETFL)` in POSIX, as
+  /// well
   ///
   /// as additional fields.
   /// @param[out] FdStat Result.
@@ -304,14 +318,14 @@ public:
   /// Read directory entries from a directory.
   ///
   /// When successful, the contents of the output buffer consist of a sequence
-  /// of directory entries. Each directory entry consists of a `dirent` object,
-  /// followed by `dirent::d_namlen` bytes holding the name of the directory
-  /// entry.
+  /// of directory entries. Each directory entry consists of a `dirent`
+  /// object, followed by `dirent::d_namlen` bytes holding the name of the
+  /// directory entry.
   ///
   /// This function fills the output buffer as much as possible,
-  /// potentially truncating the last directory entry. This allows the caller to
-  /// grow its read buffer size in case it's too small to fit a single large
-  /// directory entry, or skip the oversized directory entry.
+  /// potentially truncating the last directory entry. This allows the caller
+  /// to grow its read buffer size in case it's too small to fit a single
+  /// large directory entry, or skip the oversized directory entry.
   ///
   /// @param[out] Buffer The buffer where directory entries are stored.
   /// @param[in] Cookie The location within the directory to start reading
@@ -410,8 +424,8 @@ public:
   /// @param[in] OldPath The source path from which to link.
   /// @param[in] New The working directory at which the resolution of the new
   /// path starts.
-  /// @param[in] NewPath The destination path at which to create the hard link.
-  /// resolved.
+  /// @param[in] NewPath The destination path at which to create the hard
+  /// link. resolved.
   /// @return Nothing or WASI error
   static WasiExpect<void> pathLink(const INode &Old, std::string OldPath,
                                    const INode &New,
@@ -503,6 +517,15 @@ public:
   /// @return Poll helper or WASI error
   static WasiExpect<Poller> pollOneoff(__wasi_size_t NSubscriptions) noexcept;
 
+  /// Concurrently poll for the occurrence of a set of events in edge-triggered
+  /// mode.
+  ///
+  /// @param[in] NSubscriptions Both the number of subscriptions and events.
+  /// @param[in] Fd The epoll descriptor.
+  /// @return Poll helper or WASI error
+  static WasiExpect<Epoller> epollOneoff(__wasi_size_t NSubscriptions,
+                                         int Fd) noexcept;
+
   static WasiExpect<void>
   getAddrinfo(std::string_view NodeStr, std::string_view ServiceStr,
               const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
@@ -514,7 +537,7 @@ public:
   static WasiExpect<INode> sockOpen(__wasi_address_family_t SysDomain,
                                     __wasi_sock_type_t SockType) noexcept;
 
-  WasiExpect<void> sockBind(uint8_t *Address, uint8_t AddressLength,
+  WasiExpect<void> sockBind(uint8_t *AddressBuf, uint8_t AddressLength,
                             uint16_t Port) noexcept;
 
   WasiExpect<void> sockListen(int32_t Backlog) noexcept;
@@ -526,8 +549,8 @@ public:
 
   /// Receive a message from a socket.
   ///
-  /// Note: This is similar to `recv` in POSIX, though it also supports reading
-  /// the data into multiple buffers in the manner of `readv`.
+  /// Note: This is similar to `recv` in POSIX, though it also supports
+  /// reading the data into multiple buffers in the manner of `readv`.
   ///
   /// @param[in] RiData List of scatter/gather vectors to which to store data.
   /// @param[in] RiFlags Message flags.
@@ -540,8 +563,8 @@ public:
 
   /// Receive a message from a socket.
   ///
-  /// Note: This is similar to `recv` in POSIX, though it also supports reading
-  /// the data into multiple buffers in the manner of `readv`.
+  /// Note: This is similar to `recv` in POSIX, though it also supports
+  /// reading the data into multiple buffers in the manner of `readv`.
   ///
   /// @param[in] RiData List of scatter/gather vectors to which to store data.
   /// @param[in] RiFlags Message flags.
@@ -550,13 +573,14 @@ public:
   /// @return Nothing or WASI error.
   WasiExpect<void> sockRecvFrom(Span<Span<uint8_t>> RiData,
                                 __wasi_riflags_t RiFlags, uint8_t *Address,
-                                uint8_t AddressLength, __wasi_size_t &NRead,
+                                uint8_t AddressLength, uint32_t *PortPtr,
+                                __wasi_size_t &NRead,
                                 __wasi_roflags_t &RoFlags) const noexcept;
 
   /// Send a message on a socket.
   ///
-  /// Note: This is similar to `send` in POSIX, though it also supports writing
-  /// the data from multiple buffers in the manner of `writev`.
+  /// Note: This is similar to `send` in POSIX, though it also supports
+  /// writing the data from multiple buffers in the manner of `writev`.
   ///
   /// @param[in] SiData List of scatter/gather vectors to which to retrieve
   /// data.
@@ -601,10 +625,10 @@ public:
                               __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
                               uint32_t FlagSizePtr) const noexcept;
 
-  WasiExpect<void> sockGetLoaclAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetLoaclAddr(uint8_t *Address,
                                     uint32_t *PortPtr) const noexcept;
 
-  WasiExpect<void> sockGetPeerAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetPeerAddr(uint8_t *Address,
                                    uint32_t *PortPtr) const noexcept;
 
   /// File type.
@@ -641,6 +665,15 @@ private:
 #elif WASMEDGE_OS_WINDOWS
 public:
   using HandleHolder::HandleHolder;
+
+private:
+  mutable std::optional<BY_HANDLE_FILE_INFORMATION> FileInfo;
+  mutable std::optional<__wasi_oflags_t> SavedOpenFlags;
+  mutable std::optional<__wasi_fdflags_t> SavedFdFlags;
+  mutable std::optional<uint8_t> SavedVFSFlags;
+
+  WasiExpect<void> updateFileInfo() const noexcept;
+
 #endif
 };
 
@@ -670,6 +703,77 @@ public:
   WasiExpect<void> write(const INode &Fd, __wasi_userdata_t UserData) noexcept;
 
   WasiExpect<void> wait(CallbackType Callback) noexcept;
+
+private:
+  std::vector<__wasi_event_t> Events;
+
+#if WASMEDGE_OS_LINUX
+private:
+  struct Timer : public FdHolder {
+    Timer(const Timer &) = delete;
+    Timer &operator=(const Timer &) = delete;
+    Timer(Timer &&RHS) noexcept = default;
+    Timer &operator=(Timer &&RHS) noexcept = default;
+    constexpr Timer() noexcept = default;
+
+    WasiExpect<void> create(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
+                            __wasi_timestamp_t Precision,
+                            __wasi_subclockflags_t Flags) noexcept;
+
+#if !__GLIBC_PREREQ(2, 8)
+    FdHolder Notify;
+    TimerHolder TimerId;
+#endif
+  };
+
+  struct FdData {
+    uint32_t Events = 0;
+    uint32_t ReadIndex = std::numeric_limits<uint32_t>::max();
+    uint32_t WriteIndex = std::numeric_limits<uint32_t>::max();
+    constexpr FdData(uint32_t E) noexcept : Events(E) {}
+  };
+
+  std::vector<Timer> Timers;
+  std::unordered_map<int, FdData> FdDatas;
+#endif
+};
+
+class Epoller
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+    : public FdHolder
+#endif
+{
+public:
+  using CallbackType =
+      std::function<void(__wasi_userdata_t, __wasi_errno_t, __wasi_eventtype_t,
+                         __wasi_filesize_t, __wasi_eventrwflags_t)>;
+  Epoller(const Epoller &) = delete;
+  Epoller &operator=(const Epoller &) = delete;
+  Epoller(Epoller &&RHS) noexcept = default;
+  Epoller &operator=(Epoller &&RHS) noexcept = default;
+
+  explicit Epoller(__wasi_size_t Count, int Fd = -1);
+
+  WasiExpect<void> clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
+                         __wasi_timestamp_t Precision,
+                         __wasi_subclockflags_t Flags,
+                         __wasi_userdata_t UserData) noexcept;
+
+  WasiExpect<void>
+  read(const INode &Fd, __wasi_userdata_t UserData,
+       std::unordered_map<int, uint32_t> &Registration) noexcept;
+
+  WasiExpect<void>
+  write(const INode &Fd, __wasi_userdata_t UserData,
+        std::unordered_map<int, uint32_t> &Registration) noexcept;
+
+  WasiExpect<void>
+  wait(CallbackType Callback,
+       std::unordered_map<int, uint32_t> &Registration) noexcept;
+
+#if WASMEDGE_OS_WINDOWS
+  int getFd() noexcept { return -1; }
+#endif
 
 private:
   std::vector<__wasi_event_t> Events;

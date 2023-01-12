@@ -24,24 +24,24 @@ namespace Kx {
 class Dh : public HostFunction<Dh> {
 public:
   using HostFunction::HostFunction;
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        int32_t PkHandle, int32_t SkHandle,
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t PkHandle,
+                        int32_t SkHandle,
                         uint32_t /* Out */ ArrayOutputHandlePtr);
 };
 
 class Encapsulate : public HostFunction<Encapsulate> {
 public:
   using HostFunction::HostFunction;
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        int32_t PkHandle, uint32_t /* Out */ SecretPtr,
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t PkHandle,
+                        uint32_t /* Out */ SecretPtr,
                         uint32_t /* Out */ EncapsulatedSecretPtr);
 };
 
 class Decapsulate : public HostFunction<Decapsulate> {
 public:
   using HostFunction::HostFunction;
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        int32_t SkHandle, uint32_t EncapsulatedSecretPtr,
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t SkHandle,
+                        uint32_t EncapsulatedSecretPtr,
                         uint32_t EncapsulatedSecretLen,
                         uint32_t /* Out */ SecretPtr);
 };

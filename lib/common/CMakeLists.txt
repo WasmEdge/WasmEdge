@@ -35,6 +35,7 @@ wasmedge_add_library(wasmedgeCommon
   hexstr.cpp
   log.cpp
   errinfo.cpp
+  int128.cpp
 )
 
 target_link_libraries(wasmedgeCommon

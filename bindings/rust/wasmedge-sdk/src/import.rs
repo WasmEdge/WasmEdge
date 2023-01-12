@@ -1,6 +1,8 @@
-use crate::{io::WasmValTypeList, Global, Memory, Table, WasmEdgeResult};
-use wasmedge_sys::{self as sys, ImportInstance, WasmValue};
-use wasmedge_types::FuncType;
+use crate::{
+    error::HostFuncError, io::WasmValTypeList, CallingFrame, FuncType, Global, Memory, Table,
+    WasmEdgeResult, WasmValue,
+};
+use wasmedge_sys::{self as sys, AsImport};
 
 /// Creates a normal, wasi, or wasmedge process [import object](crate::ImportObject).
 ///
@@ -15,27 +17,29 @@ use wasmedge_types::FuncType;
 /// use wasmedge_sdk::{
 ///     types::Val,
 ///     Global, ImportObjectBuilder, Memory, Table,
+///     error::HostFuncError, WasmValue, GlobalType,
+///     MemoryType, Mutability, RefType, TableType,
+///     ValType, Caller, host_function,
 /// };
-/// use wasmedge_sys::types::WasmValue;
-/// use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 ///
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // a native function to be imported as host function
-///     fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+///     #[host_function]
+///     fn real_add(_: Caller, inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
 ///         if inputs.len() != 2 {
-///             return Err(1);
+///             return Err(HostFuncError::User(1));
 ///         }
 ///
 ///         let a = if inputs[0].ty() == ValType::I32 {
 ///             inputs[0].to_i32()
 ///         } else {
-///             return Err(2);
+///             return Err(HostFuncError::User(2));
 ///         };
 ///
 ///         let b = if inputs[1].ty() == ValType::I32 {
 ///             inputs[1].to_i32()
 ///         } else {
-///             return Err(3);
+///             return Err(HostFuncError::User(3));
 ///         };
 ///
 ///         let c = a + b;
@@ -93,7 +97,7 @@ impl ImportObjectBuilder {
 
     /// Adds a [host function](crate::Func) to the [ImportObject] to create.
     ///
-    /// N.B. that this function is used for thread-safe scenarios.
+    /// N.B. that this function can be used in thread-safe scenarios.
     ///
     /// # Arguments
     ///
@@ -107,7 +111,10 @@ impl ImportObjectBuilder {
     pub fn with_func<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync + 'static,
+        real_func: impl Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+            + Send
+            + Sync
+            + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -124,7 +131,37 @@ impl ImportObjectBuilder {
 
     /// Adds a [host function](crate::Func) to the [ImportObject] to create.
     ///
-    /// N.B. that this function is used for single-threaded scenarios. If you would like to use hostfunc call chaining design, you should use this method to create a [Func](crate::Func) instance.
+    /// N.B. that this function can be used in thread-safe scenarios.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The exported name of the [host function](crate::Func) to add.
+    ///
+    /// * `ty` - The function type.
+    ///
+    /// * `real_func` - The native function.
+    ///
+    /// # error
+    ///
+    /// If fail to create or add the [host function](crate::Func), then an error is returned.
+    pub fn with_func_by_type(
+        mut self,
+        name: impl AsRef<str>,
+        ty: FuncType,
+        real_func: impl Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+            + Send
+            + Sync
+            + 'static,
+    ) -> WasmEdgeResult<Self> {
+        let boxed_func = Box::new(real_func);
+        let inner_func = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        self.funcs.push((name.as_ref().to_owned(), inner_func));
+        Ok(self)
+    }
+
+    /// Adds an [async host function](crate::Func) to the [ImportObject] to create.
+    ///
+    /// N.B. that this function can be used in thread-safe scenarios.
     ///
     /// # Arguments
     ///
@@ -135,10 +172,20 @@ impl ImportObjectBuilder {
     /// # error
     ///
     /// If fail to create or add the [host function](crate::Func), then an error is returned.
-    pub fn with_func_single_thread<Args, Rets>(
+    #[cfg(feature = "async")]
+    pub fn with_func_async<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + 'static,
+        real_func: impl Fn(
+                CallingFrame,
+                Vec<WasmValue>,
+            ) -> Box<
+                dyn std::future::Future<
+                        Output = Result<Vec<WasmValue>, crate::error::HostFuncError>,
+                    > + Send,
+            > + Send
+            + Sync
+            + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -148,7 +195,7 @@ impl ImportObjectBuilder {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner_func = sys::Function::create_single_thread(&ty.into(), boxed_func, 0)?;
+        let inner_func = sys::Function::create_async(&ty.into(), boxed_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }
@@ -284,6 +331,9 @@ impl ImportObjectBuilder {
 
     /// Creates a new [wasmedge process import object](crate::ImportObject).
     ///
+    /// Notice that the [PluginManager::load_from_default_paths](crate::PluginManager::load_from_default_paths) method
+    /// must be invoked to load the `wasmedge_process` plugin before calling this method.
+    ///
     /// # Arguments
     ///
     /// * `allowed_cmds` - A white list of commands.
@@ -293,14 +343,14 @@ impl ImportObjectBuilder {
     /// # Error
     ///
     /// If fail to create a wasmedge process import module, then an error is returned.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(feature = "static")))]
     pub fn build_as_wasmedge_process(
         self,
         allowed_cmds: Option<Vec<&str>>,
         allowed: bool,
     ) -> WasmEdgeResult<ImportObject> {
-        // load plugins from the default paths
-        sys::utils::load_plugin_from_default_paths();
+        // // load plugins from the default paths
+        // PluginManager::load_from_default_paths();
 
         let mut inner = sys::WasmEdgeProcessModule::create(allowed_cmds, allowed)?;
 
@@ -326,6 +376,178 @@ impl ImportObjectBuilder {
 
         Ok(ImportObject(sys::ImportObject::WasmEdgeProcess(inner)))
     }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    pub fn build_as_wasi_nn(self) -> WasmEdgeResult<ImportObject> {
+        let mut inner = sys::WasiNnModule::create()?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportObject(sys::ImportObject::Nn(inner)))
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn build_as_wasi_crypto_common(self) -> WasmEdgeResult<ImportObject> {
+        let mut inner = sys::WasiCryptoCommonModule::create()?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportObject(sys::ImportObject::Crypto(
+            sys::WasiCrypto::Common(inner),
+        )))
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn build_as_wasi_crypto_asymmetric_common(self) -> WasmEdgeResult<ImportObject> {
+        let mut inner = sys::WasiCryptoAsymmetricCommonModule::create()?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportObject(sys::ImportObject::Crypto(
+            sys::WasiCrypto::AsymmetricCommon(inner),
+        )))
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn build_as_wasi_crypto_symmetric(self) -> WasmEdgeResult<ImportObject> {
+        let mut inner = sys::WasiCryptoSymmetricModule::create()?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportObject(sys::ImportObject::Crypto(
+            sys::WasiCrypto::SymmetricOptionations(inner),
+        )))
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn build_as_wasi_crypto_kx(self) -> WasmEdgeResult<ImportObject> {
+        let mut inner = sys::WasiCryptoKxModule::create()?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportObject(sys::ImportObject::Crypto(
+            sys::WasiCrypto::KeyExchange(inner),
+        )))
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn build_as_wasi_crypto_signatures(self) -> WasmEdgeResult<ImportObject> {
+        let mut inner = sys::WasiCryptoSignaturesModule::create()?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportObject(sys::ImportObject::Crypto(
+            sys::WasiCrypto::Signatures(inner),
+        )))
+    }
 }
 
 /// Defines an import object that contains the required import data used when instantiating a [module](crate::Module).
@@ -337,10 +559,26 @@ impl ImportObject {
     /// Returns the name of the import object.
     pub fn name(&self) -> String {
         match &self.0 {
-            sys::ImportObject::Import(import) => import.name(),
-            sys::ImportObject::Wasi(wasi) => wasi.name(),
+            sys::ImportObject::Import(import) => import.name().into(),
+            sys::ImportObject::Wasi(wasi) => wasi.name().into(),
             #[cfg(target_os = "linux")]
-            sys::ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name(),
+            sys::ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name().into(),
+            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+            sys::ImportObject::Nn(module) => module.name().into(),
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            sys::ImportObject::Crypto(sys::WasiCrypto::Common(module)) => module.name().into(),
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            sys::ImportObject::Crypto(sys::WasiCrypto::AsymmetricCommon(module)) => {
+                module.name().into()
+            }
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            sys::ImportObject::Crypto(sys::WasiCrypto::SymmetricOptionations(module)) => {
+                module.name().into()
+            }
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            sys::ImportObject::Crypto(sys::WasiCrypto::KeyExchange(module)) => module.name().into(),
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            sys::ImportObject::Crypto(sys::WasiCrypto::Signatures(module)) => module.name().into(),
         }
     }
 
@@ -352,22 +590,23 @@ impl ImportObject {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(all(target_os = "linux", not(feature = "static")))]
+    use crate::PluginManager;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
         params,
         types::Val,
-        Executor, Global, Memory, Statistics, Store, Table, WasmVal, WasmValue,
+        Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics, Store,
+        Table, TableType, ValType, WasmVal, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
-    use wasmedge_types::{
-        error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
-        GlobalType, MemoryType, Mutability, RefType, TableType, ValType,
-    };
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_builder() {
         let result = ImportObjectBuilder::default().build("extern");
         assert!(result.is_ok());
@@ -377,6 +616,7 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_builder_wasi() {
         let result = ImportObjectBuilder::default().build_as_wasi(None, None, None);
         assert!(result.is_ok());
@@ -385,8 +625,12 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(feature = "static")))]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_builder_wasmedge_process() {
+        // load wasmedge_process plugin
+        PluginManager::load_from_default_paths();
+
         let result = ImportObjectBuilder::default().build_as_wasmedge_process(None, false);
         assert!(result.is_ok());
         let import = result.unwrap();
@@ -394,8 +638,12 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(feature = "static")))]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_new_wasmedgeprocess() {
+        // load wasmedge_process plugin
+        PluginManager::load_from_default_paths();
+
         let result = ImportObjectBuilder::new()
             .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host func")
@@ -448,13 +696,14 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Instantiation(
+            Box::new(WasmEdgeError::Core(CoreError::Instantiation(
                 CoreInstantiationError::ModuleNameConflict
-            ))
+            )))
         );
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_new_wasi() {
         // create a wasi module
         let result = ImportObjectBuilder::new()
@@ -502,14 +751,40 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Instantiation(
+            Box::new(WasmEdgeError::Core(CoreError::Instantiation(
                 CoreInstantiationError::ModuleNameConflict
-            ))
+            )))
         );
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_add_func() {
+        fn real_add(
+            _frame: CallingFrame,
+            inputs: Vec<WasmValue>,
+        ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
+            if inputs.len() != 2 {
+                return Err(HostFuncError::User(1));
+            }
+
+            let a = if inputs[0].ty() == ValType::I32 {
+                inputs[0].to_i32()
+            } else {
+                return Err(HostFuncError::User(2));
+            };
+
+            let b = if inputs[1].ty() == ValType::I32 {
+                inputs[1].to_i32()
+            } else {
+                return Err(HostFuncError::User(3));
+            };
+
+            let c = a + b;
+
+            Ok(vec![WasmValue::from_i32(c)])
+        }
+
         // create an import object
         let result = ImportObjectBuilder::new()
             .with_func::<(i32, i32), i32>("add", real_add)
@@ -557,9 +832,13 @@ mod tests {
         assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
         assert!(func_ty.returns().is_some());
         assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
+
+        let returns = host_func.call(&mut executor, params![1, 2]).unwrap();
+        assert_eq!(returns[0].to_i32(), 3);
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_add_memory() {
         // create a memory
         let result = MemoryType::new(10, Some(20), false);
@@ -626,7 +905,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(memory.size(), 15);
 
-        // get memory from instance agains
+        // get memory from instance again
         let result = instance.memory("memory");
         assert!(result.is_some());
         let memory = result.unwrap();
@@ -634,6 +913,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_add_global() {
         // create a Const global variable
         let result = Global::new(
@@ -712,7 +992,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Global(GlobalError::ModifyConst)
+            Box::new(WasmEdgeError::Global(GlobalError::ModifyConst))
         );
 
         // get the Var global from the store of vm
@@ -755,6 +1035,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_add_table() {
         // create a wasm table instance
         let result = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)));
@@ -872,6 +1153,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_send() {
         // create a Const global instance
         let result = Global::new(
@@ -904,7 +1186,7 @@ mod tests {
             .expect("failed to add memory")
             .with_table("table", table)
             .expect("failed to add table")
-            .build("extern-module");
+            .build("extern-module-send");
         assert!(result.is_ok());
         let import = result.unwrap();
 
@@ -932,11 +1214,11 @@ mod tests {
             assert!(result.is_ok());
 
             // get active module instance
-            let result = store.module_instance("extern-module");
+            let result = store.module_instance("extern-module-send");
             assert!(result.is_some());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
-            assert_eq!(instance.name().unwrap(), "extern-module");
+            assert_eq!(instance.name().unwrap(), "extern-module-send");
 
             // check the exported global
             let result = instance.global("global");
@@ -969,7 +1251,7 @@ mod tests {
             assert!(table.name().is_some());
             assert_eq!(table.name().unwrap(), "table");
             assert!(table.mod_name().is_some());
-            assert_eq!(table.mod_name().unwrap(), "extern-module");
+            assert_eq!(table.mod_name().unwrap(), "extern-module-send");
             assert_eq!(table.size(), 10);
             let result = table.ty();
             assert!(result.is_ok());
@@ -997,6 +1279,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_sync() {
         // create a Const global instance
         let result = Global::new(
@@ -1029,7 +1312,7 @@ mod tests {
             .expect("failed to add memory")
             .with_table("table", table)
             .expect("failed to add table")
-            .build("extern-module");
+            .build("extern-module-sync");
         assert!(result.is_ok());
         let import = result.unwrap();
         let import = Arc::new(Mutex::new(import));
@@ -1063,11 +1346,11 @@ mod tests {
             assert!(result.is_ok());
 
             // get active module instance
-            let result = store.module_instance("extern-module");
+            let result = store.module_instance("extern-module-sync");
             assert!(result.is_some());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
-            assert_eq!(instance.name().unwrap(), "extern-module");
+            assert_eq!(instance.name().unwrap(), "extern-module-sync");
 
             // check the exported global
             let result = instance.global("global");
@@ -1100,7 +1383,7 @@ mod tests {
             assert!(table.name().is_some());
             assert_eq!(table.name().unwrap(), "table");
             assert!(table.mod_name().is_some());
-            assert_eq!(table.mod_name().unwrap(), "extern-module");
+            assert_eq!(table.mod_name().unwrap(), "extern-module-sync");
             assert_eq!(table.size(), 10);
             let result = table.ty();
             assert!(result.is_ok());
@@ -1133,21 +1416,24 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+    fn real_add(
+        _frame: CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

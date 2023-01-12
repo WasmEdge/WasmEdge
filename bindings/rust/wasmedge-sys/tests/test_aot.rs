@@ -1,8 +1,10 @@
 #[cfg(feature = "aot")]
 use wasmedge_sys::{
-    Compiler, Config, FuncType, Function, ImportInstance, ImportModule, ImportObject, Vm, WasmValue,
+    AsImport, CallingFrame, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm,
+    WasmValue,
 };
-use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
+#[cfg(feature = "aot")]
+use wasmedge_types::{error::HostFuncError, CompilerOptimizationLevel, CompilerOutputFormat};
 
 #[cfg(feature = "aot")]
 #[test]
@@ -40,10 +42,15 @@ fn test_aot() {
 
     // compile a file for universal WASM output format
     let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-        .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-    let out_path = std::path::PathBuf::from("fibonacci_aot.wasm");
+        .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
+    #[cfg(target_os = "macos")]
+    let out_path = std::path::PathBuf::from("fibonacci_aot.dylib");
+    #[cfg(target_os = "linux")]
+    let out_path = std::path::PathBuf::from("fibonacci_aot.so");
+    #[cfg(target_os = "windows")]
+    let out_path = std::path::PathBuf::from("fibonacci_aot.dll");
     assert!(!out_path.exists());
-    let result = compiler.compile(&in_path, &out_path);
+    let result = compiler.compile_from_file(in_path, &out_path);
     assert!(result.is_ok());
     assert!(out_path.exists());
 
@@ -78,6 +85,7 @@ fn test_aot() {
     assert!(std::fs::remove_file(&out_path).is_ok());
 }
 
+#[cfg(feature = "aot")]
 fn create_spec_test_module() -> ImportModule {
     // create an ImportObj module
     let result = ImportModule::create("spectest");
@@ -96,6 +104,10 @@ fn create_spec_test_module() -> ImportModule {
     import
 }
 
-fn spec_test_print(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+#[cfg(feature = "aot")]
+fn spec_test_print(
+    _frame: CallingFrame,
+    _inputs: Vec<WasmValue>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
     Ok(vec![])
 }

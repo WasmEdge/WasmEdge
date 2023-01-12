@@ -195,9 +195,6 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
     OS << " , Args: [";
     for (uint32_t I = 0; I < Rhs.Args.size(); ++I) {
       switch (Rhs.ArgsTypes[I]) {
-      case ValType::None:
-        OS << "none";
-        break;
       case ValType::I32:
         if (Rhs.IsSigned) {
           OS << Rhs.Args[I].get<int32_t>();

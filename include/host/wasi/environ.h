@@ -31,10 +31,13 @@ namespace WASI {
 
 inline namespace detail {
 inline constexpr const int32_t kIOVMax = 1024;
-inline constexpr const int32_t kSaDataLen = 14;
+// Large enough to store SaData in sockaddr_in6
+// = sizeof(sockaddr_in6) - sizeof(sockaddr_in6::sin6_family)
+inline constexpr const int32_t kMaxSaDataLen = 26;
 } // namespace detail
 
 class EVPoller;
+class EVEpoller;
 class Environ {
 public:
   ~Environ() noexcept;
@@ -798,6 +801,13 @@ public:
   /// @return Poll helper or WASI error.
   WasiExpect<EVPoller> pollOneoff(__wasi_size_t NSubscriptions) noexcept;
 
+  /// Concurrently poll for the occurrence of a set of events in edge-triggered
+  /// mode.
+  ///
+  /// @param[in] NSubscriptions Both the number of subscriptions and events.
+  /// @return Poll helper or WASI error.
+  WasiExpect<EVEpoller> epollOneoff(__wasi_size_t NSubscriptions) noexcept;
+
   /// Terminate the process normally. An exit code of 0 indicates successful
   /// termination of the program. The meanings of other values is dependent on
   /// the environment.
@@ -934,19 +944,21 @@ public:
   /// @param[in] RiFlags Message flags.
   /// @param[in] Address Address of the target.
   /// @param[in] AddressLength The buffer size of Address.
+  /// @param[out] PortPtr The address to store port.
   /// @param[out] NRead Return the number of bytes stored in RiData.
   /// @param[out] RoFlags Return message flags.
   /// @return Nothing or WASI error.
   WasiExpect<void> sockRecvFrom(__wasi_fd_t Fd, Span<Span<uint8_t>> RiData,
                                 __wasi_riflags_t RiFlags, uint8_t *Address,
-                                uint8_t AddressLength, __wasi_size_t &NRead,
+                                uint8_t AddressLength, uint32_t *PortPtr,
+                                __wasi_size_t &NRead,
                                 __wasi_roflags_t &RoFlags) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockRecvFrom(RiData, RiFlags, Address, AddressLength, NRead,
-                                RoFlags);
+      return Node->sockRecvFrom(RiData, RiFlags, Address, AddressLength,
+                                PortPtr, NRead, RoFlags);
     }
   }
 
@@ -1037,24 +1049,22 @@ public:
   }
 
   WasiExpect<void> sockGetLoaclAddr(__wasi_fd_t Fd, uint8_t *Address,
-                                    uint32_t *AddrTypePtr,
                                     uint32_t *PortPtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockGetLoaclAddr(Address, AddrTypePtr, PortPtr);
+      return Node->sockGetLoaclAddr(Address, PortPtr);
     }
   }
 
   WasiExpect<void> sockGetPeerAddr(__wasi_fd_t Fd, uint8_t *Address,
-                                   uint32_t *AddrTypePtr,
                                    uint32_t *PortPtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockGetPeerAddr(Address, AddrTypePtr, PortPtr);
+      return Node->sockGetPeerAddr(Address, PortPtr);
     }
   }
 
@@ -1092,7 +1102,12 @@ private:
   mutable std::shared_mutex FdMutex; ///< Protect FdMap
   std::unordered_map<__wasi_fd_t, std::shared_ptr<VINode>> FdMap;
 
+  // unique epoll fd;
+  int RegistrationFd = -1;
+  std::unordered_map<int, uint32_t> Registration;
+
   friend class EVPoller;
+  friend class EVEpoller;
 
   std::shared_ptr<VINode> getNodeOrNull(__wasi_fd_t Fd) const {
     std::shared_lock Lock(FdMutex);
@@ -1153,11 +1168,63 @@ private:
   Environ &Env;
 };
 
+class EVEpoller : private VEpoller {
+public:
+  using VEpoller::CallbackType;
+  using VEpoller::clock;
+  using VEpoller::getFd;
+  using VEpoller::wait;
+
+  EVEpoller(VEpoller &&P, Environ &E) : VEpoller(std::move(P)), Env(E) {}
+
+  WasiExpect<void> clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
+                         __wasi_timestamp_t Precision,
+                         __wasi_subclockflags_t Flags,
+                         __wasi_userdata_t UserData) noexcept {
+    return VEpoller::clock(Clock, Timeout, Precision, Flags, UserData);
+  }
+
+  WasiExpect<void> read(__wasi_fd_t Fd, __wasi_userdata_t UserData) noexcept {
+    auto Node = Env.getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return VEpoller::read(Node, UserData, Env.Registration);
+    }
+  }
+
+  WasiExpect<void> write(__wasi_fd_t Fd, __wasi_userdata_t UserData) noexcept {
+    auto Node = Env.getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return VEpoller::write(Node, UserData, Env.Registration);
+    }
+  }
+  WasiExpect<void> wait(CallbackType Callback) noexcept {
+    return VEpoller::wait(Callback, Env.Registration);
+  }
+
+  int getFd() noexcept { return VEpoller::getFd(); }
+
+private:
+  Environ &Env;
+};
+
 inline WasiExpect<EVPoller>
 Environ::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
   return VINode::pollOneoff(NSubscriptions).map([this](VPoller &&P) {
     return EVPoller(std::move(P), *this);
   });
+}
+
+inline WasiExpect<EVEpoller>
+Environ::epollOneoff(__wasi_size_t NSubscriptions) noexcept {
+  auto Evepoller =
+      VINode::epollOneoff(NSubscriptions, RegistrationFd)
+          .map([this](VEpoller &&P) { return EVEpoller(std::move(P), *this); });
+  RegistrationFd = Evepoller.value().getFd();
+  return Evepoller;
 }
 
 } // namespace WASI

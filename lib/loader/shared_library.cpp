@@ -54,7 +54,7 @@ Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
   Handle = ::dlopen(Path.c_str(), RTLD_LAZY | RTLD_LOCAL);
 #endif
   if (!Handle) {
-    spdlog::error(ErrCode::IllegalPath);
+    spdlog::error(ErrCode::Value::IllegalPath);
 #if WASMEDGE_OS_WINDOWS
     const auto Code = winapi::GetLastError();
     winapi::LPSTR_ ErrorText = nullptr;
@@ -74,7 +74,7 @@ Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
 #else
     spdlog::error("    load library failed:{}", ::dlerror());
 #endif
-    return Unexpect(ErrCode::IllegalPath);
+    return Unexpect(ErrCode::Value::IllegalPath);
   }
   return {};
 }
@@ -82,15 +82,16 @@ Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
 Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
   BinarySize = 0;
   for (const auto &Section : AOTSec.getSections()) {
-    BinarySize =
-        std::max(BinarySize, std::get<1>(Section) + std::get<2>(Section));
+    const auto Offset = std::get<1>(Section);
+    const auto Size = std::get<2>(Section);
+    BinarySize = std::max(BinarySize, Offset + Size);
   }
   BinarySize = roundUpPageBoundary(BinarySize);
 
   Binary = Allocator::allocate_chunk(BinarySize);
   if (unlikely(!Binary)) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 
   std::vector<std::pair<uint8_t *, uint64_t>> ExecutableRanges;
@@ -98,6 +99,7 @@ Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
     const auto Offset = std::get<1>(Section);
     const auto Size = std::get<2>(Section);
     const auto &Content = std::get<3>(Section);
+    assuming(Content.size() <= Size);
     std::copy(Content.begin(), Content.end(), Binary + Offset);
     switch (std::get<0>(Section)) {
     case 1: { // Text
@@ -115,9 +117,9 @@ Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
 
   for (const auto &[Pointer, Size] : ExecutableRanges) {
     if (!Allocator::set_chunk_executable(Pointer, Size)) {
-      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error("    set_chunk_executable failed:{}", std::strerror(errno));
-      return Unexpect(ErrCode::MemoryOutOfBounds);
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
   }
 

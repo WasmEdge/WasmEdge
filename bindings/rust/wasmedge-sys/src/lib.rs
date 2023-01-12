@@ -8,16 +8,21 @@
 //!
 //! For developers, it is strongly recommended that the APIs in `wasmedge-sys` are used to construct high-level libraries, while `wasmedge-sdk` is for building up business applications.
 //!
-//! Notice that `WasmEdge Rust SDK` uses nightly version of Rust. It's strongly recommended to use the latest nightly version of Rust.
+//! Notice that [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) requires **Rust v1.63 or above** in the **stable** channel.
 //!
 //! ## Versioning Table
 //!
 //! The following table provides the versioning information about each crate of WasmEdge Rust bindings.
 //!
-//! | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types|
-//! | :-----------: | :-----------: | :-----------: | :-----------: |
-//! | 0.2.0         | 0.10.1        | 0.8           | 0.2           |
-//! | 0.1.0         | 0.10.0        | 0.7           | 0.1           |
+//! | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types| wasmedge-macro|
+//! | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
+//! | 0.7.1         | 0.11.2        | 0.12.2        | 0.3.1         | 0.3.0         |
+//! | 0.7.0         | 0.11.2        | 0.12          | 0.3.1         | 0.3.0         |
+//! | 0.6.0         | 0.11.2        | 0.11          | 0.3.0         | 0.2.0         |
+//! | 0.5.0         | 0.11.1        | 0.10          | 0.3.0         | 0.1.0         |
+//! | 0.4.0         | 0.11.0        | 0.9           | 0.2.1         | -             |
+//! | 0.3.0         | 0.10.1        | 0.8           | 0.2           | -             |
+//! | 0.1.0         | 0.10.0        | 0.7           | 0.1           | -             |
 //!
 //! ## Build
 //!
@@ -40,13 +45,11 @@
 //!    |   `-- wasmedgec
 //!    |-- include
 //!    |   `-- wasmedge
-//!    |       |-- dense_enum_map.h
 //!    |       |-- enum.inc
 //!    |       |-- enum_configure.h
 //!    |       |-- enum_errcode.h
 //!    |       |-- enum_types.h
 //!    |       |-- int128.h
-//!    |       |-- spare_enum_map.h
 //!    |       |-- version.h
 //!    |       `-- wasmedge.h
 //!    `-- lib64
@@ -54,8 +57,16 @@
 //!        `-- wasmedge
 //!            `-- libwasmedgePluginWasmEdgeProcess.so
 //!
-//!    5 directories, 13 files
+//!    5 directories, 11 files
 //!    ```
+//!
+//! ### Enable WasmEdge Plugins
+//!
+//! If you'd like to enable WasmEdge Plugins (currently, only available on Linux platform), please use `WASMEDGE_PLUGIN_PATH` environment variable to specify the path to the directory containing the plugins. For example, use the following commands to specify the path on Ubuntu 20.04:
+//!
+//! ```bash
+//! export WASMEDGE_PLUGIN_PATH=$HOME/.wasmedge/lib/wasmedge
+//! ```
 //!
 //! ## Example
 //!
@@ -133,12 +144,8 @@
 #[macro_use]
 extern crate lazy_static;
 
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    env,
-    sync::{Arc, Mutex},
-};
+use parking_lot::{Mutex, RwLock};
+use std::{collections::HashMap, env, sync::Arc};
 
 #[doc(hidden)]
 #[allow(warnings)]
@@ -148,6 +155,7 @@ pub mod ffi {
 #[doc(hidden)]
 pub mod ast_module;
 #[doc(hidden)]
+#[cfg(feature = "async")]
 pub mod r#async;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
@@ -156,6 +164,7 @@ pub mod compiler;
 pub mod config;
 #[doc(hidden)]
 pub mod executor;
+pub mod frame;
 #[doc(hidden)]
 pub mod instance;
 #[doc(hidden)]
@@ -182,21 +191,30 @@ pub use compiler::Compiler;
 pub use config::Config;
 #[doc(inline)]
 pub use executor::Executor;
+#[doc(inline)]
+pub use frame::CallingFrame;
+#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+#[doc(inline)]
+pub use instance::module::WasiNnModule;
 #[cfg(target_os = "linux")]
 #[doc(inline)]
 pub use instance::module::WasmEdgeProcessModule;
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[doc(inline)]
+pub use instance::module::{
+    WasiCrypto, WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
+    WasiCryptoSignaturesModule, WasiCryptoSymmetricModule,
+};
 #[doc(inline)]
 pub use instance::{
     function::{FuncRef, FuncType, Function},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
-    module::{AsInstance, ImportInstance, ImportModule, ImportObject, Instance, WasiModule},
+    module::{AsImport, AsInstance, ImportModule, ImportObject, Instance, WasiModule},
     table::{Table, TableType},
 };
 #[doc(inline)]
 pub use loader::Loader;
-#[doc(inline)]
-pub use r#async::AsyncResult;
 #[doc(inline)]
 pub use statistics::Statistics;
 #[doc(inline)]
@@ -207,35 +225,29 @@ pub use types::WasmValue;
 pub use validator::Validator;
 #[doc(inline)]
 pub use vm::Vm;
-
 use wasmedge_types::{error, WasmEdgeResult};
 
 /// Type alias for a boxed native function. This type is used in thread-safe cases.
-pub type BoxedFn = Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync>;
+pub type BoxedFn = Box<
+    dyn Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, error::HostFuncError>
+        + Send
+        + Sync,
+>;
 
 lazy_static! {
-    static ref HOST_FUNCS: Arc<Mutex<HashMap<usize, BoxedFn>>> =
-        Arc::new(Mutex::new(HashMap::with_capacity(
+    static ref HOST_FUNCS: RwLock<HashMap<usize, Arc<Mutex<BoxedFn>>>> =
+        RwLock::new(HashMap::with_capacity(
             env::var("MAX_HOST_FUNC_LENGTH")
                 .map(|s| s
                     .parse::<usize>()
                     .expect("MAX_HOST_FUNC_LENGTH should be a positive integer."))
                 .unwrap_or(500)
-        )));
+        ));
 }
 
-/// Type alias for a boxed native function. This type is used in non-thread-safe cases.
-pub type BoxedFnSingle = Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8>>;
-
-thread_local! {
-    static HOST_FUNCS_SINGLE: RefCell<HashMap<usize, BoxedFnSingle>> =
-        RefCell::new(HashMap::with_capacity(
-            env::var("MAX_HOST_FUNC_SINGLE_LENGTH")
-                .map(|s| s
-                    .parse::<usize>()
-                    .expect("MAX_HOST_FUNC_SINGLE_LENGTH should be a number"))
-                .unwrap_or(500)
-        ));
+#[cfg(feature = "async")]
+lazy_static! {
+    static ref ASYNC_STATE: RwLock<r#async::AsyncState> = RwLock::new(r#async::AsyncState::new());
 }
 
 /// The object that is used to perform a [host function](crate::Function) is required to implement this trait.
@@ -248,11 +260,11 @@ pub trait Engine {
     ///
     /// * `params` - The arguments to pass to the function.
     ///
-    /// # Erros
+    /// # Errors
     ///
     /// If fail to run the host function, then an error is returned.
     fn run_func(
-        &mut self,
+        &self,
         func: &Function,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>>;
@@ -265,11 +277,11 @@ pub trait Engine {
     ///
     /// * `params` - The arguments to pass to the function.
     ///
-    /// # Erros
+    /// # Errors
     ///
     /// If fail to run the host function, then an error is returned.
     fn run_func_ref(
-        &mut self,
+        &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>>;

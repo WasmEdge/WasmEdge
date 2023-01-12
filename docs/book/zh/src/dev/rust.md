@@ -70,7 +70,6 @@ cargo build --target wasm32-wasi
 
 我们将使用 WasmEdge 的 `--reactor` 模式来运行这个程序。我们将函数的名字以及它的输入参数作为命令行参数。
 
-
 ```bash
 $ wasmedge --reactor target/wasm32-wasi/debug/add.wasm add 2 2
 4
@@ -88,7 +87,6 @@ $ wasmedge --reactor target/wasm32-wasi/debug/add.wasm add 2 2
 ## 提升性能
 
 如果要让这些应用程序达到原生 Rust 的性能，你可以使用 `wasmedgec` 命令对 `wasm` 程序进行提前编译（AOT），然后使用 `wasmedge` 命令运行它。
-
 
 ```bash
 $ wasmedgec hello.wasm hello.wasm

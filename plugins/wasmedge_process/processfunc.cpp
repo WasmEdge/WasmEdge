@@ -3,6 +3,8 @@
 
 #include "processfunc.h"
 
+#include "common/defines.h"
+
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <errno.h>
 #include <fcntl.h>
@@ -21,11 +23,12 @@ namespace WasmEdge {
 namespace Host {
 
 Expect<void>
-WasmEdgeProcessSetProgName::body(Runtime::Instance::MemoryInstance *MemInst,
+WasmEdgeProcessSetProgName::body(const Runtime::CallingFrame &Frame,
                                  uint32_t NamePtr, uint32_t NameLen) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   char *Buf = MemInst->getPointer<char *>(NamePtr);
@@ -33,12 +36,12 @@ WasmEdgeProcessSetProgName::body(Runtime::Instance::MemoryInstance *MemInst,
   return {};
 }
 
-Expect<void>
-WasmEdgeProcessAddArg::body(Runtime::Instance::MemoryInstance *MemInst,
-                            uint32_t ArgPtr, uint32_t ArgLen) {
+Expect<void> WasmEdgeProcessAddArg::body(const Runtime::CallingFrame &Frame,
+                                         uint32_t ArgPtr, uint32_t ArgLen) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   char *Buf = MemInst->getPointer<char *>(ArgPtr);
@@ -48,13 +51,15 @@ WasmEdgeProcessAddArg::body(Runtime::Instance::MemoryInstance *MemInst,
   return {};
 }
 
-Expect<void>
-WasmEdgeProcessAddEnv::body(Runtime::Instance::MemoryInstance *MemInst,
-                            uint32_t EnvNamePtr, uint32_t EnvNameLen,
-                            uint32_t EnvValPtr, uint32_t EnvValLen) {
+Expect<void> WasmEdgeProcessAddEnv::body(const Runtime::CallingFrame &Frame,
+                                         uint32_t EnvNamePtr,
+                                         uint32_t EnvNameLen,
+                                         uint32_t EnvValPtr,
+                                         uint32_t EnvValLen) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   char *EnvBuf = MemInst->getPointer<char *>(EnvNamePtr);
@@ -66,12 +71,12 @@ WasmEdgeProcessAddEnv::body(Runtime::Instance::MemoryInstance *MemInst,
   return {};
 }
 
-Expect<void>
-WasmEdgeProcessAddStdIn::body(Runtime::Instance::MemoryInstance *MemInst,
-                              uint32_t BufPtr, uint32_t BufLen) {
+Expect<void> WasmEdgeProcessAddStdIn::body(const Runtime::CallingFrame &Frame,
+                                           uint32_t BufPtr, uint32_t BufLen) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   uint8_t *Buf = MemInst->getPointer<uint8_t *>(BufPtr);
@@ -80,14 +85,13 @@ WasmEdgeProcessAddStdIn::body(Runtime::Instance::MemoryInstance *MemInst,
   return {};
 }
 
-Expect<void>
-WasmEdgeProcessSetTimeOut::body(Runtime::Instance::MemoryInstance *,
-                                uint32_t Time) {
+Expect<void> WasmEdgeProcessSetTimeOut::body(const Runtime::CallingFrame &,
+                                             uint32_t Time) {
   Env.TimeOut = Time;
   return {};
 }
 
-Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
+Expect<uint32_t> WasmEdgeProcessRun::body(const Runtime::CallingFrame &) {
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
   // Clear outputs.
   Env.StdOut.clear();
@@ -294,26 +298,26 @@ Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
   return Env.ExitCode;
 #elif WASMEDGE_OS_WINDOWS
   spdlog::error("wasmedge_process doesn't support windows now.");
-  return Unexpect(ErrCode::ExecutionFailed);
+  return Unexpect(ErrCode::Value::HostFuncError);
 #endif
 }
 
 Expect<uint32_t>
-WasmEdgeProcessGetExitCode::body(Runtime::Instance::MemoryInstance *) {
+WasmEdgeProcessGetExitCode::body(const Runtime::CallingFrame &) {
   return Env.ExitCode;
 }
 
 Expect<uint32_t>
-WasmEdgeProcessGetStdOutLen::body(Runtime::Instance::MemoryInstance *) {
+WasmEdgeProcessGetStdOutLen::body(const Runtime::CallingFrame &) {
   return static_cast<uint32_t>(Env.StdOut.size());
 }
 
-Expect<void>
-WasmEdgeProcessGetStdOut::body(Runtime::Instance::MemoryInstance *MemInst,
-                               uint32_t BufPtr) {
+Expect<void> WasmEdgeProcessGetStdOut::body(const Runtime::CallingFrame &Frame,
+                                            uint32_t BufPtr) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   char *Buf = MemInst->getPointer<char *>(BufPtr);
@@ -322,16 +326,16 @@ WasmEdgeProcessGetStdOut::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 
 Expect<uint32_t>
-WasmEdgeProcessGetStdErrLen::body(Runtime::Instance::MemoryInstance *) {
+WasmEdgeProcessGetStdErrLen::body(const Runtime::CallingFrame &) {
   return static_cast<uint32_t>(Env.StdErr.size());
 }
 
-Expect<void>
-WasmEdgeProcessGetStdErr::body(Runtime::Instance::MemoryInstance *MemInst,
-                               uint32_t BufPtr) {
+Expect<void> WasmEdgeProcessGetStdErr::body(const Runtime::CallingFrame &Frame,
+                                            uint32_t BufPtr) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   char *Buf = MemInst->getPointer<char *>(BufPtr);

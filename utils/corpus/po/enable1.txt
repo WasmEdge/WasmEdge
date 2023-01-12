@@ -1,0 +1,1 @@
+wasmedge-fuzzpoŞ­¾ï--enable-multi-memoryŞ­¾ï--enable-tail-callŞ­¾ï--enable-extended-constŞ­¾ï--enable-threads

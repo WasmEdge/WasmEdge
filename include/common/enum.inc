@@ -91,7 +91,44 @@ O(Ref__is_null, 0xD1, "ref.is_null")
 O(Ref__func, 0xD2, "ref.func")
 O(Ref__as_non_null, 0xD3, "ref.as_non_null")
 O(Br_on_null, 0xD4, "br_on_null")
+O(Ref__eq, 0xD5, "ref.eq")
 O(Br_on_non_null, 0xD6, "br_on_non_null")
+
+// GC Instructions
+// Struct
+O(Struct__new_canon, 0xFB01, "struct.new_canon")
+O(Struct__new_canon_default, 0xFB02, "struct.new_canon_default")
+O(Struct__get, 0xFB03, "struct.get")
+O(Struct__get_s, 0xFB04, "struct.get_s")
+O(Struct__get_u, 0xFB05, "struct.get_u")
+O(Struct__set, 0xFB06, "struct.set")
+// Array
+O(Array__new_canon, 0xFB11, "array.new_canon")
+O(Array__new_canon_default, 0xFB12, "array.new_canon_default")
+O(Array__get, 0xFB13, "array.get")
+O(Array__get_s, 0xFB14, "array.get_s")
+O(Array__get_u, 0xFB15, "array.get_u")
+O(Array__set, 0xFB16, "array.set")
+O(Array__len, 0xFB17, "array.len")
+O(Array__new_canon_fixed, 0xFB19, "array.new_canon_fixed")
+O(Array__new_canon_data, 0xFB1B, "array.new_canon_data")
+O(Array__new_canon_elem, 0xFB1C, "array.new_canon_elem")
+// I31
+O(I31__new, 0xFB20, "i31.new")
+O(I31__get_s, 0xFB21, "i31.get_s")
+O(I31__get_u, 0xFB22, "i31.get_u")
+// Ref
+O(Ref__test, 0xFB40, "ref.test")
+O(Ref__cast, 0xFB41, "ref.cast")
+O(Br_on_cast, 0xFB42, "br_on_cast")
+O(Br_on_cast_fail, 0xFB43, "br_on_cast_fail")
+O(Ref__test_null, 0xFB48, "ref.test.null")
+O(Ref__cast_null, 0xFB49, "ref.cast.null")
+O(Br_on_cast_null, 0xFB4A, "br_on_cast.null")
+O(Br_on_cast_fail_null, 0xFB4B, "br_on_cast_fail.null")
+// Extern
+O(Extern__internalize, 0xFB70, "extern.internalize")
+O(Extern__externalize, 0xFB71, "extern.externalize")
 
 // Parametric Instructions
 O(Drop, 0x1A, "drop")

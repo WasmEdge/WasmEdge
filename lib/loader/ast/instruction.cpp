@@ -19,7 +19,8 @@ Expect<OpCode> Loader::loadOpCode() {
     return Unexpect(B1);
   }
 
-  if (Payload == 0xFCU || Payload == 0xFDU || Payload == 0xFEU) {
+  if (Payload == 0xFBU || Payload == 0xFCU || Payload == 0xFDU ||
+      Payload == 0xFEU) {
     // 2-bytes OpCode case.
     if (auto B2 = FMgr.readU32()) {
       Payload <<= 8;
@@ -298,6 +299,87 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   case OpCode::Ref__func:
     return readU32(Instr.getTargetIndex());
+
+  // GC Instructions.
+  case OpCode::Struct__new_canon:
+  case OpCode::Struct__new_canon_default:
+  case OpCode::Array__new_canon:
+  case OpCode::Array__new_canon_default:
+  case OpCode::Array__get:
+  case OpCode::Array__get_s:
+  case OpCode::Array__get_u:
+  case OpCode::Array__set:
+    // read type index
+    return readU32(Instr.getTargetIndex());
+
+  case OpCode::Struct__get:
+  case OpCode::Struct__get_s:
+  case OpCode::Struct__get_u:
+  case OpCode::Struct__set:
+  case OpCode::Array__new_canon_data:
+  case OpCode::Array__new_canon_elem:
+    // read type index
+    if (auto Res = readU32(Instr.getTargetIndex()); !Res) {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    // read field index and store in source index
+    if (auto Res = readU32(Instr.getSourceIndex()); !Res) {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    return {};
+
+  case OpCode::Array__new_canon_fixed:
+    // read type index
+    if (auto Res = readU32(Instr.getTargetIndex()); !Res) {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    // read size N and store in stack offset
+    if (auto Res = readU32(Instr.getStackOffset()); !Res) {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    return {};
+
+  case OpCode::Ref__test:
+  case OpCode::Ref__test_null:
+  case OpCode::Ref__cast:
+  case OpCode::Ref__cast_null:
+    if (auto Res = loadHeapType()) {
+      Instr.setHeapType(*Res);
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    return {};
+
+  case OpCode::Br_on_cast:
+  case OpCode::Br_on_cast_fail:
+  case OpCode::Br_on_cast_null:
+  case OpCode::Br_on_cast_fail_null:
+    // read label index
+    if (auto Res = readU32(Instr.getLabelIdx()); !Res) {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    if (auto Res = loadHeapType()) {
+      Instr.setHeapType(*Res);
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    return {};
+
+  case OpCode::Ref__eq:
+  case OpCode::Array__len:
+  case OpCode::I31__new:
+  case OpCode::I31__get_s:
+  case OpCode::I31__get_u:
+  case OpCode::Extern__internalize:
+  case OpCode::Extern__externalize:
+    return {};
 
   // Parametric Instructions.
   case OpCode::Drop:
@@ -1016,6 +1098,20 @@ Expect<void> Loader::checkInstrProposals(OpCode Code,
       return logNeedProposal(ErrCode::Value::IllegalOpCode,
                              Proposal::FunctionReferences, Offset,
                              ASTNodeAttr::Instruction);
+    }
+  } else if (Code == OpCode::Ref__eq ||
+             (OpCode::Struct__new_canon <= Code &&
+              Code <= OpCode::Struct__set) ||
+             (OpCode::Array__new_canon <= Code &&
+              Code <= OpCode::Array__new_canon_elem) ||
+             (OpCode::I31__new <= Code && Code <= OpCode::I31__get_u) ||
+             (OpCode::Ref__test <= Code &&
+              Code <= OpCode::Br_on_cast_fail_null) ||
+             Code == OpCode::Extern__externalize ||
+             Code == OpCode::Extern__internalize) {
+    if (!Conf.hasProposal(Proposal::GC)) {
+      return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::GC,
+                             Offset, ASTNodeAttr::Instruction);
     }
   }
   return {};

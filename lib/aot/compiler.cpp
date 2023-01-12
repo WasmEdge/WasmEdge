@@ -4896,6 +4896,8 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
     WriteByte(OS, UINT8_C(1));
 #elif defined(__aarch64__)
     WriteByte(OS, UINT8_C(2));
+#elif defined(__riscv)
+    WriteByte(OS, UINT8_C(3));
 #else
 #error Unsupported hardware architecture!
 #endif

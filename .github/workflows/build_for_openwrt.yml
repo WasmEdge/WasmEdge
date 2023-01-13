@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - master
+      - openwrt
     paths:
       - ".github/workflows/build_for_openwrt.yml"
       - "include/**"

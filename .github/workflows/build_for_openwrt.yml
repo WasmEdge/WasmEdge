@@ -56,7 +56,6 @@ jobs:
         git clone https://github.com/openwrt/openwrt.git ../openwrt
         cd ../openwrt
         git checkout 9dc86d19628f55bfed2048c412c5b23bda328cff
-    
     - name: Update feeds
       run: |
         cd ../openwrt

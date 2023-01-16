@@ -81,12 +81,6 @@ public:
     }
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
-    if (TFBuffer != nullptr) {
-      TF_DeleteBuffer(TFBuffer);
-    }
-    if (TFGraph != nullptr) {
-      TF_DeleteGraph(TFGraph);
-    }
     if (std::filesystem::exists(TFSavedModelPath)) {
       std::filesystem::remove_all(TFSavedModelPath);
     }
@@ -110,9 +104,6 @@ public:
   torch::jit::Module TorchModel;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
-  TF_Buffer *TFBuffer = nullptr;
-  TF_Graph *TFGraph = nullptr;
-
   std::filesystem::path TFSavedModelPath;
   std::string TFTagSet;
   std::string TFSignature;
@@ -146,37 +137,12 @@ public:
     }
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
-    TF_Status *TFStat = TF_NewStatus();
-    if (TFSessionOpts) {
-      TF_DeleteSessionOptions(TFSessionOpts);
-    }
-    if (TFSession) {
-      TF_CloseSession(TFSession, TFStat);
-      TF_DeleteSession(TFSession, TFStat);
-    }
-    TF_DeleteStatus(TFStat);
-    TFInputs.clear();
-    TFInputNames.clear();
-    for (uint32_t I = 0; I < TFInputTensors.size(); ++I) {
-      if (TFInputTensors[I]) {
-        TF_DeleteTensor(TFInputTensors[I]);
-      }
-    }
-    TFInputTensors.clear();
     if (TFBundle) {
       delete TFBundle;
     }
-    for (auto X : TFInputAlready) {
-      if (X.second != nullptr) {
-        delete X.second;
-      }
-    }
+    TFInputNames.clear();
+    TFOutputNames.clear();
     TFInputAlready.clear();
-    for (auto X : TFOutputTensors) {
-      if (X != nullptr) {
-        delete X;
-      }
-    }
     TFOutputTensors.clear();
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
@@ -195,17 +161,11 @@ public:
   std::vector<at::Tensor> TorchOutputs;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
-  TF_SessionOptions *TFSessionOpts = nullptr;
-  TF_Session *TFSession = nullptr;
-  std::vector<TF_Output> TFInputs;
-  std::vector<TF_Tensor *> TFInputTensors;
-
   tensorflow::SavedModelBundle *TFBundle = nullptr;
   std::vector<std::string> TFInputNames;
   std::vector<std::string> TFOutputNames;
-  std::vector<std::pair<std::string, tensorflow::Tensor *>> TFInputAlready;
-  std::vector<tensorflow::Tensor *> TFOutputTensors;
-  // std::vector<tensorflow::Tensor> TFInputTensors;
+  std::vector<std::pair<std::string, tensorflow::Tensor>> TFInputAlready;
+  std::vector<tensorflow::Tensor> TFOutputTensors;
 
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE

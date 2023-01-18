@@ -52,21 +52,21 @@ The real installer handles all stuff. It supports python2.7 (not tested on earli
 * Full Option: `--debug`
 * Description: Enable verbosity debug
 
-### Specify Installed Version
+### Specify the version of WasmEdge to install
 * Short Option: `-v VERSION`
 * Full Option: `--version VERSION`
 * Description: Install the given VERSION of WasmEdge
 * Available Value: VERSION `0.11.2` or other valid release versions.
-* Note - In case if an invalid or non existing version is suppliead the installer exits with an error.
+* Note - In the case of supplied an invalid or nonexistent version, the installer exists with an error.
 
-### Install Path
+### Installation path
 * Short Option: `-p PATH`
 * Full Option: `--path PATH`
 * Description: Install WasmEdge into the given PATH. The default Path is `$HOME/.wasmedge`.
 * Note - In any path other than the ones starting with `/usr` are treated as non system paths in the internals of the installer. The consequences are different directory structures for both.
-* Note - If the path does not exist it is created.
+* Note - If the path not exists, the folder will be created.
 
-### Uninstall existed version
+### Uninstallation
 
 #### Run uninstaller before installing
 * Short Option: `-r {yes,no}`
@@ -87,27 +87,22 @@ The real installer handles all stuff. It supports python2.7 (not tested on earli
 #### Tensorflow Extensions Library Version
 * Full Option: `--tf-version TF_VERSION`
 * Description: Install the given VERSION of the library of the Tensorflow and Tensorflow lite extension. Only available when the `Extensions` is set to `all` or `tensorflow`.
-* Note - It's value is same as that of wasmedge version if not specified.
+* Note - It's the same as the WasmEdge version if not specified.
 
 #### Tensorflow Extensions Dependencies Version
 * Full Option: `--tf-deps-version TF_DEPS_VERSION`
 * Description: Install the given VERSION of the dependencies of the Tensorflow and Tensorflow lite extension. Only available when the `Extensions` is set to `all` or `tensorflow`.
-* Note - It's value is same as that of wasmedge version if not specified.
+* Note - It's the same as the WasmEdge version if not specified.
 
 #### Tensorflow Extensions Tools Version
 * Full Option: `--tf-tools-version TF_TOOLS_VERSION`
 * Description: Install the given VERSION of the tools of the Tensorflow and Tensorflow lite extension. Only available when the `Extensions` is set to `all` or `tensorflow`.
-* Note - It's value is same as that of wasmedge version if not specified.
+* Note - It's the same as the WasmEdge version if not specified.
 
 #### Image Extensions Version
 * Full Option: `--image-version IMAGE_VERSION`
 * Description: Install the given VERSION of the Image extension. Only available when the `Extensions` is set to `all` or `image`.
-* Note - It's value is same as that of wasmedge version if not specified.
-
-#### Image Extensions Dependencies Version
-* Full Option: `--image-deps-version IMAGE_DEPS_VERSION`
-* Description: Install the given VERSION of the dependencies of the Image extension. Only available when the `Extensions` is set to `all` or `image`.
-* Note - It's value is same as that of wasmedge version if not specified.
+* Note - It's the same as the WasmEdge version if not specified.
 
 ### Plugins
 
@@ -117,7 +112,7 @@ The real installer handles all stuff. It supports python2.7 (not tested on earli
 
 * Note - The format for this argument is `<plugin_name>:<version_number>`. `<version_number>` is not compulsory. For example `--plugins wasi_crypto` is a valid option.
 * Note - `<plugin_name>` is cases sensitive. Allowed values are stated [here](https://wasmedge.org/book/en/plugin.html) in the `Rust Crate` column. The logic is that the release name should be the same.
-* Note - It's value is same as that of wasmedge version if not specified.
+* Note - It's the same as the WasmEdge version if not specified.
 
 ### DIST
 

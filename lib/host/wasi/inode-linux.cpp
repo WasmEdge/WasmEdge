@@ -637,7 +637,8 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
     SysTimespec[1].tv_nsec = UTIME_OMIT;
   }
 
-  if (auto Res = ::utimensat(Fd, Path.c_str(), SysTimespec, 0);
+  if (auto Res =
+          ::utimensat(Fd, Path.c_str(), SysTimespec, AT_SYMLINK_NOFOLLOW);
       unlikely(Res != 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
@@ -660,9 +661,9 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
   }
 
 #ifdef O_PATH
-  const int OFlags = O_PATH;
+  const int OFlags = O_PATH | O_SYMLINK;
 #else
-  const int OFlags = O_RDONLY;
+  const int OFlags = O_RDONLY | O_SYMLINK;
 #endif
 
   FdHolder Target(::openat(Fd, Path.c_str(), OFlags));

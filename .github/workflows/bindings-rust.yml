@@ -9,7 +9,6 @@ on:
     branches:
       - master
       - "rust/*"
-      - "ci/update-bindings-rust"
     paths:
       - ".github/workflows/bindings-rust.yml"
       - "bindings/rust/**"

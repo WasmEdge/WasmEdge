@@ -335,10 +335,7 @@ impl From<u32> for ExternalInstanceType {
             1 => ExternalInstanceType::Table(TableType::default()),
             2 => ExternalInstanceType::Memory(MemoryType::default()),
             3 => ExternalInstanceType::Global(GlobalType::default()),
-            _ => panic!(
-                "[wasmedge-types] Invalid WasmEdge_ExternalType: {:#X}",
-                value
-            ),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_ExternalType: {value:#X}",),
         }
     }
 }
@@ -349,10 +346,7 @@ impl From<i32> for ExternalInstanceType {
             1 => ExternalInstanceType::Table(TableType::default()),
             2 => ExternalInstanceType::Memory(MemoryType::default()),
             3 => ExternalInstanceType::Global(GlobalType::default()),
-            _ => panic!(
-                "[wasmedge-types] Invalid WasmEdge_ExternalType: {:#X}",
-                value
-            ),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_ExternalType: {value:#X}",),
         }
     }
 }

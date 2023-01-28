@@ -199,3 +199,53 @@ jobs:
           cd bindings\rust
           cargo test --workspace --features aot,async --locked
           cargo test --examples --features aot,async --locked
+
+  build_fedora:
+    name: Fedora 35
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [1.65, 1.66, 1.67]
+    container:
+      image: fedora:latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust-stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+
+      - name: Build WasmEdge with Release mode
+        run: |
+          dnf update -y
+          dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev
+          git config --global --add safe.directory $(pwd)
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
+          cmake --build build
+
+      - name: Rustfmt
+        working-directory: bindings/rust/
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        working-directory: bindings/rust/
+        run: |
+          export WASMEDGE_DIR="$(pwd)/../../"
+          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
+          export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
+          cargo clippy -V
+          cargo clippy --lib --examples --features aot,async,wasi_crypto,wasi_nn -- -D warnings
+
+      - name: Test Rust Bindings
+        working-directory: bindings/rust/
+        run: |
+          export WASMEDGE_DIR="$(pwd)/../../"
+          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
+          export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
+          export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
+          cargo test --workspace --locked --features aot,async
+          cargo test --examples --locked --features aot,async

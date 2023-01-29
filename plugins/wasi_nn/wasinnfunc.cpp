@@ -60,7 +60,7 @@ namespace {
 }
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
-uint8_t TensorflowTypeSize(const tensorflow::DataType InType) {
+uint32_t TensorflowTypeSize(const tensorflow::DataType InType) {
   switch (InType) {
   case tensorflow::DataType::DT_FLOAT:
     return 4;
@@ -410,6 +410,9 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
                     BuilderLen);
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
+    tensorflow::RunOptions RunOption;
+    tensorflow::SessionOptions SessionOption;
+    tensorflow::Status TFStat;
     uint32_t *GraphBuilders =
         MemInst->getPointer<uint32_t *>(BuilderPtr, BuilderLen * 2);
     if (unlikely(GraphBuilders == nullptr)) {
@@ -447,15 +450,41 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
     SavedModelFile << BinPtr;
     SavedModelFile.close();
 
+    if (unlikely(!tensorflow::MaybeSavedModelDirectory(
+            TmpSavedModelDir.u8string()))) {
+      spdlog::error("[WASI-NN] could not find export model: {}",
+                    TmpSavedModelDir.u8string());
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    tensorflow::SavedModelBundle *TFBundle = new tensorflow::SavedModelBundle();
+    if (unlikely(TFBundle == nullptr)) {
+      spdlog::error("[WASI-NN] could not create new bundle");
+      return static_cast<uint32_t>(WASINN::ErrNo::Busy);
+    }
+
+    if (TagSet == "") {
+      TFStat = tensorflow::LoadSavedModel(
+          SessionOption, RunOption, TmpSavedModelDir.u8string(), {}, TFBundle);
+    } else {
+      TFStat = tensorflow::LoadSavedModel(SessionOption, RunOption,
+                                          TmpSavedModelDir.u8string(), {TagSet},
+                                          TFBundle);
+    }
+    if (unlikely(!TFStat.ok())) {
+      spdlog::error("[WASI-NN] could not create new bundle {}",
+                    TFStat.error_message());
+      return static_cast<uint32_t>(WASINN::ErrNo::Busy);
+    }
+    spdlog::info("Model Path {}, TagSet {}, Signature {}",
+                 TmpSavedModelDir.u8string(), TagSet, Signature);
     // Add a new graph.
     Env.NNGraph.emplace_back(static_cast<WASINN::Backend>(Encoding));
 
     auto &Graph = Env.NNGraph.back();
-    Graph.TFTagSet = TagSet;
     Graph.TFSignature = Signature;
-    Graph.TFSavedModelPath = TmpSavedModelDir;
+    Graph.TFBundle = TFBundle;
 
-    // Store the loaded graph.
+    std::filesystem::remove_all(TmpSavedModelDir);
     *GraphId = Env.NNGraph.size() - 1;
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
@@ -555,42 +584,16 @@ Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
 #endif
   } else if (Env.NNGraph[GraphId].GraphBackend == WASINN::Backend::Tensorflow) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
-    tensorflow::Status TFStat;
     Env.NNContext.emplace_back(Env.NNGraph[GraphId]);
     const auto Graph = Env.NNGraph[GraphId];
     auto &NewContext = Env.NNContext.back();
-    tensorflow::RunOptions RunOption;
-    tensorflow::SessionOptions SessionOption;
-
     // Create session.
-    if (unlikely(!tensorflow::MaybeSavedModelDirectory(
-            Graph.TFSavedModelPath.u8string()))) {
-      spdlog::error("[WASI-NN] could not find export model: {}",
-                    Graph.TFSavedModelPath.u8string());
-      Env.NNContext.pop_back();
-      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
-    }
-    NewContext.TFBundle = new tensorflow::SavedModelBundle();
-    if (unlikely(NewContext.TFBundle == nullptr)) {
-      spdlog::error("[WASI-NN] could not create new bundle");
+    if (unlikely(Graph.TFBundle == nullptr)) {
+      spdlog::error("[WASI-NN] tensorflow model is not loaded");
       Env.NNContext.pop_back();
       return static_cast<uint32_t>(WASINN::ErrNo::Busy);
     }
-    if (Graph.TFTagSet == "") {
-      TFStat = tensorflow::LoadSavedModel(SessionOption, RunOption,
-                                          Graph.TFSavedModelPath.u8string(), {},
-                                          NewContext.TFBundle);
-    } else {
-      TFStat = tensorflow::LoadSavedModel(
-          SessionOption, RunOption, Graph.TFSavedModelPath.u8string(),
-          {Graph.TFTagSet}, NewContext.TFBundle);
-    }
-    if (unlikely(!TFStat.ok())) {
-      spdlog::error("[WASI-NN] could not create new bundle {}",
-                    TFStat.error_message());
-      Env.NNContext.pop_back();
-      return static_cast<uint32_t>(WASINN::ErrNo::Busy);
-    }
+    NewContext.TFBundle = Graph.TFBundle;
     auto SigMap = NewContext.TFBundle->meta_graph_def.signature_def();
     auto ModelDef = SigMap.at(Graph.TFSignature);
     for (auto X : ModelDef.inputs()) {
@@ -606,15 +609,12 @@ Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
     }
 
     // for dev
-    // spdlog::info("Model Path {}, TagSet {}, Signature {}",
-    //              Graph.TFSavedModelPath.u8string(), Graph.TFTagSet,
-    //              Graph.TFSignature);
-    // for (auto X : NewContext.TFInputNames) {
-    //   spdlog::info("Looking {}", X);
-    // }
-    // for (auto X : NewContext.TFOutputNames) {
-    //   spdlog::info("Looking {}", X);
-    // }
+    for (auto X : NewContext.TFInputNames) {
+      spdlog::info("Looking {}", X);
+    }
+    for (auto X : NewContext.TFOutputNames) {
+      spdlog::info("Looking {}", X);
+    }
     *Context = Env.NNContext.size() - 1;
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
@@ -847,6 +847,7 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
     uint32_t DimensionLen = Tensor[1];
+    uint64_t BlobSize = 1;
     tensorflow::TensorShape TFShape({});
     uint32_t *DimensionBuf =
         MemInst->getPointer<uint32_t *>(Tensor[0], DimensionLen);
@@ -856,6 +857,7 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
     }
     for (uint32_t I = 0; I < DimensionLen; I++) {
       TFShape.AddDim(static_cast<int64_t>(DimensionBuf[I]));
+      BlobSize *= static_cast<int64_t>(DimensionBuf[I]);
     }
     uint32_t TensorDataLen = Tensor[4];
     uint8_t *TensorDataBuf =
@@ -865,13 +867,18 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
     WASINN::TensorType RType = static_cast<WASINN::TensorType>(Tensor[2]);
-    if (RType != WASINN::TensorType::F32) {
-      spdlog::error(
-          "[WASI-NN] Only F32 inputs and outputs are supported for now.");
+    tensorflow::DataType TFInType = TensorflowTypeMap(RType);
+    uint32_t ElementSize = TensorflowTypeSize(TFInType);
+    if (ElementSize == 0) {
+      spdlog::error("[WASI-NN] Unsupported output dtype {}", TFInType);
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
-    tensorflow::DataType TFInType = TensorflowTypeMap(RType);
-
+    if (BlobSize * ElementSize != TensorDataLen) {
+      spdlog::error("[WASI-NN] Input buffer(len {}) is not aligned with the "
+                    "tensor(len {})",
+                    TensorDataLen, BlobSize * ElementSize);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
     // Allocate tensor and data copying
     tensorflow::Tensor TensorPtr(TFInType, TFShape);
     std::copy_n(TensorDataBuf, TensorDataLen,
@@ -1107,7 +1114,7 @@ WasiNNGetOuput::body(const Runtime::CallingFrame &Frame, uint32_t Context,
     for (size_t I = 0; I < OutTensor.shape().dims(); I++) {
       BlobSize *= OutTensor.shape().dim_size(I);
     }
-    uint8_t ElementSize = TensorflowTypeSize(OutTensor.dtype());
+    uint32_t ElementSize = TensorflowTypeSize(OutTensor.dtype());
     if (ElementSize == 0) {
       spdlog::error("[WASI-NN] Unsupported output dtype {}", OutTensor.dtype());
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);

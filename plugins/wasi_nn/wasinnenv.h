@@ -81,8 +81,8 @@ public:
     }
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
-    if (std::filesystem::exists(TFSavedModelPath)) {
-      std::filesystem::remove_all(TFSavedModelPath);
+    if (TFBundle) {
+      delete TFBundle;
     }
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
@@ -104,8 +104,7 @@ public:
   torch::jit::Module TorchModel;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
-  std::filesystem::path TFSavedModelPath;
-  std::string TFTagSet;
+  tensorflow::SavedModelBundle *TFBundle = nullptr;
   std::string TFSignature;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
@@ -137,9 +136,6 @@ public:
     }
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
-    if (TFBundle) {
-      delete TFBundle;
-    }
     TFInputNames.clear();
     TFOutputNames.clear();
     TFInputAlready.clear();

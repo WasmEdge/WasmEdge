@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "wasinnfunc.h"
+#include "common/errcode.h"
 #include "common/log.h"
 
 #include <string>
@@ -70,8 +71,9 @@ uint32_t TensorflowTypeSize(const tensorflow::DataType InType) {
     return 1;
   case tensorflow::DataType::DT_INT32:
     return 4;
+  default:
+    assumingUnreachable();
   }
-  return 0;
 }
 tensorflow::DataType TensorflowTypeMap(const WASINN::TensorType InType) {
   uint32_t TFInType;
@@ -84,6 +86,8 @@ tensorflow::DataType TensorflowTypeMap(const WASINN::TensorType InType) {
     return tensorflow::DataType::DT_UINT8;
   case WASINN::TensorType::I32:
     return tensorflow::DataType::DT_INT32;
+  default:
+    assumingUnreachable();
   }
 }
 

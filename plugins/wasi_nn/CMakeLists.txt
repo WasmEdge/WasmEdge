@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-macro(remove_flag_from_target _target _flag)
+macro(tensorflow_customize _target _flag)
   get_target_property(_target_cxx_flags ${_target} COMPILE_OPTIONS)
 
   if(_target_cxx_flags)
@@ -9,6 +9,8 @@ macro(remove_flag_from_target _target _flag)
     list(APPEND _target_cxx_flags -w)
     set_target_properties(${_target} PROPERTIES COMPILE_OPTIONS "${_target_cxx_flags}")
   endif()
+
+  message(STATUS "WASI-NN: flag is ${_target_cxx_flags}")
 endmacro()
 
 wasmedge_add_library(wasmedgePluginWasiNN
@@ -180,8 +182,8 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
 
     # ------------------local-----------------------------------------
     set(WASMEDGE_TENSORFLOW_DEPS_TF_LIB
-      "/root/tensorflow_demo/tensorflow_deps/lib/libtensorflow_cc.so.2.6.0"
-      "/root/tensorflow_demo/tensorflow_deps/lib/libtensorflow_framework.so.2.6.0"
+      "/root/tensorflow_demo/tensorflow_deps/lib-cxx11/libtensorflow_cc.so.2.6.0"
+      "/root/tensorflow_demo/tensorflow_deps/lib-cxx11/libtensorflow_framework.so.2.6.0"
     )
     set(WASMEDGE_TENSORFLOW_DEPS_PATH "/root/WasmEdge-tensorflow-deps")
     set(WASMEDGE_TENSORFLOW_DEPS_BIN_PATH "${CMAKE_CURRENT_BINARY_DIR}/utils/WasmEdge-tensorflow-deps")
@@ -199,7 +201,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       PUBLIC
       ${WASMEDGE_TENSORFLOW_DEPS_TF_LIB}
     )
-    remove_flag_from_target(wasmedgePluginWasiNN -Werror)
+    tensorflow_customize(wasmedgePluginWasiNN -Werror)
 
   elseif(BACKEND STREQUAL "tensorflowlite")
     message(STATUS "WASI-NN: Build Tensorflow lite backend for WASI-NN")

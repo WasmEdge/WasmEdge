@@ -110,4 +110,9 @@ TEST(LinuxTest, toClockId) {
             CLOCK_THREAD_CPUTIME_ID);
 }
 
+TEST(LinuxTest, toTimespec) {
+  auto result = toTimespec(999);
+  EXPECT_EQ(result.tv_sec, 0);
+  EXPECT_EQ(result.tv_nsec, 999);
+}
 #endif

@@ -135,4 +135,32 @@ TEST(LinuxTest, toAdvice) {
   EXPECT_EQ(toAdvice(__WASI_ADVICE_DONTNEED), POSIX_FADV_DONTNEED);
   EXPECT_EQ(toAdvice(__WASI_ADVICE_NOREUSE), POSIX_FADV_NOREUSE);
 }
+// 0170000
+//
+// TEST(LiuxTest, fromFileType) {
+//   mode_t mode = 1;
+//   // auto a = mode & S_IFMT;
+//   auto e = mode & S_IFMT;
+//   std::cout << e;
+//   EXPECT_EQ(fromFileType(mode), POSIX_FADV_NOREUSE);
+// }
+
+TEST(LinuxTest, fromFileType) {
+  EXPECT_EQ(fromFileType(static_cast<uint8_t>(6)),
+            __WASI_FILETYPE_BLOCK_DEVICE);
+  EXPECT_EQ(fromFileType(static_cast<uint8_t>(DT_CHR)),
+            __WASI_FILETYPE_CHARACTER_DEVICE);
+  EXPECT_EQ(fromFileType(static_cast<uint8_t>(DT_DIR)),
+            __WASI_FILETYPE_DIRECTORY);
+  EXPECT_EQ(fromFileType(static_cast<uint8_t>(DT_LNK)),
+            __WASI_FILETYPE_SYMBOLIC_LINK);
+  EXPECT_EQ(fromFileType(static_cast<uint8_t>(DT_REG)),
+            __WASI_FILETYPE_REGULAR_FILE);
+  EXPECT_EQ(fromFileType(static_cast<uint8_t>(DT_SOCK)),
+            __WASI_FILETYPE_SOCKET_STREAM);
+  EXPECT_EQ(fromFileType(static_cast<uint8_t>(DT_FIFO)),
+            __WASI_FILETYPE_UNKNOWN);
+  EXPECT_EQ(fromFileType(static_cast<uint8_t>(DT_UNKNOWN)),
+            __WASI_FILETYPE_UNKNOWN);
+}
 #endif

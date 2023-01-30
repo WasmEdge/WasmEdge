@@ -111,8 +111,19 @@ TEST(LinuxTest, toClockId) {
 }
 
 TEST(LinuxTest, toTimespec) {
-  auto result = toTimespec(999);
+  const __wasi_timestamp_t kTimestamp = 12999;
+  auto result = toTimespec(kTimestamp);
   EXPECT_EQ(result.tv_sec, 0);
-  EXPECT_EQ(result.tv_nsec, 999);
+  EXPECT_EQ(result.tv_nsec, kTimestamp);
+}
+
+TEST(LinuxTest, fromTimespec) {
+  const __time_t kSec = 20;
+  const __time_t kNsec = 30;
+  const timespec kTime = {kSec, kNsec};
+  auto result = fromTimespec(kTime);
+  __wasi_timestamp_t kResultExpect = kSec * 1000 * 1000 * 1000 + kNsec;
+
+  EXPECT_EQ(result, kResultExpect);
 }
 #endif

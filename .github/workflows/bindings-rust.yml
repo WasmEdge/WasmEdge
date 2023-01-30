@@ -201,7 +201,7 @@ jobs:
           cargo test --examples --features aot,async --locked
 
   build_fedora:
-    name: Fedora 35
+    name: Fedora 37
     runs-on: ubuntu-latest
     strategy:
       matrix:

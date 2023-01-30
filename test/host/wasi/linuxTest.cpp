@@ -170,6 +170,10 @@ TEST(LinuxTest, toWhence) {
   EXPECT_EQ(toWhence(__WASI_WHENCE_SET), SEEK_SET);
 }
 
+TEST(LinuxTest, toSockOptLevel) {
+  EXPECT_EQ(toSockOptLevel(__WASI_SOCK_OPT_LEVEL_SOL_SOCKET), SOL_SOCKET);
+}
+
 TEST(LinuxTest, toSockOptSoName) {
   EXPECT_EQ(toSockOptSoName(__WASI_SOCK_OPT_SO_REUSEADDR), SO_REUSEADDR);
   EXPECT_EQ(toSockOptSoName(__WASI_SOCK_OPT_SO_TYPE), SO_TYPE);
@@ -185,5 +189,44 @@ TEST(LinuxTest, toSockOptSoName) {
   EXPECT_EQ(toSockOptSoName(__WASI_SOCK_OPT_SO_RCVTIMEO), SO_TYPE);
   EXPECT_EQ(toSockOptSoName(__WASI_SOCK_OPT_SO_SNDTIMEO), SO_REUSEADDR);
   EXPECT_EQ(toSockOptSoName(__WASI_SOCK_OPT_SO_ACCEPTCONN), SO_TYPE);
+}
+
+// TEST(LinuxTest, fromAIFlags) {}
+// TEST(LinuxTest, toAIFlags) {}
+
+TEST(LinuxTest, fromSockType) {
+  EXPECT_EQ(fromSockType(0), __WASI_SOCK_TYPE_SOCK_ANY);
+  EXPECT_EQ(fromSockType(SOCK_DGRAM), __WASI_SOCK_TYPE_SOCK_DGRAM);
+  EXPECT_EQ(fromSockType(SOCK_STREAM), __WASI_SOCK_TYPE_SOCK_STREAM);
+}
+
+TEST(LinuxTest, toSockType) {
+  EXPECT_EQ(toSockType(__WASI_SOCK_TYPE_SOCK_ANY), 0);
+  EXPECT_EQ(toSockType(__WASI_SOCK_TYPE_SOCK_DGRAM), SOCK_DGRAM);
+  EXPECT_EQ(toSockType(__WASI_SOCK_TYPE_SOCK_STREAM), SOCK_STREAM);
+}
+
+TEST(LinuxTest, fromProtocol) {
+  EXPECT_EQ(fromProtocol(IPPROTO_IP), __WASI_PROTOCOL_IPPROTO_IP);
+  EXPECT_EQ(fromProtocol(IPPROTO_TCP), __WASI_PROTOCOL_IPPROTO_TCP);
+  EXPECT_EQ(fromProtocol(IPPROTO_UDP), __WASI_PROTOCOL_IPPROTO_UDP);
+}
+
+TEST(LinuxTest, toProtocol) {
+  EXPECT_EQ(toProtocol(__WASI_PROTOCOL_IPPROTO_IP), IPPROTO_IP);
+  EXPECT_EQ(toProtocol(__WASI_PROTOCOL_IPPROTO_TCP), IPPROTO_TCP);
+  EXPECT_EQ(toProtocol(__WASI_PROTOCOL_IPPROTO_UDP), IPPROTO_UDP);
+}
+
+TEST(LinuxTest, fromAddressFamily) {
+  EXPECT_EQ(fromAddressFamily(PF_UNSPEC), __WASI_ADDRESS_FAMILY_UNSPEC);
+  EXPECT_EQ(fromAddressFamily(PF_INET), __WASI_ADDRESS_FAMILY_INET4);
+  EXPECT_EQ(fromAddressFamily(PF_INET6), __WASI_ADDRESS_FAMILY_INET6);
+}
+
+TEST(LinuxTest, toAddressFamily) {
+  EXPECT_EQ(toAddressFamily(__WASI_ADDRESS_FAMILY_UNSPEC), PF_UNSPEC);
+  EXPECT_EQ(toAddressFamily(__WASI_ADDRESS_FAMILY_INET4), PF_INET);
+  EXPECT_EQ(toAddressFamily(__WASI_ADDRESS_FAMILY_INET6), PF_INET6);
 }
 #endif

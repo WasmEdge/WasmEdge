@@ -1,13 +1,12 @@
 #include "common/defines.h"
 #include <gtest/gtest.h>
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include "../../../lib/host/wasi/linux.h"
 
 using namespace WasmEdge::Host::WASI::detail;
 
 TEST(linuxTest, fromErrNo) {
-
   EXPECT_EQ(fromErrNo(0), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(fromErrNo(E2BIG), __WASI_ERRNO_2BIG);
   EXPECT_EQ(fromErrNo(EACCES), __WASI_ERRNO_ACCES);

@@ -1,7 +1,7 @@
 #include "common/defines.h"
 #include <gtest/gtest.h>
 
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_LINUX
 #include "../../../lib/host/wasi/linux.h"
 
 using namespace WasmEdge::Host::WASI::detail;

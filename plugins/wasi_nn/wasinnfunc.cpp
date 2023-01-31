@@ -429,6 +429,8 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
       spdlog::error("[WASI-NN] Failed when accessing the Weight memory.");
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
+    spdlog::info("{}, {}, {}", GraphBuilders[1], GraphBuilders[3],
+                 GraphBuilders[5]);
 
     // load tag set name
     char *TagSetPtr =
@@ -437,7 +439,8 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
       spdlog::error("[WASI-NN] Failed when accessing savedmodel tag set name");
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
-    std::string TagSet(TagSetPtr);
+    std::string TagSet;
+    TagSet.assign(TagSetPtr, TagSetPtr + GraphBuilders[3]);
 
     // load signature name
     char *SignaturePtr =
@@ -447,22 +450,30 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
           "[WASI-NN] Failed when accessing savedmodel signature name");
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
-    std::string Signature(SignaturePtr);
+    std::string Signature;
+    Signature.assign(SignaturePtr, SignaturePtr + GraphBuilders[5]);
 
     auto TmpSavedModelDir = CreateTemporaryDirectory();
-    std::ofstream SavedModelFile(TmpSavedModelDir / "savedmodel.pb");
-    SavedModelFile << BinPtr;
+    std::ofstream SavedModelFile(TmpSavedModelDir / "saved_model.pb");
+    if (!SavedModelFile.is_open()) {
+      spdlog::error("[WASI-NN] unable to write saved_model.pb on {}",
+                    TmpSavedModelDir.u8string());
+      std::filesystem::remove_all(TmpSavedModelDir);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    SavedModelFile.write(BinPtr, BinLen);
     SavedModelFile.close();
-
     if (unlikely(!tensorflow::MaybeSavedModelDirectory(
             TmpSavedModelDir.u8string()))) {
       spdlog::error("[WASI-NN] could not find export model: {}",
                     TmpSavedModelDir.u8string());
+      std::filesystem::remove_all(TmpSavedModelDir);
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
     tensorflow::SavedModelBundle *TFBundle = new tensorflow::SavedModelBundle();
     if (unlikely(TFBundle == nullptr)) {
       spdlog::error("[WASI-NN] could not create new bundle");
+      std::filesystem::remove_all(TmpSavedModelDir);
       return static_cast<uint32_t>(WASINN::ErrNo::Busy);
     }
 
@@ -475,12 +486,11 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
                                           TFBundle);
     }
     if (unlikely(!TFStat.ok())) {
-      spdlog::error("[WASI-NN] could not create new bundle {}",
+      spdlog::error("[WASI-NN] could not create new bundle: {}",
                     TFStat.error_message());
+      std::filesystem::remove_all(TmpSavedModelDir);
       return static_cast<uint32_t>(WASINN::ErrNo::Busy);
     }
-    spdlog::info("Model Path {}, TagSet {}, Signature {}",
-                 TmpSavedModelDir.u8string(), TagSet, Signature);
     // Add a new graph.
     Env.NNGraph.emplace_back(static_cast<WASINN::Backend>(Encoding));
 
@@ -862,6 +872,7 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
     for (uint32_t I = 0; I < DimensionLen; I++) {
       TFShape.AddDim(static_cast<int64_t>(DimensionBuf[I]));
       BlobSize *= static_cast<int64_t>(DimensionBuf[I]);
+      spdlog::info("Dim {}: {}", I, DimensionBuf[I]);
     }
     uint32_t TensorDataLen = Tensor[4];
     uint8_t *TensorDataBuf =
@@ -888,6 +899,13 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
     std::copy_n(TensorDataBuf, TensorDataLen,
                 static_cast<uint8_t *>(TensorPtr.data()));
     CxtRef.TFInputAlready[Index].second = TensorPtr;
+    for (uint32_t I = 0; I < 10; I++) {
+      spdlog::info("Data {}",
+                   static_cast<uint8_t *>(
+                       CxtRef.TFInputAlready[Index].second.data())[I]);
+    }
+    spdlog::info("Total input bytes {}",
+                 CxtRef.TFInputAlready[Index].second.TotalBytes());
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
     spdlog::error(
@@ -1279,8 +1297,16 @@ Expect<uint32_t> WasiNNCompute::body(const Runtime::CallingFrame &Frame,
       return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
     }
     tensorflow::Status TFStat;
+    for (uint32_t I = 0; I < 10; I++) {
+      spdlog::info("Data {}", static_cast<uint8_t *>(
+                                  CxtRef.TFInputAlready[0].second.data())[I]);
+    }
+    spdlog::info("Total input bytes {}",
+                 CxtRef.TFInputAlready[0].second.TotalBytes());
+    spdlog::info("{}, {}, {}", CxtRef.TFInputAlready.size(),
+                 CxtRef.TFOutputNames.size(), CxtRef.TFOutputTensors.size());
     TFStat = CxtRef.TFBundle->session->Run(CxtRef.TFInputAlready,
-                                           {CxtRef.TFOutputNames}, {},
+                                           CxtRef.TFOutputNames, {},
                                            &CxtRef.TFOutputTensors);
     if (unlikely(!TFStat.ok())) {
       spdlog::error("[WASI-NN] Tensorflow run session failed");

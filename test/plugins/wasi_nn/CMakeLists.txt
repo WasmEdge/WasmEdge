@@ -1,5 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
+macro(tensorflow_customize _target _flag)
+  get_target_property(_target_cxx_flags ${_target} COMPILE_OPTIONS)
+
+  if(_target_cxx_flags)
+    list(REMOVE_ITEM _target_cxx_flags ${_flag})
+    list(APPEND _target_cxx_flags -w)
+    set_target_properties(${_target} PROPERTIES COMPILE_OPTIONS "${_target_cxx_flags}")
+  endif()
+endmacro()
 
 wasmedge_add_executable(wasiNNTests
   wasi_nn.cpp
@@ -71,6 +80,32 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       PUBLIC
       ${TENSORFLOW_INCLUDE}
     )
+  elseif(BACKEND STREQUAL "Tensorflow")
+    # -----------------------------------------------------------
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tensorflow_fixtures")
+    execute_process(
+      COMMAND bash ${CMAKE_SOURCE_DIR}/utils/wasi-nn/download-tensorflow-fixtures.sh ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tensorflow_fixtures
+      RESULT_VARIABLE DOWNLOAD_ERROR
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tensorflow_fixtures/saved_model.pb CHECKSUM_WEIGHT)
+    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tensorflow_fixtures/birdX224X224X3.rgb CHECKSUM_IMAGE)
+
+    if(NOT CHECKSUM_WEIGHT STREQUAL "1f8786a5918f9252f6567743f9247759")
+      message(FATAL_ERROR "downloaded tensorflow model with wrong md5")
+    endif()
+
+    if(NOT CHECKSUM_IMAGE STREQUAL "644c160eac747f0d8febf5ed1ca9683e")
+      message(FATAL_ERROR "downloaded bird.jpg fixture with wrong md5")
+    endif()
+
+    add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TF)
+    add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TF)
+    target_include_directories(wasiNNTests
+      PUBLIC
+      ${TENSORFLOW_INCLUDE}
+    )
+
+    tensorflow_customize(wasiNNTests -Werror)
   else()
     # Add the other backend test files fetching here.
   endif()

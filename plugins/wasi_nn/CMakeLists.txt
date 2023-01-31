@@ -7,10 +7,9 @@ macro(tensorflow_customize _target _flag)
   if(_target_cxx_flags)
     list(REMOVE_ITEM _target_cxx_flags ${_flag})
     list(APPEND _target_cxx_flags -w)
+    list(APPEND _target_cxx_flags -g)
     set_target_properties(${_target} PROPERTIES COMPILE_OPTIONS "${_target_cxx_flags}")
   endif()
-
-  message(STATUS "WASI-NN: flag is ${_target_cxx_flags}")
 endmacro()
 
 wasmedge_add_library(wasmedgePluginWasiNN
@@ -83,15 +82,8 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       set(WASMEDGE_DEPS_VERSION "0.12.0")
     endif()
 
-    # # Clone required shared libraries
-    # if(ANDROID)
-    # if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-    # set(WASMEDGE_TENSORFLOW_SYSTEM_NAME "android_aarch64")
-    # set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "a25dafad049cbc998c1f9682c57aec22b2fe5799eeffdd4ed19793a734cde8a4")
-    # elseif()
-    # message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
-    # endif()
-    # elseif(APPLE)
+    # Clone required shared libraries
+    # if(APPLE)
     # if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
     # set(WASMEDGE_TENSORFLOW_SYSTEM_NAME "darwin_x86_64")
     # set(WASMEDGE_TENSORFLOW_DEPS_TF_HASH "df8720bb089528dd6930983d0ff23adbae75ad7b92451245702ce24002b5f3c4")
@@ -158,16 +150,13 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     # "${wasmedgetensorflowdeps_SOURCE_DIR}/libtensorflow_framework.2.6.0.dylib"
     # )
     # endif()
+
     # include(FetchContent)
 
-    # # FetchContent_Declare(
-    # # wasmedge_tensorflow_deps
-    # # GIT_REPOSITORY https://github.com/second-state/WasmEdge-tensorflow-deps.git
-    # # GIT_TAG ${WASMEDGE_DEPS_VERSION}
-    # # )
     # FetchContent_Declare(
     # wasmedge_tensorflow_deps
-    # GIT_REPOSITORY https://github.com/gusye1234/WasmEdge-tensorflow-deps.git
+    # GIT_REPOSITORY https://github.com/second-state/WasmEdge-tensorflow-deps.git
+    # GIT_TAG wasi-nn
     # )
     # FetchContent_GetProperties(wasmedge_tensorflow_deps)
 

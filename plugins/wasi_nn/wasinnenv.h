@@ -140,6 +140,7 @@ public:
     TFOutputNames.clear();
     TFInputAlready.clear();
     TFOutputTensors.clear();
+    delete TFBundle;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     if (TFLiteInterp) {

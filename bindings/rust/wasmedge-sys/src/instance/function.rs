@@ -54,7 +54,7 @@ extern "C" fn wraper_fn(
 
             match real_fn_locked(frame, input) {
                 Ok(returns) => {
-                    assert!(returns.len() == return_len);
+                    assert!(returns.len() == return_len, "[wasmedge-sys] check the number of returns of host function. Expected: {}, actual: {}", return_len, returns.len());
                     for (idx, wasm_value) in returns.into_iter().enumerate() {
                         raw_returns[idx] = wasm_value.as_raw();
                     }

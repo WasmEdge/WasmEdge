@@ -54,7 +54,7 @@ async fn real_add(
     tokio::time::sleep(std::time::Duration::from_secs(4)).await;
 
     let c = a + b;
-    println!("Rust: calcuating in real_add c: {:?}", c);
+    println!("Rust: calcuating in real_add c: {c:?}");
 
     println!("Rust: Leaving Rust function real_add");
     Ok(vec![WasmValue::from_i32(c)])

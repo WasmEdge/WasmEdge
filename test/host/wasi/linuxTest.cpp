@@ -1,6 +1,5 @@
 #include "common/defines.h"
 #include <gtest/gtest.h>
-
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 
 #include "../../../lib/host/wasi/linux.h"
@@ -135,15 +134,23 @@ TEST(LinuxTest, toAdvice) {
   EXPECT_EQ(toAdvice(__WASI_ADVICE_DONTNEED), POSIX_FADV_DONTNEED);
   EXPECT_EQ(toAdvice(__WASI_ADVICE_NOREUSE), POSIX_FADV_NOREUSE);
 }
-// 0170000
-//
-// TEST(LiuxTest, fromFileType) {
-//   mode_t mode = 1;
-//   // auto a = mode & S_IFMT;
-//   auto e = mode & S_IFMT;
-//   std::cout << e;
-//   EXPECT_EQ(fromFileType(mode), POSIX_FADV_NOREUSE);
-// }
+
+TEST(LiuxTest, fromFileType) {
+  EXPECT_EQ(fromFileType(static_cast<mode_t>(S_IFBLK)),
+            __WASI_FILETYPE_BLOCK_DEVICE);
+  EXPECT_EQ(fromFileType(static_cast<mode_t>(S_IFCHR)),
+            __WASI_FILETYPE_CHARACTER_DEVICE);
+  EXPECT_EQ(fromFileType(static_cast<mode_t>(S_IFDIR)),
+            __WASI_FILETYPE_DIRECTORY);
+  EXPECT_EQ(fromFileType(static_cast<mode_t>(S_IFREG)),
+            __WASI_FILETYPE_REGULAR_FILE);
+  EXPECT_EQ(fromFileType(static_cast<mode_t>(S_IFSOCK)),
+            __WASI_FILETYPE_SOCKET_STREAM);
+  EXPECT_EQ(fromFileType(static_cast<mode_t>(S_IFLNK)),
+            __WASI_FILETYPE_SYMBOLIC_LINK);
+  EXPECT_EQ(fromFileType(static_cast<mode_t>(S_IFIFO)),
+            __WASI_FILETYPE_UNKNOWN);
+}
 
 TEST(LinuxTest, fromFileType) {
   EXPECT_EQ(fromFileType(static_cast<uint8_t>(6)),
@@ -191,8 +198,27 @@ TEST(LinuxTest, toSockOptSoName) {
   EXPECT_EQ(toSockOptSoName(__WASI_SOCK_OPT_SO_ACCEPTCONN), SO_TYPE);
 }
 
-// TEST(LinuxTest, fromAIFlags) {}
-// TEST(LinuxTest, toAIFlags) {}
+TEST(LinuxTest, fromAIFlags) {
+  EXPECT_EQ(fromAIFlags(1), 1);
+  EXPECT_EQ(fromAIFlags(2), 2);
+  EXPECT_EQ(fromAIFlags(4), 4);
+  EXPECT_EQ(fromAIFlags(256), 0);
+  EXPECT_EQ(fromAIFlags(8), 16);
+  EXPECT_EQ(fromAIFlags(10), 18);
+  EXPECT_EQ(fromAIFlags(20), 36);
+  EXPECT_EQ(fromAIFlags(0), 0);
+}
+
+TEST(LinuxTest, toAIFlags) {
+  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(1)), 1);
+  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(2)), 2);
+  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(3)), 3);
+  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(4)), 4);
+  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(5)), 5);
+  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(6)), 6);
+  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(7)), 7);
+  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(0)), 0);
+}
 
 TEST(LinuxTest, fromSockType) {
   EXPECT_EQ(fromSockType(0), __WASI_SOCK_TYPE_SOCK_ANY);

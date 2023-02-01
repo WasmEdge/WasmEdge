@@ -3,7 +3,7 @@ use wasmedge_sys as sys;
 use wasmedge_types::TableType;
 
 /// Defines a table storing the references to host functions or external objects.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Table {
     pub(crate) inner: sys::Table,
     pub(crate) name: Option<String>,

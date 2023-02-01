@@ -1099,7 +1099,7 @@ impl AsInstance for WasmEdgeProcessModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -1363,7 +1363,7 @@ impl AsInstance for WasiNnModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -1627,7 +1627,7 @@ impl AsInstance for WasiCryptoCommonModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -1891,7 +1891,7 @@ impl AsInstance for WasiCryptoAsymmetricCommonModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -2155,7 +2155,7 @@ impl AsInstance for WasiCryptoSymmetricModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -2419,7 +2419,7 @@ impl AsInstance for WasiCryptoKxModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -2683,7 +2683,7 @@ impl AsInstance for WasiCryptoSignaturesModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }

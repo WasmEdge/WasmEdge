@@ -12,6 +12,7 @@ use crate::{
     utils::check,
     WasmEdgeResult,
 };
+use std::sync::Arc;
 use wasmedge_types::RefType;
 
 /// A WasmEdge [Table] defines a WebAssembly table instance described by its [type](crate::TableType). A table is an array-like structure and stores function references.
@@ -19,7 +20,7 @@ use wasmedge_types::RefType;
 /// This [example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/table_and_funcref.rs) shows how to use [Table] to store and retrieve function references.
 #[derive(Debug)]
 pub struct Table {
-    pub(crate) inner: InnerTable,
+    pub(crate) inner: Arc<InnerTable>,
     pub(crate) registered: bool,
 }
 impl Table {
@@ -51,7 +52,7 @@ impl Table {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Table(TableError::Create))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: false,
             }),
         }
@@ -153,10 +154,16 @@ impl Table {
 }
 impl Drop for Table {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
-            unsafe {
-                ffi::WasmEdge_TableInstanceDelete(self.inner.0);
-            }
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
+            unsafe { ffi::WasmEdge_TableInstanceDelete(self.inner.0) };
+        }
+    }
+}
+impl Clone for Table {
+    fn clone(&self) -> Self {
+        Table {
+            inner: self.inner.clone(),
+            registered: false,
         }
     }
 }
@@ -442,6 +449,29 @@ mod tests {
         });
 
         handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_table_clone() {
+        // create a TableType instance
+        let result = TableType::create(RefType::FuncRef, 10, Some(20));
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+
+        // create a Table instance
+        let result = Table::create(&ty);
+        assert!(result.is_ok());
+        let mut table = result.unwrap();
+
+        // check capacity
+        assert_eq!(table.capacity(), 10);
+
+        let table_cloned = table.clone();
+        assert_eq!(table_cloned.capacity(), table.capacity());
+
+        drop(table);
+
+        assert_eq!(table_cloned.capacity(), 10);
     }
 
     fn real_add(_: CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {

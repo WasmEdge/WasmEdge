@@ -94,7 +94,7 @@ impl Instance {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -477,7 +477,7 @@ impl AsImport for ImportModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -724,7 +724,7 @@ impl AsInstance for WasiModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -900,7 +900,7 @@ impl AsImport for WasiModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -1067,7 +1067,7 @@ impl AsInstance for WasmEdgeProcessModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -1244,7 +1244,7 @@ impl AsImport for WasmEdgeProcessModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -1331,7 +1331,7 @@ impl AsInstance for WasiNnModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -1508,7 +1508,7 @@ impl AsImport for WasiNnModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -1595,7 +1595,7 @@ impl AsInstance for WasiCryptoCommonModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -1772,7 +1772,7 @@ impl AsImport for WasiCryptoCommonModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -1859,7 +1859,7 @@ impl AsInstance for WasiCryptoAsymmetricCommonModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -2036,7 +2036,7 @@ impl AsImport for WasiCryptoAsymmetricCommonModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -2123,7 +2123,7 @@ impl AsInstance for WasiCryptoSymmetricModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -2300,7 +2300,7 @@ impl AsImport for WasiCryptoSymmetricModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -2387,7 +2387,7 @@ impl AsInstance for WasiCryptoKxModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -2564,7 +2564,7 @@ impl AsImport for WasiCryptoKxModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -2651,7 +2651,7 @@ impl AsInstance for WasiCryptoSignaturesModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -2828,7 +2828,7 @@ impl AsImport for WasiCryptoSignaturesModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {

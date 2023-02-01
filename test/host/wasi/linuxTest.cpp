@@ -236,13 +236,13 @@ TEST(LinuxTest, fromAIFlags) {
 }
 
 TEST(LinuxTest, toAIFlags) {
-  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(1)), 1);
-  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(2)), 2);
-  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(3)), 3);
-  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(4)), 4);
-  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(5)), 5);
-  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(6)), 6);
-  EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(7)), 7);
+  EXPECT_EQ(toAIFlags(__WASI_AIFLAGS_AI_PASSIVE), AI_PASSIVE);
+  EXPECT_EQ(toAIFlags(__WASI_AIFLAGS_AI_CANONNAME), AI_CANONNAME);
+  EXPECT_EQ(toAIFlags(__WASI_AIFLAGS_AI_NUMERICHOST), AI_NUMERICHOST);
+  EXPECT_EQ(toAIFlags(__WASI_AIFLAGS_AI_NUMERICSERV), AI_NUMERICSERV);
+  EXPECT_EQ(toAIFlags(__WASI_AIFLAGS_AI_V4MAPPED), AI_V4MAPPED);
+  EXPECT_EQ(toAIFlags(__WASI_AIFLAGS_AI_ALL), AI_ALL);
+  EXPECT_EQ(toAIFlags(__WASI_AIFLAGS_AI_ADDRCONFIG), AI_ADDRCONFIG);
   EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(0)), 0);
 }
 

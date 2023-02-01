@@ -119,7 +119,7 @@ impl Instance {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -485,7 +485,7 @@ impl AsImport for ImportModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -740,7 +740,7 @@ impl AsInstance for WasiModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -908,7 +908,7 @@ impl AsImport for WasiModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -1252,7 +1252,7 @@ impl AsImport for WasmEdgeProcessModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -1516,7 +1516,7 @@ impl AsImport for WasiNnModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -1780,7 +1780,7 @@ impl AsImport for WasiCryptoCommonModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -2044,7 +2044,7 @@ impl AsImport for WasiCryptoAsymmetricCommonModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -2308,7 +2308,7 @@ impl AsImport for WasiCryptoSymmetricModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -2572,7 +2572,7 @@ impl AsImport for WasiCryptoKxModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -2836,7 +2836,7 @@ impl AsImport for WasiCryptoSignaturesModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {

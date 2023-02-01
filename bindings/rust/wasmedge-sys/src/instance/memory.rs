@@ -12,11 +12,12 @@ use crate::{
     utils::check,
     WasmEdgeResult,
 };
+use std::sync::Arc;
 
 /// Defines a WebAssembly memory instance, which is a linear memory described by its [type](crate::MemType). Each memory instance consists of a vector of bytes and an optional maximum size, and its size is a multiple of the WebAssembly page size (*64KiB* of each page).
 #[derive(Debug)]
 pub struct Memory {
-    pub(crate) inner: InnerMemory,
+    pub(crate) inner: Arc<InnerMemory>,
     pub(crate) registered: bool,
 }
 impl Memory {
@@ -48,7 +49,7 @@ impl Memory {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Mem(MemError::Create))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: false,
             }),
         }
@@ -236,7 +237,7 @@ impl Memory {
 }
 impl Drop for Memory {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_MemoryInstanceDelete(self.inner.0) };
         }
     }

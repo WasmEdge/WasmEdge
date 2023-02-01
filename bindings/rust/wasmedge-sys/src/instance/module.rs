@@ -1083,7 +1083,7 @@ impl AsInstance for WasmEdgeProcessModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -1611,7 +1611,7 @@ impl AsInstance for WasiCryptoCommonModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -1875,7 +1875,7 @@ impl AsInstance for WasiCryptoAsymmetricCommonModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -2139,7 +2139,7 @@ impl AsInstance for WasiCryptoSymmetricModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -2403,7 +2403,7 @@ impl AsInstance for WasiCryptoKxModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -2667,7 +2667,7 @@ impl AsInstance for WasiCryptoSignaturesModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }

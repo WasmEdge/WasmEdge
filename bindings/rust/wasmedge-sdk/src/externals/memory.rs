@@ -142,7 +142,7 @@ impl Memory {
     ///
     /// If fail to get the data pointer, then an error is returned.
     ///
-    pub fn data_pointer(&self, offset: u32, len: u32) -> WasmEdgeResult<&u8> {
+    pub fn data_pointer(&self, offset: u32, len: u32) -> WasmEdgeResult<*const u8> {
         self.inner.data_pointer(offset, len)
     }
 
@@ -158,7 +158,7 @@ impl Memory {
     ///
     /// If fail to get the data pointer, then an error is returned.
     ///
-    pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<&mut u8> {
+    pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<*mut u8> {
         self.inner.data_pointer_mut(offset, len)
     }
 }

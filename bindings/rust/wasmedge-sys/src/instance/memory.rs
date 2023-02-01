@@ -170,17 +170,11 @@ impl Memory {
     ///
     /// If fail to get the data pointer, then an error is returned.
     ///
-    pub fn data_pointer(&self, offset: u32, len: u32) -> WasmEdgeResult<&u8> {
+    pub fn data_pointer(&self, offset: u32, len: u32) -> WasmEdgeResult<*const u8> {
         let ptr = unsafe { ffi::WasmEdge_MemoryInstanceGetPointerConst(self.inner.0, offset, len) };
         match ptr.is_null() {
             true => Err(Box::new(WasmEdgeError::Mem(MemError::ConstPtr))),
-            false => {
-                let result = unsafe { ptr.as_ref() };
-                match result {
-                    Some(ptr) => Ok(ptr),
-                    None => Err(Box::new(WasmEdgeError::Mem(MemError::Ptr2Ref))),
-                }
-            }
+            false => Ok(ptr),
         }
     }
 
@@ -196,17 +190,11 @@ impl Memory {
     ///
     /// If fail to get the data pointer, then an error is returned.
     ///
-    pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<&mut u8> {
+    pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<*mut u8> {
         let ptr = unsafe { ffi::WasmEdge_MemoryInstanceGetPointer(self.inner.0, offset, len) };
         match ptr.is_null() {
             true => Err(Box::new(WasmEdgeError::Mem(MemError::MutPtr))),
-            false => {
-                let result = unsafe { ptr.as_mut() };
-                match result {
-                    Some(ptr) => Ok(ptr),
-                    None => Err(Box::new(WasmEdgeError::Mem(MemError::Ptr2Ref))),
-                }
-            }
+            false => Ok(ptr),
         }
     }
 

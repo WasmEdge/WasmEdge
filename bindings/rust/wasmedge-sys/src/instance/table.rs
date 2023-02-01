@@ -461,7 +461,7 @@ mod tests {
         // create a Table instance
         let result = Table::create(&ty);
         assert!(result.is_ok());
-        let mut table = result.unwrap();
+        let table = result.unwrap();
 
         // check capacity
         assert_eq!(table.capacity(), 10);

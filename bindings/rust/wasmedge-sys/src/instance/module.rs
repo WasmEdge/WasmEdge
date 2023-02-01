@@ -69,7 +69,7 @@ impl Instance {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -469,7 +469,7 @@ impl AsImport for ImportModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -708,7 +708,7 @@ impl AsInstance for WasiModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -892,7 +892,7 @@ impl AsImport for WasiModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -1051,7 +1051,7 @@ impl AsInstance for WasmEdgeProcessModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -1236,7 +1236,7 @@ impl AsImport for WasmEdgeProcessModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -1315,7 +1315,7 @@ impl AsInstance for WasiNnModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -1500,7 +1500,7 @@ impl AsImport for WasiNnModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -1579,7 +1579,7 @@ impl AsInstance for WasiCryptoCommonModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -1764,7 +1764,7 @@ impl AsImport for WasiCryptoCommonModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -1843,7 +1843,7 @@ impl AsInstance for WasiCryptoAsymmetricCommonModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -2028,7 +2028,7 @@ impl AsImport for WasiCryptoAsymmetricCommonModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -2107,7 +2107,7 @@ impl AsInstance for WasiCryptoSymmetricModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -2292,7 +2292,7 @@ impl AsImport for WasiCryptoSymmetricModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -2371,7 +2371,7 @@ impl AsInstance for WasiCryptoKxModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -2556,7 +2556,7 @@ impl AsImport for WasiCryptoKxModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -2635,7 +2635,7 @@ impl AsInstance for WasiCryptoSignaturesModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -2820,7 +2820,7 @@ impl AsImport for WasiCryptoSignaturesModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {

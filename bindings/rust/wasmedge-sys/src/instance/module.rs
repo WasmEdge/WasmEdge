@@ -144,7 +144,7 @@ impl Instance {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -497,7 +497,7 @@ impl AsImport for ImportModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -756,7 +756,7 @@ impl AsInstance for WasiModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -920,7 +920,7 @@ impl AsImport for WasiModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -1264,7 +1264,7 @@ impl AsImport for WasmEdgeProcessModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -1528,7 +1528,7 @@ impl AsImport for WasiNnModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -1792,7 +1792,7 @@ impl AsImport for WasiCryptoCommonModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -2056,7 +2056,7 @@ impl AsImport for WasiCryptoAsymmetricCommonModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -2320,7 +2320,7 @@ impl AsImport for WasiCryptoSymmetricModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -2584,7 +2584,7 @@ impl AsImport for WasiCryptoKxModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -2848,7 +2848,7 @@ impl AsImport for WasiCryptoSignaturesModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 

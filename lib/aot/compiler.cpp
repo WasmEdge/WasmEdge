@@ -53,6 +53,7 @@
 #if LLVM_VERSION_MAJOR >= 10
 #include <llvm/IR/IntrinsicsAArch64.h>
 #include <llvm/IR/IntrinsicsX86.h>
+#include <llvm/IR/IntrinsicsRISCV.h>
 #include <llvm/Support/Alignment.h>
 #endif
 
@@ -4896,7 +4897,7 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
     WriteByte(OS, UINT8_C(1));
 #elif defined(__aarch64__)
     WriteByte(OS, UINT8_C(2));
-#elif defined(__riscv)
+#elif defined(__riscv) && __riscv_xlen == 64
     WriteByte(OS, UINT8_C(3));
 #else
 #error Unsupported hardware architecture!
@@ -5148,6 +5149,9 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     if (!Conf.getCompilerConfigure().isGenericBinary()) {
       CPUName = llvm::sys::getHostCPUName();
     }
+#if defined(__riscv) && __riscv_xlen == 64
+    CPUName = "generic-rv64";
+#endif
     std::unique_ptr<llvm::TargetMachine> TM(TheTarget->createTargetMachine(
         Triple.str(), CPUName, Context->SubtargetFeatures.getString(), Options,
         RM, llvm::None, llvm::CodeGenOpt::Level::Aggressive));

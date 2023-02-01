@@ -1,196 +1,99 @@
 # Build and test WasmEdge on RISC-V 64 arch
 
-Please follow this tutorial to make a RISC-V 64 filesystem with linux kernel, build WasmEdge with riscv-gnu-toolchain and test WasmEdge on the RISC-V64 system.
-
-> Currently, we only support the runtime for the interpreter mode.
+Please follow this tutorial to build and test WasmEdge on the RISC-V64 system.
 
 ## Prepare the Environment
 
-This tutorial is based on Ubuntu 21.10.
+This tutorial is based on Ubuntu 22.04 host, and WasmEdge uses the [RISCV-Lab](https://gitee.com/tinylab/riscv-lab) which provide Ubuntu 22.04 system with riscv64 architecture. Here users can use their own riscv64 environment.
 
-### Dependencies
-
-We need to install the following dependencies to support subsequent work.
+### Install and run RISCV-Lab
 
 ```bash
-$ sudo apt install autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \
-                 gawk build-essential bison flex texinfo gperf libtool patchutils bc \
-                 zlib1g-dev libexpat-dev git \
-                 libglib2.0-dev libfdt-dev libpixman-1-dev \
-                 libncurses5-dev libncursesw5-dev
+$ git clone https://gitee.com/tinylab/cloud-lab.git
+$ cd cloud-lab
+$ LOGIN=bash tools/docker/run riscv-lab
 ```
 
-### Download and build riscv-gnu-toolchain
-
-First,we get the riscv-gnu-toolchain source code.It's noted that before downloading the complete submodule, in order to save time, we delete the `qemu` submodule in advance.
-
-```bash
-$ git clone https://github.com/riscv-collab/riscv-gnu-toolchain.git
-$ cd riscv-gnu-toolchain
-$ git rm qemu
-$ git submodule update --init --recursive
-```
-
-Then we configure the installation path of the toolchain and build the toolchain.
-
-```bash
-$ ./configure --prefix=/opt/riscv64 
-$ sudo make linux -j $(nproc)
-```
-
-### Download and build qemu
-
-Get the qemu code and compile qemu. Laterly, we will use `qemu` to make the system image and emulate the RISC-V 64 environment.
-
-```bash
-$ wget https://download.qemu.org/qemu-7.0.0.tar.xz
-$ tar xvJf qemu-7.0.0.tar.xz
-$ cd qemu-7.0.0/
-$ ./configure --target-list=riscv64-softmmu,riscv64-linux-user --prefix=/opt/qemu
-$ make -j $(nproc)
-$ sudo make install
-```
-
-### Download and compile linux kernel
-
-Download the tar.gz archive of linux-v5.14 and rename the extracted folder to `linux`.
-
-```bash
-$ wget https://github.com/torvalds/linux/archive/refs/tags/v5.14.tar.gz
-$ tar xzvf v5.14.tar.gz
-$ mv linux-v5.14 linux
-```
-
-Configure the crosscompile toolchain and build linux kernel.
-
-```bash
-$ cd linux
-$ make ARCH=riscv CROSS_COMPILE=riscv64-unknown-linux-gnu- defconfig
-$ make ARCH=riscv CROSS_COMPILE=riscv64-unknown-linux-gnu- -j $(nproc)
-```
-
-### Download and compile busyboxsource
-
-Download the busybox source code and open the configuration menu to change the settings.
-
-```bash
-$ git clone https://github.com/mirror/busybox.git
-$ cd busybox
-$ CROSS_COMPILE=riscv64-unknown-linux-gnu- make menuconfig
-```
-
-After opening the configuration menu, go to "Settings" on the first line, in the "Build Options" section, select "Build static binary (no shared libs)", and exit to save the configuration after setting.
-
-```bash
-$ CROSS_COMPILE=riscv64-unknown-linux-gnu- make -j $(nproc)
-$ CROSS_COMPILE=riscv64-unknown-linux-gnu- make install
-```
+Note that it will take a long time to pull the image here.
 
 ## Build WasmEdge 
 
-### Get WasmEdge source code
+### Get Source code
 
 ```bash
-$ git clone https://github.com/WasmEdge/WasmEdge.git
-$ cd WasmEdge
+ubuntu@riscv-lab:/labs/riscv-lab$ git clone https://github.com/WasmEdge/WasmEdge.git
+ubuntu@riscv-lab:/labs/riscv-lab$ cd WasmEdge
+```
+
+### Dependencies
+
+WasmEdge requires LLVM 12 at least and you may need to install these following dependencies by yourself.
+
+```bash
+ubuntu@riscv-lab:/labs/riscv-lab$ sudo apt-get update
+
+ubuntu@riscv-lab:/labs/riscv-lab$ sudo apt install -y \
+   					software-properties-common \
+   					cmake \
+   					libboost-all-dev
+
+ubuntu@riscv-lab:/labs/riscv-lab$ sudo apt install -y \
+   					llvm-12-dev \
+   					liblld-12-dev
 ```
 
 ### Compile
 
-The riscv64-gnu-toolchain is installed in the `/opt/riscv64` fold, so we set the compiler path and the sysroot path as following. If the user installs the toolchain in another path, you can modify the compilation items according to the example.
+Please refer to [here](../contribute/build_from_src.md#cmake-building-options) for the descriptions of all CMake options.
 
 ```bash
-$ mkdir build && cd build
-$ cmake .. -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF \
--DCMAKE_INSTALL_PREFIX:PATH=../_install \
--DCMAKE_CROSSCOMPILING=TRUE -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSROOT="/opt/riscv64/sysroot" \
--DCMAKE_C_COMPILER=/opt/riscv64/bin/riscv64-unknown-linux-gnu-gcc \
--DCMAKE_CXX_COMPILER=/opt/riscv64/bin/riscv64-unknown-linux-gnu-g++ \
--DCMAKE_FIND_ROOT_PATH=/opt/riscv64/riscv64-unknown-linux-gnu \
--DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
--DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
--DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
--DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY
-$ make
-$ make install
+ubuntu@riscv-lab:/labs/riscv-lab$ cd WasmEdge
+ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge$ mkdir -p build && cd build
+ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/build$ cmake -DCMAKE_BUILD_TYPE=Release .. && make -j
 ```
 
 ## Test
 
-### Make a riscv-architecture filesystem
+### Execute the wasmedge tool 
 
-Make an image, allocate a disk file size of 1G, and format the disk file as ext4 file format.
-
-```bash
-(user@xxxxxx:/home/riscv64)$ ls
-riscv-gnu-toolchain qemu-7.0.0 linux busybox WasmEdge
-(user@xxxxxx:/home/riscv64)$ qemu-img create rootfs.img 1g
-(user@xxxxxx:/home/riscv64)$ mkfs.ext4 rootfs.img
-```
-
-Mount the image locally, copy the previously generated files to the file system, and create some necessary files and directories. Then create a the `rcS` for init.
+For the pure WebAssembly, the `wasmedge` CLI tool will execute it in interpreter mode.
 
 ```bash
-(user@xxxxxx:/home/riscv64)$ mkdir rootfs
-(user@xxxxxx:/home/riscv64)$ sudo mount -o loop rootfs.img  rootfs
-(user@xxxxxx:/home/riscv64/rootfs)$ cd rootfs
-(user@xxxxxx:/home/riscv64/rootfs)$ sudo cp -r ../busybox/_install/* .
-(user@xxxxxx:/home/riscv64/rootfs)$ sudo cp -r /opt/riscv64/sysroot/* .
-(user@xxxxxx:/home/riscv64/rootfs)$ sudo mkdir proc sys dev etc etc/init.d
-(user@xxxxxx:/home/riscv64/rootfs)$ cd etc/init.d/
-(user@xxxxxx:/home/riscv64/rootfs/etc/init.d)$ sudo touch rcS
-(user@xxxxxx:/home/riscv64/rootfs/etc/init.d)$ sudo vi rcS
-```
-
-Edit the `rcS` file and input the following contents:
-
-```
-#!/bin/sh
-mount -t proc none /proc
-mount -t sysfs none /sys
-/sbin/mdev -s
-```
-
-Then modify the rcS file permissions and add executable permissions, so that when busybox's init runs, the `/etc/init.d/rcS` script can be run.
-
-```bash
-(user@xxxxxx:/home/riscv64/rootfs/etc/init.d) sudo chmod +x rcS
-```
-
-Copy the generated WasmEdge and the test files to the file system.
-
-```bash
-(user@xxxxxx:/home/riscv64/rootfs/etc/init.d)$ cd ../../
-(user@xxxxxx:/home/riscv64/rootfs)$ sudo cp -r ../WasmEdge/_install/* .
-(user@xxxxxx:/home/riscv64/rootfs)$ sudo cp ../WasmEdge/examples/wasm/hello.wasm .
-(user@xxxxxx:/home/riscv64/rootfs)$ sudo cp ../WasmEdge/examples/wasm/add.wasm .
-```
-
-Finally, exit the rootfs directory and unmount the filesystem.
-
-```bash
-(user@xxxxxx:/home/riscv64/rootfs)$ cd ..
-(user@xxxxxx:/home/riscv64)$ sudo umount rootfs
-```
-
-### Test the wasmedge program
-
-Execute the following command to start the system.
-
-```bash
-(user@xxxxxx:/home/riscv64)$ qemu-system-riscv64 -M virt -m 256M -nographic -kernel linux/arch/riscv/boot/Image -drive file=rootfs.img,format=raw,id=hd0 -device virtio-blk-device,drive=hd0 -append "root=/dev/vda rw console=ttyS0"
-```
-
-Test WasmEdge in the system by following command.
-
-```bash
-~ # wasmedge hello.wasm second state
-hello
-second
-state
-~ # wasmedge --reactor add.wasm add 2 2
+ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/build$ sudo make install
+ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/build$ cd ../examples/wasm
+ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/examples/wasm$ wasmedge -v
+wasmedge version 0.12.0-alpha.1-13-g610cc21f
+ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/examples/wasm$ wasmedge --reactor fibonacci.wasm fib 10
+89
+ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/examples/wasm$ wasmedge --reactor add.wasm add 2 2
 4
 ```
 
-The user can force quit QEMU by pressing Ctrl+A and then pressing X.
+### Execute the wasmedgec tool 
+
+To improve the performance, the `wasmedgec` can compile WebAssembly into native machine code. After compiling with the `wasmedgec` AOT compiler, the wasmedge tool can execute the WASM in AOT mode which is much faster.
+
+```bash
+ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/examples/wasm$ wasmedgec fibonacci.wasm fibonacci_aot.wasm
+[2023-02-01 22:39:15.807] [info] compile start
+[2023-02-01 22:39:15.857] [info] verify start
+[2023-02-01 22:39:15.866] [info] optimize start
+[2023-02-01 22:39:16.188] [info] codegen start
+[2023-02-01 22:39:16.403] [info] output start
+[2023-02-01 22:39:16.559] [info] compile done
+[2023-02-01 22:39:16.565] [info] output start
+ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/examples/wasm$ time wasmedge --reactor fibonacci_aot.wasm fib 30
+1346269
+
+real	0m0.284s
+user	0m0.282s
+sys	0m0.005s
+ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/examples/wasm$ time wasmedge --reactor fibonacci.wasm fib 30
+1346269
+
+real	0m1.814s
+user	0m1.776s
+sys	0m0.016s
+```
+
 

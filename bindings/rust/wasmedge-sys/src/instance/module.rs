@@ -1347,7 +1347,7 @@ impl AsInstance for WasiNnModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }

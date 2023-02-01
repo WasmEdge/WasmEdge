@@ -110,10 +110,12 @@ TEST(LinuxTest, toClockId) {
 }
 
 TEST(LinuxTest, toTimespec) {
-  const __wasi_timestamp_t kTimestamp = 12999;
+  const __wasi_timestamp_t kNanoSeconds1 = 9LL * 1000 * 1000 * 1000;
+  const __wasi_timestamp_t kNanoSeconds2 = 5LL * 1000 * 1000;
+  const __wasi_timestamp_t kTimestamp = kNanoSeconds1 + kNanoSeconds2;
   auto result = toTimespec(kTimestamp);
-  EXPECT_EQ(result.tv_sec, 0);
-  EXPECT_EQ(result.tv_nsec, kTimestamp);
+  EXPECT_EQ(result.tv_sec, kNanoSeconds1 / (1000 * 1000 * 1000));
+  EXPECT_EQ(result.tv_nsec, kNanoSeconds2);
 }
 
 TEST(LinuxTest, fromTimespec) {
@@ -121,10 +123,34 @@ TEST(LinuxTest, fromTimespec) {
   const __time_t kNsec = 30;
   const timespec kTime = {kSec, kNsec};
   auto result = fromTimespec(kTime);
-  __wasi_timestamp_t kResultExpect = kSec * 1000 * 1000 * 1000 + kNsec;
+  const __wasi_timestamp_t kExpectResult = kSec * 1000 * 1000 * 1000 + kNsec;
 
-  EXPECT_EQ(result, kResultExpect);
+  EXPECT_EQ(result, kExpectResult);
 }
+
+#if !__GLIBC_PREREQ(2, 6)
+TEST(LinuxTest, toTimeval) {
+  const __wasi_timestamp_t kNanoSeconds1 = 9LL * 1000 * 1000 * 1000;
+  const __wasi_timestamp_t kNanoSeconds2 = 5LL * 1000 * 1000;
+  const __wasi_timestamp_t kTimestamp = kNanoSeconds1 + kNanoSeconds2;
+  auto result = toTimeval(kTimestamp);
+  const timeval kExpectResult = {kNanoSeconds1 / (1000 * 1000 * 1000),
+                                 kNanoSeconds2 / 1000};
+
+  EXPECT_EQ(result.tv_sec, kExpectResult.tv_sec);
+  EXPECT_EQ(result.tv_usec, kExpectResult.tv_usec);
+}
+
+TEST(LinuxTest, toTimeva_with_timespec_signiture) {
+  const __time_t kSec = 20;
+  const __time_t kNsec = 30 * 1000 * 1000;
+  const timespec kTime = {kSec, kNsec};
+  auto result = toTimeval(kTime);
+
+  EXPECT_EQ(result.tv_sec, kSec);
+  EXPECT_EQ(result.tv_usec, kNsec / 1000);
+}
+#endif
 
 TEST(LinuxTest, toAdvice) {
   EXPECT_EQ(toAdvice(__WASI_ADVICE_NORMAL), POSIX_FADV_NORMAL);

@@ -3,7 +3,7 @@ use wasmedge_sys as sys;
 use wasmedge_types::MemoryType;
 
 /// Defines a linear memory.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Memory {
     pub(crate) inner: sys::Memory,
     pub(crate) name: Option<String>,
@@ -312,5 +312,33 @@ mod tests {
         assert!(result.is_ok());
         let data = result.unwrap();
         assert_eq!(data, s);
+    }
+
+    #[test]
+    fn test_memory_clone() {
+        #[derive(Debug, Clone)]
+        struct RecordsMemory {
+            memory: Memory,
+        }
+
+        // create a memory instance
+        let result = MemoryType::new(10, Some(20), false);
+        assert!(result.is_ok());
+        let memory_type = result.unwrap();
+        let result = Memory::new(memory_type);
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+
+        // create a RecordsMemory instance
+        let rec_mem = RecordsMemory { memory };
+
+        // clone the RecordsMemory instance
+        let rec_mem_cloned = rec_mem.clone();
+
+        // drop the original RecordsMemory instance
+        drop(rec_mem);
+
+        // check the cloned RecordsMemory instance
+        assert_eq!(rec_mem_cloned.memory.size(), 10);
     }
 }

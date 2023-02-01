@@ -246,7 +246,7 @@ impl Clone for Memory {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
-            registered: self.registered,
+            registered: false,
         }
     }
 }

@@ -242,6 +242,14 @@ impl Drop for Memory {
         }
     }
 }
+impl Clone for Memory {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            registered: self.registered,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct InnerMemory(pub(crate) *mut ffi::WasmEdge_MemoryInstanceContext);
@@ -538,5 +546,29 @@ mod tests {
         });
 
         handle.join().unwrap()
+    }
+
+    #[test]
+    fn test_memory_clone() {
+        #[derive(Debug, Clone)]
+        struct RecordsMemory {
+            memory: Memory,
+        }
+
+        // create a Memory with a limit range [10, 20]
+        let result = MemType::create(10, Some(20), false);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Memory::create(&ty);
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+
+        let rec_mem = RecordsMemory { memory };
+
+        let rec_mem_cloned = rec_mem.clone();
+
+        drop(rec_mem);
+
+        assert_eq!(rec_mem_cloned.memory.size(), 10);
     }
 }

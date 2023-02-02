@@ -58,7 +58,7 @@ use wasmedge_sys as sys;
 /// ```
 /// [[Click for more examples]](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sdk/examples)
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Func {
     pub(crate) inner: sys::Function,
     pub(crate) name: Option<String>,

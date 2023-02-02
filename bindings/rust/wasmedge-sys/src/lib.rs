@@ -114,11 +114,11 @@
 //!     )?;
 //!
 //!     // create a Vm instance
-//!     let mut vm = Vm::create(None, None)?;
+//!     let mut vm = Vm::create(None)?;
 //!
 //!     // register the wasm bytes
 //!     let module_name = "extern-module";
-//!     vm.register_wasm_from_bytes(module_name, &wasm_bytes)?;
+//!     vm.register_instance_from_bytes(module_name, &wasm_bytes)?;
 //!
 //!     // run the exported function named "fib"
 //!     let func_name = "fib";

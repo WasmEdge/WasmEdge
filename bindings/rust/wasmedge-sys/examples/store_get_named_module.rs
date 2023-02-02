@@ -1,4 +1,12 @@
-use wasmedge_sys::{Config, Store, Vm};
+//!
+//! To run this example, follow the commands below:
+//!
+//! ```bash
+//! // go into the directory: bindings/rust
+//! cargo run -p wasmedge-sys --example store_get_named_module -- --nocapture
+//! ```
+
+use wasmedge_sys::{Config, Vm};
 use wasmedge_types::wat2wasm;
 
 #[cfg_attr(test, test)]
@@ -45,17 +53,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.bulk_memory_operations(true);
     assert!(config.bulk_memory_operations_enabled());
 
-    // create a Store context
-    let mut store = Store::create()?;
-
-    // create a Vm context with the given Config and Store
-    let vm = Vm::create(Some(config), Some(&mut store))?;
+    // create a Vm context with the given Config
+    let mut vm = Vm::create(Some(config))?;
 
     // register a wasm module from a in-memory wasm bytes.
-    vm.register_wasm_from_bytes("extern", &wasm_bytes)?;
+    vm.register_instance_from_bytes("extern", &wasm_bytes)?;
 
     // get the store in vm
-    let mut store = vm.store_mut()?;
+    let store = vm.store_mut();
 
     // get the module named "extern"
     let instance = store.module("extern")?;

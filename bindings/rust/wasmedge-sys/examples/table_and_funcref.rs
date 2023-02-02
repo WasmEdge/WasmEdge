@@ -1,3 +1,9 @@
+//!
+//! ```bash
+//! // go into the directory: bindings/rust
+//! cargo run -p wasmedge-sys --example table_and_funcref -- --nocapture
+//! ```
+
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Table,
@@ -53,12 +59,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a Vm instance
     let mut config = Config::create()?;
     config.bulk_memory_operations(true);
-    let mut vm = Vm::create(Some(config), None)?;
+    let mut vm = Vm::create(Some(config))?;
     // register the import object to the Vm instance
-    vm.register_wasm_from_import(ImportObject::Import(import))?;
+    vm.register_instance_from_import(ImportObject::Import(import))?;
 
     // get the internal store instance from the vm instance
-    let mut store = vm.store_mut()?;
+    let store = vm.store_mut();
     //get the module instance named "extern"
     let instance = store.module("extern")?;
     // get the exported table named "my-table"

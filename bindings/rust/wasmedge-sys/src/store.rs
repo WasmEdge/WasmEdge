@@ -290,26 +290,19 @@ mod tests {
         config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
-        // create a Store context
-        let result = Store::create();
-        assert!(result.is_ok(), "Failed to create Store instance");
-        let mut store = result.unwrap();
-
         // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(&mut store));
+        let result = Vm::create(Some(config));
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let mut vm = result.unwrap();
 
         // register a wasm module from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
-        let result = vm.register_wasm_from_file("extern", path);
+        let result = vm.register_instance_from_file("extern", path);
         assert!(result.is_ok());
 
         // get the store in vm
-        let result = vm.store_mut();
-        assert!(result.is_ok());
-        let mut store = result.unwrap();
+        let store = vm.store_mut();
 
         // get the module named "extern"
         let result = store.module("extern");

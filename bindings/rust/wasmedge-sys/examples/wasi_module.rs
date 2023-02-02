@@ -1,22 +1,32 @@
+//!
+//! To run this example, follow the commands below:
+//!
+//! ```bash
+//! // go into the directory: bindings/rust
+//! cargo run -p wasmedge-sys --example wasi_module -- --nocapture
+//! ```
+
+#[cfg(not(feature = "custom_wasi"))]
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, FuncType, Function, ImportObject, Vm, WasiModule, WasmValue,
 };
+#[cfg(not(feature = "custom_wasi"))]
 use wasmedge_types::{
-    error::{CoreError, CoreInstantiationError, HostFuncError, VmError, WasmEdgeError},
+    error::{HostFuncError, VmError, WasmEdgeError},
     ValType,
 };
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // [WasiModule] implements [ImportInstance](crate::ImportInstance) trait, therefore it can be used to register function, table, memory and global instances.
+    #[cfg(not(feature = "custom_wasi"))]
     {
         // create a Config context, not enable wasi and wasmedge_process options.
         let mut config = Config::create()?;
         config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
-        // create a Vm context with the given Config and Store
-        let mut vm = Vm::create(Some(config), None)?;
+        // create a Vm context with the given Config
+        let mut vm = Vm::create(Some(config))?;
 
         // get the Wasi module
         let result = vm.wasi_module_mut();
@@ -26,7 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule))
         );
 
-        // *** try to add a Wasi module.
+        // *** add a Wasi module.
 
         // create a Wasi module
         let mut import_wasi = WasiModule::create(None, None, None)?;
@@ -63,28 +73,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         import_wasi.add_func("add", host_func);
 
         // register the Wasi module
-        vm.register_wasm_from_import(ImportObject::Wasi(import_wasi))?;
+        vm.register_instance_from_import(ImportObject::Wasi(import_wasi))?;
 
         // get the Wasi module
-        let result = vm.wasi_module_mut();
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule))
-        );
-
-        // get store from vm
-        let mut store = vm.store_mut()?;
-        assert_eq!(store.module_len(), 1);
-        let result = store.module_names();
-        assert!(result.is_some());
-        assert_eq!(result.unwrap(), ["wasi_snapshot_preview1"]);
-
-        // get wasi module instance
-        let _wasi_instance = store.module("wasi_snapshot_preview1")?;
+        let result = vm.wasi_module();
+        assert!(result.is_ok());
+        let wasi_instance = result.unwrap();
+        assert_eq!(wasi_instance.name(), "wasi_snapshot_preview1");
     }
 
-    // A [WasiModule] can be created implicitly inside a [Vm](crate::Vm) by passing the [Vm](crate::Vm) a [config](crate::Config) argument in which the `wasi` option is enabled.
+    #[cfg(not(feature = "custom_wasi"))]
     {
         // create a Config context
         let mut config = Config::create()?;
@@ -94,7 +92,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert!(config.wasi_enabled());
 
         // create a Vm context with the given Config and Store
-        let mut vm = Vm::create(Some(config), None)?;
+        let mut vm = Vm::create(Some(config))?;
 
         // get the Wasi module
         let wasi_instance = vm.wasi_module_mut()?;
@@ -105,13 +103,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // create a Wasi module
         let import_wasi = WasiModule::create(None, None, None)?;
 
-        let result = vm.register_wasm_from_import(ImportObject::Wasi(import_wasi));
+        let result = vm.register_instance_from_import(ImportObject::Wasi(import_wasi));
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            Box::new(WasmEdgeError::Core(CoreError::Instantiation(
-                CoreInstantiationError::ModuleNameConflict
-            )))
+            Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule))
         );
     }
 

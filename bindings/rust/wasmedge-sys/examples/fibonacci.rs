@@ -1,3 +1,12 @@
+//! To run this example, use the following command:
+//!
+//! ```bash
+//! cd /wasmedge-root-dir/bindings/rust/
+//!
+//! cargo run -p wasmedge-sys --example fibonacci -- --nocapture
+//! ```
+//!
+
 use wasmedge_sys::{Vm, WasmValue};
 use wasmedge_types::wat2wasm;
 
@@ -40,11 +49,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     // create a Vm instance
-    let vm = Vm::create(None, None)?;
+    let mut vm = Vm::create(None)?;
 
     // register the wasm bytes
     let module_name = "extern-module";
-    vm.register_wasm_from_bytes(module_name, &wasm_bytes)?;
+    vm.register_instance_from_bytes(module_name, &wasm_bytes)?;
 
     // run the exported function named "fib"
     let func_name = "fib";

@@ -409,9 +409,9 @@ pub trait AsInstance {
 ///     let global = Global::create(&ty, WasmValue::from_f32(3.5))?;
 ///     import.add_global("global", global);
 ///
-///     let mut vm = Vm::create(None, None)?;
+///     let mut vm = Vm::create(None)?;
 ///
-///     vm.register_wasm_from_import(ImportObject::Import(import))?;
+///     vm.register_instance_from_import(ImportObject::Import(import))?;
 ///
 ///     Ok(())
 /// }
@@ -3187,14 +3187,14 @@ mod tests {
             assert!(result.is_ok());
             let mut config = result.unwrap();
             config.wasi(true);
-            let result = Vm::create(Some(config), None);
+            let result = Vm::create(Some(config));
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
             // get the ImportObject module from vm
             let result = vm.wasi_module_mut();
             assert!(result.is_ok());
-            let mut import_wasi = result.unwrap();
+            let import_wasi = result.unwrap();
 
             let args = vec!["arg1", "arg2"];
             let envs = vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"];
@@ -3253,10 +3253,8 @@ mod tests {
     #[test]
     #[allow(clippy::assertions_on_result_states)]
     fn test_instance_find_xxx() {
-        let vm = create_vm();
-        let result = vm.store_mut();
-        assert!(result.is_ok());
-        let mut store = result.unwrap();
+        let mut vm = create_vm();
+        let store = vm.store_mut();
 
         // get the module named "extern"
         let result = store.module("extern_module");
@@ -3326,10 +3324,8 @@ mod tests {
     #[test]
     #[allow(clippy::assertions_on_result_states)]
     fn test_instance_find_names() {
-        let vm = create_vm();
-        let result = vm.store_mut();
-        assert!(result.is_ok());
-        let mut store = result.unwrap();
+        let mut vm = create_vm();
+        let store = vm.store_mut();
 
         // get the module named "extern"
         let result = store.module("extern_module");
@@ -3490,11 +3486,11 @@ mod tests {
         let global = result.unwrap();
         import.add_global("global", global);
 
-        let result = Vm::create(None, None);
+        let result = Vm::create(None);
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
-        let result = vm.register_wasm_from_import(ImportObject::Import(import));
+        let result = vm.register_instance_from_import(ImportObject::Import(import));
         assert!(result.is_ok());
 
         vm

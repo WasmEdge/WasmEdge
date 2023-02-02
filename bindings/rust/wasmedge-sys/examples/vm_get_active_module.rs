@@ -1,3 +1,11 @@
+//!
+//! To run this example, follow the commands below:
+//!
+//! ```bash
+//! // go into the directory: bindings/rust
+//! cargo run -p wasmedge-sys --example vm_get_active_module -- --nocapture
+//! ```
+
 use wasmedge_sys::Vm;
 use wasmedge_types::wat2wasm;
 
@@ -41,20 +49,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     // create a VM context
-    let vm = Vm::create(None, None)?;
+    let mut vm = Vm::create(None)?;
 
-    // load a wasm module from a in-memory bytes, and the loaded wasm module works as an anonymous
-    // module (aka. active module in WasmEdge terminology)
-    vm.load_wasm_from_bytes(&wasm_bytes)?;
-
-    // validate the loaded active module
-    vm.validate()?;
-
-    // instantiate the loaded active module
-    vm.instantiate()?;
+    // register a wasm module into the vm as an anonymous module
+    vm.register_active_instance_from_bytes(&wasm_bytes)?;
 
     // get the active module instance
-    let active_instance = vm.active_module()?;
+    let active_instance = vm.active_instance().unwrap();
 
     assert!(active_instance.get_func("fib").is_ok());
 

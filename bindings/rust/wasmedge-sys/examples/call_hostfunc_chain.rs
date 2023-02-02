@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex};
 use wasmedge_sys::*;
 use wasmedge_types::{error::HostFuncError, wat2wasm};
 
-struct Wrapper(*const Vm);
+struct Wrapper(*mut Vm);
 unsafe impl Send for Wrapper {}
 
 #[cfg_attr(test, test)]
@@ -39,9 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     "#,
     )?;
 
-    let mut vm = Vm::create(None, None)?;
-    vm.load_wasm_from_bytes(&wasm_bytes)?;
-    vm.validate()?;
+    let mut vm = Vm::create(None)?;
 
     let host_layer1 =
         |_frame: CallingFrame, _args: Vec<WasmValue>| -> Result<Vec<WasmValue>, HostFuncError> {
@@ -49,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(vec![])
         };
 
-    let s = Arc::new(Mutex::new(Wrapper(&vm as *const Vm)));
+    let s = Arc::new(Mutex::new(Wrapper(&mut vm as *mut Vm)));
     let host_layer2 = move |_frame: CallingFrame,
                             _args: Vec<WasmValue>|
           -> Result<Vec<WasmValue>, HostFuncError> {
@@ -68,8 +66,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     import.add_func("layer1", host_layer1);
     import.add_func("layer2", host_layer2);
 
-    vm.register_wasm_from_import(ImportObject::Import(import))?;
-    vm.instantiate()?;
+    // register import module
+    vm.register_instance_from_import(ImportObject::Import(import))?;
+
+    // register wasm module from bytes
+    vm.register_active_instance_from_bytes(&wasm_bytes)?;
 
     vm.run_function("layer2", [])?;
 

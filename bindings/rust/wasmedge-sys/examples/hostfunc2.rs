@@ -83,12 +83,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // create a Vm context
     let config = Config::create().expect("fail to create Config instance");
-    let mut vm = Vm::create(Some(config), None)?;
-    vm.register_wasm_from_import(ImportObject::Import(import))?;
+    let mut vm = Vm::create(Some(config))?;
+    vm.register_instance_from_import(ImportObject::Import(import))?;
 
     let add_ref = WasmValue::from_extern_ref(&mut real_add);
     match vm.run_wasm_from_module(
-        module,
+        &module,
         "call_add",
         [
             add_ref,

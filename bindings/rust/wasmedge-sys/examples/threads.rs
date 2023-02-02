@@ -2,12 +2,19 @@
 //!
 //! The main thread is responsible for computing `Fib(4), while a child thread is taking care of `Fib(5)`. Finally,
 //! `Fib(6)` can be computed with the results of `Fib(5)` and `Fib(4)`.
+//!
+//! To run this example, follow the commands below:
+//!
+//! ```bash
+//! // go into the directory: bindings/rust
+//! cargo run -p wasmedge-sys --example threads -- --nocapture
+//! ```
 
 use std::{
     sync::{Arc, Mutex},
     thread,
 };
-use wasmedge_sys::{Config, Store, Vm, WasmValue};
+use wasmedge_sys::{Config, Vm, WasmValue};
 use wasmedge_types::wat2wasm;
 
 #[cfg_attr(test, test)]
@@ -16,11 +23,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut config = Config::create()?;
     config.bulk_memory_operations(true);
 
-    // create a Store context
-    let mut store = Store::create()?;
-
-    // create a Vm context with the given Config and Store
-    let vm = Vm::create(Some(config), Some(&mut store))?;
+    // create a Vm context with the given Config
+    let mut vm = Vm::create(Some(config))?;
 
     // register a wasm module from a wasm file
     let wasm_bytes = wat2wasm(
@@ -57,14 +61,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
            )
 "#,
     )?;
-    vm.register_wasm_from_bytes("extern", &wasm_bytes)?;
+    vm.register_instance_from_bytes("extern", &wasm_bytes)?;
 
     let vm = Arc::new(Mutex::new(vm));
 
     // compute fib(4) by a child thread
     let vm_cloned = Arc::clone(&vm);
     let handle_a = thread::spawn(move || {
-        let vm_child_thread = vm_cloned.lock().expect("fail to lock vm");
+        let mut vm_child_thread = vm_cloned.lock().expect("fail to lock vm");
         let returns = vm_child_thread
             .run_registered_function("extern", "fib", [WasmValue::from_i32(4)])
             .expect("fail to compute fib(4)");
@@ -78,7 +82,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // compute fib(5) by a child thread
     let vm_cloned = Arc::clone(&vm);
     let handle_b = thread::spawn(move || {
-        let vm_child_thread = vm_cloned.lock().expect("fail to lock vm");
+        let mut vm_child_thread = vm_cloned.lock().expect("fail to lock vm");
         let returns = vm_child_thread
             .run_registered_function("extern", "fib", [WasmValue::from_i32(5)])
             .expect("fail to compute fib(5)");

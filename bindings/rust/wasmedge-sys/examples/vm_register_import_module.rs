@@ -1,3 +1,11 @@
+//!
+//! To run this example, follow the commands below:
+//!
+//! ```bash
+//! // go into the directory: bindings/rust
+//! cargo run -p wasmedge-sys --example vm_register_import_module -- --nocapture
+//! ```
+
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, FuncType, Function, Global, GlobalType, ImportModule, ImportObject,
@@ -59,9 +67,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let global = Global::create(&ty, WasmValue::from_f32(3.5))?;
     import.add_global("global", global);
 
-    let mut vm = Vm::create(None, None)?;
+    let mut vm = Vm::create(None)?;
 
-    vm.register_wasm_from_import(ImportObject::Import(import))?;
+    vm.register_instance_from_import(ImportObject::Import(import))?;
 
     Ok(())
 }

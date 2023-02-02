@@ -140,6 +140,10 @@ jobs:
             output_path: plugins/wasmedge_httpsreq
             output_bin: libwasmedgePluginHttpsReq.so
             tar_name: wasmedge_httpsreq
+          - name: WasmEdge-Process
+            output_path: plugins/wasmedge_process
+            output_bin: libwasmedgePluginWasmEdgeProcess.so
+            tar_name: wasmedge_process
     name: Build and upload WasmEdge ${{ matrix.name }} plugin on Ubuntu 20.04
     needs: create_release
     runs-on: ubuntu-latest
@@ -227,6 +231,20 @@ jobs:
             deps_path: "utils/wasmedge_httpsreq/build-openssl.sh"
             cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             tar_name: wasmedge_httpsreq
+            host_runner: linux-arm64
+          - name: WasmEdge-Process
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasmedge_process
+            output_bin: libwasmedgePluginWasmEdgeProcess.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_PROCESS=ON"
+            tar_name: wasmedge_process
+            host_runner: ubuntu-latest
+          - name: WasmEdge-Process
+            docker_tag: manylinux2014_aarch64
+            output_path: plugins/wasmedge_process
+            output_bin: libwasmedgePluginWasmEdgeProcess.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_PROCESS=ON"
+            tar_name: wasmedge_process
             host_runner: linux-arm64
           - name: WASI-NN PyTorch
             docker_tag: manylinux2014_x86_64

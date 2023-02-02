@@ -5,17 +5,20 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Properties;
 
 /**
- * WasmeEdge class, for initializing WasmVM.
+ * WasmEdge class, for initializing WasmVM.
  */
 public class WasmEdge {
 
     private static boolean loaded;
     private static final String NATIVE_LIBRARY_NAME = "wasmedge_jni";
+    private static final String PROPERTIES_FILE = "wasmedge-java.properties";
+    private static final String JNI_LIB_VERSION = "jnilib.version";
 
     public static synchronized void init() {
-        System.loadLibrary(NATIVE_LIBRARY_NAME);
+        load();
     }
 
     /**
@@ -49,22 +52,36 @@ public class WasmEdge {
         return true;
     }
 
+    private static String getLibVersion() throws IOException {
+        final Properties props;
+        try (InputStream in = WasmEdge.class.getResourceAsStream('/' + PROPERTIES_FILE)) {
+            props = new Properties();
+            props.load(in);
+        }
+        return props.getProperty(JNI_LIB_VERSION);
+    }
+
     private static String libraryPath() throws IOException {
         String ext = "";
         String prefix = "";
         String os = System.getProperty("os.name").toLowerCase();
+        String osType = "";
 
         if (os.contains("linux")) {
             prefix = "lib";
             ext = "so";
+            osType = "linux";
         } else if (os.contains("mac os") || os.contains("darwin")) {
             prefix = "lib";
             ext = "dylib";
+            osType = "mac";
         } else if (os.contains("windows")) {
             ext = "dll";
+            osType = "windows";
         }
 
-        String fileName = prefix + NATIVE_LIBRARY_NAME;
+        String fileName = String.format("%s%s_%s_%s", prefix,
+            NATIVE_LIBRARY_NAME, getLibVersion(), osType);
         Path tempFile = Files.createTempFile(fileName, ext);
         try (InputStream in = WasmEdge.class.getResourceAsStream('/' + fileName + ext)) {
             Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);

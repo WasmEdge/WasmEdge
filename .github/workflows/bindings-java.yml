@@ -66,15 +66,14 @@ jobs:
           export WasmEdge_ROOT=$(pwd)/build
           cd bindings/java/wasmedge-java
           ./gradlew clean 
-          ./gradlew build
+          ./gradlew build platformJar
 
-      - name: Upload JNI lib
+      - name: Upload Jar
         uses: actions/upload-artifact@v3
         with:
-          name: jni-libs
+          name: Releases
           path: |
-            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*
-            bindings/java/wasmedge-java/build/native/wasmedge-version.properties
+            bindings/java/wasmedge-java/build/releases/*.jar
 
   build_macos:
     name: MacOS
@@ -132,12 +131,12 @@ jobs:
           cd bindings/java/wasmedge-java
           ./gradlew test
 
-      - name: Upload JNI lib
+      - name: Upload Jar
         uses: actions/upload-artifact@v3
         with:
-          name: jni-libs
+          name: Releases
           path: |
-            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*
+            bindings/java/wasmedge-java/build/releases/*.jar
 
   build_windows:
     name: Windows
@@ -211,7 +210,7 @@ jobs:
           $cmake_sys_version = "10.0.19041.0"
           $Env:PATH += ";$pwd\\build\\lib\\api"
           ./gradlew clean 
-          ./gradlew assemble
+          ./gradlew assemble platformJar
 
       - name: Run Tests
         if: ${{ false }}
@@ -222,10 +221,11 @@ jobs:
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           cd bindings/java/wasmedge-java
-          ./gradlew test
-      - name: Upload JNI lib
+          ./gradlew test 
+
+      - name: Upload Jar
         uses: actions/upload-artifact@v3
         with:
-          name: jni-libs
+          name: Releases
           path: |
-            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*
+            bindings/java/wasmedge-java/build/releases/*.jar

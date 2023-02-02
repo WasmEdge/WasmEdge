@@ -4,6 +4,9 @@ apply plugin: 'java'
 apply plugin: 'java-library'
 apply plugin: 'checkstyle'
 
+group = 'com.wasmedge'
+version = '0.1'
+
 repositories {
     mavenCentral()
 }
@@ -27,8 +30,19 @@ dependencies {
 sourceSets {
     main {
         resources {
-            srcDirs "src/main/resources", "build/natives/lib"
+            srcDirs "build/properties", "build/native/lib"
         }
+    }
+}
+
+task generateProperties() {
+    def output = new File(project.buildDir, "properties/wasmedge-java.properties")
+    outputs.file(output)
+
+    doLast {
+        def props = new Properties()
+        props.setProperty("jnilib.version", "${project.version}")
+        props.store(output.newOutputStream(), null)
     }
 }
 
@@ -66,9 +80,35 @@ tasks.withType(Test) {
     testLogging.showStandardStreams = false
 }
 
-def libPath = System.getenv("LIB_JNI_PATH")
-task buildJarWithJni(type : Jar) {
-    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+static def osType() {
+    def os = System.getProperty("os.name").toLowerCase()
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        return "windows"
+    }
+    if (Os.isFamily(Os.FAMILY_MAC)) {
+        return "macos"
+    }
+    if (Os.isFamily(Os.FAMILY_UNIX)){
+        return "linux"
+    }
+    throw new RuntimeException("platform not supported: " + System.getProperty("os.name"))
+}
+
+task copyJniLib(type: Copy) {
+    dependsOn 'compileJNI'
+    from "build/native"
+    include '*.so', '*.dylib', '*.dll'
+    rename "^(lib)?wasmedge_jni", "\$1wasmedge_jni_${project.version}_${osType()}"
+    into new File(project.buildDir, "native/lib")
+}
+
+processResources {
+    dependsOn 'generateProperties', 'copyJniLib'
+}
+
+task platformJar(type : Jar) {
+    destinationDirectory.set(file("${project.buildDir}/releases"))
+    dependsOn 'jar'
+    archiveClassifier.set(osType())
     with jar
-    from new File(project.buildDir, 'jni-libs')
 }

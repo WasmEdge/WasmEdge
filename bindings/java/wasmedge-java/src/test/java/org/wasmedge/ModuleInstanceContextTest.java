@@ -103,22 +103,6 @@ public class ModuleInstanceContextTest extends BaseTest {
     }
 
     @Test
-    public void testCreateWasmEdgeProcess() {
-
-        ModuleInstanceContext moduleInstanceContext = ModuleInstanceContext.createWasmEdgeProcess(args, false);
-        Assert.assertNotNull(moduleInstanceContext);
-    }
-
-    @Test
-    public void testInitWasmEdgeProcessInVM() {
-        ConfigureContext config = new ConfigureContext();
-        config.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_WasmEdge_Process);
-        WasmEdgeVm vm = new WasmEdgeVm(config, null);
-        ModuleInstanceContext moduleInstanceContext = vm.getImportModuleContext(HostRegistration.WasmEdge_HostRegistration_WasmEdge_Process);
-        moduleInstanceContext.initWasmEdgeProcess(args, false);
-    }
-
-    @Test
     public void testFindFunction() {
         System.out.println("Start test");
         ModuleInstanceContext moduleInstanceContext = initModuleInstance();

@@ -15,9 +15,6 @@ public class ModuleInstanceContext extends NativeResource {
         super(pointer);
     }
 
-    public static native ModuleInstanceContext createWasmEdgeProcess(String[] allowedCmds,
-                                                                     boolean allowAll);
-
     public static native ModuleInstanceContext createWasi(String[] args, String[] envs,
                                                           String[] preopens);
 

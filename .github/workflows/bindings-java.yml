@@ -53,28 +53,38 @@ jobs:
 
       - name: Build & Install WasmEdge
         run: |
-          apt-get update
-          apt-get install -y make
-          mkdir -p build
-          cd build
-          cmake -DWASMEDGE_BUILD_TESTS=ON ..
-          make -j
-          make install
+          apt update
+          apt install -y software-properties-common libboost-all-dev llvm-12-dev liblld-12-dev ninja-build
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On .
+          cmake --build build
 
       - name: Build WasmEdge Java
         run: |
           export WasmEdge_ROOT=$(pwd)/build
           cd bindings/java/wasmedge-java
           ./gradlew clean 
-          ./gradlew build
+          ./gradlew build platformJar --scan 
 
-      - name: Upload JNI lib
+      - name: Upload Jar
         uses: actions/upload-artifact@v3
         with:
-          name: jni-libs
+          name: Releases
           path: |
-            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*
-            bindings/java/wasmedge-java/build/native/wasmedge-version.properties
+            bindings/java/wasmedge-java/build/releases/*.jar
+
+      - name: Upload JVM crash log
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Logs
+          path: |
+            bindings/java/wasmedge-java/*.log
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: |
+            bindings/java/wasmedge-java/build/test-results/**/*.xml
 
   build_macos:
     name: MacOS
@@ -123,21 +133,35 @@ jobs:
           export WasmEdge_ROOT=$(pwd)/build
           cd bindings/java/wasmedge-java
           ./gradlew clean 
-          ./gradlew assemble
+          ./gradlew build platformJar --scan
 
       - name: Run Tests
-        if: ${{ false }}
         run: |
           export LIB_JNI_PATH=$(pwd)/bindings/java/wasmedge-jni/build
           cd bindings/java/wasmedge-java
-          ./gradlew test
+          ./gradlew --stacktrace -i test
 
-      - name: Upload JNI lib
+      - name: Upload Jar
         uses: actions/upload-artifact@v3
         with:
-          name: jni-libs
+          name: Releases
           path: |
-            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*
+            bindings/java/wasmedge-java/build/releases/*.jar
+
+      - name: Upload JVM crash log
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Logs
+          path: |
+            bindings/java/wasmedge-java/*.log
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        if: always()
+        with:
+          files: |
+            bindings/java/wasmedge-java/build/test-results/**/*.xml
 
   build_windows:
     name: Windows
@@ -211,21 +235,29 @@ jobs:
           $cmake_sys_version = "10.0.19041.0"
           $Env:PATH += ";$pwd\\build\\lib\\api"
           ./gradlew clean 
-          ./gradlew assemble
+          ./gradlew build platformJar
 
       - name: Run Tests
         if: ${{ false }}
         run: |
           $env:Path="$env:Path;$pwd\\build\\lib\\api"
-          $Env:LIB_JNI_PATH="$pwd\\bindings\\java\\wasmedge-jni\\build"
+          $env:LIB_JNI_PATH="$pwd\\bindings\\java\\wasmedge-jni\\build"
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           cd bindings/java/wasmedge-java
-          ./gradlew test
-      - name: Upload JNI lib
+          ./gradlew test 
+
+      - name: Upload Jar
         uses: actions/upload-artifact@v3
         with:
-          name: jni-libs
+          name: Releases
           path: |
-            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*
+            bindings/java/wasmedge-java/build/releases/*.jar
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        if: always()
+        with:
+          files: |
+            bindings/java/wasmedge-java/build/test-results/**/*.xml

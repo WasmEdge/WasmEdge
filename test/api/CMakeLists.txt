@@ -36,6 +36,13 @@ target_link_libraries(wasmedgeAPIUnitTests
   wasmedge_shared
 )
 
+if(WASMEDGE_PLUGIN_PROCESS)
+  target_compile_options(wasmedgeAPIUnitTests
+    PUBLIC
+    -DWASMEDGE_PLUGIN_PROCESS
+  )
+endif()
+
 target_include_directories(wasmedgeAPIUnitTests
   PRIVATE
   ${CMAKE_SOURCE_DIR}/include

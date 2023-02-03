@@ -90,7 +90,7 @@ extern "C" fn wraper_fn(
 ///
 #[derive(Debug)]
 pub struct Function {
-    pub(crate) inner: InnerFunc,
+    pub(crate) inner: Arc<InnerFunc>,
     pub(crate) registered: bool,
 }
 impl Function {
@@ -182,7 +182,7 @@ impl Function {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Func(FuncError::Create))),
             false => Ok(Self {
-                inner: InnerFunc(ctx),
+                inner: Arc::new(InnerFunc(ctx)),
                 registered: false,
             }),
         }
@@ -401,8 +401,16 @@ impl Function {
 }
 impl Drop for Function {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_FunctionInstanceDelete(self.inner.0) };
+        }
+    }
+}
+impl Clone for Function {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            registered: false,
         }
     }
 }

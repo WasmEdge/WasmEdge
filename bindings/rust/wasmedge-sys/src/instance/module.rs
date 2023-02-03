@@ -69,7 +69,7 @@ impl Instance {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -94,7 +94,7 @@ impl Instance {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -119,7 +119,7 @@ impl Instance {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -144,7 +144,7 @@ impl Instance {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -469,7 +469,7 @@ impl AsImport for ImportModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -477,7 +477,7 @@ impl AsImport for ImportModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -485,7 +485,7 @@ impl AsImport for ImportModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -497,7 +497,7 @@ impl AsImport for ImportModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -708,7 +708,7 @@ impl AsInstance for WasiModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -724,7 +724,7 @@ impl AsInstance for WasiModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -740,7 +740,7 @@ impl AsInstance for WasiModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -756,7 +756,7 @@ impl AsInstance for WasiModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -892,7 +892,7 @@ impl AsImport for WasiModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -900,7 +900,7 @@ impl AsImport for WasiModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -908,7 +908,7 @@ impl AsImport for WasiModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -920,7 +920,7 @@ impl AsImport for WasiModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -1051,7 +1051,7 @@ impl AsInstance for WasmEdgeProcessModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -1067,7 +1067,7 @@ impl AsInstance for WasmEdgeProcessModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -1083,7 +1083,7 @@ impl AsInstance for WasmEdgeProcessModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -1099,7 +1099,7 @@ impl AsInstance for WasmEdgeProcessModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -1236,7 +1236,7 @@ impl AsImport for WasmEdgeProcessModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -1244,7 +1244,7 @@ impl AsImport for WasmEdgeProcessModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -1252,7 +1252,7 @@ impl AsImport for WasmEdgeProcessModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -1264,7 +1264,7 @@ impl AsImport for WasmEdgeProcessModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -1315,7 +1315,7 @@ impl AsInstance for WasiNnModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -1331,7 +1331,7 @@ impl AsInstance for WasiNnModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -1347,7 +1347,7 @@ impl AsInstance for WasiNnModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -1363,7 +1363,7 @@ impl AsInstance for WasiNnModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -1500,7 +1500,7 @@ impl AsImport for WasiNnModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -1508,7 +1508,7 @@ impl AsImport for WasiNnModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -1516,7 +1516,7 @@ impl AsImport for WasiNnModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -1528,7 +1528,7 @@ impl AsImport for WasiNnModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -1579,7 +1579,7 @@ impl AsInstance for WasiCryptoCommonModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -1595,7 +1595,7 @@ impl AsInstance for WasiCryptoCommonModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -1611,7 +1611,7 @@ impl AsInstance for WasiCryptoCommonModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -1627,7 +1627,7 @@ impl AsInstance for WasiCryptoCommonModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -1764,7 +1764,7 @@ impl AsImport for WasiCryptoCommonModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -1772,7 +1772,7 @@ impl AsImport for WasiCryptoCommonModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -1780,7 +1780,7 @@ impl AsImport for WasiCryptoCommonModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -1792,7 +1792,7 @@ impl AsImport for WasiCryptoCommonModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -1843,7 +1843,7 @@ impl AsInstance for WasiCryptoAsymmetricCommonModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -1859,7 +1859,7 @@ impl AsInstance for WasiCryptoAsymmetricCommonModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -1875,7 +1875,7 @@ impl AsInstance for WasiCryptoAsymmetricCommonModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -1891,7 +1891,7 @@ impl AsInstance for WasiCryptoAsymmetricCommonModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -2028,7 +2028,7 @@ impl AsImport for WasiCryptoAsymmetricCommonModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -2036,7 +2036,7 @@ impl AsImport for WasiCryptoAsymmetricCommonModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -2044,7 +2044,7 @@ impl AsImport for WasiCryptoAsymmetricCommonModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -2056,7 +2056,7 @@ impl AsImport for WasiCryptoAsymmetricCommonModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -2107,7 +2107,7 @@ impl AsInstance for WasiCryptoSymmetricModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -2123,7 +2123,7 @@ impl AsInstance for WasiCryptoSymmetricModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -2139,7 +2139,7 @@ impl AsInstance for WasiCryptoSymmetricModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -2155,7 +2155,7 @@ impl AsInstance for WasiCryptoSymmetricModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -2292,7 +2292,7 @@ impl AsImport for WasiCryptoSymmetricModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -2300,7 +2300,7 @@ impl AsImport for WasiCryptoSymmetricModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -2308,7 +2308,7 @@ impl AsImport for WasiCryptoSymmetricModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -2320,7 +2320,7 @@ impl AsImport for WasiCryptoSymmetricModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -2371,7 +2371,7 @@ impl AsInstance for WasiCryptoKxModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -2387,7 +2387,7 @@ impl AsInstance for WasiCryptoKxModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -2403,7 +2403,7 @@ impl AsInstance for WasiCryptoKxModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -2419,7 +2419,7 @@ impl AsInstance for WasiCryptoKxModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -2556,7 +2556,7 @@ impl AsImport for WasiCryptoKxModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -2564,7 +2564,7 @@ impl AsImport for WasiCryptoKxModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -2572,7 +2572,7 @@ impl AsImport for WasiCryptoKxModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -2584,7 +2584,7 @@ impl AsImport for WasiCryptoKxModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 
@@ -2635,7 +2635,7 @@ impl AsInstance for WasiCryptoSignaturesModule {
                 InstanceError::NotFoundFunc(name.as_ref().to_string()),
             ))),
             false => Ok(Function {
-                inner: InnerFunc(func_ctx),
+                inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
             }),
         }
@@ -2651,7 +2651,7 @@ impl AsInstance for WasiCryptoSignaturesModule {
                 InstanceError::NotFoundTable(name.as_ref().to_string()),
             ))),
             false => Ok(Table {
-                inner: InnerTable(ctx),
+                inner: Arc::new(InnerTable(ctx)),
                 registered: true,
             }),
         }
@@ -2667,7 +2667,7 @@ impl AsInstance for WasiCryptoSignaturesModule {
                 InstanceError::NotFoundMem(name.as_ref().to_string()),
             ))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
         }
@@ -2683,7 +2683,7 @@ impl AsInstance for WasiCryptoSignaturesModule {
                 InstanceError::NotFoundGlobal(name.as_ref().to_string()),
             ))),
             false => Ok(Global {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: true,
             }),
         }
@@ -2820,7 +2820,7 @@ impl AsImport for WasiCryptoSignaturesModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.inner.0 = std::ptr::null_mut();
+        func.registered = true;
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -2828,7 +2828,7 @@ impl AsImport for WasiCryptoSignaturesModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
-        table.inner.0 = std::ptr::null_mut();
+        table.registered = true;
     }
 
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
@@ -2836,7 +2836,7 @@ impl AsImport for WasiCryptoSignaturesModule {
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
-        memory.inner.0 = std::ptr::null_mut();
+        memory.registered = true;
     }
 
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
@@ -2848,7 +2848,7 @@ impl AsImport for WasiCryptoSignaturesModule {
                 global.inner.0,
             );
         }
-        global.inner.0 = std::ptr::null_mut();
+        global.registered = true;
     }
 }
 

@@ -7,12 +7,13 @@ use crate::{
     error::{GlobalError, WasmEdgeError},
     ffi, WasmEdgeResult, WasmValue,
 };
+use std::sync::Arc;
 use wasmedge_types::{Mutability, ValType};
 
 /// Defines a WebAssembly global variable, which stores a single value of the given [type](crate::GlobalType) and a flag indicating whether it is mutable or not.
 #[derive(Debug)]
 pub struct Global {
-    pub(crate) inner: InnerGlobal,
+    pub(crate) inner: Arc<InnerGlobal>,
     pub(crate) registered: bool,
 }
 impl Global {
@@ -30,7 +31,7 @@ impl Global {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Global(GlobalError::Create))),
             false => Ok(Self {
-                inner: InnerGlobal(ctx),
+                inner: Arc::new(InnerGlobal(ctx)),
                 registered: false,
             }),
         }
@@ -103,8 +104,16 @@ impl Global {
 }
 impl Drop for Global {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_GlobalInstanceDelete(self.inner.0) };
+        }
+    }
+}
+impl Clone for Global {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            registered: false,
         }
     }
 }
@@ -368,5 +377,55 @@ mod tests {
         });
 
         handle.join().unwrap()
+    }
+
+    #[test]
+    fn test_global_clone() {
+        {
+            // create a GlobalType instance
+            let result = GlobalType::create(ValType::I32, Mutability::Const);
+            assert!(result.is_ok());
+            let global_ty = result.unwrap();
+
+            // create a Global instance
+            let result = Global::create(&global_ty, WasmValue::from_i32(5));
+            assert!(result.is_ok());
+            let global = result.unwrap();
+
+            let global_cloned = global.clone();
+
+            drop(global);
+
+            assert_eq!(global_cloned.get_value().to_i32(), 5);
+        }
+
+        {
+            // create a GlobalType instance
+            let result = GlobalType::create(ValType::F32, Mutability::Var);
+            assert!(result.is_ok());
+            let ty = result.unwrap();
+            assert!(!ty.inner.0.is_null());
+
+            // create a Var Global instance
+            let result = Global::create(&ty, WasmValue::from_f32(13.14));
+            assert!(result.is_ok());
+            let mut global_var = result.unwrap();
+            assert_eq!(global_var.get_value().to_f32(), 13.14);
+
+            let global_var_cloned = global_var.clone();
+            assert_eq!(
+                global_var_cloned.get_value().to_f32(),
+                global_var.get_value().to_f32()
+            );
+
+            // access the value held by global_var
+            let result = global_var.set_value(WasmValue::from_f32(1.314));
+            assert!(result.is_ok());
+            assert_eq!(global_var.get_value().to_f32(), 1.314);
+
+            drop(global_var);
+
+            assert_eq!(global_var_cloned.get_value().to_f32(), 1.314);
+        }
     }
 }

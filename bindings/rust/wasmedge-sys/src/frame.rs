@@ -77,7 +77,7 @@ impl CallingFrame {
 
         match ctx.is_null() {
             false => Some(Memory {
-                inner: InnerMemory(ctx),
+                inner: std::sync::Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
             true => None,

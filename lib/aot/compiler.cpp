@@ -50,10 +50,11 @@
 #if LLVM_VERSION_MAJOR >= 12
 #include <llvm/Analysis/AliasAnalysis.h>
 #endif
+
 #if LLVM_VERSION_MAJOR >= 10
 #include <llvm/IR/IntrinsicsAArch64.h>
-#include <llvm/IR/IntrinsicsX86.h>
 #include <llvm/IR/IntrinsicsRISCV.h>
+#include <llvm/IR/IntrinsicsX86.h>
 #include <llvm/Support/Alignment.h>
 #endif
 

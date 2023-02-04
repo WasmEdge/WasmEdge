@@ -38,7 +38,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_CompilerContext_compile(
 }
 
 JNIEXPORT void JNICALL
-Java_org_wasmedge_CompilerContext_delete(JNIEnv *env, jobject thisObject) {
+Java_org_wasmedge_CompilerContext_close(JNIEnv *env, jobject thisObject) {
   WasmEdge_CompilerContext *compilerContext =
       getCompilerContext(env, thisObject);
   WasmEdge_CompilerDelete(compilerContext);

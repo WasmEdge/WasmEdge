@@ -26,7 +26,7 @@ createJGlobalTypeContext(JNIEnv *env,
   return (*env)->NewObject(env, clazz, constructorId, (long)globalTypeContext);
 }
 JNIEXPORT void JNICALL
-Java_org_wasmedge_GlobalTypeContext_delete(JNIEnv *env, jobject thisObject) {
+Java_org_wasmedge_GlobalTypeContext_close(JNIEnv *env, jobject thisObject) {
   WasmEdge_GlobalTypeContext *wasmEdgeGlobalTypeContext =
       getGlobalTypeContext(env, thisObject);
   setPointer(env, thisObject, 0);

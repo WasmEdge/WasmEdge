@@ -5,15 +5,14 @@ import java.util.List;
 /**
  * Module instance.
  */
-public class ModuleInstanceContext {
-    private long pointer;
+public class ModuleInstanceContext extends NativeResource {
 
     public ModuleInstanceContext(String moduleName) {
         nativeInit(moduleName);
     }
 
     private ModuleInstanceContext(long pointer) {
-        this.pointer = pointer;
+        super(pointer);
     }
 
     public static native ModuleInstanceContext createWasmEdgeProcess(String[] allowedCmds,
@@ -71,5 +70,5 @@ public class ModuleInstanceContext {
 
     public native GlobalInstanceContext findGlobalRegistered(String moduleName, String globalName);
 
-    public native void delete();
+    public native void close();
 }

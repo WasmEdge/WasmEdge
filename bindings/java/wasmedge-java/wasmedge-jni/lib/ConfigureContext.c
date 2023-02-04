@@ -16,7 +16,7 @@ Java_org_wasmedge_ConfigureContext_nativeInit(JNIEnv *env, jobject thisObj) {
 }
 
 JNIEXPORT void JNICALL
-Java_org_wasmedge_ConfigureContext_delete(JNIEnv *env, jobject thisObj) {
+Java_org_wasmedge_ConfigureContext_close(JNIEnv *env, jobject thisObj) {
   WasmEdge_ConfigureDelete(getConfigureContext(env, thisObj));
 }
 

@@ -21,7 +21,7 @@ use std::sync::Arc;
 /// * [Store](crate::Store)
 ///     * [Store::module](crate::Store::module) ([example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/vm_get_active_module.rs))
 ///
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Instance {
     pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
@@ -267,6 +267,14 @@ impl Instance {
                 Some(names)
             }
             false => None,
+        }
+    }
+}
+impl Clone for Instance {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            registered: false,
         }
     }
 }

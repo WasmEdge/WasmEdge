@@ -1,6 +1,8 @@
 //! Defines WasmEdge Executor.
 
 use super::ffi;
+#[cfg(feature = "async")]
+use crate::r#async::FiberFuture;
 #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 use crate::WasiCrypto;
 use crate::{
@@ -219,16 +221,8 @@ impl Executor {
             registered: false,
         })
     }
-}
-impl Drop for Executor {
-    fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
-            unsafe { ffi::WasmEdge_ExecutorDelete(self.inner.0) }
-        }
-    }
-}
-impl Engine for Executor {
-    fn run_func(
+
+    pub fn call_func(
         &self,
         func: &Function,
         params: impl IntoIterator<Item = WasmValue>,
@@ -255,7 +249,18 @@ impl Engine for Executor {
         Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 
-    fn run_func_ref(
+    #[cfg(feature = "async")]
+    pub async fn call_func_async(
+        &self,
+        func: &Function,
+        params: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        FiberFuture::on_fiber(|| self.call_func(func, params))
+            .await
+            .unwrap()
+    }
+
+    pub fn call_func_ref(
         &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
@@ -280,6 +285,41 @@ impl Engine for Executor {
         }
 
         Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
+    }
+
+    #[cfg(feature = "async")]
+    pub async fn call_func_ref_async(
+        &self,
+        func_ref: &FuncRef,
+        params: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        FiberFuture::on_fiber(|| self.call_func_ref(func_ref, params))
+            .await
+            .unwrap()
+    }
+}
+impl Drop for Executor {
+    fn drop(&mut self) {
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe { ffi::WasmEdge_ExecutorDelete(self.inner.0) }
+        }
+    }
+}
+impl Engine for Executor {
+    fn run_func(
+        &self,
+        func: &Function,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        self.call_func(func, params)
+    }
+
+    fn run_func_ref(
+        &self,
+        func_ref: &FuncRef,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        self.call_func_ref(func_ref, params)
     }
 }
 

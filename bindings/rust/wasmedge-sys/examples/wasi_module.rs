@@ -94,9 +94,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // create a Vm context with the given Config and Store
         let mut vm = Vm::create(Some(config))?;
 
-        // get the Wasi module
-        let wasi_instance = vm.wasi_module_mut()?;
-        assert_eq!(wasi_instance.name(), "wasi_snapshot_preview1");
+        {
+            // get the Wasi module
+            let wasi_instance = vm.wasi_module()?;
+            assert_eq!(wasi_instance.name(), "wasi_snapshot_preview1");
+        }
 
         // *** try to add another Wasi module, that causes error.
 
@@ -107,7 +109,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule))
+            Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                "wasi_snapshot_preview1".into()
+            )))
         );
     }
 

@@ -358,7 +358,9 @@ impl Vm {
         match import {
             ImportObject::Import(import_mod) => {
                 if self.imports.contains_key(&io_name) {
-                    return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule)));
+                    return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                        io_name,
+                    ))));
                 } else {
                     self.imports
                         .insert(io_name.clone(), ImportObject::Import(import_mod));
@@ -373,7 +375,9 @@ impl Vm {
                         .host_registered_modules
                         .contains_key(&HostRegistration::Wasi)
                     {
-                        return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule)));
+                        return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                            io_name,
+                        ))));
                     } else {
                         self.host_registered_modules
                             .insert(HostRegistration::Wasi, ImportObject::Wasi(import_mod));
@@ -387,7 +391,9 @@ impl Vm {
                     )
                 } else {
                     if self.imports.contains_key(&io_name) {
-                        return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule)));
+                        return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                            io_name,
+                        ))));
                     } else {
                         self.imports
                             .insert(io_name.clone(), ImportObject::Wasi(import_mod));
@@ -739,9 +745,6 @@ impl Vm {
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        // validate module
-        self.validator.validate(&module)?;
-
         // register active instance
         self.register_active_instance_from_module(&module)?;
 
@@ -1212,7 +1215,9 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule))
+                Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                    "wasi_snapshot_preview1".into()
+                )))
             );
 
             // get store from vm

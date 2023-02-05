@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert!(config.bulk_memory_operations_enabled());
 
         // create Vm instance
-        let vm = Vm::new(Some(config))?.register_module_from_file("extern", wasm_file)?;
+        let vm = Vm::new(Some(config), None)?.register_module_from_file("extern", wasm_file)?;
 
         // async run function
         let fut1 = vm.run_func_async(Some("extern"), "fib", params!(20));

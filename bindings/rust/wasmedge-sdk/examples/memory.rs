@@ -55,30 +55,26 @@ fn main() -> anyhow::Result<()> {
     assert_eq!(memory.data_size(), 3 * 65536);
 
     // get the exported functions: "set_at" and "get_at"
-    let set_at = extern_instance
-        .func("set_at")
-        .ok_or_else(|| anyhow::Error::msg("Not found exported function named 'set_at'."))?;
-    let get_at = extern_instance
-        .func("get_at")
-        .ok_or_else(|| anyhow::Error::msg("Not found exported function named 'get_at`."))?;
+    let set_at = extern_instance.func("set_at")?;
+    let get_at = extern_instance.func("get_at")?;
 
     // call the exported function named "set_at"
     let mem_addr = 0x2220;
     let val = 0xFEFEFFE;
-    set_at.call(&executor, params!(mem_addr, val))?;
+    set_at.run(&executor, params!(mem_addr, val))?;
 
     // call the exported function named "get_at"
-    let returns = get_at.call(&executor, params!(mem_addr))?;
+    let returns = get_at.run(&executor, params!(mem_addr))?;
     assert_eq!(returns[0].to_i32(), val);
 
     // call the exported function named "set_at"
     let page_size = 0x1_0000;
     let mem_addr = (page_size * 2) - std::mem::size_of_val(&val) as i32;
     let val = 0xFEA09;
-    set_at.call(&executor, params!(mem_addr, val))?;
+    set_at.run(&executor, params!(mem_addr, val))?;
 
     // call the exported function named "get_at"
-    let returns = get_at.call(&executor, params!(mem_addr))?;
+    let returns = get_at.run(&executor, params!(mem_addr))?;
     assert_eq!(returns[0].to_i32(), val);
 
     Ok(())

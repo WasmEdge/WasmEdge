@@ -557,28 +557,26 @@ impl ImportObjectBuilder {
 pub struct ImportObject(pub(crate) sys::ImportObject);
 impl ImportObject {
     /// Returns the name of the import object.
-    pub fn name(&self) -> String {
+    pub fn name(&self) -> &str {
         match &self.0 {
-            sys::ImportObject::Import(import) => import.name().into(),
-            sys::ImportObject::Wasi(wasi) => wasi.name().into(),
+            sys::ImportObject::Import(import) => import.name(),
+            sys::ImportObject::Wasi(wasi) => wasi.name(),
             #[cfg(target_os = "linux")]
-            sys::ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name().into(),
+            sys::ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name(),
             #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
-            sys::ImportObject::Nn(module) => module.name().into(),
+            sys::ImportObject::Nn(module) => module.name(),
             #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            sys::ImportObject::Crypto(sys::WasiCrypto::Common(module)) => module.name().into(),
+            sys::ImportObject::Crypto(sys::WasiCrypto::Common(module)) => module.name(),
             #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            sys::ImportObject::Crypto(sys::WasiCrypto::AsymmetricCommon(module)) => {
-                module.name().into()
-            }
+            sys::ImportObject::Crypto(sys::WasiCrypto::AsymmetricCommon(module)) => module.name(),
             #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             sys::ImportObject::Crypto(sys::WasiCrypto::SymmetricOptionations(module)) => {
-                module.name().into()
+                module.name()
             }
             #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            sys::ImportObject::Crypto(sys::WasiCrypto::KeyExchange(module)) => module.name().into(),
+            sys::ImportObject::Crypto(sys::WasiCrypto::KeyExchange(module)) => module.name(),
             #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            sys::ImportObject::Crypto(sys::WasiCrypto::Signatures(module)) => module.name().into(),
+            sys::ImportObject::Crypto(sys::WasiCrypto::Signatures(module)) => module.name(),
         }
     }
 
@@ -736,9 +734,8 @@ mod tests {
 
         // check registered modules
         assert_eq!(store.named_instance_count(), 1);
-        let result = store.instance_names();
-        assert!(result.is_some());
-        assert_eq!(result.unwrap(), ["wasi_snapshot_preview1"]);
+        let names = store.instance_names();
+        assert_eq!(names, ["wasi_snapshot_preview1"]);
 
         // * try to add another Wasi module, that causes error
 
@@ -815,13 +812,13 @@ mod tests {
         assert!(result.is_ok());
 
         // get the instance of the ImportObject module
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the exported host function
         let result = instance.func("add");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let host_func = result.unwrap();
 
         // check the signature of the host function
@@ -833,7 +830,7 @@ mod tests {
         assert!(func_ty.returns().is_some());
         assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
 
-        let returns = host_func.call(&mut executor, params![1, 2]).unwrap();
+        let returns = host_func.run(&mut executor, params![1, 2]).unwrap();
         assert_eq!(returns[0].to_i32(), 3);
     }
 
@@ -874,14 +871,14 @@ mod tests {
         assert!(result.is_ok());
         let mut store = result.unwrap();
 
-        let result = store.module_instance("extern");
-        assert!(result.is_none());
+        let result = store.named_instance("extern");
+        assert!(result.is_err());
 
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the exported memory
@@ -962,8 +959,8 @@ mod tests {
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the Const global from the store of vm
@@ -996,8 +993,8 @@ mod tests {
         );
 
         // get the Var global from the store of vm
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the Var global from the store of vm
@@ -1073,13 +1070,13 @@ mod tests {
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the exported host function
         let result = instance.func("add");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let host_func = result.unwrap();
 
         // get the exported table
@@ -1127,8 +1124,8 @@ mod tests {
             assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
         }
 
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         let result = instance.table("table");
@@ -1214,8 +1211,8 @@ mod tests {
             assert!(result.is_ok());
 
             // get active module instance
-            let result = store.module_instance("extern-module-send");
-            assert!(result.is_some());
+            let result = store.named_instance("extern-module-send");
+            assert!(result.is_ok());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
             assert_eq!(instance.name().unwrap(), "extern-module-send");
@@ -1263,7 +1260,7 @@ mod tests {
 
             // get the exported host function
             let result = instance.func("add");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let host_func = result.unwrap();
             // check the signature of the host function
             let result = host_func.ty();
@@ -1346,8 +1343,8 @@ mod tests {
             assert!(result.is_ok());
 
             // get active module instance
-            let result = store.module_instance("extern-module-sync");
-            assert!(result.is_some());
+            let result = store.named_instance("extern-module-sync");
+            assert!(result.is_ok());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
             assert_eq!(instance.name().unwrap(), "extern-module-sync");
@@ -1395,7 +1392,7 @@ mod tests {
 
             // get the exported host function
             let result = instance.func("add");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let host_func = result.unwrap();
             // check the signature of the host function
             let result = host_func.ty();
@@ -1407,7 +1404,7 @@ mod tests {
             assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
 
             // run host func
-            let result = host_func.call(&mut executor, params!(2, 3));
+            let result = host_func.run(&mut executor, params!(2, 3));
             assert!(result.is_ok());
             let returns = result.unwrap();
             assert_eq!(returns[0].to_i32(), 5);

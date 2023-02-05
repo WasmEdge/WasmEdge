@@ -61,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // get the imported module instance
     let instance = store
-        .module_instance("extern")
+        .named_instance("extern")
         .expect("Not found module instance named 'extern'");
 
     // get the exported table instance
@@ -92,7 +92,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(return_tys, [ValType::I32]);
 
         // call the function by func_ref
-        let returns = func_ref.call(&executor, params!(1, 2))?;
+        let returns = func_ref.run(&executor, params!(1, 2))?;
         assert_eq!(returns.len(), 1);
         assert_eq!(returns[0].to_i32(), 3);
     }

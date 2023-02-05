@@ -1,7 +1,7 @@
 //! Defines Executor struct.
 
-use crate::{config::Config, Engine, Func, FuncRef, Statistics, WasmEdgeResult, WasmValue};
-use wasmedge_sys::{self as sys, Engine as SysEngine};
+use crate::{config::Config, Func, FuncRef, Statistics, WasmEdgeResult, WasmValue};
+use wasmedge_sys as sys;
 
 /// Defines an execution environment for both pure WASM and compiled WASM.
 #[derive(Debug)]
@@ -38,24 +38,39 @@ impl Executor {
             inner: inner_executor,
         })
     }
-}
-impl Engine for Executor {
-    fn run_func(
+
+    pub fn run_func(
         &self,
         func: &Func,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        let returns = self.inner.run_func(&func.inner, params)?;
-        Ok(returns)
+        self.inner.call_func(&func.inner, params)
     }
 
-    fn run_func_ref(
+    pub async fn run_func_async(
+        &self,
+        func: &Func,
+        params: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        self.inner.call_func_async(&func.inner, params).await
+    }
+
+    pub fn run_func_ref(
         &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        let returns = self.inner.run_func_ref(&func_ref.inner, params)?;
-        Ok(returns)
+        self.inner.call_func_ref(&func_ref.inner, params)
+    }
+
+    pub async fn run_func_ref_async(
+        &self,
+        func_ref: &FuncRef,
+        params: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        self.inner
+            .call_func_ref_async(&func_ref.inner, params)
+            .await
     }
 }
 
@@ -182,7 +197,7 @@ mod tests {
 
         // get the exported function "fib"
         let result = extern_instance.func("fib");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let fib = result.unwrap();
 
         // run the exported host function

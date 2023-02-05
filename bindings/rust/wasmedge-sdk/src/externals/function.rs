@@ -1,7 +1,7 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
 use crate::{
-    error::HostFuncError, io::WasmValTypeList, CallingFrame, Engine, FuncType, ValType,
-    WasmEdgeResult, WasmValue,
+    error::HostFuncError, executor, io::WasmValTypeList, CallingFrame, Engine, Executor, FuncType,
+    ValType, WasmEdgeResult, WasmValue,
 };
 use wasmedge_sys as sys;
 
@@ -211,12 +211,20 @@ impl Func {
     ///
     /// If fail to run the host function, then an error is returned.
     ///
-    pub fn call<E: Engine>(
+    pub fn run(
         &self,
-        engine: &E,
+        executor: &Executor,
         args: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        engine.run_func(self, args)
+        executor.run_func(self, args)
+    }
+
+    pub async fn run_async(
+        &self,
+        executor: &Executor,
+        args: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        executor.run_func_async(self, args).await
     }
 }
 
@@ -314,12 +322,20 @@ impl FuncRef {
     ///
     /// If fail to run the host function, then an error is returned.
     ///
-    pub fn call<E: Engine>(
+    pub fn run(
         &self,
-        engine: &E,
+        executor: &Executor,
         args: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        engine.run_func_ref(self, args)
+        executor.run_func_ref(self, args)
+    }
+
+    pub async fn run_async(
+        &self,
+        executor: &Executor,
+        args: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        executor.run_func_ref_async(self, args).await
     }
 }
 
@@ -417,13 +433,13 @@ mod tests {
         assert!(result.is_ok());
 
         // get the instance of the ImportObject module
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the exported host function
         let result = instance.func("add");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let host_func = result.unwrap();
 
         // check the signature of the host function
@@ -436,7 +452,7 @@ mod tests {
         assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
 
         // run the host function
-        let result = host_func.call(&mut executor, params!(2, 3));
+        let result = host_func.run(&mut executor, params!(2, 3));
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns.len(), 1);
@@ -454,7 +470,7 @@ mod tests {
         let mut executor = Executor::new(None, None).unwrap();
 
         // call the host function
-        let result = func.call(&mut executor, params!(2, 3));
+        let result = func.run(&mut executor, params!(2, 3));
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 5);

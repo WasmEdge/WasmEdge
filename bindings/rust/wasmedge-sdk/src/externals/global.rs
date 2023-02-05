@@ -149,8 +149,8 @@ mod tests {
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the Const global from the store of vm
@@ -183,8 +183,8 @@ mod tests {
         );
 
         // get the Var global from the store of vm
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the Var global from the store of vm

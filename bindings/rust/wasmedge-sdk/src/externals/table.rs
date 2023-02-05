@@ -184,13 +184,13 @@ mod tests {
         assert!(result.is_ok());
 
         // get the module instance by name
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the exported host function
         let result = instance.func("add");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let host_func = result.unwrap();
 
         // get the exported table by name
@@ -240,8 +240,8 @@ mod tests {
             assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
         }
 
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         let result = instance.table("table");

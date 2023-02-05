@@ -27,7 +27,7 @@ unsafe impl Send for Wrapper {}
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let vm = Vm::new(None)?;
+    let vm = Vm::new(None, None)?;
 
     let host_layer1 =
         |_frame: CallingFrame, _args: Vec<WasmValue>| -> Result<Vec<WasmValue>, HostFuncError> {

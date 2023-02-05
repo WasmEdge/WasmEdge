@@ -224,14 +224,14 @@ mod tests {
         assert!(result.is_ok());
         let mut store = result.unwrap();
 
-        let result = store.module_instance("extern");
-        assert!(result.is_none());
+        let result = store.named_instance("extern");
+        assert!(result.is_err());
 
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the exported memory

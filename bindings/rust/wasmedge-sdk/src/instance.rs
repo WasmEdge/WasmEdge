@@ -8,7 +8,7 @@ use wasmedge_sys::{AsImport, AsInstance as sys_as_instance_trait};
 /// Represents an instantiated module.
 ///
 /// An [Instance] represents an instantiated module. In the instantiation process, A [module instance](crate::Instance) is created based on a [compiled module](crate::Module). From a [module instance] the exported [host function](crate::Func), [table](crate::Table), [memory](crate::Memory), and [global](crate::Global) instances can be fetched.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Instance {
     pub(crate) inner: sys::Instance,
 }
@@ -35,17 +35,14 @@ impl Instance {
     /// # Argument
     ///
     /// * `name` - the name of the target exported [function instance](crate::Func).
-    pub fn func(&self, name: impl AsRef<str>) -> Option<Func> {
-        let inner_func = self.inner.get_func(name.as_ref()).ok();
-        if let Some(inner_func) = inner_func {
-            return Some(Func {
-                inner: inner_func,
-                name: Some(name.as_ref().into()),
-                mod_name: self.inner.name(),
-            });
-        }
+    pub fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
+        let inner_func = self.inner.get_func(name.as_ref())?;
 
-        None
+        Ok(Func {
+            inner: inner_func,
+            name: Some(name.as_ref().into()),
+            mod_name: self.inner.name(),
+        })
     }
 
     /// Returns the count of the exported [global instances](crate::Global) in this [module instance](crate::Instance).

@@ -74,12 +74,10 @@ fn main() -> anyhow::Result<()> {
     let extern_instance = store.register_named_module(&mut executor, "extern", &module)?;
 
     // get the exported function "run"
-    let run = extern_instance
-        .func("run")
-        .ok_or_else(|| anyhow::Error::msg("Not found exported function named 'run'."))?;
+    let run = extern_instance.func("run")?;
 
     // run host function
-    run.call(&executor, params!())?;
+    run.run(&executor, params!())?;
 
     Ok(())
 }

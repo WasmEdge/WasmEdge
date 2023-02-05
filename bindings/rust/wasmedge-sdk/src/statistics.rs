@@ -1,16 +1,14 @@
 //! Defines WasmEdge Statistics struct.
 
 use crate::WasmEdgeResult;
-use std::marker::PhantomData;
 use wasmedge_sys as sys;
 
 /// Used to collect statistics of the WasmEdge runtime, such as the count of instructions in execution.
-#[derive(Debug)]
-pub struct Statistics<'a> {
+#[derive(Debug, Clone)]
+pub struct Statistics {
     pub(crate) inner: sys::Statistics,
-    pub(crate) _marker: PhantomData<&'a ()>,
 }
-impl<'a> Statistics<'a> {
+impl Statistics {
     /// Creates a new [Statistics].
     ///
     /// # Error
@@ -18,10 +16,7 @@ impl<'a> Statistics<'a> {
     /// If fail to create a [Statistics], then an error is returned.
     pub fn new() -> WasmEdgeResult<Self> {
         let inner = sys::Statistics::create()?;
-        Ok(Self {
-            inner,
-            _marker: PhantomData,
-        })
+        Ok(Self { inner })
     }
 
     /// Returns the instruction count in execution.

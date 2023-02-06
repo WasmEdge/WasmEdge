@@ -361,7 +361,7 @@ impl Config {
 ///  - `SIMD` supports 128-bit packed SIMD extension to WebAssembly.
 ///
 ///    Also see [SIMD Proposal](https://github.com/WebAssembly/spec/blob/main/proposals/simd/SIMD.md).
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct CommonConfigOptions {
     mutable_globals: bool,
     non_trap_conversions: bool,
@@ -598,7 +598,7 @@ impl Default for CommonConfigOptions {
 ///  
 ///  The configuration options above are only effective to [AOT compiler](crate::Compiler).
 #[cfg(feature = "aot")]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct CompilerConfigOptions {
     out_format: CompilerOutputFormat,
     opt_level: CompilerOptimizationLevel,
@@ -694,7 +694,7 @@ impl Default for CompilerConfigOptions {
 ///
 /// - `maximum_memory_page` limits the page size of [Memory](crate::Memory). This option is only effective to
 ///       [Executor](crate::Executor).
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct RuntimeConfigOptions {
     max_memory_pages: u32,
 }
@@ -732,7 +732,7 @@ impl Default for RuntimeConfigOptions {
 ///  - `measure_cost` determines if measuring the instruction costs when running a compiled or pure WASM.
 ///   
 ///  - `measure_time` determines if measuring the running time when running a compiled or pure WASM.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct StatisticsConfigOptions {
     count_instructions: bool,
     measure_cost: bool,
@@ -788,7 +788,7 @@ impl StatisticsConfigOptions {
 ///   - `Wasi` turns on the `WASI` support.
 ///
 ///   - `WasmEdgeProcess` turns on the `wasmedge_process` support.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct HostRegistrationConfigOptions {
     wasi: bool,
     #[cfg(target_os = "linux")]

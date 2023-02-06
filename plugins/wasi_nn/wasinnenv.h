@@ -81,9 +81,9 @@ public:
     }
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
-    if (TFBundle) {
-      delete TFBundle;
-    }
+    // if (TFBundle) {
+    //   delete TFBundle;
+    // }
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     if (TFLiteMod) {
@@ -104,7 +104,7 @@ public:
   torch::jit::Module TorchModel;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
-  tensorflow::SavedModelBundle *TFBundle = nullptr;
+  std::shared_ptr<tensorflow::SavedModelBundle> TFBundle;
   std::string TFSignature;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
@@ -140,7 +140,6 @@ public:
     TFOutputNames.clear();
     TFInputAlready.clear();
     TFOutputTensors.clear();
-    delete TFBundle;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     if (TFLiteInterp) {
@@ -158,7 +157,7 @@ public:
   std::vector<at::Tensor> TorchOutputs;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
-  tensorflow::SavedModelBundle *TFBundle = nullptr;
+  std::shared_ptr<tensorflow::SavedModelBundle> TFBundle;
   std::vector<std::string> TFInputNames;
   std::vector<std::string> TFOutputNames;
   std::vector<std::pair<std::string, tensorflow::Tensor>> TFInputAlready;

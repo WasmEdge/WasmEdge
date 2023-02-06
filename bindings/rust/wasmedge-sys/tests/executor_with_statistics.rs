@@ -51,7 +51,7 @@ fn test_executor_with_statistics() {
     let result = Config::create();
     assert!(result.is_ok());
     let config = result.unwrap();
-    let result = Loader::create(Some(config));
+    let result = Loader::create(Some(&config));
     assert!(result.is_ok());
     let loader = result.unwrap();
     let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
@@ -64,7 +64,7 @@ fn test_executor_with_statistics() {
     let result = Config::create();
     assert!(result.is_ok());
     let config = result.unwrap();
-    let result = Validator::create(Some(config));
+    let result = Validator::create(Some(&config));
     assert!(result.is_ok());
     let validator = result.unwrap();
     let result = validator.validate(&module);
@@ -78,7 +78,7 @@ fn test_executor_with_statistics() {
     let result = Config::create();
     assert!(result.is_ok());
     let config = result.unwrap();
-    let result = Loader::create(Some(config));
+    let result = Loader::create(Some(&config));
     assert!(result.is_ok());
     let loader = result.unwrap();
     let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
@@ -91,7 +91,7 @@ fn test_executor_with_statistics() {
     let result = Config::create();
     assert!(result.is_ok());
     let config = result.unwrap();
-    let result = Validator::create(Some(config));
+    let result = Validator::create(Some(&config));
     assert!(result.is_ok());
     let validator = result.unwrap();
     let result = validator.validate(&module);

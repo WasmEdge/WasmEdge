@@ -63,8 +63,8 @@ impl Vm {
         let store = Store::create()?;
         let mut stat = Statistics::create()?;
         let executor = Executor::create(Some(config.clone()), Some(&mut stat))?;
-        let loader = Loader::create(Some(config.clone()))?;
-        let validator = Validator::create(Some(config.clone()))?;
+        let loader = Loader::create(Some(&config))?;
+        let validator = Validator::create(Some(&config))?;
 
         let mut vm = Self {
             imports: HashMap::new(),

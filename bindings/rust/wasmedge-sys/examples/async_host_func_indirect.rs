@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // load module from file
         let config = Config::create()?;
-        let loader = Loader::create(Some(config))?;
+        let loader = Loader::create(Some(&config))?;
         let module = loader.from_bytes(&wasm_bytes)?;
 
         // create a Vm context

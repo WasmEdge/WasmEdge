@@ -78,7 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     import.add_func("add", host_func);
 
     // load wasm from binary
-    let loader = Loader::create(Some(config))?;
+    let loader = Loader::create(Some(&config))?;
     let module = loader.from_bytes(wasm_bytes)?;
 
     // create a Vm context

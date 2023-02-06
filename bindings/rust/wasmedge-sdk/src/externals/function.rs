@@ -51,7 +51,7 @@ use wasmedge_sys as sys;
 /// let mut executor = Executor::new(None, None).unwrap();
 ///
 /// // call the host function
-/// let result = func.call(&mut executor, params!(2, 3));
+/// let result = func.run(&mut executor, params!(2, 3));
 /// assert!(result.is_ok());
 /// let returns = result.unwrap();
 /// assert_eq!(returns[0].to_i32(), 5);

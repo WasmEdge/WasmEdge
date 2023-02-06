@@ -128,12 +128,10 @@
 //!      let extern_instance = store.register_named_module(&mut executor, "extern", &module)?;
 //!  
 //!      // get the exported function "run"
-//!      let run = extern_instance.func("run").ok_or(anyhow::Error::msg(
-//!          "Not found exported function named 'run'.",
-//!      ))?;
+//!      let f = extern_instance.func("run")?;
 //!  
 //!      // run host function
-//!      run.call(&mut executor, [])?;
+//!      f.run(&mut executor, [])?;
 //!  
 //!      Ok(())
 //!  }

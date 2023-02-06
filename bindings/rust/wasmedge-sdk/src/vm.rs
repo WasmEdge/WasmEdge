@@ -35,7 +35,7 @@ use wasmedge_sys as sys;
 /// #[cfg_attr(test, test)]
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // create a Vm context
-///     let vm = Vm::new(None)?;
+///     let vm = Vm::new(None, None)?;
 ///
 ///     // register a wasm module from the given in-memory wasm bytes
 ///     let wasm_bytes = wat2wasm(
@@ -72,19 +72,6 @@ use wasmedge_sys as sys;
 ///     "#,
 ///     )?;
 ///     let mut vm = vm.register_module_from_bytes("extern", wasm_bytes)?;
-///
-///     // get func type of `fib`
-///     let func_ty = vm.func_ty(Some("extern"), "fib")?;
-///
-///     // get the argument types
-///     assert_eq!(func_ty.args_len(), 1);
-///     let args = func_ty.args().expect("No argument types.");
-///     assert_eq!(args, [ValType::I32]);
-///
-///     // get the return types
-///     assert_eq!(func_ty.returns_len(), 1);
-///     let returns = func_ty.returns().expect("No return types.");
-///     assert_eq!(returns, [ValType::I32]);
 ///
 ///     // run `fib` function in the named module instance
 ///     let returns = vm.run_func(Some("extern"), "fib", params!(10))?;

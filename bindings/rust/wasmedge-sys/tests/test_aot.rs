@@ -22,11 +22,11 @@ fn test_aot() {
     config.function_references(true);
 
     // create a Vm context
-    let result = Vm::create(Some(config), None);
+    let result = Vm::create(Some(config));
     assert!(result.is_ok());
     let mut vm = result.unwrap();
     let import = create_spec_test_module();
-    let result = vm.register_wasm_from_import(ImportObject::Import(import));
+    let result = vm.register_instance_from_import(ImportObject::Import(import));
     assert!(result.is_ok());
 
     // set the AOT compiler options
@@ -56,7 +56,7 @@ fn test_aot() {
 
     {
         // register the wasm module from the generated wasm file
-        let result = vm.register_wasm_from_file("extern", &out_path);
+        let result = vm.register_instance_from_file("extern", &out_path);
         assert!(result.is_ok());
 
         let result = vm.run_registered_function("extern", "fib", [WasmValue::from_i32(5)]);
@@ -66,13 +66,7 @@ fn test_aot() {
     }
 
     {
-        let result = vm.load_wasm_from_file(&out_path);
-        assert!(result.is_ok());
-
-        let result = vm.validate();
-        assert!(result.is_ok());
-
-        let result = vm.instantiate();
+        let result = vm.register_active_instance_from_file(&out_path);
         assert!(result.is_ok());
 
         let result = vm.run_function("fib", [WasmValue::from_i32(5)]);

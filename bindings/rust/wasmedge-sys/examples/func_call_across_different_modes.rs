@@ -35,7 +35,7 @@ fn host_print_f64(
 #[cfg(feature = "aot")]
 fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
     // create a Vm instance
-    let mut vm = Vm::create(Some(Config::create()?), None)?;
+    let mut vm = Vm::create(Some(Config::create()?))?;
 
     // create an import module
     let mut import = ImportModule::create("host")?;
@@ -51,7 +51,7 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
     import.add_func("host_printF64", host_func_print_f64);
 
     // register the import module
-    vm.register_wasm_from_import(ImportObject::Import(import))?;
+    vm.register_instance_from_import(ImportObject::Import(import))?;
 
     // compile the "module2" into AOT mode
     let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
@@ -66,14 +66,12 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
     compiler.compile_from_file(in_path, &out_path)?;
 
     // register a named module from "module2-uni.wasm"
-    vm.register_wasm_from_file("module", &out_path)?;
+    vm.register_instance_from_file("module", &out_path)?;
 
     // register an active module from "module1.wasm"
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("bindings/rust/wasmedge-sys/examples/data/module1.wat");
-    vm.load_wasm_from_file(wasm_file)?;
-    vm.validate()?;
-    vm.instantiate()?;
+    vm.register_active_instance_from_file(wasm_file)?;
 
     // run "printAdd" function exported from "module1.wasm"
     let returns = vm.run_function(
@@ -109,7 +107,7 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(feature = "aot")]
 fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
     // create a Vm instance
-    let mut vm = Vm::create(Some(Config::create()?), None)?;
+    let mut vm = Vm::create(Some(Config::create()?))?;
 
     // create an import module
     let mut import = ImportModule::create("host")?;
@@ -125,12 +123,12 @@ fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
     import.add_func("host_printF64", host_func_print_f64);
 
     // register the import module
-    vm.register_wasm_from_import(ImportObject::Import(import))?;
+    vm.register_instance_from_import(ImportObject::Import(import))?;
 
     // register a named module from "module2.wasm"
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("bindings/rust/wasmedge-sys/examples/data/module2.wat");
-    vm.register_wasm_from_file("module", wasm_file)?;
+    vm.register_instance_from_file("module", wasm_file)?;
 
     // compile the "module1" into AOT mode
     let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
@@ -145,9 +143,7 @@ fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
     compiler.compile_from_file(in_path, &out_path)?;
 
     // register an active module from "module1.wasm"
-    vm.load_wasm_from_file(&out_path)?;
-    vm.validate()?;
-    vm.instantiate()?;
+    vm.register_active_instance_from_file(&out_path)?;
 
     // run "printAdd" function exported from "module1.wasm"
     let returns = vm.run_function(

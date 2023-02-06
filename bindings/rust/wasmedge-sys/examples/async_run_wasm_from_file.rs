@@ -5,15 +5,15 @@
 //! ```bash
 //! cd <wasmedge-root-dir>/bindings/rust/
 //!
-//! cargo run -p wasmedge-sys --features async --example async_run_wasm_from_file
+//! cargo run -p wasmedge-sys --features async,aot --example async_run_wasm_from_file
 //! ```
 
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", feature = "aot"))]
 use wasmedge_sys::{Config, Vm, WasmValue};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", feature = "aot"))]
     {
         // create a Config context
         let result = Config::create();
@@ -25,19 +25,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert!(config.interruptible_enabled());
 
         // create a Vm context with the given Config and Store
-        let vm = Vm::create(Some(config), None)?;
+        let mut vm = Vm::create(Some(config))?;
         // run a function from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
 
-        let fut1 = vm.run_wasm_from_file_async(&path, "fib", [WasmValue::from_i32(20)]);
-        let fut2 = vm.run_wasm_from_file_async(&path, "fib", [WasmValue::from_i32(5)]);
-
-        let (ret1, ret2) = tokio::join!(fut1, fut2);
-        let returns1 = ret1?;
-        assert_eq!(returns1[0].to_i32(), 10946);
-        let returns2 = ret2?;
-        assert_eq!(returns2[0].to_i32(), 8);
+        let returns = vm
+            .run_wasm_from_file_async(&path, "fib", [WasmValue::from_i32(20)])
+            .await?;
+        assert_eq!(returns[0].to_i32(), 10946);
     }
 
     Ok(())

@@ -876,7 +876,7 @@ impl Vm {
     ///
     /// If fail to run the WASM function, then an error is returned.
     pub fn run_function(
-        &mut self,
+        &self,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
@@ -891,7 +891,7 @@ impl Vm {
 
     #[cfg(feature = "async")]
     pub async fn run_function_async(
-        &mut self,
+        &self,
         func_name: impl AsRef<str> + Send,
         params: impl IntoIterator<Item = WasmValue> + Send,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
@@ -916,7 +916,7 @@ impl Vm {
     ///
     /// If fail to run the WASM function, then an error is returned.
     pub fn run_registered_function(
-        &mut self,
+        &self,
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = WasmValue>,
@@ -933,7 +933,7 @@ impl Vm {
 
     #[cfg(feature = "async")]
     pub async fn run_registered_function_async(
-        &mut self,
+        &self,
         mod_name: impl AsRef<str> + Send,
         func_name: impl AsRef<str> + Send,
         params: impl IntoIterator<Item = WasmValue> + Send,
@@ -1032,17 +1032,13 @@ mod tests {
     use crate::instance::module::WasiModule;
     // #[cfg(target_os = "linux")]
     use crate::ImportModule;
+    #[cfg(unix)]
+    use crate::{error::HostFuncError, AsImport, CallingFrame, FuncType, Function, ImportObject};
     use crate::{
         error::{
-            CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, InstanceError, VmError,
-            WasmEdgeError,
+            CoreError, CoreExecutionError, CoreLoadError, InstanceError, VmError, WasmEdgeError,
         },
-        AsInstance, Config, Loader, Module, Store, WasmValue,
-    };
-    #[cfg(unix)]
-    use crate::{
-        error::{CoreInstantiationError, HostFuncError},
-        AsImport, CallingFrame, FuncType, Function, ImportObject,
+        Config, WasmValue,
     };
     use wasmedge_types::{wat2wasm, ValType};
 

@@ -9,7 +9,7 @@
 //! ```
 
 #[cfg(feature = "async")]
-use wasmedge_sys::{Config, Store, Vm, WasmValue};
+use wasmedge_sys::{Config, Vm, WasmValue};
 #[cfg(feature = "async")]
 use wasmedge_types::wat2wasm;
 
@@ -24,15 +24,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
-        // create a Store context
-        let result = Store::create();
-        assert!(result.is_ok(), "Failed to create Store instance");
-        let mut store = result.unwrap();
-
         // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(&mut store));
+        let result = Vm::create(Some(config));
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let mut vm = result.unwrap();
 
         // register a wasm module from a buffer
         let wasm_bytes = wat2wasm(
@@ -69,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
            )           
     "#,
         )?;
-        let result = vm.register_wasm_from_bytes("extern", &wasm_bytes);
+        let result = vm.register_instance_from_bytes("extern", &wasm_bytes);
         assert!(result.is_ok());
 
         // async run function

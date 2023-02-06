@@ -22,8 +22,8 @@
 use wasmedge_macro::sys_async_host_function;
 #[cfg(feature = "async")]
 use wasmedge_sys::{
-    AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Loader, Store,
-    Vm, WasmValue,
+    AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Loader, Vm,
+    WasmValue,
 };
 #[cfg(feature = "async")]
 use wasmedge_types::{error::HostFuncError, wat2wasm, ValType};
@@ -87,8 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // create a Vm context
         let config = Config::create()?;
-        let mut store = Store::create()?;
-        let mut vm = Vm::create(Some(config), Some(&mut store))?;
+        let mut vm = Vm::create(Some(config))?;
 
         let func_ty = FuncType::create(
             vec![ValType::ExternRef, ValType::I32, ValType::I32],
@@ -100,13 +99,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // create an ImportObject module
         let mut import = ImportModule::create("extern_module")?;
         import.add_func("add", host_func);
-        vm.load_wasm_from_module(&module)?;
-        vm.register_wasm_from_import(ImportObject::Import(import))?;
+        vm.register_instance_from_import(ImportObject::Import(import))?;
 
         tokio::spawn(async move {
             let res = vm
                 .run_wasm_from_module_async(
-                    module,
+                    &module,
                     String::from("call_add"),
                     vec![add_ref, WasmValue::from_i32(5), WasmValue::from_i32(10)],
                 )

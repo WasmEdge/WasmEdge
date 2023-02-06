@@ -9,7 +9,7 @@
 //! ```
 
 #[cfg(feature = "async")]
-use wasmedge_sys::{Config, Store, Vm, WasmValue};
+use wasmedge_sys::{Config, Vm, WasmValue};
 #[cfg(feature = "async")]
 use wasmedge_types::wat2wasm;
 
@@ -24,15 +24,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
-        // create a Store context
-        let result = Store::create();
-        assert!(result.is_ok(), "Failed to create Store instance");
-        let mut store = result.unwrap();
-
         // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(&mut store));
+        let result = Vm::create(Some(config));
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let mut vm = result.unwrap();
 
         // run a function from a in-memory wasm bytes
         let result = wat2wasm(
@@ -71,14 +66,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert!(result.is_ok());
         let wasm_bytes = result.unwrap();
 
-        let fut1 = vm.run_wasm_from_bytes_async(&wasm_bytes, "fib", [WasmValue::from_i32(20)]);
-        let fut2 = vm.run_wasm_from_bytes_async(&wasm_bytes, "fib", [WasmValue::from_i32(5)]);
-
-        let (ret1, ret2) = tokio::join!(fut1, fut2);
-        let returns1 = ret1?;
-        assert_eq!(returns1[0].to_i32(), 10946);
-        let returns2 = ret2?;
-        assert_eq!(returns2[0].to_i32(), 8);
+        let returns = vm
+            .run_wasm_from_bytes_async(&wasm_bytes, "fib", [WasmValue::from_i32(20)])
+            .await?;
+        assert_eq!(returns[0].to_i32(), 10946);
     }
 
     Ok(())

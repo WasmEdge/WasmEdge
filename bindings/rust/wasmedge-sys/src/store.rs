@@ -70,7 +70,7 @@ impl Store {
     /// # Error
     ///
     /// If fail to find the target [module instance](crate::Instance), then an error is returned.
-    pub fn module(&mut self, name: impl AsRef<str>) -> WasmEdgeResult<Instance> {
+    pub fn module(&self, name: impl AsRef<str>) -> WasmEdgeResult<Instance> {
         let mod_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe { ffi::WasmEdge_StoreFindModule(self.inner.0, mod_name.as_raw()) };
         match ctx.is_null() {

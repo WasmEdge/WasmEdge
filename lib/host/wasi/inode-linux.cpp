@@ -996,15 +996,7 @@ WasiExpect<void> INode::sockListen(int32_t Backlog) noexcept {
 }
 
 WasiExpect<INode> INode::sockAccept() noexcept {
-  struct sockaddr_in ServerSocketAddr;
-  ServerSocketAddr.sin_family = AF_INET;
-  ServerSocketAddr.sin_addr.s_addr = INADDR_ANY;
-  socklen_t AddressLen = sizeof(ServerSocketAddr);
-
-  if (auto NewFd =
-          ::accept(Fd, reinterpret_cast<struct sockaddr *>(&ServerSocketAddr),
-                   &AddressLen);
-      unlikely(NewFd < 0)) {
+  if (auto NewFd = ::accept(Fd, nullptr, nullptr); unlikely(NewFd < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
     INode New(NewFd);

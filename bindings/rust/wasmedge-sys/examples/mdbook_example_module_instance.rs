@@ -36,7 +36,7 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
     assert!(config.wasmedge_process_enabled());
 
     // create a Vm context with the given Config and Store
-    let mut vm = Vm::create(Some(config), None)?;
+    let mut vm = Vm::create(Some(config))?;
 
     // Retrieve the Wasi and WasmEdgeProcess module instances from the Vm.
     {
@@ -103,10 +103,10 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
         import.add_global("global", global);
 
         // register the import module as a named module
-        vm.register_wasm_from_import(ImportObject::Import(import))?;
+        vm.register_instance_from_import(ImportObject::Import(import))?;
 
         // Retrieve the internal Store instance from the Vm, and retrieve the named module instance from the Store instance.
-        let mut store = vm.store_mut()?;
+        let store = vm.store_mut();
         let named_instance = store.module(module_name)?;
         assert!(named_instance.get_func("add").is_ok());
         assert!(named_instance.get_table("table").is_ok());
@@ -152,18 +152,14 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
     "#,
         )?;
 
-        // load a wasm module from a in-memory bytes, and the loaded wasm module works as an anonymous
+        // register a wasm module from a in-memory bytes as an anonymous
         // module (aka. active module in WasmEdge terminology)
-        vm.load_wasm_from_bytes(&wasm_bytes)?;
-
-        // validate the loaded active module
-        vm.validate()?;
-
-        // instantiate the loaded active module
-        vm.instantiate()?;
+        vm.register_active_instance_from_bytes(&wasm_bytes)?;
 
         // get the active module instance
-        let active_instance = vm.active_module()?;
+        let active_instance = vm
+            .active_instance()
+            .expect("fail to get active module from vm");
         assert!(active_instance.get_func("fib").is_ok());
     }
 
@@ -219,12 +215,12 @@ fn executor_apis() -> Result<(), Box<dyn std::error::Error>> {
 
         // load module from a wasm file
         let config = Config::create()?;
-        let loader = Loader::create(Some(config))?;
+        let loader = Loader::create(Some(&config))?;
         let module = loader.from_bytes(wasm_bytes)?;
 
         // validate module
         let config = Config::create()?;
-        let validator = Validator::create(Some(config))?;
+        let validator = Validator::create(Some(&config))?;
         validator.validate(&module)?;
 
         // register a wasm module into the store context
@@ -273,12 +269,12 @@ fn executor_apis() -> Result<(), Box<dyn std::error::Error>> {
 
         // load module from a wasm file
         let config = Config::create()?;
-        let loader = Loader::create(Some(config))?;
+        let loader = Loader::create(Some(&config))?;
         let module = loader.from_bytes(wasm_bytes)?;
 
         // validate module
         let config = Config::create()?;
-        let validator = Validator::create(Some(config))?;
+        let validator = Validator::create(Some(&config))?;
         validator.validate(&module)?;
 
         // register a wasm module as an active module

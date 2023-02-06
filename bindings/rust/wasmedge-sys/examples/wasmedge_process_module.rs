@@ -41,7 +41,7 @@ fn create_wasmedge_process_module_implicitly() -> Result<(), Box<dyn std::error:
     assert!(config.wasmedge_process_enabled());
 
     // create a Vm context with the given Config and Store
-    let mut vm = Vm::create(Some(config), None)?;
+    let mut vm = Vm::create(Some(config))?;
 
     // get the default WasmEdgeProcess module instance
     let wasmedge_process_instance = vm.wasmedge_process_module_mut()?;
@@ -52,7 +52,7 @@ fn create_wasmedge_process_module_implicitly() -> Result<(), Box<dyn std::error:
     // create a WasmEdgeProcess module
     let import_process = WasmEdgeProcessModule::create(None, false)?;
 
-    let result = vm.register_wasm_from_import(ImportObject::WasmEdgeProcess(import_process));
+    let result = vm.register_instance_from_import(ImportObject::WasmEdgeProcess(import_process));
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
@@ -72,7 +72,7 @@ fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error:
     config.bulk_memory_operations(true);
 
     // create a Vm context with the given Config and Store
-    let mut vm = Vm::create(Some(config), None)?;
+    let mut vm = Vm::create(Some(config))?;
 
     // get the WasmEdgeProcess module
     let result = vm.wasmedge_process_module_mut();
@@ -120,7 +120,7 @@ fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error:
     import_process.add_func("add", host_func);
 
     // register the WasmEdgeProcess module
-    vm.register_wasm_from_import(ImportObject::WasmEdgeProcess(import_process))?;
+    vm.register_instance_from_import(ImportObject::WasmEdgeProcess(import_process))?;
 
     // get the WasmEdgeProcess module
     let result = vm.wasmedge_process_module_mut();
@@ -131,7 +131,7 @@ fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error:
     );
 
     // get store from vm
-    let mut store = vm.store_mut()?;
+    let store = vm.store_mut();
     assert_eq!(store.module_len(), 1);
     let result = store.module_names();
     assert!(result.is_some());

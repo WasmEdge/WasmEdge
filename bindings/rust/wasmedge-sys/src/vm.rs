@@ -411,7 +411,9 @@ impl Vm {
                         .host_registered_modules
                         .contains_key(&HostRegistration::Wasi)
                     {
-                        return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule)));
+                        return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                            io_name,
+                        ))));
                     } else {
                         self.host_registered_modules
                             .insert(HostRegistration::Wasi, ImportObject::CustomWasi(import_mod));
@@ -425,7 +427,9 @@ impl Vm {
                     )
                 } else {
                     if self.imports.contains_key(&io_name) {
-                        return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule)));
+                        return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                            io_name,
+                        ))));
                     } else {
                         self.imports
                             .insert(io_name.clone(), ImportObject::CustomWasi(import_mod));
@@ -443,13 +447,16 @@ impl Vm {
                         .host_registered_modules
                         .contains_key(&HostRegistration::WasmEdgeProcess)
                     {
-                        return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule)));
+                        return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                            io_name,
+                        ))));
                     } else {
                         self.host_registered_modules.insert(
                             HostRegistration::WasmEdgeProcess,
                             ImportObject::WasmEdgeProcess(import_mod),
                         );
                     }
+
                     self.executor.register_import_object(
                         &mut self.store,
                         self.host_registered_modules
@@ -458,7 +465,9 @@ impl Vm {
                     )
                 } else {
                     if self.imports.contains_key(&io_name) {
-                        return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule)));
+                        return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                            io_name,
+                        ))));
                     } else {
                         self.imports
                             .insert(io_name.clone(), ImportObject::WasmEdgeProcess(import_mod));
@@ -481,9 +490,11 @@ impl Vm {
                     .register_import_object(&mut self.store, self.imports.get(&io_name).unwrap())
             },
             #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            ImportObject::Crypto(WasiCrypto::Common(import_mod)) => unsafe {
+            ImportObject::Crypto(WasiCrypto::Common(import_mod)) => {
                 if self.imports.contains_key(&io_name) {
-                    return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule)));
+                    return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                        io_name,
+                    ))));
                 } else {
                     self.imports.insert(
                         io_name.clone(),
@@ -492,11 +503,13 @@ impl Vm {
                 }
                 self.executor
                     .register_import_object(&mut self.store, self.imports.get(&io_name).unwrap())
-            },
+            }
             #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            ImportObject::Crypto(WasiCrypto::AsymmetricCommon(import_mod)) => unsafe {
+            ImportObject::Crypto(WasiCrypto::AsymmetricCommon(import_mod)) => {
                 if self.imports.contains_key(&io_name) {
-                    return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule)));
+                    return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                        io_name,
+                    ))));
                 } else {
                     self.imports.insert(
                         io_name.clone(),
@@ -505,11 +518,13 @@ impl Vm {
                 }
                 self.executor
                     .register_import_object(&mut self.store, self.imports.get(&io_name).unwrap())
-            },
+            }
             #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            ImportObject::Crypto(WasiCrypto::SymmetricOptionations(import_mod)) => unsafe {
+            ImportObject::Crypto(WasiCrypto::SymmetricOptionations(import_mod)) => {
                 if self.imports.contains_key(&io_name) {
-                    return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule)));
+                    return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                        io_name,
+                    ))));
                 } else {
                     self.imports.insert(
                         io_name.clone(),
@@ -518,11 +533,13 @@ impl Vm {
                 }
                 self.executor
                     .register_import_object(&mut self.store, self.imports.get(&io_name).unwrap())
-            },
+            }
             #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            ImportObject::Crypto(WasiCrypto::KeyExchange(import_mod)) => unsafe {
+            ImportObject::Crypto(WasiCrypto::KeyExchange(import_mod)) => {
                 if self.imports.contains_key(&io_name) {
-                    return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule)));
+                    return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                        io_name,
+                    ))));
                 } else {
                     self.imports.insert(
                         io_name.clone(),
@@ -531,11 +548,13 @@ impl Vm {
                 }
                 self.executor
                     .register_import_object(&mut self.store, self.imports.get(&io_name).unwrap())
-            },
+            }
             #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            ImportObject::Crypto(WasiCrypto::Signatures(import_mod)) => unsafe {
+            ImportObject::Crypto(WasiCrypto::Signatures(import_mod)) => {
                 if self.imports.contains_key(&io_name) {
-                    return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule)));
+                    return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                        io_name,
+                    ))));
                 } else {
                     self.imports.insert(
                         io_name.clone(),
@@ -544,7 +563,7 @@ impl Vm {
                 }
                 self.executor
                     .register_import_object(&mut self.store, self.imports.get(&io_name).unwrap())
-            },
+            }
         }
     }
 
@@ -656,7 +675,7 @@ impl Vm {
                 #[cfg(target_os = "macos")]
                 Some("dylib") => self.register_instance_from_wasm_or_aot_file(mod_name, file),
                 #[cfg(target_os = "linux")]
-                Some("so") => self.register_from_wasm_or_aot_file(mod_name, file),
+                Some("so") => self.register_instance_from_wasm_or_aot_file(mod_name, file),
                 #[cfg(target_os = "windows")]
                 Some("dll") => self.register_from_wasm_or_aot_file(mod_name, file),
                 Some("wat") => {
@@ -1301,7 +1320,9 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule))
+                Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                    "wasmedge_process".into()
+                )))
             );
 
             // get store from vm

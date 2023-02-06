@@ -3247,13 +3247,13 @@ mod tests {
             let mut config = result.unwrap();
             config.wasmedge_process(true);
             assert!(config.wasmedge_process_enabled());
-            let result = Vm::create(Some(config), None);
+            let result = Vm::create(Some(config));
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
             let result = vm.wasmedge_process_module_mut();
             assert!(result.is_ok());
-            let mut import_wasmedge_process = result.unwrap();
+            let import_wasmedge_process = result.unwrap();
             import_wasmedge_process.init_wasmedge_process(Some(vec!["arg1", "arg2"]), false);
         }
     }

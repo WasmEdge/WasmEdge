@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex};
 use wasmedge_sys::*;
 use wasmedge_types::{error::HostFuncError, wat2wasm};
 
-struct Wrapper(*mut Vm);
+struct Wrapper(*const Vm);
 unsafe impl Send for Wrapper {}
 
 #[cfg_attr(test, test)]
@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(vec![])
         };
 
-    let s = Arc::new(Mutex::new(Wrapper(&mut vm as *mut Vm)));
+    let s = Arc::new(Mutex::new(Wrapper(&vm as *const Vm)));
     let host_layer2 = move |_frame: CallingFrame,
                             _args: Vec<WasmValue>|
           -> Result<Vec<WasmValue>, HostFuncError> {

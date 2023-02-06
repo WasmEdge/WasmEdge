@@ -24,15 +24,20 @@ impl Module {
     ///
     /// If fail to load and valiate a module from a file, returns an error.
     pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> WasmEdgeResult<Self> {
-        let inner_config = config.map(|c| c.inner.clone());
-        let inner_loader = sys::Loader::create(inner_config)?;
+        let inner_config = match config {
+            Some(inner_config) => Some(&inner_config.inner),
+            None => None,
+        };
+
         // load module
-        let inner = inner_loader.from_file(file.as_ref())?;
-        let inner_config = config.map(|c| c.inner.clone());
-        let inner_validator = sys::Validator::create(inner_config)?;
+        let inner_module = sys::Loader::create(inner_config)?.from_file(file.as_ref())?;
+
         // validate module
-        inner_validator.validate(&inner)?;
-        Ok(Self { inner })
+        sys::Validator::create(inner_config)?.validate(&inner_module)?;
+
+        Ok(Self {
+            inner: inner_module,
+        })
     }
 
     /// Loads a WebAssembly binary module from in-memory bytes.
@@ -47,17 +52,20 @@ impl Module {
     ///
     /// If fail to load and valiate the WebAssembly module from the given in-memory bytes, returns an error.
     pub fn from_bytes(config: Option<&Config>, bytes: impl AsRef<[u8]>) -> WasmEdgeResult<Self> {
-        let inner_config = config.map(|c| c.inner.clone());
-        let inner_loader = sys::Loader::create(inner_config)?;
-        // load a module from a wasm buffer
-        let inner = inner_loader.from_bytes(bytes.as_ref())?;
+        let inner_config = match config {
+            Some(inner_config) => Some(&inner_config.inner),
+            None => None,
+        };
 
-        let inner_config = config.map(|c| c.inner.clone());
-        let inner_validator = sys::Validator::create(inner_config)?;
+        // load module
+        let inner_module = sys::Loader::create(inner_config)?.from_bytes(bytes.as_ref())?;
+
         // validate module
-        inner_validator.validate(&inner)?;
+        sys::Validator::create(inner_config)?.validate(&inner_module)?;
 
-        Ok(Self { inner })
+        Ok(Self {
+            inner: inner_module,
+        })
     }
 
     /// Returns the count of the imported WasmEdge instances in the [module](crate::Module).

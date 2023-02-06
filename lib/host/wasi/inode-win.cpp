@@ -1912,14 +1912,7 @@ WasiExpect<void> INode::sockListen(int32_t Backlog) noexcept {
 
 WasiExpect<INode> INode::sockAccept() noexcept {
   EnsureWSAStartup();
-  struct sockaddr_in ServerSocketAddr;
-  ServerSocketAddr.sin_family = AF_INET;
-  ServerSocketAddr.sin_addr.s_addr = INADDR_ANY;
-  socklen_t AddressLen = sizeof(ServerSocketAddr);
-
-  if (auto NewSock = ::accept(
-          toSocket(Handle),
-          reinterpret_cast<struct sockaddr *>(&ServerSocketAddr), &AddressLen);
+  if (auto NewSock = ::accept(toSocket(Handle), nullptr, nullptr);
       unlikely(NewSock == INVALID_SOCKET)) {
     return WasiUnexpect(fromWSALastError(WSAGetLastError()));
   } else {

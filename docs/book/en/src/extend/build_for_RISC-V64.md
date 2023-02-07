@@ -9,14 +9,14 @@ This tutorial is based on Ubuntu 22.04 host, and WasmEdge uses the [RISCV-Lab](h
 ### Install and run RISCV-Lab
 
 ```bash
-$ git clone https://gitee.com/tinylab/cloud-lab.git
-$ cd cloud-lab
-$ LOGIN=bash tools/docker/run riscv-lab
+git clone https://gitee.com/tinylab/cloud-lab.git
+cd cloud-lab
+LOGIN=bash tools/docker/run riscv-lab
 ```
 
 Note that it will take a long time to pull the image here.
 
-## Build WasmEdge 
+## Build WasmEdge
 
 ### Get Source code
 
@@ -32,14 +32,9 @@ WasmEdge requires LLVM 12 at least and you may need to install these following d
 ```bash
 ubuntu@riscv-lab:/labs/riscv-lab$ sudo apt-get update
 
-ubuntu@riscv-lab:/labs/riscv-lab$ sudo apt install -y \
-   					software-properties-common \
-   					cmake \
-   					libboost-all-dev
+ubuntu@riscv-lab:/labs/riscv-lab$ sudo apt install -y software-properties-common cmake libboost-all-dev
 
-ubuntu@riscv-lab:/labs/riscv-lab$ sudo apt install -y \
-   					llvm-12-dev \
-   					liblld-12-dev
+ubuntu@riscv-lab:/labs/riscv-lab$ sudo apt install -y llvm-12-dev liblld-12-dev
 ```
 
 ### Compile
@@ -54,7 +49,7 @@ ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/build$ cmake -DCMAKE_BUILD_TYPE=Releas
 
 ## Test
 
-### Execute the wasmedge tool 
+### Execute the wasmedge tool
 
 For the pure WebAssembly, the `wasmedge` CLI tool will execute it in interpreter mode.
 
@@ -69,7 +64,7 @@ ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/examples/wasm$ wasmedge --reactor add.
 4
 ```
 
-### Execute the wasmedgec tool 
+### Execute the wasmedgec tool
 
 To improve the performance, the `wasmedgec` can compile WebAssembly into native machine code. After compiling with the `wasmedgec` AOT compiler, the wasmedge tool can execute the WASM in AOT mode which is much faster.
 
@@ -95,5 +90,3 @@ real	0m1.814s
 user	0m1.776s
 sys	0m0.016s
 ```
-
-

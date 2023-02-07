@@ -1,7 +1,8 @@
 //! Defines wasi module instance types, including WasiInstance, WasiNnInstance, wasi-crypto instances.
 
 use crate::{
-    AsInstance, Func, FuncType, Global, GlobalType, Memory, MemoryType, Table, WasmEdgeResult,
+    AsInstance, Func, FuncType, Global, GlobalType, Memory, MemoryType, Table, TableType,
+    WasmEdgeResult,
 };
 use wasmedge_sys::{self as sys, AsImport, AsInstance as sys_as_instance_trait};
 
@@ -155,11 +156,13 @@ impl AsInstance for WasiInstance {
     /// * `name` - the name of the target exported [table instance](crate::Table).
     fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let inner_table = self.inner.get_table(name.as_ref())?;
+        let ty: TableType = inner_table.ty()?.into();
 
         Ok(Table {
             inner: inner_table,
             name: Some(name.as_ref().into()),
             mod_name: None,
+            ty,
         })
     }
 }
@@ -327,10 +330,13 @@ impl AsInstance for WasiCryptoCommonInstance {
 
     fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let inner_table = self.inner.get_table(name.as_ref())?;
+        let ty: TableType = inner_table.ty()?.into();
+
         Ok(Table {
             inner: inner_table,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 }
@@ -417,10 +423,13 @@ impl AsInstance for WasiCryptoAsymmetricCommonInstance {
 
     fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let inner_table = self.inner.get_table(name.as_ref())?;
+        let ty: TableType = inner_table.ty()?.into();
+
         Ok(Table {
             inner: inner_table,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 }
@@ -507,10 +516,13 @@ impl AsInstance for WasiCryptoSymmetricInstance {
 
     fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let inner_table = self.inner.get_table(name.as_ref())?;
+        let ty: TableType = inner_table.ty()?.into();
+
         Ok(Table {
             inner: inner_table,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 }
@@ -597,10 +609,13 @@ impl AsInstance for WasiCryptoKxInstance {
 
     fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let inner_table = self.inner.get_table(name.as_ref())?;
+        let ty: TableType = inner_table.ty()?.into();
+
         Ok(Table {
             inner: inner_table,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 }
@@ -687,10 +702,13 @@ impl AsInstance for WasiCryptoSignaturesInstance {
 
     fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let inner_table = self.inner.get_table(name.as_ref())?;
+        let ty: TableType = inner_table.ty()?.into();
+
         Ok(Table {
             inner: inner_table,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 }

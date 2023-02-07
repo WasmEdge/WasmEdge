@@ -1,6 +1,8 @@
 //! Defines WasmEdge Instance.
 
-use crate::{Func, FuncType, Global, GlobalType, Memory, MemoryType, Table, WasmEdgeResult};
+use crate::{
+    Func, FuncType, Global, GlobalType, Memory, MemoryType, Table, TableType, WasmEdgeResult,
+};
 use wasmedge_sys as sys;
 #[cfg(target_os = "linux")]
 use wasmedge_sys::{AsImport, AsInstance as sys_as_instance_trait};
@@ -116,17 +118,16 @@ impl Instance {
     /// # Argument
     ///
     /// * `name` - the name of the target exported [table instance](crate::Table).
-    pub fn table(&self, name: impl AsRef<str>) -> Option<Table> {
-        let inner_table = self.inner.get_table(name.as_ref()).ok();
-        if let Some(inner_table) = inner_table {
-            return Some(Table {
-                inner: inner_table,
-                name: Some(name.as_ref().into()),
-                mod_name: self.inner.name(),
-            });
-        }
+    pub fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
+        let inner_table = self.inner.get_table(name.as_ref())?;
+        let ty: TableType = inner_table.ty()?.into();
 
-        None
+        Ok(Table {
+            inner: inner_table,
+            name: Some(name.as_ref().into()),
+            mod_name: self.inner.name(),
+            ty,
+        })
     }
 }
 
@@ -225,11 +226,13 @@ impl AsInstance for WasmEdgeProcessInstance {
 
     fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let inner_table = self.inner.get_table(name.as_ref())?;
+        let ty: TableType = inner_table.ty()?.into();
 
         Ok(Table {
             inner: inner_table,
             name: Some(name.as_ref().into()),
             mod_name: None,
+            ty,
         })
     }
 }
@@ -413,7 +416,7 @@ mod tests {
 
             // check the exported table
             let result = instance.table("table");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let table = result.unwrap();
 
             let table_name = table.name();

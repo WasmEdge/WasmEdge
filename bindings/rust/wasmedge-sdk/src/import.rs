@@ -1072,7 +1072,7 @@ mod tests {
 
         // get the exported table
         let result = instance.table("table");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut table = result.unwrap();
 
         // check table
@@ -1081,9 +1081,7 @@ mod tests {
         assert!(table.mod_name().is_some());
         assert_eq!(table.mod_name().unwrap(), "extern");
         assert_eq!(table.size(), 10);
-        let result = table.ty();
-        assert!(result.is_ok());
-        let ty = result.unwrap();
+        let ty = table.ty();
         assert_eq!(ty.elem_ty(), RefType::FuncRef);
         assert_eq!(ty.minimum(), 10);
         assert_eq!(ty.maximum(), Some(20));
@@ -1120,7 +1118,7 @@ mod tests {
         let instance = result.unwrap();
 
         let result = instance.table("table");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let table = result.unwrap();
 
         // get the value in table[0]
@@ -1233,7 +1231,7 @@ mod tests {
 
             // get the exported table by name
             let result = instance.table("table");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let table = result.unwrap();
             // check table
             assert!(table.name().is_some());
@@ -1241,10 +1239,7 @@ mod tests {
             assert!(table.mod_name().is_some());
             assert_eq!(table.mod_name().unwrap(), "extern-module-send");
             assert_eq!(table.size(), 10);
-            let result = table.ty();
-            assert!(result.is_ok());
-            // check table type
-            let ty = result.unwrap();
+            let ty = table.ty();
             assert_eq!(ty.elem_ty(), RefType::FuncRef);
             assert_eq!(ty.minimum(), 10);
             assert_eq!(ty.maximum(), Some(20));
@@ -1363,7 +1358,7 @@ mod tests {
 
             // get the exported table by name
             let result = instance.table("table");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let table = result.unwrap();
             // check table
             assert!(table.name().is_some());
@@ -1371,10 +1366,7 @@ mod tests {
             assert!(table.mod_name().is_some());
             assert_eq!(table.mod_name().unwrap(), "extern-module-sync");
             assert_eq!(table.size(), 10);
-            let result = table.ty();
-            assert!(result.is_ok());
-            // check table type
-            let ty = result.unwrap();
+            let ty = table.ty();
             assert_eq!(ty.elem_ty(), RefType::FuncRef);
             assert_eq!(ty.minimum(), 10);
             assert_eq!(ty.maximum(), Some(20));

@@ -1,6 +1,5 @@
-use crate::{types::Val, WasmEdgeResult};
+use crate::{types::Val, TableType, WasmEdgeResult};
 use wasmedge_sys as sys;
-use wasmedge_types::TableType;
 
 /// Defines a table storing the references to host functions or external objects.
 #[derive(Debug, Clone)]
@@ -8,6 +7,7 @@ pub struct Table {
     pub(crate) inner: sys::Table,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
+    pub(crate) ty: TableType,
 }
 impl Table {
     /// Creates a new wasm table instance with the given type.
@@ -20,11 +20,12 @@ impl Table {
     ///
     /// If fail to create the table instance, then an error is returned.
     pub fn new(ty: TableType) -> WasmEdgeResult<Self> {
-        let inner = sys::Table::create(&ty.into())?;
+        let inner = sys::Table::create(&ty.clone().into())?;
         Ok(Self {
             inner,
             name: None,
             mod_name: None,
+            ty,
         })
     }
 
@@ -53,9 +54,8 @@ impl Table {
     /// # Error
     ///
     /// If fail to get the type of this table, then an error is returned.
-    pub fn ty(&self) -> WasmEdgeResult<TableType> {
-        let ty = self.inner.ty()?;
-        Ok(ty.into())
+    pub fn ty(&self) -> TableType {
+        self.ty.clone()
     }
 
     /// Returns the size of this [Table].
@@ -195,7 +195,7 @@ mod tests {
 
         // get the exported table by name
         let result = instance.table("table");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut table = result.unwrap();
 
         // check table
@@ -204,11 +204,7 @@ mod tests {
         assert!(table.mod_name().is_some());
         assert_eq!(table.mod_name().unwrap(), "extern");
         assert_eq!(table.size(), 10);
-        let result = table.ty();
-        assert!(result.is_ok());
-
-        // check table type
-        let ty = result.unwrap();
+        let ty = table.ty();
         assert_eq!(ty.elem_ty(), RefType::FuncRef);
         assert_eq!(ty.minimum(), 10);
         assert_eq!(ty.maximum(), Some(20));
@@ -245,7 +241,7 @@ mod tests {
         let instance = result.unwrap();
 
         let result = instance.table("table");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let table = result.unwrap();
 
         // get the value in table[0]

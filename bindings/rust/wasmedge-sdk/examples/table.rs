@@ -72,12 +72,10 @@ fn main() -> anyhow::Result<()> {
     let instance = store.named_instance("extern")?;
 
     // get the exported table instance named "__indirect_function_table"
-    let mut guest_table = instance.table("__indirect_function_table").ok_or_else(|| {
-        anyhow::anyhow!("failed to get table instance named '__indirect_function_table'")
-    })?;
+    let mut guest_table = instance.table("__indirect_function_table")?;
     assert_eq!(guest_table.size(), 3);
     assert_eq!(
-        guest_table.ty()?,
+        guest_table.ty(),
         TableType::new(RefType::FuncRef, 3, Some(6))
     );
 

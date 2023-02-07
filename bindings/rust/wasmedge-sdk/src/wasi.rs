@@ -1,6 +1,6 @@
 //! Defines wasi module instance types, including WasiInstance, WasiNnInstance, wasi-crypto instances.
 
-use crate::{AsInstance, Func, FuncType, Global, Memory, Table, WasmEdgeResult};
+use crate::{AsInstance, Func, FuncType, Global, GlobalType, Memory, Table, WasmEdgeResult};
 use wasmedge_sys::{self as sys, AsImport, AsInstance as sys_as_instance_trait};
 
 /// Represents a wasi module instance.
@@ -99,11 +99,13 @@ impl AsInstance for WasiInstance {
     /// * `name` - the name of the target exported [global instance](crate::Global).
     fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let inner_global = self.inner.get_global(name.as_ref())?;
+        let ty: GlobalType = inner_global.ty()?.into();
 
         Ok(Global {
             inner: inner_global,
             name: Some(name.as_ref().into()),
             mod_name: None,
+            ty,
         })
     }
 
@@ -281,10 +283,13 @@ impl AsInstance for WasiCryptoCommonInstance {
 
     fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let inner_global = self.inner.get_global(name.as_ref())?;
+        let ty: GlobalType = inner_global.ty()?.into();
+
         Ok(Global {
             inner: inner_global,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -365,10 +370,13 @@ impl AsInstance for WasiCryptoAsymmetricCommonInstance {
 
     fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let inner_global = self.inner.get_global(name.as_ref())?;
+        let ty: GlobalType = inner_global.ty()?.into();
+
         Ok(Global {
             inner: inner_global,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -449,10 +457,13 @@ impl AsInstance for WasiCryptoSymmetricInstance {
 
     fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let inner_global = self.inner.get_global(name.as_ref())?;
+        let ty: GlobalType = inner_global.ty()?.into();
+
         Ok(Global {
             inner: inner_global,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -533,10 +544,13 @@ impl AsInstance for WasiCryptoKxInstance {
 
     fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let inner_global = self.inner.get_global(name.as_ref())?;
+        let ty: GlobalType = inner_global.ty()?.into();
+
         Ok(Global {
             inner: inner_global,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -617,10 +631,13 @@ impl AsInstance for WasiCryptoSignaturesInstance {
 
     fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let inner_global = self.inner.get_global(name.as_ref())?;
+        let ty: GlobalType = inner_global.ty()?.into();
+
         Ok(Global {
             inner: inner_global,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 

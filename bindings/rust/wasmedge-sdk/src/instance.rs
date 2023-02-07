@@ -4,6 +4,7 @@ use crate::{Func, FuncType, Global, Memory, Table, WasmEdgeResult};
 use wasmedge_sys as sys;
 #[cfg(target_os = "linux")]
 use wasmedge_sys::{AsImport, AsInstance as sys_as_instance_trait};
+use wasmedge_types::GlobalType;
 
 /// Represents an instantiated module.
 ///
@@ -62,17 +63,16 @@ impl Instance {
     /// # Argument
     ///
     /// * `name` - the name of the target exported [global instance](crate::Global).
-    pub fn global(&self, name: impl AsRef<str>) -> Option<Global> {
-        let inner_global = self.inner.get_global(name.as_ref()).ok();
-        if let Some(inner_global) = inner_global {
-            return Some(Global {
-                inner: inner_global,
-                name: Some(name.as_ref().into()),
-                mod_name: self.inner.name(),
-            });
-        }
+    pub fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
+        let inner_global = self.inner.get_global(name.as_ref())?;
+        let ty: GlobalType = inner_global.ty()?.into();
 
-        None
+        Ok(Global {
+            inner: inner_global,
+            name: Some(name.as_ref().into()),
+            mod_name: self.inner.name(),
+            ty,
+        })
     }
 
     /// Returns the count of the exported [memory instances](crate::Memory) in this [module instance](crate::Instance).
@@ -187,11 +187,13 @@ impl AsInstance for WasmEdgeProcessInstance {
 
     fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let inner_global = self.inner.get_global(name.as_ref())?;
+        let ty: GlobalType = inner_global.ty()?.into();
 
         Ok(Global {
             inner: inner_global,
             name: Some(name.as_ref().into()),
             mod_name: None,
+            ty,
         })
     }
 

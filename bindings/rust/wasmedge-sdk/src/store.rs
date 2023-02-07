@@ -234,10 +234,10 @@ mod tests {
         assert_eq!(instance.name().unwrap(), "extern-module");
 
         let result = instance.global("global");
-        assert!(result.is_some());
-        let global = result.unwrap();
-        let result = global.ty();
         assert!(result.is_ok());
+        let global = result.unwrap();
+        let ty = global.ty();
+        assert_eq!(ty, GlobalType::new(ValType::F32, Mutability::Const));
     }
 
     #[test]

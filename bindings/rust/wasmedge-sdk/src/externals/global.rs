@@ -9,6 +9,7 @@ pub struct Global {
     pub(crate) inner: sys::Global,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
+    pub(crate) ty: GlobalType,
 }
 impl Global {
     /// Creates a new wasm global variable with the given type and initial value.
@@ -23,11 +24,12 @@ impl Global {
     ///
     /// If fail to create the global variable, then an error is returned.
     pub fn new(ty: GlobalType, init: Val) -> WasmEdgeResult<Self> {
-        let inner = sys::Global::create(&ty.into(), init.into())?;
+        let inner = sys::Global::create(&ty.clone().into(), init.into())?;
         Ok(Self {
             inner,
             name: None,
             mod_name: None,
+            ty,
         })
     }
 
@@ -52,9 +54,8 @@ impl Global {
     }
 
     /// Returns the type of this [Global].
-    pub fn ty(&self) -> WasmEdgeResult<GlobalType> {
-        let gt = self.inner.ty()?;
-        Ok(gt.into())
+    pub fn ty(&self) -> GlobalType {
+        self.ty.clone()
     }
 
     /// Returns the current value of this [Global].
@@ -155,7 +156,7 @@ mod tests {
 
         // get the Const global from the store of vm
         let result = instance.global("const-global");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut const_global = result.unwrap();
 
         // check global
@@ -163,9 +164,7 @@ mod tests {
         assert_eq!(const_global.name().unwrap(), "const-global");
         assert!(const_global.mod_name().is_some());
         assert_eq!(const_global.mod_name().unwrap(), "extern");
-        let result = const_global.ty();
-        assert!(result.is_ok());
-        let ty = result.unwrap();
+        let ty = const_global.ty();
         assert_eq!(ty.value_ty(), ValType::I32);
         assert_eq!(ty.mutability(), Mutability::Const);
 
@@ -189,7 +188,7 @@ mod tests {
 
         // get the Var global from the store of vm
         let result = instance.global("var-global");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut var_global = result.unwrap();
 
         // check global
@@ -197,9 +196,7 @@ mod tests {
         assert_eq!(var_global.name().unwrap(), "var-global");
         assert!(var_global.mod_name().is_some());
         assert_eq!(var_global.mod_name().unwrap(), "extern");
-        let result = var_global.ty();
-        assert!(result.is_ok());
-        let ty = result.unwrap();
+        let ty = var_global.ty();
         assert_eq!(ty.value_ty(), ValType::F32);
         assert_eq!(ty.mutability(), Mutability::Var);
 
@@ -214,7 +211,7 @@ mod tests {
 
         // get the value of var_global again
         let result = instance.global("var-global");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let var_global = result.unwrap();
         if let Val::F32(value) = var_global.get_value() {
             assert_eq!(value, 1.314);

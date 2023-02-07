@@ -47,6 +47,7 @@ impl Executor {
         self.inner.call_func(&func.inner, params)
     }
 
+    #[cfg(feature = "async")]
     pub async fn run_func_async(
         &self,
         func: &Func,
@@ -63,6 +64,7 @@ impl Executor {
         self.inner.call_func_ref(&func_ref.inner, params)
     }
 
+    #[cfg(feature = "async")]
     pub async fn run_func_ref_async(
         &self,
         func_ref: &FuncRef,

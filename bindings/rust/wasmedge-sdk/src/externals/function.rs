@@ -222,6 +222,7 @@ impl Func {
         executor.run_func(self, args)
     }
 
+    #[cfg(feature = "async")]
     pub async fn run_async(
         &self,
         executor: &Executor,
@@ -333,6 +334,7 @@ impl FuncRef {
         executor.run_func_ref(self, args)
     }
 
+    #[cfg(feature = "async")]
     pub async fn run_async(
         &self,
         executor: &Executor,

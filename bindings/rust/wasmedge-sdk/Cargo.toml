@@ -23,7 +23,7 @@ wat = "1.0"
 [features]
 aot = ["wasmedge-sys/aot"]
 async = ["wasmedge-sys/async"]
-default = ["async"]
+default = []
 standalone = ["wasmedge-sys/standalone"]
 static = ["wasmedge-sys/static"]
 wasi_crypto = ["wasmedge-sys/wasi_crypto"]

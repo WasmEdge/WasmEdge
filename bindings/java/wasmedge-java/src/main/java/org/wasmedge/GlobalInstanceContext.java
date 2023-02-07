@@ -3,13 +3,12 @@ package org.wasmedge;
 /**
  * Global instance.
  */
-public class GlobalInstanceContext {
+public class GlobalInstanceContext extends NativeResource {
     private GlobalTypeContext globalTypeContext;
     private Value value;
-    private long pointer;
 
     private GlobalInstanceContext(long pointer) {
-        this.pointer = pointer;
+        super(pointer);
     }
 
     /**
@@ -42,5 +41,5 @@ public class GlobalInstanceContext {
         nativeSetValue(value);
     }
 
-    public native void delete();
+    public native void close();
 }

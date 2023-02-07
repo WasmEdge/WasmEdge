@@ -105,7 +105,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_ExecutorContext_register(
 }
 
 JNIEXPORT void JNICALL
-Java_org_wasmedge_ExecutorContext_delete(JNIEnv *env, jobject thisObject) {
+Java_org_wasmedge_ExecutorContext_close(JNIEnv *env, jobject thisObject) {
   WasmEdge_ExecutorContext *exeCxt = getExecutorContext(env, thisObject);
   WasmEdge_ExecutorDelete(exeCxt);
 }

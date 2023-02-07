@@ -81,7 +81,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_MemoryInstanceContext_growPage(
   handleWasmEdgeResult(env, &result);
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_MemoryInstanceContext_delete(
+JNIEXPORT void JNICALL Java_org_wasmedge_MemoryInstanceContext_close(
     JNIEnv *env, jobject thisObject) {
   WasmEdge_MemoryInstanceDelete(getMemoryInstanceContext(env, thisObject));
   setPointer(env, thisObject, 0);

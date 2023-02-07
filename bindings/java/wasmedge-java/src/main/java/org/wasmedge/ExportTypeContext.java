@@ -5,13 +5,11 @@ import org.wasmedge.enums.ExternalType;
 /**
  * Context for exported type, including functions, memory, table and globals.
  */
-public class ExportTypeContext {
+public class ExportTypeContext extends NativeResource {
     private final AstModuleContext astCtx;
 
-    private final long pointer;
-
     private ExportTypeContext(long pointer, AstModuleContext astCtx) {
-        this.pointer = pointer;
+        super(pointer);
         this.astCtx = astCtx;
     }
 
@@ -50,4 +48,5 @@ public class ExportTypeContext {
 
     private native GlobalTypeContext nativeGetGlobalType(AstModuleContext astCtx);
 
+    public native void close();
 }

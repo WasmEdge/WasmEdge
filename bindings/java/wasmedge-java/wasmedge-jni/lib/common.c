@@ -4,6 +4,7 @@
 #include "common.h"
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
+#include "ValueType.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -210,14 +211,18 @@ bool checkAndHandleException(JNIEnv *env, const char *msg) {
 }
 
 void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val) {
+  char* str_val;
   switch (value.Type) {
   case WasmEdge_ValType_I32:
     setJavaIntValue(env, value, j_val);
     break;
   case WasmEdge_ValType_I64:
   case WasmEdge_ValType_FuncRef:
-  case WasmEdge_ValType_V128:
     setJavaLongValue(env, value, j_val);
+    break;
+  case WasmEdge_ValType_V128:
+    str_val = u128toa(value.Value);
+    setJavaStringValue(env, str_val, j_val);
     break;
   case WasmEdge_ValType_F32:
     setJavaFloatValue(env, value, j_val);
@@ -226,7 +231,8 @@ void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val) {
     setJavaDoubleValue(env, value, j_val);
     break;
   case WasmEdge_ValType_ExternRef:
-    setJavaStringValue(env, value, j_val);
+    str_val = WasmEdge_ValueGetExternRef(value);
+    setJavaStringValue(env, str_val, j_val);
     break;
   default:
     break;

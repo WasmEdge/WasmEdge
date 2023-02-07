@@ -3,8 +3,7 @@ package org.wasmedge;
 /**
  * Load context.
  */
-public class LoaderContext {
-    private long pointer;
+public class LoaderContext extends NativeResource {
 
     public LoaderContext(ConfigureContext configureContext) {
         nativeInit(configureContext);
@@ -16,5 +15,5 @@ public class LoaderContext {
 
     private native void nativeInit(ConfigureContext configureContext);
 
-    public native void delete();
+    public native void close();
 }

@@ -3,14 +3,13 @@ package org.wasmedge;
 /**
  * Memory instance.
  */
-public class MemoryInstanceContext {
+public class MemoryInstanceContext extends NativeResource {
 
-    private long pointer;
 
     private MemoryTypeContext memoryTypeContext;
 
     private MemoryInstanceContext(long pointer) {
-        this.pointer = pointer;
+        super(pointer);
     }
 
     public MemoryInstanceContext(MemoryTypeContext memoryTypeContext) {
@@ -29,5 +28,5 @@ public class MemoryInstanceContext {
 
     public native void growPage(int size);
 
-    public native void delete();
+    public native void close();
 }

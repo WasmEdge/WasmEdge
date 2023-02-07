@@ -1,6 +1,8 @@
 //! Defines wasi module instance types, including WasiInstance, WasiNnInstance, wasi-crypto instances.
 
-use crate::{AsInstance, Func, FuncType, Global, GlobalType, Memory, Table, WasmEdgeResult};
+use crate::{
+    AsInstance, Func, FuncType, Global, GlobalType, Memory, MemoryType, Table, WasmEdgeResult,
+};
 use wasmedge_sys::{self as sys, AsImport, AsInstance as sys_as_instance_trait};
 
 /// Represents a wasi module instance.
@@ -126,11 +128,13 @@ impl AsInstance for WasiInstance {
     /// * `name` - the name of the target exported [memory instance](crate::Memory).
     fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let inner_memory = self.inner.get_memory(name.as_ref())?;
+        let ty: MemoryType = inner_memory.ty()?.into();
 
         Ok(Memory {
             inner: inner_memory,
             name: Some(name.as_ref().into()),
             mod_name: None,
+            ty,
         })
     }
 
@@ -303,10 +307,13 @@ impl AsInstance for WasiCryptoCommonInstance {
 
     fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let inner_memory = self.inner.get_memory(name.as_ref())?;
+        let ty: MemoryType = inner_memory.ty()?.into();
+
         Ok(Memory {
             inner: inner_memory,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -390,10 +397,13 @@ impl AsInstance for WasiCryptoAsymmetricCommonInstance {
 
     fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let inner_memory = self.inner.get_memory(name.as_ref())?;
+        let ty: MemoryType = inner_memory.ty()?.into();
+
         Ok(Memory {
             inner: inner_memory,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -477,10 +487,13 @@ impl AsInstance for WasiCryptoSymmetricInstance {
 
     fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let inner_memory = self.inner.get_memory(name.as_ref())?;
+        let ty: MemoryType = inner_memory.ty()?.into();
+
         Ok(Memory {
             inner: inner_memory,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -564,10 +577,13 @@ impl AsInstance for WasiCryptoKxInstance {
 
     fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let inner_memory = self.inner.get_memory(name.as_ref())?;
+        let ty: MemoryType = inner_memory.ty()?.into();
+
         Ok(Memory {
             inner: inner_memory,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -651,10 +667,13 @@ impl AsInstance for WasiCryptoSignaturesInstance {
 
     fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let inner_memory = self.inner.get_memory(name.as_ref())?;
+        let ty: MemoryType = inner_memory.ty()?.into();
+
         Ok(Memory {
             inner: inner_memory,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 

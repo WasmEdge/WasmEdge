@@ -1,5 +1,6 @@
 use crate::{Executor, Instance, Memory};
 use wasmedge_sys::CallingFrame;
+use wasmedge_types::MemoryType;
 
 /// Represents the calling frame on top of stack.
 ///
@@ -56,10 +57,14 @@ impl Caller {
     ///
     pub fn memory(&self, idx: u32) -> Option<Memory> {
         match self.inner.as_ref() {
-            Some(frame) => frame.memory_mut(idx).map(|inner| Memory {
-                inner,
-                name: None,
-                mod_name: None,
+            Some(frame) => frame.memory_mut(idx).map(|inner| {
+                let ty: MemoryType = inner.ty().unwrap().into();
+                Memory {
+                    inner,
+                    name: None,
+                    mod_name: None,
+                    ty,
+                }
             }),
             None => None,
         }

@@ -880,30 +880,28 @@ mod tests {
 
         // get the exported memory
         let result = instance.memory("memory");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut memory = result.unwrap();
 
         // check memory
         assert!(memory.name().is_some());
         assert_eq!(memory.name().unwrap(), "memory");
         assert_eq!(memory.mod_name(), Some("extern"));
-        assert_eq!(memory.size(), 10);
-        let result = memory.ty();
-        assert!(result.is_ok());
-        let ty = result.unwrap();
+        assert_eq!(memory.page(), 10);
+        let ty = memory.ty();
         assert_eq!(ty.minimum(), 10);
         assert_eq!(ty.maximum(), Some(20));
 
         // grow memory
         let result = memory.grow(5);
         assert!(result.is_ok());
-        assert_eq!(memory.size(), 15);
+        assert_eq!(memory.page(), 15);
 
         // get memory from instance again
         let result = instance.memory("memory");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let memory = result.unwrap();
-        assert_eq!(memory.size(), 15);
+        assert_eq!(memory.page(), 15);
     }
 
     #[test]
@@ -1222,7 +1220,7 @@ mod tests {
 
             // get the exported memory
             let result = instance.memory("memory");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let mut memory = result.unwrap();
             // write data
             let result = memory.write(vec![1; 10], 10);
@@ -1352,7 +1350,7 @@ mod tests {
 
             // get the exported memory
             let result = instance.memory("memory");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let mut memory = result.unwrap();
             // write data
             let result = memory.write(vec![1; 10], 10);

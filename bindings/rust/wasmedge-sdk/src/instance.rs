@@ -1,10 +1,9 @@
 //! Defines WasmEdge Instance.
 
-use crate::{Func, FuncType, Global, Memory, Table, WasmEdgeResult};
+use crate::{Func, FuncType, Global, GlobalType, Memory, MemoryType, Table, WasmEdgeResult};
 use wasmedge_sys as sys;
 #[cfg(target_os = "linux")]
 use wasmedge_sys::{AsImport, AsInstance as sys_as_instance_trait};
-use wasmedge_types::GlobalType;
 
 /// Represents an instantiated module.
 ///
@@ -90,17 +89,16 @@ impl Instance {
     /// # Argument
     ///
     /// * `name` - the name of the target exported [memory instance](crate::Memory).
-    pub fn memory(&self, name: impl AsRef<str>) -> Option<Memory> {
-        let inner_memory = self.inner.get_memory(name.as_ref()).ok();
-        if let Some(inner_memory) = inner_memory {
-            return Some(Memory {
-                inner: inner_memory,
-                name: Some(name.as_ref().into()),
-                mod_name: self.inner.name(),
-            });
-        }
+    pub fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
+        let inner_memory = self.inner.get_memory(name.as_ref())?;
+        let ty: MemoryType = inner_memory.ty()?.into();
 
-        None
+        Ok(Memory {
+            inner: inner_memory,
+            name: Some(name.as_ref().into()),
+            mod_name: self.inner.name(),
+            ty,
+        })
     }
 
     /// Returns the count of the exported [table instances](crate::Table) in this [module instance](crate::Instance).
@@ -207,11 +205,13 @@ impl AsInstance for WasmEdgeProcessInstance {
 
     fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let inner_memory = self.inner.get_memory(name.as_ref())?;
+        let ty: MemoryType = inner_memory.ty()?.into();
 
         Ok(Memory {
             inner: inner_memory,
             name: Some(name.as_ref().into()),
             mod_name: None,
+            ty,
         })
     }
 
@@ -424,16 +424,17 @@ mod tests {
 
             // check the exported memory
             let result = instance.memory("mem");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let memory = result.unwrap();
 
             assert_eq!(memory.name().unwrap(), "mem");
             assert_eq!(memory.mod_name().unwrap(), "extern-module");
-            assert_eq!(memory.size(), 10);
+            assert_eq!(memory.page(), 10);
+            assert_eq!(memory.size(), 65536 * 10);
 
             // check the exported global
             let result = instance.global("global");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let global = result.unwrap();
             let val = global.get_value();
             if let Val::F32(val) = val {

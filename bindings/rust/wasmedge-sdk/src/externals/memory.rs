@@ -8,6 +8,7 @@ pub struct Memory {
     pub(crate) inner: sys::Memory,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
+    pub(crate) ty: MemoryType,
 }
 impl Memory {
     /// Creates a new wasm memory instance with the given type.
@@ -20,11 +21,12 @@ impl Memory {
     ///
     /// If fail to create the memory instance, then an error is returned.
     pub fn new(ty: MemoryType) -> WasmEdgeResult<Self> {
-        let inner = sys::Memory::create(&ty.into())?;
+        let inner = sys::Memory::create(&ty.clone().into())?;
         Ok(Self {
             inner,
             name: None,
             mod_name: None,
+            ty,
         })
     }
 
@@ -49,19 +51,18 @@ impl Memory {
     }
 
     /// Returns the type of this memory.
-    pub fn ty(&self) -> WasmEdgeResult<MemoryType> {
-        let ty = self.inner.ty()?;
-        Ok(ty.into())
+    pub fn ty(&self) -> MemoryType {
+        self.ty.clone()
     }
 
-    /// Returns the size, in WebAssembly pages (64 KiB of each page), of this memory.
-    pub fn size(&self) -> u32 {
+    /// Returns the size, in WebAssembly pages (64 KiB of each page), of this wasm memory.
+    pub fn page(&self) -> u32 {
         self.inner.size()
     }
 
-    /// Returns the size, in bytes, of this memory.
-    pub fn data_size(&self) -> u64 {
-        self.size() as u64 * 65536_u64
+    /// Returns the byte length of this memory. The returned value will be a multiple of the wasm page size, 64k.
+    pub fn size(&self) -> u64 {
+        self.page() as u64 * 65536_u64
     }
 
     /// Safely reads memory contents at the given offset into a buffer.
@@ -236,19 +237,17 @@ mod tests {
 
         // get the exported memory
         let result = instance.memory("memory");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut memory = result.unwrap();
 
         // check memory
         assert!(memory.name().is_some());
         assert_eq!(memory.name().unwrap(), "memory");
         assert_eq!(memory.mod_name(), Some("extern"));
-        assert_eq!(memory.size(), 10);
+        assert_eq!(memory.page(), 10);
 
         // check memory type
-        let result = memory.ty();
-        assert!(result.is_ok());
-        let ty = result.unwrap();
+        let ty = memory.ty();
         assert_eq!(ty.minimum(), 10);
         assert_eq!(ty.maximum(), Some(20));
 
@@ -273,13 +272,13 @@ mod tests {
         // grow memory
         let result = memory.grow(5);
         assert!(result.is_ok());
-        assert_eq!(memory.size(), 15);
+        assert_eq!(memory.page(), 15);
 
         // get memory from instance again
         let result = instance.memory("memory");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let memory = result.unwrap();
-        assert_eq!(memory.size(), 15);
+        assert_eq!(memory.page(), 15);
     }
 
     #[test]
@@ -339,6 +338,6 @@ mod tests {
         drop(rec_mem);
 
         // check the cloned RecordsMemory instance
-        assert_eq!(rec_mem_cloned.memory.size(), 10);
+        assert_eq!(rec_mem_cloned.memory.page(), 10);
     }
 }

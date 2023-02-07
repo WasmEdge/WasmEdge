@@ -1,7 +1,7 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
 use crate::{
-    error::HostFuncError, executor, io::WasmValTypeList, CallingFrame, Engine, Executor, FuncType,
-    ValType, WasmEdgeResult, WasmValue,
+    error::HostFuncError, io::WasmValTypeList, CallingFrame, Executor, FuncType, ValType,
+    WasmEdgeResult, WasmValue,
 };
 use wasmedge_sys as sys;
 

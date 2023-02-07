@@ -13,7 +13,7 @@ use crate::{
     config::Config,
     error::{VmError, WasmEdgeError},
     wasi::WasiInstance,
-    Engine, Executor, Func, FuncRef, FuncType, ImportObject, Instance, Module, Statistics, Store,
+    Executor, Func, FuncRef, FuncType, ImportObject, Instance, Module, Statistics, Store,
     WasmEdgeResult, WasmValue,
 };
 use std::{collections::HashMap, path::Path};
@@ -258,7 +258,14 @@ impl Vm {
 
             #[cfg(target_os = "linux")]
             if cfg.wasmedge_process_enabled() {
-                unimplemented!("wasmedge_process in Vm::new")
+                let wasmedge_process_module = sys::WasmEdgeProcessModule::create(None, false)?;
+                vm.executor.inner.register_import_object(
+                    &mut vm.store.inner,
+                    &sys::ImportObject::WasmEdgeProcess(wasmedge_process_module.clone()),
+                )?;
+                vm.wasmedge_process_instance = Some(WasmEdgeProcessInstance {
+                    inner: wasmedge_process_module,
+                });
             }
         }
 
@@ -1094,7 +1101,7 @@ mod tests {
         let config = result.unwrap();
 
         // create a vm with the config settings
-        let result = Vm::new(Some(config));
+        let result = Vm::new(Some(config), None);
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 

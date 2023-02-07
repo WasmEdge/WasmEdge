@@ -672,16 +672,15 @@ mod tests {
 
         // check registered modules
         assert_eq!(store.named_instance_count(), 1);
-        let result = store.instance_names();
-        assert!(result.is_some());
-        assert_eq!(result.unwrap(), ["wasmedge_process"]);
-        let result = store.module_instance("wasmedge_process");
-        assert!(result.is_some());
+        let names = store.instance_names();
+        assert_eq!(names, ["wasmedge_process"]);
+        let result = store.named_instance("wasmedge_process");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // find "add" host function
         let result = instance.func("add");
-        assert!(result.is_some());
+        assert!(result.is_ok());
 
         // * try to add another WasmEdgeProcess module, that causes error
 

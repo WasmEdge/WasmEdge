@@ -321,7 +321,7 @@ mod tests {
 
         // check the exported instances
         assert_eq!(store.named_instance_count(), 0);
-        assert!(store.instance_names().is_none());
+        assert_eq!(store.instance_names().len(), 0);
 
         // create a Const global instance
         let result = Global::new(
@@ -374,16 +374,16 @@ mod tests {
 
         // check the exported instances
         assert_eq!(store.named_instance_count(), 2);
-        assert!(store.instance_names().is_some());
-        let mod_names = store.instance_names().unwrap();
+        assert_eq!(store.instance_names().len(), 2);
+        let mod_names = store.instance_names();
         assert_eq!(mod_names[0], "extern-module");
         assert_eq!(mod_names[1], "fib-module");
 
         // check the module instance named "extern-module"
         {
             assert_eq!(mod_names[0], "extern-module");
-            let result = store.module_instance(mod_names[0].as_str());
-            assert!(result.is_some());
+            let result = store.named_instance(mod_names[0].as_str());
+            assert!(result.is_ok());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
             assert_eq!(instance.name().unwrap(), mod_names[0]);
@@ -395,7 +395,7 @@ mod tests {
 
             // check the exported host function
             let result = instance.func("add");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let host_func = result.unwrap();
             assert_eq!(
                 host_func.ty().unwrap(),
@@ -438,8 +438,8 @@ mod tests {
         // check the module instance named "fib-module"
         {
             assert_eq!(mod_names[1], "fib-module");
-            let result = store.module_instance(mod_names[1].as_str());
-            assert!(result.is_some());
+            let result = store.named_instance(mod_names[1].as_str());
+            assert!(result.is_ok());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
             assert_eq!(instance.name().unwrap(), mod_names[1]);
@@ -451,7 +451,7 @@ mod tests {
 
             // check the exported host function
             let result = instance.func("fib");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let host_func = result.unwrap();
             assert_eq!(
                 host_func.ty().unwrap(),

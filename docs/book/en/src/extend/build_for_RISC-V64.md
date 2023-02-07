@@ -80,13 +80,13 @@ ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/examples/wasm$ wasmedgec fibonacci.was
 ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/examples/wasm$ time wasmedge --reactor fibonacci_aot.wasm fib 30
 1346269
 
-real	0m0.284s
-user	0m0.282s
-sys	0m0.005s
+real    0m0.284s
+user    0m0.282s
+sys     0m0.005s
 ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/examples/wasm$ time wasmedge --reactor fibonacci.wasm fib 30
 1346269
 
-real	0m1.814s
-user	0m1.776s
-sys	0m0.016s
+real    0m1.814s
+user    0m1.776s
+sys     0m0.016s
 ```

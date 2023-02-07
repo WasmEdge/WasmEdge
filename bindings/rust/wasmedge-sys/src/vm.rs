@@ -253,11 +253,9 @@ impl Vm {
                         ))),
                     }
                 }
-                false => {
-                    return Err(Box::new(WasmEdgeError::Vm(
-                        VmError::NotFoundWasmEdgeProcessModule,
-                    )))
-                }
+                false => Err(Box::new(WasmEdgeError::Vm(
+                    VmError::NotFoundWasmEdgeProcessModule,
+                ))),
             }
         } else {
             match self.imports.contains_key("wasmedge_process") {
@@ -301,11 +299,9 @@ impl Vm {
                         ))),
                     }
                 }
-                false => {
-                    return Err(Box::new(WasmEdgeError::Vm(
-                        VmError::NotFoundWasmEdgeProcessModule,
-                    )))
-                }
+                false => Err(Box::new(WasmEdgeError::Vm(
+                    VmError::NotFoundWasmEdgeProcessModule,
+                ))),
             }
         } else {
             match self.imports.contains_key("wasmedge_process") {
@@ -371,16 +367,14 @@ impl Vm {
             #[cfg(not(feature = "custom_wasi"))]
             ImportObject::Wasi(import_mod) => {
                 if self.config.wasi_enabled() {
-                    if self
-                        .host_registered_modules
-                        .contains_key(&HostRegistration::Wasi)
+                    if let std::collections::hash_map::Entry::Vacant(e) =
+                        self.host_registered_modules.entry(HostRegistration::Wasi)
                     {
+                        e.insert(ImportObject::Wasi(import_mod));
+                    } else {
                         return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
                             io_name,
                         ))));
-                    } else {
-                        self.host_registered_modules
-                            .insert(HostRegistration::Wasi, ImportObject::Wasi(import_mod));
                     }
 
                     self.executor.register_import_object(
@@ -443,19 +437,30 @@ impl Vm {
             #[cfg(target_os = "linux")]
             ImportObject::WasmEdgeProcess(import_mod) => {
                 if self.config.wasmedge_process_enabled() {
-                    if self
+                    if let std::collections::hash_map::Entry::Vacant(e) = self
                         .host_registered_modules
-                        .contains_key(&HostRegistration::WasmEdgeProcess)
+                        .entry(HostRegistration::WasmEdgeProcess)
                     {
+                        e.insert(ImportObject::WasmEdgeProcess(import_mod));
+                    } else {
                         return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
                             io_name,
                         ))));
-                    } else {
-                        self.host_registered_modules.insert(
-                            HostRegistration::WasmEdgeProcess,
-                            ImportObject::WasmEdgeProcess(import_mod),
-                        );
                     }
+
+                    // if !self
+                    //     .host_registered_modules
+                    //     .contains_key(&HostRegistration::WasmEdgeProcess)
+                    // {
+                    //     self.host_registered_modules.insert(
+                    //         HostRegistration::WasmEdgeProcess,
+                    //         ImportObject::WasmEdgeProcess(import_mod),
+                    //     );
+                    // } else {
+                    //     return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule(
+                    //         io_name,
+                    //     ))));
+                    // }
 
                     self.executor.register_import_object(
                         &mut self.store,
@@ -592,12 +597,12 @@ impl Vm {
         module: &Module,
     ) -> WasmEdgeResult<()> {
         // validate module
-        self.validator.validate(&module)?;
+        self.validator.validate(module)?;
 
         // register module
         let instance =
             self.executor
-                .register_named_module(&mut self.store, &module, mod_name.as_ref())?;
+                .register_named_module(&mut self.store, module, mod_name.as_ref())?;
         match self.named_instances.contains_key(mod_name.as_ref()) {
             true => {
                 return Err(Box::new(WasmEdgeError::Vm(
@@ -765,7 +770,7 @@ impl Vm {
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         // register active instance
-        self.register_active_instance_from_module(&module)?;
+        self.register_active_instance_from_module(module)?;
 
         // run function
         self.run_function(func_name.as_ref(), params)
@@ -779,10 +784,10 @@ impl Vm {
         params: impl IntoIterator<Item = WasmValue> + Send,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         // validate module
-        self.validator.validate(&module)?;
+        self.validator.validate(module)?;
 
         // register active instance
-        self.register_active_instance_from_module(&module)?;
+        self.register_active_instance_from_module(module)?;
 
         // run function
         self.run_function_async(func_name, params).await

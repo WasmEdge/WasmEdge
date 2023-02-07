@@ -1365,13 +1365,11 @@ mod tests {
         let fib = result.unwrap();
 
         // check the type of host_func
-        let result = fib.ty();
-        assert!(result.is_ok());
-        let signature = result.unwrap();
-        assert!(signature.args().is_some());
-        assert_eq!(signature.args().unwrap(), [ValType::I32]);
-        assert!(signature.returns().is_some());
-        assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+        let ty = fib.ty();
+        assert!(ty.args().is_some());
+        assert_eq!(ty.args().unwrap(), [ValType::I32]);
+        assert!(ty.returns().is_some());
+        assert_eq!(ty.returns().unwrap(), [ValType::I32]);
     }
 
     #[test]
@@ -1443,13 +1441,11 @@ mod tests {
         let fib = result.unwrap();
 
         // check the type of host_func
-        let result = fib.ty();
-        assert!(result.is_ok());
-        let signature = result.unwrap();
-        assert!(signature.args().is_some());
-        assert_eq!(signature.args().unwrap(), [ValType::I32]);
-        assert!(signature.returns().is_some());
-        assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+        let ty = fib.ty();
+        assert!(ty.args().is_some());
+        assert_eq!(ty.args().unwrap(), [ValType::I32]);
+        assert!(ty.returns().is_some());
+        assert_eq!(ty.returns().unwrap(), [ValType::I32]);
     }
 
     #[test]

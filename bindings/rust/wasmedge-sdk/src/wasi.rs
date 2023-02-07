@@ -1,6 +1,6 @@
 //! Defines wasi module instance types, including WasiInstance, WasiNnInstance, wasi-crypto instances.
 
-use crate::{AsInstance, Func, Global, Memory, Table, WasmEdgeResult};
+use crate::{AsInstance, Func, FuncType, Global, Memory, Table, WasmEdgeResult};
 use wasmedge_sys::{self as sys, AsImport, AsInstance as sys_as_instance_trait};
 
 /// Represents a wasi module instance.
@@ -72,11 +72,13 @@ impl AsInstance for WasiInstance {
     /// * `name` - the name of the target exported [function instance](crate::Func).
     fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
         let inner_func = self.inner.get_func(name.as_ref())?;
+        let ty: FuncType = inner_func.ty()?.into();
 
         Ok(Func {
             inner: inner_func,
             name: Some(name.as_ref().into()),
             mod_name: None,
+            ty,
         })
     }
 
@@ -259,10 +261,13 @@ impl AsInstance for WasiCryptoCommonInstance {
 
     fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
         let inner_func = self.inner.get_func(name.as_ref())?;
+        let ty: FuncType = inner_func.ty()?.into();
+
         Ok(Func {
             inner: inner_func,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -340,10 +345,13 @@ impl AsInstance for WasiCryptoAsymmetricCommonInstance {
 
     fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
         let inner_func = self.inner.get_func(name.as_ref())?;
+        let ty: FuncType = inner_func.ty()?.into();
+
         Ok(Func {
             inner: inner_func,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -421,10 +429,13 @@ impl AsInstance for WasiCryptoSymmetricInstance {
 
     fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
         let inner_func = self.inner.get_func(name.as_ref())?;
+        let ty: FuncType = inner_func.ty()?.into();
+
         Ok(Func {
             inner: inner_func,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -502,10 +513,13 @@ impl AsInstance for WasiCryptoKxInstance {
 
     fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
         let inner_func = self.inner.get_func(name.as_ref())?;
+        let ty: FuncType = inner_func.ty()?.into();
+
         Ok(Func {
             inner: inner_func,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -583,10 +597,13 @@ impl AsInstance for WasiCryptoSignaturesInstance {
 
     fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
         let inner_func = self.inner.get_func(name.as_ref())?;
+        let ty: FuncType = inner_func.ty()?.into();
+
         Ok(Func {
             inner: inner_func,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 

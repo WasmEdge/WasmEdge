@@ -63,6 +63,7 @@ pub struct Func {
     pub(crate) inner: sys::Function,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
+    pub(crate) ty: FuncType,
 }
 impl Func {
     /// Creates a host function of the given func type.
@@ -86,11 +87,12 @@ impl Func {
             + 'static,
     ) -> WasmEdgeResult<Self> {
         let boxed_func = Box::new(real_func);
-        let inner = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        let inner = sys::Function::create(&ty.clone().into(), boxed_func, 0)?;
         Ok(Self {
             inner,
             name: None,
             mod_name: None,
+            ty,
         })
     }
 
@@ -119,11 +121,12 @@ impl Func {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        let inner = sys::Function::create(&ty.clone().into(), boxed_func, 0)?;
         Ok(Self {
             inner,
             name: None,
             mod_name: None,
+            ty,
         })
     }
 
@@ -157,11 +160,12 @@ impl Func {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner = sys::Function::create_async(&ty.into(), boxed_func, 0)?;
+        let inner = sys::Function::create_async(&ty.clone().into(), boxed_func, 0)?;
         Ok(Self {
             inner,
             name: None,
             mod_name: None,
+            ty,
         })
     }
 
@@ -188,9 +192,8 @@ impl Func {
     /// Returns the type of the host function.
     ///
     /// If fail to get the signature, then an error is returned.
-    pub fn ty(&self) -> WasmEdgeResult<FuncType> {
-        let func_ty = self.inner.ty()?;
-        Ok(func_ty.into())
+    pub fn ty(&self) -> FuncType {
+        self.ty.clone()
     }
 
     /// Returns a reference to this function instance.
@@ -443,9 +446,7 @@ mod tests {
         let host_func = result.unwrap();
 
         // check the signature of the host function
-        let result = host_func.ty();
-        assert!(result.is_ok());
-        let func_ty = result.unwrap();
+        let func_ty = host_func.ty();
         assert!(func_ty.args().is_some());
         assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
         assert!(func_ty.returns().is_some());

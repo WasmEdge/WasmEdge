@@ -1,6 +1,6 @@
 //! Defines WasmEdge Instance.
 
-use crate::{Func, Global, Memory, Table, WasmEdgeResult};
+use crate::{Func, FuncType, Global, Memory, Table, WasmEdgeResult};
 use wasmedge_sys as sys;
 #[cfg(target_os = "linux")]
 use wasmedge_sys::{AsImport, AsInstance as sys_as_instance_trait};
@@ -37,11 +37,13 @@ impl Instance {
     /// * `name` - the name of the target exported [function instance](crate::Func).
     pub fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
         let inner_func = self.inner.get_func(name.as_ref())?;
+        let ty: FuncType = inner_func.ty()?.into();
 
         Ok(Func {
             inner: inner_func,
             name: Some(name.as_ref().into()),
             mod_name: self.inner.name(),
+            ty,
         })
     }
 
@@ -165,11 +167,13 @@ impl AsInstance for WasmEdgeProcessInstance {
 
     fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
         let inner_func = self.inner.get_func(name.as_ref())?;
+        let ty: FuncType = inner_func.ty()?.into();
 
         Ok(Func {
             inner: inner_func,
             name: Some(name.as_ref().into()),
             mod_name: None,
+            ty,
         })
     }
 
@@ -398,7 +402,7 @@ mod tests {
             assert!(result.is_ok());
             let host_func = result.unwrap();
             assert_eq!(
-                host_func.ty().unwrap(),
+                host_func.ty(),
                 FuncTypeBuilder::new()
                     .with_args(vec![ValType::I32; 2])
                     .with_returns(vec![ValType::I32])
@@ -454,7 +458,7 @@ mod tests {
             assert!(result.is_ok());
             let host_func = result.unwrap();
             assert_eq!(
-                host_func.ty().unwrap(),
+                host_func.ty(),
                 FuncTypeBuilder::new()
                     .with_args(vec![ValType::I32])
                     .with_returns(vec![ValType::I32])

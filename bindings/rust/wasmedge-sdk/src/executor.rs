@@ -111,7 +111,7 @@ mod tests {
             let result = Executor::new(None, Some(&mut stat));
             assert!(result.is_ok());
 
-            assert_eq!(stat.cost_in_total(), 0);
+            assert_eq!(stat.cost(), 0);
         }
 
         {
@@ -127,7 +127,7 @@ mod tests {
             assert!(result.is_ok());
 
             assert!(config.bulk_memory_operations_enabled());
-            assert_eq!(stat.cost_in_total(), 0);
+            assert_eq!(stat.cost(), 0);
         }
     }
 

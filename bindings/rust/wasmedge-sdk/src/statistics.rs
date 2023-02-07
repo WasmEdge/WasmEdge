@@ -20,7 +20,7 @@ impl Statistics {
     }
 
     /// Returns the instruction count in execution.
-    pub fn count_of_instr(&self) -> u64 {
+    pub fn count(&self) -> u64 {
         self.inner.instr_count()
     }
 
@@ -43,14 +43,14 @@ impl Statistics {
     /// let stat = Statistics::new().expect("fail to create a Statistics");
     ///
     /// // check instruction count per second
-    /// assert!(stat.instr_per_sec().is_nan());
+    /// assert!(stat.count_per_second().is_nan());
     /// ```
-    pub fn instr_per_sec(&self) -> f64 {
+    pub fn count_per_second(&self) -> f64 {
         self.inner.instr_per_sec()
     }
 
     /// Returns the total cost in execution.
-    pub fn cost_in_total(&self) -> u64 {
+    pub fn cost(&self) -> u64 {
         self.inner.cost_in_total()
     }
 

@@ -36,6 +36,17 @@ public:
   /// @param[in] Parent Parent VINode.
   VINode(VFS &FS, INode Node, std::shared_ptr<VINode> Parent);
 
+  /// Create a VINode with a parent and explicit rights
+  ///
+  /// @param[in] FS Filesystem.
+  /// @param[in] Node System INode.
+  /// @param[in] Parent Parent VINode.
+  /// @param[in] FRB The desired rights of the VINode.
+  /// @param[in] FRI The desired rights of the VINode.
+  /// @param[in] Parent Parent VINode.
+  VINode(VFS &FS, INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
+         std::shared_ptr<VINode> Parent);
+
   /// Create a orphan VINode.
   ///
   /// @param[in] FS Filesystem.
@@ -734,10 +745,10 @@ private:
   /// @param Path Path, contains one element only.
   /// @param OpenFlags WASI open flags.
   /// @return VINode found, or WASI error.
-  WasiExpect<std::shared_ptr<VINode>> directOpen(std::string_view Path,
-                                                 __wasi_oflags_t OpenFlags,
-                                                 __wasi_fdflags_t FdFlags,
-                                                 uint8_t VFSFlags);
+  WasiExpect<std::shared_ptr<VINode>>
+  directOpen(std::string_view Path, __wasi_oflags_t OpenFlags,
+             __wasi_fdflags_t FdFlags, uint8_t VFSFlags,
+             __wasi_rights_t RightsBase, __wasi_rights_t RightsInheriting);
 
   /// Resolve path until last element.
   /// @param[in] FS Filesystem.

@@ -19,8 +19,8 @@
 
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
-    AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Loader, Vm,
-    WasmValue,
+    AsImport, CallingFrame, Config, Executor, FuncType, Function, ImportModule, ImportObject,
+    Loader, Store, Validator, WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, wat2wasm, ValType};
 
@@ -53,6 +53,30 @@ fn real_add(_frame: CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let func_ty = FuncType::create(
+        vec![ValType::ExternRef, ValType::I32, ValType::I32],
+        vec![ValType::I32],
+    )?;
+    let host_func = Function::create(&func_ty, Box::new(real_add), 0)?;
+
+    // create an ImportObject module
+    let mut import = ImportModule::create("extern_module")?;
+    import.add_func("add", host_func);
+
+    // create a config
+    let config = Config::create()?;
+
+    // create an executor
+    let mut executor = Executor::create(Some(&config), None)?;
+
+    // create a store
+    let mut store = Store::create()?;
+
+    // register import object
+    let import_obj = ImportObject::Import(import);
+    executor.register_import_object(&mut store, &import_obj)?;
+
+    // load wasm module from binary
     let wasm_bytes = wat2wasm(
         br#"
         (module
@@ -68,48 +92,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             (export "memory" (memory 0)))
     "#,
     )?;
+    let module = Loader::create(Some(&config))?.from_bytes(&wasm_bytes)?;
+    Validator::create(Some(&config))?.validate(&module)?;
 
-    let result = FuncType::create(
-        vec![ValType::ExternRef, ValType::I32, ValType::I32],
-        vec![ValType::I32],
-    );
-    assert!(result.is_ok());
-    let func_ty = result.unwrap();
-    let result = Function::create(&func_ty, Box::new(real_add), 0);
-    assert!(result.is_ok());
-    let host_func = result.unwrap();
-
-    // create an ImportObject module
-    let mut import = ImportModule::create("extern_module")?;
-    import.add_func("add", host_func);
-
-    // load module from file
-    let config = Config::create()?;
-    let loader = Loader::create(Some(&config))?;
-    let module = loader.from_bytes(wasm_bytes)?;
-
-    // create a Vm context
-    let config = Config::create()?;
-    let mut vm = Vm::create(Some(config))?;
-    vm.register_instance_from_import(ImportObject::Import(import))?;
+    let active_instance = executor.register_active_module(&mut store, &module)?;
+    let call_add = active_instance.get_func("call_add")?;
 
     let add_ref = WasmValue::from_extern_ref(&mut real_add);
-    match vm.run_wasm_from_module(
-        &module,
-        "call_add",
+    let returns = executor.call_func(
+        &call_add,
         [
             add_ref,
             WasmValue::from_i32(1234),
             WasmValue::from_i32(5678),
         ],
-    ) {
-        Ok(returns) => {
-            let ret = returns[0].to_i32();
-            assert_eq!(ret, 1234 + 5678);
-            println!("result from call_add: {ret}")
-        }
-        Err(e) => println!("error from call_add{e:?}"),
-    };
+    )?;
+    let ret = returns[0].to_i32();
+    assert_eq!(ret, 1234 + 5678);
+    println!("result from call_add: {ret}");
 
     Ok(())
 }

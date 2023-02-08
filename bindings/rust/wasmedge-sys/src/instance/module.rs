@@ -360,71 +360,6 @@ pub trait AsInstance {
 /// # Example
 ///
 /// The following example shows how to use [ImportModule] to import [host function](crate::Function), [table](crate::Table), [memory](crate::Memory) and [global](crate::Global) instances, and to register it into [Vm](crate::Vm).
-///
-/// ```rust
-/// use wasmedge_sys::{
-///     AsImport, FuncType, Function, Global, GlobalType, ImportModule, ImportObject, MemType,
-///     Memory, Table, TableType, Vm, WasmValue, CallingFrame,
-/// };
-/// use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
-///
-/// fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let module_name = "extern_module";
-///
-///     // create ImportModule instance
-///     let mut import = ImportModule::create(module_name)?;
-///
-///     // a function to import
-///     fn real_add(_: CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
-///         if inputs.len() != 2 {
-///             return Err(HostFuncError::User(1));
-///         }
-///
-///         let a = if inputs[0].ty() == ValType::I32 {
-///             inputs[0].to_i32()
-///         } else {
-///             return Err(HostFuncError::User(2));
-///         };
-///
-///         let b = if inputs[1].ty() == ValType::I32 {
-///             inputs[1].to_i32()
-///         } else {
-///             return Err(HostFuncError::User(3));
-///         };
-///
-///         let c = a + b;
-///
-///         Ok(vec![WasmValue::from_i32(c)])
-///     }
-///
-///     // add host function
-///     let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32])?;
-///     let host_func = Function::create(&func_ty, Box::new(real_add), 0)?;
-///     import.add_func("add", host_func);
-///
-///     // add table
-///     let table_ty = TableType::create(RefType::FuncRef, 0, Some(u32::MAX))?;
-///     let table = Table::create(&table_ty)?;
-///     import.add_table("table", table);
-///
-///     // add memory
-///     let mem_ty = MemType::create(0, Some(u32::MAX), false)?;
-///     let memory = Memory::create(&mem_ty)?;
-///     import.add_memory("mem", memory);
-///
-///     // add global
-///     let ty = GlobalType::create(ValType::F32, Mutability::Const)?;
-///     let global = Global::create(&ty, WasmValue::from_f32(3.5))?;
-///     import.add_global("global", global);
-///
-///     let mut vm = Vm::create(None)?;
-///
-///     vm.register_instance_from_import(ImportObject::Import(import))?;
-///
-///     Ok(())
-/// }
-///
-/// ```
 ///  
 #[derive(Debug, Clone)]
 pub struct ImportModule {
@@ -2964,7 +2899,7 @@ mod tests {
     use super::*;
     use crate::{
         CallingFrame, Config, Executor, FuncType, GlobalType, ImportModule, MemType, Store,
-        TableType, Vm, WasmValue,
+        TableType, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -3108,7 +3043,7 @@ mod tests {
             let result = Config::create();
             assert!(result.is_ok());
             let config = result.unwrap();
-            let result = Executor::create(Some(config), None);
+            let result = Executor::create(Some(&config), None);
             assert!(result.is_ok());
             let mut executor = result.unwrap();
 
@@ -3191,31 +3126,31 @@ mod tests {
 
         // initialize WASI in VM
         {
-            let result = Config::create();
-            assert!(result.is_ok());
-            let mut config = result.unwrap();
-            config.wasi(true);
-            let result = Vm::create(Some(config));
-            assert!(result.is_ok());
-            let mut vm = result.unwrap();
+            // let result = Config::create();
+            // assert!(result.is_ok());
+            // let mut config = result.unwrap();
+            // config.wasi(true);
+            // let result = Vm::create(Some(config));
+            // assert!(result.is_ok());
+            // let mut vm = result.unwrap();
 
-            // get the ImportObject module from vm
-            let result = vm.wasi_module_mut();
-            assert!(result.is_ok());
-            let import_wasi = result.unwrap();
+            // // get the ImportObject module from vm
+            // let result = vm.wasi_module_mut();
+            // assert!(result.is_ok());
+            // let import_wasi = result.unwrap();
 
-            let args = vec!["arg1", "arg2"];
-            let envs = vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"];
-            let preopens = vec![
-                "apiTestData",
-                "Makefile",
-                "CMakeFiles",
-                "ssvmAPICoreTests",
-                ".:.",
-            ];
-            import_wasi.init_wasi(Some(args), Some(envs), Some(preopens));
+            // let args = vec!["arg1", "arg2"];
+            // let envs = vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"];
+            // let preopens = vec![
+            //     "apiTestData",
+            //     "Makefile",
+            //     "CMakeFiles",
+            //     "ssvmAPICoreTests",
+            //     ".:.",
+            // ];
+            // import_wasi.init_wasi(Some(args), Some(envs), Some(preopens));
 
-            assert_eq!(import_wasi.exit_code(), 0);
+            // assert_eq!(import_wasi.exit_code(), 0);
         }
     }
 
@@ -3229,40 +3164,70 @@ mod tests {
         utils::load_plugin_from_default_paths();
 
         // create wasmedge_process
-        {
-            let result = WasmEdgeProcessModule::create(Some(vec!["arg1", "arg2"]), true);
-            assert!(result.is_ok());
+        let result = WasmEdgeProcessModule::create(Some(vec!["arg1", "arg2"]), true);
+        assert!(result.is_ok());
 
-            let result = WasmEdgeProcessModule::create(None, false);
-            assert!(result.is_ok());
+        let result = WasmEdgeProcessModule::create(None, false);
+        assert!(result.is_ok());
 
-            let result = WasmEdgeProcessModule::create(Some(vec!["arg1", "arg2"]), false);
-            assert!(result.is_ok());
-        }
-
-        // initialize wasmedge_process in VM
-        {
-            let result = Config::create();
-            assert!(result.is_ok());
-            let mut config = result.unwrap();
-            config.wasmedge_process(true);
-            assert!(config.wasmedge_process_enabled());
-            let result = Vm::create(Some(config));
-            assert!(result.is_ok());
-            let mut vm = result.unwrap();
-
-            let result = vm.wasmedge_process_module_mut();
-            assert!(result.is_ok());
-            let import_wasmedge_process = result.unwrap();
-            import_wasmedge_process.init_wasmedge_process(Some(vec!["arg1", "arg2"]), false);
-        }
+        let result = WasmEdgeProcessModule::create(Some(vec!["arg1", "arg2"]), false);
+        assert!(result.is_ok());
     }
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
-    fn test_instance_find_xxx() {
-        let mut vm = create_vm();
-        let store = vm.store_mut();
+    fn test_instance_find_xxx() -> Result<(), Box<dyn std::error::Error>> {
+        let module_name = "extern_module";
+
+        // create ImportModule instance
+        let result = ImportModule::create(module_name);
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // add host function
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+        import.add_func("add", host_func);
+
+        // add table
+        let result = TableType::create(RefType::FuncRef, 0, Some(u32::MAX));
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Table::create(&ty);
+        assert!(result.is_ok());
+        let table = result.unwrap();
+        import.add_table("table", table);
+
+        // add memory
+        let result = MemType::create(0, Some(u32::MAX), false);
+        assert!(result.is_ok());
+        let mem_ty = result.unwrap();
+        let result = Memory::create(&mem_ty);
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+        import.add_memory("mem", memory);
+
+        // add global
+        let result = GlobalType::create(ValType::F32, Mutability::Const);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Global::create(&ty, WasmValue::from_f32(3.5));
+        assert!(result.is_ok());
+        let global = result.unwrap();
+        import.add_global("global", global);
+
+        // create an executor
+        let mut executor = Executor::create(None, None)?;
+
+        // create a store
+        let mut store = Store::create()?;
+
+        let import_obj = ImportObject::Import(import);
+        executor.register_import_object(&mut store, &import_obj)?;
 
         // get the module named "extern"
         let result = store.module("extern_module");
@@ -3327,13 +3292,64 @@ mod tests {
         let global = result.unwrap();
         assert_eq!(global.value_type(), ValType::F32);
         assert_eq!(global.mutability(), Mutability::Const);
+
+        Ok(())
     }
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
-    fn test_instance_find_names() {
-        let mut vm = create_vm();
-        let store = vm.store_mut();
+    fn test_instance_find_names() -> Result<(), Box<dyn std::error::Error>> {
+        let module_name = "extern_module";
+
+        // create ImportModule instance
+        let result = ImportModule::create(module_name);
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // add host function
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+        import.add_func("add", host_func);
+
+        // add table
+        let result = TableType::create(RefType::FuncRef, 0, Some(u32::MAX));
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Table::create(&ty);
+        assert!(result.is_ok());
+        let table = result.unwrap();
+        import.add_table("table", table);
+
+        // add memory
+        let result = MemType::create(0, Some(u32::MAX), false);
+        assert!(result.is_ok());
+        let mem_ty = result.unwrap();
+        let result = Memory::create(&mem_ty);
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+        import.add_memory("mem", memory);
+
+        // add global
+        let result = GlobalType::create(ValType::F32, Mutability::Const);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Global::create(&ty, WasmValue::from_f32(3.5));
+        assert!(result.is_ok());
+        let global = result.unwrap();
+        import.add_global("global", global);
+
+        // create an executor
+        let mut executor = Executor::create(None, None)?;
+
+        // create a store
+        let mut store = Store::create()?;
+
+        let import_obj = ImportObject::Import(import);
+        executor.register_import_object(&mut store, &import_obj)?;
 
         // get the module named "extern"
         let result = store.module("extern_module");
@@ -3363,6 +3379,8 @@ mod tests {
         let result = instance.global_names();
         assert!(result.is_some());
         assert_eq!(result.unwrap(), ["global"]);
+
+        Ok(())
     }
 
     #[test]
@@ -3426,7 +3444,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let result = Executor::create(Some(config), None);
+        let result = Executor::create(Some(&config), None);
         assert!(result.is_ok());
         let mut executor = result.unwrap();
 
@@ -3447,61 +3465,6 @@ mod tests {
         let ty = result.unwrap();
         assert_eq!(ty.min(), 10);
         assert_eq!(ty.max(), Some(20));
-    }
-
-    #[allow(clippy::assertions_on_result_states)]
-    fn create_vm() -> Vm {
-        let module_name = "extern_module";
-
-        // create ImportModule instance
-        let result = ImportModule::create(module_name);
-        assert!(result.is_ok());
-        let mut import = result.unwrap();
-
-        // add host function
-        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
-        assert!(result.is_ok());
-        let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
-        assert!(result.is_ok());
-        let host_func = result.unwrap();
-        import.add_func("add", host_func);
-
-        // add table
-        let result = TableType::create(RefType::FuncRef, 0, Some(u32::MAX));
-        assert!(result.is_ok());
-        let ty = result.unwrap();
-        let result = Table::create(&ty);
-        assert!(result.is_ok());
-        let table = result.unwrap();
-        import.add_table("table", table);
-
-        // add memory
-        let result = MemType::create(0, Some(u32::MAX), false);
-        assert!(result.is_ok());
-        let mem_ty = result.unwrap();
-        let result = Memory::create(&mem_ty);
-        assert!(result.is_ok());
-        let memory = result.unwrap();
-        import.add_memory("mem", memory);
-
-        // add global
-        let result = GlobalType::create(ValType::F32, Mutability::Const);
-        assert!(result.is_ok());
-        let ty = result.unwrap();
-        let result = Global::create(&ty, WasmValue::from_f32(3.5));
-        assert!(result.is_ok());
-        let global = result.unwrap();
-        import.add_global("global", global);
-
-        let result = Vm::create(None);
-        assert!(result.is_ok());
-        let mut vm = result.unwrap();
-
-        let result = vm.register_instance_from_import(ImportObject::Import(import));
-        assert!(result.is_ok());
-
-        vm
     }
 
     fn real_add(_: CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {

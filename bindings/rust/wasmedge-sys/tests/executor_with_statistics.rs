@@ -30,7 +30,7 @@ fn test_executor_with_statistics() {
     stat.set_cost_limit(100_000_000_000_000);
 
     // create an Executor context
-    let result = Executor::create(Some(config), Some(&mut stat));
+    let result = Executor::create(Some(&config), Some(&mut stat));
     assert!(result.is_ok());
     let mut executor = result.unwrap();
 

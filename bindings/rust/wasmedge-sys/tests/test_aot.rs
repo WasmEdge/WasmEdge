@@ -1,18 +1,16 @@
 #[cfg(feature = "aot")]
 use wasmedge_sys::{
-    AsImport, CallingFrame, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm,
-    WasmValue,
+    AsImport, CallingFrame, Compiler, Config, Executor, FuncType, Function, ImportModule,
+    ImportObject, Loader, Store, Validator, WasmValue,
 };
 #[cfg(feature = "aot")]
 use wasmedge_types::{error::HostFuncError, CompilerOptimizationLevel, CompilerOutputFormat};
 
 #[cfg(feature = "aot")]
 #[test]
-fn test_aot() {
+fn test_aot() -> Result<(), Box<dyn std::error::Error>> {
     // create a Config context
-    let result = Config::create();
-    assert!(result.is_ok());
-    let mut config = result.unwrap();
+    let mut config = Config::create()?;
     // enable options
     config.tail_call(true);
     config.annotations(true);
@@ -20,23 +18,22 @@ fn test_aot() {
     config.threads(true);
     config.exception_handling(true);
     config.function_references(true);
-
-    // create a Vm context
-    let result = Vm::create(Some(config));
-    assert!(result.is_ok());
-    let mut vm = result.unwrap();
-    let import = create_spec_test_module();
-    let result = vm.register_instance_from_import(ImportObject::Import(import));
-    assert!(result.is_ok());
-
-    // set the AOT compiler options
-    let result = Config::create();
-    assert!(result.is_ok());
-    let mut config = result.unwrap();
     config.set_aot_optimization_level(CompilerOptimizationLevel::O0);
     config.set_aot_compiler_output_format(CompilerOutputFormat::Native);
     config.interruptible(true);
-    let result = Compiler::create(Some(config));
+
+    // create an executor
+    let mut executor = Executor::create(Some(&config), None)?;
+
+    // create a store
+    let mut store = Store::create()?;
+
+    let import = create_spec_test_module();
+    let import_obj = ImportObject::Import(import);
+    executor.register_import_object(&mut store, &import_obj)?;
+
+    // set the AOT compiler options
+    let result = Compiler::create(Some(&config));
     assert!(result.is_ok());
     let compiler = result.unwrap();
 
@@ -55,28 +52,32 @@ fn test_aot() {
     assert!(out_path.exists());
 
     {
-        // register the wasm module from the generated wasm file
-        let result = vm.register_instance_from_file("extern", &out_path);
-        assert!(result.is_ok());
+        // register the wasm module as named module
+        let extern_module = Loader::create(Some(&config))?.from_file(&out_path)?;
+        Validator::create(Some(&config))?.validate(&extern_module)?;
+        let extern_instance =
+            executor.register_named_module(&mut store, &extern_module, "extern")?;
 
-        let result = vm.run_registered_function("extern", "fib", [WasmValue::from_i32(5)]);
-        assert!(result.is_ok());
-        let returns = result.unwrap();
+        let fib = extern_instance.get_func("fib")?;
+        let returns = executor.call_func(&fib, [WasmValue::from_i32(5)])?;
         assert_eq!(returns[0].to_i32(), 8);
     }
 
     {
-        let result = vm.register_active_instance_from_file(&out_path);
-        assert!(result.is_ok());
+        // register the wasm module as active module
+        let active_module = Loader::create(Some(&config))?.from_file(&out_path)?;
+        Validator::create(Some(&config))?.validate(&active_module)?;
+        let active_instance = executor.register_active_module(&mut store, &active_module)?;
 
-        let result = vm.run_function("fib", [WasmValue::from_i32(5)]);
-        assert!(result.is_ok());
-        let returns = result.unwrap();
+        let fib = active_instance.get_func("fib")?;
+        let returns = executor.call_func(&fib, [WasmValue::from_i32(5)])?;
         assert_eq!(returns[0].to_i32(), 8);
     }
 
     // remove the wasm file by the compiler
     assert!(std::fs::remove_file(&out_path).is_ok());
+
+    Ok(())
 }
 
 #[cfg(feature = "aot")]

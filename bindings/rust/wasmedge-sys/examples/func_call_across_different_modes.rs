@@ -76,7 +76,7 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
     // register a named module from "module2-uni.wasm"
     let module = Loader::create(Some(&config))?.from_file(&out_path)?;
     Validator::create(Some(&config))?.validate(&module)?;
-    let named_instance = executor.register_named_module(&mut store, &module, "module")?;
+    executor.register_named_module(&mut store, &module, "module")?;
 
     // register an active module from "module1.wasm"
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
@@ -206,6 +206,7 @@ fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The function in interpreter mode calls the functions in AOT mode
     #[cfg(feature = "aot")]

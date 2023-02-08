@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a store
     let mut store = Store::create()?;
 
-    let module = Loader::create(None)?.from_bytes(&wasm_bytes)?;
+    let module = Loader::create(None)?.from_bytes(wasm_bytes)?;
     Validator::create(None)?.validate(&module)?;
 
     let active_instance = executor.register_active_module(&mut store, &module)?;

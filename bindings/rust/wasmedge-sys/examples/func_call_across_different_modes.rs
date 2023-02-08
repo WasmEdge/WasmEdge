@@ -81,7 +81,7 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
     // register an active module from "module1.wasm"
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("bindings/rust/wasmedge-sys/examples/data/module1.wat");
-    let active_module = Loader::create(Some(&config))?.from_file(&wasm_file)?;
+    let active_module = Loader::create(Some(&config))?.from_file(wasm_file)?;
     Validator::create(Some(&config))?.validate(&active_module)?;
     let active_instance = executor.register_active_module(&mut store, &active_module)?;
 

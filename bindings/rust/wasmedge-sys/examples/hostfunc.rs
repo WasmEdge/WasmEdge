@@ -92,7 +92,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             (export "memory" (memory 0)))
     "#,
     )?;
-    let module = Loader::create(Some(&config))?.from_bytes(&wasm_bytes)?;
+    let module = Loader::create(Some(&config))?.from_bytes(wasm_bytes)?;
     Validator::create(Some(&config))?.validate(&module)?;
 
     let active_instance = executor.register_active_module(&mut store, &module)?;

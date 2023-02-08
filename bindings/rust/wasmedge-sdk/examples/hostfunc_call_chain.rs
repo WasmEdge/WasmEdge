@@ -35,12 +35,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             _args: Vec<WasmValue>|
           -> Result<Vec<WasmValue>, HostFuncError> {
         let caller = Caller::new(frame);
-        let mut executor = caller.executor().unwrap();
+        let executor = caller.executor().unwrap();
         let active_instance = caller.instance().unwrap();
         let fn_host_layer1 = active_instance
             .func("layer1")
             .expect("fail to find host function 'host_layer1'");
-        fn_host_layer1.run(&mut executor, params!()).unwrap();
+        fn_host_layer1.run(executor, params!()).unwrap();
 
         println!("There is layer2!");
         Ok(vec![])

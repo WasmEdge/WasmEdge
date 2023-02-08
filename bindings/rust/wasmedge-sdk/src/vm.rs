@@ -13,8 +13,7 @@ use crate::{
     config::Config,
     error::{VmError, WasmEdgeError},
     wasi::WasiInstance,
-    Executor, Func, FuncRef, FuncType, ImportObject, Instance, Module, Statistics, Store,
-    WasmEdgeResult, WasmValue,
+    Executor, ImportObject, Instance, Module, Statistics, Store, WasmEdgeResult, WasmValue,
 };
 use std::{collections::HashMap, path::Path};
 use wasmedge_sys as sys;

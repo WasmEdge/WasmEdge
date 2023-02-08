@@ -24,10 +24,7 @@ impl Module {
     ///
     /// If fail to load and valiate a module from a file, returns an error.
     pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> WasmEdgeResult<Self> {
-        let inner_config = match config {
-            Some(inner_config) => Some(&inner_config.inner),
-            None => None,
-        };
+        let inner_config = config.map(|cfg| &cfg.inner);
 
         // load module
         let inner_module = sys::Loader::create(inner_config)?.from_file(file.as_ref())?;
@@ -52,10 +49,7 @@ impl Module {
     ///
     /// If fail to load and valiate the WebAssembly module from the given in-memory bytes, returns an error.
     pub fn from_bytes(config: Option<&Config>, bytes: impl AsRef<[u8]>) -> WasmEdgeResult<Self> {
-        let inner_config = match config {
-            Some(inner_config) => Some(&inner_config.inner),
-            None => None,
-        };
+        let inner_config = config.map(|cfg| &cfg.inner);
 
         // load module
         let inner_module = sys::Loader::create(inner_config)?.from_bytes(bytes.as_ref())?;

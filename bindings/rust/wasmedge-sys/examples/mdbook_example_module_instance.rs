@@ -1,13 +1,7 @@
 #[cfg(all(not(feature = "static"), target_os = "linux"))]
-use wasmedge_macro::sys_host_function;
+use wasmedge_sys::{Config, Executor, Loader, Store, Validator};
 #[cfg(all(not(feature = "static"), target_os = "linux"))]
-use wasmedge_sys::{
-    utils, AsImport, CallingFrame, Config, Executor, FuncType, Function, Global, GlobalType,
-    ImportModule, ImportObject, Loader, MemType, Memory, Store, Table, TableType, Validator,
-    WasmValue,
-};
-#[cfg(all(not(feature = "static"), target_os = "linux"))]
-use wasmedge_types::{error::HostFuncError, wat2wasm, Mutability, RefType, ValType};
+use wasmedge_types::wat2wasm;
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {

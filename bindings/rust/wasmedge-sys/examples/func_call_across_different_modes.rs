@@ -3,7 +3,8 @@
 use wasmedge_macro::sys_host_function;
 #[cfg(feature = "aot")]
 use wasmedge_sys::{
-    AsImport, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm,
+    AsImport, Compiler, Config, Executor, FuncType, Function, ImportModule, ImportObject, Loader,
+    Store, Validator,
 };
 use wasmedge_sys::{CallingFrame, WasmValue};
 use wasmedge_types::error::HostFuncError;
@@ -34,8 +35,14 @@ fn host_print_f64(
 #[allow(clippy::assertions_on_result_states)]
 #[cfg(feature = "aot")]
 fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
-    // create a Vm instance
-    let mut vm = Vm::create(Some(Config::create()?))?;
+    // create a config
+    let config = Config::create()?;
+
+    // create an executor
+    let mut executor = Executor::create(Some(&config), None)?;
+
+    // create a store
+    let mut store = Store::create()?;
 
     // create an import module
     let mut import = ImportModule::create("host")?;
@@ -51,7 +58,8 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
     import.add_func("host_printF64", host_func_print_f64);
 
     // register the import module
-    vm.register_instance_from_import(ImportObject::Import(import))?;
+    let import_obj = ImportObject::Import(import);
+    executor.register_import_object(&mut store, &import_obj)?;
 
     // compile the "module2" into AOT mode
     let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
@@ -62,37 +70,45 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
     let out_path = std::path::PathBuf::from("module2-uni.dylib");
     #[cfg(target_os = "windows")]
     let out_path = std::path::PathBuf::from("module2-uni.dll");
-    let compiler = Compiler::create(Some(Config::create()?))?;
+    let compiler = Compiler::create(Some(&config))?;
     compiler.compile_from_file(in_path, &out_path)?;
 
     // register a named module from "module2-uni.wasm"
-    vm.register_instance_from_file("module", &out_path)?;
+    let module = Loader::create(Some(&config))?.from_file(&out_path)?;
+    Validator::create(Some(&config))?.validate(&module)?;
+    let named_instance = executor.register_named_module(&mut store, &module, "module")?;
 
     // register an active module from "module1.wasm"
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("bindings/rust/wasmedge-sys/examples/data/module1.wat");
-    vm.register_active_instance_from_file(wasm_file)?;
+    let active_module = Loader::create(Some(&config))?.from_file(&wasm_file)?;
+    Validator::create(Some(&config))?.validate(&active_module)?;
+    let active_instance = executor.register_active_module(&mut store, &active_module)?;
 
     // run "printAdd" function exported from "module1.wasm"
-    let returns = vm.run_function(
-        "printAdd",
+    let fn_print_add = active_instance.get_func("printAdd")?;
+    let returns = executor.call_func(
+        &fn_print_add,
         [WasmValue::from_i32(1234), WasmValue::from_i32(5678)],
     )?;
     assert_eq!(returns.len(), 0);
 
     // run "printDiv" function exported from "module1.wasm"
-    let returns = vm.run_function(
-        "printDiv",
+    let fn_print_div = active_instance.get_func("printDiv")?;
+    let returns = executor.call_func(
+        &fn_print_div,
         [WasmValue::from_f64(9876.0), WasmValue::from_f64(4321.0)],
     )?;
     assert_eq!(returns.len(), 0);
 
     // run "printI32" function exported from "module1.wasm"
-    let returns = vm.run_function("printI32", [WasmValue::from_i32(87654321)])?;
+    let fn_print_i32 = active_instance.get_func("printI32")?;
+    let returns = executor.call_func(&fn_print_i32, [WasmValue::from_i32(87654321)])?;
     assert_eq!(returns.len(), 0);
 
     // run "printF64" function exported from "module1.wasm"
-    let returns = vm.run_function("printF64", [WasmValue::from_f64(5566.1122)])?;
+    let fn_print_f64 = active_instance.get_func("printF64")?;
+    let returns = executor.call_func(&fn_print_f64, [WasmValue::from_f64(5566.1122)])?;
     assert_eq!(returns.len(), 0);
 
     // clean up the generated file at runtime
@@ -106,8 +122,14 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
 #[allow(clippy::assertions_on_result_states)]
 #[cfg(feature = "aot")]
 fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
-    // create a Vm instance
-    let mut vm = Vm::create(Some(Config::create()?))?;
+    // create a config
+    let config = Config::create()?;
+
+    // create an executor
+    let mut executor = Executor::create(Some(&config), None)?;
+
+    // create a store
+    let mut store = Store::create()?;
 
     // create an import module
     let mut import = ImportModule::create("host")?;
@@ -123,12 +145,15 @@ fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
     import.add_func("host_printF64", host_func_print_f64);
 
     // register the import module
-    vm.register_instance_from_import(ImportObject::Import(import))?;
+    let import_obj = ImportObject::Import(import);
+    executor.register_import_object(&mut store, &import_obj)?;
 
     // register a named module from "module2.wasm"
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("bindings/rust/wasmedge-sys/examples/data/module2.wat");
-    vm.register_instance_from_file("module", wasm_file)?;
+    let module2 = Loader::create(Some(&config))?.from_file(wasm_file)?;
+    Validator::create(Some(&config))?.validate(&module2)?;
+    let named_instance = executor.register_named_module(&mut store, &module2, "module")?;
 
     // compile the "module1" into AOT mode
     let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
@@ -139,32 +164,38 @@ fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
     let out_path = std::path::PathBuf::from("module1-uni.dylib");
     #[cfg(target_os = "windows")]
     let out_path = std::path::PathBuf::from("module1-uni.dll");
-    let compiler = Compiler::create(Some(Config::create()?))?;
+    let compiler = Compiler::create(Some(&config))?;
     compiler.compile_from_file(in_path, &out_path)?;
 
     // register an active module from "module1.wasm"
-    vm.register_active_instance_from_file(&out_path)?;
+    let active_module = Loader::create(Some(&config))?.from_file(&out_path)?;
+    Validator::create(Some(&config))?.validate(&active_module)?;
+    let active_instance = executor.register_active_module(&mut store, &active_module)?;
 
     // run "printAdd" function exported from "module1.wasm"
-    let returns = vm.run_function(
-        "printAdd",
+    let fn_print_add = active_instance.get_func("printAdd")?;
+    let returns = executor.call_func(
+        &fn_print_add,
         [WasmValue::from_i32(1234), WasmValue::from_i32(5678)],
     )?;
     assert_eq!(returns.len(), 0);
 
     // run "printDiv" function exported from "module1.wasm"
-    let returns = vm.run_function(
-        "printDiv",
+    let fn_print_div = active_instance.get_func("printDiv")?;
+    let returns = executor.call_func(
+        &fn_print_div,
         [WasmValue::from_f64(9876.0), WasmValue::from_f64(4321.0)],
     )?;
     assert_eq!(returns.len(), 0);
 
     // run "printI32" function exported from "module1.wasm"
-    let returns = vm.run_function("printI32", [WasmValue::from_i32(87654321)])?;
+    let fn_print_i32 = active_instance.get_func("printI32")?;
+    let returns = executor.call_func(&fn_print_i32, [WasmValue::from_i32(87654321)])?;
     assert_eq!(returns.len(), 0);
 
     // run "printF64" function exported from "module1.wasm"
-    let returns = vm.run_function("printF64", [WasmValue::from_f64(5566.1122)])?;
+    let fn_print_f64 = active_instance.get_func("printF64")?;
+    let returns = executor.call_func(&fn_print_f64, [WasmValue::from_f64(5566.1122)])?;
     assert_eq!(returns.len(), 0);
 
     // clean up the generated file at runtime

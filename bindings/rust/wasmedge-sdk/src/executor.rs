@@ -23,10 +23,8 @@ impl Executor {
     pub fn new(config: Option<&Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
         let inner_executor = match config {
             Some(config) => match stat {
-                Some(stat) => {
-                    sys::Executor::create(Some(config.inner.clone()), Some(&mut stat.inner))?
-                }
-                None => sys::Executor::create(Some(config.inner.clone()), None)?,
+                Some(stat) => sys::Executor::create(Some(&config.inner), Some(&mut stat.inner))?,
+                None => sys::Executor::create(Some(&config.inner), None)?,
             },
             None => match stat {
                 Some(stat) => sys::Executor::create(None, Some(&mut stat.inner))?,

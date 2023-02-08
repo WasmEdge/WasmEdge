@@ -14,27 +14,30 @@ namespace Host {
 namespace WASI {
 
 namespace {
-static inline constexpr const __wasi_rights_t kReadRights =
-    __WASI_RIGHTS_FD_ADVISE | __WASI_RIGHTS_FD_FILESTAT_GET |
-    __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_READDIR | __WASI_RIGHTS_FD_SEEK |
-    __WASI_RIGHTS_FD_TELL | __WASI_RIGHTS_PATH_FILESTAT_GET |
-    __WASI_RIGHTS_PATH_LINK_SOURCE | __WASI_RIGHTS_PATH_OPEN |
+static inline constexpr const __wasi_rights_t kPreOpenRights =
+    __WASI_RIGHTS_PATH_CREATE_DIRECTORY | __WASI_RIGHTS_PATH_CREATE_FILE |
+    __WASI_RIGHTS_PATH_LINK_SOURCE | __WASI_RIGHTS_PATH_LINK_TARGET |
+    __WASI_RIGHTS_PATH_OPEN | __WASI_RIGHTS_FD_READDIR |
     __WASI_RIGHTS_PATH_READLINK | __WASI_RIGHTS_PATH_RENAME_SOURCE |
-    __WASI_RIGHTS_POLL_FD_READWRITE | __WASI_RIGHTS_SOCK_SHUTDOWN;
-static inline constexpr const __wasi_rights_t kWriteRights =
-    __WASI_RIGHTS_FD_ADVISE | __WASI_RIGHTS_FD_ALLOCATE |
-    __WASI_RIGHTS_FD_DATASYNC | __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS |
+    __WASI_RIGHTS_PATH_RENAME_TARGET | __WASI_RIGHTS_PATH_FILESTAT_GET |
+    __WASI_RIGHTS_PATH_FILESTAT_SET_TIMES | __WASI_RIGHTS_FD_FILESTAT_GET |
+    __WASI_RIGHTS_FD_FILESTAT_SET_TIMES | __WASI_RIGHTS_PATH_SYMLINK |
+    __WASI_RIGHTS_PATH_REMOVE_DIRECTORY | __WASI_RIGHTS_PATH_UNLINK_FILE;
+static inline constexpr const __wasi_rights_t kPreOpenInheritRights =
+    __WASI_RIGHTS_FD_DATASYNC | __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_SEEK |
+    __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS | __WASI_RIGHTS_FD_SYNC |
+    __WASI_RIGHTS_FD_TELL | __WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_FD_ADVISE |
+    __WASI_RIGHTS_FD_ALLOCATE | __WASI_RIGHTS_PATH_CREATE_DIRECTORY |
+    __WASI_RIGHTS_PATH_CREATE_FILE | __WASI_RIGHTS_PATH_LINK_SOURCE |
+    __WASI_RIGHTS_PATH_LINK_TARGET | __WASI_RIGHTS_PATH_OPEN |
+    __WASI_RIGHTS_FD_READDIR | __WASI_RIGHTS_PATH_READLINK |
+    __WASI_RIGHTS_PATH_RENAME_SOURCE | __WASI_RIGHTS_PATH_RENAME_TARGET |
+    __WASI_RIGHTS_PATH_FILESTAT_GET | __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE |
+    __WASI_RIGHTS_PATH_FILESTAT_SET_TIMES | __WASI_RIGHTS_FD_FILESTAT_GET |
     __WASI_RIGHTS_FD_FILESTAT_SET_SIZE | __WASI_RIGHTS_FD_FILESTAT_SET_TIMES |
-    __WASI_RIGHTS_FD_SYNC | __WASI_RIGHTS_FD_WRITE |
-    __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE |
-    __WASI_RIGHTS_PATH_FILESTAT_SET_TIMES | __WASI_RIGHTS_PATH_OPEN |
-    __WASI_RIGHTS_PATH_REMOVE_DIRECTORY | __WASI_RIGHTS_PATH_RENAME_TARGET |
+    __WASI_RIGHTS_PATH_SYMLINK | __WASI_RIGHTS_PATH_REMOVE_DIRECTORY |
     __WASI_RIGHTS_PATH_UNLINK_FILE | __WASI_RIGHTS_POLL_FD_READWRITE |
     __WASI_RIGHTS_SOCK_SHUTDOWN;
-static inline constexpr const __wasi_rights_t kCreateRights =
-    __WASI_RIGHTS_PATH_CREATE_DIRECTORY | __WASI_RIGHTS_PATH_CREATE_FILE |
-    __WASI_RIGHTS_PATH_LINK_TARGET | __WASI_RIGHTS_PATH_OPEN |
-    __WASI_RIGHTS_PATH_RENAME_TARGET | __WASI_RIGHTS_PATH_SYMLINK;
 static inline constexpr const __wasi_rights_t kStdInDefaultRights =
     __WASI_RIGHTS_FD_ADVISE | __WASI_RIGHTS_FD_FILESTAT_GET |
     __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_POLL_FD_READWRITE;
@@ -65,10 +68,8 @@ void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
       if (GuestDir.size() == 0) {
         GuestDir = '/';
       }
-      if (auto Res =
-              VINode::bind(FS, kReadRights | kWriteRights | kCreateRights,
-                           kReadRights | kWriteRights | kCreateRights,
-                           std::move(GuestDir), std::move(HostDir));
+      if (auto Res = VINode::bind(FS, kPreOpenRights, kPreOpenInheritRights,
+                                  std::move(GuestDir), std::move(HostDir));
           unlikely(!Res)) {
         spdlog::error("Bind guest directory failed:{}", Res.error());
         continue;

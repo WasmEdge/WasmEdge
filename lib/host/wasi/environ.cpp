@@ -14,7 +14,7 @@ namespace Host {
 namespace WASI {
 
 namespace {
-static inline constexpr const __wasi_rights_t kPreOpenRights =
+static inline constexpr const __wasi_rights_t kPreOpenBaseRights =
     __WASI_RIGHTS_PATH_CREATE_DIRECTORY | __WASI_RIGHTS_PATH_CREATE_FILE |
     __WASI_RIGHTS_PATH_LINK_SOURCE | __WASI_RIGHTS_PATH_LINK_TARGET |
     __WASI_RIGHTS_PATH_OPEN | __WASI_RIGHTS_FD_READDIR |
@@ -23,7 +23,7 @@ static inline constexpr const __wasi_rights_t kPreOpenRights =
     __WASI_RIGHTS_PATH_FILESTAT_SET_TIMES | __WASI_RIGHTS_FD_FILESTAT_GET |
     __WASI_RIGHTS_FD_FILESTAT_SET_TIMES | __WASI_RIGHTS_PATH_SYMLINK |
     __WASI_RIGHTS_PATH_REMOVE_DIRECTORY | __WASI_RIGHTS_PATH_UNLINK_FILE;
-static inline constexpr const __wasi_rights_t kPreOpenInheritRights =
+static inline constexpr const __wasi_rights_t kPreOpenInheritingRights =
     __WASI_RIGHTS_FD_DATASYNC | __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_SEEK |
     __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS | __WASI_RIGHTS_FD_SYNC |
     __WASI_RIGHTS_FD_TELL | __WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_FD_ADVISE |
@@ -68,8 +68,9 @@ void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
       if (GuestDir.size() == 0) {
         GuestDir = '/';
       }
-      if (auto Res = VINode::bind(FS, kPreOpenRights, kPreOpenInheritRights,
-                                  std::move(GuestDir), std::move(HostDir));
+      if (auto Res =
+              VINode::bind(FS, kPreOpenBaseRights, kPreOpenInheritingRights,
+                           std::move(GuestDir), std::move(HostDir));
           unlikely(!Res)) {
         spdlog::error("Bind guest directory failed:{}", Res.error());
         continue;

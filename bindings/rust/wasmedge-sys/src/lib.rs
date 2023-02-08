@@ -73,7 +73,7 @@
 //! The following code presents how to use the APIs in `wasmedge-sys` to run a WebAssembly module written with its WAT format (textual format):
 //!
 //! ```rust
-//! use wasmedge_sys::{Vm, WasmValue};
+//! use wasmedge_sys::{Config, Executor, Loader, Store, Validator};
 //! use wasmedge_types::wat2wasm;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -113,22 +113,31 @@
 //! "#,
 //!     )?;
 //!
-//!     // create a Vm instance
-//!     let mut vm = Vm::create(None)?;
+//!     // load module from a wasm file
+//!     let config = Config::create()?;
+//!     let loader = Loader::create(Some(&config))?;
+//!     let module = loader.from_bytes(wasm_bytes)?;
 //!
-//!     // register the wasm bytes
-//!     let module_name = "extern-module";
-//!     vm.register_instance_from_bytes(module_name, &wasm_bytes)?;
+//!     // validate module
+//!     let config = Config::create()?;
+//!     let validator = Validator::create(Some(&config))?;
+//!     validator.validate(&module)?;
 //!
-//!     // run the exported function named "fib"
-//!     let func_name = "fib";
-//!     let result = vm.run_registered_function(module_name, func_name, [WasmValue::from_i32(5)])?;
+//!     // create an Executor context
+//!     let mut executor = Executor::create(None, None)?;
 //!
-//!     assert_eq!(result.len(), 1);
-//!     assert_eq!(result[0].to_i32(), 8);
+//!     // create a Store context
+//!     let mut store = Store::create()?;
+//!
+//!     // register a wasm module into the store context
+//!     let module_name = "extern";
+//!     let instance = executor.register_named_module(&mut store, &module, module_name)?;
+//!
+//!     assert!(instance.get_func("fib").is_ok());
 //!
 //!     Ok(())
 //! }
+//!
 //! ```
 //! [[Click for more examples]](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples)
 //!
@@ -179,8 +188,6 @@ pub mod types;
 pub mod utils;
 #[doc(hidden)]
 pub mod validator;
-#[doc(hidden)]
-pub mod vm;
 
 #[doc(inline)]
 pub use ast_module::{ExportType, ImportType, Module};
@@ -223,8 +230,6 @@ pub use store::Store;
 pub use types::WasmValue;
 #[doc(inline)]
 pub use validator::Validator;
-#[doc(inline)]
-pub use vm::Vm;
 use wasmedge_types::{error, WasmEdgeResult};
 
 /// Type alias for a boxed native function. This type is used in thread-safe cases.

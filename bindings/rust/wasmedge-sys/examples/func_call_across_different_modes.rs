@@ -153,7 +153,7 @@ fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
         .join("bindings/rust/wasmedge-sys/examples/data/module2.wat");
     let module2 = Loader::create(Some(&config))?.from_file(wasm_file)?;
     Validator::create(Some(&config))?.validate(&module2)?;
-    let named_instance = executor.register_named_module(&mut store, &module2, "module")?;
+    let _named_instance = executor.register_named_module(&mut store, &module2, "module")?;
 
     // compile the "module1" into AOT mode
     let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))

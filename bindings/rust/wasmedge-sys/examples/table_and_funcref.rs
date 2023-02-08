@@ -6,8 +6,8 @@
 
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
-    AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Table,
-    TableType, Vm, WasmValue,
+    AsImport, CallingFrame, Config, Executor, FuncType, Function, ImportModule, ImportObject,
+    Store, Table, TableType, WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, RefType, ValType};
 
@@ -56,17 +56,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut import = ImportModule::create("extern")?;
     import.add_table("my-table", table);
 
-    // create a Vm instance
+    // create a config
     let mut config = Config::create()?;
     config.bulk_memory_operations(true);
-    let mut vm = Vm::create(Some(config))?;
-    // register the import object to the Vm instance
-    vm.register_instance_from_import(ImportObject::Import(import))?;
 
-    // get the internal store instance from the vm instance
-    let store = vm.store_mut();
+    // create an executor
+    let mut executor = Executor::create(Some(&config), None)?;
+
+    // create a store
+    let mut store = Store::create()?;
+
+    // register the import object
+    let import_obj = ImportObject::Import(import);
+    executor.register_import_object(&mut store, &import_obj)?;
+
     //get the module instance named "extern"
     let instance = store.module("extern")?;
+
     // get the exported table named "my-table"
     let table = instance.get_table("my-table")?;
     // call get_data to recover the function reference from the value at the given index of the table instance

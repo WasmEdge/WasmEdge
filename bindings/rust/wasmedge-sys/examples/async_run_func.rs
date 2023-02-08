@@ -9,7 +9,7 @@
 //! ```
 
 #[cfg(feature = "async")]
-use wasmedge_sys::{Config, Loader, Vm, WasmValue};
+use wasmedge_sys::{Config, Executor, Loader, Store, WasmValue};
 #[cfg(feature = "async")]
 use wasmedge_types::wat2wasm;
 
@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
               )
              )
             )
-           )           
+           )
     "#,
         )?;
 
@@ -66,24 +66,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert!(result.is_ok());
         let ast_module = result.unwrap();
 
-        // create Vm instance
-        let result = Config::create();
-        assert!(result.is_ok());
-        let mut config = result.unwrap();
+        // create config
+        let mut config = Config::create()?;
         config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
-        let result = Vm::create(Some(config));
-        assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        // create an executor
+        let mut executor = Executor::create(Some(&config), None)?;
+
+        // create a store
+        let mut store = Store::create()?;
 
         // register module
-        vm.register_active_instance_from_module(&ast_module)?;
+        let fib = executor
+            .register_active_module(&mut store, &ast_module)?
+            .get_func("fib")?;
 
         // async run function
-        let fut1 = vm.run_function_async(String::from("fib"), vec![WasmValue::from_i32(20)]);
-
-        let fut2 = vm.run_function_async(String::from("fib"), vec![WasmValue::from_i32(5)]);
+        let fut1 = executor.call_func_async(&fib, vec![WasmValue::from_i32(20)]);
+        let fut2 = executor.call_func_async(&fib, vec![WasmValue::from_i32(5)]);
 
         let returns = tokio::join!(fut1, fut2);
 

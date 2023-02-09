@@ -44,10 +44,11 @@ int Tool(int Argc, const char *Argv[]) noexcept {
 
   PO::List<std::string> Dir(
       PO::Description(
-          "Binding directories into WASI virtual filesystem. Each directories "
-          "can specified as --dir `guest_path:host_path`, where `guest_path` "
-          "specifies the path that will correspond to `host_path` for calls "
-          "like `fopen` in the guest."sv),
+          "Binding directories into WASI virtual filesystem. Each directory "
+          "can be specified as --dir `host_path`. You can also map a guest "
+          "directory to a host directory by --dir `guest_path:host_path`, "
+          "where `guest_path` specifies the path that will correspond to "
+          "`host_path` for calls like `fopen` in the guest."sv),
       PO::MetaVar("PREOPEN_DIRS"sv));
 
   PO::List<std::string> Env(

@@ -3,7 +3,7 @@
 //! To run this example, use the following command:
 //!
 //! ```bash
-//! // navigate into the directory bindings/rust/wasmedge-sys/examples/wasi_print_env
+//! // navigate into the directory bindings/rust/wasmedge-sdk/examples/wasi_print_env
 //! cargo build --target wasm32-wasi --release
 //!
 //! // navigate back to the directory bindings/rust/
@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // load wasm module
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-        .join("bindings/rust/wasmedge-sys/examples/wasi_print_env/target/wasm32-wasi/release/wasi_print_env.wasm");
+        .join("bindings/rust/wasmedge-sdk/examples/wasi_print_env/target/wasm32-wasi/release/wasi_print_env.wasm");
 
     vm.run_func_from_file(wasm_file, "print_env", params!())?;
 

@@ -29,13 +29,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let fut2 = vm.run_func_async(Some("extern"), "fib", params!(5));
 
-        let returns = tokio::join!(fut1, fut2);
+        let (ret1, ret2) = tokio::join!(fut1, fut2);
 
-        let (ret1, ret2) = returns;
         let returns1 = ret1?;
         assert_eq!(returns1[0].to_i32(), 10946);
+        println!("fib(20) = {}", returns1[0].to_i32());
         let returns2 = ret2?;
         assert_eq!(returns2[0].to_i32(), 8);
+        println!("fib(5) = {}", returns2[0].to_i32());
     }
 
     Ok(())

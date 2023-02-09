@@ -1,12 +1,5 @@
 //! Defines WasmEdge Vm struct.
 
-#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
-use crate::wasi::WasiNnInstance;
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-use crate::wasi::{
-    WasiCryptoAsymmetricCommonInstance, WasiCryptoCommonInstance, WasiCryptoKxInstance,
-    WasiCryptoSignaturesInstance, WasiCryptoSymmetricInstance,
-};
 #[cfg(target_os = "linux")]
 use crate::WasmEdgeProcessInstance;
 use crate::{
@@ -80,130 +73,6 @@ use wasmedge_sys as sys;
 ///     Ok(())
 /// }
 /// ```
-// #[derive(Debug, Clone)]
-// pub struct OldVm {
-//     pub(crate) inner: sys::Vm,
-//     active_module: Option<Module>,
-// }
-// impl OldVm {
-//     /// Resets the [Vm].
-//     pub fn reset(&mut self) {
-//         self.inner.reset()
-//     }
-
-//     /// Returns the type of a WASM function.
-//     ///
-//     /// # Arguments
-//     ///
-//     /// * `mod_name` - The name of the module [instance](crate::Instance), which holds the target function. if `None`, then the active module is used.
-//     ///
-//     /// * `func_name` - The name of the target function.
-//     ///
-//     /// # Error
-//     ///
-//     /// If fail to get the function type, then an error is returned.
-//     pub fn func_ty(
-//         &mut self,
-//         mod_name: Option<&str>,
-//         func_name: impl AsRef<str>,
-//     ) -> WasmEdgeResult<FuncType> {
-//         let func_ty = match mod_name {
-//             Some(mod_name) => self
-//                 .inner
-//                 .get_registered_function_type(mod_name, func_name.as_ref())?,
-//             None => self.inner.get_function_type(func_name.as_ref())?,
-//         };
-
-//         Ok(func_ty.into())
-//     }
-
-//     /// Returns the [WasiNnInstance module instance](crate::wasi::WasiNnInstance).
-//     #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
-//     pub fn wasi_nn_module(&mut self) -> WasmEdgeResult<WasiNnInstance> {
-//         let inner_wasi_nn_module = self.inner.wasi_nn_module()?;
-
-//         Ok(WasiNnInstance {
-//             inner: inner_wasi_nn_module,
-//         })
-//     }
-
-//     /// Returns the [WasiCryptoCommonInstance module instance](crate::wasi::WasiCryptoCommonInstance).
-//     #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-//     pub fn wasi_crypto_common_module(&mut self) -> WasmEdgeResult<WasiCryptoCommonInstance> {
-//         let inner_wasi_crypto_common_module = self.inner.wasi_crypto_common_module()?;
-
-//         Ok(WasiCryptoCommonInstance {
-//             inner: inner_wasi_crypto_common_module,
-//         })
-//     }
-
-//     /// Returns the [WasiCryptoAsymmetricCommonInstance module instance](crate::wasi::WasiCryptoAsymmetricCommonInstance).
-//     #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-//     pub fn wasi_crypto_asymmetric_common_module(
-//         &mut self,
-//     ) -> WasmEdgeResult<WasiCryptoAsymmetricCommonInstance> {
-//         let inner_wasi_crypto_asymmetric_common_module =
-//             self.inner.wasi_crypto_asymmetric_common_module()?;
-
-//         Ok(WasiCryptoAsymmetricCommonInstance {
-//             inner: inner_wasi_crypto_asymmetric_common_module,
-//         })
-//     }
-
-//     /// Returns the [WasiCryptoSymmetricInstance module instance](crate::wasi::WasiCryptoSymmetricInstance).
-//     #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-//     pub fn wasi_crypto_symmetric_module(&mut self) -> WasmEdgeResult<WasiCryptoSymmetricInstance> {
-//         let inner_wasi_crypto_symmetric_module = self.inner.wasi_crypto_symmetric_module()?;
-
-//         Ok(WasiCryptoSymmetricInstance {
-//             inner: inner_wasi_crypto_symmetric_module,
-//         })
-//     }
-
-//     /// Returns the [WasiCryptoKxInstance module instance](crate::wasi::WasiCryptoKxInstance).
-//     #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-//     pub fn wasi_crypto_kx_module(&mut self) -> WasmEdgeResult<WasiCryptoKxInstance> {
-//         let inner_wasi_crypto_kx_module = self.inner.wasi_crypto_kx_module()?;
-
-//         Ok(WasiCryptoKxInstance {
-//             inner: inner_wasi_crypto_kx_module,
-//         })
-//     }
-
-//     /// Returns the [WasiCryptoSignaturesInstance module instance](crate::wasi::WasiCryptoSignaturesInstance).
-//     #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-//     pub fn wasi_crypto_signatures_module(
-//         &mut self,
-//     ) -> WasmEdgeResult<WasiCryptoSignaturesInstance> {
-//         let inner_wasi_crypto_signatures_module = self.inner.wasi_crypto_signatures_module()?;
-
-//         Ok(WasiCryptoSignaturesInstance {
-//             inner: inner_wasi_crypto_signatures_module,
-//         })
-//     }
-// }
-// impl Engine for OldVm {
-//     fn run_func(
-//         &self,
-//         func: &Func,
-//         params: impl IntoIterator<Item = WasmValue>,
-//     ) -> WasmEdgeResult<Vec<WasmValue>> {
-//         let executor = self.inner.executor()?;
-//         let returns = executor.run_func(&func.inner, params)?;
-//         Ok(returns)
-//     }
-
-//     fn run_func_ref(
-//         &self,
-//         func_ref: &FuncRef,
-//         params: impl IntoIterator<Item = WasmValue>,
-//     ) -> WasmEdgeResult<Vec<WasmValue>> {
-//         let executor = self.inner.executor()?;
-//         let returns = executor.run_func_ref(&func_ref.inner, params)?;
-//         Ok(returns)
-//     }
-// }
-
 #[derive(Debug)]
 pub struct Vm {
     pub(crate) config: Option<Config>,
@@ -271,33 +140,18 @@ impl Vm {
         Ok(vm)
     }
 
-    pub fn executor(&self) -> &Executor {
-        &self.executor
-    }
-
-    pub fn executor_mut(&mut self) -> &mut Executor {
-        &mut self.executor
-    }
-
-    pub fn store(&self) -> &Store {
-        &self.store
-    }
-
-    pub fn store_mut(&mut self) -> &mut Store {
-        &mut self.store
-    }
-
-    /// Registers and instantiates a WasmEdge [compiled module](crate::Module) into this [vm](crate::Vm) as a named or active [module instance](crate::Instance).
+    /// Registers a [wasm module](crate::Module) into this vm as a named or active module [instance](crate::Instance).
     ///
     /// # Arguments
     ///
-    /// * `mod_name` - The exported name of the registered [module](crate::Module). If `None`, then the [module](crate::Module) is registered as an active [module instance](crate::Instance).
+    /// * `mod_name` - The exported name for the registered module. If `None`, then the module is registered as an active instance.
     ///
-    /// * `module` - The [module](crate::Module) to be registered.
+    /// * `module` - The module to be registered.
     ///
     /// # Error
     ///
     /// If fail to register the given [module](crate::Module), then an error is returned.
+    ///
     pub fn register_module(
         mut self,
         mod_name: Option<&str>,
@@ -321,17 +175,17 @@ impl Vm {
         Ok(self)
     }
 
-    /// Registers a WASM module into the [vm](crate::Vm) from a wasm file, and instantiates it.
+    /// Registers a wasm module into the vm from a wasm file.
     ///
     /// # Arguments
     ///
-    /// * `mod_name` - The name for the WASM module to be registered.
+    /// * `mod_name` - The exported name for the registered module.
     ///
     /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// # Error
     ///
-    /// If fail to register the target WASM, then an error is returned.
+    /// If fail to register, then an error is returned.
     pub fn register_module_from_file(
         self,
         mod_name: impl AsRef<str>,
@@ -344,17 +198,17 @@ impl Vm {
         self.register_module(Some(mod_name.as_ref()), module)
     }
 
-    /// Registers a WASM module from then given in-memory wasm bytes into the [Vm], and instantiates it.
+    /// Registers a wasm module from the given in-memory wasm bytes into this vm.
     ///
     /// # Arguments
     ///
-    /// * `mod_name` - The name of the WASM module to be registered.
+    /// * `mod_name` - The exported name for the registered module.
     ///
     /// * `bytes` - The in-memory wasm bytes.
     ///
     /// # Error
     ///
-    /// If fail to register the WASM module, then an error is returned.
+    /// If fail to register, then an error is returned.
     pub fn register_module_from_bytes(
         self,
         mod_name: impl AsRef<str>,
@@ -367,15 +221,15 @@ impl Vm {
         self.register_module(Some(mod_name.as_ref()), module)
     }
 
-    /// Registers and instantiates a WasmEdge [import object](crate::ImportObject) into this [vm](crate::Vm).
+    /// Registers an [import object](crate::ImportObject) into this vm.
     ///
     /// # Arguments
     ///
-    /// * `import` - The WasmEdge [import object](crate::ImportObject) to be registered.
+    /// * `import` - The import object to be registered.
     ///
     /// # Error
     ///
-    /// If fail to register the given [import object](crate::ImportObject), then an error is returned.
+    /// If fail to register, then an error is returned.
     pub fn register_import_module(mut self, import: ImportObject) -> WasmEdgeResult<Self> {
         match &import.0 {
             sys::ImportObject::Import(_) => {
@@ -394,19 +248,19 @@ impl Vm {
         Ok(self)
     }
 
-    /// Runs an exported WASM function registered in a named or active module.
+    /// Runs an exported wasm function in a (named or active) [module instance](crate::Instance).
     ///
     /// # Arguments
     ///
-    /// * `mod_name` - The name of the module instance, which holds the target exported function. If `None`, then the active module is used.
+    /// * `mod_name` - The exported name of the module instance, which holds the target function. If `None`, then the active module is used.
     ///
-    /// * `func_name` - The name of the exported WASM function to run.
+    /// * `func_name` - The exported name of the target wasm function.
     ///
-    /// * `params` - The parameter values passed to the exported WASM function.
+    /// * `args` - The arguments to be passed to the target wasm function.
     ///
     /// # Error
     ///
-    /// If fail to run the WASM function, then an error is returned.
+    /// If fail to run the wasm function, then an error is returned.
     pub fn run_func(
         &self,
         mod_name: Option<&str>,
@@ -431,19 +285,19 @@ impl Vm {
         }
     }
 
-    /// Asynchronously runs an exported WASM function registered in a named or active module.
+    /// Asynchronously runs an exported wasm function in a (named or active) [module instance](crate::Instance).
     ///
     /// # Arguments
     ///
-    /// * `mod_name` - The name of the module instance, which holds the target exported function. If `None`, then the active module is used.
+    /// * `mod_name` - The exported name of the module instance, which holds the target function. If `None`, then the active module is used.
     ///
-    /// * `func_name` - The name of the exported WASM function to run.
+    /// * `func_name` - The exported name of the target wasm function.
     ///
-    /// * `params` - The parameter values passed to the exported WASM function.
+    /// * `args` - The arguments to be passed to the target wasm function.
     ///
     /// # Error
     ///
-    /// If fail to run the WASM function, then an error is returned.
+    /// If fail to run the wasm function, then an error is returned.
     #[cfg(feature = "async")]
     pub async fn run_func_async(
         &self,
@@ -475,15 +329,17 @@ impl Vm {
         }
     }
 
-    /// Runs an exported function from the given [compiled module](crate::Module).
+    /// Runs an exported wasm function from the given [wasm module](crate::Module).
+    ///
+    /// This method is a shortcut of calling `register_module` and `run_func` in sequence.
     ///
     /// # Arguments
     ///
-    /// * `module` - A [compiled module](crate::Module).
+    /// * `module` - A [wasm module](crate::Module).
     ///
-    /// * `func_name` - The name of the target exported function to run.
+    /// * `func_name` - The exported name of the target wasm function.
     ///
-    /// * `args` - The arguments passed to the target exported function.
+    /// * `args` - The arguments to be passed to the target wasm function.
     ///
     /// # Error
     ///
@@ -502,15 +358,17 @@ impl Vm {
         self.run_func(None, func_name, args)
     }
 
-    /// Runs an exported function from the given [compiled module](crate::Module).
+    /// Runs an exported wasm function from the given [wasm module](crate::Module).
+    ///
+    /// To use this method, turn on the `async` feature.
     ///
     /// # Arguments
     ///
-    /// * `module` - A [compiled module](crate::Module).
+    /// * `module` - A [wasm module](crate::Module).
     ///
-    /// * `func_name` - The name of the target exported function to run.
+    /// * `func_name` - The exported name of the target wasm function.
     ///
-    /// * `args` - The arguments passed to the target exported function.
+    /// * `args` - The arguments to be passed to the target wasm function.
     ///
     /// # Error
     ///
@@ -534,15 +392,15 @@ impl Vm {
         self.run_func_async(None, func_name, args).await
     }
 
-    /// Runs an exported function from the given wasm file.
+    /// Runs an exported wasm function from the given wasm file.
     ///
     /// # Arguments
     ///
     /// * `file` - A wasm file or an AOT wasm file.
     ///
-    /// * `func_name` - The name of the target exported function to run.
+    /// * `func_name` - The exported name of the target wasm function.
     ///
-    /// * `args` - The arguments passed to the target exported function.
+    /// * `args` - The arguments to be passed to the target wasm function.
     ///
     /// # Error
     ///
@@ -559,15 +417,15 @@ impl Vm {
         self.run_func_from_module(module, func_name.as_ref(), args)
     }
 
-    /// Asynchronously runs an exported function from the given wasm file.
+    /// Asynchronously runs an exported wasm function from the given wasm file.
     ///
     /// # Arguments
     ///
     /// * `file` - A wasm file or an AOT wasm file.
     ///
-    /// * `func_name` - The name of the target exported function to run.
+    /// * `func_name` - The exported name of the target wasm function.
     ///
-    /// * `args` - The arguments passed to the target exported function.
+    /// * `args` - The arguments to be passed to the target wasm function.
     ///
     /// # Error
     ///
@@ -591,15 +449,15 @@ impl Vm {
             .await
     }
 
-    /// Runs an exported function from the given in-memory wasm bytes.
+    /// Runs an exported wasm function from the given in-memory wasm bytes.
     ///
     /// # Arguments
     ///
     /// * `bytes` - The in-memory wasm bytes.
     ///
-    /// * `func_name` - The name of the target exported function to run.
+    /// * `func_name` - The exported name of the target wasm function.
     ///
-    /// * `args` - The arguments passed to the target exported function.
+    /// * `args` - The arguments to be passed to the target wasm function.
     ///
     /// # Error
     ///
@@ -616,15 +474,15 @@ impl Vm {
         self.run_func_from_module(module, func_name.as_ref(), args)
     }
 
-    /// Runs an exported function from the given in-memory wasm bytes.
+    /// Runs an exported wasm function from the given in-memory wasm bytes.
     ///
     /// # Arguments
     ///
     /// * `bytes` - The in-memory wasm bytes.
     ///
-    /// * `func_name` - The name of the target exported function to run.
+    /// * `func_name` - The exported name of the target wasm function.
     ///
-    /// * `args` - The arguments passed to the target exported function.
+    /// * `args` - The arguments to be passed to the target wasm function.
     ///
     /// # Error
     ///
@@ -647,9 +505,29 @@ impl Vm {
             .await
     }
 
-    /// Returns the [Wasi module instance](crate::wasi::WasiInstance).
+    /// Returns a referece to the internal [executor](crate::Executor) from this vm.
+    pub fn executor(&self) -> &Executor {
+        &self.executor
+    }
+
+    /// Returns a mutable reference to the internal [executor](crate::Executor) from this vm.
+    pub fn executor_mut(&mut self) -> &mut Executor {
+        &mut self.executor
+    }
+
+    /// Returns a reference to the internal [store](crate::Store) from this vm.
+    pub fn store(&self) -> &Store {
+        &self.store
+    }
+
+    /// Returns a mutable reference to the internal [store](crate::Store) from this vm.
+    pub fn store_mut(&mut self) -> &mut Store {
+        &mut self.store
+    }
+
+    /// Returns a reference to the [wasi module instance](crate::wasi::WasiInstance) from this vm.
     ///
-    /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasi](crate::config::HostRegistrationConfigOptions::wasi) option is used in the creation of this [Vm].
+    /// To retrieve  the [wasi module instance], a [config](crate::config::Config) with the enabled [wasi](crate::config::HostRegistrationConfigOptions::wasi) option should be given when create this vm.
     ///
     /// # Error
     ///
@@ -660,9 +538,9 @@ impl Vm {
             .ok_or(Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule)))
     }
 
-    /// Returns the mutable [Wasi module instance](crate::wasi::WasiInstance).
+    /// Returns a mutable reference to the [wasi module instance](crate::wasi::WasiInstance) from this vm.
     ///
-    /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasi](crate::config::HostRegistrationConfigOptions::wasi) option is used in the creation of this [Vm].
+    /// To retrieve the [wasi module instance], a [config](crate::config::Config) with the enabled [wasi](crate::config::HostRegistrationConfigOptions::wasi) option should be given when create this vm.
     ///
     /// # Error
     ///
@@ -673,9 +551,9 @@ impl Vm {
             .ok_or(Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule)))
     }
 
-    /// Returns the [WasmEdgeProcess module instance](crate::WasmEdgeProcessInstance).
+    /// Returns a reference to the [WasmEdgeProcess module instance](crate::WasmEdgeProcessInstance) from this vm.
     ///
-    /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasmedge_process](crate::config::HostRegistrationConfigOptions::wasmedge_process) option is used in the creation of this [Vm]. In addition, the [PluginManager::load_from_default_paths](crate::PluginManager::load_from_default_paths) method must be invoked to load the `wasmedge_process` plugin before calling this method.
+    /// To retrieve the [WasmEdgeProcess module instance], a [config](crate::config::Config) with the enabled [wasmedge_process](crate::config::HostRegistrationConfigOptions::wasmedge_process) option should be given when create this vm.
     ///
     /// # Error
     ///
@@ -689,9 +567,9 @@ impl Vm {
             )))
     }
 
-    /// Returns the mutable [WasmEdgeProcess module instance](crate::WasmEdgeProcessInstance).
+    /// Returns a mutable reference to the [WasmEdgeProcess module instance](crate::WasmEdgeProcessInstance) from this vm.
     ///
-    /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasmedge_process](crate::config::HostRegistrationConfigOptions::wasmedge_process) option is used in the creation of this [Vm]. In addition, the [PluginManager::load_from_default_paths](crate::PluginManager::load_from_default_paths) method must be invoked to load the `wasmedge_process` plugin before calling this method.
+    /// To retrieve the [WasmEdgeProcess module instance], a [config](crate::config::Config) with the enabled [wasmedge_process](crate::config::HostRegistrationConfigOptions::wasmedge_process) option should be given when create this vm.
     ///
     /// # Error
     ///
@@ -705,15 +583,15 @@ impl Vm {
             )))
     }
 
-    /// Returns the named [module instance](crate::Instance) with the given name.
+    /// Returns a reference to the named [module instance](crate::Instance) with the given name from this vm.
     ///
     /// # Argument
     ///
-    /// * `name` - The name of the target [module instance](crate::Instance) to be returned.
+    /// * `name` - The exported name of the target module instance.
     ///
     /// # Error
     ///
-    /// If fail to get the named [module instance](crate::Instance), then an error is returned.
+    /// If fail to get the reference to the target module instance, then an error is returned.
     pub fn named_module(&self, name: impl AsRef<str>) -> WasmEdgeResult<&Instance> {
         self.named_instances
             .get(name.as_ref())
@@ -722,15 +600,15 @@ impl Vm {
             ))))
     }
 
-    /// Returns the mutable named [module instance](crate::Instance) with the given name.
+    /// Returns a mutable reference to the named [module instance](crate::Instance) with the given name.
     ///
     /// # Argument
     ///
-    /// * `name` - The name of the target [module instance](crate::Instance) to be returned.
+    /// * `name` - The exported name of the target module instance.
     ///
     /// # Error
     ///
-    /// If fail to get the named [module instance](crate::Instance), then an error is returned.
+    /// If fail to get the mutable reference to the target module instance, then an error is returned.
     pub fn named_module_mut(&mut self, name: impl AsRef<str>) -> WasmEdgeResult<&mut Instance> {
         self.named_instances
             .get_mut(name.as_ref())
@@ -739,33 +617,33 @@ impl Vm {
             ))))
     }
 
-    /// Returns the active [module instance](crate::Instance).
+    /// Returns a reference to the active [module instance](crate::Instance) from this vm.
     ///
     /// # Error
     ///
-    /// If fail to get the active [module instance](crate::Instance), then an error is returned.
+    /// If fail to get the reference to the active module instance, then an error is returned.
     pub fn active_module(&self) -> WasmEdgeResult<&Instance> {
         self.active_instance
             .as_ref()
             .ok_or(Box::new(WasmEdgeError::Vm(VmError::NotFoundActiveModule)))
     }
 
-    /// Returns the mutable active [module instance](crate::Instance).
+    /// Returns a mutable reference to the active [module instance](crate::Instance) from this vm.
     ///
     /// # Error
     ///
-    /// If fail to get the active [module instance](crate::Instance), then an error is returned.
+    /// If fail to get the mutable reference to the active module instance, then an error is returned.
     pub fn active_module_mut(&mut self) -> WasmEdgeResult<&mut Instance> {
         self.active_instance
             .as_mut()
             .ok_or(Box::new(WasmEdgeError::Vm(VmError::NotFoundActiveModule)))
     }
 
-    /// Checks if the [vm](crate::Vm) contains a named module instance.
+    /// Checks if the vm contains a named module instance.
     ///
     /// # Argument
     ///
-    /// * `mod_name` - The registered module's name to check.
+    /// * `mod_name` - The exported name of the target module instance.
     ///
     pub fn contains_module(&self, mod_name: impl AsRef<str>) -> bool {
         self.store.contains(mod_name)
@@ -776,7 +654,7 @@ impl Vm {
         self.store.named_instance_count()
     }
 
-    /// Returns the names of all registered named [module instances](crate::Instance).
+    /// Returns the names of all named [module instances](crate::Instance) this vm holds.
     pub fn instance_names(&self) -> Vec<String> {
         self.store.instance_names()
     }
@@ -1443,74 +1321,6 @@ mod tests {
         assert_eq!(ty.args().unwrap(), [ValType::I32]);
         assert!(ty.returns().is_some());
         assert_eq!(ty.returns().unwrap(), [ValType::I32]);
-    }
-
-    #[test]
-    fn test_vm_impl_engine_trait() {
-        // create a Config
-        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
-        assert!(result.is_ok());
-        let config = result.unwrap();
-
-        // create a Vm context
-        let result = Vm::new(Some(config), None);
-        assert!(result.is_ok());
-        let vm = result.unwrap();
-
-        // read the wasm bytes of fibonacci.wasm
-        let result = wat2wasm(
-            br#"
-        (module
-            (export "fib" (func $fib))
-            (func $fib (param $n i32) (result i32)
-             (if
-              (i32.lt_s
-               (get_local $n)
-               (i32.const 2)
-              )
-              (return
-               (i32.const 1)
-              )
-             )
-             (return
-              (i32.add
-               (call $fib
-                (i32.sub
-                 (get_local $n)
-                 (i32.const 2)
-                )
-               )
-               (call $fib
-                (i32.sub
-                 (get_local $n)
-                 (i32.const 1)
-                )
-               )
-              )
-             )
-            )
-           )
-"#,
-        );
-        assert!(result.is_ok());
-        let wasm_bytes = result.unwrap();
-
-        let result = vm.register_module_from_bytes("extern", wasm_bytes);
-        assert!(result.is_ok());
-        let mut vm = result.unwrap();
-
-        let result = vm.named_module("extern");
-        assert!(result.is_ok());
-        let instance = result.unwrap();
-
-        let result = instance.func("fib");
-        assert!(result.is_ok());
-        let fib = result.unwrap();
-
-        let result = fib.run(vm.executor_mut(), params!(5));
-        assert!(result.is_ok());
-        let returns = result.unwrap();
-        assert_eq!(returns[0].to_i32(), 8)
     }
 
     fn real_add(

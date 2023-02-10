@@ -13,10 +13,12 @@ pub struct Caller {
     instance: Option<Instance>,
 }
 impl Caller {
-    /// Creates a [Caller] instance with the given [CallingFrame](wasmedge_sys::CallingFrame) instance which is
-    /// a low-level object defined in `wasmedge-sys` crate.
+    /// Creates a Caller instance with the given [CallingFrame](wasmedge_sys::CallingFrame) instance.
     ///
-    /// Notice that this function is not used by developers to create a [Caller] instance.
+    /// # Caller vs. CallingFrame
+    ///
+    /// `CallingFrame` is a low-level type defined in `wasmedge-sys` crate, while `Caller` is a high-level type. For developers using the APIs in `wasmedge-sdk`, they should create a `Caller` instance with the given `CallingFrame` instance, as `Caller` provides APIs to access high-level instances, such as executor and memory, related to the current calling frame.
+    ///
     pub fn new(frame: CallingFrame) -> Self {
         let executor = frame.executor_mut().map(|inner| Executor { inner });
         let instance = frame.module_instance().map(|inner| Instance { inner });
@@ -53,7 +55,7 @@ impl Caller {
     ///
     /// # Arguments
     ///
-    /// * idx - The index of the memory instance. By default, a WASM module has only one memory instance after instantiation. Therefore, users can pass in `0` as the index to get the memory instance in host function body. When the [MultiMemories](crate::config::CommonConfigOptions::multi_memories) config option is enabled, there would be more than one memory instances in the wasm module. Users can retrieve the target memory instance by specifying the index of the memory instance in the wasm module instance.
+    /// * `idx` - The index of the memory instance. By default, a WASM module has only one memory instance after instantiation. Therefore, users can pass in `0` as the index to get the memory instance in host function body. When the [MultiMemories](crate::config::CommonConfigOptions::multi_memories) config option is enabled, there would be more than one memory instances in the wasm module. Users can retrieve the target memory instance by specifying the index of the memory instance in the wasm module instance.
     ///
     pub fn memory(&self, idx: u32) -> Option<Memory> {
         match self.inner.as_ref() {
@@ -68,5 +70,10 @@ impl Caller {
             }),
             None => None,
         }
+    }
+}
+impl From<CallingFrame> for Caller {
+    fn from(frame: CallingFrame) -> Self {
+        Self::new(frame)
     }
 }

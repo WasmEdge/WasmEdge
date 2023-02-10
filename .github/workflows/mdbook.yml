@@ -14,10 +14,12 @@ on:
   push:
     branches: [ master ]
     paths:
+      - '.github/workflows/mdbook.yml'
       - 'docs/**'
   pull_request:
     branches: [ master ]
     paths:
+      - '.github/workflows/mdbook.yml'
       - 'docs/**'
 
 jobs:
@@ -48,13 +50,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@v1
-        with:
-          mdbook-version: '0.4.25'
-
-      - name: Install mdBook preprocessors
+      - name: Install mdbook and preprocessors
         run: |
+          cargo install mdbook
           cargo install mdbook-variables
 
       - name: Create work dir

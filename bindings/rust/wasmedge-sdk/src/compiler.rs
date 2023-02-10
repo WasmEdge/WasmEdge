@@ -10,11 +10,11 @@ pub struct Compiler {
     pub(crate) inner: sys::Compiler,
 }
 impl Compiler {
-    /// Creates a new AOT [compiler](crate::Compiler).
+    /// Creates a new AOT compiler.
     ///
     /// # Error
     ///
-    /// If fail to create a AOT [compiler](crate::Compiler), then an error is returned.
+    /// If fail to create a AOT compiler, then an error is returned.
     pub fn new(config: Option<&Config>) -> WasmEdgeResult<Self> {
         let inner = match config {
             Some(cfg) => sys::Compiler::create(Some(&cfg.inner))?,

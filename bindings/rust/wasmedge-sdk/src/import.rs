@@ -1104,9 +1104,7 @@ mod tests {
             assert!(func_ref.is_some());
             let func_ref = func_ref.unwrap();
             // check the signature of the host function
-            let result = func_ref.ty();
-            assert!(result.is_ok());
-            let func_ty = result.unwrap();
+            let func_ty = func_ref.ty();
             assert!(func_ty.args().is_some());
             assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
             assert!(func_ty.returns().is_some());
@@ -1128,9 +1126,7 @@ mod tests {
             assert!(func_ref.is_some());
             let func_ref = func_ref.unwrap();
             // check the signature of the host function
-            let result = func_ref.ty();
-            assert!(result.is_ok());
-            let func_ty = result.unwrap();
+            let func_ty = func_ref.ty();
             assert!(func_ty.args().is_some());
             assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
             assert!(func_ty.returns().is_some());

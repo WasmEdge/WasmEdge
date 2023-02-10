@@ -189,31 +189,31 @@ impl Func {
         }
     }
 
-    /// Returns the type of the host function.
-    ///
-    /// If fail to get the signature, then an error is returned.
-    pub fn ty(&self) -> FuncType {
-        self.ty.clone()
+    /// Returns a reference to the type of the host function.
+    pub fn ty(&self) -> &FuncType {
+        &self.ty
     }
 
     /// Returns a reference to this function instance.
     pub fn as_ref(&self) -> FuncRef {
         let inner = self.inner.as_ref();
-        FuncRef { inner }
+        FuncRef {
+            inner,
+            ty: self.ty.clone(),
+        }
     }
 
     /// Runs this host function and returns the result.
     ///
     /// # Arguments
     ///
-    /// * `engine` - The object implementing the [Engine](crate::Engine) trait.
+    /// * `executor` - The [Executor](crate::Executor) instance.
     ///
     /// * `args` - The arguments passed to the host function.
     ///
     /// # Error
     ///
     /// If fail to run the host function, then an error is returned.
-    ///
     pub fn run(
         &self,
         executor: &Executor,
@@ -222,6 +222,17 @@ impl Func {
         executor.run_func(self, args)
     }
 
+    /// Asynchronously runs this host function and returns the result.
+    ///
+    /// # Arguments
+    ///
+    /// * `executor` - The [Executor](crate::Executor) instance.
+    ///
+    /// * `args` - The arguments passed to the host function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run the host function, then an error is returned.
     #[cfg(feature = "async")]
     pub async fn run_async(
         &self,
@@ -301,31 +312,25 @@ impl FuncTypeBuilder {
 #[derive(Debug, Clone)]
 pub struct FuncRef {
     pub(crate) inner: sys::FuncRef,
+    pub(crate) ty: FuncType,
 }
 impl FuncRef {
-    /// Returns the underlying wasm type of the host function this [FuncRef] points to.
-    ///
-    /// # Errors
-    ///
-    /// If fail to get the function type, then an error is returned.
-    ///
-    pub fn ty(&self) -> WasmEdgeResult<FuncType> {
-        let ty = self.inner.ty()?;
-        Ok(ty.into())
+    /// Returns a reference to the ty of the host function this [FuncRef] points to.
+    pub fn ty(&self) -> &FuncType {
+        &self.ty
     }
 
     /// Runs this host function the reference refers to.
     ///
     /// # Arguments
     ///
-    /// * `engine` - The object implementing the [Engine](crate::Engine) trait.
+    /// * `executor` - The [Executor](crate::Executor) instance.
     ///
     /// * `args` - The arguments passed to the host function.
     ///
     /// # Error
     ///
     /// If fail to run the host function, then an error is returned.
-    ///
     pub fn run(
         &self,
         executor: &Executor,
@@ -334,6 +339,17 @@ impl FuncRef {
         executor.run_func_ref(self, args)
     }
 
+    /// Asynchronously runs this host function the reference refers to.
+    ///
+    /// # Arguments
+    ///
+    /// * `executor` - The [Executor](crate::Executor) instance.
+    ///
+    /// * `args` - The arguments passed to the host function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run the host function, then an error is returned.
     #[cfg(feature = "async")]
     pub async fn run_async(
         &self,

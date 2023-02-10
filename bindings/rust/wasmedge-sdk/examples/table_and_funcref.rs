@@ -79,7 +79,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let value = table.get(3)?;
     if let Val::FuncRef(Some(func_ref)) = value {
         // get the function type by func_ref
-        let func_ty = func_ref.ty()?;
+        let func_ty = func_ref.ty();
 
         // arguments
         assert_eq!(func_ty.args_len(), 2);

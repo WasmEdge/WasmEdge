@@ -408,7 +408,7 @@ mod tests {
             let host_func = result.unwrap();
             assert_eq!(
                 host_func.ty(),
-                FuncTypeBuilder::new()
+                &FuncTypeBuilder::new()
                     .with_args(vec![ValType::I32; 2])
                     .with_returns(vec![ValType::I32])
                     .build()
@@ -465,7 +465,7 @@ mod tests {
             let host_func = result.unwrap();
             assert_eq!(
                 host_func.ty(),
-                FuncTypeBuilder::new()
+                &FuncTypeBuilder::new()
                     .with_args(vec![ValType::I32])
                     .with_returns(vec![ValType::I32])
                     .build()

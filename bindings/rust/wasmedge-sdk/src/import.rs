@@ -1207,7 +1207,7 @@ mod tests {
             assert!(result.is_ok());
             let global = result.unwrap();
             let ty = global.ty();
-            assert_eq!(ty, GlobalType::new(ValType::F32, Mutability::Const));
+            assert_eq!(*ty, GlobalType::new(ValType::F32, Mutability::Const));
             if let Val::F32(value) = global.get_value() {
                 assert_eq!(value, 3.5);
             }
@@ -1334,7 +1334,7 @@ mod tests {
             assert!(result.is_ok());
             let global = result.unwrap();
             let ty = global.ty();
-            assert_eq!(ty, GlobalType::new(ValType::F32, Mutability::Const));
+            assert_eq!(*ty, GlobalType::new(ValType::F32, Mutability::Const));
             if let Val::F32(v) = global.get_value() {
                 assert_eq!(v, 3.5);
             }

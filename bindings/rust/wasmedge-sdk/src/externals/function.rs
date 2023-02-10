@@ -132,6 +132,8 @@ impl Func {
 
     /// Creates an asynchronous host function by wrapping a native function.
     ///
+    /// N.B. that this function can be used in thread-safe scenarios.
+    ///
     /// # Arguments
     ///
     /// * `real_func` - The native function to be wrapped.

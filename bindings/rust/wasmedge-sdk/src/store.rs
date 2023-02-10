@@ -237,7 +237,7 @@ mod tests {
         assert!(result.is_ok());
         let global = result.unwrap();
         let ty = global.ty();
-        assert_eq!(ty, GlobalType::new(ValType::F32, Mutability::Const));
+        assert_eq!(*ty, GlobalType::new(ValType::F32, Mutability::Const));
     }
 
     #[test]

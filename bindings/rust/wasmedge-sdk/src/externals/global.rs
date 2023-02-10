@@ -12,17 +12,17 @@ pub struct Global {
     pub(crate) ty: GlobalType,
 }
 impl Global {
-    /// Creates a new wasm global variable with the given type and initial value.
+    /// Creates a new wasm Global instance with the given type and initial value.
     ///
     /// # Arguments
     ///
-    /// * `ty` - The type of the global variable to be created.
+    /// * `ty` - The type of the Global instance to be created.
     ///
-    /// * `init` - The initial value of the global variable.
+    /// * `init` - The initial value of the Global instance.
     ///
     /// # Error
     ///
-    /// If fail to create the global variable, then an error is returned.
+    /// If fail to create the Global instance, then an error is returned.
     pub fn new(ty: GlobalType, init: Val) -> WasmEdgeResult<Self> {
         let inner = sys::Global::create(&ty.clone().into(), init.into())?;
         Ok(Self {
@@ -33,9 +33,9 @@ impl Global {
         })
     }
 
-    /// Returns the exported name of this [Global].
+    /// Returns the exported name of this Global instance.
     ///
-    /// Notice that this field is meaningful only if this global variable is used as an exported instance.
+    /// Notice that this field is meaningful only if this Global instance is used as an exported instance.
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),
@@ -43,9 +43,9 @@ impl Global {
         }
     }
 
-    /// Returns the name of the [module instance](crate::Instance) from which this [Global] exports.
+    /// Returns the name of the [module instance](crate::Instance) from which this Global instance exports.
     ///
-    /// Notice that this field is meaningful only if this global variable is used as an exported instance.
+    /// Notice that this field is meaningful only if this Global instance is used as an exported instance.
     pub fn mod_name(&self) -> Option<&str> {
         match &self.mod_name {
             Some(mod_name) => Some(mod_name.as_ref()),
@@ -53,23 +53,23 @@ impl Global {
         }
     }
 
-    /// Returns the type of this [Global].
-    pub fn ty(&self) -> GlobalType {
-        self.ty.clone()
+    /// Returns a reference to the type of this Global instance.
+    pub fn ty(&self) -> &GlobalType {
+        &self.ty
     }
 
-    /// Returns the current value of this [Global].
+    /// Returns the current value of this Global instance.
     pub fn get_value(&self) -> Val {
         self.inner.get_value().into()
     }
 
-    /// Sets a new value of this [Global].
+    /// Sets a new value of this Global instance.
     ///
     /// Notice that only global variables of [Var](wasmedge_types::Mutability) type are allowed to perform this function.
     ///
     /// # Argument
     ///
-    /// * `value` - The new value of the [Global].
+    /// * `value` - The new value of the Global instance.
     ///
     /// # Error
     ///

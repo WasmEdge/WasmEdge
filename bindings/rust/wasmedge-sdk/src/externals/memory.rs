@@ -30,7 +30,7 @@ impl Memory {
         })
     }
 
-    /// Returns the exported name of this [Memory].
+    /// Returns the exported name of this memory.
     ///
     /// Notice that this field is meaningful only if this memory is used as an exported instance.
     pub fn name(&self) -> Option<&str> {
@@ -40,7 +40,7 @@ impl Memory {
         }
     }
 
-    /// Returns the name of the [module instance](crate::Instance) from which this [Memory] exports.
+    /// Returns the name of the [module instance](crate::Instance) from which this memory exports.
     ///
     /// Notice that this field is meaningful only if this memory is used as an exported instance.
     pub fn mod_name(&self) -> Option<&str> {
@@ -50,9 +50,9 @@ impl Memory {
         }
     }
 
-    /// Returns the type of this memory.
-    pub fn ty(&self) -> MemoryType {
-        self.ty.clone()
+    /// Returns a reference to the type of this memory.
+    pub fn ty(&self) -> &MemoryType {
+        &self.ty
     }
 
     /// Returns the size, in WebAssembly pages (64 KiB of each page), of this wasm memory.
@@ -81,7 +81,7 @@ impl Memory {
         Ok(data)
     }
 
-    /// Returns a string of byte length `len` from `memory`, starting at `offset`.
+    /// Returns a string of byte length `len` from this memory, starting at `offset`.
     ///
     /// # Arguments
     ///
@@ -115,7 +115,7 @@ impl Memory {
         Ok(())
     }
 
-    /// Grows this WebAssembly memory by `count` pages.
+    /// Grows this memory by the `count` pages.
     ///
     /// # Argument
     ///
@@ -129,14 +129,14 @@ impl Memory {
         Ok(())
     }
 
-    /// Returns the const data pointer to the [Memory].
+    /// Returns the const data pointer to this memory.
     ///
     /// # Arguments
     ///
-    /// * `offset` - The data start offset in the [Memory].
+    /// * `offset` - The data start offset in this memory.
     ///
     /// * `len` - The requested data length. If the size of `offset` + `len` is larger
-    /// than the data size in the [Memory]
+    /// than the data size in this memory.
     ///   
     ///
     /// # Errors
@@ -147,13 +147,13 @@ impl Memory {
         self.inner.data_pointer(offset, len)
     }
 
-    /// Returns the data pointer to the [Memory].
+    /// Returns the data pointer to this memory.
     ///
     /// # Arguments
     ///
-    /// * `offset` - The data start offset in the [Memory].
+    /// * `offset` - The data start offset in this memory.
     ///
-    /// * `len` - The requested data length. If the size of `offset` + `len` is larger than the data size in the [Memory]
+    /// * `len` - The requested data length. If the size of `offset` + `len` is larger than the data size in this memory.
     ///
     /// # Errors
     ///

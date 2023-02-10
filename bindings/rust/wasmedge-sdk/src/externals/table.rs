@@ -29,7 +29,7 @@ impl Table {
         })
     }
 
-    /// Returns the exported name of this [Table].
+    /// Returns the exported name of this table instance.
     ///
     /// Notice that this field is meaningful only if this table is used as an exported instance.
     pub fn name(&self) -> Option<&str> {
@@ -39,7 +39,7 @@ impl Table {
         }
     }
 
-    /// Returns the name of the [module instance](crate::Instance) from which this [Table] exports.
+    /// Returns the name of the [module instance](crate::Instance) from which this table instance exports.
     ///
     /// Notice that this field is meaningful only if this table is used as an exported instance.
     pub fn mod_name(&self) -> Option<&str> {
@@ -49,13 +49,9 @@ impl Table {
         }
     }
 
-    /// Returns the type of this table.
-    ///
-    /// # Error
-    ///
-    /// If fail to get the type of this table, then an error is returned.
-    pub fn ty(&self) -> TableType {
-        self.ty.clone()
+    /// Returns a reference to the type of this table.
+    pub fn ty(&self) -> &TableType {
+        &self.ty
     }
 
     /// Returns the size of this [Table].
@@ -67,7 +63,7 @@ impl Table {
     ///
     /// # Arguments
     ///
-    /// * `delta` - the number of elements to grow the table by.
+    /// * `delta` - the number of elements to grow the table instance by.
     ///
     /// # Error
     ///

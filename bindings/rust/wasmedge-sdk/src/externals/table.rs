@@ -59,7 +59,7 @@ impl Table {
         self.inner.capacity() as u32
     }
 
-    /// Grows the size of this table by `delta`, initializing the elements with the provided init value if `init` is given.
+    /// Grows the size of this table by `delta`, initializing the elements with the provided init value if `init` is given. Returns the previous size of the table.
     ///
     /// # Arguments
     ///

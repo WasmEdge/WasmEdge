@@ -123,3 +123,4 @@ sys 0m0.011s
 - Link with the [WasmEdge library](c/library.md)
 - Use the [external reference](c/externref.md) of WebAssembly input and output in C/C++
 - Implement the [host functions](c/hostfunction.md) in C/C++
+- [Multiple WASM Module](sdk/c/multimodule.md) linking

@@ -29,6 +29,7 @@ else()
     -Wno-undef
     -Wno-unused-member-function
     -Wno-zero-as-null-pointer-constant
+    -Wno-deprecated
   )
   if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     set_property(

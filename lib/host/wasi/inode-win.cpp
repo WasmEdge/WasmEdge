@@ -2216,7 +2216,7 @@ WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
   return {};
 }
 
-WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressBufPtr,
+WasiExpect<void> INode::sockGetLocalAddr(uint8_t *AddressBufPtr,
                                          uint32_t *PortPtr) const noexcept {
   EnsureWSAStartup();
 

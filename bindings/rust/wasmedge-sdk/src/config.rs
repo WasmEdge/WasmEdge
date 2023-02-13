@@ -807,6 +807,11 @@ pub struct HostRegistrationConfigOptions {
     wasi_crypto_signatures: bool,
 }
 impl HostRegistrationConfigOptions {
+    /// Creates a new instance of [HostRegistrationConfigOptions].
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Enables or disables host registration wasi.
     ///
     /// # Argument

@@ -41,7 +41,8 @@ The options of the `wasmedge` CLI tool are as follows.
     * WasmEdge will execute the function which name should be given in `ARG[0]`.
     * If there's exported function which names `_initialize`, the function will be executed with the empty parameter at first.
 4. (Optional) `--dir`: Bind directories into WASI virtual filesystem.
-    * Use `--dir guest_path:host_path` to bind the host path into the guest path in WASI virtual system.
+    * Use `--dir host_path` to bind the host path in WASI virtual system. Noted that it's same as `--dir host_path:host_path`.
+    * Use `--dir guest_path:host_path` to bind the host path in WASI virtual system and map it to the guest path.
 5. (Optional) `--env`: Assign the environment variables in WASI.
     * Use `--env ENV_NAME=VALUE` to assign the environment variable.
 6. (Optional) Statistics information:
@@ -211,6 +212,12 @@ The [qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/qjs.w
 The [hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/hello.js) file is a very simple JavaScript program.
 
 You can run:
+
+```bash
+wasmedge --dir . qjs.wasm hello.js 1 2 3
+```
+
+Or the equal mapping as follow:
 
 ```bash
 wasmedge --dir .:. qjs.wasm hello.js 1 2 3

@@ -625,7 +625,7 @@ public:
                               __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
                               uint32_t FlagSizePtr) const noexcept;
 
-  WasiExpect<void> sockGetLoaclAddr(uint8_t *Address,
+  WasiExpect<void> sockGetLocalAddr(uint8_t *Address,
                                     uint32_t *PortPtr) const noexcept;
 
   WasiExpect<void> sockGetPeerAddr(uint8_t *Address,

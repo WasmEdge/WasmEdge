@@ -14,6 +14,12 @@ For `Windows 10`, you could use Windows Package Manager Client (aka `winget.exe`
 winget install wasmedge
 ```
 
+For `vcpkg` users there is a `wasmedge` [port](https://github.com/microsoft/vcpkg/tree/master/ports/wasmedge) that can be installed with the following command or by adding it to `dependencies` section of your `vcpkg.json` file.
+
+```bash
+vcpkg install wasmedge
+```
+
 If you would like to install WasmEdge with its [Tensorflow and image processing extensions](https://www.secondstate.io/articles/wasi-tensorflow/), please run the following command. It will attempt to install WasmEdge with the `tensorflow` and `image` extensions on your system.
 
 ```bash

@@ -6,7 +6,8 @@ use crate::{
     config::Config,
     error::{VmError, WasmEdgeError},
     wasi::WasiInstance,
-    Executor, ImportObject, Instance, Module, Statistics, Store, WasmEdgeResult, WasmValue,
+    Executor, HostRegistration, ImportObject, Instance, Module, Statistics, Store, WasmEdgeResult,
+    WasmValue,
 };
 use std::{collections::HashMap, path::Path};
 use wasmedge_sys as sys;
@@ -84,6 +85,7 @@ pub struct Vm {
     #[cfg(target_os = "linux")]
     wasmedge_process_instance: Option<WasmEdgeProcessInstance>,
     imports: Vec<ImportObject>,
+    host_registrations: HashMap<HostRegistration, ImportObject>,
 }
 impl Vm {
     /// Creates a new [Vm] to be associated with the given [configuration](crate::config::Config).
@@ -112,6 +114,7 @@ impl Vm {
             #[cfg(target_os = "linux")]
             wasmedge_process_instance: None,
             imports: Vec::new(),
+            host_registrations: HashMap::new(),
         };
 
         if let Some(cfg) = vm.config.as_ref() {
@@ -134,6 +137,117 @@ impl Vm {
                 vm.wasmedge_process_instance = Some(WasmEdgeProcessInstance {
                     inner: wasmedge_process_module,
                 });
+            }
+
+            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+            if cfg.wasi_nn_enabled() {
+                let wasi_nn_module = sys::WasiNnModule::create()?;
+                vm.executor.inner.register_import_object(
+                    &mut vm.store.inner,
+                    &sys::ImportObject::WasiNn(wasi_nn_module.clone()),
+                )?;
+                vm.host_registrations.insert(
+                    HostRegistration::WasiNn,
+                    ImportObject(sys::ImportObject::WasiNn(wasi_nn_module)),
+                );
+            }
+
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            {
+                if cfg.wasi_crypto_common_enabled() {
+                    if let Ok(wasi_crypto_common_module) = sys::WasiCryptoCommonModule::create() {
+                        vm.executor.inner.register_import_object(
+                            &mut vm.store.inner,
+                            &sys::ImportObject::Crypto(sys::WasiCrypto::Common(
+                                wasi_crypto_common_module.clone(),
+                            )),
+                        )?;
+                        vm.host_registrations.insert(
+                            HostRegistration::WasiCryptoCommon,
+                            ImportObject(sys::ImportObject::Crypto(sys::WasiCrypto::Common(
+                                wasi_crypto_common_module,
+                            ))),
+                        );
+                    }
+                }
+
+                if cfg.wasi_crypto_asymmetric_common_enabled() {
+                    if let Ok(wasi_crypto_asymmetric_common_module) =
+                        sys::WasiCryptoAsymmetricCommonModule::create()
+                    {
+                        vm.executor.inner.register_import_object(
+                            &mut vm.store.inner,
+                            &sys::ImportObject::Crypto(sys::WasiCrypto::AsymmetricCommon(
+                                wasi_crypto_asymmetric_common_module.clone(),
+                            )),
+                        )?;
+                        vm.host_registrations.insert(
+                            HostRegistration::WasiCryptoAsymmetricCommon,
+                            ImportObject(sys::ImportObject::Crypto(
+                                sys::WasiCrypto::AsymmetricCommon(
+                                    wasi_crypto_asymmetric_common_module,
+                                ),
+                            )),
+                        );
+                    }
+                }
+
+                if cfg.wasi_crypto_kx_enabled() {
+                    if let Ok(wasi_crypto_kx_module) = sys::WasiCryptoKxModule::create() {
+                        vm.executor.inner.register_import_object(
+                            &mut vm.store.inner,
+                            &sys::ImportObject::Crypto(sys::WasiCrypto::KeyExchange(
+                                wasi_crypto_kx_module.clone(),
+                            )),
+                        )?;
+                        vm.host_registrations.insert(
+                            HostRegistration::WasiCryptoKx,
+                            ImportObject(sys::ImportObject::Crypto(sys::WasiCrypto::KeyExchange(
+                                wasi_crypto_kx_module,
+                            ))),
+                        );
+                    }
+                }
+
+                if cfg.wasi_crypto_signatures_enabled() {
+                    if let Ok(wasi_crypto_signature_module) =
+                        sys::WasiCryptoSignaturesModule::create()
+                    {
+                        vm.executor.inner.register_import_object(
+                            &mut vm.store.inner,
+                            &sys::ImportObject::Crypto(sys::WasiCrypto::Signatures(
+                                wasi_crypto_signature_module.clone(),
+                            )),
+                        )?;
+                        vm.host_registrations.insert(
+                            HostRegistration::WasiCryptoSignatures,
+                            ImportObject(sys::ImportObject::Crypto(sys::WasiCrypto::Signatures(
+                                wasi_crypto_signature_module,
+                            ))),
+                        );
+                    }
+                }
+
+                if cfg.wasi_crypto_symmetric_enabled() {
+                    if let Ok(wasi_crypto_symmetric_module) =
+                        sys::WasiCryptoSymmetricModule::create()
+                    {
+                        vm.executor.inner.register_import_object(
+                            &mut vm.store.inner,
+                            &sys::ImportObject::Crypto(sys::WasiCrypto::SymmetricOptionations(
+                                wasi_crypto_symmetric_module.clone(),
+                            )),
+                        )?;
+                        vm.host_registrations.insert(
+                            HostRegistration::WasiCryptoSymmetric,
+                            ImportObject(sys::ImportObject::Crypto(
+                                sys::WasiCrypto::SymmetricOptionations(
+                                    wasi_crypto_symmetric_module,
+                                ),
+                            )),
+                        );
+                    }
+                }
             }
         }
 
@@ -937,6 +1051,28 @@ mod tests {
 
             // create a Vm context
             let result = Vm::new(Some(config), None);
+            assert!(result.is_ok());
+            let _vm = result.unwrap();
+        }
+
+        {
+            // create a Config
+            let result = ConfigBuilder::new(CommonConfigOptions::default())
+                .with_host_registration_config(
+                    HostRegistrationConfigOptions::default()
+                        .wasi_crypto_common(true)
+                        .wasi_crypto_asymmetric_common(true)
+                        .wasi_crypto_kx(true)
+                        .wasi_crypto_signatures(true)
+                        .wasi_crypto_symmetric(true),
+                )
+                .build();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+
+            // create a Vm context
+            let result = Vm::new(Some(config), None);
+            dbg!(&result);
             assert!(result.is_ok());
             let _vm = result.unwrap();
         }

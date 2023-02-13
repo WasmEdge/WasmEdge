@@ -15,3 +15,7 @@ endif()
 if (WASMEDGE_PLUGIN_WASI_CRYPTO)
   add_subdirectory(wasi_crypto)
 endif()
+
+if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  add_subdirectory(unittest)
+endif()

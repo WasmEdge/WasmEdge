@@ -14,7 +14,7 @@ For `Windows 10`, you could use Windows Package Manager Client (aka `winget.exe`
 winget install wasmedge
 ```
 
-For `vcpkg` users there is a `wasmedge` [port](https://github.com/microsoft/vcpkg/tree/master/ports/wasmedge) that can be installed with the following command or by adding it to `dependencies` section of your `vcpkg.json` file.
+For `vcpkg` users there is a `wasmedge` [port](https://github.com/microsoft/vcpkg/tree/master/ports/wasmedge) that can be installed with the following command or by adding it to `dependencies` section of your `vcpkg.json` file. The port is useful in both scenarios: it can be embedded into a C/C++ application and it can also be run as a standalone tool.
 
 ```bash
 vcpkg install wasmedge

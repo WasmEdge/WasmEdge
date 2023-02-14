@@ -324,11 +324,9 @@ impl ImportObject {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(all(target_os = "linux", not(feature = "static")))]
-    use crate::PluginManager;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
+        error::{GlobalError, WasmEdgeError},
         params,
         types::Val,
         Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics, Store,

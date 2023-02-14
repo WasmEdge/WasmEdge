@@ -1090,8 +1090,31 @@ mod tests {
             let _vm = result.unwrap();
         }
 
+        #[cfg(target_os = "linux")]
+        {
+            // load wasmedge_process plugin
+            PluginManager::load_from_default_paths();
+
+            // create a Config
+            let result = ConfigBuilder::new(CommonConfigOptions::default())
+                .with_host_registration_config(
+                    HostRegistrationConfigOptions::default().wasmedge_process(true),
+                )
+                .build();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+
+            // create a Vm context
+            let result = Vm::new(Some(config), None);
+            assert!(result.is_ok());
+            let _vm = result.unwrap();
+        }
+
         #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
         {
+            // load wasi_crypto plugin
+            PluginManager::load_from_default_paths();
+
             // create a Config
             let result = ConfigBuilder::new(CommonConfigOptions::default())
                 .with_host_registration_config(
@@ -1108,13 +1131,15 @@ mod tests {
 
             // create a Vm context
             let result = Vm::new(Some(config), None);
-            dbg!(&result);
             assert!(result.is_ok());
             let _vm = result.unwrap();
         }
 
         #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
         {
+            // load wasi_nn plugin
+            PluginManager::load_from_default_paths();
+
             // create a Config
             let result = ConfigBuilder::new(CommonConfigOptions::default())
                 .with_host_registration_config(
@@ -1126,7 +1151,6 @@ mod tests {
 
             // create a Vm context
             let result = Vm::new(Some(config), None);
-            dbg!(&result);
             assert!(result.is_ok());
             let _vm = result.unwrap();
         }
@@ -1174,7 +1198,6 @@ mod tests {
 
         // get the wasmedge_process module
         let result = vm.wasmedge_process_module();
-        dbg!(&result);
         assert!(result.is_some());
         let wasmedge_process_instance = result.unwrap();
 

@@ -48,8 +48,6 @@ This package contains necessary header files for %{reponame} development.
 
 %install
 %cmake_install
-mv %{buildroot}%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so %{buildroot}%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so.%{gittag}
-ln -s lib%{name}Plugin%{reponame}Process.so.%{gittag} %{buildroot}%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so
 
 %files
 %license LICENSE LICENSE.spdx
@@ -59,8 +57,6 @@ ln -s lib%{name}Plugin%{reponame}Process.so.%{gittag} %{buildroot}%{_libdir}/%{n
 %{_libdir}/lib%{name}.so.%{capi_version}
 %{_libdir}/lib%{name}.so.%{capi_soname}
 %{_libdir}/lib%{name}.so
-%dir %{_libdir}/%{name}
-%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so.%{gittag}
 
 %files devel
 %dir %{_includedir}/%{name}
@@ -74,8 +70,6 @@ ln -s lib%{name}Plugin%{reponame}Process.so.%{gittag} %{buildroot}%{_libdir}/%{n
 %{_libdir}/lib%{name}.so.%{capi_version}
 %{_libdir}/lib%{name}.so.%{capi_soname}
 %{_libdir}/lib%{name}.so
-%dir %{_libdir}/%{name}
-%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so
 
 %changelog
 %autochangelog

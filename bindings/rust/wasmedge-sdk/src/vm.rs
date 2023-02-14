@@ -723,11 +723,11 @@ impl Vm {
     ///
     /// If fail to get the reference to the target module instance, then an error is returned.
     pub fn named_module(&self, name: impl AsRef<str>) -> WasmEdgeResult<&Instance> {
-        self.named_instances
-            .get(name.as_ref())
-            .ok_or(Box::new(WasmEdgeError::Vm(VmError::NotFoundModule(
+        self.named_instances.get(name.as_ref()).ok_or_else(|| {
+            Box::new(WasmEdgeError::Vm(VmError::NotFoundModule(
                 name.as_ref().into(),
-            ))))
+            )))
+        })
     }
 
     /// Returns a mutable reference to the named [module instance](crate::Instance) with the given name.
@@ -740,11 +740,11 @@ impl Vm {
     ///
     /// If fail to get the mutable reference to the target module instance, then an error is returned.
     pub fn named_module_mut(&mut self, name: impl AsRef<str>) -> WasmEdgeResult<&mut Instance> {
-        self.named_instances
-            .get_mut(name.as_ref())
-            .ok_or(Box::new(WasmEdgeError::Vm(VmError::NotFoundModule(
+        self.named_instances.get_mut(name.as_ref()).ok_or_else(|| {
+            Box::new(WasmEdgeError::Vm(VmError::NotFoundModule(
                 name.as_ref().into(),
-            ))))
+            )))
+        })
     }
 
     /// Returns a reference to the active [module instance](crate::Instance) from this vm.
@@ -755,7 +755,7 @@ impl Vm {
     pub fn active_module(&self) -> WasmEdgeResult<&Instance> {
         self.active_instance
             .as_ref()
-            .ok_or(Box::new(WasmEdgeError::Vm(VmError::NotFoundActiveModule)))
+            .ok_or_else(|| Box::new(WasmEdgeError::Vm(VmError::NotFoundActiveModule)))
     }
 
     /// Returns a mutable reference to the active [module instance](crate::Instance) from this vm.
@@ -766,7 +766,7 @@ impl Vm {
     pub fn active_module_mut(&mut self) -> WasmEdgeResult<&mut Instance> {
         self.active_instance
             .as_mut()
-            .ok_or(Box::new(WasmEdgeError::Vm(VmError::NotFoundActiveModule)))
+            .ok_or_else(|| Box::new(WasmEdgeError::Vm(VmError::NotFoundActiveModule)))
     }
 
     /// Checks if the vm contains a named module instance.

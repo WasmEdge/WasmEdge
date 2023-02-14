@@ -1,5 +1,7 @@
 //! Defines WasmEdge Vm struct.
 
+#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+use crate::wasi::WasiNnInstance;
 #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 use crate::wasi::{
     WasiCryptoAsymmetricCommonInstance, WasiCryptoCommonInstance, WasiCryptoKxInstance,
@@ -154,7 +156,7 @@ impl Vm {
                 if let Ok(wasi_nn_module) = sys::WasiNnModule::create() {
                     vm.executor.inner.register_import_object(
                         &mut vm.store.inner,
-                        &sys::ImportObject::WasiNn(wasi_nn_module.clone()),
+                        &sys::ImportObject::Nn(wasi_nn_module.clone()),
                     )?;
 
                     vm.host_registrations.insert(
@@ -1099,6 +1101,24 @@ mod tests {
                         .wasi_crypto_kx(true)
                         .wasi_crypto_signatures(true)
                         .wasi_crypto_symmetric(true),
+                )
+                .build();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+
+            // create a Vm context
+            let result = Vm::new(Some(config), None);
+            dbg!(&result);
+            assert!(result.is_ok());
+            let _vm = result.unwrap();
+        }
+
+        #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+        {
+            // create a Config
+            let result = ConfigBuilder::new(CommonConfigOptions::default())
+                .with_host_registration_config(
+                    HostRegistrationConfigOptions::default().wasi_nn(true),
                 )
                 .build();
             assert!(result.is_ok());

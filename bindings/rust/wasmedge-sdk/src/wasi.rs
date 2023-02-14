@@ -189,10 +189,13 @@ impl AsInstance for WasiNnInstance {
 
     fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
         let inner_func = self.inner.get_func(name.as_ref())?;
+        let ty: FuncType = inner_func.ty()?.into();
+
         Ok(Func {
             inner: inner_func,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -206,10 +209,13 @@ impl AsInstance for WasiNnInstance {
 
     fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let inner_global = self.inner.get_global(name.as_ref())?;
+        let ty: GlobalType = inner_global.ty()?.into();
+
         Ok(Global {
             inner: inner_global,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -223,10 +229,13 @@ impl AsInstance for WasiNnInstance {
 
     fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let inner_memory = self.inner.get_memory(name.as_ref())?;
+        let ty: MemoryType = inner_memory.ty()?.into();
+
         Ok(Memory {
             inner: inner_memory,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 
@@ -240,10 +249,13 @@ impl AsInstance for WasiNnInstance {
 
     fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let inner_table = self.inner.get_table(name.as_ref())?;
+        let ty: TableType = inner_table.ty()?.into();
+
         Ok(Table {
             inner: inner_table,
             name: Some(name.as_ref().into()),
             mod_name: Some(self.inner.name().into()),
+            ty,
         })
     }
 }

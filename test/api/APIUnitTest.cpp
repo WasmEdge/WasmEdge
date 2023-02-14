@@ -2116,62 +2116,6 @@ TEST(APICoreTest, ModuleInstance) {
   EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(HostMod), EXIT_SUCCESS);
   EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(nullptr), EXIT_FAILURE);
   WasmEdge_VMDelete(VM);
-
-  // Setup extra plugin path
-#if WASMEDGE_OS_WINDOWS
-  ::_putenv_s("WASMEDGE_PLUGIN_PATH", "../../plugins/wasmedge_process");
-#else
-  ::setenv("WASMEDGE_PLUGIN_PATH", "../../plugins/wasmedge_process", 0);
-#endif
-
-  // wasmedge_process only works on Linux.
-  // Load plugins
-  WasmEdge_PluginLoadWithDefaultPaths();
-
-  // Create wasmedge_process.
-  HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(Args, 2, false);
-#ifdef WASMEDGE_PLUGIN_PROCESS
-  EXPECT_NE(HostMod, nullptr);
-  WasmEdge_ModuleInstanceDelete(HostMod);
-#else
-  EXPECT_EQ(HostMod, nullptr);
-#endif
-  HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(nullptr, 0, false);
-#ifdef WASMEDGE_PLUGIN_PROCESS
-  EXPECT_NE(HostMod, nullptr);
-  WasmEdge_ModuleInstanceDelete(HostMod);
-#else
-  EXPECT_EQ(HostMod, nullptr);
-#endif
-  HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(Args, 2, true);
-#ifdef WASMEDGE_PLUGIN_PROCESS
-  EXPECT_NE(HostMod, nullptr);
-  WasmEdge_ModuleInstanceDelete(HostMod);
-#else
-  EXPECT_EQ(HostMod, nullptr);
-#endif
-  HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(nullptr, 0, true);
-#ifdef WASMEDGE_PLUGIN_PROCESS
-  EXPECT_NE(HostMod, nullptr);
-  WasmEdge_ModuleInstanceDelete(HostMod);
-#else
-  EXPECT_EQ(HostMod, nullptr);
-#endif
-
-  // Initialize wasmedge_process in VM.
-  Conf = WasmEdge_ConfigureCreate();
-  WasmEdge_ConfigureAddHostRegistration(
-      Conf, WasmEdge_HostRegistration_WasmEdge_Process);
-  VM = WasmEdge_VMCreate(Conf, nullptr);
-  WasmEdge_ConfigureDelete(Conf);
-  HostMod = WasmEdge_VMGetImportModuleContext(
-      VM, WasmEdge_HostRegistration_WasmEdge_Process);
-#ifdef WASMEDGE_PLUGIN_PROCESS
-  EXPECT_NE(HostMod, nullptr);
-#else
-  EXPECT_EQ(HostMod, nullptr);
-#endif
-  WasmEdge_VMDelete(VM);
 }
 
 TEST(APICoreTest, Async) {
@@ -2456,6 +2400,7 @@ TEST(APICoreTest, Async) {
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   WasmEdge_VMCleanup(VM);
+  WasmEdge_VMRegisterModuleFromImport(VM, HostMod);
   // Inited phase
   Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
@@ -2549,6 +2494,7 @@ TEST(APICoreTest, Async) {
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   WasmEdge_VMCleanup(VM);
+  WasmEdge_VMRegisterModuleFromImport(VM, HostMod);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBuffer(
       VM, ModName, Buf.data(), static_cast<uint32_t>(Buf.size()))));
   // Success case
@@ -3130,9 +3076,6 @@ TEST(APICoreTest, VM) {
   EXPECT_NE(
       WasmEdge_VMGetImportModuleContext(VM, WasmEdge_HostRegistration_Wasi),
       nullptr);
-  EXPECT_EQ(WasmEdge_VMGetImportModuleContext(
-                VM, WasmEdge_HostRegistration_WasmEdge_Process),
-            nullptr);
   EXPECT_EQ(WasmEdge_VMGetImportModuleContext(nullptr,
                                               WasmEdge_HostRegistration_Wasi),
             nullptr);

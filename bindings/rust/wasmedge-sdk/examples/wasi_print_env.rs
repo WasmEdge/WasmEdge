@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // set the envs and args for the wasi module
     let args = vec!["arg1", "arg2"];
     let envs = vec!["ENV1=VAL1", "ENV2=VAL2", "ENV3=VAL3"];
-    let wasi_module = vm.wasi_module_mut()?;
+    let wasi_module = vm.wasi_module_mut().ok_or("Not found wasi module")?;
     wasi_module.initialize(Some(args), Some(envs), None);
 
     assert_eq!(wasi_module.exit_code(), 0);

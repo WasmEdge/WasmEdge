@@ -92,10 +92,11 @@ public:
           static_cast<__wasi_size_t>(Argument.size()) + UINT32_C(1);
       std::copy_n(Argument.begin(), Size, ArgvBuffer.begin());
       ArgvBuffer = ArgvBuffer.subspan(Size);
-      Argv[1] = Argv[0] + Size;
+      if (Argv.size() > 1) {
+        Argv[1] = Argv[0] + Size;
+      }
       Argv = Argv.subspan(1);
     }
-    Argv[0] = 0;
 
     return {};
   }
@@ -134,11 +135,11 @@ public:
           static_cast<__wasi_size_t>(EnvironVariable.size()) + UINT32_C(1);
       std::copy_n(EnvironVariable.begin(), Size, EnvBuffer.begin());
       EnvBuffer = EnvBuffer.subspan(Size);
-      Env[1] = Env[0] + Size;
+      if (Env.size() > 1) {
+        Env[1] = Env[0] + Size;
+      }
       Env = Env.subspan(1);
     }
-    Env[0] = 0;
-
     return {};
   }
 

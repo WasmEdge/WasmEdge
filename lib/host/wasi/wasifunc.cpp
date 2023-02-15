@@ -33,10 +33,18 @@ inline __wasi_size_t calculateBufferSize(const Container &Array) noexcept {
 template <typename T> struct WasiRawType {
   using Type = std::underlying_type_t<T>;
 };
-template <> struct WasiRawType<uint8_t> { using Type = uint8_t; };
-template <> struct WasiRawType<uint16_t> { using Type = uint16_t; };
-template <> struct WasiRawType<uint32_t> { using Type = uint32_t; };
-template <> struct WasiRawType<uint64_t> { using Type = uint64_t; };
+template <> struct WasiRawType<uint8_t> {
+  using Type = uint8_t;
+};
+template <> struct WasiRawType<uint16_t> {
+  using Type = uint16_t;
+};
+template <> struct WasiRawType<uint32_t> {
+  using Type = uint32_t;
+};
+template <> struct WasiRawType<uint64_t> {
+  using Type = uint64_t;
+};
 
 template <typename T> using WasiRawTypeT = typename WasiRawType<T>::Type;
 
@@ -322,8 +330,7 @@ Expect<uint32_t> WasiArgsGet::body(const Runtime::CallingFrame &Frame,
 
   // Store **Argv.
   const auto &Arguments = Env.getArguments();
-  const uint32_t ArgvSize =
-      static_cast<uint32_t>(Arguments.size()) + UINT32_C(1);
+  const uint32_t ArgvSize = static_cast<uint32_t>(Arguments.size());
   const uint32_t ArgvBufSize = calculateBufferSize(Arguments);
 
   // Check for invalid address.
@@ -382,8 +389,7 @@ Expect<uint32_t> WasiEnvironGet::body(const Runtime::CallingFrame &Frame,
 
   // Store **Env.
   const auto &EnvironVariables = Env.getEnvironVariables();
-  const uint32_t EnvSize =
-      static_cast<uint32_t>(EnvironVariables.size()) + UINT32_C(1);
+  const uint32_t EnvSize = static_cast<uint32_t>(EnvironVariables.size());
   const uint32_t EnvBufSize = calculateBufferSize(EnvironVariables);
 
   // Check for invalid address.

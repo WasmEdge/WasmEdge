@@ -293,7 +293,8 @@ int Tool(int Argc, const char *Argv[]) noexcept {
         Result || Result.error() == ErrCode::Value::Terminated) {
       return static_cast<int>(WasiMod->getEnv().getExitCode());
     } else {
-      return EXIT_FAILURE;
+      // It indicates that the execution of wasm has been aborted
+      return 128 + SIGABRT;
     }
   } else {
     // reactor mode
@@ -326,7 +327,8 @@ int Tool(int Argc, const char *Argv[]) noexcept {
         }
       }
       if (auto Result = AsyncResult.get(); unlikely(!Result)) {
-        return EXIT_FAILURE;
+        // It indicates that the execution of wasm has been aborted
+        return 128 + SIGABRT;
       }
     }
 
@@ -409,7 +411,8 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       }
       return EXIT_SUCCESS;
     } else {
-      return EXIT_FAILURE;
+      // It indicates that the execution of wasm has been aborted
+      return 128 + SIGABRT;
     }
   }
 }

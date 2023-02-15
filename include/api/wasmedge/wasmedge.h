@@ -584,11 +584,11 @@ WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureHasProposal(const WasmEdge_ConfigureContext *Cxt,
                               const enum WasmEdge_Proposal Prop);
 
-/// Add a host pre-registration setting into WasmEdge_ConfigureContext.
+/// Add a built-in host registration setting into WasmEdge_ConfigureContext.
 ///
 /// For turning on the Wasi support in `WasmEdge_VMContext`, you can set the
-/// host pre-registration value into the `WasmEdge_ConfigureContext` and create
-/// VM with this context.
+/// built-in host registration value into the `WasmEdge_ConfigureContext` and
+/// create VM with this context.
 /// ```c
 /// WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
 /// WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
@@ -597,30 +597,32 @@ WasmEdge_ConfigureHasProposal(const WasmEdge_ConfigureContext *Cxt,
 ///
 /// This function is thread-safe.
 ///
-/// \param Cxt the WasmEdge_ConfigureContext to add host pre-registration.
-/// \param Host the host pre-registration value.
+/// \param Cxt the WasmEdge_ConfigureContext to add built-in host registration.
+/// \param Host the built-in host registration value.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureAddHostRegistration(
     WasmEdge_ConfigureContext *Cxt, const enum WasmEdge_HostRegistration Host);
 
-/// Remove a host pre-registration setting in the WasmEdge_ConfigureContext.
+/// Remove a built-in host registration setting in the
+/// WasmEdge_ConfigureContext.
 ///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to remove the host
 /// pre-registration.
-/// \param Host the host pre-registration value.
+/// \param Host the built-in host registration value.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureRemoveHostRegistration(
     WasmEdge_ConfigureContext *Cxt, const enum WasmEdge_HostRegistration Host);
 
-/// Check if a host pre-registration setting exists in the
+/// Check if a built-in host registration setting exists in the
 /// WasmEdge_ConfigureContext or not.
 ///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to check the host pre-registration.
-/// \param Host the host pre-registration value.
+/// \param Host the built-in host registration value.
 ///
-/// \returns true if the host pre-registration setting exists, false if not.
+/// \returns true if the built-in host registration setting exists, false if
+/// not.
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureHasHostRegistration(
     const WasmEdge_ConfigureContext *Cxt,
     const enum WasmEdge_HostRegistration Host);
@@ -3229,8 +3231,9 @@ WasmEdge_VMGetFunctionTypeRegistered(const WasmEdge_VMContext *Cxt,
 
 /// Reset of WasmEdge_VMContext.
 ///
-/// After calling this function, the statistics, loaded module, and the
-/// instantiated instances except the registered instances will all be cleared.
+/// After calling this function, the statistics, loaded module, the instantiated
+/// instances, and the registered instances except the WASI and plug-ins will
+/// all be cleared.
 ///
 /// This function is thread-safe.
 ///
@@ -3277,24 +3280,19 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VMGetFunctionList(
 /// Get the module instance corresponding to the WasmEdge_HostRegistration
 /// settings.
 ///
-/// When creating the VM context with configuration, the host module will be
-/// registered according to the `WasmEdge_HostRegistration` settings added into
-/// the `WasmEdge_ConfigureContext`. You can call this function to get the
-/// `WasmEdge_ModuleInstanceContext` corresponding to the settings. The module
-/// instance context links to the context owned by the VM context. The caller
-/// should __NOT__ call the `WasmEdge_ModuleInstanceDelete`.
+/// When creating the VM context with a configuration, the built-in host module
+/// will be registered according to the `WasmEdge_HostRegistration` settings
+/// added into the `WasmEdge_ConfigureContext`. You can call this function to
+/// get the `WasmEdge_ModuleInstanceContext` corresponding to the settings. The
+/// module instance context links to the context owned by the VM context. The
+/// caller should __NOT__ call the `WasmEdge_ModuleInstanceDelete`.
 ///
 /// ```c
 /// WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
 /// WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
-/// WasmEdge_ConfigureAddHostRegistration(
-///     Conf, WasmEdge_HostRegistration_WasmEdge_Process);
 /// WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, NULL);
 /// WasmEdge_ModuleInstanceContext *WasiMod =
 ///     WasmEdge_VMGetImportModuleContext(VM, WasmEdge_HostRegistration_Wasi);
-/// WasmEdge_ModuleInstanceContext *ProcessMod =
-///     WasmEdge_VMGetImportModuleContext(
-///         VM, WasmEdge_HostRegistration_WasmEdge_Process);
 /// ```
 ///
 /// This function is thread-safe.
@@ -3310,9 +3308,9 @@ WasmEdge_VMGetImportModuleContext(const WasmEdge_VMContext *Cxt,
 /// Get the current instantiated module in VM.
 ///
 /// After instantiating a module instance into the VM, developers can call this
-/// API to get the module instance to retrieve the exported instances.The module
-/// instance context links to the context owned by the VM context. The caller
-/// should __NOT__ call the `WasmEdge_ModuleInstanceDelete`.
+/// API to get the module instance to retrieve the exported instances. The
+/// module instance context links to the context owned by the VM context. The
+/// caller should __NOT__ call the `WasmEdge_ModuleInstanceDelete`.
 ///
 /// This function is thread-safe.
 ///
@@ -3321,6 +3319,55 @@ WasmEdge_VMGetImportModuleContext(const WasmEdge_VMContext *Cxt,
 /// \returns pointer to the module instance context. NULL if not found.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_ModuleInstanceContext *
 WasmEdge_VMGetActiveModule(const WasmEdge_VMContext *Cxt);
+
+/// Get the registered module in VM by the module name.
+///
+/// After registering a WASM module into the VM context, developers can call
+/// this function to get the module instance by the module name. The returned
+/// module instance context links to the context owned by the VM context, and
+/// the caller should __NOT__ call the `WasmEdge_ModuleInstanceDelete` to
+/// destroy it.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_VMContext.
+/// \param ModuleName the module name WasmEdge_String.
+///
+/// \returns pointer to the module instance context. NULL if not found.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_ModuleInstanceContext *
+WasmEdge_VMGetRegisteredModule(const WasmEdge_VMContext *Cxt,
+                               const WasmEdge_String ModuleName);
+
+/// Get the length of registered module list in the WasmEdge_VMContext.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_VMContext.
+///
+/// \returns length of registered module list.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_VMListRegisteredModuleLength(const WasmEdge_VMContext *Cxt);
+
+/// List the registered module names in the WasmEdge_VMContext.
+///
+/// This function will list all registered module names.
+/// The returned module names filled into the `Names` array are linked to the
+/// registered module names in the VM context, and the caller should __NOT__
+/// call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the registered
+/// named module list size, the overflowed return values will be discarded.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_VMContext.
+/// \param [out] Names the output names WasmEdge_String buffer of the registered
+/// modules.
+/// \param Len the buffer length.
+///
+/// \returns actual registered module list size.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_VMListRegisteredModule(const WasmEdge_VMContext *Cxt,
+                                WasmEdge_String *Names, const uint32_t Len);
 
 /// Get the store context used in the WasmEdge_VMContext.
 ///
@@ -3404,11 +3451,27 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt);
 
 // >>>>>>>> WasmEdge Driver functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// Entrypoint for the compiler.
+/// Entrypoint for the compiler tool.
+///
+/// This function provides an entrypoint to the WasmEdge AOT compiler tool with
+/// the command line arguments.
+///
+/// \param Argc the argument count.
+/// \param Argv the argument vector.
+///
+/// \returns the execution status.
 WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Compiler(int Argc,
                                                          const char *Argv[]);
 
-/// Entrypoint for the general tool.
+/// Entrypoint for the runtime tool.
+///
+/// This function provides an entrypoint to the WasmEdge runtime tool with the
+/// command line arguments.
+///
+/// \param Argc the argument count.
+/// \param Argv the argument vector.
+///
+/// \returns the execution status.
 WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Tool(int Argc,
                                                      const char *Argv[]);
 

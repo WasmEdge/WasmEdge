@@ -144,6 +144,9 @@ typedef struct WasmEdge_Async WasmEdge_Async;
 /// Opaque struct of WasmEdge VM.
 typedef struct WasmEdge_VMContext WasmEdge_VMContext;
 
+/// Opaque struct of WasmEdge Plugin.
+typedef struct WasmEdge_PluginContext WasmEdge_PluginContext;
+
 /// Type of option value.
 typedef enum WasmEdge_ProgramOptionType {
   /// No option value.
@@ -3479,10 +3482,114 @@ WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Tool(int Argc,
 
 // >>>>>>>> WasmEdge Plugin functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// Load plugins with default search path.
+/// Load plugins with the default search paths.
+///
+/// The default paths are:
+///   1. The environment variable "WASMEDGE_PLUGIN_PATH".
+///   2. The "../plugin/" directory related to the WasmEdge installation path.
+///   3. The "wasmedge/" directory under the library path if the WasmEdge is
+///      installed under the "/usr".
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_PluginLoadWithDefaultPaths(void);
 
-/// Implement by plugins for returning plugin descriptor.
+/// Load the plugin with the given file or directory.
+///
+/// For the given file path, this function will load the plug-in.
+/// For the given directory path, this function will load the plug-ins under the
+/// directory recursively.
+///
+/// \param Path the path to plug-in file or directory.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_PluginLoadFromPath(const char *Path);
+
+/// Get the length of loaded plug-in list.
+///
+/// \returns length of loaded plug-in list.
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_PluginListPluginsLength(void);
+
+/// List the loaded plug-ins with their names.
+///
+/// The returned plug-in names filled into the `Names` array are owned by the
+/// internal WasmEdge plug-in storage, and the caller should __NOT__ call the
+/// `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the loaded
+/// plug-in list size, the overflowed return values will be discarded.
+///
+/// \param [out] Names the output WasmEdge_String buffer of the function names.
+/// \param Len the buffer length.
+///
+/// \returns actual loaded plug-in list size.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_PluginListPlugins(WasmEdge_String *Names, const uint32_t Len);
+
+/// Find the loaded plug-in context by name.
+///
+/// After loading the plug-ins from default paths or the given path, developers
+/// can use this API to retrieve the plug-in context by name. Then developers
+/// can create the module instance from the plug-in contexts.
+///
+/// \param Name the plug-in name WasmEdge_String.
+///
+/// \returns pointer to the plug-in context. NULL if the plug-in not found.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_PluginContext *
+WasmEdge_PluginFind(const WasmEdge_String Name);
+
+/// Get the plug-in name of the plug-in context.
+///
+/// The returned string object is linked to the plug-in name of the plug-in
+/// context, and the caller should __NOT__ call the `WasmEdge_StringDelete`.
+///
+/// \param Cxt the WasmEdge_PluginContext.
+///
+/// \returns string object. Length will be 0 and Buf will be NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_String
+WasmEdge_PluginGetPluginName(const WasmEdge_PluginContext *Cxt);
+
+/// Get the length of module list in the plug-in context.
+///
+/// There may be several modules in a plug-in. Developers can use this function
+/// to get the length of the module list in a plug-in.
+///
+/// \param Cxt the WasmEdge_PluginContext to get the length of the module list.
+///
+/// \returns length of module list.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_PluginListModuleLength(const WasmEdge_PluginContext *Cxt);
+
+/// List the modules in the plug-in context with their names.
+///
+/// The returned module names filled into the `Names` array are owned by the
+/// internal WasmEdge plug-in storage, and the caller should __NOT__ call the
+/// `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the loaded
+/// plug-in list size, the overflowed return values will be discarded.
+///
+/// \param Cxt the WasmEdge_PluginContext to list the modules.
+/// \param [out] Names the output WasmEdge_String buffer of the function names.
+/// \param Len the buffer length.
+///
+/// \returns actual module list size of the plug-in.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_PluginListModule(const WasmEdge_PluginContext *Cxt,
+                          WasmEdge_String *Names, const uint32_t Len);
+
+/// Create the module instance in the plug-in by the module name.
+///
+/// By giving the module name, developers can retrieve the module in the plug-in
+/// and create the module instance.
+/// The caller owns the object and should call `WasmEdge_ModuleInstanceDelete`
+/// to destroy it.
+///
+/// \param Cxt the WasmEdge_PluginContext to retrieve and create module.
+/// \param ModuleName the module name to retrieve.
+///
+/// \returns pointer to the module instance context, NULL if the module name not
+/// found in the plug-in or the plug-in is not valid.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
+WasmEdge_PluginCreateModule(const WasmEdge_PluginContext *Cxt,
+                            const WasmEdge_String ModuleName);
+
+/// Implement by plugins for returning the plugin descriptor.
+///
+/// \returns the plugin descriptor.
 WASMEDGE_CAPI_PLUGIN_EXPORT extern const WasmEdge_PluginDescriptor *
 WasmEdge_Plugin_GetDescriptor(void);
 

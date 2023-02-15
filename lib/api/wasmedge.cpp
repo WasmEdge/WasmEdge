@@ -116,6 +116,9 @@ struct WasmEdge_VMContext {
   WasmEdge::VM::VM VM;
 };
 
+// WasmEdge_PluginContext implementation.
+struct WasmEdge_PluginContext {};
+
 namespace {
 
 using namespace WasmEdge;
@@ -317,6 +320,7 @@ CONVTO(Tab, Runtime::Instance::TableInstance, TableInstance, )
 CONVTO(Mem, Runtime::Instance::MemoryInstance, MemoryInstance, )
 CONVTO(Glob, Runtime::Instance::GlobalInstance, GlobalInstance, )
 CONVTO(CallFrame, Runtime::CallingFrame, CallingFrame, const)
+CONVTO(Plugin, Plugin::Plugin, Plugin, const)
 #undef CONVTO
 
 #define CONVFROM(SIMP, INST, NAME, QUANT)                                      \
@@ -354,6 +358,7 @@ CONVFROM(Mem, Runtime::Instance::MemoryInstance, MemoryInstance, const)
 CONVFROM(Glob, Runtime::Instance::GlobalInstance, GlobalInstance, )
 CONVFROM(Glob, Runtime::Instance::GlobalInstance, GlobalInstance, const)
 CONVFROM(CallFrame, Runtime::CallingFrame, CallingFrame, const)
+CONVFROM(Plugin, Plugin::Plugin, Plugin, const)
 #undef CONVFROM
 
 // C API Host function class
@@ -2811,6 +2816,80 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadWithDefaultPaths(void) {
   for (const auto &Path : WasmEdge::Plugin::Plugin::getDefaultPluginPaths()) {
     WasmEdge::Plugin::Plugin::load(Path);
   }
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadFromPath(const char *Path) {
+  WasmEdge::Plugin::Plugin::load(Path);
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPluginsLength(void) {
+  return static_cast<uint32_t>(WasmEdge::Plugin::Plugin::plugins().size());
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPlugins(WasmEdge_String *Names,
+                                                         const uint32_t Len) {
+  auto PList = WasmEdge::Plugin::Plugin::plugins();
+  if (Names) {
+    for (uint32_t I = 0; I < Len && I < PList.size(); I++) {
+      Names[I] = WasmEdge_String{
+          .Length = static_cast<uint32_t>(std::strlen(PList[I].name())),
+          .Buf = PList[I].name()};
+    }
+  }
+  return static_cast<uint32_t>(PList.size());
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_PluginContext *
+WasmEdge_PluginFind(const WasmEdge_String Name) {
+  return toPluginCxt(WasmEdge::Plugin::Plugin::find(genStrView(Name)));
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_String
+WasmEdge_PluginGetPluginName(const WasmEdge_PluginContext *Cxt) {
+  if (Cxt) {
+    const char *Name = fromPluginCxt(Cxt)->name();
+    return WasmEdge_String{.Length = static_cast<uint32_t>(std::strlen(Name)),
+                           .Buf = Name};
+  }
+  return WasmEdge_String{.Length = 0, .Buf = nullptr};
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_PluginListModuleLength(const WasmEdge_PluginContext *Cxt) {
+  if (Cxt) {
+    return static_cast<uint32_t>(fromPluginCxt(Cxt)->modules().size());
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_PluginListModule(const WasmEdge_PluginContext *Cxt,
+                          WasmEdge_String *Names, const uint32_t Len) {
+  if (Cxt) {
+    auto MList = fromPluginCxt(Cxt)->modules();
+    if (Names) {
+      for (uint32_t I = 0; I < Len && I < MList.size(); I++) {
+        Names[I] = WasmEdge_String{
+            .Length = static_cast<uint32_t>(std::strlen(MList[I].name())),
+            .Buf = MList[I].name()};
+      }
+    }
+    return static_cast<uint32_t>(MList.size());
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
+WasmEdge_PluginCreateModule(const WasmEdge_PluginContext *Cxt,
+                            const WasmEdge_String ModuleName) {
+  if (Cxt) {
+    if (const auto *PMod =
+            fromPluginCxt(Cxt)->findModule(genStrView(ModuleName));
+        PMod) {
+      return toModCxt(PMod->create().release());
+    }
+  }
+  return nullptr;
 }
 
 // <<<<<<<< WasmEdge Plugin functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

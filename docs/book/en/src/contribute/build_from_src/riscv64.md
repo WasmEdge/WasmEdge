@@ -1,4 +1,4 @@
- Build and test WasmEdge on RISC-V 64 arch
+# Build and test WasmEdge on RISC-V 64 arch
 
 Please follow this tutorial to build and test WasmEdge on the RISC-V64 system.
 

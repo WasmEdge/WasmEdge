@@ -2699,6 +2699,33 @@ WasmEdge_VMGetImportModuleContext(const WasmEdge_VMContext *Cxt,
   return nullptr;
 }
 
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_VMListRegisteredModuleLength(const WasmEdge_VMContext *Cxt) {
+  if (Cxt) {
+    return Cxt->VM.getStoreManager().getModuleListSize();
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMListRegisteredModule(
+    const WasmEdge_VMContext *Cxt, WasmEdge_String *Names, const uint32_t Len) {
+  if (Cxt) {
+    return Cxt->VM.getStoreManager().getModuleList(
+        [&](auto &Map) { return fillMap(Map, Names, Len); });
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_ModuleInstanceContext *
+WasmEdge_VMGetRegisteredModule(const WasmEdge_VMContext *Cxt,
+                               const WasmEdge_String ModuleName) {
+  if (Cxt) {
+    return toModCxt(
+        Cxt->VM.getStoreManager().findModule(genStrView(ModuleName)));
+  }
+  return nullptr;
+}
+
 WASMEDGE_CAPI_EXPORT const WasmEdge_ModuleInstanceContext *
 WasmEdge_VMGetActiveModule(const WasmEdge_VMContext *Cxt) {
   if (Cxt) {

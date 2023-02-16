@@ -3157,6 +3157,65 @@ TEST(APICoreTest, VM) {
   WasmEdge_StoreDelete(Store);
   WasmEdge_VMDelete(VM);
 }
+
+#if defined(WASMEDGE_BUILD_PLUGINS) && WASMEDGE_OS_LINUX
+TEST(APICoreTest, Plugin) {
+  WasmEdge_String Names[15];
+
+  // Load from the specific path
+  EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 0U);
+  WasmEdge_PluginLoadFromPath(
+      "../plugins/unittest/libwasmedgePluginTestModule" WASMEDGE_LIB_EXTENSION);
+  EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 1U);
+
+  // Get the loaded plugin length
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_PluginListPlugins(nullptr, 0), 1U);
+  EXPECT_EQ(WasmEdge_PluginListPlugins(Names, 0), 1U);
+  EXPECT_EQ(WasmEdge_PluginListPlugins(Names, 15), 1U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
+            std::string("wasmedge_plugintest"));
+
+  // Find the plugin context
+  const WasmEdge_PluginContext *PluginCxt =
+      WasmEdge_PluginFind(WasmEdge_StringWrap("no-such-plugin-name", 19));
+  EXPECT_EQ(PluginCxt, nullptr);
+  PluginCxt = WasmEdge_PluginFind(Names[0]);
+  EXPECT_NE(PluginCxt, nullptr);
+
+  // Get plugin name
+  Names[0] = WasmEdge_PluginGetPluginName(PluginCxt);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
+            std::string("wasmedge_plugintest"));
+  Names[0] = WasmEdge_PluginGetPluginName(nullptr);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string(""));
+
+  // List modules in the plugin
+  EXPECT_EQ(WasmEdge_PluginListModuleLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_PluginListModuleLength(PluginCxt), 1U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_PluginListModule(nullptr, Names, 15), 0U);
+  EXPECT_EQ(WasmEdge_PluginListModule(nullptr, nullptr, 0), 0U);
+  EXPECT_EQ(WasmEdge_PluginListModule(PluginCxt, nullptr, 0), 1U);
+  EXPECT_EQ(WasmEdge_PluginListModule(PluginCxt, Names, 0), 1U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string(""));
+  EXPECT_EQ(WasmEdge_PluginListModule(PluginCxt, Names, 15), 1U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
+            std::string("wasmedge_plugintest"));
+
+  // Create the module
+  WasmEdge_ModuleInstanceContext *ModCxt =
+      WasmEdge_PluginCreateModule(nullptr, Names[0]);
+  EXPECT_EQ(ModCxt, nullptr);
+  ModCxt = WasmEdge_PluginCreateModule(
+      PluginCxt, WasmEdge_StringWrap("no-such-plugin-name", 19));
+  EXPECT_EQ(ModCxt, nullptr);
+  ModCxt = WasmEdge_PluginCreateModule(PluginCxt, Names[0]);
+  EXPECT_NE(ModCxt, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, Names, 15), 4U);
+  WasmEdge_ModuleInstanceDelete(ModCxt);
+}
+#endif
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

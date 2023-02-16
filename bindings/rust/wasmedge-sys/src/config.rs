@@ -6,7 +6,7 @@ use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
 /// Defines Config struct used to check/set the configuration options.
 ///
-/// [Config](crate::Config) manages the configuration options, which are used to initiate WasmEdge [Vm](crate::Vm), [Loader](crate::Loader), [Validator](crate::Validator), [Executor](crate::Executor), and [Compiler](crate::Compiler).
+/// [Config](crate::Config) manages the configuration options, which are used to initiate [Loader](crate::Loader), [Validator](crate::Validator), [Executor](crate::Executor), and [Compiler](crate::Compiler).
 ///
 /// The configuration options are categorized into the following four groups:
 ///
@@ -72,15 +72,12 @@ use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 ///       Also see [Function References Proposal](https://github.com/WebAssembly/function-references/blob/master/proposals/function-references/Overview.md).
 ///
 /// - **Host Registrations**
-///     - `Wasi` turns on the `WASI` support in [Vm](crate::Vm).
+///     - `Wasi` turns on the `WASI` support.
 ///
-///     - `WasmEdgeProcess` turns on the `wasmedge_process` support in [Vm](crate::Vm).
+///     - `WasmEdgeProcess` turns on the `wasmedge_process` support.
 ///     
-///     The two options are only effective to [Vm](crate::Vm).
-///
 /// - **Memory Management**
-///     - `maximum_memory_page` limits the page size of [Memory](crate::Memory). This option is only effective to
-///       [Executor](crate::Executor) and [Vm](crate::Vm).
+///     - `maximum_memory_page` limits the page size of [Memory](crate::Memory).
 ///
 /// - **AOT Compilation**
 ///

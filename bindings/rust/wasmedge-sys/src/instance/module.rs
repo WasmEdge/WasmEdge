@@ -10,17 +10,6 @@ use crate::{
 use std::sync::Arc;
 
 /// An [Instance] represents an instantiated module. In the instantiation process, An [Instance] is created from al[Module](crate::Module). From an [Instance] the exported [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) can be fetched.
-///
-/// A module instance is usually returned via one of the following APIs:
-///
-/// * [Executor](crate::Executor)
-///     * [Executor::register_named_module](crate::Executor::register_named_module) ([example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/executor_register_named_module.rs))
-///     * [Executor::register_active_module](crate::Executor::register_active_module) ([example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/executor_register_active_module.rs))
-/// * [Vm](crate::Vm)
-///     * [Vm::active_module](crate::Vm::active_module) ([example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/vm_get_active_module.rs))
-/// * [Store](crate::Store)
-///     * [Store::module](crate::Store::module) ([example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/vm_get_active_module.rs))
-///
 #[derive(Debug)]
 pub struct Instance {
     pub(crate) inner: Arc<InnerInstance>,
@@ -356,11 +345,6 @@ pub trait AsInstance {
 }
 
 /// An [ImportModule] represents a host module with a name. A host module consists of one or more host [function](crate::Function), [table](crate::Table), [memory](crate::Memory), and [global](crate::Global) instances,  which are defined outside wasm modules and fed into wasm modules as imports.
-///
-/// # Example
-///
-/// The following example shows how to use [ImportModule] to import [host function](crate::Function), [table](crate::Table), [memory](crate::Memory) and [global](crate::Global) instances, and to register it into [Vm](crate::Vm).
-///  
 #[derive(Debug, Clone)]
 pub struct ImportModule {
     pub(crate) inner: Arc<InnerInstance>,
@@ -445,15 +429,6 @@ impl AsImport for ImportModule {
 }
 
 /// A [WasiModule] is a module instance for the WASI specification.
-///
-/// # Usage
-///
-/// * [WasiModule] implements [AsImport](crate::AsImport) trait, therefore it can be used to register function, table, memory and global instances.
-///     * [Example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/wasi_module.rs)
-///
-/// * A [WasiModule] can be created implicitly inside a [Vm](crate::Vm) by passing the [Vm](crate::Vm) a [config](crate::Config) argument in which the `wasi` option is enabled.
-///    * [Example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/wasi_module.rs)
-///
 #[derive(Debug, Clone)]
 pub struct WasiModule {
     pub(crate) inner: Arc<InnerInstance>,
@@ -2795,7 +2770,7 @@ impl AsImport for WasiCryptoSignaturesModule {
     }
 }
 
-/// The object to be registered into a [Vm](crate::Vm) or an [Executor](crate::Executor) instance is required to implement this trait. The object that implements this trait can be registered via the [Vm::register_wasm_from_import](crate::Vm::register_wasm_from_import) function, or the [Executor::register_import_object](crate::Executor::register_import_object) function.
+/// The object to be registered via the the [Executor::register_import_object](crate::Executor::register_import_object) function is required to implement this trait.
 pub trait AsImport {
     /// Returns the name of the module instance.
     fn name(&self) -> &str;

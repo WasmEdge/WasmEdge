@@ -19,7 +19,7 @@ impl Memory {
     ///
     /// # Error
     ///
-    /// If fail to create the memory instance, then an error is returned.
+    /// * If fail to create the memory instance, then [WasmEdgeError::Mem(MemError::Create)](crate::error::MemError) is returned.
     pub fn new(ty: MemoryType) -> WasmEdgeResult<Self> {
         let inner = sys::Memory::create(&ty.clone().into())?;
         Ok(Self {

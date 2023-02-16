@@ -18,7 +18,7 @@ impl Table {
     ///
     /// # Error
     ///
-    /// If fail to create the table instance, then an error is returned.
+    /// * If fail to create the table instance, then WasmEdgeError::Table(TableError::Create)(crate::error::TableError) is returned.
     pub fn new(ty: TableType) -> WasmEdgeResult<Self> {
         let inner = sys::Table::create(&ty.clone().into())?;
         Ok(Self {
@@ -63,7 +63,9 @@ impl Table {
     ///
     /// # Arguments
     ///
-    /// * `delta` - the number of elements to grow the table instance by.
+    /// * `delta` - The number of elements to grow the table instance by.
+    ///
+    /// * `init` - The value to initialize the new table slots with.
     ///
     /// # Error
     ///

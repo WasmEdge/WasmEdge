@@ -22,7 +22,7 @@ impl Global {
     ///
     /// # Error
     ///
-    /// If fail to create the Global instance, then an error is returned.
+    /// * If fail to create the Global instance, then WasmEdgeError::Global(GlobalError::Create)(crate::error::GlobalError) is returned.
     pub fn new(ty: GlobalType, init: Val) -> WasmEdgeResult<Self> {
         let inner = sys::Global::create(&ty.clone().into(), init.into())?;
         Ok(Self {

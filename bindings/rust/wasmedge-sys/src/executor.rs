@@ -222,6 +222,17 @@ impl Executor {
         })
     }
 
+    /// Runs a host function instance and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `func` - The function instance to run.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Errors
+    ///
+    /// If fail to run the host function, then an error is returned.
     pub fn call_func(
         &self,
         func: &Function,
@@ -249,6 +260,17 @@ impl Executor {
         Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 
+    /// Asynchronously runs a host function instance and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `func` - The function instance to run.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Errors
+    ///
+    /// If fail to run the host function, then an error is returned.
     #[cfg(feature = "async")]
     pub async fn call_func_async(
         &self,
@@ -260,6 +282,17 @@ impl Executor {
             .unwrap()
     }
 
+    /// Runs a host function reference instance and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `func_ref` - The function reference instance to run.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Errors
+    ///
+    /// If fail to run the host function reference instance, then an error is returned.
     pub fn call_func_ref(
         &self,
         func_ref: &FuncRef,
@@ -287,6 +320,17 @@ impl Executor {
         Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 
+    /// Asynchronously runs a host function reference instance and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `func_ref` - The function reference instance to run.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Errors
+    ///
+    /// If fail to run the host function reference instance, then an error is returned.
     #[cfg(feature = "async")]
     pub async fn call_func_ref_async(
         &self,

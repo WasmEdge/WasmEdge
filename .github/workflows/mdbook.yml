@@ -55,7 +55,7 @@ jobs:
 
       - name: Install mdBook preprocessors
         run: |
-          cargo install mdbook-variables
+          cargo install mdbook-variables --locked
 
       - name: Create work dir
         run: |

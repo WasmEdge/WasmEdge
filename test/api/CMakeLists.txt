@@ -4,6 +4,9 @@
 if(WASMEDGE_BUILD_AOT_RUNTIME)
   add_definitions(-DWASMEDGE_BUILD_AOT_RUNTIME)
 endif()
+if(WASMEDGE_BUILD_PLUGINS)
+  add_definitions(-DWASMEDGE_BUILD_PLUGINS)
+endif()
 
 file(COPY
   ${CMAKE_CURRENT_SOURCE_DIR}/apiTestData
@@ -35,13 +38,6 @@ target_link_libraries(wasmedgeAPIUnitTests
   wasmedgeAPITestHelpers
   wasmedge_shared
 )
-
-if(WASMEDGE_PLUGIN_PROCESS)
-  target_compile_options(wasmedgeAPIUnitTests
-    PUBLIC
-    -DWASMEDGE_PLUGIN_PROCESS
-  )
-endif()
 
 target_include_directories(wasmedgeAPIUnitTests
   PRIVATE

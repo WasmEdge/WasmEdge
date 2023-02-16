@@ -78,7 +78,7 @@ impl Func {
     ///
     /// # Error
     ///
-    /// If fail to create the host function, then an error is returned.
+    /// * If fail to create a Func instance, then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
     pub fn new(
         ty: FuncType,
         real_func: impl Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
@@ -106,7 +106,7 @@ impl Func {
     ///
     /// # Error
     ///
-    /// If fail to create the host function, then an error is returned.
+    /// * If fail to create a Func instance, then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
     pub fn wrap<Args, Rets>(
         real_func: impl Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
             + Send
@@ -140,7 +140,7 @@ impl Func {
     ///
     /// # Error
     ///
-    /// If fail to create the host function, then an error is returned.
+    /// * If fail to create a Func instance, then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
     #[cfg(feature = "async")]
     pub fn wrap_async<Args, Rets>(
         real_func: impl Fn(

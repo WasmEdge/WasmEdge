@@ -637,7 +637,7 @@ impl Vm {
             .await
     }
 
-    /// Returns a referece to the internal [executor](crate::Executor) from this vm.
+    /// Returns a reference to the internal [executor](crate::Executor) from this vm.
     pub fn executor(&self) -> &Executor {
         &self.executor
     }
@@ -1090,7 +1090,7 @@ mod tests {
             let _vm = result.unwrap();
         }
 
-        #[cfg(target_os = "linux")]
+        #[cfg(all(target_os = "linux", not(feature = "static")))]
         {
             // load wasmedge_process plugin
             PluginManager::load_from_default_paths();
@@ -1110,7 +1110,7 @@ mod tests {
             let _vm = result.unwrap();
         }
 
-        #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+        #[cfg(all(target_os = "linux", not(feature = "static"), feature = "wasi_crypto"))]
         {
             // load wasi_crypto plugin
             PluginManager::load_from_default_paths();
@@ -1135,7 +1135,12 @@ mod tests {
             let _vm = result.unwrap();
         }
 
-        #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+        #[cfg(all(
+            target_os = "linux",
+            not(feature = "static"),
+            feature = "wasi_nn",
+            target_arch = "x86_64"
+        ))]
         {
             // load wasi_nn plugin
             PluginManager::load_from_default_paths();

@@ -2130,28 +2130,28 @@ TEST(APICoreTest, ModuleInstance) {
 
   // Create wasmedge_process.
   HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(Args, 2, false);
-#if WASMEDGE_OS_LINUX
+#ifdef WASMEDGE_PLUGIN_PROCESS
   EXPECT_NE(HostMod, nullptr);
   WasmEdge_ModuleInstanceDelete(HostMod);
 #else
   EXPECT_EQ(HostMod, nullptr);
 #endif
   HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(nullptr, 0, false);
-#if WASMEDGE_OS_LINUX
+#ifdef WASMEDGE_PLUGIN_PROCESS
   EXPECT_NE(HostMod, nullptr);
   WasmEdge_ModuleInstanceDelete(HostMod);
 #else
   EXPECT_EQ(HostMod, nullptr);
 #endif
   HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(Args, 2, true);
-#if WASMEDGE_OS_LINUX
+#ifdef WASMEDGE_PLUGIN_PROCESS
   EXPECT_NE(HostMod, nullptr);
   WasmEdge_ModuleInstanceDelete(HostMod);
 #else
   EXPECT_EQ(HostMod, nullptr);
 #endif
   HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(nullptr, 0, true);
-#if WASMEDGE_OS_LINUX
+#ifdef WASMEDGE_PLUGIN_PROCESS
   EXPECT_NE(HostMod, nullptr);
   WasmEdge_ModuleInstanceDelete(HostMod);
 #else
@@ -2166,7 +2166,7 @@ TEST(APICoreTest, ModuleInstance) {
   WasmEdge_ConfigureDelete(Conf);
   HostMod = WasmEdge_VMGetImportModuleContext(
       VM, WasmEdge_HostRegistration_WasmEdge_Process);
-#if WASMEDGE_OS_LINUX
+#ifdef WASMEDGE_PLUGIN_PROCESS
   EXPECT_NE(HostMod, nullptr);
 #else
   EXPECT_EQ(HostMod, nullptr);

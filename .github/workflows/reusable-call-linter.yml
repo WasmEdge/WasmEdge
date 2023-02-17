@@ -10,10 +10,10 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Install clang-format-12
+      - name: Install clang-format-15
         run: |
           sudo apt update
-          sudo apt install clang-format-12
+          sudo apt install clang-format-15
       - name: Run clang-format
         run: |
-          bash ./.github/scripts/clang-format.sh `which clang-format-12`
+          bash ./.github/scripts/clang-format.sh `which clang-format-15`

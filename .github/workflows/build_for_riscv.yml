@@ -53,10 +53,7 @@ jobs:
         fetch-depth: 0
     - uses: uraimo/run-on-arch-action@v2
       name: Build WasmEdge
-      id: build
       with:
-        arch: none
-        distro: none
         base_image: riscv64/ubuntu
         githubToken: ${{ github.token }}
         dockerRunArgs: |

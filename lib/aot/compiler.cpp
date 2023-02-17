@@ -5145,13 +5145,14 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 
     llvm::TargetOptions Options;
     llvm::Reloc::Model RM = llvm::Reloc::PIC_;
+#if defined(__riscv) && __riscv_xlen == 64
+    llvm::StringRef CPUName("generic-rv64");
+#else
     llvm::StringRef CPUName("generic");
+#endif
     if (!Conf.getCompilerConfigure().isGenericBinary()) {
       CPUName = llvm::sys::getHostCPUName();
     }
-#if defined(__riscv) && __riscv_xlen == 64
-    CPUName = "generic-rv64";
-#endif
     std::unique_ptr<llvm::TargetMachine> TM(TheTarget->createTargetMachine(
         Triple.str(), CPUName, Context->SubtargetFeatures.getString(), Options,
         RM, llvm::None, llvm::CodeGenOpt::Level::Aggressive));

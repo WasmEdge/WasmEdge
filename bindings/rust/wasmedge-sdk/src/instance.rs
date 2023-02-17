@@ -4,7 +4,11 @@ use crate::{
     Func, FuncType, Global, GlobalType, Memory, MemoryType, Table, TableType, WasmEdgeResult,
 };
 use wasmedge_sys as sys;
-#[cfg(target_os = "linux")]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasmedge_process",
+    not(feature = "static")
+))]
 use wasmedge_sys::{AsImport, AsInstance as sys_as_instance_trait};
 
 /// Represents an instantiated module.
@@ -132,12 +136,20 @@ impl Instance {
 }
 
 /// Represents a wasmedge_process module instance.
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasmedge_process",
+    not(feature = "static")
+))]
 #[derive(Debug)]
-#[cfg(target_os = "linux")]
 pub struct WasmEdgeProcessInstance {
     pub(crate) inner: sys::WasmEdgeProcessModule,
 }
-#[cfg(target_os = "linux")]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasmedge_process",
+    not(feature = "static")
+))]
 impl WasmEdgeProcessInstance {
     /// Initializes the wasmedge_process host module with the parameters.
     ///
@@ -150,7 +162,11 @@ impl WasmEdgeProcessInstance {
         self.inner.init_wasmedge_process(allowed_cmds, allowed);
     }
 }
-#[cfg(target_os = "linux")]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasmedge_process",
+    not(feature = "static")
+))]
 impl AsInstance for WasmEdgeProcessInstance {
     fn name(&self) -> &str {
         self.inner.name()

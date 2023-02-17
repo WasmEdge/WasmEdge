@@ -28,6 +28,7 @@ standalone = ["wasmedge-sys/standalone"]
 static = ["wasmedge-sys/static"]
 wasi_crypto = ["wasmedge-sys/wasi_crypto"]
 wasi_nn = ["wasmedge-sys/wasi_nn"]
+wasmedge_process = ["wasmedge-sys/wasmedge_process"]
 
 [dev-dependencies]
 tokio = {version = "1", features = ["full"]}

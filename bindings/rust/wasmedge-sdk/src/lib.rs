@@ -182,7 +182,11 @@ pub use executor::Executor;
 pub use externals::{Func, FuncRef, FuncTypeBuilder, Global, Memory, Table};
 #[doc(inline)]
 pub use import::{ImportObject, ImportObjectBuilder};
-#[cfg(target_os = "linux")]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasmedge_process",
+    not(feature = "static")
+))]
 #[doc(inline)]
 pub use instance::WasmEdgeProcessInstance;
 pub use instance::{AsInstance, Instance};

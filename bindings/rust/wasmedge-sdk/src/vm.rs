@@ -1,13 +1,22 @@
 //! Defines WasmEdge Vm struct.
 
-#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasi_nn",
+    target_arch = "x86_64",
+    not(feature = "static")
+))]
 use crate::wasi::WasiNnInstance;
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 use crate::wasi::{
     WasiCryptoAsymmetricCommonInstance, WasiCryptoCommonInstance, WasiCryptoKxInstance,
     WasiCryptoSignaturesInstance, WasiCryptoSymmetricInstance,
 };
-#[cfg(target_os = "linux")]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasmedge_process",
+    not(feature = "static")
+))]
 use crate::WasmEdgeProcessInstance;
 use crate::{
     config::Config,
@@ -133,7 +142,11 @@ impl Vm {
                 }
             }
 
-            #[cfg(target_os = "linux")]
+            #[cfg(all(
+                target_os = "linux",
+                feature = "wasmedge_process",
+                not(feature = "static")
+            ))]
             if cfg.wasmedge_process_enabled() {
                 if let Ok(wasmedge_process_module) = sys::WasmEdgeProcessModule::create(None, false)
                 {
@@ -151,7 +164,12 @@ impl Vm {
                 }
             }
 
-            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+            #[cfg(all(
+                target_os = "linux",
+                feature = "wasi_nn",
+                target_arch = "x86_64",
+                not(feature = "static")
+            ))]
             if cfg.wasi_nn_enabled() {
                 if let Ok(wasi_nn_module) = sys::WasiNnModule::create() {
                     vm.executor.inner.register_import_object(
@@ -168,7 +186,7 @@ impl Vm {
                 }
             }
 
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
             {
                 if cfg.wasi_crypto_common_enabled() {
                     if let Ok(wasi_crypto_common_module) = sys::WasiCryptoCommonModule::create() {
@@ -683,7 +701,11 @@ impl Vm {
     ///
     /// To retrieve the [WasmEdgeProcess module instance], a [config](crate::config::Config) with the enabled [wasmedge_process](crate::config::HostRegistrationConfigOptions::wasmedge_process) option should be given when create this vm.
     ///
-    #[cfg(target_os = "linux")]
+    #[cfg(all(
+        target_os = "linux",
+        feature = "wasmedge_process",
+        not(feature = "static")
+    ))]
     pub fn wasmedge_process_module(&mut self) -> Option<&WasmEdgeProcessInstance> {
         match self
             .host_registrations
@@ -700,7 +722,11 @@ impl Vm {
     ///
     /// To retrieve the [WasmEdgeProcess module instance], a [config](crate::config::Config) with the enabled [wasmedge_process](crate::config::HostRegistrationConfigOptions::wasmedge_process) option should be given when create this vm.
     ///
-    #[cfg(target_os = "linux")]
+    #[cfg(all(
+        target_os = "linux",
+        feature = "wasmedge_process",
+        not(feature = "static")
+    ))]
     pub fn wasmedge_process_module_mut(&mut self) -> Option<&mut WasmEdgeProcessInstance> {
         match self
             .host_registrations
@@ -793,19 +819,28 @@ impl Vm {
 #[derive(Debug)]
 enum HostRegistrationInstance {
     Wasi(crate::wasi::WasiInstance),
-    #[cfg(target_os = "linux")]
+    #[cfg(all(
+        target_os = "linux",
+        feature = "wasmedge_process",
+        not(feature = "static")
+    ))]
     WasmEdgeProcess(crate::instance::WasmEdgeProcessInstance),
-    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    #[cfg(all(
+        target_os = "linux",
+        feature = "wasi_nn",
+        target_arch = "x86_64",
+        not(feature = "static")
+    ))]
     WasiNn(crate::wasi::WasiNnInstance),
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
     WasiCryptoCommon(crate::wasi::WasiCryptoCommonInstance),
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
     WasiCryptoAsymmetricCommon(crate::wasi::WasiCryptoAsymmetricCommonInstance),
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
     WasiCryptoSignatures(crate::wasi::WasiCryptoSignaturesInstance),
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
     WasiCryptoSymmetric(crate::wasi::WasiCryptoSymmetricInstance),
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
     WasiCryptoKeyExchange(crate::wasi::WasiCryptoKxInstance),
 }
 
@@ -1184,7 +1219,11 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(target_os = "linux", not(feature = "static")))]
+    #[cfg(all(
+        target_os = "linux",
+        feature = "wasmedge_process",
+        not(feature = "static")
+    ))]
     fn test_vm_wasmedge_process_module() {
         // load wasmedge_process plugin
         PluginManager::load_from_default_paths();

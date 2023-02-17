@@ -297,21 +297,30 @@ impl ImportObject {
         match &self.0 {
             sys::ImportObject::Import(import) => import.name(),
             sys::ImportObject::Wasi(wasi) => wasi.name(),
-            #[cfg(target_os = "linux")]
+            #[cfg(all(
+                target_os = "linux",
+                feature = "wasmedge_process",
+                not(feature = "static")
+            ))]
             sys::ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name(),
-            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+            #[cfg(all(
+                target_os = "linux",
+                feature = "wasi_nn",
+                target_arch = "x86_64",
+                not(feature = "static")
+            ))]
             sys::ImportObject::Nn(module) => module.name(),
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
             sys::ImportObject::Crypto(sys::WasiCrypto::Common(module)) => module.name(),
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
             sys::ImportObject::Crypto(sys::WasiCrypto::AsymmetricCommon(module)) => module.name(),
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
             sys::ImportObject::Crypto(sys::WasiCrypto::SymmetricOptionations(module)) => {
                 module.name()
             }
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
             sys::ImportObject::Crypto(sys::WasiCrypto::KeyExchange(module)) => module.name(),
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
             sys::ImportObject::Crypto(sys::WasiCrypto::Signatures(module)) => module.name(),
         }
     }

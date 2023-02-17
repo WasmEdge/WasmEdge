@@ -869,13 +869,21 @@ impl AsImport for WasiModule {
 /// * A [WasmEdgeProcessModule] can be created implicitly inside a [Vm](crate::Vm) by passing the [Vm](crate::Vm) a [config](crate::Config) argument in which the `wasmedge_process` option is enabled.
 ///     * [Example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/wasmedge_process_module.rs)
 ///
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasmedge_process",
+    not(feature = "static")
+))]
 #[derive(Debug, Clone)]
-#[cfg(target_os = "linux")]
 pub struct WasmEdgeProcessModule {
     pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
-#[cfg(target_os = "linux")]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasmedge_process",
+    not(feature = "static")
+))]
 impl Drop for WasmEdgeProcessModule {
     fn drop(&mut self) {
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
@@ -885,7 +893,11 @@ impl Drop for WasmEdgeProcessModule {
         }
     }
 }
-#[cfg(target_os = "linux")]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasmedge_process",
+    not(feature = "static")
+))]
 impl WasmEdgeProcessModule {
     /// Creates a wasmedge_process host module that contains the wasmedge_process host functions and
     /// initialize it with the parameters.
@@ -957,7 +969,11 @@ impl WasmEdgeProcessModule {
         }
     }
 }
-#[cfg(target_os = "linux")]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasmedge_process",
+    not(feature = "static")
+))]
 impl AsInstance for WasmEdgeProcessModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
@@ -1143,7 +1159,11 @@ impl AsInstance for WasmEdgeProcessModule {
         }
     }
 }
-#[cfg(target_os = "linux")]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasmedge_process",
+    not(feature = "static")
+))]
 impl AsImport for WasmEdgeProcessModule {
     fn name(&self) -> &str {
         "wasmedge_process"
@@ -1187,13 +1207,23 @@ impl AsImport for WasmEdgeProcessModule {
 }
 
 /// A [WasiNnModule] is a module instance for the WASI-NN specification.
-#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasi_nn",
+    target_arch = "x86_64",
+    not(feature = "static")
+))]
 #[derive(Debug, Clone)]
 pub struct WasiNnModule {
     pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
-#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasi_nn",
+    target_arch = "x86_64",
+    not(feature = "static")
+))]
 impl Drop for WasiNnModule {
     fn drop(&mut self) {
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
@@ -1203,7 +1233,12 @@ impl Drop for WasiNnModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasi_nn",
+    target_arch = "x86_64",
+    not(feature = "static")
+))]
 impl WasiNnModule {
     // Creates and initializes a WASI-NN host module which contains the WASI-NN host functions.
     ///
@@ -1221,7 +1256,12 @@ impl WasiNnModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasi_nn",
+    target_arch = "x86_64",
+    not(feature = "static")
+))]
 impl AsInstance for WasiNnModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
@@ -1407,7 +1447,12 @@ impl AsInstance for WasiNnModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+#[cfg(all(
+    target_os = "linux",
+    feature = "wasi_nn",
+    target_arch = "x86_64",
+    not(feature = "static")
+))]
 impl AsImport for WasiNnModule {
     fn name(&self) -> &str {
         "wasi_ephemeral_nn"
@@ -1451,13 +1496,13 @@ impl AsImport for WasiNnModule {
 }
 
 /// A [WasiCryptoCommonModule] is a module instance for the WASI-Crypto specification, covering common types and functions for symmetric operations.
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 #[derive(Debug, Clone)]
 pub struct WasiCryptoCommonModule {
     pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl Drop for WasiCryptoCommonModule {
     fn drop(&mut self) {
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
@@ -1467,7 +1512,7 @@ impl Drop for WasiCryptoCommonModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl WasiCryptoCommonModule {
     /// Creates and initializes a wasi_crypto common host module named `wasi_ephemeral_crypto_common`, which contains the wasi_crypto common host functions.
     ///
@@ -1485,7 +1530,7 @@ impl WasiCryptoCommonModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl AsInstance for WasiCryptoCommonModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
@@ -1671,7 +1716,7 @@ impl AsInstance for WasiCryptoCommonModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl AsImport for WasiCryptoCommonModule {
     fn name(&self) -> &str {
         "wasi_ephemeral_crypto_common"
@@ -1719,13 +1764,13 @@ impl AsImport for WasiCryptoCommonModule {
 /// # Error
 ///
 /// If the wasi_crypto plugin is not found, then an error is returned.
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 #[derive(Debug, Clone)]
 pub struct WasiCryptoAsymmetricCommonModule {
     pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl Drop for WasiCryptoAsymmetricCommonModule {
     fn drop(&mut self) {
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
@@ -1735,7 +1780,7 @@ impl Drop for WasiCryptoAsymmetricCommonModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl WasiCryptoAsymmetricCommonModule {
     /// Creates and initializes a wasi_crypto asymmetric_common host module named `wasi_ephemeral_crypto_asymmetric_common`, which contains the wasi_crypto common host functions.
     pub fn create() -> WasmEdgeResult<Self> {
@@ -1749,7 +1794,7 @@ impl WasiCryptoAsymmetricCommonModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl AsInstance for WasiCryptoAsymmetricCommonModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
@@ -1935,7 +1980,7 @@ impl AsInstance for WasiCryptoAsymmetricCommonModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl AsImport for WasiCryptoAsymmetricCommonModule {
     fn name(&self) -> &str {
         "wasi_ephemeral_crypto_asymmetric_common"
@@ -1979,13 +2024,13 @@ impl AsImport for WasiCryptoAsymmetricCommonModule {
 }
 
 /// A [WasiCryptoSymmetricModule] is a module instance for the WASI-Crypto specification, covering symmetric operations.
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 #[derive(Debug, Clone)]
 pub struct WasiCryptoSymmetricModule {
     pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl Drop for WasiCryptoSymmetricModule {
     fn drop(&mut self) {
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
@@ -1995,7 +2040,7 @@ impl Drop for WasiCryptoSymmetricModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl WasiCryptoSymmetricModule {
     /// Creates and initializes a wasi_crypto symmetric host module named `wasi_ephemeral_crypto_symmetric`, which contains the wasi_crypto symmetric host functions.
     ///
@@ -2013,7 +2058,7 @@ impl WasiCryptoSymmetricModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl AsInstance for WasiCryptoSymmetricModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
@@ -2199,7 +2244,7 @@ impl AsInstance for WasiCryptoSymmetricModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl AsImport for WasiCryptoSymmetricModule {
     fn name(&self) -> &str {
         "wasi_ephemeral_crypto_symmetric"
@@ -2243,13 +2288,13 @@ impl AsImport for WasiCryptoSymmetricModule {
 }
 
 /// A [WasiCryptoKxModule] is a module instance for the WASI-Crypto specification, covering key exchange interfaces.
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 #[derive(Debug, Clone)]
 pub struct WasiCryptoKxModule {
     pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl Drop for WasiCryptoKxModule {
     fn drop(&mut self) {
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
@@ -2259,7 +2304,7 @@ impl Drop for WasiCryptoKxModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl WasiCryptoKxModule {
     /// Creates and initializes a wasi_crypto kx host module named `wasi_ephemeral_crypto_kx`, which contains the wasi_crypto key exchange functions.
     ///
@@ -2277,7 +2322,7 @@ impl WasiCryptoKxModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl AsInstance for WasiCryptoKxModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
@@ -2463,7 +2508,7 @@ impl AsInstance for WasiCryptoKxModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl AsImport for WasiCryptoKxModule {
     fn name(&self) -> &str {
         "wasi_ephemeral_crypto_kx"
@@ -2507,13 +2552,13 @@ impl AsImport for WasiCryptoKxModule {
 }
 
 /// A [WasiCryptoSignaturesModule] is a module instance for the WASI-Crypto specification, covering signatures interfaces.
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 #[derive(Debug, Clone)]
 pub struct WasiCryptoSignaturesModule {
     pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl Drop for WasiCryptoSignaturesModule {
     fn drop(&mut self) {
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
@@ -2523,7 +2568,7 @@ impl Drop for WasiCryptoSignaturesModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl WasiCryptoSignaturesModule {
     /// Creates and initializes a wasi_crypto signatures host module named `wasi_ephemeral_crypto_signatures`, which contains the wasi_crypto signature functions.
     ///
@@ -2541,7 +2586,7 @@ impl WasiCryptoSignaturesModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl AsInstance for WasiCryptoSignaturesModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
@@ -2727,7 +2772,7 @@ impl AsInstance for WasiCryptoSignaturesModule {
         }
     }
 }
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 impl AsImport for WasiCryptoSignaturesModule {
     fn name(&self) -> &str {
         "wasi_ephemeral_crypto_signatures"
@@ -2820,13 +2865,22 @@ pub enum ImportObject {
     /// Defines the import module instance of WasiModule type.
     Wasi(WasiModule),
     /// Defines the import module instance of WasmEdgeProcessModule type.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(
+        target_os = "linux",
+        feature = "wasmedge_process",
+        not(feature = "static")
+    ))]
     WasmEdgeProcess(WasmEdgeProcessModule),
     /// Defines the import module instance of WasiNnModule type.
-    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    #[cfg(all(
+        target_os = "linux",
+        feature = "wasi_nn",
+        target_arch = "x86_64",
+        not(feature = "static")
+    ))]
     Nn(WasiNnModule),
     /// Defines the import module instance of WasiCrypto type.
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
     Crypto(WasiCrypto),
 }
 impl ImportObject {
@@ -2835,26 +2889,35 @@ impl ImportObject {
         match self {
             ImportObject::Import(import) => import.name(),
             ImportObject::Wasi(wasi) => wasi.name(),
-            #[cfg(target_os = "linux")]
+            #[cfg(all(
+                target_os = "linux",
+                feature = "wasmedge_process",
+                not(feature = "static")
+            ))]
             ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name(),
-            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+            #[cfg(all(
+                target_os = "linux",
+                feature = "wasi_nn",
+                target_arch = "x86_64",
+                target_os = "linux"
+            ))]
             ImportObject::Nn(module) => module.name(),
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
             ImportObject::Crypto(WasiCrypto::Common(module)) => module.name(),
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
             ImportObject::Crypto(WasiCrypto::AsymmetricCommon(module)) => module.name(),
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
             ImportObject::Crypto(WasiCrypto::SymmetricOptionations(module)) => module.name(),
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
             ImportObject::Crypto(WasiCrypto::KeyExchange(module)) => module.name(),
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
             ImportObject::Crypto(WasiCrypto::Signatures(module)) => module.name(),
         }
     }
 }
 
 /// Defines the WasiCrypto type.
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
 #[derive(Debug, Clone)]
 pub enum WasiCrypto {
     /// WasiCryptoCommonModule
@@ -3131,7 +3194,11 @@ mod tests {
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
-    #[cfg(all(not(feature = "static"), target_os = "linux"))]
+    #[cfg(all(
+        not(feature = "static"),
+        target_os = "linux",
+        feature = "wasmedge_process"
+    ))]
     fn test_instance_wasmedge_process() {
         use crate::utils;
 
@@ -3147,6 +3214,8 @@ mod tests {
 
         let result = WasmEdgeProcessModule::create(Some(vec!["arg1", "arg2"]), false);
         assert!(result.is_ok());
+
+        dbg!("done");
     }
 
     #[test]

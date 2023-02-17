@@ -49,7 +49,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("fib(5): {}", res[0].to_i32());
 
         // remove the generated aot file
-        assert!(std::fs::remove_file(&aot_file_path).is_ok());
+        let metadata = aot_file_path.metadata()?;
+        if metadata.permissions().readonly() {
+            let mut permissions = metadata.permissions();
+            permissions.set_readonly(false);
+            std::fs::set_permissions(&aot_file_path, permissions)?;
+        }
+        let result = std::fs::remove_file(&aot_file_path);
+        println!("remove aot file: {:?}", result);
     }
 
     Ok(())

@@ -5149,10 +5149,10 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     llvm::StringRef CPUName("generic-rv64");
 #else
     llvm::StringRef CPUName("generic");
-#endif
     if (!Conf.getCompilerConfigure().isGenericBinary()) {
       CPUName = llvm::sys::getHostCPUName();
     }
+#endif
     std::unique_ptr<llvm::TargetMachine> TM(TheTarget->createTargetMachine(
         Triple.str(), CPUName, Context->SubtargetFeatures.getString(), Options,
         RM, llvm::None, llvm::CodeGenOpt::Level::Aggressive));

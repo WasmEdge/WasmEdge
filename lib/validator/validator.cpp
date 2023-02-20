@@ -224,27 +224,34 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
 // Validate Code segment. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
                                  const uint32_t TypeIdx) {
-  // Reset stack in FormChecker.
-  Checker.reset();
-  // Add parameters into this frame.
-  for (auto Val : Checker.getTypes()[TypeIdx].first) {
-    // Local passed as function parameters should be initialized
-    Checker.addLocal(Val, true);
-  }
-  // Add locals into this frame.
-  for (auto Val : CodeSeg.getLocals()) {
-    for (uint32_t Cnt = 0; Cnt < Val.first; ++Cnt) {
-      Checker.addLocal(Val.second, false);
+  const auto &Type = Checker.getTypes()[TypeIdx];
+  if (Type.isType<AST::FunctionType>()) {
+    const auto &FuncType = Type.asFunctionType();
+    // Reset stack in FormChecker.
+    Checker.reset();
+    // Add parameters into this frame.
+    for (auto Val : FuncType.getParamTypes()) {
+      // Local passed as function parameters should be initialized
+      Checker.addLocal(Val, true);
     }
+    // Add locals into this frame.
+    for (auto Val : CodeSeg.getLocals()) {
+      for (uint32_t Cnt = 0; Cnt < Val.first; ++Cnt) {
+        Checker.addLocal(Val.second, false);
+      }
+    }
+    // Validate function body expression.
+    if (auto Res = Checker.validate(CodeSeg.getExpr().getInstrs(),
+                                    FuncType.getReturnTypes());
+        !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
+      return Unexpect(Res);
+    }
+    return {};
+  } else {
+    spdlog::error("the code segment is not holding code of func type");
+    return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
   }
-  // Validate function body expression.
-  if (auto Res = Checker.validate(CodeSeg.getExpr().getInstrs(),
-                                  Checker.getTypes()[TypeIdx].second);
-      !Res) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
-    return Unexpect(Res);
-  }
-  return {};
 }
 
 // Validate Data segment. See "include/validator/validator.h".
@@ -366,36 +373,96 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
 }
 
 Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
-  auto TypeCount = TypeSec.getContent().size();
-  auto validateValType = [TypeCount](const FullValType &VType) -> Expect<void> {
+  const auto validateValType = [](const FullValType &VType,
+                                  const uint32_t MaxTypeIdx) -> Expect<void> {
+    // MaxTypeIdx means the TypeIdx must be strictly less than MaxTypeIdx
     if (VType.isRefType()) {
       auto HeapType = VType.asRefType().getHeapType();
       if (HeapType.getHTypeCode() == HeapTypeCode::Defined) {
-        if (HeapType.getDefinedTypeIdx() >= TypeCount) {
-          spdlog::error(ErrCode::Value::InvalidTableIdx);
+        if (HeapType.getDefinedTypeIdx() >= MaxTypeIdx) {
+          spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
           spdlog::error(ErrInfo::InfoForbidIndex(
               ErrInfo::IndexCategory::FunctionType,
-              HeapType.getDefinedTypeIdx(), TypeCount));
+              HeapType.getDefinedTypeIdx(), MaxTypeIdx));
           return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
         }
       }
     }
     return {};
   };
-  for (const auto &DefinedType : TypeSec.getContent()) {
-    auto Type = DefinedType.asFunctionType();
-    for (auto &ParamType : Type.getParamTypes()) {
-      if (auto Res = validateValType(ParamType); !Res) {
-        return Unexpect(Res);
+  const auto &Types = TypeSec.getContent();
+  uint32_t GroupStartIdx = 0;
+  for (auto GroupEndIdx : TypeSec.getGroupEndIdx()) {
+    for (uint32_t I = GroupStartIdx; I < GroupEndIdx; I++) {
+      const auto &Type = Types[I];
+      if (Type.isType<AST::FunctionType>()) {
+        const auto &FuncType = Type.asFunctionType();
+        for (auto &ParamType : FuncType.getParamTypes()) {
+          if (auto Res = validateValType(ParamType, GroupEndIdx); !Res) {
+            return Unexpect(Res);
+          }
+        }
+        for (auto &ParamType : FuncType.getReturnTypes()) {
+          if (auto Res = validateValType(ParamType, GroupEndIdx); !Res) {
+            return Unexpect(Res);
+          }
+        }
+      } else if (Type.isType<AST::ArrayType>()) {
+        const auto &ArrayType = Type.asArrayType();
+        const auto &StorageType = ArrayType.getFieldType().getStorageType();
+        if (StorageType.isValType()) {
+          if (auto Res = validateValType(StorageType.asValType(), GroupEndIdx);
+              !Res) {
+            return Unexpect(Res);
+          }
+        }
+      } else if (Type.isType<AST::StructType>()) {
+        const auto &StructType = Type.asStructType();
+        for (const auto &Field : StructType.getContent()) {
+          const auto &StorageType = Field.getStorageType();
+          if (StorageType.isValType()) {
+            if (auto Res =
+                    validateValType(StorageType.asValType(), GroupEndIdx);
+                !Res) {
+              return Unexpect(Res);
+            }
+          }
+        }
       }
+      Checker.addType(Type);
+      GroupStartIdx = GroupEndIdx;
     }
-    for (auto &ParamType : Type.getReturnTypes()) {
-      if (auto Res = validateValType(ParamType); !Res) {
-        return Unexpect(Res);
-      }
-    }
-    Checker.addType(Type);
   }
+
+  // Check subtype after all types have been added to checker
+  GroupStartIdx = 0;
+  for (auto GroupEndIdx : TypeSec.getGroupEndIdx()) {
+    for (uint32_t I = GroupStartIdx; I < GroupEndIdx; I++) {
+      const auto &Type = Types[I];
+      const auto &ParentTypeIdx = Type.getParentTypeIdx();
+      if (!ParentTypeIdx.empty()) {
+        if (ParentTypeIdx.size() > 1) {
+          spdlog::error("The GC MVP cannot have more than one parent type");
+          return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+        }
+        auto ParentIdx = ParentTypeIdx[0];
+        if (ParentIdx >= I) {
+          spdlog::error("Parent idx should be defined before the current type");
+          return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+        }
+        if (Types[ParentIdx].isFinal()) {
+          spdlog::error("parent type cannot be final");
+          return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+        }
+        if (!Checker.match_type(Types[I], Types[ParentIdx])) {
+          spdlog::error("defined parent type idx cannot be the parent type");
+          return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+        }
+      }
+      GroupStartIdx = GroupEndIdx;
+    }
+  }
+
   return {};
 }
 
@@ -422,6 +489,11 @@ Expect<void> Validator::validate(const AST::FunctionSection &FuncSec) {
       spdlog::error(
           ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::FunctionType, TId,
                                    static_cast<uint32_t>(TypeVec.size())));
+      return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+    }
+    if (!TypeVec[TId].isType<AST::FunctionType>()) {
+      spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
+      spdlog::error("the type of function is not of FunctionType");
       return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
     }
     Checker.addFunc(TId);
@@ -530,14 +602,16 @@ Expect<void> Validator::validate(const AST::StartSection &StartSec) {
       return Unexpect(ErrCode::Value::InvalidFuncIdx);
     }
     auto TId = Checker.getFunctions()[FId];
-    auto &Type = Checker.getTypes()[TId];
-    if (Type.first.size() != 0 || Type.second.size() != 0) {
+    assuming(TId < Checker.getTypes().size());
+    assuming(Checker.getTypes()[TId].isType<AST::FunctionType>());
+    auto &Type = Checker.getTypes()[TId].asFunctionType();
+    if (Type.getParamTypes().size() != 0 || Type.getReturnTypes().size() != 0) {
       // Start function signature should be {}->{}
       std::vector<FullValType> Params, Returns;
-      for (auto &V : Type.first) {
+      for (auto &V : Type.getParamTypes()) {
         Params.push_back(Checker.VTypeToAST(V));
       }
-      for (auto &V : Type.second) {
+      for (auto &V : Type.getReturnTypes()) {
         Returns.push_back(Checker.VTypeToAST(V));
       }
       spdlog::error(ErrCode::Value::InvalidStartFunc);
@@ -609,6 +683,13 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
       Checker.addRef(Instr.getTargetIndex());
       break;
     }
+    case OpCode::Array__new_canon:
+    case OpCode::Array__new_canon_default:
+    case OpCode::Array__new_canon_fixed:
+    case OpCode::Struct__new_canon_default:
+    case OpCode::Struct__new_canon:
+    case OpCode::I31__new:
+      break;
     case OpCode::I32__const:
     case OpCode::I64__const:
     case OpCode::F32__const:

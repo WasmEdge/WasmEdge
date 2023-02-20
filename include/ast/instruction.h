@@ -31,6 +31,7 @@ public:
     uint32_t StackEraseBegin;
     uint32_t StackEraseEnd;
     int32_t PCOffset;
+    HeapType HType;
   };
 
 public:
@@ -105,18 +106,11 @@ public:
   void setJumpElse(const uint32_t Cnt) noexcept { Data.Blocks.JumpElse = Cnt; }
 
   /// Getter and setter of reference type.
-  HeapType getHeapType() const noexcept { return Data.HeapTypeLabelIdx.HType; }
-  void setHeapType(HeapType HType) noexcept {
-    Data.HeapTypeLabelIdx.HType = HType;
-  }
+  HeapType getHeapType() const noexcept { return Data.HType; }
+  void setHeapType(HeapType HType) noexcept { Data.HType = HType; }
 
-  uint32_t getLabelIdx() const noexcept {
-    return Data.HeapTypeLabelIdx.LabelIdx;
-  }
-  uint32_t &getLabelIdx() noexcept { return Data.HeapTypeLabelIdx.LabelIdx; }
-  void setLabelIdx(uint32_t Idx) noexcept {
-    Data.HeapTypeLabelIdx.LabelIdx = Idx;
-  }
+  HeapType getJumpHeapType() const noexcept { return Data.Jump.HType; }
+  void setJumpHeapType(HeapType HType) noexcept { Data.Jump.HType = HType; }
 
   /// Getter and setter of label list.
   void setLabelListSize(uint32_t Size) {
@@ -250,10 +244,7 @@ private:
       JumpDescriptor *LabelList;
     } BrTable;
     // Type 5: HeapType.
-    struct {
-      HeapType HType;
-      uint32_t LabelIdx;
-    } HeapTypeLabelIdx;
+    HeapType HType;
     // Type 6: ValTypeList.
     struct {
       uint32_t ValTypeListSize;

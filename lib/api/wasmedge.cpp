@@ -1228,6 +1228,8 @@ WasmEdge_ImportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
     if (Idx >= DefinedType.size()) {
       return nullptr;
     }
+    // If the import type context has passed the validation check, this should
+    // be of FunctionType.
     return toFuncTypeCxt(&DefinedType[Idx].asFunctionType());
   }
   return nullptr;
@@ -1316,6 +1318,8 @@ WasmEdge_ExportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
     if (TypeIdx >= DefinedTypes.size()) {
       return nullptr;
     }
+    // If the import type context has passed the validation check, this should
+    // be of FunctionType.
     return toFuncTypeCxt(&DefinedTypes[TypeIdx].asFunctionType());
   }
   return nullptr;

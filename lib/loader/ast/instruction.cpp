@@ -360,12 +360,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Br_on_cast_null:
   case OpCode::Br_on_cast_fail_null:
     // read label index
-    if (auto Res = readU32(Instr.getLabelIdx()); !Res) {
+    if (auto Res = readU32(Instr.getTargetIndex()); !Res) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     if (auto Res = loadHeapType()) {
-      Instr.setHeapType(*Res);
+      Instr.setJumpHeapType(*Res);
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);

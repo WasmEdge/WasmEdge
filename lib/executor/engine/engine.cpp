@@ -129,6 +129,15 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runBrOnNull(StackMgr, Instr, PC);
     case OpCode::Br_on_non_null:
       return runBrOnNonNull(StackMgr, Instr, PC);
+    case OpCode::Br_on_cast:
+      return runBrCastOp(StackMgr, Instr, PC, false, false);
+    case OpCode::Br_on_cast_null:
+      return runBrCastOp(StackMgr, Instr, PC, true, false);
+    case OpCode::Br_on_cast_fail:
+      return runBrCastOp(StackMgr, Instr, PC, false, true);
+    case OpCode::Br_on_cast_fail_null:
+      return runBrCastOp(StackMgr, Instr, PC, true, true);
+
     case OpCode::Return:
       return runReturnOp(StackMgr, PC);
     case OpCode::Call:
@@ -168,6 +177,247 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       const auto *ModInst = StackMgr.getModule();
       const auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
       StackMgr.push(RefVariant(FuncInst));
+      return {};
+    }
+      // GC Instructions
+    case OpCode::Array__new_canon: {
+      const auto *ModInst = StackMgr.getModule();
+      const auto TypeIdx = Instr.getTargetIndex();
+      const auto &Type = ModInst->Types[TypeIdx].asArrayType();
+      auto Size = StackMgr.pop().get<uint32_t>();
+      auto Value = StackMgr.pop();
+      auto *HeapValue =
+          new Runtime::Instance::HeapInstance(Type, Size, ModInst, TypeIdx);
+      for (uint32_t I = 0; I < Size; I++) {
+        HeapValue->setArrayValue(ValVariant(Value), I);
+      }
+      StackMgr.push(RefVariant(HeapValue));
+      return {};
+    }
+    case OpCode::Array__new_canon_default: {
+      const auto *ModInst = StackMgr.getModule();
+      const auto TypeIdx = Instr.getTargetIndex();
+      const auto &Type = ModInst->Types[TypeIdx].asArrayType();
+      auto Size = StackMgr.pop().get<uint32_t>();
+      auto *HeapValue =
+          new Runtime::Instance::HeapInstance(Type, Size, ModInst, TypeIdx);
+      StackMgr.push(RefVariant(HeapValue));
+      return {};
+    }
+    case OpCode::Array__new_canon_fixed: {
+      const auto *ModInst = StackMgr.getModule();
+      const auto TypeIdx = Instr.getTargetIndex();
+      const auto &Type = ModInst->Types[TypeIdx].asArrayType();
+      auto Size = Instr.getStackOffset();
+      auto *HeapValue =
+          new Runtime::Instance::HeapInstance(Type, Size, ModInst, TypeIdx);
+      for (uint32_t I = 0; I < Size; I++) {
+        auto Value = StackMgr.pop();
+        HeapValue->setArrayValue(std::move(Value), Size - 1 - I);
+      }
+      StackMgr.push(RefVariant(HeapValue));
+      return {};
+    }
+    case OpCode::Array__new_canon_data: {
+      const auto *ModInst = StackMgr.getModule();
+      const auto TypeIdx = Instr.getTargetIndex();
+      const auto &Type = ModInst->Types[TypeIdx].asArrayType();
+      const auto Data = ModInst->DataInsts[Instr.getSourceIndex()]->getData();
+      auto Size = StackMgr.pop().get<uint32_t>();
+      auto Offset = StackMgr.pop().get<uint32_t>();
+      auto FieldSize = Type.getFieldType().getStorageType().size();
+      if (Offset + Size * FieldSize > Data.size()) {
+        spdlog::error("array.new_canon_data out of data bound");
+        return Unexpect(ErrCode::Value::DataSegDoesNotFit);
+      }
+      auto *HeapValue = new Runtime::Instance::HeapInstance(
+          Type, Size, Data.subspan(Offset, Size * FieldSize), ModInst, TypeIdx);
+      StackMgr.push(RefVariant(HeapValue));
+      return {};
+    }
+    case OpCode::Array__new_canon_elem: {
+      const auto *ModInst = StackMgr.getModule();
+      const auto TypeIdx = Instr.getTargetIndex();
+      const auto &Type = ModInst->Types[TypeIdx].asArrayType();
+      const auto Elem = ModInst->ElemInsts[Instr.getSourceIndex()]->getRefs();
+      auto Size = StackMgr.pop().get<uint32_t>();
+      auto Offset = StackMgr.pop().get<uint32_t>();
+      if (Size + Offset > Elem.size()) {
+        spdlog::error("array.new_canon_elem out of data bound");
+        return Unexpect(ErrCode::Value::ElemSegDoesNotFit);
+      }
+      auto *HeapValue =
+          new Runtime::Instance::HeapInstance(Type, Size, ModInst, TypeIdx);
+      for (uint32_t I = 0; I < Size; I++) {
+        HeapValue->setArrayValue(Elem[I], I);
+      }
+      StackMgr.push(RefVariant(HeapValue));
+      return {};
+    }
+    case OpCode::Array__get_u:
+    case OpCode::Array__get_s:
+    case OpCode::Array__get: {
+      auto Idx = StackMgr.pop().get<uint32_t>();
+      const auto *HeapValue = StackMgr.pop()
+                                  .get<RefVariant>()
+                                  .asPtr<Runtime::Instance::HeapInstance>();
+      if (HeapValue == nullptr) {
+        spdlog::error("get null pointer at array.get");
+        return Unexpect(ErrCode::Value::CastNullptrToNonNull);
+      }
+      if (!HeapValue->checkArrayIdx(Idx)) {
+        spdlog::error("array.get out of index");
+        return Unexpect(ErrCode::Value::LengthOutOfBounds);
+      }
+      auto FieldValue = HeapValue->getArrayValue(Idx, Instr.getOpCode() ==
+                                                          OpCode::Array__get_s);
+      StackMgr.push(FieldValue);
+      return {};
+    }
+    case OpCode::Array__set: {
+      auto FieldValue = StackMgr.pop();
+      auto Idx = StackMgr.pop().get<uint32_t>();
+      auto *HeapValue = StackMgr.pop()
+                            .get<RefVariant>()
+                            .asPtr<Runtime::Instance::HeapInstance>();
+      if (HeapValue == nullptr) {
+        spdlog::error("get null pointer at array.set");
+        return Unexpect(ErrCode::Value::CastNullptrToNonNull);
+      }
+      if (!HeapValue->checkArrayIdx(Idx)) {
+        spdlog::error("array.get out of index");
+        return Unexpect(ErrCode::Value::LengthOutOfBounds);
+      }
+      HeapValue->setArrayValue(std::move(FieldValue), Idx);
+      return {};
+    }
+    case OpCode::Array__len: {
+      auto *HeapValue = StackMgr.pop()
+                            .get<RefVariant>()
+                            .asPtr<Runtime::Instance::HeapInstance>();
+      if (HeapValue == nullptr) {
+        spdlog::error("get null pointer at array.len");
+        return Unexpect(ErrCode::Value::CastNullptrToNonNull);
+      }
+      StackMgr.push(HeapValue->arrayLength());
+      return {};
+    }
+    case OpCode::Struct__new_canon: {
+      const auto *ModInst = StackMgr.getModule();
+      const auto TypeIdx = Instr.getTargetIndex();
+      const auto &Type = ModInst->Types[TypeIdx].asStructType();
+      auto *HeapValue =
+          new Runtime::Instance::HeapInstance(Type, ModInst, TypeIdx);
+      for (uint32_t I = 0; I < Type.getContent().size(); I++) {
+        HeapValue->setStructValue(StackMgr.pop(),
+                                  Type.getContent().size() - 1 - I);
+      }
+      StackMgr.push(RefVariant(HeapValue));
+      return {};
+    }
+    case OpCode::Struct__new_canon_default: {
+      const auto *ModInst = StackMgr.getModule();
+      const auto TypeIdx = Instr.getTargetIndex();
+      const auto &Type = ModInst->Types[TypeIdx].asStructType();
+      auto *HeapValue =
+          new Runtime::Instance::HeapInstance(Type, ModInst, TypeIdx);
+      StackMgr.push(RefVariant(HeapValue));
+      return {};
+    }
+    case OpCode::Struct__set: {
+      auto FieldValue = StackMgr.pop();
+      auto Idx = Instr.getSourceIndex();
+      auto *HeapValue = StackMgr.pop()
+                            .get<RefVariant>()
+                            .asPtr<Runtime::Instance::HeapInstance>();
+      if (HeapValue == nullptr) {
+        spdlog::error("get null pointer at struct.set");
+        return Unexpect(ErrCode::Value::CastNullptrToNonNull);
+      }
+      HeapValue->setStructValue(std::move(FieldValue), Idx);
+      return {};
+    }
+    case OpCode::Struct__get_u:
+    case OpCode::Struct__get_s:
+    case OpCode::Struct__get: {
+      auto *HeapValue = StackMgr.pop()
+                            .get<RefVariant>()
+                            .asPtr<Runtime::Instance::HeapInstance>();
+      if (HeapValue == nullptr) {
+        spdlog::error("get null pointer at struct.get");
+        return Unexpect(ErrCode::Value::CastNullptrToNonNull);
+      }
+      auto FieldIdx = Instr.getSourceIndex();
+      StackMgr.push(HeapValue->getStructValue(
+          FieldIdx, Instr.getOpCode() == OpCode::Struct__get_s));
+      return {};
+    }
+
+    case OpCode::I31__new: {
+      auto Value = StackMgr.pop().get<uint32_t>();
+      auto *HeapValue = new Runtime::Instance::HeapInstance(Value);
+      StackMgr.push(RefVariant(HeapValue));
+      return {};
+    }
+    case OpCode::I31__get_s:
+    case OpCode::I31__get_u: {
+      const auto *HeapValue = StackMgr.pop()
+                                  .get<RefVariant>()
+                                  .asPtr<Runtime::Instance::HeapInstance>();
+      if (HeapValue == nullptr) {
+        spdlog::error("get null pointer at i31.get");
+        return Unexpect(ErrCode::Value::CastNullptrToNonNull);
+      }
+      StackMgr.push(HeapValue->getI31(Instr.getOpCode() == OpCode::I31__get_s));
+      return {};
+    }
+    case OpCode::Extern__internalize:
+    case OpCode::Extern__externalize:
+      return {};
+
+    case OpCode::Ref__eq: {
+      const auto *First = StackMgr.pop()
+                              .get<RefVariant>()
+                              .asPtr<Runtime::Instance::HeapInstance>();
+      const auto *Second = StackMgr.pop()
+                               .get<RefVariant>()
+                               .asPtr<Runtime::Instance::HeapInstance>();
+      uint32_t Result;
+      if (First == nullptr && Second == nullptr) {
+        Result = 1;
+      } else if (First == nullptr || Second == nullptr) {
+        Result = 0;
+      } else {
+        Result = First->equal(Second);
+      }
+
+      StackMgr.push(Result);
+      return {};
+    }
+    case OpCode::Ref__cast: {
+      if (!canCast(StackMgr, Instr.getHeapType(), false)) {
+        spdlog::error("get null pointer at ref.cast");
+        return Unexpect(ErrCode::Value::CastNullptrToNonNull);
+      }
+      return {};
+    }
+    case OpCode::Ref__cast_null: {
+      if (!canCast(StackMgr, Instr.getHeapType(), true)) {
+        spdlog::error("get null pointer at ref.cast");
+        return Unexpect(ErrCode::Value::CastNullptrToNonNull);
+      }
+      return {};
+    }
+    case OpCode::Ref__test: {
+      uint32_t Result = canCast(StackMgr, Instr.getHeapType(), false);
+      StackMgr.pop();
+      StackMgr.push(Result);
+      return {};
+    }
+    case OpCode::Ref__test_null: {
+      uint32_t Result = canCast(StackMgr, Instr.getHeapType(), true);
+      StackMgr.pop();
+      StackMgr.push(Result);
       return {};
     }
 
@@ -1822,6 +2072,8 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
           StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
 
     default:
+      spdlog::error(Instr.getOpCode());
+      assumingUnreachable();
       return {};
     }
   };

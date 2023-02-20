@@ -16,6 +16,7 @@
 
 #include "ast/instruction.h"
 #include "ast/module.h"
+#include "common/enum_errinfo.hpp"
 #include "common/errcode.h"
 #include "common/span.h"
 
@@ -63,7 +64,7 @@ public:
   Expect<void> validate(AST::InstrView Instrs, Span<const FullValType> RetVals);
 
   /// Adder of contexts
-  void addType(const AST::FunctionType &Func);
+  void addType(const AST::DefinedType &Type);
   void addFunc(const uint32_t TypeIdx, const bool IsImport = false);
   void addTable(const AST::TableType &Tab);
   void addMemory(const AST::MemoryType &Mem);
@@ -72,6 +73,9 @@ public:
   void addData(const AST::DataSegment &Data);
   void addRef(const uint32_t FuncIdx);
   void addLocal(const FullValType &V, bool Initialized);
+
+  Expect<AST::ArrayType> checkArrayType(const uint32_t TypeIdx) const;
+  Expect<AST::StructType> checkStructType(const uint32_t TypeIdx) const;
 
   bool match_type(const FullValType &LHS,
                   const FullValType &RHS) const noexcept {
@@ -97,28 +101,161 @@ public:
     if (LHS == RHS) {
       return true;
     }
-    if (LHS.getHTypeCode() == HeapTypeCode::Defined) {
-      if (RHS.getHTypeCode() == HeapTypeCode::Func) {
+    const auto TypeCode = LHS.getHTypeCode();
+    switch (RHS.getHTypeCode()) {
+
+    // Func
+    case HeapTypeCode::Func: {
+      if (TypeCode == HeapTypeCode::NoFunc || TypeCode == HeapTypeCode::Func) {
         return true;
       }
-      if (RHS.getHTypeCode() == HeapTypeCode::Defined &&
-          match_type(LHS.getDefinedTypeIdx(), RHS.getDefinedTypeIdx())) {
+      if (TypeCode == HeapTypeCode::Defined) {
+        return Types[LHS.getDefinedTypeIdx()].isType<AST::FunctionType>();
+      }
+      return false;
+    }
+    case HeapTypeCode::NoFunc: {
+      return TypeCode == HeapTypeCode::NoFunc;
+    }
+
+    // Extern
+    case HeapTypeCode::Extern:
+      return TypeCode == HeapTypeCode::Extern ||
+             TypeCode == HeapTypeCode::NoExtern;
+    case HeapTypeCode::NoExtern:
+      return TypeCode == HeapTypeCode::NoExtern;
+
+    // Any
+    case HeapTypeCode::Any:
+      if (TypeCode == HeapTypeCode::Any || TypeCode == HeapTypeCode::Eq ||
+          TypeCode == HeapTypeCode::I31 || TypeCode == HeapTypeCode::Struct ||
+          TypeCode == HeapTypeCode::Array || TypeCode == HeapTypeCode::None) {
         return true;
+      }
+      if (TypeCode == HeapTypeCode::Defined) {
+        const auto &Type = Types[LHS.getDefinedTypeIdx()];
+        return Type.isType<AST::ArrayType>() || Type.isType<AST::StructType>();
+      }
+      return false;
+    case HeapTypeCode::Eq:
+      if (TypeCode == HeapTypeCode::Eq || TypeCode == HeapTypeCode::I31 ||
+          TypeCode == HeapTypeCode::Struct || TypeCode == HeapTypeCode::Array ||
+          TypeCode == HeapTypeCode::None) {
+        return true;
+      }
+      if (TypeCode == HeapTypeCode::Defined) {
+        const auto &Type = Types[LHS.getDefinedTypeIdx()];
+        return Type.isType<AST::ArrayType>() || Type.isType<AST::StructType>();
+      }
+      return false;
+    case HeapTypeCode::I31:
+      return TypeCode == HeapTypeCode::I31 || TypeCode == HeapTypeCode::None;
+    case HeapTypeCode::Struct:
+      if (TypeCode == HeapTypeCode::Eq || TypeCode == HeapTypeCode::Struct ||
+          TypeCode == HeapTypeCode::None) {
+        return true;
+      }
+      if (TypeCode == HeapTypeCode::Defined) {
+        const auto &Type = Types[LHS.getDefinedTypeIdx()];
+        return Type.isType<AST::StructType>();
+      }
+      return false;
+    case HeapTypeCode::Array:
+      if (TypeCode == HeapTypeCode::Eq || TypeCode == HeapTypeCode::Array ||
+          TypeCode == HeapTypeCode::None) {
+        return true;
+      }
+      if (TypeCode == HeapTypeCode::Defined) {
+        const auto &Type = Types[LHS.getDefinedTypeIdx()];
+        return Type.isType<AST::ArrayType>();
+      }
+      return false;
+    case HeapTypeCode::None:
+      return TypeCode == HeapTypeCode::None;
+    case HeapTypeCode::Defined:
+      if (TypeCode == HeapTypeCode::Defined) {
+        return match_type(LHS.getDefinedTypeIdx(), RHS.getDefinedTypeIdx());
+      }
+      const auto &RHSType = Types[RHS.getDefinedTypeIdx()];
+      if (RHSType.isType<AST::FunctionType>()) {
+        return TypeCode == HeapTypeCode::NoFunc;
+      } else {
+        return TypeCode == HeapTypeCode::None;
       }
     }
-    return false;
   }
 
   bool match_type(uint32_t LTypeIdx, uint32_t RTypeIdx) const noexcept {
     assuming(LTypeIdx < Types.size());
     assuming(RTypeIdx < Types.size());
-    // Note: In future versions of WebAssembly, subtyping on function types may
-    // be relaxed to support co- and contra-variance.
-    return Types[LTypeIdx].first == Types[RTypeIdx].first &&
-           Types[LTypeIdx].second == Types[RTypeIdx].second;
+
+    if (LTypeIdx == RTypeIdx) {
+      return true;
+    }
+
+    const auto &ParentTypeIdx = Types[LTypeIdx].getParentTypeIdx();
+
+    if (ParentTypeIdx.empty()) {
+      return false;
+    }
+
+    assuming(ParentTypeIdx.size() == 1);
+    return match_type(ParentTypeIdx[0], RTypeIdx);
   }
 
-  bool match_type(Span<const FullValType> LHS, Span<const FullValType> RHS) const noexcept {
+  bool match_type(const AST::DefinedType &LHS,
+                  const AST::DefinedType &RHS) const noexcept {
+    if (LHS.isType<AST::FunctionType>() && RHS.isType<AST::FunctionType>()) {
+      return match_type(LHS.asFunctionType(), RHS.asFunctionType());
+    } else if (LHS.isType<AST::ArrayType>() && RHS.isType<AST::ArrayType>()) {
+      return match_type(LHS.asArrayType().getFieldType(),
+                        RHS.asArrayType().getFieldType());
+    } else if (LHS.isType<AST::StructType>() && RHS.isType<AST::StructType>()) {
+      return match_type(LHS.asStructType(), RHS.asStructType());
+    }
+    return false;
+  }
+
+  bool match_type(const AST::StructType &LHS,
+                  const AST::StructType &RHS) const noexcept {
+    if (LHS.getContent().size() < RHS.getContent().size()) {
+      spdlog::error("sub type has fewer fields than parent type");
+      return false;
+    }
+    for (uint32_t I = 0; I < RHS.getContent().size(); I++) {
+      if (!match_type(LHS.getContent()[I], RHS.getContent()[I])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool match_type(const AST::FieldType &LHS,
+                  const AST::FieldType &RHS) const noexcept {
+    if (LHS.getMutability() == ValMut::Const &&
+        RHS.getMutability() == ValMut::Var) {
+      spdlog::error("child type is constant while the parent type is mutable");
+      return false;
+    }
+    const auto &LStorageType = LHS.getStorageType();
+    const auto &RStorageType = RHS.getStorageType();
+    if (LStorageType.isValType() && RStorageType.isValType()) {
+      return match_type(LStorageType.asValType(), RStorageType.asValType());
+    }
+    if (LStorageType.isPackedType() && RStorageType.isPackedType()) {
+      return LStorageType.asPackedType() == RStorageType.asPackedType();
+    }
+    return false;
+  }
+
+  bool match_type(const AST::FunctionType &LHS,
+                  const AST::FunctionType &RHS) const noexcept {
+    return match_type(RHS.getParamTypes(), LHS.getParamTypes()) &&
+           match_type(LHS.getReturnTypes(), RHS.getReturnTypes());
+  }
+
+  bool match_type(Span<const FullValType> LHS,
+                  Span<const FullValType> RHS) const noexcept {
     if (LHS.size() != RHS.size()) {
       return false;
     }
@@ -192,8 +329,7 @@ private:
   Expect<void> StackPopAny();
 
   /// Contexts.
-  std::vector<std::pair<std::vector<FullValType>, std::vector<FullValType>>>
-      Types;
+  std::vector<AST::DefinedType> Types;
   std::vector<uint32_t> Funcs;
   std::vector<FullRefType> Tables;
   uint32_t Mems = 0;

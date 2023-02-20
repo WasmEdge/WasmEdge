@@ -67,18 +67,18 @@ public:
   Span<const DefinedType> getContent() const noexcept { return Content; }
   std::vector<DefinedType> &getContent() noexcept { return Content; }
 
-  Span<const uint32_t> getGroupStartIdx() const noexcept {
-    return RecursiveTypeGroupStartIdx;
+  Span<const uint32_t> getGroupEndIdx() const noexcept {
+    return RecursiveTypeGroupEndIdx;
   }
-  std::vector<uint32_t> &getGroupStartIdx() noexcept {
-    return RecursiveTypeGroupStartIdx;
+  std::vector<uint32_t> &getGroupEndIdx() noexcept {
+    return RecursiveTypeGroupEndIdx;
   }
 
 private:
   /// \name Data of TypeSection.
   /// @{
   std::vector<DefinedType> Content;
-  std::vector<uint32_t> RecursiveTypeGroupStartIdx;
+  std::vector<uint32_t> RecursiveTypeGroupEndIdx;
   /// @}
 };
 

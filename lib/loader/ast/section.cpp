@@ -66,13 +66,13 @@ Expect<void> Loader::loadSection(AST::TypeSection &Sec) {
     }
 
     auto &Types = Sec.getContent();
-    auto &GroupStartIdx = Sec.getGroupStartIdx();
+    auto &GroupEndIdx = Sec.getGroupEndIdx();
 
     for (auto &&Group : std::move(RecursiveTypeGroups)) {
-      GroupStartIdx.push_back(Types.size());
       for (auto &&Type : std::move(Group)) {
         Types.push_back(Type);
       }
+      GroupEndIdx.push_back(Types.size());
     }
     return {};
   });

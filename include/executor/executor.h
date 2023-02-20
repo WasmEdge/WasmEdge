@@ -255,6 +255,9 @@ private:
   getDataInstByIdx(Runtime::StackManager &StackMgr, const uint32_t Idx) const;
   /// @}
 
+  bool canCast(Runtime::StackManager &StackMgr, const HeapType &HType,
+               bool AllowNull) const;
+
   /// \name Run instructions functions
   /// @{
   /// ======= Control instructions =======
@@ -276,6 +279,10 @@ private:
   Expect<void> runBrTableOp(Runtime::StackManager &StackMgr,
                             const AST::Instruction &Instr,
                             AST::InstrView::iterator &PC) noexcept;
+  Expect<void> runBrCastOp(Runtime::StackManager &StackMgr,
+                           const AST::Instruction &Instr,
+                           AST::InstrView::iterator &PC, bool AllowNull,
+                           bool IsFailed) noexcept;
   Expect<void> runReturnOp(Runtime::StackManager &StackMgr,
                            AST::InstrView::iterator &PC) noexcept;
   Expect<void> runCallOp(Runtime::StackManager &StackMgr,

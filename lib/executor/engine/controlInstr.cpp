@@ -89,6 +89,86 @@ Expect<void> Executor::runBrTableOp(Runtime::StackManager &StackMgr,
                        LabelTable[LabelTableSize].PCOffset, PC);
 }
 
+bool Executor::canCast(Runtime::StackManager &StackMgr, const HeapType &HType,
+                       bool AllowNull) const {
+  const auto &Ref = StackMgr.getTop().get<RefVariant>();
+  if (Ref.isNull()) {
+    return AllowNull;
+  }
+  spdlog::error("cast cast to");
+  spdlog::error(HType);
+  switch (HType.getHTypeCode()) {
+  case HeapTypeCode::Func:
+    return true;
+  case HeapTypeCode::NoFunc:
+    return false;
+  case HeapTypeCode::Extern:
+    return true;
+  case HeapTypeCode::NoExtern:
+    return false;
+  case HeapTypeCode::Any:
+  case HeapTypeCode::Eq:
+    return true;
+  case HeapTypeCode::None:
+    // The reference is non-null. Must not be none
+    return false;
+  case HeapTypeCode::I31: {
+    const auto *HeapValue = Ref.asPtr<Runtime::Instance::HeapInstance>();
+    return HeapValue->isI31();
+  }
+  case HeapTypeCode::Struct: {
+    const auto *HeapValue = Ref.asPtr<Runtime::Instance::HeapInstance>();
+    return HeapValue->isStruct();
+  }
+
+  case HeapTypeCode::Array: {
+    const auto *HeapValue = Ref.asPtr<Runtime::Instance::HeapInstance>();
+    return HeapValue->isArray();
+  }
+
+  case HeapTypeCode::Defined:
+    spdlog::error("cast on defined type");
+    const auto *HeapValue = Ref.asPtr<Runtime::Instance::HeapInstance>();
+    const auto *ModInst = StackMgr.getModule();
+    if (ModInst != HeapValue->getModInst()) {
+      // Only type defined in the same module can be casted
+      return false;
+    }
+    const auto TypeIdx = HeapValue->getTypeIdx();
+    const auto TargetTypeIdx = HType.getDefinedTypeIdx();
+    spdlog::error(TypeIdx);
+    spdlog::error(TargetTypeIdx);
+    if (TypeIdx == TargetTypeIdx) {
+      return true;
+    }
+    auto CurTypeIdx = TypeIdx;
+    spdlog::error(ModInst->Types[0].isType<AST::StructType>());
+    spdlog::error(ModInst->Types[1].asStructType().getContent().size());
+    while (!ModInst->Types[CurTypeIdx].getParentTypeIdx().empty()) {
+      assuming(ModInst->Types[CurTypeIdx].getParentTypeIdx().size() == 1);
+      CurTypeIdx = ModInst->Types[CurTypeIdx].getParentTypeIdx()[0];
+      if (CurTypeIdx == TargetTypeIdx) {
+        spdlog::error("find parent index");
+        return true;
+      }
+    }
+    spdlog::error("cannon find parent index");
+    return false;
+  }
+}
+
+Expect<void> Executor::runBrCastOp(Runtime::StackManager &StackMgr,
+                                   const AST::Instruction &Instr,
+                                   AST::InstrView::iterator &PC, bool AllowNull,
+                                   bool IsFailed) noexcept {
+  spdlog::error(OpCodeStr[Instr.getOpCode()]);
+  spdlog::error(Instr.getJumpHeapType());
+  if (IsFailed == !canCast(StackMgr, Instr.getJumpHeapType(), AllowNull)) {
+    return runBrOp(StackMgr, Instr, PC);
+  }
+  return {};
+}
+
 Expect<void> Executor::runReturnOp(Runtime::StackManager &StackMgr,
                                    AST::InstrView::iterator &PC) noexcept {
   // Check stop token

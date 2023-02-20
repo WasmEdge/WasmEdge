@@ -12,6 +12,7 @@ namespace Executor {
 Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::GlobalSection &GlobSec) {
+  spdlog::error("init global sec");
   // A frame with temp. module is pushed into the stack in caller.
 
   // Prepare pointers for compiled functions.
@@ -23,6 +24,8 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
     ModInst.GlobalPtrs[I] = &((*ModInst.getGlobal(I))->getValue());
   }
 
+  spdlog::error("before iterate global sec");
+
   // Iterate through the global segments to instantiate and initialize global
   // instances.
   for (const auto &GlobSeg : GlobSec.getContent()) {
@@ -31,8 +34,12 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
     const auto Index = ModInst.getGlobalNum() - 1;
     Runtime::Instance::GlobalInstance *GlobInst = *ModInst.getGlobal(Index);
 
+    spdlog::error("alla");
+
     // Set the global pointers of instantiated globals.
     ModInst.GlobalPtrs[Index] = &(GlobInst->getValue());
+
+    spdlog::error("llslsll");
 
     // Run initialize expression.
     if (auto Res = runExpression(StackMgr, GlobSeg.getExpr().getInstrs());
@@ -41,9 +48,12 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       return Unexpect(Res);
     }
 
+    spdlog::error("oeoeoeo");
+
     // Pop result from stack.
     GlobInst->getValue() = StackMgr.pop();
   }
+  spdlog::error("pass init global");
   return {};
 }
 

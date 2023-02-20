@@ -22,6 +22,7 @@
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
 #include "runtime/instance/table.h"
+#include "runtime/instance/heap.h"
 
 #include <atomic>
 #include <functional>
@@ -177,9 +178,9 @@ protected:
   friend class Runtime::CallingFrame;
 
   /// Copy the function types in type section to this module instance.
-  void addFuncType(const AST::FunctionType &FuncType) {
+  void addType(const AST::DefinedType &Type) {
     std::unique_lock Lock(Mutex);
-    FuncTypes.emplace_back(FuncType);
+    Types.emplace_back(Type);
   }
 
   /// Create and add instances into this module instance.
@@ -246,14 +247,15 @@ protected:
     ExpGlobals.insert_or_assign(std::string(Name), GlobInsts[Idx]);
   }
 
-  /// Get function type by index.
+  /// Get defined type by index.
   Expect<const AST::FunctionType *> getFuncType(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
-    if (unlikely(Idx >= FuncTypes.size())) {
+    if (unlikely(Idx >= Types.size())) {
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
-    return &FuncTypes[Idx];
+    // TODO: may need to ensure that the type is of function type
+    return &Types[Idx].asFunctionType();
   }
 
   /// Get instance pointer by index.
@@ -420,7 +422,7 @@ protected:
   const std::string ModName;
 
   /// Function types.
-  std::vector<AST::FunctionType> FuncTypes;
+  std::vector<AST::DefinedType> Types;
 
   /// Owned instances in this module.
   std::vector<std::unique_ptr<Instance::FunctionInstance>> OwnedFuncInsts;

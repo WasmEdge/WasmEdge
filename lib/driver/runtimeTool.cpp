@@ -264,14 +264,14 @@ int Tool(int Argc, const char *Argv[]) noexcept {
     return EXIT_FAILURE;
   }
 
-  if (Conf.hasProposal(Proposal::GC)) {
-    std::cerr << "GC proposal is only ready for loading phase" << std::endl;
-    return EXIT_FAILURE;
-  }
-
   if (auto Result = VM.validate(); !Result) {
     return EXIT_FAILURE;
   }
+
+//  if (Conf.hasProposal(Proposal::GC)) {
+//    std::cerr << "GC proposal is only ready for validation phase" << std::endl;
+//    return EXIT_FAILURE;
+//  }
 
   if (auto Result = VM.instantiate(); !Result) {
     return EXIT_FAILURE;

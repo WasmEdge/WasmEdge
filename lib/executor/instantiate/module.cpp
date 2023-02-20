@@ -47,7 +47,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Instantiate Function Types in Module Instance. (TypeSec)
   for (auto &DefinedType : Mod.getTypeSection().getContent()) {
     // Copy param and return lists to module instance.
-    ModInst->addFuncType(DefinedType.asFunctionType());
+    ModInst->addType(DefinedType);
   }
 
   // Instantiate ImportSection and do import matching. (ImportSec)

@@ -54,17 +54,8 @@ Expect<void> FormChecker::validate(AST::InstrView Instrs,
   return checkExpr(Instrs);
 }
 
-void FormChecker::addType(const AST::FunctionType &Func) {
-  std::vector<FullValType> Param, Ret;
-  Param.reserve(Func.getParamTypes().size());
-  Ret.reserve(Func.getReturnTypes().size());
-  for (auto Val : Func.getParamTypes()) {
-    Param.push_back(Val);
-  }
-  for (auto Val : Func.getReturnTypes()) {
-    Ret.push_back(Val);
-  }
-  Types.emplace_back(std::move(Param), std::move(Ret));
+void FormChecker::addType(const AST::DefinedType &Type) {
+  Types.emplace_back(Type);
 }
 
 void FormChecker::addFunc(const uint32_t TypeIdx, const bool IsImport) {
@@ -102,6 +93,36 @@ void FormChecker::addRef(const uint32_t FuncIdx) { Refs.emplace(FuncIdx); }
 
 void FormChecker::addLocal(const FullValType &V, bool Initialized) {
   Locals.push_back(LocalType(V, Initialized));
+}
+
+Expect<AST::ArrayType>
+FormChecker::checkArrayType(const uint32_t TypeIdx) const {
+  if (TypeIdx >= Types.size()) {
+    return logOutOfRange(ErrCode::Value::InvalidFuncTypeIdx,
+                         ErrInfo::IndexCategory::FunctionType, TypeIdx,
+                         Types.size());
+  }
+  const auto &Type = Types[TypeIdx];
+  if (!Type.isType<AST::ArrayType>()) {
+    spdlog::error("array instruction gets non-array type");
+    return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+  }
+  return Type.asArrayType();
+}
+
+Expect<AST::StructType>
+FormChecker::checkStructType(const uint32_t TypeIdx) const {
+  if (TypeIdx >= Types.size()) {
+    return logOutOfRange(ErrCode::Value::InvalidFuncTypeIdx,
+                         ErrInfo::IndexCategory::FunctionType, TypeIdx,
+                         Types.size());
+  }
+  const auto &Type = Types[TypeIdx];
+  if (!Type.isType<AST::StructType>()) {
+    spdlog::error("array instruction gets non-array type");
+    return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+  }
+  return Type.asStructType();
 }
 
 FullValType FormChecker::VTypeToAST(const VType &V) {
@@ -153,7 +174,13 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                              ErrInfo::IndexCategory::FunctionType, TypeIdx,
                              static_cast<uint32_t>(Types.size()));
       }
-      return ReturnType{Types[TypeIdx].first, Types[TypeIdx].second};
+      const auto &Type = Types[TypeIdx];
+      if (!Type.isType<AST::FunctionType>()) {
+        spdlog::error("the type of block type is not of function type");
+        return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+      }
+      const auto &FuncType = Type.asFunctionType();
+      return ReturnType{FuncType.getParamTypes(), FuncType.getReturnTypes()};
     }
   };
 
@@ -494,7 +521,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            ErrInfo::IndexCategory::Function, N,
                            static_cast<uint32_t>(Funcs.size()));
     }
-    return StackTrans(Types[Funcs[N]].first, Types[Funcs[N]].second);
+    assuming(Types[Funcs[N]].isType<AST::FunctionType>());
+    const auto &FuncType = Types[Funcs[N]].asFunctionType();
+    return StackTrans(FuncType.getParamTypes(), FuncType.getReturnTypes());
   }
   case OpCode::Call_indirect: {
     auto N = Instr.getTargetIndex();
@@ -515,10 +544,15 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            ErrInfo::IndexCategory::FunctionType, N,
                            static_cast<uint32_t>(Types.size()));
     }
+    if (!Types[N].isType<AST::FunctionType>()) {
+      spdlog::error("call indirect on a type not of FunctionType");
+      return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+    }
     if (auto Res = popType(ValType::I32); !Res) {
       return Unexpect(Res);
     }
-    return StackTrans(Types[N].first, Types[N].second);
+    const auto &FuncType = Types[Funcs[N]].asFunctionType();
+    return StackTrans(FuncType.getParamTypes(), FuncType.getReturnTypes());
   }
   case OpCode::Call_ref: {
     auto TypeIdx = Instr.getTargetIndex();
@@ -527,9 +561,14 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            ErrInfo::IndexCategory::FunctionType, TypeIdx,
                            Types.size());
     }
-    std::vector<FullValType> Input = Types[TypeIdx].first;
+    if (!Types[TypeIdx].isType<AST::FunctionType>()) {
+      spdlog::error("call ref on a type not of FunctionType");
+      return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+    }
+    const auto &FuncType = Types[TypeIdx].asFunctionType();
+    std::vector<FullValType> Input = FuncType.getParamTypes();
     Input.push_back(FullRefType(RefTypeCode::RefNull, TypeIdx));
-    return StackTrans(Input, Types[TypeIdx].second);
+    return StackTrans(Input, FuncType.getReturnTypes());
   }
   case OpCode::Return_call: {
     auto N = Instr.getTargetIndex();
@@ -541,12 +580,14 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                                    static_cast<uint32_t>(Funcs.size())));
       return Unexpect(ErrCode::Value::InvalidFuncIdx);
     }
-    if (!match_type(Types[Funcs[N]].second, Returns)) {
+    assuming(Types[Funcs[N]].isType<AST::FunctionType>());
+    const auto &FuncType = Types[Funcs[N]].asFunctionType();
+    if (!match_type(FuncType.getReturnTypes(), Returns)) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       // TODO: Print the error info of types.
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
-    if (auto Res = popTypes(Types[Funcs[N]].first); !Res) {
+    if (auto Res = popTypes(FuncType.getParamTypes()); !Res) {
       return Unexpect(Res);
     }
     return unreachable();
@@ -574,7 +615,12 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                                    static_cast<uint32_t>(Types.size())));
       return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
     }
-    if (!match_type(Types[N].second, Returns)) {
+    if (!Types[N].isType<AST::FunctionType>()) {
+      spdlog::error("return call indirect on a type not of FunctionType");
+      return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+    }
+    const auto &FuncType = Types[Funcs[N]].asFunctionType();
+    if (!match_type(FuncType.getReturnTypes(), Returns)) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       // TODO: Print the error info of types.
       return Unexpect(ErrCode::Value::TypeCheckFailed);
@@ -582,7 +628,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     if (auto Res = popType(ValType::I32); !Res) {
       return Unexpect(Res);
     }
-    if (auto Res = popTypes(Types[N].first); !Res) {
+    if (auto Res = popTypes(FuncType.getParamTypes()); !Res) {
       return Unexpect(Res);
     }
     return unreachable();
@@ -597,12 +643,17 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
           static_cast<uint32_t>(Types.size())));
       return Unexpect(ErrCode::Value::InvalidFuncIdx);
     }
-    if (!match_type(Types[TypeIdx].second, Returns)) {
+    if (!Types[TypeIdx].isType<AST::FunctionType>()) {
+      spdlog::error("return call ref on a type not of FunctionType");
+      return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+    }
+    const auto &FuncType = Types[TypeIdx].asFunctionType();
+    if (!match_type(FuncType.getReturnTypes(), Returns)) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       // TODO: Print the error info of types.
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
-    std::vector<FullValType> Input = Types[TypeIdx].first;
+    std::vector<FullValType> Input = FuncType.getParamTypes();
     Input.push_back(FullRefType(RefTypeCode::RefNull, TypeIdx));
     if (auto Res = popTypes(Input); !Res) {
       return Unexpect(Res);
@@ -660,6 +711,494 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(Res);
     }
   }
+  // GC Instructions.
+  case OpCode::Array__new_canon: {
+    auto TypeIdx = Instr.getTargetIndex();
+    if (auto Res = checkArrayType(TypeIdx)) {
+      const auto &ArrayType = *Res;
+      return StackTrans(
+          {ArrayType.getFieldType().getStorageType().unpackedType(),
+           FullValType(ValType::I32)},
+          {FullValType(FullRefType(RefTypeCode::Ref, TypeIdx))});
+    } else {
+      spdlog::error("invalid array type idx at array.new_canon");
+      return Unexpect(Res);
+    }
+  }
+  case OpCode::Array__new_canon_default: {
+    auto TypeIdx = Instr.getTargetIndex();
+    if (auto Res = checkArrayType(TypeIdx)) {
+      const auto &ArrayType = *Res;
+      if (!ArrayType.isDefaultable()) {
+        spdlog::error("array new canon default type is not defaultable");
+        return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+      }
+      return StackTrans({FullValType(ValType::I32)},
+                        {FullValType(FullRefType(RefTypeCode::Ref, TypeIdx))});
+    } else {
+      spdlog::error("invalid array type idx at array.new_canon_default");
+      return Unexpect(Res);
+    }
+  }
+  case OpCode::Array__new_canon_fixed: {
+    auto TypeIdx = Instr.getTargetIndex();
+    if (auto Res = checkArrayType(TypeIdx)) {
+      const auto &ArrayType = *Res;
+      auto N = Instr.getStackOffset();
+      return StackTrans(
+          std::vector(N,
+                      ArrayType.getFieldType().getStorageType().unpackedType()),
+          {FullValType(FullRefType(RefTypeCode::Ref, TypeIdx))});
+    } else {
+      spdlog::error("invalid array type idx at array.new_canon_fixed");
+      return Unexpect(Res);
+    }
+  }
+  case OpCode::Array__new_canon_data: {
+    auto TypeIdx = Instr.getTargetIndex();
+    if (auto Res = checkArrayType(TypeIdx)) {
+      const auto &ArrayType = *Res;
+      if (ArrayType.getFieldType()
+              .getStorageType()
+              .unpackedType()
+              .isRefType()) {
+        spdlog::error("array new data can only initialize non-ref array");
+        return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+      }
+
+      const auto DataIdx = Instr.getSourceIndex();
+      if (DataIdx >= Datas.size()) {
+        spdlog::error("array new canon data get out of bound data index");
+        return logOutOfRange(ErrCode::Value::InvalidDataIdx,
+                             ErrInfo::IndexCategory::Data, DataIdx,
+                             Datas.size());
+      }
+
+      return StackTrans({FullValType(ValType::I32), FullValType(ValType::I32)},
+                        {FullValType(FullRefType(RefTypeCode::Ref, TypeIdx))});
+    } else {
+      spdlog::error("invalid array type idx at array.new_canon_data");
+      return Unexpect(Res);
+    }
+  }
+  case OpCode::Array__new_canon_elem: {
+    auto TypeIdx = Instr.getTargetIndex();
+    if (auto Res = checkArrayType(TypeIdx)) {
+      const auto &ArrayType = *Res;
+      if (!ArrayType.getFieldType()
+               .getStorageType()
+               .unpackedType()
+               .isRefType()) {
+        spdlog::error("array new elem is only for ref array");
+        return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+      }
+
+      const auto ElemIdx = Instr.getSourceIndex();
+      if (ElemIdx >= Elems.size()) {
+        spdlog::error("array new canon data get out of bound data index");
+        return logOutOfRange(ErrCode::Value::InvalidElemIdx,
+                             ErrInfo::IndexCategory::Element, ElemIdx,
+                             Elems.size());
+      }
+
+      const auto &ElemRefType = Elems[ElemIdx];
+      const auto ArrayValType =
+          ArrayType.getFieldType().getStorageType().unpackedType();
+
+      if (!ArrayValType.isRefType()) {
+        spdlog::error("array new elem is only for ref array");
+        return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+      }
+
+      const auto ArrayRefType = ArrayValType.asRefType();
+      if (!match_type(ElemRefType, ArrayRefType)) {
+        spdlog::error("elem type cannot be assigned to the ref array type");
+        return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+      }
+
+      return StackTrans({FullValType(ValType::I32), FullValType(ValType::I32)},
+                        {FullValType(FullRefType(RefTypeCode::Ref, TypeIdx))});
+    } else {
+      spdlog::error("invalid array type idx at array.new_canon_elem");
+      return Unexpect(Res);
+    }
+  }
+  case OpCode::Array__get:
+  case OpCode::Array__get_u:
+  case OpCode::Array__get_s: {
+    auto TypeIdx = Instr.getTargetIndex();
+    if (auto Res = checkArrayType(TypeIdx)) {
+      const auto &ArrayType = *Res;
+      if (ArrayType.getFieldType().getStorageType().isPackedType() &&
+          Instr.getOpCode() == OpCode::Array__get) {
+        spdlog::error("array.get_<s/u> is only for packed type");
+        return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+      }
+      if (ArrayType.getFieldType().getStorageType().isValType() &&
+          Instr.getOpCode() != OpCode::Array__get) {
+        spdlog::error("array.get cannot be used for packed type");
+        return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+      }
+      return StackTrans(
+          {FullValType(FullRefType(RefTypeCode::RefNull, TypeIdx)),
+           FullValType(ValType::I32)},
+          {ArrayType.getFieldType().getStorageType().unpackedType()});
+    } else {
+      spdlog::error("invalid array type idx at array.get_<sx>");
+      return Unexpect(Res);
+    }
+  }
+  case OpCode::Array__set: {
+    auto TypeIdx = Instr.getTargetIndex();
+    if (auto Res = checkArrayType(TypeIdx)) {
+      const auto &ArrayType = *Res;
+      if (ArrayType.getFieldType().getMutability() == ValMut::Const) {
+        spdlog::error("array.set can only for mutable field");
+        return Unexpect(ErrCode::Value::InvalidMut);
+      }
+      return StackTrans(
+          {FullValType(FullRefType(RefTypeCode::RefNull, TypeIdx)),
+           FullValType(ValType::I32),
+           ArrayType.getFieldType().getStorageType().unpackedType()},
+          {});
+    } else {
+      spdlog::error("invalid array type idx at array.set");
+      return Unexpect(Res);
+    }
+  }
+  case OpCode::Array__len: {
+    return StackTrans({FullValType(FullRefType(HeapTypeCode::Array))},
+                      {FullValType(ValType::I32)});
+  }
+  case OpCode::Struct__new_canon: {
+    auto TypeIdx = Instr.getTargetIndex();
+    if (auto Res = checkStructType(TypeIdx)) {
+      const auto &StructType = *Res;
+      std::vector<FullValType> InputVal;
+      for (const auto &FieldType : StructType.getContent()) {
+        InputVal.push_back(FieldType.getStorageType().unpackedType());
+      }
+      return StackTrans(InputVal,
+                        {FullValType(FullRefType(RefTypeCode::Ref, TypeIdx))});
+    } else {
+      spdlog::error("invalid struct type idx at struct.new_canon");
+      return Unexpect(Res);
+    }
+  }
+  case OpCode::Struct__new_canon_default: {
+    auto TypeIdx = Instr.getTargetIndex();
+    if (auto Res = checkStructType(TypeIdx)) {
+      return StackTrans({},
+                        {FullValType(FullRefType(RefTypeCode::Ref, TypeIdx))});
+    } else {
+      spdlog::error("invalid struct type idx at struct.new_canon");
+      return Unexpect(Res);
+    }
+  }
+  case OpCode::Struct__set: {
+    auto TypeIdx = Instr.getTargetIndex();
+    if (auto Res = checkStructType(TypeIdx)) {
+      const auto &StructType = *Res;
+      auto FieldIdx = Instr.getSourceIndex();
+      if (FieldIdx >= StructType.getContent().size()) {
+        return logOutOfRange(ErrCode::Value::InvalidFuncTypeIdx,
+                             ErrInfo::IndexCategory::FunctionType, FieldIdx,
+                             StructType.getContent().size());
+      }
+      const auto &FieldType = StructType.getContent()[FieldIdx];
+      if (FieldType.getMutability() == ValMut::Const) {
+        spdlog::error("struct.set can only for mutable field");
+        return Unexpect(ErrCode::Value::InvalidMut);
+      }
+      return StackTrans(
+          {FullValType(FullRefType(RefTypeCode::RefNull, TypeIdx)),
+           FieldType.getStorageType().unpackedType()},
+          {});
+    } else {
+      spdlog::error("invalid struct type idx at struct.set");
+      return Unexpect(Res);
+    }
+  }
+  case OpCode::Struct__get_s:
+  case OpCode::Struct__get_u:
+  case OpCode::Struct__get: {
+    auto TypeIdx = Instr.getTargetIndex();
+    if (auto Res = checkStructType(TypeIdx)) {
+      const auto &StructType = *Res;
+      auto FieldIdx = Instr.getSourceIndex();
+      if (FieldIdx >= StructType.getContent().size()) {
+        return logOutOfRange(ErrCode::Value::InvalidFuncTypeIdx,
+                             ErrInfo::IndexCategory::FunctionType, FieldIdx,
+                             StructType.getContent().size());
+      }
+      const auto &FieldType = StructType.getContent()[FieldIdx];
+      if (FieldType.getStorageType().isValType() &&
+          Instr.getOpCode() != OpCode::Struct__get) {
+        spdlog::error("struct.get_<s/x> is only for packed type");
+        return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+      }
+      if (FieldType.getStorageType().isPackedType() &&
+          Instr.getOpCode() == OpCode::Struct__get) {
+        spdlog::error("struct.get cannot on packed type");
+        return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+      }
+      return StackTrans(
+          {FullValType(FullRefType(RefTypeCode::RefNull, TypeIdx))},
+          {FieldType.getStorageType().unpackedType()});
+    } else {
+      spdlog::error("invalid struct type idx at struct.get");
+      return Unexpect(Res);
+    }
+  }
+  case OpCode::I31__new: {
+    return StackTrans(
+        {FullValType(ValType::I32)},
+        {FullValType(FullRefType(RefTypeCode::Ref, HeapTypeCode::I31))});
+  }
+  case OpCode::I31__get_u:
+  case OpCode::I31__get_s: {
+    return StackTrans(
+        {FullValType(FullRefType(RefTypeCode::RefNull, HeapTypeCode::I31))},
+        {FullValType(ValType::I32)});
+  }
+  case OpCode::Ref__eq: {
+    return StackTrans({FullValType(FullRefType(HeapTypeCode::Eq)),
+                       FullValType(FullRefType(HeapTypeCode::Eq))},
+                      {FullValType(ValType::I32)});
+  }
+  case OpCode::Ref__test_null:
+  case OpCode::Ref__test: {
+    FullRefType RType;
+    if (auto Res = popType()) {
+      if (*Res == unreachableVType()) {
+        // will not reach here. Validation succeeds.
+        return {};
+      }
+      if (!(*Res)->isRefType()) {
+        // TODO: add log
+        return Unexpect(ErrCode::ErrCode::Value::InvalidBrRefType);
+      }
+      RType = (*Res)->asRefType();
+    } else {
+      return Unexpect(Res);
+    }
+    (void)RType;
+    const auto &HeapType = Instr.getHeapType();
+    (void)HeapType;
+    // TODO: check RType
+    pushType(ValType::I32);
+    return {};
+  }
+  case OpCode::Ref__cast_null:
+  case OpCode::Ref__cast: {
+    FullRefType RType;
+    if (auto Res = popType()) {
+      if (*Res == unreachableVType()) {
+        // will not reach here. Validation succeeds.
+        return {};
+      }
+      if (!(*Res)->isRefType()) {
+        // TODO: add log
+        return Unexpect(ErrCode::ErrCode::Value::InvalidBrRefType);
+      }
+      RType = (*Res)->asRefType();
+    } else {
+      return Unexpect(Res);
+    }
+    (void)RType;
+    const auto &HeapType = Instr.getHeapType();
+    (void)HeapType;
+    // TODO: check RType
+    if (Instr.getOpCode() == OpCode::Ref__cast) {
+      pushType(FullRefType(RefTypeCode::Ref, HeapType));
+    } else {
+      pushType(FullRefType(RefTypeCode::RefNull, HeapType));
+    }
+    return {};
+  }
+
+  case OpCode::Br_on_cast:
+  case OpCode::Br_on_cast_null: {
+    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex()); !D) {
+      return Unexpect(D);
+    } else {
+      FullRefType RType;
+      if (auto Res = popType()) {
+        if (*Res == unreachableVType()) {
+          // will not reach here. Validation succeeds.
+          return {};
+        }
+        if (!(*Res)->isRefType()) {
+          spdlog::error("the type to cast is not ref type");
+          return Unexpect(ErrCode::ErrCode::Value::InvalidBrRefType);
+        }
+        RType = (*Res)->asRefType();
+      } else {
+        return Unexpect(Res);
+      }
+
+      auto LabelTypes = getLabelTypes(CtrlStack[*D]);
+      std::vector<FullValType> NTypes(LabelTypes.begin(), LabelTypes.end());
+      if (NTypes.empty()) {
+        spdlog::error("block return type should have a type for cast");
+        return Unexpect(ErrCode::Value::InvalidBrRefType);
+      }
+      FullRefType BlockRType;
+      if (!NTypes.back().isRefType()) {
+        spdlog::error("the last block return type is not ref type");
+        return Unexpect(ErrCode::Value::InvalidBrRefType);
+      } else {
+        BlockRType = NTypes.back().asRefType();
+        NTypes.pop_back();
+      }
+      if (auto Res = popTypes(NTypes); !Res) {
+        // TODO: add log
+        return Unexpect(ErrCode::Value::InvalidBrRefType);
+      }
+
+      const auto &HeapType = Instr.getJumpHeapType();
+      FullRefType CastRType;
+      if (Instr.getOpCode() == OpCode::Br_on_cast_null) {
+        CastRType = FullRefType(RefTypeCode::RefNull, HeapType);
+      } else {
+        // Br_on_cast
+        CastRType = FullRefType(RefTypeCode::Ref, HeapType);
+      }
+      if (!match_type(CastRType, BlockRType)) {
+        spdlog::error("cast return type does not match block RType");
+        return Unexpect(ErrCode::Value::InvalidBrRefType);
+      }
+      // TODO: check RType, BlockRType and HeapType
+
+      const uint32_t Remain =
+          static_cast<uint32_t>(ValStack.size() - CtrlStack[*D].Height);
+      const uint32_t Arity = static_cast<uint32_t>(
+          NTypes.size() +
+          1); // We plus 1 here because we did `pop_back` on `NTypes`
+      auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
+      Jump.StackEraseBegin = Remain + Arity;
+      Jump.StackEraseEnd = Arity;
+      Jump.PCOffset = static_cast<int32_t>(CtrlStack[*D].Jump - &Instr);
+      pushTypes(NTypes);
+      pushType(RType);
+      return {};
+    }
+  }
+  case OpCode::Br_on_cast_fail:
+  case OpCode::Br_on_cast_fail_null: {
+    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex()); !D) {
+      return Unexpect(D);
+    } else {
+      FullRefType RType;
+      if (auto Res = popType()) {
+        if (*Res == unreachableVType()) {
+          // will not reach here. Validation succeeds.
+          return {};
+        }
+        if (!(*Res)->isRefType()) {
+          spdlog::error("the type to cast is not ref type");
+          return Unexpect(ErrCode::ErrCode::Value::InvalidBrRefType);
+        }
+        RType = (*Res)->asRefType();
+      } else {
+        return Unexpect(Res);
+      }
+
+      auto LabelTypes = getLabelTypes(CtrlStack[*D]);
+      std::vector<FullValType> NTypes(LabelTypes.begin(), LabelTypes.end());
+      if (NTypes.empty()) {
+        spdlog::error("block return type should have a type for cast");
+        return Unexpect(ErrCode::Value::InvalidBrRefType);
+      }
+      FullRefType BlockRType;
+      if (!NTypes.back().isRefType()) {
+        spdlog::error("the last block return type is not ref type");
+        return Unexpect(ErrCode::Value::InvalidBrRefType);
+      } else {
+        BlockRType = NTypes.back().asRefType();
+        NTypes.pop_back();
+      }
+      if (auto Res = popTypes(NTypes); !Res) {
+        // TODO: add log
+        return Unexpect(ErrCode::Value::InvalidBrRefType);
+      }
+
+      const auto &HeapType = Instr.getJumpHeapType();
+      spdlog::error(HeapType);
+      FullRefType CastRType;
+      if (Instr.getOpCode() == OpCode::Br_on_cast_fail_null) {
+        CastRType = FullRefType(RefTypeCode::RefNull, HeapType);
+      } else {
+        // Br_on_cast_fail
+        CastRType = FullRefType(RefTypeCode::Ref, HeapType);
+      }
+      if (!match_type(RType, BlockRType)) {
+        spdlog::error("cast return type does not match block RType");
+        return Unexpect(ErrCode::Value::InvalidBrRefType);
+      }
+
+      // TODO: check RType, BlockRType and HeapType
+
+      const uint32_t Remain =
+          static_cast<uint32_t>(ValStack.size() - CtrlStack[*D].Height);
+      const uint32_t Arity = static_cast<uint32_t>(
+          NTypes.size() +
+          1); // We plus 1 here because we did `pop_back` on `NTypes`
+      auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
+      Jump.StackEraseBegin = Remain + Arity;
+      Jump.StackEraseEnd = Arity;
+      Jump.PCOffset = static_cast<int32_t>(CtrlStack[*D].Jump - &Instr);
+      pushTypes(NTypes);
+      pushType(CastRType);
+
+      return {};
+    }
+  }
+  case OpCode::Extern__externalize: {
+    FullRefType RType;
+    if (auto Res = popType()) {
+      if (*Res == unreachableVType()) {
+        // will not reach here. Validation succeeds.
+        return {};
+      }
+      if (!(*Res)->isRefType()) {
+        // TODO: add log
+        return Unexpect(ErrCode::ErrCode::Value::InvalidBrRefType);
+      }
+      RType = (*Res)->asRefType();
+    } else {
+      return Unexpect(Res);
+    }
+    if (!match_type(RType.getHeapType(), HeapTypeCode::Any)) {
+      spdlog::error("extern.externalize is only for any type");
+      return Unexpect(ErrCode::ErrCode::Value::InvalidBrRefType);
+    }
+    pushType(FullRefType(RType.getTypeCode(), HeapTypeCode::Extern));
+    return {};
+  }
+  case OpCode::Extern__internalize: {
+    FullRefType RType;
+    if (auto Res = popType()) {
+      if (*Res == unreachableVType()) {
+        // will not reach here. Validation succeeds.
+        return {};
+      }
+      if (!(*Res)->isRefType()) {
+        // TODO: add log
+        return Unexpect(ErrCode::ErrCode::Value::InvalidBrRefType);
+      }
+      RType = (*Res)->asRefType();
+    } else {
+      return Unexpect(Res);
+    }
+    if (!match_type(RType.getHeapType(), HeapTypeCode::Extern)) {
+      spdlog::error("extern.externalize is only for any type");
+      return Unexpect(ErrCode::ErrCode::Value::InvalidBrRefType);
+    }
+    pushType(FullRefType(RType.getTypeCode(), HeapTypeCode::Any));
+    return {};
+  }
+
   // Parametric Instructions.
   case OpCode::Drop:
     return StackPopAny();
@@ -1764,6 +2303,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                               std::array{FullValType(ValType::I64)});
 
   default:
+    spdlog::error("unvalidate opcode");
+    spdlog::error(Instr.getOpCode());
     assumingUnreachable();
   }
 }

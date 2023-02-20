@@ -72,6 +72,19 @@ enum class HeapTypeCode : uint8_t {
 #undef UseHeapTypeCode
 };
 
+static inline constexpr const auto HeapTypeCodeStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<HeapTypeCode, std::string_view> Array[] = {
+#define UseHeapTypeCode
+#define Line(NAME, VALUE) {HeapTypeCode::NAME, #NAME},
+#include "enum.inc"
+#undef Line
+#undef UseHeapTypeCode
+  };
+  return SpareEnumMap(Array);
+}
+();
+
 enum class ValTypeCode : uint8_t {
 #define UseNumType
 #define Line(NAME, VALUE) NAME = VALUE,
@@ -157,6 +170,14 @@ public:
     }
   }
 
+  friend std::ostream &operator<<(std::ostream &OS, const HeapType &Rhs) {
+    OS << HeapTypeCodeStr[Rhs.HTypeCode];
+    if (Rhs.HTypeCode == HeapTypeCode::Defined) {
+      OS << ": {" << Rhs.DefinedTypeIdx << "}";
+    }
+    return OS;
+  }
+
 private:
   HeapTypeCode HTypeCode;
   uint32_t DefinedTypeIdx;
@@ -178,7 +199,7 @@ public:
   }
   FullRefType(const RefTypeCode TypeCode, const uint32_t TypeIdx)
       : TypeCode(TypeCode), HType(TypeIdx) {}
-  FullRefType(const RefTypeCode TypeCode, const HeapType HType)
+  FullRefType(const RefTypeCode TypeCode, const HeapType &HType)
       : TypeCode(TypeCode), HType(HType) {}
   RefTypeCode getTypeCode() const { return TypeCode; }
   HeapType getHeapType() const { return HType; }
@@ -287,6 +308,14 @@ public:
   friend bool operator!=(const FullValType &LHS,
                          const FullValType &RHS) noexcept {
     return !(LHS.TypeCode == RHS.TypeCode);
+  }
+
+  friend std::ostream &operator<<(std::ostream &OS, const FullValType &Rhs) {
+    OS << ValTypeCodeStr[Rhs.TypeCode];
+    if (Rhs.isRefType()) {
+      OS << ": {" << Rhs.Ext.HType << "}";
+    }
+    return OS;
   }
 
 private:

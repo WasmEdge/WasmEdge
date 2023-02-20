@@ -1902,7 +1902,8 @@ WasiExpect<void> INode::sockListen(int32_t Backlog) noexcept {
   return {};
 }
 
-WasiExpect<INode> INode::sockAccept() noexcept {
+WasiExpect<INode>
+INode::sockAccept([[maybe_unused]] __wasi_fdflags_t FdFlags) noexcept {
   EnsureWSAStartup();
   if (auto NewSock = ::accept(toSocket(Handle), nullptr, nullptr);
       unlikely(NewSock == INVALID_SOCKET)) {

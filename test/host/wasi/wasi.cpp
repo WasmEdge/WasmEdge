@@ -699,10 +699,11 @@ TEST(WasiTest, PollOneoffSocket) {
         EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
         // accept port
-        EXPECT_TRUE(WasiSockAccept.run(
-            CallFrame,
-            std::initializer_list<WasmEdge::ValVariant>{ServerFd, FdPtr},
-            Errno));
+        EXPECT_TRUE(
+            WasiSockAccept.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   ServerFd, UINT32_C(0), FdPtr},
+                               Errno));
         EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
         EXPECT_TRUE((MemInst.loadValue(ConnectionFd, FdPtr)));
 
@@ -1314,10 +1315,11 @@ TEST(WasiTest, EpollOneoffSocket) {
         EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
         // accept port
-        EXPECT_TRUE(WasiSockAccept.run(
-            CallFrame,
-            std::initializer_list<WasmEdge::ValVariant>{ServerFd, FdPtr},
-            Errno));
+        EXPECT_TRUE(
+            WasiSockAccept.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   ServerFd, UINT32_C(0), FdPtr},
+                               Errno));
         EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
         EXPECT_TRUE((MemInst.loadValue(ConnectionFd, FdPtr)));
 

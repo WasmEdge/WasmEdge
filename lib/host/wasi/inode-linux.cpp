@@ -995,11 +995,24 @@ WasiExpect<void> INode::sockListen(int32_t Backlog) noexcept {
   return {};
 }
 
-WasiExpect<INode> INode::sockAccept() noexcept {
-  if (auto NewFd = ::accept(Fd, nullptr, nullptr); unlikely(NewFd < 0)) {
+WasiExpect<INode>
+INode::sockAccept([[maybe_unused]] __wasi_fdflags_t FdFlags) noexcept {
+  int SysFlag = 0;
+  int NewFd;
+  if (NewFd = ::accept(Fd, nullptr, nullptr); unlikely(NewFd < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  INode New(NewFd);
+  if (FdFlags) {
+    if (FdFlags & __WASI_FDFLAGS_NONBLOCK) {
+      SysFlag |= O_NONBLOCK;
+    }
+  }
+
+  if (auto Res = ::fcntl(Fd, F_SETFL, SysFlag); unlikely(Res != 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
-    INode New(NewFd);
     return New;
   }
 }

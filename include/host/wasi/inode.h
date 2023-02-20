@@ -542,7 +542,7 @@ public:
 
   WasiExpect<void> sockListen(int32_t Backlog) noexcept;
 
-  WasiExpect<INode> sockAccept() noexcept;
+  WasiExpect<INode> sockAccept(__wasi_fdflags_t FdFlags) noexcept;
 
   WasiExpect<void> sockConnect(uint8_t *Address, uint8_t AddressLength,
                                uint16_t Port) noexcept;

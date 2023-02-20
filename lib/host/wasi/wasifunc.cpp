@@ -1824,7 +1824,8 @@ Expect<uint32_t> WasiSockListen::body(const Runtime::CallingFrame &, int32_t Fd,
 }
 
 Expect<uint32_t> WasiSockAccept::body(const Runtime::CallingFrame &Frame,
-                                      int32_t Fd, uint32_t /* Out */ RoFdPtr) {
+                                      int32_t Fd, uint32_t FsFlags,
+                                      uint32_t /* Out */ RoFdPtr) {
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1837,7 +1838,14 @@ Expect<uint32_t> WasiSockAccept::body(const Runtime::CallingFrame &Frame,
   }
   const __wasi_fd_t WasiFd = Fd;
 
-  if (auto Res = Env.sockAccept(WasiFd); unlikely(!Res)) {
+  __wasi_fdflags_t WasiFdFlags;
+  if (auto Res = cast<__wasi_fdflags_t>(FsFlags); unlikely(!Res)) {
+    return Res.error();
+  } else {
+    WasiFdFlags = *Res;
+  }
+
+  if (auto Res = Env.sockAccept(WasiFd, WasiFdFlags); unlikely(!Res)) {
     return Res.error();
   } else {
     *RoFd = *Res;

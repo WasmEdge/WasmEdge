@@ -180,6 +180,7 @@ pub mod instance;
 pub mod io;
 #[doc(hidden)]
 pub mod loader;
+pub mod plugin;
 #[doc(hidden)]
 pub mod statistics;
 #[doc(hidden)]
@@ -200,27 +201,6 @@ pub use config::Config;
 pub use executor::Executor;
 #[doc(inline)]
 pub use frame::CallingFrame;
-#[cfg(all(
-    not(feature = "static"),
-    target_os = "linux",
-    feature = "wasi_nn",
-    target_arch = "x86_64"
-))]
-#[doc(inline)]
-pub use instance::module::WasiNnModule;
-#[cfg(all(
-    not(feature = "static"),
-    target_os = "linux",
-    feature = "wasmedge_process"
-))]
-#[doc(inline)]
-pub use instance::module::WasmEdgeProcessModule;
-#[cfg(all(not(feature = "static"), target_os = "linux", feature = "wasi_crypto"))]
-#[doc(inline)]
-pub use instance::module::{
-    WasiCrypto, WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
-    WasiCryptoSignaturesModule, WasiCryptoSymmetricModule,
-};
 #[doc(inline)]
 pub use instance::{
     function::{FuncRef, FuncType, Function},

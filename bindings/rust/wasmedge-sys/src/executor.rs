@@ -3,8 +3,6 @@
 use super::ffi;
 #[cfg(feature = "async")]
 use crate::r#async::FiberFuture;
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-use crate::WasiCrypto;
 use crate::{
     error::WasmEdgeError, instance::module::InnerInstance, types::WasmEdgeString, utils::check,
     Config, Engine, FuncRef, Function, ImportObject, Instance, Module, Statistics, Store,
@@ -81,71 +79,6 @@ impl Executor {
                 ))?;
             },
             ImportObject::Wasi(import) => unsafe {
-                check(ffi::WasmEdge_ExecutorRegisterImport(
-                    self.inner.0,
-                    store.inner.0,
-                    import.inner.0 as *const _,
-                ))?;
-            },
-            #[cfg(all(
-                target_os = "linux",
-                feature = "wasmedge_process",
-                not(feature = "static")
-            ))]
-            ImportObject::WasmEdgeProcess(import) => unsafe {
-                check(ffi::WasmEdge_ExecutorRegisterImport(
-                    self.inner.0,
-                    store.inner.0,
-                    import.inner.0 as *const _,
-                ))?;
-            },
-            #[cfg(all(
-                target_os = "linux",
-                feature = "wasi_nn",
-                target_arch = "x86_64",
-                not(feature = "static")
-            ))]
-            ImportObject::Nn(import) => unsafe {
-                check(ffi::WasmEdge_ExecutorRegisterImport(
-                    self.inner.0,
-                    store.inner.0,
-                    import.inner.0 as *const _,
-                ))?;
-            },
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
-            ImportObject::Crypto(WasiCrypto::Common(import)) => unsafe {
-                check(ffi::WasmEdge_ExecutorRegisterImport(
-                    self.inner.0,
-                    store.inner.0,
-                    import.inner.0 as *const _,
-                ))?;
-            },
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
-            ImportObject::Crypto(WasiCrypto::AsymmetricCommon(import)) => unsafe {
-                check(ffi::WasmEdge_ExecutorRegisterImport(
-                    self.inner.0,
-                    store.inner.0,
-                    import.inner.0 as *const _,
-                ))?;
-            },
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
-            ImportObject::Crypto(WasiCrypto::SymmetricOptionations(import)) => unsafe {
-                check(ffi::WasmEdge_ExecutorRegisterImport(
-                    self.inner.0,
-                    store.inner.0,
-                    import.inner.0 as *const _,
-                ))?;
-            },
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
-            ImportObject::Crypto(WasiCrypto::KeyExchange(import)) => unsafe {
-                check(ffi::WasmEdge_ExecutorRegisterImport(
-                    self.inner.0,
-                    store.inner.0,
-                    import.inner.0 as *const _,
-                ))?;
-            },
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
-            ImportObject::Crypto(WasiCrypto::Signatures(import)) => unsafe {
                 check(ffi::WasmEdge_ExecutorRegisterImport(
                     self.inner.0,
                     store.inner.0,

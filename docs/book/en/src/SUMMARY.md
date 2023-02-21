@@ -100,6 +100,7 @@
     - [Multiple Module Example](sdk/c/multimodule.md)
     - [0.12.0 API references](sdk/c/ref.md)
     - [0.11.2 API references](sdk/c/0.11.2/ref.md)
+      - [Upgrade to 0.12.0](sdk/c/0.11.2/upgrade_to_0.12.0.md)
     - [0.10.1 API references](sdk/c/0.10.1/ref.md)
       - [Upgrade to 0.11.0](sdk/c/0.10.1/upgrade_to_0.11.0.md)
     - [0.9.1 API references](sdk/c/0.9.1/ref.md)

@@ -412,6 +412,9 @@ case :"${5}": in
         fi
         ;;
 esac
+if [ -z ${{WASMEDGE_LIB_DIR+x}} ]; then
+    export WASMEDGE_LIB_DIR="{0}/{6}"
+fi
 # Please do not edit comments below this for uninstallation purpose
 """.format(
         args.path,

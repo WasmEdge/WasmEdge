@@ -373,7 +373,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
         const uint64_t Value =
             static_cast<uint64_t>(std::stoll(Args.value()[I]));
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(ValType::F64);
+        FuncArgTypes.emplace_back(ValType::I64);
       }
     }
 

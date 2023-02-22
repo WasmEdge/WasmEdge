@@ -161,7 +161,6 @@ pub mod io;
 #[doc(hidden)]
 pub mod log;
 mod module;
-#[doc(hidden)]
 pub mod plugin;
 mod statistics;
 mod store;
@@ -196,8 +195,6 @@ pub use io::{WasmVal, WasmValType, WasmValTypeList};
 pub use log::LogManager;
 #[doc(inline)]
 pub use module::{ExportType, ImportType, Module};
-#[doc(inline)]
-pub use plugin::PluginManager;
 #[doc(inline)]
 pub use statistics::Statistics;
 #[doc(inline)]

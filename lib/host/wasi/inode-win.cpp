@@ -1902,14 +1902,27 @@ WasiExpect<void> INode::sockListen(int32_t Backlog) noexcept {
   return {};
 }
 
-WasiExpect<INode>
-INode::sockAccept([[maybe_unused]] __wasi_fdflags_t FdFlags) noexcept {
+WasiExpect<INode> INode::sockAccept(__wasi_fdflags_t FdFlags) noexcept {
   EnsureWSAStartup();
-  if (auto NewSock = ::accept(toSocket(Handle), nullptr, nullptr);
+  SOCKET NewSock;
+  if (NewSock = ::accept(toSocket(Handle), nullptr, nullptr);
       unlikely(NewSock == INVALID_SOCKET)) {
     return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+  }
+
+  INode New(reinterpret_cast<boost::winapi::HANDLE_>(NewSock));
+  u_long SysNonBlockFlag = 0;
+  if (FdFlags) {
+    if (FdFlags & __WASI_FDFLAGS_NONBLOCK) {
+      SysNonBlockFlag = 1;
+    }
+  }
+
+  long Cmd = static_cast<long>(FIONBIO);
+  if (auto Res = ::ioctlsocket(NewSock, Cmd, &SysNonBlockFlag);
+      unlikely(Res == SOCKET_ERROR)) {
+    return WasiUnexpect(fromWSALastError(WSAGetLastError()));
   } else {
-    INode New(reinterpret_cast<boost::winapi::HANDLE_>(NewSock));
     return New;
   }
 }

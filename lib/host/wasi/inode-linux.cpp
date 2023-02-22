@@ -1001,15 +1001,14 @@ WasiExpect<void> INode::sockListen(int32_t Backlog) noexcept {
   return {};
 }
 
-WasiExpect<INode>
-INode::sockAccept([[maybe_unused]] __wasi_fdflags_t FdFlags) noexcept {
-  int SysFlag = 0;
+WasiExpect<INode> INode::sockAccept(__wasi_fdflags_t FdFlags) noexcept {
   int NewFd;
   if (NewFd = ::accept(Fd, nullptr, nullptr); unlikely(NewFd < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
 
   INode New(NewFd);
+  int SysFlag = fcntl(NewFd, F_GETFL, 0);
   if (FdFlags) {
     if (FdFlags & __WASI_FDFLAGS_NONBLOCK) {
       SysFlag |= O_NONBLOCK;

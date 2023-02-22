@@ -134,8 +134,6 @@ unsafe impl Sync for InnerPlugin {}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[cfg(all(
         target_os = "linux",
         feature = "wasmedge_process",
@@ -143,6 +141,8 @@ mod tests {
     ))]
     #[test]
     fn test_plugin_wasmedge_process() {
+        use super::*;
+
         PluginManager::load_plugins_from_default_paths();
         assert!(PluginManager::count() >= 1);
         assert!(PluginManager::names()
@@ -188,6 +188,8 @@ mod tests {
     #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
     #[test]
     fn test_plugin_wasi_crypto() {
+        use super::*;
+
         PluginManager::load_plugins_from_default_paths();
         assert!(PluginManager::count() >= 1);
         assert!(PluginManager::names().iter().any(|x| x == "wasi_crypto"));

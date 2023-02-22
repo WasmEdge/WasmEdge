@@ -184,4 +184,170 @@ mod tests {
         assert_eq!(instance.table_len(), 0);
         assert_eq!(instance.global_len(), 0);
     }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
+    #[test]
+    fn test_plugin_wasi_crypto() {
+        PluginManager::load_plugins_from_default_paths();
+        assert!(PluginManager::count() >= 1);
+        assert!(PluginManager::names().iter().any(|x| x == "wasi_crypto"));
+
+        // get `wasmedge_process` plugin
+        let result = PluginManager::find("wasi_crypto");
+        assert!(result.is_some());
+        let plugin = result.unwrap();
+        assert_eq!(plugin.name(), "wasi_crypto");
+        assert_eq!(plugin.mod_count(), 5);
+        assert_eq!(
+            plugin.mod_names(),
+            [
+                "wasi_crypto_asymmetric_common",
+                "wasi_crypto_common",
+                "wasi_crypto_kx",
+                "wasi_crypto_signatures",
+                "wasi_crypto_symmetric",
+            ]
+        );
+
+        // get `wasi_crypto_asymmetric_common` module instance from plugin
+        {
+            let result = plugin.mod_instance("wasi_crypto_asymmetric_common");
+            assert!(result.is_some());
+            let instance = result.unwrap();
+            assert_eq!(
+                instance.name().unwrap(),
+                "wasi_ephemeral_crypto_asymmetric_common"
+            );
+            assert_eq!(instance.func_len(), 20);
+            assert_eq!(
+                instance.func_names().unwrap(),
+                [
+                    "keypair_close",
+                    "keypair_export",
+                    "keypair_from_id",
+                    "keypair_from_pk_and_sk",
+                    "keypair_generate",
+                    "keypair_generate_managed",
+                    "keypair_id",
+                    "keypair_import",
+                    "keypair_publickey",
+                    "keypair_replace_managed",
+                    "keypair_secretkey",
+                    "keypair_store_managed",
+                    "publickey_close",
+                    "publickey_export",
+                    "publickey_from_secretkey",
+                    "publickey_import",
+                    "publickey_verify",
+                    "secretkey_close",
+                    "secretkey_export",
+                    "secretkey_import",
+                ],
+            );
+        }
+
+        // get `wasi_crypto_common` module instance from plugin
+        {
+            let result = plugin.mod_instance("wasi_crypto_common");
+            assert!(result.is_some());
+            let instance = result.unwrap();
+            assert_eq!(instance.name().unwrap(), "wasi_ephemeral_crypto_common");
+            assert_eq!(instance.func_len(), 10);
+            assert_eq!(
+                instance.func_names().unwrap(),
+                [
+                    "array_output_len",
+                    "array_output_pull",
+                    "options_close",
+                    "options_open",
+                    "options_set",
+                    "options_set_guest_buffer",
+                    "options_set_u64",
+                    "secrets_manager_close",
+                    "secrets_manager_invalidate",
+                    "secrets_manager_open",
+                ],
+            );
+        }
+
+        // get `wasi_crypto_kx` module instance from plugin
+        {
+            let result = plugin.mod_instance("wasi_crypto_kx");
+            assert!(result.is_some());
+            let instance = result.unwrap();
+            assert_eq!(instance.name().unwrap(), "wasi_ephemeral_crypto_kx");
+            assert_eq!(instance.func_len(), 3);
+            assert_eq!(
+                instance.func_names().unwrap(),
+                ["kx_decapsulate", "kx_dh", "kx_encapsulate",],
+            );
+        }
+
+        // get `wasi_crypto_signatures` module instance from plugin
+        {
+            let result = plugin.mod_instance("wasi_crypto_signatures");
+            assert!(result.is_some());
+            let instance = result.unwrap();
+            assert_eq!(instance.name().unwrap(), "wasi_ephemeral_crypto_signatures");
+            assert_eq!(instance.func_len(), 11);
+            assert_eq!(
+                instance.func_names().unwrap(),
+                [
+                    "signature_close",
+                    "signature_export",
+                    "signature_import",
+                    "signature_state_close",
+                    "signature_state_open",
+                    "signature_state_sign",
+                    "signature_state_update",
+                    "signature_verification_state_close",
+                    "signature_verification_state_open",
+                    "signature_verification_state_update",
+                    "signature_verification_state_verify",
+                ],
+            );
+        }
+
+        // get `wasi_crypto_symmetric` module instance from plugin
+        {
+            let result = plugin.mod_instance("wasi_crypto_symmetric");
+            assert!(result.is_some());
+            let instance = result.unwrap();
+            assert_eq!(instance.name().unwrap(), "wasi_ephemeral_crypto_symmetric");
+            assert_eq!(instance.func_len(), 28);
+            assert_eq!(
+                instance.func_names().unwrap(),
+                [
+                    "symmetric_key_close",
+                    "symmetric_key_export",
+                    "symmetric_key_from_id",
+                    "symmetric_key_generate",
+                    "symmetric_key_generate_managed",
+                    "symmetric_key_id",
+                    "symmetric_key_import",
+                    "symmetric_key_replace_managed",
+                    "symmetric_key_store_managed",
+                    "symmetric_state_absorb",
+                    "symmetric_state_clone",
+                    "symmetric_state_close",
+                    "symmetric_state_decrypt",
+                    "symmetric_state_decrypt_detached",
+                    "symmetric_state_encrypt",
+                    "symmetric_state_encrypt_detached",
+                    "symmetric_state_max_tag_len",
+                    "symmetric_state_open",
+                    "symmetric_state_options_get",
+                    "symmetric_state_options_get_u64",
+                    "symmetric_state_ratchet",
+                    "symmetric_state_squeeze",
+                    "symmetric_state_squeeze_key",
+                    "symmetric_state_squeeze_tag",
+                    "symmetric_tag_close",
+                    "symmetric_tag_len",
+                    "symmetric_tag_pull",
+                    "symmetric_tag_verify",
+                ],
+            );
+        }
+    }
 }

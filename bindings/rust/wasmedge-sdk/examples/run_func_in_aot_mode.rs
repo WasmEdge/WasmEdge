@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::fs::set_permissions(&aot_file_path, permissions)?;
         }
         let result = std::fs::remove_file(&aot_file_path);
-        println!("remove aot file: {:?}", result);
+        println!("remove aot file: {result:?}");
     }
 
     Ok(())

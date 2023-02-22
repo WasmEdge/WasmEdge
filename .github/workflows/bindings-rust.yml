@@ -30,7 +30,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]
-        rust: [1.65, 1.66, 1.67]
+        rust: [1.66, 1.67]
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
@@ -49,7 +49,7 @@ jobs:
         run: |
           apt update
           apt install -y software-properties-common libboost-all-dev llvm-12-dev liblld-12-dev ninja-build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On .
           cmake --build build
 
       - name: Rustfmt
@@ -81,7 +81,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-11, macos-12]
-        rust: [1.65, 1.66, 1.67]
+        rust: [1.66, 1.67]
 
     steps:
       - name: Checkout sources
@@ -135,7 +135,7 @@ jobs:
     runs-on: windows-2022
     strategy:
       matrix:
-        rust: [1.65, 1.66, 1.67]
+        rust: [1.66, 1.67]
     env:
       WASMEDGE_DIR: ${{ github.workspace }}
       WASMEDGE_BUILD_DIR: ${{ github.workspace }}\build
@@ -205,7 +205,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: [1.65, 1.66, 1.67]
+        rust: [1.66, 1.67]
     container:
       image: fedora:latest
     steps:
@@ -224,7 +224,7 @@ jobs:
           dnf update -y
           dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev
           git config --global --add safe.directory $(pwd)
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
           cmake --build build
 
       - name: Rustfmt

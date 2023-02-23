@@ -73,6 +73,7 @@ Developers can follow the steps to build WasmEdge with plug-ins from source.
 - [WASI-NN (OpenVINO and PyTorch backends)](build_from_src/plugin_wasi_nn.md)
 - [WASI-Crypto](build_from_src/plugin_wasi_crypto.md)
 - [WasmEdge-HttpsReq](build_from_src/plugin_wasmedge_httpsreq.md)
+- [WasmEdge-Process](build_from_src/plugin_wasmedge_process.md)
 
 ## Run Tests
 

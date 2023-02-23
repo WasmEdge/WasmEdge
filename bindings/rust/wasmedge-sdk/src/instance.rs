@@ -4,12 +4,6 @@ use crate::{
     Func, FuncType, Global, GlobalType, Memory, MemoryType, Table, TableType, WasmEdgeResult,
 };
 use wasmedge_sys as sys;
-#[cfg(all(
-    target_os = "linux",
-    feature = "wasmedge_process",
-    not(feature = "static")
-))]
-use wasmedge_sys::{AsImport, AsInstance as sys_as_instance_trait};
 
 /// Represents an instantiated module.
 ///
@@ -130,124 +124,6 @@ impl Instance {
             inner: inner_table,
             name: Some(name.as_ref().into()),
             mod_name: self.inner.name(),
-            ty,
-        })
-    }
-}
-
-/// Represents a wasmedge_process module instance.
-#[cfg(all(
-    target_os = "linux",
-    feature = "wasmedge_process",
-    not(feature = "static")
-))]
-#[derive(Debug)]
-pub struct WasmEdgeProcessInstance {
-    pub(crate) inner: sys::WasmEdgeProcessModule,
-}
-#[cfg(all(
-    target_os = "linux",
-    feature = "wasmedge_process",
-    not(feature = "static")
-))]
-impl WasmEdgeProcessInstance {
-    /// Initializes the wasmedge_process host module with the parameters.
-    ///
-    /// # Arguments
-    ///
-    /// * `allowed_cmds` - A white list of commands.
-    ///
-    /// * `allowed` - Determines if wasmedge_process is allowed to execute all commands on the white list.
-    pub fn initialize(&mut self, allowed_cmds: Option<Vec<&str>>, allowed: bool) {
-        self.inner.init_wasmedge_process(allowed_cmds, allowed);
-    }
-}
-#[cfg(all(
-    target_os = "linux",
-    feature = "wasmedge_process",
-    not(feature = "static")
-))]
-impl AsInstance for WasmEdgeProcessInstance {
-    fn name(&self) -> &str {
-        self.inner.name()
-    }
-
-    fn func_count(&self) -> usize {
-        self.inner.func_len() as usize
-    }
-
-    fn func_names(&self) -> Option<Vec<String>> {
-        self.inner.func_names()
-    }
-
-    fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
-        let inner_func = self.inner.get_func(name.as_ref())?;
-        let ty: FuncType = inner_func.ty()?.into();
-
-        Ok(Func {
-            inner: inner_func,
-            name: Some(name.as_ref().into()),
-            mod_name: None,
-            ty,
-        })
-    }
-
-    fn global_count(&self) -> usize {
-        self.inner.global_len() as usize
-    }
-
-    fn global_names(&self) -> Option<Vec<String>> {
-        self.inner.global_names()
-    }
-
-    fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
-        let inner_global = self.inner.get_global(name.as_ref())?;
-        let ty: GlobalType = inner_global.ty()?.into();
-
-        Ok(Global {
-            inner: inner_global,
-            name: Some(name.as_ref().into()),
-            mod_name: None,
-            ty,
-        })
-    }
-
-    fn memory_count(&self) -> usize {
-        self.inner.mem_len() as usize
-    }
-
-    fn memory_names(&self) -> Option<Vec<String>> {
-        self.inner.mem_names()
-    }
-
-    fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
-        let inner_memory = self.inner.get_memory(name.as_ref())?;
-        let ty: MemoryType = inner_memory.ty()?.into();
-
-        Ok(Memory {
-            inner: inner_memory,
-            name: Some(name.as_ref().into()),
-            mod_name: None,
-            ty,
-        })
-    }
-
-    fn table_count(&self) -> usize {
-        self.inner.table_len() as usize
-    }
-
-    fn table_names(&self) -> Option<Vec<String>> {
-        self.inner.table_names()
-    }
-
-    fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
-        let inner_table = self.inner.get_table(name.as_ref())?;
-        let ty: TableType = inner_table.ty()?.into();
-
-        Ok(Table {
-            inner: inner_table,
-            name: Some(name.as_ref().into()),
-            mod_name: None,
             ty,
         })
     }

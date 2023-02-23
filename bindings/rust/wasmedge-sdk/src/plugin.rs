@@ -26,9 +26,9 @@ impl PluginManager {
     /// # Argument
     ///
     /// * `path` - A path to a plugin file or a directory holding plugin files. If `None`, then the default plugin path will be used.
-    pub fn load<P: AsRef<std::path::Path>>(path: Option<P>) -> WasmEdgeResult<()> {
+    pub fn load(path: Option<&std::path::Path>) -> WasmEdgeResult<()> {
         match path {
-            Some(p) => sys::plugin::PluginManager::load_plugins(p.as_ref()),
+            Some(p) => sys::plugin::PluginManager::load_plugins(p),
             None => {
                 sys::plugin::PluginManager::load_plugins_from_default_paths();
                 Ok(())

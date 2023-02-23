@@ -115,20 +115,6 @@ impl ConfigBuilder {
         }
         if let Some(host_config) = self.host_config {
             inner.wasi(host_config.wasi);
-            #[cfg(target_os = "linux")]
-            inner.wasmedge_process(host_config.wasmedge_process);
-            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
-            inner.wasi_nn(host_config.wasi_nn);
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            inner.wasi_crypto_common(host_config.wasi_crypto_common);
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            inner.wasi_crypto_asymmetric_common(host_config.wasi_crypto_asymmetric_common);
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            inner.wasi_crypto_symmetric(host_config.wasi_crypto_symmetric);
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            inner.wasi_crypto_kx(host_config.wasi_crypto_kx);
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            inner.wasi_crypto_signatures(host_config.wasi_crypto_signatures);
         }
 
         Ok(Config { inner })
@@ -181,42 +167,6 @@ impl Config {
     /// Checks if the host registration wasi option turns on or not.
     pub fn wasi_enabled(&self) -> bool {
         self.inner.wasi_enabled()
-    }
-
-    /// Checks if host registration wasmedge process turns on or not.
-    #[cfg(target_os = "linux")]
-    pub fn wasmedge_process_enabled(&self) -> bool {
-        self.inner.wasmedge_process_enabled()
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
-    pub fn wasi_nn_enabled(&self) -> bool {
-        self.inner.wasi_nn_enabled()
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_common_enabled(&self) -> bool {
-        self.inner.wasi_crypto_common_enabled()
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_asymmetric_common_enabled(&self) -> bool {
-        self.inner.wasi_crypto_asymmetric_common_enabled()
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_symmetric_enabled(&self) -> bool {
-        self.inner.wasi_crypto_symmetric_enabled()
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_kx_enabled(&self) -> bool {
-        self.inner.wasi_crypto_kx_enabled()
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_signatures_enabled(&self) -> bool {
-        self.inner.wasi_crypto_signatures_enabled()
     }
 
     /// Returns the number of the memory pages available.

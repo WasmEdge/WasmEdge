@@ -1,26 +1,9 @@
 //! Defines WasmEdge Vm struct.
 
-#[cfg(all(
-    target_os = "linux",
-    feature = "wasi_nn",
-    target_arch = "x86_64",
-    not(feature = "static")
-))]
-use crate::wasi::WasiNnInstance;
-#[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
-use crate::wasi::{
-    WasiCryptoAsymmetricCommonInstance, WasiCryptoCommonInstance, WasiCryptoKxInstance,
-    WasiCryptoSignaturesInstance, WasiCryptoSymmetricInstance,
-};
-#[cfg(all(
-    target_os = "linux",
-    feature = "wasmedge_process",
-    not(feature = "static")
-))]
-use crate::WasmEdgeProcessInstance;
 use crate::{
     config::Config,
     error::{VmError, WasmEdgeError},
+    plugin::PluginManager,
     wasi::WasiInstance,
     Executor, HostRegistration, ImportObject, Instance, Module, Statistics, Store, WasmEdgeResult,
     WasmValue,
@@ -98,7 +81,8 @@ pub struct Vm {
     named_instances: HashMap<String, Instance>,
     active_instance: Option<Instance>,
     imports: Vec<ImportObject>,
-    host_registrations: HashMap<HostRegistration, HostRegistrationInstance>,
+    builtin_host_instances: HashMap<HostRegistration, HostRegistrationInstance>,
+    plugin_host_instances: Vec<Instance>,
 }
 impl Vm {
     /// Creates a new [Vm] to be associated with the given [configuration](crate::config::Config).
@@ -124,7 +108,8 @@ impl Vm {
             named_instances: HashMap::new(),
             active_instance: None,
             imports: Vec::new(),
-            host_registrations: HashMap::new(),
+            builtin_host_instances: HashMap::new(),
+            plugin_host_instances: Vec::new(),
         };
 
         if let Some(cfg) = vm.config.as_ref() {
@@ -135,155 +120,91 @@ impl Vm {
                         &sys::ImportObject::Wasi(wasi_module.clone()),
                     )?;
 
-                    vm.host_registrations.insert(
+                    vm.builtin_host_instances.insert(
                         HostRegistration::Wasi,
                         HostRegistrationInstance::Wasi(WasiInstance { inner: wasi_module }),
                     );
                 }
             }
+        }
 
-            #[cfg(all(
-                target_os = "linux",
-                feature = "wasmedge_process",
-                not(feature = "static")
-            ))]
-            if cfg.wasmedge_process_enabled() {
-                if let Ok(wasmedge_process_module) = sys::WasmEdgeProcessModule::create(None, false)
-                {
-                    vm.executor.inner.register_import_object(
-                        &mut vm.store.inner,
-                        &sys::ImportObject::WasmEdgeProcess(wasmedge_process_module.clone()),
-                    )?;
+        // load and register plugin instances
+        #[cfg(all(
+            target_os = "linux",
+            feature = "wasmedge_process",
+            not(feature = "static")
+        ))]
+        if let Some(instance) = Self::create_plugin_instance("wasmedge_process", "wasmedge_process")
+        {
+            vm.plugin_host_instances.push(instance);
+            vm.executor.inner.register_plugin_instance(
+                &mut vm.store.inner,
+                &vm.plugin_host_instances.last().unwrap().inner,
+            )?;
+        }
 
-                    vm.host_registrations.insert(
-                        HostRegistration::WasmEdgeProcess,
-                        HostRegistrationInstance::WasmEdgeProcess(WasmEdgeProcessInstance {
-                            inner: wasmedge_process_module,
-                        }),
-                    );
-                }
-            }
+        #[cfg(all(
+            target_os = "linux",
+            feature = "wasi_nn",
+            target_arch = "x86_64",
+            not(feature = "static")
+        ))]
+        if let Some(instance) = Self::create_plugin_instance("wasi_nn", "wasi_nn") {
+            vm.plugin_host_instances.push(instance);
+            vm.executor.inner.register_plugin_instance(
+                &mut vm.store.inner,
+                &vm.plugin_host_instances.last().unwrap().inner,
+            )?;
+        }
 
-            #[cfg(all(
-                target_os = "linux",
-                feature = "wasi_nn",
-                target_arch = "x86_64",
-                not(feature = "static")
-            ))]
-            if cfg.wasi_nn_enabled() {
-                if let Ok(wasi_nn_module) = sys::WasiNnModule::create() {
-                    vm.executor.inner.register_import_object(
-                        &mut vm.store.inner,
-                        &sys::ImportObject::Nn(wasi_nn_module.clone()),
-                    )?;
-
-                    vm.host_registrations.insert(
-                        HostRegistration::WasiNn,
-                        HostRegistrationInstance::WasiNn(WasiNnInstance {
-                            inner: wasi_nn_module,
-                        }),
-                    );
-                }
-            }
-
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
+        #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
+        {
+            if let Some(instance) =
+                Self::create_plugin_instance("wasi_crypto", "wasi_crypto_common")
             {
-                if cfg.wasi_crypto_common_enabled() {
-                    if let Ok(wasi_crypto_common_module) = sys::WasiCryptoCommonModule::create() {
-                        vm.executor.inner.register_import_object(
-                            &mut vm.store.inner,
-                            &sys::ImportObject::Crypto(sys::WasiCrypto::Common(
-                                wasi_crypto_common_module.clone(),
-                            )),
-                        )?;
-                        vm.host_registrations.insert(
-                            HostRegistration::WasiCryptoCommon,
-                            HostRegistrationInstance::WasiCryptoCommon(WasiCryptoCommonInstance {
-                                inner: wasi_crypto_common_module,
-                            }),
-                        );
-                    }
-                }
+                vm.plugin_host_instances.push(instance);
+                vm.executor.inner.register_plugin_instance(
+                    &mut vm.store.inner,
+                    &vm.plugin_host_instances.last().unwrap().inner,
+                )?;
+            }
 
-                if cfg.wasi_crypto_asymmetric_common_enabled() {
-                    if let Ok(wasi_crypto_asymmetric_common_module) =
-                        sys::WasiCryptoAsymmetricCommonModule::create()
-                    {
-                        vm.executor.inner.register_import_object(
-                            &mut vm.store.inner,
-                            &sys::ImportObject::Crypto(sys::WasiCrypto::AsymmetricCommon(
-                                wasi_crypto_asymmetric_common_module.clone(),
-                            )),
-                        )?;
-                        vm.host_registrations.insert(
-                            HostRegistration::WasiCryptoAsymmetricCommon,
-                            HostRegistrationInstance::WasiCryptoAsymmetricCommon(
-                                WasiCryptoAsymmetricCommonInstance {
-                                    inner: wasi_crypto_asymmetric_common_module,
-                                },
-                            ),
-                        );
-                    }
-                }
+            if let Some(instance) =
+                Self::create_plugin_instance("wasi_crypto", "wasi_crypto_asymmetric_common")
+            {
+                vm.plugin_host_instances.push(instance);
+                vm.executor.inner.register_plugin_instance(
+                    &mut vm.store.inner,
+                    &vm.plugin_host_instances.last().unwrap().inner,
+                )?;
+            }
 
-                if cfg.wasi_crypto_kx_enabled() {
-                    if let Ok(wasi_crypto_kx_module) = sys::WasiCryptoKxModule::create() {
-                        vm.executor.inner.register_import_object(
-                            &mut vm.store.inner,
-                            &sys::ImportObject::Crypto(sys::WasiCrypto::KeyExchange(
-                                wasi_crypto_kx_module.clone(),
-                            )),
-                        )?;
-                        vm.host_registrations.insert(
-                            HostRegistration::WasiCryptoKx,
-                            HostRegistrationInstance::WasiCryptoKeyExchange(WasiCryptoKxInstance {
-                                inner: wasi_crypto_kx_module,
-                            }),
-                        );
-                    }
-                }
+            if let Some(instance) = Self::create_plugin_instance("wasi_crypto", "wasi_crypto_kx") {
+                vm.plugin_host_instances.push(instance);
+                vm.executor.inner.register_plugin_instance(
+                    &mut vm.store.inner,
+                    &vm.plugin_host_instances.last().unwrap().inner,
+                )?;
+            }
 
-                if cfg.wasi_crypto_signatures_enabled() {
-                    if let Ok(wasi_crypto_signature_module) =
-                        sys::WasiCryptoSignaturesModule::create()
-                    {
-                        vm.executor.inner.register_import_object(
-                            &mut vm.store.inner,
-                            &sys::ImportObject::Crypto(sys::WasiCrypto::Signatures(
-                                wasi_crypto_signature_module.clone(),
-                            )),
-                        )?;
-                        vm.host_registrations.insert(
-                            HostRegistration::WasiCryptoSignatures,
-                            HostRegistrationInstance::WasiCryptoSignatures(
-                                WasiCryptoSignaturesInstance {
-                                    inner: wasi_crypto_signature_module,
-                                },
-                            ),
-                        );
-                    }
-                }
+            if let Some(instance) =
+                Self::create_plugin_instance("wasi_crypto", "wasi_crypto_signatures")
+            {
+                vm.plugin_host_instances.push(instance);
+                vm.executor.inner.register_plugin_instance(
+                    &mut vm.store.inner,
+                    &vm.plugin_host_instances.last().unwrap().inner,
+                )?;
+            }
 
-                if cfg.wasi_crypto_symmetric_enabled() {
-                    if let Ok(wasi_crypto_symmetric_module) =
-                        sys::WasiCryptoSymmetricModule::create()
-                    {
-                        vm.executor.inner.register_import_object(
-                            &mut vm.store.inner,
-                            &sys::ImportObject::Crypto(sys::WasiCrypto::SymmetricOptionations(
-                                wasi_crypto_symmetric_module.clone(),
-                            )),
-                        )?;
-                        vm.host_registrations.insert(
-                            HostRegistration::WasiCryptoSymmetric,
-                            HostRegistrationInstance::WasiCryptoSymmetric(
-                                WasiCryptoSymmetricInstance {
-                                    inner: wasi_crypto_symmetric_module,
-                                },
-                            ),
-                        );
-                    }
-                }
+            if let Some(instance) =
+                Self::create_plugin_instance("wasi_crypto", "wasi_crypto_symmetric")
+            {
+                vm.plugin_host_instances.push(instance);
+                vm.executor.inner.register_plugin_instance(
+                    &mut vm.store.inner,
+                    &vm.plugin_host_instances.last().unwrap().inner,
+                )?;
             }
         }
 
@@ -680,7 +601,7 @@ impl Vm {
     /// To retrieve  the [wasi module instance], a [config](crate::config::Config) with the enabled [wasi](crate::config::HostRegistrationConfigOptions::wasi) option should be given when create this vm.
     ///
     pub fn wasi_module(&self) -> Option<&WasiInstance> {
-        match self.host_registrations.get(&HostRegistration::Wasi) {
+        match self.builtin_host_instances.get(&HostRegistration::Wasi) {
             Some(HostRegistrationInstance::Wasi(wasi_instance)) => Some(wasi_instance),
             _ => None,
         }
@@ -691,50 +612,8 @@ impl Vm {
     /// To retrieve the [wasi module instance], a [config](crate::config::Config) with the enabled [wasi](crate::config::HostRegistrationConfigOptions::wasi) option should be given when create this vm.
     ///
     pub fn wasi_module_mut(&mut self) -> Option<&mut WasiInstance> {
-        match self.host_registrations.get_mut(&HostRegistration::Wasi) {
+        match self.builtin_host_instances.get_mut(&HostRegistration::Wasi) {
             Some(HostRegistrationInstance::Wasi(wasi_instance)) => Some(wasi_instance),
-            _ => None,
-        }
-    }
-
-    /// Returns a reference to the [WasmEdgeProcess module instance](crate::WasmEdgeProcessInstance) from this vm.
-    ///
-    /// To retrieve the [WasmEdgeProcess module instance], a [config](crate::config::Config) with the enabled [wasmedge_process](crate::config::HostRegistrationConfigOptions::wasmedge_process) option should be given when create this vm.
-    ///
-    #[cfg(all(
-        target_os = "linux",
-        feature = "wasmedge_process",
-        not(feature = "static")
-    ))]
-    pub fn wasmedge_process_module(&mut self) -> Option<&WasmEdgeProcessInstance> {
-        match self
-            .host_registrations
-            .get(&HostRegistration::WasmEdgeProcess)
-        {
-            Some(HostRegistrationInstance::WasmEdgeProcess(wasmedge_process_instance)) => {
-                Some(wasmedge_process_instance)
-            }
-            _ => None,
-        }
-    }
-
-    /// Returns a mutable reference to the [WasmEdgeProcess module instance](crate::WasmEdgeProcessInstance) from this vm.
-    ///
-    /// To retrieve the [WasmEdgeProcess module instance], a [config](crate::config::Config) with the enabled [wasmedge_process](crate::config::HostRegistrationConfigOptions::wasmedge_process) option should be given when create this vm.
-    ///
-    #[cfg(all(
-        target_os = "linux",
-        feature = "wasmedge_process",
-        not(feature = "static")
-    ))]
-    pub fn wasmedge_process_module_mut(&mut self) -> Option<&mut WasmEdgeProcessInstance> {
-        match self
-            .host_registrations
-            .get_mut(&HostRegistration::WasmEdgeProcess)
-        {
-            Some(HostRegistrationInstance::WasmEdgeProcess(wasmedge_process_instance)) => {
-                Some(wasmedge_process_instance)
-            }
             _ => None,
         }
     }
@@ -814,41 +693,25 @@ impl Vm {
     pub fn instance_names(&self) -> Vec<String> {
         self.store.instance_names()
     }
+
+    fn create_plugin_instance(pname: impl AsRef<str>, mname: impl AsRef<str>) -> Option<Instance> {
+        match PluginManager::find(pname.as_ref()) {
+            Some(plugin) => plugin.mod_instance(mname.as_ref()),
+            None => None,
+        }
+    }
 }
 
 #[derive(Debug)]
 enum HostRegistrationInstance {
     Wasi(crate::wasi::WasiInstance),
-    #[cfg(all(
-        target_os = "linux",
-        feature = "wasmedge_process",
-        not(feature = "static")
-    ))]
-    WasmEdgeProcess(crate::instance::WasmEdgeProcessInstance),
-    #[cfg(all(
-        target_os = "linux",
-        feature = "wasi_nn",
-        target_arch = "x86_64",
-        not(feature = "static")
-    ))]
-    WasiNn(crate::wasi::WasiNnInstance),
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
-    WasiCryptoCommon(crate::wasi::WasiCryptoCommonInstance),
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
-    WasiCryptoAsymmetricCommon(crate::wasi::WasiCryptoAsymmetricCommonInstance),
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
-    WasiCryptoSignatures(crate::wasi::WasiCryptoSignaturesInstance),
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
-    WasiCryptoSymmetric(crate::wasi::WasiCryptoSymmetricInstance),
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
-    WasiCryptoKeyExchange(crate::wasi::WasiCryptoKxInstance),
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(all(target_os = "linux", not(feature = "static")))]
-    use crate::PluginManager;
+    #[cfg(not(feature = "static"))]
+    use crate::plugin::PluginManager;
     use crate::{
         config::{
             CommonConfigOptions, ConfigBuilder, HostRegistrationConfigOptions,
@@ -1128,7 +991,8 @@ mod tests {
         #[cfg(all(target_os = "linux", not(feature = "static")))]
         {
             // load wasmedge_process plugin
-            PluginManager::load_from_default_paths();
+            let result = PluginManager::load(None);
+            assert!(result.is_ok());
 
             // create a Config
             let result = ConfigBuilder::new(CommonConfigOptions::default())
@@ -1148,7 +1012,8 @@ mod tests {
         #[cfg(all(target_os = "linux", not(feature = "static"), feature = "wasi_crypto"))]
         {
             // load wasi_crypto plugin
-            PluginManager::load_from_default_paths();
+            let result = PluginManager::load(None);
+            assert!(result.is_ok());
 
             // create a Config
             let result = ConfigBuilder::new(CommonConfigOptions::default())
@@ -1219,36 +1084,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(
-        target_os = "linux",
-        feature = "wasmedge_process",
-        not(feature = "static")
-    ))]
-    fn test_vm_wasmedge_process_module() {
-        // load wasmedge_process plugin
-        PluginManager::load_from_default_paths();
-
-        let host_reg_options = HostRegistrationConfigOptions::default().wasmedge_process(true);
-        let result = ConfigBuilder::new(CommonConfigOptions::default())
-            .with_host_registration_config(host_reg_options)
-            .build();
-        assert!(result.is_ok());
-        let config = result.unwrap();
-
-        // create a vm with the config settings
-        let result = Vm::new(Some(config), None);
-        assert!(result.is_ok());
-        let mut vm = result.unwrap();
-
-        // get the wasmedge_process module
-        let result = vm.wasmedge_process_module();
-        assert!(result.is_some());
-        let wasmedge_process_instance = result.unwrap();
-
-        assert_eq!(wasmedge_process_instance.name(), "wasmedge_process");
-    }
-
-    #[test]
     fn test_vm_statistics() {
         // set config options related to Statistics
         let stat_config_options = StatisticsConfigOptions::new()
@@ -1287,8 +1122,8 @@ mod tests {
             assert!(result.is_ok());
             let vm = result.unwrap();
 
-            assert_eq!(vm.named_instance_count(), 1);
-            assert_eq!(vm.instance_names(), ["extern"]);
+            assert!(vm.named_instance_count() >= 1);
+            assert!(vm.instance_names().iter().any(|x| x == "extern"));
         }
 
         {
@@ -1304,8 +1139,8 @@ mod tests {
             assert!(result.is_ok());
             let vm = result.unwrap();
 
-            assert_eq!(vm.named_instance_count(), 1);
-            assert_eq!(vm.instance_names(), ["extern"]);
+            assert!(vm.named_instance_count() >= 1);
+            assert!(vm.instance_names().iter().any(|x| x == "extern"));
         }
     }
 
@@ -1358,8 +1193,8 @@ mod tests {
         assert!(result.is_ok());
         let vm = result.unwrap();
 
-        assert_eq!(vm.named_instance_count(), 1);
-        assert_eq!(vm.instance_names(), ["extern"]);
+        assert!(vm.named_instance_count() >= 1);
+        assert!(vm.instance_names().iter().any(|x| x == "extern"));
     }
 
     #[test]
@@ -1410,8 +1245,8 @@ mod tests {
         assert!(result.is_ok());
         let vm = result.unwrap();
 
-        assert_eq!(vm.named_instance_count(), 1);
-        assert_eq!(vm.instance_names(), ["extern-module"]);
+        assert!(vm.named_instance_count() >= 1);
+        assert!(vm.instance_names().iter().any(|x| x == "extern-module"));
 
         // get active module instance
         let result = vm.named_module("extern-module");
@@ -1475,13 +1310,12 @@ mod tests {
         let module = result.unwrap();
 
         // register the wasm module into vm
-        assert_eq!(vm.named_instance_count(), 0);
         let result = vm.register_module(Some("extern"), module);
         assert!(result.is_ok());
         let vm = result.unwrap();
 
         // check the exported functions in the "extern" module
-        assert_eq!(vm.named_instance_count(), 1);
+        assert!(vm.named_instance_count() >= 1);
         let result = vm.named_module("extern");
         assert!(result.is_ok());
         let instance = result.unwrap();

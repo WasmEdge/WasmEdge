@@ -164,6 +164,34 @@ impl Executor {
         })
     }
 
+    /// Registers plugin module instance into a [store](crate::Store).
+    ///
+    /// # Arguments
+    ///
+    /// * `store` - The [store](crate::Store), in which the [module](crate::Module) to be instantiated
+    /// is stored.
+    ///
+    /// * `instance` - The plugin module instance to be registered.
+    ///
+    /// # Error
+    ///
+    /// If fail to register the given plugin module instance, then an error is returned.
+    pub fn register_plugin_instance(
+        &mut self,
+        store: &mut Store,
+        instance: &Instance,
+    ) -> WasmEdgeResult<()> {
+        unsafe {
+            check(ffi::WasmEdge_ExecutorRegisterImport(
+                self.inner.0,
+                store.inner.0,
+                instance.inner.0 as *const _,
+            ))?;
+        }
+
+        Ok(())
+    }
+
     /// Runs a host function instance and returns the results.
     ///
     /// # Arguments

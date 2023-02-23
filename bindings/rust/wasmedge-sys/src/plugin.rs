@@ -75,6 +75,40 @@ impl PluginManager {
             }),
         }
     }
+
+    /// Initializes the `wasmedge_process` plugin module instance with the parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `allowed_cmds` - A white list of commands.
+    ///
+    /// * `allowed` - Determines if wasmedge_process is allowed to execute all commands on the white list.
+    #[cfg(all(
+        target_os = "linux",
+        feature = "wasmedge_process",
+        not(feature = "static")
+    ))]
+    pub fn init_wasmedge_process(allowed_cmds: Option<Vec<&str>>, allowed: bool) {
+        // parse cmds
+        let cstr_cmds: Vec<_> = match allowed_cmds {
+            Some(cmds) => cmds
+                .iter()
+                .map(|&x| std::ffi::CString::new(x).unwrap())
+                .collect(),
+            None => vec![],
+        };
+        let mut p_cmds: Vec<_> = cstr_cmds.iter().map(|x| x.as_ptr()).collect();
+        let p_cmds_len = p_cmds.len();
+        p_cmds.push(std::ptr::null());
+
+        unsafe {
+            ffi::WasmEdge_ModuleInstanceInitWasmEdgeProcess(
+                p_cmds.as_ptr(),
+                p_cmds_len as u32,
+                allowed,
+            )
+        }
+    }
 }
 
 /// Represents a loaded plugin. It provides the APIs for accessing the plugin.
@@ -192,7 +226,10 @@ mod tests {
 
         PluginManager::load_plugins_from_default_paths();
         assert!(PluginManager::count() >= 1);
-        assert!(PluginManager::names().iter().any(|x| x == "wasi_crypto"));
+        assert!(
+            PluginManager::names().iter().any(|x| x == "wasi_crypto"),
+            "Not found the `wasi_crypto` plugin"
+        );
 
         // get `wasmedge_process` plugin
         let result = PluginManager::find("wasi_crypto");

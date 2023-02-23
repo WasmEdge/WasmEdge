@@ -82,6 +82,9 @@ jobs:
           WasmEdge_VMRegisterModuleFromFile
           WasmEdge_VMRegisterModuleFromImport
           WasmEdge_VMValidate
+          WasmEdge_VMGetRegisteredModule
+          WasmEdge_VMListRegisteredModule
+          WasmEdge_VMListRegisteredModuleLength
           EOF
           echo "===Allowlist==="
           cat allowlist.txt

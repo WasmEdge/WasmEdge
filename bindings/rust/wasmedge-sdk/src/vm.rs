@@ -3,7 +3,6 @@
 use crate::{
     config::Config,
     error::{VmError, WasmEdgeError},
-    plugin::PluginManager,
     wasi::WasiInstance,
     Executor, HostRegistration, ImportObject, Instance, Module, Statistics, Store, WasmEdgeResult,
     WasmValue,
@@ -82,6 +81,15 @@ pub struct Vm {
     active_instance: Option<Instance>,
     imports: Vec<ImportObject>,
     builtin_host_instances: HashMap<HostRegistration, HostRegistrationInstance>,
+    #[cfg(all(
+        target_os = "linux",
+        any(
+            feature = "wasmedge_process",
+            feature = "wasi_crypto",
+            feature = "wasi_nn"
+        ),
+        not(feature = "static")
+    ))]
     plugin_host_instances: Vec<Instance>,
 }
 impl Vm {
@@ -109,6 +117,15 @@ impl Vm {
             active_instance: None,
             imports: Vec::new(),
             builtin_host_instances: HashMap::new(),
+            #[cfg(all(
+                target_os = "linux",
+                any(
+                    feature = "wasmedge_process",
+                    feature = "wasi_crypto",
+                    feature = "wasi_nn"
+                ),
+                not(feature = "static")
+            ))]
             plugin_host_instances: Vec::new(),
         };
 
@@ -128,7 +145,7 @@ impl Vm {
             }
         }
 
-        // load and register plugin instances
+        // * load and register plugin instances
         #[cfg(all(
             target_os = "linux",
             feature = "wasmedge_process",
@@ -694,8 +711,17 @@ impl Vm {
         self.store.instance_names()
     }
 
+    #[cfg(all(
+        target_os = "linux",
+        any(
+            feature = "wasmedge_process",
+            feature = "wasi_crypto",
+            feature = "wasi_nn"
+        ),
+        not(feature = "static")
+    ))]
     fn create_plugin_instance(pname: impl AsRef<str>, mname: impl AsRef<str>) -> Option<Instance> {
-        match PluginManager::find(pname.as_ref()) {
+        match crate::plugin::PluginManager::find(pname.as_ref()) {
             Some(plugin) => plugin.mod_instance(mname.as_ref()),
             None => None,
         }

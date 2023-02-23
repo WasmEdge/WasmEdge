@@ -54,6 +54,22 @@ impl PluginManager {
     pub fn find(name: impl AsRef<str>) -> Option<Plugin> {
         sys::plugin::PluginManager::find(name.as_ref()).map(|p| Plugin { inner: p })
     }
+
+    /// Initializes the `wasmedge_process` plugin module instance with the parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `allowed_cmds` - A white list of commands.
+    ///
+    /// * `allowed` - Determines if wasmedge_process is allowed to execute all commands on the white list.
+    #[cfg(all(
+        target_os = "linux",
+        feature = "wasmedge_process",
+        not(feature = "static")
+    ))]
+    pub fn init_wasmedge_process(allowed_cmds: Option<Vec<&str>>, allowed: bool) {
+        sys::plugin::PluginManager::init_wasmedge_process(allowed_cmds, allowed);
+    }
 }
 
 /// Represents a loaded plugin. It provides the APIs for accessing the plugin.

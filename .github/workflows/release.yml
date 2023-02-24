@@ -198,6 +198,14 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_HTTPSREQ=On ..
           cd ${{ matrix.output_path }}
           make -j
+      - name: Build WasmEdge-Process plugin
+        if: contains(matrix.name, 'WasmEdge-Process')
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On ..
+          cd ${{ matrix.output_path }}
+          make -j
       - name: Prepare the WasmEdge ${{ matrix.name }} plugin tar.gz package
         run: |
           cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}

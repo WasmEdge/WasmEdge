@@ -10,6 +10,165 @@ use crate::{
 use std::{collections::HashMap, path::Path};
 use wasmedge_sys as sys;
 
+/// Constructs a [Vm] instance.
+#[derive(Debug, Default)]
+pub struct VmBuilder {
+    config: Option<Config>,
+    stat: Option<Statistics>,
+    store: Option<Store>,
+    plugins: Vec<(String, String)>,
+}
+impl VmBuilder {
+    /// Creates a new [VmBuilder].
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the [Config] for the [Vm] to build.
+    ///
+    /// # Argument
+    ///
+    /// * `config` - The [Config] to set.
+    pub fn with_config(mut self, config: Config) -> Self {
+        self.config = Some(config);
+        self
+    }
+
+    /// Sets the [Statistics] for the [Vm] to build.
+    ///
+    /// # Argument
+    ///
+    /// * `stat` - The [Statistics] to set.
+    pub fn with_statistics(mut self, stat: Statistics) -> Self {
+        self.stat = Some(stat);
+        self
+    }
+
+    /// Sets the [Store] for the [Vm] to build.
+    ///
+    /// # Argument
+    ///
+    /// * `store` - The [Store] to set.
+    pub fn with_store(mut self, store: Store) -> Self {
+        self.store = Some(store);
+        self
+    }
+
+    /// Sets the `wasi_nn` plugin for the [Vm] to build. The `wasi_nn` plugin should be deployed with WasmEdge library.
+    pub fn with_plugin_wasi_nn(mut self) -> Self {
+        self.plugins.push(("wasi_nn".into(), "wasi_nn".into()));
+        self
+    }
+
+    /// Sets the `wasi_crypto` plugin for the [Vm] to build. The `wasi_crypto` plugin should be deployed with WasmEdge library.
+    pub fn with_plugin_wasi_crypto(mut self) -> Self {
+        self.plugins
+            .push(("wasi_crypto".into(), "wasi_crypto_common".into()));
+        self.plugins
+            .push(("wasi_crypto".into(), "wasi_crypto_asymmetric_common".into()));
+        self.plugins
+            .push(("wasi_crypto".into(), "wasi_crypto_kx".into()));
+        self.plugins
+            .push(("wasi_crypto".into(), "wasi_crypto_signatures".into()));
+        self.plugins
+            .push(("wasi_crypto".into(), "wasi_crypto_symmetric".into()));
+        self
+    }
+
+    /// Sets the `wasmedge_process` plugin for the [Vm] to build. The `wasmedge_process` plugin should be deployed with WasmEdge library.
+    pub fn with_plugin_wasmedge_process(mut self) -> Self {
+        self.plugins
+            .push(("wasmedge_process".into(), "wasmedge_process".into()));
+        self
+    }
+
+    /// Sets the `wasmedge_sgx` plugin for the [Vm] to build. The `wasmedge_httpsreq` plugin should be deployed with WasmEdge library.
+    pub fn with_plugin_wasmedge_httpsreq(mut self) -> Self {
+        self.plugins
+            .push(("wasmedge_httpsreq".into(), "wasmedge_httpsreq".into()));
+        self
+    }
+
+    /// Set the third-party plugin for the [Vm] to build.
+    ///
+    /// # Arguments
+    ///
+    /// * `pname` - The name of the plugin.
+    ///
+    /// * `mname` - The name of the plugin module.
+    pub fn with_plugin(mut self, pname: impl AsRef<str>, mname: impl AsRef<str>) -> Self {
+        self.plugins
+            .push((pname.as_ref().into(), mname.as_ref().into()));
+        self
+    }
+
+    /// Creates a new [Vm].
+    ///
+    /// # Error
+    ///
+    /// If fail to create, then an error is returned.
+    pub fn build(mut self) -> WasmEdgeResult<Vm> {
+        // executor
+        let executor = Executor::new(self.config.as_ref(), self.stat.as_mut())?;
+
+        // store
+        let store = match self.store {
+            Some(store) => store,
+            None => Store::new()?,
+        };
+
+        // create a Vm instance
+        let mut vm = Vm {
+            config: self.config,
+            stat: self.stat,
+            executor,
+            store,
+            named_instances: HashMap::new(),
+            active_instance: None,
+            imports: Vec::new(),
+            builtin_host_instances: HashMap::new(),
+            plugin_host_instances: Vec::new(),
+        };
+
+        // * built-in host instances
+        if let Some(cfg) = vm.config.as_ref() {
+            if cfg.wasi_enabled() {
+                if let Ok(wasi_module) = sys::WasiModule::create(None, None, None) {
+                    vm.executor.inner.register_import_object(
+                        &mut vm.store.inner,
+                        &sys::ImportObject::Wasi(wasi_module.clone()),
+                    )?;
+
+                    vm.builtin_host_instances.insert(
+                        HostRegistration::Wasi,
+                        HostRegistrationInstance::Wasi(WasiInstance { inner: wasi_module }),
+                    );
+                }
+            }
+        }
+
+        // * load and register plugin instances
+        for (pname, mname) in self.plugins.iter() {
+            if let Some(instance) = Self::create_plugin_instance(pname, mname) {
+                vm.plugin_host_instances.push(instance);
+                vm.executor.inner.register_plugin_instance(
+                    &mut vm.store.inner,
+                    &vm.plugin_host_instances.last().unwrap().inner,
+                )?;
+            }
+        }
+
+        Ok(vm)
+    }
+
+    fn create_plugin_instance(pname: impl AsRef<str>, mname: impl AsRef<str>) -> Option<Instance> {
+        match crate::plugin::PluginManager::find(pname.as_ref()) {
+            Some(plugin) => plugin.mod_instance(mname.as_ref()),
+            None => None,
+        }
+    }
+}
+
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
 ///
 /// # Example
@@ -20,13 +179,13 @@ use wasmedge_sys as sys;
 /// // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 /// // #![feature(explicit_generic_args_with_impl_trait)]
 ///
-/// use wasmedge_sdk::{params, Vm, WasmVal};
+/// use wasmedge_sdk::{params, VmBuilder, WasmVal};
 /// use wasmedge_types::{wat2wasm, ValType};
 ///
 /// #[cfg_attr(test, test)]
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // create a Vm context
-///     let vm = Vm::new(None, None)?;
+///     let vm = VmBuilder::new().build()?;
 ///
 ///     // register a wasm module from the given in-memory wasm bytes
 ///     let wasm_bytes = wat2wasm(
@@ -75,159 +234,16 @@ use wasmedge_sys as sys;
 #[derive(Debug)]
 pub struct Vm {
     pub(crate) config: Option<Config>,
+    stat: Option<Statistics>,
     executor: Executor,
     store: Store,
     named_instances: HashMap<String, Instance>,
     active_instance: Option<Instance>,
     imports: Vec<ImportObject>,
     builtin_host_instances: HashMap<HostRegistration, HostRegistrationInstance>,
-    #[cfg(all(
-        target_os = "linux",
-        any(
-            feature = "wasmedge_process",
-            feature = "wasi_crypto",
-            feature = "wasi_nn"
-        ),
-        not(feature = "static")
-    ))]
     plugin_host_instances: Vec<Instance>,
 }
 impl Vm {
-    /// Creates a new [Vm] to be associated with the given [configuration](crate::config::Config).
-    ///
-    /// # Arguments
-    ///
-    /// * `config` - A optional [configuration](crate::config::Config) for the new [Vm].
-    ///
-    /// # Error
-    ///
-    /// If fail to create, then an error is returned.
-    pub fn new(config: Option<Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
-        // create an executor
-        let executor = Executor::new(config.as_ref(), stat)?;
-
-        // create a store
-        let store = Store::new()?;
-
-        let mut vm = Self {
-            config,
-            executor,
-            store,
-            named_instances: HashMap::new(),
-            active_instance: None,
-            imports: Vec::new(),
-            builtin_host_instances: HashMap::new(),
-            #[cfg(all(
-                target_os = "linux",
-                any(
-                    feature = "wasmedge_process",
-                    feature = "wasi_crypto",
-                    feature = "wasi_nn"
-                ),
-                not(feature = "static")
-            ))]
-            plugin_host_instances: Vec::new(),
-        };
-
-        if let Some(cfg) = vm.config.as_ref() {
-            if cfg.wasi_enabled() {
-                if let Ok(wasi_module) = sys::WasiModule::create(None, None, None) {
-                    vm.executor.inner.register_import_object(
-                        &mut vm.store.inner,
-                        &sys::ImportObject::Wasi(wasi_module.clone()),
-                    )?;
-
-                    vm.builtin_host_instances.insert(
-                        HostRegistration::Wasi,
-                        HostRegistrationInstance::Wasi(WasiInstance { inner: wasi_module }),
-                    );
-                }
-            }
-        }
-
-        // * load and register plugin instances
-        #[cfg(all(
-            target_os = "linux",
-            feature = "wasmedge_process",
-            not(feature = "static")
-        ))]
-        if let Some(instance) = Self::create_plugin_instance("wasmedge_process", "wasmedge_process")
-        {
-            vm.plugin_host_instances.push(instance);
-            vm.executor.inner.register_plugin_instance(
-                &mut vm.store.inner,
-                &vm.plugin_host_instances.last().unwrap().inner,
-            )?;
-        }
-
-        #[cfg(all(
-            target_os = "linux",
-            feature = "wasi_nn",
-            target_arch = "x86_64",
-            not(feature = "static")
-        ))]
-        if let Some(instance) = Self::create_plugin_instance("wasi_nn", "wasi_nn") {
-            vm.plugin_host_instances.push(instance);
-            vm.executor.inner.register_plugin_instance(
-                &mut vm.store.inner,
-                &vm.plugin_host_instances.last().unwrap().inner,
-            )?;
-        }
-
-        #[cfg(all(target_os = "linux", feature = "wasi_crypto", not(feature = "static")))]
-        {
-            if let Some(instance) =
-                Self::create_plugin_instance("wasi_crypto", "wasi_crypto_common")
-            {
-                vm.plugin_host_instances.push(instance);
-                vm.executor.inner.register_plugin_instance(
-                    &mut vm.store.inner,
-                    &vm.plugin_host_instances.last().unwrap().inner,
-                )?;
-            }
-
-            if let Some(instance) =
-                Self::create_plugin_instance("wasi_crypto", "wasi_crypto_asymmetric_common")
-            {
-                vm.plugin_host_instances.push(instance);
-                vm.executor.inner.register_plugin_instance(
-                    &mut vm.store.inner,
-                    &vm.plugin_host_instances.last().unwrap().inner,
-                )?;
-            }
-
-            if let Some(instance) = Self::create_plugin_instance("wasi_crypto", "wasi_crypto_kx") {
-                vm.plugin_host_instances.push(instance);
-                vm.executor.inner.register_plugin_instance(
-                    &mut vm.store.inner,
-                    &vm.plugin_host_instances.last().unwrap().inner,
-                )?;
-            }
-
-            if let Some(instance) =
-                Self::create_plugin_instance("wasi_crypto", "wasi_crypto_signatures")
-            {
-                vm.plugin_host_instances.push(instance);
-                vm.executor.inner.register_plugin_instance(
-                    &mut vm.store.inner,
-                    &vm.plugin_host_instances.last().unwrap().inner,
-                )?;
-            }
-
-            if let Some(instance) =
-                Self::create_plugin_instance("wasi_crypto", "wasi_crypto_symmetric")
-            {
-                vm.plugin_host_instances.push(instance);
-                vm.executor.inner.register_plugin_instance(
-                    &mut vm.store.inner,
-                    &vm.plugin_host_instances.last().unwrap().inner,
-                )?;
-            }
-        }
-
-        Ok(vm)
-    }
-
     /// Registers a [wasm module](crate::Module) into this vm as a named or active module [instance](crate::Instance).
     ///
     /// # Arguments
@@ -593,6 +609,16 @@ impl Vm {
             .await
     }
 
+    /// Returns a reference to the internal [statistics](crate::Statistics) from this vm.
+    pub fn statistics(&self) -> Option<&Statistics> {
+        self.stat.as_ref()
+    }
+
+    /// Returns a mutable reference to the internal [statistics](crate::Statistics) from this vm.
+    pub fn statistics_mut(&mut self) -> Option<&mut Statistics> {
+        self.stat.as_mut()
+    }
+
     /// Returns a reference to the internal [executor](crate::Executor) from this vm.
     pub fn executor(&self) -> &Executor {
         &self.executor
@@ -710,22 +736,6 @@ impl Vm {
     pub fn instance_names(&self) -> Vec<String> {
         self.store.instance_names()
     }
-
-    #[cfg(all(
-        target_os = "linux",
-        any(
-            feature = "wasmedge_process",
-            feature = "wasi_crypto",
-            feature = "wasi_nn"
-        ),
-        not(feature = "static")
-    ))]
-    fn create_plugin_instance(pname: impl AsRef<str>, mname: impl AsRef<str>) -> Option<Instance> {
-        match crate::plugin::PluginManager::find(pname.as_ref()) {
-            Some(plugin) => plugin.mod_instance(mname.as_ref()),
-            None => None,
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -754,7 +764,7 @@ mod tests {
     #[test]
     fn test_vm_run_func_from_file() {
         // create a Vm context
-        let result = Vm::new(None, None);
+        let result = VmBuilder::new().build();
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -773,7 +783,7 @@ mod tests {
     #[test]
     fn test_vm_run_func_from_bytes() {
         // create a Vm context
-        let result = Vm::new(None, None);
+        let result = VmBuilder::new().build();
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -826,7 +836,7 @@ mod tests {
     #[test]
     fn test_vm_run_func_from_module() {
         // create a Vm context
-        let result = Vm::new(None, None);
+        let result = VmBuilder::new().build();
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -881,7 +891,7 @@ mod tests {
     #[test]
     fn test_vm_run_func_in_named_module_instance() {
         // create a Vm context
-        let result = Vm::new(None, None);
+        let result = VmBuilder::new().build();
         assert!(result.is_ok());
         let vm = result.unwrap();
 
@@ -937,7 +947,7 @@ mod tests {
     #[test]
     fn test_vm_run_func_in_active_module_instance() {
         // create a Vm context
-        let result = Vm::new(None, None);
+        let result = VmBuilder::new().build();
         assert!(result.is_ok());
         let vm = result.unwrap();
 
@@ -998,7 +1008,7 @@ mod tests {
     #[allow(clippy::assertions_on_result_states)]
     fn test_vm_create() {
         {
-            let result = Vm::new(None, None);
+            let result = VmBuilder::new().build();
             assert!(result.is_ok());
         }
 
@@ -1009,7 +1019,7 @@ mod tests {
             let config = result.unwrap();
 
             // create a Vm context
-            let result = Vm::new(Some(config), None);
+            let result = VmBuilder::new().with_config(config).build();
             assert!(result.is_ok());
             let _vm = result.unwrap();
         }
@@ -1020,70 +1030,27 @@ mod tests {
             let result = PluginManager::load(None);
             assert!(result.is_ok());
 
-            // create a Config
-            let result = ConfigBuilder::new(CommonConfigOptions::default())
-                .with_host_registration_config(
-                    HostRegistrationConfigOptions::default().wasmedge_process(true),
-                )
+            // create a Vm context
+            let result = VmBuilder::new()
+                .with_plugin_wasmedge_process()
+                .with_plugin_wasi_crypto()
                 .build();
             assert!(result.is_ok());
-            let config = result.unwrap();
+            let vm = result.unwrap();
 
-            // create a Vm context
-            let result = Vm::new(Some(config), None);
-            assert!(result.is_ok());
-            let _vm = result.unwrap();
-        }
+            assert!(vm.contains_module("wasmedge_process"));
 
-        #[cfg(all(target_os = "linux", not(feature = "static"), feature = "wasi_crypto"))]
-        {
-            // load wasi_crypto plugin
-            let result = PluginManager::load(None);
-            assert!(result.is_ok());
+            #[cfg(feature = "wasi_crypto")]
+            {
+                assert!(vm.contains_module("wasi_ephemeral_crypto_common"));
+                assert!(vm.contains_module("wasi_ephemeral_crypto_asymmetric_common"));
+                assert!(vm.contains_module("wasi_ephemeral_crypto_kx"));
+                assert!(vm.contains_module("wasi_ephemeral_crypto_signatures"));
+                assert!(vm.contains_module("wasi_ephemeral_crypto_symmetric"));
+            }
 
-            // create a Config
-            let result = ConfigBuilder::new(CommonConfigOptions::default())
-                .with_host_registration_config(
-                    HostRegistrationConfigOptions::default()
-                        .wasi_crypto_common(true)
-                        .wasi_crypto_asymmetric_common(true)
-                        .wasi_crypto_kx(true)
-                        .wasi_crypto_signatures(true)
-                        .wasi_crypto_symmetric(true),
-                )
-                .build();
-            assert!(result.is_ok());
-            let config = result.unwrap();
-
-            // create a Vm context
-            let result = Vm::new(Some(config), None);
-            assert!(result.is_ok());
-            let _vm = result.unwrap();
-        }
-
-        #[cfg(all(
-            target_os = "linux",
-            not(feature = "static"),
-            feature = "wasi_nn",
-            target_arch = "x86_64"
-        ))]
-        {
-            // load wasi_nn plugin
-            PluginManager::load_from_default_paths();
-
-            // create a Config
-            let result = ConfigBuilder::new(CommonConfigOptions::default())
-                .with_host_registration_config(
-                    HostRegistrationConfigOptions::default().wasi_nn(true),
-                )
-                .build();
-            assert!(result.is_ok());
-            let config = result.unwrap();
-
-            // create a Vm context
-            let result = Vm::new(Some(config), None);
-            assert!(result.is_ok());
-            let _vm = result.unwrap();
+            #[cfg(all(feature = "wasi_nn", target_arch = "x86_64"))]
+            assert!(vm.contains_module("wasi_nn"));
         }
     }
 
@@ -1097,7 +1064,7 @@ mod tests {
         let config = result.unwrap();
 
         // create a vm with the config settings
-        let result = Vm::new(Some(config), None);
+        let result = VmBuilder::new().with_config(config).build();
         assert!(result.is_ok());
         let vm = result.unwrap();
 
@@ -1124,7 +1091,7 @@ mod tests {
         let config = result.unwrap();
 
         // create a Vm context
-        let result = Vm::new(Some(config), None);
+        let result = VmBuilder::new().with_config(config).build();
         assert!(result.is_ok());
         let _vm = result.unwrap();
 
@@ -1137,7 +1104,7 @@ mod tests {
     fn test_vm_register_module_from_file() {
         {
             // create a Vm context
-            let result = Vm::new(None, None);
+            let result = VmBuilder::new().build();
             assert!(result.is_ok());
             let vm = result.unwrap();
 
@@ -1154,7 +1121,7 @@ mod tests {
 
         {
             // create a Vm context
-            let result = Vm::new(None, None);
+            let result = VmBuilder::new().build();
             assert!(result.is_ok());
             let vm = result.unwrap();
 
@@ -1174,7 +1141,7 @@ mod tests {
     #[allow(clippy::assertions_on_result_states)]
     fn test_vm_register_module_from_bytes() {
         // create a Vm context
-        let result = Vm::new(None, None);
+        let result = VmBuilder::new().build();
         assert!(result.is_ok());
         let vm = result.unwrap();
 
@@ -1262,7 +1229,7 @@ mod tests {
         let import = result.unwrap();
 
         // create a Vm context
-        let result = Vm::new(None, None);
+        let result = VmBuilder::new().build();
         assert!(result.is_ok());
         let vm = result.unwrap();
 
@@ -1291,7 +1258,7 @@ mod tests {
     #[test]
     fn test_vm_register_named_module() {
         // create a Vm context
-        let result = Vm::new(None, None);
+        let result = VmBuilder::new().build();
         assert!(result.is_ok());
         let vm = result.unwrap();
 
@@ -1368,7 +1335,7 @@ mod tests {
     #[test]
     fn test_vm_register_active_module() {
         // create a Vm context
-        let result = Vm::new(None, None);
+        let result = VmBuilder::new().build();
         assert!(result.is_ok());
         let vm = result.unwrap();
 

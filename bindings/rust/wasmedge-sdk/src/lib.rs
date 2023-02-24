@@ -35,8 +35,8 @@
 //!
 //!  ```rust
 //!  use wasmedge_sdk::{
-//!      error::HostFuncError, host_function, params, wat2wasm, Caller, ImportObjectBuilder, Module, Vm,
-//!      WasmValue,
+//!      error::HostFuncError, host_function, params, wat2wasm, Caller, ImportObjectBuilder, Module,
+//!      VmBuilder, WasmValue,
 //!  };
 //!  
 //!  // We define a function to act as our "env" "say_hello" function imported in the
@@ -77,13 +77,15 @@
 //!      let module = Module::from_bytes(None, wasm_bytes)?;
 //!  
 //!      // create an executor
-//!      Vm::new(None, None)?
+//!      VmBuilder::new()
+//!          .build()?
 //!          .register_import_module(import)?
 //!          .register_module(Some("extern"), module)?
 //!          .run_func(Some("extern"), "run", params!())?;
 //!  
 //!      Ok(())
 //!  }
+//!  
 //!  ```
 //!
 
@@ -137,7 +139,7 @@ pub use store::Store;
 #[doc(inline)]
 pub use utils::Driver;
 #[doc(inline)]
-pub use vm::Vm;
+pub use vm::{Vm, VmBuilder};
 
 /// Parses in-memory bytes as either the [WebAssembly Text format](http://webassembly.github.io/spec/core/text/index.html), or a binary WebAssembly module
 pub use wasmedge_types::{

@@ -76,18 +76,6 @@ extern "C" fn wraper_fn(
 /// Defines a host function.
 ///
 /// A WasmEdge [Function] defines a WebAssembly host function described by its [type](crate::FuncType). A host function is a closure of the original function defined in either the host or the WebAssembly module.
-///
-/// # Usage
-///
-/// To invoke a host function, `wasmedge-sys` provides two different ways:
-///
-/// * [Vm](crate::Vm) provides the [run_function](crate::Vm::run_function) and [run_registered_function](crate::Vm::run_registered_function) APIs to call a host function (registered into Vm) by given the name of the target host function.
-///
-/// * If the target host function instance and an [Executor](crate::Executor) instance are available, then there are two APIs available:
-///     * Use the [run_func](crate::Engine::run_func) method defined in [Engine](crate::Engine) trait. Both [Vm](crate::Vm) and [Executor](crate::Executor) implement the trait.
-///
-///     * Use the [call](crate::Function::call) method of [Function](crate::Function).
-///
 #[derive(Debug)]
 pub struct Function {
     pub(crate) inner: Arc<InnerFunc>,
@@ -108,7 +96,7 @@ impl Function {
     ///
     /// # Error
     ///
-    /// If fail to create a [Function], then an error is returned.
+    /// * If fail to create a [Function], then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
     ///
     /// # Example
     ///
@@ -200,7 +188,7 @@ impl Function {
     ///
     /// # Error
     ///
-    /// If fail to create a [Function], then an error is returned.
+    /// * If fail to create a [Function], then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
     ///
     /// # Example
     ///

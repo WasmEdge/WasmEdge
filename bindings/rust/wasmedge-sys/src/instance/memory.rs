@@ -29,7 +29,7 @@ impl Memory {
     ///
     /// # Errors
     ///
-    /// If fail to create a [Memory], then an error is returned.
+    /// * If fail to create the memory instance, then [WasmEdgeError::Mem(MemError::Create)](crate::error::MemError) is returned.
     ///
     /// # Example
     ///
@@ -41,7 +41,6 @@ impl Memory {
     /// let memory = Memory::create(&ty);
     ///
     /// ```
-    ///
     ///
     pub fn create(ty: &MemType) -> WasmEdgeResult<Self> {
         let ctx = unsafe { ffi::WasmEdge_MemoryInstanceCreate(ty.inner.0 as *const _) };

@@ -1,0 +1,40 @@
+#include "func-attach-bpf-program.h"
+#include <shared_mutex>
+#include "util.h"
+using namespace WasmEdge;
+
+Expect<int32_t> AttachBpfProgram::body(const Runtime::CallingFrame& Frame,
+                                      handle_t program,
+                                      uint32_t name,
+                                      uint32_t attach_target) {
+    std::shared_lock lock(state->lock);
+    if (!state->handles.count(program)) {
+        return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    auto* program_ptr = state->handles[program];
+    auto* memory = Frame.getMemoryByIndex(0);
+    if (memory == nullptr) {
+        return Unexpect(ErrCode::Value::HostFuncError);
+    }
+
+    const char* name_str;
+    const char* attach_target_str;
+    {
+        auto v1 = read_c_str(memory, name);
+        if (v1.has_value()) {
+            name_str = v1.value();
+        } else {
+            return Unexpect(v1.error());
+        }
+    }
+    {
+        auto v1 = read_c_str(memory, attach_target);
+
+        if (v1.has_value()) {
+            attach_target_str = v1.value();
+        } else {
+            return Unexpect(v1.error());
+        }
+    }
+    return program_ptr->attach_bpf_program(name_str, attach_target_str);
+}

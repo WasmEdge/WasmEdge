@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
-
 if(WASMEDGE_PLUGIN_WASI_NN_BACKEND)
   add_subdirectory(wasi_nn)
 endif()
@@ -24,5 +23,14 @@ if(WASMEDGE_PLUGIN_HTTPSREQ)
     add_subdirectory(wasmedge_httpsreq)
   else()
     message(WARNING "Only Linux platforms support WasmEdge_HttpsReq plug-in now.")
+  endif()
+endif()
+
+if(WASMEDGE_PLUGIN_WASM_BPF)
+  # Only Linux systems support wasm-bpf now.
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    add_subdirectory(wasm-bpf)
+  else()
+    message(WARNING "Only Linux platforms support wasm-bpf plug-in now.")
   endif()
 endif()

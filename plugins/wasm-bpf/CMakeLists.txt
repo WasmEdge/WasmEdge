@@ -8,24 +8,37 @@ set(LIBBPF_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libbpf/src)
 endif()
 
 # Build vendored libbpf
-include(ExternalProject)
-ExternalProject_Add(libbpf
-  PREFIX libbpf
-  SOURCE_DIR ${LIBBPF_SOURCE_DIR}
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND make
-    OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf
-    DESTDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf
-    INCLUDEDIR=
-    LIBDIR=
-    UAPIDIR=
-    install
-  BUILD_IN_SOURCE TRUE
-  INSTALL_COMMAND ""
-  STEP_TARGETS build
-)
-set(LIBBPF_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libbpf)
-set(LIBBPF_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf.so)
+# include(ExternalProject)
+# ExternalProject_Add(libbpf
+#   PREFIX libbpf
+#   SOURCE_DIR ${LIBBPF_SOURCE_DIR}
+#   CONFIGURE_COMMAND ""
+#   BUILD_COMMAND make
+#     OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf
+#     DESTDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf
+#     INCLUDEDIR=
+#     LIBDIR=
+#     UAPIDIR=
+#     install
+#   BUILD_IN_SOURCE TRUE
+#   INSTALL_COMMAND ""
+#   STEP_TARGETS build
+# )
+
+# find_library(LIBBPF NAMES libbpf)
+
+find_package(PkgConfig)
+pkg_check_modules(LIBBPF REQUIRED libbpf>=1.2.0)
+if(NOT ${LIBBPF_FOUND} OR ${LIBBPF_VERSION} STRLESS 1.2.0)
+  if(${LIBBPF_FOUND})
+    message("Found libbpf ${LIBBPF_VERSION}")
+  endif()
+  message(FATAL_ERROR "libbpf >= 1.2 required")
+else()
+  message("libbpf ${LIBBPF_VERSION} found")
+endif()
+# set(LIBBPF_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libbpf)
+# set(LIBBPF_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf.so)
 
 
 wasmedge_add_library(wasmedgePluginWasmBpf
@@ -41,7 +54,7 @@ wasmedge_add_library(wasmedgePluginWasmBpf
   util.cpp
 )
 
-add_dependencies(wasmedgePluginWasmBpf libbpf-build)
+# add_dependencies(wasmedgePluginWasmBpf LIBBPF)
 target_link_libraries(wasmedgePluginWasmBpf PUBLIC ${LIBBPF_LIBRARIES} -lelf -lz)
 
 

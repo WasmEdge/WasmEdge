@@ -27,5 +27,10 @@ Expect<handle_t> LoadBpfObject::body(const Runtime::CallingFrame& Frame,
     std::shared_lock guard(state->lock);
     handle_t current_handle = state->next_handle++;
     state->handles[current_handle] = program;
+    // Iterate over the maps in the current program and cache them by fd
+    bpf_map* curr = nullptr;
+    while ((curr = bpf_object__next_map(program->obj.get(), curr)) != nullptr) {
+        state->map_fd_cache[bpf_map__fd(curr)] = curr;
+    }
     return current_handle;
 }

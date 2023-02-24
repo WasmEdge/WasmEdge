@@ -18,22 +18,16 @@ Expect<int32_t> BpfMapOperate::body(
     uint32_t value,
     uint32_t next_key,
     uint64_t flags) {
-    cache_lock.lock();
-    bool in_cache = map_fd_cache.count(fd);
-    cache_lock.unlock();
 
-    if (!in_cache) {
-        this->reloadMapFdCache();
-    }
     auto memory = Frame.getMemoryByIndex(0);
     if (memory == nullptr) {
         return Unexpect(ErrCode::Value::HostFuncError);
     }
     std::shared_lock guard(this->state->lock);
-    if (!this->map_fd_cache.count(fd)) {
+    if (!state->map_fd_cache.count(fd)) {
         return Unexpect(ErrCode::Value::HostFuncError);
     }
-    bpf_map* map = map_fd_cache[fd];
+    bpf_map* map = state->map_fd_cache[fd];
     auto key_size = bpf_map__key_size(map);
     auto value_size = bpf_map__value_size(map);
 #define ensure_memory_size(var, offset, size)            \
@@ -66,16 +60,3 @@ Expect<int32_t> BpfMapOperate::body(
 #undef ensure_memory_size
 }
 
-void BpfMapOperate::reloadMapFdCache() {
-    std::shared_lock state_guard(state->lock);
-    cache_lock.lock();
-    map_fd_cache.clear();
-    for (const auto& v : state->handles) {
-        auto bpf_obj = v.second->obj.get();
-        bpf_map* curr = nullptr;
-        while ((curr = bpf_object__next_map(bpf_obj, curr)) != nullptr) {
-            map_fd_cache[bpf_map__fd(curr)] = curr;
-        }
-    }
-    cache_lock.unlock();
-}

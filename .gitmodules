@@ -1,3 +1,0 @@
-[submodule "plugins/wasm-bpf/libbpf"]
-	path = plugins/wasm-bpf/libbpf
-	url = https://github.com/libbpf/libbpf

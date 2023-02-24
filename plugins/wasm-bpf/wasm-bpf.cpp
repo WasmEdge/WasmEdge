@@ -42,14 +42,15 @@ static int bpf_buffer_sample(void* ctx, void* data, size_t size) {
     memcpy(program->poll_data, data, sample_size);
     auto module_inst = program->buffer->module_instance;
     WasmEdge_String names[10];
-    uint32_t table_len = WasmEdge_ModuleInstanceListTable(
-        module_inst, names, sizeof(names) / sizeof(names[0]));
+    uint32_t table_len __attribute__((unused)) =
+        WasmEdge_ModuleInstanceListTable(module_inst, names,
+                                         sizeof(names) / sizeof(names[0]));
     assert(table_len == 1);
     auto table_inst = WasmEdge_ModuleInstanceFindTable(module_inst, names[0]);
     assert(table_inst != nullptr);
     WasmEdge_Value value;
     {
-        auto result = WasmEdge_TableInstanceGetData(
+        auto result __attribute__((unused)) = WasmEdge_TableInstanceGetData(
             table_inst, &value, program->buffer->wasm_sample_function);
         assert(WasmEdge_ResultOK(result));
     }
@@ -62,7 +63,7 @@ static int bpf_buffer_sample(void* ctx, void* data, size_t size) {
             WasmEdge_ValueGenI32(size),
         };
         WasmEdge_Value result[1];
-        auto call_result =
+        auto call_result __attribute__((unused)) =
             WasmEdge_ExecutorInvoke(program->buffer->executor, func_ref, params,
                                     sizeof(params) / sizeof(params[0]), result,
                                     sizeof(result) / sizeof(result[0]));

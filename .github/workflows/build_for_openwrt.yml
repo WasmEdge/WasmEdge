@@ -5,11 +5,9 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - master
-      - draco/cache_openwrt
     paths:
       - ".github/workflows/build_for_openwrt.yml"
       - "include/**"

@@ -5,9 +5,11 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
+      - draco/cache_openwrt
     paths:
       - ".github/workflows/build_for_openwrt.yml"
       - "include/**"
@@ -51,17 +53,26 @@ jobs:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
+    - name: Restore OpenWrt
+      id: restore-openwrt
+      uses: actions/cache/restore@v3
+      with:
+        path: ./openwrt-x86-64-generic-rootfs.tar.gz
+        key: openwrt
     - name: Install dependency
+      if: steps.restore-openwrt.outputs.cache-hit != 'true'
       run: |
         git clone https://github.com/openwrt/openwrt.git ../openwrt
         cd ../openwrt
         git checkout 9dc86d19628f55bfed2048c412c5b23bda328cff
     - name: Update feeds
+      if: steps.restore-openwrt.outputs.cache-hit != 'true'
       run: |
         cd ../openwrt
         ./scripts/feeds update -a
         ./scripts/feeds install -a
     - name: Make WasmEdge package
+      if: steps.restore-openwrt.outputs.cache-hit != 'true'
       run: |
         cd ../
         mkdir -p ./openwrt/package/utils/WasmEdge
@@ -93,8 +104,15 @@ jobs:
         rm -rf $(find ./dl/ -size -1024c)
         make -j$(nproc) || make -j1 V=s
     - name: Pack OpenWrt images and WasmEdge ipk
+      if: steps.restore-openwrt.outputs.cache-hit != 'true'
       run: |
         cp -rf $(find ../openwrt/bin/ -type f -name "openwrt-x86-64-generic-rootfs.tar.gz") ./
+    - name: Save OpenWrt
+      if: steps.restore-openwrt.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v3
+      with:
+        path: ./openwrt-x86-64-generic-rootfs.tar.gz
+        key: ${{ steps.restore_openwrt.outputs.cache-primary-key }}
     - name: Upload artifact (v2)
       uses: actions/upload-artifact@v3
       with:

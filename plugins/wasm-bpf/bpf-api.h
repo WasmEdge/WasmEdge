@@ -21,20 +21,10 @@ extern "C" {
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 }
-// #include "wasm_export.h"
 
 #define POLL_TIMEOUT_MS 100
 #define DEBUG_LIBBPF_RUNTIME 0
 
-// extern "C" {
-// struct bpf_buffer;
-// struct bpf_map;
-// struct bpf_object;
-// struct bpf_link;
-// void bpf_buffer__free(struct bpf_buffer*);
-// void bpf_object__close(struct bpf_object* object);
-// int bpf_link__destroy(struct bpf_link* link);
-// }
 
 #define PERF_BUFFER_PAGES 64
 
@@ -45,7 +35,6 @@ struct bpf_buffer {
     struct bpf_map* events;
     void* inner;
     bpf_buffer_sample_fn fn;
-    // wasm_exec_env_t exec_env;
     WasmEdge_ExecutorContext* executor;
     const WasmEdge_ModuleInstanceContext* module_instance;
     uint32_t ctx;
@@ -93,13 +82,6 @@ enum bpf_map_cmd {
     _BPF_MAP_DELETE_ELEM,
     _BPF_MAP_GET_NEXT_KEY,
 };
-/// Operate on a bpf map.
-// int bpf_map_operate(int fd,
-//                     int cmd,
-//                     void* key,
-//                     void* value,
-//                     void* next_key,
-//                     uint64_t flags);
 
 using handle_t = int64_t;
 

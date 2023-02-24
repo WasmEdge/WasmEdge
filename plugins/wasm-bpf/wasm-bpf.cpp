@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include <asm/unistd.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -195,7 +198,6 @@ int wasm_bpf_program::attach_bpf_program(const char* name,
                                          const char* attach_target) {
     struct bpf_link* link;
     if (!attach_target) {
-        // auto attach
         link = bpf_program__attach(
             bpf_object__find_program_by_name(obj.get(), name));
     } else {
@@ -227,8 +229,6 @@ int wasm_bpf_program::attach_bpf_program(const char* name,
 int wasm_bpf_program::bpf_buffer_poll(
     WasmEdge_ExecutorContext* executor,
     const WasmEdge_ModuleInstanceContext* module_instance,
-
-    // const WasmEdge::Runtime::Instance::ModuleInstance* module_instance,
     int fd,
     int32_t sample_func,
     uint32_t ctx,
@@ -248,7 +248,6 @@ int wasm_bpf_program::bpf_buffer_poll(
     buffer->module_instance = module_instance;
     buffer->executor = executor;
     buffer->wasm_buf_ptr = wasm_buf_ptr;
-    // buffer->exec_env = exec_env;
     buffer->wasm_sample_function = (uint32_t)sample_func;
     buffer->ctx = ctx;
 
@@ -259,71 +258,3 @@ int wasm_bpf_program::bpf_buffer_poll(
     }
     return 0;
 }
-
-/// a wrapper function to call the bpf syscall
-// int bpf_map_operate(int fd,
-//                     int cmd,
-//                     void* key,
-//                     void* value,
-//                     void* next_key,
-//                     uint64_t flags) {
-//     switch (cmd) {
-//         case BPF_MAP_GET_NEXT_KEY:
-//             return bpf_map_get_next_key(fd, key, next_key);
-//         case BPF_MAP_LOOKUP_ELEM:
-//             return bpf_map_lookup_elem_flags(fd, key, value, flags);
-//         case BPF_MAP_UPDATE_ELEM:
-//             return bpf_map_update_elem(fd, key, value, flags);
-//         case BPF_MAP_DELETE_ELEM:
-//             return bpf_map_delete_elem_flags(fd, key, flags);
-//         default:  // More syscall commands can be allowed here
-//             return -EINVAL;
-//     }
-//     return -EINVAL;
-// }
-
-// extern "C" {
-// uint64_t wasm_load_bpf_object(wasm_exec_env_t exec_env, void *obj_buf,
-//                               int obj_buf_sz) {
-//     if (obj_buf_sz <= 0) return 0;
-//     wasm_bpf_program *program = new wasm_bpf_program();
-//     int res = program->load_bpf_object(obj_buf, (size_t)obj_buf_sz);
-//     if (res < 0) {
-//         delete program;
-//         return 0;
-//     }
-//     return (uint64_t)program;
-// }
-
-// int wasm_close_bpf_object(wasm_exec_env_t exec_env, uint64_t program) {
-//     delete ((wasm_bpf_program *)program);
-//     return 0;
-// }
-
-// int wasm_attach_bpf_program(wasm_exec_env_t exec_env, uint64_t program,
-//                             char *name, char *attach_target) {
-//     return ((wasm_bpf_program *)program)
-//         ->attach_bpf_program(name, attach_target);
-// }
-
-// int wasm_bpf_buffer_poll(wasm_exec_env_t exec_env, uint64_t program, int fd,
-//                          int32_t sample_func, uint32_t ctx, char *data,
-//                          int max_size, int timeout_ms) {
-//     return ((wasm_bpf_program *)program)
-//         ->bpf_buffer_poll(exec_env, fd, sample_func, ctx, data,
-//                           (size_t)max_size, timeout_ms);
-// }
-
-// int wasm_bpf_map_fd_by_name(wasm_exec_env_t exec_env, uint64_t program,
-//                             const char *name) {
-//     return ((wasm_bpf_program *)program)->bpf_map_fd_by_name(name);
-// }
-
-// int wasm_bpf_map_operate(wasm_exec_env_t exec_env, int fd, int cmd, void
-// *key,
-//                          void *value, void *next_key, uint64_t flags) {
-//     return bpf_map_operate(fd, (bpf_map_cmd)cmd, key, value, next_key,
-//     flags);
-// }
-// }
-

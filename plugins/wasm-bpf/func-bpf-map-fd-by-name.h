@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #ifndef _FUNC_BPF_MAP_FD_BY_NAME
 #define _FUNC_BPF_MAP_FD_BY_NAME
 

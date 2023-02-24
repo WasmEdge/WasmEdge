@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "func-attach-bpf-program.h"
 #include <shared_mutex>
 #include "util.h"

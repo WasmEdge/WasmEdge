@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "util.h"
 using namespace WasmEdge;
 Expect<const char*> read_c_str(Runtime::Instance::MemoryInstance* memory,
@@ -11,6 +14,6 @@ Expect<const char*> read_c_str(Runtime::Instance::MemoryInstance* memory,
             break;
         tail++;
     }
-    uint32_t len = tail - ptr + 1 /*trailing zero included*/;
+    uint32_t len = tail - ptr + 1;
     return memory->getPointer<char*>(ptr, len);
 }

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "func-bpf-buffer-poll.h"
 #include <shared_mutex>
 #include "wasmedge/wasmedge.h"
@@ -17,7 +20,6 @@ Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame& Frame,
                                     uint32_t data,
                                     int max_size,
                                     int timeout_ms) {
-    // Frame.getModule()
     std::shared_lock lock(state->lock);
     if (!state->handles.count(program)) {
         return Unexpect(ErrCode::Value::HostFuncError);
@@ -35,9 +37,6 @@ Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame& Frame,
     if (data_buf == nullptr) {
         return Unexpect(ErrCode::Value::HostFuncError);
     }
-    // auto executor = toExecutorCxt(Frame.getExecutor());
-    // auto c_memory = toMemCxt(memory);
-    // WasmEdge_CallingFrameGetModuleInstance
     auto c_ctx = toCallFrameCxt(&Frame);
 
     auto c_module = WasmEdge_CallingFrameGetModuleInstance(c_ctx);

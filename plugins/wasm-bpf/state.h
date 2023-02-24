@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #ifndef _WASM_BPF_STATE
 #define _WASM_BPF_STATE
 
@@ -15,6 +18,7 @@ struct WasmBpfState {
             delete p->second;
         }
     }
+    std::map<int, bpf_map*> map_fd_cache;
 };
 
 using state_t = std::shared_ptr<WasmBpfState>;

@@ -2116,62 +2116,6 @@ TEST(APICoreTest, ModuleInstance) {
   EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(HostMod), EXIT_SUCCESS);
   EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(nullptr), EXIT_FAILURE);
   WasmEdge_VMDelete(VM);
-
-  // Setup extra plugin path
-#if WASMEDGE_OS_WINDOWS
-  ::_putenv_s("WASMEDGE_PLUGIN_PATH", "../../plugins/wasmedge_process");
-#else
-  ::setenv("WASMEDGE_PLUGIN_PATH", "../../plugins/wasmedge_process", 0);
-#endif
-
-  // wasmedge_process only works on Linux.
-  // Load plugins
-  WasmEdge_PluginLoadWithDefaultPaths();
-
-  // Create wasmedge_process.
-  HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(Args, 2, false);
-#ifdef WASMEDGE_PLUGIN_PROCESS
-  EXPECT_NE(HostMod, nullptr);
-  WasmEdge_ModuleInstanceDelete(HostMod);
-#else
-  EXPECT_EQ(HostMod, nullptr);
-#endif
-  HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(nullptr, 0, false);
-#ifdef WASMEDGE_PLUGIN_PROCESS
-  EXPECT_NE(HostMod, nullptr);
-  WasmEdge_ModuleInstanceDelete(HostMod);
-#else
-  EXPECT_EQ(HostMod, nullptr);
-#endif
-  HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(Args, 2, true);
-#ifdef WASMEDGE_PLUGIN_PROCESS
-  EXPECT_NE(HostMod, nullptr);
-  WasmEdge_ModuleInstanceDelete(HostMod);
-#else
-  EXPECT_EQ(HostMod, nullptr);
-#endif
-  HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(nullptr, 0, true);
-#ifdef WASMEDGE_PLUGIN_PROCESS
-  EXPECT_NE(HostMod, nullptr);
-  WasmEdge_ModuleInstanceDelete(HostMod);
-#else
-  EXPECT_EQ(HostMod, nullptr);
-#endif
-
-  // Initialize wasmedge_process in VM.
-  Conf = WasmEdge_ConfigureCreate();
-  WasmEdge_ConfigureAddHostRegistration(
-      Conf, WasmEdge_HostRegistration_WasmEdge_Process);
-  VM = WasmEdge_VMCreate(Conf, nullptr);
-  WasmEdge_ConfigureDelete(Conf);
-  HostMod = WasmEdge_VMGetImportModuleContext(
-      VM, WasmEdge_HostRegistration_WasmEdge_Process);
-#ifdef WASMEDGE_PLUGIN_PROCESS
-  EXPECT_NE(HostMod, nullptr);
-#else
-  EXPECT_EQ(HostMod, nullptr);
-#endif
-  WasmEdge_VMDelete(VM);
 }
 
 TEST(APICoreTest, Async) {
@@ -2456,6 +2400,7 @@ TEST(APICoreTest, Async) {
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   WasmEdge_VMCleanup(VM);
+  WasmEdge_VMRegisterModuleFromImport(VM, HostMod);
   // Inited phase
   Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
@@ -2549,6 +2494,7 @@ TEST(APICoreTest, Async) {
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   WasmEdge_VMCleanup(VM);
+  WasmEdge_VMRegisterModuleFromImport(VM, HostMod);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBuffer(
       VM, ModName, Buf.data(), static_cast<uint32_t>(Buf.size()))));
   // Success case
@@ -2887,6 +2833,25 @@ TEST(APICoreTest, VM) {
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, nullptr, 1)));
 
+  // VM get registered module
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 13U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(nullptr, Names, 15), 0U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 15), 13U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 13U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string(""));
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 15), 13U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length),
+            std::string("reg-wasm-ast"));
+  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length),
+            std::string("reg-wasm-buffer"));
+  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length),
+            std::string("reg-wasm-file"));
+
   // VM load wasm from file
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromFile(VM, TPath)));
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
@@ -2932,12 +2897,16 @@ TEST(APICoreTest, VM) {
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
                          WasmEdge_VMInstantiate(nullptr)));
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VM, HostMod)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
 
   // VM execute
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   WasmEdge_VMCleanup(VM);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VM, HostMod)));
   // Inited phase
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongInstanceAddress,
                          WasmEdge_VMExecute(VM, FuncName, P, 2, R, 2)));
@@ -2991,6 +2960,10 @@ TEST(APICoreTest, VM) {
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   WasmEdge_VMCleanup(VM);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VM, HostMod)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBuffer(
+      VM, ModName, Buf.data(), static_cast<uint32_t>(Buf.size()))));
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_VMExecuteRegistered(VM, ModName, FuncName, P, 2, R, 2)));
   EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
@@ -3041,6 +3014,8 @@ TEST(APICoreTest, VM) {
 
   // VM get function type
   WasmEdge_VMCleanup(VM);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VM, HostMod)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromASTModule(VM, Mod)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
@@ -3049,6 +3024,8 @@ TEST(APICoreTest, VM) {
   EXPECT_EQ(WasmEdge_VMGetFunctionType(VM, FuncName2), nullptr);
 
   // VM get function type registered
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBuffer(
+      VM, ModName, Buf.data(), static_cast<uint32_t>(Buf.size()))));
   EXPECT_NE(WasmEdge_VMGetFunctionTypeRegistered(VM, ModName, FuncName),
             nullptr);
   EXPECT_EQ(WasmEdge_VMGetFunctionTypeRegistered(nullptr, ModName, FuncName),
@@ -3120,22 +3097,40 @@ TEST(APICoreTest, VM) {
   EXPECT_EQ(std::string(Names[10].Buf, Names[10].Length),
             std::string("func-mul-2"));
 
+  // VM get active module
+  EXPECT_NE(WasmEdge_VMGetActiveModule(VM), nullptr);
+  EXPECT_EQ(
+      WasmEdge_ModuleInstanceListFunctionLength(WasmEdge_VMGetActiveModule(VM)),
+      11U);
+  EXPECT_EQ(WasmEdge_VMGetActiveModule(nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunctionLength(
+                WasmEdge_VMGetActiveModule(nullptr)),
+            0U);
+  WasmEdge_VMCleanup(VM);
+  EXPECT_EQ(WasmEdge_VMGetActiveModule(VM), nullptr);
+
   // VM cleanup
   WasmEdge_VMCleanup(VM);
   EXPECT_TRUE(true);
   WasmEdge_VMCleanup(nullptr);
   EXPECT_TRUE(true);
 
-  // VM get import module
+  // VM get pre-registered module (WASI)
   EXPECT_NE(
       WasmEdge_VMGetImportModuleContext(VM, WasmEdge_HostRegistration_Wasi),
       nullptr);
-  EXPECT_EQ(WasmEdge_VMGetImportModuleContext(
-                VM, WasmEdge_HostRegistration_WasmEdge_Process),
-            nullptr);
   EXPECT_EQ(WasmEdge_VMGetImportModuleContext(nullptr,
                                               WasmEdge_HostRegistration_Wasi),
             nullptr);
+
+  // VM get registered module (plug-ins)
+  ModName = WasmEdge_StringCreateByCString("wasi_ephemeral_nn");
+  EXPECT_NE(WasmEdge_VMGetRegisteredModule(VM, ModName), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetRegisteredModule(nullptr, ModName), nullptr);
+  WasmEdge_StringDelete(ModName);
+  ModName = WasmEdge_StringCreateByCString("no-such-plugin");
+  EXPECT_EQ(WasmEdge_VMGetRegisteredModule(VM, ModName), nullptr);
+  WasmEdge_StringDelete(ModName);
 
   // VM get store
   EXPECT_EQ(WasmEdge_VMGetStoreContext(VM), Store);
@@ -3162,6 +3157,65 @@ TEST(APICoreTest, VM) {
   WasmEdge_StoreDelete(Store);
   WasmEdge_VMDelete(VM);
 }
+
+#if defined(WASMEDGE_BUILD_PLUGINS) && WASMEDGE_OS_LINUX
+TEST(APICoreTest, Plugin) {
+  WasmEdge_String Names[15];
+
+  // Load from the specific path
+  EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 0U);
+  WasmEdge_PluginLoadFromPath(
+      "../plugins/unittest/libwasmedgePluginTestModule" WASMEDGE_LIB_EXTENSION);
+  EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 1U);
+
+  // Get the loaded plugin length
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_PluginListPlugins(nullptr, 0), 1U);
+  EXPECT_EQ(WasmEdge_PluginListPlugins(Names, 0), 1U);
+  EXPECT_EQ(WasmEdge_PluginListPlugins(Names, 15), 1U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
+            std::string("wasmedge_plugintest"));
+
+  // Find the plugin context
+  const WasmEdge_PluginContext *PluginCxt =
+      WasmEdge_PluginFind(WasmEdge_StringWrap("no-such-plugin-name", 19));
+  EXPECT_EQ(PluginCxt, nullptr);
+  PluginCxt = WasmEdge_PluginFind(Names[0]);
+  EXPECT_NE(PluginCxt, nullptr);
+
+  // Get plugin name
+  Names[0] = WasmEdge_PluginGetPluginName(PluginCxt);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
+            std::string("wasmedge_plugintest"));
+  Names[0] = WasmEdge_PluginGetPluginName(nullptr);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string(""));
+
+  // List modules in the plugin
+  EXPECT_EQ(WasmEdge_PluginListModuleLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_PluginListModuleLength(PluginCxt), 1U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_PluginListModule(nullptr, Names, 15), 0U);
+  EXPECT_EQ(WasmEdge_PluginListModule(nullptr, nullptr, 0), 0U);
+  EXPECT_EQ(WasmEdge_PluginListModule(PluginCxt, nullptr, 0), 1U);
+  EXPECT_EQ(WasmEdge_PluginListModule(PluginCxt, Names, 0), 1U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string(""));
+  EXPECT_EQ(WasmEdge_PluginListModule(PluginCxt, Names, 15), 1U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
+            std::string("wasmedge_plugintest"));
+
+  // Create the module
+  WasmEdge_ModuleInstanceContext *ModCxt =
+      WasmEdge_PluginCreateModule(nullptr, Names[0]);
+  EXPECT_EQ(ModCxt, nullptr);
+  ModCxt = WasmEdge_PluginCreateModule(
+      PluginCxt, WasmEdge_StringWrap("no-such-plugin-name", 19));
+  EXPECT_EQ(ModCxt, nullptr);
+  ModCxt = WasmEdge_PluginCreateModule(PluginCxt, Names[0]);
+  EXPECT_NE(ModCxt, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, Names, 15), 4U);
+  WasmEdge_ModuleInstanceDelete(ModCxt);
+}
+#endif
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

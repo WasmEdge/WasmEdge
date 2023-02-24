@@ -6,6 +6,8 @@
 
 #include <cinttypes>
 #include <memory>
+#include <mutex>
+#include <unordered_map>
 #include "bpf-api.h"
 #include "plugin/plugin.h"
 #include "po/helper.h"
@@ -25,6 +27,10 @@ class BpfMapOperate : public WasmEdge::Runtime::HostFunction<BpfMapOperate> {
 
    private:
     state_t state;
+    std::mutex cache_lock;
+    std::unordered_map<int, bpf_map*> map_fd_cache;
+
+    void reloadMapFdCache();
 };
 
 #endif

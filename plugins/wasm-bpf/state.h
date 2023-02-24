@@ -18,7 +18,6 @@ struct WasmBpfState {
             delete p->second;
         }
     }
-    std::map<int, bpf_map*> map_fd_cache;
 };
 
 using state_t = std::shared_ptr<WasmBpfState>;

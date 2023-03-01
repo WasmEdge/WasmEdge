@@ -13,21 +13,21 @@ void exitWithError(enum ErrorCode error, char *message) { exit(-1); }
 
 void throwNoClassDefError(JNIEnv *env, char *message) {
   jclass exClass;
-  char *className = "java/lang/NoClassDefFoundError";
+  char *className = JAVA_LANG_NOCLASSDEFFOUNDERROR;
 
   exClass = (*env)->FindClass(env, className);
 
   if (exClass == NULL) {
-    exitWithError(JVM_ERROR, "Exception class not found.");
+    exitWithError(JVM_ERROR, ERR_CLASS_NOT_FOUND);
   }
   (*env)->ThrowNew(env, exClass, message);
 
-  exitWithError(JVM_ERROR, "Exception thrown for no class def");
+  exitWithError(JVM_ERROR, ERR_EXCEPTION_THROWN_CLASS_NOT_FOUND);
 }
 
 void throwNoSuchMethodError(JNIEnv *env, char *methodName, char *sig) {
   jclass exClass;
-  char *className = "java/lang/NoSuchMethodError";
+  char *className = JAVA_LANG_NOSUCHMETHODERROR;
 
   char message[1000];
 
@@ -39,13 +39,13 @@ void throwNoSuchMethodError(JNIEnv *env, char *methodName, char *sig) {
   }
 
   (*env)->ThrowNew(env, exClass, methodName);
-  exitWithError(JVM_ERROR, "Exception thrown for no such method");
+  exitWithError(JVM_ERROR, ERR_NO_SUCH_METHOD);
 }
 
 jclass findJavaClass(JNIEnv *env, char *className) {
   jclass class = (*env)->FindClass(env, className);
 
-  bool hasException = checkAndHandleException(env, "find class error");
+  bool hasException = checkAndHandleException(env, ERR_FIND_CLASS);
   if (hasException) {
     return NULL;
   }
@@ -67,19 +67,19 @@ void getClassName(JNIEnv *env, jobject obj, char *buff) {
 
   // First get the class object
   jmethodID mid =
-      (*env)->GetMethodID(env, cls, "getClass", "()Ljava/lang/Class;");
+      (*env)->GetMethodID(env, cls, GET_CLASS, VOID_CLASS);
   jobject clsObj = (*env)->CallObjectMethod(env, obj, mid);
-  checkAndHandleException(env, "get class name error");
+  checkAndHandleException(env, ERR_GET_CLASS_NAME);
 
   // Now get the class object's class descriptor
   cls = (*env)->GetObjectClass(env, clsObj);
 
   // Find the getName() method on the class object
-  mid = (*env)->GetMethodID(env, cls, "getName", "()Ljava/lang/String;");
+  mid = (*env)->GetMethodID(env, cls, GET_NAME, VOID_STRING);
 
   // Call the getName() to get a jstring object back
   jstring strObj = (jstring)(*env)->CallObjectMethod(env, clsObj, mid);
-  checkAndHandleException(env, "get name error");
+  checkAndHandleException(env, ERR_GET_NAME_FALIED);
 
   // Now get the c string from the java jstring object
   const char *str = (*env)->GetStringUTFChars(env, strObj, NULL);
@@ -95,12 +95,12 @@ long getPointer(JNIEnv *env, jobject obj) {
   jclass cls = (*env)->GetObjectClass(env, obj);
 
   if (cls == NULL) {
-    exitWithError(JVM_ERROR, "class not found!");
+    exitWithError(JVM_ERROR, ERR_CLASS_NOT_FOUND);
   }
 
-  jfieldID fidPointer = (*env)->GetFieldID(env, cls, "pointer", "J");
+  jfieldID fidPointer = (*env)->GetFieldID(env, cls, POINTER, POINTER_TYPE);
   if (fidPointer == NULL) {
-    exitWithError(JVM_ERROR, "pointer filed not found!");
+    exitWithError(JVM_ERROR, ERR_POINTER_FIELD_NOT_FOUND);
   }
   jlong value = (*env)->GetLongField(env, obj, fidPointer);
   return value;
@@ -108,48 +108,48 @@ long getPointer(JNIEnv *env, jobject obj) {
 
 void setPointer(JNIEnv *env, jobject obj, long val) {
   jclass cls = (*env)->GetObjectClass(env, obj);
-  jfieldID fidPointer = (*env)->GetFieldID(env, cls, "pointer", "J");
+  jfieldID fidPointer = (*env)->GetFieldID(env, cls, POINTER, POINTER_TYPE);
   (*env)->SetLongField(env, obj, fidPointer, val);
 }
 
 void handleWasmEdgeResult(JNIEnv *env, WasmEdge_Result *result) {
   if (!WasmEdge_ResultOK(*result)) {
     char exceptionBuffer[1024];
-    sprintf(exceptionBuffer, "Error occurred with message: %s.",
+    sprintf(exceptionBuffer, ERR_TEMPLATE,
             WasmEdge_ResultGetMessage(*result));
 
-    (*env)->ThrowNew(env, (*env)->FindClass(env, "java/lang/Exception"),
+    (*env)->ThrowNew(env, (*env)->FindClass(env, JAVA_LANG_EXCEPTION),
                      exceptionBuffer);
   }
 }
 
 int getIntVal(JNIEnv *env, jobject val) {
   jclass clazz = (*env)->GetObjectClass(env, val);
-  jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()I");
+  jmethodID methodId = findJavaMethod(env, clazz, GET_VALUE, VOID_INT);
 
   jint value = (*env)->CallIntMethod(env, val, methodId);
-  checkAndHandleException(env, "Error get int value");
+  checkAndHandleException(env, ERR_GET_INT_VALUE);
   return value;
 }
 
 long getLongVal(JNIEnv *env, jobject val) {
   jclass clazz = (*env)->GetObjectClass(env, val);
 
-  jmethodID methodId = (*env)->GetMethodID(env, clazz, "getValue", "()J");
+  jmethodID methodId = (*env)->GetMethodID(env, clazz, GET_VALUE, VOID_LONG);
   jlong value = (*env)->CallLongMethod(env, val, methodId);
   return value;
 }
 
 long getFloatVal(JNIEnv *env, jobject val) {
   jclass clazz = (*env)->GetObjectClass(env, val);
-  jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()F");
+  jmethodID methodId = findJavaMethod(env, clazz, GET_VALUE, VOID_FLOAT);
   jfloat value = (*env)->CallFloatMethod(env, val, methodId);
   return value;
 }
 
 double getDoubleVal(JNIEnv *env, jobject val) {
   jclass clazz = (*env)->GetObjectClass(env, val);
-  jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()D");
+  jmethodID methodId = findJavaMethod(env, clazz, GET_VALUE, VOID_DOUBLE);
   jdouble value = (*env)->CallDoubleMethod(env, val, methodId);
   return value;
 }
@@ -158,7 +158,7 @@ char *getStringVal(JNIEnv *env, jobject val) {
   jclass clazz = (*env)->GetObjectClass(env, val);
 
   jmethodID methodId =
-      findJavaMethod(env, clazz, "getValue", "()Ljava/lang/String;");
+      findJavaMethod(env, clazz, GET_VALUE, VOID_STRING);
 
   jstring value = (jstring)(*env)->CallObjectMethod(env, val, methodId);
 
@@ -194,12 +194,12 @@ bool checkAndHandleException(JNIEnv *env, const char *msg) {
     jclass eclass = (*env)->GetObjectClass(env, e);
 
     jmethodID mid =
-        (*env)->GetMethodID(env, eclass, "toString", "()Ljava/lang/String;");
+        (*env)->GetMethodID(env, eclass, TO_STRING, VOID_STRING);
     jstring jErrorMsg = (*env)->CallObjectMethod(env, e, mid);
     const char *cMsg = (*env)->GetStringUTFChars(env, jErrorMsg, NULL);
 
     (*env)->ReleaseStringUTFChars(env, jErrorMsg, cMsg);
-    jclass newExcCls = (*env)->FindClass(env, "java/lang/RuntimeException");
+    jclass newExcCls = (*env)->FindClass(env, JAVA_LANG_RUNTIMEEXCEPTION);
     if (newExcCls == 0) { /* Unable to find the new exception class, give up. */
       return true;
     }
@@ -210,7 +210,7 @@ bool checkAndHandleException(JNIEnv *env, const char *msg) {
 }
 
 void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val) {
-  switch (value.Type) {
+  switch (value.Type.TypeCode) {
   case WasmEdge_ValType_I32:
     setJavaIntValue(env, value, j_val);
     break;
@@ -244,13 +244,13 @@ jstring WasmEdgeStringToJString(JNIEnv *env, WasmEdge_String wStr) {
 }
 
 jobject CreateJavaArrayList(JNIEnv *env, jint len) {
-  jclass listClass = findJavaClass(env, "java/util/ArrayList");
+  jclass listClass = findJavaClass(env, JAVA_UTIL_ARRAYLIST);
 
   if (listClass == NULL) {
     return NULL;
   }
 
-  jmethodID listConstructor = findJavaMethod(env, listClass, "<init>", "(I)V");
+  jmethodID listConstructor = findJavaMethod(env, listClass, DEFAULT_CONSTRUCTOR, INT_VOID);
 
   if (listConstructor == NULL) {
     return NULL;
@@ -262,21 +262,21 @@ jobject CreateJavaArrayList(JNIEnv *env, jint len) {
     return NULL;
   }
 
-  if (checkAndHandleException(env, "Error when creating java list\n")) {
+  if (checkAndHandleException(env, ERR_CREATE_JAVA_LIST)) {
     return NULL;
   }
   return jList;
 }
 
 bool AddElementToJavaList(JNIEnv *env, jobject jList, jobject ele) {
-  jclass listClass = findJavaClass(env, "java/util/ArrayList");
+  jclass listClass = findJavaClass(env, JAVA_UTIL_ARRAYLIST);
 
   if (listClass == NULL) {
     return false;
   }
 
   jmethodID addMethod =
-      findJavaMethod(env, listClass, "add", "(Ljava/lang/Object;)Z");
+      findJavaMethod(env, listClass, ADD_ELEMENT, OBJECT_BOOL);
 
   return (*env)->CallBooleanMethod(env, jList, addMethod, ele);
 }
@@ -284,7 +284,7 @@ bool AddElementToJavaList(JNIEnv *env, jobject jList, jobject ele) {
 jobject GetListElement(JNIEnv *env, jobject jList, jint idx) {
   jclass listClass = (*env)->GetObjectClass(env, jList);
   jmethodID getMethod =
-      findJavaMethod(env, listClass, "get", "(I)Ljava/lang/Object;");
+      findJavaMethod(env, listClass, GET, INT_OBJECT);
 
   return (*env)->CallObjectMethod(env, jList, getMethod, idx);
 }
@@ -292,7 +292,7 @@ jobject GetListElement(JNIEnv *env, jobject jList, jint idx) {
 jint GetListSize(JNIEnv *env, jobject jList) {
 
   jclass listClass = (*env)->GetObjectClass(env, jList);
-  jmethodID sizeMethod = (*env)->GetMethodID(env, listClass, "size", "()I");
+  jmethodID sizeMethod = (*env)->GetMethodID(env, listClass, LIST_SIZE, VOID_INT);
   jint size = (*env)->CallIntMethod(env, jList, sizeMethod);
 
   return size;
@@ -343,3 +343,4 @@ jobject WasmEdgeStringArrayToJavaList(JNIEnv *env, WasmEdge_String *wStrList,
   }
   return strList;
 }
+

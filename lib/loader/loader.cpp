@@ -171,55 +171,5 @@ Loader::parseModule(Span<const uint8_t> Code) {
   return loadModule();
 }
 
-// Helper function of checking the valid value types.
-Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
-                                              ASTNodeAttr Node) const noexcept {
-  if (VType == ValType::V128 && !Conf.hasProposal(Proposal::SIMD)) {
-    return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::SIMD,
-                           Off, Node);
-  }
-  if ((VType == ValType::FuncRef &&
-       !Conf.hasProposal(Proposal::ReferenceTypes) &&
-       !Conf.hasProposal(Proposal::BulkMemoryOperations)) ||
-      (VType == ValType::ExternRef &&
-       !Conf.hasProposal(Proposal::ReferenceTypes))) {
-    return logNeedProposal(ErrCode::Value::MalformedElemType,
-                           Proposal::ReferenceTypes, Off, Node);
-  }
-  switch (VType) {
-  case ValType::I32:
-  case ValType::I64:
-  case ValType::F32:
-  case ValType::F64:
-  case ValType::V128:
-  case ValType::ExternRef:
-  case ValType::FuncRef:
-    return VType;
-  default:
-    return logLoadError(ErrCode::Value::MalformedValType, Off, Node);
-  }
-}
-
-// Helper function of checking the valid reference types.
-Expect<RefType> Loader::checkRefTypeProposals(RefType RType, uint64_t Off,
-                                              ASTNodeAttr Node) const noexcept {
-  switch (RType) {
-  case RefType::ExternRef:
-    if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logNeedProposal(ErrCode::Value::MalformedElemType,
-                             Proposal::ReferenceTypes, Off, Node);
-    }
-    [[fallthrough]];
-  case RefType::FuncRef:
-    return RType;
-  default:
-    if (Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logLoadError(ErrCode::Value::MalformedRefType, Off, Node);
-    } else {
-      return logLoadError(ErrCode::Value::MalformedElemType, Off, Node);
-    }
-  }
-}
-
 } // namespace Loader
 } // namespace WasmEdge

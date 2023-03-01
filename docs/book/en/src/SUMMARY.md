@@ -21,7 +21,7 @@
   - [Serverless Function-As-A-Service in Public Clouds](use_cases/serverless_faas.md)
   - [Serverless Software-As-A-Service Functions](use_cases/serverless_saas.md)
   - [Smart devices](use_cases/smart_device.md)
-  - [JavaScript or Domain Specifc Language Runtime](use_cases/js_or_dsl_runtime.md)
+  - [JavaScript or Domain Specific Language Runtime](use_cases/js_or_dsl_runtime.md)
   - [WasmEdge in Kubernetes](use_cases/kubernetes.md)
     - [Quick start](use_cases/kubernetes/quickstart.md)
     - [Demo apps](use_cases/kubernetes/demo.md)
@@ -94,6 +94,7 @@
 
 - [Use WasmEdge Library](sdk.md)
   - [C SDK](sdk/c.md)
+    - [Use the WasmEdge C Library](sdk/c/library.md)
     - [Host Function Implementation](sdk/c/hostfunction.md)
     - [ExternRef Example](sdk/c/externref.md)
     - [0.11.2 API references](sdk/c/ref.md)

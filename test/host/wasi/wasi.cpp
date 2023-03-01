@@ -601,7 +601,7 @@ TEST(WasiTest, PollOneoffSocket) {
   std::mutex Mutex;
   std::condition_variable ActionRequested;
   std::condition_variable ActionProcessed;
-  const std::array<uint8_t, 4> Address{127, 0, 0, 1};
+  const std::array<uint8_t, 128> Address{1, 0, 127, 0, 0, 1};
   const uint32_t Port = 18000;
 
   std::thread Server([&]() {
@@ -1180,6 +1180,13 @@ TEST(WasiTest, PollOneoffSocket) {
       std::unique_lock<std::mutex> Lock(Mutex);
       ActionProcessed.wait(Lock, [&]() { return ActionDone.exchange(false); });
     }
+
+    // The following code includes a sleep to prevent a possible delay when
+    // sending and recving data. There is a chance that PollOneoff may not
+    // immediately get the read event when it is called right after the server
+    // has sent the data. Without the sleep, there is a risk that the unit test
+    // may not pass. We found this problem on macOS.
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     // poll read, write and 100 milliseconds, expect read and write
     PollReadWriteReadWrite();

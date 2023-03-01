@@ -42,6 +42,8 @@ A(Seg_Element, "element segment")
 A(Seg_Code, "code segment")
 A(Seg_Data, "data segment")
 A(Type_Function, "function type")
+A(Type_ValType, "value type")
+A(Type_RefType, "reference type")
 A(Type_Limit, "limit")
 A(Type_Memory, "memory type")
 A(Type_Table, "table type")
@@ -740,6 +742,8 @@ E(ENDCodeExpected, 0x38, "END opcode expected")
 E(IllegalGrammar, 0x39, "invalid wasm grammar")
 // Shared memory must have max
 E(SharedMemoryNoMax, 0x3A, "shared memory must have maximum")
+// Intrinsics table not found
+E(IntrinsicsTableNotFound, 0x3B, "intrinsics table not found")
 // @}
 
 // Validation phase

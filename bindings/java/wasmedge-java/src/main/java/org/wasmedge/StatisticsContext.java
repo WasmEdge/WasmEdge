@@ -1,5 +1,8 @@
 package org.wasmedge;
 
+/**
+ * Static context for vm execution.
+ */
 public class StatisticsContext {
     private long pointer;
 

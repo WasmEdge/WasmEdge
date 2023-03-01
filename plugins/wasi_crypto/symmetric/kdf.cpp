@@ -69,7 +69,6 @@ Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
                    __WASI_CRYPTO_ERRNO_INVALID_KEY);
   }
 
-  ensureOrReturn(KeyLen == getKeySize(), __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   return {};
 }
 

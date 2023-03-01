@@ -6,8 +6,10 @@
 
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
+#include "constants.h"
 
 #define MAX_BUF_LEN 1024
+
 
 enum ErrorCode { JVM_ERROR, WVM_ERROR };
 
@@ -74,5 +76,13 @@ void ReleaseCString(JNIEnv *env, jarray jStrArray, const char **ptr);
 jobject GetListElement(JNIEnv *env, jobject jList, jint idx);
 
 jint GetListSize(JNIEnv *env, jobject jList);
+
+#define GETTER(NAME) WasmEdge_ ## NAME *get ## NAME(JNIEnv *env,\
+                                             jobject j ## NAME) {\
+    if (j ## NAME == NULL) {\
+        return NULL;\
+    }\
+    return (WasmEdge_ ##NAME  *)getPointer(env, j ##NAME );\
+}\
 
 #endif // WASMEDGE_JAVA_COMMON_H

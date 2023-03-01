@@ -40,7 +40,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
                              PO::MetaVar("ARG"sv));
 
   PO::Option<PO::Toggle> Reactor(PO::Description(
-      "Enable reactor mode. Reactor mode calls `_initialize` if exported."));
+      "Enable reactor mode. Reactor mode calls `_initialize` if exported."sv));
 
   PO::List<std::string> Dir(
       PO::Description(
@@ -294,7 +294,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
 
   if (EnterCommandMode) {
     // command mode
-    auto AsyncResult = VM.asyncExecute("_start");
+    auto AsyncResult = VM.asyncExecute("_start"sv);
     if (Timeout.has_value()) {
       if (!AsyncResult.waitUntil(*Timeout)) {
         AsyncResult.cancel();
@@ -342,11 +342,11 @@ int Tool(int Argc, const char *Argv[]) noexcept {
     }
 
     std::vector<ValVariant> FuncArgs;
-    std::vector<ValType> FuncArgTypes;
+    std::vector<FullValType> FuncArgTypes;
     for (size_t I = 0;
          I < FuncType.getParamTypes().size() && I + 1 < Args.value().size();
          ++I) {
-      switch (FuncType.getParamTypes()[I]) {
+      switch (FuncType.getParamTypes()[I].getTypeCode()) {
       case ValType::I32: {
         const uint32_t Value =
             static_cast<uint32_t>(std::stol(Args.value()[I + 1]));
@@ -397,7 +397,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
     if (auto Result = AsyncResult.get()) {
       /// Print results.
       for (size_t I = 0; I < Result->size(); ++I) {
-        switch ((*Result)[I].second) {
+        switch ((*Result)[I].second.getTypeCode()) {
         case ValType::I32:
           std::cout << (*Result)[I].first.get<uint32_t>() << '\n';
           break;

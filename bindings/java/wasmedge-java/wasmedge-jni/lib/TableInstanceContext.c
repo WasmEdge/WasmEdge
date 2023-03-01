@@ -7,18 +7,7 @@
 #include "common.h"
 #include "wasmedge/wasmedge.h"
 
-WasmEdge_TableInstanceContext *
-getTableInstanceContext(JNIEnv *env, jobject jTableInstanceContext) {
-
-  if (jTableInstanceContext == NULL) {
-    return NULL;
-  }
-  WasmEdge_TableInstanceContext *tableInstanceContext =
-      (struct WasmEdge_TableInstanceContext *)getPointer(env,
-                                                         jTableInstanceContext);
-
-  return tableInstanceContext;
-}
+GETTER(TableInstanceContext)
 
 JNIEXPORT void JNICALL Java_org_wasmedge_TableInstanceContext_nativeInit(
     JNIEnv *env, jobject thisObject, jobject jTableTypeContext) {
@@ -53,7 +42,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_TableInstanceContext_getData(
       getTableInstanceContext(env, thisObject);
 
   jclass typeClass = (*env)->GetObjectClass(env, jValType);
-  jmethodID typeGetter = (*env)->GetMethodID(env, typeClass, "getValue", "()I");
+  jmethodID typeGetter = (*env)->GetMethodID(env, typeClass, GET_VALUE, VOID_INT);
 
   jint valType = (*env)->CallIntMethod(env, jValType, typeGetter);
 
@@ -109,7 +98,7 @@ createJTableInstanceContext(JNIEnv *env,
     return NULL;
   }
 
-  jclass clazz = (*env)->FindClass(env, "org/wasmedge/TableInstanceContext");
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+  jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_TABLEINSTANCECONTEXT);
+  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
   return (*env)->NewObject(env, clazz, constructorId, (long)tabInstance);
 }

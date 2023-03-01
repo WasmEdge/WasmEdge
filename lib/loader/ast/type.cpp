@@ -9,22 +9,34 @@ namespace WasmEdge {
 namespace Loader {
 
 // Load binary and decode HeapType. See "include/loader/loader.h".
-Expect<RefType> Loader::loadHeapType(RefTypeCode Code, ASTNodeAttr From) {
+Expect<HeapType> Loader::loadHeapType(ASTNodeAttr From) {
   if (auto Res = FMgr.readS33()) {
     if (*Res < 0) {
       // Type index case.
-      RefTypeCode HTCode = static_cast<RefTypeCode>(
+      HeapTypeCode HTCode = static_cast<HeapTypeCode>(
           static_cast<uint8_t>((*Res) & INT64_C(0x7F)));
       switch (HTCode) {
-      case RefTypeCode::FuncRef:
-        return RefType(Code, HeapTypeCode::Func);
-      case RefTypeCode::ExternRef:
-        return RefType(Code, HeapTypeCode::Extern);
+      case HeapTypeCode::Extern:
+        if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
+          return logNeedProposal(ErrCode::Value::MalformedRefType,
+                                 Proposal::ReferenceTypes, FMgr.getLastOffset(),
+                                 From);
+        }
+        [[fallthrough]];
+      case HeapTypeCode::Func:
+        // The FuncRef (0x70) is always allowed in the RefType even if the
+        // reference-types proposal not enabled.
+        return HeapType(HTCode);
       default:
         return logLoadError(Res.error(), FMgr.getLastOffset(), From);
       }
     } else {
-      return RefType(Code, static_cast<uint32_t>(*Res));
+      if (!Conf.hasProposal(Proposal::FunctionReferences)) {
+        return logNeedProposal(ErrCode::Value::MalformedRefType,
+                               Proposal::FunctionReferences,
+                               FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+      }
+      return HeapType(static_cast<uint32_t>(*Res));
     }
   } else {
     return logLoadError(Res.error(), FMgr.getLastOffset(), From);
@@ -56,7 +68,11 @@ Expect<RefType> Loader::loadRefType(ASTNodeAttr From) {
         return logNeedProposal(FailCode, Proposal::FunctionReferences,
                                FMgr.getLastOffset(), From);
       }
-      return loadHeapType(Code, From);
+      if (auto HTypeRes = loadHeapType(From)) {
+        return RefType(Code, *HTypeRes);
+      } else {
+        return Unexpect(HTypeRes);
+      }
     default:
       return logLoadError(FailCode, FMgr.getLastOffset(), From);
     }
@@ -103,7 +119,11 @@ Expect<ValType> Loader::loadValType(ASTNodeAttr From) {
                                Proposal::FunctionReferences,
                                FMgr.getLastOffset(), From);
       }
-      return loadHeapType(static_cast<RefTypeCode>(Code), From);
+      if (auto HTypeRes = loadHeapType(From)) {
+        return RefType(static_cast<RefTypeCode>(Code), *HTypeRes);
+      } else {
+        return Unexpect(HTypeRes);
+      }
     default:
       return logLoadError(ErrCode::Value::MalformedValType,
                           FMgr.getLastOffset(), From);

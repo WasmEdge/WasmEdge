@@ -56,6 +56,18 @@ Expect<void> FileMgr::setCode(std::vector<Byte> CodeData) {
   return {};
 }
 
+Expect<Byte> FileMgr::testReadByte() {
+  if (unlikely(Status != ErrCode::Value::Success)) {
+    return Unexpect(Status);
+  }
+
+  // Check if exceed the data boundary and section boundary.
+  if (auto Res = testRead(1); unlikely(!Res)) {
+    return Unexpect(Res);
+  }
+  return Data[Pos];
+}
+
 // Read one byte. See "include/loader/filemgr.h".
 Expect<Byte> FileMgr::readByte() {
   if (unlikely(Status != ErrCode::Value::Success)) {

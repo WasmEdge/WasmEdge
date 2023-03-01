@@ -73,7 +73,8 @@ public:
     addHostFunc("print_f64_f64", std::make_unique<SpecTestPrintF64F64>());
 
     addHostTable("table", std::make_unique<Runtime::Instance::TableInstance>(
-                              AST::TableType(RefTypeCode::FuncRef, 10, 20)));
+                              AST::TableType(RefTypeCode::FuncRef, 10, 20),
+                              RefVariant()));
 
     addHostMemory("memory", std::make_unique<Runtime::Instance::MemoryInstance>(
                                 AST::MemoryType(1, 2)));

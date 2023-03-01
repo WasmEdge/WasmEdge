@@ -83,7 +83,7 @@ enum class HeapTypeCode : uint8_t {
   NotHeapType = 0x00,
   Extern = 0x6F,
   Func = 0x70,
-  TypeIndex = 0xFF,
+  TypeIndex = 0x40,
 };
 
 /// TypeBase definition. The basic data structure of value types.
@@ -110,6 +110,8 @@ public:
                          const ValTypeBase &RHS) noexcept {
     return !(LHS == RHS);
   }
+
+  bool isDefaultable() const { return Inner.Data.Code != ValTypeCode::Ref; }
 
   ValTypeCode getCode() const noexcept { return Inner.Data.Code; }
   HeapTypeCode getHeapTypeCode() const noexcept { return Inner.Data.HTCode; }
@@ -168,6 +170,26 @@ protected:
   } Inner;
 };
 
+/// HeapType definition. The RefType is the subset of the RefType.
+class HeapType : public ValTypeBase {
+public:
+  HeapType() noexcept = default;
+  // Constructor for the heap types (func and extern).
+  HeapType(HeapTypeCode HT) noexcept
+      : ValTypeBase(ValTypeCode::RefNull, HT, 0) {
+    assuming((Inner.Data.Code == ValTypeCode::RefNull));
+    assuming((Inner.Data.HTCode != HeapTypeCode::TypeIndex) &&
+             (Inner.Data.HTCode != HeapTypeCode::NotHeapType));
+  }
+  // Constructor for the heap types (type index).
+  HeapType(uint32_t I) noexcept
+      : ValTypeBase(ValTypeCode::RefNull, HeapTypeCode::TypeIndex, I) {
+    assuming((Inner.Data.Code == ValTypeCode::RefNull));
+  }
+  HeapType(HeapTypeCode HT, uint32_t I) noexcept
+      : ValTypeBase(ValTypeCode::RefNull, HT, I) {}
+};
+
 /// RefType definition. The RefType is the subset of the ValType.
 class RefType : public ValTypeBase {
 public:
@@ -180,21 +202,18 @@ public:
              (Inner.Data.HTCode == HeapTypeCode::Extern));
   }
   // Constructor for the heap types (func and extern).
-  RefType(RefTypeCode C, HeapTypeCode HT) noexcept
-      : ValTypeBase(static_cast<ValTypeCode>(C), HT, 0) {
-    assuming((Inner.Data.Code == ValTypeCode::Ref) ||
-             (Inner.Data.Code == ValTypeCode::RefNull));
-    assuming((Inner.Data.HTCode == HeapTypeCode::Func) ||
-             (Inner.Data.HTCode == HeapTypeCode::Extern));
-  }
-  // Constructor for the heap types (type index).
-  RefType(RefTypeCode C, uint32_t I) noexcept
-      : ValTypeBase(static_cast<ValTypeCode>(C), HeapTypeCode::TypeIndex, I) {
+  RefType(RefTypeCode C, HeapType HT) noexcept
+      : ValTypeBase(static_cast<ValTypeCode>(C), HT.getHeapTypeCode(),
+                    HT.getTypeIndex()) {
     assuming((Inner.Data.Code == ValTypeCode::Ref) ||
              (Inner.Data.Code == ValTypeCode::RefNull));
   }
   // Constructor for setting the raw data.
   RefType(const std::array<uint8_t, 8> R) noexcept : ValTypeBase(R) {}
+
+  HeapType getHeapType() const {
+    return HeapType(getHeapTypeCode(), getTypeIndex());
+  }
 };
 
 /// ValType definition.
@@ -234,16 +253,9 @@ public:
              (Inner.Data.HTCode == HeapTypeCode::Extern));
   }
   // Constructor for the heap types (func and extern).
-  ValType(RefTypeCode C, HeapTypeCode HT) noexcept
-      : ValTypeBase(static_cast<ValTypeCode>(C), HT, 0) {
-    assuming((Inner.Data.Code == ValTypeCode::Ref) ||
-             (Inner.Data.Code == ValTypeCode::RefNull));
-    assuming((Inner.Data.HTCode == HeapTypeCode::Func) ||
-             (Inner.Data.HTCode == HeapTypeCode::Extern));
-  }
-  // Constructor for the heap types (type index).
-  ValType(RefTypeCode C, uint32_t I) noexcept
-      : ValTypeBase(static_cast<ValTypeCode>(C), HeapTypeCode::TypeIndex, I) {
+  ValType(RefTypeCode C, HeapType HT) noexcept
+      : ValTypeBase(static_cast<ValTypeCode>(C), HT.getHeapTypeCode(),
+                    HT.getTypeIndex()) {
     assuming((Inner.Data.Code == ValTypeCode::Ref) ||
              (Inner.Data.Code == ValTypeCode::RefNull));
   }
@@ -314,42 +326,31 @@ private:
 
 // >>>>>>>> Value definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// UnknownRef definition.
-struct UnknownRef {
-  uint64_t Value = 0;
-  UnknownRef() = default;
-};
-
 /// FuncRef definition.
 namespace Runtime::Instance {
 class FunctionInstance;
 }
-struct FuncRef {
-#if __INTPTR_WIDTH__ == 32
-  uint32_t Padding = -1;
-#endif
-  const Runtime::Instance::FunctionInstance *Ptr = nullptr;
-  FuncRef() = default;
-  FuncRef(const Runtime::Instance::FunctionInstance *P) : Ptr(P) {}
-};
 
-/// ExternRef definition.
-struct ExternRef {
+/// NumType and RefType variant definitions.
+struct RefVariant {
 #if __INTPTR_WIDTH__ == 32
   uint32_t Padding = -1;
 #endif
   void *Ptr = nullptr;
-  ExternRef() = default;
-  template <typename T> ExternRef(T *P) : Ptr(reinterpret_cast<void *>(P)) {}
+  RefVariant() = default;
+  template <typename T>
+  RefVariant(const T *P) : Ptr(reinterpret_cast<void *>(const_cast<T *>(P))) {}
+  template <typename T> RefVariant(T *P) : Ptr(reinterpret_cast<void *>(P)) {}
+  bool isNull() const { return Ptr == nullptr; }
+
+  template <typename T> T *asPtr() const { return reinterpret_cast<T *>(Ptr); }
 };
 
-/// Value variant definitions.
-using RefVariant = Variant<UnknownRef, FuncRef, ExternRef>;
 using ValVariant =
     Variant<uint32_t, int32_t, uint64_t, int64_t, float, double, uint128_t,
             int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,
-            int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t, UnknownRef,
-            FuncRef, ExternRef>;
+            int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t,
+            RefVariant>;
 
 // <<<<<<<< Value definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -394,8 +395,7 @@ inline constexpr const bool IsWasmFloatV = IsWasmFloat<T>::value;
 /// Return true if Wasm reference (funcref and externref).
 template <typename T>
 struct IsWasmRef
-    : std::bool_constant<std::is_same_v<RemoveCVRefT<T>, FuncRef> ||
-                         std::is_same_v<RemoveCVRefT<T>, ExternRef>> {};
+    : std::bool_constant<std::is_same_v<RemoveCVRefT<T>, RefVariant>> {};
 template <typename T>
 inline constexpr const bool IsWasmRefV = IsWasmRef<T>::value;
 
@@ -479,12 +479,6 @@ template <> inline ValType ValTypeFromType<float>() noexcept {
 template <> inline ValType ValTypeFromType<double>() noexcept {
   return ValType(ValTypeCode::F64);
 }
-template <> inline ValType ValTypeFromType<FuncRef>() noexcept {
-  return ValType(ValTypeCode::FuncRef);
-}
-template <> inline ValType ValTypeFromType<ExternRef>() noexcept {
-  return ValType(ValTypeCode::ExternRef);
-}
 
 // <<<<<<<< Template to get value type from type <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -506,7 +500,7 @@ inline ValVariant ValueFromType(ValType Type) noexcept {
   case ValTypeCode::ExternRef:
   case ValTypeCode::Ref:
   case ValTypeCode::RefNull:
-    return UnknownRef();
+    return RefVariant();
   default:
     assumingUnreachable();
   }
@@ -516,36 +510,13 @@ inline ValVariant ValueFromType(ValType Type) noexcept {
 
 // >>>>>>>> Functions to retrieve reference inners >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-inline constexpr bool isNullRef(const ValVariant &Val) {
-  return Val.get<UnknownRef>().Value == 0;
-}
-inline constexpr bool isNullRef(const RefVariant &Val) {
-  return Val.get<UnknownRef>().Value == 0;
-}
-
-inline const Runtime::Instance::FunctionInstance *
-retrieveFuncRef(const ValVariant &Val) {
-  return reinterpret_cast<const Runtime::Instance::FunctionInstance *>(
-      Val.get<FuncRef>().Ptr);
-}
 inline const Runtime::Instance::FunctionInstance *
 retrieveFuncRef(const RefVariant &Val) {
-  return reinterpret_cast<const Runtime::Instance::FunctionInstance *>(
-      Val.get<FuncRef>().Ptr);
-}
-inline const Runtime::Instance::FunctionInstance *
-retrieveFuncRef(const FuncRef &Val) {
-  return reinterpret_cast<const Runtime::Instance::FunctionInstance *>(Val.Ptr);
+  return Val.asPtr<Runtime::Instance::FunctionInstance>();
 }
 
-template <typename T> inline T &retrieveExternRef(const ValVariant &Val) {
-  return *reinterpret_cast<T *>(Val.get<ExternRef>().Ptr);
-}
 template <typename T> inline T &retrieveExternRef(const RefVariant &Val) {
-  return *reinterpret_cast<T *>(Val.get<ExternRef>().Ptr);
-}
-template <typename T> inline T &retrieveExternRef(const ExternRef &Val) {
-  return *reinterpret_cast<T *>(Val.Ptr);
+  return *Val.asPtr<T>();
 }
 
 // <<<<<<<< Functions to retrieve reference inners <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -244,9 +244,10 @@ private:
   Expect<void> loadSegment(AST::ElementSegment &ElemSeg);
   Expect<void> loadSegment(AST::CodeSegment &CodeSeg);
   Expect<void> loadSegment(AST::DataSegment &DataSeg);
+  Expect<void> loadSegment(AST::TableSegment &TabSeg);
   Expect<void> loadDesc(AST::ImportDesc &ImpDesc);
   Expect<void> loadDesc(AST::ExportDesc &ExpDesc);
-  Expect<RefType> loadHeapType(RefTypeCode Code, ASTNodeAttr From);
+  Expect<HeapType> loadHeapType(ASTNodeAttr From);
   Expect<RefType> loadRefType(ASTNodeAttr From);
   Expect<ValType> loadValType(ASTNodeAttr From);
   Expect<void> loadLimit(AST::Limit &Lim);

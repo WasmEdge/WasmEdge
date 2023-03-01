@@ -33,21 +33,11 @@ typedef std::optional<FullValType> VType;
 static inline constexpr VType unreachableVType() { return VType(); }
 
 static inline constexpr bool isNumType(const VType V) {
-  if (!V) {
-    return true;
-  }
-  auto TypeCode = V->getTypeCode();
-  return TypeCode == ValType::I32 || TypeCode == ValType::I64 ||
-         TypeCode == ValType::F32 || TypeCode == ValType::F64 ||
-         TypeCode == ValType::V128;
+  return !V || V->isNumType();
 }
 
 static inline constexpr bool isRefType(const VType V) {
-  if (!V) {
-    return true;
-  }
-  auto TypeCode = V->getTypeCode();
-  return TypeCode == ValType::FuncRef || TypeCode == ValType::ExternRef;
+  return !V || V->isRefType();
 }
 
 class FormChecker {

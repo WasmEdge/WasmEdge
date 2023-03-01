@@ -1,6 +1,6 @@
 use wasmedge_sdk::{
-    error::HostFuncError, host_function, params, wat2wasm, Caller, ImportObjectBuilder, Module, Vm,
-    WasmValue,
+    error::HostFuncError, host_function, params, wat2wasm, Caller, ImportObjectBuilder, Module,
+    VmBuilder, WasmValue,
 };
 
 // We define a function to act as our "env" "say_hello" function imported in the
@@ -41,7 +41,8 @@ fn main() -> anyhow::Result<()> {
     let module = Module::from_bytes(None, wasm_bytes)?;
 
     // create an executor
-    Vm::new(None, None)?
+    VmBuilder::new()
+        .build()?
         .register_import_module(import)?
         .register_module(Some("extern"), module)?
         .run_func(Some("extern"), "run", params!())?;

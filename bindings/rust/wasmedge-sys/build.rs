@@ -41,6 +41,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .clang_arg(format!("-I{}", inc_dir.as_path().display()))
         .prepend_enum_name(false) // The API already prepends the name.
         .dynamic_link_require_all(true)
+        .derive_debug(true)
+        .impl_debug(true)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .generate()
         .expect("failed to generate bindings")

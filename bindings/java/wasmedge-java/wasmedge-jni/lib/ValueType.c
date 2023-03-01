@@ -46,7 +46,7 @@ WasmEdge_Value JavaValueToWasmEdgeValue(JNIEnv *env, jobject jVal) {
 
 jobject WasmEdgeValueToJavaValue(JNIEnv *env, WasmEdge_Value value) {
   const char *valClassName = NULL;
-  switch (value.Type) {
+  switch (value.Type.TypeCode) {
   case WasmEdge_ValType_I32:
     valClassName = ORG_WASMEDGE_I32VALUE;
     break;

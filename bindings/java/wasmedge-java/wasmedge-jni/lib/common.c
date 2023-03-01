@@ -210,7 +210,7 @@ bool checkAndHandleException(JNIEnv *env, const char *msg) {
 }
 
 void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val) {
-  switch (value.Type) {
+  switch (value.Type.TypeCode) {
   case WasmEdge_ValType_I32:
     setJavaIntValue(env, value, j_val);
     break;

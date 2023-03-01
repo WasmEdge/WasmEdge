@@ -40,7 +40,6 @@ public:
   ///
   /// @param[in] FS Filesystem.
   /// @param[in] Node System INode.
-  /// @param[in] Parent Parent VINode.
   /// @param[in] FRB The desired rights of the VINode.
   /// @param[in] FRI The desired rights of the VINode.
   /// @param[in] Parent Parent VINode.

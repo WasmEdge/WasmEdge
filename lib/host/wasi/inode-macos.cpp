@@ -448,6 +448,11 @@ WasiExpect<void> INode::fdRead(Span<Span<uint8_t>> IOVs,
   return {};
 }
 
+// Due to the unfortunate design of wasi::fd_readdir, It's nearly impossible to
+// provide a correct implementation. The below implementation is just a
+// workaround for most usages and may not be correct in some edge cases. The
+// readdir entry API is going to be updated to use a stream type, so we don't
+// have to deal with it right now.
 WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
                                   __wasi_dircookie_t Cookie,
                                   __wasi_size_t &Size) noexcept {

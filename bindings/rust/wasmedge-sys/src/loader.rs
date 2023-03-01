@@ -25,7 +25,7 @@ impl Loader {
     /// # Error
     ///
     /// If fail to create a [Loader](crate), then an error is returned.
-    pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
+    pub fn create(config: Option<&Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(config) => unsafe { ffi::WasmEdge_LoaderCreate(config.inner.0) },
             None => unsafe { ffi::WasmEdge_LoaderCreate(std::ptr::null_mut()) },
@@ -190,7 +190,7 @@ mod tests {
         assert!(result.is_ok());
         let mut config = result.unwrap();
         config.reference_types(true);
-        let result = Loader::create(Some(config));
+        let result = Loader::create(Some(&config));
         assert!(result.is_ok());
         let loader = result.unwrap();
 
@@ -261,7 +261,7 @@ mod tests {
         assert!(result.is_ok());
         let mut config = result.unwrap();
         config.reference_types(true);
-        let result = Loader::create(Some(config));
+        let result = Loader::create(Some(&config));
         assert!(result.is_ok());
         let loader = result.unwrap();
 
@@ -285,7 +285,7 @@ mod tests {
         assert!(result.is_ok());
         let mut config = result.unwrap();
         config.reference_types(true);
-        let result = Loader::create(Some(config));
+        let result = Loader::create(Some(&config));
         assert!(result.is_ok());
         let loader = Arc::new(Mutex::new(result.unwrap()));
 

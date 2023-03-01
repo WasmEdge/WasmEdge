@@ -23,7 +23,7 @@ impl Global {
     ///
     /// # Errors
     ///
-    /// If fail to create a [Global] instance, then an error is returned.
+    /// * If fail to create the Global instance, then WasmEdgeError::Global(GlobalError::Create)(crate::error::GlobalError) is returned.
     ///
     pub fn create(ty: &GlobalType, val: WasmValue) -> WasmEdgeResult<Self> {
         let ctx = unsafe { ffi::WasmEdge_GlobalInstanceCreate(ty.inner.0, val.as_raw()) };

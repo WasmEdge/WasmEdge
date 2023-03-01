@@ -400,6 +400,17 @@ public:
         return Unexpected<ProposalErrCode>(
             ProposalErrCode(ErrCode::Value::IllegalOpCode, Proposal::Threads));
       }
+    } else if (Code == OpCode::Call_ref || Code == OpCode::Return_call_ref ||
+               Code == OpCode::Ref__as_non_null || Code == OpCode::Br_on_null ||
+               Code == OpCode::Br_on_non_null) {
+      if (!hasProposal(Proposal::FunctionReferences)) {
+        return Unexpected<ProposalErrCode>(ProposalErrCode(
+            ErrCode::Value::IllegalOpCode, Proposal::FunctionReferences));
+      }
+      if (Code == OpCode::Return_call_ref && !hasProposal(Proposal::TailCall)) {
+        return Unexpected<ProposalErrCode>(
+            ProposalErrCode(ErrCode::Value::IllegalOpCode, Proposal::TailCall));
+      }
     }
     return {};
   }

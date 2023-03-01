@@ -80,6 +80,20 @@ private:
   /// @}
 };
 
+/// AST TableSegment node.
+class TableSegment : public Segment {
+public:
+  /// Getter of table type.
+  const TableType &getTableType() const noexcept { return TType; }
+  TableType &getTableType() noexcept { return TType; }
+
+private:
+  /// \name Data of TableSegment node.
+  /// @{
+  TableType TType;
+  /// @}
+};
+
 /// AST CodeSegment node.
 class CodeSegment : public Segment {
 public:

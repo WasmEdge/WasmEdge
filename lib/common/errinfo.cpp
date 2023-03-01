@@ -261,7 +261,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoInstruction>::format(
       case WasmEdge::ValTypeCode::FuncRef:
       case WasmEdge::ValTypeCode::ExternRef:
         Iter = fmt::format_to(Iter, "{}"sv, Info.ArgsTypes[I]);
-        if (isNullRef(Info.Args[I])) {
+        if (Info.Args[I].get<WasmEdge::RefVariant>().isNull()) {
           Iter = fmt::format_to(Iter, ":null"sv);
         } else {
           Iter =

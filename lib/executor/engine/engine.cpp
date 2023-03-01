@@ -125,24 +125,39 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runBrIfOp(StackMgr, Instr, PC);
     case OpCode::Br_table:
       return runBrTableOp(StackMgr, Instr, PC);
+    case OpCode::Br_on_null:
+      return runBrOnNull(StackMgr, Instr, PC);
+    case OpCode::Br_on_non_null:
+      return runBrOnNonNull(StackMgr, Instr, PC);
     case OpCode::Return:
       return runReturnOp(StackMgr, PC);
     case OpCode::Call:
       return runCallOp(StackMgr, Instr, PC);
     case OpCode::Call_indirect:
       return runCallIndirectOp(StackMgr, Instr, PC);
+    case OpCode::Call_ref:
+      return runCallRefOp(StackMgr, PC);
     case OpCode::Return_call:
       return runCallOp(StackMgr, Instr, PC, true);
     case OpCode::Return_call_indirect:
       return runCallIndirectOp(StackMgr, Instr, PC, true);
+    case OpCode::Return_call_ref:
+      return runCallRefOp(StackMgr, PC, true);
 
     // Reference Instructions
     case OpCode::Ref__null:
-      StackMgr.push<UnknownRef>(UnknownRef());
+      StackMgr.push(RefVariant());
       return {};
+    case OpCode::Ref__as_non_null:
+      if (StackMgr.getTop().get<RefVariant>().isNull()) {
+        spdlog::error(ErrCode::Value::CastNullToNonNull);
+        return Unexpect(ErrCode::Value::CastNullToNonNull);
+      }
+      return {};
+
     case OpCode::Ref__is_null: {
       ValVariant &Val = StackMgr.getTop();
-      if (isNullRef(Val)) {
+      if (Val.get<RefVariant>().isNull()) {
         Val.emplace<uint32_t>(UINT32_C(1));
       } else {
         Val.emplace<uint32_t>(UINT32_C(0));
@@ -152,7 +167,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::Ref__func: {
       const auto *ModInst = StackMgr.getModule();
       const auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
-      StackMgr.push<FuncRef>(FuncRef(FuncInst));
+      StackMgr.push(RefVariant(FuncInst));
       return {};
     }
 

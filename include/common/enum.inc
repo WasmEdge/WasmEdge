@@ -74,11 +74,16 @@ O(Call, 0x10, "call")
 O(Call_indirect, 0x11, "call_indirect")
 O(Return_call, 0x12, "return_call")
 O(Return_call_indirect, 0x13, "return_call_indirect")
+O(Call_ref, 0x14, "call_ref")
+O(Return_call_ref, 0x15, "return_call_ref")
 
 // Reference Instructions
 O(Ref__null, 0xD0, "ref.null")
 O(Ref__is_null, 0xD1, "ref.is_null")
 O(Ref__func, 0xD2, "ref.func")
+O(Ref__as_non_null, 0xD3, "ref.as_non_null")
+O(Br_on_null, 0xD4, "br_on_null")
+O(Br_on_non_null, 0xD6, "br_on_non_null")
 
 // Parametric Instructions
 O(Drop, 0x1A, "drop")
@@ -737,6 +742,8 @@ E(IllegalGrammar, 0x39, "invalid wasm grammar")
 E(SharedMemoryNoMax, 0x3A, "shared memory must have maximum")
 // Intrinsics table not found
 E(IntrinsicsTableNotFound, 0x3B, "intrinsics table not found")
+// Malformed table (Ref-types proposal)
+E(MalformedTable, 0x3C, "malformed table")
 // @}
 
 // Validation phase
@@ -785,6 +792,10 @@ E(InvalidMemPages, 0x53, "memory size must be at most 65536 pages (4GiB)")
 E(InvalidStartFunc, 0x54, "start function")
 // Invalid lane index
 E(InvalidLaneIdx, 0x55, "invalid lane index")
+// Invalid uninitialized local
+E(InvalidUninitLocal, 0x56, "uninitialized local")
+// Invalid Br ref type
+E(InvalidBrRefType, 0x57, "invalid br ref type")
 // @}
 
 // Instantiation phase
@@ -837,6 +848,10 @@ E(RefTypeMismatch, 0x8E, "reference type mismatch")
 E(UnalignedAtomicAccess, 0x8F, "unaligned atomic")
 // wait32/wait64 on unshared memory
 E(ExpectSharedMemory, 0x90, "expected shared memory")
+// Cast null pointer to non null
+E(CastNullToNonNull, 0x91, "null reference")
+// Invoke null function reference
+E(InvokeNullFunc, 0x92, "null function")
 // @}
 
 #undef E

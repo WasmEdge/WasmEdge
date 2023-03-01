@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/segment.h"
 #include "ast/type.h"
 #include "common/errcode.h"
 #include "common/errinfo.h"
@@ -29,8 +30,19 @@ namespace Instance {
 class TableInstance {
 public:
   TableInstance() = delete;
-  TableInstance(const AST::TableType &TType) noexcept
-      : TabType(TType), Refs(TType.getLimit().getMin(), UnknownRef()) {}
+  TableInstance(const AST::TableType &TType,
+                const RefVariant InitValue) noexcept
+      : TabType(TType), Refs(TType.getLimit().getMin(), InitValue),
+        InitValue(InitValue) {
+    // TODO: check whether the ref type of table type is nullable
+  }
+  TableInstance(const AST::TableSegment &Table,
+                const RefVariant InitValue) noexcept
+      : TabType(Table.getTableType()),
+        Refs(Table.getTableType().getLimit().getMin(), InitValue),
+        InitValue(InitValue) {
+    // TODO: initialized the table instance by TableSegment.getExpr()
+  }
 
   /// Get size of table.refs
   uint32_t getSize() const noexcept {
@@ -71,7 +83,7 @@ public:
     return true;
   }
   bool growTable(uint32_t Count) noexcept {
-    return growTable(Count, UnknownRef());
+    return growTable(Count, InitValue);
   }
 
   /// Get slice of Refs[Offset : Offset + Length - 1]
@@ -153,6 +165,7 @@ private:
   /// @{
   AST::TableType TabType;
   std::vector<RefVariant> Refs;
+  RefVariant InitValue;
   /// @}
 };
 

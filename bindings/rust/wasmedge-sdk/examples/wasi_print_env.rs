@@ -12,7 +12,7 @@
 
 use wasmedge_sdk::{
     config::{CommonConfigOptions, ConfigBuilder, HostRegistrationConfigOptions},
-    params, Vm,
+    params, VmBuilder,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
 
     // create a vm
-    let mut vm = Vm::new(Some(config), None)?;
+    let mut vm = VmBuilder::new().with_config(config).build()?;
 
     // set the envs and args for the wasi module
     let args = vec!["arg1", "arg2"];

@@ -3,13 +3,13 @@
 // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 // #![feature(explicit_generic_args_with_impl_trait)]
 
-use wasmedge_sdk::{params, Vm, WasmVal};
+use wasmedge_sdk::{params, VmBuilder, WasmVal};
 use wasmedge_types::wat2wasm;
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a Vm context
-    let vm = Vm::new(None, None)?;
+    let vm = VmBuilder::new().build()?;
 
     // register a wasm module from the given in-memory wasm bytes
     let wasm_bytes = wat2wasm(

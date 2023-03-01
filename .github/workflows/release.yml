@@ -369,7 +369,7 @@ jobs:
           path: utils/docker
       - name: Install requirements
         run: |
-          curl -sL https://raw.githubusercontent.com/docker-slim/docker-slim/master/scripts/install-dockerslim.sh | sudo -E bash -
+          curl -sL https://raw.githubusercontent.com/slimtoolkit/slim/master/scripts/install-slim.sh | sudo -E bash -
       - name: Prepare docker env
         id: docker_env
         run: |
@@ -382,9 +382,9 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-      - name: Run docker-slim
+      - name: Run slim
         run: |
-          docker-slim build \
+          slim build \
             --dockerfile Dockerfile.release \
             --dockerfile-context utils/docker \
             --tag ${{ steps.docker_env.outputs.docker_image }} \

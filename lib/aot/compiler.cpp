@@ -115,21 +115,21 @@ std::pair<uint32_t, uint32_t> getSDKVersionPair() noexcept {
 #endif
 
 static bool
-isVoidReturn(WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
+isVoidReturn(WasmEdge::Span<const WasmEdge::FullValType> ValTypes) noexcept;
 static LLVM::Type toLLVMType(LLVM::Context &LLContext,
-                             const WasmEdge::ValType &ValType) noexcept;
+                             const WasmEdge::FullValType &ValType) noexcept;
 static std::vector<LLVM::Type>
 toLLVMArgsType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
-               WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
+               WasmEdge::Span<const WasmEdge::FullValType> ValTypes) noexcept;
 static LLVM::Type
 toLLVMRetsType(LLVM::Context &LLContext,
-               WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
+               WasmEdge::Span<const WasmEdge::FullValType> ValTypes) noexcept;
 static LLVM::Type
 toLLVMType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
            const WasmEdge::AST::FunctionType &FuncType) noexcept;
 static LLVM::Value
 toLLVMConstantZero(LLVM::Context &LLContext,
-                   const WasmEdge::ValType &ValType) noexcept;
+                   const WasmEdge::FullValType &ValType) noexcept;
 static std::vector<LLVM::Value> unpackStruct(LLVM::Builder &Builder,
                                              LLVM::Value Struct) noexcept;
 class FunctionCompiler;
@@ -537,9 +537,9 @@ struct WasmEdge::AOT::Compiler::CompileContext {
     auto Ptr = Builder.createBitCast(VPtr, PtrPtrTy);
     return {Ty, Builder.createLoad(PtrTy, Ptr)};
   }
-  std::pair<std::vector<ValType>, std::vector<ValType>>
+  std::pair<std::vector<FullValType>, std::vector<FullValType>>
   resolveBlockType(const BlockType &BType) const noexcept {
-    using VecT = std::vector<ValType>;
+    using VecT = std::vector<FullValType>;
     using RetT = std::pair<VecT, VecT>;
     if (BType.isEmpty()) {
       return RetT{};
@@ -561,24 +561,24 @@ namespace {
 
 using namespace WasmEdge;
 
-static bool isVoidReturn(Span<const WasmEdge::ValType> ValTypes) noexcept {
+static bool isVoidReturn(Span<const WasmEdge::FullValType> ValTypes) noexcept {
   return ValTypes.empty();
 }
 
 static LLVM::Type toLLVMType(LLVM::Context &LLContext,
-                             const ValType &ValType) noexcept {
-  switch (ValType) {
-  case ValType::I32:
+                             const FullValType &ValType) noexcept {
+  switch (ValType.getTypeCode()) {
+  case ValTypeCode::I32:
     return LLContext.getInt32Ty();
-  case ValType::I64:
-  case ValType::FuncRef:
-  case ValType::ExternRef:
+  case ValTypeCode::I64:
+  case ValTypeCode::Ref:
+  case ValTypeCode::RefNull:
     return LLContext.getInt64Ty();
-  case ValType::V128:
+  case ValTypeCode::V128:
     return LLVM::Type::getVectorType(LLContext.getInt64Ty(), 2);
-  case ValType::F32:
+  case ValTypeCode::F32:
     return LLContext.getFloatTy();
-  case ValType::F64:
+  case ValTypeCode::F64:
     return LLContext.getDoubleTy();
   default:
     assumingUnreachable();
@@ -587,7 +587,7 @@ static LLVM::Type toLLVMType(LLVM::Context &LLContext,
 
 static std::vector<LLVM::Type>
 toLLVMTypeVector(LLVM::Context &LLContext,
-                 Span<const ValType> ValTypes) noexcept {
+                 Span<const FullValType> ValTypes) noexcept {
   std::vector<LLVM::Type> Result;
   Result.reserve(ValTypes.size());
   for (const auto &Type : ValTypes) {
@@ -598,14 +598,14 @@ toLLVMTypeVector(LLVM::Context &LLContext,
 
 static std::vector<LLVM::Type>
 toLLVMArgsType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
-               Span<const ValType> ValTypes) noexcept {
+               Span<const FullValType> ValTypes) noexcept {
   auto Result = toLLVMTypeVector(LLContext, ValTypes);
   Result.insert(Result.begin(), ExecCtxPtrTy);
   return Result;
 }
 
 static LLVM::Type toLLVMRetsType(LLVM::Context &LLContext,
-                                 Span<const ValType> ValTypes) noexcept {
+                                 Span<const FullValType> ValTypes) noexcept {
   if (isVoidReturn(ValTypes)) {
     return LLContext.getVoidTy();
   }
@@ -629,20 +629,20 @@ static LLVM::Type toLLVMType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
 }
 
 static LLVM::Value toLLVMConstantZero(LLVM::Context &LLContext,
-                                      const ValType &ValType) noexcept {
-  switch (ValType) {
-  case ValType::I32:
+                                      const FullValType &ValType) noexcept {
+  switch (ValType.getTypeCode()) {
+  case ValTypeCode::I32:
     return LLVM::Value::getConstNull(LLContext.getInt32Ty());
-  case ValType::I64:
-  case ValType::FuncRef:
-  case ValType::ExternRef:
+  case ValTypeCode::I64:
+  case ValTypeCode::Ref:
+  case ValTypeCode::RefNull:
     return LLVM::Value::getConstNull(LLContext.getInt64Ty());
-  case ValType::V128:
+  case ValTypeCode::V128:
     return LLVM::Value::getConstNull(
         LLVM::Type::getVectorType(LLContext.getInt64Ty(), 2));
-  case ValType::F32:
+  case ValTypeCode::F32:
     return LLVM::Value::getConstNull(LLContext.getFloatTy());
-  case ValType::F64:
+  case ValTypeCode::F64:
     return LLVM::Value::getConstNull(LLContext.getDoubleTy());
   default:
     assumingUnreachable();
@@ -654,7 +654,7 @@ class FunctionCompiler {
 
 public:
   FunctionCompiler(AOT::Compiler::CompileContext &Context,
-                   LLVM::FunctionCallee F, Span<const ValType> Locals,
+                   LLVM::FunctionCallee F, Span<const FullValType> Locals,
                    bool Interruptible, bool InstructionCounting,
                    bool GasMeasuring, bool OptNone) noexcept
       : Context(Context), LLContext(Context.LLContext),
@@ -700,9 +700,9 @@ public:
     return BB;
   }
 
-  void
-  compile(const AST::CodeSegment &Code,
-          std::pair<std::vector<ValType>, std::vector<ValType>> Type) noexcept {
+  void compile(const AST::CodeSegment &Code,
+               std::pair<std::vector<FullValType>, std::vector<FullValType>>
+                   Type) noexcept {
     auto RetBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ret");
     Type.first.clear();
     enterBlock(RetBB, {}, {}, {}, std::move(Type));
@@ -4673,7 +4673,7 @@ private:
   void
   enterBlock(LLVM::BasicBlock JumpBlock, LLVM::BasicBlock NextBlock,
              LLVM::BasicBlock ElseBlock, std::vector<LLVM::Value> Args,
-             std::pair<std::vector<ValType>, std::vector<ValType>> Type,
+             std::pair<std::vector<FullValType>, std::vector<FullValType>> Type,
              std::vector<std::tuple<std::vector<LLVM::Value>, LLVM::BasicBlock>>
                  ReturnPHI = {}) noexcept {
     assuming(Type.first.size() == Args.size());
@@ -4747,7 +4747,7 @@ private:
   }
 
   void
-  buildPHI(Span<const ValType> RetType,
+  buildPHI(Span<const FullValType> RetType,
            Span<const std::tuple<std::vector<LLVM::Value>, LLVM::BasicBlock>>
                Incomings) noexcept {
     if (isVoidReturn(RetType)) {
@@ -4836,12 +4836,12 @@ private:
     LLVM::BasicBlock NextBlock;
     LLVM::BasicBlock ElseBlock;
     std::vector<LLVM::Value> Args;
-    std::pair<std::vector<ValType>, std::vector<ValType>> Type;
+    std::pair<std::vector<FullValType>, std::vector<FullValType>> Type;
     std::vector<std::tuple<std::vector<LLVM::Value>, LLVM::BasicBlock>>
         ReturnPHI;
     Control(size_t S, bool U, LLVM::BasicBlock J, LLVM::BasicBlock N,
             LLVM::BasicBlock E, std::vector<LLVM::Value> A,
-            std::pair<std::vector<ValType>, std::vector<ValType>> T,
+            std::pair<std::vector<FullValType>, std::vector<FullValType>> T,
             std::vector<std::tuple<std::vector<LLVM::Value>, LLVM::BasicBlock>>
                 R) noexcept
         : StackSize(S), Unreachable(U), JumpBlock(J), NextBlock(N),
@@ -5712,7 +5712,7 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
       continue;
     }
 
-    std::vector<ValType> Locals;
+    std::vector<FullValType> Locals;
     for (const auto &Local : Code->getLocals()) {
       for (unsigned I = 0; I < Local.first; ++I) {
         Locals.push_back(Local.second);

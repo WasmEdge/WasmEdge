@@ -121,6 +121,7 @@ pub struct WasmValue {
     ctx: ffi::WasmEdge_Value,
     ty: ValType,
 }
+
 impl WasmValue {
     /// Returns the raw `WasmEdge_Value`.
     pub fn as_raw(&self) -> ffi::WasmEdge_Value {
@@ -302,7 +303,7 @@ impl WasmValue {
 }
 impl From<ffi::WasmEdge_Value> for WasmValue {
     fn from(raw_val: ffi::WasmEdge_Value) -> Self {
-        match raw_val.Type {
+        match raw_val.Type.TypeCode {
             ffi::WasmEdge_ValType_I32 => Self {
                 ctx: raw_val,
                 ty: ValType::I32,
@@ -331,7 +332,7 @@ impl From<ffi::WasmEdge_Value> for WasmValue {
                 ctx: raw_val,
                 ty: ValType::ExternRef,
             },
-            _ => panic!("unknown WasmEdge_ValType `{}`", raw_val.Type),
+            _ => panic!("unknown WasmEdge_ValType `{:?}`", raw_val),
         }
     }
 }

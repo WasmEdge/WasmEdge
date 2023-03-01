@@ -172,20 +172,13 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   case 0x05:
   case 0x06:
   case 0x07:
-    if (auto Res = FMgr.readByte(); unlikely(!Res)) {
+    if (auto Res = loadFullRefType()) {
+      ElemSeg.setRefType(*Res);
+    } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Element);
-    } else {
-      ElemSeg.setRefType(static_cast<RefType>(*Res));
-    }
-    if (auto Res =
-            checkRefTypeProposals(ElemSeg.getRefType(), FMgr.getLastOffset(),
-                                  ASTNodeAttr::Seg_Element);
-        unlikely(!Res)) {
-      return Unexpect(Res);
     }
     [[fallthrough]];
-
   case 0x04: {
     uint32_t VecCnt = 0;
     if (auto Res = FMgr.readU32(); unlikely(!Res)) {
@@ -247,7 +240,7 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
   uint32_t TotalLocalCnt = 0;
   for (uint32_t I = 0; I < VecCnt; ++I) {
     uint32_t LocalCnt = 0;
-    ValType LocalType;
+    FullValType LocalType;
     if (auto Res = FMgr.readU32(); unlikely(!Res)) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Code);
@@ -261,16 +254,11 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     }
     TotalLocalCnt += LocalCnt;
     // Read the number type.
-    if (auto Res = FMgr.readByte(); unlikely(!Res)) {
+    if (auto Res = loadFullValType()) {
+      LocalType = *Res;
+    } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Code);
-    } else {
-      LocalType = static_cast<ValType>(*Res);
-    }
-    if (auto Res = checkValTypeProposals(LocalType, FMgr.getLastOffset(),
-                                         ASTNodeAttr::Seg_Code);
-        unlikely(!Res)) {
-      return Unexpect(Res);
     }
     CodeSeg.getLocals().push_back(std::make_pair(LocalCnt, LocalType));
   }

@@ -24,6 +24,15 @@ enum WasmEdge_ValType {
 #undef UseValType
 };
 
+union WasmEdge_ValTypeExt {
+  uint32_t TypeIdx;
+};
+
+typedef struct WasmEdge_FullValType {
+  enum WasmEdge_ValType TypeCode;
+  union WasmEdge_ValTypeExt Ext;
+} WasmEdge_FullValType;
+
 /// WASM Number type C enumeration.
 enum WasmEdge_NumType {
 #define UseNumType

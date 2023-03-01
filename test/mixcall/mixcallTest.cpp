@@ -68,7 +68,7 @@ TEST(MixCallTest, Call__InterpCallAOT) {
   WasmEdge::Expect<void> Res;
   HostModule HostMod;
   std::vector<WasmEdge::ValVariant> FuncArgs;
-  std::vector<WasmEdge::ValType> FuncArgTypes;
+  std::vector<WasmEdge::FullValType> FuncArgTypes;
 
   // Compile the `module2` into AOT mode.
   EXPECT_TRUE(compileModule(Conf, "mixcallTestData/module2.wasm",
@@ -123,7 +123,7 @@ TEST(MixCallTest, Call__AOTCallInterp) {
   WasmEdge::Expect<void> Res;
   HostModule HostMod;
   std::vector<WasmEdge::ValVariant> FuncArgs;
-  std::vector<WasmEdge::ValType> FuncArgTypes;
+  std::vector<WasmEdge::FullValType> FuncArgTypes;
 
   // Compile the `module1` into AOT mode.
   EXPECT_TRUE(compileModule(Conf, "mixcallTestData/module1.wasm",

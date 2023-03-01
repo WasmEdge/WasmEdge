@@ -169,7 +169,7 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
   // Check initialization expressions are const expressions.
   for (auto &Expr : ElemSeg.getInitExprs()) {
     if (auto Res = validateConstExpr(Expr.getInstrs(),
-                                     {ToValType(ElemSeg.getRefType())});
+                                     {FullValType(ElemSeg.getRefType())});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
@@ -190,14 +190,13 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
     if (TableVec[ElemSeg.getIdx()] != ElemSeg.getRefType()) {
       // Reference type not matched.
       spdlog::error(ErrCode::Value::TypeCheckFailed);
-      spdlog::error(ErrInfo::InfoMismatch(
-          static_cast<ValType>(TableVec[ElemSeg.getIdx()]),
-          static_cast<ValType>(ElemSeg.getRefType())));
+      spdlog::error(ErrInfo::InfoMismatch(TableVec[ElemSeg.getIdx()],
+                                          ElemSeg.getRefType()));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
     // Check table initialization is a const expression.
-    if (auto Res =
-            validateConstExpr(ElemSeg.getExpr().getInstrs(), {ValType::I32});
+    if (auto Res = validateConstExpr(ElemSeg.getExpr().getInstrs(),
+                                     {FullValType(ValType::I32)});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
@@ -243,8 +242,8 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
       return Unexpect(ErrCode::Value::InvalidMemoryIdx);
     }
     // Check memory initialization is a const expression.
-    if (auto Res =
-            validateConstExpr(DataSeg.getExpr().getInstrs(), {ValType::I32});
+    if (auto Res = validateConstExpr(DataSeg.getExpr().getInstrs(),
+                                     {FullValType(ValType::I32)});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
@@ -483,7 +482,7 @@ Expect<void> Validator::validate(const AST::StartSection &StartSec) {
     auto &Type = Checker.getTypes()[TId];
     if (Type.first.size() != 0 || Type.second.size() != 0) {
       // Start function signature should be {}->{}
-      std::vector<ValType> Params, Returns;
+      std::vector<FullValType> Params, Returns;
       for (auto &V : Type.first) {
         Params.push_back(Checker.VTypeToAST(V));
       }
@@ -519,7 +518,7 @@ Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
 
 // Validate constant expression. See "include/validator/validator.h".
 Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
-                                          Span<const ValType> Returns) {
+                                          Span<const FullValType> Returns) {
   for (auto &Instr : Instrs) {
     // Only these instructions are accepted.
     switch (Instr.getOpCode()) {

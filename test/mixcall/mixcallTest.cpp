@@ -133,7 +133,7 @@ TEST(MixCallTest, Call__InterpCallAOT) {
   WasmEdge::Expect<void> Res;
   HostModule HostMod;
   std::vector<WasmEdge::ValVariant> FuncArgs;
-  std::vector<WasmEdge::ValType> FuncArgTypes;
+  std::vector<WasmEdge::FullValType> FuncArgTypes;
 
   // Prepare module2 file
   HexToFile(Module2Wasm, Module2Path);
@@ -192,7 +192,7 @@ TEST(MixCallTest, Call__AOTCallInterp) {
   WasmEdge::Expect<void> Res;
   HostModule HostMod;
   std::vector<WasmEdge::ValVariant> FuncArgs;
-  std::vector<WasmEdge::ValType> FuncArgTypes;
+  std::vector<WasmEdge::FullValType> FuncArgTypes;
 
   // Prepare Module1 file
   HexToFile(Module1Wasm, Module1Path);

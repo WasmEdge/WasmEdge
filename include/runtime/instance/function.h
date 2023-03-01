@@ -39,7 +39,7 @@ public:
         Data(std::move(Inst.Data)) {}
   /// Constructor for native function.
   FunctionInstance(const ModuleInstance *Mod, const AST::FunctionType &Type,
-                   Span<const std::pair<uint32_t, ValType>> Locs,
+                   Span<const std::pair<uint32_t, FullValType>> Locs,
                    AST::InstrView Expr) noexcept
       : ModInst(Mod), FuncType(Type),
         Data(std::in_place_type_t<WasmFunction>(), Locs, Expr) {}
@@ -77,7 +77,7 @@ public:
   const AST::FunctionType &getFuncType() const noexcept { return FuncType; }
 
   /// Getter of function local variables.
-  Span<const std::pair<uint32_t, ValType>> getLocals() const noexcept {
+  Span<const std::pair<uint32_t, FullValType>> getLocals() const noexcept {
     return std::get_if<WasmFunction>(&Data)->Locals;
   }
 
@@ -107,10 +107,10 @@ public:
 
 private:
   struct WasmFunction {
-    const std::vector<std::pair<uint32_t, ValType>> Locals;
+    const std::vector<std::pair<uint32_t, FullValType>> Locals;
     const uint32_t LocalNum;
     AST::InstrVec Instrs;
-    WasmFunction(Span<const std::pair<uint32_t, ValType>> Locs,
+    WasmFunction(Span<const std::pair<uint32_t, FullValType>> Locs,
                  AST::InstrView Expr) noexcept
         : Locals(Locs.begin(), Locs.end()),
           LocalNum(

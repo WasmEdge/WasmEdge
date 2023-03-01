@@ -48,7 +48,7 @@ typedef struct WasmEdge_Value {
   // functions. Developers should use the corresponding `WasmEdge_ValueGen`
   // functions to generate this struct, and the `WasmEdge_ValueGet` functions to
   // retrieve the value from this struct.
-  enum WasmEdge_ValType Type;
+  WasmEdge_FullValType Type;
 } WasmEdge_Value;
 
 /// WasmEdge string struct.

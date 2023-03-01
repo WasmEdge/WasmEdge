@@ -232,34 +232,34 @@ fmt::formatter<WasmEdge::ErrInfo::InfoInstruction>::format(
   if (!Info.Args.empty()) {
     Iter = fmt::format_to(Iter, " , Args: ["sv);
     for (uint32_t I = 0; I < Info.Args.size(); ++I) {
-      switch (Info.ArgsTypes[I]) {
-      case WasmEdge::ValType::I32:
+      switch (Info.ArgsTypes[I].getTypeCode()) {
+      case WasmEdge::ValTypeCode::I32:
         if (Info.IsSigned) {
           Iter = fmt::format_to(Iter, "{}"sv, Info.Args[I].get<int32_t>());
         } else {
           Iter = fmt::format_to(Iter, "{}"sv, Info.Args[I].get<uint32_t>());
         }
         break;
-      case WasmEdge::ValType::I64:
+      case WasmEdge::ValTypeCode::I64:
         if (Info.IsSigned) {
           Iter = fmt::format_to(Iter, "{}"sv, Info.Args[I].get<int64_t>());
         } else {
           Iter = fmt::format_to(Iter, "{}"sv, Info.Args[I].get<uint64_t>());
         }
         break;
-      case WasmEdge::ValType::F32:
+      case WasmEdge::ValTypeCode::F32:
         Iter = fmt::format_to(Iter, "{}"sv, Info.Args[I].get<float>());
         break;
-      case WasmEdge::ValType::F64:
+      case WasmEdge::ValTypeCode::F64:
         Iter = fmt::format_to(Iter, "{}"sv, Info.Args[I].get<double>());
         break;
-      case WasmEdge::ValType::V128: {
+      case WasmEdge::ValTypeCode::V128: {
         const auto Value = Info.Args[I].get<WasmEdge::uint64x2_t>();
         Iter = fmt::format_to(Iter, "0x{:08x}{:08x}"sv, Value[1], Value[0]);
         break;
       }
-      case WasmEdge::ValType::FuncRef:
-      case WasmEdge::ValType::ExternRef:
+      case WasmEdge::ValTypeCode::FuncRef:
+      case WasmEdge::ValTypeCode::ExternRef:
         Iter = fmt::format_to(Iter, "{}"sv, Info.ArgsTypes[I]);
         if (isNullRef(Info.Args[I])) {
           Iter = fmt::format_to(Iter, ":null"sv);

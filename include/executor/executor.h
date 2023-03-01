@@ -172,9 +172,9 @@ public:
                                         std::function<void(void *)> HostFunc);
 
   /// Invoke a WASM function by function instance.
-  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  Expect<std::vector<std::pair<ValVariant, FullValType>>>
   invoke(const Runtime::Instance::FunctionInstance *FuncInst,
-         Span<const ValVariant> Params, Span<const ValType> ParamTypes);
+         Span<const ValVariant> Params, Span<const FullValType> ParamTypes);
 
   /// Asynchronous invoke a WASM function by function instance.
   Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>

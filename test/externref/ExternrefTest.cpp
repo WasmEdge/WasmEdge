@@ -433,7 +433,7 @@ TEST(ExternRefTest, Ref__Functions) {
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMExecute(VMCxt, FuncName, P, 3, R, 1)));
   WasmEdge_StringDelete(FuncName);
-  EXPECT_EQ(R[0].Type, WasmEdge_ValType_I32);
+  EXPECT_EQ(R[0].Type.TypeCode, WasmEdge_ValType_I32);
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 6912);
 
   // Test 2: call mul -- 789 * 4321
@@ -444,7 +444,7 @@ TEST(ExternRefTest, Ref__Functions) {
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMExecute(VMCxt, FuncName, P, 3, R, 1)));
   WasmEdge_StringDelete(FuncName);
-  EXPECT_EQ(R[0].Type, WasmEdge_ValType_I32);
+  EXPECT_EQ(R[0].Type.TypeCode, WasmEdge_ValType_I32);
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 3409269);
 
   // Test 3: call square -- 8256^2
@@ -454,7 +454,7 @@ TEST(ExternRefTest, Ref__Functions) {
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMExecute(VMCxt, FuncName, P, 2, R, 1)));
   WasmEdge_StringDelete(FuncName);
-  EXPECT_EQ(R[0].Type, WasmEdge_ValType_I32);
+  EXPECT_EQ(R[0].Type.TypeCode, WasmEdge_ValType_I32);
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 68161536);
 
   // Test 4: call sum and square -- (210 + 654)^2
@@ -466,7 +466,7 @@ TEST(ExternRefTest, Ref__Functions) {
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMExecute(VMCxt, FuncName, P, 4, R, 1)));
   WasmEdge_StringDelete(FuncName);
-  EXPECT_EQ(R[0].Type, WasmEdge_ValType_I32);
+  EXPECT_EQ(R[0].Type.TypeCode, WasmEdge_ValType_I32);
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 746496);
 
   WasmEdge_VMDelete(VMCxt);
@@ -576,7 +576,7 @@ TEST(ExternRefTest, Ref__STL) {
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMExecute(VMCxt, FuncName, P, 2, R, 1)));
   WasmEdge_StringDelete(FuncName);
-  EXPECT_EQ(R[0].Type, WasmEdge_ValType_I32);
+  EXPECT_EQ(R[0].Type.TypeCode, WasmEdge_ValType_I32);
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 40 + 50 + 60 + 70 + 80);
 
   WasmEdge_VMDelete(VMCxt);

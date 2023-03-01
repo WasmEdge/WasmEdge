@@ -462,17 +462,17 @@ static bool isVoidReturn(Span<const WasmEdge::FullValType> ValTypes) {
 static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
                               const FullValType &ValType) {
   switch (ValType.getTypeCode()) {
-  case ValType::I32:
+  case ValTypeCode::I32:
     return llvm::Type::getInt32Ty(LLContext);
-  case ValType::I64:
-  case ValType::FuncRef:
-  case ValType::ExternRef:
+  case ValTypeCode::I64:
+  case ValTypeCode::Ref:
+  case ValTypeCode::RefNull:
     return llvm::Type::getInt64Ty(LLContext);
-  case ValType::V128:
+  case ValTypeCode::V128:
     return llvm::VectorType::get(llvm::Type::getInt64Ty(LLContext), 2, false);
-  case ValType::F32:
+  case ValTypeCode::F32:
     return llvm::Type::getFloatTy(LLContext);
-  case ValType::F64:
+  case ValTypeCode::F64:
     return llvm::Type::getDoubleTy(LLContext);
   default:
     assumingUnreachable();
@@ -525,18 +525,18 @@ static llvm::FunctionType *toLLVMType(llvm::PointerType *ExecCtxPtrTy,
 static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
                                           const FullValType &ValType) {
   switch (ValType.getTypeCode()) {
-  case ValType::I32:
+  case ValTypeCode::I32:
     return llvm::ConstantInt::get(llvm::Type::getInt32Ty(LLContext), 0);
-  case ValType::I64:
-  case ValType::FuncRef:
-  case ValType::ExternRef:
+  case ValTypeCode::I64:
+  case ValTypeCode::Ref:
+  case ValTypeCode::RefNull:
     return llvm::ConstantInt::get(llvm::Type::getInt64Ty(LLContext), 0);
-  case ValType::V128:
+  case ValTypeCode::V128:
     return llvm::ConstantAggregateZero::get(
         llvm::VectorType::get(llvm::Type::getInt64Ty(LLContext), 2, false));
-  case ValType::F32:
+  case ValTypeCode::F32:
     return llvm::ConstantFP::get(llvm::Type::getFloatTy(LLContext), 0.0);
-  case ValType::F64:
+  case ValTypeCode::F64:
     return llvm::ConstantFP::get(llvm::Type::getDoubleTy(LLContext), 0.0);
   default:
     assumingUnreachable();

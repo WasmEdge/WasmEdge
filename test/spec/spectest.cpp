@@ -269,18 +269,22 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
     // Handle NaN case
     // TODO: nan:canonical and nan:arithmetic
     if (TypeStr == "f32"sv) {
-      if (Got.second.getTypeCode() != ValType::F32) {
+      if (Got.second.getTypeCode() != ValTypeCode::F32) {
         return false;
       }
       return std::isnan(Got.first.get<float>());
     } else if (TypeStr == "f64"sv) {
-      if (Got.second.getTypeCode() != ValType::F64) {
+      if (Got.second.getTypeCode() != ValTypeCode::F64) {
         return false;
       }
       return std::isnan(Got.first.get<double>());
     }
   } else if (TypeStr == "funcref"sv) {
-    if (Got.second.getTypeCode() != ValType::FuncRef) {
+    if (Got.second.getTypeCode() != ValTypeCode::RefNull) {
+      return false;
+    }
+    if (Got.second.asRefType().getHeapType().getHTypeCode() !=
+        HeapTypeCode::Func) {
       return false;
     }
     if (ValStr == "null"sv) {
@@ -294,7 +298,11 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
              static_cast<uint32_t>(std::stoul(ValStr));
     }
   } else if (TypeStr == "externref"sv) {
-    if (Got.second.getTypeCode() != ValType::ExternRef) {
+    if (Got.second.getTypeCode() != ValTypeCode::RefNull) {
+      return false;
+    }
+    if (Got.second.asRefType().getHeapType().getHTypeCode() !=
+        HeapTypeCode::Extern) {
       return false;
     }
     if (ValStr == "null"sv) {
@@ -308,23 +316,23 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
              static_cast<uint32_t>(std::stoul(ValStr));
     }
   } else if (TypeStr == "i32"sv) {
-    if (Got.second != ValType::I32) {
+    if (Got.second != NumType::I32) {
       return false;
     }
     return Got.first.get<uint32_t>() == uint32_t(std::stoul(ValStr));
   } else if (TypeStr == "f32"sv) {
-    if (Got.second != ValType::F32) {
+    if (Got.second != NumType::F32) {
       return false;
     }
     // Compare the 32-bit pattern
     return Got.first.get<uint32_t>() == uint32_t(std::stoul(ValStr));
   } else if (TypeStr == "i64"sv) {
-    if (Got.second != ValType::I64) {
+    if (Got.second != NumType::I64) {
       return false;
     }
     return Got.first.get<uint64_t>() == uint64_t(std::stoull(ValStr));
   } else if (TypeStr == "f64"sv) {
-    if (Got.second != ValType::F64) {
+    if (Got.second != NumType::F64) {
       return false;
     }
     // Compare the 64-bit pattern
@@ -332,7 +340,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
   } else if (IsV128) {
     std::vector<std::string_view> Parts;
     std::string_view Ev = ValStr;
-    if (Got.second != ValType::V128) {
+    if (Got.second != NumType::V128) {
       return false;
     }
     for (std::string::size_type Begin = 0, End = Ev.find(' ');

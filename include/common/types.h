@@ -200,13 +200,13 @@ using MakeWasmUnsignedT =
     typename std::conditional<IsWasmFloatV<T>, std::common_type<T>,
                               std::make_unsigned<T>>::type::type;
 
-/// Cast-to-signed function.
+/// Cast-to-signed function.
 template <typename T>
 typename std::enable_if_t<IsWasmNumV<T>, MakeWasmSignedT<T>> toSigned(T Val) {
   return static_cast<MakeWasmSignedT<T>>(Val);
 }
 
-/// Cast-to-unsigned function.
+/// Cast-to-unsigned function.
 template <typename T>
 typename std::enable_if_t<IsWasmNumV<T>, MakeWasmUnsignedT<T>>
 toUnsigned(T Val) {
@@ -256,18 +256,18 @@ template <> inline FullValType ValTypeFromType<ExternRef>() noexcept {
 
 inline ValVariant ValueFromType(FullValType Type) noexcept {
   switch (Type.getTypeCode()) {
-  case ValType::I32:
+  case ValTypeCode::I32:
     return uint32_t(0U);
-  case ValType::I64:
+  case ValTypeCode::I64:
     return uint64_t(0U);
-  case ValType::F32:
+  case ValTypeCode::F32:
     return float(0.0F);
-  case ValType::F64:
+  case ValTypeCode::F64:
     return double(0.0);
-  case ValType::V128:
+  case ValTypeCode::V128:
     return uint128_t(0U);
-  case ValType::FuncRef:
-  case ValType::ExternRef:
+  case ValTypeCode::Ref:
+  case ValTypeCode::RefNull:
     return UnknownRef();
   default:
     assumingUnreachable();

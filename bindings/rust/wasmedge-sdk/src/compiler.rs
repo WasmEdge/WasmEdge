@@ -10,14 +10,16 @@ pub struct Compiler {
     pub(crate) inner: sys::Compiler,
 }
 impl Compiler {
-    /// Creates a new AOT [compiler](crate::Compiler).
+    /// Creates a new AOT compiler.
     ///
     /// # Error
     ///
-    /// If fail to create a AOT [compiler](crate::Compiler), then an error is returned.
+    /// If fail to create a AOT compiler, then an error is returned.
     pub fn new(config: Option<&Config>) -> WasmEdgeResult<Self> {
-        let inner_config = config.map(|c| c.inner.clone());
-        let inner = sys::Compiler::create(inner_config)?;
+        let inner = match config {
+            Some(cfg) => sys::Compiler::create(Some(&cfg.inner))?,
+            None => sys::Compiler::create(None)?,
+        };
 
         Ok(Self { inner })
     }
@@ -129,7 +131,7 @@ mod tests {
             let wasm_magic: [u8; 4] = [0x00, 0x61, 0x73, 0x6D];
             assert_ne!(buffer, wasm_magic);
 
-            let res = Vm::new(None)?.run_func_from_file(&aot_file_path, "fib", params!(5))?;
+            let res = Vm::new(None, None)?.run_func_from_file(&aot_file_path, "fib", params!(5))?;
             assert_eq!(res[0].to_i32(), 8);
 
             // cleanup
@@ -199,7 +201,7 @@ mod tests {
             let wasm_magic: [u8; 4] = [0x00, 0x61, 0x73, 0x6D];
             assert_ne!(buffer, wasm_magic);
 
-            let res = Vm::new(None)?.run_func_from_file(&aot_file_path, "fib", params!(5))?;
+            let res = Vm::new(None, None)?.run_func_from_file(&aot_file_path, "fib", params!(5))?;
             assert_eq!(res[0].to_i32(), 8);
 
             // cleanup

@@ -50,7 +50,7 @@ Cargo.lock
 bindings/rust/target
 bindings/rust/wasmedge-sdk/target
 bindings/rust/wasmedge-sys/target
-bindings/rust/wasmedge-sys/examples/wasi_print_env/target
+bindings/rust/wasmedge-sdk/examples/wasi_print_env/target
 
 #==============================================================================#
 # Directories to ignore (do not add trailing '/'s, they skip symlinks).

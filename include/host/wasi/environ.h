@@ -507,6 +507,8 @@ public:
     std::unique_lock Lock(FdMutex);
     if (auto It = FdMap.find(Fd); It == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else if (It->second->isPreopened()) {
+      return WasiUnexpect(__WASI_ERRNO_NOTSUP);
     } else if (auto It2 = FdMap.find(To); It2 == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else if (It2->second->isPreopened()) {
@@ -1048,13 +1050,13 @@ public:
     }
   }
 
-  WasiExpect<void> sockGetLoaclAddr(__wasi_fd_t Fd, uint8_t *Address,
+  WasiExpect<void> sockGetLocalAddr(__wasi_fd_t Fd, uint8_t *Address,
                                     uint32_t *PortPtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockGetLoaclAddr(Address, PortPtr);
+      return Node->sockGetLocalAddr(Address, PortPtr);
     }
   }
 

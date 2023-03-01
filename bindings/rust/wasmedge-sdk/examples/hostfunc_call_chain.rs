@@ -17,13 +17,13 @@
 //! ```
 
 use wasmedge_sdk::{
-    error::HostFuncError, params, wat2wasm, Caller, CallingFrame, ImportObjectBuilder, Module, Vm,
-    WasmValue,
+    error::HostFuncError, params, wat2wasm, Caller, CallingFrame, ImportObjectBuilder, Module,
+    VmBuilder, WasmValue,
 };
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let vm = Vm::new(None, None)?;
+    let vm = VmBuilder::new().build()?;
 
     let host_layer1 =
         |_frame: CallingFrame, _args: Vec<WasmValue>| -> Result<Vec<WasmValue>, HostFuncError> {

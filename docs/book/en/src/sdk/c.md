@@ -112,7 +112,9 @@ sys 0m0.011s
 
 ## API References
 
-- [0.11.1](c/ref.md)
+- [0.12.0](c/ref.md)
+- [0.11.2](c/0.11.2/ref.md)
+  - [Upgrade to 0.12.0](c/0.11.2/upgrade_to_0.12.0.md)
 - [0.10.1](c/0.10.1/ref.md)
   - [Upgrade to 0.11.0](c/0.10.1/upgrade_to_0.11.0.md)
 - [0.9.1](c/0.9.1/ref.md)

@@ -4,7 +4,7 @@ use crate::{
 };
 use wasmedge_sys::{self as sys, AsImport};
 
-/// Creates a normal, wasi, or wasmedge process [import object](crate::ImportObject).
+/// Creates a normal or wasi [import object](crate::ImportObject).
 ///
 /// # Example
 ///

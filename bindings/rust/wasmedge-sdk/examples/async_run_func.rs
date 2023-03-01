@@ -8,7 +8,7 @@
 #[cfg(feature = "async")]
 use wasmedge_sdk::{
     config::{CommonConfigOptions, ConfigBuilder},
-    params, Vm, WasmVal,
+    params, VmBuilder, WasmVal,
 };
 
 #[tokio::main]
@@ -22,7 +22,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert!(config.bulk_memory_operations_enabled());
 
         // create Vm instance
-        let vm = Vm::new(Some(config), None)?.register_module_from_file("extern", wasm_file)?;
+        let vm = VmBuilder::new()
+            .with_config(config)
+            .build()?
+            .register_module_from_file("extern", wasm_file)?;
 
         // async run function
         let fut1 = vm.run_func_async(Some("extern"), "fib", params!(20));

@@ -101,10 +101,10 @@ SpecTest::CommandID resolveCommand(std::string_view Name) {
 }
 
 // Helper function to parse parameters from json to vector of value.
-std::pair<std::vector<WasmEdge::ValVariant>, std::vector<WasmEdge::ValType>>
+std::pair<std::vector<WasmEdge::ValVariant>, std::vector<WasmEdge::FullValType>>
 parseValueList(const rapidjson::Value &Args) {
   std::vector<WasmEdge::ValVariant> Result;
-  std::vector<WasmEdge::ValType> ResultTypes;
+  std::vector<WasmEdge::FullValType> ResultTypes;
   Result.reserve(Args.Size());
   ResultTypes.reserve(Args.Size());
   for (const auto &Element : Args.GetArray()) {
@@ -259,7 +259,7 @@ SpecTest::resolve(std::string_view Params) const {
 }
 
 bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
-                       const std::pair<ValVariant, ValType> &Got) const {
+                       const std::pair<ValVariant, FullValType> &Got) const {
   const auto &TypeStr = Expected.first;
   const auto &ValStr = Expected.second;
   bool IsV128 = (std::string_view(TypeStr).substr(0, 4) == "v128"sv);
@@ -267,18 +267,18 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
     // Handle NaN case
     // TODO: nan:canonical and nan:arithmetic
     if (TypeStr == "f32"sv) {
-      if (Got.second != ValType::F32) {
+      if (Got.second.getTypeCode() != ValType::F32) {
         return false;
       }
       return std::isnan(Got.first.get<float>());
     } else if (TypeStr == "f64"sv) {
-      if (Got.second != ValType::F64) {
+      if (Got.second.getTypeCode() != ValType::F64) {
         return false;
       }
       return std::isnan(Got.first.get<double>());
     }
   } else if (TypeStr == "funcref"sv) {
-    if (Got.second != ValType::FuncRef) {
+    if (Got.second.getTypeCode() != ValType::FuncRef) {
       return false;
     }
     if (ValStr == "null"sv) {
@@ -292,7 +292,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
              static_cast<uint32_t>(std::stoul(ValStr));
     }
   } else if (TypeStr == "externref"sv) {
-    if (Got.second != ValType::ExternRef) {
+    if (Got.second.getTypeCode() != ValType::ExternRef) {
       return false;
     }
     if (ValStr == "null"sv) {
@@ -437,7 +437,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
 
 bool SpecTest::compares(
     const std::vector<std::pair<std::string, std::string>> &Expected,
-    const std::vector<std::pair<ValVariant, ValType>> &Got) const {
+    const std::vector<std::pair<ValVariant, FullValType>> &Got) const {
   if (Expected.size() != Got.size()) {
     return false;
   }

@@ -101,7 +101,7 @@ fn main() -> anyhow::Result<()> {
 
     // create a vm instance
     let config = ConfigBuilder::default().build()?;
-    let vm = Vm::new(Some(config))?.register_import_module(import)?;
+    let mut vm = Vm::new(Some(config), None)?.register_import_module(import)?;
 
     // run the export wasm function named "call_add" from func.wasm
     let wasm_file = std::env::current_dir()?.join("examples/data/funcs.wasm");

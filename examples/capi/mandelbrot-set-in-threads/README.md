@@ -20,7 +20,7 @@ The C code is original from [ColinEberhardt/wasm-mandelbrot](https://github.com/
 
 ### WasmEdge Installation
 
-Please follows the [installation step](https://wasmedge.org/book/en/start/install.html) to install WasmEdge.
+Please follows the [installation step](https://wasmedge.org/book/en/quick_start/install.html) to install WasmEdge.
 
 ### The Mandelbrot C Program to WASM
 

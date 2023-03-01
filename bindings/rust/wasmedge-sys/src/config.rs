@@ -6,7 +6,7 @@ use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
 /// Defines Config struct used to check/set the configuration options.
 ///
-/// [Config](crate::Config) manages the configuration options, which are used to initiate WasmEdge [Vm](crate::Vm), [Loader](crate::Loader), [Validator](crate::Validator), [Executor](crate::Executor), and [Compiler](crate::Compiler).
+/// [Config](crate::Config) manages the configuration options, which are used to initiate [Loader](crate::Loader), [Validator](crate::Validator), [Executor](crate::Executor), and [Compiler](crate::Compiler).
 ///
 /// The configuration options are categorized into the following four groups:
 ///
@@ -72,15 +72,12 @@ use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 ///       Also see [Function References Proposal](https://github.com/WebAssembly/function-references/blob/master/proposals/function-references/Overview.md).
 ///
 /// - **Host Registrations**
-///     - `Wasi` turns on the `WASI` support in [Vm](crate::Vm).
+///     - `Wasi` turns on the `WASI` support.
 ///
-///     - `WasmEdgeProcess` turns on the `wasmedge_process` support in [Vm](crate::Vm).
+///     - `WasmEdgeProcess` turns on the `wasmedge_process` support.
 ///     
-///     The two options are only effective to [Vm](crate::Vm).
-///
 /// - **Memory Management**
-///     - `maximum_memory_page` limits the page size of [Memory](crate::Memory). This option is only effective to
-///       [Executor](crate::Executor) and [Vm](crate::Vm).
+///     - `maximum_memory_page` limits the page size of [Memory](crate::Memory).
 ///
 /// - **AOT Compilation**
 ///
@@ -179,206 +176,6 @@ impl Config {
             ffi::WasmEdge_ConfigureHasHostRegistration(
                 self.inner.0,
                 ffi::WasmEdge_HostRegistration_Wasi,
-            )
-        }
-    }
-
-    /// Enables or disables host registration WasmEdge process. By default, the option is disabled.
-    ///
-    /// Notice that to enable the `wasmege_process` option in [Vm](crate::Vm), it MUST be guaranteed that the `wasmedge_process` plugins are loaded first. If not, use the [load_plugin_from_default_paths](crate::utils::load_plugin_from_default_paths) function to load the relevant plugins from the default paths
-    ///
-    /// # Argument
-    ///
-    /// * `enable` - Whether the option turns on or not.
-    #[cfg(target_os = "linux")]
-    pub fn wasmedge_process(&mut self, enable: bool) {
-        unsafe {
-            if enable {
-                ffi::WasmEdge_ConfigureAddHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasmEdge_Process,
-                )
-            } else {
-                ffi::WasmEdge_ConfigureRemoveHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasmEdge_Process,
-                )
-            }
-        }
-    }
-
-    /// Checks if host registration wasmedge process turns on or not.
-    #[cfg(target_os = "linux")]
-    pub fn wasmedge_process_enabled(&self) -> bool {
-        unsafe {
-            ffi::WasmEdge_ConfigureHasHostRegistration(
-                self.inner.0,
-                ffi::WasmEdge_HostRegistration_WasmEdge_Process,
-            )
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
-    pub fn wasi_nn(&mut self, enable: bool) {
-        unsafe {
-            if enable {
-                // enable wasi option
-                self.wasi(enable);
-
-                ffi::WasmEdge_ConfigureAddHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiNN,
-                )
-            } else {
-                ffi::WasmEdge_ConfigureRemoveHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiNN,
-                )
-            }
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
-    pub fn wasi_nn_enabled(&self) -> bool {
-        unsafe {
-            ffi::WasmEdge_ConfigureHasHostRegistration(
-                self.inner.0,
-                ffi::WasmEdge_HostRegistration_WasiNN,
-            )
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_common(&mut self, enable: bool) {
-        unsafe {
-            if enable {
-                ffi::WasmEdge_ConfigureAddHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Common,
-                )
-            } else {
-                ffi::WasmEdge_ConfigureRemoveHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Common,
-                )
-            }
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_common_enabled(&self) -> bool {
-        unsafe {
-            ffi::WasmEdge_ConfigureHasHostRegistration(
-                self.inner.0,
-                ffi::WasmEdge_HostRegistration_WasiCrypto_Common,
-            )
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_asymmetric_common(&mut self, enable: bool) {
-        unsafe {
-            if enable {
-                ffi::WasmEdge_ConfigureAddHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon,
-                )
-            } else {
-                ffi::WasmEdge_ConfigureRemoveHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon,
-                )
-            }
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_asymmetric_common_enabled(&self) -> bool {
-        unsafe {
-            ffi::WasmEdge_ConfigureHasHostRegistration(
-                self.inner.0,
-                ffi::WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon,
-            )
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_symmetric(&mut self, enable: bool) {
-        unsafe {
-            if enable {
-                ffi::WasmEdge_ConfigureAddHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Symmetric,
-                )
-            } else {
-                ffi::WasmEdge_ConfigureRemoveHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Symmetric,
-                )
-            }
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_symmetric_enabled(&self) -> bool {
-        unsafe {
-            ffi::WasmEdge_ConfigureHasHostRegistration(
-                self.inner.0,
-                ffi::WasmEdge_HostRegistration_WasiCrypto_Symmetric,
-            )
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_kx(&mut self, enable: bool) {
-        unsafe {
-            if enable {
-                ffi::WasmEdge_ConfigureAddHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Kx,
-                )
-            } else {
-                ffi::WasmEdge_ConfigureRemoveHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Kx,
-                )
-            }
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_kx_enabled(&self) -> bool {
-        unsafe {
-            ffi::WasmEdge_ConfigureHasHostRegistration(
-                self.inner.0,
-                ffi::WasmEdge_HostRegistration_WasiCrypto_Kx,
-            )
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_signatures(&mut self, enable: bool) {
-        unsafe {
-            if enable {
-                ffi::WasmEdge_ConfigureAddHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Signatures,
-                )
-            } else {
-                ffi::WasmEdge_ConfigureRemoveHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Signatures,
-                )
-            }
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_signatures_enabled(&self) -> bool {
-        unsafe {
-            ffi::WasmEdge_ConfigureHasHostRegistration(
-                self.inner.0,
-                ffi::WasmEdge_HostRegistration_WasiCrypto_Signatures,
             )
         }
     }
@@ -979,8 +776,6 @@ mod tests {
         assert!(!config.tail_call_enabled());
         assert!(!config.threads_enabled());
         assert!(!config.wasi_enabled());
-        #[cfg(target_os = "linux")]
-        assert!(!config.wasmedge_process_enabled());
         assert!(!config.is_cost_measuring());
         #[cfg(feature = "aot")]
         assert!(!config.dump_ir_enabled());

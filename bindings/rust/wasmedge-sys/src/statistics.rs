@@ -1,12 +1,12 @@
 //! Defines WasmEdge Statistics struct.
 
 use crate::{error::WasmEdgeError, ffi, WasmEdgeResult};
+use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Struct of WasmEdge Statistics.
 pub struct Statistics {
-    pub(crate) inner: InnerStat,
-    pub(crate) registered: bool,
+    pub(crate) inner: Arc<InnerStat>,
 }
 impl Statistics {
     /// Creates a new [Statistics].
@@ -19,8 +19,7 @@ impl Statistics {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::StatisticsCreate)),
             false => Ok(Statistics {
-                inner: InnerStat(ctx),
-                registered: false,
+                inner: Arc::new(InnerStat(ctx)),
             }),
         }
     }
@@ -91,7 +90,7 @@ impl Statistics {
 }
 impl Drop for Statistics {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_StatisticsDelete(self.inner.0) }
         }
     }

@@ -225,13 +225,6 @@ int Tool(int Argc, const char *Argv[]) noexcept {
   }
 
   Conf.addHostRegistration(HostRegistration::Wasi);
-  Conf.addHostRegistration(HostRegistration::WasmEdge_Process);
-  Conf.addHostRegistration(HostRegistration::WasiNN);
-  Conf.addHostRegistration(HostRegistration::WasiCrypto_Common);
-  Conf.addHostRegistration(HostRegistration::WasiCrypto_AsymmetricCommon);
-  Conf.addHostRegistration(HostRegistration::WasiCrypto_Kx);
-  Conf.addHostRegistration(HostRegistration::WasiCrypto_Signatures);
-  Conf.addHostRegistration(HostRegistration::WasiCrypto_Symmetric);
   const auto InputPath = std::filesystem::absolute(SoName.value());
   VM::VM VM(Conf);
 
@@ -293,7 +286,8 @@ int Tool(int Argc, const char *Argv[]) noexcept {
         Result || Result.error() == ErrCode::Value::Terminated) {
       return static_cast<int>(WasiMod->getEnv().getExitCode());
     } else {
-      return EXIT_FAILURE;
+      // It indicates that the execution of wasm has been aborted
+      return 128 + SIGABRT;
     }
   } else {
     // reactor mode
@@ -326,7 +320,8 @@ int Tool(int Argc, const char *Argv[]) noexcept {
         }
       }
       if (auto Result = AsyncResult.get(); unlikely(!Result)) {
-        return EXIT_FAILURE;
+        // It indicates that the execution of wasm has been aborted
+        return 128 + SIGABRT;
       }
     }
 
@@ -373,7 +368,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
         const uint64_t Value =
             static_cast<uint64_t>(std::stoll(Args.value()[I]));
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(ValType::F64);
+        FuncArgTypes.emplace_back(ValType::I64);
       }
     }
 
@@ -409,7 +404,8 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       }
       return EXIT_SUCCESS;
     } else {
-      return EXIT_FAILURE;
+      // It indicates that the execution of wasm has been aborted
+      return 128 + SIGABRT;
     }
   }
 }

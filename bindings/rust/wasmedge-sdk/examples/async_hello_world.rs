@@ -45,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .with_func_async::<(), ()>("say_hello", say_hello)?
             .build("extern")?;
 
-        let vm = Vm::new(None)?.register_import_module(import)?;
+        let vm = Vm::new(None, None)?.register_import_module(import)?;
 
         tokio::spawn(async move {
             let _ = vm

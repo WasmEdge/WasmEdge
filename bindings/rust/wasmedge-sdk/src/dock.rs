@@ -1,9 +1,6 @@
 //! Defines WasmEdge VmDock and Param types.
 
-use crate::{
-    error::{InstanceError, WasmEdgeError},
-    params, Memory, Vm, WasmEdgeResult, WasmVal, WasmValue,
-};
+use crate::{error::WasmEdgeError, params, Memory, Vm, WasmEdgeResult, WasmVal, WasmValue};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::any::Any;
@@ -50,9 +47,7 @@ impl VmDock {
             }
         };
 
-        let mut memory = self.vm.active_module()?.memory("memory").ok_or_else(|| {
-            WasmEdgeError::Instance(InstanceError::NotFoundMem("memory".to_string()))
-        })?;
+        let mut memory = self.vm.active_module()?.memory("memory")?;
 
         for (pos, param) in params.iter().enumerate() {
             let sr = param.settle(self, &mut memory);
@@ -93,11 +88,7 @@ impl VmDock {
     }
 
     fn parse_error(&self, ret_pointer: i32, ret_len: i32) -> WasmEdgeResult<String> {
-        let memory = self.vm.active_module()?.memory("memory").ok_or_else(|| {
-            WasmEdgeError::Operation(
-                "[wasmedge-sdk::VmDock] Not found memory instance named 'memory'".to_string(),
-            )
-        })?;
+        let memory = self.vm.active_module()?.memory("memory")?;
         let err_bytes = memory.read(ret_pointer as u32, ret_len as u32)?;
         self.free(None, params!(ret_pointer, ret_len))?;
         Ok(String::from_utf8(err_bytes).map_err(WasmEdgeError::FromUtf8)?)

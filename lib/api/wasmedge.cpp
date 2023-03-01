@@ -116,6 +116,9 @@ struct WasmEdge_VMContext {
   WasmEdge::VM::VM VM;
 };
 
+// WasmEdge_PluginContext implementation.
+struct WasmEdge_PluginContext {};
+
 namespace {
 
 using namespace WasmEdge;
@@ -320,6 +323,7 @@ CONVTO(Tab, Runtime::Instance::TableInstance, TableInstance, )
 CONVTO(Mem, Runtime::Instance::MemoryInstance, MemoryInstance, )
 CONVTO(Glob, Runtime::Instance::GlobalInstance, GlobalInstance, )
 CONVTO(CallFrame, Runtime::CallingFrame, CallingFrame, const)
+CONVTO(Plugin, Plugin::Plugin, Plugin, const)
 #undef CONVTO
 
 #define CONVFROM(SIMP, INST, NAME, QUANT)                                      \
@@ -357,6 +361,7 @@ CONVFROM(Mem, Runtime::Instance::MemoryInstance, MemoryInstance, const)
 CONVFROM(Glob, Runtime::Instance::GlobalInstance, GlobalInstance, )
 CONVFROM(Glob, Runtime::Instance::GlobalInstance, GlobalInstance, const)
 CONVFROM(CallFrame, Runtime::CallingFrame, CallingFrame, const)
+CONVFROM(Plugin, Plugin::Plugin, Plugin, const)
 #undef CONVFROM
 
 // C API Host function class
@@ -1768,96 +1773,6 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceWASIGetExitCode(
   return WasiMod->getEnv().getExitCode();
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
-WasmEdge_ModuleInstanceCreateWasiNN(void) {
-  using namespace std::literals::string_view_literals;
-  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_nn"sv)) {
-    if (const auto *Module = Plugin->findModule("wasi_nn"sv)) {
-      auto *ProcMod = toModCxt(Module->create().release());
-      return ProcMod;
-    }
-  }
-  return nullptr;
-}
-
-WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
-WasmEdge_ModuleInstanceCreateWasiCryptoCommon(void) {
-  using namespace std::literals::string_view_literals;
-  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_crypto"sv)) {
-    if (const auto *Module = Plugin->findModule("wasi_crypto_common"sv)) {
-      auto *ProcMod = toModCxt(Module->create().release());
-      return ProcMod;
-    }
-  }
-  return nullptr;
-}
-
-WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
-WasmEdge_ModuleInstanceCreateWasiCryptoAsymmetricCommon(void) {
-  using namespace std::literals::string_view_literals;
-  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_crypto"sv)) {
-    if (const auto *Module =
-            Plugin->findModule("wasi_crypto_asymmetric_common"sv)) {
-      auto *ProcMod = toModCxt(Module->create().release());
-      return ProcMod;
-    }
-  }
-  return nullptr;
-}
-
-WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
-WasmEdge_ModuleInstanceCreateWasiCryptoKx(void) {
-  using namespace std::literals::string_view_literals;
-  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_crypto"sv)) {
-    if (const auto *Module = Plugin->findModule("wasi_crypto_kx"sv)) {
-      auto *ProcMod = toModCxt(Module->create().release());
-      return ProcMod;
-    }
-  }
-  return nullptr;
-}
-
-WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
-WasmEdge_ModuleInstanceCreateWasiCryptoSignatures(void) {
-  using namespace std::literals::string_view_literals;
-  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_crypto"sv)) {
-    if (const auto *Module = Plugin->findModule("wasi_crypto_signatures"sv)) {
-      auto *ProcMod = toModCxt(Module->create().release());
-      return ProcMod;
-    }
-  }
-  return nullptr;
-}
-
-WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
-WasmEdge_ModuleInstanceCreateWasiCryptoSymmetric(void) {
-  using namespace std::literals::string_view_literals;
-  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_crypto"sv)) {
-    if (const auto *Module = Plugin->findModule("wasi_crypto_symmetric"sv)) {
-      auto *ProcMod = toModCxt(Module->create().release());
-      return ProcMod;
-    }
-  }
-  return nullptr;
-}
-
-WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
-WasmEdge_ModuleInstanceCreateWasmEdgeProcess(const char *const *AllowedCmds,
-                                             const uint32_t CmdsLen,
-                                             const bool AllowAll) {
-  using namespace std::literals::string_view_literals;
-  if (const auto *Plugin =
-          WasmEdge::Plugin::Plugin::find("wasmedge_process"sv)) {
-    if (const auto *Module = Plugin->findModule("wasmedge_process"sv)) {
-      WasmEdge_ModuleInstanceInitWasmEdgeProcess(AllowedCmds, CmdsLen,
-                                                 AllowAll);
-      auto *ProcMod = toModCxt(Module->create().release());
-      return ProcMod;
-    }
-  }
-  return nullptr;
-}
-
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ModuleInstanceInitWasmEdgeProcess(const char *const *AllowedCmds,
                                            const uint32_t CmdsLen,
@@ -2702,6 +2617,33 @@ WasmEdge_VMGetImportModuleContext(const WasmEdge_VMContext *Cxt,
   return nullptr;
 }
 
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_VMListRegisteredModuleLength(const WasmEdge_VMContext *Cxt) {
+  if (Cxt) {
+    return Cxt->VM.getStoreManager().getModuleListSize();
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMListRegisteredModule(
+    const WasmEdge_VMContext *Cxt, WasmEdge_String *Names, const uint32_t Len) {
+  if (Cxt) {
+    return Cxt->VM.getStoreManager().getModuleList(
+        [&](auto &Map) { return fillMap(Map, Names, Len); });
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_ModuleInstanceContext *
+WasmEdge_VMGetRegisteredModule(const WasmEdge_VMContext *Cxt,
+                               const WasmEdge_String ModuleName) {
+  if (Cxt) {
+    return toModCxt(
+        Cxt->VM.getStoreManager().findModule(genStrView(ModuleName)));
+  }
+  return nullptr;
+}
+
 WASMEDGE_CAPI_EXPORT const WasmEdge_ModuleInstanceContext *
 WasmEdge_VMGetActiveModule(const WasmEdge_VMContext *Cxt) {
   if (Cxt) {
@@ -2787,6 +2729,80 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadWithDefaultPaths(void) {
   for (const auto &Path : WasmEdge::Plugin::Plugin::getDefaultPluginPaths()) {
     WasmEdge::Plugin::Plugin::load(Path);
   }
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadFromPath(const char *Path) {
+  WasmEdge::Plugin::Plugin::load(Path);
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPluginsLength(void) {
+  return static_cast<uint32_t>(WasmEdge::Plugin::Plugin::plugins().size());
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPlugins(WasmEdge_String *Names,
+                                                         const uint32_t Len) {
+  auto PList = WasmEdge::Plugin::Plugin::plugins();
+  if (Names) {
+    for (uint32_t I = 0; I < Len && I < PList.size(); I++) {
+      Names[I] = WasmEdge_String{
+          .Length = static_cast<uint32_t>(std::strlen(PList[I].name())),
+          .Buf = PList[I].name()};
+    }
+  }
+  return static_cast<uint32_t>(PList.size());
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_PluginContext *
+WasmEdge_PluginFind(const WasmEdge_String Name) {
+  return toPluginCxt(WasmEdge::Plugin::Plugin::find(genStrView(Name)));
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_String
+WasmEdge_PluginGetPluginName(const WasmEdge_PluginContext *Cxt) {
+  if (Cxt) {
+    const char *Name = fromPluginCxt(Cxt)->name();
+    return WasmEdge_String{.Length = static_cast<uint32_t>(std::strlen(Name)),
+                           .Buf = Name};
+  }
+  return WasmEdge_String{.Length = 0, .Buf = nullptr};
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_PluginListModuleLength(const WasmEdge_PluginContext *Cxt) {
+  if (Cxt) {
+    return static_cast<uint32_t>(fromPluginCxt(Cxt)->modules().size());
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_PluginListModule(const WasmEdge_PluginContext *Cxt,
+                          WasmEdge_String *Names, const uint32_t Len) {
+  if (Cxt) {
+    auto MList = fromPluginCxt(Cxt)->modules();
+    if (Names) {
+      for (uint32_t I = 0; I < Len && I < MList.size(); I++) {
+        Names[I] = WasmEdge_String{
+            .Length = static_cast<uint32_t>(std::strlen(MList[I].name())),
+            .Buf = MList[I].name()};
+      }
+    }
+    return static_cast<uint32_t>(MList.size());
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
+WasmEdge_PluginCreateModule(const WasmEdge_PluginContext *Cxt,
+                            const WasmEdge_String ModuleName) {
+  if (Cxt) {
+    if (const auto *PMod =
+            fromPluginCxt(Cxt)->findModule(genStrView(ModuleName));
+        PMod) {
+      return toModCxt(PMod->create().release());
+    }
+  }
+  return nullptr;
 }
 
 // <<<<<<<< WasmEdge Plugin functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

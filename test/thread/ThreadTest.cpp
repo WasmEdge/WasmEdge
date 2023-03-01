@@ -172,7 +172,7 @@ TEST(AsyncExecute, ThreadTest) {
   ASSERT_TRUE(VM.instantiate());
   {
     std::array<WasmEdge::VM::Async<WasmEdge::Expect<std::vector<
-                   std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>,
+                   std::pair<WasmEdge::ValVariant, WasmEdge::FullValType>>>>,
                4>
         AsyncResults;
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
@@ -180,8 +180,9 @@ TEST(AsyncExecute, ThreadTest) {
           "mt19937",
           std::initializer_list<WasmEdge::ValVariant>{
               UINT32_C(2504) * Index, UINT64_C(5489), UINT64_C(100000) + Index},
-          {WasmEdge::ValType::I32, WasmEdge::ValType::I64,
-           WasmEdge::ValType::I64});
+          {WasmEdge::FullValType(WasmEdge::ValType::I32),
+           WasmEdge::FullValType(WasmEdge::ValType::I64),
+           WasmEdge::FullValType(WasmEdge::ValType::I64)});
     }
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       auto Result = AsyncResults[Index].get();
@@ -203,7 +204,7 @@ TEST(AsyncExecute, GasThreadTest) {
   ASSERT_TRUE(VM.instantiate());
   {
     std::array<WasmEdge::VM::Async<WasmEdge::Expect<std::vector<
-                   std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>,
+                   std::pair<WasmEdge::ValVariant, WasmEdge::FullValType>>>>,
                4>
         AsyncResults;
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
@@ -211,8 +212,9 @@ TEST(AsyncExecute, GasThreadTest) {
           "mt19937",
           std::initializer_list<WasmEdge::ValVariant>{
               UINT32_C(2504) * Index, UINT64_C(5489), UINT64_C(100000) + Index},
-          {WasmEdge::ValType::I32, WasmEdge::ValType::I64,
-           WasmEdge::ValType::I64});
+          {WasmEdge::FullValType(WasmEdge::ValType::I32),
+           WasmEdge::FullValType(WasmEdge::ValType::I64),
+           WasmEdge::FullValType(WasmEdge::ValType::I64)});
     }
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       auto Result = AsyncResults[Index].get();
@@ -248,7 +250,7 @@ TEST(AOTAsyncExecute, ThreadTest) {
   ASSERT_TRUE(VM.instantiate());
   {
     std::array<WasmEdge::VM::Async<WasmEdge::Expect<std::vector<
-                   std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>,
+                   std::pair<WasmEdge::ValVariant, WasmEdge::FullValType>>>>,
                4>
         AsyncResults;
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
@@ -256,8 +258,9 @@ TEST(AOTAsyncExecute, ThreadTest) {
           "mt19937",
           std::initializer_list<WasmEdge::ValVariant>{
               UINT32_C(2504) * Index, UINT64_C(5489), UINT64_C(100000) + Index},
-          {WasmEdge::ValType::I32, WasmEdge::ValType::I64,
-           WasmEdge::ValType::I64});
+          {WasmEdge::FullValType(WasmEdge::ValType::I32),
+           WasmEdge::FullValType(WasmEdge::ValType::I64),
+           WasmEdge::FullValType(WasmEdge::ValType::I64)});
     }
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       auto Result = AsyncResults[Index].get();
@@ -296,7 +299,7 @@ TEST(AOTAsyncExecute, GasThreadTest) {
   ASSERT_TRUE(VM.instantiate());
   {
     std::array<WasmEdge::VM::Async<WasmEdge::Expect<std::vector<
-                   std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>,
+                   std::pair<WasmEdge::ValVariant, WasmEdge::FullValType>>>>,
                4>
         AsyncResults;
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
@@ -304,8 +307,9 @@ TEST(AOTAsyncExecute, GasThreadTest) {
           "mt19937",
           std::initializer_list<WasmEdge::ValVariant>{
               UINT32_C(2504) * Index, UINT64_C(5489), UINT64_C(100000) + Index},
-          {WasmEdge::ValType::I32, WasmEdge::ValType::I64,
-           WasmEdge::ValType::I64});
+          {WasmEdge::FullValType(WasmEdge::ValType::I32),
+           WasmEdge::FullValType(WasmEdge::ValType::I64),
+           WasmEdge::FullValType(WasmEdge::ValType::I64)});
     }
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       auto Result = AsyncResults[Index].get();

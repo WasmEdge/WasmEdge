@@ -1,6 +1,6 @@
 use wasmedge_sdk::{
     error::HostFuncError, host_function, params, Caller, Executor, Func, ImportObjectBuilder,
-    ValType, Vm, WasmVal, WasmValue,
+    ValType, VmBuilder, WasmVal, WasmValue,
 };
 
 #[host_function]
@@ -65,7 +65,8 @@ fn main() -> anyhow::Result<()> {
         .with_func::<(), ()>("outer-func", func)?
         .build("extern")?;
 
-    let _ = Vm::new(None, None)?
+    let _ = VmBuilder::new()
+        .build()?
         .register_import_module(import)?
         .run_func(Some("extern"), "outer-func", params!())?;
 

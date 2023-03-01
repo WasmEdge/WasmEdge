@@ -231,20 +231,11 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
       break;
     case ValTypeCode::Ref:
     case ValTypeCode::RefNull: {
-      if (TVec[I].isFuncRefType()) {
-        VVec[I] = ValVariant::wrap<FuncRef>(
-            to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
-        break;
-      } else if (TVec[I].isExternRefType()) {
-        VVec[I] = ValVariant::wrap<ExternRef>(
-            to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
-        break;
-      }
-      // TODO: Handle the type index case.
+      VVec[I] = ValVariant::wrap<RefVariant>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
+      break;
     }
-      [[fallthrough]];
     default:
-      // TODO: Return error
       assumingUnreachable();
     }
   }
@@ -599,17 +590,17 @@ WasmEdge_ValueGenV128(const ::int128_t Val) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
 WasmEdge_ValueGenNullRef(const enum WasmEdge_RefTypeCode T) {
-  return genWasmEdge_Value(WasmEdge::UnknownRef(), static_cast<ValTypeCode>(T));
+  return genWasmEdge_Value(WasmEdge::RefVariant(), static_cast<ValTypeCode>(T));
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
 WasmEdge_ValueGenFuncRef(const WasmEdge_FunctionInstanceContext *Cxt) {
-  return genWasmEdge_Value(WasmEdge::FuncRef(fromFuncCxt(Cxt)),
+  return genWasmEdge_Value(WasmEdge::RefVariant(fromFuncCxt(Cxt)),
                            ValTypeCode::FuncRef);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_ValueGenExternRef(void *Ref) {
-  return genWasmEdge_Value(WasmEdge::ExternRef(Ref), ValTypeCode::ExternRef);
+  return genWasmEdge_Value(WasmEdge::RefVariant(Ref), ValTypeCode::ExternRef);
 }
 
 WASMEDGE_CAPI_EXPORT int32_t WasmEdge_ValueGetI32(const WasmEdge_Value Val) {
@@ -644,22 +635,27 @@ WasmEdge_ValueGetV128(const WasmEdge_Value Val) {
 }
 
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ValueIsNullRef(const WasmEdge_Value Val) {
-  return WasmEdge::isNullRef(WasmEdge::ValVariant::wrap<UnknownRef>(
-      to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value)));
+  return WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
+             to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
+      .get<WasmEdge::RefVariant>()
+      .isNull();
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionInstanceContext *
 WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val) {
-  return toFuncCxt(
-      WasmEdge::retrieveFuncRef(WasmEdge::ValVariant::wrap<FuncRef>(
-          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))));
+  return toFuncCxt(WasmEdge::retrieveFuncRef(
+      WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
+          .get<WasmEdge::RefVariant>()
+          .asPtr<WasmEdge::Runtime::Instance::FunctionInstance>()));
 }
 
 WASMEDGE_CAPI_EXPORT void *
 WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) {
   return &WasmEdge::retrieveExternRef<uint32_t>(
-      WasmEdge::ValVariant::wrap<ExternRef>(
-          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value)));
+      WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
+          .get<WasmEdge::RefVariant>());
 }
 
 // <<<<<<<< WasmEdge value functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1490,7 +1486,7 @@ WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
   if (ASTCxt && Cxt &&
       fromExpTypeCxt(Cxt)->getExternalType() == WasmEdge::ExternalType::Table) {
     auto ImpDescs = fromASTModCxt(ASTCxt)->getImportSection().getContent();
-    auto TabTypes = fromASTModCxt(ASTCxt)->getTableSection().getContent();
+    auto TabDescs = fromASTModCxt(ASTCxt)->getTableSection().getContent();
     uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
 
     // Indexing the import descriptions.
@@ -1505,9 +1501,9 @@ WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
     if (ExtIdx < ImpTabs.size()) {
       // Imported table. Get the table type from the import desc.
       return toTabTypeCxt(&ImpDescs[ImpTabs[ExtIdx]].getExternalTableType());
-    } else if (ExtIdx < ImpTabs.size() + TabTypes.size()) {
+    } else if (ExtIdx < ImpTabs.size() + TabDescs.size()) {
       // Module owned table. Get the table type from the section.
-      return toTabTypeCxt(&TabTypes[ExtIdx - ImpTabs.size()]);
+      return toTabTypeCxt(&TabDescs[ExtIdx - ImpTabs.size()].getTableType());
     } else {
       // Invalid table type index.
       return nullptr;
@@ -2261,8 +2257,14 @@ WasmEdge_FunctionInstanceDelete(WasmEdge_FunctionInstanceContext *Cxt) {
 WASMEDGE_CAPI_EXPORT WasmEdge_TableInstanceContext *
 WasmEdge_TableInstanceCreate(const WasmEdge_TableTypeContext *TabType) {
   if (TabType) {
-    return toTabCxt(new WasmEdge::Runtime::Instance::TableInstance(
-        *fromTabTypeCxt(TabType)));
+    const AST::TableType &TType = *fromTabTypeCxt(TabType);
+    if (!TType.getRefType().isNullableRefType()) {
+      spdlog::error("cannot create table instance without specifying init "
+                    "value for non-nulltable ref type");
+      return nullptr;
+    }
+    return toTabCxt(
+        new WasmEdge::Runtime::Instance::TableInstance(TType, RefVariant()));
   }
   return nullptr;
 }
@@ -2281,8 +2283,7 @@ WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
   return wrap([&]() { return fromTabCxt(Cxt)->getRefAddr(Offset); },
               [&Data, &Cxt](auto &&Res) {
                 *Data = genWasmEdge_Value(
-                    Res->template get<UnknownRef>(),
-                    fromTabCxt(Cxt)->getTableType().getRefType());
+                    *Res, fromTabCxt(Cxt)->getTableType().getRefType());
               },
               Cxt, Data);
 }
@@ -2292,18 +2293,18 @@ WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
                               WasmEdge_Value Data, const uint32_t Offset) {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
-        WasmEdge::ValType expType =
+        WasmEdge::ValType ExpType =
             fromTabCxt(Cxt)->getTableType().getRefType();
-        WasmEdge::ValType gotType = genValType(Data.Type);
-        if (expType != gotType) {
+        WasmEdge::ValType GotType = genValType(Data.Type);
+        if (ExpType != GotType) {
           spdlog::error(WasmEdge::ErrCode::Value::RefTypeMismatch);
-          spdlog::error(WasmEdge::ErrInfo::InfoMismatch(expType, gotType));
+          spdlog::error(WasmEdge::ErrInfo::InfoMismatch(ExpType, GotType));
           return Unexpect(WasmEdge::ErrCode::Value::RefTypeMismatch);
         }
         return fromTabCxt(Cxt)->setRefAddr(
             Offset, WasmEdge::ValVariant(
                         to_WasmEdge_128_t<WasmEdge::uint128_t>(Data.Value))
-                        .get<UnknownRef>());
+                        .get<WasmEdge::RefVariant>());
       },
       EmptyThen, Cxt);
 }

@@ -159,19 +159,19 @@ parseValueList(const simdjson::dom::array &Args) {
       std::string_view ValueStr = Value;
       if (Type == "externref"sv) {
         if (Value == "null"sv) {
-          Result.emplace_back(WasmEdge::UnknownRef());
+          Result.emplace_back(WasmEdge::RefVariant());
         } else {
           // Add 0x1 uint32_t prefix in this externref index case.
-          Result.emplace_back(WasmEdge::ExternRef(reinterpret_cast<void *>(
+          Result.emplace_back(WasmEdge::RefVariant(reinterpret_cast<void *>(
               std::stoul(std::string(ValueStr)) + 0x100000000ULL)));
         }
         ResultTypes.emplace_back(WasmEdge::ValTypeCode::ExternRef);
       } else if (Type == "funcref"sv) {
         if (Value == "null"sv) {
-          Result.emplace_back(WasmEdge::UnknownRef());
+          Result.emplace_back(WasmEdge::RefVariant());
         } else {
           // Add 0x1 uint32_t prefix in this funcref index case.
-          Result.emplace_back(WasmEdge::FuncRef(
+          Result.emplace_back(WasmEdge::RefVariant(
               reinterpret_cast<WasmEdge::Runtime::Instance::FunctionInstance *>(
                   std::stoul(std::string(ValueStr)) + 0x100000000ULL)));
         }
@@ -308,13 +308,13 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       return false;
     }
     if (ValStr == "null"sv) {
-      return WasmEdge::isNullRef(Got.first);
+      return Got.first.get<RefVariant>().isNull();
     } else {
-      if (WasmEdge::isNullRef(Got.first)) {
+      if (Got.first.get<RefVariant>().isNull()) {
         return false;
       }
       return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
-                 WasmEdge::retrieveFuncRef(Got.first))) ==
+                 WasmEdge::retrieveFuncRef(Got.first.get<RefVariant>()))) ==
              static_cast<uint32_t>(std::stoul(ValStr));
     }
   } else if (TypeStr == "externref"sv) {
@@ -322,13 +322,14 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       return false;
     }
     if (ValStr == "null"sv) {
-      return WasmEdge::isNullRef(Got.first);
+      return Got.first.get<RefVariant>().isNull();
     } else {
-      if (WasmEdge::isNullRef(Got.first)) {
+      if (Got.first.get<RefVariant>().isNull()) {
         return false;
       }
       return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
-                 &WasmEdge::retrieveExternRef<uint32_t>(Got.first))) ==
+                 &WasmEdge::retrieveExternRef<uint32_t>(
+                     Got.first.get<RefVariant>()))) ==
              static_cast<uint32_t>(std::stoul(ValStr));
     }
   } else if (TypeStr == "i32"sv) {

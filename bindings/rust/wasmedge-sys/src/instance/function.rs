@@ -300,15 +300,13 @@ impl Function {
         data: *mut c_void,
         cost: u64,
     ) -> WasmEdgeResult<Self> {
-        let ctx = unsafe {
-            ffi::WasmEdge_FunctionInstanceCreateBinding(
-                ty.inner.0,
-                Some(fn_wrapper),
-                real_fn,
-                data,
-                cost,
-            )
-        };
+        let ctx = ffi::WasmEdge_FunctionInstanceCreateBinding(
+            ty.inner.0,
+            Some(fn_wrapper),
+            real_fn,
+            data,
+            cost,
+        );
 
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Func(FuncError::Create))),

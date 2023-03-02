@@ -59,6 +59,32 @@ jobs:
           WasmEdge_AsyncWaitFor
           WasmEdge_VMAsyncExecute
           WasmEdge_VMAsyncExecuteRegistered
+          WasmEdge_VMCleanup
+          WasmEdge_VMCreate
+          WasmEdge_VMDelete
+          WasmEdge_VMExecute
+          WasmEdge_VMExecuteRegistered
+          WasmEdge_VMGetActiveModule
+          WasmEdge_VMGetExecutorContext
+          WasmEdge_VMGetFunctionList
+          WasmEdge_VMGetFunctionListLength
+          WasmEdge_VMGetImportModuleContext
+          WasmEdge_VMGetLoaderContext
+          WasmEdge_VMGetStatisticsContext
+          WasmEdge_VMGetStoreContext
+          WasmEdge_VMGetValidatorContext
+          WasmEdge_VMInstantiate
+          WasmEdge_VMLoadWasmFromASTModule
+          WasmEdge_VMLoadWasmFromBuffer
+          WasmEdge_VMLoadWasmFromFile
+          WasmEdge_VMRegisterModuleFromASTModule
+          WasmEdge_VMRegisterModuleFromBuffer
+          WasmEdge_VMRegisterModuleFromFile
+          WasmEdge_VMRegisterModuleFromImport
+          WasmEdge_VMValidate
+          WasmEdge_VMGetRegisteredModule
+          WasmEdge_VMListRegisteredModule
+          WasmEdge_VMListRegisteredModuleLength
           EOF
           echo "===Allowlist==="
           cat allowlist.txt

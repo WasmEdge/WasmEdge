@@ -10,7 +10,7 @@ links = "wasmedge"
 name = "wasmedge-sys"
 readme = "README.md"
 repository = "https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys"
-version = "0.12.3"
+version = "0.13.0"
 
 [dependencies]
 lazy_static = "1.4.0"
@@ -21,7 +21,7 @@ rand = "0.8.4"
 thiserror = "1.0.30"
 wasmedge-macro = {path = "../wasmedge-macro", version = "0.3"}
 wasmedge-types = {path = "../wasmedge-types", version = "0.4"}
-wasmtime-fiber = {version = "2", optional = true}
+wasmtime-fiber = {version = "6", optional = true}
 wat = "1.0"
 
 [build-dependencies]
@@ -37,6 +37,7 @@ aot = []
 async = ["wasmtime-fiber"]
 default = []
 standalone = []
+static = []
 wasi_crypto = []
 wasi_nn = []
-static = []
+wasmedge_process = []

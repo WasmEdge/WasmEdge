@@ -32,7 +32,7 @@ impl Table {
     ///
     /// # Error
     ///
-    /// If fail to create a [Table], then an error is returned.
+    /// * If fail to create the table instance, then WasmEdgeError::Table(TableError::Create)(crate::error::TableError) is returned.
     ///
     /// # Example
     ///

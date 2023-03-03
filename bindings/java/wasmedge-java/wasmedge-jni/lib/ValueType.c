@@ -1,9 +1,51 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+#include <string.h>
 #include "common.h"
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
+
+__int128_t atoint128_t(const char *s)
+{
+    const char *p = s;
+    __int128_t val = 0;
+
+    if (*p == '-' || *p == '+') {
+        p++;
+    }
+    while (*p >= '0' && *p <= '9') {
+        val = (10 * val) + (*p - '0');
+        p++;
+    }
+    if (*s == '-') val = val * -1;
+    return val;
+}
+
+char* u128toa(uint128_t n) {
+    static char buf[40];
+    unsigned int i, j, m = 39;
+    memset(buf, 0, 40);
+    for (i = 128; i-- > 0;) {
+        int carry = !!(n & ((uint128_t)1 << i));
+        for (j = 39; j-- > m + 1 || carry;) {
+            int d = 2 * buf[j] + carry;
+            carry = d > 9;
+            buf[j] = carry ? d - 10 : d;
+        }
+        m = j;
+    }
+    for (i = 0; i < 38; i++) {
+        if (buf[i]) {
+            break;
+        }
+    }
+    for (j = i; j < 39; j++) {
+        buf[j] += '0';
+    }
+    return buf + i;
+
+}
 
 WasmEdge_Value JavaValueToWasmEdgeValue(JNIEnv *env, jobject jVal) {
   jclass valueClass = (*env)->FindClass(env, ORG_WASMEDGE_VALUE);
@@ -33,11 +75,9 @@ WasmEdge_Value JavaValueToWasmEdgeValue(JNIEnv *env, jobject jVal) {
   case WasmEdge_ValType_F64:
     return WasmEdge_ValueGenF64(getDoubleVal(env, jVal));
   case WasmEdge_ValType_V128:
-    // TODO
-    return WasmEdge_ValueGenV128(getLongVal(env, jVal));
+    return WasmEdge_ValueGenV128(atoint128_t(getStringVal(env, jVal)));
   case WasmEdge_ValType_ExternRef:
     return WasmEdge_ValueGenExternRef(getStringVal(env, jVal));
-
   case WasmEdge_ValType_FuncRef:
     return WasmEdge_ValueGenFuncRef(
         (WasmEdge_FunctionInstanceContext *)getLongVal(env, jVal));
@@ -78,3 +118,4 @@ jobject WasmEdgeValueToJavaValue(JNIEnv *env, WasmEdge_Value value) {
   setJavaValueObject(env, value, jVal);
   return jVal;
 }
+

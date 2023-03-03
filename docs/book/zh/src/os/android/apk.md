@@ -4,7 +4,7 @@
 
 ## 快速开始
 
-示例项目 [可在此处获得](https://github.com/WasmEdge/WasmEdge/tree/master/utils/android/app)。您可以使用 Gradle 工具或 Android Stuido IDE 构建项目。
+示例项目 [可在此处获得](https://github.com/WasmEdge/WasmEdge/tree/master/utils/android/app)。您可以使用 Gradle 工具或 Android Studio IDE 构建项目。
 
 ### 使用 Gradle 构建项目
 

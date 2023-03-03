@@ -33,9 +33,7 @@ public:
   ~StoreManager() {
     // When destroying this store manager, unlink all the registered module
     // instances.
-    for (auto &&Pair : NamedMod) {
-      (const_cast<Instance::ModuleInstance *>(Pair.second))->unlinkStore(this);
-    }
+    reset();
   }
 
   /// Get the length of the list of registered modules.
@@ -58,6 +56,15 @@ public:
       return Iter->second;
     }
     return nullptr;
+  }
+
+  /// Reset this store manager and unlink all the registered module instances.
+  void reset() noexcept {
+    std::shared_lock Lock(Mutex);
+    for (auto &&Pair : NamedMod) {
+      (const_cast<Instance::ModuleInstance *>(Pair.second))->unlinkStore(this);
+    }
+    NamedMod.clear();
   }
 
 private:

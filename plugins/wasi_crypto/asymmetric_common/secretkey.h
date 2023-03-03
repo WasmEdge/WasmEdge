@@ -14,7 +14,7 @@
 #pragma once
 
 #include "asymmetric_common/publickey.h"
-#include "asymmetric_common/registed.h"
+#include "asymmetric_common/registered.h"
 #include "wasi_crypto/api.hpp"
 
 #include <cstdint>

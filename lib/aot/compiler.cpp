@@ -52,6 +52,7 @@
 #endif
 #if LLVM_VERSION_MAJOR >= 10
 #include <llvm/IR/IntrinsicsAArch64.h>
+#include <llvm/IR/IntrinsicsRISCV.h>
 #include <llvm/IR/IntrinsicsX86.h>
 #include <llvm/Support/Alignment.h>
 #endif
@@ -4747,7 +4748,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #elif defined(__aarch64__)
             "arm64",
 #else
-#error Unsupported architectur on the MacOS!
+#error Unsupported architecture on the MacOS!
 #endif
 #if LLVM_VERSION_MAJOR >= 14
             // LLVM 14 replaces the older mach_o lld implementation with the new
@@ -4896,6 +4897,8 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
     WriteByte(OS, UINT8_C(1));
 #elif defined(__aarch64__)
     WriteByte(OS, UINT8_C(2));
+#elif defined(__riscv) && __riscv_xlen == 64
+    WriteByte(OS, UINT8_C(3));
 #else
 #error Unsupported hardware architecture!
 #endif
@@ -5142,10 +5145,14 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 
     llvm::TargetOptions Options;
     llvm::Reloc::Model RM = llvm::Reloc::PIC_;
+#if defined(__riscv) && __riscv_xlen == 64
+    llvm::StringRef CPUName("generic-rv64");
+#else
     llvm::StringRef CPUName("generic");
     if (!Conf.getCompilerConfigure().isGenericBinary()) {
       CPUName = llvm::sys::getHostCPUName();
     }
+#endif
     std::unique_ptr<llvm::TargetMachine> TM(TheTarget->createTargetMachine(
         Triple.str(), CPUName, Context->SubtargetFeatures.getString(), Options,
         RM, llvm::None, llvm::CodeGenOpt::Level::Aggressive));
@@ -5359,7 +5366,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
     // Get data from import description.
     const auto &ExtType = ImpDesc.getExternalType();
 
-    // Add the imports into module istance.
+    // Add the imports into module instance.
     switch (ExtType) {
     case ExternalType::Function: // Function type index
     {

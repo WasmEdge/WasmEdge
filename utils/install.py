@@ -9,7 +9,6 @@ from __future__ import (
     with_statement,
 )
 from contextlib import contextmanager
-from posixpath import lexists
 import shutil
 import sys
 import argparse
@@ -33,17 +32,10 @@ import subprocess
 import re
 import logging
 
-try:
-    from future_builtins import ascii, filter, hex, map, oct, zip
-except:
-    pass
-
 download_url = None
 
 # Define version specific things
 if sys.version_info[0] == 3:
-    xrange = range
-
     import urllib.request
 
     download_url = urllib.request.urlretrieve
@@ -159,9 +151,13 @@ def extract_archive(
                     fname = fname.replace("lib64", "lib", 1)
                 if "Plugin" in fname:
                     if is_default_path(args):
-                        fname = fname.replace("lib64/wasmedge", "plugin").replace(
-                            "lib/wasmedge", "plugin"
+                        fname = fname.replace(
+                            join(ipath, CONST_lib_dir, "wasmedge/"), ""
                         )
+
+                        fname = join(ipath, "plugin", fname)
+                    else:
+                        fname = join(ipath, CONST_lib_dir, "wasmedge", fname)
                 else:
                     if ipath not in fname:
                         fname = join(ipath, fname)
@@ -252,14 +248,14 @@ SUPPORTED_PLATFORM_MACHINE = {
 }
 
 SUPPORTED_MIN_VERSION = {
-    "Linux" + "x86_64": VersionString("0.8.0"),
-    "Linux" + "amd64": VersionString("0.8.0"),
-    "Linux" + "arm64": VersionString("0.8.0"),
-    "Linux" + "armv8": VersionString("0.8.1"),
-    "Linux" + "aarch64": VersionString("0.8.1"),
-    "Darwin" + "x86_64": VersionString("0.8.2"),
-    "Darwin" + "arm64": VersionString("0.8.2"),
-    "Darwin" + "arm": VersionString("0.8.2"),
+    "Linux" + "x86_64": VersionString("0.9.0"),
+    "Linux" + "amd64": VersionString("0.9.0"),
+    "Linux" + "arm64": VersionString("0.9.0"),
+    "Linux" + "armv8": VersionString("0.9.0"),
+    "Linux" + "aarch64": VersionString("0.9.0"),
+    "Darwin" + "x86_64": VersionString("0.9.0"),
+    "Darwin" + "arm64": VersionString("0.9.0"),
+    "Darwin" + "arm": VersionString("0.9.0"),
 }
 
 WASMEDGE = "WasmEdge"
@@ -270,18 +266,7 @@ TENSORFLOW_DEPS = "tensorflow_deps"
 TENSORFLOW_LITE_DEPS = "tensorflow_lite_deps"
 TENSORFLOW_TOOLS = "tensorflow_tools"
 IMAGE = "image"
-IMAGE_DEPS = "image_deps"
 EXTENSIONS = [TENSORFLOW, IMAGE]
-
-DEPENDENCIES = {
-    TENSORFLOW: [
-        TENSORFLOW_DEPS,
-        TENSORFLOW_TOOLS,
-    ],
-    IMAGE: [
-        IMAGE_DEPS,
-    ],
-}
 
 SUPPORTED_EXTENSIONS = {
     "Linux" + "x86_64": EXTENSIONS,
@@ -295,32 +280,33 @@ SUPPORTED_EXTENSIONS = {
 }
 
 SUPPORTED_EXTENSIONS_VERSION = {
-    "Linux" + "x86_64" + TENSORFLOW: VersionString("0.8.1"),
-    "Linux" + "x86_64" + IMAGE: VersionString("0.8.1"),
-    "Linux" + "x86_64" + IMAGE_DEPS: VersionString("0.8.2"),
-    "Linux" + "amd64" + TENSORFLOW: VersionString("0.8.1"),
-    "Linux" + "amd64" + IMAGE: VersionString("0.8.1"),
-    "Linux" + "arm64" + TENSORFLOW: VersionString("0.8.1"),
-    "Linux" + "arm64" + IMAGE: VersionString("0.8.1"),
-    "Linux" + "armv8" + TENSORFLOW: VersionString("0.8.1"),
-    "Linux" + "armv8" + IMAGE: VersionString("0.8.1"),
+    "Linux" + "x86_64" + TENSORFLOW: VersionString("0.9.0"),
+    "Linux" + "x86_64" + IMAGE: VersionString("0.9.0"),
+    "Linux" + "amd64" + TENSORFLOW: VersionString("0.9.0"),
+    "Linux" + "amd64" + IMAGE: VersionString("0.9.0"),
+    "Linux" + "arm64" + TENSORFLOW: VersionString("0.9.0"),
+    "Linux" + "arm64" + IMAGE: VersionString("0.9.0"),
+    "Linux" + "armv8" + TENSORFLOW: VersionString("0.9.0"),
+    "Linux" + "armv8" + IMAGE: VersionString("0.9.0"),
     "Linux" + "aarch64" + TENSORFLOW: VersionString("0.9.1-beta.1"),
     "Linux" + "aarch64" + IMAGE: VersionString("0.9.1-beta.1"),
     "Darwin" + "x86_64" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
     "Darwin" + "x86_64" + IMAGE: VersionString("0.10.0-alpha.1"),
     "Darwin" + "arm64" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
-    # "Darwin" + "arm64" + IMAGE: VersionString("0.8.1"),
     "Darwin" + "arm" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
-    # "Darwin" + "arm" + IMAGE: VersionString("0.8.1"),
 }
 
 WASI_NN_OPENVINO = "wasi_nn-openvino"
 WASI_CRYPTO = "wasi_crypto"
 WASI_NN_PYTORCH = "wasi_nn-pytorch"
+WASI_NN_TENSORFLOW_LITE = "wasi_nn-tensorflowlite"
+WASMEDGE_HTTPSREQ = "wasmedge_httpsreq"
 PLUGINS_AVAILABLE = [
     WASI_NN_OPENVINO,
     WASI_CRYPTO,
     WASI_NN_PYTORCH,
+    WASI_NN_TENSORFLOW_LITE,
+    WASMEDGE_HTTPSREQ,
 ]
 
 SUPPORTTED_PLUGINS = {
@@ -330,6 +316,17 @@ SUPPORTTED_PLUGINS = {
     "manylinux2014" + "arm64" + WASI_CRYPTO: VersionString("0.10.1-rc.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_OPENVINO: VersionString("0.10.1-alpha.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.1-alpha.1"),
+    "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.2-alpha.1"),
+    "manylinux2014"
+    + "x86_64"
+    + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-alpha.1"),
+    "manylinux2014"
+    + "aarch64"
+    + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-alpha.1"),
+    "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-rc.1"),
+    "ubuntu20.04" + "x86_64" + WASMEDGE_HTTPSREQ: VersionString("0.11.1"),
+    "manylinux2014" + "x86_64" + WASMEDGE_HTTPSREQ: VersionString("0.11.1"),
+    "manylinux2014" + "aarch64" + WASMEDGE_HTTPSREQ: VersionString("0.11.1"),
 }
 
 HOME = expanduser("~")
@@ -415,6 +412,9 @@ case :"${5}": in
         fi
         ;;
 esac
+if [ -z ${{WASMEDGE_LIB_DIR+x}} ]; then
+    export WASMEDGE_LIB_DIR="{0}/{6}"
+fi
 # Please do not edit comments below this for uninstallation purpose
 """.format(
         args.path,
@@ -441,11 +441,11 @@ esac
             logging.error("Not able to write to env file")
 
 
-def shell_configure(args):
+def shell_configure(args, compat):
 
     global CONST_shell_profile, CONST_shell_config
 
-    source_string = "\n. {0}\n".format(join(args.path, "env"))
+    source_string = '\n. "{0}"\n'.format(join(args.path, "env"))
 
     if ("bash" in SHELL) or ("zsh" in SHELL):
 
@@ -456,16 +456,21 @@ def shell_configure(args):
         else:
             CONST_shell_profile = join(HOME, "." + SHELL + "_profile")
 
-        if not exists(CONST_shell_config):
+        # On Darwin: Create shell config only if shell_profile does not exist
+        # On Linux: Create shell config anyway
+        if not exists(CONST_shell_config) and compat.platform != "Darwin":
             open(CONST_shell_config, "a").close()
 
         write_shell = False
-        with opened_w_error(CONST_shell_config, "r") as shell_config:
-            if shell_config is not None:
-                if source_string not in shell_config.read():
-                    write_shell = True
+        if compat.platform != "Darwin":
+            with opened_w_error(CONST_shell_config, "r") as shell_config:
+                if shell_config is not None:
+                    if source_string not in shell_config.read():
+                        write_shell = True
 
-        if write_shell:
+        # On Darwin: Append to shell config only if shell_profile does not exist
+        # On Linux: Append to shell config anyway
+        if write_shell and compat.platform != "Darwin":
             with opened_w_error(CONST_shell_config, "a") as shell_config:
                 if shell_config is not None:
                     shell_config.write(source_string)
@@ -602,13 +607,10 @@ def install_image_extension(args, compat):
     for dir in listdir(wasmedge_image_temp):
         wasmedge_image_temp_dir = join(wasmedge_image_temp, dir)
         for file in listdir(wasmedge_image_temp_dir):
-            if (
-                isdir(join(wasmedge_image_temp_dir, file))
-                and is_default_path(args)
-                and "wasmedge" == file
-            ):
+            if isdir(join(wasmedge_image_temp_dir, file)) and "wasmedge" == file:
                 copytree(
-                    join(wasmedge_image_temp_dir, file), join(args.path, "include")
+                    join(wasmedge_image_temp_dir, file),
+                    join(args.path, "include", "wasmedge"),
                 )
             elif CONST_lib_ext in file:
                 if isdir(join(args.path, CONST_lib_dir)):
@@ -638,168 +640,6 @@ def install_image_extension(args, compat):
                     join(wasmedge_image_temp_dir, file),
                     join(args.path, "bin", file),
                 )
-
-    if compat.prefix() + IMAGE_DEPS in SUPPORTED_EXTENSIONS_VERSION:
-        if (
-            SUPPORTED_EXTENSIONS_VERSION[compat.prefix() + IMAGE_DEPS].compare(
-                args.image_deps_version
-            )
-            >= 0
-        ):
-            print("Installing image deps")
-            image_deps_pkg = (
-                "WasmEdge-image-deps-"
-                + args.image_deps_version
-                + "-"
-                + "manylinux1_x86_64.tar.gz"
-            )
-            download_url(
-                CONST_urls[IMAGE_DEPS], join(TEMP_PATH, image_deps_pkg), show_progress
-            )
-
-            # Extract archieve
-            extract_archive(
-                join(TEMP_PATH, image_deps_pkg),
-                join(args.path, CONST_lib_dir),
-                join(TEMP_PATH, "WasmEdge-image-deps"),
-                env_file_path=CONST_env_path,
-                remove_finished=True,
-            )
-
-            copytree(
-                join(TEMP_PATH, "WasmEdge-image-deps"), join(args.path, CONST_lib_dir)
-            )
-
-            for file in listdir(join(args.path, CONST_lib_dir)):
-                if ("jpeg" not in file) and ("png" not in file):
-                    continue
-                try:
-                    # check if it contains any digits
-                    if not any(i.isdigit() for i in file):
-                        continue
-                    if compat.platform == "Linux":
-                        name, version = file.split(CONST_lib_ext, 1)
-                        if version[0] == ".":
-                            version = version[1:]
-                        no_v_env_path = join(
-                            args.path,
-                            CONST_lib_dir,
-                            name + CONST_lib_ext,
-                        )
-                        symlink(
-                            join(args.path, CONST_lib_dir, file),
-                            no_v_env_path,
-                        )
-                        single_v_env_path = join(
-                            args.path,
-                            CONST_lib_dir,
-                            name + CONST_lib_ext + "." + version.split(".")[0],
-                        )
-                        symlink(
-                            join(args.path, CONST_lib_dir, file),
-                            single_v_env_path,
-                        )
-                        double_v_env_path = join(
-                            args.path,
-                            CONST_lib_dir,
-                            name
-                            + CONST_lib_ext
-                            + "."
-                            + version.split(".")[0]
-                            + "."
-                            + version.split(".")[1],
-                        )
-                        symlink(
-                            join(args.path, CONST_lib_dir, file),
-                            double_v_env_path,
-                        )
-                        no_v_png_path = None
-                        if "png16" in name:
-                            no_v_png_path = join(
-                                args.path,
-                                CONST_lib_dir,
-                                name.split("16")[0] + CONST_lib_ext,
-                            )
-                            symlink(
-                                join(args.path, CONST_lib_dir, file),
-                                no_v_png_path,
-                            )
-                    elif compat.platform == "Darwin":
-                        name, version = file.split(CONST_lib_ext, 1)[0].split(".", 1)
-                        no_v_env_path = join(
-                            args.path,
-                            CONST_lib_dir,
-                            name + CONST_lib_ext,
-                        )
-                        symlink(
-                            join(args.path, CONST_lib_dir, file),
-                            no_v_env_path,
-                        )
-                        single_v_env_path = join(
-                            args.path,
-                            CONST_lib_dir,
-                            name + "." + version.split(".")[0] + CONST_lib_ext,
-                        )
-                        symlink(
-                            join(args.path, CONST_lib_dir, file),
-                            single_v_env_path,
-                        )
-                        double_v_env_path = join(
-                            args.path,
-                            CONST_lib_dir,
-                            name
-                            + "."
-                            + version.split(".")[0]
-                            + "."
-                            + version.split(".")[1]
-                            + CONST_lib_ext,
-                        )
-                        symlink(
-                            join(args.path, CONST_lib_dir, file),
-                            double_v_env_path,
-                        )
-                        no_v_png_path = None
-                        if "png16" in name:
-                            no_v_png_path = join(
-                                args.path,
-                                CONST_lib_dir,
-                                name.split("16")[0] + CONST_lib_ext,
-                            )
-                            symlink(
-                                join(args.path, CONST_lib_dir, file),
-                                no_v_png_path,
-                            )
-                    else:
-                        reraise(
-                            Exception(
-                                "Functionality not implemented for platform {0}".format(
-                                    compat.platform
-                                )
-                            )
-                        )
-                    with opened_w_error(CONST_env_path, "a") as env_file:
-                        if env_file is not None:
-                            env_file.write("#" + no_v_env_path + "\n")
-                            logging.debug("Appending:%s", no_v_env_path)
-                            env_file.write("#" + single_v_env_path + "\n")
-                            logging.debug("Appending:%s", single_v_env_path)
-                            env_file.write("#" + double_v_env_path + "\n")
-                            logging.debug("Appending:%s", double_v_env_path)
-                            if no_v_png_path is not None:
-                                env_file.write("#" + no_v_png_path + "\n")
-                                logging.debug("Appending:%s", no_v_png_path)
-                        else:
-                            logging.error(
-                                "Not able to append installed files to env file"
-                            )
-
-                except Exception as e:
-                    logging.critical(e)
-
-        else:
-            logging.debug("Image deps not needed: {0}".format(args.image_deps_version))
-    else:
-        logging.debug("Image deps not needed: {0}".format(compat.prefix()))
 
     fix_gnu_sparse(args)
 
@@ -1057,10 +897,8 @@ def install_tensorflow_extension(args, compat):
                     ):
                         copytree(
                             join(wasmedge_tf_folder, _file),
-                            join(args.path, "include"),
+                            join(args.path, "include", "wasmedge"),
                         )
-                        if isdir(join(args.path, "include", _file)):
-                            shutil.rmtree(join(args.path, "include", _file))
                     elif CONST_lib_ext in _file:
                         if isdir(join(args.path, CONST_lib_dir)):
                             shutil.move(
@@ -1152,9 +990,7 @@ def install_plugins(args, compat):
                 continue
             else:
                 if plugin_version_supplied is None:
-                    plugin_version_supplied = SUPPORTTED_PLUGINS[
-                        compat.dist + compat.machine + plugin_name
-                    ].version
+                    plugin_version_supplied = args.version
                 elif (
                     SUPPORTTED_PLUGINS[
                         compat.dist + compat.machine + plugin_name
@@ -1184,7 +1020,7 @@ def install_plugins(args, compat):
                 )
                 extract_archive(
                     join(TEMP_PATH, "Plugin" + plugin_name + ".tar.gz"),
-                    join(args.path, CONST_lib_dir),
+                    join(args.path),
                     join(TEMP_PATH, "Plugins"),
                     env_file_path=CONST_env_path,
                     remove_finished=True,
@@ -1208,16 +1044,13 @@ def set_consts(args, compat):
 
     CONST_urls = {
         WASMEDGE: "https://github.com/WasmEdge/WasmEdge/releases/download/{0}/WasmEdge-{0}-{1}".format(
-            args.version, CONST_release_pkg
+            args.version, compat.release_package_wasmedge
         ),
         WASMEDGE_UNINSTALLER: "https://raw.githubusercontent.com/WasmEdge/WasmEdge/{0}/utils/uninstall.sh".format(
             args.uninstall_script_tag
         ),
         IMAGE: "https://github.com/second-state/WasmEdge-image/releases/download/{0}/WasmEdge-image-{0}-{1}".format(
             args.image_version, CONST_release_pkg
-        ),
-        IMAGE_DEPS: "https://github.com/second-state/WasmEdge-image/releases/download/{0}/WasmEdge-image-deps-{0}-{1}".format(
-            args.image_deps_version, "manylinux1_x86_64.tar.gz"
         ),
         TENSORFLOW_DEPS: "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{0}/WasmEdge-tensorflow-deps-TF-{0}-{1}".format(
             args.tf_deps_version, CONST_release_pkg
@@ -1295,11 +1128,13 @@ class Compat:
         self.lib_extension = None
         self.ld_library_path = None
         self.dist = dist_
+        self.release_package_wasmedge = None
 
         if self.platform == "Linux":
             self.install_package_name = "WasmEdge-{0}-Linux".format(self.version)
             self.lib_extension = ".so"
             self.ld_library_path = "LD_LIBRARY_PATH"
+
             if self.machine in ["arm64", "armv8", "aarch64"]:
                 self.release_package = "manylinux2014_aarch64.tar.gz"
             elif self.machine in ["x86_64", "amd64"]:
@@ -1307,10 +1142,12 @@ class Compat:
             else:
                 reraise(Exception("Unsupported arch: {0}".format(self.machine)))
 
+            self.release_package_wasmedge = self.release_package
+
             if self.dist is None:
                 if sys.version_info[0] == 2:
                     if (
-                        "Ubuntu" in platform.dist() and "20.14" in platform.dist()
+                        "Ubuntu" in platform.dist() and "20.04" in platform.dist()
                     ) or "Ubuntu 20.04" in run_shell_command(
                         "lsb_release -d | awk -F'\t' '{print $2}'"
                     ):
@@ -1327,10 +1164,21 @@ class Compat:
                         self.dist = "ubuntu20.04"
                     else:
                         self.dist = "manylinux2014"
+
+            # Below version 0.11.1 different distributions for wasmedge binary do not exist
+            if self.version.compare("0.11.1") != -1:
+                if self.machine in ["arm64", "armv8", "aarch64"]:
+                    self.release_package_wasmedge = self.dist + "_aarch64.tar.gz"
+                elif self.machine in ["x86_64", "amd64"]:
+                    self.release_package_wasmedge = self.dist + "_x86_64.tar.gz"
+                else:
+                    reraise(Exception("Unsupported arch: {0}".format(self.machine)))
+
         elif self.platform == "Darwin":
             self.ld_library_path = "DYLD_LIBRARY_PATH"
             self.install_package_name = "WasmEdge-{0}-Darwin".format(self.version)
             self.release_package = "darwin_{0}.tar.gz".format(self.machine)
+            self.release_package_wasmedge = self.release_package
             self.lib_extension = ".dylib"
             if self.dist is None:
                 self.dist = "darwin"
@@ -1355,9 +1203,9 @@ class Compat:
     def bool_overload(self):
         if self.platform not in SUPPORTED_PLATFORM_MACHINE:
             reraise(Exception("Unsupported platform: {0}".format(self.platform)))
-        elif self.machine not in SUPPORTED_PLATFORM_MACHINE[self.platform]:
+        if self.machine not in SUPPORTED_PLATFORM_MACHINE[self.platform]:
             reraise(Exception("Unsupported machine: {0}".format(self.machine)))
-        elif self.extensions is not None and len(self.extensions) > 0:
+        if self.extensions is not None and len(self.extensions) > 0:
             if not (
                 set(self.extensions)
                 <= set(SUPPORTED_EXTENSIONS[self.platform + self.machine])
@@ -1370,7 +1218,7 @@ class Compat:
                         )
                     )
                 )
-        elif (
+        if (
             self.version.compare(
                 version2=SUPPORTED_MIN_VERSION[self.platform + self.machine].version
             )
@@ -1380,6 +1228,17 @@ class Compat:
                 Exception(
                     "Version not supported. Min Version: {0}".format(
                         SUPPORTED_MIN_VERSION[self.platform + self.machine].version
+                    )
+                )
+            )
+
+        if not get_remote_version_availability(
+            "WasmEdge/WasmEdge", self.version.version
+        ):
+            reraise(
+                Exception(
+                    "Version {0} does not exist in remote repository of WasmEdge".format(
+                        self.version.version
                     )
                 )
             )
@@ -1441,7 +1300,7 @@ def main(args):
         if getenv("SHELL") != SHELL:
             logging.warning("SHELL variable not found. Using %s as SHELL", SHELL)
 
-        if shell_configure(args) != 0:
+        if shell_configure(args, compat) != 0:
             logging.error("Error in configuring shell")
 
         logging.debug("CONST_shell_profile: %s", CONST_shell_profile)
@@ -1516,7 +1375,10 @@ def main(args):
         # Cleanup
         shutil.rmtree(TEMP_PATH)
 
-        print("Run:\nsource {0}".format(CONST_shell_config))
+        if compat.platform != "Darwin":
+            print("Run:\nsource {0}".format(CONST_shell_config))
+        else:
+            print("Run:\nsource {0}".format(CONST_shell_profile))
     else:
         reraise(Exception("Incompatible with your machine\n{0}".format(compat)))
 
@@ -1590,49 +1452,48 @@ if __name__ == "__main__":
         "--tf-version",
         dest="tf_version",
         required=False,
-        default=get_latest_github_release("WasmEdge/WasmEdge"),
+        default=None,
         help="Tensorflow and tensorflow lite version",
     )
     parser.add_argument(
         "--tf-deps-version",
         dest="tf_deps_version",
         required=False,
-        default=get_latest_github_release("WasmEdge/WasmEdge"),
+        default=None,
         help="Tensorflow and tensorflow lite deps version",
     )
     parser.add_argument(
         "--tf-tools-version",
         dest="tf_tools_version",
         required=False,
-        default=get_latest_github_release("WasmEdge/WasmEdge"),
+        default=None,
         help="Tensorflow and tensorflow lite tools version",
     )
     parser.add_argument(
         "--image-version",
         dest="image_version",
         required=False,
-        default=get_latest_github_release("second-state/WasmEdge-image"),
+        default=None,
         help="Image extension version",
     )
     parser.add_argument(
-        "--image-deps-version",
-        dest="image_deps_version",
-        required=False,
-        default=get_latest_github_release("second-state/WasmEdge-image"),
-        help="Image Deps version",
-    )
-    parser.add_argument(
         "--platform",
+        "--os",
         dest="platform",
         required=False,
         default=platform.system(),
+        choices=["Linux", "Darwin"],
+        type=lambda s: s.title(),
         help="Platform ex- Linux, Darwin, Windows",
     )
     parser.add_argument(
         "--machine",
+        "--arch",
         dest="machine",
         required=False,
         default=platform.machine(),
+        choices=["x86_64", "aarch64", "arm", "arm64"],
+        type=lambda s: s.lower(),
         help="Machine ex- x86_64, aarch64",
     )
     parser.add_argument(
@@ -1640,6 +1501,8 @@ if __name__ == "__main__":
         dest="dist",
         required=False,
         default=None,
+        choices=["ubuntu20.04", "manylinux2014"],
+        type=lambda s: s.lower(),
         help="Dist ex- ubuntu20.04,manylinux2014",
     )
     args = parser.parse_args()
@@ -1647,6 +1510,18 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(levelname)-8s- %(message)s", level=args.loglevel)
 
     args.path = abspath(args.path)
+
+    if args.tf_version is None:
+        args.tf_version = args.version
+
+    if args.tf_deps_version is None:
+        args.tf_deps_version = args.version
+
+    if args.tf_tools_version is None:
+        args.tf_tools_version = args.version
+
+    if args.image_version is None:
+        args.image_version = args.version
 
     logging.debug("Python Version: %s", sys.version_info)
     main(args)

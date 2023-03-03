@@ -273,14 +273,16 @@ INode::fdFilestatGet(__wasi_filestat_t &Filestat) const noexcept {
     return WasiUnexpect(Res);
   }
 
-  Filestat.dev = Stat->st_dev;
-  Filestat.ino = Stat->st_ino;
+  // Zeroing out these values to prevent leaking information about the host
+  // environment from special fd such as stdin, stdout and stderr.
+  Filestat.dev = isSpecialFd(Fd) ? 0 : Stat->st_dev;
+  Filestat.ino = isSpecialFd(Fd) ? 0 : Stat->st_ino;
   Filestat.filetype = unsafeFiletype();
-  Filestat.nlink = Stat->st_nlink;
-  Filestat.size = Stat->st_size;
-  Filestat.atim = fromTimespec(Stat->st_atim);
-  Filestat.mtim = fromTimespec(Stat->st_mtim);
-  Filestat.ctim = fromTimespec(Stat->st_ctim);
+  Filestat.nlink = isSpecialFd(Fd) ? 0 : Stat->st_nlink;
+  Filestat.size = isSpecialFd(Fd) ? 0 : Stat->st_size;
+  Filestat.atim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_atim);
+  Filestat.mtim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_mtim);
+  Filestat.ctim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_ctim);
 
   return {};
 }
@@ -637,7 +639,8 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
     SysTimespec[1].tv_nsec = UTIME_OMIT;
   }
 
-  if (auto Res = ::utimensat(Fd, Path.c_str(), SysTimespec, 0);
+  if (auto Res =
+          ::utimensat(Fd, Path.c_str(), SysTimespec, AT_SYMLINK_NOFOLLOW);
       unlikely(Res != 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
@@ -660,9 +663,9 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
   }
 
 #ifdef O_PATH
-  const int OFlags = O_PATH;
+  const int OFlags = O_PATH | O_SYMLINK;
 #else
-  const int OFlags = O_RDONLY;
+  const int OFlags = O_RDONLY | O_SYMLINK;
 #endif
 
   FdHolder Target(::openat(Fd, Path.c_str(), OFlags));
@@ -829,7 +832,7 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
   SysHint.ai_flags = toAIFlags(Hint.ai_flags);
   SysHint.ai_family = toAddressFamily(Hint.ai_family);
   SysHint.ai_socktype = toSockType(Hint.ai_socktype);
-  SysHint.ai_protocol = toProtocal(Hint.ai_protocol);
+  SysHint.ai_protocol = toProtocol(Hint.ai_protocol);
   SysHint.ai_addrlen = Hint.ai_addrlen;
   SysHint.ai_addr = nullptr;
   SysHint.ai_canonname = nullptr;
@@ -851,7 +854,7 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
     auto &CurAddrinfo = WasiAddrinfoArray[Idx];
     CurAddrinfo->ai_flags = fromAIFlags(SysResItem->ai_flags);
     CurAddrinfo->ai_socktype = fromSockType(SysResItem->ai_socktype);
-    CurAddrinfo->ai_protocol = fromProtocal(SysResItem->ai_protocol);
+    CurAddrinfo->ai_protocol = fromProtocol(SysResItem->ai_protocol);
     CurAddrinfo->ai_family = fromAddressFamily(SysResItem->ai_family);
     CurAddrinfo->ai_addrlen = SysResItem->ai_addrlen;
 
@@ -1299,7 +1302,7 @@ WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
   return {};
 }
 
-WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressBufPtr,
+WasiExpect<void> INode::sockGetLocalAddr(uint8_t *AddressBufPtr,
                                          uint32_t *PortPtr) const noexcept {
   auto AddrFamilyPtr = getAddressFamily(AddressBufPtr);
   auto AddressPtr = getAddress(AddressBufPtr);

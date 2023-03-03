@@ -44,7 +44,7 @@ impl CallingFrame {
     ///
     /// If the executing function instance is a host function and not added into any module instance, then returns `None`.
     ///
-    /// When a wasm function is executing and tring to call a host function inside, a frame with the module
+    /// When a wasm function is executing and trying to call a host function inside, a frame with the module
     /// instance the wasm function belongs to will be pushed onto the stack. And therefore the calling frame
     /// context will record that module instance.
     ///
@@ -77,7 +77,7 @@ impl CallingFrame {
 
         match ctx.is_null() {
             false => Some(Memory {
-                inner: InnerMemory(ctx),
+                inner: std::sync::Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
             true => None,

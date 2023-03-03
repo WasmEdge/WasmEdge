@@ -669,8 +669,8 @@ inline constexpr int toSockType(__wasi_sock_type_t SockType) noexcept {
   }
 }
 
-inline constexpr __wasi_protocol_t fromProtocal(int Protocal) noexcept {
-  switch (Protocal) {
+inline constexpr __wasi_protocol_t fromProtocol(int Protocol) noexcept {
+  switch (Protocol) {
   case IPPROTO_IP:
     return __WASI_PROTOCOL_IPPROTO_IP;
   case IPPROTO_TCP:
@@ -682,8 +682,8 @@ inline constexpr __wasi_protocol_t fromProtocal(int Protocal) noexcept {
   }
 }
 
-inline constexpr int toProtocal(__wasi_protocol_t Protocal) noexcept {
-  switch (Protocal) {
+inline constexpr int toProtocol(__wasi_protocol_t Protocol) noexcept {
+  switch (Protocol) {
   case __WASI_PROTOCOL_IPPROTO_IP:
     return IPPROTO_IP;
   case __WASI_PROTOCOL_IPPROTO_TCP:

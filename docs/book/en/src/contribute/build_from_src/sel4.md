@@ -127,10 +127,10 @@ Initializing random number generator... [    3.512482] random: dd: uninitialized
 done.
 Starting network: OK
 [    4.086059] connection: loading out-of-tree module taints kernel.
-[    4.114686] Event Bar (dev-0) initalised
-[    4.123771] 2 Dataports (dev-0) initalised
-[    4.130626] Event Bar (dev-1) initalised
-[    4.136096] 2 Dataports (dev-1) initalised
+[    4.114686] Event Bar (dev-0) initialised
+[    4.123771] 2 Dataports (dev-0) initialised
+[    4.130626] Event Bar (dev-1) initialised
+[    4.136096] 2 Dataports (dev-1) initialised
 
 Welcome to Buildroot
 buildroot login:

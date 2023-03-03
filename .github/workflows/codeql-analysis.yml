@@ -8,7 +8,6 @@ on:
   push:
     branches:
       - master
-      - 'proposal/**'
   pull_request:
     branches:
       - master

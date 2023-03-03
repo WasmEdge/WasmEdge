@@ -5,17 +5,7 @@
 #include "common.h"
 #include "wasmedge/wasmedge.h"
 
-WasmEdge_MemoryTypeContext *getMemoryTypeContext(JNIEnv *env,
-                                                 jobject jMemoryTypeContext) {
-
-  if (jMemoryTypeContext == NULL) {
-    return NULL;
-  }
-  WasmEdge_MemoryTypeContext *memoryTypeContext =
-      (struct WasmEdge_MemoryTypeContext *)getPointer(env, jMemoryTypeContext);
-
-  return memoryTypeContext;
-}
+GETTER(MemoryTypeContext)
 
 JNIEXPORT void JNICALL Java_org_wasmedge_MemoryTypeContext_nativeInit(
     JNIEnv *env, jobject thisObject, jboolean jHasMax, jlong jMin, jlong jMax) {
@@ -38,9 +28,9 @@ jobject
 createJMemoryTypeContext(JNIEnv *env,
                          const WasmEdge_MemoryTypeContext *memTypeContext) {
 
-  jclass clazz = (*env)->FindClass(env, "org/wasmedge/MemoryTypeContext");
+  jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_MEMORYTYPECONTEXT);
 
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
 
   return (*env)->NewObject(env, clazz, constructorId, (long)memTypeContext);
 }
@@ -52,9 +42,9 @@ Java_org_wasmedge_MemoryTypeContext_getLimit(JNIEnv *env, jobject thisObject) {
       getMemoryTypeContext(env, thisObject);
   WasmEdge_Limit limit = WasmEdge_MemoryTypeGetLimit(memoryTypeContext);
 
-  jclass limitClass = findJavaClass(env, "org/wasmedge/WasmEdgeLimit");
+  jclass limitClass = findJavaClass(env, ORG_WASMEDGE_LIMIT);
 
-  jmethodID constructor = findJavaMethod(env, limitClass, "<init>", "(ZJJ)V");
+  jmethodID constructor = findJavaMethod(env, limitClass, DEFAULT_CONSTRUCTOR, BOOLLONGLONG_VOID);
 
   return (*env)->NewObject(env, limitClass, constructor, (jboolean)limit.HasMax,
                            (jlong)limit.Min, (jlong)limit.Max);

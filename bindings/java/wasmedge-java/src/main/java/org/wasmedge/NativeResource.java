@@ -1,20 +1,22 @@
 package org.wasmedge;
 
-public class NativeResource {
+import java.io.Closeable;
+import java.io.IOException;
+
+/**
+ * Base class for native resources.
+ */
+public abstract class NativeResource implements Closeable {
     private long pointer;
 
-    public NativeResource() {
-        nativeInit();
+    public NativeResource(long pointer) {
+        this.pointer = pointer;
     }
 
-    public void release() {
-        cleanUp();
-        pointer = 0;
+    abstract void destroy();
+
+    @Override
+    public void close() throws IOException {
+        destroy();
     }
-
-    protected native void nativeInit();
-
-    protected native void cleanUp();
-
-
 }

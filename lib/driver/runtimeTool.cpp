@@ -40,7 +40,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
                              PO::MetaVar("ARG"sv));
 
   PO::Option<PO::Toggle> Reactor(PO::Description(
-      "Enable reactor mode. Reactor mode calls `_initialize` if exported."));
+      "Enable reactor mode. Reactor mode calls `_initialize` if exported."sv));
 
   PO::List<std::string> Dir(
       PO::Description(
@@ -294,7 +294,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
 
   if (EnterCommandMode) {
     // command mode
-    auto AsyncResult = VM.asyncExecute("_start");
+    auto AsyncResult = VM.asyncExecute("_start"sv);
     if (Timeout.has_value()) {
       if (!AsyncResult.waitUntil(*Timeout)) {
         AsyncResult.cancel();
@@ -342,35 +342,35 @@ int Tool(int Argc, const char *Argv[]) noexcept {
     }
 
     std::vector<ValVariant> FuncArgs;
-    std::vector<ValType> FuncArgTypes;
+    std::vector<FullValType> FuncArgTypes;
     for (size_t I = 0;
          I < FuncType.getParamTypes().size() && I + 1 < Args.value().size();
          ++I) {
-      switch (FuncType.getParamTypes()[I]) {
-      case ValType::I32: {
+      switch (FuncType.getParamTypes()[I].getTypeCode()) {
+      case ValTypeCode::I32: {
         const uint32_t Value =
             static_cast<uint32_t>(std::stol(Args.value()[I + 1]));
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(ValType::I32);
+        FuncArgTypes.emplace_back(NumType::I32);
         break;
       }
-      case ValType::I64: {
+      case ValTypeCode::I64: {
         const uint64_t Value =
             static_cast<uint64_t>(std::stoll(Args.value()[I + 1]));
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(ValType::I64);
+        FuncArgTypes.emplace_back(NumType::I64);
         break;
       }
-      case ValType::F32: {
+      case ValTypeCode::F32: {
         const float Value = std::stof(Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(ValType::F32);
+        FuncArgTypes.emplace_back(NumType::F32);
         break;
       }
-      case ValType::F64: {
+      case ValTypeCode::F64: {
         const double Value = std::stod(Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(ValType::F64);
+        FuncArgTypes.emplace_back(NumType::F64);
         break;
       }
       /// TODO: FuncRef and ExternRef
@@ -397,20 +397,20 @@ int Tool(int Argc, const char *Argv[]) noexcept {
     if (auto Result = AsyncResult.get()) {
       /// Print results.
       for (size_t I = 0; I < Result->size(); ++I) {
-        switch ((*Result)[I].second) {
-        case ValType::I32:
+        switch ((*Result)[I].second.getTypeCode()) {
+        case ValTypeCode::I32:
           std::cout << (*Result)[I].first.get<uint32_t>() << '\n';
           break;
-        case ValType::I64:
+        case ValTypeCode::I64:
           std::cout << (*Result)[I].first.get<uint64_t>() << '\n';
           break;
-        case ValType::F32:
+        case ValTypeCode::F32:
           std::cout << (*Result)[I].first.get<float>() << '\n';
           break;
-        case ValType::F64:
+        case ValTypeCode::F64:
           std::cout << (*Result)[I].first.get<double>() << '\n';
           break;
-        case ValType::V128:
+        case ValTypeCode::V128:
           std::cout << (*Result)[I].first.get<uint128_t>() << '\n';
           break;
         /// TODO: FuncRef and ExternRef

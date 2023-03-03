@@ -64,6 +64,81 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
   return {};
 }
 
+Expect<FullValType> Loader::loadFullValType(uint8_t TypeCode) {
+  switch (TypeCode) {
+  case (uint8_t)NumType::I32:
+    return NumType::I32;
+  case (uint8_t)NumType::I64:
+    return NumType::I64;
+  case (uint8_t)NumType::F32:
+    return NumType::F32;
+  case (uint8_t)NumType::F64:
+    return NumType::F64;
+  case (uint8_t)NumType::V128:
+    if (!Conf.hasProposal(Proposal::SIMD)) {
+      return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::SIMD,
+                             FMgr.getLastOffset(), ASTNodeAttr::Type_ValType);
+    }
+    return NumType::V128;
+  case (uint8_t)HeapTypeCode::Extern:
+    if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
+      return logNeedProposal(ErrCode::Value::MalformedElemType,
+                             Proposal::ReferenceTypes, FMgr.getLastOffset(),
+                             ASTNodeAttr::Type_ValType);
+    }
+    return FullRefType(HeapTypeCode::Extern);
+  case (uint8_t)HeapTypeCode::Func:
+    if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
+        !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
+      return logNeedProposal(ErrCode::Value::MalformedElemType,
+                             Proposal::ReferenceTypes, FMgr.getLastOffset(),
+                             ASTNodeAttr::Type_ValType);
+    }
+    return FullRefType(HeapTypeCode::Func);
+  default:
+    return logLoadError(ErrCode::Value::MalformedValType, FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_ValType);
+  }
+}
+
+Expect<FullValType> Loader::loadFullValType() {
+  if (auto Res = FMgr.readByte()) {
+    return loadFullValType(*Res);
+  } else {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_ValType);
+  }
+}
+
+Expect<FullRefType> Loader::loadFullRefType() {
+  Byte TypeCode;
+  if (auto Res = FMgr.readByte()) {
+    TypeCode = *Res;
+  } else {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_RefType);
+  }
+  switch (TypeCode) {
+  case (uint8_t)HeapTypeCode::Extern:
+    if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
+      return logNeedProposal(ErrCode::Value::MalformedElemType,
+                             Proposal::ReferenceTypes, FMgr.getLastOffset(),
+                             ASTNodeAttr::Type_RefType);
+    }
+    return HeapTypeCode::Extern;
+  case (uint8_t)HeapTypeCode::Func:
+    return HeapTypeCode::Func;
+  default:
+    if (Conf.hasProposal(Proposal::ReferenceTypes)) {
+      return logLoadError(ErrCode::Value::MalformedRefType,
+                          FMgr.getLastOffset(), ASTNodeAttr::Type_RefType);
+    } else {
+      return logLoadError(ErrCode::Value::MalformedElemType,
+                          FMgr.getLastOffset(), ASTNodeAttr::Type_RefType);
+    }
+  }
+}
+
 // Load binary to construct FunctionType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   uint32_t VecCnt = 0;
@@ -93,14 +168,8 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
                         ASTNodeAttr::Type_Function);
   }
   for (uint32_t I = 0; I < VecCnt; ++I) {
-    if (auto Res = FMgr.readByte()) {
-      ValType Type = static_cast<ValType>(*Res);
-      if (auto Check = checkValTypeProposals(Type, FMgr.getLastOffset(),
-                                             ASTNodeAttr::Type_Function);
-          !Check) {
-        return Unexpect(Check);
-      }
-      FuncType.getParamTypes().push_back(Type);
+    if (auto Res = loadFullValType()) {
+      FuncType.getParamTypes().push_back(*Res);
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Type_Function);
@@ -126,14 +195,8 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
                            ASTNodeAttr::Type_Function);
   }
   for (uint32_t I = 0; I < VecCnt; ++I) {
-    if (auto Res = FMgr.readByte()) {
-      ValType Type = static_cast<ValType>(*Res);
-      if (auto Check = checkValTypeProposals(Type, FMgr.getLastOffset(),
-                                             ASTNodeAttr::Type_Function);
-          !Check) {
-        return Unexpect(Check);
-      }
-      FuncType.getReturnTypes().push_back(Type);
+    if (auto Res = loadFullValType()) {
+      FuncType.getReturnTypes().push_back(*Res);
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Type_Function);
@@ -155,14 +218,8 @@ Expect<void> Loader::loadType(AST::MemoryType &MemType) {
 // Load binary to construct TableType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::TableType &TabType) {
   // Read reference type.
-  if (auto Res = FMgr.readByte()) {
-    TabType.setRefType(static_cast<RefType>(*Res));
-    if (auto Check =
-            checkRefTypeProposals(TabType.getRefType(), FMgr.getLastOffset(),
-                                  ASTNodeAttr::Type_Table);
-        !Check) {
-      return Unexpect(Check);
-    }
+  if (auto Res = loadFullRefType()) {
+    TabType.setRefType(*Res);
   } else {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Table);
@@ -179,14 +236,8 @@ Expect<void> Loader::loadType(AST::TableType &TabType) {
 // Load binary to construct GlobalType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::GlobalType &GlobType) {
   // Read value type.
-  if (auto Res = FMgr.readByte()) {
-    GlobType.setValType(static_cast<ValType>(*Res));
-    if (auto Check =
-            checkValTypeProposals(GlobType.getValType(), FMgr.getLastOffset(),
-                                  ASTNodeAttr::Type_Global);
-        !Check) {
-      return Unexpect(Check);
-    }
+  if (auto Res = loadFullValType()) {
+    GlobType.setValType(*Res);
   } else {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Global);

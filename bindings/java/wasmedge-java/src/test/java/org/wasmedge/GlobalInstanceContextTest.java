@@ -3,7 +3,7 @@ package org.wasmedge;
 import org.junit.Assert;
 import org.junit.Test;
 import org.wasmedge.enums.ValueType;
-import org.wasmedge.enums.WasmEdgeMutability;
+import org.wasmedge.enums.Mutability;
 
 public class GlobalInstanceContextTest extends BaseTest {
     private GlobalTypeContext typeCxt;
@@ -11,8 +11,8 @@ public class GlobalInstanceContextTest extends BaseTest {
 
     @Test
     public void testCreation() {
-        typeCxt = new GlobalTypeContext(ValueType.i64, WasmEdgeMutability.VAR);
-        instCxt = new GlobalInstanceContext(typeCxt, new WasmEdgeI64Value(66666666666L));
+        typeCxt = new GlobalTypeContext(ValueType.i64, Mutability.VAR);
+        instCxt = new GlobalInstanceContext(typeCxt, new I64Value(66666666666L));
 
         typeCxt.delete();
         instCxt.delete();
@@ -20,8 +20,8 @@ public class GlobalInstanceContextTest extends BaseTest {
 
     @Test
     public void testGetValType() {
-        typeCxt = new GlobalTypeContext(ValueType.i64, WasmEdgeMutability.VAR);
-        instCxt = new GlobalInstanceContext(typeCxt, new WasmEdgeI64Value(66666666666L));
+        typeCxt = new GlobalTypeContext(ValueType.i64, Mutability.VAR);
+        instCxt = new GlobalInstanceContext(typeCxt, new I64Value(66666666666L));
 
         GlobalTypeContext globalTypeContext = instCxt.getGlobalType();
         Assert.assertEquals(globalTypeContext.getValueType(), typeCxt.getValueType());
@@ -34,18 +34,18 @@ public class GlobalInstanceContextTest extends BaseTest {
 
     @Test
     public void testGetValue() {
-        typeCxt = new GlobalTypeContext(ValueType.i64, WasmEdgeMutability.VAR);
-        instCxt = new GlobalInstanceContext(typeCxt, new WasmEdgeI64Value(66666666666L));
+        typeCxt = new GlobalTypeContext(ValueType.i64, Mutability.VAR);
+        instCxt = new GlobalInstanceContext(typeCxt, new I64Value(66666666666L));
 
-        WasmEdgeValue value = instCxt.getValue();
-        Assert.assertTrue(value instanceof WasmEdgeI64Value);
-        Assert.assertEquals(((WasmEdgeI64Value) value).getValue(), 66666666666L);
+        Value value = instCxt.getValue();
+        Assert.assertTrue(value instanceof I64Value);
+        Assert.assertEquals(((I64Value) value).getValue(), 66666666666L);
 
-        instCxt.setValue(new WasmEdgeI64Value(111L));
+        instCxt.setValue(new I64Value(111L));
 
         value = instCxt.getValue();
-        Assert.assertTrue(value instanceof WasmEdgeI64Value);
-        Assert.assertEquals(((WasmEdgeI64Value) value).getValue(), 111L);
+        Assert.assertTrue(value instanceof I64Value);
+        Assert.assertEquals(((I64Value) value).getValue(), 111L);
 
         typeCxt.delete();
         instCxt.delete();

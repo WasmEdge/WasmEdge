@@ -69,40 +69,40 @@ public:
   }
 
   /// Rapidly load, validate, instantiate, and run wasm function.
-  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  Expect<std::vector<std::pair<ValVariant, FullValType>>>
   runWasmFile(const std::filesystem::path &Path, std::string_view Func,
               Span<const ValVariant> Params = {},
-              Span<const ValType> ParamTypes = {}) {
+              Span<const FullValType> ParamTypes = {}) {
     std::unique_lock Lock(Mutex);
     return unsafeRunWasmFile(Path, Func, Params, ParamTypes);
   }
-  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  Expect<std::vector<std::pair<ValVariant, FullValType>>>
   runWasmFile(Span<const Byte> Code, std::string_view Func,
               Span<const ValVariant> Params = {},
-              Span<const ValType> ParamTypes = {}) {
+              Span<const FullValType> ParamTypes = {}) {
     std::unique_lock Lock(Mutex);
     return unsafeRunWasmFile(Code, Func, Params, ParamTypes);
   }
-  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  Expect<std::vector<std::pair<ValVariant, FullValType>>>
   runWasmFile(const AST::Module &Module, std::string_view Func,
               Span<const ValVariant> Params = {},
-              Span<const ValType> ParamTypes = {}) {
+              Span<const FullValType> ParamTypes = {}) {
     std::unique_lock Lock(Mutex);
     return unsafeRunWasmFile(Module, Func, Params, ParamTypes);
   }
 
-  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+  Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
   asyncRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                    Span<const ValVariant> Params = {},
-                   Span<const ValType> ParamTypes = {});
-  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+                   Span<const FullValType> ParamTypes = {});
+  Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
   asyncRunWasmFile(Span<const Byte> Code, std::string_view Func,
                    Span<const ValVariant> Params = {},
-                   Span<const ValType> ParamTypes = {});
-  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+                   Span<const FullValType> ParamTypes = {});
+  Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
   asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
                    Span<const ValVariant> Params = {},
-                   Span<const ValType> ParamTypes = {});
+                   Span<const FullValType> ParamTypes = {});
 
   /// Load given wasm file, wasm bytecode, or wasm module.
   Expect<void> loadWasm(const std::filesystem::path &Path) {
@@ -134,32 +134,32 @@ public:
 
   /// ======= Functions can be called after instantiated stage. =======
   /// Execute wasm with given input.
-  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  Expect<std::vector<std::pair<ValVariant, FullValType>>>
   execute(std::string_view Func, Span<const ValVariant> Params = {},
-          Span<const ValType> ParamTypes = {}) {
+          Span<const FullValType> ParamTypes = {}) {
     std::shared_lock Lock(Mutex);
     return unsafeExecute(Func, Params, ParamTypes);
   }
 
   /// Execute function of registered module with given input.
-  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  Expect<std::vector<std::pair<ValVariant, FullValType>>>
   execute(std::string_view ModName, std::string_view Func,
           Span<const ValVariant> Params = {},
-          Span<const ValType> ParamTypes = {}) {
+          Span<const FullValType> ParamTypes = {}) {
     std::shared_lock Lock(Mutex);
     return unsafeExecute(ModName, Func, Params, ParamTypes);
   }
 
   /// Asynchronous execute wasm with given input.
-  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+  Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
   asyncExecute(std::string_view Func, Span<const ValVariant> Params = {},
-               Span<const ValType> ParamTypes = {});
+               Span<const FullValType> ParamTypes = {});
 
   /// Asynchronous execute function of registered module with given input.
-  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+  Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
   asyncExecute(std::string_view ModName, std::string_view Func,
                Span<const ValVariant> Params = {},
-               Span<const ValType> ParamTypes = {});
+               Span<const FullValType> ParamTypes = {});
 
   /// Register new thread
   void newThread() noexcept { ExecutorEngine.newThread(); }
@@ -221,18 +221,18 @@ private:
   Expect<void>
   unsafeRegisterModule(const Runtime::Instance::ModuleInstance &ModInst);
 
-  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  Expect<std::vector<std::pair<ValVariant, FullValType>>>
   unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                     Span<const ValVariant> Params = {},
-                    Span<const ValType> ParamTypes = {});
-  Expect<std::vector<std::pair<ValVariant, ValType>>>
+                    Span<const FullValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ValVariant, FullValType>>>
   unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
                     Span<const ValVariant> Params = {},
-                    Span<const ValType> ParamTypes = {});
-  Expect<std::vector<std::pair<ValVariant, ValType>>>
+                    Span<const FullValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ValVariant, FullValType>>>
   unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
                     Span<const ValVariant> Params = {},
-                    Span<const ValType> ParamTypes = {});
+                    Span<const FullValType> ParamTypes = {});
 
   Expect<void> unsafeLoadWasm(const std::filesystem::path &Path);
   Expect<void> unsafeLoadWasm(Span<const Byte> Code);
@@ -242,14 +242,14 @@ private:
 
   Expect<void> unsafeInstantiate();
 
-  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  Expect<std::vector<std::pair<ValVariant, FullValType>>>
   unsafeExecute(std::string_view Func, Span<const ValVariant> Params = {},
-                Span<const ValType> ParamTypes = {});
+                Span<const FullValType> ParamTypes = {});
 
-  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  Expect<std::vector<std::pair<ValVariant, FullValType>>>
   unsafeExecute(std::string_view Mod, std::string_view Func,
                 Span<const ValVariant> Params = {},
-                Span<const ValType> ParamTypes = {});
+                Span<const FullValType> ParamTypes = {});
 
   void unsafeCleanup();
 
@@ -266,10 +266,10 @@ private:
   void unsafeInitVM();
 
   /// Helper function for execution.
-  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  Expect<std::vector<std::pair<ValVariant, FullValType>>>
   unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
                 std::string_view Func, Span<const ValVariant> Params = {},
-                Span<const ValType> ParamTypes = {});
+                Span<const FullValType> ParamTypes = {});
 
   /// VM environment.
   const Configure Conf;

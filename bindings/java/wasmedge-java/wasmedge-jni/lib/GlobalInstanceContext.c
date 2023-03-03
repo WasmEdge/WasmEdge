@@ -9,18 +9,7 @@
 #include "ValueType.h"
 #include "common.h"
 
-WasmEdge_GlobalInstanceContext *
-getGlobalInstanceContext(JNIEnv *env, jobject jGlobalInstanceContext) {
-
-  if (jGlobalInstanceContext == NULL) {
-    return NULL;
-  }
-  WasmEdge_GlobalInstanceContext *globalInstanceContext =
-      (struct WasmEdge_GlobalInstanceContext *)getPointer(
-          env, jGlobalInstanceContext);
-
-  return globalInstanceContext;
-}
+GETTER(GlobalInstanceContext)
 
 JNIEXPORT void JNICALL Java_org_wasmedge_GlobalInstanceContext_nativeInit(
     JNIEnv *env, jobject thisObject, jobject jGlobalTypeCxt, jobject jVal) {
@@ -58,7 +47,7 @@ jobject createJGlobalInstanceContext(
     return NULL;
   }
 
-  jclass clazz = (*env)->FindClass(env, "org/wasmedge/GlobalInstanceContext");
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+  jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_GLOBALINSTANCECONTEXT);
+  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
   return (*env)->NewObject(env, clazz, constructorId, (long)globInstance);
 }

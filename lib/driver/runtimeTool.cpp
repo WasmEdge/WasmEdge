@@ -76,6 +76,8 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       PO::Description("Enable Extended-const proposal"sv));
   PO::Option<PO::Toggle> PropThreads(
       PO::Description("Enable Threads proposal"sv));
+  PO::Option<PO::Toggle> PropFunctionReference(
+      PO::Description("Enable Function Reference proposal"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
 
   PO::Option<PO::Toggle> ConfEnableInstructionCounting(PO::Description(
@@ -129,6 +131,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       .add_option("enable-tail-call"sv, PropTailCall)
       .add_option("enable-extended-const"sv, PropExtendConst)
       .add_option("enable-threads"sv, PropThreads)
+      .add_option("enable-function-reference"sv, PropFunctionReference)
       .add_option("enable-all"sv, PropAll)
       .add_option("time-limit"sv, TimeLim)
       .add_option("gas-limit"sv, GasLim)
@@ -178,6 +181,15 @@ int Tool(int Argc, const char *Argv[]) noexcept {
   }
   if (PropThreads.value()) {
     Conf.addProposal(Proposal::Threads);
+  }
+  if (PropFunctionReference.value()) {
+    if (PropRefTypes.value()) {
+      std::cerr << "Function Reference proposal is based on Reference Type "
+                   "proposal, which is disabled."
+                << std::endl;
+      return EXIT_FAILURE;
+    }
+    Conf.addProposal(Proposal::FunctionReferences);
   }
   if (PropAll.value()) {
     Conf.addProposal(Proposal::MultiMemories);

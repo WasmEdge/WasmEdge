@@ -230,7 +230,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Br:
   case OpCode::Br_if:
   case OpCode::Br_on_null:
-  case OpCode::br_on_non_null:
+  case OpCode::Br_on_non_null:
     return readU32(Instr.getJump().TargetIndex);
 
   case OpCode::Br_table: {
@@ -291,6 +291,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     }
     return {};
   case OpCode::Ref__is_null:
+    return {};
+  case OpCode::Ref__as_non_null:
     return {};
   case OpCode::Ref__func:
     return readU32(Instr.getTargetIndex());
@@ -1007,7 +1009,7 @@ Expect<void> Loader::checkInstrProposals(OpCode Code,
     }
   } else if (Code == OpCode::Call_ref || Code == OpCode::Return_call_ref ||
              Code == OpCode::Ref__as_non_null || Code == OpCode::Br_on_null ||
-             Code == OpCode::br_on_non_null) {
+             Code == OpCode::Br_on_non_null) {
     if (!Conf.hasProposal(Proposal::FunctionReferences)) {
       return logNeedProposal(ErrCode::Value::IllegalOpCode,
                              Proposal::FunctionReferences, Offset,

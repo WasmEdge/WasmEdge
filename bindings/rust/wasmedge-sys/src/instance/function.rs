@@ -15,7 +15,7 @@ use std::{convert::TryInto, sync::Arc};
 use wasmedge_types::ValType;
 
 // Wrapper function for thread-safe scenarios.
-extern "C" fn wraper_fn(
+extern "C" fn wrap_fn(
     key_ptr: *mut c_void,
     _data: *mut std::os::raw::c_void,
     call_frame_ctx: *const ffi::WasmEdge_CallingFrameContext,
@@ -72,6 +72,16 @@ extern "C" fn wraper_fn(
         }
     }
 }
+
+pub type CustomFnWrapper = unsafe extern "C" fn(
+    key_ptr: *mut c_void,
+    data_ptr: *mut c_void,
+    calling_frame_ctx: *const ffi::WasmEdge_CallingFrameContext,
+    params: *const ffi::WasmEdge_Value,
+    param_len: u32,
+    returns: *mut ffi::WasmEdge_Value,
+    return_len: u32,
+) -> ffi::WasmEdge_Result;
 
 /// Defines a host function.
 ///
@@ -160,7 +170,7 @@ impl Function {
         let ctx = unsafe {
             ffi::WasmEdge_FunctionInstanceCreateBinding(
                 ty.inner.0,
-                Some(wraper_fn),
+                Some(wrap_fn),
                 key as *const usize as *mut c_void,
                 std::ptr::null_mut(),
                 cost,
@@ -263,6 +273,48 @@ impl Function {
             }),
             cost,
         )
+    }
+
+    /// Creates a [host function](crate::Function) with the given function type and the custom function wrapper.
+    ///
+    /// # Arguments
+    ///
+    /// * `ty` - The types of the arguments and returns of the target function.
+    ///
+    /// * `fn_wrapper` - The custom function wrapper.
+    ///
+    /// * `real_fn` - The pointer to the target function.
+    ///
+    /// * `data` - The pointer to the data.
+    ///
+    /// * `cost` - The function cost in the [Statistics](crate::Statistics). Pass 0 if the calculation is not needed.
+    ///
+    /// # Error
+    ///
+    /// * If fail to create a [Function], then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
+    ///
+    pub unsafe fn create_with_custom_wrapper(
+        ty: &FuncType,
+        fn_wrapper: CustomFnWrapper,
+        real_fn: *mut c_void,
+        data: *mut c_void,
+        cost: u64,
+    ) -> WasmEdgeResult<Self> {
+        let ctx = ffi::WasmEdge_FunctionInstanceCreateBinding(
+            ty.inner.0,
+            Some(fn_wrapper),
+            real_fn,
+            data,
+            cost,
+        );
+
+        match ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Func(FuncError::Create))),
+            false => Ok(Self {
+                inner: Arc::new(InnerFunc(ctx)),
+                registered: false,
+            }),
+        }
     }
 
     /// Returns the underlying wasm type of this [Function].

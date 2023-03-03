@@ -92,3 +92,6 @@ node_modules/
 **/cmake-build-debug
 **/cmake-build-debug-remote-host
 **/cmake-build-release
+
+# generated jni files
+bindings/java/wasmedge-java/wasmedge-jni/jni/*.h

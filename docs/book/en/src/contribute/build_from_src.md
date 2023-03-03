@@ -43,6 +43,7 @@ Developers can set the CMake options to customize the WasmEdge building.
 4. `WASMEDGE_BUILD_STATIC_LIB`: build the WasmEdge static library (`libwasmedge.a`, Linux and MacOS platforms, experimental). Default is `OFF`.
     - If this option is set as `ON`, the option `WASMEDGE_FORCE_DISABLE_LTO` will forcefully be set as `ON`.
     - If this option is set as `ON`, the `libz` and `libtinfo` on Linux platforms will be statically linked.
+    - For linking with `libwasmedge.a`, developers should also add the `-ldl`, `-pthread`, `-lm`, and `-lstdc++` linker options on both Linux and MacOS platforms, and `-lrt` on Linux platforms.
 5. `WASMEDGE_BUILD_TOOLS`: build the `wasmedge` and `wasmedgec` tools. Default is `ON`.
     - The `wasmedge` and `wasmedgec` tools will link to the WasmEdge shared library by default.
     - If this option is set as `ON` and `WASMEDGE_BUILD_AOT_RUNTIME` is set as `OFF`, the `wasmedgec` tool for the AOT compiler will not be built.

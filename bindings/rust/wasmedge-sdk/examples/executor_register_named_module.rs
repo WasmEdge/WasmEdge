@@ -62,7 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Not found the wasm function named 'fib'.");
 
     // call the host function
-    let returns = fib.call(&mut executor, params!(5))?;
+    let returns = fib.call(&executor, params!(5))?;
     assert_eq!(returns.len(), 1);
     assert_eq!(returns[0].to_i32(), 8);
 

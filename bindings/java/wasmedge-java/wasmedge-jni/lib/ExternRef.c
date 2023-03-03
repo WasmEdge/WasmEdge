@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "../jni/org_wasmedge_WasmEdgeExternRef.h"
 #include "common.h"
 #include <stdlib.h>
 #include <string.h>

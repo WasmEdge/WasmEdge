@@ -1,5 +1,8 @@
 package org.wasmedge;
 
+/**
+ * Compiler context, for compiling wasm native modules.
+ */
 public class CompilerContext {
     private long pointer;
 

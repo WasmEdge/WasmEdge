@@ -7,7 +7,7 @@ public class MemoryInstanceTest extends BaseTest {
     @Test
     public void test() {
         MemoryTypeContext memType =
-                new MemoryTypeContext(new WasmEdgeLimit(false, 1, 1));
+                new MemoryTypeContext(new Limit(false, 1, 1));
         MemoryInstanceContext memCxt = new MemoryInstanceContext(memType);
         memCxt.delete();
         memType.delete();
@@ -16,7 +16,7 @@ public class MemoryInstanceTest extends BaseTest {
     @Test
     public void testSetDataAndGetData() {
         MemoryTypeContext memType =
-                new MemoryTypeContext(new WasmEdgeLimit(false, 1, 1));
+                new MemoryTypeContext(new Limit(false, 1, 1));
         MemoryInstanceContext memCxt = new MemoryInstanceContext(memType);
         byte[] data = {1, 2, 3, 4, 5};
 
@@ -29,7 +29,7 @@ public class MemoryInstanceTest extends BaseTest {
     @Test
     public void testGetSizeAndGrow() {
         MemoryTypeContext memType =
-                new MemoryTypeContext(new WasmEdgeLimit(false, 1, 1));
+                new MemoryTypeContext(new Limit(false, 1, 1));
         MemoryInstanceContext memCxt = new MemoryInstanceContext(memType);
         Assert.assertEquals(memCxt.getPageSize(), 1);
 

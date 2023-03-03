@@ -15,7 +15,7 @@ target_compile_options(wasmedgePluginTest
   -DWASMEDGE_PLUGIN
 )
 
-if(WASMEDGE_LINK_PUGLINS_STATIC)
+if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmedgePluginTest
     PRIVATE
     wasmedgeCAPI

@@ -2,6 +2,9 @@ package org.wasmedge.enums;
 
 import java.util.Arrays;
 
+/**
+ * Enum for external types.
+ */
 public enum ExternalType {
     FUNCTION(0x00),
     TABLE(0x01),

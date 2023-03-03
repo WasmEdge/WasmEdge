@@ -1,5 +1,8 @@
 package org.wasmedge.enums;
 
+/**
+ * Host registration enum.
+ */
 public enum HostRegistration {
 
     WasmEdge_HostRegistration_Wasi(0),

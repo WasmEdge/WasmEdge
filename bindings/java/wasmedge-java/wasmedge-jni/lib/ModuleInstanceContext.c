@@ -10,21 +10,11 @@
 #include "wasmedge/wasmedge.h"
 #include <stdlib.h>
 
+GETTER(ModuleInstanceContext)
+
 jobject
 createJModuleInstanceContext(JNIEnv *env,
                              const WasmEdge_ModuleInstanceContext *impObj);
-
-WasmEdge_ModuleInstanceContext *getModuleInstanceContext(JNIEnv *env,
-                                                         jobject jImpObjCxt) {
-
-  if (jImpObjCxt == NULL) {
-    return NULL;
-  }
-  WasmEdge_ModuleInstanceContext *importObjectContext =
-      (struct WasmEdge_ModuleInstanceContext *)getPointer(env, jImpObjCxt);
-
-  return importObjectContext;
-}
 
 JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_nativeInit(
     JNIEnv *env, jobject thisObject, jstring moduleName) {
@@ -33,7 +23,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_nativeInit(
   setPointer(env, thisObject, (long)impCxt);
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_initWASI(
+JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_initWasi(
     JNIEnv *env, jobject thisObject, jobjectArray jArgs, jobjectArray jEnvs,
     jobjectArray jPreopens) {
 
@@ -52,7 +42,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_initWASI(
   ReleaseCString(env, jPreopens, preopens);
 }
 
-JNIEXPORT jint JNICALL Java_org_wasmedge_ModuleInstanceContext_getWASIExitCode(
+JNIEXPORT jint JNICALL Java_org_wasmedge_ModuleInstanceContext_getWasiExitCode(
     JNIEnv *env, jobject thisObject) {
   return WasmEdge_ModuleInstanceWASIGetExitCode(
       getModuleInstanceContext(env, thisObject));
@@ -136,7 +126,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_delete(
   setPointer(env, thisObject, 0);
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_ModuleInstanceContext_CreateWASI(
+JNIEXPORT jobject JNICALL Java_org_wasmedge_ModuleInstanceContext_createWasi(
     JNIEnv *env, jclass thisClass, jobjectArray jArgs, jobjectArray jEnvs,
     jobjectArray jPreopens) {
 
@@ -290,9 +280,9 @@ jobject
 createJModuleInstanceContext(JNIEnv *env,
                              const WasmEdge_ModuleInstanceContext *impObj) {
 
-  jclass clazz = (*env)->FindClass(env, "org/wasmedge/ModuleInstanceContext");
+  jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_MODULEINSTANCECONTEXT);
 
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
 
   return (*env)->NewObject(env, clazz, constructorId, (long)impObj);
 }

@@ -6,16 +6,16 @@
 #include "wasmedge/wasmedge.h"
 
 WasmEdge_Value JavaValueToWasmEdgeValue(JNIEnv *env, jobject jVal) {
-  jclass valueClass = (*env)->FindClass(env, "org/wasmedge/WasmEdgeValue");
+  jclass valueClass = (*env)->FindClass(env, ORG_WASMEDGE_VALUE);
 
-  jmethodID getType = (*env)->GetMethodID(env, valueClass, "getType",
-                                          "()Lorg/wasmedge/enums/ValueType;");
+  jmethodID getType = (*env)->GetMethodID(env, valueClass, GET_TYPE,
+                                          VOID_VALUETYPE);
 
   jobject valType = (*env)->CallObjectMethod(env, jVal, getType);
 
   jclass typeClass = (*env)->GetObjectClass(env, valType);
 
-  jmethodID getVal = (*env)->GetMethodID(env, typeClass, "getValue", "()I");
+  jmethodID getVal = (*env)->GetMethodID(env, typeClass, GET_VALUE, VOID_INT);
 
   jint jType = (*env)->CallIntMethod(env, valType, getVal);
 
@@ -48,30 +48,30 @@ jobject WasmEdgeValueToJavaValue(JNIEnv *env, WasmEdge_Value value) {
   const char *valClassName = NULL;
   switch (value.Type.TypeCode) {
   case WasmEdge_ValType_I32:
-    valClassName = "org/wasmedge/WasmEdgeI32Value";
+    valClassName = ORG_WASMEDGE_I32VALUE;
     break;
   case WasmEdge_ValType_I64:
-    valClassName = "org/wasmedge/WasmEdgeI64Value";
+    valClassName = ORG_WASMEDGE_I64VALUE;
     break;
   case WasmEdge_ValType_F32:
-    valClassName = "org/wasmedge/WasmEdgeF32Value";
+    valClassName = ORG_WASMEDGE_F32VALUE;
     break;
   case WasmEdge_ValType_V128:
-    valClassName = "org/wasmedge/WasmEdgeV128Value";
+    valClassName = ORG_WASMEDGE_V128VALUE;
     break;
   case WasmEdge_ValType_F64:
-    valClassName = "org/wasmedge/WasmEdgeF64Value";
+    valClassName = ORG_WASMEDGE_F64VALUE;
     break;
   case WasmEdge_ValType_ExternRef:
-    valClassName = "org/wasmedge/WasmEdgeExternRef";
+    valClassName = ORG_WASMEDGE_EXTERNREF;
     break;
   case WasmEdge_ValType_FuncRef:
-    valClassName = "org/wasmedge/WasmEdgeFuncRef";
+    valClassName = ORG_WASMEDGE_FUNCREF;
     break;
   }
   jclass valClass = (*env)->FindClass(env, valClassName);
 
-  jmethodID constructor = (*env)->GetMethodID(env, valClass, "<init>", "()V");
+  jmethodID constructor = (*env)->GetMethodID(env, valClass, DEFAULT_CONSTRUCTOR, VOID_VOID);
 
   jobject jVal = (*env)->NewObject(env, valClass, constructor);
 

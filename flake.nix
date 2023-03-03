@@ -9,13 +9,12 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [ (import rust-overlay) ];
-        pkgs = import nixpkgs {
-          inherit system overlays;
-        };
+        pkgs = import nixpkgs { inherit system overlays; };
         rust = pkgs.rust-bin.stable.latest.default.override {
           extensions = [ "rust-src" ];
           targets = [ "wasm32-wasi" "wasm32-unknown-unknown" ];
         };
+        llvmPackages = pkgs.llvmPackages_14;
         buildWasmEdgeNoAOT = pkgs.writeShellScriptBin "build-without-aot" ''
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .
           cmake --build build
@@ -34,16 +33,15 @@
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
           cargo run -p wasmedge-sys --example $1
         '';
-      in
-      with pkgs;
-      {
+      in with pkgs; {
         devShell = mkShell {
           buildInputs = [
             boost
             clang
             cmake
             gcovr
-            llvm_10
+            llvmPackages.lld
+            llvmPackages.llvm
             ninja
             openssl
             pkg-config
@@ -56,6 +54,5 @@
 
           LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
         };
-      }
-    );
+      });
 }

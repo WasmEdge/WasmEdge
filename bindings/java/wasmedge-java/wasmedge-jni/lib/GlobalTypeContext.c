@@ -7,17 +7,7 @@
 #include "common.h"
 #include "wasmedge/wasmedge.h"
 
-WasmEdge_GlobalTypeContext *getGlobalTypeContext(JNIEnv *env,
-                                                 jobject jGlobalTypeContext) {
-
-  if (jGlobalTypeContext == NULL) {
-    return NULL;
-  }
-  WasmEdge_GlobalTypeContext *globalTypeContext =
-      (struct WasmEdge_GlobalTypeContext *)getPointer(env, jGlobalTypeContext);
-
-  return globalTypeContext;
-}
+GETTER(GlobalTypeContext)
 
 JNIEXPORT void JNICALL Java_org_wasmedge_GlobalTypeContext_nativeInit(
     JNIEnv *env, jobject thisObject, jint valueType, jint mutability) {
@@ -31,8 +21,8 @@ jobject
 createJGlobalTypeContext(JNIEnv *env,
                          const WasmEdge_GlobalTypeContext *globalTypeContext) {
 
-  jclass clazz = (*env)->FindClass(env, "org/wasmedge/GlobalTypeContext");
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+  jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_GLOBALTYPECONTEXT);
+  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
   return (*env)->NewObject(env, clazz, constructorId, (long)globalTypeContext);
 }
 JNIEXPORT void JNICALL

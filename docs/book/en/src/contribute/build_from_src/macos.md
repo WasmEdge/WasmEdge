@@ -30,6 +30,8 @@ If you want to build from source, you may need to install these dependencies by 
 # Tools and libraries
 brew install boost cmake ninja llvm
 export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
+# For Apple Silicon:
+# export LLVM_DIR="/opt/homebrew/opt/llvm/lib/cmake"
 export CC=clang
 export CXX=clang++
 ```

@@ -94,8 +94,8 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       message(FATAL_ERROR "downloaded tensorflow model with wrong md5")
     endif()
 
-    if(NOT CHECKSUM_IMAGE STREQUAL "644c160eac747f0d8febf5ed1ca9683e")
-      message(FATAL_ERROR "downloaded bird.jpg fixture with wrong md5")
+    if(NOT CHECKSUM_IMAGE STREQUAL "3adda9b92a0c01bb7f17fe5b34b7649f")
+      message(FATAL_ERROR "downloaded image fixture with wrong md5")
     endif()
 
     add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TF)

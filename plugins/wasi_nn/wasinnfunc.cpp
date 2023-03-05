@@ -604,7 +604,7 @@ Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
     if (unlikely(Graph.TFBundle == nullptr)) {
       spdlog::error("[WASI-NN] tensorflow model is not loaded");
       Env.NNContext.pop_back();
-      return static_cast<uint32_t>(WASINN::ErrNo::Busy);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
     NewContext.TFBundle = Graph.TFBundle;
     auto SigMap = NewContext.TFBundle->meta_graph_def.signature_def();
@@ -890,10 +890,6 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
     std::copy_n(TensorDataBuf, TensorDataLen,
                 static_cast<uint8_t *>(TensorPtr.data()));
     uint8_t *see = static_cast<uint8_t *>(TensorPtr.data());
-    for (int I = 0; I < 10; I++) {
-      std::cout << static_cast<int32_t>(see[I]) << ", ";
-    }
-    std::cout << std::endl;
     CxtRef.TFInputAlready[Index].second = TensorPtr;
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
@@ -1141,18 +1137,10 @@ WasiNNGetOuput::body(const Runtime::CallingFrame &Frame, uint32_t Context,
     if (unlikely(OutBuffer == nullptr)) {
       spdlog::error(
           "[WASI-NN] Failed when accessing the Output Buffer memory.");
-      return static_cast<uint32_t>(WASINN::ErrNo::Busy);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
     std::copy_n(static_cast<uint8_t *>(OutTensor.data()), BytesToWrite,
                 OutBuffer);
-    for (int I = 0; I < 10; I++) {
-      std::cout << OutTensor.tensor<float, 2>()(0, I) << ",";
-    }
-    std::cout << std::endl;
-    for (int I = 0; I < 10; I++) {
-      std::cout << reinterpret_cast<float *>(OutBuffer)[I] << ",";
-    }
-    std::cout << std::endl;
     uint32_t *BytesWritten =
         MemInst->getPointer<uint32_t *>(BytesWrittenPtr, 1);
     if (unlikely(BytesWritten == nullptr)) {
@@ -1289,11 +1277,15 @@ Expect<uint32_t> WasiNNCompute::body(const Runtime::CallingFrame &Frame,
 #endif
   } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::Tensorflow) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    if (unlikely(CxtRef.TFBundle == nullptr)) {
+      spdlog::error("[WASI-NN] compute: Tensorflow bundle empty");
+      return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
+    }
     tensorflow::Status TFStat;
     tensorflow::Session *TFSession = CxtRef.TFBundle->session.get();
     // tensorflow::Session *TFSession = nullptr;
     if (unlikely(TFSession == nullptr)) {
-      spdlog::error("[WASI-NN] Tensorflow session empty");
+      spdlog::error("[WASI-NN] compute: Tensorflow session empty");
       return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
     }
     TFStat = TFSession->Run(CxtRef.TFInputAlready, CxtRef.TFOutputNames, {},

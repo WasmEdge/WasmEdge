@@ -90,31 +90,6 @@ tensorflow::DataType TensorflowTypeMap(const WASINN::TensorType InType) {
     assumingUnreachable();
   }
 }
-
-std::filesystem::path
-CreateTemporaryDirectory(const std::string Prefix = "WASINN_TF_",
-                         uint32_t MaxTries = 1000) {
-  auto TmpDir = std::filesystem::temp_directory_path();
-  uint32_t I = 0;
-  std::random_device Dev;
-  std::mt19937 Prng(Dev());
-  std::uniform_int_distribution<uint64_t> RandNum(0);
-  std::filesystem::path Path;
-  while (true) {
-    std::stringstream ss;
-    ss << Prefix << std::hex << RandNum(Prng);
-    Path = TmpDir / ss.str();
-    // true if the directory was created.
-    if (std::filesystem::create_directory(Path)) {
-      break;
-    }
-    if (I == MaxTries) {
-      throw std::runtime_error("could not find non-existing directory");
-    }
-    I++;
-  }
-  return Path;
-}
 #endif
 
 } // namespace
@@ -451,44 +426,25 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
     std::string Signature;
     Signature.assign(SignaturePtr, SignaturePtr + GraphBuilders[5]);
 
-    auto TmpSavedModelDir = CreateTemporaryDirectory();
-    std::ofstream SavedModelFile(TmpSavedModelDir / "saved_model.pb");
-    if (!SavedModelFile.is_open()) {
-      spdlog::error("[WASI-NN] unable to write saved_model.pb on {}",
-                    TmpSavedModelDir.u8string());
-      std::filesystem::remove_all(TmpSavedModelDir);
-      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
-    }
-    SavedModelFile.write(BinPtr, BinLen);
-    SavedModelFile.close();
-    if (unlikely(!tensorflow::MaybeSavedModelDirectory(
-            TmpSavedModelDir.u8string()))) {
-      spdlog::error("[WASI-NN] could not find export model: {}",
-                    TmpSavedModelDir.u8string());
-      std::filesystem::remove_all(TmpSavedModelDir);
+    std::string SavedModelDir;
+    SavedModelDir.assign(BinPtr, BinPtr + BinLen);
+    if (unlikely(!tensorflow::MaybeSavedModelDirectory(SavedModelDir))) {
+      spdlog::error("[WASI-NN] could not find export model: {}", SavedModelDir);
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
     std::shared_ptr<tensorflow::SavedModelBundle> TFBundle(
         new tensorflow::SavedModelBundle());
-    if (unlikely(TFBundle == nullptr)) {
-      spdlog::error("[WASI-NN] could not create new bundle");
-      std::filesystem::remove_all(TmpSavedModelDir);
-      return static_cast<uint32_t>(WASINN::ErrNo::Busy);
-    }
 
     if (TagSet == "") {
       TFStat = tensorflow::LoadSavedModel(SessionOption, RunOption,
-                                          TmpSavedModelDir.u8string(), {},
-                                          TFBundle.get());
+                                          SavedModelDir, {}, TFBundle.get());
     } else {
-      TFStat = tensorflow::LoadSavedModel(SessionOption, RunOption,
-                                          TmpSavedModelDir.u8string(), {TagSet},
-                                          TFBundle.get());
+      TFStat = tensorflow::LoadSavedModel(
+          SessionOption, RunOption, SavedModelDir, {TagSet}, TFBundle.get());
     }
     if (unlikely(!TFStat.ok())) {
       spdlog::error("[WASI-NN] could not create new bundle: {}",
                     TFStat.error_message());
-      std::filesystem::remove_all(TmpSavedModelDir);
       return static_cast<uint32_t>(WASINN::ErrNo::Busy);
     }
     // Add a new graph.
@@ -497,7 +453,6 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
     auto &Graph = Env.NNGraph.back();
     Graph.TFSignature = Signature;
     Graph.TFBundle = TFBundle;
-    std::filesystem::remove_all(TmpSavedModelDir);
     *GraphId = Env.NNGraph.size() - 1;
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else

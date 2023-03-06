@@ -1230,9 +1230,8 @@ TEST(WasiNNTest, TFBackend) {
   // Load the files.
   std::vector<uint8_t> TensorData =
       readEntireFile("./wasinn_tensorflow_fixtures/birdX224X224X3.rgb");
-  std::vector<uint8_t> WeightRead =
-      readEntireFile("./wasinn_tensorflow_fixtures/"
-                     "saved_model.pb");
+  std::string export_path = "./wasinn_tensorflow_fixtures/";
+  std::vector<char> WeightRead(export_path.begin(), export_path.end());
   std::string TagSet = "";
   std::string SigMap = "image_classifier";
   spdlog::info("Read {}", TensorData.size());
@@ -1290,7 +1289,8 @@ TEST(WasiNNTest, TFBackend) {
                                      static_cast<uint32_t>(Backend::Tensorflow),
                                      UINT32_C(0), BuilderPtr},
                                  Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Busy));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
   // Test: load -- graph id ptr out of bounds.
@@ -1340,7 +1340,7 @@ TEST(WasiNNTest, TFBackend) {
                   SigMap.size(), BuilderPtr);
   std::vector<char> TagSetVector(TagSet.begin(), TagSet.end());
   std::vector<char> SigMapVector(SigMap.begin(), SigMap.end());
-  writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr);
+  writeBinaries<char>(MemInst, WeightRead, StorePtr);
   writeBinaries<char>(MemInst, TagSetVector, StorePtr + WeightRead.size());
   writeBinaries<char>(MemInst, SigMapVector,
                       StorePtr + WeightRead.size() + TagSet.size());
@@ -1544,7 +1544,6 @@ TEST(WasiNNTest, TFBackend) {
 
   // Test: get_output -- output buffer ptr out of bounds.
   {
-    spdlog::info("Here");
     EXPECT_TRUE(HostFuncGetOutput.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{

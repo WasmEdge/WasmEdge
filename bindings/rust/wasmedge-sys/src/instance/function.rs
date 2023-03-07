@@ -194,15 +194,13 @@ impl Function {
         map_host_func.insert(key, Arc::new(Mutex::new(real_fn)));
         drop(map_host_func);
 
-        let ctx = unsafe {
-            ffi::WasmEdge_FunctionInstanceCreateBinding(
-                ty.inner.0,
-                Some(wrap_fn),
-                key as *const usize as *mut c_void,
-                data,
-                cost,
-            )
-        };
+        let ctx = ffi::WasmEdge_FunctionInstanceCreateBinding(
+            ty.inner.0,
+            Some(wrap_fn),
+            key as *const usize as *mut c_void,
+            data,
+            cost,
+        );
 
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Func(FuncError::Create))),

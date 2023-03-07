@@ -746,8 +746,6 @@ enum HostRegistrationInstance {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(not(feature = "static"))]
-    use crate::plugin::PluginManager;
     use crate::{
         config::{
             CommonConfigOptions, ConfigBuilder, HostRegistrationConfigOptions,
@@ -1026,6 +1024,8 @@ mod tests {
 
         #[cfg(all(target_os = "linux", not(feature = "static")))]
         {
+            use crate::plugin::PluginManager;
+
             // load wasmedge_process plugin
             let result = PluginManager::load(None);
             assert!(result.is_ok());

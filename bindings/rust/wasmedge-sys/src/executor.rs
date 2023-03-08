@@ -311,6 +311,12 @@ impl Executor {
             .await
             .unwrap()
     }
+
+    /// Provides a raw pointer to the inner Compiler context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ExecutorContext {
+        self.inner.0 as *const _
+    }
 }
 impl Drop for Executor {
     fn drop(&mut self) {

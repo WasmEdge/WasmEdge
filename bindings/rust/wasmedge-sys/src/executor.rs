@@ -312,7 +312,7 @@ impl Executor {
             .unwrap()
     }
 
-    /// Provides a raw pointer to the inner Compiler context.
+    /// Provides a raw pointer to the inner Executor context.
     #[cfg(feature = "ffi")]
     pub fn as_ptr(&self) -> *const ffi::WasmEdge_ExecutorContext {
         self.inner.0 as *const _

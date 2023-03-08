@@ -233,6 +233,12 @@ impl Memory {
     pub fn grow(&mut self, count: u32) -> WasmEdgeResult<()> {
         unsafe { check(ffi::WasmEdge_MemoryInstanceGrowPage(self.inner.0, count)) }
     }
+
+    /// Provides a raw pointer to the inner memory context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_MemoryInstanceContext {
+        self.inner.0 as *const _
+    }
 }
 impl Drop for Memory {
     fn drop(&mut self) {
@@ -316,6 +322,12 @@ impl MemType {
         let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(self.inner.0) };
         let limit: WasmEdgeLimit = limit.into();
         limit.shared()
+    }
+
+    /// Provides a raw pointer to the inner memory type context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_MemoryTypeContext {
+        self.inner.0 as *const _
     }
 }
 impl Drop for MemType {

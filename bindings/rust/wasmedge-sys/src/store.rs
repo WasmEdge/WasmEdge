@@ -100,6 +100,12 @@ impl Store {
             None => false,
         }
     }
+
+    /// Provides a raw pointer to the inner Store context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_StoreContext {
+        self.inner.0 as *const _
+    }
 }
 impl Drop for Store {
     fn drop(&mut self) {

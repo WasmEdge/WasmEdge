@@ -148,6 +148,33 @@ impl Function {
     /// let func = Function::create(&func_ty, Box::new(real_add), 0).expect("fail to create a Function instance");
     /// ```
     pub fn create(ty: &FuncType, real_fn: BoxedFn, cost: u64) -> WasmEdgeResult<Self> {
+        unsafe { Self::create_with_data(ty, real_fn, std::ptr::null_mut(), cost) }
+    }
+
+    /// Creates a [host function](crate::Function) with the given function type.
+    ///
+    /// N.B. that this function is used for thread-safe scenarios.
+    ///
+    /// # Arguments
+    ///
+    /// * `ty` - The types of the arguments and returns of the target function.
+    ///
+    /// * `real_fn` - The pointer to the target function.
+    ///
+    /// * `data` - The pointer to the data.
+    ///
+    /// * `cost` - The function cost in the [Statistics](crate::Statistics). Pass 0 if the calculation is not needed.
+    ///
+    /// # Error
+    ///
+    /// * If fail to create a [Function], then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
+    ///
+    pub unsafe fn create_with_data(
+        ty: &FuncType,
+        real_fn: BoxedFn,
+        data: *mut c_void,
+        cost: u64,
+    ) -> WasmEdgeResult<Self> {
         let mut map_host_func = HOST_FUNCS.write();
         if map_host_func.len() >= map_host_func.capacity() {
             return Err(Box::new(WasmEdgeError::Func(FuncError::CreateBinding(
@@ -167,15 +194,13 @@ impl Function {
         map_host_func.insert(key, Arc::new(Mutex::new(real_fn)));
         drop(map_host_func);
 
-        let ctx = unsafe {
-            ffi::WasmEdge_FunctionInstanceCreateBinding(
-                ty.inner.0,
-                Some(wrap_fn),
-                key as *const usize as *mut c_void,
-                std::ptr::null_mut(),
-                cost,
-            )
-        };
+        let ctx = ffi::WasmEdge_FunctionInstanceCreateBinding(
+            ty.inner.0,
+            Some(wrap_fn),
+            key as *const usize as *mut c_void,
+            data,
+            cost,
+        );
 
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Func(FuncError::Create))),
@@ -317,6 +342,45 @@ impl Function {
         }
     }
 
+    /// Creates a [host function](crate::Function) with the given function type and the default function wrapper.
+    ///
+    /// # Arguments
+    ///
+    /// * `ty` - The types of the arguments and returns of the target function.
+    ///
+    /// * `real_fn` - The pointer to the target function.
+    ///
+    /// * `data` - The pointer to the data.
+    ///
+    /// * `cost` - The function cost in the [Statistics](crate::Statistics). Pass 0 if the calculation is not needed.
+    ///
+    /// # Error
+    ///
+    /// * If fail to create a [Function], then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
+    ///
+    pub unsafe fn create_with_default_wrapper(
+        ty: &FuncType,
+        real_fn: *mut c_void,
+        data: *mut c_void,
+        cost: u64,
+    ) -> WasmEdgeResult<Self> {
+        let ctx = ffi::WasmEdge_FunctionInstanceCreateBinding(
+            ty.inner.0,
+            Some(wrap_fn),
+            real_fn,
+            data,
+            cost,
+        );
+
+        match ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Func(FuncError::Create))),
+            false => Ok(Self {
+                inner: Arc::new(InnerFunc(ctx)),
+                registered: false,
+            }),
+        }
+    }
+
     /// Returns the underlying wasm type of this [Function].
     ///
     /// # Errors
@@ -438,6 +502,12 @@ impl Function {
             inner: InnerFuncRef(self.inner.0 as *const _),
         }
     }
+
+    /// Provides a raw pointer to the inner function context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_FunctionInstanceContext {
+        self.inner.0 as *const _
+    }
 }
 impl Drop for Function {
     fn drop(&mut self) {
@@ -551,6 +621,12 @@ impl FuncType {
         }
 
         types.into_iter().map(Into::into)
+    }
+
+    /// Provides a raw pointer to the inner function type context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_FunctionTypeContext {
+        self.inner.0 as *const _
     }
 }
 impl Drop for FuncType {

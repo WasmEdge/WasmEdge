@@ -83,6 +83,12 @@ impl CallingFrame {
             true => None,
         }
     }
+
+    /// Provides a raw pointer to the inner CallingFrame context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_CallingFrameContext {
+        self.inner.0 as *const _
+    }
 }
 
 #[derive(Debug)]

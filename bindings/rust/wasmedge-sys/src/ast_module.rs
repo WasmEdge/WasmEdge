@@ -74,6 +74,12 @@ impl Module {
             })
             .collect()
     }
+
+    /// Provides a raw pointer to the inner ASTModule context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_FunctionTypeContext {
+        self.inner.0 as *const _
+    }
 }
 
 #[derive(Debug)]
@@ -237,6 +243,12 @@ impl<'module> ImportType<'module> {
         };
         c_name.to_string_lossy()
     }
+
+    /// Provides a raw pointer to the inner ImportType context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ImportTypeContext {
+        self.inner.0 as *const _
+    }
 }
 
 #[derive(Debug)]
@@ -387,6 +399,12 @@ impl<'module> ExportType<'module> {
             CStr::from_ptr(raw_name.Buf)
         };
         c_name.to_string_lossy()
+    }
+
+    /// Provides a raw pointer to the inner ExportType context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ExportTypeContext {
+        self.inner.0 as *const _
     }
 }
 

@@ -258,6 +258,12 @@ impl Instance {
             false => None,
         }
     }
+
+    /// Provides a raw pointer to the inner module instance context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ModuleInstanceContext {
+        self.inner.0 as *const _
+    }
 }
 impl Clone for Instance {
     fn clone(&self) -> Self {
@@ -384,6 +390,12 @@ impl ImportModule {
                 name: name.as_ref().to_string(),
             }),
         }
+    }
+
+    /// Provides a raw pointer to the inner module instance context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ModuleInstanceContext {
+        self.inner.0 as *const _
     }
 }
 impl AsImport for ImportModule {
@@ -613,6 +625,12 @@ impl WasiModule {
                 InstanceError::NotFoundMappedFdHandler,
             ))),
         }
+    }
+
+    /// Provides a raw pointer to the inner module instance context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ModuleInstanceContext {
+        self.inner.0 as *const _
     }
 }
 impl AsInstance for WasiModule {

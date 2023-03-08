@@ -502,6 +502,12 @@ impl Function {
             inner: InnerFuncRef(self.inner.0 as *const _),
         }
     }
+
+    /// Provides a raw pointer to the inner function context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_FunctionInstanceContext {
+        self.inner.0 as *const _
+    }
 }
 impl Drop for Function {
     fn drop(&mut self) {
@@ -615,6 +621,12 @@ impl FuncType {
         }
 
         types.into_iter().map(Into::into)
+    }
+
+    /// Provides a raw pointer to the inner function type context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_FunctionTypeContext {
+        self.inner.0 as *const _
     }
 }
 impl Drop for FuncType {

@@ -51,6 +51,12 @@ impl Validator {
             ))
         }
     }
+
+    /// Provides a raw pointer to the inner Validator context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ValidatorContext {
+        self.inner.0 as *const _
+    }
 }
 impl Drop for Validator {
     fn drop(&mut self) {

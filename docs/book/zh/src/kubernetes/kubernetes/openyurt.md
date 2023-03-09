@@ -88,7 +88,7 @@ sudo systemctl daemon-reload
 - 配置 containerd 文件 /etc/containerd/config.toml，修改 plugin 中参数，将其中的 runc 改为 crun，添加 pod_annotation
 
 ```bash
-udo mkdir -p /etc/containerd/
+sudo mkdir -p /etc/containerd/
 sudo bash -c "containerd config default > /etc/containerd/config.toml"
 wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/containerd/containerd_config.diff
 sudo patch -d/ -p0 < containerd_config.diff

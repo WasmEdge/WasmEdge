@@ -594,7 +594,7 @@ def install_image_extension(args, compat):
 
     download_url(CONST_urls[IMAGE], join(TEMP_PATH, image_pkg), show_progress)
 
-    # Extract archieve
+    # Extract archive
     extract_archive(
         join(TEMP_PATH, image_pkg),
         args.path,
@@ -714,7 +714,7 @@ def install_tensorflow_extension(args, compat):
             CONST_urls[TENSORFLOW_DEPS], join(TEMP_PATH, tf_deps_pkg), show_progress
         )
 
-        # Extract archieve
+        # Extract archive
         extract_archive(
             join(TEMP_PATH, tf_pkg),
             args.path,
@@ -723,7 +723,7 @@ def install_tensorflow_extension(args, compat):
             remove_finished=True,
         )
 
-        # Extract archieve
+        # Extract archive
         extract_archive(
             join(TEMP_PATH, tf_deps_pkg),
             join(args.path, CONST_lib_dir),
@@ -758,7 +758,7 @@ def install_tensorflow_extension(args, compat):
             show_progress,
         )
 
-        # Extract archieve
+        # Extract archive
         extract_archive(
             join(TEMP_PATH, tf_lite_pkg),
             args.path,
@@ -767,7 +767,7 @@ def install_tensorflow_extension(args, compat):
             remove_finished=True,
         )
 
-        # Extract archieve
+        # Extract archive
         extract_archive(
             join(TEMP_PATH, tf_deps_lite_pkg),
             join(args.path, CONST_lib_dir),
@@ -788,7 +788,7 @@ def install_tensorflow_extension(args, compat):
         CONST_urls[TENSORFLOW_TOOLS], join(TEMP_PATH, tf_tools_pkg), show_progress
     )
 
-    # Extract archieve
+    # Extract archive
     extract_archive(
         join(TEMP_PATH, tf_tools_pkg),
         join(args.path, "bin"),
@@ -1313,7 +1313,7 @@ def main(args):
             CONST_urls[WASMEDGE], join(TEMP_PATH, CONST_release_pkg), show_progress
         )
 
-        # Extract archieve
+        # Extract archive
         extract_archive(
             join(TEMP_PATH, CONST_release_pkg),
             args.path,

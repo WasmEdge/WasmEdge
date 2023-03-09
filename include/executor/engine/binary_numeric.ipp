@@ -157,9 +157,20 @@ TypeF<T> Executor::runMinOp(ValVariant &Val1, const ValVariant &Val2) const {
   T &Z1 = Val1.get<T>();
   const T &Z2 = Val2.get<T>();
   const T kZero = 0.0;
-  // TODO: canonical and arithmetical NaN
-  if (std::isnan(Z2)) {
-    Z1 = Z2;
+  if (std::isnan(Z1) || std::isnan(Z2)) {
+    if (std::isnan(Z2)) {
+      Z1 = Z2;
+    }
+    // Set the most significant bit of the payload to 1.
+    if (sizeof(T) == 4) {
+      int I = *reinterpret_cast<int*>(&Z1);
+      I |= 0x1 << 22;
+      Z1 = *reinterpret_cast<float*>(&I);
+    } else if (sizeof(T) == 8) {
+      long L = *reinterpret_cast<long*>(&Z1);
+      L |= 0x1l << 51;
+      Z1 = *reinterpret_cast<double*>(&L);
+    }
   } else if (Z1 == kZero && Z2 == kZero &&
              std::signbit(Z1) != std::signbit(Z2)) {
     // If both z1 and z2 are zeroes of opposite signs, then return -0.0.
@@ -176,9 +187,20 @@ TypeF<T> Executor::runMaxOp(ValVariant &Val1, const ValVariant &Val2) const {
   T &Z1 = Val1.get<T>();
   const T &Z2 = Val2.get<T>();
   const T kZero = 0.0;
-  // TODO: canonical and arithmetical NaN
-  if (std::isnan(Z2)) {
-    Z1 = Z2;
+  if (std::isnan(Z1) || std::isnan(Z2)) {
+    if (std::isnan(Z2)) {
+      Z1 = Z2;
+    }
+    // Set the most significant bit of the payload to 1.
+    if (sizeof(T) == 4) {
+      int I = *reinterpret_cast<int*>(&Z1);
+      I |= 0x1 << 22;
+      Z1 = *reinterpret_cast<float*>(&I);
+    } else if (sizeof(T) == 8) {
+      long L = *reinterpret_cast<long*>(&Z1);
+      L |= 0x1l << 51;
+      Z1 = *reinterpret_cast<double*>(&L);
+    }
   } else if (Z1 == kZero && Z2 == kZero &&
              std::signbit(Z1) != std::signbit(Z2)) {
     // If both z1 and z2 are zeroes of opposite signs, then return +0.0.

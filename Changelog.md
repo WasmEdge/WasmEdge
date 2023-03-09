@@ -1145,7 +1145,7 @@ Refactor:
 * Refactored the validator workflow of checking expressions.
 * Used `std::bitset` for VM configuration.
 * Used `std::array` for cost table storage.
-* Conbined `include/support` into `include/common`.
+* Combined `include/support` into `include/common`.
   * Merged `support/castng.h` into `common/types.h`.
   * Merged `Measurement` into `Statistics`.
   * Renamed `support/time.h` into `common/timer.h`. Used standard steady clock instead.

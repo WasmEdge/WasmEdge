@@ -28,7 +28,7 @@
 namespace WasmEdge {
 namespace Validator {
 
-typedef std::optional<FullValType> VType;
+typedef std::optional<ValType> VType;
 
 static inline constexpr VType unreachableVType() { return VType(); }
 
@@ -46,7 +46,7 @@ public:
   ~FormChecker() = default;
 
   void reset(bool CleanGlobal = false);
-  Expect<void> validate(AST::InstrView Instrs, Span<const FullValType> RetVals);
+  Expect<void> validate(AST::InstrView Instrs, Span<const ValType> RetVals);
   Expect<void> validate(AST::InstrView Instrs, Span<const VType> RetVals);
 
   /// Adder of contexts
@@ -58,7 +58,7 @@ public:
   void addElem(const AST::ElementSegment &Elem);
   void addData(const AST::DataSegment &Data);
   void addRef(const uint32_t FuncIdx);
-  void addLocal(const FullValType &V);
+  void addLocal(const ValType &V);
   void addLocal(const VType &V);
 
   std::vector<VType> result() { return ValStack; }
@@ -71,7 +71,7 @@ public:
   uint32_t getNumImportGlobals() const { return NumImportGlobals; }
 
   /// Helper function
-  FullValType VTypeToAST(const VType &V);
+  ValType VTypeToAST(const VType &V);
 
   struct CtrlFrame {
     CtrlFrame() = default;
@@ -122,10 +122,10 @@ private:
   /// Contexts.
   std::vector<std::pair<std::vector<VType>, std::vector<VType>>> Types;
   std::vector<uint32_t> Funcs;
-  std::vector<FullRefType> Tables;
+  std::vector<RefType> Tables;
   uint32_t Mems = 0;
   std::vector<std::pair<VType, ValMut>> Globals;
-  std::vector<FullRefType> Elems;
+  std::vector<RefType> Elems;
   std::vector<uint32_t> Datas;
   std::unordered_set<uint32_t> Refs;
   uint32_t NumImportFuncs = 0;

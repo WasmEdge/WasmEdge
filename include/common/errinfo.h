@@ -156,13 +156,13 @@ struct InfoMismatch {
         GotAlignment(GotAlign) {}
 
   /// Case 2: unexpected value type
-  InfoMismatch(const FullValType ExpVT, const FullValType GotVT) noexcept
+  InfoMismatch(const ValType &ExpVT, const ValType &GotVT) noexcept
       : Category(MismatchCategory::ValueType), ExpValType(ExpVT),
         GotValType(GotVT) {}
 
   /// Case 3: unexpected value type list
-  InfoMismatch(const std::vector<FullValType> &ExpV,
-               const std::vector<FullValType> &GotV) noexcept
+  InfoMismatch(const std::vector<ValType> &ExpV,
+               const std::vector<ValType> &GotV) noexcept
       : Category(MismatchCategory::ValueTypes), ExpParams(ExpV),
         GotParams(GotV) {}
 
@@ -177,18 +177,18 @@ struct InfoMismatch {
         GotExtType(GotExt) {}
 
   /// Case 6: unexpected function types
-  InfoMismatch(const std::vector<FullValType> &ExpP,
-               const std::vector<FullValType> &ExpR,
-               const std::vector<FullValType> &GotP,
-               const std::vector<FullValType> &GotR) noexcept
+  InfoMismatch(const std::vector<ValType> &ExpP,
+               const std::vector<ValType> &ExpR,
+               const std::vector<ValType> &GotP,
+               const std::vector<ValType> &GotR) noexcept
       : Category(MismatchCategory::FunctionType), ExpParams(ExpP),
         GotParams(GotP), ExpReturns(ExpR), GotReturns(GotR) {}
 
   /// Case 7: unexpected table types
-  InfoMismatch(const FullRefType ExpRType, /// Reference type
+  InfoMismatch(const RefType &ExpRType, /// Reference type
                const bool ExpHasMax, const uint32_t ExpMin,
-               const uint32_t ExpMax,      /// Expect Limit
-               const FullRefType GotRType, /// Got reference type
+               const uint32_t ExpMax,   /// Expect Limit
+               const RefType &GotRType, /// Got reference type
                const bool GotHasMax, const uint32_t GotMin,
                const uint32_t GotMax /// Got limit
                ) noexcept
@@ -208,8 +208,8 @@ struct InfoMismatch {
         ExpLimMax(ExpMax), GotLimMax(GotMax) {}
 
   /// Case 9: unexpected global types
-  InfoMismatch(const FullValType ExpVType, const ValMut ExpVMut,
-               const FullValType GotVType, const ValMut GotVMut) noexcept
+  InfoMismatch(const ValType &ExpVType, const ValMut ExpVMut,
+               const ValType &GotVType, const ValMut GotVMut) noexcept
       : Category(MismatchCategory::Global), ExpValType(ExpVType),
         GotValType(GotVType), ExpValMut(ExpVMut), GotValMut(GotVMut) {}
 
@@ -233,18 +233,18 @@ struct InfoMismatch {
 
   /// Case 6: unexpected function type
   /// Case 3: unexpected value type list
-  std::vector<FullValType> ExpParams, GotParams;
-  std::vector<FullValType> ExpReturns, GotReturns;
+  std::vector<ValType> ExpParams, GotParams;
+  std::vector<ValType> ExpReturns, GotReturns;
 
   /// Case 7 & 8: unexpected table or memory limit
-  FullRefType ExpRefType, GotRefType;
+  RefType ExpRefType, GotRefType;
   bool ExpLimHasMax, GotLimHasMax;
   uint32_t ExpLimMin, GotLimMin;
   uint32_t ExpLimMax, GotLimMax;
 
   /// Case 2: unexpected value type
   /// Case 9: unexpected global type: value type
-  FullValType ExpValType, GotValType;
+  ValType ExpValType, GotValType;
   /// Case 4: unexpected mutation settings
   /// Case 9: unexpected global type: value mutation
   ValMut ExpValMut, GotValMut;
@@ -257,7 +257,7 @@ struct InfoInstruction {
   InfoInstruction() = delete;
   InfoInstruction(const OpCode Op, const uint64_t Off,
                   const std::vector<ValVariant> &ArgsVec = {},
-                  const std::vector<FullValType> &ArgsTypesVec = {},
+                  const std::vector<ValType> &ArgsTypesVec = {},
                   const bool Signed = false) noexcept
       : Code(Op), Offset(Off), Args(ArgsVec), ArgsTypes(ArgsTypesVec),
         IsSigned(Signed) {}
@@ -268,7 +268,7 @@ struct InfoInstruction {
   OpCode Code;
   uint64_t Offset;
   std::vector<ValVariant> Args;
-  std::vector<FullValType> ArgsTypes;
+  std::vector<ValType> ArgsTypes;
   bool IsSigned;
 };
 

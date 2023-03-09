@@ -183,10 +183,10 @@ VM::unsafeRegisterModule(const Runtime::Instance::ModuleInstance &ModInst) {
   return ExecutorEngine.registerModule(StoreRef, ModInst);
 }
 
-Expect<std::vector<std::pair<ValVariant, FullValType>>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                       Span<const ValVariant> Params,
-                      Span<const FullValType> ParamTypes) {
+                      Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
     // When running another module, instantiated module in store will be reset.
     // Therefore the instantiation should restart.
@@ -200,10 +200,10 @@ VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
   }
 }
 
-Expect<std::vector<std::pair<ValVariant, FullValType>>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
                       Span<const ValVariant> Params,
-                      Span<const FullValType> ParamTypes) {
+                      Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
     // When running another module, instantiated module in store will be reset.
     // Therefore the instantiation should restart.
@@ -217,10 +217,10 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
   }
 }
 
-Expect<std::vector<std::pair<ValVariant, FullValType>>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
                       Span<const ValVariant> Params,
-                      Span<const FullValType> ParamTypes) {
+                      Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
     // When running another module, instantiated module in store will be reset.
     // Therefore the instantiation should restart.
@@ -245,13 +245,13 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
   }
 }
 
-Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                      Span<const ValVariant> Params,
-                     Span<const FullValType> ParamTypes) {
-  Expect<std::vector<std::pair<ValVariant, FullValType>>> (VM::*FPtr)(
+                     Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       const std::filesystem::path &, std::string_view, Span<const ValVariant>,
-      Span<const FullValType>) = &VM::runWasmFile;
+      Span<const ValType>) = &VM::runWasmFile;
   return {FPtr,
           *this,
           std::filesystem::path(Path),
@@ -260,13 +260,13 @@ VM::asyncRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
-Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncRunWasmFile(Span<const Byte> Code, std::string_view Func,
                      Span<const ValVariant> Params,
-                     Span<const FullValType> ParamTypes) {
-  Expect<std::vector<std::pair<ValVariant, FullValType>>> (VM::*FPtr)(
+                     Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       Span<const Byte>, std::string_view, Span<const ValVariant>,
-      Span<const FullValType>) = &VM::runWasmFile;
+      Span<const ValType>) = &VM::runWasmFile;
   return {FPtr,
           *this,
           Code,
@@ -275,13 +275,13 @@ VM::asyncRunWasmFile(Span<const Byte> Code, std::string_view Func,
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
-Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
                      Span<const ValVariant> Params,
-                     Span<const FullValType> ParamTypes) {
-  Expect<std::vector<std::pair<ValVariant, FullValType>>> (VM::*FPtr)(
+                     Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       const AST::Module &, std::string_view, Span<const ValVariant>,
-      Span<const FullValType>) = &VM::runWasmFile;
+      Span<const ValType>) = &VM::runWasmFile;
   return {FPtr,
           *this,
           Module,
@@ -347,9 +347,9 @@ Expect<void> VM::unsafeInstantiate() {
   }
 }
 
-Expect<std::vector<std::pair<ValVariant, FullValType>>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
-                  Span<const FullValType> ParamTypes) {
+                  Span<const ValType> ParamTypes) {
   if (ActiveModInst) {
     // Execute function and return values with the module instance.
     return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
@@ -360,10 +360,10 @@ VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
   }
 }
 
-Expect<std::vector<std::pair<ValVariant, FullValType>>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(std::string_view ModName, std::string_view Func,
                   Span<const ValVariant> Params,
-                  Span<const FullValType> ParamTypes) {
+                  Span<const ValType> ParamTypes) {
   // Find module instance by name.
   const auto *FindModInst = StoreRef.findModule(ModName);
   if (FindModInst != nullptr) {
@@ -376,10 +376,10 @@ VM::unsafeExecute(std::string_view ModName, std::string_view Func,
   }
 }
 
-Expect<std::vector<std::pair<ValVariant, FullValType>>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
                   std::string_view Func, Span<const ValVariant> Params,
-                  Span<const FullValType> ParamTypes) {
+                  Span<const ValType> ParamTypes) {
   // Find exported function by name.
   Runtime::Instance::FunctionInstance *FuncInst =
       ModInst->findFuncExports(Func);
@@ -401,24 +401,24 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
   }
 }
 
-Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncExecute(std::string_view Func, Span<const ValVariant> Params,
-                 Span<const FullValType> ParamTypes) {
-  Expect<std::vector<std::pair<ValVariant, FullValType>>> (VM::*FPtr)(
-      std::string_view, Span<const ValVariant>, Span<const FullValType>) =
+                 Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
+      std::string_view, Span<const ValVariant>, Span<const ValType>) =
       &VM::execute;
   return {FPtr, *this, std::string(Func),
           std::vector(Params.begin(), Params.end()),
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
-Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncExecute(std::string_view ModName, std::string_view Func,
                  Span<const ValVariant> Params,
-                 Span<const FullValType> ParamTypes) {
-  Expect<std::vector<std::pair<ValVariant, FullValType>>> (VM::*FPtr)(
+                 Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       std::string_view, std::string_view, Span<const ValVariant>,
-      Span<const FullValType>) = &VM::execute;
+      Span<const ValType>) = &VM::execute;
   return {FPtr,
           *this,
           std::string(ModName),

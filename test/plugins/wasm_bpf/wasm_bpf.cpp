@@ -285,10 +285,9 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   // Create a function table, and fill the callback function into it
   auto funcTableInst =
       std::make_unique<WasmEdge::Runtime::Instance::TableInstance>(
-          WasmEdge::AST::TableType(WasmEdge::RefType::FuncRef, 1));
+          WasmEdge::AST::TableType(WasmEdge::RefTypeCode::FuncRef, 1));
   EXPECT_TRUE(funcTableInst->setRefs(
-      std::initializer_list<const WasmEdge::RefVariant>{
-          WasmEdge::FuncRef(callbackFuncInst.get())},
+      std::initializer_list<const WasmEdge::RefVariant>{callbackFuncInst.get()},
       0, 0, 1));
   // Add the table to the main module
   moduleInst.addHostTable("__indirect_function_table"sv,

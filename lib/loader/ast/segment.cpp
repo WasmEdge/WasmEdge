@@ -124,7 +124,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   }
 
   // Read element kind and init function indices.
-  ElemSeg.setRefType(RefType::FuncRef);
+  ElemSeg.setRefType(RefTypeCode::FuncRef);
   switch (Check) {
   case 0x01:
   case 0x02:
@@ -172,7 +172,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   case 0x05:
   case 0x06:
   case 0x07:
-    if (auto Res = loadFullRefType()) {
+    if (auto Res = loadRefType(ASTNodeAttr::Seg_Element)) {
       ElemSeg.setRefType(*Res);
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
@@ -240,7 +240,7 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
   uint32_t TotalLocalCnt = 0;
   for (uint32_t I = 0; I < VecCnt; ++I) {
     uint32_t LocalCnt = 0;
-    FullValType LocalType;
+    ValType LocalType;
     if (auto Res = FMgr.readU32(); unlikely(!Res)) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Code);
@@ -254,7 +254,7 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     }
     TotalLocalCnt += LocalCnt;
     // Read the number type.
-    if (auto Res = loadFullValType()) {
+    if (auto Res = loadValType(ASTNodeAttr::Seg_Code)) {
       LocalType = *Res;
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),

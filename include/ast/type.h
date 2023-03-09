@@ -81,10 +81,9 @@ public:
 
   /// Constructors.
   FunctionType() = default;
-  FunctionType(Span<const FullValType> P, Span<const FullValType> R)
+  FunctionType(Span<const ValType> P, Span<const ValType> R)
       : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()) {}
-  FunctionType(Span<const FullValType> P, Span<const FullValType> R,
-               Symbol<Wrapper> S)
+  FunctionType(Span<const ValType> P, Span<const ValType> R, Symbol<Wrapper> S)
       : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()),
         WrapSymbol(std::move(S)) {}
 
@@ -101,16 +100,16 @@ public:
   }
 
   /// Getter of param types.
-  const std::vector<FullValType> &getParamTypes() const noexcept {
+  const std::vector<ValType> &getParamTypes() const noexcept {
     return ParamTypes;
   }
-  std::vector<FullValType> &getParamTypes() noexcept { return ParamTypes; }
+  std::vector<ValType> &getParamTypes() noexcept { return ParamTypes; }
 
   /// Getter of return types.
-  const std::vector<FullValType> &getReturnTypes() const noexcept {
+  const std::vector<ValType> &getReturnTypes() const noexcept {
     return ReturnTypes;
   }
-  std::vector<FullValType> &getReturnTypes() noexcept { return ReturnTypes; }
+  std::vector<ValType> &getReturnTypes() noexcept { return ReturnTypes; }
 
   /// Getter and setter of symbol.
   const auto &getSymbol() const noexcept { return WrapSymbol; }
@@ -119,8 +118,8 @@ public:
 private:
   /// \name Data of FunctionType.
   /// @{
-  std::vector<FullValType> ParamTypes;
-  std::vector<FullValType> ReturnTypes;
+  std::vector<ValType> ParamTypes;
+  std::vector<ValType> ReturnTypes;
   Symbol<Wrapper> WrapSymbol;
   /// @}
 };
@@ -150,16 +149,17 @@ private:
 class TableType {
 public:
   /// Constructors.
-  TableType() noexcept : Type(RefType::FuncRef), Lim() {}
-  TableType(FullRefType RType, uint32_t MinVal) noexcept
+  TableType() noexcept : Type(RefTypeCode::FuncRef), Lim() {}
+  TableType(const RefType &RType, uint32_t MinVal) noexcept
       : Type(RType), Lim(MinVal) {}
-  TableType(FullRefType RType, uint32_t MinVal, uint32_t MaxVal) noexcept
+  TableType(const RefType &RType, uint32_t MinVal, uint32_t MaxVal) noexcept
       : Type(RType), Lim(MinVal, MaxVal) {}
-  TableType(FullRefType RType, const Limit &L) noexcept : Type(RType), Lim(L) {}
+  TableType(const RefType &RType, const Limit &L) noexcept
+      : Type(RType), Lim(L) {}
 
   /// Getter of reference type.
-  FullRefType getRefType() const noexcept { return Type; }
-  void setRefType(FullRefType RType) noexcept { Type = RType; }
+  const RefType &getRefType() const noexcept { return Type; }
+  void setRefType(const RefType &RType) noexcept { Type = RType; }
 
   /// Getter of limit.
   const Limit &getLimit() const noexcept { return Lim; }
@@ -168,7 +168,7 @@ public:
 private:
   /// \name Data of TableType.
   /// @{
-  FullRefType Type;
+  RefType Type;
   Limit Lim;
   /// @}
 };
@@ -177,8 +177,8 @@ private:
 class GlobalType {
 public:
   /// Constructors.
-  GlobalType() noexcept : Type(ValType::I32), Mut(ValMut::Const) {}
-  GlobalType(FullValType VType, ValMut VMut) noexcept
+  GlobalType() noexcept : Type(ValTypeCode::I32), Mut(ValMut::Const) {}
+  GlobalType(const ValType &VType, ValMut VMut) noexcept
       : Type(VType), Mut(VMut) {}
 
   /// `==` and `!=` operator overloadings.
@@ -193,8 +193,8 @@ public:
   }
 
   /// Getter and setter of value type.
-  FullValType getValType() const noexcept { return Type; }
-  void setValType(FullValType VType) noexcept { Type = VType; }
+  const ValType &getValType() const noexcept { return Type; }
+  void setValType(const ValType &VType) noexcept { Type = VType; }
 
   /// Getter and setter of value mutation.
   ValMut getValMut() const noexcept { return Mut; }
@@ -203,7 +203,7 @@ public:
 private:
   /// \name Data of GlobalType.
   /// @{
-  FullValType Type;
+  ValType Type;
   ValMut Mut;
   /// @}
 };

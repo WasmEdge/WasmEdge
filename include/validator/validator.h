@@ -65,7 +65,7 @@ private:
 
   /// Validate const expression
   Expect<void> validateConstExpr(AST::InstrView Instrs,
-                                 Span<const FullValType> Returns);
+                                 Span<const ValType> Returns);
 
   static inline const uint32_t LIMIT_MEMORYTYPE = 1U << 16;
   /// Proposal configure

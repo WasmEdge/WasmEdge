@@ -228,6 +228,7 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
       }
       break;
     }
+      [[fallthrough]];
     default:
       // TODO: Return error
       assumingUnreachable();

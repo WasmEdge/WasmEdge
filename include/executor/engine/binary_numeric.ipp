@@ -162,14 +162,16 @@ TypeF<T> Executor::runMinOp(ValVariant &Val1, const ValVariant &Val2) const {
       Z1 = Z2;
     }
     // Set the most significant bit of the payload to 1.
-    if (sizeof(T) == 4) {
-      int I = *reinterpret_cast<int*>(&Z1);
-      I |= 0x1 << 22;
-      Z1 = *reinterpret_cast<float*>(&I);
-    } else if (sizeof(T) == 8) {
-      long L = *reinterpret_cast<long*>(&Z1);
-      L |= 0x1l << 51;
-      Z1 = *reinterpret_cast<double*>(&L);
+    if (sizeof(T) == sizeof(uint32_t)) {
+      uint32_t I32;
+      std::memcpy(&I32, &Z1, sizeof(T));
+      I32 |= (uint32_t)0x1 << 22;
+      std::memcpy(&Z1, &I32, sizeof(T));
+    } else if (sizeof(T) == sizeof(uint64_t)) {
+      uint64_t I64;
+      std::memcpy(&I64, &Z1, sizeof(T));
+      I64 |= (uint64_t)0x1 << 51;
+      std::memcpy(&Z1, &I64, sizeof(T));
     }
   } else if (Z1 == kZero && Z2 == kZero &&
              std::signbit(Z1) != std::signbit(Z2)) {
@@ -192,14 +194,16 @@ TypeF<T> Executor::runMaxOp(ValVariant &Val1, const ValVariant &Val2) const {
       Z1 = Z2;
     }
     // Set the most significant bit of the payload to 1.
-    if (sizeof(T) == 4) {
-      int I = *reinterpret_cast<int*>(&Z1);
-      I |= 0x1 << 22;
-      Z1 = *reinterpret_cast<float*>(&I);
-    } else if (sizeof(T) == 8) {
-      long L = *reinterpret_cast<long*>(&Z1);
-      L |= 0x1l << 51;
-      Z1 = *reinterpret_cast<double*>(&L);
+    if (sizeof(T) == sizeof(uint32_t)) {
+      uint32_t I32;
+      std::memcpy(&I32, &Z1, sizeof(T));
+      I32 |= (uint32_t)0x1 << 22;
+      std::memcpy(&Z1, &I32, sizeof(T));
+    } else if (sizeof(T) == sizeof(uint64_t)) {
+      uint64_t I64;
+      std::memcpy(&I64, &Z1, sizeof(T));
+      I64 |= (uint64_t)0x1 << 51;
+      std::memcpy(&Z1, &I64, sizeof(T));
     }
   } else if (Z1 == kZero && Z2 == kZero &&
              std::signbit(Z1) != std::signbit(Z2)) {

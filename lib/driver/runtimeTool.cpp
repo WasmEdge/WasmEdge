@@ -212,35 +212,35 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     }
 
     std::vector<ValVariant> FuncArgs;
-    std::vector<FullValType> FuncArgTypes;
+    std::vector<ValType> FuncArgTypes;
     for (size_t I = 0;
          I < FuncType.getParamTypes().size() && I + 1 < Opt.Args.value().size();
          ++I) {
-      switch (FuncType.getParamTypes()[I].getTypeCode()) {
+      switch (FuncType.getParamTypes()[I].getCode()) {
       case ValTypeCode::I32: {
         const uint32_t Value =
             static_cast<uint32_t>(std::stol(Opt.Args.value()[I + 1]));
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(NumType::I32);
+        FuncArgTypes.emplace_back(NumTypeCode::I32);
         break;
       }
       case ValTypeCode::I64: {
         const uint64_t Value =
             static_cast<uint64_t>(std::stoll(Opt.Args.value()[I + 1]));
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(NumType::I64);
+        FuncArgTypes.emplace_back(NumTypeCode::I64);
         break;
       }
       case ValTypeCode::F32: {
         const float Value = std::stof(Opt.Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(NumType::F32);
+        FuncArgTypes.emplace_back(NumTypeCode::F32);
         break;
       }
       case ValTypeCode::F64: {
         const double Value = std::stod(Opt.Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(NumType::F64);
+        FuncArgTypes.emplace_back(NumTypeCode::F64);
         break;
       }
       /// TODO: FuncRef and ExternRef
@@ -254,7 +254,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
         const uint64_t Value =
             static_cast<uint64_t>(std::stoll(Opt.Args.value()[I]));
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(ValType::I64);
+        FuncArgTypes.emplace_back(ValTypeCode::I64);
       }
     }
 
@@ -267,7 +267,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     if (auto Result = AsyncResult.get()) {
       /// Print results.
       for (size_t I = 0; I < Result->size(); ++I) {
-        switch ((*Result)[I].second.getTypeCode()) {
+        switch ((*Result)[I].second.getCode()) {
         case ValTypeCode::I32:
           std::cout << (*Result)[I].first.get<uint32_t>() << '\n';
           break;

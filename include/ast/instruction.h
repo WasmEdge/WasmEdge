@@ -57,7 +57,7 @@ public:
       std::copy_n(Instr.Data.BrTable.LabelList, Data.BrTable.LabelListSize,
                   Data.BrTable.LabelList);
     } else if (Flags.IsAllocValTypeList) {
-      Data.SelectT.ValTypeList = new FullValType[Data.SelectT.ValTypeListSize];
+      Data.SelectT.ValTypeList = new ValType[Data.SelectT.ValTypeListSize];
       std::copy_n(Instr.Data.SelectT.ValTypeList, Data.SelectT.ValTypeListSize,
                   Data.SelectT.ValTypeList);
     }
@@ -90,8 +90,8 @@ public:
   uint32_t getOffset() const noexcept { return Offset; }
 
   /// Getter and setter of block type.
-  BlockType getBlockType() const noexcept { return Data.Blocks.ResType; }
-  void setBlockType(FullValType VType) noexcept {
+  const BlockType &getBlockType() const noexcept { return Data.Blocks.ResType; }
+  void setBlockType(const ValType &VType) noexcept {
     Data.Blocks.ResType.setData(VType);
   }
   void setBlockType(uint32_t Idx) noexcept { Data.Blocks.ResType.setData(Idx); }
@@ -106,8 +106,8 @@ public:
   void setJumpElse(const uint32_t Cnt) noexcept { Data.Blocks.JumpElse = Cnt; }
 
   /// Getter and setter of reference type.
-  FullRefType getRefType() const noexcept { return Data.ReferenceType; }
-  void setRefType(FullRefType RType) noexcept { Data.ReferenceType = RType; }
+  const RefType &getRefType() const noexcept { return Data.ReferenceType; }
+  void setRefType(const RefType &RType) noexcept { Data.ReferenceType = RType; }
 
   /// Getter and setter of label list.
   void setLabelListSize(uint32_t Size) {
@@ -142,17 +142,17 @@ public:
     reset();
     if (Size > 0) {
       Data.SelectT.ValTypeListSize = Size;
-      Data.SelectT.ValTypeList = new FullValType[Size];
+      Data.SelectT.ValTypeList = new ValType[Size];
       Flags.IsAllocValTypeList = true;
     }
   }
-  Span<const FullValType> getValTypeList() const noexcept {
-    return Span<const FullValType>(Data.SelectT.ValTypeList,
-                                   Data.SelectT.ValTypeListSize);
+  Span<const ValType> getValTypeList() const noexcept {
+    return Span<const ValType>(Data.SelectT.ValTypeList,
+                               Data.SelectT.ValTypeListSize);
   }
-  Span<FullValType> getValTypeList() noexcept {
-    return Span<FullValType>(Data.SelectT.ValTypeList,
-                             Data.SelectT.ValTypeListSize);
+  Span<ValType> getValTypeList() noexcept {
+    return Span<ValType>(Data.SelectT.ValTypeList,
+                         Data.SelectT.ValTypeListSize);
   }
 
   /// Getter and setter of target index.
@@ -243,11 +243,11 @@ private:
       JumpDescriptor *LabelList;
     } BrTable;
     // Type 5: RefType.
-    FullRefType ReferenceType;
+    RefType ReferenceType;
     // Type 6: ValTypeList.
     struct {
       uint32_t ValTypeListSize;
-      FullValType *ValTypeList;
+      ValType *ValTypeList;
     } SelectT;
     // Type 7: TargetIdx, MemAlign, MemOffset, and MemLane.
     struct {

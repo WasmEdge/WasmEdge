@@ -287,7 +287,7 @@ WasmEdge_ModuleInstanceContext *createExternModule() {
   WasmEdge_String HostName;
   WasmEdge_FunctionTypeContext *HostFType = nullptr;
   WasmEdge_FunctionInstanceContext *HostFunc = nullptr;
-  enum WasmEdge_ValType P[3], R[1];
+  WasmEdge_ValType P[3], R[1];
 
   HostName = WasmEdge_StringCreateByCString("extern_module");
   WasmEdge_ModuleInstanceContext *HostMod =
@@ -295,9 +295,9 @@ WasmEdge_ModuleInstanceContext *createExternModule() {
   WasmEdge_StringDelete(HostName);
 
   // Add host function "functor_square": {externref, i32} -> {i32}
-  P[0] = WasmEdge_ValType_ExternRef;
-  P[1] = WasmEdge_ValType_I32;
-  R[0] = WasmEdge_ValType_I32;
+  P[0] = WasmEdge_ValTypeGenExternRef();
+  P[1] = WasmEdge_ValTypeGenI32();
+  R[0] = WasmEdge_ValTypeGenI32();
   HostFType = WasmEdge_FunctionTypeCreate(P, 2, R, 1);
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternFunctorSquare,
                                              nullptr, 0);
@@ -307,7 +307,7 @@ WasmEdge_ModuleInstanceContext *createExternModule() {
   WasmEdge_StringDelete(HostName);
 
   // Add host function "class_add": {externref, i32, i32} -> {i32}
-  P[2] = WasmEdge_ValType_I32;
+  P[2] = WasmEdge_ValTypeGenI32();
   HostFType = WasmEdge_FunctionTypeCreate(P, 3, R, 1);
   HostFunc =
       WasmEdge_FunctionInstanceCreate(HostFType, ExternClassAdd, nullptr, 0);
@@ -326,7 +326,7 @@ WasmEdge_ModuleInstanceContext *createExternModule() {
   WasmEdge_StringDelete(HostName);
 
   // Add host function "stl_ostream_str": {externref, externref} -> {}
-  P[1] = WasmEdge_ValType_ExternRef;
+  P[1] = WasmEdge_ValTypeGenExternRef();
   HostFType = WasmEdge_FunctionTypeCreate(P, 2, nullptr, 0);
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternSTLOStreamStr,
                                              nullptr, 0);
@@ -336,7 +336,7 @@ WasmEdge_ModuleInstanceContext *createExternModule() {
   WasmEdge_StringDelete(HostName);
 
   // Add host function "stl_ostream_u32": {externref, i32} -> {}
-  P[1] = WasmEdge_ValType_I32;
+  P[1] = WasmEdge_ValTypeGenI32();
   HostFType = WasmEdge_FunctionTypeCreate(P, 2, nullptr, 0);
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternSTLOStreamU32,
                                              nullptr, 0);
@@ -346,8 +346,8 @@ WasmEdge_ModuleInstanceContext *createExternModule() {
   WasmEdge_StringDelete(HostName);
 
   // Add host function "stl_map_insert": {externref, externref, externref}->{}
-  P[1] = WasmEdge_ValType_ExternRef;
-  P[2] = WasmEdge_ValType_ExternRef;
+  P[1] = WasmEdge_ValTypeGenExternRef();
+  P[2] = WasmEdge_ValTypeGenExternRef();
   HostFType = WasmEdge_FunctionTypeCreate(P, 3, nullptr, 0);
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternSTLMapInsert,
                                              nullptr, 0);
@@ -366,7 +366,7 @@ WasmEdge_ModuleInstanceContext *createExternModule() {
   WasmEdge_StringDelete(HostName);
 
   // Add host function "stl_set_insert": {externref, i32}->{}
-  P[1] = WasmEdge_ValType_I32;
+  P[1] = WasmEdge_ValTypeGenI32();
   HostFType = WasmEdge_FunctionTypeCreate(P, 2, nullptr, 0);
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternSTLSetInsert,
                                              nullptr, 0);
@@ -394,7 +394,7 @@ WasmEdge_ModuleInstanceContext *createExternModule() {
   WasmEdge_StringDelete(HostName);
 
   // Add host function "stl_vector_sum": {externref, externref} -> {i32}
-  P[1] = WasmEdge_ValType_ExternRef;
+  P[1] = WasmEdge_ValTypeGenExternRef();
   HostFType = WasmEdge_FunctionTypeCreate(P, 2, R, 1);
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternSTLVectorSum,
                                              nullptr, 0);
@@ -433,7 +433,7 @@ TEST(ExternRefTest, Ref__Functions) {
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMExecute(VMCxt, FuncName, P, 3, R, 1)));
   WasmEdge_StringDelete(FuncName);
-  EXPECT_EQ(R[0].Type.TypeCode, WasmEdge_ValType_I32);
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 6912);
 
   // Test 2: call mul -- 789 * 4321
@@ -444,7 +444,7 @@ TEST(ExternRefTest, Ref__Functions) {
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMExecute(VMCxt, FuncName, P, 3, R, 1)));
   WasmEdge_StringDelete(FuncName);
-  EXPECT_EQ(R[0].Type.TypeCode, WasmEdge_ValType_I32);
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 3409269);
 
   // Test 3: call square -- 8256^2
@@ -454,7 +454,7 @@ TEST(ExternRefTest, Ref__Functions) {
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMExecute(VMCxt, FuncName, P, 2, R, 1)));
   WasmEdge_StringDelete(FuncName);
-  EXPECT_EQ(R[0].Type.TypeCode, WasmEdge_ValType_I32);
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 68161536);
 
   // Test 4: call sum and square -- (210 + 654)^2
@@ -466,7 +466,7 @@ TEST(ExternRefTest, Ref__Functions) {
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMExecute(VMCxt, FuncName, P, 4, R, 1)));
   WasmEdge_StringDelete(FuncName);
-  EXPECT_EQ(R[0].Type.TypeCode, WasmEdge_ValType_I32);
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 746496);
 
   WasmEdge_VMDelete(VMCxt);
@@ -576,7 +576,7 @@ TEST(ExternRefTest, Ref__STL) {
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMExecute(VMCxt, FuncName, P, 2, R, 1)));
   WasmEdge_StringDelete(FuncName);
-  EXPECT_EQ(R[0].Type.TypeCode, WasmEdge_ValType_I32);
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 40 + 50 + 60 + 70 + 80);
 
   WasmEdge_VMDelete(VMCxt);

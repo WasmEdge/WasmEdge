@@ -232,7 +232,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoInstruction>::format(
   if (!Info.Args.empty()) {
     Iter = fmt::format_to(Iter, " , Args: ["sv);
     for (uint32_t I = 0; I < Info.Args.size(); ++I) {
-      switch (Info.ArgsTypes[I].getTypeCode()) {
+      switch (Info.ArgsTypes[I].getCode()) {
       case WasmEdge::ValTypeCode::I32:
         if (Info.IsSigned) {
           Iter = fmt::format_to(Iter, "{}"sv, Info.Args[I].get<int32_t>());

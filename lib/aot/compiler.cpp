@@ -111,20 +111,20 @@ static inline auto elementCount(llvm::VectorType *VectorTy) noexcept {
 #endif
 }
 
-static bool isVoidReturn(WasmEdge::Span<const WasmEdge::FullValType> ValTypes);
+static bool isVoidReturn(WasmEdge::Span<const WasmEdge::ValType> ValTypes);
 static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
-                              const WasmEdge::FullValType &ValType);
+                              const WasmEdge::ValType &ValType);
 static std::vector<llvm::Type *>
 toLLVMArgsType(llvm::PointerType *ExecCtxPtrTy,
-               WasmEdge::Span<const WasmEdge::FullValType> ValTypes);
+               WasmEdge::Span<const WasmEdge::ValType> ValTypes);
 static llvm::Type *
 toLLVMRetsType(llvm::LLVMContext &LLContext,
-               WasmEdge::Span<const WasmEdge::FullValType> ValTypes);
+               WasmEdge::Span<const WasmEdge::ValType> ValTypes);
 static llvm::FunctionType *
 toLLVMType(llvm::PointerType *ExecCtxPtrTy,
            const WasmEdge::AST::FunctionType &FuncType);
 static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
-                                          const WasmEdge::FullValType &ValType);
+                                          const WasmEdge::ValType &ValType);
 static std::vector<llvm::Value *> unpackStruct(llvm::IRBuilder<> &Builder,
                                                llvm::Value *Struct);
 static llvm::Value *createLikely(llvm::IRBuilder<> &Builder,
@@ -431,18 +431,18 @@ struct WasmEdge::AOT::Compiler::CompileContext {
     return llvm::FunctionCallee(Ty,
                                 Builder.CreateLoad(Ty->getPointerTo(), Ptr));
   }
-  std::pair<std::vector<FullValType>, std::vector<FullValType>>
+  std::pair<std::vector<ValType>, std::vector<ValType>>
   resolveBlockType(const BlockType &BType) const {
-    using VecT = std::vector<FullValType>;
+    using VecT = std::vector<ValType>;
     using RetT = std::pair<VecT, VecT>;
     if (BType.isEmpty()) {
       return RetT{};
     }
     if (BType.isValType()) {
-      return RetT{{}, {BType.Data.Type}};
+      return RetT{{}, {BType.getValType()}};
     } else {
       // Type index case. t2* = type[index].returns
-      const uint32_t TypeIdx = BType.Data.Idx;
+      const uint32_t TypeIdx = BType.getTypeIndex();
       const auto &FType = *FunctionTypes[TypeIdx];
       return RetT{
           VecT(FType.getParamTypes().begin(), FType.getParamTypes().end()),
@@ -455,13 +455,13 @@ namespace {
 
 using namespace WasmEdge;
 
-static bool isVoidReturn(Span<const WasmEdge::FullValType> ValTypes) {
+static bool isVoidReturn(Span<const WasmEdge::ValType> ValTypes) {
   return ValTypes.empty();
 }
 
 static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
-                              const FullValType &ValType) {
-  switch (ValType.getTypeCode()) {
+                              const ValType &ValType) {
+  switch (ValType.getCode()) {
   case ValTypeCode::I32:
     return llvm::Type::getInt32Ty(LLContext);
   case ValTypeCode::I64:
@@ -480,8 +480,7 @@ static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
 }
 
 static std::vector<llvm::Type *>
-toLLVMTypeVector(llvm::LLVMContext &LLContext,
-                 Span<const FullValType> ValTypes) {
+toLLVMTypeVector(llvm::LLVMContext &LLContext, Span<const ValType> ValTypes) {
   std::vector<llvm::Type *> Result;
   Result.reserve(ValTypes.size());
   for (const auto &Type : ValTypes) {
@@ -490,16 +489,15 @@ toLLVMTypeVector(llvm::LLVMContext &LLContext,
   return Result;
 }
 
-static std::vector<llvm::Type *>
-toLLVMArgsType(llvm::PointerType *ExecCtxPtrTy,
-               Span<const FullValType> ValTypes) {
+static std::vector<llvm::Type *> toLLVMArgsType(llvm::PointerType *ExecCtxPtrTy,
+                                                Span<const ValType> ValTypes) {
   auto Result = toLLVMTypeVector(ExecCtxPtrTy->getContext(), ValTypes);
   Result.insert(Result.begin(), ExecCtxPtrTy);
   return Result;
 }
 
 static llvm::Type *toLLVMRetsType(llvm::LLVMContext &LLContext,
-                                  Span<const FullValType> ValTypes) {
+                                  Span<const ValType> ValTypes) {
   if (isVoidReturn(ValTypes)) {
     return llvm::Type::getVoidTy(LLContext);
   }
@@ -523,8 +521,8 @@ static llvm::FunctionType *toLLVMType(llvm::PointerType *ExecCtxPtrTy,
 }
 
 static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
-                                          const FullValType &ValType) {
-  switch (ValType.getTypeCode()) {
+                                          const ValType &ValType) {
+  switch (ValType.getCode()) {
   case ValTypeCode::I32:
     return llvm::ConstantInt::get(llvm::Type::getInt32Ty(LLContext), 0);
   case ValTypeCode::I64:
@@ -548,7 +546,7 @@ class FunctionCompiler {
 
 public:
   FunctionCompiler(AOT::Compiler::CompileContext &Context, llvm::Function *F,
-                   Span<const FullValType> Locals, bool Interruptible,
+                   Span<const ValType> Locals, bool Interruptible,
                    bool InstructionCounting, bool GasMeasuring, bool OptNone)
       : Context(Context), LLContext(Context.LLContext),
         Interruptible(Interruptible), OptNone(OptNone), F(F),
@@ -599,9 +597,8 @@ public:
     return BB;
   }
 
-  void
-  compile(const AST::CodeSegment &Code,
-          std::pair<std::vector<FullValType>, std::vector<FullValType>> Type) {
+  void compile(const AST::CodeSegment &Code,
+               std::pair<std::vector<ValType>, std::vector<ValType>> Type) {
     auto *RetBB = llvm::BasicBlock::Create(LLContext, "ret", F);
     Type.first.clear();
     enterBlock(RetBB, nullptr, nullptr, {}, std::move(Type));
@@ -4494,7 +4491,7 @@ private:
   void enterBlock(
       llvm::BasicBlock *JumpBlock, llvm::BasicBlock *NextBlock,
       llvm::BasicBlock *ElseBlock, std::vector<llvm::Value *> Args,
-      std::pair<std::vector<FullValType>, std::vector<FullValType>> Type,
+      std::pair<std::vector<ValType>, std::vector<ValType>> Type,
       std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
           ReturnPHI = {}) {
     assuming(Type.first.size() == Args.size());
@@ -4569,7 +4566,7 @@ private:
   }
 
   void buildPHI(
-      Span<const FullValType> RetType,
+      Span<const ValType> RetType,
       Span<const std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
           Incomings) {
     if (isVoidReturn(RetType)) {
@@ -4660,13 +4657,13 @@ private:
     llvm::BasicBlock *NextBlock;
     llvm::BasicBlock *ElseBlock;
     std::vector<llvm::Value *> Args;
-    std::pair<std::vector<FullValType>, std::vector<FullValType>> Type;
+    std::pair<std::vector<ValType>, std::vector<ValType>> Type;
     std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
         ReturnPHI;
     Control(
         size_t S, bool U, llvm::BasicBlock *J, llvm::BasicBlock *N,
         llvm::BasicBlock *E, std::vector<llvm::Value *> A,
-        std::pair<std::vector<FullValType>, std::vector<FullValType>> T,
+        std::pair<std::vector<ValType>, std::vector<ValType>> T,
         std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
             R)
         : StackSize(S), Unreachable(U), JumpBlock(J), NextBlock(N),
@@ -5527,7 +5524,7 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
       continue;
     }
 
-    std::vector<FullValType> Locals;
+    std::vector<ValType> Locals;
     for (const auto &Local : Code->getLocals()) {
       for (unsigned I = 0; I < Local.first; ++I) {
         Locals.push_back(Local.second);

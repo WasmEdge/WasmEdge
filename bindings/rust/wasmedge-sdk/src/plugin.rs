@@ -1,4 +1,4 @@
-//! Defines PluginManager struct
+//! Defines plugin related structs.
 
 use crate::{instance::Instance, WasmEdgeResult};
 use wasmedge_sys as sys;
@@ -102,5 +102,101 @@ impl Plugin {
         self.inner
             .mod_instance(name.as_ref())
             .map(|i| Instance { inner: i })
+    }
+}
+
+/// Defines the type of the function that creates a module instance for a plugin.
+pub type ModuleInstanceCreateFn = sys::plugin::ModuleInstanceCreateFn;
+
+/// Defines the type of the program options.
+pub type ProgramOptionType = sys::plugin::ProgramOptionType;
+
+/// Represents Plugin descriptor for plugins.
+#[derive(Debug)]
+pub struct PluginDescriptor {
+    inner: sys::plugin::PluginDescriptor,
+}
+impl PluginDescriptor {
+    /// Creates a new plugin descriptor.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the plugin.
+    ///
+    /// * `desc` - The description of the plugin.
+    ///
+    /// * `version` - The version of the plugin.
+    ///
+    /// # Error
+    ///
+    /// If fail to create the plugin descriptor, then an error will be returned.
+    pub fn new(
+        name: impl AsRef<str>,
+        desc: impl AsRef<str>,
+        version: PluginVersion,
+    ) -> WasmEdgeResult<Self> {
+        Ok(Self {
+            inner: sys::plugin::PluginDescriptor::create(name, desc, version.inner)?,
+        })
+    }
+
+    /// Adds a module descriptor to the plugin descriptor.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the module.
+    ///
+    /// * `desc` - The description of the module.
+    ///
+    /// * `f` - The function that creates a module instance for the plugin.
+    ///
+    /// # Error
+    ///
+    /// If fail to add the module descriptor, then an error will be returned.
+    pub fn add_module_descriptor(
+        mut self,
+        name: impl AsRef<str>,
+        desc: impl AsRef<str>,
+        f: Option<ModuleInstanceCreateFn>,
+    ) -> WasmEdgeResult<Self> {
+        self.inner = self.inner.add_module_descriptor(name, desc, f)?;
+        Ok(self)
+    }
+
+    /// Adds a program option to the plugin descriptor.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the program option.
+    ///
+    /// * `desc` - The description of the program option.
+    ///
+    /// * `ty` - The type of the program option.
+    ///
+    /// # Error
+    ///
+    /// If fail to add the program option, then an error will be returned.
+    pub fn add_program_option(
+        mut self,
+        name: impl AsRef<str>,
+        desc: impl AsRef<str>,
+        ty: ProgramOptionType,
+    ) -> WasmEdgeResult<Self> {
+        self.inner = self.inner.add_program_option(name, desc, ty)?;
+        Ok(self)
+    }
+}
+
+/// Defines the version of a plugin.
+#[derive(Debug)]
+pub struct PluginVersion {
+    pub inner: sys::plugin::PluginVersion,
+}
+impl PluginVersion {
+    /// Creates a new plugin version.
+    pub fn new(major: u32, minor: u32, patch: u32, build: u32) -> Self {
+        Self {
+            inner: sys::plugin::PluginVersion::create(major, minor, patch, build),
+        }
     }
 }

@@ -12,11 +12,16 @@
 #include "state.h"
 #include <cinttypes>
 #include <memory>
+/// @brief Load a bpf ELF file. Binary file should be provided through a Wasm
+/// Buffer. wasm-bpf will handle the remaining process
+/// Call to this function will also cache bpf map fds.
+/// It returns a handle to a bpf program, which is stored in a map in the global
+/// state. Return 0 if failed.
 class LoadBpfObject : public WasmEdge::Runtime::HostFunction<LoadBpfObject> {
 public:
   LoadBpfObject(state_t state) : state(state) {}
   WasmEdge::Expect<handle_t> body(const WasmEdge::Runtime::CallingFrame &Frame,
-                                  uint32_t obj_byf, uint32_t obj_buf_sz);
+                                  uint32_t obj_buf, uint32_t obj_buf_sz);
 
 private:
   state_t state;

@@ -12,6 +12,8 @@
 #include "state.h"
 #include <cinttypes>
 #include <memory>
+/// @brief Lookup a map fd by its name. Map fd is returned if succeed, others if
+/// failed
 class BpfMapFdByName : public WasmEdge::Runtime::HostFunction<BpfMapFdByName> {
 public:
   BpfMapFdByName(state_t state) : state(state) {}

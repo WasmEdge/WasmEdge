@@ -14,6 +14,8 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+/// @brief Perform bpf map operations on a specified bpf map through map fd.
+/// Return zero if succeed, others if error
 class BpfMapOperate : public WasmEdge::Runtime::HostFunction<BpfMapOperate> {
 public:
   BpfMapOperate(state_t state) : state(state) {}

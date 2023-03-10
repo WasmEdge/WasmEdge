@@ -174,6 +174,7 @@ pub(crate) struct InnerPlugin(pub(crate) *mut ffi::WasmEdge_PluginContext);
 unsafe impl Send for InnerPlugin {}
 unsafe impl Sync for InnerPlugin {}
 
+/// Defines the type of the program options.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProgramOptionType {
     None = 0,
@@ -235,6 +236,7 @@ impl From<ProgramOptionType> for ffi::WasmEdge_ProgramOptionType {
     }
 }
 
+/// Defines the program option for plugins.
 #[derive(Debug)]
 pub struct ProgramOption {
     name: CString,
@@ -242,6 +244,7 @@ pub struct ProgramOption {
     pub inner: ffi::WasmEdge_ProgramOption,
 }
 impl ProgramOption {
+    /// Creates a new program option.
     pub fn create(
         name: impl AsRef<str>,
         desc: impl AsRef<str>,
@@ -273,6 +276,7 @@ impl ProgramOption {
 unsafe impl Send for ProgramOption {}
 unsafe impl Sync for ProgramOption {}
 
+/// Defines the module descriptor for plugins.
 #[derive(Debug)]
 pub struct ModuleDescriptor {
     name: CString,
@@ -281,6 +285,7 @@ pub struct ModuleDescriptor {
     pub inner: ffi::WasmEdge_ModuleDescriptor,
 }
 impl ModuleDescriptor {
+    /// Creates a new module descriptor.
     pub fn create(
         name: impl AsRef<str>,
         desc: impl AsRef<str>,
@@ -312,10 +317,12 @@ impl ModuleDescriptor {
     }
 }
 
+/// Defines the type of the function that creates a module instance for a plugin.
 pub type ModuleInstanceCreateFn = unsafe extern "C" fn(
     arg1: *const ffi::WasmEdge_ModuleDescriptor,
 ) -> *mut ffi::WasmEdge_ModuleInstanceContext;
 
+/// Defines the version of a plugin.
 #[derive(Debug)]
 pub struct PluginVersion {
     pub major: u32,
@@ -324,6 +331,7 @@ pub struct PluginVersion {
     pub build: u32,
 }
 impl PluginVersion {
+    /// Creates a new plugin version.
     pub fn create(major: u32, minor: u32, patch: u32, build: u32) -> Self {
         Self {
             major,
@@ -344,6 +352,7 @@ impl From<PluginVersion> for ffi::WasmEdge_PluginVersionData {
     }
 }
 
+/// Represents Plugin descriptor for plugins.
 #[derive(Debug)]
 pub struct PluginDescriptor {
     name: CString,
@@ -420,7 +429,7 @@ impl PluginDescriptor {
         Ok(self)
     }
 
-    pub fn add_program_options(
+    pub fn add_program_option(
         mut self,
         name: impl AsRef<str>,
         desc: impl AsRef<str>,

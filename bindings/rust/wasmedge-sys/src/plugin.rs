@@ -208,10 +208,7 @@ impl From<ffi::WasmEdge_ProgramOptionType> for ProgramOptionType {
             ffi::WasmEdge_ProgramOptionType_Double => ProgramOptionType::F64,
             ffi::WasmEdge_ProgramOptionType_String => ProgramOptionType::String,
             _ => {
-                panic!(
-                    "[wasmedge-sys] Unsupported ffi::WasmEdge_ProgramOptionType value: {}",
-                    ty
-                );
+                panic!("[wasmedge-sys] Unsupported ffi::WasmEdge_ProgramOptionType value: {ty}");
             }
         }
     }
@@ -250,11 +247,9 @@ impl ProgramOption {
         desc: impl AsRef<str>,
         ty: ProgramOptionType,
     ) -> WasmEdgeResult<Self> {
-        let name =
-            std::ffi::CString::new(name.as_ref()).map_err(|e| WasmEdgeError::FoundNulByte(e))?;
+        let name = std::ffi::CString::new(name.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
 
-        let desc =
-            std::ffi::CString::new(desc.as_ref()).map_err(|e| WasmEdgeError::FoundNulByte(e))?;
+        let desc = std::ffi::CString::new(desc.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
 
         let mut po = Self {
             name,
@@ -292,12 +287,10 @@ impl ModuleDescriptor {
         f: Option<ModuleInstanceCreateFn>,
     ) -> WasmEdgeResult<Self> {
         // module name
-        let name =
-            std::ffi::CString::new(name.as_ref()).map_err(|e| WasmEdgeError::FoundNulByte(e))?;
+        let name = std::ffi::CString::new(name.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
 
         // module description
-        let desc =
-            std::ffi::CString::new(desc.as_ref()).map_err(|e| WasmEdgeError::FoundNulByte(e))?;
+        let desc = std::ffi::CString::new(desc.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
 
         let mut md = Self {
             name,
@@ -370,12 +363,10 @@ impl PluginDescriptor {
         version: PluginVersion,
     ) -> WasmEdgeResult<Self> {
         // plugin name
-        let name =
-            std::ffi::CString::new(name.as_ref()).map_err(|e| WasmEdgeError::FoundNulByte(e))?;
+        let name = std::ffi::CString::new(name.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
 
         // plugin description
-        let desc =
-            std::ffi::CString::new(desc.as_ref()).map_err(|e| WasmEdgeError::FoundNulByte(e))?;
+        let desc = std::ffi::CString::new(desc.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
 
         let mut pd = Self {
             name,
@@ -408,12 +399,10 @@ impl PluginDescriptor {
         f: Option<ModuleInstanceCreateFn>,
     ) -> WasmEdgeResult<Self> {
         // module name
-        let name =
-            std::ffi::CString::new(name.as_ref()).map_err(|e| WasmEdgeError::FoundNulByte(e))?;
+        let name = std::ffi::CString::new(name.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
 
         // module description
-        let desc =
-            std::ffi::CString::new(desc.as_ref()).map_err(|e| WasmEdgeError::FoundNulByte(e))?;
+        let desc = std::ffi::CString::new(desc.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
 
         self.module_descriptors
             .push(ffi::WasmEdge_ModuleDescriptor {
@@ -435,11 +424,9 @@ impl PluginDescriptor {
         desc: impl AsRef<str>,
         ty: ProgramOptionType,
     ) -> WasmEdgeResult<Self> {
-        let name =
-            std::ffi::CString::new(name.as_ref()).map_err(|e| WasmEdgeError::FoundNulByte(e))?;
+        let name = std::ffi::CString::new(name.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
 
-        let desc =
-            std::ffi::CString::new(desc.as_ref()).map_err(|e| WasmEdgeError::FoundNulByte(e))?;
+        let desc = std::ffi::CString::new(desc.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
 
         self.program_options.push(ffi::WasmEdge_ProgramOption {
             Name: name.as_ptr(),

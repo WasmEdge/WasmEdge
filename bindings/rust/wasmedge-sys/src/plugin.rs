@@ -239,8 +239,6 @@ impl From<ProgramOptionType> for ffi::WasmEdge_ProgramOptionType {
 pub struct ProgramOption {
     name: CString,
     desc: CString,
-    storage: *mut ::std::os::raw::c_void,
-    default_val: *const ::std::os::raw::c_void,
     pub inner: ffi::WasmEdge_ProgramOption,
 }
 impl ProgramOption {
@@ -258,8 +256,6 @@ impl ProgramOption {
         let mut po = Self {
             name,
             desc,
-            storage: std::ptr::null_mut(),
-            default_val: std::ptr::null(),
             inner: ffi::WasmEdge_ProgramOption {
                 Name: std::ptr::null(),
                 Description: std::ptr::null(),
@@ -676,38 +672,5 @@ mod tests {
                 ],
             );
         }
-    }
-
-    #[test]
-    fn test_plugin_toy() {
-        use super::*;
-
-        let result = PluginManager::load_plugins(
-            "/root/workspace/me/toy-plugin/target/release/libtoyPlugIn.so",
-        );
-        assert!(result.is_ok());
-
-        // PluginManager::load_plugins_from_default_paths();
-
-        PluginManager::names()
-            .iter()
-            .for_each(|name| println!("{}", name));
-
-        let result = PluginManager::find("hello_plugin");
-        assert!(result.is_some());
-        let plugin = result.unwrap();
-
-        let result = plugin.mod_instance("hello_module");
-        assert!(result.is_some());
-        let instance = result.unwrap();
-
-        let mut executor = crate::Executor::create(None, None).unwrap();
-        let result = instance.get_func("add").unwrap().call(
-            &mut executor,
-            [WasmValue::from_i32(1), WasmValue::from_i32(2)],
-        );
-        assert!(result.is_ok());
-        let returns = result.unwrap();
-        assert_eq!(returns[0].to_i32(), 3);
     }
 }

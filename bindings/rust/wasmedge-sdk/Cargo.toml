@@ -24,6 +24,7 @@ wat = "1.0"
 aot = ["wasmedge-sys/aot"]
 async = ["wasmedge-sys/async"]
 default = []
+ffi = ["wasmedge-sys/ffi"]
 standalone = ["wasmedge-sys/standalone"]
 static = ["wasmedge-sys/static"]
 wasi_crypto = ["wasmedge-sys/wasi_crypto"]

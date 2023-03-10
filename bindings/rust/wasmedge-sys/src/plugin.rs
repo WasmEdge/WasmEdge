@@ -363,8 +363,6 @@ impl PluginDescriptor {
         name: impl AsRef<str>,
         desc: impl AsRef<str>,
         version: PluginVersion,
-        // descriptors: Vec<ModuleDescriptor>,
-        options: Vec<ProgramOption>,
     ) -> WasmEdgeResult<Self> {
         // plugin name
         let name =
@@ -373,14 +371,6 @@ impl PluginDescriptor {
         // plugin description
         let desc =
             std::ffi::CString::new(desc.as_ref()).map_err(|e| WasmEdgeError::FoundNulByte(e))?;
-
-        // preprocess program options
-        let mut program_options: Vec<ffi::WasmEdge_ProgramOption> = Vec::new();
-        if options.len() > 0 {
-            for option in options {
-                program_options.push(option.inner);
-            }
-        }
 
         let mut pd = Self {
             name,

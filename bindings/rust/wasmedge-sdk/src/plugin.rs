@@ -2,6 +2,11 @@
 
 use crate::{instance::Instance, WasmEdgeResult};
 use wasmedge_sys as sys;
+pub mod ffi {
+    pub use wasmedge_sys::ffi::{
+        WasmEdge_ModuleDescriptor, WasmEdge_ModuleInstanceContext, WasmEdge_PluginDescriptor,
+    };
+}
 
 /// Defines the API to manage plugins.
 #[derive(Debug)]
@@ -184,6 +189,12 @@ impl PluginDescriptor {
     ) -> WasmEdgeResult<Self> {
         self.inner = self.inner.add_program_option(name, desc, ty)?;
         Ok(self)
+    }
+
+    /// Returns the raw pointer to the inner `WasmEdge_PluginDescriptor`.
+    #[cfg(feature = "ffi")]
+    pub fn as_raw_ptr(&self) -> *const sys::ffi::WasmEdge_PluginDescriptor {
+        self.inner.as_raw_ptr()
     }
 }
 

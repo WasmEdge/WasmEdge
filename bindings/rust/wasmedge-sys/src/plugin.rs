@@ -442,6 +442,12 @@ impl PluginDescriptor {
 
         Ok(self)
     }
+
+    /// Returns the raw pointer to the inner `WasmEdge_PluginDescriptor`.
+    #[cfg(feature = "ffi")]
+    pub fn as_raw_ptr(&self) -> *const ffi::WasmEdge_PluginDescriptor {
+        &self.inner
+    }
 }
 
 #[cfg(test)]

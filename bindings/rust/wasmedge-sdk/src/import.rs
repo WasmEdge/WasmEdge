@@ -303,6 +303,12 @@ impl ImportObject {
     pub(crate) fn inner_ref(&self) -> &sys::ImportObject {
         &self.0
     }
+
+    /// Returns the raw pointer to the inner `WasmEdge_ModuleInstanceContext`.
+    #[cfg(feature = "ffi")]
+    pub fn as_raw_ptr(&self) -> *const sys::ffi::WasmEdge_ModuleInstanceContext {
+        self.0.as_raw_ptr()
+    }
 }
 
 #[cfg(test)]

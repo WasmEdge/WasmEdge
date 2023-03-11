@@ -918,6 +918,15 @@ impl ImportObject {
             ImportObject::Wasi(wasi) => wasi.name(),
         }
     }
+
+    /// Returns the raw pointer to the inner `WasmEdge_ModuleInstanceContext`.
+    #[cfg(feature = "ffi")]
+    pub fn as_raw_ptr(&self) -> *const ffi::WasmEdge_ModuleInstanceContext {
+        match self {
+            ImportObject::Import(import) => import.inner.0,
+            ImportObject::Wasi(wasi) => wasi.inner.0,
+        }
+    }
 }
 
 #[cfg(test)]

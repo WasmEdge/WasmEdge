@@ -66,8 +66,13 @@ public:
   /// Read an unsigned long long int.
   Expect<uint64_t> readU64();
 
+  template <typename Ret, size_t N> Expect<Ret> readSN();
+
   /// Read a signed int.
   Expect<int32_t> readS32();
+
+  /// Read a S33.
+  Expect<int64_t> readS33();
 
   /// Read a signed long long int.
   Expect<int64_t> readS64();

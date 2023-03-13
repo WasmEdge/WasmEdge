@@ -1,0 +1,304 @@
+name: test-python-install-script
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/test-python-install-script.yml'
+      - 'utils/install.sh'
+      - 'utils/uninstall.sh'
+      - 'utils/install.py'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/test-python-install-script.yml'
+      - 'utils/install.sh'
+      - 'utils/uninstall.sh'
+      - 'utils/install.py'
+
+jobs:
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: CentOS 8 Stream
+            host_runner: ubuntu-latest
+            package_manager: yum
+            docker_image: quay.io/centos/centos:stream8
+            python_package: python3 python2
+            python2_ex: python2
+            python3_ex: python3
+            extra_setup_command: echo "No extra command"
+          - name: CentOS 7
+            host_runner: ubuntu-latest
+            package_manager: yum
+            docker_image: centos:7.9.2009
+            python_package: python3 python2
+            python2_ex: python2
+            python3_ex: python3
+            extra_setup_command: echo "No extra command"
+          - name: Ubuntu 20.04
+            host_runner: ubuntu-latest
+            package_manager: apt
+            docker_image: ubuntu:20.04
+            python_package: python2 python3
+            python2_ex: python2
+            python3_ex: python3
+            extra_setup_command: apt update && apt install -y lsb-release
+          - name: Ubuntu 18.04
+            host_runner: ubuntu-latest
+            package_manager: apt
+            docker_image: ubuntu:18.04
+            python_package: python3 python2.7
+            python2_ex: python2.7
+            python3_ex: python3
+            extra_setup_command: echo "No extra command"
+          - name: Ubuntu 16.04
+            host_runner: ubuntu-latest
+            package_manager: apt
+            docker_image: ubuntu:16.04
+            python_package: python2.7
+            python2_ex: python2.7
+            python3_ex: python3.7
+            extra_setup_command: apt update -y && apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget && wget https://www.python.org/ftp/python/3.7.4/Python-3.7.4.tgz && tar xzf Python-3.7.4.tgz && cd Python-3.7.4 && ./configure && make -j && make install && cd ..
+          - name: manylinux2014 aarch64
+            host_runner: linux-arm64
+            package_manager: yum
+            docker_image: wasmedge/wasmedge:manylinux2014_aarch64
+            python_package: python2 python3
+            python2_ex: python2
+            python3_ex: python3
+            extra_setup_command: echo "No extra command"
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.host_runner }}
+    container:
+      image: ${{ matrix.docker_image }}
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Install git and curl
+      run: |
+        ${{ matrix.extra_setup_command }}
+        ${{ matrix.package_manager }} update -y
+        ${{ matrix.package_manager }} install -y git curl
+    - name: Install Python
+      run: |
+        ${{ matrix.package_manager }} install -y ${{ matrix.python_package }}
+    - name: Install WasmEdge latest release
+      run: |
+        ${{ matrix.python2_ex }} utils/install.py -D
+        ${{ matrix.python3_ex }} utils/install.py -D
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge latest release with all extensions
+      run: |
+        ${{ matrix.python2_ex }} utils/install.py -e all -D
+        ${{ matrix.python3_ex }} utils/install.py -e all -D
+    - name: Uninstall WasmEdge with all extensions
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge specific release (0.9.0)
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
+      run: |
+        ${{ matrix.python2_ex }} utils/install.py -v 0.9.0 -D
+        ${{ matrix.python3_ex }} utils/install.py -v 0.9.0 -D
+    - name: Uninstall WasmEdge
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge specific release (0.9.0) with all extensions
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
+      run: |
+        ${{ matrix.python2_ex }} utils/install.py -e all -v 0.9.0 -D
+        ${{ matrix.python3_ex }} utils/install.py -e all -v 0.9.0 -D
+    - name: Install WasmEdge with all extensions compatible with min version for all platforms
+      run: |
+        ${{ matrix.python2_ex }} utils/install.py -e all --version=0.9.1-beta.1 \
+        --tf-version=0.9.1-beta.1 --tf-deps-version=0.9.1-beta.1  --tf-tools-version=0.9.1-beta.1  \
+        --image-version=0.9.1-beta.1 -D
+        ${{ matrix.python3_ex }} utils/install.py -e all --version=0.9.1-beta.1 \
+        --tf-version=0.9.1-beta.1 --tf-deps-version=0.9.1-beta.1  --tf-tools-version=0.9.1-beta.1  \
+        --image-version=0.9.1-beta.1 -D
+    - name: Uninstall WasmEdge with all extensions
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install versions multiple times
+      run: |
+        ${{ matrix.python2_ex }} utils/install.py -e all -D
+        ${{ matrix.python2_ex }} utils/install.py -e all -v 0.9.1-beta.1 -D
+        ${{ matrix.python2_ex }} utils/install.py -e all -v 0.10.0 -D
+        ${{ matrix.python3_ex }} utils/install.py -e all -D
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Uninstall WasmEdge and Source Line removal check
+      run: |
+        ${{ matrix.python2_ex }} utils/install.py && bash utils/uninstall.sh -q
+        if echo >> ~/.bashrc && grep -qE *.wasmedge/env* ~/.bashrc; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
+        if echo >> ~/.bash_profile && grep -qE *.wasmedge/env* ~/.bash_profile; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
+        if echo >> ~/.profile && grep -qE *.wasmedge/env* ~/.profile; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
+
+        ${{ matrix.python3_ex }} utils/install.py && bash utils/uninstall.sh -q
+        if echo >> ~/.bashrc && grep -qE *.wasmedge/env* ~/.bashrc; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
+        if echo >> ~/.bash_profile && grep -qE *.wasmedge/env* ~/.bash_profile; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
+        if echo >> ~/.profile && grep -qE *.wasmedge/env* ~/.profile; then echo "Failed: Source Lines found" && exit 1;else echo "Pass: Source Lines Removed"; fi;
+    - name: Plugins Install check
+      run: |
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.0-alpha.1
+        ls ~/.wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.0-alpha.1 -p ~/new_wasmedge
+        ls ~/new_wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.0-alpha.1 -p /usr
+        ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.0-alpha.1
+        ls ~/.wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.0-alpha.1 -p ~/new_wasmedge
+        ls ~/new_wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.0-alpha.1 -p /usr
+        ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    - name: Externally Specified plugin install check (single)(Ubuntu)
+      if: ${{ matrix.name == 'Ubuntu 20.04' }}
+      run: |
+        # Single plugin download
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-alpha.1 --plugins wasi_nn-openvino -D
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-alpha.1 -p ~/new_wasmedge --plugins wasi_nn-openvino -D
+        ls ~/new_wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-alpha.1 -p /usr --plugins wasi_nn-openvino -D
+        (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-alpha.1 --plugins wasi_nn-openvino -D
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-alpha.1 -p ~/new_wasmedge --plugins wasi_nn-openvino -D
+        ls ~/new_wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-alpha.1 -p /usr --plugins wasi_nn-openvino -D
+        (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    
+    - name: Externally Specified plugins install check (multiple)(Ubuntu)
+      if: ${{ matrix.name == 'Ubuntu 20.04' }}
+      run: |
+        # Multiple plugin download
+        ${{ matrix.python2_ex }} utils/install.py --plugins wasi_nn-openvino wasi_crypto wasi_nn-pytorch wasi_nn-tensorflowlite wasmedge_httpsreq -D
+        ls ~/.wasmedge/plugin/ | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so\|libwasmedgePluginHttpsReq.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -p ~/new_wasmedge --plugins wasi_nn-openvino wasi_crypto wasi_nn-pytorch wasi_nn-tensorflowlite wasmedge_httpsreq -D
+        ls ~/new_wasmedge/plugin/ | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so\|libwasmedgePluginHttpsReq.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -p /usr --plugins wasi_nn-openvino wasi_crypto wasi_nn-pytorch wasi_nn-tensorflowlite wasmedge_httpsreq -D
+        (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so\|libwasmedgePluginHttpsReq.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    
+        ${{ matrix.python3_ex }} utils/install.py --plugins wasi_nn-openvino wasi_crypto wasi_nn-pytorch wasi_nn-tensorflowlite wasmedge_httpsreq -D
+        ls ~/.wasmedge/plugin/ | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so\|libwasmedgePluginHttpsReq.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -p ~/new_wasmedge --plugins wasi_nn-openvino wasi_crypto wasi_nn-pytorch wasi_nn-tensorflowlite wasmedge_httpsreq -D
+        ls ~/new_wasmedge/plugin/ | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so\|libwasmedgePluginHttpsReq.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -p /usr --plugins wasi_nn-openvino wasi_crypto wasi_nn-pytorch wasi_nn-tensorflowlite wasmedge_httpsreq -D
+        (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so\|libwasmedgePluginHttpsReq.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+  
+    - name: Externally Specified plugins install check (wrong name)(Ubuntu)
+      if: ${{ matrix.name == 'Ubuntu 20.04' }}
+      run: |
+        # Unknown plugin
+        ${{ matrix.python2_ex }} utils/install.py --plugins unknown_plugin_name_on_purpose unknown_plugin_name_on_purpose -D
+        (ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Fail: Plugins found" && exit 1) || (echo "Pass: Plugins not found")
+        ${{ matrix.python3_ex }} utils/install.py --plugins unknown_plugin_name_on_purpose -D
+        (ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Fail: Plugins found" && exit 1) || (echo "Pass: Plugins not found")
+
+    - name: Externally Specified plugin install check (single)(Non Ubuntu)
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
+      run: |
+        # Single plugin download
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-rc.1 --plugins wasi_crypto -D
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-rc.1 -p ~/new_wasmedge --plugins wasi_crypto -D
+        ls ~/new_wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-rc.1 -p /usr --plugins wasi_crypto -D
+        (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-rc.1 --plugins wasi_crypto -D
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-rc.1 -p ~/new_wasmedge --plugins wasi_crypto -D
+        ls ~/new_wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-rc.1 -p /usr --plugins wasi_crypto -D
+        (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    
+    - name: Check for differences in the installation
+      run: |
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh
+
+    - name: Latest Release Check
+      run: |
+        _res_git_=$(git ls-remote --refs --tags "https://github.com/WasmEdge/WasmEdge.git" | cut -d '/' -f 3 | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' | grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' | tail -1)
+        _res_curl_=$(curl -w "%{url_effective}\n" -I -L -s -S https://github.com/WasmEdge/WasmEdge/releases/latest -o /dev/null | grep -Eo '[0-9]+.[0-9]+.[0-9]+*')
+        [ "$_res_git_" = "$_res_curl_" ] && echo "Pass: Fetched version equals release" ||
+        (echo "Fail: Fetched version does not equal GitHub Ref: Fetched:$_res_git_ CI:$_res_curl_" && exit 1)
+
+
+  macos:
+    strategy:
+      matrix:
+        include:
+          - name: MacOS-latest
+            host_runner: macos-latest
+            package_manager: brew
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.host_runner }}
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Install WasmEdge latest release
+      run: |
+        python utils/install.py -D
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge latest release with all extensions
+      run: |
+        python utils/install.py -e all -D
+    - name: Uninstall WasmEdge with all extensions
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge specific release (0.9.0)
+      run: |
+        python utils/install.py -v 0.9.0 -D
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge specific release (0.9.0) with all extensions
+      run: |
+        python utils/install.py -e all -v 0.9.0 -D
+    - name: Uninstall WasmEdge with all extensions
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Plugins Install check
+      run: |
+        python utils/install.py -v 0.10.0-alpha.1
+        ls ~/.wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        python utils/install.py -v 0.10.0-alpha.1 -p ~/new_wasmedge
+        ls ~/new_wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        # MacOS container does not have access for /usr directory
+        # python utils/install.py -v 0.10.0-alpha.1 -p /usr
+        # ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+
+    - name: Check for differences in the installation
+      run: |
+        bash utils/installer_changes.sh
+
+    - name: Latest Release Check
+      run: |
+        _res_git_=$(git ls-remote --refs --tags "https://github.com/WasmEdge/WasmEdge.git" | cut -d '/' -f 3 | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' | grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' | tail -1)
+        _res_curl_=$(curl -w "%{url_effective}\n" -I -L -s -S https://github.com/WasmEdge/WasmEdge/releases/latest -o /dev/null | grep -Eo '[0-9]+.[0-9]+.[0-9]+')
+        [ "$_res_git_" = "$_res_curl_" ] && echo "Pass: Fetched version equals release" ||
+        (echo "Fail: Fetched version does not equal GitHub Ref: Fetched:$_res_git_ CI:$_res_curl_" && exit 1)

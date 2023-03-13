@@ -1,7 +1,6 @@
 package org.wasmedge;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
@@ -17,7 +16,7 @@ public class StoreContextTest extends BaseTest {
     @Test
     public void testStore() {
         ConfigureContext conf = new ConfigureContext();
-        ASTModuleContext mod = loadMod(conf, FIB_WASM_PATH);
+        AstModuleContext mod = loadMod(conf, FIB_WASM_PATH);
         ValidatorContext validatorContext = new ValidatorContext(conf);
         validatorContext.validate(mod);
         StoreContext storeContext = new StoreContext();
@@ -37,7 +36,7 @@ public class StoreContextTest extends BaseTest {
         executorContext.registerImport(store, hostMod);
 
         // instantiate mod
-        ASTModuleContext mod = loadMod(conf, TEST_WASM_PATH);
+        AstModuleContext mod = loadMod(conf, TEST_WASM_PATH);
         ValidatorContext validatorContext = new ValidatorContext(conf);
         validatorContext.validate(mod);
         executorContext.register(store, mod, "module");

@@ -638,13 +638,6 @@ P(FunctionReferences, "Typed Function References")
 #ifdef UseHostRegistration
 #define H Line
 H(Wasi)
-H(WasmEdge_Process)
-H(WasiNN)
-H(WasiCrypto_Common)
-H(WasiCrypto_AsymmetricCommon)
-H(WasiCrypto_Kx)
-H(WasiCrypto_Signatures)
-H(WasiCrypto_Symmetric)
 #undef H
 #endif // UseHostRegistration
 
@@ -740,6 +733,8 @@ E(ENDCodeExpected, 0x38, "END opcode expected")
 E(IllegalGrammar, 0x39, "invalid wasm grammar")
 // Shared memory must have max
 E(SharedMemoryNoMax, 0x3A, "shared memory must have maximum")
+// Intrinsics table not found
+E(IntrinsicsTableNotFound, 0x3B, "intrinsics table not found")
 // @}
 
 // Validation phase
@@ -839,7 +834,7 @@ E(RefTypeMismatch, 0x8E, "reference type mismatch")
 // Unaligned atomic memory access
 E(UnalignedAtomicAccess, 0x8F, "unaligned atomic")
 // wait32/wait64 on unshared memory
-E(WaitOnUnsharedMemory, 0x90, "wait on unshared memory")
+E(ExpectSharedMemory, 0x90, "expected shared memory")
 // @}
 
 #undef E
@@ -908,7 +903,6 @@ I(Lane, "lane")
 #ifdef UseValType
 #define V Line
 
-V(None, 0x40, "none")
 V(I32, 0x7F, "i32")
 V(I64, 0x7E, "i64")
 V(F32, 0x7D, "f32")

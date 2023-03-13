@@ -1,6 +1,5 @@
 package org.wasmedge;
 
-
 import org.junit.Assert;
 import org.junit.Test;
 import org.wasmedge.enums.ValueType;
@@ -21,53 +20,53 @@ public class BaseTest {
 
     public static HostFunction extAdd = new HostFunction() {
         @Override
-        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
-            WasmEdgeI32Value value = (WasmEdgeI32Value) params.get(1);
-            returns.add(new WasmEdgeI32Value(value.getValue() + 1));
+        public Result apply(MemoryInstanceContext mem, List<Value> params, List<Value> returns) {
+            I32Value value = (I32Value) params.get(1);
+            returns.add(new I32Value(value.getValue() + 1));
             return new Result();
         }
     };
     public static HostFunction extSub = new HostFunction() {
         @Override
-        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+        public Result apply(MemoryInstanceContext mem, List<Value> params, List<Value> returns) {
             return new Result();
         }
     };
     public static HostFunction extMul = new HostFunction() {
         @Override
-        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+        public Result apply(MemoryInstanceContext mem, List<Value> params, List<Value> returns) {
             return new Result();
         }
     };
     public static HostFunction extDiv = new HostFunction() {
         @Override
-        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+        public Result apply(MemoryInstanceContext mem, List<Value> params, List<Value> returns) {
             return new Result();
         }
     };
     public static HostFunction extTerm = new HostFunction() {
         @Override
-        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+        public Result apply(MemoryInstanceContext mem, List<Value> params, List<Value> returns) {
             return new Result();
         }
     };
     public static HostFunction extFail = new HostFunction() {
         @Override
-        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+        public Result apply(MemoryInstanceContext mem, List<Value> params, List<Value> returns) {
             return new Result();
         }
     };
 
     static {
         WasmEdge.init();
+        WasmEdge.setLogLevel(WasmEdge.LogLevel.DEBUG);
     }
 
     byte[] WASM_MAGIC = {0x00, 0x61, 0x73, 0x6D};
 
-    public static ASTModuleContext loadMod(ConfigureContext configureContext, String path) {
+    public static AstModuleContext loadMod(ConfigureContext configureContext, String path) {
         LoaderContext loaderContext = new LoaderContext(configureContext);
-        ASTModuleContext astModuleContext = loaderContext.parseFromFile(getResourcePath(path));
-        loaderContext.delete();
+        AstModuleContext astModuleContext = loaderContext.parseFromFile(getResourcePath(path));
         return astModuleContext;
     }
 
@@ -101,35 +100,34 @@ public class BaseTest {
         ValueType[] params = new ValueType[] {ValueType.ExternRef, ValueType.i32};
         ValueType[] returns = new ValueType[] {ValueType.i32};
 
-        FunctionTypeContext functionTypeContext = new FunctionTypeContext(params, returns);
+        try(FunctionTypeContext functionTypeContext = new FunctionTypeContext(params, returns)) {
 
-        FunctionInstanceContext hostFunc = new FunctionInstanceContext(functionTypeContext,
+            FunctionInstanceContext hostFunc = new FunctionInstanceContext(functionTypeContext,
                 extAdd, null, 0);
-        moduleInstanceContext.addFunction("func-add", hostFunc);
+            moduleInstanceContext.addFunction("func-add", hostFunc);
 
-        hostFunc = new FunctionInstanceContext(functionTypeContext,
+            hostFunc = new FunctionInstanceContext(functionTypeContext,
                 extSub, null, 0);
-        moduleInstanceContext.addFunction("func-sub", hostFunc);
+            moduleInstanceContext.addFunction("func-sub", hostFunc);
 
-        hostFunc = new FunctionInstanceContext(functionTypeContext,
+            hostFunc = new FunctionInstanceContext(functionTypeContext,
                 extMul, null, 0);
-        moduleInstanceContext.addFunction("func-mul", hostFunc);
+            moduleInstanceContext.addFunction("func-mul", hostFunc);
 
-        hostFunc = new FunctionInstanceContext(functionTypeContext,
+            hostFunc = new FunctionInstanceContext(functionTypeContext,
                 extDiv, null, 0);
-        moduleInstanceContext.addFunction("func-div", hostFunc);
+            moduleInstanceContext.addFunction("func-div", hostFunc);
 
-        functionTypeContext.delete();
+        }
 
-        functionTypeContext = new FunctionTypeContext(null, returns);
+        try(FunctionTypeContext functionTypeContext = new FunctionTypeContext(null, returns)) {
 
-        hostFunc = new FunctionInstanceContext(functionTypeContext, extTerm, null, 0);
-        moduleInstanceContext.addFunction("func-term", hostFunc);
+            FunctionInstanceContext hostFunc = new FunctionInstanceContext(functionTypeContext, extTerm, null, 0);
+            moduleInstanceContext.addFunction("func-term", hostFunc);
 
-        hostFunc = new FunctionInstanceContext(functionTypeContext, extFail, null, 0);
-        moduleInstanceContext.addFunction("func-fail", hostFunc);
-
-        functionTypeContext.delete();
+            hostFunc = new FunctionInstanceContext(functionTypeContext, extFail, null, 0);
+            moduleInstanceContext.addFunction("func-fail", hostFunc);
+        }
 
         return moduleInstanceContext;
 

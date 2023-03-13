@@ -1,3 +1,102 @@
+### 0.12.0-alpha.2 (2023-02-24)
+
+Breaking changes:
+
+* Updated the WasmEdge shared library.
+  * Due to the breaking change of API, bump the `SOVERSION` to `0.0.2`.
+* WasmEdge C API changes.
+  * Removed the `WasmEdge_HostRegistration` members and the corresponding module creation APIs to standardize the plug-in module creation.
+    * Please refer to the [documentation](https://wasmedge.org/book/en/sdk/c/0.11.2/upgrade_to_0.12.0.html) for how to upgrade.
+    * Removed the `WasmEdge_HostRegistration_WasiNN` enum and the `WasmEdge_ModuleInstanceCreateWasiNN()` API.
+    * Removed the `WasmEdge_HostRegistration_WasiCrypto_Common` enum and the `WasmEdge_ModuleInstanceCreateWasiCryptoCommon()` API.
+    * Removed the `WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon` enum and the `WasmEdge_ModuleInstanceCreateWasiCryptoAsymmetricCommon()` API.
+    * Removed the `WasmEdge_HostRegistration_WasiCrypto_Kx` enum and the `WasmEdge_ModuleInstanceCreateWasiCryptoKx()` API.
+    * Removed the `WasmEdge_HostRegistration_WasiCrypto_Signatures` enum and the `WasmEdge_ModuleInstanceCreateWasiCryptoSignatures()` API.
+    * Removed the `WasmEdge_HostRegistration_WasiCrypto_Symmetric` enum and the `WasmEdge_ModuleInstanceCreateWasiCryptoSymmetric()` API.
+    * Removed the `WasmEdge_HostRegistration_WasmEdge_Process` enum and the `WasmEdge_ModuleInstanceCreateWasmEdgeProcess()` API.
+* Changed the `WasmEdge_VMCleanup()` behavior.
+  * After calling this API, the registered modules except the WASI and plug-ins will all be cleaned.
+* Standaloned the `WasmEdge-Process` plug-in.
+  * After this version, users should use the installer to install the `WasmEdge-Process` plug-in.
+
+Features:
+
+* Introduced the `Plugin` context and related APIs.
+  * Added the `WasmEdge_PluginContext` struct.
+  * Added the `WasmEdge_PluginLoadFromPath()` API for loading a plug-in from a specific path.
+  * Added the `WasmEdge_PluginListPluginsLength()` and `WasmEdge_PluginListPlugins()` APIs for getting the loaded plug-in names.
+  * Added the `WasmEdge_PluginFind()` API for retrieving a loaded plug-in by its name.
+  * Added the `WasmEdge_PluginGetPluginName()` API for retrieving the plug-in name.
+  * Added the `WasmEdge_PluginListModuleLength()` and `WasmEdge_PluginListModule()` APIs for listing the module names of a plug-in.
+  * Added the `WasmEdge_PluginCreateModule()` API for creating the specific module instance in a plug-in by its name.
+* Added the `VM` APIs.
+  * Added the `WasmEdge_VMGetRegisteredModule()` API for retrieving a registered module by its name.
+  * Added the `WasmEdge_VMListRegisteredModuleLength()` and `WasmEdge_VMListRegisteredModule()` APIs for listing the registered module names.
+* Introduced the python version WasmEdge installer.
+* Updated the ABI of the `wasi_ephemeral_sock`.
+  * Added the output port of the `sock_recv_from`.
+  * Updated the API of `sock_getlocaladdr`.
+  * Unified the socket address size to 128-bit.
+* Supported using `libtool` to archive the WasmEdge static library.
+
+Fixed issues:
+
+* Fixed WASI issues.
+  * Fixed the leaking information about the host STDIN, STDOUT, and STDERR after getting the `filestat`.
+  * Fixed the lookup of symbolic link at `path_filestat_set_times`.
+  * Fixed `open` for the wchar path issue on windows.
+* Fixed WASI-NN issues.
+  * Fixed the definition of `wasi_nn::TensorType` to prevent from comparing with dirty data.
+* Fixed WASI-Crypto issues.
+  * Fixed the `keypair_generate` for rsa-pss.
+  * Fixed the `keypair_import` read pem as pkcs8.
+* Fixed WASI-Socket issues.
+  * Fixed the buffer size of `sock_getpeeraddr`.
+* Fixed the lost intrinsics table in AOT mode when using the WasmEdge C API.
+* Fixed the implementation in `threads` proposal.
+  * Fixed the error in `atomic.nofify` and `atomic.wait` instructions.
+  * Fixed the decoding of `atomic.fence` instruction.
+  * Corrected the error message of waiting on unshared memory.
+
+Refactor:
+
+* Refactored the implementation of number loading in the file manager.
+  * Supported `s33` and `sn` loading and decoding.
+* Refactored the `WasmEdge::ValType`.
+  * Removed the `WasmEdge::ValType::None`.
+  * Used the flag in `WasmEdge::BlockType` for supporting the type index.
+  * Removed the `WasmEdge::Validator::VType` and used the `WasmEdge::ValType` instead.
+
+Known issues:
+
+* Universal WASM format failed on MacOS platforms.
+  * In current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause bus error when execution.
+  * We are trying to fix this issue. For working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+* Plug-in linking on MacOS platforms.
+  * The plug-in on MacOS platforms will cause symbol not found when dynamic linking.
+  * We are trying to fix this issue. For working around, please implement the host modules instead of plug-ins.
+
+Documentations:
+
+* Fixed various typos.
+* Updated the C API documents.
+* Added the [WasmEdge installer guide](https://wasmedge.org/book/en/contribute/installer.html).
+* Updated the [Android NDK example](https://wasmedge.org/book/en/contribute/build_from_src/android/ndk.html).
+* Added the [static library linking guide](https://wasmedge.org/book/en/sdk/c/library.html#link-with-wasmedge-static-library).
+
+Tests:
+
+* Updated the WASM spec tests to the date 2022/12/15.
+* Added the plug-in unit tests on Linux platforms.
+
+Thank all the contributors that made this release possible!
+
+Abhinandan Udupa, Achille, Daniel Golding, DarumaDocker, Harry Chiang, Justin Echternach, Kenvi Zhu, LFsWang, Leonid Pospelov, Lîm Tsú-thuàn, MediosZ, O3Ol, Puelloc, Rafael Fernández López, Shreyas Atre, Sylveon, Tatsuyuki Kobayashi, Vishv Salvi, Xin Liu, Xiongsheng Wang, YiYing He, alabulei1, dm4, hydai, jeongkyu, little-willy
+
+If you want to build from source, please use WasmEdge-0.12.0-alpha.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.11.2 (2022-11-03)
 
 Features:
@@ -32,7 +131,7 @@ Fixed issues:
 * Fixed the repeatedly compilation of universal WASM format.
   * If users use the `wasmedgec` tool to compile the universal WASM file, the AOT compiled WASM data will be appended into the output.
   * In the cases of duplicated AOT compiled universal WASM file which has more than 1 section of AOT compiled WASM data, the WasmEdge runtime will use the latest appended one when execution.
-* Hided the local symbols of the WasmEdge shared library.
+* Hidden the local symbols of the WasmEdge shared library.
 * Loaded the default plug-in path from the path related to the WasmEdge shared library.
   * This only fixed on the MacOS and Linux platforms now.
 * Updated the minimum CMake required version on Android.
@@ -120,16 +219,16 @@ Breaking changes:
     * The first parameter of `WasmEdge_WrapFunc_t` is replaced by `const WasmEdge_CallingFrameContext *`.
   * Extended the content of `WasmEdge_Result`.
   * Added the const qualifier of some APIs.
-    * Added the const qualifer of the first parameter of `WasmEdge_StoreFindModule()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_AsyncWait()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_AsyncWaitFor()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_AsyncGetReturnsLength()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_AsyncGet()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_VMGetFunctionType()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_VMGetFunctionTypeRegistered()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_VMGetFunctionListLength()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_VMGetFunctionList()`.
-    * Added the const qualifer of the first parameter of `WasmEdge_VMGetImportModuleContext()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_StoreFindModule()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_AsyncWait()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_AsyncWaitFor()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_AsyncGetReturnsLength()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_AsyncGet()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetFunctionType()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetFunctionTypeRegistered()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetFunctionListLength()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetFunctionList()`.
+    * Added the const qualifier of the first parameter of `WasmEdge_VMGetImportModuleContext()`.
   * Renamed the plugin API.
     * Renamed `WasmEdge_Plugin_loadWithDefaultPluginPaths()` to `WasmEdge_PluginLoadWithDefaultPaths()`.
 * Dropped the manylinux1 and manylinux2010 support. Please refer to the [deprecation notice](https://github.com/WasmEdge/WasmEdge/discussions/1780).
@@ -153,7 +252,7 @@ Features:
   * New `WasmEdge_CallingFrameContext` struct.
   * Developers can use `WasmEdge_CallingFrameGetModuleInstance()` API to get the module instance of current top frame in calling stack in host function body.
   * Developers can use `WasmEdge_CallingFrameGetMemoryInstance()` API to get the memory instance by index in host function body.
-    * To quickly upgrate from the previous WasmEdge versions, developer can use the `WasmEdge_CallingFrameGetMemoryInstance(Context, 0)` to get the same memory instance of the previous host function definition.
+    * To quickly upgrade from the previous WasmEdge versions, developer can use the `WasmEdge_CallingFrameGetMemoryInstance(Context, 0)` to get the same memory instance of the previous host function definition.
   * Developers can use `WasmEdge_CallingFrameGetExecutor()` API to get the executor context in host function body.
 * Extended the `WasmEdge_Result` struct to support user defined error codes of host functions.
   * Added `WasmEdge_ResultGen()` API to generate the `WasmEdge_Result` struct of user defined error code.
@@ -184,7 +283,7 @@ Fixed issues:
 
 Refactor:
 
-* Reorginized the CI workflows to reuse the similar jobs.
+* Reorganized the CI workflows to reuse the similar jobs.
 * Refactored the enum related headers.
   * Separated the C and C++ enum definition headers.
   * Not to package the C++ related headers.
@@ -497,7 +596,7 @@ Breaking changes:
   * To enable instruction counting, please use `--enable-instruction-count`.
   * To enable gas measuring, please use `--enable-gas-measuring`.
   * To enable time  measuring, please use `--enable-time-measuring`.
-  * For the convinence, use `--enable-all-statistics` will enable all available statistics options.
+  * For the convenience, use `--enable-all-statistics` will enable all available statistics options.
 * `wasmedgec` AOT compiler tool behavior changes.
   * For the output file name with extension `.so`, `wasmedgec` will output the AOT compiled WASM in shared library format.
   * For the output file name with extension `.wasm` or other cases, `wasmedgec` will output the WASM file with adding the AOT compiled binary in custom sections. `wasmedge` runtime will run in AOT mode when it executes the output WASM file.
@@ -1046,7 +1145,7 @@ Refactor:
 * Refactored the validator workflow of checking expressions.
 * Used `std::bitset` for VM configuration.
 * Used `std::array` for cost table storage.
-* Conbined `include/support` into `include/common`.
+* Combined `include/support` into `include/common`.
   * Merged `support/castng.h` into `common/types.h`.
   * Merged `Measurement` into `Statistics`.
   * Renamed `support/time.h` into `common/timer.h`. Used standard steady clock instead.

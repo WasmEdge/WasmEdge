@@ -195,7 +195,7 @@ public:
 
   /// Open a file or directory.
   ///
-  /// @param[in] Path The absolut path of the file or directory to open.
+  /// @param[in] Path The absolute path of the file or directory to open.
   /// @param[in] OpenFlags The method by which to open the file.
   /// @param[in] FdFlags The method by which to open the file.
   /// @param[in] VFSFlags The method by which to open the file.
@@ -537,7 +537,7 @@ public:
   static WasiExpect<INode> sockOpen(__wasi_address_family_t SysDomain,
                                     __wasi_sock_type_t SockType) noexcept;
 
-  WasiExpect<void> sockBind(uint8_t *Address, uint8_t AddressLength,
+  WasiExpect<void> sockBind(uint8_t *AddressBuf, uint8_t AddressLength,
                             uint16_t Port) noexcept;
 
   WasiExpect<void> sockListen(int32_t Backlog) noexcept;
@@ -573,7 +573,8 @@ public:
   /// @return Nothing or WASI error.
   WasiExpect<void> sockRecvFrom(Span<Span<uint8_t>> RiData,
                                 __wasi_riflags_t RiFlags, uint8_t *Address,
-                                uint8_t AddressLength, __wasi_size_t &NRead,
+                                uint8_t AddressLength, uint32_t *PortPtr,
+                                __wasi_size_t &NRead,
                                 __wasi_roflags_t &RoFlags) const noexcept;
 
   /// Send a message on a socket.
@@ -624,10 +625,10 @@ public:
                               __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
                               uint32_t FlagSizePtr) const noexcept;
 
-  WasiExpect<void> sockGetLoaclAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetLocalAddr(uint8_t *Address,
                                     uint32_t *PortPtr) const noexcept;
 
-  WasiExpect<void> sockGetPeerAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetPeerAddr(uint8_t *Address,
                                    uint32_t *PortPtr) const noexcept;
 
   /// File type.

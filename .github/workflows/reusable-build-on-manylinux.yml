@@ -6,7 +6,7 @@ on:
       version:
         type: string
         required: true
-      matrix: # [ { runner, docker_tag }, ... ]
+      matrix: # [ { name, runner, docker_tag }, ... ]
         type: string
         required: true
       release:
@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(inputs.matrix) }}
-    name: Build on ${{ matrix.docker_tag }}
+    name: Build on ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
     container: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:

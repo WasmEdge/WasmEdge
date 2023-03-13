@@ -2,7 +2,7 @@
 
 ## Overview
 
-In this example, we will demonstrate how to use the objects and the APIs defined in `wasmedge-sys` to compute Fibonacci numbers concurrently. we creates two child threads, `thread_a` and `thread_b`, which are responsbile for compute `Fib(4)` and `Fib(5)` by calling the host function `fib`, respectively. After that, the main thread computes `Fib(6)` by adding the numbers returned by `thread_a` and `thread_b`.
+In this example, we will demonstrate how to use the objects and the APIs defined in `wasmedge-sys` to compute Fibonacci numbers concurrently. we creates two child threads, `thread_a` and `thread_b`, which are responsible for compute `Fib(4)` and `Fib(5)` by calling the host function `fib`, respectively. After that, the main thread computes `Fib(6)` by adding the numbers returned by `thread_a` and `thread_b`.
 
 > The code in the example is verified on
 >

@@ -1,6 +1,7 @@
 package org.wasmedge;
 
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -16,20 +17,22 @@ public class LoaderContextTest extends BaseTest {
 
     @After
     public void tearDown() {
-        loaderContext.delete();
+        loaderContext.close();
     }
 
     @Test
     public void testParseFromFile() {
-        ASTModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(TEST_WASM_PATH));
-        moduleContext.delete();
+        try(AstModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(TEST_WASM_PATH))) {
+            Assert.assertNotNull(moduleContext);
+        }
     }
 
 
     @Test(expected = Exception.class)
     public void testParseFromInvalidFile() {
-        ASTModuleContext moduleContext = loaderContext.parseFromFile(getCwd() + "/" + INVALID_WASM_PATH);
-        moduleContext.delete();
+        try(AstModuleContext moduleContext = loaderContext.parseFromFile(getCwd() + "/" + INVALID_WASM_PATH)) {
+            Assert.fail();
+        }
     }
 
     @Test
@@ -38,8 +41,9 @@ public class LoaderContextTest extends BaseTest {
 
         try (FileInputStream fin = new FileInputStream(getResourcePath(TEST_WASM_PATH))) {
             int len = fin.read(buffer, 0, 1024);
-            ASTModuleContext moduleContext = loaderContext.parseFromBuffer(buffer, len);
-            moduleContext.delete();
+            try(AstModuleContext moduleContext = loaderContext.parseFromBuffer(buffer, len)) {
+                Assert.assertNotNull(moduleContext);
+            }
         }
     }
 }

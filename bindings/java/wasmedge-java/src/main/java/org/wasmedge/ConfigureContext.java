@@ -5,16 +5,19 @@ import org.wasmedge.enums.CompilerOutputFormat;
 import org.wasmedge.enums.HostRegistration;
 import org.wasmedge.enums.Proposal;
 
-public class ConfigureContext {
-    private long pointer;
+/**
+ * Configure Context for WasmEdge VM.
+ */
+public class ConfigureContext extends NativeResource {
 
     public ConfigureContext() {
+        super();
         nativeInit();
     }
 
     private native void nativeInit();
 
-    private native void delete();
+    public native void close();
 
     public void addProposal(Proposal proposal) {
         addProposal(proposal.ordinal());
@@ -80,9 +83,9 @@ public class ConfigureContext {
 
     private native int nativeGetCompilerOutputFormat();
 
-    public native boolean getCompilerIsDumpIR();
+    public native boolean getCompilerIsDumpIr();
 
-    public native void setCompilerIsDumpIR(boolean isDumpIR);
+    public native void setCompilerIsDumpIr(boolean isDumpIr);
 
     public native boolean getCompilerIsGenericBinary();
 
@@ -90,7 +93,8 @@ public class ConfigureContext {
 
     public native boolean isStatisticsSetInstructionCounting();
 
-    public native void setStatisticsSetInstructionCounting(boolean statisticsSetInstructionCounting);
+    public native void setStatisticsSetInstructionCounting(
+        boolean statisticsSetInstructionCounting);
 
     public native boolean isStatisticsSetCostMeasuring();
 
@@ -99,10 +103,5 @@ public class ConfigureContext {
     public native boolean isStatisticsSetTimeMeasuring();
 
     public native void setStatisticsSetTimeMeasuring(boolean statisticsSetTimeMeasuring);
-
-    public void destroy() {
-        delete();
-        pointer = 0;
-    }
 
 }

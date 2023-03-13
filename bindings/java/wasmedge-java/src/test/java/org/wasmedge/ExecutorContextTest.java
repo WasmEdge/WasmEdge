@@ -8,10 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ExecutorContextTest extends BaseTest {
-    @Test
-    public void testCreation() {
-
-    }
 
     @Test
     public void testExecutorWithStatistics() {
@@ -21,7 +17,7 @@ public class ExecutorContextTest extends BaseTest {
         configureContext.setStatisticsSetCostMeasuring(true);
         configureContext.setStatisticsSetTimeMeasuring(true);
 
-        ASTModuleContext astModuleContext = loadMod(configureContext, TEST_WASM_PATH);
+        AstModuleContext astModuleContext = loadMod(configureContext, TEST_WASM_PATH);
         ValidatorContext validatorContext = new ValidatorContext(configureContext);
         validatorContext.validate(astModuleContext);
     }
@@ -30,7 +26,7 @@ public class ExecutorContextTest extends BaseTest {
     public void testRegisterWasmModule() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
-        ASTModuleContext mod = loadMod(configureContext, FIB_WASM_PATH);
+        AstModuleContext mod = loadMod(configureContext, FIB_WASM_PATH);
         ValidatorContext validatorContext = new ValidatorContext(configureContext);
         validatorContext.validate(mod);
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
@@ -43,14 +39,14 @@ public class ExecutorContextTest extends BaseTest {
     public void testRegisterWasmModuleNameConflict() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
-        ASTModuleContext mod = loadMod(configureContext, FIB_WASM_PATH);
+        AstModuleContext mod = loadMod(configureContext, FIB_WASM_PATH);
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
 
         String modName2 = "extern";
         executorContext.register(storeContext, mod, modName2);
 
-        ASTModuleContext mod2 = loadMod(configureContext, FIB_WASM_PATH);
+        AstModuleContext mod2 = loadMod(configureContext, FIB_WASM_PATH);
         executorContext.register(storeContext, mod2, modName2);
     }
 
@@ -58,7 +54,7 @@ public class ExecutorContextTest extends BaseTest {
     public void testInstantiateModule() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
-        ASTModuleContext mod = loadMod(configureContext, TEST_WASM_PATH);
+        AstModuleContext mod = loadMod(configureContext, TEST_WASM_PATH);
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
         executorContext.instantiate(storeContext, mod);
@@ -68,7 +64,7 @@ public class ExecutorContextTest extends BaseTest {
     public void testInstantiateModuleWithNullStore() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
-        ASTModuleContext mod = loadMod(configureContext, TEST_WASM_PATH);
+        AstModuleContext mod = loadMod(configureContext, TEST_WASM_PATH);
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         executorContext.instantiate(null, mod);
     }
@@ -86,7 +82,7 @@ public class ExecutorContextTest extends BaseTest {
     public void testOverrideInstantiatedModule() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
-        ASTModuleContext mod = loadMod(configureContext, TEST_WASM_PATH);
+        AstModuleContext mod = loadMod(configureContext, TEST_WASM_PATH);
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
         executorContext.instantiate(storeContext, mod);
@@ -94,15 +90,15 @@ public class ExecutorContextTest extends BaseTest {
 
     @Test
     public void testInvokeFunction() {
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
-        List<WasmEdgeValue> returns = new ArrayList<>();
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
+        List<Value> returns = new ArrayList<>();
 
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
 
         LoaderContext loaderContext = new LoaderContext(null);
-        ASTModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
+        AstModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
         ValidatorContext validatorContext = new ValidatorContext(configureContext);
         validatorContext.validate(moduleContext);
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
@@ -110,22 +106,22 @@ public class ExecutorContextTest extends BaseTest {
         ModuleInstanceContext moduleInstanceContext = executorContext.instantiate(storeContext, moduleContext);
         FunctionInstanceContext functionInstanceContext = moduleInstanceContext.findFunction(FUNC_NAME);
         executorContext.invoke(functionInstanceContext, params, returns);
-        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        Assert.assertEquals(3, ((I32Value) returns.get(0)).getValue());
     }
 
     @Test(expected = Exception.class)
     public void testInvokeFunctionParamMismatch() {
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
-        params.add(new WasmEdgeI32Value(3));
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
+        params.add(new I32Value(3));
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
 
         LoaderContext loaderContext = new LoaderContext(null);
-        ASTModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
+        AstModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
         ModuleInstanceContext moduleInstanceContext = executorContext.instantiate(storeContext, moduleContext);
@@ -137,23 +133,23 @@ public class ExecutorContextTest extends BaseTest {
     @Ignore
     public void testInvokeFunctionNullParam() {
         String funcName = "func-mul-2";
-        List<WasmEdgeValue> returns = new ArrayList<>();
+        List<Value> returns = new ArrayList<>();
         ExecutorContext executorContext = new ExecutorContext(new ConfigureContext(), new StatisticsContext());
     }
 
     @Test(expected = Exception.class)
     @Ignore
     public void testInvokeFunctionFunctionNotFound() {
-        List<WasmEdgeValue> params = new ArrayList<>();
-        params.add(new WasmEdgeI32Value(3));
-        List<WasmEdgeValue> returns = new ArrayList<>();
-        returns.add(new WasmEdgeI32Value());
+        List<Value> params = new ArrayList<>();
+        params.add(new I32Value(3));
+        List<Value> returns = new ArrayList<>();
+        returns.add(new I32Value());
 
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
 
         LoaderContext loaderContext = new LoaderContext(null);
-        ASTModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
+        AstModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
         ModuleInstanceContext moduleInstanceContext = executorContext.instantiate(storeContext, moduleContext);
@@ -171,7 +167,7 @@ public class ExecutorContextTest extends BaseTest {
     @Test
     public void testCallHostFunc() {
         ConfigureContext conf = new ConfigureContext();
-        ASTModuleContext mod = loadMod(conf, TEST_WASM_PATH);
+        AstModuleContext mod = loadMod(conf, TEST_WASM_PATH);
         ValidatorContext validatorContext = new ValidatorContext(conf);
         validatorContext.validate(mod);
 
@@ -189,13 +185,13 @@ public class ExecutorContextTest extends BaseTest {
         Assert.assertNotNull(tab);
 
         // call add
-        List<WasmEdgeValue> param = new ArrayList<>();
-        param.add(new WasmEdgeI32Value(777));
+        List<Value> param = new ArrayList<>();
+        param.add(new I32Value(777));
 
-        List<WasmEdgeValue> returns = new ArrayList<>();
+        List<Value> returns = new ArrayList<>();
         FunctionInstanceContext hostFunc = moduleInstanceContext.findFunction("func-host-add");
         exeCxt.invoke(hostFunc, param, returns);
 
-        Assert.assertEquals(778, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        Assert.assertEquals(778, ((I32Value) returns.get(0)).getValue());
     }
 }

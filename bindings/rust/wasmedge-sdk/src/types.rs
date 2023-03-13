@@ -2,7 +2,7 @@
 
 use crate::FuncRef;
 use wasmedge_sys::WasmValue;
-use wasmedge_types::{self, RefType};
+use wasmedge_types::{self, FuncType, RefType};
 
 /// Defines runtime values that a WebAssembly module can either consume or produce.
 #[derive(Debug, Clone)]
@@ -65,7 +65,8 @@ impl From<WasmValue> for Val {
                     let inner = value
                         .func_ref()
                         .expect("[wasmedge] Failed to convert a WasmValue to a FuncRef.");
-                    Val::FuncRef(Some(FuncRef { inner }))
+                    let ty: FuncType = inner.ty().unwrap().into();
+                    Val::FuncRef(Some(FuncRef { inner, ty }))
                 }
             }
             wasmedge_types::ValType::ExternRef => {
@@ -75,7 +76,6 @@ impl From<WasmValue> for Val {
                     Val::ExternRef(Some(ExternRef { inner: value }))
                 }
             }
-            _ => panic!("unsupported value type"),
         }
     }
 }

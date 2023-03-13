@@ -1,4 +1,4 @@
-//! The [wasmedge-types](https://crates.io/crates/wasmedge-types) crate defines a group of common data structures used by both [wasmedge-rs](https://crates.io/crates/wasmedge-sdk) and [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crates.
+//! The [wasmedge-types](https://crates.io/crates/wasmedge-types) crate defines a group of common data structures used by both [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) and [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crates.
 //!
 //! See also
 //!
@@ -74,8 +74,6 @@ pub enum ValType {
     FuncRef,
     /// A reference to object.
     ExternRef,
-    /// Unknown.
-    None,
 }
 impl From<u32> for ValType {
     fn from(value: u32) -> Self {
@@ -87,7 +85,6 @@ impl From<u32> for ValType {
             123 => ValType::V128,
             112 => ValType::FuncRef,
             111 => ValType::ExternRef,
-            64 => ValType::None,
             _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {value:#X}"),
         }
     }
@@ -102,7 +99,6 @@ impl From<ValType> for u32 {
             ValType::V128 => 123,
             ValType::FuncRef => 112,
             ValType::ExternRef => 111,
-            ValType::None => 64,
         }
     }
 }
@@ -116,7 +112,6 @@ impl From<i32> for ValType {
             123 => ValType::V128,
             112 => ValType::FuncRef,
             111 => ValType::ExternRef,
-            64 => ValType::None,
             _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {value:#X}"),
         }
     }
@@ -131,7 +126,6 @@ impl From<ValType> for i32 {
             ValType::V128 => 123,
             ValType::FuncRef => 112,
             ValType::ExternRef => 111,
-            ValType::None => 64,
         }
     }
 }
@@ -303,12 +297,24 @@ impl From<CompilerOutputFormat> for i32 {
 pub enum HostRegistration {
     Wasi,
     WasmEdgeProcess,
+    WasiNn,
+    WasiCryptoCommon,
+    WasiCryptoAsymmetricCommon,
+    WasiCryptoKx,
+    WasiCryptoSignatures,
+    WasiCryptoSymmetric,
 }
 impl From<u32> for HostRegistration {
     fn from(val: u32) -> Self {
         match val {
             0 => HostRegistration::Wasi,
             1 => HostRegistration::WasmEdgeProcess,
+            2 => HostRegistration::WasiNn,
+            3 => HostRegistration::WasiCryptoCommon,
+            4 => HostRegistration::WasiCryptoAsymmetricCommon,
+            5 => HostRegistration::WasiCryptoKx,
+            6 => HostRegistration::WasiCryptoSignatures,
+            7 => HostRegistration::WasiCryptoSymmetric,
             _ => panic!("Unknown WasmEdge_HostRegistration value: {val}"),
         }
     }
@@ -318,6 +324,12 @@ impl From<HostRegistration> for u32 {
         match val {
             HostRegistration::Wasi => 0,
             HostRegistration::WasmEdgeProcess => 1,
+            HostRegistration::WasiNn => 2,
+            HostRegistration::WasiCryptoCommon => 3,
+            HostRegistration::WasiCryptoAsymmetricCommon => 4,
+            HostRegistration::WasiCryptoKx => 5,
+            HostRegistration::WasiCryptoSignatures => 6,
+            HostRegistration::WasiCryptoSymmetric => 7,
         }
     }
 }
@@ -341,10 +353,7 @@ impl From<u32> for ExternalInstanceType {
             1 => ExternalInstanceType::Table(TableType::default()),
             2 => ExternalInstanceType::Memory(MemoryType::default()),
             3 => ExternalInstanceType::Global(GlobalType::default()),
-            _ => panic!(
-                "[wasmedge-types] Invalid WasmEdge_ExternalType: {:#X}",
-                value
-            ),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_ExternalType: {value:#X}",),
         }
     }
 }
@@ -355,10 +364,7 @@ impl From<i32> for ExternalInstanceType {
             1 => ExternalInstanceType::Table(TableType::default()),
             2 => ExternalInstanceType::Memory(MemoryType::default()),
             3 => ExternalInstanceType::Global(GlobalType::default()),
-            _ => panic!(
-                "[wasmedge-types] Invalid WasmEdge_ExternalType: {:#X}",
-                value
-            ),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_ExternalType: {value:#X}",),
         }
     }
 }

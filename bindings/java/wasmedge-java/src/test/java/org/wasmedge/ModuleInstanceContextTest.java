@@ -5,7 +5,7 @@ import org.junit.Test;
 import org.wasmedge.enums.HostRegistration;
 import org.wasmedge.enums.RefType;
 import org.wasmedge.enums.ValueType;
-import org.wasmedge.enums.WasmEdgeMutability;
+import org.wasmedge.enums.Mutability;
 
 import java.util.List;
 import java.util.UUID;
@@ -29,7 +29,7 @@ public class ModuleInstanceContextTest extends BaseTest {
         executorContext.registerImport(storeContext, hostMod);
 
         // load mod
-        ASTModuleContext mod = loadMod(conf, TEST_WASM_PATH);
+        AstModuleContext mod = loadMod(conf, TEST_WASM_PATH);
         ValidatorContext validator = new ValidatorContext(conf);
         validator.validate(mod);
         executorContext.register(storeContext, mod, "module");
@@ -48,7 +48,7 @@ public class ModuleInstanceContextTest extends BaseTest {
     public void testAddHostFunction() {
         HostFunction addHostFunc = new HostFunction() {
             @Override
-            public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            public Result apply(MemoryInstanceContext mem, List<Value> params, List<Value> returns) {
                 return new Result();
             }
         };
@@ -62,7 +62,7 @@ public class ModuleInstanceContextTest extends BaseTest {
 
     @Test
     public void testAddHostTable() {
-        WasmEdgeLimit limit = new WasmEdgeLimit(true, 10, 20);
+        Limit limit = new Limit(true, 10, 20);
         TableTypeContext tableType = new TableTypeContext(RefType.FUNCREF, limit);
         TableInstanceContext tabIns = new TableInstanceContext(tableType);
         ModuleInstanceContext impCxt = new ModuleInstanceContext("extern");
@@ -71,7 +71,7 @@ public class ModuleInstanceContextTest extends BaseTest {
 
     @Test
     public void testAddHostMemory() {
-        WasmEdgeLimit limit = new WasmEdgeLimit(true, 1, 2);
+        Limit limit = new Limit(true, 1, 2);
         MemoryTypeContext memType = new MemoryTypeContext(limit);
         MemoryInstanceContext memIns = new MemoryInstanceContext(memType);
         ModuleInstanceContext impCxt = new ModuleInstanceContext("extern");
@@ -80,16 +80,16 @@ public class ModuleInstanceContextTest extends BaseTest {
 
     @Test
     public void testAddHostGlobal() {
-        GlobalTypeContext glbType = new GlobalTypeContext(ValueType.i32, WasmEdgeMutability.CONST);
-        GlobalInstanceContext glbIns = new GlobalInstanceContext(glbType, new WasmEdgeI32Value(666));
+        GlobalTypeContext glbType = new GlobalTypeContext(ValueType.i32, Mutability.CONST);
+        GlobalInstanceContext glbIns = new GlobalInstanceContext(glbType, new I32Value(666));
         ModuleInstanceContext impCxt = new ModuleInstanceContext("extern");
         impCxt.addGlobal("global_i32", glbIns);
     }
 
     @Test
     public void testCreateWASI() {
-        ModuleInstanceContext moduleInstanceContext = ModuleInstanceContext.CreateWASI(args, envs, preopens);
-        int code = moduleInstanceContext.getWASIExitCode();
+        ModuleInstanceContext moduleInstanceContext = ModuleInstanceContext.createWasi(args, envs, preopens);
+        int code = moduleInstanceContext.getWasiExitCode();
         Assert.assertEquals(0, code);
     }
 
@@ -97,9 +97,9 @@ public class ModuleInstanceContextTest extends BaseTest {
     public void testInitWasiInVM() {
         ConfigureContext config = new ConfigureContext();
         config.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
-        WasmEdgeVM vm = new WasmEdgeVM(config, null);
+        WasmEdgeVm vm = new WasmEdgeVm(config, null);
         ModuleInstanceContext moduleInstanceContext = vm.getImportModuleContext(HostRegistration.WasmEdge_HostRegistration_Wasi);
-        moduleInstanceContext.initWASI(args, envs, preopens);
+        moduleInstanceContext.initWasi(args, envs, preopens);
     }
 
     @Test
@@ -113,15 +113,18 @@ public class ModuleInstanceContextTest extends BaseTest {
     public void testInitWasmEdgeProcessInVM() {
         ConfigureContext config = new ConfigureContext();
         config.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_WasmEdge_Process);
-        WasmEdgeVM vm = new WasmEdgeVM(config, null);
+        WasmEdgeVm vm = new WasmEdgeVm(config, null);
         ModuleInstanceContext moduleInstanceContext = vm.getImportModuleContext(HostRegistration.WasmEdge_HostRegistration_WasmEdge_Process);
         moduleInstanceContext.initWasmEdgeProcess(args, false);
     }
 
     @Test
     public void testFindFunction() {
+        System.out.println("Start test");
         ModuleInstanceContext moduleInstanceContext = initModuleInstance();
+        System.out.println("Start list func");
         List<String> funcNames = moduleInstanceContext.listFunction();
+        System.out.println("End list func");
         Assert.assertEquals(11, funcNames.size());
 
         for (int i = 0; i < FUNC_NAMES.length; i++) {

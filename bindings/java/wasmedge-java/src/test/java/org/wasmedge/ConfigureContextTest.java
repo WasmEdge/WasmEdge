@@ -55,8 +55,8 @@ public class ConfigureContextTest extends BaseTest {
     public void testCompilerIsDumpIR() {
         ConfigureContext context = new ConfigureContext();
         boolean isDumpIR = true;
-        context.setCompilerIsDumpIR(isDumpIR);
-        Assert.assertEquals(context.getCompilerIsDumpIR(), isDumpIR);
+        context.setCompilerIsDumpIr(isDumpIR);
+        Assert.assertEquals(context.getCompilerIsDumpIr(), isDumpIR);
     }
 
     @Test

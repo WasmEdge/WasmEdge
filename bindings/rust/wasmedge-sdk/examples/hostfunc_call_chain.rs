@@ -16,48 +16,43 @@
 //! There is layer2!
 //! ```
 
-#![feature(never_type)]
-
-use std::sync::{Arc, Mutex};
 use wasmedge_sdk::{
-    error::HostFuncError, params, wat2wasm, CallingFrame, ImportObjectBuilder, Module, Vm,
-    WasmValue,
+    error::HostFuncError, params, wat2wasm, Caller, CallingFrame, ImportObjectBuilder, Module,
+    VmBuilder, WasmValue,
 };
-
-struct Wrapper(*const Vm);
-unsafe impl Send for Wrapper {}
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let vm = Vm::new(None)?;
+    let vm = VmBuilder::new().build()?;
 
-    let host_layer1 = |_frame: &CallingFrame,
-                       _args: Vec<WasmValue>,
-                       _data: *mut std::os::raw::c_void|
-     -> Result<Vec<WasmValue>, HostFuncError> {
-        println!("There is layer1!");
-        Ok(vec![])
-    };
+    let host_layer1 =
+        |_frame: CallingFrame, _args: Vec<WasmValue>| -> Result<Vec<WasmValue>, HostFuncError> {
+            println!("There is layer1!");
+            Ok(vec![])
+        };
 
-    let s = Arc::new(Mutex::new(Wrapper(&vm as *const Vm)));
-    let host_layer2 = move |_frame: &CallingFrame,
-                            _args: Vec<WasmValue>,
-                            _data: *mut std::os::raw::c_void|
+    let host_layer2 = move |frame: CallingFrame,
+                            _args: Vec<WasmValue>|
           -> Result<Vec<WasmValue>, HostFuncError> {
-        unsafe {
-            (*s.lock().unwrap().0)
-                .run_func(None, "layer1", params!())
-                .unwrap();
-        }
+        let caller = Caller::new(frame);
+        let executor = caller.executor().unwrap();
+        let active_instance = caller.instance().unwrap();
+        let fn_host_layer1 = active_instance
+            .func("layer1")
+            .expect("fail to find host function 'host_layer1'");
+        fn_host_layer1.run(executor, params!()).unwrap();
+
         println!("There is layer2!");
         Ok(vec![])
     };
 
+    // create an import object
     let import = ImportObjectBuilder::new()
-        .with_func::<(), (), !>("layer1", host_layer1, None)?
-        .with_func::<(), (), !>("layer2", host_layer2, None)?
+        .with_func::<(), ()>("layer1", host_layer1)?
+        .with_func::<(), ()>("layer2", host_layer2)?
         .build("host")?;
 
+    // register the import object into vm
     let vm = vm.register_import_module(import)?;
 
     let wasm_bytes = wat2wasm(
@@ -79,6 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // register the wasm module into vm
     let vm = vm.register_module(None, module)?;
 
+    // call the host function
     vm.run_func(None, "layer2", params!())?;
 
     Ok(())

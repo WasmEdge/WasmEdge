@@ -1,5 +1,8 @@
 package org.wasmedge.enums;
 
+/**
+ * Enum for proposals.
+ */
 public enum Proposal {
     WasmEdge_Proposal_BulkMemoryOperations,
     WasmEdge_Proposal_ReferenceTypes,

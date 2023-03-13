@@ -1,17 +1,19 @@
 package org.wasmedge;
 
-public class LoaderContext {
-    private long pointer;
+/**
+ * Load context.
+ */
+public class LoaderContext extends NativeResource {
 
     public LoaderContext(ConfigureContext configureContext) {
         nativeInit(configureContext);
     }
 
-    public native ASTModuleContext parseFromFile(String path);
+    public native AstModuleContext parseFromFile(String path);
 
-    public native ASTModuleContext parseFromBuffer(byte[] buf, int bufSize);
+    public native AstModuleContext parseFromBuffer(byte[] buf, int bufSize);
 
     private native void nativeInit(ConfigureContext configureContext);
 
-    public native void delete();
+    public native void close();
 }

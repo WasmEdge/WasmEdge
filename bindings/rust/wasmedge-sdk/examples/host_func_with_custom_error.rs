@@ -12,7 +12,6 @@
 //! User error: OutOfUpperBound
 //! ```
 //! which means that the one or two input numbers of i32 type of the host function are out of upper bound (here is 100).
-#![feature(never_type)]
 
 use thiserror::Error;
 use wasmedge_sdk::{
@@ -20,7 +19,7 @@ use wasmedge_sdk::{
     error::{HostFuncError, WasmEdgeError},
     host_function, params,
     types::ExternRef,
-    Caller, ImportObjectBuilder, ValType, Vm, WasmVal, WasmValue,
+    Caller, ImportObjectBuilder, ValType, VmBuilder, WasmVal, WasmValue,
 };
 
 // Define custom error type
@@ -59,7 +58,7 @@ impl From<u32> for MyError {
 
 // compute the sum of two numbers, which are less than 100
 #[host_function]
-fn real_add(_caller: &Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn real_add(_caller: Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     if input.len() != 3 {
         return Err(HostFuncError::User(MyError::InvalidArguments.into()));
     }
@@ -97,12 +96,15 @@ fn real_add(_caller: &Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, H
 fn main() -> anyhow::Result<()> {
     // create import module
     let import = ImportObjectBuilder::new()
-        .with_func::<(ExternRef, i32, i32), i32, !>("add", real_add, None)?
+        .with_func::<(ExternRef, i32, i32), i32>("add", real_add)?
         .build("extern_module")?;
 
     // create a vm instance
     let config = ConfigBuilder::default().build()?;
-    let vm = Vm::new(Some(config))?.register_import_module(import)?;
+    let mut vm = VmBuilder::new()
+        .with_config(config)
+        .build()?
+        .register_import_module(import)?;
 
     // run the export wasm function named "call_add" from func.wasm
     let wasm_file = std::env::current_dir()?.join("examples/data/funcs.wasm");

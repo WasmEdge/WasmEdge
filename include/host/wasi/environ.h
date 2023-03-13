@@ -507,6 +507,8 @@ public:
     std::unique_lock Lock(FdMutex);
     if (auto It = FdMap.find(Fd); It == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else if (It->second->isPreopened()) {
+      return WasiUnexpect(__WASI_ERRNO_NOTSUP);
     } else if (auto It2 = FdMap.find(To); It2 == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else if (It2->second->isPreopened()) {
@@ -944,19 +946,21 @@ public:
   /// @param[in] RiFlags Message flags.
   /// @param[in] Address Address of the target.
   /// @param[in] AddressLength The buffer size of Address.
+  /// @param[out] PortPtr The address to store port.
   /// @param[out] NRead Return the number of bytes stored in RiData.
   /// @param[out] RoFlags Return message flags.
   /// @return Nothing or WASI error.
   WasiExpect<void> sockRecvFrom(__wasi_fd_t Fd, Span<Span<uint8_t>> RiData,
                                 __wasi_riflags_t RiFlags, uint8_t *Address,
-                                uint8_t AddressLength, __wasi_size_t &NRead,
+                                uint8_t AddressLength, uint32_t *PortPtr,
+                                __wasi_size_t &NRead,
                                 __wasi_roflags_t &RoFlags) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockRecvFrom(RiData, RiFlags, Address, AddressLength, NRead,
-                                RoFlags);
+      return Node->sockRecvFrom(RiData, RiFlags, Address, AddressLength,
+                                PortPtr, NRead, RoFlags);
     }
   }
 
@@ -1046,25 +1050,23 @@ public:
     }
   }
 
-  WasiExpect<void> sockGetLoaclAddr(__wasi_fd_t Fd, uint8_t *Address,
-                                    uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetLocalAddr(__wasi_fd_t Fd, uint8_t *Address,
                                     uint32_t *PortPtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockGetLoaclAddr(Address, AddrTypePtr, PortPtr);
+      return Node->sockGetLocalAddr(Address, PortPtr);
     }
   }
 
   WasiExpect<void> sockGetPeerAddr(__wasi_fd_t Fd, uint8_t *Address,
-                                   uint32_t *AddrTypePtr,
                                    uint32_t *PortPtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockGetPeerAddr(Address, AddrTypePtr, PortPtr);
+      return Node->sockGetPeerAddr(Address, PortPtr);
     }
   }
 

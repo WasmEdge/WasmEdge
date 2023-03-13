@@ -10,8 +10,8 @@ Expect<void>
 Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
                             Runtime::Instance::MemoryInstance &MemInst,
                             const AST::Instruction &Instr) {
-  ValVariant RawAddress = StackMgr.pop();
-  ValVariant &RawCount = StackMgr.getTop();
+  ValVariant RawCount = StackMgr.pop();
+  ValVariant &RawAddress = StackMgr.getTop();
 
   uint32_t Address = RawAddress.get<uint32_t>();
 
@@ -27,14 +27,21 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
   }
   Address += Instr.getMemoryOffset();
 
-  uint32_t Count = RawCount.get<uint32_t>();
+  if (Address % sizeof(uint32_t) != 0) {
+    spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
+  }
 
+  uint32_t Count = RawCount.get<uint32_t>();
   if (auto Res = atomicNotify(MemInst, Address, Count); unlikely(!Res)) {
+    spdlog::error(Res.error());
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
   } else {
-    RawCount.emplace<uint32_t>(*Res);
+    RawAddress.emplace<uint32_t>(*Res);
   }
   return {};
 }
@@ -47,8 +54,11 @@ Expect<void> Executor::runMemoryFenceOp() {
 Expect<uint32_t>
 Executor::atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
                        uint32_t Address, uint32_t Count) noexcept {
-  if (!MemInst.isShared()) {
-    return UINT32_C(0);
+  // The error message should be handled by the caller, or the AOT mode will
+  // produce the duplicated messages.
+  if (auto *AtomicObj = MemInst.getPointer<std::atomic<uint32_t> *>(Address);
+      !AtomicObj) {
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 
   std::unique_lock<decltype(WaiterMapMutex)> Locker(WaiterMapMutex);

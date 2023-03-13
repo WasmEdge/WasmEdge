@@ -1,14 +1,15 @@
 package org.wasmedge;
 
-import org.wasmedge.enums.ValueType;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.wasmedge.enums.ValueType;
 
-public class FunctionTypeContext {
-    private long pointer;
+/**
+ * Function type definition.
+ */
+public class FunctionTypeContext extends NativeResource {
     private String name;
 
     public FunctionTypeContext(List<ValueType> paramTypes,
@@ -22,7 +23,7 @@ public class FunctionTypeContext {
     }
 
     private FunctionTypeContext(long pointer) {
-        this.pointer = pointer;
+        super(pointer);
     }
 
     private native void nativeInit(int[] paramsTypes, int[] returnTypes);
@@ -61,22 +62,6 @@ public class FunctionTypeContext {
 
     private native int[] nativeGetReturns();
 
-    public native void delete();
-
-    private int[] getValueTypeArray(List<WasmEdgeValue> values) {
-
-        int[] types = new int[values.size()];
-
-        for (int i = 0; i < values.size(); i++) {
-            types[i] = values.get(i).getType().ordinal();
-        }
-        return types;
-    }
-
-    private WasmEdgeValue[] valueListToArray(List<WasmEdgeValue> values) {
-        WasmEdgeValue[] valuesArray = new WasmEdgeValue[values.size()];
-        values.toArray(valuesArray);
-        return valuesArray;
-    }
+    public native void close();
 
 }

@@ -1,14 +1,18 @@
-#![feature(never_type)]
+//!
+//! ```bash
+//! // go into the directory: bindings/rust
+//! cargo run -p wasmedge-sys --example table_and_funcref -- --nocapture
+//! ```
 
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
-    AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Table,
-    TableType, Vm, WasmValue,
+    AsImport, CallingFrame, Config, Executor, FuncType, Function, ImportModule, ImportObject,
+    Store, Table, TableType, WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, RefType, ValType};
 
 #[sys_host_function]
-fn real_add(_frame: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn real_add(_frame: CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 2 {
@@ -39,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a FuncType
     let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32])?;
     // create a host function
-    let host_func = Function::create::<!>(&func_ty, Box::new(real_add), None, 0)?;
+    let host_func = Function::create(&func_ty, Box::new(real_add), 0)?;
 
     // create a TableType instance
     let ty = TableType::create(RefType::FuncRef, 10, Some(20))?;
@@ -52,17 +56,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut import = ImportModule::create("extern")?;
     import.add_table("my-table", table);
 
-    // create a Vm instance
+    // create a config
     let mut config = Config::create()?;
     config.bulk_memory_operations(true);
-    let mut vm = Vm::create(Some(config), None)?;
-    // register the import object to the Vm instance
-    vm.register_wasm_from_import(ImportObject::Import(import))?;
 
-    // get the internal store instance from the vm instance
-    let mut store = vm.store_mut()?;
+    // create an executor
+    let mut executor = Executor::create(Some(&config), None)?;
+
+    // create a store
+    let mut store = Store::create()?;
+
+    // register the import object
+    let import_obj = ImportObject::Import(import);
+    executor.register_import_object(&mut store, &import_obj)?;
+
     //get the module instance named "extern"
     let instance = store.module("extern")?;
+
     // get the exported table named "my-table"
     let table = instance.get_table("my-table")?;
     // call get_data to recover the function reference from the value at the given index of the table instance

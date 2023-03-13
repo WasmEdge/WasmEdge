@@ -247,7 +247,7 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
   uint32_t TotalLocalCnt = 0;
   for (uint32_t I = 0; I < VecCnt; ++I) {
     uint32_t LocalCnt = 0;
-    ValType LocalType = ValType::None;
+    ValType LocalType;
     if (auto Res = FMgr.readU32(); unlikely(!Res)) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Code);
@@ -267,7 +267,7 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     } else {
       LocalType = static_cast<ValType>(*Res);
     }
-    if (auto Res = checkValTypeProposals(LocalType, false, FMgr.getLastOffset(),
+    if (auto Res = checkValTypeProposals(LocalType, FMgr.getLastOffset(),
                                          ASTNodeAttr::Seg_Code);
         unlikely(!Res)) {
       return Unexpect(Res);

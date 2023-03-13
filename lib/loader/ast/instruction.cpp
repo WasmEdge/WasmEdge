@@ -113,6 +113,18 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     }
     Cnt++;
   } while (!IsReachEnd);
+
+  // Check the loaded offset should match the segment boundary.
+  if (SizeBound.has_value()) {
+    auto Offset = FMgr.getOffset();
+    if (Offset < SizeBound.value()) {
+      return logLoadError(ErrCode::Value::JunkSection, Offset,
+                          ASTNodeAttr::Instruction);
+    } else if (Offset > SizeBound.value()) {
+      return logLoadError(ErrCode::Value::SectionSizeMismatch, Offset,
+                          ASTNodeAttr::Instruction);
+    }
+  }
   return Instrs;
 }
 
@@ -185,16 +197,22 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Loop:
   case OpCode::If:
     // Read the block return type.
-    if (auto Res = FMgr.readS32()) {
+    if (auto Res = FMgr.readS33()) {
       if (*Res < 0) {
         // Value type case.
-        ValType VType = static_cast<ValType>((*Res) & INT32_C(0x7F));
-        if (auto Check = checkValTypeProposals(
-                VType, true, FMgr.getLastOffset(), ASTNodeAttr::Instruction);
-            unlikely(!Check)) {
-          return Unexpect(Check);
+        // TODO: may check whether the `TypeByte` exceed the range.
+        Byte TypeByte = static_cast<Byte>((*Res) & INT64_C(0x7F));
+        if (TypeByte == 0x40) {
+          Instr.setEmptyBlockType();
+        } else {
+          ValType VType = static_cast<ValType>(TypeByte);
+          if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
+                                                 ASTNodeAttr::Instruction);
+              unlikely(!Check)) {
+            return Unexpect(Check);
+          }
+          Instr.setBlockType(VType);
         }
-        Instr.setBlockType(VType);
       } else {
         // Type index case.
         if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
@@ -303,7 +321,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       } else {
         VType = static_cast<ValType>(*T);
       }
-      if (auto Check = checkValTypeProposals(VType, false, FMgr.getLastOffset(),
+      if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
                                              ASTNodeAttr::Instruction);
           unlikely(!Check)) {
         return Unexpect(Check);
@@ -856,11 +874,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::F64x2__floor:
   case OpCode::F64x2__trunc:
   case OpCode::F64x2__nearest:
-
-  case OpCode::Atomic__fence:
     return {};
 
   // Atomic Memory Instructions.
+  case OpCode::Atomic__fence:
+    return readCheckZero(Instr.getTargetIndex());
+
   case OpCode::Memory__atomic__notify:
   case OpCode::Memory__atomic__wait32:
   case OpCode::Memory__atomic__wait64:

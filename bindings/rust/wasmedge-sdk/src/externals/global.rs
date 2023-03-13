@@ -4,36 +4,38 @@ use crate::{types::Val, GlobalType, WasmEdgeResult};
 use wasmedge_sys as sys;
 
 /// Defines a WebAssembly global variable, which stores a single value of the given [GlobalType](https://wasmedge.github.io/WasmEdge/wasmedge_types/struct.GlobalType.html) and a flag indicating whether it is mutable or not.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Global {
     pub(crate) inner: sys::Global,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
+    pub(crate) ty: GlobalType,
 }
 impl Global {
-    /// Creates a new wasm global variable with the given type and initial value.
+    /// Creates a new wasm Global instance with the given type and initial value.
     ///
     /// # Arguments
     ///
-    /// * `ty` - The type of the global variable to be created.
+    /// * `ty` - The type of the Global instance to be created.
     ///
-    /// * `init` - The initial value of the global variable.
+    /// * `init` - The initial value of the Global instance.
     ///
     /// # Error
     ///
-    /// If fail to create the global variable, then an error is returned.
+    /// * If fail to create the Global instance, then WasmEdgeError::Global(GlobalError::Create)(crate::error::GlobalError) is returned.
     pub fn new(ty: GlobalType, init: Val) -> WasmEdgeResult<Self> {
-        let inner = sys::Global::create(&ty.into(), init.into())?;
+        let inner = sys::Global::create(&ty.clone().into(), init.into())?;
         Ok(Self {
             inner,
             name: None,
             mod_name: None,
+            ty,
         })
     }
 
-    /// Returns the exported name of this [Global].
+    /// Returns the exported name of this Global instance.
     ///
-    /// Notice that this field is meaningful only if this global variable is used as an exported instance.
+    /// Notice that this field is meaningful only if this Global instance is used as an exported instance.
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),
@@ -41,9 +43,9 @@ impl Global {
         }
     }
 
-    /// Returns the name of the [module instance](crate::Instance) from which this [Global] exports.
+    /// Returns the name of the [module instance](crate::Instance) from which this Global instance exports.
     ///
-    /// Notice that this field is meaningful only if this global variable is used as an exported instance.
+    /// Notice that this field is meaningful only if this Global instance is used as an exported instance.
     pub fn mod_name(&self) -> Option<&str> {
         match &self.mod_name {
             Some(mod_name) => Some(mod_name.as_ref()),
@@ -51,24 +53,23 @@ impl Global {
         }
     }
 
-    /// Returns the type of this [Global].
-    pub fn ty(&self) -> WasmEdgeResult<GlobalType> {
-        let gt = self.inner.ty()?;
-        Ok(gt.into())
+    /// Returns a reference to the type of this Global instance.
+    pub fn ty(&self) -> &GlobalType {
+        &self.ty
     }
 
-    /// Returns the current value of this [Global].
+    /// Returns the current value of this Global instance.
     pub fn get_value(&self) -> Val {
         self.inner.get_value().into()
     }
 
-    /// Sets a new value of this [Global].
+    /// Sets a new value of this Global instance.
     ///
     /// Notice that only global variables of [Var](wasmedge_types::Mutability) type are allowed to perform this function.
     ///
     /// # Argument
     ///
-    /// * `value` - The new value of the [Global].
+    /// * `value` - The new value of the Global instance.
     ///
     /// # Error
     ///
@@ -149,13 +150,13 @@ mod tests {
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the Const global from the store of vm
         let result = instance.global("const-global");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut const_global = result.unwrap();
 
         // check global
@@ -163,9 +164,7 @@ mod tests {
         assert_eq!(const_global.name().unwrap(), "const-global");
         assert!(const_global.mod_name().is_some());
         assert_eq!(const_global.mod_name().unwrap(), "extern");
-        let result = const_global.ty();
-        assert!(result.is_ok());
-        let ty = result.unwrap();
+        let ty = const_global.ty();
         assert_eq!(ty.value_ty(), ValType::I32);
         assert_eq!(ty.mutability(), Mutability::Const);
 
@@ -183,13 +182,13 @@ mod tests {
         );
 
         // get the Var global from the store of vm
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the Var global from the store of vm
         let result = instance.global("var-global");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut var_global = result.unwrap();
 
         // check global
@@ -197,9 +196,7 @@ mod tests {
         assert_eq!(var_global.name().unwrap(), "var-global");
         assert!(var_global.mod_name().is_some());
         assert_eq!(var_global.mod_name().unwrap(), "extern");
-        let result = var_global.ty();
-        assert!(result.is_ok());
-        let ty = result.unwrap();
+        let ty = var_global.ty();
         assert_eq!(ty.value_ty(), ValType::F32);
         assert_eq!(ty.mutability(), Mutability::Var);
 
@@ -214,7 +211,7 @@ mod tests {
 
         // get the value of var_global again
         let result = instance.global("var-global");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let var_global = result.unwrap();
         if let Val::F32(value) = var_global.get_value() {
             assert_eq!(value, 1.314);

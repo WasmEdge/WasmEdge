@@ -2,13 +2,14 @@ package org.wasmedge;
 
 import org.wasmedge.enums.ExternalType;
 
-public class ExportTypeContext {
-    private final ASTModuleContext astCtx;
+/**
+ * Context for exported type, including functions, memory, table and globals.
+ */
+public class ExportTypeContext extends NativeResource {
+    private final AstModuleContext astCtx;
 
-    private final long pointer;
-
-    private ExportTypeContext(long pointer, ASTModuleContext astCtx) {
-        this.pointer = pointer;
+    private ExportTypeContext(long pointer, AstModuleContext astCtx) {
+        super(pointer);
         this.astCtx = astCtx;
     }
 
@@ -27,24 +28,25 @@ public class ExportTypeContext {
         return nativeGetFunctionType(astCtx);
     }
 
-    private native FunctionTypeContext nativeGetFunctionType(ASTModuleContext astCtx);
+    private native FunctionTypeContext nativeGetFunctionType(AstModuleContext astCtx);
 
     public TableTypeContext getTableType() {
         return nativeGetTableType(astCtx);
     }
 
-    private native TableTypeContext nativeGetTableType(ASTModuleContext astCtx);
+    private native TableTypeContext nativeGetTableType(AstModuleContext astCtx);
 
     public MemoryTypeContext getMemoryType() {
         return nativeGetMemoryType(astCtx);
     }
 
-    private native MemoryTypeContext nativeGetMemoryType(ASTModuleContext astCtx);
+    private native MemoryTypeContext nativeGetMemoryType(AstModuleContext astCtx);
 
     public GlobalTypeContext getGlobalType() {
         return nativeGetGlobalType(astCtx);
     }
 
-    private native GlobalTypeContext nativeGetGlobalType(ASTModuleContext astCtx);
+    private native GlobalTypeContext nativeGetGlobalType(AstModuleContext astCtx);
 
+    public native void close();
 }

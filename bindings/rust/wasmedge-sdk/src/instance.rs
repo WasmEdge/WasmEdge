@@ -1,14 +1,14 @@
 //! Defines WasmEdge Instance.
 
-use crate::{Func, Global, Memory, Table, WasmEdgeResult};
+use crate::{
+    Func, FuncType, Global, GlobalType, Memory, MemoryType, Table, TableType, WasmEdgeResult,
+};
 use wasmedge_sys as sys;
-#[cfg(target_os = "linux")]
-use wasmedge_sys::{AsImport, AsInstance as sys_as_instance_trait};
 
 /// Represents an instantiated module.
 ///
 /// An [Instance] represents an instantiated module. In the instantiation process, A [module instance](crate::Instance) is created based on a [compiled module](crate::Module). From a [module instance] the exported [host function](crate::Func), [table](crate::Table), [memory](crate::Memory), and [global](crate::Global) instances can be fetched.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Instance {
     pub(crate) inner: sys::Instance,
 }
@@ -35,17 +35,16 @@ impl Instance {
     /// # Argument
     ///
     /// * `name` - the name of the target exported [function instance](crate::Func).
-    pub fn func(&self, name: impl AsRef<str>) -> Option<Func> {
-        let inner_func = self.inner.get_func(name.as_ref()).ok();
-        if let Some(inner_func) = inner_func {
-            return Some(Func {
-                inner: inner_func,
-                name: Some(name.as_ref().into()),
-                mod_name: self.inner.name(),
-            });
-        }
+    pub fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
+        let inner_func = self.inner.get_func(name.as_ref())?;
+        let ty: FuncType = inner_func.ty()?.into();
 
-        None
+        Ok(Func {
+            inner: inner_func,
+            name: Some(name.as_ref().into()),
+            mod_name: self.inner.name(),
+            ty,
+        })
     }
 
     /// Returns the count of the exported [global instances](crate::Global) in this [module instance](crate::Instance).
@@ -63,17 +62,16 @@ impl Instance {
     /// # Argument
     ///
     /// * `name` - the name of the target exported [global instance](crate::Global).
-    pub fn global(&self, name: impl AsRef<str>) -> Option<Global> {
-        let inner_global = self.inner.get_global(name.as_ref()).ok();
-        if let Some(inner_global) = inner_global {
-            return Some(Global {
-                inner: inner_global,
-                name: Some(name.as_ref().into()),
-                mod_name: self.inner.name(),
-            });
-        }
+    pub fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
+        let inner_global = self.inner.get_global(name.as_ref())?;
+        let ty: GlobalType = inner_global.ty()?.into();
 
-        None
+        Ok(Global {
+            inner: inner_global,
+            name: Some(name.as_ref().into()),
+            mod_name: self.inner.name(),
+            ty,
+        })
     }
 
     /// Returns the count of the exported [memory instances](crate::Memory) in this [module instance](crate::Instance).
@@ -91,17 +89,16 @@ impl Instance {
     /// # Argument
     ///
     /// * `name` - the name of the target exported [memory instance](crate::Memory).
-    pub fn memory(&self, name: impl AsRef<str>) -> Option<Memory> {
-        let inner_memory = self.inner.get_memory(name.as_ref()).ok();
-        if let Some(inner_memory) = inner_memory {
-            return Some(Memory {
-                inner: inner_memory,
-                name: Some(name.as_ref().into()),
-                mod_name: self.inner.name(),
-            });
-        }
+    pub fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
+        let inner_memory = self.inner.get_memory(name.as_ref())?;
+        let ty: MemoryType = inner_memory.ty()?.into();
 
-        None
+        Ok(Memory {
+            inner: inner_memory,
+            name: Some(name.as_ref().into()),
+            mod_name: self.inner.name(),
+            ty,
+        })
     }
 
     /// Returns the count of the exported [table instances](crate::Table) in this [module instance](crate::Instance).
@@ -119,114 +116,15 @@ impl Instance {
     /// # Argument
     ///
     /// * `name` - the name of the target exported [table instance](crate::Table).
-    pub fn table(&self, name: impl AsRef<str>) -> Option<Table> {
-        let inner_table = self.inner.get_table(name.as_ref()).ok();
-        if let Some(inner_table) = inner_table {
-            return Some(Table {
-                inner: inner_table,
-                name: Some(name.as_ref().into()),
-                mod_name: self.inner.name(),
-            });
-        }
-
-        None
-    }
-}
-
-/// Represents a wasmedge_process module instance.
-#[derive(Debug)]
-#[cfg(target_os = "linux")]
-pub struct WasmEdgeProcessInstance {
-    pub(crate) inner: sys::WasmEdgeProcessModule,
-}
-#[cfg(target_os = "linux")]
-impl WasmEdgeProcessInstance {
-    /// Initializes the wasmedge_process host module with the parameters.
-    ///
-    /// # Arguments
-    ///
-    /// * `allowed_cmds` - A white list of commands.
-    ///
-    /// * `allowed` - Determines if wasmedge_process is allowed to execute all commands on the white list.
-    pub fn initialize(&mut self, allowed_cmds: Option<Vec<&str>>, allowed: bool) {
-        self.inner.init_wasmedge_process(allowed_cmds, allowed);
-    }
-}
-#[cfg(target_os = "linux")]
-impl AsInstance for WasmEdgeProcessInstance {
-    fn name(&self) -> &str {
-        self.inner.name()
-    }
-
-    fn func_count(&self) -> usize {
-        self.inner.func_len() as usize
-    }
-
-    fn func_names(&self) -> Option<Vec<String>> {
-        self.inner.func_names()
-    }
-
-    fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
-        let inner_func = self.inner.get_func(name.as_ref())?;
-
-        Ok(Func {
-            inner: inner_func,
-            name: Some(name.as_ref().into()),
-            mod_name: None,
-        })
-    }
-
-    fn global_count(&self) -> usize {
-        self.inner.global_len() as usize
-    }
-
-    fn global_names(&self) -> Option<Vec<String>> {
-        self.inner.global_names()
-    }
-
-    fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
-        let inner_global = self.inner.get_global(name.as_ref())?;
-
-        Ok(Global {
-            inner: inner_global,
-            name: Some(name.as_ref().into()),
-            mod_name: None,
-        })
-    }
-
-    fn memory_count(&self) -> usize {
-        self.inner.mem_len() as usize
-    }
-
-    fn memory_names(&self) -> Option<Vec<String>> {
-        self.inner.mem_names()
-    }
-
-    fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
-        let inner_memory = self.inner.get_memory(name.as_ref())?;
-
-        Ok(Memory {
-            inner: inner_memory,
-            name: Some(name.as_ref().into()),
-            mod_name: None,
-        })
-    }
-
-    fn table_count(&self) -> usize {
-        self.inner.table_len() as usize
-    }
-
-    fn table_names(&self) -> Option<Vec<String>> {
-        self.inner.table_names()
-    }
-
-    fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
+    pub fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let inner_table = self.inner.get_table(name.as_ref())?;
+        let ty: TableType = inner_table.ty()?.into();
 
         Ok(Table {
             inner: inner_table,
             name: Some(name.as_ref().into()),
-            mod_name: None,
+            mod_name: self.inner.name(),
+            ty,
         })
     }
 }
@@ -324,7 +222,7 @@ mod tests {
 
         // check the exported instances
         assert_eq!(store.named_instance_count(), 0);
-        assert!(store.instance_names().is_none());
+        assert_eq!(store.instance_names().len(), 0);
 
         // create a Const global instance
         let result = Global::new(
@@ -349,7 +247,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32, !>("add", real_add, None)
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -377,16 +275,16 @@ mod tests {
 
         // check the exported instances
         assert_eq!(store.named_instance_count(), 2);
-        assert!(store.instance_names().is_some());
-        let mod_names = store.instance_names().unwrap();
+        assert_eq!(store.instance_names().len(), 2);
+        let mod_names = store.instance_names();
         assert_eq!(mod_names[0], "extern-module");
         assert_eq!(mod_names[1], "fib-module");
 
         // check the module instance named "extern-module"
         {
             assert_eq!(mod_names[0], "extern-module");
-            let result = store.module_instance(mod_names[0].as_str());
-            assert!(result.is_some());
+            let result = store.named_instance(mod_names[0].as_str());
+            assert!(result.is_ok());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
             assert_eq!(instance.name().unwrap(), mod_names[0]);
@@ -398,11 +296,11 @@ mod tests {
 
             // check the exported host function
             let result = instance.func("add");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let host_func = result.unwrap();
             assert_eq!(
-                host_func.ty().unwrap(),
-                FuncTypeBuilder::new()
+                host_func.ty(),
+                &FuncTypeBuilder::new()
                     .with_args(vec![ValType::I32; 2])
                     .with_returns(vec![ValType::I32])
                     .build()
@@ -410,7 +308,7 @@ mod tests {
 
             // check the exported table
             let result = instance.table("table");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let table = result.unwrap();
 
             let table_name = table.name();
@@ -421,16 +319,17 @@ mod tests {
 
             // check the exported memory
             let result = instance.memory("mem");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let memory = result.unwrap();
 
             assert_eq!(memory.name().unwrap(), "mem");
             assert_eq!(memory.mod_name().unwrap(), "extern-module");
-            assert_eq!(memory.size(), 10);
+            assert_eq!(memory.page(), 10);
+            assert_eq!(memory.size(), 65536 * 10);
 
             // check the exported global
             let result = instance.global("global");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let global = result.unwrap();
             let val = global.get_value();
             if let Val::F32(val) = val {
@@ -441,8 +340,8 @@ mod tests {
         // check the module instance named "fib-module"
         {
             assert_eq!(mod_names[1], "fib-module");
-            let result = store.module_instance(mod_names[1].as_str());
-            assert!(result.is_some());
+            let result = store.named_instance(mod_names[1].as_str());
+            assert!(result.is_ok());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
             assert_eq!(instance.name().unwrap(), mod_names[1]);
@@ -454,11 +353,11 @@ mod tests {
 
             // check the exported host function
             let result = instance.func("fib");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let host_func = result.unwrap();
             assert_eq!(
-                host_func.ty().unwrap(),
-                FuncTypeBuilder::new()
+                host_func.ty(),
+                &FuncTypeBuilder::new()
                     .with_args(vec![ValType::I32])
                     .with_returns(vec![ValType::I32])
                     .build()
@@ -467,9 +366,8 @@ mod tests {
     }
 
     fn real_add(
-        _frame: &CallingFrame,
+        _frame: CallingFrame,
         inputs: Vec<WasmValue>,
-        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

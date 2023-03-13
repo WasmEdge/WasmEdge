@@ -1,0 +1,110 @@
+name: rust-standalone-test
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+    branches:
+      - master
+      - "rust/*"
+
+jobs:
+  build_ubuntu_2204:
+    name: Ubuntu-22.04
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up build environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common libboost-all-dev ninja-build
+          sudo apt-get install -y llvm-14-dev liblld-14-dev clang-14
+          sudo apt-get install -y gcc g++
+          sudo apt-get install -y libssl-dev pkg-config gh
+
+      - name: Install Rust v1.65
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.65
+          components: rustfmt, clippy
+
+      - name: Run in the standalone mode
+        working-directory: bindings/rust/
+        run: |
+          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          export CC=clang
+          export CXX=clang++
+          export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
+          export WASMEDGE_DIR="$(pwd)/../../"
+          cargo test -p wasmedge-sdk --all --examples --features standalone
+
+  build_ubuntu_2004:
+    name: Ubuntu-20.04
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up build environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common libboost-all-dev ninja-build
+          sudo apt-get install -y llvm-12-dev liblld-12-dev clang-12
+          sudo apt-get install -y gcc g++
+          sudo apt-get install -y libssl-dev pkg-config gh
+
+      - name: Install Rust v1.65
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.65
+          components: rustfmt, clippy
+
+      - name: Run in the standalone mode
+        working-directory: bindings/rust/
+        run: |
+          export LLVM_DIR="/usr/local/opt/llvm@12/lib/cmake"
+          export CC=clang
+          export CXX=clang++
+          export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
+          export WASMEDGE_DIR="$(pwd)/../../"
+          cargo test -p wasmedge-sdk --all --examples --features standalone
+
+  build_macos:
+    name: MacOS
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-11, macos-12]
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust v1.65
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.65
+          components: rustfmt, clippy
+
+      - name: Install build tools
+        run: brew install llvm@14 ninja boost cmake
+
+      - name: Install libwasmedge
+        working-directory: bindings/rust/
+        run: |
+          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          export CC=clang
+          export CXX=clang++
+          export DYLD_LIBRARY_PATH="/Users/runner/.wasmedge/lib"
+          export WASMEDGE_DIR="$(pwd)/../../"
+          cargo test -p wasmedge-sdk --all --examples --features standalone

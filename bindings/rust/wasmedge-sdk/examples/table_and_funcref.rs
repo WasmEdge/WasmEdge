@@ -1,6 +1,5 @@
 // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 // #![feature(explicit_generic_args_with_impl_trait)]
-#![feature(never_type)]
 
 use wasmedge_sdk::{
     config::{CommonConfigOptions, ConfigBuilder},
@@ -12,7 +11,7 @@ use wasmedge_sdk::{
 };
 
 #[host_function]
-fn real_add(_: &Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn real_add(_: Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 2 {
@@ -62,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // get the imported module instance
     let instance = store
-        .module_instance("extern")
+        .named_instance("extern")
         .expect("Not found module instance named 'extern'");
 
     // get the exported table instance
@@ -71,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Not found table instance named 'my-table'");
 
     // create a host function
-    let host_func = Func::wrap::<(i32, i32), i32, !>(Box::new(real_add), None)?;
+    let host_func = Func::wrap::<(i32, i32), i32>(Box::new(real_add))?;
 
     // store the reference to host_func at the given index of the table instance
     table.set(3, Val::FuncRef(Some(host_func.as_ref())))?;
@@ -80,7 +79,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let value = table.get(3)?;
     if let Val::FuncRef(Some(func_ref)) = value {
         // get the function type by func_ref
-        let func_ty = func_ref.ty()?;
+        let func_ty = func_ref.ty();
 
         // arguments
         assert_eq!(func_ty.args_len(), 2);
@@ -93,7 +92,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(return_tys, [ValType::I32]);
 
         // call the function by func_ref
-        let returns = func_ref.call(&mut executor, params!(1, 2))?;
+        let returns = func_ref.run(&executor, params!(1, 2))?;
         assert_eq!(returns.len(), 1);
         assert_eq!(returns[0].to_i32(), 3);
     }

@@ -12,7 +12,9 @@ on:
 jobs:
   crate_release:
     name: Create Release
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
+    container:
+      image: wasmedge/wasmedge:ubuntu-build-clang
 
     steps:
       - uses: actions/checkout@v3
@@ -21,26 +23,15 @@ jobs:
 
       - name: Set up build environment
         run: |
-          sudo apt-get update
-          sudo apt-get install -y software-properties-common cmake libboost-all-dev llvm-12-dev liblld-12-dev ninja-build
-          sudo apt-get install -y gcc g++ clang-12
-          sudo apt-get install -y libssl-dev pkg-config gh
+          apt update
+          apt install -y software-properties-common libboost-all-dev ninja-build
+          apt install -y llvm-12-dev liblld-12-dev
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust v1.65
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly
-          profile: minimal
-          override: true
-
-      - name: Set git credentials
-        run: |
-          git config --global user.name github-actions
-          git config --global user.email github-actions@github.com
-
-      - name: Prepare release
-        run: |
-          cargo install cargo-smart-release
+          toolchain: 1.65
+          components: rustfmt, clippy
 
       - name: Build WasmEdge with Release mode
         run: |
@@ -56,7 +47,7 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-          cargo smart-release --update-crates-index --dry-run-cargo-publish --no-dependencies --no-changelog wasmedge-sys
+          cargo publish --dry-run -p wasmedge-sys
 
       - name: Publish
         if: github.ref == 'refs/heads/master'
@@ -69,16 +60,16 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-          cargo smart-release --update-crates-index --execute --no-dependencies --no-changelog wasmedge-sys
+          cargo publish -p wasmedge-sys
 
       - name: Build API document
-        working-directory: bindings/rust/wasmedge-sys
+        working-directory: bindings/rust/
         run: |
           export WASMEDGE_DIR="$(pwd)/../../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../../build/lib/api"
-          cargo doc --all --no-deps --target-dir=./target
+          cargo doc -p wasmedge-sys --workspace --no-deps --features aot,async,wasi_crypto,wasi_nn --target-dir=./target
 
       - name: Deploy API document
         if: github.ref == 'refs/heads/master'

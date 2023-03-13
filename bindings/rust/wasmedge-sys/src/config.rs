@@ -1,11 +1,12 @@
 //! Defines WasmEdge Config struct.
 
 use crate::{error::WasmEdgeError, ffi, WasmEdgeResult};
+#[cfg(feature = "aot")]
 use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
 /// Defines Config struct used to check/set the configuration options.
 ///
-/// [Config](crate::Config) manages the configuration options, which are used to initiate WasmEdge [Vm](crate::Vm), [Loader](crate::Loader), [Validator](crate::Validator), [Executor](crate::Executor), and [Compiler](crate::Compiler).
+/// [Config](crate::Config) manages the configuration options, which are used to initiate [Loader](crate::Loader), [Validator](crate::Validator), [Executor](crate::Executor), and [Compiler](crate::Compiler).
 ///
 /// The configuration options are categorized into the following four groups:
 ///
@@ -71,15 +72,12 @@ use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 ///       Also see [Function References Proposal](https://github.com/WebAssembly/function-references/blob/master/proposals/function-references/Overview.md).
 ///
 /// - **Host Registrations**
-///     - `Wasi` turns on the `WASI` support in [Vm](crate::Vm).
+///     - `Wasi` turns on the `WASI` support.
 ///
-///     - `WasmEdgeProcess` turns on the `wasmedge_process` support in [Vm](crate::Vm).
+///     - `WasmEdgeProcess` turns on the `wasmedge_process` support.
 ///     
-///     The two options are only effective to [Vm](crate::Vm).
-///
 /// - **Memory Management**
-///     - `maximum_memory_page` limits the page size of [Memory](crate::Memory). This option is only effective to
-///       [Executor](crate::Executor) and [Vm](crate::Vm).
+///     - `maximum_memory_page` limits the page size of [Memory](crate::Memory).
 ///
 /// - **AOT Compilation**
 ///
@@ -178,206 +176,6 @@ impl Config {
             ffi::WasmEdge_ConfigureHasHostRegistration(
                 self.inner.0,
                 ffi::WasmEdge_HostRegistration_Wasi,
-            )
-        }
-    }
-
-    /// Enables or disables host registration WasmEdge process. By default, the option is disabled.
-    ///
-    /// Notice that to enable the `wasmege_process` option in [Vm](crate::Vm), it MUST be guaranteed that the `wasmedge_process` plugins are loaded first. If not, use the [load_plugin_from_default_paths](crate::utils::load_plugin_from_default_paths) function to load the relevant plugins from the default paths
-    ///
-    /// # Argument
-    ///
-    /// * `enable` - Whether the option turns on or not.
-    #[cfg(target_os = "linux")]
-    pub fn wasmedge_process(&mut self, enable: bool) {
-        unsafe {
-            if enable {
-                ffi::WasmEdge_ConfigureAddHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasmEdge_Process,
-                )
-            } else {
-                ffi::WasmEdge_ConfigureRemoveHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasmEdge_Process,
-                )
-            }
-        }
-    }
-
-    /// Checks if host registration wasmedge process turns on or not.
-    #[cfg(target_os = "linux")]
-    pub fn wasmedge_process_enabled(&self) -> bool {
-        unsafe {
-            ffi::WasmEdge_ConfigureHasHostRegistration(
-                self.inner.0,
-                ffi::WasmEdge_HostRegistration_WasmEdge_Process,
-            )
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
-    pub fn wasi_nn(&mut self, enable: bool) {
-        unsafe {
-            if enable {
-                // enable wasi option
-                self.wasi(enable);
-
-                ffi::WasmEdge_ConfigureAddHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiNN,
-                )
-            } else {
-                ffi::WasmEdge_ConfigureRemoveHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiNN,
-                )
-            }
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
-    pub fn wasi_nn_enabled(&self) -> bool {
-        unsafe {
-            ffi::WasmEdge_ConfigureHasHostRegistration(
-                self.inner.0,
-                ffi::WasmEdge_HostRegistration_WasiNN,
-            )
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_common(&mut self, enable: bool) {
-        unsafe {
-            if enable {
-                ffi::WasmEdge_ConfigureAddHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Common,
-                )
-            } else {
-                ffi::WasmEdge_ConfigureRemoveHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Common,
-                )
-            }
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_common_enabled(&self) -> bool {
-        unsafe {
-            ffi::WasmEdge_ConfigureHasHostRegistration(
-                self.inner.0,
-                ffi::WasmEdge_HostRegistration_WasiCrypto_Common,
-            )
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_asymmetric_common(&mut self, enable: bool) {
-        unsafe {
-            if enable {
-                ffi::WasmEdge_ConfigureAddHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon,
-                )
-            } else {
-                ffi::WasmEdge_ConfigureRemoveHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon,
-                )
-            }
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_asymmetric_common_enabled(&self) -> bool {
-        unsafe {
-            ffi::WasmEdge_ConfigureHasHostRegistration(
-                self.inner.0,
-                ffi::WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon,
-            )
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_symmetric(&mut self, enable: bool) {
-        unsafe {
-            if enable {
-                ffi::WasmEdge_ConfigureAddHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Symmetric,
-                )
-            } else {
-                ffi::WasmEdge_ConfigureRemoveHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Symmetric,
-                )
-            }
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_symmetric_enabled(&self) -> bool {
-        unsafe {
-            ffi::WasmEdge_ConfigureHasHostRegistration(
-                self.inner.0,
-                ffi::WasmEdge_HostRegistration_WasiCrypto_Symmetric,
-            )
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_kx(&mut self, enable: bool) {
-        unsafe {
-            if enable {
-                ffi::WasmEdge_ConfigureAddHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Kx,
-                )
-            } else {
-                ffi::WasmEdge_ConfigureRemoveHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Kx,
-                )
-            }
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_kx_enabled(&self) -> bool {
-        unsafe {
-            ffi::WasmEdge_ConfigureHasHostRegistration(
-                self.inner.0,
-                ffi::WasmEdge_HostRegistration_WasiCrypto_Kx,
-            )
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_signatures(&mut self, enable: bool) {
-        unsafe {
-            if enable {
-                ffi::WasmEdge_ConfigureAddHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Signatures,
-                )
-            } else {
-                ffi::WasmEdge_ConfigureRemoveHostRegistration(
-                    self.inner.0,
-                    ffi::WasmEdge_HostRegistration_WasiCrypto_Signatures,
-                )
-            }
-        }
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn wasi_crypto_signatures_enabled(&self) -> bool {
-        unsafe {
-            ffi::WasmEdge_ConfigureHasHostRegistration(
-                self.inner.0,
-                ffi::WasmEdge_HostRegistration_WasiCrypto_Signatures,
             )
         }
     }
@@ -939,6 +737,12 @@ impl Config {
     pub fn is_time_measuring(&self) -> bool {
         unsafe { ffi::WasmEdge_ConfigureStatisticsIsTimeMeasuring(self.inner.0) }
     }
+
+    /// Provides a raw pointer to the inner Configure context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ConfigureContext {
+        self.inner.0 as *const _
+    }
 }
 
 #[derive(Debug)]
@@ -978,23 +782,27 @@ mod tests {
         assert!(!config.tail_call_enabled());
         assert!(!config.threads_enabled());
         assert!(!config.wasi_enabled());
-        #[cfg(target_os = "linux")]
-        assert!(!config.wasmedge_process_enabled());
         assert!(!config.is_cost_measuring());
+        #[cfg(feature = "aot")]
         assert!(!config.dump_ir_enabled());
+        #[cfg(feature = "aot")]
+        #[cfg(feature = "aot")]
         assert!(!config.generic_binary_enabled());
         assert!(!config.is_instruction_counting());
         assert!(!config.is_time_measuring());
         assert_eq!(config.get_max_memory_pages(), 65536);
+        #[cfg(feature = "aot")]
         assert_eq!(
             config.get_aot_optimization_level(),
             CompilerOptimizationLevel::O3,
         );
+        #[cfg(feature = "aot")]
         assert_eq!(
             config.get_aot_compiler_output_format(),
             CompilerOutputFormat::Wasm,
         );
         assert!(!config.interpreter_mode_enabled());
+        #[cfg(feature = "aot")]
         assert!(!config.interruptible_enabled());
 
         // set options
@@ -1014,7 +822,9 @@ mod tests {
         config.threads(true);
         config.measure_cost(true);
         config.measure_time(true);
+        #[cfg(feature = "aot")]
         config.dump_ir(true);
+        #[cfg(feature = "aot")]
         config.generic_binary(true);
         config.count_instructions(true);
         config.interpreter_mode(true);
@@ -1035,21 +845,27 @@ mod tests {
         assert!(config.tail_call_enabled());
         assert!(config.threads_enabled());
         assert!(config.is_cost_measuring());
+        #[cfg(feature = "aot")]
         assert!(config.dump_ir_enabled());
+        #[cfg(feature = "aot")]
         assert!(config.generic_binary_enabled());
         assert!(config.is_instruction_counting());
         assert!(config.is_time_measuring());
         assert!(config.interpreter_mode_enabled());
 
-        // set maxmimum memory pages
+        // set maximum memory pages
         config.set_max_memory_pages(10);
         assert_eq!(config.get_max_memory_pages(), 10);
+        #[cfg(feature = "aot")]
         config.set_aot_optimization_level(CompilerOptimizationLevel::Oz);
+        #[cfg(feature = "aot")]
         assert_eq!(
             config.get_aot_optimization_level(),
             CompilerOptimizationLevel::Oz
         );
+        #[cfg(feature = "aot")]
         config.set_aot_compiler_output_format(CompilerOutputFormat::Native);
+        #[cfg(feature = "aot")]
         assert_eq!(
             config.get_aot_compiler_output_format(),
             CompilerOutputFormat::Native,
@@ -1076,15 +892,19 @@ mod tests {
             assert!(!config.tail_call_enabled());
             assert!(!config.threads_enabled());
             assert!(!config.is_cost_measuring());
+            #[cfg(feature = "aot")]
             assert!(!config.dump_ir_enabled());
+            #[cfg(feature = "aot")]
             assert!(!config.generic_binary_enabled());
             assert!(!config.is_instruction_counting());
             assert!(!config.is_time_measuring());
             assert_eq!(config.get_max_memory_pages(), 65536);
+            #[cfg(feature = "aot")]
             assert_eq!(
                 config.get_aot_optimization_level(),
                 CompilerOptimizationLevel::O3,
             );
+            #[cfg(feature = "aot")]
             assert_eq!(
                 config.get_aot_compiler_output_format(),
                 CompilerOutputFormat::Wasm,
@@ -1103,7 +923,9 @@ mod tests {
             config.threads(true);
             config.measure_cost(true);
             config.measure_time(true);
+            #[cfg(feature = "aot")]
             config.dump_ir(true);
+            #[cfg(feature = "aot")]
             config.generic_binary(true);
             config.count_instructions(true);
 
@@ -1119,7 +941,9 @@ mod tests {
             assert!(config.tail_call_enabled());
             assert!(config.threads_enabled());
             assert!(config.is_cost_measuring());
+            #[cfg(feature = "aot")]
             assert!(config.dump_ir_enabled());
+            #[cfg(feature = "aot")]
             assert!(config.generic_binary_enabled());
             assert!(config.is_instruction_counting());
             assert!(config.is_time_measuring());
@@ -1153,15 +977,19 @@ mod tests {
             assert!(!config.tail_call_enabled());
             assert!(!config.threads_enabled());
             assert!(!config.is_cost_measuring());
+            #[cfg(feature = "aot")]
             assert!(!config.dump_ir_enabled());
+            #[cfg(feature = "aot")]
             assert!(!config.generic_binary_enabled());
             assert!(!config.is_instruction_counting());
             assert!(!config.is_time_measuring());
             assert_eq!(config.get_max_memory_pages(), 65536);
+            #[cfg(feature = "aot")]
             assert_eq!(
                 config.get_aot_optimization_level(),
                 CompilerOptimizationLevel::O3,
             );
+            #[cfg(feature = "aot")]
             assert_eq!(
                 config.get_aot_compiler_output_format(),
                 CompilerOutputFormat::Wasm,
@@ -1181,7 +1009,9 @@ mod tests {
             config_mut.threads(true);
             config_mut.measure_cost(true);
             config_mut.measure_time(true);
+            #[cfg(feature = "aot")]
             config_mut.dump_ir(true);
+            #[cfg(feature = "aot")]
             config_mut.generic_binary(true);
             config_mut.count_instructions(true);
 
@@ -1197,7 +1027,9 @@ mod tests {
             assert!(config.tail_call_enabled());
             assert!(config.threads_enabled());
             assert!(config.is_cost_measuring());
+            #[cfg(feature = "aot")]
             assert!(config.dump_ir_enabled());
+            #[cfg(feature = "aot")]
             assert!(config.generic_binary_enabled());
             assert!(config.is_instruction_counting());
             assert!(config.is_time_measuring());
@@ -1231,7 +1063,9 @@ mod tests {
         config.threads(true);
         config.measure_cost(true);
         config.measure_time(true);
+        #[cfg(feature = "aot")]
         config.dump_ir(true);
+        #[cfg(feature = "aot")]
         config.generic_binary(true);
         config.count_instructions(true);
 
@@ -1253,7 +1087,9 @@ mod tests {
         assert!(config_clone.tail_call_enabled());
         assert!(config_clone.threads_enabled());
         assert!(config_clone.is_cost_measuring());
+        #[cfg(feature = "aot")]
         assert!(config_clone.dump_ir_enabled());
+        #[cfg(feature = "aot")]
         assert!(config_clone.generic_binary_enabled());
         assert!(config_clone.is_instruction_counting());
         assert!(config_clone.is_time_measuring());

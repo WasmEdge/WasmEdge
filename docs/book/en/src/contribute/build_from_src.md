@@ -43,6 +43,7 @@ Developers can set the CMake options to customize the WasmEdge building.
 4. `WASMEDGE_BUILD_STATIC_LIB`: build the WasmEdge static library (`libwasmedge.a`, Linux and MacOS platforms, experimental). Default is `OFF`.
     - If this option is set as `ON`, the option `WASMEDGE_FORCE_DISABLE_LTO` will forcefully be set as `ON`.
     - If this option is set as `ON`, the `libz` and `libtinfo` on Linux platforms will be statically linked.
+    - For linking with `libwasmedge.a`, developers should also add the `-ldl`, `-pthread`, `-lm`, and `-lstdc++` linker options on both Linux and MacOS platforms, and `-lrt` on Linux platforms.
 5. `WASMEDGE_BUILD_TOOLS`: build the `wasmedge` and `wasmedgec` tools. Default is `ON`.
     - The `wasmedge` and `wasmedgec` tools will link to the WasmEdge shared library by default.
     - If this option is set as `ON` and `WASMEDGE_BUILD_AOT_RUNTIME` is set as `OFF`, the `wasmedgec` tool for the AOT compiler will not be built.
@@ -56,9 +57,13 @@ Developers can set the CMake options to customize the WasmEdge building.
     - To build the WASI-NN plugin with multiple backends, please use `-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=<backend_name1>,<backend_name2>`.
 9. `WASMEDGE_PLUGIN_WASI_CRYPTO`: build the WasmEdge WASI-Crypto plugin (Linux platforms only). Default is `OFF`.
     - This option is useless if the option `WASMEDGE_BUILD_PLUGINS` is set as `OFF`.
-10. `WASMEDGE_FORCE_DISABLE_LTO`: forcefully turn off the link time optimization. Default is `OFF`.
-11. `WASMEDGE_LINK_LLVM_STATIC`: link the LLVM and lld libraries statically (Linux and MacOS platforms only, experimental). Default is `OFF`.
-12. `WASMEDGE_LINK_TOOLS_STATIC`: make the `wasmedge` and `wasmedgec` tools to link the WasmEdge library and LLVM libraries statically (Linux and MacOS platforms only, experimental). Default is `OFF`.
+10. `WASMEDGE_PLUGIN_PROCESS`: build the WasmEdge Process plugin (Linux platforms only). Default is `OFF`.
+    - This option is useless if the option `WASMEDGE_BUILD_PLUGINS` is set as `OFF`.
+11. `WASMEDGE_PLUGIN_HTTPSREQ`: build the WasmEdge HttpsReq plugin (Linux platforms only). Default is `OFF`.
+    - This option is useless if the option `WASMEDGE_BUILD_PLUGINS` is set as `OFF`.
+12. `WASMEDGE_FORCE_DISABLE_LTO`: forcefully turn off the link time optimization. Default is `OFF`.
+13. `WASMEDGE_LINK_LLVM_STATIC`: link the LLVM and lld libraries statically (Linux and MacOS platforms only, experimental). Default is `OFF`.
+14. `WASMEDGE_LINK_TOOLS_STATIC`: make the `wasmedge` and `wasmedgec` tools to link the WasmEdge library and LLVM libraries statically (Linux and MacOS platforms only, experimental). Default is `OFF`.
     - If the option `WASMEDGE_BUILD_TOOLS` and this option are both set as `ON`, the `WASMEDGE_LINK_LLVM_STATIC` will be set as `ON`.
 
 ## Build WasmEdge with Plug-ins
@@ -68,6 +73,7 @@ Developers can follow the steps to build WasmEdge with plug-ins from source.
 - [WASI-NN (OpenVINO and PyTorch backends)](build_from_src/plugin_wasi_nn.md)
 - [WASI-Crypto](build_from_src/plugin_wasi_crypto.md)
 - [WasmEdge-HttpsReq](build_from_src/plugin_wasmedge_httpsreq.md)
+- [WasmEdge-Process](build_from_src/plugin_wasmedge_process.md)
 
 ## Run Tests
 

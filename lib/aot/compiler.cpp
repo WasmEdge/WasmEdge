@@ -52,6 +52,7 @@
 #endif
 #if LLVM_VERSION_MAJOR >= 10
 #include <llvm/IR/IntrinsicsAArch64.h>
+#include <llvm/IR/IntrinsicsRISCV.h>
 #include <llvm/IR/IntrinsicsX86.h>
 #include <llvm/Support/Alignment.h>
 #endif
@@ -434,10 +435,10 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   resolveBlockType(const BlockType &BType) const {
     using VecT = std::vector<ValType>;
     using RetT = std::pair<VecT, VecT>;
-    if (BType.IsValType) {
-      if (BType.Data.Type == ValType::None) {
-        return RetT{};
-      }
+    if (BType.isEmpty()) {
+      return RetT{};
+    }
+    if (BType.isValType()) {
       return RetT{{}, {BType.Data.Type}};
     } else {
       // Type index case. t2* = type[index].returns
@@ -455,8 +456,7 @@ namespace {
 using namespace WasmEdge;
 
 static bool isVoidReturn(Span<const WasmEdge::ValType> ValTypes) {
-  return ValTypes.empty() ||
-         (ValTypes.size() == 1 && ValTypes.front() == ValType::None);
+  return ValTypes.empty();
 }
 
 static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
@@ -2750,11 +2750,14 @@ public:
       case OpCode::Atomic__fence:
         return compileMemoryFence();
       case OpCode::Memory__atomic__notify:
-        return compileAtomicNotify(Instr.getTargetIndex());
+        return compileAtomicNotify(Instr.getTargetIndex(),
+                                   Instr.getMemoryOffset());
       case OpCode::Memory__atomic__wait32:
-        return compileAtomicWait(Instr.getTargetIndex(), 32);
+        return compileAtomicWait(Instr.getTargetIndex(),
+                                 Instr.getMemoryOffset(), Context.Int32Ty, 32);
       case OpCode::Memory__atomic__wait64:
-        return compileAtomicWait(Instr.getTargetIndex(), 64);
+        return compileAtomicWait(Instr.getTargetIndex(),
+                                 Instr.getMemoryOffset(), Context.Int64Ty, 64);
 
       case OpCode::I32__atomic__load:
         return compileAtomicLoad(
@@ -3251,21 +3254,33 @@ public:
   void compileMemoryFence() {
     Builder.CreateFence(llvm::AtomicOrdering::SequentiallyConsistent);
   }
-  void compileAtomicNotify(uint32_t MemIdx) {
+  void compileAtomicNotify(unsigned MemoryIndex, unsigned MemoryOffset) {
     auto *Count = stackPop();
+    auto *Addr = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+    if (MemoryOffset != 0) {
+      Addr = Builder.CreateAdd(Addr, Builder.getInt64(MemoryOffset));
+    }
+    compileAtomicCheckOffsetAlignment(Addr, Context.Int32Ty);
     auto *Offset = stackPop();
+
     stackPush(Builder.CreateCall(
         Context.getIntrinsic(
             Builder, AST::Module::Intrinsics::kMemoryAtomicNotify,
             llvm::FunctionType::get(
                 Context.Int32Ty,
                 {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
-        {Builder.getInt32(MemIdx), Offset, Count}));
+        {Builder.getInt32(MemoryIndex), Offset, Count}));
   }
-  void compileAtomicWait(uint32_t MemIdx, uint32_t BitWidth) {
+  void compileAtomicWait(unsigned MemoryIndex, unsigned MemoryOffset,
+                         llvm::IntegerType *TargetType, uint32_t BitWidth) {
     auto *Timeout = stackPop();
     auto *ExpectedValue =
         Builder.CreateZExtOrTrunc(stackPop(), Context.Int64Ty);
+    auto *Addr = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+    if (MemoryOffset != 0) {
+      Addr = Builder.CreateAdd(Addr, Builder.getInt64(MemoryOffset));
+    }
+    compileAtomicCheckOffsetAlignment(Addr, TargetType);
     auto *Offset = stackPop();
 
     stackPush(Builder.CreateCall(
@@ -3276,7 +3291,7 @@ public:
                                      Context.Int64Ty, Context.Int64Ty,
                                      Context.Int32Ty},
                                     false)),
-        {Builder.getInt32(MemIdx), Offset, ExpectedValue, Timeout,
+        {Builder.getInt32(MemoryIndex), Offset, ExpectedValue, Timeout,
          Builder.getInt32(BitWidth)}));
   }
   void compileAtomicLoad(unsigned MemoryIndex, unsigned MemoryOffset,
@@ -4733,7 +4748,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #elif defined(__aarch64__)
             "arm64",
 #else
-#error Unsupported architectur on the MacOS!
+#error Unsupported architecture on the MacOS!
 #endif
 #if LLVM_VERSION_MAJOR >= 14
             // LLVM 14 replaces the older mach_o lld implementation with the new
@@ -4882,6 +4897,8 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
     WriteByte(OS, UINT8_C(1));
 #elif defined(__aarch64__)
     WriteByte(OS, UINT8_C(2));
+#elif defined(__riscv) && __riscv_xlen == 64
+    WriteByte(OS, UINT8_C(3));
 #else
 #error Unsupported hardware architecture!
 #endif
@@ -5128,10 +5145,14 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 
     llvm::TargetOptions Options;
     llvm::Reloc::Model RM = llvm::Reloc::PIC_;
+#if defined(__riscv) && __riscv_xlen == 64
+    llvm::StringRef CPUName("generic-rv64");
+#else
     llvm::StringRef CPUName("generic");
     if (!Conf.getCompilerConfigure().isGenericBinary()) {
       CPUName = llvm::sys::getHostCPUName();
     }
+#endif
     std::unique_ptr<llvm::TargetMachine> TM(TheTarget->createTargetMachine(
         Triple.str(), CPUName, Context->SubtargetFeatures.getString(), Options,
         RM, llvm::None, llvm::CodeGenOpt::Level::Aggressive));
@@ -5345,7 +5366,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
     // Get data from import description.
     const auto &ExtType = ImpDesc.getExternalType();
 
-    // Add the imports into module istance.
+    // Add the imports into module instance.
     switch (ExtType) {
     case ExternalType::Function: // Function type index
     {

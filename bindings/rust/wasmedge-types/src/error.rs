@@ -70,6 +70,8 @@ pub enum WasmEdgeError {
     NotFoundNulByte(#[from] std::ffi::FromBytesWithNulError),
     #[error("Fail to interpret a sequence of u8 as a string")]
     Utf8(#[from] std::str::Utf8Error),
+    #[error("Fail to convert a vector of bytes to a string")]
+    FromUtf8(#[from] std::string::FromUtf8Error),
 
     // Windows platform
     #[error("Fail to convert path on Windows: {0}")]
@@ -250,9 +252,13 @@ pub enum VmError {
     #[error("Fail to get the target ImportModule (name: {0})")]
     NotFoundImportModule(String),
     #[error(
-        "Fail to register import module. Another import module with the name has already existed."
+        "Fail to register import module named {0}. Another import module with the same name has already existed."
     )]
-    DuplicateImportModule,
+    DuplicateImportModule(String),
+    #[error(
+        "Fail to register module named {0}. Another module instance with the same name has already existed."
+    )]
+    DuplicateModuleInstance(String),
     #[error("Fail to get Loader context")]
     NotFoundLoader,
     #[error("Fail to get Validator context")]
@@ -455,8 +461,8 @@ pub enum CoreExecutionError {
     RefTypeMismatch,
     #[error("unaligned atomic")]
     UnalignedAtomicAccess,
-    #[error("wait on unshared memory")]
-    WaitOnUnsharedMemory,
+    #[error("expected shared memory")]
+    ExpectSharedMemory,
 }
 
 #[derive(Error, Clone, Debug, PartialEq, Eq)]

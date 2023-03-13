@@ -3,11 +3,12 @@ use wasmedge_sys as sys;
 use wasmedge_types::MemoryType;
 
 /// Defines a linear memory.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Memory {
     pub(crate) inner: sys::Memory,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
+    pub(crate) ty: MemoryType,
 }
 impl Memory {
     /// Creates a new wasm memory instance with the given type.
@@ -18,17 +19,18 @@ impl Memory {
     ///
     /// # Error
     ///
-    /// If fail to create the memory instance, then an error is returned.
+    /// * If fail to create the memory instance, then [WasmEdgeError::Mem(MemError::Create)](crate::error::MemError) is returned.
     pub fn new(ty: MemoryType) -> WasmEdgeResult<Self> {
-        let inner = sys::Memory::create(&ty.into())?;
+        let inner = sys::Memory::create(&ty.clone().into())?;
         Ok(Self {
             inner,
             name: None,
             mod_name: None,
+            ty,
         })
     }
 
-    /// Returns the exported name of this [Memory].
+    /// Returns the exported name of this memory.
     ///
     /// Notice that this field is meaningful only if this memory is used as an exported instance.
     pub fn name(&self) -> Option<&str> {
@@ -38,7 +40,7 @@ impl Memory {
         }
     }
 
-    /// Returns the name of the [module instance](crate::Instance) from which this [Memory] exports.
+    /// Returns the name of the [module instance](crate::Instance) from which this memory exports.
     ///
     /// Notice that this field is meaningful only if this memory is used as an exported instance.
     pub fn mod_name(&self) -> Option<&str> {
@@ -48,20 +50,19 @@ impl Memory {
         }
     }
 
-    /// Returns the type of this memory.
-    pub fn ty(&self) -> WasmEdgeResult<MemoryType> {
-        let ty = self.inner.ty()?;
-        Ok(ty.into())
+    /// Returns a reference to the type of this memory.
+    pub fn ty(&self) -> &MemoryType {
+        &self.ty
     }
 
-    /// Returns the size, in WebAssembly pages (64 KiB of each page), of this memory.
-    pub fn size(&self) -> u32 {
+    /// Returns the size, in WebAssembly pages (64 KiB of each page), of this wasm memory.
+    pub fn page(&self) -> u32 {
         self.inner.size()
     }
 
-    /// Returns the size, in bytes, of this memory.
-    pub fn data_size(&self) -> u64 {
-        self.size() as u64 * 65536_u64
+    /// Returns the byte length of this memory. The returned value will be a multiple of the wasm page size, 64k.
+    pub fn size(&self) -> u64 {
+        self.page() as u64 * 65536_u64
     }
 
     /// Safely reads memory contents at the given offset into a buffer.
@@ -80,7 +81,7 @@ impl Memory {
         Ok(data)
     }
 
-    /// Returns a string of byte length `len` from `memory`, starting at `offset`.
+    /// Returns a string of byte length `len` from this memory, starting at `offset`.
     ///
     /// # Arguments
     ///
@@ -114,7 +115,7 @@ impl Memory {
         Ok(())
     }
 
-    /// Grows this WebAssembly memory by `count` pages.
+    /// Grows this memory by the `count` pages.
     ///
     /// # Argument
     ///
@@ -128,37 +129,37 @@ impl Memory {
         Ok(())
     }
 
-    /// Returns the const data pointer to the [Memory].
+    /// Returns the const data pointer to this memory.
     ///
     /// # Arguments
     ///
-    /// * `offset` - The data start offset in the [Memory].
+    /// * `offset` - The data start offset in this memory.
     ///
     /// * `len` - The requested data length. If the size of `offset` + `len` is larger
-    /// than the data size in the [Memory]
+    /// than the data size in this memory.
     ///   
     ///
     /// # Errors
     ///
     /// If fail to get the data pointer, then an error is returned.
     ///
-    pub fn data_pointer(&self, offset: u32, len: u32) -> WasmEdgeResult<&u8> {
+    pub fn data_pointer(&self, offset: u32, len: u32) -> WasmEdgeResult<*const u8> {
         self.inner.data_pointer(offset, len)
     }
 
-    /// Returns the data pointer to the [Memory].
+    /// Returns the data pointer to this memory.
     ///
     /// # Arguments
     ///
-    /// * `offset` - The data start offset in the [Memory].
+    /// * `offset` - The data start offset in this memory.
     ///
-    /// * `len` - The requested data length. If the size of `offset` + `len` is larger than the data size in the [Memory]
+    /// * `len` - The requested data length. If the size of `offset` + `len` is larger than the data size in this memory.
     ///
     /// # Errors
     ///
     /// If fail to get the data pointer, then an error is returned.
     ///
-    pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<&mut u8> {
+    pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<*mut u8> {
         self.inner.data_pointer_mut(offset, len)
     }
 }
@@ -224,31 +225,29 @@ mod tests {
         assert!(result.is_ok());
         let mut store = result.unwrap();
 
-        let result = store.module_instance("extern");
-        assert!(result.is_none());
+        let result = store.named_instance("extern");
+        assert!(result.is_err());
 
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the exported memory
         let result = instance.memory("memory");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut memory = result.unwrap();
 
         // check memory
         assert!(memory.name().is_some());
         assert_eq!(memory.name().unwrap(), "memory");
         assert_eq!(memory.mod_name(), Some("extern"));
-        assert_eq!(memory.size(), 10);
+        assert_eq!(memory.page(), 10);
 
         // check memory type
-        let result = memory.ty();
-        assert!(result.is_ok());
-        let ty = result.unwrap();
+        let ty = memory.ty();
         assert_eq!(ty.minimum(), 10);
         assert_eq!(ty.maximum(), Some(20));
 
@@ -273,13 +272,13 @@ mod tests {
         // grow memory
         let result = memory.grow(5);
         assert!(result.is_ok());
-        assert_eq!(memory.size(), 15);
+        assert_eq!(memory.page(), 15);
 
         // get memory from instance again
         let result = instance.memory("memory");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let memory = result.unwrap();
-        assert_eq!(memory.size(), 15);
+        assert_eq!(memory.page(), 15);
     }
 
     #[test]
@@ -312,5 +311,33 @@ mod tests {
         assert!(result.is_ok());
         let data = result.unwrap();
         assert_eq!(data, s);
+    }
+
+    #[test]
+    fn test_memory_clone() {
+        #[derive(Debug, Clone)]
+        struct RecordsMemory {
+            memory: Memory,
+        }
+
+        // create a memory instance
+        let result = MemoryType::new(10, Some(20), false);
+        assert!(result.is_ok());
+        let memory_type = result.unwrap();
+        let result = Memory::new(memory_type);
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+
+        // create a RecordsMemory instance
+        let rec_mem = RecordsMemory { memory };
+
+        // clone the RecordsMemory instance
+        let rec_mem_cloned = rec_mem.clone();
+
+        // drop the original RecordsMemory instance
+        drop(rec_mem);
+
+        // check the cloned RecordsMemory instance
+        assert_eq!(rec_mem_cloned.memory.page(), 10);
     }
 }

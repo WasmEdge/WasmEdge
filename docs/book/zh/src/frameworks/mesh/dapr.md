@@ -214,7 +214,7 @@ func main() {
     log.Fatalf("error adding invocation handler: %v", err)
   }
   if err := s.Start(); err != nil && err != http.ErrServerClosed {
-    log.Fatalf("error listenning: %v", err)
+    log.Fatalf("error listening: %v", err)
   }
 }
 ```

@@ -49,10 +49,10 @@ The command line arguments are set as the same as the args of the C program, and
 
 ## Installation
 
-Before trying this example, the [WasmEdge installation](https://wasmedge.org/book/en/start/install.html) after the version 0.10.0 is required.
+Before trying this example, the [WasmEdge installation](https://wasmedge.org/book/en/quick_start/install.html) after the version 0.10.0 is required.
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all -v 0.10.0
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
 ```
 
 Then you can build this example with linking the WasmEdge shared library.

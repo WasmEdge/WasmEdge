@@ -5,16 +5,14 @@ import org.wasmedge.enums.RefType;
 /**
  * Table type.
  */
-public class TableTypeContext {
-
-    private long pointer;
+public class TableTypeContext extends NativeResource {
 
     public TableTypeContext(RefType refType, Limit limit) {
         nativeInit(refType.getVal(), limit);
     }
 
     private TableTypeContext(long pointer) {
-        this.pointer = pointer;
+        super(pointer);
     }
 
     private native void nativeInit(int refType, Limit limit);
@@ -27,7 +25,6 @@ public class TableTypeContext {
 
     private native int nativeGetRefType();
 
-    public native void delete();
-
+    public native void close();
 
 }

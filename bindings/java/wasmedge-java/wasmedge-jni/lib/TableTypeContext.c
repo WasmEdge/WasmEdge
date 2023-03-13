@@ -51,7 +51,7 @@ JNIEXPORT jint JNICALL Java_org_wasmedge_TableTypeContext_nativeGetRefType(
 }
 
 JNIEXPORT void JNICALL
-Java_org_wasmedge_TableTypeContext_delete(JNIEnv *env, jobject thisObject) {
+Java_org_wasmedge_TableTypeContext_close(JNIEnv *env, jobject thisObject) {
   WasmEdge_TableTypeContext *tableTypeContext =
       getTableTypeContext(env, thisObject);
   WasmEdge_TableTypeDelete(tableTypeContext);

@@ -14,6 +14,12 @@ For `Windows 10`, you could use Windows Package Manager Client (aka `winget.exe`
 winget install wasmedge
 ```
 
+For `vcpkg` users there is a `wasmedge` [port](https://github.com/microsoft/vcpkg/tree/master/ports/wasmedge) that can be installed with the following command or by adding it to `dependencies` section of your `vcpkg.json` file. The port is useful in both scenarios: it can be embedded into a C/C++ application and it can also be run as a standalone tool.
+
+```bash
+vcpkg install wasmedge
+```
+
 If you would like to install WasmEdge with its [Tensorflow and image processing extensions](https://www.secondstate.io/articles/wasi-tensorflow/), please run the following command. It will attempt to install WasmEdge with the `tensorflow` and `image` extensions on your system.
 
 ```bash
@@ -70,6 +76,8 @@ If you are interested in the latest builds from the `HEAD` of the `master` branc
 After installation, you have the following directories and files. Here we assume that you installed into the `$HOME/.wasmedge` directory. You could also change it to `/usr/local` if you did a system-wide install.
 If you used `winget` to install WasmEdge, the files are located at `C:\Program Files\WasmEdge`.
 
+For the full options of the WasmEdge installer, please refer to the [document here](../contribute/installer.md).
+
 * The `$HOME/.wasmedge/bin` directory contains the WasmEdge Runtime CLI executable files. You can copy and move them around on your file system.
   * The `wasmedge` tool is the standard WasmEdge runtime. You can use it from the CLI.
     * Execute a WASM file: `wasmedge --dir .:. app.wasm`
@@ -79,6 +87,7 @@ If you used `winget` to install WasmEdge, the files are located at `C:\Program F
   * The `wasmedge-tensorflow`, `wasmedge-tensorflow-lite` tools are runtimes that support the WasmEdge tensorflow extension.
 * The `$HOME/.wasmedge/lib` directory contains WasmEdge shared libraries, as well as dependency libraries. They are useful for WasmEdge SDKs to launch WasmEdge programs and functions from host applications.
 * The `$HOME/.wasmedge/include` directory contains the WasmEdge header files. They are useful for WasmEdge SDKs.
+* The `$HOME/.wasmedge/plugin` directory contains the plug-ins for WasmEdge.
 
 ## Uninstall
 

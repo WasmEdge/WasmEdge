@@ -77,11 +77,17 @@ impl CallingFrame {
 
         match ctx.is_null() {
             false => Some(Memory {
-                inner: InnerMemory(ctx),
+                inner: std::sync::Arc::new(InnerMemory(ctx)),
                 registered: true,
             }),
             true => None,
         }
+    }
+
+    /// Provides a raw pointer to the inner CallingFrame context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_CallingFrameContext {
+        self.inner.0 as *const _
     }
 }
 

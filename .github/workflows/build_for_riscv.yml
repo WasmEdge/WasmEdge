@@ -1,0 +1,74 @@
+name: Build and Test WasmEdge on riscv64 arch
+
+concurrency:
+  group: build-riscv64-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/build_for_riscv.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "rpm/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
+  pull_request:
+    branches:
+      - master
+      - 'proposal/**'
+    paths:
+      - ".github/workflows/build_for_riscv.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "rpm/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
+
+jobs:
+  # TODO: Refactor `lint` with `on.workflow_run`
+  # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
+  lint:
+    uses: ./.github/workflows/reusable-call-linter.yml
+
+  build_riscv64:
+    name: RISC-V64
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: uraimo/run-on-arch-action@v2
+      name: Build WasmEdge
+      with:
+        base_image: riscv64/ubuntu
+        githubToken: ${{ github.token }}
+        dockerRunArgs: |
+          --volume "${PWD}:/workplace"
+        shell: /bin/sh
+        install: |
+          apt-get update -q -y
+          apt-get install -q -y git cmake g++ dpkg
+          apt-get install -q -y software-properties-common libboost-all-dev
+          apt-get install -q -y llvm-12-dev liblld-12-dev
+        run: |
+          mkdir -p build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release .. && make -j && make install
+          wasmedge -v
+          wasmedgec -v
+          cd ../examples/wasm
+          wasmedgec fibonacci.wasm fibonacci_aot.wasm
+          wasmedge --reactor fibonacci_aot.wasm fib 30

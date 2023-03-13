@@ -17,7 +17,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_MemoryTypeContext_nativeInit(
   setPointer(env, thisObject, (long)memCxt);
 }
 JNIEXPORT void JNICALL
-Java_org_wasmedge_MemoryTypeContext_delete(JNIEnv *env, jobject thisObject) {
+Java_org_wasmedge_MemoryTypeContext_close(JNIEnv *env, jobject thisObject) {
   WasmEdge_MemoryTypeContext *memoryTypeContext =
       getMemoryTypeContext(env, thisObject);
   WasmEdge_MemoryTypeDelete(memoryTypeContext);

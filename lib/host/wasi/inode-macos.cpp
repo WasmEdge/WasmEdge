@@ -264,14 +264,16 @@ INode::fdFilestatGet(__wasi_filestat_t &Filestat) const noexcept {
     return WasiUnexpect(Res);
   }
 
-  Filestat.dev = Stat->st_dev;
-  Filestat.ino = Stat->st_ino;
+  // Zeroing out these values to prevent leaking information about the host
+  // environment from special fd such as stdin, stdout and stderr.
+  Filestat.dev = isSpecialFd(Fd) ? 0 : Stat->st_dev;
+  Filestat.ino = isSpecialFd(Fd) ? 0 : Stat->st_ino;
   Filestat.filetype = unsafeFiletype();
-  Filestat.nlink = Stat->st_nlink;
-  Filestat.size = Stat->st_size;
-  Filestat.atim = fromTimespec(Stat->st_atimespec);
-  Filestat.mtim = fromTimespec(Stat->st_mtimespec);
-  Filestat.ctim = fromTimespec(Stat->st_ctimespec);
+  Filestat.nlink = isSpecialFd(Fd) ? 0 : Stat->st_nlink;
+  Filestat.size = isSpecialFd(Fd) ? 0 : Stat->st_size;
+  Filestat.atim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_atimespec);
+  Filestat.mtim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_mtimespec);
+  Filestat.ctim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_ctimespec);
 
   return {};
 }
@@ -609,7 +611,8 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
       SysTimespec[1].tv_nsec = UTIME_OMIT;
     }
 
-    if (auto Res = ::utimensat(Fd, Path.c_str(), SysTimespec, 0);
+    if (auto Res =
+            ::utimensat(Fd, Path.c_str(), SysTimespec, AT_SYMLINK_NOFOLLOW);
         unlikely(Res != 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
@@ -634,7 +637,7 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
     NeedFile = true;
   }
 
-  FdHolder Target(::openat(Fd, Path.c_str(), O_RDONLY));
+  FdHolder Target(::openat(Fd, Path.c_str(), O_RDONLY | O_SYMLINK));
   if (unlikely(!Target.ok())) {
     return WasiUnexpect(fromErrNo(errno));
   }
@@ -1182,7 +1185,7 @@ WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
   return {};
 }
 
-WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressBufPtr,
+WasiExpect<void> INode::sockGetLocalAddr(uint8_t *AddressBufPtr,
                                          uint32_t *PortPtr) const noexcept {
   auto AddrFamilyPtr = getAddressFamily(AddressBufPtr);
   auto AddressPtr = getAddress(AddressBufPtr);

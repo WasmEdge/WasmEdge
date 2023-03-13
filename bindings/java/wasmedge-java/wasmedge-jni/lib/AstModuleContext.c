@@ -67,7 +67,7 @@ jobject createAstModuleContext(JNIEnv *env,
 }
 
 JNIEXPORT void JNICALL
-Java_org_wasmedge_AstModuleContext_delete(JNIEnv *env, jobject thisObject) {
+Java_org_wasmedge_AstModuleContext_close(JNIEnv *env, jobject thisObject) {
   WasmEdge_ASTModuleContext *mod = getASTModuleContext(env, thisObject);
   WasmEdge_ASTModuleDelete(mod);
 }

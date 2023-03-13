@@ -31,7 +31,7 @@ jobject CreateJavaStoreContext(JNIEnv *env,
   return jStoreContext;
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_StoreContext_delete(JNIEnv *env,
+JNIEXPORT void JNICALL Java_org_wasmedge_StoreContext_close(JNIEnv *env,
                                                              jobject thisObj) {
   WasmEdge_StoreDelete(getStoreContext(env, thisObj));
 }

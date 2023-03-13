@@ -54,7 +54,7 @@ WebAssembly 的 WasmEdge 扩展通常作为 Rust SDK 或 [JavaScript APIs](docs/
 
 ## 集成
 
-WasmEdge 及其包含的 wasm 程序可以作为新进程或从现有进程从 CLI 启动。 如果从现有进程（例如，从正在运行的 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 或 [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/) 或 [Rust](https://github.com/super-node/WasmEdge/tree/master/wasmedge-rs) 程序）启动，WasmEdge 将简单地作为函数在进程内运行。 目前，WasmEdge 还不是线程安全的。 为了在您自己的应用程序或云原生框架中使 WasmEdge，请参考以下指南。
+WasmEdge 及其包含的 wasm 程序可以作为新进程或从现有进程从 CLI 启动。 如果从现有进程（例如，从正在运行的 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 或 [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/) 或 [Rust](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust) 程序）启动，WasmEdge 将简单地作为函数在进程内运行。 目前，WasmEdge 还不是线程安全的。 为了在您自己的应用程序或云原生框架中使 WasmEdge，请参考以下指南。
 
 * [将 WasmEdge 嵌入 host 应用](docs/integrations.md#embed-wasmedge-into-a-host-application)
 * [使用容器工具管理和编排 Wasm 实例](docs/integrations.md#use-wasmedge-as-a-docker-like-container)

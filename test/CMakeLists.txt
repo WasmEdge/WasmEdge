@@ -30,6 +30,7 @@ else()
     -Wno-undef
     -Wno-unused-member-function
     -Wno-zero-as-null-pointer-constant
+    -Wno-deprecated
   )
 
   if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
@@ -74,6 +75,7 @@ endif()
 
 add_subdirectory(host/socket)
 add_subdirectory(host/wasi)
+add_subdirectory(host/mock)
 add_subdirectory(expected)
 add_subdirectory(span)
 add_subdirectory(po)

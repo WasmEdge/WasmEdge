@@ -32,7 +32,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_GlobalInstanceContext_nativeSetValue(
   WasmEdge_GlobalInstanceSetValue(globalInstanceContext, value);
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_GlobalInstanceContext_delete(
+JNIEXPORT void JNICALL Java_org_wasmedge_GlobalInstanceContext_close(
     JNIEnv *env, jobject thisObject) {
   WasmEdge_GlobalInstanceContext *globalInstanceContext =
       getGlobalInstanceContext(env, thisObject);

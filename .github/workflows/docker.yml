@@ -72,7 +72,7 @@ jobs:
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
       - name: "Rebuild wasmedge/wasmedge:ci-image-base"
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: ./utils/docker
           file: utils/docker/Dockerfile.ci-image-base
@@ -89,7 +89,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: "Rebuild wasmedge/wasmedge:ubuntu-base"
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: ./utils/docker
           file: utils/docker/Dockerfile.base
@@ -106,7 +106,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: "Rebuild wasmedge/wasmedge:ubuntu-build-clang"
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           build-args: BASE=wasmedge/wasmedge:ubuntu-base
           context: ./utils/docker
@@ -124,7 +124,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: "Rebuild wasmedge/wasmedge:ubuntu-build-gcc"
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           build-args: BASE=wasmedge/wasmedge:ubuntu-base
           context: ./utils/docker
@@ -142,7 +142,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: "Rebuild wasmedge/wasmedge:latest"
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           build-args: BASE=wasmedge/wasmedge:ubuntu-base
           context: ./utils/docker
@@ -181,7 +181,7 @@ jobs:
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
       - name: "Rebuild wasmedge/wasmedge:manylinux2014_x86_64"
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           build-args: BASE=quay.io/pypa/manylinux2014_x86_64
           context: ./utils/docker

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#ifndef __BPF_WASM_API_H
-#define __BPF_WASM_API_H
+#pragma once
 
 #include "executor/executor.h"
 #include "runtime/instance/module.h"
@@ -88,5 +87,3 @@ enum bpf_map_cmd {
 int bpf_map_operate(int fd, int cmd, void *key, void *value, void *next_key,
                     uint64_t flags);
 using handle_t = int64_t;
-
-#endif

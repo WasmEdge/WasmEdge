@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#ifndef _FUNC_BPF_MAP_OPERATE
-#define _FUNC_BPF_MAP_OPERATE
-
 #include "bpf-api.h"
 #include "plugin/plugin.h"
 #include "po/helper.h"
@@ -25,5 +22,3 @@ public:
 private:
   state_t state;
 };
-
-#endif

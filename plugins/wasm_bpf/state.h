@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#ifndef _WASM_BPF_STATE
-#define _WASM_BPF_STATE
+#pragma once
 
 #include "bpf-api.h"
 #include <cinttypes>
@@ -15,5 +14,3 @@ struct WasmBpfState {
 };
 
 using state_t = std::shared_ptr<WasmBpfState>;
-
-#endif

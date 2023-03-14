@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#ifndef _FUNC_LOAD_BPF_OBJECT
-#define _FUNC_LOAD_BPF_OBJECT
+#pragma once
 
 #include "bpf-api.h"
 #include "plugin/plugin.h"
@@ -26,5 +25,3 @@ public:
 private:
   state_t state;
 };
-
-#endif

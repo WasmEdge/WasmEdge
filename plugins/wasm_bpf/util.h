@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#ifndef _UTIL
-#define _UTIL
+#ifndef _WASM_BPF_UTIL
+#define _WASM_BPF_UTIL
 #include "runtime/instance/memory.h"
 #include <cinttypes>
 WasmEdge::Expect<const char *>

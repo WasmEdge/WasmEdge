@@ -10,20 +10,16 @@
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 #include "state.h"
-#include <cinttypes>
-#include <memory>
-/// @brief Perform a buffer poll.
-/// fd - the map fd to use
+
+/// Perform a buffer poll.
 ///
-/// sample_func - callback function. When things are polled, it will be invoked
+/// \param fd the map fd to use
+/// \param sample_func callback function. When things are polled, it will be
+/// invoked \param ctx user customized variable \param data data buffer that
+/// will be used to store the polled data \param max_size How many bytes can be
+/// put at data \param timeout_ms how many milliseconds can be waited
 ///
-/// ctx - user customized variable
-///
-/// data - data buffer that will be used to store the polled data
-///
-/// max_size - How many bytes can be put at data
-///
-/// timeout_ms - how many milliseconds can be waited
+/// \return On success, return 0. On error, return error code.
 class BpfBufferPoll : public WasmEdge::Runtime::HostFunction<BpfBufferPoll> {
 public:
   BpfBufferPoll(state_t state) : state(state) {}

@@ -10,8 +10,7 @@
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 #include "state.h"
-#include <cinttypes>
-#include <memory>
+
 /// @brief Lookup a map fd by its name. Map fd is returned if succeed, others if
 /// failed
 class BpfMapFdByName : public WasmEdge::Runtime::HostFunction<BpfMapFdByName> {

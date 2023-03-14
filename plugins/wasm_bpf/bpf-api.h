@@ -1,10 +1,5 @@
-/* SPDX-License-Identifier: MIT
- *
- * Copyright (c) 2023, eunomia-bpf
- * All rights reserved.
- */
-// SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
-/* Copyright (c) 2022 Hengqi Chen */
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #ifndef __BPF_WASM_API_H
 #define __BPF_WASM_API_H

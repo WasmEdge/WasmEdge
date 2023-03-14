@@ -10,8 +10,7 @@
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 #include "state.h"
-#include <cinttypes>
-#include <memory>
+
 /// @brief Attach a bpf program to the specified target
 class AttachBpfProgram
     : public WasmEdge::Runtime::HostFunction<AttachBpfProgram> {

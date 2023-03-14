@@ -10,9 +10,8 @@
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 #include "state.h"
-#include <cinttypes>
-#include <memory>
-/// @brief Load a bpf ELF file. Binary file should be provided through a Wasm
+
+/// \brief Load a bpf ELF file. Binary file should be provided through a Wasm
 /// Buffer. wasm_bpf will handle the remaining process
 /// Call to this function will also cache bpf map fds.
 /// It returns a handle to a bpf program, which is stored in a map in the global

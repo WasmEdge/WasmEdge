@@ -13,7 +13,7 @@
 #include <cinttypes>
 #include <memory>
 /// @brief Load a bpf ELF file. Binary file should be provided through a Wasm
-/// Buffer. wasm-bpf will handle the remaining process
+/// Buffer. wasm_bpf will handle the remaining process
 /// Call to this function will also cache bpf map fds.
 /// It returns a handle to a bpf program, which is stored in a map in the global
 /// state. Return 0 if failed.

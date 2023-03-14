@@ -1,4 +1,4 @@
-# wasm-bpf Plugin
+# wasm_bpf Plugin
 
 This plugin added six host functions that give you Wasm application access to eBPF.
 
@@ -32,7 +32,7 @@ i32 wasm_bpf_map_operate(u64 fd, i32 cmd, u32 key, u32 value,
 
 #### Boost
 
-Boost is requires to build `WasmEdge`. `wasm-bpf` itself doesn't require `boost`
+Boost is requires to build `WasmEdge`. `wasm_bpf` itself doesn't require `boost`
 
 Boost is optional. If you don't install it, CMake will download it for you.
 
@@ -47,23 +47,23 @@ This plugin requires `libbpf >= 1.2`
 
 Follow [https://github.com/libbpf/libbpf#building-libbpf](https://github.com/libbpf/libbpf#building-libbpf) to build and install `libbpf`.
 
-### Build `wasm-bpf` plug-in
+### Build `wasm_bpf` plug-in
 
 Run the following commands at the root of the `WasmEdge` project:
 
-- Note: It's important to set `WASMEDGE_PLUGIN_WASM_BPF` to `TRUE` in the command line. This toggle controls the build of `wasm-bpf` plugin.
+- Note: It's important to set `WASMEDGE_PLUGIN_WASM_BPF` to `TRUE` in the command line. This toggle controls the build of `wasm_bpf` plugin.
 
 ```
 cmake -DWASMEDGE_PLUGIN_WASM_BPF:BOOL=TRUE -B ./build -G "Unix Makefiles"
 cmake --build ./build
 ```
 
-After building, you can find the plug-in `./build/plugins/wasm-bpf/libwasmedgePluginWasmBpf.so` and the WasmEdge CLI tool at `./build/tools/wasmedge/wasmedge`.
+After building, you can find the plug-in `./build/plugins/wasm_bpf/libwasmedgePluginWasmBpf.so` and the WasmEdge CLI tool at `./build/tools/wasmedge/wasmedge`.
 
-Set `WASMEDGE_PLUGIN_PATH=./build/plugins/wasm-bpf/` and run wasmedge:
+Set `WASMEDGE_PLUGIN_PATH=./build/plugins/wasm_bpf/` and run wasmedge:
 
 ```console
-root@yutong-virtualbox:~/WasmEdge# WASMEDGE_PLUGIN_PATH=./build/plugins/wasm-bpf/ ./build/tools/wasmedge/wasmedge execve.wasm 
+root@yutong-virtualbox:~/WasmEdge# WASMEDGE_PLUGIN_PATH=./build/plugins/wasm_bpf/ ./build/tools/wasmedge/wasmedge execve.wasm 
 
 [289150] node -> /bin/sh -c which ps 
 [289151] sh -> which ps 

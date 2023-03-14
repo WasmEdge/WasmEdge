@@ -15,8 +15,8 @@ extern "C" {
 #include <bpf/libbpf.h>
 }
 
-using namespace std;
-using namespace WasmEdge;
+namespace WasmEdge {
+namespace Host {
 
 static int bpf_buffer_sample(void *ctx, void *data, size_t size);
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format,
@@ -226,3 +226,6 @@ int wasm_bpf_program::bpf_buffer_poll(
   }
   return 0;
 }
+
+} // namespace Host
+} // namespace WasmEdge

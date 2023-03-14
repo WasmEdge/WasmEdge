@@ -10,6 +10,9 @@
 #include "runtime/instance/module.h"
 #include "state.h"
 
+namespace WasmEdge {
+namespace Host {
+
 /// \brief Load a bpf ELF file.
 ///
 /// Binary file should be provided through a Wasm Buffer. wasm_bpf will handle
@@ -25,3 +28,6 @@ public:
 private:
   state_t state;
 };
+
+} // namespace Host
+} // namespace WasmEdge

@@ -10,6 +10,9 @@
 #include "runtime/instance/module.h"
 #include "state.h"
 
+namespace WasmEdge {
+namespace Host {
+
 /// \brief Lookup a map fd by its name.
 ///
 /// Map fd is returned if succeed, others if failed.
@@ -22,3 +25,6 @@ public:
 private:
   state_t state;
 };
+
+} // namespace Host
+} // namespace WasmEdge

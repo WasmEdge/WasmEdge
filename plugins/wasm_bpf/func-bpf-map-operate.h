@@ -8,6 +8,9 @@
 #include "runtime/instance/module.h"
 #include "state.h"
 
+namespace WasmEdge {
+namespace Host {
+
 /// Perform bpf map operations on a specified bpf map through map fd.
 ///
 /// Return zero if succeed, others if error
@@ -22,3 +25,6 @@ public:
 private:
   state_t state;
 };
+
+} // namespace Host
+} // namespace WasmEdge

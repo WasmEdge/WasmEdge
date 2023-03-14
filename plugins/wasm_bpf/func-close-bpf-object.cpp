@@ -4,7 +4,8 @@
 #include "func-close-bpf-object.h"
 #include <shared_mutex>
 
-using namespace WasmEdge;
+namespace WasmEdge {
+namespace Host {
 
 Expect<int32_t> CloseBpfObject::body(const WasmEdge::Runtime::CallingFrame &,
                                      handle_t program) {
@@ -15,3 +16,6 @@ Expect<int32_t> CloseBpfObject::body(const WasmEdge::Runtime::CallingFrame &,
   }
   return handles.erase(program) > 0? 0 : -1;
 }
+
+} // namespace Host
+} // namespace WasmEdge

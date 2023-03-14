@@ -7,7 +7,9 @@
 extern "C" {
 #include <bpf/libbpf.h>
 }
-using namespace WasmEdge;
+
+namespace WasmEdge {
+namespace Host {
 
 #define ensure_memory_size(var, offset, size)                                  \
   void *var = memory->getPointer<char *>(offset, size);
@@ -58,3 +60,6 @@ BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
   }
 #undef ensure_memory_size
 }
+
+} // namespace Host
+} // namespace WasmEdge

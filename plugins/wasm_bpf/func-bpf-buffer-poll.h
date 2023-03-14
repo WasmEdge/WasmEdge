@@ -10,6 +10,9 @@
 #include "runtime/instance/module.h"
 #include "state.h"
 
+namespace WasmEdge {
+namespace Host {
+
 /// Perform a buffer poll.
 ///
 /// \param fd the map fd to use
@@ -30,3 +33,6 @@ public:
 private:
   state_t state;
 };
+
+} // namespace Host
+} // namespace WasmEdge

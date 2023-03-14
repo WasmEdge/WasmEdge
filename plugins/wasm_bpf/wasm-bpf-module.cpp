@@ -14,10 +14,11 @@
 #include "state.h"
 #include <algorithm>
 #include <iostream>
-namespace {
+
+namespace WasmEdge {
+namespace Host {
 
 using namespace std::literals::string_view_literals;
-using namespace WasmEdge;
 
 class PluginModule : public Runtime::Instance::ModuleInstance {
 public:
@@ -58,4 +59,5 @@ Plugin::Plugin::PluginDescriptor Descriptor{
 
 Plugin::PluginRegister Register(&Descriptor);
 
-} // namespace
+} // namespace Host
+} // namespace WasmEdge

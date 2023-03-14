@@ -2,7 +2,10 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "util.h"
-using namespace WasmEdge;
+
+namespace WasmEdge {
+namespace Host {
+
 Expect<const char *> read_c_str(Runtime::Instance::MemoryInstance *memory,
                                 uint32_t ptr) {
   uint32_t tail = ptr;
@@ -17,3 +20,6 @@ Expect<const char *> read_c_str(Runtime::Instance::MemoryInstance *memory,
   uint32_t len = tail - ptr + 1;
   return memory->getPointer<char *>(ptr, len);
 }
+
+} // namespace Host
+} // namespace WasmEdge

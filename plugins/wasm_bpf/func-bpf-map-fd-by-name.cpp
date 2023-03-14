@@ -4,7 +4,9 @@
 #include "func-bpf-map-fd-by-name.h"
 #include "util.h"
 #include <shared_mutex>
-using namespace WasmEdge;
+
+namespace WasmEdge {
+namespace Host {
 
 Expect<int32_t> BpfMapFdByName::body(const Runtime::CallingFrame &Frame,
                                      handle_t program, uint32_t name) {
@@ -28,3 +30,6 @@ Expect<int32_t> BpfMapFdByName::body(const Runtime::CallingFrame &Frame,
   }
   return program_ptr->second->bpf_map_fd_by_name(name_str);
 }
+
+} // namespace Host
+} // namespace WasmEdge

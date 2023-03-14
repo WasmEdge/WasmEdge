@@ -3,8 +3,9 @@
 
 #include "func-attach-bpf-program.h"
 #include "util.h"
-#include <shared_mutex>
-using namespace WasmEdge;
+
+namespace WasmEdge {
+namespace Host {
 
 Expect<int32_t> AttachBpfProgram::body(const Runtime::CallingFrame &Frame,
                                        handle_t program, uint32_t name,
@@ -39,3 +40,6 @@ Expect<int32_t> AttachBpfProgram::body(const Runtime::CallingFrame &Frame,
   }
   return program_ptr->second->attach_bpf_program(name_str, attach_target_str);
 }
+
+} // namespace Host
+} // namespace WasmEdge

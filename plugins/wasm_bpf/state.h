@@ -8,9 +8,16 @@
 #include <memory>
 #include <shared_mutex>
 #include <unordered_map>
+
+namespace WasmEdge {
+namespace Host {
+
 struct WasmBpfState {
   std::unordered_map<handle_t, std::unique_ptr<wasm_bpf_program>> handles;
   std::shared_mutex lock;
 };
 
 using state_t = std::shared_ptr<WasmBpfState>;
+
+} // namespace Host
+} // namespace WasmEdge

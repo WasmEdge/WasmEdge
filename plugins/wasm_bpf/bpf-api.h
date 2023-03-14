@@ -6,21 +6,16 @@
 #include "executor/executor.h"
 #include "runtime/instance/module.h"
 #include "wasmedge/wasmedge.h"
-#include <cinttypes>
-#include <cstdlib>
-#include <memory>
-#include <unordered_set>
-#include <vector>
+
 extern "C" {
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 }
 
 #define POLL_TIMEOUT_MS 100
+#define PERF_BUFFER_PAGES 64
 #define DEBUG_LIBBPF_RUNTIME 0
 #define DEBUG_PRINT_BUFFER_SIZE 1024
-
-#define PERF_BUFFER_PAGES 64
 
 /// @brief init libbpf callbacks
 void init_libbpf(void);

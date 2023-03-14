@@ -10,6 +10,9 @@
 #include "runtime/instance/module.h"
 #include "state.h"
 
+namespace WasmEdge {
+namespace Host {
+
 /// \brief Attach a bpf program to the specified target
 class AttachBpfProgram
     : public WasmEdge::Runtime::HostFunction<AttachBpfProgram> {
@@ -22,3 +25,6 @@ public:
 private:
   state_t state;
 };
+
+} // namespace Host
+} // namespace WasmEdge

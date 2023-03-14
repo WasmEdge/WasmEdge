@@ -4,7 +4,9 @@
 #include "func-bpf-buffer-poll.h"
 #include "wasmedge/wasmedge.h"
 #include <shared_mutex>
-using namespace WasmEdge;
+
+namespace WasmEdge {
+namespace Host {
 
 // Helper functions of context conversions.
 #define CONVTO(SIMP, INST, NAME, QUANT)                                        \
@@ -42,3 +44,6 @@ Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
                                               sample_func, ctx, data_buf,
                                               max_size, timeout_ms, data);
 }
+
+} // namespace Host
+} // namespace WasmEdge

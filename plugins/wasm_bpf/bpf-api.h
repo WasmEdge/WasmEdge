@@ -17,6 +17,9 @@ extern "C" {
 #define DEBUG_LIBBPF_RUNTIME 0
 #define DEBUG_PRINT_BUFFER_SIZE 1024
 
+namespace WasmEdge {
+namespace Host {
+
 /// @brief init libbpf callbacks
 void init_libbpf(void);
 
@@ -82,3 +85,6 @@ enum bpf_map_cmd {
 int bpf_map_operate(int fd, int cmd, void *key, void *value, void *next_key,
                     uint64_t flags);
 using handle_t = int64_t;
+
+} // namespace Host
+} // namespace WasmEdge

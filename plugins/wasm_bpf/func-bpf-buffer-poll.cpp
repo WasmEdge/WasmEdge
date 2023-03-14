@@ -37,7 +37,6 @@ Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto c_ctx = toCallFrameCxt(&Frame);
-
   auto c_module = WasmEdge_CallingFrameGetModuleInstance(c_ctx);
   auto c_executor = WasmEdge_CallingFrameGetExecutor(c_ctx);
   return program_ptr->second->bpf_buffer_poll(c_executor, c_module, fd,

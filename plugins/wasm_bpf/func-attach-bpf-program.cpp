@@ -16,7 +16,7 @@ Expect<int32_t> AttachBpfProgram::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto *memory = Frame.getMemoryByIndex(0);
-  if (memory == nullptr) {
+  if (!memory) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 

@@ -26,7 +26,7 @@ BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
   std::shared_lock guard(this->state->lock);
   bpf_map_info map_info;
   memset(&map_info, 0, sizeof(map_info));
-  __u32 info_len = sizeof(map_info);
+  unsigned int info_len = sizeof(map_info);
   int err;
   if ((err = bpf_map_get_info_by_fd(fd, &map_info, &info_len)) != 0) {
     // Invalid map fd
@@ -58,7 +58,6 @@ BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
   default: // More syscall commands can be allowed here
     return -EINVAL;
   }
-#undef ensure_memory_size
 }
 
 } // namespace Host

@@ -15,9 +15,6 @@ extern "C" {
 #include <bpf/libbpf.h>
 }
 
-namespace WasmEdge {
-namespace Host {
-
 static int bpf_buffer_sample(void *ctx, void *data, size_t size);
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format,
                            va_list args) {
@@ -25,29 +22,31 @@ static int libbpf_print_fn(enum libbpf_print_level level, const char *format,
     return 0;
   char buf[DEBUG_PRINT_BUFFER_SIZE];
   int len = vsnprintf(buf, sizeof(buf), format, args);
-  spdlog::debug("{}", buf);
+  spdlog::debug("[WasmEdge Wasm_bpf] {}", buf);
   return len;
 }
+
+/// \brief perf buffer sample callback
+static void perfbuf_sample_fn(void *ctx, int cpu, void *data, __u32 size) {
+  static_cast<void>(cpu);
+  bpf_buffer_sample(ctx, data, size);
+}
+
+/// \brief sample the perf buffer and ring buffer
+static int bpf_buffer_sample(void *ctx, void *data, size_t size) {
+  WasmEdge::Host::bpf_buffer *buffer =
+      static_cast<WasmEdge::Host::bpf_buffer *>(ctx);
+  return buffer->bpf_buffer_sample(data, size);
+}
+
+namespace WasmEdge {
+namespace Host {
 
 /// \brief initialize libbpf library
 void init_libbpf(void) {
   libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
   libbpf_set_print(libbpf_print_fn);
 }
-
-/// \brief perf buffer sample callback
-static void perfbuf_sample_fn(void *ctx, int cpu, void *data, __u32 size) {
-  (void)cpu;
-  bpf_buffer_sample(ctx, data, size);
-}
-
-/// \brief sample the perf buffer and ring buffer
-static int bpf_buffer_sample(void *ctx, void *data, size_t size) {
-  bpf_buffer *buffer = static_cast<bpf_buffer *>(ctx);
-  return buffer->bpf_buffer_sample(data, size);
-}
-
-#define PERF_BUFFER_PAGES 64
 
 class perf_buffer_wrapper : public bpf_buffer {
   std::unique_ptr<perf_buffer, void (*)(perf_buffer *pb)> inner{
@@ -65,8 +64,8 @@ public:
   int bpf_buffer__open(int fd, bpf_buffer_sample_fn sample_cb,
                        void *ctx) override {
     fn = sample_cb;
-    inner.reset(perf_buffer__new(fd, PERF_BUFFER_PAGES, perfbuf_sample_fn, NULL,
-                                 ctx, NULL));
+    inner.reset(perf_buffer__new(fd, PERF_BUFFER_PAGES, perfbuf_sample_fn,
+                                 nullptr, ctx, nullptr));
     return inner ? 0 : -EINVAL;
   }
 };
@@ -83,7 +82,7 @@ public:
   }
   int bpf_buffer__open(int fd, bpf_buffer_sample_fn sample_cb,
                        void *ctx) override {
-    inner.reset(ring_buffer__new(fd, sample_cb, ctx, NULL));
+    inner.reset(ring_buffer__new(fd, sample_cb, ctx, nullptr));
     return inner ? 0 : -1;
   }
 };
@@ -109,42 +108,37 @@ int bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
   memcpy(poll_data, data, sample_size);
   auto module_inst = wasm_module_instance;
   WasmEdge_String names[10];
-  uint32_t table_len __attribute__((unused)) = WasmEdge_ModuleInstanceListTable(
+  /// a valid module instance should have only one table
+  uint32_t exported_table_len = WasmEdge_ModuleInstanceListTable(
       module_inst, names, sizeof(names) / sizeof(names[0]));
-  assert(table_len == 1);
+  if (exported_table_len != 1) {
+    return -EINVAL;
+  }
   auto table_inst = WasmEdge_ModuleInstanceFindTable(module_inst, names[0]);
-  assert(table_inst != nullptr);
+  if (!table_inst) {
+    return -EINVAL;
+  }
   WasmEdge_Value value;
-  {
-    auto result __attribute__((unused)) =
-        WasmEdge_TableInstanceGetData(table_inst, &value, wasm_sample_function);
-    assert(WasmEdge_ResultOK(result));
+  auto get_data_result =
+      WasmEdge_TableInstanceGetData(table_inst, &value, wasm_sample_function);
+  if (WasmEdge_ResultOK(get_data_result)) {
+    return -EINVAL;
   }
   assert(value.Type == WasmEdge_ValType::WasmEdge_ValType_FuncRef);
   auto func_ref = WasmEdge_ValueGetFuncRef(value);
-  {
-    WasmEdge_Value params[3] = {
-        WasmEdge_ValueGenI32(wasm_ctx),
-        WasmEdge_ValueGenI32(wasm_buf_ptr),
-        WasmEdge_ValueGenI32(size),
-    };
-    WasmEdge_Value result[1];
-    auto call_result __attribute__((unused)) = WasmEdge_ExecutorInvoke(
-        wasm_executor, func_ref, params, sizeof(params) / sizeof(params[0]),
-        result, sizeof(result) / sizeof(result[0]));
-    assert(WasmEdge_ResultOK(call_result));
-    return WasmEdge_ValueGetI32(result[0]);
-  }
-  return 0;
-}
 
-struct bpf_map *bpf_obj_get_map_by_fd(int fd, bpf_object *obj) {
-  bpf_map *map;
-  bpf_object__for_each_map(map, obj) {
-    if (bpf_map__fd(map) == fd)
-      return map;
+  WasmEdge_Value invoke_func_params[3] = {
+      WasmEdge_ValueGenI32(wasm_ctx),
+      WasmEdge_ValueGenI32(wasm_buf_ptr),
+      WasmEdge_ValueGenI32(size),
+  };
+  WasmEdge_Value invoke_func_result[1];
+  auto call_result = WasmEdge_ExecutorInvoke(
+      wasm_executor, func_ref, invoke_func_params, 3, invoke_func_result, 1);
+  if (WasmEdge_ResultOK(call_result)) {
+    return -EINVAL;
   }
-  return NULL;
+  return WasmEdge_ValueGetI32(invoke_func_result[0]);
 }
 
 /// \brief create a bpf buffer based on the object map type
@@ -166,7 +160,7 @@ int wasm_bpf_program::bpf_map_fd_by_name(const char *name) {
 }
 /// @brief load all bpf programs and maps in a object file.
 int wasm_bpf_program::load_bpf_object(const void *obj_buf, size_t obj_buf_sz) {
-  auto object = bpf_object__open_mem(obj_buf, obj_buf_sz, NULL);
+  auto object = bpf_object__open_mem(obj_buf, obj_buf_sz, nullptr);
   if (!object) {
     return (int)libbpf_get_error(object);
   }
@@ -205,7 +199,7 @@ int wasm_bpf_program::bpf_buffer_poll(
     int32_t sample_func, uint32_t ctx, void *data, size_t max_size,
     int timeout_ms, uint32_t wasm_buf_ptr) {
   int res;
-  if (buffer.get() == nullptr) {
+  if (!buffer.get()) {
     // create buffer
     auto map = map_ptr_by_fd(fd);
     buffer = bpf_buffer__new(map);
@@ -220,11 +214,7 @@ int wasm_bpf_program::bpf_buffer_poll(
   buffer->set_callback_params(executor, module_instance, (uint32_t)sample_func,
                               data, max_size, ctx, wasm_buf_ptr);
   // poll the buffer
-  res = buffer->bpf_buffer__poll(timeout_ms);
-  if (res < 0) {
-    return res;
-  }
-  return 0;
+  return buffer->bpf_buffer__poll(timeout_ms);
 }
 
 } // namespace Host

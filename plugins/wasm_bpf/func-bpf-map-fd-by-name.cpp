@@ -12,16 +12,14 @@ Expect<int32_t> BpfMapFdByName::body(const Runtime::CallingFrame &Frame,
                                      handle_t program, uint32_t name) {
   const char *name_str;
   auto memory = Frame.getMemoryByIndex(0);
-  if (memory == nullptr) {
+  if (!memory) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  {
-    auto v = read_c_str(memory, name);
-    if (v.has_value()) {
-      name_str = v.value();
-    } else {
-      return Unexpect(v.error());
-    }
+  auto name_value = read_c_str(memory, name);
+  if (name_value.has_value()) {
+    name_str = name_value.value();
+  } else {
+    return Unexpect(name_value.error());
   }
   std::shared_lock guard(this->state->lock);
   auto program_ptr = state->handles.find(program);

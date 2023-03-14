@@ -10,13 +10,13 @@ namespace Host {
 Expect<int32_t> AttachBpfProgram::body(const Runtime::CallingFrame &Frame,
                                        handle_t program, uint32_t name,
                                        uint32_t attach_target) {
+  auto *memory = Frame.getMemoryByIndex(0);
+  if (unlikely(!memory)) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
   std::shared_lock lock(state->lock);
   auto program_ptr = state->handles.find(program);
   if (program_ptr == state->handles.end()) {
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-  auto *memory = Frame.getMemoryByIndex(0);
-  if (!memory) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 

@@ -52,7 +52,7 @@ public:
   /// open the bpf buffer map
   virtual int32_t bpf_buffer__open(int32_t fd, bpf_buffer_sample_fn sample_cb,
                                    void *ctx) = 0;
-  virtual ~bpf_buffer() = default;
+  virtual ~bpf_buffer() noexcept = default;
 };
 
 /// bpf program instance

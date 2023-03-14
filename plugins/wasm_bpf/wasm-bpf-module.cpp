@@ -45,7 +45,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .Name = "wasm_bpf",
     .Description = "A plugin provides API for eBPF",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
-    .Version = {0, 10, 0, 0},
+    .Version = {0, 1, 0, 0},
     .ModuleCount = 1,
     .ModuleDescriptions =
         (Plugin::PluginModule::ModuleDescriptor[]){

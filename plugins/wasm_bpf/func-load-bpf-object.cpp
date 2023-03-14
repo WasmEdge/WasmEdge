@@ -9,7 +9,7 @@ namespace Host {
 Expect<handle_t> LoadBpfObject::body(const Runtime::CallingFrame &Frame,
                                      uint32_t obj_buf, uint32_t obj_buf_sz) {
   auto *memory = Frame.getMemoryByIndex(0);
-  if (!memory) {
+  if (unlikely(!memory)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   char *const object_buffer = memory->getPointer<char *>(obj_buf, obj_buf_sz);
@@ -20,7 +20,7 @@ Expect<handle_t> LoadBpfObject::body(const Runtime::CallingFrame &Frame,
   int32_t res = program->load_bpf_object(object_buffer, (size_t)obj_buf_sz);
   if (res < 0)
     return 0;
-  auto key = (uint64_t)program.get();
+  auto key = static_cast<uint64_t>(program.get());
 
   std::shared_lock guard(state->lock);
   state->handles.emplace(key, std::move(program));

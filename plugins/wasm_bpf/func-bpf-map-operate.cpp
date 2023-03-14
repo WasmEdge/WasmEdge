@@ -19,8 +19,8 @@ BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
                     int32_t cmd, uint32_t key, uint32_t value,
                     uint32_t next_key, uint64_t flags) {
 
-  auto memory = Frame.getMemoryByIndex(0);
-  if (!memory) {
+  auto *memory = Frame.getMemoryByIndex(0);
+  if (unlikely(!memory)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   std::shared_lock guard(this->state->lock);

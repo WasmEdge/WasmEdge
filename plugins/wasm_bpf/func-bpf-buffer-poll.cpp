@@ -19,17 +19,17 @@ Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
                                     int32_t sample_func, uint32_t ctx,
                                     uint32_t data, int32_t max_size,
                                     int32_t timeout_ms) {
-  std::shared_lock lock(state->lock);
-  auto program_ptr = state->handles.find(program);
-  if (program_ptr == state->handles.end()) {
+  auto *memory = Frame.getMemoryByIndex(0);
+  if (unlikely(!memory)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto module_instance = Frame.getModule();
-  if (!module_instance) {
+  if (unlikely(!module_instance)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  auto memory = Frame.getMemoryByIndex(0);
-  if (!memory) {
+  std::shared_lock lock(state->lock);
+  auto program_ptr = state->handles.find(program);
+  if (program_ptr == state->handles.end()) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto data_buf = memory->getPointer<char *>(data, max_size);

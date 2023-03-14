@@ -15,25 +15,25 @@ extern "C" {
 #include <bpf/libbpf.h>
 }
 
-static int bpf_buffer_sample(void *ctx, void *data, size_t size);
-static int libbpf_print_fn(enum libbpf_print_level level, const char *format,
-                           va_list args) {
+static int32_t bpf_buffer_sample(void *ctx, void *data, size_t size);
+static int32_t libbpf_print_fn(enum libbpf_print_level level,
+                               const char *format, va_list args) {
   if (level == LIBBPF_DEBUG && DEBUG_LIBBPF_RUNTIME)
     return 0;
   char buf[DEBUG_PRINT_BUFFER_SIZE];
-  int len = vsnprintf(buf, sizeof(buf), format, args);
+  int32_t len = vsnprintf(buf, sizeof(buf), format, args);
   spdlog::debug("[WasmEdge Wasm_bpf] {}", buf);
   return len;
 }
 
 /// \brief perf buffer sample callback
-static void perfbuf_sample_fn(void *ctx, int cpu, void *data, __u32 size) {
+static void perfbuf_sample_fn(void *ctx, int32_t cpu, void *data, __u32 size) {
   static_cast<void>(cpu);
   bpf_buffer_sample(ctx, data, size);
 }
 
 /// \brief sample the perf buffer and ring buffer
-static int bpf_buffer_sample(void *ctx, void *data, size_t size) {
+static int32_t bpf_buffer_sample(void *ctx, void *data, size_t size) {
   WasmEdge::Host::bpf_buffer *buffer =
       static_cast<WasmEdge::Host::bpf_buffer *>(ctx);
   return buffer->bpf_buffer_sample(data, size);
@@ -58,11 +58,11 @@ public:
     bpf_map__set_key_size(events, sizeof(int));
     bpf_map__set_value_size(events, sizeof(int));
   }
-  int bpf_buffer__poll(int timeout_ms) override {
+  int32_t bpf_buffer__poll(int32_t timeout_ms) override {
     return perf_buffer__poll(inner.get(), timeout_ms);
   }
-  int bpf_buffer__open(int fd, bpf_buffer_sample_fn sample_cb,
-                       void *ctx) override {
+  int32_t bpf_buffer__open(int32_t fd, bpf_buffer_sample_fn sample_cb,
+                           void *ctx) override {
     fn = sample_cb;
     inner.reset(perf_buffer__new(fd, PERF_BUFFER_PAGES, perfbuf_sample_fn,
                                  nullptr, ctx, nullptr));
@@ -77,11 +77,11 @@ public:
   ring_buffer_wrapper(bpf_map *events) {
     bpf_map__set_autocreate(events, false);
   }
-  int bpf_buffer__poll(int timeout_ms) override {
+  int32_t bpf_buffer__poll(int32_t timeout_ms) override {
     return ring_buffer__poll(inner.get(), timeout_ms);
   }
-  int bpf_buffer__open(int fd, bpf_buffer_sample_fn sample_cb,
-                       void *ctx) override {
+  int32_t bpf_buffer__open(int32_t fd, bpf_buffer_sample_fn sample_cb,
+                           void *ctx) override {
     inner.reset(ring_buffer__new(fd, sample_cb, ctx, nullptr));
     return inner ? 0 : -1;
   }
@@ -100,7 +100,7 @@ void bpf_buffer::set_callback_params(
   wasm_buf_ptr = buf_ptr;
 }
 
-int bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
+int32_t bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
   size_t sample_size = size;
   if (max_poll_size < size) {
     sample_size = max_poll_size;
@@ -155,11 +155,12 @@ std::unique_ptr<bpf_buffer> bpf_buffer__new(struct bpf_map *events) {
 }
 
 /// Get the file descriptor of a map by name.
-int wasm_bpf_program::bpf_map_fd_by_name(const char *name) {
+int32_t wasm_bpf_program::bpf_map_fd_by_name(const char *name) {
   return bpf_object__find_map_fd_by_name(obj.get(), name);
 }
 /// @brief load all bpf programs and maps in a object file.
-int wasm_bpf_program::load_bpf_object(const void *obj_buf, size_t obj_buf_sz) {
+int32_t wasm_bpf_program::load_bpf_object(const void *obj_buf,
+                                          size_t obj_buf_sz) {
   auto object = bpf_object__open_mem(obj_buf, obj_buf_sz, nullptr);
   if (!object) {
     return (int)libbpf_get_error(object);
@@ -169,8 +170,8 @@ int wasm_bpf_program::load_bpf_object(const void *obj_buf, size_t obj_buf_sz) {
 }
 
 /// @brief attach a specific bpf program by name and target.
-int wasm_bpf_program::attach_bpf_program(const char *name,
-                                         const char *attach_target) {
+int32_t wasm_bpf_program::attach_bpf_program(const char *name,
+                                             const char *attach_target) {
   struct bpf_link *link;
   if (!attach_target) {
     link =
@@ -187,18 +188,18 @@ int wasm_bpf_program::attach_bpf_program(const char *name,
   if (!link) {
     return (int)libbpf_get_error(link);
   }
-  links.emplace(std::unique_ptr<bpf_link, int (*)(bpf_link * obj)>{
+  links.emplace(std::unique_ptr<bpf_link, int32_t (*)(bpf_link * obj)>{
       link, bpf_link__destroy});
   return 0;
 }
 
 /// polling the buffer, if the buffer is not created, create it.
-int wasm_bpf_program::bpf_buffer_poll(
+int32_t wasm_bpf_program::bpf_buffer_poll(
     WasmEdge_ExecutorContext *executor,
-    const WasmEdge_ModuleInstanceContext *module_instance, int fd,
+    const WasmEdge_ModuleInstanceContext *module_instance, int32_t fd,
     int32_t sample_func, uint32_t ctx, void *data, size_t max_size,
-    int timeout_ms, uint32_t wasm_buf_ptr) {
-  int res;
+    int32_t timeout_ms, uint32_t wasm_buf_ptr) {
+  int32_t res;
   if (!buffer.get()) {
     // create buffer
     auto map = map_ptr_by_fd(fd);

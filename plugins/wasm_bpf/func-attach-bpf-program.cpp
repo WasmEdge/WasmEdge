@@ -20,24 +20,10 @@ Expect<int32_t> AttachBpfProgram::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const char *name_str;
-  const char *attach_target_str;
-  {
-    auto v1 = read_c_str(memory, name);
-    if (v1.has_value()) {
-      name_str = v1.value();
-    } else {
-      return Unexpect(v1.error());
-    }
-  }
-  {
-    auto v1 = read_c_str(memory, attach_target);
-    if (v1.has_value()) {
-      attach_target_str = v1.value();
-    } else {
-      return Unexpect(v1.error());
-    }
-  }
+  const char *name_str = nullptr;
+  const char *attach_target_str = nullptr;
+  checkAndSetCstr(memory, name, name_str);
+  checkAndSetCstr(memory, attach_target, attach_target_str);
   return program_ptr->second->attach_bpf_program(name_str, attach_target_str);
 }
 

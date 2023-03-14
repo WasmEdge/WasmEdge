@@ -15,10 +15,10 @@ namespace Host {
   }
 CONVTO(CallFrame, Runtime::CallingFrame, CallingFrame, const)
 Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
-                                    handle_t program, int fd,
+                                    handle_t program, int32_t fd,
                                     int32_t sample_func, uint32_t ctx,
-                                    uint32_t data, int max_size,
-                                    int timeout_ms) {
+                                    uint32_t data, int32_t max_size,
+                                    int32_t timeout_ms) {
   std::shared_lock lock(state->lock);
   auto program_ptr = state->handles.find(program);
   if (program_ptr == state->handles.end()) {

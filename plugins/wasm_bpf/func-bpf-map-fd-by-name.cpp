@@ -10,17 +10,12 @@ namespace Host {
 
 Expect<int32_t> BpfMapFdByName::body(const Runtime::CallingFrame &Frame,
                                      handle_t program, uint32_t name) {
-  const char *name_str;
+  const char *name_str = nullptr;
   auto memory = Frame.getMemoryByIndex(0);
   if (!memory) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  auto name_value = read_c_str(memory, name);
-  if (name_value.has_value()) {
-    name_str = name_value.value();
-  } else {
-    return Unexpect(name_value.error());
-  }
+  checkAndSetCstr(memory, name, name_str);
   std::shared_lock guard(this->state->lock);
   auto program_ptr = state->handles.find(program);
   if (program_ptr == state->handles.end()) {

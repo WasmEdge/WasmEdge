@@ -14,22 +14,13 @@ Expect<handle_t> LoadBpfObject::body(const Runtime::CallingFrame &Frame,
   if (buf == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-
-  wasm_bpf_program *program = new wasm_bpf_program();
+  auto program = std::make_unique<wasm_bpf_program>();
   int res = program->load_bpf_object(buf, (size_t)obj_buf_sz);
-  if (res < 0) {
-    delete program;
+  if (res < 0)
     return 0;
-  }
-  auto &state = this->state;
+  auto key = (uint64_t)program.get();
 
   std::shared_lock guard(state->lock);
-  handle_t current_handle = state->next_handle++;
-  state->handles[current_handle] = program;
-  // Iterate over the maps in the current program and cache them by fd
-  bpf_map *curr = nullptr;
-  while ((curr = bpf_object__next_map(program->obj.get(), curr)) != nullptr) {
-    state->map_fd_cache[bpf_map__fd(curr)] = curr;
-  }
-  return current_handle;
+  state->handles.emplace(key, std::move(program));
+  return key;
 }

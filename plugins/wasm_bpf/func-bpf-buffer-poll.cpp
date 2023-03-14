@@ -18,10 +18,10 @@ Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
                                     uint32_t data, int max_size,
                                     int timeout_ms) {
   std::shared_lock lock(state->lock);
-  if (!state->handles.count(program)) {
+  auto program_ptr = state->handles.find(program);
+  if (program_ptr == state->handles.end()) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  auto *program_ptr = state->handles[program];
   auto module_instance = Frame.getModule();
   if (module_instance == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -38,7 +38,7 @@ Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
 
   auto c_module = WasmEdge_CallingFrameGetModuleInstance(c_ctx);
   auto c_executor = WasmEdge_CallingFrameGetExecutor(c_ctx);
-  return program_ptr->bpf_buffer_poll(c_executor, c_module, fd, sample_func,
-                                      ctx, data_buf, max_size, timeout_ms,
-                                      data);
+  return program_ptr->second->bpf_buffer_poll(c_executor, c_module, fd,
+                                              sample_func, ctx, data_buf,
+                                              max_size, timeout_ms, data);
 }

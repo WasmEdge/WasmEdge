@@ -51,7 +51,34 @@ cmake --build ./build
 
 ## How to use this plugin
 
-Examples of wasm-bpf programs can be found in [wasm-bpf](https://github.com/eunomia-bpf/wasm-bpf/tree/main/examples) repo.
+
+### build the examples
+
+Examples of wasm-bpf programs can be found in [wasm-bpf](https://github.com/eunomia-bpf/wasm-bpf/tree/main/examples) repo. You can build them by running the following commands:
+
+```sh
+# install the wasi-sdk if you don't have it
+wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-17/wasi-sdk-17.0-linux.tar.gz
+tar -zxf wasi-sdk-17.0-linux.tar.gz
+sudo mkdir -p /opt/wasi-sdk/ && sudo mv wasi-sdk-17.0/* /opt/wasi-sdk/
+
+# build the examples
+git clone https://github.com/eunomia-bpf/wasm-bpf
+cd wasm-bpf/examples
+git submodule update --init --recursive
+
+# for example, build the execve example
+cd execve && make
+```
+
+All examples are:
+
+```console
+$ ls
+bootstrap  execve  go-execve  go-lsm  lsm   opensnoop runqlat  rust-bootstrap  sockfilter  sockops
+```
+
+### run the examples
 
 After building, you can find the plug-in `./build/plugins/wasm_bpf/libwasmedgePluginWasmBpf.so` and the WasmEdge CLI tool at `./build/tools/wasmedge/wasmedge`.
 

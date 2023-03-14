@@ -10,10 +10,10 @@ Expect<int32_t> AttachBpfProgram::body(const Runtime::CallingFrame &Frame,
                                        handle_t program, uint32_t name,
                                        uint32_t attach_target) {
   std::shared_lock lock(state->lock);
-  if (!state->handles.count(program)) {
+  auto program_ptr = state->handles.find(program);
+  if (program_ptr == state->handles.end()) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  auto *program_ptr = state->handles[program];
   auto *memory = Frame.getMemoryByIndex(0);
   if (memory == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -31,12 +31,11 @@ Expect<int32_t> AttachBpfProgram::body(const Runtime::CallingFrame &Frame,
   }
   {
     auto v1 = read_c_str(memory, attach_target);
-
     if (v1.has_value()) {
       attach_target_str = v1.value();
     } else {
       return Unexpect(v1.error());
     }
   }
-  return program_ptr->attach_bpf_program(name_str, attach_target_str);
+  return program_ptr->second->attach_bpf_program(name_str, attach_target_str);
 }

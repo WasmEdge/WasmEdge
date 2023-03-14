@@ -77,7 +77,6 @@ option(WASMEDGE_PLUGIN_PROCESS "Enable WasmEdge process plugin." OFF)
 option(WASMEDGE_PLUGIN_HTTPSREQ "Enable WasmEdge httpsreq plugin." OFF)
 option(WASMEDGE_PLUGIN_WASM_BPF "Enable WasmEdge wasm-bpf plugin." OFF)
 
-
 if(WASMEDGE_BUILD_TOOLS AND WASMEDGE_BUILD_FUZZING)
   message(FATAL_ERROR "wasmedge tool and fuzzing tool are exclusive options.")
 endif()

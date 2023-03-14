@@ -49,7 +49,6 @@ add_dependencies(wasmedgePluginWasmBpf libbpf)
 target_link_libraries(wasmedgePluginWasmBpf PUBLIC ${LIBBPF_LIBRARIES} -lelf -lz)
 target_include_directories(wasmedgePluginWasmBpf PUBLIC ${LIBBPF_INCLUDE_DIRS})
 
-
 set_target_properties(wasmedgePluginWasmBpf PROPERTIES
   CXX_STANDARD 17
 )

@@ -11,7 +11,8 @@
 #include "runtime/instance/module.h"
 #include "state.h"
 
-/// @brief Perform bpf map operations on a specified bpf map through map fd.
+/// Perform bpf map operations on a specified bpf map through map fd.
+///
 /// Return zero if succeed, others if error
 class BpfMapOperate : public WasmEdge::Runtime::HostFunction<BpfMapOperate> {
 public:

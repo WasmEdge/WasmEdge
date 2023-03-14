@@ -3,12 +3,14 @@
 
 #include "func-bpf-map-operate.h"
 #include "bpf-api.h"
-#include <mutex>
-#include <shared_mutex>
+
 extern "C" {
 #include <bpf/libbpf.h>
 }
 using namespace WasmEdge;
+
+#define ensure_memory_size(var, offset, size)                                  \
+  void *var = memory->getPointer<char *>(offset, size);
 
 Expect<int32_t>
 BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
@@ -16,20 +18,21 @@ BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
                     uint32_t next_key, uint64_t flags) {
 
   auto memory = Frame.getMemoryByIndex(0);
-  if (memory == nullptr) {
+  if (!memory) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   std::shared_lock guard(this->state->lock);
-  if (!state->map_fd_cache.count(fd)) {
-    return Unexpect(ErrCode::Value::HostFuncError);
+  bpf_map_info map_info;
+  memset(&map_info, 0, sizeof(map_info));
+  __u32 info_len = sizeof(map_info);
+  int err;
+  if ((err = bpf_map_get_info_by_fd(fd, &map_info, &info_len)) != 0) {
+    // Invalid map fd
+    return err;
   }
-  bpf_map *map = state->map_fd_cache[fd];
-  auto key_size = bpf_map__key_size(map);
-  auto value_size = bpf_map__value_size(map);
-#define ensure_memory_size(var, offset, size)                                  \
-  void *var = memory->getPointer<char *>(offset, size);                        \
-  if (var == nullptr)                                                          \
-    return Unexpect(ErrCode::Value::HostFuncError);
+  auto key_size = map_info.key_size;
+  auto value_size = map_info.value_size;
+
   switch ((bpf_map_cmd)cmd) {
   case BPF_MAP_GET_NEXT_KEY: {
     ensure_memory_size(key_ptr, key, key_size);

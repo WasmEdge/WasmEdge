@@ -22,10 +22,9 @@ Expect<int32_t> BpfMapFdByName::body(const Runtime::CallingFrame &Frame,
     }
   }
   std::shared_lock guard(this->state->lock);
-  auto &handles = this->state->handles;
-  if (!handles.count(program)) {
+  auto program_ptr = state->handles.find(program);
+  if (program_ptr == state->handles.end()) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  auto val = handles[program];
-  return int32_t(val->bpf_map_fd_by_name(name_str));
+  return program_ptr->second->bpf_map_fd_by_name(name_str);
 }

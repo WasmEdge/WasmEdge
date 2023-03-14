@@ -11,8 +11,9 @@
 #include "runtime/instance/module.h"
 #include "state.h"
 
-/// @brief Lookup a map fd by its name. Map fd is returned if succeed, others if
-/// failed
+/// \brief Lookup a map fd by its name.
+///
+/// Map fd is returned if succeed, others if failed.
 class BpfMapFdByName : public WasmEdge::Runtime::HostFunction<BpfMapFdByName> {
 public:
   BpfMapFdByName(state_t state) : state(state) {}

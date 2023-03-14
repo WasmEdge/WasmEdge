@@ -13,6 +13,5 @@ Expect<int32_t> CloseBpfObject::body(const WasmEdge::Runtime::CallingFrame &,
   if (!handles.count(program)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  handles.erase(program);
-  return 0;
+  return handles.erase(program) > 0? 0 : -1;
 }

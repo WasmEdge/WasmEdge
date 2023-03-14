@@ -23,15 +23,15 @@ Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto module_instance = Frame.getModule();
-  if (module_instance == nullptr) {
+  if (!module_instance) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto memory = Frame.getMemoryByIndex(0);
-  if (memory == nullptr) {
+  if (!memory) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto data_buf = memory->getPointer<char *>(data, max_size);
-  if (data_buf == nullptr) {
+  if (!data_buf) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto c_ctx = toCallFrameCxt(&Frame);

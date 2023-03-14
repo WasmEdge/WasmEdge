@@ -11,7 +11,7 @@
 #include "runtime/instance/module.h"
 #include "state.h"
 
-/// @brief Attach a bpf program to the specified target
+/// \brief Attach a bpf program to the specified target
 class AttachBpfProgram
     : public WasmEdge::Runtime::HostFunction<AttachBpfProgram> {
 public:

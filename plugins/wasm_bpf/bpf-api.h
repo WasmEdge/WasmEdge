@@ -19,6 +19,7 @@ extern "C" {
 
 #define POLL_TIMEOUT_MS 100
 #define DEBUG_LIBBPF_RUNTIME 0
+#define DEBUG_PRINT_BUFFER_SIZE 1024
 
 #define PERF_BUFFER_PAGES 64
 
@@ -30,6 +31,7 @@ typedef int (*bpf_buffer_sample_fn)(void *ctx, void *data, size_t size);
 /// An absraction of a bpf ring buffer or perf buffer
 /// see https://github.com/iovisor/bcc/blob/master/libbpf-tools/compat.c
 class bpf_buffer {
+protected:
   bpf_buffer_sample_fn fn;
   WasmEdge_ExecutorContext *wasm_executor;
   const WasmEdge_ModuleInstanceContext *wasm_module_instance;
@@ -53,7 +55,7 @@ public:
   /// open the bpf buffer map
   virtual int bpf_buffer__open(int fd, bpf_buffer_sample_fn sample_cb,
                                void *ctx) = 0;
-  virtual ~bpf_buffer() noexcept = default;
+  virtual ~bpf_buffer() = default;
 };
 
 /// bpf program instance

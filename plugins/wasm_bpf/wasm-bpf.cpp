@@ -21,9 +21,12 @@ using namespace WasmEdge;
 static int bpf_buffer_sample(void *ctx, void *data, size_t size);
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format,
                            va_list args) {
-  if (DEBUG_LIBBPF_RUNTIME)
-    return vfprintf(stderr, format, args);
-  return 0;
+  if (level == LIBBPF_DEBUG && DEBUG_LIBBPF_RUNTIME)
+    return 0;
+  char buf[DEBUG_PRINT_BUFFER_SIZE];
+  int len = vsnprintf(buf, sizeof(buf), format, args);
+  spdlog::debug("{}", buf);
+  return len;
 }
 
 /// \brief initialize libbpf library
@@ -34,7 +37,14 @@ void init_libbpf(void) {
 
 /// \brief perf buffer sample callback
 static void perfbuf_sample_fn(void *ctx, int cpu, void *data, __u32 size) {
+  (void)cpu;
   bpf_buffer_sample(ctx, data, size);
+}
+
+/// \brief sample the perf buffer and ring buffer
+static int bpf_buffer_sample(void *ctx, void *data, size_t size) {
+  bpf_buffer *buffer = static_cast<bpf_buffer *>(ctx);
+  return buffer->bpf_buffer_sample(data, size);
 }
 
 #define PERF_BUFFER_PAGES 64
@@ -54,6 +64,7 @@ public:
   }
   int bpf_buffer__open(int fd, bpf_buffer_sample_fn sample_cb,
                        void *ctx) override {
+    fn = sample_cb;
     inner.reset(perf_buffer__new(fd, PERF_BUFFER_PAGES, perfbuf_sample_fn, NULL,
                                  ctx, NULL));
     return inner ? 0 : -EINVAL;
@@ -81,13 +92,13 @@ void bpf_buffer::set_callback_params(
     WasmEdge_ExecutorContext *executor,
     const WasmEdge_ModuleInstanceContext *module_instance, uint32_t sample_func,
     void *data, size_t max_size, uint32_t ctx, uint32_t buf_ptr) {
-  this->wasm_executor = executor;
-  this->wasm_module_instance = module_instance;
-  this->wasm_sample_function = sample_func;
-  this->poll_data = data;
-  this->max_poll_size = max_size;
-  this->wasm_ctx = ctx;
-  this->wasm_buf_ptr = buf_ptr;
+  wasm_executor = executor;
+  wasm_module_instance = module_instance;
+  wasm_sample_function = sample_func;
+  poll_data = data;
+  max_poll_size = max_size;
+  wasm_ctx = ctx;
+  wasm_buf_ptr = buf_ptr;
 }
 
 int bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
@@ -127,10 +138,6 @@ int bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
   return 0;
 }
 
-static void perfbuf_sample_fn(void *ctx, int /*cpu*/, void *data, __u32 size) {
-  bpf_buffer_sample(ctx, data, size);
-}
-
 struct bpf_map *bpf_obj_get_map_by_fd(int fd, bpf_object *obj) {
   bpf_map *map;
   bpf_object__for_each_map(map, obj) {
@@ -140,15 +147,17 @@ struct bpf_map *bpf_obj_get_map_by_fd(int fd, bpf_object *obj) {
   return NULL;
 }
 
-/// @brief create a bpf buffer based on the object map type
+/// \brief create a bpf buffer based on the object map type
 std::unique_ptr<bpf_buffer> bpf_buffer__new(struct bpf_map *events) {
-  bool use_ringbuf = bpf_map__type(events) == BPF_MAP_TYPE_RINGBUF;
-  if (use_ringbuf) {
-    return std::make_unique<ring_buffer_wrapper>(events);
-  } else {
+  bpf_map_type map_type = bpf_map__type(events);
+  switch (map_type) {
+  case BPF_MAP_TYPE_PERF_EVENT_ARRAY:
     return std::make_unique<perf_buffer_wrapper>(events);
+  case BPF_MAP_TYPE_RINGBUF:
+    return std::make_unique<ring_buffer_wrapper>(events);
+  default:
+    return nullptr;
   }
-  return nullptr;
 }
 
 /// Get the file descriptor of a map by name.
@@ -165,21 +174,6 @@ int wasm_bpf_program::load_bpf_object(const void *obj_buf, size_t obj_buf_sz) {
   return bpf_object__load(object);
 }
 
-static int attach_cgroup(struct bpf_program *prog, const char *path) {
-  int fd = open(path, O_RDONLY);
-  if (fd == -1) {
-    printf("Failed to open cgroup\n");
-    return -1;
-  }
-  if (!bpf_program__attach_cgroup(prog, fd)) {
-    printf("Prog %s failed to attach cgroup %s\n", bpf_program__name(prog),
-           path);
-    return -1;
-  }
-  close(fd);
-  return 0;
-}
-
 /// @brief attach a specific bpf program by name and target.
 int wasm_bpf_program::attach_bpf_program(const char *name,
                                          const char *attach_target) {
@@ -191,18 +185,10 @@ int wasm_bpf_program::attach_bpf_program(const char *name,
     struct bpf_object *o = obj.get();
     struct bpf_program *prog = bpf_object__find_program_by_name(o, name);
     if (!prog) {
-      printf("get prog %s fail", name);
+      spdlog::error("get prog %s fail", name);
       return -1;
     }
-    const char *sec_name = bpf_program__section_name(prog);
-    // TODO: support more attach type
-    if (strcmp(sec_name, "sockops") == 0) {
-      return attach_cgroup(prog, attach_target);
-    } else {
-      // try auto attach if new attach target is not supported
-      link = bpf_program__attach(
-          bpf_object__find_program_by_name(obj.get(), name));
-    }
+    // TODO: support more attach type libbpf cannot auto attach
   }
   if (!link) {
     return (int)libbpf_get_error(link);
@@ -221,7 +207,7 @@ int wasm_bpf_program::bpf_buffer_poll(
   int res;
   if (buffer.get() == nullptr) {
     // create buffer
-    auto map = this->map_ptr_by_fd(fd);
+    auto map = map_ptr_by_fd(fd);
     buffer = bpf_buffer__new(map);
     if (!buffer) {
       return -1;

@@ -30,16 +30,7 @@ i32 wasm_bpf_map_operate(u64 fd, i32 cmd, u32 key, u32 value,
 
 ### Install dependencies
 
-#### Boost
-
-Boost is requires to build `WasmEdge`. `wasm_bpf` itself doesn't require `boost`
-
-Boost is optional. If you don't install it, CMake will download it for you.
-
-For example, you can install boost with the following command on Ubuntu:
-```
-sudo apt install libboost-all-dev
-```
+See the https://wasmedge.org/book/en/contribute/build_from_src/linux.html for how to build `WasmEdge` from source.
 
 #### libbpf
 
@@ -58,12 +49,16 @@ cmake -DWASMEDGE_PLUGIN_WASM_BPF:BOOL=TRUE -B ./build -G "Unix Makefiles"
 cmake --build ./build
 ```
 
+## How to use this plugin
+
+Examples of wasm-bpf programs can be found in [wasm-bpf](https://github.com/eunomia-bpf/wasm-bpf/tree/main/examples) repo.
+
 After building, you can find the plug-in `./build/plugins/wasm_bpf/libwasmedgePluginWasmBpf.so` and the WasmEdge CLI tool at `./build/tools/wasmedge/wasmedge`.
 
 Set `WASMEDGE_PLUGIN_PATH=./build/plugins/wasm_bpf/` and run wasmedge:
 
 ```console
-root@yutong-virtualbox:~/WasmEdge# WASMEDGE_PLUGIN_PATH=./build/plugins/wasm_bpf/ ./build/tools/wasmedge/wasmedge execve.wasm 
+# WASMEDGE_PLUGIN_PATH=./build/plugins/wasm_bpf/ ./build/tools/wasmedge/wasmedge execve.wasm 
 
 [289150] node -> /bin/sh -c which ps 
 [289151] sh -> which ps 

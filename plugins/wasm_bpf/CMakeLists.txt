@@ -4,42 +4,33 @@
 if (DEFINED LIBBPF_SOURCE_DIR)
   verbose_message("Use libbpf source from ${LIBBPF_SOURCE_DIR}")
 else()
-set(LIBBPF_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libbpf/src)
+  set(LIBBPF_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libbpf/src)
 endif()
 
-# Build vendored libbpf
-# include(ExternalProject)
-# ExternalProject_Add(libbpf
-#   PREFIX libbpf
-#   SOURCE_DIR ${LIBBPF_SOURCE_DIR}
-#   CONFIGURE_COMMAND ""
-#   BUILD_COMMAND make
-#     OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf
-#     DESTDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf
-#     INCLUDEDIR=
-#     LIBDIR=
-#     UAPIDIR=
-#     install
-#   BUILD_IN_SOURCE TRUE
-#   INSTALL_COMMAND ""
-#   STEP_TARGETS build
-# )
-
-# find_library(LIBBPF NAMES libbpf)
+# Build vendored libbpf from github
+include(ExternalProject)
+ExternalProject_Add(
+  libbpf
+  PREFIX libbpf
+  GIT_REPOSITORY https://github.com/libbpf/libbpf
+  GIT_TAG        cf46d44f0a06aa8b9400691ea3eb86ca4f066d5c
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND cd src && make
+    BUILD_STATIC_ONLY=1
+    OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf
+    DESTDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf
+    INCLUDEDIR=
+    LIBDIR=
+    UAPIDIR=
+    install install_uapi_headers
+  BUILD_IN_SOURCE TRUE
+  INSTALL_COMMAND ""
+  STEP_TARGETS build
+)
+set(LIBBPF_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libbpf)
 
 find_package(PkgConfig)
-pkg_check_modules(LIBBPF REQUIRED libbpf>=1.2.0)
-if(NOT ${LIBBPF_FOUND} OR ${LIBBPF_VERSION} STRLESS 1.2.0)
-  if(${LIBBPF_FOUND})
-    message("Found libbpf ${LIBBPF_VERSION}")
-  endif()
-  message(FATAL_ERROR "libbpf >= 1.2 required")
-else()
-  message("libbpf ${LIBBPF_VERSION} found")
-endif()
-# set(LIBBPF_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libbpf)
-# set(LIBBPF_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf.so)
-
+pkg_check_modules(libbpf REQUIRED libelf)
 
 wasmedge_add_library(wasmedgePluginWasmBpf
   SHARED
@@ -54,8 +45,9 @@ wasmedge_add_library(wasmedgePluginWasmBpf
   util.cpp
 )
 
-# add_dependencies(wasmedgePluginWasmBpf LIBBPF)
+add_dependencies(wasmedgePluginWasmBpf libbpf)
 target_link_libraries(wasmedgePluginWasmBpf PUBLIC ${LIBBPF_LIBRARIES} -lelf -lz)
+target_include_directories(wasmedgePluginWasmBpf PUBLIC ${LIBBPF_INCLUDE_DIRS})
 
 
 set_target_properties(wasmedgePluginWasmBpf PROPERTIES

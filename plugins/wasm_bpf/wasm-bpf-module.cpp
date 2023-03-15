@@ -10,8 +10,8 @@
 #include "plugin/plugin.h"
 #include "po/helper.h"
 #include "runtime/callingframe.h"
-#include "runtime/instance/module.h"
 #include "state.h"
+#include "wasm-bpf-module.h"
 #include <algorithm>
 #include <iostream>
 
@@ -20,9 +20,7 @@ namespace Host {
 
 using namespace std::literals::string_view_literals;
 
-class PluginModule : public Runtime::Instance::ModuleInstance {
-public:
-  PluginModule() : ModuleInstance("wasm_bpf") {
+WasmBpfModule::WasmBpfModule() : ModuleInstance("wasm_bpf") {
     state_t state = std::make_shared<WasmBpfState>();
     addHostFunc("wasm_load_bpf_object", std::make_unique<LoadBpfObject>(state));
     addHostFunc("wasm_close_bpf_object",
@@ -33,12 +31,11 @@ public:
     addHostFunc("wasm_bpf_map_fd_by_name",
                 std::make_unique<BpfMapFdByName>(state));
     addHostFunc("wasm_bpf_map_operate", std::make_unique<BpfMapOperate>(state));
-  }
-};
+}
 
 Runtime::Instance::ModuleInstance *
 create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-  return new PluginModule;
+  return new WasmBpfModule;
 }
 
 Plugin::Plugin::PluginDescriptor Descriptor{

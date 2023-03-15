@@ -4,6 +4,7 @@
 #include <asm/unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <string>
 #include <unistd.h>
 
 #include "bpf-api.h"
@@ -183,6 +184,13 @@ int32_t wasm_bpf_program::attach_bpf_program(const char *name,
       spdlog::error("get prog %s fail", name);
       return -1;
     }
+    auto sec_name = std::string(bpf_program__section_name(prog));
+    if (sec_name == "sockops") {
+      return -ENOSYS;
+    } else {
+      link = bpf_program__attach(
+          bpf_object__find_program_by_name(obj.get(), name));
+    }
     // TODO: support more attach type libbpf cannot auto attach
   }
   if (!link) {
@@ -194,14 +202,14 @@ int32_t wasm_bpf_program::attach_bpf_program(const char *name,
 }
 
 /// @brief get map pointer by fd through iterating over all maps
-bpf_map* wasm_bpf_program::map_ptr_by_fd(int fd) {
-    bpf_map* curr = nullptr;
-    bpf_map__for_each(curr, obj.get()) {
-        if (bpf_map__fd(curr) == fd) {
-            return curr;
-        }
+bpf_map *wasm_bpf_program::map_ptr_by_fd(int fd) {
+  bpf_map *curr = nullptr;
+  bpf_map__for_each(curr, obj.get()) {
+    if (bpf_map__fd(curr) == fd) {
+      return curr;
     }
-    return nullptr;
+  }
+  return nullptr;
 }
 
 /// polling the buffer, if the buffer is not created, create it.

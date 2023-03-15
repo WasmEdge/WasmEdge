@@ -39,6 +39,9 @@ Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
   auto c_ctx = toCallFrameCxt(&Frame);
   auto c_module = WasmEdge_CallingFrameGetModuleInstance(c_ctx);
   auto c_executor = WasmEdge_CallingFrameGetExecutor(c_ctx);
+  if (unlikely(!c_ctx || !c_module || !c_executor)) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
   return program_ptr->second->bpf_buffer_poll(c_executor, c_module, fd,
                                               sample_func, ctx, data_buf,
                                               max_size, timeout_ms, data);

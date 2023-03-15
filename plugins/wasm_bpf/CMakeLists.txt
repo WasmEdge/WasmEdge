@@ -16,7 +16,7 @@ ExternalProject_Add(
   GIT_TAG        cf46d44f0a06aa8b9400691ea3eb86ca4f066d5c
   CONFIGURE_COMMAND ""
   BUILD_COMMAND cd src && make
-    BUILD_STATIC_ONLY=1
+    # BUILD_STATIC_ONLY=1
     OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf
     DESTDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf
     INCLUDEDIR=
@@ -28,6 +28,7 @@ ExternalProject_Add(
   STEP_TARGETS build
 )
 set(LIBBPF_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libbpf)
+set(LIBBPF_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf.so)
 
 find_package(PkgConfig)
 pkg_check_modules(libbpf REQUIRED libelf)

@@ -122,7 +122,7 @@ int32_t bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
   WasmEdge_Value value;
   auto get_data_result =
       WasmEdge_TableInstanceGetData(table_inst, &value, wasm_sample_function);
-  if (WasmEdge_ResultOK(get_data_result)) {
+  if (!WasmEdge_ResultOK(get_data_result)) {
     return -EINVAL;
   }
   assert(value.Type == WasmEdge_ValType::WasmEdge_ValType_FuncRef);
@@ -186,6 +186,7 @@ int32_t wasm_bpf_program::attach_bpf_program(const char *name,
     }
     auto sec_name = std::string(bpf_program__section_name(prog));
     if (sec_name == "sockops") {
+      // To be discussed..
       return -ENOSYS;
     } else {
       link = bpf_program__attach(

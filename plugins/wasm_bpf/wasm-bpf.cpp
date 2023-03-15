@@ -136,7 +136,7 @@ int32_t bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
   WasmEdge_Value invoke_func_result[1];
   auto call_result = WasmEdge_ExecutorInvoke(
       wasm_executor, func_ref, invoke_func_params, 3, invoke_func_result, 1);
-  if (WasmEdge_ResultOK(call_result)) {
+  if (!WasmEdge_ResultOK(call_result)) {
     return -EINVAL;
   }
   return WasmEdge_ValueGetI32(invoke_func_result[0]);

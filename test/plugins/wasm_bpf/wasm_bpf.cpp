@@ -526,7 +526,7 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
   const uint32_t histOffset = nextOffset;
   nextOffset += sizeof(hist);
 
-  // Poll 5 times, with interval 1s
+  // Poll 10 times, with interval 1s
   for (size_t i = 1; i <= 10; i++) {
     using namespace std;
     std::this_thread::sleep_for(std::chrono::seconds(1));

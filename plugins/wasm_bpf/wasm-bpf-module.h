@@ -9,8 +9,8 @@ namespace WasmEdge {
 namespace Host {
 
 class WasmBpfModule : public Runtime::Instance::ModuleInstance {
-   public:
-    WasmBpfModule();
+public:
+  WasmBpfModule();
 };
-}  // namespace Host
-}  // namespace WasmEdge
+} // namespace Host
+} // namespace WasmEdge

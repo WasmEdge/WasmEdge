@@ -10,6 +10,7 @@ target_link_libraries(wasmBpfTests
   ${GTEST_BOTH_LIBRARIES}
   wasmedgePlugin
   wasmedgePluginWasmBpf
+  wasmedgeExecutor
 )
 
 add_test(wasmBpfTests wasmBpfTests)

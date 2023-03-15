@@ -20,7 +20,7 @@ Expect<handle_t> LoadBpfObject::body(const Runtime::CallingFrame &Frame,
   int32_t res = program->load_bpf_object(object_buffer, (size_t)obj_buf_sz);
   if (res < 0)
     return 0;
-  auto key = static_cast<uint64_t>(program.get());
+  auto key = reinterpret_cast<uint64_t>(program.get());
 
   std::shared_lock guard(state->lock);
   state->handles.emplace(key, std::move(program));

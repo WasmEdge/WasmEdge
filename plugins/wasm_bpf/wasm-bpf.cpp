@@ -193,6 +193,17 @@ int32_t wasm_bpf_program::attach_bpf_program(const char *name,
   return 0;
 }
 
+/// @brief get map pointer by fd through iterating over all maps
+bpf_map* wasm_bpf_program::map_ptr_by_fd(int fd) {
+    bpf_map* curr = nullptr;
+    bpf_map__for_each(curr, obj.get()) {
+        if (bpf_map__fd(curr) == fd) {
+            return curr;
+        }
+    }
+    return nullptr;
+}
+
 /// polling the buffer, if the buffer is not created, create it.
 int32_t wasm_bpf_program::bpf_buffer_poll(
     WasmEdge_ExecutorContext *executor,

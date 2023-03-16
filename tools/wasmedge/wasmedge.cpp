@@ -10,7 +10,7 @@ int main(int Argc, const char *Argv[]) {
   (void)Argv; // We can not ensure the encoding of Argv, make compiler silent.
   auto ArgvUTF8 =
       WasmEdge_CommandLineToUTF8ArgvW(WasmEdge_GetCommandLineW(), &Argc);
-  return WasmEdge_Driver_Compiler(Argc, ArgvUTF8);
+  return WasmEdge_Driver_UniTool(Argc, ArgvUTF8);
 #else
   return WasmEdge_Driver_UniTool(Argc, Argv);
 #endif

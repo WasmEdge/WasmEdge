@@ -108,7 +108,7 @@ int32_t bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
   }
   memcpy(poll_data, data, sample_size);
   auto module_inst = wasm_module_instance;
-  WasmEdge_String names[10];
+  WasmEdge_String names[1];
   /// a valid module instance should have only one table
   uint32_t exported_table_len = WasmEdge_ModuleInstanceListTable(
       module_inst, names, sizeof(names) / sizeof(names[0]));

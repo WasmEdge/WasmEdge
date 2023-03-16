@@ -152,4 +152,3 @@
   - [WasmEdge Installer Guide](contribute/installer.md)
   - [WasmEdge Internal](contribute/internal.md)
   - [Wish List](contribute/wish_list.md)
-  - [Release Process](contribute/release_process.md)

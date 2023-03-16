@@ -6,6 +6,7 @@
 #include "aot/compiler.h"
 #include "driver/compiler.h"
 #include "driver/tool.h"
+#include "driver/unitool.h"
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
 #include "vm/vm.h"
@@ -2702,11 +2703,17 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Compiler(int Argc,
                                                   const char *Argv[]) {
-  return WasmEdge::Driver::Compiler(Argc, Argv);
+  return WasmEdge::Driver::UniTool(Argc, Argv,
+                                   WasmEdge::Driver::ToolType::Compiler);
 }
 
 WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Tool(int Argc, const char *Argv[]) {
-  return WasmEdge::Driver::Tool(Argc, Argv);
+  return WasmEdge::Driver::UniTool(Argc, Argv,
+                                   WasmEdge::Driver::ToolType::Tool);
+}
+
+WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_UniTool(int Argc, const char *Argv[]) {
+  return WasmEdge::Driver::UniTool(Argc, Argv, WasmEdge::Driver::ToolType::All);
 }
 
 #ifdef WASMEDGE_BUILD_FUZZING

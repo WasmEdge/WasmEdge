@@ -22,62 +22,47 @@
 namespace WasmEdge {
 namespace Driver {
 
-int Tool(int Argc, const char *Argv[]) noexcept {
+int Tool(struct DriverToolOptions &Opt) noexcept {
   using namespace std::literals;
 
   std::ios::sync_with_stdio(false);
   Log::setInfoLoggingLevel();
 
-  
-  auto Parser = PO::ArgumentParser();
-  struct DriverToolOptions opt;
-  
-  opt.add_option(Parser);
-
-
-  if (!Parser.parse(stdout, Argc, Argv)) {
-    return EXIT_FAILURE;
-  }
-  if (Parser.isVersion()) {
-    std::cout << Argv[0] << " version "sv << kVersionString << '\n';
-    return EXIT_SUCCESS;
-  }
-
   Configure Conf;
-  if (opt.PropMutGlobals.value()) {
+  if (Opt.PropMutGlobals.value()) {
     Conf.removeProposal(Proposal::ImportExportMutGlobals);
   }
-  if (opt.PropNonTrapF2IConvs.value()) {
+  if (Opt.PropNonTrapF2IConvs.value()) {
     Conf.removeProposal(Proposal::NonTrapFloatToIntConversions);
   }
-  if (opt.PropSignExtendOps.value()) {
+  if (Opt.PropSignExtendOps.value()) {
     Conf.removeProposal(Proposal::SignExtensionOperators);
   }
-  if (opt.PropMultiValue.value()) {
+  if (Opt.PropMultiValue.value()) {
     Conf.removeProposal(Proposal::MultiValue);
   }
-  if (opt.PropBulkMemOps.value()) {
+  if (Opt.PropBulkMemOps.value()) {
     Conf.removeProposal(Proposal::BulkMemoryOperations);
   }
-  if (opt.PropRefTypes.value()) {
+  if (Opt.PropRefTypes.value()) {
     Conf.removeProposal(Proposal::ReferenceTypes);
   }
-  if (opt.PropSIMD.value()) {
+  if (Opt.PropSIMD.value()) {
     Conf.removeProposal(Proposal::SIMD);
   }
-  if (opt.PropMultiMem.value()) {
+  if (Opt.PropMultiMem.value()) {
     Conf.addProposal(Proposal::MultiMemories);
   }
-  if (opt.PropTailCall.value()) {
+  if (Opt.PropTailCall.value()) {
     Conf.addProposal(Proposal::TailCall);
   }
-  if (opt.PropExtendConst.value()) {
+  if (Opt.PropExtendConst.value()) {
     Conf.addProposal(Proposal::ExtendedConst);
   }
-  if (opt.PropThreads.value()) {
+  if (Opt.PropThreads.value()) {
     Conf.addProposal(Proposal::Threads);
   }
-  if (opt.PropAll.value()) {
+  if (Opt.PropAll.value()) {
     Conf.addProposal(Proposal::MultiMemories);
     Conf.addProposal(Proposal::TailCall);
     Conf.addProposal(Proposal::ExtendedConst);
@@ -85,44 +70,44 @@ int Tool(int Argc, const char *Argv[]) noexcept {
   }
 
   std::optional<std::chrono::system_clock::time_point> Timeout;
-  if (opt.TimeLim.value() > 0) {
+  if (Opt.TimeLim.value() > 0) {
     Timeout = std::chrono::system_clock::now() +
-              std::chrono::milliseconds(opt.TimeLim.value());
+              std::chrono::milliseconds(Opt.TimeLim.value());
   }
-  if (opt.GasLim.value().size() > 0) {
+  if (Opt.GasLim.value().size() > 0) {
     Conf.getStatisticsConfigure().setCostMeasuring(true);
     Conf.getStatisticsConfigure().setCostLimit(
-        static_cast<uint32_t>(opt.GasLim.value().back()));
+        static_cast<uint32_t>(Opt.GasLim.value().back()));
   }
-  if (opt.MemLim.value().size() > 0) {
+  if (Opt.MemLim.value().size() > 0) {
     Conf.getRuntimeConfigure().setMaxMemoryPage(
-        static_cast<uint32_t>(opt.MemLim.value().back()));
+        static_cast<uint32_t>(Opt.MemLim.value().back()));
   }
-  if (opt.ConfEnableAllStatistics.value()) {
+  if (Opt.ConfEnableAllStatistics.value()) {
     Conf.getStatisticsConfigure().setInstructionCounting(true);
     Conf.getStatisticsConfigure().setCostMeasuring(true);
     Conf.getStatisticsConfigure().setTimeMeasuring(true);
   } else {
-    if (opt.ConfEnableInstructionCounting.value()) {
+    if (Opt.ConfEnableInstructionCounting.value()) {
       Conf.getStatisticsConfigure().setInstructionCounting(true);
     }
-    if (opt.ConfEnableGasMeasuring.value()) {
+    if (Opt.ConfEnableGasMeasuring.value()) {
       Conf.getStatisticsConfigure().setCostMeasuring(true);
     }
-    if (opt.ConfEnableTimeMeasuring.value()) {
+    if (Opt.ConfEnableTimeMeasuring.value()) {
       Conf.getStatisticsConfigure().setTimeMeasuring(true);
     }
   }
-  if (opt.ConfForceInterpreter.value()) {
+  if (Opt.ConfForceInterpreter.value()) {
     Conf.getRuntimeConfigure().setForceInterpreter(true);
   }
 
-  for (const auto &Name : opt.ForbiddenPlugins.value()) {
+  for (const auto &Name : Opt.ForbiddenPlugins.value()) {
     Conf.addForbiddenPlugins(Name);
   }
 
   Conf.addHostRegistration(HostRegistration::Wasi);
-  const auto InputPath = std::filesystem::absolute(opt.SoName.value());
+  const auto InputPath = std::filesystem::absolute(Opt.SoName.value());
   VM::VM VM(Conf);
 
   Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(
@@ -156,20 +141,20 @@ int Tool(int Argc, const char *Argv[]) noexcept {
 
     // if HasStart but not Valid, insert _start to enter reactor mode
     if (HasStart && !Valid) {
-      opt.Args.value().insert(opt.Args.value().begin(), "_start");
+      Opt.Args.value().insert(Opt.Args.value().begin(), "_start");
     }
 
     return HasStart && Valid;
   };
 
-  bool EnterCommandMode = !opt.Reactor.value() && HasValidCommandModStartFunc();
+  bool EnterCommandMode = !Opt.Reactor.value() && HasValidCommandModStartFunc();
 
   WasiMod->getEnv().init(
-      opt.Dir.value(),
+      Opt.Dir.value(),
       InputPath.filename()
           .replace_extension(std::filesystem::u8path("wasm"sv))
           .u8string(),
-      opt.Args.value(), opt.Env.value());
+      Opt.Args.value(), Opt.Env.value());
 
   if (EnterCommandMode) {
     // command mode
@@ -188,12 +173,12 @@ int Tool(int Argc, const char *Argv[]) noexcept {
     }
   } else {
     // reactor mode
-    if (opt.Args.value().empty()) {
+    if (Opt.Args.value().empty()) {
       std::cerr
           << "A function name is required when reactor mode is enabled.\n";
       return EXIT_FAILURE;
     }
-    const auto &FuncName = opt.Args.value().front();
+    const auto &FuncName = Opt.Args.value().front();
 
     using namespace std::literals::string_literals;
     const auto InitFunc = "_initialize"s;
@@ -225,31 +210,31 @@ int Tool(int Argc, const char *Argv[]) noexcept {
     std::vector<ValVariant> FuncArgs;
     std::vector<ValType> FuncArgTypes;
     for (size_t I = 0;
-         I < FuncType.getParamTypes().size() && I + 1 < opt.Args.value().size();
+         I < FuncType.getParamTypes().size() && I + 1 < Opt.Args.value().size();
          ++I) {
       switch (FuncType.getParamTypes()[I]) {
       case ValType::I32: {
         const uint32_t Value =
-            static_cast<uint32_t>(std::stol(opt.Args.value()[I + 1]));
+            static_cast<uint32_t>(std::stol(Opt.Args.value()[I + 1]));
         FuncArgs.emplace_back(Value);
         FuncArgTypes.emplace_back(ValType::I32);
         break;
       }
       case ValType::I64: {
         const uint64_t Value =
-            static_cast<uint64_t>(std::stoll(opt.Args.value()[I + 1]));
+            static_cast<uint64_t>(std::stoll(Opt.Args.value()[I + 1]));
         FuncArgs.emplace_back(Value);
         FuncArgTypes.emplace_back(ValType::I64);
         break;
       }
       case ValType::F32: {
-        const float Value = std::stof(opt.Args.value()[I + 1]);
+        const float Value = std::stof(Opt.Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
         FuncArgTypes.emplace_back(ValType::F32);
         break;
       }
       case ValType::F64: {
-        const double Value = std::stod(opt.Args.value()[I + 1]);
+        const double Value = std::stod(Opt.Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
         FuncArgTypes.emplace_back(ValType::F64);
         break;
@@ -259,11 +244,11 @@ int Tool(int Argc, const char *Argv[]) noexcept {
         break;
       }
     }
-    if (FuncType.getParamTypes().size() + 1 < opt.Args.value().size()) {
+    if (FuncType.getParamTypes().size() + 1 < Opt.Args.value().size()) {
       for (size_t I = FuncType.getParamTypes().size() + 1;
-           I < opt.Args.value().size(); ++I) {
+           I < Opt.Args.value().size(); ++I) {
         const uint64_t Value =
-            static_cast<uint64_t>(std::stoll(opt.Args.value()[I]));
+            static_cast<uint64_t>(std::stoll(Opt.Args.value()[I]));
         FuncArgs.emplace_back(Value);
         FuncArgTypes.emplace_back(ValType::I64);
       }

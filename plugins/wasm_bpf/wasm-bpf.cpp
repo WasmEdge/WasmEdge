@@ -110,8 +110,8 @@ int32_t bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
   auto module_inst = wasm_module_instance;
   WasmEdge_String names[1];
   /// a valid module instance should have only one table
-  uint32_t exported_table_len = WasmEdge_ModuleInstanceListTable(
-      module_inst, names, std::size(names));
+  uint32_t exported_table_len =
+      WasmEdge_ModuleInstanceListTable(module_inst, names, std::size(names));
   if (exported_table_len != 1) {
     return -EINVAL;
   }

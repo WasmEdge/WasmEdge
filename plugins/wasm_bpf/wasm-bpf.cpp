@@ -232,8 +232,9 @@ int32_t wasm_bpf_program::bpf_buffer_poll(
       return res;
     }
   }
-  buffer->set_callback_params(executor, module_instance, (uint32_t)sample_func,
-                              data, max_size, ctx, wasm_buf_ptr);
+  buffer->set_callback_params(executor, module_instance,
+                              static_cast<uint32_t>(sample_func), data,
+                              max_size, ctx, wasm_buf_ptr);
   // poll the buffer
   return buffer->bpf_buffer__poll(timeout_ms);
 }

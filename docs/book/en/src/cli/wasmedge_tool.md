@@ -22,7 +22,7 @@ In the other words, if users want to execute the following command.
 wasmedge --reactor fibonacci.wasm fib 10
 ```
 
-It is also accepted to add subcommnad `run` and will have no difference on execution process and result.
+It is also accepted to add subcommand `run` and will have no difference on execution process and result.
 
 ```bash
 wasmedge run --reactor fibonacci.wasm fib 10

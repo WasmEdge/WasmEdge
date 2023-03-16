@@ -64,11 +64,13 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
   }
   // Get and check the device name string.
   if (unlikely(Target != 0 &&
-               Encoding != static_cast<uint32_t>(WASINN::Backend::PyTorch))) {
+               (Encoding != static_cast<uint32_t>(WASINN::Backend::PyTorch) ||
+                Target != 1))) {
     spdlog::error("[WASI-NN] Only support CPU target");
     return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
   }
-  spdlog::debug("[WASI-NN] Using device: {:s}", FindDevice(Target));
+  const std::string DeviceName = FindDevice(Target);
+  spdlog::debug("[WASI-NN] Using device: {:s}", DeviceName);
 
   if (Encoding == static_cast<uint32_t>(WASINN::Backend::OpenVINO)) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO

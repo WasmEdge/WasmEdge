@@ -91,6 +91,7 @@ public:
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   torch::jit::Module TorchModel;
+  torch::DeviceType TorchDevice = at::kCPU;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
   TfLiteModel *TFLiteMod = nullptr;

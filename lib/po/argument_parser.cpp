@@ -121,8 +121,10 @@ void ArgumentParser::SubCommandDescriptor::usage(
   for (const char *Part : ProgramNames) {
     fmt::print(Out, "\t{}"sv, Part);
   }
-
-  if (NonpositionalList.size() != 0) {
+  if (!SubCommandList.empty()) {
+    fmt::print(Out, " [SUBCOMMANDS]"sv);
+  }
+  if (!NonpositionalList.empty()) {
     fmt::print(Out, " [OPTIONS]"sv);
   }
   bool First = true;
@@ -177,7 +179,7 @@ void ArgumentParser::SubCommandDescriptor::help(std::FILE *Out) const noexcept {
 
   fmt::print(Out, "\n"sv);
   if (!SubCommandList.empty()) {
-    fmt::print(Out, "{}SubCommands{}\n"sv, YELLOW_COLOR, RESET_COLOR);
+    fmt::print(Out, "{}SUBCOMMANDS{}\n"sv, YELLOW_COLOR, RESET_COLOR);
     for (const auto Offset : SubCommandList) {
       fmt::print(Out, "{}{}"sv, kIndent, GREEN_COLOR);
       bool First = true;

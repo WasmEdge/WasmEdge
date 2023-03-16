@@ -6,7 +6,7 @@
 # - ${LIBBPF_SOURCE_DIR}
 # - FetchContent
 
-message("Trying to get libbpf..")
+message(STATUS "Trying to get libbpf..")
 set(LIBBPF_FOUND FALSE)
 
 # A wrapper function to add libbpf located at a local path as a dependency
@@ -25,8 +25,9 @@ function(AddLibbpfAsExternal SOURCE_ROOT)
   set(LIBBPF_LIBRARIES ${LIBBPF_SO_PATH} PARENT_SCOPE)
   set(LIBBPF_TARGET_NAME libbpf PARENT_SCOPE)
   file(COPY_FILE ${LIBBPF_SO_PATH} ${CMAKE_CURRENT_BINARY_DIR}/libbpf.so)
+
   # Copy libbpf.so to the place where libwasmedgePluginWasmBpf.so exists
-  message("Copied libbpf.so from ${LIBBPF_SO_PATH} to ${CMAKE_CURRENT_BINARY_DIR}/libbpf.so")
+  message(STATUS "Copied libbpf.so from ${LIBBPF_SO_PATH} to ${CMAKE_CURRENT_BINARY_DIR}/libbpf.so")
 endfunction()
 
 # Try PkgConfig
@@ -34,36 +35,38 @@ if(NOT ${LIBBPF_FOUND})
   find_package(PkgConfig)
 
   if(PkgConfig_FOUND)
-    message("Try to get libbpf through PkgConfig")
+    message(STATUS "Try to get libbpf through PkgConfig")
+
+    # It will set LIBBPF_FOUND for us
     pkg_check_modules(LIBBPF libbpf>=1.2 IMPORTED_TARGET)
     set(LIBBPF_TARGET_NAME "PkgConfig::LIBBPF")
 
     if(${LIBBPF_FOUND})
-      message("libbpf found using PkgConfig")
+      message(STATUS "libbpf found using PkgConfig")
     else()
-      message("libbpf not found using pkgconfig")
+      message(STATUS "libbpf not found using pkgconfig")
     endif()
   else()
-    message("PkgConfig not found")
+    message(STATUS "PkgConfig not found")
   endif()
 endif()
 
 # Try LIBBPF_SOURCE_DIR
 if(NOT ${LIBBPF_FOUND})
-  message("Try to get libbpf through the pre-defined LIBBPF_SOURCE_DIR")
+  message(STATUS "Try to get libbpf through the pre-defined LIBBPF_SOURCE_DIR")
 
   if(DEFINED LIBBPF_SOURCE_DIR)
     AddLibbpfAsExternal(${LIBBPF_SOURCE_DIR})
     set(LIBBPF_FOUND TRUE)
-    message("libbpf found using LIBBPF_SOURCE_DIR")
+    message(STATUS "libbpf found using LIBBPF_SOURCE_DIR")
   else()
-    message("LIBBPF_SOURCE_DIR not defined")
+    message(STATUS "LIBBPF_SOURCE_DIR not defined")
   endif()
 endif()
 
 # Try FetchContent
 if(NOT ${LIBBPF_FOUND})
-  message("Try to get libbpf through FetchContent")
+  message(STATUS "Try to get libbpf through FetchContent")
   include(FetchContent)
   FetchContent_Declare(
     libbpf
@@ -73,13 +76,13 @@ if(NOT ${LIBBPF_FOUND})
   FetchContent_GetProperties(libbpf)
 
   if(NOT libbpf_POPULATED)
-    message("Fetching libbpf..")
+    message(STATUS "Fetching libbpf..")
     FetchContent_Populate(libbpf)
-    message("Fetched libbpf")
+    message(STATUS "Fetched libbpf")
   endif()
 
   set(LIBBPF_DOWNLOAD_SOURCE_DIR "${libbpf_SOURCE_DIR}")
-  message("libbpf saved at: ${LIBBPF_DOWNLOAD_SOURCE_DIR}")
+  message(DEBUG "libbpf saved at: ${LIBBPF_DOWNLOAD_SOURCE_DIR}")
   AddLibbpfAsExternal(${LIBBPF_DOWNLOAD_SOURCE_DIR})
   set(LIBBPF_FOUND TRUE)
 endif()
@@ -89,9 +92,17 @@ if(NOT ${LIBBPF_FOUND})
   message(FATAL_ERROR "Could not find libbpf")
 endif()
 
-message("LIBBPF_INCLUDE_DIRS=${LIBBPF_INCLUDE_DIRS}")
-message("LIBBPF_LIBRARIES=${LIBBPF_LIBRARIES}")
-message("LIBBPF_TARGET_NAME=${LIBBPF_TARGET_NAME}")
+message(DEBUG "LIBBPF_INCLUDE_DIRS=${LIBBPF_INCLUDE_DIRS}")
+message(DEBUG "LIBBPF_LIBRARIES=${LIBBPF_LIBRARIES}")
+message(DEBUG "LIBBPF_TARGET_NAME=${LIBBPF_TARGET_NAME}")
+
+# Find the dependencies `libelf` and `libz` of libbpf
+
+find_package(PkgConfig)
+
+pkg_check_modules(LIBBPF_DEP REQUIRED libelf zlib)
+
+message(DEBUG "LIBBPF_DEP_LIBRARIES=${LIBBPF_DEP_LIBRARIES}")
 
 wasmedge_add_library(wasmedgePluginWasmBpf
   SHARED
@@ -107,7 +118,7 @@ wasmedge_add_library(wasmedgePluginWasmBpf
 )
 
 add_dependencies(wasmedgePluginWasmBpf ${LIBBPF_TARGET_NAME})
-target_link_libraries(wasmedgePluginWasmBpf PUBLIC ${LIBBPF_LIBRARIES} -lelf -lz)
+target_link_libraries(wasmedgePluginWasmBpf PUBLIC ${LIBBPF_LIBRARIES} ${LIBBPF_DEP_LIBRARIES})
 target_include_directories(wasmedgePluginWasmBpf PUBLIC ${LIBBPF_INCLUDE_DIRS})
 
 set_target_properties(wasmedgePluginWasmBpf PROPERTIES

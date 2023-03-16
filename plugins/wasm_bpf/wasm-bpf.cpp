@@ -164,7 +164,7 @@ int32_t wasm_bpf_program::load_bpf_object(const void *obj_buf,
                                           size_t obj_buf_sz) {
   auto object = bpf_object__open_mem(obj_buf, obj_buf_sz, nullptr);
   if (!object) {
-    return (int)libbpf_get_error(object);
+    return static_cast<int32_t>(libbpf_get_error(object));
   }
   obj.reset(object);
   return bpf_object__load(object);
@@ -195,7 +195,7 @@ int32_t wasm_bpf_program::attach_bpf_program(const char *name,
     // TODO: support more attach type libbpf cannot auto attach
   }
   if (!link) {
-    return (int)libbpf_get_error(link);
+    return static_cast<int32_t>(libbpf_get_error(link));
   }
   links.emplace(std::unique_ptr<bpf_link, int32_t (*)(bpf_link * obj)>{
       link, bpf_link__destroy});

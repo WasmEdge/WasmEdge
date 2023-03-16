@@ -1,37 +1,97 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-if (DEFINED LIBBPF_SOURCE_DIR)
-  verbose_message("Use libbpf source from ${LIBBPF_SOURCE_DIR}")
-else()
-  set(LIBBPF_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libbpf/src)
+# Try to get libbpf use the following order
+# - PkgConfig
+# - ${LIBBPF_SOURCE_DIR}
+# - FetchContent
+
+message("Trying to get libbpf..")
+set(LIBBPF_FOUND FALSE)
+
+# A wrapper function to add libbpf located at a local path as a dependency
+function(AddLibbpfAsExternal SOURCE_ROOT)
+  include(ExternalProject)
+  ExternalProject_Add(libbpf
+    PREFIX libbpf
+    SOURCE_DIR ${SOURCE_ROOT}
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND "make" "-C" "${SOURCE_ROOT}/src"
+    INSTALL_COMMAND ""
+    BUILD_IN_SOURCE TRUE
+  )
+  set(LIBBPF_SO_PATH ${SOURCE_ROOT}/src/libbpf.so)
+  set(LIBBPF_INCLUDE_DIRS ${SOURCE_ROOT}/src PARENT_SCOPE)
+  set(LIBBPF_LIBRARIES ${LIBBPF_SO_PATH} PARENT_SCOPE)
+  set(LIBBPF_TARGET_NAME libbpf PARENT_SCOPE)
+  file(COPY_FILE ${LIBBPF_SO_PATH} ${CMAKE_CURRENT_BINARY_DIR}/libbpf.so)
+  # Copy libbpf.so to the place where libwasmedgePluginWasmBpf.so exists
+  message("Copied libbpf.so from ${LIBBPF_SO_PATH} to ${CMAKE_CURRENT_BINARY_DIR}/libbpf.so")
+endfunction()
+
+# Try PkgConfig
+if(NOT ${LIBBPF_FOUND})
+  find_package(PkgConfig)
+
+  if(PkgConfig_FOUND)
+    message("Try to get libbpf through PkgConfig")
+    pkg_check_modules(LIBBPF libbpf>=1.2 IMPORTED_TARGET)
+    set(LIBBPF_TARGET_NAME "PkgConfig::LIBBPF")
+
+    if(${LIBBPF_FOUND})
+      message("libbpf found using PkgConfig")
+    else()
+      message("libbpf not found using pkgconfig")
+    endif()
+  else()
+    message("PkgConfig not found")
+  endif()
 endif()
 
-# Build vendored libbpf from github
-include(ExternalProject)
-ExternalProject_Add(
-  libbpf
-  PREFIX libbpf
-  GIT_REPOSITORY https://github.com/libbpf/libbpf
-  GIT_TAG        cf46d44f0a06aa8b9400691ea3eb86ca4f066d5c
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND cd src && make
-    # BUILD_STATIC_ONLY=1
-    OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf
-    DESTDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf
-    INCLUDEDIR=
-    LIBDIR=
-    UAPIDIR=
-    install install_uapi_headers
-  BUILD_IN_SOURCE TRUE
-  INSTALL_COMMAND ""
-  STEP_TARGETS build
-)
-set(LIBBPF_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libbpf)
-set(LIBBPF_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf.so)
+# Try LIBBPF_SOURCE_DIR
+if(NOT ${LIBBPF_FOUND})
+  message("Try to get libbpf through the pre-defined LIBBPF_SOURCE_DIR")
 
-find_package(PkgConfig)
-pkg_check_modules(libbpf REQUIRED libelf)
+  if(DEFINED LIBBPF_SOURCE_DIR)
+    AddLibbpfAsExternal(${LIBBPF_SOURCE_DIR})
+    set(LIBBPF_FOUND TRUE)
+    message("libbpf found using LIBBPF_SOURCE_DIR")
+  else()
+    message("LIBBPF_SOURCE_DIR not defined")
+  endif()
+endif()
+
+# Try FetchContent
+if(NOT ${LIBBPF_FOUND})
+  message("Try to get libbpf through FetchContent")
+  include(FetchContent)
+  FetchContent_Declare(
+    libbpf
+    GIT_REPOSITORY https://github.com/libbpf/libbpf
+    GIT_TAG cf46d44f0a06aa8b9400691ea3eb86ca4f066d5c
+  )
+  FetchContent_GetProperties(libbpf)
+
+  if(NOT libbpf_POPULATED)
+    message("Fetching libbpf..")
+    FetchContent_Populate(libbpf)
+    message("Fetched libbpf")
+  endif()
+
+  set(LIBBPF_DOWNLOAD_SOURCE_DIR "${libbpf_SOURCE_DIR}")
+  message("libbpf saved at: ${LIBBPF_DOWNLOAD_SOURCE_DIR}")
+  AddLibbpfAsExternal(${LIBBPF_DOWNLOAD_SOURCE_DIR})
+  set(LIBBPF_FOUND TRUE)
+endif()
+
+# If we cannot find libbpf..
+if(NOT ${LIBBPF_FOUND})
+  message(FATAL_ERROR "Could not find libbpf")
+endif()
+
+message("LIBBPF_INCLUDE_DIRS=${LIBBPF_INCLUDE_DIRS}")
+message("LIBBPF_LIBRARIES=${LIBBPF_LIBRARIES}")
+message("LIBBPF_TARGET_NAME=${LIBBPF_TARGET_NAME}")
 
 wasmedge_add_library(wasmedgePluginWasmBpf
   SHARED
@@ -46,7 +106,7 @@ wasmedge_add_library(wasmedgePluginWasmBpf
   util.cpp
 )
 
-add_dependencies(wasmedgePluginWasmBpf libbpf)
+add_dependencies(wasmedgePluginWasmBpf ${LIBBPF_TARGET_NAME})
 target_link_libraries(wasmedgePluginWasmBpf PUBLIC ${LIBBPF_LIBRARIES} -lelf -lz)
 target_include_directories(wasmedgePluginWasmBpf PUBLIC ${LIBBPF_INCLUDE_DIRS})
 
@@ -59,7 +119,6 @@ target_compile_options(wasmedgePluginWasmBpf
   -DWASMEDGE_PLUGIN
   -fPIC
 )
-
 
 target_include_directories(wasmedgePluginWasmBpf
   PUBLIC
@@ -81,4 +140,3 @@ else()
     ${LIBBPF_LIBRARIES}
   )
 endif()
-

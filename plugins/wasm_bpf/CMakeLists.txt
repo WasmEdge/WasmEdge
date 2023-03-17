@@ -97,7 +97,6 @@ message(DEBUG "LIBBPF_LIBRARIES=${LIBBPF_LIBRARIES}")
 message(DEBUG "LIBBPF_TARGET_NAME=${LIBBPF_TARGET_NAME}")
 
 # Find the dependencies `libelf` and `libz` of libbpf
-
 find_package(PkgConfig)
 
 pkg_check_modules(LIBBPF_DEP REQUIRED libelf zlib)

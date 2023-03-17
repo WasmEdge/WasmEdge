@@ -33,7 +33,7 @@ create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
 }
 
 Plugin::Plugin::PluginDescriptor Descriptor{
-    .Name = "wasmedge_plugintest",
+    .Name = "wasmedge_plugintest_cpp",
     .Description = "",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
     .Version = {0, 10, 0, 0},
@@ -41,7 +41,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .ModuleDescriptions =
         (Plugin::PluginModule::ModuleDescriptor[]){
             {
-                .Name = "wasmedge_plugintest",
+                .Name = "wasmedge_plugintest_cpp_module",
                 .Description = "This is for the plugin tests in WasmEdge.",
                 .Create = create,
             },

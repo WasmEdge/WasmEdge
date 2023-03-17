@@ -9,11 +9,9 @@ namespace WasmEdge {
 namespace Host {
 
 // Helper functions of context conversions.
-#define CONVTO(SIMP, INST, NAME, QUANT)                                        \
-  inline QUANT auto *to##SIMP##Cxt(QUANT INST *Cxt) noexcept {                 \
-    return reinterpret_cast<QUANT WasmEdge_##NAME##Context *>(Cxt);            \
-  }
-CONVTO(CallFrame, Runtime::CallingFrame, CallingFrame, const)
+inline const auto *toCallFrameCxt(const Runtime::CallingFrame *Cxt) noexcept {
+  return reinterpret_cast<const WasmEdge_CallingFrameContext *>(Cxt);
+}
 Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
                                     handle_t program, int32_t fd,
                                     int32_t sample_func, uint32_t ctx,

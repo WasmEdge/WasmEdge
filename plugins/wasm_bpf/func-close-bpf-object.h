@@ -13,7 +13,7 @@
 namespace WasmEdge {
 namespace Host {
 
-/// @brief Close an opened bpf object. Will remove mapfds from the cache.
+/// \brief Close an opened bpf object. Will remove mapfds from the cache.
 /// Return 0 if success. Others represent error codes.
 class CloseBpfObject : public WasmEdge::Runtime::HostFunction<CloseBpfObject> {
 public:

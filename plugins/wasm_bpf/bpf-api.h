@@ -20,7 +20,7 @@ extern "C" {
 namespace WasmEdge {
 namespace Host {
 
-/// @brief init libbpf callbacks
+/// \brief init libbpf callbacks
 void init_libbpf(void);
 
 typedef int32_t (*bpf_buffer_sample_fn)(void *ctx, void *data, size_t size);

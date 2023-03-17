@@ -159,7 +159,7 @@ std::unique_ptr<bpf_buffer> bpf_buffer__new(struct bpf_map *events) {
 int32_t wasm_bpf_program::bpf_map_fd_by_name(const char *name) {
   return bpf_object__find_map_fd_by_name(obj.get(), name);
 }
-/// @brief load all bpf programs and maps in a object file.
+/// \brief load all bpf programs and maps in a object file.
 int32_t wasm_bpf_program::load_bpf_object(const void *obj_buf,
                                           size_t obj_buf_sz) {
   auto object = bpf_object__open_mem(obj_buf, obj_buf_sz, nullptr);
@@ -170,7 +170,7 @@ int32_t wasm_bpf_program::load_bpf_object(const void *obj_buf,
   return bpf_object__load(object);
 }
 
-/// @brief attach a specific bpf program by name and target.
+/// \brief attach a specific bpf program by name and target.
 int32_t wasm_bpf_program::attach_bpf_program(const char *name,
                                              const char *attach_target) {
   struct bpf_link *link;
@@ -202,7 +202,7 @@ int32_t wasm_bpf_program::attach_bpf_program(const char *name,
   return 0;
 }
 
-/// @brief get map pointer by fd through iterating over all maps
+/// \brief get map pointer by fd through iterating over all maps
 bpf_map *wasm_bpf_program::map_ptr_by_fd(int fd) {
   bpf_map *curr = nullptr;
   bpf_map__for_each(curr, obj.get()) {

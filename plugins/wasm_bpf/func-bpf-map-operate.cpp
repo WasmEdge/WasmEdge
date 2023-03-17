@@ -30,6 +30,7 @@ BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
   uint32_t info_len = sizeof(map_info);
   int32_t err;
   if ((err = bpf_map_get_info_by_fd(fd, &map_info, &info_len)) != 0) {
+    spdlog::debug("Invalid map fd found: fd={},err={}", fd, err);
     // Invalid map fd
     return err;
   }

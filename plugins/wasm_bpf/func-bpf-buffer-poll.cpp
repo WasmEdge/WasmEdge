@@ -17,6 +17,12 @@ Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
                                     int32_t sample_func, uint32_t ctx,
                                     uint32_t data, int32_t max_size,
                                     int32_t timeout_ms) {
+  auto c_ctx = toCallFrameCxt(&Frame);
+  auto c_module = WasmEdge_CallingFrameGetModuleInstance(c_ctx);
+  auto c_executor = WasmEdge_CallingFrameGetExecutor(c_ctx);
+  if (unlikely(!c_ctx || !c_module || !c_executor)) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
   auto *memory = Frame.getMemoryByIndex(0);
   if (unlikely(!memory)) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -32,12 +38,6 @@ Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
   }
   auto data_buf = memory->getPointer<char *>(data, max_size);
   if (!data_buf) {
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-  auto c_ctx = toCallFrameCxt(&Frame);
-  auto c_module = WasmEdge_CallingFrameGetModuleInstance(c_ctx);
-  auto c_executor = WasmEdge_CallingFrameGetExecutor(c_ctx);
-  if (unlikely(!c_ctx || !c_module || !c_executor)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   return program_ptr->second->bpf_buffer_poll(c_executor, c_module, fd,

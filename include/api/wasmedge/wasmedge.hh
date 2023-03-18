@@ -35,9 +35,45 @@
 #include "string"
 
 namespace WasmEdge {
-  enum ErrCategory {
+  enum WASMEDGE_CPP_API_EXPORT ErrCategory {
     WASM = 0x00,
     UserLevelError = 0x01
+  };
+
+  enum WASMEDGE_CPP_API_EXPORT HostRegistration {
+    Wasi,
+    WasmEdge_Process,
+    WasiNN,
+    WasiCrypto_Common,
+    WasiCrypto_AsymmetricCommon,
+    WasiCrypto_Kx,
+    WasiCrypto_Signatures,
+    WasiCrypto_Symmetric
+  };
+
+  enum WASMEDGE_CPP_API_EXPORT Proposal {
+    ImportExportMutGlobals = 0,
+    NonTrapFloatToIntConversions,
+    SignExtensionOperators,
+    MultiValue,
+    BulkMemoryOperations,
+    ReferenceTypes,
+    SIMD,
+    TailCall,
+    MultiMemories,
+    Annotations,
+    Memory64,
+    ExceptionHandling,
+    ExtendedConst,
+    Threads,
+    FunctionReferences
+  };
+
+  enum WASMEDGE_CPP_API_EXPORT CompilerOutputFormat {
+    // Native dynamic library format.
+    Native = 0,
+    // WebAssembly with AOT compiled codes in custom sections.
+    Wasm
   };
 
   class WASMEDGE_CPP_API_EXPORT String {
@@ -83,6 +119,65 @@ namespace WasmEdge {
     uint32_t Max;
 
     bool IsEqual(const Limit Lim);
+  };
+
+  class WASMEDGE_CPP_API_EXPORT ConfigureContext {
+  public:
+    ConfigureContext();
+    ~ConfigureContext();
+
+    // Methods for Proposals
+    void AddProposal(const Proposal Prop);
+    void RemoveProposal(const Proposal Prop);
+    bool HasProposal(const Proposal Prop);
+
+    // Methods for Host registration
+    void AddHostRegistration(const HostRegistration Host);
+    void RemoveHostRegistration(const HostRegistration Host);
+    bool HasHostRegistration(const HostRegistration Host);
+
+    // MaxMemoryPage
+    void SetMaxMemoryPage(const uint32_t Page);
+    uint32_t GetMaxMemoryPage();
+
+    // Force Intepreter
+    void SetForceInterpreter(const bool isForceInterpreter);
+    bool IsForceInterpreter();
+
+    // Compiler Config
+    void CompilerSetOutputFormat(const CompilerOutputFormat Format);
+    CompilerOutputFormat CompilerGetOutputFormat();
+    void CompilerSetDumpIR(const bool IsDump);
+    bool CompilerIsDumpIR();
+    void CompilerSetGenericBinary(const bool IsGeneric);
+    bool CompilerIsGenericBinary();
+    void CompilerSetInterruptible(const bool IsInterruptible);
+    bool CompilerIsInterruptible();
+
+    // Statistics Config
+    void StatisticsSetInstructionCounting(const bool IsCount);
+    bool StatisticsIsInstructionCounting();
+    void StatisticsSetCostMeasuring(const bool IsMeasure);
+    bool StatisticsIsCostMeasuring();
+    void StatisticsSetTimeMeasuring(const bool IsMeasure);
+    bool StatisticsIsTimeMeasuring();
+
+  private:
+    // TODO: Break into three Configs and declare them in this namespace?
+    // CompilerConfig CompConfig;
+    // StatisticsConfig StatisticsConf;
+    // RuntimeConfig RuntimeConfig;
+
+    // TODO: Or use the WasmEdge::Configure internal API somehow?
+    // And call Configure's methods internally in its methods?
+    // Because Configure already has the required methods
+    // For example -
+    // In the AddProposal method -
+    // void AddProposal(const Proposal Prop)
+    // {
+    //   this.Conf.addProposal(Prop);
+    // }
+    // Configure Conf;
   };
 }
 

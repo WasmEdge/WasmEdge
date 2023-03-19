@@ -261,7 +261,7 @@ TEST(WasmBpfTest, SimpleMapTest) {
     ASSERT_EQ(mapUpdateElem(mapFd, num2KeyOffset, numOffset2), 0);
 
     // Write the indicating key
-    // Arbitary values are correct. We only care the existence of the indicating
+    // Arbitrary values are correct. We only care the existence of the indicating
     // key
     ASSERT_EQ(mapUpdateElem(mapFd, indicatingKeyOffset, numOffset1), 0);
 

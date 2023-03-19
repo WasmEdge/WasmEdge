@@ -100,6 +100,10 @@ private:
   uint64_t IntrinsicsAddress = 0;
   std::vector<uintptr_t> TypesAddress;
   std::vector<uintptr_t> CodesAddress;
+#if WASMEDGE_OS_WINDOWS
+  void *PDataAddress = 0;
+  uint32_t PDataSize = 0;
+#endif
 };
 
 } // namespace Loader

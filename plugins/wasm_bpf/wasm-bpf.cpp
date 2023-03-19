@@ -181,7 +181,7 @@ int32_t wasm_bpf_program::attach_bpf_program(const char *name,
     struct bpf_object *o = obj.get();
     struct bpf_program *prog = bpf_object__find_program_by_name(o, name);
     if (!prog) {
-      spdlog::error("get prog %s fail", name);
+      spdlog::error("get prog {} fail", name);
       return -1;
     }
     auto sec_name = std::string(bpf_program__section_name(prog));

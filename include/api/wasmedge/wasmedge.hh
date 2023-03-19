@@ -76,6 +76,34 @@ namespace WasmEdge {
     Wasm
   };
 
+  enum WASMEDGE_CPP_API_EXPORT CompilerOptimizationLevel {
+    // Disable as many optimizations as possible.
+    Level_O0 = 0,
+    // Optimize quickly without destroying debuggability.
+    Level_O1,
+    // Optimize for fast execution as much as possible without triggering
+    // significant incremental compile time or code size growth.
+    Level_O2,
+    // Optimize for fast execution as much as possible.
+    Level_O3,
+    // Optimize for small code size as much as possible without triggering
+    // significant incremental compile time or execution time slowdowns.
+    Level_Os,
+    // Optimize for small code size as much as possible.
+    Level_Oz
+  };
+
+  // TODO: should Version get its own namespace?
+  WASMEDGE_CPP_API_EXPORT std::string VersionGet();
+  WASMEDGE_CPP_API_EXPORT uint32_t VersionGetMajor();
+  WASMEDGE_CPP_API_EXPORT uint32_t VersionGetMinor();
+  WASMEDGE_CPP_API_EXPORT uint32_t VersionGetPatch();
+
+  // TODO: Should Log get its own namespace?
+  WASMEDGE_CPP_API_EXPORT void LogSetErrorLevel();
+  WASMEDGE_CPP_API_EXPORT void LogSetDebugLevel();
+  WASMEDGE_CPP_API_EXPORT void LogOff();
+
   class WASMEDGE_CPP_API_EXPORT String {
   public:
     String(const std::string Str);
@@ -104,7 +132,7 @@ namespace WasmEdge {
     bool IsOk();
     uint32_t GetCode();
     ErrCategory GetCategory();
-    const char * GetMessage();
+    const std::string GetMessage();
 
   private:
     uint32_t Code;
@@ -145,6 +173,8 @@ namespace WasmEdge {
     bool IsForceInterpreter();
 
     // Compiler Config
+    void CompilerSetOptimizationLevel(const CompilerOptimizationLevel Level);
+    CompilerOptimizationLevel CompilerGetOptimizationLevel();
     void CompilerSetOutputFormat(const CompilerOutputFormat Format);
     CompilerOutputFormat CompilerGetOutputFormat();
     void CompilerSetDumpIR(const bool IsDump);
@@ -178,6 +208,23 @@ namespace WasmEdge {
     //   this.Conf.addProposal(Prop);
     // }
     // Configure Conf;
+  };
+
+  class WASMEDGE_CPP_API_EXPORT StatisticsContext {
+  public:
+    StatisticsContext();
+    ~StatisticsContext();
+
+    uint64_t GetInstrCount();
+    double GetInstrPerSecond();
+    uint64_t GetTotalCost();
+
+    void SetCostTable(uint64_t *CostArr, const uint32_t Len);
+    void SetCostLimit(const uint64_t Limit);
+    void Clear();
+
+  private:
+    // TODO
   };
 }
 

@@ -51,6 +51,13 @@ cmake --build ./build
 
 ## How to use this plugin
 
+You can either download the examples or build them by yourself.
+
+### Download the examples
+
+```sh
+wget https://eunomia-bpf.github.io/wasm-bpf/examples/runqlat/runqlat.wasm
+```
 
 ### build the examples
 

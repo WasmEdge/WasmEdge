@@ -101,6 +101,24 @@ void bpf_buffer::set_callback_params(
   wasm_buf_ptr = buf_ptr;
 }
 
+bool bpf_buffer::is_valid() const {
+  auto module_inst = wasm_module_instance;
+  WasmEdge_String names;
+  uint32_t exported_table_len =
+      WasmEdge_ModuleInstanceListTable(module_inst, &names, 1);
+  if (exported_table_len != 1) {
+    return false;
+  }
+  auto table_inst = WasmEdge_ModuleInstanceFindTable(module_inst, names);
+  if (!table_inst) {
+    return false;
+  }
+  WasmEdge_Value value;
+  auto get_data_result =
+      WasmEdge_TableInstanceGetData(table_inst, &value, wasm_sample_function);
+  return WasmEdge_ResultOK(get_data_result);
+}
+
 int32_t bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
   size_t sample_size = size;
   if (max_poll_size < size) {
@@ -112,19 +130,13 @@ int32_t bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
   /// a valid module instance should have only one table
   uint32_t exported_table_len =
       WasmEdge_ModuleInstanceListTable(module_inst, names, std::size(names));
-  if (exported_table_len != 1) {
-    return -EINVAL;
-  }
+  assuming(exported_table_len == 1);
   auto table_inst = WasmEdge_ModuleInstanceFindTable(module_inst, names[0]);
-  if (!table_inst) {
-    return -EINVAL;
-  }
+  assuming(table_inst);
   WasmEdge_Value value;
   auto get_data_result =
       WasmEdge_TableInstanceGetData(table_inst, &value, wasm_sample_function);
-  if (!WasmEdge_ResultOK(get_data_result)) {
-    return -EINVAL;
-  }
+  assuming(WasmEdge_ResultOK(get_data_result));
   assert(value.Type == WasmEdge_ValType::WasmEdge_ValType_FuncRef);
   auto func_ref = WasmEdge_ValueGetFuncRef(value);
 
@@ -133,13 +145,13 @@ int32_t bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
       WasmEdge_ValueGenI32(wasm_buf_ptr),
       WasmEdge_ValueGenI32(size),
   };
-  WasmEdge_Value invoke_func_result[1];
+  WasmEdge_Value invoke_func_result;
   auto call_result = WasmEdge_ExecutorInvoke(
-      wasm_executor, func_ref, invoke_func_params, 3, invoke_func_result, 1);
+      wasm_executor, func_ref, invoke_func_params, 3, &invoke_func_result, 1);
   if (!WasmEdge_ResultOK(call_result)) {
     return -EINVAL;
   }
-  return WasmEdge_ValueGetI32(invoke_func_result[0]);
+  return WasmEdge_ValueGetI32(invoke_func_result);
 }
 
 /// \brief create a bpf buffer based on the object map type
@@ -175,6 +187,8 @@ int32_t wasm_bpf_program::attach_bpf_program(const char *name,
                                              const char *attach_target) {
   struct bpf_link *link;
   if (!attach_target) {
+    // auto attach base on bpf_program__section_name. The works well for most
+    // bpf types, include kprobe, uprobe, fentry, lsm, etc.
     link =
         bpf_program__attach(bpf_object__find_program_by_name(obj.get(), name));
   } else {
@@ -184,15 +198,13 @@ int32_t wasm_bpf_program::attach_bpf_program(const char *name,
       spdlog::error("get prog {} fail", name);
       return -1;
     }
-    auto sec_name = std::string(bpf_program__section_name(prog));
-    if (sec_name == "sockops") {
-      // To be discussed..
-      return -ENOSYS;
-    } else {
-      link = bpf_program__attach(
-          bpf_object__find_program_by_name(obj.get(), name));
-    }
-    // TODO: support more attach type libbpf cannot auto attach
+    // TODO: attach dynamically base on bpf_program__section_name(prog) and
+    // attach_target to support more attach type libbpf cannot auto attach. For
+    // example, if bpf_program__section_name(prog) is "xdp" and attach_target is
+    // "eth0", or attach sockops to a socket fd. For now, we will try auto
+    // attach as well.
+    link =
+        bpf_program__attach(bpf_object__find_program_by_name(obj.get(), name));
   }
   if (!link) {
     return static_cast<int32_t>(libbpf_get_error(link));
@@ -235,6 +247,9 @@ int32_t wasm_bpf_program::bpf_buffer_poll(
   buffer->set_callback_params(executor, module_instance,
                               static_cast<uint32_t>(sample_func), data,
                               max_size, ctx, wasm_buf_ptr);
+  if (!buffer->is_valid()) {
+    return -EINVAL;
+  }
   // poll the buffer
   return buffer->bpf_buffer__poll(timeout_ms);
 }

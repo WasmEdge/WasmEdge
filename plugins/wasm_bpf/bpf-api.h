@@ -41,6 +41,10 @@ protected:
 public:
   /// sample callback which calls the wasm handler indirectly
   int32_t bpf_buffer_sample(void *data, size_t size);
+  /// Check if the bpf buffer is valid
+  ///
+  /// a valid module instance should have only one table and a sample function
+  bool is_valid() const;
   /// set the wasm callback parameters
   void
   set_callback_params(WasmEdge_ExecutorContext *executor,
@@ -64,14 +68,19 @@ class wasm_bpf_program {
       links;
 
 public:
+  /// Find a bpf map fd by name
   int32_t bpf_map_fd_by_name(const char *name);
+  /// Load a bpf object from a buffer into the kernel
   int32_t load_bpf_object(const void *obj_buf, size_t obj_buf_sz);
+  /// Attach a bpf program to a target (e.g. a kernel function on a kprobe)
   int32_t attach_bpf_program(const char *name, const char *attach_target);
+  /// Poll the bpf buffer to get data from the kernel
   int32_t bpf_buffer_poll(WasmEdge_ExecutorContext *executor,
                           const WasmEdge_ModuleInstanceContext *module_instance,
                           int32_t fd, int32_t sample_func, uint32_t ctx,
                           void *buffer_data, size_t max_size,
                           int32_t timeout_ms, uint32_t wasm_buf_ptr);
+  /// Get the bpf map pointer by fd
   bpf_map *map_ptr_by_fd(int32_t fd);
 };
 

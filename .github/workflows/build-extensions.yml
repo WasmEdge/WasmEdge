@@ -121,6 +121,26 @@ jobs:
             test_path: test/plugins/wasi_nn
             test_bin: wasiNNTests
             build_type: Release
+          - name: WASI-NN TensorFlow
+            tar_name: wasi_nn-tensorflow
+            backend: Tensorflow
+            compiler: g++
+            docker_tag: ubuntu-build-gcc
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            test_path: test/plugins/wasi_nn
+            test_bin: wasiNNTests
+            build_type: Release
+          - name: WASI-NN TensorFlow
+            tar_name: wasi_nn-tensorflow
+            backend: Tensorflow
+            compiler: clang++
+            docker_tag: ubuntu-build-clang
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            test_path: test/plugins/wasi_nn
+            test_bin: wasiNNTests
+            build_type: Release
           - name: WASI-Crypto
             tar_name: wasi_crypto
             compiler: g++
@@ -290,6 +310,19 @@ jobs:
             cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
             build_type: Release
             test: true
+          # - name: WASI-NN Tensorflow
+          #   tar_name: wasi_nn-tensorflow
+          #   backend: Tensorflow
+          #   system: manylinux2014 x86_64
+          #   host_runner: ubuntu-latest
+          #   docker_tag: manylinux2014_x86_64
+          #   test_path: test/plugins/wasi_nn
+          #   test_bin: wasiNNTests
+          #   output_path: plugins/wasi_nn
+          #   output_bin: libwasmedgePluginWasiNN.so
+          #   cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Tensorflow"
+          #   build_type: Release
+          #   test: true
           - name: WASI-NN Tensorflow Lite
             tar_name: wasi_nn-tensorflowlite
             backend: Tensorflowlite

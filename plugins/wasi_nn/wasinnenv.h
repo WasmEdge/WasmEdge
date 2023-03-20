@@ -14,7 +14,9 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
 #include <torch/script.h>
 #endif
-
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+#include "tensorflow/c/c_api.h"
+#endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
 #include "tensorflow/lite/c/c_api.h"
 #endif
@@ -72,6 +74,16 @@ public:
       }
     }
 #endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    spdlog::info("Start graph");
+    if (TFBuffer != nullptr) {
+      TF_DeleteBuffer(TFBuffer);
+    }
+    if (TFGraph != nullptr) {
+      TF_DeleteGraph(TFGraph);
+    }
+    spdlog::info("End graph");
+#endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     if (TFLiteMod) {
       TfLiteModelDelete(TFLiteMod);
@@ -89,6 +101,10 @@ public:
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   torch::jit::Module TorchModel;
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+  TF_Buffer *TFBuffer = nullptr;
+  TF_Graph *TFGraph = nullptr;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
   TfLiteModel *TFLiteMod = nullptr;
@@ -118,6 +134,25 @@ public:
       ie_infer_request_free(&OpenVINOInferRequest);
     }
 #endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    TF_Status *TFStat = TF_NewStatus();
+    if (TFSessionOpts) {
+      TF_DeleteSessionOptions(TFSessionOpts);
+    }
+    if (TFSession) {
+      TF_CloseSession(TFSession, TFStat);
+      TF_DeleteSession(TFSession, TFStat);
+    }
+    TF_DeleteStatus(TFStat);
+    TFInputs.clear();
+    TFInputNames.clear();
+    for (uint32_t I = 0; I < TFInputTensors.size(); ++I) {
+      if (TFInputTensors[I]) {
+        TF_DeleteTensor(TFInputTensors[I]);
+      }
+    }
+    TFInputTensors.clear();
+#endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     if (TFLiteInterp) {
       TfLiteInterpreterDelete(TFLiteInterp);
@@ -132,6 +167,13 @@ public:
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   std::vector<torch::jit::IValue> TorchInputs;
   std::vector<at::Tensor> TorchOutputs;
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+  TF_SessionOptions *TFSessionOpts = nullptr;
+  TF_Session *TFSession = nullptr;
+  std::vector<TF_Output> TFInputs;
+  std::vector<std::string> TFInputNames;
+  std::vector<TF_Tensor *> TFInputTensors;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
   TfLiteInterpreter *TFLiteInterp = nullptr;

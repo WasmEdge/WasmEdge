@@ -33,12 +33,31 @@ public:
                         uint32_t Index, uint32_t TensorPtr);
 };
 
+class WasiNNSetInputByString : public WasiNN<WasiNNSetInputByString> {
+public:
+  WasiNNSetInputByString(WASINN::WasiNNEnvironment &HostEnv)
+      : WasiNN(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t Context,
+                        uint32_t IndexStringPtr, uint32_t IndexStringLen,
+                        uint32_t TensorPtr);
+};
+
 class WasiNNGetOuput : public WasiNN<WasiNNGetOuput> {
 public:
   WasiNNGetOuput(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
   Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t Context,
                         uint32_t Index, uint32_t OutBufferPtr,
                         uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr);
+};
+
+class WasiNNGetOutputByString : public WasiNN<WasiNNGetOutputByString> {
+public:
+  WasiNNGetOutputByString(WASINN::WasiNNEnvironment &HostEnv)
+      : WasiNN(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t Context,
+                        uint32_t IndexStringPtr, uint32_t IndexStringLen,
+                        uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
+                        uint32_t BytesWrittenPtr);
 };
 
 class WasiNNCompute : public WasiNN<WasiNNCompute> {

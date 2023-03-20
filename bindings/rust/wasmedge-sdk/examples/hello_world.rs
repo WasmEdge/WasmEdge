@@ -1,34 +1,13 @@
-// If the version of rust used is less than v1.63, please uncomment the follow attribute.
-// #![feature(explicit_generic_args_with_impl_trait)]
-
 use wasmedge_sdk::{
-    error::HostFuncError, host_function, params, wat2wasm, Caller, Executor, ImportObjectBuilder,
-    Module, Store, WasmValue,
+    error::HostFuncError, host_function, params, wat2wasm, Caller, ImportObjectBuilder, Module,
+    VmBuilder, WasmValue,
 };
 
 // We define a function to act as our "env" "say_hello" function imported in the
 // Wasm program above.
 #[host_function]
-pub fn say_hello(caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+pub fn say_hello(_caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Hello, world!");
-
-    // get executor from caller
-    let executor = caller.executor();
-    assert!(executor.is_some());
-
-    // get module instance from caller
-    let instance = caller.instance();
-    if let Some(instance) = instance {
-        assert_eq!(instance.name(), Some("extern".to_string()));
-        assert_eq!(instance.func_count(), 1);
-        assert_eq!(instance.memory_count(), 0);
-        assert_eq!(instance.global_count(), 0);
-        assert_eq!(instance.table_count(), 0);
-    }
-
-    // get memory from caller
-    let mem = caller.memory(0);
-    assert!(mem.is_none());
 
     Ok(vec![])
 }
@@ -62,24 +41,11 @@ fn main() -> anyhow::Result<()> {
     let module = Module::from_bytes(None, wasm_bytes)?;
 
     // create an executor
-    let mut executor = Executor::new(None, None)?;
-
-    // create a store
-    let mut store = Store::new()?;
-
-    // register the module into the store
-    store.register_import_module(&mut executor, &import)?;
-
-    // register the compiled module into the store and get an module instance
-    let extern_instance = store.register_named_module(&mut executor, "extern", &module)?;
-
-    // get the exported function "run"
-    let run = extern_instance
-        .func("run")
-        .ok_or_else(|| anyhow::Error::msg("Not found exported function named 'run'."))?;
-
-    // run host function
-    run.call(&executor, params!())?;
+    VmBuilder::new()
+        .build()?
+        .register_import_module(import)?
+        .register_module(Some("extern"), module)?
+        .run_func(Some("extern"), "run", params!())?;
 
     Ok(())
 }

@@ -21,7 +21,7 @@ impl Compiler {
     /// # Error
     ///
     /// If fail to create a AOT [compiler](crate::Compiler), then an error is returned.
-    pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
+    pub fn create(config: Option<&Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(config) => unsafe { ffi::WasmEdge_CompilerCreate(config.inner.0) },
             None => unsafe { ffi::WasmEdge_CompilerCreate(std::ptr::null_mut()) },
@@ -129,6 +129,12 @@ impl Compiler {
 
         Ok(())
     }
+
+    /// Provides a raw pointer to the inner Compiler context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_CompilerContext {
+        self.inner.0 as *const _
+    }
 }
 
 #[derive(Debug)]
@@ -163,7 +169,7 @@ mod tests {
             assert!(result.is_ok());
 
             // create a AOT Compiler with a given configuration
-            let result = Compiler::create(Some(config));
+            let result = Compiler::create(Some(&config));
             assert!(result.is_ok());
             let compiler = result.unwrap();
 
@@ -200,7 +206,7 @@ mod tests {
             // compile file for shared library output format
             config.set_aot_compiler_output_format(CompilerOutputFormat::Native);
 
-            let result = Compiler::create(Some(config));
+            let result = Compiler::create(Some(&config));
             assert!(result.is_ok());
             let compiler = result.unwrap();
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
@@ -273,7 +279,7 @@ mod tests {
             config.set_aot_optimization_level(CompilerOptimizationLevel::O0);
             config.set_aot_compiler_output_format(CompilerOutputFormat::Native);
 
-            let result = Compiler::create(Some(config));
+            let result = Compiler::create(Some(&config));
             assert!(result.is_ok());
             let compiler = result.unwrap();
             #[cfg(target_os = "linux")]
@@ -305,7 +311,7 @@ mod tests {
         assert!(result.is_ok());
 
         // create a AOT Compiler with a given configuration
-        let result = Compiler::create(Some(config));
+        let result = Compiler::create(Some(&config));
         assert!(result.is_ok());
         let compiler = result.unwrap();
 
@@ -342,7 +348,7 @@ mod tests {
         assert!(result.is_ok());
 
         // create a AOT Compiler with a given configuration
-        let result = Compiler::create(Some(config));
+        let result = Compiler::create(Some(&config));
         assert!(result.is_ok());
         let compiler = Arc::new(Mutex::new(result.unwrap()));
 

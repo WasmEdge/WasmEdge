@@ -407,7 +407,7 @@ jobs:
           cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}
           tar -zcvf plugin.tar.gz ${{ matrix.output_bin }}
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: WasmEdge-plugin-${{ matrix.tar_name }}-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin.tar.gz
@@ -464,7 +464,7 @@ jobs:
           cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}
           tar -zcvf plugin.tar.gz ${{ matrix.output_bin }}
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: WasmEdge-plugin-${{ matrix.tar_name }}-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_x86_64.tar.gz
           path: plugin.tar.gz

@@ -48,7 +48,7 @@ The `wasmedge-sys` crate defines a group of low-level Rust APIs for WasmEdge, a 
 
 ## wasmedge-types
 
-The `wasmedge-types` crate defines a group of common data structures used by both [wasmedge-rs](https://crates.io/crates/wasmedge-sdk) and [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crates.
+The `wasmedge-types` crate defines a group of common data structures used by both [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) and [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crates.
 
 <p align = "left">
     <strong>

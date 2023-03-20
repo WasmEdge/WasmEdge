@@ -1,8 +1,8 @@
 //! Defines WasmEdge Executor.
 
 use super::ffi;
-#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-use crate::WasiCrypto;
+#[cfg(feature = "async")]
+use crate::r#async::FiberFuture;
 use crate::{
     error::WasmEdgeError, instance::module::InnerInstance, types::WasmEdgeString, utils::check,
     Config, Engine, FuncRef, Function, ImportObject, Instance, Module, Statistics, Store,
@@ -27,7 +27,7 @@ impl Executor {
     /// # Error
     ///
     /// If fail to create a [executor](crate::Executor), then an error is returned.
-    pub fn create(config: Option<Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
+    pub fn create(config: Option<&Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(config) => match stat {
                 Some(stat) => unsafe { ffi::WasmEdge_ExecutorCreate(config.inner.0, stat.inner.0) },
@@ -85,62 +85,6 @@ impl Executor {
                     import.inner.0 as *const _,
                 ))?;
             },
-            #[cfg(target_os = "linux")]
-            ImportObject::WasmEdgeProcess(import) => unsafe {
-                check(ffi::WasmEdge_ExecutorRegisterImport(
-                    self.inner.0,
-                    store.inner.0,
-                    import.inner.0 as *const _,
-                ))?;
-            },
-            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
-            ImportObject::Nn(import) => unsafe {
-                check(ffi::WasmEdge_ExecutorRegisterImport(
-                    self.inner.0,
-                    store.inner.0,
-                    import.inner.0 as *const _,
-                ))?;
-            },
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            ImportObject::Crypto(WasiCrypto::Common(import)) => unsafe {
-                check(ffi::WasmEdge_ExecutorRegisterImport(
-                    self.inner.0,
-                    store.inner.0,
-                    import.inner.0 as *const _,
-                ))?;
-            },
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            ImportObject::Crypto(WasiCrypto::AsymmetricCommon(import)) => unsafe {
-                check(ffi::WasmEdge_ExecutorRegisterImport(
-                    self.inner.0,
-                    store.inner.0,
-                    import.inner.0 as *const _,
-                ))?;
-            },
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            ImportObject::Crypto(WasiCrypto::SymmetricOptionations(import)) => unsafe {
-                check(ffi::WasmEdge_ExecutorRegisterImport(
-                    self.inner.0,
-                    store.inner.0,
-                    import.inner.0 as *const _,
-                ))?;
-            },
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            ImportObject::Crypto(WasiCrypto::KeyExchange(import)) => unsafe {
-                check(ffi::WasmEdge_ExecutorRegisterImport(
-                    self.inner.0,
-                    store.inner.0,
-                    import.inner.0 as *const _,
-                ))?;
-            },
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            ImportObject::Crypto(WasiCrypto::Signatures(import)) => unsafe {
-                check(ffi::WasmEdge_ExecutorRegisterImport(
-                    self.inner.0,
-                    store.inner.0,
-                    import.inner.0 as *const _,
-                ))?;
-            },
         }
 
         Ok(())
@@ -181,7 +125,7 @@ impl Executor {
 
         Ok(Instance {
             inner: std::sync::Arc::new(InnerInstance(instance_ctx)),
-            registered: false,
+            registered: true,
         })
     }
 
@@ -216,19 +160,50 @@ impl Executor {
         }
         Ok(Instance {
             inner: std::sync::Arc::new(InnerInstance(instance_ctx)),
-            registered: false,
+            registered: true,
         })
     }
-}
-impl Drop for Executor {
-    fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
-            unsafe { ffi::WasmEdge_ExecutorDelete(self.inner.0) }
+
+    /// Registers plugin module instance into a [store](crate::Store).
+    ///
+    /// # Arguments
+    ///
+    /// * `store` - The [store](crate::Store), in which the [module](crate::Module) to be instantiated
+    /// is stored.
+    ///
+    /// * `instance` - The plugin module instance to be registered.
+    ///
+    /// # Error
+    ///
+    /// If fail to register the given plugin module instance, then an error is returned.
+    pub fn register_plugin_instance(
+        &mut self,
+        store: &mut Store,
+        instance: &Instance,
+    ) -> WasmEdgeResult<()> {
+        unsafe {
+            check(ffi::WasmEdge_ExecutorRegisterImport(
+                self.inner.0,
+                store.inner.0,
+                instance.inner.0 as *const _,
+            ))?;
         }
+
+        Ok(())
     }
-}
-impl Engine for Executor {
-    fn run_func(
+
+    /// Runs a host function instance and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `func` - The function instance to run.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Errors
+    ///
+    /// If fail to run the host function, then an error is returned.
+    pub fn call_func(
         &self,
         func: &Function,
         params: impl IntoIterator<Item = WasmValue>,
@@ -255,7 +230,40 @@ impl Engine for Executor {
         Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 
-    fn run_func_ref(
+    /// Asynchronously runs a host function instance and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `func` - The function instance to run.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Errors
+    ///
+    /// If fail to run the host function, then an error is returned.
+    #[cfg(feature = "async")]
+    pub async fn call_func_async(
+        &self,
+        func: &Function,
+        params: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        FiberFuture::on_fiber(|| self.call_func(func, params))
+            .await
+            .unwrap()
+    }
+
+    /// Runs a host function reference instance and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `func_ref` - The function reference instance to run.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Errors
+    ///
+    /// If fail to run the host function reference instance, then an error is returned.
+    pub fn call_func_ref(
         &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
@@ -280,6 +288,58 @@ impl Engine for Executor {
         }
 
         Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
+    }
+
+    /// Asynchronously runs a host function reference instance and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `func_ref` - The function reference instance to run.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Errors
+    ///
+    /// If fail to run the host function reference instance, then an error is returned.
+    #[cfg(feature = "async")]
+    pub async fn call_func_ref_async(
+        &self,
+        func_ref: &FuncRef,
+        params: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        FiberFuture::on_fiber(|| self.call_func_ref(func_ref, params))
+            .await
+            .unwrap()
+    }
+
+    /// Provides a raw pointer to the inner Executor context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ExecutorContext {
+        self.inner.0 as *const _
+    }
+}
+impl Drop for Executor {
+    fn drop(&mut self) {
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe { ffi::WasmEdge_ExecutorDelete(self.inner.0) }
+        }
+    }
+}
+impl Engine for Executor {
+    fn run_func(
+        &self,
+        func: &Function,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        self.call_func(func, params)
+    }
+
+    fn run_func_ref(
+        &self,
+        func_ref: &FuncRef,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        self.call_func_ref(func_ref, params)
     }
 }
 
@@ -317,7 +377,7 @@ mod tests {
             let result = Config::create();
             assert!(result.is_ok());
             let config = result.unwrap();
-            let result = Executor::create(Some(config), None);
+            let result = Executor::create(Some(&config), None);
             assert!(result.is_ok());
             let executor = result.unwrap();
             assert!(!executor.inner.0.is_null());
@@ -344,7 +404,7 @@ mod tests {
             assert!(result.is_ok());
             let mut stat = result.unwrap();
 
-            let result = Executor::create(Some(config), Some(&mut stat));
+            let result = Executor::create(Some(&config), Some(&mut stat));
             assert!(result.is_ok());
             let executor = result.unwrap();
             assert!(!executor.inner.0.is_null());
@@ -453,7 +513,7 @@ mod tests {
         assert!(result.is_ok());
         let mut stat = result.unwrap();
 
-        let result = Executor::create(Some(config), Some(&mut stat));
+        let result = Executor::create(Some(&config), Some(&mut stat));
         assert!(result.is_ok());
         let executor = result.unwrap();
         assert!(!executor.inner.0.is_null());
@@ -478,7 +538,7 @@ mod tests {
         assert!(result.is_ok());
         let mut stat = result.unwrap();
 
-        let result = Executor::create(Some(config), Some(&mut stat));
+        let result = Executor::create(Some(&config), Some(&mut stat));
         assert!(result.is_ok());
         let executor = Arc::new(Mutex::new(result.unwrap()));
 

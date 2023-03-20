@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "wasinnfunc.h"
+#include "common/errcode.h"
 #include "common/log.h"
 
 #include <string>
@@ -16,6 +17,21 @@
 #include <iostream>
 
 #include <torch/torch.h>
+#endif
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+#include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <random>
+#include <sstream>
+
+#include <tensorflow/c/c_api.h>
+#include <tensorflow/cc/saved_model/loader.h>
+#include <tensorflow/cc/saved_model/tag_constants.h>
+#include <tensorflow/core/framework/tensor.h>
+#include <tensorflow/core/platform/status.h>
+#include <tensorflow/core/public/session_options.h>
 #endif
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
@@ -43,6 +59,38 @@ namespace {
   }
   return DeviceName;
 }
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+uint32_t TensorflowTypeSize(const tensorflow::DataType InType) {
+  switch (InType) {
+  case tensorflow::DataType::DT_FLOAT:
+    return 4;
+  case tensorflow::DataType::DT_HALF:
+    return 2;
+  case tensorflow::DataType::DT_UINT8:
+    return 1;
+  case tensorflow::DataType::DT_INT32:
+    return 4;
+  default:
+    assumingUnreachable();
+  }
+}
+tensorflow::DataType TensorflowTypeMap(const WASINN::TensorType InType) {
+  uint32_t TFInType;
+  switch (InType) {
+  case WASINN::TensorType::F32:
+    return tensorflow::DataType::DT_FLOAT;
+  case WASINN::TensorType::F16:
+    return tensorflow::DataType::DT_HALF;
+  case WASINN::TensorType::U8:
+    return tensorflow::DataType::DT_UINT8;
+  case WASINN::TensorType::I32:
+    return tensorflow::DataType::DT_INT32;
+  default:
+    assumingUnreachable();
+  }
+}
+#endif
 
 } // namespace
 
@@ -333,6 +381,85 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
         "[WASI-NN] TensorflowLite backend is not built. use "
         "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflowlite\" to build it.");
 #endif
+  } else if (Encoding == static_cast<uint32_t>(WASINN::Backend::Tensorflow)) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    // The graph builder length must be 3.
+    if (BuilderLen != 3) {
+      spdlog::error("[WASI-NN] Wrong GraphBuilder Length {:d}, expect 3",
+                    BuilderLen);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    tensorflow::RunOptions RunOption;
+    tensorflow::SessionOptions SessionOption;
+    tensorflow::Status TFStat;
+    uint32_t *GraphBuilders =
+        MemInst->getPointer<uint32_t *>(BuilderPtr, BuilderLen * 2);
+    if (unlikely(GraphBuilders == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the GraphBuilder memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    uint32_t BinLen = GraphBuilders[1];
+    char *BinPtr = MemInst->getPointer<char *>(GraphBuilders[0], BinLen);
+    if (unlikely(BinPtr == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the Weight memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+
+    // load tag set name
+    char *TagSetPtr =
+        MemInst->getPointer<char *>(GraphBuilders[2], GraphBuilders[3]);
+    if (unlikely(TagSetPtr == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing savedmodel tag set name");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    std::string TagSet;
+    TagSet.assign(TagSetPtr, TagSetPtr + GraphBuilders[3]);
+
+    // load signature name
+    char *SignaturePtr =
+        MemInst->getPointer<char *>(GraphBuilders[4], GraphBuilders[5]);
+    if (unlikely(SignaturePtr == nullptr)) {
+      spdlog::error(
+          "[WASI-NN] Failed when accessing savedmodel signature name");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    std::string Signature;
+    Signature.assign(SignaturePtr, SignaturePtr + GraphBuilders[5]);
+
+    std::string SavedModelDir;
+    SavedModelDir.assign(BinPtr, BinPtr + BinLen);
+    if (unlikely(!tensorflow::MaybeSavedModelDirectory(SavedModelDir))) {
+      spdlog::error("[WASI-NN] could not find export model: {}", SavedModelDir);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    std::shared_ptr<tensorflow::SavedModelBundle> TFBundle(
+        new tensorflow::SavedModelBundle());
+
+    if (TagSet == "") {
+      TFStat = tensorflow::LoadSavedModel(SessionOption, RunOption,
+                                          SavedModelDir, {}, TFBundle.get());
+    } else {
+      TFStat = tensorflow::LoadSavedModel(
+          SessionOption, RunOption, SavedModelDir, {TagSet}, TFBundle.get());
+    }
+    if (unlikely(!TFStat.ok())) {
+      spdlog::error("[WASI-NN] could not create new bundle: {}",
+                    TFStat.error_message());
+      return static_cast<uint32_t>(WASINN::ErrNo::Busy);
+    }
+    // Add a new graph.
+    Env.NNGraph.emplace_back(static_cast<WASINN::Backend>(Encoding));
+
+    auto &Graph = Env.NNGraph.back();
+    Graph.TFSignature = Signature;
+    Graph.TFBundle = TFBundle;
+    *GraphId = Env.NNGraph.size() - 1;
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+#else
+    spdlog::error(
+        "[WASI-NN] Tensorflow backend is not built. use "
+        "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflow\" to build it.");
+#endif
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
   }
@@ -422,6 +549,39 @@ Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
     spdlog::error(
         "[WASI-NN] TensorflowLite backend is not built. use "
         "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflowlite\" to build it.");
+#endif
+  } else if (Env.NNGraph[GraphId].GraphBackend == WASINN::Backend::Tensorflow) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    Env.NNContext.emplace_back(Env.NNGraph[GraphId]);
+    const auto Graph = Env.NNGraph[GraphId];
+    auto &NewContext = Env.NNContext.back();
+    // Create session.
+    if (unlikely(Graph.TFBundle == nullptr)) {
+      spdlog::error("[WASI-NN] tensorflow model is not loaded");
+      Env.NNContext.pop_back();
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    NewContext.TFBundle = Graph.TFBundle;
+    auto SigMap = NewContext.TFBundle->meta_graph_def.signature_def();
+    auto ModelDef = SigMap.at(Graph.TFSignature);
+    for (auto X : ModelDef.inputs()) {
+      NewContext.TFInputNames.push_back(X.second.name());
+    }
+    for (auto X : ModelDef.outputs()) {
+      NewContext.TFOutputNames.push_back(X.second.name());
+    }
+    std::sort(NewContext.TFInputNames.begin(), NewContext.TFInputNames.end());
+    std::sort(NewContext.TFOutputNames.begin(), NewContext.TFOutputNames.end());
+    for (auto X : NewContext.TFInputNames) {
+      NewContext.TFInputAlready.emplace_back(X, tensorflow::Tensor());
+    }
+
+    *Context = Env.NNContext.size() - 1;
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+#else
+    spdlog::error(
+        "[WASI-NN] Tensorflow backend is not built. use "
+        "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflow\" to build it.");
 #endif
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
@@ -640,6 +800,58 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
     spdlog::error("[WASI-NN] PyTorch backend is not built. use "
                   "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"PyTorch\" to build it.");
 #endif
+  } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::Tensorflow) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    uint32_t *Tensor = MemInst->getPointer<uint32_t *>(TensorPtr, 5);
+    if (unlikely(Tensor == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the Tensor memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    uint32_t DimensionLen = Tensor[1];
+    uint64_t BlobSize = 1;
+    tensorflow::TensorShape TFShape({});
+    uint32_t *DimensionBuf =
+        MemInst->getPointer<uint32_t *>(Tensor[0], DimensionLen);
+    if (unlikely(DimensionBuf == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the Dimension memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    for (uint32_t I = 0; I < DimensionLen; I++) {
+      TFShape.AddDim(static_cast<int64_t>(DimensionBuf[I]));
+      BlobSize *= static_cast<int64_t>(DimensionBuf[I]);
+    }
+    uint32_t TensorDataLen = Tensor[4];
+    uint8_t *TensorDataBuf =
+        MemInst->getPointer<uint8_t *>(Tensor[3], TensorDataLen);
+    if (unlikely(TensorDataBuf == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the TensorData memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    WASINN::TensorType RType = static_cast<WASINN::TensorType>(Tensor[2]);
+    tensorflow::DataType TFInType = TensorflowTypeMap(RType);
+    uint32_t ElementSize = TensorflowTypeSize(TFInType);
+    if (ElementSize == 0) {
+      spdlog::error("[WASI-NN] Unsupported output dtype {}", TFInType);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    if (BlobSize * ElementSize != TensorDataLen) {
+      spdlog::error("[WASI-NN] Input buffer(len {}) is not aligned with the "
+                    "tensor(len {})",
+                    TensorDataLen, BlobSize * ElementSize);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    // Allocate tensor and data copying
+    tensorflow::Tensor TensorPtr(TFInType, TFShape);
+    std::copy_n(TensorDataBuf, TensorDataLen,
+                static_cast<uint8_t *>(TensorPtr.data()));
+    uint8_t *see = static_cast<uint8_t *>(TensorPtr.data());
+    CxtRef.TFInputAlready[Index].second = TensorPtr;
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+#else
+    spdlog::error(
+        "[WASI-NN] Tensorflow backend is not built. use "
+        "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflow\" to build it.");
+#endif
   } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::TensorflowLite) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     uint32_t InCnt = TfLiteInterpreterGetInputTensorCount(CxtRef.TFLiteInterp);
@@ -851,6 +1063,52 @@ WasiNNGetOuput::body(const Runtime::CallingFrame &Frame, uint32_t Context,
     spdlog::error("[WASI-NN] PyTorch backend is not built. use "
                   "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"PyTorch\" to build it.");
 #endif
+  } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::Tensorflow) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    if (CxtRef.TFOutputNames.size() <= Index) {
+      spdlog::error(
+          "[WASI-NN] The output index {} exceeds the outputs number {}.", Index,
+          CxtRef.TFOutputNames.size());
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    tensorflow::Tensor OutTensor = CxtRef.TFOutputTensors[Index];
+    size_t BlobSize = 1;
+    for (size_t I = 0; I < OutTensor.shape().dims(); I++) {
+      BlobSize *= OutTensor.shape().dim_size(I);
+    }
+    uint32_t ElementSize = TensorflowTypeSize(OutTensor.dtype());
+    if (ElementSize == 0) {
+      spdlog::error("[WASI-NN] Unsupported output dtype {}", OutTensor.dtype());
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    uint32_t BytesToWrite = std::min(
+        static_cast<uint32_t>(BlobSize * ElementSize), OutBufferMaxSize);
+    if (OutBufferMaxSize < static_cast<uint32_t>(BlobSize * ElementSize)) {
+      spdlog::warn("[WASI-NN] OutBufferMaxSize is lower than actual output, "
+                   "which will cause truncating on output tensor");
+    }
+    uint8_t *OutBuffer =
+        MemInst->getPointer<uint8_t *>(OutBufferPtr, BytesToWrite);
+    if (unlikely(OutBuffer == nullptr)) {
+      spdlog::error(
+          "[WASI-NN] Failed when accessing the Output Buffer memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    std::copy_n(static_cast<uint8_t *>(OutTensor.data()), BytesToWrite,
+                OutBuffer);
+    uint32_t *BytesWritten =
+        MemInst->getPointer<uint32_t *>(BytesWrittenPtr, 1);
+    if (unlikely(BytesWritten == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the BytesWritten memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    *BytesWritten = BytesToWrite;
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+#else
+    spdlog::error(
+        "[WASI-NN] Tensorflow backend is not built. use "
+        "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflow\" to build it.");
+#endif
   } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::TensorflowLite) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     uint32_t OutCnt =
@@ -971,6 +1229,32 @@ Expect<uint32_t> WasiNNCompute::body(const Runtime::CallingFrame &Frame,
     spdlog::error(
         "[WASI-NN] Tensorflowlite backend is not built. use "
         "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflowlite\" to build it.");
+#endif
+  } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::Tensorflow) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    if (unlikely(CxtRef.TFBundle == nullptr)) {
+      spdlog::error("[WASI-NN] compute: Tensorflow bundle empty");
+      return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
+    }
+    tensorflow::Status TFStat;
+    tensorflow::Session *TFSession = CxtRef.TFBundle->session.get();
+    // tensorflow::Session *TFSession = nullptr;
+    if (unlikely(TFSession == nullptr)) {
+      spdlog::error("[WASI-NN] compute: Tensorflow session empty");
+      return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
+    }
+    TFStat = TFSession->Run(CxtRef.TFInputAlready, CxtRef.TFOutputNames, {},
+                            &CxtRef.TFOutputTensors);
+    if (unlikely(!TFStat.ok())) {
+      spdlog::error("[WASI-NN] Tensorflow run session failed :{}",
+                    TFStat.error_message());
+      return static_cast<uint32_t>(WASINN::ErrNo::Busy);
+    }
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+#else
+    spdlog::error(
+        "[WASI-NN] Tensorflow backend is not built. use "
+        "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflow\" to build it.");
 #endif
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");

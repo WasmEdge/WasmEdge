@@ -14,7 +14,15 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
 #include <torch/script.h>
 #endif
-
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+#include <filesystem>
+#include <string>
+#include <tensorflow/c/c_api.h>
+#include <tensorflow/cc/saved_model/loader.h>
+#include <tensorflow/cc/saved_model/tag_constants.h>
+#include <tensorflow/core/framework/tensor.h>
+#include <tensorflow/core/public/session_options.h>
+#endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
 #include "tensorflow/lite/c/c_api.h"
 #endif
@@ -72,6 +80,11 @@ public:
       }
     }
 #endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    // if (TFBundle) {
+    //   delete TFBundle;
+    // }
+#endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     if (TFLiteMod) {
       TfLiteModelDelete(TFLiteMod);
@@ -89,6 +102,10 @@ public:
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   torch::jit::Module TorchModel;
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+  std::shared_ptr<tensorflow::SavedModelBundle> TFBundle;
+  std::string TFSignature;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
   TfLiteModel *TFLiteMod = nullptr;
@@ -118,6 +135,12 @@ public:
       ie_infer_request_free(&OpenVINOInferRequest);
     }
 #endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    TFInputNames.clear();
+    TFOutputNames.clear();
+    TFInputAlready.clear();
+    TFOutputTensors.clear();
+#endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     if (TFLiteInterp) {
       TfLiteInterpreterDelete(TFLiteInterp);
@@ -132,6 +155,14 @@ public:
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   std::vector<torch::jit::IValue> TorchInputs;
   std::vector<at::Tensor> TorchOutputs;
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+  std::shared_ptr<tensorflow::SavedModelBundle> TFBundle;
+  std::vector<std::string> TFInputNames;
+  std::vector<std::string> TFOutputNames;
+  std::vector<std::pair<std::string, tensorflow::Tensor>> TFInputAlready;
+  std::vector<tensorflow::Tensor> TFOutputTensors;
+
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
   TfLiteInterpreter *TFLiteInterp = nullptr;

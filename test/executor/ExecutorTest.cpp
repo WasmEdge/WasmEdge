@@ -176,6 +176,26 @@ TEST(AsyncExecute, InterruptTest) {
   }
 }
 
+TEST(VM, MultipleVM) {
+  WasmEdge::Configure Conf;
+  WasmEdge::VM::VM VM1(Conf);
+  WasmEdge::VM::VM VM2(Conf);
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+      0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x0a, 0x01, 0x06, 0x5f, 0x73,
+      0x74, 0x61, 0x72, 0x74, 0x00, 0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
+  ASSERT_TRUE(VM1.loadWasm(Wasm));
+  ASSERT_TRUE(VM1.validate());
+  ASSERT_TRUE(VM1.instantiate());
+  ASSERT_TRUE(VM2.loadWasm(Wasm));
+  ASSERT_TRUE(VM2.validate());
+  ASSERT_TRUE(VM2.instantiate());
+  auto Result1 = VM1.execute("_start");
+  auto Result2 = VM2.execute("_start");
+  EXPECT_TRUE(Result1);
+  EXPECT_TRUE(Result2);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

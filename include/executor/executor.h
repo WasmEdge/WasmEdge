@@ -92,7 +92,6 @@ class Executor {
 public:
   Executor(const Configure &Conf, Statistics::Statistics *S = nullptr) noexcept
       : Conf(Conf) {
-    assuming(This == nullptr);
     if (Conf.getStatisticsConfigure().isInstructionCounting() ||
         Conf.getStatisticsConfigure().isCostMeasuring() ||
         Conf.getStatisticsConfigure().isTimeMeasuring()) {
@@ -100,13 +99,11 @@ public:
     } else {
       Stat = nullptr;
     }
-    newThread();
     if (Stat) {
       Stat->setCostLimit(Conf.getStatisticsConfigure().getCostLimit());
     }
   }
   ~Executor() noexcept {
-    This = nullptr;
     ExecutionContext.StopToken = nullptr;
     ExecutionContext.InstrCount = nullptr;
     ExecutionContext.CostTable = nullptr;
@@ -130,18 +127,6 @@ public:
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   invoke(const Runtime::Instance::FunctionInstance &FuncInst,
          Span<const ValVariant> Params, Span<const ValType> ParamTypes);
-
-  /// Register new thread
-  void newThread() noexcept {
-    This = this;
-    ExecutionContext.StopToken = &StopToken;
-    if (Stat) {
-      ExecutionContext.InstrCount = &Stat->getInstrCountRef();
-      ExecutionContext.CostTable = Stat->getCostTable().data();
-      ExecutionContext.Gas = &Stat->getTotalCostRef();
-      ExecutionContext.GasLimit = Stat->getCostLimit();
-    }
-  }
 
   /// Stop execution
   void stop() noexcept {
@@ -655,6 +640,22 @@ private:
   std::unordered_multimap<uint32_t, Waiter> WaiterMap;
 
 private:
+  /// Prepare execution context
+  void prepare(Runtime::StackManager &StackMgr, uint8_t *const *Memories,
+               ValVariant *const *Globals) noexcept {
+    This = this;
+    ExecutionContext.StopToken = &StopToken;
+    ExecutionContext.Memories = Memories;
+    ExecutionContext.Globals = Globals;
+    if (Stat) {
+      ExecutionContext.InstrCount = &Stat->getInstrCountRef();
+      ExecutionContext.CostTable = Stat->getCostTable().data();
+      ExecutionContext.Gas = &Stat->getTotalCostRef();
+      ExecutionContext.GasLimit = Stat->getCostLimit();
+    }
+    CurrentStack = &StackMgr;
+  }
+
   /// Execution context for compiled functions
   struct ExecutionContextStruct {
     uint8_t *const *Memories;

@@ -414,7 +414,7 @@ Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
     }
 
     Env.NNContext.emplace_back(Env.NNGraph[GraphId]);
-    const auto Graph = Env.NNGraph[GraphId];
+    const auto &Graph = Env.NNGraph[GraphId];
     auto &NewContext = Env.NNContext.back();
     auto *TFLiteOps = TfLiteInterpreterOptionsCreate();
     TfLiteInterpreterOptionsSetNumThreads(TFLiteOps, 2);

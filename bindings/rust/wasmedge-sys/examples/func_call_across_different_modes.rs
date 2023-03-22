@@ -76,7 +76,7 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
     // register a named module from "module2-uni.wasm"
     let module = Loader::create(Some(&config))?.from_file(&out_path)?;
     Validator::create(Some(&config))?.validate(&module)?;
-    executor.register_named_module(&mut store, &module, "module")?;
+    let _instance = executor.register_named_module(&mut store, &module, "module")?;
 
     // register an active module from "module1.wasm"
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))

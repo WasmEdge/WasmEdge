@@ -1179,7 +1179,7 @@ public:
         break;
       case OpCode::I64__clz:
         assuming(LLVM::Core::Ctlz != LLVM::Core::NotIntrinsic);
-        stackPush(Builder.createIntrinsic(LLVM::Core::Ctlz, {Context.Int32Ty},
+        stackPush(Builder.createIntrinsic(LLVM::Core::Ctlz, {Context.Int64Ty},
                                           {stackPop(), LLContext.getFalse()}));
         break;
       case OpCode::I32__ctz:

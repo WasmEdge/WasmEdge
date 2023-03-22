@@ -42,6 +42,12 @@ public:
     return Library->get<T>(Name);
   }
 
+  /// Reset status.
+  void reset() noexcept {
+    Intrinsics = nullptr;
+    Library.reset();
+  }
+
 private:
   std::shared_ptr<Loader::SharedLibrary> Library;
   const void *Intrinsics;

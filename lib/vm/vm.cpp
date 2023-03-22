@@ -437,6 +437,7 @@ void VM::unsafeCleanup() {
   unsafeLoadPlugInHosts();
   unsafeRegisterBuiltInHosts();
   unsafeRegisterPlugInHosts();
+  LoaderEngine.reset();
   Stage = VMStage::Inited;
 }
 

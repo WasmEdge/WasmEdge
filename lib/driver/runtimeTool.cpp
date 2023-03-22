@@ -65,11 +65,15 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   if (Opt.PropThreads.value()) {
     Conf.addProposal(Proposal::Threads);
   }
+  if (Opt.PropExceptionHandling.value()) {
+    Conf.addProposal(Proposal::ExceptionHandling);
+  }
   if (Opt.PropAll.value()) {
     Conf.addProposal(Proposal::MultiMemories);
     Conf.addProposal(Proposal::TailCall);
     Conf.addProposal(Proposal::ExtendedConst);
     Conf.addProposal(Proposal::Threads);
+    Conf.addProposal(Proposal::ExceptionHandling);
   }
 
   std::optional<std::chrono::system_clock::time_point> Timeout;

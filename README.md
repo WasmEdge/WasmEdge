@@ -43,6 +43,8 @@ WasmEdge can run standard WebAssembly bytecode programs compiled from C/C++, Rus
 
 WasmEdge supports [all standard WebAssembly features and many proposed extensions](https://wasmedge.org/book/en/intro/standard.html). It also supports a number of extensions tailored for cloud-native and edge computing uses (e.g., the [WasmEdge network sockets](https://wasmedge.org/book/en/dev/rust/networking.html) and [database driver](https://github.com/WasmEdge/wasmedge-db-examples), and the [WasmEdge Tensorflow extension](https://wasmedge.org/book/en/dev/rust/tensorflow.html)).
 
+WasmEdge also supports Tokio-based Rust apps.
+
  **Learn more about [technical highlights](https://wasmedge.org/book/en/intro/features.html) of WasmEdge.**
 
 ## Integrations and management

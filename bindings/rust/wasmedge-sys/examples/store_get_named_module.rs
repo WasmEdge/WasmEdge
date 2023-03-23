@@ -64,12 +64,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Validator::create(Some(&config))?.validate(&extern_module)?;
     let instance = executor.register_named_module(&mut store, &extern_module, "extern")?;
 
-    // get the module named "extern"
-    // let instance = store.module("extern")?;
-
     assert!(store.contains("extern"));
-
     assert!(instance.get_func("fib").is_ok());
+
+    // get the module named "extern"
+    let extern_instance = store.module("extern")?;
+    assert!(extern_instance.get_func("fib").is_ok());
 
     Ok(())
 }

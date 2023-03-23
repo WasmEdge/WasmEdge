@@ -172,7 +172,7 @@ TEST(AsyncExecute, ThreadTest) {
   ASSERT_TRUE(VM.instantiate());
   {
     std::array<WasmEdge::VM::Async<WasmEdge::Expect<std::vector<
-                   std::pair<WasmEdge::ValVariant, WasmEdge::FullValType>>>>,
+                   std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>,
                4>
         AsyncResults;
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
@@ -180,14 +180,14 @@ TEST(AsyncExecute, ThreadTest) {
           "mt19937",
           std::initializer_list<WasmEdge::ValVariant>{
               UINT32_C(2504) * Index, UINT64_C(5489), UINT64_C(100000) + Index},
-          {WasmEdge::FullValType(WasmEdge::ValType::I32),
-           WasmEdge::FullValType(WasmEdge::ValType::I64),
-           WasmEdge::FullValType(WasmEdge::ValType::I64)});
+          {WasmEdge::ValType(WasmEdge::ValTypeCode::I32),
+           WasmEdge::ValType(WasmEdge::ValTypeCode::I64),
+           WasmEdge::ValType(WasmEdge::ValTypeCode::I64)});
     }
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       auto Result = AsyncResults[Index].get();
       ASSERT_TRUE(Result);
-      ASSERT_EQ((*Result)[0].second, WasmEdge::ValType::I64);
+      ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::ValTypeCode::I64);
       EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Answers[Index]);
     }
   }
@@ -204,7 +204,7 @@ TEST(AsyncExecute, GasThreadTest) {
   ASSERT_TRUE(VM.instantiate());
   {
     std::array<WasmEdge::VM::Async<WasmEdge::Expect<std::vector<
-                   std::pair<WasmEdge::ValVariant, WasmEdge::FullValType>>>>,
+                   std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>,
                4>
         AsyncResults;
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
@@ -212,14 +212,14 @@ TEST(AsyncExecute, GasThreadTest) {
           "mt19937",
           std::initializer_list<WasmEdge::ValVariant>{
               UINT32_C(2504) * Index, UINT64_C(5489), UINT64_C(100000) + Index},
-          {WasmEdge::FullValType(WasmEdge::ValType::I32),
-           WasmEdge::FullValType(WasmEdge::ValType::I64),
-           WasmEdge::FullValType(WasmEdge::ValType::I64)});
+          {WasmEdge::ValType(WasmEdge::ValTypeCode::I32),
+           WasmEdge::ValType(WasmEdge::ValTypeCode::I64),
+           WasmEdge::ValType(WasmEdge::ValTypeCode::I64)});
     }
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       auto Result = AsyncResults[Index].get();
       ASSERT_TRUE(Result);
-      ASSERT_EQ((*Result)[0].second, WasmEdge::ValType::I64);
+      ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::ValTypeCode::I64);
       EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Answers[Index]);
     }
   }
@@ -250,7 +250,7 @@ TEST(AOTAsyncExecute, ThreadTest) {
   ASSERT_TRUE(VM.instantiate());
   {
     std::array<WasmEdge::VM::Async<WasmEdge::Expect<std::vector<
-                   std::pair<WasmEdge::ValVariant, WasmEdge::FullValType>>>>,
+                   std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>,
                4>
         AsyncResults;
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
@@ -258,14 +258,14 @@ TEST(AOTAsyncExecute, ThreadTest) {
           "mt19937",
           std::initializer_list<WasmEdge::ValVariant>{
               UINT32_C(2504) * Index, UINT64_C(5489), UINT64_C(100000) + Index},
-          {WasmEdge::FullValType(WasmEdge::ValType::I32),
-           WasmEdge::FullValType(WasmEdge::ValType::I64),
-           WasmEdge::FullValType(WasmEdge::ValType::I64)});
+          {WasmEdge::ValType(WasmEdge::ValTypeCode::I32),
+           WasmEdge::ValType(WasmEdge::ValTypeCode::I64),
+           WasmEdge::ValType(WasmEdge::ValTypeCode::I64)});
     }
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       auto Result = AsyncResults[Index].get();
       ASSERT_TRUE(Result);
-      ASSERT_EQ((*Result)[0].second, WasmEdge::ValType::I64);
+      ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::ValTypeCode::I64);
       EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Answers[Index]);
     }
   }
@@ -298,7 +298,7 @@ TEST(AOTAsyncExecute, GasThreadTest) {
   ASSERT_TRUE(VM.instantiate());
   {
     std::array<WasmEdge::VM::Async<WasmEdge::Expect<std::vector<
-                   std::pair<WasmEdge::ValVariant, WasmEdge::FullValType>>>>,
+                   std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>,
                4>
         AsyncResults;
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
@@ -306,14 +306,14 @@ TEST(AOTAsyncExecute, GasThreadTest) {
           "mt19937",
           std::initializer_list<WasmEdge::ValVariant>{
               UINT32_C(2504) * Index, UINT64_C(5489), UINT64_C(100000) + Index},
-          {WasmEdge::FullValType(WasmEdge::ValType::I32),
-           WasmEdge::FullValType(WasmEdge::ValType::I64),
-           WasmEdge::FullValType(WasmEdge::ValType::I64)});
+          {WasmEdge::ValType(WasmEdge::ValTypeCode::I32),
+           WasmEdge::ValType(WasmEdge::ValTypeCode::I64),
+           WasmEdge::ValType(WasmEdge::ValTypeCode::I64)});
     }
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       auto Result = AsyncResults[Index].get();
       ASSERT_TRUE(Result);
-      ASSERT_EQ((*Result)[0].second, WasmEdge::ValType::I64);
+      ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::ValTypeCode::I64);
       EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Answers[Index]);
     }
   }

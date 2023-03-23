@@ -24,6 +24,7 @@ You can find that there are several wasmedge related tools:
 2. `wasmedgec` is the ahead-of-time `WASM` compiler.
    - `wasmedgec` compiles a general `WASM` file into a compiled `WASM` file.
    - To disable building the ahead-of-time compiler only, you can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
+   - NOTE: The usage of `wasmedgec` is equal to `wasmedge compile`. We decide to deprecate `wasmedgec` in the future.
 3. `libwasmedge.so` is the WasmEdge C API shared library. (`libwasmedge.dylib` on MacOS and `wasmedge.dll` on Windows)
    - `libwasmedge.so`, `libwasmedge.dylib`, or `wasmedge.dll` provides the C API for the ahead-of-time compiler and the WASM runtime.
    - The APIs related to the ahead-of-time compiler will always fail if the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` is set as `OFF`.

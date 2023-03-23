@@ -303,6 +303,79 @@ WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ValTypeIsEqual(const WasmEdge_ValType ValType1,
                         const WasmEdge_ValType ValType2);
 
+/// Specify the WASM value type is an I32 or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is an I32, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsI32(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is an I64 or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is an I64, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsI64(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is a F32 or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is a F32, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsF32(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is a F64 or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is a F64, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsF64(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is a V128 or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is a V128, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsV128(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is a FuncRef or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is a FuncRef, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsFuncRef(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is an ExternRef or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is an ExternRef, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsExternRef(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is a Ref (includes nullable and non-nullable) or
+/// not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is a Ref, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsRef(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is a nullable Ref or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is a nullable Ref, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsRefNull(const WasmEdge_ValType ValType);
+
 // <<<<<<<< WasmEdge valtype functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge value functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

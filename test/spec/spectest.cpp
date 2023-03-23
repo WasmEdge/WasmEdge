@@ -101,10 +101,10 @@ SpecTest::CommandID resolveCommand(std::string_view Name) {
 }
 
 // Helper function to parse parameters from json to vector of value.
-std::pair<std::vector<WasmEdge::ValVariant>, std::vector<WasmEdge::FullValType>>
+std::pair<std::vector<WasmEdge::ValVariant>, std::vector<WasmEdge::ValType>>
 parseValueList(const rapidjson::Value &Args) {
   std::vector<WasmEdge::ValVariant> Result;
-  std::vector<WasmEdge::FullValType> ResultTypes;
+  std::vector<WasmEdge::ValType> ResultTypes;
   Result.reserve(Args.Size());
   ResultTypes.reserve(Args.Size());
   for (const auto &Element : Args.GetArray()) {
@@ -120,7 +120,7 @@ parseValueList(const rapidjson::Value &Args) {
           Result.emplace_back(WasmEdge::ExternRef(
               reinterpret_cast<void *>(std::stoul(Value) + 0x100000000ULL)));
         }
-        ResultTypes.emplace_back(WasmEdge::ValType::ExternRef);
+        ResultTypes.emplace_back(WasmEdge::ValTypeCode::ExternRef);
       } else if (Type == "funcref"sv) {
         if (Value == "null"sv) {
           Result.emplace_back(WasmEdge::UnknownRef());
@@ -130,19 +130,19 @@ parseValueList(const rapidjson::Value &Args) {
               reinterpret_cast<WasmEdge::Runtime::Instance::FunctionInstance *>(
                   std::stoul(Value) + 0x100000000ULL)));
         }
-        ResultTypes.emplace_back(WasmEdge::ValType::FuncRef);
+        ResultTypes.emplace_back(WasmEdge::ValTypeCode::FuncRef);
       } else if (Type == "i32"sv) {
         Result.emplace_back(static_cast<uint32_t>(std::stoul(Value)));
-        ResultTypes.emplace_back(WasmEdge::ValType::I32);
+        ResultTypes.emplace_back(WasmEdge::ValTypeCode::I32);
       } else if (Type == "f32"sv) {
         Result.emplace_back(static_cast<uint32_t>(std::stoul(Value)));
-        ResultTypes.emplace_back(WasmEdge::ValType::F32);
+        ResultTypes.emplace_back(WasmEdge::ValTypeCode::F32);
       } else if (Type == "i64"sv) {
         Result.emplace_back(static_cast<uint64_t>(std::stoull(Value)));
-        ResultTypes.emplace_back(WasmEdge::ValType::I64);
+        ResultTypes.emplace_back(WasmEdge::ValTypeCode::I64);
       } else if (Type == "f64"sv) {
         Result.emplace_back(static_cast<uint64_t>(std::stoull(Value)));
-        ResultTypes.emplace_back(WasmEdge::ValType::F64);
+        ResultTypes.emplace_back(WasmEdge::ValTypeCode::F64);
       } else {
         assumingUnreachable();
       }
@@ -178,7 +178,7 @@ parseValueList(const rapidjson::Value &Args) {
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I8x16);
       }
       Result.emplace_back(I64x2);
-      ResultTypes.emplace_back(WasmEdge::ValType::V128);
+      ResultTypes.emplace_back(WasmEdge::ValTypeCode::V128);
     } else {
       assumingUnreachable();
     }
@@ -261,7 +261,7 @@ SpecTest::resolve(std::string_view Params) const {
 }
 
 bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
-                       const std::pair<ValVariant, FullValType> &Got) const {
+                       const std::pair<ValVariant, ValType> &Got) const {
   const auto &TypeStr = Expected.first;
   const auto &ValStr = Expected.second;
   bool IsV128 = (std::string_view(TypeStr).substr(0, 4) == "v128"sv);
@@ -269,22 +269,18 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
     // Handle NaN case
     // TODO: nan:canonical and nan:arithmetic
     if (TypeStr == "f32"sv) {
-      if (Got.second.getTypeCode() != ValTypeCode::F32) {
+      if (Got.second.getCode() != ValTypeCode::F32) {
         return false;
       }
       return std::isnan(Got.first.get<float>());
     } else if (TypeStr == "f64"sv) {
-      if (Got.second.getTypeCode() != ValTypeCode::F64) {
+      if (Got.second.getCode() != ValTypeCode::F64) {
         return false;
       }
       return std::isnan(Got.first.get<double>());
     }
   } else if (TypeStr == "funcref"sv) {
-    if (Got.second.getTypeCode() != ValTypeCode::RefNull) {
-      return false;
-    }
-    if (Got.second.asRefType().getHeapType().getHTypeCode() !=
-        HeapTypeCode::Func) {
+    if (!Got.second.isFuncRefType()) {
       return false;
     }
     if (ValStr == "null"sv) {
@@ -298,11 +294,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
              static_cast<uint32_t>(std::stoul(ValStr));
     }
   } else if (TypeStr == "externref"sv) {
-    if (Got.second.getTypeCode() != ValTypeCode::RefNull) {
-      return false;
-    }
-    if (Got.second.asRefType().getHeapType().getHTypeCode() !=
-        HeapTypeCode::Extern) {
+    if (!Got.second.isExternRefType()) {
       return false;
     }
     if (ValStr == "null"sv) {
@@ -316,23 +308,23 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
              static_cast<uint32_t>(std::stoul(ValStr));
     }
   } else if (TypeStr == "i32"sv) {
-    if (Got.second != NumType::I32) {
+    if (Got.second.getCode() != ValTypeCode::I32) {
       return false;
     }
     return Got.first.get<uint32_t>() == uint32_t(std::stoul(ValStr));
   } else if (TypeStr == "f32"sv) {
-    if (Got.second != NumType::F32) {
+    if (Got.second.getCode() != ValTypeCode::F32) {
       return false;
     }
     // Compare the 32-bit pattern
     return Got.first.get<uint32_t>() == uint32_t(std::stoul(ValStr));
   } else if (TypeStr == "i64"sv) {
-    if (Got.second != NumType::I64) {
+    if (Got.second.getCode() != ValTypeCode::I64) {
       return false;
     }
     return Got.first.get<uint64_t>() == uint64_t(std::stoull(ValStr));
   } else if (TypeStr == "f64"sv) {
-    if (Got.second != NumType::F64) {
+    if (Got.second.getCode() != ValTypeCode::F64) {
       return false;
     }
     // Compare the 64-bit pattern
@@ -340,7 +332,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
   } else if (IsV128) {
     std::vector<std::string_view> Parts;
     std::string_view Ev = ValStr;
-    if (Got.second != NumType::V128) {
+    if (Got.second.getCode() != ValTypeCode::V128) {
       return false;
     }
     for (std::string::size_type Begin = 0, End = Ev.find(' ');
@@ -449,7 +441,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
 
 bool SpecTest::compares(
     const std::vector<std::pair<std::string, std::string>> &Expected,
-    const std::vector<std::pair<ValVariant, FullValType>> &Got) const {
+    const std::vector<std::pair<ValVariant, ValType>> &Got) const {
   if (Expected.size() != Got.size()) {
     return false;
   }

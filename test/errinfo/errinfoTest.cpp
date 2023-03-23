@@ -82,13 +82,13 @@ TEST(ErrInfoTest, Info__Executing) {
 TEST(ErrInfoTest, Info__Mismatch) {
   WasmEdge::ErrInfo::InfoMismatch Info1(static_cast<uint8_t>(16), 8888);
   std::cout << Info1 << std::endl;
-  WasmEdge::ErrInfo::InfoMismatch Info2(WasmEdge::ValType::ExternRef,
-                                        WasmEdge::ValType::FuncRef);
+  WasmEdge::ErrInfo::InfoMismatch Info2(WasmEdge::ValTypeCode::ExternRef,
+                                        WasmEdge::ValTypeCode::FuncRef);
   std::cout << Info2 << std::endl;
   WasmEdge::ErrInfo::InfoMismatch Info3(
-      {WasmEdge::ValType::I32, WasmEdge::ValType::FuncRef},
-      {WasmEdge::ValType::F64, WasmEdge::ValType::ExternRef,
-       WasmEdge::ValType::V128});
+      {WasmEdge::ValTypeCode::I32, WasmEdge::ValTypeCode::FuncRef},
+      {WasmEdge::ValTypeCode::F64, WasmEdge::ValTypeCode::ExternRef,
+       WasmEdge::ValTypeCode::V128});
   std::cout << Info3 << std::endl;
   WasmEdge::ErrInfo::InfoMismatch Info4(WasmEdge::ValMut::Const,
                                         WasmEdge::ValMut::Var);
@@ -97,27 +97,27 @@ TEST(ErrInfoTest, Info__Mismatch) {
                                         WasmEdge::ExternalType::Global);
   std::cout << Info5 << std::endl;
   WasmEdge::ErrInfo::InfoMismatch Info6(
-      {WasmEdge::ValType::I32, WasmEdge::ValType::FuncRef},
-      {WasmEdge::ValType::I64, WasmEdge::ValType::F64},
-      {WasmEdge::ValType::F64, WasmEdge::ValType::ExternRef,
-       WasmEdge::ValType::V128},
-      {WasmEdge::ValType::V128});
+      {WasmEdge::ValTypeCode::I32, WasmEdge::ValTypeCode::FuncRef},
+      {WasmEdge::ValTypeCode::I64, WasmEdge::ValTypeCode::F64},
+      {WasmEdge::ValTypeCode::F64, WasmEdge::ValTypeCode::ExternRef,
+       WasmEdge::ValTypeCode::V128},
+      {WasmEdge::ValTypeCode::V128});
   std::cout << Info6 << std::endl;
-  WasmEdge::ErrInfo::InfoMismatch Info7(WasmEdge::RefType::ExternRef, true, 10,
-                                        20, WasmEdge::RefType::FuncRef, true,
-                                        20, 50);
+  WasmEdge::ErrInfo::InfoMismatch Info7(WasmEdge::RefTypeCode::ExternRef, true,
+                                        10, 20, WasmEdge::RefTypeCode::FuncRef,
+                                        true, 20, 50);
   std::cout << Info7 << std::endl;
-  WasmEdge::ErrInfo::InfoMismatch Info8(WasmEdge::RefType::ExternRef, false, 10,
-                                        10, WasmEdge::RefType::FuncRef, false,
-                                        20, 20);
+  WasmEdge::ErrInfo::InfoMismatch Info8(WasmEdge::RefTypeCode::ExternRef, false,
+                                        10, 10, WasmEdge::RefTypeCode::FuncRef,
+                                        false, 20, 20);
   std::cout << Info8 << std::endl;
   WasmEdge::ErrInfo::InfoMismatch Info9(true, 10, 20, true, 20, 50);
   std::cout << Info9 << std::endl;
   WasmEdge::ErrInfo::InfoMismatch Info10(false, 10, 10, false, 20, 20);
   std::cout << Info10 << std::endl;
   WasmEdge::ErrInfo::InfoMismatch Info11(
-      WasmEdge::ValType::I32, WasmEdge::ValMut::Var, WasmEdge::ValType::I64,
-      WasmEdge::ValMut::Const);
+      WasmEdge::ValTypeCode::I32, WasmEdge::ValMut::Var,
+      WasmEdge::ValTypeCode::I64, WasmEdge::ValMut::Const);
   std::cout << Info11 << std::endl;
   WasmEdge::ErrInfo::InfoMismatch Info12(12345678U, 98765432U);
   std::cout << Info12 << std::endl;
@@ -131,40 +131,45 @@ TEST(ErrInfoTest, Info__Instruction) {
       WasmEdge::FuncRef(
           reinterpret_cast<WasmEdge::Runtime::Instance::FunctionInstance *>(
               100))};
-  WasmEdge::ErrInfo::InfoInstruction Info1(
-      WasmEdge::OpCode::Block, 255, Args,
-      {WasmEdge::ValType::I32, WasmEdge::ValType::I32, WasmEdge::ValType::I32});
+  WasmEdge::ErrInfo::InfoInstruction Info1(WasmEdge::OpCode::Block, 255, Args,
+                                           {WasmEdge::ValTypeCode::I32,
+                                            WasmEdge::ValTypeCode::I32,
+                                            WasmEdge::ValTypeCode::I32});
   std::cout << Info1 << std::endl;
-  WasmEdge::ErrInfo::InfoInstruction Info2(
-      WasmEdge::OpCode::Block, 255, Args,
-      {WasmEdge::ValType::I32, WasmEdge::ValType::I32, WasmEdge::ValType::I32});
+  WasmEdge::ErrInfo::InfoInstruction Info2(WasmEdge::OpCode::Block, 255, Args,
+                                           {WasmEdge::ValTypeCode::I32,
+                                            WasmEdge::ValTypeCode::I32,
+                                            WasmEdge::ValTypeCode::I32});
   std::cout << Info2 << std::endl;
-  WasmEdge::ErrInfo::InfoInstruction Info3(
-      WasmEdge::OpCode::Block, 255, Args,
-      {WasmEdge::ValType::I64, WasmEdge::ValType::I64, WasmEdge::ValType::I64});
+  WasmEdge::ErrInfo::InfoInstruction Info3(WasmEdge::OpCode::Block, 255, Args,
+                                           {WasmEdge::ValTypeCode::I64,
+                                            WasmEdge::ValTypeCode::I64,
+                                            WasmEdge::ValTypeCode::I64});
   std::cout << Info3 << std::endl;
-  WasmEdge::ErrInfo::InfoInstruction Info4(
-      WasmEdge::OpCode::Block, 255, Args,
-      {WasmEdge::ValType::F32, WasmEdge::ValType::F32, WasmEdge::ValType::F32});
+  WasmEdge::ErrInfo::InfoInstruction Info4(WasmEdge::OpCode::Block, 255, Args,
+                                           {WasmEdge::ValTypeCode::F32,
+                                            WasmEdge::ValTypeCode::F32,
+                                            WasmEdge::ValTypeCode::F32});
   std::cout << Info4 << std::endl;
-  WasmEdge::ErrInfo::InfoInstruction Info5(
-      WasmEdge::OpCode::Block, 255, Args,
-      {WasmEdge::ValType::F64, WasmEdge::ValType::F64, WasmEdge::ValType::F64});
+  WasmEdge::ErrInfo::InfoInstruction Info5(WasmEdge::OpCode::Block, 255, Args,
+                                           {WasmEdge::ValTypeCode::F64,
+                                            WasmEdge::ValTypeCode::F64,
+                                            WasmEdge::ValTypeCode::F64});
   std::cout << Info5 << std::endl;
   WasmEdge::ErrInfo::InfoInstruction Info6(WasmEdge::OpCode::Block, 255, Args,
-                                           {WasmEdge::ValType::V128,
-                                            WasmEdge::ValType::V128,
-                                            WasmEdge::ValType::V128});
+                                           {WasmEdge::ValTypeCode::V128,
+                                            WasmEdge::ValTypeCode::V128,
+                                            WasmEdge::ValTypeCode::V128});
   std::cout << Info6 << std::endl;
   WasmEdge::ErrInfo::InfoInstruction Info7(WasmEdge::OpCode::Block, 255, Args,
-                                           {WasmEdge::ValType::FuncRef,
-                                            WasmEdge::ValType::FuncRef,
-                                            WasmEdge::ValType::FuncRef});
+                                           {WasmEdge::ValTypeCode::FuncRef,
+                                            WasmEdge::ValTypeCode::FuncRef,
+                                            WasmEdge::ValTypeCode::FuncRef});
   std::cout << Info7 << std::endl;
   WasmEdge::ErrInfo::InfoInstruction Info8(WasmEdge::OpCode::Block, 255, Args,
-                                           {WasmEdge::ValType::ExternRef,
-                                            WasmEdge::ValType::ExternRef,
-                                            WasmEdge::ValType::ExternRef});
+                                           {WasmEdge::ValTypeCode::ExternRef,
+                                            WasmEdge::ValTypeCode::ExternRef,
+                                            WasmEdge::ValTypeCode::ExternRef});
   std::cout << Info8 << std::endl;
   EXPECT_TRUE(true);
 }

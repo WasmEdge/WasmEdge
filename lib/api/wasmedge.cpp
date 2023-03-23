@@ -505,6 +505,56 @@ WasmEdge_ValTypeIsEqual(const WasmEdge_ValType ValType1,
   return ValType(ValType1.Data) == ValType(ValType2.Data);
 }
 
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ValTypeIsI32(const WasmEdge_ValType ValType) {
+  return WasmEdge::ValType(ValType.Data).getCode() ==
+         WasmEdge::ValTypeCode::I32;
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ValTypeIsI64(const WasmEdge_ValType ValType) {
+  return WasmEdge::ValType(ValType.Data).getCode() ==
+         WasmEdge::ValTypeCode::I64;
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ValTypeIsF32(const WasmEdge_ValType ValType) {
+  return WasmEdge::ValType(ValType.Data).getCode() ==
+         WasmEdge::ValTypeCode::F32;
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ValTypeIsF64(const WasmEdge_ValType ValType) {
+  return WasmEdge::ValType(ValType.Data).getCode() ==
+         WasmEdge::ValTypeCode::F64;
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ValTypeIsV128(const WasmEdge_ValType ValType) {
+  return WasmEdge::ValType(ValType.Data).getCode() ==
+         WasmEdge::ValTypeCode::V128;
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ValTypeIsFuncRef(const WasmEdge_ValType ValType) {
+  return WasmEdge::ValType(ValType.Data).isFuncRefType();
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ValTypeIsExternRef(const WasmEdge_ValType ValType) {
+  return WasmEdge::ValType(ValType.Data).isExternRefType();
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ValTypeIsRef(const WasmEdge_ValType ValType) {
+  return WasmEdge::ValType(ValType.Data).isRefType();
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ValTypeIsRefNull(const WasmEdge_ValType ValType) {
+  return WasmEdge::ValType(ValType.Data).isNullableRefType();
+}
+
 // <<<<<<<< WasmEdge valtype functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge value functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

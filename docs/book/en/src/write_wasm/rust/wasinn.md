@@ -534,7 +534,7 @@ Executed graph inference
 For the AOT mode which is much more quickly, you can compile the WASM first:
 
 ```bash
-wasmedgec wasmedge-wasinn-example-mobilenet.wasm out.wasm
+wasmedge compile wasmedge-wasinn-example-mobilenet.wasm out.wasm
 wasmedge --dir .:. out.wasm mobilenet.xml mobilenet.bin input.jpg
 ```
 
@@ -584,7 +584,7 @@ Executed graph inference
 For the AOT mode which is much more quickly, you can compile the WASM first:
 
 ```bash
-wasmedgec wasmedge-wasinn-example-mobilenet.wasm out.wasm
+wasmedge compile wasmedge-wasinn-example-mobilenet.wasm out.wasm
 wasmedge --dir .:. out.wasm mobilenet.pt input.jpg
 ```
 
@@ -634,7 +634,7 @@ Executed graph inference
 For the AOT mode which is much more quickly, you can compile the WASM first:
 
 ```bash
-wasmedgec wasmedge-wasinn-example-tflite-bird-image.wasm out.wasm
+wasmedge compile wasmedge-wasinn-example-tflite-bird-image.wasm out.wasm
 wasmedge --dir .:. out.wasm lite-model_aiy_vision_classifier_birds_V1_3.tflite bird.jpg
 ```
 

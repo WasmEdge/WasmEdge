@@ -175,7 +175,7 @@ wasmedge mandelbrot-simd.wasm 15000
 
 ```bash
 # Compile wasm-simd with wasmedge aot compiler
-$ wasmedgec mandelbrot-simd.wasm mandelbrot-simd-out.wasm
+$ wasmedge compile mandelbrot-simd.wasm mandelbrot-simd-out.wasm
 # Run the native binary with wasmedge
 $ wasmedge mandelbrot-simd-out.wasm 15000
 ```

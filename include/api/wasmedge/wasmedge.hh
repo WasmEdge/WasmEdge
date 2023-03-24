@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasmedge/wasmedge.hh - WasmEdge C++ API ------------------------------===//
+//===-- wasmedge/wasmedge.hh - WasmEdge C++ API ---------------------------===//
 //
 // Part of the WasmEdge Project.
 //
@@ -33,6 +33,7 @@
 #endif // _WIN32
 
 #include "string"
+#include "vector"
 
 namespace WasmEdge {
   enum WASMEDGE_CPP_API_EXPORT ErrCategory {
@@ -108,7 +109,7 @@ namespace WasmEdge {
   public:
     String(const std::string Str);
     String(const std::string Buf, const uint32_t Len);
-    ~String();
+    ~String() = default;
     static String Wrap(const std::string Buf, const uint32_t Len);
 
     bool IsEqual(const String Str);
@@ -122,7 +123,7 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT Result {
   public:
     Result(const ErrCategory Category, const uint32_t Code);
-    ~Result();
+    ~Result() = default;
 
     // static methods
     static Result Success() { return Result{ 0x00 }; }
@@ -141,10 +142,17 @@ namespace WasmEdge {
 
   class WASMEDGE_CPP_API_EXPORT Limit {
   public:
-    bool HasMax;
-    bool Shared;
-    uint32_t Min;
-    uint32_t Max;
+    Limit(bool HasMax, bool Shared, uint32_t Min, uint32_t Max)
+    : HasMax(HasMax),
+      Shared(Shared),
+      Min(Min),
+      Max(Max) {};
+    ~Limit() = default;
+
+    bool HasMax { false };
+    bool Shared { false };
+    uint32_t Min { 0 };
+    uint32_t Max { 0 };
 
     bool IsEqual(const Limit Lim);
   };
@@ -152,7 +160,7 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT ConfigureContext {
   public:
     ConfigureContext();
-    ~ConfigureContext();
+    ~ConfigureContext() = default;
 
     // Methods for Proposals
     void AddProposal(const Proposal Prop);
@@ -213,7 +221,7 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT StatisticsContext {
   public:
     StatisticsContext();
-    ~StatisticsContext();
+    ~StatisticsContext() = default;
 
     uint64_t GetInstrCount();
     double GetInstrPerSecond();
@@ -224,6 +232,94 @@ namespace WasmEdge {
     void Clear();
 
   private:
+    // TODO
+  };
+
+  // >>>>>>>> WasmEdge Loader class >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+  class WASMEDGE_CPP_API_EXPORT Loader {
+  public:
+    Loader();
+    ~Loader();
+
+    Result ParseFromFIle(ASTModuleContext **Module, const std::string Path);
+    Result ParseFromBuffer(ASTModuleContext **Module,
+                          const uint8_t *Buf, const uint32_t BufLen);
+
+  private:
+    // LoaderContext LoaderCxt; // TODO
+  };
+
+  // <<<<<<<< WasmEdge Loader CLass <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  // >>>>>>>> WasmEdge Validator class >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+  class WASMEDGE_CPP_API_EXPORT Validator {
+  public:
+    Validator(ConfigureContext &ConfCxt);
+    ~Validator() = default;
+
+    Result Validate(const ASTModuleContext &ASTCxt);
+  private:
+    // ValidatorContext ValidatorCxt; // TODO
+  };
+
+  // <<<<<<<< WasmEdge Validator Class <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  // >>>>>>>> WasmEdge Executor class >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+  class WASMEDGE_CPP_API_EXPORT Executor {
+  public:
+    Executor(const ConfigureContext &ConfCxt,
+              StatisticsContext & StatCxt);
+    ~Executor() = default;
+
+    Result Instantiate(ModuleInstance **ModuleCxt,
+                        Store &StoreCxt,
+                        const ASTModuleContext & ASTCxt);
+
+    Result Register(ModuleInstance **ModuleCxt,
+                    Store &StoreCxt,
+                    const ASTModuleContext & ASTCxt,
+                    String ModuleName);
+
+    Result RegisterImport(Store &StoreCxt,
+                          const ModuleInstance &ImportCxt);
+
+    Result Invoke(const FunctionInstanceContext &FuncCxt,
+                  const std::vector<String> &Params, const uint32_t ParamLen,
+                  std::vector<Value> &Returns, const uint32_t ReturnLen);
+
+  private:
+    // ExecutorContext ExecutorCxt; // TODO
+  };
+
+  // <<<<<<<< WasmEdge Executor Class <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  class WASMEDGE_CPP_API_EXPORT Store {
+  public:
+    Store();
+    ~Store() = default;
+
+    const ModuleInstance &FindModule(const String Name);
+    uint32_t ListModuleLength();
+    uint32_t ListModule(std::vector<String> &Names, const uint32_t Len);
+
+  private:
+    // StoreContext StoreCxt; // TODO
+  };
+
+  class WASMEDGE_CPP_API_EXPORT ModuleInstance {
+  public:
+    ModuleInstance(const String ModuleName);
+    ModuleInstance(const std::vector<const std::string> Args,
+                    const uint32_t ArgLen,
+                    const std::vector<const std::string> Envs,
+                    const uint32_t EnvLen,
+                    const std::vector<const std::string> Preopens,
+                    const uint32_t PreopenLen);
+    ~ModuleInstance();
+
     // TODO
   };
 }

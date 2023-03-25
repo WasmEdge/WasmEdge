@@ -209,14 +209,7 @@ TEST_P(CoreCompileTest, TestSuites) {
     if (GlobCxt == nullptr) {
       return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
-    WasmEdge_Value Val = WasmEdge_GlobalInstanceGetValue(GlobCxt);
-#if defined(__x86_64__) || defined(__aarch64__)
-    return std::make_pair(ValVariant(Val.Value), ValType(Val.Type.Data));
-#else
-    return std::make_pair(
-        ValVariant(WasmEdge::uint128_t(Val.Value.High, Val.Value.Low)),
-        ValType(Val.Type.Data));
-#endif
+    return convToVal(WasmEdge_GlobalInstanceGetValue(GlobCxt));
   };
 
   T.run(Proposal, UnitName);

@@ -19,10 +19,10 @@
 #include "common/int128.h"
 #include "common/variant.h"
 
+#include <array>
 #include <cstdint>
 #include <type_traits>
 #include <variant>
-#include <vector>
 
 namespace WasmEdge {
 
@@ -86,7 +86,9 @@ public:
     Inner.Data.HTCode = HT;
     Inner.Data.Idx = I;
   }
-  ValTypeBase(uint64_t R) noexcept { Inner.Raw = R; }
+  ValTypeBase(const std::array<uint8_t, 8> R) noexcept {
+    std::copy_n(R.cbegin(), 8, Inner.Raw);
+  }
 
   friend bool operator==(const ValTypeBase &LHS,
                          const ValTypeBase &RHS) noexcept {
@@ -102,7 +104,11 @@ public:
   ValTypeCode getCode() const noexcept { return Inner.Data.Code; }
   HeapTypeCode getHeapTypeCode() const noexcept { return Inner.Data.HTCode; }
   uint32_t getTypeIndex() const noexcept { return Inner.Data.Idx; }
-  uint64_t getRawData() const noexcept { return Inner.Raw; }
+  const std::array<uint8_t, 8> getRawData() const noexcept {
+    std::array<uint8_t, 8> R;
+    std::copy_n(Inner.Raw, 8, R.begin());
+    return R;
+  }
 
   bool isNumType() const noexcept {
     switch (Inner.Data.Code) {
@@ -141,7 +147,7 @@ public:
 
 protected:
   union {
-    uint64_t Raw;
+    uint8_t Raw[8];
     struct {
       uint8_t Paddings[2];
       ValTypeCode Code;
@@ -177,7 +183,7 @@ public:
              (Inner.Data.Code == ValTypeCode::RefNull));
   }
   // Constructor for setting the raw data.
-  RefType(uint64_t R) noexcept : ValTypeBase(R) {}
+  RefType(const std::array<uint8_t, 8> R) noexcept : ValTypeBase(R) {}
 };
 
 /// ValType definition.
@@ -235,11 +241,13 @@ public:
       : ValTypeBase(RType.getCode(), RType.getHeapTypeCode(),
                     RType.getTypeIndex()) {}
   // Constructor for setting the raw data.
-  ValType(uint64_t R) noexcept : ValTypeBase(R) {}
+  ValType(const std::array<uint8_t, 8> R) noexcept : ValTypeBase(R) {}
 
   RefType toRefType() const noexcept {
     assuming(isRefType());
-    return RefType(Inner.Raw);
+    std::array<uint8_t, 8> R;
+    std::copy_n(Inner.Raw, 8, R.begin());
+    return RefType(R);
   }
 };
 

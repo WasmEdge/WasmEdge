@@ -33,7 +33,7 @@ impl CallingFrame {
 
         match ctx.is_null() {
             false => Some(Executor {
-                inner: InnerExecutor(ctx),
+                inner: std::sync::Arc::new(InnerExecutor(ctx)),
                 registered: true,
             }),
             true => None,

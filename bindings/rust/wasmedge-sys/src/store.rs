@@ -7,11 +7,12 @@ use crate::{
     types::WasmEdgeString,
     WasmEdgeResult,
 };
+use std::sync::Arc;
 
 /// A [Store] represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime representation of all instances of [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Store {
-    pub(crate) inner: InnerStore,
+    pub(crate) inner: Arc<InnerStore>,
     pub(crate) registered: bool,
 }
 impl Store {
@@ -25,7 +26,7 @@ impl Store {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Store(StoreError::Create))),
             false => Ok(Store {
-                inner: InnerStore(ctx),
+                inner: Arc::new(InnerStore(ctx)),
                 registered: false,
             }),
         }
@@ -109,7 +110,7 @@ impl Store {
 }
 impl Drop for Store {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_StoreDelete(self.inner.0) }
         }
     }

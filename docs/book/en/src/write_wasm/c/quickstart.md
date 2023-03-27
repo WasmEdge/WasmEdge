@@ -2,11 +2,11 @@
 
 This chapter describes how you can compile your C program to WebAssembly and then run it in WasmEdge runtime.
 
-# Prerequisites
+## Prerequisites
 
 Please make sure you have [wasmedge](https://wasmedge.org/book/en/quick_start/install.html#quick-install) and [emscripten](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) installed .
 
-# Hello World
+## Hello World
 
 As the first step is always the "Hello World" program , given below is the C program implementation.
 ```c
@@ -22,7 +22,7 @@ int main(int argc,char **argv){
 Save it in any file and then compile it to WebAssembly with emscripten .
 
 ```bash
-$ emcc hello.c -o hello.wasm
+emcc hello.c -o hello.wasm
 ```
 > Note: Make sure you either supply `-s STANDALONE_WASM` flag or specify output as wasm `-o your_file_name.wasm`
 
@@ -33,7 +33,7 @@ $ wasmedge hello.wasm
 Hello World
 ```
 
-# Add function
+## Add function
 
 We can also pass cmd arguments , for example add function in this example takes two arguments and prints their sum
 
@@ -73,7 +73,7 @@ $ wasmedge add_aot.wasm 4 9
 13
 ```
 
-# Fibonacci function
+## Fibonacci function
 
 We can also structure our project in saperate header and implementation files.
 
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
 
 Compiling the program to wasm with emcc
 ```bash
-$ emcc main.c fibonacci.c -o fib.wasm
+emcc main.c fibonacci.c -o fib.wasm
 ```
 
 Running in wasmedge runtime

@@ -101,6 +101,12 @@ impl Global {
         unsafe { ffi::WasmEdge_GlobalInstanceSetValue(self.inner.0, val.as_raw()) }
         Ok(())
     }
+
+    /// Provides a raw pointer to the inner global context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_GlobalInstanceContext {
+        self.inner.0 as *const _
+    }
 }
 impl Drop for Global {
     fn drop(&mut self) {
@@ -164,6 +170,12 @@ impl GlobalType {
     pub fn mutability(&self) -> Mutability {
         let val = unsafe { ffi::WasmEdge_GlobalTypeGetMutability(self.inner.0) };
         val.into()
+    }
+
+    /// Provides a raw pointer to the inner global type context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_GlobalTypeContext {
+        self.inner.0 as *const _
     }
 }
 impl Drop for GlobalType {

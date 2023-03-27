@@ -2,8 +2,10 @@
 
 use super::ffi;
 use crate::{
-    instance::module::InnerInstance, types::WasmEdgeString, utils, Instance, WasmEdgeResult,
+    error::WasmEdgeError, instance::module::InnerInstance, types::WasmEdgeString, utils, Instance,
+    WasmEdgeResult,
 };
+use std::ffi::CString;
 
 /// Defines the APIs for loading plugins and check the basic information of the loaded plugins.
 #[derive(Debug)]
@@ -159,6 +161,12 @@ impl Plugin {
             }),
         }
     }
+
+    /// Provides a raw pointer to the inner Plugin context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_PluginContext {
+        self.inner.0 as *const _
+    }
 }
 
 #[derive(Debug)]
@@ -166,8 +174,286 @@ pub(crate) struct InnerPlugin(pub(crate) *mut ffi::WasmEdge_PluginContext);
 unsafe impl Send for InnerPlugin {}
 unsafe impl Sync for InnerPlugin {}
 
+/// Defines the type of the program options.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProgramOptionType {
+    None = 0,
+    Toggle = 1,
+    I8 = 2,
+    I16 = 3,
+    I32 = 4,
+    I64 = 5,
+    U8 = 6,
+    U16 = 7,
+    U32 = 8,
+    U64 = 9,
+    F32 = 10,
+    F64 = 11,
+    String = 12,
+}
+impl From<ffi::WasmEdge_ProgramOptionType> for ProgramOptionType {
+    fn from(ty: ffi::WasmEdge_ProgramOptionType) -> Self {
+        match ty {
+            ffi::WasmEdge_ProgramOptionType_None => ProgramOptionType::None,
+            ffi::WasmEdge_ProgramOptionType_Toggle => ProgramOptionType::Toggle,
+            ffi::WasmEdge_ProgramOptionType_Int8 => ProgramOptionType::I8,
+            ffi::WasmEdge_ProgramOptionType_Int16 => ProgramOptionType::I16,
+            ffi::WasmEdge_ProgramOptionType_Int32 => ProgramOptionType::I32,
+            ffi::WasmEdge_ProgramOptionType_Int64 => ProgramOptionType::I64,
+            ffi::WasmEdge_ProgramOptionType_UInt8 => ProgramOptionType::U8,
+            ffi::WasmEdge_ProgramOptionType_UInt16 => ProgramOptionType::U16,
+            ffi::WasmEdge_ProgramOptionType_UInt32 => ProgramOptionType::U32,
+            ffi::WasmEdge_ProgramOptionType_UInt64 => ProgramOptionType::U64,
+            ffi::WasmEdge_ProgramOptionType_Float => ProgramOptionType::F32,
+            ffi::WasmEdge_ProgramOptionType_Double => ProgramOptionType::F64,
+            ffi::WasmEdge_ProgramOptionType_String => ProgramOptionType::String,
+            _ => {
+                panic!("[wasmedge-sys] Unsupported ffi::WasmEdge_ProgramOptionType value: {ty}");
+            }
+        }
+    }
+}
+impl From<ProgramOptionType> for ffi::WasmEdge_ProgramOptionType {
+    fn from(value: ProgramOptionType) -> Self {
+        match value {
+            ProgramOptionType::None => ffi::WasmEdge_ProgramOptionType_None,
+            ProgramOptionType::Toggle => ffi::WasmEdge_ProgramOptionType_Toggle,
+            ProgramOptionType::I8 => ffi::WasmEdge_ProgramOptionType_Int8,
+            ProgramOptionType::I16 => ffi::WasmEdge_ProgramOptionType_Int16,
+            ProgramOptionType::I32 => ffi::WasmEdge_ProgramOptionType_Int32,
+            ProgramOptionType::I64 => ffi::WasmEdge_ProgramOptionType_Int64,
+            ProgramOptionType::U8 => ffi::WasmEdge_ProgramOptionType_UInt8,
+            ProgramOptionType::U16 => ffi::WasmEdge_ProgramOptionType_UInt16,
+            ProgramOptionType::U32 => ffi::WasmEdge_ProgramOptionType_UInt32,
+            ProgramOptionType::U64 => ffi::WasmEdge_ProgramOptionType_UInt64,
+            ProgramOptionType::F32 => ffi::WasmEdge_ProgramOptionType_Float,
+            ProgramOptionType::F64 => ffi::WasmEdge_ProgramOptionType_Double,
+            ProgramOptionType::String => ffi::WasmEdge_ProgramOptionType_String,
+        }
+    }
+}
+
+/// Defines the program option for plugins.
+#[derive(Debug)]
+pub struct ProgramOption {
+    name: CString,
+    desc: CString,
+    pub inner: ffi::WasmEdge_ProgramOption,
+}
+impl ProgramOption {
+    /// Creates a new program option.
+    pub fn create(
+        name: impl AsRef<str>,
+        desc: impl AsRef<str>,
+        ty: ProgramOptionType,
+    ) -> WasmEdgeResult<Self> {
+        let name = std::ffi::CString::new(name.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
+
+        let desc = std::ffi::CString::new(desc.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
+
+        let mut po = Self {
+            name,
+            desc,
+            inner: ffi::WasmEdge_ProgramOption {
+                Name: std::ptr::null(),
+                Description: std::ptr::null(),
+                Type: ty.into(),
+                Storage: std::ptr::null_mut(),
+                DefaultValue: std::ptr::null(),
+            },
+        };
+        po.inner.Name = po.name.as_ptr();
+        po.inner.Description = po.desc.as_ptr();
+
+        Ok(po)
+    }
+}
+unsafe impl Send for ProgramOption {}
+unsafe impl Sync for ProgramOption {}
+
+/// Defines the module descriptor for plugins.
+#[derive(Debug)]
+pub struct ModuleDescriptor {
+    name: CString,
+    desc: CString,
+    create: Option<ModuleInstanceCreateFn>,
+    pub inner: ffi::WasmEdge_ModuleDescriptor,
+}
+impl ModuleDescriptor {
+    /// Creates a new module descriptor.
+    pub fn create(
+        name: impl AsRef<str>,
+        desc: impl AsRef<str>,
+        f: Option<ModuleInstanceCreateFn>,
+    ) -> WasmEdgeResult<Self> {
+        // module name
+        let name = std::ffi::CString::new(name.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
+
+        // module description
+        let desc = std::ffi::CString::new(desc.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
+
+        let mut md = Self {
+            name,
+            desc,
+            create: f,
+            inner: ffi::WasmEdge_ModuleDescriptor {
+                Name: std::ptr::null(),
+                Description: std::ptr::null(),
+                Create: None,
+            },
+        };
+        md.inner.Name = md.name.as_ptr();
+        md.inner.Description = md.desc.as_ptr();
+        md.inner.Create = md.create;
+
+        Ok(md)
+    }
+}
+
+/// Defines the type of the function that creates a module instance for a plugin.
+pub type ModuleInstanceCreateFn = unsafe extern "C" fn(
+    arg1: *const ffi::WasmEdge_ModuleDescriptor,
+) -> *mut ffi::WasmEdge_ModuleInstanceContext;
+
+/// Defines the version of a plugin.
+#[derive(Debug)]
+pub struct PluginVersion {
+    pub major: u32,
+    pub minor: u32,
+    pub patch: u32,
+    pub build: u32,
+}
+impl PluginVersion {
+    /// Creates a new plugin version.
+    pub fn create(major: u32, minor: u32, patch: u32, build: u32) -> Self {
+        Self {
+            major,
+            minor,
+            patch,
+            build,
+        }
+    }
+}
+impl From<PluginVersion> for ffi::WasmEdge_PluginVersionData {
+    fn from(value: PluginVersion) -> Self {
+        Self {
+            Major: value.major,
+            Minor: value.minor,
+            Patch: value.patch,
+            Build: value.build,
+        }
+    }
+}
+
+/// Represents Plugin descriptor for plugins.
+#[derive(Debug)]
+pub struct PluginDescriptor {
+    name: CString,
+    desc: CString,
+    module_descriptors_name_desc: Vec<(CString, CString)>,
+    module_descriptors: Vec<ffi::WasmEdge_ModuleDescriptor>,
+    program_options_name_desc: Vec<(CString, CString)>,
+    program_options: Vec<ffi::WasmEdge_ProgramOption>,
+    pub inner: ffi::WasmEdge_PluginDescriptor,
+}
+impl PluginDescriptor {
+    pub fn create(
+        name: impl AsRef<str>,
+        desc: impl AsRef<str>,
+        version: PluginVersion,
+    ) -> WasmEdgeResult<Self> {
+        // plugin name
+        let name = std::ffi::CString::new(name.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
+
+        // plugin description
+        let desc = std::ffi::CString::new(desc.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
+
+        let mut pd = Self {
+            name,
+            desc,
+            module_descriptors_name_desc: Vec::new(),
+            module_descriptors: Vec::new(),
+            program_options_name_desc: Vec::new(),
+            program_options: Vec::new(),
+            inner: ffi::WasmEdge_PluginDescriptor {
+                Name: std::ptr::null(),
+                Description: std::ptr::null(),
+                APIVersion: ffi::WasmEdge_Plugin_CurrentAPIVersion,
+                Version: version.into(),
+                ModuleCount: 0,
+                ModuleDescriptions: std::ptr::null_mut(),
+                ProgramOptionCount: 0,
+                ProgramOptions: std::ptr::null_mut(),
+            },
+        };
+        pd.inner.Name = pd.name.as_ptr();
+        pd.inner.Description = pd.desc.as_ptr();
+
+        Ok(pd)
+    }
+
+    pub fn add_module_descriptor(
+        mut self,
+        name: impl AsRef<str>,
+        desc: impl AsRef<str>,
+        f: Option<ModuleInstanceCreateFn>,
+    ) -> WasmEdgeResult<Self> {
+        // module name
+        let name = std::ffi::CString::new(name.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
+
+        // module description
+        let desc = std::ffi::CString::new(desc.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
+
+        self.module_descriptors
+            .push(ffi::WasmEdge_ModuleDescriptor {
+                Name: name.as_ptr(),
+                Description: desc.as_ptr(),
+                Create: f,
+            });
+        self.module_descriptors_name_desc.push((name, desc));
+
+        self.inner.ModuleCount = self.module_descriptors.len() as u32;
+        self.inner.ModuleDescriptions = self.module_descriptors.as_mut_ptr();
+
+        Ok(self)
+    }
+
+    pub fn add_program_option(
+        mut self,
+        name: impl AsRef<str>,
+        desc: impl AsRef<str>,
+        ty: ProgramOptionType,
+    ) -> WasmEdgeResult<Self> {
+        let name = std::ffi::CString::new(name.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
+
+        let desc = std::ffi::CString::new(desc.as_ref()).map_err(WasmEdgeError::FoundNulByte)?;
+
+        self.program_options.push(ffi::WasmEdge_ProgramOption {
+            Name: name.as_ptr(),
+            Description: desc.as_ptr(),
+            Type: ty.into(),
+            Storage: std::ptr::null_mut(),
+            DefaultValue: std::ptr::null(),
+        });
+        self.program_options_name_desc.push((name, desc));
+
+        self.inner.ProgramOptionCount = self.program_options.len() as u32;
+        self.inner.ProgramOptions = self.program_options.as_mut_ptr();
+
+        Ok(self)
+    }
+
+    /// Returns the raw pointer to the inner `WasmEdge_PluginDescriptor`.
+    #[cfg(feature = "ffi")]
+    pub fn as_raw_ptr(&self) -> *const ffi::WasmEdge_PluginDescriptor {
+        &self.inner
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::WasmValue;
+
     #[cfg(all(
         target_os = "linux",
         feature = "wasmedge_process",

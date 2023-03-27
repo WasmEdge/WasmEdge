@@ -152,6 +152,12 @@ impl Loader {
             }),
         }
     }
+
+    /// Provides a raw pointer to the inner Loader context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_LoaderContext {
+        self.inner.0 as *const _
+    }
 }
 impl Drop for Loader {
     fn drop(&mut self) {

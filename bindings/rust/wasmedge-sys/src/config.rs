@@ -737,6 +737,12 @@ impl Config {
     pub fn is_time_measuring(&self) -> bool {
         unsafe { ffi::WasmEdge_ConfigureStatisticsIsTimeMeasuring(self.inner.0) }
     }
+
+    /// Provides a raw pointer to the inner Configure context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ConfigureContext {
+        self.inner.0 as *const _
+    }
 }
 
 #[derive(Debug)]

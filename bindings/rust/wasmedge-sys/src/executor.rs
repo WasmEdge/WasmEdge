@@ -8,11 +8,12 @@ use crate::{
     Config, Engine, FuncRef, Function, ImportObject, Instance, Module, Statistics, Store,
     WasmEdgeResult, WasmValue,
 };
+use std::sync::Arc;
 
 /// Defines an execution environment for both pure WASM and compiled WASM.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Executor {
-    pub(crate) inner: InnerExecutor,
+    pub(crate) inner: Arc<InnerExecutor>,
     pub(crate) registered: bool,
 }
 impl Executor {
@@ -48,7 +49,7 @@ impl Executor {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::ExecutorCreate)),
             false => Ok(Executor {
-                inner: InnerExecutor(ctx),
+                inner: Arc::new(InnerExecutor(ctx)),
                 registered: false,
             }),
         }
@@ -125,7 +126,7 @@ impl Executor {
 
         Ok(Instance {
             inner: std::sync::Arc::new(InnerInstance(instance_ctx)),
-            registered: true,
+            registered: false,
         })
     }
 
@@ -160,7 +161,7 @@ impl Executor {
         }
         Ok(Instance {
             inner: std::sync::Arc::new(InnerInstance(instance_ctx)),
-            registered: true,
+            registered: false,
         })
     }
 
@@ -311,10 +312,16 @@ impl Executor {
             .await
             .unwrap()
     }
+
+    /// Provides a raw pointer to the inner Executor context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ExecutorContext {
+        self.inner.0 as *const _
+    }
 }
 impl Drop for Executor {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_ExecutorDelete(self.inner.0) }
         }
     }

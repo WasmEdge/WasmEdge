@@ -45,8 +45,8 @@ extern crate lazy_static;
 use parking_lot::{Mutex, RwLock};
 use std::{collections::HashMap, env, sync::Arc};
 
-#[doc(hidden)]
 #[allow(warnings)]
+/// Foreign function interfaces generated from WasmEdge C-API.
 pub mod ffi {
     include!(concat!(env!("OUT_DIR"), "/wasmedge.rs"));
 }

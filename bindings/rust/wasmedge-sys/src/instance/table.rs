@@ -151,6 +151,12 @@ impl Table {
     pub fn grow(&mut self, size: u32) -> WasmEdgeResult<()> {
         unsafe { check(ffi::WasmEdge_TableInstanceGrow(self.inner.0, size)) }
     }
+
+    /// Provides a raw pointer to the inner table context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_TableInstanceContext {
+        self.inner.0 as *const _
+    }
 }
 impl Drop for Table {
     fn drop(&mut self) {
@@ -243,6 +249,12 @@ impl TableType {
         let limit = unsafe { ffi::WasmEdge_TableTypeGetLimit(self.inner.0) };
         let limit: WasmEdgeLimit = limit.into();
         limit.max()
+    }
+
+    /// Provides a raw pointer to the inner table type context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_TableTypeContext {
+        self.inner.0 as *const _
     }
 }
 impl From<wasmedge_types::TableType> for TableType {

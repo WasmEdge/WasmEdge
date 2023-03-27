@@ -36,6 +36,7 @@ tokio = {version = "1", features = ["full"]}
 aot = []
 async = ["wasmtime-fiber"]
 default = []
+ffi = []
 standalone = []
 static = []
 wasi_crypto = []

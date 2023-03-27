@@ -33,7 +33,7 @@ impl CallingFrame {
 
         match ctx.is_null() {
             false => Some(Executor {
-                inner: InnerExecutor(ctx),
+                inner: std::sync::Arc::new(InnerExecutor(ctx)),
                 registered: true,
             }),
             true => None,
@@ -82,6 +82,12 @@ impl CallingFrame {
             }),
             true => None,
         }
+    }
+
+    /// Provides a raw pointer to the inner CallingFrame context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_CallingFrameContext {
+        self.inner.0 as *const _
     }
 }
 

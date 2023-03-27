@@ -62,12 +62,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // register a wasm module from a in-memory wasm bytes.
     let extern_module = Loader::create(Some(&config))?.from_bytes(wasm_bytes)?;
     Validator::create(Some(&config))?.validate(&extern_module)?;
-    executor.register_named_module(&mut store, &extern_module, "extern")?;
+    let instance = executor.register_named_module(&mut store, &extern_module, "extern")?;
+
+    assert!(store.contains("extern"));
+    assert!(instance.get_func("fib").is_ok());
 
     // get the module named "extern"
-    let instance = store.module("extern")?;
-
-    assert!(instance.get_func("fib").is_ok());
+    let extern_instance = store.module("extern")?;
+    assert!(extern_instance.get_func("fib").is_ok());
 
     Ok(())
 }

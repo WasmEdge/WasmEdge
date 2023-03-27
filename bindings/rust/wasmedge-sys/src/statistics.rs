@@ -87,6 +87,12 @@ impl Statistics {
     pub fn clear(&mut self) {
         unsafe { ffi::WasmEdge_StatisticsClear(self.inner.0) }
     }
+
+    /// Provides a raw pointer to the inner Statistics context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_StatisticsContext {
+        self.inner.0 as *const _
+    }
 }
 impl Drop for Statistics {
     fn drop(&mut self) {

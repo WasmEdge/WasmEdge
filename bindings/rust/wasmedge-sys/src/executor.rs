@@ -125,7 +125,7 @@ impl Executor {
 
         Ok(Instance {
             inner: std::sync::Arc::new(InnerInstance(instance_ctx)),
-            registered: true,
+            registered: false,
         })
     }
 
@@ -160,7 +160,7 @@ impl Executor {
         }
         Ok(Instance {
             inner: std::sync::Arc::new(InnerInstance(instance_ctx)),
-            registered: true,
+            registered: false,
         })
     }
 

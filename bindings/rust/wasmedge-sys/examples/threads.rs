@@ -66,7 +66,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     let extern_module = Loader::create(Some(&config))?.from_bytes(wasm_bytes)?;
     Validator::create(Some(&config))?.validate(&extern_module)?;
-    executor.register_named_module(&mut store, &extern_module, "extern")?;
+    let _instance = executor.register_named_module(&mut store, &extern_module, "extern")?;
 
     let exec = Arc::new(Mutex::new(executor));
     let stor = Arc::new(Mutex::new(store));

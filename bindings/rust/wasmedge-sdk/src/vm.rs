@@ -231,7 +231,7 @@ impl VmBuilder {
 ///     Ok(())
 /// }
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Vm {
     pub(crate) config: Option<Config>,
     stat: Option<Statistics>,
@@ -738,7 +738,7 @@ impl Vm {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum HostRegistrationInstance {
     Wasi(crate::wasi::WasiInstance),
 }

@@ -111,7 +111,6 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
 
     {
       // Prepare the execution context.
-      CurrentStack = &StackMgr;
       auto *ModInst =
           const_cast<Runtime::Instance::ModuleInstance *>(Func.getModule());
       for (uint32_t I = 0; I < ModInst->getMemoryNum(); ++I) {
@@ -123,8 +122,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
         std::atomic_store_explicit(MemoryPtr, DataPtr,
                                    std::memory_order_relaxed);
       }
-      ExecutionContext.Memories = ModInst->MemoryPtrs.data();
-      ExecutionContext.Globals = ModInst->GlobalPtrs.data();
+      prepare(StackMgr, ModInst->MemoryPtrs.data(), ModInst->GlobalPtrs.data());
     }
 
     {

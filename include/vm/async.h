@@ -34,7 +34,6 @@ public:
         std::thread([FPtr, P = std::move(Promise),
                      Tuple = std::tuple(
                          &TargetVM, std::forward<ArgsT>(Args)...)]() mutable {
-          std::get<0>(Tuple)->newThread();
           P.set_value(std::apply(FPtr, Tuple));
         });
     Thread.detach();

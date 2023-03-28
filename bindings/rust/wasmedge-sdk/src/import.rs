@@ -289,7 +289,7 @@ impl ImportObjectBuilder {
 /// Defines an import object that contains the required import data used when instantiating a [module](crate::Module).
 ///
 /// An [ImportObject] instance is created with [ImportObjectBuilder](crate::ImportObjectBuilder).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportObject(pub(crate) sys::ImportObject);
 impl ImportObject {
     /// Returns the name of the import object.

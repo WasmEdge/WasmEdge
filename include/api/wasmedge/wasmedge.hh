@@ -35,6 +35,7 @@
 #include "string"
 #include "vector"
 #include "memory"
+#include "functional"
 
 namespace WasmEdge {
   enum WASMEDGE_CPP_API_EXPORT ErrCategory {
@@ -200,7 +201,7 @@ namespace WasmEdge {
                 const uint32_t ParamLen,
                 const std::vector<ValType> &ReturnList,
                 const uint32_t ReturnLen);
-    ~FunctionType();
+    ~FunctionType() = default;
 
     uint32_t GetParametersLength();
     std::vector<ValType> GetParameters();
@@ -214,7 +215,7 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT TableType {
   public:
     TableType(const RefType RefType, const Limit Limit);
-    ~TableType();
+    ~TableType() = default;
 
     RefType GetRefType();
     Limit GetLimit();
@@ -225,7 +226,7 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT MemoryType {
   public:
     MemoryType(const Limit Limit);
-    ~MemoryType();
+    ~MemoryType() = default;
 
     Limit GetLimit();
 
@@ -236,7 +237,7 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT GlobalType {
   public:
     GlobalType(const ValType, const Mutability Mut);
-    ~GlobalType();
+    ~GlobalType() = default;
 
     ValType GetValType();
     Mutability GetMutability();
@@ -264,6 +265,8 @@ namespace WasmEdge {
   // Create a common interface/parent class then?
   class WASMEDGE_CPP_API_EXPORT ExportType {
   public:
+    // TODO: constructor
+
     ExternalType GetExternalType();
     String GetExternalName();
     const FunctionType &GetFunctionType(const ASTModule &ASTCxt);
@@ -273,6 +276,21 @@ namespace WasmEdge {
   };
 
   // <<<<<<<< WasmEdge Data Structures <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  // >>>>>>>> WasmEdge Async >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  
+  class WASMEDGE_CPP_API_EXPORT Async {
+    Async();
+    ~Async() = default;
+
+    void Wait();
+    bool WaitFor(uint64_t Milliseconds);
+    void Cancel();
+    uint32_t GetReturnsLength();
+    Result Get(std::vector<Value> &Returns, const uint32_t ReturnLen);
+  };
+  
+  // <<<<<<<< WasmEdge Async <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
   class WASMEDGE_CPP_API_EXPORT ConfigureContext {
   public:
@@ -352,16 +370,109 @@ namespace WasmEdge {
     // TODO
   };
 
+  // >>>>>>>> WasmEdge Runtime >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+  class WASMEDGE_CPP_API_EXPORT VM {
+  public:
+    VM(const ConfigureContext &ConfCxt, Store &StoreCxt);
+    ~VM() = default;
+
+    Result RegisterModuleFromFile(const String ModuleName,
+                                    const std::string &Path);
+    Result RegisterModuleFromBuffer(const String ModuleName,
+                  const std::vector<uint8_t> &Buf, const uint32_t BufLen);
+    Result RegisterModuleFromASTModule(const String ModuleName,
+                                      const ASTModule &ASTCxt);
+    Result RegisterModuleFromImport(const ModuleInstance &ImportCxt);
+
+    Result RunWasmFromFile(const std::string &Path, const String FuncName,
+                  const std::vector<Value> &Params, const uint32_t ParamLen,
+                  std::vector<Value> &Returns, const uint32_t ReturnLen);
+    Result RunWasmFromBuffer(const std::vector<uint8_t> &Buf,
+                  const uint32_t BufLen, const String FuncName,
+                  const std::vector<Value> &Params, const uint32_t ParamLen,
+                  std::vector<Value> &Returns, const uint32_t ReturnLen);
+    Result RunWasmFromASTModule(const ASTModule &ASTCxt, const String FuncName,
+                  const std::vector<Value> &Params, const uint32_t ParamLen,
+                  std::vector<Value> &Returns, const uint32_t ReturnLen);
+
+    std::unique_ptr<Async> AsyncRunWasmFromFile(const std::string &Path,
+                  const String FuncName, const std::vector<Value> &Params,
+                  const uint32_t ParamLen);
+    std::unique_ptr<Async> AsyncRunWasmFromBuffer(
+                  const std::vector<uint8_t> &Buf, const uint32_t BufLen,
+                  const String FuncName, const std::vector<Value> &Params,
+                  const uint32_t ParamLen);
+    std::unique_ptr<Async> AsyncRunWasmFromASTModule(const ASTModule &ASTCxt,
+                  const String FuncName, const std::vector<Value> &Params,
+                  const uint32_t ParamLen);
+
+    Result LoadWasmFromFile(const std::string &Path);
+    Result LoadWasmFromBuffer(const std::vector<uint8_t> &Buf,
+                  const uint32_t BufLen);
+    Result LoadWasmFromASTModule(const ASTModule &ASTCxt);
+
+    Result Validate();
+    Result Instantiate();
+
+    Result Execute(const String FuncName, const std::vector<Value> &Params,
+                  const uint32_t ParamLen, const std::vector<Value> &Returns,
+                  const uint32_t ReturnLen);
+    Result ExecuteRegistered(const String ModuleName, const String FuncName,
+                  const std::vector<Value> &Params, const uint32_t ParamLen,
+                  std::vector<Value> &Returns, const uint32_t ReturnLen);
+
+    std::unique_ptr<Async> AsyncExecute(const String FuncName,
+                  const std::vector<Value> &Params, const uint32_t ParamLen);
+    std::unique_ptr<Async> AsyncExecuteRegistered(const String ModuleName,
+                  const String FuncName, const std::vector<Value> &Params,
+                  const uint32_t ParamLen);
+
+    std::unique_ptr<const FunctionType> GetFunctionType(const String FuncName);
+    std::unique_ptr<const FunctionType> GetFunctionTypeRegistered(
+                  const String ModuleName, const String FuncName);
+
+    void Cleanup();
+    uint32_t GetFunctionListLength();
+    uint32_t GetFunctionList(std::vector<String> &Names,
+                  const std::vector<FunctionType &> &FuncTypes,
+                  const uint32_t Len);
+
+    std::unique_ptr<ModuleInstance> GetImportModuleContext(
+                  const HostRegistration Reg);
+    std::unique_ptr<const ModuleInstance> GetActiveModule();
+    std::unique_ptr<const ModuleInstance> GetRegisteredModule(
+                  const String ModuleName);
+
+    uint32_t ListRegisteredModuleLength();
+    uint32_t ListRegisteredModule(std::vector<String> &Names,
+                                  const uint32_t Len);
+
+    std::unique_ptr<Store> GetStoreContext();
+    std::unique_ptr<Loader> GetLoaderContext();
+    std::unique_ptr<Validator> GetValidatorContext();
+    std::unique_ptr<Executor> GetExecutorContext();
+    std::unique_ptr<StatisticsContext> GetStatisticsContext();
+  private:
+    // TODO
+  };
+
+  // <<<<<<<< WasmEdge VM <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  // >>>>>>>> WasmEdge Runtime >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
   // >>>>>>>> WasmEdge Loader class >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   class WASMEDGE_CPP_API_EXPORT Loader {
   public:
     Loader(const ConfigureContext &ConfCxt);
-    ~Loader();
+    ~Loader() = default;
 
-    Result ParseFromFile(std::unique_ptr<ASTModule> Module, const std::string Path);
+    Result ParseFromFile(std::unique_ptr<ASTModule> Module,
+                        const std::string Path);
     Result ParseFromBuffer(std::unique_ptr<ASTModule> Module,
-                          const std::vector<uint8_t> Buf, const uint32_t BufLen);
+                          const std::vector<uint8_t> Buf,
+                          const uint32_t BufLen);
 
   private:
     // LoaderContext LoaderCxt; // TODO
@@ -416,7 +527,7 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT ASTModule {
   public:
     ASTModule();
-    ~ASTModule();
+    ~ASTModule() = default;
 
     uint32_t ListImportsLength();
     uint32_t ListImports(const std::vector<ImportType> &Imports,
@@ -434,7 +545,7 @@ namespace WasmEdge {
     Store();
     ~Store() = default;
 
-    const ModuleInstance &FindModule(const String Name);
+    std::unique_ptr<const ModuleInstance> FindModule(const String Name);
     uint32_t ListModuleLength();
     uint32_t ListModule(std::vector<String> &Names, const uint32_t Len);
 
@@ -453,7 +564,7 @@ namespace WasmEdge {
                   const uint32_t EnvLen,
                   const std::vector<const std::string> &Preopens,
                   const uint32_t PreopenLen);
-    ~ModuleInstance();
+    ~ModuleInstance() = default;
 
     void InitWASI(const std::vector<const std::string> &Args,
                   const uint32_t ArgLen,
@@ -502,15 +613,25 @@ namespace WasmEdge {
 
   class WASMEDGE_CPP_API_EXPORT FunctionInstance {
   public:
+    using HostFunc_t = std::function<Result(
+      std::unique_ptr<void> Data, const CallingFrame &CallFrameCxt,
+      const std::vector<Value> &Params, std::vector<Value> &Returns)>;
+
+    using WrapFunc_t = std::function<Result(
+      std::unique_ptr<void> This, std::unique_ptr<void> Data,
+      const CallingFrame &CallFrameCxt, const std::vector<Value> &Params,
+      const uint32_t ParamLen, std::vector<Value> &Returns,
+      const uint32_t ReturnLen)>;
+
     FunctionInstance(const FunctionType &Type,
-                    HostFunc_t HostFunc, std::vector<void> &Data,
+                    HostFunc_t HostFunc, std::unique_ptr<void> Data,
                     const uint64_t Cost);
     FunctionInstance(const FunctionType &Type,
                     WrapFunc_t WrapFunc,
-                    std::vector<void> &Binding,
-                    std::vector<void> &Data,
+                    std::unique_ptr<void> Binding,
+                    std::unique_ptr<void> Data,
                     const uint64_t Cost);
-    ~FunctionInstance();
+    ~FunctionInstance() = default;
 
     const FunctionType &GetFunctionType();
   private:
@@ -535,7 +656,7 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT MemoryInstance {
   public:
     MemoryInstance(const MemoryType &MemType);
-    ~MemoryInstance();
+    ~MemoryInstance() = default;
 
     const MemoryType &GetMemoryType();
     Result GetData(std::vector<uint8_t> &Data, const uint32_t Offset,
@@ -559,7 +680,7 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT GlobalInstance {
   public:
     GlobalInstance(const GlobalType &GlobType, const Value Value);
-    ~GlobalInstance();
+    ~GlobalInstance() = default;
 
     const GlobalType &GetGlobalType();
     Value GetValue();
@@ -569,6 +690,18 @@ namespace WasmEdge {
     // TODO
   };
   // <<<<<<<< WasmEdge Instances <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  class WASMEDGE_CPP_API_EXPORT CallingFrame {
+    CallingFrame();
+    ~CallingFrame() = default;
+
+  public:
+    std::unique_ptr<Executor> GetExecutor();
+    std::unique_ptr<const ModuleInstance> GetModuleInstance();
+    std::unique_ptr<MemoryInstance> GetMemoryInstance(const uint32_t Idx);
+  };
+
+  // <<<<<<<< WasmEdge Runtime <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 }
 
 #endif // WASMEDGE_CPP_API_HH

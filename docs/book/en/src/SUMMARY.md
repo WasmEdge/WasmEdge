@@ -63,6 +63,7 @@
 
 - [Write a WebAssembly Application](write_wasm.md)
   - [C](write_wasm/c.md)
+    - [Getting Started](write_wasm/c/quickstart.md)
     - [simd](write_wasm/c/simd.md)
   - [Rust](write_wasm/rust.md)
     - [Bindgen of Rust Functions](write_wasm/rust/bindgen.md)

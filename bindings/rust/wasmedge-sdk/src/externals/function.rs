@@ -1,6 +1,6 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
 use crate::{
-    error::HostFuncError, io::WasmValTypeList, CallingFrame, Engine, FuncType, ValType,
+    error::HostFuncError, io::WasmValTypeList, CallingFrame, Executor, FuncType, ValType,
     WasmEdgeResult, WasmValue,
 };
 use wasmedge_sys as sys;
@@ -51,7 +51,7 @@ use wasmedge_sys as sys;
 /// let mut executor = Executor::new(None, None).unwrap();
 ///
 /// // call the host function
-/// let result = func.call(&mut executor, params!(2, 3));
+/// let result = func.run(&mut executor, params!(2, 3));
 /// assert!(result.is_ok());
 /// let returns = result.unwrap();
 /// assert_eq!(returns[0].to_i32(), 5);
@@ -63,6 +63,7 @@ pub struct Func {
     pub(crate) inner: sys::Function,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
+    pub(crate) ty: FuncType,
 }
 impl Func {
     /// Creates a host function of the given func type.
@@ -77,7 +78,7 @@ impl Func {
     ///
     /// # Error
     ///
-    /// If fail to create the host function, then an error is returned.
+    /// * If fail to create a Func instance, then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
     pub fn new(
         ty: FuncType,
         real_func: impl Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
@@ -86,11 +87,12 @@ impl Func {
             + 'static,
     ) -> WasmEdgeResult<Self> {
         let boxed_func = Box::new(real_func);
-        let inner = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        let inner = sys::Function::create(&ty.clone().into(), boxed_func, 0)?;
         Ok(Self {
             inner,
             name: None,
             mod_name: None,
+            ty,
         })
     }
 
@@ -104,7 +106,7 @@ impl Func {
     ///
     /// # Error
     ///
-    /// If fail to create the host function, then an error is returned.
+    /// * If fail to create a Func instance, then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
     pub fn wrap<Args, Rets>(
         real_func: impl Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
             + Send
@@ -119,15 +121,18 @@ impl Func {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        let inner = sys::Function::create(&ty.clone().into(), boxed_func, 0)?;
         Ok(Self {
             inner,
             name: None,
             mod_name: None,
+            ty,
         })
     }
 
     /// Creates an asynchronous host function by wrapping a native function.
+    ///
+    /// N.B. that this function can be used in thread-safe scenarios.
     ///
     /// # Arguments
     ///
@@ -135,7 +140,7 @@ impl Func {
     ///
     /// # Error
     ///
-    /// If fail to create the host function, then an error is returned.
+    /// * If fail to create a Func instance, then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
     #[cfg(feature = "async")]
     pub fn wrap_async<Args, Rets>(
         real_func: impl Fn(
@@ -157,11 +162,12 @@ impl Func {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner = sys::Function::create_async(&ty.into(), boxed_func, 0)?;
+        let inner = sys::Function::create_async(&ty.clone().into(), boxed_func, 0)?;
         Ok(Self {
             inner,
             name: None,
             mod_name: None,
+            ty,
         })
     }
 
@@ -185,38 +191,57 @@ impl Func {
         }
     }
 
-    /// Returns the type of the host function.
-    ///
-    /// If fail to get the signature, then an error is returned.
-    pub fn ty(&self) -> WasmEdgeResult<FuncType> {
-        let func_ty = self.inner.ty()?;
-        Ok(func_ty.into())
+    /// Returns a reference to the type of the host function.
+    pub fn ty(&self) -> &FuncType {
+        &self.ty
     }
 
     /// Returns a reference to this function instance.
     pub fn as_ref(&self) -> FuncRef {
         let inner = self.inner.as_ref();
-        FuncRef { inner }
+        FuncRef {
+            inner,
+            ty: self.ty.clone(),
+        }
     }
 
     /// Runs this host function and returns the result.
     ///
     /// # Arguments
     ///
-    /// * `engine` - The object implementing the [Engine](crate::Engine) trait.
+    /// * `executor` - The [Executor](crate::Executor) instance.
     ///
     /// * `args` - The arguments passed to the host function.
     ///
     /// # Error
     ///
     /// If fail to run the host function, then an error is returned.
-    ///
-    pub fn call<E: Engine>(
+    pub fn run(
         &self,
-        engine: &E,
+        executor: &Executor,
         args: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        engine.run_func(self, args)
+        executor.run_func(self, args)
+    }
+
+    /// Asynchronously runs this host function and returns the result.
+    ///
+    /// # Arguments
+    ///
+    /// * `executor` - The [Executor](crate::Executor) instance.
+    ///
+    /// * `args` - The arguments passed to the host function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run the host function, then an error is returned.
+    #[cfg(feature = "async")]
+    pub async fn run_async(
+        &self,
+        executor: &Executor,
+        args: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        executor.run_func_async(self, args).await
     }
 }
 
@@ -289,37 +314,51 @@ impl FuncTypeBuilder {
 #[derive(Debug, Clone)]
 pub struct FuncRef {
     pub(crate) inner: sys::FuncRef,
+    pub(crate) ty: FuncType,
 }
 impl FuncRef {
-    /// Returns the underlying wasm type of the host function this [FuncRef] points to.
-    ///
-    /// # Errors
-    ///
-    /// If fail to get the function type, then an error is returned.
-    ///
-    pub fn ty(&self) -> WasmEdgeResult<FuncType> {
-        let ty = self.inner.ty()?;
-        Ok(ty.into())
+    /// Returns a reference to the ty of the host function this [FuncRef] points to.
+    pub fn ty(&self) -> &FuncType {
+        &self.ty
     }
 
     /// Runs this host function the reference refers to.
     ///
     /// # Arguments
     ///
-    /// * `engine` - The object implementing the [Engine](crate::Engine) trait.
+    /// * `executor` - The [Executor](crate::Executor) instance.
     ///
     /// * `args` - The arguments passed to the host function.
     ///
     /// # Error
     ///
     /// If fail to run the host function, then an error is returned.
-    ///
-    pub fn call<E: Engine>(
+    pub fn run(
         &self,
-        engine: &E,
+        executor: &Executor,
         args: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        engine.run_func_ref(self, args)
+        executor.run_func_ref(self, args)
+    }
+
+    /// Asynchronously runs this host function the reference refers to.
+    ///
+    /// # Arguments
+    ///
+    /// * `executor` - The [Executor](crate::Executor) instance.
+    ///
+    /// * `args` - The arguments passed to the host function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run the host function, then an error is returned.
+    #[cfg(feature = "async")]
+    pub async fn run_async(
+        &self,
+        executor: &Executor,
+        args: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        executor.run_func_ref_async(self, args).await
     }
 }
 
@@ -417,26 +456,24 @@ mod tests {
         assert!(result.is_ok());
 
         // get the instance of the ImportObject module
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the exported host function
         let result = instance.func("add");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let host_func = result.unwrap();
 
         // check the signature of the host function
-        let result = host_func.ty();
-        assert!(result.is_ok());
-        let func_ty = result.unwrap();
+        let func_ty = host_func.ty();
         assert!(func_ty.args().is_some());
         assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
         assert!(func_ty.returns().is_some());
         assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
 
         // run the host function
-        let result = host_func.call(&mut executor, params!(2, 3));
+        let result = host_func.run(&mut executor, params!(2, 3));
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns.len(), 1);
@@ -454,7 +491,7 @@ mod tests {
         let mut executor = Executor::new(None, None).unwrap();
 
         // call the host function
-        let result = func.call(&mut executor, params!(2, 3));
+        let result = func.run(&mut executor, params!(2, 3));
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 5);

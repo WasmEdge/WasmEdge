@@ -74,6 +74,12 @@ impl Module {
             })
             .collect()
     }
+
+    /// Provides a raw pointer to the inner ASTModule context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_FunctionTypeContext {
+        self.inner.0 as *const _
+    }
 }
 
 #[derive(Debug)]
@@ -237,6 +243,12 @@ impl<'module> ImportType<'module> {
         };
         c_name.to_string_lossy()
     }
+
+    /// Provides a raw pointer to the inner ImportType context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ImportTypeContext {
+        self.inner.0 as *const _
+    }
 }
 
 #[derive(Debug)]
@@ -388,6 +400,12 @@ impl<'module> ExportType<'module> {
         };
         c_name.to_string_lossy()
     }
+
+    /// Provides a raw pointer to the inner ExportType context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ExportTypeContext {
+        self.inner.0 as *const _
+    }
 }
 
 #[derive(Debug)]
@@ -416,7 +434,7 @@ mod tests {
         assert!(config.bulk_memory_operations_enabled());
 
         // load module from file
-        let result = Loader::create(Some(config));
+        let result = Loader::create(Some(&config));
         assert!(result.is_ok());
         let loader = result.unwrap();
         let result = loader.from_file(path);
@@ -444,7 +462,7 @@ mod tests {
         assert!(config.bulk_memory_operations_enabled());
 
         // load module from file
-        let result = Loader::create(Some(config));
+        let result = Loader::create(Some(&config));
         assert!(result.is_ok());
         let loader = result.unwrap();
         let result = loader.from_file(path);
@@ -596,7 +614,7 @@ mod tests {
         assert!(config.bulk_memory_operations_enabled());
 
         // load module from file
-        let result = Loader::create(Some(config));
+        let result = Loader::create(Some(&config));
         assert!(result.is_ok());
         let loader = result.unwrap();
         let result = loader.from_file(path);
@@ -746,7 +764,7 @@ mod tests {
         assert!(config.bulk_memory_operations_enabled());
 
         // load module from file
-        let result = Loader::create(Some(config));
+        let result = Loader::create(Some(&config));
         assert!(result.is_ok());
         let loader = result.unwrap();
         let result = loader.from_file(path);
@@ -900,7 +918,7 @@ mod tests {
         assert!(config.bulk_memory_operations_enabled());
 
         // load module from file
-        let result = Loader::create(Some(config));
+        let result = Loader::create(Some(&config));
         assert!(result.is_ok());
         let loader = result.unwrap();
         let result = loader.from_file(path);

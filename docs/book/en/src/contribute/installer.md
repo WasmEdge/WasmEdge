@@ -43,16 +43,19 @@ The real installer handles all stuff. It supports python2.7 (not tested on earli
 ## Options
 
 ### Help Msg
+
 * Short Option: `-h`
 * Full Option: `--help`
 * Description: Show this help message and exit.
 
 ### Verbose
+
 * Short Option: `-D`
 * Full Option: `--debug`
 * Description: Enable verbosity debug
 
 ### Specify the version of WasmEdge to install
+
 * Short Option: `-v VERSION`
 * Full Option: `--version VERSION`
 * Description: Install the given VERSION of WasmEdge
@@ -60,6 +63,7 @@ The real installer handles all stuff. It supports python2.7 (not tested on earli
 * Note - In the case of supplied an invalid or nonexistent version, the installer exists with an error.
 
 ### Installation path
+
 * Short Option: `-p PATH`
 * Full Option: `--path PATH`
 * Description: Install WasmEdge into the given PATH. The default Path is `$HOME/.wasmedge`.
@@ -69,37 +73,44 @@ The real installer handles all stuff. It supports python2.7 (not tested on earli
 ### Uninstallation
 
 #### Run uninstaller before installing
+
 * Short Option: `-r {yes,no}`
 * Full Option: `--remove-old {yes, no}`
 * Description: Run the uninstaller script before installing. Default `yes`.
 
 #### Use a specific version of the uninstaller
+
 * Short Option: `-u UNINSTALL_SCRIPT_TAG`
 * Full Option: `--uninstall-script-tag UNINSTALL_SCRIPT_TAG`
 * Description: Use the given GitHub tag to uninstall the script
 
 ### Install Extensions
+
 * Short Option: `-e [EXTENSIONS [EXTENSIONS ...]]`
 * Full Option: `--extension [EXTENSIONS [EXTENSIONS ...]]`
 * Description: Install wasmedge-extension tools.
 * Available Value (case sensitive): Supported Extensions `'tensorflow', 'image', 'all'`.
 
 #### Tensorflow Extensions Library Version
+
 * Full Option: `--tf-version TF_VERSION`
 * Description: Install the given VERSION of the library of the Tensorflow and Tensorflow lite extension. Only available when the `Extensions` is set to `all` or `tensorflow`.
 * Note - It's the same as the WasmEdge version if not specified.
 
 #### Tensorflow Extensions Dependencies Version
+
 * Full Option: `--tf-deps-version TF_DEPS_VERSION`
 * Description: Install the given VERSION of the dependencies of the Tensorflow and Tensorflow lite extension. Only available when the `Extensions` is set to `all` or `tensorflow`.
 * Note - It's the same as the WasmEdge version if not specified.
 
 #### Tensorflow Extensions Tools Version
+
 * Full Option: `--tf-tools-version TF_TOOLS_VERSION`
 * Description: Install the given VERSION of the tools of the Tensorflow and Tensorflow lite extension. Only available when the `Extensions` is set to `all` or `tensorflow`.
 * Note - It's the same as the WasmEdge version if not specified.
 
 #### Image Extensions Version
+
 * Full Option: `--image-version IMAGE_VERSION`
 * Description: Install the given VERSION of the Image extension. Only available when the `Extensions` is set to `all` or `image`.
 * Note - It's the same as the WasmEdge version if not specified.
@@ -122,15 +133,16 @@ The real installer handles all stuff. It supports python2.7 (not tested on earli
 * Note - For `Linux` platform if the distribution matches exactly as `Ubuntu 20.04` which is checked using `lsb_release` and python's `platform.dist()` functionality then it is set to `ubuntu20.04` if not specified, else it is used without questioning. However different release packages for WasmEdge are available only after `0.11.1` release below which there is no effect of specifying this option.
 
 ### Platform and OS
+
 * Full Option: `--platform PLATFORM` or `--os OS`
 * Description: Install the given `PLATFORM` or `OS` version of WasmEdge. This value should be case insensitive to make the maximum compatibility.
 * Available Value (case insensitive): "Linux", "Darwin", "Windows".
 
 ### Machine and Arch
+
 * Full Option: `--machine MACHINE` or `--arch ARCH`
 * Description: Install the given `MACHINE` or `ARCH` version of WasmEdge.
 * Available Value: "x86_64", "aarch64".
-
 
 ## Behaviour
 

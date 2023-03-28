@@ -161,8 +161,6 @@ public:
                Span<const ValVariant> Params = {},
                Span<const ValType> ParamTypes = {});
 
-  /// Register new thread
-  void newThread() noexcept { ExecutorEngine.newThread(); }
   /// Stop execution
   void stop() noexcept { ExecutorEngine.stop(); }
 

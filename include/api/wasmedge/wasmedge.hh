@@ -106,6 +106,24 @@ namespace WasmEdge {
     ExternRef = 0x6F
   };
 
+  enum WASMEDGE_CPP_API_EXPORT ExternalType {
+    Function = 0x00U,
+    Table = 0x01U,
+    Memory = 0x02U,
+    Global = 0x03U
+  };
+
+  enum WASMEDGE_CPP_API_EXPORT Mutability {
+    Const = 0x00,
+    Var = 0x01
+  };
+
+  // TODO: ValType is an extension of RefType
+  enum WASMEDGE_CPP_API_EXPORT RefType {
+    FuncRef = 0x70,
+    ExternRef = 0x6F
+  };
+
   // TODO: should Version get its own namespace?
   WASMEDGE_CPP_API_EXPORT std::string VersionGet();
   WASMEDGE_CPP_API_EXPORT uint32_t VersionGetMajor();
@@ -193,12 +211,65 @@ namespace WasmEdge {
     // TODO
   };
 
-  class WASMEDGE_CPP_API_EXPORT ImportType {
+  class WASMEDGE_CPP_API_EXPORT TableType {
+  public:
+    TableType(const RefType RefType, const Limit Limit);
+    ~TableType();
+
+    RefType GetRefType();
+    Limit GetLimit();
+  private:
     // TODO
   };
 
-  class WASMEDGE_CPP_API_EXPORT ExportType {
+  class WASMEDGE_CPP_API_EXPORT MemoryType {
+  public:
+    MemoryType(const Limit Limit);
+    ~MemoryType();
+
+    Limit GetLimit();
+
+  private:
     // TODO
+  };
+
+  class WASMEDGE_CPP_API_EXPORT GlobalType {
+  public:
+    GlobalType(const ValType, const Mutability Mut);
+    ~GlobalType();
+
+    ValType GetValType();
+    Mutability GetMutability();
+  private:
+    // TODO
+  };
+
+  class WASMEDGE_CPP_API_EXPORT ImportType {
+  public:
+    // TODO: constructor
+
+    ExternalType GetExternalType();
+    String GetModuleName();
+    String GetExternalName();
+    const FunctionType &GetFunctionType(const ASTModule &ASTCxt);
+    const TableType &GetTableType(const ASTModule &ASTCxt);
+    const MemoryType &GetMemoryType(const ASTModule &ASTCxt);
+    const GlobalType &GetGlobalType(const ASTModule &ASTCxt);
+
+  private:
+    // TODO
+  };
+
+  // TODO: ImportType & ExportType both look the same
+  // Create a common interface/parent class then?
+  class WASMEDGE_CPP_API_EXPORT ExportType {
+  public:
+    ExternalType GetExternalType();
+    String GetExternalName();
+    const FunctionType &GetFunctionType(const ASTModule &ASTCxt);
+    const TableType &GetTableType(const ASTModule &ASTCxt);
+    const MemoryType &GetMemoryType(const ASTModule &ASTCxt);
+    const GlobalType &GetGlobalType(const ASTModule &ASTCxt);
   };
 
   // <<<<<<<< WasmEdge Data Structures <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -342,6 +413,22 @@ namespace WasmEdge {
 
   // <<<<<<<< WasmEdge Executor Class <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+  class WASMEDGE_CPP_API_EXPORT ASTModule {
+  public:
+    ASTModule();
+    ~ASTModule();
+
+    uint32_t ListImportsLength();
+    uint32_t ListImports(const std::vector<ImportType> &Imports,
+                        const uint32_t Len);
+
+    uint32_t ListExportsLength();
+    uint32_t ListExports(const std::vector<ExportType> &Exports,
+                        const uint32_t Len);
+  private:
+    // TODO
+  };
+
   class WASMEDGE_CPP_API_EXPORT Store {
   public:
     Store();
@@ -360,41 +447,128 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT ModuleInstance {
   public:
     ModuleInstance(const String ModuleName);
-    ModuleInstance(const std::vector<const std::string> Args,
+    ModuleInstance(const std::vector<const std::string> &Args,
                   const uint32_t ArgLen,
-                  const std::vector<const std::string> Envs,
+                  const std::vector<const std::string> &Envs,
                   const uint32_t EnvLen,
-                  const std::vector<const std::string> Preopens,
+                  const std::vector<const std::string> &Preopens,
                   const uint32_t PreopenLen);
     ~ModuleInstance();
 
+    void InitWASI(const std::vector<const std::string> &Args,
+                  const uint32_t ArgLen,
+                  const std::vector<const std::string> &Envs,
+                  const uint32_t EnvLen,
+                  const std::vector<const std::string> &Preopens,
+                  const uint32_t PreopenLen);
+
+    uint32_t WASIGetExitCode();
+    uint32_t WASIGetNativeHandler(int32_t Fd, uint64_t &NativeHandler);
+
+    void InitWasmEdgeProcess(const std::vector<const std::string> &AllowedCmds,
+                            const uint32_t CmdsLen,
+                            const bool AllowAll);
+    String GetModuleName();
+
+    FunctionInstance &FindFunction(const String Name);
+    TableInstance &FindTable(const String Name);
+    MemoryInstance &FindMemory(const String Name);
+    GlobalInstance &FindGlobal(const String Name);
+
+    uint32_t ListFunctionLength();
+    uint32_t ListFunction(std::vector<std::string> &Names, const uint32_t Len);
+
+    uint32_t ListTableLenth();
+    uint32_t ListTable(std::vector<std::string> &Names, const uint32_t Len);
+
+    uint32_t ListMemoryLength();
+    uint32_t ListMemory(std::vector<std::string> &Names, const uint32_t Len);
+
+    uint32_t ListGlobalLength();
+    uint32_t ListGlobal(std::vector<std::string> &Names, const uint32_t Len);
+
+    void AddFunction(const String Name,
+                    FunctionInstance &FuncCxt);
+    void AddTable(const String Name,
+                  TableInstance &TableCxt);
+    void AddMemory(const String Name,
+                  MemoryInstance &MemoryCxt);
+    void AddGlobal(const String Name,
+                  GlobalInstance GlobalCxt);
+
+  private:
     // TODO
   };
 
   class WASMEDGE_CPP_API_EXPORT FunctionInstance {
   public:
+    FunctionInstance(const FunctionType &Type,
+                    HostFunc_t HostFunc, std::vector<void> &Data,
+                    const uint64_t Cost);
+    FunctionInstance(const FunctionType &Type,
+                    WrapFunc_t WrapFunc,
+                    std::vector<void> &Binding,
+                    std::vector<void> &Data,
+                    const uint64_t Cost);
+    ~FunctionInstance();
+
+    const FunctionType &GetFunctionType();
+  private:
     // TODO
   };
 
-
-
-  // <<<<<<<< WasmEdge Instances <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-  class WASMEDGE_CPP_API_EXPORT ASTModule {
+  class WASMEDGE_CPP_API_EXPORT TableInstance {
   public:
-    ASTModule();
-    ~ASTModule();
+    TableInstance(const TableType &TabType);
+    ~TableInstance();
 
-    uint32_t ListImportsLength();
-    uint32_t ListImports(const std::vector<ImportType> &Imports,
-                        const uint32_t Len);
+    const TableType &GetTableType();
+    Result GetData(std::vector<Value> &Data, const uint32_t Offset);
+    Result SetData(Value Data, const uint32_t Offset);
+    uint32_t GetSize();
+    Result Grow(const uint32_t Size);
 
-    uint32_t ListExportsLength();
-    uint32_t ListExports(const std::vector<ExportType> &Exports,
-                        const uint32_t Len);
   private:
     // TODO
-  };  
+  };
+
+  class WASMEDGE_CPP_API_EXPORT MemoryInstance {
+  public:
+    MemoryInstance(const MemoryType &MemType);
+    ~MemoryInstance();
+
+    const MemoryType &GetMemoryType();
+    Result GetData(std::vector<uint8_t> &Data, const uint32_t Offset,
+                  const uint32_t Length);
+
+    Result SetData(const std::vector<uint8_t> &Data,
+                   const uint32_t Offset, const uint32_t Length);
+
+    std::vector<uint8_t> &GetReference(const uint32_t Offset,
+                                      const uint32_t Length);
+    const std::vector<uint8_t> &GetReferenceConst(const uint32_t Offset,
+                                                  const uint32_t Length);
+    uint32_t GetPageSize();
+
+    Result GrowPage(const uint32_t Page);
+
+  private:
+    // TODO
+  };
+
+  class WASMEDGE_CPP_API_EXPORT GlobalInstance {
+  public:
+    GlobalInstance(const GlobalType &GlobType, const Value Value);
+    ~GlobalInstance();
+
+    const GlobalType &GetGlobalType();
+    Value GetValue();
+
+    void SetValue(const Value Value);
+  private:
+    // TODO
+  };
+  // <<<<<<<< WasmEdge Instances <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 }
 
 #endif // WASMEDGE_CPP_API_HH

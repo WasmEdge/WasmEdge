@@ -63,6 +63,7 @@
 
 - [Write a WebAssembly Application](write_wasm.md)
   - [C](write_wasm/c.md)
+    - [Getting Started](write_wasm/c/quickstart.md)
     - [simd](write_wasm/c/simd.md)
   - [Rust](write_wasm/rust.md)
     - [Bindgen of Rust Functions](write_wasm/rust/bindgen.md)
@@ -100,6 +101,7 @@
     - [Multiple Module Example](sdk/c/multimodule.md)
     - [0.12.0 API references](sdk/c/ref.md)
     - [0.11.2 API references](sdk/c/0.11.2/ref.md)
+      - [Upgrade to 0.12.0](sdk/c/0.11.2/upgrade_to_0.12.0.md)
     - [0.10.1 API references](sdk/c/0.10.1/ref.md)
       - [Upgrade to 0.11.0](sdk/c/0.10.1/upgrade_to_0.11.0.md)
     - [0.9.1 API references](sdk/c/0.9.1/ref.md)
@@ -130,6 +132,8 @@
   - [`wasmedgec` AOT Compiler](cli/wasmedgec.md)
 
 - [Develop WasmEdge Plug-in](plugin.md)
+  - [Develop Plug-in in C API](develop_plugin/c.md)
+  - [Develop Plug-in in C++](develop_plugin/cpp.md)
 
 - [Contribute to WasmEdge](contribute.md)
   - [Release Process](contribute/release_process.md)
@@ -149,7 +153,7 @@
     - [Build with WASI-NN Plug-in](contribute/build_from_src/plugin_wasi_nn.md)
     - [Build with WASI-Crypto Plug-in](contribute/build_from_src/plugin_wasi_crypto.md)
     - [Build with WasmEdge-HttpsReq Plug-in](contribute/build_from_src/plugin_wasmedge_httpsreq.md)
+    - [Build with WasmEdge-process Plug-in](contribute/build_from_src/plugin_wasmedge_process.md)
   - [WasmEdge Installer Guide](contribute/installer.md)
   - [WasmEdge Internal](contribute/internal.md)
   - [Wish List](contribute/wish_list.md)
-  - [Release Process](contribute/release_process.md)

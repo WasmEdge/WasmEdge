@@ -29,6 +29,11 @@ VINode::VINode(VFS &FS, INode Node, std::shared_ptr<VINode> Parent)
       Parent(std::move(Parent)) {}
 
 VINode::VINode(VFS &FS, INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
+               std::shared_ptr<VINode> Parent)
+    : FS(FS), Node(std::move(Node)), FsRightsBase(FRB), FsRightsInheriting(FRI),
+      Parent(std::move(Parent)) {}
+
+VINode::VINode(VFS &FS, INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
                std::string N)
     : FS(FS), Node(std::move(Node)), FsRightsBase(FRB), FsRightsInheriting(FRI),
       Name(std::move(N)) {}
@@ -230,7 +235,8 @@ VINode::pathOpen(VFS &FS, std::shared_ptr<VINode> Fd, std::string_view Path,
   if (Write) {
     VFSFlags |= VFS::Write;
   }
-  return Fd->directOpen(Path, OpenFlags, FdFlags, VFSFlags);
+  return Fd->directOpen(Path, OpenFlags, FdFlags, VFSFlags, FsRightsBase,
+                        FsRightsInheriting);
 }
 
 WasiExpect<void> VINode::pathReadlink(VFS &FS, std::shared_ptr<VINode> Fd,
@@ -372,7 +378,9 @@ VINode::sockAccept(__wasi_fdflags_t FdFlags) {
 
 WasiExpect<std::shared_ptr<VINode>>
 VINode::directOpen(std::string_view Path, __wasi_oflags_t OpenFlags,
-                   __wasi_fdflags_t FdFlags, uint8_t VFSFlags) {
+                   __wasi_fdflags_t FdFlags, uint8_t VFSFlags,
+                   __wasi_rights_t RightsBase,
+                   __wasi_rights_t RightsInheriting) {
   std::string PathStr(Path);
 
   if (auto Res =
@@ -380,7 +388,9 @@ VINode::directOpen(std::string_view Path, __wasi_oflags_t OpenFlags,
       unlikely(!Res)) {
     return WasiUnexpect(Res);
   } else {
-    return std::make_shared<VINode>(FS, std::move(*Res), shared_from_this());
+    return std::make_shared<VINode>(
+        FS, std::move(*Res), RightsBase & FsRightsInheriting,
+        RightsInheriting & FsRightsInheriting, shared_from_this());
   }
 }
 

@@ -15,6 +15,7 @@
 #pragma once
 
 #include "common/enum_configure.hpp"
+#include "errinfo.h"
 
 #include <atomic>
 #include <bitset>
@@ -266,6 +267,135 @@ public:
   }
   StatisticsConfigure &getStatisticsConfigure() noexcept {
     return StatisticsConf;
+  }
+
+  inline Unexpected<ErrCode> logCheckError(ErrCode Code,
+                                           ASTNodeAttr Node) const noexcept {
+    spdlog::error(Code);
+    spdlog::error(ErrInfo::InfoAST(Node));
+    return Unexpect(Code);
+  }
+  inline Unexpected<ErrCode> logNeedProposal(ErrCode Code, Proposal Prop,
+                                             ASTNodeAttr Node) const noexcept {
+    spdlog::error(Code);
+    spdlog::error(ErrInfo::InfoProposal(Prop));
+    spdlog::error(ErrInfo::InfoAST(Node));
+    return Unexpect(Code);
+  }
+
+  // Helper function of checking the valid value types.
+  Expect<void> checkValTypeProposals(ValType VType,
+                                     ASTNodeAttr Node) const noexcept {
+    switch (VType) {
+    case ValType::I32:
+    case ValType::I64:
+    case ValType::F32:
+    case ValType::F64:
+      return {};
+    case ValType::V128:
+      if (!hasProposal(Proposal::SIMD)) {
+        return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::SIMD,
+                               Node);
+      }
+      return {};
+    case ValType::FuncRef:
+      if (!hasProposal(Proposal::BulkMemoryOperations)) {
+        return logNeedProposal(ErrCode::Value::MalformedElemType,
+                               Proposal::BulkMemoryOperations, Node);
+      }
+      [[fallthrough]];
+    case ValType::ExternRef:
+      if (!hasProposal(Proposal::ReferenceTypes)) {
+        return logNeedProposal(ErrCode::Value::MalformedElemType,
+                               Proposal::ReferenceTypes, Node);
+      }
+      return {};
+    default:
+      return logCheckError(ErrCode::Value::MalformedValType, Node);
+    }
+  }
+
+  // Helper function of checking the valid reference types.
+  Expect<void> checkRefTypeProposals(RefType RType,
+                                     ASTNodeAttr Node) const noexcept {
+    switch (RType) {
+    case RefType::ExternRef:
+      if (!hasProposal(Proposal::ReferenceTypes)) {
+        return logNeedProposal(ErrCode::Value::MalformedElemType,
+                               Proposal::ReferenceTypes, Node);
+      }
+      [[fallthrough]];
+    case RefType::FuncRef:
+      return {};
+    default:
+      if (hasProposal(Proposal::ReferenceTypes)) {
+        return logCheckError(ErrCode::Value::MalformedRefType, Node);
+      } else {
+        return logCheckError(ErrCode::Value::MalformedElemType, Node);
+      }
+    }
+  }
+
+  Expect<void> checkInstrProposals(OpCode Code) const noexcept {
+    if (Code >= OpCode::I32__trunc_sat_f32_s &&
+        Code <= OpCode::I64__trunc_sat_f64_u) {
+      // These instructions are for NonTrapFloatToIntConversions proposal.
+      if (unlikely(!hasProposal(Proposal::NonTrapFloatToIntConversions))) {
+        return logNeedProposal(ErrCode::Value::IllegalOpCode,
+                               Proposal::NonTrapFloatToIntConversions,
+                               ASTNodeAttr::Instruction);
+      }
+    } else if (Code >= OpCode::I32__extend8_s &&
+               Code <= OpCode::I64__extend32_s) {
+      // These instructions are for SignExtensionOperators proposal.
+      if (unlikely(!hasProposal(Proposal::SignExtensionOperators))) {
+        return logNeedProposal(ErrCode::Value::IllegalOpCode,
+                               Proposal::SignExtensionOperators,
+                               ASTNodeAttr::Instruction);
+      }
+    } else if ((Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
+               (Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||
+               (Code >= OpCode::Memory__init && Code <= OpCode::Memory__fill)) {
+      // These instructions are for ReferenceTypes or BulkMemoryOperations
+      // proposal.
+      if (unlikely(!hasProposal(Proposal::ReferenceTypes)) &&
+          unlikely(!hasProposal(Proposal::BulkMemoryOperations))) {
+        return logNeedProposal(ErrCode::Value::IllegalOpCode,
+                               Proposal::ReferenceTypes,
+                               ASTNodeAttr::Instruction);
+      }
+    } else if (Code == OpCode::Select_t ||
+               (Code >= OpCode::Table__get && Code <= OpCode::Table__set) ||
+               (Code >= OpCode::Table__grow && Code <= OpCode::Table__fill)) {
+      // These instructions are for ReferenceTypes proposal.
+      if (unlikely(!hasProposal(Proposal::ReferenceTypes))) {
+        return logNeedProposal(ErrCode::Value::IllegalOpCode,
+                               Proposal::ReferenceTypes,
+                               ASTNodeAttr::Instruction);
+      }
+    } else if (Code >= OpCode::V128__load &&
+               Code <= OpCode::F64x2__convert_low_i32x4_u) {
+      // These instructions are for SIMD proposal.
+      if (!hasProposal(Proposal::SIMD)) {
+        return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::SIMD,
+                               ASTNodeAttr::Instruction);
+      }
+    } else if (Code == OpCode::Return_call ||
+               Code == OpCode::Return_call_indirect) {
+      // These instructions are for TailCall proposal.
+      if (!hasProposal(Proposal::TailCall)) {
+        return logNeedProposal(ErrCode::Value::IllegalOpCode,
+                               Proposal::TailCall, ASTNodeAttr::Instruction);
+      }
+    } else if (Code >= OpCode::I32__atomic__load &&
+               Code <= OpCode::I64__atomic__rmw32__cmpxchg_u) {
+      // These instructions are for Thread proposal.
+      if (!hasProposal(Proposal::Threads)) {
+        return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::Threads,
+                               ASTNodeAttr::Instruction);
+      }
+    }
+    return {};
   }
 
 private:

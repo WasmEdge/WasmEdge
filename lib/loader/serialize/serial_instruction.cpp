@@ -13,10 +13,36 @@ void serializeOpCode(OpCode Code, std::vector<uint8_t> &OutVec) {
 } // namespace
 
 // Serialize instruction. See "include/loader/serialize.h".
-void Serializer::serializeInstruction(const AST::Instruction &Instr,
-                                      std::vector<uint8_t> &OutVec) {
+Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
+                                              std::vector<uint8_t> &OutVec) {
+  auto serializeMemImmediate = [this, &Instr, &OutVec]() -> Expect<void> {
+    if (Conf.hasProposal(Proposal::MultiMemories) &&
+        Instr.getMemoryAlign() < 64 && Instr.getTargetIndex() != 0) {
+      serializeU32(Instr.getMemoryAlign() + 64, OutVec);
+      serializeU32(Instr.getTargetIndex(), OutVec);
+    } else {
+      serializeU32(Instr.getMemoryAlign(), OutVec);
+    }
+    serializeU32(Instr.getMemoryOffset(), OutVec);
+    return {};
+  };
+
+  auto serializeCheckZero = [this, &OutVec](uint32_t C) -> Expect<void> {
+    if (C != 0) {
+      return logSerializeError(ErrCode::Value::ExpectedZeroByte,
+                               ASTNodeAttr::Instruction);
+    }
+    OutVec.push_back(0x00);
+    return {};
+  };
+
   // Instruction: OpCode + immediate.
   serializeOpCode(Instr.getOpCode(), OutVec);
+
+  // Check with proposals.
+  if (auto Res = Conf.checkInstrProposals(Instr.getOpCode()); !Res) {
+    return Unexpect(Res);
+  }
 
   switch (Instr.getOpCode()) {
   // Control instructions.
@@ -25,50 +51,107 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Return:
   case OpCode::End:
   case OpCode::Else:
-    return;
+    return {};
 
   case OpCode::Block:
   case OpCode::Loop:
   case OpCode::If:
-    // TODO
-    return;
+    switch (Instr.getBlockType().TypeFlag) {
+    case BlockType::TypeEnum::Empty:
+      OutVec.push_back(0x40U);
+      break;
+
+    case BlockType::TypeEnum::ValType: {
+      auto VType = Instr.getBlockType().Data.Type;
+      if (auto Check =
+              Conf.checkValTypeProposals(VType, ASTNodeAttr::Instruction);
+          unlikely(!Check)) {
+        return Unexpect(Check);
+      }
+      OutVec.push_back(static_cast<uint8_t>(VType));
+      break;
+    }
+
+    case BlockType::TypeEnum::TypeIdx:
+      if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
+        return Conf.logNeedProposal(ErrCode::Value::MalformedValType,
+                                    Proposal::MultiValue,
+                                    ASTNodeAttr::Instruction);
+      }
+      serializeS33(static_cast<int64_t>(Instr.getBlockType().Data.Idx), OutVec);
+      break;
+
+    default:
+      return logSerializeError(ErrCode::Value::Unreachable,
+                               ASTNodeAttr::Instruction);
+    }
+    return {};
 
   case OpCode::Br:
   case OpCode::Br_if:
-    // TODO
-    return;
+    serializeU32(Instr.getJump().TargetIndex, OutVec);
+    return {};
 
-  case OpCode::Br_table:
-    // TODO
-    return;
+  case OpCode::Br_table: {
+    uint32_t VecCnt = static_cast<uint32_t>(Instr.getLabelList().size()) - 1;
+    serializeU32(VecCnt, OutVec);
+    for (auto Label : Instr.getLabelList()) {
+      serializeU32(Label.TargetIndex, OutVec);
+    }
+    return {};
+  }
 
   case OpCode::Call:
   case OpCode::Return_call:
-    // TODO
-    return;
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    return {};
 
   case OpCode::Call_indirect:
   case OpCode::Return_call_indirect:
-    // TODO
-    return;
+    // Serialize the type index.
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    if (Instr.getSourceIndex() > 0 &&
+        !Conf.hasProposal(Proposal::ReferenceTypes)) {
+      return Conf.logNeedProposal(ErrCode::Value::ExpectedZeroByte,
+                                  Proposal::ReferenceTypes,
+                                  ASTNodeAttr::Instruction);
+    }
+    // Serialize the table index.
+    serializeU32(Instr.getSourceIndex(), OutVec);
+    return {};
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    // TODO
-    return;
+    if (auto Check = Conf.checkRefTypeProposals(Instr.getRefType(),
+                                                ASTNodeAttr::Instruction);
+        unlikely(!Check)) {
+      return Unexpect(Check);
+    }
+    OutVec.push_back(static_cast<uint8_t>(Instr.getRefType()));
+    return {};
   case OpCode::Ref__is_null:
-    return;
+    return {};
   case OpCode::Ref__func:
-    // TODO
-    return;
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    return {};
 
   // Parametric Instructions.
   case OpCode::Drop:
   case OpCode::Select:
-    return;
-  case OpCode::Select_t:
-    // TODO
-    return;
+    return {};
+  case OpCode::Select_t: {
+    uint32_t VecCnt = static_cast<uint32_t>(Instr.getValTypeList().size());
+    serializeU32(VecCnt, OutVec);
+    for (auto VType : Instr.getValTypeList()) {
+      if (auto Check =
+              Conf.checkValTypeProposals(VType, ASTNodeAttr::Instruction);
+          unlikely(!Check)) {
+        return Unexpect(Check);
+      }
+      OutVec.push_back(static_cast<uint8_t>(VType));
+    }
+    return {};
+  }
 
   // Variable Instructions.
   case OpCode::Local__get:
@@ -76,11 +159,13 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Local__tee:
   case OpCode::Global__get:
   case OpCode::Global__set:
-    // TODO
-    return;
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    return {};
 
   // Table Instructions.
   case OpCode::Table__init:
+    serializeU32(Instr.getSourceIndex(), OutVec);
+    [[fallthrough]];
   case OpCode::Table__get:
   case OpCode::Table__set:
   case OpCode::Table__grow:
@@ -88,8 +173,8 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Table__fill:
   case OpCode::Elem__drop:
   case OpCode::Table__copy:
-    // TODO
-    return;
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    return {};
 
   // Memory Instructions.
   case OpCode::I32__load:
@@ -115,31 +200,52 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::I64__store8:
   case OpCode::I64__store16:
   case OpCode::I64__store32:
-    // TODO
-    return;
+    return serializeMemImmediate();
 
   case OpCode::Memory__init:
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    [[fallthrough]];
   case OpCode::Memory__grow:
   case OpCode::Memory__size:
   case OpCode::Memory__fill:
+    if (Conf.hasProposal(Proposal::MultiMemories)) {
+      serializeU32(Instr.getTargetIndex(), OutVec);
+      return {};
+    } else {
+      return serializeCheckZero(Instr.getTargetIndex());
+    }
+
   case OpCode::Memory__copy:
+    if (Conf.hasProposal(Proposal::MultiMemories)) {
+      serializeU32(Instr.getTargetIndex(), OutVec);
+      serializeU32(Instr.getSourceIndex(), OutVec);
+      return {};
+    } else {
+      if (auto Res = serializeCheckZero(Instr.getTargetIndex());
+          unlikely(!Res)) {
+        return Unexpect(Res);
+      }
+      return serializeCheckZero(Instr.getTargetIndex());
+    }
+
   case OpCode::Data__drop:
-    // TODO
-    return;
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    return {};
 
   // Const Instructions.
   case OpCode::I32__const:
-    // TODO
-    return;
+    serializeS32(Instr.getNum().get<int32_t>(), OutVec);
+    return {};
+
   case OpCode::I64__const:
-    // TODO
-    return;
+    serializeS64(Instr.getNum().get<int64_t>(), OutVec);
+    return {};
   case OpCode::F32__const:
-    // TODO
-    return;
+    serializeF32(Instr.getNum().get<float>(), OutVec);
+    return {};
   case OpCode::F64__const:
-    // TODO
-    return;
+    serializeF64(Instr.getNum().get<double>(), OutVec);
+    return {};
 
   // Unary Numeric Instructions.
   case OpCode::I32__eqz:
@@ -281,7 +387,7 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::F64__min:
   case OpCode::F64__max:
   case OpCode::F64__copysign:
-    return;
+    return {};
 
   // SIMD Memory Instruction.
   case OpCode::V128__load:
@@ -298,6 +404,7 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::V128__load32_zero:
   case OpCode::V128__load64_zero:
   case OpCode::V128__store:
+    return serializeMemImmediate();
   case OpCode::V128__load8_lane:
   case OpCode::V128__load16_lane:
   case OpCode::V128__load32_lane:
@@ -306,15 +413,23 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::V128__store16_lane:
   case OpCode::V128__store32_lane:
   case OpCode::V128__store64_lane:
-    // TODO
-    return;
+    if (auto Res = serializeMemImmediate(); unlikely(!Res)) {
+      return Unexpect(Res);
+    }
+    OutVec.push_back(Instr.getMemoryLane());
+    return {};
 
   // SIMD Const Instruction.
   case OpCode::V128__const:
   // SIMD Shuffle Instruction.
-  case OpCode::I8x16__shuffle:
-    // TODO
-    return;
+  case OpCode::I8x16__shuffle: {
+    uint128_t Value = Instr.getNum().get<uint128_t>();
+    const std::uint8_t *Ptr = reinterpret_cast<const uint8_t *>(&Value);
+    for (uint32_t I = 0; I < 16; ++I) {
+      OutVec.push_back(Ptr[15 - I]);
+    }
+    return {};
+  }
 
   // SIMD Lane Instructions.
   case OpCode::I8x16__extract_lane_s:
@@ -331,8 +446,8 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::F32x4__replace_lane:
   case OpCode::F64x2__extract_lane:
   case OpCode::F64x2__replace_lane:
-    // TODO
-    return;
+    OutVec.push_back(Instr.getMemoryLane());
+    return {};
 
   // SIMD Numeric Instructions.
   case OpCode::I8x16__swizzle:
@@ -547,12 +662,11 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::F64x2__floor:
   case OpCode::F64x2__trunc:
   case OpCode::F64x2__nearest:
-    return;
+    return {};
 
   // Atomic Memory Instructions.
   case OpCode::Atomic__fence:
-    // TODO
-    return;
+    return serializeCheckZero(Instr.getTargetIndex());
 
   case OpCode::Memory__atomic__notify:
   case OpCode::Memory__atomic__wait32:
@@ -621,11 +735,11 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::I64__atomic__rmw8__cmpxchg_u:
   case OpCode::I64__atomic__rmw16__cmpxchg_u:
   case OpCode::I64__atomic__rmw32__cmpxchg_u:
-    // TODO
-    return;
+    return serializeMemImmediate();
 
   default:
-    assumingUnreachable();
+    return logSerializeError(ErrCode::Value::IllegalOpCode,
+                             ASTNodeAttr::Instruction);
   }
 }
 

@@ -30,7 +30,11 @@ wasmedge_add_library(wasmedgeLoader
   ast/expression.cpp
   ast/instruction.cpp
   serialize/serial_description.cpp
+  serialize/serial_expression.cpp
+  serialize/serial_instruction.cpp
+  serialize/serial_module.cpp
   serialize/serial_section.cpp
+  serialize/serial_segment.cpp
   serialize/serial_type.cpp
   loader.cpp
 )

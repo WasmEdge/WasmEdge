@@ -68,10 +68,14 @@ Serializer::serializeSection(const AST::MemorySection &Sec) {
 }
 
 // Serialize global section. See "include/loader/serialize.h".
-std::vector<uint8_t> Serializer::serializeSection(const AST::GlobalSection &) {
+std::vector<uint8_t>
+Serializer::serializeSection(const AST::GlobalSection &Sec) {
   // Global section: 0x06 + size:u32 + content:vec(globaltype).
   // TODO
-  return {};
+  return serializeSectionContent(
+      Sec, 0x06U, [=](const AST::GlobalSegment &R, std::vector<uint8_t> &V) {
+        serializeSegment(R, V);
+      });
 }
 
 // Serialize export section. See "include/loader/serialize.h".
@@ -101,24 +105,36 @@ Serializer::serializeSection(const AST::StartSection &Sec) {
 }
 
 // Serialize element section. See "include/loader/serialize.h".
-std::vector<uint8_t> Serializer::serializeSection(const AST::ElementSection &) {
+std::vector<uint8_t>
+Serializer::serializeSection(const AST::ElementSection & Sec) {
   // Element section: 0x09 + size:u32 + content:vec(elemseg).
   // TODO
-  return {};
+  return serializeSectionContent(
+    Sec, 0x09U, [=](const AST::ElementSegment &R, std::vector<uint8_t> &V) {
+      serializeSegment(R, V);
+    });
 }
 
 // Serialize code section. See "include/loader/serialize.h".
-std::vector<uint8_t> Serializer::serializeSection(const AST::CodeSection &) {
+std::vector<uint8_t>
+Serializer::serializeSection(const AST::CodeSection &Sec) {
   // Code section: 0x0A + size:u32 + content:vec(codeseg).
   // TODO
-  return {};
+  return serializeSectionContent(
+      Sec, 0x0AU, [=](const AST::CodeSegment &R, std::vector<uint8_t> &V) {
+        serializeSegment(R, V);
+      });
 }
 
 // Serialize data section. See "include/loader/serialize.h".
-std::vector<uint8_t> Serializer::serializeSection(const AST::DataSection &) {
+std::vector<uint8_t>
+Serializer::serializeSection(const AST::DataSection &Sec) {
   // Data section: 0x0B + size:u32 + content:vec(dataseg).
   // TODO
-  return {};
+  return serializeSectionContent(
+      Sec, 0x0BU, [=](const AST::DataSegment &R, std::vector<uint8_t> &V) {
+        serializeSegment(R, V);
+      });
 }
 
 // Serialize datacount section. See "include/loader/serialize.h".

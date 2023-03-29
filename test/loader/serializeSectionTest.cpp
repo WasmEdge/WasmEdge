@@ -61,7 +61,9 @@ TEST(SerializeSectionTest, SerializeImportSection) {
   ID2.setModuleName("test");
   ID2.setExternalName("Loader2");
   ID2.setExternalType(WasmEdge::ExternalType::Memory);
-  ID2.getExternalMemoryType().getLimit() = WasmEdge::AST::Limit(0, 15);
+  ID2.getExternalMemoryType().getLimit().setMin(0);
+  ID2.getExternalMemoryType().getLimit().setMax(15);
+  ID2.getExternalMemoryType().getLimit().setType(WasmEdge::AST::Limit::LimitType::HasMinMax);
 
   WasmEdge::AST::ImportDesc ID3;
   ID3.setModuleName("test");
@@ -152,6 +154,33 @@ TEST(SerializeSectionTest, SerializeMemorySection) {
   EXPECT_EQ(Output, Expected);
 }
 
+TEST(SerializeSectionTest, SerializeGlobalSection) {
+  WasmEdge::AST::GlobalSection GlobalSec;
+  WasmEdge::AST::GlobalSegment GlobalSeg1;
+  WasmEdge::AST::GlobalType GlobalType1(WasmEdge::ValType::F64, WasmEdge::ValMut::Const);
+  GlobalSeg1.getGlobalType() = GlobalType1;
+
+  WasmEdge::AST::GlobalSegment GlobalSeg2;
+  WasmEdge::AST::GlobalType GlobalType2(WasmEdge::ValType::F32, WasmEdge::ValMut::Const);
+  WasmEdge::AST::Expression Expr;
+  Expr.getInstrs() = {WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz)};
+  GlobalSeg2.getGlobalType() = GlobalType2;
+  GlobalSeg2.getExpr() = Expr;
+
+  GlobalSec.getContent().push_back(GlobalSeg1);
+  GlobalSec.getContent().push_back(GlobalSeg2);
+
+  std::vector<uint8_t> Output = Ser.serializeSection(GlobalSec);
+  std::vector<uint8_t> Expected = {
+      0x06U,                            // Global section
+      0x08U,                            // Content size = 8
+      0x02U,                            // Vector length = 3
+      0x7CU, 0x00U, 0x0BU,              // vec[0]
+      0x7DU, 0x00U, 0x45U, 0x0BU,       // vec[1]
+  };
+  EXPECT_EQ(Output, Expected);
+}
+
 TEST(SerializeSectionTest, SerializeExportSection) {
   WasmEdge::AST::ExportSection ExpSec;
   WasmEdge::AST::ExportDesc ED1;
@@ -191,6 +220,56 @@ TEST(SerializeSectionTest, SerializeStartSection) {
       0x08U,              // section ID
       0x03U,              // Content size = 3
       0xF0U, 0xE8U, 0x2BU // Content
+  };
+  EXPECT_EQ(Output, Expected);
+}
+
+TEST(SerializeSectionTest, SerializeCodeSection) {
+  WasmEdge::AST::CodeSection CodeSec;
+  WasmEdge::AST::CodeSegment CodeSeg;
+  CodeSeg.setSegSize(8);
+  CodeSeg.getLocals() = {{1, WasmEdge::ValType::F64}, {3, WasmEdge::ValType::F32}};
+  WasmEdge::AST::Expression Expr;
+  Expr.getInstrs() = {WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz), WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq)};
+  CodeSeg.getExpr() = Expr;
+  CodeSec.getContent().push_back(CodeSeg);
+
+  std::vector<uint8_t> Output = Ser.serializeSection(CodeSec);
+  std::vector<uint8_t> Expected = {
+      0x0AU,              // Code section
+      0x0AU,              // Content size = 10
+      0x01U,              // Vector length = 1
+      0x08U,              // Code segment size = 8
+      0x02U,              // Vector length = 2
+      0x01U, 0x7CU,       // vec[0]
+      0x03U, 0x7DU,       // vec[1]
+      0x45U, 0x46U, 0x0BU // Expression
+  };
+  EXPECT_EQ(Output, Expected);
+}
+
+TEST(SerializeSectionTest, SerializeDataSection) {
+  WasmEdge::AST::DataSection DataSec;
+  WasmEdge::AST::DataSegment DataSeg;
+  WasmEdge::AST::Expression Expr;
+  Expr.getInstrs() = {
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne)
+  };
+  DataSeg.setMode(WasmEdge::AST::DataSegment::DataMode::Active);
+  DataSeg.getExpr() = Expr;
+  DataSeg.getData() = {'t', 'e', 's', 't'};
+  DataSec.getContent().push_back(DataSeg);
+
+  std::vector<uint8_t> Output = Ser.serializeSection(DataSec);
+  std::vector<uint8_t> Expected = {
+      0x0BU,                            // Data section
+      0x0BU,                            // Content size = 11
+      0x01U,                            // Vector length = 1
+      0x00U,                            // Prefix checking byte
+      0x45U, 0x46U, 0x47U, 0x0BU,       // Expression
+      0x04U, 0x74U, 0x65U, 0x73U, 0x74U // Vector length = 4, "test"
   };
   EXPECT_EQ(Output, Expected);
 }

@@ -10,6 +10,22 @@ void serializeOpCode(OpCode Code, std::vector<uint8_t> &OutVec) {
   }
   OutVec.push_back(static_cast<uint16_t>(Code) & 0xFFU);
 }
+
+void serializeBlockType(BlockType Type, std::vector<uint8_t> &OutVec) {
+  switch (Type.TypeFlag) {
+  case BlockType::TypeEnum::Empty:
+    OutVec.push_back(0x40U);
+    break;
+
+  case BlockType::TypeEnum::ValType:
+    OutVec.push_back(static_cast<uint8_t>(Type.Data.Type));
+    break;
+
+  case BlockType::TypeEnum::TypeIdx:
+    OutVec.push_back(static_cast<uint8_t>(Type.Data.Idx));
+    break;
+  }
+}
 } // namespace
 
 // Serialize instruction. See "include/loader/serialize.h".
@@ -31,11 +47,13 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Loop:
   case OpCode::If:
     // TODO
+    serializeBlockType(Instr.getBlockType(), OutVec);
     return;
 
   case OpCode::Br:
   case OpCode::Br_if:
     // TODO
+    serializeU32(Instr.getJump().TargetIndex, OutVec);
     return;
 
   case OpCode::Br_table:

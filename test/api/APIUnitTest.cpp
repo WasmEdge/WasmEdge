@@ -3165,7 +3165,8 @@ TEST(APICoreTest, Plugin) {
   // Load from the specific path
   EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 0U);
   WasmEdge_PluginLoadFromPath(
-      "../plugins/unittest/libwasmedgePluginTestModule" WASMEDGE_LIB_EXTENSION);
+      "../plugins/unittest/"
+      "libwasmedgePluginTestModuleCPP" WASMEDGE_LIB_EXTENSION);
   EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 1U);
 
   // Get the loaded plugin length
@@ -3174,7 +3175,7 @@ TEST(APICoreTest, Plugin) {
   EXPECT_EQ(WasmEdge_PluginListPlugins(Names, 0), 1U);
   EXPECT_EQ(WasmEdge_PluginListPlugins(Names, 15), 1U);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
-            std::string("wasmedge_plugintest"));
+            std::string("wasmedge_plugintest_cpp"));
 
   // Find the plugin context
   const WasmEdge_PluginContext *PluginCxt =
@@ -3186,7 +3187,7 @@ TEST(APICoreTest, Plugin) {
   // Get plugin name
   Names[0] = WasmEdge_PluginGetPluginName(PluginCxt);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
-            std::string("wasmedge_plugintest"));
+            std::string("wasmedge_plugintest_cpp"));
   Names[0] = WasmEdge_PluginGetPluginName(nullptr);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string(""));
 
@@ -3201,7 +3202,7 @@ TEST(APICoreTest, Plugin) {
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string(""));
   EXPECT_EQ(WasmEdge_PluginListModule(PluginCxt, Names, 15), 1U);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
-            std::string("wasmedge_plugintest"));
+            std::string("wasmedge_plugintest_cpp_module"));
 
   // Create the module
   WasmEdge_ModuleInstanceContext *ModCxt =

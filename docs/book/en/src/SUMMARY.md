@@ -132,6 +132,8 @@
   - [`wasmedgec` AOT Compiler](cli/wasmedgec.md)
 
 - [Develop WasmEdge Plug-in](plugin.md)
+  - [Develop Plug-in in C API](develop_plugin/c.md)
+  - [Develop Plug-in in C++](develop_plugin/cpp.md)
 
 - [Contribute to WasmEdge](contribute.md)
   - [Release Process](contribute/release_process.md)

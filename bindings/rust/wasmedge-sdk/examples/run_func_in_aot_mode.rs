@@ -5,7 +5,7 @@
 //! cargo run -p wasmedge-sdk --example run_func_in_aot_mode -- --nocapture
 //! ```
 
-#[cfg(feature = "aot")]
+#[cfg(all(feature = "aot", target_family = "unix"))]
 use std::os::unix::fs::PermissionsExt;
 #[cfg(feature = "aot")]
 use wasmedge_sdk::{
@@ -54,7 +54,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let metadata = aot_file_path.metadata()?;
         if metadata.permissions().readonly() {
             let mut permissions = metadata.permissions();
+            #[cfg(target_family = "unix")]
             permissions.set_mode(0o644);
+            #[cfg(target_os = "windows")]
+            permissions.set_readonly(false);
             std::fs::set_permissions(&aot_file_path, permissions)?;
         }
         let result = std::fs::remove_file(&aot_file_path);

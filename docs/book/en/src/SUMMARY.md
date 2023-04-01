@@ -63,6 +63,7 @@
 
 - [Write a WebAssembly Application](write_wasm.md)
   - [C](write_wasm/c.md)
+    - [Getting Started](write_wasm/c/quickstart.md)
     - [simd](write_wasm/c/simd.md)
   - [Rust](write_wasm/rust.md)
     - [Bindgen of Rust Functions](write_wasm/rust/bindgen.md)
@@ -131,6 +132,8 @@
   - [`wasmedgec` AOT Compiler](cli/wasmedgec.md)
 
 - [Develop WasmEdge Plug-in](plugin.md)
+  - [Develop Plug-in in C API](develop_plugin/c.md)
+  - [Develop Plug-in in C++](develop_plugin/cpp.md)
 
 - [Contribute to WasmEdge](contribute.md)
   - [Release Process](contribute/release_process.md)
@@ -154,4 +157,3 @@
   - [WasmEdge Installer Guide](contribute/installer.md)
   - [WasmEdge Internal](contribute/internal.md)
   - [Wish List](contribute/wish_list.md)
-  - [Release Process](contribute/release_process.md)

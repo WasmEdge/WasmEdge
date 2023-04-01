@@ -155,7 +155,7 @@ int32_t bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
 }
 
 /// \brief create a bpf buffer based on the object map type
-std::unique_ptr<bpf_buffer> bpf_buffer__new(struct bpf_map *events) {
+std::unique_ptr<bpf_buffer> bpf_buffer__new(bpf_map *events) {
   bpf_map_type map_type = bpf_map__type(events);
   switch (map_type) {
   case BPF_MAP_TYPE_PERF_EVENT_ARRAY:
@@ -185,15 +185,15 @@ int32_t wasm_bpf_program::load_bpf_object(const void *obj_buf,
 /// \brief attach a specific bpf program by name and target.
 int32_t wasm_bpf_program::attach_bpf_program(const char *name,
                                              const char *attach_target) {
-  struct bpf_link *link;
+  bpf_link *link;
   if (!attach_target) {
     // auto attach base on bpf_program__section_name. The works well for most
     // bpf types, include kprobe, uprobe, fentry, lsm, etc.
     link =
         bpf_program__attach(bpf_object__find_program_by_name(obj.get(), name));
   } else {
-    struct bpf_object *o = obj.get();
-    struct bpf_program *prog = bpf_object__find_program_by_name(o, name);
+    bpf_object *o = obj.get();
+    bpf_program *prog = bpf_object__find_program_by_name(o, name);
     if (!prog) {
       spdlog::error("[WasmEdge Wasm_bpf] get prog {} fail", name);
       return -1;

@@ -17,7 +17,8 @@ Expect<handle_t> LoadBpfObject::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto program = std::make_unique<wasm_bpf_program>();
-  int32_t res = program->load_bpf_object(object_buffer, static_cast<size_t>(obj_buf_sz));
+  int32_t res =
+      program->load_bpf_object(object_buffer, static_cast<size_t>(obj_buf_sz));
   if (res < 0)
     return 0;
   auto key = reinterpret_cast<uint64_t>(program.get());

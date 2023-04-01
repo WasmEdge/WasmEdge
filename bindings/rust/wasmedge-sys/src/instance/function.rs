@@ -176,14 +176,6 @@ impl Function {
         cost: u64,
     ) -> WasmEdgeResult<Self> {
         let mut map_host_func = HOST_FUNCS.write();
-        if map_host_func.len() >= map_host_func.capacity() {
-            return Err(Box::new(WasmEdgeError::Func(FuncError::CreateBinding(
-                format!(
-                    "The number of the host functions reaches the upper bound: {}",
-                    map_host_func.capacity()
-                ),
-            ))));
-        }
 
         // generate key for the coming host function
         let mut rng = rand::thread_rng();
@@ -738,7 +730,7 @@ unsafe impl Sync for InnerFuncRef {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{types::WasmValue, Executor};
+    use crate::{types::WasmValue, Executor, HOST_FUNCS};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -1117,5 +1109,57 @@ mod tests {
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 3);
+    }
+
+    #[test]
+    fn test_crazy_function_creation() {
+        #[sys_host_function]
+        fn real_add(
+            _frame: CallingFrame,
+            input: Vec<WasmValue>,
+        ) -> Result<Vec<WasmValue>, HostFuncError> {
+            println!("Rust: Entering Rust function real_add");
+
+            if input.len() != 2 {
+                return Err(HostFuncError::User(1));
+            }
+
+            let a = if input[0].ty() == ValType::I32 {
+                input[0].to_i32()
+            } else {
+                return Err(HostFuncError::User(2));
+            };
+
+            let b = if input[1].ty() == ValType::I32 {
+                input[1].to_i32()
+            } else {
+                return Err(HostFuncError::User(3));
+            };
+
+            let c = a + b;
+            println!("Rust: calcuating in real_add c: {c:?}");
+
+            println!("Rust: Leaving Rust function real_add");
+            Ok(vec![WasmValue::from_i32(c)])
+        }
+
+        let mut funcs = vec![];
+        for _ in 1..=1_000_000 {
+            // create a FuncType
+            let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+            assert!(result.is_ok());
+            let func_ty = result.unwrap();
+            // create a host function
+            let result = Function::create(&func_ty, Box::new(real_add), 0);
+            assert!(result.is_ok());
+            let host_func = result.unwrap();
+            funcs.push(host_func);
+        }
+
+        assert_eq!(HOST_FUNCS.read().len(), funcs.len());
+        println!(
+            "The number of the entries in HOST_FUNCS: {}",
+            HOST_FUNCS.read().len()
+        )
     }
 }

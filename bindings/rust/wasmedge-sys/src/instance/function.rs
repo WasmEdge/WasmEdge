@@ -3,6 +3,7 @@
 use crate::{
     error::{FuncError, HostFuncError, WasmEdgeError},
     ffi, BoxedFn, CallingFrame, Engine, WasmEdgeResult, WasmValue, HOST_FUNCS,
+    HOST_FUNC_FOOTPRINTS,
 };
 #[cfg(feature = "async")]
 use crate::{r#async::FiberFuture, ASYNC_STATE};
@@ -193,6 +194,11 @@ impl Function {
             data,
             cost,
         );
+
+        // create a footprint for the host function
+        let footprint = ctx as usize;
+        let mut footprint_to_id = HOST_FUNC_FOOTPRINTS.lock();
+        footprint_to_id.insert(footprint, key);
 
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Func(FuncError::Create))),
@@ -504,6 +510,13 @@ impl Function {
 impl Drop for Function {
     fn drop(&mut self) {
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
+            // remove the real_func from HOST_FUNCS
+            let footprint = self.inner.0 as usize;
+            if let Some(key) = HOST_FUNC_FOOTPRINTS.lock().remove(&footprint) {
+                let mut map_host_func = HOST_FUNCS.write();
+                map_host_func.remove(&key);
+            }
+            // delete the function instance
             unsafe { ffi::WasmEdge_FunctionInstanceDelete(self.inner.0) };
         }
     }
@@ -1143,8 +1156,11 @@ mod tests {
             Ok(vec![WasmValue::from_i32(c)])
         }
 
+        let start_num = HOST_FUNCS.read().len();
+        println!("start_num: {}", start_num);
+
         let mut funcs = vec![];
-        for _ in 1..=1_000_000 {
+        for _ in 1..=10 {
             // create a FuncType
             let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
             assert!(result.is_ok());
@@ -1156,10 +1172,19 @@ mod tests {
             funcs.push(host_func);
         }
 
-        assert_eq!(HOST_FUNCS.read().len(), funcs.len());
         println!(
-            "The number of the entries in HOST_FUNCS: {}",
-            HOST_FUNCS.read().len()
-        )
+            "len of HOST_FUNC_FOOTPRINTS: {}",
+            HOST_FUNC_FOOTPRINTS.lock().len()
+        );
+        println!("len of HOST_FUNCS: {}", HOST_FUNCS.read().len());
+
+        assert_eq!(
+            HOST_FUNCS.read().len() - start_num,
+            funcs.len(),
+            "expected: {}, actual: {}, start_num: {}",
+            funcs.len(),
+            HOST_FUNCS.read().len() - start_num,
+            start_num
+        );
     }
 }

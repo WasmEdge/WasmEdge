@@ -1178,8 +1178,9 @@ mod tests {
         );
         println!("len of HOST_FUNCS: {}", HOST_FUNCS.read().len());
 
-        assert!(
-            HOST_FUNCS.read().len() - start_num >= funcs.len(),
+        assert_eq!(
+            HOST_FUNCS.read().len() - start_num,
+            funcs.len(),
             "expected: {}, actual: {}, start_num: {}",
             funcs.len(),
             HOST_FUNCS.read().len() - start_num,

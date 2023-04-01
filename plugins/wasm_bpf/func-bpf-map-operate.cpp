@@ -59,6 +59,7 @@ BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
     return bpf_map_delete_elem_flags(fd, key_ptr, flags);
   }
   default: // More syscall commands can be allowed here
+    spdlog::debug("[WasmEdge Wasm_bpf] Invalid map operation", cmd);
     return -EINVAL;
   }
 }

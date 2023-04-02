@@ -247,5 +247,5 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --workspace --locked --features aot,async,ffi
-          cargo test --examples --locked --features aot,async,ffi
+          cargo test --workspace --locked --features aot,async,ffi -- --test-threads=1
+          cargo test --examples --locked --features aot,async,ffi -- --test-threads=1

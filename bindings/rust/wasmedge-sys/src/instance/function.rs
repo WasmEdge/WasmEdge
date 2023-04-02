@@ -1160,7 +1160,7 @@ mod tests {
         println!("start_num: {}", start_num);
 
         let mut funcs = vec![];
-        for _ in 1..=10 {
+        for _ in 1..=1_000_000 {
             // create a FuncType
             let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
             assert!(result.is_ok());

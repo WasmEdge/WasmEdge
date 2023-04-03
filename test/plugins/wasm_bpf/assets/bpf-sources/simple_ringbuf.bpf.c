@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #define SEC(name) __attribute__((section(name), used))

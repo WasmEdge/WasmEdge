@@ -34,7 +34,7 @@ WasmEdge::Runtime::Instance::ModuleInstance* createModule() {
 
 std::filesystem::path getAssertsPath() {
     std::filesystem::path thisFile(__FILE__);
-    return thisFile.parent_path() / "asserts";
+    return thisFile.parent_path() / "assets";
 }
 
 void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance& memInst,
@@ -261,8 +261,8 @@ TEST(WasmBpfTest, SimpleMapTest) {
     ASSERT_EQ(mapUpdateElem(mapFd, num2KeyOffset, numOffset2), 0);
 
     // Write the indicating key
-    // Arbitrary values are correct. We only care the existence of the indicating
-    // key
+    // Arbitrary values are correct. We only care the existence of the
+    // indicating key
     ASSERT_EQ(mapUpdateElem(mapFd, indicatingKeyOffset, numOffset1), 0);
 
     // Sleep for 1s and wait for the ebpf program to process..

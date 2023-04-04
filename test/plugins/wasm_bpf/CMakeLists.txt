@@ -14,5 +14,11 @@ target_link_libraries(wasmBpfTests
   wasmedgePluginWasmBpf
   wasmedgeExecutor
 )
+add_subdirectory(assets)
+
+add_dependencies(
+  wasmBpfTests
+  wasmBpfTestsAssets
+)
 
 add_test(wasmBpfTests wasmBpfTests)

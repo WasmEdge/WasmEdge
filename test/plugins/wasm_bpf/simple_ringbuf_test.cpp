@@ -30,7 +30,7 @@ WasmEdge::Runtime::Instance::ModuleInstance* createModule() {
 
 std::filesystem::path getAssertsPath() {
     std::filesystem::path thisFile(__FILE__);
-    return thisFile.parent_path() / "asserts";
+    return thisFile.parent_path() / "assets";
 }
 
 void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance& memInst,

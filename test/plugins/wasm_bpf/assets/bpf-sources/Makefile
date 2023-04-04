@@ -12,6 +12,7 @@ $(FILES) : % : %.bpf.c
 	$(DEL) $@.bpf.o
 	clang -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) -c $(filter %.c,$^) -o $@.bpf.o
 	llvm-strip -g $@.bpf.o
+	cp $@.bpf.o ../$@.bpf.o
 
 %.bpf.o : %
 

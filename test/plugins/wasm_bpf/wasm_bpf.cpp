@@ -44,7 +44,7 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
 
 std::filesystem::path getAssertsPath() {
   std::filesystem::path thisFile(__FILE__);
-  return thisFile.parent_path() / "asserts";
+  return thisFile.parent_path() / "assets";
 }
 void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance &memInst,
                     uint32_t offset, uint32_t count, char chr = 0) noexcept {
@@ -214,7 +214,8 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   auto &loadFuncHost =
       dynamic_cast<WasmEdge::Host::LoadBpfObject &>(loadFunc->getHostFunc());
 
-  // call "wasm_load_bpf_object" to Load `bootstrap.bpf.o`, and check the result
+  // call "wasm_load_bpf_object" to Load `bootstrap.bpf.o`, and check the
+  // result
   std::array<WasmEdge::ValVariant, 1> loadResult;
   EXPECT_TRUE(loadFuncHost.run(
       CallFrame,
@@ -406,7 +407,8 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
   auto &loadFuncHost =
       dynamic_cast<WasmEdge::Host::LoadBpfObject &>(loadFunc->getHostFunc());
 
-  // call "wasm_load_bpf_object" to Load `bootstrap.bpf.o`, and check the result
+  // call "wasm_load_bpf_object" to Load `bootstrap.bpf.o`, and check the
+  // result
   std::array<WasmEdge::ValVariant, 1> loadResult;
   EXPECT_TRUE(loadFuncHost.run(
       CallFrame,

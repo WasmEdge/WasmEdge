@@ -6,18 +6,17 @@
 #include "plugin/plugin.h"
 
 #include <cstdint>
-#include <string>
+#include <memory>
+#include <unordered_map>
 
-struct Util {
-  std::unordered_map<uint32_t, z_stream *> stream_map;
-};
+struct z_stream;
 
 namespace WasmEdge {
 namespace Host {
 
 class WasmEdgeZlibEnvironment {
 public:
-  Util Util;
+  std::unordered_map<uint32_t, std::unique_ptr<z_stream>> ZStreamMap;
 
   /// Initial Configurations
   static Plugin::PluginRegister Register;

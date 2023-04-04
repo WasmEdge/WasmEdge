@@ -153,7 +153,7 @@ namespace WasmEdge {
     Value(const int128_t Val);
     Value(const RefType T);
     Value(const FunctionInstance &Cxt);
-    Value(void *Ref);
+    Value(std::shared_ptr<void> ExternRef);
     ~Value() = default;
 
     int32_t GetI32();
@@ -162,7 +162,7 @@ namespace WasmEdge {
     double GetF64();
     int128_t GetV128();
     const FunctionInstance &GetFuncRef();
-    void *GetExternRef();
+    std::shared_ptr<void> GetExternRef();
 
     bool IsNullRef();
 
@@ -218,7 +218,6 @@ namespace WasmEdge {
     ~FunctionType() = default;
 
     const std::vector<ValType> &GetParameters();
-
     const std::vector<ValType> &GetReturns();
   private:
     // TODO
@@ -295,11 +294,14 @@ namespace WasmEdge {
     Async();
     ~Async() = default;
 
+  public:
     void Wait();
     bool WaitFor(uint64_t Milliseconds);
     void Cancel();
     uint32_t GetReturnsLength();
-    Result &Get(std::vector<Value> &Returns);
+    Result Get(std::vector<Value> &Returns);
+
+    friend class VM;
   };
 
   // <<<<<<<< WasmEdge Async <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -374,7 +376,7 @@ namespace WasmEdge {
     double GetInstrPerSecond();
     uint64_t GetTotalCost();
 
-    void SetCostTable(std::vector<uint64_t> CostArr);
+    void SetCostTable(std::vector<uint64_t> &CostArr);
     void SetCostLimit(const uint64_t Limit);
     void Clear();
 
@@ -389,21 +391,21 @@ namespace WasmEdge {
     VM(const ConfigureContext &ConfCxt, Store &StoreCxt);
     ~VM() = default;
 
-    Result &RegisterModule(const std::string ModuleName,
+    Result RegisterModule(const std::string ModuleName,
                                   const std::string &Path);
-    Result &RegisterModule(const std::string ModuleName,
+    Result RegisterModule(const std::string ModuleName,
                                     const std::vector<uint8_t> &Buf);
-    Result &RegisterModule(const std::string ModuleName,
+    Result RegisterModule(const std::string ModuleName,
                                        const ASTModule &ASTCxt);
-    Result &RegisterModule(const ModuleInstance &ImportCxt);
+    Result RegisterModule(const ModuleInstance &ImportCxt);
 
-    Result &RunWasm(const std::string &Path, const std::string FuncName,
+    Result RunWasm(const std::string &Path, const std::string FuncName,
                            const std::vector<Value> &Params,
                            std::vector<Value> &Returns);
-    Result &RunWasm(const std::vector<uint8_t> &Buf,
+    Result RunWasm(const std::vector<uint8_t> &Buf,
                   const std::string FuncName, const std::vector<Value> &Params,
                   std::vector<Value> &Returns);
-    Result &RunWasm(const ASTModule &ASTCxt,
+    Result RunWasm(const ASTModule &ASTCxt,
                   const std::string FuncName, const std::vector<Value> &Params,
                   std::vector<Value> &Returns);
 
@@ -441,19 +443,17 @@ namespace WasmEdge {
     uint32_t GetFunctionList(std::vector<std::string> &Names,
                   const std::vector<FunctionType &> &FuncTypes);
 
-    std::unique_ptr<ModuleInstance> GetImportModuleContext(
-                  const HostRegistration Reg);
-    std::unique_ptr<const ModuleInstance> GetActiveModule();
-    std::unique_ptr<const ModuleInstance> GetRegisteredModule(
-                  const std::string ModuleName);
+    ModuleInstance &GetImportModuleContext(const HostRegistration Reg);
+    const ModuleInstance& GetActiveModule();
+    const ModuleInstance &GetRegisteredModule(const std::string ModuleName);
 
     uint32_t ListRegisteredModule(std::vector<std::string> &Names);
 
-    std::unique_ptr<Store> GetStoreContext();
-    std::unique_ptr<Loader> GetLoaderContext();
-    std::unique_ptr<Validator> GetValidatorContext();
-    std::unique_ptr<Executor> GetExecutorContext();
-    std::unique_ptr<StatisticsContext> GetStatisticsContext();
+    Store &GetStoreContext();
+    Loader &GetLoaderContext();
+    Validator &GetValidatorContext();
+    Executor &GetExecutorContext();
+    StatisticsContext &GetStatisticsContext();
   private:
     // TODO
   };
@@ -469,10 +469,10 @@ namespace WasmEdge {
     Loader(const ConfigureContext &ConfCxt);
     ~Loader() = default;
 
-    Result Parse(std::unique_ptr<ASTModule> Module,
+    Result Parse(ASTModule &Module,
                         const std::string Path);
-    Result Parse(std::unique_ptr<ASTModule> Module,
-                          const std::vector<uint8_t> Buf);
+    Result Parse(ASTModule &Module,
+                          const std::vector<uint8_t> &Buf);
 
   private:
     // LoaderContext LoaderCxt; // TODO
@@ -502,11 +502,11 @@ namespace WasmEdge {
               StatisticsContext &StatCxt);
     ~Executor() = default;
 
-    Result Instantiate(std::unique_ptr<ModuleInstance> ModuleCxt,
+    Result Instantiate(ModuleInstance &ModuleCxt,
                       Store &StoreCxt,
                       const ASTModule &ASTCxt);
 
-    Result Register(std::unique_ptr<ModuleInstance> ModuleCxt,
+    Result Register(ModuleInstance &ModuleCxt,
                     Store &StoreCxt,
                     const ASTModule &ASTCxt,
                     std::string ModuleName);
@@ -530,7 +530,6 @@ namespace WasmEdge {
     ~ASTModule() = default;
 
     uint32_t ListImports(const std::vector<ImportType> &Imports);
-
     uint32_t ListExports(const std::vector<ExportType> &Exports);
   private:
     // TODO
@@ -541,7 +540,7 @@ namespace WasmEdge {
     Store();
     ~Store() = default;
 
-    std::unique_ptr<const ModuleInstance> FindModule(const std::string Name);
+    const ModuleInstance &FindModule(const std::string Name);
     uint32_t ListModule(std::vector<std::string> &Names);
 
   private:
@@ -552,27 +551,21 @@ namespace WasmEdge {
 
   class WASMEDGE_CPP_API_EXPORT ModuleInstance {
   public:
+    ModuleInstance();
     ModuleInstance(const std::string ModuleName);
     ModuleInstance(const std::vector<const std::string> &Args,
-                  const uint32_t ArgLen,
                   const std::vector<const std::string> &Envs,
-                  const uint32_t EnvLen,
-                  const std::vector<const std::string> &Preopens,
-                  const uint32_t PreopenLen);
+                  const std::vector<const std::string> &Preopens);
     ~ModuleInstance() = default;
 
     void InitWASI(const std::vector<const std::string> &Args,
-                  const uint32_t ArgLen,
                   const std::vector<const std::string> &Envs,
-                  const uint32_t EnvLen,
-                  const std::vector<const std::string> &Preopens,
-                  const uint32_t PreopenLen);
+                  const std::vector<const std::string> &Preopens);
 
     uint32_t WASIGetExitCode();
     uint32_t WASIGetNativeHandler(int32_t Fd, uint64_t &NativeHandler);
 
     void InitWasmEdgeProcess(const std::vector<const std::string> &AllowedCmds,
-                            const uint32_t CmdsLen,
                             const bool AllowAll);
     std::string GetModuleName();
 
@@ -602,21 +595,21 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT FunctionInstance {
   public:
     using HostFunc_t = std::function<Result(
-      std::unique_ptr<void> Data, const CallingFrame &CallFrameCxt,
+      std::shared_ptr<void> Data, const CallingFrame &CallFrameCxt,
       const std::vector<Value> &Params, std::vector<Value> &Returns)>;
 
     using WrapFunc_t = std::function<Result(
-      std::unique_ptr<void> This, std::unique_ptr<void> Data,
+      std::shared_ptr<void> This, std::shared_ptr<void> Data,
       const CallingFrame &CallFrameCxt, const std::vector<Value> &Params,
       std::vector<Value> &Returns)>;
 
     FunctionInstance(const FunctionType &Type,
-                    HostFunc_t HostFunc, std::unique_ptr<void> Data,
+                    HostFunc_t HostFunc, std::shared_ptr<void> Data,
                     const uint64_t Cost);
     FunctionInstance(const FunctionType &Type,
                     WrapFunc_t WrapFunc,
-                    std::unique_ptr<void> Binding,
-                    std::unique_ptr<void> Data,
+                    std::shared_ptr<void> Binding,
+                    std::shared_ptr<void> Data,
                     const uint64_t Cost);
     ~FunctionInstance() = default;
 
@@ -631,7 +624,7 @@ namespace WasmEdge {
     ~TableInstance();
 
     const TableType &GetTableType();
-    Result GetData(std::vector<Value> &Data, const uint32_t Offset);
+    Result GetData(Value &Data, const uint32_t Offset);
     Result SetData(Value Data, const uint32_t Offset);
     uint32_t GetSize();
     Result Grow(const uint32_t Size);

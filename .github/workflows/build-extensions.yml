@@ -229,6 +229,16 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_PLUGIN_HTTPSREQ=ON -DWASMEDGE_BUILD_TESTS=ON ..
           cd ${{ matrix.test_path }}
           make -j
+      - name: Build WasmEdge Zlib plugin using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
+        if: contains(matrix.name, 'Zlib')
+        run: |
+          apt update
+          apt install -y zlib1g-dev
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_BUILD_TESTS=ON ..
+          cd ${{ matrix.test_path }}
+          make -j
       - name: Build WasmEdge Process plugin using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         if: contains(matrix.name, 'Process')
         run: |
@@ -365,6 +375,26 @@ jobs:
             output_path: plugins/wasmedge_process
             output_bin: libwasmedgePluginWasmEdgeProcess.so
             cmake_plugin_option: "-DWASMEDGE_PLUGIN_PROCESS=ON"
+            build_type: Release
+            test: false
+          - name: Zlib
+            tar_name: wasmedge_zlib
+            system: manylinux2014 x86_64
+            host_runner: ubuntu-latest
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasmedge_zlib
+            output_bin: libwasmedgePluginWasmEdgeZlib.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_ZLIB=ON"
+            build_type: Release
+            test: false
+          - name: Zlib
+            tar_name: wasmedge_zlib
+            system: manylinux2014 aarch64
+            host_runner: linux-arm64
+            docker_tag: manylinux2014_aarch64
+            output_path: plugins/wasmedge_zlib
+            output_bin: libwasmedgePluginWasmEdgeZlib.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_ZLIB=ON"
             build_type: Release
             test: false
     name: ${{ matrix.system }} WasmEdge ${{ matrix.name }} plugin with g++ ${{ matrix.build_type }}

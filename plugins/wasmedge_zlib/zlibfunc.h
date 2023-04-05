@@ -24,21 +24,6 @@ public:
                        uint32_t VersionPtr, uint32_t StreamSize);
 };
 
-class WasmEdgeZlibDeflateInit : public WasmEdgeZlib<WasmEdgeZlibDeflateInit> {
-public:
-  WasmEdgeZlibDeflateInit(WasmEdgeZlibEnvironment &HostEnv)
-      : WasmEdgeZlib(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
-                       int32_t Level);
-};
-
-class WasmEdgeZlibInflateInit : public WasmEdgeZlib<WasmEdgeZlibInflateInit> {
-public:
-  WasmEdgeZlibInflateInit(WasmEdgeZlibEnvironment &HostEnv)
-      : WasmEdgeZlib(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr);
-};
-
 class WasmEdgeZlibDeflate : public WasmEdgeZlib<WasmEdgeZlibDeflate> {
 public:
   WasmEdgeZlibDeflate(WasmEdgeZlibEnvironment &HostEnv)

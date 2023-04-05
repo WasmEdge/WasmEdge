@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "zlibfunc.h"
-#include <zlib.h>
 
 #include <cstring>
 #include <iostream>
@@ -31,40 +30,84 @@ struct Wasm_z_stream {
 
 namespace WasmEdge {
 namespace Host {
+
 Expect<int32_t>
 WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr, int32_t Level,
                                uint32_t VersionPtr, uint32_t StreamSize) {
+  const auto HostZStreamIt = Env.ZStreamMap.get(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  auto HostZStream = *HostZStreamIt;
+
   auto *MemInst = Frame.getMemoryByIndex(0);
+  return -1;
 }
 
 Expect<int32_t>
 WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr, uint32_t VersionPtr,
                                uint32_t StreamSize) {
+  const auto HostZStreamIt = Env.ZStreamMap.get(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  auto HostZStream = *HostZStreamIt;
+
   auto *MemInst = Frame.getMemoryByIndex(0);
+  return -1;
 }
 
 Expect<int32_t>
 WasmEdgeZlibDeflateInit::body(const Runtime::CallingFrame &Frame,
                               uint32_t ZStreamPtr, int32_t Level) {
+  const auto HostZStreamIt = Env.ZStreamMap.get(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  auto HostZStream = *HostZStreamIt;
+
   auto *MemInst = Frame.getMemoryByIndex(0);
+  return -1;
 }
 
 Expect<int32_t>
 WasmEdgeZlibInflateInit::body(const Runtime::CallingFrame &Frame,
                               uint32_t ZStreamPtr) {
+  const auto HostZStreamIt = Env.ZStreamMap.get(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  auto HostZStream = *HostZStreamIt;
+
   auto *MemInst = Frame.getMemoryByIndex(0);
+  return -1;
 }
 
 Expect<int32_t> WasmEdgeZlibDeflate::WasmEdgeZlibDeflate::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr, int32_t Flush) {
+  const auto HostZStreamIt = Env.ZStreamMap.get(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  auto HostZStream = *HostZStreamIt;
+
   auto *MemInst = Frame.getMemoryByIndex(0);
+  return -1;
 }
 
 Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
                                           uint32_t ZStreamPtr, int32_t Flush) {
+  const auto HostZStreamIt = Env.ZStreamMap.get(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  auto HostZStream = *HostZStreamIt;
+
   auto *MemInst = Frame.getMemoryByIndex(0);
+
+  return -1;
 }
 
 Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &Frame,
@@ -77,14 +120,14 @@ Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &Frame,
   int32_t ZRes = deflateEnd(HostZStream);
 
   // We dont need to sync the wasm ZStream
-  // It *might set msg, so wil later sync that
+  // It *might set msg, so will later sync that
 
   Env.ZStreamMap.erase(ZStreamPtr);
 
   return static_cast<int32_t>(ZRes); // not really needed
 }
 
-Expect<Det32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &Frame,
+Expect<int32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &Frame,
                                              uint32_t ZStreamPtr) {
   const auto HostZStreamIt = Env.ZStreamMap.get(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {

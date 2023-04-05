@@ -14,7 +14,7 @@ namespace Host {
 
 template <typename T> class WasmEdgeZlib : public Runtime::HostFunction<T> {
 public:
-  WasmEdgeHttpsReq(WasmEdgeZlibEnvironment &HostEnv)
+  WasmEdgeZlib(WasmEdgeZlibEnvironment &HostEnv)
       : Runtime::HostFunction<T>(0), Env(HostEnv) {}
 
 protected:

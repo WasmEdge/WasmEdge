@@ -9,7 +9,7 @@
 #include <memory>
 #include <unordered_map>
 
-struct z_stream;
+#include <zlib.h>
 
 namespace WasmEdge {
 namespace Host {

@@ -37,6 +37,9 @@
 #include "memory"
 #include "functional"
 
+#include "wasmedge/int128.h"
+#include "wasmedge/version.h"
+
 namespace WasmEdge {
   enum WASMEDGE_CPP_API_EXPORT ErrCategory {
     WASM = 0x00,
@@ -144,8 +147,6 @@ namespace WasmEdge {
 
   class WASMEDGE_CPP_API_EXPORT Value {
   public:
-    using int128_t = __int128_t;
-
     Value(const int32_t Val);
     Value(const int64_t Val);
     Value(const float Val);
@@ -167,7 +168,6 @@ namespace WasmEdge {
     bool IsNullRef();
 
   private:
-    using uint128_t = __uint128_t;
     uint128_t Val;
     ValType Type;
   };
@@ -214,7 +214,7 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT FunctionType {
   public:
     FunctionType(const std::vector<ValType> &ParamList,
-                const std::vector<ValType> &ReturnList);
+                 const std::vector<ValType> &ReturnList);
     ~FunctionType() = default;
 
     const std::vector<ValType> &GetParameters();
@@ -225,7 +225,7 @@ namespace WasmEdge {
 
   class WASMEDGE_CPP_API_EXPORT TableType {
   public:
-    TableType(const RefType RefType, const Limit Limit);
+    TableType(const RefType RefType, const Limit &Limit);
     ~TableType() = default;
 
     RefType GetRefType();
@@ -236,7 +236,7 @@ namespace WasmEdge {
 
   class WASMEDGE_CPP_API_EXPORT MemoryType {
   public:
-    MemoryType(const Limit Limit);
+    MemoryType(const Limit &Limit);
     ~MemoryType() = default;
 
     const Limit &GetLimit();
@@ -258,7 +258,6 @@ namespace WasmEdge {
 
   class WASMEDGE_CPP_API_EXPORT ImportType {
   public:
-    // TODO: constructor
 
     ExternalType GetExternalType();
     std::string GetModuleName();
@@ -269,14 +268,15 @@ namespace WasmEdge {
     const GlobalType &GetGlobalType(const ASTModule &ASTCxt);
 
   private:
+    ImportType();
+    ~ImportType() = default;
     // TODO
+
+    friend class ASTModule;
   };
 
-  // TODO: ImportType & ExportType both look the same
-  // Create a common interface/parent class then?
   class WASMEDGE_CPP_API_EXPORT ExportType {
   public:
-    // TODO: constructor
 
     ExternalType GetExternalType();
     std::string GetExternalName();
@@ -284,6 +284,12 @@ namespace WasmEdge {
     const TableType &GetTableType(const ASTModule &ASTCxt);
     const MemoryType &GetMemoryType(const ASTModule &ASTCxt);
     const GlobalType &GetGlobalType(const ASTModule &ASTCxt);
+
+  private:
+    ExportType();
+    ~ExportType() = default;
+
+    friend class ASTModule;
   };
 
   // <<<<<<<< WasmEdge Data Structures <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -298,7 +304,6 @@ namespace WasmEdge {
     void Wait();
     bool WaitFor(uint64_t Milliseconds);
     void Cancel();
-    uint32_t GetReturnsLength();
     Result Get(std::vector<Value> &Returns);
 
     friend class VM;
@@ -391,31 +396,31 @@ namespace WasmEdge {
     VM(const ConfigureContext &ConfCxt, Store &StoreCxt);
     ~VM() = default;
 
-    Result RegisterModule(const std::string ModuleName,
+    Result RegisterModule(const std::string &ModuleName,
                                   const std::string &Path);
-    Result RegisterModule(const std::string ModuleName,
+    Result RegisterModule(const std::string &ModuleName,
                                     const std::vector<uint8_t> &Buf);
-    Result RegisterModule(const std::string ModuleName,
+    Result RegisterModule(const std::string &ModuleName,
                                        const ASTModule &ASTCxt);
     Result RegisterModule(const ModuleInstance &ImportCxt);
 
-    Result RunWasm(const std::string &Path, const std::string FuncName,
+    Result RunWasm(const std::string &Path, const std::string &FuncName,
                            const std::vector<Value> &Params,
                            std::vector<Value> &Returns);
     Result RunWasm(const std::vector<uint8_t> &Buf,
-                  const std::string FuncName, const std::vector<Value> &Params,
+                  const std::string &FuncName, const std::vector<Value> &Params,
                   std::vector<Value> &Returns);
     Result RunWasm(const ASTModule &ASTCxt,
-                  const std::string FuncName, const std::vector<Value> &Params,
+                  const std::string &FuncName, const std::vector<Value> &Params,
                   std::vector<Value> &Returns);
 
     std::unique_ptr<Async> AsyncRunWasm(const std::string &Path,
-                  const std::string FuncName, const std::vector<Value> &Params);
+                  const std::string &FuncName, const std::vector<Value> &Params);
     std::unique_ptr<Async> AsyncRunWasm(
-                  const std::vector<uint8_t> &Buf, const std::string FuncName,
+                  const std::vector<uint8_t> &Buf, const std::string &FuncName,
                   const std::vector<Value> &Params);
     std::unique_ptr<Async> AsyncRunWasm(const ASTModule &ASTCxt,
-                  const std::string FuncName, const std::vector<Value> &Params);
+                  const std::string &FuncName, const std::vector<Value> &Params);
 
     Result LoadWasm(const std::string &Path);
     Result LoadWasm(const std::vector<uint8_t> &Buf);
@@ -424,30 +429,30 @@ namespace WasmEdge {
     Result Validate();
     Result Instantiate();
 
-    Result Execute(const std::string FuncName, const std::vector<Value> &Params,
-                  const std::vector<Value> &Returns);
-    Result Execute(const std::string ModuleName,
-                  const std::string FuncName, const std::vector<Value> &Params,
+    Result Execute(const std::string &FuncName, const std::vector<Value> &Params,
+                  std::vector<Value> &Returns);
+    Result Execute(const std::string &ModuleName,
+                  const std::string &FuncName, const std::vector<Value> &Params,
                   std::vector<Value> &Returns);
 
-    std::unique_ptr<Async> AsyncExecute(const std::string FuncName,
+    std::unique_ptr<Async> AsyncExecute(const std::string &FuncName,
                   const std::vector<Value> &Params);
-    std::unique_ptr<Async> AsyncExecute(const std::string ModuleName,
-                  const std::string FuncName, const std::vector<Value> &Params);
+    std::unique_ptr<Async> AsyncExecute(const std::string &ModuleName,
+                  const std::string &FuncName, const std::vector<Value> &Params);
 
-    const FunctionType &GetFunctionType(const std::string FuncName);
-    const FunctionType &GetFunctionType(const std::string ModuleName,
-                                        const std::string FuncName);
+    const FunctionType &GetFunctionType(const std::string &FuncName);
+    const FunctionType &GetFunctionType(const std::string &ModuleName,
+                                        const std::string &FuncName);
 
     void Cleanup();
     uint32_t GetFunctionList(std::vector<std::string> &Names,
-                  const std::vector<FunctionType &> &FuncTypes);
+                  std::vector<const FunctionType> &FuncTypes);
 
     ModuleInstance &GetImportModuleContext(const HostRegistration Reg);
     const ModuleInstance& GetActiveModule();
-    const ModuleInstance &GetRegisteredModule(const std::string ModuleName);
+    const ModuleInstance &GetRegisteredModule(const std::string &ModuleName);
 
-    uint32_t ListRegisteredModule(std::vector<std::string> &Names);
+    std::vector<std::string> ListRegisteredModule();
 
     Store &GetStoreContext();
     Loader &GetLoaderContext();
@@ -470,9 +475,9 @@ namespace WasmEdge {
     ~Loader() = default;
 
     Result Parse(ASTModule &Module,
-                        const std::string Path);
+                        const std::string &Path);
     Result Parse(ASTModule &Module,
-                          const std::vector<uint8_t> &Buf);
+                        const std::vector<uint8_t> &Buf);
 
   private:
     // LoaderContext LoaderCxt; // TODO
@@ -499,20 +504,20 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT Executor {
   public:
     Executor(const ConfigureContext &ConfCxt,
-              StatisticsContext &StatCxt);
+             StatisticsContext &StatCxt);
     ~Executor() = default;
 
     Result Instantiate(ModuleInstance &ModuleCxt,
-                      Store &StoreCxt,
-                      const ASTModule &ASTCxt);
+                       Store &StoreCxt,
+                       const ASTModule &ASTCxt);
 
     Result Register(ModuleInstance &ModuleCxt,
                     Store &StoreCxt,
                     const ASTModule &ASTCxt,
-                    std::string ModuleName);
+                    const std::string &ModuleName);
 
     Result Register(Store &StoreCxt,
-                          const ModuleInstance &ImportCxt);
+                    const ModuleInstance &ImportCxt);
 
     Result Invoke(const FunctionInstance &FuncCxt,
                   const std::vector<std::string> &Params,
@@ -529,8 +534,8 @@ namespace WasmEdge {
     ASTModule();
     ~ASTModule() = default;
 
-    uint32_t ListImports(const std::vector<ImportType> &Imports);
-    uint32_t ListExports(const std::vector<ExportType> &Exports);
+    std::vector<ImportType> ListImports();
+    std::vector<ExportType> ListExports();
   private:
     // TODO
   };
@@ -540,8 +545,8 @@ namespace WasmEdge {
     Store();
     ~Store() = default;
 
-    const ModuleInstance &FindModule(const std::string Name);
-    uint32_t ListModule(std::vector<std::string> &Names);
+    const ModuleInstance &FindModule(const std::string &Name);
+    std::vector<std::string> ListModule();
 
   private:
     // StoreContext StoreCxt; // TODO
@@ -552,10 +557,10 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT ModuleInstance {
   public:
     ModuleInstance();
-    ModuleInstance(const std::string ModuleName);
+    ModuleInstance(const std::string &ModuleName);
     ModuleInstance(const std::vector<const std::string> &Args,
-                  const std::vector<const std::string> &Envs,
-                  const std::vector<const std::string> &Preopens);
+                   const std::vector<const std::string> &Envs,
+                   const std::vector<const std::string> &Preopens);
     ~ModuleInstance() = default;
 
     void InitWASI(const std::vector<const std::string> &Args,
@@ -569,24 +574,24 @@ namespace WasmEdge {
                             const bool AllowAll);
     std::string GetModuleName();
 
-    FunctionInstance &FindFunction(const std::string Name);
-    TableInstance &FindTable(const std::string Name);
-    MemoryInstance &FindMemory(const std::string Name);
-    GlobalInstance &FindGlobal(const std::string Name);
+    FunctionInstance &FindFunction(const std::string &Name);
+    TableInstance &FindTable(const std::string &Name);
+    MemoryInstance &FindMemory(const std::string &Name);
+    GlobalInstance &FindGlobal(const std::string &Name);
 
-    uint32_t ListFunction(std::vector<std::string> &Names);
-    uint32_t ListTable(std::vector<std::string> &Names);
-    uint32_t ListMemory(std::vector<std::string> &Names);
-    uint32_t ListGlobal(std::vector<std::string> &Names);
+    std::vector<std::string> ListFunction();
+    std::vector<std::string> ListTable();
+    std::vector<std::string> ListMemory();
+    std::vector<std::string> ListGlobal();
 
     void AddFunction(const std::string &Name,
-                    FunctionInstance &&FuncCxt);
+                     FunctionInstance &&FuncCxt);
     void AddTable(const std::string &Name,
                   TableInstance &&TableCxt);
     void AddMemory(const std::string &Name,
-                  MemoryInstance &&MemoryCxt);
+                   MemoryInstance &&MemoryCxt);
     void AddGlobal(const std::string &Name,
-                  GlobalInstance &&GlobalCxt);
+                   GlobalInstance &&GlobalCxt);
 
   private:
     // TODO

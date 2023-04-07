@@ -40,16 +40,19 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  Wasm_z_stream *WasmZStream = MemInst->getPointer<Wasm_z_stream *>(ZStreamPtr);
+  // Wasm_z_stream *WasmZStream = MemInst->getPointer<Wasm_z_stream
+  // *>(ZStreamPtr);
   if (StreamSize != 56) {
-    spdlog::error("[WasmEdge Zlib] WASM sizeof(z_stream) != 56 but {}",
+    spdlog::error("[WasmEdge Zlib] [WasmEdgeZlibDeflateInit_] WASM "
+                  "sizeof(z_stream) != 56 but {}",
                   StreamSize);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   const char *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
   if (WasmZlibVersion[0] != ZLIB_VERSION[0]) {
-    spdlog::error("[WasmEdge Zlib] Major Zlib version of Host ({}) & Wasm ({}) "
+    spdlog::error("[WasmEdge Zlib] [WasmEdgeZlibDeflateInit_] Major Zlib "
+                  "version of Host ({}) & Wasm ({}) "
                   "does not match",
                   ZLIB_VERSION[0], WasmZlibVersion[0]);
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -79,16 +82,19 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  Wasm_z_stream *WasmZStream = MemInst->getPointer<Wasm_z_stream *>(ZStreamPtr);
+  // Wasm_z_stream *WasmZStream = MemInst->getPointer<Wasm_z_stream
+  // *>(ZStreamPtr);
   if (StreamSize != 56) {
-    spdlog::error("[WasmEdge Zlib] WASM sizeof(z_stream) != 56 but {}",
+    spdlog::error("[WasmEdge Zlib] [WasmEdgeZlibInflateInit_] WASM "
+                  "sizeof(z_stream) != 56 but {}",
                   StreamSize);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   const char *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
   if (WasmZlibVersion[0] != ZLIB_VERSION[0]) {
-    spdlog::error("[WasmEdge Zlib] Major Zlib version of Host ({}) & Wasm ({}) "
+    spdlog::error("[WasmEdge Zlib] [WasmEdgeZlibInflateInit_] Major Zlib "
+                  "version of Host ({}) & Wasm ({}) "
                   "does not match",
                   ZLIB_VERSION[0], WasmZlibVersion[0]);
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -109,16 +115,33 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
   return static_cast<int32_t>(z_res);
 }
 
+static inline void SyncWasmZStreamToHost() {}
+
 Expect<int32_t> WasmEdgeZlibDeflate::WasmEdgeZlibDeflate::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr, int32_t Flush) {
+
   const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto HostZStream = HostZStreamIt->second.get();
-
   auto *MemInst = Frame.getMemoryByIndex(0);
-  return -1;
+  Wasm_z_stream *WasmZStream = MemInst->getPointer<Wasm_z_stream *>(ZStreamPtr);
+  unsigned char *WasmMemStart = MemInst->getPointer<unsigned char *>(0);
+
+  HostZStream->avail_in = WasmZStream->avail_in;
+  HostZStream->avail_out = WasmZStream->avail_out;
+  HostZStream->next_in = WasmMemStart + WasmZStream->next_in;
+  HostZStream->next_out = WasmMemStart + WasmZStream->next_out;
+
+  const auto z_res = deflate(HostZStream, Flush);
+
+  WasmZStream->avail_in = HostZStream->avail_in;
+  WasmZStream->avail_out = HostZStream->avail_out;
+  WasmZStream->next_in = HostZStream->next_in - WasmMemStart;
+  WasmZStream->next_out = HostZStream->next_out - WasmMemStart;
+
+  return static_cast<int32_t>(z_res);
 }
 
 Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
@@ -128,45 +151,57 @@ Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto HostZStream = HostZStreamIt->second.get();
-
   auto *MemInst = Frame.getMemoryByIndex(0);
+  Wasm_z_stream *WasmZStream = MemInst->getPointer<Wasm_z_stream *>(ZStreamPtr);
+  unsigned char *WasmMemStart = MemInst->getPointer<unsigned char *>(0);
 
-  return -1;
+  HostZStream->avail_in = WasmZStream->avail_in;
+  HostZStream->avail_out = WasmZStream->avail_out;
+  HostZStream->next_in = WasmMemStart + WasmZStream->next_in;
+  HostZStream->next_out = WasmMemStart + WasmZStream->next_out;
+
+  const auto z_res = inflate(HostZStream, Flush);
+
+  WasmZStream->avail_in = HostZStream->avail_in;
+  WasmZStream->avail_out = HostZStream->avail_out;
+  WasmZStream->next_in = HostZStream->next_in - WasmMemStart;
+  WasmZStream->next_out = HostZStream->next_out - WasmMemStart;
+
+  return static_cast<int32_t>(z_res);
 }
 
-Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &Frame,
+Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &,
                                              uint32_t ZStreamPtr) {
-  const auto HostZStreamIt = Env.ZStreamMap.get(ZStreamPtr);
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  auto HostZStream = *HostZStreamIt;
+  auto HostZStream = HostZStreamIt->second.get();
   int32_t ZRes = deflateEnd(HostZStream);
 
-  // We dont need to sync the wasm ZStream
-  // It *might set msg, so will later sync that
-
   Env.ZStreamMap.erase(ZStreamPtr);
 
-  return static_cast<int32_t>(ZRes); // not really needed
+  return static_cast<int32_t>(ZRes);
 }
 
-Expect<int32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &Frame,
+Expect<int32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &,
                                              uint32_t ZStreamPtr) {
-  const auto HostZStreamIt = Env.ZStreamMap.get(ZStreamPtr);
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  auto HostZStream = *HostZStreamIt;
+  auto HostZStream = HostZStreamIt->second.get();
   int32_t ZRes = inflateEnd(HostZStream);
-
-  // We dont need to sync the wasm ZStream
-  // It *might set msg, so wil later sync that
 
   Env.ZStreamMap.erase(ZStreamPtr);
 
-  return static_cast<int32_t>(ZRes); // not really needed
+  return static_cast<int32_t>(ZRes);
 }
 
 } // namespace Host
 } // namespace WasmEdge
+
+/*
+TODO:
+sync *msg in [inflate | deflate]End()
+*/

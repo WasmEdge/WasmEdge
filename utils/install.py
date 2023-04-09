@@ -594,6 +594,7 @@ def install_image_extension(args, compat):
     # Installation of ubuntu version extensions when the ubuntu version of WasmEdge selected.
     if VersionString(args.image_version).compare("0.11.1") >= 0:
         local_release_package = compat.release_package_wasmedge
+        logging.debug("Downloading dist package: {0}".format(local_release_package))
 
     image_pkg = "WasmEdge-image-" + args.image_version + "-" + local_release_package
 
@@ -708,6 +709,7 @@ def install_tensorflow_extension(args, compat):
     # Installation of ubuntu version extensions when the ubuntu version of WasmEdge selected.
     if VersionString(args.tf_version).compare("0.11.1") >= 0:
         local_release_package = compat.release_package_wasmedge
+        logging.debug("Downloading dist package: {0}".format(local_release_package))
 
     if download_tf:
         tf_pkg = "WasmEdge-tensorflow-" + args.tf_version + "-" + local_release_package
@@ -1054,6 +1056,20 @@ def set_consts(args, compat):
     CONST_ipkg = compat.install_package_name
     CONST_lib_ext = compat.lib_extension
 
+    local_release_package_tf = CONST_release_pkg
+
+    # From WasmEdge 0.11.1, we have the Ubuntu release.
+    # Installation of ubuntu version extensions when the ubuntu version of WasmEdge selected.
+    if VersionString(args.tf_version).compare("0.11.1") >= 0:
+        local_release_package_tf = compat.release_package_wasmedge
+
+    local_release_package_im = CONST_release_pkg
+
+    # From WasmEdge 0.11.1, we have the Ubuntu release.
+    # Installation of ubuntu version extensions when the ubuntu version of WasmEdge selected.
+    if VersionString(args.image_version).compare("0.11.1") >= 0:
+        local_release_package_im = compat.release_package_wasmedge
+
     CONST_urls = {
         WASMEDGE: "https://github.com/WasmEdge/WasmEdge/releases/download/{0}/WasmEdge-{0}-{1}".format(
             args.version, compat.release_package_wasmedge
@@ -1062,19 +1078,19 @@ def set_consts(args, compat):
             args.uninstall_script_tag
         ),
         IMAGE: "https://github.com/second-state/WasmEdge-image/releases/download/{0}/WasmEdge-image-{0}-{1}".format(
-            args.image_version, CONST_release_pkg
+            args.image_version, local_release_package_im
         ),
         TENSORFLOW_DEPS: "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{0}/WasmEdge-tensorflow-deps-TF-{0}-{1}".format(
-            args.tf_deps_version, CONST_release_pkg
+            args.tf_deps_version, local_release_package_tf
         ),
         TENSORFLOW_LITE_DEPS: "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{0}/WasmEdge-tensorflow-deps-TFLite-{0}-{1}".format(
-            args.tf_deps_version, CONST_release_pkg
+            args.tf_deps_version, local_release_package_tf
         ),
         TENSORFLOW: "https://github.com/second-state/WasmEdge-tensorflow/releases/download/{0}/WasmEdge-tensorflow-{0}-{1}".format(
-            args.tf_version, CONST_release_pkg
+            args.tf_version, local_release_package_tf
         ),
         TENSORFLOW_LITE: "https://github.com/second-state/WasmEdge-tensorflow/releases/download/{0}/WasmEdge-tensorflowlite-{0}-{1}".format(
-            args.tf_version, CONST_release_pkg
+            args.tf_version, local_release_package_tf
         ),
         TENSORFLOW_TOOLS: "https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/{0}/WasmEdge-tensorflow-tools-{0}-{1}".format(
             args.tf_tools_version, CONST_release_pkg

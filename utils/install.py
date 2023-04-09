@@ -442,13 +442,11 @@ fi
 
 
 def shell_configure(args, compat):
-
     global CONST_shell_profile, CONST_shell_config
 
     source_string = '\n. "{0}"\n'.format(join(args.path, "env"))
 
     if ("bash" in SHELL) or ("zsh" in SHELL):
-
         CONST_shell_config = join(HOME, "." + SHELL + "rc")
 
         if "zsh" in SHELL:
@@ -590,7 +588,14 @@ def install_image_extension(args, compat):
 
     print("Downloading image extension")
 
-    image_pkg = "WasmEdge-image-" + args.image_version + "-" + CONST_release_pkg
+    local_release_package = CONST_release_pkg
+
+    # From WasmEdge 0.11.1, we have the Ubuntu release.
+    # Installation of ubuntu version extensions when the ubuntu version of WasmEdge selected.
+    if VersionString(args.image_version).compare("0.11.1") >= 0:
+        local_release_package = compat.release_package_wasmedge
+
+    image_pkg = "WasmEdge-image-" + args.image_version + "-" + local_release_package
 
     download_url(CONST_urls[IMAGE], join(TEMP_PATH, image_pkg), show_progress)
 
@@ -697,13 +702,20 @@ def install_tensorflow_extension(args, compat):
     if compat.machine == "aarch64":
         download_tf = False
 
+    local_release_package = CONST_release_pkg
+
+    # From WasmEdge 0.11.1, we have the Ubuntu release.
+    # Installation of ubuntu version extensions when the ubuntu version of WasmEdge selected.
+    if VersionString(args.tf_version).compare("0.11.1") >= 0:
+        local_release_package = compat.release_package_wasmedge
+
     if download_tf:
-        tf_pkg = "WasmEdge-tensorflow-" + args.tf_version + "-" + CONST_release_pkg
+        tf_pkg = "WasmEdge-tensorflow-" + args.tf_version + "-" + local_release_package
         tf_deps_pkg = (
             "WasmEdge-tensorflow-deps-TF-"
             + args.tf_deps_version
             + "-"
-            + CONST_release_pkg
+            + local_release_package
         )
 
         print("Downloading tensorflow extension")
@@ -737,13 +749,13 @@ def install_tensorflow_extension(args, compat):
 
     if download_tf_lite:
         tf_lite_pkg = (
-            "WasmEdge-tensorflowlite-" + args.tf_version + "-" + CONST_release_pkg
+            "WasmEdge-tensorflowlite-" + args.tf_version + "-" + local_release_package
         )
         tf_deps_lite_pkg = (
             "WasmEdge-tensorflow-deps-TFLite-"
             + args.tf_deps_version
             + "-"
-            + CONST_release_pkg
+            + local_release_package
         )
 
         print("Downloading tensorflow-lite extension")

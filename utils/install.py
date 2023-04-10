@@ -717,7 +717,7 @@ def install_tensorflow_extension(args, compat):
             "WasmEdge-tensorflow-deps-TF-"
             + args.tf_deps_version
             + "-"
-            + local_release_package
+            + CONST_release_pkg
         )
 
         print("Downloading tensorflow extension")
@@ -757,7 +757,7 @@ def install_tensorflow_extension(args, compat):
             "WasmEdge-tensorflow-deps-TFLite-"
             + args.tf_deps_version
             + "-"
-            + local_release_package
+            + CONST_release_pkg
         )
 
         print("Downloading tensorflow-lite extension")
@@ -1062,6 +1062,7 @@ def set_consts(args, compat):
     # Installation of ubuntu version extensions when the ubuntu version of WasmEdge selected.
     if VersionString(args.tf_version).compare("0.11.1") >= 0:
         local_release_package_tf = compat.release_package_wasmedge
+        logging.debug("Tensorflow release pkg: {0}".format(local_release_package_tf))
 
     local_release_package_im = CONST_release_pkg
 
@@ -1069,6 +1070,7 @@ def set_consts(args, compat):
     # Installation of ubuntu version extensions when the ubuntu version of WasmEdge selected.
     if VersionString(args.image_version).compare("0.11.1") >= 0:
         local_release_package_im = compat.release_package_wasmedge
+        logging.debug("Image release pkg: {0}".format(local_release_package_im))
 
     CONST_urls = {
         WASMEDGE: "https://github.com/WasmEdge/WasmEdge/releases/download/{0}/WasmEdge-{0}-{1}".format(
@@ -1081,10 +1083,10 @@ def set_consts(args, compat):
             args.image_version, local_release_package_im
         ),
         TENSORFLOW_DEPS: "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{0}/WasmEdge-tensorflow-deps-TF-{0}-{1}".format(
-            args.tf_deps_version, local_release_package_tf
+            args.tf_deps_version, CONST_release_pkg
         ),
         TENSORFLOW_LITE_DEPS: "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{0}/WasmEdge-tensorflow-deps-TFLite-{0}-{1}".format(
-            args.tf_deps_version, local_release_package_tf
+            args.tf_deps_version, CONST_release_pkg
         ),
         TENSORFLOW: "https://github.com/second-state/WasmEdge-tensorflow/releases/download/{0}/WasmEdge-tensorflow-{0}-{1}".format(
             args.tf_version, local_release_package_tf

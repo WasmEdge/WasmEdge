@@ -216,16 +216,14 @@ jobs:
     - name: Check if distro-specific downloads are selected(Ubuntu)
       if: ${{ matrix.name == 'Ubuntu 20.04' }}
       run: |
-        # Unknown plugin
         ${{ matrix.python2_ex }} utils/install.py -e tensorflow -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && echo "Pass: Ubuntu Package selected for tensorflow" || (echo "Fail: Ubuntu Package not selected for tensorflow" && exit 1)
         ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && echo "Pass: Ubuntu Package selected for tensorflow" || (echo "Fail: Ubuntu Package not selected for tensorflow" && exit 1)
         ${{ matrix.python2_ex }} utils/install.py -e image -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && echo "Pass: Ubuntu Package selected for image" || (echo "Fail: Ubuntu Package not selected for image" && exit 1)
         ${{ matrix.python3_ex }} utils/install.py -e image -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && echo "Pass: Ubuntu Package selected for image" || (echo "Fail: Ubuntu Package not selected for image" && exit 1)
 
-    - name: Check if distro-specific downloads are selected(Ubuntu)
+    - name: Check if distro-specific downloads are selected(Non-Ubuntu)
       if: ${{ matrix.name != 'Ubuntu 20.04' }}
       run: |
-        # Unknown plugin
         ${{ matrix.python2_ex }} utils/install.py -e tensorflow -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && (echo "Fail: Ubuntu Package selected for tensorflow" && exit 1) || (echo "Pass: Ubuntu Package not selected for tensorflow")
         ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && (echo "Fail: Ubuntu Package selected for tensorflow" && exit 1) || (echo "Pass: Ubuntu Package not selected for tensorflow")
         ${{ matrix.python2_ex }} utils/install.py -e image -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && (echo "Fail: Ubuntu Package selected for image" && exit 1) || (echo "Pass: Ubuntu Package not selected for image")

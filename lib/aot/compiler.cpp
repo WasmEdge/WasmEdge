@@ -42,6 +42,7 @@
 #endif
 
 #if LLVM_VERSION_MAJOR >= 14
+#include <lld/Common/CommonLinkerContext.h>
 #include <llvm/MC/TargetRegistry.h>
 #else
 #include <llvm/Support/TargetRegistry.h>
@@ -5155,7 +5156,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 #endif
     std::unique_ptr<llvm::TargetMachine> TM(TheTarget->createTargetMachine(
         Triple.str(), CPUName, Context->SubtargetFeatures.getString(), Options,
-        RM, llvm::None, llvm::CodeGenOpt::Level::Aggressive));
+        RM, {}, llvm::CodeGenOpt::Level::Aggressive));
     LLModule.setDataLayout(TM->createDataLayout());
 
     llvm::TargetLibraryInfoImpl TLII(Triple);

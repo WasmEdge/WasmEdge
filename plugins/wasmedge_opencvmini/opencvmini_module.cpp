@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "opencvmini_module.h"
+#include "opencvmini_func.h"
 
 #include <memory>
 

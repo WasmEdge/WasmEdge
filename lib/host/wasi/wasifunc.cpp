@@ -2461,7 +2461,7 @@ Expect<uint32_t> WasiSockGetLocalAddr::body(const Runtime::CallingFrame &Frame,
 
   const __wasi_fd_t WasiFd = Fd;
 
-  if (auto Res = Env.sockGetLoaclAddr(WasiFd, AddressBuf, RoPort);
+  if (auto Res = Env.sockGetLocalAddr(WasiFd, AddressBuf, RoPort);
       unlikely(!Res)) {
     return Res.error();
   }
@@ -2481,7 +2481,7 @@ Expect<uint32_t> WasiSockGetPeerAddr::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 16) {
+  if (InnerAddress->buf_len != 128) {
     return __WASI_ERRNO_INVAL;
   }
 

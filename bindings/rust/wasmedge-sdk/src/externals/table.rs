@@ -1,13 +1,13 @@
-use crate::{types::Val, WasmEdgeResult};
+use crate::{types::Val, TableType, WasmEdgeResult};
 use wasmedge_sys as sys;
-use wasmedge_types::TableType;
 
 /// Defines a table storing the references to host functions or external objects.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Table {
     pub(crate) inner: sys::Table,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
+    pub(crate) ty: TableType,
 }
 impl Table {
     /// Creates a new wasm table instance with the given type.
@@ -18,17 +18,18 @@ impl Table {
     ///
     /// # Error
     ///
-    /// If fail to create the table instance, then an error is returned.
+    /// * If fail to create the table instance, then WasmEdgeError::Table(TableError::Create)(crate::error::TableError) is returned.
     pub fn new(ty: TableType) -> WasmEdgeResult<Self> {
-        let inner = sys::Table::create(&ty.into())?;
+        let inner = sys::Table::create(&ty.clone().into())?;
         Ok(Self {
             inner,
             name: None,
             mod_name: None,
+            ty,
         })
     }
 
-    /// Returns the exported name of this [Table].
+    /// Returns the exported name of this table instance.
     ///
     /// Notice that this field is meaningful only if this table is used as an exported instance.
     pub fn name(&self) -> Option<&str> {
@@ -38,7 +39,7 @@ impl Table {
         }
     }
 
-    /// Returns the name of the [module instance](crate::Instance) from which this [Table] exports.
+    /// Returns the name of the [module instance](crate::Instance) from which this table instance exports.
     ///
     /// Notice that this field is meaningful only if this table is used as an exported instance.
     pub fn mod_name(&self) -> Option<&str> {
@@ -48,14 +49,9 @@ impl Table {
         }
     }
 
-    /// Returns the type of this table.
-    ///
-    /// # Error
-    ///
-    /// If fail to get the type of this table, then an error is returned.
-    pub fn ty(&self) -> WasmEdgeResult<TableType> {
-        let ty = self.inner.ty()?;
-        Ok(ty.into())
+    /// Returns a reference to the type of this table.
+    pub fn ty(&self) -> &TableType {
+        &self.ty
     }
 
     /// Returns the size of this [Table].
@@ -63,11 +59,13 @@ impl Table {
         self.inner.capacity() as u32
     }
 
-    /// Grows the size of this table by `delta`, initializating the elements with the provided init value if `init` is given.
+    /// Grows the size of this table by `delta`, initializing the elements with the provided init value if `init` is given. Returns the previous size of the table.
     ///
     /// # Arguments
     ///
-    /// * `delta` - the number of elements to grow the table by.
+    /// * `delta` - The number of elements to grow the table instance by.
+    ///
+    /// * `init` - The value to initialize the new table slots with.
     ///
     /// # Error
     ///
@@ -184,18 +182,18 @@ mod tests {
         assert!(result.is_ok());
 
         // get the module instance by name
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the exported host function
         let result = instance.func("add");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let host_func = result.unwrap();
 
         // get the exported table by name
         let result = instance.table("table");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut table = result.unwrap();
 
         // check table
@@ -204,11 +202,7 @@ mod tests {
         assert!(table.mod_name().is_some());
         assert_eq!(table.mod_name().unwrap(), "extern");
         assert_eq!(table.size(), 10);
-        let result = table.ty();
-        assert!(result.is_ok());
-
-        // check table type
-        let ty = result.unwrap();
+        let ty = table.ty();
         assert_eq!(ty.elem_ty(), RefType::FuncRef);
         assert_eq!(ty.minimum(), 10);
         assert_eq!(ty.maximum(), Some(20));
@@ -231,21 +225,19 @@ mod tests {
             assert!(func_ref.is_some());
             let func_ref = func_ref.unwrap();
             // check the signature of the host function
-            let result = func_ref.ty();
-            assert!(result.is_ok());
-            let func_ty = result.unwrap();
+            let func_ty = func_ref.ty();
             assert!(func_ty.args().is_some());
             assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
             assert!(func_ty.returns().is_some());
             assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
         }
 
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         let result = instance.table("table");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let table = result.unwrap();
 
         // get the value in table[0]
@@ -254,9 +246,7 @@ mod tests {
         if let Val::FuncRef(func_ref) = result.unwrap() {
             assert!(func_ref.is_some());
             let func_ref = func_ref.unwrap();
-            let result = func_ref.ty();
-            assert!(result.is_ok());
-            let func_ty = result.unwrap();
+            let func_ty = func_ref.ty();
             assert!(func_ty.args().is_some());
             assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
             assert!(func_ty.returns().is_some());

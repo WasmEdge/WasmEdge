@@ -232,7 +232,7 @@ Eddsa::VerificationState::update(Span<const uint8_t> Input) noexcept {
 WasiCryptoExpect<void>
 Eddsa::VerificationState::verify(const Signature &Sig) noexcept {
   std::scoped_lock Lock{Ctx->Mutex};
-  // The invokation to EVP_DigestVerifyFinal() internally finalizes a copy of
+  // The invocation to EVP_DigestVerifyFinal() internally finalizes a copy of
   // the digest context. This means that EVP_VerifyUpdate() and
   // EVP_VerifyFinal() can be called later to digest and verify the additional
   // data.

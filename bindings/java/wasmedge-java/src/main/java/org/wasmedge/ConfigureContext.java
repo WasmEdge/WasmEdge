@@ -8,16 +8,16 @@ import org.wasmedge.enums.Proposal;
 /**
  * Configure Context for WasmEdge VM.
  */
-public class ConfigureContext {
-    private long pointer;
+public class ConfigureContext extends NativeResource {
 
     public ConfigureContext() {
+        super();
         nativeInit();
     }
 
     private native void nativeInit();
 
-    private native void delete();
+    public native void close();
 
     public void addProposal(Proposal proposal) {
         addProposal(proposal.ordinal());
@@ -103,10 +103,5 @@ public class ConfigureContext {
     public native boolean isStatisticsSetTimeMeasuring();
 
     public native void setStatisticsSetTimeMeasuring(boolean statisticsSetTimeMeasuring);
-
-    public void destroy() {
-        delete();
-        pointer = 0;
-    }
 
 }

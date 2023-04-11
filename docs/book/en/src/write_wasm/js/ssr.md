@@ -80,7 +80,7 @@ export default LazyPage;
 ```
 
 The [main.mjs](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/main.mjs)
-file starts a non-blocking HTTP server using standard Node.js APIs, and then renders the HTML page in multiple chuncks to the response.
+file starts a non-blocking HTTP server using standard Node.js APIs, and then renders the HTML page in multiple chunks to the response.
 
 ```javascript
 import * as React from 'react';

@@ -3,12 +3,11 @@ package org.wasmedge;
 /**
  * Memory type.
  */
-public class MemoryTypeContext {
-    private long pointer;
+public class MemoryTypeContext extends NativeResource {
     private Limit limit;
 
     private MemoryTypeContext(long pointer) {
-        this.pointer = pointer;
+        super(pointer);
     }
 
     public MemoryTypeContext(Limit limit) {
@@ -20,5 +19,5 @@ public class MemoryTypeContext {
 
     private native void nativeInit(boolean hasMax, long min, long max);
 
-    public native void delete();
+    public native void close();
 }

@@ -5,14 +5,13 @@ import org.wasmedge.enums.ValueType;
 /**
  * Table instance.
  */
-public class TableInstanceContext {
+public class TableInstanceContext extends NativeResource {
 
-    private long pointer;
 
     private TableTypeContext tableTypeContext;
 
     private TableInstanceContext(long pointer) {
-        this.pointer = pointer;
+        super(pointer);
     }
 
     public TableInstanceContext(TableTypeContext tableTypeContext) {
@@ -22,7 +21,7 @@ public class TableInstanceContext {
 
     private native void nativeInit(TableTypeContext tableTypeContext);
 
-    public native void delete();
+    public native void close();
 
     public TableTypeContext getTableType() {
         return this.tableTypeContext;

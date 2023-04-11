@@ -25,7 +25,7 @@ namespace Instance {
 class ElementInstance {
 public:
   ElementInstance() = delete;
-  ElementInstance(const uint32_t Offset, const FullRefType EType,
+  ElementInstance(const uint32_t Offset, const RefType &EType,
                   Span<const RefVariant> Init) noexcept
       : Off(Offset), Type(EType), Refs(Init.begin(), Init.end()) {}
 
@@ -33,7 +33,7 @@ public:
   uint32_t getOffset() const noexcept { return Off; }
 
   /// Get reference type of element instance.
-  FullRefType getRefType() const noexcept { return Type; }
+  const RefType &getRefType() const noexcept { return Type; }
 
   /// Get reference lists in element instance.
   Span<const RefVariant> getRefs() const noexcept { return Refs; }
@@ -45,7 +45,7 @@ private:
   /// \name Data of element instance.
   /// @{
   const uint32_t Off;
-  const FullRefType Type;
+  const RefType Type;
   std::vector<RefVariant> Refs;
   /// @}
 };

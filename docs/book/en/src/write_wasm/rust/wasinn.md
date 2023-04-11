@@ -29,13 +29,13 @@ In this section, we will use [the example repository](https://github.com/second-
 
 ## Prerequisites
 
-Currently, WasmEdge used OpenVINO™ or PyTorch as the WASI-NN backend implementation. For using WASI-NN on WasmEdge, you need to install [OpenVINO™](https://docs.openvino.ai/2021.4/openvino_docs_install_guides_installing_openvino_linux.html#)(2021) or [PyTorch 1.8.2 LTS](https://pytorch.org/get-started/locally/) for the backend.
-
-In the current status, the [WasmEdge Installer](../../quick_start/install.md) will install the `manylinux2014` version of WasmEdge releases, but the WASI-NN plug-in for WasmEdge only supports `Ubuntu 20.04` or later now. Please refer to the following steps to get the WasmEdge with WASI-NN plug-in.
+Currently, WasmEdge used OpenVINO™ or PyTorch as the WASI-NN backend implementation. For using WASI-NN on WasmEdge, you need to install [OpenVINO™](https://docs.openvino.ai/2021.4/openvino_docs_install_guides_installing_openvino_linux.html#)(2021), [PyTorch 1.8.2 LTS](https://pytorch.org/get-started/locally/), or [TensorFlow-Lite 2.6.0](#get-wasmedge-with-wasi-nn-plug-in-tensorflow-lite-backend) for the backend.
 
 You can also [build WasmEdge with WASI-NN plug-in from source](../../contribute/build_from_src/plugin_wasi_nn.md).
 
 ### Get WasmEdge with WASI-NN Plug-in OpenVINO Backend
+
+> Note: In current, the OpenVINO™ backend of WASI-NN in WasmEdge supports Ubuntu 20.04 or above only.
 
 First you should [install the OpenVINO dependency](../../contribute/build_from_src/plugin_wasi_nn.md#build-wasmedge-with-wasi-nn-openvino-backend):
 
@@ -53,16 +53,7 @@ ldconfig
 And then get the WasmEdge and the WASI-NN plug-in with OpenVINO backend:
 
 ```bash
-curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-tar -zxf WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-rm -f WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-plugin-wasi_nn-openvino-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-tar -zxf WasmEdge-plugin-wasi_nn-openvino-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-rm -f WasmEdge-plugin-wasi_nn-openvino-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-mv libwasmedgePluginWasiNN.so WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib
-export PATH=$PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/bin
-export WASMEDGE_PLUGIN_PATH=$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v {{ wasmedge_version }} --plugins wasi_nn-openvino
 ```
 
 ### Get WasmEdge with WASI-NN Plug-in PyTorch Backend
@@ -71,28 +62,23 @@ First you should [install the PyTorch dependency](../../contribute/build_from_sr
 
 ```bash
 export PYTORCH_VERSION="1.8.2"
-curl -s -L -O --remote-name-all https://download.pytorch.org/libtorch/lts/1.8/cpu/libtorch-cxx11-abi-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip
-unzip -q "libtorch-cxx11-abi-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip"
-rm -f "libtorch-cxx11-abi-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip"
+# For the Ubuntu 20.04 or above, use the libtorch with cxx11 abi.
+export PYTORCH_ABI="libtorch-cxx11-abi"
+# For the manylinux2014, please use the without cxx11 abi version:
+#   export PYTORCH_ABI="libtorch"
+curl -s -L -O --remote-name-all https://download.pytorch.org/libtorch/lts/1.8/cpu/${PYTORCH_ABI}-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip
+unzip -q "${PYTORCH_ABI}-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip"
+rm -f "${PYTORCH_ABI}-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip"
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$(pwd)/libtorch/lib
 ```
 
 And then get the WasmEdge and the WASI-NN plug-in with PyTorch backend:
 
 ```bash
-curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-tar -zxf WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-rm -f WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-plugin-wasi_nn-pytorch-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-tar -zxf WasmEdge-plugin-wasi_nn-pytorch-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-rm -f WasmEdge-plugin-wasi_nn-pytorch-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-mv libwasmedgePluginWasiNN.so WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib
-export PATH=$PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/bin
-export WASMEDGE_PLUGIN_PATH=$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v {{ wasmedge_version }} --plugins wasi_nn-pytorch
 ```
 
-> The WasmEdge installer would install the `manylinux2014` version for Ubuntu. If you install WasmEdge with the installer or for the `manylinux2014` version, you should get the `manylinux2014` version plug-in and `libtorch`.
+> Note: Please check that the Ubuntu version of WasmEdge and plug-in should use the cxx11-abi version of PyTorch, and the manylinux2014 version of WasmEdge and plug-in should use the PyTorch without cxx11-abi.
 
 ### Get WasmEdge with WASI-NN Plug-in TensorFlow-Lite Backend
 
@@ -117,25 +103,12 @@ Or set the environment variable `export LD_LIBRARY_PATH=$(pwd):${LD_LIBRARY_PATH
 And then get the WasmEdge and the WASI-NN plug-in with TensorFlow-Lite backend:
 
 ```bash
-curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-tar -zxf WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-rm -f WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-plugin-wasi_nn-tensorflowlite-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-tar -zxf WasmEdge-plugin-wasi_nn-tensorflowlite-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-rm -f WasmEdge-plugin-wasi_nn-tensorflowlite-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-mv libwasmedgePluginWasiNN.so WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib
-export PATH=$PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/bin
-export WASMEDGE_PLUGIN_PATH=$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v {{ wasmedge_version }} --plugins wasi_nn-tensorflowlite
 ```
-
-> The WasmEdge installer would install the `manylinux2014` version for Ubuntu. If you install WasmEdge with the installer or for the `manylinux2014` version, you should get the `manylinux2014` version plug-in.
->
-> We also provided [various TensorFlow-Lite pre-built libraries](https://github.com/second-state/WasmEdge-tensorflow-deps/releases/tag/0.11.1), such as `manylinux2014_aarch64`.
 
 ## Write WebAssembly Using WASI-NN
 
-You can refer to the [OpenVINO backend example](https://github.com/second-state/WasmEdge-WASINN-examples/tree/master/openvino-mobilenet-image) and the [PyTorch backend example](https://github.com/second-state/WasmEdge-WASINN-examples/tree/master/pytorch-mobilenet-image).
+You can refer to the [OpenVINO backend example](https://github.com/second-state/WasmEdge-WASINN-examples/tree/master/openvino-mobilenet-image), the [PyTorch backend example](https://github.com/second-state/WasmEdge-WASINN-examples/tree/master/pytorch-mobilenet-image), and the [TensorFlowLite backend example](https://github.com/second-state/WasmEdge-WASINN-examples/tree/master/tflite-birds_v1-image).
 
 ### (Optional) Rust Installation
 
@@ -242,7 +215,7 @@ fn image_to_tensor(path: String, height: u32, width: u32) -> Vec<u8> {
 }
 ```
 
-And use this helper funcion to convert the input image:
+And use this helper function to convert the input image:
 
 ```rust
 let tensor_data = image_to_tensor(image_name.to_string(), 224, 224);
@@ -354,7 +327,7 @@ fn image_to_tensor(path: String, height: u32, width: u32) -> Vec<u8> {
 }
 ```
 
-And use this helper funcion to convert the input image:
+And use this helper function to convert the input image:
 
 ```rust
 let tensor_data = image_to_tensor(image_name.to_string(), 224, 224);
@@ -445,7 +418,7 @@ fn image_to_tensor(path: String, height: u32, width: u32) -> Vec<u8> {
 }
 ```
 
-And use this helper funcion to convert the input image:
+And use this helper function to convert the input image:
 
 ```rust
 let tensor_data = image_to_tensor(image_name.to_string(), 224, 224);
@@ -492,7 +465,7 @@ unsafe {
 }
 ```
 
-Where the `wasi_nn::GRAPH_ENCODING_TENSORFLOWLITE` means using the PyTorch backend (now use the value `4` instead), and `wasi_nn::EXECUTION_TARGET_CPU` means running the computation on CPU.
+Where the `wasi_nn::GRAPH_ENCODING_TENSORFLOWLITE` means using the TensorflowLite backend (now use the value `4` instead), and `wasi_nn::EXECUTION_TARGET_CPU` means running the computation on CPU.
 
 > Note: Here we use the `wasi-nn 0.1.0` in current. After the `TENSORFLOWLITE` added into the graph encoding, we'll update this example to use the newer version.
 
@@ -625,7 +598,7 @@ For the example demo of [Bird v1](https://tfhub.dev/google/aiy/vision/classifier
 * `lite-model_aiy_vision_classifier_birds_V1_3.tflite`: the TensorFlow-Lite bird_v1 model.
 * `input.jpg`: the input image (224x224 JPEG).
 
-The above Mobilenet PyTorch model is generated by [the Python code](https://github.com/second-state/WasmEdge-WASINN-examples/blob/master/pytorch-mobilenet-image/gen_mobilenet_model.py).
+The above Mobilenet TensorflowLite model is generated by [the Python code](https://github.com/second-state/WasmEdge-WASINN-examples/blob/master/pytorch-mobilenet-image/gen_mobilenet_model.py).
 
 You can download these files by the following commands:
 
@@ -635,7 +608,7 @@ curl -sLO https://github.com/second-state/WasmEdge-WASINN-examples/raw/master/tf
 curl -sLO https://github.com/second-state/WasmEdge-WASINN-examples/raw/master/tflite-birds_v1-image/bird.jpg
 ```
 
-Then you can use the PyTorch-enabled WasmEdge which was compiled above to execute the WASM file (in interpreter mode):
+Then you can use the TensorflowLite-enabled WasmEdge which was compiled above to execute the WASM file (in interpreter mode):
 
 ```bash
 # Please check that you've already install the libtensorflowlite_c.so and set the `LD_LIBRARY_PATH`.

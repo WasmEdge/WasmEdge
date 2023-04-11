@@ -56,7 +56,7 @@ Due to the WasmEdge C API breaking changes, this document shows the guideline of
 
 5. The `WasmEdge_ModuleInstanceContext`-based resource management.
 
-   Except the creation of `Module` instance for the host functons, the `Executor` will output a `Module` instance after instantiation. No matter the anonymous or named modules, developers have the responsibility to destroy them by `WasmEdge_ModuleInstanceDelete()` API.
+   Except the creation of `Module` instance for the host functions, the `Executor` will output a `Module` instance after instantiation. No matter the anonymous or named modules, developers have the responsibility to destroy them by `WasmEdge_ModuleInstanceDelete()` API.
    The `Store` will link to the named `Module` instance after registering. After the destroyment of a `Module` instance, the `Store` will unlink to that automatically; after the destroyment of the `Store`, the all `Module` instances the `Store` linked to will unlink to that `Store` automatically.
 
 ## WasmEdge VM changes
@@ -146,8 +146,8 @@ WasmEdge_StringDelete(GlobName);
 
     Then the WASM module is instantiated into an anonymous module instance and handled by the `Store`.
     If a new WASM module is instantiated by this API, the old instantiated module instance will be cleaned.
-    After the WasmEdge `0.10.0` version, the instantiated anonymous module will be outputed and handled by caller, and not only 1 anonymous module instance can be instantiated.
-    Developers have the responsibility to destroy the outputed module instances.
+    After the WasmEdge `0.10.0` version, the instantiated anonymous module will be outputted and handled by caller, and not only 1 anonymous module instance can be instantiated.
+    Developers have the responsibility to destroy the outputted module instances.
 
     ```c
     WasmEdge_ASTModuleContext *ASTCxt1, *ASTCxt2;
@@ -211,7 +211,7 @@ WasmEdge_StringDelete(GlobName);
     }
     ```
 
-    Developers have the responsibility to destroy the outputed module instances.
+    Developers have the responsibility to destroy the outputted module instances.
 
 3. Host module registration
 
@@ -457,7 +457,7 @@ if (!WasmEdge_ResultOK(Res)) {
 }
 WasmEdge_StringDelete(ModName);
 
-/* Now, developers can retrieve the exported instances from the module instaces. */
+/* Now, developers can retrieve the exported instances from the module instances. */
 /* Take the exported functions as example. This WASM exports the function "fib". */
 WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
 WasmEdge_FunctionInstanceContext *FoundFuncCxt;

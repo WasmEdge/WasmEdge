@@ -178,7 +178,7 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
   // Check initialization expressions are const expressions.
   for (auto &Expr : ElemSeg.getInitExprs()) {
     if (auto Res = validateConstExpr(Expr.getInstrs(),
-                                     {FullValType(ElemSeg.getRefType())});
+                                     {ValType(ElemSeg.getRefType())});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
@@ -205,7 +205,7 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
     }
     // Check table initialization is a const expression.
     if (auto Res = validateConstExpr(ElemSeg.getExpr().getInstrs(),
-                                     {FullValType(ValType::I32)});
+                                     {ValType(ValTypeCode::I32)});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
@@ -252,7 +252,7 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
     }
     // Check memory initialization is a const expression.
     if (auto Res = validateConstExpr(DataSeg.getExpr().getInstrs(),
-                                     {FullValType(ValType::I32)});
+                                     {ValType(ValTypeCode::I32)});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
@@ -491,7 +491,7 @@ Expect<void> Validator::validate(const AST::StartSection &StartSec) {
     auto &Type = Checker.getTypes()[TId];
     if (Type.first.size() != 0 || Type.second.size() != 0) {
       // Start function signature should be {}->{}
-      std::vector<FullValType> Params, Returns;
+      std::vector<ValType> Params, Returns;
       for (auto &V : Type.first) {
         Params.push_back(Checker.VTypeToAST(V));
       }
@@ -527,7 +527,7 @@ Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
 
 // Validate constant expression. See "include/validator/validator.h".
 Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
-                                          Span<const FullValType> Returns) {
+                                          Span<const ValType> Returns) {
   for (auto &Instr : Instrs) {
     // Only these instructions are accepted.
     switch (Instr.getOpCode()) {

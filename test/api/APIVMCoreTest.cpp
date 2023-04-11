@@ -105,8 +105,8 @@ TEST_P(CoreTest, TestSuites) {
   // Helper function to call functions.
   T.onInvoke = [&VM](const std::string &ModName, const std::string &Field,
                      const std::vector<ValVariant> &Params,
-                     const std::vector<FullValType> &ParamTypes)
-      -> Expect<std::vector<std::pair<ValVariant, FullValType>>> {
+                     const std::vector<ValType> &ParamTypes)
+      -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
     WasmEdge_Result Res;
     std::vector<WasmEdge_Value> CParams = convFromValVec(Params, ParamTypes);
     std::vector<WasmEdge_Value> CReturns;
@@ -149,7 +149,7 @@ TEST_P(CoreTest, TestSuites) {
   };
   // Helper function to get values.
   T.onGet = [&VM](const std::string &ModName, const std::string &Field)
-      -> Expect<std::pair<ValVariant, FullValType>> {
+      -> Expect<std::pair<ValVariant, ValType>> {
     // Get module instance.
     const WasmEdge_ModuleInstanceContext *ModCxt = nullptr;
     WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VM);
@@ -169,14 +169,7 @@ TEST_P(CoreTest, TestSuites) {
     if (GlobCxt == nullptr) {
       return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
-    WasmEdge_Value Val = WasmEdge_GlobalInstanceGetValue(GlobCxt);
-#if defined(__x86_64__) || defined(__aarch64__)
-    return std::make_pair(ValVariant(Val.Value), Val.Type);
-#else
-    return std::make_pair(
-        ValVariant(WasmEdge::uint128_t(Val.Value.High, Val.Value.Low)),
-        Val.Type);
-#endif
+    return convToVal(WasmEdge_GlobalInstanceGetValue(GlobCxt));
   };
 
   T.run(Proposal, UnitName);

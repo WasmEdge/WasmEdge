@@ -5,11 +5,10 @@ import java.util.List;
 /**
  * Async object.
  */
-public class Async {
-    private long pointer;
+public class Async extends NativeResource {
 
     private Async(long pointer) {
-        this.pointer = pointer;
+        super(pointer);
     }
 
     public native void asyncWait();
@@ -40,6 +39,6 @@ public class Async {
         get(valuesArray, types);
     }
 
-    public native void delete();
+    public native void close();
 }
 

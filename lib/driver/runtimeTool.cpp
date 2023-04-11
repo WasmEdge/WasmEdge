@@ -44,10 +44,11 @@ int Tool(int Argc, const char *Argv[]) noexcept {
 
   PO::List<std::string> Dir(
       PO::Description(
-          "Binding directories into WASI virtual filesystem. Each directories "
-          "can specified as --dir `guest_path:host_path`, where `guest_path` "
-          "specifies the path that will correspond to `host_path` for calls "
-          "like `fopen` in the guest."sv),
+          "Binding directories into WASI virtual filesystem. Each directory "
+          "can be specified as --dir `host_path`. You can also map a guest "
+          "directory to a host directory by --dir `guest_path:host_path`, "
+          "where `guest_path` specifies the path that will correspond to "
+          "`host_path` for calls like `fopen` in the guest."sv),
       PO::MetaVar("PREOPEN_DIRS"sv));
 
   PO::List<std::string> Env(
@@ -236,13 +237,6 @@ int Tool(int Argc, const char *Argv[]) noexcept {
   }
 
   Conf.addHostRegistration(HostRegistration::Wasi);
-  Conf.addHostRegistration(HostRegistration::WasmEdge_Process);
-  Conf.addHostRegistration(HostRegistration::WasiNN);
-  Conf.addHostRegistration(HostRegistration::WasiCrypto_Common);
-  Conf.addHostRegistration(HostRegistration::WasiCrypto_AsymmetricCommon);
-  Conf.addHostRegistration(HostRegistration::WasiCrypto_Kx);
-  Conf.addHostRegistration(HostRegistration::WasiCrypto_Signatures);
-  Conf.addHostRegistration(HostRegistration::WasiCrypto_Symmetric);
   const auto InputPath = std::filesystem::absolute(SoName.value());
   VM::VM VM(Conf);
 
@@ -310,7 +304,8 @@ int Tool(int Argc, const char *Argv[]) noexcept {
         Result || Result.error() == ErrCode::Value::Terminated) {
       return static_cast<int>(WasiMod->getEnv().getExitCode());
     } else {
-      return EXIT_FAILURE;
+      // It indicates that the execution of wasm has been aborted
+      return 128 + SIGABRT;
     }
   } else {
     // reactor mode
@@ -343,40 +338,41 @@ int Tool(int Argc, const char *Argv[]) noexcept {
         }
       }
       if (auto Result = AsyncResult.get(); unlikely(!Result)) {
-        return EXIT_FAILURE;
+        // It indicates that the execution of wasm has been aborted
+        return 128 + SIGABRT;
       }
     }
 
     std::vector<ValVariant> FuncArgs;
-    std::vector<FullValType> FuncArgTypes;
+    std::vector<ValType> FuncArgTypes;
     for (size_t I = 0;
          I < FuncType.getParamTypes().size() && I + 1 < Args.value().size();
          ++I) {
-      switch (FuncType.getParamTypes()[I].getTypeCode()) {
+      switch (FuncType.getParamTypes()[I].getCode()) {
       case ValTypeCode::I32: {
         const uint32_t Value =
             static_cast<uint32_t>(std::stol(Args.value()[I + 1]));
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(NumType::I32);
+        FuncArgTypes.emplace_back(NumTypeCode::I32);
         break;
       }
       case ValTypeCode::I64: {
         const uint64_t Value =
             static_cast<uint64_t>(std::stoll(Args.value()[I + 1]));
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(NumType::I64);
+        FuncArgTypes.emplace_back(NumTypeCode::I64);
         break;
       }
       case ValTypeCode::F32: {
         const float Value = std::stof(Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(NumType::F32);
+        FuncArgTypes.emplace_back(NumTypeCode::F32);
         break;
       }
       case ValTypeCode::F64: {
         const double Value = std::stod(Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(NumType::F64);
+        FuncArgTypes.emplace_back(NumTypeCode::F64);
         break;
       }
       /// TODO: FuncRef and ExternRef
@@ -390,7 +386,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
         const uint64_t Value =
             static_cast<uint64_t>(std::stoll(Args.value()[I]));
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(ValType::F64);
+        FuncArgTypes.emplace_back(ValTypeCode::I64);
       }
     }
 
@@ -403,7 +399,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
     if (auto Result = AsyncResult.get()) {
       /// Print results.
       for (size_t I = 0; I < Result->size(); ++I) {
-        switch ((*Result)[I].second.getTypeCode()) {
+        switch ((*Result)[I].second.getCode()) {
         case ValTypeCode::I32:
           std::cout << (*Result)[I].first.get<uint32_t>() << '\n';
           break;
@@ -426,7 +422,8 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       }
       return EXIT_SUCCESS;
     } else {
-      return EXIT_FAILURE;
+      // It indicates that the execution of wasm has been aborted
+      return 128 + SIGABRT;
     }
   }
 }

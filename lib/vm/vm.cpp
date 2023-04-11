@@ -7,8 +7,29 @@
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
 
+#include "host/mock/wasi_crypto_module.h"
+#include "host/mock/wasi_nn_module.h"
+#include "host/mock/wasmedge_httpsreq_module.h"
+#include "host/mock/wasmedge_process_module.h"
+
 namespace WasmEdge {
 namespace VM {
+
+namespace {
+template <typename T>
+std::unique_ptr<Runtime::Instance::ModuleInstance>
+createPluginModule(std::string_view PName, std::string_view MName) {
+  using namespace std::literals::string_view_literals;
+  if (const auto *Plugin = Plugin::Plugin::find(PName)) {
+    if (const auto *Module = Plugin->findModule(MName)) {
+      return Module->create();
+    }
+  }
+  spdlog::debug("Plugin: "sv, PName, " , module name: "sv, MName,
+                "not found. Mock instead."sv);
+  return std::make_unique<T>();
+}
+} // namespace
 
 VM::VM(const Configure &Conf)
     : Conf(Conf), Stage(VMStage::Inited),
@@ -26,64 +47,79 @@ VM::VM(const Configure &Conf, Runtime::StoreManager &S)
 }
 
 void VM::unsafeInitVM() {
-  using namespace std::literals::string_view_literals;
-  // Create import modules from configuration.
+  // Load the built-in modules and the plug-ins.
+  unsafeLoadBuiltInHosts();
+  unsafeLoadPlugInHosts();
+
+  // Register all module instances.
+  unsafeRegisterBuiltInHosts();
+  unsafeRegisterPlugInHosts();
+}
+
+void VM::unsafeLoadBuiltInHosts() {
+  // Load the built-in host modules from configuration.
+  // TODO: This will be extended for the versionlized WASI in the future.
+  BuiltInModInsts.clear();
   if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
     std::unique_ptr<Runtime::Instance::ModuleInstance> WasiMod =
         std::make_unique<Host::WasiModule>();
-    ExecutorEngine.registerModule(StoreRef, *WasiMod.get());
-    ImpObjs.insert({HostRegistration::Wasi, std::move(WasiMod)});
+    BuiltInModInsts.insert({HostRegistration::Wasi, std::move(WasiMod)});
   }
+}
 
-  // Load the plugins.
-  auto loadPlugin = [=](std::string_view PName, HostRegistration Host,
-                        std::string_view MName) {
-    if (Conf.hasHostRegistration(Host)) {
-      bool Founded = false;
-      if (const auto *Plugin = Plugin::Plugin::find(PName)) {
-        if (const auto *Module = Plugin->findModule(MName)) {
-          auto ProcMod = Module->create();
-          ExecutorEngine.registerModule(StoreRef, *ProcMod);
-          ImpObjs.emplace(Host, std::move(ProcMod));
-          Founded = true;
-        }
-      }
-      if (!Founded) {
-        spdlog::debug("Plugin:"sv, PName, "module: "sv, MName,
-                      "not founded."sv);
-      }
-    }
-  };
-  loadPlugin("wasmedge_process"sv, HostRegistration::WasmEdge_Process,
-             "wasmedge_process"sv);
-  loadPlugin("wasi_nn"sv, HostRegistration::WasiNN, "wasi_nn"sv);
-  loadPlugin("wasi_crypto"sv, HostRegistration::WasiCrypto_Common,
-             "wasi_crypto_common"sv);
-  loadPlugin("wasi_crypto"sv, HostRegistration::WasiCrypto_AsymmetricCommon,
-             "wasi_crypto_asymmetric_common"sv);
-  loadPlugin("wasi_crypto"sv, HostRegistration::WasiCrypto_Kx,
-             "wasi_crypto_kx"sv);
-  loadPlugin("wasi_crypto"sv, HostRegistration::WasiCrypto_Signatures,
-             "wasi_crypto_signatures"sv);
-  loadPlugin("wasi_crypto"sv, HostRegistration::WasiCrypto_Symmetric,
-             "wasi_crypto_symmetric"sv);
+void VM::unsafeLoadPlugInHosts() {
+  // Load the plugins and mock them if not found.
+  using namespace std::literals::string_view_literals;
+  PlugInModInsts.clear();
 
-  uint8_t Index = static_cast<uint8_t>(HostRegistration::Max);
+  PlugInModInsts.push_back(
+      createPluginModule<Host::WasiNNModuleMock>("wasi_nn"sv, "wasi_nn"sv));
+  PlugInModInsts.push_back(createPluginModule<Host::WasiCryptoCommonModuleMock>(
+      "wasi_crypto"sv, "wasi_crypto_common"sv));
+  PlugInModInsts.push_back(
+      createPluginModule<Host::WasiCryptoAsymmetricCommonModuleMock>(
+          "wasi_crypto"sv, "wasi_crypto_asymmetric_common"sv));
+  PlugInModInsts.push_back(createPluginModule<Host::WasiCryptoKxModuleMock>(
+      "wasi_crypto"sv, "wasi_crypto_kx"sv));
+  PlugInModInsts.push_back(
+      createPluginModule<Host::WasiCryptoSignaturesModuleMock>(
+          "wasi_crypto"sv, "wasi_crypto_signatures"sv));
+  PlugInModInsts.push_back(
+      createPluginModule<Host::WasiCryptoSymmetricModuleMock>(
+          "wasi_crypto"sv, "wasi_crypto_symmetric"sv));
+  PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeProcessModuleMock>(
+      "wasmedge_process"sv, "wasmedge_process"sv));
+  PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeHttpsReqModuleMock>(
+      "wasmedge_httpsreq"sv, "wasmedge_httpsreq"sv));
+
+  // Load the other non-official plugins.
   for (const auto &Plugin : Plugin::Plugin::plugins()) {
     if (Conf.isForbiddenPlugins(Plugin.name())) {
       continue;
     }
-    // skip WasmEdge_Process, wasi_nn, ans wasi_crypto.
-    if (Plugin.name() == "wasmedge_process"sv || Plugin.name() == "wasi_nn"sv ||
-        Plugin.name() == "wasi_crypto"sv) {
+    // Skip WasmEdge_Process, WasmEdge_HttpsReq, wasi_nn, and wasi_crypto.
+    if (Plugin.name() == "wasmedge_process"sv ||
+        Plugin.name() == "wasmedge_httpsreq"sv ||
+        Plugin.name() == "wasi_nn"sv || Plugin.name() == "wasi_crypto"sv) {
       continue;
     }
     for (const auto &Module : Plugin.modules()) {
-      auto ModObj = Module.create();
-      ExecutorEngine.registerModule(StoreRef, *ModObj);
-      ImpObjs.emplace(static_cast<HostRegistration>(Index++),
-                      std::move(ModObj));
+      PlugInModInsts.push_back(Module.create());
     }
+  }
+}
+
+void VM::unsafeRegisterBuiltInHosts() {
+  // Register all created WASI host modules.
+  for (auto &It : BuiltInModInsts) {
+    ExecutorEngine.registerModule(StoreRef, *(It.second.get()));
+  }
+}
+
+void VM::unsafeRegisterPlugInHosts() {
+  // Register all created module instances from plugins.
+  for (auto &It : PlugInModInsts) {
+    ExecutorEngine.registerModule(StoreRef, *(It.get()));
   }
 }
 
@@ -130,7 +166,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
   }
   // Instantiate and register module.
   if (auto Res = ExecutorEngine.registerModule(StoreRef, Module, Name)) {
-    RegModInst.push_back(std::move(*Res));
+    RegModInsts.push_back(std::move(*Res));
     return {};
   } else {
     return Unexpect(Res);
@@ -147,10 +183,10 @@ VM::unsafeRegisterModule(const Runtime::Instance::ModuleInstance &ModInst) {
   return ExecutorEngine.registerModule(StoreRef, ModInst);
 }
 
-Expect<std::vector<std::pair<ValVariant, FullValType>>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                       Span<const ValVariant> Params,
-                      Span<const FullValType> ParamTypes) {
+                      Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
     // When running another module, instantiated module in store will be reset.
     // Therefore the instantiation should restart.
@@ -164,10 +200,10 @@ VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
   }
 }
 
-Expect<std::vector<std::pair<ValVariant, FullValType>>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
                       Span<const ValVariant> Params,
-                      Span<const FullValType> ParamTypes) {
+                      Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
     // When running another module, instantiated module in store will be reset.
     // Therefore the instantiation should restart.
@@ -181,10 +217,10 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
   }
 }
 
-Expect<std::vector<std::pair<ValVariant, FullValType>>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
                       Span<const ValVariant> Params,
-                      Span<const FullValType> ParamTypes) {
+                      Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
     // When running another module, instantiated module in store will be reset.
     // Therefore the instantiation should restart.
@@ -209,13 +245,13 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
   }
 }
 
-Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                      Span<const ValVariant> Params,
-                     Span<const FullValType> ParamTypes) {
-  Expect<std::vector<std::pair<ValVariant, FullValType>>> (VM::*FPtr)(
+                     Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       const std::filesystem::path &, std::string_view, Span<const ValVariant>,
-      Span<const FullValType>) = &VM::runWasmFile;
+      Span<const ValType>) = &VM::runWasmFile;
   return {FPtr,
           *this,
           std::filesystem::path(Path),
@@ -224,13 +260,13 @@ VM::asyncRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
-Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncRunWasmFile(Span<const Byte> Code, std::string_view Func,
                      Span<const ValVariant> Params,
-                     Span<const FullValType> ParamTypes) {
-  Expect<std::vector<std::pair<ValVariant, FullValType>>> (VM::*FPtr)(
+                     Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       Span<const Byte>, std::string_view, Span<const ValVariant>,
-      Span<const FullValType>) = &VM::runWasmFile;
+      Span<const ValType>) = &VM::runWasmFile;
   return {FPtr,
           *this,
           Code,
@@ -239,13 +275,13 @@ VM::asyncRunWasmFile(Span<const Byte> Code, std::string_view Func,
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
-Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
                      Span<const ValVariant> Params,
-                     Span<const FullValType> ParamTypes) {
-  Expect<std::vector<std::pair<ValVariant, FullValType>>> (VM::*FPtr)(
+                     Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       const AST::Module &, std::string_view, Span<const ValVariant>,
-      Span<const FullValType>) = &VM::runWasmFile;
+      Span<const ValType>) = &VM::runWasmFile;
   return {FPtr,
           *this,
           Module,
@@ -311,9 +347,9 @@ Expect<void> VM::unsafeInstantiate() {
   }
 }
 
-Expect<std::vector<std::pair<ValVariant, FullValType>>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
-                  Span<const FullValType> ParamTypes) {
+                  Span<const ValType> ParamTypes) {
   if (ActiveModInst) {
     // Execute function and return values with the module instance.
     return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
@@ -324,10 +360,10 @@ VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
   }
 }
 
-Expect<std::vector<std::pair<ValVariant, FullValType>>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(std::string_view ModName, std::string_view Func,
                   Span<const ValVariant> Params,
-                  Span<const FullValType> ParamTypes) {
+                  Span<const ValType> ParamTypes) {
   // Find module instance by name.
   const auto *FindModInst = StoreRef.findModule(ModName);
   if (FindModInst != nullptr) {
@@ -340,10 +376,10 @@ VM::unsafeExecute(std::string_view ModName, std::string_view Func,
   }
 }
 
-Expect<std::vector<std::pair<ValVariant, FullValType>>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
                   std::string_view Func, Span<const ValVariant> Params,
-                  Span<const FullValType> ParamTypes) {
+                  Span<const ValType> ParamTypes) {
   // Find exported function by name.
   Runtime::Instance::FunctionInstance *FuncInst =
       ModInst->findFuncExports(Func);
@@ -365,24 +401,24 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
   }
 }
 
-Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncExecute(std::string_view Func, Span<const ValVariant> Params,
-                 Span<const FullValType> ParamTypes) {
-  Expect<std::vector<std::pair<ValVariant, FullValType>>> (VM::*FPtr)(
-      std::string_view, Span<const ValVariant>, Span<const FullValType>) =
+                 Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
+      std::string_view, Span<const ValVariant>, Span<const ValType>) =
       &VM::execute;
   return {FPtr, *this, std::string(Func),
           std::vector(Params.begin(), Params.end()),
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
-Async<Expect<std::vector<std::pair<ValVariant, FullValType>>>>
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncExecute(std::string_view ModName, std::string_view Func,
                  Span<const ValVariant> Params,
-                 Span<const FullValType> ParamTypes) {
-  Expect<std::vector<std::pair<ValVariant, FullValType>>> (VM::*FPtr)(
+                 Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       std::string_view, std::string_view, Span<const ValVariant>,
-      Span<const FullValType>) = &VM::execute;
+      Span<const ValType>) = &VM::execute;
   return {FPtr,
           *this,
           std::string(ModName),
@@ -394,7 +430,13 @@ VM::asyncExecute(std::string_view ModName, std::string_view Func,
 void VM::unsafeCleanup() {
   Mod.reset();
   ActiveModInst.reset();
+  StoreRef.reset();
+  RegModInsts.clear();
   Stat.clear();
+  unsafeLoadBuiltInHosts();
+  unsafeLoadPlugInHosts();
+  unsafeRegisterBuiltInHosts();
+  unsafeRegisterPlugInHosts();
   Stage = VMStage::Inited;
 }
 
@@ -415,7 +457,7 @@ VM::unsafeGetFunctionList() const {
 
 Runtime::Instance::ModuleInstance *
 VM::unsafeGetImportModule(const HostRegistration Type) const {
-  if (auto Iter = ImpObjs.find(Type); Iter != ImpObjs.cend()) {
+  if (auto Iter = BuiltInModInsts.find(Type); Iter != BuiltInModInsts.cend()) {
     return Iter->second.get();
   }
   return nullptr;

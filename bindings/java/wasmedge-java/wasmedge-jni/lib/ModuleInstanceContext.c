@@ -118,7 +118,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_addGlobal(
       impObjCxt, JStringToWasmString(env, jGlobalName), globalInstance);
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_delete(
+JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_close(
     JNIEnv *env, jobject thisObject) {
   WasmEdge_ModuleInstanceContext *impObjCxt =
       getModuleInstanceContext(env, thisObject);

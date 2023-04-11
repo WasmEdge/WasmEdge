@@ -963,7 +963,7 @@ Expect<uint32_t> WasiNNCompute::body(const Runtime::CallingFrame &Frame,
     }
     TfLiteStatus Stat = TfLiteInterpreterInvoke(CxtRef.TFLiteInterp);
     if (unlikely(Stat != TfLiteStatus::kTfLiteOk)) {
-      spdlog::error("[WASI-NN] Invokation failed.");
+      spdlog::error("[WASI-NN] Invocation failed.");
       return static_cast<uint32_t>(WASINN::ErrNo::Busy);
     }
     return static_cast<uint32_t>(WASINN::ErrNo::Success);

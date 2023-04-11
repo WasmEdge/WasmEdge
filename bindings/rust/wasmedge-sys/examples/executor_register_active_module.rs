@@ -42,12 +42,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // load module from a wasm file
     let config = Config::create()?;
-    let loader = Loader::create(Some(config))?;
+    let loader = Loader::create(Some(&config))?;
     let module = loader.from_bytes(wasm_bytes)?;
 
     // validate module
     let config = Config::create()?;
-    let validator = Validator::create(Some(config))?;
+    let validator = Validator::create(Some(&config))?;
     validator.validate(&module)?;
 
     // create an Executor context

@@ -16,7 +16,7 @@
 #pragma once
 
 #include "ctx.h"
-#include "symmetric/registed.h"
+#include "symmetric/registered.h"
 #include "utils/error.h"
 
 #include "runtime/callingframe.h"

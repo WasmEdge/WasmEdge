@@ -37,7 +37,8 @@ public:
   /// Constructor assigns the OpCode and the Offset.
   Instruction(OpCode Byte, uint32_t Off = 0) noexcept
       : Offset(Off), Code(Byte) {
-#if defined(__x86_64__) || defined(__aarch64__)
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
     Data.Num = static_cast<uint128_t>(0);
 #else
     Data.Num.Low = static_cast<uint64_t>(0);
@@ -56,7 +57,7 @@ public:
       std::copy_n(Instr.Data.BrTable.LabelList, Data.BrTable.LabelListSize,
                   Data.BrTable.LabelList);
     } else if (Flags.IsAllocValTypeList) {
-      Data.SelectT.ValTypeList = new FullValType[Data.SelectT.ValTypeListSize];
+      Data.SelectT.ValTypeList = new ValType[Data.SelectT.ValTypeListSize];
       std::copy_n(Instr.Data.SelectT.ValTypeList, Data.SelectT.ValTypeListSize,
                   Data.SelectT.ValTypeList);
     }
@@ -89,8 +90,8 @@ public:
   uint32_t getOffset() const noexcept { return Offset; }
 
   /// Getter and setter of block type.
-  BlockType getBlockType() const noexcept { return Data.Blocks.ResType; }
-  void setBlockType(FullValType VType) noexcept {
+  const BlockType &getBlockType() const noexcept { return Data.Blocks.ResType; }
+  void setBlockType(const ValType &VType) noexcept {
     Data.Blocks.ResType.setData(VType);
   }
   void setBlockType(uint32_t Idx) noexcept { Data.Blocks.ResType.setData(Idx); }
@@ -105,8 +106,8 @@ public:
   void setJumpElse(const uint32_t Cnt) noexcept { Data.Blocks.JumpElse = Cnt; }
 
   /// Getter and setter of reference type.
-  HeapType getHeapType() const noexcept { return Data.HType; }
-  void setHeapType(HeapType HType) noexcept { Data.HType = HType; }
+  const HeapType &getHeapType() const noexcept { return Data.HType; }
+  void setHeapType(const HeapType &HType) noexcept { Data.HType = HType; }
 
   /// Getter and setter of label list.
   void setLabelListSize(uint32_t Size) {
@@ -141,17 +142,17 @@ public:
     reset();
     if (Size > 0) {
       Data.SelectT.ValTypeListSize = Size;
-      Data.SelectT.ValTypeList = new FullValType[Size];
+      Data.SelectT.ValTypeList = new ValType[Size];
       Flags.IsAllocValTypeList = true;
     }
   }
-  Span<const FullValType> getValTypeList() const noexcept {
-    return Span<const FullValType>(Data.SelectT.ValTypeList,
-                                   Data.SelectT.ValTypeListSize);
+  Span<const ValType> getValTypeList() const noexcept {
+    return Span<const ValType>(Data.SelectT.ValTypeList,
+                               Data.SelectT.ValTypeListSize);
   }
-  Span<FullValType> getValTypeList() noexcept {
-    return Span<FullValType>(Data.SelectT.ValTypeList,
-                             Data.SelectT.ValTypeListSize);
+  Span<ValType> getValTypeList() noexcept {
+    return Span<ValType>(Data.SelectT.ValTypeList,
+                         Data.SelectT.ValTypeListSize);
   }
 
   /// Getter and setter of target index.
@@ -180,7 +181,8 @@ public:
 
   /// Getter and setter of the constant value.
   ValVariant getNum() const noexcept {
-#if defined(__x86_64__) || defined(__aarch64__)
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
     return ValVariant(Data.Num);
 #else
     uint128_t N(Data.Num.High, Data.Num.Low);
@@ -188,7 +190,8 @@ public:
 #endif
   }
   void setNum(ValVariant N) noexcept {
-#if defined(__x86_64__) || defined(__aarch64__)
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
     Data.Num = N.get<uint128_t>();
 #else
     std::memcpy(&Data.Num, &N.get<uint128_t>(), sizeof(uint128_t));
@@ -244,7 +247,7 @@ private:
     // Type 6: ValTypeList.
     struct {
       uint32_t ValTypeListSize;
-      FullValType *ValTypeList;
+      ValType *ValTypeList;
     } SelectT;
     // Type 7: TargetIdx, MemAlign, MemOffset, and MemLane.
     struct {
@@ -254,7 +257,8 @@ private:
       uint8_t MemLane;
     } Memories;
     // Type 8: Num.
-#if defined(__x86_64__) || defined(__aarch64__)
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
     uint128_t Num;
 #else
     struct {

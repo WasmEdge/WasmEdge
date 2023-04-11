@@ -780,7 +780,7 @@ TEST(FileManagerTest, File__ReadSigned33) {
       // First number.
       // The first 4 bytes are 0b11111111, which indicates 4*7=28 lowest bits
       // be 1.
-      // The last byte is 0b00001111. The higest bit is 0, indicating that this
+      // The last byte is 0b00001111. The highest bit is 0, indicating that this
       // is the last byte. The fifth lowest bit is 0, indicating this number is
       // a positive number. Therefore, the sixth and seventh bit must also be 0.
       // The lowest 4 bits are all 1.
@@ -793,7 +793,7 @@ TEST(FileManagerTest, File__ReadSigned33) {
       // Second number.
       // The first 4 bytes are 0b10000000, which indicates 4*7=28 lowest bits
       // be 0.
-      // The last byte is 0b01110000. The higest bit is 0, indicating that this
+      // The last byte is 0b01110000. The highest bit is 0, indicating that this
       // is the last byte. The fifth lowest bit is 1, indicating this number is
       // a negative number. Therefore, the sixth and seventh bit must also be 1.
       // The lowest 4 bits are all 0.
@@ -827,7 +827,7 @@ TEST(FileManagerTest, File__ReadSigned33TooLarge) {
   // 38. Test signed 33bit integer decoding in too large case.
   WasmEdge::Expect<int64_t> ReadNum;
   // The first 4 bytes starts with bit 1, which indicates there is a coming
-  // fifth byte. The last byte is 0b00101111. The higest bit is 0, indicating
+  // fifth byte. The last byte is 0b00101111. The highest bit is 0, indicating
   // that this is the last byte. The fifth lowest bit is 0, indicating this
   // number is a positive number. Therefore, the sixth and seventh bit must also
   // be 0. However, the sixth lowest bit is 1, which will cause loading a too
@@ -837,7 +837,7 @@ TEST(FileManagerTest, File__ReadSigned33TooLarge) {
   ASSERT_FALSE(ReadNum = Mgr.readS33());
   EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
   // The first 4 bytes starts with bit 1, which indicates there is a coming
-  // fifth byte. The last byte is 0b01011111. The higest bit is 0, indicating
+  // fifth byte. The last byte is 0b01011111. The highest bit is 0, indicating
   // that this is the last byte. The fifth lowest bit is 1, indicating this
   // number is a negative number. Therefore, the sixth and seventh bit must also
   // be 1. However, the sixth lowest bit is 0, which will cause loading a too

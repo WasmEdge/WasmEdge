@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "kx/registed.h"
+#include "kx/registered.h"
 #include "utils/error.h"
 
 #include <cstdint>

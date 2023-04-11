@@ -41,10 +41,8 @@ A(Seg_Global, "global segment")
 A(Seg_Element, "element segment")
 A(Seg_Code, "code segment")
 A(Seg_Data, "data segment")
-A(Type_Function, "function type")
-A(Type_ValType, "value type")
-A(Type_RefType, "reference type")
 A(Type_Limit, "limit")
+A(Type_Function, "function type")
 A(Type_Memory, "memory type")
 A(Type_Table, "table type")
 A(Type_Global, "global type")
@@ -645,13 +643,6 @@ P(FunctionReferences, "Typed Function References")
 #ifdef UseHostRegistration
 #define H Line
 H(Wasi)
-H(WasmEdge_Process)
-H(WasiNN)
-H(WasiCrypto_Common)
-H(WasiCrypto_AsymmetricCommon)
-H(WasiCrypto_Kx)
-H(WasiCrypto_Signatures)
-H(WasiCrypto_Symmetric)
 #undef H
 #endif // UseHostRegistration
 
@@ -916,9 +907,7 @@ I(Lane, "lane")
 
 // enum_types.h
 
-// The raw ValType definition is deprecated. If you want to support more
-// ValType, add to the new definition of NumType or RefType.
-#ifdef UseValType
+#ifdef UseValTypeCode
 #define V Line
 
 V(I32, 0x7F, "i32")
@@ -926,13 +915,15 @@ V(I64, 0x7E, "i64")
 V(F32, 0x7D, "f32")
 V(F64, 0x7C, "f64")
 V(V128, 0x7B, "v128")
-V(FuncRef, 0x70, "funcref")
-V(ExternRef, 0x6F, "externref")
+V(FuncRef, 0x70, "func")
+V(ExternRef, 0x6F, "extern")
+V(Ref, 0x6B, "ref")
+V(RefNull, 0x6C, "nullable ref")
 
 #undef V
-#endif // UseValType
+#endif // UseValTypeCode
 
-#ifdef UseNumType
+#ifdef UseNumTypeCode
 #define N Line
 
 N(I32, 0x7F)
@@ -942,39 +933,18 @@ N(F64, 0x7C)
 N(V128, 0x7B)
 
 #undef N
-#endif // UseNumType
-
-#ifdef UseHeapTypeCode
-#define H Line
-
-H(Extern, 0x6F)
-H(Func, 0x70)
-// This stands for type defined in wasm module. The value `0xFF` is an arbitary
-// value.
-H(Defined, 0xFF)
-
-#undef V
-#endif // UseHeapTypeCode
+#endif // UseNumTypeCode
 
 #ifdef UseRefTypeCode
 #define R Line
 
 R(Ref, 0x6B)
 R(RefNull, 0x6C)
+R(ExternRef, 0x6F)
+R(FuncRef, 0x70)
 
 #undef R
 #endif // UseRefTypeCode
-
-// The raw RefType definition is deprecated. If you want to support more
-// RefType, add to HeapType and RefTypeCode.
-#ifdef UseRefType
-#define R Line
-
-R(FuncRef, 0x70)
-R(ExternRef, 0x6F)
-
-#undef R
-#endif // UseRefType
 
 #ifdef UseValMut
 #define M Line

@@ -4,46 +4,11 @@ The WasmEdge WASI socket API supports HTTP networking in Wasm apps. In order to 
 
 ## Prerequisites
 
-In the current status, the [WasmEdge Installer](../../quick_start/install.md) will install the `manylinux2014` version of WasmEdge releases on Linux platforms.
-
 For installation with the installer, you can follow the commands:
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v {{ wasmedge_version }}
-curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
-tar -zxf WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
-rm -f WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
-mv libwasmedgePluginHttpsReq.so $HOME/.wasmedge/plugin
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v {{ wasmedge_version }} --plugins wasmedge_httpsreq
 ```
-
-If you choose to install WasmEdge under `/usr`, please note that the plug-in path is different:
-
-```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v {{ wasmedge_version }} -p /usr/local
-curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
-tar -zxf WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
-rm -f WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
-mv libwasmedgePluginHttpsReq.so /usr/local/lib/wasmedge/
-```
-
-If you want to use the `Ubuntu 20.04` version, please install with the following commands:
-
-```bash
-curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-tar -zxf WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-rm -f WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-tar -zxf WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-rm -f WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
-mv libwasmedgePluginHttpsReq.so WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib
-export PATH=$PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/bin
-export WASMEDGE_PLUGIN_PATH=$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
-```
-
-> The `manylinux2014` WasmEdge should use the `manylinux2014` version of plug-in, while the `Ubuntu 20.04` WasmEdge should also use the `Ubuntu 20.04` version of plug-in, too.
-
-You can also [build WasmEdge with WASI-Crypto plug-in from source](../../contribute/build_from_src/plugin_wasmedge_httpsreq.md).
 
 ## An HTTPS request example
 
@@ -148,7 +113,7 @@ let buf = &self.inner.parse_msg();
 
 To add the host function to a crate that can be used by Rust code, we also implement the [httpreq module](https://github.com/second-state/wasmedge_http_req).
 
-### Implemention of httpsreq host function
+### Implementation of httpsreq host function
 
 The httpsreq host has three functions (i.e. `send_data`, `get_rcv_len` and `get_rcv`)
 The `send_data` function uses the OpenSSL library to send the data to the server. The `send_data` function receives three inputs, that is, the host, the port and the parsed request.

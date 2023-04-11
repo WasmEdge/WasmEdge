@@ -93,7 +93,7 @@ public:
     return Span<const RefVariant>(Refs.begin() + Offset, Length);
   }
 
-  /// Replace the Refs[Offset :] by Slice[Start : Start + Legnth - 1]
+  /// Replace the Refs[Offset :] by Slice[Start : Start + Length - 1]
   Expect<void> setRefs(Span<const RefVariant> Slice, uint32_t Offset,
                        uint32_t Start, uint32_t Length) noexcept {
     // Check the accessing boundary.

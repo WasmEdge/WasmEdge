@@ -99,7 +99,7 @@
                     COMPACT_CTOR_DEF"/>
         </module>
         <module name="SuppressionXpathSingleFilter">
-            <!-- suppresion is required till https://github.com/checkstyle/checkstyle/issues/7541 -->
+            <!-- suppression is required till https://github.com/checkstyle/checkstyle/issues/7541 -->
             <property name="id" value="RightCurlyAlone"/>
             <property name="query" value="//RCURLY[parent::SLIST[count(./*)=1]
                                      or preceding-sibling::*[last()][self::LCURLY]]"/>

@@ -16,7 +16,7 @@
 #pragma once
 
 #include "symmetric/key.h"
-#include "symmetric/registed.h"
+#include "symmetric/registered.h"
 #include "symmetric/tag.h"
 #include "utils/error.h"
 

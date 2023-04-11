@@ -69,15 +69,15 @@ $ sudo systemctl status cri-o
      CGroup: /system.slice/crio.service
              └─6868 /usr/bin/crio
 
-Dec 07 06:04:13 master crio[6868]: time="2021-12-07 06:04:13.694226800Z" level=info msg="Checking image status: k8s.gcr.io/pause:3.4.1" id=1dbb722e-f031-410c-9f45-5d4b5760163e name=/runtime.v1alpha2.ImageServic>
+Dec 07 06:04:13 master crio[6868]: time="2021-12-07 06:04:13.694226800Z" level=info msg="Checking image status: registry.k8s.io/pause:3.4.1" id=1dbb722e-f031-410c-9f45-5d4b5760163e name=/runtime.v1alpha2.ImageServic>
 Dec 07 06:04:13 master crio[6868]: time="2021-12-07 06:04:13.695739507Z" level=info msg="Image status: &{0xc00047fdc0 map[]}" id=1dbb722e-f031-410c-9f45-5d4b5760163e name=/runtime.v1alpha2.ImageService/ImageSta>
-Dec 07 06:09:13 master crio[6868]: time="2021-12-07 06:09:13.698823984Z" level=info msg="Checking image status: k8s.gcr.io/pause:3.4.1" id=661b754b-48a4-401b-a03f-7f7a553c7eb6 name=/runtime.v1alpha2.ImageServic>
+Dec 07 06:09:13 master crio[6868]: time="2021-12-07 06:09:13.698823984Z" level=info msg="Checking image status: registry.k8s.io/pause:3.4.1" id=661b754b-48a4-401b-a03f-7f7a553c7eb6 name=/runtime.v1alpha2.ImageServic>
 Dec 07 06:09:13 master crio[6868]: time="2021-12-07 06:09:13.703259157Z" level=info msg="Image status: &{0xc0004d98f0 map[]}" id=661b754b-48a4-401b-a03f-7f7a553c7eb6 name=/runtime.v1alpha2.ImageService/ImageSta>
-Dec 07 06:14:13 master crio[6868]: time="2021-12-07 06:14:13.707778419Z" level=info msg="Checking image status: k8s.gcr.io/pause:3.4.1" id=8c7e4d36-871a-452e-ab55-707053604077 name=/runtime.v1alpha2.ImageServic>
+Dec 07 06:14:13 master crio[6868]: time="2021-12-07 06:14:13.707778419Z" level=info msg="Checking image status: registry.k8s.io/pause:3.4.1" id=8c7e4d36-871a-452e-ab55-707053604077 name=/runtime.v1alpha2.ImageServic>
 Dec 07 06:14:13 master crio[6868]: time="2021-12-07 06:14:13.709379469Z" level=info msg="Image status: &{0xc000035030 map[]}" id=8c7e4d36-871a-452e-ab55-707053604077 name=/runtime.v1alpha2.ImageService/ImageSta>
-Dec 07 06:19:13 master crio[6868]: time="2021-12-07 06:19:13.713158978Z" level=info msg="Checking image status: k8s.gcr.io/pause:3.4.1" id=827b6315-f145-4f76-b8da-31653d5892a2 name=/runtime.v1alpha2.ImageServic>
+Dec 07 06:19:13 master crio[6868]: time="2021-12-07 06:19:13.713158978Z" level=info msg="Checking image status: registry.k8s.io/pause:3.4.1" id=827b6315-f145-4f76-b8da-31653d5892a2 name=/runtime.v1alpha2.ImageServic>
 Dec 07 06:19:13 master crio[6868]: time="2021-12-07 06:19:13.714030148Z" level=info msg="Image status: &{0xc000162bd0 map[]}" id=827b6315-f145-4f76-b8da-31653d5892a2 name=/runtime.v1alpha2.ImageService/ImageSta>
-Dec 07 06:24:13 master crio[6868]: time="2021-12-07 06:24:13.716746612Z" level=info msg="Checking image status: k8s.gcr.io/pause:3.4.1" id=1d53a917-4d98-4723-9ea8-a2951a472cff name=/runtime.v1alpha2.ImageServic>
+Dec 07 06:24:13 master crio[6868]: time="2021-12-07 06:24:13.716746612Z" level=info msg="Checking image status: registry.k8s.io/pause:3.4.1" id=1d53a917-4d98-4723-9ea8-a2951a472cff name=/runtime.v1alpha2.ImageServic>
 Dec 07 06:24:13 master crio[6868]: time="2021-12-07 06:24:13.717381882Z" level=info msg="Image status: &{0xc00042ce00 map[]}" id=1d53a917-4d98-4723-9ea8-a2951a472cff name=/runtime.v1alpha2.ImageService/ImageSta>
 ```
 
@@ -340,7 +340,7 @@ Events:
 $ sudo crictl ps -a
 CONTAINER           IMAGE                                                                                           CREATED             STATE               NAME                ATTEMPT             POD ID
 1ae4d0d7f6710       0423b8eb71e312b8aaa09a0f0b6976381ff567d5b1e5729bf9b9aa87bff1c9f3                                16 minutes ago      Exited              wasi-demo           0                   2bc2ac0c32eda
-1e6c7cb6bc731       k8s.gcr.io/kube-proxy@sha256:2a25285ff19f9b4025c8e54dac42bb3cd9aceadc361f2570489b8d723cb77135   18 minutes ago      Running             kube-proxy          0                   8b7e7388ad866
+1e6c7cb6bc731       registry.k8s.io/kube-proxy@sha256:2a25285ff19f9b4025c8e54dac42bb3cd9aceadc361f2570489b8d723cb77135   18 minutes ago      Running             kube-proxy          0                   8b7e7388ad866
 ```
 
 就是这样。

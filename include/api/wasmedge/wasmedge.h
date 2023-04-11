@@ -41,6 +41,14 @@
 #include "wasmedge/int128.h"
 #include "wasmedge/version.h"
 
+/// WasmEdge WASM value type struct.
+typedef struct WasmEdge_ValType {
+  // This struct contains the raw data which describes the value type in WASM.
+  // Developers should use the corresponding `WasmEdge_ValueTypeGen` functions
+  // to generate this struct.
+  uint8_t Data[8];
+} WasmEdge_ValType;
+
 /// WasmEdge WASM value struct.
 typedef struct WasmEdge_Value {
   uint128_t Value;
@@ -48,7 +56,7 @@ typedef struct WasmEdge_Value {
   // functions. Developers should use the corresponding `WasmEdge_ValueGen`
   // functions to generate this struct, and the `WasmEdge_ValueGet` functions to
   // retrieve the value from this struct.
-  WasmEdge_FullValType Type;
+  WasmEdge_ValType Type;
 } WasmEdge_Value;
 
 /// WasmEdge string struct.
@@ -247,6 +255,129 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogOff(void);
 
 // <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> WasmEdge valtype functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Generate the I32 WASM value type.
+///
+/// \returns WasmEdge_ValType struct with the I32 value type.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenI32();
+
+/// Generate the I64 WASM value type.
+///
+/// \returns WasmEdge_ValType struct with the I64 value type.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenI64();
+
+/// Generate the F32 WASM value type.
+///
+/// \returns WasmEdge_ValType struct with the F32 value type.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenF32();
+
+/// Generate the F64 WASM value type.
+///
+/// \returns WasmEdge_ValType struct with the F64 value type.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenF64();
+
+/// Generate the V128 WASM value type.
+///
+/// \returns WasmEdge_ValType struct with the V128 value type.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenV128();
+
+/// Generate the FuncRef WASM value type.
+///
+/// \returns WasmEdge_ValType struct with the FuncRef value type.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenFuncRef();
+
+/// Generate the ExternRef WASM value type.
+///
+/// \returns WasmEdge_ValType struct with the ExternRef value type.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenExternRef();
+
+/// Compare the two WasmEdge_ValType objects.
+///
+/// \param ValType1 the first WasmEdge_ValType object to compare.
+/// \param ValType2 the second WasmEdge_ValType object to compare.
+///
+/// \returns true if the content of two WasmEdge_ValType objects are the same,
+/// false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsEqual(const WasmEdge_ValType ValType1,
+                        const WasmEdge_ValType ValType2);
+
+/// Specify the WASM value type is an I32 or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is an I32, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsI32(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is an I64 or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is an I64, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsI64(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is a F32 or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is a F32, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsF32(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is a F64 or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is a F64, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsF64(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is a V128 or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is a V128, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsV128(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is a FuncRef or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is a FuncRef, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsFuncRef(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is an ExternRef or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is an ExternRef, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsExternRef(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is a Ref (includes nullable and non-nullable) or
+/// not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is a Ref, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsRef(const WasmEdge_ValType ValType);
+
+/// Specify the WASM value type is a nullable Ref or not.
+///
+/// \param ValType the WasmEdge_ValType object to check.
+///
+/// \returns true if the value type is a nullable Ref, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ValTypeIsRefNull(const WasmEdge_ValType ValType);
+
+// <<<<<<<< WasmEdge valtype functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 // >>>>>>>> WasmEdge value functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Generate the I32 WASM value.
@@ -299,7 +430,7 @@ WasmEdge_ValueGenV128(const int128_t Val);
 ///
 /// \returns WasmEdge_Value struct with the NULL reference.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Value
-WasmEdge_ValueGenNullRef(const enum WasmEdge_RefType T);
+WasmEdge_ValueGenNullRef(const enum WasmEdge_RefTypeCode T);
 
 /// Generate the function reference WASM value.
 ///
@@ -1010,9 +1141,9 @@ WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionTypeContext *
-WasmEdge_FunctionTypeCreate(const enum WasmEdge_ValType *ParamList,
+WasmEdge_FunctionTypeCreate(const WasmEdge_ValType *ParamList,
                             const uint32_t ParamLen,
-                            const enum WasmEdge_ValType *ReturnList,
+                            const WasmEdge_ValType *ReturnList,
                             const uint32_t ReturnLen);
 
 /// Get the parameter types list length from the WasmEdge_FunctionTypeContext.
@@ -1036,8 +1167,7 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_FunctionTypeGetParametersLength(
 /// \returns the actual parameter types list length.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_FunctionTypeGetParameters(const WasmEdge_FunctionTypeContext *Cxt,
-                                   enum WasmEdge_ValType *List,
-                                   const uint32_t Len);
+                                   WasmEdge_ValType *List, const uint32_t Len);
 
 /// Get the return types list length from the WasmEdge_FunctionTypeContext.
 ///
@@ -1060,8 +1190,7 @@ WasmEdge_FunctionTypeGetReturnsLength(const WasmEdge_FunctionTypeContext *Cxt);
 /// \returns the actual return types list length.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_FunctionTypeGetReturns(const WasmEdge_FunctionTypeContext *Cxt,
-                                enum WasmEdge_ValType *List,
-                                const uint32_t Len);
+                                WasmEdge_ValType *List, const uint32_t Len);
 
 /// Deletion of the WasmEdge_FunctionTypeContext.
 ///
@@ -1081,20 +1210,22 @@ WasmEdge_FunctionTypeDelete(WasmEdge_FunctionTypeContext *Cxt);
 /// The caller owns the object and should call `WasmEdge_TableTypeDelete` to
 /// destroy it.
 ///
-/// \param RefType the reference type of the table type.
+/// \param RefType the value type of the table type. This value type should be a
+/// reference type, or this function will fail.
 /// \param Limit the limit struct of the table type.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_TableTypeContext *
-WasmEdge_TableTypeCreate(const enum WasmEdge_RefType RefType,
+WasmEdge_TableTypeCreate(const WasmEdge_ValType RefType,
                          const WasmEdge_Limit Limit);
 
 /// Get the reference type from a table type.
 ///
 /// \param Cxt the WasmEdge_TableTypeContext.
 ///
-/// \returns the reference type of the table type.
-WASMEDGE_CAPI_EXPORT extern enum WasmEdge_RefType
+/// \returns the value type of the table type. This value type will must be a
+/// reference type.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType
 WasmEdge_TableTypeGetRefType(const WasmEdge_TableTypeContext *Cxt);
 
 /// Get the limit from a table type.
@@ -1160,7 +1291,7 @@ WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_GlobalTypeContext *
-WasmEdge_GlobalTypeCreate(const enum WasmEdge_ValType ValType,
+WasmEdge_GlobalTypeCreate(const WasmEdge_ValType ValType,
                           const enum WasmEdge_Mutability Mut);
 
 /// Get the value type from a global type.
@@ -1168,7 +1299,7 @@ WasmEdge_GlobalTypeCreate(const enum WasmEdge_ValType ValType,
 /// \param Cxt the WasmEdge_GlobalTypeContext.
 ///
 /// \returns the value type of the global type.
-WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ValType
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType
 WasmEdge_GlobalTypeGetValType(const WasmEdge_GlobalTypeContext *Cxt);
 
 /// Get the mutability from a global type.
@@ -2121,9 +2252,9 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 ///   return WasmEdge_Result_Success;
 /// }
 ///
-/// enum WasmEdge_ValType Params[2] = {WasmEdge_ValType_I32,
-///                                    WasmEdge_ValType_I32};
-/// enum WasmEdge_ValType Returns[1] = {WasmEdge_ValType_I32};
+/// WasmEdge_ValType Params[2] = {WasmEdge_ValTypeGenI32(),
+///                               WasmEdge_ValTypeGenI32()};
+/// WasmEdge_ValType Returns[1] = {WasmEdge_ValTypeGenI32()};
 /// WasmEdge_FunctionTypeContext *FuncType =
 ///     WasmEdge_FunctionTypeCreate(Params, 2, Returns, 1);
 /// WasmEdge_FunctionInstanceContext *HostFunc =
@@ -2193,9 +2324,9 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 ///   return WasmEdge_Result_Success;
 /// }
 ///
-/// enum WasmEdge_ValType Params[2] = {WasmEdge_ValType_I32,
-///                                    WasmEdge_ValType_I32};
-/// enum WasmEdge_ValType Returns[1] = {WasmEdge_ValType_I32};
+/// WasmEdge_ValType Params[2] = {WasmEdge_ValTypeGenI32(),
+///                               WasmEdge_ValTypeGenI32()};
+/// WasmEdge_ValType Returns[1] = {WasmEdge_ValTypeGenI32()};
 /// WasmEdge_FunctionTypeContext *FuncType =
 ///     WasmEdge_FunctionTypeCreate(Params, 2, Returns, 1);
 /// WasmEdge_FunctionInstanceContext *HostFunc =

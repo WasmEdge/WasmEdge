@@ -93,7 +93,7 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_Limit TabLimit;
   WasmEdge_Limit MemLimit;
   WasmEdge_Limit SharedMemLimit;
-  enum WasmEdge_ValType Param[2];
+  WasmEdge_ValType Param[2];
 
   HostName = WasmEdge_StringCreateByCString("spectest");
   HostMod = WasmEdge_ModuleInstanceCreate(HostName);
@@ -108,7 +108,7 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_StringDelete(HostName);
 
   // Add host function "print_i32": {i32} -> {}
-  Param[0] = WasmEdge_ValType_I32;
+  Param[0] = WasmEdge_ValTypeGenI32();
   HostFType = WasmEdge_FunctionTypeCreate(Param, 1, NULL, 0);
   HostFunc =
       WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintI32, NULL, 0);
@@ -118,7 +118,7 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_StringDelete(HostName);
 
   // Add host function "print_i64": {i64} -> {}
-  Param[0] = WasmEdge_ValType_I64;
+  Param[0] = WasmEdge_ValTypeGenI64();
   HostFType = WasmEdge_FunctionTypeCreate(Param, 1, NULL, 0);
   HostFunc =
       WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintI64, NULL, 0);
@@ -128,7 +128,7 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_StringDelete(HostName);
 
   // Add host function "print_f32": {f32} -> {}
-  Param[0] = WasmEdge_ValType_F32;
+  Param[0] = WasmEdge_ValTypeGenF32();
   HostFType = WasmEdge_FunctionTypeCreate(Param, 1, NULL, 0);
   HostFunc =
       WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintF32, NULL, 0);
@@ -138,7 +138,7 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_StringDelete(HostName);
 
   // Add host function "print_f64": {f64} -> {}
-  Param[0] = WasmEdge_ValType_F64;
+  Param[0] = WasmEdge_ValTypeGenF64();
   HostFType = WasmEdge_FunctionTypeCreate(Param, 1, NULL, 0);
   HostFunc =
       WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintF64, NULL, 0);
@@ -148,8 +148,8 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_StringDelete(HostName);
 
   // Add host function "print_i32_f32": {i32, f32} -> {}
-  Param[0] = WasmEdge_ValType_I32;
-  Param[1] = WasmEdge_ValType_F32;
+  Param[0] = WasmEdge_ValTypeGenI32();
+  Param[1] = WasmEdge_ValTypeGenF32();
   HostFType = WasmEdge_FunctionTypeCreate(Param, 2, NULL, 0);
   HostFunc =
       WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintI32F32, NULL, 0);
@@ -159,8 +159,8 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_StringDelete(HostName);
 
   // Add host function "print_f64_f64": {f64, f64} -> {}
-  Param[0] = WasmEdge_ValType_F64;
-  Param[1] = WasmEdge_ValType_F64;
+  Param[0] = WasmEdge_ValTypeGenF64();
+  Param[1] = WasmEdge_ValTypeGenF64();
   HostFType = WasmEdge_FunctionTypeCreate(Param, 2, NULL, 0);
   HostFunc =
       WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintF64F64, NULL, 0);
@@ -174,7 +174,7 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   TabLimit.Shared = false;
   TabLimit.Min = 10;
   TabLimit.Max = 20;
-  HostTType = WasmEdge_TableTypeCreate(WasmEdge_RefType_FuncRef, TabLimit);
+  HostTType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenFuncRef(), TabLimit);
   HostTable = WasmEdge_TableInstanceCreate(HostTType);
   WasmEdge_TableTypeDelete(HostTType);
   HostName = WasmEdge_StringCreateByCString("table");
@@ -206,7 +206,7 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_StringDelete(HostName);
 
   // Add host global "global_i32": const 666
-  HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValType_I32,
+  HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValTypeGenI32(),
                                         WasmEdge_Mutability_Const);
   HostGlobal =
       WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenI32(666));
@@ -216,7 +216,7 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_StringDelete(HostName);
 
   // Add host global "global_i64": const 666
-  HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValType_I64,
+  HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValTypeGenI64(),
                                         WasmEdge_Mutability_Const);
   HostGlobal =
       WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenI64(666));
@@ -226,7 +226,7 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_StringDelete(HostName);
 
   // Add host global "global_f32": const 666.0
-  HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValType_F32,
+  HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValTypeGenF32(),
                                         WasmEdge_Mutability_Const);
   HostGlobal =
       WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenF32(666.0));
@@ -236,7 +236,7 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_StringDelete(HostName);
 
   // Add host global "global_f64": const 666.0
-  HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValType_F64,
+  HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValTypeGenF64(),
                                         WasmEdge_Mutability_Const);
   HostGlobal =
       WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenF64(666.0));

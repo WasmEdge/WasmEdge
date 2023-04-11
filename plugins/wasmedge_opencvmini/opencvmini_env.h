@@ -5,6 +5,9 @@
 
 #include "plugin/plugin.h"
 
+#include <map>
+#include <opencv2/opencv.hpp>
+
 namespace WasmEdge {
 namespace Host {
 
@@ -13,6 +16,8 @@ public:
   WasmEdgeOpenCVMiniEnvironment() noexcept;
 
   static Plugin::PluginRegister Register;
+
+  std::map<uint32_t, cv::Mat> MatPool;
 };
 
 } // namespace Host

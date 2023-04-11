@@ -13,6 +13,10 @@ WasmEdgeOpenCVMiniModule::WasmEdgeOpenCVMiniModule()
     : ModuleInstance("wasmedge_opencvmini") {
   addHostFunc("wasmedge_opencvmini_imdecode",
               std::make_unique<WasmEdgeOpenCVMiniImdecode>(Env));
+  addHostFunc("wasmedge_opencvmini_imshow",
+              std::make_unique<WasmEdgeOpenCVMiniImshow>(Env));
+  addHostFunc("wasmedge_opencvmini_waitkey",
+              std::make_unique<WasmEdgeOpenCVMiniWaitKey>(Env));
 }
 
 } // namespace Host

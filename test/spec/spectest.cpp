@@ -155,23 +155,25 @@ parseValueList(const rapidjson::Value &Args) {
         }
       } else if (LaneType == "i32"sv || LaneType == "f32"sv) {
         using uint32x4_t = uint32_t __attribute__((vector_size(16)));
-        uint32x4_t I32x4;
+        uint32x4_t I32x4 = {0};
         for (rapidjson::SizeType I = 0; I < 4; ++I) {
           I32x4[I] = std::stoul(ValueNode[I].Get<std::string>());
         }
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I32x4);
       } else if (LaneType == "i16"sv) {
         using uint16x8_t = uint16_t __attribute__((vector_size(16)));
-        uint16x8_t I16x8;
+        uint16x8_t I16x8 = {0};
         for (rapidjson::SizeType I = 0; I < 8; ++I) {
-          I16x8[I] = std::stoul(ValueNode[I].Get<std::string>());
+          I16x8[I] = static_cast<uint16_t>(
+              std::stoul(ValueNode[I].Get<std::string>()));
         }
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I16x8);
       } else if (LaneType == "i8"sv) {
         using uint8x16_t = uint8_t __attribute__((vector_size(16)));
-        uint8x16_t I8x16;
+        uint8x16_t I8x16 = {0};
         for (rapidjson::SizeType I = 0; I < 16; ++I) {
-          I8x16[I] = std::stoul(ValueNode[I].Get<std::string>());
+          I8x16[I] =
+              static_cast<uint8_t>(std::stoul(ValueNode[I].Get<std::string>()));
         }
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I8x16);
       }
@@ -395,7 +397,8 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       const auto V = reinterpret_cast<uint8x16_t>(V64);
       for (size_t I = 0; I < 16; ++I) {
         const uint8_t V1 = V[I];
-        const uint8_t V2 = std::stoul(std::string(Parts[I]));
+        const uint8_t V2 =
+            static_cast<uint8_t>(std::stoul(std::string(Parts[I])));
         if (V1 != V2) {
           return false;
         }
@@ -407,7 +410,8 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       const auto V = reinterpret_cast<uint16x8_t>(V64);
       for (size_t I = 0; I < 8; ++I) {
         const uint16_t V1 = V[I];
-        const uint16_t V2 = std::stoul(std::string(Parts[I]));
+        const uint16_t V2 =
+            static_cast<uint16_t>(std::stoul(std::string(Parts[I])));
         if (V1 != V2) {
           return false;
         }

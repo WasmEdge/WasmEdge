@@ -126,7 +126,7 @@ The following tutorials showcase how to deploy WebAssembly programs (written in 
 * [AWS Lambda](https://github.com/second-state/aws-lambda-wasm-runtime)
 * [Tencent Serverless Functions](https://github.com/second-state/tencent-scf-wasm-runtime) (in Chinese)
 
-### Second Sate FaaS and Node.js
+### Second State FaaS and Node.js
 
 The following tutorials showcase how to deploy WebAssembly functions (written in Rust) on the Second State FaaS. Since the FaaS service is running on Node.js, you can follow the same tutorials for running those functions in your own Node.js server.
 

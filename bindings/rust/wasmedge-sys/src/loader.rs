@@ -18,14 +18,14 @@ pub struct Loader {
 impl Loader {
     /// Create a new [Loader](crate::Loader) to be associated with the given global configuration.
     ///
-    /// # Arguements
+    /// # Arguments
     ///
     /// * `config` - A global configuration.
     ///
     /// # Error
     ///
     /// If fail to create a [Loader](crate), then an error is returned.
-    pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
+    pub fn create(config: Option<&Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(config) => unsafe { ffi::WasmEdge_LoaderCreate(config.inner.0) },
             None => unsafe { ffi::WasmEdge_LoaderCreate(std::ptr::null_mut()) },
@@ -40,11 +40,11 @@ impl Loader {
         }
     }
 
-    /// Loads a WASM module from a WASM file with the suffix `.wasm`.
+    /// Loads a WASM module from a WASM file.
     ///
     /// # Arguments
     ///
-    /// * `file` - The wasm file, of which the file extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.
+    /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// # Error
     ///
@@ -75,9 +75,7 @@ impl Loader {
                     "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
                 ))),
             },
-            None => Err(Box::new(WasmEdgeError::Operation(
-                "The source file's extension should be one of `wasm`, `wat`, `dylib` on macOS, `so` on Linux or `dll` on Windows.".into(),
-            ))),
+            None => self.load_from_wasm_or_aot_file(&file),
         }
     }
 
@@ -154,6 +152,12 @@ impl Loader {
             }),
         }
     }
+
+    /// Provides a raw pointer to the inner Loader context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_LoaderContext {
+        self.inner.0 as *const _
+    }
 }
 impl Drop for Loader {
     fn drop(&mut self) {
@@ -192,7 +196,7 @@ mod tests {
         assert!(result.is_ok());
         let mut config = result.unwrap();
         config.reference_types(true);
-        let result = Loader::create(Some(config));
+        let result = Loader::create(Some(&config));
         assert!(result.is_ok());
         let loader = result.unwrap();
 
@@ -263,7 +267,7 @@ mod tests {
         assert!(result.is_ok());
         let mut config = result.unwrap();
         config.reference_types(true);
-        let result = Loader::create(Some(config));
+        let result = Loader::create(Some(&config));
         assert!(result.is_ok());
         let loader = result.unwrap();
 
@@ -287,7 +291,7 @@ mod tests {
         assert!(result.is_ok());
         let mut config = result.unwrap();
         config.reference_types(true);
-        let result = Loader::create(Some(config));
+        let result = Loader::create(Some(&config));
         assert!(result.is_ok());
         let loader = Arc::new(Mutex::new(result.unwrap()));
 

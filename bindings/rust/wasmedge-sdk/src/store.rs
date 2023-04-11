@@ -37,9 +37,7 @@ impl Store {
     ) -> WasmEdgeResult<()> {
         executor
             .inner
-            .register_import_object(&mut self.inner, import.inner_ref())?;
-
-        Ok(())
+            .register_import_object(&mut self.inner, import.inner_ref())
     }
 
     /// Registers and instantiates a WasmEdge [compiled module](crate::Module) into this [store](crate::Store) as a named [module instance](crate::Instance), and returns the module instance.
@@ -63,13 +61,14 @@ impl Store {
         mod_name: impl AsRef<str>,
         module: &Module,
     ) -> WasmEdgeResult<Instance> {
-        let inner = executor.inner.register_named_module(
+        let inner_instance = executor.inner.register_named_module(
             &mut self.inner,
             &module.inner,
             mod_name.as_ref(),
         )?;
-
-        Ok(Instance { inner })
+        Ok(Instance {
+            inner: inner_instance,
+        })
     }
 
     /// Registers and instantiates a WasmEdge [compiled module](crate::Module) into this [store](crate::Store) as an anonymous active [module instance](crate::Instance), and returns the module instance.
@@ -101,8 +100,11 @@ impl Store {
     }
 
     /// Returns the names of all registered named [module instances](crate::Instance).
-    pub fn instance_names(&self) -> Option<Vec<String>> {
-        self.inner.module_names()
+    pub fn instance_names(&self) -> Vec<String> {
+        match self.inner.module_names() {
+            Some(names) => names,
+            None => vec![],
+        }
     }
 
     /// Returns the named [module instance](crate::Instance) with the given name.
@@ -110,25 +112,22 @@ impl Store {
     /// # Argument
     ///
     /// * `name` - The name of the target [module instance](crate::Instance) to be returned.
-    pub fn module_instance(&mut self, name: impl AsRef<str>) -> Option<Instance> {
-        let inner_instance = self.inner.module(name.as_ref()).ok();
-        if let Some(inner_instance) = inner_instance {
-            return Some(Instance {
-                inner: inner_instance,
-            });
-        }
+    pub fn named_instance(&mut self, name: impl AsRef<str>) -> WasmEdgeResult<Instance> {
+        let inner_instance = self.inner.module(name.as_ref())?;
 
-        None
+        Ok(Instance {
+            inner: inner_instance,
+        })
     }
 
     /// Checks if the [store](crate::Store) contains a named module instance.
     ///
     /// # Argument
     ///
-    /// * `name` - The name of the named module.
+    /// * `mod_name` - The name of the named module.
     ///
-    pub fn contains(&self, name: impl AsRef<str>) -> bool {
-        self.inner.contains(name.as_ref())
+    pub fn contains(&self, mod_name: impl AsRef<str>) -> bool {
+        self.inner.contains(mod_name.as_ref())
     }
 }
 
@@ -225,21 +224,20 @@ mod tests {
         assert!(result.is_ok());
 
         assert_eq!(store.named_instance_count(), 1);
-        assert!(store.instance_names().is_some());
-        assert_eq!(store.instance_names().unwrap(), ["extern-module"]);
+        assert_eq!(store.instance_names(), ["extern-module"]);
 
         // get active module instance
-        let result = store.module_instance("extern-module");
-        assert!(result.is_some());
+        let result = store.named_instance("extern-module");
+        assert!(result.is_ok());
         let instance = result.unwrap();
         assert!(instance.name().is_some());
         assert_eq!(instance.name().unwrap(), "extern-module");
 
         let result = instance.global("global");
-        assert!(result.is_some());
-        let global = result.unwrap();
-        let result = global.ty();
         assert!(result.is_ok());
+        let global = result.unwrap();
+        let ty = global.ty();
+        assert_eq!(*ty, GlobalType::new(ValType::F32, Mutability::Const));
     }
 
     #[test]
@@ -276,12 +274,11 @@ mod tests {
         assert!(result.is_ok());
 
         assert_eq!(store.named_instance_count(), 1);
-        assert!(store.instance_names().is_some());
-        assert_eq!(store.instance_names().unwrap(), ["extern-module"]);
+        assert_eq!(store.instance_names(), ["extern-module"]);
 
         // get active module instance
-        let result = store.module_instance("extern-module");
-        assert!(result.is_some());
+        let result = store.named_instance("extern-module");
+        assert!(result.is_ok());
         let instance = result.unwrap();
         assert!(instance.name().is_some());
         assert_eq!(instance.name().unwrap(), "extern-module");
@@ -321,10 +318,10 @@ mod tests {
         let active_instance = result.unwrap();
         assert!(active_instance.name().is_none());
         let result = active_instance.func("fib");
-        assert!(result.is_some());
+        assert!(result.is_ok());
 
         assert_eq!(store.named_instance_count(), 0);
-        assert!(store.instance_names().is_none());
+        assert_eq!(store.instance_names().len(), 0);
     }
 
     #[test]
@@ -399,21 +396,20 @@ mod tests {
 
         // check the exported instances
         assert_eq!(store.named_instance_count(), 2);
-        assert!(store.instance_names().is_some());
-        let mod_names = store.instance_names().unwrap();
+        let mod_names = store.instance_names();
         assert_eq!(mod_names[0], "extern-module");
         assert_eq!(mod_names[1], "fib-module");
 
         assert_eq!(mod_names[0], "extern-module");
-        let result = store.module_instance(mod_names[0].as_str());
-        assert!(result.is_some());
+        let result = store.named_instance(&mod_names[0]);
+        assert!(result.is_ok());
         let instance = result.unwrap();
         assert!(instance.name().is_some());
         assert_eq!(instance.name().unwrap(), mod_names[0]);
 
         assert_eq!(mod_names[1], "fib-module");
-        let result = store.module_instance(mod_names[1].as_str());
-        assert!(result.is_some());
+        let result = store.named_instance(&mod_names[1]);
+        assert!(result.is_ok());
         let instance = result.unwrap();
         assert!(instance.name().is_some());
         assert_eq!(instance.name().unwrap(), mod_names[1]);

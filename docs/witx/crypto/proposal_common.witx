@@ -244,7 +244,7 @@
 
 ;;; Version of a managed key.
 ;;;
-;;; A version can be an arbitrary `u64` integer, with the expection of some reserved values.
+;;; A version can be an arbitrary `u64` integer, with the exception of some reserved values.
 (typename $version u64)
 ;;; Key doesn't support versioning.
 (@witx const $version $unspecified 0xff00000000000000)
@@ -326,7 +326,7 @@
 ;;;
 ;;; This object type can't be directly created from raw bytes. They are only returned by functions computing MACs.
 ;;;
-;;; The host is reponsible for securely wiping them from memory on close.
+;;; The host is responsible for securely wiping them from memory on close.
 (typename $symmetric_tag (handle))
 
 ;;; Options index, only required by the Interface Types translation layer.

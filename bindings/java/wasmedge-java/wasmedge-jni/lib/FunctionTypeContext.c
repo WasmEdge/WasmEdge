@@ -62,13 +62,8 @@ Java_org_wasmedge_FunctionTypeContext_nativeGetReturns(JNIEnv *env,
   return types;
 }
 
-/*
- * Class:     org_wasmedge_FunctionTypeContext
- * Method:    delete
- * Signature: ()V
- */
 JNIEXPORT void JNICALL
-Java_org_wasmedge_FunctionTypeContext_delete(JNIEnv *env, jobject thisObject) {
+Java_org_wasmedge_FunctionTypeContext_close(JNIEnv *env, jobject thisObject) {
   WasmEdge_FunctionTypeContext *functionTypeContext =
       getFunctionTypeContext(env, thisObject);
   WasmEdge_FunctionTypeDelete(functionTypeContext);

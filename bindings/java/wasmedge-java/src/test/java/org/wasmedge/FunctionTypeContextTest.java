@@ -24,23 +24,22 @@ public class FunctionTypeContextTest extends BaseTest {
         expectedReturns.add(ValueType.ExternRef);
         expectedReturns.add(ValueType.v128);
 
-        FunctionTypeContext functionTypeContext = new FunctionTypeContext(expectedParams, expectedReturns);
+        try(FunctionTypeContext functionTypeContext = new FunctionTypeContext(expectedParams, expectedReturns)) {
 
-        List<ValueType> actualParams = functionTypeContext.getParameters();
-        List<ValueType> actualReturns = functionTypeContext.getReturns();
+            List<ValueType> actualParams = functionTypeContext.getParameters();
+            List<ValueType> actualReturns = functionTypeContext.getReturns();
 
-        Assert.assertEquals(expectedParams.size(), actualParams.size());
-        for (int i = 0; i < expectedParams.size(); i++) {
-            Assert.assertEquals(expectedParams.get(i), actualParams.get(i));
+            Assert.assertEquals(expectedParams.size(), actualParams.size());
+            for (int i = 0; i < expectedParams.size(); i++) {
+                Assert.assertEquals(expectedParams.get(i), actualParams.get(i));
+            }
+
+            Assert.assertEquals(expectedReturns.size(), actualReturns.size());
+
+            for (int i = 0; i < expectedReturns.size(); i++) {
+                Assert.assertEquals(expectedReturns.get(i), actualReturns.get(i));
+            }
         }
-
-        Assert.assertEquals(expectedReturns.size(), actualReturns.size());
-
-        for (int i = 0; i < expectedReturns.size(); i++) {
-            Assert.assertEquals(expectedReturns.get(i), actualReturns.get(i));
-        }
-
-        functionTypeContext.delete();
     }
 
 }

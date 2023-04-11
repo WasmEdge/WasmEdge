@@ -21,7 +21,7 @@ Please follow this guide to build and test WasmEdge from source code with Androi
 
 ## Prepare the Environment
 
-We recommand developers to [use our Docker images](linux.md##prepare-the-environment) and follow the steps to prepare the building environment.
+We recommend developers to [use our Docker images](linux.md##prepare-the-environment) and follow the steps to prepare the building environment.
 
 * Download and extract the [Android NDK 23b](https://developer.android.com/ndk/downloads).
 * Check the cmake for [CMake 3.21](https://cmake.org/download/) or greater version.

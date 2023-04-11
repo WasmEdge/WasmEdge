@@ -184,7 +184,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: laod -- OpenVINO model xml ptr out of bounds.
+  // Test: load -- OpenVINO model xml ptr out of bounds.
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, OutBoundPtr, XmlRead.size(), BuilderPtr);
   writeFatPointer(MemInst, StorePtr + XmlRead.size(), WeightRead.size(),

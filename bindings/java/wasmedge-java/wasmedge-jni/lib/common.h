@@ -50,7 +50,7 @@ void setJavaFloatValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
 
 void setJavaDoubleValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
 
-void setJavaStringValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
+void setJavaStringValue(JNIEnv *env, char* val, jobject jobj);
 
 enum WasmEdge_ValType *parseValueTypes(JNIEnv *env, jintArray jValueTypes);
 
@@ -83,6 +83,6 @@ jint GetListSize(JNIEnv *env, jobject jList);
         return NULL;\
     }\
     return (WasmEdge_ ##NAME  *)getPointer(env, j ##NAME );\
-}\
+}                                                               \
 
 #endif // WASMEDGE_JAVA_COMMON_H

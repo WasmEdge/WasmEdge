@@ -1087,7 +1087,7 @@ import * as os from "os";
         return a.substring(1, pos);
     }
 
-    /* return true if the string after cmd can be evaluted as JS */
+    /* return true if the string after cmd can be evaluated as JS */
     function handle_directive(cmd, expr) {
         var param, prec1, expBits1;
 

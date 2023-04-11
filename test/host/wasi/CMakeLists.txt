@@ -3,6 +3,7 @@
 
 wasmedge_add_executable(wasiTests
   wasi.cpp
+  linuxTest.cpp
 )
 
 add_test(wasiTests wasiTests)

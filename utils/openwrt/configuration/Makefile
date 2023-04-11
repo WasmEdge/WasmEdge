@@ -1,9 +1,9 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=WasmEdge
-PKG_VERSION:=0.11.0
+PKG_VERSION:=0.12.0
 PKG_BUILD_DIR:= $(BUILD_DIR)/$(PKG_NAME)
-WASMEDGE_SOVERSION:=0.0.1
+WASMEDGE_SOVERSION:=0.0.2
 WASMEDGE_SONAME:=0
 
 include $(INCLUDE_DIR)/package.mk
@@ -34,7 +34,6 @@ define Package/$(PKG_NAME)/install
 	$(CP) -rp $(PKG_INSTALL_DIR)/usr/lib/libwasmedge.so $(1)/usr/lib/
 	$(CP) -rp $(PKG_INSTALL_DIR)/usr/lib/libwasmedge.so.$(WASMEDGE_SONAME) $(1)/usr/lib/
 	$(CP) -rp $(PKG_INSTALL_DIR)/usr/lib/libwasmedge.so.$(WASMEDGE_SOVERSION) $(1)/usr/lib/
-	$(CP) $(PKG_INSTALL_DIR)/usr/lib/wasmedge/libwasmedgePluginWasmEdgeProcess.so $(1)/usr/lib/
 endef
 
 CMAKE_OPTIONS += \

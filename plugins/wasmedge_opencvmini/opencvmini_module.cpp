@@ -9,9 +9,9 @@ namespace WasmEdge {
 namespace Host {
 
 WasmEdgeOpenCVMiniModule::WasmEdgeOpenCVMiniModule()
-    : ModuleInstance("wasmedge_process") {
+    : ModuleInstance("wasmedge_opencvmini") {
   addHostFunc("wasmedge_opencvmini_imdecode",
-              std::make_unique<WasmEdgeProcessSetProgName>(Env));
+              std::make_unique<WasmEdgeOpenCVMiniImdecode>(Env));
 }
 
 } // namespace Host

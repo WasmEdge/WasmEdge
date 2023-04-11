@@ -13,4 +13,4 @@ WasmEdge now supports:
 * [seL4](../contribute/build_from_src/sel4.md)
 * [OpenWrt](../contribute/build_from_src/openwrt.md)
 * [OpenHarmony](../contribute/build_from_src/openharmony.md)
-* [Respberry Pi](../contribute/build_from_src/raspberrypi.md)
+* [Raspberry Pi](../contribute/build_from_src/raspberrypi.md)

@@ -8,7 +8,7 @@ use crate::{
     WasmEdgeResult,
 };
 
-/// A [Store] represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime representation of all instances of [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) that have been allocated during the life time of the [Vm](crate::Vm).
+/// A [Store] represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime representation of all instances of [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global).
 #[derive(Debug)]
 pub struct Store {
     pub(crate) inner: InnerStore,
@@ -70,7 +70,7 @@ impl Store {
     /// # Error
     ///
     /// If fail to find the target [module instance](crate::Instance), then an error is returned.
-    pub fn module(&mut self, name: impl AsRef<str>) -> WasmEdgeResult<Instance> {
+    pub fn module(&self, name: impl AsRef<str>) -> WasmEdgeResult<Instance> {
         let mod_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe { ffi::WasmEdge_StoreFindModule(self.inner.0, mod_name.as_raw()) };
         match ctx.is_null() {
@@ -100,6 +100,12 @@ impl Store {
             None => false,
         }
     }
+
+    /// Provides a raw pointer to the inner Store context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_StoreContext {
+        self.inner.0 as *const _
+    }
 }
 impl Drop for Store {
     fn drop(&mut self) {
@@ -120,7 +126,8 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::WasmValue,
-        AsImport, CallingFrame, Config, Engine, Executor, FuncType, ImportModule, ImportObject, Vm,
+        AsImport, CallingFrame, Config, Engine, Executor, FuncType, ImportModule, ImportObject,
+        Loader, Validator,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -139,7 +146,7 @@ mod tests {
         assert!(!store.inner.0.is_null());
         assert!(!store.registered);
 
-        // check the length of registered module list in store before instatiation
+        // check the length of registered module list in store before instantiation
         assert_eq!(store.module_len(), 0);
         assert!(store.module_names().is_none());
 
@@ -189,7 +196,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let result = Executor::create(Some(config), None);
+        let result = Executor::create(Some(&config), None);
         assert!(result.is_ok());
         let mut executor = result.unwrap();
 
@@ -247,7 +254,7 @@ mod tests {
             let result = Config::create();
             assert!(result.is_ok());
             let config = result.unwrap();
-            let result = Executor::create(Some(config), None);
+            let result = Executor::create(Some(&config), None);
             assert!(result.is_ok());
             let mut executor = result.unwrap();
 
@@ -282,7 +289,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
-    fn test_store_named_module() {
+    fn test_store_named_module() -> Result<(), Box<dyn std::error::Error>> {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
@@ -290,31 +297,18 @@ mod tests {
         config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
-        // create a Store context
-        let result = Store::create();
-        assert!(result.is_ok(), "Failed to create Store instance");
-        let mut store = result.unwrap();
+        // create an executor with the given config
+        let mut executor = Executor::create(Some(&config), None)?;
 
-        // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(&mut store));
-        assert!(result.is_ok());
-        let vm = result.unwrap();
+        // create a store
+        let mut store = Store::create()?;
 
         // register a wasm module from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wat");
-        let result = vm.register_wasm_from_file("extern", path);
-        assert!(result.is_ok());
-
-        // get the store in vm
-        let result = vm.store_mut();
-        assert!(result.is_ok());
-        let mut store = result.unwrap();
-
-        // get the module named "extern"
-        let result = store.module("extern");
-        assert!(result.is_ok());
-        let instance = result.unwrap();
+        let module = Loader::create(Some(&config))?.from_file(path)?;
+        Validator::create(Some(&config))?.validate(&module)?;
+        let instance = executor.register_named_module(&mut store, &module, "extern")?;
 
         // check the name of the module
         assert!(instance.name().is_some());
@@ -337,6 +331,8 @@ mod tests {
         // check the return types
         let return_types = ty.returns_type_iter().collect::<Vec<ValType>>();
         assert_eq!(return_types, [ValType::I32]);
+
+        Ok(())
     }
 
     fn real_add(_: CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {

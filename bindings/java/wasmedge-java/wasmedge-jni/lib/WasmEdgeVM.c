@@ -49,14 +49,13 @@ void setJavaDoubleValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
   (*env)->CallFloatMethod(env, jobj, val_setter, double_val);
 }
 
-void setJavaStringValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
-  char *key = WasmEdge_ValueGetExternRef(val);
+void setJavaStringValue(JNIEnv *env, char* val, jobject jobj) {
   jclass val_clazz = (*env)->GetObjectClass(env, jobj);
 
   jmethodID val_setter =
       (*env)->GetMethodID(env, val_clazz, SET_VALUE_METHOD, STRING_VOID);
 
-  jstring jkey = (*env)->NewStringUTF(env, key);
+  jstring jkey = (*env)->NewStringUTF(env, val);
   (*env)->CallObjectMethod(env, jobj, val_setter, jkey);
 }
 
@@ -179,7 +178,7 @@ Java_org_wasmedge_WasmEdgeVm_instantiate(JNIEnv *env, jobject thisObject) {
 
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVm_execute(
     JNIEnv *env, jobject thisObject, jstring funcName, jobjectArray params,
-    jint paramSize, jintArray paramTypes, jobjectArray retuns, jint returnSize,
+    jint paramSize, jintArray paramTypes, jobjectArray returns, jint returnSize,
     jintArray returnTypes) {
 
   WasmEdge_VMContext *VMCxt = getVmContext(env, thisObject);
@@ -230,7 +229,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVm_execute(
   if (WasmEdge_ResultOK(Res)) {
     for (int i = 0; i < returnSize; ++i) {
       setJavaValueObject(env, Returns[i],
-                         (*env)->GetObjectArrayElement(env, retuns, i));
+                         (*env)->GetObjectArrayElement(env, returns, i));
     }
   }
 
@@ -242,7 +241,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVm_execute(
   return;
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVm_delete(JNIEnv *env,
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVm_close(JNIEnv *env,
                                                            jobject thisObj) {
   WasmEdge_VMDelete(getVmContext(env, thisObj));
 }

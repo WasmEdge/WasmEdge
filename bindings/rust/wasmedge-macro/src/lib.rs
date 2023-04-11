@@ -376,7 +376,7 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
     let wrapper_fn_name_literal = wrapper_fn_name_ident.to_string();
     // return type of wrapper function
     let wrapper_fn_return = item_fn.sig.output.clone();
-    // visiblity of wrapper function
+    // visibility of wrapper function
     let wrapper_fn_visibility = item_fn.vis.clone();
 
     // * define the signature of inner function

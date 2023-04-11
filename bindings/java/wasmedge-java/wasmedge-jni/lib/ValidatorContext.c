@@ -32,7 +32,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ValidatorContext_nativeInit(
 }
 
 JNIEXPORT void JNICALL
-Java_org_wasmedge_ValidatorContext_delete(JNIEnv *env, jobject thisObject) {
+Java_org_wasmedge_ValidatorContext_close(JNIEnv *env, jobject thisObject) {
   WasmEdge_ValidatorContext *validatorContext =
       getValidatorContext(env, thisObject);
   WasmEdge_ValidatorDelete(validatorContext);

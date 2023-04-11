@@ -6,20 +6,19 @@ import org.wasmedge.enums.ValueType;
 /**
  * Global type.
  */
-public class GlobalTypeContext {
-    private long pointer;
+public class GlobalTypeContext extends NativeResource {
 
     public GlobalTypeContext(ValueType valueType, Mutability mutability) {
         nativeInit(valueType.getValue(), mutability.getValue());
     }
 
     private GlobalTypeContext(long pointer) {
-        this.pointer = pointer;
+        super(pointer);
     }
 
     private native void nativeInit(int valueType, int wasmEdgeMutability);
 
-    public native void delete();
+    public native void close();
 
     public ValueType getValueType() {
         return ValueType.parseType(nativeGetValueType());

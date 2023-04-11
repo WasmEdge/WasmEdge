@@ -14,7 +14,7 @@
 
 namespace {
 
-// The followings are the functions and class definitions to pass as
+// The following are the functions and class definitions to pass as
 // references.
 
 // Test: function to pass as function pointer
@@ -31,7 +31,7 @@ struct SquareStruct {
   uint32_t operator()(uint32_t Val) const { return Val * Val; }
 };
 
-// The followings are the host function definitions.
+// The following are the host function definitions.
 
 // Host function to call functor by external reference
 WasmEdge_Result ExternFunctorSquare(void *,

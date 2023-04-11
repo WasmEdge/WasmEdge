@@ -9,7 +9,7 @@ The `wasmedge` binary is a command line interface (CLI) program that runs WebAss
 * If the WebAssembly program contains a `main()` function, `wasmedge` would execute it as a standalone program in the command mode.
 * If the WebAssembly program contains one or more exported public functions, `wasmedge` could invoke individual functions in the reactor mode.
 
-By default, the `wasmedge` will execute WebAssembly programs in interpreter mode, and [execute the AOT-compiled `.so`, `.dylib`, `.dll`, or `.wasm` (universal output format) in AOT mode](run_in_aot_mode.md). If you want to accelarate the WASM execution, we recommand to [compile the WebAssembly with the AOT compiler](#wasmedgec-cli) first.
+By default, the `wasmedge` will execute WebAssembly programs in interpreter mode, and [execute the AOT-compiled `.so`, `.dylib`, `.dll`, or `.wasm` (universal output format) in AOT mode](run_in_aot_mode.md). If you want to accelerate the WASM execution, we recommend to [compile the WebAssembly with the AOT compiler](#wasmedgec-cli) first.
 
 Users can run the `wasmedge -h` for realizing the command line options quickly, or [refer to the detailed `wasmedge` CLI options here](../cli/wasmedge.md).
 

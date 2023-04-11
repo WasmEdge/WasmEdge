@@ -1,6 +1,6 @@
 # WasmEdge Go SDK
 
-The followings are the guide to work with the WasmEdge Go API. You can embed the WasmEdge into your go application through the WasmEdge Go API.
+The following are the guide to work with the WasmEdge Go API. You can embed the WasmEdge into your go application through the WasmEdge Go API.
 
 ## Getting Started
 

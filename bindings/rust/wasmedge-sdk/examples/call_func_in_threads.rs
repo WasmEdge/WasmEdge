@@ -9,7 +9,7 @@ use std::{
 };
 use wasmedge_sdk::{
     config::{CommonConfigOptions, ConfigBuilder},
-    params, Engine, Executor, Module, Statistics, Store, WasmVal,
+    params, Executor, Module, Statistics, Store, WasmVal,
 };
 use wasmedge_types::wat2wasm;
 

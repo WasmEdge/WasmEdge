@@ -245,7 +245,7 @@ func (h *host) fetch(_ interface{}, mem *wasmedge.Memory, params []interface{}) 
   return []interface{}{len(respBody)}, wasmedge.Result_Success
 }
 
-// Host function for writting memory
+// Host function for writing memory
 func (h *host) writeMem(_ interface{}, mem *wasmedge.Memory, params []interface{}) ([]interface{}, wasmedge.Result) {
   // write source code to memory
   pointer := params[0].(int32)

@@ -10,12 +10,11 @@ import org.wasmedge.enums.HostRegistration;
 /**
  * WasmEdge VM, used to execute wasm files.
  */
-public class WasmEdgeVm {
+public class WasmEdgeVm extends NativeResource {
     public static final Map<String, HostFunction> funcMap = new HashMap<>();
     private static final Map<String, Object> externRefMap = new HashMap<>();
     private final ConfigureContext configureContext;
     private final StoreContext storeContext;
-    private long pointer;
 
     /**
      * Create a wasm vm.
@@ -167,22 +166,6 @@ public class WasmEdgeVm {
     public native void execute(String funcName, Value[] params, int paramSize, int[] paramTypes,
                                Value[] returns, int returnSize, int[] returnTypes);
 
-
-    /**
-     * Destroy wasm vm and release resources.
-     */
-    public void destroy() {
-        if (configureContext != null) {
-            configureContext.destroy();
-        }
-
-        if (storeContext != null) {
-            storeContext.destroy();
-        }
-        delete();
-        this.pointer = 0;
-    }
-
     public native void registerModuleFromFile(String modName, String filePath);
 
     public native void registerModuleFromBuffer(String moduleName, byte[] buffer);
@@ -242,9 +225,7 @@ public class WasmEdgeVm {
 
     public native FunctionTypeContext getFunctionTypeRegistered(String moduleName, String funcName);
 
-    public native void cleanUp();
-
-    private native void delete();
+    public native void close();
 
     // Async API
     private native Async asyncRunWasmFromFile(String path, String funcName, Value[] params,

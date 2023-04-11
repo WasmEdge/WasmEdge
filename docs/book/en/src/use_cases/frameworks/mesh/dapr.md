@@ -17,7 +17,7 @@ Fork or clone the demo application from Github. You can use this repo as your ow
 git clone https://github.com/second-state/dapr-wasm
 ````
 
-The demo has 4 Dapr sidecar applications. The [web-port](https://github.com/second-state/dapr-wasm/tree/main/web-port) project provides a public web service for a static HTML page. This is the application’s UI. From the static HTML page, the user can select a microservice to turn an input image into grayscale. All 3 microsoervices below perform the same function. They are just implemented using different appraoches.
+The demo has 4 Dapr sidecar applications. The [web-port](https://github.com/second-state/dapr-wasm/tree/main/web-port) project provides a public web service for a static HTML page. This is the application’s UI. From the static HTML page, the user can select a microservice to turn an input image into grayscale. All 3 microsoervices below perform the same function. They are just implemented using different approaches.
 
 * **Standalone WasmEdge approach:** The [image-api-wasi-socket-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-wasi-socket-rs) project provides a standalone WasmEdge sidecar microservice that takes the input image and returns the grayscale image. The microservice is written in Rust and compiled into WebAssembly bytecode to run in WasmEdge.
 * Embedded WasmEdge approach #1: The [image-api-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-rs) project provides a simple Rust-based microservice. It embeds a [WasmEdge function](https://github.com/second-state/dapr-wasm/tree/main/functions/grayscale) to turn an input image into a grayscale image.
@@ -182,7 +182,7 @@ func main() {
   }
 
   if err := s.Start(); err != nil && err != http.ErrServerClosed {
-    log.Fatalf("error listenning: %v", err)
+    log.Fatalf("error listening: %v", err)
   }
 }
 ```

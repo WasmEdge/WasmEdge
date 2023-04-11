@@ -313,16 +313,6 @@ fn gen_runtime_error(code: u32) -> WasmEdgeResult<()> {
     }
 }
 
-/// Loads plugins from default paths.
-///
-/// The default paths include:
-///
-/// * The path specified by the `WASMEDGE_PLUGIN_PATH` environment variable.
-///
-pub fn load_plugin_from_default_paths() {
-    unsafe { ffi::WasmEdge_PluginLoadWithDefaultPaths() }
-}
-
 /// Returns the major version value.
 pub fn version_major_value() -> u32 {
     unsafe { ffi::WasmEdge_VersionGetMajor() }
@@ -347,9 +337,6 @@ pub fn version_string() -> String {
     }
 }
 
-// #[derive(Debug)]
-// pub struct Driver {}
-// impl Driver {
 /// Triggers the WasmEdge AOT compiler tool
 pub fn driver_aot_compiler<I, V>(args: I) -> i32
 where

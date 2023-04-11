@@ -19,7 +19,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_TableInstanceContext_nativeInit(
 }
 
 JNIEXPORT void JNICALL
-Java_org_wasmedge_TableInstanceContext_delete(JNIEnv *env, jobject thisObject) {
+Java_org_wasmedge_TableInstanceContext_close(JNIEnv *env, jobject thisObject) {
   WasmEdge_TableInstanceContext *tableInstanceContext =
       getTableInstanceContext(env, thisObject);
   WasmEdge_TableInstanceDelete(tableInstanceContext);

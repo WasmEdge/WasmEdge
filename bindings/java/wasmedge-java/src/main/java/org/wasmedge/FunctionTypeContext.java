@@ -1,6 +1,5 @@
 package org.wasmedge;
 
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -10,8 +9,7 @@ import org.wasmedge.enums.ValueType;
 /**
  * Function type definition.
  */
-public class FunctionTypeContext {
-    private long pointer;
+public class FunctionTypeContext extends NativeResource {
     private String name;
 
     public FunctionTypeContext(List<ValueType> paramTypes,
@@ -25,7 +23,7 @@ public class FunctionTypeContext {
     }
 
     private FunctionTypeContext(long pointer) {
-        this.pointer = pointer;
+        super(pointer);
     }
 
     private native void nativeInit(int[] paramsTypes, int[] returnTypes);
@@ -64,6 +62,6 @@ public class FunctionTypeContext {
 
     private native int[] nativeGetReturns();
 
-    public native void delete();
+    public native void close();
 
 }

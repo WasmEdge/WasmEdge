@@ -645,13 +645,6 @@ P(FunctionReferences, "Typed Function References")
 #ifdef UseHostRegistration
 #define H Line
 H(Wasi)
-H(WasmEdge_Process)
-H(WasiNN)
-H(WasiCrypto_Common)
-H(WasiCrypto_AsymmetricCommon)
-H(WasiCrypto_Kx)
-H(WasiCrypto_Signatures)
-H(WasiCrypto_Symmetric)
 #undef H
 #endif // UseHostRegistration
 

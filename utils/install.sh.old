@@ -296,7 +296,7 @@ usage() {
     Usage: $0 -p </path/to/install> [-V]
     WasmEdge installation, uninstallation and extensions install.
     Mandatory arguments to long options are mandatory for short options too.
-    Long options should be assingned with '='
+    Long options should be assigned with '='
 
     -h,             --help                      Display help
 
@@ -448,7 +448,7 @@ wasmedge_checks() {
                 local V_=$(echo $version | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
                 if [ "$V" = "$V_" ]; then
                     echo $V $V_
-                    echo "${GREEN}Installation of $var-$version successfull${NC}"
+                    echo "${GREEN}Installation of $var-$version successful${NC}"
                 else
                     echo $V $V_
                     echo "${YELLOW}version $V_ does not match $V for $var-$version${NC}"
@@ -457,7 +457,7 @@ wasmedge_checks() {
             done
         fi
     fi
-    # Bypass if corss compile
+    # Bypass if cross compile
 }
 
 get_wasmedge_image_deps() {

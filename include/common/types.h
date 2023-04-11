@@ -165,8 +165,8 @@ public:
   HeapType(HeapTypeCode HT) noexcept
       : ValTypeBase(ValTypeCode::RefNull, HT, 0) {
     assuming((Inner.Data.Code == ValTypeCode::RefNull));
-    assuming((Inner.Data.HTCode == HeapTypeCode::TypeIndex) &&
-             (Inner.Data.HTCode == HeapTypeCode::NotHeapType));
+    assuming((Inner.Data.HTCode != HeapTypeCode::TypeIndex) &&
+             (Inner.Data.HTCode != HeapTypeCode::NotHeapType));
   }
   // Constructor for the heap types (type index).
   HeapType(uint32_t I) noexcept

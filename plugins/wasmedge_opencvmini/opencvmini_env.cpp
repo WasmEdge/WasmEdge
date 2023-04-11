@@ -30,7 +30,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
                 .Create = create,
             },
         },
-    .AddOptions = addOptions,
+    .AddOptions = nullptr,
 };
 
 } // namespace

@@ -194,11 +194,10 @@ private:
   Expect<void> loadSegment(AST::DataSegment &DataSeg);
   Expect<void> loadDesc(AST::ImportDesc &ImpDesc);
   Expect<void> loadDesc(AST::ExportDesc &ExpDesc);
+  Expect<HeapType> loadHeapType(ASTNodeAttr From);
+  Expect<ValType> loadValType(ASTNodeAttr From);
+  Expect<RefType> loadRefType(ASTNodeAttr From);
   Expect<void> loadLimit(AST::Limit &Lim);
-  Expect<FullValType> loadFullValType();
-  Expect<FullValType> loadFullValType(uint8_t TypeCode);
-  Expect<FullRefType> loadFullRefType();
-  Expect<HeapType> loadHeapType();
   Expect<void> loadType(AST::FunctionType &FuncType);
   Expect<void> loadType(AST::MemoryType &MemType);
   Expect<void> loadType(AST::TableType &TabType);

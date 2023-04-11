@@ -71,8 +71,8 @@ TEST_P(CoreTest, TestSuites) {
   // Helper function to call functions.
   T.onInvoke = [&VM](const std::string &ModName, const std::string &Field,
                      const std::vector<ValVariant> &Params,
-                     const std::vector<FullValType> &ParamTypes)
-      -> Expect<std::vector<std::pair<ValVariant, FullValType>>> {
+                     const std::vector<ValType> &ParamTypes)
+      -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
     if (!ModName.empty()) {
       // Invoke function of named module. Named modules are registered in Store
       // Manager.
@@ -85,7 +85,7 @@ TEST_P(CoreTest, TestSuites) {
   };
   // Helper function to get values.
   T.onGet = [&VM](const std::string &ModName, const std::string &Field)
-      -> Expect<std::pair<ValVariant, FullValType>> {
+      -> Expect<std::pair<ValVariant, ValType>> {
     // Get module instance.
     const WasmEdge::Runtime::Instance::ModuleInstance *ModInst = nullptr;
     if (ModName.empty()) {

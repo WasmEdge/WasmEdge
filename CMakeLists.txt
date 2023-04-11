@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.10.2)
 cmake_policy(SET CMP0091 NEW)
 project(WasmEdge)
 
-set(WASMEDGE_CAPI_VERSION "0.0.1" CACHE STRING "WasmEdge C API library version")
+set(WASMEDGE_CAPI_VERSION "0.0.2" CACHE STRING "WasmEdge C API library version")
 set(WASMEDGE_CAPI_SOVERSION "0" CACHE STRING "WasmEdge C API library soversion")
 
 find_program(GIT_CMD git)
@@ -73,6 +73,7 @@ option(WASMEDGE_LINK_TOOLS_STATIC "Statically link the wasmedge and wasmedgec to
 set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge Wasi-NN plugin with backends.")
 # Currently supported WASI-NN backend: "OpenVINO" on Linux x86_64
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge Wasi-crypto plugin." OFF)
+option(WASMEDGE_PLUGIN_PROCESS "Enable WasmEdge process plugin." OFF)
 option(WASMEDGE_PLUGIN_HTTPSREQ "Enable WasmEdge httpsreq plugin." OFF)
 
 if(WASMEDGE_BUILD_TOOLS AND WASMEDGE_BUILD_FUZZING)

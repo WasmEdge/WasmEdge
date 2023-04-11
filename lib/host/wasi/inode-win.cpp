@@ -20,6 +20,7 @@
 #define TICKS_PER_SECOND 10000000ULL
 #define SEC_TO_UNIX_EPOCH 11644473600ULL
 #define TICKS_TO_UNIX_EPOCH (TICKS_PER_SECOND * SEC_TO_UNIX_EPOCH)
+#define PATH_BUFFER_MAX 32767
 
 namespace WasmEdge {
 namespace Host {
@@ -397,7 +398,7 @@ constexpr DWORD attributeFlags(__wasi_oflags_t OpenFlags,
     Flags |= FILE_FLAG_WRITE_THROUGH;
   }
   if (OpenFlags & __WASI_OFLAGS_DIRECTORY) {
-    Flags |= FILE_ATTRIBUTE_DIRECTORY;
+    Flags |= FILE_ATTRIBUTE_DIRECTORY | FILE_FLAG_BACKUP_SEMANTICS;
   }
 
   return Flags;
@@ -495,12 +496,21 @@ WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
                               __wasi_fdflags_t FdFlags,
                               uint8_t VFSFlags) noexcept {
 
-  DWORD AttributeFlags = attributeFlags(OpenFlags, FdFlags);
-  DWORD AccessFlags = accessFlags(FdFlags, VFSFlags);
-  DWORD CreationDisposition = creationDisposition(OpenFlags);
+  const DWORD AttributeFlags = attributeFlags(OpenFlags, FdFlags);
+  const DWORD AccessFlags = accessFlags(FdFlags, VFSFlags);
+  const DWORD CreationDisposition = creationDisposition(OpenFlags);
+
+  WCHAR PathBuffer[PATH_BUFFER_MAX];
+
+  int NumCharacters = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, Path.c_str(),
+                                          -1, PathBuffer, PATH_BUFFER_MAX);
+
+  if (unlikely(NumCharacters <= 0)) {
+    return WasiUnexpect(fromWinError(GetLastError()));
+  }
 
   HANDLE FileHandle =
-      CreateFileA(Path.c_str(), AccessFlags,
+      CreateFileW(PathBuffer, AccessFlags,
                   FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
                   nullptr, CreationDisposition, AttributeFlags, nullptr);
 
@@ -1720,7 +1730,7 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
   SysHint.ai_flags = toAIFlags(Hint.ai_flags);
   SysHint.ai_family = toAddressFamily(Hint.ai_family);
   SysHint.ai_socktype = toSockType(Hint.ai_socktype);
-  SysHint.ai_protocol = toProtocal(Hint.ai_protocol);
+  SysHint.ai_protocol = toProtocol(Hint.ai_protocol);
   SysHint.ai_addrlen = Hint.ai_addrlen;
   SysHint.ai_addr = nullptr;
   SysHint.ai_canonname = nullptr;
@@ -1744,7 +1754,7 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
     auto &CurAddrinfo = WasiAddrinfoArray[Idx];
     CurAddrinfo->ai_flags = fromAIFlags(SysResItem->ai_flags);
     CurAddrinfo->ai_socktype = fromSockType(SysResItem->ai_socktype);
-    CurAddrinfo->ai_protocol = fromProtocal(SysResItem->ai_protocol);
+    CurAddrinfo->ai_protocol = fromProtocol(SysResItem->ai_protocol);
     CurAddrinfo->ai_family = fromAddressFamily(SysResItem->ai_family);
     CurAddrinfo->ai_addrlen = static_cast<uint32_t>(SysResItem->ai_addrlen);
 
@@ -2206,7 +2216,7 @@ WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
   return {};
 }
 
-WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressBufPtr,
+WasiExpect<void> INode::sockGetLocalAddr(uint8_t *AddressBufPtr,
                                          uint32_t *PortPtr) const noexcept {
   EnsureWSAStartup();
 

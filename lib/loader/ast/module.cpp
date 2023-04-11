@@ -48,7 +48,7 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
   while (!Conf.getRuntimeConfigure().isForceInterpreter() &&
          WASMType != InputType::SharedLibrary) {
     // This loop only overview the custom sections and read the AOT section.
-    // For the other general errors, break and handle in the sequencially
+    // For the other general errors, break and handle in the sequentially
     // parsing below.
     uint8_t NewSectionId = 0x00;
     if (auto Res = FMgr.readByte()) {

@@ -6,11 +6,9 @@ on:
       version:
         type: string
         required: true
-      matrix: # [ { runner, docker_tag }, ... ]
+      matrix: # [ { name, runner, docker_tag }, ... ]
         type: string
         required: true
-      tests:
-        type: boolean
       release:
         type: boolean
       upload_asset_url:
@@ -32,7 +30,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set environment variables for tests
-        if: ${{ inputs.tests }}
+        if: ${{ matrix.tests }}
         run: |
           echo "BUILD_TESTS=ON" | tee -a $GITHUB_ENV
       - name: Build WasmEdge using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode

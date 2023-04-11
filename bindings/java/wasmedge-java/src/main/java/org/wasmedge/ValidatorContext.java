@@ -3,8 +3,7 @@ package org.wasmedge;
 /**
  * Validator, for validating AstModule.
  */
-public class ValidatorContext {
-    private long pointer;
+public class ValidatorContext extends NativeResource {
 
     public ValidatorContext(ConfigureContext configureContext) {
         nativeInit(configureContext);
@@ -14,5 +13,5 @@ public class ValidatorContext {
 
     private native void nativeInit(ConfigureContext configureContext);
 
-    public native void delete();
+    public native void close();
 }

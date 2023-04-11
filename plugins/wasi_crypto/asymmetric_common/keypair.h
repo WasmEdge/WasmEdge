@@ -15,7 +15,7 @@
 #pragma once
 
 #include "asymmetric_common/publickey.h"
-#include "asymmetric_common/registed.h"
+#include "asymmetric_common/registered.h"
 #include "asymmetric_common/secretkey.h"
 #include "common/options.h"
 #include "utils/error.h"

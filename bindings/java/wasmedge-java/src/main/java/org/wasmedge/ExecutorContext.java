@@ -5,10 +5,10 @@ import java.util.List;
 /**
  * Executor context, for executing wasm modules.
  */
-public class ExecutorContext {
-    private long pointer;
+public class ExecutorContext extends NativeResource {
 
     public ExecutorContext(ConfigureContext configureContext, StatisticsContext statisticsContext) {
+        super();
         nativeInit(configureContext, statisticsContext);
     }
 
@@ -28,5 +28,5 @@ public class ExecutorContext {
     public native void registerImport(StoreContext storeCxt,
                                       ModuleInstanceContext moduleInstanceContext);
 
-    public native void delete();
+    public native void close();
 }

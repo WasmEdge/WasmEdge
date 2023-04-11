@@ -3,15 +3,15 @@ package org.wasmedge;
 /**
  * Static context for vm execution.
  */
-public class StatisticsContext {
-    private long pointer;
+public class StatisticsContext extends NativeResource {
 
     public StatisticsContext() {
+        super(0);
         nativeInit();
     }
 
     private StatisticsContext(long pointer) {
-        this.pointer = pointer;
+        super(pointer);
     }
 
     private native void nativeInit();
@@ -26,11 +26,6 @@ public class StatisticsContext {
 
     public native long getTotalCost();
 
-    public void destroy() {
-        delete();
-        pointer = 0;
-    }
-
-    public native void delete();
+    public native void close();
 
 }

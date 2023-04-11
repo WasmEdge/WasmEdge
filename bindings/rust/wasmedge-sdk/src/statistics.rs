@@ -1,16 +1,14 @@
 //! Defines WasmEdge Statistics struct.
 
 use crate::WasmEdgeResult;
-use std::marker::PhantomData;
 use wasmedge_sys as sys;
 
 /// Used to collect statistics of the WasmEdge runtime, such as the count of instructions in execution.
-#[derive(Debug)]
-pub struct Statistics<'a> {
+#[derive(Debug, Clone)]
+pub struct Statistics {
     pub(crate) inner: sys::Statistics,
-    pub(crate) _marker: PhantomData<&'a ()>,
 }
-impl<'a> Statistics<'a> {
+impl Statistics {
     /// Creates a new [Statistics].
     ///
     /// # Error
@@ -18,14 +16,11 @@ impl<'a> Statistics<'a> {
     /// If fail to create a [Statistics], then an error is returned.
     pub fn new() -> WasmEdgeResult<Self> {
         let inner = sys::Statistics::create()?;
-        Ok(Self {
-            inner,
-            _marker: PhantomData,
-        })
+        Ok(Self { inner })
     }
 
     /// Returns the instruction count in execution.
-    pub fn count_of_instr(&self) -> u64 {
+    pub fn count(&self) -> u64 {
         self.inner.instr_count()
     }
 
@@ -48,14 +43,14 @@ impl<'a> Statistics<'a> {
     /// let stat = Statistics::new().expect("fail to create a Statistics");
     ///
     /// // check instruction count per second
-    /// assert!(stat.instr_per_sec().is_nan());
+    /// assert!(stat.count_per_second().is_nan());
     /// ```
-    pub fn instr_per_sec(&self) -> f64 {
+    pub fn count_per_second(&self) -> f64 {
         self.inner.instr_per_sec()
     }
 
     /// Returns the total cost in execution.
-    pub fn cost_in_total(&self) -> u64 {
+    pub fn cost(&self) -> u64 {
         self.inner.cost_in_total()
     }
 

@@ -3,11 +3,10 @@ package org.wasmedge;
 /**
  * function instance context.
  */
-public class FunctionInstanceContext {
-    private long pointer;
+public class FunctionInstanceContext extends NativeResource {
 
     private FunctionInstanceContext(long pointer) {
-        this.pointer = pointer;
+        super(pointer);
     }
 
     public FunctionInstanceContext(FunctionTypeContext type,
@@ -33,7 +32,5 @@ public class FunctionInstanceContext {
                                             Object data,
                                             long cost);
 
-    public native void delete();
-
-
+    public native void close();
 }

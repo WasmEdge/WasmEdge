@@ -195,21 +195,24 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Block:
   case OpCode::Loop:
-  case OpCode::If:
+  case OpCode::If: {
+    auto StartOffset = FMgr.getOffset();
     // Read the block return type.
     if (auto Res = FMgr.readS33()) {
       if (*Res < 0) {
-        // Value type case.
-        // TODO: may check whether the `TypeByte` exceed the range.
         Byte TypeByte = static_cast<Byte>((*Res) & INT64_C(0x7F));
-        if (TypeByte == 0x40) {
+        if (TypeByte == 0x40U) {
+          // Empty case.
           Instr.setEmptyBlockType();
         } else {
-          if (auto TypeRes = loadFullValType(TypeByte)) {
+          // Value type case. Seek back to the origin offset and read the
+          // valtype.
+          FMgr.seek(StartOffset);
+          if (auto TypeRes = loadValType(ASTNodeAttr::Instruction)) {
             Instr.setBlockType(*TypeRes);
           } else {
-            return logLoadError(TypeRes.error(), FMgr.getLastOffset(),
-                                ASTNodeAttr::Instruction);
+            // The AST node information is handled.
+            return Unexpect(TypeRes);
           }
         }
       } else {
@@ -226,6 +229,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
                           ASTNodeAttr::Instruction);
     }
     return {};
+  }
 
   case OpCode::Br:
   case OpCode::Br_if:
@@ -278,14 +282,21 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   }
 
   // Reference Instructions.
-  case OpCode::Ref__null:
-    if (auto Res = loadFullRefType()) {
-      Instr.setRefType(*Res);
+  case OpCode::Ref__null: {
+    Expect<RefType> Res;
+    if (Conf.hasProposal(Proposal::FunctionReferences)) {
+      // The func-ref proposal use the heap type to replace ref type here.
+      Res = loadHeapType(RefTypeCode::RefNull, ASTNodeAttr::Instruction);
     } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
+      Res = loadRefType(ASTNodeAttr::Instruction);
     }
+    if (!Res) {
+      // The AST node information is handled.
+      return Unexpect(Res);
+    }
+    Instr.setRefType(*Res);
     return {};
+  }
   case OpCode::Ref__is_null:
     return {};
   case OpCode::Ref__func:
@@ -307,11 +318,11 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     }
     Instr.setValTypeListSize(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
-      if (auto Res = loadFullValType()) {
+      if (auto Res = loadValType(ASTNodeAttr::Instruction)) {
         Instr.getValTypeList()[I] = *Res;
       } else {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::Instruction);
+        // The AST node information is handled.
+        return Unexpect(Res);
       }
     }
     return {};

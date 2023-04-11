@@ -59,8 +59,8 @@ public:
   void setMode(ElemMode EMode) noexcept { Mode = EMode; }
 
   /// Getter of reference type.
-  FullRefType getRefType() const noexcept { return Type; }
-  void setRefType(FullRefType RType) noexcept { Type = RType; }
+  const RefType &getRefType() const noexcept { return Type; }
+  void setRefType(const RefType &RType) noexcept { Type = RType; }
 
   /// Getter of table index.
   uint32_t getIdx() const noexcept { return TableIdx; }
@@ -74,7 +74,7 @@ private:
   /// \name Data of ElementSegment node.
   /// @{
   ElemMode Mode = ElemMode::Active;
-  FullRefType Type = RefType::FuncRef;
+  RefType Type = RefTypeCode::FuncRef;
   uint32_t TableIdx = 0;
   std::vector<Expression> InitExprs;
   /// @}
@@ -88,10 +88,10 @@ public:
   void setSegSize(uint32_t Size) noexcept { SegSize = Size; }
 
   /// Getter of locals vector.
-  Span<const std::pair<uint32_t, FullValType>> getLocals() const noexcept {
+  Span<const std::pair<uint32_t, ValType>> getLocals() const noexcept {
     return Locals;
   }
-  std::vector<std::pair<uint32_t, FullValType>> &getLocals() noexcept {
+  std::vector<std::pair<uint32_t, ValType>> &getLocals() noexcept {
     return Locals;
   }
 
@@ -103,7 +103,7 @@ private:
   /// \name Data of CodeSegment node.
   /// @{
   uint32_t SegSize = 0;
-  std::vector<std::pair<uint32_t, FullValType>> Locals;
+  std::vector<std::pair<uint32_t, ValType>> Locals;
   Symbol<void> FuncSymbol;
   /// @}
 };

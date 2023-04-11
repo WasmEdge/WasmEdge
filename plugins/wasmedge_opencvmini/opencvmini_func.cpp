@@ -4,6 +4,7 @@
 #include "opencvmini_func.h"
 #include "common/defines.h"
 
+#include <vector>
 #include <opencv2/opencv.hpp>
 
 namespace WasmEdge {

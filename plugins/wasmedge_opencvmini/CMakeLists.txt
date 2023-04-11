@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2023 Second State INC
 
+find_package(OpenCV 4 REQUIRED)
+
 wasmedge_add_library(wasmedgePluginWasmEdgeOpenCVMini
   SHARED
   opencvmini_env.cpp
@@ -25,17 +27,20 @@ target_include_directories(wasmedgePluginWasmEdgeOpenCVMini
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
+  ${OpenCV_INClUDE_DIRS}
 )
 
 if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmedgePluginWasmEdgeOpenCVMini
     PRIVATE
     wasmedgeCAPI
+    ${OpenCV_LIBS}
   )
 else()
   target_link_libraries(wasmedgePluginWasmEdgeOpenCVMini
     PRIVATE
     wasmedge_shared
+    ${OpenCV_LIBS}
   )
 endif()
 

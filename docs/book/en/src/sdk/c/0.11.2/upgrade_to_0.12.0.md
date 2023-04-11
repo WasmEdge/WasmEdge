@@ -146,7 +146,7 @@ WasmEdge_ModuleInstance *ModCxt =
 WasmEdge_ModuleInstanceDelete(ModCxt);
 ```
 
-## Rereieving the module instances from the VM context
+## Retrieving the module instances from the VM context
 
 Before the version `0.11.2`, developers can retrieve the `WASI` or the modules from plug-ins with the `WasmEdge_HostRegistration` values, or retrieve the registered modules from the store context.
 
@@ -207,7 +207,7 @@ WasmEdge_ModuleInstance *WASIModInst =
     WasmEdge_VMGetImportModuleContext(VMCxt, WasmEdge_HostRegistration_Wasi);
 /* Get the registered WASI-crypto-common module instance by name. */
 WasmEdge_String ModName =
-    WasmEdge_StringCreateByCString("wasi_ephemeral_crypto_kx");
+    WasmEdge_StringCreateByCString("wasi_ephemeral_crypto_common");
 const WasmEdge_ModuleInstance *WASICryptoKxModInst =
     WasmEdge_VMGetImportModuleContext(VMCxt, ModName);
 WasmEdge_StringDelete(ModName);

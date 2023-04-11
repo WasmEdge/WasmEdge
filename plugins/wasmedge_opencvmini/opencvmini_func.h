@@ -14,8 +14,8 @@ class WasmEdgeOpenCVMiniImdecode
 public:
   WasmEdgeOpenCVMiniImdecode(WasmEdgeOpenCVMiniEnvironment &HostEnv)
       : WasmEdgeOpenCVMini(HostEnv) {}
-  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
-                    uint32_t NameLen);
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t BufPtr,
+                    uint32_t BufLen);
 };
 
 } // namespace Host

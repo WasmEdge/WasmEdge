@@ -1,7 +1,6 @@
 package org.wasmedge;
 
 import java.io.Closeable;
-import java.io.IOException;
 
 /**
  * Base class for native resources.
@@ -9,14 +8,13 @@ import java.io.IOException;
 public abstract class NativeResource implements Closeable {
     private long pointer;
 
-    public NativeResource(long pointer) {
+    protected NativeResource() {
+        pointer = 0;
+    }
+
+    protected NativeResource(long pointer) {
         this.pointer = pointer;
     }
 
-    abstract void destroy();
-
-    @Override
-    public void close() throws IOException {
-        destroy();
-    }
+    public abstract void close();
 }

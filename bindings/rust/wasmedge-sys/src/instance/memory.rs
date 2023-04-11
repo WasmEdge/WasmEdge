@@ -12,11 +12,12 @@ use crate::{
     utils::check,
     WasmEdgeResult,
 };
+use std::sync::Arc;
 
 /// Defines a WebAssembly memory instance, which is a linear memory described by its [type](crate::MemType). Each memory instance consists of a vector of bytes and an optional maximum size, and its size is a multiple of the WebAssembly page size (*64KiB* of each page).
 #[derive(Debug)]
 pub struct Memory {
-    pub(crate) inner: InnerMemory,
+    pub(crate) inner: Arc<InnerMemory>,
     pub(crate) registered: bool,
 }
 impl Memory {
@@ -28,7 +29,7 @@ impl Memory {
     ///
     /// # Errors
     ///
-    /// If fail to create a [Memory], then an error is returned.
+    /// * If fail to create the memory instance, then [WasmEdgeError::Mem(MemError::Create)](crate::error::MemError) is returned.
     ///
     /// # Example
     ///
@@ -41,14 +42,13 @@ impl Memory {
     ///
     /// ```
     ///
-    ///
     pub fn create(ty: &MemType) -> WasmEdgeResult<Self> {
         let ctx = unsafe { ffi::WasmEdge_MemoryInstanceCreate(ty.inner.0 as *const _) };
 
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Mem(MemError::Create))),
             false => Ok(Memory {
-                inner: InnerMemory(ctx),
+                inner: Arc::new(InnerMemory(ctx)),
                 registered: false,
             }),
         }
@@ -170,17 +170,11 @@ impl Memory {
     ///
     /// If fail to get the data pointer, then an error is returned.
     ///
-    pub fn data_pointer(&self, offset: u32, len: u32) -> WasmEdgeResult<&u8> {
+    pub fn data_pointer(&self, offset: u32, len: u32) -> WasmEdgeResult<*const u8> {
         let ptr = unsafe { ffi::WasmEdge_MemoryInstanceGetPointerConst(self.inner.0, offset, len) };
         match ptr.is_null() {
             true => Err(Box::new(WasmEdgeError::Mem(MemError::ConstPtr))),
-            false => {
-                let result = unsafe { ptr.as_ref() };
-                match result {
-                    Some(ptr) => Ok(ptr),
-                    None => Err(Box::new(WasmEdgeError::Mem(MemError::Ptr2Ref))),
-                }
-            }
+            false => Ok(ptr),
         }
     }
 
@@ -196,17 +190,11 @@ impl Memory {
     ///
     /// If fail to get the data pointer, then an error is returned.
     ///
-    pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<&mut u8> {
+    pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<*mut u8> {
         let ptr = unsafe { ffi::WasmEdge_MemoryInstanceGetPointer(self.inner.0, offset, len) };
         match ptr.is_null() {
             true => Err(Box::new(WasmEdgeError::Mem(MemError::MutPtr))),
-            false => {
-                let result = unsafe { ptr.as_mut() };
-                match result {
-                    Some(ptr) => Ok(ptr),
-                    None => Err(Box::new(WasmEdgeError::Mem(MemError::Ptr2Ref))),
-                }
-            }
+            false => Ok(ptr),
         }
     }
 
@@ -245,11 +233,25 @@ impl Memory {
     pub fn grow(&mut self, count: u32) -> WasmEdgeResult<()> {
         unsafe { check(ffi::WasmEdge_MemoryInstanceGrowPage(self.inner.0, count)) }
     }
+
+    /// Provides a raw pointer to the inner memory context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_MemoryInstanceContext {
+        self.inner.0 as *const _
+    }
 }
 impl Drop for Memory {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_MemoryInstanceDelete(self.inner.0) };
+        }
+    }
+}
+impl Clone for Memory {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            registered: false,
         }
     }
 }
@@ -320,6 +322,12 @@ impl MemType {
         let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(self.inner.0) };
         let limit: WasmEdgeLimit = limit.into();
         limit.shared()
+    }
+
+    /// Provides a raw pointer to the inner memory type context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_MemoryTypeContext {
+        self.inner.0 as *const _
     }
 }
 impl Drop for MemType {
@@ -549,5 +557,29 @@ mod tests {
         });
 
         handle.join().unwrap()
+    }
+
+    #[test]
+    fn test_memory_clone() {
+        #[derive(Debug, Clone)]
+        struct RecordsMemory {
+            memory: Memory,
+        }
+
+        // create a Memory with a limit range [10, 20]
+        let result = MemType::create(10, Some(20), false);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Memory::create(&ty);
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+
+        let rec_mem = RecordsMemory { memory };
+
+        let rec_mem_cloned = rec_mem.clone();
+
+        drop(rec_mem);
+
+        assert_eq!(rec_mem_cloned.memory.size(), 10);
     }
 }

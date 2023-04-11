@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
         .func("swap")
         .expect("Not found a host function named 'swap'.");
 
-    let returns = swap.call(&executor, params!(2, 3))?;
+    let returns = swap.run(&executor, params!(2, 3))?;
     assert_eq!(returns.len(), 2);
 
     println!(

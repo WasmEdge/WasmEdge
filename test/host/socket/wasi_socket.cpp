@@ -24,7 +24,7 @@ using namespace std::literals;
 
 namespace {
 
-// XXX: Setup a socket with address ::1 to test if IPv6 is availible.
+// XXX: Setup a socket with address ::1 to test if IPv6 is available.
 //      It prevent system call like sysctl net.ipv6.conf.all.disable_ipv6
 //      However The port used in TEST can not be same as TrySetUpIPV6Socket
 //      Because It do not set up SO_REUSEADDR=1 may cause test into fail.
@@ -285,7 +285,7 @@ TEST(WasiTest, SocketUDP_4) {
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_INVAL);
     Env.fini();
   }
-  // Invaild Address Length for Bind
+  // Invalid Address Length for Bind
   {
     uint32_t Fd = 0;
     uint32_t Port = 12345;
@@ -306,7 +306,7 @@ TEST(WasiTest, SocketUDP_4) {
                      Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_INVAL);
   }
-  // Invaild Fd for Bind
+  // Invalid Fd for Bind
   {
     uint32_t Fd = 0;
     uint32_t Port = 12345;

@@ -140,7 +140,7 @@ jobs:
             test_bin: wasiCryptoTests
             build_type: Release
           - name: HttpsReq
-            tar_name: http_req
+            tar_name: wasmedge_httpsreq
             compiler: g++
             docker_tag: ubuntu-build-gcc
             output_path: plugins/wasmedge_httpsreq
@@ -149,13 +149,31 @@ jobs:
             test_bin: wasmedgeHttpsReqTests
             build_type: Release
           - name: HttpsReq
-            tar_name: http_req
+            tar_name: wasmedge_httpsreq
             compiler: clang++
             docker_tag: ubuntu-build-clang
             output_path: plugins/wasmedge_httpsreq
             output_bin: libwasmedgePluginHttpsReq.so
             test_path: test/plugins/wasmedge_httpsreq
             test_bin: wasmedgeHttpsReqTests
+            build_type: Release
+          - name: Process
+            tar_name: wasmedge_process
+            compiler: g++
+            docker_tag: ubuntu-build-gcc
+            output_path: plugins/wasmedge_process
+            output_bin: libwasmedgePluginWasmEdgeProcess.so
+            test_path: test/plugins/wasmedge_process
+            test_bin: wasmedgeProcessTests
+            build_type: Release
+          - name: Process
+            tar_name: wasmedge_process
+            compiler: clang++
+            docker_tag: ubuntu-build-clang
+            output_path: plugins/wasmedge_process
+            output_bin: libwasmedgePluginWasmEdgeProcess.so
+            test_path: test/plugins/wasmedge_process
+            test_bin: wasmedgeProcessTests
             build_type: Release
     name: Ubuntu 20.04 WasmEdge ${{ matrix.name }} plugin with ${{ matrix.compiler}} ${{ matrix.build_type}}
     runs-on: ubuntu-latest
@@ -208,7 +226,15 @@ jobs:
           apt install -y libssl-dev
           mkdir -p build
           cd build
-          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_PLUGIN_HTTPSREQ=true -DWASMEDGE_BUILD_TESTS=ON ..
+          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_PLUGIN_HTTPSREQ=ON -DWASMEDGE_BUILD_TESTS=ON ..
+          cd ${{ matrix.test_path }}
+          make -j
+      - name: Build WasmEdge Process plugin using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
+        if: contains(matrix.name, 'Process')
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_BUILD_TESTS=ON ..
           cd ${{ matrix.test_path }}
           make -j
       - name: Test WasmEdge ${{ matrix.name }} plugin using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
@@ -321,6 +347,26 @@ jobs:
             cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             build_type: Release
             test: false
+          - name: Process
+            tar_name: wasmedge_process
+            system: manylinux2014 x86_64
+            host_runner: ubuntu-latest
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasmedge_process
+            output_bin: libwasmedgePluginWasmEdgeProcess.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_PROCESS=ON"
+            build_type: Release
+            test: false
+          - name: Process
+            tar_name: wasmedge_process
+            system: manylinux2014 aarch64
+            host_runner: linux-arm64
+            docker_tag: manylinux2014_aarch64
+            output_path: plugins/wasmedge_process
+            output_bin: libwasmedgePluginWasmEdgeProcess.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_PROCESS=ON"
+            build_type: Release
+            test: false
     name: ${{ matrix.system }} WasmEdge ${{ matrix.name }} plugin with g++ ${{ matrix.build_type }}
     runs-on: ${{ matrix.host_runner }}
     needs: [get_version_v2]
@@ -361,7 +407,7 @@ jobs:
           cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}
           tar -zcvf plugin.tar.gz ${{ matrix.output_bin }}
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: WasmEdge-plugin-${{ matrix.tar_name }}-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin.tar.gz
@@ -418,7 +464,7 @@ jobs:
           cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}
           tar -zcvf plugin.tar.gz ${{ matrix.output_bin }}
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: WasmEdge-plugin-${{ matrix.tar_name }}-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_x86_64.tar.gz
           path: plugin.tar.gz

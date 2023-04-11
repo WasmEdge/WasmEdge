@@ -30,7 +30,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]
-        rust: [1.64, 1.65, 1.66]
+        rust: [1.66, 1.67]
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
@@ -49,7 +49,7 @@ jobs:
         run: |
           apt update
           apt install -y software-properties-common libboost-all-dev llvm-12-dev liblld-12-dev ninja-build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On .
           cmake --build build
 
       - name: Rustfmt
@@ -63,7 +63,7 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           cargo clippy -V
-          cargo clippy --lib --examples --all-features -- -D warnings
+          cargo clippy --lib --examples --features aot,async,wasi_crypto,wasi_nn,wasmedge_process,ffi -- -D warnings
 
       - name: Test Rust Bindings
         working-directory: bindings/rust/
@@ -72,8 +72,8 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --workspace --locked
-          cargo test --examples --locked
+          cargo test --workspace --locked --features aot,async,ffi
+          cargo test --examples --locked --features aot,async,ffi
 
   build_macos:
     name: MacOS
@@ -81,7 +81,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-11, macos-12]
-        rust: [1.64, 1.65, 1.66]
+        rust: [1.66, 1.67]
 
     steps:
       - name: Checkout sources
@@ -118,7 +118,7 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           cargo clippy -V
-          cargo clippy --lib --examples --all-features -- -D warnings
+          cargo clippy --lib --examples --features aot,async,ffi -- -D warnings
 
       - name: Test Rust Bindings
         working-directory: bindings/rust/
@@ -127,15 +127,15 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export DYLD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --workspace --locked
-          cargo test --examples --locked
+          cargo test --workspace --locked --features aot,async,ffi
+          cargo test --examples --locked --features aot,async,ffi
 
   build_windows:
     name: Windows
     runs-on: windows-2022
     strategy:
       matrix:
-        rust: [1.64, 1.65, 1.66]
+        rust: [1.66, 1.67]
     env:
       WASMEDGE_DIR: ${{ github.workspace }}
       WASMEDGE_BUILD_DIR: ${{ github.workspace }}\build
@@ -188,7 +188,7 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           cd bindings/rust/
           cargo clippy -V
-          cargo clippy --lib --examples --all-features -- -D warnings
+          cargo clippy --lib --examples --features aot,async,ffi -- -D warnings
 
       - name: Test Rust Bindings
         run: |
@@ -197,5 +197,55 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge\WasmEdge\build\lib\api"
           cd bindings\rust
-          cargo test --workspace --locked
-          cargo test --examples --locked
+          cargo test --workspace --features aot,async,ffi --locked
+          cargo test --examples --features aot,async,ffi --locked
+
+  build_fedora:
+    name: Fedora 37
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [1.66, 1.67]
+    container:
+      image: fedora:latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust-stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+
+      - name: Build WasmEdge with Release mode
+        run: |
+          dnf update -y
+          dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev
+          git config --global --add safe.directory $(pwd)
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
+          cmake --build build
+
+      - name: Rustfmt
+        working-directory: bindings/rust/
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        working-directory: bindings/rust/
+        run: |
+          export WASMEDGE_DIR="$(pwd)/../../"
+          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
+          export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
+          cargo clippy -V
+          cargo clippy --lib --examples --features aot,async,wasi_crypto,wasi_nn,wasmedge_process,ffi -- -D warnings
+
+      - name: Test Rust Bindings
+        working-directory: bindings/rust/
+        run: |
+          export WASMEDGE_DIR="$(pwd)/../../"
+          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
+          export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
+          export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
+          cargo test --workspace --locked --features aot,async,ffi
+          cargo test --examples --locked --features aot,async,ffi

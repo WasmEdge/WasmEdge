@@ -1,7 +1,7 @@
 //! Defines Executor struct.
 
-use crate::{config::Config, Engine, Func, FuncRef, Statistics, WasmEdgeResult, WasmValue};
-use wasmedge_sys::{self as sys, Engine as SysEngine};
+use crate::{config::Config, Func, FuncRef, Statistics, WasmEdgeResult, WasmValue};
+use wasmedge_sys as sys;
 
 /// Defines an execution environment for both pure WASM and compiled WASM.
 #[derive(Debug)]
@@ -23,10 +23,8 @@ impl Executor {
     pub fn new(config: Option<&Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
         let inner_executor = match config {
             Some(config) => match stat {
-                Some(stat) => {
-                    sys::Executor::create(Some(config.inner.clone()), Some(&mut stat.inner))?
-                }
-                None => sys::Executor::create(Some(config.inner.clone()), None)?,
+                Some(stat) => sys::Executor::create(Some(&config.inner), Some(&mut stat.inner))?,
+                None => sys::Executor::create(Some(&config.inner), None)?,
             },
             None => match stat {
                 Some(stat) => sys::Executor::create(None, Some(&mut stat.inner))?,
@@ -38,24 +36,85 @@ impl Executor {
             inner: inner_executor,
         })
     }
-}
-impl Engine for Executor {
-    fn run_func(
+
+    /// Runs a host function instance and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `func` - The function instance to run.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Errors
+    ///
+    /// If fail to run the host function, then an error is returned.
+    pub fn run_func(
         &self,
         func: &Func,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        let returns = self.inner.run_func(&func.inner, params)?;
-        Ok(returns)
+        self.inner.call_func(&func.inner, params)
     }
 
-    fn run_func_ref(
+    /// Asynchronously runs a host function instance and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `func` - The function instance to run.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Errors
+    ///
+    /// If fail to run the host function, then an error is returned.
+    #[cfg(feature = "async")]
+    pub async fn run_func_async(
+        &self,
+        func: &Func,
+        params: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        self.inner.call_func_async(&func.inner, params).await
+    }
+
+    /// Runs a host function reference instance and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `func_ref` - The function reference instance to run.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Errors
+    ///
+    /// If fail to run the host function reference instance, then an error is returned.
+    pub fn run_func_ref(
         &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        let returns = self.inner.run_func_ref(&func_ref.inner, params)?;
-        Ok(returns)
+        self.inner.call_func_ref(&func_ref.inner, params)
+    }
+
+    /// Asynchronously runs a host function reference instance and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `func_ref` - The function reference instance to run.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Errors
+    ///
+    /// If fail to run the host function reference instance, then an error is returned.
+    #[cfg(feature = "async")]
+    pub async fn run_func_ref_async(
+        &self,
+        func_ref: &FuncRef,
+        params: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        self.inner
+            .call_func_ref_async(&func_ref.inner, params)
+            .await
     }
 }
 
@@ -94,7 +153,7 @@ mod tests {
             let result = Executor::new(None, Some(&mut stat));
             assert!(result.is_ok());
 
-            assert_eq!(stat.cost_in_total(), 0);
+            assert_eq!(stat.cost(), 0);
         }
 
         {
@@ -110,7 +169,7 @@ mod tests {
             assert!(result.is_ok());
 
             assert!(config.bulk_memory_operations_enabled());
-            assert_eq!(stat.cost_in_total(), 0);
+            assert_eq!(stat.cost(), 0);
         }
     }
 
@@ -182,7 +241,7 @@ mod tests {
 
         // get the exported function "fib"
         let result = extern_instance.func("fib");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let fib = result.unwrap();
 
         // run the exported host function

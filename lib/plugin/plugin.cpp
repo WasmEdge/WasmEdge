@@ -69,7 +69,6 @@ void DecreaseNiftyCounter() noexcept {
 class CAPIPluginRegister {
 public:
   CAPIPluginRegister(const CAPIPluginRegister &) = delete;
-  CAPIPluginRegister(CAPIPluginRegister &&) = default;
   CAPIPluginRegister &operator=(const CAPIPluginRegister &) = delete;
 
   CAPIPluginRegister(const WasmEdge_PluginDescriptor *Desc) noexcept {
@@ -222,7 +221,7 @@ std::unordered_map<const PluginModule::ModuleDescriptor *,
                    const WasmEdge_ModuleDescriptor *>
     CAPIPluginRegister::DescriptionLookup;
 
-std::vector<CAPIPluginRegister> CAPIPluginRegisters;
+std::vector<std::unique_ptr<CAPIPluginRegister>> CAPIPluginRegisters;
 
 } // namespace
 
@@ -344,7 +343,8 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
                unlikely(!Descriptor)) {
       return false;
     } else {
-      CAPIPluginRegisters.emplace_back(Descriptor);
+      CAPIPluginRegisters.push_back(
+          std::make_unique<CAPIPluginRegister>(Descriptor));
     }
   }
 

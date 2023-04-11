@@ -73,7 +73,7 @@ File content is This is in a file
 
 ## Creating a cluster with kubeadm
 
-Refering to the tree documents [Installing kubeadm](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/), [Creating a cluster with kubeadm](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/) and [Install flannel cni](https://github.com/flannel-io/flannel#deploying-flannel-manually), to create a kubernetes cluster.
+Referring to the tree documents [Installing kubeadm](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/), [Creating a cluster with kubeadm](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/) and [Install flannel cni](https://github.com/flannel-io/flannel#deploying-flannel-manually), to create a kubernetes cluster.
 
 ```bash
 # install kubeadm
@@ -122,7 +122,7 @@ pod "wasi-demo" deleted
 
 ## Setting up Knative Serving
 
-Refering to [Installing Knative Serving using YAML files](https://knative.dev/docs/install/yaml-install/serving/install-serving-with-yaml/), install the knative serving service.
+Referring to [Installing Knative Serving using YAML files](https://knative.dev/docs/install/yaml-install/serving/install-serving-with-yaml/), install the knative serving service.
 
 ```bash
 # install the Knative Serving component

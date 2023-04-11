@@ -105,7 +105,7 @@ public class WasmEdge {
      *
      * @param logLevel level.
      */
-    public void setLogLevel(LogLevel logLevel) {
+    public static void setLogLevel(LogLevel logLevel) {
         switch (logLevel) {
           case ERROR:
               setErrorLevel();
@@ -119,9 +119,9 @@ public class WasmEdge {
 
     }
 
-    private native void setErrorLevel();
+    private static native void setErrorLevel();
 
-    private native void setDebugLevel();
+    private static native void setDebugLevel();
 
     /**
      * Log level enum.

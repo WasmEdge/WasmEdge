@@ -1,6 +1,5 @@
 package org.wasmedge;
 
-
 import org.junit.Assert;
 import org.junit.Test;
 import org.wasmedge.enums.ValueType;
@@ -60,6 +59,7 @@ public class BaseTest {
 
     static {
         WasmEdge.init();
+        WasmEdge.setLogLevel(WasmEdge.LogLevel.DEBUG);
     }
 
     byte[] WASM_MAGIC = {0x00, 0x61, 0x73, 0x6D};
@@ -67,7 +67,6 @@ public class BaseTest {
     public static AstModuleContext loadMod(ConfigureContext configureContext, String path) {
         LoaderContext loaderContext = new LoaderContext(configureContext);
         AstModuleContext astModuleContext = loaderContext.parseFromFile(getResourcePath(path));
-        loaderContext.delete();
         return astModuleContext;
     }
 
@@ -101,35 +100,34 @@ public class BaseTest {
         ValueType[] params = new ValueType[] {ValueType.ExternRef, ValueType.i32};
         ValueType[] returns = new ValueType[] {ValueType.i32};
 
-        FunctionTypeContext functionTypeContext = new FunctionTypeContext(params, returns);
+        try(FunctionTypeContext functionTypeContext = new FunctionTypeContext(params, returns)) {
 
-        FunctionInstanceContext hostFunc = new FunctionInstanceContext(functionTypeContext,
+            FunctionInstanceContext hostFunc = new FunctionInstanceContext(functionTypeContext,
                 extAdd, null, 0);
-        moduleInstanceContext.addFunction("func-add", hostFunc);
+            moduleInstanceContext.addFunction("func-add", hostFunc);
 
-        hostFunc = new FunctionInstanceContext(functionTypeContext,
+            hostFunc = new FunctionInstanceContext(functionTypeContext,
                 extSub, null, 0);
-        moduleInstanceContext.addFunction("func-sub", hostFunc);
+            moduleInstanceContext.addFunction("func-sub", hostFunc);
 
-        hostFunc = new FunctionInstanceContext(functionTypeContext,
+            hostFunc = new FunctionInstanceContext(functionTypeContext,
                 extMul, null, 0);
-        moduleInstanceContext.addFunction("func-mul", hostFunc);
+            moduleInstanceContext.addFunction("func-mul", hostFunc);
 
-        hostFunc = new FunctionInstanceContext(functionTypeContext,
+            hostFunc = new FunctionInstanceContext(functionTypeContext,
                 extDiv, null, 0);
-        moduleInstanceContext.addFunction("func-div", hostFunc);
+            moduleInstanceContext.addFunction("func-div", hostFunc);
 
-        functionTypeContext.delete();
+        }
 
-        functionTypeContext = new FunctionTypeContext(null, returns);
+        try(FunctionTypeContext functionTypeContext = new FunctionTypeContext(null, returns)) {
 
-        hostFunc = new FunctionInstanceContext(functionTypeContext, extTerm, null, 0);
-        moduleInstanceContext.addFunction("func-term", hostFunc);
+            FunctionInstanceContext hostFunc = new FunctionInstanceContext(functionTypeContext, extTerm, null, 0);
+            moduleInstanceContext.addFunction("func-term", hostFunc);
 
-        hostFunc = new FunctionInstanceContext(functionTypeContext, extFail, null, 0);
-        moduleInstanceContext.addFunction("func-fail", hostFunc);
-
-        functionTypeContext.delete();
+            hostFunc = new FunctionInstanceContext(functionTypeContext, extFail, null, 0);
+            moduleInstanceContext.addFunction("func-fail", hostFunc);
+        }
 
         return moduleInstanceContext;
 

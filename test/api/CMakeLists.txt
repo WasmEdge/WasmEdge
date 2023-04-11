@@ -4,6 +4,9 @@
 if(WASMEDGE_BUILD_AOT_RUNTIME)
   add_definitions(-DWASMEDGE_BUILD_AOT_RUNTIME)
 endif()
+if(WASMEDGE_BUILD_PLUGINS)
+  add_definitions(-DWASMEDGE_BUILD_PLUGINS)
+endif()
 
 file(COPY
   ${CMAKE_CURRENT_SOURCE_DIR}/apiTestData

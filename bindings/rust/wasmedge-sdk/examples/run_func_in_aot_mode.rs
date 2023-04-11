@@ -10,9 +10,10 @@ use wasmedge_sdk::{
     config::{
         CommonConfigOptions, CompilerConfigOptions, ConfigBuilder, HostRegistrationConfigOptions,
     },
-    params, Compiler, CompilerOutputFormat, Vm, WasmVal,
+    params, Compiler, CompilerOutputFormat, VmBuilder, WasmVal,
 };
 
+#[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "aot")]
     {
@@ -31,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let out_dir = std::env::current_dir()?;
         let aot_filename = "example_aot_fibonacci";
 
-        // compile wasm to so for runing in the `aot` mode
+        // compile wasm to so for running in the `aot` mode
         let compiler = Compiler::new(Some(&config))?;
         let aot_file_path = compiler.compile_from_file(wasm_file, aot_filename, out_dir)?;
         assert!(&aot_file_path.exists());
@@ -42,13 +43,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         #[cfg(target_os = "windows")]
         assert!(aot_file_path.ends_with("example_aot_fibonacci.dll"));
 
-        let vm = Vm::new(Some(config))?;
+        let mut vm = VmBuilder::new().with_config(config).build()?;
 
         let res = vm.run_func_from_file(&aot_file_path, "fib", params!(5))?;
         println!("fib(5): {}", res[0].to_i32());
 
         // remove the generated aot file
-        assert!(std::fs::remove_file(&aot_file_path).is_ok());
+        let metadata = aot_file_path.metadata()?;
+        if metadata.permissions().readonly() {
+            let mut permissions = metadata.permissions();
+            permissions.set_readonly(false);
+            std::fs::set_permissions(&aot_file_path, permissions)?;
+        }
+        let result = std::fs::remove_file(&aot_file_path);
+        println!("remove aot file: {result:?}");
     }
 
     Ok(())

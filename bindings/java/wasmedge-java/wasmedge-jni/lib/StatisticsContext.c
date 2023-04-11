@@ -70,7 +70,7 @@ JNIEXPORT jlong JNICALL Java_org_wasmedge_StatisticsContext_getTotalCost(
 }
 
 JNIEXPORT void JNICALL
-Java_org_wasmedge_StatisticsContext_delete(JNIEnv *env, jobject thisObject) {
+Java_org_wasmedge_StatisticsContext_close(JNIEnv *env, jobject thisObject) {
   WasmEdge_StatisticsContext *statCxt = getStatisticsContext(env, thisObject);
   WasmEdge_StatisticsDelete(statCxt);
   setPointer(env, thisObject, 0);

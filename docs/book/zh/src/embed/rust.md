@@ -2,11 +2,11 @@
 
 你可以通过 WasmEdge Rust SDK 将 WasmEdge 嵌入到 Rust 应用程序中。
 
-WasmEdge Rust SDK 涉及两个 Rust crate [wasmedge-sys](https://crates.io/crates/wasmedge-sys) 和 [wasmedge-rs](https://crates.io/crates/wasmedge-sdk)，它们根据不同的原则和不同的目的设计。 wasmedge-sys crate 定义了一组底层 Rust API，其仅仅是对 WasmEdge C API 进行封装，以提供相应的安全接口，而 wasmedge-rs crate 提供更优雅和符合人体工程学的 API，更适合应用程序开发。
+WasmEdge Rust SDK 涉及两个 Rust crate [wasmedge-sys](https://crates.io/crates/wasmedge-sys) 和 [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk)，它们根据不同的原则和不同的目的设计。 wasmedge-sys crate 定义了一组底层 Rust API，其仅仅是对 WasmEdge C API 进行封装，以提供相应的安全接口，而 wasmedge-sdk crate 提供更优雅和符合人体工程学的 API，更适合应用程序开发。
 
 * [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crate 定义了一组底层 Rust API，其仅仅是对 WasmEdge C API 进行封装，以提供相应的安全接口。 [wasmedge-sys](https://crates.io/crates/wasmedge-sys) 更适合作为基础库，为面向应用的更高层 Rust 库提供服务。
 
-* [wasmedge-rs](https://crates.io/crates/wasmedge-sdk) crate 基于 wasmedge-sys crate，并提供更优雅和惯用的 Rust API，更适合面向业务的设计和开发，wasmedge-rs crate 目前仍处于积极地开发过程中。
+* [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) crate 基于 wasmedge-sys crate，并提供更优雅和惯用的 Rust API，更适合面向业务的设计和开发，wasmedge-sdk crate 目前仍处于积极地开发过程中。
 
 ## 构建 `wasmedge-sys`
 

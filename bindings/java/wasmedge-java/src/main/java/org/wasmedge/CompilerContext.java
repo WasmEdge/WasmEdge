@@ -3,10 +3,10 @@ package org.wasmedge;
 /**
  * Compiler context, for compiling wasm native modules.
  */
-public class CompilerContext {
-    private long pointer;
+public class CompilerContext extends NativeResource {
 
     public CompilerContext(ConfigureContext configureContext) {
+        super();
         nativeInit(configureContext);
     }
 
@@ -14,5 +14,5 @@ public class CompilerContext {
 
     public native void compile(String inputPath, String outputPath);
 
-    public native void delete();
+    public native void close();
 }

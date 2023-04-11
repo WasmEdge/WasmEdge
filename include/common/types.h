@@ -73,7 +73,7 @@ enum class HeapTypeCode : uint8_t {
   NotHeapType = 0x00,
   Extern = 0x6F,
   Func = 0x70,
-  TypeIndex = 0xFF,
+  TypeIndex = 0x40,
 };
 
 /// TypeBase definition. The basic data structure of value types.
@@ -157,6 +157,24 @@ protected:
   } Inner;
 };
 
+/// HeapType definition. The RefType is the subset of the RefType.
+class HeapType : public ValTypeBase {
+public:
+  HeapType() noexcept = default;
+  // Constructor for the heap types (func and extern).
+  HeapType(HeapTypeCode HT) noexcept
+      : ValTypeBase(ValTypeCode::RefNull, HT, 0) {
+    assuming((Inner.Data.Code == ValTypeCode::RefNull));
+    assuming((Inner.Data.HTCode == HeapTypeCode::TypeIndex) &&
+             (Inner.Data.HTCode == HeapTypeCode::NotHeapType));
+  }
+  // Constructor for the heap types (type index).
+  HeapType(uint32_t I) noexcept
+      : ValTypeBase(ValTypeCode::RefNull, HeapTypeCode::TypeIndex, I) {
+    assuming((Inner.Data.Code == ValTypeCode::RefNull));
+  }
+};
+
 /// RefType definition. The RefType is the subset of the ValType.
 class RefType : public ValTypeBase {
 public:
@@ -169,16 +187,9 @@ public:
              (Inner.Data.HTCode == HeapTypeCode::Extern));
   }
   // Constructor for the heap types (func and extern).
-  RefType(RefTypeCode C, HeapTypeCode HT) noexcept
-      : ValTypeBase(static_cast<ValTypeCode>(C), HT, 0) {
-    assuming((Inner.Data.Code == ValTypeCode::Ref) ||
-             (Inner.Data.Code == ValTypeCode::RefNull));
-    assuming((Inner.Data.HTCode == HeapTypeCode::Func) ||
-             (Inner.Data.HTCode == HeapTypeCode::Extern));
-  }
-  // Constructor for the heap types (type index).
-  RefType(RefTypeCode C, uint32_t I) noexcept
-      : ValTypeBase(static_cast<ValTypeCode>(C), HeapTypeCode::TypeIndex, I) {
+  RefType(RefTypeCode C, HeapType HT) noexcept
+      : ValTypeBase(static_cast<ValTypeCode>(C), HT.getHeapTypeCode(),
+                    HT.getTypeIndex()) {
     assuming((Inner.Data.Code == ValTypeCode::Ref) ||
              (Inner.Data.Code == ValTypeCode::RefNull));
   }

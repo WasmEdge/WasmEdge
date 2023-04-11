@@ -43,8 +43,7 @@ static inline constexpr const auto ValTypeStr = []() constexpr {
 #undef UseValType
   };
   return SpareEnumMap(Array);
-}
-();
+}();
 
 /// WASM Number type C++ enumeration class.
 enum class NumType : uint8_t {
@@ -102,8 +101,7 @@ static inline constexpr const auto ValTypeCodeStr = []() constexpr {
 #undef UseRefTypeCode
   };
   return SpareEnumMap(Array);
-}
-();
+}();
 
 enum RefTypeCode : uint8_t {
 #define UseRefTypeCode
@@ -310,8 +308,7 @@ static inline constexpr auto ValMutStr = []() constexpr {
 #undef UseValMut
   };
   return DenseEnumMap(Array);
-}
-();
+}();
 
 /// WASM External type C++ enumeration class.
 enum class ExternalType : uint8_t {
@@ -332,7 +329,6 @@ static inline constexpr auto ExternalTypeStr = []() constexpr {
 #undef UseExternalType
   };
   return DenseEnumMap(Array);
-}
-();
+}();
 
 } // namespace WasmEdge

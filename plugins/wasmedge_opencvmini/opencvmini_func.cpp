@@ -26,7 +26,7 @@ WasmEdgeOpenCVMiniImdecode::body(const Runtime::CallingFrame &Frame,
   cv::Mat Img = cv::imdecode(cv::InputArray(Content), cv::IMREAD_COLOR);
 
   // cv::Mat::flags contains magic signature & I believe it's a good enough key for this purpose.
-  Env.MatPool.insert(static_cast<uint32_t>(Img.flags), Img);
+  Env.MatPool[static_cast<uint32_t>(Img.flags)] = Img;
 
   return static_cast<uint32_t>(Img.flags);
 }
@@ -53,7 +53,7 @@ WasmEdgeOpenCVMiniImshow::body(const Runtime::CallingFrame &Frame, uint32_t Wind
 }
 
 Expect<void>
-    WasmEdgeOpenCVMiniWaitKey::body(const Runtime::CallingFrame &Frame, uint32_t Delay){
+    WasmEdgeOpenCVMiniWaitKey::body(const Runtime::CallingFrame &, uint32_t Delay){
   cv::waitKey(static_cast<int>(Delay));
   return {};
 }

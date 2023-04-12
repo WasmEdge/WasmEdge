@@ -4,9 +4,9 @@
 #include "opencvmini_func.h"
 #include "common/defines.h"
 
-#include <vector>
-#include <string>
 #include <opencv2/opencv.hpp>
+#include <string>
+#include <vector>
 
 namespace WasmEdge {
 namespace Host {
@@ -25,16 +25,18 @@ WasmEdgeOpenCVMiniImdecode::body(const Runtime::CallingFrame &Frame,
   std::vector<char> Content(Buf, Buf + BufLen);
   cv::Mat Img = cv::imdecode(cv::InputArray(Content), cv::IMREAD_COLOR);
 
-  // cv::Mat::flags contains magic signature & I believe it's a good enough key for this purpose.
+  // cv::Mat::flags contains magic signature & I believe it's a good enough key
+  // for this purpose.
   Env.MatPool[static_cast<uint32_t>(Img.flags)] = Img;
 
   return static_cast<uint32_t>(Img.flags);
 }
 
-Expect<void>
-WasmEdgeOpenCVMiniImshow::body(const Runtime::CallingFrame &Frame, uint32_t WindowNamePtr,
-                               uint32_t WindowNameLen, uint32_t MatKey) {
-  if (auto V = Env.MatPool.find(MatKey);V!= Env.MatPool.end()) {
+Expect<void> WasmEdgeOpenCVMiniImshow::body(const Runtime::CallingFrame &Frame,
+                                            uint32_t WindowNamePtr,
+                                            uint32_t WindowNameLen,
+                                            uint32_t MatKey) {
+  if (auto V = Env.MatPool.find(MatKey); V != Env.MatPool.end()) {
     std::string WindowName;
 
     // Check memory instance from module.
@@ -52,8 +54,8 @@ WasmEdgeOpenCVMiniImshow::body(const Runtime::CallingFrame &Frame, uint32_t Wind
   return {};
 }
 
-Expect<void>
-    WasmEdgeOpenCVMiniWaitKey::body(const Runtime::CallingFrame &, uint32_t Delay){
+Expect<void> WasmEdgeOpenCVMiniWaitKey::body(const Runtime::CallingFrame &,
+                                             uint32_t Delay) {
   cv::waitKey(static_cast<int>(Delay));
   return {};
 }

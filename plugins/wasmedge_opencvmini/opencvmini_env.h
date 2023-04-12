@@ -5,8 +5,8 @@
 
 #include "plugin/plugin.h"
 
-#include <map>
 #include <cstdint>
+#include <map>
 #include <opencv2/opencv.hpp>
 
 namespace WasmEdge {

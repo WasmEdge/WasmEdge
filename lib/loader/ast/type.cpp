@@ -23,6 +23,11 @@ Expect<HeapType> Loader::loadHeapType(ASTNodeAttr From) {
         return logLoadError(Res.error(), FMgr.getLastOffset(), From);
       }
     } else {
+      if (!Conf.hasProposal(Proposal::FunctionReferences)) {
+        return logNeedProposal(ErrCode::Value::MalformedRefType,
+                               Proposal::FunctionReferences,
+                               FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+      }
       return HeapType(static_cast<uint32_t>(*Res));
     }
   } else {

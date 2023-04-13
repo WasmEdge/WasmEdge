@@ -356,7 +356,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return {};
 
   case OpCode::Br:
-    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex()); !D) {
+    if (auto D = checkCtrlStackDepth(Instr.getJump().TargetIndex); !D) {
       return Unexpect(D);
     } else {
       // D is the last D element of control stack.
@@ -374,7 +374,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return unreachable();
     }
   case OpCode::Br_if:
-    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex()); !D) {
+    if (auto D = checkCtrlStackDepth(Instr.getJump().TargetIndex); !D) {
       return Unexpect(D);
     } else {
       // D is the last D element of control stack.

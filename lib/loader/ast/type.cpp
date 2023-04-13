@@ -72,8 +72,7 @@ Expect<ValType> Loader::loadValType(ASTNodeAttr From) {
         return RefType(static_cast<RefTypeCode>(Code), *LoadRes);
 
       } else {
-        return logLoadError(ErrCode::Value::MalformedValType,
-                            FMgr.getLastOffset(), From);
+        return Unexpect(LoadRes.error());
       }
     default:
       return logLoadError(ErrCode::Value::MalformedValType,

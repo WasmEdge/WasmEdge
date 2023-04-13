@@ -42,6 +42,7 @@
 #endif
 
 #if LLVM_VERSION_MAJOR >= 14
+#include <lld/Common/CommonLinkerContext.h>
 #include <llvm/MC/TargetRegistry.h>
 #else
 #include <llvm/Support/TargetRegistry.h>
@@ -52,6 +53,7 @@
 #endif
 #if LLVM_VERSION_MAJOR >= 10
 #include <llvm/IR/IntrinsicsAArch64.h>
+#include <llvm/IR/IntrinsicsRISCV.h>
 #include <llvm/IR/IntrinsicsX86.h>
 #include <llvm/Support/Alignment.h>
 #endif
@@ -4896,6 +4898,8 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
     WriteByte(OS, UINT8_C(1));
 #elif defined(__aarch64__)
     WriteByte(OS, UINT8_C(2));
+#elif defined(__riscv) && __riscv_xlen == 64
+    WriteByte(OS, UINT8_C(3));
 #else
 #error Unsupported hardware architecture!
 #endif
@@ -5142,13 +5146,17 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 
     llvm::TargetOptions Options;
     llvm::Reloc::Model RM = llvm::Reloc::PIC_;
+#if defined(__riscv) && __riscv_xlen == 64
+    llvm::StringRef CPUName("generic-rv64");
+#else
     llvm::StringRef CPUName("generic");
     if (!Conf.getCompilerConfigure().isGenericBinary()) {
       CPUName = llvm::sys::getHostCPUName();
     }
+#endif
     std::unique_ptr<llvm::TargetMachine> TM(TheTarget->createTargetMachine(
         Triple.str(), CPUName, Context->SubtargetFeatures.getString(), Options,
-        RM, llvm::None, llvm::CodeGenOpt::Level::Aggressive));
+        RM, {}, llvm::CodeGenOpt::Level::Aggressive));
     LLModule.setDataLayout(TM->createDataLayout());
 
     llvm::TargetLibraryInfoImpl TLII(Triple);

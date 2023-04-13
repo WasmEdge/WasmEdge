@@ -21,6 +21,12 @@ if(WASMEDGE_PLUGIN_WASI_CRYPTO)
   add_subdirectory(wasi_crypto)
 endif()
 
+if(WASMEDGE_PLUGIN_WASM_BPF)
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    add_subdirectory(wasm_bpf)
+  endif()
+endif()
+
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
   add_subdirectory(unittest)
 endif()

@@ -76,7 +76,7 @@ public:
 class WasmEdgePluginTestModule : public Runtime::Instance::ModuleInstance {
 public:
   WasmEdgePluginTestModule()
-      : Runtime::Instance::ModuleInstance("wasmedge_plugintest") {
+      : Runtime::Instance::ModuleInstance("wasmedge_plugintest_cpp_module") {
     addHostFunc("add", std::make_unique<WasmEdgePluginTestFuncAdd>(Env));
     addHostFunc("sub", std::make_unique<WasmEdgePluginTestFuncSub>(Env));
     addHostFunc("arg_len", std::make_unique<WasmEdgePluginTestFuncArgLen>(Env));

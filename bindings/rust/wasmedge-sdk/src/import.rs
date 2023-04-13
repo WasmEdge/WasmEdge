@@ -4,7 +4,7 @@ use crate::{
 };
 use wasmedge_sys::{self as sys, AsImport};
 
-/// Creates a normal, wasi, or wasmedge process [import object](crate::ImportObject).
+/// Creates a normal or wasi [import object](crate::ImportObject).
 ///
 /// # Example
 ///
@@ -284,317 +284,39 @@ impl ImportObjectBuilder {
 
         Ok(ImportObject(sys::ImportObject::Import(inner)))
     }
-
-    /// Creates a new [wasi import object](crate::ImportObject).
-    ///
-    /// # Arguments
-    ///
-    /// * `args` - The commandline arguments. The first argument is the program name.
-    ///
-    /// * `envs` - The environment variables in the format `ENV_VAR_NAME=VALUE`.
-    ///
-    /// * `preopens` - The directories to pre-open. The required format is `DIR1:DIR2`.
-    ///
-    /// # Error
-    ///
-    /// If fail to create a wasi import module, then an error is returned.
-    pub fn build_as_wasi<'a>(
-        self,
-        args: Option<Vec<&'a str>>,
-        envs: Option<Vec<&'a str>>,
-        preopens: Option<Vec<&'a str>>,
-    ) -> WasmEdgeResult<ImportObject> {
-        let mut inner = sys::WasiModule::create(args, envs, preopens)?;
-
-        // add func
-        for (name, func) in self.funcs.into_iter() {
-            inner.add_func(name, func);
-        }
-
-        // add global
-        for (name, global) in self.globals.into_iter() {
-            inner.add_global(name, global);
-        }
-
-        // add memory
-        for (name, memory) in self.memories.into_iter() {
-            inner.add_memory(name, memory);
-        }
-
-        // add table
-        for (name, table) in self.tables.into_iter() {
-            inner.add_table(name, table);
-        }
-
-        Ok(ImportObject(sys::ImportObject::Wasi(inner)))
-    }
-
-    /// Creates a new [wasmedge process import object](crate::ImportObject).
-    ///
-    /// Notice that the [PluginManager::load_from_default_paths](crate::PluginManager::load_from_default_paths) method
-    /// must be invoked to load the `wasmedge_process` plugin before calling this method.
-    ///
-    /// # Arguments
-    ///
-    /// * `allowed_cmds` - A white list of commands.
-    ///
-    /// * `allowed` - Determines if wasmedge_process is allowed to execute all commands on the white list.
-    ///
-    /// # Error
-    ///
-    /// If fail to create a wasmedge process import module, then an error is returned.
-    #[cfg(all(target_os = "linux", not(feature = "static")))]
-    pub fn build_as_wasmedge_process(
-        self,
-        allowed_cmds: Option<Vec<&str>>,
-        allowed: bool,
-    ) -> WasmEdgeResult<ImportObject> {
-        // // load plugins from the default paths
-        // PluginManager::load_from_default_paths();
-
-        let mut inner = sys::WasmEdgeProcessModule::create(allowed_cmds, allowed)?;
-
-        // add func
-        for (name, func) in self.funcs.into_iter() {
-            inner.add_func(name, func);
-        }
-
-        // add global
-        for (name, global) in self.globals.into_iter() {
-            inner.add_global(name, global);
-        }
-
-        // add memory
-        for (name, memory) in self.memories.into_iter() {
-            inner.add_memory(name, memory);
-        }
-
-        // add table
-        for (name, table) in self.tables.into_iter() {
-            inner.add_table(name, table);
-        }
-
-        Ok(ImportObject(sys::ImportObject::WasmEdgeProcess(inner)))
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
-    pub fn build_as_wasi_nn(self) -> WasmEdgeResult<ImportObject> {
-        let mut inner = sys::WasiNnModule::create()?;
-
-        // add func
-        for (name, func) in self.funcs.into_iter() {
-            inner.add_func(name, func);
-        }
-
-        // add global
-        for (name, global) in self.globals.into_iter() {
-            inner.add_global(name, global);
-        }
-
-        // add memory
-        for (name, memory) in self.memories.into_iter() {
-            inner.add_memory(name, memory);
-        }
-
-        // add table
-        for (name, table) in self.tables.into_iter() {
-            inner.add_table(name, table);
-        }
-
-        Ok(ImportObject(sys::ImportObject::Nn(inner)))
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn build_as_wasi_crypto_common(self) -> WasmEdgeResult<ImportObject> {
-        let mut inner = sys::WasiCryptoCommonModule::create()?;
-
-        // add func
-        for (name, func) in self.funcs.into_iter() {
-            inner.add_func(name, func);
-        }
-
-        // add global
-        for (name, global) in self.globals.into_iter() {
-            inner.add_global(name, global);
-        }
-
-        // add memory
-        for (name, memory) in self.memories.into_iter() {
-            inner.add_memory(name, memory);
-        }
-
-        // add table
-        for (name, table) in self.tables.into_iter() {
-            inner.add_table(name, table);
-        }
-
-        Ok(ImportObject(sys::ImportObject::Crypto(
-            sys::WasiCrypto::Common(inner),
-        )))
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn build_as_wasi_crypto_asymmetric_common(self) -> WasmEdgeResult<ImportObject> {
-        let mut inner = sys::WasiCryptoAsymmetricCommonModule::create()?;
-
-        // add func
-        for (name, func) in self.funcs.into_iter() {
-            inner.add_func(name, func);
-        }
-
-        // add global
-        for (name, global) in self.globals.into_iter() {
-            inner.add_global(name, global);
-        }
-
-        // add memory
-        for (name, memory) in self.memories.into_iter() {
-            inner.add_memory(name, memory);
-        }
-
-        // add table
-        for (name, table) in self.tables.into_iter() {
-            inner.add_table(name, table);
-        }
-
-        Ok(ImportObject(sys::ImportObject::Crypto(
-            sys::WasiCrypto::AsymmetricCommon(inner),
-        )))
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn build_as_wasi_crypto_symmetric(self) -> WasmEdgeResult<ImportObject> {
-        let mut inner = sys::WasiCryptoSymmetricModule::create()?;
-
-        // add func
-        for (name, func) in self.funcs.into_iter() {
-            inner.add_func(name, func);
-        }
-
-        // add global
-        for (name, global) in self.globals.into_iter() {
-            inner.add_global(name, global);
-        }
-
-        // add memory
-        for (name, memory) in self.memories.into_iter() {
-            inner.add_memory(name, memory);
-        }
-
-        // add table
-        for (name, table) in self.tables.into_iter() {
-            inner.add_table(name, table);
-        }
-
-        Ok(ImportObject(sys::ImportObject::Crypto(
-            sys::WasiCrypto::SymmetricOptionations(inner),
-        )))
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn build_as_wasi_crypto_kx(self) -> WasmEdgeResult<ImportObject> {
-        let mut inner = sys::WasiCryptoKxModule::create()?;
-
-        // add func
-        for (name, func) in self.funcs.into_iter() {
-            inner.add_func(name, func);
-        }
-
-        // add global
-        for (name, global) in self.globals.into_iter() {
-            inner.add_global(name, global);
-        }
-
-        // add memory
-        for (name, memory) in self.memories.into_iter() {
-            inner.add_memory(name, memory);
-        }
-
-        // add table
-        for (name, table) in self.tables.into_iter() {
-            inner.add_table(name, table);
-        }
-
-        Ok(ImportObject(sys::ImportObject::Crypto(
-            sys::WasiCrypto::KeyExchange(inner),
-        )))
-    }
-
-    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-    pub fn build_as_wasi_crypto_signatures(self) -> WasmEdgeResult<ImportObject> {
-        let mut inner = sys::WasiCryptoSignaturesModule::create()?;
-
-        // add func
-        for (name, func) in self.funcs.into_iter() {
-            inner.add_func(name, func);
-        }
-
-        // add global
-        for (name, global) in self.globals.into_iter() {
-            inner.add_global(name, global);
-        }
-
-        // add memory
-        for (name, memory) in self.memories.into_iter() {
-            inner.add_memory(name, memory);
-        }
-
-        // add table
-        for (name, table) in self.tables.into_iter() {
-            inner.add_table(name, table);
-        }
-
-        Ok(ImportObject(sys::ImportObject::Crypto(
-            sys::WasiCrypto::Signatures(inner),
-        )))
-    }
 }
 
 /// Defines an import object that contains the required import data used when instantiating a [module](crate::Module).
 ///
 /// An [ImportObject] instance is created with [ImportObjectBuilder](crate::ImportObjectBuilder).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportObject(pub(crate) sys::ImportObject);
 impl ImportObject {
     /// Returns the name of the import object.
-    pub fn name(&self) -> String {
+    pub fn name(&self) -> &str {
         match &self.0 {
-            sys::ImportObject::Import(import) => import.name().into(),
-            sys::ImportObject::Wasi(wasi) => wasi.name().into(),
-            #[cfg(target_os = "linux")]
-            sys::ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name().into(),
-            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
-            sys::ImportObject::Nn(module) => module.name().into(),
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            sys::ImportObject::Crypto(sys::WasiCrypto::Common(module)) => module.name().into(),
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            sys::ImportObject::Crypto(sys::WasiCrypto::AsymmetricCommon(module)) => {
-                module.name().into()
-            }
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            sys::ImportObject::Crypto(sys::WasiCrypto::SymmetricOptionations(module)) => {
-                module.name().into()
-            }
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            sys::ImportObject::Crypto(sys::WasiCrypto::KeyExchange(module)) => module.name().into(),
-            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
-            sys::ImportObject::Crypto(sys::WasiCrypto::Signatures(module)) => module.name().into(),
+            sys::ImportObject::Import(import) => import.name(),
+            sys::ImportObject::Wasi(wasi) => wasi.name(),
         }
     }
 
     pub(crate) fn inner_ref(&self) -> &sys::ImportObject {
         &self.0
     }
+
+    /// Returns the raw pointer to the inner `WasmEdge_ModuleInstanceContext`.
+    #[cfg(feature = "ffi")]
+    pub fn as_raw_ptr(&self) -> *const sys::ffi::WasmEdge_ModuleInstanceContext {
+        self.0.as_raw_ptr()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(all(target_os = "linux", not(feature = "static")))]
-    use crate::PluginManager;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
+        error::{GlobalError, WasmEdgeError},
         params,
         types::Val,
         Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics, Store,
@@ -612,149 +334,6 @@ mod tests {
         assert!(result.is_ok());
         let import = result.unwrap();
         assert_eq!(import.name(), "extern");
-    }
-
-    #[test]
-    #[cfg(unix)]
-    #[allow(clippy::assertions_on_result_states)]
-    fn test_import_builder_wasi() {
-        let result = ImportObjectBuilder::default().build_as_wasi(None, None, None);
-        assert!(result.is_ok());
-        let import = result.unwrap();
-        assert_eq!(import.name(), "wasi_snapshot_preview1");
-    }
-
-    #[test]
-    #[cfg(all(target_os = "linux", not(feature = "static")))]
-    #[allow(clippy::assertions_on_result_states)]
-    fn test_import_builder_wasmedge_process() {
-        // load wasmedge_process plugin
-        PluginManager::load_from_default_paths();
-
-        let result = ImportObjectBuilder::default().build_as_wasmedge_process(None, false);
-        assert!(result.is_ok());
-        let import = result.unwrap();
-        assert_eq!(import.name(), "wasmedge_process");
-    }
-
-    #[test]
-    #[cfg(all(target_os = "linux", not(feature = "static")))]
-    #[allow(clippy::assertions_on_result_states)]
-    fn test_import_new_wasmedgeprocess() {
-        // load wasmedge_process plugin
-        PluginManager::load_from_default_paths();
-
-        let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", real_add)
-            .expect("failed to add host func")
-            .build_as_wasmedge_process(None, false);
-        assert!(result.is_ok());
-        let process_import = result.unwrap();
-
-        // create an executor
-        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
-        assert!(result.is_ok());
-        let config = result.unwrap();
-
-        let result = Statistics::new();
-        assert!(result.is_ok());
-        let mut stat = result.unwrap();
-
-        let result = Executor::new(Some(&config), Some(&mut stat));
-        assert!(result.is_ok());
-        let mut executor = result.unwrap();
-
-        // create a store
-        let result = Store::new();
-        assert!(result.is_ok());
-        let mut store = result.unwrap();
-
-        let result = store.register_import_module(&mut executor, &process_import);
-        assert!(result.is_ok());
-
-        // check registered modules
-        assert_eq!(store.named_instance_count(), 1);
-        let result = store.instance_names();
-        assert!(result.is_some());
-        assert_eq!(result.unwrap(), ["wasmedge_process"]);
-        let result = store.module_instance("wasmedge_process");
-        assert!(result.is_some());
-        let instance = result.unwrap();
-
-        // find "add" host function
-        let result = instance.func("add");
-        assert!(result.is_some());
-
-        // * try to add another WasmEdgeProcess module, that causes error
-
-        // create a WasmEdgeProcess module
-        let result = ImportObjectBuilder::default().build_as_wasmedge_process(None, false);
-        assert!(result.is_ok());
-        let import_process = result.unwrap();
-
-        let result = store.register_import_module(&mut executor, &import_process);
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            Box::new(WasmEdgeError::Core(CoreError::Instantiation(
-                CoreInstantiationError::ModuleNameConflict
-            )))
-        );
-    }
-
-    #[test]
-    #[allow(clippy::assertions_on_result_states)]
-    fn test_import_new_wasi() {
-        // create a wasi module
-        let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", real_add)
-            .expect("failed to add host func")
-            .build_as_wasi(None, None, None);
-        assert!(result.is_ok());
-        let wasi_import = result.unwrap();
-
-        // create an executor
-        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
-        assert!(result.is_ok());
-        let config = result.unwrap();
-
-        let result = Statistics::new();
-        assert!(result.is_ok());
-        let mut stat = result.unwrap();
-
-        let result = Executor::new(Some(&config), Some(&mut stat));
-        assert!(result.is_ok());
-        let mut executor = result.unwrap();
-
-        // create a store
-        let result = Store::new();
-        assert!(result.is_ok());
-        let mut store = result.unwrap();
-
-        let result = store.register_import_module(&mut executor, &wasi_import);
-        assert!(result.is_ok());
-
-        // check registered modules
-        assert_eq!(store.named_instance_count(), 1);
-        let result = store.instance_names();
-        assert!(result.is_some());
-        assert_eq!(result.unwrap(), ["wasi_snapshot_preview1"]);
-
-        // * try to add another Wasi module, that causes error
-
-        // create a Wasi module
-        let result = ImportObjectBuilder::default().build_as_wasi(None, None, None);
-        assert!(result.is_ok());
-        let wasi_import = result.unwrap();
-
-        let result = store.register_import_module(&mut executor, &wasi_import);
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            Box::new(WasmEdgeError::Core(CoreError::Instantiation(
-                CoreInstantiationError::ModuleNameConflict
-            )))
-        );
     }
 
     #[test]
@@ -815,25 +394,23 @@ mod tests {
         assert!(result.is_ok());
 
         // get the instance of the ImportObject module
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the exported host function
         let result = instance.func("add");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let host_func = result.unwrap();
 
         // check the signature of the host function
-        let result = host_func.ty();
-        assert!(result.is_ok());
-        let func_ty = result.unwrap();
+        let func_ty = host_func.ty();
         assert!(func_ty.args().is_some());
         assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
         assert!(func_ty.returns().is_some());
         assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
 
-        let returns = host_func.call(&mut executor, params![1, 2]).unwrap();
+        let returns = host_func.run(&mut executor, params![1, 2]).unwrap();
         assert_eq!(returns[0].to_i32(), 3);
     }
 
@@ -874,42 +451,40 @@ mod tests {
         assert!(result.is_ok());
         let mut store = result.unwrap();
 
-        let result = store.module_instance("extern");
-        assert!(result.is_none());
+        let result = store.named_instance("extern");
+        assert!(result.is_err());
 
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the exported memory
         let result = instance.memory("memory");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut memory = result.unwrap();
 
         // check memory
         assert!(memory.name().is_some());
         assert_eq!(memory.name().unwrap(), "memory");
         assert_eq!(memory.mod_name(), Some("extern"));
-        assert_eq!(memory.size(), 10);
-        let result = memory.ty();
-        assert!(result.is_ok());
-        let ty = result.unwrap();
+        assert_eq!(memory.page(), 10);
+        let ty = memory.ty();
         assert_eq!(ty.minimum(), 10);
         assert_eq!(ty.maximum(), Some(20));
 
         // grow memory
         let result = memory.grow(5);
         assert!(result.is_ok());
-        assert_eq!(memory.size(), 15);
+        assert_eq!(memory.page(), 15);
 
         // get memory from instance again
         let result = instance.memory("memory");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let memory = result.unwrap();
-        assert_eq!(memory.size(), 15);
+        assert_eq!(memory.page(), 15);
     }
 
     #[test]
@@ -962,13 +537,13 @@ mod tests {
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the Const global from the store of vm
         let result = instance.global("const-global");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut const_global = result.unwrap();
 
         // check global
@@ -976,9 +551,7 @@ mod tests {
         assert_eq!(const_global.name().unwrap(), "const-global");
         assert!(const_global.mod_name().is_some());
         assert_eq!(const_global.mod_name().unwrap(), "extern");
-        let result = const_global.ty();
-        assert!(result.is_ok());
-        let ty = result.unwrap();
+        let ty = const_global.ty();
         assert_eq!(ty.value_ty(), ValType::I32);
         assert_eq!(ty.mutability(), Mutability::Const);
 
@@ -996,13 +569,13 @@ mod tests {
         );
 
         // get the Var global from the store of vm
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the Var global from the store of vm
         let result = instance.global("var-global");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut var_global = result.unwrap();
 
         // check global
@@ -1010,9 +583,7 @@ mod tests {
         assert_eq!(var_global.name().unwrap(), "var-global");
         assert!(var_global.mod_name().is_some());
         assert_eq!(var_global.mod_name().unwrap(), "extern");
-        let result = var_global.ty();
-        assert!(result.is_ok());
-        let ty = result.unwrap();
+        let ty = var_global.ty();
         assert_eq!(ty.value_ty(), ValType::F32);
         assert_eq!(ty.mutability(), Mutability::Var);
 
@@ -1027,7 +598,7 @@ mod tests {
 
         // get the value of var_global again
         let result = instance.global("var-global");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let var_global = result.unwrap();
         if let Val::F32(value) = var_global.get_value() {
             assert_eq!(value, 1.314);
@@ -1073,18 +644,18 @@ mod tests {
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         // get the exported host function
         let result = instance.func("add");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let host_func = result.unwrap();
 
         // get the exported table
         let result = instance.table("table");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut table = result.unwrap();
 
         // check table
@@ -1093,9 +664,7 @@ mod tests {
         assert!(table.mod_name().is_some());
         assert_eq!(table.mod_name().unwrap(), "extern");
         assert_eq!(table.size(), 10);
-        let result = table.ty();
-        assert!(result.is_ok());
-        let ty = result.unwrap();
+        let ty = table.ty();
         assert_eq!(ty.elem_ty(), RefType::FuncRef);
         assert_eq!(ty.minimum(), 10);
         assert_eq!(ty.maximum(), Some(20));
@@ -1118,21 +687,19 @@ mod tests {
             assert!(func_ref.is_some());
             let func_ref = func_ref.unwrap();
             // check the signature of the host function
-            let result = func_ref.ty();
-            assert!(result.is_ok());
-            let func_ty = result.unwrap();
+            let func_ty = func_ref.ty();
             assert!(func_ty.args().is_some());
             assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
             assert!(func_ty.returns().is_some());
             assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
         }
 
-        let result = store.module_instance("extern");
-        assert!(result.is_some());
+        let result = store.named_instance("extern");
+        assert!(result.is_ok());
         let instance = result.unwrap();
 
         let result = instance.table("table");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let table = result.unwrap();
 
         // get the value in table[0]
@@ -1142,9 +709,7 @@ mod tests {
             assert!(func_ref.is_some());
             let func_ref = func_ref.unwrap();
             // check the signature of the host function
-            let result = func_ref.ty();
-            assert!(result.is_ok());
-            let func_ty = result.unwrap();
+            let func_ty = func_ref.ty();
             assert!(func_ty.args().is_some());
             assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
             assert!(func_ty.returns().is_some());
@@ -1214,25 +779,25 @@ mod tests {
             assert!(result.is_ok());
 
             // get active module instance
-            let result = store.module_instance("extern-module-send");
-            assert!(result.is_some());
+            let result = store.named_instance("extern-module-send");
+            assert!(result.is_ok());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
             assert_eq!(instance.name().unwrap(), "extern-module-send");
 
             // check the exported global
             let result = instance.global("global");
-            assert!(result.is_some());
-            let global = result.unwrap();
-            let result = global.ty();
             assert!(result.is_ok());
+            let global = result.unwrap();
+            let ty = global.ty();
+            assert_eq!(*ty, GlobalType::new(ValType::F32, Mutability::Const));
             if let Val::F32(value) = global.get_value() {
                 assert_eq!(value, 3.5);
             }
 
             // get the exported memory
             let result = instance.memory("memory");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let mut memory = result.unwrap();
             // write data
             let result = memory.write(vec![1; 10], 10);
@@ -1245,7 +810,7 @@ mod tests {
 
             // get the exported table by name
             let result = instance.table("table");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let table = result.unwrap();
             // check table
             assert!(table.name().is_some());
@@ -1253,22 +818,17 @@ mod tests {
             assert!(table.mod_name().is_some());
             assert_eq!(table.mod_name().unwrap(), "extern-module-send");
             assert_eq!(table.size(), 10);
-            let result = table.ty();
-            assert!(result.is_ok());
-            // check table type
-            let ty = result.unwrap();
+            let ty = table.ty();
             assert_eq!(ty.elem_ty(), RefType::FuncRef);
             assert_eq!(ty.minimum(), 10);
             assert_eq!(ty.maximum(), Some(20));
 
             // get the exported host function
             let result = instance.func("add");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let host_func = result.unwrap();
             // check the signature of the host function
-            let result = host_func.ty();
-            assert!(result.is_ok());
-            let func_ty = result.unwrap();
+            let func_ty = host_func.ty();
             assert!(func_ty.args().is_some());
             assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
             assert!(func_ty.returns().is_some());
@@ -1346,25 +906,25 @@ mod tests {
             assert!(result.is_ok());
 
             // get active module instance
-            let result = store.module_instance("extern-module-sync");
-            assert!(result.is_some());
+            let result = store.named_instance("extern-module-sync");
+            assert!(result.is_ok());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
             assert_eq!(instance.name().unwrap(), "extern-module-sync");
 
             // check the exported global
             let result = instance.global("global");
-            assert!(result.is_some());
-            let global = result.unwrap();
-            let result = global.ty();
             assert!(result.is_ok());
+            let global = result.unwrap();
+            let ty = global.ty();
+            assert_eq!(*ty, GlobalType::new(ValType::F32, Mutability::Const));
             if let Val::F32(v) = global.get_value() {
                 assert_eq!(v, 3.5);
             }
 
             // get the exported memory
             let result = instance.memory("memory");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let mut memory = result.unwrap();
             // write data
             let result = memory.write(vec![1; 10], 10);
@@ -1377,7 +937,7 @@ mod tests {
 
             // get the exported table by name
             let result = instance.table("table");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let table = result.unwrap();
             // check table
             assert!(table.name().is_some());
@@ -1385,29 +945,24 @@ mod tests {
             assert!(table.mod_name().is_some());
             assert_eq!(table.mod_name().unwrap(), "extern-module-sync");
             assert_eq!(table.size(), 10);
-            let result = table.ty();
-            assert!(result.is_ok());
-            // check table type
-            let ty = result.unwrap();
+            let ty = table.ty();
             assert_eq!(ty.elem_ty(), RefType::FuncRef);
             assert_eq!(ty.minimum(), 10);
             assert_eq!(ty.maximum(), Some(20));
 
             // get the exported host function
             let result = instance.func("add");
-            assert!(result.is_some());
+            assert!(result.is_ok());
             let host_func = result.unwrap();
             // check the signature of the host function
-            let result = host_func.ty();
-            assert!(result.is_ok());
-            let func_ty = result.unwrap();
+            let func_ty = host_func.ty();
             assert!(func_ty.args().is_some());
             assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
             assert!(func_ty.returns().is_some());
             assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
 
             // run host func
-            let result = host_func.call(&mut executor, params!(2, 3));
+            let result = host_func.run(&mut executor, params!(2, 3));
             assert!(result.is_ok());
             let returns = result.unwrap();
             assert_eq!(returns[0].to_i32(), 5);

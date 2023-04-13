@@ -41,13 +41,13 @@ The WasmEdge Runtime provides a well-defined execution sandbox for its contained
 
 WasmEdge can run standard WebAssembly bytecode programs compiled from C/C++, Rust, Swift, AssemblyScript, or Kotlin source code. It [runs JavaScript](https://wasmedge.org/book/en/dev/js.html), including 3rd party ES6, CJS, and NPM modules, in a secure, fast, lightweight, portable, and containerized sandbox. It also supports mixing of those languages (e.g., to [use Rust to implement a JavaScript API](https://wasmedge.org/book/en/dev/js/rust.html)), the [Fetch](https://wasmedge.org/book/en/dev/js/fetch.html) API, and [Server-side Rendering (SSR)](https://wasmedge.org/book/en/dev/js/ssr.html) functions on edge servers.
 
-WasmEdge supports [all standard WebAssembly features and many proposed extensions](https://wasmedge.org/book/en/intro/standard.html). It also supports a number of extensions tailored for cloud-native and edge computing uses (e.g., the [WasmEdge network sockets](https://wasmedge.org/book/en/dev/rust/networking.html), and the [WasmEdge Tensorflow extension](https://wasmedge.org/book/en/dev/rust/tensorflow.html)).
+WasmEdge supports [all standard WebAssembly features and many proposed extensions](https://wasmedge.org/book/en/intro/standard.html). It also supports a number of extensions tailored for cloud-native and edge computing uses (e.g., the [WasmEdge network sockets](https://wasmedge.org/book/en/dev/rust/networking.html),[Postgres and MySQL-baesed database driver](https://github.com/WasmEdge/wasmedge-db-examples), and the [WasmEdge Tensorflow extension](https://wasmedge.org/book/en/dev/rust/tensorflow.html)).
 
  **Learn more about [technical highlights](https://wasmedge.org/book/en/intro/features.html) of WasmEdge.**
 
 ## Integrations and management
 
-WasmEdge and its contained wasm program can be started from the [CLI](https://wasmedge.org/book/en/index.html) as a new process, or from a existing process. If started from an existing process (e.g., from a running [Node.js](https://wasmedge.org/book/en/embed/node.html) or [Go](https://wasmedge.org/book/en/embed/go.html) or [Rust](bindings/rust/wasmedge-rs) program), WasmEdge will simply run inside the process as a function. Currently, WasmEdge is not yet thread-safe. In order to use WasmEdge in your own application or cloud-native frameworks, please refer to the guides below.
+WasmEdge and its contained wasm program can be started from the [CLI](https://wasmedge.org/book/en/index.html) as a new process, or from a existing process. If started from an existing process (e.g., from a running [Node.js](https://wasmedge.org/book/en/embed/node.html) or [Go](https://wasmedge.org/book/en/embed/go.html) or [Rust](bindings/rust/wasmedge-sdk) program), WasmEdge will simply run inside the process as a function. Currently, WasmEdge is not yet thread-safe. In order to use WasmEdge in your own application or cloud-native frameworks, please refer to the guides below.
 
 * [Embed WasmEdge into a host application](https://wasmedge.org/book/en/embed.html)
 * [Orchestrate and manage WasmEdge instances using container tools](https://wasmedge.org/book/en/use_cases/kubernetes.html)

@@ -1,4 +1,4 @@
-//! The [wasmedge-types](https://crates.io/crates/wasmedge-types) crate defines a group of common data structures used by both [wasmedge-rs](https://crates.io/crates/wasmedge-sdk) and [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crates.
+//! The [wasmedge-types](https://crates.io/crates/wasmedge-types) crate defines a group of common data structures used by both [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) and [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crates.
 //!
 //! See also
 //!
@@ -297,12 +297,24 @@ impl From<CompilerOutputFormat> for i32 {
 pub enum HostRegistration {
     Wasi,
     WasmEdgeProcess,
+    WasiNn,
+    WasiCryptoCommon,
+    WasiCryptoAsymmetricCommon,
+    WasiCryptoKx,
+    WasiCryptoSignatures,
+    WasiCryptoSymmetric,
 }
 impl From<u32> for HostRegistration {
     fn from(val: u32) -> Self {
         match val {
             0 => HostRegistration::Wasi,
             1 => HostRegistration::WasmEdgeProcess,
+            2 => HostRegistration::WasiNn,
+            3 => HostRegistration::WasiCryptoCommon,
+            4 => HostRegistration::WasiCryptoAsymmetricCommon,
+            5 => HostRegistration::WasiCryptoKx,
+            6 => HostRegistration::WasiCryptoSignatures,
+            7 => HostRegistration::WasiCryptoSymmetric,
             _ => panic!("Unknown WasmEdge_HostRegistration value: {val}"),
         }
     }
@@ -312,6 +324,12 @@ impl From<HostRegistration> for u32 {
         match val {
             HostRegistration::Wasi => 0,
             HostRegistration::WasmEdgeProcess => 1,
+            HostRegistration::WasiNn => 2,
+            HostRegistration::WasiCryptoCommon => 3,
+            HostRegistration::WasiCryptoAsymmetricCommon => 4,
+            HostRegistration::WasiCryptoKx => 5,
+            HostRegistration::WasiCryptoSignatures => 6,
+            HostRegistration::WasiCryptoSymmetric => 7,
         }
     }
 }

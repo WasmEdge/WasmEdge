@@ -1,11 +1,10 @@
 # Develop WasmEdge Plug-in
 
-**This chapter is WORK IN PROGRESS.**
+While the WasmEdge language SDKs allow registering host functions from a host (wrapping) application, developers should implement the host functions before compilation.
+For the other solutions, WasmEdge provides the plug-in architecture to load the plug-in shared library for easier extending of the host functions.
+With developing the plug-ins, WasmEdge SDKs in the supported languages can load and register the host functions from the plug-in shared libraries.
 
-WasmEdge provides a C++ based API for registering extension modules and host functions. While the WasmEdge language SDKs allow registering host functions from a host (wrapping) application, the plugin API allows such extensions to be incorporated into WasmEdge's own building and releasing process.
-
-The C API for the plug-in mechanism is under development.
-In the future, we will release the C API of plug-in mechanism and recommend developers to implement the plug-ins with C API.
+In current, developers can follow the guides to implement the plug-ins in [C API (recommended)](develop_plugin/c.md) or [C++](develop_plugin/cpp.md).
 
 ## Loadable Plug-in
 
@@ -22,7 +21,7 @@ Please check the following table to check the release status and how to build fr
 
 | Plug-in                                                                                                                     | Rust Crate                     | Released Platforms                                                                          | Build Steps                                                                                                           |
 | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| WasmEdge-Process                                                                                                            | [wasmedge_process_interface][] | `manylinux2014 x86_64`, `manylinux2014 aarch64`, and `ubuntu 20.04 x86_64` (since `0.10.0`) | [Default](contribute/build_from_src/linux.md)                                                                         |
+| WasmEdge-Process                                                                                                            | [wasmedge_process_interface][] | `manylinux2014 x86_64`, `manylinux2014 aarch64`, and `ubuntu 20.04 x86_64` (since `0.10.0`) | [Build With WasmEdge-Process](contribute/build_from_src/plugin_wasmedge_process.md)                                   |
 | [WASI-Crypto](write_wasm/rust/wasicrypto.md#prerequisites)                                                                  | [wasi-crypto][]                | `manylinux2014 x86_64`, `manylinux2014 aarch64`, and `ubuntu 20.04 x86_64` (since `0.10.1`) | [Build With WASI-Crypto](contribute/build_from_src/plugin_wasi_crypto.md)                                             |
 | [WASI-NN with OpenVINO backend](write_wasm/rust/wasinn.md#get-wasmedge-with-wasi-nn-plug-in-openvino-backend)               | [wasi-nn][]                    | `ubuntu 20.04 x86_64` (since `0.10.1`)                                                      | [Build With WASI-NN](contribute/build_from_src/plugin_wasi_nn.md#build-wasmedge-with-wasi-nn-openvino-backend)        |
 | [WASI-NN with PyTorch backend](write_wasm/rust/wasinn.md#get-wasmedge-with-wasi-nn-plug-in-pytorch-backend)                 | [wasi-nn][]                    | `ubuntu 20.04 x86_64` (since `0.11.1`)                                                      | [Build With WASI-NN](contribute/build_from_src/plugin_wasi_nn.md#build-wasmedge-with-wasi-nn-pytorch-backend)         |

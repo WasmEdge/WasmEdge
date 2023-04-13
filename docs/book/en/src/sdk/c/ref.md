@@ -1,8 +1,10 @@
-# WasmEdge C 0.12.0 API Documentation
+# WasmEdge C 0.12.0 API Documentation (Unreleased)
 
 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The following are the guides to working with the C APIs of WasmEdge.
 
-**This document is for the `0.12.0` version. For the older `0.12.0` version, please refer to the [document here](0.12.0/ref.md).**
+**This document is for the `0.12.0` version. For the older `0.11.2` version, please refer to the [document here](0.11.2/ref.md).**
+
+**Developers can refer to [here to upgrade to 0.12.0](0.11.2/upgrade_to_0.12.0.md).**
 
 ## Table of Contents
 
@@ -25,7 +27,7 @@
 * [WasmEdge VM](#wasmedge-vm)
   * [WASM Execution Example With VM Context](#wasm-execution-example-with-vm-context)
   * [VM Creations](#vm-creations)
-  * [Preregistrations](#preregistrations)
+  * [Built-in Host Modules and Plug-in Preregistrations](#built-in-host-modules-and-plug-in-preregistrations)
   * [Host Module Registrations](#host-module-registrations)
   * [WASM Registrations And Executions](#wasm-registrations-and-executions)
   * [Asynchronous execution](#asynchronous-execution)
@@ -39,6 +41,7 @@
   * [Store](#store)
   * [Instances](#instances)
   * [Host Functions](#host-functions)
+  * [Plug-ins](#plug-ins)
 * [WasmEdge AOT Compiler](#wasmedge-aot-compiler)
   * [Compilation Example](#compilation-example)
   * [Compiler Options](#compiler-options)
@@ -91,7 +94,7 @@ The releases before 0.11.0 are all unversioned. Please make sure the library ver
 
 | WasmEdge Version | WasmEdge C API Library Name | WasmEdge C API SONAME | WasmEdge C API SOVERSION |
 | ---              | ---                         | ---                   | ---                      |
-| < 0.11.0         | libwasmedge\_c.so           | Unversioned           | Unversioned              |
+| < 0.11.0         | libwasmedge_c.so            | Unversioned           | Unversioned              |
 | 0.11.0 to 0.11.1 | libwasmedge.so              | libwasmedge.so.0      | libwasmedge.so.0.0.0     |
 | 0.11.2           | libwasmedge.so              | libwasmedge.so.0      | libwasmedge.so.0.0.1     |
 | Since 0.12.0     | libwasmedge.so              | libwasmedge.so.0      | libwasmedge.so.0.0.2     |
@@ -600,16 +603,17 @@ Developers can adjust the settings about the proposals, VM host pre-registration
 
 2. Host registrations
 
-    This configuration is used for the `VM` context to turn on the `WASI` or `wasmedge_process` supports and only effective in `VM` contexts.
+    This configuration is used for the `VM` context to turn on the `WASI` supports and only effective in `VM` contexts.
+
+    The element of this enum is reserved for the other built-in host functions (such as `wasi-socket`) in the future.
 
     ```c
     enum WasmEdge_HostRegistration {
-      WasmEdge_HostRegistration_Wasi = 0,
-      WasmEdge_HostRegistration_WasmEdge_Process
+      WasmEdge_HostRegistration_Wasi = 0
     };
     ```
 
-    The details will be introduced in the [preregistrations of VM context](#preregistrations).
+    The details will be introduced in the [preregistrations of VM context](#built-in-host-modules-and-plug-in-preregistrations).
 
     ```c
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
@@ -1041,9 +1045,9 @@ WasmEdge_StoreDelete(StoreCxt);
 WasmEdge_ConfigureDelete(ConfCxt);
 ```
 
-### Preregistrations
+### Built-in Host Modules and Plug-in Preregistrations
 
-WasmEdge provides the following built-in pre-registrations.
+WasmEdge provides the following built-in host modules and plug-in pre-registrations.
 
 1. [WASI (WebAssembly System Interface)](https://github.com/WebAssembly/WASI)
 
@@ -1054,13 +1058,14 @@ WasmEdge provides the following built-in pre-registrations.
     WasmEdge_ConfigureAddHostRegistration(ConfCxt,
                                           WasmEdge_HostRegistration_Wasi);
     WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(ConfCxt, NULL);
+    WasmEdge_ConfigureDelete(ConfCxt);
     /*
-     * The following API can retrieve the pre-registration module instances from
-     * the VM context.
+     * The following API can retrieve the built-in registered module instances
+     * from the VM context.
      */
     /*
-     * This API will return `NULL` if the corresponding pre-registration is not
-     * set into the configuration.
+     * This API will return `NULL` if the corresponding configuration is not set
+     * when creating the VM context.
      */
     WasmEdge_ModuleInstanceContext *WasiModule =
         WasmEdge_VMGetImportModuleContext(VMCxt,
@@ -1068,104 +1073,65 @@ WasmEdge provides the following built-in pre-registrations.
     /* Initialize the WASI. */
     WasmEdge_ModuleInstanceInitWASI(WasiModule, /* ... ignored */);
     WasmEdge_VMDelete(VMCxt);
-    WasmEdge_ConfigureDelete(ConfCxt);
     ```
 
     And also can create the WASI module instance from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).
 
-2. [WasmEdge_Process](https://crates.io/crates/wasmedge_process_interface)
+2. Plug-ins
 
-    This pre-registration is for the process interface for WasmEdge on `Rust` sources.
-    After turning on this pre-registration, the VM will support the `wasmedge_process` plugin.
+    There may be several plug-ins in the default plug-in paths if users [installed WasmEdge plug-ins by the installer](../../contribute/installer.md#plugins).
 
-    ```c
-    WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
-    WasmEdge_ConfigureAddHostRegistration(
-        ConfCxt, WasmEdge_HostRegistration_WasmEdge_Process);
-    WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(ConfCxt, NULL);
-    /*
-     * The following API can retrieve the pre-registration module instances from
-     * the VM context.
-     */
-    /*
-     * This API will return `NULL` if the corresponding pre-registration is not
-     * set into the configuration or the plugin load failed.
-     */
-    WasmEdge_ModuleInstanceContext *ProcModule =
-        WasmEdge_VMGetImportModuleContext(
-            VMCxt, WasmEdge_HostRegistration_WasmEdge_Process);
-    /* Initialize the WasmEdge_Process. */
-    WasmEdge_ModuleInstanceInitWasmEdgeProcess(ProcModule, /* ... ignored */);
-    WasmEdge_VMDelete(VMCxt);
-    WasmEdge_ConfigureDelete(ConfCxt);
-    ```
+    Before using the plug-ins, developers should [load the plug-ins from paths](#load-plug-ins-from-paths).
 
-    And also can create the WasmEdge_Process module instance from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).
+    The `VM` context will automatically create and register the module of the loaded plug-ins when creation. Furthermore, the following host modules will be mocked if the plug-in not loaded:
 
-3. [WASI-NN proposal](https://github.com/WebAssembly/wasi-nn)
+    * `wasi_ephemeral_crypto_asymmetric_common` (for the `WASI-Crypto`)
+    * `wasi_ephemeral_crypto_common` (for the `WASI-Crypto`)
+    * `wasi_ephemeral_crypto_kx` (for the `WASI-Crypto`)
+    * `wasi_ephemeral_crypto_signatures` (for the `WASI-Crypto`)
+    * `wasi_ephemeral_crypto_symmetric` (for the `WASI-Crypto`)
+    * `wasi_ephemeral_nn`
+    * `wasi_snapshot_preview1`
+    * `wasmedge_httpsreq`
+    * `wasmedge_process`
 
-    Developers can turn on the WASI-NN proposal support for VM in the `Configure` context.
-
-    > Note: Please check that the [dependencies and prerequests](../../write_wasm/rust/wasinn.md) are satisfied.
+    When the WASM want to invoke these host functions but the corresponding plug-in not installed, WasmEdge will print the error message and return an error.
 
     ```c
+    /* Load the plug-ins in the default paths first. */
+    WasmEdge_PluginLoadWithDefaultPaths();
+    /* Create the configure context and add the WASI configuration. */
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
     WasmEdge_ConfigureAddHostRegistration(ConfCxt,
-                                          WasmEdge_HostRegistration_WasiNN);
+                                          WasmEdge_HostRegistration_Wasi);
     WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(ConfCxt, NULL);
+    WasmEdge_ConfigureDelete(ConfCxt);
     /*
-     * The following API can retrieve the pre-registration module instances from
-     * the VM context.
+     * The following API can retrieve the registered modules in the VM context,
+     * includes the built-in WASI and the plug-ins.
      */
     /*
-     * This API will return `NULL` if the corresponding pre-registration is not
-     * set into the configuration or the plugin load failed.
+     * This API will return `NULL` if the module instance not found.
      */
-    WasmEdge_ModuleInstanceContext *NNModule =
-        WasmEdge_VMGetImportModuleContext(VMCxt,
-                                          WasmEdge_HostRegistration_WasiNN);
-    WasmEdge_VMDelete(VMCxt);
-    WasmEdge_ConfigureDelete(ConfCxt);
-    ```
-
-    And also can create the WASI-NN module instance from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).
-
-4. [WASI-Crypto proposal](https://github.com/WebAssembly/wasi-crypto)
-
-    Developers can turn on the WASI-Crypto proposal support for VM in the `Configure` context.
-
-    > Note: Please check that the [dependencies and prerequests](../../dev/rust/wasicrypto.md) are satisfied.
-
-    ```c
-    WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
-    /* The WASI-Crypto related configures are suggested to turn on together. */
-    WasmEdge_ConfigureAddHostRegistration(
-        ConfCxt, WasmEdge_HostRegistration_WasiCrypto_Common);
-    WasmEdge_ConfigureAddHostRegistration(
-        ConfCxt, WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon);
-    WasmEdge_ConfigureAddHostRegistration(
-        ConfCxt, WasmEdge_HostRegistration_WasiCrypto_Kx);
-    WasmEdge_ConfigureAddHostRegistration(
-        ConfCxt, WasmEdge_HostRegistration_WasiCrypto_Signatures);
-    WasmEdge_ConfigureAddHostRegistration(
-        ConfCxt, WasmEdge_HostRegistration_WasiCrypto_Symmetric);
-    WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(ConfCxt, NULL);
+    WasmEdge_String WasiName =
+        WasmEdge_StringCreateByCString("wasi_snapshot_preview1");
+    /* The `WasiModule` will not be `NULL` because the configuration was set. */
+    const WasmEdge_ModuleInstanceContext *WasiModule =
+        WasmEdge_VMGetRegisteredModule(VMCxt, WasiName);
+    WasmEdge_StringDelete(WasiName);
+    WasmEdge_String WasiNNName =
+        WasmEdge_StringCreateByCString("wasi_ephemeral_nn");
     /*
-     * The following API can retrieve the pre-registration module instances from
-     * the VM context.
-      */
-    /*
-     * This API will return `NULL` if the corresponding pre-registration is not
-     * set into the configuration or the plugin load failed.
-      */
-    WasmEdge_ModuleInstanceContext *CryptoCommonModule =
-        WasmEdge_VMGetImportModuleContext(
-            VMCxt, WasmEdge_HostRegistration_WasiCrypto_Common);
-    WasmEdge_VMDelete(VMCxt);
-    WasmEdge_ConfigureDelete(ConfCxt);
-    ```
+     * The `WasiNNModule` will not be `NULL` even if the wasi_nn plug-in is not
+     * installed, because the VM context will mock and register the host
+     * modules.
+     */
+    const WasmEdge_ModuleInstanceContext *WasiNNModule =
+        WasmEdge_VMGetRegisteredModule(VMCxt, WasiNNName);
+    WasmEdge_StringDelete(WasiNNName);
 
-    And also can create the WASI-Crypto module instance from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).
+    WasmEdge_VMDelete(VMCxt);
+    ```
 
 ### Host Module Registrations
 
@@ -1573,7 +1539,31 @@ The `VM` context supplies the APIs to retrieve the instances.
      */
     ```
 
-5. Get the components
+5. List and get the registered modules
+
+    To list and retrieve the registered modules in the `VM` context, besides accessing the `store` context of the `VM`, developers can use the following APIs.
+
+    ```c
+    /*
+     * ...
+     * Assume that the `VMCxt` is created.
+     */
+    WasmEdge_String Names[32];
+    uint32_t ModuleLen = WasmEdge_VMListRegisteredModule(VMCxt, Names, 32);
+    for (uint32_t I = 0; I < ModuleLen; I++) {
+      /* Will print the registered module names in the VM context. */
+      printf("%s\n", Names[I].Buf);
+    }
+
+    WasmEdge_String WasiName =
+        WasmEdge_StringCreateByCString("wasi_snapshot_preview1");
+    /* The `WasiModule` will not be `NULL` because the configuration was set. */
+    const WasmEdge_ModuleInstanceContext *WasiModule =
+        WasmEdge_VMGetRegisteredModule(VMCxt, WasiName);
+    WasmEdge_StringDelete(WasiName);
+    ```
+
+6. Get the components
 
     The `VM` context is composed by the `Loader`, `Validator`, and `Executor` contexts.
     For the developers who want to use these contexts without creating another instances, these APIs can help developers to get them from the `VM` context.
@@ -1683,7 +1673,7 @@ int main() {
     printf("Function `fib` not found.\n");
     return 1;
   }
-  /* Invoke the WASM fnction. */
+  /* Invoke the WASM function. */
   Res = WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, Params, 1, Returns, 1);
   if (WasmEdge_ResultOK(Res)) {
     printf("Get the result: %d\n", WasmEdge_ValueGetI32(Returns[0]));
@@ -2817,6 +2807,91 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
     Get the result: 6912
     Data value: 6912
     ```
+
+### Plug-ins
+
+The WasmEdge plug-ins are the shared libraries to provide the WasmEdge runtime to load and create host module instances.
+With the plug-ins, the WasmEdge runtime can be extended more easily.
+
+#### Load plug-ins from paths
+
+To use the plug-ins, developers should load the plug-ins from paths first.
+
+```c
+WasmEdge_PluginLoadWithDefaultPaths();
+```
+
+After calling this API, the plug-ins in the default paths will be loaded. The default paths are:
+
+1. The path given in the environment variable `WASMEDGE_PLUGIN_PATH`.
+2. The `../plugin/` directory related to the WasmEdge installation path.
+3. The `./wasmedge/` directory under the library path if the WasmEdge is installed under the system directory (such as `/usr` and `/usr/local`).
+
+To load the plug-ins from a specific path or under a specific directory, developers can use this API:
+
+```c
+WasmEdge_PluginLoadFromPath("PATH_TO_PLUGIN/plugin.so");
+```
+
+#### Get the plug-in by name
+
+After loading the plug-ins, developers can list the loaded plug-in names.
+
+```c
+WasmEdge_PluginLoadWithDefaultPaths();
+printf("Number of loaded plug-ins: %d\n", WasmEdge_PluginListPluginsLength());
+
+WasmEdge_String Names[20];
+uint32_t NumPlugins = WasmEdge_PluginListPlugins(Names, 20);
+for (int I = 0; I < NumPlugins; I++) {
+  printf("plug-in %d name: %s\n", I, Names[I].Buf);
+}
+```
+
+And developers can retrieve the plug-in context by its name.
+
+```c
+/* Assume that wasi_crypto plug-in is installed in the default plug-in path. */
+WasmEdge_PluginLoadWithDefaultPaths();
+
+const char PluginName[] = "wasi_crypto";
+WasmEdge_String NameString =
+    WasmEdge_StringWrap(PluginName, strlen(PluginName));
+const WasmEdge_PluginContext *PluginCxt = WasmEdge_PluginFind(NameString);
+```
+
+#### Create the module instance from a plug-in
+
+With the plug-in context, developers can create the module instances by the module name.
+
+```c
+/* Assume that the `PluginCxt` is the context to the wasi_crypto plug-in. */
+
+/* List the available host modules in the plug-in. */
+WasmEdge_String Names[20];
+uint32_t ModuleLen = WasmEdge_PluginListModule(PluginCxt, Names, 20);
+for (uint32_t I = 0; I < ModuleLen; I++) {
+  /* Will print the available host module names in the plug-in. */
+  printf("%s\n", Names[I].Buf);
+}
+/*
+ * Will print here for the WASI-Crypto plug-in here:
+ * wasi_ephemeral_crypto_asymmetric_common
+ * wasi_ephemeral_crypto_common
+ * wasi_ephemeral_crypto_kx
+ * wasi_ephemeral_crypto_signatures
+ * wasi_ephemeral_crypto_symmetric
+ */
+
+/* Create a module instance from the plug-in by the module name. */
+const char ModuleName[] = "wasi_ephemeral_crypto_common";
+WasmEdge_String NameString =
+    WasmEdge_StringWrap(ModuleName, strlen(ModuleName));
+WasmEdge_ModuleInstance *ModCxt =
+    WasmEdge_PluginCreateModule(PluginCxt, NameString);
+
+WasmEdge_ModuleInstanceDelete(ModCxt);
+```
 
 ## WasmEdge AOT Compiler
 

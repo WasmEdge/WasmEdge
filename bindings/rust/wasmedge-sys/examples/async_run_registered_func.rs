@@ -9,7 +9,7 @@
 //! ```
 
 #[cfg(feature = "async")]
-use wasmedge_sys::{Config, Store, Vm, WasmValue};
+use wasmedge_sys::{Config, Executor, Loader, Store, Validator, WasmValue};
 #[cfg(feature = "async")]
 use wasmedge_types::wat2wasm;
 
@@ -18,21 +18,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "async")]
     {
         // create a Config context
-        let result = Config::create();
-        assert!(result.is_ok());
-        let mut config = result.unwrap();
+        let mut config = Config::create()?;
         config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
-        // create a Store context
-        let result = Store::create();
-        assert!(result.is_ok(), "Failed to create Store instance");
-        let mut store = result.unwrap();
+        // create an executor
+        let mut executor = Executor::create(Some(&config), None)?;
 
-        // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(&mut store));
-        assert!(result.is_ok());
-        let vm = result.unwrap();
+        // create a store
+        let mut store = Store::create()?;
 
         // register a wasm module from a buffer
         let wasm_bytes = wat2wasm(
@@ -66,16 +60,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
               )
              )
             )
-           )           
+           )
     "#,
         )?;
-        let result = vm.register_wasm_from_bytes("extern", &wasm_bytes);
-        assert!(result.is_ok());
+
+        let module = Loader::create(Some(&config))?.from_bytes(&wasm_bytes)?;
+        Validator::create(Some(&config))?.validate(&module)?;
+        let fib = executor
+            .register_named_module(&mut store, &module, "extern")?
+            .get_func("fib")?;
 
         // async run function
-        let fut1 = vm.run_registered_function_async("extern", "fib", vec![WasmValue::from_i32(20)]);
-
-        let fut2 = vm.run_registered_function_async("extern", "fib", vec![WasmValue::from_i32(5)]);
+        let fut1 = executor.call_func_async(&fib, vec![WasmValue::from_i32(20)]);
+        let fut2 = executor.call_func_async(&fib, vec![WasmValue::from_i32(5)]);
 
         let returns = tokio::join!(fut1, fut2);
 

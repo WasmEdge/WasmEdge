@@ -15,19 +15,21 @@ anyhow = "1.0"
 num-derive = "0.3"
 num-traits = "0.2"
 thiserror = "1.0.30"
-wasmedge-macro = {path = "../wasmedge-macro", version = "0.3"}
-wasmedge-sys = {path = "../wasmedge-sys", version = "0.12", default-features = false}
-wasmedge-types = {path = "../wasmedge-types", version = "0.4"}
+wasmedge-macro = {workspace = true}
+wasmedge-sys = {path = "../wasmedge-sys", version = "0.13", default-features = false}
+wasmedge-types = {workspace = true}
 wat = "1.0"
 
 [features]
 aot = ["wasmedge-sys/aot"]
 async = ["wasmedge-sys/async"]
 default = []
+ffi = ["wasmedge-sys/ffi"]
 standalone = ["wasmedge-sys/standalone"]
+static = ["wasmedge-sys/static"]
 wasi_crypto = ["wasmedge-sys/wasi_crypto"]
 wasi_nn = ["wasmedge-sys/wasi_nn"]
-static = ["wasmedge-sys/static"]
+wasmedge_process = ["wasmedge-sys/wasmedge_process"]
 
 [dev-dependencies]
 tokio = {version = "1", features = ["full"]}

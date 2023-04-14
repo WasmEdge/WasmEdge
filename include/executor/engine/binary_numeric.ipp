@@ -162,12 +162,12 @@ TypeF<T> Executor::runMinOp(ValVariant &Val1, const ValVariant &Val2) const {
       Z1 = Z2;
     }
     // Set the most significant bit of the payload to 1.
-    if (sizeof(T) == sizeof(uint32_t)) {
+    if constexpr (sizeof(T) == sizeof(uint32_t)) {
       uint32_t I32;
       std::memcpy(&I32, &Z1, sizeof(T));
       I32 |= static_cast<uint32_t>(0x01U) << 22;
       std::memcpy(&Z1, &I32, sizeof(T));
-    } else if (sizeof(T) == sizeof(uint64_t)) {
+    } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
       uint64_t I64;
       std::memcpy(&I64, &Z1, sizeof(T));
       I64 |= static_cast<uint64_t>(0x01U) << 51;
@@ -194,12 +194,12 @@ TypeF<T> Executor::runMaxOp(ValVariant &Val1, const ValVariant &Val2) const {
       Z1 = Z2;
     }
     // Set the most significant bit of the payload to 1.
-    if (sizeof(T) == sizeof(uint32_t)) {
+    if constexpr (sizeof(T) == sizeof(uint32_t)) {
       uint32_t I32;
       std::memcpy(&I32, &Z1, sizeof(T));
       I32 |= static_cast<uint32_t>(0x01U) << 22;
       std::memcpy(&Z1, &I32, sizeof(T));
-    } else if (sizeof(T) == sizeof(uint64_t)) {
+    } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
       uint64_t I64;
       std::memcpy(&I64, &Z1, sizeof(T));
       I64 |= static_cast<uint64_t>(0x01U) << 51;

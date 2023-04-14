@@ -70,7 +70,6 @@ Expect<ValType> Loader::loadValType(ASTNodeAttr From) {
       }
       if (auto LoadRes = loadHeapType(From)) {
         return RefType(static_cast<RefTypeCode>(Code), *LoadRes);
-
       } else {
         return Unexpect(LoadRes.error());
       }
@@ -110,10 +109,8 @@ Expect<RefType> Loader::loadRefType(ASTNodeAttr From) {
       }
       if (auto LoadRes = loadHeapType(From)) {
         return RefType(Code, *LoadRes);
-
       } else {
-        return logLoadError(ErrCode::Value::MalformedValType,
-                            FMgr.getLastOffset(), From);
+        return Unexpect(LoadRes.error());
       }
     default:
       return logLoadError(FailCode, FMgr.getLastOffset(), From);

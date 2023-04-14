@@ -1,0 +1,74 @@
+name: Test Wasi Testsuite
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    paths:
+      - ".github/workflows/wasi-testsuite.yml"
+      - "lib/host/wasi/**"
+      - "include/host/wasi/**"
+      - "thirdparty/wasi/**"
+  pull_request:
+    paths:
+      - ".github/workflows/wasi-testsuite.yml"
+      - "lib/host/wasi/**"
+      - "include/host/wasi/**"
+      - "thirdparty/wasi/**"
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          path: WasmEdge
+
+      - name: Build WasmEdge on Ubuntu
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: WasmEdge
+        run: |
+          sudo apt install -y software-properties-common cmake libboost-all-dev
+          sudo apt install -y clang
+          mkdir -p build && cd build
+          cmake -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .. && make -j
+          echo "$GITHUB_WORKSPACE/WasmEdge/build/tools/wasmedge" >> $GITHUB_PATH
+
+      - name: Build WasmEdge on macOS
+        if: matrix.os == 'macos-latest'
+        working-directory: WasmEdge
+        run: |
+          brew install llvm ninja boost cmake
+          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          export CC=clang
+          export CXX=clang++
+          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .
+          cmake --build build
+          echo "$GITHUB_WORKSPACE/WasmEdge/build/tools/wasmedge" >> $GITHUB_PATH
+
+      - name: Checkout wasi-testsuite
+        uses: actions/checkout@v3
+        with:
+          repository: WebAssembly/wasi-testsuite
+          ref: prod/testsuite-base
+          path: wasi-testsuite
+
+      - name: Initialize Python environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: pip
+
+      - name: Install wasi testsuite dependencies
+        working-directory: wasi-testsuite/test-runner
+        run: pip install -r requirements.txt
+      
+      - name: Test Wasi testsuite
+        working-directory: wasi-testsuite
+        run: python3 test-runner/wasi_test_runner.py -t ./tests/assemblyscript/testsuite/ ./tests/c/testsuite/ ./tests/rust/testsuite/ -r ../WasmEdge/.github/scripts/wasi-testsuite-adapter.py

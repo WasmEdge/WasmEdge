@@ -146,18 +146,22 @@ struct HandleHolder {
   HandleHolder(const HandleHolder &) = delete;
   HandleHolder &operator=(const HandleHolder &) = delete;
   HandleHolder(HandleHolder &&RHS) noexcept
-      : Handle(std::exchange(RHS.Handle, nullptr)) {}
+      : Handle(std::exchange(RHS.Handle, nullptr)),
+        IsStdHandle(std::exchange(RHS.IsStdHandle, false)) {}
   HandleHolder &operator=(HandleHolder &&RHS) noexcept {
     using std::swap;
     swap(Handle, RHS.Handle);
+    swap(IsStdHandle, RHS.IsStdHandle);
     return *this;
   }
 
   constexpr HandleHolder() noexcept = default;
   ~HandleHolder() noexcept { reset(); }
-  explicit constexpr HandleHolder(boost::winapi::HANDLE_ Handle) noexcept
-      : Handle(Handle) {}
+  explicit constexpr HandleHolder(boost::winapi::HANDLE_ Handle,
+                                  bool IsStdHandle = false) noexcept
+      : Handle(Handle), IsStdHandle(IsStdHandle) {}
   constexpr bool ok() const noexcept { return Handle != nullptr; }
+  constexpr bool isStdHandle() const noexcept { return IsStdHandle; }
   void reset() noexcept;
   boost::winapi::HANDLE_ release() noexcept {
     return std::exchange(Handle, nullptr);
@@ -168,6 +172,7 @@ struct HandleHolder {
   }
   // TODO: move isSocket here
   boost::winapi::HANDLE_ Handle = nullptr;
+  bool IsStdHandle = false;
 };
 #endif
 

@@ -145,15 +145,13 @@ Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
       break;
     case 3: // BSS
       break;
-    case 4: // PData
 #if WASMEDGE_OS_WINDOWS
+    case 4: // PData
       PDataAddress = reinterpret_cast<void *>(Binary + Offset);
       PDataSize =
           static_cast<uint32_t>(Size / sizeof(winapi::RUNTIME_FUNCTION_));
-#else
-      assumingUnreachable();
-#endif
       break;
+#endif
     }
   }
 

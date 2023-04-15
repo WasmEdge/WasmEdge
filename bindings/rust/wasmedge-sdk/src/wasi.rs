@@ -7,7 +7,7 @@ use crate::{
 use wasmedge_sys::{self as sys, AsImport, AsInstance as sys_as_instance_trait};
 
 /// Represents a wasi module instance.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiInstance {
     pub(crate) inner: sys::WasiModule,
 }

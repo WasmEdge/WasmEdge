@@ -266,7 +266,8 @@ TEST(AOTAsyncExecute, ThreadTest) {
       EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Answers[Index]);
     }
   }
-  std::filesystem::remove(Path);
+  VM.cleanup();
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 
 TEST(AOTAsyncExecute, GasThreadTest) {
@@ -313,7 +314,8 @@ TEST(AOTAsyncExecute, GasThreadTest) {
       EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Answers[Index]);
     }
   }
-  std::filesystem::remove(Path);
+  VM.cleanup();
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 
 #endif

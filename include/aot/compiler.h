@@ -30,21 +30,21 @@ public:
   Compiler(const Configure &Conf) noexcept : Context(nullptr), Conf(Conf) {}
 
   Expect<void> compile(Span<const Byte> Data, const AST::Module &Module,
-                       std::filesystem::path OutputPath);
+                       std::filesystem::path OutputPath) noexcept;
 
   struct CompileContext;
 
 private:
-  void compile(const AST::ImportSection &ImportSection);
-  void compile(const AST::ExportSection &ExportSection);
-  void compile(const AST::TypeSection &TypeSection);
-  void compile(const AST::GlobalSection &GlobalSection);
+  void compile(const AST::ImportSection &ImportSection) noexcept;
+  void compile(const AST::ExportSection &ExportSection) noexcept;
+  void compile(const AST::TypeSection &TypeSection) noexcept;
+  void compile(const AST::GlobalSection &GlobalSection) noexcept;
   void compile(const AST::MemorySection &MemorySection,
-               const AST::DataSection &DataSection);
+               const AST::DataSection &DataSection) noexcept;
   void compile(const AST::TableSection &TableSection,
-               const AST::ElementSection &ElementSection);
+               const AST::ElementSection &ElementSection) noexcept;
   void compile(const AST::FunctionSection &FunctionSection,
-               const AST::CodeSection &CodeSection);
+               const AST::CodeSection &CodeSection) noexcept;
 
   std::mutex Mutex;
   CompileContext *Context;

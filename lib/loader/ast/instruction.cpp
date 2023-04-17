@@ -283,13 +283,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   // Reference Instructions.
   case OpCode::Ref__null: {
-    Expect<RefType> Res;
-    if (Conf.hasProposal(Proposal::FunctionReferences)) {
-      // The func-ref proposal use the heap type to replace ref type here.
-      Res = loadHeapType(RefTypeCode::RefNull, ASTNodeAttr::Instruction);
-    } else {
-      Res = loadRefType(ASTNodeAttr::Instruction);
-    }
+    auto Res = loadRefType(ASTNodeAttr::Instruction);
     if (!Res) {
       // The AST node information is handled.
       return Unexpect(Res);

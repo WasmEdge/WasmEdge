@@ -997,8 +997,7 @@ Expect<void> Loader::checkInstrProposals(OpCode Code,
                              Offset, ASTNodeAttr::Instruction);
     }
   } else if (Code == OpCode::Return_call ||
-             Code == OpCode::Return_call_indirect ||
-             Code == OpCode::Return_call_ref) {
+             Code == OpCode::Return_call_indirect) {
     // These instructions are for TailCall proposal.
     if (!Conf.hasProposal(Proposal::TailCall)) {
       return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::TailCall,
@@ -1018,6 +1017,13 @@ Expect<void> Loader::checkInstrProposals(OpCode Code,
       return logNeedProposal(ErrCode::Value::IllegalOpCode,
                              Proposal::FunctionReferences, Offset,
                              ASTNodeAttr::Instruction);
+    }
+    if (Code == OpCode::Return_call && !Conf.hasProposal(Proposal::TailCall)) {
+      if (!Conf.hasProposal(Proposal::FunctionReferences)) {
+        return logNeedProposal(ErrCode::Value::IllegalOpCode,
+                               Proposal::TailCall, Offset,
+                               ASTNodeAttr::Instruction);
+      }
     }
   }
   return {};

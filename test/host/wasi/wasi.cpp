@@ -2,13 +2,10 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "common/defines.h"
-#include <gtest/gtest.h>
-
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
-
 #include "host/wasi/wasibase.h"
 #include "host/wasi/wasifunc.h"
 #include "runtime/instance/module.h"
+#include "system/winapi.h"
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -16,6 +13,7 @@
 #include <cstdint>
 #include <cstring>
 #include <ctime>
+#include <gtest/gtest.h>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -43,12 +41,13 @@ void writeAddress(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 
   __wasi_address_t WasiAddress;
   WasiAddress.buf = BufPtr;
-  WasiAddress.buf_len = Address.size();
+  WasiAddress.buf_len = static_cast<__wasi_size_t>(Address.size());
 
   std::memcpy(MemInst.getPointer<__wasi_address_t *>(Ptr), &WasiAddress,
               sizeof(__wasi_address_t));
 }
 
+#if !WASMEDGE_OS_WINDOWS
 __wasi_errno_t convertErrno(int SysErrno) noexcept {
   switch (SysErrno) {
   case 0:
@@ -208,9 +207,30 @@ __wasi_errno_t convertErrno(int SysErrno) noexcept {
   }
 }
 
-uint64_t convertTimespec(const timespec &Timespec) noexcept {
-  return Timespec.tv_sec * UINT64_C(1000000000) + Timespec.tv_nsec;
+__wasi_timestamp_t convertTimespec(const timespec &Timespec) noexcept {
+  std::chrono::nanoseconds Time = std::chrono::seconds(Timespec.tv_sec);
+  Time += std::chrono::nanoseconds(Timespec.tv_nsec);
+  return static_cast<__wasi_timestamp_t>(Time.count());
 }
+#else
+
+__wasi_timestamp_t
+convertFiletime(WasmEdge::winapi::FILETIME_ FileTime) noexcept {
+  using std::chrono::duration_cast;
+  using std::chrono::nanoseconds;
+  using FiletimeDuration = std::chrono::duration<
+      uint64_t, std::ratio_multiply<std::ratio<100, 1>,
+                                    std::chrono::nanoseconds::period>>;
+  /// from 1601-01-01 to 1970-01-01, 134774 days
+  constexpr const FiletimeDuration NTToUnixEpoch =
+      std::chrono::seconds{134774u * 86400u};
+  WasmEdge::winapi::ULARGE_INTEGER_ Temp = {
+      .LowPart = FileTime.dwLowDateTime, .HighPart = FileTime.dwHighDateTime};
+  auto Duration = duration_cast<nanoseconds>(FiletimeDuration{Temp.QuadPart} -
+                                             NTToUnixEpoch);
+  return static_cast<__wasi_timestamp_t>(Duration.count());
+}
+#endif
 
 // The following code includes a sleep to prevent a possible delay when sending
 // and recving data. There is a chance that PollOneoff may not immediately get
@@ -486,11 +506,12 @@ TEST(WasiTest, ClockRes) {
 
   WasmEdge::Host::WasiClockResGet WasiClockResGet(Env);
   std::array<WasmEdge::ValVariant, 1> Errno;
-  timespec Timespec;
 
   Env.init({}, "test"s, {}, {});
+#if !WASMEDGE_OS_WINDOWS
   // realtime clock
   {
+    timespec Timespec;
     int SysErrno = 0;
     if (clock_getres(CLOCK_REALTIME, &Timespec) != 0) {
       SysErrno = errno;
@@ -511,6 +532,7 @@ TEST(WasiTest, ClockRes) {
 
   // monotonic clock
   {
+    timespec Timespec;
     int SysErrno = 0;
     if (clock_getres(CLOCK_MONOTONIC, &Timespec) != 0) {
       SysErrno = errno;
@@ -531,6 +553,7 @@ TEST(WasiTest, ClockRes) {
 
   // process cputime clock
   {
+    timespec Timespec;
     int SysErrno = 0;
     if (clock_getres(CLOCK_PROCESS_CPUTIME_ID, &Timespec) != 0) {
       SysErrno = errno;
@@ -552,6 +575,7 @@ TEST(WasiTest, ClockRes) {
 
   // thread cputime clock
   {
+    timespec Timespec;
     int SysErrno = 0;
     if (clock_getres(CLOCK_THREAD_CPUTIME_ID, &Timespec) != 0) {
       SysErrno = errno;
@@ -570,6 +594,54 @@ TEST(WasiTest, ClockRes) {
       EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
     }
   }
+#else
+  // monotonic clock
+  {
+    WasmEdge::winapi::LARGE_INTEGER_ Frequency;
+    WasmEdge::winapi::QueryPerformanceFrequency(&Frequency);
+    const std::chrono::nanoseconds Result =
+        std::chrono::nanoseconds(std::chrono::seconds{1}) /
+        static_cast<uint64_t>(Frequency.QuadPart);
+    const uint64_t Resolution = static_cast<uint64_t>(Result.count());
+
+    writeDummyMemoryContent(MemInst);
+    EXPECT_TRUE(WasiClockResGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<uint32_t>(__WASI_CLOCKID_MONOTONIC), UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Resolution);
+  }
+
+  // other clock
+  {
+    using FiletimeDuration = std::chrono::duration<
+        uint64_t, std::ratio_multiply<std::ratio<100, 1>,
+                                      std::chrono::nanoseconds::period>>;
+    WasmEdge::winapi::ULONG_ MinimumResolution;
+    WasmEdge::winapi::ULONG_ MaximumResolution;
+    WasmEdge::winapi::ULONG_ CurrentResolution;
+    EXPECT_TRUE(
+        WasmEdge::winapi::NT_SUCCESS_(WasmEdge::winapi::NtQueryTimerResolution(
+            &MinimumResolution, &MaximumResolution, &CurrentResolution)));
+    const std::chrono::nanoseconds Result = FiletimeDuration{CurrentResolution};
+    const uint64_t Resolution = static_cast<uint64_t>(Result.count());
+    for (const auto ClockId :
+         {__WASI_CLOCKID_REALTIME, __WASI_CLOCKID_PROCESS_CPUTIME_ID,
+          __WASI_CLOCKID_THREAD_CPUTIME_ID}) {
+      writeDummyMemoryContent(MemInst);
+      EXPECT_TRUE(
+          WasiClockResGet.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  static_cast<uint32_t>(ClockId), UINT32_C(0)},
+                              Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+      EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Resolution);
+    }
+  }
+#endif
 
   // invalid clockid
   {
@@ -1806,6 +1878,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
   Server.join();
 }
 
+#if !WASMEDGE_OS_WINDOWS
 TEST(WasiTest, EpollOneoffSocketV1) {
   enum class ServerAction {
     None,
@@ -2410,6 +2483,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
   ActionRequested.notify_one();
   Server.join();
 }
+#endif
 
 TEST(WasiTest, ClockTimeGet) {
   WasmEdge::Host::WASI::Environ Env;
@@ -2424,12 +2498,13 @@ TEST(WasiTest, ClockTimeGet) {
 
   WasmEdge::Host::WasiClockTimeGet WasiClockTimeGet(Env);
   std::array<WasmEdge::ValVariant, 1> Errno;
-  timespec Timespec;
 
   Env.init({}, "test"s, {}, {});
 
   // realtime clock
+#if !WASMEDGE_OS_WINDOWS
   {
+    timespec Timespec;
     int SysErrno = 0;
     if (clock_gettime(CLOCK_REALTIME, &Timespec) != 0) {
       SysErrno = errno;
@@ -2448,9 +2523,32 @@ TEST(WasiTest, ClockTimeGet) {
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
     }
   }
+#else
+  {
+    WasmEdge::winapi::FILETIME_ SysNow;
+#if NTDDI_VERSION >= NTDDI_WIN8
+    WasmEdge::winapi::GetSystemTimePreciseAsFileTime(&SysNow);
+#else
+    WasmEdge::winapi::GetSystemTimeAsFileTime(&SysNow);
+#endif
 
+    writeDummyMemoryContent(MemInst);
+    EXPECT_TRUE(
+        WasiClockTimeGet.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 static_cast<uint32_t>(__WASI_CLOCKID_REALTIME),
+                                 UINT64_C(0), UINT32_C(0)},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    const uint64_t Time = convertFiletime(SysNow);
+    EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
+  }
+#endif
+
+#if !WASMEDGE_OS_WINDOWS
   // monotonic clock
   {
+    timespec Timespec;
     int SysErrno = 0;
     if (clock_gettime(CLOCK_MONOTONIC, &Timespec) != 0) {
       SysErrno = errno;
@@ -2469,9 +2567,14 @@ TEST(WasiTest, ClockTimeGet) {
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
     }
   }
+#else
+// TODO: implement
+#endif
 
+#if !WASMEDGE_OS_WINDOWS
   // process cputime clock
   {
+    timespec Timespec;
     int SysErrno = 0;
     if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &Timespec) != 0) {
       SysErrno = errno;
@@ -2490,9 +2593,14 @@ TEST(WasiTest, ClockTimeGet) {
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
     }
   }
+#else
+// TODO: implement
+#endif
 
+#if !WASMEDGE_OS_WINDOWS
   // thread cputime clock
   {
+    timespec Timespec;
     int SysErrno = 0;
     if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &Timespec) != 0) {
       SysErrno = errno;
@@ -2511,6 +2619,9 @@ TEST(WasiTest, ClockTimeGet) {
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
     }
   }
+#else
+// TODO: implement
+#endif
 
   // invalid clockid
   {
@@ -2742,6 +2853,7 @@ TEST(WasiTest, Directory) {
   }
 }
 
+#if !WASMEDGE_OS_WINDOWS
 TEST(WasiTest, SymbolicLink) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");

@@ -17,19 +17,8 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unordered_map>
-
-#include <boost/align/aligned_allocator.hpp>
-#endif
-
-#if WASMEDGE_OS_WINDOWS
-#include <boost/winapi/basic_types.hpp>
-
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-
-#include <Pathcch.h>
-#include <Shlwapi.h>
-
+#elif WASMEDGE_OS_WINDOWS
+#include "system/winapi.h"
 #endif
 
 #if WASMEDGE_OS_LINUX
@@ -117,9 +106,8 @@ struct DirHolder {
 
   DIR *Dir = nullptr;
   uint64_t Cookie = 0;
-  std::vector<uint8_t, boost::alignment::aligned_allocator<
-                           uint8_t, alignof(__wasi_dirent_t)>>
-      Buffer;
+  static_assert(__STDCPP_DEFAULT_NEW_ALIGNMENT__ >= alignof(__wasi_dirent_t));
+  std::vector<uint8_t> Buffer;
 };
 #endif
 
@@ -151,37 +139,175 @@ struct TimerHolder {
 
 #if WASMEDGE_OS_WINDOWS
 struct HandleHolder {
+  enum class HandleType : uint8_t {
+    NormalHandle,
+    StdHandle,
+    NormalSocket,
+  };
+
   HandleHolder(const HandleHolder &) = delete;
   HandleHolder &operator=(const HandleHolder &) = delete;
-  HandleHolder(HandleHolder &&RHS) noexcept
-      : Handle(std::exchange(RHS.Handle, nullptr)),
-        IsStdHandle(std::exchange(RHS.IsStdHandle, false)) {}
-  HandleHolder &operator=(HandleHolder &&RHS) noexcept {
+  constexpr HandleHolder(HandleHolder &&RHS) noexcept {
     using std::swap;
-    swap(Handle, RHS.Handle);
-    swap(IsStdHandle, RHS.IsStdHandle);
+    swap(*this, RHS);
+  }
+  constexpr HandleHolder &operator=(HandleHolder &&RHS) noexcept {
+    using std::swap;
+    swap(*this, RHS);
     return *this;
   }
 
   constexpr HandleHolder() noexcept = default;
   ~HandleHolder() noexcept { reset(); }
-  explicit constexpr HandleHolder(boost::winapi::HANDLE_ Handle,
-                                  bool IsStdHandle = false) noexcept
-      : Handle(Handle), IsStdHandle(IsStdHandle) {}
+  HandleHolder(winapi::HANDLE_ Handle, bool IsStdHandle) noexcept
+      : Handle(likely(Handle != winapi::INVALID_HANDLE_VALUE_) ? Handle
+                                                               : nullptr),
+        Type(IsStdHandle ? HandleType::StdHandle : HandleType::NormalHandle) {}
+  HandleHolder(winapi::SOCKET_ Socket) noexcept
+      : Socket(Socket), Type(HandleType::NormalSocket) {}
+  HandleHolder(const std::filesystem::path &Path,
+               const winapi::DWORD_ AccessFlags,
+               const winapi::DWORD_ ShareFlags,
+               const winapi::DWORD_ CreationDisposition,
+               const winapi::DWORD_ AttributeFlags) noexcept;
+  bool reopen(const winapi::DWORD_ AccessFlags, const winapi::DWORD_ ShareFlags,
+
+              const winapi::DWORD_ AttributeFlags) noexcept;
   constexpr bool ok() const noexcept { return Handle != nullptr; }
-  constexpr bool isStdHandle() const noexcept { return IsStdHandle; }
-  void reset() noexcept;
-  boost::winapi::HANDLE_ release() noexcept {
-    return std::exchange(Handle, nullptr);
+  constexpr bool isStdHandle() const noexcept {
+    return Type == HandleType::StdHandle;
   }
-  void emplace(boost::winapi::HANDLE_ NewHandle) noexcept {
+  constexpr bool isSocket() const noexcept {
+    return Type == HandleType::NormalSocket;
+  }
+  void reset() noexcept;
+  winapi::HANDLE_ release() noexcept { return std::exchange(Handle, nullptr); }
+  winapi::HANDLE_ exchange(winapi::HANDLE_ NewHandle) noexcept {
+    return std::exchange(Handle, NewHandle);
+  }
+  void emplace(winapi::HANDLE_ NewHandle) noexcept {
     reset();
     Handle = NewHandle;
   }
-  // TODO: move isSocket here
-  boost::winapi::HANDLE_ Handle = nullptr;
-  bool IsStdHandle = false;
+  friend void swap(HandleHolder &LHS, HandleHolder &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Handle, RHS.Handle);
+    swap(LHS.Type, RHS.Type);
+  }
+  WasiExpect<void> filestatGet(__wasi_filestat_t &FileStat) const noexcept;
+
+  union {
+    winapi::HANDLE_ Handle = nullptr;
+    winapi::SOCKET_ Socket;
+  };
+  HandleType Type = HandleType::NormalHandle;
 };
+
+template <typename T> class FindHolderBase {
+private:
+  struct Proxy : T {
+    static void doReset(T &Base) noexcept {
+      const auto Ptr = &T::doReset;
+      return (Base.*Ptr)();
+    }
+    static WasiExpect<void> doRewind(T &Base, bool First) noexcept {
+      const auto Ptr = &T::doRewind;
+      return (Base.*Ptr)(First);
+    }
+    static bool doNext(T &Base) noexcept {
+      const auto Ptr = &T::doNext;
+      return (Base.*Ptr)();
+    }
+    static WasiExpect<void> doLoadDirent(T &Base) noexcept {
+      const auto Ptr = &T::doLoadDirent;
+      return (Base.*Ptr)();
+    }
+  };
+
+public:
+  FindHolderBase(FindHolderBase &&RHS) noexcept {
+    using std::swap;
+    swap(Handle, RHS.Handle);
+    swap(Cookie, RHS.Cookie);
+    swap(Buffer, RHS.Buffer);
+  }
+  FindHolderBase &operator=(FindHolderBase &&RHS) noexcept {
+    using std::swap;
+    swap(Handle, RHS.Handle);
+    swap(Cookie, RHS.Cookie);
+    swap(Buffer, RHS.Buffer);
+    return *this;
+  }
+
+  FindHolderBase() noexcept = default;
+  FindHolderBase(const FindHolderBase &) noexcept = delete;
+  FindHolderBase &operator=(const FindHolderBase &) noexcept = delete;
+  constexpr bool ok() const noexcept { return Handle != nullptr; }
+  ~FindHolderBase() noexcept { reset(); }
+
+  WasiExpect<void> emplace(winapi::HANDLE_ PathHandle) noexcept;
+  void reset() noexcept;
+  WasiExpect<void> seek(uint64_t NewCookie) noexcept;
+  bool next() noexcept;
+  WasiExpect<void> loadDirent() noexcept;
+  size_t write(Span<uint8_t> Output) noexcept;
+
+protected:
+  auto getPath() const noexcept { return Path; }
+  auto getHandle() const noexcept { return Handle; }
+  void setHandle(winapi::HANDLE_ New) noexcept { Handle = New; }
+  auto getCookie() const noexcept { return Cookie; }
+  Span<const uint8_t> getBuffer() const noexcept { return Buffer; }
+  Span<uint8_t> getBuffer() noexcept { return Buffer; }
+  void resizeBuffer(size_t Size) noexcept { Buffer.resize(Size); }
+
+private:
+  std::filesystem::path Path;
+  winapi::HANDLE_ Handle = nullptr;
+  uint64_t Cookie = 0;
+  static_assert(__STDCPP_DEFAULT_NEW_ALIGNMENT__ >= alignof(__wasi_dirent_t));
+  std::vector<uint8_t> Buffer;
+};
+
+#if !WINAPI_PARTITION_DESKTOP || NTDDI_VERSION >= NTDDI_VISTA
+class FindHolder : public FindHolderBase<FindHolder> {
+public:
+  const winapi::FILE_ID_BOTH_DIR_INFO_ &getData() const noexcept;
+
+protected:
+  void doReset() noexcept;
+  WasiExpect<void> doRewind(bool First) noexcept;
+  bool doNext() noexcept;
+  WasiExpect<void> doLoadDirent() noexcept;
+
+private:
+  bool nextData() noexcept;
+  WASMEDGE_WINAPI_DETAIL_EXTENSION union {
+    winapi::FILE_ID_BOTH_DIR_INFO_ FindData;
+    std::array<uint8_t,
+               sizeof(winapi::FILE_ID_BOTH_DIR_INFO_) +
+                   sizeof(wchar_t[winapi::UNICODE_STRING_MAX_CHARS_ + 1])>
+        FindDataPadding;
+  } FindDataUnion;
+  uint32_t Cursor = 0;
+  static_assert(std::numeric_limits<decltype(Cursor)>::max() >
+                sizeof(FindDataUnion));
+};
+#else
+class FindHolder : public FindHolderBase<FindHolder> {
+protected:
+  WasiExpect<winapi::HANDLE_> doEmplace(const std::filesystem::path &NewPath,
+                                        winapi::HANDLE_ PathHandle) noexcept;
+  void doReset() noexcept;
+  WasiExpect<void> doRewind(bool First) noexcept;
+  bool doNext() noexcept;
+  WasiExpect<void> doLoadDirent() noexcept;
+
+private:
+  winapi::WIN32_FIND_DATAW_ FindData;
+};
+#endif
+
 #endif
 
 enum class TriggerType {
@@ -659,8 +785,6 @@ public:
 private:
   friend class Poller;
 
-  __wasi_filetype_t unsafeFiletype() const noexcept;
-
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 public:
   using FdHolder::FdHolder;
@@ -670,6 +794,7 @@ private:
 
   DirHolder Dir;
 
+  __wasi_filetype_t unsafeFiletype() const noexcept;
   WasiExpect<void> updateStat() const noexcept;
 
 #elif WASMEDGE_OS_WINDOWS
@@ -677,13 +802,10 @@ public:
   using HandleHolder::HandleHolder;
 
 private:
-  mutable std::optional<BY_HANDLE_FILE_INFORMATION> FileInfo;
-  mutable std::optional<__wasi_oflags_t> SavedOpenFlags;
-  mutable std::optional<__wasi_fdflags_t> SavedFdFlags;
-  mutable std::optional<uint8_t> SavedVFSFlags;
+  __wasi_fdflags_t SavedFdFlags;
+  uint8_t SavedVFSFlags;
 
-  WasiExpect<void> updateFileInfo() const noexcept;
-
+  FindHolder Find;
 #endif
 };
 
@@ -792,6 +914,15 @@ private:
   std::unordered_map<int, FdData> OldFdDatas;
 #endif
 
+#if WASMEDGE_OS_WINDOWS
+  struct SocketData {
+    OptionalEvent *ReadEvent = nullptr;
+    OptionalEvent *WriteEvent = nullptr;
+  };
+  std::unordered_map<winapi::SOCKET_, SocketData> SocketDatas;
+  winapi::FD_SET_ ReadFds = {0, {}}, WriteFds = {0, {}};
+#endif
+
 #if WASMEDGE_OS_LINUX
   friend class PollerContext;
   struct Timer : public FdHolder {
@@ -821,6 +952,10 @@ private:
 #if WASMEDGE_OS_MACOS
   std::vector<struct kevent> KEvents;
   uint64_t NextTimerId = 0;
+#endif
+#if WASMEDGE_OS_WINDOWS
+  OptionalEvent *TimeoutEvent = nullptr;
+  winapi::TIMEVAL_ MinimumTimeout;
 #endif
 };
 

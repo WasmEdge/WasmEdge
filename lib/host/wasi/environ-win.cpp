@@ -9,6 +9,8 @@
 #include "win.h"
 #include <csignal>
 
+using namespace WasmEdge::winapi;
+
 namespace WasmEdge {
 namespace Host {
 namespace WASI {
@@ -71,7 +73,7 @@ WasiExpect<void> Environ::procRaise(__wasi_signal_t Signal) const noexcept {
 }
 
 WasiExpect<void> Environ::schedYield() const noexcept {
-  boost::winapi::SwitchToThread();
+  SwitchToThread();
   return {};
 }
 

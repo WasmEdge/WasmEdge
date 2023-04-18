@@ -304,7 +304,8 @@ TEST(AsyncRunWsmFile, NativeInterruptTest) {
     EXPECT_FALSE(Result);
     EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
-  std::filesystem::remove(Path);
+  VM.cleanup();
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 
 TEST(AsyncExecute, NativeInterruptTest) {
@@ -349,7 +350,8 @@ TEST(AsyncExecute, NativeInterruptTest) {
     EXPECT_FALSE(Result);
     EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
-  std::filesystem::remove(Path);
+  VM.cleanup();
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 
 TEST(AsyncRunWsmFile, CustomWasmInterruptTest) {
@@ -391,7 +393,8 @@ TEST(AsyncRunWsmFile, CustomWasmInterruptTest) {
     EXPECT_FALSE(Result);
     EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
-  std::filesystem::remove(Path);
+  VM.cleanup();
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 
 TEST(AsyncExecute, CustomWasmInterruptTest) {
@@ -436,7 +439,8 @@ TEST(AsyncExecute, CustomWasmInterruptTest) {
     EXPECT_FALSE(Result);
     EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
-  std::filesystem::remove(Path);
+  VM.cleanup();
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 
 } // namespace

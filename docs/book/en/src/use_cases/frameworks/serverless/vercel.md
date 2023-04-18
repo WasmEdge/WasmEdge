@@ -96,7 +96,7 @@ That's it. [Deploy the repo to Vercel](https://vercel.com/docs/git#deploying-a-g
 
 ## Example 2: AI inference
 
-The [second demo](https://vercel-wasm-runtime-cozpr5z84-wangshishuo1.vercel.app/) application allows users to upload an image and then invoke a serverless function to classify the main subject on the image.
+The [second demo](https://vercel-wasm-runtime.vercel.app/) application allows users to upload an image and then invoke a serverless function to classify the main subject on the image.
 
 It is in [the same GitHub repo](https://github.com/second-state/vercel-wasm-runtime) as the previous example but in the `tensorflow` branch. Note: when you [import this GitHub repo](https://vercel.com/docs/git#deploying-a-git-repository) on the Vercel website, it will create a [preview URL](https://vercel.com/docs/platform/deployments#preview) for each branch. The `tensorflow` branch would have its own deployment URL.
 

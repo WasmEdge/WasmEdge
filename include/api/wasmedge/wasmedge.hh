@@ -32,10 +32,10 @@
 #define WASMEDGE_CPP_API_PLUGIN_EXPORT __attribute__((visibility("default")))
 #endif // _WIN32
 
-#include "string"
-#include "vector"
-#include "memory"
-#include "functional"
+#include <string>
+#include <vector>
+#include <memory>
+#include <functional>
 
 #include "wasmedge/int128.h"
 #include "wasmedge/version.h"
@@ -220,7 +220,8 @@ namespace WasmEdge {
     const std::vector<ValType> &GetParameters();
     const std::vector<ValType> &GetReturns();
   private:
-    // TODO
+    class FunctionTypeContext;
+    std::unique_ptr<FunctionTypeContext> Cxt;
   };
 
   class WASMEDGE_CPP_API_EXPORT TableType {
@@ -388,82 +389,6 @@ namespace WasmEdge {
   private:
     // TODO
   };
-
-  // >>>>>>>> WasmEdge Runtime >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-  class WASMEDGE_CPP_API_EXPORT VM {
-  public:
-    VM(const ConfigureContext &ConfCxt, Store &StoreCxt);
-    ~VM() = default;
-
-    Result RegisterModule(const std::string &ModuleName,
-                                  const std::string &Path);
-    Result RegisterModule(const std::string &ModuleName,
-                                    const std::vector<uint8_t> &Buf);
-    Result RegisterModule(const std::string &ModuleName,
-                                       const ASTModule &ASTCxt);
-    Result RegisterModule(const ModuleInstance &ImportCxt);
-
-    Result RunWasm(const std::string &Path, const std::string &FuncName,
-                           const std::vector<Value> &Params,
-                           std::vector<Value> &Returns);
-    Result RunWasm(const std::vector<uint8_t> &Buf,
-                  const std::string &FuncName, const std::vector<Value> &Params,
-                  std::vector<Value> &Returns);
-    Result RunWasm(const ASTModule &ASTCxt,
-                  const std::string &FuncName, const std::vector<Value> &Params,
-                  std::vector<Value> &Returns);
-
-    std::unique_ptr<Async> AsyncRunWasm(const std::string &Path,
-                  const std::string &FuncName, const std::vector<Value> &Params);
-    std::unique_ptr<Async> AsyncRunWasm(
-                  const std::vector<uint8_t> &Buf, const std::string &FuncName,
-                  const std::vector<Value> &Params);
-    std::unique_ptr<Async> AsyncRunWasm(const ASTModule &ASTCxt,
-                  const std::string &FuncName, const std::vector<Value> &Params);
-
-    Result LoadWasm(const std::string &Path);
-    Result LoadWasm(const std::vector<uint8_t> &Buf);
-    Result LoadWasm(const ASTModule &ASTCxt);
-
-    Result Validate();
-    Result Instantiate();
-
-    Result Execute(const std::string &FuncName, const std::vector<Value> &Params,
-                  std::vector<Value> &Returns);
-    Result Execute(const std::string &ModuleName,
-                  const std::string &FuncName, const std::vector<Value> &Params,
-                  std::vector<Value> &Returns);
-
-    std::unique_ptr<Async> AsyncExecute(const std::string &FuncName,
-                  const std::vector<Value> &Params);
-    std::unique_ptr<Async> AsyncExecute(const std::string &ModuleName,
-                  const std::string &FuncName, const std::vector<Value> &Params);
-
-    const FunctionType &GetFunctionType(const std::string &FuncName);
-    const FunctionType &GetFunctionType(const std::string &ModuleName,
-                                        const std::string &FuncName);
-
-    void Cleanup();
-    uint32_t GetFunctionList(std::vector<std::string> &Names,
-                  std::vector<const FunctionType> &FuncTypes);
-
-    ModuleInstance &GetImportModuleContext(const HostRegistration Reg);
-    const ModuleInstance& GetActiveModule();
-    const ModuleInstance &GetRegisteredModule(const std::string &ModuleName);
-
-    std::vector<std::string> ListRegisteredModule();
-
-    Store &GetStoreContext();
-    Loader &GetLoaderContext();
-    Validator &GetValidatorContext();
-    Executor &GetExecutorContext();
-    StatisticsContext &GetStatisticsContext();
-  private:
-    // TODO
-  };
-
-  // <<<<<<<< WasmEdge VM <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
   // >>>>>>>> WasmEdge Runtime >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -684,6 +609,82 @@ namespace WasmEdge {
   };
 
   // <<<<<<<< WasmEdge Runtime <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  // >>>>>>>> WasmEdge VM >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+  class WASMEDGE_CPP_API_EXPORT VM {
+  public:
+    VM(const ConfigureContext &ConfCxt, Store &StoreCxt);
+    ~VM() = default;
+
+    Result RegisterModule(const std::string &ModuleName,
+                                  const std::string &Path);
+    Result RegisterModule(const std::string &ModuleName,
+                                    const std::vector<uint8_t> &Buf);
+    Result RegisterModule(const std::string &ModuleName,
+                                       const ASTModule &ASTCxt);
+    Result RegisterModule(const ModuleInstance &ImportCxt);
+
+    Result RunWasm(const std::string &Path, const std::string &FuncName,
+                           const std::vector<Value> &Params,
+                           std::vector<Value> &Returns);
+    Result RunWasm(const std::vector<uint8_t> &Buf,
+                  const std::string &FuncName, const std::vector<Value> &Params,
+                  std::vector<Value> &Returns);
+    Result RunWasm(const ASTModule &ASTCxt,
+                  const std::string &FuncName, const std::vector<Value> &Params,
+                  std::vector<Value> &Returns);
+
+    std::unique_ptr<Async> AsyncRunWasm(const std::string &Path,
+                  const std::string &FuncName, const std::vector<Value> &Params);
+    std::unique_ptr<Async> AsyncRunWasm(
+                  const std::vector<uint8_t> &Buf, const std::string &FuncName,
+                  const std::vector<Value> &Params);
+    std::unique_ptr<Async> AsyncRunWasm(const ASTModule &ASTCxt,
+                  const std::string &FuncName, const std::vector<Value> &Params);
+
+    Result LoadWasm(const std::string &Path);
+    Result LoadWasm(const std::vector<uint8_t> &Buf);
+    Result LoadWasm(const ASTModule &ASTCxt);
+
+    Result Validate();
+    Result Instantiate();
+
+    Result Execute(const std::string &FuncName, const std::vector<Value> &Params,
+                  std::vector<Value> &Returns);
+    Result Execute(const std::string &ModuleName,
+                  const std::string &FuncName, const std::vector<Value> &Params,
+                  std::vector<Value> &Returns);
+
+    std::unique_ptr<Async> AsyncExecute(const std::string &FuncName,
+                  const std::vector<Value> &Params);
+    std::unique_ptr<Async> AsyncExecute(const std::string &ModuleName,
+                  const std::string &FuncName, const std::vector<Value> &Params);
+
+    const FunctionType &GetFunctionType(const std::string &FuncName);
+    const FunctionType &GetFunctionType(const std::string &ModuleName,
+                                        const std::string &FuncName);
+
+    void Cleanup();
+    uint32_t GetFunctionList(std::vector<std::string> &Names,
+                  std::vector<const FunctionType> &FuncTypes);
+
+    ModuleInstance &GetImportModuleContext(const HostRegistration Reg);
+    const ModuleInstance& GetActiveModule();
+    const ModuleInstance &GetRegisteredModule(const std::string &ModuleName);
+
+    std::vector<std::string> ListRegisteredModule();
+
+    Store &GetStoreContext();
+    Loader &GetLoaderContext();
+    Validator &GetValidatorContext();
+    Executor &GetExecutorContext();
+    StatisticsContext &GetStatisticsContext();
+  private:
+    // TODO
+  };
+
+  // <<<<<<<< WasmEdge VM <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 }
 
 #endif // WASMEDGE_CPP_API_HH

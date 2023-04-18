@@ -7,107 +7,20 @@
 #endif
 
 #include "common/errcode.h"
+#include "system/winapi.h"
 #include "wasi/api.hpp"
-#include <boost/winapi/access_rights.hpp>
-#include <boost/winapi/basic_types.hpp>
-#include <boost/winapi/error_codes.hpp>
-#include <boost/winapi/file_management.hpp>
-#include <boost/winapi/get_last_error.hpp>
-#include <boost/winapi/handles.hpp>
-#include <boost/winapi/thread.hpp>
 #include <cerrno>
 #include <chrono>
 #include <fcntl.h>
 #include <io.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <winsock2.h>
-
-#if !defined(BOOST_USE_WINDOWS_H)
-extern "C" {
-struct _UNICODE_STRING;
-struct _OBJECT_ATTRIBUTES;
-struct _IO_STATUS_BLOCK;
-
-BOOST_WINAPI_IMPORT boost::winapi::NTSTATUS_ BOOST_WINAPI_WINAPI_CC NtOpenFile(
-    boost::winapi::PHANDLE_ FileHandle,
-    boost::winapi::ACCESS_MASK_ DesiredAccess,
-    _OBJECT_ATTRIBUTES *ObjectAttributes, _IO_STATUS_BLOCK *IoStatusBlock,
-    boost::winapi::ULONG_ ShareAccess, boost::winapi::ULONG_ OpenOptions);
-
-BOOST_WINAPI_IMPORT boost::winapi::HANDLE_ BOOST_WINAPI_WINAPI_CC
-GetStdHandle(boost::winapi::DWORD_ nStdHandle);
-}
-#else
-#include <winternl.h>
-#endif
-
-namespace boost::winapi {
-
-typedef struct BOOST_MAY_ALIAS _UNICODE_STRING {
-  USHORT_ Length;
-  USHORT_ MaximumLength;
-  LPWSTR_ Buffer;
-} UNICODE_STRING_, *PUNICODE_STRING_;
-
-typedef struct BOOST_MAY_ALIAS _OBJECT_ATTRIBUTES {
-  ULONG_ Length;
-  HANDLE_ RootDirectory;
-  PUNICODE_STRING_ ObjectName;
-  ULONG_ Attributes;
-  PVOID_ SecurityDescriptor;
-  PVOID_ SecurityQualityOfService;
-} OBJECT_ATTRIBUTES_, *POBJECT_ATTRIBUTES_;
-
-typedef struct BOOST_MAY_ALIAS _IO_STATUS_BLOCK {
-  union {
-    NTSTATUS_ Status;
-    PVOID_ Pointer;
-  } DUMMYUNIONNAME;
-  ULONG_PTR_ Information;
-} IO_STATUS_BLOCK_, *PIO_STATUS_BLOCK_;
-
-#if defined(BOOST_USE_WINDOWS_H)
-BOOST_CONSTEXPR_OR_CONST DWORD_ FILE_APPEND_DATA_ = FILE_APPEND_DATA;
-BOOST_CONSTEXPR_OR_CONST DWORD_ FILE_TYPE_CHAR_ = FILE_TYPE_CHAR;
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_INPUT_HANDLE_ = STD_INPUT_HANDLE;
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = STD_OUTPUT_HANDLE;
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_ERROR_HANDLE_ = STD_ERROR_HANDLE;
-#else
-BOOST_CONSTEXPR_OR_CONST DWORD_ FILE_APPEND_DATA_ = static_cast<DWORD_>(0x4);
-BOOST_CONSTEXPR_OR_CONST DWORD_ FILE_TYPE_CHAR_ = static_cast<DWORD_>(0x2);
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_INPUT_HANDLE_ = static_cast<DWORD_>(-10);
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = static_cast<DWORD_>(-11);
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_ERROR_HANDLE_ = static_cast<DWORD_>(-12);
-#endif
-
-BOOST_FORCEINLINE NTSTATUS_ NtOpenFile(PHANDLE_ FileHandle,
-                                       ACCESS_MASK_ DesiredAccess,
-                                       POBJECT_ATTRIBUTES_ ObjectAttributes,
-                                       PIO_STATUS_BLOCK_ IoStatusBlock,
-                                       ULONG_ ShareAccess, ULONG_ OpenOptions) {
-  return ::NtOpenFile(
-      FileHandle, DesiredAccess,
-      reinterpret_cast<::_OBJECT_ATTRIBUTES *>(ObjectAttributes),
-      reinterpret_cast<::_IO_STATUS_BLOCK *>(IoStatusBlock), ShareAccess,
-      OpenOptions);
-}
-
-BOOST_FORCEINLINE HANDLE_ GetStdHandle(DWORD_ nStdHandle) {
-  return ::GetStdHandle(nStdHandle);
-}
-
-} // namespace boost::winapi
 
 namespace WasmEdge {
 namespace Host {
 namespace WASI {
 inline namespace detail {
-
-std::chrono::nanoseconds getResolution() noexcept;
-extern long(__stdcall *NtQueryTimerResolution)(
-    unsigned long *LowestResolution, unsigned long *HighestResolution,
-    unsigned long *CurrentResolution);
+using namespace winapi;
 
 inline constexpr __wasi_errno_t fromErrNo(int ErrNo) noexcept {
   switch (ErrNo) {
@@ -262,286 +175,152 @@ inline constexpr __wasi_errno_t fromErrNo(int ErrNo) noexcept {
   }
 }
 
-inline constexpr __wasi_errno_t
-fromLastError(boost::winapi::DWORD_ LastError) noexcept {
-  switch (LastError) {
-  case boost::winapi::ERROR_ACCESS_DENIED_:
-    return __WASI_ERRNO_PERM;
-  case boost::winapi::ERROR_ADDRESS_ALREADY_ASSOCIATED_:
-    return __WASI_ERRNO_ADDRINUSE;
-  case boost::winapi::ERROR_ALREADY_EXISTS_:
+inline __wasi_errno_t fromLastError(DWORD_ Code) noexcept {
+  switch (Code) {
+  case ERROR_INVALID_PARAMETER_: // MultiByteToWideChar
+  case ERROR_INVALID_HANDLE_:    // GetFinalPathNameByHandleW
+    return __WASI_ERRNO_INVAL;
+  case ERROR_SHARING_VIOLATION_: // CreateFile2
+  case ERROR_PIPE_BUSY_:         // CreateFile2
+    return __WASI_ERRNO_BUSY;
+  case ERROR_ACCESS_DENIED_: // CreateFile2
+    return __WASI_ERRNO_ACCES;
+  case ERROR_ALREADY_EXISTS_: // CreateFile2
+  case ERROR_FILE_EXISTS_:    // CreateFile2
     return __WASI_ERRNO_EXIST;
-  case boost::winapi::ERROR_BAD_PATHNAME_:
+  case ERROR_FILE_NOT_FOUND_: // CreateFile2
     return __WASI_ERRNO_NOENT;
-  case boost::winapi::ERROR_BAD_PIPE_:
-    return __WASI_ERRNO_PIPE;
-  case boost::winapi::ERROR_BEGINNING_OF_MEDIA_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_BROKEN_PIPE_:
-    return __WASI_ERRNO_PIPE;
-  case boost::winapi::ERROR_BUFFER_OVERFLOW_:
-    return __WASI_ERRNO_FAULT;
-  case boost::winapi::ERROR_BUS_RESET_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_CANNOT_MAKE_:
-    return __WASI_ERRNO_NOSPC;
-  case boost::winapi::ERROR_CANT_ACCESS_FILE_:
-    return __WASI_ERRNO_ACCES;
-  case boost::winapi::ERROR_CANT_RESOLVE_FILENAME_:
-    return __WASI_ERRNO_LOOP;
-  case boost::winapi::ERROR_CONNECTION_ABORTED_:
-    return __WASI_ERRNO_CONNABORTED;
-  case boost::winapi::ERROR_CONNECTION_REFUSED_:
-    return __WASI_ERRNO_CONNREFUSED;
-  case boost::winapi::ERROR_CRC_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_DEVICE_DOOR_OPEN_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_DEVICE_REQUIRES_CLEANING_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_DIRECTORY_:
-    return __WASI_ERRNO_NOENT;
-  case boost::winapi::ERROR_DIR_NOT_EMPTY_:
-    return __WASI_ERRNO_NOTEMPTY;
-  case boost::winapi::ERROR_DISK_CORRUPT_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_DISK_FULL_:
-    return __WASI_ERRNO_NOSPC;
-  case boost::winapi::ERROR_EA_TABLE_FULL_:
-    return __WASI_ERRNO_NOSPC;
-  case boost::winapi::ERROR_ELEVATION_REQUIRED_:
-    return __WASI_ERRNO_ACCES;
-  case boost::winapi::ERROR_END_OF_MEDIA_:
-    return __WASI_ERRNO_NOSPC;
-  case boost::winapi::ERROR_ENVVAR_NOT_FOUND_:
-    return __WASI_ERRNO_NOENT;
-  case boost::winapi::ERROR_EOM_OVERFLOW_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_FILEMARK_DETECTED_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_FILENAME_EXCED_RANGE_:
-    return __WASI_ERRNO_NAMETOOLONG;
-  case boost::winapi::ERROR_FILE_EXISTS_:
-    return __WASI_ERRNO_EXIST;
-  case boost::winapi::ERROR_FILE_NOT_FOUND_:
-    return __WASI_ERRNO_NOENT;
-  case boost::winapi::ERROR_GEN_FAILURE_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_HANDLE_DISK_FULL_:
-    return __WASI_ERRNO_NOSPC;
-  case boost::winapi::ERROR_HOST_UNREACHABLE_:
-    return __WASI_ERRNO_HOSTUNREACH;
-  case boost::winapi::ERROR_INSUFFICIENT_BUFFER_:
-    return __WASI_ERRNO_INVAL;
-  case boost::winapi::ERROR_INVALID_BLOCK_LENGTH_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_INVALID_DATA_:
-    return __WASI_ERRNO_INVAL;
-  case boost::winapi::ERROR_INVALID_DRIVE_:
-    return __WASI_ERRNO_NOENT;
-  case boost::winapi::ERROR_INVALID_FLAGS_:
-    return __WASI_ERRNO_BADF;
-  case boost::winapi::ERROR_INVALID_FUNCTION_:
-    return __WASI_ERRNO_ISDIR;
-  case boost::winapi::ERROR_INVALID_HANDLE_:
-    return __WASI_ERRNO_BADF;
-  case boost::winapi::ERROR_INVALID_NAME_:
-    return __WASI_ERRNO_NOENT;
-  case boost::winapi::ERROR_INVALID_PARAMETER_:
-    return __WASI_ERRNO_INVAL;
-  case boost::winapi::ERROR_INVALID_REPARSE_DATA_:
-    return __WASI_ERRNO_NOENT;
-  case boost::winapi::ERROR_IO_DEVICE_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_LOCK_VIOLATION_:
-    return __WASI_ERRNO_BUSY;
-  case boost::winapi::ERROR_META_EXPANSION_TOO_LONG_:
-    return __WASI_ERRNO_2BIG;
-  case boost::winapi::ERROR_MOD_NOT_FOUND_:
-    return __WASI_ERRNO_NOENT;
-  case boost::winapi::ERROR_NETNAME_DELETED_:
-    return __WASI_ERRNO_CONNRESET;
-  case boost::winapi::ERROR_NETWORK_UNREACHABLE_:
-    return __WASI_ERRNO_NETUNREACH;
-  case boost::winapi::ERROR_NOACCESS_:
-    return __WASI_ERRNO_ACCES;
-  case boost::winapi::ERROR_NOT_CONNECTED_:
-    return __WASI_ERRNO_NOTCONN;
-  case boost::winapi::ERROR_NOT_ENOUGH_MEMORY_:
-    return __WASI_ERRNO_NOMEM;
-  case boost::winapi::ERROR_NOT_SAME_DEVICE_:
-    return __WASI_ERRNO_XDEV;
-  case boost::winapi::ERROR_NOT_SUPPORTED_:
-    return __WASI_ERRNO_NOTSUP;
-  case boost::winapi::ERROR_NO_DATA_:
-    return __WASI_ERRNO_PIPE;
-  case boost::winapi::ERROR_NO_DATA_DETECTED_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_NO_SIGNAL_SENT_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_OPEN_FAILED_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_OPERATION_ABORTED_:
-    return __WASI_ERRNO_CANCELED;
-  case boost::winapi::ERROR_OUTOFMEMORY_:
-    return __WASI_ERRNO_NOMEM;
-  case boost::winapi::ERROR_PATH_NOT_FOUND_:
-    return __WASI_ERRNO_NOENT;
-  case boost::winapi::ERROR_PIPE_BUSY_:
-    return __WASI_ERRNO_BUSY;
-  case boost::winapi::ERROR_PIPE_NOT_CONNECTED_:
-    return __WASI_ERRNO_PIPE;
-  case boost::winapi::ERROR_PRIVILEGE_NOT_HELD_:
+  case ERROR_PRIVILEGE_NOT_HELD_: // CreateSymbolicLinkW
     return __WASI_ERRNO_PERM;
-  case boost::winapi::ERROR_SEM_TIMEOUT_:
-    return __WASI_ERRNO_TIMEDOUT;
-  case boost::winapi::ERROR_SETMARK_DETECTED_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_SHARING_VIOLATION_:
-    return __WASI_ERRNO_BUSY;
-  case boost::winapi::ERROR_SIGNAL_REFUSED_:
-    return __WASI_ERRNO_IO;
-  case boost::winapi::ERROR_SYMLINK_NOT_SUPPORTED_:
-    return __WASI_ERRNO_INVAL;
-  case boost::winapi::ERROR_TOO_MANY_LINKS_:
-    return __WASI_ERRNO_MLINK;
-  case boost::winapi::ERROR_TOO_MANY_OPEN_FILES_:
-    return __WASI_ERRNO_MFILE;
-  case boost::winapi::ERROR_WAIT_NO_CHILDREN_:
-    return __WASI_ERRNO_CHILD;
-  case boost::winapi::ERROR_WRITE_PROTECT_:
-    return __WASI_ERRNO_ROFS;
-  case boost::winapi::WSAEACCES_:
-    return __WASI_ERRNO_ACCES;
-  case boost::winapi::WSAEADDRINUSE_:
-    return __WASI_ERRNO_ADDRINUSE;
-  case boost::winapi::WSAEADDRNOTAVAIL_:
-    return __WASI_ERRNO_ADDRNOTAVAIL;
-  case boost::winapi::WSAEAFNOSUPPORT_:
-    return __WASI_ERRNO_AFNOSUPPORT;
-  case boost::winapi::WSAEALREADY_:
-    return __WASI_ERRNO_ALREADY;
-  case boost::winapi::WSAEBADF_:
-    return __WASI_ERRNO_BADF;
-  case boost::winapi::WSAECONNABORTED_:
-    return __WASI_ERRNO_CONNABORTED;
-  case boost::winapi::WSAECONNREFUSED_:
-    return __WASI_ERRNO_CONNREFUSED;
-  case boost::winapi::WSAECONNRESET_:
-    return __WASI_ERRNO_CONNRESET;
-  case boost::winapi::WSAEDQUOT_:
-    return __WASI_ERRNO_DQUOT;
-  case boost::winapi::WSAEFAULT_:
-    return __WASI_ERRNO_FAULT;
-  case boost::winapi::WSAEHOSTDOWN_:
-    return __WASI_ERRNO_HOSTUNREACH;
-  case boost::winapi::WSAEHOSTUNREACH_:
-    return __WASI_ERRNO_HOSTUNREACH;
-  case boost::winapi::WSAEINTR_:
-    return __WASI_ERRNO_INTR;
-  case boost::winapi::WSAEINVAL_:
-    return __WASI_ERRNO_INVAL;
-  case boost::winapi::WSAEISCONN_:
-    return __WASI_ERRNO_ISCONN;
-  case boost::winapi::WSAELOOP_:
-    return __WASI_ERRNO_LOOP;
-  case boost::winapi::WSAEMFILE_:
-    return __WASI_ERRNO_MFILE;
-  case boost::winapi::WSAEMSGSIZE_:
-    return __WASI_ERRNO_MSGSIZE;
-  case boost::winapi::WSAENAMETOOLONG_:
-    return __WASI_ERRNO_NAMETOOLONG;
-  case boost::winapi::WSAENETDOWN_:
-    return __WASI_ERRNO_NETDOWN;
-  case boost::winapi::WSAENETRESET_:
-    return __WASI_ERRNO_NETRESET;
-  case boost::winapi::WSAENETUNREACH_:
-    return __WASI_ERRNO_NETUNREACH;
-  case boost::winapi::WSAENOBUFS_:
-    return __WASI_ERRNO_NOBUFS;
-  case boost::winapi::WSAENOTCONN_:
-    return __WASI_ERRNO_NOTCONN;
-  case boost::winapi::WSAENOTEMPTY_:
-    return __WASI_ERRNO_NOTEMPTY;
-  case boost::winapi::WSAENOTSOCK_:
-    return __WASI_ERRNO_NOTSOCK;
-  case boost::winapi::WSAEOPNOTSUPP_:
-    return __WASI_ERRNO_NOTSUP;
-  case boost::winapi::WSAEPFNOSUPPORT_:
-    return __WASI_ERRNO_NOTSUP;
-  case boost::winapi::WSAEPROTONOSUPPORT_:
-    return __WASI_ERRNO_PROTONOSUPPORT;
-  case boost::winapi::WSAESHUTDOWN_:
-    return __WASI_ERRNO_PIPE;
-  case boost::winapi::WSAESOCKTNOSUPPORT_:
-    return __WASI_ERRNO_NOTSUP;
-  case boost::winapi::WSAESTALE_:
-    return __WASI_ERRNO_STALE;
-  case boost::winapi::WSAETIMEDOUT_:
-    return __WASI_ERRNO_TIMEDOUT;
-  case boost::winapi::WSAETOOMANYREFS_:
-    return __WASI_ERRNO_NFILE;
-  case boost::winapi::WSAEWOULDBLOCK_:
-    return __WASI_ERRNO_AGAIN;
-  case boost::winapi::WSAHOST_NOT_FOUND_:
-    return __WASI_ERRNO_NOENT;
-  case boost::winapi::WSANO_DATA_:
-    return __WASI_ERRNO_NOENT;
+
+  case ERROR_IO_PENDING_:             // ReadFileEx
+  case ERROR_HANDLE_EOF_:             // ReadFileEx
+  case ERROR_INSUFFICIENT_BUFFER_:    // MultiByteToWideChar
+  case ERROR_INVALID_FLAGS_:          // MultiByteToWideChar
+  case ERROR_NO_UNICODE_TRANSLATION_: // MultiByteToWideChar
   default:
     return __WASI_ERRNO_NOSYS;
   }
 }
 
-inline constexpr __wasi_errno_t fromWSALastError(int WSALastError) noexcept {
-  return fromLastError(static_cast<boost::winapi::DWORD_>(WSALastError));
+using FiletimeDuration = std::chrono::duration<
+    uint64_t,
+    std::ratio_multiply<std::ratio<100, 1>, std::chrono::nanoseconds::period>>;
+/// from 1601-01-01 to 1970-01-01, 134774 days
+static inline constexpr const FiletimeDuration NTToUnixEpoch =
+    std::chrono::seconds{134774u * 86400u};
+
+static constexpr __wasi_timestamp_t fromFiletime(FILETIME_ FileTime) noexcept {
+  using std::chrono::duration_cast;
+  using std::chrono::nanoseconds;
+  ULARGE_INTEGER_ Temp = {.LowPart = FileTime.dwLowDateTime,
+                          .HighPart = FileTime.dwHighDateTime};
+  auto Duration = duration_cast<nanoseconds>(FiletimeDuration{Temp.QuadPart} -
+                                             NTToUnixEpoch);
+  return static_cast<__wasi_timestamp_t>(Duration.count());
 }
 
-inline constexpr __wasi_errno_t fromWSAToEAIError(int WSALastError) noexcept {
-  switch (WSALastError) {
-  case boost::winapi::WSATRY_AGAIN_:
-    return __WASI_ERRNO_AIAGAIN;
-  case boost::winapi::WSAEINVAL_:
-    return __WASI_ERRNO_AIBADFLAG;
-  case boost::winapi::WSANO_RECOVERY_:
-    return __WASI_ERRNO_AIFAIL;
-  case boost::winapi::ERROR_NOT_ENOUGH_MEMORY_:
-    return __WASI_ERRNO_AIMEMORY;
-  case boost::winapi::WSAHOST_NOT_FOUND_:
-    return __WASI_ERRNO_AINONAME;
-  case boost::winapi::WSATYPE_NOT_FOUND_:
-    return __WASI_ERRNO_AISERVICE;
-  case boost::winapi::WSAESOCKTNOSUPPORT_:
+static constexpr FILETIME_ toFiletime(__wasi_timestamp_t TimeStamp) noexcept {
+  using std::chrono::duration_cast;
+  using std::chrono::nanoseconds;
+  auto Duration =
+      duration_cast<FiletimeDuration>(nanoseconds{TimeStamp}) + NTToUnixEpoch;
+  ULARGE_INTEGER_ Temp = {.QuadPart = Duration.count()};
+  return FILETIME_{.dwLowDateTime = Temp.LowPart,
+                   .dwHighDateTime = Temp.HighPart};
+}
+
+inline __wasi_errno_t fromWSALastError() noexcept {
+  switch (WSAGetLastError()) {
+  case WSASYSNOTREADY_: // WSAStartup
+  case WSAEWOULDBLOCK_: // closesocket
+    return __WASI_ERRNO_AGAIN;
+  case WSAVERNOTSUPPORTED_: // WSAStartup
+    return __WASI_ERRNO_NOTSUP;
+  case WSAEINPROGRESS_: // WSAStartup, socket, closesocket
+    return __WASI_ERRNO_INPROGRESS;
+  case WSAEPROCLIM_: // WSAStartup
+    return __WASI_ERRNO_BUSY;
+  case WSAEFAULT_: // WSAStartup
+    return __WASI_ERRNO_FAULT;
+  case WSAENETDOWN_: // socket, closesocket
+    return __WASI_ERRNO_NETDOWN;
+  case WSAENOTSOCK_: // closesocket
+    return __WASI_ERRNO_NOTSOCK;
+  case WSAEINTR_: // closesocket
+    return __WASI_ERRNO_INTR;
+  case WSAEAFNOSUPPORT_: // socket
+    return __WASI_ERRNO_AIFAMILY;
+  case WSAEMFILE_: // socket
+    return __WASI_ERRNO_NFILE;
+  case WSAEINVAL_: // socket
+    return __WASI_ERRNO_INVAL;
+  case WSAENOBUFS_: // socket
+    return __WASI_ERRNO_NOBUFS;
+  case WSAEPROTONOSUPPORT_: // socket
+    return __WASI_ERRNO_PROTONOSUPPORT;
+  case WSAEPROTOTYPE_: // socket
+    return __WASI_ERRNO_PROTOTYPE;
+  case WSAESOCKTNOSUPPORT_: // socket
     return __WASI_ERRNO_AISOCKTYPE;
+  case WSAEINVALIDPROCTABLE_:   // socket
+  case WSAEINVALIDPROVIDER_:    // socket
+  case WSAEPROVIDERFAILEDINIT_: // socket
+  case WSANOTINITIALISED_:      // socket, closesocket
   default:
-    return fromWSALastError(WSALastError);
+    return __WASI_ERRNO_NOSYS;
   }
 }
 
-using Days = std::chrono::duration<uint64_t, std::ratio<86400>>;
-using NS = std::chrono::nanoseconds;
-using HundredNS = std::chrono::duration<uint64_t, std::ratio<1, 10000000>>;
-/// from 1601-01-01 to 1970-01-01, 134774 days
-constexpr const HundredNS kWinUnixTimeBaseDiff(Days(134774));
-
-inline constexpr __wasi_timestamp_t fromFileTyime(uint64_t Value) noexcept {
-  NS Time = HundredNS(Value) - kWinUnixTimeBaseDiff;
-  return static_cast<__wasi_timestamp_t>(Time.count());
+inline constexpr __wasi_errno_t fromWSAError(int WSAError) noexcept {
+  switch (WSAError) {
+  case WSATRY_AGAIN_:
+    return __WASI_ERRNO_AIAGAIN;
+  case WSAEINVAL_:
+    return __WASI_ERRNO_AIBADFLAG;
+  case WSANO_RECOVERY_:
+    return __WASI_ERRNO_AIFAIL;
+  case WSAEAFNOSUPPORT_:
+    return __WASI_ERRNO_AIFAMILY;
+  case ERROR_NOT_ENOUGH_MEMORY_:
+    return __WASI_ERRNO_AIMEMORY;
+  case WSAHOST_NOT_FOUND_:
+    return __WASI_ERRNO_AINONAME;
+  case WSATYPE_NOT_FOUND_:
+    return __WASI_ERRNO_AISERVICE;
+  case WSAESOCKTNOSUPPORT_:
+    return __WASI_ERRNO_AISOCKTYPE;
+  default:
+    assumingUnreachable();
+  }
 }
 
-inline constexpr uint64_t toFileTyime(__wasi_timestamp_t Value) noexcept {
-  HundredNS Time =
-      std::chrono::duration_cast<HundredNS>(NS(Value)) + kWinUnixTimeBaseDiff;
-  return static_cast<uint64_t>(Time.count());
+inline WasiExpect<void> ensureWSAStartup() noexcept {
+  static std::once_flag InitFlag;
+  try {
+    std::call_once(InitFlag, []() {
+      WSADATA_ WSAData;
+      if (unlikely(WSAStartup(0x0202, &WSAData) != 0)) {
+        throw detail::fromWSALastError();
+      }
+      if (unlikely(WSAData.wVersion != 0x0202)) {
+        throw __WASI_ERRNO_NOSYS;
+      }
+    });
+    return {};
+  } catch (__wasi_errno_t &Error) {
+    return WasiUnexpect(Error);
+  }
 }
 
-inline constexpr int toWhence(__wasi_whence_t Whence) noexcept {
+inline constexpr DWORD_ toWhence(__wasi_whence_t Whence) noexcept {
   switch (Whence) {
-  case __WASI_WHENCE_CUR:
-    return SEEK_CUR;
-  case __WASI_WHENCE_END:
-    return SEEK_END;
   case __WASI_WHENCE_SET:
-    return SEEK_SET;
+    return FILE_BEGIN_;
+  case __WASI_WHENCE_END:
+    return FILE_END_;
+  case __WASI_WHENCE_CUR:
+    return FILE_CURRENT_;
   default:
     assumingUnreachable();
   }
@@ -586,11 +365,11 @@ inline constexpr int toSockOptSoName(__wasi_sock_opt_so_t SoName) noexcept {
     return SO_SNDTIMEO;
   case __WASI_SOCK_OPT_SO_ACCEPTCONN:
     return SO_ACCEPTCONN;
-
   default:
     assumingUnreachable();
   }
 }
+
 inline constexpr __wasi_aiflags_t fromAIFlags(int AIFlags) noexcept {
   __wasi_aiflags_t Result = static_cast<__wasi_aiflags_t>(0);
 
@@ -603,6 +382,7 @@ inline constexpr __wasi_aiflags_t fromAIFlags(int AIFlags) noexcept {
   if (AIFlags & AI_NUMERICHOST) {
     Result |= __WASI_AIFLAGS_AI_NUMERICHOST;
   }
+#if NTDDI_VERSION >= NTDDI_VISTA
   if (AIFlags & AI_NUMERICSERV) {
     Result |= __WASI_AIFLAGS_AI_NUMERICSERV;
   }
@@ -615,6 +395,7 @@ inline constexpr __wasi_aiflags_t fromAIFlags(int AIFlags) noexcept {
   if (AIFlags & AI_ADDRCONFIG) {
     Result |= __WASI_AIFLAGS_AI_ADDRCONFIG;
   }
+#endif
 
   return Result;
 }
@@ -631,6 +412,7 @@ inline constexpr int toAIFlags(__wasi_aiflags_t AIFlags) noexcept {
   if (AIFlags & __WASI_AIFLAGS_AI_NUMERICHOST) {
     Result |= AI_NUMERICHOST;
   }
+#if NTDDI_VERSION >= NTDDI_VISTA
   if (AIFlags & __WASI_AIFLAGS_AI_NUMERICSERV) {
     Result |= AI_NUMERICSERV;
   }
@@ -643,6 +425,7 @@ inline constexpr int toAIFlags(__wasi_aiflags_t AIFlags) noexcept {
   if (AIFlags & __WASI_AIFLAGS_AI_ADDRCONFIG) {
     Result |= AI_ADDRCONFIG;
   }
+#endif
 
   return Result;
 }
@@ -702,11 +485,11 @@ inline constexpr int toProtocol(__wasi_protocol_t Protocol) noexcept {
 inline constexpr __wasi_address_family_t
 fromAddressFamily(int AddressFamily) noexcept {
   switch (AddressFamily) {
-  case PF_UNSPEC:
+  case AF_UNSPEC:
     return __WASI_ADDRESS_FAMILY_UNSPEC;
-  case PF_INET:
+  case AF_INET:
     return __WASI_ADDRESS_FAMILY_INET4;
-  case PF_INET6:
+  case AF_INET6:
     return __WASI_ADDRESS_FAMILY_INET6;
   default:
     assumingUnreachable();
@@ -717,11 +500,11 @@ inline constexpr int
 toAddressFamily(__wasi_address_family_t AddressFamily) noexcept {
   switch (AddressFamily) {
   case __WASI_ADDRESS_FAMILY_UNSPEC:
-    return PF_UNSPEC;
+    return AF_UNSPEC;
   case __WASI_ADDRESS_FAMILY_INET4:
-    return PF_INET;
+    return AF_INET;
   case __WASI_ADDRESS_FAMILY_INET6:
-    return PF_INET6;
+    return AF_INET6;
   default:
     assumingUnreachable();
   }

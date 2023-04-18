@@ -4,7 +4,7 @@
 if(APPLE)
   set(WASMEDGE_WASI_SRCS clock-macos.cpp environ-macos.cpp inode-macos.cpp macos.mm)
 elseif(WIN32)
-  set(WASMEDGE_WASI_SRCS clock-win.cpp environ-win.cpp inode-win.cpp win.cpp)
+  set(WASMEDGE_WASI_SRCS clock-win.cpp environ-win.cpp inode-win.cpp)
 else()
   set(WASMEDGE_WASI_SRCS clock-linux.cpp environ-linux.cpp inode-linux.cpp)
 endif()
@@ -39,6 +39,7 @@ endif()
 if(WIN32)
   target_link_libraries(wasmedgeHostModuleWasi
   PRIVATE
+  ntdll
   wsock32
   ws2_32
   pathcch

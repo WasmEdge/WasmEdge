@@ -617,13 +617,13 @@ TEST(WasiTest, PollOneoffSocket) {
 
     WasmEdge::Host::WasiFdClose WasiFdClose(Env);
     WasmEdge::Host::WasiFdFdstatSetFlags WasiFdFdstatSetFlags(Env);
-    WasmEdge::Host::WasiSockAccept WasiSockAccept(Env);
-    WasmEdge::Host::WasiSockBind WasiSockBind(Env);
-    WasmEdge::Host::WasiSockListen WasiSockListen(Env);
-    WasmEdge::Host::WasiSockOpen WasiSockOpen(Env);
-    WasmEdge::Host::WasiSockRecv WasiSockRecv(Env);
-    WasmEdge::Host::WasiSockSend WasiSockSend(Env);
-    WasmEdge::Host::WasiSockSetOpt WasiSockSetOpt(Env);
+    WasmEdge::Host::WasiSockAcceptV1 WasiSockAccept(Env);
+    WasmEdge::Host::WasiSockBindV1 WasiSockBind(Env);
+    WasmEdge::Host::WasiSockListenV1 WasiSockListen(Env);
+    WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
+    WasmEdge::Host::WasiSockRecvV1 WasiSockRecv(Env);
+    WasmEdge::Host::WasiSockSendV1 WasiSockSend(Env);
+    WasmEdge::Host::WasiSockSetOptV1 WasiSockSetOpt(Env);
 
     std::array<WasmEdge::ValVariant, 1> Errno;
     const uint32_t FdPtr = 0;
@@ -796,10 +796,10 @@ TEST(WasiTest, PollOneoffSocket) {
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
   WasmEdge::Host::WasiFdFdstatSetFlags WasiFdFdstatSetFlags(Env);
   WasmEdge::Host::WasiPollOneoff WasiPollOneoff(Env);
-  WasmEdge::Host::WasiSockConnect WasiSockConnect(Env);
-  WasmEdge::Host::WasiSockOpen WasiSockOpen(Env);
-  WasmEdge::Host::WasiSockRecv WasiSockRecv(Env);
-  WasmEdge::Host::WasiSockSend WasiSockSend(Env);
+  WasmEdge::Host::WasiSockConnectV1 WasiSockConnect(Env);
+  WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
+  WasmEdge::Host::WasiSockRecvV1 WasiSockRecv(Env);
+  WasmEdge::Host::WasiSockSendV1 WasiSockSend(Env);
 
   std::array<WasmEdge::ValVariant, 1> Errno;
   const uint32_t FdPtr = 0;
@@ -1233,13 +1233,13 @@ TEST(WasiTest, EpollOneoffSocket) {
 
     WasmEdge::Host::WasiFdClose WasiFdClose(Env);
     WasmEdge::Host::WasiFdFdstatSetFlags WasiFdFdstatSetFlags(Env);
-    WasmEdge::Host::WasiSockAccept WasiSockAccept(Env);
-    WasmEdge::Host::WasiSockBind WasiSockBind(Env);
-    WasmEdge::Host::WasiSockListen WasiSockListen(Env);
-    WasmEdge::Host::WasiSockOpen WasiSockOpen(Env);
-    WasmEdge::Host::WasiSockRecv WasiSockRecv(Env);
-    WasmEdge::Host::WasiSockSend WasiSockSend(Env);
-    WasmEdge::Host::WasiSockSetOpt WasiSockSetOpt(Env);
+    WasmEdge::Host::WasiSockAcceptV1 WasiSockAccept(Env);
+    WasmEdge::Host::WasiSockBindV1 WasiSockBind(Env);
+    WasmEdge::Host::WasiSockListenV1 WasiSockListen(Env);
+    WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
+    WasmEdge::Host::WasiSockRecvV1 WasiSockRecv(Env);
+    WasmEdge::Host::WasiSockSendV1 WasiSockSend(Env);
+    WasmEdge::Host::WasiSockSetOptV1 WasiSockSetOpt(Env);
 
     std::array<WasmEdge::ValVariant, 1> Errno;
     const uint32_t FdPtr = 0;
@@ -1412,10 +1412,10 @@ TEST(WasiTest, EpollOneoffSocket) {
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
   WasmEdge::Host::WasiFdFdstatSetFlags WasiFdFdstatSetFlags(Env);
   WasmEdge::Host::WasiEpollOneoff WasiEpollOneoff(Env);
-  WasmEdge::Host::WasiSockConnect WasiSockConnect(Env);
-  WasmEdge::Host::WasiSockOpen WasiSockOpen(Env);
-  WasmEdge::Host::WasiSockRecv WasiSockRecv(Env);
-  WasmEdge::Host::WasiSockSend WasiSockSend(Env);
+  WasmEdge::Host::WasiSockConnectV1 WasiSockConnect(Env);
+  WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
+  WasmEdge::Host::WasiSockRecvV1 WasiSockRecv(Env);
+  WasmEdge::Host::WasiSockSendV1 WasiSockSend(Env);
 
   std::array<WasmEdge::ValVariant, 1> Errno;
   const uint32_t FdPtr = 0;

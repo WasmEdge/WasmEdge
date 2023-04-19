@@ -48,7 +48,10 @@ int Tool(int Argc, const char *Argv[]) noexcept {
           "can be specified as --dir `host_path`. You can also map a guest "
           "directory to a host directory by --dir `guest_path:host_path`, "
           "where `guest_path` specifies the path that will correspond to "
-          "`host_path` for calls like `fopen` in the guest."sv),
+          "`host_path` for calls like `fopen` in the guest."
+          "The default permission is `readwrite`, however, you can use "
+          "--dir `guest_path:host_path:readonly` to make the mapping "
+          "directory become a read only mode."sv),
       PO::MetaVar("PREOPEN_DIRS"sv));
 
   PO::List<std::string> Env(

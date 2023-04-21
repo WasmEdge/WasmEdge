@@ -222,6 +222,10 @@ namespace WasmEdge {
   private:
     class FunctionTypeContext;
     std::unique_ptr<FunctionTypeContext> Cxt;
+
+    friend class ImportType;
+    friend class ExportType;
+    FunctionType() = default;
   };
 
   class WASMEDGE_CPP_API_EXPORT TableType {
@@ -232,7 +236,12 @@ namespace WasmEdge {
     RefType GetRefType();
     const Limit &GetLimit();
   private:
-    // TODO
+    class TableTypeContext;
+    std::unique_ptr<TableTypeContext> Cxt;
+
+    friend class ImportType;
+    friend class ExportType;
+    TableType() = default;
   };
 
   class WASMEDGE_CPP_API_EXPORT MemoryType {
@@ -243,7 +252,12 @@ namespace WasmEdge {
     const Limit &GetLimit();
 
   private:
-    // TODO
+    class MemoryTypeContext;
+    std::unique_ptr<MemoryTypeContext> Cxt;
+
+    friend class ImportType;
+    friend class ExportType;
+    MemoryType() = default;
   };
 
   class WASMEDGE_CPP_API_EXPORT GlobalType {
@@ -254,7 +268,12 @@ namespace WasmEdge {
     ValType GetValType();
     Mutability GetMutability();
   private:
-    // TODO
+    class GlobalTypeContext;
+    std::unique_ptr<GlobalTypeContext> Cxt;
+
+    friend class ImportType;
+    friend class ExportType;
+    GlobalType() = default;
   };
 
   class WASMEDGE_CPP_API_EXPORT ImportType {
@@ -263,15 +282,16 @@ namespace WasmEdge {
     ExternalType GetExternalType();
     std::string GetModuleName();
     std::string GetExternalName();
-    const FunctionType &GetFunctionType(const ASTModule &ASTCxt);
-    const TableType &GetTableType(const ASTModule &ASTCxt);
-    const MemoryType &GetMemoryType(const ASTModule &ASTCxt);
-    const GlobalType &GetGlobalType(const ASTModule &ASTCxt);
+    std::shared_ptr<const FunctionType> GetFunctionType(const ASTModule &ASTCxt);
+    std::shared_ptr<const TableType> GetTableType(const ASTModule &ASTCxt);
+    std::shared_ptr<const MemoryType> GetMemoryType(const ASTModule &ASTCxt);
+    std::shared_ptr<const GlobalType> GetGlobalType(const ASTModule &ASTCxt);
 
   private:
     ImportType();
     ~ImportType() = default;
-    // TODO
+    class ImportTypeContext;
+    std::unique_ptr<ImportTypeContext> Cxt;
 
     friend class ASTModule;
   };
@@ -281,14 +301,16 @@ namespace WasmEdge {
 
     ExternalType GetExternalType();
     std::string GetExternalName();
-    const FunctionType &GetFunctionType(const ASTModule &ASTCxt);
-    const TableType &GetTableType(const ASTModule &ASTCxt);
-    const MemoryType &GetMemoryType(const ASTModule &ASTCxt);
-    const GlobalType &GetGlobalType(const ASTModule &ASTCxt);
+    std::shared_ptr<const FunctionType> GetFunctionType(const ASTModule &ASTCxt);
+    std::shared_ptr<const TableType> GetTableType(const ASTModule &ASTCxt);
+    std::shared_ptr<const MemoryType> GetMemoryType(const ASTModule &ASTCxt);
+    std::shared_ptr<const GlobalType> GetGlobalType(const ASTModule &ASTCxt);
 
   private:
     ExportType();
     ~ExportType() = default;
+    class ExportTypeContext;
+    std::unique_ptr<ExportTypeContext> Cxt;
 
     friend class ASTModule;
   };
@@ -461,8 +483,12 @@ namespace WasmEdge {
 
     std::vector<ImportType> ListImports();
     std::vector<ExportType> ListExports();
+
+    friend class ImportType;
+    friend class ExportType;
   private:
-    // TODO
+    class ASTModuleContext;
+    std::unique_ptr<ASTModuleContext> Cxt;
   };
 
   class WASMEDGE_CPP_API_EXPORT Store {

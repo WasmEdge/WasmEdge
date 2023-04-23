@@ -106,7 +106,7 @@ struct WasmEdge_Async {
   template <typename... Args>
   WasmEdge_Async(Args &&...Vals) noexcept
       : Async(std::forward<Args>(Vals)...) {}
-  WasmEdge::VM::Async<WasmEdge::Expect<
+  WasmEdge::Async<WasmEdge::Expect<
       std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>
       Async;
 };
@@ -1634,7 +1634,7 @@ WasmEdge_ExecutorInvoke(WasmEdge_ExecutorContext *Cxt,
       [&]()
           -> WasmEdge::Expect<
               std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>> {
-        return fromExecutorCxt(Cxt)->invoke(*fromFuncCxt(FuncCxt),
+        return fromExecutorCxt(Cxt)->invoke(fromFuncCxt(FuncCxt),
                                             ParamPair.first, ParamPair.second);
       },
       [&](auto &&Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); }, Cxt,

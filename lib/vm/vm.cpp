@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "vm/vm.h"
-#include "vm/async.h"
 
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
@@ -379,14 +378,9 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
   // Find exported function by name.
   Runtime::Instance::FunctionInstance *FuncInst =
       ModInst->findFuncExports(Func);
-  if (unlikely(FuncInst == nullptr)) {
-    spdlog::error(ErrCode::Value::FuncNotFound);
-    spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
-    return Unexpect(ErrCode::Value::FuncNotFound);
-  }
 
   // Execute function.
-  if (auto Res = ExecutorEngine.invoke(*FuncInst, Params, ParamTypes);
+  if (auto Res = ExecutorEngine.invoke(FuncInst, Params, ParamTypes);
       unlikely(!Res)) {
     if (Res.error() != ErrCode::Value::Terminated) {
       spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));

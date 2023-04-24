@@ -208,13 +208,13 @@ using MakeWasmUnsignedT =
     typename std::conditional<IsWasmFloatV<T>, std::common_type<T>,
                               std::make_unsigned<T>>::type::type;
 
-/// Cast-to-signed function.
+/// Cast-to-signed function.
 template <typename T>
 typename std::enable_if_t<IsWasmNumV<T>, MakeWasmSignedT<T>> toSigned(T Val) {
   return static_cast<MakeWasmSignedT<T>>(Val);
 }
 
-/// Cast-to-unsigned function.
+/// Cast-to-unsigned function.
 template <typename T>
 typename std::enable_if_t<IsWasmNumV<T>, MakeWasmUnsignedT<T>>
 toUnsigned(T Val) {

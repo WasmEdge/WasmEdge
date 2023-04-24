@@ -157,14 +157,27 @@ TypeF<T> Executor::runMinOp(ValVariant &Val1, const ValVariant &Val2) const {
   T &Z1 = Val1.get<T>();
   const T &Z2 = Val2.get<T>();
   const T kZero = 0.0;
-  // TODO: canonical and arithmetical NaN
-  if (std::isnan(Z2)) {
-    Z1 = Z2;
+  if (std::isnan(Z1) || std::isnan(Z2)) {
+    if (std::isnan(Z2)) {
+      Z1 = Z2;
+    }
+    // Set the most significant bit of the payload to 1.
+    if constexpr (sizeof(T) == sizeof(uint32_t)) {
+      uint32_t I32;
+      std::memcpy(&I32, &Z1, sizeof(T));
+      I32 |= static_cast<uint32_t>(0x01U) << 22;
+      std::memcpy(&Z1, &I32, sizeof(T));
+    } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
+      uint64_t I64;
+      std::memcpy(&I64, &Z1, sizeof(T));
+      I64 |= static_cast<uint64_t>(0x01U) << 51;
+      std::memcpy(&Z1, &I64, sizeof(T));
+    }
   } else if (Z1 == kZero && Z2 == kZero &&
              std::signbit(Z1) != std::signbit(Z2)) {
     // If both z1 and z2 are zeroes of opposite signs, then return -0.0.
     Z1 = -kZero;
-  } else if (!std::isnan(Z1)) {
+  } else {
     // Else return the min of z1 and z2. (Inf case are handled.)
     Z1 = std::min(Z1, Z2);
   }
@@ -176,14 +189,27 @@ TypeF<T> Executor::runMaxOp(ValVariant &Val1, const ValVariant &Val2) const {
   T &Z1 = Val1.get<T>();
   const T &Z2 = Val2.get<T>();
   const T kZero = 0.0;
-  // TODO: canonical and arithmetical NaN
-  if (std::isnan(Z2)) {
-    Z1 = Z2;
+  if (std::isnan(Z1) || std::isnan(Z2)) {
+    if (std::isnan(Z2)) {
+      Z1 = Z2;
+    }
+    // Set the most significant bit of the payload to 1.
+    if constexpr (sizeof(T) == sizeof(uint32_t)) {
+      uint32_t I32;
+      std::memcpy(&I32, &Z1, sizeof(T));
+      I32 |= static_cast<uint32_t>(0x01U) << 22;
+      std::memcpy(&Z1, &I32, sizeof(T));
+    } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
+      uint64_t I64;
+      std::memcpy(&I64, &Z1, sizeof(T));
+      I64 |= static_cast<uint64_t>(0x01U) << 51;
+      std::memcpy(&Z1, &I64, sizeof(T));
+    }
   } else if (Z1 == kZero && Z2 == kZero &&
              std::signbit(Z1) != std::signbit(Z2)) {
     // If both z1 and z2 are zeroes of opposite signs, then return +0.0.
     Z1 = kZero;
-  } else if (!std::isnan(Z1)) {
+  } else {
     // Else return the max of z1 and z2. (Inf case are handled.)
     Z1 = std::max(Z1, Z2);
   }

@@ -30,7 +30,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]
-        rust: [1.64, 1.65, 1.66]
+        rust: [1.66, 1.67, 1.68]
     container:
       image: wasmedge/wasmedge:latest
 
@@ -69,5 +69,5 @@ jobs:
         run: |
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
-          cargo test --workspace --features static --locked
-          cargo test --examples --features static --locked
+          cargo test --workspace --features static --locked -- --test-threads=1
+          cargo test --examples --features static --locked -- --test-threads=1

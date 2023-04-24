@@ -33,11 +33,16 @@ Features:
   * Added the `WasmEdge_VMGetRegisteredModule()` API for retrieving a registered module by its name.
   * Added the `WasmEdge_VMListRegisteredModuleLength()` and `WasmEdge_VMListRegisteredModule()` APIs for listing the registered module names.
 * Introduced the python version WasmEdge installer.
+* Added the `wasm_bpf` plug-in.
+* Enabled the read-only WASI filesystem.
+  * Users can add the `--dir guest_path:host_path:readonly` option in WasmEdge CLI to assign the read-only configuration.
 * Updated the ABI of the `wasi_ephemeral_sock`.
   * Added the output port of the `sock_recv_from`.
   * Updated the API of `sock_getlocaladdr`.
   * Unified the socket address size to 128-bit.
+* Allowed the multiple VM instances.
 * Supported using `libtool` to archive the WasmEdge static library.
+* Supported LLVM 15.0.7.
 
 Fixed issues:
 
@@ -45,6 +50,7 @@ Fixed issues:
   * Fixed the leaking information about the host STDIN, STDOUT, and STDERR after getting the `filestat`.
   * Fixed the lookup of symbolic link at `path_filestat_set_times`.
   * Fixed `open` for the wchar path issue on windows.
+  * Fixed the rights of `path_open`.
 * Fixed WASI-NN issues.
   * Fixed the definition of `wasi_nn::TensorType` to prevent from comparing with dirty data.
 * Fixed WASI-Crypto issues.
@@ -53,10 +59,12 @@ Fixed issues:
 * Fixed WASI-Socket issues.
   * Fixed the buffer size of `sock_getpeeraddr`.
 * Fixed the lost intrinsics table in AOT mode when using the WasmEdge C API.
+* Fixed the registration failed of WasmEdge plug-in through the C API.
 * Fixed the implementation in `threads` proposal.
   * Fixed the error in `atomic.nofify` and `atomic.wait` instructions.
   * Fixed the decoding of `atomic.fence` instruction.
   * Corrected the error message of waiting on unshared memory.
+* Handle canonical and arithmetical `NaN` in `runMaxOp()` and `runMinOp()`.
 
 Refactor:
 
@@ -85,6 +93,7 @@ Documentations:
 * Added the [WasmEdge installer guide](https://wasmedge.org/book/en/contribute/installer.html).
 * Updated the [Android NDK example](https://wasmedge.org/book/en/contribute/build_from_src/android/ndk.html).
 * Added the [static library linking guide](https://wasmedge.org/book/en/sdk/c/library.html#link-with-wasmedge-static-library).
+* Added the [WasmEdge plug-in implementation guide](https://wasmedge.org/book/en/develop_plugin/c.html).
 
 Tests:
 
@@ -93,7 +102,7 @@ Tests:
 
 Thank all the contributors that made this release possible!
 
-Abhinandan Udupa, Achille, Daniel Golding, DarumaDocker, Harry Chiang, Justin Echternach, Kenvi Zhu, LFsWang, Leonid Pospelov, Lîm Tsú-thuàn, MediosZ, O3Ol, Puelloc, Rafael Fernández López, Shreyas Atre, Sylveon, Tatsuyuki Kobayashi, Vishv Salvi, Xin Liu, Xiongsheng Wang, YiYing He, alabulei1, dm4, hydai, jeongkyu, little-willy
+Abhinandan Udupa, Achille, Afshan Ahmed Khan, Daniel Golding, DarumaDocker, Draco, Harry Chiang, Justin Echternach, Kenvi Zhu, LFsWang, Leonid Pospelov, Lîm Tsú-thuàn, MediosZ, O3Ol, Officeyutong, Puelloc, Rafael Fernández López, Shen-Ta Hsieh, Shreyas Atre, Sylveon, Tatsuyuki Kobayashi, Vishv Salvi, Xin Liu, Xiongsheng Wang, YiYing He, alabulei1, dm4, hydai, jeongkyu, little-willy, michael1017, shun murakami, xxchan, 云微
 
 If you want to build from source, please use WasmEdge-0.12.0-alpha.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 

@@ -26,3 +26,12 @@ if(WASMEDGE_PLUGIN_HTTPSREQ)
     message(WARNING "Only Linux platforms support WasmEdge_HttpsReq plug-in now.")
   endif()
 endif()
+
+if(WASMEDGE_PLUGIN_WASM_BPF)
+  # Only Linux systems support wasm_bpf now.
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    add_subdirectory(wasm_bpf)
+  else()
+    message(WARNING "Only Linux platforms support wasm_bpf plug-in now.")
+  endif()
+endif()

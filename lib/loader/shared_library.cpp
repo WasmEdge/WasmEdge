@@ -17,6 +17,39 @@
 #include <boost/winapi/dll.hpp>
 #include <boost/winapi/error_handling.hpp>
 #include <boost/winapi/local_memory.hpp>
+
+#if !defined(BOOST_USE_WINDOWS_H)
+extern "C" {
+struct _IMAGE_RUNTIME_FUNCTION_ENTRY;
+}
+#endif
+
+namespace boost::winapi {
+typedef struct BOOST_MAY_ALIAS _IMAGE_RUNTIME_FUNCTION_ENTRY {
+  DWORD_ BeginAddress;
+  DWORD_ EndAddress;
+  union {
+    DWORD_ UnwindInfoAddress;
+    DWORD_ UnwindData;
+  } DUMMYUNIONNAME;
+} RUNTIME_FUNCTION_, *PRUNTIME_FUNCTION_;
+} // namespace boost::winapi
+
+#if !defined(BOOST_USE_WINDOWS_H)
+extern "C" {
+BOOST_SYMBOL_IMPORT boost::winapi::BOOLEAN_ BOOST_WINAPI_WINAPI_CC
+RtlAddFunctionTable(boost::winapi::PRUNTIME_FUNCTION_ FunctionTable,
+                    boost::winapi::ULONG_ EntryCount,
+                    boost::winapi::ULONG_PTR_ BaseAddress);
+BOOST_SYMBOL_IMPORT boost::winapi::BOOLEAN_ BOOST_WINAPI_WINAPI_CC
+RtlDeleteFunctionTable(boost::winapi::PRUNTIME_FUNCTION_ FunctionTable);
+}
+#endif
+namespace boost::winapi {
+using ::RtlAddFunctionTable;
+using ::RtlDeleteFunctionTable;
+} // namespace boost::winapi
+
 namespace winapi = boost::winapi;
 #elif WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <dlfcn.h>
@@ -112,6 +145,13 @@ Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
       break;
     case 3: // BSS
       break;
+#if WASMEDGE_OS_WINDOWS
+    case 4: // PData
+      PDataAddress = reinterpret_cast<void *>(Binary + Offset);
+      PDataSize =
+          static_cast<uint32_t>(Size / sizeof(winapi::RUNTIME_FUNCTION_));
+      break;
+#endif
     }
   }
 
@@ -127,18 +167,32 @@ Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
   TypesAddress = AOTSec.getTypesAddress();
   CodesAddress = AOTSec.getCodesAddress();
 
+#if WASMEDGE_OS_WINDOWS
+  if (PDataSize != 0) {
+    winapi::RtlAddFunctionTable(
+        static_cast<winapi::PRUNTIME_FUNCTION_>(PDataAddress), PDataSize,
+        reinterpret_cast<winapi::ULONG_PTR_>(Binary));
+  }
+#endif
+
   return {};
 }
 
 void SharedLibrary::unload() noexcept {
   if (Binary) {
+#if WASMEDGE_OS_WINDOWS
+    if (PDataSize != 0) {
+      winapi::RtlDeleteFunctionTable(
+          static_cast<winapi::PRUNTIME_FUNCTION_>(PDataAddress));
+    }
+#endif
     Allocator::set_chunk_readable_writable(Binary, BinarySize);
     Allocator::release_chunk(Binary, BinarySize);
     Binary = nullptr;
   }
   if (Handle) {
 #if WASMEDGE_OS_WINDOWS
-    boost::winapi::FreeLibrary(Handle);
+    winapi::FreeLibrary(Handle);
 #else
     ::dlclose(Handle);
 #endif
@@ -151,8 +205,7 @@ void *SharedLibrary::getSymbolAddr(const char *Name) const noexcept {
     return nullptr;
   }
 #if WASMEDGE_OS_WINDOWS
-  return reinterpret_cast<void *>(
-      boost::winapi::get_proc_address(Handle, Name));
+  return reinterpret_cast<void *>(winapi::get_proc_address(Handle, Name));
 #else
   return ::dlsym(Handle, Name);
 #endif

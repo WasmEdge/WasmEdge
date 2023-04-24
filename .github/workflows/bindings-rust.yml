@@ -30,7 +30,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]
-        rust: [1.66, 1.67]
+        rust: [1.66, 1.67, 1.68]
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
@@ -72,8 +72,8 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --workspace --locked --features aot,async,ffi
-          cargo test --examples --locked --features aot,async,ffi
+          cargo test --workspace --locked --features aot,async,ffi -- --test-threads=1
+          cargo test --examples --locked --features aot,async,ffi -- --test-threads=1
 
   build_macos:
     name: MacOS
@@ -81,7 +81,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-11, macos-12]
-        rust: [1.66, 1.67]
+        rust: [1.66, 1.67, 1.68]
 
     steps:
       - name: Checkout sources
@@ -127,15 +127,15 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export DYLD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --workspace --locked --features aot,async,ffi
-          cargo test --examples --locked --features aot,async,ffi
+          cargo test --workspace --locked --features aot,async,ffi -- --test-threads=1
+          cargo test --examples --locked --features aot,async,ffi -- --test-threads=1
 
   build_windows:
     name: Windows
     runs-on: windows-2022
     strategy:
       matrix:
-        rust: [1.66, 1.67]
+        rust: [1.66, 1.67, 1.68]
     env:
       WASMEDGE_DIR: ${{ github.workspace }}
       WASMEDGE_BUILD_DIR: ${{ github.workspace }}\build
@@ -197,15 +197,15 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge\WasmEdge\build\lib\api"
           cd bindings\rust
-          cargo test --workspace --features aot,async,ffi --locked
-          cargo test --examples --features aot,async,ffi --locked
+          cargo test --workspace --features aot,async,ffi --locked -- --test-threads=1
+          cargo test --examples --features aot,async,ffi --locked -- --test-threads=1
 
   build_fedora:
     name: Fedora 37
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: [1.66, 1.67]
+        rust: [1.66, 1.67, 1.68]
     container:
       image: fedora:latest
     steps:
@@ -247,5 +247,5 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --workspace --locked --features aot,async,ffi
-          cargo test --examples --locked --features aot,async,ffi
+          cargo test --workspace --locked --features aot,async,ffi -- --test-threads=1
+          cargo test --examples --locked --features aot,async,ffi -- --test-threads=1

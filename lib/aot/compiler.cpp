@@ -7,6 +7,7 @@
 #include "common/defines.h"
 #include "common/filesystem.h"
 #include "common/log.h"
+#include "llvm.h"
 
 #include <algorithm>
 #include <array>
@@ -14,51 +15,26 @@
 #include <cinttypes>
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 #include <limits>
 #include <lld/Common/Driver.h>
-#include <llvm/Analysis/TargetLibraryInfo.h>
-#include <llvm/Analysis/TargetTransformInfo.h>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/IR/Verifier.h>
-#include <llvm/MC/SubtargetFeature.h>
-#include <llvm/Object/ObjectFile.h>
-#include <llvm/Passes/PassBuilder.h>
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/Host.h>
-#include <llvm/Support/TargetSelect.h>
-#include <llvm/Target/TargetMachine.h>
-#include <llvm/Transforms/IPO/AlwaysInliner.h>
-#include <llvm/Transforms/Scalar/TailRecursionElimination.h>
-#include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <memory>
 #include <numeric>
+#include <random>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
 
-#if WASMEDGE_OS_WINDOWS
-#include <llvm/Object/COFF.h>
-#endif
-
 #if LLVM_VERSION_MAJOR >= 14
-#include <llvm/MC/TargetRegistry.h>
-#else
-#include <llvm/Support/TargetRegistry.h>
-#endif
-
-#if LLVM_VERSION_MAJOR >= 12
-#include <llvm/Analysis/AliasAnalysis.h>
-#endif
-#if LLVM_VERSION_MAJOR >= 10
-#include <llvm/IR/IntrinsicsAArch64.h>
-#include <llvm/IR/IntrinsicsRISCV.h>
-#include <llvm/IR/IntrinsicsX86.h>
-#include <llvm/Support/Alignment.h>
+#include <lld/Common/CommonLinkerContext.h>
 #endif
 
 #if WASMEDGE_OS_MACOS
 #include <unistd.h>
+#endif
+#if WASMEDGE_OS_WINDOWS
+#include <llvm/Object/COFF.h>
 #endif
 
 #if WASMEDGE_OS_LINUX
@@ -69,6 +45,9 @@
 #define SYMBOL(X) X
 #endif
 
+using namespace std::literals;
+namespace LLVM = WasmEdge::AOT::LLVM;
+
 namespace {
 
 // is x86_64
@@ -76,59 +55,24 @@ namespace {
 #define __x86_64__ 1
 #endif
 
-inline void setIsFPConstrained(llvm::IRBuilder<> &Builder) {
-  Builder.setIsFPConstrained(true);
-#if LLVM_VERSION_MAJOR >= 11
-  Builder.setDefaultConstrainedRounding(llvm::RoundingMode::NearestTiesToEven);
-  Builder.setDefaultConstrainedExcept(llvm::fp::ExceptionBehavior::ebIgnore);
-#elif LLVM_VERSION_MAJOR >= 10
-  Builder.setDefaultConstrainedRounding(llvm::fp::RoundingMode::rmToNearest);
-  Builder.setDefaultConstrainedExcept(llvm::fp::ExceptionBehavior::ebIgnore);
-#else
-  Builder.setDefaultConstrainedRounding(
-      llvm::ConstrainedFPIntrinsic::RoundingMode::rmToNearest);
-  Builder.setDefaultConstrainedExcept(
-      llvm::ConstrainedFPIntrinsic::ExceptionBehavior::ebIgnore);
-#endif
-}
-
-#if LLVM_VERSION_MAJOR >= 11
-using ShuffleElement = int;
-#else
-using ShuffleElement = uint32_t;
-#endif
-
-#if LLVM_VERSION_MAJOR >= 10
-using Align = llvm::Align;
-#else
-static inline unsigned Align(unsigned Value) noexcept { return Value; }
-#endif
-static inline auto elementCount(llvm::VectorType *VectorTy) noexcept {
-#if LLVM_VERSION_MAJOR >= 12
-  return VectorTy->getElementCount().getKnownMinValue();
-#else
-  return VectorTy->getElementCount().Min;
-#endif
-}
-
-static bool isVoidReturn(WasmEdge::Span<const WasmEdge::ValType> ValTypes);
-static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
-                              const WasmEdge::ValType &ValType);
-static std::vector<llvm::Type *>
-toLLVMArgsType(llvm::PointerType *ExecCtxPtrTy,
-               WasmEdge::Span<const WasmEdge::ValType> ValTypes);
-static llvm::Type *
-toLLVMRetsType(llvm::LLVMContext &LLContext,
-               WasmEdge::Span<const WasmEdge::ValType> ValTypes);
-static llvm::FunctionType *
-toLLVMType(llvm::PointerType *ExecCtxPtrTy,
-           const WasmEdge::AST::FunctionType &FuncType);
-static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
-                                          const WasmEdge::ValType &ValType);
-static std::vector<llvm::Value *> unpackStruct(llvm::IRBuilder<> &Builder,
-                                               llvm::Value *Struct);
-static llvm::Value *createLikely(llvm::IRBuilder<> &Builder,
-                                 llvm::Value *Value);
+static bool
+isVoidReturn(WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
+static LLVM::Type toLLVMType(LLVM::Context &LLContext,
+                             const WasmEdge::ValType &ValType) noexcept;
+static std::vector<LLVM::Type>
+toLLVMArgsType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
+               WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
+static LLVM::Type
+toLLVMRetsType(LLVM::Context &LLContext,
+               WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
+static LLVM::Type
+toLLVMType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
+           const WasmEdge::AST::FunctionType &FuncType) noexcept;
+static LLVM::Value
+toLLVMConstantZero(LLVM::Context &LLContext,
+                   const WasmEdge::ValType &ValType) noexcept;
+static std::vector<LLVM::Value> unpackStruct(LLVM::Builder &Builder,
+                                             LLVM::Value Struct) noexcept;
 class FunctionCompiler;
 
 // XXX: Misalignment handler not implemented yet, forcing unalignment
@@ -141,40 +85,54 @@ static inline constexpr const bool kForceDivCheck = true;
 // Size of a ValVariant
 static inline constexpr const uint32_t kValSize = sizeof(WasmEdge::ValVariant);
 
-#if LLVM_VERSION_MAJOR >= 14
-using LLVMOptimizationLevel = llvm::OptimizationLevel;
-#else
-using LLVMOptimizationLevel = llvm::PassBuilder::OptimizationLevel;
-#endif
-
 // Translate Compiler::OptimizationLevel to llvm::PassBuilder version
-static inline LLVMOptimizationLevel
-toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) {
+static inline std::pair<unsigned int, unsigned int>
+toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
   using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
   switch (Level) {
   case OL::O0:
-    return LLVMOptimizationLevel::O0;
+    return {0, 0};
   case OL::O1:
-    return LLVMOptimizationLevel::O1;
+    return {1, 0};
   case OL::O2:
-    return LLVMOptimizationLevel::O2;
+    return {2, 0};
   case OL::O3:
-    return LLVMOptimizationLevel::O3;
+    return {3, 0};
   case OL::Os:
-    return LLVMOptimizationLevel::Os;
+    return {2, 1};
   case OL::Oz:
-    return LLVMOptimizationLevel::Oz;
+    return {2, 2};
+  default:
+    assumingUnreachable();
+  }
+}
+static inline LLVMCodeGenOptLevel toLLVMCodeGenLevel(
+    WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
+  using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
+  switch (Level) {
+  case OL::O0:
+    return LLVMCodeGenLevelNone;
+  case OL::O1:
+    return LLVMCodeGenLevelLess;
+  case OL::O2:
+    return LLVMCodeGenLevelDefault;
+  case OL::O3:
+    return LLVMCodeGenLevelAggressive;
+  case OL::Os:
+    return LLVMCodeGenLevelDefault;
+  case OL::Oz:
+    return LLVMCodeGenLevelDefault;
   default:
     assumingUnreachable();
   }
 }
 
-WasmEdge::Expect<void> WriteByte(llvm::raw_ostream &OS, uint8_t Data) {
-  OS.write(Data);
+WasmEdge::Expect<void> WriteByte(std::ostream &OS, uint8_t Data) noexcept {
+  OS.put(static_cast<char>(Data));
   return {};
-};
+}
 
-WasmEdge::Expect<void> WriteU32(llvm::raw_ostream &OS, uint32_t Data) {
+WasmEdge::Expect<void> WriteU32(std::ostream &OS, uint32_t Data) noexcept {
   do {
     uint8_t Byte = static_cast<uint8_t>(Data & UINT32_C(0x7f));
     Data >>= 7;
@@ -184,9 +142,9 @@ WasmEdge::Expect<void> WriteU32(llvm::raw_ostream &OS, uint32_t Data) {
     WriteByte(OS, Byte);
   } while (Data > UINT32_C(0));
   return {};
-};
+}
 
-WasmEdge::Expect<void> WriteU64(llvm::raw_ostream &OS, uint64_t Data) {
+WasmEdge::Expect<void> WriteU64(std::ostream &OS, uint64_t Data) noexcept {
   do {
     uint8_t Byte = static_cast<uint8_t>(Data & UINT64_C(0x7f));
     Data >>= 7;
@@ -196,51 +154,89 @@ WasmEdge::Expect<void> WriteU64(llvm::raw_ostream &OS, uint64_t Data) {
     WriteByte(OS, Byte);
   } while (Data > UINT64_C(0));
   return {};
-};
+}
 
-WasmEdge::Expect<void> WriteName(llvm::raw_ostream &OS, std::string_view Data) {
+WasmEdge::Expect<void> WriteName(std::ostream &OS,
+                                 std::string_view Data) noexcept {
   WriteU32(OS, static_cast<uint32_t>(Data.size()));
   for (const auto C : Data) {
     WriteByte(OS, static_cast<uint8_t>(C));
   }
   return {};
-};
+}
 
 inline constexpr bool startsWith(std::string_view Value,
-                                 std::string_view Prefix) {
+                                 std::string_view Prefix) noexcept {
   return Value.size() >= Prefix.size() &&
          Value.substr(0, Prefix.size()) == Prefix;
+}
+
+std::filesystem::path uniquePath(const std::filesystem::path Model) noexcept {
+  using size_type = std::filesystem::path::string_type::size_type;
+  using value_type = std::filesystem::path::value_type;
+  static const auto Hex = "0123456789abcdef"sv;
+  std::random_device Device;
+  std::default_random_engine Engine(Device());
+  std::uniform_int_distribution<size_type> Distribution(0, Hex.size() - 1);
+  auto String = Model.native();
+  for (size_type N = String.size(), I = 0; I < N; ++I) {
+    if (String[I] == static_cast<value_type>('%')) {
+      String[I] = static_cast<value_type>(Hex[Distribution(Engine)]);
+    }
+  }
+  return String;
+}
+
+std::filesystem::path createTemp(const std::filesystem::path Model) noexcept {
+  while (true) {
+    auto Result = uniquePath(Model);
+    std::error_code Error;
+    if (!std::filesystem::exists(Result, Error)) {
+      if (Error) {
+        return {};
+      }
+      return Result;
+    }
+  }
 }
 
 } // namespace
 
 struct WasmEdge::AOT::Compiler::CompileContext {
-  llvm::LLVMContext &LLContext;
-  llvm::Module &LLModule;
-  llvm::Type *VoidTy;
-  llvm::IntegerType *Int8Ty;
-  llvm::IntegerType *Int16Ty;
-  llvm::IntegerType *Int32Ty;
-  llvm::IntegerType *Int64Ty;
-  llvm::IntegerType *Int128Ty;
-  llvm::Type *FloatTy;
-  llvm::Type *DoubleTy;
-  llvm::VectorType *Int8x16Ty;
-  llvm::VectorType *Int16x8Ty;
-  llvm::VectorType *Int32x4Ty;
-  llvm::VectorType *Floatx4Ty;
-  llvm::VectorType *Int64x2Ty;
-  llvm::VectorType *Doublex2Ty;
-  llvm::VectorType *Int128x1Ty;
-  llvm::PointerType *Int8PtrTy;
-  llvm::PointerType *Int32PtrTy;
-  llvm::PointerType *Int64PtrTy;
-  llvm::PointerType *Int128PtrTy;
-  llvm::StructType *ExecCtxTy;
-  llvm::PointerType *ExecCtxPtrTy;
-  llvm::ArrayType *IntrinsicsTableTy;
-  llvm::PointerType *IntrinsicsTablePtrTy;
-  llvm::SubtargetFeatures SubtargetFeatures;
+  LLVM::Context &LLContext;
+  LLVM::Module &LLModule;
+  LLVM::Attribute Cold;
+  LLVM::Attribute NoAlias;
+  LLVM::Attribute NoInline;
+  LLVM::Attribute NoReturn;
+  LLVM::Attribute ReadOnly;
+  LLVM::Attribute StrictFP;
+  LLVM::Attribute NoStackArgProbe;
+  LLVM::Type VoidTy;
+  LLVM::Type Int8Ty;
+  LLVM::Type Int16Ty;
+  LLVM::Type Int32Ty;
+  LLVM::Type Int64Ty;
+  LLVM::Type Int128Ty;
+  LLVM::Type FloatTy;
+  LLVM::Type DoubleTy;
+  LLVM::Type Int8x16Ty;
+  LLVM::Type Int16x8Ty;
+  LLVM::Type Int32x4Ty;
+  LLVM::Type Floatx4Ty;
+  LLVM::Type Int64x2Ty;
+  LLVM::Type Doublex2Ty;
+  LLVM::Type Int128x1Ty;
+  LLVM::Type Int8PtrTy;
+  LLVM::Type Int32PtrTy;
+  LLVM::Type Int64PtrTy;
+  LLVM::Type Int128PtrTy;
+  LLVM::Type ExecCtxTy;
+  LLVM::Type ExecCtxPtrTy;
+  LLVM::Type IntrinsicsTableTy;
+  LLVM::Type IntrinsicsTablePtrTy;
+  LLVM::Message SubtargetFeatures;
+  bool IsCustomSection;
 
 #if defined(__x86_64__)
 #if defined(__XOP__)
@@ -277,162 +273,185 @@ struct WasmEdge::AOT::Compiler::CompileContext {
 #endif
 
   std::vector<const AST::FunctionType *> FunctionTypes;
-  std::vector<llvm::Function *> FunctionWrappers;
-  std::vector<std::tuple<uint32_t, llvm::Function *,
+  std::vector<LLVM::Value> FunctionWrappers;
+  std::vector<std::tuple<uint32_t, LLVM::FunctionCallee,
                          const WasmEdge::AST::CodeSegment *>>
       Functions;
-  std::vector<llvm::Type *> Globals;
-  llvm::GlobalVariable *IntrinsicsTable;
-  llvm::Function *Trap;
-  CompileContext(llvm::Module &M, bool IsGenericBinary)
-      : LLContext(M.getContext()), LLModule(M),
-        VoidTy(llvm::Type::getVoidTy(LLContext)),
-        Int8Ty(llvm::Type::getInt8Ty(LLContext)),
-        Int16Ty(llvm::Type::getInt16Ty(LLContext)),
-        Int32Ty(llvm::Type::getInt32Ty(LLContext)),
-        Int64Ty(llvm::Type::getInt64Ty(LLContext)),
-        Int128Ty(llvm::Type::getInt128Ty(LLContext)),
-        FloatTy(llvm::Type::getFloatTy(LLContext)),
-        DoubleTy(llvm::Type::getDoubleTy(LLContext)),
-        Int8x16Ty(llvm::VectorType::get(Int8Ty, 16, false)),
-        Int16x8Ty(llvm::VectorType::get(Int16Ty, 8, false)),
-        Int32x4Ty(llvm::VectorType::get(Int32Ty, 4, false)),
-        Floatx4Ty(llvm::VectorType::get(FloatTy, 4, false)),
-        Int64x2Ty(llvm::VectorType::get(Int64Ty, 2, false)),
-        Doublex2Ty(llvm::VectorType::get(DoubleTy, 2, false)),
-        Int128x1Ty(llvm::VectorType::get(Int128Ty, 1, false)),
-        Int8PtrTy(llvm::Type::getInt8PtrTy(LLContext)),
-        Int32PtrTy(llvm::Type::getInt32PtrTy(LLContext)),
-        Int64PtrTy(Int64Ty->getPointerTo()),
-        Int128PtrTy(Int128Ty->getPointerTo()),
-        ExecCtxTy(llvm::StructType::create(
+  std::vector<LLVM::Type> Globals;
+  LLVM::Value IntrinsicsTable;
+  LLVM::FunctionCallee Trap;
+  CompileContext(LLVM::Context &C, LLVM::Module &M, bool IsGenericBinary,
+                 bool IsCustomSection) noexcept
+      : LLContext(C), LLModule(M),
+        Cold(LLVM::Attribute::createEnum(C, LLVM::Core::Cold, 1)),
+        NoAlias(LLVM::Attribute::createEnum(C, LLVM::Core::NoAlias, 1)),
+        NoInline(LLVM::Attribute::createEnum(C, LLVM::Core::NoInline, 1)),
+        NoReturn(LLVM::Attribute::createEnum(C, LLVM::Core::NoReturn, 1)),
+        ReadOnly(LLVM::Attribute::createEnum(C, LLVM::Core::ReadOnly, 1)),
+        StrictFP(LLVM::Attribute::createEnum(C, LLVM::Core::StrictFP, 1)),
+        NoStackArgProbe(
+            LLVM::Attribute::createString(C, "no-stack-arg-probe"sv, {})),
+        VoidTy(LLContext.getVoidTy()), Int8Ty(LLContext.getInt8Ty()),
+        Int16Ty(LLContext.getInt16Ty()), Int32Ty(LLContext.getInt32Ty()),
+        Int64Ty(LLContext.getInt64Ty()), Int128Ty(LLContext.getInt128Ty()),
+        FloatTy(LLContext.getFloatTy()), DoubleTy(LLContext.getDoubleTy()),
+        Int8x16Ty(LLVM::Type::getVectorType(Int8Ty, 16)),
+        Int16x8Ty(LLVM::Type::getVectorType(Int16Ty, 8)),
+        Int32x4Ty(LLVM::Type::getVectorType(Int32Ty, 4)),
+        Floatx4Ty(LLVM::Type::getVectorType(FloatTy, 4)),
+        Int64x2Ty(LLVM::Type::getVectorType(Int64Ty, 2)),
+        Doublex2Ty(LLVM::Type::getVectorType(DoubleTy, 2)),
+        Int128x1Ty(LLVM::Type::getVectorType(Int128Ty, 1)),
+        Int8PtrTy(Int8Ty.getPointerTo()), Int32PtrTy(Int32Ty.getPointerTo()),
+        Int64PtrTy(Int64Ty.getPointerTo()),
+        Int128PtrTy(Int128Ty.getPointerTo()),
+        ExecCtxTy(LLVM::Type::getStructType(
             "ExecCtx",
-            // Memory
-            Int8PtrTy->getPointerTo(),
-            // Globals
-            Int128PtrTy->getPointerTo(),
-            // InstrCount
-            Int64PtrTy,
-            // CostTable
-            llvm::ArrayType::get(Int64Ty, UINT16_MAX + 1)->getPointerTo(),
-            // Gas
-            Int64PtrTy,
-            // GasLimit
-            Int64Ty,
-            // StopToken
-            llvm::Type::getInt32PtrTy(LLContext))),
-        ExecCtxPtrTy(ExecCtxTy->getPointerTo()),
-        IntrinsicsTableTy(llvm::ArrayType::get(
-            Int8PtrTy, uint32_t(AST::Module::Intrinsics::kIntrinsicMax))),
-        IntrinsicsTablePtrTy(IntrinsicsTableTy->getPointerTo()),
-        IntrinsicsTable(new llvm::GlobalVariable(
-            LLModule, IntrinsicsTablePtrTy, true,
-            llvm::GlobalVariable::ExternalLinkage, nullptr, "intrinsics")),
-        Trap(llvm::Function::Create(
-            llvm::FunctionType::get(VoidTy, {Int32Ty}, false),
-            llvm::Function::PrivateLinkage, "trap", LLModule)) {
-    Trap->addFnAttr(llvm::Attribute::StrictFP);
-    Trap->addFnAttr(llvm::Attribute::NoReturn);
-    Trap->addFnAttr(llvm::Attribute::Cold);
-    Trap->addFnAttr(llvm::Attribute::NoInline);
+            std::initializer_list<LLVM::Type>{
+                // Memory
+                Int8PtrTy.getPointerTo(),
+                // Globals
+                Int128PtrTy.getPointerTo(),
+                // InstrCount
+                Int64PtrTy,
+                // CostTable
+                LLVM::Type::getArrayType(Int64Ty, UINT16_MAX + 1)
+                    .getPointerTo(),
+                // Gas
+                Int64PtrTy,
+                // GasLimit
+                Int64Ty,
+                // StopToken
+                Int32PtrTy,
+            })),
+        ExecCtxPtrTy(ExecCtxTy.getPointerTo()),
+        IntrinsicsTableTy(LLVM::Type::getArrayType(
+            Int8PtrTy,
+            static_cast<uint32_t>(AST::Module::Intrinsics::kIntrinsicMax))),
+        IntrinsicsTablePtrTy(IntrinsicsTableTy.getPointerTo()),
+        IsCustomSection(IsCustomSection),
+        IntrinsicsTable(LLModule.addGlobal(IntrinsicsTablePtrTy, true,
+                                           LLVMExternalLinkage, LLVM::Value(),
+                                           "intrinsics")) {
+    Trap.Ty = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
+    Trap.Fn = LLModule.addFunction(Trap.Ty, LLVMPrivateLinkage, "trap");
+    Trap.Fn.setVisibility(LLVMProtectedVisibility);
+    Trap.Fn.setDSOLocal(true);
+    Trap.Fn.addFnAttr(NoStackArgProbe);
+    Trap.Fn.addFnAttr(StrictFP);
+    Trap.Fn.addFnAttr(NoReturn);
+    Trap.Fn.addFnAttr(Cold);
+    Trap.Fn.addFnAttr(NoInline);
 
-    new llvm::GlobalVariable(
-        LLModule, Int32Ty, true, llvm::GlobalValue::ExternalLinkage,
-        llvm::ConstantInt::get(Int32Ty, kBinaryVersion), "version");
+    LLModule.addGlobal(Int32Ty, true, LLVMExternalLinkage,
+                       LLVM::Value::getConstInt(Int32Ty, kBinaryVersion),
+                       "version");
 
     if (!IsGenericBinary) {
-      llvm::StringMap<bool> FeatureMap;
-      llvm::sys::getHostCPUFeatures(FeatureMap);
-      for (auto &Feature : FeatureMap) {
-        if (Feature.second) {
-#if defined(__x86_64__)
-          if (!SupportXOP && Feature.first() == "xop") {
-            SupportXOP = true;
-          }
-          if (!SupportSSE4_1 && Feature.first() == "sse4.1") {
-            SupportSSE4_1 = true;
-          }
-          if (!SupportSSSE3 && Feature.first() == "ssse3") {
-            SupportSSSE3 = true;
-          }
-          if (!SupportSSE2 && Feature.first() == "sse2") {
-            SupportSSE2 = true;
-          }
-#elif defined(__aarch64__)
-          if (!SupportNEON && Feature.first() == "neon") {
-            SupportNEON = true;
-          }
-#endif
+      SubtargetFeatures = LLVM::getHostCPUFeatures();
+      auto Features = SubtargetFeatures.string_view();
+      while (!Features.empty()) {
+        std::string_view Feature;
+        if (auto Pos = Features.find(','); Pos != std::string_view::npos) {
+          Feature = Features.substr(0, Pos);
+          Features = Features.substr(Pos + 1);
+        } else {
+          Feature = std::exchange(Features, std::string_view());
         }
+        if (Feature[0] != '+') {
+          continue;
+        }
+        Feature = Feature.substr(1);
 
-        SubtargetFeatures.AddFeature(Feature.first(), Feature.second);
+#if defined(__x86_64__)
+        if (!SupportXOP && Feature == "xop"sv) {
+          SupportXOP = true;
+        }
+        if (!SupportSSE4_1 && Feature == "sse4.1"sv) {
+          SupportSSE4_1 = true;
+        }
+        if (!SupportSSSE3 && Feature == "ssse3"sv) {
+          SupportSSSE3 = true;
+        }
+        if (!SupportSSE2 && Feature == "sse2"sv) {
+          SupportSSE2 = true;
+        }
+#elif defined(__aarch64__)
+        if (!SupportNEON && Feature == "neon"sv) {
+          SupportNEON = true;
+        }
+#endif
       }
     }
 
     {
       // create trap
-      llvm::IRBuilder<> Builder(
-          llvm::BasicBlock::Create(LLContext, "entry", Trap));
-      auto *CallTrap = Builder.CreateCall(
-          getIntrinsic(Builder, AST::Module::Intrinsics::kTrap,
-                       llvm::FunctionType::get(VoidTy, {Int32Ty}, false)),
-          {Trap->arg_begin()});
-      CallTrap->setDoesNotReturn();
-      Builder.CreateUnreachable();
+      LLVM::Builder Builder(LLContext);
+      Builder.positionAtEnd(
+          LLVM::BasicBlock::create(LLContext, Trap.Fn, "entry"));
+      auto FnTy = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
+      auto CallTrap = Builder.createCall(
+          getIntrinsic(Builder, AST::Module::Intrinsics::kTrap, FnTy),
+          {Trap.Fn.getFirstParam()});
+      CallTrap.addCallSiteAttribute(NoReturn);
+      Builder.createUnreachable();
     }
   }
-  llvm::Value *getMemory(llvm::IRBuilder<> &Builder, llvm::LoadInst *ExecCtx,
-                         uint32_t Index) {
-    auto *Array = Builder.CreateExtractValue(ExecCtx, {0});
-    auto *VPtr = Builder.CreateLoad(
-        Int8PtrTy, Builder.CreateConstInBoundsGEP1_64(Int8PtrTy, Array, Index));
-    return Builder.CreateBitCast(VPtr, Int8PtrTy);
+  LLVM::Value getMemory(LLVM::Builder &Builder, LLVM::Value ExecCtx,
+                        uint32_t Index) noexcept {
+    auto Array = Builder.createExtractValue(ExecCtx, 0);
+    auto VPtr = Builder.createLoad(
+        Int8PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
+                                              LLContext.getInt64(Index)));
+    return Builder.createBitCast(VPtr, Int8PtrTy);
   }
-  std::pair<llvm::Type *, llvm::Value *> getGlobal(llvm::IRBuilder<> &Builder,
-                                                   llvm::LoadInst *ExecCtx,
-                                                   uint32_t Index) {
-    llvm::Type *Ty = Globals[Index];
-    auto *Array = Builder.CreateExtractValue(ExecCtx, {1});
-    auto *VPtr = Builder.CreateLoad(
-        Int128PtrTy,
-        Builder.CreateConstInBoundsGEP1_64(Int128PtrTy, Array, Index));
-    auto *Ptr = Builder.CreateBitCast(VPtr, Ty->getPointerTo());
+  std::pair<LLVM::Type, LLVM::Value> getGlobal(LLVM::Builder &Builder,
+                                               LLVM::Value ExecCtx,
+                                               uint32_t Index) noexcept {
+    auto Ty = Globals[Index];
+    auto Array = Builder.createExtractValue(ExecCtx, 1);
+    auto VPtr = Builder.createLoad(
+        Int128PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
+                                                LLContext.getInt64(Index)));
+    auto Ptr = Builder.createBitCast(VPtr, Ty.getPointerTo());
     return {Ty, Ptr};
   }
-  llvm::Value *getInstrCount(llvm::IRBuilder<> &Builder,
-                             llvm::LoadInst *ExecCtx) {
-    return Builder.CreateExtractValue(ExecCtx, {2});
+  LLVM::Value getInstrCount(LLVM::Builder &Builder,
+                            LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 2);
   }
-  llvm::Value *getCostTable(llvm::IRBuilder<> &Builder,
-                            llvm::LoadInst *ExecCtx) {
-    return Builder.CreateExtractValue(ExecCtx, {3});
+  LLVM::Value getCostTable(LLVM::Builder &Builder,
+                           LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 3);
   }
-  llvm::Value *getGas(llvm::IRBuilder<> &Builder, llvm::LoadInst *ExecCtx) {
-    return Builder.CreateExtractValue(ExecCtx, {4});
+  LLVM::Value getGas(LLVM::Builder &Builder, LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 4);
   }
-  llvm::Value *getGasLimit(llvm::IRBuilder<> &Builder,
-                           llvm::LoadInst *ExecCtx) {
-    return Builder.CreateExtractValue(ExecCtx, {5});
+  LLVM::Value getGasLimit(LLVM::Builder &Builder,
+                          LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 5);
   }
-  llvm::Value *getStopToken(llvm::IRBuilder<> &Builder,
-                            llvm::LoadInst *ExecCtx) {
-    return Builder.CreateExtractValue(ExecCtx, {6});
+  LLVM::Value getStopToken(LLVM::Builder &Builder,
+                           LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 6);
   }
-  llvm::FunctionCallee getIntrinsic(llvm::IRBuilder<> &Builder,
+  LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
                                     AST::Module::Intrinsics Index,
-                                    llvm::FunctionType *Ty) {
+                                    LLVM::Type Ty) noexcept {
     const auto Value = static_cast<uint32_t>(Index);
-    auto *IT = Builder.CreateLoad(IntrinsicsTablePtrTy, IntrinsicsTable);
-    IT->setMetadata(llvm::LLVMContext::MD_invariant_load,
-                    llvm::MDNode::get(LLContext, {}));
-    auto *VPtr =
-        Builder.CreateConstInBoundsGEP2_64(IntrinsicsTableTy, IT, 0, Value);
-    auto *Ptr = Builder.CreateBitCast(VPtr, Ty->getPointerTo()->getPointerTo());
-    return llvm::FunctionCallee(Ty,
-                                Builder.CreateLoad(Ty->getPointerTo(), Ptr));
+    auto PtrTy = Ty.getPointerTo();
+    auto PtrPtrTy = PtrTy.getPointerTo();
+    auto IT = Builder.createLoad(IntrinsicsTablePtrTy, IntrinsicsTable);
+    IT.setMetadata(LLContext, LLVM::Core::InvariantLoad,
+                   LLVM::Metadata(LLContext, {}));
+    auto VPtr =
+        Builder.createInBoundsGEP2(IntrinsicsTableTy, IT, LLContext.getInt64(0),
+                                   LLContext.getInt64(Value));
+    auto Ptr = Builder.createBitCast(VPtr, PtrPtrTy);
+    return {Ty, Builder.createLoad(PtrTy, Ptr)};
   }
   std::pair<std::vector<ValType>, std::vector<ValType>>
-  resolveBlockType(const BlockType &BType) const {
+  resolveBlockType(const BlockType &BType) const noexcept {
     using VecT = std::vector<ValType>;
     using RetT = std::pair<VecT, VecT>;
     if (BType.isEmpty()) {
@@ -455,33 +474,34 @@ namespace {
 
 using namespace WasmEdge;
 
-static bool isVoidReturn(Span<const WasmEdge::ValType> ValTypes) {
+static bool isVoidReturn(Span<const WasmEdge::ValType> ValTypes) noexcept {
   return ValTypes.empty();
 }
 
-static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
-                              const ValType &ValType) {
+static LLVM::Type toLLVMType(LLVM::Context &LLContext,
+                             const ValType &ValType) noexcept {
   switch (ValType) {
   case ValType::I32:
-    return llvm::Type::getInt32Ty(LLContext);
+    return LLContext.getInt32Ty();
   case ValType::I64:
   case ValType::FuncRef:
   case ValType::ExternRef:
-    return llvm::Type::getInt64Ty(LLContext);
+    return LLContext.getInt64Ty();
   case ValType::V128:
-    return llvm::VectorType::get(llvm::Type::getInt64Ty(LLContext), 2, false);
+    return LLVM::Type::getVectorType(LLContext.getInt64Ty(), 2);
   case ValType::F32:
-    return llvm::Type::getFloatTy(LLContext);
+    return LLContext.getFloatTy();
   case ValType::F64:
-    return llvm::Type::getDoubleTy(LLContext);
+    return LLContext.getDoubleTy();
   default:
     assumingUnreachable();
   }
 }
 
-static std::vector<llvm::Type *>
-toLLVMTypeVector(llvm::LLVMContext &LLContext, Span<const ValType> ValTypes) {
-  std::vector<llvm::Type *> Result;
+static std::vector<LLVM::Type>
+toLLVMTypeVector(LLVM::Context &LLContext,
+                 Span<const ValType> ValTypes) noexcept {
+  std::vector<LLVM::Type> Result;
   Result.reserve(ValTypes.size());
   for (const auto &Type : ValTypes) {
     Result.push_back(toLLVMType(LLContext, Type));
@@ -489,53 +509,54 @@ toLLVMTypeVector(llvm::LLVMContext &LLContext, Span<const ValType> ValTypes) {
   return Result;
 }
 
-static std::vector<llvm::Type *> toLLVMArgsType(llvm::PointerType *ExecCtxPtrTy,
-                                                Span<const ValType> ValTypes) {
-  auto Result = toLLVMTypeVector(ExecCtxPtrTy->getContext(), ValTypes);
+static std::vector<LLVM::Type>
+toLLVMArgsType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
+               Span<const ValType> ValTypes) noexcept {
+  auto Result = toLLVMTypeVector(LLContext, ValTypes);
   Result.insert(Result.begin(), ExecCtxPtrTy);
   return Result;
 }
 
-static llvm::Type *toLLVMRetsType(llvm::LLVMContext &LLContext,
-                                  Span<const ValType> ValTypes) {
+static LLVM::Type toLLVMRetsType(LLVM::Context &LLContext,
+                                 Span<const ValType> ValTypes) noexcept {
   if (isVoidReturn(ValTypes)) {
-    return llvm::Type::getVoidTy(LLContext);
+    return LLContext.getVoidTy();
   }
   if (ValTypes.size() == 1) {
     return toLLVMType(LLContext, ValTypes.front());
   }
-  std::vector<llvm::Type *> Result;
+  std::vector<LLVM::Type> Result;
   Result.reserve(ValTypes.size());
   for (const auto &Type : ValTypes) {
     Result.push_back(toLLVMType(LLContext, Type));
   }
-  return llvm::StructType::create(Result);
+  return LLVM::Type::getStructType(Result);
 }
 
-static llvm::FunctionType *toLLVMType(llvm::PointerType *ExecCtxPtrTy,
-                                      const AST::FunctionType &FuncType) {
-  auto ArgsTy = toLLVMArgsType(ExecCtxPtrTy, FuncType.getParamTypes());
-  auto RetTy =
-      toLLVMRetsType(ExecCtxPtrTy->getContext(), FuncType.getReturnTypes());
-  return llvm::FunctionType::get(RetTy, ArgsTy, false);
+static LLVM::Type toLLVMType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
+                             const AST::FunctionType &FuncType) noexcept {
+  auto ArgsTy =
+      toLLVMArgsType(LLContext, ExecCtxPtrTy, FuncType.getParamTypes());
+  auto RetTy = toLLVMRetsType(LLContext, FuncType.getReturnTypes());
+  return LLVM::Type::getFunctionType(RetTy, ArgsTy);
 }
 
-static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
-                                          const ValType &ValType) {
+static LLVM::Value toLLVMConstantZero(LLVM::Context &LLContext,
+                                      const ValType &ValType) noexcept {
   switch (ValType) {
   case ValType::I32:
-    return llvm::ConstantInt::get(llvm::Type::getInt32Ty(LLContext), 0);
+    return LLVM::Value::getConstNull(LLContext.getInt32Ty());
   case ValType::I64:
   case ValType::FuncRef:
   case ValType::ExternRef:
-    return llvm::ConstantInt::get(llvm::Type::getInt64Ty(LLContext), 0);
+    return LLVM::Value::getConstNull(LLContext.getInt64Ty());
   case ValType::V128:
-    return llvm::ConstantAggregateZero::get(
-        llvm::VectorType::get(llvm::Type::getInt64Ty(LLContext), 2, false));
+    return LLVM::Value::getConstNull(
+        LLVM::Type::getVectorType(LLContext.getInt64Ty(), 2));
   case ValType::F32:
-    return llvm::ConstantFP::get(llvm::Type::getFloatTy(LLContext), 0.0);
+    return LLVM::Value::getConstNull(LLContext.getFloatTy());
   case ValType::F64:
-    return llvm::ConstantFP::get(llvm::Type::getDoubleTy(LLContext), 0.0);
+    return LLVM::Value::getConstNull(LLContext.getDoubleTy());
   default:
     assumingUnreachable();
   }
@@ -545,94 +566,90 @@ class FunctionCompiler {
   struct Control;
 
 public:
-  FunctionCompiler(AOT::Compiler::CompileContext &Context, llvm::Function *F,
-                   Span<const ValType> Locals, bool Interruptible,
-                   bool InstructionCounting, bool GasMeasuring, bool OptNone)
+  FunctionCompiler(AOT::Compiler::CompileContext &Context,
+                   LLVM::FunctionCallee F, Span<const ValType> Locals,
+                   bool Interruptible, bool InstructionCounting,
+                   bool GasMeasuring, bool OptNone) noexcept
       : Context(Context), LLContext(Context.LLContext),
         Interruptible(Interruptible), OptNone(OptNone), F(F),
-        Builder(llvm::BasicBlock::Create(LLContext, "entry", F)) {
-    if (F) {
-      setIsFPConstrained(Builder);
-      ExecCtx = Builder.CreateLoad(Context.ExecCtxTy, F->arg_begin());
+        Builder(LLContext) {
+    if (F.Fn) {
+      Builder.positionAtEnd(LLVM::BasicBlock::create(LLContext, F.Fn, "entry"));
+      ExecCtx = Builder.createLoad(Context.ExecCtxTy, F.Fn.getFirstParam());
 
       if (InstructionCounting) {
-        LocalInstrCount = Builder.CreateAlloca(Context.Int64Ty);
-        Builder.CreateStore(Builder.getInt64(0), LocalInstrCount);
+        LocalInstrCount = Builder.createAlloca(Context.Int64Ty);
+        Builder.createStore(LLContext.getInt64(0), LocalInstrCount);
       }
 
       if (GasMeasuring) {
-        LocalGas = Builder.CreateAlloca(Context.Int64Ty);
-        Builder.CreateStore(Builder.getInt64(0), LocalGas);
+        LocalGas = Builder.createAlloca(Context.Int64Ty);
+        Builder.createStore(LLContext.getInt64(0), LocalGas);
       }
 
-      for (llvm::Argument *Arg = F->arg_begin() + 1; Arg != F->arg_end();
-           ++Arg) {
-        llvm::Type *Ty = Arg->getType();
-        llvm::Value *ArgPtr = Builder.CreateAlloca(Ty);
-        Builder.CreateStore(Arg, ArgPtr);
+      for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam(); Arg;
+           Arg = Arg.getNextParam()) {
+        LLVM::Type Ty = Arg.getType();
+        LLVM::Value ArgPtr = Builder.createAlloca(Ty);
+        Builder.createStore(Arg, ArgPtr);
         Local.emplace_back(Ty, ArgPtr);
       }
 
       for (const auto &Type : Locals) {
-        llvm::Type *Ty = toLLVMType(LLContext, Type);
-        llvm::Value *ArgPtr = Builder.CreateAlloca(Ty);
-        Builder.CreateStore(toLLVMConstantZero(LLContext, Type), ArgPtr);
+        LLVM::Type Ty = toLLVMType(LLContext, Type);
+        LLVM::Value ArgPtr = Builder.createAlloca(Ty);
+        Builder.createStore(toLLVMConstantZero(LLContext, Type), ArgPtr);
         Local.emplace_back(Ty, ArgPtr);
       }
     }
   }
 
-  ~FunctionCompiler() noexcept {
-    if (!F) {
-      delete Builder.GetInsertBlock();
-    }
-  }
-
-  llvm::BasicBlock *getTrapBB(ErrCode::Value Error) {
+  LLVM::BasicBlock getTrapBB(ErrCode::Value Error) noexcept {
     if (auto Iter = TrapBB.find(Error); Iter != TrapBB.end()) {
       return Iter->second;
     }
-    auto *BB = llvm::BasicBlock::Create(LLContext, "trap", F);
+    auto BB = LLVM::BasicBlock::create(LLContext, F.Fn, "trap");
     TrapBB.emplace(Error, BB);
     return BB;
   }
 
-  void compile(const AST::CodeSegment &Code,
-               std::pair<std::vector<ValType>, std::vector<ValType>> Type) {
-    auto *RetBB = llvm::BasicBlock::Create(LLContext, "ret", F);
+  void
+  compile(const AST::CodeSegment &Code,
+          std::pair<std::vector<ValType>, std::vector<ValType>> Type) noexcept {
+    auto RetBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ret");
     Type.first.clear();
-    enterBlock(RetBB, nullptr, nullptr, {}, std::move(Type));
+    enterBlock(RetBB, {}, {}, {}, std::move(Type));
     compile(Code.getExpr().getInstrs());
     assuming(ControlStack.empty());
     compileReturn();
 
     for (auto &[Error, BB] : TrapBB) {
-      Builder.SetInsertPoint(BB);
+      Builder.positionAtEnd(BB);
       updateInstrCount();
       updateGasAtTrap();
-      auto *CallTrap = Builder.CreateCall(
-          Context.Trap, {Builder.getInt32(static_cast<uint32_t>(Error))});
-      CallTrap->setDoesNotReturn();
-      Builder.CreateUnreachable();
+      auto CallTrap = Builder.createCall(
+          Context.Trap, {LLContext.getInt32(static_cast<uint32_t>(Error))});
+      CallTrap.addCallSiteAttribute(Context.NoReturn);
+      Builder.createUnreachable();
     }
   }
 
-  void compile(AST::InstrView Instrs) {
+  void compile(AST::InstrView Instrs) noexcept {
     auto Dispatch = [this](const AST::Instruction &Instr) -> void {
       switch (Instr.getOpCode()) {
       case OpCode::Block: {
-        auto *Block = llvm::BasicBlock::Create(LLContext, "block", F);
-        auto *EndBlock = llvm::BasicBlock::Create(LLContext, "block.end", F);
-        Builder.CreateBr(Block);
+        auto Block = LLVM::BasicBlock::create(LLContext, F.Fn, "block");
+        auto EndBlock = LLVM::BasicBlock::create(LLContext, F.Fn, "block.end");
+        Builder.createBr(Block);
 
-        Builder.SetInsertPoint(Block);
+        Builder.positionAtEnd(Block);
         auto Type = Context.resolveBlockType(Instr.getBlockType());
         const auto Arity = Type.first.size();
-        std::vector<llvm::Value *> Args(Arity);
+        std::vector<LLVM::Value> Args(Arity);
         if (isUnreachable()) {
           for (size_t I = 0; I < Arity; ++I) {
-            auto *Ty = toLLVMType(LLContext, Type.first[I]);
-            Args[I] = llvm::UndefValue::get(Ty);
+            auto Ty = toLLVMType(LLContext, Type.first[I]);
+            Args[I] = LLVM::Value::getUndef(Ty);
           }
         } else {
           for (size_t I = 0; I < Arity; ++I) {
@@ -640,64 +657,63 @@ public:
             Args[J] = stackPop();
           }
         }
-        enterBlock(EndBlock, nullptr, nullptr, std::move(Args),
-                   std::move(Type));
+        enterBlock(EndBlock, {}, {}, std::move(Args), std::move(Type));
         checkStop();
         updateGas();
         return;
       }
       case OpCode::Loop: {
-        auto *Curr = Builder.GetInsertBlock();
-        auto *Loop = llvm::BasicBlock::Create(LLContext, "loop", F);
-        auto *EndLoop = llvm::BasicBlock::Create(LLContext, "loop.end", F);
-        Builder.CreateBr(Loop);
+        auto Curr = Builder.getInsertBlock();
+        auto Loop = LLVM::BasicBlock::create(LLContext, F.Fn, "loop");
+        auto EndLoop = LLVM::BasicBlock::create(LLContext, F.Fn, "loop.end");
+        Builder.createBr(Loop);
 
-        Builder.SetInsertPoint(Loop);
+        Builder.positionAtEnd(Loop);
         auto Type = Context.resolveBlockType(Instr.getBlockType());
         const auto Arity = Type.first.size();
-        std::vector<llvm::Value *> Args(Arity);
+        std::vector<LLVM::Value> Args(Arity);
         if (isUnreachable()) {
           for (size_t I = 0; I < Arity; ++I) {
-            auto *Ty = toLLVMType(LLContext, Type.first[I]);
-            auto *Value = llvm::UndefValue::get(Ty);
-            auto *PHINode = Builder.CreatePHI(Ty, 2);
-            PHINode->addIncoming(Value, Curr);
+            auto Ty = toLLVMType(LLContext, Type.first[I]);
+            auto Value = LLVM::Value::getUndef(Ty);
+            auto PHINode = Builder.createPHI(Ty);
+            PHINode.addIncoming(Value, Curr);
             Args[I] = PHINode;
           }
         } else {
           for (size_t I = 0; I < Arity; ++I) {
             const size_t J = Arity - 1 - I;
-            auto *Value = stackPop();
-            auto *PHINode = Builder.CreatePHI(Value->getType(), 2);
-            PHINode->addIncoming(Value, Curr);
+            auto Value = stackPop();
+            auto PHINode = Builder.createPHI(Value.getType());
+            PHINode.addIncoming(Value, Curr);
             Args[J] = PHINode;
           }
         }
-        enterBlock(Loop, EndLoop, nullptr, std::move(Args), std::move(Type));
+        enterBlock(Loop, EndLoop, {}, std::move(Args), std::move(Type));
         checkStop();
         updateGas();
         return;
       }
       case OpCode::If: {
-        auto *Then = llvm::BasicBlock::Create(LLContext, "then", F);
-        auto *Else = llvm::BasicBlock::Create(LLContext, "else", F);
-        auto *EndIf = llvm::BasicBlock::Create(LLContext, "if.end", F);
-        llvm::Value *Cond;
+        auto Then = LLVM::BasicBlock::create(LLContext, F.Fn, "then");
+        auto Else = LLVM::BasicBlock::create(LLContext, F.Fn, "else");
+        auto EndIf = LLVM::BasicBlock::create(LLContext, F.Fn, "if.end");
+        LLVM::Value Cond;
         if (isUnreachable()) {
-          Cond = llvm::UndefValue::get(Builder.getInt1Ty());
+          Cond = LLVM::Value::getUndef(LLContext.getInt1Ty());
         } else {
-          Cond = Builder.CreateICmpNE(stackPop(), Builder.getInt32(0));
+          Cond = Builder.createICmpNE(stackPop(), LLContext.getInt32(0));
         }
-        Builder.CreateCondBr(Cond, Then, Else);
+        Builder.createCondBr(Cond, Then, Else);
 
-        Builder.SetInsertPoint(Then);
+        Builder.positionAtEnd(Then);
         auto Type = Context.resolveBlockType(Instr.getBlockType());
         const auto Arity = Type.first.size();
-        std::vector<llvm::Value *> Args(Arity);
+        std::vector<LLVM::Value> Args(Arity);
         if (isUnreachable()) {
           for (size_t I = 0; I < Arity; ++I) {
-            auto *Ty = toLLVMType(LLContext, Type.first[I]);
-            Args[I] = llvm::UndefValue::get(Ty);
+            auto Ty = toLLVMType(LLContext, Type.first[I]);
+            Args[I] = LLVM::Value::getUndef(Ty);
           }
         } else {
           for (size_t I = 0; I < Arity; ++I) {
@@ -705,15 +721,15 @@ public:
             Args[J] = stackPop();
           }
         }
-        enterBlock(EndIf, nullptr, Else, std::move(Args), std::move(Type));
+        enterBlock(EndIf, {}, Else, std::move(Args), std::move(Type));
         return;
       }
       case OpCode::End: {
         auto Entry = leaveBlock();
         if (Entry.ElseBlock) {
-          auto *Block = Builder.GetInsertBlock();
-          Builder.SetInsertPoint(Entry.ElseBlock);
-          enterBlock(Block, nullptr, nullptr, std::move(Entry.Args),
+          auto Block = Builder.getInsertBlock();
+          Builder.positionAtEnd(Entry.ElseBlock);
+          enterBlock(Block, {}, {}, std::move(Entry.Args),
                      std::move(Entry.Type), std::move(Entry.ReturnPHI));
           Entry = leaveBlock();
         }
@@ -722,8 +738,8 @@ public:
       }
       case OpCode::Else: {
         auto Entry = leaveBlock();
-        Builder.SetInsertPoint(Entry.ElseBlock);
-        enterBlock(Entry.JumpBlock, nullptr, nullptr, std::move(Entry.Args),
+        Builder.positionAtEnd(Entry.ElseBlock);
+        enterBlock(Entry.JumpBlock, {}, {}, std::move(Entry.Args),
                    std::move(Entry.Type), std::move(Entry.ReturnPHI));
         return;
       }
@@ -737,35 +753,35 @@ public:
 
       switch (Instr.getOpCode()) {
       case OpCode::Unreachable:
-        Builder.CreateBr(getTrapBB(ErrCode::Value::Unreachable));
+        Builder.createBr(getTrapBB(ErrCode::Value::Unreachable));
         setUnreachable();
-        Builder.SetInsertPoint(
-            llvm::BasicBlock::Create(LLContext, "unreachable.end", F));
+        Builder.positionAtEnd(
+            LLVM::BasicBlock::create(LLContext, F.Fn, "unreachable.end"));
         break;
       case OpCode::Nop:
         break;
       case OpCode::Return:
         compileReturn();
         setUnreachable();
-        Builder.SetInsertPoint(
-            llvm::BasicBlock::Create(LLContext, "ret.end", F));
+        Builder.positionAtEnd(
+            LLVM::BasicBlock::create(LLContext, F.Fn, "ret.end"));
         break;
       case OpCode::Br: {
         const auto Label = Instr.getJump().TargetIndex;
         setLableJumpPHI(Label);
-        Builder.CreateBr(getLabel(Label));
+        Builder.createBr(getLabel(Label));
         setUnreachable();
-        Builder.SetInsertPoint(
-            llvm::BasicBlock::Create(LLContext, "br.end", F));
+        Builder.positionAtEnd(
+            LLVM::BasicBlock::create(LLContext, F.Fn, "br.end"));
         break;
       }
       case OpCode::Br_if: {
         const auto Label = Instr.getJump().TargetIndex;
-        auto *Cond = Builder.CreateICmpNE(stackPop(), Builder.getInt32(0));
+        auto Cond = Builder.createICmpNE(stackPop(), LLContext.getInt32(0));
         setLableJumpPHI(Label);
-        auto *Next = llvm::BasicBlock::Create(LLContext, "br_if.end", F);
-        Builder.CreateCondBr(Cond, getLabel(Label), Next);
-        Builder.SetInsertPoint(Next);
+        auto Next = LLVM::BasicBlock::create(LLContext, F.Fn, "br_if.end");
+        Builder.createCondBr(Cond, getLabel(Label), Next);
+        Builder.positionAtEnd(Next);
         break;
       }
       case OpCode::Br_table: {
@@ -773,19 +789,19 @@ public:
         assuming(LabelTable.size() <= std::numeric_limits<uint32_t>::max());
         const auto LabelTableSize =
             static_cast<uint32_t>(LabelTable.size() - 1);
-        auto *Value = stackPop();
+        auto Value = stackPop();
         setLableJumpPHI(LabelTable[LabelTableSize].TargetIndex);
-        auto *Switch = Builder.CreateSwitch(
+        auto Switch = Builder.createSwitch(
             Value, getLabel(LabelTable[LabelTableSize].TargetIndex),
             LabelTableSize);
         for (uint32_t I = 0; I < LabelTableSize; ++I) {
           setLableJumpPHI(LabelTable[I].TargetIndex);
-          Switch->addCase(Builder.getInt32(I),
-                          getLabel(LabelTable[I].TargetIndex));
+          Switch.addCase(LLContext.getInt32(I),
+                         getLabel(LabelTable[I].TargetIndex));
         }
         setUnreachable();
-        Builder.SetInsertPoint(
-            llvm::BasicBlock::Create(LLContext, "br_table.end", F));
+        Builder.positionAtEnd(
+            LLVM::BasicBlock::create(LLContext, F.Fn, "br_table.end"));
         break;
       }
       case OpCode::Call:
@@ -803,8 +819,8 @@ public:
         updateGas();
         compileReturnCallOp(Instr.getTargetIndex());
         setUnreachable();
-        Builder.SetInsertPoint(
-            llvm::BasicBlock::Create(LLContext, "ret_call.end", F));
+        Builder.positionAtEnd(
+            LLVM::BasicBlock::create(LLContext, F.Fn, "ret_call.end"));
         break;
       case OpCode::Return_call_indirect:
         updateInstrCount();
@@ -812,156 +828,156 @@ public:
         compileReturnIndirectCallOp(Instr.getSourceIndex(),
                                     Instr.getTargetIndex());
         setUnreachable();
-        Builder.SetInsertPoint(
-            llvm::BasicBlock::Create(LLContext, "ret_call_indir.end", F));
+        Builder.positionAtEnd(
+            LLVM::BasicBlock::create(LLContext, F.Fn, "ret_call_indir.end"));
         break;
       case OpCode::Ref__null:
-        stackPush(Builder.getInt64(0));
+        stackPush(LLContext.getInt64(0));
         break;
       case OpCode::Ref__is_null:
-        stackPush(Builder.CreateZExt(
-            Builder.CreateICmpEQ(stackPop(), Builder.getInt64(0)),
+        stackPush(Builder.createZExt(
+            Builder.createICmpEQ(stackPop(), LLContext.getInt64(0)),
             Context.Int32Ty));
         break;
       case OpCode::Ref__func:
-        stackPush(Builder.CreateCall(
+        stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, AST::Module::Intrinsics::kRefFunc,
-                                 llvm::FunctionType::get(Context.Int64Ty,
-                                                         {Context.Int32Ty},
-                                                         false)),
-            {Builder.getInt32(Instr.getTargetIndex())}));
+                                 LLVM::Type::getFunctionType(Context.Int64Ty,
+                                                             {Context.Int32Ty},
+                                                             false)),
+            {LLContext.getInt32(Instr.getTargetIndex())}));
         break;
       case OpCode::Drop:
         stackPop();
         break;
       case OpCode::Select:
       case OpCode::Select_t: {
-        auto *Cond = Builder.CreateICmpNE(stackPop(), Builder.getInt32(0));
-        auto *False = stackPop();
-        auto *True = stackPop();
-        stackPush(Builder.CreateSelect(Cond, True, False));
+        auto Cond = Builder.createICmpNE(stackPop(), LLContext.getInt32(0));
+        auto False = stackPop();
+        auto True = stackPop();
+        stackPush(Builder.createSelect(Cond, True, False));
         break;
       }
       case OpCode::Local__get: {
         const auto &L = Local[Instr.getTargetIndex()];
-        stackPush(Builder.CreateLoad(L.first, L.second));
+        stackPush(Builder.createLoad(L.first, L.second));
         break;
       }
       case OpCode::Local__set:
-        Builder.CreateStore(stackPop(), Local[Instr.getTargetIndex()].second);
+        Builder.createStore(stackPop(), Local[Instr.getTargetIndex()].second);
         break;
       case OpCode::Local__tee:
-        Builder.CreateStore(Stack.back(), Local[Instr.getTargetIndex()].second);
+        Builder.createStore(Stack.back(), Local[Instr.getTargetIndex()].second);
         break;
       case OpCode::Global__get: {
         const auto G =
             Context.getGlobal(Builder, ExecCtx, Instr.getTargetIndex());
-        stackPush(Builder.CreateLoad(G.first, G.second));
+        stackPush(Builder.createLoad(G.first, G.second));
         break;
       }
       case OpCode::Global__set:
-        Builder.CreateStore(
+        Builder.createStore(
             stackPop(),
             Context.getGlobal(Builder, ExecCtx, Instr.getTargetIndex()).second);
         break;
       case OpCode::Table__get: {
-        auto *Idx = stackPop();
-        stackPush(Builder.CreateCall(
+        auto Idx = stackPop();
+        stackPush(Builder.createCall(
             Context.getIntrinsic(
                 Builder, AST::Module::Intrinsics::kTableGet,
-                llvm::FunctionType::get(Context.Int64Ty,
-                                        {Context.Int32Ty, Context.Int32Ty},
-                                        false)),
-            {Builder.getInt32(Instr.getTargetIndex()), Idx}));
+                LLVM::Type::getFunctionType(Context.Int64Ty,
+                                            {Context.Int32Ty, Context.Int32Ty},
+                                            false)),
+            {LLContext.getInt32(Instr.getTargetIndex()), Idx}));
         break;
       }
       case OpCode::Table__set: {
-        auto *Ref = stackPop();
-        auto *Idx = stackPop();
-        Builder.CreateCall(
+        auto Ref = stackPop();
+        auto Idx = stackPop();
+        Builder.createCall(
             Context.getIntrinsic(
                 Builder, AST::Module::Intrinsics::kTableSet,
-                llvm::FunctionType::get(
+                LLVM::Type::getFunctionType(
                     Context.Int64Ty,
                     {Context.Int32Ty, Context.Int32Ty, Context.Int64Ty},
                     false)),
-            {Builder.getInt32(Instr.getTargetIndex()), Idx, Ref});
+            {LLContext.getInt32(Instr.getTargetIndex()), Idx, Ref});
         break;
       }
       case OpCode::Table__init: {
-        auto *Len = stackPop();
-        auto *Src = stackPop();
-        auto *Dst = stackPop();
-        Builder.CreateCall(
+        auto Len = stackPop();
+        auto Src = stackPop();
+        auto Dst = stackPop();
+        Builder.createCall(
             Context.getIntrinsic(
                 Builder, AST::Module::Intrinsics::kTableInit,
-                llvm::FunctionType::get(Context.VoidTy,
-                                        {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int32Ty},
-                                        false)),
-            {Builder.getInt32(Instr.getTargetIndex()),
-             Builder.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int32Ty},
+                                            false)),
+            {LLContext.getInt32(Instr.getTargetIndex()),
+             LLContext.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
         break;
       }
       case OpCode::Elem__drop: {
-        Builder.CreateCall(
+        Builder.createCall(
             Context.getIntrinsic(Builder, AST::Module::Intrinsics::kElemDrop,
-                                 llvm::FunctionType::get(
+                                 LLVM::Type::getFunctionType(
                                      Context.VoidTy, {Context.Int32Ty}, false)),
-            {Builder.getInt32(Instr.getTargetIndex())});
+            {LLContext.getInt32(Instr.getTargetIndex())});
         break;
       }
       case OpCode::Table__copy: {
-        auto *Len = stackPop();
-        auto *Src = stackPop();
-        auto *Dst = stackPop();
-        Builder.CreateCall(
+        auto Len = stackPop();
+        auto Src = stackPop();
+        auto Dst = stackPop();
+        Builder.createCall(
             Context.getIntrinsic(
                 Builder, AST::Module::Intrinsics::kTableCopy,
-                llvm::FunctionType::get(Context.VoidTy,
-                                        {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int32Ty},
-                                        false)),
-            {Builder.getInt32(Instr.getTargetIndex()),
-             Builder.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int32Ty},
+                                            false)),
+            {LLContext.getInt32(Instr.getTargetIndex()),
+             LLContext.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
         break;
       }
       case OpCode::Table__grow: {
-        auto *NewSize = stackPop();
-        auto *Val = stackPop();
-        stackPush(Builder.CreateCall(
+        auto NewSize = stackPop();
+        auto Val = stackPop();
+        stackPush(Builder.createCall(
             Context.getIntrinsic(
                 Builder, AST::Module::Intrinsics::kTableGrow,
-                llvm::FunctionType::get(
+                LLVM::Type::getFunctionType(
                     Context.Int32Ty,
                     {Context.Int32Ty, Context.Int64Ty, Context.Int32Ty},
                     false)),
-            {Builder.getInt32(Instr.getTargetIndex()), Val, NewSize}));
+            {LLContext.getInt32(Instr.getTargetIndex()), Val, NewSize}));
         break;
       }
       case OpCode::Table__size: {
-        stackPush(Builder.CreateCall(
+        stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, AST::Module::Intrinsics::kTableSize,
-                                 llvm::FunctionType::get(Context.Int32Ty,
-                                                         {Context.Int32Ty},
-                                                         false)),
-            {Builder.getInt32(Instr.getTargetIndex())}));
+                                 LLVM::Type::getFunctionType(Context.Int32Ty,
+                                                             {Context.Int32Ty},
+                                                             false)),
+            {LLContext.getInt32(Instr.getTargetIndex())}));
         break;
       }
       case OpCode::Table__fill: {
-        auto *Len = stackPop();
-        auto *Val = stackPop();
-        auto *Off = stackPop();
-        Builder.CreateCall(
+        auto Len = stackPop();
+        auto Val = stackPop();
+        auto Off = stackPop();
+        Builder.createCall(
             Context.getIntrinsic(
                 Builder, AST::Module::Intrinsics::kTableFill,
-                llvm::FunctionType::get(Context.Int32Ty,
-                                        {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int64Ty, Context.Int32Ty},
-                                        false)),
-            {Builder.getInt32(Instr.getTargetIndex()), Off, Val, Len});
+                LLVM::Type::getFunctionType(Context.Int32Ty,
+                                            {Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int64Ty, Context.Int32Ty},
+                                            false)),
+            {LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
         break;
       }
       case OpCode::I32__load:
@@ -1062,179 +1078,193 @@ public:
                        Instr.getMemoryAlign(), Context.Int32Ty, true);
         break;
       case OpCode::Memory__size:
-        stackPush(Builder.CreateCall(
+        stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, AST::Module::Intrinsics::kMemSize,
-                                 llvm::FunctionType::get(Context.Int32Ty,
-                                                         {Context.Int32Ty},
-                                                         false)),
-            {Builder.getInt32(Instr.getTargetIndex())}));
+                                 LLVM::Type::getFunctionType(Context.Int32Ty,
+                                                             {Context.Int32Ty},
+                                                             false)),
+            {LLContext.getInt32(Instr.getTargetIndex())}));
         break;
       case OpCode::Memory__grow: {
-        auto *Diff = stackPop();
-        stackPush(Builder.CreateCall(
+        auto Diff = stackPop();
+        stackPush(Builder.createCall(
             Context.getIntrinsic(
                 Builder, AST::Module::Intrinsics::kMemGrow,
-                llvm::FunctionType::get(Context.Int32Ty,
-                                        {Context.Int32Ty, Context.Int32Ty},
-                                        false)),
-            {Builder.getInt32(Instr.getTargetIndex()), Diff}));
+                LLVM::Type::getFunctionType(Context.Int32Ty,
+                                            {Context.Int32Ty, Context.Int32Ty},
+                                            false)),
+            {LLContext.getInt32(Instr.getTargetIndex()), Diff}));
         break;
       }
       case OpCode::Memory__init: {
-        auto *Len = stackPop();
-        auto *Src = stackPop();
-        auto *Dst = stackPop();
-        Builder.CreateCall(
+        auto Len = stackPop();
+        auto Src = stackPop();
+        auto Dst = stackPop();
+        Builder.createCall(
             Context.getIntrinsic(
                 Builder, AST::Module::Intrinsics::kMemInit,
-                llvm::FunctionType::get(Context.VoidTy,
-                                        {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int32Ty},
-                                        false)),
-            {Builder.getInt32(Instr.getTargetIndex()),
-             Builder.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int32Ty},
+                                            false)),
+            {LLContext.getInt32(Instr.getTargetIndex()),
+             LLContext.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
         break;
       }
       case OpCode::Data__drop: {
-        Builder.CreateCall(
+        Builder.createCall(
             Context.getIntrinsic(Builder, AST::Module::Intrinsics::kDataDrop,
-                                 llvm::FunctionType::get(
+                                 LLVM::Type::getFunctionType(
                                      Context.VoidTy, {Context.Int32Ty}, false)),
-            {Builder.getInt32(Instr.getTargetIndex())});
+            {LLContext.getInt32(Instr.getTargetIndex())});
         break;
       }
       case OpCode::Memory__copy: {
-        auto *Len = stackPop();
-        auto *Src = stackPop();
-        auto *Dst = stackPop();
-        Builder.CreateCall(
+        auto Len = stackPop();
+        auto Src = stackPop();
+        auto Dst = stackPop();
+        Builder.createCall(
             Context.getIntrinsic(
                 Builder, AST::Module::Intrinsics::kMemCopy,
-                llvm::FunctionType::get(Context.VoidTy,
-                                        {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int32Ty},
-                                        false)),
-            {Builder.getInt32(Instr.getTargetIndex()),
-             Builder.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int32Ty},
+                                            false)),
+            {LLContext.getInt32(Instr.getTargetIndex()),
+             LLContext.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
         break;
       }
       case OpCode::Memory__fill: {
-        auto *Len = stackPop();
-        auto *Val = Builder.CreateTrunc(stackPop(), Context.Int8Ty);
-        auto *Off = stackPop();
-        Builder.CreateCall(
+        auto Len = stackPop();
+        auto Val = Builder.createTrunc(stackPop(), Context.Int8Ty);
+        auto Off = stackPop();
+        Builder.createCall(
             Context.getIntrinsic(
                 Builder, AST::Module::Intrinsics::kMemFill,
-                llvm::FunctionType::get(Context.VoidTy,
-                                        {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int8Ty, Context.Int32Ty},
-                                        false)),
-            {Builder.getInt32(Instr.getTargetIndex()), Off, Val, Len});
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int8Ty, Context.Int32Ty},
+                                            false)),
+            {LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
         break;
       }
       case OpCode::I32__const:
-        stackPush(Builder.getInt32(Instr.getNum().get<uint32_t>()));
+        stackPush(LLContext.getInt32(Instr.getNum().get<uint32_t>()));
         break;
       case OpCode::I64__const:
-        stackPush(Builder.getInt64(Instr.getNum().get<uint64_t>()));
+        stackPush(LLContext.getInt64(Instr.getNum().get<uint64_t>()));
         break;
       case OpCode::F32__const:
-        stackPush(llvm::ConstantFP::get(
-            Context.FloatTy, llvm::APFloat(Instr.getNum().get<float>())));
+        stackPush(LLContext.getFloat(Instr.getNum().get<float>()));
         break;
       case OpCode::F64__const:
-        stackPush(llvm::ConstantFP::get(
-            Context.DoubleTy, llvm::APFloat(Instr.getNum().get<double>())));
+        stackPush(LLContext.getDouble(Instr.getNum().get<double>()));
         break;
       case OpCode::I32__eqz:
-        stackPush(Builder.CreateZExt(
-            Builder.CreateICmpEQ(stackPop(), Builder.getInt32(0)),
+        stackPush(Builder.createZExt(
+            Builder.createICmpEQ(stackPop(), LLContext.getInt32(0)),
             Context.Int32Ty));
         break;
       case OpCode::I64__eqz:
-        stackPush(Builder.CreateZExt(
-            Builder.CreateICmpEQ(stackPop(), Builder.getInt64(0)),
+        stackPush(Builder.createZExt(
+            Builder.createICmpEQ(stackPop(), LLContext.getInt64(0)),
             Context.Int32Ty));
         break;
       case OpCode::I32__clz:
+        assuming(LLVM::Core::Ctlz != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createIntrinsic(LLVM::Core::Ctlz, {Context.Int32Ty},
+                                          {stackPop(), LLContext.getFalse()}));
+        break;
       case OpCode::I64__clz:
-        stackPush(Builder.CreateBinaryIntrinsic(
-            llvm::Intrinsic::ctlz, stackPop(), Builder.getFalse()));
+        assuming(LLVM::Core::Ctlz != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createIntrinsic(LLVM::Core::Ctlz, {Context.Int64Ty},
+                                          {stackPop(), LLContext.getFalse()}));
         break;
       case OpCode::I32__ctz:
+        assuming(LLVM::Core::Cttz != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createIntrinsic(LLVM::Core::Cttz, {Context.Int32Ty},
+                                          {stackPop(), LLContext.getFalse()}));
+        break;
       case OpCode::I64__ctz:
-        stackPush(Builder.CreateBinaryIntrinsic(
-            llvm::Intrinsic::cttz, stackPop(), Builder.getFalse()));
+        assuming(LLVM::Core::Cttz != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createIntrinsic(LLVM::Core::Cttz, {Context.Int64Ty},
+                                          {stackPop(), LLContext.getFalse()}));
         break;
       case OpCode::I32__popcnt:
       case OpCode::I64__popcnt:
-        stackPush(
-            Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ctpop, stackPop()));
+        assuming(LLVM::Core::Ctpop != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createUnaryIntrinsic(LLVM::Core::Ctpop, stackPop()));
         break;
       case OpCode::F32__abs:
       case OpCode::F64__abs:
-        stackPush(
-            Builder.CreateUnaryIntrinsic(llvm::Intrinsic::fabs, stackPop()));
+        assuming(LLVM::Core::Fabs != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createUnaryIntrinsic(LLVM::Core::Fabs, stackPop()));
         break;
       case OpCode::F32__neg:
       case OpCode::F64__neg:
-        stackPush(Builder.CreateFNeg(stackPop()));
+        stackPush(Builder.createFNeg(stackPop()));
         break;
       case OpCode::F32__ceil:
       case OpCode::F64__ceil:
-        stackPush(
-            Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ceil, stackPop()));
+        assuming(LLVM::Core::Ceil != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createUnaryIntrinsic(LLVM::Core::Ceil, stackPop()));
         break;
       case OpCode::F32__floor:
       case OpCode::F64__floor:
-        stackPush(
-            Builder.CreateUnaryIntrinsic(llvm::Intrinsic::floor, stackPop()));
+        assuming(LLVM::Core::Floor != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createUnaryIntrinsic(LLVM::Core::Floor, stackPop()));
         break;
       case OpCode::F32__trunc:
       case OpCode::F64__trunc:
-        stackPush(
-            Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, stackPop()));
+        assuming(LLVM::Core::Trunc != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createUnaryIntrinsic(LLVM::Core::Trunc, stackPop()));
         break;
       case OpCode::F32__nearest:
       case OpCode::F64__nearest: {
         const bool IsFloat = Instr.getOpCode() == OpCode::F32__nearest;
+        LLVM::Value Value = stackPop();
+
+#if LLVM_VERSION_MAJOR >= 12
+        assuming(LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic);
+        if (LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic) {
+          stackPush(Builder.createUnaryIntrinsic(LLVM::Core::Roundeven, Value));
+          break;
+        }
+#endif
+
         // The VectorSize is only used when SSE4_1 or NEON is supported.
         [[maybe_unused]] const uint32_t VectorSize = IsFloat ? 4 : 2;
-        llvm::Value *Value = stackPop();
-
 #if defined(__x86_64__)
         if (Context.SupportSSE4_1) {
-          const uint64_t kZero = 0;
-          auto *VectorTy =
-              llvm::VectorType::get(Value->getType(), VectorSize, false);
-          llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
-          Ret = Builder.CreateInsertElement(Ret, Value, kZero);
-          auto ID = IsFloat ? llvm::Intrinsic::x86_sse41_round_ss
-                            : llvm::Intrinsic::x86_sse41_round_sd;
-          Ret =
-              Builder.CreateIntrinsic(ID, {}, {Ret, Ret, Builder.getInt32(8)});
-          Ret = Builder.CreateExtractElement(Ret, kZero);
+          auto Zero = LLContext.getInt64(0);
+          auto VectorTy =
+              LLVM::Type::getVectorType(Value.getType(), VectorSize);
+          LLVM::Value Ret = LLVM::Value::getUndef(VectorTy);
+          Ret = Builder.createInsertElement(Ret, Value, Zero);
+          auto ID = IsFloat ? LLVM::Core::X86SSE41RoundSs
+                            : LLVM::Core::X86SSE41RoundSd;
+          assuming(ID != LLVM::Core::NotIntrinsic);
+          Ret = Builder.createIntrinsic(ID, {},
+                                        {Ret, Ret, LLContext.getInt32(8)});
+          Ret = Builder.createExtractElement(Ret, Zero);
           stackPush(Ret);
           break;
         }
 #endif
 
 #if defined(__aarch64__)
-        if (Context.SupportNEON) {
-          const uint64_t kZero = 0;
-          auto *VectorTy =
-              llvm::VectorType::get(Value->getType(), VectorSize, false);
-          llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
-          Ret = Builder.CreateInsertElement(Ret, Value, kZero);
-#if LLVM_VERSION_MAJOR >= 13
-          Ret = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven, Ret);
-#else
-          Ret = Builder.CreateUnaryIntrinsic(
-              llvm::Intrinsic::aarch64_neon_frintn, Ret);
-#endif
-          Ret = Builder.CreateExtractElement(Ret, kZero);
+        if (Context.SupportNEON &&
+            LLVM::Core::AArch64NeonFRIntN != LLVM::Core::NotIntrinsic) {
+          auto Zero = LLContext.getInt64(0);
+          auto VectorTy =
+              LLVM::Type::getVectorType(Value.getType(), VectorSize);
+          LLVM::Value Ret = LLVM::Value::getUndef(VectorTy);
+          Ret = Builder.createInsertElement(Ret, Value, Zero);
+          Ret =
+              Builder.createUnaryIntrinsic(LLVM::Core::AArch64NeonFRIntN, Ret);
+          Ret = Builder.createExtractElement(Ret, Zero);
           stackPush(Ret);
           break;
         }
@@ -1244,17 +1274,17 @@ public:
         // If the SSE4.1 is not supported on the x86_64 platform or
         // the NEON is not supported on the aarch64 platform,
         // then fallback to this.
-        stackPush(
-            Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, Value));
+        assuming(LLVM::Core::Nearbyint != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createUnaryIntrinsic(LLVM::Core::Nearbyint, Value));
         break;
       }
       case OpCode::F32__sqrt:
       case OpCode::F64__sqrt:
-        stackPush(
-            Builder.CreateUnaryIntrinsic(llvm::Intrinsic::sqrt, stackPop()));
+        assuming(LLVM::Core::Sqrt != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createUnaryIntrinsic(LLVM::Core::Sqrt, stackPop()));
         break;
       case OpCode::I32__wrap_i64:
-        stackPush(Builder.CreateTrunc(stackPop(), Context.Int32Ty));
+        stackPush(Builder.createTrunc(stackPop(), Context.Int32Ty));
         break;
       case OpCode::I32__trunc_f32_s:
         compileSignedTrunc(Context.Int32Ty);
@@ -1269,10 +1299,10 @@ public:
         compileUnsignedTrunc(Context.Int32Ty);
         break;
       case OpCode::I64__extend_i32_s:
-        stackPush(Builder.CreateSExt(stackPop(), Context.Int64Ty));
+        stackPush(Builder.createSExt(stackPop(), Context.Int64Ty));
         break;
       case OpCode::I64__extend_i32_u:
-        stackPush(Builder.CreateZExt(stackPop(), Context.Int64Ty));
+        stackPush(Builder.createZExt(stackPop(), Context.Int64Ty));
         break;
       case OpCode::I64__trunc_f32_s:
         compileSignedTrunc(Context.Int64Ty);
@@ -1288,76 +1318,57 @@ public:
         break;
       case OpCode::F32__convert_i32_s:
       case OpCode::F32__convert_i64_s:
-        stackPush(Builder.CreateSIToFP(stackPop(), Context.FloatTy));
+        stackPush(Builder.createSIToFP(stackPop(), Context.FloatTy));
         break;
       case OpCode::F32__convert_i32_u:
       case OpCode::F32__convert_i64_u:
-        stackPush(Builder.CreateUIToFP(stackPop(), Context.FloatTy));
+        stackPush(Builder.createUIToFP(stackPop(), Context.FloatTy));
         break;
       case OpCode::F64__convert_i32_s:
       case OpCode::F64__convert_i64_s:
-        stackPush(Builder.CreateSIToFP(stackPop(), Context.DoubleTy));
+        stackPush(Builder.createSIToFP(stackPop(), Context.DoubleTy));
         break;
       case OpCode::F64__convert_i32_u:
       case OpCode::F64__convert_i64_u:
-        stackPush(Builder.CreateUIToFP(stackPop(), Context.DoubleTy));
+        stackPush(Builder.createUIToFP(stackPop(), Context.DoubleTy));
         break;
-      case OpCode::F32__demote_f64: {
-#if LLVM_VERSION_MAJOR >= 10
-        stackPush(Builder.CreateFPTrunc(stackPop(), Context.FloatTy));
-#else
-        // llvm 9 didn't add constrains on fptrunc, do it manually.
-        auto &LLContext = Context.LLContext;
-        auto *Value = stackPop();
-        auto ExceptStr = llvm::ConstrainedFPIntrinsic::ExceptionBehaviorToStr(
-            Builder.getDefaultConstrainedExcept());
-        auto *ExceptMDS = llvm::MDString::get(LLContext, ExceptStr.getValue());
-        auto *ExceptV = llvm::MetadataAsValue::get(LLContext, ExceptMDS);
-        auto RoundingStr = llvm::ConstrainedFPIntrinsic::RoundingModeToStr(
-            Builder.getDefaultConstrainedRounding());
-        auto *RoundingMDS =
-            llvm::MDString::get(Context.LLContext, RoundingStr.getValue());
-        auto *RoundingV = llvm::MetadataAsValue::get(LLContext, RoundingMDS);
-        stackPush(Builder.CreateIntrinsic(
-            llvm::Intrinsic::experimental_constrained_fptrunc,
-            {Context.FloatTy, Value->getType()}, {Value, RoundingV, ExceptV}));
-#endif
+      case OpCode::F32__demote_f64:
+        stackPush(Builder.createFPTrunc(stackPop(), Context.FloatTy));
         break;
-      }
       case OpCode::F64__promote_f32:
-        stackPush(Builder.CreateFPExt(stackPop(), Context.DoubleTy));
+        stackPush(Builder.createFPExt(stackPop(), Context.DoubleTy));
         break;
       case OpCode::I32__reinterpret_f32:
-        stackPush(Builder.CreateBitCast(stackPop(), Context.Int32Ty));
+        stackPush(Builder.createBitCast(stackPop(), Context.Int32Ty));
         break;
       case OpCode::I64__reinterpret_f64:
-        stackPush(Builder.CreateBitCast(stackPop(), Context.Int64Ty));
+        stackPush(Builder.createBitCast(stackPop(), Context.Int64Ty));
         break;
       case OpCode::F32__reinterpret_i32:
-        stackPush(Builder.CreateBitCast(stackPop(), Context.FloatTy));
+        stackPush(Builder.createBitCast(stackPop(), Context.FloatTy));
         break;
       case OpCode::F64__reinterpret_i64:
-        stackPush(Builder.CreateBitCast(stackPop(), Context.DoubleTy));
+        stackPush(Builder.createBitCast(stackPop(), Context.DoubleTy));
         break;
       case OpCode::I32__extend8_s:
-        stackPush(Builder.CreateSExt(
-            Builder.CreateTrunc(stackPop(), Context.Int8Ty), Context.Int32Ty));
+        stackPush(Builder.createSExt(
+            Builder.createTrunc(stackPop(), Context.Int8Ty), Context.Int32Ty));
         break;
       case OpCode::I32__extend16_s:
-        stackPush(Builder.CreateSExt(
-            Builder.CreateTrunc(stackPop(), Context.Int16Ty), Context.Int32Ty));
+        stackPush(Builder.createSExt(
+            Builder.createTrunc(stackPop(), Context.Int16Ty), Context.Int32Ty));
         break;
       case OpCode::I64__extend8_s:
-        stackPush(Builder.CreateSExt(
-            Builder.CreateTrunc(stackPop(), Context.Int8Ty), Context.Int64Ty));
+        stackPush(Builder.createSExt(
+            Builder.createTrunc(stackPop(), Context.Int8Ty), Context.Int64Ty));
         break;
       case OpCode::I64__extend16_s:
-        stackPush(Builder.CreateSExt(
-            Builder.CreateTrunc(stackPop(), Context.Int16Ty), Context.Int64Ty));
+        stackPush(Builder.createSExt(
+            Builder.createTrunc(stackPop(), Context.Int16Ty), Context.Int64Ty));
         break;
       case OpCode::I64__extend32_s:
-        stackPush(Builder.CreateSExt(
-            Builder.CreateTrunc(stackPop(), Context.Int32Ty), Context.Int64Ty));
+        stackPush(Builder.createSExt(
+            Builder.createTrunc(stackPop(), Context.Int32Ty), Context.Int64Ty));
         break;
       case OpCode::I32__trunc_sat_f32_s:
         compileSignedTruncSat(Context.Int32Ty);
@@ -1385,449 +1396,452 @@ public:
         break;
       case OpCode::I32__eq:
       case OpCode::I64__eq: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateICmpEQ(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createICmpEQ(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::I32__ne:
       case OpCode::I64__ne: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateICmpNE(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createICmpNE(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::I32__lt_s:
       case OpCode::I64__lt_s: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateICmpSLT(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createICmpSLT(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::I32__lt_u:
       case OpCode::I64__lt_u: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateICmpULT(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createICmpULT(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::I32__gt_s:
       case OpCode::I64__gt_s: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateICmpSGT(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createICmpSGT(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::I32__gt_u:
       case OpCode::I64__gt_u: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateICmpUGT(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createICmpUGT(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::I32__le_s:
       case OpCode::I64__le_s: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateICmpSLE(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createICmpSLE(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::I32__le_u:
       case OpCode::I64__le_u: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateICmpULE(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createICmpULE(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::I32__ge_s:
       case OpCode::I64__ge_s: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateICmpSGE(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createICmpSGE(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::I32__ge_u:
       case OpCode::I64__ge_u: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateICmpUGE(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createICmpUGE(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::F32__eq:
       case OpCode::F64__eq: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateFCmpOEQ(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createFCmpOEQ(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::F32__ne:
       case OpCode::F64__ne: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateFCmpUNE(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createFCmpUNE(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::F32__lt:
       case OpCode::F64__lt: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateFCmpOLT(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createFCmpOLT(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::F32__gt:
       case OpCode::F64__gt: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateFCmpOGT(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createFCmpOGT(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::F32__le:
       case OpCode::F64__le: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateFCmpOLE(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createFCmpOLE(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::F32__ge:
       case OpCode::F64__ge: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateZExt(Builder.CreateFCmpOGE(LHS, RHS),
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(Builder.createFCmpOGE(LHS, RHS),
                                      Context.Int32Ty));
         break;
       }
       case OpCode::I32__add:
       case OpCode::I64__add: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateAdd(LHS, RHS));
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createAdd(LHS, RHS));
         break;
       }
       case OpCode::I32__sub:
       case OpCode::I64__sub: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
 
-        stackPush(Builder.CreateSub(LHS, RHS));
+        stackPush(Builder.createSub(LHS, RHS));
         break;
       }
       case OpCode::I32__mul:
       case OpCode::I64__mul: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateMul(LHS, RHS));
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createMul(LHS, RHS));
         break;
       }
       case OpCode::I32__div_s:
       case OpCode::I64__div_s: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
         if constexpr (kForceDivCheck) {
           const bool Is32 = Instr.getOpCode() == OpCode::I32__div_s;
-          llvm::ConstantInt *IntZero =
-              Is32 ? Builder.getInt32(0) : Builder.getInt64(0);
-          llvm::ConstantInt *IntMinusOne =
-              Is32 ? Builder.getInt32(static_cast<uint32_t>(INT32_C(-1)))
-                   : Builder.getInt64(static_cast<uint64_t>(INT64_C(-1)));
-          llvm::ConstantInt *IntMin =
-              Is32 ? Builder.getInt32(static_cast<uint32_t>(
-                         std::numeric_limits<int32_t>::min()))
-                   : Builder.getInt64(static_cast<uint64_t>(
-                         std::numeric_limits<int64_t>::min()));
+          LLVM::Value IntZero =
+              Is32 ? LLContext.getInt32(0) : LLContext.getInt64(0);
+          LLVM::Value IntMinusOne =
+              Is32 ? LLContext.getInt32(static_cast<uint32_t>(INT32_C(-1)))
+                   : LLContext.getInt64(static_cast<uint64_t>(INT64_C(-1)));
+          LLVM::Value IntMin = Is32 ? LLContext.getInt32(static_cast<uint32_t>(
+                                          std::numeric_limits<int32_t>::min()))
+                                    : LLContext.getInt64(static_cast<uint64_t>(
+                                          std::numeric_limits<int64_t>::min()));
 
-          auto *NoZeroBB = llvm::BasicBlock::Create(LLContext, "div.nozero", F);
-          auto *OkBB = llvm::BasicBlock::Create(LLContext, "div.ok", F);
+          auto NoZeroBB =
+              LLVM::BasicBlock::create(LLContext, F.Fn, "div.nozero");
+          auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "div.ok");
 
-          auto *IsNotZero =
-              createLikely(Builder, Builder.CreateICmpNE(RHS, IntZero));
-          Builder.CreateCondBr(IsNotZero, NoZeroBB,
+          auto IsNotZero =
+              Builder.createLikely(Builder.createICmpNE(RHS, IntZero));
+          Builder.createCondBr(IsNotZero, NoZeroBB,
                                getTrapBB(ErrCode::Value::DivideByZero));
 
-          Builder.SetInsertPoint(NoZeroBB);
-          auto *NotOverflow = createLikely(
-              Builder,
-              Builder.CreateOr(Builder.CreateICmpNE(LHS, IntMin),
-                               Builder.CreateICmpNE(RHS, IntMinusOne)));
-          Builder.CreateCondBr(NotOverflow, OkBB,
+          Builder.positionAtEnd(NoZeroBB);
+          auto NotOverflow = Builder.createLikely(
+              Builder.createOr(Builder.createICmpNE(LHS, IntMin),
+                               Builder.createICmpNE(RHS, IntMinusOne)));
+          Builder.createCondBr(NotOverflow, OkBB,
                                getTrapBB(ErrCode::Value::IntegerOverflow));
 
-          Builder.SetInsertPoint(OkBB);
+          Builder.positionAtEnd(OkBB);
         }
-        stackPush(Builder.CreateSDiv(LHS, RHS));
+        stackPush(Builder.createSDiv(LHS, RHS));
         break;
       }
       case OpCode::I32__div_u:
       case OpCode::I64__div_u: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
         if constexpr (kForceDivCheck) {
           const bool Is32 = Instr.getOpCode() == OpCode::I32__div_u;
-          llvm::ConstantInt *IntZero =
-              Is32 ? Builder.getInt32(0) : Builder.getInt64(0);
-          auto *OkBB = llvm::BasicBlock::Create(LLContext, "div.ok", F);
+          LLVM::Value IntZero =
+              Is32 ? LLContext.getInt32(0) : LLContext.getInt64(0);
+          auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "div.ok");
 
-          auto *IsNotZero =
-              createLikely(Builder, Builder.CreateICmpNE(RHS, IntZero));
-          Builder.CreateCondBr(IsNotZero, OkBB,
+          auto IsNotZero =
+              Builder.createLikely(Builder.createICmpNE(RHS, IntZero));
+          Builder.createCondBr(IsNotZero, OkBB,
                                getTrapBB(ErrCode::Value::DivideByZero));
-          Builder.SetInsertPoint(OkBB);
+          Builder.positionAtEnd(OkBB);
         }
-        stackPush(Builder.CreateUDiv(LHS, RHS));
+        stackPush(Builder.createUDiv(LHS, RHS));
         break;
       }
       case OpCode::I32__rem_s:
       case OpCode::I64__rem_s: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
         // handle INT32_MIN % -1
         const bool Is32 = Instr.getOpCode() == OpCode::I32__rem_s;
-        llvm::ConstantInt *IntMinusOne =
-            Is32 ? Builder.getInt32(static_cast<uint32_t>(INT32_C(-1)))
-                 : Builder.getInt64(static_cast<uint64_t>(INT64_C(-1)));
-        llvm::ConstantInt *IntMin =
-            Is32 ? Builder.getInt32(static_cast<uint32_t>(
-                       std::numeric_limits<int32_t>::min()))
-                 : Builder.getInt64(static_cast<uint64_t>(
-                       std::numeric_limits<int64_t>::min()));
-        llvm::ConstantInt *IntZero =
-            Is32 ? Builder.getInt32(0) : Builder.getInt64(0);
+        LLVM::Value IntMinusOne =
+            Is32 ? LLContext.getInt32(static_cast<uint32_t>(INT32_C(-1)))
+                 : LLContext.getInt64(static_cast<uint64_t>(INT64_C(-1)));
+        LLVM::Value IntMin = Is32 ? LLContext.getInt32(static_cast<uint32_t>(
+                                        std::numeric_limits<int32_t>::min()))
+                                  : LLContext.getInt64(static_cast<uint64_t>(
+                                        std::numeric_limits<int64_t>::min()));
+        LLVM::Value IntZero =
+            Is32 ? LLContext.getInt32(0) : LLContext.getInt64(0);
 
-        auto *NoOverflowBB =
-            llvm::BasicBlock::Create(LLContext, "no.overflow", F);
-        auto *EndBB = llvm::BasicBlock::Create(LLContext, "end.overflow", F);
+        auto NoOverflowBB =
+            LLVM::BasicBlock::create(LLContext, F.Fn, "no.overflow");
+        auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "end.overflow");
 
         if constexpr (kForceDivCheck) {
-          auto *OkBB = llvm::BasicBlock::Create(LLContext, "rem.ok", F);
+          auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "rem.ok");
 
-          auto *IsNotZero =
-              createLikely(Builder, Builder.CreateICmpNE(RHS, IntZero));
-          Builder.CreateCondBr(IsNotZero, OkBB,
+          auto IsNotZero =
+              Builder.createLikely(Builder.createICmpNE(RHS, IntZero));
+          Builder.createCondBr(IsNotZero, OkBB,
                                getTrapBB(ErrCode::Value::DivideByZero));
-          Builder.SetInsertPoint(OkBB);
+          Builder.positionAtEnd(OkBB);
         }
 
-        auto *CurrBB = Builder.GetInsertBlock();
+        auto CurrBB = Builder.getInsertBlock();
 
-        auto *NotOverflow = createLikely(
-            Builder, Builder.CreateOr(Builder.CreateICmpNE(LHS, IntMin),
-                                      Builder.CreateICmpNE(RHS, IntMinusOne)));
-        Builder.CreateCondBr(NotOverflow, NoOverflowBB, EndBB);
+        auto NotOverflow = Builder.createLikely(
+            Builder.createOr(Builder.createICmpNE(LHS, IntMin),
+                             Builder.createICmpNE(RHS, IntMinusOne)));
+        Builder.createCondBr(NotOverflow, NoOverflowBB, EndBB);
 
-        Builder.SetInsertPoint(NoOverflowBB);
-        auto *Ret1 = Builder.CreateSRem(LHS, RHS);
-        Builder.CreateBr(EndBB);
+        Builder.positionAtEnd(NoOverflowBB);
+        auto Ret1 = Builder.createSRem(LHS, RHS);
+        Builder.createBr(EndBB);
 
-        Builder.SetInsertPoint(EndBB);
-        auto *Ret = Builder.CreatePHI(Ret1->getType(), 2);
-        Ret->addIncoming(Ret1, NoOverflowBB);
-        Ret->addIncoming(IntZero, CurrBB);
+        Builder.positionAtEnd(EndBB);
+        auto Ret = Builder.createPHI(Ret1.getType());
+        Ret.addIncoming(Ret1, NoOverflowBB);
+        Ret.addIncoming(IntZero, CurrBB);
 
         stackPush(Ret);
         break;
       }
       case OpCode::I32__rem_u:
       case OpCode::I64__rem_u: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
         if constexpr (kForceDivCheck) {
-          llvm::ConstantInt *IntZero = Instr.getOpCode() == OpCode::I32__rem_u
-                                           ? Builder.getInt32(0)
-                                           : Builder.getInt64(0);
-          auto *OkBB = llvm::BasicBlock::Create(LLContext, "rem.ok", F);
+          LLVM::Value IntZero = Instr.getOpCode() == OpCode::I32__rem_u
+                                    ? LLContext.getInt32(0)
+                                    : LLContext.getInt64(0);
+          auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "rem.ok");
 
-          auto *IsNotZero =
-              createLikely(Builder, Builder.CreateICmpNE(RHS, IntZero));
-          Builder.CreateCondBr(IsNotZero, OkBB,
+          auto IsNotZero =
+              Builder.createLikely(Builder.createICmpNE(RHS, IntZero));
+          Builder.createCondBr(IsNotZero, OkBB,
                                getTrapBB(ErrCode::Value::DivideByZero));
-          Builder.SetInsertPoint(OkBB);
+          Builder.positionAtEnd(OkBB);
         }
-        stackPush(Builder.CreateURem(LHS, RHS));
+        stackPush(Builder.createURem(LHS, RHS));
         break;
       }
       case OpCode::I32__and:
       case OpCode::I64__and: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateAnd(LHS, RHS));
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createAnd(LHS, RHS));
         break;
       }
       case OpCode::I32__or:
       case OpCode::I64__or: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateOr(LHS, RHS));
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createOr(LHS, RHS));
         break;
       }
       case OpCode::I32__xor:
       case OpCode::I64__xor: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateXor(LHS, RHS));
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createXor(LHS, RHS));
         break;
       }
       case OpCode::I32__shl:
       case OpCode::I64__shl: {
-        llvm::ConstantInt *Mask = Instr.getOpCode() == OpCode::I32__shl
-                                      ? Builder.getInt32(31)
-                                      : Builder.getInt64(63);
-        llvm::Value *RHS = Builder.CreateAnd(stackPop(), Mask);
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateShl(LHS, RHS));
+        LLVM::Value Mask = Instr.getOpCode() == OpCode::I32__shl
+                               ? LLContext.getInt32(31)
+                               : LLContext.getInt64(63);
+        LLVM::Value RHS = Builder.createAnd(stackPop(), Mask);
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createShl(LHS, RHS));
         break;
       }
       case OpCode::I32__shr_s:
       case OpCode::I64__shr_s: {
-        llvm::ConstantInt *Mask = Instr.getOpCode() == OpCode::I32__shr_s
-                                      ? Builder.getInt32(31)
-                                      : Builder.getInt64(63);
-        llvm::Value *RHS = Builder.CreateAnd(stackPop(), Mask);
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateAShr(LHS, RHS));
+        LLVM::Value Mask = Instr.getOpCode() == OpCode::I32__shr_s
+                               ? LLContext.getInt32(31)
+                               : LLContext.getInt64(63);
+        LLVM::Value RHS = Builder.createAnd(stackPop(), Mask);
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createAShr(LHS, RHS));
         break;
       }
       case OpCode::I32__shr_u:
       case OpCode::I64__shr_u: {
-        llvm::ConstantInt *Mask = Instr.getOpCode() == OpCode::I32__shr_u
-                                      ? Builder.getInt32(31)
-                                      : Builder.getInt64(63);
-        llvm::Value *RHS = Builder.CreateAnd(stackPop(), Mask);
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateLShr(LHS, RHS));
+        LLVM::Value Mask = Instr.getOpCode() == OpCode::I32__shr_u
+                               ? LLContext.getInt32(31)
+                               : LLContext.getInt64(63);
+        LLVM::Value RHS = Builder.createAnd(stackPop(), Mask);
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createLShr(LHS, RHS));
         break;
       }
       case OpCode::I32__rotl: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateIntrinsic(llvm::Intrinsic::fshl,
-                                          {Context.Int32Ty}, {LHS, LHS, RHS}));
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        assuming(LLVM::Core::FShl != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createIntrinsic(LLVM::Core::FShl, {Context.Int32Ty},
+                                          {LHS, LHS, RHS}));
         break;
       }
       case OpCode::I32__rotr: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateIntrinsic(llvm::Intrinsic::fshr,
-                                          {Context.Int32Ty}, {LHS, LHS, RHS}));
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        assuming(LLVM::Core::FShr != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createIntrinsic(LLVM::Core::FShr, {Context.Int32Ty},
+                                          {LHS, LHS, RHS}));
         break;
       }
       case OpCode::I64__rotl: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateIntrinsic(llvm::Intrinsic::fshl,
-                                          {Context.Int64Ty}, {LHS, LHS, RHS}));
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        assuming(LLVM::Core::FShl != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createIntrinsic(LLVM::Core::FShl, {Context.Int64Ty},
+                                          {LHS, LHS, RHS}));
         break;
       }
       case OpCode::I64__rotr: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateIntrinsic(llvm::Intrinsic::fshr,
-                                          {Context.Int64Ty}, {LHS, LHS, RHS}));
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        assuming(LLVM::Core::FShr != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createIntrinsic(LLVM::Core::FShr, {Context.Int64Ty},
+                                          {LHS, LHS, RHS}));
         break;
       }
       case OpCode::F32__add:
       case OpCode::F64__add: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateFAdd(LHS, RHS));
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createFAdd(LHS, RHS));
         break;
       }
       case OpCode::F32__sub:
       case OpCode::F64__sub: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateFSub(LHS, RHS));
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createFSub(LHS, RHS));
         break;
       }
       case OpCode::F32__mul:
       case OpCode::F64__mul: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateFMul(LHS, RHS));
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createFMul(LHS, RHS));
         break;
       }
       case OpCode::F32__div:
       case OpCode::F64__div: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(Builder.CreateFDiv(LHS, RHS));
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createFDiv(LHS, RHS));
         break;
       }
       case OpCode::F32__min:
       case OpCode::F64__min: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        auto *FpTy = Instr.getOpCode() == OpCode::F32__min ? Context.FloatTy
-                                                           : Context.DoubleTy;
-        auto *IntTy = Instr.getOpCode() == OpCode::F32__min ? Context.Int32Ty
-                                                            : Context.Int64Ty;
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        auto FpTy = Instr.getOpCode() == OpCode::F32__min ? Context.FloatTy
+                                                          : Context.DoubleTy;
+        auto IntTy = Instr.getOpCode() == OpCode::F32__min ? Context.Int32Ty
+                                                           : Context.Int64Ty;
 
-        auto *UEQ = Builder.CreateFCmpUEQ(LHS, RHS);
-        auto *UNO = Builder.CreateFCmpUNO(LHS, RHS);
+        auto UEQ = Builder.createFCmpUEQ(LHS, RHS);
+        auto UNO = Builder.createFCmpUNO(LHS, RHS);
 
-        auto *LHSInt = Builder.CreateBitCast(LHS, IntTy);
-        auto *RHSInt = Builder.CreateBitCast(RHS, IntTy);
-        auto *OrInt = Builder.CreateOr(LHSInt, RHSInt);
-        auto *OrFp = Builder.CreateBitCast(OrInt, FpTy);
+        auto LHSInt = Builder.createBitCast(LHS, IntTy);
+        auto RHSInt = Builder.createBitCast(RHS, IntTy);
+        auto OrInt = Builder.createOr(LHSInt, RHSInt);
+        auto OrFp = Builder.createBitCast(OrInt, FpTy);
 
-        auto *AddFp = Builder.CreateFAdd(LHS, RHS);
+        auto AddFp = Builder.createFAdd(LHS, RHS);
 
-        auto *MinFp =
-            Builder.CreateBinaryIntrinsic(llvm::Intrinsic::minnum, LHS, RHS);
-        MinFp->setHasNoNaNs(true);
+        assuming(LLVM::Core::MinNum != LLVM::Core::NotIntrinsic);
+        auto MinFp = Builder.createIntrinsic(LLVM::Core::MinNum,
+                                             {LHS.getType()}, {LHS, RHS});
 
-        auto *Ret = Builder.CreateSelect(
-            UEQ, Builder.CreateSelect(UNO, AddFp, OrFp), MinFp);
+        auto Ret = Builder.createSelect(
+            UEQ, Builder.createSelect(UNO, AddFp, OrFp), MinFp);
         stackPush(Ret);
         break;
       }
       case OpCode::F32__max:
       case OpCode::F64__max: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        auto *FpTy = Instr.getOpCode() == OpCode::F32__max ? Context.FloatTy
-                                                           : Context.DoubleTy;
-        auto *IntTy = Instr.getOpCode() == OpCode::F32__max ? Context.Int32Ty
-                                                            : Context.Int64Ty;
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        auto FpTy = Instr.getOpCode() == OpCode::F32__max ? Context.FloatTy
+                                                          : Context.DoubleTy;
+        auto IntTy = Instr.getOpCode() == OpCode::F32__max ? Context.Int32Ty
+                                                           : Context.Int64Ty;
 
-        auto *UEQ = Builder.CreateFCmpUEQ(LHS, RHS);
-        auto *UNO = Builder.CreateFCmpUNO(LHS, RHS);
+        auto UEQ = Builder.createFCmpUEQ(LHS, RHS);
+        auto UNO = Builder.createFCmpUNO(LHS, RHS);
 
-        auto *LHSInt = Builder.CreateBitCast(LHS, IntTy);
-        auto *RHSInt = Builder.CreateBitCast(RHS, IntTy);
-        auto *AndInt = Builder.CreateAnd(LHSInt, RHSInt);
-        auto *AndFp = Builder.CreateBitCast(AndInt, FpTy);
+        auto LHSInt = Builder.createBitCast(LHS, IntTy);
+        auto RHSInt = Builder.createBitCast(RHS, IntTy);
+        auto AndInt = Builder.createAnd(LHSInt, RHSInt);
+        auto AndFp = Builder.createBitCast(AndInt, FpTy);
 
-        auto *AddFp = Builder.CreateFAdd(LHS, RHS);
+        auto AddFp = Builder.createFAdd(LHS, RHS);
 
-        auto *MaxFp =
-            Builder.CreateBinaryIntrinsic(llvm::Intrinsic::maxnum, LHS, RHS);
-        MaxFp->setHasNoNaNs(true);
+        assuming(LLVM::Core::MaxNum != LLVM::Core::NotIntrinsic);
+        auto MaxFp = Builder.createIntrinsic(LLVM::Core::MaxNum,
+                                             {LHS.getType()}, {LHS, RHS});
 
-        auto *Ret = Builder.CreateSelect(
-            UEQ, Builder.CreateSelect(UNO, AddFp, AndFp), MaxFp);
+        auto Ret = Builder.createSelect(
+            UEQ, Builder.createSelect(UNO, AddFp, AndFp), MaxFp);
         stackPush(Ret);
         break;
       }
       case OpCode::F32__copysign:
       case OpCode::F64__copysign: {
-        llvm::Value *RHS = stackPop();
-        llvm::Value *LHS = stackPop();
-        stackPush(
-            Builder.CreateBinaryIntrinsic(llvm::Intrinsic::copysign, LHS, RHS));
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        assuming(LLVM::Core::CopySign != LLVM::Core::NotIntrinsic);
+        stackPush(Builder.createIntrinsic(LLVM::Core::CopySign, {LHS.getType()},
+                                          {LHS, RHS}));
         break;
       }
       case OpCode::V128__load:
@@ -1837,37 +1851,37 @@ public:
       case OpCode::V128__load8x8_s:
         compileVectorLoadOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
                             Instr.getMemoryAlign(),
-                            llvm::VectorType::get(Context.Int8Ty, 8, false),
+                            LLVM::Type::getVectorType(Context.Int8Ty, 8),
                             Context.Int16x8Ty, true);
         break;
       case OpCode::V128__load8x8_u:
         compileVectorLoadOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
                             Instr.getMemoryAlign(),
-                            llvm::VectorType::get(Context.Int8Ty, 8, false),
+                            LLVM::Type::getVectorType(Context.Int8Ty, 8),
                             Context.Int16x8Ty, false);
         break;
       case OpCode::V128__load16x4_s:
         compileVectorLoadOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
                             Instr.getMemoryAlign(),
-                            llvm::VectorType::get(Context.Int16Ty, 4, false),
+                            LLVM::Type::getVectorType(Context.Int16Ty, 4),
                             Context.Int32x4Ty, true);
         break;
       case OpCode::V128__load16x4_u:
         compileVectorLoadOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
                             Instr.getMemoryAlign(),
-                            llvm::VectorType::get(Context.Int16Ty, 4, false),
+                            LLVM::Type::getVectorType(Context.Int16Ty, 4),
                             Context.Int32x4Ty, false);
         break;
       case OpCode::V128__load32x2_s:
         compileVectorLoadOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
                             Instr.getMemoryAlign(),
-                            llvm::VectorType::get(Context.Int32Ty, 2, false),
+                            LLVM::Type::getVectorType(Context.Int32Ty, 2),
                             Context.Int64x2Ty, true);
         break;
       case OpCode::V128__load32x2_u:
         compileVectorLoadOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
                             Instr.getMemoryAlign(),
-                            llvm::VectorType::get(Context.Int32Ty, 2, false),
+                            LLVM::Type::getVectorType(Context.Int32Ty, 2),
                             Context.Int64x2Ty, false);
         break;
       case OpCode::V128__load8_splat:
@@ -1946,21 +1960,23 @@ public:
         break;
       case OpCode::V128__const: {
         const auto Value = Instr.getNum().get<uint64x2_t>();
-        auto *Vector = llvm::ConstantVector::get(
-            {Builder.getInt64(Value[0]), Builder.getInt64(Value[1])});
-        stackPush(Builder.CreateBitCast(Vector, Context.Int64x2Ty));
+        auto Vector =
+            LLVM::Value::getConstVector64(LLContext, {Value[0], Value[1]});
+        stackPush(Builder.createBitCast(Vector, Context.Int64x2Ty));
         break;
       }
       case OpCode::I8x16__shuffle: {
-        auto *V2 = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
-        auto *V1 = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
+        auto V2 = Builder.createBitCast(stackPop(), Context.Int8x16Ty);
+        auto V1 = Builder.createBitCast(stackPop(), Context.Int8x16Ty);
         const auto V3 = Instr.getNum().get<uint128_t>();
-        std::array<ShuffleElement, 16> Mask;
+        std::array<uint8_t, 16> Mask;
         for (size_t I = 0; I < 16; ++I) {
           Mask[I] = static_cast<uint8_t>(V3 >> (I * 8));
         }
-        stackPush(Builder.CreateBitCast(
-            Builder.CreateShuffleVector(V1, V2, Mask), Context.Int64x2Ty));
+        stackPush(Builder.createBitCast(
+            Builder.createShuffleVector(
+                V1, V2, LLVM::Value::getConstVector8(LLContext, Mask)),
+            Context.Int64x2Ty));
         break;
       }
       case OpCode::I8x16__extract_lane_s:
@@ -2010,19 +2026,20 @@ public:
         compileReplaceLaneOp(Context.Doublex2Ty, Instr.getMemoryLane());
         break;
       case OpCode::I8x16__swizzle: {
-        auto *Index = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
-        auto *Vector = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
+        auto Index = Builder.createBitCast(stackPop(), Context.Int8x16Ty);
+        auto Vector = Builder.createBitCast(stackPop(), Context.Int8x16Ty);
 
 #if defined(__x86_64__)
         if (Context.SupportSSSE3) {
-          auto *Magic = Builder.CreateVectorSplat(16, Builder.getInt8(112));
-          auto *Added = Builder.CreateAdd(Index, Magic);
-          auto *NewIndex = Builder.CreateSelect(
-              Builder.CreateICmpUGT(Index, Added),
-              llvm::Constant::getAllOnesValue(Context.Int8x16Ty), Added);
-          stackPush(Builder.CreateBitCast(
-              Builder.CreateIntrinsic(llvm::Intrinsic::x86_ssse3_pshuf_b_128,
-                                      {}, {Vector, NewIndex}),
+          auto Magic = Builder.createVectorSplat(16, LLContext.getInt8(112));
+          auto Added = Builder.createAdd(Index, Magic);
+          auto NewIndex = Builder.createSelect(
+              Builder.createICmpUGT(Index, Added),
+              LLVM::Value::getConstAllOnes(Context.Int8x16Ty), Added);
+          assuming(LLVM::Core::X86SSSE3PShufB128 != LLVM::Core::NotIntrinsic);
+          stackPush(Builder.createBitCast(
+              Builder.createIntrinsic(LLVM::Core::X86SSSE3PShufB128, {},
+                                      {Vector, NewIndex}),
               Context.Int64x2Ty));
           break;
         }
@@ -2030,9 +2047,10 @@ public:
 
 #if defined(__aarch64__)
         if (Context.SupportNEON) {
-          stackPush(Builder.CreateBitCast(
-              Builder.CreateBinaryIntrinsic(llvm::Intrinsic::aarch64_neon_tbl1,
-                                            Vector, Index),
+          assuming(LLVM::Core::AArch64NeonTbl1 != LLVM::Core::NotIntrinsic);
+          stackPush(Builder.createBitCast(
+              Builder.createBinaryIntrinsic(LLVM::Core::AArch64NeonTbl1, Vector,
+                                            Index),
               Context.Int64x2Ty));
           break;
         }
@@ -2042,27 +2060,29 @@ public:
         // If the SSSE3 is not supported on the x86_64 platform or
         // the NEON is not supported on the aarch64 platform,
         // then fallback to this.
-        auto *Mask = Builder.CreateVectorSplat(16, Builder.getInt8(15));
-        auto *Zero = Builder.CreateVectorSplat(16, Builder.getInt8(0));
-        auto *IsOver = Builder.CreateICmpUGT(Index, Mask);
-        auto *InboundIndex = Builder.CreateAnd(Index, Mask);
-        auto *Array =
-            Builder.CreateAlloca(Context.Int8Ty, Builder.getInt64(16));
+        auto Mask = Builder.createVectorSplat(16, LLContext.getInt8(15));
+        auto Zero = Builder.createVectorSplat(16, LLContext.getInt8(0));
+        auto IsOver = Builder.createICmpUGT(Index, Mask);
+        auto InboundIndex = Builder.createAnd(Index, Mask);
+        auto Array =
+            Builder.createArrayAlloca(Context.Int8Ty, LLContext.getInt64(16));
         for (size_t I = 0; I < 16; ++I) {
-          Builder.CreateStore(
-              Builder.CreateExtractElement(Vector, I),
-              Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Array, I));
+          Builder.createStore(
+              Builder.createExtractElement(Vector, LLContext.getInt64(I)),
+              Builder.createInBoundsGEP1(Context.Int8Ty, Array,
+                                         LLContext.getInt64(I)));
         }
-        llvm::Value *Ret = llvm::UndefValue::get(Context.Int8x16Ty);
+        LLVM::Value Ret = LLVM::Value::getUndef(Context.Int8x16Ty);
         for (size_t I = 0; I < 16; ++I) {
-          auto *Idx = Builder.CreateExtractElement(InboundIndex, I);
-          auto *Value = Builder.CreateLoad(
+          auto Idx =
+              Builder.createExtractElement(InboundIndex, LLContext.getInt64(I));
+          auto Value = Builder.createLoad(
               Context.Int8Ty,
-              Builder.CreateInBoundsGEP(Context.Int8PtrTy, Array, Idx));
-          Ret = Builder.CreateInsertElement(Ret, Value, I);
+              Builder.createInBoundsGEP1(Context.Int8Ty, Array, Idx));
+          Ret = Builder.createInsertElement(Ret, Value, LLContext.getInt64(I));
         }
-        Ret = Builder.CreateSelect(IsOver, Zero, Ret);
-        stackPush(Builder.CreateBitCast(Ret, Context.Int64x2Ty));
+        Ret = Builder.createSelect(IsOver, Zero, Ret);
+        stackPush(Builder.createBitCast(Ret, Context.Int64x2Ty));
         break;
       }
       case OpCode::I8x16__splat:
@@ -2084,242 +2104,194 @@ public:
         compileSplatOp(Context.Doublex2Ty);
         break;
       case OpCode::I8x16__eq:
-        compileVectorCompareOp(Context.Int8x16Ty,
-                               llvm::CmpInst::Predicate::ICMP_EQ);
+        compileVectorCompareOp(Context.Int8x16Ty, LLVMIntEQ);
         break;
       case OpCode::I8x16__ne:
-        compileVectorCompareOp(Context.Int8x16Ty,
-                               llvm::CmpInst::Predicate::ICMP_NE);
+        compileVectorCompareOp(Context.Int8x16Ty, LLVMIntNE);
         break;
       case OpCode::I8x16__lt_s:
-        compileVectorCompareOp(Context.Int8x16Ty,
-                               llvm::CmpInst::Predicate::ICMP_SLT);
+        compileVectorCompareOp(Context.Int8x16Ty, LLVMIntSLT);
         break;
       case OpCode::I8x16__lt_u:
-        compileVectorCompareOp(Context.Int8x16Ty,
-                               llvm::CmpInst::Predicate::ICMP_ULT);
+        compileVectorCompareOp(Context.Int8x16Ty, LLVMIntULT);
         break;
       case OpCode::I8x16__gt_s:
-        compileVectorCompareOp(Context.Int8x16Ty,
-                               llvm::CmpInst::Predicate::ICMP_SGT);
+        compileVectorCompareOp(Context.Int8x16Ty, LLVMIntSGT);
         break;
       case OpCode::I8x16__gt_u:
-        compileVectorCompareOp(Context.Int8x16Ty,
-                               llvm::CmpInst::Predicate::ICMP_UGT);
+        compileVectorCompareOp(Context.Int8x16Ty, LLVMIntUGT);
         break;
       case OpCode::I8x16__le_s:
-        compileVectorCompareOp(Context.Int8x16Ty,
-                               llvm::CmpInst::Predicate::ICMP_SLE);
+        compileVectorCompareOp(Context.Int8x16Ty, LLVMIntSLE);
         break;
       case OpCode::I8x16__le_u:
-        compileVectorCompareOp(Context.Int8x16Ty,
-                               llvm::CmpInst::Predicate::ICMP_ULE);
+        compileVectorCompareOp(Context.Int8x16Ty, LLVMIntULE);
         break;
       case OpCode::I8x16__ge_s:
-        compileVectorCompareOp(Context.Int8x16Ty,
-                               llvm::CmpInst::Predicate::ICMP_SGE);
+        compileVectorCompareOp(Context.Int8x16Ty, LLVMIntSGE);
         break;
       case OpCode::I8x16__ge_u:
-        compileVectorCompareOp(Context.Int8x16Ty,
-                               llvm::CmpInst::Predicate::ICMP_UGE);
+        compileVectorCompareOp(Context.Int8x16Ty, LLVMIntUGE);
         break;
       case OpCode::I16x8__eq:
-        compileVectorCompareOp(Context.Int16x8Ty,
-                               llvm::CmpInst::Predicate::ICMP_EQ);
+        compileVectorCompareOp(Context.Int16x8Ty, LLVMIntEQ);
         break;
       case OpCode::I16x8__ne:
-        compileVectorCompareOp(Context.Int16x8Ty,
-                               llvm::CmpInst::Predicate::ICMP_NE);
+        compileVectorCompareOp(Context.Int16x8Ty, LLVMIntNE);
         break;
       case OpCode::I16x8__lt_s:
-        compileVectorCompareOp(Context.Int16x8Ty,
-                               llvm::CmpInst::Predicate::ICMP_SLT);
+        compileVectorCompareOp(Context.Int16x8Ty, LLVMIntSLT);
         break;
       case OpCode::I16x8__lt_u:
-        compileVectorCompareOp(Context.Int16x8Ty,
-                               llvm::CmpInst::Predicate::ICMP_ULT);
+        compileVectorCompareOp(Context.Int16x8Ty, LLVMIntULT);
         break;
       case OpCode::I16x8__gt_s:
-        compileVectorCompareOp(Context.Int16x8Ty,
-                               llvm::CmpInst::Predicate::ICMP_SGT);
+        compileVectorCompareOp(Context.Int16x8Ty, LLVMIntSGT);
         break;
       case OpCode::I16x8__gt_u:
-        compileVectorCompareOp(Context.Int16x8Ty,
-                               llvm::CmpInst::Predicate::ICMP_UGT);
+        compileVectorCompareOp(Context.Int16x8Ty, LLVMIntUGT);
         break;
       case OpCode::I16x8__le_s:
-        compileVectorCompareOp(Context.Int16x8Ty,
-                               llvm::CmpInst::Predicate::ICMP_SLE);
+        compileVectorCompareOp(Context.Int16x8Ty, LLVMIntSLE);
         break;
       case OpCode::I16x8__le_u:
-        compileVectorCompareOp(Context.Int16x8Ty,
-                               llvm::CmpInst::Predicate::ICMP_ULE);
+        compileVectorCompareOp(Context.Int16x8Ty, LLVMIntULE);
         break;
       case OpCode::I16x8__ge_s:
-        compileVectorCompareOp(Context.Int16x8Ty,
-                               llvm::CmpInst::Predicate::ICMP_SGE);
+        compileVectorCompareOp(Context.Int16x8Ty, LLVMIntSGE);
         break;
       case OpCode::I16x8__ge_u:
-        compileVectorCompareOp(Context.Int16x8Ty,
-                               llvm::CmpInst::Predicate::ICMP_UGE);
+        compileVectorCompareOp(Context.Int16x8Ty, LLVMIntUGE);
         break;
       case OpCode::I32x4__eq:
-        compileVectorCompareOp(Context.Int32x4Ty,
-                               llvm::CmpInst::Predicate::ICMP_EQ);
+        compileVectorCompareOp(Context.Int32x4Ty, LLVMIntEQ);
         break;
       case OpCode::I32x4__ne:
-        compileVectorCompareOp(Context.Int32x4Ty,
-                               llvm::CmpInst::Predicate::ICMP_NE);
+        compileVectorCompareOp(Context.Int32x4Ty, LLVMIntNE);
         break;
       case OpCode::I32x4__lt_s:
-        compileVectorCompareOp(Context.Int32x4Ty,
-                               llvm::CmpInst::Predicate::ICMP_SLT);
+        compileVectorCompareOp(Context.Int32x4Ty, LLVMIntSLT);
         break;
       case OpCode::I32x4__lt_u:
-        compileVectorCompareOp(Context.Int32x4Ty,
-                               llvm::CmpInst::Predicate::ICMP_ULT);
+        compileVectorCompareOp(Context.Int32x4Ty, LLVMIntULT);
         break;
       case OpCode::I32x4__gt_s:
-        compileVectorCompareOp(Context.Int32x4Ty,
-                               llvm::CmpInst::Predicate::ICMP_SGT);
+        compileVectorCompareOp(Context.Int32x4Ty, LLVMIntSGT);
         break;
       case OpCode::I32x4__gt_u:
-        compileVectorCompareOp(Context.Int32x4Ty,
-                               llvm::CmpInst::Predicate::ICMP_UGT);
+        compileVectorCompareOp(Context.Int32x4Ty, LLVMIntUGT);
         break;
       case OpCode::I32x4__le_s:
-        compileVectorCompareOp(Context.Int32x4Ty,
-                               llvm::CmpInst::Predicate::ICMP_SLE);
+        compileVectorCompareOp(Context.Int32x4Ty, LLVMIntSLE);
         break;
       case OpCode::I32x4__le_u:
-        compileVectorCompareOp(Context.Int32x4Ty,
-                               llvm::CmpInst::Predicate::ICMP_ULE);
+        compileVectorCompareOp(Context.Int32x4Ty, LLVMIntULE);
         break;
       case OpCode::I32x4__ge_s:
-        compileVectorCompareOp(Context.Int32x4Ty,
-                               llvm::CmpInst::Predicate::ICMP_SGE);
+        compileVectorCompareOp(Context.Int32x4Ty, LLVMIntSGE);
         break;
       case OpCode::I32x4__ge_u:
-        compileVectorCompareOp(Context.Int32x4Ty,
-                               llvm::CmpInst::Predicate::ICMP_UGE);
+        compileVectorCompareOp(Context.Int32x4Ty, LLVMIntUGE);
         break;
       case OpCode::I64x2__eq:
-        compileVectorCompareOp(Context.Int64x2Ty,
-                               llvm::CmpInst::Predicate::ICMP_EQ);
+        compileVectorCompareOp(Context.Int64x2Ty, LLVMIntEQ);
         break;
       case OpCode::I64x2__ne:
-        compileVectorCompareOp(Context.Int64x2Ty,
-                               llvm::CmpInst::Predicate::ICMP_NE);
+        compileVectorCompareOp(Context.Int64x2Ty, LLVMIntNE);
         break;
       case OpCode::I64x2__lt_s:
-        compileVectorCompareOp(Context.Int64x2Ty,
-                               llvm::CmpInst::Predicate::ICMP_SLT);
+        compileVectorCompareOp(Context.Int64x2Ty, LLVMIntSLT);
         break;
       case OpCode::I64x2__gt_s:
-        compileVectorCompareOp(Context.Int64x2Ty,
-                               llvm::CmpInst::Predicate::ICMP_SGT);
+        compileVectorCompareOp(Context.Int64x2Ty, LLVMIntSGT);
         break;
       case OpCode::I64x2__le_s:
-        compileVectorCompareOp(Context.Int64x2Ty,
-                               llvm::CmpInst::Predicate::ICMP_SLE);
+        compileVectorCompareOp(Context.Int64x2Ty, LLVMIntSLE);
         break;
       case OpCode::I64x2__ge_s:
-        compileVectorCompareOp(Context.Int64x2Ty,
-                               llvm::CmpInst::Predicate::ICMP_SGE);
+        compileVectorCompareOp(Context.Int64x2Ty, LLVMIntSGE);
         break;
       case OpCode::F32x4__eq:
-        compileVectorCompareOp(Context.Floatx4Ty,
-                               llvm::CmpInst::Predicate::FCMP_OEQ,
+        compileVectorCompareOp(Context.Floatx4Ty, LLVMRealOEQ,
                                Context.Int32x4Ty);
         break;
       case OpCode::F32x4__ne:
-        compileVectorCompareOp(Context.Floatx4Ty,
-                               llvm::CmpInst::Predicate::FCMP_UNE,
+        compileVectorCompareOp(Context.Floatx4Ty, LLVMRealUNE,
                                Context.Int32x4Ty);
         break;
       case OpCode::F32x4__lt:
-        compileVectorCompareOp(Context.Floatx4Ty,
-                               llvm::CmpInst::Predicate::FCMP_OLT,
+        compileVectorCompareOp(Context.Floatx4Ty, LLVMRealOLT,
                                Context.Int32x4Ty);
         break;
       case OpCode::F32x4__gt:
-        compileVectorCompareOp(Context.Floatx4Ty,
-                               llvm::CmpInst::Predicate::FCMP_OGT,
+        compileVectorCompareOp(Context.Floatx4Ty, LLVMRealOGT,
                                Context.Int32x4Ty);
         break;
       case OpCode::F32x4__le:
-        compileVectorCompareOp(Context.Floatx4Ty,
-                               llvm::CmpInst::Predicate::FCMP_OLE,
+        compileVectorCompareOp(Context.Floatx4Ty, LLVMRealOLE,
                                Context.Int32x4Ty);
         break;
       case OpCode::F32x4__ge:
-        compileVectorCompareOp(Context.Floatx4Ty,
-                               llvm::CmpInst::Predicate::FCMP_OGE,
+        compileVectorCompareOp(Context.Floatx4Ty, LLVMRealOGE,
                                Context.Int32x4Ty);
         break;
       case OpCode::F64x2__eq:
-        compileVectorCompareOp(Context.Doublex2Ty,
-                               llvm::CmpInst::Predicate::FCMP_OEQ,
+        compileVectorCompareOp(Context.Doublex2Ty, LLVMRealOEQ,
                                Context.Int64x2Ty);
         break;
       case OpCode::F64x2__ne:
-        compileVectorCompareOp(Context.Doublex2Ty,
-                               llvm::CmpInst::Predicate::FCMP_UNE,
+        compileVectorCompareOp(Context.Doublex2Ty, LLVMRealUNE,
                                Context.Int64x2Ty);
         break;
       case OpCode::F64x2__lt:
-        compileVectorCompareOp(Context.Doublex2Ty,
-                               llvm::CmpInst::Predicate::FCMP_OLT,
+        compileVectorCompareOp(Context.Doublex2Ty, LLVMRealOLT,
                                Context.Int64x2Ty);
         break;
       case OpCode::F64x2__gt:
-        compileVectorCompareOp(Context.Doublex2Ty,
-                               llvm::CmpInst::Predicate::FCMP_OGT,
+        compileVectorCompareOp(Context.Doublex2Ty, LLVMRealOGT,
                                Context.Int64x2Ty);
         break;
       case OpCode::F64x2__le:
-        compileVectorCompareOp(Context.Doublex2Ty,
-                               llvm::CmpInst::Predicate::FCMP_OLE,
+        compileVectorCompareOp(Context.Doublex2Ty, LLVMRealOLE,
                                Context.Int64x2Ty);
         break;
       case OpCode::F64x2__ge:
-        compileVectorCompareOp(Context.Doublex2Ty,
-                               llvm::CmpInst::Predicate::FCMP_OGE,
+        compileVectorCompareOp(Context.Doublex2Ty, LLVMRealOGE,
                                Context.Int64x2Ty);
         break;
       case OpCode::V128__not:
-        Stack.back() = Builder.CreateNot(Stack.back());
+        Stack.back() = Builder.createNot(Stack.back());
         break;
       case OpCode::V128__and: {
-        auto *RHS = stackPop();
-        auto *LHS = stackPop();
-        stackPush(Builder.CreateAnd(LHS, RHS));
+        auto RHS = stackPop();
+        auto LHS = stackPop();
+        stackPush(Builder.createAnd(LHS, RHS));
         break;
       }
       case OpCode::V128__andnot: {
-        auto *RHS = stackPop();
-        auto *LHS = stackPop();
-        stackPush(Builder.CreateAnd(LHS, Builder.CreateNot(RHS)));
+        auto RHS = stackPop();
+        auto LHS = stackPop();
+        stackPush(Builder.createAnd(LHS, Builder.createNot(RHS)));
         break;
       }
       case OpCode::V128__or: {
-        auto *RHS = stackPop();
-        auto *LHS = stackPop();
-        stackPush(Builder.CreateOr(LHS, RHS));
+        auto RHS = stackPop();
+        auto LHS = stackPop();
+        stackPush(Builder.createOr(LHS, RHS));
         break;
       }
       case OpCode::V128__xor: {
-        auto *RHS = stackPop();
-        auto *LHS = stackPop();
-        stackPush(Builder.CreateXor(LHS, RHS));
+        auto RHS = stackPop();
+        auto LHS = stackPop();
+        stackPush(Builder.createXor(LHS, RHS));
         break;
       }
       case OpCode::V128__bitselect: {
-        auto *C = stackPop();
-        auto *V2 = stackPop();
-        auto *V1 = stackPop();
-        stackPush(Builder.CreateXor(
-            Builder.CreateAnd(Builder.CreateXor(V1, V2), C), V2));
+        auto C = stackPop();
+        auto V2 = stackPop();
+        auto V1 = stackPop();
+        stackPush(Builder.createXor(
+            Builder.createAnd(Builder.createXor(V1, V2), C), V2));
         break;
       }
       case OpCode::V128__any_true:
@@ -2557,20 +2529,21 @@ public:
         compileVectorExtAddPairwise(Context.Int16x8Ty, false);
         break;
       case OpCode::I32x4__dot_i16x8_s: {
-        auto *ExtendTy =
-            llvm::VectorType::getExtendedElementVectorType(Context.Int16x8Ty);
-        auto *Undef = llvm::UndefValue::get(ExtendTy);
-        auto *LHS = Builder.CreateSExt(
-            Builder.CreateBitCast(stackPop(), Context.Int16x8Ty), ExtendTy);
-        auto *RHS = Builder.CreateSExt(
-            Builder.CreateBitCast(stackPop(), Context.Int16x8Ty), ExtendTy);
-        auto *M = Builder.CreateMul(LHS, RHS);
-        auto *L = Builder.CreateShuffleVector(
-            M, Undef, std::initializer_list<ShuffleElement>{0, 2, 4, 6});
-        auto *R = Builder.CreateShuffleVector(
-            M, Undef, std::initializer_list<ShuffleElement>{1, 3, 5, 7});
-        auto *V = Builder.CreateAdd(L, R);
-        stackPush(Builder.CreateBitCast(V, Context.Int64x2Ty));
+        auto ExtendTy = Context.Int16x8Ty.getExtendedElementVectorType();
+        auto Undef = LLVM::Value::getUndef(ExtendTy);
+        auto LHS = Builder.createSExt(
+            Builder.createBitCast(stackPop(), Context.Int16x8Ty), ExtendTy);
+        auto RHS = Builder.createSExt(
+            Builder.createBitCast(stackPop(), Context.Int16x8Ty), ExtendTy);
+        auto M = Builder.createMul(LHS, RHS);
+        auto L = Builder.createShuffleVector(
+            M, Undef,
+            LLVM::Value::getConstVector32(LLContext, {0U, 2U, 4U, 6U}));
+        auto R = Builder.createShuffleVector(
+            M, Undef,
+            LLVM::Value::getConstVector32(LLContext, {1U, 3U, 5U, 7U}));
+        auto V = Builder.createAdd(L, R);
+        stackPush(Builder.createBitCast(V, Context.Int64x2Ty));
         break;
       }
       case OpCode::I64x2__abs:
@@ -2718,10 +2691,10 @@ public:
         compileVectorFNearest(Context.Doublex2Ty);
         break;
       case OpCode::I32x4__trunc_sat_f32x4_s:
-        compileVectorTruncSatS(Context.Floatx4Ty, 32, false);
+        compileVectorTruncSatS32(Context.Floatx4Ty, false);
         break;
       case OpCode::I32x4__trunc_sat_f32x4_u:
-        compileVectorTruncSatU(Context.Floatx4Ty, 32, false);
+        compileVectorTruncSatU32(Context.Floatx4Ty, false);
         break;
       case OpCode::F32x4__convert_i32x4_s:
         compileVectorConvertS(Context.Int32x4Ty, Context.Floatx4Ty, false);
@@ -2730,10 +2703,10 @@ public:
         compileVectorConvertU(Context.Int32x4Ty, Context.Floatx4Ty, false);
         break;
       case OpCode::I32x4__trunc_sat_f64x2_s_zero:
-        compileVectorTruncSatS(Context.Doublex2Ty, 32, true);
+        compileVectorTruncSatS32(Context.Doublex2Ty, true);
         break;
       case OpCode::I32x4__trunc_sat_f64x2_u_zero:
-        compileVectorTruncSatU(Context.Doublex2Ty, 32, true);
+        compileVectorTruncSatU32(Context.Doublex2Ty, true);
         break;
       case OpCode::F64x2__convert_low_i32x4_s:
         compileVectorConvertS(Context.Int32x4Ty, Context.Doublex2Ty, true);
@@ -2816,215 +2789,215 @@ public:
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
             Instr.getMemoryAlign(), Context.Int64Ty, Context.Int32Ty, true);
       case OpCode::I32__atomic__rmw__add:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Add,
-            Context.Int32Ty, Context.Int32Ty, true);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
+                                  Context.Int32Ty, Context.Int32Ty, true);
       case OpCode::I64__atomic__rmw__add:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Add,
-            Context.Int64Ty, Context.Int64Ty, true);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
+                                  Context.Int64Ty, Context.Int64Ty, true);
       case OpCode::I32__atomic__rmw8__add_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Add,
-            Context.Int32Ty, Context.Int8Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
+                                  Context.Int32Ty, Context.Int8Ty);
       case OpCode::I32__atomic__rmw16__add_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Add,
-            Context.Int32Ty, Context.Int16Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
+                                  Context.Int32Ty, Context.Int16Ty);
       case OpCode::I64__atomic__rmw8__add_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Add,
-            Context.Int64Ty, Context.Int8Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
+                                  Context.Int64Ty, Context.Int8Ty);
       case OpCode::I64__atomic__rmw16__add_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Add,
-            Context.Int64Ty, Context.Int16Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
+                                  Context.Int64Ty, Context.Int16Ty);
       case OpCode::I64__atomic__rmw32__add_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Add,
-            Context.Int64Ty, Context.Int32Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
+                                  Context.Int64Ty, Context.Int32Ty);
       case OpCode::I32__atomic__rmw__sub:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Sub,
-            Context.Int32Ty, Context.Int32Ty, true);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
+                                  Context.Int32Ty, Context.Int32Ty, true);
       case OpCode::I64__atomic__rmw__sub:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Sub,
-            Context.Int64Ty, Context.Int64Ty, true);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
+                                  Context.Int64Ty, Context.Int64Ty, true);
       case OpCode::I32__atomic__rmw8__sub_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Sub,
-            Context.Int32Ty, Context.Int8Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
+                                  Context.Int32Ty, Context.Int8Ty);
       case OpCode::I32__atomic__rmw16__sub_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Sub,
-            Context.Int32Ty, Context.Int16Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
+                                  Context.Int32Ty, Context.Int16Ty);
       case OpCode::I64__atomic__rmw8__sub_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Sub,
-            Context.Int64Ty, Context.Int8Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
+                                  Context.Int64Ty, Context.Int8Ty);
       case OpCode::I64__atomic__rmw16__sub_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Sub,
-            Context.Int64Ty, Context.Int16Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
+                                  Context.Int64Ty, Context.Int16Ty);
       case OpCode::I64__atomic__rmw32__sub_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Sub,
-            Context.Int64Ty, Context.Int32Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
+                                  Context.Int64Ty, Context.Int32Ty);
       case OpCode::I32__atomic__rmw__and:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::And,
-            Context.Int32Ty, Context.Int32Ty, true);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
+                                  Context.Int32Ty, Context.Int32Ty, true);
       case OpCode::I64__atomic__rmw__and:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::And,
-            Context.Int64Ty, Context.Int64Ty, true);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
+                                  Context.Int64Ty, Context.Int64Ty, true);
       case OpCode::I32__atomic__rmw8__and_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::And,
-            Context.Int32Ty, Context.Int8Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
+                                  Context.Int32Ty, Context.Int8Ty);
       case OpCode::I32__atomic__rmw16__and_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::And,
-            Context.Int32Ty, Context.Int16Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
+                                  Context.Int32Ty, Context.Int16Ty);
       case OpCode::I64__atomic__rmw8__and_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::And,
-            Context.Int64Ty, Context.Int8Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
+                                  Context.Int64Ty, Context.Int8Ty);
       case OpCode::I64__atomic__rmw16__and_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::And,
-            Context.Int64Ty, Context.Int16Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
+                                  Context.Int64Ty, Context.Int16Ty);
       case OpCode::I64__atomic__rmw32__and_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::And,
-            Context.Int64Ty, Context.Int32Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
+                                  Context.Int64Ty, Context.Int32Ty);
       case OpCode::I32__atomic__rmw__or:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Or,
-            Context.Int32Ty, Context.Int32Ty, true);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
+                                  Context.Int32Ty, Context.Int32Ty, true);
       case OpCode::I64__atomic__rmw__or:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Or,
-            Context.Int64Ty, Context.Int64Ty, true);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
+                                  Context.Int64Ty, Context.Int64Ty, true);
       case OpCode::I32__atomic__rmw8__or_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Or,
-            Context.Int32Ty, Context.Int8Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
+                                  Context.Int32Ty, Context.Int8Ty);
       case OpCode::I32__atomic__rmw16__or_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Or,
-            Context.Int32Ty, Context.Int16Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
+                                  Context.Int32Ty, Context.Int16Ty);
       case OpCode::I64__atomic__rmw8__or_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Or,
-            Context.Int64Ty, Context.Int8Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
+                                  Context.Int64Ty, Context.Int8Ty);
       case OpCode::I64__atomic__rmw16__or_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Or,
-            Context.Int64Ty, Context.Int16Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
+                                  Context.Int64Ty, Context.Int16Ty);
       case OpCode::I64__atomic__rmw32__or_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Or,
-            Context.Int64Ty, Context.Int32Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
+                                  Context.Int64Ty, Context.Int32Ty);
       case OpCode::I32__atomic__rmw__xor:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Xor,
-            Context.Int32Ty, Context.Int32Ty, true);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
+                                  Context.Int32Ty, Context.Int32Ty, true);
       case OpCode::I64__atomic__rmw__xor:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Xor,
-            Context.Int64Ty, Context.Int64Ty, true);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
+                                  Context.Int64Ty, Context.Int64Ty, true);
       case OpCode::I32__atomic__rmw8__xor_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Xor,
-            Context.Int32Ty, Context.Int8Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
+                                  Context.Int32Ty, Context.Int8Ty);
       case OpCode::I32__atomic__rmw16__xor_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Xor,
-            Context.Int32Ty, Context.Int16Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
+                                  Context.Int32Ty, Context.Int16Ty);
       case OpCode::I64__atomic__rmw8__xor_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Xor,
-            Context.Int64Ty, Context.Int8Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
+                                  Context.Int64Ty, Context.Int8Ty);
       case OpCode::I64__atomic__rmw16__xor_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Xor,
-            Context.Int64Ty, Context.Int16Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
+                                  Context.Int64Ty, Context.Int16Ty);
       case OpCode::I64__atomic__rmw32__xor_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Xor,
-            Context.Int64Ty, Context.Int32Ty);
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  Instr.getMemoryOffset(),
+                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
+                                  Context.Int64Ty, Context.Int32Ty);
       case OpCode::I32__atomic__rmw__xchg:
         return compileAtomicRMWOp(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Xchg,
-            Context.Int32Ty, Context.Int32Ty, true);
+            Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg, Context.Int32Ty,
+            Context.Int32Ty, true);
       case OpCode::I64__atomic__rmw__xchg:
         return compileAtomicRMWOp(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Xchg,
-            Context.Int64Ty, Context.Int64Ty, true);
+            Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg, Context.Int64Ty,
+            Context.Int64Ty, true);
       case OpCode::I32__atomic__rmw8__xchg_u:
         return compileAtomicRMWOp(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Xchg,
-            Context.Int32Ty, Context.Int8Ty);
+            Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg, Context.Int32Ty,
+            Context.Int8Ty);
       case OpCode::I32__atomic__rmw16__xchg_u:
         return compileAtomicRMWOp(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Xchg,
-            Context.Int32Ty, Context.Int16Ty);
+            Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg, Context.Int32Ty,
+            Context.Int16Ty);
       case OpCode::I64__atomic__rmw8__xchg_u:
         return compileAtomicRMWOp(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Xchg,
-            Context.Int64Ty, Context.Int8Ty);
+            Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg, Context.Int64Ty,
+            Context.Int8Ty);
       case OpCode::I64__atomic__rmw16__xchg_u:
         return compileAtomicRMWOp(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Xchg,
-            Context.Int64Ty, Context.Int16Ty);
+            Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg, Context.Int64Ty,
+            Context.Int16Ty);
       case OpCode::I64__atomic__rmw32__xchg_u:
         return compileAtomicRMWOp(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), llvm::AtomicRMWInst::BinOp::Xchg,
-            Context.Int64Ty, Context.Int32Ty);
+            Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg, Context.Int64Ty,
+            Context.Int32Ty);
       case OpCode::I32__atomic__rmw__cmpxchg:
         return compileAtomicCompareExchange(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
@@ -3062,460 +3035,507 @@ public:
     for (const auto &Instr : Instrs) {
       // Update instruction count
       if (LocalInstrCount) {
-        Builder.CreateStore(
-            Builder.CreateAdd(
-                Builder.CreateLoad(Context.Int64Ty, LocalInstrCount),
-                Builder.getInt64(1)),
+        Builder.createStore(
+            Builder.createAdd(
+                Builder.createLoad(Context.Int64Ty, LocalInstrCount),
+                LLContext.getInt64(1)),
             LocalInstrCount);
       }
       if (LocalGas) {
-        auto *NewGas = Builder.CreateAdd(
-            Builder.CreateLoad(Context.Int64Ty, LocalGas),
-            Builder.CreateLoad(
+        auto NewGas = Builder.createAdd(
+            Builder.createLoad(Context.Int64Ty, LocalGas),
+            Builder.createLoad(
                 Context.Int64Ty,
-                Builder.CreateConstInBoundsGEP2_64(
-                    llvm::ArrayType::get(Context.Int64Ty, UINT16_MAX + 1),
+                Builder.createConstInBoundsGEP2_64(
+                    LLVM::Type::getArrayType(Context.Int64Ty, UINT16_MAX + 1),
                     Context.getCostTable(Builder, ExecCtx), 0,
                     uint16_t(Instr.getOpCode()))));
-        Builder.CreateStore(NewGas, LocalGas);
+        Builder.createStore(NewGas, LocalGas);
       }
 
       // Make the instruction node according to Code.
       Dispatch(Instr);
     }
   }
-  void compileSignedTrunc(llvm::IntegerType *IntType) {
-    const auto MinInt = llvm::APInt::getSignedMinValue(IntType->getBitWidth());
-    const auto MaxInt = llvm::APInt::getSignedMaxValue(IntType->getBitWidth());
-    auto *NormBB = llvm::BasicBlock::Create(LLContext, "strunc.norm", F);
-    auto *NotMinBB = llvm::BasicBlock::Create(LLContext, "strunc.notmin", F);
-    auto *NotMaxBB = llvm::BasicBlock::Create(LLContext, "strunc.notmax", F);
-    auto *Value = stackPop();
-    auto *FPType = Value->getType();
-    auto *MinFp = llvm::ConstantFP::get(FPType, MinInt.signedRoundToDouble());
-    auto *MaxFp = llvm::ConstantFP::get(FPType, MaxInt.signedRoundToDouble());
-    const bool Precise = IntType->getBitWidth() < FPType->getScalarSizeInBits();
+  void compileSignedTrunc(LLVM::Type IntType) noexcept {
+    auto NormBB = LLVM::BasicBlock::create(LLContext, F.Fn, "strunc.norm");
+    auto NotMinBB = LLVM::BasicBlock::create(LLContext, F.Fn, "strunc.notmin");
+    auto NotMaxBB = LLVM::BasicBlock::create(LLContext, F.Fn, "strunc.notmax");
+    auto Value = stackPop();
+    const auto [Precise, MinFp, MaxFp] =
+        [IntType, Value]() -> std::tuple<bool, LLVM::Value, LLVM::Value> {
+      const auto BitWidth = IntType.getIntegerBitWidth();
+      const auto [Min, Max] = [BitWidth]() -> std::tuple<int64_t, int64_t> {
+        switch (BitWidth) {
+        case 32:
+          return {std::numeric_limits<int32_t>::min(),
+                  std::numeric_limits<int32_t>::max()};
+        case 64:
+          return {std::numeric_limits<int64_t>::min(),
+                  std::numeric_limits<int64_t>::max()};
+        default:
+          assumingUnreachable();
+        }
+      }();
+      auto FPType = Value.getType();
+      assuming(FPType.isFloatTy() || FPType.isDoubleTy());
+      const auto FPWidth = FPType.getFPMantissaWidth();
+      return {BitWidth <= FPWidth, LLVM::Value::getConstReal(FPType, Min),
+              LLVM::Value::getConstReal(FPType, Max)};
+    }();
 
-    auto *IsNotNan = createLikely(Builder, Builder.CreateFCmpORD(Value, Value));
-    Builder.CreateCondBr(IsNotNan, NormBB,
+    auto IsNotNan = Builder.createLikely(Builder.createFCmpORD(Value, Value));
+    Builder.createCondBr(IsNotNan, NormBB,
                          getTrapBB(ErrCode::Value::InvalidConvToInt));
 
-    Builder.SetInsertPoint(NormBB);
-    auto *Trunc = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Value);
-    auto *IsNotUnderflow =
-        createLikely(Builder, Builder.CreateFCmpOGE(Trunc, MinFp));
-    Builder.CreateCondBr(IsNotUnderflow, NotMinBB,
+    Builder.positionAtEnd(NormBB);
+    assuming(LLVM::Core::Trunc != LLVM::Core::NotIntrinsic);
+    auto Trunc = Builder.createUnaryIntrinsic(LLVM::Core::Trunc, Value);
+    auto IsNotUnderflow =
+        Builder.createLikely(Builder.createFCmpOGE(Trunc, MinFp));
+    Builder.createCondBr(IsNotUnderflow, NotMinBB,
                          getTrapBB(ErrCode::Value::IntegerOverflow));
 
-    Builder.SetInsertPoint(NotMinBB);
-    auto *IsNotOverflow = createLikely(
-        Builder,
-        Builder.CreateFCmp(Precise ? llvm::CmpInst::Predicate::FCMP_OLE
-                                   : llvm::CmpInst::Predicate::FCMP_OLT,
-                           Trunc, MaxFp));
-    Builder.CreateCondBr(IsNotOverflow, NotMaxBB,
+    Builder.positionAtEnd(NotMinBB);
+    auto IsNotOverflow = Builder.createLikely(
+        Builder.createFCmp(Precise ? LLVMRealOLE : LLVMRealOLT, Trunc, MaxFp));
+    Builder.createCondBr(IsNotOverflow, NotMaxBB,
                          getTrapBB(ErrCode::Value::IntegerOverflow));
 
-    Builder.SetInsertPoint(NotMaxBB);
-    stackPush(Builder.CreateFPToSI(Trunc, IntType));
+    Builder.positionAtEnd(NotMaxBB);
+    stackPush(Builder.createFPToSI(Trunc, IntType));
   }
-  void compileSignedTruncSat(llvm::IntegerType *IntType) {
-    const auto MinInt = llvm::APInt::getSignedMinValue(IntType->getBitWidth());
-    const auto MaxInt = llvm::APInt::getSignedMaxValue(IntType->getBitWidth());
-    auto *CurrBB = Builder.GetInsertBlock();
-    auto *NormBB = llvm::BasicBlock::Create(LLContext, "ssat.norm", F);
-    auto *NotMinBB = llvm::BasicBlock::Create(LLContext, "ssat.notmin", F);
-    auto *NotMaxBB = llvm::BasicBlock::Create(LLContext, "ssat.notmax", F);
-    auto *EndBB = llvm::BasicBlock::Create(LLContext, "ssat.end", F);
-    auto *Value = stackPop();
-    auto *FPType = Value->getType();
-    auto *MinFp = llvm::ConstantFP::get(FPType, MinInt.signedRoundToDouble());
-    auto *MaxFp = llvm::ConstantFP::get(FPType, MaxInt.signedRoundToDouble());
-    const bool Precise = IntType->getBitWidth() < FPType->getScalarSizeInBits();
+  void compileSignedTruncSat(LLVM::Type IntType) noexcept {
+    auto CurrBB = Builder.getInsertBlock();
+    auto NormBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ssat.norm");
+    auto NotMinBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ssat.notmin");
+    auto NotMaxBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ssat.notmax");
+    auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ssat.end");
+    auto Value = stackPop();
+    const auto [Precise, MinInt, MaxInt, MinFp, MaxFp] = [IntType, Value]()
+        -> std::tuple<bool, uint64_t, uint64_t, LLVM::Value, LLVM::Value> {
+      const auto BitWidth = IntType.getIntegerBitWidth();
+      const auto [Min, Max] = [BitWidth]() -> std::tuple<int64_t, int64_t> {
+        switch (BitWidth) {
+        case 32:
+          return {std::numeric_limits<int32_t>::min(),
+                  std::numeric_limits<int32_t>::max()};
+        case 64:
+          return {std::numeric_limits<int64_t>::min(),
+                  std::numeric_limits<int64_t>::max()};
+        default:
+          assumingUnreachable();
+        }
+      }();
+      auto FPType = Value.getType();
+      assuming(FPType.isFloatTy() || FPType.isDoubleTy());
+      const auto FPWidth = FPType.getFPMantissaWidth();
+      return {BitWidth <= FPWidth, static_cast<uint64_t>(Min),
+              static_cast<uint64_t>(Max),
+              LLVM::Value::getConstReal(FPType, Min),
+              LLVM::Value::getConstReal(FPType, Max)};
+    }();
 
-    auto *IsNotNan = createLikely(Builder, Builder.CreateFCmpORD(Value, Value));
-    Builder.CreateCondBr(IsNotNan, NormBB, EndBB);
+    auto IsNotNan = Builder.createLikely(Builder.createFCmpORD(Value, Value));
+    Builder.createCondBr(IsNotNan, NormBB, EndBB);
 
-    Builder.SetInsertPoint(NormBB);
-    auto *Trunc = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Value);
-    auto *IsNotUnderflow =
-        createLikely(Builder, Builder.CreateFCmpOGE(Trunc, MinFp));
-    Builder.CreateCondBr(IsNotUnderflow, NotMinBB, EndBB);
+    Builder.positionAtEnd(NormBB);
+    assuming(LLVM::Core::Trunc != LLVM::Core::NotIntrinsic);
+    auto Trunc = Builder.createUnaryIntrinsic(LLVM::Core::Trunc, Value);
+    auto IsNotUnderflow =
+        Builder.createLikely(Builder.createFCmpOGE(Trunc, MinFp));
+    Builder.createCondBr(IsNotUnderflow, NotMinBB, EndBB);
 
-    Builder.SetInsertPoint(NotMinBB);
-    auto *IsNotOverflow = createLikely(
-        Builder,
-        Builder.CreateFCmp(Precise ? llvm::CmpInst::Predicate::FCMP_OLE
-                                   : llvm::CmpInst::Predicate::FCMP_OLT,
-                           Trunc, MaxFp));
-    Builder.CreateCondBr(IsNotOverflow, NotMaxBB, EndBB);
+    Builder.positionAtEnd(NotMinBB);
+    auto IsNotOverflow = Builder.createLikely(
+        Builder.createFCmp(Precise ? LLVMRealOLE : LLVMRealOLT, Trunc, MaxFp));
+    Builder.createCondBr(IsNotOverflow, NotMaxBB, EndBB);
 
-    Builder.SetInsertPoint(NotMaxBB);
-    auto *IntValue = Builder.CreateFPToSI(Trunc, IntType);
-    Builder.CreateBr(EndBB);
+    Builder.positionAtEnd(NotMaxBB);
+    auto IntValue = Builder.createFPToSI(Trunc, IntType);
+    Builder.createBr(EndBB);
 
-    Builder.SetInsertPoint(EndBB);
-    auto *PHIRet = Builder.CreatePHI(IntType, 4);
-    PHIRet->addIncoming(llvm::ConstantInt::get(IntType, 0), CurrBB);
-    PHIRet->addIncoming(llvm::ConstantInt::get(IntType, MinInt), NormBB);
-    PHIRet->addIncoming(llvm::ConstantInt::get(IntType, MaxInt), NotMinBB);
-    PHIRet->addIncoming(IntValue, NotMaxBB);
+    Builder.positionAtEnd(EndBB);
+    auto PHIRet = Builder.createPHI(IntType);
+    PHIRet.addIncoming(LLVM::Value::getConstInt(IntType, 0, true), CurrBB);
+    PHIRet.addIncoming(LLVM::Value::getConstInt(IntType, MinInt, true), NormBB);
+    PHIRet.addIncoming(LLVM::Value::getConstInt(IntType, MaxInt, true),
+                       NotMinBB);
+    PHIRet.addIncoming(IntValue, NotMaxBB);
 
     stackPush(PHIRet);
   }
-  void compileUnsignedTrunc(llvm::IntegerType *IntType) {
-    const auto MinInt = llvm::APInt::getMinValue(IntType->getBitWidth());
-    const auto MaxInt = llvm::APInt::getMaxValue(IntType->getBitWidth());
-    auto *NormBB = llvm::BasicBlock::Create(LLContext, "utrunc.norm", F);
-    auto *NotMinBB = llvm::BasicBlock::Create(LLContext, "utrunc.notmin", F);
-    auto *NotMaxBB = llvm::BasicBlock::Create(LLContext, "utrunc.notmax", F);
-    auto *Value = stackPop();
-    auto *FPType = Value->getType();
-    auto *MinFp = llvm::ConstantFP::get(FPType, MinInt.roundToDouble());
-    auto *MaxFp = llvm::ConstantFP::get(FPType, MaxInt.roundToDouble());
-    const bool Precise = IntType->getBitWidth() < FPType->getScalarSizeInBits();
+  void compileUnsignedTrunc(LLVM::Type IntType) noexcept {
+    auto NormBB = LLVM::BasicBlock::create(LLContext, F.Fn, "utrunc.norm");
+    auto NotMinBB = LLVM::BasicBlock::create(LLContext, F.Fn, "utrunc.notmin");
+    auto NotMaxBB = LLVM::BasicBlock::create(LLContext, F.Fn, "utrunc.notmax");
+    auto Value = stackPop();
+    const auto [Precise, MinFp, MaxFp] =
+        [IntType, Value]() -> std::tuple<bool, LLVM::Value, LLVM::Value> {
+      const auto BitWidth = IntType.getIntegerBitWidth();
+      const auto [Min, Max] = [BitWidth]() -> std::tuple<uint64_t, uint64_t> {
+        switch (BitWidth) {
+        case 32:
+          return {std::numeric_limits<uint32_t>::min(),
+                  std::numeric_limits<uint32_t>::max()};
+        case 64:
+          return {std::numeric_limits<uint64_t>::min(),
+                  std::numeric_limits<uint64_t>::max()};
+        default:
+          assumingUnreachable();
+        }
+      }();
+      auto FPType = Value.getType();
+      assuming(FPType.isFloatTy() || FPType.isDoubleTy());
+      const auto FPWidth = FPType.getFPMantissaWidth();
+      return {BitWidth <= FPWidth, LLVM::Value::getConstReal(FPType, Min),
+              LLVM::Value::getConstReal(FPType, Max)};
+    }();
 
-    auto *IsNotNan = createLikely(Builder, Builder.CreateFCmpORD(Value, Value));
-    Builder.CreateCondBr(IsNotNan, NormBB,
+    auto IsNotNan = Builder.createLikely(Builder.createFCmpORD(Value, Value));
+    Builder.createCondBr(IsNotNan, NormBB,
                          getTrapBB(ErrCode::Value::InvalidConvToInt));
 
-    Builder.SetInsertPoint(NormBB);
-    auto *Trunc = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Value);
-    auto *IsNotUnderflow =
-        createLikely(Builder, Builder.CreateFCmpOGE(Trunc, MinFp));
-    Builder.CreateCondBr(IsNotUnderflow, NotMinBB,
+    Builder.positionAtEnd(NormBB);
+    assuming(LLVM::Core::Trunc != LLVM::Core::NotIntrinsic);
+    auto Trunc = Builder.createUnaryIntrinsic(LLVM::Core::Trunc, Value);
+    auto IsNotUnderflow =
+        Builder.createLikely(Builder.createFCmpOGE(Trunc, MinFp));
+    Builder.createCondBr(IsNotUnderflow, NotMinBB,
                          getTrapBB(ErrCode::Value::IntegerOverflow));
 
-    Builder.SetInsertPoint(NotMinBB);
-    auto *IsNotOverflow = createLikely(
-        Builder,
-        Builder.CreateFCmp(Precise ? llvm::CmpInst::Predicate::FCMP_OLE
-                                   : llvm::CmpInst::Predicate::FCMP_OLT,
-                           Trunc, MaxFp));
-    Builder.CreateCondBr(IsNotOverflow, NotMaxBB,
+    Builder.positionAtEnd(NotMinBB);
+    auto IsNotOverflow = Builder.createLikely(
+        Builder.createFCmp(Precise ? LLVMRealOLE : LLVMRealOLT, Trunc, MaxFp));
+    Builder.createCondBr(IsNotOverflow, NotMaxBB,
                          getTrapBB(ErrCode::Value::IntegerOverflow));
 
-    Builder.SetInsertPoint(NotMaxBB);
-    stackPush(Builder.CreateFPToUI(Trunc, IntType));
+    Builder.positionAtEnd(NotMaxBB);
+    stackPush(Builder.createFPToUI(Trunc, IntType));
   }
-  void compileUnsignedTruncSat(llvm::IntegerType *IntType) {
-    const auto MinInt = llvm::APInt::getMinValue(IntType->getBitWidth());
-    const auto MaxInt = llvm::APInt::getMaxValue(IntType->getBitWidth());
-    auto *CurrBB = Builder.GetInsertBlock();
-    auto *NormBB = llvm::BasicBlock::Create(LLContext, "usat.norm", F);
-    auto *NotMaxBB = llvm::BasicBlock::Create(LLContext, "usat.notmax", F);
-    auto *EndBB = llvm::BasicBlock::Create(LLContext, "usat.end", F);
-    auto *Value = stackPop();
-    auto *FPType = Value->getType();
-    auto *MinFp = llvm::ConstantFP::get(FPType, MinInt.roundToDouble());
-    auto *MaxFp = llvm::ConstantFP::get(FPType, MaxInt.roundToDouble());
-    const bool Precise = IntType->getBitWidth() < FPType->getScalarSizeInBits();
+  void compileUnsignedTruncSat(LLVM::Type IntType) noexcept {
+    auto CurrBB = Builder.getInsertBlock();
+    auto NormBB = LLVM::BasicBlock::create(LLContext, F.Fn, "usat.norm");
+    auto NotMaxBB = LLVM::BasicBlock::create(LLContext, F.Fn, "usat.notmax");
+    auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "usat.end");
+    auto Value = stackPop();
+    const auto [Precise, MinInt, MaxInt, MinFp, MaxFp] = [IntType, Value]()
+        -> std::tuple<bool, uint64_t, uint64_t, LLVM::Value, LLVM::Value> {
+      const auto BitWidth = IntType.getIntegerBitWidth();
+      const auto [Min, Max] = [BitWidth]() -> std::tuple<uint64_t, uint64_t> {
+        switch (BitWidth) {
+        case 32:
+          return {std::numeric_limits<uint32_t>::min(),
+                  std::numeric_limits<uint32_t>::max()};
+        case 64:
+          return {std::numeric_limits<uint64_t>::min(),
+                  std::numeric_limits<uint64_t>::max()};
+        default:
+          assumingUnreachable();
+        }
+      }();
+      auto FPType = Value.getType();
+      assuming(FPType.isFloatTy() || FPType.isDoubleTy());
+      const auto FPWidth = FPType.getFPMantissaWidth();
+      return {BitWidth <= FPWidth, Min, Max,
+              LLVM::Value::getConstReal(FPType, Min),
+              LLVM::Value::getConstReal(FPType, Max)};
+    }();
 
-    auto *Trunc = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Value);
-    auto *IsNotUnderflow =
-        createLikely(Builder, Builder.CreateFCmpOGE(Trunc, MinFp));
-    Builder.CreateCondBr(IsNotUnderflow, NormBB, EndBB);
+    assuming(LLVM::Core::Trunc != LLVM::Core::NotIntrinsic);
+    auto Trunc = Builder.createUnaryIntrinsic(LLVM::Core::Trunc, Value);
+    auto IsNotUnderflow =
+        Builder.createLikely(Builder.createFCmpOGE(Trunc, MinFp));
+    Builder.createCondBr(IsNotUnderflow, NormBB, EndBB);
 
-    Builder.SetInsertPoint(NormBB);
-    auto *IsNotOverflow = createLikely(
-        Builder,
-        Builder.CreateFCmp(Precise ? llvm::CmpInst::Predicate::FCMP_OLE
-                                   : llvm::CmpInst::Predicate::FCMP_OLT,
-                           Trunc, MaxFp));
-    Builder.CreateCondBr(IsNotOverflow, NotMaxBB, EndBB);
+    Builder.positionAtEnd(NormBB);
+    auto IsNotOverflow = Builder.createLikely(
+        Builder.createFCmp(Precise ? LLVMRealOLE : LLVMRealOLT, Trunc, MaxFp));
+    Builder.createCondBr(IsNotOverflow, NotMaxBB, EndBB);
 
-    Builder.SetInsertPoint(NotMaxBB);
-    auto *IntValue = Builder.CreateFPToUI(Trunc, IntType);
-    Builder.CreateBr(EndBB);
+    Builder.positionAtEnd(NotMaxBB);
+    auto IntValue = Builder.createFPToUI(Trunc, IntType);
+    Builder.createBr(EndBB);
 
-    Builder.SetInsertPoint(EndBB);
-    auto *PHIRet = Builder.CreatePHI(IntType, 3);
-    PHIRet->addIncoming(llvm::ConstantInt::get(IntType, MinInt), CurrBB);
-    PHIRet->addIncoming(llvm::ConstantInt::get(IntType, MaxInt), NormBB);
-    PHIRet->addIncoming(IntValue, NotMaxBB);
+    Builder.positionAtEnd(EndBB);
+    auto PHIRet = Builder.createPHI(IntType);
+    PHIRet.addIncoming(LLVM::Value::getConstInt(IntType, MinInt), CurrBB);
+    PHIRet.addIncoming(LLVM::Value::getConstInt(IntType, MaxInt), NormBB);
+    PHIRet.addIncoming(IntValue, NotMaxBB);
 
     stackPush(PHIRet);
   }
 
-  void compileAtomicCheckOffsetAlignment(llvm::Value *Offset,
-                                         llvm::IntegerType *IntType) {
-    const auto BitWidth = IntType->getBitWidth();
-    auto *BWMask = llvm::ConstantInt::get(Context.Int64Ty, (BitWidth >> 3) - 1);
-    auto *Value = Builder.CreateAnd(Offset, BWMask);
-    auto *OkBB = llvm::BasicBlock::Create(LLContext, "address_align_ok", F);
-    auto *IsAddressAligned =
-        createLikely(Builder, Builder.CreateICmpEQ(Value, Builder.getInt64(0)));
-    Builder.CreateCondBr(IsAddressAligned, OkBB,
+  void compileAtomicCheckOffsetAlignment(LLVM::Value Offset,
+                                         LLVM::Type IntType) noexcept {
+    const auto BitWidth = IntType.getIntegerBitWidth();
+    auto BWMask = LLContext.getInt64((BitWidth >> 3) - 1);
+    auto Value = Builder.createAnd(Offset, BWMask);
+    auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "address_align_ok");
+    auto IsAddressAligned = Builder.createLikely(
+        Builder.createICmpEQ(Value, LLContext.getInt64(0)));
+    Builder.createCondBr(IsAddressAligned, OkBB,
                          getTrapBB(ErrCode::Value::UnalignedAtomicAccess));
 
-    Builder.SetInsertPoint(OkBB);
+    Builder.positionAtEnd(OkBB);
   }
 
-  void compileMemoryFence() {
-    Builder.CreateFence(llvm::AtomicOrdering::SequentiallyConsistent);
+  void compileMemoryFence() noexcept {
+    Builder.createFence(LLVMAtomicOrderingSequentiallyConsistent);
   }
-  void compileAtomicNotify(unsigned MemoryIndex, unsigned MemoryOffset) {
-    auto *Count = stackPop();
-    auto *Addr = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+  void compileAtomicNotify(unsigned MemoryIndex,
+                           unsigned MemoryOffset) noexcept {
+    auto Count = stackPop();
+    auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
     if (MemoryOffset != 0) {
-      Addr = Builder.CreateAdd(Addr, Builder.getInt64(MemoryOffset));
+      Addr = Builder.createAdd(Addr, LLContext.getInt64(MemoryOffset));
     }
     compileAtomicCheckOffsetAlignment(Addr, Context.Int32Ty);
-    auto *Offset = stackPop();
+    auto Offset = stackPop();
 
-    stackPush(Builder.CreateCall(
+    stackPush(Builder.createCall(
         Context.getIntrinsic(
             Builder, AST::Module::Intrinsics::kMemoryAtomicNotify,
-            llvm::FunctionType::get(
+            LLVM::Type::getFunctionType(
                 Context.Int32Ty,
                 {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
-        {Builder.getInt32(MemoryIndex), Offset, Count}));
+        {LLContext.getInt32(MemoryIndex), Offset, Count}));
   }
   void compileAtomicWait(unsigned MemoryIndex, unsigned MemoryOffset,
-                         llvm::IntegerType *TargetType, uint32_t BitWidth) {
-    auto *Timeout = stackPop();
-    auto *ExpectedValue =
-        Builder.CreateZExtOrTrunc(stackPop(), Context.Int64Ty);
-    auto *Addr = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+                         LLVM::Type TargetType, uint32_t BitWidth) noexcept {
+    auto Timeout = stackPop();
+    auto ExpectedValue = Builder.createZExtOrTrunc(stackPop(), Context.Int64Ty);
+    auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
     if (MemoryOffset != 0) {
-      Addr = Builder.CreateAdd(Addr, Builder.getInt64(MemoryOffset));
+      Addr = Builder.createAdd(Addr, LLContext.getInt64(MemoryOffset));
     }
     compileAtomicCheckOffsetAlignment(Addr, TargetType);
-    auto *Offset = stackPop();
+    auto Offset = stackPop();
 
-    stackPush(Builder.CreateCall(
+    stackPush(Builder.createCall(
         Context.getIntrinsic(
             Builder, AST::Module::Intrinsics::kMemoryAtomicWait,
-            llvm::FunctionType::get(Context.Int32Ty,
-                                    {Context.Int32Ty, Context.Int32Ty,
-                                     Context.Int64Ty, Context.Int64Ty,
-                                     Context.Int32Ty},
-                                    false)),
-        {Builder.getInt32(MemoryIndex), Offset, ExpectedValue, Timeout,
-         Builder.getInt32(BitWidth)}));
+            LLVM::Type::getFunctionType(Context.Int32Ty,
+                                        {Context.Int32Ty, Context.Int32Ty,
+                                         Context.Int64Ty, Context.Int64Ty,
+                                         Context.Int32Ty},
+                                        false)),
+        {LLContext.getInt32(MemoryIndex), Offset, ExpectedValue, Timeout,
+         LLContext.getInt32(BitWidth)}));
   }
   void compileAtomicLoad(unsigned MemoryIndex, unsigned MemoryOffset,
-                         unsigned Alignment, llvm::IntegerType *IntType,
-                         llvm::IntegerType *TargetType, bool Signed = false) {
+                         unsigned Alignment, LLVM::Type IntType,
+                         LLVM::Type TargetType, bool Signed = false) noexcept {
 
-    auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+    auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
     if (MemoryOffset != 0) {
-      Offset = Builder.CreateAdd(Offset, Builder.getInt64(MemoryOffset));
+      Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
     }
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
-    auto *VPtr = Builder.CreateInBoundsGEP(
+    auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
         Offset);
 
-    auto *Ptr = Builder.CreateBitCast(VPtr, TargetType->getPointerTo());
-    auto *Load = Builder.CreateLoad(TargetType, Ptr, OptNone);
-    Load->setAlignment(Align(UINT64_C(1) << Alignment));
-    Load->setAtomic(llvm::AtomicOrdering::SequentiallyConsistent);
+    auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
+    auto Load = Builder.createLoad(TargetType, Ptr, OptNone);
+    Load.setAlignment(1 << Alignment);
+    Load.setOrdering(LLVMAtomicOrderingSequentiallyConsistent);
 
     if (Signed) {
-      Stack.back() = Builder.CreateSExt(Load, IntType);
+      Stack.back() = Builder.createSExt(Load, IntType);
     } else {
-      Stack.back() = Builder.CreateZExt(Load, IntType);
+      Stack.back() = Builder.createZExt(Load, IntType);
     }
   }
   void compileAtomicStore(unsigned MemoryIndex, unsigned MemoryOffset,
-                          unsigned Alignment, llvm::IntegerType *,
-                          llvm::IntegerType *TargetType, bool Signed = false) {
-
-    auto *V = stackPop();
+                          unsigned Alignment, LLVM::Type, LLVM::Type TargetType,
+                          bool Signed = false) noexcept {
+    auto V = stackPop();
 
     if (Signed) {
-      V = Builder.CreateSExtOrTrunc(V, TargetType);
+      V = Builder.createSExtOrTrunc(V, TargetType);
     } else {
-      V = Builder.CreateZExtOrTrunc(V, TargetType);
+      V = Builder.createZExtOrTrunc(V, TargetType);
     }
-    auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+    auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
     if (MemoryOffset != 0) {
-      Offset = Builder.CreateAdd(Offset, Builder.getInt64(MemoryOffset));
+      Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
     }
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
-    auto *VPtr = Builder.CreateInBoundsGEP(
+    auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
         Offset);
-    auto *Ptr = Builder.CreateBitCast(VPtr, TargetType->getPointerTo());
-    auto *Store = Builder.CreateStore(V, Ptr, OptNone);
-    Store->setAlignment(Align(UINT64_C(1) << Alignment));
-    Store->setAtomic(llvm::AtomicOrdering::SequentiallyConsistent);
+    auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
+    auto Store = Builder.createStore(V, Ptr, OptNone);
+    Store.setAlignment(1 << Alignment);
+    Store.setOrdering(LLVMAtomicOrderingSequentiallyConsistent);
   }
 
   void compileAtomicRMWOp(unsigned MemoryIndex, unsigned MemoryOffset,
                           [[maybe_unused]] unsigned Alignment,
-                          llvm::AtomicRMWInst::BinOp BinOp,
-                          llvm::IntegerType *IntType,
-                          llvm::IntegerType *TargetType, bool Signed = false) {
-    auto *Value = Builder.CreateSExtOrTrunc(stackPop(), TargetType);
-    auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+                          LLVMAtomicRMWBinOp BinOp, LLVM::Type IntType,
+                          LLVM::Type TargetType, bool Signed = false) noexcept {
+    auto Value = Builder.createSExtOrTrunc(stackPop(), TargetType);
+    auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
     if (MemoryOffset != 0) {
-      Offset = Builder.CreateAdd(Offset, Builder.getInt64(MemoryOffset));
+      Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
     }
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
-    auto *VPtr = Builder.CreateInBoundsGEP(
+    auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
         Offset);
-    auto *Ptr = Builder.CreateBitCast(VPtr, TargetType->getPointerTo());
+    auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
 
-    Stack.back() =
-        Builder.CreateAtomicRMW(BinOp, Ptr, Value,
+    auto Ret = Builder.createAtomicRMW(
+        BinOp, Ptr, Value, LLVMAtomicOrderingSequentiallyConsistent);
 #if LLVM_VERSION_MAJOR >= 13
-                                Align(UINT64_C(1) << Alignment),
+    Ret.setAlignment(1 << Alignment);
 #endif
-                                llvm::AtomicOrdering::SequentiallyConsistent);
-
     if (Signed) {
-      Stack.back() = Builder.CreateSExt(Stack.back(), IntType);
+      Stack.back() = Builder.createSExt(Ret, IntType);
     } else {
-      Stack.back() = Builder.CreateZExt(Stack.back(), IntType);
+      Stack.back() = Builder.createZExt(Ret, IntType);
     }
   }
   void compileAtomicCompareExchange(unsigned MemoryIndex, unsigned MemoryOffset,
                                     [[maybe_unused]] unsigned Alignment,
-                                    llvm::IntegerType *IntType,
-                                    llvm::IntegerType *TargetType,
-                                    bool Signed = false) {
+                                    LLVM::Type IntType, LLVM::Type TargetType,
+                                    bool Signed = false) noexcept {
 
-    auto *Replacement = Builder.CreateSExtOrTrunc(stackPop(), TargetType);
-    auto *Expected = Builder.CreateSExtOrTrunc(stackPop(), TargetType);
-    auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+    auto Replacement = Builder.createSExtOrTrunc(stackPop(), TargetType);
+    auto Expected = Builder.createSExtOrTrunc(stackPop(), TargetType);
+    auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
     if (MemoryOffset != 0) {
-      Offset = Builder.CreateAdd(Offset, Builder.getInt64(MemoryOffset));
+      Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
     }
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
-    auto *VPtr = Builder.CreateInBoundsGEP(
+    auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
         Offset);
-    auto *Ptr = Builder.CreateBitCast(VPtr, TargetType->getPointerTo());
+    auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
 
-    auto *Ret = Builder.CreateAtomicCmpXchg(
-        Ptr, Expected, Replacement,
+    auto Ret = Builder.createAtomicCmpXchg(
+        Ptr, Expected, Replacement, LLVMAtomicOrderingSequentiallyConsistent,
+        LLVMAtomicOrderingSequentiallyConsistent);
 #if LLVM_VERSION_MAJOR >= 13
-        Align(UINT64_C(1) << Alignment),
+    Ret.setAlignment(1 << Alignment);
 #endif
-        llvm::AtomicOrdering::SequentiallyConsistent,
-        llvm::AtomicOrdering::SequentiallyConsistent);
-
-    auto *OldVal = Builder.CreateExtractValue(Ret, 0);
-    Stack.back() = OldVal;
+    auto OldVal = Builder.createExtractValue(Ret, 0);
     if (Signed) {
-      Stack.back() = Builder.CreateSExt(Stack.back(), IntType);
+      Stack.back() = Builder.createSExt(OldVal, IntType);
     } else {
-      Stack.back() = Builder.CreateZExt(Stack.back(), IntType);
+      Stack.back() = Builder.createZExt(OldVal, IntType);
     }
   }
 
-  void compileReturn() {
+  void compileReturn() noexcept {
     updateInstrCount();
     updateGas();
-    auto *Ty = F->getReturnType();
-    if (Ty->isVoidTy()) {
-      Builder.CreateRetVoid();
-    } else if (Ty->isStructTy()) {
-      const auto Count = Ty->getStructNumElements();
-      std::vector<llvm::Value *> Ret(Count);
+    auto Ty = F.Ty.getReturnType();
+    if (Ty.isVoidTy()) {
+      Builder.createRetVoid();
+    } else if (Ty.isStructTy()) {
+      const auto Count = Ty.getStructNumElements();
+      std::vector<LLVM::Value> Ret(Count);
       for (unsigned I = 0; I < Count; ++I) {
         const unsigned J = Count - 1 - I;
         Ret[J] = stackPop();
       }
-      Builder.CreateAggregateRet(Ret.data(), Count);
+      Builder.createAggregateRet(Ret);
     } else {
-      Builder.CreateRet(stackPop());
+      Builder.createRet(stackPop());
     }
   }
 
-  void updateInstrCount() {
+  void updateInstrCount() noexcept {
     if (LocalInstrCount) {
-      Builder.CreateAtomicRMW(
-          llvm::AtomicRMWInst::BinOp::Add,
-          Context.getInstrCount(Builder, ExecCtx),
-          Builder.CreateLoad(Context.Int64Ty, LocalInstrCount),
+      auto Store [[maybe_unused]] = Builder.createAtomicRMW(
+          LLVMAtomicRMWBinOpAdd, Context.getInstrCount(Builder, ExecCtx),
+          Builder.createLoad(Context.Int64Ty, LocalInstrCount),
+          LLVMAtomicOrderingMonotonic);
 #if LLVM_VERSION_MAJOR >= 13
-          llvm::MaybeAlign(8),
+      Store.setAlignment(8);
 #endif
-          llvm::AtomicOrdering::Monotonic);
-      Builder.CreateStore(Builder.getInt64(0), LocalInstrCount);
+      Builder.createStore(LLContext.getInt64(0), LocalInstrCount);
     }
   }
 
-  void updateGas() {
+  void updateGas() noexcept {
     if (LocalGas) {
-      auto *CurrBB = Builder.GetInsertBlock();
-      auto *CheckBB = llvm::BasicBlock::Create(LLContext, "gas_check", F);
-      auto *OkBB = llvm::BasicBlock::Create(LLContext, "gas_ok", F);
-      auto *EndBB = llvm::BasicBlock::Create(LLContext, "gas_end", F);
+      auto CurrBB = Builder.getInsertBlock();
+      auto CheckBB = LLVM::BasicBlock::create(LLContext, F.Fn, "gas_check");
+      auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "gas_ok");
+      auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "gas_end");
 
-      auto *Cost = Builder.CreateLoad(Context.Int64Ty, LocalGas);
-      Cost->setAlignment(Align(8));
-      auto *GasPtr = Context.getGas(Builder, ExecCtx);
-      auto *GasLimit = Context.getGasLimit(Builder, ExecCtx);
-      auto *Gas = Builder.CreateLoad(Context.Int64Ty, GasPtr);
-      Gas->setAlignment(Align(8));
-      Gas->setAtomic(llvm::AtomicOrdering::Monotonic);
-      Builder.CreateBr(CheckBB);
-      Builder.SetInsertPoint(CheckBB);
+      auto Cost = Builder.createLoad(Context.Int64Ty, LocalGas);
+      Cost.setAlignment(64);
+      auto GasPtr = Context.getGas(Builder, ExecCtx);
+      auto GasLimit = Context.getGasLimit(Builder, ExecCtx);
+      auto Gas = Builder.createLoad(Context.Int64Ty, GasPtr);
+      Gas.setAlignment(64);
+      Gas.setOrdering(LLVMAtomicOrderingMonotonic);
+      Builder.createBr(CheckBB);
+      Builder.positionAtEnd(CheckBB);
 
-      auto *PHIOldGas = Builder.CreatePHI(Context.Int64Ty, 2);
-      auto *NewGas = Builder.CreateAdd(PHIOldGas, Cost);
-      auto *IsGasRemain =
-          createLikely(Builder, Builder.CreateICmpULE(NewGas, GasLimit));
-      Builder.CreateCondBr(IsGasRemain, OkBB,
+      auto PHIOldGas = Builder.createPHI(Context.Int64Ty);
+      auto NewGas = Builder.createAdd(PHIOldGas, Cost);
+      auto IsGasRemain =
+          Builder.createLikely(Builder.createICmpULE(NewGas, GasLimit));
+      Builder.createCondBr(IsGasRemain, OkBB,
                            getTrapBB(ErrCode::Value::CostLimitExceeded));
-      Builder.SetInsertPoint(OkBB);
+      Builder.positionAtEnd(OkBB);
 
-      auto *RGasAndSucceed = Builder.CreateAtomicCmpXchg(
-          GasPtr, PHIOldGas, NewGas,
+      auto RGasAndSucceed = Builder.createAtomicCmpXchg(
+          GasPtr, PHIOldGas, NewGas, LLVMAtomicOrderingMonotonic,
+          LLVMAtomicOrderingMonotonic);
 #if LLVM_VERSION_MAJOR >= 13
-          llvm::MaybeAlign(8),
+      RGasAndSucceed.setAlignment(8);
 #endif
-          llvm::AtomicOrdering::Monotonic, llvm::AtomicOrdering::Monotonic);
-      RGasAndSucceed->setWeak(true);
-      auto *RGas = Builder.CreateExtractValue(RGasAndSucceed, {0});
-      auto *Succeed = Builder.CreateExtractValue(RGasAndSucceed, {1});
-      Builder.CreateCondBr(createLikely(Builder, Succeed), EndBB, CheckBB);
-      Builder.SetInsertPoint(EndBB);
+      RGasAndSucceed.setWeak(true);
+      auto RGas = Builder.createExtractValue(RGasAndSucceed, 0);
+      auto Succeed = Builder.createExtractValue(RGasAndSucceed, 1);
+      Builder.createCondBr(Builder.createLikely(Succeed), EndBB, CheckBB);
+      Builder.positionAtEnd(EndBB);
 
-      Builder.CreateStore(Builder.getInt64(0), LocalGas);
+      Builder.createStore(LLContext.getInt64(0), LocalGas);
 
-      PHIOldGas->addIncoming(Gas, CurrBB);
-      PHIOldGas->addIncoming(RGas, OkBB);
+      PHIOldGas.addIncoming(Gas, CurrBB);
+      PHIOldGas.addIncoming(RGas, OkBB);
     }
   }
 
-  void updateGasAtTrap() {
+  void updateGasAtTrap() noexcept {
     if (LocalGas) {
-      Builder.CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Add,
-                              Context.getGas(Builder, ExecCtx),
-                              Builder.CreateLoad(Context.Int64Ty, LocalGas),
+      auto Update [[maybe_unused]] = Builder.createAtomicRMW(
+          LLVMAtomicRMWBinOpAdd, Context.getGas(Builder, ExecCtx),
+          Builder.createLoad(Context.Int64Ty, LocalGas),
+          LLVMAtomicOrderingMonotonic);
 #if LLVM_VERSION_MAJOR >= 13
-                              llvm::MaybeAlign(8),
+      Update.setAlignment(8);
 #endif
-                              llvm::AtomicOrdering::Monotonic);
     }
   }
 
 private:
-  void compileCallOp(const unsigned int FuncIndex) {
+  void compileCallOp(const unsigned int FuncIndex) noexcept {
     const auto &FuncType =
         *Context.FunctionTypes[std::get<0>(Context.Functions[FuncIndex])];
     const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
     const auto &ParamTypes = FuncType.getParamTypes();
 
-    std::vector<llvm::Value *> Args(ParamTypes.size() + 1);
-    Args[0] = F->arg_begin();
+    std::vector<LLVM::Value> Args(ParamTypes.size() + 1);
+    Args[0] = F.Fn.getFirstParam();
     for (size_t I = 0; I < ParamTypes.size(); ++I) {
       const size_t J = ParamTypes.size() - 1 - I;
       Args[J + 1] = stackPop();
     }
 
-    auto *Ret = Builder.CreateCall(Function, Args);
-    auto *Ty = Ret->getType();
-    if (Ty->isVoidTy()) {
+    auto Ret = Builder.createCall(Function, Args);
+    auto Ty = Ret.getType();
+    if (Ty.isVoidTy()) {
       // nothing to do
-    } else if (Ty->isStructTy()) {
-      for (auto *Val : unpackStruct(Builder, Ret)) {
+    } else if (Ty.isStructTy()) {
+      for (auto Val : unpackStruct(Builder, Ret)) {
         stackPush(Val);
       }
     } else {
@@ -3524,521 +3544,530 @@ private:
   }
 
   void compileIndirectCallOp(const uint32_t TableIndex,
-                             const uint32_t FuncTypeIndex) {
-    auto *NotNullBB = llvm::BasicBlock::Create(LLContext, "c_i.not_null", F);
-    auto *IsNullBB = llvm::BasicBlock::Create(LLContext, "c_i.is_null", F);
-    auto *EndBB = llvm::BasicBlock::Create(LLContext, "c_i.end", F);
+                             const uint32_t FuncTypeIndex) noexcept {
+    auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.not_null");
+    auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.is_null");
+    auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.end");
 
-    llvm::Value *FuncIndex = stackPop();
+    LLVM::Value FuncIndex = stackPop();
     const auto &FuncType = *Context.FunctionTypes[FuncTypeIndex];
-    auto *FTy = toLLVMType(Context.ExecCtxPtrTy, FuncType);
-    auto *RTy = FTy->getReturnType();
+    auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
+    auto RTy = FTy.getReturnType();
 
     const size_t ArgSize = FuncType.getParamTypes().size();
     const size_t RetSize =
-        RTy->isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-    std::vector<llvm::Value *> ArgsVec(ArgSize + 1, nullptr);
-    ArgsVec[0] = F->arg_begin();
+        RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
+    std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+    ArgsVec[0] = F.Fn.getFirstParam();
     for (size_t I = 0; I < ArgSize; ++I) {
       const size_t J = ArgSize - I;
       ArgsVec[J] = stackPop();
     }
 
-    std::vector<llvm::Value *> FPtrRetsVec;
+    std::vector<LLVM::Value> FPtrRetsVec;
     FPtrRetsVec.reserve(RetSize);
     {
-      auto *FPtr = Builder.CreateCall(
+      auto FPtr = Builder.createCall(
           Context.getIntrinsic(
               Builder, AST::Module::Intrinsics::kPtrFunc,
-              llvm::FunctionType::get(
-                  FTy->getPointerTo(),
+              LLVM::Type::getFunctionType(
+                  FTy.getPointerTo(),
                   {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
-          {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
+          {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
            FuncIndex});
-      Builder.CreateCondBr(
-          createLikely(Builder, Builder.CreateNot(Builder.CreateIsNull(FPtr))),
+      Builder.createCondBr(
+          Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
           NotNullBB, IsNullBB);
-      Builder.SetInsertPoint(NotNullBB);
+      Builder.positionAtEnd(NotNullBB);
 
-      auto *FPtrRet =
-          Builder.CreateCall(llvm::FunctionCallee(FTy, FPtr), ArgsVec);
+      auto FPtrRet =
+          Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, ArgsVec);
       if (RetSize == 0) {
         // nothing to do
       } else if (RetSize == 1) {
         FPtrRetsVec.push_back(FPtrRet);
       } else {
-        for (auto *Val : unpackStruct(Builder, FPtrRet)) {
+        for (auto Val : unpackStruct(Builder, FPtrRet)) {
           FPtrRetsVec.push_back(Val);
         }
       }
     }
 
-    Builder.CreateBr(EndBB);
-    Builder.SetInsertPoint(IsNullBB);
+    Builder.createBr(EndBB);
+    Builder.positionAtEnd(IsNullBB);
 
-    std::vector<llvm::Value *> RetsVec(RetSize);
+    std::vector<LLVM::Value> RetsVec(RetSize);
     {
-      llvm::Value *Args;
+      LLVM::Value Args;
       if (ArgSize == 0) {
-        Args = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+        Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
       } else {
-        auto *Alloca = Builder.CreateAlloca(
-            Builder.getInt8Ty(), Builder.getInt64(ArgSize * kValSize));
-        Alloca->setAlignment(Align(kValSize));
+        auto Alloca = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(ArgSize * kValSize));
+        Alloca.setAlignment(kValSize);
         Args = Alloca;
       }
 
-      llvm::Value *Rets;
+      LLVM::Value Rets;
       if (RetSize == 0) {
-        Rets = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+        Rets = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
       } else {
-        auto *Alloca = Builder.CreateAlloca(
-            Builder.getInt8Ty(), Builder.getInt64(RetSize * kValSize));
-        Alloca->setAlignment(Align(kValSize));
+        auto Alloca = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(RetSize * kValSize));
+        Alloca.setAlignment(kValSize);
         Rets = Alloca;
       }
 
       for (size_t I = 0; I < ArgSize; ++I) {
-        auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Args,
-                                                       I * kValSize);
-        auto *Arg = ArgsVec[I + 1];
-        Builder.CreateStore(
-            Arg, Builder.CreateBitCast(Ptr, Arg->getType()->getPointerTo()));
+        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Args,
+                                                      I * kValSize);
+        auto Arg = ArgsVec[I + 1];
+        Builder.createStore(
+            Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
       }
 
-      Builder.CreateCall(
+      Builder.createCall(
           Context.getIntrinsic(
               Builder, AST::Module::Intrinsics::kCallIndirect,
-              llvm::FunctionType::get(Context.VoidTy,
-                                      {Context.Int32Ty, Context.Int32Ty,
-                                       Context.Int32Ty, Context.Int8PtrTy,
-                                       Context.Int8PtrTy},
-                                      false)),
-          {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
+              LLVM::Type::getFunctionType(Context.VoidTy,
+                                          {Context.Int32Ty, Context.Int32Ty,
+                                           Context.Int32Ty, Context.Int8PtrTy,
+                                           Context.Int8PtrTy},
+                                          false)),
+          {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
            FuncIndex, Args, Rets});
 
       if (RetSize == 0) {
         // nothing to do
       } else if (RetSize == 1) {
-        auto *VPtr =
-            Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
-        auto *Ptr = Builder.CreateBitCast(VPtr, RTy->getPointerTo());
-        RetsVec[0] = Builder.CreateLoad(RTy, Ptr);
+        auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
+        auto Ptr = Builder.createBitCast(VPtr, RTy.getPointerTo());
+        RetsVec[0] = Builder.createLoad(RTy, Ptr);
       } else {
         for (unsigned I = 0; I < RetSize; ++I) {
-          auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets,
-                                                          I * kValSize);
-          auto *Ptr = Builder.CreateBitCast(
-              VPtr, RTy->getStructElementType(I)->getPointerTo());
-          RetsVec[I] = Builder.CreateLoad(RTy->getStructElementType(I), Ptr);
+          auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets,
+                                                         I * kValSize);
+          auto Ptr = Builder.createBitCast(
+              VPtr, RTy.getStructElementType(I).getPointerTo());
+          RetsVec[I] = Builder.createLoad(RTy.getStructElementType(I), Ptr);
         }
       }
-      Builder.CreateBr(EndBB);
-      Builder.SetInsertPoint(EndBB);
+      Builder.createBr(EndBB);
+      Builder.positionAtEnd(EndBB);
     }
 
     for (unsigned I = 0; I < RetSize; ++I) {
-      auto *PHIRet = Builder.CreatePHI(FPtrRetsVec[I]->getType(), 2);
-      PHIRet->addIncoming(FPtrRetsVec[I], NotNullBB);
-      PHIRet->addIncoming(RetsVec[I], IsNullBB);
+      auto PHIRet = Builder.createPHI(FPtrRetsVec[I].getType());
+      PHIRet.addIncoming(FPtrRetsVec[I], NotNullBB);
+      PHIRet.addIncoming(RetsVec[I], IsNullBB);
       stackPush(PHIRet);
     }
   }
 
-  void compileReturnCallOp(const unsigned int FuncIndex) {
+  void compileReturnCallOp(const unsigned int FuncIndex) noexcept {
     const auto &FuncType =
         *Context.FunctionTypes[std::get<0>(Context.Functions[FuncIndex])];
     const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
     const auto &ParamTypes = FuncType.getParamTypes();
 
-    std::vector<llvm::Value *> Args(ParamTypes.size() + 1);
-    Args[0] = F->arg_begin();
+    std::vector<LLVM::Value> Args(ParamTypes.size() + 1);
+    Args[0] = F.Fn.getFirstParam();
     for (size_t I = 0; I < ParamTypes.size(); ++I) {
       const size_t J = ParamTypes.size() - 1 - I;
       Args[J + 1] = stackPop();
     }
 
-    auto *Ret = Builder.CreateCall(Function, Args);
-    auto *Ty = Ret->getType();
-    if (Ty->isVoidTy()) {
-      Builder.CreateRetVoid();
+    auto Ret = Builder.createCall(Function, Args);
+    auto Ty = Ret.getType();
+    if (Ty.isVoidTy()) {
+      Builder.createRetVoid();
     } else {
-      Builder.CreateRet(Ret);
+      Builder.createRet(Ret);
     }
   }
 
   void compileReturnIndirectCallOp(const uint32_t TableIndex,
-                                   const uint32_t FuncTypeIndex) {
-    auto *NotNullBB = llvm::BasicBlock::Create(LLContext, "c_i.not_null", F);
-    auto *IsNullBB = llvm::BasicBlock::Create(LLContext, "c_i.is_null", F);
+                                   const uint32_t FuncTypeIndex) noexcept {
+    auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.not_null");
+    auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.is_null");
 
-    llvm::Value *FuncIndex = stackPop();
+    LLVM::Value FuncIndex = stackPop();
     const auto &FuncType = *Context.FunctionTypes[FuncTypeIndex];
-    auto *FTy = toLLVMType(Context.ExecCtxPtrTy, FuncType);
-    auto *RTy = FTy->getReturnType();
+    auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
+    auto RTy = FTy.getReturnType();
 
     const size_t ArgSize = FuncType.getParamTypes().size();
     const size_t RetSize =
-        RTy->isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-    std::vector<llvm::Value *> ArgsVec(ArgSize + 1, nullptr);
-    ArgsVec[0] = F->arg_begin();
+        RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
+    std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+    ArgsVec[0] = F.Fn.getFirstParam();
     for (size_t I = 0; I < ArgSize; ++I) {
       const size_t J = ArgSize - I;
       ArgsVec[J] = stackPop();
     }
 
     {
-      auto *FPtr = Builder.CreateCall(
+      auto FPtr = Builder.createCall(
           Context.getIntrinsic(
               Builder, AST::Module::Intrinsics::kPtrFunc,
-              llvm::FunctionType::get(
-                  FTy->getPointerTo(),
+              LLVM::Type::getFunctionType(
+                  FTy.getPointerTo(),
                   {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
-          {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
+          {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
            FuncIndex});
-      Builder.CreateCondBr(
-          createLikely(Builder, Builder.CreateNot(Builder.CreateIsNull(FPtr))),
+      Builder.createCondBr(
+          Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
           NotNullBB, IsNullBB);
-      Builder.SetInsertPoint(NotNullBB);
+      Builder.positionAtEnd(NotNullBB);
 
-      auto *FPtrRet =
-          Builder.CreateCall(llvm::FunctionCallee(FTy, FPtr), ArgsVec);
+      auto FPtrRet =
+          Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), ArgsVec);
       if (RetSize == 0) {
-        Builder.CreateRetVoid();
+        Builder.createRetVoid();
       } else {
-        Builder.CreateRet(FPtrRet);
+        Builder.createRet(FPtrRet);
       }
     }
 
-    Builder.SetInsertPoint(IsNullBB);
+    Builder.positionAtEnd(IsNullBB);
 
     {
-      llvm::Value *Args;
+      LLVM::Value Args;
       if (ArgSize == 0) {
-        Args = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+        Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
       } else {
-        auto *Alloca = Builder.CreateAlloca(
-            Builder.getInt8Ty(), Builder.getInt64(ArgSize * kValSize));
-        Alloca->setAlignment(Align(kValSize));
+        auto Alloca = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(ArgSize * kValSize));
+        Alloca.setAlignment(kValSize);
         Args = Alloca;
       }
 
-      llvm::Value *Rets;
+      LLVM::Value Rets;
       if (RetSize == 0) {
-        Rets = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+        Rets = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
       } else {
-        auto *Alloca = Builder.CreateAlloca(
-            Builder.getInt8Ty(), Builder.getInt64(RetSize * kValSize));
-        Alloca->setAlignment(Align(kValSize));
+        auto Alloca = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(RetSize * kValSize));
+        Alloca.setAlignment(kValSize);
         Rets = Alloca;
       }
 
       for (size_t I = 0; I < ArgSize; ++I) {
-        auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Args,
-                                                       I * kValSize);
-        auto *Arg = ArgsVec[I + 1];
-        Builder.CreateStore(
-            Arg, Builder.CreateBitCast(Ptr, Arg->getType()->getPointerTo()));
+        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Args,
+                                                      I * kValSize);
+        auto Arg = ArgsVec[I + 1];
+        Builder.createStore(
+            Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
       }
 
-      Builder.CreateCall(
+      Builder.createCall(
           Context.getIntrinsic(
               Builder, AST::Module::Intrinsics::kCallIndirect,
-              llvm::FunctionType::get(Context.VoidTy,
-                                      {Context.Int32Ty, Context.Int32Ty,
-                                       Context.Int32Ty, Context.Int8PtrTy,
-                                       Context.Int8PtrTy},
-                                      false)),
-          {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
+              LLVM::Type::getFunctionType(Context.VoidTy,
+                                          {Context.Int32Ty, Context.Int32Ty,
+                                           Context.Int32Ty, Context.Int8PtrTy,
+                                           Context.Int8PtrTy},
+                                          false)),
+          {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
            FuncIndex, Args, Rets});
 
       if (RetSize == 0) {
-        Builder.CreateRetVoid();
+        Builder.createRetVoid();
       } else if (RetSize == 1) {
-        auto *VPtr =
-            Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
-        auto *Ptr = Builder.CreateBitCast(VPtr, RTy->getPointerTo());
-        Builder.CreateRet(Builder.CreateLoad(RTy, Ptr));
+        auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
+        auto Ptr = Builder.createBitCast(VPtr, RTy.getPointerTo());
+        Builder.createRet(Builder.createLoad(RTy, Ptr));
       } else {
-        std::vector<llvm::Value *> Ret(RetSize);
+        std::vector<LLVM::Value> Ret(RetSize);
         for (unsigned I = 0; I < RetSize; ++I) {
-          auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets,
-                                                          I * kValSize);
-          auto *Ptr = Builder.CreateBitCast(
-              VPtr, RTy->getStructElementType(I)->getPointerTo());
-          Ret[I] = Builder.CreateLoad(RTy->getStructElementType(I), Ptr);
+          auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets,
+                                                         I * kValSize);
+          auto Ptr = Builder.createBitCast(
+              VPtr, RTy.getStructElementType(I).getPointerTo());
+          Ret[I] = Builder.createLoad(RTy.getStructElementType(I), Ptr);
         }
-        Builder.CreateAggregateRet(Ret.data(), static_cast<uint32_t>(RetSize));
+        Builder.createAggregateRet(Ret);
       }
     }
   }
 
   void compileLoadOp(unsigned MemoryIndex, unsigned Offset, unsigned Alignment,
-                     llvm::Type *LoadTy) {
+                     LLVM::Type LoadTy) noexcept {
     if constexpr (kForceUnalignment) {
       Alignment = 0;
     }
-    auto *Off = Builder.CreateZExt(stackPop(), Context.Int64Ty);
+    auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
     if (Offset != 0) {
-      Off = Builder.CreateAdd(Off, Builder.getInt64(Offset));
+      Off = Builder.createAdd(Off, LLContext.getInt64(Offset));
     }
 
-    auto *VPtr = Builder.CreateInBoundsGEP(
+    auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
-    auto *Ptr = Builder.CreateBitCast(VPtr, LoadTy->getPointerTo());
-    auto *LoadInst = Builder.CreateLoad(LoadTy, Ptr, OptNone);
-    LoadInst->setAlignment(Align(UINT64_C(1) << Alignment));
+    auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
+    auto LoadInst = Builder.createLoad(LoadTy, Ptr, OptNone);
+    LoadInst.setAlignment(1 << Alignment);
     stackPush(LoadInst);
   }
   void compileLoadOp(unsigned MemoryIndex, unsigned Offset, unsigned Alignment,
-                     llvm::Type *LoadTy, llvm::Type *ExtendTy, bool Signed) {
+                     LLVM::Type LoadTy, LLVM::Type ExtendTy,
+                     bool Signed) noexcept {
     compileLoadOp(MemoryIndex, Offset, Alignment, LoadTy);
     if (Signed) {
-      Stack.back() = Builder.CreateSExt(Stack.back(), ExtendTy);
+      Stack.back() = Builder.createSExt(Stack.back(), ExtendTy);
     } else {
-      Stack.back() = Builder.CreateZExt(Stack.back(), ExtendTy);
+      Stack.back() = Builder.createZExt(Stack.back(), ExtendTy);
     }
   }
   void compileVectorLoadOp(unsigned MemoryIndex, unsigned Offset,
-                           unsigned Alignment, llvm::Type *LoadTy) {
+                           unsigned Alignment, LLVM::Type LoadTy) noexcept {
     compileLoadOp(MemoryIndex, Offset, Alignment, LoadTy);
-    Stack.back() = Builder.CreateBitCast(Stack.back(), Context.Int64x2Ty);
+    Stack.back() = Builder.createBitCast(Stack.back(), Context.Int64x2Ty);
   }
   void compileVectorLoadOp(unsigned MemoryIndex, unsigned Offset,
-                           unsigned Alignment, llvm::Type *LoadTy,
-                           llvm::Type *ExtendTy, bool Signed) {
+                           unsigned Alignment, LLVM::Type LoadTy,
+                           LLVM::Type ExtendTy, bool Signed) noexcept {
     compileLoadOp(MemoryIndex, Offset, Alignment, LoadTy, ExtendTy, Signed);
-    Stack.back() = Builder.CreateBitCast(Stack.back(), Context.Int64x2Ty);
+    Stack.back() = Builder.createBitCast(Stack.back(), Context.Int64x2Ty);
   }
   void compileSplatLoadOp(unsigned MemoryIndex, unsigned Offset,
-                          unsigned Alignment, llvm::Type *LoadTy,
-                          llvm::VectorType *VectorTy) {
+                          unsigned Alignment, LLVM::Type LoadTy,
+                          LLVM::Type VectorTy) noexcept {
     compileLoadOp(MemoryIndex, Offset, Alignment, LoadTy);
     compileSplatOp(VectorTy);
   }
   void compileLoadLaneOp(unsigned MemoryIndex, unsigned Offset,
-                         unsigned Alignment, unsigned Index, llvm::Type *LoadTy,
-                         llvm::VectorType *VectorTy) {
-    auto *Vector = stackPop();
+                         unsigned Alignment, unsigned Index, LLVM::Type LoadTy,
+                         LLVM::Type VectorTy) noexcept {
+    auto Vector = stackPop();
     compileLoadOp(MemoryIndex, Offset, Alignment, LoadTy);
-    auto *Value = Stack.back();
-    Stack.back() = Builder.CreateBitCast(
-        Builder.CreateInsertElement(Builder.CreateBitCast(Vector, VectorTy),
-                                    Value, Index),
+    auto Value = Stack.back();
+    Stack.back() = Builder.createBitCast(
+        Builder.createInsertElement(Builder.createBitCast(Vector, VectorTy),
+                                    Value, LLContext.getInt64(Index)),
         Context.Int64x2Ty);
   }
   void compileStoreLaneOp(unsigned MemoryIndex, unsigned Offset,
-                          unsigned Alignment, unsigned Index,
-                          llvm::Type *LoadTy, llvm::VectorType *VectorTy) {
-    auto *Vector = Stack.back();
-    Stack.back() = Builder.CreateExtractElement(
-        Builder.CreateBitCast(Vector, VectorTy), Index);
+                          unsigned Alignment, unsigned Index, LLVM::Type LoadTy,
+                          LLVM::Type VectorTy) noexcept {
+    auto Vector = Stack.back();
+    Stack.back() = Builder.createExtractElement(
+        Builder.createBitCast(Vector, VectorTy), LLContext.getInt64(Index));
     compileStoreOp(MemoryIndex, Offset, Alignment, LoadTy);
   }
   void compileStoreOp(unsigned MemoryIndex, unsigned Offset, unsigned Alignment,
-                      llvm::Type *LoadTy, bool Trunc = false,
-                      bool BitCast = false) {
+                      LLVM::Type LoadTy, bool Trunc = false,
+                      bool BitCast = false) noexcept {
     if constexpr (kForceUnalignment) {
       Alignment = 0;
     }
-    auto *V = stackPop();
-    auto *Off = Builder.CreateZExt(stackPop(), Context.Int64Ty);
+    auto V = stackPop();
+    auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
     if (Offset != 0) {
-      Off = Builder.CreateAdd(Off, Builder.getInt64(Offset));
+      Off = Builder.createAdd(Off, LLContext.getInt64(Offset));
     }
 
     if (Trunc) {
-      V = Builder.CreateTrunc(V, LoadTy);
+      V = Builder.createTrunc(V, LoadTy);
     }
     if (BitCast) {
-      V = Builder.CreateBitCast(V, LoadTy);
+      V = Builder.createBitCast(V, LoadTy);
     }
-    auto *VPtr = Builder.CreateInBoundsGEP(
+    auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
-    auto *Ptr = Builder.CreateBitCast(VPtr, LoadTy->getPointerTo());
-    auto *StoreInst = Builder.CreateStore(V, Ptr, OptNone);
-    StoreInst->setAlignment(Align(UINT64_C(1) << Alignment));
+    auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
+    auto StoreInst = Builder.createStore(V, Ptr, OptNone);
+    StoreInst.setAlignment(1 << Alignment);
   }
-  void compileSplatOp(llvm::VectorType *VectorTy) {
-    auto *Undef = llvm::UndefValue::get(VectorTy);
-    auto *Zeros = llvm::ConstantAggregateZero::get(
-        llvm::VectorType::get(Context.Int32Ty, elementCount(VectorTy), false));
-    auto *Value = Builder.CreateTrunc(Stack.back(), VectorTy->getElementType());
-    auto *Vector =
-        Builder.CreateInsertElement(Undef, Value, Builder.getInt64(0));
-    Vector = Builder.CreateShuffleVector(Vector, Undef, Zeros);
+  void compileSplatOp(LLVM::Type VectorTy) noexcept {
+    auto Undef = LLVM::Value::getUndef(VectorTy);
+    auto Zeros = LLVM::Value::getConstNull(
+        LLVM::Type::getVectorType(Context.Int32Ty, VectorTy.getVectorSize()));
+    auto Value = Builder.createTrunc(Stack.back(), VectorTy.getElementType());
+    auto Vector =
+        Builder.createInsertElement(Undef, Value, LLContext.getInt64(0));
+    Vector = Builder.createShuffleVector(Vector, Undef, Zeros);
 
-    Stack.back() = Builder.CreateBitCast(Vector, Context.Int64x2Ty);
+    Stack.back() = Builder.createBitCast(Vector, Context.Int64x2Ty);
   }
-  void compileExtractLaneOp(llvm::VectorType *VectorTy, unsigned Index) {
-    auto *Vector = Builder.CreateBitCast(Stack.back(), VectorTy);
-    Stack.back() = Builder.CreateExtractElement(Vector, Index);
+  void compileExtractLaneOp(LLVM::Type VectorTy, unsigned Index) noexcept {
+    auto Vector = Builder.createBitCast(Stack.back(), VectorTy);
+    Stack.back() =
+        Builder.createExtractElement(Vector, LLContext.getInt64(Index));
   }
-  void compileExtractLaneOp(llvm::VectorType *VectorTy, unsigned Index,
-                            llvm::Type *ExtendTy, bool Signed) {
+  void compileExtractLaneOp(LLVM::Type VectorTy, unsigned Index,
+                            LLVM::Type ExtendTy, bool Signed) noexcept {
     compileExtractLaneOp(VectorTy, Index);
     if (Signed) {
-      Stack.back() = Builder.CreateSExt(Stack.back(), ExtendTy);
+      Stack.back() = Builder.createSExt(Stack.back(), ExtendTy);
     } else {
-      Stack.back() = Builder.CreateZExt(Stack.back(), ExtendTy);
+      Stack.back() = Builder.createZExt(Stack.back(), ExtendTy);
     }
   }
-  void compileReplaceLaneOp(llvm::VectorType *VectorTy, unsigned Index) {
-    auto *Value = Builder.CreateTrunc(stackPop(), VectorTy->getElementType());
-    auto *Vector = Stack.back();
-    Stack.back() = Builder.CreateBitCast(
-        Builder.CreateInsertElement(Builder.CreateBitCast(Vector, VectorTy),
-                                    Value, Index),
+  void compileReplaceLaneOp(LLVM::Type VectorTy, unsigned Index) noexcept {
+    auto Value = Builder.createTrunc(stackPop(), VectorTy.getElementType());
+    auto Vector = Stack.back();
+    Stack.back() = Builder.createBitCast(
+        Builder.createInsertElement(Builder.createBitCast(Vector, VectorTy),
+                                    Value, LLContext.getInt64(Index)),
         Context.Int64x2Ty);
   }
-  void compileVectorCompareOp(llvm::VectorType *VectorTy,
-                              llvm::CmpInst::Predicate Predicate) {
-    auto *RHS = stackPop();
-    auto *LHS = stackPop();
-    auto *Result = Builder.CreateSExt(
-        Builder.CreateICmp(Predicate, Builder.CreateBitCast(LHS, VectorTy),
-                           Builder.CreateBitCast(RHS, VectorTy)),
+  void compileVectorCompareOp(LLVM::Type VectorTy,
+                              LLVMIntPredicate Predicate) noexcept {
+    auto RHS = stackPop();
+    auto LHS = stackPop();
+    auto Result = Builder.createSExt(
+        Builder.createICmp(Predicate, Builder.createBitCast(LHS, VectorTy),
+                           Builder.createBitCast(RHS, VectorTy)),
         VectorTy);
-    stackPush(Builder.CreateBitCast(Result, Context.Int64x2Ty));
+    stackPush(Builder.createBitCast(Result, Context.Int64x2Ty));
   }
-  void compileVectorCompareOp(llvm::VectorType *VectorTy,
-                              llvm::CmpInst::Predicate Predicate,
-                              llvm::VectorType *ResultTy) {
-    auto *RHS = stackPop();
-    auto *LHS = stackPop();
-    auto *Result = Builder.CreateSExt(
-        Builder.CreateFCmp(Predicate, Builder.CreateBitCast(LHS, VectorTy),
-                           Builder.CreateBitCast(RHS, VectorTy)),
+  void compileVectorCompareOp(LLVM::Type VectorTy, LLVMRealPredicate Predicate,
+                              LLVM::Type ResultTy) noexcept {
+    auto RHS = stackPop();
+    auto LHS = stackPop();
+    auto Result = Builder.createSExt(
+        Builder.createFCmp(Predicate, Builder.createBitCast(LHS, VectorTy),
+                           Builder.createBitCast(RHS, VectorTy)),
         ResultTy);
-    stackPush(Builder.CreateBitCast(Result, Context.Int64x2Ty));
+    stackPush(Builder.createBitCast(Result, Context.Int64x2Ty));
   }
   template <typename Func>
-  void compileVectorOp(llvm::VectorType *VectorTy, Func &&Op) {
-    auto *V = Builder.CreateBitCast(Stack.back(), VectorTy);
-    Stack.back() = Builder.CreateBitCast(Op(V), Context.Int64x2Ty);
+  void compileVectorOp(LLVM::Type VectorTy, Func &&Op) noexcept {
+    auto V = Builder.createBitCast(Stack.back(), VectorTy);
+    Stack.back() = Builder.createBitCast(Op(V), Context.Int64x2Ty);
   }
-  void compileVectorAbs(llvm::VectorType *VectorTy) {
-    compileVectorOp(VectorTy, [this, VectorTy](auto *V) {
-      auto *Zero = llvm::ConstantAggregateZero::get(VectorTy);
-      auto *C = Builder.CreateICmpSLT(V, Zero);
-      return Builder.CreateSelect(C, Builder.CreateNeg(V), V);
+  void compileVectorAbs(LLVM::Type VectorTy) noexcept {
+    compileVectorOp(VectorTy, [this, VectorTy](auto V) noexcept {
+      auto Zero = LLVM::Value::getConstNull(VectorTy);
+      auto C = Builder.createICmpSLT(V, Zero);
+      return Builder.createSelect(C, Builder.createNeg(V), V);
     });
   }
-  void compileVectorNeg(llvm::VectorType *VectorTy) {
-    compileVectorOp(VectorTy, [this](auto *V) { return Builder.CreateNeg(V); });
+  void compileVectorNeg(LLVM::Type VectorTy) noexcept {
+    compileVectorOp(VectorTy,
+                    [this](auto V) noexcept { return Builder.createNeg(V); });
   }
-  void compileVectorPopcnt() {
-    compileVectorOp(Context.Int8x16Ty, [this](auto *V) {
-      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ctpop, V);
-    });
-  }
-  template <typename Func>
-  void compileVectorReduceIOp(llvm::VectorType *VectorTy, Func &&Op) {
-    auto *V = Builder.CreateBitCast(Stack.back(), VectorTy);
-    Stack.back() = Builder.CreateZExt(Op(V), Context.Int32Ty);
-  }
-  void compileVectorAnyTrue() {
-    compileVectorReduceIOp(Context.Int128x1Ty, [this](auto *V) {
-      auto *Zero = llvm::ConstantAggregateZero::get(Context.Int128x1Ty);
-      return Builder.CreateBitCast(Builder.CreateICmpNE(V, Zero),
-                                   Builder.getInt1Ty());
-    });
-  }
-  void compileVectorAllTrue(llvm::VectorType *VectorTy) {
-    compileVectorReduceIOp(VectorTy, [this, VectorTy](auto *V) {
-      const auto Size = elementCount(VectorTy);
-      auto *IntType = Builder.getIntNTy(Size);
-      auto *Zero = llvm::ConstantAggregateZero::get(VectorTy);
-      auto *Cmp = Builder.CreateBitCast(Builder.CreateICmpEQ(V, Zero), IntType);
-      auto *CmpZero = llvm::ConstantInt::get(IntType, 0);
-      return Builder.CreateICmpEQ(Cmp, CmpZero);
-    });
-  }
-  void compileVectorBitMask(llvm::VectorType *VectorTy) {
-    compileVectorReduceIOp(VectorTy, [this, VectorTy](auto *V) {
-      const auto Size = elementCount(VectorTy);
-      auto *IntType = Builder.getIntNTy(Size);
-      auto *Zero = llvm::ConstantAggregateZero::get(VectorTy);
-      return Builder.CreateBitCast(Builder.CreateICmpSLT(V, Zero), IntType);
+  void compileVectorPopcnt() noexcept {
+    compileVectorOp(Context.Int8x16Ty, [this](auto V) noexcept {
+      assuming(LLVM::Core::Ctpop != LLVM::Core::NotIntrinsic);
+      return Builder.createUnaryIntrinsic(LLVM::Core::Ctpop, V);
     });
   }
   template <typename Func>
-  void compileVectorShiftOp(llvm::VectorType *VectorTy, Func &&Op) {
-    const uint32_t Mask = VectorTy->getElementType()->getIntegerBitWidth() - 1;
-    auto *N = Builder.CreateAnd(stackPop(), Builder.getInt32(Mask));
-    auto *RHS = Builder.CreateVectorSplat(
-        elementCount(VectorTy),
-        Builder.CreateZExtOrTrunc(N, VectorTy->getElementType()));
-    auto *LHS = Builder.CreateBitCast(stackPop(), VectorTy);
-    stackPush(Builder.CreateBitCast(Op(LHS, RHS), Context.Int64x2Ty));
+  void compileVectorReduceIOp(LLVM::Type VectorTy, Func &&Op) noexcept {
+    auto V = Builder.createBitCast(Stack.back(), VectorTy);
+    Stack.back() = Builder.createZExt(Op(V), Context.Int32Ty);
   }
-  void compileVectorShl(llvm::VectorType *VectorTy) {
-    compileVectorShiftOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      return Builder.CreateShl(LHS, RHS);
+  void compileVectorAnyTrue() noexcept {
+    compileVectorReduceIOp(Context.Int128x1Ty, [this](auto V) noexcept {
+      auto Zero = LLVM::Value::getConstNull(Context.Int128x1Ty);
+      return Builder.createBitCast(Builder.createICmpNE(V, Zero),
+                                   LLContext.getInt1Ty());
     });
   }
-  void compileVectorLShr(llvm::VectorType *VectorTy) {
-    compileVectorShiftOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      return Builder.CreateLShr(LHS, RHS);
+  void compileVectorAllTrue(LLVM::Type VectorTy) noexcept {
+    compileVectorReduceIOp(VectorTy, [this, VectorTy](auto V) noexcept {
+      const auto Size = VectorTy.getVectorSize();
+      auto IntType = LLContext.getIntNTy(Size);
+      auto Zero = LLVM::Value::getConstNull(VectorTy);
+      auto Cmp = Builder.createBitCast(Builder.createICmpEQ(V, Zero), IntType);
+      auto CmpZero = LLVM::Value::getConstInt(IntType, 0);
+      return Builder.createICmpEQ(Cmp, CmpZero);
     });
   }
-  void compileVectorAShr(llvm::VectorType *VectorTy) {
-    compileVectorShiftOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      return Builder.CreateAShr(LHS, RHS);
+  void compileVectorBitMask(LLVM::Type VectorTy) noexcept {
+    compileVectorReduceIOp(VectorTy, [this, VectorTy](auto V) noexcept {
+      const auto Size = VectorTy.getVectorSize();
+      auto IntType = LLContext.getIntNTy(Size);
+      auto Zero = LLVM::Value::getConstNull(VectorTy);
+      return Builder.createBitCast(Builder.createICmpSLT(V, Zero), IntType);
     });
   }
   template <typename Func>
-  void compileVectorVectorOp(llvm::VectorType *VectorTy, Func &&Op) {
-    auto *RHS = Builder.CreateBitCast(stackPop(), VectorTy);
-    auto *LHS = Builder.CreateBitCast(stackPop(), VectorTy);
-    stackPush(Builder.CreateBitCast(Op(LHS, RHS), Context.Int64x2Ty));
+  void compileVectorShiftOp(LLVM::Type VectorTy, Func &&Op) noexcept {
+    const bool Trunc = VectorTy.getElementType().getIntegerBitWidth() < 32;
+    const uint32_t Mask = VectorTy.getElementType().getIntegerBitWidth() - 1;
+    auto N = Builder.createAnd(stackPop(), LLContext.getInt32(Mask));
+    auto RHS = Builder.createVectorSplat(
+        VectorTy.getVectorSize(),
+        Trunc ? Builder.createTrunc(N, VectorTy.getElementType())
+              : Builder.createZExtOrTrunc(N, VectorTy.getElementType()));
+    auto LHS = Builder.createBitCast(stackPop(), VectorTy);
+    stackPush(Builder.createBitCast(Op(LHS, RHS), Context.Int64x2Ty));
   }
-  void compileVectorVectorAdd(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      return Builder.CreateAdd(LHS, RHS);
+  void compileVectorShl(LLVM::Type VectorTy) noexcept {
+    compileVectorShiftOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      return Builder.createShl(LHS, RHS);
     });
   }
-  void compileVectorVectorAddSat(llvm::VectorType *VectorTy, bool Signed) {
-    auto ID = Signed ? llvm::Intrinsic::sadd_sat : llvm::Intrinsic::uadd_sat;
-    compileVectorVectorOp(VectorTy, [this, ID](auto *LHS, auto *RHS) {
-      return Builder.CreateBinaryIntrinsic(ID, LHS, RHS);
+  void compileVectorLShr(LLVM::Type VectorTy) noexcept {
+    compileVectorShiftOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      return Builder.createLShr(LHS, RHS);
     });
   }
-  void compileVectorVectorSub(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      return Builder.CreateSub(LHS, RHS);
+  void compileVectorAShr(LLVM::Type VectorTy) noexcept {
+    compileVectorShiftOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      return Builder.createAShr(LHS, RHS);
     });
   }
-  void compileVectorVectorSubSat(llvm::VectorType *VectorTy, bool Signed) {
-    auto ID = Signed ? llvm::Intrinsic::ssub_sat : llvm::Intrinsic::usub_sat;
-    compileVectorVectorOp(VectorTy, [this, ID](auto *LHS, auto *RHS) {
-      return Builder.CreateBinaryIntrinsic(ID, LHS, RHS);
+  template <typename Func>
+  void compileVectorVectorOp(LLVM::Type VectorTy, Func &&Op) noexcept {
+    auto RHS = Builder.createBitCast(stackPop(), VectorTy);
+    auto LHS = Builder.createBitCast(stackPop(), VectorTy);
+    stackPush(Builder.createBitCast(Op(LHS, RHS), Context.Int64x2Ty));
+  }
+  void compileVectorVectorAdd(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      return Builder.createAdd(LHS, RHS);
     });
   }
-  void compileVectorVectorMul(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      return Builder.CreateMul(LHS, RHS);
+  void compileVectorVectorAddSat(LLVM::Type VectorTy, bool Signed) noexcept {
+    auto ID = Signed ? LLVM::Core::SAddSat : LLVM::Core::UAddSat;
+    assuming(ID != LLVM::Core::NotIntrinsic);
+    compileVectorVectorOp(VectorTy, [this, ID](auto LHS, auto RHS) noexcept {
+      return Builder.createBinaryIntrinsic(ID, LHS, RHS);
     });
   }
-  void compileVectorVectorQ15MulSat() {
+  void compileVectorVectorSub(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      return Builder.createSub(LHS, RHS);
+    });
+  }
+  void compileVectorVectorSubSat(LLVM::Type VectorTy, bool Signed) noexcept {
+    auto ID = Signed ? LLVM::Core::SSubSat : LLVM::Core::USubSat;
+    assuming(ID != LLVM::Core::NotIntrinsic);
+    compileVectorVectorOp(VectorTy, [this, ID](auto LHS, auto RHS) noexcept {
+      return Builder.createBinaryIntrinsic(ID, LHS, RHS);
+    });
+  }
+  void compileVectorVectorMul(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      return Builder.createMul(LHS, RHS);
+    });
+  }
+  void compileVectorVectorQ15MulSat() noexcept {
     compileVectorVectorOp(
-        Context.Int16x8Ty, [this](auto *LHS, auto *RHS) -> llvm::Value * {
+        Context.Int16x8Ty, [this](auto LHS, auto RHS) noexcept -> LLVM::Value {
 #if defined(__x86_64__)
           if (Context.SupportSSSE3) {
-            auto *Result = Builder.CreateIntrinsic(
-                llvm::Intrinsic::x86_ssse3_pmul_hr_sw_128, {}, {LHS, RHS});
-            auto *IntMaxV = Builder.CreateVectorSplat(
-                8, Builder.getInt16(UINT16_C(0x8000)));
-            auto *NotOver = Builder.CreateSExt(
-                Builder.CreateICmpEQ(Result, IntMaxV), Context.Int16x8Ty);
-            return Builder.CreateXor(Result, NotOver);
+            assuming(LLVM::Core::X86SSSE3PMulHrSw128 !=
+                     LLVM::Core::NotIntrinsic);
+            auto Result = Builder.createIntrinsic(
+                LLVM::Core::X86SSSE3PMulHrSw128, {}, {LHS, RHS});
+            auto IntMaxV = Builder.createVectorSplat(
+                8, LLContext.getInt16(UINT16_C(0x8000)));
+            auto NotOver = Builder.createSExt(
+                Builder.createICmpEQ(Result, IntMaxV), Context.Int16x8Ty);
+            return Builder.createXor(Result, NotOver);
           }
 #endif
 
 #if defined(__aarch64__)
           if (Context.SupportNEON) {
-            return Builder.CreateBinaryIntrinsic(
-                llvm::Intrinsic::aarch64_neon_sqrdmulh, LHS, RHS);
+            assuming(LLVM::Core::AArch64NeonSQRDMulH !=
+                     LLVM::Core::NotIntrinsic);
+            return Builder.createBinaryIntrinsic(
+                LLVM::Core::AArch64NeonSQRDMulH, LHS, RHS);
           }
 #endif
 
@@ -4046,69 +4075,76 @@ private:
           // If the SSSE3 is not supported on the x86_64 platform or
           // the NEON is not supported on the aarch64 platform,
           // then fallback to this.
-          auto *ExtTy =
-              llvm::VectorType::getExtendedElementVectorType(Context.Int16x8Ty);
-          auto *Offset =
-              Builder.CreateVectorSplat(8, Builder.getInt32(UINT32_C(0x4000)));
-          auto *Shift =
-              Builder.CreateVectorSplat(8, Builder.getInt32(UINT32_C(15)));
-          auto *ExtLHS = Builder.CreateSExt(LHS, ExtTy);
-          auto *ExtRHS = Builder.CreateSExt(RHS, ExtTy);
-          auto *Result = Builder.CreateTrunc(
-              Builder.CreateAShr(
-                  Builder.CreateAdd(Builder.CreateMul(ExtLHS, ExtRHS), Offset),
+          auto ExtTy = Context.Int16x8Ty.getExtendedElementVectorType();
+          auto Offset = Builder.createVectorSplat(
+              8, LLContext.getInt32(UINT32_C(0x4000)));
+          auto Shift =
+              Builder.createVectorSplat(8, LLContext.getInt32(UINT32_C(15)));
+          auto ExtLHS = Builder.createSExt(LHS, ExtTy);
+          auto ExtRHS = Builder.createSExt(RHS, ExtTy);
+          auto Result = Builder.createTrunc(
+              Builder.createAShr(
+                  Builder.createAdd(Builder.createMul(ExtLHS, ExtRHS), Offset),
                   Shift),
               Context.Int16x8Ty);
-          auto *IntMaxV =
-              Builder.CreateVectorSplat(8, Builder.getInt16(UINT16_C(0x8000)));
-          auto *NotOver = Builder.CreateSExt(
-              Builder.CreateICmpEQ(Result, IntMaxV), Context.Int16x8Ty);
-          return Builder.CreateXor(Result, NotOver);
+          auto IntMaxV = Builder.createVectorSplat(
+              8, LLContext.getInt16(UINT16_C(0x8000)));
+          auto NotOver = Builder.createSExt(
+              Builder.createICmpEQ(Result, IntMaxV), Context.Int16x8Ty);
+          return Builder.createXor(Result, NotOver);
         });
   }
-  void compileVectorVectorSMin(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      auto *C = Builder.CreateICmpSLE(LHS, RHS);
-      return Builder.CreateSelect(C, LHS, RHS);
+  void compileVectorVectorSMin(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      auto C = Builder.createICmpSLE(LHS, RHS);
+      return Builder.createSelect(C, LHS, RHS);
     });
   }
-  void compileVectorVectorUMin(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      auto *C = Builder.CreateICmpULE(LHS, RHS);
-      return Builder.CreateSelect(C, LHS, RHS);
+  void compileVectorVectorUMin(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      auto C = Builder.createICmpULE(LHS, RHS);
+      return Builder.createSelect(C, LHS, RHS);
     });
   }
-  void compileVectorVectorSMax(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      auto *C = Builder.CreateICmpSGE(LHS, RHS);
-      return Builder.CreateSelect(C, LHS, RHS);
+  void compileVectorVectorSMax(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      auto C = Builder.createICmpSGE(LHS, RHS);
+      return Builder.createSelect(C, LHS, RHS);
     });
   }
-  void compileVectorVectorUMax(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      auto *C = Builder.CreateICmpUGE(LHS, RHS);
-      return Builder.CreateSelect(C, LHS, RHS);
+  void compileVectorVectorUMax(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      auto C = Builder.createICmpUGE(LHS, RHS);
+      return Builder.createSelect(C, LHS, RHS);
     });
   }
-  void compileVectorVectorUAvgr(llvm::VectorType *VectorTy) {
-    auto *ExtendTy = VectorTy->getExtendedElementVectorType(VectorTy);
+  void compileVectorVectorUAvgr(LLVM::Type VectorTy) noexcept {
+    auto ExtendTy = VectorTy.getExtendedElementVectorType();
     compileVectorVectorOp(
         VectorTy,
-        [this, VectorTy, ExtendTy](auto *LHS, auto *RHS) -> llvm::Value * {
+        [this, VectorTy, ExtendTy](auto LHS, auto RHS) noexcept -> LLVM::Value {
 #if defined(__x86_64__)
           if (Context.SupportSSE2) {
-            const auto ID =
-                VectorTy->getElementType()->getIntegerBitWidth() == 8
-                    ? llvm::Intrinsic::x86_sse2_pavg_b
-                    : llvm::Intrinsic::x86_sse2_pavg_w;
-            return Builder.CreateIntrinsic(ID, {}, {LHS, RHS});
+            const auto ID = [VectorTy]() noexcept {
+              switch (VectorTy.getElementType().getIntegerBitWidth()) {
+              case 8:
+                return LLVM::Core::X86SSE2PAvgB;
+              case 16:
+                return LLVM::Core::X86SSE2PAvgW;
+              default:
+                assumingUnreachable();
+              }
+            }();
+            assuming(ID != LLVM::Core::NotIntrinsic);
+            return Builder.createIntrinsic(ID, {}, {LHS, RHS});
           }
 #endif
 
 #if defined(__aarch64__)
           if (Context.SupportNEON) {
-            return Builder.CreateBinaryIntrinsic(
-                llvm::Intrinsic::aarch64_neon_urhadd, LHS, RHS);
+            assuming(LLVM::Core::AArch64NeonURHAdd != LLVM::Core::NotIntrinsic);
+            return Builder.createBinaryIntrinsic(LLVM::Core::AArch64NeonURHAdd,
+                                                 LHS, RHS);
           }
 #endif
 
@@ -4116,129 +4152,166 @@ private:
           // If the SSE2 is not supported on the x86_64 platform or
           // the NEON is not supported on the aarch64 platform,
           // then fallback to this.
-          auto *EL = Builder.CreateZExt(LHS, ExtendTy);
-          auto *ER = Builder.CreateZExt(RHS, ExtendTy);
-          auto *One =
-              Builder.CreateZExt(Builder.CreateVectorSplat(
-                                     elementCount(ExtendTy), Builder.getTrue()),
-                                 ExtendTy);
-          return Builder.CreateTrunc(
-              Builder.CreateLShr(
-                  Builder.CreateAdd(Builder.CreateAdd(EL, ER), One), One),
+          auto EL = Builder.createZExt(LHS, ExtendTy);
+          auto ER = Builder.createZExt(RHS, ExtendTy);
+          auto One = Builder.createZExt(
+              Builder.createVectorSplat(ExtendTy.getVectorSize(),
+                                        LLContext.getTrue()),
+              ExtendTy);
+          return Builder.createTrunc(
+              Builder.createLShr(
+                  Builder.createAdd(Builder.createAdd(EL, ER), One), One),
               VectorTy);
         });
   }
-  void compileVectorNarrow(llvm::VectorType *FromTy, bool Signed) {
-    const auto IntWidth = FromTy->getElementType()->getIntegerBitWidth();
-    auto MinInt = Signed ? llvm::APInt::getSignedMinValue(IntWidth / 2)
-                         : llvm::APInt::getMinValue(IntWidth / 2);
-    MinInt = Signed ? MinInt.sext(IntWidth) : MinInt.zext(IntWidth);
-    auto MaxInt = Signed ? llvm::APInt::getSignedMaxValue(IntWidth / 2)
-                         : llvm::APInt::getMaxValue(IntWidth / 2);
-    MaxInt = Signed ? MaxInt.sext(IntWidth) : MaxInt.zext(IntWidth);
-
-    const auto Count = elementCount(FromTy);
-    auto *VMin = Builder.CreateVectorSplat(Count, Builder.getInt(MinInt));
-    auto *VMax = Builder.CreateVectorSplat(Count, Builder.getInt(MaxInt));
-
-    auto *TruncTy = llvm::VectorType::getTruncatedElementVectorType(FromTy);
-
-    auto *F2 = Builder.CreateBitCast(stackPop(), FromTy);
-    F2 = Builder.CreateSelect(Builder.CreateICmpSLT(F2, VMin), VMin, F2);
-    F2 = Builder.CreateSelect(Builder.CreateICmpSGT(F2, VMax), VMax, F2);
-    F2 = Builder.CreateTrunc(F2, TruncTy);
-
-    auto *F1 = Builder.CreateBitCast(stackPop(), FromTy);
-    F1 = Builder.CreateSelect(Builder.CreateICmpSLT(F1, VMin), VMin, F1);
-    F1 = Builder.CreateSelect(Builder.CreateICmpSGT(F1, VMax), VMax, F1);
-    F1 = Builder.CreateTrunc(F1, TruncTy);
-
-    std::vector<ShuffleElement> Mask(Count * 2);
-    std::iota(Mask.begin(), Mask.end(), 0);
-    stackPush(Builder.CreateBitCast(Builder.CreateShuffleVector(F1, F2, Mask),
-                                    Context.Int64x2Ty));
-  }
-  void compileVectorExtend(llvm::VectorType *FromTy, bool Signed, bool Low) {
-    auto *ExtTy = llvm::VectorType::getExtendedElementVectorType(FromTy);
-    const auto Count = elementCount(FromTy);
-    std::vector<ShuffleElement> Mask(Count / 2);
-    std::iota(Mask.begin(), Mask.end(), Low ? 0 : Count / 2);
-    auto *R = Builder.CreateBitCast(Stack.back(), FromTy);
-    if (Signed) {
-      R = Builder.CreateSExt(R, ExtTy);
-    } else {
-      R = Builder.CreateZExt(R, ExtTy);
-    }
-    R = Builder.CreateShuffleVector(R, llvm::UndefValue::get(ExtTy), Mask);
-    Stack.back() = Builder.CreateBitCast(R, Context.Int64x2Ty);
-  }
-  void compileVectorExtMul(llvm::VectorType *FromTy, bool Signed, bool Low) {
-    auto *ExtTy = llvm::VectorType::getExtendedElementVectorType(FromTy);
-    const auto Count = elementCount(FromTy);
-    std::vector<ShuffleElement> Mask(Count / 2);
-    std::iota(Mask.begin(), Mask.end(), Low ? 0 : Count / 2);
-    auto Extend = [this, FromTy, Signed, ExtTy, &Mask](llvm::Value *R) {
-      R = Builder.CreateBitCast(R, FromTy);
-      if (Signed) {
-        R = Builder.CreateSExt(R, ExtTy);
-      } else {
-        R = Builder.CreateZExt(R, ExtTy);
+  void compileVectorNarrow(LLVM::Type FromTy, bool Signed) noexcept {
+    auto [MinInt,
+          MaxInt] = [&]() noexcept -> std::tuple<LLVM::Value, LLVM::Value> {
+      switch (FromTy.getElementType().getIntegerBitWidth()) {
+      case 16: {
+        const auto Min =
+            static_cast<int16_t>(Signed ? std::numeric_limits<int8_t>::min()
+                                        : std::numeric_limits<uint8_t>::min());
+        const auto Max =
+            static_cast<int16_t>(Signed ? std::numeric_limits<int8_t>::max()
+                                        : std::numeric_limits<uint8_t>::max());
+        return {LLContext.getInt16(static_cast<uint16_t>(Min)),
+                LLContext.getInt16(static_cast<uint16_t>(Max))};
       }
-      return Builder.CreateShuffleVector(R, llvm::UndefValue::get(ExtTy), Mask);
-    };
-    auto *RHS = Extend(stackPop());
-    auto *LHS = Extend(stackPop());
-    stackPush(
-        Builder.CreateBitCast(Builder.CreateMul(RHS, LHS), Context.Int64x2Ty));
+      case 32: {
+        const auto Min =
+            static_cast<int32_t>(Signed ? std::numeric_limits<int16_t>::min()
+                                        : std::numeric_limits<uint16_t>::min());
+        const auto Max =
+            static_cast<int32_t>(Signed ? std::numeric_limits<int16_t>::max()
+                                        : std::numeric_limits<uint16_t>::max());
+        return {LLContext.getInt32(static_cast<uint32_t>(Min)),
+                LLContext.getInt32(static_cast<uint32_t>(Max))};
+      }
+      default:
+        assumingUnreachable();
+      }
+    }();
+    const auto Count = FromTy.getVectorSize();
+    auto VMin = Builder.createVectorSplat(Count, MinInt);
+    auto VMax = Builder.createVectorSplat(Count, MaxInt);
+
+    auto TruncTy = FromTy.getTruncatedElementVectorType();
+
+    auto F2 = Builder.createBitCast(stackPop(), FromTy);
+    F2 = Builder.createSelect(Builder.createICmpSLT(F2, VMin), VMin, F2);
+    F2 = Builder.createSelect(Builder.createICmpSGT(F2, VMax), VMax, F2);
+    F2 = Builder.createTrunc(F2, TruncTy);
+
+    auto F1 = Builder.createBitCast(stackPop(), FromTy);
+    F1 = Builder.createSelect(Builder.createICmpSLT(F1, VMin), VMin, F1);
+    F1 = Builder.createSelect(Builder.createICmpSGT(F1, VMax), VMax, F1);
+    F1 = Builder.createTrunc(F1, TruncTy);
+
+    std::vector<uint32_t> Mask(Count * 2);
+    std::iota(Mask.begin(), Mask.end(), 0);
+    stackPush(Builder.createBitCast(
+        Builder.createShuffleVector(
+            F1, F2, LLVM::Value::getConstVector32(LLContext, Mask)),
+        Context.Int64x2Ty));
   }
-  void compileVectorExtAddPairwise(llvm::VectorType *VectorTy, bool Signed) {
+  void compileVectorExtend(LLVM::Type FromTy, bool Signed, bool Low) noexcept {
+    auto ExtTy = FromTy.getExtendedElementVectorType();
+    const auto Count = FromTy.getVectorSize();
+    std::vector<uint32_t> Mask(Count / 2);
+    std::iota(Mask.begin(), Mask.end(), Low ? 0 : Count / 2);
+    auto R = Builder.createBitCast(Stack.back(), FromTy);
+    if (Signed) {
+      R = Builder.createSExt(R, ExtTy);
+    } else {
+      R = Builder.createZExt(R, ExtTy);
+    }
+    R = Builder.createShuffleVector(
+        R, LLVM::Value::getUndef(ExtTy),
+        LLVM::Value::getConstVector32(LLContext, Mask));
+    Stack.back() = Builder.createBitCast(R, Context.Int64x2Ty);
+  }
+  void compileVectorExtMul(LLVM::Type FromTy, bool Signed, bool Low) noexcept {
+    auto ExtTy = FromTy.getExtendedElementVectorType();
+    const auto Count = FromTy.getVectorSize();
+    std::vector<uint32_t> Mask(Count / 2);
+    std::iota(Mask.begin(), Mask.end(), Low ? 0 : Count / 2);
+    auto Extend = [this, FromTy, Signed, ExtTy, &Mask](LLVM::Value R) noexcept {
+      R = Builder.createBitCast(R, FromTy);
+      if (Signed) {
+        R = Builder.createSExt(R, ExtTy);
+      } else {
+        R = Builder.createZExt(R, ExtTy);
+      }
+      return Builder.createShuffleVector(
+          R, LLVM::Value::getUndef(ExtTy),
+          LLVM::Value::getConstVector32(LLContext, Mask));
+    };
+    auto RHS = Extend(stackPop());
+    auto LHS = Extend(stackPop());
+    stackPush(
+        Builder.createBitCast(Builder.createMul(RHS, LHS), Context.Int64x2Ty));
+  }
+  void compileVectorExtAddPairwise(LLVM::Type VectorTy, bool Signed) noexcept {
     compileVectorOp(
-        VectorTy, [this, VectorTy, Signed](auto *V) -> llvm::Value * {
-          auto *ExtTy = llvm::VectorType::getHalfElementsVectorType(
-              llvm::VectorType::getExtendedElementVectorType(VectorTy));
+        VectorTy, [this, VectorTy, Signed](auto V) noexcept -> LLVM::Value {
+          auto ExtTy = VectorTy.getExtendedElementVectorType()
+                           .getHalfElementsVectorType();
 #if defined(__x86_64__)
-          const auto Count = elementCount(VectorTy);
+          const auto Count = VectorTy.getVectorSize();
           if (Context.SupportXOP) {
-            const auto ID = Count == 16
-                                ? (Signed ? llvm::Intrinsic::x86_xop_vphaddbw
-                                          : llvm::Intrinsic::x86_xop_vphaddubw)
-                                : (Signed ? llvm::Intrinsic::x86_xop_vphaddwd
-                                          : llvm::Intrinsic::x86_xop_vphadduwd);
-            return Builder.CreateUnaryIntrinsic(ID, V);
+            const auto ID = [Count, Signed]() noexcept {
+              switch (Count) {
+              case 8:
+                return Signed ? LLVM::Core::X86XOpVPHAddWD
+                              : LLVM::Core::X86XOpVPHAddUWD;
+              case 16:
+                return Signed ? LLVM::Core::X86XOpVPHAddBW
+                              : LLVM::Core::X86XOpVPHAddUBW;
+              default:
+                assumingUnreachable();
+              }
+            }();
+            assuming(ID != LLVM::Core::NotIntrinsic);
+            return Builder.createUnaryIntrinsic(ID, V);
           }
           if (Context.SupportSSSE3 && Count == 16) {
+            assuming(LLVM::Core::X86SSSE3PMAddUbSw128 !=
+                     LLVM::Core::NotIntrinsic);
             if (Signed) {
-              return Builder.CreateIntrinsic(
-                  llvm::Intrinsic::x86_ssse3_pmadd_ub_sw_128, {},
-                  {Builder.CreateVectorSplat(16, Builder.getInt8(1)), V});
+              return Builder.createIntrinsic(
+                  LLVM::Core::X86SSSE3PMAddUbSw128, {},
+                  {Builder.createVectorSplat(16, LLContext.getInt8(1)), V});
             } else {
-              return Builder.CreateIntrinsic(
-                  llvm::Intrinsic::x86_ssse3_pmadd_ub_sw_128, {},
-                  {V, Builder.CreateVectorSplat(16, Builder.getInt8(1))});
+              return Builder.createIntrinsic(
+                  LLVM::Core::X86SSSE3PMAddUbSw128, {},
+                  {V, Builder.createVectorSplat(16, LLContext.getInt8(1))});
             }
           }
           if (Context.SupportSSE2 && Count == 8) {
+            assuming(LLVM::Core::X86SSE2PMAddWd != LLVM::Core::NotIntrinsic);
             if (Signed) {
-              return Builder.CreateIntrinsic(
-                  llvm::Intrinsic::x86_sse2_pmadd_wd, {},
-                  {V, Builder.CreateVectorSplat(8, Builder.getInt16(1))});
+              return Builder.createIntrinsic(
+                  LLVM::Core::X86SSE2PMAddWd, {},
+                  {V, Builder.createVectorSplat(8, LLContext.getInt16(1))});
             } else {
-              V = Builder.CreateXor(
-                  V, Builder.CreateVectorSplat(8, Builder.getInt16(0x8000)));
-              V = Builder.CreateIntrinsic(
-                  llvm::Intrinsic::x86_sse2_pmadd_wd, {},
-                  {V, Builder.CreateVectorSplat(8, Builder.getInt16(1))});
-              return Builder.CreateAdd(
-                  V, Builder.CreateVectorSplat(4, Builder.getInt32(0x10000)));
+              V = Builder.createXor(
+                  V, Builder.createVectorSplat(8, LLContext.getInt16(0x8000)));
+              V = Builder.createIntrinsic(
+                  LLVM::Core::X86SSE2PMAddWd, {},
+                  {V, Builder.createVectorSplat(8, LLContext.getInt16(1))});
+              return Builder.createAdd(
+                  V, Builder.createVectorSplat(4, LLContext.getInt32(0x10000)));
             }
           }
 #endif
 
 #if defined(__aarch64__)
           if (Context.SupportNEON) {
-            const auto ID = Signed ? llvm::Intrinsic::aarch64_neon_saddlp
-                                   : llvm::Intrinsic::aarch64_neon_uaddlp;
-            return Builder.CreateIntrinsic(ID, {ExtTy, VectorTy}, {V});
+            const auto ID = Signed ? LLVM::Core::AArch64NeonSAddLP
+                                   : LLVM::Core::AArch64NeonUAddLP;
+            assuming(ID != LLVM::Core::NotIntrinsic);
+            return Builder.createIntrinsic(ID, {ExtTy, VectorTy}, {V});
           }
 #endif
 
@@ -4246,67 +4319,77 @@ private:
           // If the XOP, SSSE3, or SSE2 is not supported on the x86_64 platform
           // or the NEON is not supported on the aarch64 platform,
           // then fallback to this.
-          const auto Width = VectorTy->getElementType()->getIntegerBitWidth();
-          auto *EV = Builder.CreateBitCast(V, ExtTy);
-          llvm::Value *L, *R;
+          const auto Width = LLContext.getInt32(
+              VectorTy.getElementType().getIntegerBitWidth());
+          auto EV = Builder.createBitCast(V, ExtTy);
+          LLVM::Value L, R;
           if (Signed) {
-            L = Builder.CreateAShr(EV, Width);
-            R = Builder.CreateAShr(Builder.CreateShl(EV, Width), Width);
+            L = Builder.createAShr(EV, Width);
+            R = Builder.createAShr(Builder.createShl(EV, Width), Width);
           } else {
-            L = Builder.CreateLShr(EV, Width);
-            R = Builder.CreateLShr(Builder.CreateShl(EV, Width), Width);
+            L = Builder.createLShr(EV, Width);
+            R = Builder.createLShr(Builder.createShl(EV, Width), Width);
           }
-          return Builder.CreateAdd(L, R);
+          return Builder.createAdd(L, R);
         });
   }
-  void compileVectorFAbs(llvm::VectorType *VectorTy) {
-    compileVectorOp(VectorTy, [this](auto *V) {
-      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::fabs, V);
+  void compileVectorFAbs(LLVM::Type VectorTy) noexcept {
+    compileVectorOp(VectorTy, [this](auto V) noexcept {
+      assuming(LLVM::Core::Fabs != LLVM::Core::NotIntrinsic);
+      return Builder.createUnaryIntrinsic(LLVM::Core::Fabs, V);
     });
   }
-  void compileVectorFNeg(llvm::VectorType *VectorTy) {
+  void compileVectorFNeg(LLVM::Type VectorTy) noexcept {
     compileVectorOp(VectorTy,
-                    [this](auto *V) { return Builder.CreateFNeg(V); });
+                    [this](auto V) noexcept { return Builder.createFNeg(V); });
   }
-  void compileVectorFSqrt(llvm::VectorType *VectorTy) {
-    compileVectorOp(VectorTy, [this](auto *V) {
-      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::sqrt, V);
+  void compileVectorFSqrt(LLVM::Type VectorTy) noexcept {
+    compileVectorOp(VectorTy, [this](auto V) noexcept {
+      assuming(LLVM::Core::Sqrt != LLVM::Core::NotIntrinsic);
+      return Builder.createUnaryIntrinsic(LLVM::Core::Sqrt, V);
     });
   }
-  void compileVectorFCeil(llvm::VectorType *VectorTy) {
-    compileVectorOp(VectorTy, [this](auto *V) {
-      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ceil, V);
+  void compileVectorFCeil(LLVM::Type VectorTy) noexcept {
+    compileVectorOp(VectorTy, [this](auto V) noexcept {
+      assuming(LLVM::Core::Ceil != LLVM::Core::NotIntrinsic);
+      return Builder.createUnaryIntrinsic(LLVM::Core::Ceil, V);
     });
   }
-  void compileVectorFFloor(llvm::VectorType *VectorTy) {
-    compileVectorOp(VectorTy, [this](auto *V) {
-      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::floor, V);
+  void compileVectorFFloor(LLVM::Type VectorTy) noexcept {
+    compileVectorOp(VectorTy, [this](auto V) noexcept {
+      assuming(LLVM::Core::Floor != LLVM::Core::NotIntrinsic);
+      return Builder.createUnaryIntrinsic(LLVM::Core::Floor, V);
     });
   }
-  void compileVectorFTrunc(llvm::VectorType *VectorTy) {
-    compileVectorOp(VectorTy, [this](auto *V) {
-      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, V);
+  void compileVectorFTrunc(LLVM::Type VectorTy) noexcept {
+    compileVectorOp(VectorTy, [this](auto V) noexcept {
+      assuming(LLVM::Core::Trunc != LLVM::Core::NotIntrinsic);
+      return Builder.createUnaryIntrinsic(LLVM::Core::Trunc, V);
     });
   }
-  void compileVectorFNearest(llvm::VectorType *VectorTy) {
-    compileVectorOp(VectorTy, [&](auto *V) {
+  void compileVectorFNearest(LLVM::Type VectorTy) noexcept {
+    compileVectorOp(VectorTy, [&](auto V) noexcept {
+#if LLVM_VERSION_MAJOR >= 12
+      assuming(LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic);
+      if (LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic) {
+        return Builder.createUnaryIntrinsic(LLVM::Core::Roundeven, V);
+      }
+#endif
+
 #if defined(__x86_64__)
       if (Context.SupportSSE4_1) {
-        const bool IsFloat = VectorTy->getElementType() == Context.FloatTy;
-        auto ID = IsFloat ? llvm::Intrinsic::x86_sse41_round_ps
-                          : llvm::Intrinsic::x86_sse41_round_pd;
-        return Builder.CreateIntrinsic(ID, {}, {V, Builder.getInt32(8)});
+        const bool IsFloat = VectorTy.getElementType().isFloatTy();
+        auto ID =
+            IsFloat ? LLVM::Core::X86SSE41RoundPs : LLVM::Core::X86SSE41RoundPd;
+        assuming(ID != LLVM::Core::NotIntrinsic);
+        return Builder.createIntrinsic(ID, {}, {V, LLContext.getInt32(8)});
       }
 #endif
 
 #if defined(__aarch64__)
-      if (Context.SupportNEON) {
-#if LLVM_VERSION_MAJOR >= 13
-        return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven, V);
-#else
-        return Builder.CreateUnaryIntrinsic(
-            llvm::Intrinsic::aarch64_neon_frintn, V);
-#endif
+      if (Context.SupportNEON &&
+          LLVM::Core::AArch64NeonFRIntN != LLVM::Core::NotIntrinsic) {
+        return Builder.createUnaryIntrinsic(LLVM::Core::AArch64NeonFRIntN, V);
       }
 #endif
 
@@ -4314,188 +4397,196 @@ private:
       // If the SSE4.1 is not supported on the x86_64 platform or
       // the NEON is not supported on the aarch64 platform,
       // then fallback to this.
-      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, V);
+      assuming(LLVM::Core::Nearbyint != LLVM::Core::NotIntrinsic);
+      return Builder.createUnaryIntrinsic(LLVM::Core::Nearbyint, V);
     });
   }
-  void compileVectorVectorFAdd(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      return Builder.CreateFAdd(LHS, RHS);
+  void compileVectorVectorFAdd(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      return Builder.createFAdd(LHS, RHS);
     });
   }
-  void compileVectorVectorFSub(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      return Builder.CreateFSub(LHS, RHS);
+  void compileVectorVectorFSub(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      return Builder.createFSub(LHS, RHS);
     });
   }
-  void compileVectorVectorFMul(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      return Builder.CreateFMul(LHS, RHS);
+  void compileVectorVectorFMul(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      return Builder.createFMul(LHS, RHS);
     });
   }
-  void compileVectorVectorFDiv(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      return Builder.CreateFDiv(LHS, RHS);
+  void compileVectorVectorFDiv(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      return Builder.createFDiv(LHS, RHS);
     });
   }
-  void compileVectorVectorFMin(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      auto *LNaN = Builder.CreateFCmpUNO(LHS, LHS);
-      auto *RNaN = Builder.CreateFCmpUNO(RHS, RHS);
-      auto *OLT = Builder.CreateFCmpOLT(LHS, RHS);
-      auto *OGT = Builder.CreateFCmpOGT(LHS, RHS);
-      llvm::Value *Ret = Builder.CreateBitCast(
-          Builder.CreateOr(Builder.CreateBitCast(LHS, Context.Int64x2Ty),
-                           Builder.CreateBitCast(RHS, Context.Int64x2Ty)),
-          LHS->getType());
-      Ret = Builder.CreateSelect(OGT, RHS, Ret);
-      Ret = Builder.CreateSelect(OLT, LHS, Ret);
-      Ret = Builder.CreateSelect(RNaN, RHS, Ret);
-      Ret = Builder.CreateSelect(LNaN, LHS, Ret);
+  void compileVectorVectorFMin(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      auto LNaN = Builder.createFCmpUNO(LHS, LHS);
+      auto RNaN = Builder.createFCmpUNO(RHS, RHS);
+      auto OLT = Builder.createFCmpOLT(LHS, RHS);
+      auto OGT = Builder.createFCmpOGT(LHS, RHS);
+      auto Ret = Builder.createBitCast(
+          Builder.createOr(Builder.createBitCast(LHS, Context.Int64x2Ty),
+                           Builder.createBitCast(RHS, Context.Int64x2Ty)),
+          LHS.getType());
+      Ret = Builder.createSelect(OGT, RHS, Ret);
+      Ret = Builder.createSelect(OLT, LHS, Ret);
+      Ret = Builder.createSelect(RNaN, RHS, Ret);
+      Ret = Builder.createSelect(LNaN, LHS, Ret);
       return Ret;
     });
   }
-  void compileVectorVectorFMax(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      auto *LNaN = Builder.CreateFCmpUNO(LHS, LHS);
-      auto *RNaN = Builder.CreateFCmpUNO(RHS, RHS);
-      auto *OLT = Builder.CreateFCmpOLT(LHS, RHS);
-      auto *OGT = Builder.CreateFCmpOGT(LHS, RHS);
-      llvm::Value *Ret = Builder.CreateBitCast(
-          Builder.CreateAnd(Builder.CreateBitCast(LHS, Context.Int64x2Ty),
-                            Builder.CreateBitCast(RHS, Context.Int64x2Ty)),
-          LHS->getType());
-      Ret = Builder.CreateSelect(OLT, RHS, Ret);
-      Ret = Builder.CreateSelect(OGT, LHS, Ret);
-      Ret = Builder.CreateSelect(RNaN, RHS, Ret);
-      Ret = Builder.CreateSelect(LNaN, LHS, Ret);
+  void compileVectorVectorFMax(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      auto LNaN = Builder.createFCmpUNO(LHS, LHS);
+      auto RNaN = Builder.createFCmpUNO(RHS, RHS);
+      auto OLT = Builder.createFCmpOLT(LHS, RHS);
+      auto OGT = Builder.createFCmpOGT(LHS, RHS);
+      auto Ret = Builder.createBitCast(
+          Builder.createAnd(Builder.createBitCast(LHS, Context.Int64x2Ty),
+                            Builder.createBitCast(RHS, Context.Int64x2Ty)),
+          LHS.getType());
+      Ret = Builder.createSelect(OLT, RHS, Ret);
+      Ret = Builder.createSelect(OGT, LHS, Ret);
+      Ret = Builder.createSelect(RNaN, RHS, Ret);
+      Ret = Builder.createSelect(LNaN, LHS, Ret);
       return Ret;
     });
   }
-  void compileVectorVectorFPMin(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      auto *Cmp = Builder.CreateFCmpOLT(RHS, LHS);
-      return Builder.CreateSelect(Cmp, RHS, LHS);
+  void compileVectorVectorFPMin(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      auto Cmp = Builder.createFCmpOLT(RHS, LHS);
+      return Builder.createSelect(Cmp, RHS, LHS);
     });
   }
-  void compileVectorVectorFPMax(llvm::VectorType *VectorTy) {
-    compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
-      auto *Cmp = Builder.CreateFCmpOGT(RHS, LHS);
-      return Builder.CreateSelect(Cmp, RHS, LHS);
+  void compileVectorVectorFPMax(LLVM::Type VectorTy) noexcept {
+    compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+      auto Cmp = Builder.createFCmpOGT(RHS, LHS);
+      return Builder.createSelect(Cmp, RHS, LHS);
     });
   }
-  void compileVectorTruncSatS(llvm::VectorType *VectorTy, unsigned IntWidth,
-                              bool PadZero) {
-    compileVectorOp(VectorTy, [this, VectorTy, IntWidth, PadZero](auto *V) {
-      const auto Size = elementCount(VectorTy);
-      auto *FPTy = VectorTy->getElementType();
-      auto *IntMin = Builder.getInt(llvm::APInt::getSignedMinValue(IntWidth));
-      auto *IntMax = Builder.getInt(llvm::APInt::getSignedMaxValue(IntWidth));
-      auto *IntMinV = Builder.CreateVectorSplat(Size, IntMin);
-      auto *IntMaxV = Builder.CreateVectorSplat(Size, IntMax);
-      auto *IntZeroV = llvm::ConstantAggregateZero::get(IntMinV->getType());
-      auto *FPMin = llvm::ConstantExpr::getSIToFP(IntMin, FPTy);
-      auto *FPMax = llvm::ConstantExpr::getSIToFP(IntMax, FPTy);
-      auto *FPMinV = Builder.CreateVectorSplat(Size, FPMin);
-      auto *FPMaxV = Builder.CreateVectorSplat(Size, FPMax);
+  void compileVectorTruncSatS32(LLVM::Type VectorTy, bool PadZero) noexcept {
+    compileVectorOp(VectorTy, [this, VectorTy, PadZero](auto V) noexcept {
+      const auto Size = VectorTy.getVectorSize();
+      auto FPTy = VectorTy.getElementType();
+      auto IntMin = LLContext.getInt32(
+          static_cast<uint32_t>(std::numeric_limits<int32_t>::min()));
+      auto IntMax = LLContext.getInt32(
+          static_cast<uint32_t>(std::numeric_limits<int32_t>::max()));
+      auto IntMinV = Builder.createVectorSplat(Size, IntMin);
+      auto IntMaxV = Builder.createVectorSplat(Size, IntMax);
+      auto IntZeroV = LLVM::Value::getConstNull(IntMinV.getType());
+      auto FPMin = Builder.createSIToFP(IntMin, FPTy);
+      auto FPMax = Builder.createSIToFP(IntMax, FPTy);
+      auto FPMinV = Builder.createVectorSplat(Size, FPMin);
+      auto FPMaxV = Builder.createVectorSplat(Size, FPMax);
 
-      auto *Normal = Builder.CreateFCmpORD(V, V);
-      auto *NotUnder = Builder.CreateFCmpUGE(V, FPMinV);
-      auto *NotOver = Builder.CreateFCmpULT(V, FPMaxV);
-      V = Builder.CreateFPToSI(
-          V, llvm::VectorType::get(Builder.getIntNTy(IntWidth), Size, false));
-      V = Builder.CreateSelect(Normal, V, IntZeroV);
-      V = Builder.CreateSelect(NotUnder, V, IntMinV);
-      V = Builder.CreateSelect(NotOver, V, IntMaxV);
+      auto Normal = Builder.createFCmpORD(V, V);
+      auto NotUnder = Builder.createFCmpUGE(V, FPMinV);
+      auto NotOver = Builder.createFCmpULT(V, FPMaxV);
+      V = Builder.createFPToSI(
+          V, LLVM::Type::getVectorType(LLContext.getInt32Ty(), Size));
+      V = Builder.createSelect(Normal, V, IntZeroV);
+      V = Builder.createSelect(NotUnder, V, IntMinV);
+      V = Builder.createSelect(NotOver, V, IntMaxV);
       if (PadZero) {
-        std::vector<ShuffleElement> Mask(Size * 2);
+        std::vector<uint32_t> Mask(Size * 2);
         std::iota(Mask.begin(), Mask.end(), 0);
-        V = Builder.CreateShuffleVector(V, IntZeroV, Mask);
+        V = Builder.createShuffleVector(
+            V, IntZeroV, LLVM::Value::getConstVector32(LLContext, Mask));
       }
       return V;
     });
   }
-  void compileVectorTruncSatU(llvm::VectorType *VectorTy, unsigned IntWidth,
-                              bool PadZero) {
-    compileVectorOp(VectorTy, [this, VectorTy, IntWidth, PadZero](auto *V) {
-      const auto Size = elementCount(VectorTy);
-      auto *FPTy = VectorTy->getElementType();
-      auto *IntMin = Builder.getInt(llvm::APInt::getMinValue(IntWidth));
-      auto *IntMax = Builder.getInt(llvm::APInt::getMaxValue(IntWidth));
-      auto *IntMinV = Builder.CreateVectorSplat(Size, IntMin);
-      auto *IntMaxV = Builder.CreateVectorSplat(Size, IntMax);
-      auto *FPMin = llvm::ConstantExpr::getUIToFP(IntMin, FPTy);
-      auto *FPMax = llvm::ConstantExpr::getUIToFP(IntMax, FPTy);
-      auto *FPMinV = Builder.CreateVectorSplat(Size, FPMin);
-      auto *FPMaxV = Builder.CreateVectorSplat(Size, FPMax);
+  void compileVectorTruncSatU32(LLVM::Type VectorTy, bool PadZero) noexcept {
+    compileVectorOp(VectorTy, [this, VectorTy, PadZero](auto V) noexcept {
+      const auto Size = VectorTy.getVectorSize();
+      auto FPTy = VectorTy.getElementType();
+      auto IntMin = LLContext.getInt32(std::numeric_limits<uint32_t>::min());
+      auto IntMax = LLContext.getInt32(std::numeric_limits<uint32_t>::max());
+      auto IntMinV = Builder.createVectorSplat(Size, IntMin);
+      auto IntMaxV = Builder.createVectorSplat(Size, IntMax);
+      auto FPMin = Builder.createUIToFP(IntMin, FPTy);
+      auto FPMax = Builder.createUIToFP(IntMax, FPTy);
+      auto FPMinV = Builder.createVectorSplat(Size, FPMin);
+      auto FPMaxV = Builder.createVectorSplat(Size, FPMax);
 
-      auto *NotUnder = Builder.CreateFCmpOGE(V, FPMinV);
-      auto *NotOver = Builder.CreateFCmpULT(V, FPMaxV);
-      V = Builder.CreateFPToUI(
-          V, llvm::VectorType::get(Builder.getIntNTy(IntWidth), Size, false));
-      V = Builder.CreateSelect(NotUnder, V, IntMinV);
-      V = Builder.CreateSelect(NotOver, V, IntMaxV);
+      auto NotUnder = Builder.createFCmpOGE(V, FPMinV);
+      auto NotOver = Builder.createFCmpULT(V, FPMaxV);
+      V = Builder.createFPToUI(
+          V, LLVM::Type::getVectorType(LLContext.getInt32Ty(), Size));
+      V = Builder.createSelect(NotUnder, V, IntMinV);
+      V = Builder.createSelect(NotOver, V, IntMaxV);
       if (PadZero) {
-        auto *IntZeroV = llvm::ConstantAggregateZero::get(IntMinV->getType());
-        std::vector<ShuffleElement> Mask(Size * 2);
+        auto IntZeroV = LLVM::Value::getConstNull(IntMinV.getType());
+        std::vector<uint32_t> Mask(Size * 2);
         std::iota(Mask.begin(), Mask.end(), 0);
-        V = Builder.CreateShuffleVector(V, IntZeroV, Mask);
+        V = Builder.createShuffleVector(
+            V, IntZeroV, LLVM::Value::getConstVector32(LLContext, Mask));
       }
       return V;
     });
   }
-  void compileVectorConvertS(llvm::VectorType *VectorTy,
-                             llvm::VectorType *FPVectorTy, bool Low) {
-    compileVectorOp(VectorTy, [this, VectorTy, FPVectorTy, Low](auto *V) {
-      if (Low) {
-        const auto Size = elementCount(VectorTy) / 2;
-        std::vector<ShuffleElement> Mask(Size);
-        std::iota(Mask.begin(), Mask.end(), 0);
-        V = Builder.CreateShuffleVector(V, llvm::UndefValue::get(VectorTy),
-                                        Mask);
-      }
-      return Builder.CreateSIToFP(V, FPVectorTy);
+  void compileVectorConvertS(LLVM::Type VectorTy, LLVM::Type FPVectorTy,
+                             bool Low) noexcept {
+    compileVectorOp(VectorTy,
+                    [this, VectorTy, FPVectorTy, Low](auto V) noexcept {
+                      if (Low) {
+                        const auto Size = VectorTy.getVectorSize() / 2;
+                        std::vector<uint32_t> Mask(Size);
+                        std::iota(Mask.begin(), Mask.end(), 0);
+                        V = Builder.createShuffleVector(
+                            V, LLVM::Value::getUndef(VectorTy),
+                            LLVM::Value::getConstVector32(LLContext, Mask));
+                      }
+                      return Builder.createSIToFP(V, FPVectorTy);
+                    });
+  }
+  void compileVectorConvertU(LLVM::Type VectorTy, LLVM::Type FPVectorTy,
+                             bool Low) noexcept {
+    compileVectorOp(VectorTy,
+                    [this, VectorTy, FPVectorTy, Low](auto V) noexcept {
+                      if (Low) {
+                        const auto Size = VectorTy.getVectorSize() / 2;
+                        std::vector<uint32_t> Mask(Size);
+                        std::iota(Mask.begin(), Mask.end(), 0);
+                        V = Builder.createShuffleVector(
+                            V, LLVM::Value::getUndef(VectorTy),
+                            LLVM::Value::getConstVector32(LLContext, Mask));
+                      }
+                      return Builder.createUIToFP(V, FPVectorTy);
+                    });
+  }
+  void compileVectorDemote() noexcept {
+    compileVectorOp(Context.Doublex2Ty, [this](auto V) noexcept {
+      auto Demoted = Builder.createFPTrunc(
+          V, LLVM::Type::getVectorType(Context.FloatTy, 2));
+      auto ZeroV = LLVM::Value::getConstNull(Demoted.getType());
+      return Builder.createShuffleVector(
+          Demoted, ZeroV,
+          LLVM::Value::getConstVector32(LLContext, {0u, 1u, 2u, 3u}));
     });
   }
-  void compileVectorConvertU(llvm::VectorType *VectorTy,
-                             llvm::VectorType *FPVectorTy, bool Low) {
-    compileVectorOp(VectorTy, [this, VectorTy, FPVectorTy, Low](auto *V) {
-      if (Low) {
-        const auto Size = elementCount(VectorTy) / 2;
-        std::vector<ShuffleElement> Mask(Size);
-        std::iota(Mask.begin(), Mask.end(), 0);
-        V = Builder.CreateShuffleVector(V, llvm::UndefValue::get(VectorTy),
-                                        Mask);
-      }
-      return Builder.CreateUIToFP(V, FPVectorTy);
-    });
-  }
-  void compileVectorDemote() {
-    compileVectorOp(Context.Doublex2Ty, [this](auto *V) {
-      auto *Demoted = Builder.CreateFPTrunc(
-          V, llvm::VectorType::get(Context.FloatTy, 2, false));
-      auto *ZeroV = llvm::ConstantAggregateZero::get(Demoted->getType());
-      return Builder.CreateShuffleVector(
-          Demoted, ZeroV, std::initializer_list<ShuffleElement>{0, 1, 2, 3});
-    });
-  }
-  void compileVectorPromote() {
-    compileVectorOp(Context.Floatx4Ty, [this](auto *V) {
-      auto *UndefV = llvm::UndefValue::get(V->getType());
-      auto *Low = Builder.CreateShuffleVector(
-          V, UndefV, std::initializer_list<ShuffleElement>{0, 1});
-      return Builder.CreateFPExt(
-          Low, llvm::VectorType::get(Context.DoubleTy, 2, false));
+  void compileVectorPromote() noexcept {
+    compileVectorOp(Context.Floatx4Ty, [this](auto V) noexcept {
+      auto UndefV = LLVM::Value::getUndef(V.getType());
+      auto Low = Builder.createShuffleVector(
+          V, UndefV, LLVM::Value::getConstVector32(LLContext, {0u, 1u}));
+      return Builder.createFPExt(
+          Low, LLVM::Type::getVectorType(Context.DoubleTy, 2));
     });
   }
 
-  void enterBlock(
-      llvm::BasicBlock *JumpBlock, llvm::BasicBlock *NextBlock,
-      llvm::BasicBlock *ElseBlock, std::vector<llvm::Value *> Args,
-      std::pair<std::vector<ValType>, std::vector<ValType>> Type,
-      std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
-          ReturnPHI = {}) {
+  void
+  enterBlock(LLVM::BasicBlock JumpBlock, LLVM::BasicBlock NextBlock,
+             LLVM::BasicBlock ElseBlock, std::vector<LLVM::Value> Args,
+             std::pair<std::vector<ValType>, std::vector<ValType>> Type,
+             std::vector<std::tuple<std::vector<LLVM::Value>, LLVM::BasicBlock>>
+                 ReturnPHI = {}) noexcept {
     assuming(Type.first.size() == Args.size());
-    for (auto *Value : Args) {
+    for (auto &Value : Args) {
       stackPush(Value);
     }
     const auto Unreachable = isUnreachable();
@@ -4504,49 +4595,48 @@ private:
                               std::move(Type), std::move(ReturnPHI));
   }
 
-  Control leaveBlock() {
+  Control leaveBlock() noexcept {
     Control Entry = std::move(ControlStack.back());
     ControlStack.pop_back();
 
-    auto *NextBlock = Entry.NextBlock ? Entry.NextBlock : Entry.JumpBlock;
+    auto NextBlock = Entry.NextBlock ? Entry.NextBlock : Entry.JumpBlock;
     if (!Entry.Unreachable) {
       const auto &ReturnType = Entry.Type.second;
       if (!ReturnType.empty()) {
-        std::vector<llvm::Value *> Rets(ReturnType.size());
+        std::vector<LLVM::Value> Rets(ReturnType.size());
         for (size_t I = 0; I < Rets.size(); ++I) {
           const size_t J = Rets.size() - 1 - I;
           Rets[J] = stackPop();
         }
-        Entry.ReturnPHI.emplace_back(std::move(Rets), Builder.GetInsertBlock());
+        Entry.ReturnPHI.emplace_back(std::move(Rets), Builder.getInsertBlock());
       }
-      Builder.CreateBr(NextBlock);
+      Builder.createBr(NextBlock);
     } else {
-      Builder.CreateUnreachable();
+      Builder.createUnreachable();
     }
-    Builder.SetInsertPoint(NextBlock);
+    Builder.positionAtEnd(NextBlock);
     Stack.erase(Stack.begin() + static_cast<int64_t>(Entry.StackSize),
                 Stack.end());
     return Entry;
   }
 
-  void checkStop() {
+  void checkStop() noexcept {
     if (!Interruptible) {
       return;
     }
-    auto *NotStopBB = llvm::BasicBlock::Create(LLContext, "NotStop", F);
-    auto *StopToken = Builder.CreateAtomicRMW(
-        llvm::AtomicRMWInst::BinOp::Xchg,
-        Context.getStopToken(Builder, ExecCtx), Builder.getInt32(0),
+    auto NotStopBB = LLVM::BasicBlock::create(LLContext, F.Fn, "NotStop");
+    auto StopToken = Builder.createAtomicRMW(
+        LLVMAtomicRMWBinOpXchg, Context.getStopToken(Builder, ExecCtx),
+        LLContext.getInt32(0), LLVMAtomicOrderingMonotonic);
 #if LLVM_VERSION_MAJOR >= 13
-        llvm::MaybeAlign(4),
+    StopToken.setAlignment(32);
 #endif
-        llvm::AtomicOrdering::Monotonic);
-    auto *NotStop = createLikely(
-        Builder, Builder.CreateICmpEQ(StopToken, Builder.getInt32(0)));
-    Builder.CreateCondBr(NotStop, NotStopBB,
+    auto NotStop = Builder.createLikely(
+        Builder.createICmpEQ(StopToken, LLContext.getInt32(0)));
+    Builder.createCondBr(NotStop, NotStopBB,
                          getTrapBB(ErrCode::Value::Interrupted));
 
-    Builder.SetInsertPoint(NotStopBB);
+    Builder.positionAtEnd(NotStopBB);
   }
 
   void setUnreachable() noexcept {
@@ -4565,19 +4655,19 @@ private:
     }
   }
 
-  void buildPHI(
-      Span<const ValType> RetType,
-      Span<const std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
-          Incomings) {
+  void
+  buildPHI(Span<const ValType> RetType,
+           Span<const std::tuple<std::vector<LLVM::Value>, LLVM::BasicBlock>>
+               Incomings) noexcept {
     if (isVoidReturn(RetType)) {
       return;
     }
-    std::vector<llvm::Value *> Nodes;
+    std::vector<LLVM::Value> Nodes;
     if (Incomings.size() == 0) {
       const auto &Types = toLLVMTypeVector(LLContext, RetType);
       Nodes.reserve(Types.size());
-      for (llvm::Type *Type : Types) {
-        Nodes.push_back(llvm::UndefValue::get(Type));
+      for (LLVM::Type Type : Types) {
+        Nodes.push_back(LLVM::Value::getUndef(Type));
       }
     } else if (Incomings.size() == 1) {
       Nodes = std::move(std::get<0>(Incomings.front()));
@@ -4585,36 +4675,34 @@ private:
       const auto &Types = toLLVMTypeVector(LLContext, RetType);
       Nodes.reserve(Types.size());
       for (size_t I = 0; I < Types.size(); ++I) {
-        auto *PHIRet = Builder.CreatePHI(
-            Types[I], static_cast<uint32_t>(Incomings.size()));
+        auto PHIRet = Builder.createPHI(Types[I]);
         for (auto &[Value, BB] : Incomings) {
           assuming(Value.size() == Types.size());
-          PHIRet->addIncoming(Value[I], BB);
+          PHIRet.addIncoming(Value[I], BB);
         }
         Nodes.push_back(PHIRet);
       }
     }
-    for (auto *Val : Nodes) {
+    for (auto &Val : Nodes) {
       stackPush(Val);
     }
   }
 
-  void setLableJumpPHI(unsigned int Index) {
+  void setLableJumpPHI(unsigned int Index) noexcept {
     assuming(Index < ControlStack.size());
     auto &Entry = *(ControlStack.rbegin() + Index);
     if (Entry.NextBlock) { // is loop
-      std::vector<llvm::Value *> Args(Entry.Type.first.size());
+      std::vector<LLVM::Value> Args(Entry.Type.first.size());
       for (size_t I = 0; I < Args.size(); ++I) {
         const size_t J = Args.size() - 1 - I;
         Args[J] = stackPop();
       }
       for (size_t I = 0; I < Args.size(); ++I) {
-        llvm::cast<llvm::PHINode>(Entry.Args[I])
-            ->addIncoming(Args[I], Builder.GetInsertBlock());
+        Entry.Args[I].addIncoming(Args[I], Builder.getInsertBlock());
         stackPush(Args[I]);
       }
     } else if (!Entry.Type.second.empty()) { // has return value
-      std::vector<llvm::Value *> Rets(Entry.Type.second.size());
+      std::vector<LLVM::Value> Rets(Entry.Type.second.size());
       for (size_t I = 0; I < Rets.size(); ++I) {
         const size_t J = Rets.size() - 1 - I;
         Rets[J] = stackPop();
@@ -4622,50 +4710,49 @@ private:
       for (size_t I = 0; I < Rets.size(); ++I) {
         stackPush(Rets[I]);
       }
-      Entry.ReturnPHI.emplace_back(std::move(Rets), Builder.GetInsertBlock());
+      Entry.ReturnPHI.emplace_back(std::move(Rets), Builder.getInsertBlock());
     }
   }
 
-  llvm::BasicBlock *getLabel(unsigned int Index) const {
+  LLVM::BasicBlock getLabel(unsigned int Index) const noexcept {
     return (ControlStack.rbegin() + Index)->JumpBlock;
   }
 
-  void stackPush(llvm::Value *Value) { Stack.push_back(Value); }
-  llvm::Value *stackPop() {
+  void stackPush(LLVM::Value Value) noexcept { Stack.push_back(Value); }
+  LLVM::Value stackPop() noexcept {
     assuming(!ControlStack.empty() || !Stack.empty());
     assuming(ControlStack.empty() ||
              Stack.size() > ControlStack.back().StackSize);
-    auto *Value = Stack.back();
+    auto Value = Stack.back();
     Stack.pop_back();
     return Value;
   }
 
   AOT::Compiler::CompileContext &Context;
-  llvm::LLVMContext &LLContext;
-  std::vector<std::pair<llvm::Type *, llvm::Value *>> Local;
-  std::vector<llvm::Value *> Stack;
-  llvm::Value *LocalInstrCount = nullptr;
-  llvm::Value *LocalGas = nullptr;
-  std::unordered_map<ErrCode::Value, llvm::BasicBlock *> TrapBB;
+  LLVM::Context &LLContext;
+  std::vector<std::pair<LLVM::Type, LLVM::Value>> Local;
+  std::vector<LLVM::Value> Stack;
+  LLVM::Value LocalInstrCount = nullptr;
+  LLVM::Value LocalGas = nullptr;
+  std::unordered_map<ErrCode::Value, LLVM::BasicBlock> TrapBB;
   bool IsUnreachable = false;
   bool Interruptible = false;
   bool OptNone = false;
   struct Control {
     size_t StackSize;
     bool Unreachable;
-    llvm::BasicBlock *JumpBlock;
-    llvm::BasicBlock *NextBlock;
-    llvm::BasicBlock *ElseBlock;
-    std::vector<llvm::Value *> Args;
+    LLVM::BasicBlock JumpBlock;
+    LLVM::BasicBlock NextBlock;
+    LLVM::BasicBlock ElseBlock;
+    std::vector<LLVM::Value> Args;
     std::pair<std::vector<ValType>, std::vector<ValType>> Type;
-    std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
+    std::vector<std::tuple<std::vector<LLVM::Value>, LLVM::BasicBlock>>
         ReturnPHI;
-    Control(
-        size_t S, bool U, llvm::BasicBlock *J, llvm::BasicBlock *N,
-        llvm::BasicBlock *E, std::vector<llvm::Value *> A,
-        std::pair<std::vector<ValType>, std::vector<ValType>> T,
-        std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
-            R)
+    Control(size_t S, bool U, LLVM::BasicBlock J, LLVM::BasicBlock N,
+            LLVM::BasicBlock E, std::vector<LLVM::Value> A,
+            std::pair<std::vector<ValType>, std::vector<ValType>> T,
+            std::vector<std::tuple<std::vector<LLVM::Value>, LLVM::BasicBlock>>
+                R) noexcept
         : StackSize(S), Unreachable(U), JumpBlock(J), NextBlock(N),
           ElseBlock(E), Args(std::move(A)), Type(std::move(T)),
           ReturnPHI(std::move(R)) {}
@@ -4675,35 +4762,27 @@ private:
     Control &operator=(Control &&) = default;
   };
   std::vector<Control> ControlStack;
-  llvm::Function *F;
-  llvm::LoadInst *ExecCtx;
-  llvm::IRBuilder<> Builder;
+  LLVM::FunctionCallee F;
+  LLVM::Value ExecCtx;
+  LLVM::Builder Builder;
 };
 
-static std::vector<llvm::Value *> unpackStruct(llvm::IRBuilder<> &Builder,
-                                               llvm::Value *Struct) {
-  const unsigned N = Struct->getType()->getStructNumElements();
-  std::vector<llvm::Value *> Ret;
+std::vector<LLVM::Value> unpackStruct(LLVM::Builder &Builder,
+                                      LLVM::Value Struct) noexcept {
+  const auto N = Struct.getType().getStructNumElements();
+  std::vector<LLVM::Value> Ret;
   Ret.reserve(N);
   for (unsigned I = 0; I < N; ++I) {
-    Ret.push_back(Builder.CreateExtractValue(Struct, {I}));
+    Ret.push_back(Builder.createExtractValue(Struct, I));
   }
   return Ret;
 }
 
-static llvm::Value *createLikely(llvm::IRBuilder<> &Builder,
-                                 llvm::Value *Value) {
-  return Builder.CreateBinaryIntrinsic(llvm::Intrinsic::expect, Value,
-                                       Builder.getTrue());
-}
-
 // Write output object and link
 Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
-                                 const llvm::SmallString<0> &OSVec) {
-  using namespace std::literals;
-
+                                 const LLVM::MemoryBuffer &OSVec) noexcept {
   spdlog::info("output start");
-  std::string ObjectName;
+  std::filesystem::path ObjectName;
   {
     // tempfile
     std::filesystem::path OPath(OutputPath);
@@ -4712,22 +4791,15 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #else
     OPath.replace_extension("%%%%%%%%%%.o"sv);
 #endif
-    auto Object = llvm::sys::fs::TempFile::create(OPath.u8string());
-    if (!Object) {
+    ObjectName = createTemp(OPath);
+    if (ObjectName.empty()) {
       // TODO:return error
       spdlog::error("so file creation failed:{}", OPath.u8string());
-      llvm::consumeError(Object.takeError());
       return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
     }
-    llvm::raw_fd_ostream OS(Object->FD, false);
-    OS.write(OSVec.data(), OSVec.size());
-#if WASMEDGE_OS_WINDOWS
-    OS.flush();
-#else
+    std::ofstream OS(ObjectName, std::ios_base::binary);
+    OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
     OS.close();
-#endif
-    ObjectName = Object->TmpName;
-    llvm::consumeError(Object->keep());
   }
 
   // link
@@ -4761,7 +4833,8 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
             "-dylib", "-demangle", "-macosx_version_min", "10.0.0",
             "-syslibroot",
             "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-            ObjectName.c_str(), "-o", OutputPath.u8string().c_str(), "-lSystem"
+            ObjectName.u8string().c_str(), "-o", OutputPath.u8string().c_str(),
+            "-lSystem"
       },
 #elif WASMEDGE_OS_LINUX
   LinkResult = lld::elf::link(
@@ -4771,8 +4844,9 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #elif WASMEDGE_OS_WINDOWS
   LinkResult = lld::coff::link(
       std::initializer_list<const char *>{
-          "lld-link", "-dll", "-defaultlib:libcmt", "-base:0", "-nologo",
-          ObjectName.c_str(), ("-out:" + OutputPath.u8string()).c_str()},
+          "lld-link", "-dll", "-base:0", "-nologo",
+          ObjectName.u8string().c_str(),
+          ("-out:" + OutputPath.u8string()).c_str()},
 #endif
 
 #if LLVM_VERSION_MAJOR >= 14
@@ -4789,11 +4863,12 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #endif
 
   if (LinkResult) {
-    llvm::sys::fs::remove(ObjectName);
+    std::error_code Error;
+    std::filesystem::remove(ObjectName, Error);
 #if WASMEDGE_OS_WINDOWS
     std::filesystem::path LibPath(OutputPath);
     LibPath.replace_extension(".lib"sv);
-    llvm::sys::fs::remove(LibPath.u8string());
+    std::filesystem::remove(LibPath, Error);
 #endif
 
     spdlog::info("compile done");
@@ -4826,60 +4901,50 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 
 Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
                                Span<const Byte> Data,
-                               const llvm::SmallString<0> &OSVec) {
-  using namespace std::literals;
-
-  std::string SharedObjectName;
+                               const LLVM::MemoryBuffer &OSVec) noexcept {
+  std::filesystem::path SharedObjectName;
   {
     // tempfile
     std::filesystem::path SOPath(OutputPath);
     SOPath.replace_extension("%%%%%%%%%%" WASMEDGE_LIB_EXTENSION);
-    auto Object = llvm::sys::fs::TempFile::create(SOPath.u8string());
-    if (!Object) {
+    SharedObjectName = createTemp(SOPath);
+    if (SharedObjectName.empty()) {
       // TODO:return error
       spdlog::error("so file creation failed:{}", SOPath.u8string());
-      llvm::consumeError(Object.takeError());
       return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
     }
-    llvm::raw_fd_ostream OS(Object->FD, false);
-    OS.write(OSVec.data(), OSVec.size());
-#if WASMEDGE_OS_WINDOWS
-    OS.flush();
-#else
+    std::ofstream OS(SharedObjectName, std::ios_base::binary);
+    OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
     OS.close();
-#endif
-    SharedObjectName = Object->TmpName;
-    llvm::consumeError(Object->keep());
   }
 
-  if (auto Res =
-          outputNativeLibrary(std::filesystem::u8path(SharedObjectName), OSVec);
-      unlikely(!Res)) {
+  if (auto Res = outputNativeLibrary(SharedObjectName, OSVec); unlikely(!Res)) {
     return Unexpect(Res);
   }
-  std::unique_ptr<llvm::MemoryBuffer> SOFile;
-  if (auto Res = llvm::MemoryBuffer::getFile(SharedObjectName);
-      unlikely(!Res)) {
-    spdlog::error("object file open error:{}", Res.getError().message());
+
+  LLVM::MemoryBuffer SOFile;
+  if (auto [Res, ErrorMessage] =
+          LLVM::MemoryBuffer::getFile(SharedObjectName.u8string().c_str());
+      unlikely(ErrorMessage)) {
+    spdlog::error("object file open error:{}", ErrorMessage.string_view());
     return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
   } else {
-    SOFile = std::move(*Res);
+    SOFile = std::move(Res);
   }
 
-  std::unique_ptr<llvm::object::ObjectFile> ObjFile;
-  if (auto Res = llvm::object::ObjectFile::createObjectFile(*SOFile);
-      unlikely(!Res)) {
-    spdlog::error("object file parse error:{}",
-                  llvm::toString(Res.takeError()));
+  LLVM::Context Context;
+  LLVM::Binary ObjFile;
+  if (auto [Res, ErrorMessage] = LLVM::Binary::create(SOFile, Context);
+      unlikely(ErrorMessage)) {
+    spdlog::error("object file parse error:{}", ErrorMessage.string_view());
     return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
   } else {
-    ObjFile = std::move(*Res);
+    ObjFile = std::move(Res);
   }
 
-  llvm::SmallString<0> OSCustomSecVec;
+  std::string OSCustomSecVec;
   {
-    llvm::raw_svector_ostream OS(OSCustomSecVec);
-
+    std::ostringstream OS;
     WriteName(OS, "wasmedge"sv);
     WriteU32(OS, WasmEdge::AOT::kBinaryVersion);
 
@@ -4905,26 +4970,14 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
 
     std::vector<std::pair<std::string, uint64_t>> SymbolTable;
 #if !WASMEDGE_OS_WINDOWS
-    for (auto &Symbol : ObjFile->symbols()) {
-      std::string Name;
-      if (auto Res = Symbol.getName(); unlikely(!Res)) {
-        continue;
-      } else if (Res->empty()) {
-        continue;
-      } else {
-        Name = std::move(*Res);
-      }
-      uint64_t Address = 0;
-      if (auto Res = Symbol.getAddress(); unlikely(!Res)) {
-        continue;
-      } else {
-        Address = *Res;
-      }
-      SymbolTable.emplace_back(std::move(Name), std::move(Address));
+    for (auto Symbol = ObjFile.symbols();
+         Symbol && !ObjFile.isSymbolEnd(Symbol); Symbol.next()) {
+      SymbolTable.emplace_back(Symbol.getName(), Symbol.getAddress());
     }
 #else
-    for (auto &Symbol : llvm::cast<llvm::object::COFFObjectFile>(ObjFile.get())
-                            ->export_directories()) {
+    for (auto &Symbol :
+         llvm::object::unwrap<llvm::object::COFFObjectFile>(ObjFile.unwrap())
+             ->export_directories()) {
       llvm::StringRef Name;
       if (auto Error = Symbol.getSymbolName(Name); unlikely(!!Error)) {
         continue;
@@ -4982,8 +5035,9 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
     }
 
     uint32_t SectionCount = 0;
-    for (auto &Section : ObjFile->sections()) {
-      if (auto Res = Section.getContents(); unlikely(!Res)) {
+    for (auto Section = ObjFile.sections(); !ObjFile.isSectionEnd(Section);
+         Section.next()) {
+      if (Section.getSize() == 0) {
         continue;
       }
       if (!Section.isText() && !Section.isData() && !Section.isBSS()) {
@@ -4993,16 +5047,20 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
     }
     WriteU32(OS, SectionCount);
 
-    for (auto &Section : ObjFile->sections()) {
-      const uint64_t Address = Section.getAddress();
-      const uint64_t Size = Section.getSize();
-      std::vector<char> Content;
-      if (auto Res = Section.getContents(); unlikely(!Res)) {
+    for (auto Section = ObjFile.sections(); !ObjFile.isSectionEnd(Section);
+         Section.next()) {
+      if (Section.getSize() == 0) {
         continue;
-      } else {
-        Content.assign(Res->begin(), Res->end());
       }
-      if (Section.isText()) {
+      std::vector<char> Content;
+      if (auto Res = Section.getContents(); unlikely(Res.empty())) {
+        assumingUnreachable();
+      } else {
+        Content.assign(Res.begin(), Res.end());
+      }
+      if (Section.isPData()) {
+        WriteByte(OS, UINT8_C(4));
+      } else if (Section.isText()) {
         WriteByte(OS, UINT8_C(1));
       } else if (Section.isData()) {
         WriteByte(OS, UINT8_C(2));
@@ -5011,26 +5069,29 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
       } else {
         continue;
       }
-      WriteU64(OS, Address);
-      WriteU64(OS, Size);
+
+      WriteU64(OS, Section.getAddress());
+      WriteU64(OS, Content.size());
       WriteName(OS, std::string_view(Content.data(), Content.size()));
     }
+    OSCustomSecVec = OS.str();
   }
 
   spdlog::info("output start");
 
-  std::error_code EC;
-  llvm::raw_fd_ostream OS(OutputPath.u8string(), EC);
-  if (EC) {
-    spdlog::error("output failed:{}", EC.message());
+  std::ofstream OS(OutputPath, std::ios_base::binary);
+  if (!OS) {
+    spdlog::error("output failed.");
     return Unexpect(ErrCode::Value::IllegalPath);
   }
-  OS.write(reinterpret_cast<const char *>(Data.data()), Data.size());
+  OS.write(reinterpret_cast<const char *>(Data.data()),
+           static_cast<std::streamsize>(Data.size()));
   // Custom section id
   WriteByte(OS, UINT8_C(0x00));
   WriteName(OS, std::string_view(OSCustomSecVec.data(), OSCustomSecVec.size()));
 
-  llvm::sys::fs::remove(SharedObjectName);
+  std::error_code Error;
+  std::filesystem::remove(SharedObjectName, Error);
   return {};
 }
 
@@ -5040,33 +5101,28 @@ namespace WasmEdge {
 namespace AOT {
 
 Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
-                               std::filesystem::path OutputPath) {
+                               std::filesystem::path OutputPath) noexcept {
   // Check the module is validated.
   if (unlikely(!Module.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
     return Unexpect(ErrCode::Value::NotValidated);
   }
 
-  using namespace std::literals;
-
   std::unique_lock Lock(Mutex);
   spdlog::info("compile start");
   std::filesystem::path LLPath(OutputPath);
   LLPath.replace_extension("ll"sv);
 
-  llvm::InitializeNativeTarget();
-  llvm::InitializeNativeTargetAsmPrinter();
+  LLVM::Core::init();
 
-  llvm::LLVMContext LLContext;
-  llvm::Module LLModule(LLPath.u8string(), LLContext);
-  LLModule.setTargetTriple(llvm::sys::getProcessTriple());
-#if WASMEDGE_OS_MACOS
-  LLModule.setPICLevel(llvm::PICLevel::Level::BigPIC);
-#elif WASMEDGE_OS_LINUX | WASMEDGE_OS_WINDOWS
-  LLModule.setPICLevel(llvm::PICLevel::Level::SmallPIC);
-#endif
-  CompileContext NewContext(LLModule,
-                            Conf.getCompilerConfigure().isGenericBinary());
+  LLVM::Context LLContext;
+  LLVM::Module LLModule(LLContext, LLPath.u8string().c_str());
+  LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
+  LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
+  CompileContext NewContext(LLContext, LLModule,
+                            Conf.getCompilerConfigure().isGenericBinary(),
+                            Conf.getCompilerConfigure().getOutputFormat() ==
+                                CompilerConfigure::OutputFormat::Wasm);
   struct RAIICleanup {
     RAIICleanup(CompileContext *&Context, CompileContext &NewContext)
         : Context(Context) {
@@ -5093,176 +5149,168 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   compile(Module.getExportSection());
   // StartSection is not required to compile
 
-  if (Conf.getCompilerConfigure().getOutputFormat() ==
-      CompilerConfigure::OutputFormat::Native) {
+#if WASMEDGE_OS_WINDOWS
+  {
+    // create dummy dllmain function
+    auto FTy = LLVM::Type::getFunctionType(Context->LLContext.getInt32Ty(), {});
+    auto F = Context->LLModule.addFunction(FTy, LLVMExternalLinkage,
+                                           "_DllMainCRTStartup");
+    F.setVisibility(LLVMProtectedVisibility);
+    F.setDSOLocal(true);
+    F.addFnAttr(Context->NoStackArgProbe);
+    F.addFnAttr(Context->StrictFP);
+    F.addFnAttr(Context->NoReturn);
+    LLVM::Builder Builder(Context->LLContext);
+    Builder.positionAtEnd(
+        LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
+    Builder.createRet(Context->LLContext.getInt32(1u));
+
+    auto A = LLModule.addAlias(F.getType(), F, "_fltused");
+    A.setLinkage(LLVMExternalLinkage);
+    A.setVisibility(LLVMProtectedVisibility);
+    A.setDSOLocal(true);
+  }
+#endif
+
+  if (!Context->IsCustomSection) {
     // create wasm.code and wasm.size
-    auto *Int32Ty = Context->Int32Ty;
-    auto *Content = llvm::ConstantDataArray::getString(
-        LLContext,
-        llvm::StringRef(reinterpret_cast<const char *>(Data.data()),
-                        Data.size()),
-        false);
-    new llvm::GlobalVariable(LLModule, Content->getType(), false,
-                             llvm::GlobalValue::ExternalLinkage, Content,
-                             "wasm.code");
-    new llvm::GlobalVariable(
-        LLModule, Int32Ty, false, llvm::GlobalValue::ExternalLinkage,
-        llvm::ConstantInt::get(Int32Ty, Data.size()), "wasm.size");
+    auto Int32Ty = Context->Int32Ty;
+    auto Content = LLVM::Value::getConstString(
+        LLContext, {reinterpret_cast<const char *>(Data.data()), Data.size()},
+        true);
+    LLModule.addGlobal(Content.getType(), true, LLVMExternalLinkage, Content,
+                       "wasm.code");
+    LLModule.addGlobal(Int32Ty, true, LLVMExternalLinkage,
+                       LLVM::Value::getConstInt(Int32Ty, Data.size()),
+                       "wasm.size");
   }
 
   // set dllexport
-  for (auto &GV : LLModule.global_values()) {
-    if (GV.hasExternalLinkage()) {
-      GV.setVisibility(llvm::GlobalValue::ProtectedVisibility);
-      GV.setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
+  for (auto GV = LLModule.getFirstGlobal(); GV; GV = GV.getNextGlobal()) {
+    if (GV.getLinkage() == LLVMExternalLinkage) {
+      GV.setVisibility(LLVMProtectedVisibility);
+      GV.setDSOLocal(true);
+      GV.setDLLStorageClass(LLVMDLLExportStorageClass);
     }
   }
 
   if (Conf.getCompilerConfigure().isDumpIR()) {
-    int Fd;
-    llvm::sys::fs::openFileForWrite("wasm.ll", Fd);
-    llvm::raw_fd_ostream OS(Fd, true);
-    LLModule.print(OS, nullptr);
+    if (auto ErrorMessage = LLModule.printModuleToFile("wasm.ll");
+        unlikely(ErrorMessage)) {
+      spdlog::error("wasm.ll open error:{}", ErrorMessage.string_view());
+      return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
+    }
   }
 
   spdlog::info("verify start");
-  llvm::verifyModule(LLModule, &llvm::errs());
+  LLModule.verify(LLVMPrintMessageAction);
   spdlog::info("optimize start");
 
-  llvm::SmallString<0> OSVec;
-
   // optimize + codegen
-  llvm::Triple Triple(LLModule.getTargetTriple());
+  auto Triple = LLModule.getTarget();
   {
-    std::string Error;
-    const llvm::Target *TheTarget =
-        llvm::TargetRegistry::lookupTarget(Triple.getTriple(), Error);
-    if (!TheTarget) {
-      // TODO:return error
-      spdlog::error("lookupTarget failed:{}", Error);
-      return Unexpect(ErrCode::Value::IllegalPath);
-    }
-
-    llvm::TargetOptions Options;
-    llvm::Reloc::Model RM = llvm::Reloc::PIC_;
-#if defined(__riscv) && __riscv_xlen == 64
-    llvm::StringRef CPUName("generic-rv64");
-#else
-    llvm::StringRef CPUName("generic");
-    if (!Conf.getCompilerConfigure().isGenericBinary()) {
-      CPUName = llvm::sys::getHostCPUName();
-    }
-#endif
-    std::unique_ptr<llvm::TargetMachine> TM(TheTarget->createTargetMachine(
-        Triple.str(), CPUName, Context->SubtargetFeatures.getString(), Options,
-        RM, llvm::None, llvm::CodeGenOpt::Level::Aggressive));
-    LLModule.setDataLayout(TM->createDataLayout());
-
-    llvm::TargetLibraryInfoImpl TLII(Triple);
-
+    LLVM::TargetMachine TM;
     {
-#if LLVM_VERSION_MAJOR == 12
-      llvm::PassBuilder PB(false, TM.get());
-#else
-      llvm::PassBuilder PB(TM.get());
-#endif
-
-      llvm::LoopAnalysisManager LAM;
-      llvm::FunctionAnalysisManager FAM;
-      llvm::CGSCCAnalysisManager CGAM;
-      llvm::ModuleAnalysisManager MAM;
-
-      // Register the AA manager first so that our version is the one
-      // used.
-      FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
-
-      // Register the target library analysis directly and give it a
-      // customized preset TLI.
-      FAM.registerPass([&] { return llvm::TargetLibraryAnalysis(TLII); });
-#if LLVM_VERSION_MAJOR <= 9
-      MAM.registerPass([&] { return llvm::TargetLibraryAnalysis(TLII); });
-#endif
-
-      // Register all the basic analyses with the managers.
-      PB.registerModuleAnalyses(MAM);
-      PB.registerCGSCCAnalyses(CGAM);
-      PB.registerFunctionAnalyses(FAM);
-      PB.registerLoopAnalyses(LAM);
-      PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
-
-      llvm::ModulePassManager MPM;
-      if (Conf.getCompilerConfigure().getOptimizationLevel() ==
-          CompilerConfigure::OptimizationLevel::O0) {
-        MPM.addPass(
-            llvm::createModuleToFunctionPassAdaptor(llvm::TailCallElimPass()));
-        MPM.addPass(llvm::AlwaysInlinerPass(false));
-      } else {
-        MPM.addPass(PB.buildPerModuleDefaultPipeline(
-            toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel())));
+      auto [TheTarget, ErrorMessage] = LLVM::Target::getFromTriple(Triple);
+      if (ErrorMessage) {
+        // TODO:return error
+        spdlog::error("lookupTarget failed:{}", ErrorMessage.string_view());
+        return Unexpect(ErrCode::Value::IllegalPath);
       }
 
-      MPM.run(LLModule, MAM);
+      std::string CPUName;
+#if defined(__riscv) && __riscv_xlen == 64
+      CPUName = "generic-rv64"s;
+#else
+      if (!Conf.getCompilerConfigure().isGenericBinary()) {
+        CPUName = LLVM::getHostCPUName().string_view();
+      } else {
+        CPUName = "generic"s;
+      }
+#endif
+
+      TM = LLVM::TargetMachine::create(
+          TheTarget, Triple, CPUName.c_str(),
+          Context->SubtargetFeatures.unwrap(),
+          toLLVMCodeGenLevel(
+              Conf.getCompilerConfigure().getOptimizationLevel()),
+          LLVMRelocPIC, LLVMCodeModelDefault);
+    }
+
+    {
+      auto FP = LLVM::PassManager::createForModule(LLModule);
+      auto MP = LLVM::PassManager::create();
+
+      TM.addAnalysisPasses(MP);
+      TM.addAnalysisPasses(FP);
+      if (Conf.getCompilerConfigure().getOptimizationLevel() ==
+          CompilerConfigure::OptimizationLevel::O0) {
+        FP.addTailCallEliminationPass();
+        MP.addAlwaysInlinerPass();
+      } else {
+        auto PMB = LLVM::PassManagerBuilder::create();
+        auto [OptLevel, SizeLevel] =
+            toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel());
+        PMB.setOptLevel(OptLevel);
+        PMB.setSizeLevel(SizeLevel);
+        PMB.populateFunctionPassManager(FP);
+        PMB.populateModulePassManager(MP);
+      }
+
+      FP.initializeFunctionPassManager();
+      for (auto Fn = LLModule.getFirstFunction(); Fn;
+           Fn = Fn.getNextFunction()) {
+        FP.runFunctionPassManager(Fn);
+      }
+      FP.finalizeFunctionPassManager();
+      MP.runPassManager(LLModule);
     }
 
     // Set initializer for constant value
-    if (auto *IntrinsicsTable = LLModule.getNamedGlobal("intrinsics")) {
-      IntrinsicsTable->setInitializer(llvm::ConstantPointerNull::get(
-          llvm::cast<llvm::PointerType>(IntrinsicsTable->getValueType())));
-      IntrinsicsTable->setConstant(false);
+    if (auto IntrinsicsTable = LLModule.getNamedGlobal("intrinsics")) {
+      IntrinsicsTable.setInitializer(
+          LLVM::Value::getConstNull(IntrinsicsTable.getType()));
+      IntrinsicsTable.setGlobalConstant(false);
     }
 
-    llvm::legacy::PassManager CodeGenPasses;
-    CodeGenPasses.add(
-        llvm::createTargetTransformInfoWrapperPass(TM->getTargetIRAnalysis()));
+    if (Conf.getCompilerConfigure().isDumpIR()) {
+      if (auto ErrorMessage = LLModule.printModuleToFile("wasm-opt.ll")) {
+        // TODO:return error
+        spdlog::error("printModuleToFile failed");
+        return Unexpect(ErrCode::Value::IllegalPath);
+      }
+    }
 
-    // Add LibraryInfo.
-    CodeGenPasses.add(new llvm::TargetLibraryInfoWrapperPass(TLII));
-
-    llvm::raw_svector_ostream OS(OSVec);
-#if LLVM_VERSION_MAJOR >= 10
-    using llvm::CGFT_ObjectFile;
-#else
-    const auto CGFT_ObjectFile = llvm::TargetMachine::CGFT_ObjectFile;
-#endif
-    if (TM->addPassesToEmitFile(CodeGenPasses, OS, nullptr, CGFT_ObjectFile,
-                                false)) {
+    spdlog::info("codegen start");
+    auto [OSVec, ErrorMessage] =
+        TM.emitToMemoryBuffer(LLModule, LLVMObjectFile);
+    if (ErrorMessage) {
       // TODO:return error
       spdlog::error("addPassesToEmitFile failed");
       return Unexpect(ErrCode::Value::IllegalPath);
     }
 
-    if (Conf.getCompilerConfigure().isDumpIR()) {
-      int Fd;
-      llvm::sys::fs::openFileForWrite("wasm-opt.ll", Fd);
-      llvm::raw_fd_ostream LLOS(Fd, true);
-      LLModule.print(LLOS, nullptr);
+    if (Context->IsCustomSection) {
+      if (auto Res = outputWasmLibrary(OutputPath, Data, OSVec);
+          unlikely(!Res)) {
+        return Unexpect(Res);
+      }
+    } else {
+      if (auto Res = outputNativeLibrary(OutputPath, OSVec); unlikely(!Res)) {
+        return Unexpect(Res);
+      }
     }
-    spdlog::info("codegen start");
-    CodeGenPasses.run(LLModule);
-  }
-
-  switch (Conf.getCompilerConfigure().getOutputFormat()) {
-  case CompilerConfigure::OutputFormat::Native:
-    if (auto Res = outputNativeLibrary(OutputPath, OSVec); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-    break;
-  case CompilerConfigure::OutputFormat::Wasm:
-    if (auto Res = outputWasmLibrary(OutputPath, Data, OSVec); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-    break;
   }
 
   return {};
 }
 
-void Compiler::compile(const AST::TypeSection &TypeSec) {
-  auto *WrapperTy =
-      llvm::FunctionType::get(Context->VoidTy,
-                              {Context->ExecCtxPtrTy, Context->Int8PtrTy,
-                               Context->Int8PtrTy, Context->Int8PtrTy},
-                              false);
+void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
+  auto WrapperTy =
+      LLVM::Type::getFunctionType(Context->VoidTy,
+                                  {Context->ExecCtxPtrTy, Context->Int8PtrTy,
+                                   Context->Int8PtrTy, Context->Int8PtrTy},
+                                  false);
   const auto &FuncTypes = TypeSec.getContent();
   const auto Size = FuncTypes.size();
   if (Size == 0) {
@@ -5274,7 +5322,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec) {
   // Iterate and compile types.
   for (size_t I = 0; I < Size; ++I) {
     const auto &FuncType = FuncTypes[I];
-    const auto Name = "t" + std::to_string(Context->FunctionTypes.size());
+    const auto Name = fmt::format("t{}"sv, Context->FunctionTypes.size());
 
     // Check function type is unique
     {
@@ -5284,9 +5332,13 @@ void Compiler::compile(const AST::TypeSection &TypeSec) {
         if (OldFuncType == FuncType) {
           Unique = false;
           Context->FunctionTypes.push_back(&OldFuncType);
-          auto *F = Context->FunctionWrappers[J];
+          auto F = Context->FunctionWrappers[J];
           Context->FunctionWrappers.push_back(F);
-          llvm::GlobalAlias::create(Name, F);
+          auto A = Context->LLModule.addAlias(F.getType(), F, Name.c_str());
+          A.setLinkage(LLVMExternalLinkage);
+          A.setVisibility(LLVMProtectedVisibility);
+          A.setDSOLocal(true);
+          A.setDLLStorageClass(LLVMDLLExportStorageClass);
           break;
         }
       }
@@ -5296,63 +5348,71 @@ void Compiler::compile(const AST::TypeSection &TypeSec) {
     }
 
     // Create Wrapper
-    auto *F = llvm::Function::Create(WrapperTy, llvm::Function::ExternalLinkage,
-                                     Name, Context->LLModule);
+    auto F = Context->LLModule.addFunction(WrapperTy, LLVMExternalLinkage,
+                                           Name.c_str());
     {
-      F->addFnAttr(llvm::Attribute::StrictFP);
-      F->addParamAttr(0, llvm::Attribute::AttrKind::ReadOnly);
-      F->addParamAttr(0, llvm::Attribute::AttrKind::NoAlias);
-      F->addParamAttr(1, llvm::Attribute::AttrKind::NoAlias);
-      F->addParamAttr(2, llvm::Attribute::AttrKind::NoAlias);
-      F->addParamAttr(3, llvm::Attribute::AttrKind::NoAlias);
+      F.setVisibility(LLVMProtectedVisibility);
+      F.setDSOLocal(true);
+      F.setDLLStorageClass(LLVMDLLExportStorageClass);
+      F.addFnAttr(Context->NoStackArgProbe);
+      F.addFnAttr(Context->StrictFP);
+      F.addParamAttr(0, Context->ReadOnly);
+      F.addParamAttr(0, Context->NoAlias);
+      F.addParamAttr(1, Context->NoAlias);
+      F.addParamAttr(2, Context->NoAlias);
+      F.addParamAttr(3, Context->NoAlias);
 
-      llvm::IRBuilder<> Builder(
-          llvm::BasicBlock::Create(F->getContext(), "entry", F));
-      setIsFPConstrained(Builder);
-      auto *FTy = toLLVMType(Context->ExecCtxPtrTy, FuncType);
-      auto *RTy = FTy->getReturnType();
-      const size_t ArgCount = FTy->getNumParams() - 1;
+      LLVM::Builder Builder(Context->LLContext);
+      Builder.positionAtEnd(
+          LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
+
+      auto FTy =
+          toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
+      auto RTy = FTy.getReturnType();
+      std::vector<LLVM::Type> FPTy(FTy.getNumParams());
+      FTy.getParamTypes(FPTy);
+
+      const size_t ArgCount = FPTy.size() - 1;
       const size_t RetCount =
-          RTy->isVoidTy()
-              ? 0
-              : (RTy->isStructTy() ? RTy->getStructNumElements() : 1);
-      auto *ExecCtxPtr = F->arg_begin();
-      auto RawFunc = llvm::FunctionCallee(
-          FTy, Builder.CreateBitCast(F->arg_begin() + 1, FTy->getPointerTo()));
-      auto *RawArgs = F->arg_begin() + 2;
-      auto *RawRets = F->arg_begin() + 3;
+          RTy.isVoidTy() ? 0
+                         : (RTy.isStructTy() ? RTy.getStructNumElements() : 1);
+      auto ExecCtxPtr = F.getFirstParam();
+      auto RawFunc = LLVM::FunctionCallee{
+          FTy,
+          Builder.createBitCast(ExecCtxPtr.getNextParam(), FTy.getPointerTo())};
+      auto RawArgs = ExecCtxPtr.getNextParam().getNextParam();
+      auto RawRets = RawArgs.getNextParam();
 
-      std::vector<llvm::Value *> Args;
-      Args.reserve(FTy->getNumParams());
+      std::vector<LLVM::Value> Args;
+      Args.reserve(FTy.getNumParams());
       Args.push_back(ExecCtxPtr);
       for (size_t J = 0; J < ArgCount; ++J) {
-        auto *ArgTy = FTy->getParamType(static_cast<uint32_t>(J + 1));
-        llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(
-            Context->Int8Ty, RawArgs, J * kValSize);
-        llvm::Value *Ptr = Builder.CreateBitCast(VPtr, ArgTy->getPointerTo());
-        Args.push_back(Builder.CreateLoad(ArgTy, Ptr));
+        auto ArgTy = FPTy[J + 1];
+        auto VPtr = Builder.createConstInBoundsGEP1_64(Context->Int8Ty, RawArgs,
+                                                       J * kValSize);
+        auto Ptr = Builder.createBitCast(VPtr, ArgTy.getPointerTo());
+        Args.push_back(Builder.createLoad(ArgTy, Ptr));
       }
 
-      auto Ret = Builder.CreateCall(RawFunc, Args);
-      if (RTy->isVoidTy()) {
+      auto Ret = Builder.createCall(RawFunc, Args);
+      if (RTy.isVoidTy()) {
         // nothing to do
-      } else if (RTy->isStructTy()) {
+      } else if (RTy.isStructTy()) {
         auto Rets = unpackStruct(Builder, Ret);
         for (size_t J = 0; J < RetCount; ++J) {
-          llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(
-              Context->Int8Ty, RawRets, J * kValSize);
-          llvm::Value *Ptr =
-              Builder.CreateBitCast(VPtr, Rets[J]->getType()->getPointerTo());
-          Builder.CreateStore(Rets[J], Ptr);
+          auto VPtr = Builder.createConstInBoundsGEP1_64(Context->Int8Ty,
+                                                         RawRets, J * kValSize);
+          auto Ptr =
+              Builder.createBitCast(VPtr, Rets[J].getType().getPointerTo());
+          Builder.createStore(Rets[J], Ptr);
         }
       } else {
-        llvm::Value *VPtr =
-            Builder.CreateConstInBoundsGEP1_64(Context->Int8Ty, RawRets, 0);
-        llvm::Value *Ptr =
-            Builder.CreateBitCast(VPtr, Ret->getType()->getPointerTo());
-        Builder.CreateStore(Ret, Ptr);
+        auto VPtr =
+            Builder.createConstInBoundsGEP1_64(Context->Int8Ty, RawRets, 0);
+        auto Ptr = Builder.createBitCast(VPtr, Ret.getType().getPointerTo());
+        Builder.createStore(Ret, Ptr);
       }
-      Builder.CreateRetVoid();
+      Builder.createRetVoid();
     }
     // Copy wrapper, param and return lists to module instance.
     Context->FunctionTypes.push_back(&FuncType);
@@ -5360,7 +5420,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec) {
   }
 }
 
-void Compiler::compile(const AST::ImportSection &ImportSec) {
+void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
   // Iterate and compile import descriptions.
   for (const auto &ImpDesc : ImportSec.getContent()) {
     // Get data from import description.
@@ -5375,80 +5435,88 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
       uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
       assuming(TypeIdx < Context->FunctionTypes.size());
       const auto &FuncType = *Context->FunctionTypes[TypeIdx];
+      auto FTy =
+          toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
+      auto RTy = FTy.getReturnType();
+      const auto Linkage =
+          Context->IsCustomSection ? LLVMInternalLinkage : LLVMExternalLinkage;
+      auto F = LLVM::FunctionCallee{
+          FTy, Context->LLModule.addFunction(
+                   FTy, Linkage, fmt::format("f{}"sv, FuncID).c_str())};
+      F.Fn.setVisibility(LLVMProtectedVisibility);
+      F.Fn.setDSOLocal(true);
+      if (!Context->IsCustomSection) {
+        F.Fn.setDLLStorageClass(LLVMDLLExportStorageClass);
+      }
+      F.Fn.addFnAttr(Context->NoStackArgProbe);
+      F.Fn.addFnAttr(Context->StrictFP);
+      F.Fn.addParamAttr(0, Context->ReadOnly);
+      F.Fn.addParamAttr(0, Context->NoAlias);
 
-      auto *FTy = toLLVMType(Context->ExecCtxPtrTy, FuncType);
-      auto *RTy = FTy->getReturnType();
-      auto *F = llvm::Function::Create(FTy, llvm::Function::PrivateLinkage,
-                                       "f" + std::to_string(FuncID),
-                                       Context->LLModule);
-      F->addFnAttr(llvm::Attribute::StrictFP);
-      F->addParamAttr(0, llvm::Attribute::AttrKind::ReadOnly);
-      F->addParamAttr(0, llvm::Attribute::AttrKind::NoAlias);
-
-      auto *Entry = llvm::BasicBlock::Create(Context->LLContext, "entry", F);
-      llvm::IRBuilder<> Builder(Entry);
-      setIsFPConstrained(Builder);
+      LLVM::Builder Builder(Context->LLContext);
+      Builder.positionAtEnd(
+          LLVM::BasicBlock::create(Context->LLContext, F.Fn, "entry"));
 
       const auto ArgSize = FuncType.getParamTypes().size();
       const auto RetSize =
-          RTy->isVoidTy() ? 0 : FuncType.getReturnTypes().size();
+          RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
 
-      llvm::Value *Args;
+      LLVM::Value Args;
       if (ArgSize == 0) {
-        Args = llvm::ConstantPointerNull::get(Context->Int8PtrTy);
+        Args = LLVM::Value::getConstNull(Context->Int8PtrTy);
       } else {
-        auto *Alloca = Builder.CreateAlloca(
-            Context->Int8Ty, Builder.getInt64(ArgSize * kValSize));
-        Alloca->setAlignment(Align(kValSize));
+        auto Alloca = Builder.createArrayAlloca(
+            Context->Int8Ty, Context->LLContext.getInt64(ArgSize * kValSize));
+        Alloca.setAlignment(kValSize);
         Args = Alloca;
       }
 
-      llvm::Value *Rets;
+      LLVM::Value Rets;
       if (RetSize == 0) {
-        Rets = llvm::ConstantPointerNull::get(Context->Int8PtrTy);
+        Rets = LLVM::Value::getConstNull(Context->Int8PtrTy);
       } else {
-        auto *Alloca = Builder.CreateAlloca(
-            Context->Int8Ty, Builder.getInt64(RetSize * kValSize));
-        Alloca->setAlignment(Align(kValSize));
+        auto Alloca = Builder.createArrayAlloca(
+            Context->Int8Ty, Context->LLContext.getInt64(RetSize * kValSize));
+        Alloca.setAlignment(kValSize);
         Rets = Alloca;
       }
 
+      auto Arg = F.Fn.getFirstParam();
       for (unsigned I = 0; I < ArgSize; ++I) {
-        llvm::Argument *Arg = F->arg_begin() + 1 + I;
-        llvm::Value *Ptr = Builder.CreateConstInBoundsGEP1_64(
+        Arg = Arg.getNextParam();
+        LLVM::Value Ptr = Builder.createConstInBoundsGEP1_64(
             Context->Int8Ty, Args, I * kValSize);
-        Builder.CreateStore(
-            Arg, Builder.CreateBitCast(Ptr, Arg->getType()->getPointerTo()));
+        Builder.createStore(
+            Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
       }
 
-      Builder.CreateCall(
+      Builder.createCall(
           Context->getIntrinsic(
               Builder, AST::Module::Intrinsics::kCall,
-              llvm::FunctionType::get(
+              LLVM::Type::getFunctionType(
                   Context->VoidTy,
                   {Context->Int32Ty, Context->Int8PtrTy, Context->Int8PtrTy},
                   false)),
-          {Builder.getInt32(FuncID), Args, Rets});
+          {Context->LLContext.getInt32(FuncID), Args, Rets});
 
       if (RetSize == 0) {
-        Builder.CreateRetVoid();
+        Builder.createRetVoid();
       } else if (RetSize == 1) {
-        llvm::Value *VPtr =
-            Builder.CreateConstInBoundsGEP1_64(Context->Int8Ty, Rets, 0);
-        llvm::Value *Ptr =
-            Builder.CreateBitCast(VPtr, F->getReturnType()->getPointerTo());
-        Builder.CreateRet(Builder.CreateLoad(F->getReturnType(), Ptr));
+        LLVM::Value VPtr =
+            Builder.createConstInBoundsGEP1_64(Context->Int8Ty, Rets, 0);
+        LLVM::Value Ptr = Builder.createBitCast(VPtr, RTy.getPointerTo());
+        Builder.createRet(Builder.createLoad(RTy, Ptr));
       } else {
-        std::vector<llvm::Value *> Ret;
+        std::vector<LLVM::Value> Ret;
         Ret.reserve(RetSize);
         for (unsigned I = 0; I < RetSize; ++I) {
-          llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(
+          LLVM::Value VPtr = Builder.createConstInBoundsGEP1_64(
               Context->Int8Ty, Rets, I * kValSize);
-          llvm::Value *Ptr = Builder.CreateBitCast(
-              VPtr, RTy->getStructElementType(I)->getPointerTo());
-          Ret.push_back(Builder.CreateLoad(RTy->getStructElementType(I), Ptr));
+          LLVM::Value Ptr = Builder.createBitCast(
+              VPtr, RTy.getStructElementType(I).getPointerTo());
+          Ret.push_back(Builder.createLoad(RTy.getStructElementType(I), Ptr));
         }
-        Builder.CreateAggregateRet(Ret.data(), static_cast<uint32_t>(RetSize));
+        Builder.createAggregateRet(Ret);
       }
 
       Context->Functions.emplace_back(TypeIdx, F, nullptr);
@@ -5469,7 +5537,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
       // Get global type. External type checked in validation.
       const auto &GlobType = ImpDesc.getExternalGlobalType();
       const auto &ValType = GlobType.getValType();
-      auto *Type = toLLVMType(Context->LLContext, ValType);
+      auto Type = toLLVMType(Context->LLContext, ValType);
       Context->Globals.push_back(Type);
       break;
     }
@@ -5479,23 +5547,24 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
   }
 }
 
-void Compiler::compile(const AST::ExportSection &) {}
+void Compiler::compile(const AST::ExportSection &) noexcept {}
 
-void Compiler::compile(const AST::GlobalSection &GlobalSec) {
+void Compiler::compile(const AST::GlobalSection &GlobalSec) noexcept {
   for (const auto &GlobalSeg : GlobalSec.getContent()) {
     const auto &ValType = GlobalSeg.getGlobalType().getValType();
-    auto *Type = toLLVMType(Context->LLContext, ValType);
+    auto Type = toLLVMType(Context->LLContext, ValType);
     Context->Globals.push_back(Type);
   }
 }
 
-void Compiler::compile(const AST::MemorySection &, const AST::DataSection &) {}
+void Compiler::compile(const AST::MemorySection &,
+                       const AST::DataSection &) noexcept {}
 
-void Compiler::compile(const AST::TableSection &, const AST::ElementSection &) {
-}
+void Compiler::compile(const AST::TableSection &,
+                       const AST::ElementSection &) noexcept {}
 
 void Compiler::compile(const AST::FunctionSection &FuncSec,
-                       const AST::CodeSection &CodeSec) {
+                       const AST::CodeSection &CodeSec) noexcept {
   const auto &TypeIdxs = FuncSec.getContent();
   const auto &CodeSegs = CodeSec.getContent();
   if (TypeIdxs.size() == 0 || CodeSegs.size() == 0) {
@@ -5508,13 +5577,17 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
     assuming(TypeIdx < Context->FunctionTypes.size());
     const auto &FuncType = *Context->FunctionTypes[TypeIdx];
     const auto FuncID = Context->Functions.size();
-    auto *FTy = toLLVMType(Context->ExecCtxPtrTy, FuncType);
-    auto *F =
-        llvm::Function::Create(FTy, llvm::Function::ExternalLinkage,
-                               "f" + std::to_string(FuncID), Context->LLModule);
-    F->addFnAttr(llvm::Attribute::StrictFP);
-    F->addParamAttr(0, llvm::Attribute::AttrKind::ReadOnly);
-    F->addParamAttr(0, llvm::Attribute::AttrKind::NoAlias);
+    auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
+    LLVM::FunctionCallee F = {FTy, Context->LLModule.addFunction(
+                                       FTy, LLVMExternalLinkage,
+                                       fmt::format("f{}"sv, FuncID).c_str())};
+    F.Fn.setVisibility(LLVMProtectedVisibility);
+    F.Fn.setDSOLocal(true);
+    F.Fn.setDLLStorageClass(LLVMDLLExportStorageClass);
+    F.Fn.addFnAttr(Context->NoStackArgProbe);
+    F.Fn.addFnAttr(Context->StrictFP);
+    F.Fn.addParamAttr(0, Context->ReadOnly);
+    F.Fn.addParamAttr(0, Context->NoAlias);
 
     Context->Functions.emplace_back(TypeIdx, F, &Code);
   }
@@ -5538,7 +5611,7 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
                             CompilerConfigure::OptimizationLevel::O0);
     auto Type = Context->resolveBlockType(T);
     FC.compile(*Code, std::move(Type));
-    llvm::EliminateUnreachableBlocks(*F);
+    F.Fn.eliminateUnreachableBlocks();
   }
 }
 

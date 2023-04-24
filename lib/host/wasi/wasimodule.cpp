@@ -80,13 +80,26 @@ WasiModule::WasiModule() : ModuleInstance("wasi_snapshot_preview1") {
   addHostFunc("sock_recv_from", std::make_unique<WasiSockRecvFromV1>(Env));
   addHostFunc("sock_send", std::make_unique<WasiSockSendV1>(Env));
   addHostFunc("sock_send_to", std::make_unique<WasiSockSendToV1>(Env));
-  addHostFunc("sock_shutdown", std::make_unique<WasiSockShutdownV1>(Env));
-  addHostFunc("sock_getsockopt", std::make_unique<WasiSockGetOptV1>(Env));
-  addHostFunc("sock_setsockopt", std::make_unique<WasiSockSetOptV1>(Env));
+  addHostFunc("sock_accept_v2", std::make_unique<WasiSockAcceptV2>(Env));
+  addHostFunc("sock_open_v2", std::make_unique<WasiSockOpenV2>(Env));
+  addHostFunc("sock_bind_v2", std::make_unique<WasiSockBindV2>(Env));
+  addHostFunc("sock_connect_v2", std::make_unique<WasiSockConnectV2>(Env));
+  addHostFunc("sock_listen_v2", std::make_unique<WasiSockListenV2>(Env));
+  addHostFunc("sock_recv_v2", std::make_unique<WasiSockRecvV2>(Env));
+  addHostFunc("sock_recv_from_v2", std::make_unique<WasiSockRecvFromV2>(Env));
+  addHostFunc("sock_send_v2", std::make_unique<WasiSockSendV2>(Env));
+  addHostFunc("sock_send_to_v2", std::make_unique<WasiSockSendToV2>(Env));
+  addHostFunc("sock_shutdown", std::make_unique<WasiSockShutdown>(Env));
+  addHostFunc("sock_getsockopt", std::make_unique<WasiSockGetOpt>(Env));
+  addHostFunc("sock_setsockopt", std::make_unique<WasiSockSetOpt>(Env));
   addHostFunc("sock_getlocaladdr",
               std::make_unique<WasiSockGetLocalAddrV1>(Env));
   addHostFunc("sock_getpeeraddr", std::make_unique<WasiSockGetPeerAddrV1>(Env));
-  addHostFunc("sock_getaddrinfo", std::make_unique<WasiSockGetAddrinfoV1>(Env));
+  addHostFunc("sock_getlocaladdr_v2",
+              std::make_unique<WasiSockGetLocalAddrV2>(Env));
+  addHostFunc("sock_getpeeraddr_v2",
+              std::make_unique<WasiSockGetPeerAddrV2>(Env));
+  addHostFunc("sock_getaddrinfo", std::make_unique<WasiSockGetAddrinfo>(Env));
 }
 
 } // namespace Host

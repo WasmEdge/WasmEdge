@@ -1,4 +1,4 @@
-### 0.12.0-alpha.2 (2023-02-24)
+### 0.12.0 (2023-04-24)
 
 Breaking changes:
 
@@ -29,6 +29,9 @@ Features:
   * Added the `WasmEdge_PluginGetPluginName()` API for retrieving the plug-in name.
   * Added the `WasmEdge_PluginListModuleLength()` and `WasmEdge_PluginListModule()` APIs for listing the module names of a plug-in.
   * Added the `WasmEdge_PluginCreateModule()` API for creating the specific module instance in a plug-in by its name.
+* Introduced the multiple WASI socket API implementation.
+  * The `sock_accept()` is compatible with the WASI spec.
+  * The V2 socket implementation is using a larger socket address data structures. With this, we can start to supporting `AF_UINX`
 * Added the `VM` APIs.
   * Added the `WasmEdge_VMGetRegisteredModule()` API for retrieving a registered module by its name.
   * Added the `WasmEdge_VMListRegisteredModuleLength()` and `WasmEdge_VMListRegisteredModule()` APIs for listing the registered module names.

@@ -368,50 +368,50 @@ public:
                         uint32_t BufLen);
 };
 
-class WasiSockOpen : public Wasi<WasiSockOpen> {
+class WasiSockOpenV1 : public Wasi<WasiSockOpenV1> {
 public:
-  WasiSockOpen(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiSockOpenV1(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
                         uint32_t AddressFamily, uint32_t SockType,
                         uint32_t /* Out */ RoFdPtr);
 };
 
-class WasiSockBind : public Wasi<WasiSockBind> {
+class WasiSockBindV1 : public Wasi<WasiSockBindV1> {
 public:
-  WasiSockBind(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiSockBindV1(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
                         uint32_t AddressPtr, uint32_t Port);
 };
 
-class WasiSockListen : public Wasi<WasiSockListen> {
+class WasiSockListenV1 : public Wasi<WasiSockListenV1> {
 public:
-  WasiSockListen(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiSockListenV1(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
                         int32_t Backlog);
 };
 
-class WasiSockAccept : public Wasi<WasiSockAccept> {
+class WasiSockAcceptV1 : public Wasi<WasiSockAcceptV1> {
 public:
-  WasiSockAccept(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiSockAcceptV1(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
                         uint32_t /* Out */ RoFdPtr);
 };
 
-class WasiSockConnect : public Wasi<WasiSockConnect> {
+class WasiSockConnectV1 : public Wasi<WasiSockConnectV1> {
 public:
-  WasiSockConnect(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiSockConnectV1(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
                         uint32_t AddressPtr, uint32_t Port);
 };
 
-class WasiSockRecv : public Wasi<WasiSockRecv> {
+class WasiSockRecvV1 : public Wasi<WasiSockRecvV1> {
 public:
-  WasiSockRecv(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiSockRecvV1(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
                         uint32_t RiDataPtr, uint32_t RiDataLen,
@@ -419,30 +419,29 @@ public:
                         uint32_t /* Out */ RoFlagsPtr);
 };
 
-class WasiSockRecvFrom : public Wasi<WasiSockRecvFrom> {
+class WasiSockRecvFromV1 : public Wasi<WasiSockRecvFromV1> {
 public:
-  WasiSockRecvFrom(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiSockRecvFromV1(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
                         uint32_t RiDataPtr, uint32_t RiDataLen,
                         uint32_t AddressPtr, uint32_t RiFlags,
-                        uint32_t /* Out */ PortPtr,
                         uint32_t /* Out */ RoDataLenPtr,
                         uint32_t /* Out */ RoFlagsPtr);
 };
 
-class WasiSockSend : public Wasi<WasiSockSend> {
+class WasiSockSendV1 : public Wasi<WasiSockSendV1> {
 public:
-  WasiSockSend(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiSockSendV1(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
                         uint32_t SiDataPtr, uint32_t SiDataLen,
                         uint32_t SiFlags, uint32_t /* Out */ SoDataLenPtr);
 };
 
-class WasiSockSendTo : public Wasi<WasiSockSendTo> {
+class WasiSockSendToV1 : public Wasi<WasiSockSendToV1> {
 public:
-  WasiSockSendTo(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiSockSendToV1(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
                         uint32_t SiDataPtr, uint32_t SiDataLen,
@@ -476,30 +475,130 @@ public:
                         uint32_t FlagPtr, uint32_t FlagSizePtr);
 };
 
-class WasiSockGetLocalAddr : public Wasi<WasiSockGetLocalAddr> {
+class WasiSockGetLocalAddrV1 : public Wasi<WasiSockGetLocalAddrV1> {
 public:
-  WasiSockGetLocalAddr(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiSockGetLocalAddrV1(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
-                        uint32_t AddressPtr, uint32_t PortPtr);
+                        uint32_t AddressPtr, uint32_t AddressTypePtr,
+                        uint32_t PortPtr);
 };
 
-class WasiSockGetPeerAddr : public Wasi<WasiSockGetPeerAddr> {
+class WasiSockGetPeerAddrV1 : public Wasi<WasiSockGetPeerAddrV1> {
 public:
-  WasiSockGetPeerAddr(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiSockGetPeerAddrV1(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
-                        uint32_t AddressPtr, uint32_t PortPtr);
+                        uint32_t AddressPtr, uint32_t AddressTypePtr,
+                        uint32_t PortPtr);
 };
 
-class WasiGetAddrinfo : public Wasi<WasiGetAddrinfo> {
+class WasiSockGetAddrinfo : public Wasi<WasiSockGetAddrinfo> {
 public:
-  WasiGetAddrinfo(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiSockGetAddrinfo(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t NodePtr,
                         uint32_t NodeLen, uint32_t ServicePtr,
                         uint32_t ServiceLen, uint32_t HintsPtr, uint32_t ResPtr,
                         uint32_t MaxResLength, uint32_t ResLengthPtr);
+};
+
+class WasiSockOpenV2 : public Wasi<WasiSockOpenV2> {
+public:
+  WasiSockOpenV2(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
+                        uint32_t AddressFamily, uint32_t SockType,
+                        uint32_t /* Out */ RoFdPtr);
+};
+
+class WasiSockBindV2 : public Wasi<WasiSockBindV2> {
+public:
+  WasiSockBindV2(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
+                        uint32_t AddressPtr, uint32_t Port);
+};
+
+class WasiSockListenV2 : public Wasi<WasiSockListenV2> {
+public:
+  WasiSockListenV2(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
+                        int32_t Backlog);
+};
+
+class WasiSockAcceptV2 : public Wasi<WasiSockAcceptV2> {
+public:
+  WasiSockAcceptV2(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
+                        uint32_t FsFlags, uint32_t /* Out */ RoFdPtr);
+};
+
+class WasiSockConnectV2 : public Wasi<WasiSockConnectV2> {
+public:
+  WasiSockConnectV2(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
+                        uint32_t AddressPtr, uint32_t Port);
+};
+
+class WasiSockRecvV2 : public Wasi<WasiSockRecvV2> {
+public:
+  WasiSockRecvV2(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
+                        uint32_t RiDataPtr, uint32_t RiDataLen,
+                        uint32_t RiFlags, uint32_t /* Out */ RoDataLenPtr,
+                        uint32_t /* Out */ RoFlagsPtr);
+};
+
+class WasiSockRecvFromV2 : public Wasi<WasiSockRecvFromV2> {
+public:
+  WasiSockRecvFromV2(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
+                        uint32_t RiDataPtr, uint32_t RiDataLen,
+                        uint32_t AddressPtr, uint32_t RiFlags,
+                        uint32_t /* Out */ PortPtr,
+                        uint32_t /* Out */ RoDataLenPtr,
+                        uint32_t /* Out */ RoFlagsPtr);
+};
+
+class WasiSockSendV2 : public Wasi<WasiSockSendV2> {
+public:
+  WasiSockSendV2(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
+                        uint32_t SiDataPtr, uint32_t SiDataLen,
+                        uint32_t SiFlags, uint32_t /* Out */ SoDataLenPtr);
+};
+
+class WasiSockSendToV2 : public Wasi<WasiSockSendToV2> {
+public:
+  WasiSockSendToV2(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
+                        uint32_t SiDataPtr, uint32_t SiDataLen,
+                        uint32_t AddressPtr, int32_t Port, uint32_t SiFlags,
+                        uint32_t /* Out */ SoDataLenPtr);
+};
+
+class WasiSockGetLocalAddrV2 : public Wasi<WasiSockGetLocalAddrV2> {
+public:
+  WasiSockGetLocalAddrV2(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
+                        uint32_t AddressPtr, uint32_t PortPtr);
+};
+
+class WasiSockGetPeerAddrV2 : public Wasi<WasiSockGetPeerAddrV2> {
+public:
+  WasiSockGetPeerAddrV2(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
+                        uint32_t AddressPtr, uint32_t PortPtr);
 };
 
 } // namespace Host

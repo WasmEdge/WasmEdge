@@ -1001,19 +1001,23 @@ WasiExpect<void> INode::sockListen(int32_t Backlog) noexcept {
   return {};
 }
 
-WasiExpect<INode> INode::sockAccept() noexcept {
-  struct sockaddr_in ServerSocketAddr;
-  ServerSocketAddr.sin_family = AF_INET;
-  ServerSocketAddr.sin_addr.s_addr = INADDR_ANY;
-  socklen_t AddressLen = sizeof(ServerSocketAddr);
+WasiExpect<INode> INode::sockAccept(__wasi_fdflags_t FdFlags) noexcept {
+  int NewFd;
+  if (NewFd = ::accept(Fd, nullptr, nullptr); unlikely(NewFd < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
 
-  if (auto NewFd =
-          ::accept(Fd, reinterpret_cast<struct sockaddr *>(&ServerSocketAddr),
-                   &AddressLen);
-      unlikely(NewFd < 0)) {
+  INode New(NewFd);
+  int SysFlag = fcntl(NewFd, F_GETFL, 0);
+  if (FdFlags) {
+    if (FdFlags & __WASI_FDFLAGS_NONBLOCK) {
+      SysFlag |= O_NONBLOCK;
+    }
+  }
+
+  if (auto Res = ::fcntl(Fd, F_SETFL, SysFlag); unlikely(Res != 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
-    INode New(NewFd);
     return New;
   }
 }

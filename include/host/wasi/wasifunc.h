@@ -398,7 +398,7 @@ public:
   WasiSockAccept(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
-                        uint32_t /* Out */ RoFdPtr);
+                        uint32_t FsFlags, uint32_t /* Out */ RoFdPtr);
 };
 
 class WasiSockConnect : public Wasi<WasiSockConnect> {

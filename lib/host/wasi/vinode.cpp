@@ -361,8 +361,9 @@ VINode::sockOpen(VFS &FS, __wasi_address_family_t SysDomain,
   }
 }
 
-WasiExpect<std::shared_ptr<VINode>> VINode::sockAccept() {
-  if (auto Res = Node.sockAccept(); unlikely(!Res)) {
+WasiExpect<std::shared_ptr<VINode>>
+VINode::sockAccept(__wasi_fdflags_t FdFlags) {
+  if (auto Res = Node.sockAccept(FdFlags); unlikely(!Res)) {
     return WasiUnexpect(Res);
   } else {
     __wasi_rights_t Rights =

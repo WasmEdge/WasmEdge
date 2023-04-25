@@ -148,3 +148,30 @@ You can now access the server from another terminal.
 $ curl http://localhost:3000/classify -X POST --data-binary "@grace_hopper.jpg"
 military uniform is detected with 206/255 confidence
 ```
+
+## Run the WasmEdge compiler
+
+You could try our WasmEdge compiler `wasmedgec` using docker container:
+
+```shell
+docker run --rm wasmedge/slim:{{ wasmedge_version }} wasmedgec --help
+```
+
+The default working directory is `/app`, you could mount your wasm file to `/app` and compile it:
+
+```shell
+$ curl -LO https://github.com/second-state/wasm-learning/raw/master/cli/wasi/wasi_example_main.wasm
+$ ls
+wasi_example_main.wasm
+
+$ docker run --rm -v $PWD:/app wasmedge/slim:{{ wasmedge_version }} wasmedgec wasi_example_main.wasm wasi_example_main.wasm.so
+[2023-04-25 04:29:23.372] [info] compile start
+[2023-04-25 04:29:23.401] [info] verify start
+[2023-04-25 04:29:23.422] [info] optimize start
+[2023-04-25 04:29:25.135] [info] codegen start
+[2023-04-25 04:29:26.745] [info] output start
+[2023-04-25 04:29:26.756] [info] compile done
+
+$ ls
+wasi_example_main.wasm  wasi_example_main.wasm.so
+```

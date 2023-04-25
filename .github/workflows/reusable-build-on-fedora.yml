@@ -13,7 +13,7 @@ on:
 
 jobs:
   build_fedora:
-    name: Fedora 35
+    name: Fedora latest
     runs-on: ubuntu-latest
     container:
       image: fedora:latest
@@ -21,7 +21,7 @@ jobs:
       - name: Install dependency
         run: |
           dnf update -y
-          dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev
+          dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev spdlog-devel
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0

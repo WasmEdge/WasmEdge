@@ -74,6 +74,12 @@ if(WIN32)
     -Wno-float-equal
     -Wno-declaration-after-statement
     -Wno-zero-as-null-pointer-constant
+    -Wno-implicit-int-float-conversion
+    -Wno-double-promotion
+    -Wno-unsafe-buffer-usage
+    -Wno-deprecated-declarations
+    -Wno-error=rtti
+    -Wno-error=cast-function-type-strict
   )
 endif()
 

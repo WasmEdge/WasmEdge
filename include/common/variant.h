@@ -96,7 +96,9 @@ union VariadicUnion<FirstT, RestT...> {
 
 namespace detail {
 
-template <typename T> struct tag { using type = T; };
+template <typename T> struct tag {
+  using type = T;
+};
 
 template <typename T>
 using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -130,7 +132,9 @@ struct biggest_type<FirstT, RestT...> {
   using type = typename std::conditional_t<sizeof(rest_type) <= sizeof(FirstT),
                                            FirstT, rest_type>;
 };
-template <typename FirstT> struct biggest_type<FirstT> { using type = FirstT; };
+template <typename FirstT> struct biggest_type<FirstT> {
+  using type = FirstT;
+};
 
 } // namespace detail
 
@@ -150,8 +154,8 @@ template <typename... Types> class Variant {
   static constexpr bool not_self =
       !std::is_same_v<detail::remove_cvref_t<T>, Variant>;
   template <typename T>
-  static constexpr bool
-      accept_type = (std::is_same_v<detail::remove_cvref_t<T>, Types> || ...);
+  static constexpr bool accept_type =
+      (std::is_same_v<detail::remove_cvref_t<T>, Types> || ...);
 
   VariadicUnion<Types...> Storage;
 

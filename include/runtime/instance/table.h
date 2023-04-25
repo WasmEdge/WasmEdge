@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/segment.h"
 #include "ast/type.h"
 #include "common/errcode.h"
 #include "common/errinfo.h"
@@ -33,10 +34,10 @@ public:
       : TabType(TType), Refs(TType.getLimit().getMin(), UnknownRef()) {
     // TODO: check whether the ref type of table type is nullable
   }
-  TableInstance(const AST::Table &Table) noexcept
+  TableInstance(const AST::TableSegment &Table) noexcept
       : TabType(Table.getTableType()),
         Refs(Table.getTableType().getLimit().getMin(), UnknownRef()) {
-    // TODO: initialized the table instance by Table.getInitExpr()
+    // TODO: initialized the table instance by TableSegment.getExpr()
   }
 
   /// Get size of table.refs

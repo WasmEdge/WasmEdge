@@ -192,6 +192,7 @@ private:
   Expect<void> loadSegment(AST::ElementSegment &ElemSeg);
   Expect<void> loadSegment(AST::CodeSegment &CodeSeg);
   Expect<void> loadSegment(AST::DataSegment &DataSeg);
+  Expect<void> loadSegment(AST::TableSegment &Table);
   Expect<void> loadDesc(AST::ImportDesc &ImpDesc);
   Expect<void> loadDesc(AST::ExportDesc &ExpDesc);
   Expect<HeapType> loadHeapType(ASTNodeAttr From);
@@ -201,7 +202,6 @@ private:
   Expect<void> loadType(AST::FunctionType &FuncType);
   Expect<void> loadType(AST::MemoryType &MemType);
   Expect<void> loadType(AST::TableType &TabType);
-  Expect<void> loadType(AST::Table &Table);
   Expect<void> loadType(AST::GlobalType &GlobType);
   Expect<void> loadExpression(AST::Expression &Expr,
                               std::optional<uint64_t> SizeBound = std::nullopt);

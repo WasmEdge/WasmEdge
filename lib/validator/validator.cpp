@@ -127,8 +127,8 @@ Expect<void> Validator::validate(const AST::Limit &Lim) {
   return {};
 }
 
-// Validate Table type. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::Table &Tab) {
+// Validate TableSegment type. See "include/validator/validator.h".
+Expect<void> Validator::validate(const AST::TableSegment &Tab) {
   // TODO: validate the init expr is constant
   if (auto Res = validate(Tab.getTableType()); !Res) {
     return Unexpect(Res);

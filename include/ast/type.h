@@ -174,19 +174,6 @@ private:
   /// @}
 };
 
-class Table {
-public:
-  Table() noexcept : TType(), InitExpr() {}
-  const TableType &getTableType() const noexcept { return TType; }
-  TableType &getTableType() noexcept { return TType; }
-  const Expression &getInitExpr() const noexcept { return InitExpr; }
-  Expression &getInitExpr() noexcept { return InitExpr; }
-
-private:
-  TableType TType;
-  Expression InitExpr;
-};
-
 /// AST GlobalType node.
 class GlobalType {
 public:

@@ -164,7 +164,7 @@ $ curl -LO https://github.com/second-state/wasm-learning/raw/master/cli/wasi/was
 $ ls
 wasi_example_main.wasm
 
-$ docker run --rm -v $PWD:/app wasmedge/slim:{{ wasmedge_version }} wasmedgec wasi_example_main.wasm wasi_example_main.wasm.so
+$ docker run --rm -v $PWD:/app wasmedge/slim:{{ wasmedge_version }} wasmedgec wasi_example_main.wasm wasi_example_main-aot.wasm
 [2023-04-25 04:29:23.372] [info] compile start
 [2023-04-25 04:29:23.401] [info] verify start
 [2023-04-25 04:29:23.422] [info] optimize start
@@ -173,5 +173,5 @@ $ docker run --rm -v $PWD:/app wasmedge/slim:{{ wasmedge_version }} wasmedgec wa
 [2023-04-25 04:29:26.756] [info] compile done
 
 $ ls
-wasi_example_main.wasm  wasi_example_main.wasm.so
+wasi_example_main.wasm  wasi_example_main-aot.wasm
 ```

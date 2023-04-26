@@ -127,6 +127,15 @@ Expect<void> Validator::validate(const AST::Limit &Lim) {
   return {};
 }
 
+// Validate TableSegment type. See "include/validator/validator.h".
+Expect<void> Validator::validate(const AST::TableSegment &Tab) {
+  // TODO: validate the init expr is constant
+  if (auto Res = validate(Tab.getTableType()); !Res) {
+    return Unexpect(Res);
+  }
+  return {};
+}
+
 // Validate Table type. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::TableType &Tab) {
   // Validate table limits.
@@ -382,7 +391,7 @@ Expect<void> Validator::validate(const AST::FunctionSection &FuncSec) {
 Expect<void> Validator::validate(const AST::TableSection &TabSec) {
   for (auto &Tab : TabSec.getContent()) {
     if (auto Res = validate(Tab)) {
-      Checker.addTable(Tab);
+      Checker.addTable(Tab.getTableType());
     } else {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Table));
       return Unexpect(Res);

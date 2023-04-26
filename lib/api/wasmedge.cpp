@@ -1449,7 +1449,7 @@ WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
     if (ExtIdx >= TabTypes.size()) {
       return nullptr;
     }
-    return toTabTypeCxt(&TabTypes[ExtIdx]);
+    return toTabTypeCxt(&TabTypes[ExtIdx].getTableType());
   }
   return nullptr;
 }

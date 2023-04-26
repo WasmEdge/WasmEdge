@@ -26,6 +26,56 @@ Expect<void> Loader::loadSegment(AST::GlobalSegment &GlobSeg) {
   return {};
 }
 
+Expect<void> Loader::loadSegment(AST::TableSegment &Table) {
+  if (auto TestRes = FMgr.testReadByte()) {
+    if (*TestRes == 0x40) {
+      if (!Conf.hasProposal(Proposal::FunctionReferences)) {
+        return logNeedProposal(ErrCode::Value::MalformedTable,
+                               Proposal::FunctionReferences,
+                               FMgr.getLastOffset(), ASTNodeAttr::Type_Table);
+      }
+      // The first byte has been tested.
+      FMgr.readByte();
+      if (auto Res = FMgr.readByte()) {
+        if (*Res != 0x00) {
+          return logLoadError(ErrCode::Value::MalformedTable,
+                              FMgr.getLastOffset(), ASTNodeAttr::Type_Table);
+        }
+      } else {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::Type_Table);
+      }
+      if (auto Res = loadType(Table.getTableType()); !Res) {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::Type_Table);
+      }
+
+      if (auto Res = loadExpression(Table.getExpr()); !Res) {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::Type_Table);
+      }
+      return {};
+
+    } else {
+      if (auto Res = loadType(Table.getTableType()); !Res) {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::Type_Table);
+      }
+
+      auto &Instrs = Table.getExpr().getInstrs();
+      Instrs.clear();
+      AST::Instruction Instr(OpCode::Ref__null);
+      Instr.setHeapType(Table.getTableType().getRefType().getHeapType());
+      Instrs.push_back(Instr);
+      Instrs.push_back(AST::Instruction(OpCode::End));
+      return {};
+    }
+  } else {
+    return logLoadError(TestRes.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_Table);
+  }
+}
+
 // Load binary of ElementSegment node. See "include/loader/loader.h".
 Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   // Element segment binary format:

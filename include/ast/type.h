@@ -17,6 +17,7 @@
 #include "common/span.h"
 #include "common/symbol.h"
 #include "common/types.h"
+#include "expression.h"
 
 #include <vector>
 

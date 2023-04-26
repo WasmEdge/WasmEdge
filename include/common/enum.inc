@@ -740,6 +740,8 @@ E(IllegalGrammar, 0x39, "invalid wasm grammar")
 E(SharedMemoryNoMax, 0x3A, "shared memory must have maximum")
 // Intrinsics table not found
 E(IntrinsicsTableNotFound, 0x3B, "intrinsics table not found")
+// Malformed table (Ref-types proposal)
+E(MalformedTable, 0x3C, "malformed table")
 // @}
 
 // Validation phase

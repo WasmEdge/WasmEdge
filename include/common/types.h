@@ -173,6 +173,8 @@ public:
       : ValTypeBase(ValTypeCode::RefNull, HeapTypeCode::TypeIndex, I) {
     assuming((Inner.Data.Code == ValTypeCode::RefNull));
   }
+  HeapType(HeapTypeCode HT, uint32_t I) noexcept
+      : ValTypeBase(ValTypeCode::RefNull, HT, I) {}
 };
 
 /// RefType definition. The RefType is the subset of the ValType.
@@ -195,6 +197,10 @@ public:
   }
   // Constructor for setting the raw data.
   RefType(const std::array<uint8_t, 8> R) noexcept : ValTypeBase(R) {}
+
+  HeapType getHeapType() const {
+    return HeapType(getHeapTypeCode(), getTypeIndex());
+  }
 };
 
 /// ValType definition.

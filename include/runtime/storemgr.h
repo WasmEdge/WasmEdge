@@ -92,6 +92,18 @@ private:
     return {};
   }
 
+  // Expect<void>
+  // addMemoryInModule(std::string_view ModName,std::string_view MemName,
+  //                   std::unique_ptr<Instance::MemoryInstance> &&MemIns) {
+  //   std::unique_lock Lock(Mutex);
+  //   auto Iter = NamedMod.find(ModName);
+  //   if (likely(Iter != NamedMod.cend())) {
+  //     return Unexpect(ErrCode::Value::ModuleNameConflict); // TODO
+  //   }
+  //   Iter->second->addHostMemory(MemName, std::move(MemIns)); // Iter is const...
+  //   return {};
+  // }
+
   /// Collect the instantiation failed module.
   void recycleModule(std::unique_ptr<Instance::ModuleInstance> &&Mod) {
     FailedMod = std::move(Mod);

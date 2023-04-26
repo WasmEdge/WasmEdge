@@ -233,6 +233,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Br:
   case OpCode::Br_if:
+  case OpCode::Br_on_null:
+  case OpCode::Br_on_non_null:
     return readU32(Instr.getJump().TargetIndex);
 
   case OpCode::Br_table: {
@@ -259,6 +261,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Call:
   case OpCode::Return_call:
+  case OpCode::Call_ref:
+  case OpCode::Return_call_ref:
     return readU32(Instr.getTargetIndex());
 
   case OpCode::Call_indirect:
@@ -282,16 +286,17 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   }
 
   // Reference Instructions.
-  case OpCode::Ref__null: {
-    auto Res = loadRefType(ASTNodeAttr::Instruction);
-    if (!Res) {
-      // The AST node information is handled.
-      return Unexpect(Res);
+  case OpCode::Ref__null:
+    if (auto Res = loadHeapType(ASTNodeAttr::Instruction)) {
+      Instr.setHeapType(*Res);
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
     }
-    Instr.setRefType(*Res);
     return {};
-  }
   case OpCode::Ref__is_null:
+    return {};
+  case OpCode::Ref__as_non_null:
     return {};
   case OpCode::Ref__func:
     return readU32(Instr.getTargetIndex());
@@ -1004,6 +1009,21 @@ Expect<void> Loader::checkInstrProposals(OpCode Code,
     if (!Conf.hasProposal(Proposal::Threads)) {
       return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::Threads,
                              Offset, ASTNodeAttr::Instruction);
+    }
+  } else if (Code == OpCode::Call_ref || Code == OpCode::Return_call_ref ||
+             Code == OpCode::Ref__as_non_null || Code == OpCode::Br_on_null ||
+             Code == OpCode::Br_on_non_null) {
+    if (!Conf.hasProposal(Proposal::FunctionReferences)) {
+      return logNeedProposal(ErrCode::Value::IllegalOpCode,
+                             Proposal::FunctionReferences, Offset,
+                             ASTNodeAttr::Instruction);
+    }
+    if (Code == OpCode::Return_call && !Conf.hasProposal(Proposal::TailCall)) {
+      if (!Conf.hasProposal(Proposal::FunctionReferences)) {
+        return logNeedProposal(ErrCode::Value::IllegalOpCode,
+                               Proposal::TailCall, Offset,
+                               ASTNodeAttr::Instruction);
+      }
     }
   }
   return {};

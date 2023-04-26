@@ -16,13 +16,26 @@ Expect<HeapType> Loader::loadHeapType(ASTNodeAttr From) {
       HeapTypeCode HTCode = static_cast<HeapTypeCode>(
           static_cast<uint8_t>((*Res) & INT64_C(0x7F)));
       switch (HTCode) {
-      case HeapTypeCode::Func:
       case HeapTypeCode::Extern:
+        if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
+          return logNeedProposal(ErrCode::Value::MalformedRefType,
+                                 Proposal::ReferenceTypes, FMgr.getLastOffset(),
+                                 From);
+        }
+        [[fallthrough]];
+      case HeapTypeCode::Func:
+        // The FuncRef (0x70) is always allowed in the RefType even if the
+        // reference-types proposal not enabled.
         return HeapType(HTCode);
       default:
         return logLoadError(Res.error(), FMgr.getLastOffset(), From);
       }
     } else {
+      if (!Conf.hasProposal(Proposal::FunctionReferences)) {
+        return logNeedProposal(ErrCode::Value::MalformedRefType,
+                               Proposal::FunctionReferences,
+                               FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+      }
       return HeapType(static_cast<uint32_t>(*Res));
     }
   } else {

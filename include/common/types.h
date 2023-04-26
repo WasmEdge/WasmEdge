@@ -234,16 +234,9 @@ public:
              (Inner.Data.HTCode == HeapTypeCode::Extern));
   }
   // Constructor for the heap types (func and extern).
-  ValType(RefTypeCode C, HeapTypeCode HT) noexcept
-      : ValTypeBase(static_cast<ValTypeCode>(C), HT, 0) {
-    assuming((Inner.Data.Code == ValTypeCode::Ref) ||
-             (Inner.Data.Code == ValTypeCode::RefNull));
-    assuming((Inner.Data.HTCode == HeapTypeCode::Func) ||
-             (Inner.Data.HTCode == HeapTypeCode::Extern));
-  }
-  // Constructor for the heap types (type index).
-  ValType(RefTypeCode C, uint32_t I) noexcept
-      : ValTypeBase(static_cast<ValTypeCode>(C), HeapTypeCode::TypeIndex, I) {
+  ValType(RefTypeCode C, HeapType HT) noexcept
+      : ValTypeBase(static_cast<ValTypeCode>(C), HT.getHeapTypeCode(),
+                    HT.getTypeIndex()) {
     assuming((Inner.Data.Code == ValTypeCode::Ref) ||
              (Inner.Data.Code == ValTypeCode::RefNull));
   }

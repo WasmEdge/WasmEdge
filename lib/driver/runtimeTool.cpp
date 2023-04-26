@@ -249,6 +249,12 @@ int Tool(int Argc, const char *Argv[]) noexcept {
   if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
     return EXIT_FAILURE;
   }
+
+  if (Conf.hasProposal(Proposal::FunctionReferences)) {
+    std::cerr << "function reference is only ready for loading" << std::endl;
+    return EXIT_FAILURE;
+  }
+
   if (auto Result = VM.validate(); !Result) {
     return EXIT_FAILURE;
   }

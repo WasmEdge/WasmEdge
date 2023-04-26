@@ -505,7 +505,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    return StackTrans({}, {VType(Instr.getRefType())});
+    return StackTrans(
+        {}, {VType(ValType(RefTypeCode::RefNull, Instr.getHeapType()))});
   case OpCode::Ref__is_null:
     if (auto Res = popType()) {
       if (!isRefType(*Res)) {

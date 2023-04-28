@@ -563,29 +563,31 @@ inline constexpr int toSockOptSoName(__wasi_sock_opt_so_t SoName) noexcept {
   case __WASI_SOCK_OPT_SO_TYPE:
     return SO_TYPE;
   case __WASI_SOCK_OPT_SO_ERROR:
-    return SO_REUSEADDR;
+    return SO_ERROR;
   case __WASI_SOCK_OPT_SO_DONTROUTE:
-    return SO_TYPE;
+    return SO_DONTROUTE;
   case __WASI_SOCK_OPT_SO_BROADCAST:
-    return SO_REUSEADDR;
+    return SO_BROADCAST;
   case __WASI_SOCK_OPT_SO_SNDBUF:
-    return SO_TYPE;
+    return SO_SNDBUF;
   case __WASI_SOCK_OPT_SO_RCVBUF:
-    return SO_REUSEADDR;
+    return SO_RCVBUF;
   case __WASI_SOCK_OPT_SO_KEEPALIVE:
-    return SO_TYPE;
+    return SO_KEEPALIVE;
   case __WASI_SOCK_OPT_SO_OOBINLINE:
-    return SO_REUSEADDR;
+    return SO_OOBINLINE;
   case __WASI_SOCK_OPT_SO_LINGER:
-    return SO_TYPE;
+    return SO_LINGER;
   case __WASI_SOCK_OPT_SO_RCVLOWAT:
-    return SO_REUSEADDR;
+    return SO_RCVLOWAT;
   case __WASI_SOCK_OPT_SO_RCVTIMEO:
-    return SO_TYPE;
+    return SO_RCVTIMEO;
   case __WASI_SOCK_OPT_SO_SNDTIMEO:
-    return SO_REUSEADDR;
+    return SO_SNDTIMEO;
   case __WASI_SOCK_OPT_SO_ACCEPTCONN:
-    return SO_TYPE;
+    return SO_ACCEPTCONN;
+  case __WASI_SOCK_OPT_SO_BINDTODEVICE:
+    return SO_BINDTODEVICE;
 
   default:
     assumingUnreachable();

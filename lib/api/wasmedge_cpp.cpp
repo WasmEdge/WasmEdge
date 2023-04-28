@@ -4,11 +4,204 @@
 #include "driver/tool.h"
 #include "vm/vm.h"
 
+namespace {
+
+// Helper function for returning a struct uint128_t / int128_t
+// from class WasmEdge::uint128_t / WasmEdge::int128_t.
+template <typename C>
+inline constexpr ::uint128_t to_uint128_t(C Val) noexcept {
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
+  return Val;
+#else
+  return {.Low = Val.low(), .High = static_cast<uint64_t>(Val.high())};
+#endif
+}
+template <typename C> inline constexpr ::int128_t to_int128_t(C Val) noexcept {
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
+  return Val;
+#else
+  return {.Low = Val.low(), .High = Val.high()};
+#endif
+}
+
+// Helper function for returning a class WasmEdge::uint128_t /
+// WasmEdge::int128_t from struct uint128_t / int128_t.
+template <typename C, typename T>
+inline constexpr C to_WasmEdge_128_t(T Val) noexcept {
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
+  return Val;
+#else
+  return C(Val.High, Val.Low);
+#endif
+}
+}
+
 namespace WasmEdge {
+namespace SDK {
+
+// >>>>>>>> WasmEdge Version members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+std::string Version::Get() {
+  return WASMEDGE_VERSION;
+}
+
+uint32_t Version::GetMajor() {
+  return WASMEDGE_VERSION_MAJOR;
+}
+
+uint32_t Version::GetMinor() {
+  return WASMEDGE_VERSION_MINOR;
+}
+
+uint32_t Version::GetPatch() {
+  return WASMEDGE_VERSION_PATCH;
+}
+
+// <<<<<<<< WasmEdge Version members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Log members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+void Log::SetErrorLevel() {
+  WasmEdge::Log::setErrorLoggingLevel();
+}
+
+void Log::SetDebugLevel() {
+  WasmEdge::Log::setDebugLoggingLevel();
+}
+
+void Log::Off() {
+  WasmEdge::Log::setLogOff();
+}
+
+// <<<<<<<< WasmEdge Log members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Value members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+Value::Value(const int32_t Val)
+: Val(to_uint128_t(Val)),
+  Type(ValType::I32) {}
+
+Value::Value(const int64_t Val)
+: Val(to_uint128_t(Val)),
+  Type(ValType::I64) {}
+
+Value::Value(const float Val)
+: Val(to_uint128_t(Val)),
+  Type(ValType::F32) {}
+
+Value::Value(const double Val)
+: Val(to_uint128_t(Val)),
+  Type(ValType::F64) {}
+
+Value::Value(const ::int128_t Val)
+: Val(to_WasmEdge_128_t<WasmEdge::int128_t>(Val)),
+  Type(static_cast<ValType>(
+    WasmEdge::ValTypeFromType<::int128_t>())) {}
+
+Value::Value(const RefType Val)
+: Val(to_uint128_t(WasmEdge::UnknownRef())),
+  Type(static_cast<ValType>(Val)) {}
+
+Value::Value(const FunctionInstance &Cxt) {
+  // TODO: Implement FunctionInstance functions
+}
+
+Value::Value(std::shared_ptr<void> ExtRef)
+: Val(to_uint128_t(WasmEdge::ExternRef(ExtRef.get()))),
+  Type(ValType::ExternRef) {}
+
+int32_t Value::GetI32() {
+  return WasmEdge::ValVariant::wrap<int32_t>(
+             to_WasmEdge_128_t<WasmEdge::uint128_t>(Val))
+      .get<int32_t>();
+}
+
+int64_t Value::GetI64() {
+  return WasmEdge::ValVariant::wrap<int64_t>(
+             to_WasmEdge_128_t<WasmEdge::uint128_t>(Val))
+      .get<int64_t>();
+}
+
+float Value::GetF32() {
+  return WasmEdge::ValVariant::wrap<float>(
+             to_WasmEdge_128_t<WasmEdge::uint128_t>(Val))
+      .get<float>();
+}
+
+double Value::GetF64() {
+  return WasmEdge::ValVariant::wrap<double>(
+             to_WasmEdge_128_t<WasmEdge::uint128_t>(Val))
+      .get<double>();
+}
+
+int128_t Value::GetV128() {
+  return to_int128_t(WasmEdge::ValVariant::wrap<WasmEdge::int128_t>(
+                         to_WasmEdge_128_t<WasmEdge::uint128_t>(Val))
+                         .get<WasmEdge::int128_t>());
+}
+
+const FunctionInstance &Value::GetFuncRef() {
+  // TODO: Implement FunctionInstance constructor
+}
+
+std::shared_ptr<void> Value::GetExternRef() {
+  auto ExternRef = WasmEdge::retrieveExternRef<uint32_t>(
+      WasmEdge::ValVariant::wrap<WasmEdge::ExternRef>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val)));
+  return std::make_shared<void>(ExternRef);
+}
+
+bool Value::IsNullRef() {
+  return WasmEdge::isNullRef(WasmEdge::ValVariant::wrap<WasmEdge::UnknownRef>(
+      to_WasmEdge_128_t<WasmEdge::uint128_t>(Val)));
+}
+
+// <<<<<<<< WasmEdge Value members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Result members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+Result::Result(const ErrCategory Category, const uint32_t Code) {
+  this->Code = (static_cast<uint32_t>(Category) << 24) + (Code & 0x00FFFFFFU);
+}
+
+bool Result::IsOk() {
+  if (GetCategory() == ErrCategory::WASM &&
+      (static_cast<WasmEdge::ErrCode::Value>(GetCode()) ==
+           WasmEdge::ErrCode::Value::Success ||
+       static_cast<WasmEdge::ErrCode::Value>(GetCode()) ==
+           WasmEdge::ErrCode::Value::Terminated)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+uint32_t Result::GetCode() {
+  return Code & 0x00FFFFFFU;
+}
+
+ErrCategory Result::GetCategory() {
+  return static_cast<ErrCategory>(Code >> 24);
+}
+
+const std::string Result::GetMessage() {
+  if (GetCategory() != ErrCategory::WASM) {
+    auto str = WasmEdge::ErrCodeStr[WasmEdge::ErrCode::Value::UserDefError];
+    return std::string{ str };
+  }
+  auto str = WasmEdge::ErrCodeStr[static_cast<WasmEdge::ErrCode::Value>(
+                                  GetCode())];
+  return std::string{ str };
+}
+
+// <<<<<<<< WasmEdge Result members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge ASTModule members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class ASTModule::ASTModuleContext: public AST::Module {};
+class ASTModule::ASTModuleContext: public WasmEdge::AST::Module {};
 
 // <<<<<<<< WasmEdge ASTModule members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -21,7 +214,7 @@ bool Limit::operator==(const Limit &Lim) {
 
 // >>>>>>>> WasmEdge FunctionType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class FunctionType::FunctionTypeContext: public AST::FunctionType {
+class FunctionType::FunctionTypeContext: public WasmEdge::AST::FunctionType {
 public:
   FunctionTypeContext(AST::FunctionType &Func)
   : AST::FunctionType(Func) {}
@@ -45,18 +238,30 @@ FunctionType::FunctionType(const std::vector<ValType> &ParamList,
 }
 
 const std::vector<ValType> &FunctionType::GetParameters() {
-  return Cxt->getParamTypes();
+  auto OutputParams = std::make_unique<std::vector<ValType>>();
+  auto FuncParams = Cxt->getParamTypes();
+  OutputParams->resize(FuncParams.size());
+  std::transform(FuncParams.begin(), FuncParams.end(),
+                 OutputParams->begin(),
+                 [](auto ValT) {return static_cast<ValType>(ValT)});
+  return *OutputParams;
 }
 
 const std::vector<ValType> &FunctionType::GetReturns() {
-  return Cxt->getReturnTypes();
+  auto OutputReturns = std::make_unique<std::vector<ValType>>();
+  auto FuncReturns = Cxt->getReturnTypes();
+  OutputReturns->resize(FuncReturns.size());
+  std::transform(FuncReturns.begin(), FuncReturns.end(),
+                 OutputReturns->begin(),
+                 [](auto ValT) {return static_cast<ValType>(ValT)});
+  return *OutputReturns;
 }
 
 // <<<<<<<< WasmEdge FunctionType members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge TableType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class TableType::TableTypeContext: public AST::TableType {
+class TableType::TableTypeContext: public WasmEdge::AST::TableType {
 public:
   TableTypeContext(AST::TableType &TabType): AST::TableType(TabType) {}
 };
@@ -86,7 +291,7 @@ const Limit &TableType::GetLimit() {
 
 // >>>>>>>> WasmEdge MemoryType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class MemoryType::MemoryTypeContext: public AST::MemoryType {
+class MemoryType::MemoryTypeContext: public WasmEdge::AST::MemoryType {
 public:
   MemoryTypeContext(AST::MemoryType &MemType): AST::MemoryType(MemType) {}
 };
@@ -114,9 +319,10 @@ const Limit &MemoryType::GetLimit() {
 
 // >>>>>>>> WasmEdge GlobalType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class GlobalType::GlobalTypeContext: public AST::GlobalType {
+class GlobalType::GlobalTypeContext: public WasmEdge::AST::GlobalType {
 public:
-  GlobalTypeContext(AST::GlobalType &GlobType): AST::GlobalType(GlobType) {}
+  GlobalTypeContext(AST::GlobalType &GlobType)
+  : WasmEdge::AST::GlobalType(GlobType) {}
 };
 
 GlobalType::GlobalType(const ValType ValT, const Mutability Mut) {
@@ -135,7 +341,7 @@ Mutability GlobalType::GetMutability() {
 
 // >>>>>>>> WasmEdge ImportType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class ImportType::ImportTypeContext: public AST::ImportDesc {};
+class ImportType::ImportTypeContext: public WasmEdge::AST::ImportDesc {};
 
 ImportType::ImportType() {
   this->Cxt = std::make_unique<ImportType::ImportTypeContext>();
@@ -215,7 +421,7 @@ ImportType::GetGlobalType(const ASTModule &ASTCxt) {
 
 // >>>>>>>> WasmEdge ExportType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class ExportType::ExportTypeContext: public AST::ExportDesc {};
+class ExportType::ExportTypeContext: public WasmEdge::AST::ExportDesc {};
 
 ExportType::ExportType() {
   this->Cxt = std::make_unique<ExportType::ExportTypeContext>();
@@ -344,4 +550,47 @@ ExportType::GetGlobalType(const ASTModule &ASTCxt) {
 
 // <<<<<<<< WasmEdge Data Structures <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> WasmEdge Async >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+class Async::AsyncContext: public WasmEdge::VM::Async<
+  WasmEdge::Expect<
+      std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>> {
+  template <typename... Args>
+  AsyncContext(Args &&...Vals)
+  : VM::Async(std::forward<Args>(Vals)...) {}
+};
+
+Async::Async() {
+  this->Cxt = std::make_unique<AsyncContext>();
+}
+
+void Async::Wait() {
+  return Cxt->wait();
+}
+
+bool Async::WaitFor(uint64_t Milliseconds) {
+  return Cxt->waitFor(std::chrono::milliseconds(Milliseconds));  
+}
+
+void Async::Cancel() {
+  Cxt->cancel();
+}
+
+Result Async::Get(std::vector<Value> &Returns) {
+  auto Res = Cxt->get();
+  if (Res) {
+    for (uint32_t I = 0; I < Res->size(); I++) {
+      auto Val = to_uint128_t(Res->at(I).first.unwrap());
+      Returns[I] = Value(Val, static_cast<ValType>(Res->at(I).second));
+    }
+    return Result{
+      static_cast<uint32_t>(ErrCode::Value::Success) & 0x00FFFFFFU};
+  }
+  return Result{
+    static_cast<uint32_t>(Res.error()) & 0x00FFFFFFU};
+}
+
+// <<<<<<<< WasmEdge Async <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+}
 }

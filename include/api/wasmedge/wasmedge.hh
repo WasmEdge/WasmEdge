@@ -41,6 +41,8 @@
 #include "wasmedge/version.h"
 
 namespace WasmEdge {
+namespace SDK{
+
   enum WASMEDGE_CPP_API_EXPORT ErrCategory {
     WASM = 0x00,
     UserLevelError = 0x01
@@ -170,6 +172,9 @@ namespace WasmEdge {
   private:
     uint128_t Val;
     ValType Type;
+    Value(uint128_t Val, ValType Type): Val(Val), Type(Type) {}
+
+    friend class Async;
   };
 
   class WASMEDGE_CPP_API_EXPORT Result {
@@ -189,7 +194,9 @@ namespace WasmEdge {
 
   private:
     uint32_t Code;
-    Result(const uint32_t Code);
+    Result(const uint32_t Code): Code(Code) {}
+
+    friend class Async;
   };
 
   // >>>>>>>> WasmEdge Data Structures >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -322,6 +329,8 @@ namespace WasmEdge {
   class WASMEDGE_CPP_API_EXPORT Async {
     Async();
     ~Async() = default;
+    class AsyncContext;
+    std::unique_ptr<AsyncContext> Cxt;
 
   public:
     void Wait();
@@ -711,6 +720,7 @@ namespace WasmEdge {
   };
 
   // <<<<<<<< WasmEdge VM <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+}
 }
 
 #endif // WASMEDGE_CPP_API_HH

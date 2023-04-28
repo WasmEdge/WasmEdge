@@ -20,6 +20,7 @@
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
 #include "tensorflow/lite/c/c_api.h"
+#include "tflite_custom_ops/tflite_custom_ops.h"
 #endif
 
 namespace WasmEdge {
@@ -405,6 +406,9 @@ Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
     const auto &Graph = Env.NNGraph[GraphId];
     auto &NewContext = Env.NNContext.back();
     auto *TFLiteOps = TfLiteInterpreterOptionsCreate();
+    // set up custom ops if exists
+    WASINNTfLite::tfLiteInterpreterOptionsAddCustomOps(TFLiteOps);
+
     TfLiteInterpreterOptionsSetNumThreads(TFLiteOps, 2);
     NewContext.TFLiteInterp =
         TfLiteInterpreterCreate(Graph.TFLiteMod, TFLiteOps);

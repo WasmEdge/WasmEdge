@@ -101,9 +101,9 @@ Value::Value(const ::int128_t Val)
   Type(static_cast<ValType>(
     WasmEdge::ValTypeFromType<::int128_t>())) {}
 
-Value::Value(const RefType Val)
+Value::Value(const RefType ValT)
 : Val(to_uint128_t(WasmEdge::UnknownRef())),
-  Type(static_cast<ValType>(Val)) {}
+  Type(static_cast<ValType>(ValT)) {}
 
 Value::Value(const FunctionInstance &Cxt) {
   // TODO: Implement FunctionInstance functions
@@ -591,6 +591,160 @@ Result Async::Get(std::vector<Value> &Returns) {
 }
 
 // <<<<<<<< WasmEdge Async <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Configuration >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+class Configuration::ConfigureContext: public WasmEdge::Configure {};
+
+Configuration::Configuration() {
+  this->Cxt = std::make_unique<Configuration::ConfigureContext>();
+}
+
+void Configuration::AddProposal(const Proposal Prop) {
+  Cxt->addProposal(static_cast<WasmEdge::Proposal>(Prop));
+}
+
+void Configuration::RemoveProposal(const Proposal Prop) {
+  Cxt->removeProposal(static_cast<WasmEdge::Proposal>(Prop));
+}
+
+bool Configuration::HasProposal(const Proposal Prop) {
+  return Cxt->hasProposal(static_cast<WasmEdge::Proposal>(Prop));
+}
+
+void Configuration::AddHostRegistration(const HostRegistration Host) {
+  Cxt->addHostRegistration(static_cast<WasmEdge::HostRegistration>(Host));
+}
+
+void Configuration::RemoveHostRegistration(const HostRegistration Host) {
+  Cxt->removeHostRegistration(static_cast<WasmEdge::HostRegistration>(Host));
+}
+
+bool Configuration::HasHostRegistration(const HostRegistration Host) {
+  return Cxt->hasHostRegistration(
+      static_cast<WasmEdge::HostRegistration>(Host));
+}
+
+void Configuration::SetMaxMemoryPage(const uint32_t Page) {
+  Cxt->getRuntimeConfigure().setMaxMemoryPage(Page);
+}
+
+uint32_t Configuration::GetMaxMemoryPage() {
+  return Cxt->getRuntimeConfigure().getMaxMemoryPage();
+}
+
+void Configuration::SetForceInterpreter(const bool IsForceInterpreter) {
+  Cxt->getRuntimeConfigure().setForceInterpreter(IsForceInterpreter);
+}
+
+bool Configuration::IsForceInterpreter() {
+  return Cxt->getRuntimeConfigure().isForceInterpreter();
+}
+
+void Configuration::CompilerSetOptimizationLevel(
+    const CompilerOptimizationLevel Level) {
+  Cxt->getCompilerConfigure().setOptimizationLevel(
+      static_cast<WasmEdge::CompilerConfigure::OptimizationLevel>(Level));
+}
+
+CompilerOptimizationLevel Configuration::CompilerGetOptimizationLevel() {
+  return static_cast<CompilerOptimizationLevel>(
+      Cxt->getCompilerConfigure().getOptimizationLevel());
+}
+
+void Configuration::CompilerSetOutputFormat(const CompilerOutputFormat Format) {
+  Cxt->getCompilerConfigure().setOutputFormat(
+      static_cast<WasmEdge::CompilerConfigure::OutputFormat>(Format));
+}
+
+CompilerOutputFormat Configuration::CompilerGetOutputFormat() {
+  return static_cast<CompilerOutputFormat>(
+      Cxt->getCompilerConfigure().getOutputFormat());
+}
+
+void Configuration::CompilerSetDumpIR(const bool IsDump) {
+  Cxt->getCompilerConfigure().setDumpIR(IsDump);
+}
+
+bool Configuration::CompilerIsDumpIR() {
+  return Cxt->getCompilerConfigure().isDumpIR();
+}
+
+void Configuration::CompilerSetGenericBinary(const bool IsGeneric) {
+  Cxt->getCompilerConfigure().setGenericBinary(IsGeneric);
+}
+
+bool Configuration::CompilerIsGenericBinary() {
+  return Cxt->getCompilerConfigure().isGenericBinary();
+}
+
+void Configuration::CompilerSetInterruptible(const bool IsInterruptible) {
+  Cxt->getCompilerConfigure().setInterruptible(IsInterruptible);
+}
+
+bool Configuration::CompilerIsInterruptible() {
+  return Cxt->getCompilerConfigure().isInterruptible();
+}
+
+void Configuration::StatisticsSetInstructionCounting(const bool IsCount) {
+  Cxt->getStatisticsConfigure().setInstructionCounting(IsCount);
+}
+
+bool Configuration::StatisticsIsInstructionCounting() {
+  return Cxt->getStatisticsConfigure().isInstructionCounting();
+}
+
+void Configuration::StatisticsSetCostMeasuring(const bool IsMeasure) {
+  Cxt->getStatisticsConfigure().setCostMeasuring(IsMeasure);
+}
+
+bool Configuration::StatisticsIsCostMeasuring() {
+  return Cxt->getStatisticsConfigure().isCostMeasuring();
+}
+
+void Configuration::StatisticsSetTimeMeasuring(const bool IsMeasure) {
+  Cxt->getStatisticsConfigure().setTimeMeasuring(IsMeasure);
+}
+
+bool Configuration::StatisticsIsTimeMeasuring() {
+  return Cxt->getStatisticsConfigure().isTimeMeasuring();
+}
+
+// <<<<<<<< WasmEdge Configuration <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Statistics >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+class Statistics::StatisticsContext: public WasmEdge::Statistics::Statistics {};
+
+Statistics::Statistics() {
+  this->Cxt = std::make_unique<Statistics::StatisticsContext>();
+}
+
+uint64_t Statistics::GetInstrCount() {
+  return Cxt->getInstrCount();
+}
+
+double Statistics::GetInstrPerSecond() {
+  return Cxt->getInstrPerSecond();
+}
+
+uint64_t Statistics::GetTotalCost() {
+  return Cxt->getTotalCost();
+}
+
+void Statistics::SetCostTable(std::vector<uint64_t> &CostArr) {
+  Cxt->setCostTable(CostArr);
+}
+
+void Statistics::SetCostLimit(const uint64_t Limit) {
+  Cxt->setCostLimit(Limit);
+}
+
+void Statistics::Clear() {
+  Cxt->clear();
+}
+
+// <<<<<<<< WasmEdge Statistics <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 }
 }

@@ -343,10 +343,10 @@ namespace SDK{
 
   // <<<<<<<< WasmEdge Async <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-  class WASMEDGE_CPP_API_EXPORT ConfigureContext {
+  class WASMEDGE_CPP_API_EXPORT Configuration {
   public:
-    ConfigureContext();
-    ~ConfigureContext() = default;
+    Configuration();
+    ~Configuration() = default;
 
     // Methods for Proposals
     void AddProposal(const Proposal Prop);
@@ -387,27 +387,14 @@ namespace SDK{
     bool StatisticsIsTimeMeasuring();
 
   private:
-    // TODO: Break into three Configs and declare them in this namespace?
-    // CompilerConfig CompConfig;
-    // StatisticsConfig StatisticsConf;
-    // RuntimeConfig RuntimeConfig;
-
-    // TODO: Or use the WasmEdge::Configure internal API somehow?
-    // And call Configure's methods internally in its methods?
-    // Because Configure already has the required methods
-    // For example -
-    // In the AddProposal method -
-    // void AddProposal(const Proposal Prop)
-    // {
-    //   this.Conf.addProposal(Prop);
-    // }
-    // Configure Conf;
+    class ConfigureContext;
+    std::unique_ptr<ConfigureContext> Cxt;
   };
 
-  class WASMEDGE_CPP_API_EXPORT StatisticsContext {
+  class WASMEDGE_CPP_API_EXPORT Statistics {
   public:
-    StatisticsContext();
-    ~StatisticsContext() = default;
+    Statistics();
+    ~Statistics() = default;
 
     uint64_t GetInstrCount();
     double GetInstrPerSecond();
@@ -418,7 +405,8 @@ namespace SDK{
     void Clear();
 
   private:
-    // TODO
+    class StatisticsContext;
+    std::unique_ptr<StatisticsContext> Cxt;
   };
 
   // >>>>>>>> WasmEdge Runtime >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -427,7 +415,7 @@ namespace SDK{
 
   class WASMEDGE_CPP_API_EXPORT Loader {
   public:
-    Loader(const ConfigureContext &ConfCxt);
+    Loader(const Configuration &ConfCxt);
     ~Loader() = default;
 
     Result Parse(ASTModule &Module,
@@ -445,7 +433,7 @@ namespace SDK{
 
   class WASMEDGE_CPP_API_EXPORT Validator {
   public:
-    Validator(ConfigureContext &ConfCxt);
+    Validator(Configuration &ConfCxt);
     ~Validator() = default;
 
     Result Validate(const ASTModule &ASTCxt);
@@ -459,8 +447,8 @@ namespace SDK{
 
   class WASMEDGE_CPP_API_EXPORT Executor {
   public:
-    Executor(const ConfigureContext &ConfCxt,
-             StatisticsContext &StatCxt);
+    Executor(const Configuration &ConfCxt,
+             Statistics &StatCxt);
     ~Executor() = default;
 
     Result Instantiate(ModuleInstance &ModuleCxt,
@@ -649,7 +637,7 @@ namespace SDK{
 
   class WASMEDGE_CPP_API_EXPORT VM {
   public:
-    VM(const ConfigureContext &ConfCxt, Store &StoreCxt);
+    VM(const Configuration &ConfCxt, Store &StoreCxt);
     ~VM() = default;
 
     Result RegisterModule(const std::string &ModuleName,
@@ -714,7 +702,7 @@ namespace SDK{
     Loader &GetLoaderContext();
     Validator &GetValidatorContext();
     Executor &GetExecutorContext();
-    StatisticsContext &GetStatisticsContext();
+    Statistics &GetStatisticsContext();
   private:
     // TODO
   };

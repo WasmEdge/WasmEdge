@@ -147,7 +147,7 @@ private:
     AArch64NeonSQRDMulH = getIntrinsicID("llvm.aarch64.neon.sqrdmulh"sv);
     AArch64NeonTbl1 = getIntrinsicID("llvm.aarch64.neon.tbl1"sv);
     AArch64NeonUAddLP = getIntrinsicID("llvm.aarch64.neon.uaddlp"sv);
-    AArch64NeonURHAdd = getIntrinsicID(" llvm.aarch64.neon.urhadd"sv);
+    AArch64NeonURHAdd = getIntrinsicID("llvm.aarch64.neon.urhadd"sv);
 #endif
 
     Cold = getEnumAttributeKind("cold"sv);
@@ -1017,7 +1017,7 @@ public:
         Core::ExperimentalConstrainedFAdd, {LHS.getType()},
         {LHS, RHS, getConstrainedFPRounding(), getConstrainedFPExcept()}, Name);
     Ret.addCallSiteAttribute(
-        LLVMCreateEnumAttribute(getCtx(), LLVM::Core::StrictFP, 1));
+        LLVMCreateEnumAttribute(getCtx(), LLVM::Core::StrictFP, 0));
     return Ret;
   }
   Value createSub(Value LHS, Value RHS, const char *Name = "") noexcept {
@@ -1034,7 +1034,7 @@ public:
         Core::ExperimentalConstrainedFSub, {LHS.getType()},
         {LHS, RHS, getConstrainedFPRounding(), getConstrainedFPExcept()}, Name);
     Ret.addCallSiteAttribute(
-        LLVMCreateEnumAttribute(getCtx(), LLVM::Core::StrictFP, 1));
+        LLVMCreateEnumAttribute(getCtx(), LLVM::Core::StrictFP, 0));
     return Ret;
   }
   Value createMul(Value LHS, Value RHS, const char *Name = "") noexcept {
@@ -1051,7 +1051,7 @@ public:
         Core::ExperimentalConstrainedFMul, {LHS.getType()},
         {LHS, RHS, getConstrainedFPRounding(), getConstrainedFPExcept()}, Name);
     Ret.addCallSiteAttribute(
-        LLVMCreateEnumAttribute(getCtx(), LLVM::Core::StrictFP, 1));
+        LLVMCreateEnumAttribute(getCtx(), LLVM::Core::StrictFP, 0));
     return Ret;
   }
   Value createUDiv(Value LHS, Value RHS, const char *Name = "") noexcept {
@@ -1071,7 +1071,7 @@ public:
         Core::ExperimentalConstrainedFDiv, {LHS.getType()},
         {LHS, RHS, getConstrainedFPRounding(), getConstrainedFPExcept()}, Name);
     Ret.addCallSiteAttribute(
-        LLVMCreateEnumAttribute(getCtx(), LLVM::Core::StrictFP, 1));
+        LLVMCreateEnumAttribute(getCtx(), LLVM::Core::StrictFP, 0));
     return Ret;
   }
   Value createURem(Value LHS, Value RHS, const char *Name = "") noexcept {
@@ -1191,7 +1191,7 @@ public:
         Core::ExperimentalConstrainedFPTrunc, {DestTy, Val.getType()},
         {Val, getConstrainedFPRounding(), getConstrainedFPExcept()}, Name);
     Ret.addCallSiteAttribute(
-        LLVMCreateEnumAttribute(getCtx(), LLVM::Core::StrictFP, 1));
+        LLVMCreateEnumAttribute(getCtx(), LLVM::Core::StrictFP, 0));
     return Ret;
   }
   Value createFPExt(Value Val, Type DestTy, const char *Name = "") noexcept {
@@ -1199,7 +1199,7 @@ public:
                                 {DestTy, Val.getType()},
                                 {Val, getConstrainedFPExcept()}, Name);
     Ret.addCallSiteAttribute(
-        LLVMCreateEnumAttribute(getCtx(), LLVM::Core::StrictFP, 1));
+        LLVMCreateEnumAttribute(getCtx(), LLVM::Core::StrictFP, 0));
     return Ret;
   }
   Value createPtrToInt(Value Val, Type DestTy, const char *Name = "") noexcept {
@@ -1345,7 +1345,7 @@ public:
     Value Ret = LLVMBuildCall2(Ref, Callee.Ty.unwrap(), Callee.Fn.unwrap(),
                                Data, Size, Name);
     Ret.addCallSiteAttribute(
-        LLVMCreateEnumAttribute(getCtx(), LLVM::Core::StrictFP, 1));
+        LLVMCreateEnumAttribute(getCtx(), LLVM::Core::StrictFP, 0));
     return Ret;
   }
   Value createSelect(Value If, Value Then, Value Else,

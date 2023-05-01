@@ -32,7 +32,8 @@ static inline constexpr const __wasi_rights_t kPreOpenBaseRights =
     __WASI_RIGHTS_PATH_RENAME_TARGET | __WASI_RIGHTS_PATH_FILESTAT_GET |
     __WASI_RIGHTS_PATH_FILESTAT_SET_TIMES | __WASI_RIGHTS_FD_FILESTAT_GET |
     __WASI_RIGHTS_FD_FILESTAT_SET_TIMES | __WASI_RIGHTS_PATH_SYMLINK |
-    __WASI_RIGHTS_PATH_REMOVE_DIRECTORY | __WASI_RIGHTS_PATH_UNLINK_FILE;
+    __WASI_RIGHTS_PATH_REMOVE_DIRECTORY | __WASI_RIGHTS_PATH_UNLINK_FILE |
+    __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE;
 static inline constexpr const __wasi_rights_t kPreOpenInheritingRights =
     __WASI_RIGHTS_FD_DATASYNC | __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_SEEK |
     __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS | __WASI_RIGHTS_FD_SYNC |
@@ -76,9 +77,9 @@ void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
       // Handle the readonly flag
       bool ReadOnly = false;
       if (const auto ROPos = HostDir.find(':'); ROPos != std::string::npos) {
+        const auto Mode = HostDir.substr(ROPos + 1);
         HostDir = HostDir.substr(0, ROPos);
-        std::string Mode = HostDir.substr(ROPos + 1);
-        if (kReadOnly == HostDir.substr(ROPos + 1)) {
+        if (kReadOnly == Mode) {
           ReadOnly = true;
         }
       }

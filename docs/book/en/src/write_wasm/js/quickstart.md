@@ -1,5 +1,7 @@
 # Quick Start with JavaScript on WasmEdge
 
+> *This part has moved to <https://wasmedge.org/docs/develop/javascript/hello_world>. Please use our new docs.*
+
 First, let's download the WebAssembly-based JavaScript interpreter program for WasmEdge. It is based on [QuickJS](https://bellard.org/quickjs/). See the [build it yourself](#build-it-yourself) section to learn how to compile it from Rust source code.
 
 ```bash

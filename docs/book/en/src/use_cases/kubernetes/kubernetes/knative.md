@@ -1,5 +1,7 @@
 # Knative
 
+> *This part has moved to <https://wasmedge.org/docs/develop/deploy/kubernetes/knative>. Please use our new docs.*
+
 Knative is a platform-agnostic solution for running serverless deployments.
 
 ## Quick start
@@ -196,4 +198,3 @@ $ kubectl get pods
 NAME                                           READY   STATUS    RESTARTS   AGE
 http-wasm-00001-deployment-748bdc7cf-96l4r     2/2     Running   0          19s
 ```
-

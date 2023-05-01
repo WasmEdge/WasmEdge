@@ -1,5 +1,7 @@
 # Build and test WasmEdge for OpenWrt
 
+> *This part has moved to <https://wasmedge.org/docs/contribute/source/os/openwrt>. Please use our new docs.*
+
 Please follow this tutorial to build and test WasmEdge in OpenWrt(x86_64) from source code.
 
 > Currently, we only support the runtime for the interpreter mode.

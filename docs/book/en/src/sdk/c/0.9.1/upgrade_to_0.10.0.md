@@ -1,5 +1,7 @@
 # Upgrade to WasmEdge 0.10.0
 
+> *This part has moved to <https://wasmedge.org/docs/embed/c/reference/upgrade_to_0.10.0>. Please use our new docs.*
+
 Due to the WasmEdge C API breaking changes, this document shows the guideline of programming with WasmEdge C API to upgrade from the `0.9.1` to the `0.10.0` version.
 
 ## Concepts

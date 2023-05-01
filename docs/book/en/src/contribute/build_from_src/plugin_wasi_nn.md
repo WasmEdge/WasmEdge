@@ -1,5 +1,7 @@
 # Build WasmEdge With WASI-NN Plug-in
 
+> *This part has moved to <https://wasmedge.org/docs/contribute/source/plugin/was_nn>. Please use our new docs.*
+
 ## Prerequisites
 
 Currently, WasmEdge used OpenVINO™ or PyTorch as the WASI-NN backend implementation. For using WASI-NN on WasmEdge, you need to install [OpenVINO™](https://docs.openvino.ai/2021.4/openvino_docs_install_guides_installing_openvino_linux.html#)(2021) or [PyTorch 1.8.2 LTS](https://pytorch.org/get-started/locally/) for the backend.

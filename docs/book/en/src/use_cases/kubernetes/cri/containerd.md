@@ -1,5 +1,8 @@
 # containerd
 
+This docs has moved to https://wasmedge.org/docs/develop/deploy/cri-runtime/containerd-crun. Please use our new docs.
+
+---
 ## Quick start
 
 The [GitHub repo](https://github.com/second-state/wasmedge-containers-examples/) contains scripts and Github Actions for running our example

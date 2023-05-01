@@ -1,5 +1,7 @@
 # `wasmedge` CLI
 
+> *This part has moved to <https://wasmedge.org/docs/develop/build-and-run/cli>. Please use our new docs.*
+
 After [installation](../quick_start/install.md), users can execute the `wasmedge` tool with commands.
 
 ```bash
@@ -31,7 +33,9 @@ For the pure WASM, the `wasmedge` CLI tool will execute it in interpreter mode, 
 If you want to improve the performance, [please refer here](wasmedge_compile.md) to compile your WASM file.
 
 ## Subcommands
+
 The subcommands of the `wasmedge` CLI tool are as follows.
+
 1. `run`: execute the WebAssembly; the usage of `wasmedge run` is identical to `wasmedge` without `-v|--version` option. [Please refer here](wasmedge_tool.md) to get more details.
 2. `compile`: compile WebAssembly into native machine code (i.e., the AOT compiler). [Please refer here](wasmedge_compile.md) to get more details.
 

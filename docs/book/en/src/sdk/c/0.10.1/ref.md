@@ -1,5 +1,7 @@
 # WasmEdge 0.10.1 C API Documentation
 
+> *This part has moved to <https://wasmedge.org/docs/embed/c/reference/0.10.1>. Please use our new docs.*
+
 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/0.10.1/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime at version `0.10.1`. The following are the guides to working with the C APIs of WasmEdge.
 
 **Developers can refer to [here to upgrade to 0.11.0](upgrade_to_0.11.0.md).**

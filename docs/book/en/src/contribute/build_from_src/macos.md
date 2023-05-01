@@ -1,5 +1,7 @@
 # Build WasmEdge on MacOS
 
+> *This part has moved to <https://wasmedge.org/docs/contribute/source/os/macos>. Please use our new docs.*
+
 Currently, WasmEdge project on MacOS supports both Intel and M1 models. However, we only test and develop on `Catalina`, `Big Sur`, and `Monterey`.
 
 * Model:

@@ -1,5 +1,7 @@
 # Contribution Steps
 
+> *This part has moved to <https://wasmedge.org/docs/contribute/>. Please use our new docs.*
+
 ## Setup Development Environment
 
 The WasmEdge is developed on Ubuntu 20.04 to take advantage of advanced LLVM features for the AOT compiler. The WasmEdge team also builds and releases statically linked WasmEdge binaries for older Linux distributions.

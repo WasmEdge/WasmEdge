@@ -1,5 +1,9 @@
 # Build WasmEdge for seL4
 
+This part hs moved to https://wasmedge.org/docs/contribute/source/os/sel4. Please use our new docs.
+
+---
+
 [Video demo](https://youtu.be/2Qu-Trtkspk) | [Build logs](https://github.com/second-state/wasmedge-seL4/runs/3982081148?check_suite_focus=true) | [Build artifact](https://github.com/second-state/wasmedge-seL4/actions/runs/1374510169)
 
 In this article, we demonstrate how to run WasmEdge on the seL4 RTOS, there are two parts:

@@ -1,5 +1,7 @@
 # Customized External References
 
+> *This part has moved to <https://wasmedge.org/docs/embed/c/externref>. Please use our new docs.*
+
 [External References](https://webassembly.github.io/spec/core/syntax/types.html#syntax-reftype) denotes an opaque and unforgettable reference to a host object. A new `externref` type can be passed into a Wasm module or returned from it. The Wasm module cannot reveal an `externref` value's bit pattern, nor create a fake host reference by an integer value.
 
 ## Tutorial

@@ -1,5 +1,7 @@
 # WasmEdge Release Process
 
+> *This part has moved to <https://wasmedge.org/docs/contribute/release>. Please use our new docs.*
+
 ## Create the releasing process issue of the new version
 
 - [ ] Keep adding the new features, issues, documents, and builds check list into the issue.

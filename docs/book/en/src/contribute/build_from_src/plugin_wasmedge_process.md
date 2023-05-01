@@ -1,5 +1,7 @@
 # Build WasmEdge With WasmEdge-Process Plug-in
 
+> *This part has moved to <https://wasmedge.org/docs/contribute/source/plugin/process>. Please use our new docs.*
+
 ## Prerequisites
 
 The prerequisite of the WasmEdge-Process plug-in is the same as the [WasmEdge building environment on the Linux platforms](linux.md).

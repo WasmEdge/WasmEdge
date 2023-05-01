@@ -1,5 +1,7 @@
 # Use Rust to implement JS API
 
+> *This part has moved to <https://wasmedge.org/docs/develop/javascript/rust>. Please use our new docs.*
+
 For JavaScript developers, incorporating Rust functions into JavaScript APIs is useful. That enables developers to write programs in "pure JavaScript" and yet still take advantage of the high performance Rust functions. With the [WasmEdge Runtime](https://github.com/WasmEdge/WasmEdge), you can do exactly that.
 
 > The [internal_module](https://github.com/second-state/wasmedge-quickjs/tree/main/src/internal_module) folder in the official WasmEdge QuickJS distribution provides Rust-based implementations of some built-in JavaScript API functions. Those functions typically require interactions with host functions in the WasmEdge runtime (e.g., networking and tensorflow), and hence cannot be accessed by pure JavaScript implementations in [modules](modules.md).

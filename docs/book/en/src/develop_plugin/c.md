@@ -1,5 +1,9 @@
 # Develop WasmEdge Plug-in in C API
 
+This doc has moved to https://wasmedge.org/docs/contribute/plugin/develop_plugin_c. Please use our new docs.
+
+---
+
 ## Prerequisites
 
 For developing the WasmEdge plug-in in C API, please [install WasmEdge](../quick_start/install.md) first.

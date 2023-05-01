@@ -1,5 +1,9 @@
 # Use the slim Linux container
 
+> *This part has moved to <https://wasmedge.org/docs/develop/deploy/using-wasmedge-in-docker>. Please use our new docs.*
+
+# Use the slim Linux container
+
 An easy way to run WebAssembly applications in the Docker ecosystem is to simply embed the WebAssembly bytecode file in a Linux container image. Specifically, we trim down the Linux OS inside the container to the point where it is just enough to support the `wasmedge` runtime. This approach has many advantages.
 
 * It works seamlessly with any tool in the Docker or container ecosystem since the WebAssembly application is wrapped in a regular container.

@@ -1,5 +1,7 @@
 # Upgrade to WasmEdge-Go v0.11.0
 
+> *This part has moved to <https://wasmedge.org/docs/embed/go/reference/upgrade_to_0.11.0>. Please use our new docs.*
+
 Due to the WasmEdge-Go API breaking changes, this document shows the guideline of programming with WasmEdge-Go API to upgrade from the `v0.10.1` to the `v0.11.0` version.
 
 ## Concepts

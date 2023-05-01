@@ -1,5 +1,7 @@
 # Non-blocking Networking Sockets
 
+> *This part has moved to 1.Client example: <https://wasmedge.org/docs/develop/rust/socket_networking/client> 2. Server example: <https://wasmedge.org/docs/develop/rust/socket_networking/server/> Please use our new docs.*
+
 While the simple HTTP connections from the previous chapter are easy to implement, they are not ready for production use. If the program can only have one connection open at a time (e.g., blocking), the fast CPU would be waiting for the slow network. Non-blocking I/O means that the application program can keep multiple connections open at the same time, and process data in and out of those connections as they come in. The program can either alternatingly poll those open connections or wait for incoming data to trigger async functions. That allows I/O intensive programs to run much faster even in a single-threaded environment. In this chapter, we will cover both polling and async programming models.
 
 ## A non-blocking HTTP client example

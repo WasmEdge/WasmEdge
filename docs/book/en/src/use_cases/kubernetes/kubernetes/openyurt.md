@@ -1,5 +1,7 @@
 # OpenYurt + containerd + crun
 
+This doc has moved to https://wasmedge.org/docs/develop/deploy/kubernetes/openyurt. Please use our new docs.
+
 In this article, we will introduce how to run a WasmEdge simple demo app with Containerd over [OpenYurt](https://github.com/openyurtio/openyurt).
 
 ## Set up an OpenYurt Cluster

@@ -1,5 +1,7 @@
 # Running WASM with WasmEdge CLI
 
+> *This part has moved to <https://wasmedge.org/docs/develop/build-and-run/cli>. Please use our new docs.*
+
 After [installing WasmEdge](install.md) or starting the [WasmEdge app dev Docker container](use_docker.md), there are several ways to run WebAssembly programs.
 
 ## `wasmedge` CLI

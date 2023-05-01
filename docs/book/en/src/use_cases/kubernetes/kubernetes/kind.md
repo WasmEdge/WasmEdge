@@ -1,5 +1,7 @@
 # Kubernetes in Docker (KinD)
 
+> *This part has moved to <https://wasmedge.org/docs/develop/deploy/kubernetes/kind>. Please use our new docs.*
+
 KinD is a Kubernetes distribution that runs inside Docker and is well suited for local development or integration testing. It runs containerd as CRI and runc as OCI Runtime.
 
 ## Quick start

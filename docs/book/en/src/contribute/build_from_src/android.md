@@ -1,5 +1,7 @@
 # Build WasmEdge for Android
 
+> *This part has moved to <https://wasmedge.org/docs/contribute/source/os/android/build>. Please use our new docs.*
+
 The WasmEdge Runtime releases come with pre-built binaries for the Android OS. Why WasmEdge on Android?
 
 * Native speed & sandbox safety for Android apps

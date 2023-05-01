@@ -1,5 +1,9 @@
 # WasmEdge Go v0.12.0 API references
 
+This doc has moved to https://wasmedge.org/docs/embed/go/reference/0.12.0. Please use our new docs.
+
+---
+
 The following are the guides to working with the WasmEdge-Go SDK.
 
 **This document is for the `v0.12.0` version. For the older `v0.11.2` version, please refer to the [document here](0.11.2/ref.md).**

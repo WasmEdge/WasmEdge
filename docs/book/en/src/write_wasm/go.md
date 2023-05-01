@@ -1,5 +1,7 @@
 # Go
 
+> *This part has moved to <https://wasmedge.org/docs/develop/go/hello_world>. Please use our new docs.*
+
 The best way to run Go programs in WasmEdge is to compile Go source code to WebAssembly using [TinyGo](https://tinygo.org/). In this article, we will show you how.
 
 ## Install TinyGo

@@ -1,5 +1,7 @@
 # Build and test WasmEdge on RISC-V 64 arch
 
+> *This part has moved to <https://wasmedge.org/docs/contribute/source/os/riscv64>. Please use our new docs.*
+
 Please follow this tutorial to build and test WasmEdge on the RISC-V64 system.
 
 ## Prepare the Environment

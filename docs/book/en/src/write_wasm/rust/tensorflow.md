@@ -1,5 +1,7 @@
 # Tensorflow
 
+# *This part have moved to https://wasmedge.org/docs/develop/rust/ai_inference/tensorflow. Please use our new docs.*
+
 AI inference is a computationally intensive task that could benefit greatly from the speed of Rust and WebAssembly. However, the standard WebAssembly sandbox provides very limited access to the native OS and hardware, such as multi-core CPUs, GPU and specialized AI inference chips. It is not ideal for the AI workload.
 
 The popular WebAssembly System Interface (WASI) provides a design pattern for sandboxed WebAssembly programs to securely access native host functions. The WasmEdge Runtime extends the WASI model to support access to native Tensorflow libraries from WebAssembly programs. The [WasmEdge Tensorflow Rust SDK](https://github.com/second-state/wasmedge_tensorflow_interface) provides the security, portability, and ease-of-use of WebAssembly and native speed for Tensorflow.

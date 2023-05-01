@@ -1,5 +1,7 @@
 # WasmEdge Installation And Uninstallation
 
+> *This part has moved to <https://wasmedge.org/docs/develop/build-and-run/install>. Please use our new docs.*
+
 ## Quick Install
 
 The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `curl` as prerequisites.

@@ -1,5 +1,7 @@
 # WasmEdge Go v0.9.1 API Documentation
 
+> *This part has moved to <https://wasmedge.org/docs/embed/go/reference/0.9.1>. Please use our new docs.*
+
 The following are the guides to working with the WasmEdge-Go SDK at WasmEdge version `0.9.1` and WasmEdge-Go version `v0.9.2`.
 
 **Please install WasmEdge 0.9.1 to use this Go package.**

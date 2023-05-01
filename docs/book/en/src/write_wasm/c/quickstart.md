@@ -1,5 +1,7 @@
 # Getting Started
 
+> *This part has moved to <https://wasmedge.org/docs/develop/c/hello_world>. Please use our new docs.*
+
 This chapter describes how you can compile your C program to WebAssembly and then run it in WasmEdge runtime.
 
 ## Prerequisites
@@ -9,6 +11,7 @@ Please make sure you have [wasmedge](https://wasmedge.org/book/en/quick_start/in
 ## Hello World
 
 As the first step is always the "Hello World" program , given below is the C program implementation.
+
 ```c
 // hello.c
 
@@ -24,6 +27,7 @@ Save it in any file and then compile it to WebAssembly with emscripten .
 ```bash
 emcc hello.c -o hello.wasm
 ```
+
 > Note: Make sure you either supply `-s STANDALONE_WASM` flag or specify output as wasm `-o your_file_name.wasm`
 
 Then run the wasm in wasmedge runtime
@@ -59,12 +63,14 @@ Again Compiling to wasm with emcc
 ```bash
 emcc add.c -o add.wasm
 ```
+
 Running the application in wasmedge runtime
 
 ```bash
 $ wasmedge add.wasm 2 3
 5
 ```
+
 We can further improve performance by using wasmedge AOT compilation , this feature gives near native performance
 
 ```bash
@@ -125,11 +131,13 @@ int main(int argc, char *argv[])
 ```
 
 Compiling the program to wasm with emcc
+
 ```bash
 emcc main.c fibonacci.c -o fib.wasm
 ```
 
 Running in wasmedge runtime
+
 ```bash
 $ wasmedge fib.wasm 6
 5

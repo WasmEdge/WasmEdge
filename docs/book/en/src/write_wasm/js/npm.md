@@ -1,5 +1,7 @@
 # NodeJS and NPM module
 
+> *This part has moved to <https://wasmedge.org/docs/develop/javascript/npm>. Please use our new docs.*
+
 With [rollup.js](https://rollupjs.org/guide/en/), we can run CommonJS (CJS) and NodeJS (NPM) modules in WasmEdge too. The [simple_common_js_demo/npm_main.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/simple_common_js_demo/npm_main.js) demo shows how it works. It utilizes the third-party `md5` and `mathjs` modules.
 
 ```javascript

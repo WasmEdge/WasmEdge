@@ -1,5 +1,7 @@
 # Server-side rendering
 
+> *This part has moved <https://wasmedge.org/docs/develop/rust/ssr>. Please use our new docs.*
+
 Frontend web frameworks allow developers to create web apps in a high level language and component model. The web app is built into a static web site to be rendered in the browser. While many frontend web frameworks are based on JavaScript, such as React and Vue, Rust-based frameworks are also emerging as the Rust language gains traction among developers. Those web frameworks render the HTML DOM UI using the WebAssembly, which is compiled from Rust source code. They use [wasm-bindgen](https://github.com/rustwasm/wasm-bindgen) to tie the Rust to the HTML DOM.
 While all of these frameworks send `.wasm` files to the browser to render the UI on the client-side, some provide the additional choice for [Server-side rendering](https://en.wikipedia.org/wiki/Server-side_scripting). That is to run the WebAssembly code and build the HTML DOM UI on the server, and stream the HTML content to the browser for faster performance and startup time on slow devices and networks.
 

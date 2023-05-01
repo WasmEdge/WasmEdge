@@ -1,5 +1,7 @@
 # Develop WasmEdge Plug-in in C++ API
 
+> *This part has moved to This doc has moved to <https://wasmedge.org/docs/contribute/plugin/develop_plugin_cpp>. Please use our new docs.*
+
 > We recommend developers to [develop plug-ins in WasmEdge C API](c.md).
 
 ## Prerequisites

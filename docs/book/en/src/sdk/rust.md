@@ -1,5 +1,7 @@
 # WasmEdge Rust SDK
 
+> *This Part has moved to <https://wasmedge.org/docs/embed/rust/intro>. Please use our new docs.*
+
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
 
 <!-- code_chunk_output -->

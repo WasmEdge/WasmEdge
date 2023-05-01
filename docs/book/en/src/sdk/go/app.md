@@ -1,5 +1,7 @@
 # Embed a standalone WASM app
 
+> *This part has moved to <https://wasmedge.org/docs/embed/go/app>. Please use our new docs.*
+
 The WasmEdge Go SDK can [embed standalone WebAssembly applications](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ReadFile) — ie a Rust application with a `main()` function compiled into WebAssembly.
 
 Our [demo Rust application](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ReadFile/rust_readfile) reads from a file. Note that the WebAssembly program's input and output data are now passed by the STDIN and STDOUT.

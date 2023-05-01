@@ -1,5 +1,7 @@
 # Multiple WASM Module Example
 
+> *This part has moved to <https://wasmedge.org/docs/embed/c/multiple_modules>. Please use our new docs.*
+
 For those WASM modules export their functions, the other WASM modules can import them as a library.
 This will cause a situation that linking multiple modules for the dependencies when in execution.
 This chapter will introduce the examples to linking and executing multiple WASM modules in WasmEdge.

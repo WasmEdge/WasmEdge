@@ -1,5 +1,15 @@
 # Neural Network for WASI
 
+This Part have moved to
+1. Pytorch: https://wasmedge.org/docs/develop/rust/ai_inference/pytorch
+2. OpenVINO: https://wasmedge.org/docs/develop/rust/ai_inference/openvino
+3. TensorFlow-Lite: https://wasmedge.org/docs/develop/rust/ai_inference/tensorflow_lite
+
+Please use our new docs.
+
+
+---
+
 In WasmEdge, we implemented the [WASI-NN](https://github.com/WebAssembly/wasi-nn) (Neural Network for WASI) proposal to allow access the Machine Learning (ML) functions with the fashion of graph loader APIs by the following functions:
 
 * [`Load`](https://github.com/WebAssembly/wasi-nn/blob/master/phases/ephemeral/witx/wasi_ephemeral_nn.witx#L108-L118) a model using variable opaque byte arrays

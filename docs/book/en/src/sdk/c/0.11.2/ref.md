@@ -1,5 +1,9 @@
 # WasmEdge C 0.11.2 API Documentation
 
+This  part has moved to https://wasmedge.org/docs/embed/c/reference/0.11.2. Please use our new docs.
+
+---
+
 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The following are the guides to working with the C APIs of WasmEdge.
 
 **Please notice that the WasmEdge C API provides SONAME and SOVERSION after the `0.11.0` release.**

@@ -1,5 +1,7 @@
 # Call WasmEdge functions from an Android APK app
 
+> *This part has moved to <https://wasmedge.org/docs/contribute/source/os/android/apk>. Please use our new docs.*
+
 In this section, we will show you how to build a "regular" Android app (i.e., an APK file that can be installed on an Android device). The APK app embeds a WasmEdge Runtime. It can call WebAssembly functions through the embedded WasmEdge. The benefit is that developers can safely embed high-performance functions written in several different languages (e.g., Rust, JS, Grain, TinyGo etc) into a Kotlin application.
 
 ## Quickstart

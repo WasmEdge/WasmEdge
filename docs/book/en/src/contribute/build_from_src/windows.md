@@ -1,5 +1,7 @@
 # Build WasmEdge on Windows 10
 
+> *This part has moved to <https://wasmedge.org/docs/contribute/source/os/windows>. Please use our new docs.*
+
 You can also find the details [here](https://github.com/WasmEdge/WasmEdge/blob/master/.github/workflows/reusable-build-on-windows.yml#L37-L48).
 
 ## Get Source Code

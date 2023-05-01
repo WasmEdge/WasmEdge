@@ -1,5 +1,7 @@
 # Develop WasmEdge Plug-in
 
+> *This Part has moved to <https://wasmedge.org/docs/contribute/plugin/intro>, Please use our new docs.*
+
 While the WasmEdge language SDKs allow registering host functions from a host (wrapping) application, developers should implement the host functions before compilation.
 For the other solutions, WasmEdge provides the plug-in architecture to load the plug-in shared library for easier extending of the host functions.
 With developing the plug-ins, WasmEdge SDKs in the supported languages can load and register the host functions from the plug-in shared libraries.

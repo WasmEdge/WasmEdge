@@ -1,5 +1,9 @@
 # Command interface
 
+This part part has moved to https://wasmedge.org/docs/develop/rust/command. Please use our docs.
+
+----
+
 WASI enables WebAssembly programs to call standard library functions in the host operating system. It does so through a fine-grained security model known as “capability-based security”. The WebAssembly VM owner can grant access to host system resources when the VM starts up. The program cannot access any resources (e.g., file folders) that are not explicitly allowed.
 
 Now, why limit ourselves to standard library functions? The same approach can be used to call just any host functions from WebAssembly. WasmEdge provides a WASI-like extension to access any command line programs in the host operating system.

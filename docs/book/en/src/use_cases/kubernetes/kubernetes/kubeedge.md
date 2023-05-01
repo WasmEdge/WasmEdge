@@ -1,5 +1,9 @@
 # Create a crun demo for KubeEdge
 
+This docs has moved to https://wasmedge.org/docs/develop/deploy/kubernetes/kubedge. Please use our new docs.
+
+---
+
 ## 1. Setup Cloud Side (KubeEdge Master Node)
 
 ### Install Go

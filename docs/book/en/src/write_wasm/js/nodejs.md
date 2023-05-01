@@ -1,5 +1,7 @@
 # Node.js support
 
+> *This part has moved to <https://wasmedge.org/docs/develop/javascript/nodejs>. Please use our new docs.*
+
 Many existing JavaScript apps simply use Node.js built-in APIs. In order to support and reuse these JavaScript apps, we are in the process of implementing many Node.JS APIs for WasmEdge QuickJS. The goal is to have unmodified Node.js programs running in WasmEdge QuickJS.
 
 In order to use Node.js APIs in WasmEdge, you must make the `modules` directory from [wasmedge-quickjs](https://github.com/second-state/wasmedge-quickjs) accessible to the WasmEdge Runtime. The simplest approach is to clone the [wasmedge-quickjs](https://github.com/second-state/wasmedge-quickjs) repo, and run the Node.js app from the repo's top directory.

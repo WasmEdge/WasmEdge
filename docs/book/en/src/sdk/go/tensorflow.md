@@ -1,5 +1,8 @@
 # Tensorflow
 
+This  part has moved to https://wasmedge.org/docs/embed/go/ai. Please use our new docs.
+
+---
 In this section, we will show you how to create a Tensorflow inference function in Rust for image classification, and then embed it into a Go application. The project source code is [available here](https://github.com/second-state/WasmEdge-go-examples/tree/master/wasmedge-bindgen/go_TfliteFood).
 
 ## Rust function compiled into WebAssembly

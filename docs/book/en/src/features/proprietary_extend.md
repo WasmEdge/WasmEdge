@@ -1,5 +1,7 @@
 # WasmEdge Proprietary Extensions
 
+# *This part have moved to https://wasmedge.org/docs/develop/wasmedge/extensions/unique_extensions. Please use our new docs.*
+
 A key differentiator of WasmEdge from other WebAssembly runtimes is its support for non-standard extensions. The [WebAssembly System Interface (WASI)](https://github.com/WebAssembly/WASI) provides a mechanism for developers to extend WebAssembly efficiently and securely. The WasmEdge team created the following WASI-like extensions based on real-world customer demands.
 
 * [Tensorflow](https://github.com/second-state/wasmedge-tensorflow). Developers can [write Tensorflow inference functions](https://www.secondstate.io/articles/wasi-tensorflow/) using [a simple Rust API](https://github.com/second-state/wasmedge_tensorflow_interface), and then run the function securely and at native speed inside WasmEdge.

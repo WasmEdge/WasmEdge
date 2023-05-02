@@ -1,5 +1,4 @@
 #include "shared_library.h"
-#include "common/errcode.h"
 
 #if WASMEDGE_OS_WINDOWS
 #include <boost/winapi/dll.hpp>
@@ -22,7 +21,6 @@ SharedLibrary::SharedLibrary(const char *Name) noexcept {
   Handle = ::dlopen(Name, RTLD_LAZY | RTLD_LOCAL);
 #endif
   if (!Handle) {
-    spdlog::error(ErrCode::Value::IllegalPath);
 #if WASMEDGE_OS_WINDOWS
     const auto Code = winapi::GetLastError();
     winapi::LPSTR_ ErrorText = nullptr;
@@ -34,13 +32,13 @@ SharedLibrary::SharedLibrary(const char *Name) noexcept {
                                                    winapi::SUBLANG_DEFAULT_),
                                reinterpret_cast<winapi::LPSTR_>(&ErrorText), 0,
                                nullptr)) {
-      spdlog::error("[WASI-NN] Load shared library failed:{}", ErrorText);
+      spdlog::error("[WASI-NN] Load shared library failed: {}", ErrorText);
       winapi::LocalFree(ErrorText);
     } else {
-      spdlog::error("[WASI-NN] Load shared library failed:{:x}", Code);
+      spdlog::error("[WASI-NN] Load shared library failed: {:x}", Code);
     }
 #else
-    spdlog::error("[WASI-NN] Load shared library failed:{}", ::dlerror());
+    spdlog::error("[WASI-NN] Load shared library failed: {}", ::dlerror());
 #endif
   }
 

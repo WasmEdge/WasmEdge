@@ -55,7 +55,7 @@ jobs:
       - name: Build API document
         working-directory: bindings/rust/wasmedge-macro
         run: |
-          cargo doc -p wasmedge-macro --workspace --no-deps --target-dir=./target
+          cargo doc -p wasmedge-macro --no-deps --target-dir=./target
 
       - name: Deploy API document
         if: github.ref == 'refs/heads/master'

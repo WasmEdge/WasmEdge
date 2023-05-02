@@ -8,7 +8,6 @@ on:
   workflow_dispatch:
     branches:
       - master
-      - ci/update-crates-release-workflow
 
 jobs:
   crate_release:

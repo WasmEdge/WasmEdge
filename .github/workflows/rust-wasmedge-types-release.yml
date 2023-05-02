@@ -54,7 +54,7 @@ jobs:
       - name: Build API document
         working-directory: bindings/rust/wasmedge-types
         run: |
-          cargo doc -p wasmedge-types --workspace --no-deps --features aot,async,wasi_crypto,wasi_nn --target-dir=./target
+          cargo doc -p wasmedge-types --workspace --no-deps --target-dir=./target
 
       - name: Deploy API document
         if: github.ref == 'refs/heads/master'

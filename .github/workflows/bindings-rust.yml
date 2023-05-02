@@ -201,7 +201,7 @@ jobs:
           cargo test --examples --features aot,async,ffi --locked -- --test-threads=1
 
   build_fedora:
-    name: Fedora 37
+    name: Fedora latest
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -222,7 +222,7 @@ jobs:
       - name: Build WasmEdge with Release mode
         run: |
           dnf update -y
-          dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev
+          dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev spdlog-devel
           git config --global --add safe.directory $(pwd)
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
           cmake --build build

@@ -6,12 +6,16 @@ concurrency:
 
 on:
   push:
+    branches:
+      - master
     paths:
       - ".github/workflows/wasi-testsuite.yml"
       - "lib/host/wasi/**"
       - "include/host/wasi/**"
       - "thirdparty/wasi/**"
   pull_request:
+    branches:
+      - master
     paths:
       - ".github/workflows/wasi-testsuite.yml"
       - "lib/host/wasi/**"

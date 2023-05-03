@@ -518,7 +518,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   }
   case OpCode::Call_ref: {
     auto TypeIdx = Instr.getTargetIndex();
-    if (TypeIdx >= Types.size()) {
+    if (TypeIdx >= (uint32_t)Types.size()) {
       return logOutOfRange(ErrCode::Value::InvalidFuncTypeIdx,
                            ErrInfo::IndexCategory::FunctionType, TypeIdx,
                            Types.size());

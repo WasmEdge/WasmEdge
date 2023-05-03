@@ -127,7 +127,7 @@ void allocateAddrinfoArray(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 }
 } // namespace
 
-TEST(WasiTest, SocketUDP_4) {
+TEST(WasiSockTest, SocketUDP_4V1) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -138,11 +138,208 @@ TEST(WasiTest, SocketUDP_4) {
   auto &MemInst = *MemInstPtr;
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
-  WasmEdge::Host::WasiSockOpen WasiSockOpen(Env);
+  WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
-  WasmEdge::Host::WasiSockBind WasiSockBind(Env);
-  WasmEdge::Host::WasiSockSendTo WasiSockSendTo(Env);
-  WasmEdge::Host::WasiSockRecvFrom WasiSockRecvFrom(Env);
+  WasmEdge::Host::WasiSockBindV1 WasiSockBind(Env);
+  WasmEdge::Host::WasiSockSendToV1 WasiSockSendTo(Env);
+  WasmEdge::Host::WasiSockRecvFromV1 WasiSockRecvFrom(Env);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  // Open and Close udp socket
+  {
+    uint32_t AddressFamily = __WASI_ADDRESS_FAMILY_INET4;
+    uint32_t SockType = __WASI_SOCK_TYPE_SOCK_DGRAM;
+    uint32_t Port = 12345;
+    uint32_t FdServerPtr = 0;
+    uint32_t FdClientPtr = 4;
+    uint32_t SendtoRetPtr = 8;
+    uint32_t RecvfromRetPtr = 12;
+    uint32_t FlagPtr = 16;
+    uint32_t AddrBufPtr = 100;
+    uint32_t AddrBuflen = 4;
+    uint32_t AddrPtr = 200;
+    uint32_t MsgInPackPtr = 900;
+    uint32_t MsgInPtr = 1000;
+    uint32_t MsgOutPackPtr = 1900;
+    uint32_t MsgOutPtr = 2000;
+
+    writeDummyMemoryContent(MemInst);
+    WasiSockOpen.run(CallFrame,
+                     std::array<WasmEdge::ValVariant, 3>{AddressFamily,
+                                                         SockType, FdServerPtr},
+                     Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdServerPtr), UINT32_C(-1));
+
+    int32_t FdServer = *MemInst.getPointer<const int32_t *>(FdServerPtr);
+
+    WasiSockOpen.run(CallFrame,
+                     std::array<WasmEdge::ValVariant, 3>{AddressFamily,
+                                                         SockType, FdClientPtr},
+                     Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
+
+    int32_t FdClient = *MemInst.getPointer<const int32_t *>(FdClientPtr);
+
+    WasiSockOpen.run(CallFrame,
+                     std::array<WasmEdge::ValVariant, 3>{AddressFamily,
+                                                         SockType, FdClientPtr},
+                     Errno);
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
+
+    auto *AddrBuf =
+        MemInst.getPointer<uint8_t *>(AddrBufPtr, sizeof(uint8_t) * AddrBuflen);
+    auto *Addr = MemInst.getPointer<__wasi_address_t *>(
+        AddrPtr, sizeof(__wasi_address_t));
+
+    ::memset(AddrBuf, 0x00, AddrBuflen);
+    Addr->buf = AddrBufPtr;
+    Addr->buf_len = AddrBuflen;
+
+    WasiSockBind.run(
+        CallFrame, std::array<WasmEdge::ValVariant, 3>{FdServer, AddrPtr, Port},
+        Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    const auto Msg1 = "hello, wasmedge."sv;
+    uint32_t Msg1Len = Msg1.size();
+    writeString(MemInst, Msg1, MsgInPtr);
+
+    auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(
+        MsgInPackPtr, sizeof(__wasi_ciovec_t));
+    MsgInPack->buf = MsgInPtr;
+    MsgInPack->buf_len = Msg1Len;
+
+    auto *AddrBufSend =
+        MemInst.getPointer<uint32_t *>(AddrBufPtr, sizeof(uint32_t));
+    *AddrBufSend = htonl(INADDR_LOOPBACK);
+    Addr->buf_len = sizeof(uint32_t);
+
+    WasiSockSendTo.run(CallFrame,
+                       std::array<WasmEdge::ValVariant, 7>{
+                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr,
+                           INT32_C(Port), UINT32_C(0), SendtoRetPtr},
+                       Errno);
+
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    uint32_t MaxMsgBufLen = 100;
+    auto *MsgBuf =
+        MemInst.getPointer<char *>(MsgOutPtr, sizeof(char) * MaxMsgBufLen);
+    ::memset(MsgBuf, 0x00, MaxMsgBufLen);
+
+    auto *MsgOutPack = MemInst.getPointer<__wasi_ciovec_t *>(
+        MsgOutPackPtr, sizeof(__wasi_ciovec_t));
+    MsgOutPack->buf = MsgOutPtr;
+    MsgOutPack->buf_len = MaxMsgBufLen;
+
+    Addr->buf_len = 4;
+
+    WasiSockRecvFrom.run(CallFrame,
+                         std::array<WasmEdge::ValVariant, 7>{
+                             FdServer, MsgOutPackPtr, UINT32_C(1), AddrPtr,
+                             UINT32_C(0), RecvfromRetPtr, FlagPtr},
+                         Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    std::string_view MsgRecv{MsgBuf, Msg1.size()};
+    EXPECT_EQ(MsgRecv, Msg1);
+
+    WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{FdServer},
+                    Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{FdClient},
+                    Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
+  // False SockType
+  {
+    uint32_t AddressFamily = __WASI_ADDRESS_FAMILY_INET4;
+    uint32_t SockType = 3;
+
+    writeDummyMemoryContent(MemInst);
+    WasiSockOpen.run(CallFrame,
+                     std::array<WasmEdge::ValVariant, 3>{AddressFamily,
+                                                         SockType, UINT32_C(0)},
+                     Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_INVAL);
+    Env.fini();
+  }
+  // False AddressFamily
+  {
+    uint32_t AddressFamily = 3;
+    uint32_t SockType = __WASI_SOCK_TYPE_SOCK_DGRAM;
+
+    writeDummyMemoryContent(MemInst);
+    WasiSockOpen.run(CallFrame,
+                     std::array<WasmEdge::ValVariant, 3>{AddressFamily,
+                                                         SockType, UINT32_C(0)},
+                     Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_INVAL);
+    Env.fini();
+  }
+  // Invalid Address Length for Bind
+  {
+    uint32_t Fd = 0;
+    uint32_t Port = 12345;
+    uint8_t_ptr AddrBufPtr = 100;
+    uint32_t AddrBuflen = 7;
+    uint32_t AddrPtr = 200;
+    auto *AddrBuf =
+        MemInst.getPointer<uint8_t *>(AddrBufPtr, sizeof(uint8_t) * AddrBuflen);
+    auto *Addr = MemInst.getPointer<__wasi_address_t *>(
+        AddrPtr, sizeof(__wasi_address_t));
+
+    ::memset(AddrBuf, 0x00, AddrBuflen);
+    Addr->buf = AddrBufPtr;
+    Addr->buf_len = AddrBuflen;
+
+    WasiSockBind.run(CallFrame,
+                     std::array<WasmEdge::ValVariant, 3>{Fd, AddrPtr, Port},
+                     Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_INVAL);
+  }
+  // Invalid Fd for Bind
+  {
+    uint32_t Fd = 0;
+    uint32_t Port = 12345;
+    uint8_t_ptr AddrBufPtr = 100;
+    uint32_t AddrBuflen = 16;
+    uint32_t AddrPtr = 200;
+    auto *AddrBuf =
+        MemInst.getPointer<uint8_t *>(AddrBufPtr, sizeof(uint8_t) * AddrBuflen);
+    auto *Addr = MemInst.getPointer<__wasi_address_t *>(
+        AddrPtr, sizeof(__wasi_address_t));
+
+    ::memset(AddrBuf, 0x00, AddrBuflen);
+    Addr->buf = AddrBufPtr;
+    Addr->buf_len = AddrBuflen;
+
+    WasiSockBind.run(CallFrame,
+                     std::array<WasmEdge::ValVariant, 3>{Fd, AddrPtr, Port},
+                     Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_BADF);
+  }
+}
+
+TEST(WasiSockTest, SocketUDP_4V2) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
+  WasmEdge::Host::WasiFdClose WasiFdClose(Env);
+  WasmEdge::Host::WasiSockBindV2 WasiSockBind(Env);
+  WasmEdge::Host::WasiSockSendToV2 WasiSockSendTo(Env);
+  WasmEdge::Host::WasiSockRecvFromV2 WasiSockRecvFrom(Env);
 
   std::array<WasmEdge::ValVariant, 1> Errno;
 
@@ -329,7 +526,7 @@ TEST(WasiTest, SocketUDP_4) {
   }
 }
 
-TEST(WasiTest, SocketUDP_6) {
+TEST(WasiSockTest, SocketUDP_6) {
   if (!TestIPv6Enabled()) {
     GTEST_SKIP();
   }
@@ -344,11 +541,11 @@ TEST(WasiTest, SocketUDP_6) {
   auto &MemInst = *MemInstPtr;
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
-  WasmEdge::Host::WasiSockOpen WasiSockOpen(Env);
+  WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
-  WasmEdge::Host::WasiSockBind WasiSockBind(Env);
-  WasmEdge::Host::WasiSockSendTo WasiSockSendTo(Env);
-  WasmEdge::Host::WasiSockRecvFrom WasiSockRecvFrom(Env);
+  WasmEdge::Host::WasiSockBindV2 WasiSockBind(Env);
+  WasmEdge::Host::WasiSockSendToV2 WasiSockSendTo(Env);
+  WasmEdge::Host::WasiSockRecvFromV2 WasiSockRecvFrom(Env);
 
   std::array<WasmEdge::ValVariant, 1> Errno;
 
@@ -468,7 +665,7 @@ TEST(WasiTest, SocketUDP_6) {
   }
 }
 
-TEST(WasiTest, SocketUDP_4_Fallback) {
+TEST(WasiSockTest, SocketUDP_4_Fallback) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -479,11 +676,11 @@ TEST(WasiTest, SocketUDP_4_Fallback) {
   auto &MemInst = *MemInstPtr;
 
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
-  WasmEdge::Host::WasiSockOpen WasiSockOpen(Env);
+  WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
-  WasmEdge::Host::WasiSockBind WasiSockBind(Env);
-  WasmEdge::Host::WasiSockSendTo WasiSockSendTo(Env);
-  WasmEdge::Host::WasiSockRecvFrom WasiSockRecvFrom(Env);
+  WasmEdge::Host::WasiSockBindV2 WasiSockBind(Env);
+  WasmEdge::Host::WasiSockSendToV2 WasiSockSendTo(Env);
+  WasmEdge::Host::WasiSockRecvFromV2 WasiSockRecvFrom(Env);
 
   std::array<WasmEdge::ValVariant, 1> Errno;
 
@@ -599,7 +796,7 @@ TEST(WasiTest, SocketUDP_4_Fallback) {
   }
 }
 
-TEST(WasiTest, SocketUDP_6_Fallback) {
+TEST(WasiSockTest, SocketUDP_6_Fallback) {
   if (!TestIPv6Enabled()) {
     GTEST_SKIP();
   }
@@ -615,11 +812,11 @@ TEST(WasiTest, SocketUDP_6_Fallback) {
 
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
-  WasmEdge::Host::WasiSockOpen WasiSockOpen(Env);
+  WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
-  WasmEdge::Host::WasiSockBind WasiSockBind(Env);
-  WasmEdge::Host::WasiSockSendTo WasiSockSendTo(Env);
-  WasmEdge::Host::WasiSockRecvFrom WasiSockRecvFrom(Env);
+  WasmEdge::Host::WasiSockBindV2 WasiSockBind(Env);
+  WasmEdge::Host::WasiSockSendToV2 WasiSockSendTo(Env);
+  WasmEdge::Host::WasiSockRecvFromV2 WasiSockRecvFrom(Env);
 
   std::array<WasmEdge::ValVariant, 1> Errno;
 
@@ -733,7 +930,7 @@ TEST(WasiTest, SocketUDP_6_Fallback) {
   }
 }
 
-TEST(WasiTest, SockOpt) {
+TEST(WasiSockTest, SockOpt) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -744,7 +941,7 @@ TEST(WasiTest, SockOpt) {
   auto &MemInst = *MemInstPtr;
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
-  WasmEdge::Host::WasiSockOpen WasiSockOpen(Env);
+  WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
   WasmEdge::Host::WasiSockGetOpt WasiSockGetOpt(Env);
   WasmEdge::Host::WasiSockSetOpt WasiSockSetOpt(Env);
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
@@ -854,7 +1051,7 @@ TEST(WasiTest, SockOpt) {
   }
 }
 
-TEST(WasiTest, SockGetLocalAddr_4) {
+TEST(WasiSockTest, SockGetLocalAddr_4) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -865,9 +1062,9 @@ TEST(WasiTest, SockGetLocalAddr_4) {
   auto &MemInst = *MemInstPtr;
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
-  WasmEdge::Host::WasiSockOpen WasiSockOpen(Env);
-  WasmEdge::Host::WasiSockBind WasiSockBind(Env);
-  WasmEdge::Host::WasiSockGetLocalAddr WasiSockGetLocalAddr(Env);
+  WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
+  WasmEdge::Host::WasiSockBindV2 WasiSockBind(Env);
+  WasmEdge::Host::WasiSockGetLocalAddrV2 WasiSockGetLocalAddr(Env);
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
 
   std::array<WasmEdge::ValVariant, 1> Errno;
@@ -940,7 +1137,7 @@ TEST(WasiTest, SockGetLocalAddr_4) {
   }
 }
 
-TEST(WasiTest, SockGetLocalAddr_6) {
+TEST(WasiSockTest, SockGetLocalAddr_6) {
   if (!TestIPv6Enabled()) {
     GTEST_SKIP();
   }
@@ -955,9 +1152,9 @@ TEST(WasiTest, SockGetLocalAddr_6) {
   auto &MemInst = *MemInstPtr;
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
-  WasmEdge::Host::WasiSockOpen WasiSockOpen(Env);
-  WasmEdge::Host::WasiSockBind WasiSockBind(Env);
-  WasmEdge::Host::WasiSockGetLocalAddr WasiSockGetLocalAddr(Env);
+  WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
+  WasmEdge::Host::WasiSockBindV2 WasiSockBind(Env);
+  WasmEdge::Host::WasiSockGetLocalAddrV2 WasiSockGetLocalAddr(Env);
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
 
   std::array<WasmEdge::ValVariant, 1> Errno;
@@ -1032,7 +1229,7 @@ TEST(WasiTest, SockGetLocalAddr_6) {
   }
 }
 
-TEST(WasiTest, GetAddrinfo) {
+TEST(WasiSockTest, GetAddrinfo) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -1043,7 +1240,7 @@ TEST(WasiTest, GetAddrinfo) {
   auto &MemInst = *MemInstPtr;
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
-  WasmEdge::Host::WasiGetAddrinfo WasiGetAddrinfo(Env);
+  WasmEdge::Host::WasiSockGetAddrinfo WasiGetAddrinfo(Env);
 
   std::array<WasmEdge::ValVariant, 1> Errno;
 

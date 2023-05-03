@@ -1,4 +1,4 @@
-# WasmEdge Go v0.12.0 API references (Unreleased)
+# WasmEdge Go v0.12.0 API references
 
 The following are the guides to working with the WasmEdge-Go SDK.
 

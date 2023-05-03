@@ -21,8 +21,10 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   Checker.reset(true);
 
   // Register type definitions into FormChecker.
-  for (auto &Type : Mod.getTypeSection().getContent()) {
-    Checker.addType(Type);
+  if (auto Res = validate(Mod.getTypeSection()); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Type));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return Unexpect(Res);
   }
 
   // Validate and register import section into FormChecker.
@@ -129,7 +131,11 @@ Expect<void> Validator::validate(const AST::Limit &Lim) {
 
 // Validate TableSegment type. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::TableSegment &Tab) {
-  // TODO: validate the init expr is constant
+  if (auto Res = validateConstExpr(Tab.getExpr().getInstrs(),
+                                   {ValType(Tab.getTableType().getRefType())});
+      !Res) {
+    return Unexpect(Res);
+  }
   if (auto Res = validate(Tab.getTableType()); !Res) {
     return Unexpect(Res);
   }
@@ -221,12 +227,13 @@ Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
   Checker.reset();
   // Add parameters into this frame.
   for (auto Val : Checker.getTypes()[TypeIdx].first) {
-    Checker.addLocal(Val);
+    // Local passed as function parameters should be initialized
+    Checker.addLocal(Val, true);
   }
   // Add locals into this frame.
   for (auto Val : CodeSeg.getLocals()) {
     for (uint32_t Cnt = 0; Cnt < Val.first; ++Cnt) {
-      Checker.addLocal(Val.second);
+      Checker.addLocal(Val.second, false);
     }
   }
   // Validate function body expression.
@@ -353,6 +360,39 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
     return {};
   default:
     break;
+  }
+  return {};
+}
+
+Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
+  auto TypeCount = TypeSec.getContent().size();
+  auto validateValType = [TypeCount](const ValType &VType) -> Expect<void> {
+    if (VType.isRefType()) {
+      auto HeapType = VType.toRefType().getHeapType();
+      if (HeapType.getHeapTypeCode() == HeapTypeCode::TypeIndex) {
+        if (HeapType.getTypeIndex() >= TypeCount) {
+          spdlog::error(ErrCode::Value::InvalidTableIdx);
+          spdlog::error(ErrInfo::InfoForbidIndex(
+              ErrInfo::IndexCategory::FunctionType,
+              HeapType.getTypeIndex(), TypeCount));
+          return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+        }
+      }
+    }
+    return {};
+  };
+  for (const auto &Type : TypeSec.getContent()) {
+    for (auto &ParamType : Type.getParamTypes()) {
+      if (auto Res = validateValType(ParamType); !Res) {
+        return Unexpect(Res);
+      }
+    }
+    for (auto &ParamType : Type.getReturnTypes()) {
+      if (auto Res = validateValType(ParamType); !Res) {
+        return Unexpect(Res);
+      }
+    }
+    Checker.addType(Type);
   }
   return {};
 }

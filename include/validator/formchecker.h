@@ -40,6 +40,20 @@ static inline constexpr bool isRefType(const VType V) {
   return !V || V->isRefType();
 }
 
+class LocalType {
+public:
+  LocalType(ValType VType, bool Initialized)
+      : IsSet(Initialized || VType.isDefaultable()), VType(VType) {}
+
+  const ValType &getValType() const noexcept { return VType; }
+  bool isSet() const noexcept { return IsSet; }
+  void set() noexcept { IsSet = true; }
+
+private:
+  bool IsSet;
+  ValType VType;
+};
+
 class FormChecker {
 public:
   FormChecker() = default;
@@ -57,7 +71,62 @@ public:
   void addElem(const AST::ElementSegment &Elem);
   void addData(const AST::DataSegment &Data);
   void addRef(const uint32_t FuncIdx);
-  void addLocal(const ValType &V);
+  void addLocal(const ValType &V, bool Initialized);
+
+  bool match_type(const ValType &LHS, const ValType &RHS) const noexcept {
+    if (LHS == RHS) {
+      return true;
+    }
+    if (LHS.isRefType() && RHS.isRefType()) {
+      return match_type(LHS.toRefType(), RHS.toRefType());
+    }
+    return false;
+  }
+
+  bool match_type(const RefType &LHS, const RefType &RHS) const noexcept {
+    if (!match_type(LHS.getHeapType(), RHS.getHeapType())) {
+      return false;
+    }
+    return !LHS.isNullableRefType() || RHS.isNullableRefType();
+  }
+
+  bool match_type(const HeapType &LHS, const HeapType &RHS) const noexcept {
+    if (LHS == RHS) {
+      return true;
+    }
+    if (LHS.getHeapTypeCode() == HeapTypeCode::TypeIndex) {
+      if (RHS.getHeapTypeCode() == HeapTypeCode::Func) {
+        return true;
+      }
+      if (RHS.getHeapTypeCode() == HeapTypeCode::TypeIndex &&
+          match_type(LHS.getTypeIndex(), RHS.getTypeIndex())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool match_type(uint32_t LTypeIdx, uint32_t RTypeIdx) const noexcept {
+    assuming(LTypeIdx < Types.size());
+    assuming(RTypeIdx < Types.size());
+    // Note: In future versions of WebAssembly, subtyping on function types may
+    // be relaxed to support co- and contra-variance.
+    return Types[LTypeIdx].first == Types[RTypeIdx].first &&
+           Types[LTypeIdx].second == Types[RTypeIdx].second;
+  }
+
+  bool match_type(Span<const ValType> LHS,
+                  Span<const ValType> RHS) const noexcept {
+    if (LHS.size() != RHS.size()) {
+      return false;
+    }
+    for (uint32_t I = 0; I < LHS.size(); I++) {
+      if (!match_type(LHS[I], RHS[I])) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   std::vector<VType> result() { return ValStack; }
   auto &getTypes() { return Types; }
@@ -130,7 +199,7 @@ private:
   std::unordered_set<uint32_t> Refs;
   uint32_t NumImportFuncs = 0;
   uint32_t NumImportGlobals = 0;
-  std::vector<ValType> Locals;
+  std::vector<LocalType> Locals;
   std::vector<ValType> Returns;
 
   /// Running stack.

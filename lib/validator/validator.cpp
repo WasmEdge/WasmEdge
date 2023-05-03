@@ -372,9 +372,9 @@ Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
       if (HeapType.getHeapTypeCode() == HeapTypeCode::TypeIndex) {
         if (HeapType.getTypeIndex() >= TypeCount) {
           spdlog::error(ErrCode::Value::InvalidTableIdx);
-          spdlog::error(ErrInfo::InfoForbidIndex(
-              ErrInfo::IndexCategory::FunctionType,
-              HeapType.getTypeIndex(), TypeCount));
+          spdlog::error(
+              ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::FunctionType,
+                                       HeapType.getTypeIndex(), TypeCount));
           return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
         }
       }

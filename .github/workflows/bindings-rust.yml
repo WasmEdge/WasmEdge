@@ -95,11 +95,11 @@ jobs:
           fetch-depth: 0
 
       - name: Install build tools
-        run: brew install llvm@14 ninja boost cmake
+        run: brew install llvm ninja boost cmake
 
       - name: Build WasmEdge with Release mode
         run: |
-          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
           rm -rf build

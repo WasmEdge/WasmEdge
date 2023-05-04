@@ -30,7 +30,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]
-        rust: [1.66, 1.67, 1.68]
+        rust: [1.68, 1.69]
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
@@ -76,6 +76,7 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
+          cargo +nightly -Z sparse-registry update
           cargo test --workspace --locked --features aot,async,ffi -- --test-threads=1
           cargo test --examples --locked --features aot,async,ffi -- --test-threads=1
 

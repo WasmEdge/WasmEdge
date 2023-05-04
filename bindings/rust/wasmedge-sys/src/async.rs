@@ -1,13 +1,13 @@
 //! Defines data structure for WasmEdge async mechanism.
 
 use crate::ASYNC_STATE;
+use fiber_for_wasmedge::{Fiber, FiberStack, Suspend};
 use std::{
     future::Future,
     pin::Pin,
     ptr,
     task::{Context, Poll},
 };
-use fiber_for_wasmedge::{Fiber, FiberStack, Suspend};
 
 /// Defines a FiberFuture.
 pub(crate) struct FiberFuture<'a> {

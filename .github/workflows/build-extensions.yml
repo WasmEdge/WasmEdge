@@ -443,8 +443,8 @@ jobs:
           fetch-depth: 0
       - name: Build WasmEdge ${{ matrix.name }} plugin using clang++ with ${{ matrix.build_type }} mode
         run: |
-          brew install llvm@14 ninja boost cmake openssl@1.1
-          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          brew install llvm ninja boost cmake openssl@1.1
+          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
           mkdir -p build

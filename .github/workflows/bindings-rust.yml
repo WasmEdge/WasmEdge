@@ -54,7 +54,7 @@ jobs:
 
       - name: Rustfmt
         working-directory: bindings/rust/
-        run: cargo fmt --all -- --check
+        run: cargo +nightly fmt --all -- --check
 
       - name: Clippy
         working-directory: bindings/rust/
@@ -109,7 +109,7 @@ jobs:
 
       - name: Run cargo fmt
         working-directory: bindings/rust/
-        run: cargo fmt --all -- --check
+        run: cargo +nightly fmt --all -- --check
 
       - name: Clippy
         working-directory: bindings/rust/
@@ -162,9 +162,8 @@ jobs:
           components: rustfmt, clippy
 
       - name: Rustfmt
-        run: |
-          cd bindings/rust/
-          cargo fmt --all -- --check
+        working-directory: bindings/rust/
+        run: cargo +nightly fmt --all -- --check
 
       - name: Build WasmEdge with Release mode
         run: |
@@ -229,7 +228,7 @@ jobs:
 
       - name: Rustfmt
         working-directory: bindings/rust/
-        run: cargo fmt --all -- --check
+        run: cargo +nightly fmt --all -- --check
 
       - name: Clippy
         working-directory: bindings/rust/

@@ -39,12 +39,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Rust-stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ matrix.rust }}
-          components: rustfmt, clippy
-
       - name: Build WasmEdge with Release mode
         run: |
           apt update
@@ -52,6 +46,12 @@ jobs:
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On .
           cmake --build build
 
+      - name: Install Rust-nightly
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+    
       - name: Rustfmt
         working-directory: bindings/rust/
         run: cargo +nightly fmt --all -- --check
@@ -62,9 +62,14 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-          cargo clippy -V
-          cargo clippy --lib --examples --features aot,async,wasi_crypto,wasi_nn,wasmedge_process,ffi -- -D warnings
-
+          cargo +nightly clippy -V
+          cargo +nightly clippy --lib --examples --features aot,async,wasi_crypto,wasi_nn,wasmedge_process,ffi -- -D warnings
+    
+      - name: Install Rust-stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+  
       - name: Test Rust Bindings
         working-directory: bindings/rust/
         run: |

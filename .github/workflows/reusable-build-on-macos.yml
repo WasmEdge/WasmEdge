@@ -46,13 +46,16 @@ jobs:
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
           cmake --build build
       - name: Test WasmEdge
+        run: |
+          export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
+          cd build
+          ctest -E wasiSocketTests
+      - name: Test WasmEdge (continue on error)
         continue-on-error: true
         run: |
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           cd build
-          ./tools/wasmedge/wasmedge -v
-          ctest
-          cd -
+          ctest -R wasiSocketTests
       - name: Create package tarball
         run: |
           cmake --build build --target package

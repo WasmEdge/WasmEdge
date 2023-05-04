@@ -1646,6 +1646,25 @@ WasmEdge_ExecutorInvoke(WasmEdge_ExecutorContext *Cxt,
                         const WasmEdge_Value *Params, const uint32_t ParamLen,
                         WasmEdge_Value *Returns, const uint32_t ReturnLen);
 
+/// Asynchronous invoke a WASM function by the function instance.
+///
+/// After instantiating a WASM module, developers can get the function instance
+/// context from the module instance. Then developers can invoke the function
+/// asynchronously through this API.
+///
+/// \param Cxt the WasmEdge_ExecutorContext.
+/// \param FuncCxt the function instance context to invoke.
+/// \param Params the WasmEdge_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+///
+/// \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
+/// `WasmEdge_AsyncDelete` to destroy this object.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *
+WasmEdge_ExecutorAsyncInvoke(WasmEdge_ExecutorContext *Cxt,
+                             const WasmEdge_FunctionInstanceContext *FuncCxt,
+                             const WasmEdge_Value *Params,
+                             const uint32_t ParamLen);
+
 /// Deletion of the WasmEdge_ExecutorContext.
 ///
 /// After calling this function, the context will be destroyed and should

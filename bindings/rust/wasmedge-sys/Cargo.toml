@@ -21,7 +21,7 @@ rand = "0.8.4"
 thiserror = "1.0.30"
 wasmedge-macro = {workspace = true}
 wasmedge-types = {workspace = true}
-fiber-for-wasmedge = {path = "/root/workspace/me/fiber-for-wasmedge", optional = true}
+fiber-for-wasmedge = {version = "8.0.1", optional = true}
 wat = "1.0"
 
 [build-dependencies]

@@ -49,7 +49,6 @@ jobs:
       - name: Install Rust-nightly
         uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
     
       - name: Rustfmt

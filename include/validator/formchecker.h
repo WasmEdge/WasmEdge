@@ -47,7 +47,6 @@ public:
 
   void reset(bool CleanGlobal = false);
   Expect<void> validate(AST::InstrView Instrs, Span<const ValType> RetVals);
-  Expect<void> validate(AST::InstrView Instrs, Span<const VType> RetVals);
 
   /// Adder of contexts
   void addType(const AST::FunctionType &Func);
@@ -59,7 +58,6 @@ public:
   void addData(const AST::DataSegment &Data);
   void addRef(const uint32_t FuncIdx);
   void addLocal(const ValType &V);
-  void addLocal(const VType &V);
 
   std::vector<VType> result() { return ValStack; }
   auto &getTypes() { return Types; }
@@ -82,13 +80,13 @@ public:
     CtrlFrame(const struct CtrlFrame &F)
         : StartTypes(F.StartTypes), EndTypes(F.EndTypes), Jump(F.Jump),
           Height(F.Height), IsUnreachable(F.IsUnreachable), Code(F.Code) {}
-    CtrlFrame(Span<const VType> In, Span<const VType> Out,
+    CtrlFrame(Span<const ValType> In, Span<const ValType> Out,
               const AST::Instruction *J, size_t H,
               OpCode Op = OpCode::Unreachable)
         : StartTypes(In.begin(), In.end()), EndTypes(Out.begin(), Out.end()),
           Jump(J), Height(H), IsUnreachable(false), Code(Op) {}
-    std::vector<VType> StartTypes;
-    std::vector<VType> EndTypes;
+    std::vector<ValType> StartTypes;
+    std::vector<ValType> EndTypes;
     const AST::Instruction *Jump;
     size_t Height;
     bool IsUnreachable;
@@ -108,30 +106,32 @@ private:
   /// Stack operations
   void pushType(VType);
   void pushTypes(Span<const VType> Input);
+  void pushTypes(Span<const ValType> Input);
   Expect<VType> popType();
-  Expect<VType> popType(VType E);
-  Expect<void> popTypes(Span<const VType> Input);
-  void pushCtrl(Span<const VType> In, Span<const VType> Out,
+  Expect<VType> popType(ValType E);
+  Expect<void> popTypes(Span<const ValType> Input);
+  void pushCtrl(Span<const ValType> In, Span<const ValType> Out,
                 const AST::Instruction *Jump,
                 OpCode Code = OpCode::Unreachable);
   Expect<CtrlFrame> popCtrl();
-  Span<const VType> getLabelTypes(const CtrlFrame &F);
+  Span<const ValType> getLabelTypes(const CtrlFrame &F);
   Expect<void> unreachable();
-  Expect<void> StackTrans(Span<const VType> Take, Span<const VType> Put);
+  Expect<void> StackTrans(Span<const ValType> Take, Span<const ValType> Put);
+  Expect<void> StackPopAny();
 
   /// Contexts.
-  std::vector<std::pair<std::vector<VType>, std::vector<VType>>> Types;
+  std::vector<std::pair<std::vector<ValType>, std::vector<ValType>>> Types;
   std::vector<uint32_t> Funcs;
   std::vector<RefType> Tables;
   uint32_t Mems = 0;
-  std::vector<std::pair<VType, ValMut>> Globals;
+  std::vector<std::pair<ValType, ValMut>> Globals;
   std::vector<RefType> Elems;
   std::vector<uint32_t> Datas;
   std::unordered_set<uint32_t> Refs;
   uint32_t NumImportFuncs = 0;
   uint32_t NumImportGlobals = 0;
-  std::vector<VType> Locals;
-  std::vector<VType> Returns;
+  std::vector<ValType> Locals;
+  std::vector<ValType> Returns;
 
   /// Running stack.
   std::vector<CtrlFrame> CtrlStack;

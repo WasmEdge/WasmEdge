@@ -2142,6 +2142,8 @@ TEST(APICoreTest, ModuleInstance) {
 
 TEST(APICoreTest, Async) {
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(nullptr, nullptr);
+  WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+  WasmEdge_ExecutorContext *Exec = WasmEdge_ExecutorCreate(nullptr, nullptr);
   WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
   WasmEdge_VMRegisterModuleFromImport(VM, HostMod);
   WasmEdge_String ModName, ModName2, FuncName, FuncName2;
@@ -2593,6 +2595,83 @@ TEST(APICoreTest, Async) {
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
   WasmEdge_AsyncDelete(Async);
 
+  // Async Executor invoke
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_ExecutorRegisterImport(Exec, Store, HostMod)));
+  WasmEdge_ModuleInstanceContext *ModInst = nullptr;
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInstantiate(Exec, &ModInst, Store, Mod)));
+  EXPECT_NE(ModInst, nullptr);
+  WasmEdge_FunctionInstanceContext *FuncInst =
+      WasmEdge_ModuleInstanceFindFunction(ModInst, FuncName);
+  EXPECT_NE(FuncInst, nullptr);
+  // Success case
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  WasmEdge_AsyncWait(Async);
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(Async), 2);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[0].Type);
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[1].Type);
+  WasmEdge_AsyncDelete(Async);
+  // Executor nullptr case
+  Async = WasmEdge_ExecutorAsyncInvoke(nullptr, FuncInst, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // Function instance nullptr case
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, nullptr, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // Function type mismatch
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 1);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, nullptr, 0);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, nullptr, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Discard result
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 1)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[0].Type);
+  EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[1].Type);
+  // Discard result
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
+  WasmEdge_AsyncDelete(Async);
+
   WasmEdge_StringDelete(FuncName);
   WasmEdge_StringDelete(FuncName2);
   WasmEdge_StringDelete(ModName);
@@ -2600,6 +2679,8 @@ TEST(APICoreTest, Async) {
   WasmEdge_ASTModuleDelete(Mod);
   WasmEdge_ModuleInstanceDelete(HostMod);
   WasmEdge_VMDelete(VM);
+  WasmEdge_StoreDelete(Store);
+  WasmEdge_ExecutorDelete(Exec);
 }
 
 TEST(APICoreTest, VM) {

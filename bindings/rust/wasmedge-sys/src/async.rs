@@ -7,7 +7,7 @@ use std::{
     ptr,
     task::{Context, Poll},
 };
-use wasmtime_fiber::{Fiber, FiberStack, Suspend};
+use fiber_for_wasmedge::{Fiber, FiberStack, Suspend};
 
 /// Defines a FiberFuture.
 pub(crate) struct FiberFuture<'a> {

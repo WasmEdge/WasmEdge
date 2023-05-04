@@ -21,7 +21,7 @@ rand = "0.8.4"
 thiserror = "1.0.30"
 wasmedge-macro = {workspace = true}
 wasmedge-types = {workspace = true}
-wasmtime-fiber = {version = "6", optional = true}
+fiber-for-wasmedge = {path = "/root/workspace/me/fiber-for-wasmedge", optional = true}
 wat = "1.0"
 
 [build-dependencies]
@@ -34,7 +34,7 @@ tokio = {version = "1", features = ["full"]}
 
 [features]
 aot = []
-async = ["dep:wasmtime-fiber"]
+async = ["dep:fiber-for-wasmedge"]
 default = []
 ffi = []
 standalone = []

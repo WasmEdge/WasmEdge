@@ -28,11 +28,10 @@ jobs:
           sudo apt-get install -y gcc g++
           sudo apt-get install -y libssl-dev pkg-config gh
 
-      - name: Install Rust v1.65
+      - name: Install Rust v1.68
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.65
-          components: rustfmt, clippy
+          toolchain: 1.68
 
       - name: Run in the standalone mode
         working-directory: bindings/rust/
@@ -42,6 +41,7 @@ jobs:
           export CXX=clang++
           export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
           export WASMEDGE_DIR="$(pwd)/../../"
+          cargo +nightly -Z sparse-registry update
           cargo test -p wasmedge-sdk --all --examples --features standalone
 
   build_ubuntu_2004:
@@ -61,11 +61,10 @@ jobs:
           sudo apt-get install -y gcc g++
           sudo apt-get install -y libssl-dev pkg-config gh
 
-      - name: Install Rust v1.65
+      - name: Install Rust v1.68
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.65
-          components: rustfmt, clippy
+          toolchain: 1.68
 
       - name: Run in the standalone mode
         working-directory: bindings/rust/
@@ -75,6 +74,7 @@ jobs:
           export CXX=clang++
           export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
           export WASMEDGE_DIR="$(pwd)/../../"
+          cargo +nightly -Z sparse-registry update
           cargo test -p wasmedge-sdk --all --examples --features standalone
 
   build_macos:
@@ -90,11 +90,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Rust v1.65
+      - name: Install Rust v1.68
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.65
-          components: rustfmt, clippy
+          toolchain: 1.68
 
       - name: Install build tools
         run: brew install llvm ninja boost cmake
@@ -107,4 +106,5 @@ jobs:
           export CXX=clang++
           export DYLD_LIBRARY_PATH="/Users/runner/.wasmedge/lib"
           export WASMEDGE_DIR="$(pwd)/../../"
+          cargo +nightly -Z sparse-registry update
           cargo test -p wasmedge-sdk --all --examples --features standalone

@@ -352,6 +352,28 @@ impl Vm {
         Ok(self)
     }
 
+    /// Auto detect all plugins in WASMEDGE_PLUGIN_PATH
+    ///
+    /// # Error
+    ///
+    /// If fail to register plugin instance, then an error is returned.
+    pub fn auto_detect_plugins(mut self) -> WasmEdgeResult<Self> {
+        for plugin_name in crate::plugin::PluginManager::names().iter() {
+            if let Some(plugin) = crate::plugin::PluginManager::find(plugin_name) {
+                for mod_name in plugin.mod_names().iter() {
+                    if let Some(mod_instance) = plugin.mod_instance(mod_name) {
+                        self.plugin_host_instances.push(mod_instance);
+                        self.executor.inner.register_plugin_instance(
+                            &mut self.store.inner,
+                            &self.plugin_host_instances.last().unwrap().inner,
+                        )?;
+                    }
+                }
+            }
+        }
+        Ok(self)
+    }
+
     /// Runs an exported wasm function in a (named or active) [module instance](crate::Instance).
     ///
     /// # Arguments

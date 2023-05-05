@@ -10,29 +10,22 @@ on:
       - master
 
 jobs:
-  crate_release:
+  release_wasmedge_types:
     name: Create Release
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
+    container:
+      image: wasmedge/wasmedge:ubuntu-build-clang
 
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Set up build environment
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y software-properties-common libboost-all-dev ninja-build
-          sudo apt-get install -y llvm-14-dev liblld-14-dev clang-14
-          sudo apt-get install -y gcc g++
-          sudo apt-get install -y libssl-dev
-
-      - name: Install Rust v1.65
+      - name: Install Rust v1.68
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.65
-          components: rustfmt, clippy
-
+          toolchain: 1.68
+  
       - name: Dry run cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRIES_TYPES_TOKEN }}

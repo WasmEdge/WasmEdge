@@ -10,7 +10,7 @@ on:
       - master
 
 jobs:
-  crate_release:
+  release_wasmedge_sdk:
     name: Create Release
     runs-on: ubuntu-20.04
     container:
@@ -46,7 +46,6 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-          cargo +nightly -Z sparse-registry update
           cargo publish --dry-run -p wasmedge-sdk
 
       - name: Publish
@@ -60,17 +59,15 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-          cargo +nightly -Z sparse-registry update
           cargo publish -p wasmedge-sdk
 
       - name: Build API document
         working-directory: bindings/rust/
         run: |
-          export WASMEDGE_DIR="$(pwd)/../../../"
-          export WASMEDGE_BUILD_DIR="$(pwd)/../../../build"
-          export WASMEDGE_PLUGIN_PATH="$(pwd)/../../../build/plugins/wasmedge_process"
-          export LD_LIBRARY_PATH="$(pwd)/../../../build/lib/api"
-          cargo +nightly -Z sparse-registry update
+          export WASMEDGE_DIR="$(pwd)/../../"
+          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
+          export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
+          export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
           cargo doc -p wasmedge-sdk --workspace --no-deps --features aot,async,wasi_crypto,wasi_nn,wasmedge_process,ffi --target-dir=./target
 
       - name: Deploy API document

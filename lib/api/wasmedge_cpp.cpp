@@ -37,6 +37,20 @@ inline constexpr C to_WasmEdge_128_t(T Val) noexcept {
   return C(Val.High, Val.Low);
 #endif
 }
+
+// Helper template to run and return result
+auto EmptyThen = [](auto &&) noexcept {};
+template <typename T, typename U, typename ...CxtT>
+inline constexpr WasmEdge::SDK::Result wrap(
+    T &&Proc, U &&Then, CxtT &...Cxts) noexcept {
+  if (auto Res = Proc()) {
+    Then(Res);
+    return WasmEdge::SDK::Result::ResultFactory::GenResult(
+        WasmEdge::ErrCode::Value::Success);
+  }
+  return WasmEdge::SDK::Result::ResultFactory::GenResult(Res.error());
+}
+
 }
 
 namespace WasmEdge {
@@ -79,6 +93,73 @@ void Log::Off() {
 // <<<<<<<< WasmEdge Log members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge Value members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+class Value::ValueUtils {
+  ValueUtils() = default;
+  ~ValueUtils() = default;
+
+public:
+  // Helper function for converting a WasmEdge_Value array to a ValVariant
+  // vector.
+  static std::pair<std::vector<WasmEdge::ValVariant>,
+  std::vector<WasmEdge::ValType>> GenParamPair(
+      const std::vector<WasmEdge::SDK::Value> &Val) noexcept {
+
+    std::vector<WasmEdge::ValVariant> VVec;
+    std::vector<WasmEdge::ValType> TVec;
+
+    auto Len = Val.size();
+    VVec.resize(Len);
+    TVec.resize(Len);
+    for (uint32_t I = 0; I < Len; I++) {
+      TVec[I] = static_cast<WasmEdge::ValType>(Val[I].Type);
+      switch (TVec[I]) {
+      case WasmEdge::ValType::I32:
+        VVec[I] = ValVariant::wrap<uint32_t>(
+            to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Val));
+        break;
+      case WasmEdge::ValType::I64:
+        VVec[I] = ValVariant::wrap<uint64_t>(
+            to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Val));
+        break;
+      case WasmEdge::ValType::F32:
+        VVec[I] = ValVariant::wrap<float>(
+            to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Val));
+        break;
+      case WasmEdge::ValType::F64:
+        VVec[I] = ValVariant::wrap<double>(
+            to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Val));
+        break;
+      case WasmEdge::ValType::V128:
+        VVec[I] = ValVariant::wrap<WasmEdge::uint128_t>(
+            to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Val));
+        break;
+      case WasmEdge::ValType::FuncRef:
+        VVec[I] = ValVariant::wrap<WasmEdge::FuncRef>(
+            to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Val));
+        break;
+      case WasmEdge::ValType::ExternRef:
+        VVec[I] = ValVariant::wrap<WasmEdge::ExternRef>(
+            to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Val));
+        break;
+      default:
+        // TODO: Return error
+        assumingUnreachable();
+      }
+    }
+    return {VVec, TVec};
+  }
+
+  static inline void FillValueArr(
+      Span<const std::pair<ValVariant, WasmEdge::ValType>> Vec,
+      std::vector<Value> &Returns) {
+    Returns.resize(Vec.size());
+    for (uint32_t I = 0; I < Vec.size(); I++) {
+      Returns[I] = std::move(Value(to_uint128_t(Vec[I].first.unwrap()),
+                            static_cast<ValType>(Vec[I].second)));
+    }
+  }
+};
 
 Value::Value(const int32_t Val)
 : Val(to_uint128_t(Val)),
@@ -163,6 +244,20 @@ bool Value::IsNullRef() {
 
 // >>>>>>>> WasmEdge Result members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+class Result::ResultFactory {
+  ResultFactory() = default;
+  ~ResultFactory() = default;
+
+public:
+  static Result GenResult(const WasmEdge::ErrCode::Value &Code) {
+    return Result{ static_cast<uint32_t>(Code) & 0x00FFFFFFU };
+  }
+
+  static Result GenResult(const WasmEdge::ErrCode &Code) {
+    return Result{ Code.operator uint32_t() };
+  }
+};
+
 Result::Result(const ErrCategory Category, const uint32_t Code) {
   this->Code = (static_cast<uint32_t>(Category) << 24) + (Code & 0x00FFFFFFU);
 }
@@ -237,24 +332,24 @@ FunctionType::FunctionType(const std::vector<ValType> &ParamList,
   this->Cxt = std::move(FuncTypeCxt);
 }
 
-const std::vector<ValType> &FunctionType::GetParameters() {
-  auto OutputParams = std::make_unique<std::vector<ValType>>();
+const std::vector<ValType> FunctionType::GetParameters() {
+  std::vector<ValType> OutputParams;
   auto FuncParams = Cxt->getParamTypes();
-  OutputParams->resize(FuncParams.size());
+  OutputParams.resize(FuncParams.size());
   std::transform(FuncParams.begin(), FuncParams.end(),
-                 OutputParams->begin(),
+                 OutputParams.begin(),
                  [](auto ValT) {return static_cast<ValType>(ValT)});
-  return *OutputParams;
+  return OutputParams;
 }
 
-const std::vector<ValType> &FunctionType::GetReturns() {
-  auto OutputReturns = std::make_unique<std::vector<ValType>>();
+const std::vector<ValType> FunctionType::GetReturns() {
+  std::vector<ValType> OutputReturns;
   auto FuncReturns = Cxt->getReturnTypes();
-  OutputReturns->resize(FuncReturns.size());
+  OutputReturns.resize(FuncReturns.size());
   std::transform(FuncReturns.begin(), FuncReturns.end(),
-                 OutputReturns->begin(),
+                 OutputReturns.begin(),
                  [](auto ValT) {return static_cast<ValType>(ValT)});
-  return *OutputReturns;
+  return OutputReturns;
 }
 
 // <<<<<<<< WasmEdge FunctionType members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -284,7 +379,7 @@ const Limit &TableType::GetLimit() {
   const auto &Lim = Cxt->getLimit();
   auto TableLim =  std::make_unique<Limit>(Lim.hasMax(), Lim.isShared(),
                                   Lim.getMin(), Lim.getMax());
-  return *TableLim;
+  return std::move(*TableLim);
 }
 
 // <<<<<<<< WasmEdge TableType members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -312,7 +407,7 @@ const Limit &MemoryType::GetLimit() {
   const auto &Lim = Cxt->getLimit();
   auto MemoryLim = std::make_unique<Limit>(Lim.hasMax(), Lim.isShared(),
                                            Lim.getMin(), Lim.getMax());
-  return *MemoryLim;
+  return std::move(*MemoryLim);
 }
 
 // <<<<<<<< WasmEdge MemoryType members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -417,7 +512,6 @@ ImportType::GetGlobalType(const ASTModule &ASTCxt) {
 }
 
 // <<<<<<<< WasmEdge ImportType members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
 
 // >>>>>>>> WasmEdge ExportType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -557,10 +651,11 @@ class Async::AsyncContext: public WasmEdge::VM::Async<
       std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>> {
   template <typename... Args>
   AsyncContext(Args &&...Vals)
-  : VM::Async(std::forward<Args>(Vals)...) {}
+  : WasmEdge::VM::Async(std::forward<Args>(Vals)...) {}
 };
 
-Async::Async() {
+template <typename... Args>
+Async::Async(Args &&...Vals) {
   this->Cxt = std::make_unique<AsyncContext>();
 }
 
@@ -745,6 +840,281 @@ void Statistics::Clear() {
 }
 
 // <<<<<<<< WasmEdge Statistics <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Runtime >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+// >>>>>>>> WasmEdge Loader >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+class Loader::LoaderContext: public WasmEdge::Loader::Loader {};
+
+Loader::Loader(const Configuration &ConfCxt) {
+  this->Cxt = std::make_unique<Loader::LoaderContext>(ConfCxt.Cxt,
+                  &WasmEdge::Executor::Executor::Intrinsics);
+}
+
+Result Loader::Parse(ASTModule &Module, const std::string &Path) {
+  return wrap(
+      [&]() {
+        return this->Cxt->parseModule(std::filesystem::absolute(Path));
+      },
+      EmptyThen);
+}
+
+Result Loader::Parse(ASTModule &Module, const std::vector<uint8_t> &Buf) {
+
+}
+
+// <<<<<<<< WasmEdge Loader <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge ModuleInstance >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+class ModuleInstance::ModuleInstanceContext
+: public WasmEdge::Runtime::Instance::ModuleInstance {};
+
+// <<<<<<<< WasmEdge ModuleInstance <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// <<<<<<<< WasmEdge Runtime <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge VM >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+class VM::VMContext: public WasmEdge::VM::VM {};
+
+VM::VM(const Configuration &ConfCxt, Store &StoreCxt) {
+  this->Cxt = std::make_unique<VM::VMContext>(*ConfCxt.Cxt, *StoreCxt.Cxt);
+}
+
+VM::VM(const Configuration &ConfCxt) {
+  this->Cxt = std::make_unique<VM::VMContext>(*ConfCxt.Cxt);
+}
+
+VM::VM(const Store &StoreCxt) {
+  this->Cxt = std::make_unique<VM::VMContext>(WasmEdge::Configure(),
+      *StoreCxt.Cxt);
+}
+
+VM::VM() {
+  this->Cxt = std::make_unique<VM::VMContext>(WasmEdge::Configure());
+}
+
+Result VM::RegisterModule(const std::string &ModuleName,
+                          const std::string &Path) {
+  return wrap(
+      [&]() {
+        return Cxt->registerModule(std::string_view(ModuleName),
+                                  std::filesystem::absolute(Path));
+      },
+      EmptyThen);
+}
+
+Result VM::RegisterModule(const std::string &ModuleName,
+                          const std::vector<uint8_t> &Buf) {
+  return wrap(
+      [&]() {
+        return Cxt->registerModule(std::string_view(ModuleName),
+                                   Buf);
+      },
+      EmptyThen);
+}
+
+Result VM::RegisterModule(const std::string &ModuleName,
+                          const ASTModule &ASTCxt) {
+  return wrap(
+      [&]() {
+        return Cxt->registerModule(std::string_view(ModuleName),
+                                   *ASTCxt.Cxt);
+      },
+      EmptyThen);
+}
+
+Result VM::RegisterModule(const ModuleInstance &ImportCxt) {
+  return wrap(
+      [&]() {
+        return Cxt->registerModule(*ImportCxt.Cxt);
+      },
+      EmptyThen);
+}
+
+Result VM::RunWasm(const std::string &Path, const std::string &FuncName,
+                   const std::vector<Value> &Params,
+                   std::vector<Value> &Returns) {
+  auto ParamPair = Value::ValueUtils::GenParamPair(Params);
+  return wrap(
+      [&]() {
+        return Cxt->runWasmFile(std::filesystem::absolute(Path),
+                                std::string_view(FuncName), ParamPair.first,
+                                ParamPair.second);
+      },
+      [&](auto Res) { Value::ValueUtils::FillValueArr(*Res, Returns); });
+}
+
+Result VM::RunWasm(const std::vector<uint8_t> &Buf, const std::string &FuncName,
+                   const std::vector<Value> &Params,
+                   std::vector<Value> &Returns) {
+  auto ParamPair = Value::ValueUtils::GenParamPair(Params);
+  return wrap(
+      [&]() {
+        return Cxt->runWasmFile(Buf, std::string_view(FuncName),
+                                ParamPair.first, ParamPair.second);
+      },
+      [&](auto &&Res) { Value::ValueUtils::FillValueArr(*Res, Returns); });
+}
+
+Result VM::RunWasm(const ASTModule &ASTCxt, const std::string &FuncName,
+                   const std::vector<Value> &Params,
+                   std::vector<Value> &Returns) {
+  auto ParamPair = Value::ValueUtils::GenParamPair(Params);
+  return wrap(
+      [&]() {
+        return Cxt->runWasmFile(*ASTCxt.Cxt, std::string_view(FuncName),
+                                ParamPair.first, ParamPair.second);
+      },
+      [&](auto &&Res) { Value::ValueUtils::FillValueArr(*Res, Returns); }); // TODO
+}
+
+std::unique_ptr<Async> VM::AsyncRunWasm(const std::string &Path,
+              const std::string &FuncName, const std::vector<Value> &Params) {
+  auto ParamPair = Value::ValueUtils::GenParamPair(Params);
+  return std::make_unique<Async>(Cxt->asyncRunWasmFile(
+      std::filesystem::absolute(Path), std::string_view(FuncName),
+      ParamPair.first, ParamPair.second));
+}
+
+std::unique_ptr<Async> VM::AsyncRunWasm(const std::vector<uint8_t> &Buf,
+              const std::string &FuncName, const std::vector<Value> &Params) {
+  auto ParamPair = Value::ValueUtils::GenParamPair(Params);
+  return std::make_unique<Async>(Cxt->asyncRunWasmFile(Buf,
+      std::string_view(FuncName), ParamPair.first, ParamPair.second));
+}
+
+std::unique_ptr<Async> VM::AsyncRunWasm(const ASTModule &ASTCxt,
+              const std::string &FuncName, const std::vector<Value> &Params) {
+  auto ParamPair = Value::ValueUtils::GenParamPair(Params);
+  return std::make_unique<Async>(Cxt->asyncRunWasmFile(*ASTCxt.Cxt,
+      std::string_view(FuncName), ParamPair.first, ParamPair.second));
+}
+
+Result VM::LoadWasm(const std::string &Path) {
+  return wrap([&]() { return Cxt->loadWasm(std::filesystem::absolute(Path)); },
+              EmptyThen);
+}
+
+Result VM::LoadWasm(const std::vector<uint8_t> &Buf) {
+  return wrap([&]() { return Cxt->loadWasm(Buf); },
+              EmptyThen);
+}
+
+Result VM::LoadWasm(const ASTModule &ASTCxt) {
+  return wrap([&]() { return Cxt->loadWasm(*ASTCxt.Cxt); },
+              EmptyThen);
+}
+
+Result VM::Validate() {
+  return wrap([&]() { return Cxt->validate(); }, EmptyThen);
+}
+
+Result VM::Instantiate() {
+  return wrap([&]() { return Cxt->instantiate(); }, EmptyThen);
+}
+
+Result VM::Execute(const std::string &FuncName,
+                   const std::vector<Value> &Params,
+                   std::vector<Value> &Returns) {
+  auto ParamPair = Value::ValueUtils::GenParamPair(Params);
+  return wrap(
+      [&]() {
+        return Cxt->execute(std::string_view(FuncName), ParamPair.first,
+                            ParamPair.second);
+      },
+      [&](auto &&Res) { Value::ValueUtils::FillValueArr(*Res, Returns); }); // TODO
+}
+
+Result VM::Execute(const std::string &ModuleName,
+                   const std::string &FuncName,
+                   const std::vector<Value> &Params,
+                   std::vector<Value> &Returns) {
+  auto ParamPair = Value::ValueUtils::GenParamPair(Params);
+  return wrap(
+      [&]() {
+        return Cxt->execute(std::string_view(ModuleName),
+            std::string_view(FuncName), ParamPair.first, ParamPair.second);
+      },
+      [&](auto &&Res) { Value::ValueUtils::FillValueArr(*Res, Returns); }); // TODO
+}
+
+std::unique_ptr<Async> VM::AsyncExecute(const std::string &FuncName,
+                                        const std::vector<Value> &Params) {
+  auto ParamPair = Value::ValueUtils::GenParamPair(Params);
+  return std::make_unique<Async>(Cxt->asyncExecute(
+      std::string_view(FuncName), ParamPair.first, ParamPair.second));
+}
+
+std::unique_ptr<Async> VM::AsyncExecute(const std::string &ModuleName,
+                                        const std::string &FuncName,
+                                        const std::vector<Value> &Params) {
+  auto ParamPair = Value::ValueUtils::GenParamPair(Params);
+  return std::make_unique<Async>(Cxt->asyncExecute(
+      std::string_view(ModuleName), std::string_view(FuncName),
+      ParamPair.first, ParamPair.second));
+}
+
+std::unique_ptr<const FunctionType> VM::GetFunctionType(const std::string &FuncName) {
+  const auto FuncList = Cxt->getFunctionList();
+  for (const auto &It: FuncList) {
+    if (It.first == std::string_view(FuncName)) {
+      auto FuncType = std::make_unique<FunctionType>();
+      FuncType->Cxt =
+          std::make_unique<FunctionType::FunctionTypeContext>(It.second);
+      return std::move(FuncType);
+    }
+  }
+  return nullptr;
+}
+
+std::unique_ptr<const FunctionType> VM::GetFunctionType(const std::string &ModuleName,
+                                    const std::string &FuncName) {
+  const auto *ModInst =
+      Cxt->getStoreManager().findModule(std::string_view(ModuleName));
+  if (ModInst != nullptr) {
+    const auto *FuncInst =
+        ModInst->findFuncExports(std::string_view(FuncName));
+    if (FuncInst != nullptr) {
+      auto FuncType = std::make_unique<FunctionType>();
+      FuncType->Cxt = std::make_unique<FunctionType::FunctionTypeContext>(
+                                      FuncInst->getFuncType());
+      return std::move(FuncType);
+    }
+    return nullptr;
+  }
+  return nullptr;
+}
+
+void VM::Cleanup() {
+  Cxt->cleanup();
+}
+
+uint32_t VM::GetFunctionList(std::vector<std::string> &Names,
+                             std::vector<const FunctionType> &FuncTypes) {
+  // Not to use VM::getFunctionList() here because not to allocate the
+  // returned function name strings.
+  const auto *ModInst = Cxt->getActiveModule();
+  if (ModInst != nullptr) {
+    return ModInst->getFuncExports([&](const auto &FuncExp) {
+      for (auto It = FuncExp.cbegin(); It != FuncExp.cend(); It++) {
+        const auto *FuncInst = It->second;
+        const auto &FuncTypeCxt = FuncInst->getFuncType();
+
+        auto FuncType = std::make_unique<FunctionType>();
+        FuncType->Cxt =
+            std::make_unique<FunctionType::FunctionTypeContext>(FuncTypeCxt);
+        FuncTypes.push_back(std::move(*FuncType));
+      }
+      return static_cast<uint32_t>(FuncExp.size());
+    });
+  }
+  return 0;
+}
+
+// <<<<<<<< WasmEdge VM <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 }
 }

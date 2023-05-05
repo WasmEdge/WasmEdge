@@ -169,6 +169,7 @@ namespace SDK{
 
     bool IsNullRef();
 
+    class ValueUtils;
   private:
     uint128_t Val;
     ValType Type;
@@ -192,6 +193,7 @@ namespace SDK{
     ErrCategory GetCategory();
     const std::string GetMessage();
 
+    class ResultFactory;
   private:
     uint32_t Code;
     Result(const uint32_t Code): Code(Code) {}
@@ -203,7 +205,8 @@ namespace SDK{
 
   class WASMEDGE_CPP_API_EXPORT Limit {
   public:
-    Limit(bool HasMax = false, bool Shared = false, uint32_t Min = 0, uint32_t Max = 0)
+    Limit(bool HasMax = false, bool Shared = false,
+          uint32_t Min = 0, uint32_t Max = 0)
     : HasMax(HasMax),
       Shared(Shared),
       Min(Min),
@@ -224,14 +227,15 @@ namespace SDK{
                  const std::vector<ValType> &ReturnList);
     ~FunctionType() = default;
 
-    const std::vector<ValType> &GetParameters();
-    const std::vector<ValType> &GetReturns();
+    const std::vector<ValType> GetParameters();
+    const std::vector<ValType> GetReturns();
   private:
     class FunctionTypeContext;
     std::unique_ptr<FunctionTypeContext> Cxt;
 
     friend class ImportType;
     friend class ExportType;
+    friend class VM;
     FunctionType() = default;
   };
 
@@ -289,7 +293,8 @@ namespace SDK{
     ExternalType GetExternalType();
     std::string GetModuleName();
     std::string GetExternalName();
-    std::shared_ptr<const FunctionType> GetFunctionType(const ASTModule &ASTCxt);
+    std::shared_ptr<const FunctionType>
+    GetFunctionType(const ASTModule &ASTCxt);
     std::shared_ptr<const TableType> GetTableType(const ASTModule &ASTCxt);
     std::shared_ptr<const MemoryType> GetMemoryType(const ASTModule &ASTCxt);
     std::shared_ptr<const GlobalType> GetGlobalType(const ASTModule &ASTCxt);
@@ -308,7 +313,8 @@ namespace SDK{
 
     ExternalType GetExternalType();
     std::string GetExternalName();
-    std::shared_ptr<const FunctionType> GetFunctionType(const ASTModule &ASTCxt);
+    std::shared_ptr<const FunctionType>
+    GetFunctionType(const ASTModule &ASTCxt);
     std::shared_ptr<const TableType> GetTableType(const ASTModule &ASTCxt);
     std::shared_ptr<const MemoryType> GetMemoryType(const ASTModule &ASTCxt);
     std::shared_ptr<const GlobalType> GetGlobalType(const ASTModule &ASTCxt);
@@ -327,7 +333,8 @@ namespace SDK{
   // >>>>>>>> WasmEdge Async >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   class WASMEDGE_CPP_API_EXPORT Async {
-    Async();
+    template <typename... Args>
+    Async(Args &&...Val);
     ~Async() = default;
     class AsyncContext;
     std::unique_ptr<AsyncContext> Cxt;
@@ -389,6 +396,9 @@ namespace SDK{
   private:
     class ConfigureContext;
     std::unique_ptr<ConfigureContext> Cxt;
+
+    friend class Loader;
+    friend class VM;
   };
 
   class WASMEDGE_CPP_API_EXPORT Statistics {
@@ -424,7 +434,8 @@ namespace SDK{
                         const std::vector<uint8_t> &Buf);
 
   private:
-    // LoaderContext LoaderCxt; // TODO
+    class LoaderContext;
+    std::unique_ptr<LoaderContext> Cxt;
   };
 
   // <<<<<<<< WasmEdge Loader CLass <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -438,7 +449,8 @@ namespace SDK{
 
     Result Validate(const ASTModule &ASTCxt);
   private:
-    // ValidatorContext ValidatorCxt; // TODO
+    class ValidatorContext;
+    std::unique_ptr<ValidatorContext> Cxt;
   };
 
   // <<<<<<<< WasmEdge Validator Class <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -468,7 +480,8 @@ namespace SDK{
                   std::vector<Value> &Returns);
 
   private:
-    // ExecutorContext ExecutorCxt; // TODO
+    class ExecutorContext;
+    std::unique_ptr<ExecutorContext> Cxt;
   };
 
   // <<<<<<<< WasmEdge Executor Class <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -486,6 +499,8 @@ namespace SDK{
   private:
     class ASTModuleContext;
     std::unique_ptr<ASTModuleContext> Cxt;
+
+    friend class VM;
   };
 
   class WASMEDGE_CPP_API_EXPORT Store {
@@ -497,7 +512,10 @@ namespace SDK{
     std::vector<std::string> ListModule();
 
   private:
-    // StoreContext StoreCxt; // TODO
+    class StoreContext;
+    std::unique_ptr<StoreContext> Cxt;
+
+    friend class VM;
   };
 
   // >>>>>>>> WasmEdge Instances >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -542,7 +560,10 @@ namespace SDK{
                    GlobalInstance &&GlobalCxt);
 
   private:
-    // TODO
+    class ModuleInstanceContext;
+    std::unique_ptr<ModuleInstanceContext> Cxt;
+
+    friend VM;
   };
 
   class WASMEDGE_CPP_API_EXPORT FunctionInstance {
@@ -568,7 +589,8 @@ namespace SDK{
 
     const FunctionType &GetFunctionType();
   private:
-    // TODO
+    class FunctionInstanceContext;
+    std::unique_ptr<FunctionInstanceContext> Cxt;
   };
 
   class WASMEDGE_CPP_API_EXPORT TableInstance {
@@ -583,7 +605,8 @@ namespace SDK{
     Result Grow(const uint32_t Size);
 
   private:
-    // TODO
+    class TableInstanceContext;
+    std::unique_ptr<TableInstanceContext> Cxt;
   };
 
   class WASMEDGE_CPP_API_EXPORT MemoryInstance {
@@ -604,7 +627,8 @@ namespace SDK{
     Result GrowPage(const uint32_t Page);
 
   private:
-    // TODO
+    class MemoryInstanceContext;
+    std::unique_ptr<MemoryInstanceContext> Cxt;
   };
 
   class WASMEDGE_CPP_API_EXPORT GlobalInstance {
@@ -617,7 +641,8 @@ namespace SDK{
 
     void SetValue(const Value Value);
   private:
-    // TODO
+    class GlobalInstanceContext;
+    std::unique_ptr<GlobalInstanceContext> Cxt;
   };
   // <<<<<<<< WasmEdge Instances <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -638,6 +663,9 @@ namespace SDK{
   class WASMEDGE_CPP_API_EXPORT VM {
   public:
     VM(const Configuration &ConfCxt, Store &StoreCxt);
+    VM(const Configuration &ConfCxt);
+    VM(const Store &StoreCxt);
+    VM();
     ~VM() = default;
 
     Result RegisterModule(const std::string &ModuleName,
@@ -659,12 +687,12 @@ namespace SDK{
                   std::vector<Value> &Returns);
 
     std::unique_ptr<Async> AsyncRunWasm(const std::string &Path,
-                  const std::string &FuncName, const std::vector<Value> &Params);
+                const std::string &FuncName, const std::vector<Value> &Params);
     std::unique_ptr<Async> AsyncRunWasm(
                   const std::vector<uint8_t> &Buf, const std::string &FuncName,
                   const std::vector<Value> &Params);
     std::unique_ptr<Async> AsyncRunWasm(const ASTModule &ASTCxt,
-                  const std::string &FuncName, const std::vector<Value> &Params);
+                const std::string &FuncName, const std::vector<Value> &Params);
 
     Result LoadWasm(const std::string &Path);
     Result LoadWasm(const std::vector<uint8_t> &Buf);
@@ -673,20 +701,23 @@ namespace SDK{
     Result Validate();
     Result Instantiate();
 
-    Result Execute(const std::string &FuncName, const std::vector<Value> &Params,
-                  std::vector<Value> &Returns);
-    Result Execute(const std::string &ModuleName,
-                  const std::string &FuncName, const std::vector<Value> &Params,
-                  std::vector<Value> &Returns);
+    Result Execute(const std::string &FuncName,
+                   const std::vector<Value> &Params,
+                   std::vector<Value> &Returns);
+    Result Execute(const std::string &ModuleName, const std::string &FuncName,
+                   const std::vector<Value> &Params,
+                   std::vector<Value> &Returns);
 
     std::unique_ptr<Async> AsyncExecute(const std::string &FuncName,
-                  const std::vector<Value> &Params);
+                const std::vector<Value> &Params);
     std::unique_ptr<Async> AsyncExecute(const std::string &ModuleName,
-                  const std::string &FuncName, const std::vector<Value> &Params);
+                const std::string &FuncName, const std::vector<Value> &Params);
 
-    const FunctionType &GetFunctionType(const std::string &FuncName);
-    const FunctionType &GetFunctionType(const std::string &ModuleName,
-                                        const std::string &FuncName);
+    std::unique_ptr<const FunctionType>
+    GetFunctionType(const std::string &FuncName);
+    std::unique_ptr<const FunctionType>
+    GetFunctionType(const std::string &ModuleName,
+                    const std::string &FuncName);
 
     void Cleanup();
     uint32_t GetFunctionList(std::vector<std::string> &Names,
@@ -704,7 +735,8 @@ namespace SDK{
     Executor &GetExecutorContext();
     Statistics &GetStatisticsContext();
   private:
-    // TODO
+    class VMContext;
+    std::unique_ptr<VMContext> Cxt;
   };
 
   // <<<<<<<< WasmEdge VM <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

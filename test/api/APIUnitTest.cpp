@@ -15,6 +15,33 @@
 #include <string_view>
 #include <vector>
 
+#if WASMEDGE_OS_WINDOWS
+#include <boost/winapi/basic_types.hpp>
+#if !defined(BOOST_USE_WINDOWS_H)
+extern "C" {
+BOOST_WINAPI_IMPORT boost::winapi::HANDLE_ BOOST_WINAPI_WINAPI_CC
+GetStdHandle(boost::winapi::DWORD_ nStdHandle);
+}
+#else
+#include <winternl.h>
+#endif
+
+namespace boost::winapi {
+#if defined(BOOST_USE_WINDOWS_H)
+BOOST_CONSTEXPR_OR_CONST DWORD_ STD_INPUT_HANDLE_ = STD_INPUT_HANDLE;
+BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = STD_OUTPUT_HANDLE;
+BOOST_CONSTEXPR_OR_CONST DWORD_ STD_ERROR_HANDLE_ = STD_ERROR_HANDLE;
+#else
+BOOST_CONSTEXPR_OR_CONST DWORD_ STD_INPUT_HANDLE_ = static_cast<DWORD_>(-10);
+BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = static_cast<DWORD_>(-11);
+BOOST_CONSTEXPR_OR_CONST DWORD_ STD_ERROR_HANDLE_ = static_cast<DWORD_>(-12);
+#endif
+BOOST_FORCEINLINE HANDLE_ GetStdHandle(DWORD_ nStdHandle) {
+  return ::GetStdHandle(nStdHandle);
+}
+} // namespace boost::winapi
+#endif
+
 namespace {
 
 std::vector<char> ArgsVec = {
@@ -2065,27 +2092,45 @@ TEST(APICoreTest, ModuleInstance) {
   // Check the Native Handler
   {
     // STDIN
+#if WASMEDGE_OS_WINDOWS
+    const uint64_t StdIn = reinterpret_cast<uint64_t>(
+        boost::winapi::GetStdHandle(boost::winapi::STD_INPUT_HANDLE_));
+#else
+    const uint64_t StdIn = STDIN_FILENO;
+#endif
     uint64_t NativeHandler = 100;
     auto RetStatus =
         WasmEdge_ModuleInstanceWASIGetNativeHandler(HostMod, 0, &NativeHandler);
     EXPECT_EQ(RetStatus, 0);
-    EXPECT_EQ(NativeHandler, 0);
+    EXPECT_EQ(NativeHandler, StdIn);
   }
   {
     // STDOUT
+#if WASMEDGE_OS_WINDOWS
+    const uint64_t StdOut = reinterpret_cast<uint64_t>(
+        boost::winapi::GetStdHandle(boost::winapi::STD_OUTPUT_HANDLE_));
+#else
+    const uint64_t StdOut = STDOUT_FILENO;
+#endif
     uint64_t NativeHandler = 100;
     auto RetStatus =
         WasmEdge_ModuleInstanceWASIGetNativeHandler(HostMod, 1, &NativeHandler);
     EXPECT_EQ(RetStatus, 0);
-    EXPECT_EQ(NativeHandler, 1);
+    EXPECT_EQ(NativeHandler, StdOut);
   }
   {
     // STDERR
+#if WASMEDGE_OS_WINDOWS
+    const uint64_t StdErr = reinterpret_cast<uint64_t>(
+        boost::winapi::GetStdHandle(boost::winapi::STD_ERROR_HANDLE_));
+#else
+    const uint64_t StdErr = STDERR_FILENO;
+#endif
     uint64_t NativeHandler = 100;
     auto RetStatus =
         WasmEdge_ModuleInstanceWASIGetNativeHandler(HostMod, 2, &NativeHandler);
     EXPECT_EQ(RetStatus, 0);
-    EXPECT_EQ(NativeHandler, 2);
+    EXPECT_EQ(NativeHandler, StdErr);
   }
   {
     // non-existed fd
@@ -3165,7 +3210,8 @@ TEST(APICoreTest, Plugin) {
   // Load from the specific path
   EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 0U);
   WasmEdge_PluginLoadFromPath(
-      "../plugins/unittest/libwasmedgePluginTestModule" WASMEDGE_LIB_EXTENSION);
+      "../plugins/unittest/"
+      "libwasmedgePluginTestModuleCPP" WASMEDGE_LIB_EXTENSION);
   EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 1U);
 
   // Get the loaded plugin length
@@ -3174,7 +3220,7 @@ TEST(APICoreTest, Plugin) {
   EXPECT_EQ(WasmEdge_PluginListPlugins(Names, 0), 1U);
   EXPECT_EQ(WasmEdge_PluginListPlugins(Names, 15), 1U);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
-            std::string("wasmedge_plugintest"));
+            std::string("wasmedge_plugintest_cpp"));
 
   // Find the plugin context
   const WasmEdge_PluginContext *PluginCxt =
@@ -3186,7 +3232,7 @@ TEST(APICoreTest, Plugin) {
   // Get plugin name
   Names[0] = WasmEdge_PluginGetPluginName(PluginCxt);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
-            std::string("wasmedge_plugintest"));
+            std::string("wasmedge_plugintest_cpp"));
   Names[0] = WasmEdge_PluginGetPluginName(nullptr);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string(""));
 
@@ -3201,7 +3247,7 @@ TEST(APICoreTest, Plugin) {
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string(""));
   EXPECT_EQ(WasmEdge_PluginListModule(PluginCxt, Names, 15), 1U);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
-            std::string("wasmedge_plugintest"));
+            std::string("wasmedge_plugintest_cpp_module"));
 
   // Create the module
   WasmEdge_ModuleInstanceContext *ModCxt =

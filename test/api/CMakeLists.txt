@@ -34,6 +34,7 @@ add_test(wasmedgeAPIUnitTests wasmedgeAPIUnitTests)
 target_link_libraries(wasmedgeAPIUnitTests
   PRIVATE
   std::filesystem
+  Boost::boost
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeAPITestHelpers
   wasmedge_shared
@@ -74,7 +75,7 @@ target_link_libraries(wasmedgeAPIStepsCoreTests
   wasmedge_shared
 )
 
-if (WASMEDGE_BUILD_AOT_RUNTIME)
+if(WASMEDGE_BUILD_AOT_RUNTIME)
   wasmedge_add_executable(wasmedgeAPIAOTCoreTests
     APIAOTCoreTest.cpp
   )

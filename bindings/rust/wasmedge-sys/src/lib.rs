@@ -19,7 +19,7 @@
 //!
 //!   | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types| wasmedge-macro|
 //!   | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
-//!   | 0.8.0         | 0.12.0        | 0.13.0        | 0.4.0         | 0.3.0         |
+//!   | 0.8.0         | 0.12.0        | 0.13.0        | 0.4.1         | 0.3.0         |
 //!   | 0.7.1         | 0.11.2        | 0.12.2        | 0.3.1         | 0.3.0         |
 //!   | 0.7.0         | 0.11.2        | 0.12          | 0.3.1         | 0.3.0         |
 //!   | 0.6.0         | 0.11.2        | 0.11          | 0.3.0         | 0.2.0         |
@@ -43,7 +43,7 @@
 extern crate lazy_static;
 
 use parking_lot::{Mutex, RwLock};
-use std::{collections::HashMap, env, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 #[allow(warnings)]
 /// Foreign function interfaces generated from WasmEdge C-API.
@@ -119,13 +119,12 @@ pub type BoxedFn = Box<
 
 lazy_static! {
     static ref HOST_FUNCS: RwLock<HashMap<usize, Arc<Mutex<BoxedFn>>>> =
-        RwLock::new(HashMap::with_capacity(
-            env::var("MAX_HOST_FUNC_LENGTH")
-                .map(|s| s
-                    .parse::<usize>()
-                    .expect("MAX_HOST_FUNC_LENGTH should be a positive integer."))
-                .unwrap_or(500)
-        ));
+        RwLock::new(HashMap::new());
+}
+
+// Stores the mapping from the address of each host function pointer to the key of the `HOST_FUNCS`.
+lazy_static! {
+    static ref HOST_FUNC_FOOTPRINTS: Mutex<HashMap<usize, usize>> = Mutex::new(HashMap::new());
 }
 
 #[cfg(feature = "async")]

@@ -64,7 +64,7 @@ pub enum WasmEdgeError {
     Instance(InstanceError),
 
     // std
-    #[error("Found an interior nul byte")]
+    #[error("Found an internal 0 byte")]
     FoundNulByte(#[from] std::ffi::NulError),
     #[error("Fail to find a nul byte in the expected position")]
     NotFoundNulByte(#[from] std::ffi::FromBytesWithNulError),

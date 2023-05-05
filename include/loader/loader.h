@@ -94,6 +94,12 @@ public:
   /// Parse module from byte code.
   Expect<std::unique_ptr<AST::Module>> parseModule(Span<const uint8_t> Code);
 
+  /// Reset status.
+  void reset() noexcept {
+    FMgr.reset();
+    LMgr.reset();
+  }
+
 private:
   /// \name Helper functions to print error log when loading AST nodes
   /// @{

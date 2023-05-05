@@ -74,6 +74,12 @@ if(WIN32)
     -Wno-float-equal
     -Wno-declaration-after-statement
     -Wno-zero-as-null-pointer-constant
+    -Wno-implicit-int-float-conversion
+    -Wno-double-promotion
+    -Wno-unsafe-buffer-usage
+    -Wno-deprecated-declarations
+    -Wno-error=rtti
+    -Wno-error=cast-function-type-strict
   )
 endif()
 
@@ -140,11 +146,10 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_BUILD_A
     core lto native nativecodegen option passes support transformutils all-targets
     OUTPUT_VARIABLE WASMEDGE_LLVM_LINK_LIBS_NAME
   )
-  string(REPLACE "-l" "" WASMEDGE_LLVM_LINK_LIBS_NAME ${WASMEDGE_LLVM_LINK_LIBS_NAME})
-  string(REGEX REPLACE "[\r\n]" "" WASMEDGE_LLVM_LINK_LIBS_NAME ${WASMEDGE_LLVM_LINK_LIBS_NAME})
-  string(REPLACE " " "\;" WASMEDGE_LLVM_LINK_LIBS_NAME ${WASMEDGE_LLVM_LINK_LIBS_NAME})
-  set(WASMEDGE_LLVM_LINK_LIBS_NAME ${WASMEDGE_LLVM_LINK_LIBS_NAME})
-
+  string(REPLACE "-l" "" WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")
+  string(REGEX REPLACE "[\r\n]" "" WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")
+  string(REPLACE " " ";" WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")
+  set(WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")
 
   list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
     ${LLVM_LIBRARY_DIR}/liblldELF.a
@@ -170,6 +175,14 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_BUILD_A
       ${LLVM_LIBRARY_DIR}/liblldCOFF.a
       ${LLVM_LIBRARY_DIR}/liblldMachO.a
       ${LLVM_LIBRARY_DIR}/liblldWasm.a
+    )
+  endif()
+  if (APPLE AND LLVM_VERSION_MAJOR GREATER_EQUAL 15)
+    # For LLVM 15 or greater on MacOS
+    find_package(zstd REQUIRED)
+    get_filename_component(ZSTD_PATH "${zstd_LIBRARY}" DIRECTORY)
+    list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
+      ${ZSTD_PATH}/libzstd.a
     )
   endif()
 

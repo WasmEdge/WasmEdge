@@ -1162,15 +1162,15 @@ WasmEdge provides the following built-in pre-registrations.
     conf := wasmedge.NewConfigure(wasmedge.WASI)
     // Or you can set the `wasmedge.WASI` into the configure object through `(*Configure).AddConfig`.
     vm := wasmedge.NewVMWithConfig(conf)
-    vm.Release()
+    conf.Release()
 
     // The following API can retrieve the pre-registration import objects from the VM object.
     // This API will return `nil` if the corresponding pre-registration is not set into the configuration.
-    wasiconf := conf.GetImportObject(wasmedge.WASI)
+    wasimodule := vm.GetImportObject(wasmedge.WASI)
     // Initialize the WASI.
-    wasiconf.InitWasi(/* ... ignored */)
+    wasimodule.InitWasi(/* ... ignored */)
 
-    conf.Release()
+    vm.Release()
     ```
 
     And also can create the WASI import object from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).
@@ -1183,15 +1183,15 @@ WasmEdge provides the following built-in pre-registrations.
     ```go
     conf := wasmedge.NewConfigure(wasmedge.WasmEdge_PROCESS)
     vm := wasmedge.NewVMWithConfig(conf)
-    vm.Release()
+    conf.Release()
     
     // The following API can retrieve the pre-registration import objects from the VM object.
     // This API will return `nil` if the corresponding pre-registration is not set into the configuration.
-    procconf := conf.GetImportObject(wasmedge.WasmEdge_PROCESS)
+    procmodule := vm.GetImportObject(wasmedge.WasmEdge_PROCESS)
     // Initialize the WasmEdge_Process.
-    procconf.InitWasmEdgeProcess(/* ... ignored */)
+    procmodule.InitWasmEdgeProcess(/* ... ignored */)
 
-    conf.Release()
+    vm.Release()
     ```
 
     And also can create the WasmEdge_Process import object from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).

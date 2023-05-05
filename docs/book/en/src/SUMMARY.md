@@ -42,6 +42,7 @@
       - [SuperEdge](use_cases/kubernetes/kubernetes/superedge.md)
       - [OpenYurt](use_cases/kubernetes/kubernetes/openyurt.md)
       - [Knative](use_cases/kubernetes/kubernetes/knative.md)
+      - [Kwasm](use_cases/kubernetes/kubernetes/Kwasm.md)
     - [Docker](use_cases/kubernetes/docker.md)
       - [Slim container](use_cases/kubernetes/docker/lxc.md)
       - [containerd integration](use_cases/kubernetes/docker/containerd.md)
@@ -63,6 +64,7 @@
 
 - [Write a WebAssembly Application](write_wasm.md)
   - [C](write_wasm/c.md)
+    - [Getting Started](write_wasm/c/quickstart.md)
     - [simd](write_wasm/c/simd.md)
   - [Rust](write_wasm/rust.md)
     - [Bindgen of Rust Functions](write_wasm/rust/bindgen.md)
@@ -111,7 +113,9 @@
     - [Pass complex data](sdk/go/memory.md)
     - [Tensorflow](sdk/go/tensorflow.md)
     - [Embed bindgen funcs](sdk/go/bindgen.md)
-    - [v0.11.2 API references](sdk/go/ref.md)
+    - [v0.12.0 API references](sdk/go/ref.md)
+    - [v0.11.2 API references](sdk/go/0.11.2/ref.md)
+      - [Upgrade to 0.12.0](sdk/go/0.11.2/upgrade_to_0.12.0.md)
     - [v0.10.1 API references](sdk/go/0.10.1/ref.md)
       - [Upgrade to v0.11.0](sdk/go/0.10.1/upgrade_to_0.11.0.md)
     - [v0.9.1 API references](sdk/go/0.9.1/ref.md)
@@ -131,6 +135,8 @@
   - [`wasmedgec` AOT Compiler](cli/wasmedgec.md)
 
 - [Develop WasmEdge Plug-in](plugin.md)
+  - [Develop Plug-in in C API](develop_plugin/c.md)
+  - [Develop Plug-in in C++](develop_plugin/cpp.md)
 
 - [Contribute to WasmEdge](contribute.md)
   - [Release Process](contribute/release_process.md)
@@ -154,4 +160,3 @@
   - [WasmEdge Installer Guide](contribute/installer.md)
   - [WasmEdge Internal](contribute/internal.md)
   - [Wish List](contribute/wish_list.md)
-  - [Release Process](contribute/release_process.md)

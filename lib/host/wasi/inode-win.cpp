@@ -161,7 +161,7 @@ inline LARGE_INTEGER toLargeIntegerFromSigned(long long Value) {
   return Result;
 }
 
-inline constexpr __wasi_errno_t fromWinError(DWORD Winerr) {
+inline constexpr __wasi_errno_t fromWinError(winapi::DWORD_ Winerr) {
   __wasi_errno_t Error = __WASI_ERRNO_NOSYS;
   switch (Winerr) {
   case ERROR_ACCESS_DENIED:
@@ -382,88 +382,89 @@ inline constexpr __wasi_errno_t fromWinError(DWORD Winerr) {
   return Error;
 }
 
-constexpr DWORD attributeFlags(__wasi_oflags_t OpenFlags,
-                               __wasi_fdflags_t FdFlags) noexcept {
-  DWORD Flags = FILE_ATTRIBUTE_NORMAL;
+constexpr winapi::DWORD_ attributeFlags(__wasi_oflags_t OpenFlags,
+                                        __wasi_fdflags_t FdFlags) noexcept {
+  winapi::DWORD_ Flags = winapi::FILE_ATTRIBUTE_NORMAL_;
   if ((FdFlags & __WASI_FDFLAGS_NONBLOCK) != 0) {
-    Flags |= FILE_FLAG_OVERLAPPED;
+    Flags |= winapi::FILE_FLAG_OVERLAPPED_;
   }
 
   // Source: https://devblogs.microsoft.com/oldnewthing/20210729-00/?p=105494
   if ((FdFlags & __WASI_FDFLAGS_SYNC) || (FdFlags & __WASI_FDFLAGS_RSYNC)) {
     // Linux does not implement O_RSYNC and glibc defines O_RSYNC as O_SYNC
-    Flags |= FILE_FLAG_WRITE_THROUGH | FILE_FLAG_NO_BUFFERING;
+    Flags |= winapi::FILE_FLAG_WRITE_THROUGH_ | winapi::FILE_FLAG_NO_BUFFERING_;
   }
   if (FdFlags & __WASI_FDFLAGS_DSYNC) {
-    Flags |= FILE_FLAG_WRITE_THROUGH;
+    Flags |= winapi::FILE_FLAG_WRITE_THROUGH_;
   }
   if (OpenFlags & __WASI_OFLAGS_DIRECTORY) {
-    Flags |= FILE_ATTRIBUTE_DIRECTORY | FILE_FLAG_BACKUP_SEMANTICS;
+    Flags |=
+        winapi::FILE_ATTRIBUTE_DIRECTORY_ | winapi::FILE_FLAG_BACKUP_SEMANTICS_;
   }
 
   return Flags;
 }
 
-constexpr DWORD accessFlags(__wasi_fdflags_t FdFlags,
-                            uint8_t VFSFlags) noexcept {
-  DWORD Flags = 0;
+constexpr winapi::DWORD_ accessFlags(__wasi_fdflags_t FdFlags,
+                                     uint8_t VFSFlags) noexcept {
+  winapi::DWORD_ Flags = 0;
 
   if (VFSFlags & VFS::Read) {
     if (VFSFlags & VFS::Write) {
-      Flags |= GENERIC_READ | GENERIC_WRITE;
+      Flags |= winapi::GENERIC_READ_ | winapi::GENERIC_WRITE_;
     } else {
-      Flags |= GENERIC_READ;
+      Flags |= winapi::GENERIC_READ_;
     }
   } else if (VFSFlags & VFS::Write) {
-    Flags |= GENERIC_WRITE;
+    Flags |= winapi::GENERIC_WRITE_;
   }
 
   if ((FdFlags & __WASI_FDFLAGS_APPEND) != 0) {
-    Flags |= FILE_APPEND_DATA;
+    Flags |= winapi::FILE_APPEND_DATA_;
   }
 
   return Flags;
 }
 
-constexpr DWORD creationDisposition(__wasi_oflags_t OpenFlags) {
-  DWORD Flags = OPEN_EXISTING;
+constexpr winapi::DWORD_ creationDisposition(__wasi_oflags_t OpenFlags) {
+  winapi::DWORD_ Flags = winapi::OPEN_EXISTING_;
   if (OpenFlags & __WASI_OFLAGS_CREAT) {
-    Flags = OPEN_ALWAYS;
+    Flags = winapi::OPEN_ALWAYS_;
   }
   if (OpenFlags & __WASI_OFLAGS_TRUNC) {
-    Flags = TRUNCATE_EXISTING;
+    Flags = winapi::TRUNCATE_EXISTING_;
   }
   if (OpenFlags & __WASI_OFLAGS_EXCL) {
-    Flags = CREATE_NEW;
+    Flags = winapi::CREATE_NEW_;
   }
   return Flags;
 }
 
-inline constexpr __wasi_filetype_t fromFileType(DWORD Attribute,
-                                                DWORD FileType) noexcept {
+inline constexpr __wasi_filetype_t
+fromFileType(winapi::DWORD_ Attribute, winapi::DWORD_ FileType) noexcept {
   switch (Attribute) {
-  case FILE_ATTRIBUTE_DIRECTORY:
+  case winapi::FILE_ATTRIBUTE_DIRECTORY_:
     return __WASI_FILETYPE_DIRECTORY;
-  case FILE_ATTRIBUTE_NORMAL:
+  case winapi::FILE_ATTRIBUTE_NORMAL_:
     return __WASI_FILETYPE_REGULAR_FILE;
-  case FILE_ATTRIBUTE_REPARSE_POINT:
+  case winapi::FILE_ATTRIBUTE_REPARSE_POINT_:
     return __WASI_FILETYPE_SYMBOLIC_LINK;
   }
   switch (FileType) {
-  case FILE_TYPE_CHAR:
+  case winapi::FILE_TYPE_CHAR_:
     return __WASI_FILETYPE_CHARACTER_DEVICE;
   }
   return __WASI_FILETYPE_UNKNOWN;
 }
 
-constexpr inline DWORD fromWhence(__wasi_whence_t Whence) {
+constexpr inline winapi::DWORD_ fromWhence(__wasi_whence_t Whence) {
   switch (Whence) {
   case __WASI_WHENCE_SET:
-    return FILE_BEGIN;
+    return winapi::FILE_BEGIN_;
   case __WASI_WHENCE_END:
-    return FILE_END;
+    return winapi::FILE_END_;
   case __WASI_WHENCE_CUR:
-    return FILE_CURRENT;
+    return winapi::FILE_CURRENT_;
   }
 }
 
@@ -471,7 +472,9 @@ constexpr inline DWORD fromWhence(__wasi_whence_t Whence) {
 
 void HandleHolder::reset() noexcept {
   if (likely(ok())) {
-    if (likely(!isSocket(&Handle))) {
+    if (isStdHandle()) {
+      // nothing to do
+    } else if (likely(!isSocket(&Handle))) {
       winapi::CloseHandle(Handle);
     } else {
       ::closesocket(reinterpret_cast<SOCKET>(Handle));
@@ -481,24 +484,24 @@ void HandleHolder::reset() noexcept {
 }
 
 INode INode::stdIn() noexcept {
-  return INode(winapi::GetStdHandle(winapi::STD_INPUT_HANDLE_));
+  return INode(winapi::GetStdHandle(winapi::STD_INPUT_HANDLE_), true);
 }
 
 INode INode::stdOut() noexcept {
-  return INode(winapi::GetStdHandle(winapi::STD_OUTPUT_HANDLE_));
+  return INode(winapi::GetStdHandle(winapi::STD_OUTPUT_HANDLE_), true);
 }
 
 INode INode::stdErr() noexcept {
-  return INode(winapi::GetStdHandle(winapi::STD_ERROR_HANDLE_));
+  return INode(winapi::GetStdHandle(winapi::STD_ERROR_HANDLE_), true);
 }
 
 WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
                               __wasi_fdflags_t FdFlags,
                               uint8_t VFSFlags) noexcept {
 
-  const DWORD AttributeFlags = attributeFlags(OpenFlags, FdFlags);
-  const DWORD AccessFlags = accessFlags(FdFlags, VFSFlags);
-  const DWORD CreationDisposition = creationDisposition(OpenFlags);
+  const winapi::DWORD_ AttributeFlags = attributeFlags(OpenFlags, FdFlags);
+  const winapi::DWORD_ AccessFlags = accessFlags(FdFlags, VFSFlags);
+  const winapi::DWORD_ CreationDisposition = creationDisposition(OpenFlags);
 
   WCHAR PathBuffer[PATH_BUFFER_MAX];
 
@@ -602,20 +605,21 @@ INode::fdFdstatSetFlags(__wasi_fdflags_t FdFlags) const noexcept {
   // The __WASI_FDFLAGS_APPEND flag is ignored as it cannot be changed for an
   // open file
 
-  DWORD Attributes = FILE_ATTRIBUTE_NORMAL;
+  winapi::DWORD_ Attributes = winapi::FILE_ATTRIBUTE_NORMAL_;
 
   FILE_BASIC_INFO BasicInfo;
 
   // Source: https://devblogs.microsoft.com/oldnewthing/20210729-00/?p=105494
   if ((FdFlags & __WASI_FDFLAGS_SYNC) || (FdFlags & __WASI_FDFLAGS_RSYNC)) {
     // Linux does not implement RSYNC and glibc defines O_RSYNC as O_SYNC
-    Attributes |= FILE_FLAG_WRITE_THROUGH | FILE_FLAG_NO_BUFFERING;
+    Attributes |=
+        winapi::FILE_FLAG_WRITE_THROUGH_ | winapi::FILE_FLAG_NO_BUFFERING_;
   }
   if (FdFlags & __WASI_FDFLAGS_DSYNC) {
-    Attributes |= FILE_FLAG_NO_BUFFERING;
+    Attributes |= winapi::FILE_FLAG_NO_BUFFERING_;
   }
   if (FdFlags & __WASI_FDFLAGS_NONBLOCK) {
-    Attributes |= FILE_FLAG_OVERLAPPED;
+    Attributes |= winapi::FILE_FLAG_OVERLAPPED_;
   }
 
   if (unlikely(GetFileInformationByHandleEx(Handle, FileBasicInfo, &BasicInfo,
@@ -707,15 +711,15 @@ INode::fdFilestatSetSize(__wasi_filesize_t Size) const noexcept {
   if (Size > PreviousSize) {
     OVERLAPPED FileOffsetProvider;
     FileOffsetProvider.Offset =
-        static_cast<DWORD>(StandardInfo.AllocationSize.LowPart);
+        static_cast<winapi::DWORD_>(StandardInfo.AllocationSize.LowPart);
     FileOffsetProvider.OffsetHigh =
-        static_cast<DWORD>(StandardInfo.AllocationSize.HighPart);
+        static_cast<winapi::DWORD_>(StandardInfo.AllocationSize.HighPart);
 
     // Write null byte by byte
     uint64_t Count = static_cast<uint64_t>(Size - PreviousSize);
     while (Count > 0) {
-      DWORD BytesWritten;
-      BOOL WriteResult =
+      winapi::DWORD_ BytesWritten;
+      winapi::BOOL_ WriteResult =
           WriteFile(Handle, "\0", 1, nullptr, &FileOffsetProvider);
 
       if (GetLastError() == ERROR_IO_PENDING) {
@@ -753,9 +757,9 @@ INode::fdFilestatSetTimes(__wasi_timestamp_t ATim, __wasi_timestamp_t MTim,
   // For setting access time
   if (FstFlags & __WASI_FSTFLAGS_ATIM) {
     uint64_t Aticks = ATim / NANOSECONDS_PER_TICK + TICKS_TO_UNIX_EPOCH;
-    AFileTime.dwLowDateTime = static_cast<DWORD>(Aticks & 0xFFFFFFFF);
+    AFileTime.dwLowDateTime = static_cast<winapi::DWORD_>(Aticks & 0xFFFFFFFF);
     AFileTime.dwHighDateTime =
-        static_cast<DWORD>((Aticks & 0xFFFFFFFF00000000) >> 32);
+        static_cast<winapi::DWORD_>((Aticks & 0xFFFFFFFF00000000) >> 32);
   } else if (FstFlags & __WASI_FSTFLAGS_ATIM_NOW) {
     GetSystemTimeAsFileTime(&AFileTime);
   }
@@ -763,9 +767,9 @@ INode::fdFilestatSetTimes(__wasi_timestamp_t ATim, __wasi_timestamp_t MTim,
   // For setting modification time
   if (FstFlags & __WASI_FSTFLAGS_MTIM) {
     uint64_t Mticks = MTim / NANOSECONDS_PER_TICK + TICKS_TO_UNIX_EPOCH;
-    MFileTime.dwLowDateTime = static_cast<DWORD>(Mticks & 0xFFFFFFFF);
+    MFileTime.dwLowDateTime = static_cast<winapi::DWORD_>(Mticks & 0xFFFFFFFF);
     MFileTime.dwHighDateTime =
-        static_cast<DWORD>((Mticks & 0xFFFFFFFF00000000) >> 32);
+        static_cast<winapi::DWORD_>((Mticks & 0xFFFFFFFF00000000) >> 32);
   } else if (FstFlags & __WASI_FSTFLAGS_MTIM_NOW) {
     GetSystemTimeAsFileTime(&MFileTime);
   }
@@ -784,7 +788,7 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
   uint64_t LocalOffset = Offset;
 
   for (auto IOV : IOVs) {
-    DWORD NumberOfBytesRead = 0;
+    winapi::DWORD_ NumberOfBytesRead = 0;
     OVERLAPPED Result;
 
     Result.Offset = static_cast<uint32_t>(LocalOffset);
@@ -792,7 +796,7 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
 
     // Casting the 64 bit `IOV.size()` integer may overflow the range
     // of the 32 bit integer it is cast into
-    BOOL ReadResult =
+    winapi::BOOL_ ReadResult =
         ReadFile(Handle, IOV.data(), static_cast<uint32_t>(IOV.size()),
                  &NumberOfBytesRead, &Result);
     if (GetLastError() == ERROR_IO_PENDING) {
@@ -818,14 +822,14 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
   uint64_t LocalOffset = Offset;
 
   for (auto IOV : IOVs) {
-    DWORD NumberOfBytesWritten = 0;
+    winapi::DWORD_ NumberOfBytesWritten = 0;
     OVERLAPPED Result;
 
     Result.Offset = static_cast<uint32_t>(LocalOffset);
     Result.OffsetHigh = static_cast<uint32_t>(LocalOffset >> 32);
 
     // There maybe issues due to casting IOV.size() to unit32_t
-    BOOL WriteResult = WriteFile(
+    winapi::BOOL_ WriteResult = WriteFile(
         Handle, static_cast<const uint8_t *>(IOV.data()),
         static_cast<uint32_t>(IOV.size()), &NumberOfBytesWritten, &Result);
 
@@ -915,7 +919,7 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
   }
 
   uint32_t NumberOfBytesRead = 0;
-  BOOL FindNextResult = FALSE;
+  winapi::BOOL_ FindNextResult = FALSE;
 
   do {
     if (!LocalBuffer.empty()) {
@@ -972,7 +976,7 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
       return WasiUnexpect(fromWinError(GetLastError()));
     }
 
-    DWORD FileType = GetFileType(LocalFileHandle);
+    winapi::DWORD_ FileType = GetFileType(LocalFileHandle);
 
     if (GetLastError() != NO_ERROR) {
       return WasiUnexpect(fromWinError(GetLastError()));
@@ -1020,7 +1024,7 @@ WasiExpect<void> INode::fdSeek(__wasi_filedelta_t Offset,
                                __wasi_whence_t Whence,
                                __wasi_filesize_t &Size) const noexcept {
 
-  DWORD MoveMethod = fromWhence(Whence);
+  winapi::DWORD_ MoveMethod = fromWhence(Whence);
   LARGE_INTEGER DistanceToMove = toLargeIntegerFromSigned(Offset);
   LARGE_INTEGER Pointer;
   if (unlikely(SetFilePointerEx(Handle, DistanceToMove, &Pointer,
@@ -1233,8 +1237,10 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
     // For setting access time
     if (FstFlags & __WASI_FSTFLAGS_ATIM) {
       uint64_t Aticks = ATim / NANOSECONDS_PER_TICK + TICKS_TO_UNIX_EPOCH;
-      AFileTime.dwLowDateTime = static_cast<DWORD>(Aticks % 0x100000000ULL);
-      AFileTime.dwHighDateTime = static_cast<DWORD>(Aticks / 0x100000000ULL);
+      AFileTime.dwLowDateTime =
+          static_cast<winapi::DWORD_>(Aticks % 0x100000000ULL);
+      AFileTime.dwHighDateTime =
+          static_cast<winapi::DWORD_>(Aticks / 0x100000000ULL);
     } else if (FstFlags & __WASI_FSTFLAGS_ATIM_NOW) {
       GetSystemTimeAsFileTime(&AFileTime);
     }
@@ -1242,8 +1248,10 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
     // For setting modification time
     if (FstFlags & __WASI_FSTFLAGS_MTIM) {
       uint64_t Mticks = MTim / NANOSECONDS_PER_TICK + TICKS_TO_UNIX_EPOCH;
-      MFileTime.dwLowDateTime = static_cast<DWORD>(Mticks % 0x100000000ULL);
-      MFileTime.dwHighDateTime = static_cast<DWORD>(Mticks / 0x100000000ULL);
+      MFileTime.dwLowDateTime =
+          static_cast<winapi::DWORD_>(Mticks % 0x100000000ULL);
+      MFileTime.dwHighDateTime =
+          static_cast<winapi::DWORD_>(Mticks / 0x100000000ULL);
     } else if (FstFlags & __WASI_FSTFLAGS_MTIM_NOW) {
       GetSystemTimeAsFileTime(&MFileTime);
     }
@@ -1391,9 +1399,9 @@ WasiExpect<INode> INode::pathOpen(std::string Path, __wasi_oflags_t OpenFlags,
     mbstowcs(FullPathW, Path.c_str(), MAX_PATH);
   }
 
-  DWORD AttributeFlags = attributeFlags(OpenFlags, FdFlags);
-  DWORD AccessFlags = accessFlags(FdFlags, VFSFlags);
-  DWORD CreationDisposition = creationDisposition(OpenFlags);
+  winapi::DWORD_ AttributeFlags = attributeFlags(OpenFlags, FdFlags);
+  winapi::DWORD_ AccessFlags = accessFlags(FdFlags, VFSFlags);
+  winapi::DWORD_ CreationDisposition = creationDisposition(OpenFlags);
 
   HANDLE FileHandle =
       CreateFileW(FullPathW, AccessFlags,
@@ -1632,7 +1640,7 @@ WasiExpect<void> INode::pathSymlink(std::string OldPath,
       return WasiUnexpect(__WASI_ERRNO_NAMETOOLONG);
     }
   }
-  DWORD TargetType = 0;
+  winapi::DWORD_ TargetType = 0;
   if (PathIsDirectoryW(OldFullPathW)) {
     TargetType = SYMBOLIC_LINK_FLAG_DIRECTORY;
   }
@@ -1838,9 +1846,42 @@ WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
   }
 }
 
-WasiExpect<void> INode::sockBind(uint8_t *AddressBuf,
-                                 [[maybe_unused]] uint8_t AddressLength,
-                                 uint16_t Port) noexcept {
+WasiExpect<void> INode::sockBindV1(uint8_t *Address, uint8_t AddressLength,
+                                   uint16_t Port) noexcept {
+  EnsureWSAStartup();
+
+  if (AddressLength == 4) {
+    struct sockaddr_in ServerAddr;
+    ServerAddr.sin_family = AF_INET;
+    ServerAddr.sin_port = htons(Port);
+    std::memcpy(&ServerAddr.sin_addr.s_addr, Address, AddressLength);
+
+    if (auto Res = ::bind(toSocket(Handle),
+                          reinterpret_cast<struct sockaddr *>(&ServerAddr),
+                          sizeof(ServerAddr));
+        unlikely(Res == SOCKET_ERROR)) {
+      return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+    }
+
+  } else if (AddressLength == 16) {
+    struct sockaddr_in6 ServerAddr;
+    std::memset(&ServerAddr, 0, sizeof(ServerAddr));
+    ServerAddr.sin6_family = AF_INET6;
+    ServerAddr.sin6_port = htons(Port);
+    std::memcpy(ServerAddr.sin6_addr.s6_addr, Address, AddressLength);
+    if (auto Res = ::bind(toSocket(Handle),
+                          reinterpret_cast<struct sockaddr *>(&ServerAddr),
+                          sizeof(ServerAddr));
+        unlikely(Res == SOCKET_ERROR)) {
+      return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+    }
+  }
+  return {};
+}
+
+WasiExpect<void> INode::sockBindV2(uint8_t *AddressBuf,
+                                   [[maybe_unused]] uint8_t AddressLength,
+                                   uint16_t Port) noexcept {
   EnsureWSAStartup();
 
   int AddrFamily;
@@ -1902,8 +1943,9 @@ WasiExpect<void> INode::sockListen(int32_t Backlog) noexcept {
   return {};
 }
 
-WasiExpect<INode> INode::sockAccept() noexcept {
+WasiExpect<INode> INode::sockAcceptV1() noexcept {
   EnsureWSAStartup();
+
   struct sockaddr_in ServerSocketAddr;
   ServerSocketAddr.sin_family = AF_INET;
   ServerSocketAddr.sin_addr.s_addr = INADDR_ANY;
@@ -1920,9 +1962,68 @@ WasiExpect<INode> INode::sockAccept() noexcept {
   }
 }
 
-WasiExpect<void> INode::sockConnect(uint8_t *AddressBuf,
-                                    [[maybe_unused]] uint8_t AddressLength,
-                                    uint16_t Port) noexcept {
+WasiExpect<INode> INode::sockAcceptV2(__wasi_fdflags_t FdFlags) noexcept {
+  EnsureWSAStartup();
+  SOCKET NewSock;
+  if (NewSock = ::accept(toSocket(Handle), nullptr, nullptr);
+      unlikely(NewSock == INVALID_SOCKET)) {
+    return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+  }
+
+  INode New(reinterpret_cast<boost::winapi::HANDLE_>(NewSock));
+  u_long SysNonBlockFlag = 0;
+  if (FdFlags) {
+    if (FdFlags & __WASI_FDFLAGS_NONBLOCK) {
+      SysNonBlockFlag = 1;
+    }
+  }
+
+  long Cmd = static_cast<long>(FIONBIO);
+  if (auto Res = ::ioctlsocket(NewSock, Cmd, &SysNonBlockFlag);
+      unlikely(Res == SOCKET_ERROR)) {
+    return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+  } else {
+    return New;
+  }
+}
+
+WasiExpect<void> INode::sockConnectV1(uint8_t *Address, uint8_t AddressLength,
+                                      uint16_t Port) noexcept {
+  EnsureWSAStartup();
+
+  if (AddressLength == 4) {
+    struct sockaddr_in ClientSocketAddr;
+    ClientSocketAddr.sin_family = AF_INET;
+    ClientSocketAddr.sin_port = htons(Port);
+    std::memcpy(&ClientSocketAddr.sin_addr.s_addr, Address, AddressLength);
+
+    if (auto Res =
+            ::connect(toSocket(Handle),
+                      reinterpret_cast<struct sockaddr *>(&ClientSocketAddr),
+                      sizeof(ClientSocketAddr));
+        unlikely(Res == SOCKET_ERROR)) {
+      return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+    }
+  } else if (AddressLength == 16) {
+    struct sockaddr_in6 ClientSocketAddr;
+
+    ClientSocketAddr.sin6_family = AF_INET6;
+    ClientSocketAddr.sin6_port = htons(Port);
+    std::memcpy(ClientSocketAddr.sin6_addr.s6_addr, Address, AddressLength);
+    if (auto Res =
+            ::connect(toSocket(Handle),
+                      reinterpret_cast<struct sockaddr *>(&ClientSocketAddr),
+                      sizeof(ClientSocketAddr));
+        unlikely(Res == SOCKET_ERROR)) {
+      return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+    }
+  }
+  return {};
+}
+
+WasiExpect<void> INode::sockConnectV2(uint8_t *AddressBuf,
+                                      [[maybe_unused]] uint8_t AddressLength,
+                                      uint16_t Port) noexcept {
   EnsureWSAStartup();
 
   int AddrFamily;
@@ -1978,15 +2079,78 @@ WasiExpect<void> INode::sockConnect(uint8_t *AddressBuf,
 WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>> RiData,
                                  __wasi_riflags_t RiFlags, __wasi_size_t &NRead,
                                  __wasi_roflags_t &RoFlags) const noexcept {
-  return sockRecvFrom(RiData, RiFlags, nullptr, 0, nullptr, NRead, RoFlags);
+  return sockRecvFromV1(RiData, RiFlags, nullptr, 0, NRead, RoFlags);
 }
 
-WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
-                                     __wasi_riflags_t RiFlags,
-                                     uint8_t *AddressBuf,
-                                     [[maybe_unused]] uint8_t AddressLength,
-                                     uint32_t *PortPtr, __wasi_size_t &NRead,
-                                     __wasi_roflags_t &RoFlags) const noexcept {
+WasiExpect<void>
+INode::sockRecvFromV1(Span<Span<uint8_t>> RiData, __wasi_riflags_t RiFlags,
+                      uint8_t *Address, uint8_t AddressLength,
+                      __wasi_size_t &NRead,
+                      __wasi_roflags_t &RoFlags) const noexcept {
+  EnsureWSAStartup();
+  // recvmsg is not available on WINDOWS. fall back to call recvfrom
+
+  int SysRiFlags = 0;
+  if (RiFlags & __WASI_RIFLAGS_RECV_PEEK) {
+    SysRiFlags |= MSG_PEEK;
+  }
+  if (RiFlags & __WASI_RIFLAGS_RECV_WAITALL) {
+    SysRiFlags |= MSG_WAITALL;
+  }
+
+  std::size_t TmpBufSize = 0;
+  for (auto &IOV : RiData) {
+    TmpBufSize += IOV.size();
+  }
+
+  std::vector<uint8_t> TmpBuf(TmpBufSize, 0);
+
+  sockaddr_storage SockAddrStorage;
+
+  int MaxAllowLength = 0;
+  if (AddressLength == 4) {
+    MaxAllowLength = sizeof(sockaddr_in);
+  } else if (AddressLength == 16) {
+    MaxAllowLength = sizeof(sockaddr_in6);
+  }
+
+  if (auto Res = ::recvfrom(
+          toSocket(Handle), reinterpret_cast<char *>(TmpBuf.data()),
+          static_cast<int>(TmpBufSize), SysRiFlags,
+          reinterpret_cast<sockaddr *>(&SockAddrStorage), &MaxAllowLength);
+      unlikely(Res == SOCKET_ERROR)) {
+    return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+  } else {
+    NRead = static_cast<__wasi_size_t>(Res);
+  }
+
+  if (AddressLength == 4) {
+    std::memcpy(Address,
+                &reinterpret_cast<sockaddr_in *>(&SockAddrStorage)->sin_addr,
+                AddressLength);
+  } else if (AddressLength == 16) {
+    std::memcpy(Address,
+                &reinterpret_cast<sockaddr_in6 *>(&SockAddrStorage)->sin6_addr,
+                AddressLength);
+  }
+
+  RoFlags = static_cast<__wasi_roflags_t>(0);
+  // TODO : check MSG_TRUNC
+
+  size_t BeginIdx = 0;
+  for (auto &IOV : RiData) {
+    std::copy(TmpBuf.data() + BeginIdx, TmpBuf.data() + BeginIdx + IOV.size(),
+              IOV.begin());
+    BeginIdx += IOV.size();
+  }
+
+  return {};
+}
+
+WasiExpect<void> INode::sockRecvFromV2(
+    Span<Span<uint8_t>> RiData, __wasi_riflags_t RiFlags, uint8_t *AddressBuf,
+    [[maybe_unused]] uint8_t AddressLength, uint32_t *PortPtr,
+    __wasi_size_t &NRead, __wasi_roflags_t &RoFlags) const noexcept {
   EnsureWSAStartup();
   // recvmsg is not available on WINDOWS. fall back to call recvfrom
 
@@ -2216,8 +2380,46 @@ WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
   return {};
 }
 
-WasiExpect<void> INode::sockGetLocalAddr(uint8_t *AddressBufPtr,
-                                         uint32_t *PortPtr) const noexcept {
+WasiExpect<void> INode::sockGetLocalAddrV1(uint8_t *AddressPtr,
+                                           uint32_t *AddrTypePtr,
+                                           uint32_t *PortPtr) const noexcept {
+  EnsureWSAStartup();
+
+  struct sockaddr_storage SocketAddr;
+  socklen_t Slen = sizeof(SocketAddr);
+  std::memset(&SocketAddr, 0, sizeof(SocketAddr));
+
+  if (auto Res = ::getsockname(
+          toSocket(Handle), reinterpret_cast<sockaddr *>(&SocketAddr), &Slen);
+      unlikely(Res == SOCKET_ERROR)) {
+    return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+  }
+
+  size_t AddrLen = 4;
+  if (Slen != 16) {
+    AddrLen = 16;
+  }
+
+  if (SocketAddr.ss_family == AF_INET) {
+    *AddrTypePtr = 4;
+    auto SocketAddrv4 = reinterpret_cast<struct sockaddr_in *>(&SocketAddr);
+    *PortPtr = ntohs(SocketAddrv4->sin_port);
+    std::memcpy(AddressPtr, &(SocketAddrv4->sin_addr.s_addr), AddrLen);
+  } else if (SocketAddr.ss_family == AF_INET6) {
+    *AddrTypePtr = 6;
+    auto SocketAddrv6 = reinterpret_cast<struct sockaddr_in6 *>(&SocketAddr);
+
+    *PortPtr = ntohs(SocketAddrv6->sin6_port);
+    std::memcpy(AddressPtr, &(SocketAddrv6->sin6_addr.s6_addr), AddrLen);
+  } else {
+    return WasiUnexpect(__WASI_ERRNO_NOSYS);
+  }
+
+  return {};
+}
+
+WasiExpect<void> INode::sockGetLocalAddrV2(uint8_t *AddressBufPtr,
+                                           uint32_t *PortPtr) const noexcept {
   EnsureWSAStartup();
 
   auto AddrFamilyPtr = getAddressFamily(AddressBufPtr);
@@ -2252,8 +2454,15 @@ WasiExpect<void> INode::sockGetLocalAddr(uint8_t *AddressBufPtr,
   return {};
 }
 
-WasiExpect<void> INode::sockGetPeerAddr(uint8_t *AddressBufPtr,
-                                        uint32_t *PortPtr) const noexcept {
+WasiExpect<void> INode::sockGetPeerAddrV1(uint8_t *, uint32_t *,
+                                          uint32_t *) const noexcept {
+  EnsureWSAStartup();
+
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> INode::sockGetPeerAddrV2(uint8_t *AddressBufPtr,
+                                          uint32_t *PortPtr) const noexcept {
   EnsureWSAStartup();
 
   auto AddrFamilyPtr = getAddressFamily(AddressBufPtr);

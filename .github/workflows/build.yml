@@ -14,7 +14,6 @@ on:
       - "lib/**"
       - "plugins/**"
       - "examples/**"
-      - "rpm/**"
       - "test/**"
       - "thirdparty/**"
       - "tools/**"
@@ -30,7 +29,6 @@ on:
       - "lib/**"
       - "plugins/**"
       - "examples/**"
-      - "rpm/**"
       - "test/**"
       - "thirdparty/**"
       - "tools/**"
@@ -110,11 +108,5 @@ jobs:
   build_on_fedora:
     needs: [get_version_v2, lint]
     uses: ./.github/workflows/reusable-build-on-fedora.yml
-    with:
-      version: ${{ needs.get_version_v2.outputs.version }}
-
-  build_fedora_srpm:
-    needs: [get_version_v2, create_source_tarball, lint]
-    uses: ./.github/workflows/reusable-build-srpm.yml
     with:
       version: ${{ needs.get_version_v2.outputs.version }}

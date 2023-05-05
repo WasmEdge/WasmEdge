@@ -148,10 +148,44 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       const auto &TargetType = TargetInst->getFuncType();
       const auto *FuncType = *ModInst.getFuncType(TypeIdx);
       if (TargetType != *FuncType) {
-        return logMatchError(
-            ModName, ExtName, ExtType, FuncType->getParamTypes(),
-            FuncType->getReturnTypes(), TargetType.getParamTypes(),
-            TargetType.getReturnTypes());
+        if (ModName == "wasi_snapshot_preview1") {
+          /*
+           * The following functions should provide V1 and V2.
+             "sock_open_v2",
+             "sock_bind_v2",
+             "sock_connect_v2",
+             "sock_listen_v2",
+             "sock_accept_v2",
+             "sock_recv_v2",
+             "sock_recv_from_v2",
+             "sock_send_v2",
+             "sock_send_to_v2",
+             "sock_getlocaladdr_v2",
+             "sock_getpeeraddr_v2"
+             */
+          std::vector<std::string> CompatibleWASISocketAPI = {
+              "sock_open",         "sock_bind",       "sock_connect",
+              "sock_listen",       "sock_accept",     "sock_recv",
+              "sock_recv_from",    "sock_send",       "sock_send_to",
+              "sock_getlocaladdr", "sock_getpeeraddr"};
+          for (auto Iter = CompatibleWASISocketAPI.begin();
+               Iter != CompatibleWASISocketAPI.end(); Iter++) {
+            if (ExtName == *Iter) {
+              auto *TargetInstV2 =
+                  TargetModInst->findFuncExports(*Iter + "_v2");
+              if (TargetInstV2->getFuncType() == *FuncType) {
+                // Try to match the new version
+                TargetInst = TargetInstV2;
+                break;
+              }
+            }
+          }
+        } else {
+          return logMatchError(
+              ModName, ExtName, ExtType, FuncType->getParamTypes(),
+              FuncType->getReturnTypes(), TargetType.getParamTypes(),
+              TargetType.getReturnTypes());
+        }
       }
       // Set the matched function address to module instance.
       ModInst.importFunction(TargetInst);

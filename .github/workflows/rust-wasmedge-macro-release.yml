@@ -27,12 +27,11 @@ jobs:
           sudo apt-get install -y gcc g++
           sudo apt-get install -y libssl-dev
 
-      - name: Install Rust v1.65
+      - name: Install Rust v1.68
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.65
-          components: rustfmt, clippy
-
+          toolchain: 1.68
+    
       - name: Dry run cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRIES_MACRO_TOKEN }}

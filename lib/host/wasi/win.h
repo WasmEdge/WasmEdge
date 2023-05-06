@@ -586,8 +586,6 @@ inline constexpr int toSockOptSoName(__wasi_sock_opt_so_t SoName) noexcept {
     return SO_SNDTIMEO;
   case __WASI_SOCK_OPT_SO_ACCEPTCONN:
     return SO_ACCEPTCONN;
-  case __WASI_SOCK_OPT_SO_BINDTODEVICE:
-    return SO_BINDTODEVICE;
 
   default:
     assumingUnreachable();

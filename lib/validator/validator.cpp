@@ -365,7 +365,7 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
 }
 
 Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
-  auto TypeCount = (uint32_t)TypeSec.getContent().size();
+  auto TypeCount = static_cast<uint32_t>(TypeSec.getContent().size());
   auto validateValType = [TypeCount](const ValType &VType) -> Expect<void> {
     if (VType.isRefType()) {
       auto HeapType = VType.toRefType().getHeapType();

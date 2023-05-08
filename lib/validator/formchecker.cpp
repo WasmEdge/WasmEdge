@@ -518,10 +518,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   }
   case OpCode::Call_ref: {
     auto TypeIdx = Instr.getTargetIndex();
-    if (TypeIdx >= (uint32_t)Types.size()) {
+    if (TypeIdx >= static_cast<uint32_t>(Types.size())) {
       return logOutOfRange(ErrCode::Value::InvalidFuncTypeIdx,
                            ErrInfo::IndexCategory::FunctionType, TypeIdx,
-                           Types.size());
+                           static_cast<uint32_t>(Types.size()));
     }
     std::vector<ValType> Input = Types[TypeIdx].first;
     Input.push_back(ValType(RefTypeCode::RefNull, TypeIdx));

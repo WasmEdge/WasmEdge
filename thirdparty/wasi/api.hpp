@@ -1749,6 +1749,8 @@ enum __wasi_sock_opt_so_t : uint32_t {
 
   __WASI_SOCK_OPT_SO_ACCEPTCONN = 13,
 
+  __WASI_SOCK_OPT_SO_BINDTODEVICE = 14,
+
 };
 static_assert(sizeof(__wasi_sock_opt_so_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_sock_opt_so_t) == 4, "witx calculated align");

@@ -16,15 +16,6 @@ target_compile_options(wasmedgePluginHttpsReq
   -DWASMEDGE_PLUGIN
 )
 
-
-if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  target_link_options(wasmedgePluginHttpsReq
-    PUBLIC
-    -Wl,-U,__ZN8WasmEdge6Plugin14PluginRegisterC1EPKNS0_6Plugin16PluginDescriptorE
-    -Wl,-U,__ZN8WasmEdge6Plugin14PluginRegisterD1Ev
-  )
-endif()
-
 target_include_directories(wasmedgePluginHttpsReq
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>

@@ -56,6 +56,7 @@ pub mod ast_module;
 #[doc(hidden)]
 #[cfg(feature = "async")]
 pub mod r#async;
+pub mod async_wasi;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
 pub mod compiler;

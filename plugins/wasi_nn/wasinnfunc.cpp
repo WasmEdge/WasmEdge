@@ -20,6 +20,7 @@
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
 #include "tensorflow/lite/c/c_api.h"
+#include "tflite_custom_ops/tflite_custom_ops.h"
 #endif
 
 namespace WasmEdge {
@@ -32,9 +33,9 @@ namespace {
   case 0:
     DeviceName = "CPU";
     break;
-  // case 1:
-  //   DeviceName = "GPU";
-  //   break;
+  //  case 1:
+  //    DeviceName = "GPU";
+  //    break;
   // case 2:
   //   DeviceName = "TPU";
   //   break;
@@ -62,7 +63,6 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
     spdlog::error("[WASI-NN] Failed when accessing the return GraphID memory.");
     return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
   }
-  // Get and check the device name string.
   std::string DeviceName;
   DeviceName = FindDevice(Target);
   if (unlikely(DeviceName.length() == 0)) {
@@ -335,6 +335,7 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
 #endif
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
+    return static_cast<uint32_t>(WASINN::ErrNo::InvalidEncoding);
   }
   return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
 }
@@ -402,9 +403,12 @@ Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
     }
 
     Env.NNContext.emplace_back(Env.NNGraph[GraphId]);
-    const auto Graph = Env.NNGraph[GraphId];
+    const auto &Graph = Env.NNGraph[GraphId];
     auto &NewContext = Env.NNContext.back();
     auto *TFLiteOps = TfLiteInterpreterOptionsCreate();
+    // set up custom ops if exists
+    WASINNTfLite::tfLiteInterpreterOptionsAddCustomOps(TFLiteOps);
+
     TfLiteInterpreterOptionsSetNumThreads(TFLiteOps, 2);
     NewContext.TFLiteInterp =
         TfLiteInterpreterCreate(Graph.TFLiteMod, TFLiteOps);
@@ -655,12 +659,8 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
     uint32_t DimensionLen = Tensor[1];
-    std::vector<int64_t> TFDimension(DimensionLen);
     uint32_t *DimensionBuf =
         MemInst->getPointer<uint32_t *>(Tensor[0], DimensionLen);
-    for (uint32_t I = 0; I < DimensionLen; I++) {
-      TFDimension.push_back(static_cast<uint64_t>(DimensionBuf[I]));
-    }
     if (unlikely(DimensionBuf == nullptr)) {
       spdlog::error("[WASI-NN] Failed when accessing the Dimension memory.");
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
@@ -673,9 +673,33 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
 
-    WASINN::TensorType RType = static_cast<WASINN::TensorType>(Tensor[2]);
     auto *HoldTensor =
         TfLiteInterpreterGetInputTensor(CxtRef.TFLiteInterp, Index);
+    // Check the input data size.
+    const auto HoldTensorByteSize = TfLiteTensorByteSize(HoldTensor);
+    if (HoldTensorByteSize != static_cast<size_t>(TensorDataLen)) {
+      spdlog::error("[WASI-NN] Expect tensor byte size {}, but got {}",
+                    HoldTensorByteSize, TensorDataLen);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    // Check the input tensor dimensions.
+    const auto HoldTensorNumDims = TfLiteTensorNumDims(HoldTensor);
+    if (static_cast<uint32_t>(HoldTensorNumDims) != DimensionLen) {
+      spdlog::error(
+          "[WASI-NN] Expect tensor number of dimensions {}, but got {}",
+          HoldTensorNumDims, DimensionLen);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    for (uint32_t I = 0; I < DimensionLen; I++) {
+      const auto HoldTensorDim = TfLiteTensorDim(HoldTensor, I);
+      if (static_cast<uint32_t>(HoldTensorDim) != DimensionBuf[I]) {
+        spdlog::error("[WASI-NN] Expect tensor dimension[{}] = {}, but got {}",
+                      I, HoldTensorDim, DimensionBuf[I]);
+        return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+      }
+    }
+    // Check the input tensor type.
+    WASINN::TensorType RType = static_cast<WASINN::TensorType>(Tensor[2]);
     WASINN::TensorType LiteType;
     switch (TfLiteTensorType(HoldTensor)) {
     case TfLiteType::kTfLiteUInt8:
@@ -692,7 +716,7 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
       break;
     default:
       spdlog::error("[WASI-NN] Unsupported TFLite type: {}", LiteType);
-      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+      return static_cast<uint32_t>(WASINN::ErrNo::RuntimeError);
     }
 
     if (unlikely(LiteType != RType)) {
@@ -863,8 +887,13 @@ WasiNNGetOuput::body(const Runtime::CallingFrame &Frame, uint32_t Context,
     }
     const TfLiteTensor *HoldTensor =
         TfLiteInterpreterGetOutputTensor(CxtRef.TFLiteInterp, Index);
-    const uint32_t BlobSize = TfLiteTensorByteSize(HoldTensor);
-    uint32_t BytesToWrite = std::min(BlobSize, OutBufferMaxSize);
+    const uint32_t BytesToWrite = TfLiteTensorByteSize(HoldTensor);
+    // Check out buffer max size.
+    if (OutBufferMaxSize < BytesToWrite) {
+      spdlog::error("[WASI-NN] Expect out buffer max size {}, but got {}",
+                    BytesToWrite, OutBufferMaxSize);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
     uint8_t *OutBuffer =
         MemInst->getPointer<uint8_t *>(OutBufferPtr, BytesToWrite);
     if (unlikely(OutBuffer == nullptr)) {

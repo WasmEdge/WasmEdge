@@ -154,6 +154,12 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       PUBLIC
       ${WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB}
     )
+
+    file(GLOB_RECURSE WASMEDGE_TENSORFLOW_LITE_CUSTOM_OPS_FILES tflite_custom_ops/**)
+    target_sources(wasmedgePluginWasiNN
+      PRIVATE
+      ${WASMEDGE_TENSORFLOW_LITE_CUSTOM_OPS_FILES}
+    )
   else()
     # Add the other backends here.
     message(FATAL_ERROR "WASI-NN: backend ${BACKEND} not found or unimplemented.")

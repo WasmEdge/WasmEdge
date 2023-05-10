@@ -297,6 +297,8 @@ fn expand_async_host_func_with_two_args(item_fn: &syn::ItemFn) -> proc_macro2::T
         // replace the first argument
         *first = parse_quote!(frame: wasmedge_sdk::CallingFrame);
     }
+    // insert the third argument
+    fn_inputs.push(parse_quote!(_data: *mut std::os::raw::c_void));
 
     // * prepare the function body
     let fn_block = &item_fn.block;
@@ -600,7 +602,10 @@ fn sys_expand_async_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2:
 fn sys_expand_async_host_func_with_two_args(item_fn: &syn::ItemFn) -> proc_macro2::TokenStream {
     let fn_name_ident = &item_fn.sig.ident;
     let fn_visibility = &item_fn.vis;
-    let fn_inputs = item_fn.sig.inputs.clone();
+
+    // insert the third argument
+    let mut fn_inputs = item_fn.sig.inputs.clone();
+    fn_inputs.push(parse_quote!(_data: *mut std::os::raw::c_void));
 
     let fn_block = &item_fn.block;
 

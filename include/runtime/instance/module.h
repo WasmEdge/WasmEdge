@@ -87,6 +87,33 @@ public:
 
   void *getHostData() const noexcept { return HostData; }
 
+  ModuleInstance *Clone() const {
+    std::unique_lock Lock(Mutex);
+    return UnsafeClone();
+  }
+
+  ModuleInstance *UnsafeClone() const {
+    ModuleInstance *Res = new ModuleInstance(ModName);
+
+    Res->FuncInsts = FuncInsts;
+    Res->TabInsts = TabInsts;
+    Res->MemInsts = MemInsts;
+    Res->GlobInsts = GlobInsts;
+    Res->ElemInsts = ElemInsts;
+    Res->DataInsts = DataInsts;
+
+    Res->ImpGlobalNum = ImpGlobalNum;
+
+    Res->ExpFuncs = ExpFuncs;
+    Res->ExpTables = ExpTables;
+    Res->ExpMems = ExpMems;
+    Res->ExpGlobals = ExpGlobals;
+
+    Res->StartFunc = StartFunc;
+
+    return Res;
+  }
+
   /// Add exist instances and move ownership with exporting name.
   void addHostFunc(std::string_view Name,
                    std::unique_ptr<HostFunctionBase> &&Func) {

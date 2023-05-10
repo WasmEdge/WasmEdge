@@ -117,6 +117,13 @@ pub(crate) struct AsyncCx {
     current_poll_cx: *mut *mut Context<'static>,
 }
 impl AsyncCx {
+    pub(crate) fn new() -> Self {
+        Self {
+            current_suspend: std::ptr::null_mut(),
+            current_poll_cx: std::ptr::null_mut(),
+        }
+    }
+
     /// Runs a future to completion.
     ///
     /// # Arguments

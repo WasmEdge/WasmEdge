@@ -1,6 +1,6 @@
 //! Defines WasmEdge Instance and other relevant types.
 
-use crate::async_wasi::{wasi_impls, WasiFunc};
+use crate::async_wasi::{wasi_impls, WasiFunc, WasiFuncNew};
 use crate::{
     error::{InstanceError, WasmEdgeError},
     ffi,
@@ -8,7 +8,8 @@ use crate::{
     types::WasmEdgeString,
     Function, Global, Memory, Table, WasmEdgeResult,
 };
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
+use wasmedge_async_wasi::snapshots::{common::vfs::sync::WasiPreOpenDir, WasiCtx as AsyncWasiCtx};
 
 /// An [Instance] represents an instantiated module. In the instantiation process, An [Instance] is created from al[Module](crate::Module). From an [Instance] the exported [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) can be fetched.
 #[derive(Debug)]
@@ -878,9 +879,10 @@ impl Drop for AsyncWasiModule {
 }
 impl AsyncWasiModule {
     pub fn create(
-        args: Option<Vec<&str>>,
-        envs: Option<Vec<&str>>,
-        preopens: Option<Vec<&str>>,
+        // args: Option<Vec<&str>>,
+        // envs: Option<Vec<&str>>,
+        // preopens: Option<Vec<(PathBuf, PathBuf)>>,
+        async_wasi_ctx: &mut AsyncWasiCtx,
     ) -> WasmEdgeResult<Self> {
         let name = "wasi_snapshot_preview1";
         let raw_name = WasmEdgeString::from(name);
@@ -892,29 +894,46 @@ impl AsyncWasiModule {
             )));
         }
 
+        // let mut async_wasi_ctx = ASYNC_WASI_CTX.write();
+        // if let Some(args) = args {
+        //     args.into_iter()
+        //         .for_each(|arg| async_wasi_ctx.push_arg(arg.to_string()));
+        // }
+        // if let Some(envs) = envs {
+        //     envs.into_iter().for_each(|env| {
+        //         async_wasi_ctx.push_env(env.to_string());
+        //     });
+        // }
+        // if let Some(preopens) = preopens {
+        //     preopens.into_iter().for_each(|(host_path, guest_path)| {
+        //         let preopen = WasiPreOpenDir::new(host_path, guest_path);
+        //         async_wasi_ctx.push_preopen(preopen);
+        //     });
+        // }
+
         let mut async_wasi_module = Self {
             inner: std::sync::Arc::new(InnerInstance(ctx)),
             registered: false,
             name: name.to_string(),
         };
+        // let data = &mut async_wasi_module.async_wasi_ctx;
 
         // todo: add functions
         for wasi_func in wasi_impls() {
             match wasi_func {
-                WasiFunc::SyncFn(name, (ty_args, ty_rets), real_fn) => {
-                    let fn_ty = crate::FuncType::create(ty_args, ty_rets)?;
-                    let func = unsafe {
-                        crate::instance::function::functions::new_sync_function(
-                            &fn_ty, real_fn, data, 0,
-                        )
-                    }?;
+                WasiFuncNew::SyncFn(name, (ty_args, ty_rets), real_fn) => {
+                    let func_ty = crate::FuncType::create(ty_args, ty_rets)?;
+                    let func = Function::create(&func_ty, real_fn, Some(async_wasi_ctx), 0)?;
                     async_wasi_module.add_func(name, func);
                 }
-                WasiFunc::AsyncFn(name, (ty_args, ty_rets), real_fn) => {
+                WasiFuncNew::AsyncFn(name, (ty_args, ty_rets), real_fn) => {
                     let fn_ty = crate::FuncType::create(ty_args, ty_rets)?;
                     let func = unsafe {
                         crate::instance::function::functions::new_async_function(
-                            &fn_ty, real_fn, data, 0,
+                            &fn_ty,
+                            real_fn,
+                            async_wasi_ctx,
+                            0,
                         )
                     }?;
                     async_wasi_module.add_func(name, func);
@@ -1025,6 +1044,7 @@ impl ImportObject {
         match self {
             ImportObject::Import(import) => import.name(),
             ImportObject::Wasi(wasi) => wasi.name(),
+            ImportObject::AsyncWasi(async_wasi) => async_wasi.name(),
         }
     }
 
@@ -1034,6 +1054,7 @@ impl ImportObject {
         match self {
             ImportObject::Import(import) => import.inner.0,
             ImportObject::Wasi(wasi) => wasi.inner.0,
+            ImportObject::AsyncWasi(async_wasi) => async_wasi.inner.0,
         }
     }
 }

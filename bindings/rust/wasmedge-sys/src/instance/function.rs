@@ -1373,6 +1373,15 @@ pub mod functions {
         )
     }
 
+    pub unsafe fn new_sync_function_new<T: 'static>(
+        ty: &crate::FuncType,
+        real_fn: BoxedFn, // HostFn<T>,
+        data: &mut T,
+        cost: u64,
+    ) -> WasmEdgeResult<Function> {
+        Function::create(ty, real_fn, Some(data), cost)
+    }
+
     pub unsafe fn new_async_function<T: 'static>(
         ty: &crate::FuncType,
         real_fn: AsyncHostFn<T>,

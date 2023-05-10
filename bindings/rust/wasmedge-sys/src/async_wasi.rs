@@ -1448,7 +1448,7 @@ pub fn wasi_impls() -> Vec<WasiFunc<WasiCtx>> {
             WasiFunc::AsyncFn($name.into(), $ty, $f)
         };
     }
-    let impls = vec![
+    vec![
         sync_fn!(
             "args_get",
             (vec![ValType::I32, ValType::I32], vec![ValType::I32]),
@@ -1946,8 +1946,7 @@ pub fn wasi_impls() -> Vec<WasiFunc<WasiCtx>> {
             ),
             sock_lookup_ip
         ),
-    ];
-    impls
+    ]
 }
 
 // * define WasiVm
@@ -1967,7 +1966,7 @@ where
         wasi_fns: Vec<WasiFunc<WasiCtx>>,
     ) -> WasmEdgeResult<Self> {
         let data = wasi_ctx.as_mut();
-        let mut import_object = wasmedge_sys::ImportModule::create("wasi_snapshot_preview1")?;
+        let mut import_object = crate::ImportModule::create("wasi_snapshot_preview1")?;
         for wasi_fn in wasi_fns {
             match wasi_fn {
                 WasiFunc::SyncFn(name, ty, real_fn) => {
@@ -1983,7 +1982,7 @@ where
             }
         }
         vm.as_mut()
-            .register_import_module_(wasmedge_sys::ImportObject::Import(import_object).into())?;
+            .register_import_module_(crate::ImportObject::Import(import_object).into())?;
         Ok(Self { vm, wasi_ctx })
     }
 

@@ -1,5 +1,6 @@
 //! Defines WasmEdge Instance and other relevant types.
 
+use crate::async_wasi::{wasi_impls, WasiFunc};
 use crate::{
     error::{InstanceError, WasmEdgeError},
     ffi,
@@ -860,6 +861,112 @@ impl AsImport for WasiModule {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct AsyncWasiModule {
+    pub(crate) inner: Arc<InnerInstance>,
+    pub(crate) registered: bool,
+    name: String,
+}
+impl Drop for AsyncWasiModule {
+    fn drop(&mut self) {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
+            unsafe {
+                ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
+            }
+        }
+    }
+}
+impl AsyncWasiModule {
+    pub fn create(
+        args: Option<Vec<&str>>,
+        envs: Option<Vec<&str>>,
+        preopens: Option<Vec<&str>>,
+    ) -> WasmEdgeResult<Self> {
+        let name = "wasi_snapshot_preview1";
+        let raw_name = WasmEdgeString::from(name);
+        let ctx = unsafe { ffi::WasmEdge_ModuleInstanceCreate(raw_name.as_raw()) };
+
+        if ctx.is_null() {
+            return Err(Box::new(WasmEdgeError::Instance(
+                InstanceError::CreateImportModule,
+            )));
+        }
+
+        let mut async_wasi_module = Self {
+            inner: std::sync::Arc::new(InnerInstance(ctx)),
+            registered: false,
+            name: name.to_string(),
+        };
+
+        // todo: add functions
+        for wasi_func in wasi_impls() {
+            match wasi_func {
+                WasiFunc::SyncFn(name, (ty_args, ty_rets), real_fn) => {
+                    let fn_ty = crate::FuncType::create(ty_args, ty_rets)?;
+                    let func = unsafe {
+                        crate::instance::function::functions::new_sync_function(
+                            &fn_ty, real_fn, data, 0,
+                        )
+                    }?;
+                    async_wasi_module.add_func(name, func);
+                }
+                WasiFunc::AsyncFn(name, (ty_args, ty_rets), real_fn) => {
+                    let fn_ty = crate::FuncType::create(ty_args, ty_rets)?;
+                    let func = unsafe {
+                        crate::instance::function::functions::new_async_function(
+                            &fn_ty, real_fn, data, 0,
+                        )
+                    }?;
+                    async_wasi_module.add_func(name, func);
+                }
+            }
+        }
+
+        Ok(async_wasi_module)
+    }
+}
+impl AsImport for AsyncWasiModule {
+    fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
+        let func_name: WasmEdgeString = name.into();
+        unsafe {
+            ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
+        }
+        func.registered = true;
+    }
+
+    fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
+        let table_name: WasmEdgeString = name.as_ref().into();
+        unsafe {
+            ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
+        }
+        table.registered = true;
+    }
+
+    fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
+        let mem_name: WasmEdgeString = name.as_ref().into();
+        unsafe {
+            ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
+        }
+        memory.registered = true;
+    }
+
+    fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
+        let global_name: WasmEdgeString = name.as_ref().into();
+        unsafe {
+            ffi::WasmEdge_ModuleInstanceAddGlobal(
+                self.inner.0,
+                global_name.as_raw(),
+                global.inner.0,
+            );
+        }
+        global.registered = true;
+    }
+}
+
 /// The object to be registered via the the [Executor::register_import_object](crate::Executor::register_import_object) function is required to implement this trait.
 pub trait AsImport {
     /// Returns the name of the module instance.
@@ -909,6 +1016,8 @@ pub enum ImportObject {
     Import(ImportModule),
     /// Defines the import module instance of WasiModule type.
     Wasi(WasiModule),
+    /// Defines the import module instance of AsyncWasiModule type.
+    AsyncWasi(AsyncWasiModule),
 }
 impl ImportObject {
     /// Returns the name of the import object.

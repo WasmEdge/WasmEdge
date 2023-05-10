@@ -24,7 +24,7 @@ wasmedge-macro = {workspace = true}
 wasmedge-types = {workspace = true}
 wat = "1.0"
 
-wasmedge-async-wasi = {path = "/root/workspace/me/wasmedge-async-wasi"}
+wasmedge-async-wasi = {path = "/root/workspace/async-wasi"}
 
 [build-dependencies]
 bindgen = {version = "0.65", default-features = false, features = ["runtime"]}
@@ -37,7 +37,7 @@ tokio = {version = "1", features = ["full"]}
 [features]
 aot = []
 async = ["dep:fiber-for-wasmedge"]
-default = []
+default = ["async"]
 ffi = []
 standalone = []
 static = []

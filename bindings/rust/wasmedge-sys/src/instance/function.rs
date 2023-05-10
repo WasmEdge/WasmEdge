@@ -1232,6 +1232,7 @@ mod tests {
 
 pub mod functions {
 
+    use super::*;
     use std::ffi::c_void;
     use std::pin::Pin;
 
@@ -1255,7 +1256,7 @@ pub mod functions {
         returns: *mut ffi::WasmEdge_Value,
         return_len: u32,
     ) -> ffi::WasmEdge_Result {
-        let mut frame = CallingFrame::from_raw(call_frame_ctx as *mut _);
+        let mut frame = CallingFrame::create(call_frame_ctx);
         let data = (data as *mut T).as_mut();
         debug_assert!(data.is_some());
         let data = data.unwrap();
@@ -1307,7 +1308,7 @@ pub mod functions {
         returns: *mut ffi::WasmEdge_Value,
         return_len: u32,
     ) -> ffi::WasmEdge_Result {
-        let frame = CallingFrame::from_raw(call_frame_ctx as *mut _);
+        let mut frame = CallingFrame::create(call_frame_ctx);
         let data: &'static mut T = &mut *(data as *mut T);
 
         let real_fn: AsyncHostFn<T> = std::mem::transmute(key_ptr);
@@ -1330,7 +1331,7 @@ pub mod functions {
         let raw_returns = unsafe { std::slice::from_raw_parts_mut(returns, return_len) };
 
         let r = {
-            let async_cx = sys::r#async::AsyncCx::new();
+            let async_cx = crate::r#async::AsyncCx::new();
             let mut future = Pin::from(real_fn(frame, data, args));
             match unsafe { async_cx.block_on(future.as_mut()) } {
                 Ok(Ok(ret)) => Ok(ret),
@@ -1358,7 +1359,7 @@ pub mod functions {
     }
 
     pub unsafe fn new_sync_function<T: 'static>(
-        ty: &sys::FuncType,
+        ty: &crate::FuncType,
         real_fn: HostFn<T>,
         data: &mut T,
         cost: u64,
@@ -1373,7 +1374,7 @@ pub mod functions {
     }
 
     pub unsafe fn new_async_function<T: 'static>(
-        ty: &sys::FuncType,
+        ty: &crate::FuncType,
         real_fn: AsyncHostFn<T>,
         data: &mut T,
         cost: u64,

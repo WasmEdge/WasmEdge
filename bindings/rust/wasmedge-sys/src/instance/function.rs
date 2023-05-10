@@ -245,9 +245,11 @@ impl Function {
     /// ```rust
     /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame};
     /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
+    /// use wasmedge_macro::sys_host_function;
     /// use std::future::Future;
     /// use std::os::raw::c_void;
     ///
+    /// #[sys_host_function]
     /// fn real_add(
     ///     _frame: CallingFrame,
     ///     input: Vec<WasmValue>,
@@ -287,6 +289,7 @@ impl Function {
         real_fn: impl Fn(
                 CallingFrame,
                 Vec<WasmValue>,
+                *mut std::os::raw::c_void,
             ) -> Box<
                 dyn std::future::Future<
                         Output = Result<Vec<WasmValue>, crate::error::HostFuncError>,
@@ -296,19 +299,20 @@ impl Function {
             + 'static,
         cost: u64,
     ) -> WasmEdgeResult<Self> {
-        Self::create(
+        Self::create::<NeverType>(
             ty,
-            Box::new(move |frame, args| {
+            Box::new(move |frame, args, data| {
                 let async_state = ASYNC_STATE.read();
                 let async_cx = async_state.async_cx().unwrap();
                 drop(async_state);
-                let mut future = Pin::from(real_fn(frame, args));
+                let mut future = Pin::from(real_fn(frame, args, data));
                 match unsafe { async_cx.block_on(future.as_mut()) } {
                     Ok(Ok(ret)) => Ok(ret),
                     Ok(Err(err)) => Err(err),
                     Err(_err) => Err(HostFuncError::User(0x87)),
                 }
             }),
+            None,
             cost,
         )
     }

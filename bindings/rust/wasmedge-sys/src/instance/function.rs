@@ -18,7 +18,7 @@ use wasmedge_types::ValType;
 // Wrapper function for thread-safe scenarios.
 extern "C" fn wrap_fn(
     key_ptr: *mut c_void,
-    _data: *mut std::os::raw::c_void,
+    data: *mut std::os::raw::c_void,
     call_frame_ctx: *const ffi::WasmEdge_CallingFrameContext,
     params: *const ffi::WasmEdge_Value,
     param_len: u32,
@@ -53,7 +53,7 @@ extern "C" fn wrap_fn(
             let real_fn_locked = real_fn.lock();
             drop(map_host_func);
 
-            match real_fn_locked(frame, input) {
+            match real_fn_locked(frame, input, data) {
                 Ok(returns) => {
                     assert!(returns.len() == return_len, "[wasmedge-sys] check the number of returns of host function. Expected: {}, actual: {}", return_len, returns.len());
                     for (idx, wasm_value) in returns.into_iter().enumerate() {
@@ -84,6 +84,9 @@ pub type CustomFnWrapper = unsafe extern "C" fn(
     return_len: u32,
 ) -> ffi::WasmEdge_Result;
 
+/// This is a workaround solution to the [`never`](https://doc.rust-lang.org/std/primitive.never.html) type in Rust. It will be replaced by `!` once it is stable.
+pub enum NeverType {}
+
 /// Defines a host function.
 ///
 /// A WasmEdge [Function] defines a WebAssembly host function described by its [type](crate::FuncType). A host function is a closure of the original function defined in either the host or the WebAssembly module.
@@ -103,6 +106,8 @@ impl Function {
     ///
     /// * `real_fn` - The pointer to the target function.
     ///
+    /// * `data` - The additional data object to set to this host function context.
+    ///
     /// * `cost` - The function cost in the [Statistics](crate::Statistics). Pass 0 if the calculation is not needed.
     ///
     /// # Error
@@ -116,7 +121,7 @@ impl Function {
     ///
     /// ```rust
     /// use wasmedge_macro::sys_host_function;
-    /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame};
+    /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame, NeverType};
     /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
     ///
     /// #[sys_host_function]
@@ -146,10 +151,20 @@ impl Function {
     /// let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]).expect("fail to create a FuncType");
     ///
     /// // create a Function instance
-    /// let func = Function::create(&func_ty, Box::new(real_add), 0).expect("fail to create a Function instance");
+    /// let func = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0).expect("fail to create a Function instance");
     /// ```
-    pub fn create(ty: &FuncType, real_fn: BoxedFn, cost: u64) -> WasmEdgeResult<Self> {
-        unsafe { Self::create_with_data(ty, real_fn, std::ptr::null_mut(), cost) }
+    pub fn create<T>(
+        ty: &FuncType,
+        real_fn: BoxedFn,
+        data: Option<&mut T>,
+        cost: u64,
+    ) -> WasmEdgeResult<Self> {
+        let data = match data {
+            Some(d) => d as *mut T as *mut std::os::raw::c_void,
+            None => std::ptr::null_mut(),
+        };
+
+        unsafe { Self::create_with_data(ty, real_fn, data, cost) }
     }
 
     /// Creates a [host function](crate::Function) with the given function type.
@@ -170,7 +185,7 @@ impl Function {
     ///
     /// * If fail to create a [Function], then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
     ///
-    pub unsafe fn create_with_data(
+    unsafe fn create_with_data(
         ty: &FuncType,
         real_fn: BoxedFn,
         data: *mut c_void,
@@ -411,10 +426,12 @@ impl Function {
     /// # Example
     ///
     /// ```rust
-    /// use wasmedge_sys::{FuncType, Function, WasmValue, Executor, CallingFrame};
+    /// use wasmedge_macro::sys_host_function;
+    /// use wasmedge_sys::{FuncType, Function, WasmValue, Executor, CallingFrame, NeverType};
     /// use wasmedge_types::{error::HostFuncError, ValType};
     ///
-    /// fn real_add(_: CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    /// #[sys_host_function]
+    /// fn real_add(_frame: CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     ///     println!("Rust: Entering Rust function real_add");
     ///
     ///     if input.len() != 2 {
@@ -445,7 +462,7 @@ impl Function {
     /// assert!(result.is_ok());
     /// let func_ty = result.unwrap();
     /// // create a host function
-    /// let result = Function::create(&func_ty, Box::new(real_add), 0);
+    /// let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
     /// assert!(result.is_ok());
     /// let host_func = result.unwrap();
     ///
@@ -810,12 +827,29 @@ mod tests {
 
     #[test]
     fn test_func_basic() {
+        #[derive(Debug)]
+        struct Data<T, S> {
+            _x: i32,
+            _y: String,
+            _v: Vec<T>,
+            _s: Vec<S>,
+        }
+        let mut data: Data<i32, &str> = Data {
+            _x: 12,
+            _y: "hello".to_string(),
+            _v: vec![1, 2, 3],
+            _s: vec!["macos", "linux", "windows"],
+        };
+
         #[sys_host_function]
         fn real_add(
             _frame: CallingFrame,
             input: Vec<WasmValue>,
+            data: &mut Data<i32, &str>,
         ) -> Result<Vec<WasmValue>, HostFuncError> {
             println!("Rust: Entering Rust function real_add");
+
+            println!("data: {data:?}");
 
             if input.len() != 2 {
                 return Err(HostFuncError::User(1));
@@ -845,7 +879,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), Some(&mut data), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -923,7 +957,7 @@ mod tests {
                 assert!(result.is_ok());
                 let func_ty = result.unwrap();
                 // create a host function
-                let result = Function::create(&func_ty, Box::new(real_add), 0);
+                let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
                 assert!(result.is_ok());
                 let host_func = result.unwrap();
 
@@ -950,7 +984,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(&func_ty, Box::new(func), 0);
+        let result = Function::create::<NeverType>(&func_ty, Box::new(func), None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -969,7 +1003,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -1000,7 +1034,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
         assert!(result.is_ok());
         let host_func = Arc::new(Mutex::new(result.unwrap()));
 
@@ -1029,6 +1063,7 @@ mod tests {
         handle.join().unwrap();
     }
 
+    #[sys_host_function]
     fn real_add(
         _frame: CallingFrame,
         input: Vec<WasmValue>,
@@ -1065,34 +1100,36 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let real_add =
-            |_: CallingFrame, input: Vec<WasmValue>| -> Result<Vec<WasmValue>, HostFuncError> {
-                println!("Rust: Entering Rust function real_add");
+        let real_add = |_: CallingFrame,
+                        input: Vec<WasmValue>,
+                        _data: *mut std::os::raw::c_void|
+         -> Result<Vec<WasmValue>, HostFuncError> {
+            println!("Rust: Entering Rust function real_add");
 
-                if input.len() != 2 {
-                    return Err(HostFuncError::User(1));
-                }
+            if input.len() != 2 {
+                return Err(HostFuncError::User(1));
+            }
 
-                let a = if input[0].ty() == ValType::I32 {
-                    input[0].to_i32()
-                } else {
-                    return Err(HostFuncError::User(2));
-                };
-
-                let b = if input[1].ty() == ValType::I32 {
-                    input[1].to_i32()
-                } else {
-                    return Err(HostFuncError::User(3));
-                };
-
-                let c = a + b;
-                println!("Rust: calcuating in real_add c: {c:?}");
-
-                println!("Rust: Leaving Rust function real_add");
-                Ok(vec![WasmValue::from_i32(c)])
+            let a = if input[0].ty() == ValType::I32 {
+                input[0].to_i32()
+            } else {
+                return Err(HostFuncError::User(2));
             };
 
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+            let b = if input[1].ty() == ValType::I32 {
+                input[1].to_i32()
+            } else {
+                return Err(HostFuncError::User(3));
+            };
+
+            let c = a + b;
+            println!("Rust: calcuating in real_add c: {c:?}");
+
+            println!("Rust: Leaving Rust function real_add");
+            Ok(vec![WasmValue::from_i32(c)])
+        };
+
+        let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -1125,7 +1162,7 @@ mod tests {
     }
 
     #[test]
-    fn test_crazy_function_creation() {
+    fn test_func_crazy_function_creation() {
         #[sys_host_function]
         fn real_add(
             _frame: CallingFrame,
@@ -1166,7 +1203,7 @@ mod tests {
             assert!(result.is_ok());
             let func_ty = result.unwrap();
             // create a host function
-            let result = Function::create(&func_ty, Box::new(real_add), 0);
+            let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
             assert!(result.is_ok());
             let host_func = result.unwrap();
             funcs.push(host_func);

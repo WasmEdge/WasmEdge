@@ -19,7 +19,7 @@ use wasmedge_sys::{self as sys, AsImport};
 ///     Global, ImportObjectBuilder, Memory, Table,
 ///     error::HostFuncError, WasmValue, GlobalType,
 ///     MemoryType, Mutability, RefType, TableType,
-///     ValType, Caller, host_function,
+///     ValType, Caller, host_function, NeverType
 /// };
 ///
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -63,7 +63,7 @@ use wasmedge_sys::{self as sys, AsImport};
 ///     let module_name = "extern";
 ///     let _import = ImportObjectBuilder::new()
 ///         // add a function
-///         .with_func::<(i32, i32), i32>("add", real_add)?
+///         .with_func::<(i32, i32), i32, NeverType>("add", real_add, None)?
 ///         // add a global
 ///         .with_global("global", global_const)?
 ///         // add a memory
@@ -105,16 +105,23 @@ impl ImportObjectBuilder {
     ///
     /// * `real_func` - The native function.
     ///
+    /// * `data` - The additional data object to set to this host function context.
+    ///
     /// # error
     ///
     /// If fail to create or add the [host function](crate::Func), then an error is returned.
-    pub fn with_func<Args, Rets>(
+    pub fn with_func<Args, Rets, T>(
         mut self,
         name: impl AsRef<str>,
-        real_func: impl Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+        real_func: impl Fn(
+                CallingFrame,
+                Vec<WasmValue>,
+                *mut std::os::raw::c_void,
+            ) -> Result<Vec<WasmValue>, HostFuncError>
             + Send
             + Sync
             + 'static,
+        data: Option<&mut T>,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -124,7 +131,7 @@ impl ImportObjectBuilder {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner_func = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        let inner_func = sys::Function::create::<T>(&ty.into(), boxed_func, data, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }
@@ -141,20 +148,27 @@ impl ImportObjectBuilder {
     ///
     /// * `real_func` - The native function.
     ///
+    /// * `data` - The additional data object to set to this host function context.
+    ///
     /// # error
     ///
     /// If fail to create or add the [host function](crate::Func), then an error is returned.
-    pub fn with_func_by_type(
+    pub fn with_func_by_type<T>(
         mut self,
         name: impl AsRef<str>,
         ty: FuncType,
-        real_func: impl Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+        real_func: impl Fn(
+                CallingFrame,
+                Vec<WasmValue>,
+                *mut std::os::raw::c_void,
+            ) -> Result<Vec<WasmValue>, HostFuncError>
             + Send
             + Sync
             + 'static,
+        data: Option<&mut T>,
     ) -> WasmEdgeResult<Self> {
         let boxed_func = Box::new(real_func);
-        let inner_func = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        let inner_func = sys::Function::create::<T>(&ty.into(), boxed_func, data, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }
@@ -319,8 +333,8 @@ mod tests {
         error::{GlobalError, WasmEdgeError},
         params,
         types::Val,
-        Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics, Store,
-        Table, TableType, ValType, WasmVal, WasmValue,
+        Executor, Global, GlobalType, Memory, MemoryType, Mutability, NeverType, RefType,
+        Statistics, Store, Table, TableType, ValType, WasmVal, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -342,6 +356,7 @@ mod tests {
         fn real_add(
             _frame: CallingFrame,
             inputs: Vec<WasmValue>,
+            _data: *mut std::os::raw::c_void,
         ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
             if inputs.len() != 2 {
                 return Err(HostFuncError::User(1));
@@ -366,7 +381,7 @@ mod tests {
 
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", real_add)
+            .with_func::<(i32, i32), i32, NeverType>("add", real_add, None)
             .expect("failed to add host func")
             .build("extern");
         assert!(result.is_ok());
@@ -615,7 +630,7 @@ mod tests {
 
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", real_add)
+            .with_func::<(i32, i32), i32, NeverType>("add", real_add, None)
             .expect("failed to add host func")
             .with_table("table", table)
             .expect("failed to add table")
@@ -743,7 +758,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", real_add)
+            .with_func::<(i32, i32), i32, NeverType>("add", real_add, None)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -864,7 +879,7 @@ mod tests {
 
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", real_add)
+            .with_func::<(i32, i32), i32, NeverType>("add", real_add, None)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -974,6 +989,7 @@ mod tests {
     fn real_add(
         _frame: CallingFrame,
         inputs: Vec<WasmValue>,
+        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

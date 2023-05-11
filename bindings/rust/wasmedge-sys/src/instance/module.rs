@@ -1,6 +1,6 @@
 //! Defines WasmEdge Instance and other relevant types.
 
-use crate::async_wasi::{wasi_impls, WasiFunc, WasiFuncNew};
+use crate::async_wasi::{wasi_impls, WasiFunc};
 use crate::{
     error::{InstanceError, WasmEdgeError},
     ffi,
@@ -894,6 +894,7 @@ impl AsyncWasiModule {
             )));
         }
 
+        // === NOTICE: DO NOT REMOVE THIS COMMENTED CODE ===
         // let mut async_wasi_ctx = ASYNC_WASI_CTX.write();
         // if let Some(args) = args {
         //     args.into_iter()
@@ -916,26 +917,23 @@ impl AsyncWasiModule {
             registered: false,
             name: name.to_string(),
         };
-        // let data = &mut async_wasi_module.async_wasi_ctx;
 
-        // todo: add functions
+        // add sync/async host functions to the module
         for wasi_func in wasi_impls() {
             match wasi_func {
-                WasiFuncNew::SyncFn(name, (ty_args, ty_rets), real_fn) => {
+                WasiFunc::SyncFn(name, (ty_args, ty_rets), real_fn) => {
                     let func_ty = crate::FuncType::create(ty_args, ty_rets)?;
-                    let func = Function::create(&func_ty, real_fn, Some(async_wasi_ctx), 0)?;
+                    let func = Function::create_new(&func_ty, real_fn, Some(async_wasi_ctx), 0)?;
                     async_wasi_module.add_func(name, func);
                 }
-                WasiFuncNew::AsyncFn(name, (ty_args, ty_rets), real_fn) => {
-                    let fn_ty = crate::FuncType::create(ty_args, ty_rets)?;
-                    let func = unsafe {
-                        crate::instance::function::functions::new_async_function(
-                            &fn_ty,
-                            real_fn,
-                            async_wasi_ctx,
-                            0,
-                        )
-                    }?;
+                WasiFunc::AsyncFn(name, (ty_args, ty_rets), real_async_fn) => {
+                    let func_ty = crate::FuncType::create(ty_args, ty_rets)?;
+                    let func = Function::create_async_new(
+                        &func_ty,
+                        real_async_fn,
+                        Some(async_wasi_ctx),
+                        0,
+                    )?;
                     async_wasi_module.add_func(name, func);
                 }
             }

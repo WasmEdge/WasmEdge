@@ -4079,9 +4079,10 @@ private:
   void compileVectorVectorAddSat(LLVM::Type VectorTy, bool Signed) noexcept {
     auto ID = Signed ? LLVM::Core::SAddSat : LLVM::Core::UAddSat;
     assuming(ID != LLVM::Core::NotIntrinsic);
-    compileVectorVectorOp(VectorTy, [this, ID](auto LHS, auto RHS) noexcept {
-      return Builder.createBinaryIntrinsic(ID, LHS, RHS);
-    });
+    compileVectorVectorOp(
+        VectorTy, [this, VectorTy, ID](auto LHS, auto RHS) noexcept {
+          return Builder.createIntrinsic(ID, {VectorTy}, {LHS, RHS});
+        });
   }
   void compileVectorVectorSub(LLVM::Type VectorTy) noexcept {
     compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
@@ -4091,9 +4092,10 @@ private:
   void compileVectorVectorSubSat(LLVM::Type VectorTy, bool Signed) noexcept {
     auto ID = Signed ? LLVM::Core::SSubSat : LLVM::Core::USubSat;
     assuming(ID != LLVM::Core::NotIntrinsic);
-    compileVectorVectorOp(VectorTy, [this, ID](auto LHS, auto RHS) noexcept {
-      return Builder.createBinaryIntrinsic(ID, LHS, RHS);
-    });
+    compileVectorVectorOp(
+        VectorTy, [this, VectorTy, ID](auto LHS, auto RHS) noexcept {
+          return Builder.createIntrinsic(ID, {VectorTy}, {LHS, RHS});
+        });
   }
   void compileVectorVectorMul(LLVM::Type VectorTy) noexcept {
     compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {

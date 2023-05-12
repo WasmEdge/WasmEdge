@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"attr":[["async_host_function","Declare a native async function that will be used to create an async host function instance."],["host_function","Declare a native function that will be used to create a host function instance."],["sys_async_host_function",""],["sys_host_function",""]]};

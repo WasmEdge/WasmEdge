@@ -1,0 +1,1 @@
+window.ALL_CRATES = ["wasmedge_macro","wasmedge_sdk","wasmedge_sys","wasmedge_types"];

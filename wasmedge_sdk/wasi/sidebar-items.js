@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["WasiInstance","Represents a wasi module instance."]]};

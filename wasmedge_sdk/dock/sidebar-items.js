@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["Param","Defines a type container that wraps a value of Rust built-in type."]],"struct":[["VmDock","Extends a Vm instance by supporting function arguments of Rust built-in types."]]};

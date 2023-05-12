@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["WasmEdge_ModuleDescriptor","Module descriptor for plugins."],["WasmEdge_ModuleInstanceContext",""],["WasmEdge_PluginDescriptor","Plugin descriptor for plugins."]]};

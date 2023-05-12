@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["CallingFrame","Represents a calling frame on top of stack."]]};

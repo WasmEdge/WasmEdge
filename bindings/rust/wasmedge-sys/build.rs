@@ -12,7 +12,7 @@ const WASMEDGE_H: &str = "wasmedge.h";
     target_family = "unix",
     not(feature = "static")
 ))]
-const WASMEDGE_RELEASE_VERSION: &str = "0.12.0";
+const WASMEDGE_RELEASE_VERSION: &str = "0.12.1";
 
 macro_rules! env_path {
     ($env_var:literal) => {

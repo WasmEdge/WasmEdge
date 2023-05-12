@@ -59,7 +59,6 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-          cargo +nightly -Z sparse-registry update
           cargo publish -p wasmedge-sys
 
       - name: Build API document

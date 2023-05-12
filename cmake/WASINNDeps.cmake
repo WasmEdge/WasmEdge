@@ -24,7 +24,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE)
 
     if(NOT WASMEDGE_DEPS_VERSION)
-      set(WASMEDGE_DEPS_VERSION "0.12.0")
+      set(WASMEDGE_DEPS_VERSION "0.12.1")
     endif()
 
     # Clone required shared libraries

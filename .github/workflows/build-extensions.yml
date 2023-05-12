@@ -292,7 +292,7 @@ jobs:
             tar_name: wasi_nn-tensorflowlite
             backend: Tensorflowlite
             system: manylinux2014 aarch64
-            host_runner: linux-arm64
+            host_runner: m1-lima-aarch64
             docker_tag: manylinux2014_aarch64
             test_path: test/plugins/wasi_nn
             test_bin: wasiNNTests
@@ -315,7 +315,7 @@ jobs:
           - name: WASI-Crypto
             tar_name: wasi_crypto
             system: manylinux2014 aarch64
-            host_runner: linux-arm64
+            host_runner: m1-lima-aarch64
             docker_tag: manylinux2014_aarch64
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
@@ -337,7 +337,7 @@ jobs:
           - name: HttpsReq
             tar_name: wasmedge_httpsreq
             system: manylinux2014 aarch64
-            host_runner: linux-arm64
+            host_runner: m1-lima-aarch64
             docker_tag: manylinux2014_aarch64
             output_path: plugins/wasmedge_httpsreq
             output_bin: libwasmedgePluginHttpsReq.so
@@ -358,7 +358,7 @@ jobs:
           - name: Process
             tar_name: wasmedge_process
             system: manylinux2014 aarch64
-            host_runner: linux-arm64
+            host_runner: [linux-arm64, m1-lima-aarch64]
             docker_tag: manylinux2014_aarch64
             output_path: plugins/wasmedge_process
             output_bin: libwasmedgePluginWasmEdgeProcess.so

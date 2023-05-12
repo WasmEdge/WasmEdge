@@ -69,7 +69,7 @@ jobs:
             python3_ex: python3.7
             extra_setup_command: apt update -y && apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget && wget https://www.python.org/ftp/python/3.7.4/Python-3.7.4.tgz && tar xzf Python-3.7.4.tgz && cd Python-3.7.4 && ./configure && make -j && make install && cd ..
           - name: manylinux2014 aarch64
-            host_runner: linux-arm64
+            host_runner: [linux-arm64, m1-lima-aarch64]
             package_manager: yum
             docker_image: wasmedge/wasmedge:manylinux2014_aarch64
             python_package: python2 python3

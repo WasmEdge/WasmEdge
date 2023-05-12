@@ -595,7 +595,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
     if (!match_type(Types[TypeIdx].second, Returns)) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
-      // TODO: Print the error info of types.
+      spdlog::error(ErrInfo::InfoMismatch(Types[TypeIdx].second, Returns));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
     std::vector<ValType> Input = Types[TypeIdx].first;

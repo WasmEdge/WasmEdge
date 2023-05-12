@@ -55,5 +55,5 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
-          publish_dir: bindings/rust/wasmedge-types/target/doc
+          publish_dir: bindings/rust/target/doc
           force_orphan: true

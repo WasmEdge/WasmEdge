@@ -12,6 +12,7 @@ To use or build the `wasmedge-sdk` crate, the `WasmEdge` library is required. Pl
 
   | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types| wasmedge-macro|
   | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
+  | 0.8.1         | 0.12.1        | 0.13.1        | 0.4.1         | 0.3.0         |
   | 0.8.0         | 0.12.0        | 0.13.0        | 0.4.1         | 0.3.0         |
   | 0.7.1         | 0.11.2        | 0.12.2        | 0.3.1         | 0.3.0         |
   | 0.7.0         | 0.11.2        | 0.12          | 0.3.1         | 0.3.0         |

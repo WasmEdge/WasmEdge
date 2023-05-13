@@ -25,7 +25,7 @@ wasmedge-types = {workspace = true}
 wat = "1.0"
 
 [build-dependencies]
-bindgen = {version = "0.61", default-features = false, features = ["runtime"]}
+bindgen = {version = "0.65", default-features = false, features = ["runtime"]}
 cmake = "0.1"
 
 [dev-dependencies]

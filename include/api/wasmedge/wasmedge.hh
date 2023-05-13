@@ -300,10 +300,10 @@ namespace SDK{
     std::shared_ptr<const GlobalType> GetGlobalType(const ASTModule &ASTCxt);
 
   private:
-    ImportType();
-    ~ImportType() = default;
     class ImportTypeContext;
-    std::unique_ptr<ImportTypeContext> Cxt;
+    ImportTypeContext &Cxt;
+    ImportType(ImportTypeContext &Cxt);
+    ~ImportType() = default;
 
     friend class ASTModule;
   };
@@ -320,10 +320,10 @@ namespace SDK{
     std::shared_ptr<const GlobalType> GetGlobalType(const ASTModule &ASTCxt);
 
   private:
-    ExportType();
-    ~ExportType() = default;
     class ExportTypeContext;
-    std::unique_ptr<ExportTypeContext> Cxt;
+    ExportTypeContext &Cxt;
+    ExportType(ExportTypeContext &Cxt);
+    ~ExportType() = default;
 
     friend class ASTModule;
   };
@@ -398,6 +398,8 @@ namespace SDK{
     std::unique_ptr<ConfigureContext> Cxt;
 
     friend class Loader;
+    friend class Validator;
+    friend class Executor;
     friend class VM;
   };
 
@@ -417,6 +419,8 @@ namespace SDK{
   private:
     class StatisticsContext;
     std::unique_ptr<StatisticsContext> Cxt;
+
+    friend class Executor;
   };
 
   // >>>>>>>> WasmEdge Runtime >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -476,7 +480,7 @@ namespace SDK{
                     const ModuleInstance &ImportCxt);
 
     Result Invoke(const FunctionInstance &FuncCxt,
-                  const std::vector<std::string> &Params,
+                  const std::vector<Value> &Params,
                   std::vector<Value> &Returns);
 
   private:
@@ -501,6 +505,9 @@ namespace SDK{
     std::unique_ptr<ASTModuleContext> Cxt;
 
     friend class VM;
+    friend class Loader;
+    friend class Validator;
+    friend class Executor;
   };
 
   class WASMEDGE_CPP_API_EXPORT Store {
@@ -508,7 +515,7 @@ namespace SDK{
     Store();
     ~Store() = default;
 
-    const ModuleInstance &FindModule(const std::string &Name);
+    const ModuleInstance FindModule(const std::string &Name);
     std::vector<std::string> ListModule();
 
   private:
@@ -516,13 +523,13 @@ namespace SDK{
     std::unique_ptr<StoreContext> Cxt;
 
     friend class VM;
+    friend class Executor;
   };
 
   // >>>>>>>> WasmEdge Instances >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   class WASMEDGE_CPP_API_EXPORT ModuleInstance {
   public:
-    ModuleInstance();
     ModuleInstance(const std::string &ModuleName);
     ModuleInstance(const std::vector<const std::string> &Args,
                    const std::vector<const std::string> &Envs,
@@ -561,9 +568,11 @@ namespace SDK{
 
   private:
     class ModuleInstanceContext;
-    std::unique_ptr<ModuleInstanceContext> Cxt;
+    ModuleInstanceContext *Cxt;
+    ModuleInstance(ModuleInstanceContext *Cxt): Cxt(Cxt) {}
 
-    friend VM;
+    friend class VM;
+    friend class Executor;
   };
 
   class WASMEDGE_CPP_API_EXPORT FunctionInstance {
@@ -591,6 +600,8 @@ namespace SDK{
   private:
     class FunctionInstanceContext;
     std::unique_ptr<FunctionInstanceContext> Cxt;
+
+    friend class Executor;
   };
 
   class WASMEDGE_CPP_API_EXPORT TableInstance {

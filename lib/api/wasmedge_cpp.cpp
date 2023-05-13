@@ -56,7 +56,71 @@ inline constexpr WasmEdge::SDK::Result wrap(
 namespace WasmEdge {
 namespace SDK {
 
-// >>>>>>>> WasmEdge Version members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge Context members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+class ASTModule::ASTModuleContext: public WasmEdge::AST::Module {};
+
+class FunctionType::FunctionTypeContext: public WasmEdge::AST::FunctionType {
+public:
+  FunctionTypeContext(AST::FunctionType &Func)
+  : AST::FunctionType(Func) {}
+};
+
+class TableType::TableTypeContext: public WasmEdge::AST::TableType {
+public:
+  TableTypeContext(AST::TableType &TabType): AST::TableType(TabType) {}
+};
+
+class MemoryType::MemoryTypeContext: public WasmEdge::AST::MemoryType {
+public:
+  MemoryTypeContext(AST::MemoryType &MemType): AST::MemoryType(MemType) {}
+};
+
+class GlobalType::GlobalTypeContext: public WasmEdge::AST::GlobalType {
+public:
+  GlobalTypeContext(AST::GlobalType &GlobType)
+  : WasmEdge::AST::GlobalType(GlobType) {}
+};
+
+class ImportType::ImportTypeContext: public WasmEdge::AST::ImportDesc {};
+class ExportType::ExportTypeContext: public WasmEdge::AST::ExportDesc {};
+
+class Async::AsyncContext: public WasmEdge::VM::Async<
+  WasmEdge::Expect<
+      std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>> {
+  template <typename... Args>
+  AsyncContext(Args &&...Vals)
+  : WasmEdge::VM::Async(std::forward<Args>(Vals)...) {}
+};
+
+class Configuration::ConfigureContext: public WasmEdge::Configure {};
+class Statistics::StatisticsContext: public WasmEdge::Statistics::Statistics {};
+
+class Loader::LoaderContext: public WasmEdge::Loader::Loader {};
+
+class Validator::ValidatorContext: public WasmEdge::Validator::Validator {
+public:
+  ValidatorContext(WasmEdge::Configure &Conf)
+  : WasmEdge::Validator::Validator(Conf) {};
+};
+
+class Executor::ExecutorContext: public WasmEdge::Executor::Executor {
+public:
+  ExecutorContext(WasmEdge::Configure &Conf,
+                  WasmEdge::Statistics::Statistics *Stat)
+  : WasmEdge::Executor::Executor(Conf, Stat) {}
+};
+
+class Store::StoreContext: public WasmEdge::Runtime::StoreManager {};
+class FunctionInstance::FunctionInstanceContext
+: public WasmEdge::Runtime::Instance::FunctionInstance {};
+class ModuleInstance::ModuleInstanceContext
+: public WasmEdge::Runtime::Instance::ModuleInstance {};
+class VM::VMContext: public WasmEdge::VM::VM {};
+
+// <<<<<<<< WasmEdge Context members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> . Version members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 std::string Version::Get() {
   return WASMEDGE_VERSION;
@@ -294,12 +358,6 @@ const std::string Result::GetMessage() {
 
 // <<<<<<<< WasmEdge Result members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-// >>>>>>>> WasmEdge ASTModule members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-class ASTModule::ASTModuleContext: public WasmEdge::AST::Module {};
-
-// <<<<<<<< WasmEdge ASTModule members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
 // >>>>>>>> WasmEdge Data Structures >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 bool Limit::operator==(const Limit &Lim) {
@@ -308,12 +366,6 @@ bool Limit::operator==(const Limit &Lim) {
 }
 
 // >>>>>>>> WasmEdge FunctionType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-class FunctionType::FunctionTypeContext: public WasmEdge::AST::FunctionType {
-public:
-  FunctionTypeContext(AST::FunctionType &Func)
-  : AST::FunctionType(Func) {}
-};
 
 FunctionType::FunctionType(const std::vector<ValType> &ParamList,
                            const std::vector<ValType> &ReturnList) {
@@ -356,11 +408,6 @@ const std::vector<ValType> FunctionType::GetReturns() {
 
 // >>>>>>>> WasmEdge TableType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class TableType::TableTypeContext: public WasmEdge::AST::TableType {
-public:
-  TableTypeContext(AST::TableType &TabType): AST::TableType(TabType) {}
-};
-
 TableType::TableType(const RefType RefT, const Limit &Lim) {
   if (Lim.HasMax) {
     this->Cxt = std::make_unique<TableType::TableTypeContext>(
@@ -386,11 +433,6 @@ const Limit &TableType::GetLimit() {
 
 // >>>>>>>> WasmEdge MemoryType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class MemoryType::MemoryTypeContext: public WasmEdge::AST::MemoryType {
-public:
-  MemoryTypeContext(AST::MemoryType &MemType): AST::MemoryType(MemType) {}
-};
-
 MemoryType::MemoryType(const Limit &Lim) {
   if (Lim.Shared) {
     this->Cxt = std::make_unique<MemoryType::MemoryTypeContext>(
@@ -414,12 +456,6 @@ const Limit &MemoryType::GetLimit() {
 
 // >>>>>>>> WasmEdge GlobalType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class GlobalType::GlobalTypeContext: public WasmEdge::AST::GlobalType {
-public:
-  GlobalTypeContext(AST::GlobalType &GlobType)
-  : WasmEdge::AST::GlobalType(GlobType) {}
-};
-
 GlobalType::GlobalType(const ValType ValT, const Mutability Mut) {
   this->Cxt = std::make_unique<GlobalType::GlobalTypeContext>(ValT, Mut);
 }
@@ -436,30 +472,26 @@ Mutability GlobalType::GetMutability() {
 
 // >>>>>>>> WasmEdge ImportType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class ImportType::ImportTypeContext: public WasmEdge::AST::ImportDesc {};
-
-ImportType::ImportType() {
-  this->Cxt = std::make_unique<ImportType::ImportTypeContext>();
-}
+ImportType::ImportType(ImportType::ImportTypeContext &Cxt): Cxt(Cxt) {}
 
 ExternalType ImportType::GetExternalType() {
-  return static_cast<ExternalType>(Cxt->getExternalType());
+  return static_cast<ExternalType>(Cxt.getExternalType());
 }
 
 std::string ImportType::GetModuleName() {
-  std::string str{ Cxt->getModuleName() };
+  std::string str{ Cxt.getModuleName() };
   return str;
 }
 
 std::string ImportType::GetExternalName() {
-  std::string str{ Cxt->getExternalName() };
+  std::string str{ Cxt.getExternalName() };
   return str;
 }
 
 std::shared_ptr<const FunctionType>
 ImportType::GetFunctionType(const ASTModule &ASTCxt) {
-  if (Cxt->getExternalType() == WasmEdge::ExternalType::Function) {
-    uint32_t Idx = Cxt->getExternalFuncTypeIdx();
+  if (Cxt.getExternalType() == WasmEdge::ExternalType::Function) {
+    uint32_t Idx = Cxt.getExternalFuncTypeIdx();
     const auto &FuncTypes = ASTCxt.Cxt->getTypeSection().getContent();
     if (Idx >= FuncTypes.size()) return nullptr;
 
@@ -474,10 +506,10 @@ ImportType::GetFunctionType(const ASTModule &ASTCxt) {
 
 std::shared_ptr<const TableType>
 ImportType::GetTableType(const ASTModule &ASTCxt) {
-  if (Cxt->getExternalType() == WasmEdge::ExternalType::Table) {
+  if (Cxt.getExternalType() == WasmEdge::ExternalType::Table) {
     auto TabTypeCxt =
         std::make_unique<TableType::TableTypeContext>(
-          Cxt->getExternalTableType());
+          Cxt.getExternalTableType());
     auto TabType = std::shared_ptr<TableType>();
     TabType->Cxt = std::move(TabTypeCxt);
     return TabType;
@@ -487,8 +519,8 @@ ImportType::GetTableType(const ASTModule &ASTCxt) {
 
 std::shared_ptr<const MemoryType>
 ImportType::GetMemoryType(const ASTModule &ASTCxt) {
-  if (Cxt->getExternalType() == WasmEdge::ExternalType::Memory) {
-    auto ExternalMemType = Cxt->getExternalMemoryType();
+  if (Cxt.getExternalType() == WasmEdge::ExternalType::Memory) {
+    auto ExternalMemType = Cxt.getExternalMemoryType();
     auto MemTypeCxt =
         std::make_unique<MemoryType::MemoryTypeContext>(ExternalMemType);
     auto MemType = std::shared_ptr<MemoryType>();
@@ -500,8 +532,8 @@ ImportType::GetMemoryType(const ASTModule &ASTCxt) {
 
 std::shared_ptr<const GlobalType>
 ImportType::GetGlobalType(const ASTModule &ASTCxt) {
-  if (Cxt->getExternalType() == WasmEdge::ExternalType::Global) {
-    auto ExternalGlobType = Cxt->getExternalGlobalType();
+  if (Cxt.getExternalType() == WasmEdge::ExternalType::Global) {
+    auto ExternalGlobType = Cxt.getExternalGlobalType();
     auto GlobTypeCxt =
         std::make_unique<GlobalType::GlobalTypeContext>(ExternalGlobType);
     auto GlobType = std::shared_ptr<GlobalType>();
@@ -515,26 +547,22 @@ ImportType::GetGlobalType(const ASTModule &ASTCxt) {
 
 // >>>>>>>> WasmEdge ExportType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class ExportType::ExportTypeContext: public WasmEdge::AST::ExportDesc {};
-
-ExportType::ExportType() {
-  this->Cxt = std::make_unique<ExportType::ExportTypeContext>();
-}
+ExportType::ExportType(ExportType::ExportTypeContext &Cxt): Cxt(Cxt) {}
 
 ExternalType ExportType::GetExternalType() {
-  return static_cast<ExternalType>(Cxt->getExternalType());
+  return static_cast<ExternalType>(Cxt.getExternalType());
 }
 
 std::string ExportType::GetExternalName() {
-  std::string str{ Cxt->getExternalName() };
+  std::string str{ Cxt.getExternalName() };
   return str;
 }
 
 std::shared_ptr<const FunctionType>
 ExportType::GetFunctionType (const ASTModule &ASTCxt) {
-  if (Cxt->getExternalType() == WasmEdge::ExternalType::Function) {
+  if (Cxt.getExternalType() == WasmEdge::ExternalType::Function) {
     // `external_index` = `func_index` + `import_func_nums`
-    uint32_t ExtIdx = Cxt->getExternalIndex();
+    uint32_t ExtIdx = Cxt.getExternalIndex();
     const auto &ImpDescs = ASTCxt.Cxt->getImportSection().getContent();
     for (auto &&ImpDesc: ImpDescs) {
       if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Function) {
@@ -566,9 +594,9 @@ ExportType::GetFunctionType (const ASTModule &ASTCxt) {
 
 std::shared_ptr<const TableType>
 ExportType::GetTableType(const ASTModule &ASTCxt) {
-  if (Cxt->getExternalType() == WasmEdge::ExternalType::Table) {
+  if (Cxt.getExternalType() == WasmEdge::ExternalType::Table) {
     // `external_index` = `table_type_index` + `import_table_nums`
-    uint32_t ExtIdx = Cxt->getExternalIndex();
+    uint32_t ExtIdx = Cxt.getExternalIndex();
     const auto &ImpDescs = ASTCxt.Cxt->getImportSection().getContent();
     for (auto &&ImpDesc: ImpDescs) {
       if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Table) {
@@ -591,9 +619,9 @@ ExportType::GetTableType(const ASTModule &ASTCxt) {
 
 std::shared_ptr<const MemoryType>
 ExportType::GetMemoryType(const ASTModule &ASTCxt) {
-  if (Cxt->getExternalType() == WasmEdge::ExternalType::Memory) {
+  if (Cxt.getExternalType() == WasmEdge::ExternalType::Memory) {
     // `external_index` = `memory_type_index` + `import_memory_nums`
-    uint32_t ExtIdx = Cxt->getExternalIndex();
+    uint32_t ExtIdx = Cxt.getExternalIndex();
     const auto &ImpDescs = ASTCxt.Cxt->getImportSection().getContent();
     for (auto &&ImpDesc: ImpDescs) {
       if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Memory) {
@@ -616,9 +644,9 @@ ExportType::GetMemoryType(const ASTModule &ASTCxt) {
 
 std::shared_ptr<const GlobalType>
 ExportType::GetGlobalType(const ASTModule &ASTCxt) {
-  if (Cxt->getExternalType() == WasmEdge::ExternalType::Global) {
+  if (Cxt.getExternalType() == WasmEdge::ExternalType::Global) {
     // `external_index` = `global_type_index` + `import_global_nums`
-    uint32_t ExtIdx = Cxt->getExternalIndex();
+    uint32_t ExtIdx = Cxt.getExternalIndex();
     const auto &ImpDescs = ASTCxt.Cxt->getImportSection().getContent();
     for (auto &&ImpDesc: ImpDescs) {
       if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Global) {
@@ -645,14 +673,6 @@ ExportType::GetGlobalType(const ASTModule &ASTCxt) {
 // <<<<<<<< WasmEdge Data Structures <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge Async >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-class Async::AsyncContext: public WasmEdge::VM::Async<
-  WasmEdge::Expect<
-      std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>> {
-  template <typename... Args>
-  AsyncContext(Args &&...Vals)
-  : WasmEdge::VM::Async(std::forward<Args>(Vals)...) {}
-};
 
 template <typename... Args>
 Async::Async(Args &&...Vals) {
@@ -688,8 +708,6 @@ Result Async::Get(std::vector<Value> &Returns) {
 // <<<<<<<< WasmEdge Async <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge Configuration >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-class Configuration::ConfigureContext: public WasmEdge::Configure {};
 
 Configuration::Configuration() {
   this->Cxt = std::make_unique<Configuration::ConfigureContext>();
@@ -809,8 +827,6 @@ bool Configuration::StatisticsIsTimeMeasuring() {
 
 // >>>>>>>> WasmEdge Statistics >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class Statistics::StatisticsContext: public WasmEdge::Statistics::Statistics {};
-
 Statistics::Statistics() {
   this->Cxt = std::make_unique<Statistics::StatisticsContext>();
 }
@@ -845,8 +861,6 @@ void Statistics::Clear() {
 
 // >>>>>>>> WasmEdge Loader >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class Loader::LoaderContext: public WasmEdge::Loader::Loader {};
-
 Loader::Loader(const Configuration &ConfCxt) {
   this->Cxt = std::make_unique<Loader::LoaderContext>(ConfCxt.Cxt,
                   &WasmEdge::Executor::Executor::Intrinsics);
@@ -857,27 +871,159 @@ Result Loader::Parse(ASTModule &Module, const std::string &Path) {
       [&]() {
         return this->Cxt->parseModule(std::filesystem::absolute(Path));
       },
-      EmptyThen);
+      [&](auto &&Res) {
+        ASTModule::ASTModuleContext *Tmp =
+          static_cast<ASTModule::ASTModuleContext *>((*Res).release());
+        Module.Cxt.reset(Tmp);
+      });
 }
 
 Result Loader::Parse(ASTModule &Module, const std::vector<uint8_t> &Buf) {
-
+  return wrap(
+      [&]() { return Cxt->parseModule(Buf); },
+      [&](auto &&Res) {
+        ASTModule::ASTModuleContext *Tmp =
+          static_cast<ASTModule::ASTModuleContext *>((*Res).release());
+        Module.Cxt.reset(Tmp);
+      });
 }
 
 // <<<<<<<< WasmEdge Loader <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-// >>>>>>>> WasmEdge ModuleInstance >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge Validator >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class ModuleInstance::ModuleInstanceContext
-: public WasmEdge::Runtime::Instance::ModuleInstance {};
+Validator::Validator(Configuration &ConfCxt) {
+  this->Cxt = std::make_unique<Validator::ValidatorContext>(*ConfCxt.Cxt);
+}
+
+Result Validator::Validate(const ASTModule &ASTCxt) {
+  return wrap(
+      [&]() {
+        return Cxt->validate(*ASTCxt.Cxt);
+      },
+      EmptyThen);
+}
+
+// <<<<<<<< WasmEdge Validator <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Executor >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+Executor::Executor(const Configuration &ConfCxt, Statistics &StatCxt) {
+  this->Cxt =
+    std::make_unique<Executor::ExecutorContext>(ConfCxt.Cxt, StatCxt.Cxt.get());
+}
+
+Result Executor::Instantiate(ModuleInstance &ModuleCxt, Store &StoreCxt,
+                             const ASTModule &ASTCxt) {
+  return wrap(
+      [&]() {
+        return Cxt->instantiateModule(*StoreCxt.Cxt, *ASTCxt.Cxt);
+      },
+      [&](auto &&Res) {
+        ModuleInstance::ModuleInstanceContext *Tmp =
+          static_cast<ModuleInstance::ModuleInstanceContext *>(
+            (*Res).release());
+        ModuleCxt.Cxt.reset(Tmp);
+      });
+}
+
+Result Executor::Register(ModuleInstance &ModuleCxt, Store &StoreCxt,
+                          const ASTModule &ASTCxt,
+                          const std::string &ModuleName) {
+  return wrap(
+      [&]() {
+        return Cxt->registerModule(*StoreCxt.Cxt, *ASTCxt.Cxt,
+                                   std::string_view(ModuleName));
+      },
+      [&](auto &&Res) {
+        auto *Tmp =
+          static_cast<ModuleInstance::ModuleInstanceContext *>(
+            (*Res).release());
+        ModuleCxt.Cxt.reset(Tmp);
+      });
+}
+
+Result Executor::Register(Store &StoreCxt,
+                          const ModuleInstance &ImportCxt) {
+  return wrap(
+      [&]() {
+        return Cxt->registerModule(*StoreCxt.Cxt, *ImportCxt.Cxt);
+      },
+      EmptyThen);
+}
+
+Result Executor::Invoke(const FunctionInstance &FuncCxt,
+                        const std::vector<Value> &Params,
+                        std::vector<Value> &Returns) {
+  auto ParamPair = Value::ValueUtils::GenParamPair(Params);
+  return wrap(
+      [&]()
+          -> WasmEdge::Expect<
+              std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>> {
+        return Cxt->invoke(*FuncCxt.Cxt, ParamPair.first, ParamPair.second);
+      },
+      [&](auto &&Res) { Value::ValueUtils::FillValueArr(*Res, Returns); });
+}
+
+// <<<<<<<< WasmEdge Executor <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge ASTModule >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+ASTModule::ASTModule() {
+  this->Cxt = std::make_unique<ASTModule::ASTModuleContext>();
+}
+
+std::vector<ImportType> ASTModule::ListImports() {
+  const auto &ImpSec = Cxt->getImportSection().getContent();
+  std::vector<ImportType> ImpList;
+  for (uint32_t I = 0; I < ImpSec.size(); I++) {
+    ImpList.emplace_back(ImpSec[I]);
+  }
+  return ImpList;
+}
+
+std::vector<ExportType> ASTModule::ListExports() {
+  const auto &ExpSec = Cxt->getExportSection().getContent();
+  std::vector<ExportType> ExpList;
+  for (uint32_t I = 0; I < ExpSec.size(); I++) {
+    ExpList.emplace_back(ExpSec[I]);
+  }
+  return ExpList;
+}
+
+// <<<<<<<< WasmEdge ASTModule <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Store >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+Store::Store() {
+  this->Cxt = std::make_unique<Store::StoreContext>();
+}
+
+const ModuleInstance Store::FindModule(const std::string &Name) {
+  return ModuleInstance(Cxt->findModule(std::string_view(Name))); //RVO
+}
+
+std::vector<std::string> Store::ListModule() {
+  std::vector<std::string> ModList;
+  Cxt->getModuleList(
+      [&](auto &Map) {
+        for (auto &&Pair : Map) {
+          ModList.emplace_back(Pair.first);
+        }
+      });
+  return ModList;
+}
+
+// <<<<<<<< WasmEdge Store <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge ModuleInstance >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 // <<<<<<<< WasmEdge ModuleInstance <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // <<<<<<<< WasmEdge Runtime <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-// >>>>>>>> WasmEdge VM >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class VM::VMContext: public WasmEdge::VM::VM {};
+// >>>>>>>> WasmEdge VM >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 VM::VM(const Configuration &ConfCxt, Store &StoreCxt) {
   this->Cxt = std::make_unique<VM::VMContext>(*ConfCxt.Cxt, *StoreCxt.Cxt);
@@ -1114,6 +1260,41 @@ uint32_t VM::GetFunctionList(std::vector<std::string> &Names,
   return 0;
 }
 
+ModuleInstance &VM::GetImportModuleContext(const HostRegistration Reg) {
+  auto Ptr = Cxt->getImportModule(static_cast<WasmEdge::HostRegistration>(Reg));
+}
+
+const ModuleInstance &VM::GetActiveModule() {
+
+}
+
+const ModuleInstance &VM::GetRegisteredModule(const std::string &ModuleName) {
+
+}
+
+std::vector<std::string> VM::ListRegisteredModule() {
+
+}
+
+Store &VM::GetStoreContext() {
+
+}
+
+Loader &VM::GetLoaderContext() {
+
+}
+
+Validator &VM::GetValidatorContext() {
+
+}
+
+Executor &VM::GetExecutorContext() {
+
+}
+
+Statistics &GetStatisticsContext() {
+
+}
 // <<<<<<<< WasmEdge VM <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 }

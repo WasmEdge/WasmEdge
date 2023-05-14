@@ -43,7 +43,7 @@ jobs:
           export CXX=clang++
           export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
           export WASMEDGE_DIR="$(pwd)/../../"
-          cargo test -p wasmedge-sdk --all --examples --features standalone
+          cargo test -p wasmedge-sdk --all --examples --features standalone,aot,async,wasi_crypto,wasi_nn,wasmedge_process,ffi
 
   build_ubuntu_2004:
     name: Ubuntu-20.04
@@ -76,7 +76,7 @@ jobs:
           export CXX=clang++
           export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
           export WASMEDGE_DIR="$(pwd)/../../"
-          cargo test -p wasmedge-sdk --all --examples --features standalone
+          cargo test -p wasmedge-sdk --all --examples --features standalone,aot,async,wasi_crypto,wasi_nn,wasmedge_process,ffi
 
   build_macos:
     name: MacOS

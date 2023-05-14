@@ -9,6 +9,7 @@ on:
     branches:
       - master
       - "rust/*"
+      - "ci/update-rust-standalone"
 
 jobs:
   build_ubuntu_2204:

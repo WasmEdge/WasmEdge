@@ -138,11 +138,11 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
 
     // Reference Instructions
     case OpCode::Ref__null:
-      StackMgr.push<UnknownRef>(UnknownRef());
+      StackMgr.push(RefVariant());
       return {};
     case OpCode::Ref__is_null: {
       ValVariant &Val = StackMgr.getTop();
-      if (isNullRef(Val)) {
+      if (Val.get<RefVariant>().isNull()) {
         Val.emplace<uint32_t>(UINT32_C(1));
       } else {
         Val.emplace<uint32_t>(UINT32_C(0));
@@ -152,7 +152,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::Ref__func: {
       const auto *ModInst = StackMgr.getModule();
       const auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
-      StackMgr.push<FuncRef>(FuncRef(FuncInst));
+      StackMgr.push(RefVariant(FuncInst));
       return {};
     }
 

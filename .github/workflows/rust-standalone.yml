@@ -20,14 +20,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up build environment
+      - name: Build WasmEdge with Release mode
         run: |
-          sudo apt-get update
-          sudo apt-get install -y software-properties-common libboost-all-dev ninja-build
-          sudo apt-get install -y llvm-14-dev liblld-14-dev clang-14
-          sudo apt-get install -y gcc g++
-          sudo apt-get install -y libssl-dev pkg-config gh
-
+          apt update
+          apt install -y software-properties-common libboost-all-dev llvm-12-dev liblld-12-dev ninja-build
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On .
+          cmake --build build
+  
       - name: Install Rust v1.68
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -41,7 +40,6 @@ jobs:
           export CXX=clang++
           export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
           export WASMEDGE_DIR="$(pwd)/../../"
-          cargo +nightly -Z sparse-registry update
           cargo test -p wasmedge-sdk --all --examples --features standalone
 
   build_ubuntu_2004:

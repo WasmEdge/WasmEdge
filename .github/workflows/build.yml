@@ -71,7 +71,8 @@ jobs:
     with:
       version: ${{ needs.get_version_v2.outputs.version }}
       matrix: "[{'name':'MacOS 11 (x86_64)','runner':'macos-11','darwin_version':20},
-                {'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21}]"
+                {'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21},
+                {'name':'MacOS 13 (arm64)','runner':'mac-arm64','darwin_version':22}]"
 
   build_on_manylinux_2014:
     needs: [get_version_v2, lint]

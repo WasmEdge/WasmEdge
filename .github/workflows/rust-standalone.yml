@@ -12,7 +12,7 @@ on:
       - "ci/update-rust-standalone"
 
 jobs:
-  build_ubuntu_2204:
+  build_ubuntu:
     name: Ubuntu
     runs-on: ${{ matrix.os }}
     strategy:
@@ -43,39 +43,6 @@ jobs:
         working-directory: bindings/rust/
         run: |
           export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
-          export CC=clang
-          export CXX=clang++
-          export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
-          export WASMEDGE_DIR="$(pwd)/../../"
-          cargo test -p wasmedge-sdk --all --examples --features standalone,aot,async,wasi_crypto,wasi_nn,wasmedge_process,ffi
-
-  build_ubuntu_2004:
-    name: Ubuntu-20.04
-    runs-on: ubuntu-20.04
-    container:
-      image: wasmedge/wasmedge:ubuntu-build-clang
-
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Build WasmEdge with Release mode
-        run: |
-          apt update
-          apt install -y software-properties-common libboost-all-dev llvm-12-dev liblld-12-dev ninja-build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On .
-          cmake --build build
-    
-      - name: Install Rust v1.68
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.68
-
-      - name: Run in the standalone mode
-        working-directory: bindings/rust/
-        run: |
-          export LLVM_DIR="/usr/local/opt/llvm@12/lib/cmake"
           export CC=clang
           export CXX=clang++
           export LD_LIBRARY_PATH=$HOME/.wasmedge/lib

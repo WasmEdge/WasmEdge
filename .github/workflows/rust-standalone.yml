@@ -12,14 +12,13 @@ on:
       - "ci/update-rust-standalone"
 
 jobs:
+  
   build_ubuntu:
     name: Ubuntu
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]
-    container:
-      image: wasmedge/wasmedge:ubuntu-build-clang
 
     steps:
       - uses: actions/checkout@v3
@@ -28,16 +27,22 @@ jobs:
 
       - name: Build WasmEdge with Release mode
         run: |
-          apt update
-          apt install -y software-properties-common libboost-all-dev llvm-12-dev liblld-12-dev ninja-build
+          sudo apt-get update
+          # sudo apt-get install -y software-properties-common libboost-all-dev llvm-14-dev liblld-14-dev ninja-build gcc g++ clang-14
+          sudo apt-get install -y software-properties-common libboost-all-dev ninja-build gcc g++
+          if [ ${{ matrix.os }} == "ubuntu-20.04" ]; then
+            sudo apt-get install -y llvm-12-dev liblld-12-dev clang-12
+          else
+            sudo apt-get install -y llvm-14-dev liblld-14-dev clang-14
+          fi
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On .
           cmake --build build
-  
-      - name: Install Rust-stable
+
+      - name: Install Rust v1.68
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.69
-    
+          toolchain: 1.68
+
       - name: Run in the standalone mode
         working-directory: bindings/rust/
         run: |
@@ -47,7 +52,7 @@ jobs:
           export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
           export WASMEDGE_DIR="$(pwd)/../../"
           cargo test -p wasmedge-sdk --all --examples --features standalone,aot,async,wasi_crypto,wasi_nn,wasmedge_process,ffi
-
+                  
   build_macos:
     name: MacOS
     runs-on: ${{ matrix.os }}

@@ -101,6 +101,8 @@ public:
     return !(LHS == RHS);
   }
 
+  bool isDefaultable() const { return Inner.Data.Code != ValTypeCode::Ref; }
+
   ValTypeCode getCode() const noexcept { return Inner.Data.Code; }
   HeapTypeCode getHeapTypeCode() const noexcept { return Inner.Data.HTCode; }
   uint32_t getTypeIndex() const noexcept { return Inner.Data.Idx; }

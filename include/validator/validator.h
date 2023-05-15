@@ -53,6 +53,7 @@ private:
   Expect<void> validate(const AST::ExportDesc &ExpDesc);
 
   /// Validate AST::Sections
+  Expect<void> validate(const AST::TypeSection &TypeSec);
   Expect<void> validate(const AST::ImportSection &ImportSec);
   Expect<void> validate(const AST::FunctionSection &FuncSec);
   Expect<void> validate(const AST::TableSection &TabSec);

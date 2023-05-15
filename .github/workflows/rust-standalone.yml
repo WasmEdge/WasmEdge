@@ -13,8 +13,12 @@ on:
 
 jobs:
   build_ubuntu_2204:
-    name: Ubuntu-22.04
-    runs-on: ubuntu-22.04
+    name: Ubuntu
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04]
+        rust: [1.69, 1.68]
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
@@ -30,11 +34,11 @@ jobs:
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On .
           cmake --build build
   
-      - name: Install Rust v1.68
+      - name: Install Rust-stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.68
-
+          toolchain: ${{ matrix.rust }}
+    
       - name: Run in the standalone mode
         working-directory: bindings/rust/
         run: |

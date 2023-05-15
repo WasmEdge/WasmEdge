@@ -71,7 +71,11 @@ constexpr int openFlags(__wasi_oflags_t OpenFlags, __wasi_fdflags_t FdFlags,
     Flags |= O_WRONLY;
   } else {
 #ifdef O_PATH
-    Flags |= O_PATH;
+    if (OpenFlags == __WASI_OFLAGS_DIRECTORY) {
+      Flags |= O_PATH;
+    } else {
+      Flags |= O_RDONLY;
+    }
 #else
     Flags |= O_RDONLY;
 #endif

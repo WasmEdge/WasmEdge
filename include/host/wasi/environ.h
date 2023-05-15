@@ -88,14 +88,17 @@ public:
   WasiExpect<void> argsGet(Span<uint8_t_ptr> Argv,
                            Span<uint8_t> ArgvBuffer) const noexcept {
     for (const auto &Argument : Arguments) {
-      const __wasi_size_t Size =
-          static_cast<__wasi_size_t>(Argument.size()) + UINT32_C(1);
+      const __wasi_size_t Size = static_cast<__wasi_size_t>(Argument.size());
       std::copy_n(Argument.begin(), Size, ArgvBuffer.begin());
-      ArgvBuffer = ArgvBuffer.subspan(Size);
-      Argv[1] = Argv[0] + Size;
+      ArgvBuffer[Size] = '\0';
+      ArgvBuffer = ArgvBuffer.subspan(Size + UINT32_C(1));
+      if (Argv.size() > 1) {
+        Argv[1] = Argv[0] + Size + UINT32_C(1);
+      }
       Argv = Argv.subspan(1);
     }
-    Argv[0] = 0;
+    assert(ArgvBuffer.empty());
+    assert(Argv.empty());
 
     return {};
   }
@@ -131,13 +134,17 @@ public:
                               Span<uint8_t> EnvBuffer) const noexcept {
     for (const auto &EnvironVariable : EnvironVariables) {
       const __wasi_size_t Size =
-          static_cast<__wasi_size_t>(EnvironVariable.size()) + UINT32_C(1);
+          static_cast<__wasi_size_t>(EnvironVariable.size());
       std::copy_n(EnvironVariable.begin(), Size, EnvBuffer.begin());
-      EnvBuffer = EnvBuffer.subspan(Size);
-      Env[1] = Env[0] + Size;
+      EnvBuffer[Size] = '\0';
+      EnvBuffer = EnvBuffer.subspan(Size + UINT32_C(1));
+      if (Env.size() > 1) {
+        Env[1] = Env[0] + Size + UINT32_C(1);
+      }
       Env = Env.subspan(1);
     }
-    Env[0] = 0;
+    assert(EnvBuffer.empty());
+    assert(Env.empty());
 
     return {};
   }
@@ -234,8 +241,6 @@ public:
     std::unique_lock Lock(FdMutex);
     if (auto It = FdMap.find(Fd); It == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else if (It->second->isPreopened()) {
-      return WasiUnexpect(__WASI_ERRNO_NOTSUP);
     } else {
       FdMap.erase(It);
       return {};
@@ -507,12 +512,8 @@ public:
     std::unique_lock Lock(FdMutex);
     if (auto It = FdMap.find(Fd); It == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else if (It->second->isPreopened()) {
-      return WasiUnexpect(__WASI_ERRNO_NOTSUP);
     } else if (auto It2 = FdMap.find(To); It2 == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else if (It2->second->isPreopened()) {
-      return WasiUnexpect(__WASI_ERRNO_NOTSUP);
     } else {
       FdMap.erase(It2);
       auto Node = FdMap.extract(It);
@@ -600,6 +601,9 @@ public:
   /// @param[in] Path The path at which to create the directory.
   /// @return Nothing or WASI error
   WasiExpect<void> pathCreateDirectory(__wasi_fd_t Fd, std::string_view Path) {
+    if (!VINode::isPathValid(Path)) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
     auto Node = getNodeOrNull(Fd);
     return VINode::pathCreateDirectory(FS, std::move(Node), Path);
   }
@@ -617,6 +621,9 @@ public:
   WasiExpect<void> pathFilestatGet(__wasi_fd_t Fd, std::string_view Path,
                                    __wasi_lookupflags_t Flags,
                                    __wasi_filestat_t &Filestat) {
+    if (!VINode::isPathValid(Path)) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
     auto Node = getNodeOrNull(Fd);
     return VINode::pathFilestatGet(FS, std::move(Node), Path, Flags, Filestat);
   }
@@ -638,6 +645,9 @@ public:
                                         __wasi_timestamp_t ATim,
                                         __wasi_timestamp_t MTim,
                                         __wasi_fstflags_t FstFlags) {
+    if (!VINode::isPathValid(Path)) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
     auto Node = getNodeOrNull(Fd);
     return VINode::pathFilestatSetTimes(FS, std::move(Node), Path, Flags, ATim,
                                         MTim, FstFlags);
@@ -659,6 +669,12 @@ public:
   WasiExpect<void> pathLink(__wasi_fd_t Old, std::string_view OldPath,
                             __wasi_fd_t New, std::string_view NewPath,
                             __wasi_lookupflags_t LookupFlags) {
+    if (!VINode::isPathValid(OldPath)) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
+    if (!VINode::isPathValid(NewPath)) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
     auto OldNode = getNodeOrNull(Old);
     auto NewNode = getNodeOrNull(New);
     return VINode::pathLink(FS, std::move(OldNode), OldPath, std::move(NewNode),
@@ -701,6 +717,9 @@ public:
                                    __wasi_rights_t FsRightsBase,
                                    __wasi_rights_t FsRightsInheriting,
                                    __wasi_fdflags_t FdFlags) {
+    if (!VINode::isPathValid(Path)) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
     auto Node = getNodeOrNull(Fd);
     if (auto Res =
             VINode::pathOpen(FS, std::move(Node), Path, LookupFlags, OpenFlags,
@@ -727,6 +746,9 @@ public:
   /// @return Nothing or WASI error.
   WasiExpect<void> pathReadlink(__wasi_fd_t Fd, std::string_view Path,
                                 Span<char> Buffer, __wasi_size_t &NRead) {
+    if (!VINode::isPathValid(Path)) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
     auto Node = getNodeOrNull(Fd);
     return VINode::pathReadlink(FS, std::move(Node), Path, Buffer, NRead);
   }
@@ -742,6 +764,9 @@ public:
   /// @param[in] Path The path to a directory to remove.
   /// @return Nothing or WASI error.
   WasiExpect<void> pathRemoveDirectory(__wasi_fd_t Fd, std::string_view Path) {
+    if (!VINode::isPathValid(Path)) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
     auto Node = getNodeOrNull(Fd);
     return VINode::pathRemoveDirectory(FS, std::move(Node), Path);
   }
@@ -760,6 +785,12 @@ public:
   /// @return Nothing or WASI error.
   WasiExpect<void> pathRename(__wasi_fd_t Old, std::string_view OldPath,
                               __wasi_fd_t New, std::string_view NewPath) {
+    if (!VINode::isPathValid(OldPath)) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
+    if (!VINode::isPathValid(NewPath)) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
     auto OldNode = getNodeOrNull(Old);
     auto NewNode = getNodeOrNull(New);
     return VINode::pathRename(FS, std::move(OldNode), OldPath,
@@ -778,6 +809,12 @@ public:
   /// @return Nothing or WASI error
   WasiExpect<void> pathSymlink(std::string_view OldPath, __wasi_fd_t New,
                                std::string_view NewPath) {
+    if (!VINode::isPathValid(OldPath)) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
+    if (!VINode::isPathValid(NewPath)) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
     auto NewNode = getNodeOrNull(New);
     return VINode::pathSymlink(FS, OldPath, std::move(NewNode), NewPath);
   }
@@ -793,6 +830,9 @@ public:
   /// @param[in] Path The path to a file to unlink.
   /// @return Nothing or WASI error.
   WasiExpect<void> pathUnlinkFile(__wasi_fd_t Fd, std::string_view Path) {
+    if (!VINode::isPathValid(Path)) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
     auto Node = getNodeOrNull(Fd);
     return VINode::pathUnlinkFile(FS, std::move(Node), Path);
   }

@@ -18,7 +18,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]
-        rust: [1.69, 1.68]
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
@@ -37,7 +36,7 @@ jobs:
       - name: Install Rust-stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: 1.69
     
       - name: Run in the standalone mode
         working-directory: bindings/rust/
@@ -65,7 +64,7 @@ jobs:
       - name: Install Rust v1.68
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.68
+          toolchain: 1.69
 
       - name: Install build tools
         run: brew install llvm ninja boost cmake

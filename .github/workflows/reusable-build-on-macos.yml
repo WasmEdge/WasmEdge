@@ -39,7 +39,7 @@ jobs:
           echo "BUILD_TYPE=Release" | tee -a $GITHUB_ENV
       - name: Build WasmEdge
         run: |
-          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
+          export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
           rm -rf build

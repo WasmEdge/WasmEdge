@@ -385,6 +385,11 @@ jobs:
             host_runner: macos-12
             darwin_version: darwin_21
             build_type: Release
+          - name: Plugins_MacOS_aarch64
+            system: MacOS 13 (aarch64)
+            host_runner: mac-arm64
+            darwin_version: darwin_22
+            build_type: Release
     name: ${{ matrix.system }} plugin with clang++ ${{ matrix.build_type }}
     runs-on: ${{ matrix.host_runner }}
     env:

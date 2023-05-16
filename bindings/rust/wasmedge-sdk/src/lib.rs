@@ -37,7 +37,7 @@
 //!  ```rust
 //!  use wasmedge_sdk::{
 //!      error::HostFuncError, host_function, params, wat2wasm, Caller, ImportObjectBuilder, Module,
-//!      VmBuilder, WasmValue,
+//!      VmBuilder, WasmValue, NeverType
 //!  };
 //!  
 //!  // We define a function to act as our "env" "say_hello" function imported in the
@@ -53,7 +53,7 @@
 //!  fn main() -> anyhow::Result<()> {
 //!      // create an import module
 //!      let import = ImportObjectBuilder::new()
-//!          .with_func::<(), ()>("say_hello", say_hello)?
+//!          .with_func::<(), (), NeverType>("say_hello", say_hello, None)?
 //!          .build("env")?;
 //!  
 //!      let wasm_bytes = wat2wasm(
@@ -150,6 +150,8 @@ pub use wasmedge_types::{
 };
 
 pub use wasmedge_macro::{async_host_function, host_function};
+
+pub use wasmedge_sys::NeverType;
 
 /// WebAssembly value type.
 pub type WasmValue = wasmedge_sys::types::WasmValue;

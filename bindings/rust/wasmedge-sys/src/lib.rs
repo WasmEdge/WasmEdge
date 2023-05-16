@@ -93,7 +93,7 @@ pub use executor::Executor;
 pub use frame::CallingFrame;
 #[doc(inline)]
 pub use instance::{
-    function::{FuncRef, FuncType, Function},
+    function::{FuncRef, FuncType, Function, NeverType},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
     module::{AsImport, AsInstance, ImportModule, ImportObject, Instance, WasiModule},
@@ -113,7 +113,11 @@ use wasmedge_types::{error, WasmEdgeResult};
 
 /// Type alias for a boxed native function. This type is used in thread-safe cases.
 pub type BoxedFn = Box<
-    dyn Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, error::HostFuncError>
+    dyn Fn(
+            CallingFrame,
+            Vec<WasmValue>,
+            *mut std::os::raw::c_void,
+        ) -> Result<Vec<WasmValue>, error::HostFuncError>
         + Send
         + Sync,
 >;

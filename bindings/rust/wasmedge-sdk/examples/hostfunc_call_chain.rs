@@ -18,21 +18,24 @@
 
 use wasmedge_sdk::{
     error::HostFuncError, params, wat2wasm, Caller, CallingFrame, ImportObjectBuilder, Module,
-    VmBuilder, WasmValue,
+    NeverType, VmBuilder, WasmValue,
 };
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let vm = VmBuilder::new().build()?;
 
-    let host_layer1 =
-        |_frame: CallingFrame, _args: Vec<WasmValue>| -> Result<Vec<WasmValue>, HostFuncError> {
-            println!("There is layer1!");
-            Ok(vec![])
-        };
+    let host_layer1 = |_frame: CallingFrame,
+                       _args: Vec<WasmValue>,
+                       _data: *mut std::os::raw::c_void|
+     -> Result<Vec<WasmValue>, HostFuncError> {
+        println!("There is layer1!");
+        Ok(vec![])
+    };
 
     let host_layer2 = move |frame: CallingFrame,
-                            _args: Vec<WasmValue>|
+                            _args: Vec<WasmValue>,
+                            _data: *mut std::os::raw::c_void|
           -> Result<Vec<WasmValue>, HostFuncError> {
         let caller = Caller::new(frame);
         let executor = caller.executor().unwrap();
@@ -48,8 +51,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // create an import object
     let import = ImportObjectBuilder::new()
-        .with_func::<(), ()>("layer1", host_layer1)?
-        .with_func::<(), ()>("layer2", host_layer2)?
+        .with_func::<(), (), NeverType>("layer1", host_layer1, None)?
+        .with_func::<(), (), NeverType>("layer2", host_layer2, None)?
         .build("host")?;
 
     // register the import object into vm

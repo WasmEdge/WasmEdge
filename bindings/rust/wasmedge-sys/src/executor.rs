@@ -353,13 +353,14 @@ unsafe impl Sync for InnerExecutor {}
 mod tests {
     use super::*;
     use crate::{
-        AsImport, CallingFrame, Config, FuncType, Function, Global, GlobalType, ImportModule,
-        MemType, Memory, Statistics, Table, TableType,
+        instance::function::NeverType, AsImport, CallingFrame, Config, FuncType, Function, Global,
+        GlobalType, ImportModule, MemType, Memory, Statistics, Table, TableType,
     };
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_macro::sys_host_function;
     use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
 
     #[test]
@@ -437,7 +438,7 @@ mod tests {
         let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         // add the function into the import_obj module
@@ -555,7 +556,11 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(_: CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    #[sys_host_function]
+    fn real_add(
+        _frame: CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }

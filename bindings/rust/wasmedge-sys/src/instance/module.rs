@@ -933,13 +933,14 @@ impl ImportObject {
 mod tests {
     use super::*;
     use crate::{
-        CallingFrame, Config, Executor, FuncType, GlobalType, ImportModule, MemType, Store,
-        TableType, WasmValue,
+        instance::function::NeverType, CallingFrame, Config, Executor, FuncType, GlobalType,
+        ImportModule, MemType, Store, TableType, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_macro::sys_host_function;
     use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
 
     #[test]
@@ -956,7 +957,7 @@ mod tests {
         let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         // add the host function
@@ -1025,7 +1026,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -1174,7 +1175,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -1296,7 +1297,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -1393,7 +1394,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -1453,7 +1454,11 @@ mod tests {
         assert_eq!(ty.max(), Some(20));
     }
 
-    fn real_add(_: CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    #[sys_host_function]
+    fn real_add(
+        _frame: CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }
@@ -1491,7 +1496,7 @@ mod tests {
             let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
-            let result = Function::create(&func_ty, Box::new(real_add), 0);
+            let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
             assert!(result.is_ok());
             let host_func = result.unwrap();
             // add the host function

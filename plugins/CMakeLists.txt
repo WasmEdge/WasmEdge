@@ -26,3 +26,12 @@ if(WASMEDGE_PLUGIN_WASM_BPF)
     message(WARNING "Only Linux platforms support wasm_bpf plug-in now.")
   endif()
 endif()
+
+if(WASMEDGE_PLUGIN_WASI_LOGGING)
+  # Only Linux systems support wasm_bpf now.
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    add_subdirectory(wasi_logging)
+  else()
+    message(WARNING "Only Linux platforms support wasi_logging plug-in now.")
+  endif()
+endif()

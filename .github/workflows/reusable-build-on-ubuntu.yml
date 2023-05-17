@@ -79,7 +79,7 @@ jobs:
         with:
           upload_url: ${{ inputs.upload_asset_url }}
           asset_path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
-          asset_name: WasmEdge-${{ inputs.version }}-ubuntu20.04_x86_64.tar.gz
+          asset_name: WasmEdge-${{ inputs.version }}-ubuntu22.04_x86_64.tar.gz
           asset_content_type: application/x-gzip
       - name: Create and upload coverage report to Codecov
         if: ${{ matrix.coverage }}

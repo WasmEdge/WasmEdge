@@ -29,7 +29,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-22.04]
         rust: [1.69, 1.68]
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
@@ -42,7 +42,7 @@ jobs:
       - name: Build WasmEdge with Release mode
         run: |
           apt update
-          apt install -y software-properties-common libboost-all-dev llvm-12-dev liblld-12-dev ninja-build
+          apt install -y software-properties-common libboost-all-dev llvm-15-dev liblld-15-dev ninja-build
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On .
           cmake --build build
 

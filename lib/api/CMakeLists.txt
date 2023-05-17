@@ -25,7 +25,7 @@ function(wasmedge_add_static_lib_component_command target)
   else()
     list(APPEND CMDS
       COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
-      COMMAND ${CMAKE_AR} -x $<TARGET_FILE:${target}> --output=objs/${target}
+      COMMAND ${CMAKE_COMMAND} -E chdir objs/${target_name} ${CMAKE_AR} -x $<TARGET_FILE:${target}>
     )
     set(WASMEDGE_STATIC_LIB_AR_CMDS ${WASMEDGE_STATIC_LIB_AR_CMDS} ${CMDS} PARENT_SCOPE)
   endif()
@@ -52,7 +52,7 @@ function(wasmedge_add_libs_component_command target_path)
   else()
     list(APPEND CMDS
       COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target_name}
-      COMMAND ${CMAKE_AR} -x ${target_path} --output=objs/${target_name}
+      COMMAND ${CMAKE_COMMAND} -E chdir objs/${target_name} ${CMAKE_AR} -x ${target_path}
     )
     set(WASMEDGE_STATIC_LLVM_LIB_AR_CMDS ${WASMEDGE_STATIC_LLVM_LIB_AR_CMDS} ${CMDS} PARENT_SCOPE)
   endif()
@@ -161,18 +161,18 @@ if(WASMEDGE_BUILD_STATIC_LIB)
     wasmedge_add_static_lib_component_command(wasmedgeAOT)
   endif()
 
-  if(CMAKE_AR_NAME STREQUAL "ar")
+  if(CMAKE_AR_NAME STREQUAL "libtool")
+    add_custom_command(OUTPUT "libwasmedge.a"
+      COMMAND ${CMAKE_AR} -static -o libwasmedge.a ${WASMEDGE_STATIC_LIB_LIBTOOL_FILES} $<TARGET_OBJECTS:wasmedgeCAPI>
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+      DEPENDS ${WASMEDGE_STATIC_LIB_DEPS} wasmedgeCAPI
+    )
+  else()
     add_custom_command(OUTPUT "libwasmedge.a"
       ${WASMEDGE_STATIC_LIB_AR_CMDS}
       ${WASMEDGE_STATIC_LLVM_LIB_AR_CMDS}
       COMMAND ${CMAKE_AR} -qcs libwasmedge.a $<TARGET_OBJECTS:wasmedgeCAPI> objs/*/*.o
       COMMAND ${CMAKE_COMMAND} -E remove_directory objs
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      DEPENDS ${WASMEDGE_STATIC_LIB_DEPS} wasmedgeCAPI
-    )
-  elseif(CMAKE_AR_NAME STREQUAL "libtool")
-    add_custom_command(OUTPUT "libwasmedge.a"
-      COMMAND ${CMAKE_AR} -static -o libwasmedge.a ${WASMEDGE_STATIC_LIB_LIBTOOL_FILES} $<TARGET_OBJECTS:wasmedgeCAPI>
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       DEPENDS ${WASMEDGE_STATIC_LIB_DEPS} wasmedgeCAPI
     )

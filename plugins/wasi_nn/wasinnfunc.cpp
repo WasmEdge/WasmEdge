@@ -13,13 +13,14 @@
 #endif
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
-#include <iostream>
+#include <sstream>
 
 #include <torch/torch.h>
 #endif
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
 #include "tensorflow/lite/c/c_api.h"
+#include "tensorflow/lite/c/common.h"
 #endif
 
 namespace WasmEdge {
@@ -692,7 +693,7 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
     auto *HoldTensor =
         TfLiteInterpreterGetInputTensor(CxtRef.TFLiteInterp, Index);
     WASINN::TensorType LiteType;
-    switch (TfLiteTensorType(HoldTensor)) {
+    switch (const auto Type = TfLiteTensorType(HoldTensor)) {
     case TfLiteType::kTfLiteUInt8:
       LiteType = WASINN::TensorType::U8;
       break;
@@ -706,7 +707,8 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
       LiteType = WASINN::TensorType::I32;
       break;
     default:
-      spdlog::error("[WASI-NN] Unsupported TFLite type: {}", LiteType);
+      spdlog::error("[WASI-NN] Unsupported TFLite type: {}",
+                    TfLiteTypeGetName(Type));
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
 

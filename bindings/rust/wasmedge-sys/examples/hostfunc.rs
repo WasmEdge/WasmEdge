@@ -20,7 +20,7 @@
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, Executor, FuncType, Function, ImportModule, ImportObject,
-    Loader, Store, Validator, WasmValue,
+    Loader, NeverType, Store, Validator, WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, wat2wasm, ValType};
 
@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         vec![ValType::ExternRef, ValType::I32, ValType::I32],
         vec![ValType::I32],
     )?;
-    let host_func = Function::create(&func_ty, Box::new(real_add), 0)?;
+    let host_func = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0)?;
 
     // create an ImportObject module
     let mut import = ImportModule::create("extern_module")?;

@@ -445,40 +445,10 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
     // * define the signature of wrapper function
     // name of wrapper function
     let wrapper_fn_name_ident = item_fn.sig.ident.clone();
-    let wrapper_fn_name_literal = wrapper_fn_name_ident.to_string();
     // return type of wrapper function
     let wrapper_fn_return = item_fn.sig.output.clone();
     // visibility of wrapper function
     let wrapper_fn_visibility = item_fn.vis.clone();
-
-    // * define the signature of inner function
-    // name of inner function
-    let inner_fn_name_literal = format!("inner_{wrapper_fn_name_literal}");
-    let inner_fn_name_ident = syn::Ident::new(&inner_fn_name_literal, item_fn.sig.span());
-    // arguments of inner function
-    let inner_fn_inputs = item_fn.sig.inputs.clone();
-    // return type of inner function
-    let inner_fn_return = item_fn.sig.output.clone();
-    // body of inner function
-    let inner_fn_block = item_fn.block.clone();
-
-    // extract the identities of the first two arguments
-    let arg1 = match &item_fn.sig.inputs[0] {
-        FnArg::Typed(PatType { pat, .. }) => match &**pat {
-            Pat::Ident(pat_ident) => pat_ident.ident.clone(),
-            Pat::Wild(_) => proc_macro2::Ident::new("_", proc_macro2::Span::call_site()),
-            _ => panic!("argument pattern is not a simple ident"),
-        },
-        FnArg::Receiver(_) => panic!("argument is a receiver"),
-    };
-    let arg2 = match &item_fn.sig.inputs[1] {
-        FnArg::Typed(PatType { pat, .. }) => match &**pat {
-            Pat::Ident(pat_ident) => pat_ident.ident.clone(),
-            Pat::Wild(_) => proc_macro2::Ident::new("_", proc_macro2::Span::call_site()),
-            _ => panic!("argument pattern is not a simple ident"),
-        },
-        FnArg::Receiver(_) => panic!("argument is a receiver"),
-    };
 
     // extract T from Option<&mut T>
     let ret = match item_fn.sig.inputs.len() {
@@ -486,23 +456,31 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
             // insert the third argument
             // let wrapper_fn_inputs = item_fn.sig.inputs.clone();
             let mut wrapper_fn_inputs = item_fn.sig.inputs.clone();
-            wrapper_fn_inputs.push(parse_quote!(_data: *mut std::os::raw::c_void));
+            wrapper_fn_inputs.push(parse_quote!(_: *mut std::os::raw::c_void));
+
+            let fn_block = item_fn.block.clone();
 
             quote!(
-                #wrapper_fn_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
-                    // define inner function
-                    fn #inner_fn_name_ident (#inner_fn_inputs) #inner_fn_return {
-                        #inner_fn_block
-                    }
-
-                    #inner_fn_name_ident(#arg1, #arg2)
-                }
+                #wrapper_fn_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return
+                    #fn_block
             )
         }
         3 => {
             let data_arg = item_fn.sig.inputs.last().unwrap().clone();
-            let ty_ptr = match &data_arg {
-                FnArg::Typed(PatType { ref ty, .. }) => match **ty {
+
+            let (data_arg_ident, ty_ptr) = if let FnArg::Typed(PatType {
+                ref ty, ref pat, ..
+            }) = &data_arg
+            {
+                // get the ident of the third argument
+                let data_arg_ident = match &**pat {
+                    Pat::Ident(pat_ident) => pat_ident.ident.clone(),
+                    Pat::Wild(_) => proc_macro2::Ident::new("_", proc_macro2::Span::call_site()),
+                    _ => panic!("argument pattern is not a simple ident"),
+                };
+
+                // get the type of the third argument
+                let ty_ptr = match **ty {
                     syn::Type::Reference(syn::TypeReference { ref elem, .. }) => syn::TypePtr {
                         star_token: parse_quote!(*),
                         const_token: None,
@@ -547,8 +525,11 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
                         None => panic!("Not found path segments"),
                     },
                     _ => panic!("Unsupported syn::Type type"),
-                },
-                _ => panic!("Unsupported syn::FnArg type"),
+                };
+
+                (data_arg_ident, ty_ptr)
+            } else {
+                panic!("Unsupported syn::FnArg type")
             };
 
             // inputs of wrapper function
@@ -556,18 +537,16 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
             wrapper_fn_inputs.pop();
             wrapper_fn_inputs.push(parse_quote!(data: *mut std::os::raw::c_void));
 
-            // generate token stream
+            let mut fn_block = item_fn.block.clone();
+            let fn_block_mut = fn_block.as_mut();
+            fn_block_mut.stmts.insert(
+                0,
+                parse_quote!(let #data_arg_ident = unsafe { &mut *(data as #ty_ptr) };),
+            );
+
             quote!(
-                #wrapper_fn_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
-                    // define inner function
-                    fn #inner_fn_name_ident (#inner_fn_inputs) #inner_fn_return {
-                        #inner_fn_block
-                    }
-
-                    let data = unsafe { &mut *(data as #ty_ptr) };
-
-                    #inner_fn_name_ident(#arg1, #arg2, data)
-                }
+                #wrapper_fn_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return
+                    #fn_block
             )
         }
         _ => panic!("Invalid numbers of host function arguments"),

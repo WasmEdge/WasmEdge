@@ -14,7 +14,7 @@ use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
 
 // use crate::values::WasmVal;
 
-use crate::instance::function::{AsyncHostFn, HostFn};
+use crate::instance::function::{StatelessAsyncHostFn, StatelessHostFn};
 // mod values;
 
 fn to_wasm_return(r: Result<(), Errno>) -> Vec<WasmValue> {
@@ -1428,8 +1428,12 @@ pub fn sock_lookup_ip(
 }
 
 pub enum WasiFunc<T: 'static> {
-    SyncFn(String, (Vec<ValType>, Vec<ValType>), HostFn<T>),
-    AsyncFn(String, (Vec<ValType>, Vec<ValType>), AsyncHostFn<T>),
+    SyncFn(String, (Vec<ValType>, Vec<ValType>), StatelessHostFn<T>),
+    AsyncFn(
+        String,
+        (Vec<ValType>, Vec<ValType>),
+        StatelessAsyncHostFn<T>,
+    ),
 }
 
 pub fn wasi_impls() -> Vec<WasiFunc<WasiCtx>> {

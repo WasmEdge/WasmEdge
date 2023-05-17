@@ -28,12 +28,11 @@ jobs:
       - name: Build WasmEdge with Release mode
         run: |
           sudo apt-get update
-          # sudo apt-get install -y software-properties-common libboost-all-dev llvm-14-dev liblld-14-dev ninja-build gcc g++ clang-14
           sudo apt-get install -y software-properties-common libboost-all-dev ninja-build gcc g++
           if [ ${{ matrix.os }} == "ubuntu-20.04" ]; then
             sudo apt-get install -y llvm-12-dev liblld-12-dev clang-12
           else
-            sudo apt-get install -y llvm-14-dev liblld-14-dev clang-14
+            sudo apt-get install -y llvm-15-dev liblld-15-dev clang-15
           fi
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On .
           cmake --build build
@@ -52,7 +51,7 @@ jobs:
           export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
           export WASMEDGE_DIR="$(pwd)/../../"
           cargo test -p wasmedge-sdk --all --examples --features standalone,aot,async,wasi_crypto,wasi_nn,wasmedge_process,ffi
-                  
+
   build_macos:
     name: MacOS
     runs-on: ${{ matrix.os }}

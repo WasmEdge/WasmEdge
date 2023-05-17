@@ -6,12 +6,16 @@ concurrency:
 
 on:
   push:
+    branches:
+      - master
     paths:
       - ".github/workflows/wasi-testsuite.yml"
       - "lib/host/wasi/**"
       - "include/host/wasi/**"
       - "thirdparty/wasi/**"
   pull_request:
+    branches:
+      - master
     paths:
       - ".github/workflows/wasi-testsuite.yml"
       - "lib/host/wasi/**"
@@ -45,7 +49,7 @@ jobs:
         working-directory: WasmEdge
         run: |
           brew install llvm ninja boost cmake
-          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
           cmake -Bbuild -GNinja -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .

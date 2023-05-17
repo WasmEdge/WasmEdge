@@ -31,6 +31,7 @@
 #endif
 
 #if WASMEDGE_OS_MACOS
+#include <sys/utsname.h>
 #include <unistd.h>
 #endif
 #if WASMEDGE_OS_WINDOWS
@@ -53,6 +54,60 @@ namespace {
 // is x86_64
 #if defined(_M_X64) && !defined(__x86_64__)
 #define __x86_64__ 1
+#endif
+
+#if WASMEDGE_OS_MACOS
+// Get current OS version
+std::string getOSVersion() noexcept {
+  struct utsname Info;
+  if (::uname(&Info)) {
+    // default os version
+    return "13.0.0";
+  }
+  std::string_view Release = Info.release;
+  auto GetNum = [](std::string_view &String) noexcept {
+    uint64_t Result = 0;
+    while (!String.empty() && std::isdigit(String[0])) {
+      Result = Result * 10 + (String[0] - '0');
+      String = String.substr(1);
+    }
+    return Result;
+  };
+  auto SkipDot = [](std::string_view &String) noexcept {
+    if (!String.empty() && String[0] == '.')
+      String = String.substr(1);
+  };
+  uint64_t Major = GetNum(Release);
+  SkipDot(Release);
+  uint64_t Minor = GetNum(Release);
+  SkipDot(Release);
+  uint64_t Micro = GetNum(Release);
+
+  if (Major == 0) {
+    Major = 8;
+  }
+  if (Major <= 19) {
+    Micro = 0;
+    Minor = Major - 4;
+    Major = 10;
+  } else {
+    Micro = 0;
+    Minor = 0;
+    Major = 11 + Major - 20;
+  }
+
+  return fmt::format("{}.{}.{}"sv, Major, Minor, Micro);
+}
+// Get current SDK version
+std::string getSDKVersion() noexcept {
+  // TODO: parse SDKSettings.json to get real version
+  return "12.1"s;
+}
+// Get current SDK version in pair
+std::pair<uint32_t, uint32_t> getSDKVersionPair() noexcept {
+  // TODO: parse SDKSettings.json to get real version
+  return {UINT32_C(12), UINT32_C(1)};
+}
 #endif
 
 static bool
@@ -283,12 +338,12 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   CompileContext(LLVM::Context &C, LLVM::Module &M, bool IsGenericBinary,
                  bool IsCustomSection) noexcept
       : LLContext(C), LLModule(M),
-        Cold(LLVM::Attribute::createEnum(C, LLVM::Core::Cold, 1)),
-        NoAlias(LLVM::Attribute::createEnum(C, LLVM::Core::NoAlias, 1)),
-        NoInline(LLVM::Attribute::createEnum(C, LLVM::Core::NoInline, 1)),
-        NoReturn(LLVM::Attribute::createEnum(C, LLVM::Core::NoReturn, 1)),
-        ReadOnly(LLVM::Attribute::createEnum(C, LLVM::Core::ReadOnly, 1)),
-        StrictFP(LLVM::Attribute::createEnum(C, LLVM::Core::StrictFP, 1)),
+        Cold(LLVM::Attribute::createEnum(C, LLVM::Core::Cold, 0)),
+        NoAlias(LLVM::Attribute::createEnum(C, LLVM::Core::NoAlias, 0)),
+        NoInline(LLVM::Attribute::createEnum(C, LLVM::Core::NoInline, 0)),
+        NoReturn(LLVM::Attribute::createEnum(C, LLVM::Core::NoReturn, 0)),
+        ReadOnly(LLVM::Attribute::createEnum(C, LLVM::Core::ReadOnly, 0)),
+        StrictFP(LLVM::Attribute::createEnum(C, LLVM::Core::StrictFP, 0)),
         NoStackArgProbe(
             LLVM::Attribute::createString(C, "no-stack-arg-probe"sv, {})),
         VoidTy(LLContext.getVoidTy()), Int8Ty(LLContext.getInt8Ty()),
@@ -4024,9 +4079,10 @@ private:
   void compileVectorVectorAddSat(LLVM::Type VectorTy, bool Signed) noexcept {
     auto ID = Signed ? LLVM::Core::SAddSat : LLVM::Core::UAddSat;
     assuming(ID != LLVM::Core::NotIntrinsic);
-    compileVectorVectorOp(VectorTy, [this, ID](auto LHS, auto RHS) noexcept {
-      return Builder.createBinaryIntrinsic(ID, LHS, RHS);
-    });
+    compileVectorVectorOp(
+        VectorTy, [this, VectorTy, ID](auto LHS, auto RHS) noexcept {
+          return Builder.createIntrinsic(ID, {VectorTy}, {LHS, RHS});
+        });
   }
   void compileVectorVectorSub(LLVM::Type VectorTy) noexcept {
     compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
@@ -4036,9 +4092,10 @@ private:
   void compileVectorVectorSubSat(LLVM::Type VectorTy, bool Signed) noexcept {
     auto ID = Signed ? LLVM::Core::SSubSat : LLVM::Core::USubSat;
     assuming(ID != LLVM::Core::NotIntrinsic);
-    compileVectorVectorOp(VectorTy, [this, ID](auto LHS, auto RHS) noexcept {
-      return Builder.createBinaryIntrinsic(ID, LHS, RHS);
-    });
+    compileVectorVectorOp(
+        VectorTy, [this, VectorTy, ID](auto LHS, auto RHS) noexcept {
+          return Builder.createIntrinsic(ID, {VectorTy}, {LHS, RHS});
+        });
   }
   void compileVectorVectorMul(LLVM::Type VectorTy) noexcept {
     compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
@@ -4805,6 +4862,8 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   // link
   bool LinkResult = false;
 #if WASMEDGE_OS_MACOS
+  const auto OSVersion = getOSVersion();
+  const auto SDKVersion = getSDKVersion();
 #if LLVM_VERSION_MAJOR >= 14
   // LLVM 14 replaces the older mach_o lld implementation with the new one.
   // So we need to change the namespace after LLVM 14.x released.
@@ -4826,15 +4885,16 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
             // LLVM 14 replaces the older mach_o lld implementation with the new
             // one. And it require -arch and -platform_version to always be
             // specified. Reference: https://reviews.llvm.org/D97799
-            "-platform_version", "macos", "10.0", "11.0",
+            "-platform_version", "macos", OSVersion.c_str(), SDKVersion.c_str(),
 #else
-            "-sdk_version", "11.3",
+            "-sdk_version", SDKVersion.c_str(),
 #endif
-            "-dylib", "-demangle", "-macosx_version_min", "10.0.0",
+            "-dylib", "-demangle", "-macosx_version_min", OSVersion.c_str(),
             "-syslibroot",
             "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-            ObjectName.u8string().c_str(), "-o", OutputPath.u8string().c_str(),
-            "-lSystem"
+            ObjectName.u8string().c_str(), "-o",
+            OutputPath.u8string().c_str() //,
+                                          //"-lSystem"
       },
 #elif WASMEDGE_OS_LINUX
   LinkResult = lld::elf::link(
@@ -5119,6 +5179,13 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   LLVM::Module LLModule(LLContext, LLPath.u8string().c_str());
   LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
   LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
+#if WASMEDGE_OS_MACOS
+  {
+    const auto [Major, Minor] = getSDKVersionPair();
+    LLModule.addFlag(LLVMModuleFlagBehaviorError, "SDK Version"sv,
+                     LLVM::Value::getConstVector32(LLContext, {Major, Minor}));
+  }
+#endif
   CompileContext NewContext(LLContext, LLModule,
                             Conf.getCompilerConfigure().isGenericBinary(),
                             Conf.getCompilerConfigure().getOutputFormat() ==
@@ -5439,7 +5506,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
           toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
       auto RTy = FTy.getReturnType();
       const auto Linkage =
-          Context->IsCustomSection ? LLVMInternalLinkage : LLVMExternalLinkage;
+          Context->IsCustomSection ? LLVMPrivateLinkage : LLVMExternalLinkage;
       auto F = LLVM::FunctionCallee{
           FTy, Context->LLModule.addFunction(
                    FTy, Linkage, fmt::format("f{}"sv, FuncID).c_str())};

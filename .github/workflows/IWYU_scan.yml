@@ -1,4 +1,4 @@
-name: IWYU cheker
+name: IWYU checker
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -49,7 +49,7 @@ jobs:
         # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
         git fetch --tags --force
         git config --global --add safe.directory $(pwd)
-        echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
+        echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> $GITHUB_OUTPUT
 
   build_fedora:
     name: Fedora latest
@@ -62,11 +62,11 @@ jobs:
     - name: Install requirements
       run: |
         dnf update -y
-        dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev clang-devel
-        curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.19.zip
-        unzip  0.19.zip
+        dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev clang-devel spdlog-devel
+        curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.20.zip
+        unzip 0.20.zip
         mkdir build && cd build
-        cmake -G "Unix Makefiles" ../include-what-you-use-0.19
+        cmake -G "Unix Makefiles" ../include-what-you-use-0.20
         make -j
         make install
         cd ..
@@ -99,19 +99,17 @@ jobs:
     - name: Build and scan WasmEdge with IWYU
       shell: bash
       run: |
-        brew install llvm@14 ninja boost cmake
-
-        export PATH="/usr/local/opt/llvm@14/bin:$PATH"
-        export LDFLAGS="-L/usr/local/opt/llvm@14/lib -Wl,-rpath,/usr/local/opt/llvm@14/lib"
-        export CPPFLAGS="-I/usr/local/opt/llvm@14/include"
+        brew install llvm ninja boost cmake
+        export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
+        export Clang_DIR="/usr/local/opt/llvm/lib/cmake/clang"
         export CC=clang
         export CXX=clang++
 
         cd ../../
-        curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.18.zip
-        unzip  0.18.zip
+        curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.20.zip
+        unzip 0.20.zip
         mkdir build && cd build
-        cmake -G "Unix Makefiles" ../include-what-you-use-0.18
+        cmake -G "Unix Makefiles" ../include-what-you-use-0.20
         make -j install
         cd ../WasmEdge/WasmEdge
 

@@ -1363,6 +1363,8 @@ def main(args):
         print("Installing WasmEdge")
         # Copy the tree
         for sub_dir in listdir(join(TEMP_PATH, CONST_ipkg)):
+            if "._" in sub_dir:
+                continue
             if sub_dir == "lib64":
                 copytree(join(TEMP_PATH, CONST_ipkg, sub_dir), join(args.path, "lib"))
             else:

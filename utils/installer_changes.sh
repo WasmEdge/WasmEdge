@@ -19,7 +19,7 @@ test_diff_env() {
             while read -r line; do [ -f "${line/##/}" ] && echo "$line"; done;) \
         <(sed '1,/Please/d' "$HOME"/env | sed '\/bin$/d' |
             sort | while read -r line; do [ -f "${line/##/}" ] &&
-                [[ ! $line =~ (((tensorflow|framework)\.so\.[0-9]\.[0-9]$)|((tensorflow|framework)\.[0-9]\.[0-9]\.dylib$)) ]] &&
+                [[ ! $line =~ (((tensorflow|framework|cc)\.so\.[0-9]\.[0-9]$)|((tensorflow|framework|cc)\.[0-9]\.[0-9]\.dylib$)) ]] &&
                 echo "$line"; done;)
 
     error=$?

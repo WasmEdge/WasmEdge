@@ -800,8 +800,8 @@ fn sys_expand_async_host_func_with_two_args_new(item_fn: &syn::ItemFn) -> proc_m
 
     // insert the third argument
     let mut fn_inputs = item_fn.sig.inputs.clone();
-    // fn_inputs.push(parse_quote!(_data: *mut std::os::raw::c_void));
-    fn_inputs.push(parse_quote!(_data: ThreadSafeCVoid));
+    fn_inputs.push(parse_quote!(_data: *mut std::os::raw::c_void));
+    // fn_inputs.push(parse_quote!(_data: ThreadSafeCVoid));
 
     let fn_block = &item_fn.block;
 

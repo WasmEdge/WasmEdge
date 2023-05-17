@@ -105,7 +105,9 @@ protected:
   }
 
 private:
-  template <typename U> struct Wrap { using Type = std::tuple<U>; };
+  template <typename U> struct Wrap {
+    using Type = std::tuple<U>;
+  };
   template <typename... U> struct Wrap<std::tuple<U...>> {
     using Type = std::tuple<U...>;
   };

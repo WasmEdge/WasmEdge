@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <errno.h>
 #include <netdb.h>
+#include <openssl/tls1.h>
 #include <resolv.h>
 #include <string.h>
 #include <string>
@@ -90,11 +91,13 @@ Expect<void> WasmEdgeHttpsReqSendData::body(const Runtime::CallingFrame &Frame,
 
   SSL_set_fd(Ssl, Sfd);
 
+  SSL_set_tlsext_host_name(Ssl, Host);
+
   const int Status = SSL_connect(Ssl);
   if (Status != 1) {
-    SSL_get_error(Ssl, Status);
+    const int Code = SSL_get_error(Ssl, Status);
     ERR_print_errors_fp(stderr);
-    spdlog::error("[WasmEdge Httpsreq] SSL_get_error code {}", Status);
+    spdlog::error("[WasmEdge Httpsreq] SSL_get_error code {}", Code);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 

@@ -258,7 +258,7 @@ WasmEdge_FunctionTypeContext *HostFType =
     WasmEdge_FunctionTypeCreate(NULL, 0, NULL, 0);
 /* Create a function context with the function type and host function body. */
 WasmEdge_FunctionInstanceContext *HostFunc =
-    WasmEdge_FunctionInstanceCreate(HostFType, (void *)(&Number), NULL, 0);
+    WasmEdge_FunctionInstanceCreate(HostFType, &PrintData, (void *)(&Number), 0);
 WasmEdge_FunctionTypeDelete(HostType);
 ```
 

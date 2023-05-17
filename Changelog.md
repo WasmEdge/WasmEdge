@@ -1,4 +1,49 @@
-### 0.12.0-alpha.2 (2023-02-24)
+### 0.12.1 (2023-05-12)
+
+This is a hotfix release.
+
+Fixed issues:
+* WASI:
+  * fix rights of pre-open fd cannot write and fix read-only flag parse (#2458)
+* WASI Socket:
+  * Workaround: reduce the address family size for the old API
+  * fix sock opt & add BINDTODEVICE (#2454)
+* MacOS
+  * Use OpenSSL 3.0 on MacOS when building the plugins.
+  * Update the visibility of plugin functions.
+  * Fix AOT Error on MacOS; fix #2427
+    * Change enumerate attributes value to zero
+    * Change import helper function to private linkage to hide symbols
+    * Detect OS version
+  * Fix building with statically linked LLVM-15 on MacOS.
+  * cmake: quote WASMEDGE_LLVM_LINK_LIBS_NAME variable in order to fix arm64-osx AOT build (#2443)
+* Windows:
+    * Fix missing msvcp140.dll issue (#2455)
+    * Revert #2455 temporarily. Use `CMAKE_MSVC_RUNTIME_LIBRARY` instead of `MSVC_RUNTIME_LIBRARY`.
+* Rust Binding:
+  * Introduce `fiber-for-wasmedge` (#2468). The Rust binding relies on fiber for some features. Because the runwasi project supports both wasmtime and wasmedge, the wasmtime-fiber with different versions will make the compilation complex. To avoid this, we forked wasmtime-fiber as fiber-for-wasmedge.
+  * Add a second phase mechanism to load plugins after the VM has already been built. (#2469)
+* Documents:
+  * Fix the naming of the AOT wasm file.
+  * Add wasmedgec use cases for a slim container.
+  * Add the Kwasm document.
+  * Fix HostFunction with data example (#2441)
+
+Known issues:
+
+* Universal WASM format failed on macOS platforms.
+  * In the current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause a bus error during execution.
+  * We are trying to fix this issue. For a working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+
+Thank all the contributors that made this release possible!
+
+Leonid Pospelov, Shen-Ta Hsieh, Tyler Rockwood, Xin Liu, YiYing He, dm4, hydai, vincent, yanghaku, zzz
+
+If you want to build from source, please use WasmEdge-0.12.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
+### 0.12.0 (2023-04-24)
 
 Breaking changes:
 
@@ -29,15 +74,23 @@ Features:
   * Added the `WasmEdge_PluginGetPluginName()` API for retrieving the plug-in name.
   * Added the `WasmEdge_PluginListModuleLength()` and `WasmEdge_PluginListModule()` APIs for listing the module names of a plug-in.
   * Added the `WasmEdge_PluginCreateModule()` API for creating the specific module instance in a plug-in by its name.
+* Introduced the multiple WASI socket API implementation.
+  * The `sock_accept()` is compatible with the WASI spec.
+  * The V2 socket implementation is using a larger socket address data structures. With this, we can start to supporting `AF_UINX`
 * Added the `VM` APIs.
   * Added the `WasmEdge_VMGetRegisteredModule()` API for retrieving a registered module by its name.
   * Added the `WasmEdge_VMListRegisteredModuleLength()` and `WasmEdge_VMListRegisteredModule()` APIs for listing the registered module names.
 * Introduced the python version WasmEdge installer.
+* Added the `wasm_bpf` plug-in.
+* Enabled the read-only WASI filesystem.
+  * Users can add the `--dir guest_path:host_path:readonly` option in WasmEdge CLI to assign the read-only configuration.
 * Updated the ABI of the `wasi_ephemeral_sock`.
   * Added the output port of the `sock_recv_from`.
   * Updated the API of `sock_getlocaladdr`.
   * Unified the socket address size to 128-bit.
+* Allowed the multiple VM instances.
 * Supported using `libtool` to archive the WasmEdge static library.
+* Supported LLVM 15.0.7.
 
 Fixed issues:
 
@@ -45,6 +98,7 @@ Fixed issues:
   * Fixed the leaking information about the host STDIN, STDOUT, and STDERR after getting the `filestat`.
   * Fixed the lookup of symbolic link at `path_filestat_set_times`.
   * Fixed `open` for the wchar path issue on windows.
+  * Fixed the rights of `path_open`.
 * Fixed WASI-NN issues.
   * Fixed the definition of `wasi_nn::TensorType` to prevent from comparing with dirty data.
 * Fixed WASI-Crypto issues.
@@ -53,10 +107,12 @@ Fixed issues:
 * Fixed WASI-Socket issues.
   * Fixed the buffer size of `sock_getpeeraddr`.
 * Fixed the lost intrinsics table in AOT mode when using the WasmEdge C API.
+* Fixed the registration failed of WasmEdge plug-in through the C API.
 * Fixed the implementation in `threads` proposal.
   * Fixed the error in `atomic.nofify` and `atomic.wait` instructions.
   * Fixed the decoding of `atomic.fence` instruction.
   * Corrected the error message of waiting on unshared memory.
+* Handle canonical and arithmetical `NaN` in `runMaxOp()` and `runMinOp()`.
 
 Refactor:
 
@@ -85,6 +141,7 @@ Documentations:
 * Added the [WasmEdge installer guide](https://wasmedge.org/book/en/contribute/installer.html).
 * Updated the [Android NDK example](https://wasmedge.org/book/en/contribute/build_from_src/android/ndk.html).
 * Added the [static library linking guide](https://wasmedge.org/book/en/sdk/c/library.html#link-with-wasmedge-static-library).
+* Added the [WasmEdge plug-in implementation guide](https://wasmedge.org/book/en/develop_plugin/c.html).
 
 Tests:
 
@@ -93,9 +150,9 @@ Tests:
 
 Thank all the contributors that made this release possible!
 
-Abhinandan Udupa, Achille, Daniel Golding, DarumaDocker, Harry Chiang, Justin Echternach, Kenvi Zhu, LFsWang, Leonid Pospelov, Lîm Tsú-thuàn, MediosZ, O3Ol, Puelloc, Rafael Fernández López, Shreyas Atre, Sylveon, Tatsuyuki Kobayashi, Vishv Salvi, Xin Liu, Xiongsheng Wang, YiYing He, alabulei1, dm4, hydai, jeongkyu, little-willy
+Abhinandan Udupa, Achille, Afshan Ahmed Khan, Daniel Golding, DarumaDocker, Draco, Harry Chiang, Justin Echternach, Kenvi Zhu, LFsWang, Leonid Pospelov, Lîm Tsú-thuàn, MediosZ, O3Ol, Officeyutong, Puelloc, Rafael Fernández López, Shen-Ta Hsieh, Shreyas Atre, Sylveon, Tatsuyuki Kobayashi, Vishv Salvi, Xin Liu, Xiongsheng Wang, YiYing He, alabulei1, dm4, hydai, jeongkyu, little-willy, michael1017, shun murakami, xxchan, 云微
 
-If you want to build from source, please use WasmEdge-0.12.0-alpha.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.12.0-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.11.2 (2022-11-03)
 

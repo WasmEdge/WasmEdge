@@ -36,7 +36,10 @@ struct DriverToolOptions {
                 "directory to a host directory by --dir "
                 "`guest_path:host_path`, "
                 "where `guest_path` specifies the path that will correspond to "
-                "`host_path` for calls like `fopen` in the guest."sv),
+                "`host_path` for calls like `fopen` in the guest."
+                "The default permission is `readwrite`, however, you can use "
+                "--dir `guest_path:host_path:readonly` to make the mapping "
+                "directory become a read only mode."sv),
             PO::MetaVar("PREOPEN_DIRS"sv)),
         Env(PO::Description(
                 "Environ variables. Each variable can be specified as --env `NAME=VALUE`."sv),

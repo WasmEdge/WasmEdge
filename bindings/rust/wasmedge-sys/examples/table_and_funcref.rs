@@ -7,7 +7,7 @@
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, Executor, FuncType, Function, ImportModule, ImportObject,
-    Store, Table, TableType, WasmValue,
+    NeverType, Store, Table, TableType, WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, RefType, ValType};
 
@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a FuncType
     let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32])?;
     // create a host function
-    let host_func = Function::create(&func_ty, Box::new(real_add), 0)?;
+    let host_func = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0)?;
 
     // create a TableType instance
     let ty = TableType::create(RefType::FuncRef, 10, Some(20))?;

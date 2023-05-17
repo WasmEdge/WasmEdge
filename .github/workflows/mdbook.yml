@@ -23,7 +23,7 @@ on:
 jobs:
   lint-markdown:
     if: ${{ github.event_name != 'push' }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -44,7 +44,7 @@ jobs:
     if: |
       always()
       && (needs.lint-markdown.result == 'success' || needs.lint-markdown.result == 'skipped')
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 

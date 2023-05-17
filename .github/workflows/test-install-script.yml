@@ -143,7 +143,7 @@ jobs:
     - name: Tensorflow changes - libtensorflow_cc 2.6.0 will replace the old libtensorflow 2.6.0
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
-        bash utils/install.sh -v 0.12.0-alpha.1 -e tensorflow --tf-version 0.12.0-alpha.1 --tf-deps-version 0.12.0-alpha.1 --tf-tools-version 0.12.0-alpha.1
+        bash utils/install.sh -v 0.12.0-alpha.2 -e tensorflow --tf-version 0.12.0-alpha.2 --tf-deps-version 0.12.0-alpha.2 --tf-tools-version 0.12.0-alpha.2
         ls ~/.wasmedge/lib/ | grep libtensorflow_cc* && echo "Pass: libtensorflow_cc found" || (echo "Fail: libtensorflow_cc found not found" && exit 1)
     - name: Uninstall WasmEdge
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
@@ -223,7 +223,7 @@ jobs:
         # ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
     - name: Tensorflow changes - libtensorflow_cc 2.6.0 will replace the old libtensorflow 2.6.0
       run: |
-        bash utils/install.sh -v 0.12.0-alpha.1 -e tensorflow --tf-version 0.12.0-alpha.1 --tf-deps-version 0.12.0-alpha.1 --tf-tools-version 0.12.0-alpha.1
+        bash utils/install.sh -v 0.12.0-alpha.2 -e tensorflow --tf-version 0.12.0-alpha.2 --tf-deps-version 0.12.0-alpha.2 --tf-tools-version 0.12.0-alpha.2
         ls ~/.wasmedge/lib/ | grep libtensorflow_cc* && echo "Pass: libtensorflow_cc found" || (echo "Fail: libtensorflow_cc found not found" && exit 1)
     - name: Uninstall WasmEdge
       run: |

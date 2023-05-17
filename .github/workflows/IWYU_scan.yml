@@ -49,7 +49,7 @@ jobs:
         # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
         git fetch --tags --force
         git config --global --add safe.directory $(pwd)
-        echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
+        echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> $GITHUB_OUTPUT
 
   build_fedora:
     name: Fedora latest

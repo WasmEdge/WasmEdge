@@ -33,7 +33,7 @@ jobs:
           # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
           git config --global --add safe.directory $(pwd)
           git fetch --tags --force
-          echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
+          echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> $GITHUB_OUTPUT
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -364,8 +364,8 @@ jobs:
       - name: Prepare docker env
         id: docker_env
         run: |
-          echo ::set-output name=docker_image::${{ matrix.name }}
-          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          echo "docker_image=${{ matrix.name }}" >> $GITHUB_OUTPUT
+          echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Login to DockerHub

@@ -125,6 +125,7 @@ use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 #[derive(Debug, Clone)]
 pub struct Config {
     pub(crate) inner: std::sync::Arc<InnerConfig>,
+    async_wasi_enabled: bool,
 }
 impl Drop for Config {
     fn drop(&mut self) {
@@ -145,6 +146,7 @@ impl Config {
             true => Err(Box::new(WasmEdgeError::ConfigCreate)),
             false => Ok(Self {
                 inner: std::sync::Arc::new(InnerConfig(ctx)),
+                async_wasi_enabled: false,
             }),
         }
     }
@@ -178,6 +180,15 @@ impl Config {
                 ffi::WasmEdge_HostRegistration_Wasi,
             )
         }
+    }
+
+    pub fn async_wasi(&mut self, enable: bool) {
+        // todo: add checking for wasi and async_wasi
+        self.async_wasi_enabled = enable;
+    }
+
+    pub fn async_wasi_enabled(&self) -> bool {
+        self.async_wasi_enabled
     }
 
     /// Sets the maximum number of the memory pages available.

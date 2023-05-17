@@ -223,15 +223,33 @@ impl Executor {
         let returns_len = func_ty.returns_len();
         let mut returns = Vec::with_capacity(returns_len as usize);
 
+        dbg!("start invoke");
+
         unsafe {
-            check(ffi::WasmEdge_ExecutorInvoke(
+            // check(ffi::WasmEdge_ExecutorInvoke(
+            //     self.inner.0,
+            //     func.inner.0 as *const _,
+            //     raw_params.as_ptr(),
+            //     raw_params.len() as u32,
+            //     returns.as_mut_ptr(),
+            //     returns_len,
+            // ))?;
+
+            let x = ffi::WasmEdge_ExecutorInvoke(
                 self.inner.0,
                 func.inner.0 as *const _,
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
                 returns_len,
-            ))?;
+            );
+
+            dbg!("end invoke");
+
+            check(x)?;
+
+            dbg!("end check");
+
             returns.set_len(returns_len as usize);
         }
 
@@ -360,13 +378,15 @@ unsafe impl Sync for InnerExecutor {}
 mod tests {
     use super::*;
     use crate::{
-        instance::function::NeverType, AsImport, CallingFrame, Config, FuncType, Function, Global,
-        GlobalType, ImportModule, MemType, Memory, Statistics, Table, TableType,
+        instance::function::NeverType, instance::module::AsyncWasiModule, AsImport, CallingFrame,
+        Config, FuncType, Function, Global, GlobalType, ImportModule, Loader, MemType, Memory,
+        Statistics, Table, TableType, Validator,
     };
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_async_wasi::snapshots::WasiCtx;
     use wasmedge_macro::sys_host_function;
     use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
 
@@ -561,6 +581,103 @@ mod tests {
         });
 
         handle.join().unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_executor_register_async_wasi() -> Result<(), Box<dyn std::error::Error>> {
+        // create a Config
+        let mut config = Config::create()?;
+        config.async_wasi(true);
+        assert!(config.async_wasi_enabled());
+
+        // create an Executor
+        let result = Executor::create(None, None);
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+        assert!(!executor.inner.0.is_null());
+
+        // create a Store
+        let result = Store::create();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+
+        // create async wasi context
+        let mut async_wasi_ctx = WasiCtx::new();
+        async_wasi_ctx.push_arg("abc".into());
+        async_wasi_ctx.push_env("a=1".into());
+
+        // create an AsyncWasiModule
+        let result = AsyncWasiModule::create(&mut async_wasi_ctx);
+        assert!(result.is_ok());
+        let async_wasi_module = result.unwrap();
+
+        // register async_wasi module into the store
+        let wasi_import = ImportObject::AsyncWasi(async_wasi_module);
+        let result = executor.register_import_object(&mut store, &wasi_import);
+        assert!(result.is_ok());
+
+        {
+            // // create an ImportObj module
+            // let host_name = "extern";
+            // let result = ImportModule::create(host_name);
+            // assert!(result.is_ok());
+            // let mut import_module = result.unwrap();
+
+            // // add host function "func-add": (i32, i32) -> (i32)
+            // let result = FuncType::create([ValType::I32, ValType::I32], [ValType::I32]);
+            // assert!(result.is_ok());
+            // let func_ty = result.unwrap();
+            // let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
+            // assert!(result.is_ok());
+            // let host_func = result.unwrap();
+            // // add the function into the import_obj module
+            // import_module.add_func("func-add", host_func);
+
+            // // register import into the store
+            // let import = ImportObject::Import(import_module);
+            // let result = executor.register_import_object(&mut store, &import);
+            // assert!(result.is_ok());
+
+            // // get host function "func-add"
+            // let result = store.module("extern");
+            // assert!(result.is_ok());
+            // let instance = result.unwrap();
+            // let result = instance.get_func("func-add");
+            // assert!(result.is_ok());
+            // let func_add = result.unwrap();
+
+            // // run host function "func-add"
+            // let result =
+            //     executor.call_func(&func_add, [WasmValue::from_i32(1), WasmValue::from_i32(2)]);
+            // assert!(result.is_ok());
+            // let returns = result.unwrap();
+            // assert_eq!(returns[0].to_i32(), 3);
+        }
+
+        // let module = Loader::create(None)?.from_file("/root/workspace/hello.wasm")?;
+        // Validator::create(None)?.validate(&module)?;
+        // let instance = executor.register_active_module(&mut store, &module)?;
+        // let fn_start = instance.get_func("_start")?;
+
+        let module = Loader::create(None)?.from_file("/root/workspace/wasmedge-rustsdk-examples/call-wasm-lib-from-host/target/wasm32-wasi/release/wasm_lib.wasm")?;
+        Validator::create(None)?.validate(&module)?;
+        let instance = executor.register_active_module(&mut store, &module)?;
+        let fn_start = instance.get_func("fib")?;
+
+        // async fn tick() {
+        //     let mut i = 0;
+        //     loop {
+        //         println!("i={i}");
+        //         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        //         i += 1;
+        //     }
+        // }
+        // tokio::spawn(tick());
+
+        let returns = executor.run_func(&fn_start, [WasmValue::from_i32(5)])?;
+        println!("{returns:?}");
+
+        Ok(())
     }
 
     #[sys_host_function]

@@ -35,6 +35,8 @@ extern "C" fn wrap_fn(
     returns: *mut ffi::WasmEdge_Value,
     return_len: u32,
 ) -> ffi::WasmEdge_Result {
+    dbg!("wrap_fn");
+
     let frame = CallingFrame::create(call_frame_ctx);
 
     let key = key_ptr as *const usize as usize;
@@ -96,6 +98,8 @@ extern "C" fn wrap_sync_fn<T: 'static>(
     returns: *mut ffi::WasmEdge_Value,
     return_len: u32,
 ) -> ffi::WasmEdge_Result {
+    dbg!("wrap_sync_fn");
+
     let frame = CallingFrame::create(call_frame_ctx);
 
     // recover the async host function
@@ -179,9 +183,11 @@ extern "C" fn wrap_async_fn<T: 'static>(
     let raw_returns = unsafe { std::slice::from_raw_parts_mut(returns, return_len) };
 
     // call async host function
-    let async_state = ASYNC_STATE.read();
-    let async_cx = async_state.async_cx().unwrap();
-    drop(async_state);
+    // let async_state = ASYNC_STATE.read();
+    // let async_cx = async_state.async_cx().unwrap();
+    // drop(async_state);
+
+    let async_cx = crate::r#async::AsyncCx::new();
     let mut future = Pin::from(real_func(frame, input, data));
     let result = match unsafe { async_cx.block_on(future.as_mut()) } {
         Ok(Ok(ret)) => Ok(ret),

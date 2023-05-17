@@ -312,6 +312,7 @@ cast<__wasi_sock_opt_so_t>(uint64_t SockOptName) noexcept {
   case __WASI_SOCK_OPT_SO_RCVTIMEO:
   case __WASI_SOCK_OPT_SO_SNDTIMEO:
   case __WASI_SOCK_OPT_SO_ACCEPTCONN:
+  case __WASI_SOCK_OPT_SO_BINDTODEVICE:
     return static_cast<__wasi_sock_opt_so_t>(SockOptName);
   default:
     return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);

@@ -352,6 +352,28 @@ impl Vm {
         Ok(self)
     }
 
+    /// Auto detect all plugins in WASMEDGE_PLUGIN_PATH
+    ///
+    /// # Error
+    ///
+    /// If fail to register plugin instance, then an error is returned.
+    pub fn auto_detect_plugins(mut self) -> WasmEdgeResult<Self> {
+        for plugin_name in crate::plugin::PluginManager::names().iter() {
+            if let Some(plugin) = crate::plugin::PluginManager::find(plugin_name) {
+                for mod_name in plugin.mod_names().iter() {
+                    if let Some(mod_instance) = plugin.mod_instance(mod_name) {
+                        self.plugin_host_instances.push(mod_instance);
+                        self.executor.inner.register_plugin_instance(
+                            &mut self.store.inner,
+                            &self.plugin_host_instances.last().unwrap().inner,
+                        )?;
+                    }
+                }
+            }
+        }
+        Ok(self)
+    }
+
     /// Runs an exported wasm function in a (named or active) [module instance](crate::Instance).
     ///
     /// # Arguments
@@ -756,7 +778,7 @@ mod tests {
         params,
         types::Val,
         wat2wasm, AsInstance, CallingFrame, Global, GlobalType, ImportObjectBuilder, Memory,
-        MemoryType, Mutability, RefType, Table, TableType, ValType, WasmValue,
+        MemoryType, Mutability, NeverType, RefType, Table, TableType, ValType, WasmValue,
     };
 
     #[test]
@@ -1216,7 +1238,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", real_add)
+            .with_func::<(i32, i32), i32, NeverType>("add", real_add, None)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -1411,6 +1433,7 @@ mod tests {
     fn real_add(
         _frame: CallingFrame,
         inputs: Vec<WasmValue>,
+        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

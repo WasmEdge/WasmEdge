@@ -15,6 +15,7 @@
 #pragma once
 
 #include "dense_enum_map.h"
+#include "log.h"
 #include "spare_enum_map.h"
 
 #include <cstdint>
@@ -75,6 +76,11 @@ public:
                ? ErrCode::Value::UserDefError
                : static_cast<ErrCode::Value>(getCode());
   }
+  constexpr WasmPhase getErrCodePhase() const noexcept {
+    return getCategory() != ErrCategory::WASM
+               ? WasmPhase::UserDefined
+               : static_cast<WasmPhase>((getCode() & 0xF0U) >> 5);
+  }
 
   constexpr ErrCode() noexcept : Inner({.Num = 0}) {}
   constexpr ErrCode(const ErrCode &E) noexcept : Inner({.Num = E.Inner.Num}) {}
@@ -132,3 +138,13 @@ static inline constexpr const auto ErrCodeStr = []() constexpr {
 ();
 
 } // namespace WasmEdge
+
+template <>
+struct fmt::formatter<WasmEdge::WasmPhase> : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::WasmPhase &Phase,
+         fmt::format_context &Ctx) const noexcept {
+    return formatter<std::string_view>::format(WasmEdge::WasmPhaseStr[Phase],
+                                               Ctx);
+  }
+};

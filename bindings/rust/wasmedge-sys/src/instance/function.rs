@@ -1,12 +1,12 @@
 //! Defines WasmEdge Function and FuncType structs.
 
+#[cfg(feature = "async")]
+use crate::r#async::{AsyncCx, AsyncState, FiberFuture};
 use crate::{
     error::{FuncError, HostFuncError, WasmEdgeError},
     ffi, BoxedFn, CallingFrame, Engine, WasmEdgeResult, WasmValue, HOST_FUNCS,
     HOST_FUNC_FOOTPRINTS,
 };
-#[cfg(feature = "async")]
-use crate::{r#async::FiberFuture, ASYNC_STATE};
 use core::ffi::c_void;
 use parking_lot::Mutex;
 use rand::Rng;
@@ -15,14 +15,14 @@ use std::pin::Pin;
 use std::{convert::TryInto, sync::Arc};
 use wasmedge_types::ValType;
 
-pub type AsyncHostFn<T> =
+pub type StatelessAsyncHostFn<T> =
     fn(
         CallingFrame,
         Vec<WasmValue>,
         &'static mut T,
     ) -> Box<dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send>;
 
-pub type HostFn<T> =
+pub type StatelessHostFn<T> =
     fn(CallingFrame, Vec<WasmValue>, &'static mut T) -> Result<Vec<WasmValue>, HostFuncError>;
 
 // Wrapper function for thread-safe scenarios.
@@ -98,12 +98,10 @@ extern "C" fn wrap_sync_fn<T: 'static>(
     returns: *mut ffi::WasmEdge_Value,
     return_len: u32,
 ) -> ffi::WasmEdge_Result {
-    dbg!("wrap_sync_fn");
-
     let frame = CallingFrame::create(call_frame_ctx);
 
     // recover the async host function
-    let real_func: HostFn<T> = unsafe { std::mem::transmute(key_ptr) };
+    let real_func: StatelessHostFn<T> = unsafe { std::mem::transmute(key_ptr) };
 
     // recover the context data
     let data: &'static mut T = unsafe { &mut *(data as *mut T) };
@@ -158,7 +156,7 @@ extern "C" fn wrap_async_fn<T: 'static>(
     let frame = CallingFrame::create(call_frame_ctx);
 
     // recover the async host function
-    let real_func: AsyncHostFn<T> = unsafe { std::mem::transmute(key_ptr) };
+    let real_func: StatelessAsyncHostFn<T> = unsafe { std::mem::transmute(key_ptr) };
 
     // recover the context data
     let data: &'static mut T = unsafe { &mut *(data as *mut T) };
@@ -350,7 +348,7 @@ impl Function {
 
     pub fn create_new<T>(
         ty: &FuncType,
-        real_fn: HostFn<T>,
+        real_fn: StatelessHostFn<T>,
         data: Option<&mut T>,
         cost: u64,
     ) -> WasmEdgeResult<Self> {
@@ -454,7 +452,7 @@ impl Function {
     /// The example defines an async host function `real_add`.
     ///
     /// ```rust
-    /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame};
+    /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame, NeverType};
     /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
     /// use wasmedge_macro::sys_host_function;
     /// use std::future::Future;
@@ -492,10 +490,10 @@ impl Function {
     /// let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]).expect("fail to create a FuncType");
     ///
     /// // create a Function instance
-    /// let func = Function::create_async(&func_ty, Box::new(real_add), 0).expect("fail to create a Function instance");
+    /// let func = Function::create_async::<NeverType>(&func_ty, Box::new(real_add), None, 0).expect("fail to create a Function instance");
     /// ```
     #[cfg(feature = "async")]
-    pub fn create_async(
+    pub fn create_async<T>(
         ty: &FuncType,
         real_fn: impl Fn(
                 CallingFrame,
@@ -508,14 +506,14 @@ impl Function {
             > + Send
             + Sync
             + 'static,
+        data: Option<&mut T>,
         cost: u64,
     ) -> WasmEdgeResult<Self> {
-        Self::create::<NeverType>(
+        Self::create::<T>(
             ty,
             Box::new(move |frame, args, data| {
-                let async_state = ASYNC_STATE.read();
-                let async_cx = async_state.async_cx().unwrap();
-                drop(async_state);
+                let async_cx = AsyncCx::new();
+
                 let mut future = Pin::from(real_fn(frame, args, data));
                 match unsafe { async_cx.block_on(future.as_mut()) } {
                     Ok(Ok(ret)) => Ok(ret),
@@ -523,14 +521,14 @@ impl Function {
                     Err(_err) => Err(HostFuncError::User(0x87)),
                 }
             }),
-            None,
+            data,
             cost,
         )
     }
 
     pub fn create_async_new<T>(
         ty: &FuncType,
-        real_fn: AsyncHostFn<T>,
+        real_fn: StatelessAsyncHostFn<T>,
         data: Option<&mut T>,
         cost: u64,
     ) -> WasmEdgeResult<Self> {
@@ -748,10 +746,11 @@ impl Function {
     #[cfg(feature = "async")]
     pub async fn call_async<E: Engine + Send + Sync>(
         &self,
+        async_state: &AsyncState,
         engine: &mut E,
         args: impl IntoIterator<Item = WasmValue> + Send,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        FiberFuture::on_fiber(|| engine.run_func(self, args))
+        FiberFuture::on_fiber(async_state, || engine.run_func(self, args))
             .await
             .unwrap()
     }

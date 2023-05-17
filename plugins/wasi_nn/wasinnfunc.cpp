@@ -26,18 +26,18 @@ namespace WasmEdge {
 namespace Host {
 
 namespace {
-[[maybe_unused]] std::string FindDevice(const uint32_t Target) {
+[[maybe_unused]] std::string findDevice(const WASINN::Device Target) {
   std::string DeviceName;
   switch (Target) {
-  case 0:
+  case WASINN::Device::CPU:
     DeviceName = "CPU";
     break;
-  // case 1:
-  //   DeviceName = "GPU";
-  //   break;
-  // case 2:
-  //   DeviceName = "TPU";
-  //   break;
+  case WASINN::Device::GPU:
+    DeviceName = "GPU";
+    break;
+  case WASINN::Device::TPU:
+    DeviceName = "TPU";
+    break;
   default:
     DeviceName = "";
   }
@@ -63,10 +63,12 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
     return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
   }
   // Get and check the device name string.
-  std::string DeviceName;
-  DeviceName = FindDevice(Target);
-  if (unlikely(DeviceName.length() == 0)) {
-    spdlog::error("[WASI-NN] Only support CPU target");
+  const auto Device = static_cast<WASINN::Device>(Target);
+  const std::string DeviceName = findDevice(Device);
+  if (unlikely(DeviceName.length() == 0 &&
+               (Encoding != static_cast<uint32_t>(WASINN::Backend::PyTorch) ||
+                Device != WASINN::Device::GPU))) {
+    spdlog::error("[WASI-NN] Only support CPU target and Pytorch GPU target.");
     return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
   }
   spdlog::debug("[WASI-NN] Using device: {:s}", DeviceName);
@@ -274,12 +276,23 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
     // Add a new graph.
     Env.NNGraph.emplace_back(static_cast<WASINN::Backend>(Encoding));
     auto &Graph = Env.NNGraph.back();
+    // Setup Graph Device
+    if (Device == WASINN::Device::GPU) {
+      if (torch::cuda::is_available()) {
+        Graph.TorchDevice = at::kCUDA;
+      } else {
+        spdlog::error("[WASI-NN] Platform Cannot support GPU target.");
+        return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+      }
+    }
+
     std::string BinString((char *)BinPtr, BinLen);
     std::stringstream BinRead;
     BinRead.str(BinString);
 
     try {
       Graph.TorchModel = torch::jit::load(BinRead);
+      Graph.TorchModel.to(Graph.TorchDevice);
     } catch (const c10::Error &e) {
       spdlog::error("[WASI-NN] Failed when load the TorchScript model.");
       Env.NNGraph.pop_back();
@@ -631,8 +644,10 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
     for (size_t I = 0; I < DimensionLen; I++) {
       Dims.push_back(static_cast<int64_t>(DimensionBuf[I]));
     }
-    torch::Tensor InTensor = torch::from_blob(
-        reinterpret_cast<float *>(TensorDataBuf), Dims, Options);
+    torch::Tensor InTensor =
+        torch::from_blob(reinterpret_cast<float *>(TensorDataBuf), Dims,
+                         Options)
+            .to(CxtRef.GraphRef.TorchDevice);
 
     CxtRef.TorchInputs[Index] = InTensor.clone();
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
@@ -821,7 +836,7 @@ WasiNNGetOuput::body(const Runtime::CallingFrame &Frame, uint32_t Context,
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
     torch::Tensor OutTensor =
-        CxtRef.TorchOutputs[Index].toType(torch::kFloat32);
+        CxtRef.TorchOutputs[Index].to(at::kCPU).toType(torch::kFloat32);
     float *TensorBuffer = OutTensor.data_ptr<float>();
 
     size_t BlobSize = 1;

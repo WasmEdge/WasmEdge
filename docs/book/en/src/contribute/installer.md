@@ -60,15 +60,15 @@ The real installer handles all stuff. It supports python2.7 (not tested on earli
 * Full Option: `--version VERSION`
 * Description: Install the given VERSION of WasmEdge
 * Available Value: VERSION `0.11.2` or other valid release versions.
-* Note - In the case of supplied an invalid or nonexistent version, the installer exists with an error.
+* **Note** - In the case of supplied an invalid or nonexistent version, the installer exists with an error.
 
 ### Installation path
 
 * Short Option: `-p PATH`
 * Full Option: `--path PATH`
 * Description: Install WasmEdge into the given PATH. The default Path is `$HOME/.wasmedge`.
-* Note - In any path other than the ones starting with `/usr` are treated as non system paths in the internals of the installer. The consequences are different directory structures for both.
-* Note - If the path not exists, the folder will be created.
+* **Note** - In any path other than the ones starting with `/usr` are treated as non system paths in the internals of the installer. The consequences are different directory structures for both.
+* **Note** - If the path not exists, the folder will be created.
 
 ### Uninstallation
 
@@ -95,42 +95,42 @@ The real installer handles all stuff. It supports python2.7 (not tested on earli
 
 * Full Option: `--tf-version TF_VERSION`
 * Description: Install the given VERSION of the library of the Tensorflow and Tensorflow lite extension. Only available when the `Extensions` is set to `all` or `tensorflow`.
-* Note - It's the same as the WasmEdge version if not specified.
+* **Note** - It's the same as the WasmEdge version if not specified.
 
 #### Tensorflow Extensions Dependencies Version
 
 * Full Option: `--tf-deps-version TF_DEPS_VERSION`
 * Description: Install the given VERSION of the dependencies of the Tensorflow and Tensorflow lite extension. Only available when the `Extensions` is set to `all` or `tensorflow`.
-* Note - It's the same as the WasmEdge version if not specified.
+* **Note** - It's the same as the WasmEdge version if not specified.
 
 #### Tensorflow Extensions Tools Version
 
 * Full Option: `--tf-tools-version TF_TOOLS_VERSION`
 * Description: Install the given VERSION of the tools of the Tensorflow and Tensorflow lite extension. Only available when the `Extensions` is set to `all` or `tensorflow`.
-* Note - It's the same as the WasmEdge version if not specified.
+* **Note** - It's the same as the WasmEdge version if not specified.
 
 #### Image Extensions Version
 
 * Full Option: `--image-version IMAGE_VERSION`
 * Description: Install the given VERSION of the Image extension. Only available when the `Extensions` is set to `all` or `image`.
-* Note - It's the same as the WasmEdge version if not specified.
+* **Note** - It's the same as the WasmEdge version if not specified.
 
 ### Plugins
 
-* Note - Currently `--plugins` is an experimental option.
+* **Note** - Currently `--plugins` is an experimental option.
 
 * Full Option: `--plugins wasi_crypto:0.11.0`
 
-* Note - The format for this argument is `<plugin_name>:<version_number>`. `<version_number>` is not compulsory. For example `--plugins wasi_crypto` is a valid option.
-* Note - `<plugin_name>` is cases sensitive. Allowed values are stated [here](https://wasmedge.org/book/en/plugin.html) in the `Rust Crate` column. The logic is that the release name should be the same.
-* Note - It's the same as the WasmEdge version if not specified.
+* **Note** - The format for this argument is `<plugin_name>:<version_number>`. `<version_number>` is not compulsory. For example `--plugins wasi_crypto` is a valid option.
+* **Note** - `<plugin_name>` is cases sensitive. Allowed values are stated [here](https://wasmedge.org/book/en/plugin.html) in the `Rust Crate` column. The logic is that the release name should be the same.
+* **Note** - It's the same as the WasmEdge version if not specified.
 
 ### DIST
 
 * Full Option: `--dist ubuntu20.04` or `--dist manylinux2014`
-* Note - the `ubuntu20.04` and `manylinux2014` values are case insensitive and only these two are currently supported.
-* Note - Specifying `--dist` value for `Darwin` has no effect.
-* Note - For `Linux` platform if the distribution matches exactly as `Ubuntu 20.04` which is checked using `lsb_release` and python's `platform.dist()` functionality then it is set to `ubuntu20.04` if not specified, else it is used without questioning. However different release packages for WasmEdge are available only after `0.11.1` release below which there is no effect of specifying this option.
+* **Note** - the `ubuntu20.04` and `manylinux2014` values are case insensitive and only these two are currently supported.
+* **Note** - Specifying `--dist` value for `Darwin` has no effect.
+* **Note** - For `Linux` platform if the distribution matches exactly as `Ubuntu 20.04` which is checked using `lsb_release` and python's `platform.dist()` functionality then it is set to `ubuntu20.04` if not specified, else it is used without questioning. However different release packages for WasmEdge are available only after `0.11.1` release below which there is no effect of specifying this option.
 
 ### Platform and OS
 

@@ -8,8 +8,9 @@
 //! cargo run -p wasmedge-sys --features async --example async_run_registered_func
 //! ```
 
+use wasmedge_sys::async_wasi;
 #[cfg(feature = "async")]
-use wasmedge_sys::{Config, Executor, Loader, Store, Validator, WasmValue};
+use wasmedge_sys::{r#async::AsyncState, Config, Executor, Loader, Store, Validator, WasmValue};
 #[cfg(feature = "async")]
 use wasmedge_types::wat2wasm;
 
@@ -71,8 +72,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .get_func("fib")?;
 
         // async run function
-        let fut1 = executor.call_func_async(&fib, vec![WasmValue::from_i32(20)]);
-        let fut2 = executor.call_func_async(&fib, vec![WasmValue::from_i32(5)]);
+        let async_state1 = AsyncState::new();
+        let fut1 = executor.call_func_async(&async_state1, &fib, vec![WasmValue::from_i32(20)]);
+        let async_state2 = AsyncState::new();
+        let fut2 = executor.call_func_async(&async_state2, &fib, vec![WasmValue::from_i32(5)]);
 
         let returns = tokio::join!(fut1, fut2);
 

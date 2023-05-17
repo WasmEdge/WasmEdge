@@ -9,7 +9,7 @@
 //! ```
 
 #[cfg(feature = "async")]
-use wasmedge_sys::{Config, Executor, Loader, Store, WasmValue};
+use wasmedge_sys::{r#async::AsyncState, Config, Executor, Loader, Store, Validator, WasmValue};
 #[cfg(feature = "async")]
 use wasmedge_types::wat2wasm;
 
@@ -66,6 +66,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert!(result.is_ok());
         let ast_module = result.unwrap();
 
+        // validate module
+        let result = Validator::create(None);
+        assert!(result.is_ok());
+        let validator = result.unwrap();
+        let result = validator.validate(&ast_module);
+        assert!(result.is_ok());
+
         // create config
         let mut config = Config::create()?;
         config.bulk_memory_operations(true);
@@ -83,8 +90,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .get_func("fib")?;
 
         // async run function
-        let fut1 = executor.call_func_async(&fib, vec![WasmValue::from_i32(20)]);
-        let fut2 = executor.call_func_async(&fib, vec![WasmValue::from_i32(5)]);
+        let async_state1 = AsyncState::new();
+        let fut1 = executor.call_func_async(&async_state1, &fib, vec![WasmValue::from_i32(20)]);
+
+        let async_state2 = AsyncState::new();
+        let fut2 = executor.call_func_async(&async_state2, &fib, vec![WasmValue::from_i32(5)]);
 
         let returns = tokio::join!(fut1, fut2);
 

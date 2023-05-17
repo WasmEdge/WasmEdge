@@ -89,4 +89,3 @@ jobs:
           files: ./build/codecov.xml
           name: codecov-wasmedge
           fail_ci_if_error: true
-          path_to_write_report: ./build/codecov_report.gz

@@ -32,6 +32,8 @@ enum class ErrNo : uint32_t {
 
 enum class TensorType : uint8_t { F16 = 0, F32 = 1, U8 = 2, I32 = 3 };
 
+enum class Device : uint32_t { CPU = 0, GPU = 1, TPU = 2 };
+
 enum class Backend : uint8_t {
   OpenVINO = 0,
   ONNX = 1,
@@ -89,6 +91,7 @@ public:
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   torch::jit::Module TorchModel;
+  torch::DeviceType TorchDevice = at::kCPU;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
   TfLiteModel *TFLiteMod = nullptr;

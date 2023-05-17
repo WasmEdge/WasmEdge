@@ -1,6 +1,5 @@
 //! Defines data structure for WasmEdge async mechanism.
 
-use crate::ASYNC_STATE;
 use fiber_for_wasmedge::{Fiber, FiberStack, Suspend};
 use std::{
     future::Future,
@@ -12,6 +11,7 @@ use std::{
 /// Defines a FiberFuture.
 pub(crate) struct FiberFuture<'a> {
     fiber: Fiber<'a, Result<(), ()>, (), Result<(), ()>>,
+    current_suspend: *mut *const Suspend<Result<(), ()>, (), Result<(), ()>>,
     current_poll_cx: *mut *mut Context<'static>,
 }
 impl<'a> FiberFuture<'a> {
@@ -24,13 +24,15 @@ impl<'a> FiberFuture<'a> {
     /// # Error
     ///
     /// If fail to create the fiber stack or the fiber fail to resume, then an error is returned.
-    pub(crate) async fn on_fiber<R>(func: impl FnOnce() -> R + Send) -> Result<R, ()> {
+    pub(crate) async fn on_fiber<R>(
+        async_state: &AsyncState,
+        func: impl FnOnce() -> R + Send,
+    ) -> Result<R, ()> {
         let mut slot = None;
         let future = {
-            let async_state = ASYNC_STATE.read();
             let current_poll_cx = async_state.current_poll_cx.get();
             let current_suspend = async_state.current_suspend.get();
-            drop(async_state);
+
             let stack = FiberStack::new(2 << 20).map_err(|_e| ())?;
             let slot = &mut slot;
             let fiber = Fiber::new(stack, move |keep_going, suspend| {
@@ -47,6 +49,7 @@ impl<'a> FiberFuture<'a> {
 
             FiberFuture {
                 fiber,
+                current_suspend,
                 current_poll_cx,
             }
         };
@@ -62,10 +65,15 @@ impl<'a> Future for FiberFuture<'a> {
             let _reset = Reset(self.current_poll_cx, *self.current_poll_cx);
             *self.current_poll_cx =
                 std::mem::transmute::<&mut Context<'_>, *mut Context<'static>>(cx);
-            match self.as_ref().fiber.resume(Ok(())) {
+
+            let async_cx = AsyncCx {
+                current_suspend: self.current_suspend,
+                current_poll_cx: self.current_poll_cx,
+            };
+            ASYNC_CX.set(&async_cx, || match self.as_ref().fiber.resume(Ok(())) {
                 Ok(ret) => Poll::Ready(ret),
                 Err(_) => Poll::Pending,
-            }
+            })
         }
     }
 }
@@ -73,15 +81,17 @@ unsafe impl Send for FiberFuture<'_> {}
 
 type FiberSuspend = Suspend<Result<(), ()>, (), Result<(), ()>>;
 
+scoped_tls::scoped_thread_local!(static ASYNC_CX: AsyncCx);
+
 /// Defines a async state that contains the pointer to current poll context and current suspend.
 #[derive(Debug)]
-pub(crate) struct AsyncState {
+pub struct AsyncState {
     current_suspend: std::cell::UnsafeCell<*const FiberSuspend>,
     current_poll_cx: std::cell::UnsafeCell<*mut Context<'static>>,
 }
 impl AsyncState {
     /// Creates a new async state.
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         AsyncState {
             current_suspend: std::cell::UnsafeCell::new(std::ptr::null()),
             current_poll_cx: std::cell::UnsafeCell::new(std::ptr::null_mut()),
@@ -91,7 +101,7 @@ impl AsyncState {
     /// Returns an async execution context.
     ///
     /// If the pointer of poll context is null, then None is returned.
-    pub(crate) fn async_cx(&self) -> Option<AsyncCx> {
+    pub fn async_cx(&self) -> Option<AsyncCx> {
         let poll_cx_box_ptr = self.current_poll_cx.get();
         if poll_cx_box_ptr.is_null() {
             return None;
@@ -111,17 +121,15 @@ unsafe impl Send for AsyncState {}
 unsafe impl Sync for AsyncState {}
 
 /// Defines an async execution context.
-#[derive(Debug)]
-pub(crate) struct AsyncCx {
+#[derive(Debug, Clone, Copy)]
+pub struct AsyncCx {
     current_suspend: *mut *const Suspend<Result<(), ()>, (), Result<(), ()>>,
     current_poll_cx: *mut *mut Context<'static>,
 }
 impl AsyncCx {
-    pub(crate) fn new() -> Self {
-        Self {
-            current_suspend: std::ptr::null_mut(),
-            current_poll_cx: std::ptr::null_mut(),
-        }
+    /// Creates a new async execution context.
+    pub fn new() -> Self {
+        ASYNC_CX.with(|async_cx| *async_cx)
     }
 
     /// Runs a future to completion.

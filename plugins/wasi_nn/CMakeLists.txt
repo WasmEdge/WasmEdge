@@ -6,6 +6,11 @@ wasmedge_add_library(wasmedgePluginWasiNN
   wasinnenv.cpp
   wasinnfunc.cpp
   wasinnmodule.cpp
+  openvino.cpp
+  onnx.cpp
+  tf.cpp
+  torch.cpp
+  tfl.cpp
 )
 
 target_compile_options(wasmedgePluginWasiNN

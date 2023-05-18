@@ -41,7 +41,7 @@ public:
   }
 };
 
-class GetOuput : public Runtime::HostFunction<GetOuput> {
+class GetOutput : public Runtime::HostFunction<GetOutput> {
 public:
   Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t, uint32_t,
                         uint32_t, uint32_t, uint32_t) {

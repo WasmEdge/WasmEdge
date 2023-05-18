@@ -12,7 +12,7 @@ on:
 jobs:
   release_wasmedge_sdk:
     name: Create Release
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
@@ -25,7 +25,7 @@ jobs:
         run: |
           apt update
           apt install -y software-properties-common libboost-all-dev ninja-build
-          apt install -y llvm-12-dev liblld-12-dev
+          apt install -y llvm-15-dev liblld-15-dev
 
       - name: Build WasmEdge with Release mode
         run: |
@@ -36,7 +36,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.68
-  
+
       - name: Dry run cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRIES_SDK_TOKEN }}

@@ -8,168 +8,149 @@
 #include <cstdint>
 #include <vector>
 
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-#include <c_api/ie_c_api.h>
-#endif
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
-#include <torch/script.h>
-#endif
-
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
-#include "tensorflow/lite/c/c_api.h"
-#endif
+#include "onnx.h"
+#include "openvino.h"
+#include "tf.h"
+#include "tfl.h"
+#include "torch.h"
+#include "types.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WASINN {
 
-enum class ErrNo : uint32_t {
-  Success = 0,         // No error occurred.
-  InvalidArgument = 1, // Caller module passed an invalid argument.
-  InvalidEncoding = 2, // Invalid encoding.
-  MissingMemory = 3,   // Caller module is missing a memory export.
-  Busy = 4,            // Device or resource busy.
-  RuntimeError = 5,    // Runtime Error.
-};
+namespace detail {
+template <typename T, typename V> struct VariantIndex;
 
-enum class TensorType : uint8_t { F16 = 0, F32 = 1, U8 = 2, I32 = 3 };
+template <typename T, typename... Types>
+struct VariantIndex<T, std::variant<T, Types...>>
+    : std::integral_constant<size_t, 0> {};
 
-enum class Device : uint32_t { CPU = 0, GPU = 1, TPU = 2 };
+template <typename T, typename H, typename... Types>
+struct VariantIndex<T, std::variant<H, Types...>>
+    : std::integral_constant<
+          std::size_t, VariantIndex<T, std::variant<Types...>>::value + 1> {};
 
-enum class Backend : uint8_t {
-  OpenVINO = 0,
-  ONNX = 1,
-  Tensorflow = 2,
-  PyTorch = 3,
-  TensorflowLite = 4
-};
+template <typename T, typename V>
+inline constexpr std::size_t VariantIndexV = VariantIndex<T, V>::value;
+
+template <Backend B> struct BackendTrait;
+#define EACH(B)                                                                \
+  template <> struct BackendTrait<Backend::B> {                                \
+    using Graph = B::Graph;                                                    \
+    using Context = B::Context;                                                \
+  };
+FOR_EACH_BACKEND(EACH)
+#undef EACH
+
+template <Backend B> using BackendGraphT = typename BackendTrait<B>::Graph;
+template <Backend B> using BackendContextT = typename BackendTrait<B>::Context;
+} // namespace detail
 
 class Graph {
 public:
   Graph() = delete;
-  Graph(Backend BE) noexcept : GraphBackend(BE) {
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-    OpenVINONetwork = nullptr;
-    OpenVINOExecNetwork = nullptr;
-    OpenVINOWeightBlob = nullptr;
-#endif
+  Graph(Backend BE) noexcept : Impl(std::in_place_type_t<std::monostate>()) {
+    switch (BE) {
+#define EACH(B)                                                                \
+  case Backend::B:                                                             \
+    Impl.emplace<B::Graph>();                                                  \
+    break;
+      FOR_EACH_BACKEND(EACH)
+#undef EACH
+    default:
+      __builtin_unreachable();
+    }
   }
-  ~Graph() noexcept {
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-    if (OpenVINONetwork) {
-      ie_network_free(&OpenVINONetwork);
+  Backend getBackend() const noexcept {
+    using V = std::decay_t<decltype(Impl)>;
+    switch (Impl.index()) {
+#define EACH(B)                                                                \
+  case detail::VariantIndexV<B::Graph, V>:                                     \
+    return Backend::B;
+      FOR_EACH_BACKEND(EACH)
+#undef EACH
+    default:
+      __builtin_unreachable();
     }
-    if (OpenVINOExecNetwork) {
-      ie_exec_network_free(&OpenVINOExecNetwork);
-    }
-    if (OpenVINOWeightBlob) {
-      ie_blob_free(&OpenVINOWeightBlob);
-    }
-    for (auto &I : OpenVINOInputNames) {
-      if (I) {
-        ie_network_name_free(&I);
-      }
-    }
-    for (auto &I : OpenVINOOutputNames) {
-      if (I) {
-        ie_network_name_free(&I);
-      }
-    }
-#endif
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
-    if (TFLiteMod) {
-      TfLiteModelDelete(TFLiteMod);
-    }
-#endif
   }
-
-  Backend GraphBackend;
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-  ie_network_t *OpenVINONetwork;
-  ie_executable_network_t *OpenVINOExecNetwork;
-  ie_blob_t *OpenVINOWeightBlob;
-  std::vector<char *> OpenVINOInputNames;
-  std::vector<char *> OpenVINOOutputNames;
-#endif
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
-  torch::jit::Module TorchModel;
-  torch::DeviceType TorchDevice = at::kCPU;
-#endif
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
-  TfLiteModel *TFLiteMod = nullptr;
-#endif
+  template <Backend B> auto &get() noexcept {
+    return *std::get_if<detail::BackendGraphT<B>>(&Impl);
+  }
+  template <Backend B> const auto &get() const noexcept {
+    return *std::get_if<detail::BackendGraphT<B>>(&Impl);
+  }
+  template <typename T> auto &get() noexcept { return *std::get_if<T>(&Impl); }
+  template <typename T> const auto &get() const noexcept {
+    return *std::get_if<T>(&Impl);
+  }
+  std::variant<
+#define EACH(B) B::Graph,
+      FOR_EACH_BACKEND(EACH)
+#undef EACH
+          std::monostate>
+      Impl;
 };
 
 class Context {
 public:
   Context() = delete;
-
-  Context(Graph &G) noexcept : GraphRef(G) {
-    if (G.GraphBackend == Backend::OpenVINO) {
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-      IEStatusCode Status = ie_exec_network_create_infer_request(
-          G.OpenVINOExecNetwork, &OpenVINOInferRequest);
-      if (Status != IEStatusCode::OK) {
-        OpenVINOInferRequest = nullptr;
-        spdlog::error("[WASI-NN] Unable to create infer request for OpenVINO");
-      }
-#endif
+  Context(Graph &G) noexcept : Impl(std::in_place_type_t<std::monostate>()) {
+    switch (G.getBackend()) {
+#define EACH(B)                                                                \
+  case Backend::B:                                                             \
+    Impl.emplace<B::Context>(G.get<Backend::B>());                             \
+    break;
+      FOR_EACH_BACKEND(EACH)
+#undef EACH
+    default:
+      __builtin_unreachable();
     }
   }
 
-  ~Context() noexcept {
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-    if (OpenVINOInferRequest) {
-      ie_infer_request_free(&OpenVINOInferRequest);
+  Backend getBackend() const noexcept {
+    using V = std::decay_t<decltype(Impl)>;
+    switch (Impl.index()) {
+#define EACH(B)                                                                \
+  case detail::VariantIndexV<B::Context, V>:                                   \
+    return Backend::B;
+      FOR_EACH_BACKEND(EACH)
+#undef EACH
+    default:
+      __builtin_unreachable();
     }
-#endif
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
-    if (TFLiteInterp) {
-      TfLiteInterpreterDelete(TFLiteInterp);
-    }
-#endif
   }
 
-  Graph &GraphRef;
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-  ie_infer_request_t *OpenVINOInferRequest = nullptr;
-#endif
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
-  std::vector<torch::jit::IValue> TorchInputs;
-  std::vector<at::Tensor> TorchOutputs;
-#endif
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
-  TfLiteInterpreter *TFLiteInterp = nullptr;
-#endif
+  template <Backend B> auto &get() noexcept {
+    return *std::get_if<detail::BackendContextT<B>>(&Impl);
+  }
+  template <Backend B> const auto &get() const noexcept {
+    return *std::get_if<detail::BackendContextT<B>>(&Impl);
+  }
+  template <typename T> auto &get() noexcept { return *std::get_if<T>(&Impl); }
+  template <typename T> const auto &get() const noexcept {
+    return *std::get_if<T>(&Impl);
+  }
+  std::variant<
+#define EACH(B) B::Context,
+      FOR_EACH_BACKEND(EACH)
+#undef EACH
+          std::monostate>
+      Impl;
 };
 
-class WasiNNEnvironment {
-public:
+struct WasiNNEnvironment :
+#define EACH(B) B::Environ,
+    FOR_EACH_BACKEND(EACH)
+#undef EACH
+        std::monostate {
   WasiNNEnvironment() noexcept {
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-    if (ie_core_create("", &OpenVINOCore) != IEStatusCode::OK) {
-      spdlog::error(
-          "[WASI-NN] Error happened when initializing OpenVINO core.");
-    }
-#endif
     NNGraph.reserve(16U);
     NNContext.reserve(16U);
-  }
-  ~WasiNNEnvironment() noexcept {
-    NNContext.clear();
-    NNGraph.clear();
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-    if (OpenVINOCore) {
-      ie_core_free(&OpenVINOCore);
-    }
-#endif
   }
 
   std::vector<Graph> NNGraph;
   std::vector<Context> NNContext;
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-  ie_core_t *OpenVINOCore = nullptr;
-#endif
 
   static Plugin::PluginRegister Register;
 };

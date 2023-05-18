@@ -39,10 +39,10 @@ inline std::vector<uint8_t> readEntireFile(const std::string &Path) {
     return {};
   }
   Fin.seekg(0, std::ios::end);
-  std::vector<uint8_t> Buf(static_cast<uint32_t>(Fin.tellg()));
+  std::vector<uint8_t> Buf(static_cast<size_t>(Fin.tellg()));
   Fin.seekg(0, std::ios::beg);
   if (!Fin.read(reinterpret_cast<char *>(Buf.data()),
-                static_cast<uint32_t>(Buf.size()))) {
+                static_cast<size_t>(Buf.size()))) {
     return {};
   }
   Fin.close();
@@ -143,7 +143,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOuput &>(FuncInst->getHostFunc());
+      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
@@ -544,7 +544,7 @@ TEST(WasiNNTest, PyTorchBackend) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOuput &>(FuncInst->getHostFunc());
+      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
@@ -910,7 +910,7 @@ TEST(WasiNNTest, TFLiteBackend) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOuput &>(FuncInst->getHostFunc());
+      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);

@@ -17,33 +17,29 @@ Expect<void> WasiLoggingLog::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
+  // Get Buffer Pointer
   char *CxtBuf = MemInst->getPointer<char *>(CxtPtr);
   char *MsgBuf = MemInst->getPointer<char *>(MsgPtr);
-  bool isCxtStrExist = false;
-  bool isCxtStrStderr = false;
-  std::string CxtStr, MsgStr;
+  if (CxtBuf == nullptr || MsgBuf == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
 
   // Copy Context String and Message String
-  if (CxtBuf != nullptr) {
-    std::copy_n(CxtBuf, CxtLen, std::back_inserter(CxtStr));
-    CxtStr == "stderr"sv ? isCxtStrStderr = true : isCxtStrExist = true;
-  }
-  if (MsgBuf != nullptr) {
-    std::copy_n(MsgBuf, MsgLen, std::back_inserter(MsgStr));
-  } else {
-    MsgStr = "";
-  }
+  std::string CxtStr, MsgStr;
+  std::copy_n(CxtBuf, CxtLen, std::back_inserter(CxtStr));
+  std::copy_n(MsgBuf, MsgLen, std::back_inserter(MsgStr));
+
+  // Setup Logger for Stdout or Stderr
+  CxtStr == "stderr"sv ? Env.isCxtStrStderr = true : Env.isCxtStrStderr = false;
+  auto logger = Env.isCxtStrStderr ? Env.StderrLogger : Env.StdoutLogger;
 
   // Construct Spdlog Message
   std::string SpdlogMsg;
-  if (isCxtStrExist && !CxtStr.empty()) {
-    SpdlogMsg = std::string_view(CxtStr + ": " + MsgStr);
+  if (!CxtStr.empty()) {
+    SpdlogMsg = CxtStr + ": " + MsgStr;
   } else {
-    SpdlogMsg = std::string_view(MsgStr);
+    SpdlogMsg = MsgStr;
   }
-
-  // Setup Logger for Stdout or Stderr
-  auto logger = isCxtStrStderr ? Env.StderrLogger : Env.StdoutLogger;
 
   // Print Message by Logging Level
   switch (Level) {
@@ -68,17 +64,17 @@ Expect<void> WasiLoggingLog::body(const Runtime::CallingFrame &Frame,
   default:
     spdlog::error("[WasiLogging] Unrecognized Logging Level: {}"sv, Level);
     spdlog::error("[WasiLogging] Trace Level = {}"sv,
-                  WASILOGGING::WasiLoggingLevel::Trace);
+                  (uint32_t)WASILOGGING::WasiLoggingLevel::Trace);
     spdlog::error("[WasiLogging] Debug Level = {}"sv,
-                  WASILOGGING::WasiLoggingLevel::Debug);
+                  (uint32_t)WASILOGGING::WasiLoggingLevel::Debug);
     spdlog::error("[WasiLogging] Info Level = {}"sv,
-                  WASILOGGING::WasiLoggingLevel::Info);
+                  (uint32_t)WASILOGGING::WasiLoggingLevel::Info);
     spdlog::error("[WasiLogging] Warn Level = {}"sv,
-                  WASILOGGING::WasiLoggingLevel::Warn);
+                  (uint32_t)WASILOGGING::WasiLoggingLevel::Warn);
     spdlog::error("[WasiLogging] Error Level = {}"sv,
-                  WASILOGGING::WasiLoggingLevel::Error);
+                  (uint32_t)WASILOGGING::WasiLoggingLevel::Error);
     spdlog::error("[WasiLogging] Critical Level = {}"sv,
-                  WASILOGGING::WasiLoggingLevel::Critical);
+                  (uint32_t)WASILOGGING::WasiLoggingLevel::Critical);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   return {};

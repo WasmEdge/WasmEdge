@@ -11,6 +11,7 @@ public:
     StdoutLogger->set_level(spdlog::level::trace);
     StderrLogger->set_level(spdlog::level::trace);
   }
+  bool isCxtStrStderr = false;
   inline const static std::shared_ptr<spdlog::logger> StdoutLogger =
       spdlog::stdout_color_mt("wasi_logging_stdout");
   inline const static std::shared_ptr<spdlog::logger> StderrLogger =

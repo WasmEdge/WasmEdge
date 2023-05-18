@@ -444,108 +444,24 @@ pub fn sys_host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
 fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStream> {
     // * define the signature of wrapper function
     // name of wrapper function
-    let wrapper_fn_name_ident = item_fn.sig.ident.clone();
+    let fn_name_ident = &item_fn.sig.ident;
     // return type of wrapper function
-    let wrapper_fn_return = item_fn.sig.output.clone();
+    let fn_return = &item_fn.sig.output;
     // visibility of wrapper function
-    let wrapper_fn_visibility = item_fn.vis.clone();
+    let fn_visibility = &item_fn.vis;
 
     // extract T from Option<&mut T>
     let ret = match item_fn.sig.inputs.len() {
-        2 => {
-            // insert the third argument
-            // let wrapper_fn_inputs = item_fn.sig.inputs.clone();
-            let mut wrapper_fn_inputs = item_fn.sig.inputs.clone();
-            wrapper_fn_inputs.push(parse_quote!(_: *mut std::os::raw::c_void));
+        3 => {
+            let fn_generics = &item_fn.sig.generics;
+
+            // inputs of wrapper function
+            let fn_inputs = &item_fn.sig.inputs;
 
             let fn_block = item_fn.block.clone();
 
             quote!(
-                #wrapper_fn_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return
-                    #fn_block
-            )
-        }
-        3 => {
-            let data_arg = item_fn.sig.inputs.last().unwrap().clone();
-
-            let (data_arg_ident, ty_ptr) = if let FnArg::Typed(PatType {
-                ref ty, ref pat, ..
-            }) = &data_arg
-            {
-                // get the ident of the third argument
-                let data_arg_ident = match &**pat {
-                    Pat::Ident(pat_ident) => pat_ident.ident.clone(),
-                    Pat::Wild(_) => proc_macro2::Ident::new("_", proc_macro2::Span::call_site()),
-                    _ => panic!("argument pattern is not a simple ident"),
-                };
-
-                // get the type of the third argument
-                let ty_ptr = match **ty {
-                    syn::Type::Reference(syn::TypeReference { ref elem, .. }) => syn::TypePtr {
-                        star_token: parse_quote!(*),
-                        const_token: None,
-                        mutability: Some(parse_quote!(mut)),
-                        elem: elem.clone(),
-                    },
-                    syn::Type::Path(syn::TypePath { ref path, .. }) => match path.segments.last() {
-                        Some(segment) => {
-                            let id = segment.ident.to_string();
-                            match id == "Option" {
-                                true => match segment.arguments {
-                                    syn::PathArguments::AngleBracketed(
-                                        syn::AngleBracketedGenericArguments { ref args, .. },
-                                    ) => {
-                                        let last_generic_arg = args.last();
-                                        match last_generic_arg {
-                                            Some(arg) => match arg {
-                                                syn::GenericArgument::Type(ty) => match ty {
-                                                    syn::Type::Reference(syn::TypeReference {
-                                                        ref elem,
-                                                        ..
-                                                    }) => syn::TypePtr {
-                                                        star_token: parse_quote!(*),
-                                                        const_token: None,
-                                                        mutability: Some(parse_quote!(mut)),
-                                                        elem: elem.clone(),
-                                                    },
-                                                    _ => panic!("Not found syn::Type::Reference"),
-                                                },
-                                                _ => {
-                                                    panic!("Not found syn::GenericArgument::Type")
-                                                }
-                                            },
-                                            None => panic!("Not found the last GenericArgument"),
-                                        }
-                                    }
-                                    _ => panic!("Not found syn::PathArguments::AngleBracketed"),
-                                },
-                                false => panic!("Not found segment ident: Option"),
-                            }
-                        }
-                        None => panic!("Not found path segments"),
-                    },
-                    _ => panic!("Unsupported syn::Type type"),
-                };
-
-                (data_arg_ident, ty_ptr)
-            } else {
-                panic!("Unsupported syn::FnArg type")
-            };
-
-            // inputs of wrapper function
-            let mut wrapper_fn_inputs = item_fn.sig.inputs.clone();
-            wrapper_fn_inputs.pop();
-            wrapper_fn_inputs.push(parse_quote!(data: *mut std::os::raw::c_void));
-
-            let mut fn_block = item_fn.block.clone();
-            let fn_block_mut = fn_block.as_mut();
-            fn_block_mut.stmts.insert(
-                0,
-                parse_quote!(let #data_arg_ident = unsafe { &mut *(data as #ty_ptr) };),
-            );
-
-            quote!(
-                #wrapper_fn_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return
+                #fn_visibility fn #fn_name_ident #fn_generics (#fn_inputs) #fn_return
                     #fn_block
             )
         }

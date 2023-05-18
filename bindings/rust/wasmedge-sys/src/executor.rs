@@ -603,7 +603,7 @@ mod tests {
         async_wasi_ctx.push_env("a=1".into());
 
         // create an AsyncWasiModule
-        let result = AsyncWasiModule::create(&mut async_wasi_ctx);
+        let result = AsyncWasiModule::create(Some(&mut async_wasi_ctx));
         assert!(result.is_ok());
         let async_wasi_module = result.unwrap();
 
@@ -660,7 +660,7 @@ mod tests {
         async_wasi_ctx.push_env("a=1".into());
 
         // create an AsyncWasiModule
-        let result = AsyncWasiModule::create(&mut async_wasi_ctx);
+        let result = AsyncWasiModule::create(Some(&mut async_wasi_ctx));
         assert!(result.is_ok());
         let async_wasi_module = result.unwrap();
 

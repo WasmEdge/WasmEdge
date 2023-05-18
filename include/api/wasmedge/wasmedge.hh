@@ -528,13 +528,109 @@ namespace SDK{
 
   // >>>>>>>> WasmEdge Instances >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-  class WASMEDGE_CPP_API_EXPORT ModuleInstance {
+  class WASMEDGE_CPP_API_EXPORT FunctionInstance {
+  protected:
+    FunctionInstance() = default;
+    ~FunctionInstance() = default;
   public:
-    ModuleInstance(const std::string &ModuleName);
-    ModuleInstance(const std::vector<const std::string> &Args,
-                   const std::vector<const std::string> &Envs,
-                   const std::vector<const std::string> &Preopens);
+    using HostFunc_t = std::function<Result(
+      void *Data, const CallingFrame &CallFrameCxt,
+      const std::vector<Value> &Params, std::vector<Value> &Returns)>;
+
+    using WrapFunc_t = std::function<Result(
+      void *This, void *Data,
+      const CallingFrame &CallFrameCxt, const std::vector<Value> &Params,
+      std::vector<Value> &Returns)>;
+
+    static FunctionInstance New(const FunctionType &Type,
+                    HostFunc_t HostFunc, void *Data,
+                    const uint64_t Cost);
+    static FunctionInstance New(const FunctionType &Type,
+                    WrapFunc_t WrapFunc,
+                    void *Binding,
+                    void *Data,
+                    const uint64_t Cost);
+
+    const FunctionType GetFunctionType();
+
+  // private:
+    // class FunctionInstanceContext;
+    // std::unique_ptr<FunctionInstanceContext> Cxt;
+
+    // friend class Executor;
+  };
+
+  class WASMEDGE_CPP_API_EXPORT TableInstance {
+  protected:
+    TableInstance() = default;
+    ~TableInstance() = default;
+  public:
+    static TableInstance New(const TableType &TabType);
+
+    const TableType GetTableType();
+    Result GetData(Value &Data, const uint32_t Offset);
+    Result SetData(Value Data, const uint32_t Offset);
+    uint32_t GetSize();
+    Result Grow(const uint32_t Size);
+
+  // private:
+  //   class TableInstanceContext;
+  //   std::unique_ptr<TableInstanceContext> Cxt;
+  };
+
+  class WASMEDGE_CPP_API_EXPORT MemoryInstance {
+  protected:
+    MemoryInstance() = default;
+    ~MemoryInstance() = default;
+  public:
+    static MemoryInstance New(const MemoryType &MemType);
+
+    const MemoryType GetMemoryType();
+    Result GetData(std::vector<uint8_t> &Data, const uint32_t Offset,
+                   const uint32_t Length);
+
+    Result SetData(const std::vector<uint8_t> &Data,
+                   const uint32_t Offset);
+
+    std::vector<uint8_t> GetReference(const uint32_t Offset,
+                                       const uint32_t Length);
+    const std::vector<uint8_t> GetReferenceConst(const uint32_t Offset,
+                                                  const uint32_t Length);
+    uint32_t GetPageSize();
+
+    Result GrowPage(const uint32_t Page);
+
+  // private:
+  //   class MemoryInstanceContext;
+  //   std::unique_ptr<MemoryInstanceContext> Cxt;
+  };
+
+  class WASMEDGE_CPP_API_EXPORT GlobalInstance {
+  protected:
+    GlobalInstance() = default;
+    ~GlobalInstance() = default;
+  public:
+    static GlobalInstance New(const GlobalType &GlobType, const Value &Value);
+
+    const GlobalType GetGlobalType();
+    Value GetValue();
+
+    void SetValue(const Value &Value);
+  // private:
+  //   class GlobalInstanceContext;
+  //   std::unique_ptr<GlobalInstanceContext> Cxt;
+  };
+
+  class WASMEDGE_CPP_API_EXPORT ModuleInstance {
+  protected:
+    ModuleInstance();
     ~ModuleInstance() = default;
+  public:
+    static ModuleInstance New(const std::string &ModuleName);
+    static ModuleInstance New(const std::vector<const std::string> &Args,
+                              const std::vector<const std::string> &Envs,
+                              const std::vector<const std::string> &Preopens);
+    static ModuleInstance Move(ModuleInstance &ModInst);
 
     void InitWASI(const std::vector<const std::string> &Args,
                   const std::vector<const std::string> &Envs,
@@ -566,98 +662,20 @@ namespace SDK{
     void AddGlobal(const std::string &Name,
                    GlobalInstance &&GlobalCxt);
 
-  private:
-    class ModuleInstanceContext;
-    ModuleInstanceContext *Cxt;
-    ModuleInstance(ModuleInstanceContext *Cxt): Cxt(Cxt) {}
+  // private:
+    // class ModuleInstanceContext;
+    // ModuleInstanceContext *Cxt;
+    // ModuleInstance(ModuleInstanceContext *Cxt): Cxt(Cxt) {}
 
     friend class VM;
     friend class Executor;
+    friend class Store;
   };
 
-  class WASMEDGE_CPP_API_EXPORT FunctionInstance {
-  public:
-    using HostFunc_t = std::function<Result(
-      std::shared_ptr<void> Data, const CallingFrame &CallFrameCxt,
-      const std::vector<Value> &Params, std::vector<Value> &Returns)>;
-
-    using WrapFunc_t = std::function<Result(
-      std::shared_ptr<void> This, std::shared_ptr<void> Data,
-      const CallingFrame &CallFrameCxt, const std::vector<Value> &Params,
-      std::vector<Value> &Returns)>;
-
-    FunctionInstance(const FunctionType &Type,
-                    HostFunc_t HostFunc, std::shared_ptr<void> Data,
-                    const uint64_t Cost);
-    FunctionInstance(const FunctionType &Type,
-                    WrapFunc_t WrapFunc,
-                    std::shared_ptr<void> Binding,
-                    std::shared_ptr<void> Data,
-                    const uint64_t Cost);
-    ~FunctionInstance() = default;
-
-    const FunctionType &GetFunctionType();
-  private:
-    class FunctionInstanceContext;
-    std::unique_ptr<FunctionInstanceContext> Cxt;
-
-    friend class Executor;
-  };
-
-  class WASMEDGE_CPP_API_EXPORT TableInstance {
-  public:
-    TableInstance(const TableType &TabType);
-    ~TableInstance();
-
-    const TableType &GetTableType();
-    Result GetData(Value &Data, const uint32_t Offset);
-    Result SetData(Value Data, const uint32_t Offset);
-    uint32_t GetSize();
-    Result Grow(const uint32_t Size);
-
-  private:
-    class TableInstanceContext;
-    std::unique_ptr<TableInstanceContext> Cxt;
-  };
-
-  class WASMEDGE_CPP_API_EXPORT MemoryInstance {
-  public:
-    MemoryInstance(const MemoryType &MemType);
-    ~MemoryInstance() = default;
-
-    const MemoryType &GetMemoryType();
-    Result GetData(std::vector<uint8_t> &Data, const uint32_t Offset);
-
-    Result SetData(const std::vector<uint8_t> &Data,
-                   const uint32_t Offset);
-
-    std::vector<uint8_t> &GetReference(const uint32_t Offset);
-    const std::vector<uint8_t> &GetReferenceConst(const uint32_t Offset);
-    uint32_t GetPageSize();
-
-    Result GrowPage(const uint32_t Page);
-
-  private:
-    class MemoryInstanceContext;
-    std::unique_ptr<MemoryInstanceContext> Cxt;
-  };
-
-  class WASMEDGE_CPP_API_EXPORT GlobalInstance {
-  public:
-    GlobalInstance(const GlobalType &GlobType, const Value Value);
-    ~GlobalInstance() = default;
-
-    const GlobalType &GetGlobalType();
-    Value GetValue();
-
-    void SetValue(const Value Value);
-  private:
-    class GlobalInstanceContext;
-    std::unique_ptr<GlobalInstanceContext> Cxt;
-  };
   // <<<<<<<< WasmEdge Instances <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
   class WASMEDGE_CPP_API_EXPORT CallingFrame {
+  protected:
     CallingFrame();
     ~CallingFrame() = default;
 

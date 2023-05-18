@@ -2,6 +2,8 @@
 
 #include "driver/compiler.h"
 #include "driver/tool.h"
+#include "host/wasi/wasimodule.h"
+#include "plugin/plugin.h"
 #include "vm/vm.h"
 
 namespace {
@@ -55,108 +57,6 @@ inline constexpr WasmEdge::SDK::Result wrap(
 
 namespace WasmEdge {
 namespace SDK {
-
-// >>>>>>>> WasmEdge Context members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-class ASTModule::ASTModuleContext: public WasmEdge::AST::Module {};
-
-class FunctionType::FunctionTypeContext: public WasmEdge::AST::FunctionType {
-public:
-  FunctionTypeContext(AST::FunctionType &Func)
-  : AST::FunctionType(Func) {}
-};
-
-class TableType::TableTypeContext: public WasmEdge::AST::TableType {
-public:
-  TableTypeContext(AST::TableType &TabType): AST::TableType(TabType) {}
-};
-
-class MemoryType::MemoryTypeContext: public WasmEdge::AST::MemoryType {
-public:
-  MemoryTypeContext(AST::MemoryType &MemType): AST::MemoryType(MemType) {}
-};
-
-class GlobalType::GlobalTypeContext: public WasmEdge::AST::GlobalType {
-public:
-  GlobalTypeContext(AST::GlobalType &GlobType)
-  : WasmEdge::AST::GlobalType(GlobType) {}
-};
-
-class ImportType::ImportTypeContext: public WasmEdge::AST::ImportDesc {};
-class ExportType::ExportTypeContext: public WasmEdge::AST::ExportDesc {};
-
-class Async::AsyncContext: public WasmEdge::VM::Async<
-  WasmEdge::Expect<
-      std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>> {
-  template <typename... Args>
-  AsyncContext(Args &&...Vals)
-  : WasmEdge::VM::Async(std::forward<Args>(Vals)...) {}
-};
-
-class Configuration::ConfigureContext: public WasmEdge::Configure {};
-class Statistics::StatisticsContext: public WasmEdge::Statistics::Statistics {};
-
-class Loader::LoaderContext: public WasmEdge::Loader::Loader {};
-
-class Validator::ValidatorContext: public WasmEdge::Validator::Validator {
-public:
-  ValidatorContext(WasmEdge::Configure &Conf)
-  : WasmEdge::Validator::Validator(Conf) {};
-};
-
-class Executor::ExecutorContext: public WasmEdge::Executor::Executor {
-public:
-  ExecutorContext(WasmEdge::Configure &Conf,
-                  WasmEdge::Statistics::Statistics *Stat)
-  : WasmEdge::Executor::Executor(Conf, Stat) {}
-};
-
-class Store::StoreContext: public WasmEdge::Runtime::StoreManager {};
-class FunctionInstance::FunctionInstanceContext
-: public WasmEdge::Runtime::Instance::FunctionInstance {};
-class ModuleInstance::ModuleInstanceContext
-: public WasmEdge::Runtime::Instance::ModuleInstance {};
-class VM::VMContext: public WasmEdge::VM::VM {};
-
-// <<<<<<<< WasmEdge Context members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-// >>>>>>>> . Version members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-std::string Version::Get() {
-  return WASMEDGE_VERSION;
-}
-
-uint32_t Version::GetMajor() {
-  return WASMEDGE_VERSION_MAJOR;
-}
-
-uint32_t Version::GetMinor() {
-  return WASMEDGE_VERSION_MINOR;
-}
-
-uint32_t Version::GetPatch() {
-  return WASMEDGE_VERSION_PATCH;
-}
-
-// <<<<<<<< WasmEdge Version members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-// >>>>>>>> WasmEdge Log members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-void Log::SetErrorLevel() {
-  WasmEdge::Log::setErrorLoggingLevel();
-}
-
-void Log::SetDebugLevel() {
-  WasmEdge::Log::setDebugLoggingLevel();
-}
-
-void Log::Off() {
-  WasmEdge::Log::setLogOff();
-}
-
-// <<<<<<<< WasmEdge Log members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-// >>>>>>>> WasmEdge Value members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 class Value::ValueUtils {
   ValueUtils() = default;
@@ -223,7 +123,677 @@ public:
                             static_cast<ValType>(Vec[I].second)));
     }
   }
+
+  static inline void FillValue(Value &Data, WasmEdge::ValVariant Val,
+                               ValType T) {
+    Data.Val = to_uint128_t(Val.unwrap());
+    Data.Type = T;
+  }
+
+  static inline uint128_t GetValue(const Value &Data) {
+    return Data.Val;
+  }
+
+  static inline ValType GetValueType(const Value &Data) {
+    return Data.Type;
+  }
+
+  static inline Value GenValueFromValVariant(WasmEdge::ValVariant &Val,
+                                            ValType T) {
+    return Value(to_uint128_t(Val.unwrap()), T);
+  }
 };
+
+// >>>>>>>> WasmEdge Context members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+class ASTModule::ASTModuleContext: public WasmEdge::AST::Module {};
+
+class FunctionType::FunctionTypeContext: public WasmEdge::AST::FunctionType {
+public:
+  FunctionTypeContext(AST::FunctionType &Func)
+  : AST::FunctionType(Func) {}
+};
+
+class TableType::TableTypeContext: public WasmEdge::AST::TableType {
+public:
+  TableTypeContext(AST::TableType &TabType): AST::TableType(TabType) {}
+};
+
+class MemoryType::MemoryTypeContext: public WasmEdge::AST::MemoryType {
+public:
+  MemoryTypeContext(AST::MemoryType &MemType): AST::MemoryType(MemType) {}
+};
+
+class GlobalType::GlobalTypeContext: public WasmEdge::AST::GlobalType {
+public:
+  GlobalTypeContext(AST::GlobalType &GlobType)
+  : WasmEdge::AST::GlobalType(GlobType) {}
+};
+
+class ImportType::ImportTypeContext: public WasmEdge::AST::ImportDesc {};
+class ExportType::ExportTypeContext: public WasmEdge::AST::ExportDesc {};
+
+class Async::AsyncContext: public WasmEdge::VM::Async<
+  WasmEdge::Expect<
+      std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>> {
+  template <typename... Args>
+  AsyncContext(Args &&...Vals)
+  : WasmEdge::VM::Async(std::forward<Args>(Vals)...) {}
+};
+
+class Configuration::ConfigureContext: public WasmEdge::Configure {};
+class Statistics::StatisticsContext: public WasmEdge::Statistics::Statistics {};
+
+class Loader::LoaderContext: public WasmEdge::Loader::Loader {};
+
+class Validator::ValidatorContext: public WasmEdge::Validator::Validator {
+public:
+  ValidatorContext(WasmEdge::Configure &Conf)
+  : WasmEdge::Validator::Validator(Conf) {};
+};
+
+class Executor::ExecutorContext: public WasmEdge::Executor::Executor {
+public:
+  ExecutorContext(WasmEdge::Configure &Conf,
+                  WasmEdge::Statistics::Statistics *Stat)
+  : WasmEdge::Executor::Executor(Conf, Stat) {}
+};
+
+class Store::StoreContext: public WasmEdge::Runtime::StoreManager {};
+
+class CallingFrameContext: public CallingFrame {
+public:
+  CallingFrameContext(WasmEdge::Runtime::CallingFrame *Cxt)
+  : Content(Cxt) {}
+  ~CallingFrameContext();
+
+private:
+  WasmEdge::Runtime::CallingFrame *Content = nullptr;
+  bool IsOwn = false;
+};
+
+class CPPAPIHostFunc: public WasmEdge::Runtime::HostFunctionBase {
+public:
+  CPPAPIHostFunc(const AST::FunctionType *Type,
+                 FunctionInstance::HostFunc_t FuncPtr,
+                 void *ExtData, const uint64_t FuncCost = 0) noexcept
+      : Runtime::HostFunctionBase(FuncCost), Func(FuncPtr), Wrap(nullptr),
+        Binding(nullptr), Data(ExtData) {
+    FuncType = *Type;
+  }
+  CPPAPIHostFunc(const AST::FunctionType *Type,
+                 FunctionInstance::WrapFunc_t WrapPtr,
+                 void *BindingPtr, void *ExtData,
+                 const uint64_t FuncCost = 0) noexcept
+      : Runtime::HostFunctionBase(FuncCost), Func(nullptr), Wrap(WrapPtr),
+        Binding(BindingPtr), Data(ExtData) {
+    FuncType = *Type;
+  }
+  ~CPPAPIHostFunc() noexcept override = default;
+
+  Expect<void> run(const Runtime::CallingFrame &CallFrame,
+                   Span<const ValVariant> Args,
+                   Span<ValVariant> Rets) override {
+    std::vector<Value> Params(FuncType.getParamTypes().size()),
+        Returns(FuncType.getReturnTypes().size());
+    for (uint32_t I = 0; I < Args.size(); I++) {
+      Params.emplace_back(Args[I].get<WasmEdge::uint128_t>(),
+          static_cast<ValType>(FuncType.getParamTypes()[I]));
+    }
+    CallingFrameContext CallFrameCxt(&CallFrame);
+    Result *Stat;
+    if (Func) {
+      Stat = Func(Data, CallFrameCxt, Params, Returns);
+    } else {
+      Stat = Wrap(Binding, Data, CallFrameCxt, Params, Returns);
+    }
+    for (uint32_t I = 0; I < Rets.size(); I++) {
+      Rets[I] = to_WasmEdge_128_t<WasmEdge::uint128_t>(Returns[I].Val);
+    }
+    if (Stat->IsOk()) {
+      if (Stat->GetCode() == 0x01U) {
+        return Unexpect(ErrCode::Value::Terminated);
+      }
+    } else {
+      return Unexpect(
+          static_cast<ErrCategory>(Stat->GetCategory()),
+          Stat->GetCode());
+    }
+    return {};
+  }
+
+private:
+  FunctionInstance::HostFunc_t Func;
+  FunctionInstance::WrapFunc_t Wrap;
+  void *Binding;
+  void *Data;
+};
+
+class FunctionInstanceContext: public FunctionInstance {
+public:
+  FunctionInstanceContext(const AST::FunctionType &Type, HostFunc_t HostFunc,
+                          void *Data, const uint64_t Cost) {
+    if (HostFunc) {
+      Content = new WasmEdge::Runtime::Instance::FunctionInstance(
+          nullptr, std::make_unique<CPPAPIHostFunc>(&Type, HostFunc,
+              Data, Cost));
+      IsOwn = true;
+    }
+  }
+
+  FunctionInstanceContext(const AST::FunctionType &Type, WrapFunc_t WrapFunc,
+                          void *Binding,
+                          void *Data,
+                          const uint64_t Cost) {
+    if (WrapFunc) {
+      Content = new WasmEdge::Runtime::Instance::FunctionInstance(
+          nullptr, std::make_unique<CPPAPIHostFunc>(&Type, WrapFunc,
+              Binding, Data, Cost));
+      IsOwn = true;
+    }
+  }
+
+  FunctionInstanceContext(Runtime::Instance::FunctionInstance *Inst)
+  : Content(Inst) {}
+
+  ~FunctionInstanceContext() {
+    if (IsOwn) {
+      delete Content;
+    }
+  }
+
+  const FunctionType GetFunctionType() {
+    if (Content) {
+      return FunctionType(Content->getFuncType());
+    }
+    return FunctionType();
+  }
+
+private:
+  WasmEdge::Runtime::Instance::FunctionInstance *Content = nullptr;
+  bool IsOwn = false;
+
+  friend class ModuleInstanceContext;
+};
+
+class TableInstanceContext: public TableInstance {
+public:
+
+  TableInstanceContext(Runtime::Instance::TableInstance *Inst)
+  : Content(Inst) {}
+
+  TableInstanceContext(const AST::TableType &TabType) {
+    Content = new WasmEdge::Runtime::Instance::TableInstance(
+        TabType);
+    IsOwn = true;
+  }
+
+  ~TableInstanceContext() {
+    if (IsOwn) {
+      delete Content;
+    }
+  }
+
+  const TableType GetTableType() {
+    if (Content) {
+      TableTypeContext(Content->getTableType());
+    }
+    TableTypeContext(nullptr);
+  }
+
+  Result GetData(Value &Data, const uint32_t Offset) {
+    return wrap([&]() { return Content->getRefAddr(Offset); },
+                [&](auto &&Res) {
+                  Value::ValueUtils::FillValue(Data,
+                      Res->template get<WasmEdge::UnknownRef>(),
+                      static_cast<ValType>(
+                          Content->getTableType().getRefType()));
+                },
+                Content);
+  }
+
+  Result SetData(Value Data, const uint32_t Offset) {
+    return wrap(
+        [&]() -> WasmEdge::Expect<void> {
+          WasmEdge::RefType expType =
+            Content->getTableType().getRefType();
+        if (expType !=
+            static_cast<WasmEdge::RefType>(Value::ValueUtils::GetValue(Data))) {
+          spdlog::error(WasmEdge::ErrCode::Value::RefTypeMismatch);
+          spdlog::error(WasmEdge::ErrInfo::InfoMismatch(
+              static_cast<WasmEdge::ValType>(expType),
+              static_cast<WasmEdge::ValType>(
+                    Value::ValueUtils::GetValueType(Data))));
+          return Unexpect(WasmEdge::ErrCode::Value::RefTypeMismatch);
+        }
+        return Content->setRefAddr(
+            Offset, WasmEdge::ValVariant(
+                        to_WasmEdge_128_t<WasmEdge::uint128_t>(
+                              Value::ValueUtils::GetValue(Data)))
+                        .get<UnknownRef>());
+        },
+        EmptyThen, Content);
+  }
+
+  uint32_t GetSize() {
+    if (Content) {
+      return Content->getSize();
+    }
+    return 0;
+  }
+
+  Result Grow(const uint32_t Size) {
+    return wrap(
+        [&]() -> WasmEdge::Expect<void> {
+          if (Content->growTable(Size)) {
+            return {};
+          } else {
+            spdlog::error(WasmEdge::ErrCode::Value::TableOutOfBounds);
+            return WasmEdge::Unexpect(
+                WasmEdge::ErrCode::Value::TableOutOfBounds);
+          }
+        },
+        EmptyThen, Content);
+  }
+
+private:
+  WasmEdge::Runtime::Instance::TableInstance *Content = nullptr;
+  bool IsOwn = false;
+
+  friend class ModuleInstanceContext;
+};
+
+class MemoryInstanceContext: public MemoryInstance {
+public:
+  MemoryInstanceContext(Runtime::Instance::MemoryInstance *Inst)
+  : Content(Inst) {}
+
+  MemoryInstanceContext(const AST::MemoryType &MemType) {
+    Content = new WasmEdge::Runtime::Instance::MemoryInstance(
+        MemType);
+    IsOwn = true;
+  }
+
+  ~MemoryInstanceContext() {
+    if (IsOwn) {
+      delete Content;
+    }
+  }
+
+  const MemoryTypeContext GetMemoryTypeContext() {
+    if (Content) {
+      return MemoryTypeContext(&Content->getMemoryType());
+    }
+    return MemoryTypeContext(nullptr);
+  }
+
+  Result GetData(std::vector<uint8_t> &Data, const uint32_t Offset,
+                 const uint32_t Length) {
+    return wrap(
+        [&]() { return Content->getBytes(Offset, Length); },
+        [&](auto &&Res) {
+            std::copy_n((*Res).begin(), Length, Data.begin());
+        }, Content);
+  }
+
+  Result SetData(const std::vector<uint8_t> &Data, const uint32_t Offset) {
+    return wrap(
+        [&]() {
+          return Content->setBytes(Data, Offset, 0, Data.size());
+        },
+        EmptyThen, Content);
+  }
+
+  // TODO: Is returning only `uint8_t *` simpler?
+  std::vector<uint8_t> GetReference(const uint32_t Offset,
+                                    const uint32_t Length) {
+    std::vector<uint8_t> ref;
+    if (Content) {
+      auto *ptr = Content->getPointer<uint8_t *>(Offset, Length);
+      ref.insert(ref.end(),
+          ptr, ptr + Length);
+    }
+    return ref;
+  }
+
+  const std::vector<uint8_t> GetReferenceConst(const uint32_t Offset,
+                                                const uint32_t Length) {
+    std::vector<uint8_t> ref;
+    if (Content) {
+      auto *ptr = Content->getPointer<const uint8_t *>(Offset, Length);
+      ref.insert(ref.end(),
+          ptr, ptr + Length);
+    }
+    return ref;
+  }
+
+  uint32_t GetPageSize() {
+    if (Content) {
+      return Content->getPageSize();
+    }
+    return 0;
+  }
+
+  Result GrowPage(const uint32_t Page) {
+    return wrap(
+        [&]() -> WasmEdge::Expect<void> {
+          if (Content->growPage(Page)) {
+            return {};
+          } else {
+            spdlog::error(WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+            return WasmEdge::Unexpect(
+                WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+          }
+        },
+        EmptyThen, Content);
+  }
+
+private:
+  WasmEdge::Runtime::Instance::MemoryInstance *Content = nullptr;
+  bool IsOwn = false;
+
+  friend class ModuleInstanceContext;
+};
+
+class GlobalInstanceContext: public GlobalInstance {
+public:
+  GlobalInstanceContext(Runtime::Instance::GlobalInstance *Inst)
+  : Content(Inst) {}
+
+  GlobalInstanceContext(const AST::GlobalType &GlobType, const Value &Val) {
+    Content = new WasmEdge::Runtime::Instance::GlobalInstance(
+        GlobType,
+        to_WasmEdge_128_t<WasmEdge::uint128_t>(
+            Value::ValueUtils::GetValue(Val)));
+    IsOwn = true;
+  }
+
+  ~GlobalInstanceContext() {
+    if (IsOwn) {
+      delete Content;
+    }
+  }
+
+  const GlobalTypeContext GetGlobalTypeContext() {
+    if (Content) {
+      return GlobalTypeContext(&Content->getGlobalType());
+    }
+    return GlobalTypeContext(nullptr);
+  }
+
+  Value GetValue() {
+    if (Content) {
+      return Value::ValueUtils::GenValueFromValVariant(
+          Content->getValue(),
+          static_cast<ValType>(
+              Content->getGlobalType().getValType()));
+    }
+    auto Val = WasmEdge::ValVariant(static_cast<WasmEdge::uint128_t>(0));
+    return Value::ValueUtils::GenValueFromValVariant(
+        Val, ValType::I32);
+  }
+
+  void SetValue(const Value &Val) {
+    if (Content &&
+        Content->getGlobalType().getValMut() == WasmEdge::ValMut::Var &&
+        static_cast<WasmEdge::ValType>(
+            Value::ValueUtils::GetValueType(Val)) ==
+                Content->getGlobalType().getValType()) {
+      Content->getValue() =
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(
+              Value::ValueUtils::GetValue(Val));
+    }
+  }
+
+private:
+  WasmEdge::Runtime::Instance::GlobalInstance *Content = nullptr;
+  bool IsOwn = false;
+
+  friend class ModuleInstanceContext;
+};
+
+class ModuleInstanceContext: public ModuleInstance {
+public:
+  ModuleInstanceContext(const std::string &ModuleName)
+  : Content(new WasmEdge::Runtime::Instance::ModuleInstance(ModuleName)),
+    IsOwn(true) {}
+  ModuleInstanceContext(const std::vector<const std::string> &Args,
+                const std::vector<const std::string> &Envs,
+                const std::vector<const std::string> &Preopens) {
+    this->Content = new WasmEdge::Host::WasiModule();
+    this->IsOwn = true;
+    this->InitWASI(Args, Envs, Preopens);
+  }
+
+  ~ModuleInstanceContext() {
+    if (IsOwn) {
+      delete Content;
+    }
+  }
+
+  void InitWASI(const std::vector<const std::string> &Args,
+                const std::vector<const std::string> &Envs,
+                const std::vector<const std::string> &Preopens) {
+    auto *WasiMod = dynamic_cast<WasmEdge::Host::WasiModule *>(Content);
+    if (!WasiMod) {
+      return;
+    }
+    std::string ProgName;
+    if (Args.size() > 0) {
+      ProgName = Args[0];
+    }
+    auto &WasiEnv = WasiMod->getEnv();
+    WasiEnv.init(Preopens, ProgName, Args, Envs);
+  }
+
+  uint32_t WASIGetExitCode() {
+    auto *WasiMod = dynamic_cast<const WasmEdge::Host::WasiModule *>(Content);
+    if (!WasiMod) {
+      return EXIT_FAILURE;
+    }
+    return WasiMod->getEnv().getExitCode();
+  }
+
+  uint32_t WASIGetNativeHandler(int32_t Fd, uint64_t &NativeHandler) {
+    auto *WasiMod = dynamic_cast<const WasmEdge::Host::WasiModule *>(Content);
+    if (!WasiMod) {
+      return 2;
+    }
+    auto Handler = WasiMod->getEnv().getNativeHandler(Fd);
+    if (!Handler) {
+      return 2;
+    }
+    NativeHandler = *Handler;
+    return 0;
+  }
+
+  void InitWasmEdgeProcess(const std::vector<const std::string> &AllowedCmds,
+                           const bool AllowAll) {
+    using namespace std::literals::string_view_literals;
+    if (const auto *Plugin =
+            WasmEdge::Plugin::Plugin::find("wasmedge_process"sv)) {
+      WasmEdge::PO::ArgumentParser Parser;
+      Plugin->registerOptions(Parser);
+      Parser.set_raw_value<std::vector<std::string>>(
+          "allow-command"sv,
+          AllowedCmds);
+      Parser.set_raw_value<bool>("allow-command-all"sv, AllowAll);
+    }
+  }
+
+  std::string GetModuleName() {
+    if (Content) {
+      std::string str(Content->getModuleName());
+      return str;
+    }
+    return "";
+  }
+
+  FunctionInstanceContext FindFunctionInstance(const std::string &Name) {
+    if (Content) {
+      return FunctionInstanceContext(Content->findFuncExports(Name));
+    }
+    return FunctionInstanceContext(nullptr);
+  }
+
+  TableInstanceContext FindTableInstance(const std::string &Name) {
+    if (Content) {
+      return TableInstanceContext(Content->findTableExports(Name));
+    }
+    return TableInstanceContext(nullptr);
+  }
+
+  MemoryInstanceContext FindMemoryInstance(const std::string &Name) {
+    if (Content) {
+      return MemoryInstanceContext(Content->findMemoryExports(Name));
+    }
+    return MemoryInstance(nullptr);
+  }
+
+  GlobalInstanceContext FindGlobalInstance(const std::string &Name) {
+    if (Content) {
+      return GlobalInstanceContext(Content->findGlobalExports(Name));
+    }
+    return GlobalInstanceContext(nullptr);
+  }
+
+  std::vector<std::string> ListFunction() {
+    std::vector<std::string> str;
+    if (Content) {
+      Content->getFuncExports(
+          [&](auto &Map) {
+            for (auto &&Pair: Map) {
+              str.emplace_back(Pair.first);
+            }
+          });
+    }
+    return str;
+  }
+
+  std::vector<std::string> ListTable() {
+    std::vector<std::string> str;
+    if (Content) {
+      Content->getTableExports(
+          [&](auto &Map) {
+            for (auto &&Pair: Map) {
+              str.emplace_back(Pair.first);
+            }
+          });
+    }
+    return str;
+  }
+
+  std::vector<std::string> ListMemory() {
+    std::vector<std::string> str;
+    if (Content) {
+      Content->getMemoryExports(
+          [&](auto &Map) {
+            for (auto &&Pair: Map) {
+              str.emplace_back(Pair.first);
+            }
+          });
+    }
+    return str;
+  }
+
+  std::vector<std::string> ListGlobal() {
+    std::vector<std::string> str;
+    if (Content) {
+      Content->getGlobalExports(
+          [&](auto &Map) {
+            for (auto &&Pair: Map) {
+              str.emplace_back(Pair.first);
+            }
+          });
+    }
+    return str;
+  }
+
+  void AddFunction(const std::string &Name,
+                   FunctionInstanceContext &&FuncCxt) {
+    if (Content) {
+      Content ->addHostFunc(
+          Name,
+          std::unique_ptr<WasmEdge::Runtime::Instance::FunctionInstance>(
+              FuncCxt.Content));
+    }
+  }
+
+  void AddTable(const std::string &Name,
+                TableInstanceContext &&TableCxt) {
+    if (Content) {
+      Content ->addHostTable(
+          Name,
+          std::unique_ptr<WasmEdge::Runtime::Instance::TableInstance>(
+              TableCxt.Content));
+    }
+  }
+
+  void AddMemory(const std::string &Name,
+                 MemoryInstanceContext &&MemoryCxt) {
+    if (Content) {
+      Content ->addHostMemory(
+          Name,
+          std::unique_ptr<WasmEdge::Runtime::Instance::MemoryInstance>(
+              MemoryCxt.Content));
+    }
+  }
+
+  void AddGlobal(const std::string &Name,
+                 GlobalInstanceContext &&GlobalCxt) {
+    if (Content) {
+      Content ->addHostGlobal(
+          Name,
+          std::unique_ptr<WasmEdge::Runtime::Instance::GlobalInstance>(
+              GlobalCxt.Content));
+    }
+  }
+
+private:
+  WasmEdge::Runtime::Instance::ModuleInstance *Content = nullptr;
+  bool IsOwn = false;
+};
+class VM::VMContext: public WasmEdge::VM::VM {};
+
+// <<<<<<<< WasmEdge Context members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Version members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+std::string Version::Get() {
+  return WASMEDGE_VERSION;
+}
+
+uint32_t Version::GetMajor() {
+  return WASMEDGE_VERSION_MAJOR;
+}
+
+uint32_t Version::GetMinor() {
+  return WASMEDGE_VERSION_MINOR;
+}
+
+uint32_t Version::GetPatch() {
+  return WASMEDGE_VERSION_PATCH;
+}
+
+// <<<<<<<< WasmEdge Version members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Log members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+void Log::SetErrorLevel() {
+  WasmEdge::Log::setErrorLoggingLevel();
+}
+
+void Log::SetDebugLevel() {
+  WasmEdge::Log::setDebugLoggingLevel();
+}
+
+void Log::Off() {
+  WasmEdge::Log::setLogOff();
+}
+
+// <<<<<<<< WasmEdge Log members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Value members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 Value::Value(const int32_t Val)
 : Val(to_uint128_t(Val)),
@@ -1000,7 +1570,9 @@ Store::Store() {
 }
 
 const ModuleInstance Store::FindModule(const std::string &Name) {
-  return ModuleInstance(Cxt->findModule(std::string_view(Name))); //RVO
+  return ModuleInstance(
+    dynamic_cast<const ModuleInstance::ModuleInstanceContext *>(
+      Cxt->findModule(std::string_view(Name)))); //RVO
 }
 
 std::vector<std::string> Store::ListModule() {

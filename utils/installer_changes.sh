@@ -11,7 +11,7 @@ test_diff_env() {
     echo "Testing path: $_path_ args: $_common_args_"
     bash ./utils/install.sh.old -p "$_path_" $_common_args_
     cp "$_path_"/env "$HOME"/env.old
-    INSTALL_PY_URL="https://raw.githubusercontent.com/SAtacker/WasmEdge/fix_python_installer/utils/install.py" bash ./utils/install.sh -p "$_path_" $_common_args_
+    INSTALL_PY_URL="https://raw.githubusercontent.com/SAtacker/WasmEdge/installer_fix/utils/install.py" bash ./utils/install.sh -p "$_path_" $_common_args_
     cp "$_path_"/env "$HOME"/env
     diff -u \
         <(sed '1,/Please/d' "$HOME"/env.old | sed -e 's/\/\//\//g' |
@@ -19,7 +19,7 @@ test_diff_env() {
             while read -r line; do [ -f "${line/##/}" ] && echo "$line"; done;) \
         <(sed '1,/Please/d' "$HOME"/env | sed '\/bin$/d' |
             sort | while read -r line; do [ -f "${line/##/}" ] &&
-                [[ ! $line =~ (((tensorflow|framework)\.so\.[0-9]\.[0-9]$)|((tensorflow|framework)\.[0-9]\.[0-9]\.dylib$)) ]] &&
+                [[ ! $line =~ (((tensorflow|framework|cc)\.so\.[0-9]\.[0-9]$)|((tensorflow|framework|cc)\.[0-9]\.[0-9]\.dylib$)) ]] &&
                 echo "$line"; done;)
 
     error=$?

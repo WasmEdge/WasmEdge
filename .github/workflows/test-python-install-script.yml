@@ -108,35 +108,46 @@ jobs:
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V
-    - name: Install WasmEdge specific release (0.9.0)
+    - name: Install WasmEdge specific release (0.10.0)
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
-        ${{ matrix.python2_ex }} utils/install.py -v 0.9.0 -D
-        ${{ matrix.python3_ex }} utils/install.py -v 0.9.0 -D
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.0 -D
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.0 -D
     - name: Uninstall WasmEdge
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         bash utils/uninstall.sh -q -V
-    - name: Install WasmEdge specific release (0.9.0) with all extensions
+    - name: Install WasmEdge deprecated release (0.9.0)
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
-        ${{ matrix.python2_ex }} utils/install.py -e all -v 0.9.0 -D
-        ${{ matrix.python3_ex }} utils/install.py -e all -v 0.9.0 -D
+        ${{ matrix.python2_ex }} utils/install.py -v 0.9.0 -D 2>&1 | grep -q deprecated && echo "Pass: Deprecated found" \
+          || (echo "Failed: Deprecated message not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -v 0.9.0 -D 2>&1 | grep -q deprecated && echo "Pass: Deprecated found" \
+          || (echo "Failed: Deprecated message not found" && exit 1)
+    - name: Uninstall WasmEdge
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge specific release (0.10.0) with all extensions
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
+      run: |
+        ${{ matrix.python2_ex }} utils/install.py -e all -v 0.10.0 -D
+        ${{ matrix.python3_ex }} utils/install.py -e all -v 0.10.0 -D
     - name: Install WasmEdge with all extensions compatible with min version for all platforms
       run: |
-        ${{ matrix.python2_ex }} utils/install.py -e all --version=0.9.1-beta.1 \
-        --tf-version=0.9.1-beta.1 --tf-deps-version=0.9.1-beta.1  --tf-tools-version=0.9.1-beta.1  \
-        --image-version=0.9.1-beta.1 -D
-        ${{ matrix.python3_ex }} utils/install.py -e all --version=0.9.1-beta.1 \
-        --tf-version=0.9.1-beta.1 --tf-deps-version=0.9.1-beta.1  --tf-tools-version=0.9.1-beta.1  \
-        --image-version=0.9.1-beta.1 -D
+        ${{ matrix.python2_ex }} utils/install.py -e all --version=0.10.0-rc.1 \
+        --tf-version=0.10.0-rc.1 --tf-deps-version=0.10.0-rc.1  --tf-tools-version=0.10.0-rc.1  \
+        --image-version=0.10.0-rc.1 -D
+        ${{ matrix.python3_ex }} utils/install.py -e all --version=0.10.0-rc.1 \
+        --tf-version=0.10.0-rc.1 --tf-deps-version=0.10.0-rc.1  --tf-tools-version=0.10.0-rc.1  \
+        --image-version=0.10.0-rc.1 -D
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install versions multiple times
       run: |
         ${{ matrix.python2_ex }} utils/install.py -e all -D
-        ${{ matrix.python2_ex }} utils/install.py -e all -v 0.9.1-beta.1 -D
+        ${{ matrix.python2_ex }} utils/install.py -e all -v 0.10.0-rc.1 -D
         ${{ matrix.python2_ex }} utils/install.py -e all -v 0.10.0 -D
         ${{ matrix.python3_ex }} utils/install.py -e all -D
     - name: Uninstall WasmEdge
@@ -286,15 +297,22 @@ jobs:
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V
-    - name: Install WasmEdge specific release (0.9.0)
+    - name: Install WasmEdge specific release (0.10.0)
       run: |
-        python utils/install.py -v 0.9.0 -D
+        python utils/install.py -v 0.10.0 -D
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
-    - name: Install WasmEdge specific release (0.9.0) with all extensions
+    - name: Install WasmEdge deprecated release (0.9.0)
       run: |
-        python utils/install.py -e all -v 0.9.0 -D
+        python utils/install.py -v 0.9.0 -D 2>&1 | grep -q deprecated && echo "Pass: Deprecated found" \
+          || (echo "Failed: Deprecated message not found" && exit 1)
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge specific release (0.10.0) with all extensions
+      run: |
+        python utils/install.py -e all -v 0.10.0 -D
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V

@@ -726,7 +726,7 @@ mod tests {
     }
 
     #[sys_async_host_function_new]
-    fn async_hello(
+    async fn async_hello(
         _frame: CallingFrame,
         _inputs: Vec<WasmValue>,
     ) -> Result<Vec<WasmValue>, HostFuncError> {

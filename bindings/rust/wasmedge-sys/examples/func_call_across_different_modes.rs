@@ -12,9 +12,10 @@ use wasmedge_types::error::HostFuncError;
 use wasmedge_types::ValType;
 
 #[sys_host_function]
-fn host_print_i32(
+fn host_print_i32<T>(
     _frame: CallingFrame,
     val: Vec<WasmValue>,
+    _: Option<&mut T>,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("-- Host Function: print I32: {}", val[0].to_i32());
 
@@ -22,9 +23,10 @@ fn host_print_i32(
 }
 
 #[sys_host_function]
-fn host_print_f64(
+fn host_print_f64<T>(
     _frame: CallingFrame,
     val: Vec<WasmValue>,
+    _: Option<&mut T>,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("-- Host Function: print F64: {}", val[0].to_f64());
 
@@ -49,14 +51,12 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
 
     // import host_print_i32 as a host function
     let func_ty = FuncType::create([ValType::I32], [])?;
-    let host_func_print_i32 =
-        Function::create::<NeverType>(&func_ty, Box::new(host_print_i32), None, 0)?;
+    let host_func_print_i32 = Function::create_new::<NeverType>(&func_ty, host_print_i32, None, 0)?;
     import.add_func("host_printI32", host_func_print_i32);
 
     // import host_print_f64 as a host function
     let func_ty = FuncType::create([ValType::F64], [])?;
-    let host_func_print_f64 =
-        Function::create::<NeverType>(&func_ty, Box::new(host_print_f64), None, 0)?;
+    let host_func_print_f64 = Function::create_new::<NeverType>(&func_ty, host_print_f64, None, 0)?;
     import.add_func("host_printF64", host_func_print_f64);
 
     // register the import module
@@ -138,14 +138,12 @@ fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
 
     // import host_print_i32 as a host function
     let func_ty = FuncType::create([ValType::I32], [])?;
-    let host_func_print_i32 =
-        Function::create::<NeverType>(&func_ty, Box::new(host_print_i32), None, 0)?;
+    let host_func_print_i32 = Function::create_new::<NeverType>(&func_ty, host_print_i32, None, 0)?;
     import.add_func("host_printI32", host_func_print_i32);
 
     // import host_print_f64 as a host function
     let func_ty = FuncType::create([ValType::F64], [])?;
-    let host_func_print_f64 =
-        Function::create::<NeverType>(&func_ty, Box::new(host_print_f64), None, 0)?;
+    let host_func_print_f64 = Function::create_new::<NeverType>(&func_ty, host_print_f64, None, 0)?;
     import.add_func("host_printF64", host_func_print_f64);
 
     // register the import module

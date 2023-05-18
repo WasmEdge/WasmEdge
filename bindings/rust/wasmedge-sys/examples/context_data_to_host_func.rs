@@ -11,10 +11,10 @@ struct Data<T, S> {
 }
 
 #[sys_host_function]
-fn real_add(
+fn real_add<T: std::fmt::Debug>(
     _frame: CallingFrame,
     input: Vec<WasmValue>,
-    data: &mut Data<i32, &str>,
+    data: Option<&mut T>,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(result.is_ok());
     let func_ty = result.unwrap();
     // create a host function
-    let result = Function::create(&func_ty, Box::new(real_add), Some(&mut data), 0);
+    let result = Function::create_new(&func_ty, real_add, Some(&mut data), 0);
     assert!(result.is_ok());
     let host_func = result.unwrap();
 

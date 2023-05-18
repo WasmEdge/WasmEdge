@@ -19,7 +19,11 @@ use wasmedge_sys::{
 use wasmedge_types::{error::HostFuncError, wat2wasm, ValType};
 
 #[sys_host_function]
-fn real_add(_frame: CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn real_add<T>(
+    _frame: CallingFrame,
+    input: Vec<WasmValue>,
+    _: Option<&mut T>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 3 {
@@ -56,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     assert!(result.is_ok());
     let func_ty = result.unwrap();
-    let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
+    let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
     assert!(result.is_ok());
     let host_func = result.unwrap();
     import.add_func("add", host_func);
@@ -92,7 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let active_instance = executor.register_active_module(&mut store, &module)?;
     let call_add = active_instance.get_func("call_add")?;
 
-    let add_ref = WasmValue::from_extern_ref(&mut real_add);
+    let add_ref = WasmValue::from_extern_ref(&mut real_add::<NeverType>);
     let returns = executor.call_func(
         &call_add,
         [

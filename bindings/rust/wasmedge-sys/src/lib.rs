@@ -123,20 +123,20 @@ pub type BoxedFn = Box<
         + Sync,
 >;
 
-lazy_static! {
-    static ref HOST_FUNCS: RwLock<HashMap<usize, Arc<Mutex<BoxedFn>>>> =
-        RwLock::new(HashMap::new());
-}
+// lazy_static! {
+//     static ref HOST_FUNCS: RwLock<HashMap<usize, Arc<Mutex<BoxedFn>>>> =
+//         RwLock::new(HashMap::new());
+// }
 
-// Stores the mapping from the address of each host function pointer to the key of the `HOST_FUNCS`.
-lazy_static! {
-    static ref HOST_FUNC_FOOTPRINTS: Mutex<HashMap<usize, usize>> = Mutex::new(HashMap::new());
-}
+// // Stores the mapping from the address of each host function pointer to the key of the `HOST_FUNCS`.
+// lazy_static! {
+//     static ref HOST_FUNC_FOOTPRINTS: Mutex<HashMap<usize, usize>> = Mutex::new(HashMap::new());
+// }
 
-#[cfg(feature = "async")]
-lazy_static! {
-    static ref ASYNC_STATE: RwLock<r#async::AsyncState> = RwLock::new(r#async::AsyncState::new());
-}
+// #[cfg(feature = "async")]
+// lazy_static! {
+//     static ref ASYNC_STATE: RwLock<r#async::AsyncState> = RwLock::new(r#async::AsyncState::new());
+// }
 
 /// The object that is used to perform a [host function](crate::Function) is required to implement this trait.
 pub trait Engine {

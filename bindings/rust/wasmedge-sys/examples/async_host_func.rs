@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let func_ty = FuncType::create(vec![], vec![])?;
 
         // create a host function
-        let async_host_func = Function::create_async::<NeverType>(
+        let async_host_func = Function::create_async_new::<NeverType>(
             &func_ty,
             |_frame, _input, _data| {
                 Box::new(async {

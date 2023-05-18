@@ -671,7 +671,7 @@ mod tests {
 
         // todo
         let ty = FuncType::create([], [])?;
-        let async_hello_func = Function::create_async::<NeverType>(&ty, async_hello, None, 0)?;
+        let async_hello_func = Function::create_async_new::<NeverType>(&ty, async_hello, None, 0)?;
         let mut import = ImportModule::create("extern")?;
         import.add_func("async_hello", async_hello_func);
 
@@ -726,9 +726,10 @@ mod tests {
     }
 
     #[sys_async_host_function_new]
-    async fn async_hello(
+    async fn async_hello<T>(
         _frame: CallingFrame,
         _inputs: Vec<WasmValue>,
+        _data: Option<&mut T>,
     ) -> Result<Vec<WasmValue>, HostFuncError> {
         for _ in 0..10 {
             println!("[async hello] say hello");

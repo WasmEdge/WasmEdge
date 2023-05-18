@@ -14,8 +14,10 @@ use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
 
 // use crate::values::WasmVal;
 
-use crate::instance::function::{StatelessAsyncHostFn, StatelessHostFn};
+use crate::instance::function::{AsyncHostFn, StatelessHostFn};
 // mod values;
+
+use wasmedge_macro::sys_async_host_function_new;
 
 fn to_wasm_return(r: Result<(), Errno>) -> Vec<WasmValue> {
     let code = if let Err(e) = r { e.0 } else { 0 };
@@ -1052,192 +1054,197 @@ pub fn sock_listen(
 pub type BoxedResultFuture =
     Box<dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send>;
 
-pub fn sock_accept(
+#[sys_async_host_function_new]
+pub async fn sock_accept(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: &'static mut WasiCtx,
-) -> BoxedResultFuture {
-    Box::new(async move {
-        let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+    data: Option<&'static mut WasiCtx>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
+    let data = data.unwrap();
 
-        if let Some([p1, p2]) = args.get(0..2) {
-            let fd = p1.to_i32();
-            let ro_fd_ptr = p2.to_i32() as usize;
+    let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
 
-            Ok(to_wasm_return(
-                p::async_socket::sock_accept(data, &mut mem, fd, WasmPtr::from(ro_fd_ptr)).await,
-            ))
-        } else {
-            Err(HostFuncError::Runtime(0x83))
-        }
-    })
+    if let Some([p1, p2]) = args.get(0..2) {
+        let fd = p1.to_i32();
+        let ro_fd_ptr = p2.to_i32() as usize;
+
+        Ok(to_wasm_return(
+            p::async_socket::sock_accept(data, &mut mem, fd, WasmPtr::from(ro_fd_ptr)).await,
+        ))
+    } else {
+        Err(HostFuncError::Runtime(0x83))
+    }
 }
 
-pub fn sock_connect(
+#[sys_async_host_function_new]
+pub async fn sock_connect(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: &'static mut WasiCtx,
-) -> BoxedResultFuture {
-    Box::new(async move {
-        let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+    data: Option<&'static mut WasiCtx>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
+    let data = data.unwrap();
 
-        if let Some([p1, p2, p3]) = args.get(0..3) {
-            let fd = p1.to_i32();
-            let addr_ptr = p2.to_i32() as usize;
-            let port = p3.to_i32() as u32;
+    let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
 
-            Ok(to_wasm_return(
-                p::async_socket::sock_connect(data, &mut mem, fd, WasmPtr::from(addr_ptr), port)
-                    .await,
-            ))
-        } else {
-            Err(HostFuncError::Runtime(0x83))
-        }
-    })
+    if let Some([p1, p2, p3]) = args.get(0..3) {
+        let fd = p1.to_i32();
+        let addr_ptr = p2.to_i32() as usize;
+        let port = p3.to_i32() as u32;
+
+        Ok(to_wasm_return(
+            p::async_socket::sock_connect(data, &mut mem, fd, WasmPtr::from(addr_ptr), port).await,
+        ))
+    } else {
+        Err(HostFuncError::Runtime(0x83))
+    }
 }
 
-pub fn sock_recv(
+#[sys_async_host_function_new]
+pub async fn sock_recv(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: &'static mut WasiCtx,
-) -> BoxedResultFuture {
-    Box::new(async move {
-        let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+    data: Option<&'static mut WasiCtx>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
+    let data = data.unwrap();
 
-        if let Some([p1, p2, p3, p4, p5, p6]) = args.get(0..6) {
-            let fd = p1.to_i32();
-            let buf_ptr = p2.to_i32() as usize;
-            let buf_len = p3.to_i32() as u32;
-            let flags = p4.to_i32() as u16;
-            let ro_data_len_ptr = p5.to_i32() as usize;
-            let ro_flags_ptr = p6.to_i32() as usize;
+    let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
 
-            Ok(to_wasm_return(
-                p::async_socket::sock_recv(
-                    data,
-                    &mut mem,
-                    fd,
-                    WasmPtr::from(buf_ptr),
-                    buf_len,
-                    flags,
-                    WasmPtr::from(ro_data_len_ptr),
-                    WasmPtr::from(ro_flags_ptr),
-                )
-                .await,
-            ))
-        } else {
-            Err(HostFuncError::Runtime(0x83))
-        }
-    })
+    if let Some([p1, p2, p3, p4, p5, p6]) = args.get(0..6) {
+        let fd = p1.to_i32();
+        let buf_ptr = p2.to_i32() as usize;
+        let buf_len = p3.to_i32() as u32;
+        let flags = p4.to_i32() as u16;
+        let ro_data_len_ptr = p5.to_i32() as usize;
+        let ro_flags_ptr = p6.to_i32() as usize;
+
+        Ok(to_wasm_return(
+            p::async_socket::sock_recv(
+                data,
+                &mut mem,
+                fd,
+                WasmPtr::from(buf_ptr),
+                buf_len,
+                flags,
+                WasmPtr::from(ro_data_len_ptr),
+                WasmPtr::from(ro_flags_ptr),
+            )
+            .await,
+        ))
+    } else {
+        Err(HostFuncError::Runtime(0x83))
+    }
 }
 
-pub fn sock_recv_from(
+#[sys_async_host_function_new]
+pub async fn sock_recv_from(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: &'static mut WasiCtx,
-) -> BoxedResultFuture {
-    Box::new(async move {
-        let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+    data: Option<&'static mut WasiCtx>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
+    let data = data.unwrap();
 
-        if let Some([p1, p2, p3, p4, p5, p6, p7, p8]) = args.get(0..8) {
-            let fd = p1.to_i32();
-            let buf_ptr = p2.to_i32() as usize;
-            let buf_len = p3.to_i32() as u32;
-            let wasi_addr_ptr = p4.to_i32() as usize;
-            let flags = p5.to_i32() as u16;
-            let port_ptr = p6.to_i32() as usize;
-            let ro_data_len_ptr = p7.to_i32() as usize;
-            let ro_flags_ptr = p8.to_i32() as usize;
+    let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
 
-            Ok(to_wasm_return(
-                p::async_socket::sock_recv_from(
-                    data,
-                    &mut mem,
-                    fd,
-                    WasmPtr::from(buf_ptr),
-                    buf_len,
-                    WasmPtr::from(wasi_addr_ptr),
-                    flags,
-                    WasmPtr::from(port_ptr),
-                    WasmPtr::from(ro_data_len_ptr),
-                    WasmPtr::from(ro_flags_ptr),
-                )
-                .await,
-            ))
-        } else {
-            Err(HostFuncError::Runtime(0x83))
-        }
-    })
+    if let Some([p1, p2, p3, p4, p5, p6, p7, p8]) = args.get(0..8) {
+        let fd = p1.to_i32();
+        let buf_ptr = p2.to_i32() as usize;
+        let buf_len = p3.to_i32() as u32;
+        let wasi_addr_ptr = p4.to_i32() as usize;
+        let flags = p5.to_i32() as u16;
+        let port_ptr = p6.to_i32() as usize;
+        let ro_data_len_ptr = p7.to_i32() as usize;
+        let ro_flags_ptr = p8.to_i32() as usize;
+
+        Ok(to_wasm_return(
+            p::async_socket::sock_recv_from(
+                data,
+                &mut mem,
+                fd,
+                WasmPtr::from(buf_ptr),
+                buf_len,
+                WasmPtr::from(wasi_addr_ptr),
+                flags,
+                WasmPtr::from(port_ptr),
+                WasmPtr::from(ro_data_len_ptr),
+                WasmPtr::from(ro_flags_ptr),
+            )
+            .await,
+        ))
+    } else {
+        Err(HostFuncError::Runtime(0x83))
+    }
 }
 
-pub fn sock_send(
+#[sys_async_host_function_new]
+pub async fn sock_send(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: &'static mut WasiCtx,
-) -> BoxedResultFuture {
-    Box::new(async move {
-        let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+    data: Option<&'static mut WasiCtx>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
+    let data = data.unwrap();
 
-        if let Some([p1, p2, p3, p4, p5]) = args.get(0..5) {
-            let fd = p1.to_i32();
-            let buf_ptr = p2.to_i32() as usize;
-            let buf_len = p3.to_i32() as u32;
-            let flags = p4.to_i32() as u16;
-            let send_len_ptr = p5.to_i32() as usize;
+    let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
 
-            Ok(to_wasm_return(
-                p::async_socket::sock_send(
-                    data,
-                    &mut mem,
-                    fd,
-                    WasmPtr::from(buf_ptr),
-                    buf_len,
-                    flags,
-                    WasmPtr::from(send_len_ptr),
-                )
-                .await,
-            ))
-        } else {
-            Err(HostFuncError::Runtime(0x83))
-        }
-    })
+    if let Some([p1, p2, p3, p4, p5]) = args.get(0..5) {
+        let fd = p1.to_i32();
+        let buf_ptr = p2.to_i32() as usize;
+        let buf_len = p3.to_i32() as u32;
+        let flags = p4.to_i32() as u16;
+        let send_len_ptr = p5.to_i32() as usize;
+
+        Ok(to_wasm_return(
+            p::async_socket::sock_send(
+                data,
+                &mut mem,
+                fd,
+                WasmPtr::from(buf_ptr),
+                buf_len,
+                flags,
+                WasmPtr::from(send_len_ptr),
+            )
+            .await,
+        ))
+    } else {
+        Err(HostFuncError::Runtime(0x83))
+    }
 }
 
-pub fn sock_send_to(
+#[sys_async_host_function_new]
+pub async fn sock_send_to(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: &'static mut WasiCtx,
-) -> BoxedResultFuture {
-    Box::new(async move {
-        let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+    data: Option<&'static mut WasiCtx>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
+    let data = data.unwrap();
 
-        if let Some([p1, p2, p3, p4, p5, p6, p7]) = args.get(0..7) {
-            let fd = p1.to_i32();
-            let buf_ptr = p2.to_i32() as usize;
-            let buf_len = p3.to_i32() as u32;
-            let wasi_addr_ptr = p4.to_i32() as usize;
-            let port = p5.to_i32() as u32;
-            let flags = p6.to_i32() as u16;
-            let send_len_ptr = p7.to_i32() as usize;
+    let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
 
-            Ok(to_wasm_return(
-                p::async_socket::sock_send_to(
-                    data,
-                    &mut mem,
-                    fd,
-                    WasmPtr::from(buf_ptr),
-                    buf_len,
-                    WasmPtr::from(wasi_addr_ptr),
-                    port,
-                    flags,
-                    WasmPtr::from(send_len_ptr),
-                )
-                .await,
-            ))
-        } else {
-            Err(HostFuncError::Runtime(0x83))
-        }
-    })
+    if let Some([p1, p2, p3, p4, p5, p6, p7]) = args.get(0..7) {
+        let fd = p1.to_i32();
+        let buf_ptr = p2.to_i32() as usize;
+        let buf_len = p3.to_i32() as u32;
+        let wasi_addr_ptr = p4.to_i32() as usize;
+        let port = p5.to_i32() as u32;
+        let flags = p6.to_i32() as u16;
+        let send_len_ptr = p7.to_i32() as usize;
+
+        Ok(to_wasm_return(
+            p::async_socket::sock_send_to(
+                data,
+                &mut mem,
+                fd,
+                WasmPtr::from(buf_ptr),
+                buf_len,
+                WasmPtr::from(wasi_addr_ptr),
+                port,
+                flags,
+                WasmPtr::from(send_len_ptr),
+            )
+            .await,
+        ))
+    } else {
+        Err(HostFuncError::Runtime(0x83))
+    }
 }
 
 pub fn sock_shutdown(
@@ -1362,78 +1369,76 @@ pub fn sock_setsockopt(
     }
 }
 
-pub fn poll_oneoff(
+#[sys_async_host_function_new]
+pub async fn poll_oneoff(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: &'static mut WasiCtx,
-) -> BoxedResultFuture {
-    Box::new(async move {
-        let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+    data: Option<&'static mut WasiCtx>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
+    let data = data.unwrap();
 
-        if let Some([p1, p2, p3, p4]) = args.get(0..4) {
-            let in_ptr = p1.to_i32() as usize;
-            let out_ptr = p2.to_i32() as usize;
-            let nsubscriptions = p3.to_i32() as u32;
-            let revents_num_ptr = p4.to_i32() as usize;
+    let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
 
-            Ok(to_wasm_return(
-                p::async_poll::poll_oneoff(
-                    data,
-                    &mut mem,
-                    WasmPtr::from(in_ptr),
-                    WasmPtr::from(out_ptr),
-                    nsubscriptions,
-                    WasmPtr::from(revents_num_ptr),
-                )
-                .await,
-            ))
-        } else {
-            Err(HostFuncError::Runtime(0x83))
-        }
-    })
+    if let Some([p1, p2, p3, p4]) = args.get(0..4) {
+        let in_ptr = p1.to_i32() as usize;
+        let out_ptr = p2.to_i32() as usize;
+        let nsubscriptions = p3.to_i32() as u32;
+        let revents_num_ptr = p4.to_i32() as usize;
+
+        Ok(to_wasm_return(
+            p::async_poll::poll_oneoff(
+                data,
+                &mut mem,
+                WasmPtr::from(in_ptr),
+                WasmPtr::from(out_ptr),
+                nsubscriptions,
+                WasmPtr::from(revents_num_ptr),
+            )
+            .await,
+        ))
+    } else {
+        Err(HostFuncError::Runtime(0x83))
+    }
 }
 
-pub fn sock_lookup_ip(
+#[sys_async_host_function_new]
+pub async fn sock_lookup_ip(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: &'static mut WasiCtx,
-) -> BoxedResultFuture {
-    Box::new(async move {
-        let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+    data: Option<&'static mut WasiCtx>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
+    let data = data.unwrap();
 
-        if let Some([p1, p2, p3, p4, p5, p6]) = args.get(0..6) {
-            let host_name_ptr = p1.to_i32() as usize;
-            let host_name_len = p2.to_i32() as u32;
-            let lookup_type = p3.to_i32() as u8;
-            let addr_buf = p4.to_i32() as usize;
-            let addr_buf_max_len = p5.to_i32() as u32;
-            let raddr_num_ptr = p6.to_i32() as usize;
-            Ok(to_wasm_return(
-                p::async_socket::sock_lookup_ip(
-                    data,
-                    &mut mem,
-                    WasmPtr::from(host_name_ptr),
-                    host_name_len,
-                    lookup_type,
-                    WasmPtr::from(addr_buf),
-                    addr_buf_max_len,
-                    WasmPtr::from(raddr_num_ptr),
-                )
-                .await,
-            ))
-        } else {
-            Err(HostFuncError::Runtime(0x83))
-        }
-    })
+    let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    if let Some([p1, p2, p3, p4, p5, p6]) = args.get(0..6) {
+        let host_name_ptr = p1.to_i32() as usize;
+        let host_name_len = p2.to_i32() as u32;
+        let lookup_type = p3.to_i32() as u8;
+        let addr_buf = p4.to_i32() as usize;
+        let addr_buf_max_len = p5.to_i32() as u32;
+        let raddr_num_ptr = p6.to_i32() as usize;
+        Ok(to_wasm_return(
+            p::async_socket::sock_lookup_ip(
+                data,
+                &mut mem,
+                WasmPtr::from(host_name_ptr),
+                host_name_len,
+                lookup_type,
+                WasmPtr::from(addr_buf),
+                addr_buf_max_len,
+                WasmPtr::from(raddr_num_ptr),
+            )
+            .await,
+        ))
+    } else {
+        Err(HostFuncError::Runtime(0x83))
+    }
 }
 
 pub enum WasiFunc<T: 'static> {
     SyncFn(String, (Vec<ValType>, Vec<ValType>), StatelessHostFn<T>),
-    AsyncFn(
-        String,
-        (Vec<ValType>, Vec<ValType>),
-        StatelessAsyncHostFn<T>,
-    ),
+    AsyncFn(String, (Vec<ValType>, Vec<ValType>), AsyncHostFn<T>),
 }
 
 pub fn wasi_impls() -> Vec<WasiFunc<WasiCtx>> {

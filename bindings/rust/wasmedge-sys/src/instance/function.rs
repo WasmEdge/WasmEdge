@@ -15,11 +15,18 @@ use std::pin::Pin;
 use std::{convert::TryInto, sync::Arc};
 use wasmedge_types::ValType;
 
-pub type StatelessAsyncHostFn<T> =
+// pub type StatelessAsyncHostFn<T> =
+//     fn(
+//         CallingFrame,
+//         Vec<WasmValue>,
+//         &'static mut T,
+//     ) -> Box<dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send>;
+
+pub type AsyncHostFn<T> =
     fn(
         CallingFrame,
         Vec<WasmValue>,
-        &'static mut T,
+        Option<&'static mut T>,
     ) -> Box<dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send>;
 
 pub type StatelessHostFn<T> =
@@ -156,10 +163,15 @@ extern "C" fn wrap_async_fn<T: 'static>(
     let frame = CallingFrame::create(call_frame_ctx);
 
     // recover the async host function
-    let real_func: StatelessAsyncHostFn<T> = unsafe { std::mem::transmute(key_ptr) };
+    let real_func: AsyncHostFn<T> = unsafe { std::mem::transmute(key_ptr) };
 
     // recover the context data
-    let data: &'static mut T = unsafe { &mut *(data as *mut T) };
+    let data = if std::any::TypeId::of::<T>() == std::any::TypeId::of::<NeverType>() {
+        None
+    } else {
+        let data: &'static mut T = unsafe { &mut *(data as *mut T) };
+        Some(data)
+    };
 
     // arguments
     let input = {
@@ -409,82 +421,83 @@ impl Function {
     /// ```rust
     /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame, NeverType};
     /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
-    /// use wasmedge_macro::sys_host_function;
+    /// use wasmedge_macro::sys_async_host_function_new;
     /// use std::future::Future;
     /// use std::os::raw::c_void;
     ///
-    /// #[sys_host_function]
-    /// fn real_add(
+    /// #[sys_async_host_function_new]
+    /// async fn real_add<T>(
     ///     _frame: CallingFrame,
     ///     input: Vec<WasmValue>,
-    /// ) -> Box<(dyn Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send + 'static)> {
-    ///     Box::new(async move {
-    ///         if input.len() != 3 {
-    ///             return Err(HostFuncError::User(1));
-    ///         }
+    ///    _data: Option<&mut T>,
+    /// ) -> Result<Vec<WasmValue>, HostFuncError> {
+    ///     
+    ///     if input.len() != 3 {
+    ///         return Err(HostFuncError::User(1));
+    ///     }
     ///
-    ///         let a = if input[1].ty() == ValType::I32 {
-    ///             input[1].to_i32()
-    ///         } else {
-    ///             1
-    ///         };
+    ///     let a = if input[1].ty() == ValType::I32 {
+    ///         input[1].to_i32()
+    ///     } else {
+    ///         1
+    ///     };
     ///
-    ///         let b = if input[2].ty() == ValType::I32 {
-    ///             input[2].to_i32()
-    ///         } else {
-    ///             2
-    ///         };
-    ///         tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+    ///     let b = if input[2].ty() == ValType::I32 {
+    ///         input[2].to_i32()
+    ///     } else {
+    ///         2
+    ///     };
+    ///     tokio::time::sleep(std::time::Duration::from_secs(4)).await;
     ///
-    ///         let c = a + b;
-    ///         Ok(vec![WasmValue::from_i32(c)])
-    ///     })
+    ///     let c = a + b;
+    ///     Ok(vec![WasmValue::from_i32(c)])
+    ///     
     /// }
     ///
     /// // create a FuncType
     /// let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]).expect("fail to create a FuncType");
     ///
     /// // create a Function instance
-    /// let func = Function::create_async::<NeverType>(&func_ty, Box::new(real_add), None, 0).expect("fail to create a Function instance");
+    /// let func = Function::create_async_new::<NeverType>(&func_ty, real_add, None, 0).expect("fail to create a Function instance");
     /// ```
-    #[cfg(feature = "async")]
-    pub fn create_async<T>(
-        ty: &FuncType,
-        real_fn: impl Fn(
-                CallingFrame,
-                Vec<WasmValue>,
-                *mut std::os::raw::c_void,
-            ) -> Box<
-                dyn std::future::Future<
-                        Output = Result<Vec<WasmValue>, crate::error::HostFuncError>,
-                    > + Send,
-            > + Send
-            + Sync
-            + 'static,
-        data: Option<&mut T>,
-        cost: u64,
-    ) -> WasmEdgeResult<Self> {
-        Self::create::<T>(
-            ty,
-            Box::new(move |frame, args, data| {
-                let async_cx = AsyncCx::new();
+    // #[cfg(feature = "async")]
+    // pub fn create_async<T>(
+    //     ty: &FuncType,
+    //     real_fn: impl Fn(
+    //             CallingFrame,
+    //             Vec<WasmValue>,
+    //             *mut std::os::raw::c_void,
+    //         ) -> Box<
+    //             dyn std::future::Future<
+    //                     Output = Result<Vec<WasmValue>, crate::error::HostFuncError>,
+    //                 > + Send,
+    //         > + Send
+    //         + Sync
+    //         + 'static,
+    //     data: Option<&mut T>,
+    //     cost: u64,
+    // ) -> WasmEdgeResult<Self> {
+    //     Self::create::<T>(
+    //         ty,
+    //         Box::new(move |frame, args, data| {
+    //             let async_cx = AsyncCx::new();
 
-                let mut future = Pin::from(real_fn(frame, args, data));
-                match unsafe { async_cx.block_on(future.as_mut()) } {
-                    Ok(Ok(ret)) => Ok(ret),
-                    Ok(Err(err)) => Err(err),
-                    Err(_err) => Err(HostFuncError::User(0x87)),
-                }
-            }),
-            data,
-            cost,
-        )
-    }
+    //             let mut future = Pin::from(real_fn(frame, args, data));
+    //             match unsafe { async_cx.block_on(future.as_mut()) } {
+    //                 Ok(Ok(ret)) => Ok(ret),
+    //                 Ok(Err(err)) => Err(err),
+    //                 Err(_err) => Err(HostFuncError::User(0x87)),
+    //             }
+    //         }),
+    //         data,
+    //         cost,
+    //     )
+    // }
 
     #[cfg(feature = "async")]
     pub fn create_async_new<T>(
         ty: &FuncType,
-        real_fn: StatelessAsyncHostFn<T>,
+        real_fn: AsyncHostFn<T>,
         ctx_data: Option<&mut T>,
         cost: u64,
     ) -> WasmEdgeResult<Self> {

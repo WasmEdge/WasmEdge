@@ -753,6 +753,10 @@ fn sys_expand_async_host_func_with_three_args(item_fn: &syn::ItemFn) -> proc_mac
 pub fn sys_async_host_function_new(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);
     if let Item::Fn(item_fn) = body_ast {
+        if item_fn.sig.asyncness.is_none() {
+            panic!("The function must be async");
+        }
+
         match sys_expand_async_host_func_new(&item_fn) {
             Ok(token_stream) => token_stream.into(),
             Err(err) => err.to_compile_error().into(),
@@ -779,20 +783,18 @@ fn sys_expand_async_host_func_with_two_args_new(item_fn: &syn::ItemFn) -> proc_m
 
     // insert the third argument
     let mut fn_inputs = item_fn.sig.inputs.clone();
-    fn_inputs.push(parse_quote!(_data: *mut std::os::raw::c_void));
+    fn_inputs.push(parse_quote!(_: *mut std::os::raw::c_void));
     // fn_inputs.push(parse_quote!(_data: ThreadSafeCVoid));
 
     let fn_block = &item_fn.block;
 
-    let ret = quote!(
+    quote!(
         #fn_visibility fn #fn_name_ident (#fn_inputs) -> Box<(dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send + 'static)> {
             Box::new(async move {
                 #fn_block
             })
         }
-    );
-
-    ret
+    )
 }
 
 fn sys_expand_async_host_func_with_three_args_new(
@@ -802,8 +804,20 @@ fn sys_expand_async_host_func_with_three_args_new(
     let fn_visibility = &item_fn.vis;
 
     let data_arg = item_fn.sig.inputs.last().unwrap().clone();
-    let ty_ptr = match &data_arg {
-        FnArg::Typed(PatType { ref ty, .. }) => match **ty {
+
+    let (data_arg_ident, ty_ptr) = if let FnArg::Typed(PatType {
+        ref ty, ref pat, ..
+    }) = &data_arg
+    {
+        // get the ident of the third argument
+        let data_arg_ident = match &**pat {
+            Pat::Ident(pat_ident) => pat_ident.ident.clone(),
+            Pat::Wild(_) => proc_macro2::Ident::new("_", proc_macro2::Span::call_site()),
+            _ => panic!("argument pattern is not a simple ident"),
+        };
+
+        // get the type of the third argument
+        let ty_ptr = match **ty {
             syn::Type::Reference(syn::TypeReference { ref elem, .. }) => syn::TypePtr {
                 star_token: parse_quote!(*),
                 const_token: None,
@@ -848,29 +862,30 @@ fn sys_expand_async_host_func_with_three_args_new(
                 None => panic!("Not found path segments"),
             },
             _ => panic!("Unsupported syn::Type type"),
-        },
-        _ => panic!("Unsupported syn::FnArg type"),
+        };
+
+        (data_arg_ident, ty_ptr)
+    } else {
+        panic!("Unsupported syn::FnArg type")
     };
 
     // insert the third argument
     let mut fn_inputs = item_fn.sig.inputs.clone();
-    // fn_inputs.pop();
-    // fn_inputs.push(parse_quote!(data: ThreadSafeCVoid));
+    fn_inputs.pop();
+    fn_inputs.push(parse_quote!(data: *mut std::os::raw::c_void));
 
     let mut fn_block = item_fn.block.clone();
     let fn_block_mut = fn_block.as_mut();
     fn_block_mut.stmts.insert(
         0,
-        parse_quote!(let data = unsafe { &mut *(data.inner as #ty_ptr) };),
+        parse_quote!(let #data_arg_ident = unsafe { &mut *(data as #ty_ptr) };),
     );
 
-    let ret = quote!(
-        #fn_visibility fn #fn_name_ident (#fn_inputs) -> Box<(dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send + 'static)> {
+    quote!(
+        #fn_visibility fn #fn_name_ident (#fn_inputs) -> Box<(dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send)> {
             Box::new(async move {
                 #fn_block
             })
         }
-    );
-
-    ret
+    )
 }

@@ -211,8 +211,15 @@ Cipher<CipherNid>::State::decryptImpl(Span<uint8_t> Out,
 template <int CipherNid>
 WasiCryptoExpect<typename Cipher<CipherNid>::State>
 Cipher<CipherNid>::State::clone() const noexcept {
-  EvpCipherCtxPtr CloneCtx{EVP_CIPHER_CTX_new()};
+  // XXX: These cipher didn't implement context duplication from OpenSSL 3.0.0
+  // https://github.com/openssl/openssl/issues/20978
+  if (0x30000000 <= OPENSSL_VERSION_NUMBER &&
+      (CipherNid == NID_aes_128_gcm || CipherNid == NID_aes_256_gcm ||
+       CipherNid == NID_chacha20_poly1305)) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  }
 
+  EvpCipherCtxPtr CloneCtx{EVP_CIPHER_CTX_new()};
   {
     std::scoped_lock Lock{Ctx->Mutex};
     opensslCheck(EVP_CIPHER_CTX_copy(CloneCtx.get(), Ctx->RawCtx.get()));

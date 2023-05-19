@@ -86,6 +86,7 @@ impl Executor {
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(feature = "async")]
             ImportObject::AsyncWasi(import) => unsafe {
                 check(ffi::WasmEdge_ExecutorRegisterImport(
                     self.inner.0,
@@ -374,16 +375,20 @@ unsafe impl Sync for InnerExecutor {}
 mod tests {
     use super::*;
     use crate::{
-        instance::function::NeverType, instance::module::AsyncWasiModule, AsImport, CallingFrame,
-        Config, FuncType, Function, Global, GlobalType, ImportModule, Loader, MemType, Memory,
-        Statistics, Table, TableType, Validator,
+        instance::function::NeverType, AsImport, CallingFrame, Config, FuncType, Function, Global,
+        GlobalType, ImportModule, MemType, Memory, Statistics, Table, TableType,
     };
+    #[cfg(feature = "async")]
+    use crate::{instance::module::AsyncWasiModule, Loader, Validator};
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
+    #[cfg(feature = "async")]
     use wasmedge_async_wasi::snapshots::WasiCtx;
-    use wasmedge_macro::{sys_async_host_function_new, sys_host_function};
+    #[cfg(feature = "async")]
+    use wasmedge_macro::sys_async_host_function_new;
+    use wasmedge_macro::sys_host_function;
     use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
 
     #[test]
@@ -579,6 +584,7 @@ mod tests {
         handle.join().unwrap();
     }
 
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_executor_register_async_wasi() -> Result<(), Box<dyn std::error::Error>> {
         // create a Config
@@ -636,6 +642,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_executor_run_async_host_func() -> Result<(), Box<dyn std::error::Error>> {
         // create a Config
@@ -726,6 +733,7 @@ mod tests {
         Ok(vec![WasmValue::from_i32(c)])
     }
 
+    #[cfg(feature = "async")]
     #[sys_async_host_function_new]
     async fn async_hello<T>(
         _frame: CallingFrame,

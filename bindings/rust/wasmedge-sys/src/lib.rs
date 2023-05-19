@@ -50,6 +50,8 @@ pub mod ast_module;
 #[doc(hidden)]
 #[cfg(feature = "async")]
 pub mod r#async;
+#[doc(hidden)]
+#[cfg(feature = "async")]
 pub mod async_wasi;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
@@ -105,17 +107,6 @@ pub use types::WasmValue;
 #[doc(inline)]
 pub use validator::Validator;
 use wasmedge_types::{error, WasmEdgeResult};
-
-/// Type alias for a boxed native function. This type is used in thread-safe cases.
-pub type BoxedFn = Box<
-    dyn Fn(
-            CallingFrame,
-            Vec<WasmValue>,
-            *mut std::os::raw::c_void,
-        ) -> Result<Vec<WasmValue>, error::HostFuncError>
-        + Send
-        + Sync,
->;
 
 /// The object that is used to perform a [host function](crate::Function) is required to implement this trait.
 pub trait Engine {

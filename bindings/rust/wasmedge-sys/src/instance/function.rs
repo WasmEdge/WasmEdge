@@ -12,6 +12,7 @@ use std::pin::Pin;
 use std::{convert::TryInto, sync::Arc};
 use wasmedge_types::ValType;
 
+#[cfg(feature = "async")]
 pub type AsyncHostFn<T> =
     fn(
         CallingFrame,
@@ -85,6 +86,7 @@ extern "C" fn wrap_sync_fn<T: 'static>(
     }
 }
 
+#[cfg(feature = "async")]
 extern "C" fn wrap_async_fn<T: 'static>(
     key_ptr: *mut c_void,
     data: *mut std::os::raw::c_void,

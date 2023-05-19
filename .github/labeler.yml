@@ -1,0 +1,52 @@
+binding-java:
+- bindings/java/*
+- bindings/java/**/*
+binding-rust:
+- bindings/rust/*
+- bindings/rust/**/*
+c-AOT:
+- include/aot/*
+- include/aot/**/*
+- lib/aot/*
+- lib/aot/**/*
+c-CAPI:
+- include/api/*
+- include/api/**/*
+- lib/api/*
+- lib/api/**/*
+c-CI:
+- .github/*
+- .github/**/*
+c-CLI:
+- include/driver/*
+- include/driver/**/*
+- lib/driver/*
+- lib/driver/**/*
+- include/po/*
+- include/po/**/*
+- lib/po/*
+- lib/po/**/*
+c-CMake:
+- cmake/*
+- cmake/**/*
+c-Example:
+- examples/*
+- examples/**/*
+c-Installer:
+- utils/install.*
+- utils/installer_changes.sh
+- utils/uninstall.sh
+c-Plugin:
+- plugins/*
+- plugins/**/*
+c-Test:
+- test/*
+- test/**/*
+c-WASI:
+- include/host/wasi/*
+- include/host/wasi/**/*
+- lib/host/wasi/*
+- lib/host/wasi/**/*
+documentation:
+- docs/*
+- docs/**/*

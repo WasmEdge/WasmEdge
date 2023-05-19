@@ -37,7 +37,16 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
     // arguments of wrapper function
     let mut wrapper_fn_inputs = item_fn.sig.inputs.clone();
     let first_arg = wrapper_fn_inputs.first_mut().unwrap();
-    *first_arg = parse_quote!(frame: wasmedge_sdk::CallingFrame);
+    *first_arg = parse_quote!(frame: CallingFrame);
+    // get the name of the second argument
+    let second_arg = &wrapper_fn_inputs[1];
+    let second_arg_ident = match second_arg {
+        FnArg::Typed(PatType { pat, .. }) => match &**pat {
+            Pat::Ident(PatIdent { ident, .. }) => ident.clone(),
+            _ => panic!("argument pattern is not a simple ident"),
+        },
+        FnArg::Receiver(_) => panic!("argument is a receiver"),
+    };
     // get the name of the third argument
     let third_arg = wrapper_fn_inputs.last().unwrap();
     let third_arg_ident = match third_arg {
@@ -66,6 +75,8 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
         3 => {
             // generate token stream
             quote!(
+                use wasmedge_sdk::CallingFrame;
+
                 # wrapper_visibility fn #wrapper_fn_name_ident #fn_generics (#wrapper_fn_inputs) #wrapper_fn_return {
                     // define inner function
                     fn #inner_fn_name_ident #fn_generics (#inner_fn_inputs) #inner_fn_return {
@@ -75,7 +86,7 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
                     // create a Caller instance
                     let caller = Caller::new(frame);
 
-                    #inner_fn_name_ident(caller, args, #third_arg_ident)
+                    #inner_fn_name_ident(caller, #second_arg_ident, #third_arg_ident)
                 }
             )
         }

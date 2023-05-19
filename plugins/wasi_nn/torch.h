@@ -25,15 +25,15 @@ struct Graph {
 
 struct Context {
 public:
-  Context(Graph &G) noexcept : GraphRef(G) {}
-  Graph &GraphRef;
+  Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
+  size_t GraphId;
   std::vector<torch::jit::IValue> TorchInputs;
   std::vector<at::Tensor> TorchOutputs;
 };
 #else
 struct Graph {};
 struct Context {
-  Context(Graph &) noexcept {}
+  Context(size_t, Graph &) noexcept {}
 };
 #endif
 

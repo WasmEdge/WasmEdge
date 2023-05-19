@@ -95,11 +95,12 @@ public:
 class Context {
 public:
   Context() = delete;
-  Context(Graph &G) noexcept : Impl(std::in_place_type_t<std::monostate>()) {
+  Context(size_t GId, Graph &G) noexcept
+      : Impl(std::in_place_type_t<std::monostate>()) {
     switch (G.getBackend()) {
 #define EACH(B)                                                                \
   case Backend::B:                                                             \
-    Impl.emplace<B::Context>(G.get<Backend::B>());                             \
+    Impl.emplace<B::Context>(GId, G.get<Backend::B>());                        \
     break;
       FOR_EACH_BACKEND(EACH)
 #undef EACH

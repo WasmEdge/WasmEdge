@@ -56,7 +56,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
 Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
                           uint32_t &ContextId) noexcept {
-  Env.NNContext.emplace_back(Env.NNGraph[GraphId]);
+  Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
 
   ContextId = Env.NNContext.size() - 1;
   return ErrNo::Success;
@@ -79,10 +79,11 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   for (size_t I = 0; I < Tensor.Dimension.size(); I++) {
     Dims.push_back(static_cast<int64_t>(Tensor.Dimension[I]));
   }
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   torch::Tensor InTensor =
       torch::from_blob(reinterpret_cast<float *>(Tensor.Tensor.data()), Dims,
                        Options)
-          .to(CxtRef.GraphRef.TorchDevice);
+          .to(GraphRef.TorchDevice);
 
   CxtRef.TorchInputs[Index] = InTensor.clone();
   return ErrNo::Success;
@@ -127,8 +128,9 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       return ErrNo::InvalidArgument;
     }
   }
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   torch::jit::IValue RawOutput =
-      CxtRef.GraphRef.TorchModel.forward(CxtRef.TorchInputs);
+      GraphRef.TorchModel.forward(CxtRef.TorchInputs);
   // TODO: more output type should be supported here
   if (RawOutput.isTensorList()) {
     auto OutTensors = RawOutput.toTensorVector();

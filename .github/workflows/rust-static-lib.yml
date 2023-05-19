@@ -73,6 +73,5 @@ jobs:
         run: |
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
-          cargo +nightly -Z sparse-registry update
           cargo test --workspace --features static --locked -- --test-threads=1
           cargo test --examples --features static --locked -- --test-threads=1

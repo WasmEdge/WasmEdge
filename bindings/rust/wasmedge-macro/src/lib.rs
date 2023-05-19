@@ -519,12 +519,10 @@ fn sys_expand_async_host_func_with_two_args(item_fn: &syn::ItemFn) -> proc_macro
 fn sys_expand_async_host_func_with_three_args(item_fn: &syn::ItemFn) -> proc_macro2::TokenStream {
     // * define the signature of wrapper function
     // name of wrapper function
-    let wrapper_fn_name_ident = item_fn.sig.ident.clone();
+    let wrapper_fn_name_ident = &item_fn.sig.ident;
     let wrapper_fn_name_literal = wrapper_fn_name_ident.to_string();
-    // return type of wrapper function
-    let wrapper_fn_return = item_fn.sig.output.clone();
     // visibility of wrapper function
-    let wrapper_fn_visibility = item_fn.vis.clone();
+    let wrapper_fn_visibility = &item_fn.vis;
 
     // * define the signature of inner function
     // name of inner function
@@ -613,17 +611,6 @@ fn sys_expand_async_host_func_with_three_args(item_fn: &syn::ItemFn) -> proc_mac
 
     // generate token stream
     quote!(
-        // #wrapper_fn_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
-        //     // define inner function
-        //     fn #inner_fn_name_ident (#inner_fn_inputs) #inner_fn_return {
-        //         #inner_fn_block
-        //     }
-
-        //     let data = unsafe { &mut *(data as #ty_ptr) };
-
-        //     #inner_fn_name_ident(#arg1, #arg2, data)
-        // }
-
         #wrapper_fn_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs)  -> std::pin::Pin<
         Box<dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + '_>> {
             // define inner function
@@ -636,33 +623,6 @@ fn sys_expand_async_host_func_with_three_args(item_fn: &syn::ItemFn) -> proc_mac
             #inner_fn_name_ident(#arg1, #arg2, data)
         }
     )
-
-    // let ret = match &item_fn.sig.asyncness {
-    //     Some(inner_asyncness) => {
-    //         quote!(
-    //             #wrapper_fn_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) -> std::pin::Pin<
-    //             Box<dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + '_>> {
-    //                 #inner_asyncness fn #inner_fn_name_ident (#inner_fn_inputs) #inner_fn_return {
-    //                     #inner_fn_block
-    //                 }
-    //                 Box::pin(#inner_fn_name_ident(#(#args),*))
-    //             }
-    //         )
-    //     }
-    //     None => {
-    //         // quote!(
-    //         //     fn #outer_fn_name_ident (#outer_fn_inputs) #outer_fn_return {
-    //         //         fn #inner_fn_name_ident (#inner_fn_inputs) #inner_fn_return {
-    //         //             #inner_fn_block
-    //         //         }
-    //         //         #inner_fn_name_ident(#(#args),*)
-    //         //     }
-    //         // )
-    //         unimplemented!()
-    //     }
-    // };
-
-    // Ok(ret)
 }
 
 #[proc_macro_attribute]
@@ -685,32 +645,11 @@ pub fn sys_async_host_function_new(_attr: TokenStream, item: TokenStream) -> Tok
 fn sys_expand_async_host_func_new(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStream> {
     // extract T from Option<&mut T>
     let ret = match &item_fn.sig.inputs.len() {
-        // 2 => sys_expand_async_host_func_with_two_args_new(item_fn),
         3 => sys_expand_async_host_func_with_three_args_new(item_fn),
         _ => panic!("Invalid numbers of host function arguments"),
     };
 
     Ok(ret)
-}
-
-fn sys_expand_async_host_func_with_two_args_new(item_fn: &syn::ItemFn) -> proc_macro2::TokenStream {
-    let fn_name_ident = &item_fn.sig.ident;
-    let fn_visibility = &item_fn.vis;
-
-    // insert the third argument
-    let mut fn_inputs = item_fn.sig.inputs.clone();
-    fn_inputs.push(parse_quote!(_: *mut std::os::raw::c_void));
-    // fn_inputs.push(parse_quote!(_data: ThreadSafeCVoid));
-
-    let fn_block = &item_fn.block;
-
-    quote!(
-        #fn_visibility fn #fn_name_ident (#fn_inputs) -> Box<(dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send + 'static)> {
-            Box::new(async move {
-                #fn_block
-            })
-        }
-    )
 }
 
 fn sys_expand_async_host_func_with_three_args_new(

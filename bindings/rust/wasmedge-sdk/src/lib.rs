@@ -43,7 +43,7 @@
 //!  // We define a function to act as our "env" "say_hello" function imported in the
 //!  // Wasm program above.
 //!  #[host_function]
-//!  pub fn say_hello(_caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+//!  pub fn say_hello<T>(_caller: Caller, _args: Vec<WasmValue>, _data: Option<&mut T>) -> Result<Vec<WasmValue>, HostFuncError> {
 //!      println!("Hello, world!");
 //!  
 //!      Ok(vec![])
@@ -151,12 +151,20 @@ pub use wasmedge_types::{
 
 pub use wasmedge_macro::{async_host_function, host_function};
 
-pub use wasmedge_sys::NeverType;
-
 /// WebAssembly value type.
 pub type WasmValue = wasmedge_sys::types::WasmValue;
 
+pub type NeverType = wasmedge_types::NeverType;
+
 pub type CallingFrame = wasmedge_sys::CallingFrame;
+
+pub type HostFn<T> = wasmedge_sys::HostFn<T>;
+
+#[cfg(feature = "async")]
+pub mod r#async {
+    pub type AsyncState = wasmedge_sys::r#async::AsyncState;
+    pub type AsyncHostFn<T> = wasmedge_sys::AsyncHostFn<T>;
+}
 
 /// The object that is used to perform a [host function](crate::Func) is required to implement this trait.
 pub trait Engine {

@@ -1,7 +1,7 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-use crate::{io::WasmValTypeList, Executor, FuncType, HostFn, ValType, WasmEdgeResult, WasmValue};
 #[cfg(feature = "async")]
-use crate::{r#async::AsyncState, AsyncHostFn};
+use crate::r#async::{AsyncHostFn, AsyncState};
+use crate::{io::WasmValTypeList, Executor, FuncType, HostFn, ValType, WasmEdgeResult, WasmValue};
 use wasmedge_sys as sys;
 
 /// Defines a host function instance.

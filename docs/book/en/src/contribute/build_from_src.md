@@ -59,13 +59,11 @@ Developers can set the CMake options to customize the WasmEdge building.
     - This option is useless if the option `WASMEDGE_BUILD_PLUGINS` is set as `OFF`.
 10. `WASMEDGE_PLUGIN_PROCESS`: build the WasmEdge Process plugin (Linux platforms only). Default is `OFF`.
     - This option is useless if the option `WASMEDGE_BUILD_PLUGINS` is set as `OFF`.
-11. `WASMEDGE_PLUGIN_HTTPSREQ`: build the WasmEdge HttpsReq plugin (Linux platforms only). Default is `OFF`.
+11. `WASMEDGE_PLUGIN_WASM_BPF`: build the WasmEdge wasm-bpf (Linux platforms only). Default is `OFF`.
     - This option is useless if the option `WASMEDGE_BUILD_PLUGINS` is set as `OFF`.
-12. `WASMEDGE_PLUGIN_WASM_BPF`: build the WasmEdge wasm-bpf (Linux platforms only). Default is `OFF`.
-    - This option is useless if the option `WASMEDGE_BUILD_PLUGINS` is set as `OFF`.
-13. `WASMEDGE_FORCE_DISABLE_LTO`: forcefully turn off the link time optimization. Default is `OFF`.
-14. `WASMEDGE_LINK_LLVM_STATIC`: link the LLVM and lld libraries statically (Linux and MacOS platforms only, experimental). Default is `OFF`.
-15. `WASMEDGE_LINK_TOOLS_STATIC`: make the `wasmedge` and `wasmedgec` tools to link the WasmEdge library and LLVM libraries statically (Linux and MacOS platforms only, experimental). Default is `OFF`.
+12. `WASMEDGE_FORCE_DISABLE_LTO`: forcefully turn off the link time optimization. Default is `OFF`.
+13. `WASMEDGE_LINK_LLVM_STATIC`: link the LLVM and lld libraries statically (Linux and MacOS platforms only, experimental). Default is `OFF`.
+14. `WASMEDGE_LINK_TOOLS_STATIC`: make the `wasmedge` and `wasmedgec` tools to link the WasmEdge library and LLVM libraries statically (Linux and MacOS platforms only, experimental). Default is `OFF`.
     - If the option `WASMEDGE_BUILD_TOOLS` and this option are both set as `ON`, the `WASMEDGE_LINK_LLVM_STATIC` will be set as `ON`.
 
 ## Build WasmEdge with Plug-ins
@@ -74,7 +72,6 @@ Developers can follow the steps to build WasmEdge with plug-ins from source.
 
 - [WASI-NN (OpenVINO and PyTorch backends)](build_from_src/plugin_wasi_nn.md)
 - [WASI-Crypto](build_from_src/plugin_wasi_crypto.md)
-- [WasmEdge-HttpsReq](build_from_src/plugin_wasmedge_httpsreq.md)
 - [WasmEdge-Process](build_from_src/plugin_wasmedge_process.md)
 
 ## Run Tests

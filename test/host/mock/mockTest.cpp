@@ -3,7 +3,6 @@
 
 #include "host/mock/wasi_crypto_module.h"
 #include "host/mock/wasi_nn_module.h"
-#include "host/mock/wasmedge_httpsreq_module.h"
 #include "host/mock/wasmedge_process_module.h"
 #include "runtime/instance/module.h"
 
@@ -458,26 +457,6 @@ TEST(HostMockTest, WasiNN) {
   WasmEdge::Host::WasiNNModuleMock WasiNNModule;
   EXPECT_EQ(WasiNNModule.getModuleName(), "wasi_ephemeral_nn");
   EXPECT_EQ(WasiNNModule.getFuncExportNum(), 5U);
-}
-
-TEST(HostMockTest, WasmEdgeHttpsReq) {
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
-  std::array<WasmEdge::ValVariant, 1> Errno;
-
-  WasmEdge::Host::WasmEdgeHttpsReqMock::SendData HttpsReqSendData;
-  WasmEdge::Host::WasmEdgeHttpsReqMock::GetRcv HttpsReqGetRcv;
-  WasmEdge::Host::WasmEdgeHttpsReqMock::GetRcvLen HttpsReqGetRcvLen;
-
-  EXPECT_FALSE(HttpsReqSendData.run(
-      CallFrame, std::array<WasmEdge::ValVariant, 5>{0, 0, 0, 0, 0}, {}));
-  EXPECT_FALSE(HttpsReqGetRcv.run(CallFrame,
-                                  std::array<WasmEdge::ValVariant, 1>{0}, {}));
-  EXPECT_FALSE(HttpsReqGetRcvLen.run(CallFrame, {}, Errno));
-
-  WasmEdge::Host::WasmEdgeHttpsReqModuleMock HttpsReqModule;
-  EXPECT_EQ(HttpsReqModule.getModuleName(), "wasmedge_httpsreq");
-  EXPECT_EQ(HttpsReqModule.getFuncExportNum(), 3U);
 }
 
 TEST(HostMockTest, WasmEdgeProcess) {

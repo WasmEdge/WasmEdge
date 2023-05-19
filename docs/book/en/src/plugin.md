@@ -26,11 +26,9 @@ Please check the following table to check the release status and how to build fr
 | [WASI-NN with OpenVINO backend](write_wasm/rust/wasinn.md#get-wasmedge-with-wasi-nn-plug-in-openvino-backend)               | [wasi-nn][]                    | `ubuntu 20.04 x86_64` (since `0.10.1`)                                                      | [Build With WASI-NN](contribute/build_from_src/plugin_wasi_nn.md#build-wasmedge-with-wasi-nn-openvino-backend)        |
 | [WASI-NN with PyTorch backend](write_wasm/rust/wasinn.md#get-wasmedge-with-wasi-nn-plug-in-pytorch-backend)                 | [wasi-nn][]                    | `ubuntu 20.04 x86_64` (since `0.11.1`)                                                      | [Build With WASI-NN](contribute/build_from_src/plugin_wasi_nn.md#build-wasmedge-with-wasi-nn-pytorch-backend)         |
 | [WASI-NN with TensorFlow-Lite backend](write_wasm/rust/wasinn.md#get-wasmedge-with-wasi-nn-plug-in-tensorflow-lite-backend) | [wasi-nn][]                    | `manylinux2014 x86_64`, `manylinux2014 aarch64`, and `ubuntu 20.04 x86_64` (since `0.11.2`) | [Build With WASI-NN](contribute/build_from_src/plugin_wasi_nn.md#build-wasmedge-with-wasi-nn-tensorflow-lite-backend) |
-| [WasmEdge-HttpsReq](write_wasm/rust/networking-https.md#prerequisites)                                                      | [wasmedge_http_req][]          | `manylinux2014 x86_64`, and `manylinux2014 aarch64` (since `0.11.1`)                        | [Build With WasmEdge-HttpsReq](contribute/build_from_src/plugin_wasmedge_httpsreq.md)                                 |
 
 > Due to the `OpenVINO` and `PyTorch` dependencies, we only release the WASI-NN plug-in on `Ubuntu 20.04 x86_64` now. We'll work with `manylinux2014` versions in the future.
 
 [wasmedge_process_interface]: https://crates.io/crates/wasmedge_process_interface
 [wasi-crypto]: https://crates.io/crates/wasi-crypto
 [wasi-nn]: https://crates.io/crates/wasi-nn
-[wasmedge_http_req]: https://crates.io/crates/wasmedge_http_req

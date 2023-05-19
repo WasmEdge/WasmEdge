@@ -300,13 +300,11 @@ WASI_NN_OPENVINO = "wasi_nn-openvino"
 WASI_CRYPTO = "wasi_crypto"
 WASI_NN_PYTORCH = "wasi_nn-pytorch"
 WASI_NN_TENSORFLOW_LITE = "wasi_nn-tensorflowlite"
-WASMEDGE_HTTPSREQ = "wasmedge_httpsreq"
 PLUGINS_AVAILABLE = [
     WASI_NN_OPENVINO,
     WASI_CRYPTO,
     WASI_NN_PYTORCH,
     WASI_NN_TENSORFLOW_LITE,
-    WASMEDGE_HTTPSREQ,
 ]
 
 SUPPORTTED_PLUGINS = {
@@ -324,9 +322,6 @@ SUPPORTTED_PLUGINS = {
     + "aarch64"
     + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-alpha.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-rc.1"),
-    "ubuntu20.04" + "x86_64" + WASMEDGE_HTTPSREQ: VersionString("0.11.1"),
-    "manylinux2014" + "x86_64" + WASMEDGE_HTTPSREQ: VersionString("0.11.1"),
-    "manylinux2014" + "aarch64" + WASMEDGE_HTTPSREQ: VersionString("0.11.1"),
 }
 
 HOME = expanduser("~")

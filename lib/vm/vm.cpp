@@ -9,7 +9,6 @@
 
 #include "host/mock/wasi_crypto_module.h"
 #include "host/mock/wasi_nn_module.h"
-#include "host/mock/wasmedge_httpsreq_module.h"
 #include "host/mock/wasmedge_process_module.h"
 
 namespace WasmEdge {
@@ -89,18 +88,15 @@ void VM::unsafeLoadPlugInHosts() {
           "wasi_crypto"sv, "wasi_crypto_symmetric"sv));
   PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeProcessModuleMock>(
       "wasmedge_process"sv, "wasmedge_process"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeHttpsReqModuleMock>(
-      "wasmedge_httpsreq"sv, "wasmedge_httpsreq"sv));
 
   // Load the other non-official plugins.
   for (const auto &Plugin : Plugin::Plugin::plugins()) {
     if (Conf.isForbiddenPlugins(Plugin.name())) {
       continue;
     }
-    // Skip WasmEdge_Process, WasmEdge_HttpsReq, wasi_nn, and wasi_crypto.
-    if (Plugin.name() == "wasmedge_process"sv ||
-        Plugin.name() == "wasmedge_httpsreq"sv ||
-        Plugin.name() == "wasi_nn"sv || Plugin.name() == "wasi_crypto"sv) {
+    // Skip WasmEdge_Process, wasi_nn, and wasi_crypto.
+    if (Plugin.name() == "wasmedge_process"sv || Plugin.name() == "wasi_nn"sv ||
+        Plugin.name() == "wasi_crypto"sv) {
       continue;
     }
     for (const auto &Module : Plugin.modules()) {

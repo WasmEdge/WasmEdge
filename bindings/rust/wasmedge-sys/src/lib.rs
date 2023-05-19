@@ -88,9 +88,12 @@ pub use config::Config;
 pub use executor::Executor;
 #[doc(inline)]
 pub use frame::CallingFrame;
+#[cfg(feature = "async")]
+#[doc(inline)]
+pub use instance::function::AsyncHostFn;
 #[doc(inline)]
 pub use instance::{
-    function::{AsyncHostFn, FuncRef, FuncType, Function, HostFn},
+    function::{FuncRef, FuncType, Function, HostFn},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
     module::{AsImport, AsInstance, ImportModule, ImportObject, Instance, WasiModule},

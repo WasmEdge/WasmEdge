@@ -60,26 +60,30 @@ using RsaPtr = OpenSSLUniquePtr<RSA, RSA_free>;
 #define opensslCheck(Cond)                                                     \
   do {                                                                         \
     if (!(Cond)) {                                                             \
+      using namespace std::literals;                                           \
       ERR_print_errors_cb(                                                     \
-          [](const char *_Str, size_t, void *) {                               \
-            spdlog::error(_Str);                                               \
+          [](const char *ErrStr, size_t ErrLen, void *) {                      \
+            spdlog::error("{}"sv, std::string_view(ErrStr, ErrLen));           \
             return 1;                                                          \
           },                                                                   \
           nullptr);                                                            \
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);        \
     }                                                                          \
-  } while (0)
+  } while (false)
 #else
 #define opensslCheck(Cond)                                                     \
-  (static_cast<bool>(Cond)                                                     \
-       ? static_cast<void>(0)                                                  \
-       : (ERR_print_errors_cb(                                                 \
-              [](const char *_Str, size_t, void *) {                           \
-                spdlog::error(_Str);                                           \
-                return 1;                                                      \
-              },                                                               \
-              nullptr),                                                        \
-          OPENSSL_die("assertion failed: " #Cond, __FILE__, __LINE__)))
+  do {                                                                         \
+    if (!(Cond)) {                                                             \
+      using namespace std::literals;                                           \
+      ERR_print_errors_cb(                                                     \
+          [](const char *ErrStr, size_t ErrLen, void *) {                      \
+            spdlog::error("{}"sv, std::string_view(ErrStr, ErrLen));           \
+            return 1;                                                          \
+          },                                                                   \
+          nullptr);                                                            \
+      OPENSSL_die("assertion failed: " #Cond, __FILE__, __LINE__);             \
+    }                                                                          \
+  } while (false)
 #endif
 
 /// OpenSSL encoding parse api is too confusing, simplify them.

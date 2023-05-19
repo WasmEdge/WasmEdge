@@ -95,12 +95,24 @@ TEST_F(WasiCryptoTest, Aeads) {
                                  __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
     }
 
-    {
+    bool IsSymmetricStateCloneImplemented = true;
+    // XXX: These cipher didn't implement context duplication from OpenSSL 3.0.0
+    // https://github.com/openssl/openssl/issues/20978
+    if (0x30000000 <= OPENSSL_VERSION_NUMBER &&
+        (Name == "AES-128-GCM"sv || Name == "AES-256-GCM"sv ||
+         Name == "CHACHA20-POLY1305"sv)) {
+      IsSymmetricStateCloneImplemented = false;
+    }
+
+    if (IsSymmetricStateCloneImplemented) {
       // Clone checking.
       WASI_CRYPTO_EXPECT_SUCCESS(NewStateHandle,
                                  symmetricStateClone(State4Handle));
       EXPECT_NE(State4Handle, NewStateHandle);
       WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(NewStateHandle));
+    } else {
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateClone(State4Handle),
+                                 __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
     }
 
     WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(State4Handle));

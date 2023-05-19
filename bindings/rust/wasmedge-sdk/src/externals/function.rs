@@ -1,8 +1,7 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-use crate::{
-    error::HostFuncError, io::WasmValTypeList, CallingFrame, Executor, FuncType, ValType,
-    WasmEdgeResult, WasmValue,
-};
+use crate::{io::WasmValTypeList, Executor, FuncType, HostFn, ValType, WasmEdgeResult, WasmValue};
+#[cfg(feature = "async")]
+use crate::{r#async::AsyncState, AsyncHostFn};
 use wasmedge_sys as sys;
 
 /// Defines a host function instance.
@@ -21,7 +20,7 @@ use wasmedge_sys as sys;
 ///
 /// // A native function to be wrapped as a host function
 /// #[host_function]
-/// fn real_add(_: Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+/// fn real_add<T>(_: Caller, input: Vec<WasmValue>, _data: Option<&mut T>) -> Result<Vec<WasmValue>, HostFuncError> {
 ///     if input.len() != 2 {
 ///         return Err(HostFuncError::User(1));
 ///     }
@@ -83,18 +82,10 @@ impl Func {
     /// * If fail to create a Func instance, then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
     pub fn new<T>(
         ty: FuncType,
-        real_func: impl Fn(
-                CallingFrame,
-                Vec<WasmValue>,
-                *mut std::os::raw::c_void,
-            ) -> Result<Vec<WasmValue>, HostFuncError>
-            + Send
-            + Sync
-            + 'static,
+        real_func: HostFn<T>,
         data: Option<&mut T>,
     ) -> WasmEdgeResult<Self> {
-        let boxed_func = Box::new(real_func);
-        let inner = sys::Function::create::<T>(&ty.clone().into(), boxed_func, data, 0)?;
+        let inner = sys::Function::create_new::<T>(&ty.clone().into(), real_func, data, 0)?;
         Ok(Self {
             inner,
             name: None,
@@ -114,26 +105,15 @@ impl Func {
     /// # Error
     ///
     /// * If fail to create a Func instance, then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
-    pub fn wrap<Args, Rets, T>(
-        real_func: impl Fn(
-                CallingFrame,
-                Vec<WasmValue>,
-                *mut std::os::raw::c_void,
-            ) -> Result<Vec<WasmValue>, HostFuncError>
-            + Send
-            + Sync
-            + 'static,
-        data: Option<&mut T>,
-    ) -> WasmEdgeResult<Self>
+    pub fn wrap<Args, Rets, T>(real_func: HostFn<T>, data: Option<&mut T>) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
         Rets: WasmValTypeList,
     {
-        let boxed_func = Box::new(real_func);
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner = sys::Function::create::<T>(&ty.clone().into(), boxed_func, data, 0)?;
+        let inner = sys::Function::create_new::<T>(&ty.clone().into(), real_func, data, 0)?;
         Ok(Self {
             inner,
             name: None,
@@ -154,28 +134,18 @@ impl Func {
     ///
     /// * If fail to create a Func instance, then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
     #[cfg(feature = "async")]
-    pub fn wrap_async<Args, Rets>(
-        real_func: impl Fn(
-                CallingFrame,
-                Vec<WasmValue>,
-                *mut std::os::raw::c_void,
-            ) -> Box<
-                dyn std::future::Future<
-                        Output = Result<Vec<WasmValue>, crate::error::HostFuncError>,
-                    > + Send,
-            > + Send
-            + Sync
-            + 'static,
+    pub fn wrap_async<Args, Rets, T>(
+        real_func: AsyncHostFn<T>,
+        ctx_data: Option<&mut T>,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
         Rets: WasmValTypeList,
     {
-        let boxed_func = Box::new(real_func);
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner = sys::Function::create_async(&ty.clone().into(), boxed_func, 0)?;
+        let inner = sys::Function::create_async_new(&ty.clone().into(), real_func, ctx_data, 0)?;
         Ok(Self {
             inner,
             name: None,
@@ -251,10 +221,11 @@ impl Func {
     #[cfg(feature = "async")]
     pub async fn run_async(
         &self,
+        async_state: &AsyncState,
         executor: &Executor,
         args: impl IntoIterator<Item = WasmValue> + Send,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        executor.run_func_async(self, args).await
+        executor.run_func_async(async_state, self, args).await
     }
 }
 
@@ -366,12 +337,13 @@ impl FuncRef {
     ///
     /// If fail to run the host function, then an error is returned.
     #[cfg(feature = "async")]
-    pub async fn run_async(
+    pub async fn run_async<T>(
         &self,
+        async_state: &AsyncState,
         executor: &Executor,
         args: impl IntoIterator<Item = WasmValue> + Send,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        executor.run_func_ref_async(self, args).await
+        executor.run_func_ref_async(async_state, self, args).await
     }
 }
 
@@ -381,7 +353,8 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::HostFuncError,
-        params, Executor, ImportObjectBuilder, NeverType, Statistics, Store, WasmVal, WasmValue,
+        params, CallingFrame, Executor, ImportObjectBuilder, NeverType, Statistics, Store, WasmVal,
+        WasmValue,
     };
 
     #[test]
@@ -510,10 +483,10 @@ mod tests {
         assert_eq!(returns[0].to_i32(), 5);
     }
 
-    fn real_add(
+    fn real_add<T>(
         _frame: CallingFrame,
         inputs: Vec<WasmValue>,
-        _data: *mut std::os::raw::c_void,
+        _data: Option<&mut T>,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

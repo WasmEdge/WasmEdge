@@ -9,7 +9,9 @@
 //! ```
 
 #[cfg(feature = "async")]
-use wasmedge_sys::{r#async::AsyncState, Executor, FuncType, Function, NeverType};
+use wasmedge_sys::{r#async::AsyncState, Executor, FuncType, Function};
+#[cfg(feature = "async")]
+use wasmedge_types::NeverType;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

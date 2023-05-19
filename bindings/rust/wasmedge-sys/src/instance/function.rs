@@ -10,7 +10,7 @@ use core::ffi::c_void;
 #[cfg(feature = "async")]
 use std::pin::Pin;
 use std::{convert::TryInto, sync::Arc};
-use wasmedge_types::ValType;
+use wasmedge_types::{NeverType, ValType};
 
 #[cfg(feature = "async")]
 pub type AsyncHostFn<T> =
@@ -166,9 +166,6 @@ pub type CustomFnWrapper = unsafe extern "C" fn(
     return_len: u32,
 ) -> ffi::WasmEdge_Result;
 
-/// This is a workaround solution to the [`never`](https://doc.rust-lang.org/std/primitive.never.html) type in Rust. It will be replaced by `!` once it is stable.
-pub enum NeverType {}
-
 /// Defines a host function.
 ///
 /// A WasmEdge [Function] defines a WebAssembly host function described by its [type](crate::FuncType). A host function is a closure of the original function defined in either the host or the WebAssembly module.
@@ -203,8 +200,8 @@ impl Function {
     ///
     /// ```rust
     /// use wasmedge_macro::sys_host_function;
-    /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame, NeverType};
-    /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
+    /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame};
+    /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult, NeverType};
     ///
     /// #[sys_host_function]
     /// fn real_add<T>(_frame: CallingFrame, inputs: Vec<WasmValue>, _: Option<&mut T>) -> Result<Vec<WasmValue>, HostFuncError> {
@@ -341,8 +338,8 @@ impl Function {
     /// The example defines an async host function `real_add`.
     ///
     /// ```rust
-    /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame, NeverType};
-    /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
+    /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame};
+    /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult, NeverType};
     /// use wasmedge_macro::sys_async_host_function_new;
     /// use std::future::Future;
     /// use std::os::raw::c_void;
@@ -488,8 +485,8 @@ impl Function {
     ///
     /// ```rust
     /// use wasmedge_macro::sys_host_function;
-    /// use wasmedge_sys::{FuncType, Function, WasmValue, Executor, CallingFrame, NeverType};
-    /// use wasmedge_types::{error::HostFuncError, ValType};
+    /// use wasmedge_sys::{FuncType, Function, WasmValue, Executor, CallingFrame};
+    /// use wasmedge_types::{error::HostFuncError, ValType, NeverType};
     ///
     /// #[sys_host_function]
     /// fn real_add<T>(_frame: CallingFrame, input: Vec<WasmValue>, _: Option<&mut T>) -> Result<Vec<WasmValue>, HostFuncError> {

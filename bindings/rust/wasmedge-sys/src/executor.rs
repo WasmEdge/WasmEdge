@@ -374,12 +374,12 @@ unsafe impl Sync for InnerExecutor {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        instance::function::NeverType, AsImport, CallingFrame, Config, FuncType, Function, Global,
-        GlobalType, ImportModule, MemType, Memory, Statistics, Table, TableType,
-    };
     #[cfg(feature = "async")]
     use crate::{instance::module::AsyncWasiModule, Loader, Validator};
+    use crate::{
+        AsImport, CallingFrame, Config, FuncType, Function, Global, GlobalType, ImportModule,
+        MemType, Memory, Statistics, Table, TableType,
+    };
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -389,7 +389,7 @@ mod tests {
     #[cfg(feature = "async")]
     use wasmedge_macro::sys_async_host_function_new;
     use wasmedge_macro::sys_host_function;
-    use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
+    use wasmedge_types::{error::HostFuncError, Mutability, NeverType, RefType, ValType};
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]

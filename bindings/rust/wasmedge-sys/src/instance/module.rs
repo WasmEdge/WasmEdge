@@ -1064,15 +1064,15 @@ impl ImportObject {
 mod tests {
     use super::*;
     use crate::{
-        instance::function::NeverType, CallingFrame, Config, Executor, FuncType, GlobalType,
-        ImportModule, MemType, Store, TableType, WasmValue,
+        CallingFrame, Config, Executor, FuncType, GlobalType, ImportModule, MemType, Store,
+        TableType, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
     use wasmedge_macro::sys_host_function;
-    use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
+    use wasmedge_types::{error::HostFuncError, Mutability, NeverType, RefType, ValType};
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]

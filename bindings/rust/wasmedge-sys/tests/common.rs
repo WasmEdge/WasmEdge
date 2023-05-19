@@ -1,8 +1,6 @@
 use wasmedge_macro::sys_host_function;
-use wasmedge_sys::{
-    AsImport, CallingFrame, FuncType, Function, ImportModule, NeverType, WasmValue,
-};
-use wasmedge_types::{error::HostFuncError, ValType};
+use wasmedge_sys::{AsImport, CallingFrame, FuncType, Function, ImportModule, WasmValue};
+use wasmedge_types::{error::HostFuncError, NeverType, ValType};
 
 pub fn create_extern_module(name: impl AsRef<str>) -> ImportModule {
     // create an import module

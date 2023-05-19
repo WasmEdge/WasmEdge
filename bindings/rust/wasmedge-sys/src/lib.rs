@@ -90,7 +90,7 @@ pub use executor::Executor;
 pub use frame::CallingFrame;
 #[doc(inline)]
 pub use instance::{
-    function::{FuncRef, FuncType, Function, NeverType},
+    function::{AsyncHostFn, FuncRef, FuncType, Function, HostFn},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
     module::{AsImport, AsInstance, ImportModule, ImportObject, Instance, WasiModule},

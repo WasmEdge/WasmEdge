@@ -278,13 +278,13 @@ unsafe impl Sync for InnerTableType {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{instance::function::NeverType, CallingFrame, FuncType, Function};
+    use crate::{CallingFrame, FuncType, Function};
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
     use wasmedge_macro::sys_host_function;
-    use wasmedge_types::{error::HostFuncError, RefType, ValType};
+    use wasmedge_types::{error::HostFuncError, NeverType, RefType, ValType};
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]

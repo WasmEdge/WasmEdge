@@ -20,9 +20,9 @@
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, Executor, FuncType, Function, ImportModule, ImportObject,
-    Loader, NeverType, Store, Validator, WasmValue,
+    Loader, Store, Validator, WasmValue,
 };
-use wasmedge_types::{error::HostFuncError, wat2wasm, ValType};
+use wasmedge_types::{error::HostFuncError, wat2wasm, NeverType, ValType};
 
 #[sys_host_function]
 fn real_add<T>(

@@ -7,9 +7,9 @@
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, Executor, FuncType, Function, ImportModule, ImportObject,
-    NeverType, Store, Table, TableType, WasmValue,
+    Store, Table, TableType, WasmValue,
 };
-use wasmedge_types::{error::HostFuncError, RefType, ValType};
+use wasmedge_types::{error::HostFuncError, NeverType, RefType, ValType};
 
 #[sys_host_function]
 fn real_add<T>(

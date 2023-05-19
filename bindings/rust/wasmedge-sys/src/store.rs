@@ -125,9 +125,7 @@ unsafe impl Sync for InnerStore {}
 mod tests {
     use super::Store;
     use crate::{
-        instance::{
-            function::NeverType, Function, Global, GlobalType, MemType, Memory, Table, TableType,
-        },
+        instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::WasmValue,
         AsImport, CallingFrame, Config, Engine, Executor, FuncType, ImportModule, ImportObject,
         Loader, Validator,
@@ -137,7 +135,7 @@ mod tests {
         thread,
     };
     use wasmedge_macro::sys_host_function;
-    use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
+    use wasmedge_types::{error::HostFuncError, Mutability, NeverType, RefType, ValType};
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]

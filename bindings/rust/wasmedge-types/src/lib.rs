@@ -569,3 +569,6 @@ pub use wat::parse_bytes as wat2wasm;
 
 /// The WasmEdge result type.
 pub type WasmEdgeResult<T> = Result<T, Box<error::WasmEdgeError>>;
+
+/// This is a workaround solution to the [`never`](https://doc.rust-lang.org/std/primitive.never.html) type in Rust. It will be replaced by `!` once it is stable.
+pub enum NeverType {}

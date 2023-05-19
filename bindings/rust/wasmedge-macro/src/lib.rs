@@ -29,16 +29,26 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
     // name of wrapper function
     let wrapper_fn_name_ident = item_fn.sig.ident.clone();
     let wrapper_fn_name_literal = wrapper_fn_name_ident.to_string();
-    // arguments of wrapper function
-    let wrapper_fn_inputs: syn::punctuated::Punctuated<FnArg, syn::token::Comma> = parse_quote!(
-        frame: wasmedge_sdk::CallingFrame,
-        args: Vec<wasmedge_sdk::WasmValue>,
-        data: *mut std::os::raw::c_void
-    );
     // return type of wrapper function
     let wrapper_fn_return = item_fn.sig.output.clone();
     // visibility of wrapper function
     let wrapper_visibility = item_fn.vis.clone();
+
+    // arguments of wrapper function
+    let mut wrapper_fn_inputs = item_fn.sig.inputs.clone();
+    let first_arg = wrapper_fn_inputs.first_mut().unwrap();
+    *first_arg = parse_quote!(frame: wasmedge_sdk::CallingFrame);
+    // get the name of the third argument
+    let third_arg = wrapper_fn_inputs.last().unwrap();
+    let third_arg_ident = match third_arg {
+        FnArg::Typed(PatType { pat, .. }) => match &**pat {
+            Pat::Ident(PatIdent { ident, .. }) => ident.clone(),
+            _ => panic!("argument pattern is not a simple ident"),
+        },
+        FnArg::Receiver(_) => panic!("argument is a receiver"),
+    };
+
+    let fn_generics = &item_fn.sig.generics;
 
     // * define the signature of inner function
     // name of inner function
@@ -53,87 +63,19 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
 
     // extract T from Option<&mut T>
     let ret = match item_fn.sig.inputs.len() {
-        2 => {
-            quote!(
-                # wrapper_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
-                    // define inner function
-                    fn #inner_fn_name_ident (#inner_fn_inputs) #inner_fn_return {
-                        #inner_fn_block
-                    }
-
-                    // create a Caller instance
-                    let caller = Caller::new(frame);
-
-                    #inner_fn_name_ident(caller, args)
-                }
-            )
-        }
         3 => {
-            let data_arg = item_fn.sig.inputs.last().unwrap().clone();
-            let ty_ptr = match &data_arg {
-                FnArg::Typed(PatType { ref ty, .. }) => match **ty {
-                    syn::Type::Reference(syn::TypeReference { ref elem, .. }) => syn::TypePtr {
-                        star_token: parse_quote!(*),
-                        const_token: None,
-                        mutability: Some(parse_quote!(mut)),
-                        elem: elem.clone(),
-                    },
-                    syn::Type::Path(syn::TypePath { ref path, .. }) => match path.segments.last() {
-                        Some(segment) => {
-                            let id = segment.ident.to_string();
-                            match id == "Option" {
-                                true => match segment.arguments {
-                                    syn::PathArguments::AngleBracketed(
-                                        syn::AngleBracketedGenericArguments { ref args, .. },
-                                    ) => {
-                                        let last_generic_arg = args.last();
-                                        match last_generic_arg {
-                                            Some(arg) => match arg {
-                                                syn::GenericArgument::Type(ty) => match ty {
-                                                    syn::Type::Reference(syn::TypeReference {
-                                                        ref elem,
-                                                        ..
-                                                    }) => syn::TypePtr {
-                                                        star_token: parse_quote!(*),
-                                                        const_token: None,
-                                                        mutability: Some(parse_quote!(mut)),
-                                                        elem: elem.clone(),
-                                                    },
-                                                    _ => panic!("Not found syn::Type::Reference"),
-                                                },
-                                                _ => {
-                                                    panic!("Not found syn::GenericArgument::Type")
-                                                }
-                                            },
-                                            None => panic!("Not found the last GenericArgument"),
-                                        }
-                                    }
-                                    _ => panic!("Not found syn::PathArguments::AngleBracketed"),
-                                },
-                                false => panic!("Not found segment ident: Option"),
-                            }
-                        }
-                        None => panic!("Not found path segments"),
-                    },
-                    _ => panic!("Unsupported syn::Type type"),
-                },
-                _ => panic!("Unsupported syn::FnArg type"),
-            };
-
             // generate token stream
             quote!(
-                # wrapper_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
+                # wrapper_visibility fn #wrapper_fn_name_ident #fn_generics (#wrapper_fn_inputs) #wrapper_fn_return {
                     // define inner function
-                    fn #inner_fn_name_ident (#inner_fn_inputs) #inner_fn_return {
+                    fn #inner_fn_name_ident #fn_generics (#inner_fn_inputs) #inner_fn_return {
                         #inner_fn_block
                     }
 
                     // create a Caller instance
                     let caller = Caller::new(frame);
 
-                    let data = unsafe { &mut *(data as #ty_ptr) };
-
-                    #inner_fn_name_ident(caller, args, data)
+                    #inner_fn_name_ident(caller, args, #third_arg_ident)
                 }
             )
         }

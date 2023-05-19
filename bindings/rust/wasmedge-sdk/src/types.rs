@@ -91,7 +91,7 @@ impl ExternRef {
     where
         T: 'static + Send + Sync,
     {
-        let inner = WasmValue::from_extern_ref(extern_obj);
+        let inner = WasmValue::from_extern_ref::<T>(extern_obj);
         Self { inner }
     }
 }

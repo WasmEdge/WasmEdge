@@ -58,11 +58,11 @@
               .
           '';
           buildPhase = ''
-            cmake --build build --target wasmedge -j12
+            cmake --build build -j12
           '';
           installPhase = ''
-            mkdir -p $out/bin
-            mv build/tools/wasmedge/wasmedge $out/bin
+            cd build
+            cmake --install . --prefix $out
           '';
         };
       in with pkgs; rec {

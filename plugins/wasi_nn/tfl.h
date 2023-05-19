@@ -29,19 +29,19 @@ struct Graph {
 
 struct Context {
 public:
-  Context(Graph &G) noexcept : GraphRef(G) {}
+  Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
   ~Context() noexcept {
     if (TFLiteInterp) {
       TfLiteInterpreterDelete(TFLiteInterp);
     }
   }
-  Graph &GraphRef;
+  size_t GraphId;
   TfLiteInterpreter *TFLiteInterp = nullptr;
 };
 #else
 struct Graph {};
 struct Context {
-  Context(Graph &) noexcept {}
+  Context(size_t, Graph &) noexcept {}
 };
 #endif
 

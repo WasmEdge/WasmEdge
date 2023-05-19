@@ -104,7 +104,7 @@ struct Graph {
 };
 
 struct Context {
-  Context(Graph &G) noexcept : GraphRef(G) {
+  Context(size_t GId, Graph &G) noexcept : GraphId(GId) {
     IEStatusCode Status = ie_exec_network_create_infer_request(
         G.OpenVINOExecNetwork, &OpenVINOInferRequest);
     if (Status != IEStatusCode::OK) {
@@ -117,7 +117,7 @@ struct Context {
       ie_infer_request_free(&OpenVINOInferRequest);
     }
   }
-  Graph &GraphRef;
+  size_t GraphId;
   ie_infer_request_t *OpenVINOInferRequest = nullptr;
 };
 
@@ -138,7 +138,7 @@ struct Environ {
 #else
 struct Graph {};
 struct Context {
-  Context(Graph &) noexcept {}
+  Context(size_t, Graph &) noexcept {}
 };
 struct Environ {};
 #endif

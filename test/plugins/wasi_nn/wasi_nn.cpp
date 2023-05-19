@@ -326,7 +326,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
 
   // Swap to the tmp. env.
-  NNContextTmp.emplace_back(NNGraphTmp[0]);
+  NNContextTmp.emplace_back(0, NNGraphTmp[0]);
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   NNContextTmp.swap(NNMod->getEnv().NNContext);
   // Test: set_input -- context id exceeds.
@@ -727,7 +727,7 @@ TEST(WasiNNTest, PyTorchBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  NNContextTmp.emplace_back(NNGraphTmp[0]);
+  NNContextTmp.emplace_back(0, NNGraphTmp[0]);
 
   // Test: set_input -- tensor type not FP32.
   BuilderPtr = SetInputEntryPtr;
@@ -1100,7 +1100,7 @@ TEST(WasiNNTest, TFLiteBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  NNContextTmp.emplace_back(NNGraphTmp[0]);
+  NNContextTmp.emplace_back(0, NNGraphTmp[0]);
 
   // Test: set_input -- set input successfully.
   BuilderPtr = SetInputEntryPtr;

@@ -8,7 +8,9 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, parse_quote, spanned::Spanned, FnArg, Item, Pat, PatIdent, PatType};
+use syn::{
+    parse_macro_input, parse_quote, spanned::Spanned, FnArg, Item, Pat, PatIdent, PatType, PatWild,
+};
 
 /// Declare a native function that will be used to create a host function instance.
 #[proc_macro_attribute]
@@ -43,6 +45,12 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
     let second_arg_ident = match second_arg {
         FnArg::Typed(PatType { pat, .. }) => match &**pat {
             Pat::Ident(PatIdent { ident, .. }) => ident.clone(),
+            Pat::Wild(PatWild {
+                underscore_token, ..
+            }) => {
+                let span = underscore_token.spans[0];
+                syn::Ident::new("_", span)
+            }
             _ => panic!("argument pattern is not a simple ident"),
         },
         FnArg::Receiver(_) => panic!("argument is a receiver"),
@@ -52,6 +60,12 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
     let third_arg_ident = match third_arg {
         FnArg::Typed(PatType { pat, .. }) => match &**pat {
             Pat::Ident(PatIdent { ident, .. }) => ident.clone(),
+            Pat::Wild(PatWild {
+                underscore_token, ..
+            }) => {
+                let span = underscore_token.spans[0];
+                syn::Ident::new("_", span)
+            }
             _ => panic!("argument pattern is not a simple ident"),
         },
         FnArg::Receiver(_) => panic!("argument is a receiver"),

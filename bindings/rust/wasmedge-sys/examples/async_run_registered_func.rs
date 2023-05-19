@@ -8,7 +8,6 @@
 //! cargo run -p wasmedge-sys --features async --example async_run_registered_func
 //! ```
 
-use wasmedge_sys::async_wasi;
 #[cfg(feature = "async")]
 use wasmedge_sys::{r#async::AsyncState, Config, Executor, Loader, Store, Validator, WasmValue};
 #[cfg(feature = "async")]

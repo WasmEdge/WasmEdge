@@ -1,14 +1,12 @@
 //! Defines WasmEdge Function and FuncType structs.
 
 #[cfg(feature = "async")]
-use crate::r#async::{AsyncCx, AsyncState, FiberFuture};
+use crate::r#async::{AsyncState, FiberFuture};
 use crate::{
     error::{FuncError, HostFuncError, WasmEdgeError},
-    ffi, BoxedFn, CallingFrame, Engine, WasmEdgeResult, WasmValue,
+    ffi, CallingFrame, Engine, WasmEdgeResult, WasmValue,
 };
 use core::ffi::c_void;
-use parking_lot::Mutex;
-use rand::Rng;
 #[cfg(feature = "async")]
 use std::pin::Pin;
 use std::{convert::TryInto, sync::Arc};
@@ -235,20 +233,6 @@ impl Function {
     /// // create a Function instance
     /// let func = Function::create_new::<NeverType>(&func_ty, real_add, None, 0).expect("fail to create a Function instance");
     /// ```
-    // pub fn create<T>(
-    //     ty: &FuncType,
-    //     real_fn: BoxedFn,
-    //     data: Option<&mut T>,
-    //     cost: u64,
-    // ) -> WasmEdgeResult<Self> {
-    //     let data = match data {
-    //         Some(d) => d as *mut T as *mut std::os::raw::c_void,
-    //         None => std::ptr::null_mut(),
-    //     };
-
-    //     unsafe { Self::create_with_data(ty, real_fn, data, cost) }
-    // }
-
     pub fn create_new<T>(
         ty: &FuncType,
         real_fn: HostFn<T>,
@@ -396,40 +380,6 @@ impl Function {
     /// // create a Function instance
     /// let func = Function::create_async_new::<NeverType>(&func_ty, real_add, None, 0).expect("fail to create a Function instance");
     /// ```
-    // #[cfg(feature = "async")]
-    // pub fn create_async<T>(
-    //     ty: &FuncType,
-    //     real_fn: impl Fn(
-    //             CallingFrame,
-    //             Vec<WasmValue>,
-    //             *mut std::os::raw::c_void,
-    //         ) -> Box<
-    //             dyn std::future::Future<
-    //                     Output = Result<Vec<WasmValue>, crate::error::HostFuncError>,
-    //                 > + Send,
-    //         > + Send
-    //         + Sync
-    //         + 'static,
-    //     data: Option<&mut T>,
-    //     cost: u64,
-    // ) -> WasmEdgeResult<Self> {
-    //     Self::create::<T>(
-    //         ty,
-    //         Box::new(move |frame, args, data| {
-    //             let async_cx = AsyncCx::new();
-
-    //             let mut future = Pin::from(real_fn(frame, args, data));
-    //             match unsafe { async_cx.block_on(future.as_mut()) } {
-    //                 Ok(Ok(ret)) => Ok(ret),
-    //                 Ok(Err(err)) => Err(err),
-    //                 Err(_err) => Err(HostFuncError::User(0x87)),
-    //             }
-    //         }),
-    //         data,
-    //         cost,
-    //     )
-    // }
-
     #[cfg(feature = "async")]
     pub fn create_async_new<T>(
         ty: &FuncType,
@@ -502,45 +452,6 @@ impl Function {
             }),
         }
     }
-
-    /// Creates a [host function](crate::Function) with the given function type and the default function wrapper.
-    ///
-    /// # Arguments
-    ///
-    /// * `ty` - The types of the arguments and returns of the target function.
-    ///
-    /// * `real_fn` - The pointer to the target function.
-    ///
-    /// * `data` - The pointer to the data.
-    ///
-    /// * `cost` - The function cost in the [Statistics](crate::Statistics). Pass 0 if the calculation is not needed.
-    ///
-    /// # Error
-    ///
-    /// * If fail to create a [Function], then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
-    ///
-    // pub unsafe fn create_with_default_wrapper(
-    //     ty: &FuncType,
-    //     real_fn: *mut c_void,
-    //     data: *mut c_void,
-    //     cost: u64,
-    // ) -> WasmEdgeResult<Self> {
-    //     let ctx = ffi::WasmEdge_FunctionInstanceCreateBinding(
-    //         ty.inner.0,
-    //         Some(wrap_fn),
-    //         real_fn,
-    //         data,
-    //         cost,
-    //     );
-
-    //     match ctx.is_null() {
-    //         true => Err(Box::new(WasmEdgeError::Func(FuncError::Create))),
-    //         false => Ok(Self {
-    //             inner: Arc::new(InnerFunc(ctx)),
-    //             registered: false,
-    //         }),
-    //     }
-    // }
 
     /// Returns the underlying wasm type of this [Function].
     ///
@@ -676,13 +587,6 @@ impl Function {
 impl Drop for Function {
     fn drop(&mut self) {
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
-            // // remove the real_func from HOST_FUNCS
-            // let footprint = self.inner.0 as usize;
-            // if let Some(key) = HOST_FUNC_FOOTPRINTS.lock().remove(&footprint) {
-            //     let mut map_host_func = HOST_FUNCS.write();
-            //     map_host_func.remove(&key);
-            // }
-
             // delete the function instance
             unsafe { ffi::WasmEdge_FunctionInstanceDelete(self.inner.0) };
         }

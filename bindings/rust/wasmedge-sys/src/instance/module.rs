@@ -8,8 +8,8 @@ use crate::{
     types::WasmEdgeString,
     Function, Global, Memory, Table, WasmEdgeResult,
 };
-use std::{path::PathBuf, sync::Arc};
-use wasmedge_async_wasi::snapshots::{common::vfs::sync::WasiPreOpenDir, WasiCtx as AsyncWasiCtx};
+use std::sync::Arc;
+use wasmedge_async_wasi::snapshots::WasiCtx as AsyncWasiCtx;
 
 /// An [Instance] represents an instantiated module. In the instantiation process, An [Instance] is created from al[Module](crate::Module). From an [Instance] the exported [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) can be fetched.
 #[derive(Debug)]
@@ -878,12 +878,7 @@ impl Drop for AsyncWasiModule {
     }
 }
 impl AsyncWasiModule {
-    pub fn create(
-        // args: Option<Vec<&str>>,
-        // envs: Option<Vec<&str>>,
-        // preopens: Option<Vec<(PathBuf, PathBuf)>>,
-        async_wasi_ctx: Option<&mut AsyncWasiCtx>,
-    ) -> WasmEdgeResult<Self> {
+    pub fn create(async_wasi_ctx: Option<&mut AsyncWasiCtx>) -> WasmEdgeResult<Self> {
         let name = "wasi_snapshot_preview1";
         let raw_name = WasmEdgeString::from(name);
         let ctx = unsafe { ffi::WasmEdge_ModuleInstanceCreate(raw_name.as_raw()) };
@@ -893,24 +888,6 @@ impl AsyncWasiModule {
                 InstanceError::CreateImportModule,
             )));
         }
-
-        // === NOTICE: DO NOT REMOVE THIS COMMENTED CODE ===
-        // let mut async_wasi_ctx = ASYNC_WASI_CTX.write();
-        // if let Some(args) = args {
-        //     args.into_iter()
-        //         .for_each(|arg| async_wasi_ctx.push_arg(arg.to_string()));
-        // }
-        // if let Some(envs) = envs {
-        //     envs.into_iter().for_each(|env| {
-        //         async_wasi_ctx.push_env(env.to_string());
-        //     });
-        // }
-        // if let Some(preopens) = preopens {
-        //     preopens.into_iter().for_each(|(host_path, guest_path)| {
-        //         let preopen = WasiPreOpenDir::new(host_path, guest_path);
-        //         async_wasi_ctx.push_preopen(preopen);
-        //     });
-        // }
 
         let mut async_wasi_module = Self {
             inner: std::sync::Arc::new(InnerInstance(ctx)),

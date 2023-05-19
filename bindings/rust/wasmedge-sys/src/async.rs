@@ -89,6 +89,11 @@ pub struct AsyncState {
     current_suspend: std::cell::UnsafeCell<*const FiberSuspend>,
     current_poll_cx: std::cell::UnsafeCell<*mut Context<'static>>,
 }
+impl Default for AsyncState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl AsyncState {
     /// Creates a new async state.
     pub fn new() -> Self {
@@ -125,6 +130,11 @@ unsafe impl Sync for AsyncState {}
 pub struct AsyncCx {
     current_suspend: *mut *const Suspend<Result<(), ()>, (), Result<(), ()>>,
     current_poll_cx: *mut *mut Context<'static>,
+}
+impl Default for AsyncCx {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 impl AsyncCx {
     /// Creates a new async execution context.

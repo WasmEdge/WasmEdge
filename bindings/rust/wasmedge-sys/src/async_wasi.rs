@@ -1,3 +1,5 @@
+use crate::instance::function::{AsyncHostFn, HostFn};
+use crate::{CallingFrame, Memory, WasmValue};
 use wasi::snapshots::{
     common::{
         error::Errno,
@@ -7,17 +9,8 @@ use wasi::snapshots::{
     preview_1 as p, WasiCtx,
 };
 use wasmedge_async_wasi as wasi;
-
-// use wasmedge_sdk::{Vm, WasmEdgeResult};
-use crate::{AsImport, CallingFrame, FuncType, Memory, WasmValue};
-use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
-
-// use crate::values::WasmVal;
-
-use crate::instance::function::{AsyncHostFn, HostFn};
-// mod values;
-
 use wasmedge_macro::{sys_async_host_function_new, sys_host_function};
+use wasmedge_types::{error::HostFuncError, ValType};
 
 fn to_wasm_return(r: Result<(), Errno>) -> Vec<WasmValue> {
     let code = if let Err(e) = r { e.0 } else { 0 };
@@ -25,7 +18,7 @@ fn to_wasm_return(r: Result<(), Errno>) -> Vec<WasmValue> {
 }
 
 impl wasmedge_async_wasi::snapshots::common::memory::Memory for Memory {
-    fn get_data<'a, T: Sized>(&'a self, offset: WasmPtr<T>) -> Result<&'a T, Errno> {
+    fn get_data<T: Sized>(&self, offset: WasmPtr<T>) -> Result<&T, Errno> {
         unsafe {
             let r = std::mem::size_of::<T>();
             let ptr = self
@@ -35,7 +28,7 @@ impl wasmedge_async_wasi::snapshots::common::memory::Memory for Memory {
         }
     }
 
-    fn get_slice<'a, T: Sized>(&'a self, offset: WasmPtr<T>, len: usize) -> Result<&'a [T], Errno> {
+    fn get_slice<T: Sized>(&self, offset: WasmPtr<T>, len: usize) -> Result<&[T], Errno> {
         unsafe {
             let r = std::mem::size_of::<T>() * len;
             let ptr = self
@@ -46,11 +39,11 @@ impl wasmedge_async_wasi::snapshots::common::memory::Memory for Memory {
         }
     }
 
-    fn get_iovec<'a>(
-        &'a self,
+    fn get_iovec(
+        &self,
         iovec_ptr: WasmPtr<__wasi_ciovec_t>,
         iovec_len: __wasi_size_t,
-    ) -> Result<Vec<std::io::IoSlice<'a>>, Errno> {
+    ) -> Result<Vec<std::io::IoSlice<'_>>, Errno> {
         unsafe {
             let iovec = self.get_slice(iovec_ptr, iovec_len as usize)?.to_vec();
             let mut result = Vec::with_capacity(iovec.len());
@@ -65,7 +58,7 @@ impl wasmedge_async_wasi::snapshots::common::memory::Memory for Memory {
         }
     }
 
-    fn mut_data<'a, T: Sized>(&'a mut self, offset: WasmPtr<T>) -> Result<&'a mut T, Errno> {
+    fn mut_data<T: Sized>(&mut self, offset: WasmPtr<T>) -> Result<&mut T, Errno> {
         unsafe {
             let r = std::mem::size_of::<T>();
             let ptr = self
@@ -75,11 +68,7 @@ impl wasmedge_async_wasi::snapshots::common::memory::Memory for Memory {
         }
     }
 
-    fn mut_slice<'a, T: Sized>(
-        &'a mut self,
-        offset: WasmPtr<T>,
-        len: usize,
-    ) -> Result<&'a mut [T], Errno> {
+    fn mut_slice<T: Sized>(&mut self, offset: WasmPtr<T>, len: usize) -> Result<&mut [T], Errno> {
         unsafe {
             let r = std::mem::size_of::<T>() * len;
             let ptr = self
@@ -89,11 +78,11 @@ impl wasmedge_async_wasi::snapshots::common::memory::Memory for Memory {
         }
     }
 
-    fn mut_iovec<'a>(
-        &'a mut self,
+    fn mut_iovec(
+        &mut self,
         iovec_ptr: WasmPtr<wasmedge_async_wasi::snapshots::env::wasi_types::__wasi_iovec_t>,
         iovec_len: wasmedge_async_wasi::snapshots::env::wasi_types::__wasi_size_t,
-    ) -> Result<Vec<std::io::IoSliceMut<'a>>, Errno> {
+    ) -> Result<Vec<std::io::IoSliceMut<'_>>, Errno> {
         unsafe {
             let iovec = self.get_slice(iovec_ptr, iovec_len as usize)?.to_vec();
             let mut result = Vec::with_capacity(iovec.len());
@@ -111,7 +100,7 @@ impl wasmedge_async_wasi::snapshots::common::memory::Memory for Memory {
         }
     }
 
-    fn write_data<'a, T: Sized>(&'a mut self, offset: WasmPtr<T>, data: T) -> Result<(), Errno> {
+    fn write_data<T: Sized>(&mut self, offset: WasmPtr<T>, data: T) -> Result<(), Errno> {
         let p = self.mut_data(offset)?;
         *p = data;
         Ok(())

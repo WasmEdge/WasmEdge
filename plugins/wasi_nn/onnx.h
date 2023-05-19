@@ -13,7 +13,7 @@ struct WasiNNEnvironment;
 namespace WasmEdge::Host::WASINN::ONNX {
 struct Graph {};
 struct Context {
-  Context(Graph &) noexcept {}
+  Context(size_t, Graph &) noexcept {}
 };
 
 struct Environ {};

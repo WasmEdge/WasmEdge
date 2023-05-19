@@ -50,12 +50,12 @@ Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
   }
 
   // Create context.
-  Env.NNContext.emplace_back(Env.NNGraph[GraphId]);
+  Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
   auto &CxtRef = Env.NNContext.back().get<Context>();
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   auto *TFLiteOps = TfLiteInterpreterOptionsCreate();
   TfLiteInterpreterOptionsSetNumThreads(TFLiteOps, 2);
-  CxtRef.TFLiteInterp =
-      TfLiteInterpreterCreate(CxtRef.GraphRef.TFLiteMod, TFLiteOps);
+  CxtRef.TFLiteInterp = TfLiteInterpreterCreate(GraphRef.TFLiteMod, TFLiteOps);
   TfLiteInterpreterOptionsDelete(TFLiteOps);
   if (unlikely(CxtRef.TFLiteInterp == nullptr)) {
     spdlog::error("[WASI-NN] Cannot create TFLite interpreter.");

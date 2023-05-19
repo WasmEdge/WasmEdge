@@ -176,7 +176,7 @@ Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
   }
 
   // Create context.
-  Env.NNContext.emplace_back(Env.NNGraph[GraphId]);
+  Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
   auto &CtxRef = Env.NNContext.back().get<Context>();
   if (CtxRef.OpenVINOInferRequest == nullptr) {
     spdlog::error("[WASI-NN] Unable to create openvino context");
@@ -192,20 +192,21 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
                                uint32_t ContextId, uint32_t Index,
                                const TensorData &Tensor) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   // Check the infer request and the network.
-  auto *Network = CxtRef.GraphRef.OpenVINONetwork;
+  auto *Network = GraphRef.OpenVINONetwork;
   if (Network == nullptr || CxtRef.OpenVINOInferRequest == nullptr) {
     spdlog::error("[WASI-NN] The founded openvino session is empty");
     return WASINN::ErrNo::MissingMemory;
   }
 
   // Check the input index.
-  if (CxtRef.GraphRef.OpenVINOInputNames.size() <= Index) {
+  if (GraphRef.OpenVINOInputNames.size() <= Index) {
     spdlog::error("[WASI-NN] The input index {} exceeds the inputs number {}.",
-                  Index, CxtRef.GraphRef.OpenVINOInputNames.size());
+                  Index, GraphRef.OpenVINOInputNames.size());
     return WASINN::ErrNo::InvalidArgument;
   }
-  char *InputName = CxtRef.GraphRef.OpenVINOInputNames[Index];
+  char *InputName = GraphRef.OpenVINOInputNames[Index];
 
   if (Tensor.Dimension.size() > 8) {
     spdlog::error(
@@ -318,16 +319,17 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
                                 Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto *Network = CxtRef.GraphRef.OpenVINONetwork;
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto *Network = GraphRef.OpenVINONetwork;
 
   // Check the output index.
-  if (CxtRef.GraphRef.OpenVINOOutputNames.size() <= Index) {
+  if (GraphRef.OpenVINOOutputNames.size() <= Index) {
     spdlog::error(
         "[WASI-NN] The output index {} exceeds the outputs number {}.", Index,
-        CxtRef.GraphRef.OpenVINOOutputNames.size());
+        GraphRef.OpenVINOOutputNames.size());
     return WASINN::ErrNo::InvalidArgument;
   }
-  char *OutputName = CxtRef.GraphRef.OpenVINOOutputNames[Index];
+  char *OutputName = GraphRef.OpenVINOOutputNames[Index];
 
   // Set output precision.
   IEStatusCode Status =

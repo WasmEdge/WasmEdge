@@ -139,6 +139,7 @@ TEST_P(CoreTest, TestSuites) {
     WasmEdge_Result Res;
     std::vector<WasmEdge_Value> CParams = convFromValVec(Params, ParamTypes);
     std::vector<WasmEdge_Value> CReturns;
+    WasmEdge_FunctionInstanceContext *FuncCxt = nullptr;
     WasmEdge_String FieldStr = WasmEdge_StringWrap(
         Field.data(), static_cast<uint32_t>(Field.length()));
     if (!ModName.empty()) {
@@ -148,34 +149,25 @@ TEST_P(CoreTest, TestSuites) {
           ModName.data(), static_cast<uint32_t>(ModName.length()));
       const WasmEdge_ModuleInstanceContext *ModCxt =
           WasmEdge_StoreFindModule(StoreCxt, ModStr);
-      WasmEdge_FunctionInstanceContext *FuncCxt =
-          WasmEdge_ModuleInstanceFindFunction(ModCxt, FieldStr);
-      if (FuncCxt == nullptr) {
-        return Unexpect(ErrCode::Value::FuncNotFound);
-      }
-      const WasmEdge_FunctionTypeContext *FuncType =
-          WasmEdge_FunctionInstanceGetFunctionType(FuncCxt);
-      CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
-      // Execute.
-      Res = WasmEdge_ExecutorInvoke(
-          ExecCxt, FuncCxt, &CParams[0], static_cast<uint32_t>(CParams.size()),
-          &CReturns[0], static_cast<uint32_t>(CReturns.size()));
+      FuncCxt = WasmEdge_ModuleInstanceFindFunction(ModCxt, FieldStr);
     } else {
       // Invoke function of current active module. Get function type to specify
       // the return nums.
-      WasmEdge_FunctionInstanceContext *FuncCxt =
-          WasmEdge_ModuleInstanceFindFunction(ActiveModCxt, FieldStr);
-      if (FuncCxt == nullptr) {
-        return Unexpect(ErrCode::Value::FuncNotFound);
-      }
-      const WasmEdge_FunctionTypeContext *FuncType =
-          WasmEdge_FunctionInstanceGetFunctionType(FuncCxt);
-      CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
-      // Execute.
-      Res = WasmEdge_ExecutorInvoke(
-          ExecCxt, FuncCxt, &CParams[0], static_cast<uint32_t>(CParams.size()),
-          &CReturns[0], static_cast<uint32_t>(CReturns.size()));
+      FuncCxt = WasmEdge_ModuleInstanceFindFunction(ActiveModCxt, FieldStr);
     }
+
+    if (FuncCxt == nullptr) {
+      return Unexpect(ErrCode::Value::FuncNotFound);
+    }
+    const WasmEdge_FunctionTypeContext *FuncType =
+        WasmEdge_FunctionInstanceGetFunctionType(FuncCxt);
+    CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
+
+    // Execute.
+    Res = WasmEdge_ExecutorInvoke(
+        ExecCxt, FuncCxt, CParams.data(), static_cast<uint32_t>(CParams.size()),
+        CReturns.data(), static_cast<uint32_t>(CReturns.size()));
+
     if (!WasmEdge_ResultOK(Res)) {
       return Unexpect(convResult(Res));
     }

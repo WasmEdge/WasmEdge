@@ -77,8 +77,8 @@ jobs:
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
           cargo +nightly -Z sparse-registry update
-          cargo test --workspace --locked --features aot,async,ffi -- --test-threads=1
-          cargo test --examples --locked --features aot,async,ffi -- --test-threads=1
+          cargo test --workspace --locked --features aot,async,wasmedge_process,ffi -- --nocapture
+          cargo test --examples --locked --features --features aot,async,wasmedge_process,ffi -- --nocapture
 
   build_macos:
     name: MacOS

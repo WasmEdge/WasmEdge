@@ -1,5 +1,7 @@
 //! Defines WasmEdge Vm struct.
 
+#[cfg(feature = "async")]
+use crate::r#async::AsyncState;
 use crate::{
     config::Config,
     error::{VmError, WasmEdgeError},
@@ -415,6 +417,8 @@ impl Vm {
     ///
     /// # Arguments
     ///
+    /// * `async_state` - The [AsyncState] to run the wasm function.
+    ///
     /// * `mod_name` - The exported name of the module instance, which holds the target function. If `None`, then the active module is used.
     ///
     /// * `func_name` - The exported name of the target wasm function.
@@ -427,6 +431,7 @@ impl Vm {
     #[cfg(feature = "async")]
     pub async fn run_func_async(
         &self,
+        async_state: &AsyncState,
         mod_name: Option<&str>,
         func_name: impl AsRef<str> + Send,
         args: impl IntoIterator<Item = WasmValue> + Send,
@@ -436,7 +441,7 @@ impl Vm {
                 Some(named_instance) => {
                     named_instance
                         .func(func_name.as_ref())?
-                        .run_async(self.executor(), args)
+                        .run_async(async_state, self.executor(), args)
                         .await
                 }
                 None => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundModule(
@@ -447,7 +452,7 @@ impl Vm {
                 Some(active_instance) => {
                     active_instance
                         .func(func_name.as_ref())?
-                        .run_async(self.executor(), args)
+                        .run_async(async_state, self.executor(), args)
                         .await
                 }
                 None => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundActiveModule))),
@@ -490,6 +495,8 @@ impl Vm {
     ///
     /// # Arguments
     ///
+    /// * `async_state` - The [AsyncState] to run the wasm function.
+    ///
     /// * `module` - A [wasm module](crate::Module).
     ///
     /// * `func_name` - The exported name of the target wasm function.
@@ -502,6 +509,7 @@ impl Vm {
     #[cfg(feature = "async")]
     pub async fn run_func_from_module_async<N, A>(
         &mut self,
+        async_state: &AsyncState,
         module: Module,
         func_name: N,
         args: A,
@@ -515,7 +523,8 @@ impl Vm {
                 .register_active_module(&mut self.executor, &module)?,
         );
 
-        self.run_func_async(None, func_name, args).await
+        self.run_func_async(async_state, None, func_name, args)
+            .await
     }
 
     /// Runs an exported wasm function from the given wasm file.
@@ -547,6 +556,8 @@ impl Vm {
     ///
     /// # Arguments
     ///
+    /// * `async_state` - The [AsyncState] to run the wasm function.
+    ///
     /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// * `func_name` - The exported name of the target wasm function.
@@ -559,6 +570,7 @@ impl Vm {
     #[cfg(feature = "async")]
     pub async fn run_func_from_file_async<P, N, A>(
         &mut self,
+        async_state: &AsyncState,
         file: P,
         func_name: N,
         args: A,
@@ -571,7 +583,7 @@ impl Vm {
         // load module from file
         let module = Module::from_file(self.config.as_ref(), file.as_ref())?;
 
-        self.run_func_from_module_async(module, func_name.as_ref(), args)
+        self.run_func_from_module_async(async_state, module, func_name.as_ref(), args)
             .await
     }
 
@@ -604,6 +616,8 @@ impl Vm {
     ///
     /// # Arguments
     ///
+    /// * `async_state` - The [AsyncState] to run the wasm function.
+    ///
     /// * `bytes` - The in-memory wasm bytes.
     ///
     /// * `func_name` - The exported name of the target wasm function.
@@ -616,6 +630,7 @@ impl Vm {
     #[cfg(feature = "async")]
     pub async fn run_func_from_bytes_async<N, A>(
         &mut self,
+        async_state: &AsyncState,
         bytes: &[u8],
         func_name: N,
         args: A,
@@ -627,7 +642,7 @@ impl Vm {
         // load module from bytes
         let module = Module::from_bytes(self.config.as_ref(), bytes)?;
 
-        self.run_func_from_module_async(module, func_name.as_ref(), args)
+        self.run_func_from_module_async(async_state, module, func_name.as_ref(), args)
             .await
     }
 
@@ -1430,10 +1445,10 @@ mod tests {
         assert_eq!(ty.returns().unwrap(), [ValType::I32]);
     }
 
-    fn real_add(
+    fn real_add<T>(
         _frame: CallingFrame,
         inputs: Vec<WasmValue>,
-        _data: *mut std::os::raw::c_void,
+        _data: Option<&mut T>,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

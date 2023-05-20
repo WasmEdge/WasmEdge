@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let host_layer1 = |_frame: CallingFrame,
                        _args: Vec<WasmValue>,
-                       _data: *mut std::os::raw::c_void|
+                       _data: Option<&mut NeverType>|
      -> Result<Vec<WasmValue>, HostFuncError> {
         println!("There is layer1!");
         Ok(vec![])
@@ -35,7 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let host_layer2 = move |frame: CallingFrame,
                             _args: Vec<WasmValue>,
-                            _data: *mut std::os::raw::c_void|
+                            _data: Option<&mut NeverType>|
           -> Result<Vec<WasmValue>, HostFuncError> {
         let caller = Caller::new(frame);
         let executor = caller.executor().unwrap();

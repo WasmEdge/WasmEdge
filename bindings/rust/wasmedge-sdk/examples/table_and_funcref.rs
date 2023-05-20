@@ -11,7 +11,11 @@ use wasmedge_sdk::{
 };
 
 #[host_function]
-fn real_add(_: Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn real_add<T>(
+    _: Caller,
+    input: Vec<WasmValue>,
+    _data: Option<&mut T>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 2 {
@@ -70,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Not found table instance named 'my-table'");
 
     // create a host function
-    let host_func = Func::wrap::<(i32, i32), i32, NeverType>(Box::new(real_add), None)?;
+    let host_func = Func::wrap::<(i32, i32), i32, NeverType>(real_add, None)?;
 
     // store the reference to host_func at the given index of the table instance
     table.set(3, Val::FuncRef(Some(host_func.as_ref())))?;

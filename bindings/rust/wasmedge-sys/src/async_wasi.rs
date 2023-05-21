@@ -1,5 +1,7 @@
-use crate::instance::function::{AsyncHostFn, HostFn};
-use crate::{CallingFrame, Memory, WasmValue};
+use crate::{
+    instance::function::{AsyncHostFn, HostFn},
+    CallingFrame, Memory, WasmValue,
+};
 use wasi::snapshots::{
     common::{
         error::Errno,
@@ -1566,12 +1568,12 @@ pub enum WasiFunc<T: 'static> {
 
 pub fn wasi_impls() -> Vec<WasiFunc<WasiCtx>> {
     macro_rules! sync_fn {
-        ($name:expr,$ty:expr,$f:ident) => {
+        ($name:expr, $ty:expr, $f:ident) => {
             WasiFunc::SyncFn($name.into(), $ty, $f)
         };
     }
     macro_rules! async_fn {
-        ($name:expr,$ty:expr,$f:ident) => {
+        ($name:expr, $ty:expr, $f:ident) => {
             WasiFunc::AsyncFn($name.into(), $ty, $f)
         };
     }

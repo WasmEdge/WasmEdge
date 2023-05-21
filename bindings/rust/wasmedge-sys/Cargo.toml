@@ -20,7 +20,7 @@ thiserror = "1.0.30"
 wasmedge-macro = {workspace = true}
 wasmedge-types = {workspace = true}
 wat = "1.0"
-wasmedge-async-wasi = {path = "/root/workspace/async-wasi", optional = true}
+wasmedge-async-wasi = {git = "https://github.com/apepkuss/async-wasi.git", branch = "main", optional = true}
 scoped-tls = "1"
 
 [build-dependencies]

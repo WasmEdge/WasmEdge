@@ -4,12 +4,12 @@ use wasmedge_macro::sys_host_function;
 #[cfg(feature = "aot")]
 use wasmedge_sys::{
     AsImport, Compiler, Config, Executor, FuncType, Function, ImportModule, ImportObject, Loader,
-    NeverType, Store, Validator,
+    Store, Validator,
 };
 use wasmedge_sys::{CallingFrame, WasmValue};
 use wasmedge_types::error::HostFuncError;
 #[cfg(feature = "aot")]
-use wasmedge_types::ValType;
+use wasmedge_types::{NeverType, ValType};
 
 #[sys_host_function]
 fn host_print_i32<T>(

@@ -73,6 +73,9 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::DataCountSection>() noexcept {
   return ASTNodeAttr::Sec_DataCount;
 }
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::TagSection>() noexcept {
+  return ASTNodeAttr::Sec_Tag;
+}
 } // namespace
 
 /// Loader flow control class.
@@ -197,6 +200,7 @@ private:
   Expect<void> loadSection(AST::CodeSection &Sec);
   Expect<void> loadSection(AST::DataSection &Sec);
   Expect<void> loadSection(AST::DataCountSection &Sec);
+  Expect<void> loadSection(AST::TagSection &Sec);
   static Expect<void> loadSection(FileMgr &VecMgr, AST::AOTSection &Sec);
   Expect<void> loadSegment(AST::GlobalSegment &GlobSeg);
   Expect<void> loadSegment(AST::ElementSegment &ElemSeg);
@@ -209,6 +213,7 @@ private:
   Expect<void> loadType(AST::MemoryType &MemType);
   Expect<void> loadType(AST::TableType &TabType);
   Expect<void> loadType(AST::GlobalType &GlobType);
+  Expect<void> loadTag(AST::Tag &TagToLoad);
   Expect<void> loadExpression(AST::Expression &Expr,
                               std::optional<uint64_t> SizeBound = std::nullopt);
   Expect<OpCode> loadOpCode();

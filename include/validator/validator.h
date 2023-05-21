@@ -62,6 +62,7 @@ private:
   Expect<void> validate(const AST::DataSection &DataSec);
   Expect<void> validate(const AST::StartSection &StartSec);
   Expect<void> validate(const AST::ExportSection &ExportSec);
+  Expect<void> validate(const AST::TagSection &TagSec);
 
   /// Validate const expression
   Expect<void> validateConstExpr(AST::InstrView Instrs,

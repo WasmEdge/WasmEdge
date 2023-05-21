@@ -210,5 +210,28 @@ Expect<void> Loader::loadType(AST::GlobalType &GlobType) {
   return {};
 }
 
+// Load binary to construct Tag node. See "include/loader/loader.h".
+Expect<void> Loader::loadTag(AST::Tag &TagToLoad) {
+  if (auto Res = FMgr.readByte()) {
+    // The preserved byte for future extension possibility for tag
+    // It supports only 0x00 currently, which is for exception handling.
+    if (unlikely(*Res != 0x00)) {
+      return logLoadError(ErrCode::Value::ExpectedZeroByte,
+                          FMgr.getLastOffset(), ASTNodeAttr::Sec_Tag);
+    }
+    TagToLoad.setAttribute(*Res);
+  } else {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Sec_Tag);
+  }
+  if (auto Res = FMgr.readU32()) {
+    TagToLoad.setTypeIdx(*Res);
+  } else {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Sec_Tag);
+  }
+  return {};
+}
+
 } // namespace Loader
 } // namespace WasmEdge

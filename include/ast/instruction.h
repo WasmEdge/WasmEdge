@@ -28,8 +28,10 @@ class Instruction {
 public:
   struct JumpDescriptor {
     uint32_t TargetIndex;
-    uint32_t StackEraseBegin;
-    uint32_t StackEraseEnd;
+    uint32_t ValueStackEraseBegin;
+    uint32_t ValueStackEraseEnd;
+    uint32_t HandlerStackOffset;
+    uint32_t CaughtStackOffset;
     int32_t PCOffset;
   };
 
@@ -46,12 +48,15 @@ public:
 #endif
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
+    Flags.IsTryLast = false;
+    Flags.IsCatchLast = false;
+    Flags.IsDelegate = false;
   }
 
   /// Copy constructor.
   Instruction(const Instruction &Instr)
       : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
-        Flags(Instr.Flags) {
+        Flags(Instr.Flags), JumpCatch(Instr.JumpCatch) {
     if (Flags.IsAllocLabelList) {
       Data.BrTable.LabelList = new JumpDescriptor[Data.BrTable.LabelListSize];
       std::copy_n(Instr.Data.BrTable.LabelList, Data.BrTable.LabelListSize,
@@ -66,7 +71,7 @@ public:
   /// Move constructor.
   Instruction(Instruction &&Instr)
       : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
-        Flags(Instr.Flags) {
+        Flags(Instr.Flags), JumpCatch(Instr.JumpCatch) {
     Instr.Flags.IsAllocLabelList = false;
     Instr.Flags.IsAllocValTypeList = false;
   }
@@ -90,12 +95,21 @@ public:
   uint32_t getOffset() const noexcept { return Offset; }
 
   /// Getter and setter of block type.
-  BlockType getBlockType() const noexcept { return Data.Blocks.ResType; }
-  void setBlockType(ValType VType) noexcept {
-    Data.Blocks.ResType.setData(VType);
+  BlockType getBlockType() const noexcept {
+    return Code == OpCode::Try ? Data.TryBlock.ResType : Data.Blocks.ResType;
   }
-  void setBlockType(uint32_t Idx) noexcept { Data.Blocks.ResType.setData(Idx); }
-  void setEmptyBlockType() noexcept { Data.Blocks.ResType.setEmpty(); }
+  void setBlockType(ValType VType) noexcept {
+    Code == OpCode::Try ? Data.TryBlock.ResType.setData(VType)
+                        : Data.Blocks.ResType.setData(VType);
+  }
+  void setBlockType(uint32_t Idx) noexcept {
+    Code == OpCode::Try ? Data.TryBlock.ResType.setData(Idx)
+                        : Data.Blocks.ResType.setData(Idx);
+  }
+  void setEmptyBlockType() noexcept {
+    Code == OpCode::Try ? Data.TryBlock.ResType.setEmpty()
+                        : Data.Blocks.ResType.setEmpty();
+  }
 
   /// Getter and setter of jump count to End instruction.
   uint32_t getJumpEnd() const noexcept { return Data.Blocks.JumpEnd; }
@@ -179,6 +193,64 @@ public:
   uint8_t getMemoryLane() const noexcept { return Data.Memories.MemLane; }
   uint8_t &getMemoryLane() noexcept { return Data.Memories.MemLane; }
 
+  /// Getter and setter of jump count to each catch instruction.
+  const std::vector<uint32_t> &getTryBlockJumpCatch() const noexcept {
+    return JumpCatch;
+  }
+  std::vector<uint32_t> &getTryBlockJumpCatch() noexcept { return JumpCatch; }
+
+  /// Getter and setter of jump count to catch_all instruction.
+  uint32_t getTryBlockJumpCatchAll() const noexcept {
+    return Data.TryBlock.JumpCatchAll;
+  }
+  void setTryBlockJumpCatchAll(const uint32_t Cnt) noexcept {
+    Data.TryBlock.JumpCatchAll = Cnt;
+  }
+
+  /// Getter and setter of jump count to the end of try block.
+  uint32_t getTryBlockJumpEnd() const noexcept { return Data.TryBlock.JumpEnd; }
+  void setTryBlockJumpEnd(const uint32_t Cnt) noexcept {
+    Data.TryBlock.JumpEnd = Cnt;
+  }
+
+  /// Getter and setter of number of block type parameter.
+  uint32_t getTryBlockBlockParamNum() const noexcept {
+    return Data.TryBlock.BlockParamNum;
+  }
+  void setTryBlockBlockParamNum(const uint32_t Num) noexcept {
+    Data.TryBlock.BlockParamNum = Num;
+  }
+
+  /// Getter and setter of jump count to delegate instruction.
+  uint32_t getTryBlockDelegate() const noexcept {
+    return Data.TryBlock.DelegateIdx;
+  }
+  void setTryBlockDelegate(const uint32_t Cnt) noexcept {
+    Data.TryBlock.DelegateIdx = Cnt;
+  }
+
+  /// Getter and setter of VSize
+  uint32_t getTryBlockVSize() const noexcept { return Data.TryBlock.VSize; }
+  void setTryBlockVSize(const uint32_t Num) noexcept {
+    Data.TryBlock.VSize = Num;
+  }
+
+  /// Getter and setter of HOffset
+  uint32_t getTryBlockHOffset() const noexcept { return Data.TryBlock.HOffset; }
+  void setTryBlockHOffset(const uint32_t Num) noexcept {
+    Data.TryBlock.HOffset = Num;
+  }
+
+  /// Getter and setter of COffset
+  uint32_t getTryBlockCOffset() const noexcept { return Data.TryBlock.COffset; }
+  void setTryBlockCOffset(const uint32_t Num) noexcept {
+    Data.TryBlock.COffset = Num;
+  }
+
+  /// Getter of tag index.
+  uint32_t getTagIdx() const noexcept { return Data.Tag.TagIdx; }
+  uint32_t &getTagIdx() noexcept { return Data.Tag.TagIdx; }
+
   /// Getter and setter of the constant value.
   ValVariant getNum() const noexcept {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
@@ -197,6 +269,18 @@ public:
     std::memcpy(&Data.Num, &N.get<uint128_t>(), sizeof(uint128_t));
 #endif
   }
+
+  /// Getter and setter of IsLast for End instruction.
+  bool isTryLast() const noexcept { return Flags.IsTryLast; }
+  void setTryLast(bool Last = true) noexcept { Flags.IsTryLast = Last; }
+
+  /// Getter and setter of IsLast for End instruction.
+  bool isCatchLast() const noexcept { return Flags.IsCatchLast; }
+  void setCatchLast(bool Last = true) noexcept { Flags.IsCatchLast = Last; }
+
+  /// Getter and setter of IsLast for End instruction.
+  bool isDelegate() const noexcept { return Flags.IsDelegate; }
+  void setDelegate(bool Last = true) noexcept { Flags.IsDelegate = Last; }
 
 private:
   /// Release allocated resources.
@@ -268,13 +352,34 @@ private:
 #endif
     // Type 9: IsLast.
     bool IsLast;
+    // Type 10: Try Block
+    struct {
+      uint32_t JumpCatchAll;
+      uint32_t JumpEnd;
+      uint32_t BlockParamNum;
+      uint32_t DelegateIdx;
+      uint32_t VSize;
+      uint32_t HOffset;
+      uint32_t COffset;
+      BlockType ResType;
+    } TryBlock;
+    // Type 11: Tag
+    struct {
+      uint32_t TagIdx;
+    } Tag;
   } Data;
   uint32_t Offset = 0;
   OpCode Code = OpCode::End;
   struct {
     bool IsAllocLabelList : 1;
     bool IsAllocValTypeList : 1;
+    bool IsTryLast : 1;
+    bool IsCatchLast : 1;
+    bool IsDelegate : 1;
   } Flags;
+
+  // TODO: Need refactor
+  std::vector<uint32_t> JumpCatch;
   /// @}
 };
 

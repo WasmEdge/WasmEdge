@@ -66,6 +66,10 @@ Expect<void> Loader::loadDesc(AST::ImportDesc &ImpDesc) {
     }
     return {};
   }
+  case ExternalType::Tag: {
+    // Read the Tag node.
+    return loadTag(ImpDesc.getExternalTag());
+  }
   default:
     return logLoadError(ErrCode::Value::MalformedImportKind,
                         FMgr.getLastOffset(), ASTNodeAttr::Desc_Import);
@@ -95,6 +99,7 @@ Expect<void> Loader::loadDesc(AST::ExportDesc &ExpDesc) {
   case ExternalType::Table:
   case ExternalType::Memory:
   case ExternalType::Global:
+  case ExternalType::Tag:
     break;
   default:
     return logLoadError(ErrCode::Value::MalformedExportKind,

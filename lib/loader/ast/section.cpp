@@ -175,6 +175,15 @@ Expect<void> Loader::loadSection(AST::DataCountSection &Sec) {
   });
 }
 
+Expect<void> Loader::loadSection(AST::TagSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(Sec,
+                                 [this](AST::Tag &TagToLoad) -> Expect<void> {
+                                   return loadTag(TagToLoad);
+                                 });
+  });
+}
+
 namespace {
 
 inline constexpr uint32_t HostVersion() noexcept {

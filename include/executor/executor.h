@@ -227,6 +227,10 @@ private:
   Expect<void> instantiate(Runtime::Instance::ModuleInstance &ModInst,
                            const AST::MemorySection &MemSec);
 
+  /// Instantiateion of Tag Instances.
+  Expect<void> instantiate(Runtime::Instance::ModuleInstance &ModInst,
+                           const AST::TagSection &TagSec);
+
   /// Instantiation of Global Instances.
   Expect<void> instantiate(Runtime::StackManager &StackMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
@@ -265,9 +269,16 @@ private:
 
   /// Helper function for branching to label.
   Expect<void> branchToLabel(Runtime::StackManager &StackMgr,
-                             uint32_t EraseBegin, uint32_t EraseEnd,
-                             int32_t PCOffset,
+                             uint32_t ValueStackEraseBegin,
+                             uint32_t ValueStackEraseEnd,
+                             uint32_t HandlerStackOffset,
+                             uint32_t CaughtStackOffset, int32_t PCOffset,
                              AST::InstrView::iterator &PC) noexcept;
+
+  /// Helper function for throwing an exception.
+  Expect<void> throwException(Runtime::StackManager &StackMgr,
+                              Runtime::Instance::TagInstance *,
+                              AST::InstrView::iterator &PC) noexcept;
   /// @}
 
   /// \name Helper Functions for getting instances.
@@ -279,6 +290,10 @@ private:
   /// Helper function for get memory instance by index.
   Runtime::Instance::MemoryInstance *
   getMemInstByIdx(Runtime::StackManager &StackMgr, const uint32_t Idx) const;
+
+  /// Helper function for get tag instance by index.
+  Runtime::Instance::TagInstance *
+  getTagInstByIdx(Runtime::StackManager &StackMgr, const uint32_t Idx) const;
 
   /// Helper function for get global instance by index.
   Runtime::Instance::GlobalInstance *
@@ -299,6 +314,15 @@ private:
   Expect<void> runIfElseOp(Runtime::StackManager &StackMgr,
                            const AST::Instruction &Instr,
                            AST::InstrView::iterator &PC) noexcept;
+  Expect<void> runTryOp(Runtime::StackManager &StackMgr,
+                        const AST::Instruction &Instr,
+                        AST::InstrView::iterator &PC) noexcept;
+  Expect<void> runThrowOp(Runtime::StackManager &StackMgr,
+                          const AST::Instruction &Instr,
+                          AST::InstrView::iterator &PC) noexcept;
+  Expect<void> runRethrowOp(Runtime::StackManager &StackMgr,
+                            const AST::Instruction &Instr,
+                            AST::InstrView::iterator &PC) noexcept;
   Expect<void> runBrOp(Runtime::StackManager &StackMgr,
                        const AST::Instruction &Instr,
                        AST::InstrView::iterator &PC) noexcept;

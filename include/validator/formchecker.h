@@ -62,6 +62,7 @@ public:
   void addRef(const uint32_t FuncIdx);
   void addLocal(const ValType &V);
   void addLocal(const VType &V);
+  void addTag(const uint32_t TypeIdx);
 
   std::vector<VType> result() { return ValStack; }
   auto &getTypes() { return Types; }
@@ -69,6 +70,7 @@ public:
   auto &getTables() { return Tables; }
   auto &getMemories() { return Mems; }
   auto &getGlobals() { return Globals; }
+  auto &getTags() { return Tags; }
   uint32_t getNumImportFuncs() const { return NumImportFuncs; }
   uint32_t getNumImportGlobals() const { return NumImportGlobals; }
 
@@ -137,6 +139,7 @@ private:
   uint32_t NumImportGlobals = 0;
   std::vector<VType> Locals;
   std::vector<VType> Returns;
+  std::vector<uint32_t> Tags;
 
   /// Running stack.
   std::vector<CtrlFrame> CtrlStack;

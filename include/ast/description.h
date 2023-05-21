@@ -59,6 +59,8 @@ public:
   MemoryType &getExternalMemoryType() noexcept { return MemType; }
   const GlobalType &getExternalGlobalType() const noexcept { return GlobType; }
   GlobalType &getExternalGlobalType() noexcept { return GlobType; }
+  const Tag &getExternalTag() const noexcept { return Tg; }
+  Tag &getExternalTag() noexcept { return Tg; }
 
 private:
   /// \name Data of ImportDesc: Module name, External name, and content node.
@@ -68,6 +70,7 @@ private:
   TableType TabType;
   MemoryType MemType;
   GlobalType GlobType;
+  Tag Tg;
   /// @}
 };
 

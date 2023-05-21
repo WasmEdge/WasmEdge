@@ -206,5 +206,38 @@ private:
   /// @}
 };
 
+class TagType {
+public:
+  TagType() = delete;
+  TagType(const AST::FunctionType &FType) noexcept : Type(FType) {}
+  // Getter of FunctionType
+  FunctionType &getFunctionType() noexcept { return Type; }
+  const FunctionType &getFunctionType() const noexcept { return Type; }
+
+  // Getter of the size of value that is associated with the tag
+  size_t getAssocValSize() const noexcept {
+    return Type.getParamTypes().size();
+  }
+
+private:
+  FunctionType Type;
+};
+
+class Tag {
+public:
+  Tag() = default;
+  /// Getter and setter of Attribute.
+  uint8_t getAttribute() const noexcept { return Attribute; }
+  void setAttribute(uint8_t Attr) noexcept { Attribute = Attr; }
+
+  /// Getter and setter of TypeIdx.
+  uint32_t getTypeIdx() const noexcept { return TypeIdx; }
+  void setTypeIdx(uint32_t TyIdx) noexcept { TypeIdx = TyIdx; }
+
+private:
+  uint8_t Attribute;
+  uint32_t TypeIdx;
+};
+
 } // namespace AST
 } // namespace WasmEdge

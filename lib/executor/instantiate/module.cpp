@@ -75,6 +75,11 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // This function will always success.
   instantiate(*ModInst, MemSec);
 
+  // Instantiate TagSection (TagSec)
+  const AST::TagSection &TagSec = Mod.getTagSection();
+  // This function will always success.
+  instantiate(*ModInst, TagSec);
+
   // Add a temp module to Store with only imported globals for initialization.
   std::unique_ptr<Runtime::Instance::ModuleInstance> TmpModInst =
       std::make_unique<Runtime::Instance::ModuleInstance>("");

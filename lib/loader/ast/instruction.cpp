@@ -54,10 +54,14 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
       return Unexpect(Res);
     }
 
-    // Process the instructions which contain a block.
-    if (Code == OpCode::Block || Code == OpCode::Loop || Code == OpCode::If) {
+    switch (Code) {
+    case OpCode::Block:
+    case OpCode::Loop:
+    case OpCode::If:
+    case OpCode::Try:
       BlockStack.push_back(std::make_pair(Code, Cnt));
-    } else if (Code == OpCode::Else) {
+      break;
+    case OpCode::Else: {
       if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::If) {
         // An Else instruction appeared outside the If-block.
         if (SizeBound.has_value() && FMgr.getOffset() > SizeBound.value()) {
@@ -80,29 +84,92 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
         }
       }
       Instrs[Pos].setJumpElse(Cnt - Pos);
-    } else if (Code == OpCode::End) {
+      break;
+    }
+    case OpCode::Catch: {
+      if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::Try) {
+        // A Catch instruction appeared outside a try-block.
+        return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
+                            ASTNodeAttr::Instruction);
+      }
+      uint32_t Pos = BlockStack.back().second;
+      if (Instrs[Pos].getTryBlockJumpCatchAll() != 0) {
+        // A Catch shouldn't behind a Catch_all in the same block.
+        return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
+                            ASTNodeAttr::Instruction);
+      }
+      auto &TryBlockJumpCatch = Instrs[Pos].getTryBlockJumpCatch();
+      TryBlockJumpCatch.push_back(Cnt - Pos);
+      break;
+    }
+    case OpCode::Catch_all: {
+      if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::Try) {
+        // A Catch_all instruction appeared outside a try-block.
+        return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
+                            ASTNodeAttr::Instruction);
+      }
+      uint32_t Pos = BlockStack.back().second;
+      if (Instrs[Pos].getTryBlockJumpCatchAll() != 0) {
+        // A try block may contain only one Catch_all instruction.
+        return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
+                            ASTNodeAttr::Instruction);
+      }
+      Instrs[Pos].setTryBlockJumpCatchAll(Cnt - Pos);
+      break;
+    }
+    case OpCode::Delegate: {
+      if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::Try) {
+        // A Delegate instruction appeared outside a try-block.
+        return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
+                            ASTNodeAttr::Instruction);
+      }
+      uint32_t Pos = BlockStack.back().second;
+      if (!Instrs[Pos].getTryBlockJumpCatch().empty() ||
+          Instrs[Pos].getTryBlockJumpCatchAll() != 0) {
+        // A Try-Delegate block shouldn't contain Catch or Catch_all.
+        return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
+                            ASTNodeAttr::Instruction);
+      }
+      Instrs[Pos].setDelegate();
+      Instrs[Pos].setTryBlockJumpEnd(Cnt - Pos);
+      break;
+    }
+    case OpCode::End:
       if (BlockStack.size() > 0) {
-        uint32_t Pos = BlockStack.back().second;
-        Instrs[Pos].setJumpEnd(Cnt - Pos);
-        if (BlockStack.back().first == OpCode::If) {
-          if (Instrs[Pos].getJumpElse() == 0) {
-            // If block without else. Set the else jump the same as end jump.
-            Instrs[Pos].setJumpElse(Cnt - Pos);
-          } else {
-            const uint32_t ElsePos = Pos + Instrs[Pos].getJumpElse();
-            Instrs[ElsePos].setJumpEnd(Cnt - ElsePos);
+        const auto [BackOp, Pos] = BlockStack.back();
+        if (BackOp == OpCode::Block || BackOp == OpCode::Loop ||
+            BackOp == OpCode::If) {
+          Instrs[Pos].setJumpEnd(Cnt - Pos);
+          if (BackOp == OpCode::If) {
+            if (Instrs[Pos].getJumpElse() == 0) {
+              // If block without else. Set the else jump the same as end jump.
+              Instrs[Pos].setJumpElse(Cnt - Pos);
+            } else {
+              const uint32_t ElsePos = Pos + Instrs[Pos].getJumpElse();
+              Instrs[ElsePos].setJumpEnd(Cnt - ElsePos);
+            }
           }
+        } else if (BackOp == OpCode::Try) {
+          Instrs[Pos].setTryBlockJumpEnd(Cnt - Pos);
         }
         BlockStack.pop_back();
       } else {
         IsReachEnd = true;
       }
+      break;
+    default:
+      break;
     }
 
     // Create the instruction node and load contents.
     Instrs.emplace_back(Code, static_cast<uint32_t>(Offset));
     if (auto Res = loadInstruction(Instrs.back()); !Res) {
       return Unexpect(Res);
+    }
+    if (Code == OpCode::Delegate) {
+      uint32_t Pos = BlockStack.back().second;
+      Instrs[Pos].setTryBlockDelegate(Instrs.back().getJump().TargetIndex);
+      BlockStack.pop_back();
     }
     if (Code == OpCode::End) {
       if (IsReachEnd) {
@@ -191,11 +258,13 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Return:
   case OpCode::End:
   case OpCode::Else:
+  case OpCode::Catch_all:
     return {};
 
   case OpCode::Block:
   case OpCode::Loop:
   case OpCode::If:
+  case OpCode::Try:
     // Read the block return type.
     if (auto Res = FMgr.readS33()) {
       if (*Res < 0) {
@@ -230,6 +299,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Br:
   case OpCode::Br_if:
+  case OpCode::Delegate:
+  case OpCode::Rethrow:
     return readU32(Instr.getJump().TargetIndex);
 
   case OpCode::Br_table: {
@@ -277,6 +348,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     }
     return {};
   }
+
+  case OpCode::Catch:
+  case OpCode::Throw:
+    return readU32(Instr.getTagIdx());
 
   // Reference Instructions.
   case OpCode::Ref__null:
@@ -1013,6 +1088,14 @@ Expect<void> Loader::checkInstrProposals(OpCode Code,
     if (!Conf.hasProposal(Proposal::Threads)) {
       return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::Threads,
                              Offset, ASTNodeAttr::Instruction);
+    }
+  } else if ((Code >= OpCode::Try && Code <= OpCode::Rethrow) ||
+             Code == OpCode::Delegate || Code == OpCode::Catch_all) {
+    // These instructions are for ExceptionHandling proposal.
+    if (!Conf.hasProposal(Proposal::ExceptionHandling)) {
+      return logNeedProposal(ErrCode::Value::IllegalOpCode,
+                             Proposal::ExceptionHandling, Offset,
+                             ASTNodeAttr::Instruction);
     }
   }
   return {};

@@ -35,6 +35,7 @@ A(Sec_Element, "element section")
 A(Sec_Code, "code section")
 A(Sec_Data, "data section")
 A(Sec_DataCount, "data count section")
+A(Sec_Tag, "tag section")
 A(Desc_Import, "import description")
 A(Desc_Export, "export description")
 A(Seg_Global, "global segment")
@@ -63,6 +64,10 @@ O(Block, 0x02, "block")
 O(Loop, 0x03, "loop")
 O(If, 0x04, "if")
 O(Else, 0x05, "else")
+O(Try, 0x06, "try")
+O(Catch, 0x07, "catch")
+O(Throw, 0x08, "throw")
+O(Rethrow, 0x09, "rethrow")
 O(End, 0x0B, "end")
 O(Br, 0x0C, "br")
 O(Br_if, 0x0D, "br_if")
@@ -72,6 +77,8 @@ O(Call, 0x10, "call")
 O(Call_indirect, 0x11, "call_indirect")
 O(Return_call, 0x12, "return_call")
 O(Return_call_indirect, 0x13, "return_call_indirect")
+O(Delegate, 0x18, "delegate")
+O(Catch_all, 0x19, "catch_all")
 
 // Reference Instructions
 O(Ref__null, 0xD0, "ref.null")
@@ -783,6 +790,12 @@ E(InvalidMemPages, 0x53, "memory size must be at most 65536 pages (4GiB)")
 E(InvalidStartFunc, 0x54, "start function")
 // Invalid lane index
 E(InvalidLaneIdx, 0x55, "invalid lane index")
+// Tag index not defined
+E(InvalidTagIdx, 0x56, "unknown tag")
+// Invalid Tag type
+E(InvalidTag, 0x57, "non-empty tag result type")
+// Invalid rethrow label
+E(InvalidRethrowLabel, 0x58, "invalid rethrow label")
 // @}
 
 // Instantiation phase
@@ -835,6 +848,8 @@ E(RefTypeMismatch, 0x8E, "reference type mismatch")
 E(UnalignedAtomicAccess, 0x8F, "unaligned atomic")
 // wait32/wait64 on unshared memory
 E(ExpectSharedMemory, 0x90, "expected shared memory")
+// Uncaught Exception
+E(UncaughtException, 0x91, "uncaught exception")
 // @}
 
 #undef E
@@ -894,6 +909,8 @@ I(Global, "global")
 I(Element, "element")
 I(Data, "data")
 I(Lane, "lane")
+I(TagType, "tag type")
+I(Tag, "tag")
 
 #undef I
 #endif // UseIndexCategory
@@ -951,6 +968,7 @@ E(Function, 0x00U, "function")
 E(Table, 0x01U, "table")
 E(Memory, 0x02U, "memory")
 E(Global, 0x03U, "global")
+E(Tag, 0x04, "tag")
 
 #undef E
 #endif // UseExternalType

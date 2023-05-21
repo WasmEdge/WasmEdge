@@ -41,6 +41,7 @@ void FormChecker::reset(bool CleanGlobal) {
     Datas.clear();
     Elems.clear();
     Refs.clear();
+    Tags.clear();
     NumImportFuncs = 0;
     NumImportGlobals = 0;
   }
@@ -113,6 +114,8 @@ void FormChecker::addLocal(const ValType &V) {
 }
 
 void FormChecker::addLocal(const VType &V) { Locals.push_back(V); }
+
+void FormChecker::addTag(const uint32_t TypeIdx) { Tags.push_back(TypeIdx); }
 
 VType FormChecker::ASTToVType(const ValType &V) {
   switch (V) {
@@ -231,6 +234,19 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return static_cast<uint32_t>(CtrlStack.size()) - UINT32_C(1) - N;
   };
 
+  auto countCtrlStackType =
+      [this](uint32_t N) -> std::pair<uint32_t, uint32_t> {
+    uint32_t CatchCnt = 0, TryCnt = 0;
+    for (auto it = CtrlStack.begin() + N; it != CtrlStack.end(); it++) {
+      if (it->Code == OpCode::Try)
+        TryCnt++;
+      if (it->Code == OpCode::Catch || it->Code == OpCode::Catch_all) {
+        CatchCnt++;
+      }
+    }
+    return {TryCnt, CatchCnt};
+  };
+
   // Helper lambda for checking memory index and perform transformation.
   auto checkMemAndTrans = [this,
                            &Instr](Span<const VType> Take,
@@ -300,6 +316,19 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return {};
   };
 
+  auto setJumpDescriptor = [this, &Instr, &countCtrlStackType](
+                               uint32_t D, const auto &NTypes, auto &Jump) {
+    const uint32_t Remain =
+        static_cast<uint32_t>(ValStack.size() - CtrlStack[D].Height);
+    const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
+    Jump.ValueStackEraseBegin = Remain + Arity;
+    Jump.ValueStackEraseEnd = Arity;
+    auto [TryCnt, CatchCnt] = countCtrlStackType(D);
+    Jump.HandlerStackOffset = TryCnt;
+    Jump.CaughtStackOffset = CatchCnt;
+    Jump.PCOffset = static_cast<int32_t>(CtrlStack[D].Jump - &Instr);
+  };
+
   switch (Instr.getOpCode()) {
   // Control instructions.
   case OpCode::Unreachable:
@@ -313,6 +342,21 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(Res);
     }
     [[fallthrough]];
+  case OpCode::Try:
+    if (Instr.getOpCode() == OpCode::Try && Instr.isDelegate()) {
+      if (auto D = checkCtrlStackDepth(Instr.getTryBlockDelegate()); !D) {
+        return Unexpect(D);
+      } else {
+        // Delegate to the label itself, not before the label
+        auto [TryCnt, CatchCnt] = countCtrlStackType(*D + 1);
+        auto &NonConstInstr = const_cast<AST::Instruction &>(Instr);
+        NonConstInstr.setTryBlockVSize(CtrlStack[*D + 1].Height);
+        // The try block itself may push an additional handler to stack
+        NonConstInstr.setTryBlockHOffset(TryCnt);
+        NonConstInstr.setTryBlockCOffset(CatchCnt);
+      }
+    }
+    [[fallthrough]];
   case OpCode::Block:
   case OpCode::Loop: {
     // Get blocktype [t1*] -> [t2*]
@@ -322,6 +366,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       std::tie(T1, T2) = std::move(*Res);
     } else {
       return Unexpect(Res);
+    }
+    if (Instr.getOpCode() == OpCode::Try) {
+      const_cast<AST::Instruction &>(Instr).setTryBlockBlockParamNum(T1.size());
     }
     // Pop and check [t1*]
     if (auto Res = popTypes(T1); !Res) {
@@ -344,19 +391,89 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   case OpCode::Else:
     if (auto Res = popCtrl()) {
-      pushCtrl((*Res).StartTypes, (*Res).EndTypes, Res->Jump,
+      pushCtrl(Res->StartTypes, Res->EndTypes, Res->Jump, Instr.getOpCode());
+    } else {
+      return Unexpect(Res);
+    }
+    return {};
+
+  case OpCode::Catch:
+    if (CtrlStack.back().Code == OpCode::Try) {
+      const_cast<AST::Instruction &>(Instr).setTryLast();
+    }
+    if (auto Res = popCtrl()) {
+      auto N = Instr.getTagIdx();
+      if (N >= Tags.size()) {
+        return logOutOfRange(ErrCode::Value::InvalidTagIdx,
+                             ErrInfo::IndexCategory::Tag, N,
+                             static_cast<uint32_t>(Tags.size()));
+      }
+      // Validity of the tag type has been checked in tag section
+      const auto &[T3, T4] = Types[Tags[N]];
+      pushCtrl(T3, Res->EndTypes, Res->Jump, Instr.getOpCode());
+    } else {
+      return Unexpect(Res);
+    }
+    return {};
+  case OpCode::Catch_all:
+    if (CtrlStack.back().Code == OpCode::Try) {
+      const_cast<AST::Instruction &>(Instr).setTryLast();
+    }
+    if (auto Res = popCtrl()) {
+      pushCtrl(Span<const VType>(), Res->EndTypes, Res->Jump,
                Instr.getOpCode());
     } else {
       return Unexpect(Res);
     }
     return {};
-  case OpCode::End:
+  case OpCode::Delegate:
     if (auto Res = popCtrl()) {
-      pushTypes((*Res).EndTypes);
+      pushTypes(Res->EndTypes);
     } else {
       return Unexpect(Res);
     }
     return {};
+  case OpCode::End:
+    if (auto Code = CtrlStack.back().Code; Code == OpCode::Try) {
+      const_cast<AST::Instruction &>(Instr).setTryLast();
+    } else if (Code == OpCode::Catch || Code == OpCode::Catch_all) {
+      const_cast<AST::Instruction &>(Instr).setCatchLast();
+    }
+    if (auto Res = popCtrl()) {
+      pushTypes(Res->EndTypes);
+    } else {
+      return Unexpect(Res);
+    }
+    return {};
+
+  case OpCode::Throw: {
+    auto N = Instr.getTagIdx();
+    if (N >= Tags.size()) {
+      return logOutOfRange(ErrCode::Value::InvalidTagIdx,
+                           ErrInfo::IndexCategory::Tag, N,
+                           static_cast<uint32_t>(Tags.size()));
+    }
+    auto &[TTypes, _] = Types[Tags[N]];
+    if (auto Res = popTypes(TTypes); !Res) {
+      return Unexpect(Res);
+    }
+    return unreachable();
+  }
+  case OpCode::Rethrow: {
+    auto LabelIdx = Instr.getJump().TargetIndex;
+    if (auto D = checkCtrlStackDepth(LabelIdx); !D) {
+      return Unexpect(D);
+    } else if (auto LabelCode = CtrlStack[*D].Code;
+               LabelCode != OpCode::Catch && LabelCode != OpCode::Catch_all) {
+      spdlog::error(ErrCode::Value::InvalidRethrowLabel);
+      return Unexpect(ErrCode::Value::InvalidRethrowLabel);
+    } else {
+      auto [TryCnt, CatchCnt] = countCtrlStackType(*D);
+      auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
+      Jump.CaughtStackOffset = CatchCnt;
+      return unreachable();
+    }
+  }
 
   case OpCode::Br:
     if (auto D = checkCtrlStackDepth(Instr.getJump().TargetIndex); !D) {
@@ -367,13 +484,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       if (auto Res = popTypes(NTypes); !Res) {
         return Unexpect(Res);
       }
-      const uint32_t Remain =
-          static_cast<uint32_t>(ValStack.size() - CtrlStack[*D].Height);
-      const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
-      auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
-      Jump.StackEraseBegin = Remain + Arity;
-      Jump.StackEraseEnd = Arity;
-      Jump.PCOffset = static_cast<int32_t>(CtrlStack[*D].Jump - &Instr);
+      setJumpDescriptor(*D, NTypes,
+                        const_cast<AST::Instruction &>(Instr).getJump());
       return unreachable();
     }
   case OpCode::Br_if:
@@ -388,13 +500,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       if (auto Res = popTypes(NTypes); !Res) {
         return Unexpect(Res);
       }
-      const uint32_t Remain =
-          static_cast<uint32_t>(ValStack.size() - CtrlStack[*D].Height);
-      const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
-      auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
-      Jump.StackEraseBegin = Remain + Arity;
-      Jump.StackEraseEnd = Arity;
-      Jump.PCOffset = static_cast<int32_t>(CtrlStack[*D].Jump - &Instr);
+      setJumpDescriptor(*D, NTypes,
+                        const_cast<AST::Instruction &>(Instr).getJump());
       pushTypes(NTypes);
       return {};
     }
@@ -434,13 +541,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
               return Unexpect(Res);
             }
           }
-          const uint32_t Remain =
-              static_cast<uint32_t>(ValStack.size() - CtrlStack[*N].Height);
-          const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
-          LabelTable[LabelIdx].StackEraseBegin = Remain + Arity;
-          LabelTable[LabelIdx].StackEraseEnd = Arity;
-          LabelTable[LabelIdx].PCOffset =
-              static_cast<int32_t>(CtrlStack[*N].Jump - &Instr);
+          setJumpDescriptor(*N, NTypes, LabelTable[LabelIdx]);
           pushTypes(TypeBuf);
         } else {
           return Unexpect(N);
@@ -450,13 +551,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       if (auto Res = popTypes(NTypes); !Res) {
         return Unexpect(Res);
       }
-      const uint32_t Remain =
-          static_cast<uint32_t>(ValStack.size() - CtrlStack[*M].Height);
-      const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
-      LabelTable[LabelTableSize].StackEraseBegin = Remain + Arity;
-      LabelTable[LabelTableSize].StackEraseEnd = Arity;
-      LabelTable[LabelTableSize].PCOffset =
-          static_cast<int32_t>(CtrlStack[*M].Jump - &Instr);
+      setJumpDescriptor(*M, NTypes, LabelTable[LabelTableSize]);
       return unreachable();
     } else {
       return Unexpect(M);

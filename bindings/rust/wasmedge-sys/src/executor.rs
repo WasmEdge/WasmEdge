@@ -618,8 +618,7 @@ mod tests {
         let result = executor.register_import_object(&mut store, &wasi_import);
         assert!(result.is_ok());
 
-        let module = Loader::create(None)?
-            .from_file("/root/workspace/wasmedge_sdk_async_wasi/async_hello.wasm")?;
+        let module = Loader::create(None)?.from_file("examples/async_hello.wasm")?;
         Validator::create(None)?.validate(&module)?;
         let instance = executor.register_active_module(&mut store, &module)?;
         let fn_start = instance.get_func("_start")?;

@@ -68,7 +68,11 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
-  
+      
+      - name: Build Async-Hello for Testing
+        working-directory: bindings/rust/wasmedge-sys/examples
+        run: rustc async_hello.rs --target=wasm32-wasi -o async_hello.wasm
+
       - name: Test Rust Bindings
         working-directory: bindings/rust/
         run: |

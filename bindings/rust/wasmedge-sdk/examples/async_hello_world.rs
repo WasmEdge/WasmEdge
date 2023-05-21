@@ -6,13 +6,17 @@
 //!
 #[cfg(feature = "async")]
 use wasmedge_sdk::{
-    async_host_function, error::HostFuncError, params, Caller, ImportObjectBuilder, VmBuilder,
-    WasmValue,
+    async_host_function, error::HostFuncError, params, r#async::AsyncState, Caller,
+    ImportObjectBuilder, NeverType, VmBuilder, WasmValue,
 };
 
 #[cfg(feature = "async")]
 #[async_host_function]
-async fn say_hello(caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+async fn say_hello<T>(
+    caller: Caller,
+    _args: Vec<WasmValue>,
+    _data: Option<&mut T>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     println!("Hello, world!");
 
@@ -43,14 +47,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         // create an import module
         let import = ImportObjectBuilder::new()
-            .with_func_async::<(), ()>("say_hello", say_hello)?
+            .with_func_async::<(), (), NeverType>("say_hello", say_hello, None)?
             .build("extern")?;
 
         let vm = VmBuilder::new().build()?.register_import_module(import)?;
 
         tokio::spawn(async move {
+            let async_state = AsyncState::new();
             let _ = vm
-                .run_func_async(Some("extern"), "say_hello", params!())
+                .run_func_async(&async_state, Some("extern"), "say_hello", params!())
                 .await
                 .unwrap();
         })

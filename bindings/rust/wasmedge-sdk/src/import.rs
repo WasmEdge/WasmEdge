@@ -305,8 +305,7 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        error::HostFuncError,
-        error::{GlobalError, WasmEdgeError},
+        error::{GlobalError, HostFuncError, WasmEdgeError},
         params,
         types::Val,
         CallingFrame, Executor, Global, GlobalType, Memory, MemoryType, Mutability, NeverType,

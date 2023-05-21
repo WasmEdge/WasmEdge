@@ -3,10 +3,12 @@ use wasmedge_macro::sys_host_function;
 #[cfg(feature = "aot")]
 use wasmedge_sys::{
     AsImport, CallingFrame, Compiler, Config, Executor, FuncType, Function, ImportModule,
-    ImportObject, Loader, NeverType, Store, Validator, WasmValue,
+    ImportObject, Loader, Store, Validator, WasmValue,
 };
 #[cfg(feature = "aot")]
-use wasmedge_types::{error::HostFuncError, CompilerOptimizationLevel, CompilerOutputFormat};
+use wasmedge_types::{
+    error::HostFuncError, CompilerOptimizationLevel, CompilerOutputFormat, NeverType,
+};
 
 #[cfg(feature = "aot")]
 #[test]

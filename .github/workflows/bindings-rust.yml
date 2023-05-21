@@ -71,7 +71,9 @@ jobs:
       
       - name: Build Async-Hello for Testing
         working-directory: bindings/rust/wasmedge-sys/examples
-        run: rustc async_hello.rs --target=wasm32-wasi -o async_hello.wasm
+        run: |
+          rustup target add wasm32-wasi
+          rustc async_hello.rs --target=wasm32-wasi -o async_hello.wasm
 
       - name: Test Rust Bindings
         working-directory: bindings/rust/

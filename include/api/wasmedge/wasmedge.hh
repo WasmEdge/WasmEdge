@@ -222,69 +222,59 @@ namespace SDK{
   };
 
   class WASMEDGE_CPP_API_EXPORT FunctionType {
+  protected:
+    FunctionType() = default;
+    ~FunctionType() = default;   
   public:
-    FunctionType(const std::vector<ValType> &ParamList,
-                 const std::vector<ValType> &ReturnList);
-    ~FunctionType() = default;
+    static FunctionType New(const std::vector<ValType> &ParamList,
+                            const std::vector<ValType> &ReturnList);
 
     const std::vector<ValType> GetParameters();
     const std::vector<ValType> GetReturns();
-  private:
-    class FunctionTypeContext;
-    std::unique_ptr<FunctionTypeContext> Cxt;
 
     friend class ImportType;
     friend class ExportType;
     friend class VM;
-    FunctionType() = default;
   };
 
   class WASMEDGE_CPP_API_EXPORT TableType {
-  public:
-    TableType(const RefType RefType, const Limit &Limit);
+  protected:
+    TableType() = default;
     ~TableType() = default;
+  public:
+    static TableType New(const RefType RefType, const Limit &Limit);
 
     RefType GetRefType();
-    const Limit &GetLimit();
-  private:
-    class TableTypeContext;
-    std::unique_ptr<TableTypeContext> Cxt;
+    const Limit GetLimit();
 
     friend class ImportType;
     friend class ExportType;
-    TableType() = default;
   };
 
   class WASMEDGE_CPP_API_EXPORT MemoryType {
-  public:
-    MemoryType(const Limit &Limit);
+  protected:
+    MemoryType() = default;
     ~MemoryType() = default;
-
-    const Limit &GetLimit();
-
-  private:
-    class MemoryTypeContext;
-    std::unique_ptr<MemoryTypeContext> Cxt;
+  public:
+    static MemoryType New(const Limit &Limit);
+    const Limit GetLimit();
 
     friend class ImportType;
     friend class ExportType;
-    MemoryType() = default;
   };
 
   class WASMEDGE_CPP_API_EXPORT GlobalType {
-  public:
-    GlobalType(const ValType, const Mutability Mut);
+  protected:
+    GlobalType() = default;
     ~GlobalType() = default;
+  public:
+    static GlobalType New(const ValType, const Mutability Mut);
 
     ValType GetValType();
     Mutability GetMutability();
-  private:
-    class GlobalTypeContext;
-    std::unique_ptr<GlobalTypeContext> Cxt;
 
     friend class ImportType;
     friend class ExportType;
-    GlobalType() = default;
   };
 
   class WASMEDGE_CPP_API_EXPORT ImportType {
@@ -552,12 +542,6 @@ namespace SDK{
                     const uint64_t Cost);
 
     const FunctionType GetFunctionType();
-
-  // private:
-    // class FunctionInstanceContext;
-    // std::unique_ptr<FunctionInstanceContext> Cxt;
-
-    // friend class Executor;
   };
 
   class WASMEDGE_CPP_API_EXPORT TableInstance {
@@ -572,10 +556,6 @@ namespace SDK{
     Result SetData(Value Data, const uint32_t Offset);
     uint32_t GetSize();
     Result Grow(const uint32_t Size);
-
-  // private:
-  //   class TableInstanceContext;
-  //   std::unique_ptr<TableInstanceContext> Cxt;
   };
 
   class WASMEDGE_CPP_API_EXPORT MemoryInstance {
@@ -599,10 +579,6 @@ namespace SDK{
     uint32_t GetPageSize();
 
     Result GrowPage(const uint32_t Page);
-
-  // private:
-  //   class MemoryInstanceContext;
-  //   std::unique_ptr<MemoryInstanceContext> Cxt;
   };
 
   class WASMEDGE_CPP_API_EXPORT GlobalInstance {
@@ -616,9 +592,6 @@ namespace SDK{
     Value GetValue();
 
     void SetValue(const Value &Value);
-  // private:
-  //   class GlobalInstanceContext;
-  //   std::unique_ptr<GlobalInstanceContext> Cxt;
   };
 
   class WASMEDGE_CPP_API_EXPORT ModuleInstance {
@@ -661,11 +634,6 @@ namespace SDK{
                    MemoryInstance &&MemoryCxt);
     void AddGlobal(const std::string &Name,
                    GlobalInstance &&GlobalCxt);
-
-  // private:
-    // class ModuleInstanceContext;
-    // ModuleInstanceContext *Cxt;
-    // ModuleInstance(ModuleInstanceContext *Cxt): Cxt(Cxt) {}
 
     friend class VM;
     friend class Executor;

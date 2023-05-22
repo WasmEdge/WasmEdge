@@ -45,7 +45,8 @@ auto EmptyThen = [](auto &&) noexcept {};
 template <typename T, typename U, typename ...CxtT>
 inline constexpr WasmEdge::SDK::Result wrap(
     T &&Proc, U &&Then, CxtT &...Cxts) noexcept {
-  if (auto Res = Proc()) {
+  auto Res = Proc();
+  if (Res) {
     Then(Res);
     return WasmEdge::SDK::Result::ResultFactory::GenResult(
         WasmEdge::ErrCode::Value::Success);
@@ -148,26 +149,187 @@ public:
 
 class ASTModule::ASTModuleContext: public WasmEdge::AST::Module {};
 
-class FunctionType::FunctionTypeContext: public WasmEdge::AST::FunctionType {
+class FunctionTypeContext: public FunctionType {
 public:
-  FunctionTypeContext(AST::FunctionType &Func)
-  : AST::FunctionType(Func) {}
+  FunctionTypeContext(AST::FunctionType *Func)
+  : Content(Func) {}
+
+  FunctionTypeContext(const std::vector<ValType> &ParamList,
+                      const std::vector<ValType> &ReturnList) {
+    Content = new WasmEdge::AST::FunctionType;
+    if (ParamList.size() > 0) {
+      Content->getParamTypes().resize(ParamList.size());
+    }
+    for (uint32_t I = 0; I < ParamList.size(); I++) {
+      Content->getParamTypes()[I] =
+          static_cast<WasmEdge::ValType>(ParamList[I]);
+    }
+    if (ReturnList.size() > 0) {
+      Content->getReturnTypes().resize(ReturnList.size());
+    }
+    for (uint32_t I = 0; I < ReturnList.size(); I++) {
+      Content->getReturnTypes()[I] =
+          static_cast<WasmEdge::ValType>(ReturnList[I]);
+    }
+    IsOwn = true;
+  }
+
+  ~FunctionTypeContext() {
+    if (IsOwn) {
+      delete Content;
+    }
+  }
+
+  const std::vector<ValType> GetParameters() {
+    std::vector<ValType> Params;
+    if (Content) {
+      auto FuncParams = Content->getParamTypes();
+      std::transform(FuncParams.begin(), FuncParams.end(),
+                     Params.begin(),
+                     [](auto ValT) { return static_cast<ValType>(ValT) });
+    }
+    return Params;
+  }
+
+  const std::vector<ValType> GetReturns() {
+    std::vector<ValType> Returns;
+    if (Content) {
+      auto FuncReturns = Content->getReturnTypes();
+      std::transform(FuncReturns.begin(), FuncReturns.end(),
+                     Returns.begin(),
+                     [](auto ValT) { return static_cast<ValType>(ValT) });
+    }
+    return Returns;
+  }
+
+private:
+  WasmEdge::AST::FunctionType *Content = nullptr;
+  bool IsOwn = false;
 };
 
-class TableType::TableTypeContext: public WasmEdge::AST::TableType {
+class TableTypeContext: public TableType {
 public:
-  TableTypeContext(AST::TableType &TabType): AST::TableType(TabType) {}
+  TableTypeContext(AST::TableType *TabType)
+  : Content(TabType) {}
+
+  TableTypeContext(const RefType RefT, const Limit &Lim) {
+    WasmEdge::RefType Type = static_cast<WasmEdge::RefType>(RefT);
+    if (Lim.HasMax) {
+      Content =
+          new WasmEdge::AST::TableType(Type, Lim.Min, Lim.Max);
+    } else {
+      Content = new WasmEdge::AST::TableType(Type, Lim.Min);
+    }
+    IsOwn = true;
+  }
+
+  ~TableTypeContext() {
+    if (IsOwn) {
+      delete Content;
+    }
+  }
+
+  RefType GetRefType() {
+    if (Content) {
+      return static_cast<RefType>(Content->getRefType());
+    }
+    return RefType::FuncRef;
+  }
+
+  const Limit GetLimit() {
+    Limit OutputLim;
+    if (Content) {
+      const auto &Lim = Content->getLimit();
+      OutputLim.HasMax = Lim.hasMax();
+      OutputLim.Shared = Lim.isShared();
+      OutputLim.Min = Lim.getMin();
+      OutputLim.Max = Lim.getMax();
+    }
+    return OutputLim;
+  }
+
+private:
+  WasmEdge::AST::TableType *Content = nullptr;
+  bool IsOwn = false;
 };
 
-class MemoryType::MemoryTypeContext: public WasmEdge::AST::MemoryType {
+class MemoryTypeContext: public MemoryType {
 public:
-  MemoryTypeContext(AST::MemoryType &MemType): AST::MemoryType(MemType) {}
+  MemoryTypeContext(AST::MemoryType *MemType)
+  : Content(MemType) {}
+
+  MemoryTypeContext(const Limit &Lim) {
+    if (Lim.Shared) {
+      Content =
+          new WasmEdge::AST::MemoryType(Lim.Min, Lim.Max, true);
+    } else if (Lim.HasMax) {
+      Content =
+          new WasmEdge::AST::MemoryType(Lim.Min, Lim.Max);
+    } else {
+      Content =
+          new WasmEdge::AST::MemoryType(Lim.Min);
+    }
+    IsOwn = true;
+  }
+
+  ~MemoryTypeContext() {
+    if (IsOwn) {
+      delete Content;
+    }
+  }
+
+  const Limit GetLimit() {
+    Limit OutputLim;
+    if (Content) {
+      const auto &Lim = Content->getLimit();
+      OutputLim.HasMax = Lim.hasMax();
+      OutputLim.Shared = Lim.isShared();
+      OutputLim.Min = Lim.getMin();
+      OutputLim.Max = Lim.getMax();
+    }
+    return OutputLim;
+  }
+
+private:
+  WasmEdge::AST::MemoryType *Content = nullptr;
+  bool IsOwn = false;
 };
 
-class GlobalType::GlobalTypeContext: public WasmEdge::AST::GlobalType {
+class GlobalTypeContext: public GlobalType {
 public:
-  GlobalTypeContext(AST::GlobalType &GlobType)
-  : WasmEdge::AST::GlobalType(GlobType) {}
+  GlobalTypeContext(AST::GlobalType *GlobType)
+  : Content(GlobType) {}
+
+  GlobalTypeContext(const ValType ValT, const Mutability Mut) {
+    Content =
+        new WasmEdge::AST::GlobalType(static_cast<WasmEdge::ValType>(ValT),
+                                      static_cast<WasmEdge::ValMut>(Mut));
+    IsOwn = true;
+  }
+
+  ~GlobalTypeContext() {
+    if (IsOwn) {
+      delete Content;
+    }
+  }
+
+  ValType GetValType() {
+    if (Content) {
+      return static_cast<ValType>(Content->getValType());
+    }
+    return ValType::I32;
+  }
+
+  Mutability GetMutability() {
+    if (Content) {
+      return static_cast<Mutability>(Content->getValMut());
+    }
+    return Mutability::Const;
+  }
+
+private:
+  WasmEdge::AST::GlobalType *Content = nullptr;
+  bool IsOwn = false;
 };
 
 class ImportType::ImportTypeContext: public WasmEdge::AST::ImportDesc {};
@@ -203,13 +365,12 @@ class Store::StoreContext: public WasmEdge::Runtime::StoreManager {};
 
 class CallingFrameContext: public CallingFrame {
 public:
-  CallingFrameContext(WasmEdge::Runtime::CallingFrame *Cxt)
-  : Content(Cxt) {}
-  ~CallingFrameContext();
+  CallingFrameContext(const WasmEdge::Runtime::CallingFrame *Cxt)
+  : Content(const_cast<WasmEdge::Runtime::CallingFrame *>(Cxt)) {}
+  ~CallingFrameContext() = default;
 
 private:
   WasmEdge::Runtime::CallingFrame *Content = nullptr;
-  bool IsOwn = false;
 };
 
 class CPPAPIHostFunc: public WasmEdge::Runtime::HostFunctionBase {
@@ -243,12 +404,13 @@ public:
     CallingFrameContext CallFrameCxt(&CallFrame);
     Result *Stat;
     if (Func) {
-      Stat = Func(Data, CallFrameCxt, Params, Returns);
+      *Stat = Func(Data, CallFrameCxt, Params, Returns);
     } else {
-      Stat = Wrap(Binding, Data, CallFrameCxt, Params, Returns);
+      *Stat = Wrap(Binding, Data, CallFrameCxt, Params, Returns);
     }
     for (uint32_t I = 0; I < Rets.size(); I++) {
-      Rets[I] = to_WasmEdge_128_t<WasmEdge::uint128_t>(Returns[I].Val);
+      Rets[I] = to_WasmEdge_128_t<WasmEdge::uint128_t>(
+          Value::ValueUtils::GetValue(Returns[I]));
     }
     if (Stat->IsOk()) {
       if (Stat->GetCode() == 0x01U) {
@@ -302,11 +464,12 @@ public:
     }
   }
 
-  const FunctionType GetFunctionType() {
+  const FunctionTypeContext GetFunctionTypeContext() {
     if (Content) {
-      return FunctionType(Content->getFuncType());
+      return FunctionTypeContext(
+          const_cast<AST::FunctionType *>(&Content->getFuncType()));
     }
-    return FunctionType();
+    return FunctionTypeContext(nullptr);
   }
 
 private:
@@ -334,11 +497,12 @@ public:
     }
   }
 
-  const TableType GetTableType() {
+  const TableTypeContext GetTableType() {
     if (Content) {
-      TableTypeContext(Content->getTableType());
+      TableTypeContext(
+          const_cast<AST::TableType *>(&Content->getTableType()));
     }
-    TableTypeContext(nullptr);
+    return TableTypeContext(nullptr);
   }
 
   Result GetData(Value &Data, const uint32_t Offset) {
@@ -422,7 +586,8 @@ public:
 
   const MemoryTypeContext GetMemoryTypeContext() {
     if (Content) {
-      return MemoryTypeContext(&Content->getMemoryType());
+      return MemoryTypeContext(
+          const_cast<AST::MemoryType *>(&Content->getMemoryType()));
     }
     return MemoryTypeContext(nullptr);
   }
@@ -516,7 +681,8 @@ public:
 
   const GlobalTypeContext GetGlobalTypeContext() {
     if (Content) {
-      return GlobalTypeContext(&Content->getGlobalType());
+      return GlobalTypeContext(
+          const_cast<AST::GlobalType *>(&Content->getGlobalType()));
     }
     return GlobalTypeContext(nullptr);
   }
@@ -647,7 +813,7 @@ public:
     if (Content) {
       return MemoryInstanceContext(Content->findMemoryExports(Name));
     }
-    return MemoryInstance(nullptr);
+    return MemoryInstanceContext(nullptr);
   }
 
   GlobalInstanceContext FindGlobalInstance(const std::string &Name) {
@@ -937,105 +1103,61 @@ bool Limit::operator==(const Limit &Lim) {
 
 // >>>>>>>> WasmEdge FunctionType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-FunctionType::FunctionType(const std::vector<ValType> &ParamList,
-                           const std::vector<ValType> &ReturnList) {
-  auto FuncTypeCxt = std::make_unique<FunctionTypeContext>();
-  if (!ParamList.empty()) {
-    FuncTypeCxt->getParamTypes().reserve(ParamList.size());
-    std::copy(ParamList.begin(), ParamList.end(),
-              std::back_inserter(ParamList));
-  }
-  if (!ReturnList.empty()) {
-    FuncTypeCxt->getReturnTypes().reserve(ReturnList.size());
-    std::copy(ReturnList.begin(), ReturnList.end(),
-              std::back_inserter(ReturnList));
-  }
-
-  this->Cxt = std::move(FuncTypeCxt);
+FunctionType FunctionType::New(const std::vector<ValType> &ParamList,
+                               const std::vector<ValType> &ReturnList) {
+  return FunctionTypeContext(ParamList, ReturnList);
 }
 
 const std::vector<ValType> FunctionType::GetParameters() {
-  std::vector<ValType> OutputParams;
-  auto FuncParams = Cxt->getParamTypes();
-  OutputParams.resize(FuncParams.size());
-  std::transform(FuncParams.begin(), FuncParams.end(),
-                 OutputParams.begin(),
-                 [](auto ValT) {return static_cast<ValType>(ValT)});
-  return OutputParams;
+  return static_cast<FunctionTypeContext *>(this)->GetParameters();
 }
 
 const std::vector<ValType> FunctionType::GetReturns() {
-  std::vector<ValType> OutputReturns;
-  auto FuncReturns = Cxt->getReturnTypes();
-  OutputReturns.resize(FuncReturns.size());
-  std::transform(FuncReturns.begin(), FuncReturns.end(),
-                 OutputReturns.begin(),
-                 [](auto ValT) {return static_cast<ValType>(ValT)});
-  return OutputReturns;
+  return static_cast<FunctionTypeContext *>(this)->GetReturns();
 }
 
 // <<<<<<<< WasmEdge FunctionType members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge TableType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-TableType::TableType(const RefType RefT, const Limit &Lim) {
-  if (Lim.HasMax) {
-    this->Cxt = std::make_unique<TableType::TableTypeContext>(
-                                 RefT, Lim.Min, Lim.Max);
-  } else {
-    this->Cxt = std::make_unique<TableType::TableTypeContext>(
-                          RefT, Lim.Min);
-  }
+TableType TableType::New(const RefType RefT, const Limit &Lim) {
+  return TableTypeContext(RefT, Lim);
 }
 
 RefType TableType::GetRefType() {
-  return static_cast<RefType>(Cxt->getRefType());
+  return static_cast<TableTypeContext *>(this)->GetRefType();
 }
 
-const Limit &TableType::GetLimit() {
-  const auto &Lim = Cxt->getLimit();
-  auto TableLim =  std::make_unique<Limit>(Lim.hasMax(), Lim.isShared(),
-                                  Lim.getMin(), Lim.getMax());
-  return std::move(*TableLim);
+const Limit TableType::GetLimit() {
+  return static_cast<TableTypeContext *>(this)->GetLimit();
 }
 
 // <<<<<<<< WasmEdge TableType members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge MemoryType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-MemoryType::MemoryType(const Limit &Lim) {
-  if (Lim.Shared) {
-    this->Cxt = std::make_unique<MemoryType::MemoryTypeContext>(
-                                 Lim.Min, Lim.Max, true);
-  } else if (Lim.HasMax) {
-    this->Cxt = std::make_unique<MemoryType::MemoryTypeContext>(
-                                 Lim.Min, Lim.Max);
-  } else {
-    this->Cxt = std::make_unique<MemoryType::MemoryTypeContext>(Lim.Min);
-  }
+MemoryType MemoryType::New(const Limit &Lim) {
+  return MemoryTypeContext(Lim);
 }
 
-const Limit &MemoryType::GetLimit() {
-  const auto &Lim = Cxt->getLimit();
-  auto MemoryLim = std::make_unique<Limit>(Lim.hasMax(), Lim.isShared(),
-                                           Lim.getMin(), Lim.getMax());
-  return std::move(*MemoryLim);
+const Limit MemoryType::GetLimit() {
+  return static_cast<MemoryTypeContext *>(this)->GetLimit();
 }
 
 // <<<<<<<< WasmEdge MemoryType members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge GlobalType members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-GlobalType::GlobalType(const ValType ValT, const Mutability Mut) {
-  this->Cxt = std::make_unique<GlobalType::GlobalTypeContext>(ValT, Mut);
+GlobalType GlobalType::New(const ValType ValT, const Mutability Mut) {
+  return GlobalTypeContext(ValT, Mut);
 }
 
 ValType GlobalType::GetValType() {
-  return static_cast<ValType>(Cxt->getValType());
+  return static_cast<GlobalTypeContext *>(this)->GetValType();
 }
 
 Mutability GlobalType::GetMutability() {
-  return static_cast<Mutability>(Cxt->getValMut());
+  return static_cast<GlobalTypeContext *>(this)->GetMutability();
 }
 
 // <<<<<<<< WasmEdge GlobalType members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

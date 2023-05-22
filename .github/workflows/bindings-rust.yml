@@ -84,7 +84,9 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
           cargo +nightly -Z sparse-registry update
           cargo test --workspace --locked --features aot,async,wasmedge_process,ffi -- --nocapture
+          cargo test --workspace --locked --features aot,wasmedge_process,ffi -- --nocapture
           cargo test --examples --locked --features aot,async,wasmedge_process,ffi -- --nocapture
+          cargo test --examples --locked --features aot,wasmedge_process,ffi -- --nocapture
 
   build_macos:
     name: MacOS

@@ -23,6 +23,8 @@
 
 # Nested build directory
 /build
+# Nix's output
+result
 
 #==============================================================================#
 # Explicit files to ignore (only matches one).

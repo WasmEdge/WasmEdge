@@ -1240,6 +1240,18 @@ class Compat:
                 set(self.extensions)
                 <= set(SUPPORTED_EXTENSIONS[self.platform + self.machine])
             ):
+                logging.error("Supported platforms and corresponding extensions:")
+                for key in SUPPORTED_EXTENSIONS:
+                    _extensions = None
+                    if len(SUPPORTED_EXTENSIONS[key]) >= 1:
+                        _extensions = ",".join(SUPPORTED_EXTENSIONS[key])
+                    else:
+                        _extensions = "None"
+                    logging.error(
+                        "Platform: {0} Supported Extensions: {1}".format(
+                            key, _extensions
+                        )
+                    )
                 reraise(
                     Exception(
                         "Extensions not supported: {0}. Supported extensions: {1}".format(

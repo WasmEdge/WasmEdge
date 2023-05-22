@@ -230,7 +230,7 @@ impl Function {
     /// let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]).expect("fail to create a FuncType");
     ///
     /// // create a Function instance
-    /// let func = Function::create_new::<NeverType>(&func_ty, real_add, None, 0).expect("fail to create a Function instance");
+    /// let func = Function::create::<NeverType>(&func_ty, real_add, None, 0).expect("fail to create a Function instance");
     /// ```
     pub fn create<T>(
         ty: &FuncType,
@@ -322,7 +322,7 @@ impl Function {
     /// let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]).expect("fail to create a FuncType");
     ///
     /// // create a Function instance
-    /// let func = Function::create_async_new::<NeverType>(&func_ty, real_add, None, 0).expect("fail to create a Function instance");
+    /// let func = Function::create_async::<NeverType>(&func_ty, real_add, None, 0).expect("fail to create a Function instance");
     /// ```
     #[cfg(feature = "async")]
     pub fn create_async<T>(
@@ -465,7 +465,7 @@ impl Function {
     /// assert!(result.is_ok());
     /// let func_ty = result.unwrap();
     /// // create a host function
-    /// let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
+    /// let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
     /// assert!(result.is_ok());
     /// let host_func = result.unwrap();
     ///

@@ -191,7 +191,9 @@ impl Config {
             )
         }
         #[cfg(all(feature = "async", target_os = "linux"))]
-        self.async_wasi_enabled
+        {
+            self.async_wasi_enabled
+        }
     }
 
     /// Sets the maximum number of the memory pages available.

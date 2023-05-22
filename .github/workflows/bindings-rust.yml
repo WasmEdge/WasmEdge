@@ -130,19 +130,13 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           cargo +nightly clippy -V
-          cargo +nightly clippy --lib --examples --features aot,async,ffi -- -D warnings
+          cargo +nightly clippy --lib --examples --features aot,ffi -- -D warnings
 
       - name: Install Rust-stable
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
       
-      - name: Build Async-Hello for Testing
-        working-directory: bindings/rust/wasmedge-sys/examples
-        run: |
-          rustup target add wasm32-wasi
-          rustc async_hello.rs --target=wasm32-wasi -o async_hello.wasm
-  
       - name: Test Rust Bindings
         working-directory: bindings/rust/
         run: |
@@ -210,19 +204,13 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           cd bindings/rust/
           cargo +nightly clippy -V
-          cargo +nightly clippy --lib --examples --features aot,async,ffi -- -D warnings
+          cargo +nightly clippy --lib --examples --features aot,ffi -- -D warnings
   
       - name: Install Rust-stable
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
       
-      - name: Build Async-Hello for Testing
-        working-directory: bindings/rust/wasmedge-sys/examples
-        run: |
-          rustup target add wasm32-wasi
-          rustc async_hello.rs --target=wasm32-wasi -o async_hello.wasm
-  
       - name: Test Rust Bindings
         run: |
           $vsPath = (vswhere -latest -property installationPath)

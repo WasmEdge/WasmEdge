@@ -1,18 +1,18 @@
 //! Defines WasmEdge Function and FuncType structs.
 
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 use crate::r#async::{AsyncState, FiberFuture};
 use crate::{
     error::{FuncError, HostFuncError, WasmEdgeError},
     ffi, CallingFrame, Engine, WasmEdgeResult, WasmValue,
 };
 use core::ffi::c_void;
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 use std::pin::Pin;
 use std::{convert::TryInto, sync::Arc};
 use wasmedge_types::{NeverType, ValType};
 
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 pub type AsyncHostFn<T> =
     fn(
         CallingFrame,
@@ -86,7 +86,7 @@ extern "C" fn wrap_sync_fn<T: 'static>(
     }
 }
 
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 extern "C" fn wrap_async_fn<T: 'static>(
     key_ptr: *mut c_void,
     data: *mut std::os::raw::c_void,
@@ -324,7 +324,7 @@ impl Function {
     /// // create a Function instance
     /// let func = Function::create_async::<NeverType>(&func_ty, real_add, None, 0).expect("fail to create a Function instance");
     /// ```
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub fn create_async<T>(
         ty: &FuncType,
         real_fn: AsyncHostFn<T>,
@@ -503,7 +503,7 @@ impl Function {
     ///
     /// If fail to run the host function, then an error is returned.
     ///
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn call_async<E: Engine + Send + Sync>(
         &self,
         async_state: &AsyncState,

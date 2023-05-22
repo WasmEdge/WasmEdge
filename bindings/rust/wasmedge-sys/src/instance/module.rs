@@ -1,6 +1,6 @@
 //! Defines WasmEdge Instance and other relevant types.
 
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 use crate::async_wasi::{wasi_impls, WasiFunc};
 use crate::{
     error::{InstanceError, WasmEdgeError},
@@ -10,7 +10,7 @@ use crate::{
     Function, Global, Memory, Table, WasmEdgeResult,
 };
 use std::sync::Arc;
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 use wasmedge_async_wasi::snapshots::WasiCtx as AsyncWasiCtx;
 
 /// An [Instance] represents an instantiated module. In the instantiation process, An [Instance] is created from al[Module](crate::Module). From an [Instance] the exported [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) can be fetched.
@@ -864,14 +864,14 @@ impl AsImport for WasiModule {
     }
 }
 
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 #[derive(Debug, Clone)]
 pub struct AsyncWasiModule {
     pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
     name: String,
 }
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 impl Drop for AsyncWasiModule {
     fn drop(&mut self) {
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
@@ -881,7 +881,7 @@ impl Drop for AsyncWasiModule {
         }
     }
 }
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 impl AsyncWasiModule {
     pub fn create(async_wasi_ctx: Option<&mut AsyncWasiCtx>) -> WasmEdgeResult<Self> {
         let name = "wasi_snapshot_preview1";
@@ -940,7 +940,7 @@ impl AsyncWasiModule {
         Ok(async_wasi_module)
     }
 }
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 impl AsImport for AsyncWasiModule {
     fn name(&self) -> &str {
         self.name.as_str()
@@ -1033,7 +1033,7 @@ pub enum ImportObject {
     /// Defines the import module instance of WasiModule type.
     Wasi(WasiModule),
     /// Defines the import module instance of AsyncWasiModule type.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     AsyncWasi(AsyncWasiModule),
 }
 impl ImportObject {
@@ -1042,7 +1042,7 @@ impl ImportObject {
         match self {
             ImportObject::Import(import) => import.name(),
             ImportObject::Wasi(wasi) => wasi.name(),
-            #[cfg(feature = "async")]
+            #[cfg(all(feature = "async", target_os = "linux"))]
             ImportObject::AsyncWasi(async_wasi) => async_wasi.name(),
         }
     }
@@ -1053,7 +1053,7 @@ impl ImportObject {
         match self {
             ImportObject::Import(import) => import.inner.0,
             ImportObject::Wasi(wasi) => wasi.inner.0,
-            #[cfg(feature = "async")]
+            #[cfg(all(feature = "async", target_os = "linux"))]
             ImportObject::AsyncWasi(async_wasi) => async_wasi.inner.0,
         }
     }

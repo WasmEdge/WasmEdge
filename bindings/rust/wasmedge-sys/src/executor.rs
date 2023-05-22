@@ -1,7 +1,7 @@
 //! Defines WasmEdge Executor.
 
 use super::ffi;
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 use crate::r#async::{AsyncState, FiberFuture};
 use crate::{
     error::WasmEdgeError, instance::module::InnerInstance, types::WasmEdgeString, utils::check,
@@ -86,7 +86,7 @@ impl Executor {
                     import.inner.0 as *const _,
                 ))?;
             },
-            #[cfg(feature = "async")]
+            #[cfg(all(feature = "async", target_os = "linux"))]
             ImportObject::AsyncWasi(import) => unsafe {
                 check(ffi::WasmEdge_ExecutorRegisterImport(
                     self.inner.0,
@@ -262,7 +262,7 @@ impl Executor {
     /// # Errors
     ///
     /// If fail to run the host function, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn call_func_async(
         &self,
         async_state: &AsyncState,
@@ -323,7 +323,7 @@ impl Executor {
     /// # Errors
     ///
     /// If fail to run the host function reference instance, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn call_func_ref_async(
         &self,
         async_state: &AsyncState,
@@ -374,7 +374,7 @@ unsafe impl Sync for InnerExecutor {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     use crate::{instance::module::AsyncWasiModule, Loader, Validator};
     use crate::{
         AsImport, CallingFrame, Config, FuncType, Function, Global, GlobalType, ImportModule,
@@ -384,9 +384,9 @@ mod tests {
         sync::{Arc, Mutex},
         thread,
     };
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     use wasmedge_async_wasi::snapshots::WasiCtx;
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     use wasmedge_macro::sys_async_host_function_new;
     use wasmedge_macro::sys_host_function;
     use wasmedge_types::{error::HostFuncError, Mutability, NeverType, RefType, ValType};
@@ -584,13 +584,13 @@ mod tests {
         handle.join().unwrap();
     }
 
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     #[tokio::test]
     async fn test_executor_register_async_wasi() -> Result<(), Box<dyn std::error::Error>> {
         // create a Config
         let mut config = Config::create()?;
-        config.async_wasi(true);
-        assert!(config.async_wasi_enabled());
+        config.wasi(true);
+        assert!(config.wasi_enabled());
 
         // create an Executor
         let result = Executor::create(None, None);
@@ -641,13 +641,13 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     #[tokio::test]
     async fn test_executor_run_async_host_func() -> Result<(), Box<dyn std::error::Error>> {
         // create a Config
         let mut config = Config::create()?;
-        config.async_wasi(true);
-        assert!(config.async_wasi_enabled());
+        config.wasi(true);
+        assert!(config.wasi_enabled());
 
         // create an Executor
         let result = Executor::create(None, None);
@@ -732,7 +732,7 @@ mod tests {
         Ok(vec![WasmValue::from_i32(c)])
     }
 
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     #[sys_async_host_function_new]
     async fn async_hello<T>(
         _frame: CallingFrame,

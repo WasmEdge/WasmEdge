@@ -36,7 +36,7 @@ tokio = {version = "1", features = ["full"]}
 [features]
 aot = []
 async = ["dep:fiber-for-wasmedge", "dep:wasmedge-async-wasi"]
-default = ["aot","async","wasmedge_process","ffi"]
+default = []
 ffi = []
 standalone = []
 static = []

@@ -48,10 +48,10 @@ pub mod ffi {
 #[doc(hidden)]
 pub mod ast_module;
 #[doc(hidden)]
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 pub mod r#async;
 #[doc(hidden)]
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 pub mod async_wasi;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
@@ -88,7 +88,7 @@ pub use config::Config;
 pub use executor::Executor;
 #[doc(inline)]
 pub use frame::CallingFrame;
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 #[doc(inline)]
 pub use instance::function::AsyncHostFn;
 #[doc(inline)]

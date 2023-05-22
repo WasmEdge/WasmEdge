@@ -1,4 +1,4 @@
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 use crate::r#async::AsyncHostFn;
 use crate::{io::WasmValTypeList, FuncType, Global, HostFn, Memory, Table, WasmEdgeResult};
 use wasmedge_sys::{self as sys, AsImport};
@@ -169,7 +169,7 @@ impl ImportObjectBuilder {
     /// # error
     ///
     /// If fail to create or add the [host function](crate::Func), then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub fn with_func_async<Args, Rets, T>(
         mut self,
         name: impl AsRef<str>,
@@ -284,7 +284,9 @@ impl ImportObject {
     pub fn name(&self) -> &str {
         match &self.0 {
             sys::ImportObject::Import(import) => import.name(),
+            #[cfg(not(feature = "async"))]
             sys::ImportObject::Wasi(wasi) => wasi.name(),
+            #[cfg(all(feature = "async", target_os = "linux"))]
             sys::ImportObject::AsyncWasi(async_wasi) => async_wasi.name(),
         }
     }

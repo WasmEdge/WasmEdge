@@ -1,5 +1,5 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 use crate::r#async::{AsyncHostFn, AsyncState};
 use crate::{io::WasmValTypeList, Executor, FuncType, HostFn, ValType, WasmEdgeResult, WasmValue};
 use wasmedge_sys as sys;
@@ -133,7 +133,7 @@ impl Func {
     /// # Error
     ///
     /// * If fail to create a Func instance, then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub fn wrap_async<Args, Rets, T>(
         real_func: AsyncHostFn<T>,
         ctx_data: Option<&mut T>,
@@ -218,7 +218,7 @@ impl Func {
     /// # Error
     ///
     /// If fail to run the host function, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn run_async(
         &self,
         async_state: &AsyncState,

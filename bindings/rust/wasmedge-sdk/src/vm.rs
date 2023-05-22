@@ -1,6 +1,6 @@
 //! Defines WasmEdge Vm struct.
 
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 use crate::r#async::AsyncState;
 use crate::{
     config::Config,
@@ -133,6 +133,7 @@ impl VmBuilder {
         };
 
         // * built-in host instances
+        #[cfg(not(feature = "async"))]
         if let Some(cfg) = vm.config.as_ref() {
             if cfg.wasi_enabled() {
                 if let Ok(wasi_module) = sys::WasiModule::create(None, None, None) {
@@ -145,6 +146,24 @@ impl VmBuilder {
                         HostRegistration::Wasi,
                         HostRegistrationInstance::Wasi(WasiInstance { inner: wasi_module }),
                     );
+                }
+            }
+        }
+        #[cfg(all(feature = "async", target_os = "linux"))]
+        if let Some(cfg) = vm.config.as_ref() {
+            if cfg.wasi_enabled() {
+                if let Ok(wasi_module) = sys::AsyncWasiModule::create(None) {
+                    vm.executor.inner.register_import_object(
+                        &mut vm.store.inner,
+                        &sys::ImportObject::AsyncWasi(wasi_module.clone()),
+                    )?;
+
+                    vm.builtin_host_instances.insert(
+                        HostRegistration::Wasi,
+                        HostRegistrationInstance::Wasi(WasiInstance { inner: wasi_module }),
+                    );
+                } else {
+                    panic!("failed to create AsyncWasiModule")
                 }
             }
         }
@@ -428,7 +447,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run the wasm function, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn run_func_async(
         &self,
         async_state: &AsyncState,
@@ -506,7 +525,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn run_func_from_module_async<N, A>(
         &mut self,
         async_state: &AsyncState,
@@ -567,7 +586,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn run_func_from_file_async<P, N, A>(
         &mut self,
         async_state: &AsyncState,
@@ -627,7 +646,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn run_func_from_bytes_async<N, A>(
         &mut self,
         async_state: &AsyncState,
@@ -680,6 +699,7 @@ impl Vm {
     ///
     /// To retrieve  the [wasi module instance], a [config](crate::config::Config) with the enabled [wasi](crate::config::HostRegistrationConfigOptions::wasi) option should be given when create this vm.
     ///
+
     pub fn wasi_module(&self) -> Option<&WasiInstance> {
         match self.builtin_host_instances.get(&HostRegistration::Wasi) {
             Some(HostRegistrationInstance::Wasi(wasi_instance)) => Some(wasi_instance),
@@ -691,6 +711,7 @@ impl Vm {
     ///
     /// To retrieve the [wasi module instance], a [config](crate::config::Config) with the enabled [wasi](crate::config::HostRegistrationConfigOptions::wasi) option should be given when create this vm.
     ///
+
     pub fn wasi_module_mut(&mut self) -> Option<&mut WasiInstance> {
         match self.builtin_host_instances.get_mut(&HostRegistration::Wasi) {
             Some(HostRegistrationInstance::Wasi(wasi_instance)) => Some(wasi_instance),
@@ -777,6 +798,9 @@ impl Vm {
 
 #[derive(Debug, Clone)]
 enum HostRegistrationInstance {
+    #[cfg(not(feature = "async"))]
+    Wasi(crate::wasi::WasiInstance),
+    #[cfg(all(feature = "async", target_os = "linux"))]
     Wasi(crate::wasi::WasiInstance),
 }
 

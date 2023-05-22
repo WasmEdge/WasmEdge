@@ -1,6 +1,6 @@
 //! Defines Executor struct.
 
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 use crate::r#async::AsyncState;
 use crate::{config::Config, Func, FuncRef, Statistics, WasmEdgeResult, WasmValue};
 use wasmedge_sys as sys;
@@ -69,7 +69,7 @@ impl Executor {
     /// # Errors
     ///
     /// If fail to run the host function, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn run_func_async(
         &self,
         async_state: &AsyncState,
@@ -111,7 +111,7 @@ impl Executor {
     /// # Errors
     ///
     /// If fail to run the host function reference instance, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn run_func_ref_async(
         &self,
         async_state: &AsyncState,

@@ -7,10 +7,12 @@ use crate::{
 use wasmedge_sys::{self as sys, AsImport, AsInstance as sys_as_instance_trait};
 
 /// Represents a wasi module instance.
+#[cfg(not(feature = "async"))]
 #[derive(Debug, Clone)]
 pub struct WasiInstance {
     pub(crate) inner: sys::WasiModule,
 }
+#[cfg(not(feature = "async"))]
 impl WasiInstance {
     /// Initializes the WASI host module with the given parameters.
     ///
@@ -50,6 +52,7 @@ impl WasiInstance {
         self.inner.get_native_handler(fd)
     }
 }
+#[cfg(not(feature = "async"))]
 impl AsInstance for WasiInstance {
     /// Returns the name of this exported [module instance](crate::Instance).
     ///
@@ -154,6 +157,98 @@ impl AsInstance for WasiInstance {
     /// # Argument
     ///
     /// * `name` - the name of the target exported [table instance](crate::Table).
+    fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
+        let inner_table = self.inner.get_table(name.as_ref())?;
+        let ty: TableType = inner_table.ty()?.into();
+
+        Ok(Table {
+            inner: inner_table,
+            name: Some(name.as_ref().into()),
+            mod_name: None,
+            ty,
+        })
+    }
+}
+
+#[cfg(all(feature = "async", target_os = "linux"))]
+#[derive(Debug, Clone)]
+pub struct WasiInstance {
+    pub(crate) inner: sys::AsyncWasiModule,
+}
+#[cfg(all(feature = "async", target_os = "linux"))]
+impl AsInstance for WasiInstance {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+
+    fn func_count(&self) -> usize {
+        self.inner.func_len() as usize
+    }
+
+    fn func_names(&self) -> Option<Vec<String>> {
+        self.inner.func_names()
+    }
+
+    fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
+        let inner_func = self.inner.get_func(name.as_ref())?;
+        let ty: FuncType = inner_func.ty()?.into();
+
+        Ok(Func {
+            inner: inner_func,
+            name: Some(name.as_ref().into()),
+            mod_name: None,
+            ty,
+        })
+    }
+
+    fn global_count(&self) -> usize {
+        self.inner.global_len() as usize
+    }
+
+    fn global_names(&self) -> Option<Vec<String>> {
+        self.inner.global_names()
+    }
+
+    fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
+        let inner_global = self.inner.get_global(name.as_ref())?;
+        let ty: GlobalType = inner_global.ty()?.into();
+
+        Ok(Global {
+            inner: inner_global,
+            name: Some(name.as_ref().into()),
+            mod_name: None,
+            ty,
+        })
+    }
+
+    fn memory_count(&self) -> usize {
+        self.inner.mem_len() as usize
+    }
+
+    fn memory_names(&self) -> Option<Vec<String>> {
+        self.inner.mem_names()
+    }
+
+    fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
+        let inner_memory = self.inner.get_memory(name.as_ref())?;
+        let ty: MemoryType = inner_memory.ty()?.into();
+
+        Ok(Memory {
+            inner: inner_memory,
+            name: Some(name.as_ref().into()),
+            mod_name: None,
+            ty,
+        })
+    }
+
+    fn table_count(&self) -> usize {
+        self.inner.table_len() as usize
+    }
+
+    fn table_names(&self) -> Option<Vec<String>> {
+        self.inner.table_names()
+    }
+
     fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let inner_table = self.inner.get_table(name.as_ref())?;
         let ty: TableType = inner_table.ty()?.into();

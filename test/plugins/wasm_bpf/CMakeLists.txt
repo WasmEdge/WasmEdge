@@ -7,18 +7,34 @@ wasmedge_add_executable(wasmBpfTests
   wasm_bpf.cpp
 )
 
+add_subdirectory(assets)
+
+add_dependencies(wasmBpfTests
+  wasmedgePluginWasmBpf
+  wasmBpfTestsAssets
+)
+
+target_include_directories(wasmBpfTests
+  PUBLIC
+  $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:wasmedgePluginWasmBpf,INCLUDE_DIRECTORIES>
+)
+
 target_link_libraries(wasmBpfTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
-  wasmedgePlugin
-  wasmedgePluginWasmBpf
-  wasmedgeExecutor
 )
-add_subdirectory(assets)
-
-add_dependencies(
-  wasmBpfTests
-  wasmBpfTestsAssets
-)
+# Link to the WasmEdge library
+if(WASMEDGE_LINK_PLUGINS_STATIC)
+  target_link_libraries(wasmBpfTests
+    PRIVATE
+    wasmedgeCAPI
+  )
+else()
+  target_link_libraries(wasmBpfTests
+    PRIVATE
+    wasmedge_shared
+  )
+endif()
 
 add_test(wasmBpfTests wasmBpfTests)

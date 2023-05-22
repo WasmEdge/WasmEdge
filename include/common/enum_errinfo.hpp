@@ -109,3 +109,36 @@ static inline constexpr auto IndexCategoryStr = []() constexpr {
 
 } // namespace ErrInfo
 } // namespace WasmEdge
+
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::PtrType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::PtrType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    return formatter<std::string_view>::format(
+        WasmEdge::ErrInfo::PtrTypeStr[Type], Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::MismatchCategory>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::MismatchCategory &Category,
+         fmt::format_context &Ctx) const noexcept {
+    return formatter<std::string_view>::format(
+        WasmEdge::ErrInfo::MismatchCategoryStr[Category], Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::IndexCategory>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::IndexCategory &Category,
+         fmt::format_context &Ctx) const noexcept {
+    return formatter<std::string_view>::format(
+        WasmEdge::ErrInfo::IndexCategoryStr[Category], Ctx);
+  }
+};

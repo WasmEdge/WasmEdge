@@ -56,14 +56,6 @@ target_compile_options(wasmedgePluginWasiCrypto
   -DOPENSSL_API_COMPAT=0x10100000L
 )
 
-if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  target_link_options(wasmedgePluginWasiCrypto
-    PUBLIC
-    -Wl,-U,__ZN8WasmEdge6Plugin14PluginRegisterC1EPKNS0_6Plugin16PluginDescriptorE
-    -Wl,-U,__ZN8WasmEdge6Plugin14PluginRegisterD1Ev
-  )
-endif()
-
 target_include_directories(wasmedgePluginWasiCrypto
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
@@ -73,7 +65,6 @@ target_include_directories(wasmedgePluginWasiCrypto
 
 target_link_libraries(wasmedgePluginWasiCrypto
   PUBLIC
-  wasmedge_shared
   OpenSSL::Crypto
 )
 if(WASMEDGE_LINK_PLUGINS_STATIC)

@@ -56,8 +56,8 @@ jobs:
         run: |
           # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
           git fetch --tags --force
-          echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
-          echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
+          echo "Set version: $(git describe --match '[0-9].[0-9]*' --tag)"
+          echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> $GITHUB_OUTPUT
 
   create_source_tarball:
     needs: [get_version_v2, lint]
@@ -81,17 +81,17 @@ jobs:
       matrix: "[{'name':'manylinux 2014 x86_64','runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},
                 {'name':'manylinux 2014 aarch64','runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
 
-  build_on_ubuntu_20_04:
+  build_on_ubuntu_22_04:
     needs: [get_version_v2, lint]
     uses: ./.github/workflows/reusable-build-on-ubuntu.yml
     with:
       version: ${{ needs.get_version_v2.outputs.version }}
-      matrix: "[{'name':'ubuntu-20.04','compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-build-gcc','tests':true},
-                {'name':'ubuntu-20.04','compiler':'g++','build_type':'Release','docker_tag':'ubuntu-build-gcc','tests':true},
-                {'name':'ubuntu-20.04','compiler':'clang++','build_type':'Debug','docker_tag':'ubuntu-build-clang','tests':true},
-                {'name':'ubuntu-20.04','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-build-clang','tests':true},
+      matrix: "[{'name':'ubuntu-22.04','compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-build-gcc','tests':true},
+                {'name':'ubuntu-22.04','compiler':'g++','build_type':'Release','docker_tag':'ubuntu-build-gcc','tests':true},
+                {'name':'ubuntu-22.04','compiler':'clang++','build_type':'Debug','docker_tag':'ubuntu-build-clang','tests':true},
+                {'name':'ubuntu-22.04','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-build-clang','tests':true},
                 {'name':'linux-static','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-build-clang','options':'-DWASMEDGE_BUILD_SHARED_LIB=Off -DWASMEDGE_BUILD_STATIC_LIB=On -DWASMEDGE_LINK_TOOLS_STATIC=On -DWASMEDGE_BUILD_PLUGINS=Off'},
-                {'name':'ubuntu-20.04-coverage','compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-build-gcc','coverage':true,'tests':true}]"
+                {'name':'ubuntu-22.04-coverage','compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-build-gcc','coverage':true,'tests':true}]"
 
   build_on_windows:
     needs: [get_version_v2, lint]

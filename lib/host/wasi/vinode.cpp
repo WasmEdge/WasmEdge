@@ -23,16 +23,6 @@ static inline constexpr const uint8_t kMaxNestedLinks = 8;
 
 }
 
-VINode::VINode(VFS &FS, INode Node, std::shared_ptr<VINode> Parent)
-    : FS(FS), Node(std::move(Node)), FsRightsBase(Parent->FsRightsBase),
-      FsRightsInheriting(Parent->FsRightsInheriting),
-      Parent(std::move(Parent)) {}
-
-VINode::VINode(VFS &FS, INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
-               std::shared_ptr<VINode> Parent)
-    : FS(FS), Node(std::move(Node)), FsRightsBase(FRB), FsRightsInheriting(FRI),
-      Parent(std::move(Parent)) {}
-
 VINode::VINode(VFS &FS, INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
                std::string N)
     : FS(FS), Node(std::move(Node)), FsRightsBase(FRB), FsRightsInheriting(FRI),
@@ -197,7 +187,9 @@ VINode::pathOpen(VFS &FS, std::shared_ptr<VINode> Fd, std::string_view Path,
                  __wasi_lookupflags_t LookupFlags, __wasi_oflags_t OpenFlags,
                  __wasi_rights_t FsRightsBase,
                  __wasi_rights_t FsRightsInheriting, __wasi_fdflags_t FdFlags) {
-  std::vector<char> Buffer;
+  if (OpenFlags & __WASI_OFLAGS_DIRECTORY) {
+    FsRightsBase &= ~__WASI_RIGHTS_FD_SEEK;
+  }
 
   __wasi_rights_t RequiredRights = __WASI_RIGHTS_PATH_OPEN;
   __wasi_rights_t RequiredInheritingRights = FsRightsBase | FsRightsInheriting;
@@ -212,15 +204,16 @@ VINode::pathOpen(VFS &FS, std::shared_ptr<VINode> Fd, std::string_view Path,
     RequiredRights |= __WASI_RIGHTS_PATH_CREATE_FILE;
   }
   if (OpenFlags & __WASI_OFLAGS_TRUNC) {
-    RequiredRights |= __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE;
+    RequiredInheritingRights |= __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE;
   }
   if (FdFlags & __WASI_FDFLAGS_RSYNC) {
-    RequiredRights |= __WASI_RIGHTS_FD_SYNC;
+    RequiredInheritingRights |= __WASI_RIGHTS_FD_SYNC;
   }
   if (FdFlags & __WASI_FDFLAGS_DSYNC) {
-    RequiredRights |= __WASI_RIGHTS_FD_DATASYNC;
+    RequiredInheritingRights |= __WASI_RIGHTS_FD_DATASYNC;
   }
 
+  std::vector<char> Buffer;
   if (auto Res = resolvePath(FS, Fd, Path, LookupFlags); unlikely(!Res)) {
     return WasiUnexpect(Res);
   } else if (!Fd->can(RequiredRights, RequiredInheritingRights)) {
@@ -402,9 +395,8 @@ VINode::directOpen(std::string_view Path, __wasi_oflags_t OpenFlags,
       unlikely(!Res)) {
     return WasiUnexpect(Res);
   } else {
-    return std::make_shared<VINode>(
-        FS, std::move(*Res), RightsBase & FsRightsInheriting,
-        RightsInheriting & FsRightsInheriting, shared_from_this());
+    return std::make_shared<VINode>(FS, std::move(*Res), RightsBase,
+                                    RightsInheriting);
   }
 }
 
@@ -412,6 +404,7 @@ WasiExpect<std::vector<char>>
 VINode::resolvePath(VFS &FS, std::shared_ptr<VINode> &Fd,
                     std::string_view &Path, __wasi_lookupflags_t LookupFlags,
                     uint8_t VFSFlags, uint8_t LinkCount) {
+  std::vector<std::shared_ptr<VINode>> PartFds;
   std::vector<char> Buffer;
   do {
     // check empty path
@@ -420,22 +413,12 @@ VINode::resolvePath(VFS &FS, std::shared_ptr<VINode> &Fd,
     }
 
     // check absolute path
-    {
-      const bool IsEmpty = Path.empty();
-      const bool IsAbsolute = !IsEmpty && Path[0] == '/';
-      if (unlikely(!Fd && (IsEmpty || !IsAbsolute))) {
-        return WasiUnexpect(__WASI_ERRNO_BADF);
-      }
+    if (!Path.empty() && Path[0] == '/') {
+      return WasiUnexpect(__WASI_ERRNO_PERM);
+    }
 
-      if (IsAbsolute) {
-        VFSFlags |= VFS::AllowEmpty;
-        while (Fd->Parent) {
-          Fd = Fd->Parent;
-        }
-        do {
-          Path = Path.substr(1);
-        } while (!Path.empty() && Path[0] == '/');
-      }
+    if (!Fd) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
     }
 
     if (!Fd->isDirectory()) {
@@ -465,11 +448,11 @@ VINode::resolvePath(VFS &FS, std::shared_ptr<VINode> &Fd,
           continue;
         }
         if (Part.size() == 2 && Part[1] == '.') {
-          if (Fd->Parent) {
-            Fd = Fd->Parent;
-          } else {
-            return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
+          if (PartFds.empty()) {
+            return WasiUnexpect(__WASI_ERRNO_PERM);
           }
+          Fd = std::move(PartFds.back());
+          PartFds.pop_back();
           Path = Remain;
           if (LastPart) {
             Path = "."sv;
@@ -529,14 +512,17 @@ VINode::resolvePath(VFS &FS, std::shared_ptr<VINode> &Fd,
         return WasiUnexpect(__WASI_ERRNO_NOTDIR);
       }
 
-      if (auto Child = Fd->Node.pathOpen(
-              std::string(Part), static_cast<__wasi_oflags_t>(0),
-              static_cast<__wasi_fdflags_t>(0), VFSFlags);
+      if (auto Child =
+              Fd->Node.pathOpen(std::string(Part), __WASI_OFLAGS_DIRECTORY,
+                                static_cast<__wasi_fdflags_t>(0), VFSFlags);
           unlikely(!Child)) {
         return WasiUnexpect(Child);
       } else {
         // fast retry
-        Fd = std::make_shared<VINode>(FS, std::move(*Child), Fd);
+        PartFds.push_back(std::exchange(
+            Fd,
+            std::make_shared<VINode>(FS, std::move(*Child), Fd->FsRightsBase,
+                                     Fd->FsRightsInheriting)));
         Path = Remain;
         if (Path.empty()) {
           Path = "."sv;

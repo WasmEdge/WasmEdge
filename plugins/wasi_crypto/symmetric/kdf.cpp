@@ -110,15 +110,18 @@ Hkdf<ShaNid>::Extract::State::absorb(Span<const uint8_t> Data) noexcept {
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::Key>
 Hkdf<ShaNid>::Extract::State::squeezeKey() noexcept {
-  std::scoped_lock Lock{Ctx->Mutex};
-
-  opensslCheck(EVP_PKEY_CTX_set1_hkdf_salt(Ctx->RawCtx.get(), Ctx->Salt.data(),
-                                           Ctx->Salt.size()));
-
-  SecretVec Data(getKeySize());
-
-  size_t ActualOutSize;
-  opensslCheck(EVP_PKEY_derive(Ctx->RawCtx.get(), Data.data(), &ActualOutSize));
+  {
+    std::scoped_lock Lock{Ctx->Mutex};
+    opensslCheck(EVP_PKEY_CTX_set1_hkdf_salt(
+        Ctx->RawCtx.get(), Ctx->Salt.data(), Ctx->Salt.size()));
+  }
+  size_t ActualOutSize = getKeySize();
+  SecretVec Data(ActualOutSize);
+  {
+    std::scoped_lock Lock{Ctx->Mutex};
+    opensslCheck(
+        EVP_PKEY_derive(Ctx->RawCtx.get(), Data.data(), &ActualOutSize));
+  }
   ensureOrReturn(ActualOutSize == getKeySize(),
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 

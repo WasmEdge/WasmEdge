@@ -19,7 +19,8 @@
 //!
 //!   | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types| wasmedge-macro|
 //!   | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
-//!   | 0.8.0         | 0.12.0        | 0.13.0        | 0.4.0         | 0.3.0         |
+//!   | 0.8.1         | 0.12.1        | 0.13.1        | 0.4.1         | 0.3.0         |
+//!   | 0.8.0         | 0.12.0        | 0.13.0        | 0.4.1         | 0.3.0         |
 //!   | 0.7.1         | 0.11.2        | 0.12.2        | 0.3.1         | 0.3.0         |
 //!   | 0.7.0         | 0.11.2        | 0.12          | 0.3.1         | 0.3.0         |
 //!   | 0.6.0         | 0.11.2        | 0.11          | 0.3.0         | 0.2.0         |
@@ -92,7 +93,7 @@ pub use executor::Executor;
 pub use frame::CallingFrame;
 #[doc(inline)]
 pub use instance::{
-    function::{FuncRef, FuncType, Function},
+    function::{FuncRef, FuncType, Function, NeverType},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
     module::{AsImport, AsInstance, ImportModule, ImportObject, Instance, WasiModule},
@@ -112,7 +113,11 @@ use wasmedge_types::{error, WasmEdgeResult};
 
 /// Type alias for a boxed native function. This type is used in thread-safe cases.
 pub type BoxedFn = Box<
-    dyn Fn(CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, error::HostFuncError>
+    dyn Fn(
+            CallingFrame,
+            Vec<WasmValue>,
+            *mut std::os::raw::c_void,
+        ) -> Result<Vec<WasmValue>, error::HostFuncError>
         + Send
         + Sync,
 >;

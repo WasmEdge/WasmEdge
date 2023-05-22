@@ -13,8 +13,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/filesystem.h"
 #define SPDLOG_NO_EXCEPTIONS 1
-#include "spdlog/fmt/ostr.h"
 #include "spdlog/spdlog.h"
 
 namespace WasmEdge {
@@ -32,3 +32,26 @@ void setErrorLoggingLevel();
 
 } // namespace Log
 } // namespace WasmEdge
+
+template <>
+struct fmt::formatter<std::filesystem::path>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator format(const std::filesystem::path &Path,
+                                       fmt::format_context &Ctx) const {
+    // mimic std::quoted
+    constexpr const char Delimiter = '"';
+    constexpr const char Escape = '\\';
+    auto Quoted = fmt::memory_buffer();
+    auto Iter = std::back_inserter(Quoted);
+    *Iter++ = Delimiter;
+    for (const auto C : Path.u8string()) {
+      if (C == Delimiter || C == Escape) {
+        *Iter++ = Escape;
+      }
+      *Iter++ = C;
+    }
+    *Iter++ = Delimiter;
+    return fmt::formatter<std::string_view>::format(
+        std::string_view(Quoted.data(), Quoted.size()), Ctx);
+  }
+};

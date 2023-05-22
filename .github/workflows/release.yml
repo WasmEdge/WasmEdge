@@ -33,7 +33,7 @@ jobs:
           # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
           git config --global --add safe.directory $(pwd)
           git fetch --tags --force
-          echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
+          echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> $GITHUB_OUTPUT
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -65,12 +65,12 @@ jobs:
       upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
     secrets: inherit
 
-  build_on_ubuntu_20_04:
+  build_on_ubuntu_22_04:
     needs: create_release
     uses: ./.github/workflows/reusable-build-on-ubuntu.yml
     with:
       version: ${{ needs.create_release.outputs.version }}
-      matrix: "[{'name':'ubuntu-20.04','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-build-clang'}]"
+      matrix: "[{'name':'ubuntu-22.04','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-build-clang'}]"
       release: true
       upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
     secrets: inherit
@@ -135,7 +135,7 @@ jobs:
             output_path: plugins/wasmedge_process
             output_bin: libwasmedgePluginWasmEdgeProcess.so
             tar_name: wasmedge_process
-    name: Build and upload WasmEdge ${{ matrix.name }} plugin on Ubuntu 20.04
+    name: Build and upload WasmEdge ${{ matrix.name }} plugin on Ubuntu 22.04
     needs: create_release
     runs-on: ubuntu-latest
     container:
@@ -208,7 +208,7 @@ jobs:
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: plugin.tar.gz
-          asset_name: WasmEdge-plugin-${{ matrix.tar_name }}-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
+          asset_name: WasmEdge-plugin-${{ matrix.tar_name }}-${{ needs.create_release.outputs.version }}-ubuntu22.04_x86_64.tar.gz
           asset_content_type: application/x-gzip
 
   build_and_upload_plugin_manylinux:
@@ -364,8 +364,8 @@ jobs:
       - name: Prepare docker env
         id: docker_env
         run: |
-          echo ::set-output name=docker_image::${{ matrix.name }}
-          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          echo "docker_image=${{ matrix.name }}" >> $GITHUB_OUTPUT
+          echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Login to DockerHub

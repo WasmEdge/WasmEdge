@@ -8,7 +8,7 @@ on:
   push:
     tags:
       - '*.*.*'
-    branch:
+    branches:
       - master
     paths:
       - 'utils/docker/**'
@@ -161,7 +161,7 @@ jobs:
 
   build-manylinux2014_x86_64:
     name: build-manylinux2014_x86_64
-    runs-on: cinccino
+    runs-on: ubuntu-latest
     needs: [prep]
     container:
       image: wasmedge/wasmedge:ci-image-base

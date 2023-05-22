@@ -5,8 +5,8 @@
 
 use wasmedge_sdk::{
     error::HostFuncError, host_function, types::Val, Caller, Global, GlobalType,
-    ImportObjectBuilder, Memory, MemoryType, Mutability, RefType, Table, TableType, ValType,
-    WasmValue,
+    ImportObjectBuilder, Memory, MemoryType, Mutability, NeverType, RefType, Table, TableType,
+    ValType, WasmValue,
 };
 
 #[cfg_attr(test, test)]
@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module_name = "extern";
     let _import = ImportObjectBuilder::new()
         // add a function
-        .with_func::<(i32, i32), i32>("add", real_add)?
+        .with_func::<(i32, i32), i32, NeverType>("add", real_add, None)?
         // add a global
         .with_global("global", global_const)?
         // add a memory

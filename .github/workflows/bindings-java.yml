@@ -24,11 +24,11 @@ on:
 
 jobs:
   build_ubuntu:
-    name: Ubuntu 20.04
+    name: Ubuntu 22.04
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04]
+        os: [ubuntu-22.04]
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
@@ -42,14 +42,14 @@ jobs:
           java-version: '11'
           cache: 'gradle'
 
-      - name: Install clang-format-12
+      - name: Install clang-format-15
         run: |
           apt-get update
-          apt-get install clang-format-12
+          apt-get install clang-format-15
 
       - name: Lint
         run: |
-          find bindings/java/wasmedge-jni/lib -type f -iname "*.[ch]" | xargs -n1 `which clang-format-12` -i -style=file -Werror --dry-run
+          find bindings/java/wasmedge-jni/lib -type f -iname "*.[ch]" | xargs -n1 `which clang-format-15` -i -style=file -Werror --dry-run
 
       - name: Build & Install WasmEdge
         run: |
@@ -91,11 +91,11 @@ jobs:
 
       - name: Install build tools
         run: |
-          brew install llvm@14 ninja boost cmake
+          brew install llvm ninja boost cmake
 
       - name: Build WasmEdge with Release mode
         run: |
-          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
           rm -rf build

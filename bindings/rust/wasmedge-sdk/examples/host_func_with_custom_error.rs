@@ -19,7 +19,7 @@ use wasmedge_sdk::{
     error::{HostFuncError, WasmEdgeError},
     host_function, params,
     types::ExternRef,
-    Caller, ImportObjectBuilder, ValType, VmBuilder, WasmVal, WasmValue,
+    Caller, ImportObjectBuilder, NeverType, ValType, VmBuilder, WasmVal, WasmValue,
 };
 
 // Define custom error type
@@ -96,7 +96,7 @@ fn real_add(_caller: Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, Ho
 fn main() -> anyhow::Result<()> {
     // create import module
     let import = ImportObjectBuilder::new()
-        .with_func::<(ExternRef, i32, i32), i32>("add", real_add)?
+        .with_func::<(ExternRef, i32, i32), i32, NeverType>("add", real_add, None)?
         .build("extern_module")?;
 
     // create a vm instance

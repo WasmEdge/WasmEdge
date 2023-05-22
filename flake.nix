@@ -14,11 +14,8 @@
           extensions = [ "rust-src" ];
           targets = [ "wasm32-wasi" "wasm32-unknown-unknown" ];
         };
-        llvmPackages = pkgs.llvmPackages_14;
-        buildWasmEdgeNoAOT = pkgs.writeShellScriptBin "build-without-aot" ''
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .
-          cmake --build build
-        '';
+        llvmPackages = pkgs.llvmPackages_16;
+
         runRustSysTest = pkgs.writeShellScriptBin "run-rust-sys-test" ''
           cd bindings/rust/
           export WASMEDGE_DIR="$(pwd)/../../"
@@ -33,21 +30,52 @@
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
           cargo run -p wasmedge-sys --example $1
         '';
-      in with pkgs; {
-        devShell = mkShell {
-          buildInputs = [
+
+        wasmedge = pkgs.stdenv.mkDerivation {
+          name = "wasmedge";
+          version = "0.12.1";
+          src = ./.;
+
+          buildInputs = with pkgs; [
             boost
-            clang
             cmake
-            gcovr
+            llvmPackages.clang-unwrapped
             llvmPackages.lld
             llvmPackages.llvm
-            ninja
             openssl
             pkg-config
-            rust
+            libxml2
+            spdlog
+          ] ++ pkgs.lib.optionals (system == "x86_64-darwin" || system == "aarch64-darwin") [
+            pkgs.darwin.apple_sdk.frameworks.Foundation
+          ];
+          configurePhase = ''
+            cmake -Bbuild \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DWASMEDGE_BUILD_PLUGINS=OFF \
+              -DWASMEDGE_BUILD_TESTS=OFF \
+              -DWASMEDGE_BUILD_AOT_RUNTIME=ON \
+              .
+          '';
+          buildPhase = ''
+            cmake --build build -j
+          '';
+          installPhase = ''
+            cd build
+            cmake --install . --prefix $out
+          '';
+        };
+      in with pkgs; rec {
+        packages = { wasmedge = wasmedge; };
+        packages.default = packages.wasmedge;
+        devShells.default = mkShell {
+          buildInputs = [
+            wasmedge
 
-            buildWasmEdgeNoAOT
+            ninja
+            rust
+            gcovr
+
             runRustSysTest
             runRustSysExample
           ];

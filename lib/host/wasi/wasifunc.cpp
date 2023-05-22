@@ -331,8 +331,7 @@ Expect<uint32_t> WasiArgsGet::body(const Runtime::CallingFrame &Frame,
 
   // Store **Argv.
   const auto &Arguments = Env.getArguments();
-  const uint32_t ArgvSize =
-      static_cast<uint32_t>(Arguments.size()) + UINT32_C(1);
+  const uint32_t ArgvSize = static_cast<uint32_t>(Arguments.size());
   const uint32_t ArgvBufSize = calculateBufferSize(Arguments);
 
   // Check for invalid address.
@@ -345,7 +344,9 @@ Expect<uint32_t> WasiArgsGet::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  *Argv = ArgvBufPtr;
+  if (ArgvSize) {
+    *Argv = ArgvBufPtr;
+  }
 
   if (auto Res = Env.argsGet({Argv, ArgvSize}, {ArgvBuf, ArgvBufSize});
       unlikely(!Res)) {
@@ -391,8 +392,7 @@ Expect<uint32_t> WasiEnvironGet::body(const Runtime::CallingFrame &Frame,
 
   // Store **Env.
   const auto &EnvironVariables = Env.getEnvironVariables();
-  const uint32_t EnvSize =
-      static_cast<uint32_t>(EnvironVariables.size()) + UINT32_C(1);
+  const uint32_t EnvSize = static_cast<uint32_t>(EnvironVariables.size());
   const uint32_t EnvBufSize = calculateBufferSize(EnvironVariables);
 
   // Check for invalid address.
@@ -405,7 +405,9 @@ Expect<uint32_t> WasiEnvironGet::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  *Env = EnvBufPtr;
+  if (EnvSize) {
+    *Env = EnvBufPtr;
+  }
 
   if (auto Res = this->Env.environGet({Env, EnvSize}, {EnvBuf, EnvBufSize});
       unlikely(!Res)) {

@@ -33,18 +33,7 @@ public:
   ///
   /// @param[in] FS Filesystem.
   /// @param[in] Node System INode.
-  /// @param[in] Parent Parent VINode.
-  VINode(VFS &FS, INode Node, std::shared_ptr<VINode> Parent);
-
-  /// Create a VINode with a parent and explicit rights
-  ///
-  /// @param[in] FS Filesystem.
-  /// @param[in] Node System INode.
-  /// @param[in] FRB The desired rights of the VINode.
-  /// @param[in] FRI The desired rights of the VINode.
-  /// @param[in] Parent Parent VINode.
-  VINode(VFS &FS, INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
-         std::shared_ptr<VINode> Parent);
+  VINode(VFS &FS, INode Node);
 
   /// Create a orphan VINode.
   ///
@@ -54,6 +43,11 @@ public:
   /// @param[in] FRI The desired rights of the VINode.
   VINode(VFS &FS, INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
          std::string N = {});
+
+  /// Check path is valid.
+  static bool isPathValid(std::string_view Path) noexcept {
+    return Path.find('\0') == std::string_view::npos;
+  }
 
   static std::shared_ptr<VINode> stdIn(VFS &FS, __wasi_rights_t FRB,
                                        __wasi_rights_t FRI);
@@ -68,8 +62,6 @@ public:
                                                   __wasi_rights_t FRI,
                                                   std::string Name,
                                                   std::string SystemPath);
-
-  bool isPreopened() const { return !Parent && !Name.empty(); }
 
   constexpr const std::string &name() const { return Name; }
 
@@ -776,7 +768,6 @@ private:
   INode Node;
   __wasi_rights_t FsRightsBase;
   __wasi_rights_t FsRightsInheriting;
-  std::shared_ptr<VINode> Parent;
   std::string Name;
 
   friend class VPoller;

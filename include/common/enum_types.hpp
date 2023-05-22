@@ -15,6 +15,7 @@
 #pragma once
 
 #include "dense_enum_map.h"
+#include "log.h"
 #include "spare_enum_map.h"
 
 #include <cstdint>
@@ -107,3 +108,31 @@ static inline constexpr auto ExternalTypeStr = []() constexpr {
 ();
 
 } // namespace WasmEdge
+
+template <>
+struct fmt::formatter<WasmEdge::ValType> : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ValType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    return formatter<std::string_view>::format(WasmEdge::ValTypeStr[Type], Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::ValMut> : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ValMut &Mut, fmt::format_context &Ctx) const noexcept {
+    return formatter<std::string_view>::format(WasmEdge::ValMutStr[Mut], Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::ExternalType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ExternalType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    return formatter<std::string_view>::format(WasmEdge::ExternalTypeStr[Type],
+                                               Ctx);
+  }
+};

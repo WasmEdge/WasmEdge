@@ -728,7 +728,8 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
       LiteType = WASINN::TensorType::I32;
       break;
     default:
-      spdlog::error("[WASI-NN] Unsupported TFLite type: {}", LiteType);
+      spdlog::error("[WASI-NN] Unsupported TFLite type: {}",
+                    TfLiteTypeGetName(Type));
       return static_cast<uint32_t>(WASINN::ErrNo::RuntimeError);
     }
 

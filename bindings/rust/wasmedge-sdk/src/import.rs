@@ -122,7 +122,7 @@ impl ImportObjectBuilder {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner_func = sys::Function::create_new::<T>(&ty.into(), real_func, data, 0)?;
+        let inner_func = sys::Function::create::<T>(&ty.into(), real_func, data, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }
@@ -151,7 +151,7 @@ impl ImportObjectBuilder {
         real_func: HostFn<T>,
         data: Option<&mut T>,
     ) -> WasmEdgeResult<Self> {
-        let inner_func = sys::Function::create_new::<T>(&ty.into(), real_func, data, 0)?;
+        let inner_func = sys::Function::create::<T>(&ty.into(), real_func, data, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }
@@ -183,7 +183,7 @@ impl ImportObjectBuilder {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner_func = sys::Function::create_async_new(&ty.into(), real_func, ctx_data, 0)?;
+        let inner_func = sys::Function::create_async(&ty.into(), real_func, ctx_data, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }

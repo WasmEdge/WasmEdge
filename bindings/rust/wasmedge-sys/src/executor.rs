@@ -466,7 +466,7 @@ mod tests {
         let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         // add the function into the import_obj module
@@ -677,7 +677,7 @@ mod tests {
 
         // todo
         let ty = FuncType::create([], [])?;
-        let async_hello_func = Function::create_async_new::<NeverType>(&ty, async_hello, None, 0)?;
+        let async_hello_func = Function::create_async::<NeverType>(&ty, async_hello, None, 0)?;
         let mut import = ImportModule::create("extern")?;
         import.add_func("async_hello", async_hello_func);
 

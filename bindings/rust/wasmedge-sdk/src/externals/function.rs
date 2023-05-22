@@ -85,7 +85,7 @@ impl Func {
         real_func: HostFn<T>,
         data: Option<&mut T>,
     ) -> WasmEdgeResult<Self> {
-        let inner = sys::Function::create_new::<T>(&ty.clone().into(), real_func, data, 0)?;
+        let inner = sys::Function::create::<T>(&ty.clone().into(), real_func, data, 0)?;
         Ok(Self {
             inner,
             name: None,
@@ -113,7 +113,7 @@ impl Func {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner = sys::Function::create_new::<T>(&ty.clone().into(), real_func, data, 0)?;
+        let inner = sys::Function::create::<T>(&ty.clone().into(), real_func, data, 0)?;
         Ok(Self {
             inner,
             name: None,
@@ -145,7 +145,7 @@ impl Func {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner = sys::Function::create_async_new(&ty.clone().into(), real_func, ctx_data, 0)?;
+        let inner = sys::Function::create_async(&ty.clone().into(), real_func, ctx_data, 0)?;
         Ok(Self {
             inner,
             name: None,

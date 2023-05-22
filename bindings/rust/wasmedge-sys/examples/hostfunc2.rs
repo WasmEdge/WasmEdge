@@ -60,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     assert!(result.is_ok());
     let func_ty = result.unwrap();
-    let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
+    let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
     assert!(result.is_ok());
     let host_func = result.unwrap();
     import.add_func("add", host_func);

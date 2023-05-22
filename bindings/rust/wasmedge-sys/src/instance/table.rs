@@ -346,7 +346,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 

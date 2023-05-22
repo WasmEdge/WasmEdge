@@ -907,13 +907,13 @@ impl AsyncWasiModule {
                     match wasi_func {
                         WasiFunc::SyncFn(name, (ty_args, ty_rets), real_fn) => {
                             let func_ty = crate::FuncType::create(ty_args, ty_rets)?;
-                            let func = Function::create_new(&func_ty, real_fn, Some(data), 0)?;
+                            let func = Function::create(&func_ty, real_fn, Some(data), 0)?;
                             async_wasi_module.add_func(name, func);
                         }
                         WasiFunc::AsyncFn(name, (ty_args, ty_rets), real_async_fn) => {
                             let func_ty = crate::FuncType::create(ty_args, ty_rets)?;
                             let func =
-                                Function::create_async_new(&func_ty, real_async_fn, Some(data), 0)?;
+                                Function::create_async(&func_ty, real_async_fn, Some(data), 0)?;
                             async_wasi_module.add_func(name, func);
                         }
                     }
@@ -924,13 +924,12 @@ impl AsyncWasiModule {
                     match wasi_func {
                         WasiFunc::SyncFn(name, (ty_args, ty_rets), real_fn) => {
                             let func_ty = crate::FuncType::create(ty_args, ty_rets)?;
-                            let func = Function::create_new(&func_ty, real_fn, None, 0)?;
+                            let func = Function::create(&func_ty, real_fn, None, 0)?;
                             async_wasi_module.add_func(name, func);
                         }
                         WasiFunc::AsyncFn(name, (ty_args, ty_rets), real_async_fn) => {
                             let func_ty = crate::FuncType::create(ty_args, ty_rets)?;
-                            let func =
-                                Function::create_async_new(&func_ty, real_async_fn, None, 0)?;
+                            let func = Function::create_async(&func_ty, real_async_fn, None, 0)?;
                             async_wasi_module.add_func(name, func);
                         }
                     }
@@ -1088,7 +1087,7 @@ mod tests {
         let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         // add the host function
@@ -1157,7 +1156,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -1306,7 +1305,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -1428,7 +1427,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -1525,7 +1524,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -1628,7 +1627,7 @@ mod tests {
             let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
-            let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
+            let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
             assert!(result.is_ok());
             let host_func = result.unwrap();
             // add the host function

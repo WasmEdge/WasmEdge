@@ -185,7 +185,7 @@ impl Function {
     ///
     /// * `real_fn` - The pointer to the target function.
     ///
-    /// * `data` - The additional data object to set to this host function context.
+    /// * `ctx_data` - The additional data object to set to this host function context.
     ///
     /// * `cost` - The function cost in the [Statistics](crate::Statistics). Pass 0 if the calculation is not needed.
     ///
@@ -232,13 +232,13 @@ impl Function {
     /// // create a Function instance
     /// let func = Function::create_new::<NeverType>(&func_ty, real_add, None, 0).expect("fail to create a Function instance");
     /// ```
-    pub fn create_new<T>(
+    pub fn create<T>(
         ty: &FuncType,
         real_fn: HostFn<T>,
-        data: Option<&mut T>,
+        ctx_data: Option<&mut T>,
         cost: u64,
     ) -> WasmEdgeResult<Self> {
-        let data = match data {
+        let data = match ctx_data {
             Some(d) => d as *mut T as *mut std::os::raw::c_void,
             None => std::ptr::null_mut(),
         };
@@ -262,63 +262,6 @@ impl Function {
         }
     }
 
-    /// Creates a [host function](crate::Function) with the given function type.
-    ///
-    /// N.B. that this function is used for thread-safe scenarios.
-    ///
-    /// # Arguments
-    ///
-    /// * `ty` - The types of the arguments and returns of the target function.
-    ///
-    /// * `real_fn` - The pointer to the target function.
-    ///
-    /// * `data` - The pointer to the data.
-    ///
-    /// * `cost` - The function cost in the [Statistics](crate::Statistics). Pass 0 if the calculation is not needed.
-    ///
-    /// # Error
-    ///
-    /// * If fail to create a [Function], then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
-    ///
-    // unsafe fn create_with_data(
-    //     ty: &FuncType,
-    //     real_fn: BoxedFn,
-    //     data: *mut c_void,
-    //     cost: u64,
-    // ) -> WasmEdgeResult<Self> {
-    //     let mut map_host_func = HOST_FUNCS.write();
-
-    //     // generate key for the coming host function
-    //     let mut rng = rand::thread_rng();
-    //     let mut key: usize = rng.gen();
-    //     while map_host_func.contains_key(&key) {
-    //         key = rng.gen();
-    //     }
-    //     map_host_func.insert(key, Arc::new(Mutex::new(real_fn)));
-    //     drop(map_host_func);
-
-    //     let ctx = ffi::WasmEdge_FunctionInstanceCreateBinding(
-    //         ty.inner.0,
-    //         Some(wrap_fn),
-    //         key as *const usize as *mut c_void,
-    //         data,
-    //         cost,
-    //     );
-
-    //     // create a footprint for the host function
-    //     let footprint = ctx as usize;
-    //     let mut footprint_to_id = HOST_FUNC_FOOTPRINTS.lock();
-    //     footprint_to_id.insert(footprint, key);
-
-    //     match ctx.is_null() {
-    //         true => Err(Box::new(WasmEdgeError::Func(FuncError::Create))),
-    //         false => Ok(Self {
-    //             inner: Arc::new(InnerFunc(ctx)),
-    //             registered: false,
-    //         }),
-    //     }
-    // }
-
     /// Creates an async [host function](crate::Function) with the given function type.
     ///
     /// # Arguments
@@ -326,6 +269,8 @@ impl Function {
     /// * `ty` - The types of the arguments and returns of the target function.
     ///
     /// * `real_fn` - The pointer to the target function.
+    ///
+    /// * `ctx_data` - The additional data object to set to this host function context.
     ///
     /// * `cost` - The function cost in the [Statistics](crate::Statistics). Pass 0 if the calculation is not needed.
     ///
@@ -380,7 +325,7 @@ impl Function {
     /// let func = Function::create_async_new::<NeverType>(&func_ty, real_add, None, 0).expect("fail to create a Function instance");
     /// ```
     #[cfg(feature = "async")]
-    pub fn create_async_new<T>(
+    pub fn create_async<T>(
         ty: &FuncType,
         real_fn: AsyncHostFn<T>,
         ctx_data: Option<&mut T>,
@@ -932,7 +877,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create_new(&func_ty, real_add, Some(&mut data), 0);
+        let result = Function::create(&func_ty, real_add, Some(&mut data), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -1012,7 +957,7 @@ mod tests {
                 assert!(result.is_ok());
                 let func_ty = result.unwrap();
                 // create a host function
-                let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
+                let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
                 assert!(result.is_ok());
                 let host_func = result.unwrap();
 
@@ -1039,7 +984,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create_new::<NeverType>(&func_ty, func, None, 0);
+        let result = Function::create::<NeverType>(&func_ty, func, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -1058,7 +1003,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -1089,7 +1034,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = Arc::new(Mutex::new(result.unwrap()));
 
@@ -1185,7 +1130,7 @@ mod tests {
             Ok(vec![WasmValue::from_i32(c)])
         };
 
-        let result = Function::create_new::<NeverType>(&func_ty, real_add, None, 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 

@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a FuncType
     let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32])?;
     // create a host function
-    let host_func = Function::create_new::<NeverType>(&func_ty, real_add, None, 0)?;
+    let host_func = Function::create::<NeverType>(&func_ty, real_add, None, 0)?;
 
     // create a TableType instance
     let ty = TableType::create(RefType::FuncRef, 10, Some(20))?;

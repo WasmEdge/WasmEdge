@@ -61,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         vec![ValType::ExternRef, ValType::I32, ValType::I32],
         vec![ValType::I32],
     )?;
-    let host_func = Function::create_new::<NeverType>(&func_ty, real_add, None, 0)?;
+    let host_func = Function::create::<NeverType>(&func_ty, real_add, None, 0)?;
 
     // create an ImportObject module
     let mut import = ImportModule::create("extern_module")?;

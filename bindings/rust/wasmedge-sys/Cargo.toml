@@ -20,8 +20,10 @@ thiserror = "1.0.30"
 wasmedge-macro = {workspace = true}
 wasmedge-types = {workspace = true}
 wat = "1.0"
-wasmedge-async-wasi = {git = "https://github.com/apepkuss/async-wasi.git", branch = "main", optional = true}
 scoped-tls = "1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+wasmedge-async-wasi = {git = "https://github.com/apepkuss/async-wasi.git", branch = "main", optional = true}
 
 [build-dependencies]
 bindgen = {version = "0.65", default-features = false, features = ["runtime"]}

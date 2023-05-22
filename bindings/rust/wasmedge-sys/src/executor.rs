@@ -79,6 +79,7 @@ impl Executor {
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(not(feature = "async"))]
             ImportObject::Wasi(import) => unsafe {
                 check(ffi::WasmEdge_ExecutorRegisterImport(
                     self.inner.0,

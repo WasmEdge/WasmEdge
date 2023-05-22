@@ -58,7 +58,7 @@
               .
           '';
           buildPhase = ''
-            cmake --build build -j12
+            cmake --build build -j
           '';
           installPhase = ''
             cd build

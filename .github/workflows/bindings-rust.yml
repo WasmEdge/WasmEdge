@@ -151,8 +151,8 @@ jobs:
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export DYLD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
           cargo +nightly -Z sparse-registry update
-          cargo test --workspace --locked --features aot,async,ffi -- --test-threads=1
-          cargo test --examples --locked --features aot,async,ffi -- --test-threads=1
+          cargo test --workspace --locked --features aot,ffi -- --test-threads=1
+          cargo test --examples --locked --features aot,ffi -- --test-threads=1
 
   build_windows:
     name: Windows
@@ -231,8 +231,8 @@ jobs:
           $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge\WasmEdge\build\lib\api"
           cd bindings\rust
           cargo +nightly -Z sparse-registry update
-          cargo test --workspace --features aot,async,ffi --locked -- --test-threads=1
-          cargo test --examples --features aot,async,ffi --locked -- --test-threads=1
+          cargo test --workspace --features aot,ffi --locked -- --test-threads=1
+          cargo test --examples --features aot,ffi --locked -- --test-threads=1
 
   build_fedora:
     name: Fedora latest
@@ -292,5 +292,7 @@ jobs:
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
           cargo +nightly -Z sparse-registry update
-          cargo test --workspace --locked --features aot,async,ffi -- --test-threads=1
-          cargo test --examples --locked --features aot,async,ffi -- --test-threads=1
+          cargo test --workspace --locked --features aot,async,wasmedge_process,ffi -- --nocapture
+          cargo test --workspace --locked --features aot,wasmedge_process,ffi -- --nocapture
+          cargo test --examples --locked --features aot,async,wasmedge_process,ffi -- --nocapture
+          cargo test --examples --locked --features aot,wasmedge_process,ffi -- --nocapture

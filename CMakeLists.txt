@@ -73,6 +73,7 @@ option(WASMEDGE_BUILD_EXAMPLE "Generate examples." OFF)
 option(WASMEDGE_FORCE_DISABLE_LTO "Forcefully disable link time optimization when linking even in Release/RelWithDeb build." OFF)
 option(WASMEDGE_LINK_LLVM_STATIC "Statically link the LLVM library into the WasmEdge tools and libraries." OFF)
 option(WASMEDGE_LINK_TOOLS_STATIC "Statically link the wasmedge and wasmedgec tools. Will forcefully link the LLVM library statically." OFF)
+option(WASMEDGE_ENABLE_UB_SANITIZER "Enable undefined behavior senitizer" OFF)
 set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge Wasi-NN plugin with backends.")
 # Currently supported WASI-NN backend: "OpenVINO" on Linux x86_64
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge Wasi-crypto plugin." OFF)

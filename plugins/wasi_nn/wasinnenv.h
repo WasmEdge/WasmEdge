@@ -26,8 +26,10 @@ namespace WASINN {
 enum class ErrNo : uint32_t {
   Success = 0,         // No error occurred.
   InvalidArgument = 1, // Caller module passed an invalid argument.
-  MissingMemory = 2,   // Caller module is missing a memory export.
-  Busy = 3             // Device or resource busy.
+  InvalidEncoding = 2, // Invalid encoding.
+  MissingMemory = 3,   // Caller module is missing a memory export.
+  Busy = 4,            // Device or resource busy.
+  RuntimeError = 5,    // Runtime Error.
 };
 
 enum class TensorType : uint8_t { F16 = 0, F32 = 1, U8 = 2, I32 = 3 };

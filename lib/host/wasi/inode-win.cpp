@@ -1700,11 +1700,8 @@ WasiExpect<void> INode::pathUnlinkFile(std::string Path) const noexcept {
   return {};
 }
 
-WasiExpect<Poller> INode::pollOneoff(__wasi_size_t) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
-}
-
-WasiExpect<Epoller> INode::epollOneoff(__wasi_size_t, int) noexcept {
+WasiExpect<Poller> INode::pollOneoff(WASI::TriggerType Trigger,
+                                     __wasi_size_t) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
@@ -2542,6 +2539,8 @@ WasiExpect<__wasi_filesize_t> INode::filesize() const noexcept {
 bool INode::canBrowse() const noexcept { return false; }
 
 Poller::Poller(__wasi_size_t Count) { Events.reserve(Count); }
+
+void Poller::clear() noexcept {}
 
 WasiExpect<void> Poller::clock(__wasi_clockid_t, __wasi_timestamp_t,
                                __wasi_timestamp_t, __wasi_subclockflags_t,

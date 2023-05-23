@@ -176,8 +176,11 @@ struct HandleHolder {
 };
 #endif
 
+enum class TriggerType {
+  Level,
+  Edge,
+};
 class Poller;
-class Epoller;
 
 class INode
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
@@ -518,18 +521,11 @@ public:
 
   /// Concurrently poll for the occurrence of a set of events.
   ///
+  /// @param[in] Trigger Requesting level-trigger or edge-trigger notification.
   /// @param[in] NSubscriptions Both the number of subscriptions and events.
   /// @return Poll helper or WASI error
-  static WasiExpect<Poller> pollOneoff(__wasi_size_t NSubscriptions) noexcept;
-
-  /// Concurrently poll for the occurrence of a set of events in edge-triggered
-  /// mode.
-  ///
-  /// @param[in] NSubscriptions Both the number of subscriptions and events.
-  /// @param[in] Fd The epoll descriptor.
-  /// @return Poll helper or WASI error
-  static WasiExpect<Epoller> epollOneoff(__wasi_size_t NSubscriptions,
-                                         int Fd) noexcept;
+  static WasiExpect<Poller> pollOneoff(TriggerType Trigger,
+                                       __wasi_size_t NSubscriptions) noexcept;
 
   static WasiExpect<void>
   getAddrinfo(std::string_view NodeStr, std::string_view ServiceStr,
@@ -727,6 +723,10 @@ public:
 
   explicit Poller(__wasi_size_t Count);
 
+  void trigger(TriggerType T) noexcept { Trigger = T; }
+
+  void clear() noexcept;
+
   WasiExpect<void> clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
                          __wasi_timestamp_t Precision,
                          __wasi_subclockflags_t Flags,
@@ -769,77 +769,7 @@ private:
 
   std::vector<Timer> Timers;
   std::unordered_map<int, FdData> FdDatas;
-#endif
-};
-
-class Epoller
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
-    : public FdHolder
-#endif
-{
-public:
-  using CallbackType =
-      std::function<void(__wasi_userdata_t, __wasi_errno_t, __wasi_eventtype_t,
-                         __wasi_filesize_t, __wasi_eventrwflags_t)>;
-  Epoller(const Epoller &) = delete;
-  Epoller &operator=(const Epoller &) = delete;
-  Epoller(Epoller &&RHS) noexcept = default;
-  Epoller &operator=(Epoller &&RHS) noexcept = default;
-
-  explicit Epoller(__wasi_size_t Count, int Fd = -1);
-
-  WasiExpect<void> clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
-                         __wasi_timestamp_t Precision,
-                         __wasi_subclockflags_t Flags,
-                         __wasi_userdata_t UserData) noexcept;
-
-  WasiExpect<void>
-  read(const INode &Fd, __wasi_userdata_t UserData,
-       std::unordered_map<int, uint32_t> &Registration) noexcept;
-
-  WasiExpect<void>
-  write(const INode &Fd, __wasi_userdata_t UserData,
-        std::unordered_map<int, uint32_t> &Registration) noexcept;
-
-  WasiExpect<void>
-  wait(CallbackType Callback,
-       std::unordered_map<int, uint32_t> &Registration) noexcept;
-
-#if WASMEDGE_OS_WINDOWS
-  int getFd() noexcept { return -1; }
-#endif
-
-private:
-  std::vector<__wasi_event_t> Events;
-
-#if WASMEDGE_OS_LINUX
-private:
-  struct Timer : public FdHolder {
-    Timer(const Timer &) = delete;
-    Timer &operator=(const Timer &) = delete;
-    Timer(Timer &&RHS) noexcept = default;
-    Timer &operator=(Timer &&RHS) noexcept = default;
-    constexpr Timer() noexcept = default;
-
-    WasiExpect<void> create(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
-                            __wasi_timestamp_t Precision,
-                            __wasi_subclockflags_t Flags) noexcept;
-
-#if !__GLIBC_PREREQ(2, 8)
-    FdHolder Notify;
-    TimerHolder TimerId;
-#endif
-  };
-
-  struct FdData {
-    uint32_t Events = 0;
-    uint32_t ReadIndex = std::numeric_limits<uint32_t>::max();
-    uint32_t WriteIndex = std::numeric_limits<uint32_t>::max();
-    constexpr FdData(uint32_t E) noexcept : Events(E) {}
-  };
-
-  std::vector<Timer> Timers;
-  std::unordered_map<int, FdData> FdDatas;
+  TriggerType Trigger;
 #endif
 };
 

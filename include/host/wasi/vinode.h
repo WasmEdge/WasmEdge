@@ -21,7 +21,6 @@ namespace WASI {
 
 class VFS;
 class VPoller;
-class VEpoller;
 class VINode : public std::enable_shared_from_this<VINode> {
 public:
   VINode(const VINode &) = delete;
@@ -540,19 +539,11 @@ public:
 
   /// Concurrently poll for the occurrence of a set of events.
   ///
+  /// @param[in] Trigger Requesting level-trigger or edge-trigger notification.
   /// @param[in] NSubscriptions Both the number of subscriptions and events.
   /// @return Poll helper or WASI error.
   static inline WasiExpect<VPoller>
-  pollOneoff(__wasi_size_t NSubscriptions) noexcept;
-
-  /// Concurrently poll for the occurrence of a set of events in edge-triggered
-  /// mode.
-  ///
-  /// @param[in] NSubscriptions Both the number of subscriptions and events.
-  /// @param[in] Fd Epoll Descriptor.
-  /// @return Poll helper or WASI error.
-  static inline WasiExpect<VEpoller> epollOneoff(__wasi_size_t NSubscriptions,
-                                                 int Fd) noexcept;
+  pollOneoff(TriggerType Trigger, __wasi_size_t NSubscriptions) noexcept;
 
   static WasiExpect<void>
   getAddrinfo(std::string_view Node, std::string_view Service,
@@ -771,7 +762,6 @@ private:
   std::string Name;
 
   friend class VPoller;
-  friend class VEpoller;
 
   /// Open path without resolve.
   /// @param Path Path, contains one element only.
@@ -798,7 +788,9 @@ private:
 
 class VPoller : private Poller {
 public:
+  using Poller::clear;
   using Poller::clock;
+  using Poller::trigger;
   using Poller::wait;
 
   VPoller(Poller &&P) : Poller(std::move(P)) {}
@@ -818,49 +810,10 @@ public:
   }
 };
 
-class VEpoller : private Epoller {
-public:
-  using Epoller::CallbackType;
-  using Epoller::clock;
-  using Epoller::getFd;
-  using Epoller::wait;
-
-  VEpoller(Epoller &&P) : Epoller(std::move(P)) {}
-
-  WasiExpect<void>
-  read(std::shared_ptr<VINode> Fd, __wasi_userdata_t UserData,
-       std::unordered_map<int, uint32_t> &Registration) noexcept {
-    if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
-        !Fd->can(__WASI_RIGHTS_FD_READ)) {
-      return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
-    }
-    return Epoller::read(Fd->Node, UserData, Registration);
-  }
-
-  WasiExpect<void>
-  write(std::shared_ptr<VINode> Fd, __wasi_userdata_t UserData,
-        std::unordered_map<int, uint32_t> &Registration) noexcept {
-    return Epoller::write(Fd->Node, UserData, Registration);
-  }
-  WasiExpect<void>
-  wait(CallbackType Callback,
-       std::unordered_map<int, uint32_t> &Registration) noexcept {
-    return Epoller::wait(Callback, Registration);
-  }
-  int getFd() noexcept { return Epoller::getFd(); }
-};
-
 inline WasiExpect<VPoller>
-VINode::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
-  return INode::pollOneoff(NSubscriptions).map([](Poller &&P) {
+VINode::pollOneoff(TriggerType Trigger, __wasi_size_t NSubscriptions) noexcept {
+  return INode::pollOneoff(Trigger, NSubscriptions).map([](Poller &&P) {
     return VPoller(std::move(P));
-  });
-}
-
-inline WasiExpect<VEpoller> VINode::epollOneoff(__wasi_size_t NSubscriptions,
-                                                int Fd) noexcept {
-  return INode::epollOneoff(NSubscriptions, Fd).map([](Epoller &&P) {
-    return VEpoller(std::move(P));
   });
 }
 

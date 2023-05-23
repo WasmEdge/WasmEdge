@@ -792,7 +792,8 @@ TEST(WasiTest, PollOneoffSocketV1) {
 
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
   WasmEdge::Host::WasiFdFdstatSetFlags WasiFdFdstatSetFlags(Env);
-  WasmEdge::Host::WasiPollOneoff WasiPollOneoff(Env);
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
   WasmEdge::Host::WasiSockConnectV1 WasiSockConnect(Env);
   WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
   WasmEdge::Host::WasiSockRecvV1 WasiSockRecv(Env);
@@ -1407,7 +1408,8 @@ TEST(WasiTest, PollOneoffSocketV2) {
 
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
   WasmEdge::Host::WasiFdFdstatSetFlags WasiFdFdstatSetFlags(Env);
-  WasmEdge::Host::WasiPollOneoff WasiPollOneoff(Env);
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
   WasmEdge::Host::WasiSockConnectV2 WasiSockConnect(Env);
   WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
   WasmEdge::Host::WasiSockRecvV2 WasiSockRecv(Env);
@@ -2022,7 +2024,8 @@ TEST(WasiTest, EpollOneoffSocketV1) {
 
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
   WasmEdge::Host::WasiFdFdstatSetFlags WasiFdFdstatSetFlags(Env);
-  WasmEdge::Host::WasiEpollOneoff WasiEpollOneoff(Env);
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Edge>
+      WasiPollOneoff(Env);
   WasmEdge::Host::WasiSockConnectV1 WasiSockConnect(Env);
   WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
   WasmEdge::Host::WasiSockRecvV1 WasiSockRecv(Env);
@@ -2076,10 +2079,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       Subscriptions[1].u.u.clock.precision = 1;
       Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
       EXPECT_TRUE(
-          WasiEpollOneoff.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  InPtr, OutPtr, Count, NEventsPtr},
-                              Errno));
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
       EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
@@ -2105,10 +2108,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       Subscriptions[1].u.u.clock.precision = 1;
       Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
       EXPECT_TRUE(
-          WasiEpollOneoff.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  InPtr, OutPtr, Count, NEventsPtr},
-                              Errno));
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
       EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
@@ -2135,10 +2138,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       Subscriptions[1].u.u.clock.precision = 1;
       Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
       EXPECT_TRUE(
-          WasiEpollOneoff.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  InPtr, OutPtr, Count, NEventsPtr},
-                              Errno));
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
       EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
@@ -2164,10 +2167,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       Subscriptions[1].u.u.clock.precision = 1;
       Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
       EXPECT_TRUE(
-          WasiEpollOneoff.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  InPtr, OutPtr, Count, NEventsPtr},
-                              Errno));
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
@@ -2196,10 +2199,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       Subscriptions[2].u.u.clock.precision = 1;
       Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
       EXPECT_TRUE(
-          WasiEpollOneoff.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  InPtr, OutPtr, Count, NEventsPtr},
-                              Errno));
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
@@ -2228,10 +2231,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       Subscriptions[2].u.u.clock.precision = 1;
       Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
       EXPECT_TRUE(
-          WasiEpollOneoff.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  InPtr, OutPtr, Count, NEventsPtr},
-                              Errno));
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
@@ -2260,10 +2263,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       Subscriptions[2].u.u.clock.precision = 1;
       Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
       EXPECT_TRUE(
-          WasiEpollOneoff.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  InPtr, OutPtr, Count, NEventsPtr},
-                              Errno));
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));

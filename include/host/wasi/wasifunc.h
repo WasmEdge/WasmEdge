@@ -321,18 +321,10 @@ public:
                         uint32_t PathPtr, uint32_t PathLen);
 };
 
-class WasiPollOneoff : public Wasi<WasiPollOneoff> {
+template <WASI::TriggerType Trigger>
+class WasiPollOneoff : public Wasi<WasiPollOneoff<Trigger>> {
 public:
-  WasiPollOneoff(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
-
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t InPtr,
-                        uint32_t OutPtr, uint32_t NSubscriptions,
-                        uint32_t /* Out */ NEventsPtr);
-};
-
-class WasiEpollOneoff : public Wasi<WasiEpollOneoff> {
-public:
-  WasiEpollOneoff(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiPollOneoff(WASI::Environ &HostEnv) : Wasi<WasiPollOneoff>(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t InPtr,
                         uint32_t OutPtr, uint32_t NSubscriptions,

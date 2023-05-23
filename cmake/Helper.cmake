@@ -22,6 +22,11 @@ list(APPEND WASMEDGE_CFLAGS
   -Werror
   -Wno-error=pedantic
 )
+
+if(WASMEDGE_ENABLE_UB_SANITIZER)
+  list(APPEND WASMEDGE_CFLAGS -fsanitize=undefined)
+endif()
+
 if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
   list(APPEND WASMEDGE_CFLAGS -Wno-psabi)
 endif()
@@ -105,6 +110,14 @@ function(wasmedge_setup_target target)
     PRIVATE
     ${WASMEDGE_CFLAGS}
   )
+
+  if(WASMEDGE_ENABLE_UB_SANITIZER)
+    target_link_options(${target}
+      PRIVATE
+      -fsanitize=undefined
+    )
+  endif()
+
   if(WASMEDGE_BUILD_FUZZING AND NOT DEFINED LIB_FUZZING_ENGINE)
     target_compile_options(${target}
       PUBLIC

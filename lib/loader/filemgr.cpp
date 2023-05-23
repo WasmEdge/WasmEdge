@@ -168,7 +168,6 @@ template <typename RetType, size_t N> Expect<RetType> FileMgr::readSN() {
     }
 
     // In the rest logic, RemainingBits must be at least 1.
-
     WasmEdge::Byte Byte;
     if (auto Res = testRead(1); unlikely(!Res)) {
       return Unexpect(Res);
@@ -186,7 +185,8 @@ template <typename RetType, size_t N> Expect<RetType> FileMgr::readSN() {
         return Unexpect(Status);
       }
 
-      RetType Payload = Byte & (~HighestBitMask); // & 0b01111111
+      std::make_unsigned_t<RetType> Payload =
+          Byte & (~HighestBitMask); // & 0b01111111
       Result |= (Payload << Offset);
       Offset += 7;
       RemainingBits -= 7;
@@ -197,12 +197,10 @@ template <typename RetType, size_t N> Expect<RetType> FileMgr::readSN() {
       // must be at least 1, EffectiveBits also must be at least 1. It is also
       // at most 7.
       size_t EffectiveBits = RemainingBits < 7 ? RemainingBits : 7;
-      RetType Payload;
+      std::make_unsigned_t<RetType> Payload = Byte;
       if (Byte & SecondHighestBitMask) {
         // The byte is signed.
-
         if (Byte >= (1 << 7) - (1 << (EffectiveBits - 1))) {
-          Payload = Byte;
           Payload -= (1 << 7);
         } else {
           Status = ErrCode::Value::IntegerTooLarge;
@@ -210,10 +208,7 @@ template <typename RetType, size_t N> Expect<RetType> FileMgr::readSN() {
         }
       } else {
         // The byte is unsigned.
-
-        if (Byte < (1 << (EffectiveBits - 1))) {
-          Payload = Byte;
-        } else {
+        if (Byte >= (1 << (EffectiveBits - 1))) {
           Status = ErrCode::Value::IntegerTooLarge;
           return Unexpect(Status);
         }

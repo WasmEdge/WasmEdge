@@ -163,7 +163,7 @@ impl VmBuilder {
                         HostRegistrationInstance::Wasi(WasiInstance { inner: wasi_module }),
                     );
                 } else {
-                    panic!("failed to create AsyncWasiModule")
+                    panic!("failed to create AsyncWasiModule which is only available on Linux")
                 }
             }
         }

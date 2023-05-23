@@ -170,6 +170,7 @@ impl AsInstance for WasiInstance {
     }
 }
 
+/// Represents a wasi module instance.
 #[cfg(all(feature = "async", target_os = "linux"))]
 #[derive(Debug, Clone)]
 pub struct WasiInstance {

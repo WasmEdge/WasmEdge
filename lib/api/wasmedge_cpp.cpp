@@ -151,8 +151,8 @@ class ASTModule::ASTModuleContext: public WasmEdge::AST::Module {};
 
 class FunctionTypeContext: public FunctionType {
 public:
-  FunctionTypeContext(AST::FunctionType *Func)
-  : Content(Func) {}
+  FunctionTypeContext(const AST::FunctionType *Func)
+  : Content(const_cast<AST::FunctionType *>(Func)) {}
 
   FunctionTypeContext(const std::vector<ValType> &ParamList,
                       const std::vector<ValType> &ReturnList) {
@@ -209,8 +209,8 @@ private:
 
 class TableTypeContext: public TableType {
 public:
-  TableTypeContext(AST::TableType *TabType)
-  : Content(TabType) {}
+  TableTypeContext(const AST::TableType *TabType)
+  : Content(const_cast<AST::TableType *>(TabType)) {}
 
   TableTypeContext(const RefType RefT, const Limit &Lim) {
     WasmEdge::RefType Type = static_cast<WasmEdge::RefType>(RefT);
@@ -255,8 +255,8 @@ private:
 
 class MemoryTypeContext: public MemoryType {
 public:
-  MemoryTypeContext(AST::MemoryType *MemType)
-  : Content(MemType) {}
+  MemoryTypeContext(const AST::MemoryType *MemType)
+  : Content(const_cast<AST::MemoryType *>(MemType)) {}
 
   MemoryTypeContext(const Limit &Lim) {
     if (Lim.Shared) {
@@ -297,8 +297,8 @@ private:
 
 class GlobalTypeContext: public GlobalType {
 public:
-  GlobalTypeContext(AST::GlobalType *GlobType)
-  : Content(GlobType) {}
+  GlobalTypeContext(const AST::GlobalType *GlobType)
+  : Content(const_cast<AST::GlobalType *>(GlobType)) {}
 
   GlobalTypeContext(const ValType ValT, const Mutability Mut) {
     Content =
@@ -455,8 +455,8 @@ public:
     }
   }
 
-  FunctionInstanceContext(Runtime::Instance::FunctionInstance *Inst)
-  : Content(Inst) {}
+  FunctionInstanceContext(const Runtime::Instance::FunctionInstance *Inst)
+  : Content(const_cast<Runtime::Instance::FunctionInstance *>(Inst)) {}
 
   ~FunctionInstanceContext() {
     if (IsOwn) {
@@ -470,6 +470,10 @@ public:
           const_cast<AST::FunctionType *>(&Content->getFuncType()));
     }
     return FunctionTypeContext(nullptr);
+  }
+
+  const Runtime::Instance::FunctionInstance *GetConstContent() {
+    return Content;
   }
 
 private:
@@ -720,21 +724,44 @@ private:
 
 class ModuleInstanceContext: public ModuleInstance {
 public:
+  ModuleInstanceContext(const Runtime::Instance::ModuleInstance *Inst)
+  : Content(const_cast<Runtime::Instance::ModuleInstance *>(Inst)) {}
   ModuleInstanceContext(const std::string &ModuleName)
   : Content(new WasmEdge::Runtime::Instance::ModuleInstance(ModuleName)),
     IsOwn(true) {}
   ModuleInstanceContext(const std::vector<const std::string> &Args,
-                const std::vector<const std::string> &Envs,
-                const std::vector<const std::string> &Preopens) {
+                        const std::vector<const std::string> &Envs,
+                        const std::vector<const std::string> &Preopens) {
     this->Content = new WasmEdge::Host::WasiModule();
     this->IsOwn = true;
     this->InitWASI(Args, Envs, Preopens);
   }
 
+  // Copy Constructor
+  ModuleInstanceContext(ModuleInstanceContext &ModInst)
+  : Content(ModInst.Content), IsOwn(false) {}
+
+  // Move Constructor
+  ModuleInstanceContext(ModuleInstanceContext &&ModInst)
+  : Content(ModInst.Content), IsOwn(ModInst.IsOwn) { ModInst.IsOwn = false; }
+
   ~ModuleInstanceContext() {
     if (IsOwn) {
       delete Content;
     }
+  }
+
+  // Internal use
+  void OwnModuleInstPointer(Runtime::Instance::ModuleInstance *Inst) {
+    if (Content && IsOwn) {
+      delete Content;
+    }
+    Content = Inst;
+    IsOwn = true;
+  }
+
+  const Runtime::Instance::ModuleInstance *GetConstContent() {
+    return Content;
   }
 
   void InitWASI(const std::vector<const std::string> &Args,
@@ -987,7 +1014,11 @@ Value::Value(const RefType ValT)
   Type(static_cast<ValType>(ValT)) {}
 
 Value::Value(const FunctionInstance &Cxt) {
-  // TODO: Implement FunctionInstance functions
+  auto ValV = WasmEdge::FuncRef(
+      static_cast<const FunctionInstanceContext *>
+          (&Cxt)->GetConstContent());
+  this->Val = to_uint128_t(WasmEdge::ValVariant(ValV).unwrap());
+  this->Type = ValType::FuncRef;
 }
 
 Value::Value(std::shared_ptr<void> ExtRef)
@@ -1024,8 +1055,10 @@ int128_t Value::GetV128() {
                          .get<WasmEdge::int128_t>());
 }
 
-const FunctionInstance &Value::GetFuncRef() {
-  // TODO: Implement FunctionInstance constructor
+const FunctionInstance Value::GetFuncRef() {
+  return FunctionInstanceContext(
+      WasmEdge::retrieveFuncRef(WasmEdge::ValVariant::wrap<WasmEdge::FuncRef>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val))));
 }
 
 std::shared_ptr<void> Value::GetExternRef() {
@@ -1180,59 +1213,36 @@ std::string ImportType::GetExternalName() {
   return str;
 }
 
-std::shared_ptr<const FunctionType>
-ImportType::GetFunctionType(const ASTModule &ASTCxt) {
+const FunctionType ImportType::GetFunctionType(const ASTModule &ASTCxt) {
   if (Cxt.getExternalType() == WasmEdge::ExternalType::Function) {
     uint32_t Idx = Cxt.getExternalFuncTypeIdx();
     const auto &FuncTypes = ASTCxt.Cxt->getTypeSection().getContent();
-    if (Idx >= FuncTypes.size()) return nullptr;
+    if (Idx >= FuncTypes.size()) return FunctionTypeContext(nullptr);
 
-    auto FuncTypeCxt =
-        std::make_unique<FunctionType::FunctionTypeContext>(FuncTypes[Idx]);
-    auto FuncType = std::shared_ptr<FunctionType>();
-    FuncType->Cxt = std::move(FuncTypeCxt);
-    return FuncType;
+    return FunctionTypeContext(&FuncTypes[Idx]);
   }
-  return nullptr;
+  return FunctionTypeContext(nullptr);
 }
 
-std::shared_ptr<const TableType>
-ImportType::GetTableType(const ASTModule &ASTCxt) {
+const TableType ImportType::GetTableType(const ASTModule &ASTCxt) {
   if (Cxt.getExternalType() == WasmEdge::ExternalType::Table) {
-    auto TabTypeCxt =
-        std::make_unique<TableType::TableTypeContext>(
-          Cxt.getExternalTableType());
-    auto TabType = std::shared_ptr<TableType>();
-    TabType->Cxt = std::move(TabTypeCxt);
-    return TabType;
+    return TableTypeContext(&Cxt.getExternalTableType());
   }
-  return nullptr;
+  return TableTypeContext(nullptr);
 }
 
-std::shared_ptr<const MemoryType>
-ImportType::GetMemoryType(const ASTModule &ASTCxt) {
+const MemoryType ImportType::GetMemoryType(const ASTModule &ASTCxt) {
   if (Cxt.getExternalType() == WasmEdge::ExternalType::Memory) {
-    auto ExternalMemType = Cxt.getExternalMemoryType();
-    auto MemTypeCxt =
-        std::make_unique<MemoryType::MemoryTypeContext>(ExternalMemType);
-    auto MemType = std::shared_ptr<MemoryType>();
-    MemType->Cxt = std::move(MemTypeCxt);
-    return MemType;
+    return MemoryTypeContext(&Cxt.getExternalMemoryType());
   }
-  return nullptr;
+  return MemoryTypeContext(nullptr);
 }
 
-std::shared_ptr<const GlobalType>
-ImportType::GetGlobalType(const ASTModule &ASTCxt) {
+const GlobalType ImportType::GetGlobalType(const ASTModule &ASTCxt) {
   if (Cxt.getExternalType() == WasmEdge::ExternalType::Global) {
-    auto ExternalGlobType = Cxt.getExternalGlobalType();
-    auto GlobTypeCxt =
-        std::make_unique<GlobalType::GlobalTypeContext>(ExternalGlobType);
-    auto GlobType = std::shared_ptr<GlobalType>();
-    GlobType->Cxt = std::move(GlobTypeCxt);
-    return GlobType;
+    return GlobalTypeContext(&Cxt.getExternalGlobalType());
   }
-  return nullptr;
+  return GlobalTypeContext(nullptr);
 }
 
 // <<<<<<<< WasmEdge ImportType members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1250,8 +1260,7 @@ std::string ExportType::GetExternalName() {
   return str;
 }
 
-std::shared_ptr<const FunctionType>
-ExportType::GetFunctionType (const ASTModule &ASTCxt) {
+const FunctionType ExportType::GetFunctionType (const ASTModule &ASTCxt) {
   if (Cxt.getExternalType() == WasmEdge::ExternalType::Function) {
     // `external_index` = `func_index` + `import_func_nums`
     uint32_t ExtIdx = Cxt.getExternalIndex();
@@ -1265,27 +1274,22 @@ ExportType::GetFunctionType (const ASTModule &ASTCxt) {
     const auto &FuncIdxs =
         ASTCxt.Cxt->getFunctionSection().getContent();
     if (ExtIdx >= FuncIdxs.size()) {
-      return nullptr;
+      return FunctionTypeContext(nullptr);
     }
     uint32_t TypeIdx = FuncIdxs[ExtIdx];
     // Get the function type
     const auto &FuncTypes =
         ASTCxt.Cxt->getTypeSection().getContent();
     if (TypeIdx >= FuncTypes.size()) {
-      return nullptr;
+      return FunctionTypeContext(nullptr);
     }
 
-    auto FuncTypeCxt =
-        std::make_unique<FunctionType::FunctionTypeContext>(FuncTypes[TypeIdx]);
-    auto FuncType = std::shared_ptr<FunctionType>();
-    FuncType->Cxt = std::move(FuncTypeCxt);
-    return FuncType;
+    return FunctionTypeContext(&FuncTypes[TypeIdx]);
   }
-  return nullptr;
+  return FunctionTypeContext(nullptr);
 }
 
-std::shared_ptr<const TableType>
-ExportType::GetTableType(const ASTModule &ASTCxt) {
+const TableType ExportType::GetTableType(const ASTModule &ASTCxt) {
   if (Cxt.getExternalType() == WasmEdge::ExternalType::Table) {
     // `external_index` = `table_type_index` + `import_table_nums`
     uint32_t ExtIdx = Cxt.getExternalIndex();
@@ -1298,19 +1302,14 @@ ExportType::GetTableType(const ASTModule &ASTCxt) {
     //Get the table type
     const auto &TabTypes = ASTCxt.Cxt->getTableSection().getContent();
     if (ExtIdx >= TabTypes.size()) {
-      return nullptr;
+      return TableTypeContext(nullptr);
     }
-    auto TabTypeCxt =
-        std::make_unique<TableType::TableTypeContext>(TabTypes[ExtIdx]);
-    auto TabType = std::shared_ptr<TableType>();
-    TabType->Cxt = std::move(TabTypeCxt);
-    return TabType;
+    return TableTypeContext(&TabTypes[ExtIdx]);
   }
-  return nullptr;
+  return TableTypeContext(nullptr);
 }
 
-std::shared_ptr<const MemoryType>
-ExportType::GetMemoryType(const ASTModule &ASTCxt) {
+const MemoryType ExportType::GetMemoryType(const ASTModule &ASTCxt) {
   if (Cxt.getExternalType() == WasmEdge::ExternalType::Memory) {
     // `external_index` = `memory_type_index` + `import_memory_nums`
     uint32_t ExtIdx = Cxt.getExternalIndex();
@@ -1323,19 +1322,14 @@ ExportType::GetMemoryType(const ASTModule &ASTCxt) {
     // Get the memory type
     const auto &MemTypes = ASTCxt.Cxt->getMemorySection().getContent();
     if (ExtIdx >= MemTypes.size()) {
-      return nullptr;
+      return MemoryTypeContext(nullptr);
     }
-    auto MemTypeCxt =
-        std::make_unique<MemoryType::MemoryTypeContext>(MemTypes[ExtIdx]);
-    auto MemType = std::shared_ptr<MemoryType>();
-    MemType->Cxt = std::move(MemTypeCxt);
-    return MemType;
+    return MemoryTypeContext(&MemTypes[ExtIdx]);
   }
-  return nullptr;
+  return MemoryTypeContext(nullptr);
 }
 
-std::shared_ptr<const GlobalType>
-ExportType::GetGlobalType(const ASTModule &ASTCxt) {
+const GlobalType ExportType::GetGlobalType(const ASTModule &ASTCxt) {
   if (Cxt.getExternalType() == WasmEdge::ExternalType::Global) {
     // `external_index` = `global_type_index` + `import_global_nums`
     uint32_t ExtIdx = Cxt.getExternalIndex();
@@ -1348,16 +1342,11 @@ ExportType::GetGlobalType(const ASTModule &ASTCxt) {
     // Get the global type
     const auto &GlobDescs = ASTCxt.Cxt->getGlobalSection().getContent();
     if (ExtIdx >= GlobDescs.size()) {
-      return nullptr;
+      return GlobalTypeContext(nullptr);
     }
-    auto GlobTypeCxt =
-        std::make_unique<GlobalType::GlobalTypeContext>(
-          GlobDescs[ExtIdx].getGlobalType());
-    auto GlobType = std::shared_ptr<GlobalType>();
-    GlobType->Cxt = std::move(GlobTypeCxt);
-    return GlobType;
+    return GlobalTypeContext(&GlobDescs[ExtIdx].getGlobalType());
   }
-  return nullptr;
+  return GlobalTypeContext(nullptr);
 }
 
 // <<<<<<<< WasmEdge ExportType members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1612,10 +1601,8 @@ Result Executor::Instantiate(ModuleInstance &ModuleCxt, Store &StoreCxt,
         return Cxt->instantiateModule(*StoreCxt.Cxt, *ASTCxt.Cxt);
       },
       [&](auto &&Res) {
-        ModuleInstance::ModuleInstanceContext *Tmp =
-          static_cast<ModuleInstance::ModuleInstanceContext *>(
-            (*Res).release());
-        ModuleCxt.Cxt.reset(Tmp);
+        static_cast<ModuleInstanceContext *>
+            (&ModuleCxt)->OwnModuleInstPointer((*Res).release());
       });
 }
 
@@ -1628,10 +1615,8 @@ Result Executor::Register(ModuleInstance &ModuleCxt, Store &StoreCxt,
                                    std::string_view(ModuleName));
       },
       [&](auto &&Res) {
-        auto *Tmp =
-          static_cast<ModuleInstance::ModuleInstanceContext *>(
-            (*Res).release());
-        ModuleCxt.Cxt.reset(Tmp);
+        static_cast<ModuleInstanceContext *>
+            (&ModuleCxt)->OwnModuleInstPointer((*Res).release());
       });
 }
 
@@ -1639,7 +1624,9 @@ Result Executor::Register(Store &StoreCxt,
                           const ModuleInstance &ImportCxt) {
   return wrap(
       [&]() {
-        return Cxt->registerModule(*StoreCxt.Cxt, *ImportCxt.Cxt);
+        return Cxt->registerModule(*StoreCxt.Cxt,
+            *static_cast<const ModuleInstanceContext *>
+                (&ImportCxt)->GetConstContent());
       },
       EmptyThen);
 }
@@ -1652,7 +1639,10 @@ Result Executor::Invoke(const FunctionInstance &FuncCxt,
       [&]()
           -> WasmEdge::Expect<
               std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>> {
-        return Cxt->invoke(*FuncCxt.Cxt, ParamPair.first, ParamPair.second);
+        return Cxt->invoke(
+            *static_cast<FunctionInstanceContext *>
+                (&FuncCxt)->GetConstContent(),
+            ParamPair.first, ParamPair.second);
       },
       [&](auto &&Res) { Value::ValueUtils::FillValueArr(*Res, Returns); });
 }
@@ -1692,9 +1682,8 @@ Store::Store() {
 }
 
 const ModuleInstance Store::FindModule(const std::string &Name) {
-  return ModuleInstance(
-    dynamic_cast<const ModuleInstance::ModuleInstanceContext *>(
-      Cxt->findModule(std::string_view(Name)))); //RVO
+  return ModuleInstanceContext(
+      Cxt->findModule(std::string_view(Name))); //RVO
 }
 
 std::vector<std::string> Store::ListModule() {
@@ -1711,6 +1700,119 @@ std::vector<std::string> Store::ListModule() {
 // <<<<<<<< WasmEdge Store <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge ModuleInstance >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+ModuleInstance ModuleInstance::New() {
+  return ModuleInstanceContext(nullptr);
+}
+
+ModuleInstance ModuleInstance::New(const std::string &ModuleName) {
+  return ModuleInstanceContext(ModuleName);
+}
+
+ModuleInstance ModuleInstance::New(
+    const std::vector<const std::string> &Args,
+    const std::vector<const std::string> &Envs,
+    const std::vector<const std::string> &Preopens) {
+  return ModuleInstanceContext(Args, Envs, Preopens);
+}
+
+ModuleInstance ModuleInstance::Move(ModuleInstance &ModInst) {
+  return ModuleInstanceContext(
+      std::move(*static_cast<ModuleInstanceContext *>(&ModInst)));
+}
+
+void ModuleInstance::InitWASI(
+    const std::vector<const std::string> &Args,
+    const std::vector<const std::string> &Envs,
+    const std::vector<const std::string> &Preopens) {
+  static_cast<ModuleInstanceContext *>(this)->InitWASI(Args, Envs, Preopens);
+}
+
+uint32_t ModuleInstance::WASIGetExitCode() {
+  return static_cast<ModuleInstanceContext *>(this)->WASIGetExitCode();
+}
+
+uint32_t ModuleInstance::WASIGetNativeHandler(int32_t Fd,
+                                              uint64_t &NativeHandler) {
+  return static_cast<ModuleInstanceContext *>(this)->WASIGetNativeHandler(
+      Fd, NativeHandler);
+}
+
+void ModuleInstance::InitWasmEdgeProcess(
+    const std::vector<const std::string> &AllowedCmds,
+    const bool AllowAll) {
+  static_cast<ModuleInstanceContext *>
+      (this)->InitWasmEdgeProcess(AllowedCmds, AllowAll);
+}
+
+std::string ModuleInstance::GetModuleName() {
+  return static_cast<ModuleInstanceContext *>
+      (this)->GetModuleName();
+}
+
+FunctionInstance ModuleInstance::FindFunction(const std::string &Name) {
+  return static_cast<ModuleInstanceContext *>
+      (this)->FindFunction(Name);
+}
+
+TableInstance ModuleInstance::FindTable(const std::string &Name) {
+  return static_cast<ModuleInstanceContext *>
+      (this)->FindTable(Name);
+}
+
+MemoryInstance ModuleInstance::FindMemory(const std::string &Name) {
+  return static_cast<ModuleInstanceContext *>
+      (this)->FindMemory(Name);
+}
+
+GlobalInstance ModuleInstance::FindGlobal(const std::string &Name) {
+  return static_cast<ModuleInstanceContext *>
+      (this)->FindGlobal(Name);
+}
+
+std::vector<std::string> ModuleInstance::ListFunction() {
+  return static_cast<ModuleInstanceContext *>(this)->ListFunction();
+}
+
+std::vector<std::string> ModuleInstance::ListTable() {
+  return static_cast<ModuleInstanceContext *>(this)->ListTable();
+}
+
+std::vector<std::string> ModuleInstance::ListMemory() {
+  return static_cast<ModuleInstanceContext *>(this)->ListMemory();
+}
+
+std::vector<std::string> ModuleInstance::ListGlobal() {
+  return static_cast<ModuleInstanceContext *>(this)->ListGlobal();
+}
+
+void ModuleInstance::AddFunction(const std::string &Name,
+                                 FunctionInstance &&FuncCxt) {
+  static_cast<ModuleInstanceContext *>
+      (this)->AddFunction(Name,
+          static_cast<FunctionInstanceContext &&>(FuncCxt));
+}
+
+void ModuleInstance::AddTable(const std::string &Name,
+                              TableInstance &&TableCxt) {
+  static_cast<ModuleInstanceContext *>
+      (this)->AddTable(Name,
+          static_cast<TableInstanceContext &&>(TableCxt));
+}
+
+void ModuleInstance::AddMemory(const std::string &Name,
+                               MemoryInstance &&MemoryCxt) {
+  static_cast<ModuleInstanceContext *>
+      (this)->AddMemory(Name,
+          static_cast<MemoryInstanceContext &&>(MemoryCxt));
+}
+
+void ModuleInstance::AddGlobal(const std::string &Name,
+                               GlobalInstance &&GlobalCxt) {
+  static_cast<ModuleInstanceContext *>
+      (this)->AddGlobal(Name,
+          static_cast<GlobalInstanceContext &&>(GlobalCxt));
+}
 
 // <<<<<<<< WasmEdge ModuleInstance <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -1769,7 +1871,8 @@ Result VM::RegisterModule(const std::string &ModuleName,
 Result VM::RegisterModule(const ModuleInstance &ImportCxt) {
   return wrap(
       [&]() {
-        return Cxt->registerModule(*ImportCxt.Cxt);
+        return Cxt->registerModule(
+            *static_cast<const ModuleInstanceContext *>(&ImportCxt).Content);
       },
       EmptyThen);
 }
@@ -1897,35 +2000,28 @@ std::unique_ptr<Async> VM::AsyncExecute(const std::string &ModuleName,
       ParamPair.first, ParamPair.second));
 }
 
-std::unique_ptr<const FunctionType> VM::GetFunctionType(const std::string &FuncName) {
+const FunctionType VM::GetFunctionType(const std::string &FuncName) {
   const auto FuncList = Cxt->getFunctionList();
   for (const auto &It: FuncList) {
     if (It.first == std::string_view(FuncName)) {
-      auto FuncType = std::make_unique<FunctionType>();
-      FuncType->Cxt =
-          std::make_unique<FunctionType::FunctionTypeContext>(It.second);
-      return std::move(FuncType);
+      return FunctionTypeContext(&It.second);
     }
   }
-  return nullptr;
+  return FunctionTypeContext(nullptr);
 }
 
-std::unique_ptr<const FunctionType> VM::GetFunctionType(const std::string &ModuleName,
-                                    const std::string &FuncName) {
+const FunctionType VM::GetFunctionType(const std::string &ModuleName,
+                                       const std::string &FuncName) {
   const auto *ModInst =
       Cxt->getStoreManager().findModule(std::string_view(ModuleName));
   if (ModInst != nullptr) {
     const auto *FuncInst =
         ModInst->findFuncExports(std::string_view(FuncName));
     if (FuncInst != nullptr) {
-      auto FuncType = std::make_unique<FunctionType>();
-      FuncType->Cxt = std::make_unique<FunctionType::FunctionTypeContext>(
-                                      FuncInst->getFuncType());
-      return std::move(FuncType);
+      return FunctionTypeContext(&FuncInst->getFuncType());
     }
-    return nullptr;
   }
-  return nullptr;
+  return FunctionTypeContext(nullptr);
 }
 
 void VM::Cleanup() {
@@ -1933,20 +2029,19 @@ void VM::Cleanup() {
 }
 
 uint32_t VM::GetFunctionList(std::vector<std::string> &Names,
-                             std::vector<const FunctionType> &FuncTypes) {
+                             std::vector<FunctionType> &FuncTypes) {
   // Not to use VM::getFunctionList() here because not to allocate the
   // returned function name strings.
   const auto *ModInst = Cxt->getActiveModule();
   if (ModInst != nullptr) {
     return ModInst->getFuncExports([&](const auto &FuncExp) {
-      for (auto It = FuncExp.cbegin(); It != FuncExp.cend(); It++) {
+      uint32_t I = 0;
+      for (auto It = FuncExp.cbegin(); It != FuncExp.cend(); It++, I++) {
         const auto *FuncInst = It->second;
-        const auto &FuncTypeCxt = FuncInst->getFuncType();
+        const auto &FuncType = FuncInst->getFuncType();
 
-        auto FuncType = std::make_unique<FunctionType>();
-        FuncType->Cxt =
-            std::make_unique<FunctionType::FunctionTypeContext>(FuncTypeCxt);
-        FuncTypes.push_back(std::move(*FuncType));
+        Names[I] = It->first;
+        FuncTypes[I] = FunctionTypeContext(&FuncType);
       }
       return static_cast<uint32_t>(FuncExp.size());
     });
@@ -1954,39 +2049,40 @@ uint32_t VM::GetFunctionList(std::vector<std::string> &Names,
   return 0;
 }
 
-ModuleInstance &VM::GetImportModuleContext(const HostRegistration Reg) {
-  auto Ptr = Cxt->getImportModule(static_cast<WasmEdge::HostRegistration>(Reg));
+ModuleInstance VM::GetImportModuleContext(const HostRegistration Reg) {
+  return ModuleInstanceContext(
+      Cxt->getImportModule(static_cast<WasmEdge::HostRegistration>(Reg)));
 }
 
-const ModuleInstance &VM::GetActiveModule() {
-
+const ModuleInstance VM::GetActiveModule() {
+  return ModuleInstanceContext(Cxt->getActiveModule());
 }
 
-const ModuleInstance &VM::GetRegisteredModule(const std::string &ModuleName) {
-
+const ModuleInstance VM::GetRegisteredModule(const std::string &ModuleName) {
+  return ModuleInstanceContext(Cxt->getStoreManager().findModule(ModuleName));
 }
 
 std::vector<std::string> VM::ListRegisteredModule() {
 
 }
 
-Store &VM::GetStoreContext() {
+Store VM::GetStoreContext() {
 
 }
 
-Loader &VM::GetLoaderContext() {
+Loader VM::GetLoaderContext() {
 
 }
 
-Validator &VM::GetValidatorContext() {
+Validator VM::GetValidatorContext() {
 
 }
 
-Executor &VM::GetExecutorContext() {
+Executor VM::GetExecutorContext() {
 
 }
 
-Statistics &GetStatisticsContext() {
+Statistics GetStatisticsContext() {
 
 }
 // <<<<<<<< WasmEdge VM <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

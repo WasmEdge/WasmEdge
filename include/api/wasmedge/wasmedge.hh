@@ -283,11 +283,10 @@ namespace SDK{
     ExternalType GetExternalType();
     std::string GetModuleName();
     std::string GetExternalName();
-    std::shared_ptr<const FunctionType>
-    GetFunctionType(const ASTModule &ASTCxt);
-    std::shared_ptr<const TableType> GetTableType(const ASTModule &ASTCxt);
-    std::shared_ptr<const MemoryType> GetMemoryType(const ASTModule &ASTCxt);
-    std::shared_ptr<const GlobalType> GetGlobalType(const ASTModule &ASTCxt);
+    const FunctionType GetFunctionType(const ASTModule &ASTCxt);
+    const TableType GetTableType(const ASTModule &ASTCxt);
+    const MemoryType GetMemoryType(const ASTModule &ASTCxt);
+    const GlobalType GetGlobalType(const ASTModule &ASTCxt);
 
   private:
     class ImportTypeContext;
@@ -303,11 +302,10 @@ namespace SDK{
 
     ExternalType GetExternalType();
     std::string GetExternalName();
-    std::shared_ptr<const FunctionType>
-    GetFunctionType(const ASTModule &ASTCxt);
-    std::shared_ptr<const TableType> GetTableType(const ASTModule &ASTCxt);
-    std::shared_ptr<const MemoryType> GetMemoryType(const ASTModule &ASTCxt);
-    std::shared_ptr<const GlobalType> GetGlobalType(const ASTModule &ASTCxt);
+    const FunctionType GetFunctionType(const ASTModule &ASTCxt);
+    const TableType GetTableType(const ASTModule &ASTCxt);
+    const MemoryType GetMemoryType(const ASTModule &ASTCxt);
+    const GlobalType GetGlobalType(const ASTModule &ASTCxt);
 
   private:
     class ExportTypeContext;
@@ -596,9 +594,10 @@ namespace SDK{
 
   class WASMEDGE_CPP_API_EXPORT ModuleInstance {
   protected:
-    ModuleInstance();
+    ModuleInstance() = default;
     ~ModuleInstance() = default;
   public:
+    static ModuleInstance New();
     static ModuleInstance New(const std::string &ModuleName);
     static ModuleInstance New(const std::vector<const std::string> &Args,
                               const std::vector<const std::string> &Envs,
@@ -613,13 +612,13 @@ namespace SDK{
     uint32_t WASIGetNativeHandler(int32_t Fd, uint64_t &NativeHandler);
 
     void InitWasmEdgeProcess(const std::vector<const std::string> &AllowedCmds,
-                            const bool AllowAll);
+                             const bool AllowAll);
     std::string GetModuleName();
 
-    FunctionInstance &FindFunction(const std::string &Name);
-    TableInstance &FindTable(const std::string &Name);
-    MemoryInstance &FindMemory(const std::string &Name);
-    GlobalInstance &FindGlobal(const std::string &Name);
+    FunctionInstance FindFunction(const std::string &Name);
+    TableInstance FindTable(const std::string &Name);
+    MemoryInstance FindMemory(const std::string &Name);
+    GlobalInstance FindGlobal(const std::string &Name);
 
     std::vector<std::string> ListFunction();
     std::vector<std::string> ListTable();
@@ -648,9 +647,9 @@ namespace SDK{
     ~CallingFrame() = default;
 
   public:
-    Executor &GetExecutor();
-    const ModuleInstance &GetModuleInstance();
-    MemoryInstance &GetMemoryInstance(const uint32_t Idx);
+    Executor GetExecutor();
+    const ModuleInstance GetModuleInstance();
+    MemoryInstance GetMemoryInstance(const uint32_t Idx);
   };
 
   // <<<<<<<< WasmEdge Runtime <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -710,27 +709,25 @@ namespace SDK{
     std::unique_ptr<Async> AsyncExecute(const std::string &ModuleName,
                 const std::string &FuncName, const std::vector<Value> &Params);
 
-    std::unique_ptr<const FunctionType>
-    GetFunctionType(const std::string &FuncName);
-    std::unique_ptr<const FunctionType>
-    GetFunctionType(const std::string &ModuleName,
-                    const std::string &FuncName);
+    const FunctionType GetFunctionType(const std::string &FuncName);
+    const FunctionType GetFunctionType(const std::string &ModuleName,
+                                       const std::string &FuncName);
 
     void Cleanup();
     uint32_t GetFunctionList(std::vector<std::string> &Names,
-                  std::vector<const FunctionType> &FuncTypes);
+                  std::vector<FunctionType> &FuncTypes);
 
-    ModuleInstance &GetImportModuleContext(const HostRegistration Reg);
-    const ModuleInstance& GetActiveModule();
-    const ModuleInstance &GetRegisteredModule(const std::string &ModuleName);
+    ModuleInstance GetImportModuleContext(const HostRegistration Reg);
+    const ModuleInstance GetActiveModule();
+    const ModuleInstance GetRegisteredModule(const std::string &ModuleName);
 
     std::vector<std::string> ListRegisteredModule();
 
-    Store &GetStoreContext();
-    Loader &GetLoaderContext();
-    Validator &GetValidatorContext();
-    Executor &GetExecutorContext();
-    Statistics &GetStatisticsContext();
+    Store GetStoreContext();
+    Loader GetLoaderContext();
+    Validator GetValidatorContext();
+    Executor GetExecutorContext();
+    Statistics GetStatisticsContext();
   private:
     class VMContext;
     std::unique_ptr<VMContext> Cxt;

@@ -21,11 +21,11 @@ hello
 3
 ```
 
-The `add.wasm` example shows how a [Rust function](https://github.com/second-state/wasm-learning/tree/master/cli/add) can be invoked directly in the reactor mode.
+The `add.wat` is a handwritten WebAssembly script to add two given numbers. It is compiled into WebAssembly using the [WABT tool](https://github.com/WebAssembly/wabt). The following example computes the result of (1+2).
 
 ```bash
-$ wasmedge --reactor add.wasm add 2 2
-4
+$ wasmedge --reactor add.wasm add 1 2
+3
 ```
 
 The `fibonacci.wat` is a handwritten WebAssembly script to compute the Fibonacci sequence. It is compiled into WebAssembly using the [WABT tool](https://github.com/WebAssembly/wabt). The following example computes the 8th Fibonacci number.

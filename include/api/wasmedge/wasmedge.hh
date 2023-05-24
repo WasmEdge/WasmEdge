@@ -164,7 +164,7 @@ namespace SDK{
     float GetF32();
     double GetF64();
     int128_t GetV128();
-    const FunctionInstance &GetFuncRef();
+    const FunctionInstance GetFuncRef();
     std::shared_ptr<void> GetExternRef();
 
     bool IsNullRef();
@@ -531,13 +531,13 @@ namespace SDK{
       std::vector<Value> &Returns)>;
 
     static FunctionInstance New(const FunctionType &Type,
-                    HostFunc_t HostFunc, void *Data,
-                    const uint64_t Cost);
+                                HostFunc_t HostFunc, void *Data,
+                                const uint64_t Cost);
     static FunctionInstance New(const FunctionType &Type,
-                    WrapFunc_t WrapFunc,
-                    void *Binding,
-                    void *Data,
-                    const uint64_t Cost);
+                                WrapFunc_t WrapFunc,
+                                void *Binding,
+                                void *Data,
+                                const uint64_t Cost);
 
     const FunctionType GetFunctionType();
   };
@@ -551,7 +551,7 @@ namespace SDK{
 
     const TableType GetTableType();
     Result GetData(Value &Data, const uint32_t Offset);
-    Result SetData(Value Data, const uint32_t Offset);
+    Result SetData(Value &Data, const uint32_t Offset);
     uint32_t GetSize();
     Result Grow(const uint32_t Size);
   };
@@ -571,9 +571,9 @@ namespace SDK{
                    const uint32_t Offset);
 
     std::vector<uint8_t> GetReference(const uint32_t Offset,
-                                       const uint32_t Length);
+                                      const uint32_t Length);
     const std::vector<uint8_t> GetReferenceConst(const uint32_t Offset,
-                                                  const uint32_t Length);
+                                                 const uint32_t Length);
     uint32_t GetPageSize();
 
     Result GrowPage(const uint32_t Page);
@@ -643,7 +643,7 @@ namespace SDK{
 
   class WASMEDGE_CPP_API_EXPORT CallingFrame {
   protected:
-    CallingFrame();
+    CallingFrame() = default;
     ~CallingFrame() = default;
 
   public:

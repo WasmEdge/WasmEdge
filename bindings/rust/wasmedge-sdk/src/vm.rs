@@ -146,6 +146,8 @@ impl VmBuilder {
                         HostRegistration::Wasi,
                         HostRegistrationInstance::Wasi(WasiInstance { inner: wasi_module }),
                     );
+                } else {
+                    panic!("failed to create WasiModule")
                 }
             }
         }
@@ -170,12 +172,15 @@ impl VmBuilder {
 
         // * load and register plugin instances
         for (pname, mname) in self.plugins.iter() {
-            if let Some(instance) = Self::create_plugin_instance(pname, mname) {
-                vm.plugin_host_instances.push(instance);
-                vm.executor.inner.register_plugin_instance(
-                    &mut vm.store.inner,
-                    &vm.plugin_host_instances.last().unwrap().inner,
-                )?;
+            match Self::create_plugin_instance(pname, mname) {
+                Some(instance) => {
+                    vm.plugin_host_instances.push(instance);
+                    vm.executor.inner.register_plugin_instance(
+                        &mut vm.store.inner,
+                        &vm.plugin_host_instances.last().unwrap().inner,
+                    )?;
+                }
+                None => panic!("Not found {}::{} plugin", pname, mname),
             }
         }
 

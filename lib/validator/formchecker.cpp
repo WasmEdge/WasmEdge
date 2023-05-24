@@ -171,9 +171,12 @@ ValType FormChecker::VTypeToAST(const VType &V) {
 }
 
 Expect<void> FormChecker::checkExpr(AST::InstrView Instrs) {
-  // Push ctrl frame ([] -> [Returns])
-  pushCtrl({}, Returns, &*Instrs.rbegin());
-  return checkInstrs(Instrs);
+  if (Instrs.size() > 0) {
+    // Push ctrl frame ([] -> [Returns])
+    pushCtrl({}, Returns, &*Instrs.rbegin());
+    return checkInstrs(Instrs);
+  }
+  return {};
 }
 
 Expect<void> FormChecker::checkInstrs(AST::InstrView Instrs) {

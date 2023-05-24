@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "host/mock/wasi_crypto_module.h"
+#include "host/mock/wasi_logging_module.h"
 #include "host/mock/wasi_nn_module.h"
 #include "host/mock/wasmedge_process_module.h"
 #include "runtime/instance/module.h"
@@ -498,6 +499,20 @@ TEST(HostMockTest, WasmEdgeProcess) {
   WasmEdge::Host::WasmEdgeProcessModuleMock ProcessModule;
   EXPECT_EQ(ProcessModule.getModuleName(), "wasmedge_process");
   EXPECT_EQ(ProcessModule.getFuncExportNum(), 11U);
+}
+
+TEST(HostMockTest, WasiLogging) {
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiLoggingMock::Log WasiLoggingLog;
+
+  EXPECT_FALSE(WasiLoggingLog.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 5>{0, 0, 0, 0, 0}, {}));
+
+  WasmEdge::Host::WasiLoggingModuleMock WasiLoggingModule;
+  EXPECT_EQ(WasiLoggingModule.getModuleName(), "logging");
+  EXPECT_EQ(WasiLoggingModule.getFuncExportNum(), 1U);
 }
 
 GTEST_API_ int main(int argc, char **argv) {

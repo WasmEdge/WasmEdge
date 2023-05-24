@@ -64,17 +64,18 @@ Expect<void> WasiLoggingLog::body(const Runtime::CallingFrame &Frame,
   default:
     spdlog::error("[WasiLogging] Unrecognized Logging Level: {}"sv, Level);
     spdlog::error("[WasiLogging] Trace Level = {}"sv,
-                  (uint32_t)WASILOGGING::WasiLoggingLevel::Trace);
+                  static_cast<uint32_t>(WASILOGGING::WasiLoggingLevel::Trace));
     spdlog::error("[WasiLogging] Debug Level = {}"sv,
-                  (uint32_t)WASILOGGING::WasiLoggingLevel::Debug);
+                  static_cast<uint32_t>(WASILOGGING::WasiLoggingLevel::Debug));
     spdlog::error("[WasiLogging] Info Level = {}"sv,
-                  (uint32_t)WASILOGGING::WasiLoggingLevel::Info);
+                  static_cast<uint32_t>(WASILOGGING::WasiLoggingLevel::Info));
     spdlog::error("[WasiLogging] Warn Level = {}"sv,
-                  (uint32_t)WASILOGGING::WasiLoggingLevel::Warn);
+                  static_cast<uint32_t>(WASILOGGING::WasiLoggingLevel::Warn));
     spdlog::error("[WasiLogging] Error Level = {}"sv,
-                  (uint32_t)WASILOGGING::WasiLoggingLevel::Error);
-    spdlog::error("[WasiLogging] Critical Level = {}"sv,
-                  (uint32_t)WASILOGGING::WasiLoggingLevel::Critical);
+                  static_cast<uint32_t>(WASILOGGING::WasiLoggingLevel::Error));
+    spdlog::error(
+        "[WasiLogging] Critical Level = {}"sv,
+        static_cast<uint32_t>(WASILOGGING::WasiLoggingLevel::Critical));
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   return {};

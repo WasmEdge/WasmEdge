@@ -1,23 +1,23 @@
 #include "common/defines.h"
+#include "runtime/instance/module.h"
 #include "wasi_logging/func.h"
 #include "wasi_logging/module.h"
-#include "runtime/instance/module.h"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/ostream_sink.h>
-#include <iostream>
-#include <sstream>
 #include <gtest/gtest.h>
+#include <iostream>
+#include <spdlog/sinks/ostream_sink.h>
+#include <spdlog/spdlog.h>
+#include <sstream>
 
 namespace {
 
 WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-    "../../../plugins/wasi_logging/"
-    "libwasmedgePluginWasiLogging" WASMEDGE_LIB_EXTENSION));
+      "../../../plugins/wasi_logging/"
+      "libwasmedgePluginWasiLogging" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_logging"sv)) {
-    if (const auto *Module = Plugin->findModule("wasi_logging"sv)) {
+    if (const auto *Module = Plugin->findModule("logging"sv)) {
       return Module->create().release();
     }
   }
@@ -39,13 +39,15 @@ void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 
 TEST(WasiLoggingTests, func_log) {
   // Create the wasi-logging module instance.
-  auto WasiLoggingMod = dynamic_cast<WasmEdge::Host::WasiLoggingModule *>(createModule());
+  auto WasiLoggingMod =
+      dynamic_cast<WasmEdge::Host::WasiLoggingModule *>(createModule());
   EXPECT_NE(WasiLoggingMod, nullptr);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  Mod.addHostMemory("memory", 
-      std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(WasmEdge::AST::MemoryType(1)));
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
   auto *MemInstPtr = Mod.findMemoryExports("memory");
   EXPECT_NE(MemInstPtr, nullptr);
   auto &MemInst = *MemInstPtr;
@@ -57,13 +59,13 @@ TEST(WasiLoggingTests, func_log) {
   fillMemContent(MemInst, 0, std::string("CxtStr"));
   fillMemContent(MemInst, 8, std::string("stderr"));
   fillMemContent(MemInst, 16, std::string("MsgStr"));
-  
+
   // Get the function "log"
   auto *FuncInst = WasiLoggingMod->findFuncExports("log");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInst = dynamic_cast<WasmEdge::Host::WasiLoggingLog &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInst =
+      dynamic_cast<WasmEdge::Host::WasiLoggingLog &>(FuncInst->getHostFunc());
 
   // Show All Level
   EXPECT_TRUE(HostFuncInst.run(
@@ -114,7 +116,6 @@ TEST(WasiLoggingTests, func_log) {
           UINT32_C(6), UINT32_C(0), UINT32_C(6), UINT32_C(16), UINT32_C(6)},
       {}));
   EXPECT_FALSE(WasiLoggingMod->getEnv().isCxtStrStderr);
-
 
   delete WasiLoggingMod;
 }

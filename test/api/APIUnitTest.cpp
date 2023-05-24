@@ -2879,22 +2879,23 @@ TEST(APICoreTest, VM) {
       WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, nullptr, 1)));
 
   // VM get registered module
-  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 12U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 13U);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(nullptr), 0U);
   EXPECT_EQ(WasmEdge_VMListRegisteredModule(nullptr, Names, 15), 0U);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 15), 12U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 15), 13U);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 12U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 13U);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
   EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string(""));
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 15), 12U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 15), 13U);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
-  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length),
-            std::string("reg-wasm-ast"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("logging"));
   EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length),
-            std::string("reg-wasm-buffer"));
+            std::string("reg-wasm-ast"));
   EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length),
+            std::string("reg-wasm-buffer"));
+  EXPECT_EQ(std::string(Names[4].Buf, Names[4].Length),
             std::string("reg-wasm-file"));
 
   // VM load wasm from file

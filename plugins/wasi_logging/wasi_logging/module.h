@@ -1,7 +1,7 @@
 #pragma once
 
-#include "wasi_logging/env.h"
 #include "runtime/instance/module.h"
+#include "wasi_logging/env.h"
 
 namespace WasmEdge {
 namespace Host {

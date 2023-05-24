@@ -960,6 +960,7 @@ WasmEdge provides the following built-in host modules and plug-in pre-registrati
     * `wasi_ephemeral_nn`
     * `wasi_snapshot_preview1`
     * `wasmedge_process`
+    * `logging` (for the `WASI-Logging`)
 
     When the WASM want to invoke these host functions but the corresponding plug-in not installed, WasmEdge will print the error message and return an error.
 

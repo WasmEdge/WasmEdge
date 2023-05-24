@@ -759,20 +759,6 @@ WasiExpect<void> INode::pathUnlinkFile(std::string Path) const noexcept {
   return {};
 }
 
-WasiExpect<Poller> INode::pollOneoff(WASI::TriggerType Trigger,
-                                     __wasi_size_t NSubscriptions) noexcept {
-  try {
-    Poller P(NSubscriptions);
-    if (unlikely(!P.ok())) {
-      return WasiUnexpect(fromErrNo(errno));
-    }
-    P.trigger(Trigger);
-    return std::move(P);
-  } catch (std::bad_alloc &) {
-    return WasiUnexpect(__WASI_ERRNO_NOMEM);
-  }
-}
-
 WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
                                   __wasi_sock_type_t SockType) noexcept {
 
@@ -1513,142 +1499,248 @@ WasiExpect<void> INode::updateStat() const noexcept {
   return {};
 }
 
-Poller::Poller(__wasi_size_t Count) : FdHolder(::kqueue()) {
-  Events.reserve(Count);
-}
+Poller::Poller() noexcept : FdHolder(::kqueue()) {}
 
-void Poller::clear() noexcept {}
-
-WasiExpect<void> Poller::clock(__wasi_clockid_t, __wasi_timestamp_t Timeout,
-                               __wasi_timestamp_t, __wasi_subclockflags_t Flags,
-                               __wasi_userdata_t UserData) noexcept {
+WasiExpect<void> Poller::prepare(Span<__wasi_event_t> E) noexcept {
+  WasiEvents = E;
   try {
-    Events.push_back({UserData,
-                      __WASI_ERRNO_SUCCESS,
-                      __WASI_EVENTTYPE_CLOCK,
-                      {0, static_cast<__wasi_eventrwflags_t>(0)}});
+    Events.reserve(E.size());
+    KEvents.reserve(Events.size());
   } catch (std::bad_alloc &) {
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }
 
-  int SysFlags = NOTE_NSECONDS;
+  return {};
+}
+
+void Poller::clock(__wasi_clockid_t, __wasi_timestamp_t Timeout,
+                   __wasi_timestamp_t, __wasi_subclockflags_t Flags,
+                   __wasi_userdata_t UserData) noexcept {
+  assuming(Events.size() < WasiEvents.size());
+  auto &Event = Events.emplace_back();
+  Event.Valid = false;
+  Event.userdata = UserData;
+  Event.type = __WASI_EVENTTYPE_CLOCK;
+
+  const uint64_t Ident = NextTimerId++;
+
+  uint32_t FFlags = NOTE_NSECONDS;
   if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
     // TODO: Implement
+    Event.Valid = true;
+    Event.error = __WASI_ERRNO_NOSYS;
+    return;
   }
 
   struct kevent KEvent;
-  EV_SET(&KEvent, 0, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_ONESHOT, SysFlags,
-         Timeout, reinterpret_cast<void *>(Events.size() - 1));
+  EV_SET(&KEvent, Ident, EVFILT_TIMER, EV_ADD | EV_ENABLE, FFlags, Timeout,
+         &Event);
 
   if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
       unlikely(Ret < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
+    Event.Valid = true;
+    Event.error = fromErrNo(errno);
+    return;
   }
-
-  return {};
 }
 
-WasiExpect<void> Poller::read(const INode &Node,
-                              __wasi_userdata_t UserData) noexcept {
+void Poller::read(const INode &Node, TriggerType Trigger,
+                  __wasi_userdata_t UserData) noexcept {
+  assuming(Events.size() < WasiEvents.size());
+  auto &Event = Events.emplace_back();
+  Event.Valid = false;
+  Event.userdata = UserData;
+  Event.type = __WASI_EVENTTYPE_FD_READ;
+
+  assuming(Node.Fd != Fd);
   try {
-    Events.push_back({UserData,
-                      __WASI_ERRNO_SUCCESS,
-                      __WASI_EVENTTYPE_FD_READ,
-                      {0, static_cast<__wasi_eventrwflags_t>(0)}});
+    auto [Iter, Added] = FdDatas.try_emplace(Node.Fd);
+
+    if (unlikely(!Added && Iter->second.ReadEvent != nullptr)) {
+      Event.Valid = true;
+      Event.error = __WASI_ERRNO_EXIST;
+      return;
+    }
+    Iter->second.ReadEvent = &Event;
+
+    uint16_t Flags = EV_ADD | EV_ENABLE;
+    if (Trigger == TriggerType::Edge) {
+      Flags |= EV_CLEAR;
+    }
+
+    struct kevent KEvent;
+    EV_SET(&KEvent, Node.Fd, EVFILT_READ, Flags, 0, 0, &Event);
+
+    if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
+        unlikely(Ret < 0)) {
+      if (Added) {
+        FdDatas.erase(Iter);
+      } else {
+        Iter->second.ReadEvent = nullptr;
+      }
+      Event.Valid = true;
+      Event.error = fromErrNo(errno);
+      return;
+    }
   } catch (std::bad_alloc &) {
-    return WasiUnexpect(__WASI_ERRNO_NOMEM);
+    Event.Valid = true;
+    Event.error = __WASI_ERRNO_NOMEM;
+    return;
   }
-
-  struct kevent KEvent;
-  EV_SET(&KEvent, Node.Fd, EVFILT_READ, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0,
-         reinterpret_cast<void *>(Events.size() - 1));
-
-  if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
-      unlikely(Ret < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
-  }
-
-  return {};
 }
 
-WasiExpect<void> Poller::write(const INode &Node,
-                               __wasi_userdata_t UserData) noexcept {
+void Poller::write(const INode &Node, TriggerType Trigger,
+                   __wasi_userdata_t UserData) noexcept {
+  assuming(Events.size() < WasiEvents.size());
+  auto &Event = Events.emplace_back();
+  Event.Valid = false;
+  Event.userdata = UserData;
+  Event.type = __WASI_EVENTTYPE_FD_WRITE;
+
+  assuming(Node.Fd != Fd);
   try {
-    Events.push_back({UserData,
-                      __WASI_ERRNO_SUCCESS,
-                      __WASI_EVENTTYPE_FD_WRITE,
-                      {0, static_cast<__wasi_eventrwflags_t>(0)}});
+    auto [Iter, Added] = FdDatas.try_emplace(Node.Fd);
+
+    if (unlikely(!Added && Iter->second.WriteEvent != nullptr)) {
+      Event.Valid = true;
+      Event.error = __WASI_ERRNO_EXIST;
+      return;
+    }
+    Iter->second.WriteEvent = &Event;
+
+    uint16_t Flags = EV_ADD | EV_ENABLE;
+    if (Trigger == TriggerType::Edge) {
+      Flags |= EV_CLEAR;
+    }
+
+    struct kevent KEvent;
+    EV_SET(&KEvent, Node.Fd, EVFILT_WRITE, Flags, 0, 0, &Event);
+
+    if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
+        unlikely(Ret < 0)) {
+      if (Added) {
+        FdDatas.erase(Iter);
+      } else {
+        Iter->second.WriteEvent = nullptr;
+      }
+      Event.Valid = true;
+      Event.error = fromErrNo(errno);
+      return;
+    }
   } catch (std::bad_alloc &) {
-    return WasiUnexpect(__WASI_ERRNO_NOMEM);
+    Event.Valid = true;
+    Event.error = __WASI_ERRNO_NOMEM;
+    return;
   }
-
-  struct kevent KEvent;
-  EV_SET(&KEvent, Node.Fd, EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0,
-         reinterpret_cast<void *>(Events.size() - 1));
-
-  if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
-      unlikely(Ret < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
-  }
-
-  return {};
 }
 
-WasiExpect<void> Poller::wait(CallbackType Callback) noexcept {
-  std::vector<struct kevent> KEvents;
-  try {
-    KEvents.resize(Events.size());
-  } catch (std::bad_alloc &) {
-    return WasiUnexpect(__WASI_ERRNO_NOMEM);
-  }
-  const auto Count =
+void Poller::wait() noexcept {
+  using namespace std::literals;
+  KEvents.resize(Events.size());
+  const int Count =
       ::kevent(Fd, nullptr, 0, KEvents.data(), KEvents.size(), nullptr);
   if (unlikely(Count < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
+    const auto Error = fromErrNo(errno);
+    for (auto &Event : Events) {
+      Event.Valid = true;
+      Event.error = Error;
+    }
+    return;
   }
 
   for (int I = 0; I < Count; ++I) {
     auto &KEvent = KEvents[I];
-    const auto Index = reinterpret_cast<size_t>(KEvent.udata);
-    __wasi_filesize_t NBytes = 0;
-    auto Flags = static_cast<__wasi_eventrwflags_t>(0);
-    switch (Events[Index].type) {
+    auto &Event = *reinterpret_cast<OptionalEvent *>(KEvent.udata);
+    Event.Valid = true;
+    Event.error = __WASI_ERRNO_SUCCESS;
+    switch (Event.type) {
     case __WASI_EVENTTYPE_CLOCK:
       break;
     case __WASI_EVENTTYPE_FD_READ: {
+      Event.fd_readwrite.flags = static_cast<__wasi_eventrwflags_t>(0);
       if (KEvent.flags & EV_EOF) {
-        Flags |= __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP;
+        Event.fd_readwrite.flags |= __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP;
       }
+      bool UnknownNBytes = false;
       int ReadBufUsed = 0;
-      if (auto Res = ioctl(Fd, FIONREAD, &ReadBufUsed); unlikely(Res == 0)) {
-        break;
+      if (auto Res = ::ioctl(KEvent.ident, FIONREAD, &ReadBufUsed);
+          unlikely(Res == 0)) {
+        UnknownNBytes = true;
       }
-      NBytes = ReadBufUsed;
+      if (UnknownNBytes) {
+        Event.fd_readwrite.nbytes = 1;
+      } else {
+        Event.fd_readwrite.nbytes = ReadBufUsed;
+      }
       break;
     }
     case __WASI_EVENTTYPE_FD_WRITE: {
+      Event.fd_readwrite.flags = static_cast<__wasi_eventrwflags_t>(0);
       if (KEvent.flags & EV_EOF) {
-        Flags |= __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP;
+        Event.fd_readwrite.flags |= __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP;
       }
+      bool UnknownNBytes = false;
       int WriteBufSize = 0;
       socklen_t IntSize = sizeof(WriteBufSize);
-      if (auto Res =
-              getsockopt(Fd, SOL_SOCKET, SO_SNDBUF, &WriteBufSize, &IntSize);
+      if (auto Res = ::getsockopt(KEvent.ident, SOL_SOCKET, SO_SNDBUF,
+                                  &WriteBufSize, &IntSize);
           unlikely(Res != 0)) {
-        break;
+        UnknownNBytes = true;
       }
       int WriteBufUsed = 0;
-      if (auto Res = ioctl(Fd, TIOCOUTQ, &WriteBufUsed); unlikely(Res != 0)) {
-        break;
+      if (auto Res = ::ioctl(KEvent.ident, TIOCOUTQ, &WriteBufUsed);
+          unlikely(Res != 0)) {
+        UnknownNBytes = true;
       }
-      NBytes = WriteBufSize - WriteBufUsed;
+      if (UnknownNBytes) {
+        Event.fd_readwrite.nbytes = 1;
+      } else {
+        Event.fd_readwrite.nbytes = WriteBufSize - WriteBufUsed;
+      }
       break;
     }
     }
-    Callback(Events[Index].userdata, __WASI_ERRNO_SUCCESS, Events[Index].type,
-             NBytes, Flags);
   }
-  return {};
+
+  for (const auto &[NodeFd, FdData] : FdDatas) {
+    if (FdData.ReadEvent) {
+      struct kevent KEvent;
+      EV_SET(&KEvent, NodeFd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+      if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
+          unlikely(Ret < 0)) {
+        spdlog::warn("kevent({}, {{{}, EVFILT_READ, EV_DELETE}}) failed: {}"sv,
+                     Fd, NodeFd, fromErrNo(errno));
+      }
+    }
+    if (FdData.WriteEvent) {
+      struct kevent KEvent;
+      EV_SET(&KEvent, NodeFd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
+      if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
+          unlikely(Ret < 0)) {
+        spdlog::warn("kevent({}, {{{}, EVFILT_WRITE, EV_DELETE}}) failed: {}"sv,
+                     Fd, NodeFd, fromErrNo(errno));
+      }
+    }
+  }
+  for (uint64_t I = 0; I < NextTimerId; ++I) {
+    struct kevent KEvent;
+    EV_SET(&KEvent, I, EVFILT_TIMER, EV_DELETE, 0, 0, nullptr);
+    if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
+        unlikely(Ret < 0)) {
+      spdlog::warn("kevent({}, {{{}, EVFILT_TIMER, EV_DELETE}}) failed: {}"sv,
+                   Fd, I, fromErrNo(errno));
+    }
+  }
+
+  FdDatas.clear();
+  KEvents.clear();
+  NextTimerId = 0;
+  return;
+}
+
+void Poller::reset() noexcept {
+  WasiEvents = {};
+  Events.clear();
 }
 
 WasiExpect<void> INode::getAddrinfo(std::string_view Node,
@@ -1733,6 +1825,8 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
 
   return {};
 }
+
+bool Poller::ok() noexcept { return FdHolder::ok(); }
 
 } // namespace WASI
 } // namespace Host

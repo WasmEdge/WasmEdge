@@ -68,7 +68,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
-      
+
       - name: Build Async-Hello for Testing
         working-directory: bindings/rust/wasmedge-sys/examples
         run: |
@@ -136,7 +136,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
-      
+
       - name: Test Rust Bindings
         working-directory: bindings/rust/
         run: |
@@ -210,7 +210,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
-      
+
       - name: Test Rust Bindings
         run: |
           $vsPath = (vswhere -latest -property installationPath)
@@ -265,7 +265,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
-        
+
       - name: Build Async-Hello for Testing
         working-directory: bindings/rust/wasmedge-sys/examples
         run: |

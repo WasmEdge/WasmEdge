@@ -41,7 +41,7 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
     // arguments of wrapper function
     let mut wrapper_fn_inputs = item_fn.sig.inputs.clone();
     let first_arg = wrapper_fn_inputs.first_mut().unwrap();
-    *first_arg = parse_quote!(frame: CallingFrame);
+    *first_arg = parse_quote!(frame: wasmedge_sdk::CallingFrame);
     // get the name of the second argument
     let second_arg = &wrapper_fn_inputs[1];
     let second_arg_ident = match second_arg {
@@ -91,8 +91,6 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
         3 => {
             // generate token stream
             quote!(
-                use wasmedge_sdk::CallingFrame;
-
                 # wrapper_visibility fn #wrapper_fn_name_ident #fn_generics (#wrapper_fn_inputs) #wrapper_fn_return {
                     // define inner function
                     fn #inner_fn_name_ident #fn_generics (#inner_fn_inputs) #inner_fn_return {
@@ -165,9 +163,9 @@ fn expand_async_host_func_with_three_args(item_fn: &syn::ItemFn) -> proc_macro2:
     // replace the first argument
     *first_arg = parse_quote!(frame: CallingFrame);
     if used_first_arg {
-        *first_arg = parse_quote!(frame: CallingFrame);
+        *first_arg = parse_quote!(frame: wasmedge_sdk::CallingFrame);
     } else {
-        *first_arg = parse_quote!(_: CallingFrame);
+        *first_arg = parse_quote!(_: wasmedge_sdk::CallingFrame);
     }
 
     let mut fn_block = item_fn.block.clone();
@@ -177,8 +175,6 @@ fn expand_async_host_func_with_three_args(item_fn: &syn::ItemFn) -> proc_macro2:
     }
 
     quote!(
-        use wasmedge_sdk::CallingFrame;
-
         #fn_visibility fn #fn_name_ident #fn_generics (#fn_inputs) -> Box<(dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send)> {
             Box::new(async move {
                 #fn_block

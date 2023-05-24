@@ -1,6 +1,7 @@
 #include<wasmedge/wasmedge.hh>
 #include<iostream>
 #include<vector>
+#include<string>
 
 int main(int Argc, const char *Argv[]) {
   /* Create the configure context and add the WASI support. */
@@ -11,7 +12,7 @@ int main(int Argc, const char *Argv[]) {
   /* The configure and store context to the VM creation can be NULL. */
   WasmEdge::VM VMCxt(ConfigCxt);
 
-  /* The parameters and returns arrays. */
+  /* The parameters and returns vectors. */
   std::vector<WasmEdge::Value> Params;
   Params.push_back(WasmEdge::Value(32));
   std::vector<WasmEdge::Value> Returns;

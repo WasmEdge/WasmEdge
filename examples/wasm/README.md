@@ -2,6 +2,16 @@
 
 This folder contains the example WASM files which can be executed by the WasmEdge binary tools.
 
+## Compile WAT to WASM
+
+Most of the following examples are handwritten in WAT format. You can use [WABT tool](https://github.com/WebAssembly/wabt) to compile it to the WASM format.
+
+```bash
+wat2wasm add.wat # This will generate add.wasm
+wat2wasm fibonacci.wat # This will generate fibonacci.wasm
+wat2wasm factorial.wat # This will generate factorial.wasm
+```
+
 ## Add two numbers
 
 The `add.wat` is a handwritten WebAssembly script to add two given numbers. It is compiled into WebAssembly using the [WABT tool](https://github.com/WebAssembly/wabt). The following example computes the result of (1+2).

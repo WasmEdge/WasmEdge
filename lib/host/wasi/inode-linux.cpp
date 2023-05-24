@@ -144,7 +144,7 @@ createNullTerminatedString(std::string_view View) noexcept {
 void FdHolder::reset() noexcept {
   if (likely(ok())) {
     if (likely(!isSpecialFd(Fd))) {
-      close(Fd);
+      ::close(Fd);
     }
     Fd = -1;
   }
@@ -799,20 +799,6 @@ WasiExpect<void> INode::pathUnlinkFile(std::string Path) const noexcept {
   }
 
   return {};
-}
-
-WasiExpect<Poller> INode::pollOneoff(WASI::TriggerType Trigger,
-                                     __wasi_size_t NSubscriptions) noexcept {
-  try {
-    Poller P(NSubscriptions);
-    if (unlikely(!P.ok())) {
-      return WasiUnexpect(fromErrNo(errno));
-    }
-    P.trigger(Trigger);
-    return P;
-  } catch (std::bad_alloc &) {
-    return WasiUnexpect(__WASI_ERRNO_NOMEM);
-  }
 }
 
 WasiExpect<void> INode::getAddrinfo(std::string_view Node,
@@ -1714,199 +1700,264 @@ WasiExpect<void> Poller::Timer::create(__wasi_clockid_t Clock,
 }
 #endif
 
-Poller::Poller(__wasi_size_t Count)
+Poller::Poller() noexcept
     : FdHolder(
 #if __GLIBC_PREREQ(2, 9)
           ::epoll_create1(EPOLL_CLOEXEC)
 #else
-          ::epoll_create(Count)
+          // Guessing a number that might be sufficient for linux before 2.6.8
+          ::epoll_create(32)
 #endif
       ) {
 #if !__GLIBC_PREREQ(2, 9)
   if (auto Res = ::fcntl(Fd, F_SETFD, FD_CLOEXEC); unlikely(Res != 0)) {
-    reset();
+    FdHolder::reset();
     return;
   }
 #endif
-  Events.reserve(Count);
 }
 
-void Poller::clear() noexcept {}
-
-WasiExpect<void> Poller::clock(__wasi_clockid_t Clock,
-                               __wasi_timestamp_t Timeout,
-                               __wasi_timestamp_t Precision,
-                               __wasi_subclockflags_t Flags,
-                               __wasi_userdata_t UserData) noexcept {
+WasiExpect<void> Poller::prepare(Span<__wasi_event_t> E) noexcept {
+  WasiEvents = E;
   try {
-    Events.push_back({UserData,
-                      __WASI_ERRNO_SUCCESS,
-                      __WASI_EVENTTYPE_CLOCK,
-                      {0, static_cast<__wasi_eventrwflags_t>(0)}});
+    Events.reserve(E.size());
+    Timers.reserve(E.size());
+    EPollEvents.reserve(E.size());
+  } catch (std::bad_alloc &) {
+    return WasiUnexpect(__WASI_ERRNO_NOMEM);
+  }
+
+  return {};
+}
+
+void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
+                   __wasi_timestamp_t Precision, __wasi_subclockflags_t Flags,
+                   __wasi_userdata_t UserData) noexcept {
+  assuming(Events.size() < WasiEvents.size());
+  auto &Event = Events.emplace_back();
+  Event.Valid = false;
+  Event.userdata = UserData;
+  Event.type = __WASI_EVENTTYPE_CLOCK;
+
+  try {
     Timers.emplace_back();
-  } catch (std::bad_alloc &) {
-    return WasiUnexpect(__WASI_ERRNO_NOMEM);
-  }
 
-  auto &Timer = Timers.back();
-  if (auto Res = Timer.create(Clock, Timeout, Precision, Flags);
-      unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+    auto &Timer = Timers.back();
+    if (auto Res = Timer.create(Clock, Timeout, Precision, Flags);
+        unlikely(!Res)) {
+      Timers.pop_back();
+      Event.Valid = true;
+      Event.error = Res.error();
+      return;
+    }
 
-  epoll_event EPollEvent;
-  EPollEvent.events = EPOLLIN;
+    assuming(Timer.Fd != Fd);
+    auto [Iter, Added] = FdDatas.try_emplace(Timer.Fd);
+
+    Iter->second.ReadEvent = &Event;
+    assuming(Added);
+
+    epoll_event EPollEvent;
+    EPollEvent.events = EPOLLIN;
 #if defined(EPOLLRDHUP)
-  EPollEvent.events |= EPOLLRDHUP;
+    EPollEvent.events |= EPOLLRDHUP;
 #endif
-  EPollEvent.data.fd = Timer.Fd;
+    EPollEvent.data.fd = Timer.Fd;
 
-  auto [Iter, Added] = FdDatas.emplace(Timer.Fd, FdData(EPollEvent.events));
-  assuming(Added);
-  if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_ADD, Timer.Fd, &EPollEvent);
-      unlikely(Res < 0)) {
-    FdDatas.erase(Iter);
-    return WasiUnexpect(fromErrNo(errno));
-  }
-  Iter->second.ReadIndex = Events.size() - 1;
-  return {};
-}
-
-WasiExpect<void> Poller::read(const INode &Fd,
-                              __wasi_userdata_t UserData) noexcept {
-  try {
-    Events.push_back({UserData,
-                      __WASI_ERRNO_SUCCESS,
-                      __WASI_EVENTTYPE_FD_READ,
-                      {0, static_cast<__wasi_eventrwflags_t>(0)}});
-  } catch (std::bad_alloc &) {
-    return WasiUnexpect(__WASI_ERRNO_NOMEM);
-  }
-
-  epoll_event EPollEvent;
-  EPollEvent.events = EPOLLIN;
-  if (Trigger == TriggerType::Edge) {
-    EPollEvent.events |= EPOLLET;
-  }
-#if defined(EPOLLRDHUP)
-  EPollEvent.events |= EPOLLRDHUP;
-#endif
-  EPollEvent.data.fd = Fd.Fd;
-
-  auto [Iter, Added] = FdDatas.emplace(Fd.Fd, FdData(EPollEvent.events));
-  if (likely(Added)) {
-    if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_ADD, Fd.Fd, &EPollEvent);
+    if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_ADD, Timer.Fd, &EPollEvent);
         unlikely(Res < 0)) {
       FdDatas.erase(Iter);
-      return WasiUnexpect(fromErrNo(errno));
+      Timers.pop_back();
+      Event.Valid = true;
+      Event.error = fromErrNo(errno);
+      return;
     }
-  } else {
-    EPollEvent.events |= Iter->second.Events;
-    if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_MOD, Fd.Fd, &EPollEvent);
-        unlikely(Res < 0)) {
-      return WasiUnexpect(fromErrNo(errno));
-    }
-  }
 
-  Iter->second.Events = EPollEvent.events;
-  Iter->second.ReadIndex = Events.size() - 1;
-  return {};
+    return;
+  } catch (std::bad_alloc &) {
+    Timers.pop_back();
+    Event.Valid = true;
+    Event.error = __WASI_ERRNO_NOMEM;
+    return;
+  }
 }
 
-WasiExpect<void> Poller::write(const INode &Fd,
-                               __wasi_userdata_t UserData) noexcept {
+void Poller::read(const INode &Node, TriggerType Trigger,
+                  __wasi_userdata_t UserData) noexcept {
+  assuming(Events.size() < WasiEvents.size());
+  auto &Event = Events.emplace_back();
+  Event.Valid = false;
+  Event.userdata = UserData;
+  Event.type = __WASI_EVENTTYPE_FD_READ;
+
+  assuming(Node.Fd != Fd);
   try {
-    Events.push_back({UserData,
-                      __WASI_ERRNO_SUCCESS,
-                      __WASI_EVENTTYPE_FD_WRITE,
-                      {0, static_cast<__wasi_eventrwflags_t>(0)}});
-  } catch (std::bad_alloc &) {
-    return WasiUnexpect(__WASI_ERRNO_NOMEM);
-  }
-  epoll_event EPollEvent;
-  EPollEvent.events = EPOLLOUT;
-  if (Trigger == TriggerType::Edge) {
-    EPollEvent.events |= EPOLLET;
-  }
+    auto [Iter, Added] = FdDatas.try_emplace(Node.Fd);
+
+    if (unlikely(!Added && Iter->second.ReadEvent != nullptr)) {
+      Event.Valid = true;
+      Event.error = __WASI_ERRNO_EXIST;
+      return;
+    }
+    Iter->second.ReadEvent = &Event;
+
+    epoll_event EPollEvent;
+    EPollEvent.events = EPOLLIN;
+    if (!Added) {
+      assuming(Iter->second.WriteEvent != nullptr);
+      EPollEvent.events |= EPOLLOUT;
+    }
+    if (Trigger == TriggerType::Edge) {
+      EPollEvent.events |= EPOLLET;
+    }
 #if defined(EPOLLRDHUP)
-  EPollEvent.events |= EPOLLRDHUP;
+    EPollEvent.events |= EPOLLRDHUP;
 #endif
-  EPollEvent.data.fd = Fd.Fd;
+    EPollEvent.data.fd = Node.Fd;
 
-  auto [Iter, Added] = FdDatas.emplace(Fd.Fd, FdData(EPollEvent.events));
-  if (likely(Added)) {
-    if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_ADD, Fd.Fd, &EPollEvent);
-        unlikely(Res < 0)) {
-      FdDatas.erase(Iter);
-      return WasiUnexpect(fromErrNo(errno));
+    if (likely(Added)) {
+      if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_ADD, Node.Fd, &EPollEvent);
+          unlikely(Res < 0)) {
+        FdDatas.erase(Iter);
+        Event.Valid = true;
+        Event.error = fromErrNo(errno);
+        return;
+      }
+    } else {
+      if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_MOD, Node.Fd, &EPollEvent);
+          unlikely(Res < 0)) {
+        Event.Valid = true;
+        Event.error = fromErrNo(errno);
+        return;
+      }
     }
-  } else {
-    EPollEvent.events |= Iter->second.Events;
-    if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_MOD, Fd.Fd, &EPollEvent);
-        unlikely(Res < 0)) {
-      return WasiUnexpect(fromErrNo(errno));
-    }
+  } catch (std::bad_alloc &) {
+    Event.Valid = true;
+    Event.error = __WASI_ERRNO_NOMEM;
+    return;
   }
-
-  Iter->second.Events = EPollEvent.events;
-  Iter->second.WriteIndex = Events.size() - 1;
-  return {};
 }
 
-WasiExpect<void> Poller::wait(CallbackType Callback) noexcept {
-  std::vector<struct epoll_event> EPollEvents;
+void Poller::write(const INode &Node, TriggerType Trigger,
+                   __wasi_userdata_t UserData) noexcept {
+  assuming(Events.size() < WasiEvents.size());
+  auto &Event = Events.emplace_back();
+  Event.Valid = false;
+  Event.userdata = UserData;
+  Event.type = __WASI_EVENTTYPE_FD_WRITE;
+
+  assuming(Node.Fd != Fd);
   try {
-    EPollEvents.resize(Events.size());
+    auto [Iter, Added] = FdDatas.try_emplace(Node.Fd);
+
+    if (unlikely(!Added && Iter->second.WriteEvent != nullptr)) {
+      Event.Valid = true;
+      Event.error = __WASI_ERRNO_EXIST;
+      return;
+    }
+    Iter->second.WriteEvent = &Event;
+
+    epoll_event EPollEvent;
+    EPollEvent.events = EPOLLOUT;
+    if (!Added) {
+      assuming(Iter->second.ReadEvent != nullptr);
+      EPollEvent.events |= EPOLLIN;
+    }
+    if (Trigger == TriggerType::Edge) {
+      EPollEvent.events |= EPOLLET;
+    }
+#if defined(EPOLLRDHUP)
+    EPollEvent.events |= EPOLLRDHUP;
+#endif
+    EPollEvent.data.fd = Node.Fd;
+
+    if (likely(Added)) {
+      if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_ADD, Node.Fd, &EPollEvent);
+          unlikely(Res < 0)) {
+        FdDatas.erase(Iter);
+        Event.Valid = true;
+        Event.error = fromErrNo(errno);
+        return;
+      }
+    } else {
+      if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_MOD, Node.Fd, &EPollEvent);
+          unlikely(Res < 0)) {
+        Event.Valid = true;
+        Event.error = fromErrNo(errno);
+        return;
+      }
+    }
   } catch (std::bad_alloc &) {
-    return WasiUnexpect(__WASI_ERRNO_NOMEM);
+    Event.Valid = true;
+    Event.error = __WASI_ERRNO_NOMEM;
+    return;
   }
+}
+
+void Poller::wait() noexcept {
+  EPollEvents.resize(Events.size());
   const int Count =
       ::epoll_wait(Fd, EPollEvents.data(), EPollEvents.size(), -1);
   if (unlikely(Count < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
+    const auto Error = fromErrNo(errno);
+    for (auto &Event : Events) {
+      Event.Valid = true;
+      Event.error = Error;
+    }
+    return;
   }
 
-  auto ProcessEvent = [this](CallbackType &Callback,
-                             const struct epoll_event &EPollEvent,
-                             const uint64_t Index) {
-    auto Flags = static_cast<__wasi_eventrwflags_t>(0);
-    __wasi_filesize_t NBytes = 0;
-    switch (Events[Index].type) {
+  auto ProcessEvent = [](const struct epoll_event &EPollEvent,
+                         OptionalEvent &Event) noexcept {
+    Event.Valid = true;
+    Event.error = __WASI_ERRNO_SUCCESS;
+    switch (Event.type) {
     case __WASI_EVENTTYPE_CLOCK:
       break;
     case __WASI_EVENTTYPE_FD_READ: {
+      Event.fd_readwrite.flags = static_cast<__wasi_eventrwflags_t>(0);
       if (EPollEvent.events & EPOLLHUP) {
-        Flags |= __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP;
+        Event.fd_readwrite.flags |= __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP;
       }
+      bool UnknownNBytes = false;
       int ReadBufUsed = 0;
-      if (auto Res = ::ioctl(Fd, FIONREAD, &ReadBufUsed); unlikely(Res == 0)) {
-        break;
+      if (auto Res = ::ioctl(EPollEvent.data.fd, FIONREAD, &ReadBufUsed);
+          unlikely(Res == 0)) {
+        UnknownNBytes = true;
       }
-      NBytes = ReadBufUsed;
+      if (UnknownNBytes) {
+        Event.fd_readwrite.nbytes = 1;
+      } else {
+        Event.fd_readwrite.nbytes = ReadBufUsed;
+      }
       break;
     }
     case __WASI_EVENTTYPE_FD_WRITE: {
+      Event.fd_readwrite.flags = static_cast<__wasi_eventrwflags_t>(0);
       if (EPollEvent.events & EPOLLHUP) {
-        Flags |= __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP;
+        Event.fd_readwrite.flags |= __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP;
       }
+      bool UnknownNBytes = false;
       int WriteBufSize = 0;
       socklen_t IntSize = sizeof(WriteBufSize);
-      if (auto Res =
-              ::getsockopt(Fd, SOL_SOCKET, SO_SNDBUF, &WriteBufSize, &IntSize);
+      if (auto Res = ::getsockopt(EPollEvent.data.fd, SOL_SOCKET, SO_SNDBUF,
+                                  &WriteBufSize, &IntSize);
           unlikely(Res != 0)) {
-        break;
+        UnknownNBytes = true;
       }
       int WriteBufUsed = 0;
-      if (auto Res = ::ioctl(Fd, TIOCOUTQ, &WriteBufUsed); unlikely(Res != 0)) {
-        break;
+      if (auto Res = ::ioctl(EPollEvent.data.fd, TIOCOUTQ, &WriteBufUsed);
+          unlikely(Res != 0)) {
+        UnknownNBytes = true;
       }
-      NBytes = WriteBufSize - WriteBufUsed;
+      if (UnknownNBytes) {
+        Event.fd_readwrite.nbytes = 1;
+      } else {
+        Event.fd_readwrite.nbytes = WriteBufSize - WriteBufUsed;
+      }
       break;
     }
     }
-
-    Callback(Events[Index].userdata, __WASI_ERRNO_SUCCESS, Events[Index].type,
-             NBytes, Flags);
   };
 
   for (int I = 0; I < Count; ++I) {
@@ -1915,16 +1966,41 @@ WasiExpect<void> Poller::wait(CallbackType Callback) noexcept {
     assuming(Iter != FdDatas.end());
 
     if (EPollEvent.events & EPOLLIN) {
-      assuming(Iter->second.ReadIndex < Events.size());
-      ProcessEvent(Callback, EPollEvent, Iter->second.ReadIndex);
+      assuming(Iter->second.ReadEvent);
+      assuming(Iter->second.ReadEvent->type == __WASI_EVENTTYPE_CLOCK ||
+               Iter->second.ReadEvent->type == __WASI_EVENTTYPE_FD_READ);
+      ProcessEvent(EPollEvent, *Iter->second.ReadEvent);
     }
     if (EPollEvent.events & EPOLLOUT) {
-      assuming(Iter->second.WriteIndex < Events.size());
-      ProcessEvent(Callback, EPollEvent, Iter->second.WriteIndex);
+      assuming(Iter->second.WriteEvent);
+      assuming(Iter->second.WriteEvent->type == __WASI_EVENTTYPE_FD_WRITE);
+      ProcessEvent(EPollEvent, *Iter->second.WriteEvent);
     }
   }
-  return {};
+
+  for (const auto &[NodeFd, FdData] : FdDatas) {
+    using namespace std::literals;
+    // In kernel before 2.6.9, EPOLL_CTL_DEL required a non-null pointer. Use
+    // `this` as the dummy parameter.
+    if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_DEL, NodeFd,
+                               reinterpret_cast<struct epoll_event *>(this));
+        unlikely(Res < 0)) {
+      spdlog::error("epoll_ctl({}, EPOLL_CTL_DEL, {}) failed: {}"sv, Fd, NodeFd,
+                    fromErrNo(errno));
+    }
+  }
+
+  FdDatas.clear();
+  Timers.clear();
+  EPollEvents.clear();
 }
+
+void Poller::reset() noexcept {
+  WasiEvents = {};
+  Events.clear();
+}
+
+bool Poller::ok() noexcept { return FdHolder::ok(); }
 
 } // namespace WASI
 } // namespace Host

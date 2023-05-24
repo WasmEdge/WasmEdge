@@ -537,14 +537,6 @@ public:
   static WasiExpect<void> pathUnlinkFile(VFS &FS, std::shared_ptr<VINode> Fd,
                                          std::string_view Path);
 
-  /// Concurrently poll for the occurrence of a set of events.
-  ///
-  /// @param[in] Trigger Requesting level-trigger or edge-trigger notification.
-  /// @param[in] NSubscriptions Both the number of subscriptions and events.
-  /// @return Poll helper or WASI error.
-  static inline WasiExpect<VPoller>
-  pollOneoff(TriggerType Trigger, __wasi_size_t NSubscriptions) noexcept;
-
   static WasiExpect<void>
   getAddrinfo(std::string_view Node, std::string_view Service,
               const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
@@ -788,34 +780,38 @@ private:
 
 class VPoller : private Poller {
 public:
-  using Poller::clear;
   using Poller::clock;
-  using Poller::trigger;
+  using Poller::error;
+  using Poller::ok;
+  using Poller::prepare;
+  using Poller::reset;
+  using Poller::result;
   using Poller::wait;
 
-  VPoller(Poller &&P) : Poller(std::move(P)) {}
+  VPoller() noexcept = default;
 
-  WasiExpect<void> read(std::shared_ptr<VINode> Fd,
-                        __wasi_userdata_t UserData) noexcept {
+  void read(std::shared_ptr<VINode> Fd, TriggerType Trigger,
+            __wasi_userdata_t UserData) noexcept {
     if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
         !Fd->can(__WASI_RIGHTS_FD_READ)) {
-      return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
+      Poller::error(UserData, __WASI_ERRNO_NOTCAPABLE,
+                    __WASI_EVENTTYPE_FD_READ);
+    } else {
+      Poller::read(Fd->Node, Trigger, UserData);
     }
-    return Poller::read(Fd->Node, UserData);
   }
 
-  WasiExpect<void> write(std::shared_ptr<VINode> Fd,
-                         __wasi_userdata_t UserData) noexcept {
-    return Poller::write(Fd->Node, UserData);
+  void write(std::shared_ptr<VINode> Fd, TriggerType Trigger,
+             __wasi_userdata_t UserData) noexcept {
+    if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
+        !Fd->can(__WASI_RIGHTS_FD_WRITE)) {
+      Poller::error(UserData, __WASI_ERRNO_NOTCAPABLE,
+                    __WASI_EVENTTYPE_FD_WRITE);
+    } else {
+      Poller::write(Fd->Node, Trigger, UserData);
+    }
   }
 };
-
-inline WasiExpect<VPoller>
-VINode::pollOneoff(TriggerType Trigger, __wasi_size_t NSubscriptions) noexcept {
-  return INode::pollOneoff(Trigger, NSubscriptions).map([](Poller &&P) {
-    return VPoller(std::move(P));
-  });
-}
 
 } // namespace WASI
 } // namespace Host

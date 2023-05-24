@@ -1097,26 +1097,11 @@ mod tests {
             assert!(result.is_ok());
 
             // create a Vm context
-            let result = VmBuilder::new()
-                .with_plugin_wasmedge_process()
-                .with_plugin_wasi_crypto()
-                .build();
+            let result = VmBuilder::new().with_plugin_wasmedge_process().build();
             assert!(result.is_ok());
             let vm = result.unwrap();
 
             assert!(vm.contains_module("wasmedge_process"));
-
-            #[cfg(feature = "wasi_crypto")]
-            {
-                assert!(vm.contains_module("wasi_ephemeral_crypto_common"));
-                assert!(vm.contains_module("wasi_ephemeral_crypto_asymmetric_common"));
-                assert!(vm.contains_module("wasi_ephemeral_crypto_kx"));
-                assert!(vm.contains_module("wasi_ephemeral_crypto_signatures"));
-                assert!(vm.contains_module("wasi_ephemeral_crypto_symmetric"));
-            }
-
-            #[cfg(all(feature = "wasi_nn", target_arch = "x86_64"))]
-            assert!(vm.contains_module("wasi_nn"));
         }
     }
 

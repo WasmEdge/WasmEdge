@@ -293,7 +293,6 @@ pub fn fd_prestat_get(
 
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
 
-    // if let Some([WasmVal::I32(p1), WasmVal::I32(p2)]) = args.get(0..2) {
     if let Some([p1, p2]) = args.get(0..2) {
         let fd = p1.to_i32();
         let prestat_ptr = p2.to_i32() as usize;
@@ -499,7 +498,6 @@ pub fn fd_tell(
 
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
 
-    // if let Some([WasmVal::I32(p1), WasmVal::I32(p2)]) = args.get(0..2) {
     if let Some([p1, p2]) = args.get(0..2) {
         let fd = p1.to_i32();
         let offset = p2.to_i32() as usize;
@@ -2077,91 +2075,3 @@ pub fn wasi_impls() -> Vec<WasiFunc<WasiCtx>> {
         ),
     ]
 }
-
-// * define WasiVm
-
-// pub struct WasiVm<VM> {
-//     vm: VM,
-//     wasi_ctx: Box<WasiCtx>,
-// }
-
-// impl<VM> WasiVm<VM>
-// where
-//     VM: AsRef<Vm> + AsMut<Vm>,
-// {
-//     pub fn create(
-//         mut vm: VM,
-//         mut wasi_ctx: Box<WasiCtx>,
-//         wasi_fns: Vec<WasiFunc<WasiCtx>>,
-//     ) -> WasmEdgeResult<Self> {
-//         let data = wasi_ctx.as_mut();
-//         let mut import_object = crate::ImportModule::create("wasi_snapshot_preview1")?;
-//         for wasi_fn in wasi_fns {
-//             match wasi_fn {
-//                 WasiFunc::SyncFn(name, ty, real_fn) => {
-//                     let fn_ty = FuncType::create(ty.0, ty.1)?;
-//                     let func = unsafe { functions::new_sync_function(&fn_ty, real_fn, data, 0) }?;
-//                     import_object.add_func(name, func);
-//                 }
-//                 WasiFunc::AsyncFn(name, ty, real_fn) => {
-//                     let fn_ty = FuncType::create(ty.0, ty.1)?;
-//                     let func = unsafe { functions::new_async_function(&fn_ty, real_fn, data, 0) }?;
-//                     import_object.add_func(name, func);
-//                 }
-//             }
-//         }
-//         vm.as_mut()
-//             .register_import_module_(crate::ImportObject::Import(import_object).into())?;
-//         Ok(Self { vm, wasi_ctx })
-//     }
-
-//     pub fn unpack(self) -> (VM, Box<WasiCtx>) {
-//         (self.vm, self.wasi_ctx)
-//     }
-// }
-
-// impl<VM: AsRef<Vm>> AsRef<Vm> for WasiVm<VM> {
-//     fn as_ref(&self) -> &Vm {
-//         self.vm.as_ref()
-//     }
-// }
-
-// impl<VM: AsMut<Vm>> AsMut<Vm> for WasiVm<VM> {
-//     fn as_mut(&mut self) -> &mut Vm {
-//         self.vm.as_mut()
-//     }
-// }
-
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use wasmedge_sdk::VmBuilder;
-
-//     #[tokio::test]
-//     pub async fn test_vm() {
-//         async fn tick() {
-//             let mut i = 0;
-//             loop {
-//                 println!("i={i}");
-//                 tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-//                 i += 1;
-//             }
-//         }
-
-//         let vm = Box::new(VmBuilder::default().build().unwrap());
-//         let wasi_funcs = wasi_impls();
-//         let mut wasi_ctx = Box::new(WasiCtx::new());
-//         wasi_ctx.push_arg("abc".into());
-//         wasi_ctx.push_env("a=1".into());
-//         let mut wasi_vm = WasiVm::create(vm, wasi_ctx, wasi_funcs).unwrap();
-
-//         tokio::spawn(tick());
-//         let r = wasi_vm
-//             .as_mut()
-//             .run_func_from_file_async("hello.wasm", "_start", [])
-//             .await
-//             .unwrap();
-
-//         println!("{r:?}");
-//     }
-// }

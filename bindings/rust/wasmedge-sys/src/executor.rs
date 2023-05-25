@@ -226,25 +226,14 @@ impl Executor {
         let mut returns = Vec::with_capacity(returns_len as usize);
 
         unsafe {
-            // check(ffi::WasmEdge_ExecutorInvoke(
-            //     self.inner.0,
-            //     func.inner.0 as *const _,
-            //     raw_params.as_ptr(),
-            //     raw_params.len() as u32,
-            //     returns.as_mut_ptr(),
-            //     returns_len,
-            // ))?;
-
-            let x = ffi::WasmEdge_ExecutorInvoke(
+            check(ffi::WasmEdge_ExecutorInvoke(
                 self.inner.0,
                 func.inner.0 as *const _,
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
                 returns_len,
-            );
-
-            check(x)?;
+            ))?;
 
             returns.set_len(returns_len as usize);
         }

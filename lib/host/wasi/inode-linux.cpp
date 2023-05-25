@@ -1793,6 +1793,7 @@ void Poller::read(const INode &Node, TriggerType Trigger,
   assuming(Node.Fd != Fd);
   try {
     auto [Iter, Added] = FdDatas.try_emplace(Node.Fd);
+    const bool New = OldFdDatas.find(Node.Fd) == OldFdDatas.end();
 
     if (unlikely(!Added && Iter->second.ReadEvent != nullptr)) {
       Event.Valid = true;
@@ -1815,7 +1816,7 @@ void Poller::read(const INode &Node, TriggerType Trigger,
 #endif
     EPollEvent.data.fd = Node.Fd;
 
-    if (likely(Added)) {
+    if (likely(Added) && New) {
       if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_ADD, Node.Fd, &EPollEvent);
           unlikely(Res < 0)) {
         FdDatas.erase(Iter);
@@ -1849,6 +1850,7 @@ void Poller::write(const INode &Node, TriggerType Trigger,
   assuming(Node.Fd != Fd);
   try {
     auto [Iter, Added] = FdDatas.try_emplace(Node.Fd);
+    const bool New = OldFdDatas.find(Node.Fd) == OldFdDatas.end();
 
     if (unlikely(!Added && Iter->second.WriteEvent != nullptr)) {
       Event.Valid = true;
@@ -1871,7 +1873,7 @@ void Poller::write(const INode &Node, TriggerType Trigger,
 #endif
     EPollEvent.data.fd = Node.Fd;
 
-    if (likely(Added)) {
+    if (likely(Added) && New) {
       if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_ADD, Node.Fd, &EPollEvent);
           unlikely(Res < 0)) {
         FdDatas.erase(Iter);
@@ -1895,6 +1897,16 @@ void Poller::write(const INode &Node, TriggerType Trigger,
 }
 
 void Poller::wait() noexcept {
+  for (const auto &[NodeFd, FdData] : OldFdDatas) {
+    if (auto Iter = FdDatas.find(NodeFd); Iter == FdDatas.end()) {
+      // Remove unused event, ignore failed.
+      // In kernel before 2.6.9, EPOLL_CTL_DEL required a non-null pointer. Use
+      // `this` as the dummy parameter.
+      ::epoll_ctl(Fd, EPOLL_CTL_DEL, NodeFd,
+                  reinterpret_cast<struct epoll_event *>(this));
+    }
+  }
+
   EPollEvents.resize(Events.size());
   const int Count =
       ::epoll_wait(Fd, EPollEvents.data(), EPollEvents.size(), -1);
@@ -1978,18 +1990,7 @@ void Poller::wait() noexcept {
     }
   }
 
-  for (const auto &[NodeFd, FdData] : FdDatas) {
-    using namespace std::literals;
-    // In kernel before 2.6.9, EPOLL_CTL_DEL required a non-null pointer. Use
-    // `this` as the dummy parameter.
-    if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_DEL, NodeFd,
-                               reinterpret_cast<struct epoll_event *>(this));
-        unlikely(Res < 0)) {
-      spdlog::error("epoll_ctl({}, EPOLL_CTL_DEL, {}) failed: {}"sv, Fd, NodeFd,
-                    fromErrNo(errno));
-    }
-  }
-
+  std::swap(FdDatas, OldFdDatas);
   FdDatas.clear();
   Timers.clear();
   EPollEvents.clear();

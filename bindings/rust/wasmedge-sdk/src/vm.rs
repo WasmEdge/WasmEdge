@@ -803,9 +803,6 @@ impl Vm {
 
 #[derive(Debug, Clone)]
 enum HostRegistrationInstance {
-    #[cfg(not(feature = "async"))]
-    Wasi(crate::wasi::WasiInstance),
-    #[cfg(all(feature = "async", target_os = "linux"))]
     Wasi(crate::wasi::WasiInstance),
 }
 
@@ -1086,22 +1083,6 @@ mod tests {
             let result = VmBuilder::new().with_config(config).build();
             assert!(result.is_ok());
             let _vm = result.unwrap();
-        }
-
-        #[cfg(all(target_os = "linux", not(feature = "static")))]
-        {
-            use crate::plugin::PluginManager;
-
-            // load wasmedge_process plugin
-            let result = PluginManager::load(None);
-            assert!(result.is_ok());
-
-            // create a Vm context
-            let result = VmBuilder::new().with_plugin_wasmedge_process().build();
-            assert!(result.is_ok());
-            let vm = result.unwrap();
-
-            assert!(vm.contains_module("wasmedge_process"));
         }
     }
 

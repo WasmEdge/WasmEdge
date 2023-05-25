@@ -82,13 +82,6 @@ impl VmBuilder {
         self
     }
 
-    /// Sets the `wasmedge_sgx` plugin for the [Vm] to build. The `wasmedge_httpsreq` plugin should be deployed with WasmEdge library.
-    pub fn with_plugin_wasmedge_httpsreq(mut self) -> Self {
-        self.plugins
-            .push(("wasmedge_httpsreq".into(), "wasmedge_httpsreq".into()));
-        self
-    }
-
     /// Set the third-party plugin for the [Vm] to build.
     ///
     /// # Arguments

@@ -873,7 +873,7 @@ TEST(WasiNNTest, TFLiteBackend) {
       readEntireFile("./wasinn_tflite_fixtures/"
                      "lite-model_aiy_vision_classifier_birds_V1_3.tflite");
   spdlog::info("Read {}", TensorData.size());
-  std::vector<uint32_t> TensorDim{1, 3, 224, 224};
+  std::vector<uint32_t> TensorDim{1, 224, 224, 3};
   uint32_t BuilderPtr = UINT32_C(0);
   uint32_t LoadEntryPtr = UINT32_C(0);
   uint32_t SetInputEntryPtr = UINT32_C(0);

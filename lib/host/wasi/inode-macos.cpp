@@ -1635,7 +1635,22 @@ void Poller::write(const INode &Node, TriggerType Trigger,
 }
 
 void Poller::wait() noexcept {
-  using namespace std::literals;
+  for (const auto &[NodeFd, FdData] : OldFdDatas) {
+    if (auto Iter = FdDatas.find(NodeFd); Iter == FdDatas.end()) {
+      // Remove unused event, ignore failed.
+      if (FdData.ReadEvent) {
+        struct kevent KEvent;
+        EV_SET(&KEvent, NodeFd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+        ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
+      }
+      if (FdData.WriteEvent) {
+        struct kevent KEvent;
+        EV_SET(&KEvent, NodeFd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
+        ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
+      }
+    }
+  }
+
   KEvents.resize(Events.size());
   const int Count =
       ::kevent(Fd, nullptr, 0, KEvents.data(), KEvents.size(), nullptr);
@@ -1702,36 +1717,13 @@ void Poller::wait() noexcept {
     }
   }
 
-  for (const auto &[NodeFd, FdData] : FdDatas) {
-    if (FdData.ReadEvent) {
-      struct kevent KEvent;
-      EV_SET(&KEvent, NodeFd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
-      if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
-          unlikely(Ret < 0)) {
-        spdlog::warn("kevent({}, {{{}, EVFILT_READ, EV_DELETE}}) failed: {}"sv,
-                     Fd, NodeFd, fromErrNo(errno));
-      }
-    }
-    if (FdData.WriteEvent) {
-      struct kevent KEvent;
-      EV_SET(&KEvent, NodeFd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
-      if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
-          unlikely(Ret < 0)) {
-        spdlog::warn("kevent({}, {{{}, EVFILT_WRITE, EV_DELETE}}) failed: {}"sv,
-                     Fd, NodeFd, fromErrNo(errno));
-      }
-    }
-  }
   for (uint64_t I = 0; I < NextTimerId; ++I) {
     struct kevent KEvent;
     EV_SET(&KEvent, I, EVFILT_TIMER, EV_DELETE, 0, 0, nullptr);
-    if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
-        unlikely(Ret < 0)) {
-      spdlog::warn("kevent({}, {{{}, EVFILT_TIMER, EV_DELETE}}) failed: {}"sv,
-                   Fd, I, fromErrNo(errno));
-    }
+    ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
   }
 
+  std::swap(FdDatas, OldFdDatas);
   FdDatas.clear();
   KEvents.clear();
   NextTimerId = 0;

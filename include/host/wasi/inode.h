@@ -806,6 +806,7 @@ private:
     OptionalEvent *WriteEvent = nullptr;
   };
   std::unordered_map<int, FdData> FdDatas;
+  std::unordered_map<int, FdData> OldFdDatas;
 #endif
 
 #if WASMEDGE_OS_LINUX

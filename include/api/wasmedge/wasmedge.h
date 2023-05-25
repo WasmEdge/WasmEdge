@@ -3380,6 +3380,18 @@ WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Compiler(int Argc,
 WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Tool(int Argc,
                                                      const char *Argv[]);
 
+/// Entrypoint for the unified tool.
+///
+/// This function provides an entrypoint to the WasmEdge unified tool with the
+/// command line arguments.
+///
+/// \param Argc the argument count.
+/// \param Argv the argument vector.
+///
+/// \returns the execution status.
+WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_UniTool(int Argc,
+                                                        const char *Argv[]);
+
 // <<<<<<<< WasmEdge Driver functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge Plugin functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

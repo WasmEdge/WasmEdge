@@ -40,12 +40,6 @@
 
 #![deny(rust_2018_idioms, unreachable_pub)]
 
-#[macro_use]
-extern crate lazy_static;
-
-use parking_lot::{Mutex, RwLock};
-use std::{collections::HashMap, sync::Arc};
-
 #[allow(warnings)]
 /// Foreign function interfaces generated from WasmEdge C-API.
 pub mod ffi {
@@ -54,8 +48,11 @@ pub mod ffi {
 #[doc(hidden)]
 pub mod ast_module;
 #[doc(hidden)]
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", target_os = "linux"))]
 pub mod r#async;
+#[doc(hidden)]
+#[cfg(all(feature = "async", target_os = "linux"))]
+pub mod async_wasi;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
 pub mod compiler;
@@ -91,12 +88,18 @@ pub use config::Config;
 pub use executor::Executor;
 #[doc(inline)]
 pub use frame::CallingFrame;
+#[cfg(not(feature = "async"))]
+#[doc(inline)]
+pub use instance::module::WasiModule;
+#[cfg(all(feature = "async", target_os = "linux"))]
+#[doc(inline)]
+pub use instance::{function::AsyncHostFn, module::AsyncWasiModule};
 #[doc(inline)]
 pub use instance::{
-    function::{FuncRef, FuncType, Function, NeverType},
+    function::{FuncRef, FuncType, Function, HostFn},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
-    module::{AsImport, AsInstance, ImportModule, ImportObject, Instance, WasiModule},
+    module::{AsImport, AsInstance, ImportModule, ImportObject, Instance},
     table::{Table, TableType},
 };
 #[doc(inline)]
@@ -110,32 +113,6 @@ pub use types::WasmValue;
 #[doc(inline)]
 pub use validator::Validator;
 use wasmedge_types::{error, WasmEdgeResult};
-
-/// Type alias for a boxed native function. This type is used in thread-safe cases.
-pub type BoxedFn = Box<
-    dyn Fn(
-            CallingFrame,
-            Vec<WasmValue>,
-            *mut std::os::raw::c_void,
-        ) -> Result<Vec<WasmValue>, error::HostFuncError>
-        + Send
-        + Sync,
->;
-
-lazy_static! {
-    static ref HOST_FUNCS: RwLock<HashMap<usize, Arc<Mutex<BoxedFn>>>> =
-        RwLock::new(HashMap::new());
-}
-
-// Stores the mapping from the address of each host function pointer to the key of the `HOST_FUNCS`.
-lazy_static! {
-    static ref HOST_FUNC_FOOTPRINTS: Mutex<HashMap<usize, usize>> = Mutex::new(HashMap::new());
-}
-
-#[cfg(feature = "async")]
-lazy_static! {
-    static ref ASYNC_STATE: RwLock<r#async::AsyncState> = RwLock::new(r#async::AsyncState::new());
-}
 
 /// The object that is used to perform a [host function](crate::Function) is required to implement this trait.
 pub trait Engine {

@@ -415,10 +415,10 @@ mod tests {
         assert_eq!(instance.name().unwrap(), mod_names[1]);
     }
 
-    fn real_add(
+    fn real_add<T>(
         _frame: CallingFrame,
         inputs: Vec<WasmValue>,
-        _data: *mut std::os::raw::c_void,
+        _data: Option<&mut T>,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

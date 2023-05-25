@@ -83,9 +83,10 @@ fn main() -> anyhow::Result<()> {
 
     /// A function we'll call through a table.
     #[host_function]
-    fn host_callback(
+    fn host_callback<T>(
         _: Caller,
         inputs: Vec<WasmValue>,
+        _data: Option<&mut T>,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
@@ -109,7 +110,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     // create a host function over host_callback
-    let func = Func::wrap::<(i32, i32), i32, NeverType>(Box::new(host_callback), None)?;
+    let func = Func::wrap::<(i32, i32), i32, NeverType>(host_callback, None)?;
 
     // set the function at index 1 in the table
     guest_table.set(1, Val::FuncRef(Some(func.as_ref())))?;
@@ -122,7 +123,7 @@ fn main() -> anyhow::Result<()> {
     // * growing a table
 
     // We again construct a `Function` over our host_callback.
-    let func = Func::wrap::<(i32, i32), i32, NeverType>(Box::new(host_callback), None)?;
+    let func = Func::wrap::<(i32, i32), i32, NeverType>(host_callback, None)?;
 
     // And grow the table by 3 elements, filling in our host_callback in all the
     // new elements of the table.
@@ -145,7 +146,7 @@ fn main() -> anyhow::Result<()> {
     assert_eq!(returns[0].to_i32(), 18);
 
     // Now overwrite index 0 with our host_callback.
-    let func = Func::wrap::<(i32, i32), i32, NeverType>(Box::new(host_callback), None)?;
+    let func = Func::wrap::<(i32, i32), i32, NeverType>(host_callback, None)?;
     guest_table.set(0, Val::FuncRef(Some(func.as_ref())))?;
     // And verify that it does what we expect.
     let returns = call_via_table.run(&executor, params!(0, 2, 7))?;

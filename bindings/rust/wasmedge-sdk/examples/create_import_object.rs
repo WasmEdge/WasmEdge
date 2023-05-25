@@ -13,9 +13,10 @@ use wasmedge_sdk::{
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // a native function to be imported as host function
     #[host_function]
-    fn real_add(
+    fn real_add<T>(
         _caller: Caller,
         inputs: Vec<WasmValue>,
+        _data: Option<&mut T>,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

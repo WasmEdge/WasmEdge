@@ -3,10 +3,12 @@ use wasmedge_macro::sys_host_function;
 #[cfg(feature = "aot")]
 use wasmedge_sys::{
     AsImport, CallingFrame, Compiler, Config, Executor, FuncType, Function, ImportModule,
-    ImportObject, Loader, NeverType, Store, Validator, WasmValue,
+    ImportObject, Loader, Store, Validator, WasmValue,
 };
 #[cfg(feature = "aot")]
-use wasmedge_types::{error::HostFuncError, CompilerOptimizationLevel, CompilerOutputFormat};
+use wasmedge_types::{
+    error::HostFuncError, CompilerOptimizationLevel, CompilerOutputFormat, NeverType,
+};
 
 #[cfg(feature = "aot")]
 #[test]
@@ -93,7 +95,7 @@ fn create_spec_test_module() -> ImportModule {
     let result = FuncType::create([], []);
     assert!(result.is_ok());
     let func_ty = result.unwrap();
-    let result = Function::create::<NeverType>(&func_ty, Box::new(spec_test_print), None, 0);
+    let result = Function::create::<NeverType>(&func_ty, spec_test_print, None, 0);
     assert!(result.is_ok());
     let host_func = result.unwrap();
     // add host function "print"
@@ -103,9 +105,10 @@ fn create_spec_test_module() -> ImportModule {
 
 #[cfg(feature = "aot")]
 #[sys_host_function]
-fn spec_test_print(
+fn spec_test_print<T>(
     _frame: CallingFrame,
     _inputs: Vec<WasmValue>,
+    _: Option<&mut T>,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
     Ok(vec![])
 }

@@ -125,6 +125,8 @@ use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 #[derive(Debug, Clone)]
 pub struct Config {
     pub(crate) inner: std::sync::Arc<InnerConfig>,
+    #[cfg(all(feature = "async", target_os = "linux"))]
+    async_wasi_enabled: bool,
 }
 impl Drop for Config {
     fn drop(&mut self) {
@@ -145,6 +147,8 @@ impl Config {
             true => Err(Box::new(WasmEdgeError::ConfigCreate)),
             false => Ok(Self {
                 inner: std::sync::Arc::new(InnerConfig(ctx)),
+                #[cfg(all(feature = "async", target_os = "linux"))]
+                async_wasi_enabled: false,
             }),
         }
     }
@@ -154,7 +158,9 @@ impl Config {
     /// # Argument
     ///
     /// * `enable` - Whether the option turns on or not.
+
     pub fn wasi(&mut self, enable: bool) {
+        #[cfg(not(feature = "async"))]
         unsafe {
             if enable {
                 ffi::WasmEdge_ConfigureAddHostRegistration(
@@ -168,15 +174,25 @@ impl Config {
                 )
             }
         }
+        #[cfg(all(feature = "async", target_os = "linux"))]
+        {
+            self.async_wasi_enabled = enable;
+        }
     }
 
     /// Checks if host registration wasi turns on or not.
+
     pub fn wasi_enabled(&self) -> bool {
+        #[cfg(not(feature = "async"))]
         unsafe {
             ffi::WasmEdge_ConfigureHasHostRegistration(
                 self.inner.0,
                 ffi::WasmEdge_HostRegistration_Wasi,
             )
+        }
+        #[cfg(all(feature = "async", target_os = "linux"))]
+        {
+            self.async_wasi_enabled
         }
     }
 
@@ -781,6 +797,7 @@ mod tests {
         assert!(config.simd_enabled());
         assert!(!config.tail_call_enabled());
         assert!(!config.threads_enabled());
+        #[cfg(not(feature = "async"))]
         assert!(!config.wasi_enabled());
         assert!(!config.is_cost_measuring());
         #[cfg(feature = "aot")]

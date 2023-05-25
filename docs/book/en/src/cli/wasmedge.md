@@ -12,7 +12,7 @@ The usage of the `wasmedge` tool will be:
 ```bash
 $ wasmedge -h
 USAGE
-   wasmedge [OPTIONS] [--] WASM_OR_SO [ARG ...]
+   wasmedge [SUBCOMMANDS] [OPTIONS] [--] WASM_OR_SO [ARG ...]
 
 ...
 ```
@@ -28,7 +28,12 @@ If users install the WasmEdge from the install script with the option `-e tf,ima
 
 The `wasmedge` CLI tool will execute the WebAssembly in ahead-of-time(AOT) mode if available in the input WASM file.
 For the pure WASM, the `wasmedge` CLI tool will execute it in interpreter mode, which is much slower than AOT mode.
-If you want to improve the performance, [please refer here](wasmedgec.md) to compile your WASM file.
+If you want to improve the performance, [please refer here](wasmedge_compile.md) to compile your WASM file.
+
+## Subcommands
+The subcommands of the `wasmedge` CLI tool are as follows.
+1. `run`: execute the WebAssembly; the usage of `wasmedge run` is identical to `wasmedge` without `-v|--version` option. [Please refer here](wasmedge_tool.md) to get more details.
+2. `compile`: compile WebAssembly into native machine code (i.e., the AOT compiler). [Please refer here](wasmedge_compile.md) to get more details.
 
 ## Options
 

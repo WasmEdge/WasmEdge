@@ -1620,14 +1620,55 @@ WasiExpect<void> INode::updateStat() const noexcept {
   return {};
 }
 
+WasiExpect<Poller::Timer>
+PollerContext::acquireTimer(__wasi_clockid_t Clock) noexcept {
+  std::unique_lock Lock(TimerMutex);
+  if (auto &Timers = TimerPool.try_emplace(Clock).first->second;
+      Timers.empty()) {
+    Poller::Timer Result(Clock);
+    if (auto Res = Result.create(); unlikely(!Res)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
+    return Result;
+  } else {
+    Poller::Timer Result(std::move(Timers.back()));
+    Timers.pop_back();
+    return Result;
+  }
+}
+
+void PollerContext::releaseTimer(Poller::Timer &&Timer) noexcept {
+  std::unique_lock Lock(TimerMutex);
+  const auto Clock = Timer.Clock;
+  try {
+    TimerPool.try_emplace(Clock).first->second.push_back(std::move(Timer));
+  } catch (std::bad_alloc &) {
+    // giving up caching timer
+  }
+}
+
 #if __GLIBC_PREREQ(2, 8)
-WasiExpect<void> Poller::Timer::create(__wasi_clockid_t Clock,
-                                       __wasi_timestamp_t Timeout,
-                                       __wasi_timestamp_t,
-                                       __wasi_subclockflags_t Flags) noexcept {
-  Fd = timerfd_create(toClockId(Clock), TFD_NONBLOCK | TFD_CLOEXEC);
-  if (unlikely(Fd < 0)) {
+WasiExpect<void> Poller::Timer::create() noexcept {
+  if (const auto NewFd =
+          ::timerfd_create(toClockId(Clock), TFD_NONBLOCK | TFD_CLOEXEC);
+      unlikely(NewFd < 0)) {
     return WasiUnexpect(fromErrNo(errno));
+  } else {
+    FdHolder::emplace(NewFd);
+  }
+  return {};
+}
+
+WasiExpect<void> Poller::Timer::setTime(__wasi_timestamp_t Timeout,
+                                        __wasi_timestamp_t,
+                                        __wasi_subclockflags_t Flags) noexcept {
+  // disarm timer
+  {
+    itimerspec Spec{toTimespec(0), toTimespec(0)};
+    if (auto Res = ::timerfd_settime(Fd, 0, &Spec, nullptr);
+        unlikely(Res < 0)) {
+      errno = 0;
+    }
   }
 
   int SysFlags = 0;
@@ -1635,7 +1676,7 @@ WasiExpect<void> Poller::Timer::create(__wasi_clockid_t Clock,
     SysFlags |= TFD_TIMER_ABSTIME;
   }
   itimerspec Spec{toTimespec(0), toTimespec(Timeout)};
-  if (auto Res = timerfd_settime(Fd, SysFlags, &Spec, nullptr);
+  if (auto Res = ::timerfd_settime(Fd, SysFlags, &Spec, nullptr);
       unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
@@ -1650,18 +1691,14 @@ static void sigevCallback(union sigval Value) noexcept {
 }
 } // namespace
 
-WasiExpect<void> Poller::Timer::create(__wasi_clockid_t Clock,
-                                       __wasi_timestamp_t Timeout,
-                                       __wasi_timestamp_t,
-                                       __wasi_subclockflags_t Flags) noexcept {
-  FdHolder Timer, Notify;
+WasiExpect<void> Poller::Timer::create() noexcept {
   {
     int PipeFd[2] = {-1, -1};
 
     if (auto Res = ::pipe(PipeFd); unlikely(Res != 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
-    Timer.emplace(PipeFd[0]);
+    FdHolder::emplace(PipeFd[0]);
     Notify.emplace(PipeFd[1]);
   }
 
@@ -1673,34 +1710,55 @@ WasiExpect<void> Poller::Timer::create(__wasi_clockid_t Clock,
     Event.sigev_value.sival_int = Notify.Fd;
     Event.sigev_notify_attributes = nullptr;
 
-    if (unlikely(::fcntl(Timer.Fd, F_SETFD, FD_CLOEXEC) != 0 ||
-                 ::fcntl(Notify.Fd, F_SETFD, FD_CLOEXEC) != 0 ||
+    if (unlikely(::fcntl(Fd, F_SETFD, O_NONBLOCK | FD_CLOEXEC) != 0 ||
+                 ::fcntl(Notify.Fd, F_SETFD, O_NONBLOCK | FD_CLOEXEC) != 0 ||
                  ::timer_create(toClockId(Clock), &Event, &TId) < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
   }
+  TimerId.emplace(TId);
+  return {};
+}
 
-  TimerHolder TimerId(TId);
+WasiExpect<void> Poller::Timer::setTime(__wasi_timestamp_t Timeout,
+                                        __wasi_timestamp_t,
+                                        __wasi_subclockflags_t Flags) noexcept {
+  if (unlikely(!TimerId.Id)) {
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
+
+  // disarm timer
   {
-    int SysFlags = 0;
-    if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
-      SysFlags |= TIMER_ABSTIME;
-    }
-    itimerspec Spec{toTimespec(0), toTimespec(Timeout)};
-    if (auto Res = ::timer_settime(TId, SysFlags, &Spec, nullptr);
+    itimerspec Spec{toTimespec(0), toTimespec(0)};
+    if (auto Res = ::timer_settime(*TimerId.Id, 0, &Spec, nullptr);
         unlikely(Res < 0)) {
-      return WasiUnexpect(fromErrNo(errno));
+      errno = 0;
+    }
+  }
+  // reset pipe
+  {
+    uint64_t Buffer[16];
+    while (true) {
+      if (auto Res = ::read(Fd, &Buffer, sizeof(Buffer)); Res <= 0) {
+        break;
+      }
     }
   }
 
-  this->FdHolder::operator=(std::move(Timer));
-  this->Notify = std::move(Notify);
-  this->TimerId = std::move(TimerId);
+  int SysFlags = 0;
+  if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
+    SysFlags |= TIMER_ABSTIME;
+  }
+  itimerspec Spec{toTimespec(0), toTimespec(Timeout)};
+  if (auto Res = ::timer_settime(*TimerId.Id, SysFlags, &Spec, nullptr);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
   return {};
 }
 #endif
 
-Poller::Poller() noexcept
+Poller::Poller(PollerContext &C) noexcept
     : FdHolder(
 #if __GLIBC_PREREQ(2, 9)
           ::epoll_create1(EPOLL_CLOEXEC)
@@ -1708,7 +1766,8 @@ Poller::Poller() noexcept
           // Guessing a number that might be sufficient for linux before 2.6.8
           ::epoll_create(32)
 #endif
-      ) {
+              ),
+      Ctx(C) {
 #if !__GLIBC_PREREQ(2, 9)
   if (auto Res = ::fcntl(Fd, F_SETFD, FD_CLOEXEC); unlikely(Res != 0)) {
     FdHolder::reset();
@@ -1739,19 +1798,25 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
   Event.userdata = UserData;
   Event.type = __WASI_EVENTTYPE_CLOCK;
 
+  if (auto Res = Ctx.get().acquireTimer(Clock); unlikely(!Res)) {
+    Event.Valid = true;
+    Event.error = Res.error();
+    return;
+  } else {
+    Timers.emplace_back(std::move(*Res));
+  }
+
+  auto &Timer = Timers.back();
+  if (auto Res = Timer.setTime(Timeout, Precision, Flags); unlikely(!Res)) {
+    Ctx.get().releaseTimer(std::move(Timer));
+    Timers.pop_back();
+    Event.Valid = true;
+    Event.error = Res.error();
+    return;
+  }
+
+  assuming(Timer.Fd != Fd);
   try {
-    Timers.emplace_back();
-
-    auto &Timer = Timers.back();
-    if (auto Res = Timer.create(Clock, Timeout, Precision, Flags);
-        unlikely(!Res)) {
-      Timers.pop_back();
-      Event.Valid = true;
-      Event.error = Res.error();
-      return;
-    }
-
-    assuming(Timer.Fd != Fd);
     auto [Iter, Added] = FdDatas.try_emplace(Timer.Fd);
 
     Iter->second.ReadEvent = &Event;
@@ -1767,6 +1832,7 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
     if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_ADD, Timer.Fd, &EPollEvent);
         unlikely(Res < 0)) {
       FdDatas.erase(Iter);
+      Ctx.get().releaseTimer(std::move(Timer));
       Timers.pop_back();
       Event.Valid = true;
       Event.error = fromErrNo(errno);
@@ -1775,6 +1841,7 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
 
     return;
   } catch (std::bad_alloc &) {
+    Ctx.get().releaseTimer(std::move(Timer));
     Timers.pop_back();
     Event.Valid = true;
     Event.error = __WASI_ERRNO_NOMEM;
@@ -1988,6 +2055,14 @@ void Poller::wait() noexcept {
       assuming(Iter->second.WriteEvent->type == __WASI_EVENTTYPE_FD_WRITE);
       ProcessEvent(EPollEvent, *Iter->second.WriteEvent);
     }
+  }
+  for (auto &Timer : Timers) {
+    // Remove unused timer event, ignore failed.
+    // In kernel before 2.6.9, EPOLL_CTL_DEL required a non-null pointer. Use
+    // `this` as the dummy parameter.
+    ::epoll_ctl(Fd, EPOLL_CTL_DEL, Timer.Fd,
+                reinterpret_cast<struct epoll_event *>(this));
+    Ctx.get().releaseTimer(std::move(Timer));
   }
 
   std::swap(FdDatas, OldFdDatas);

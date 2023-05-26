@@ -37,7 +37,7 @@ inline constexpr const int32_t kMaxSaDataLen = 26;
 } // namespace detail
 
 class EVPoller;
-class Environ {
+class Environ : public PollerContext {
 public:
   ~Environ() noexcept;
 
@@ -1239,7 +1239,7 @@ private:
   __wasi_exitcode_t ExitCode = 0;
 
   mutable std::shared_mutex PollerMutex; ///< Protect PollerPool
-  std::vector<VPoller> PollerPool;
+  std::vector<EVPoller> PollerPool;
   friend class EVPoller;
 
   mutable std::shared_mutex FdMutex; ///< Protect FdMap
@@ -1268,21 +1268,17 @@ private:
   }
 };
 
-class EVPoller : private VPoller {
+class EVPoller : protected VPoller {
 public:
-  friend class Environ; // for casting to VPoller
   EVPoller(EVPoller &&) = default;
   EVPoller &operator=(EVPoller &&) = default;
-
-  EVPoller(Environ &E) noexcept : Env(E) {}
-  EVPoller(Environ &E, VPoller &&P) noexcept : VPoller(std::move(P)), Env(E) {}
-  ~EVPoller() noexcept = default;
 
   using VPoller::clock;
   using VPoller::error;
   using VPoller::prepare;
   using VPoller::reset;
   using VPoller::result;
+  using VPoller::VPoller;
   using VPoller::wait;
 
   /// Concurrently poll for a ready-to-read event.
@@ -1295,7 +1291,7 @@ public:
   /// that is retained when extracted from the implementation.
   void read(__wasi_fd_t Fd, TriggerType Trigger,
             __wasi_userdata_t UserData) noexcept {
-    if (auto Node = Env.get().getNodeOrNull(Fd); unlikely(!Node)) {
+    if (auto Node = env().getNodeOrNull(Fd); unlikely(!Node)) {
       VPoller::error(UserData, __WASI_ERRNO_BADF, __WASI_EVENTTYPE_FD_READ);
     } else {
       VPoller::read(Node, Trigger, UserData);
@@ -1312,7 +1308,7 @@ public:
   /// that is retained when extracted from the implementation.
   void write(__wasi_fd_t Fd, TriggerType Trigger,
              __wasi_userdata_t UserData) noexcept {
-    if (auto Node = Env.get().getNodeOrNull(Fd); unlikely(!Node)) {
+    if (auto Node = env().getNodeOrNull(Fd); unlikely(!Node)) {
       VPoller::error(UserData, __WASI_ERRNO_BADF, __WASI_EVENTTYPE_FD_WRITE);
     } else {
       VPoller::write(Node, Trigger, UserData);
@@ -1320,7 +1316,7 @@ public:
   }
 
 private:
-  std::reference_wrapper<Environ> Env;
+  Environ &env() noexcept { return static_cast<Environ &>(Ctx.get()); }
 };
 
 inline WasiExpect<EVPoller>
@@ -1330,7 +1326,7 @@ Environ::acquirePoller(Span<__wasi_event_t> Events) noexcept {
     if (PollerPool.empty()) {
       return EVPoller(*this);
     } else {
-      EVPoller Result(*this, std::move(PollerPool.back()));
+      EVPoller Result(std::move(PollerPool.back()));
       PollerPool.pop_back();
       return Result;
     }

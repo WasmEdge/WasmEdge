@@ -2134,7 +2134,10 @@ WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
                                   const uint32_t Offset,
                                   const uint32_t Length) {
   if (Cxt) {
-    return fromMemCxt(Cxt)->getPointer<uint8_t *>(Offset, Length);
+    const auto S = fromMemCxt(Cxt)->getSpan<uint8_t>(Offset, Length);
+    if (S.size() == Length) {
+      return S.data();
+    }
   }
   return nullptr;
 }
@@ -2143,7 +2146,10 @@ WASMEDGE_CAPI_EXPORT const uint8_t *WasmEdge_MemoryInstanceGetPointerConst(
     const WasmEdge_MemoryInstanceContext *Cxt, const uint32_t Offset,
     const uint32_t Length) {
   if (Cxt) {
-    return fromMemCxt(Cxt)->getPointer<const uint8_t *>(Offset, Length);
+    const auto S = fromMemCxt(Cxt)->getSpan<const uint8_t>(Offset, Length);
+    if (S.size() == Length) {
+      return S.data();
+    }
   }
   return nullptr;
 }

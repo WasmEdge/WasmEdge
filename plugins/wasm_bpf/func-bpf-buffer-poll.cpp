@@ -15,7 +15,7 @@ inline const auto *toCallFrameCxt(const Runtime::CallingFrame *Cxt) noexcept {
 Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
                                     handle_t program, int32_t fd,
                                     int32_t sample_func, uint32_t ctx,
-                                    uint32_t data, int32_t max_size,
+                                    uint32_t data, uint32_t max_size,
                                     int32_t timeout_ms) {
   auto c_ctx = toCallFrameCxt(&Frame);
   auto c_module = WasmEdge_CallingFrameGetModuleInstance(c_ctx);
@@ -36,12 +36,12 @@ Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
   if (program_ptr == state->handles.end()) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  auto data_buf = memory->getPointer<char *>(data, max_size);
-  if (!data_buf) {
+  auto data_buf = memory->getSpan<char>(data, max_size);
+  if (data_buf.size() != max_size) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   return program_ptr->second->bpf_buffer_poll(c_executor, c_module, fd,
-                                              sample_func, ctx, data_buf,
+                                              sample_func, ctx, data_buf.data(),
                                               max_size, timeout_ms, data);
 }
 

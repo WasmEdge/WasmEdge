@@ -27,7 +27,7 @@ WasiNNLoad::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t BuilderPtr,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   // Check the return value: GraphIdPtr should be valid.
-  uint32_t *GraphId = MemInst->getPointer<uint32_t *>(GraphIdPtr, 1);
+  uint32_t *GraphId = MemInst->getPointer<uint32_t *>(GraphIdPtr);
   if (unlikely(GraphId == nullptr)) {
     spdlog::error("[WASI-NN] Failed when accessing the return GraphID memory.");
     return WASINN::ErrNo::InvalidArgument;
@@ -52,10 +52,9 @@ WasiNNLoad::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t BuilderPtr,
     uint32_t Len;
   };
 
-  auto WasiBuilders = Span<const WasiBuilderPair>(
-      MemInst->getPointer<const WasiBuilderPair *>(BuilderPtr, BuilderLen),
-      BuilderLen);
-  if (unlikely(WasiBuilders.data() == nullptr)) {
+  const auto WasiBuilders =
+      MemInst->getSpan<const WasiBuilderPair>(BuilderPtr, BuilderLen);
+  if (unlikely(WasiBuilders.size() != BuilderLen)) {
     spdlog::error("[WASI-NN] Failed when accessing the GraphBuilder memory.");
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -64,14 +63,13 @@ WasiNNLoad::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t BuilderPtr,
   Builders.reserve(BuilderLen);
   for (size_t I = 0; I < WasiBuilders.size(); ++I) {
     const auto &WasiBuilder = WasiBuilders[I];
-    auto Builder =
-        MemInst->getPointer<uint8_t *>(WasiBuilder.Ptr, WasiBuilder.Len);
-    if (unlikely(Builder == nullptr)) {
+    auto Builder = MemInst->getSpan<uint8_t>(WasiBuilder.Ptr, WasiBuilder.Len);
+    if (unlikely(Builder.size() != WasiBuilder.Len)) {
       spdlog::error("[WASI-NN] Failed when accessing the Builder[{}] memory.",
                     I);
       return WASINN::ErrNo::InvalidArgument;
     }
-    Builders.emplace_back(Builder, WasiBuilder.Len);
+    Builders.emplace_back(Builder);
   }
 
   switch (const auto Backend = static_cast<WASINN::Backend>(RawEncoding)) {
@@ -100,7 +98,7 @@ WasiNNInitExecCtx::bodyImpl(const Runtime::CallingFrame &Frame,
   }
 
   // Check the return value: Context should be valid.
-  uint32_t *Context = MemInst->getPointer<uint32_t *>(ContextPtr, 1);
+  uint32_t *Context = MemInst->getPointer<uint32_t *>(ContextPtr);
   if (unlikely(Context == nullptr)) {
     spdlog::error("[WASI-NN] Failed when accessing the Context memory.");
     return WASINN::ErrNo::InvalidArgument;
@@ -147,19 +145,15 @@ WasiNNSetInput::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t Context,
     return WASINN::ErrNo::InvalidArgument;
   }
   WASINN::TensorData Tensor;
-  Tensor.Dimension =
-      Span<uint32_t>(MemInst->getPointer<uint32_t *>(WasiTensor->DimensionPtr,
-                                                     WasiTensor->DimensionLen),
-                     WasiTensor->DimensionLen);
-  if (unlikely(Tensor.Dimension.data() == nullptr)) {
+  Tensor.Dimension = MemInst->getSpan<uint32_t>(WasiTensor->DimensionPtr,
+                                                WasiTensor->DimensionLen);
+  if (unlikely(Tensor.Dimension.size() != WasiTensor->DimensionLen)) {
     spdlog::error("[WASI-NN] Failed when accessing the Dimension memory.");
     return WASINN::ErrNo::InvalidArgument;
   }
   Tensor.Tensor =
-      Span<uint8_t>(MemInst->getPointer<uint8_t *>(WasiTensor->TensorPtr,
-                                                   WasiTensor->TensorLen),
-                    WasiTensor->TensorLen);
-  if (unlikely(Tensor.Tensor.data() == nullptr)) {
+      MemInst->getSpan<uint8_t>(WasiTensor->TensorPtr, WasiTensor->TensorLen);
+  if (unlikely(Tensor.Tensor.size() != WasiTensor->TensorLen)) {
     spdlog::error("[WASI-NN] Failed when accessing the TensorData memory.");
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -203,9 +197,8 @@ WasiNNGetOutput::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t Context,
     return WASINN::ErrNo::InvalidArgument;
   }
 
-  Span<uint8_t> OutBuffer(
-      MemInst->getPointer<uint8_t *>(OutBufferPtr, OutBufferMaxSize),
-      OutBufferMaxSize);
+  const auto OutBuffer =
+      MemInst->getSpan<uint8_t>(OutBufferPtr, OutBufferMaxSize);
   if (unlikely(OutBuffer.data() == nullptr)) {
     spdlog::error("[WASI-NN] Failed when accessing the Output Buffer memory.");
     return WASINN::ErrNo::InvalidArgument;

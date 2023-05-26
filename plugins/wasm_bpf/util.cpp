@@ -18,7 +18,7 @@ Expect<const char *> read_c_str(Runtime::Instance::MemoryInstance *memory,
     tail++;
   }
   uint32_t len = tail - ptr + 1;
-  return memory->getPointer<const char *>(ptr, len);
+  return memory->getSpan<const char>(ptr, len).data();
 }
 
 } // namespace Host

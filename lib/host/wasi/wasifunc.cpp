@@ -319,6 +319,30 @@ cast<__wasi_sock_opt_so_t>(uint64_t SockOptName) noexcept {
   }
 }
 
+template <typename T, size_t MaxSize> class StaticVector {
+public:
+  constexpr StaticVector() = default;
+  constexpr const T *data() const noexcept {
+    return reinterpret_cast<T *>(Storage);
+  }
+  constexpr T *data() noexcept { return reinterpret_cast<T *>(Storage); }
+  constexpr size_t size() const noexcept { return Size; }
+  template <typename... ArgsT>
+  void emplace_back_unchecked(ArgsT &&...Args) noexcept(
+      std::is_nothrow_constructible_v<T, ArgsT...>) {
+    assuming(Size < MaxSize);
+    new (data() + Size) T(std::forward<ArgsT>(Args)...);
+    ++Size;
+  }
+  ~StaticVector() noexcept(std::is_nothrow_destructible_v<T>) {
+    std::destroy_n(data(), Size);
+  }
+
+private:
+  size_t Size = 0;
+  alignas(alignof(T)) uint8_t Storage[sizeof(T[MaxSize])];
+};
+
 } // namespace
 
 Expect<uint32_t> WasiArgsGet::body(const Runtime::CallingFrame &Frame,
@@ -692,9 +716,9 @@ Expect<uint32_t> WasiFdPread::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check for invalid address.
-  auto *const IOVsArray =
-      MemInst->getPointer<__wasi_iovec_t *>(IOVsPtr, WasiIOVsLen);
-  if (unlikely(IOVsArray == nullptr)) {
+  Span<__wasi_iovec_t> IOVsArray(
+      MemInst->getPointer<__wasi_iovec_t *>(IOVsPtr, WasiIOVsLen), WasiIOVsLen);
+  if (unlikely(IOVsArray.data() == nullptr)) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -704,11 +728,9 @@ Expect<uint32_t> WasiFdPread::body(const Runtime::CallingFrame &Frame,
   }
 
   __wasi_size_t TotalSize = 0;
-  std::array<Span<uint8_t>, WASI::kIOVMax> WasiIOVs;
+  StaticVector<Span<uint8_t>, WASI::kIOVMax> WasiIOVs;
 
-  for (__wasi_size_t I = 0; I < WasiIOVsLen; ++I) {
-    __wasi_iovec_t &IOV = IOVsArray[I];
-
+  for (auto &IOV : IOVsArray) {
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
@@ -721,7 +743,7 @@ Expect<uint32_t> WasiFdPread::body(const Runtime::CallingFrame &Frame,
     if (unlikely(ReadArr == nullptr)) {
       return __WASI_ERRNO_FAULT;
     }
-    WasiIOVs[I] = {ReadArr, BufLen};
+    WasiIOVs.emplace_back_unchecked(ReadArr, BufLen);
   }
 
   const __wasi_fd_t WasiFd = Fd;
@@ -797,9 +819,10 @@ Expect<uint32_t> WasiFdPwrite::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check for invalid address.
-  auto *const IOVsArray =
-      MemInst->getPointer<__wasi_ciovec_t *>(IOVsPtr, WasiIOVsLen);
-  if (unlikely(IOVsArray == nullptr)) {
+  Span<__wasi_ciovec_t> IOVsArray(
+      MemInst->getPointer<__wasi_ciovec_t *>(IOVsPtr, WasiIOVsLen),
+      WasiIOVsLen);
+  if (unlikely(IOVsArray.data() == nullptr)) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -810,11 +833,9 @@ Expect<uint32_t> WasiFdPwrite::body(const Runtime::CallingFrame &Frame,
   }
 
   __wasi_size_t TotalSize = 0;
-  std::array<Span<const uint8_t>, WASI::kIOVMax> WasiIOVs;
+  StaticVector<Span<const uint8_t>, WASI::kIOVMax> WasiIOVs;
 
-  for (__wasi_size_t I = 0; I < WasiIOVsLen; ++I) {
-    __wasi_ciovec_t &IOV = IOVsArray[I];
-
+  for (auto &IOV : IOVsArray) {
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
@@ -828,7 +849,7 @@ Expect<uint32_t> WasiFdPwrite::body(const Runtime::CallingFrame &Frame,
     if (unlikely(WriteArr == nullptr)) {
       return __WASI_ERRNO_FAULT;
     }
-    WasiIOVs[I] = {WriteArr, BufLen};
+    WasiIOVs.emplace_back_unchecked(WriteArr, BufLen);
   }
 
   const __wasi_fd_t WasiFd = Fd;
@@ -1964,9 +1985,10 @@ Expect<uint32_t> WasiSockSendV1::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check for invalid address.
-  auto *const SiDataArray =
-      MemInst->getPointer<__wasi_ciovec_t *>(SiDataPtr, WasiSiDataLen);
-  if (unlikely(SiDataArray == nullptr)) {
+  Span<__wasi_ciovec_t> SiDataArray(
+      MemInst->getPointer<__wasi_ciovec_t *>(SiDataPtr, WasiSiDataLen),
+      WasiSiDataLen);
+  if (unlikely(SiDataArray.data() == nullptr)) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -1976,11 +1998,9 @@ Expect<uint32_t> WasiSockSendV1::body(const Runtime::CallingFrame &Frame,
   }
 
   __wasi_size_t TotalSize = 0;
-  std::array<Span<const uint8_t>, WASI::kIOVMax> WasiSiData;
+  StaticVector<Span<const uint8_t>, WASI::kIOVMax> WasiSiData;
 
-  for (__wasi_size_t I = 0; I < WasiSiDataLen; ++I) {
-    __wasi_ciovec_t &SiData = SiDataArray[I];
-
+  for (auto &SiData : SiDataArray) {
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
@@ -1994,7 +2014,7 @@ Expect<uint32_t> WasiSockSendV1::body(const Runtime::CallingFrame &Frame,
     if (unlikely(SiDataArr == nullptr)) {
       return __WASI_ERRNO_FAULT;
     }
-    WasiSiData[I] = {SiDataArr, BufLen};
+    WasiSiData.emplace_back_unchecked(SiDataArr, BufLen);
   }
 
   const __wasi_fd_t WasiFd = Fd;
@@ -2047,9 +2067,10 @@ Expect<uint32_t> WasiSockSendToV1::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check for invalid address.
-  auto *const SiDataArray =
-      MemInst->getPointer<__wasi_ciovec_t *>(SiDataPtr, WasiSiDataLen);
-  if (unlikely(SiDataArray == nullptr)) {
+  Span<__wasi_ciovec_t> SiDataArray(
+      MemInst->getPointer<__wasi_ciovec_t *>(SiDataPtr, WasiSiDataLen),
+      WasiSiDataLen);
+  if (unlikely(SiDataArray.data() == nullptr)) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2059,11 +2080,9 @@ Expect<uint32_t> WasiSockSendToV1::body(const Runtime::CallingFrame &Frame,
   }
 
   __wasi_size_t TotalSize = 0;
-  std::array<Span<const uint8_t>, WASI::kIOVMax> WasiSiData;
+  StaticVector<Span<const uint8_t>, WASI::kIOVMax> WasiSiData;
 
-  for (__wasi_size_t I = 0; I < WasiSiDataLen; ++I) {
-    __wasi_ciovec_t &SiData = SiDataArray[I];
-
+  for (auto &SiData : SiDataArray) {
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
@@ -2077,7 +2096,7 @@ Expect<uint32_t> WasiSockSendToV1::body(const Runtime::CallingFrame &Frame,
     if (unlikely(SiDataArr == nullptr)) {
       return __WASI_ERRNO_FAULT;
     }
-    WasiSiData[I] = {SiDataArr, BufLen};
+    WasiSiData.emplace_back_unchecked(SiDataArr, BufLen);
   }
 
   const __wasi_fd_t WasiFd = Fd;
@@ -2506,9 +2525,10 @@ Expect<uint32_t> WasiSockRecvV2::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check for invalid address.
-  auto *const RiDataArray =
-      MemInst->getPointer<__wasi_iovec_t *>(RiDataPtr, WasiRiDataLen);
-  if (unlikely(RiDataArray == nullptr)) {
+  Span<__wasi_iovec_t> RiDataArray(
+      MemInst->getPointer<__wasi_iovec_t *>(RiDataPtr, WasiRiDataLen),
+      WasiRiDataLen);
+  if (unlikely(RiDataArray.data() == nullptr)) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2522,11 +2542,9 @@ Expect<uint32_t> WasiSockRecvV2::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
   __wasi_size_t TotalSize = 0;
-  std::array<Span<uint8_t>, WASI::kIOVMax> WasiRiData;
+  StaticVector<Span<uint8_t>, WASI::kIOVMax> WasiRiData;
 
-  for (__wasi_size_t I = 0; I < WasiRiDataLen; ++I) {
-    __wasi_iovec_t &RiData = RiDataArray[I];
-
+  for (auto &RiData : RiDataArray) {
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
@@ -2540,7 +2558,7 @@ Expect<uint32_t> WasiSockRecvV2::body(const Runtime::CallingFrame &Frame,
     if (unlikely(RiDataArr == nullptr)) {
       return __WASI_ERRNO_FAULT;
     }
-    WasiRiData[I] = {RiDataArr, BufLen};
+    WasiRiData.emplace_back_unchecked(RiDataArr, BufLen);
   }
 
   const __wasi_fd_t WasiFd = Fd;
@@ -2602,9 +2620,10 @@ Expect<uint32_t> WasiSockRecvFromV2::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  auto *const RiDataArray =
-      MemInst->getPointer<__wasi_iovec_t *>(RiDataPtr, WasiRiDataLen);
-  if (unlikely(RiDataArray == nullptr)) {
+  Span<__wasi_iovec_t> RiDataArray(
+      MemInst->getPointer<__wasi_iovec_t *>(RiDataPtr, WasiRiDataLen),
+      WasiRiDataLen);
+  if (unlikely(RiDataArray.data() == nullptr)) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2618,11 +2637,9 @@ Expect<uint32_t> WasiSockRecvFromV2::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
   __wasi_size_t TotalSize = 0;
-  std::array<Span<uint8_t>, WASI::kIOVMax> WasiRiData;
+  StaticVector<Span<uint8_t>, WASI::kIOVMax> WasiRiData;
 
-  for (__wasi_size_t I = 0; I < WasiRiDataLen; ++I) {
-    __wasi_iovec_t &RiData = RiDataArray[I];
-
+  for (auto &RiData : RiDataArray) {
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
@@ -2636,7 +2653,7 @@ Expect<uint32_t> WasiSockRecvFromV2::body(const Runtime::CallingFrame &Frame,
     if (unlikely(RiDataArr == nullptr)) {
       return __WASI_ERRNO_FAULT;
     }
-    WasiRiData[I] = {RiDataArr, BufLen};
+    WasiRiData.emplace_back_unchecked(RiDataArr, BufLen);
   }
 
   const __wasi_fd_t WasiFd = Fd;
@@ -2675,9 +2692,10 @@ Expect<uint32_t> WasiSockSendV2::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check for invalid address.
-  auto *const SiDataArray =
-      MemInst->getPointer<__wasi_ciovec_t *>(SiDataPtr, WasiSiDataLen);
-  if (unlikely(SiDataArray == nullptr)) {
+  Span<__wasi_ciovec_t> SiDataArray(
+      MemInst->getPointer<__wasi_ciovec_t *>(SiDataPtr, WasiSiDataLen),
+      WasiSiDataLen);
+  if (unlikely(SiDataArray.data() == nullptr)) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2687,11 +2705,9 @@ Expect<uint32_t> WasiSockSendV2::body(const Runtime::CallingFrame &Frame,
   }
 
   __wasi_size_t TotalSize = 0;
-  std::array<Span<const uint8_t>, WASI::kIOVMax> WasiSiData;
+  StaticVector<Span<const uint8_t>, WASI::kIOVMax> WasiSiData;
 
-  for (__wasi_size_t I = 0; I < WasiSiDataLen; ++I) {
-    __wasi_ciovec_t &SiData = SiDataArray[I];
-
+  for (auto &SiData : SiDataArray) {
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
@@ -2705,7 +2721,7 @@ Expect<uint32_t> WasiSockSendV2::body(const Runtime::CallingFrame &Frame,
     if (unlikely(SiDataArr == nullptr)) {
       return __WASI_ERRNO_FAULT;
     }
-    WasiSiData[I] = {SiDataArr, BufLen};
+    WasiSiData.emplace_back_unchecked(SiDataArr, BufLen);
   }
 
   const __wasi_fd_t WasiFd = Fd;
@@ -2759,9 +2775,10 @@ Expect<uint32_t> WasiSockSendToV2::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check for invalid address.
-  auto *const SiDataArray =
-      MemInst->getPointer<__wasi_ciovec_t *>(SiDataPtr, WasiSiDataLen);
-  if (unlikely(SiDataArray == nullptr)) {
+  Span<__wasi_ciovec_t> SiDataArray(
+      MemInst->getPointer<__wasi_ciovec_t *>(SiDataPtr, WasiSiDataLen),
+      WasiSiDataLen);
+  if (unlikely(SiDataArray.data() == nullptr)) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2771,11 +2788,9 @@ Expect<uint32_t> WasiSockSendToV2::body(const Runtime::CallingFrame &Frame,
   }
 
   __wasi_size_t TotalSize = 0;
-  std::array<Span<const uint8_t>, WASI::kIOVMax> WasiSiData;
+  StaticVector<Span<const uint8_t>, WASI::kIOVMax> WasiSiData;
 
-  for (__wasi_size_t I = 0; I < WasiSiDataLen; ++I) {
-    __wasi_ciovec_t &SiData = SiDataArray[I];
-
+  for (auto &SiData : SiDataArray) {
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
@@ -2789,7 +2804,7 @@ Expect<uint32_t> WasiSockSendToV2::body(const Runtime::CallingFrame &Frame,
     if (unlikely(SiDataArr == nullptr)) {
       return __WASI_ERRNO_FAULT;
     }
-    WasiSiData[I] = {SiDataArr, BufLen};
+    WasiSiData.emplace_back_unchecked(SiDataArr, BufLen);
   }
 
   const __wasi_fd_t WasiFd = Fd;

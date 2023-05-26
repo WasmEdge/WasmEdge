@@ -44,20 +44,20 @@ Expect<uint32_t> Import::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
-  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
-  checkExist(Alg);
+  const auto Alg = MemInst->getStringView(AlgPtr, WasiAlgLen);
+  checkRangeExist(Alg, WasiAlgLen);
 
   Algorithm WasiAlg;
-  if (auto Res = tryFrom<Algorithm>({Alg, AlgLen}); unlikely(!Res)) {
+  if (auto Res = tryFrom<Algorithm>(Alg); unlikely(!Res)) {
     return Res.error();
   } else {
     WasiAlg = *Res;
   }
 
   const __wasi_size_t WasiEncodedLen = EncodedLen;
-  auto *const Encoded =
-      MemInst->getPointer<const uint8_t *>(EncodedPtr, WasiEncodedLen);
-  checkExist(Encoded);
+  const auto Encoded =
+      MemInst->getSpan<const uint8_t>(EncodedPtr, WasiEncodedLen);
+  checkRangeExist(Encoded, WasiEncodedLen);
 
   __wasi_signature_encoding_e_t WasiEncoding;
   if (auto Res = cast<__wasi_signature_encoding_e_t>(Encoding);
@@ -71,8 +71,7 @@ Expect<uint32_t> Import::body(const Runtime::CallingFrame &Frame,
       MemInst->getPointer<__wasi_signature_t *>(SigHandlePtr);
   checkExist(SigHandle);
 
-  if (auto Res =
-          Ctx.signatureImport(WasiAlg, {Encoded, WasiEncodedLen}, WasiEncoding);
+  if (auto Res = Ctx.signatureImport(WasiAlg, Encoded, WasiEncoding);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -108,12 +107,10 @@ Expect<uint32_t> StateUpdate::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiInputSize = InputSize;
-  auto *const Input =
-      MemInst->getPointer<const uint8_t *>(InputPtr, WasiInputSize);
-  checkExist(Input);
+  const auto Input = MemInst->getSpan<const uint8_t>(InputPtr, WasiInputSize);
+  checkRangeExist(Input, WasiInputSize);
 
-  if (auto Res =
-          Ctx.signatureStateUpdate(SigStateHandle, {Input, WasiInputSize});
+  if (auto Res = Ctx.signatureStateUpdate(SigStateHandle, Input);
       unlikely(!Res)) {
     return Res.error();
   }
@@ -182,11 +179,10 @@ VerificationStateUpdate::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiInputSize = InputSize;
-  auto *const Input = MemInst->getPointer<const uint8_t *>(InputPtr, InputSize);
-  checkExist(Input);
+  const auto Input = MemInst->getSpan<const uint8_t>(InputPtr, WasiInputSize);
+  checkRangeExist(Input, WasiInputSize);
 
-  if (auto Res = Ctx.signatureVerificationStateUpdate(SigStateHandle,
-                                                      {Input, WasiInputSize});
+  if (auto Res = Ctx.signatureVerificationStateUpdate(SigStateHandle, Input);
       unlikely(!Res)) {
     return Res.error();
   }

@@ -45,9 +45,8 @@ void writeAddress(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
   WasiAddress.buf = BufPtr;
   WasiAddress.buf_len = Address.size();
 
-  std::memcpy(
-      MemInst.getPointer<__wasi_address_t *>(Ptr, sizeof(__wasi_address_t)),
-      &WasiAddress, sizeof(__wasi_address_t));
+  std::memcpy(MemInst.getPointer<__wasi_address_t *>(Ptr), &WasiAddress,
+              sizeof(__wasi_address_t));
 }
 
 __wasi_errno_t convertErrno(int SysErrno) noexcept {
@@ -738,8 +737,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
         const uint32_t SiFlags = 0;
         const auto Data = "server"sv;
         writeString(MemInst, Data, DataPtr);
-        auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-            IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+        auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
         IOVec[0].buf = DataPtr;
         IOVec[0].buf_len = Data.size();
         EXPECT_TRUE(WasiSockSend.run(
@@ -766,8 +764,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
           const uint32_t DataPtr =
               IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
           const uint32_t RiFlags = 0;
-          auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-              IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+          auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
           IOVec[0].buf = DataPtr;
           IOVec[0].buf_len = 32768;
           EXPECT_TRUE(
@@ -1078,8 +1075,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const uint32_t IOVecPtr = RoFlagsPtr + sizeof(__wasi_size_t);
       const uint32_t DataPtr = IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
       const uint32_t RiFlags = 0;
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = 256;
       EXPECT_TRUE(WasiSockRecv.run(
@@ -1114,8 +1110,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const uint32_t SiFlags = 0;
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = Data.size();
       EXPECT_TRUE(
@@ -1153,8 +1148,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const uint32_t SiFlags = 0;
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = Data.size();
       EXPECT_TRUE(
@@ -1349,8 +1343,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
         const uint32_t SiFlags = 0;
         const auto Data = "server"sv;
         writeString(MemInst, Data, DataPtr);
-        auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-            IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+        auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
         IOVec[0].buf = DataPtr;
         IOVec[0].buf_len = Data.size();
         EXPECT_TRUE(WasiSockSend.run(
@@ -1377,8 +1370,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
           const uint32_t DataPtr =
               IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
           const uint32_t RiFlags = 0;
-          auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-              IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+          auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
           IOVec[0].buf = DataPtr;
           IOVec[0].buf_len = 32768;
           EXPECT_TRUE(
@@ -1689,8 +1681,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const uint32_t IOVecPtr = RoFlagsPtr + sizeof(__wasi_size_t);
       const uint32_t DataPtr = IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
       const uint32_t RiFlags = 0;
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = 256;
       EXPECT_TRUE(WasiSockRecv.run(
@@ -1725,8 +1716,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const uint32_t SiFlags = 0;
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = Data.size();
       EXPECT_TRUE(
@@ -1764,8 +1754,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const uint32_t SiFlags = 0;
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = Data.size();
       EXPECT_TRUE(
@@ -1959,8 +1948,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
         const uint32_t SiFlags = 0;
         const auto Data = "server"sv;
         writeString(MemInst, Data, DataPtr);
-        auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-            IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+        auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
         IOVec[0].buf = DataPtr;
         IOVec[0].buf_len = Data.size();
         EXPECT_TRUE(WasiSockSend.run(
@@ -1987,8 +1975,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
           const uint32_t DataPtr =
               IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
           const uint32_t RiFlags = 0;
-          auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-              IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+          auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
           IOVec[0].buf = DataPtr;
           IOVec[0].buf_len = 32768;
           EXPECT_TRUE(
@@ -2299,8 +2286,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const uint32_t IOVecPtr = RoFlagsPtr + sizeof(__wasi_size_t);
       const uint32_t DataPtr = IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
       const uint32_t RiFlags = 0;
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = 256;
       EXPECT_TRUE(WasiSockRecv.run(
@@ -2335,8 +2321,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const uint32_t SiFlags = 0;
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = Data.size();
       EXPECT_TRUE(
@@ -2374,8 +2359,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const uint32_t SiFlags = 0;
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = Data.size();
       EXPECT_TRUE(
@@ -2786,7 +2770,7 @@ TEST(WasiTest, SymbolicLink) {
         std::initializer_list<WasmEdge::ValVariant>{OldPathPtr, UINT32_C(0), Fd,
                                                     NewPathPtr, UINT32_C(0)},
         Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOENT);
     Env.fini();
   }
 
@@ -2796,7 +2780,19 @@ TEST(WasiTest, SymbolicLink) {
     EXPECT_TRUE(WasiPathSymlink.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{OldPathPtr, UINT32_C(0), Fd,
+                                                    NewPathPtr, UINT32_C(1)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+    EXPECT_TRUE(WasiPathSymlink.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{OldPathPtr, UINT32_C(1), Fd,
                                                     NewPathPtr, UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+    EXPECT_TRUE(WasiPathSymlink.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{OldPathPtr, UINT32_C(1), Fd,
+                                                    NewPathPtr, UINT32_C(1)},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
     Env.fini();

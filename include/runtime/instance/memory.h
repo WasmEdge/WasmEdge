@@ -223,13 +223,32 @@ public:
   /// Get pointer to specific offset of memory.
   template <typename T>
   typename std::enable_if_t<std::is_pointer_v<T>, T>
-  getPointer(uint32_t Offset, uint32_t Size = 1) const noexcept {
+  getPointer(uint32_t Offset) const noexcept {
     using Type = std::remove_pointer_t<T>;
-    uint32_t ByteSize = static_cast<uint32_t>(sizeof(Type)) * Size;
+    uint32_t ByteSize = static_cast<uint32_t>(sizeof(Type));
     if (unlikely(!checkAccessBound(Offset, ByteSize))) {
       return nullptr;
     }
     return reinterpret_cast<T>(&DataPtr[Offset]);
+  }
+
+  /// Get array of object at specific offset of memory.
+  template <typename T>
+  Span<T> getSpan(uint32_t Offset, uint32_t Size) const noexcept {
+    uint32_t ByteSize = static_cast<uint32_t>(sizeof(T) * Size);
+    if (unlikely(!checkAccessBound(Offset, ByteSize))) {
+      return Span<T>();
+    }
+    return Span<T>(reinterpret_cast<T *>(&DataPtr[Offset]), Size);
+  }
+
+  /// Get array of object at specific offset of memory.
+  std::string_view getStringView(uint32_t Offset,
+                                 uint32_t Size) const noexcept {
+    if (unlikely(!checkAccessBound(Offset, Size))) {
+      return {};
+    }
+    return {reinterpret_cast<const char *>(&DataPtr[Offset]), Size};
   }
 
   /// Template of loading bytes and convert to a value.

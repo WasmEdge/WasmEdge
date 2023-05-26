@@ -147,7 +147,57 @@ public:
 
 // >>>>>>>> WasmEdge Context members >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class ASTModule::ASTModuleContext: public WasmEdge::AST::Module {};
+class ASTModuleContext: public ASTModule {
+public:
+  ASTModuleContext() = default;
+  ASTModuleContext(const ASTModuleContext &Module)
+  : Content(Module.Content) {}
+  ASTModuleContext(ASTModuleContext &&Module)
+  : Content(Module.Content), IsOwn(Module.IsOwn) { Module.IsOwn = false; }
+  ~ASTModuleContext() {
+    if (IsOwn) {
+      delete Content;
+    }
+  }
+
+  void OwnASTModulePointer(WasmEdge::AST::Module *Module) {
+    if (IsOwn) {
+      delete Content;
+    }
+    Content = Module;
+    IsOwn = true;
+  }
+
+  const WasmEdge::AST::Module *GetConstPointer() const {
+    return Content;
+  }
+
+  std::vector<ImportType> ListImports() {
+    std::vector<ImportType> ImpList;
+    if (Content) {
+      const auto &ImpSec = Content->getImportSection().getContent();
+      for (uint32_t I = 0; I < ImpSec.size(); I++) {
+        ImpList.emplace_back(ImpSec[I]);
+      }
+    }
+    return ImpList;
+  }
+
+  std::vector<ExportType> ListExports() {
+    std::vector<ExportType> ExpList;
+    if (Content) {
+      const auto &ExpSec = Content->getExportSection().getContent();
+      for (uint32_t I = 0; I < ExpSec.size(); I++) {
+        ExpList.emplace_back(ExpSec[I]);
+      }
+    }
+    return ExpList;
+  }
+
+private:
+  WasmEdge::AST::Module *Content = nullptr;
+  bool IsOwn = false;
+};
 
 class FunctionTypeContext: public FunctionType {
 public:
@@ -353,23 +403,6 @@ class Async::AsyncContext: public WasmEdge::VM::Async<
 
 class Configuration::ConfigureContext: public WasmEdge::Configure {};
 class Statistics::StatisticsContext: public WasmEdge::Statistics::Statistics {};
-
-class Loader::LoaderContext: public WasmEdge::Loader::Loader {};
-
-class Validator::ValidatorContext: public WasmEdge::Validator::Validator {
-public:
-  ValidatorContext(WasmEdge::Configure &Conf)
-  : WasmEdge::Validator::Validator(Conf) {};
-};
-
-class Executor::ExecutorContext: public WasmEdge::Executor::Executor {
-public:
-  ExecutorContext(WasmEdge::Configure &Conf,
-                  WasmEdge::Statistics::Statistics *Stat)
-  : WasmEdge::Executor::Executor(Conf, Stat) {}
-};
-
-class Store::StoreContext: public WasmEdge::Runtime::StoreManager {};
 
 class CallingFrameContext: public CallingFrame {
 public:
@@ -746,7 +779,7 @@ public:
   }
 
   // Copy Constructor
-  ModuleInstanceContext(ModuleInstanceContext &ModInst)
+  ModuleInstanceContext(const ModuleInstanceContext &ModInst)
   : Content(ModInst.Content), IsOwn(false) {}
 
   // Move Constructor
@@ -761,7 +794,7 @@ public:
 
   // Internal use
   void OwnModuleInstPointer(Runtime::Instance::ModuleInstance *Inst) {
-    if (Content && IsOwn) {
+    if (IsOwn) {
       delete Content;
     }
     Content = Inst;
@@ -954,6 +987,194 @@ private:
   WasmEdge::Runtime::Instance::ModuleInstance *Content = nullptr;
   bool IsOwn = false;
 };
+
+class LoaderContext: public Loader {
+public:
+  LoaderContext(const WasmEdge::Configure &ConfCxt)
+  : Content(new WasmEdge::Loader::Loader(ConfCxt,
+      &WasmEdge::Executor::Executor::Intrinsics)), IsOwn(true) {}
+  LoaderContext(const LoaderContext &LoadCxt)
+  : Content(LoadCxt.Content) {}
+  LoaderContext(LoaderContext &&LoadCxt)
+  : Content(LoadCxt.Content), IsOwn(LoadCxt.IsOwn) { LoadCxt.IsOwn = false; }
+
+  Result Parse(ASTModuleContext &Module, const std::string &Path) {
+    return wrap(
+        [&]() {
+          return Content->parseModule(std::filesystem::absolute(Path));
+        },
+        [&](auto &&Res) {
+          Module.OwnASTModulePointer((*Res).release());
+        }, Content);
+  }  
+
+  Result Parse(ASTModuleContext &Module, const std::vector<uint8_t> &Buf) {
+    return wrap(
+        [&]() { return Content->parseModule(Buf); },
+        [&](auto &&Res) {
+          Module.OwnASTModulePointer((*Res).release());
+        }, Content);
+  }
+
+private:
+  WasmEdge::Loader::Loader *Content = nullptr;
+  bool IsOwn = false;
+};
+
+class ValidatorContext: public Validator {
+public:
+  ValidatorContext(WasmEdge::Configure &Conf)
+  : Content(new WasmEdge::Validator::Validator(Conf)), IsOwn(true) {}
+  ValidatorContext(const ValidatorContext &ValidCxt)
+  : Content(ValidCxt.Content) {}
+  ValidatorContext(ValidatorContext &&ValidCxt)
+  : Content(ValidCxt.Content), IsOwn(ValidCxt.IsOwn) { ValidCxt.IsOwn = false; }
+
+  Result Validate(const ASTModuleContext &ASTCxt) {
+    return wrap(
+        [&]() {
+          return Content->validate(*ASTCxt.GetConstPointer());
+        },
+        EmptyThen, Content);
+  }
+
+private:
+  WasmEdge::Validator::Validator *Content = nullptr;
+  bool IsOwn = false;
+};
+
+class ExecutorContext: public Executor {
+public:
+  ExecutorContext(WasmEdge::Configure &Conf,
+                  WasmEdge::Statistics::Statistics *Stat)
+  : Content(new WasmEdge::Executor::Executor(Conf, Stat)), IsOwn(true) {}
+  ExecutorContext(WasmEdge::Executor::Executor *Content)
+  : Content(Content) {}
+  ExecutorContext(const ExecutorContext &ExecCxt)
+  : Content(ExecCxt.Content) {}
+  ExecutorContext(ExecutorContext &&ExecCxt)
+  : Content(ExecCxt.Content), IsOwn(ExecCxt.IsOwn) { ExecCxt.IsOwn = false; }
+
+  ~ExecutorContext() {
+    if (IsOwn) {
+      delete Content;
+    }
+  }
+
+  Result Instantiate(ModuleInstance &ModuleCxt, Store &StoreCxt,
+                     const ASTModuleContext &ASTCxt) {
+    return wrap(
+        [&]() {
+          return Content->instantiateModule(
+              *static_cast<StoreContext *>(&StoreCxt)->GetContentPtr(),
+              *ASTCxt.GetConstPointer());
+        },
+        [&](auto &&Res) {
+          static_cast<ModuleInstanceContext *>
+              (&ModuleCxt)->OwnModuleInstPointer((*Res).release());
+        }, Content);
+  }
+
+  Result Register(ModuleInstance &ModuleCxt, Store &StoreCxt,
+                  const ASTModuleContext &ASTCxt,
+                  const std::string &ModuleName) {
+    return wrap(
+        [&]() {
+          return Content->registerModule(
+              *static_cast<StoreContext *>(&StoreCxt)->GetContentPtr(),
+              *ASTCxt.GetConstPointer(),
+              std::string_view(ModuleName));
+        },
+        [&](auto &&Res) {
+          static_cast<ModuleInstanceContext *>
+              (&ModuleCxt)->OwnModuleInstPointer((*Res).release());
+        }, Content);
+  }
+
+  Result Register(Store &StoreCxt,
+                  const ModuleInstance &ImportCxt) {
+    return wrap(
+        [&]() {
+          return Content->registerModule(
+              *static_cast<StoreContext *>(&StoreCxt)->GetContentPtr(),
+              *static_cast<const ModuleInstanceContext *>
+                  (&ImportCxt)->GetConstContent());
+        },
+        EmptyThen, Content);
+  }
+
+  Result Invoke(const FunctionInstance &FuncCxt,
+                const std::vector<Value> &Params,
+                std::vector<Value> &Returns) {
+    auto ParamPair = Value::ValueUtils::GenParamPair(Params);
+    return wrap(
+        [&]()
+            -> WasmEdge::Expect<
+                std::vector<
+                    std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>> {
+          return Content->invoke(
+              *static_cast<const FunctionInstanceContext *>
+                  (&FuncCxt)->GetConstContent(),
+              ParamPair.first, ParamPair.second);
+        },
+        [&](auto &&Res) { Value::ValueUtils::FillValueArr(*Res, Returns); },
+        Content);
+  }
+
+private:
+  WasmEdge::Executor::Executor *Content = nullptr;
+  bool IsOwn = false;
+};
+
+class StoreContext: public Store {
+public:
+  StoreContext()
+  : Content(new WasmEdge::Runtime::StoreManager),
+    IsOwn(true) {}
+  StoreContext(WasmEdge::Runtime::StoreManager *Cxt)
+  : Content(Cxt) {}
+  StoreContext(StoreContext &&Cxt)
+  : Content(Cxt.Content), IsOwn(Cxt.IsOwn) {
+    Cxt.IsOwn = false;
+  }
+  StoreContext(const StoreContext &Cxt)
+  : Content(Cxt.Content) {}
+
+  ~StoreContext() {
+    if (IsOwn) {
+      delete Content;
+    }
+  }
+
+  const ModuleInstanceContext FindModuleContext(const std::string &Name) {
+    if (Content) {
+      return ModuleInstanceContext(Content->findModule(Name));
+    }
+    return ModuleInstanceContext(nullptr);
+  }
+
+  WasmEdge::Runtime::StoreManager *GetContentPtr() {
+    return Content;
+  }
+
+  std::vector<std::string> ListModule() {
+    std::vector<std::string> ModuleList;
+    if (Content) {
+      Content->getModuleList(
+        [&](auto &Map) {
+        for (auto &&Pair : Map) {
+          ModuleList.emplace_back(Pair.first);
+        }
+      });
+    }
+    return ModuleList;
+  }
+
+private:
+  WasmEdge::Runtime::StoreManager *Content = nullptr;
+  bool IsOwn = false;
+};
+
 class VM::VMContext: public WasmEdge::VM::VM {};
 
 // <<<<<<<< WasmEdge Context members <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1224,7 +1445,9 @@ std::string ImportType::GetExternalName() {
 const FunctionType ImportType::GetFunctionType(const ASTModule &ASTCxt) {
   if (Cxt.getExternalType() == WasmEdge::ExternalType::Function) {
     uint32_t Idx = Cxt.getExternalFuncTypeIdx();
-    const auto &FuncTypes = ASTCxt.Cxt->getTypeSection().getContent();
+    const auto &FuncTypes =
+        static_cast<const ASTModuleContext *>
+            (&ASTCxt)->GetConstPointer()->getTypeSection().getContent();
     if (Idx >= FuncTypes.size()) return FunctionTypeContext(nullptr);
 
     return FunctionTypeContext(&FuncTypes[Idx]);
@@ -1272,7 +1495,9 @@ const FunctionType ExportType::GetFunctionType (const ASTModule &ASTCxt) {
   if (Cxt.getExternalType() == WasmEdge::ExternalType::Function) {
     // `external_index` = `func_index` + `import_func_nums`
     uint32_t ExtIdx = Cxt.getExternalIndex();
-    const auto &ImpDescs = ASTCxt.Cxt->getImportSection().getContent();
+    const auto &ImpDescs =
+        static_cast<const ASTModuleContext *>
+            (&ASTCxt)->GetConstPointer()->getImportSection().getContent();
     for (auto &&ImpDesc: ImpDescs) {
       if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Function) {
         ExtIdx--;
@@ -1280,14 +1505,16 @@ const FunctionType ExportType::GetFunctionType (const ASTModule &ASTCxt) {
     }
     // Get the function type index by the function index
     const auto &FuncIdxs =
-        ASTCxt.Cxt->getFunctionSection().getContent();
+        static_cast<const ASTModuleContext *>
+            (&ASTCxt)->GetConstPointer()->getFunctionSection().getContent();
     if (ExtIdx >= FuncIdxs.size()) {
       return FunctionTypeContext(nullptr);
     }
     uint32_t TypeIdx = FuncIdxs[ExtIdx];
     // Get the function type
     const auto &FuncTypes =
-        ASTCxt.Cxt->getTypeSection().getContent();
+        static_cast<const ASTModuleContext *>
+            (&ASTCxt)->GetConstPointer()->getTypeSection().getContent();
     if (TypeIdx >= FuncTypes.size()) {
       return FunctionTypeContext(nullptr);
     }
@@ -1301,14 +1528,18 @@ const TableType ExportType::GetTableType(const ASTModule &ASTCxt) {
   if (Cxt.getExternalType() == WasmEdge::ExternalType::Table) {
     // `external_index` = `table_type_index` + `import_table_nums`
     uint32_t ExtIdx = Cxt.getExternalIndex();
-    const auto &ImpDescs = ASTCxt.Cxt->getImportSection().getContent();
+    const auto &ImpDescs =
+        static_cast<const ASTModuleContext *>
+            (&ASTCxt)->GetConstPointer()->getImportSection().getContent();
     for (auto &&ImpDesc: ImpDescs) {
       if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Table) {
         ExtIdx--;
       }
     }
     //Get the table type
-    const auto &TabTypes = ASTCxt.Cxt->getTableSection().getContent();
+    const auto &TabTypes =
+        static_cast<const ASTModuleContext *>
+            (&ASTCxt)->GetConstPointer()->getTableSection().getContent();
     if (ExtIdx >= TabTypes.size()) {
       return TableTypeContext(nullptr);
     }
@@ -1321,14 +1552,18 @@ const MemoryType ExportType::GetMemoryType(const ASTModule &ASTCxt) {
   if (Cxt.getExternalType() == WasmEdge::ExternalType::Memory) {
     // `external_index` = `memory_type_index` + `import_memory_nums`
     uint32_t ExtIdx = Cxt.getExternalIndex();
-    const auto &ImpDescs = ASTCxt.Cxt->getImportSection().getContent();
+    const auto &ImpDescs =
+        static_cast<const ASTModuleContext *>
+            (&ASTCxt)->GetConstPointer()->getImportSection().getContent();
     for (auto &&ImpDesc: ImpDescs) {
       if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Memory) {
         ExtIdx--;
       }
     }
     // Get the memory type
-    const auto &MemTypes = ASTCxt.Cxt->getMemorySection().getContent();
+    const auto &MemTypes =
+        static_cast<const ASTModuleContext *>
+            (&ASTCxt)->GetConstPointer()->getMemorySection().getContent();
     if (ExtIdx >= MemTypes.size()) {
       return MemoryTypeContext(nullptr);
     }
@@ -1341,14 +1576,18 @@ const GlobalType ExportType::GetGlobalType(const ASTModule &ASTCxt) {
   if (Cxt.getExternalType() == WasmEdge::ExternalType::Global) {
     // `external_index` = `global_type_index` + `import_global_nums`
     uint32_t ExtIdx = Cxt.getExternalIndex();
-    const auto &ImpDescs = ASTCxt.Cxt->getImportSection().getContent();
+    const auto &ImpDescs =
+        static_cast<const ASTModuleContext *>
+            (&ASTCxt)->GetConstPointer()->getImportSection().getContent();
     for (auto &&ImpDesc: ImpDescs) {
       if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Global) {
         ExtIdx--;
       }
     }
     // Get the global type
-    const auto &GlobDescs = ASTCxt.Cxt->getGlobalSection().getContent();
+    const auto &GlobDescs =
+        static_cast<const ASTModuleContext *>
+            (&ASTCxt)->GetConstPointer()->getGlobalSection().getContent();
     if (ExtIdx >= GlobDescs.size()) {
       return GlobalTypeContext(nullptr);
     }
@@ -1550,159 +1789,127 @@ void Statistics::Clear() {
 
 // >>>>>>>> WasmEdge Loader >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-Loader::Loader(const Configuration &ConfCxt) {
-  this->Cxt = std::make_unique<Loader::LoaderContext>(ConfCxt.Cxt,
-                  &WasmEdge::Executor::Executor::Intrinsics);
+Loader Loader::New(const Configuration &ConfCxt) {
+  return LoaderContext(*ConfCxt.Cxt.get());
+}
+
+Loader Loader::Move(Loader &&LoadCxt) {
+  return LoaderContext(static_cast<LoaderContext &&>(LoadCxt));
 }
 
 Result Loader::Parse(ASTModule &Module, const std::string &Path) {
-  return wrap(
-      [&]() {
-        return this->Cxt->parseModule(std::filesystem::absolute(Path));
-      },
-      [&](auto &&Res) {
-        ASTModule::ASTModuleContext *Tmp =
-          static_cast<ASTModule::ASTModuleContext *>((*Res).release());
-        Module.Cxt.reset(Tmp);
-      });
+  return static_cast<LoaderContext *>
+      (this)->Parse(
+          *static_cast<ASTModuleContext *>(&Module), Path);
 }
 
 Result Loader::Parse(ASTModule &Module, const std::vector<uint8_t> &Buf) {
-  return wrap(
-      [&]() { return Cxt->parseModule(Buf); },
-      [&](auto &&Res) {
-        ASTModule::ASTModuleContext *Tmp =
-          static_cast<ASTModule::ASTModuleContext *>((*Res).release());
-        Module.Cxt.reset(Tmp);
-      });
+  return static_cast<LoaderContext *>
+      (this)->Parse(
+          *static_cast<ASTModuleContext *>(&Module), Buf);
 }
 
 // <<<<<<<< WasmEdge Loader <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge Validator >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-Validator::Validator(Configuration &ConfCxt) {
-  this->Cxt = std::make_unique<Validator::ValidatorContext>(*ConfCxt.Cxt);
+Validator Validator::New(Configuration &ConfCxt) {
+  return ValidatorContext(*ConfCxt.Cxt.get());
+}
+
+Validator Validator::Move(Validator &&ValidCxt) {
+  return ValidatorContext(static_cast<ValidatorContext &&>(ValidCxt));
 }
 
 Result Validator::Validate(const ASTModule &ASTCxt) {
-  return wrap(
-      [&]() {
-        return Cxt->validate(*ASTCxt.Cxt);
-      },
-      EmptyThen);
+  return static_cast<ValidatorContext *>
+      (this)->Validate(
+          *static_cast<const ASTModuleContext *>(&ASTCxt));
 }
 
 // <<<<<<<< WasmEdge Validator <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge Executor >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-Executor::Executor(const Configuration &ConfCxt, Statistics &StatCxt) {
-  this->Cxt =
-    std::make_unique<Executor::ExecutorContext>(ConfCxt.Cxt, StatCxt.Cxt.get());
+Executor Executor::New(const Configuration &ConfCxt, Statistics &StatCxt) {
+  return ExecutorContext(*ConfCxt.Cxt, StatCxt.Cxt.get());
+}
+
+Executor Executor::Move(Executor &&ExecCxt) {
+  return ExecutorContext(static_cast<ExecutorContext &&>(ExecCxt));
 }
 
 Result Executor::Instantiate(ModuleInstance &ModuleCxt, Store &StoreCxt,
                              const ASTModule &ASTCxt) {
-  return wrap(
-      [&]() {
-        return Cxt->instantiateModule(*StoreCxt.Cxt, *ASTCxt.Cxt);
-      },
-      [&](auto &&Res) {
-        static_cast<ModuleInstanceContext *>
-            (&ModuleCxt)->OwnModuleInstPointer((*Res).release());
-      });
+  return static_cast<ExecutorContext *>
+      (this)->Instantiate(ModuleCxt, StoreCxt,
+          *static_cast<const ASTModuleContext *>(&ASTCxt));
 }
 
 Result Executor::Register(ModuleInstance &ModuleCxt, Store &StoreCxt,
                           const ASTModule &ASTCxt,
                           const std::string &ModuleName) {
-  return wrap(
-      [&]() {
-        return Cxt->registerModule(*StoreCxt.Cxt, *ASTCxt.Cxt,
-                                   std::string_view(ModuleName));
-      },
-      [&](auto &&Res) {
-        static_cast<ModuleInstanceContext *>
-            (&ModuleCxt)->OwnModuleInstPointer((*Res).release());
-      });
+  return static_cast<ExecutorContext *>
+      (this)->Register(ModuleCxt, StoreCxt,
+          *static_cast<const ASTModuleContext *>(&ASTCxt), ModuleName);
 }
 
 Result Executor::Register(Store &StoreCxt,
                           const ModuleInstance &ImportCxt) {
-  return wrap(
-      [&]() {
-        return Cxt->registerModule(*StoreCxt.Cxt,
-            *static_cast<const ModuleInstanceContext *>
-                (&ImportCxt)->GetConstContent());
-      },
-      EmptyThen);
+  return static_cast<ExecutorContext *>
+      (this)->Register(StoreCxt, ImportCxt);
 }
 
 Result Executor::Invoke(const FunctionInstance &FuncCxt,
                         const std::vector<Value> &Params,
                         std::vector<Value> &Returns) {
   auto ParamPair = Value::ValueUtils::GenParamPair(Params);
-  return wrap(
-      [&]()
-          -> WasmEdge::Expect<
-              std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>> {
-        return Cxt->invoke(
-            *static_cast<const FunctionInstanceContext *>
-                (&FuncCxt)->GetConstContent(),
-            ParamPair.first, ParamPair.second);
-      },
-      [&](auto &&Res) { Value::ValueUtils::FillValueArr(*Res, Returns); });
+  return static_cast<ExecutorContext *>
+      (this)->Invoke(FuncCxt, Params, Returns);
 }
 
 // <<<<<<<< WasmEdge Executor <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge ASTModule >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-ASTModule::ASTModule() {
-  this->Cxt = std::make_unique<ASTModule::ASTModuleContext>();
+ASTModule ASTModule::New() {
+  return ASTModuleContext();
+}
+
+ASTModule ASTModule::Move(ASTModule &&Module) {
+  return ASTModuleContext(static_cast<ASTModuleContext &&>(Module));
 }
 
 std::vector<ImportType> ASTModule::ListImports() {
-  const auto &ImpSec = Cxt->getImportSection().getContent();
-  std::vector<ImportType> ImpList;
-  for (uint32_t I = 0; I < ImpSec.size(); I++) {
-    ImpList.emplace_back(ImpSec[I]);
-  }
-  return ImpList;
+  return static_cast<ASTModuleContext *>
+      (this)->ListImports();
 }
 
 std::vector<ExportType> ASTModule::ListExports() {
-  const auto &ExpSec = Cxt->getExportSection().getContent();
-  std::vector<ExportType> ExpList;
-  for (uint32_t I = 0; I < ExpSec.size(); I++) {
-    ExpList.emplace_back(ExpSec[I]);
-  }
-  return ExpList;
+  return static_cast<ASTModuleContext *>
+      (this)->ListExports();
 }
 
 // <<<<<<<< WasmEdge ASTModule <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge Store >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-Store::Store() {
-  this->Cxt = std::make_unique<Store::StoreContext>();
+Store Store::New() {
+  return StoreContext();
+}
+
+Store Store::Move(Store &&StoreCxt) {
+  return StoreContext(static_cast<StoreContext &&>(StoreCxt));
 }
 
 const ModuleInstance Store::FindModule(const std::string &Name) {
-  return ModuleInstanceContext(
-      Cxt->findModule(std::string_view(Name))); //RVO
+  return static_cast<StoreContext *>
+          (this)->FindModuleContext(Name);
 }
 
 std::vector<std::string> Store::ListModule() {
-  std::vector<std::string> ModList;
-  Cxt->getModuleList(
-      [&](auto &Map) {
-        for (auto &&Pair : Map) {
-          ModList.emplace_back(Pair.first);
-        }
-      });
-  return ModList;
+  return static_cast<StoreContext *>
+      (this)->ListModule();
 }
 
 // <<<<<<<< WasmEdge Store <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1964,16 +2171,17 @@ void ModuleInstance::AddGlobal(const std::string &Name,
 // >>>>>>>> WasmEdge VM >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 VM::VM(const Configuration &ConfCxt, Store &StoreCxt) {
-  this->Cxt = std::make_unique<VM::VMContext>(*ConfCxt.Cxt, *StoreCxt.Cxt);
+  this->Cxt = std::make_unique<VM::VMContext>(*ConfCxt.Cxt,
+      *static_cast<StoreContext *>(&StoreCxt)->GetContentPtr());
 }
 
 VM::VM(const Configuration &ConfCxt) {
   this->Cxt = std::make_unique<VM::VMContext>(*ConfCxt.Cxt);
 }
 
-VM::VM(const Store &StoreCxt) {
+VM::VM(Store &StoreCxt) {
   this->Cxt = std::make_unique<VM::VMContext>(WasmEdge::Configure(),
-      *StoreCxt.Cxt);
+      *static_cast<StoreContext *>(&StoreCxt)->GetContentPtr());
 }
 
 VM::VM() {
@@ -1994,7 +2202,7 @@ Result VM::RegisterModule(const std::string &ModuleName,
                           const std::vector<uint8_t> &Buf) {
   return wrap(
       [&]() {
-        return Cxt->registerModule(std::string_view(ModuleName),
+        return Cxt->registerModule(ModuleName,
                                    Buf);
       },
       EmptyThen);
@@ -2004,8 +2212,9 @@ Result VM::RegisterModule(const std::string &ModuleName,
                           const ASTModule &ASTCxt) {
   return wrap(
       [&]() {
-        return Cxt->registerModule(std::string_view(ModuleName),
-                                   *ASTCxt.Cxt);
+        return Cxt->registerModule(ModuleName,
+            *static_cast<const ASTModuleContext *>
+                (&ASTCxt)->GetConstPointer());
       },
       EmptyThen);
 }
@@ -2051,8 +2260,9 @@ Result VM::RunWasm(const ASTModule &ASTCxt, const std::string &FuncName,
   auto ParamPair = Value::ValueUtils::GenParamPair(Params);
   return wrap(
       [&]() {
-        return Cxt->runWasmFile(*ASTCxt.Cxt, std::string_view(FuncName),
-                                ParamPair.first, ParamPair.second);
+        return Cxt->runWasmFile(*static_cast<const ASTModuleContext *>
+            (&ASTCxt)->GetConstPointer(), std::string_view(FuncName),
+            ParamPair.first, ParamPair.second);
       },
       [&](auto &&Res) { Value::ValueUtils::FillValueArr(*Res, Returns); }); // TODO
 }
@@ -2075,8 +2285,10 @@ std::unique_ptr<Async> VM::AsyncRunWasm(const std::vector<uint8_t> &Buf,
 std::unique_ptr<Async> VM::AsyncRunWasm(const ASTModule &ASTCxt,
               const std::string &FuncName, const std::vector<Value> &Params) {
   auto ParamPair = Value::ValueUtils::GenParamPair(Params);
-  return std::make_unique<Async>(Cxt->asyncRunWasmFile(*ASTCxt.Cxt,
-      std::string_view(FuncName), ParamPair.first, ParamPair.second));
+  return std::make_unique<Async>(
+      Cxt->asyncRunWasmFile(*static_cast<const ASTModuleContext *>
+          (&ASTCxt)->GetConstPointer(),
+          std::string_view(FuncName), ParamPair.first, ParamPair.second));
 }
 
 Result VM::LoadWasm(const std::string &Path) {
@@ -2090,8 +2302,12 @@ Result VM::LoadWasm(const std::vector<uint8_t> &Buf) {
 }
 
 Result VM::LoadWasm(const ASTModule &ASTCxt) {
-  return wrap([&]() { return Cxt->loadWasm(*ASTCxt.Cxt); },
-              EmptyThen);
+  return wrap(
+      [&]() {
+        return Cxt->loadWasm(*static_cast<const ASTModuleContext *>
+            (&ASTCxt)->GetConstPointer());
+      },
+      EmptyThen);
 }
 
 Result VM::Validate() {
@@ -2206,11 +2422,19 @@ const ModuleInstance VM::GetRegisteredModule(const std::string &ModuleName) {
 }
 
 std::vector<std::string> VM::ListRegisteredModule() {
+  std::vector<std::string> str;
+  Cxt->getStoreManager().getModuleList(
+          [&](auto &Map) {
+            for (auto &&Pair: Map) {
+              str.emplace_back(Pair.first);
+            }
+          });
 
+  return str;
 }
 
 Store VM::GetStoreContext() {
-
+  
 }
 
 Loader VM::GetLoaderContext() {

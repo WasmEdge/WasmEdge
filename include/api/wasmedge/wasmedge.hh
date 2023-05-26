@@ -413,107 +413,6 @@ namespace SDK{
 
   // >>>>>>>> WasmEdge Runtime >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-  // >>>>>>>> WasmEdge Loader class >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-  class WASMEDGE_CPP_API_EXPORT Loader {
-  public:
-    Loader(const Configuration &ConfCxt);
-    ~Loader() = default;
-
-    Result Parse(ASTModule &Module,
-                        const std::string &Path);
-    Result Parse(ASTModule &Module,
-                        const std::vector<uint8_t> &Buf);
-
-  private:
-    class LoaderContext;
-    std::unique_ptr<LoaderContext> Cxt;
-  };
-
-  // <<<<<<<< WasmEdge Loader CLass <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-  // >>>>>>>> WasmEdge Validator class >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-  class WASMEDGE_CPP_API_EXPORT Validator {
-  public:
-    Validator(Configuration &ConfCxt);
-    ~Validator() = default;
-
-    Result Validate(const ASTModule &ASTCxt);
-  private:
-    class ValidatorContext;
-    std::unique_ptr<ValidatorContext> Cxt;
-  };
-
-  // <<<<<<<< WasmEdge Validator Class <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-  // >>>>>>>> WasmEdge Executor class >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-  class WASMEDGE_CPP_API_EXPORT Executor {
-  public:
-    Executor(const Configuration &ConfCxt,
-             Statistics &StatCxt);
-    ~Executor() = default;
-
-    Result Instantiate(ModuleInstance &ModuleCxt,
-                       Store &StoreCxt,
-                       const ASTModule &ASTCxt);
-
-    Result Register(ModuleInstance &ModuleCxt,
-                    Store &StoreCxt,
-                    const ASTModule &ASTCxt,
-                    const std::string &ModuleName);
-
-    Result Register(Store &StoreCxt,
-                    const ModuleInstance &ImportCxt);
-
-    Result Invoke(const FunctionInstance &FuncCxt,
-                  const std::vector<Value> &Params,
-                  std::vector<Value> &Returns);
-
-  private:
-    class ExecutorContext;
-    std::unique_ptr<ExecutorContext> Cxt;
-  };
-
-  // <<<<<<<< WasmEdge Executor Class <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-  class WASMEDGE_CPP_API_EXPORT ASTModule {
-  public:
-    ASTModule();
-    ~ASTModule() = default;
-
-    std::vector<ImportType> ListImports();
-    std::vector<ExportType> ListExports();
-
-    friend class ImportType;
-    friend class ExportType;
-  private:
-    class ASTModuleContext;
-    std::unique_ptr<ASTModuleContext> Cxt;
-
-    friend class VM;
-    friend class Loader;
-    friend class Validator;
-    friend class Executor;
-  };
-
-  class WASMEDGE_CPP_API_EXPORT Store {
-  public:
-    Store();
-    ~Store() = default;
-
-    const ModuleInstance FindModule(const std::string &Name);
-    std::vector<std::string> ListModule();
-
-  private:
-    class StoreContext;
-    std::unique_ptr<StoreContext> Cxt;
-
-    friend class VM;
-    friend class Executor;
-  };
-
   // >>>>>>>> WasmEdge Instances >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   class WASMEDGE_CPP_API_EXPORT FunctionInstance {
@@ -641,6 +540,101 @@ namespace SDK{
 
   // <<<<<<<< WasmEdge Instances <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+  class WASMEDGE_CPP_API_EXPORT ASTModule {
+  protected:
+    ASTModule() = default;
+    ~ASTModule() = default;
+  public:
+    static ASTModule New();
+    static ASTModule Move(ASTModule &&Module);
+
+    std::vector<ImportType> ListImports();
+    std::vector<ExportType> ListExports();
+
+    friend class ImportType;
+    friend class ExportType;
+
+    friend class VM;
+    friend class Loader;
+    friend class Validator;
+    friend class Executor;
+  };
+
+  // >>>>>>>> WasmEdge Loader class >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+  class WASMEDGE_CPP_API_EXPORT Loader {
+  protected:
+    Loader() = default;
+    ~Loader() = default;
+  public:
+    static Loader New(const Configuration &ConfCxt);
+    static Loader Move(Loader &&LoadCxt);
+
+    Result Parse(ASTModule &Module,
+                 const std::string &Path);
+    Result Parse(ASTModule &Module,
+                 const std::vector<uint8_t> &Buf);
+  };
+
+  // <<<<<<<< WasmEdge Loader CLass <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  // >>>>>>>> WasmEdge Validator class >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+  class WASMEDGE_CPP_API_EXPORT Validator {
+  protected:
+    Validator() = default;
+    ~Validator() = default;
+  public:
+    static Validator New(Configuration &ConfCxt);
+    static Validator Move(Validator &&ValidCxt);
+
+    Result Validate(const ASTModule &ASTCxt);
+  };
+
+  // <<<<<<<< WasmEdge Validator Class <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  // >>>>>>>> WasmEdge Executor class >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+  class WASMEDGE_CPP_API_EXPORT Executor {
+  protected:
+    Executor() = default;
+    ~Executor() = default;
+  public:
+    static Executor New(const Configuration &ConfCxt,
+                        Statistics &StatCxt);
+    static Executor Move(Executor &&ExecCxt);
+
+    Result Instantiate(ModuleInstance &ModuleCxt,
+                       Store &StoreCxt,
+                       const ASTModule &ASTCxt);
+
+    Result Register(ModuleInstance &ModuleCxt,
+                    Store &StoreCxt,
+                    const ASTModule &ASTCxt,
+                    const std::string &ModuleName);
+
+    Result Register(Store &StoreCxt,
+                    const ModuleInstance &ImportCxt);
+
+    Result Invoke(const FunctionInstance &FuncCxt,
+                  const std::vector<Value> &Params,
+                  std::vector<Value> &Returns);
+  };
+
+  // <<<<<<<< WasmEdge Executor Class <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  class WASMEDGE_CPP_API_EXPORT Store {
+  protected:
+    Store() = default;
+    ~Store() = default;
+  public:
+    static Store New();
+    static Store Move(Store &&StoreCxt);
+
+    const ModuleInstance FindModule(const std::string &Name);
+    std::vector<std::string> ListModule();
+  };
+
   class WASMEDGE_CPP_API_EXPORT CallingFrame {
   protected:
     CallingFrame() = default;
@@ -660,7 +654,7 @@ namespace SDK{
   public:
     VM(const Configuration &ConfCxt, Store &StoreCxt);
     VM(const Configuration &ConfCxt);
-    VM(const Store &StoreCxt);
+    VM(Store &StoreCxt);
     VM();
     ~VM() = default;
 

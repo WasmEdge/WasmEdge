@@ -1526,10 +1526,13 @@ void Poller::clock(__wasi_clockid_t, __wasi_timestamp_t Timeout,
 
   uint32_t FFlags = NOTE_NSECONDS;
   if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
-    // TODO: Implement
+#ifdef NOTE_ABSOLUTE
+    FFlags |= NOTE_ABSOLUTE;
+#else
     Event.Valid = true;
     Event.error = __WASI_ERRNO_NOSYS;
     return;
+#endif
   }
 
   struct kevent KEvent;

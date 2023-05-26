@@ -213,6 +213,16 @@ uint64_t convertTimespec(const timespec &Timespec) noexcept {
   return Timespec.tv_sec * UINT64_C(1000000000) + Timespec.tv_nsec;
 }
 
+// The following code includes a sleep to prevent a possible delay when sending
+// and recving data. There is a chance that PollOneoff may not immediately get
+// the read event when it is called right after the server has sent the data.
+// Without the sleep, there is a risk that the unit test may not pass. We found
+// this problem on macOS.
+void sleepForMacOS() noexcept {
+#if WASMEDGE_OS_MACOS
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+#endif
+}
 } // namespace
 
 TEST(WasiTest, Args) {
@@ -1180,12 +1190,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       ActionProcessed.wait(Lock, [&]() { return ActionDone.exchange(false); });
     }
 
-    // The following code includes a sleep to prevent a possible delay when
-    // sending and recving data. There is a chance that PollOneoff may not
-    // immediately get the read event when it is called right after the server
-    // has sent the data. Without the sleep, there is a risk that the unit test
-    // may not pass. We found this problem on macOS.
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    sleepForMacOS();
 
     // poll read, write and 100 milliseconds, expect read and write
     PollReadWriteReadWrite();
@@ -1796,12 +1801,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
       ActionProcessed.wait(Lock, [&]() { return ActionDone.exchange(false); });
     }
 
-    // The following code includes a sleep to prevent a possible delay when
-    // sending and recving data. There is a chance that PollOneoff may not
-    // immediately get the read event when it is called right after the server
-    // has sent the data. Without the sleep, there is a risk that the unit test
-    // may not pass. We found this problem on macOS.
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    sleepForMacOS();
 
     // poll read, write and 100 milliseconds, expect read and write
     PollReadWriteReadWrite();
@@ -1817,7 +1817,6 @@ TEST(WasiTest, PollOneoffSocketV2) {
   Server.join();
 }
 
-#if WASMEDGE_OS_LINUX
 TEST(WasiTest, EpollOneoffSocketV1) {
   enum class ServerAction {
     None,
@@ -2412,6 +2411,8 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       ActionProcessed.wait(Lock, [&]() { return ActionDone.exchange(false); });
     }
 
+    sleepForMacOS();
+
     // poll read, write and 100 milliseconds, expect read and write
     PollReadWriteReadWrite();
 
@@ -2425,7 +2426,6 @@ TEST(WasiTest, EpollOneoffSocketV1) {
   ActionRequested.notify_one();
   Server.join();
 }
-#endif
 
 TEST(WasiTest, ClockTimeGet) {
   WasmEdge::Host::WASI::Environ Env;

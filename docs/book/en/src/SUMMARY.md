@@ -132,7 +132,8 @@
 
 - [Use WasmEdge CLI](cli.md)
   - [`wasmedge` WASM Runner](cli/wasmedge.md)
-  - [`wasmedgec` AOT Compiler](cli/wasmedgec.md)
+  - [`wasmedgec` AOT Compiler](cli/wasmedge_compile.md)
+  - [`wasmedge run` WASM Runner](cli/wasmedge_tool.md)
 
 - [Develop WasmEdge Plug-in](plugin.md)
   - [Develop Plug-in in C API](develop_plugin/c.md)

@@ -62,12 +62,12 @@ ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/examples/wasm$ wasmedge --reactor add.
 4
 ```
 
-### Execute the wasmedgec tool
+### Execute wasmedge compile
 
-To improve the performance, the `wasmedgec` can compile WebAssembly into native machine code. After compiling with the `wasmedgec` AOT compiler, the wasmedge tool can execute the WASM in AOT mode which is much faster.
+To improve the performance, the `wasmedge compile` can compile WebAssembly into native machine code. After compiling with the `wasmedge compile` AOT compiler, the wasmedge tool can execute the WASM in AOT mode which is much faster.
 
 ```bash
-ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/examples/wasm$ wasmedgec fibonacci.wasm fibonacci_aot.wasm
+ubuntu@riscv-lab:/labs/riscv-lab/WasmEdge/examples/wasm$ wasmedge compile fibonacci.wasm fibonacci_aot.wasm
 [2023-02-01 22:39:15.807] [info] compile start
 [2023-02-01 22:39:15.857] [info] verify start
 [2023-02-01 22:39:15.866] [info] optimize start

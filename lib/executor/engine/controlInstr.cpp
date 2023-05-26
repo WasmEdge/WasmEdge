@@ -109,6 +109,15 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
   // Pop the value i32.const i from the Stack.
   uint32_t Idx = StackMgr.pop().get<uint32_t>();
 
+  // If idx not small than tab.elem, trap.
+  if (Idx >= TabInst->getSize()) {
+    spdlog::error(ErrCode::Value::UndefinedElement);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+                                           {Idx},
+                                           {ValTypeFromType<uint32_t>()}));
+    return Unexpect(ErrCode::Value::UndefinedElement);
+  }
+
   RefVariant Ref;
   if (auto Res = TabInst->getRefAddr(Idx)) {
     Ref = *Res;

@@ -1700,14 +1700,6 @@ WasiExpect<void> INode::pathUnlinkFile(std::string Path) const noexcept {
   return {};
 }
 
-WasiExpect<Poller> INode::pollOneoff(__wasi_size_t) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
-}
-
-WasiExpect<Epoller> INode::epollOneoff(__wasi_size_t, int) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
-}
-
 static bool EnsureWSAStartup() {
   static bool WSALoad = false;
   static WSADATA WSAData;
@@ -2541,48 +2533,37 @@ WasiExpect<__wasi_filesize_t> INode::filesize() const noexcept {
 
 bool INode::canBrowse() const noexcept { return false; }
 
-Poller::Poller(__wasi_size_t Count) { Events.reserve(Count); }
+Poller::Poller(PollerContext &C) noexcept : Ctx(C) {}
 
-WasiExpect<void> Poller::clock(__wasi_clockid_t, __wasi_timestamp_t,
-                               __wasi_timestamp_t, __wasi_subclockflags_t,
-                               __wasi_userdata_t) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+WasiExpect<void> Poller::prepare(Span<__wasi_event_t> E) noexcept {
+  WasiEvents = E;
+  return {};
 }
 
-WasiExpect<void> Poller::read(const INode &, __wasi_userdata_t) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+void Poller::clock(__wasi_clockid_t, __wasi_timestamp_t, __wasi_timestamp_t,
+                   __wasi_subclockflags_t,
+                   __wasi_userdata_t UserData) noexcept {
+  error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_CLOCK);
 }
 
-WasiExpect<void> Poller::write(const INode &, __wasi_userdata_t) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+void Poller::read(const INode &, TriggerType,
+                  __wasi_userdata_t UserData) noexcept {
+  error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_READ);
 }
 
-WasiExpect<void> Poller::wait(CallbackType) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+void Poller::write(const INode &, TriggerType,
+                   __wasi_userdata_t UserData) noexcept {
+  error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_WRITE);
 }
 
-Epoller::Epoller(__wasi_size_t Count, int) { Events.reserve(Count); }
+void Poller::wait() noexcept {}
 
-WasiExpect<void> Epoller::clock(__wasi_clockid_t, __wasi_timestamp_t,
-                                __wasi_timestamp_t, __wasi_subclockflags_t,
-                                __wasi_userdata_t) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+void Poller::reset() noexcept {
+  WasiEvents = {};
+  Events.clear();
 }
 
-WasiExpect<void> Epoller::read(const INode &, __wasi_userdata_t,
-                               std::unordered_map<int, uint32_t> &) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
-}
-
-WasiExpect<void> Epoller::write(const INode &, __wasi_userdata_t,
-                                std::unordered_map<int, uint32_t> &) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
-}
-
-WasiExpect<void> Epoller::wait(CallbackType,
-                               std::unordered_map<int, uint32_t> &) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
-}
+bool Poller::ok() noexcept { return false; }
 
 } // namespace WASI
 } // namespace Host

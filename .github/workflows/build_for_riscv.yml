@@ -68,9 +68,12 @@ jobs:
           wasmedge -v
           wasmedgec -v
           wasmedge compile -h
+          wasmedge run -h
           cd ../examples/wasm
           wasmedgec fibonacci.wasm fibonacci_aot_c.wasm
           wasmedge --reactor fibonacci_aot_c.wasm fib 30
+          wasmedge run --reactor fibonacci_aot_c.wasm fib 30
           wasmedge compile fibonacci.wasm fibonacci_aot_compile.wasm
           wasmedge --reactor fibonacci_aot_compile.wasm fib 30
+          wasmedge run --reactor fibonacci_aot_compile.wasm fib 30
           

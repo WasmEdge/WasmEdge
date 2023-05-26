@@ -108,8 +108,7 @@ cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
         return false;
       }
     }
-  }
-  else {
+  } else {
     help(Out);
     return true;
   }

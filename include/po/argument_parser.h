@@ -161,6 +161,7 @@ private:
                        std::size_t IndentCount, std::size_t ScreenWidth,
                        std::string_view Desc) const noexcept;
     bool isHelp() const noexcept { return HelpOpt->value(); }
+
   private:
     cxx20::expected<ArgumentDescriptor *, Error>
     consume_short_options(std::string_view Arg) noexcept;
@@ -258,7 +259,7 @@ public:
   bool isVersion() const noexcept { return VerOpt.value(); }
   bool isHelp() const noexcept {
     bool is_help_select = false;
-    for (const auto &iter: SubCommandDescriptors) {
+    for (const auto &iter : SubCommandDescriptors) {
       is_help_select |= iter.isHelp();
     }
     return is_help_select;

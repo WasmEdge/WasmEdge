@@ -9,7 +9,7 @@ The `wasmedge` binary is a command line interface (CLI) program that runs WebAss
 * If the WebAssembly program contains a `main()` function, `wasmedge` would execute it as a standalone program in the command mode.
 * If the WebAssembly program contains one or more exported public functions, `wasmedge` could invoke individual functions in the reactor mode.
 
-By default, the `wasmedge` will execute WebAssembly programs in interpreter mode, and [execute the AOT-compiled `.so`, `.dylib`, `.dll`, or `.wasm` (universal output format) in AOT mode](run_in_aot_mode.md). If you want to accelerate the WASM execution, we recommend to [compile the WebAssembly with the AOT compiler](#wasmedgec-cli) first.
+By default, the `wasmedge` will execute WebAssembly programs in interpreter mode, and [execute the AOT-compiled `.so`, `.dylib`, `.dll`, or `.wasm` (universal output format) in AOT mode](run_in_aot_mode.md). If you want to accelerate the WASM execution, we recommend to [compile the WebAssembly with the AOT compiler](#wasmedge-compile-cli) first.
 
 Users can run the `wasmedge -h` for realizing the command line options quickly, or [refer to the detailed `wasmedge` CLI options here](../cli/wasmedge.md).
 
@@ -68,25 +68,25 @@ second
 state
 ```
 
-## `wasmedgec` CLI
+## `wasmedge compile` CLI
 
-The `wasmedgec` binary is a CLI program to compile WebAssembly into native machine code (i.e., the AOT compiler). For the pure WebAssembly, the `wasmedge` tool will execute the WASM in interpreter mode. After compiling with the AOT compiler, the `wasmedge` tool can execute the WASM in AOT mode which is much faster.
+The `wasmedge compile` is a CLI command to compile WebAssembly into native machine code (i.e., the AOT compiler). For the pure WebAssembly, the `wasmedge` tool will execute the WASM in interpreter mode. After compiling with the AOT compiler, the `wasmedge` tool can execute the WASM in AOT mode which is much faster.
 
-The options and flags for the `wasmedgec` are as follows.
+The options and flags for the `wasmedge compile` are as follows.
 
 1. Input Wasm file(`/path/to/input/wasm/file`).
 2. Output file name(`/path/to/output/file`).
    * By default, it will generate the [universal Wasm binary format](run_in_aot_mode.md#output-format-universal-wasm).
    * Users can still generate native binary only by specifying the `.so`, `.dylib`, or `.dll` extensions.
 
-Users can run the `wasmedgec -h` for realizing the command line options quickly, or [refer to the detailed `wasmedgec` CLI options here](../cli/wasmedgec.md).
+Users can run the `wasmedge compile -h` for realizing the command line options quickly, or [refer to the detailed `wasmedge compile` CLI options here](../cli/wasmedge_compile.md).
 
 ```bash
 # This is slow in interpreter mode.
 wasmedge app.wasm
 
 # AOT compilation.
-wasmedgec app.wasm app_aot.wasm
+wasmedge compile app.wasm app_aot.wasm
 
 # This is now MUCH faster in AOT mode.
 wasmedge app_aot.wasm

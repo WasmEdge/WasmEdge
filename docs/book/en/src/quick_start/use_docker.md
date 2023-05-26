@@ -15,15 +15,16 @@ The `wasmedge/slim:{version}` Docker images provide a slim WasmEdge images built
   * `wasmedge-tensorflow`
   * `show-tflite-tensor`
 * The working directory of the release docker image is `/app`.
+* NOTE: The usage of `wasmedgec` is equal to `wasmedge compile`. We decide to deprecate `wasmedgec` in the future.
 
 ### Examples
 
-Use `wasmedgec` and `wasmedge` ([link](https://github.com/WasmEdge/WasmEdge/tree/master/examples/wasm)):
+Use `wasmedge compile` and `wasmedge` ([link](https://github.com/WasmEdge/WasmEdge/tree/master/examples/wasm)):
 
 ```bash
 $ docker pull wasmedge/slim:{{ wasmedge_version }}
 
-$ docker run -it --rm -v $PWD:/app wasmedge/slim:{{ wasmedge_version }} wasmedgec hello.wasm hello.aot.wasm
+$ docker run -it --rm -v $PWD:/app wasmedge/slim:{{ wasmedge_version }} wasmedge compile hello.wasm hello.aot.wasm
 [2022-07-07 08:15:49.154] [info] compile start
 [2022-07-07 08:15:49.163] [info] verify start
 [2022-07-07 08:15:49.169] [info] optimize start

@@ -707,6 +707,7 @@ private:
 #endif
 };
 
+class PollerContext;
 class Poller
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
     : public FdHolder
@@ -717,8 +718,7 @@ public:
   Poller &operator=(const Poller &) = delete;
   Poller(Poller &&RHS) noexcept = default;
   Poller &operator=(Poller &&RHS) noexcept = default;
-
-  Poller() noexcept;
+  Poller(PollerContext &) noexcept;
 
   /// Records an error for polling.
   ///
@@ -793,6 +793,9 @@ public:
 
   bool ok() noexcept;
 
+protected:
+  std::reference_wrapper<PollerContext> Ctx;
+
 private:
   Span<__wasi_event_t> WasiEvents;
   struct OptionalEvent : __wasi_event_t {
@@ -810,17 +813,21 @@ private:
 #endif
 
 #if WASMEDGE_OS_LINUX
+  friend class PollerContext;
   struct Timer : public FdHolder {
     Timer(const Timer &) = delete;
     Timer &operator=(const Timer &) = delete;
     Timer(Timer &&RHS) noexcept = default;
     Timer &operator=(Timer &&RHS) noexcept = default;
-    constexpr Timer() noexcept = default;
+    constexpr Timer(__wasi_clockid_t C) noexcept : Clock(C) {}
 
-    WasiExpect<void> create(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
-                            __wasi_timestamp_t Precision,
-                            __wasi_subclockflags_t Flags) noexcept;
+    WasiExpect<void> create() noexcept;
 
+    WasiExpect<void> setTime(__wasi_timestamp_t Timeout,
+                             __wasi_timestamp_t Precision,
+                             __wasi_subclockflags_t Flags) noexcept;
+
+    __wasi_clockid_t Clock;
 #if !__GLIBC_PREREQ(2, 8)
     FdHolder Notify;
     TimerHolder TimerId;
@@ -834,6 +841,19 @@ private:
 #if WASMEDGE_OS_MACOS
   std::vector<struct kevent> KEvents;
   uint64_t NextTimerId = 0;
+#endif
+};
+
+class PollerContext {
+#if WASMEDGE_OS_LINUX
+public:
+  WasiExpect<Poller::Timer> acquireTimer(__wasi_clockid_t Clock) noexcept;
+  void releaseTimer(Poller::Timer &&) noexcept;
+
+private:
+  std::mutex TimerMutex; ///< Protect TimerPool
+  std::unordered_map<__wasi_clockid_t, std::vector<Poller::Timer>> TimerPool;
+#else
 #endif
 };
 

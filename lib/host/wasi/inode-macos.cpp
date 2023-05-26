@@ -1499,7 +1499,7 @@ WasiExpect<void> INode::updateStat() const noexcept {
   return {};
 }
 
-Poller::Poller() noexcept : FdHolder(::kqueue()) {}
+Poller::Poller(PollerContext &C) noexcept : FdHolder(::kqueue()), Ctx(C) {}
 
 WasiExpect<void> Poller::prepare(Span<__wasi_event_t> E) noexcept {
   WasiEvents = E;

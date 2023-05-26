@@ -778,17 +778,16 @@ private:
       uint8_t VFSFlags = 0, uint8_t LinkCount = 0);
 };
 
-class VPoller : private Poller {
+class VPoller : protected Poller {
 public:
   using Poller::clock;
   using Poller::error;
   using Poller::ok;
+  using Poller::Poller;
   using Poller::prepare;
   using Poller::reset;
   using Poller::result;
   using Poller::wait;
-
-  VPoller() noexcept = default;
 
   void read(std::shared_ptr<VINode> Fd, TriggerType Trigger,
             __wasi_userdata_t UserData) noexcept {

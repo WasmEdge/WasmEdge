@@ -25,7 +25,7 @@ cargo build --release --target wasm32-wasi --features="freeze-stdlib"
 WasmEdge supports compiling WebAssembly bytecode programs into native machine code for better performance. It is highly recommended to compile the RustPython to native machine code before running.
 
 ```bash
-wasmedgec ./target/wasm32-wasi/release/rustpython.wasm ./target/wasm32-wasi/release/rustpython.wasm
+wasmedge compile ./target/wasm32-wasi/release/rustpython.wasm ./target/wasm32-wasi/release/rustpython.wasm
 ```
 
 ## Run

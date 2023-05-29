@@ -37,8 +37,7 @@ inline constexpr const int32_t kMaxSaDataLen = 26;
 } // namespace detail
 
 class EVPoller;
-class EVEpoller;
-class Environ {
+class Environ : public PollerContext {
 public:
   ~Environ() noexcept;
 
@@ -837,18 +836,17 @@ public:
     return VINode::pathUnlinkFile(FS, std::move(Node), Path);
   }
 
-  /// Concurrently poll for the occurrence of a set of events.
+  /// Acquire a Poller for concurrently poll for the occurrence of a set of
+  /// events.
   ///
-  /// @param[in] NSubscriptions Both the number of subscriptions and events.
+  /// @param[in] Events The output buffer for events.
   /// @return Poll helper or WASI error.
-  WasiExpect<EVPoller> pollOneoff(__wasi_size_t NSubscriptions) noexcept;
+  WasiExpect<EVPoller> acquirePoller(Span<__wasi_event_t> Events) noexcept;
 
-  /// Concurrently poll for the occurrence of a set of events in edge-triggered
-  /// mode.
+  /// Release a used Poller object.
   ///
-  /// @param[in] NSubscriptions Both the number of subscriptions and events.
-  /// @return Poll helper or WASI error.
-  WasiExpect<EVEpoller> epollOneoff(__wasi_size_t NSubscriptions) noexcept;
+  /// @param[in] Poller Used poller object.
+  void releasePoller(EVPoller &&Poller) noexcept;
 
   /// Terminate the process normally. An exit code of 0 indicates successful
   /// termination of the program. The meanings of other values is dependent on
@@ -1240,15 +1238,12 @@ private:
   VFS FS;
   __wasi_exitcode_t ExitCode = 0;
 
+  mutable std::shared_mutex PollerMutex; ///< Protect PollerPool
+  std::vector<EVPoller> PollerPool;
+  friend class EVPoller;
+
   mutable std::shared_mutex FdMutex; ///< Protect FdMap
   std::unordered_map<__wasi_fd_t, std::shared_ptr<VINode>> FdMap;
-
-  // unique epoll fd;
-  int RegistrationFd = -1;
-  std::unordered_map<int, uint32_t> Registration;
-
-  friend class EVPoller;
-  friend class EVEpoller;
 
   std::shared_ptr<VINode> getNodeOrNull(__wasi_fd_t Fd) const {
     std::shared_lock Lock(FdMutex);
@@ -1273,99 +1268,79 @@ private:
   }
 };
 
-class EVPoller : private VPoller {
+class EVPoller : protected VPoller {
 public:
+  EVPoller(EVPoller &&) = default;
+  EVPoller &operator=(EVPoller &&) = default;
+
   using VPoller::clock;
+  using VPoller::error;
+  using VPoller::prepare;
+  using VPoller::reset;
+  using VPoller::result;
+  using VPoller::VPoller;
   using VPoller::wait;
 
-  EVPoller(VPoller &&P, Environ &E) : VPoller(std::move(P)), Env(E) {}
-
-  WasiExpect<void> clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
-                         __wasi_timestamp_t Precision,
-                         __wasi_subclockflags_t Flags,
-                         __wasi_userdata_t UserData) noexcept {
-    return VPoller::clock(Clock, Timeout, Precision, Flags, UserData);
-  }
-
-  WasiExpect<void> read(__wasi_fd_t Fd, __wasi_userdata_t UserData) noexcept {
-    auto Node = Env.getNodeOrNull(Fd);
-    if (unlikely(!Node)) {
-      return WasiUnexpect(__WASI_ERRNO_BADF);
+  /// Concurrently poll for a ready-to-read event.
+  ///
+  /// @param[in] Fd The file descriptor on which to wait for it to become ready
+  /// for reading.
+  /// @param[in] Trigger Specifying whether the notification is level-trigger or
+  /// edge-trigger.
+  /// @param[in] UserData User-provided value that may be attached to objects
+  /// that is retained when extracted from the implementation.
+  void read(__wasi_fd_t Fd, TriggerType Trigger,
+            __wasi_userdata_t UserData) noexcept {
+    if (auto Node = env().getNodeOrNull(Fd); unlikely(!Node)) {
+      VPoller::error(UserData, __WASI_ERRNO_BADF, __WASI_EVENTTYPE_FD_READ);
     } else {
-      return VPoller::read(Node, UserData);
+      VPoller::read(Node, Trigger, UserData);
     }
   }
 
-  WasiExpect<void> write(__wasi_fd_t Fd, __wasi_userdata_t UserData) noexcept {
-    auto Node = Env.getNodeOrNull(Fd);
-    if (unlikely(!Node)) {
-      return WasiUnexpect(__WASI_ERRNO_BADF);
+  /// Concurrently poll for a ready-to-write event.
+  ///
+  /// @param[in] Fd The file descriptor on which to wait for it to become ready
+  /// for writing.
+  /// @param[in] Trigger Specifying whether the notification is level-trigger or
+  /// edge-trigger.
+  /// @param[in] UserData User-provided value that may be attached to objects
+  /// that is retained when extracted from the implementation.
+  void write(__wasi_fd_t Fd, TriggerType Trigger,
+             __wasi_userdata_t UserData) noexcept {
+    if (auto Node = env().getNodeOrNull(Fd); unlikely(!Node)) {
+      VPoller::error(UserData, __WASI_ERRNO_BADF, __WASI_EVENTTYPE_FD_WRITE);
     } else {
-      return VPoller::write(Node, UserData);
+      VPoller::write(Node, Trigger, UserData);
     }
   }
 
 private:
-  Environ &Env;
-};
-
-class EVEpoller : private VEpoller {
-public:
-  using VEpoller::CallbackType;
-  using VEpoller::clock;
-  using VEpoller::getFd;
-  using VEpoller::wait;
-
-  EVEpoller(VEpoller &&P, Environ &E) : VEpoller(std::move(P)), Env(E) {}
-
-  WasiExpect<void> clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
-                         __wasi_timestamp_t Precision,
-                         __wasi_subclockflags_t Flags,
-                         __wasi_userdata_t UserData) noexcept {
-    return VEpoller::clock(Clock, Timeout, Precision, Flags, UserData);
-  }
-
-  WasiExpect<void> read(__wasi_fd_t Fd, __wasi_userdata_t UserData) noexcept {
-    auto Node = Env.getNodeOrNull(Fd);
-    if (unlikely(!Node)) {
-      return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return VEpoller::read(Node, UserData, Env.Registration);
-    }
-  }
-
-  WasiExpect<void> write(__wasi_fd_t Fd, __wasi_userdata_t UserData) noexcept {
-    auto Node = Env.getNodeOrNull(Fd);
-    if (unlikely(!Node)) {
-      return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return VEpoller::write(Node, UserData, Env.Registration);
-    }
-  }
-  WasiExpect<void> wait(CallbackType Callback) noexcept {
-    return VEpoller::wait(Callback, Env.Registration);
-  }
-
-  int getFd() noexcept { return VEpoller::getFd(); }
-
-private:
-  Environ &Env;
+  Environ &env() noexcept { return static_cast<Environ &>(Ctx.get()); }
 };
 
 inline WasiExpect<EVPoller>
-Environ::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
-  return VINode::pollOneoff(NSubscriptions).map([this](VPoller &&P) {
-    return EVPoller(std::move(P), *this);
-  });
+Environ::acquirePoller(Span<__wasi_event_t> Events) noexcept {
+  auto Poller = [this]() noexcept -> EVPoller {
+    std::unique_lock Lock(PollerMutex);
+    if (PollerPool.empty()) {
+      return EVPoller(*this);
+    } else {
+      EVPoller Result(std::move(PollerPool.back()));
+      PollerPool.pop_back();
+      return Result;
+    }
+  }();
+
+  if (auto Res = Poller.prepare(Events); !Res) {
+    return WasiUnexpect(Res);
+  }
+  return Poller;
 }
 
-inline WasiExpect<EVEpoller>
-Environ::epollOneoff(__wasi_size_t NSubscriptions) noexcept {
-  auto Evepoller =
-      VINode::epollOneoff(NSubscriptions, RegistrationFd)
-          .map([this](VEpoller &&P) { return EVEpoller(std::move(P), *this); });
-  RegistrationFd = Evepoller.value().getFd();
-  return Evepoller;
+inline void Environ::releasePoller(EVPoller &&Poller) noexcept {
+  std::unique_lock Lock(PollerMutex);
+  PollerPool.push_back(std::move(Poller));
 }
 
 } // namespace WASI

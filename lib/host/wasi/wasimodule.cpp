@@ -55,8 +55,10 @@ WasiModule::WasiModule() : ModuleInstance("wasi_snapshot_preview1") {
   addHostFunc("path_rename", std::make_unique<WasiPathRename>(Env));
   addHostFunc("path_symlink", std::make_unique<WasiPathSymlink>(Env));
   addHostFunc("path_unlink_file", std::make_unique<WasiPathUnlinkFile>(Env));
-  addHostFunc("poll_oneoff", std::make_unique<WasiPollOneoff>(Env));
-  addHostFunc("epoll_oneoff", std::make_unique<WasiEpollOneoff>(Env));
+  addHostFunc("poll_oneoff",
+              std::make_unique<WasiPollOneoff<WASI::TriggerType::Level>>(Env));
+  addHostFunc("epoll_oneoff",
+              std::make_unique<WasiPollOneoff<WASI::TriggerType::Edge>>(Env));
   addHostFunc("proc_exit", std::make_unique<WasiProcExit>(Env));
   addHostFunc("proc_raise", std::make_unique<WasiProcRaise>(Env));
   addHostFunc("sched_yield", std::make_unique<WasiSchedYield>(Env));

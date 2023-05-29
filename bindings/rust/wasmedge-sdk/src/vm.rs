@@ -1,5 +1,7 @@
 //! Defines WasmEdge Vm struct.
 
+#[cfg(all(feature = "async", target_os = "linux"))]
+use crate::r#async::AsyncState;
 use crate::{
     config::Config,
     error::{VmError, WasmEdgeError},
@@ -124,6 +126,7 @@ impl VmBuilder {
         };
 
         // * built-in host instances
+        #[cfg(not(feature = "async"))]
         if let Some(cfg) = vm.config.as_ref() {
             if cfg.wasi_enabled() {
                 if let Ok(wasi_module) = sys::WasiModule::create(None, None, None) {
@@ -136,18 +139,41 @@ impl VmBuilder {
                         HostRegistration::Wasi,
                         HostRegistrationInstance::Wasi(WasiInstance { inner: wasi_module }),
                     );
+                } else {
+                    panic!("failed to create WasiModule")
+                }
+            }
+        }
+        #[cfg(all(feature = "async", target_os = "linux"))]
+        if let Some(cfg) = vm.config.as_ref() {
+            if cfg.wasi_enabled() {
+                if let Ok(wasi_module) = sys::AsyncWasiModule::create(None) {
+                    vm.executor.inner.register_import_object(
+                        &mut vm.store.inner,
+                        &sys::ImportObject::AsyncWasi(wasi_module.clone()),
+                    )?;
+
+                    vm.builtin_host_instances.insert(
+                        HostRegistration::Wasi,
+                        HostRegistrationInstance::Wasi(WasiInstance { inner: wasi_module }),
+                    );
+                } else {
+                    panic!("failed to create AsyncWasiModule which is only available on Linux")
                 }
             }
         }
 
         // * load and register plugin instances
         for (pname, mname) in self.plugins.iter() {
-            if let Some(instance) = Self::create_plugin_instance(pname, mname) {
-                vm.plugin_host_instances.push(instance);
-                vm.executor.inner.register_plugin_instance(
-                    &mut vm.store.inner,
-                    &vm.plugin_host_instances.last().unwrap().inner,
-                )?;
+            match Self::create_plugin_instance(pname, mname) {
+                Some(instance) => {
+                    vm.plugin_host_instances.push(instance);
+                    vm.executor.inner.register_plugin_instance(
+                        &mut vm.store.inner,
+                        &vm.plugin_host_instances.last().unwrap().inner,
+                    )?;
+                }
+                None => panic!("Not found {}::{} plugin", pname, mname),
             }
         }
 
@@ -408,6 +434,8 @@ impl Vm {
     ///
     /// # Arguments
     ///
+    /// * `async_state` - The [AsyncState] to run the wasm function.
+    ///
     /// * `mod_name` - The exported name of the module instance, which holds the target function. If `None`, then the active module is used.
     ///
     /// * `func_name` - The exported name of the target wasm function.
@@ -417,9 +445,10 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run the wasm function, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn run_func_async(
         &self,
+        async_state: &AsyncState,
         mod_name: Option<&str>,
         func_name: impl AsRef<str> + Send,
         args: impl IntoIterator<Item = WasmValue> + Send,
@@ -429,7 +458,7 @@ impl Vm {
                 Some(named_instance) => {
                     named_instance
                         .func(func_name.as_ref())?
-                        .run_async(self.executor(), args)
+                        .run_async(async_state, self.executor(), args)
                         .await
                 }
                 None => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundModule(
@@ -440,7 +469,7 @@ impl Vm {
                 Some(active_instance) => {
                     active_instance
                         .func(func_name.as_ref())?
-                        .run_async(self.executor(), args)
+                        .run_async(async_state, self.executor(), args)
                         .await
                 }
                 None => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundActiveModule))),
@@ -483,6 +512,8 @@ impl Vm {
     ///
     /// # Arguments
     ///
+    /// * `async_state` - The [AsyncState] to run the wasm function.
+    ///
     /// * `module` - A [wasm module](crate::Module).
     ///
     /// * `func_name` - The exported name of the target wasm function.
@@ -492,9 +523,10 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn run_func_from_module_async<N, A>(
         &mut self,
+        async_state: &AsyncState,
         module: Module,
         func_name: N,
         args: A,
@@ -508,7 +540,8 @@ impl Vm {
                 .register_active_module(&mut self.executor, &module)?,
         );
 
-        self.run_func_async(None, func_name, args).await
+        self.run_func_async(async_state, None, func_name, args)
+            .await
     }
 
     /// Runs an exported wasm function from the given wasm file.
@@ -540,6 +573,8 @@ impl Vm {
     ///
     /// # Arguments
     ///
+    /// * `async_state` - The [AsyncState] to run the wasm function.
+    ///
     /// * `file` - A wasm file or an AOT wasm file.
     ///
     /// * `func_name` - The exported name of the target wasm function.
@@ -549,9 +584,10 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn run_func_from_file_async<P, N, A>(
         &mut self,
+        async_state: &AsyncState,
         file: P,
         func_name: N,
         args: A,
@@ -564,7 +600,7 @@ impl Vm {
         // load module from file
         let module = Module::from_file(self.config.as_ref(), file.as_ref())?;
 
-        self.run_func_from_module_async(module, func_name.as_ref(), args)
+        self.run_func_from_module_async(async_state, module, func_name.as_ref(), args)
             .await
     }
 
@@ -597,6 +633,8 @@ impl Vm {
     ///
     /// # Arguments
     ///
+    /// * `async_state` - The [AsyncState] to run the wasm function.
+    ///
     /// * `bytes` - The in-memory wasm bytes.
     ///
     /// * `func_name` - The exported name of the target wasm function.
@@ -606,9 +644,10 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn run_func_from_bytes_async<N, A>(
         &mut self,
+        async_state: &AsyncState,
         bytes: &[u8],
         func_name: N,
         args: A,
@@ -620,7 +659,7 @@ impl Vm {
         // load module from bytes
         let module = Module::from_bytes(self.config.as_ref(), bytes)?;
 
-        self.run_func_from_module_async(module, func_name.as_ref(), args)
+        self.run_func_from_module_async(async_state, module, func_name.as_ref(), args)
             .await
     }
 
@@ -658,6 +697,7 @@ impl Vm {
     ///
     /// To retrieve  the [wasi module instance], a [config](crate::config::Config) with the enabled [wasi](crate::config::HostRegistrationConfigOptions::wasi) option should be given when create this vm.
     ///
+
     pub fn wasi_module(&self) -> Option<&WasiInstance> {
         match self.builtin_host_instances.get(&HostRegistration::Wasi) {
             Some(HostRegistrationInstance::Wasi(wasi_instance)) => Some(wasi_instance),
@@ -669,6 +709,7 @@ impl Vm {
     ///
     /// To retrieve the [wasi module instance], a [config](crate::config::Config) with the enabled [wasi](crate::config::HostRegistrationConfigOptions::wasi) option should be given when create this vm.
     ///
+
     pub fn wasi_module_mut(&mut self) -> Option<&mut WasiInstance> {
         match self.builtin_host_instances.get_mut(&HostRegistration::Wasi) {
             Some(HostRegistrationInstance::Wasi(wasi_instance)) => Some(wasi_instance),
@@ -1036,37 +1077,6 @@ mod tests {
             assert!(result.is_ok());
             let _vm = result.unwrap();
         }
-
-        #[cfg(all(target_os = "linux", not(feature = "static")))]
-        {
-            use crate::plugin::PluginManager;
-
-            // load wasmedge_process plugin
-            let result = PluginManager::load(None);
-            assert!(result.is_ok());
-
-            // create a Vm context
-            let result = VmBuilder::new()
-                .with_plugin_wasmedge_process()
-                .with_plugin_wasi_crypto()
-                .build();
-            assert!(result.is_ok());
-            let vm = result.unwrap();
-
-            assert!(vm.contains_module("wasmedge_process"));
-
-            #[cfg(feature = "wasi_crypto")]
-            {
-                assert!(vm.contains_module("wasi_ephemeral_crypto_common"));
-                assert!(vm.contains_module("wasi_ephemeral_crypto_asymmetric_common"));
-                assert!(vm.contains_module("wasi_ephemeral_crypto_kx"));
-                assert!(vm.contains_module("wasi_ephemeral_crypto_signatures"));
-                assert!(vm.contains_module("wasi_ephemeral_crypto_symmetric"));
-            }
-
-            #[cfg(all(feature = "wasi_nn", target_arch = "x86_64"))]
-            assert!(vm.contains_module("wasi_nn"));
-        }
     }
 
     #[test]
@@ -1423,10 +1433,10 @@ mod tests {
         assert_eq!(ty.returns().unwrap(), [ValType::I32]);
     }
 
-    fn real_add(
+    fn real_add<T>(
         _frame: CallingFrame,
         inputs: Vec<WasmValue>,
-        _data: *mut std::os::raw::c_void,
+        _data: Option<&mut T>,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

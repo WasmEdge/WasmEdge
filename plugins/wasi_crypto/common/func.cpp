@@ -37,14 +37,14 @@ Expect<uint32_t> ArrayOutputPull::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiBufLen = BufLen;
-  auto *const Buf = MemInst->getPointer<uint8_t *>(BufPtr, WasiBufLen);
-  checkExist(Buf);
+  const auto Buf = MemInst->getSpan<uint8_t>(BufPtr, WasiBufLen);
+  checkRangeExist(Buf, WasiBufLen);
 
   auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
   checkExist(Size);
 
-  if (auto Res = Ctx.arrayOutputPull(ArrayOutputHandle, {Buf, WasiBufLen})
-                     .and_then(toWasiSize);
+  if (auto Res =
+          Ctx.arrayOutputPull(ArrayOutputHandle, Buf).and_then(toWasiSize);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -99,17 +99,14 @@ Expect<uint32_t> OptionsSet::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
-  auto *const Name = MemInst->getPointer<const char *>(NamePtr, WasiNameLen);
-  checkExist(Name);
+  const auto Name = MemInst->getStringView(NamePtr, WasiNameLen);
+  checkRangeExist(Name, WasiNameLen);
 
   const __wasi_size_t WasiValueLen = ValueLen;
-  auto *const Value =
-      MemInst->getPointer<const uint8_t *>(ValuePtr, WasiValueLen);
-  checkExist(Value);
+  const auto Value = MemInst->getSpan<const uint8_t>(ValuePtr, WasiValueLen);
+  checkRangeExist(Value, WasiValueLen);
 
-  if (auto Res = Ctx.optionsSet(OptionsHandle, {Name, WasiNameLen},
-                                {Value, WasiValueLen});
-      unlikely(!Res)) {
+  if (auto Res = Ctx.optionsSet(OptionsHandle, Name, Value); unlikely(!Res)) {
     return Res.error();
   }
 
@@ -124,10 +121,10 @@ Expect<uint32_t> OptionsSetU64::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
-  auto *const Name = MemInst->getPointer<const char *>(NamePtr, WasiNameLen);
-  checkExist(Name);
+  const auto Name = MemInst->getStringView(NamePtr, WasiNameLen);
+  checkRangeExist(Name, WasiNameLen);
 
-  if (auto Res = Ctx.optionsSetU64(OptionsHandle, {Name, WasiNameLen}, Value);
+  if (auto Res = Ctx.optionsSetU64(OptionsHandle, Name, Value);
       unlikely(!Res)) {
     return Res.error();
   }
@@ -144,15 +141,14 @@ Expect<uint32_t> OptionsSetGuestBuffer::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
-  auto *const Name = MemInst->getPointer<const char *>(NamePtr, WasiNameLen);
-  checkExist(Name);
+  const auto Name = MemInst->getStringView(NamePtr, WasiNameLen);
+  checkRangeExist(Name, WasiNameLen);
 
   const __wasi_size_t WasiBufLen = BufLen;
-  auto *const Buf = MemInst->getPointer<uint8_t *>(BufPtr, WasiBufLen);
-  checkExist(Buf);
+  const auto Buf = MemInst->getSpan<uint8_t>(BufPtr, WasiBufLen);
+  checkRangeExist(Buf, WasiBufLen);
 
-  if (auto Res = Ctx.optionsSetGuestBuffer(OptionsHandle, {Name, WasiNameLen},
-                                           {Buf, WasiBufLen});
+  if (auto Res = Ctx.optionsSetGuestBuffer(OptionsHandle, Name, Buf);
       unlikely(!Res)) {
     return Res.error();
   }
@@ -204,12 +200,11 @@ SecretsManagerInvalidate::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiKeyIdLen = KeyIdLen;
-  auto *const KeyId =
-      MemInst->getPointer<const uint8_t *>(KeyIdPtr, WasiKeyIdLen);
-  checkExist(KeyId);
+  const auto KeyId = MemInst->getSpan<const uint8_t>(KeyIdPtr, WasiKeyIdLen);
+  checkRangeExist(KeyId, WasiKeyIdLen);
 
-  if (auto Res = Ctx.secretsManagerInvalidate(SecretsManagerHandle,
-                                              {KeyId, WasiKeyIdLen}, Version);
+  if (auto Res =
+          Ctx.secretsManagerInvalidate(SecretsManagerHandle, KeyId, Version);
       unlikely(!Res)) {
     return Res.error();
   }

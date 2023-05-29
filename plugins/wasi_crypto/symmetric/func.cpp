@@ -16,10 +16,11 @@ Expect<uint32_t> KeyGenerate::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
-  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
-  checkExist(Alg);
+  const auto Alg = MemInst->getStringView(AlgPtr, WasiAlgLen);
+  checkRangeExist(Alg, WasiAlgLen);
+
   Algorithm WasiAlg;
-  if (auto Res = tryFrom<Algorithm>({Alg, WasiAlgLen}); !Res) {
+  if (auto Res = tryFrom<Algorithm>(Alg); !Res) {
     return Res.error();
   } else {
     WasiAlg = *Res;
@@ -51,11 +52,11 @@ Expect<uint32_t> KeyImport::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
-  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
-  checkExist(Alg);
+  const auto Alg = MemInst->getStringView(AlgPtr, WasiAlgLen);
+  checkRangeExist(Alg, WasiAlgLen);
 
   Algorithm WasiAlg;
-  if (auto Res = tryFrom<Algorithm>({Alg, WasiAlgLen}); !Res) {
+  if (auto Res = tryFrom<Algorithm>(Alg); !Res) {
     return Res.error();
   } else {
     WasiAlg = *Res;
@@ -65,11 +66,10 @@ Expect<uint32_t> KeyImport::body(const Runtime::CallingFrame &Frame,
   checkExist(Key);
 
   const __wasi_size_t WasiRawLen = RawLen;
-  auto *Raw = MemInst->getPointer<const uint8_t *>(RawPtr, WasiRawLen);
-  checkExist(Raw);
+  const auto Raw = MemInst->getSpan<const uint8_t>(RawPtr, WasiRawLen);
+  checkRangeExist(Raw, WasiRawLen);
 
-  if (auto Res = Ctx.symmetricKeyImport(WasiAlg, {Raw, WasiRawLen});
-      unlikely(!Res)) {
+  if (auto Res = Ctx.symmetricKeyImport(WasiAlg, Raw); unlikely(!Res)) {
     return Res.error();
   } else {
     *Key = *Res;
@@ -115,10 +115,11 @@ Expect<uint32_t> KeyGenerateManaged::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
-  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
-  checkExist(Alg);
+  const auto Alg = MemInst->getStringView(AlgPtr, WasiAlgLen);
+  checkRangeExist(Alg, WasiAlgLen);
+
   Algorithm WasiAlg;
-  if (auto Res = tryFrom<Algorithm>({Alg, WasiAlgLen}); !Res) {
+  if (auto Res = tryFrom<Algorithm>(Alg); !Res) {
     return Res.error();
   } else {
     WasiAlg = *Res;
@@ -151,11 +152,11 @@ Expect<uint32_t> KeyStoreManaged::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiKeyIdMaxLen = KeyIdMaxLen;
-  auto *const KeyId = MemInst->getPointer<uint8_t *>(KeyIdPtr, WasiKeyIdMaxLen);
-  checkExist(KeyId);
+  const auto KeyId = MemInst->getSpan<uint8_t>(KeyIdPtr, WasiKeyIdMaxLen);
+  checkRangeExist(KeyId, WasiKeyIdMaxLen);
 
-  if (auto Res = Ctx.symmetricKeyStoreManaged(SecretsManagerHandle, KeyHandle,
-                                              {KeyId, WasiKeyIdMaxLen});
+  if (auto Res =
+          Ctx.symmetricKeyStoreManaged(SecretsManagerHandle, KeyHandle, KeyId);
       unlikely(!Res)) {
     return Res.error();
   }
@@ -194,8 +195,8 @@ Expect<uint32_t> KeyId::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiKeyIdMaxLen = KeyIdMaxLen;
-  auto *const KeyId = MemInst->getPointer<uint8_t *>(KeyIdPtr, WasiKeyIdMaxLen);
-  checkExist(KeyId);
+  const auto KeyId = MemInst->getSpan<uint8_t>(KeyIdPtr, WasiKeyIdMaxLen);
+  checkRangeExist(KeyId, WasiKeyIdMaxLen);
 
   auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
   checkExist(Size);
@@ -206,8 +207,7 @@ Expect<uint32_t> KeyId::body(const Runtime::CallingFrame &Frame,
     return __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE;
   }
 
-  if (auto Res = Ctx.symmetricKeyId(KeyHandle, {KeyId, WasiKeyIdMaxLen});
-      unlikely(!Res)) {
+  if (auto Res = Ctx.symmetricKeyId(KeyHandle, KeyId); unlikely(!Res)) {
     return Res.error();
   } else {
     auto [SizeRes, VersionRes] = *Res;
@@ -232,15 +232,15 @@ Expect<uint32_t> KeyFromId::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiKeyIdLen = KeyIdLen;
-  auto *const KeyId = MemInst->getPointer<uint8_t *>(KeyIdPtr, WasiKeyIdLen);
-  checkExist(KeyId);
+  const auto KeyId = MemInst->getSpan<uint8_t>(KeyIdPtr, WasiKeyIdLen);
+  checkRangeExist(KeyId, WasiKeyIdLen);
 
   auto *const KeyHandle =
       MemInst->getPointer<__wasi_symmetric_key_t *>(KeyHandlePtr);
   checkExist(KeyHandle);
 
-  if (auto Res = Ctx.symmetricKeyFromId(SecretsManagerHandle,
-                                        {KeyId, WasiKeyIdLen}, KeyVersion);
+  if (auto Res =
+          Ctx.symmetricKeyFromId(SecretsManagerHandle, KeyId, KeyVersion);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -259,10 +259,10 @@ Expect<uint32_t> StateOpen::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
-  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
-  checkExist(Alg);
+  const auto Alg = MemInst->getStringView(AlgPtr, WasiAlgLen);
+  checkRangeExist(Alg, WasiAlgLen);
   Algorithm WasiAlg;
-  if (auto Res = tryFrom<Algorithm>({Alg, WasiAlgLen}); !Res) {
+  if (auto Res = tryFrom<Algorithm>(Alg); !Res) {
     return Res.error();
   } else {
     WasiAlg = *Res;
@@ -320,18 +320,17 @@ Expect<uint32_t> StateOptionsGet::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
-  auto *const Name = MemInst->getPointer<const char *>(NamePtr, WasiNameLen);
-  checkExist(Name);
+  const auto Name = MemInst->getStringView(NamePtr, WasiNameLen);
+  checkRangeExist(Name, WasiNameLen);
 
   const __wasi_size_t WasiValueLen = ValueLen;
-  auto *const Value = MemInst->getPointer<uint8_t *>(ValuePtr, ValueLen);
-  checkExist(Value);
+  const auto Value = MemInst->getSpan<uint8_t>(ValuePtr, WasiValueLen);
+  checkRangeExist(Value, WasiValueLen);
 
   auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
   checkExist(Size);
 
-  if (auto Res = Ctx.symmetricStateOptionsGet(StateHandle, {Name, WasiNameLen},
-                                              {Value, WasiValueLen})
+  if (auto Res = Ctx.symmetricStateOptionsGet(StateHandle, Name, Value)
                      .and_then(toWasiSize);
       !Res) {
     return Res.error();
@@ -350,14 +349,13 @@ Expect<uint32_t> StateOptionsGetU64::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
-  auto *const Name = MemInst->getPointer<const char *>(NamePtr, WasiNameLen);
-  checkExist(Name);
+  const auto Name = MemInst->getStringView(NamePtr, WasiNameLen);
+  checkRangeExist(Name, WasiNameLen);
 
   auto *const U64 = MemInst->getPointer<uint64_t *>(U64Ptr);
   checkExist(U64);
 
-  if (auto Res =
-          Ctx.symmetricStateOptionsGetU64(StateHandle, {Name, WasiNameLen});
+  if (auto Res = Ctx.symmetricStateOptionsGetU64(StateHandle, Name);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -383,11 +381,10 @@ Expect<uint32_t> StateAbsorb::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiDataLen = DataLen;
-  auto *const Data = MemInst->getPointer<const uint8_t *>(DataPtr, WasiDataLen);
-  checkExist(Data);
+  const auto Data = MemInst->getSpan<const uint8_t>(DataPtr, WasiDataLen);
+  checkRangeExist(Data, WasiDataLen);
 
-  if (auto Res = Ctx.symmetricStateAbsorb(StateHandle, {Data, WasiDataLen});
-      unlikely(!Res)) {
+  if (auto Res = Ctx.symmetricStateAbsorb(StateHandle, Data); unlikely(!Res)) {
     return Res.error();
   }
 
@@ -401,11 +398,10 @@ Expect<uint32_t> StateSqueeze::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiOutLen = OutLen;
-  auto *const Out = MemInst->getPointer<uint8_t *>(OutPtr, WasiOutLen);
-  checkExist(Out);
+  const auto Out = MemInst->getSpan<uint8_t>(OutPtr, WasiOutLen);
+  checkRangeExist(Out, WasiOutLen);
 
-  if (auto Res = Ctx.symmetricStateSqueeze(StateHandle, {Out, WasiOutLen});
-      unlikely(!Res)) {
+  if (auto Res = Ctx.symmetricStateSqueeze(StateHandle, Out); unlikely(!Res)) {
     return Res.error();
   }
 
@@ -439,10 +435,10 @@ Expect<uint32_t> StateSqueezeKey::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
-  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
-  checkExist(Alg);
+  const auto Alg = MemInst->getStringView(AlgPtr, WasiAlgLen);
+  checkRangeExist(Alg, WasiAlgLen);
   Algorithm WasiAlg;
-  if (auto Res = tryFrom<Algorithm>({Alg, WasiAlgLen}); !Res) {
+  if (auto Res = tryFrom<Algorithm>(Alg); !Res) {
     return Res.error();
   } else {
     WasiAlg = *Res;
@@ -490,18 +486,17 @@ Expect<uint32_t> StateEncrypt::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiOutLen = OutLen;
-  auto *const Out = MemInst->getPointer<uint8_t *>(OutPtr, WasiOutLen);
-  checkExist(Out);
+  const auto Out = MemInst->getSpan<uint8_t>(OutPtr, WasiOutLen);
+  checkRangeExist(Out, WasiOutLen);
 
   const __wasi_size_t WasiDataLen = DataLen;
-  auto *Data = MemInst->getPointer<const uint8_t *>(DataPtr, WasiDataLen);
-  checkExist(Data);
+  const auto Data = MemInst->getSpan<const uint8_t>(DataPtr, WasiDataLen);
+  checkRangeExist(Data, WasiDataLen);
 
   auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
   checkExist(Size);
 
-  if (auto Res = Ctx.symmetricStateEncrypt(StateHandle, {Out, WasiOutLen},
-                                           {Data, WasiDataLen})
+  if (auto Res = Ctx.symmetricStateEncrypt(StateHandle, Out, Data)
                      .and_then(toWasiSize);
       unlikely(!Res)) {
     return Res.error();
@@ -521,19 +516,18 @@ Expect<uint32_t> StateEncryptDetached::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiOutLen = OutLen;
-  auto *const Out = MemInst->getPointer<uint8_t *>(OutPtr, WasiOutLen);
-  checkExist(Out);
+  const auto Out = MemInst->getSpan<uint8_t>(OutPtr, WasiOutLen);
+  checkRangeExist(Out, WasiOutLen);
 
   const __wasi_size_t WasiDataLen = DataLen;
-  auto *const Data = MemInst->getPointer<const uint8_t *>(DataPtr, WasiDataLen);
-  checkExist(Data);
+  const auto Data = MemInst->getSpan<const uint8_t>(DataPtr, WasiDataLen);
+  checkRangeExist(Data, WasiDataLen);
 
   auto *const TagHandle =
       MemInst->getPointer<__wasi_symmetric_tag_t *>(TagHandlePtr);
   checkExist(TagHandle);
 
-  if (auto Res = Ctx.symmetricStateEncryptDetached(
-          StateHandle, {Out, WasiOutLen}, {Data, WasiDataLen});
+  if (auto Res = Ctx.symmetricStateEncryptDetached(StateHandle, Out, Data);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -552,20 +546,19 @@ Expect<uint32_t> StateDecrypt::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiOutLen = OutLen;
-  auto *const Out = MemInst->getPointer<uint8_t *>(OutPtr, WasiOutLen);
-  checkExist(Out);
+  const auto Out = MemInst->getSpan<uint8_t>(OutPtr, WasiOutLen);
+  checkRangeExist(Out, WasiOutLen);
 
   const __wasi_size_t WasiDataLen = DataLen;
-  auto *const Data = MemInst->getPointer<const uint8_t *>(DataPtr, WasiDataLen);
-  checkExist(Data);
+  const auto Data = MemInst->getSpan<const uint8_t>(DataPtr, WasiDataLen);
+  checkRangeExist(Data, WasiDataLen);
 
   auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
   if (unlikely(Size == nullptr)) {
     return __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE;
   }
 
-  if (auto Res = Ctx.symmetricStateDecrypt(StateHandle, {Out, WasiOutLen},
-                                           {Data, WasiDataLen})
+  if (auto Res = Ctx.symmetricStateDecrypt(StateHandle, Out, Data)
                      .and_then(toWasiSize);
       unlikely(!Res)) {
     return Res.error();
@@ -584,24 +577,23 @@ Expect<uint32_t> StateDecryptDetached::body(
   checkExist(MemInst);
 
   const __wasi_size_t WasiOutLen = OutLen;
-  auto *const Out = MemInst->getPointer<uint8_t *>(OutPtr, WasiOutLen);
-  checkExist(Out);
+  const auto Out = MemInst->getSpan<uint8_t>(OutPtr, WasiOutLen);
+  checkRangeExist(Out, WasiOutLen);
 
   const __wasi_size_t WasiDataLen = DataLen;
-  auto *const Data = MemInst->getPointer<const uint8_t *>(DataPtr, WasiDataLen);
-  checkExist(Data);
+  const auto Data = MemInst->getSpan<const uint8_t>(DataPtr, WasiDataLen);
+  checkRangeExist(Data, WasiDataLen);
 
   const __wasi_size_t WasiRawTagLen = RawTagLen;
-  auto *RawTag = MemInst->getPointer<const uint8_t *>(RawTagPtr, WasiRawTagLen);
-  checkExist(RawTag);
+  const auto RawTag = MemInst->getSpan<const uint8_t>(RawTagPtr, WasiRawTagLen);
+  checkRangeExist(RawTag, WasiRawTagLen);
 
   auto *Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
   checkExist(Size);
 
-  if (auto Res = Ctx.symmetricStateDecryptDetached(
-                        StateHandle, {Out, WasiOutLen}, {Data, WasiDataLen},
-                        {RawTag, WasiRawTagLen})
-                     .and_then(toWasiSize);
+  if (auto Res =
+          Ctx.symmetricStateDecryptDetached(StateHandle, Out, Data, RawTag)
+              .and_then(toWasiSize);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -647,14 +639,13 @@ Expect<uint32_t> TagPull::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiBufLen = BufLen;
-  auto *Buf = MemInst->getPointer<uint8_t *>(BufPtr, WasiBufLen);
-  checkExist(Buf);
+  const auto Buf = MemInst->getSpan<uint8_t>(BufPtr, WasiBufLen);
+  checkRangeExist(Buf, WasiBufLen);
 
   auto *Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
   checkExist(Size);
 
-  if (auto Res = Ctx.symmetricTagPull(TagHandle, {Buf, WasiBufLen})
-                     .and_then(toWasiSize);
+  if (auto Res = Ctx.symmetricTagPull(TagHandle, Buf).and_then(toWasiSize);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -671,11 +662,10 @@ Expect<uint32_t> TagVerify::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiRawTagLen = RawTagLen;
-  auto *RawTag = MemInst->getPointer<const uint8_t *>(RawTagPtr, WasiRawTagLen);
-  checkExist(RawTag);
+  const auto RawTag = MemInst->getSpan<const uint8_t>(RawTagPtr, WasiRawTagLen);
+  checkRangeExist(RawTag, WasiRawTagLen);
 
-  if (auto Res = Ctx.symmetricTagVerify(TagHandle, {RawTag, RawTagLen});
-      unlikely(!Res)) {
+  if (auto Res = Ctx.symmetricTagVerify(TagHandle, RawTag); unlikely(!Res)) {
     return Res.error();
   }
 

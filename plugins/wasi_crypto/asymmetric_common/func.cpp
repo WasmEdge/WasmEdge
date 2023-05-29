@@ -19,14 +19,12 @@ Expect<uint32_t> KeypairGenerate::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
-  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
-  checkExist(Alg);
+  const auto Alg = MemInst->getStringView(AlgPtr, WasiAlgLen);
+  checkRangeExist(Alg, WasiAlgLen);
 
   AsymmetricCommon::Algorithm WasiAlg;
   if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
-          [Alg, WasiAlgLen](auto WasiAlgType) {
-            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
-          });
+          [Alg](auto WasiAlgType) { return tryFrom(WasiAlgType, Alg); });
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -59,14 +57,12 @@ Expect<uint32_t> KeypairImport::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
-  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
-  checkExist(Alg);
+  const auto Alg = MemInst->getStringView(AlgPtr, WasiAlgLen);
+  checkRangeExist(Alg, WasiAlgLen);
 
   AsymmetricCommon::Algorithm WasiAlg;
   if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
-          [Alg, WasiAlgLen](auto WasiAlgType) {
-            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
-          });
+          [Alg](auto WasiAlgType) { return tryFrom(WasiAlgType, Alg); });
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -74,9 +70,9 @@ Expect<uint32_t> KeypairImport::body(const Runtime::CallingFrame &Frame,
   }
 
   const __wasi_size_t WasiEncodedLen = EncodedLen;
-  auto *const Encoded =
-      MemInst->getPointer<const uint8_t *>(EncodedPtr, WasiEncodedLen);
-  checkExist(Encoded);
+  const auto Encoded =
+      MemInst->getSpan<const uint8_t>(EncodedPtr, WasiEncodedLen);
+  checkRangeExist(Encoded, WasiEncodedLen);
 
   const auto WasiEncoding = cast<__wasi_keypair_encoding_e_t>(Encoding);
   checkExist(WasiEncoding);
@@ -84,8 +80,7 @@ Expect<uint32_t> KeypairImport::body(const Runtime::CallingFrame &Frame,
   auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
   checkExist(KpHandle);
 
-  if (auto Res =
-          Ctx.keypairImport(WasiAlg, {Encoded, WasiEncodedLen}, *WasiEncoding);
+  if (auto Res = Ctx.keypairImport(WasiAlg, Encoded, *WasiEncoding);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -103,14 +98,12 @@ Expect<uint32_t> KeypairGenerateManaged::body(
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
-  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
-  checkExist(Alg);
+  const auto Alg = MemInst->getStringView(AlgPtr, WasiAlgLen);
+  checkRangeExist(Alg, WasiAlgLen);
 
   AsymmetricCommon::Algorithm WasiAlg;
   if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
-          [Alg, WasiAlgLen](auto WasiAlgType) {
-            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
-          });
+          [Alg](auto WasiAlgType) { return tryFrom(WasiAlgType, Alg); });
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -143,11 +136,10 @@ Expect<uint32_t> KeypairStoreManaged::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiKpIdMaxLen = KpIdMaxLen;
-  auto *const KpId = MemInst->getPointer<uint8_t *>(KpIdPtr, WasiKpIdMaxLen);
-  checkExist(KpId);
+  const auto KpId = MemInst->getSpan<uint8_t>(KpIdPtr, WasiKpIdMaxLen);
+  checkRangeExist(KpId, WasiKpIdMaxLen);
 
-  if (auto Res = Ctx.keypairStoreManaged(SecretsManagerHandle, KpHandle,
-                                         {KpId, WasiKpIdMaxLen});
+  if (auto Res = Ctx.keypairStoreManaged(SecretsManagerHandle, KpHandle, KpId);
       unlikely(!Res)) {
     return Res.error();
   }
@@ -186,8 +178,8 @@ Expect<uint32_t> KeypairId::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiKpIdMaxLen = KpIdMaxLen;
-  auto *const KpId = MemInst->getPointer<uint8_t *>(KpIdPtr, WasiKpIdMaxLen);
-  checkExist(KpId);
+  const auto KpId = MemInst->getSpan<uint8_t>(KpIdPtr, WasiKpIdMaxLen);
+  checkRangeExist(KpId, WasiKpIdMaxLen);
 
   auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
   checkExist(Size);
@@ -195,8 +187,7 @@ Expect<uint32_t> KeypairId::body(const Runtime::CallingFrame &Frame,
   auto *const Version = MemInst->getPointer<__wasi_version_t *>(KpVersionPtr);
   checkExist(Version);
 
-  if (auto Res = Ctx.keypairId(KpHandle, {KpId, WasiKpIdMaxLen});
-      unlikely(!Res)) {
+  if (auto Res = Ctx.keypairId(KpHandle, KpId); unlikely(!Res)) {
     return Res.error();
   } else {
     auto [ResSize, ResVersion] = *Res;
@@ -223,14 +214,13 @@ Expect<uint32_t> KeypairFromId::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiKpIdLen = KpIdLen;
-  auto *const KpId = MemInst->getPointer<const uint8_t *>(KpIdPtr, WasiKpIdLen);
-  checkExist(KpId);
+  const auto KpId = MemInst->getSpan<uint8_t>(KpIdPtr, WasiKpIdLen);
+  checkRangeExist(KpId, WasiKpIdLen);
 
   auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
   checkExist(KpHandle);
 
-  if (auto Res = Ctx.keypairFromId(SecretsManagerHandle, {KpId, WasiKpIdLen},
-                                   KpVersion);
+  if (auto Res = Ctx.keypairFromId(SecretsManagerHandle, KpId, KpVersion);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -339,14 +329,12 @@ Expect<uint32_t> PublickeyImport::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
-  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
-  checkExist(Alg);
+  const auto Alg = MemInst->getStringView(AlgPtr, WasiAlgLen);
+  checkRangeExist(Alg, WasiAlgLen);
 
   AsymmetricCommon::Algorithm WasiAlg;
   if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
-          [Alg, WasiAlgLen](auto WasiAlgType) {
-            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
-          });
+          [Alg](auto WasiAlgType) { return tryFrom(WasiAlgType, Alg); });
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -354,9 +342,9 @@ Expect<uint32_t> PublickeyImport::body(const Runtime::CallingFrame &Frame,
   }
 
   const __wasi_size_t WasiEncodedLen = EncodedLen;
-  auto *const Encoded =
-      MemInst->getPointer<const uint8_t *>(EncodedPtr, WasiEncodedLen);
-  checkExist(Encoded);
+  const auto Encoded =
+      MemInst->getSpan<const uint8_t>(EncodedPtr, WasiEncodedLen);
+  checkRangeExist(Encoded, WasiEncodedLen);
 
   __wasi_publickey_encoding_e_t WasiPkEncoding;
   if (auto Res = cast<__wasi_publickey_encoding_e_t>(Encoding); !Res) {
@@ -368,8 +356,7 @@ Expect<uint32_t> PublickeyImport::body(const Runtime::CallingFrame &Frame,
   auto *const PkHandle = MemInst->getPointer<__wasi_publickey_t *>(PkHandlePtr);
   checkExist(PkHandle);
 
-  if (auto Res = Ctx.publickeyImport(WasiAlg, {Encoded, WasiEncodedLen},
-                                     WasiPkEncoding);
+  if (auto Res = Ctx.publickeyImport(WasiAlg, Encoded, WasiPkEncoding);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -452,14 +439,12 @@ Expect<uint32_t> SecretkeyImport::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
-  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
-  checkExist(Alg);
+  const auto Alg = MemInst->getStringView(AlgPtr, WasiAlgLen);
+  checkRangeExist(Alg, WasiAlgLen);
 
   AsymmetricCommon::Algorithm WasiAlg;
   if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
-          [Alg, WasiAlgLen](auto WasiAlgType) {
-            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
-          });
+          [Alg](auto WasiAlgType) { return tryFrom(WasiAlgType, Alg); });
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -467,9 +452,9 @@ Expect<uint32_t> SecretkeyImport::body(const Runtime::CallingFrame &Frame,
   }
 
   const __wasi_size_t WasiEncodedLen = EncodedLen;
-  auto *const Encoded =
-      MemInst->getPointer<const uint8_t *>(EncodedPtr, WasiEncodedLen);
-  checkExist(Encoded);
+  const auto Encoded =
+      MemInst->getSpan<const uint8_t>(EncodedPtr, WasiEncodedLen);
+  checkRangeExist(Encoded, WasiEncodedLen);
 
   auto WasiEncoding = cast<__wasi_secretkey_encoding_e_t>(Encoding);
   if (!WasiEncoding) {
@@ -479,8 +464,7 @@ Expect<uint32_t> SecretkeyImport::body(const Runtime::CallingFrame &Frame,
   auto *const SkHandle = MemInst->getPointer<__wasi_secretkey_t *>(SkHandlePtr);
   checkExist(SkHandle);
 
-  if (auto Res = Ctx.secretkeyImport(WasiAlg, {Encoded, WasiEncodedLen},
-                                     *WasiEncoding);
+  if (auto Res = Ctx.secretkeyImport(WasiAlg, Encoded, *WasiEncoding);
       unlikely(!Res)) {
     return Res.error();
   } else {

@@ -16,7 +16,7 @@ public:
     addHostFunc("init_execution_context",
                 std::make_unique<WasiNNMock::InitExecCtx>());
     addHostFunc("set_input", std::make_unique<WasiNNMock::SetInput>());
-    addHostFunc("get_output", std::make_unique<WasiNNMock::GetOuput>());
+    addHostFunc("get_output", std::make_unique<WasiNNMock::GetOutput>());
     addHostFunc("compute", std::make_unique<WasiNNMock::Compute>());
   }
 };

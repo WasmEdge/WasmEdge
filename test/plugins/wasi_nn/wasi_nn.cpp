@@ -39,10 +39,10 @@ inline std::vector<uint8_t> readEntireFile(const std::string &Path) {
     return {};
   }
   Fin.seekg(0, std::ios::end);
-  std::vector<uint8_t> Buf(static_cast<uint32_t>(Fin.tellg()));
+  std::vector<uint8_t> Buf(static_cast<size_t>(Fin.tellg()));
   Fin.seekg(0, std::ios::beg);
   if (!Fin.read(reinterpret_cast<char *>(Buf.data()),
-                static_cast<uint32_t>(Buf.size()))) {
+                static_cast<size_t>(Buf.size()))) {
     return {};
   }
   Fin.close();
@@ -69,7 +69,7 @@ void writeFatPointer(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 }
 
 template <typename T>
-std::vector<size_t> classSort(const std::vector<T> &Array) {
+std::vector<size_t> classSort(WasmEdge::Span<const T> Array) {
   std::vector<size_t> Indices(Array.size());
   std::iota(Indices.begin(), Indices.end(), 0);
   std::sort(Indices.begin(), Indices.end(),
@@ -143,7 +143,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOuput &>(FuncInst->getHostFunc());
+      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
@@ -326,7 +326,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
 
   // Swap to the tmp. env.
-  NNContextTmp.emplace_back(NNGraphTmp[0]);
+  NNContextTmp.emplace_back(0, NNGraphTmp[0]);
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   NNContextTmp.swap(NNMod->getEnv().NNContext);
   // Test: set_input -- context id exceeds.
@@ -472,9 +472,8 @@ TEST(WasiNNTest, OpenVINOBackend) {
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), UINT32_C(4004));
-    std::vector<float> OutputClassification(
-        MemInst.getPointer<float *>(StorePtr, 1001) + 1,
-        MemInst.getPointer<float *>(StorePtr, 1001) + 1001);
+    const auto OutputClassification =
+        MemInst.getSpan<const float>(StorePtr, 1001).subspan(1);
     std::vector<size_t> SortedIndex, CorrectClasses{963, 762, 909, 926, 567};
     SortedIndex = classSort<float>(OutputClassification);
     // The probability of class i is placed at buffer[i].
@@ -544,7 +543,7 @@ TEST(WasiNNTest, PyTorchBackend) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOuput &>(FuncInst->getHostFunc());
+      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
@@ -727,7 +726,7 @@ TEST(WasiNNTest, PyTorchBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  NNContextTmp.emplace_back(NNGraphTmp[0]);
+  NNContextTmp.emplace_back(0, NNGraphTmp[0]);
 
   // Test: set_input -- tensor type not FP32.
   BuilderPtr = SetInputEntryPtr;
@@ -837,9 +836,8 @@ TEST(WasiNNTest, PyTorchBackend) {
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), UINT32_C(4000));
-    std::vector<float> OutputClassification(
-        MemInst.getPointer<float *>(StorePtr, 1000),
-        MemInst.getPointer<float *>(StorePtr, 1000) + 1000);
+    const auto OutputClassification =
+        MemInst.getSpan<const float>(StorePtr, 1000);
     std::vector<size_t> SortedIndex, CorrectClasses{954, 940, 951, 950, 953};
     SortedIndex = classSort<float>(OutputClassification);
     // The probability of class i is placed at buffer[i].
@@ -910,7 +908,7 @@ TEST(WasiNNTest, TFLiteBackend) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOuput &>(FuncInst->getHostFunc());
+      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
@@ -1100,7 +1098,7 @@ TEST(WasiNNTest, TFLiteBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  NNContextTmp.emplace_back(NNGraphTmp[0]);
+  NNContextTmp.emplace_back(0, NNGraphTmp[0]);
 
   // Test: set_input -- set input successfully.
   BuilderPtr = SetInputEntryPtr;
@@ -1194,9 +1192,8 @@ TEST(WasiNNTest, TFLiteBackend) {
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), UINT32_C(965));
-    std::vector<uint8_t> OutputClassification(
-        MemInst.getPointer<uint8_t *>(StorePtr, 965),
-        MemInst.getPointer<uint8_t *>(StorePtr, 965) + 965);
+    const auto OutputClassification =
+        MemInst.getSpan<const uint8_t>(StorePtr, 965);
     std::vector<size_t> SortedIndex, CorrectClasses{166, 158, 34, 778, 819};
     // FIXME: classSort causing segmentation fault
     SortedIndex = classSort<uint8_t>(OutputClassification);

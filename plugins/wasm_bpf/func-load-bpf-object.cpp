@@ -12,13 +12,13 @@ Expect<handle_t> LoadBpfObject::body(const Runtime::CallingFrame &Frame,
   if (unlikely(!memory)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  char *const object_buffer = memory->getPointer<char *>(obj_buf, obj_buf_sz);
-  if (!object_buffer) {
+  const auto object_buffer = memory->getSpan<char>(obj_buf, obj_buf_sz);
+  if (object_buffer.size() != obj_buf_sz) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto program = std::make_unique<wasm_bpf_program>();
   int32_t res =
-      program->load_bpf_object(object_buffer, static_cast<size_t>(obj_buf_sz));
+      program->load_bpf_object(object_buffer.data(), object_buffer.size());
   if (res < 0)
     return 0;
   auto key = reinterpret_cast<uint64_t>(program.get());

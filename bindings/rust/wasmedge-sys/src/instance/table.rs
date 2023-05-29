@@ -278,13 +278,13 @@ unsafe impl Sync for InnerTableType {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{instance::function::NeverType, CallingFrame, FuncType, Function};
+    use crate::{CallingFrame, FuncType, Function};
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
     use wasmedge_macro::sys_host_function;
-    use wasmedge_types::{error::HostFuncError, RefType, ValType};
+    use wasmedge_types::{error::HostFuncError, NeverType, RefType, ValType};
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
@@ -346,7 +346,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create::<NeverType>(&func_ty, Box::new(real_add), None, 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -488,9 +488,10 @@ mod tests {
     }
 
     #[sys_host_function]
-    fn real_add(
+    fn real_add<T>(
         _frame: CallingFrame,
         input: Vec<WasmValue>,
+        _: Option<&mut T>,
     ) -> Result<Vec<WasmValue>, HostFuncError> {
         println!("Rust: Entering Rust function real_add");
 

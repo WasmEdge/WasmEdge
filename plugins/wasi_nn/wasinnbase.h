@@ -16,6 +16,10 @@ public:
       : Runtime::HostFunction<T>(0), Env(HostEnv) {}
 
 protected:
+  static constexpr uint32_t castErrNo(WASINN::ErrNo E) noexcept {
+    return static_cast<uint32_t>(E);
+  }
+
   WASINN::WasiNNEnvironment &Env;
 };
 

@@ -12,9 +12,10 @@ namespace WasmEdge {
 namespace Host {
 
 #define ensure_memory_size(var, offset, size)                                  \
-  void *var = memory->getPointer<char *>(offset, size);                        \
-  if (!var)                                                                    \
-    return Unexpect(ErrCode::Value::HostFuncError);
+  const auto var##_span = memory->getSpan<char>(offset, size);                 \
+  if (var##_span.size() != size)                                               \
+    return Unexpect(ErrCode::Value::HostFuncError);                            \
+  const auto var = var##_span.data();
 Expect<int32_t>
 BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
                     int32_t cmd, uint32_t key, uint32_t value,

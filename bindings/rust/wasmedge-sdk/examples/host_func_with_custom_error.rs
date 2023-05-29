@@ -58,7 +58,11 @@ impl From<u32> for MyError {
 
 // compute the sum of two numbers, which are less than 100
 #[host_function]
-fn real_add(_caller: Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn real_add<T>(
+    _caller: Caller,
+    input: Vec<WasmValue>,
+    _data: Option<&mut T>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
     if input.len() != 3 {
         return Err(HostFuncError::User(MyError::InvalidArguments.into()));
     }
@@ -107,8 +111,9 @@ fn main() -> anyhow::Result<()> {
         .register_import_module(import)?;
 
     // run the export wasm function named "call_add" from func.wasm
-    let wasm_file = std::env::current_dir()?.join("examples/data/funcs.wasm");
-    let add_ref = ExternRef::new(&mut real_add);
+    let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+        .join("bindings/rust/wasmedge-sys/examples/data/funcs.wat");
+    let add_ref = ExternRef::new(&mut real_add::<NeverType>);
     let a: i32 = 1234;
     let b: i32 = 5678;
     match vm.run_func_from_file(wasm_file, "call_add", params!(add_ref, a, b)) {

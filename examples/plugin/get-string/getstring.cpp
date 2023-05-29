@@ -72,7 +72,8 @@ public:
   }
 };
 
-Runtime::Instance::ModuleInstance *create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
+Runtime::Instance::ModuleInstance *
+create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
   return new PluginModule;
 }
 

@@ -55,6 +55,9 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
     std::cout << Argv[0] << " version "sv << kVersionString << '\n';
     return EXIT_SUCCESS;
   }
+  if (Parser.isHelp()) {
+    return EXIT_SUCCESS;
+  }
 
   // Forward Results
   if (ToolSubCommand.is_selected() || ToolSelect == ToolType::Tool) {

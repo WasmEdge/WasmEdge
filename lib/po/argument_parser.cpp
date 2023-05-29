@@ -104,13 +104,13 @@ cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
   if (!HelpOpt->value()) {
     for (const auto &Desc : ArgumentDescriptors) {
       if (Desc.nargs() < Desc.min_nargs()) {
-        HelpOpt->value() = true;
+        help(Out);
+        return false;
       }
     }
-  }
-  if (HelpOpt->value()) {
+  } else {
     help(Out);
-    return false;
+    return true;
   }
   return true;
 }

@@ -67,6 +67,13 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Release .. && make -j && make install
           wasmedge -v
           wasmedgec -v
+          wasmedge compile -h
+          wasmedge run -h
           cd ../examples/wasm
-          wasmedgec fibonacci.wasm fibonacci_aot.wasm
-          wasmedge --reactor fibonacci_aot.wasm fib 30
+          wasmedgec fibonacci.wasm fibonacci_aot_c.wasm
+          wasmedge --reactor fibonacci_aot_c.wasm fib 30
+          wasmedge run --reactor fibonacci_aot_c.wasm fib 30
+          wasmedge compile fibonacci.wasm fibonacci_aot_compile.wasm
+          wasmedge --reactor fibonacci_aot_compile.wasm fib 30
+          wasmedge run --reactor fibonacci_aot_compile.wasm fib 30
+          

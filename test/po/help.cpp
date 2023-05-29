@@ -28,6 +28,7 @@ TEST(Version, Simple1) {
   std::array Args = {"test", "--version"};
   EXPECT_TRUE(Parser.parse(stdout, Args.size(), Args.data()));
   EXPECT_TRUE(Parser.isVersion());
+  EXPECT_FALSE(Parser.isHelp());
 }
 
 TEST(Help, Simple1) {
@@ -43,8 +44,9 @@ TEST(Help, Simple1) {
       .add_option("b"sv, B)
       .end_subcommand();
   std::array Args = {"test", "--help"};
-  EXPECT_FALSE(Parser.parse(stdout, Args.size(), Args.data()));
+  EXPECT_TRUE(Parser.parse(stdout, Args.size(), Args.data()));
   EXPECT_FALSE(Parser.isVersion());
+  EXPECT_TRUE(Parser.isHelp());
 }
 
 TEST(Help, Simple2) {
@@ -60,6 +62,7 @@ TEST(Help, Simple2) {
       .add_option("b"sv, B)
       .end_subcommand();
   std::array Args = {"test", "s1", "--help"};
-  EXPECT_FALSE(Parser.parse(stdout, Args.size(), Args.data()));
+  EXPECT_TRUE(Parser.parse(stdout, Args.size(), Args.data()));
   EXPECT_FALSE(Parser.isVersion());
+  EXPECT_TRUE(Parser.isHelp());
 }

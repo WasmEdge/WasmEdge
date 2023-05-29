@@ -60,7 +60,6 @@ jobs:
         run: |
           apt update
           apt install -y gcovr
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --target wasm32-wasi
           git config --global --add safe.directory $(pwd)
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_COVERAGE=ON .
           cmake --build build

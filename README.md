@@ -75,7 +75,7 @@ We host a monthly community meeting to showcase new features, demo new use cases
 
 Time: The first Tuesday of each month at 11PM Hong Kong Time/ 7AM PST.
 
-[Public meeting agenda/notes](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoom link](https://us06web.zoom.us/j/88282362606?pwd=UFhOdzlVKyswdW43c21BKy9DdkdyUT09)
+[Public meeting agenda/notes](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoom link](https://us06web.zoom.us/j/89156807241?pwd=VHl5VW5BbmY2eUtTYkY0Zm9yUHRRdz09)
 
 # License
 

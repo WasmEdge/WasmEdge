@@ -69,10 +69,14 @@ jobs:
           otool -L ./build/tools/wasmedge/wasmedgec
           echo "otool -L ./build/lib/api/libwasmedge.dylib:"
           otool -L ./build/lib/api/libwasmedge.dylib
-          echo "./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib.dylib"
-          ./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib.dylib
-          echo "./build/tools/wasmedge/wasmedge --reactor fib.dylib fib 20"
-          ./build/tools/wasmedge/wasmedge --reactor fib.dylib fib 20
+          echo "./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib_c.dylib"
+          ./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib_c.dylib
+          echo "./build/tools/wasmedge/wasmedge --reactor fib_c.dylib fib 20"
+          ./build/tools/wasmedge/wasmedge --reactor fib_c.dylib fib 20
+          echo "./build/tools/wasmedge/wasmedge compile examples/wasm/fibonacci.wasm fib_compile.dylib"
+          ./build/tools/wasmedge/wasmedge compile examples/wasm/fibonacci.wasm fib_compile.dylib
+          echo "./build/tools/wasmedge/wasmedge --reactor fib_compile.dylib fib 20"
+          ./build/tools/wasmedge/wasmedge --reactor fib_compile.dylib fib 20
       - name: Upload artifact
         if: ${{ !inputs.release }}
         uses: actions/upload-artifact@v3

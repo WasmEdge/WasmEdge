@@ -15,6 +15,7 @@
 
 #include <ostream>
 
+// If there is a built-in type __int128, then use it directly
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64)
 
@@ -26,12 +27,16 @@ std::ostream &operator<<(std::ostream &OS, uint128_t Value);
 
 #else
 
-#include <boost/predef/other/endian.h>
+// We have to detect for those environments who don't support __int128 type
+// natively.
+#include "endian.h"
+
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
 
-#if !BOOST_ENDIAN_LITTLE_BYTE
+// Currently, only byte-swapped little endian is handled.
+#if !WASMEDGE_ENDIAN_LITTLE_BYTE
 #error unsupported endian!
 #endif
 

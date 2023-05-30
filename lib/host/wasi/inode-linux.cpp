@@ -1156,7 +1156,8 @@ INode::sockRecvFromV1(Span<Span<uint8_t>> RiData, __wasi_riflags_t RiFlags,
     ++SysIOVsSize;
   }
 
-  sockaddr_storage SockAddrStorage;
+  sockaddr_storage SockAddrStorage{};
+
   int MaxAllowLength = 0;
   if (AddressLength == 4) {
     MaxAllowLength = sizeof(sockaddr_in);
@@ -1233,7 +1234,7 @@ WasiExpect<void> INode::sockRecvFromV2(
     ++SysIOVsSize;
   }
 
-  sockaddr_storage SockAddrStorage;
+  sockaddr_storage SockAddrStorage{};
   int MaxAllowLength = sizeof(SockAddrStorage);
 
   msghdr SysMsgHdr;
@@ -1431,9 +1432,8 @@ WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
 WasiExpect<void> INode::sockGetLocalAddrV1(uint8_t *AddressPtr,
                                            uint32_t *AddrTypePtr,
                                            uint32_t *PortPtr) const noexcept {
-  struct sockaddr_storage SocketAddr;
+  sockaddr_storage SocketAddr{};
   socklen_t Slen = sizeof(SocketAddr);
-  std::memset(&SocketAddr, 0, sizeof(SocketAddr));
 
   if (auto Res =
           ::getsockname(Fd, reinterpret_cast<sockaddr *>(&SocketAddr), &Slen);
@@ -1469,9 +1469,8 @@ WasiExpect<void> INode::sockGetLocalAddrV2(uint8_t *AddressBufPtr,
   auto AddrFamilyPtr = getAddressFamily(AddressBufPtr);
   auto AddressPtr = getAddress(AddressBufPtr);
 
-  struct sockaddr_storage SocketAddr;
+  sockaddr_storage SocketAddr{};
   socklen_t Slen = sizeof(SocketAddr);
-  std::memset(&SocketAddr, 0, sizeof(SocketAddr));
 
   if (auto Res =
           ::getsockname(Fd, reinterpret_cast<sockaddr *>(&SocketAddr), &Slen);
@@ -1501,9 +1500,8 @@ WasiExpect<void> INode::sockGetLocalAddrV2(uint8_t *AddressBufPtr,
 WasiExpect<void> INode::sockGetPeerAddrV1(uint8_t *AddressPtr,
                                           uint32_t *AddrTypePtr,
                                           uint32_t *PortPtr) const noexcept {
-  struct sockaddr_storage SocketAddr;
+  sockaddr_storage SocketAddr{};
   socklen_t Slen = sizeof(SocketAddr);
-  std::memset(&SocketAddr, 0, sizeof(SocketAddr));
 
   if (auto Res =
           ::getpeername(Fd, reinterpret_cast<sockaddr *>(&SocketAddr), &Slen);
@@ -1539,9 +1537,8 @@ WasiExpect<void> INode::sockGetPeerAddrV2(uint8_t *AddressBufPtr,
   auto AddrFamilyPtr = getAddressFamily(AddressBufPtr);
   auto AddressPtr = getAddress(AddressBufPtr);
 
-  struct sockaddr_storage SocketAddr;
+  sockaddr_storage SocketAddr{};
   socklen_t Slen = sizeof(SocketAddr);
-  std::memset(&SocketAddr, 0, sizeof(SocketAddr));
 
   if (auto Res =
           ::getpeername(Fd, reinterpret_cast<sockaddr *>(&SocketAddr), &Slen);

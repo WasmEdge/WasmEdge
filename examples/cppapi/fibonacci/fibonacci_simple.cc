@@ -1,7 +1,7 @@
-#include<wasmedge/wasmedge.hh>
-#include<iostream>
-#include<vector>
-#include<string>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <wasmedge/wasmedge.hh>
 
 int main(int Argc, const char *Argv[]) {
   /* Create the configure context and add the WASI support. */

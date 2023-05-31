@@ -1,7 +1,7 @@
-#include<wasmedge/wasmedge.hh>
-#include<iostream>
-#include<vector>
-#include<string>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <wasmedge/wasmedge.hh>
 
 int main(int Argc, const char *Argv[]) {
   /*
@@ -50,16 +50,16 @@ int main(int Argc, const char *Argv[]) {
   WasmEdge::ModuleInstance ModInst = WasmEdge::ModuleInstance::New();
   *Res = ExecCxt.Instantiate(ModInst, StoreCxt, ASTCxt);
   if (Res->IsOk()) {
-    std::cout << "Instantiation phase failed:" << Res->GetMessage() << std::endl;
+    std::cout << "Instantiation phase failed:" << Res->GetMessage()
+              << std::endl;
     return 1;
   }
   /* Try to list the exported functions of the instantiated WASM module. */
   std::vector<std::string> FuncList = ModInst.ListFunction();
-  std::cout << "Total number of exported functions: "
-      << FuncList.size() << std::endl;
-  for (auto &FuncName: FuncList) {
-    std::cout << "Get exported function name: " <<
-        FuncName << std::endl;
+  std::cout << "Total number of exported functions: " << FuncList.size()
+            << std::endl;
+  for (auto &FuncName : FuncList) {
+    std::cout << "Get exported function name: " << FuncName << std::endl;
   }
 
   /* The parameters and returns vectors. */

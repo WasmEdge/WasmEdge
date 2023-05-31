@@ -5,8 +5,7 @@
 
 int main(int Argc, const char *Argv[]) {
   /*
-   * Create the configure context. This step is not necessary because we didn't
-   * adjust any setting.
+   * Create the configure context with default values.
    */
   WasmEdge::Configuration ConfCxt();
 
@@ -14,27 +13,27 @@ int main(int Argc, const char *Argv[]) {
    * Create the statistics context. This step is not necessary if the statistics
    * in runtime is not needed.
    */
-  WasmEdge::Statistics StatCxt();
+  WasmEdge::Statistics StatCxt = WasmEdge::Statistics::New();
 
   /*
    * Create the store context. The store context is the object to link the
    * modules for imports and exports.
    */
-  WasmEdge::Store StoreCxt();
+  WasmEdge::Store StoreCxt = WasmEdge::Store::New();
   WasmEdge::Result *Res;
 
   /* Create the loader context. */
-  WasmEdge::Loader LoadCxt(ConfCxt);
+  WasmEdge::Loader LoadCxt = WasmEdge::Loader::New(ConfCxt);
   /* Create the validator context. */
-  WasmEdge::Validator ValidCxt(ConfCxt);
+  WasmEdge::Validator ValidCxt = WasmEdge::Validator::New(ConfCxt);
   /* Create the executor context. */
-  WasmEdge::Executor ExecCxt(ConfCxt, StatCxt);
+  WasmEdge::Executor ExecCxt = WasmEdge::Executor::New(ConfCxt, StatCxt);
 
   /*
    * Load the WASM file or the compiled-WASM file and convert into the AST
    * module context.
    */
-  WasmEdge::ASTModule ASTCxt();
+  WasmEdge::ASTModule ASTCxt = WasmEdge::ASTModule::New();
   std::string Path(Argv[1]);
   *Res = LoadCxt.Parse(ASTCxt, Path);
   if (Res->IsOk()) {

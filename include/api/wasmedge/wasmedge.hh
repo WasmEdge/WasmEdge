@@ -392,9 +392,12 @@ namespace SDK{
   };
 
   class WASMEDGE_CPP_API_EXPORT Statistics {
-  public:
-    Statistics();
+  protected:
+    Statistics() = default;
     ~Statistics() = default;
+  public:
+    static Statistics New();
+    static Statistics Move(Statistics &&StatCxt);
 
     uint64_t GetInstrCount();
     double GetInstrPerSecond();
@@ -403,12 +406,6 @@ namespace SDK{
     void SetCostTable(std::vector<uint64_t> &CostArr);
     void SetCostLimit(const uint64_t Limit);
     void Clear();
-
-  private:
-    class StatisticsContext;
-    std::unique_ptr<StatisticsContext> Cxt;
-
-    friend class Executor;
   };
 
   // >>>>>>>> WasmEdge Runtime >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

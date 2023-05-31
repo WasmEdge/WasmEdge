@@ -402,7 +402,70 @@ class Async::AsyncContext: public WasmEdge::VM::Async<
 };
 
 class Configuration::ConfigureContext: public WasmEdge::Configure {};
-class Statistics::StatisticsContext: public WasmEdge::Statistics::Statistics {};
+class StatisticsContext: public Statistics {
+public:
+  StatisticsContext()
+  : Content(new WasmEdge::Statistics::Statistics), IsOwn(true) {}
+  StatisticsContext(WasmEdge::Statistics::Statistics *Content)
+  : Content(Content) {}
+  StatisticsContext(const StatisticsContext &StatCxt)
+  : Content(StatCxt.Content) {}
+  StatisticsContext(StatisticsContext &&StatCxt)
+  : Content(StatCxt.Content), IsOwn(StatCxt.IsOwn) { StatCxt.IsOwn = false; }
+
+  ~StatisticsContext() {
+    if (IsOwn) {
+      delete Content;
+    }
+  }
+
+  uint64_t GetInstrCount() {
+    if (Content) {
+      return Content->getInstrCount();
+    }
+    return 0;
+  }
+
+  double GetInstrPerSecond() {
+    if (Content) {
+      return Content->getInstrPerSecond();
+    }
+    return 0.0;
+  }
+
+  uint64_t GetTotalCost() {
+    if (Content) {
+      return Content->getTotalCost();
+    }
+    return 0;
+  }
+
+  void SetCostTable(std::vector<uint64_t> &CostArr) {
+    if (Content) {
+      Content->setCostTable(CostArr);
+    }
+  }
+
+  void SetCostLimit(const uint64_t Limit) {
+    if (Content) {
+      Content->setCostLimit(Limit);
+    }
+  }
+
+  void Clear() {
+    if (Content) {
+      Content->clear();
+    }
+  }
+
+  WasmEdge::Statistics::Statistics *GetPointer() {
+    return Content;
+  }
+
+private:
+  WasmEdge::Statistics::Statistics *Content = nullptr;
+  bool IsOwn = false;
+};
 
 class CallingFrameContext: public CallingFrame {
 public:
@@ -1025,6 +1088,8 @@ class ValidatorContext: public Validator {
 public:
   ValidatorContext(WasmEdge::Configure &Conf)
   : Content(new WasmEdge::Validator::Validator(Conf)), IsOwn(true) {}
+  ValidatorContext(WasmEdge::Validator::Validator *Content)
+  : Content(Content) {}
   ValidatorContext(const ValidatorContext &ValidCxt)
   : Content(ValidCxt.Content) {}
   ValidatorContext(ValidatorContext &&ValidCxt)
@@ -1755,32 +1820,42 @@ bool Configuration::StatisticsIsTimeMeasuring() {
 
 // >>>>>>>> WasmEdge Statistics >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-Statistics::Statistics() {
-  this->Cxt = std::make_unique<Statistics::StatisticsContext>();
+Statistics Statistics::New() {
+  return StatisticsContext();
+}
+
+Statistics Statistics::Move(Statistics &&StatCxt) {
+  return StatisticsContext(static_cast<StatisticsContext &&>(StatCxt));
 }
 
 uint64_t Statistics::GetInstrCount() {
-  return Cxt->getInstrCount();
+  return static_cast<StatisticsContext *>
+      (this)->GetInstrCount();
 }
 
 double Statistics::GetInstrPerSecond() {
-  return Cxt->getInstrPerSecond();
+  return static_cast<StatisticsContext *>
+      (this)->GetInstrPerSecond();
 }
 
 uint64_t Statistics::GetTotalCost() {
-  return Cxt->getTotalCost();
+  return static_cast<StatisticsContext *>
+      (this)->GetTotalCost();
 }
 
 void Statistics::SetCostTable(std::vector<uint64_t> &CostArr) {
-  Cxt->setCostTable(CostArr);
+  static_cast<StatisticsContext *>
+      (this)->SetCostTable(CostArr);
 }
 
 void Statistics::SetCostLimit(const uint64_t Limit) {
-  Cxt->setCostLimit(Limit);
+  static_cast<StatisticsContext *>
+      (this)->SetCostLimit(Limit);
 }
 
 void Statistics::Clear() {
-  Cxt->clear();
+  static_cast<StatisticsContext *>
+      (this)->Clear();
 }
 
 // <<<<<<<< WasmEdge Statistics <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1832,7 +1907,8 @@ Result Validator::Validate(const ASTModule &ASTCxt) {
 // >>>>>>>> WasmEdge Executor >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 Executor Executor::New(const Configuration &ConfCxt, Statistics &StatCxt) {
-  return ExecutorContext(*ConfCxt.Cxt, StatCxt.Cxt.get());
+  return ExecutorContext(*ConfCxt.Cxt,
+      static_cast<StatisticsContext &>(StatCxt).GetPointer());
 }
 
 Executor Executor::Move(Executor &&ExecCxt) {
@@ -2434,24 +2510,25 @@ std::vector<std::string> VM::ListRegisteredModule() {
 }
 
 Store VM::GetStoreContext() {
-  
+  return StoreContext(&Cxt->getStoreManager());
 }
 
 Loader VM::GetLoaderContext() {
-
+  return LoaderContext(&Cxt->getLoader());
 }
 
 Validator VM::GetValidatorContext() {
-
+  return ValidatorContext(&Cxt->getValidator());
 }
 
 Executor VM::GetExecutorContext() {
-
+  return ExecutorContext(&Cxt->getExecutor());
 }
 
-Statistics GetStatisticsContext() {
-
+Statistics VM::GetStatisticsContext() {
+  return StatisticsContext(&Cxt->getStatistics());
 }
+
 // <<<<<<<< WasmEdge VM <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 }

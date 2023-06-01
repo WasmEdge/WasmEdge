@@ -157,7 +157,7 @@ Expect<ErrNo> reportBackendNotSupported() noexcept {
 } // namespace
 
 Expect<ErrNo> load(WasiNNEnvironment &, Span<const Span<uint8_t>>, Device,
-                   uint32_t *) noexcept {
+                   uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
 Expect<ErrNo> initExecCtx(WasiNNEnvironment &, uint32_t, uint32_t &) noexcept {

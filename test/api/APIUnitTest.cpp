@@ -2688,7 +2688,7 @@ TEST(APICoreTest, VM) {
   WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
   WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
   WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
-  WasmEdge_String ModName, ModName2, FuncName, FuncName2, Names[15];
+  WasmEdge_String ModName, ModName2, FuncName, FuncName2, Names[20];
   WasmEdge_Value P[10], R[10];
   const WasmEdge_FunctionTypeContext *FuncTypes[15];
 
@@ -2937,16 +2937,16 @@ TEST(APICoreTest, VM) {
       WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, nullptr, 1)));
 
   // VM get registered module
-  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 13U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 16U);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(nullptr), 0U);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(nullptr, Names, 15), 0U);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 15), 13U);
-  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 13U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(nullptr, Names, 20), 0U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 20), 16U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 20);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 16U);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
   EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string(""));
-  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 15), 13U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 20);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 20), 16U);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
   EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length),
             std::string("reg-wasm-ast"));

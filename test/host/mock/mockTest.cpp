@@ -4,7 +4,10 @@
 #include "host/mock/wasi_crypto_module.h"
 #include "host/mock/wasi_logging_module.h"
 #include "host/mock/wasi_nn_module.h"
+#include "host/mock/wasmedge_image_module.h"
 #include "host/mock/wasmedge_process_module.h"
+#include "host/mock/wasmedge_tensorflow_module.h"
+#include "host/mock/wasmedge_tensorflowlite_module.h"
 #include "runtime/instance/module.h"
 
 #include <gtest/gtest.h>
@@ -513,6 +516,122 @@ TEST(HostMockTest, WasiLogging) {
   WasmEdge::Host::WasiLoggingModuleMock WasiLoggingModule;
   EXPECT_EQ(WasiLoggingModule.getModuleName(), "wasi:logging/logging");
   EXPECT_EQ(WasiLoggingModule.getFuncExportNum(), 1U);
+}
+
+TEST(HostMockTest, WasmEdgeTensorflow) {
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  WasmEdge::Host::WasmEdgeTensorflowMock::CreateSession TFCreateSession;
+  WasmEdge::Host::WasmEdgeTensorflowMock::DeleteSession TFDeleteSession;
+  WasmEdge::Host::WasmEdgeTensorflowMock::RunSession TFRunSession;
+  WasmEdge::Host::WasmEdgeTensorflowMock::GetOutputTensor TFGetOutputTensor;
+  WasmEdge::Host::WasmEdgeTensorflowMock::GetTensorLen TFGetTensorLen;
+  WasmEdge::Host::WasmEdgeTensorflowMock::GetTensorData TFGetTensorData;
+  WasmEdge::Host::WasmEdgeTensorflowMock::AppendInput TFAppendInput;
+  WasmEdge::Host::WasmEdgeTensorflowMock::AppendOutput TFAppendOutput;
+  WasmEdge::Host::WasmEdgeTensorflowMock::ClearInput TFClearInput;
+  WasmEdge::Host::WasmEdgeTensorflowMock::ClearOutput TFClearOutput;
+
+  EXPECT_TRUE(TFCreateSession.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 3>{0, 0, 0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFDeleteSession.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 1>{0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFRunSession.run(CallFrame,
+                               std::array<WasmEdge::ValVariant, 1>{0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFGetOutputTensor.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 4>{0, 0, 0, 0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFGetTensorLen.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 3>{0, 0, 0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFGetTensorData.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 5>{0, 0, 0, 0, 0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFAppendInput.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 8>{0, 0, 0, 0, 0, 0, 0, 0},
+      Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFAppendOutput.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 3>{0, 0, 0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFClearInput.run(CallFrame,
+                               std::array<WasmEdge::ValVariant, 1>{0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFClearOutput.run(CallFrame,
+                                std::array<WasmEdge::ValVariant, 1>{0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+
+  WasmEdge::Host::WasmEdgeTensorflowModuleMock TensorflowModule;
+  EXPECT_EQ(TensorflowModule.getModuleName(), "wasmedge_tensorflow");
+  EXPECT_EQ(TensorflowModule.getFuncExportNum(), 10U);
+}
+
+TEST(HostMockTest, WasmEdgeTensorflowLite) {
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  WasmEdge::Host::WasmEdgeTensorflowLiteMock::CreateSession TFLiteCreateSession;
+  WasmEdge::Host::WasmEdgeTensorflowLiteMock::DeleteSession TFLiteDeleteSession;
+  WasmEdge::Host::WasmEdgeTensorflowLiteMock::RunSession TFLiteRunSession;
+  WasmEdge::Host::WasmEdgeTensorflowLiteMock::GetOutputTensor
+      TFLiteGetOutputTensor;
+  WasmEdge::Host::WasmEdgeTensorflowLiteMock::GetTensorLen TFLiteGetTensorLen;
+  WasmEdge::Host::WasmEdgeTensorflowLiteMock::GetTensorData TFLiteGetTensorData;
+  WasmEdge::Host::WasmEdgeTensorflowLiteMock::AppendInput TFLiteAppendInput;
+
+  EXPECT_TRUE(TFLiteCreateSession.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 3>{0, 0, 0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFLiteDeleteSession.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 1>{0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFLiteRunSession.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 1>{0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFLiteGetOutputTensor.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 4>{0, 0, 0, 0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFLiteGetTensorLen.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 3>{0, 0, 0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFLiteGetTensorData.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 5>{0, 0, 0, 0, 0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(TFLiteAppendInput.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 5>{0, 0, 0, 0, 0}, Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+
+  WasmEdge::Host::WasmEdgeTensorflowLiteModuleMock TensorflowLiteModule;
+  EXPECT_EQ(TensorflowLiteModule.getModuleName(), "wasmedge_tensorflowlite");
+  EXPECT_EQ(TensorflowLiteModule.getFuncExportNum(), 7U);
+}
+
+TEST(HostMockTest, WasmEdgeImage) {
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  WasmEdge::Host::WasmEdgeImageMock::LoadJPG ImageLoadJPG;
+  WasmEdge::Host::WasmEdgeImageMock::LoadPNG ImageLoadPNG;
+
+  EXPECT_TRUE(ImageLoadJPG.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 7>{0, 0, 0, 0, 0, 0, 0},
+      Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(ImageLoadPNG.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 7>{0, 0, 0, 0, 0, 0, 0},
+      Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+
+  WasmEdge::Host::WasmEdgeImageModuleMock ImageModule;
+  EXPECT_EQ(ImageModule.getModuleName(), "wasmedge_image");
+  EXPECT_EQ(ImageModule.getFuncExportNum(), 2U);
 }
 
 GTEST_API_ int main(int argc, char **argv) {

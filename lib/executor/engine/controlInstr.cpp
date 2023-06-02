@@ -47,7 +47,8 @@ Expect<void> Executor::runTryOp(Runtime::StackManager &StackMgr,
     for (auto CatchOffset : Instr.getTryBlockJumpCatch()) {
       auto CatchInstrIt = PC + CatchOffset;
       StackMgr.addCatchCaluseToLastHandler(
-          getTagInstByIdx(StackMgr, CatchInstrIt->getTagIdx()), CatchInstrIt);
+          getTagInstByIdx(StackMgr, CatchInstrIt->getTargetIndex()),
+          CatchInstrIt);
     }
     if (auto CatchAllOffset = Instr.getTryBlockJumpCatchAll(); CatchAllOffset) {
       auto CatchAllInstrIt = PC + CatchAllOffset;
@@ -60,7 +61,7 @@ Expect<void> Executor::runTryOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runThrowOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr,
                                   AST::InstrView::iterator &PC) noexcept {
-  auto *TagInst = getTagInstByIdx(StackMgr, Instr.getTagIdx());
+  auto *TagInst = getTagInstByIdx(StackMgr, Instr.getTargetIndex());
   return throwException(StackMgr, TagInst, PC);
 }
 

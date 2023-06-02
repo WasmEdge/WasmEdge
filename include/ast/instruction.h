@@ -247,10 +247,6 @@ public:
     Data.TryBlock.COffset = Num;
   }
 
-  /// Getter of tag index.
-  uint32_t getTagIdx() const noexcept { return Data.Tag.TagIdx; }
-  uint32_t &getTagIdx() noexcept { return Data.Tag.TagIdx; }
-
   /// Getter and setter of the constant value.
   ValVariant getNum() const noexcept {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
@@ -363,10 +359,6 @@ private:
       uint32_t COffset;
       BlockType ResType;
     } TryBlock;
-    // Type 11: Tag
-    struct {
-      uint32_t TagIdx;
-    } Tag;
   } Data;
   uint32_t Offset = 0;
   OpCode Code = OpCode::End;

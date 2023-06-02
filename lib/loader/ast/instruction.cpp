@@ -351,7 +351,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Catch:
   case OpCode::Throw:
-    return readU32(Instr.getTagIdx());
+    return readU32(Instr.getTargetIndex());
 
   // Reference Instructions.
   case OpCode::Ref__null:

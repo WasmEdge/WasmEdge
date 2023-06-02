@@ -402,7 +402,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       const_cast<AST::Instruction &>(Instr).setTryLast();
     }
     if (auto Res = popCtrl()) {
-      auto N = Instr.getTagIdx();
+      auto N = Instr.getTargetIndex();
       if (N >= Tags.size()) {
         return logOutOfRange(ErrCode::Value::InvalidTagIdx,
                              ErrInfo::IndexCategory::Tag, N,
@@ -447,7 +447,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return {};
 
   case OpCode::Throw: {
-    auto N = Instr.getTagIdx();
+    auto N = Instr.getTargetIndex();
     if (N >= Tags.size()) {
       return logOutOfRange(ErrCode::Value::InvalidTagIdx,
                            ErrInfo::IndexCategory::Tag, N,

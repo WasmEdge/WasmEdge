@@ -1,18 +1,23 @@
-pub mod logging;
+wit_bindgen::generate!({ path: "wasi-logging/wit" });
+
+use wasi::logging::logging::{
+    Level, 
+    log,
+};
 
 fn title_bar(context: &str, message: &str) {
-  logging::log(logging::Level::Info, "", "===================================");
-  logging::log(logging::Level::Info, context, message);
-  logging::log(logging::Level::Info, "", "-----------------------------------");
+  log(Level::Info, "", "===================================");
+  log(Level::Info, context, message);
+  log(Level::Info, "", "-----------------------------------");
 }
 
 fn demo_template(context: &str) {
-  logging::log(logging::Level::Trace, context, "Trace Level Message");
-  logging::log(logging::Level::Debug, context, "Debug Level Message");
-  logging::log(logging::Level::Info, context, "Info Level Message");
-  logging::log(logging::Level::Warn, context, "Warn Level Message");
-  logging::log(logging::Level::Error, context, "Error Level Message");
-  logging::log(logging::Level::Critical, context, "Critical Level Message");
+  log(Level::Trace, context, "Trace Level Message");
+  log(Level::Debug, context, "Debug Level Message");
+  log(Level::Info, context, "Info Level Message");
+  log(Level::Warn, context, "Warn Level Message");
+  log(Level::Error, context, "Error Level Message");
+  log(Level::Critical, context, "Critical Level Message");
 }
 
 pub fn wasi_logging_demo() {

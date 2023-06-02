@@ -1,0 +1,3 @@
+[submodule "examples/plugin/wasi-logging/wasi-logging"]
+	path = examples/plugin/wasi-logging/wasi-logging
+	url = https://github.com/WebAssembly/wasi-logging.git

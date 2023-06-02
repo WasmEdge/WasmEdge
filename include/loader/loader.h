@@ -184,6 +184,14 @@ private:
     }
     return {};
   }
+  /// @}
+
+  /// \name Helper function to set the function type for tag
+  /// @{
+  void setTagFunctionType(AST::TagSection &TagSec,
+                                  AST::ImportSection &ImportSec,
+                                  AST::TypeSection &TypeSec);
+  /// @}
 
   /// \name Load AST nodes functions
   /// @{
@@ -213,7 +221,7 @@ private:
   Expect<void> loadType(AST::MemoryType &MemType);
   Expect<void> loadType(AST::TableType &TabType);
   Expect<void> loadType(AST::GlobalType &GlobType);
-  Expect<void> loadTag(AST::Tag &TagToLoad);
+  Expect<void> loadType(AST::TagType &TgType);
   Expect<void> loadExpression(AST::Expression &Expr,
                               std::optional<uint64_t> SizeBound = std::nullopt);
   Expect<OpCode> loadOpCode();

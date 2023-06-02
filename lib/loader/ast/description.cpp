@@ -67,8 +67,8 @@ Expect<void> Loader::loadDesc(AST::ImportDesc &ImpDesc) {
     return {};
   }
   case ExternalType::Tag: {
-    // Read the Tag node.
-    return loadTag(ImpDesc.getExternalTag());
+    // Read the Tag type node.
+    return loadType(ImpDesc.getExternalTagType());
   }
   default:
     return logLoadError(ErrCode::Value::MalformedImportKind,

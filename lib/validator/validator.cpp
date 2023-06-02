@@ -301,7 +301,7 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
     return {};
   }
   case ExternalType::Tag: {
-    const auto &T = ImpDesc.getExternalTag();
+    const auto &T = ImpDesc.getExternalTagType();
     // Tag type index must exist in context.
     auto TagTypeIdx = T.getTypeIdx();
     if (TagTypeIdx >= Checker.getTypes().size()) {

@@ -275,6 +275,9 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
     }
   }
 
+  setTagFunctionType(Mod->getTagSection(), Mod->getImportSection(),
+                     Mod->getTypeSection());
+
   // Verify the function section and code section are matched.
   if (Mod->getFunctionSection().getContent().size() !=
       Mod->getCodeSection().getContent().size()) {

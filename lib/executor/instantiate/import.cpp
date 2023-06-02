@@ -237,10 +237,10 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     }
     case ExternalType::Tag: {
       // Get tag type. External type checked in validation.
-      const auto &T = ImpDesc.getExternalTag();
+      const auto &T = ImpDesc.getExternalTagType();
       // Import matching.
       auto *TargetInst = TargetModInst->findTagExports(ExtName);
-      const auto &TargetType = TargetInst->getTagType().getFunctionType();
+      const auto &TargetType = TargetInst->getTagType().getFuncType();
       const auto *TType = *ModInst.getFuncType(T.getTypeIdx());
       if (TargetType != *TType) {
         return logMatchError(ModName, ExtName, ExtType, TType->getParamTypes(),

@@ -232,13 +232,13 @@ private:
 class TagSection : public Section {
 public:
   /// Getter of content vector.
-  Span<const Tag> getContent() const noexcept { return Content; }
-  std::vector<Tag> &getContent() noexcept { return Content; }
+  Span<const TagType> getContent() const noexcept { return Content; }
+  std::vector<TagType> &getContent() noexcept { return Content; }
 
 private:
   /// \name Data of TagSection.
   /// @{
-  std::vector<Tag> Content;
+  std::vector<TagType> Content;
   /// @}
 };
 

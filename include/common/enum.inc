@@ -968,7 +968,7 @@ E(Function, 0x00U, "function")
 E(Table, 0x01U, "table")
 E(Memory, 0x02U, "memory")
 E(Global, 0x03U, "global")
-E(Tag, 0x04, "tag")
+E(Tag, 0x04U, "tag")
 
 #undef E
 #endif // UseExternalType

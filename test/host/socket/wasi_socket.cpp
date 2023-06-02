@@ -1270,7 +1270,11 @@ TEST(WasiSockTest, GetAddrinfo) {
       EXPECT_NE(ResItem->ai_addrlen, 0);
       auto *TmpSockAddr =
           MemInst.getPointer<__wasi_sockaddr_t *>(ResItem->ai_addr);
-      EXPECT_EQ(TmpSockAddr->sa_data_len, 14);
+      #if WASMEDGE_OS_MACOS
+        EXPECT_EQ(TmpSockAddr->sa_data_len, 15);
+      #else 
+        EXPECT_EQ(TmpSockAddr->sa_data_len, 14);
+      #endif
       EXPECT_EQ(MemInst.getSpan<char>(TmpSockAddr->sa_data,
                                       TmpSockAddr->sa_data_len)[0],
                 'i');
@@ -1317,7 +1321,11 @@ TEST(WasiSockTest, GetAddrinfo) {
                  "google.com");
     auto *WasiSockAddr =
         MemInst.getPointer<__wasi_sockaddr_t *>(ResHead->ai_addr);
-    EXPECT_EQ(WasiSockAddr->sa_data_len, 14);
+      #if WASMEDGE_OS_MACOS
+        EXPECT_EQ(WasiSockAddr->sa_data_len, 15);
+      #else 
+        EXPECT_EQ(WasiSockAddr->sa_data_len, 14);
+      #endif
   }
 }
 

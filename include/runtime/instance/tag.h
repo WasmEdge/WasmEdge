@@ -22,7 +22,8 @@ namespace Instance {
 class TagInstance {
 public:
   TagInstance() = delete;
-  TagInstance(const AST::TagType &T, const AST::FunctionType* F) noexcept : TgType(T, F) {}
+  TagInstance(const AST::TagType &T, const AST::FunctionType *F) noexcept
+      : TgType(T, F) {}
 
   /// Getter of tag type.
   const AST::TagType &getTagType() const noexcept { return TgType; }

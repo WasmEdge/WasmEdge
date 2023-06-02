@@ -549,31 +549,22 @@ public:
   sockOpen(VFS &FS, __wasi_address_family_t SysDomain,
            __wasi_sock_type_t SockType);
 
-  WasiExpect<void> sockBindV1(uint8_t *Address, uint8_t AddressLength,
-                              uint16_t Port) noexcept {
-    return Node.sockBindV1(Address, AddressLength, Port);
-  }
-
-  WasiExpect<void> sockBindV2(uint8_t *Address, uint8_t AddressLength,
-                              uint16_t Port) noexcept {
-    return Node.sockBindV2(Address, AddressLength, Port);
+  WasiExpect<void> sockBind(__wasi_address_family_t AddressFamily,
+                            Span<const uint8_t> Address,
+                            uint16_t Port) noexcept {
+    return Node.sockBind(AddressFamily, Address, Port);
   }
 
   WasiExpect<void> sockListen(int32_t Backlog) noexcept {
     return Node.sockListen(Backlog);
   }
 
-  WasiExpect<std::shared_ptr<VINode>> sockAcceptV1();
-  WasiExpect<std::shared_ptr<VINode>> sockAcceptV2(__wasi_fdflags_t FdFlags);
+  WasiExpect<std::shared_ptr<VINode>> sockAccept(__wasi_fdflags_t FdFlags);
 
-  WasiExpect<void> sockConnectV1(uint8_t *Address, uint8_t AddressLength,
-                                 uint16_t Port) noexcept {
-    return Node.sockConnectV1(Address, AddressLength, Port);
-  }
-
-  WasiExpect<void> sockConnectV2(uint8_t *Address, uint8_t AddressLength,
-                                 uint16_t Port) noexcept {
-    return Node.sockConnectV2(Address, AddressLength, Port);
+  WasiExpect<void> sockConnect(__wasi_address_family_t AddressFamily,
+                               Span<const uint8_t> Address,
+                               uint16_t Port) noexcept {
+    return Node.sockConnect(AddressFamily, Address, Port);
   }
 
   /// Receive a message from a socket.
@@ -599,39 +590,20 @@ public:
   ///
   /// @param[in] RiData List of scatter/gather vectors to which to store data.
   /// @param[in] RiFlags Message flags.
-  /// @param[in] Address Address of the target.
-  /// @param[in] AddressLength The buffer size of Address.
+  /// @param[out] AddressFamilyPtr The pointer to store address family.
+  /// @param[out] Address The buffer to store address.
+  /// @param[out] PortPtr The pointer to store port.
   /// @param[out] NRead Return the number of bytes stored in RiData.
   /// @param[out] RoFlags Return message flags.
   /// @return Nothing or WASI error.
-  WasiExpect<void> sockRecvFromV1(Span<Span<uint8_t>> RiData,
-                                  __wasi_riflags_t RiFlags, uint8_t *Address,
-                                  uint8_t AddressLength, __wasi_size_t &NRead,
-                                  __wasi_roflags_t &RoFlags) const noexcept {
-    return Node.sockRecvFromV1(RiData, RiFlags, Address, AddressLength, NRead,
-                               RoFlags);
-  }
-
-  /// Receive a message from a socket.
-  ///
-  /// Note: This is similar to `recvfrom` in POSIX, though it also supports
-  /// reading the data into multiple buffers in the manner of `readv`.
-  ///
-  /// @param[in] RiData List of scatter/gather vectors to which to store data.
-  /// @param[in] RiFlags Message flags.
-  /// @param[in] Address Address of the target.
-  /// @param[in] AddressLength The buffer size of Address.
-  /// @param[out] PortPtr The port from the given address.
-  /// @param[out] NRead Return the number of bytes stored in RiData.
-  /// @param[out] RoFlags Return message flags.
-  /// @return Nothing or WASI error.
-  WasiExpect<void> sockRecvFromV2(Span<Span<uint8_t>> RiData,
-                                  __wasi_riflags_t RiFlags, uint8_t *Address,
-                                  uint8_t AddressLength, uint32_t *PortPtr,
-                                  __wasi_size_t &NRead,
-                                  __wasi_roflags_t &RoFlags) const noexcept {
-    return Node.sockRecvFromV2(RiData, RiFlags, Address, AddressLength, PortPtr,
-                               NRead, RoFlags);
+  WasiExpect<void> sockRecvFrom(Span<Span<uint8_t>> RiData,
+                                __wasi_riflags_t RiFlags,
+                                __wasi_address_family_t *AddressFamilyPtr,
+                                Span<uint8_t> Address, uint16_t *PortPtr,
+                                __wasi_size_t &NRead,
+                                __wasi_roflags_t &RoFlags) const noexcept {
+    return Node.sockRecvFrom(RiData, RiFlags, AddressFamilyPtr, Address,
+                             PortPtr, NRead, RoFlags);
   }
 
   /// Send a message on a socket.
@@ -658,15 +630,17 @@ public:
   /// @param[in] SiData List of scatter/gather vectors to which to retrieve
   /// data.
   /// @param[in] SiFlags Message flags.
+  /// @param[in] AddressFamily Address family of the target.
   /// @param[in] Address Address of the target.
-  /// @param[in] AddressLength The buffer size of Address.
+  /// @param[in] Port Connected port.
   /// @param[out] NWritten The number of bytes transmitted.
   /// @return Nothing or WASI error
   WasiExpect<void> sockSendTo(Span<Span<const uint8_t>> SiData,
-                              __wasi_siflags_t SiFlags, uint8_t *Address,
-                              uint8_t AddressLength, int32_t Port,
+                              __wasi_siflags_t SiFlags,
+                              __wasi_address_family_t AddressFamily,
+                              Span<const uint8_t> Address, uint16_t Port,
                               __wasi_size_t &NWritten) const noexcept {
-    return Node.sockSendTo(SiData, SiFlags, Address, AddressLength, Port,
+    return Node.sockSendTo(SiData, SiFlags, AddressFamily, Address, Port,
                            NWritten);
   }
 
@@ -681,35 +655,27 @@ public:
   }
 
   WasiExpect<void> sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
-                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
-                              uint32_t *FlagSizePtr) const noexcept {
-    return Node.sockGetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
+                              __wasi_sock_opt_so_t SockOptName,
+                              Span<uint8_t> &Flag) const noexcept {
+    return Node.sockGetOpt(SockOptLevel, SockOptName, Flag);
   }
 
   WasiExpect<void> sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
-                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
-                              uint32_t FlagSizePtr) const noexcept {
-    return Node.sockSetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
+                              __wasi_sock_opt_so_t SockOptName,
+                              Span<const uint8_t> Flag) const noexcept {
+    return Node.sockSetOpt(SockOptLevel, SockOptName, Flag);
   }
 
-  WasiExpect<void> sockGetLocalAddrV1(uint8_t *Address, uint32_t *AddrTypePtr,
-                                      uint32_t *PortPtr) const noexcept {
-    return Node.sockGetLocalAddrV1(Address, AddrTypePtr, PortPtr);
+  WasiExpect<void> sockGetLocalAddr(__wasi_address_family_t *AddressFamilyPtr,
+                                    Span<uint8_t> Address,
+                                    uint16_t *PortPtr) const noexcept {
+    return Node.sockGetLocalAddr(AddressFamilyPtr, Address, PortPtr);
   }
 
-  WasiExpect<void> sockGetPeerAddrV1(uint8_t *Address, uint32_t *AddrTypePtr,
-                                     uint32_t *PortPtr) const noexcept {
-    return Node.sockGetPeerAddrV1(Address, AddrTypePtr, PortPtr);
-  }
-
-  WasiExpect<void> sockGetLocalAddrV2(uint8_t *Address,
-                                      uint32_t *PortPtr) const noexcept {
-    return Node.sockGetLocalAddrV2(Address, PortPtr);
-  }
-
-  WasiExpect<void> sockGetPeerAddrV2(uint8_t *Address,
-                                     uint32_t *PortPtr) const noexcept {
-    return Node.sockGetPeerAddrV2(Address, PortPtr);
+  WasiExpect<void> sockGetPeerAddr(__wasi_address_family_t *AddressFamilyPtr,
+                                   Span<uint8_t> Address,
+                                   uint16_t *PortPtr) const noexcept {
+    return Node.sockGetPeerAddr(AddressFamilyPtr, Address, PortPtr);
   }
 
   __wasi_rights_t fsRightsBase() const noexcept { return FsRightsBase; }

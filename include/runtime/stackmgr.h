@@ -28,13 +28,16 @@ public:
   struct Frame {
     Frame() = delete;
     Frame(const Instance::ModuleInstance *Mod, AST::InstrView::iterator FromIt,
-          uint32_t L, uint32_t A, uint32_t V) noexcept
-        : Module(Mod), From(FromIt), Locals(L), Arity(A), VPos(V) {}
+          uint32_t L, uint32_t A, uint32_t V, uint32_t H, uint32_t C) noexcept
+        : Module(Mod), From(FromIt), Locals(L), Arity(A), VPos(V), HPos(H),
+          CPos(C) {}
     const Instance::ModuleInstance *Module;
     AST::InstrView::iterator From;
     uint32_t Locals;
     uint32_t Arity;
     uint32_t VPos;
+    uint32_t HPos;
+    uint32_t CPos;
   };
 
   struct Handler {
@@ -110,7 +113,9 @@ public:
                  uint32_t Arity = 0, bool IsTailCall = false) noexcept {
     if (likely(!IsTailCall)) {
       FrameStack.emplace_back(Module, From, LocalNum, Arity,
-                              static_cast<uint32_t>(ValueStack.size()));
+                              static_cast<uint32_t>(ValueStack.size()),
+                              static_cast<uint32_t>(HandlerStack.size()),
+                              static_cast<uint32_t>(CaughtStack.size()));
     } else {
       assuming(!FrameStack.empty());
       assuming(FrameStack.back().VPos >= FrameStack.back().Locals);
@@ -119,6 +124,10 @@ public:
       ValueStack.erase(ValueStack.begin() + FrameStack.back().VPos -
                            FrameStack.back().Locals,
                        ValueStack.end() - LocalNum);
+      HandlerStack.erase(HandlerStack.begin() + FrameStack.back().HPos,
+                         HandlerStack.end());
+      CaughtStack.erase(CaughtStack.begin() + FrameStack.back().HPos,
+                        CaughtStack.end());
       FrameStack.back().Module = Module;
       FrameStack.back().Locals = LocalNum;
       FrameStack.back().Arity = Arity;

@@ -54,7 +54,6 @@ jobs:
           cd build
           ./tools/wasmedge/wasmedge -v
           ctest
-          ctest -VV -R wasiSocketTests
           cd -
       - name: Build WasmEdge using ${{ matrix.compiler }} with Coverage mode
         if: ${{ matrix.coverage }}

@@ -55,7 +55,7 @@ jobs:
         run: |
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           cd build
-          ctest -VV -R wasiSocketTests
+          ctest -R wasiSocketTests
       - name: Create package tarball
         run: |
           cmake --build build --target package

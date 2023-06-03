@@ -995,19 +995,9 @@ TEST(WasiSockTest, SockOpt) {
                        Errno);
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    auto res = MemInst.getBytes(ResBufPtr, 4).value();
-    for (auto s : res) {
-      printf("resbuf: %d\n", s);
-    }
-    std::cout << "int32: " << *MemInst.getPointer<decltype(&Opt)>(ResBufPtr)
-              << " bool: " << *MemInst.getPointer<const bool *>(ResBufPtr)
-              << std::endl;
-#if WASMEDGE_OS_MACOS
+    // reinterpreting uint8_t* to bool* is a undefined behavior.
     EXPECT_TRUE(
         static_cast<bool>(*MemInst.getPointer<decltype(&Opt)>(ResBufPtr)));
-#else
-    EXPECT_TRUE(*MemInst.getPointer<const bool *>(ResBufPtr));
-#endif
 
     WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{Fd}, Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);

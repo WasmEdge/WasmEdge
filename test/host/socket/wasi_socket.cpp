@@ -995,6 +995,13 @@ TEST(WasiSockTest, SockOpt) {
                        Errno);
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    auto res = MemInst.getBytes(ResBufPtr, 4).value();
+    for (auto s : res) {
+      printf("resbuf: %d\n", s);
+    }
+    std::cout << "int32: " << *MemInst.getPointer<decltype(&Opt)>(ResBufPtr)
+              << " bool: " << *MemInst.getPointer<const bool *>(ResBufPtr)
+              << std::endl;
 #if WASMEDGE_OS_MACOS
     EXPECT_TRUE(
         static_cast<bool>(*MemInst.getPointer<decltype(&Opt)>(ResBufPtr)));

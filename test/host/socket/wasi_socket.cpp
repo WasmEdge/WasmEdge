@@ -995,7 +995,12 @@ TEST(WasiSockTest, SockOpt) {
                        Errno);
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_TRUE(*MemInst.getPointer<const int32_t *>(ResBufPtr));
+#if WASMEDGE_OS_MACOS
+    EXPECT_TRUE(
+        static_cast<bool>(*MemInst.getPointer<decltype(&Opt)>(ResBufPtr)));
+#else
+    EXPECT_TRUE(*MemInst.getPointer<const bool *>(ResBufPtr));
+#endif
 
     WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{Fd}, Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);

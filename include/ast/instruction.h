@@ -46,8 +46,12 @@ public:
     Data.Num.Low = static_cast<uint64_t>(0);
     Data.Num.High = static_cast<uint64_t>(0);
 #endif
+    // Initializing JumpCatchAll to check whether it is set during loading phase
+    Data.TryBlock.JumpCatchAll = 0;
+
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
+    Flags.IsAllocJumpCatchList = false;
     Flags.IsTryLast = false;
     Flags.IsCatchLast = false;
     Flags.IsDelegate = false;
@@ -56,7 +60,7 @@ public:
   /// Copy constructor.
   Instruction(const Instruction &Instr)
       : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
-        Flags(Instr.Flags), JumpCatch(Instr.JumpCatch) {
+        Flags(Instr.Flags) {
     if (Flags.IsAllocLabelList) {
       Data.BrTable.LabelList = new JumpDescriptor[Data.BrTable.LabelListSize];
       std::copy_n(Instr.Data.BrTable.LabelList, Data.BrTable.LabelListSize,
@@ -65,15 +69,21 @@ public:
       Data.SelectT.ValTypeList = new ValType[Data.SelectT.ValTypeListSize];
       std::copy_n(Instr.Data.SelectT.ValTypeList, Data.SelectT.ValTypeListSize,
                   Data.SelectT.ValTypeList);
+    } else if (Flags.IsAllocJumpCatchList) {
+      Data.TryBlock.JumpCatchList =
+          new uint32_t[Data.TryBlock.JumpCatchListSize];
+      std::copy_n(Instr.Data.TryBlock.JumpCatchList,
+                  Data.TryBlock.JumpCatchListSize, Data.TryBlock.JumpCatchList);
     }
   }
 
   /// Move constructor.
   Instruction(Instruction &&Instr)
       : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
-        Flags(Instr.Flags), JumpCatch(Instr.JumpCatch) {
+        Flags(Instr.Flags) {
     Instr.Flags.IsAllocLabelList = false;
     Instr.Flags.IsAllocValTypeList = false;
+    Instr.Flags.IsAllocJumpCatchList = false;
   }
 
   /// Destructor.
@@ -193,17 +203,33 @@ public:
   uint8_t getMemoryLane() const noexcept { return Data.Memories.MemLane; }
   uint8_t &getMemoryLane() noexcept { return Data.Memories.MemLane; }
 
-  /// Getter and setter of jump count to each catch instruction.
-  const std::vector<uint32_t> &getTryBlockJumpCatch() const noexcept {
-    return JumpCatch;
+  /// Getter and setter of jump catch list.
+  void setJumpCatchList(const std::vector<uint32_t> &CatchList) {
+    reset();
+    if (!CatchList.empty()) {
+      Data.TryBlock.JumpCatchListSize = CatchList.size();
+      Data.TryBlock.JumpCatchList = new uint32_t[CatchList.size()];
+      Flags.IsAllocJumpCatchList = true;
+      std::copy_n(CatchList.begin(), CatchList.size(),
+                  Data.TryBlock.JumpCatchList);
+    }
   }
-  std::vector<uint32_t> &getTryBlockJumpCatch() noexcept { return JumpCatch; }
+  Span<const uint32_t> getJumpCatchList() const noexcept {
+    return Span<const uint32_t>(
+        Data.TryBlock.JumpCatchList,
+        Flags.IsAllocJumpCatchList ? Data.TryBlock.JumpCatchListSize : 0);
+  }
+  Span<uint32_t> getJumpCatchList() noexcept {
+    return Span<uint32_t>(
+        Data.TryBlock.JumpCatchList,
+        Flags.IsAllocJumpCatchList ? Data.TryBlock.JumpCatchListSize : 0);
+  }
 
   /// Getter and setter of jump count to catch_all instruction.
-  uint32_t getTryBlockJumpCatchAll() const noexcept {
+  uint32_t getJumpCatchAll() const noexcept {
     return Data.TryBlock.JumpCatchAll;
   }
-  void setTryBlockJumpCatchAll(const uint32_t Cnt) noexcept {
+  void setJumpCatchAll(const uint32_t Cnt) noexcept {
     Data.TryBlock.JumpCatchAll = Cnt;
   }
 
@@ -214,18 +240,18 @@ public:
   }
 
   /// Getter and setter of number of block type parameter.
-  uint32_t getTryBlockBlockParamNum() const noexcept {
+  uint32_t getTryBlockParamNum() const noexcept {
     return Data.TryBlock.BlockParamNum;
   }
-  void setTryBlockBlockParamNum(const uint32_t Num) noexcept {
+  void setTryBlockParamNum(const uint32_t Num) noexcept {
     Data.TryBlock.BlockParamNum = Num;
   }
 
   /// Getter and setter of jump count to delegate instruction.
-  uint32_t getTryBlockDelegate() const noexcept {
+  uint32_t getDelegateIdx() const noexcept {
     return Data.TryBlock.DelegateIdx;
   }
-  void setTryBlockDelegate(const uint32_t Cnt) noexcept {
+  void setDelegateIdx(const uint32_t Cnt) noexcept {
     Data.TryBlock.DelegateIdx = Cnt;
   }
 
@@ -287,9 +313,13 @@ private:
     } else if (Flags.IsAllocValTypeList) {
       Data.SelectT.ValTypeListSize = 0;
       delete[] Data.SelectT.ValTypeList;
+    } else if (Flags.IsAllocJumpCatchList) {
+      Data.TryBlock.JumpCatchListSize = 0;
+      delete[] Data.TryBlock.JumpCatchList;
     }
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
+    Flags.IsAllocJumpCatchList = false;
   }
 
   /// Swap function.
@@ -350,6 +380,8 @@ private:
     bool IsLast;
     // Type 10: Try Block
     struct {
+      uint32_t JumpCatchListSize;
+      uint32_t *JumpCatchList;
       uint32_t JumpCatchAll;
       uint32_t JumpEnd;
       uint32_t BlockParamNum;
@@ -365,13 +397,11 @@ private:
   struct {
     bool IsAllocLabelList : 1;
     bool IsAllocValTypeList : 1;
+    bool IsAllocJumpCatchList : 1;
     bool IsTryLast : 1;
     bool IsCatchLast : 1;
     bool IsDelegate : 1;
   } Flags;
-
-  // TODO: Need refactor
-  std::vector<uint32_t> JumpCatch;
   /// @}
 };
 

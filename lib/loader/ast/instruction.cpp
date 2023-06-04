@@ -4,6 +4,7 @@
 #include "loader/loader.h"
 
 #include <cstdint>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -35,7 +36,9 @@ Expect<OpCode> Loader::loadOpCode() {
 Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
   OpCode Code;
   AST::InstrVec Instrs;
-  std::vector<std::pair<OpCode, uint32_t>> BlockStack;
+
+  // The third argument store the Pos of all catch inside try-block
+  std::vector<std::tuple<OpCode, uint32_t, std::vector<uint32_t>>> BlockStack;
   uint32_t Cnt = 0;
   bool IsReachEnd = false;
   // Read opcode until the End code of the top block.
@@ -53,16 +56,16 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     if (auto Res = checkInstrProposals(Code, Offset); !Res) {
       return Unexpect(Res);
     }
-
     switch (Code) {
     case OpCode::Block:
     case OpCode::Loop:
     case OpCode::If:
     case OpCode::Try:
-      BlockStack.push_back(std::make_pair(Code, Cnt));
+      BlockStack.emplace_back(Code, Cnt, 0);
       break;
     case OpCode::Else: {
-      if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::If) {
+      if (BlockStack.size() == 0 ||
+          std::get<0>(BlockStack.back()) != OpCode::If) {
         // An Else instruction appeared outside the If-block.
         if (SizeBound.has_value() && FMgr.getOffset() > SizeBound.value()) {
           return logLoadError(ErrCode::Value::ENDCodeExpected, Offset,
@@ -72,7 +75,7 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
                               ASTNodeAttr::Instruction);
         }
       }
-      uint32_t Pos = BlockStack.back().second;
+      uint32_t Pos = std::get<1>(BlockStack.back());
       if (Instrs[Pos].getJumpElse() > 0) {
         // An Else instruction appeared before in this If-block.
         if (SizeBound.has_value() && FMgr.getOffset() > SizeBound.value()) {
@@ -87,56 +90,67 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
       break;
     }
     case OpCode::Catch: {
-      if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::Try) {
+      if (BlockStack.size() == 0) {
         // A Catch instruction appeared outside a try-block.
         return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
                             ASTNodeAttr::Instruction);
       }
-      uint32_t Pos = BlockStack.back().second;
-      if (Instrs[Pos].getTryBlockJumpCatchAll() != 0) {
+      auto &[BackOp, Pos, CatchList] = BlockStack.back();
+      if (BackOp != OpCode::Try) {
+        // A Catch instruction appeared outside a try-block.
+        return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
+                            ASTNodeAttr::Instruction);
+      }
+      if (Instrs[Pos].getJumpCatchAll() != 0) {
         // A Catch shouldn't behind a Catch_all in the same block.
         return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
                             ASTNodeAttr::Instruction);
       }
-      auto &TryBlockJumpCatch = Instrs[Pos].getTryBlockJumpCatch();
-      TryBlockJumpCatch.push_back(Cnt - Pos);
+      // Set it to Instruction object after parsing the whole try block
+      CatchList.push_back(Cnt - Pos);
       break;
     }
     case OpCode::Catch_all: {
-      if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::Try) {
+      if (BlockStack.size() == 0 ||
+          std::get<0>(BlockStack.back()) != OpCode::Try) {
         // A Catch_all instruction appeared outside a try-block.
         return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
                             ASTNodeAttr::Instruction);
       }
-      uint32_t Pos = BlockStack.back().second;
-      if (Instrs[Pos].getTryBlockJumpCatchAll() != 0) {
+      uint32_t Pos = std::get<1>(BlockStack.back());
+      if (Instrs[Pos].getJumpCatchAll() != 0) {
         // A try block may contain only one Catch_all instruction.
         return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
                             ASTNodeAttr::Instruction);
       }
-      Instrs[Pos].setTryBlockJumpCatchAll(Cnt - Pos);
+      Instrs[Pos].setJumpCatchAll(Cnt - Pos);
       break;
     }
     case OpCode::Delegate: {
-      if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::Try) {
+      if (BlockStack.size() == 0) {
         // A Delegate instruction appeared outside a try-block.
         return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
                             ASTNodeAttr::Instruction);
       }
-      uint32_t Pos = BlockStack.back().second;
-      if (!Instrs[Pos].getTryBlockJumpCatch().empty() ||
-          Instrs[Pos].getTryBlockJumpCatchAll() != 0) {
+      const auto &[BackOp, Pos, CatchList] = BlockStack.back();
+      if (BackOp != OpCode::Try) {
+        // A Delegate instruction appeared outside a try-block.
+        return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
+                            ASTNodeAttr::Instruction);
+      }
+      if (!CatchList.empty() || Instrs[Pos].getJumpCatchAll() != 0) {
         // A Try-Delegate block shouldn't contain Catch or Catch_all.
         return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
                             ASTNodeAttr::Instruction);
       }
       Instrs[Pos].setDelegate();
       Instrs[Pos].setTryBlockJumpEnd(Cnt - Pos);
+      // Pop the block stack after parsing the delegate instruction
       break;
     }
     case OpCode::End:
       if (BlockStack.size() > 0) {
-        const auto [BackOp, Pos] = BlockStack.back();
+        const auto &[BackOp, Pos, CatchList] = BlockStack.back();
         if (BackOp == OpCode::Block || BackOp == OpCode::Loop ||
             BackOp == OpCode::If) {
           Instrs[Pos].setJumpEnd(Cnt - Pos);
@@ -151,6 +165,7 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
           }
         } else if (BackOp == OpCode::Try) {
           Instrs[Pos].setTryBlockJumpEnd(Cnt - Pos);
+          Instrs[Pos].setJumpCatchList(CatchList);
         }
         BlockStack.pop_back();
       } else {
@@ -167,8 +182,8 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
       return Unexpect(Res);
     }
     if (Code == OpCode::Delegate) {
-      uint32_t Pos = BlockStack.back().second;
-      Instrs[Pos].setTryBlockDelegate(Instrs.back().getJump().TargetIndex);
+      uint32_t Pos = std::get<1>(BlockStack.back());
+      Instrs[Pos].setDelegateIdx(Instrs.back().getJump().TargetIndex);
       BlockStack.pop_back();
     }
     if (Code == OpCode::End) {

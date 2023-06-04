@@ -43,14 +43,14 @@ Expect<void> Executor::runTryOp(Runtime::StackManager &StackMgr,
 
   } else {
     StackMgr.pushHandler(PC + Instr.getTryBlockJumpEnd(),
-                         Instr.getTryBlockBlockParamNum());
-    for (auto CatchOffset : Instr.getTryBlockJumpCatch()) {
+                         Instr.getTryBlockParamNum());
+    for (auto CatchOffset : Instr.getJumpCatchList()) {
       auto CatchInstrIt = PC + CatchOffset;
       StackMgr.addCatchCaluseToLastHandler(
           getTagInstByIdx(StackMgr, CatchInstrIt->getTargetIndex()),
           CatchInstrIt);
     }
-    if (auto CatchAllOffset = Instr.getTryBlockJumpCatchAll(); CatchAllOffset) {
+    if (auto CatchAllOffset = Instr.getJumpCatchAll(); CatchAllOffset) {
       auto CatchAllInstrIt = PC + CatchAllOffset;
       StackMgr.addCatchCaluseToLastHandler(nullptr, CatchAllInstrIt);
     }

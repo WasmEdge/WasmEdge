@@ -344,7 +344,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     [[fallthrough]];
   case OpCode::Try:
     if (Instr.getOpCode() == OpCode::Try && Instr.isDelegate()) {
-      if (auto D = checkCtrlStackDepth(Instr.getTryBlockDelegate()); !D) {
+      if (auto D = checkCtrlStackDepth(Instr.getDelegateIdx()); !D) {
         return Unexpect(D);
       } else {
         // Delegate to the label itself, not before the label
@@ -368,7 +368,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(Res);
     }
     if (Instr.getOpCode() == OpCode::Try) {
-      const_cast<AST::Instruction &>(Instr).setTryBlockBlockParamNum(T1.size());
+      const_cast<AST::Instruction &>(Instr).setTryBlockParamNum(T1.size());
     }
     // Pop and check [t1*]
     if (auto Res = popTypes(T1); !Res) {

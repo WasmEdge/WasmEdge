@@ -67,6 +67,11 @@ Expect<void> Loader::loadDesc(AST::ImportDesc &ImpDesc) {
     return {};
   }
   case ExternalType::Tag: {
+    if (!Conf.hasProposal(Proposal::ExceptionHandling)) {
+      return logNeedProposal(ErrCode::Value::MalformedImportKind,
+                             Proposal::ExceptionHandling, FMgr.getLastOffset(),
+                             ASTNodeAttr::Module);
+    }
     // Read the Tag type node.
     return loadType(ImpDesc.getExternalTagType());
   }
@@ -99,7 +104,13 @@ Expect<void> Loader::loadDesc(AST::ExportDesc &ExpDesc) {
   case ExternalType::Table:
   case ExternalType::Memory:
   case ExternalType::Global:
+    break;
   case ExternalType::Tag:
+    if (!Conf.hasProposal(Proposal::ExceptionHandling)) {
+      return logNeedProposal(ErrCode::Value::MalformedImportKind,
+                             Proposal::ExceptionHandling, FMgr.getLastOffset(),
+                             ASTNodeAttr::Module);
+    }
     break;
   default:
     return logLoadError(ErrCode::Value::MalformedExportKind,

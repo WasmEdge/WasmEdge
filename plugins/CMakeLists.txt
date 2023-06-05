@@ -18,6 +18,15 @@ if(WASMEDGE_PLUGIN_PROCESS)
   endif()
 endif()
 
+if(WASMEDGE_PLUGIN_HTTPSREQ)
+  # Only Linux systems support wasmedge_httpsreq now.
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    add_subdirectory(wasmedge_httpsreq)
+  else()
+    message(WARNING "Only Linux platforms support WasmEdge_HttpsReq plug-in now.")
+  endif()
+endif()
+
 if(WASMEDGE_PLUGIN_WASM_BPF)
   # Only Linux systems support wasm_bpf now.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -25,4 +34,8 @@ if(WASMEDGE_PLUGIN_WASM_BPF)
   else()
     message(WARNING "Only Linux platforms support wasm_bpf plug-in now.")
   endif()
+endif()
+
+if(WASMEDGE_PLUGIN_OPENCVMINI)
+  add_subdirectory(wasmedge_opencvmini)
 endif()

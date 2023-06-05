@@ -300,11 +300,13 @@ WASI_NN_OPENVINO = "wasi_nn-openvino"
 WASI_CRYPTO = "wasi_crypto"
 WASI_NN_PYTORCH = "wasi_nn-pytorch"
 WASI_NN_TENSORFLOW_LITE = "wasi_nn-tensorflowlite"
+WASM_BPF = "wasm_bpf"
 PLUGINS_AVAILABLE = [
     WASI_NN_OPENVINO,
     WASI_CRYPTO,
     WASI_NN_PYTORCH,
     WASI_NN_TENSORFLOW_LITE,
+    WASM_BPF
 ]
 
 SUPPORTTED_PLUGINS = {
@@ -322,6 +324,8 @@ SUPPORTTED_PLUGINS = {
     + "aarch64"
     + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-alpha.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-rc.1"),
+    "ubuntu20.04" + "x86_64" + WASM_BPF: VersionString("0.13.0"),
+    "manylinux2014" + "x86_64" + WASM_BPF: VersionString("0.13.0"),
 }
 
 HOME = expanduser("~")

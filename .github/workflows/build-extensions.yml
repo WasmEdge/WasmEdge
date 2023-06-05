@@ -341,6 +341,26 @@ jobs:
             cmake_plugin_option: "-DWASMEDGE_PLUGIN_PROCESS=ON"
             build_type: Release
             test: false
+          - name: Zlib
+            tar_name: wasmedge_zlib
+            system: manylinux2014 x86_64
+            host_runner: ubuntu-latest
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasmedge_zlib
+            output_bin: libwasmedgePluginWasmEdgeZlib.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_ZLIB=ON"
+            build_type: Release
+            test: false
+          - name: Zlib
+            tar_name: wasmedge_zlib
+            system: manylinux2014 aarch64
+            host_runner: linux-arm64
+            docker_tag: manylinux2014_aarch64
+            output_path: plugins/wasmedge_zlib
+            output_bin: libwasmedgePluginWasmEdgeZlib.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_ZLIB=ON"
+            build_type: Release
+            test: false
     name: ${{ matrix.system }} WasmEdge ${{ matrix.name }} plugin with g++ ${{ matrix.build_type }}
     runs-on: ${{ matrix.host_runner }}
     needs: [get_version_v2]

@@ -11,9 +11,9 @@ extern "C" {
 namespace WasmEdge {
 namespace Host {
 
-#define ensure_memory_size(var, offset, size)                                  \
-  const auto var##_span = memory->getSpan<char>(offset, size);                 \
-  if (var##_span.size() != size)                                               \
+#define ensure_memory_size(var, offset, expected_size)                         \
+  const auto var##_span = memory->getSpan<char>(offset, expected_size);        \
+  if (var##_span.size() != expected_size)                                      \
     return Unexpect(ErrCode::Value::HostFuncError);                            \
   const auto var = var##_span.data();
 Expect<int32_t>
@@ -39,7 +39,7 @@ BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
   auto key_size = map_info.key_size;
   auto value_size = map_info.value_size;
 
-  switch ((bpf_map_cmd)cmd) {
+  switch ((bpf_cmd)cmd) {
   case BPF_MAP_GET_NEXT_KEY: {
     ensure_memory_size(key_ptr, key, key_size);
     ensure_memory_size(next_key_ptr, next_key, key_size);

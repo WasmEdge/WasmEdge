@@ -511,7 +511,7 @@ TEST(HostMockTest, WasiLogging) {
       CallFrame, std::array<WasmEdge::ValVariant, 5>{0, 0, 0, 0, 0}, {}));
 
   WasmEdge::Host::WasiLoggingModuleMock WasiLoggingModule;
-  EXPECT_EQ(WasiLoggingModule.getModuleName(), "logging");
+  EXPECT_EQ(WasiLoggingModule.getModuleName(), "wasi:logging/logging");
   EXPECT_EQ(WasiLoggingModule.getFuncExportNum(), 1U);
 }
 

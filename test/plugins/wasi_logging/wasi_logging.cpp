@@ -17,7 +17,7 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
       "../../../plugins/wasi_logging/"
       "libwasmedgePluginWasiLogging" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_logging"sv)) {
-    if (const auto *Module = Plugin->findModule("logging"sv)) {
+    if (const auto *Module = Plugin->findModule("wasi:logging/logging"sv)) {
       return Module->create().release();
     }
   }

@@ -7,7 +7,8 @@ namespace Host {
 
 using namespace std::literals;
 
-WasiLoggingModule::WasiLoggingModule() : ModuleInstance("logging"sv) {
+WasiLoggingModule::WasiLoggingModule()
+    : ModuleInstance("wasi:logging/logging"sv) {
   addHostFunc("log"sv, std::make_unique<WasiLoggingLog>(Env));
 }
 

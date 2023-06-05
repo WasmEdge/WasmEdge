@@ -20,7 +20,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .ModuleDescriptions =
         (Plugin::PluginModule::ModuleDescriptor[]){
             {
-                .Name = "logging",
+                .Name = "wasi:logging/logging",
                 .Description = "",
                 .Create = create,
             },

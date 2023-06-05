@@ -90,7 +90,7 @@ void VM::unsafeLoadPlugInHosts() {
   PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeProcessModuleMock>(
       "wasmedge_process"sv, "wasmedge_process"sv));
   PlugInModInsts.push_back(createPluginModule<Host::WasiLoggingModuleMock>(
-      "wasi_logging"sv, "logging"sv));
+      "wasi_logging"sv, "wasi:logging/logging"sv));
 
   // Load the other non-official plugins.
   for (const auto &Plugin : Plugin::Plugin::plugins()) {

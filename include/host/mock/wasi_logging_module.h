@@ -10,7 +10,8 @@ using namespace std::literals;
 
 class WasiLoggingModuleMock : public Runtime::Instance::ModuleInstance {
 public:
-  WasiLoggingModuleMock() : Runtime::Instance::ModuleInstance("logging") {
+  WasiLoggingModuleMock()
+      : Runtime::Instance::ModuleInstance("wasi:logging/logging") {
     addHostFunc("log"sv, std::make_unique<WasiLoggingMock::Log>());
   }
 };

@@ -29,6 +29,12 @@ export WASMEDGE_PLUGIN_PATH=$PWD/plugins/wasi_logging
 
 If you install WasmEdge using the install script, you can copy library `wasmedge/build/plugins/wasi_logging/libwasmedgePluginWasiLogging.so` to `$HOME/.wasmedge/plugin/`
 
+## Clone WASI-Logging submodules
+```
+git submodule update --init
+```
+Then we can see .wit files in `examples/plugin/wasi-logging/wasi-logging/wit` directory.
+
 ## Build the example
 
 ```sh

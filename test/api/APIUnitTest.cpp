@@ -2890,12 +2890,11 @@ TEST(APICoreTest, VM) {
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 15), 13U);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
-  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("logging"));
-  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length),
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length),
             std::string("reg-wasm-ast"));
-  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length),
+  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length),
             std::string("reg-wasm-buffer"));
-  EXPECT_EQ(std::string(Names[4].Buf, Names[4].Length),
+  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length),
             std::string("reg-wasm-file"));
 
   // VM load wasm from file

@@ -97,8 +97,13 @@ private:
   uint64_t IntrinsicsAddress = 0;
   std::vector<uintptr_t> TypesAddress;
   std::vector<uintptr_t> CodesAddress;
-#if WASMEDGE_OS_WINDOWS
-  void *PDataAddress = 0;
+#if WASMEDGE_OS_LINUX
+  void *EHFrameAddress = nullptr;
+#elif WASMEDGE_OS_MACOS
+  uint8_t *EHFrameAddress = nullptr;
+  uint32_t EHFrameSize = 0;
+#elif WASMEDGE_OS_WINDOWS
+  void *PDataAddress = nullptr;
   uint32_t PDataSize = 0;
 #endif
 };

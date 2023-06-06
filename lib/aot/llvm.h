@@ -92,6 +92,7 @@ public:
   static inline unsigned int NoReturn = 0;
   static inline unsigned int ReadOnly = 0;
   static inline unsigned int StrictFP = 0;
+  static inline unsigned int UWTable = 0;
 
   static inline unsigned int InvariantGroup = 0;
 
@@ -169,6 +170,7 @@ private:
     NoReturn = getEnumAttributeKind("noreturn"sv);
     ReadOnly = getEnumAttributeKind("readonly"sv);
     StrictFP = getEnumAttributeKind("strictfp"sv);
+    UWTable = getEnumAttributeKind("uwtable"sv);
 
     InvariantGroup = getMetadataKind("invariant.group");
   }
@@ -713,6 +715,11 @@ public:
   LLVM_FOR_EACH_VALUE_SUBCLASS(DECLARE_VALUE_CHECK)
 #undef DECLARE_VALUE_CHECK
 
+  std::string_view getValueName() noexcept {
+    size_t Size;
+    const auto Ptr = LLVMGetValueName2(Ref, &Size);
+    return {Ptr, Size};
+  }
   inline void addFnAttr(const Attribute &A) noexcept;
   inline void addParamAttr(unsigned Index, const Attribute &A) noexcept;
   inline void addCallSiteAttribute(const Attribute &A) noexcept;
@@ -723,8 +730,10 @@ public:
   Value getNextParam() noexcept { return LLVMGetNextParam(Ref); }
   Value getNextGlobal() noexcept { return LLVMGetNextGlobal(Ref); }
   Value getNextFunction() noexcept { return LLVMGetNextFunction(Ref); }
+  unsigned int countBasicBlocks() noexcept { return LLVMCountBasicBlocks(Ref); }
 
   Type getType() const noexcept { return LLVMTypeOf(Ref); }
+  Value getInitializer() noexcept { return LLVMGetInitializer(Ref); }
   void setInitializer(Value ConstantVal) noexcept {
     LLVMSetInitializer(Ref, ConstantVal.unwrap());
   }
@@ -1844,6 +1853,7 @@ public:
   inline bool isData() const noexcept;
   inline bool isBSS() const noexcept;
   inline bool isPData() const noexcept;
+  inline bool isEHFrame() const noexcept;
 
 private:
   LLVMSectionIteratorRef Ref = nullptr;
@@ -1968,6 +1978,18 @@ bool SectionIterator::isPData() const noexcept {
 #if WASMEDGE_OS_WINDOWS
   using namespace std::literals;
   return ".pdata"sv == getName();
+#else
+  return false;
+#endif
+}
+
+bool SectionIterator::isEHFrame() const noexcept {
+#if WASMEDGE_OS_LINUX
+  using namespace std::literals;
+  return ".eh_frame"sv == getName();
+#elif WASMEDGE_OS_MACOS
+  using namespace std::literals;
+  return "__eh_frame"sv == getName();
 #else
   return false;
 #endif

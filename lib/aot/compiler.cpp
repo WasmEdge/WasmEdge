@@ -294,6 +294,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   LLVM::Attribute NoReturn;
   LLVM::Attribute ReadOnly;
   LLVM::Attribute StrictFP;
+  LLVM::Attribute UWTable;
   LLVM::Attribute NoStackArgProbe;
   LLVM::Type VoidTy;
   LLVM::Type Int8Ty;
@@ -371,7 +372,8 @@ struct WasmEdge::AOT::Compiler::CompileContext {
         NoInline(LLVM::Attribute::createEnum(C, LLVM::Core::NoInline, 0)),
         NoReturn(LLVM::Attribute::createEnum(C, LLVM::Core::NoReturn, 0)),
         ReadOnly(LLVM::Attribute::createEnum(C, LLVM::Core::ReadOnly, 0)),
-        StrictFP(LLVM::Attribute::createEnum(C, LLVM::Core::StrictFP, 0)),
+        StrictFP(LLVM::Attribute::createEnum(C, LLVM::Core::StrictFP, 1)),
+        UWTable(LLVM::Attribute::createEnum(C, LLVM::Core::UWTable, 0)),
         NoStackArgProbe(
             LLVM::Attribute::createString(C, "no-stack-arg-probe"sv, {})),
         VoidTy(LLContext.getVoidTy()), Int8Ty(LLContext.getInt8Ty()),
@@ -422,6 +424,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
     Trap.Fn.setDSOLocal(true);
     Trap.Fn.addFnAttr(NoStackArgProbe);
     Trap.Fn.addFnAttr(StrictFP);
+    Trap.Fn.addFnAttr(UWTable);
     Trap.Fn.addFnAttr(NoReturn);
     Trap.Fn.addFnAttr(Cold);
     Trap.Fn.addFnAttr(NoInline);
@@ -5219,13 +5222,12 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
             "-dylib", "-demangle", "-macosx_version_min", OSVersion.c_str(),
             "-syslibroot",
             "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-            ObjectName.u8string().c_str(), "-o",
-            OutputPath.u8string().c_str() //,
-                                          //"-lSystem"
+            ObjectName.u8string().c_str(), "-o", OutputPath.u8string().c_str()
       },
 #elif WASMEDGE_OS_LINUX
   LinkResult = lld::elf::link(
-      std::initializer_list<const char *>{"ld.lld", "--shared", "--gc-sections",
+      std::initializer_list<const char *>{"ld.lld", "--eh-frame-hdr",
+                                          "--shared", "--gc-sections",
                                           "--discard-all", ObjectName.c_str(),
                                           "-o", OutputPath.u8string().c_str()},
 #elif WASMEDGE_OS_WINDOWS
@@ -5429,7 +5431,8 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
       if (Section.getSize() == 0) {
         continue;
       }
-      if (!Section.isText() && !Section.isData() && !Section.isBSS()) {
+      if (!Section.isEHFrame() && !Section.isPData() && !Section.isText() &&
+          !Section.isData() && !Section.isBSS()) {
         continue;
       }
       ++SectionCount;
@@ -5447,7 +5450,7 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
       } else {
         Content.assign(Res.begin(), Res.end());
       }
-      if (Section.isPData()) {
+      if (Section.isEHFrame() || Section.isPData()) {
         WriteByte(OS, UINT8_C(4));
       } else if (Section.isText()) {
         WriteByte(OS, UINT8_C(1));
@@ -5555,6 +5558,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     F.setDSOLocal(true);
     F.addFnAttr(Context->NoStackArgProbe);
     F.addFnAttr(Context->StrictFP);
+    F.addFnAttr(Context->UWTable);
     F.addFnAttr(Context->NoReturn);
     LLVM::Builder Builder(Context->LLContext);
     Builder.positionAtEnd(
@@ -5764,6 +5768,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
       F.setDLLStorageClass(LLVMDLLExportStorageClass);
       F.addFnAttr(Context->NoStackArgProbe);
       F.addFnAttr(Context->StrictFP);
+      F.addFnAttr(Context->UWTable);
       F.addParamAttr(0, Context->ReadOnly);
       F.addParamAttr(0, Context->NoAlias);
       F.addParamAttr(1, Context->NoAlias);
@@ -5858,6 +5863,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       }
       F.Fn.addFnAttr(Context->NoStackArgProbe);
       F.Fn.addFnAttr(Context->StrictFP);
+      F.Fn.addFnAttr(Context->UWTable);
       F.Fn.addParamAttr(0, Context->ReadOnly);
       F.Fn.addParamAttr(0, Context->NoAlias);
 
@@ -5994,6 +6000,7 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
     F.Fn.setDLLStorageClass(LLVMDLLExportStorageClass);
     F.Fn.addFnAttr(Context->NoStackArgProbe);
     F.Fn.addFnAttr(Context->StrictFP);
+    F.Fn.addFnAttr(Context->UWTable);
     F.Fn.addParamAttr(0, Context->ReadOnly);
     F.Fn.addParamAttr(0, Context->NoAlias);
 

@@ -121,5 +121,31 @@ Expect<int32_t> WasmEdgeZlibDeflate::WasmEdgeZlibDeflate::body(
   return static_cast<int32_t>(z_res);
 }
 
+Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
+                                          uint32_t ZStreamPtr, int32_t Flush) {
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  auto HostZStream = HostZStreamIt->second.get();
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  Wasm_z_stream *WasmZStream = MemInst->getPointer<Wasm_z_stream *>(ZStreamPtr);
+  unsigned char *WasmMemStart = MemInst->getPointer<unsigned char *>(0);
+
+  HostZStream->avail_in = WasmZStream->avail_in;                // value
+  HostZStream->avail_out = WasmZStream->avail_out;              // value
+  HostZStream->next_in = WasmMemStart + WasmZStream->next_in;   // ptr
+  HostZStream->next_out = WasmMemStart + WasmZStream->next_out; // ptr
+
+  const auto z_res = inflate(HostZStream, Flush);
+
+  WasmZStream->avail_in = HostZStream->avail_in;
+  WasmZStream->avail_out = HostZStream->avail_out;
+  WasmZStream->next_in = HostZStream->next_in - WasmMemStart;
+  WasmZStream->next_out = HostZStream->next_out - WasmMemStart;
+
+  return static_cast<int32_t>(z_res);
+}
+
 } // namespace Host
 } // namespace WasmEdge

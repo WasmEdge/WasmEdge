@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-cmake_minimum_required(VERSION 3.10.2)
+cmake_minimum_required(VERSION 3.15)
 cmake_policy(SET CMP0091 NEW)
 project(WasmEdge)
+
+# Overwrite it if you want to use static MSVC runtime library.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 
 set(WASMEDGE_CAPI_VERSION "0.0.2" CACHE STRING "WasmEdge C API library version")
 set(WASMEDGE_CAPI_SOVERSION "0" CACHE STRING "WasmEdge C API library soversion")
@@ -70,11 +73,11 @@ option(WASMEDGE_BUILD_EXAMPLE "Generate examples." OFF)
 option(WASMEDGE_FORCE_DISABLE_LTO "Forcefully disable link time optimization when linking even in Release/RelWithDeb build." OFF)
 option(WASMEDGE_LINK_LLVM_STATIC "Statically link the LLVM library into the WasmEdge tools and libraries." OFF)
 option(WASMEDGE_LINK_TOOLS_STATIC "Statically link the wasmedge and wasmedgec tools. Will forcefully link the LLVM library statically." OFF)
+option(WASMEDGE_ENABLE_UB_SANITIZER "Enable undefined behavior senitizer" OFF)
 set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge Wasi-NN plugin with backends.")
 # Currently supported WASI-NN backend: "OpenVINO" on Linux x86_64
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge Wasi-crypto plugin." OFF)
 option(WASMEDGE_PLUGIN_PROCESS "Enable WasmEdge process plugin." OFF)
-option(WASMEDGE_PLUGIN_HTTPSREQ "Enable WasmEdge httpsreq plugin." OFF)
 option(WASMEDGE_PLUGIN_WASM_BPF "Enable WasmEdge wasm-bpf plugin." OFF)
 option(WASMEDGE_PLUGIN_WASI_OCR "Enable WasmEdge wasm-bpf plugin." OFF)
 

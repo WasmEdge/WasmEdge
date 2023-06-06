@@ -30,7 +30,7 @@ public:
   WasmEdge::Expect<int32_t> body(const WasmEdge::Runtime::CallingFrame &Frame,
                                  handle_t program, int32_t fd,
                                  int32_t sample_func, uint32_t ctx,
-                                 uint32_t data, int32_t max_size,
+                                 uint32_t data, uint32_t max_size,
                                  int32_t timeout_ms);
 
 private:

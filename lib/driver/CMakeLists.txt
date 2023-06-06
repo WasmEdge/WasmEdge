@@ -6,6 +6,7 @@ wasmedge_add_library(wasmedgeDriver
   runtimeTool.cpp
   fuzzTool.cpp
   fuzzPO.cpp
+  uniTool.cpp
 )
 
 if(WASMEDGE_BUILD_AOT_RUNTIME)

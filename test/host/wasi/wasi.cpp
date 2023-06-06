@@ -45,9 +45,8 @@ void writeAddress(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
   WasiAddress.buf = BufPtr;
   WasiAddress.buf_len = Address.size();
 
-  std::memcpy(
-      MemInst.getPointer<__wasi_address_t *>(Ptr, sizeof(__wasi_address_t)),
-      &WasiAddress, sizeof(__wasi_address_t));
+  std::memcpy(MemInst.getPointer<__wasi_address_t *>(Ptr), &WasiAddress,
+              sizeof(__wasi_address_t));
 }
 
 __wasi_errno_t convertErrno(int SysErrno) noexcept {
@@ -213,6 +212,16 @@ uint64_t convertTimespec(const timespec &Timespec) noexcept {
   return Timespec.tv_sec * UINT64_C(1000000000) + Timespec.tv_nsec;
 }
 
+// The following code includes a sleep to prevent a possible delay when sending
+// and recving data. There is a chance that PollOneoff may not immediately get
+// the read event when it is called right after the server has sent the data.
+// Without the sleep, there is a risk that the unit test may not pass. We found
+// this problem on macOS.
+void sleepForMacOS() noexcept {
+#if WASMEDGE_OS_MACOS
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+#endif
+}
 } // namespace
 
 TEST(WasiTest, Args) {
@@ -243,12 +252,11 @@ TEST(WasiTest, Args) {
 
   EXPECT_TRUE(WasiArgsGet.run(
       CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(8)},
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(8));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0));
-  EXPECT_STREQ(MemInst.getPointer<const char *>(8), "test");
+  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(4));
+  EXPECT_STREQ(MemInst.getPointer<const char *>(4), "test");
   Env.fini();
 
   // args: test\0 abc\0
@@ -264,14 +272,13 @@ TEST(WasiTest, Args) {
 
   EXPECT_TRUE(WasiArgsGet.run(
       CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(12)},
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(8)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(12));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(17));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0));
-  EXPECT_STREQ(MemInst.getPointer<const char *>(12), "test");
-  EXPECT_STREQ(MemInst.getPointer<const char *>(17), "abc");
+  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(8));
+  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(13));
+  EXPECT_STREQ(MemInst.getPointer<const char *>(8), "test");
+  EXPECT_STREQ(MemInst.getPointer<const char *>(13), "abc");
   Env.fini();
 
   // args: test\0 \0
@@ -287,14 +294,13 @@ TEST(WasiTest, Args) {
 
   EXPECT_TRUE(WasiArgsGet.run(
       CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(12)},
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(8)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(12));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(17));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0));
-  EXPECT_STREQ(MemInst.getPointer<const char *>(12), "test");
-  EXPECT_STREQ(MemInst.getPointer<const char *>(17), "");
+  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(8));
+  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(13));
+  EXPECT_STREQ(MemInst.getPointer<const char *>(8), "test");
+  EXPECT_STREQ(MemInst.getPointer<const char *>(13), "");
   Env.fini();
 
   // invalid pointer
@@ -354,12 +360,13 @@ TEST(WasiTest, Envs) {
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0));
 
+  *MemInst.getPointer<uint32_t *>(0) = UINT32_C(0xdeadbeef);
   EXPECT_TRUE(WasiEnvironGet.run(
       CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(8)},
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0));
+  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xdeadbeef));
   Env.fini();
 
   // envs: a=b\0
@@ -375,12 +382,11 @@ TEST(WasiTest, Envs) {
 
   EXPECT_TRUE(WasiEnvironGet.run(
       CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(8)},
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(8));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0));
-  EXPECT_STREQ(MemInst.getPointer<const char *>(8), "a=b");
+  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(4));
+  EXPECT_STREQ(MemInst.getPointer<const char *>(4), "a=b");
   Env.fini();
 
   // envs: a=b\0 TEST=TEST=Test\0
@@ -425,7 +431,8 @@ TEST(WasiTest, Envs) {
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(65536), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+  // success on zero-size write
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironGet.run(
       CallFrame,
@@ -433,7 +440,7 @@ TEST(WasiTest, Envs) {
       Errno));
   // success on zero-size write
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0));
+  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
   Env.fini();
 
   Env.init({}, "test"s, {}, {"a=b"s});
@@ -730,8 +737,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
         const uint32_t SiFlags = 0;
         const auto Data = "server"sv;
         writeString(MemInst, Data, DataPtr);
-        auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-            IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+        auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
         IOVec[0].buf = DataPtr;
         IOVec[0].buf_len = Data.size();
         EXPECT_TRUE(WasiSockSend.run(
@@ -758,8 +764,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
           const uint32_t DataPtr =
               IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
           const uint32_t RiFlags = 0;
-          auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-              IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+          auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
           IOVec[0].buf = DataPtr;
           IOVec[0].buf_len = 32768;
           EXPECT_TRUE(
@@ -794,7 +799,8 @@ TEST(WasiTest, PollOneoffSocketV1) {
 
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
   WasmEdge::Host::WasiFdFdstatSetFlags WasiFdFdstatSetFlags(Env);
-  WasmEdge::Host::WasiPollOneoff WasiPollOneoff(Env);
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
   WasmEdge::Host::WasiSockConnectV1 WasiSockConnect(Env);
   WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
   WasmEdge::Host::WasiSockRecvV1 WasiSockRecv(Env);
@@ -1069,8 +1075,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const uint32_t IOVecPtr = RoFlagsPtr + sizeof(__wasi_size_t);
       const uint32_t DataPtr = IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
       const uint32_t RiFlags = 0;
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = 256;
       EXPECT_TRUE(WasiSockRecv.run(
@@ -1105,8 +1110,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const uint32_t SiFlags = 0;
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = Data.size();
       EXPECT_TRUE(
@@ -1144,8 +1148,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const uint32_t SiFlags = 0;
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = Data.size();
       EXPECT_TRUE(
@@ -1181,12 +1184,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       ActionProcessed.wait(Lock, [&]() { return ActionDone.exchange(false); });
     }
 
-    // The following code includes a sleep to prevent a possible delay when
-    // sending and recving data. There is a chance that PollOneoff may not
-    // immediately get the read event when it is called right after the server
-    // has sent the data. Without the sleep, there is a risk that the unit test
-    // may not pass. We found this problem on macOS.
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    sleepForMacOS();
 
     // poll read, write and 100 milliseconds, expect read and write
     PollReadWriteReadWrite();
@@ -1345,8 +1343,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
         const uint32_t SiFlags = 0;
         const auto Data = "server"sv;
         writeString(MemInst, Data, DataPtr);
-        auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-            IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+        auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
         IOVec[0].buf = DataPtr;
         IOVec[0].buf_len = Data.size();
         EXPECT_TRUE(WasiSockSend.run(
@@ -1373,8 +1370,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
           const uint32_t DataPtr =
               IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
           const uint32_t RiFlags = 0;
-          auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-              IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+          auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
           IOVec[0].buf = DataPtr;
           IOVec[0].buf_len = 32768;
           EXPECT_TRUE(
@@ -1409,7 +1405,8 @@ TEST(WasiTest, PollOneoffSocketV2) {
 
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
   WasmEdge::Host::WasiFdFdstatSetFlags WasiFdFdstatSetFlags(Env);
-  WasmEdge::Host::WasiPollOneoff WasiPollOneoff(Env);
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
   WasmEdge::Host::WasiSockConnectV2 WasiSockConnect(Env);
   WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
   WasmEdge::Host::WasiSockRecvV2 WasiSockRecv(Env);
@@ -1684,8 +1681,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const uint32_t IOVecPtr = RoFlagsPtr + sizeof(__wasi_size_t);
       const uint32_t DataPtr = IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
       const uint32_t RiFlags = 0;
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = 256;
       EXPECT_TRUE(WasiSockRecv.run(
@@ -1720,8 +1716,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const uint32_t SiFlags = 0;
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = Data.size();
       EXPECT_TRUE(
@@ -1759,8 +1754,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const uint32_t SiFlags = 0;
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = Data.size();
       EXPECT_TRUE(
@@ -1796,12 +1790,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
       ActionProcessed.wait(Lock, [&]() { return ActionDone.exchange(false); });
     }
 
-    // The following code includes a sleep to prevent a possible delay when
-    // sending and recving data. There is a chance that PollOneoff may not
-    // immediately get the read event when it is called right after the server
-    // has sent the data. Without the sleep, there is a risk that the unit test
-    // may not pass. We found this problem on macOS.
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    sleepForMacOS();
 
     // poll read, write and 100 milliseconds, expect read and write
     PollReadWriteReadWrite();
@@ -1817,7 +1806,6 @@ TEST(WasiTest, PollOneoffSocketV2) {
   Server.join();
 }
 
-#if WASMEDGE_OS_LINUX
 TEST(WasiTest, EpollOneoffSocketV1) {
   enum class ServerAction {
     None,
@@ -1960,8 +1948,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
         const uint32_t SiFlags = 0;
         const auto Data = "server"sv;
         writeString(MemInst, Data, DataPtr);
-        auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-            IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+        auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
         IOVec[0].buf = DataPtr;
         IOVec[0].buf_len = Data.size();
         EXPECT_TRUE(WasiSockSend.run(
@@ -1988,8 +1975,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
           const uint32_t DataPtr =
               IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
           const uint32_t RiFlags = 0;
-          auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-              IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+          auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
           IOVec[0].buf = DataPtr;
           IOVec[0].buf_len = 32768;
           EXPECT_TRUE(
@@ -2024,7 +2010,8 @@ TEST(WasiTest, EpollOneoffSocketV1) {
 
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
   WasmEdge::Host::WasiFdFdstatSetFlags WasiFdFdstatSetFlags(Env);
-  WasmEdge::Host::WasiEpollOneoff WasiEpollOneoff(Env);
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Edge>
+      WasiPollOneoff(Env);
   WasmEdge::Host::WasiSockConnectV1 WasiSockConnect(Env);
   WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
   WasmEdge::Host::WasiSockRecvV1 WasiSockRecv(Env);
@@ -2078,10 +2065,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       Subscriptions[1].u.u.clock.precision = 1;
       Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
       EXPECT_TRUE(
-          WasiEpollOneoff.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  InPtr, OutPtr, Count, NEventsPtr},
-                              Errno));
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
       EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
@@ -2107,10 +2094,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       Subscriptions[1].u.u.clock.precision = 1;
       Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
       EXPECT_TRUE(
-          WasiEpollOneoff.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  InPtr, OutPtr, Count, NEventsPtr},
-                              Errno));
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
       EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
@@ -2137,10 +2124,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       Subscriptions[1].u.u.clock.precision = 1;
       Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
       EXPECT_TRUE(
-          WasiEpollOneoff.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  InPtr, OutPtr, Count, NEventsPtr},
-                              Errno));
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
       EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
@@ -2166,10 +2153,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       Subscriptions[1].u.u.clock.precision = 1;
       Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
       EXPECT_TRUE(
-          WasiEpollOneoff.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  InPtr, OutPtr, Count, NEventsPtr},
-                              Errno));
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
@@ -2198,10 +2185,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       Subscriptions[2].u.u.clock.precision = 1;
       Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
       EXPECT_TRUE(
-          WasiEpollOneoff.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  InPtr, OutPtr, Count, NEventsPtr},
-                              Errno));
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
@@ -2230,10 +2217,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       Subscriptions[2].u.u.clock.precision = 1;
       Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
       EXPECT_TRUE(
-          WasiEpollOneoff.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  InPtr, OutPtr, Count, NEventsPtr},
-                              Errno));
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
@@ -2262,10 +2249,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       Subscriptions[2].u.u.clock.precision = 1;
       Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
       EXPECT_TRUE(
-          WasiEpollOneoff.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  InPtr, OutPtr, Count, NEventsPtr},
-                              Errno));
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
@@ -2299,8 +2286,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const uint32_t IOVecPtr = RoFlagsPtr + sizeof(__wasi_size_t);
       const uint32_t DataPtr = IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
       const uint32_t RiFlags = 0;
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = 256;
       EXPECT_TRUE(WasiSockRecv.run(
@@ -2335,8 +2321,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const uint32_t SiFlags = 0;
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = Data.size();
       EXPECT_TRUE(
@@ -2374,8 +2359,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const uint32_t SiFlags = 0;
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
-      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(
-          IOVecPtr, sizeof(__wasi_ciovec_t) * IOVecSize);
+      auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
       IOVec[0].buf_len = Data.size();
       EXPECT_TRUE(
@@ -2411,6 +2395,8 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       ActionProcessed.wait(Lock, [&]() { return ActionDone.exchange(false); });
     }
 
+    sleepForMacOS();
+
     // poll read, write and 100 milliseconds, expect read and write
     PollReadWriteReadWrite();
 
@@ -2424,7 +2410,6 @@ TEST(WasiTest, EpollOneoffSocketV1) {
   ActionRequested.notify_one();
   Server.join();
 }
-#endif
 
 TEST(WasiTest, ClockTimeGet) {
   WasmEdge::Host::WASI::Environ Env;
@@ -2785,7 +2770,7 @@ TEST(WasiTest, SymbolicLink) {
         std::initializer_list<WasmEdge::ValVariant>{OldPathPtr, UINT32_C(0), Fd,
                                                     NewPathPtr, UINT32_C(0)},
         Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOENT);
     Env.fini();
   }
 
@@ -2795,7 +2780,19 @@ TEST(WasiTest, SymbolicLink) {
     EXPECT_TRUE(WasiPathSymlink.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{OldPathPtr, UINT32_C(0), Fd,
+                                                    NewPathPtr, UINT32_C(1)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+    EXPECT_TRUE(WasiPathSymlink.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{OldPathPtr, UINT32_C(1), Fd,
                                                     NewPathPtr, UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+    EXPECT_TRUE(WasiPathSymlink.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{OldPathPtr, UINT32_C(1), Fd,
+                                                    NewPathPtr, UINT32_C(1)},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
     Env.fini();

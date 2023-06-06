@@ -1,3 +1,48 @@
+### 0.12.1 (2023-05-12)
+
+This is a hotfix release.
+
+Fixed issues:
+* WASI:
+  * fix rights of pre-open fd cannot write and fix read-only flag parse (#2458)
+* WASI Socket:
+  * Workaround: reduce the address family size for the old API
+  * fix sock opt & add BINDTODEVICE (#2454)
+* MacOS
+  * Use OpenSSL 3.0 on MacOS when building the plugins.
+  * Update the visibility of plugin functions.
+  * Fix AOT Error on MacOS; fix #2427
+    * Change enumerate attributes value to zero
+    * Change import helper function to private linkage to hide symbols
+    * Detect OS version
+  * Fix building with statically linked LLVM-15 on MacOS.
+  * cmake: quote WASMEDGE_LLVM_LINK_LIBS_NAME variable in order to fix arm64-osx AOT build (#2443)
+* Windows:
+    * Fix missing msvcp140.dll issue (#2455)
+    * Revert #2455 temporarily. Use `CMAKE_MSVC_RUNTIME_LIBRARY` instead of `MSVC_RUNTIME_LIBRARY`.
+* Rust Binding:
+  * Introduce `fiber-for-wasmedge` (#2468). The Rust binding relies on fiber for some features. Because the runwasi project supports both wasmtime and wasmedge, the wasmtime-fiber with different versions will make the compilation complex. To avoid this, we forked wasmtime-fiber as fiber-for-wasmedge.
+  * Add a second phase mechanism to load plugins after the VM has already been built. (#2469)
+* Documents:
+  * Fix the naming of the AOT wasm file.
+  * Add wasmedgec use cases for a slim container.
+  * Add the Kwasm document.
+  * Fix HostFunction with data example (#2441)
+
+Known issues:
+
+* Universal WASM format failed on macOS platforms.
+  * In the current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause a bus error during execution.
+  * We are trying to fix this issue. For a working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+
+Thank all the contributors that made this release possible!
+
+Leonid Pospelov, Shen-Ta Hsieh, Tyler Rockwood, Xin Liu, YiYing He, dm4, hydai, vincent, yanghaku, zzz
+
+If you want to build from source, please use WasmEdge-0.12.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.12.0 (2023-04-24)
 
 Breaking changes:

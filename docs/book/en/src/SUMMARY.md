@@ -42,6 +42,7 @@
       - [SuperEdge](use_cases/kubernetes/kubernetes/superedge.md)
       - [OpenYurt](use_cases/kubernetes/kubernetes/openyurt.md)
       - [Knative](use_cases/kubernetes/kubernetes/knative.md)
+      - [Kwasm](use_cases/kubernetes/kubernetes/Kwasm.md)
     - [Docker](use_cases/kubernetes/docker.md)
       - [Slim container](use_cases/kubernetes/docker/lxc.md)
       - [containerd integration](use_cases/kubernetes/docker/containerd.md)
@@ -131,7 +132,8 @@
 
 - [Use WasmEdge CLI](cli.md)
   - [`wasmedge` WASM Runner](cli/wasmedge.md)
-  - [`wasmedgec` AOT Compiler](cli/wasmedgec.md)
+  - [`wasmedgec` AOT Compiler](cli/wasmedge_compile.md)
+  - [`wasmedge run` WASM Runner](cli/wasmedge_tool.md)
 
 - [Develop WasmEdge Plug-in](plugin.md)
   - [Develop Plug-in in C API](develop_plugin/c.md)
@@ -154,7 +156,6 @@
     - [Build for OpenWrt](contribute/build_from_src/openwrt.md)
     - [Build with WASI-NN Plug-in](contribute/build_from_src/plugin_wasi_nn.md)
     - [Build with WASI-Crypto Plug-in](contribute/build_from_src/plugin_wasi_crypto.md)
-    - [Build with WasmEdge-HttpsReq Plug-in](contribute/build_from_src/plugin_wasmedge_httpsreq.md)
     - [Build with WasmEdge-process Plug-in](contribute/build_from_src/plugin_wasmedge_process.md)
   - [WasmEdge Installer Guide](contribute/installer.md)
   - [WasmEdge Internal](contribute/internal.md)

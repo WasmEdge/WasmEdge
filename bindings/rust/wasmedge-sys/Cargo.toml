@@ -10,22 +10,23 @@ links = "wasmedge"
 name = "wasmedge-sys"
 readme = "README.md"
 repository = "https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys"
-version = "0.13.0"
+version = "0.14.0"
 
 [dependencies]
-lazy_static = "1.4.0"
+fiber-for-wasmedge = {version = "8.0.1", optional = true}
 libc = "0.2.94"
-parking_lot = "0.12.1"
 paste = "1.0.5"
-rand = "0.8.4"
 thiserror = "1.0.30"
 wasmedge-macro = {workspace = true}
 wasmedge-types = {workspace = true}
-wasmtime-fiber = {version = "6", optional = true}
 wat = "1.0"
+scoped-tls = "1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+wasmedge-async-wasi = {git = "https://github.com/second-state/async-wasi.git", branch = "main", optional = true}
 
 [build-dependencies]
-bindgen = {version = "0.61", default-features = false, features = ["runtime"]}
+bindgen = {version = "0.65", default-features = false, features = ["runtime"]}
 cmake = "0.1"
 
 [dev-dependencies]
@@ -34,7 +35,7 @@ tokio = {version = "1", features = ["full"]}
 
 [features]
 aot = []
-async = ["dep:wasmtime-fiber"]
+async = ["dep:fiber-for-wasmedge", "dep:wasmedge-async-wasi"]
 default = []
 ffi = []
 standalone = []

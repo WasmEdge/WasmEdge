@@ -18,7 +18,8 @@ PO::Option<std::string> StringOpt(PO::Description("string to return"sv),
 
 PO::Option<PO::Toggle> UpperOpt(PO::Description("return in upper case"sv));
 
-void addOptions(PO::ArgumentParser &Parser) noexcept {
+void addOptions(const Plugin::Plugin::PluginDescriptor *,
+                PO::ArgumentParser &Parser) noexcept {
   Parser.add_option("string"sv, StringOpt).add_option("upper"sv, UpperOpt);
 }
 
@@ -71,7 +72,8 @@ public:
   }
 };
 
-Runtime::Instance::ModuleInstance *create(void) noexcept {
+Runtime::Instance::ModuleInstance *
+create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
   return new PluginModule;
 }
 

@@ -1,5 +1,7 @@
 //! Defines Executor struct.
 
+#[cfg(all(feature = "async", target_os = "linux"))]
+use crate::r#async::AsyncState;
 use crate::{config::Config, Func, FuncRef, Statistics, WasmEdgeResult, WasmValue};
 use wasmedge_sys as sys;
 
@@ -67,13 +69,16 @@ impl Executor {
     /// # Errors
     ///
     /// If fail to run the host function, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn run_func_async(
         &self,
+        async_state: &AsyncState,
         func: &Func,
         params: impl IntoIterator<Item = WasmValue> + Send,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        self.inner.call_func_async(&func.inner, params).await
+        self.inner
+            .call_func_async(async_state, &func.inner, params)
+            .await
     }
 
     /// Runs a host function reference instance and returns the results.
@@ -106,14 +111,15 @@ impl Executor {
     /// # Errors
     ///
     /// If fail to run the host function reference instance, then an error is returned.
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", target_os = "linux"))]
     pub async fn run_func_ref_async(
         &self,
+        async_state: &AsyncState,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue> + Send,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         self.inner
-            .call_func_ref_async(&func_ref.inner, params)
+            .call_func_ref_async(async_state, &func_ref.inner, params)
             .await
     }
 }
@@ -125,6 +131,10 @@ mod tests {
         config::{CommonConfigOptions, ConfigBuilder},
         params, wat2wasm, Module, Statistics, Store, WasmVal,
     };
+    #[cfg(feature = "async")]
+    use crate::{error::HostFuncError, CallingFrame};
+    #[cfg(feature = "async")]
+    use wasmedge_types::NeverType;
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
@@ -250,5 +260,53 @@ mod tests {
         let returns = result.unwrap();
         assert_eq!(returns.len(), 1);
         assert_eq!(returns[0].to_i32(), 8);
+    }
+
+    #[cfg(feature = "async")]
+    #[tokio::test]
+    async fn test_executor_run_async_func() -> Result<(), Box<dyn std::error::Error>> {
+        fn async_hello<T>(
+            _frame: CallingFrame,
+            _inputs: Vec<WasmValue>,
+            _data: Option<&mut T>,
+        ) -> Box<(dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send)>
+        {
+            Box::new(async move {
+                for _ in 0..10 {
+                    println!("[async hello] say hello");
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                }
+
+                println!("[async hello] Done!");
+
+                Ok(vec![])
+            })
+        }
+
+        // create an async host function
+        let result = Func::wrap_async::<(), (), NeverType>(async_hello, None);
+        assert!(result.is_ok());
+        let func = result.unwrap();
+
+        // create an executor
+        let executor = Executor::new(None, None).unwrap();
+
+        // create an async state
+        let async_state = AsyncState::new();
+
+        async fn tick() {
+            let mut i = 0;
+            loop {
+                println!("[tick] i={i}");
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                i += 1;
+            }
+        }
+        tokio::spawn(tick());
+
+        // call the async host function
+        let _ = executor.run_func_async(&async_state, &func, []).await?;
+
+        Ok(())
     }
 }

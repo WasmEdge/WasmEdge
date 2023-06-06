@@ -452,7 +452,6 @@ impl PluginDescriptor {
 
 #[cfg(test)]
 mod tests {
-    use crate::WasmValue;
 
     #[cfg(all(
         target_os = "linux",

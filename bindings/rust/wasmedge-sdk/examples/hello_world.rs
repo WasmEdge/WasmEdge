@@ -1,12 +1,16 @@
 use wasmedge_sdk::{
-    error::HostFuncError, host_function, params, wat2wasm, Caller, ImportObjectBuilder, Module,
-    VmBuilder, WasmValue,
+    self, error::HostFuncError, host_function, params, wat2wasm, Caller, ImportObjectBuilder,
+    Module, NeverType, VmBuilder, WasmValue,
 };
 
 // We define a function to act as our "env" "say_hello" function imported in the
 // Wasm program above.
 #[host_function]
-pub fn say_hello(_caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+pub fn say_hello<T>(
+    _caller: Caller,
+    _args: Vec<WasmValue>,
+    _data: Option<&mut T>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Hello, world!");
 
     Ok(vec![])
@@ -16,7 +20,7 @@ pub fn say_hello(_caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue
 fn main() -> anyhow::Result<()> {
     // create an import module
     let import = ImportObjectBuilder::new()
-        .with_func::<(), ()>("say_hello", say_hello)?
+        .with_func::<(), (), NeverType>("say_hello", say_hello, None)?
         .build("env")?;
 
     let wasm_bytes = wat2wasm(

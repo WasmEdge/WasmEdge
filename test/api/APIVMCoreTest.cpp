@@ -125,8 +125,8 @@ TEST_P(CoreTest, TestSuites) {
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
       // Execute.
       Res = WasmEdge_VMExecuteRegistered(
-          VM, ModStr, FieldStr, &CParams[0],
-          static_cast<uint32_t>(CParams.size()), &CReturns[0],
+          VM, ModStr, FieldStr, CParams.data(),
+          static_cast<uint32_t>(CParams.size()), CReturns.data(),
           static_cast<uint32_t>(CReturns.size()));
     } else {
       // Invoke function of anonymous module. Anonymous modules are instantiated
@@ -139,8 +139,8 @@ TEST_P(CoreTest, TestSuites) {
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
       // Execute.
       Res = WasmEdge_VMExecute(
-          VM, FieldStr, &CParams[0], static_cast<uint32_t>(CParams.size()),
-          &CReturns[0], static_cast<uint32_t>(CReturns.size()));
+          VM, FieldStr, CParams.data(), static_cast<uint32_t>(CParams.size()),
+          CReturns.data(), static_cast<uint32_t>(CReturns.size()));
     }
     if (!WasmEdge_ResultOK(Res)) {
       return Unexpect(convResult(Res));

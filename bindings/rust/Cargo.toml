@@ -3,5 +3,5 @@ exclude = ["build/", "utils/"]
 members = ["wasmedge-sys", "wasmedge-types", "wasmedge-sdk", "wasmedge-macro"]
 
 [workspace.dependencies]
-wasmedge-macro = {path = "wasmedge-macro", version = "0.3"}
+wasmedge-macro = {path = "wasmedge-macro", version = "0.4"}
 wasmedge-types = {path = "wasmedge-types", version = "0.4"}

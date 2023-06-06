@@ -33,20 +33,6 @@
 
 namespace WasmEdge {
 
-static inline WasmPhase getErrCodePhase(const ErrCode &Code) {
-  return static_cast<WasmPhase>(Code.getCategory() == ErrCategory::WASM
-                                    ? ((Code.getCode() & 0xF0U) >> 5)
-                                    : 0x05U // WasmPhase::UserDefined
-  );
-}
-
-static inline std::ostream &operator<<(std::ostream &OS, const ErrCode &Code) {
-  OS << WasmPhaseStr[getErrCodePhase(Code)]
-     << " failed: " << ErrCodeStr[Code.getEnum()]
-     << ", Code: " << convertUIntToHexStr(Code.getCode(), 2);
-  return OS;
-}
-
 static inline constexpr bool likely(bool V) noexcept {
   return __builtin_expect(V, true);
 }
@@ -68,7 +54,25 @@ template <typename T> constexpr auto Unexpect(const Expect<T> &Val) {
 
 } // namespace WasmEdge
 
-#if FMT_VERSION >= 90000
 template <>
-struct fmt::formatter<WasmEdge::ErrCode::Value> : ostream_formatter {};
-#endif
+struct fmt::formatter<WasmEdge::ErrCode> : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrCode &Code,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace std::literals;
+    std::string Output =
+        fmt::format("{} failed: {}, Code: 0x{:02x}"sv, Code.getErrCodePhase(),
+                    WasmEdge::ErrCodeStr[Code.getEnum()], Code.getCode());
+    return formatter<std::string_view>::format(Output, Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::ErrCode::Value>
+    : fmt::formatter<WasmEdge::ErrCode> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrCode::Value &Value,
+         fmt::format_context &Ctx) const noexcept {
+    return formatter<WasmEdge::ErrCode>::format(WasmEdge::ErrCode(Value), Ctx);
+  }
+};

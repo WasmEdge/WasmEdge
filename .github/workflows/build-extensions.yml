@@ -53,7 +53,7 @@ jobs:
           # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
           git fetch --tags --force
           echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
-          echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
+          echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> $GITHUB_OUTPUT
 
   build_ubuntu:
     strategy:
@@ -137,24 +137,6 @@ jobs:
             test_path: test/plugins/wasi_crypto
             test_bin: wasiCryptoTests
             build_type: Release
-          - name: HttpsReq
-            tar_name: wasmedge_httpsreq
-            compiler: g++
-            docker_tag: ubuntu-build-gcc
-            output_path: plugins/wasmedge_httpsreq
-            output_bin: libwasmedgePluginHttpsReq.so
-            test_path: test/plugins/wasmedge_httpsreq
-            test_bin: wasmedgeHttpsReqTests
-            build_type: Release
-          - name: HttpsReq
-            tar_name: wasmedge_httpsreq
-            compiler: clang++
-            docker_tag: ubuntu-build-clang
-            output_path: plugins/wasmedge_httpsreq
-            output_bin: libwasmedgePluginHttpsReq.so
-            test_path: test/plugins/wasmedge_httpsreq
-            test_bin: wasmedgeHttpsReqTests
-            build_type: Release
           - name: Process
             tar_name: wasmedge_process
             compiler: g++
@@ -173,7 +155,7 @@ jobs:
             test_path: test/plugins/wasmedge_process
             test_bin: wasmedgeProcessTests
             build_type: Release
-    name: Ubuntu 20.04 WasmEdge ${{ matrix.name }} plugin with ${{ matrix.compiler}} ${{ matrix.build_type}}
+    name: Ubuntu WasmEdge ${{ matrix.name }} plugin with ${{ matrix.compiler}} ${{ matrix.build_type}}
     runs-on: ubuntu-latest
     needs: [get_version_v2]
     container:
@@ -217,16 +199,6 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_PLUGIN_WASI_CRYPTO=On -DWASMEDGE_BUILD_TESTS=ON ..
           cd ${{ matrix.test_path }}
           make -j
-      - name: Build WasmEdge HttpsReq plugin using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
-        if: contains(matrix.name, 'HttpsReq')
-        run: |
-          apt update
-          apt install -y libssl-dev
-          mkdir -p build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_PLUGIN_HTTPSREQ=ON -DWASMEDGE_BUILD_TESTS=ON ..
-          cd ${{ matrix.test_path }}
-          make -j
       - name: Build WasmEdge Process plugin using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         if: contains(matrix.name, 'Process')
         run: |
@@ -254,7 +226,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-${{ matrix.tar_name }}-${{ needs.get_version_v2.outputs.version }}-ubuntu20.04-${{ matrix.compiler }}.tar.gz
+          name: WasmEdge-plugin-${{ matrix.tar_name }}-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin.tar.gz
 
   build_manylinux:
@@ -321,28 +293,6 @@ jobs:
             output_bin: libwasmedgePluginWasiCrypto.so
             deps_path: "utils/wasi-crypto/build-openssl.sh"
             cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
-            build_type: Release
-            test: false
-          - name: HttpsReq
-            tar_name: wasmedge_httpsreq
-            system: manylinux2014 x86_64
-            host_runner: ubuntu-latest
-            docker_tag: manylinux2014_x86_64
-            output_path: plugins/wasmedge_httpsreq
-            output_bin: libwasmedgePluginHttpsReq.so
-            deps_path: "utils/wasmedge_httpsreq/build-openssl.sh"
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
-            build_type: Release
-            test: false
-          - name: HttpsReq
-            tar_name: wasmedge_httpsreq
-            system: manylinux2014 aarch64
-            host_runner: linux-arm64
-            docker_tag: manylinux2014_aarch64
-            output_path: plugins/wasmedge_httpsreq
-            output_bin: libwasmedgePluginHttpsReq.so
-            deps_path: "utils/wasmedge_httpsreq/build-openssl.sh"
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             build_type: Release
             test: false
           - name: Process
@@ -443,8 +393,8 @@ jobs:
           fetch-depth: 0
       - name: Build WasmEdge ${{ matrix.name }} plugin using clang++ with ${{ matrix.build_type }} mode
         run: |
-          brew install llvm@14 ninja boost cmake openssl@1.1
-          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          brew install llvm ninja boost cmake openssl
+          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
           mkdir -p build

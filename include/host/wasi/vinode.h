@@ -21,7 +21,6 @@ namespace WASI {
 
 class VFS;
 class VPoller;
-class VEpoller;
 class VINode : public std::enable_shared_from_this<VINode> {
 public:
   VINode(const VINode &) = delete;
@@ -33,18 +32,7 @@ public:
   ///
   /// @param[in] FS Filesystem.
   /// @param[in] Node System INode.
-  /// @param[in] Parent Parent VINode.
-  VINode(VFS &FS, INode Node, std::shared_ptr<VINode> Parent);
-
-  /// Create a VINode with a parent and explicit rights
-  ///
-  /// @param[in] FS Filesystem.
-  /// @param[in] Node System INode.
-  /// @param[in] FRB The desired rights of the VINode.
-  /// @param[in] FRI The desired rights of the VINode.
-  /// @param[in] Parent Parent VINode.
-  VINode(VFS &FS, INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
-         std::shared_ptr<VINode> Parent);
+  VINode(VFS &FS, INode Node);
 
   /// Create a orphan VINode.
   ///
@@ -54,6 +42,11 @@ public:
   /// @param[in] FRI The desired rights of the VINode.
   VINode(VFS &FS, INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
          std::string N = {});
+
+  /// Check path is valid.
+  static bool isPathValid(std::string_view Path) noexcept {
+    return Path.find('\0') == std::string_view::npos;
+  }
 
   static std::shared_ptr<VINode> stdIn(VFS &FS, __wasi_rights_t FRB,
                                        __wasi_rights_t FRI);
@@ -68,8 +61,6 @@ public:
                                                   __wasi_rights_t FRI,
                                                   std::string Name,
                                                   std::string SystemPath);
-
-  bool isPreopened() const { return !Parent && !Name.empty(); }
 
   constexpr const std::string &name() const { return Name; }
 
@@ -546,22 +537,6 @@ public:
   static WasiExpect<void> pathUnlinkFile(VFS &FS, std::shared_ptr<VINode> Fd,
                                          std::string_view Path);
 
-  /// Concurrently poll for the occurrence of a set of events.
-  ///
-  /// @param[in] NSubscriptions Both the number of subscriptions and events.
-  /// @return Poll helper or WASI error.
-  static inline WasiExpect<VPoller>
-  pollOneoff(__wasi_size_t NSubscriptions) noexcept;
-
-  /// Concurrently poll for the occurrence of a set of events in edge-triggered
-  /// mode.
-  ///
-  /// @param[in] NSubscriptions Both the number of subscriptions and events.
-  /// @param[in] Fd Epoll Descriptor.
-  /// @return Poll helper or WASI error.
-  static inline WasiExpect<VEpoller> epollOneoff(__wasi_size_t NSubscriptions,
-                                                 int Fd) noexcept;
-
   static WasiExpect<void>
   getAddrinfo(std::string_view Node, std::string_view Service,
               const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
@@ -776,11 +751,9 @@ private:
   INode Node;
   __wasi_rights_t FsRightsBase;
   __wasi_rights_t FsRightsInheriting;
-  std::shared_ptr<VINode> Parent;
   std::string Name;
 
   friend class VPoller;
-  friend class VEpoller;
 
   /// Open path without resolve.
   /// @param Path Path, contains one element only.
@@ -805,73 +778,39 @@ private:
       uint8_t VFSFlags = 0, uint8_t LinkCount = 0);
 };
 
-class VPoller : private Poller {
+class VPoller : protected Poller {
 public:
   using Poller::clock;
+  using Poller::error;
+  using Poller::ok;
+  using Poller::Poller;
+  using Poller::prepare;
+  using Poller::reset;
+  using Poller::result;
   using Poller::wait;
 
-  VPoller(Poller &&P) : Poller(std::move(P)) {}
-
-  WasiExpect<void> read(std::shared_ptr<VINode> Fd,
-                        __wasi_userdata_t UserData) noexcept {
+  void read(std::shared_ptr<VINode> Fd, TriggerType Trigger,
+            __wasi_userdata_t UserData) noexcept {
     if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
         !Fd->can(__WASI_RIGHTS_FD_READ)) {
-      return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
+      Poller::error(UserData, __WASI_ERRNO_NOTCAPABLE,
+                    __WASI_EVENTTYPE_FD_READ);
+    } else {
+      Poller::read(Fd->Node, Trigger, UserData);
     }
-    return Poller::read(Fd->Node, UserData);
   }
 
-  WasiExpect<void> write(std::shared_ptr<VINode> Fd,
-                         __wasi_userdata_t UserData) noexcept {
-    return Poller::write(Fd->Node, UserData);
-  }
-};
-
-class VEpoller : private Epoller {
-public:
-  using Epoller::CallbackType;
-  using Epoller::clock;
-  using Epoller::getFd;
-  using Epoller::wait;
-
-  VEpoller(Epoller &&P) : Epoller(std::move(P)) {}
-
-  WasiExpect<void>
-  read(std::shared_ptr<VINode> Fd, __wasi_userdata_t UserData,
-       std::unordered_map<int, uint32_t> &Registration) noexcept {
+  void write(std::shared_ptr<VINode> Fd, TriggerType Trigger,
+             __wasi_userdata_t UserData) noexcept {
     if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
-        !Fd->can(__WASI_RIGHTS_FD_READ)) {
-      return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
+        !Fd->can(__WASI_RIGHTS_FD_WRITE)) {
+      Poller::error(UserData, __WASI_ERRNO_NOTCAPABLE,
+                    __WASI_EVENTTYPE_FD_WRITE);
+    } else {
+      Poller::write(Fd->Node, Trigger, UserData);
     }
-    return Epoller::read(Fd->Node, UserData, Registration);
   }
-
-  WasiExpect<void>
-  write(std::shared_ptr<VINode> Fd, __wasi_userdata_t UserData,
-        std::unordered_map<int, uint32_t> &Registration) noexcept {
-    return Epoller::write(Fd->Node, UserData, Registration);
-  }
-  WasiExpect<void>
-  wait(CallbackType Callback,
-       std::unordered_map<int, uint32_t> &Registration) noexcept {
-    return Epoller::wait(Callback, Registration);
-  }
-  int getFd() noexcept { return Epoller::getFd(); }
 };
-
-inline WasiExpect<VPoller>
-VINode::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
-  return INode::pollOneoff(NSubscriptions).map([](Poller &&P) {
-    return VPoller(std::move(P));
-  });
-}
-
-inline WasiExpect<VEpoller> VINode::epollOneoff(__wasi_size_t NSubscriptions,
-                                                int Fd) noexcept {
-  return INode::epollOneoff(NSubscriptions, Fd).map([](Epoller &&P) {
-    return VEpoller(std::move(P));
-  });
-}
 
 } // namespace WASI
 } // namespace Host

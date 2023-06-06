@@ -37,8 +37,6 @@ struct InfoFile {
   InfoFile() = delete;
   InfoFile(const std::filesystem::path &FName) noexcept : FileName(FName) {}
 
-  friend std::ostream &operator<<(std::ostream &OS, const struct InfoFile &Rhs);
-
   std::filesystem::path FileName;
 };
 
@@ -46,17 +44,12 @@ struct InfoLoading {
   InfoLoading() = delete;
   InfoLoading(const uint64_t Off) noexcept : Offset(Off) {}
 
-  friend std::ostream &operator<<(std::ostream &OS,
-                                  const struct InfoLoading &Rhs);
-
   uint64_t Offset;
 };
 
 struct InfoAST {
   InfoAST() = delete;
   InfoAST(const ASTNodeAttr Attr) noexcept : NodeAttr(Attr) {}
-
-  friend std::ostream &operator<<(std::ostream &OS, const struct InfoAST &Rhs);
 
   ASTNodeAttr NodeAttr;
 };
@@ -66,9 +59,6 @@ struct InfoInstanceBound {
   InfoInstanceBound(const ExternalType Inst, const uint32_t Num,
                     const uint32_t Lim) noexcept
       : Instance(Inst), Number(Num), Limited(Lim) {}
-
-  friend std::ostream &operator<<(std::ostream &OS,
-                                  const struct InfoInstanceBound &Rhs);
 
   ExternalType Instance;
   uint32_t Number, Limited;
@@ -80,9 +70,6 @@ struct InfoForbidIndex {
                   const uint32_t Bound) noexcept
       : Category(Cate), Index(Idx), Boundary(Bound) {}
 
-  friend std::ostream &operator<<(std::ostream &OS,
-                                  const struct InfoForbidIndex &Rhs);
-
   IndexCategory Category;
   uint32_t Index, Boundary;
 };
@@ -90,9 +77,6 @@ struct InfoForbidIndex {
 struct InfoExporting {
   InfoExporting() = delete;
   InfoExporting(std::string_view Ext) noexcept : ExtName(Ext) {}
-
-  friend std::ostream &operator<<(std::ostream &OS,
-                                  const struct InfoExporting &Rhs);
 
   std::string ExtName;
 };
@@ -103,9 +87,6 @@ struct InfoLimit {
             const uint32_t Max = 0) noexcept
       : LimHasMax(HasMax), LimMin(Min), LimMax(Max) {}
 
-  friend std::ostream &operator<<(std::ostream &OS,
-                                  const struct InfoLimit &Rhs);
-
   bool LimHasMax;
   uint32_t LimMin, LimMax;
 };
@@ -113,9 +94,6 @@ struct InfoLimit {
 struct InfoRegistering {
   InfoRegistering() = delete;
   InfoRegistering(std::string_view Mod) noexcept : ModName(Mod) {}
-
-  friend std::ostream &operator<<(std::ostream &OS,
-                                  const struct InfoRegistering &Rhs);
 
   std::string ModName;
 };
@@ -125,9 +103,6 @@ struct InfoLinking {
   InfoLinking(std::string_view Mod, std::string_view Ext,
               const ExternalType ExtT = ExternalType::Function) noexcept
       : ModName(Mod), ExtName(Ext), ExtType(ExtT) {}
-
-  friend std::ostream &operator<<(std::ostream &OS,
-                                  const struct InfoLinking &Rhs);
 
   std::string ModName;
   std::string ExtName;
@@ -139,9 +114,6 @@ struct InfoExecuting {
   InfoExecuting(std::string_view Mod, std::string_view Func) noexcept
       : ModName(Mod), FuncName(Func) {}
   InfoExecuting(std::string_view Func) noexcept : ModName(""), FuncName(Func) {}
-
-  friend std::ostream &operator<<(std::ostream &OS,
-                                  const struct InfoExecuting &Rhs);
 
   std::string ModName;
   std::string FuncName;
@@ -218,9 +190,6 @@ struct InfoMismatch {
       : Category(MismatchCategory::Version), ExpVersion(ExpV),
         GotVersion(GotV) {}
 
-  friend std::ostream &operator<<(std::ostream &OS,
-                                  const struct InfoMismatch &Rhs);
-
   /// Mismatched category
   MismatchCategory Category;
 
@@ -262,9 +231,6 @@ struct InfoInstruction {
       : Code(Op), Offset(Off), Args(ArgsVec), ArgsTypes(ArgsTypesVec),
         IsSigned(Signed) {}
 
-  friend std::ostream &operator<<(std::ostream &OS,
-                                  const struct InfoInstruction &Rhs);
-
   OpCode Code;
   uint64_t Offset;
   std::vector<ValVariant> Args;
@@ -279,9 +245,6 @@ struct InfoBoundary {
       const uint32_t Lim = std::numeric_limits<uint32_t>::max()) noexcept
       : Offset(Off), Size(Len), Limit(Lim) {}
 
-  friend std::ostream &operator<<(std::ostream &OS,
-                                  const struct InfoBoundary &Rhs);
-
   uint64_t Offset;
   uint32_t Size;
   uint32_t Limit;
@@ -291,45 +254,104 @@ struct InfoProposal {
   InfoProposal() = delete;
   InfoProposal(Proposal P) noexcept : P(P) {}
 
-  friend std::ostream &operator<<(std::ostream &OS,
-                                  const struct InfoProposal &Rhs);
   Proposal P;
 };
 
 } // namespace ErrInfo
 } // namespace WasmEdge
 
-#if FMT_VERSION >= 90000
 template <>
-struct fmt::formatter<WasmEdge::ErrInfo::InfoFile> : ostream_formatter {};
+struct fmt::formatter<WasmEdge::ErrInfo::InfoFile>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator format(const WasmEdge::ErrInfo::InfoFile &Info,
+                                       fmt::format_context &Ctx) const noexcept;
+};
 template <>
-struct fmt::formatter<WasmEdge::ErrInfo::InfoLoading> : ostream_formatter {};
+struct fmt::formatter<WasmEdge::ErrInfo::InfoLoading>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoLoading &Info,
+         fmt::format_context &Ctx) const noexcept;
+};
 template <>
-struct fmt::formatter<WasmEdge::ErrInfo::InfoAST> : ostream_formatter {};
+struct fmt::formatter<WasmEdge::ErrInfo::InfoAST>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator format(const WasmEdge::ErrInfo::InfoAST &Info,
+                                       fmt::format_context &Ctx) const noexcept;
+};
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoInstanceBound>
-    : ostream_formatter {};
-template <>
-struct fmt::formatter<WasmEdge::ErrInfo::InfoForbidIndex> : ostream_formatter {
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoInstanceBound &Info,
+         fmt::format_context &Ctx) const noexcept;
 };
 template <>
-struct fmt::formatter<WasmEdge::ErrInfo::InfoExporting> : ostream_formatter {};
-template <>
-struct fmt::formatter<WasmEdge::ErrInfo::InfoLimit> : ostream_formatter {};
-template <>
-struct fmt::formatter<WasmEdge::ErrInfo::InfoRegistering> : ostream_formatter {
+struct fmt::formatter<WasmEdge::ErrInfo::InfoForbidIndex>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoForbidIndex &Info,
+         fmt::format_context &Ctx) const noexcept;
 };
 template <>
-struct fmt::formatter<WasmEdge::ErrInfo::InfoLinking> : ostream_formatter {};
-template <>
-struct fmt::formatter<WasmEdge::ErrInfo::InfoExecuting> : ostream_formatter {};
-template <>
-struct fmt::formatter<WasmEdge::ErrInfo::InfoMismatch> : ostream_formatter {};
-template <>
-struct fmt::formatter<WasmEdge::ErrInfo::InfoInstruction> : ostream_formatter {
+struct fmt::formatter<WasmEdge::ErrInfo::InfoExporting>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoExporting &Info,
+         fmt::format_context &Ctx) const noexcept;
 };
 template <>
-struct fmt::formatter<WasmEdge::ErrInfo::InfoBoundary> : ostream_formatter {};
+struct fmt::formatter<WasmEdge::ErrInfo::InfoLimit>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator format(const WasmEdge::ErrInfo::InfoLimit &Info,
+                                       fmt::format_context &Ctx) const noexcept;
+};
 template <>
-struct fmt::formatter<WasmEdge::ErrInfo::InfoProposal> : ostream_formatter {};
-#endif
+struct fmt::formatter<WasmEdge::ErrInfo::InfoRegistering>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoRegistering &Info,
+         fmt::format_context &Ctx) const noexcept;
+};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoLinking>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoLinking &Info,
+         fmt::format_context &Ctx) const noexcept;
+};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoExecuting>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoExecuting &Info,
+         fmt::format_context &Ctx) const noexcept;
+};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoMismatch>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoMismatch &Info,
+         fmt::format_context &Ctx) const noexcept;
+};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoInstruction>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoInstruction &Info,
+         fmt::format_context &Ctx) const noexcept;
+};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoBoundary>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoBoundary &Info,
+         fmt::format_context &Ctx) const noexcept;
+};
+template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoProposal>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoProposal &Info,
+         fmt::format_context &Ctx) const noexcept;
+};

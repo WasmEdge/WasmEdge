@@ -13,19 +13,11 @@ namespace Host {
 Expect<uint32_t> WasiOCRNumOfExtractions::body(const Runtime::CallingFrame &Frame,
                     uint32_t ImagePathPtr,
                     uint32_t ImagePathLen){
-                    // uint32_t NumOfExtractionsPtr){
 // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  // // Check the return value: NumOfExtractionsPtr should be valid.
-  // uint32_t *NumOfExtractions = MemInst->getPointer<uint32_t *>(NumOfExtractionsPtr, 1);
-  // if (unlikely(NumOfExtractions == nullptr)) {
-  //   spdlog::error("[WASI-OCR] Failed when accessing the return NumOfExtractions memory.");
-  //   return static_cast<uint32_t>(WASIOCR::ErrNo::InvalidArgument);
-  // }
-  // dont know if necessary, mostly is since first actually accesses the memory, second just creates a string from it
   char *ImagePtr = MemInst->getPointer<char *>(ImagePathPtr, ImagePathLen);
   Pix *image = pixRead(ImagePtr);
 
@@ -36,6 +28,7 @@ Expect<uint32_t> WasiOCRNumOfExtractions::body(const Runtime::CallingFrame &Fram
   const char *outText = Env.TesseractApi->GetTSVText(level);
 
   uint32_t length = strlen(outText);
+  pixDestroy(&image);
   return static_cast<uint32_t>(length);
 }
 
@@ -60,6 +53,8 @@ Expect<uint32_t> WasiOCRGetOutput::body(const Runtime::CallingFrame &Frame,
   std::strcpy(Buf,outText);
 
   // remaining free and deltee memory stuff
+  Env.TesseractApi->End();
+  delete [] outText; // USE WHEN USING TESS API
 
   return static_cast<uint32_t>(WASIOCR::ErrNo::Success);
   // return outText;

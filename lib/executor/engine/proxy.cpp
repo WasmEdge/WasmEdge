@@ -18,11 +18,7 @@ struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StackManager &,
                                                         ArgsT...) noexcept> {
   template <Expect<RetT> (Executor::*Func)(Runtime::StackManager &,
                                            ArgsT...) noexcept>
-  static auto proxy(ArgsT... Args)
-#if !WASMEDGE_OS_WINDOWS
-      noexcept
-#endif
-  {
+  static auto proxy(ArgsT... Args) {
     Expect<RetT> Res = (This->*Func)(*CurrentStack, Args...);
     if (unlikely(!Res)) {
       Fault::emitFault(Res.error());

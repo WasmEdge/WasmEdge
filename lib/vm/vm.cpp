@@ -24,7 +24,7 @@ createPluginModule(std::string_view PName, std::string_view MName) {
       return Module->create();
     }
   }
-  spdlog::debug("Plugin: {} , module name: {} not found. Mock instead.", PName,
+  spdlog::debug("Plugin: {} , module name: {} not found. Mock instead."sv, PName,
                 MName);
   return std::make_unique<T>();
 }

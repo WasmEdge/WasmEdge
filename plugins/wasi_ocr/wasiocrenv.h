@@ -29,8 +29,6 @@ public:
       spdlog::error(
           "[WASI-OCR] Error occured when initializing tesseract.");
     }
-    // NNGraph.reserve(16U);
-    // NNContext.reserve(16U);
   }
   ~WasiOCREnvironment() noexcept {
     if (TesseractApi) {

@@ -7,6 +7,10 @@ if(WASMEDGE_PLUGIN_PROCESS)
   endif()
 endif()
 
+if(WASMEDGE_PLUGIN_ZLIB)
+    add_subdirectory(wasmedge_zlib)
+endif()
+
 if(WASMEDGE_PLUGIN_WASI_NN_BACKEND)
   add_subdirectory(wasi_nn)
 endif()

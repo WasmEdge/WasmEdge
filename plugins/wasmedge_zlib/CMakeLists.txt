@@ -15,3 +15,34 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(ZLIB)
 
+wasmedge_add_library(wasmedgePluginWasmEdgeZlib
+  SHARED
+  zlibenv.cpp
+  zlibfunc.cpp
+  zlibmodule.cpp
+)
+
+target_compile_options(wasmedgePluginWasmEdgeZlib
+  PUBLIC
+  -DWASMEDGE_PLUGIN
+)
+
+target_include_directories(wasmedgePluginWasmEdgeZlib
+  PUBLIC
+  $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
+  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+if(WASMEDGE_LINK_PLUGINS_STATIC)
+  target_link_libraries(wasmedgePluginWasmEdgeZlib
+    PRIVATE
+    wasmedgeCAPI
+  )
+else()
+  target_link_libraries(wasmedgePluginWasmEdgeZlib
+    PRIVATE
+    wasmedge_shared
+  )
+endif()
+
+install(TARGETS wasmedgePluginWasmEdgeZlib DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)

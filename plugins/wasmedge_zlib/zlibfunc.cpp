@@ -161,6 +161,20 @@ Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &,
   return static_cast<int32_t>(ZRes);
 }
 
+Expect<int32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &,
+                                             uint32_t ZStreamPtr) {
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  auto HostZStream = HostZStreamIt->second.get();
+  int32_t ZRes = inflateEnd(HostZStream);
+
+  Env.ZStreamMap.erase(ZStreamPtr);
+
+  return static_cast<int32_t>(ZRes);
+}
+
 } // namespace Host
 } // namespace WasmEdge
 

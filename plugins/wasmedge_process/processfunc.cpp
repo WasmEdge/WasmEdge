@@ -31,8 +31,8 @@ WasmEdgeProcessSetProgName::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  char *Buf = MemInst->getPointer<char *>(NamePtr);
-  std::copy_n(Buf, NameLen, std::back_inserter(Env.Name));
+  const auto Buf = MemInst->getSpan<const char>(NamePtr, NameLen);
+  std::copy(Buf.begin(), Buf.end(), std::back_inserter(Env.Name));
   return {};
 }
 
@@ -44,9 +44,9 @@ Expect<void> WasmEdgeProcessAddArg::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  char *Buf = MemInst->getPointer<char *>(ArgPtr);
+  const auto Buf = MemInst->getSpan<const char>(ArgPtr, ArgLen);
   std::string NewArg;
-  std::copy_n(Buf, ArgLen, std::back_inserter(NewArg));
+  std::copy(Buf.begin(), Buf.end(), std::back_inserter(NewArg));
   Env.Args.push_back(std::move(NewArg));
   return {};
 }
@@ -62,11 +62,11 @@ Expect<void> WasmEdgeProcessAddEnv::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  char *EnvBuf = MemInst->getPointer<char *>(EnvNamePtr);
-  char *ValBuf = MemInst->getPointer<char *>(EnvValPtr);
+  const auto EnvBuf = MemInst->getSpan<const char>(EnvNamePtr, EnvNameLen);
+  const auto ValBuf = MemInst->getSpan<const char>(EnvValPtr, EnvValLen);
   std::string NewEnv, NewVal;
-  std::copy_n(EnvBuf, EnvNameLen, std::back_inserter(NewEnv));
-  std::copy_n(ValBuf, EnvValLen, std::back_inserter(NewVal));
+  std::copy(EnvBuf.begin(), EnvBuf.end(), std::back_inserter(NewEnv));
+  std::copy(ValBuf.begin(), ValBuf.end(), std::back_inserter(NewVal));
   Env.Envs.emplace(std::move(NewEnv), std::move(NewVal));
   return {};
 }
@@ -79,9 +79,9 @@ Expect<void> WasmEdgeProcessAddStdIn::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  uint8_t *Buf = MemInst->getPointer<uint8_t *>(BufPtr);
+  auto const Buf = MemInst->getSpan<uint8_t>(BufPtr, BufLen);
   Env.StdIn.reserve(Env.StdIn.size() + BufLen);
-  std::copy_n(Buf, BufLen, std::back_inserter(Env.StdIn));
+  std::copy(Buf.begin(), Buf.end(), std::back_inserter(Env.StdIn));
   return {};
 }
 
@@ -320,8 +320,9 @@ Expect<void> WasmEdgeProcessGetStdOut::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  char *Buf = MemInst->getPointer<char *>(BufPtr);
-  std::copy_n(Env.StdOut.begin(), Env.StdOut.size(), Buf);
+  const auto Buf = MemInst->getSpan<char>(BufPtr, Env.StdOut.size());
+  std::copy_n(Env.StdOut.begin(), std::min(Env.StdOut.size(), Buf.size()),
+              Buf.begin());
   return {};
 }
 
@@ -338,8 +339,9 @@ Expect<void> WasmEdgeProcessGetStdErr::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  char *Buf = MemInst->getPointer<char *>(BufPtr);
-  std::copy_n(Env.StdErr.begin(), Env.StdErr.size(), Buf);
+  const auto Buf = MemInst->getSpan<char>(BufPtr, Env.StdErr.size());
+  std::copy_n(Env.StdErr.begin(), std::min(Env.StdErr.size(), Buf.size()),
+              Buf.begin());
   return {};
 }
 

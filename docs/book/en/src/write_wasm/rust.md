@@ -87,10 +87,10 @@ Below are some SDK examples for complex call parameters and return values.
 
 ## Improve the Performance
 
-To achieve native Rust performance for those applications, you could use the `wasmedgec` command to AOT compile the `wasm` program, and then run it with the `wasmedge` command.
+To achieve native Rust performance for those applications, you could use the `wasmedge compile` command to AOT compile the `wasm` program, and then run it with the `wasmedge` command.
 
 ```bash
-$ wasmedgec hello.wasm hello_aot.wasm
+$ wasmedge compile hello.wasm hello_aot.wasm
 
 $ wasmedge hello_aot.wasm second state
 hello
@@ -101,7 +101,7 @@ state
 For the `--reactor` mode,
 
 ```bash
-$ wasmedgec add.wasm add_aot.wasm
+$ wasmedge compile add.wasm add_aot.wasm
 
 $ wasmedge --reactor add_aot.wasm add 2 2
 4

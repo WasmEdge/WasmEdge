@@ -22,6 +22,11 @@ list(APPEND WASMEDGE_CFLAGS
   -Werror
   -Wno-error=pedantic
 )
+
+if(WASMEDGE_ENABLE_UB_SANITIZER)
+  list(APPEND WASMEDGE_CFLAGS -fsanitize=undefined)
+endif()
+
 if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
   list(APPEND WASMEDGE_CFLAGS -Wno-psabi)
 endif()
@@ -105,6 +110,14 @@ function(wasmedge_setup_target target)
     PRIVATE
     ${WASMEDGE_CFLAGS}
   )
+
+  if(WASMEDGE_ENABLE_UB_SANITIZER)
+    target_link_options(${target}
+      PRIVATE
+      -fsanitize=undefined
+    )
+  endif()
+
   if(WASMEDGE_BUILD_FUZZING AND NOT DEFINED LIB_FUZZING_ENGINE)
     target_compile_options(${target}
       PUBLIC
@@ -151,7 +164,6 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_BUILD_A
   string(REPLACE " " ";" WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")
   set(WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")
 
-
   list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
     ${LLVM_LIBRARY_DIR}/liblldELF.a
     ${LLVM_LIBRARY_DIR}/liblldCommon.a
@@ -176,6 +188,14 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_BUILD_A
       ${LLVM_LIBRARY_DIR}/liblldCOFF.a
       ${LLVM_LIBRARY_DIR}/liblldMachO.a
       ${LLVM_LIBRARY_DIR}/liblldWasm.a
+    )
+  endif()
+  if (APPLE AND LLVM_VERSION_MAJOR GREATER_EQUAL 15)
+    # For LLVM 15 or greater on MacOS
+    find_package(zstd REQUIRED)
+    get_filename_component(ZSTD_PATH "${zstd_LIBRARY}" DIRECTORY)
+    list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
+      ${ZSTD_PATH}/libzstd.a
     )
   endif()
 

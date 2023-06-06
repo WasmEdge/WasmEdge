@@ -8,7 +8,9 @@
 #[cfg(feature = "async")]
 use wasmedge_sdk::{
     config::{CommonConfigOptions, ConfigBuilder},
-    params, VmBuilder, WasmVal,
+    params,
+    r#async::AsyncState,
+    VmBuilder, WasmVal,
 };
 
 #[tokio::main]
@@ -28,9 +30,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .register_module_from_file("extern", wasm_file)?;
 
         // async run function
-        let fut1 = vm.run_func_async(Some("extern"), "fib", params!(20));
-
-        let fut2 = vm.run_func_async(Some("extern"), "fib", params!(5));
+        let async_state1 = AsyncState::new();
+        let fut1 = vm.run_func_async(&async_state1, Some("extern"), "fib", params!(20));
+        let async_state2 = AsyncState::new();
+        let fut2 = vm.run_func_async(&async_state2, Some("extern"), "fib", params!(5));
 
         let (ret1, ret2) = tokio::join!(fut1, fut2);
 

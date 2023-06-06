@@ -1,5 +1,7 @@
 //! Defines WasmEdge Instance and other relevant types.
 
+#[cfg(all(feature = "async", target_os = "linux"))]
+use crate::async_wasi::{wasi_impls, WasiFunc};
 use crate::{
     error::{InstanceError, WasmEdgeError},
     ffi,
@@ -8,6 +10,8 @@ use crate::{
     Function, Global, Memory, Table, WasmEdgeResult,
 };
 use std::sync::Arc;
+#[cfg(all(feature = "async", target_os = "linux"))]
+use wasmedge_async_wasi::snapshots::WasiCtx as AsyncWasiCtx;
 
 /// An [Instance] represents an instantiated module. In the instantiation process, An [Instance] is created from al[Module](crate::Module). From an [Instance] the exported [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) can be fetched.
 #[derive(Debug)]
@@ -441,11 +445,13 @@ impl AsImport for ImportModule {
 }
 
 /// A [WasiModule] is a module instance for the WASI specification.
+#[cfg(not(feature = "async"))]
 #[derive(Debug, Clone)]
 pub struct WasiModule {
     pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
+#[cfg(not(feature = "async"))]
 impl Drop for WasiModule {
     fn drop(&mut self) {
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
@@ -455,6 +461,7 @@ impl Drop for WasiModule {
         }
     }
 }
+#[cfg(not(feature = "async"))]
 impl WasiModule {
     /// Creates a WASI host module which contains the WASI host functions, and initializes it with the given parameters.
     ///
@@ -633,6 +640,7 @@ impl WasiModule {
         self.inner.0 as *const _
     }
 }
+#[cfg(not(feature = "async"))]
 impl AsInstance for WasiModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
@@ -818,9 +826,315 @@ impl AsInstance for WasiModule {
         }
     }
 }
+#[cfg(not(feature = "async"))]
 impl AsImport for WasiModule {
     fn name(&self) -> &str {
         "wasi_snapshot_preview1"
+    }
+
+    fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
+        let func_name: WasmEdgeString = name.into();
+        unsafe {
+            ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
+        }
+        func.registered = true;
+    }
+
+    fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
+        let table_name: WasmEdgeString = name.as_ref().into();
+        unsafe {
+            ffi::WasmEdge_ModuleInstanceAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
+        }
+        table.registered = true;
+    }
+
+    fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
+        let mem_name: WasmEdgeString = name.as_ref().into();
+        unsafe {
+            ffi::WasmEdge_ModuleInstanceAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
+        }
+        memory.registered = true;
+    }
+
+    fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
+        let global_name: WasmEdgeString = name.as_ref().into();
+        unsafe {
+            ffi::WasmEdge_ModuleInstanceAddGlobal(
+                self.inner.0,
+                global_name.as_raw(),
+                global.inner.0,
+            );
+        }
+        global.registered = true;
+    }
+}
+
+#[cfg(all(feature = "async", target_os = "linux"))]
+#[derive(Debug, Clone)]
+pub struct AsyncWasiModule {
+    pub(crate) inner: Arc<InnerInstance>,
+    pub(crate) registered: bool,
+    name: String,
+}
+#[cfg(all(feature = "async", target_os = "linux"))]
+impl Drop for AsyncWasiModule {
+    fn drop(&mut self) {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
+            unsafe {
+                ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
+            }
+        }
+    }
+}
+#[cfg(all(feature = "async", target_os = "linux"))]
+impl AsyncWasiModule {
+    pub fn create(async_wasi_ctx: Option<&mut AsyncWasiCtx>) -> WasmEdgeResult<Self> {
+        let name = "wasi_snapshot_preview1";
+        let raw_name = WasmEdgeString::from(name);
+        let ctx = unsafe { ffi::WasmEdge_ModuleInstanceCreate(raw_name.as_raw()) };
+
+        if ctx.is_null() {
+            return Err(Box::new(WasmEdgeError::Instance(
+                InstanceError::CreateImportModule,
+            )));
+        }
+
+        let mut async_wasi_module = Self {
+            inner: std::sync::Arc::new(InnerInstance(ctx)),
+            registered: false,
+            name: name.to_string(),
+        };
+
+        // add sync/async host functions to the module
+        match async_wasi_ctx {
+            Some(ctx_data) => {
+                for wasi_func in wasi_impls() {
+                    match wasi_func {
+                        WasiFunc::SyncFn(name, (ty_args, ty_rets), real_fn) => {
+                            let func_ty = crate::FuncType::create(ty_args, ty_rets)?;
+                            let func = Function::create(&func_ty, real_fn, Some(ctx_data), 0)?;
+                            async_wasi_module.add_func(name, func);
+                        }
+                        WasiFunc::AsyncFn(name, (ty_args, ty_rets), real_async_fn) => {
+                            let func_ty = crate::FuncType::create(ty_args, ty_rets)?;
+                            let func =
+                                Function::create_async(&func_ty, real_async_fn, Some(ctx_data), 0)?;
+                            async_wasi_module.add_func(name, func);
+                        }
+                    }
+                }
+            }
+            None => {
+                for wasi_func in wasi_impls() {
+                    match wasi_func {
+                        WasiFunc::SyncFn(name, (ty_args, ty_rets), real_fn) => {
+                            let func_ty = crate::FuncType::create(ty_args, ty_rets)?;
+                            let func = Function::create(&func_ty, real_fn, None, 0)?;
+                            async_wasi_module.add_func(name, func);
+                        }
+                        WasiFunc::AsyncFn(name, (ty_args, ty_rets), real_async_fn) => {
+                            let func_ty = crate::FuncType::create(ty_args, ty_rets)?;
+                            let func = Function::create_async(&func_ty, real_async_fn, None, 0)?;
+                            async_wasi_module.add_func(name, func);
+                        }
+                    }
+                }
+            }
+        };
+
+        Ok(async_wasi_module)
+    }
+}
+#[cfg(all(feature = "async", target_os = "linux"))]
+impl AsInstance for AsyncWasiModule {
+    fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
+        let func_name: WasmEdgeString = name.as_ref().into();
+        let func_ctx = unsafe {
+            ffi::WasmEdge_ModuleInstanceFindFunction(self.inner.0 as *const _, func_name.as_raw())
+        };
+        match func_ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Instance(
+                InstanceError::NotFoundFunc(name.as_ref().to_string()),
+            ))),
+            false => Ok(Function {
+                inner: Arc::new(InnerFunc(func_ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    fn get_table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
+        let table_name: WasmEdgeString = name.as_ref().into();
+        let ctx = unsafe {
+            ffi::WasmEdge_ModuleInstanceFindTable(self.inner.0 as *const _, table_name.as_raw())
+        };
+        match ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Instance(
+                InstanceError::NotFoundTable(name.as_ref().to_string()),
+            ))),
+            false => Ok(Table {
+                inner: Arc::new(InnerTable(ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    fn get_memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
+        let mem_name: WasmEdgeString = name.as_ref().into();
+        let ctx = unsafe {
+            ffi::WasmEdge_ModuleInstanceFindMemory(self.inner.0 as *const _, mem_name.as_raw())
+        };
+        match ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Instance(
+                InstanceError::NotFoundMem(name.as_ref().to_string()),
+            ))),
+            false => Ok(Memory {
+                inner: Arc::new(InnerMemory(ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    fn get_global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
+        let global_name: WasmEdgeString = name.as_ref().into();
+        let ctx = unsafe {
+            ffi::WasmEdge_ModuleInstanceFindGlobal(self.inner.0 as *const _, global_name.as_raw())
+        };
+        match ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Instance(
+                InstanceError::NotFoundGlobal(name.as_ref().to_string()),
+            ))),
+            false => Ok(Global {
+                inner: Arc::new(InnerGlobal(ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    /// Returns the length of the exported [function instances](crate::Function) in this module instance.
+    fn func_len(&self) -> u32 {
+        unsafe { ffi::WasmEdge_ModuleInstanceListFunctionLength(self.inner.0) }
+    }
+
+    /// Returns the names of the exported [function instances](crate::Function) in this module instance.
+    fn func_names(&self) -> Option<Vec<String>> {
+        let len_func_names = self.func_len();
+        match len_func_names > 0 {
+            true => {
+                let mut func_names = Vec::with_capacity(len_func_names as usize);
+                unsafe {
+                    ffi::WasmEdge_ModuleInstanceListFunction(
+                        self.inner.0,
+                        func_names.as_mut_ptr(),
+                        len_func_names,
+                    );
+                    func_names.set_len(len_func_names as usize);
+                }
+
+                let names = func_names
+                    .into_iter()
+                    .map(|x| x.into())
+                    .collect::<Vec<String>>();
+                Some(names)
+            }
+            false => None,
+        }
+    }
+
+    /// Returns the length of the exported [table instances](crate::Table) in this module instance.
+    fn table_len(&self) -> u32 {
+        unsafe { ffi::WasmEdge_ModuleInstanceListTableLength(self.inner.0) }
+    }
+
+    /// Returns the names of the exported [table instances](crate::Table) in this module instance.
+    fn table_names(&self) -> Option<Vec<String>> {
+        let len_table_names = self.table_len();
+        match len_table_names > 0 {
+            true => {
+                let mut table_names = Vec::with_capacity(len_table_names as usize);
+                unsafe {
+                    ffi::WasmEdge_ModuleInstanceListTable(
+                        self.inner.0,
+                        table_names.as_mut_ptr(),
+                        len_table_names,
+                    );
+                    table_names.set_len(len_table_names as usize);
+                }
+
+                let names = table_names
+                    .into_iter()
+                    .map(|x| x.into())
+                    .collect::<Vec<String>>();
+                Some(names)
+            }
+            false => None,
+        }
+    }
+
+    /// Returns the length of the exported [memory instances](crate::Memory) in this module instance.
+    fn mem_len(&self) -> u32 {
+        unsafe { ffi::WasmEdge_ModuleInstanceListMemoryLength(self.inner.0) }
+    }
+
+    /// Returns the names of all exported [memory instances](crate::Memory) in this module instance.
+    fn mem_names(&self) -> Option<Vec<String>> {
+        let len_mem_names = self.mem_len();
+        match len_mem_names > 0 {
+            true => {
+                let mut mem_names = Vec::with_capacity(len_mem_names as usize);
+                unsafe {
+                    ffi::WasmEdge_ModuleInstanceListMemory(
+                        self.inner.0,
+                        mem_names.as_mut_ptr(),
+                        len_mem_names,
+                    );
+                    mem_names.set_len(len_mem_names as usize);
+                }
+
+                let names = mem_names
+                    .into_iter()
+                    .map(|x| x.into())
+                    .collect::<Vec<String>>();
+                Some(names)
+            }
+            false => None,
+        }
+    }
+
+    /// Returns the length of the exported [global instances](crate::Global) in this module instance.
+    fn global_len(&self) -> u32 {
+        unsafe { ffi::WasmEdge_ModuleInstanceListGlobalLength(self.inner.0) }
+    }
+
+    /// Returns the names of the exported [global instances](crate::Global) in this module instance.
+    fn global_names(&self) -> Option<Vec<String>> {
+        let len_global_names = self.global_len();
+        match len_global_names > 0 {
+            true => {
+                let mut global_names = Vec::with_capacity(len_global_names as usize);
+                unsafe {
+                    ffi::WasmEdge_ModuleInstanceListGlobal(
+                        self.inner.0,
+                        global_names.as_mut_ptr(),
+                        len_global_names,
+                    );
+                    global_names.set_len(len_global_names as usize);
+                }
+
+                let names = global_names
+                    .into_iter()
+                    .map(|x| x.into())
+                    .collect::<Vec<String>>();
+                Some(names)
+            }
+            false => None,
+        }
+    }
+}
+#[cfg(all(feature = "async", target_os = "linux"))]
+impl AsImport for AsyncWasiModule {
+    fn name(&self) -> &str {
+        self.name.as_str()
     }
 
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
@@ -908,14 +1222,21 @@ pub enum ImportObject {
     /// Defines the import module instance of ImportModule type.
     Import(ImportModule),
     /// Defines the import module instance of WasiModule type.
+    #[cfg(not(feature = "async"))]
     Wasi(WasiModule),
+    /// Defines the import module instance of AsyncWasiModule type.
+    #[cfg(all(feature = "async", target_os = "linux"))]
+    AsyncWasi(AsyncWasiModule),
 }
 impl ImportObject {
     /// Returns the name of the import object.
     pub fn name(&self) -> &str {
         match self {
             ImportObject::Import(import) => import.name(),
+            #[cfg(not(feature = "async"))]
             ImportObject::Wasi(wasi) => wasi.name(),
+            #[cfg(all(feature = "async", target_os = "linux"))]
+            ImportObject::AsyncWasi(async_wasi) => async_wasi.name(),
         }
     }
 
@@ -924,7 +1245,10 @@ impl ImportObject {
     pub fn as_raw_ptr(&self) -> *const ffi::WasmEdge_ModuleInstanceContext {
         match self {
             ImportObject::Import(import) => import.inner.0,
+            #[cfg(not(feature = "async"))]
             ImportObject::Wasi(wasi) => wasi.inner.0,
+            #[cfg(all(feature = "async", target_os = "linux"))]
+            ImportObject::AsyncWasi(async_wasi) => async_wasi.inner.0,
         }
     }
 }
@@ -940,7 +1264,8 @@ mod tests {
         sync::{Arc, Mutex},
         thread,
     };
-    use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
+    use wasmedge_macro::sys_host_function;
+    use wasmedge_types::{error::HostFuncError, Mutability, NeverType, RefType, ValType};
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
@@ -956,7 +1281,7 @@ mod tests {
         let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         // add the host function
@@ -1025,7 +1350,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -1121,8 +1446,8 @@ mod tests {
         handle.join().unwrap();
     }
 
+    #[cfg(all(not(feature = "async"), target_family = "unix"))]
     #[test]
-    #[cfg(unix)]
     #[allow(clippy::assertions_on_result_states)]
     fn test_instance_wasi() {
         // create a wasi module instance
@@ -1174,7 +1499,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -1296,7 +1621,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -1393,7 +1718,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -1453,7 +1778,12 @@ mod tests {
         assert_eq!(ty.max(), Some(20));
     }
 
-    fn real_add(_: CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    #[sys_host_function]
+    fn real_add<T>(
+        _frame: CallingFrame,
+        inputs: Vec<WasmValue>,
+        _data: Option<&mut T>,
+    ) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }
@@ -1475,6 +1805,7 @@ mod tests {
         Ok(vec![WasmValue::from_i32(c)])
     }
 
+    #[cfg(not(feature = "async"))]
     #[test]
     #[allow(clippy::assertions_on_result_states)]
     fn test_instance_clone() {
@@ -1491,7 +1822,7 @@ mod tests {
             let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
-            let result = Function::create(&func_ty, Box::new(real_add), 0);
+            let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
             assert!(result.is_ok());
             let host_func = result.unwrap();
             // add the host function

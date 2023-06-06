@@ -27,14 +27,6 @@ target_compile_options(wasmedgePluginTestModuleCPP
   -DWASMEDGE_PLUGIN
 )
 
-if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  target_link_options(wasmedgePluginTestModuleCPP
-    PUBLIC
-    -Wl,-U,__ZN8WasmEdge6Plugin14PluginRegisterC1EPKNS0_6Plugin16PluginDescriptorE
-    -Wl,-U,__ZN8WasmEdge6Plugin14PluginRegisterD1Ev
-  )
-endif()
-
 target_include_directories(wasmedgePluginTestModuleCPP
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
@@ -49,12 +41,12 @@ wasmedge_add_executable(wasmedgePluginUnittestsC
 target_include_directories(wasmedgePluginUnittestsC
   PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}
+  $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(wasmedgePluginUnittestsC
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
-  wasmedgePlugin
 )
 
 # The test executable for C++ API
@@ -65,12 +57,12 @@ wasmedge_add_executable(wasmedgePluginUnittestsCPP
 target_include_directories(wasmedgePluginUnittestsCPP
   PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}
+  $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(wasmedgePluginUnittestsCPP
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
-  wasmedgePlugin
 )
 
 # Link to the WasmEdge library
@@ -87,6 +79,10 @@ if(WASMEDGE_LINK_PLUGINS_STATIC)
     PRIVATE
     wasmedgeCAPI
   )
+  target_link_libraries(wasmedgePluginUnittestsCPP
+    PRIVATE
+    wasmedgeCAPI
+  )
 else()
   target_link_libraries(wasmedgePluginTestModuleC
     PRIVATE
@@ -97,6 +93,10 @@ else()
     wasmedge_shared
   )
   target_link_libraries(wasmedgePluginUnittestsC
+    PRIVATE
+    wasmedge_shared
+  )
+  target_link_libraries(wasmedgePluginUnittestsCPP
     PRIVATE
     wasmedge_shared
   )

@@ -59,16 +59,15 @@ Expect<uint32_t> Decapsulate::body(const Runtime::CallingFrame &Frame,
   checkExist(MemInst);
 
   const __wasi_size_t WasiEncapsulatedSecretLen = EncapsulatedSecretLen;
-  auto *const EncapsulatedSecret = MemInst->getPointer<const uint8_t *>(
+  const auto EncapsulatedSecret = MemInst->getSpan<const uint8_t>(
       EncapsulatedSecretPtr, WasiEncapsulatedSecretLen);
 
-  checkExist(EncapsulatedSecret);
+  checkRangeExist(EncapsulatedSecret, WasiEncapsulatedSecretLen);
 
   auto *const Secret = MemInst->getPointer<__wasi_array_output_t *>(SecretPtr);
   checkExist(Secret);
 
-  if (auto Res = Ctx.kxDecapsulate(
-          SkHandle, {EncapsulatedSecret, WasiEncapsulatedSecretLen});
+  if (auto Res = Ctx.kxDecapsulate(SkHandle, EncapsulatedSecret);
       unlikely(!Res)) {
     return Res.error();
   } else {

@@ -47,7 +47,7 @@ It is very likely a <a href='https://www.google.com/search?q=military uniform'>m
 To make Tensorflow inference run *much* faster, you could AOT compile it down to machine native code, and then use WasmEdge sandbox to run the native code.
 
 ```bash
-$ wasmedgec target/wasm32-wasi/release/classify.wasm classify.wasm
+$ wasmedge compile target/wasm32-wasi/release/classify.wasm classify.wasm
 $ wasmedge-tensorflow-lite classify.wasm < grace_hopper.jpg
 It is very likely a <a href='https://www.google.com/search?q=military uniform'>military uniform</a> in the picture
 ```

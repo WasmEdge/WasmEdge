@@ -300,13 +300,11 @@ WASI_NN_OPENVINO = "wasi_nn-openvino"
 WASI_CRYPTO = "wasi_crypto"
 WASI_NN_PYTORCH = "wasi_nn-pytorch"
 WASI_NN_TENSORFLOW_LITE = "wasi_nn-tensorflowlite"
-WASMEDGE_HTTPSREQ = "wasmedge_httpsreq"
 PLUGINS_AVAILABLE = [
     WASI_NN_OPENVINO,
     WASI_CRYPTO,
     WASI_NN_PYTORCH,
     WASI_NN_TENSORFLOW_LITE,
-    WASMEDGE_HTTPSREQ,
 ]
 
 SUPPORTTED_PLUGINS = {
@@ -324,9 +322,6 @@ SUPPORTTED_PLUGINS = {
     + "aarch64"
     + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-alpha.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-rc.1"),
-    "ubuntu20.04" + "x86_64" + WASMEDGE_HTTPSREQ: VersionString("0.11.1"),
-    "manylinux2014" + "x86_64" + WASMEDGE_HTTPSREQ: VersionString("0.11.1"),
-    "manylinux2014" + "aarch64" + WASMEDGE_HTTPSREQ: VersionString("0.11.1"),
 }
 
 HOME = expanduser("~")
@@ -1240,6 +1235,18 @@ class Compat:
                 set(self.extensions)
                 <= set(SUPPORTED_EXTENSIONS[self.platform + self.machine])
             ):
+                logging.error("Supported platforms and corresponding extensions:")
+                for key in SUPPORTED_EXTENSIONS:
+                    _extensions = None
+                    if len(SUPPORTED_EXTENSIONS[key]) >= 1:
+                        _extensions = ",".join(SUPPORTED_EXTENSIONS[key])
+                    else:
+                        _extensions = "None"
+                    logging.error(
+                        "Platform: {0} Supported Extensions: {1}".format(
+                            key, _extensions
+                        )
+                    )
                 reraise(
                     Exception(
                         "Extensions not supported: {0}. Supported extensions: {1}".format(
@@ -1303,6 +1310,14 @@ def main(args):
 
         set_consts(args, compat)
 
+        if compat.version.compare("0.10.0") == -1:
+            logging.warning(
+                "Installation of WasmEdge {0} will be deprecated by 31/05/2023.".format(
+                    compat.version
+                )
+            )
+            logging.warning("Please install the 0.10.0 or above versions.")
+
         # Run uninstaller
         uninstaller_path = join(TEMP_PATH, "uninstall.sh")
         download_url(CONST_urls[WASMEDGE_UNINSTALLER], uninstaller_path)
@@ -1355,6 +1370,8 @@ def main(args):
         print("Installing WasmEdge")
         # Copy the tree
         for sub_dir in listdir(join(TEMP_PATH, CONST_ipkg)):
+            if "._" in sub_dir:
+                continue
             if sub_dir == "lib64":
                 copytree(join(TEMP_PATH, CONST_ipkg, sub_dir), join(args.path, "lib"))
             else:

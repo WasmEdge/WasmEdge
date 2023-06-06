@@ -158,6 +158,14 @@ tryFrom(std::string_view RawAlgStr) noexcept;
     }                                                                          \
   } while (0)
 
+/// Check Span exist or return `_algorithm_failure`.
+#define checkRangeExist(Expr, Size)                                            \
+  do {                                                                         \
+    if (unlikely((Expr).size() != (Size))) {                                   \
+      return __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE;                            \
+    }                                                                          \
+  } while (0)
+
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

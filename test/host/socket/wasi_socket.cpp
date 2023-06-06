@@ -50,7 +50,7 @@ bool TrySetUpIPV6Socket() {
     memset(&Sock6, 0, sizeof(Sock6));
     Sock6.sin6_family = AF_INET6;
     Sock6.sin6_port = htons(10000);
-    memcpy(&Sock6.sin6_addr, &in6addr_loopback, sizeof(in6addr_loopback));
+    Sock6.sin6_addr = in6addr_loopback;
 
     if (bind(Fd, reinterpret_cast<sockaddr *>(&Sock6), sizeof(Sock6)) < 0)
       break;
@@ -92,9 +92,8 @@ void writeString(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 
 void writeAddrinfo(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
                    __wasi_addrinfo_t *WasiAddrinfo, uint32_t Ptr) {
-  std::memcpy(
-      MemInst.getPointer<__wasi_addrinfo_t *>(Ptr, sizeof(__wasi_addrinfo_t)),
-      WasiAddrinfo, sizeof(__wasi_addrinfo_t));
+  std::memcpy(MemInst.getPointer<__wasi_addrinfo_t *>(Ptr), WasiAddrinfo,
+              sizeof(__wasi_addrinfo_t));
 }
 
 void allocateAddrinfoArray(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
@@ -102,15 +101,14 @@ void allocateAddrinfoArray(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
                            uint32_t CanonnameMaxSize) {
   for (uint32_t Item = 0; Item < Length; Item++) {
     // allocate addrinfo struct
-    auto *ResItemPtr = MemInst.getPointer<__wasi_addrinfo_t *>(
-        Base, sizeof(__wasi_addrinfo_t));
+    auto *ResItemPtr = MemInst.getPointer<__wasi_addrinfo_t *>(Base);
     Base += sizeof(__wasi_addrinfo_t);
 
     // allocate sockaddr struct
     ResItemPtr->ai_addr = Base;
     ResItemPtr->ai_addrlen = sizeof(__wasi_sockaddr_t);
-    auto *Sockaddr = MemInst.getPointer<__wasi_sockaddr_t *>(
-        ResItemPtr->ai_addr, sizeof(__wasi_sockaddr_t));
+    auto *Sockaddr =
+        MemInst.getPointer<__wasi_sockaddr_t *>(ResItemPtr->ai_addr);
     Base += ResItemPtr->ai_addrlen;
     // allocate sockaddr sa_data.
     Sockaddr->sa_data = Base;
@@ -189,12 +187,10 @@ TEST(WasiSockTest, SocketUDP_4V1) {
                      Errno);
     EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
 
-    auto *AddrBuf =
-        MemInst.getPointer<uint8_t *>(AddrBufPtr, sizeof(uint8_t) * AddrBuflen);
-    auto *Addr = MemInst.getPointer<__wasi_address_t *>(
-        AddrPtr, sizeof(__wasi_address_t));
+    auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
+    auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
 
-    ::memset(AddrBuf, 0x00, AddrBuflen);
+    std::fill_n(AddrBuf.data(), AddrBuf.size(), 0x00);
     Addr->buf = AddrBufPtr;
     Addr->buf_len = AddrBuflen;
 
@@ -207,13 +203,11 @@ TEST(WasiSockTest, SocketUDP_4V1) {
     uint32_t Msg1Len = Msg1.size();
     writeString(MemInst, Msg1, MsgInPtr);
 
-    auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(
-        MsgInPackPtr, sizeof(__wasi_ciovec_t));
+    auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgInPackPtr);
     MsgInPack->buf = MsgInPtr;
     MsgInPack->buf_len = Msg1Len;
 
-    auto *AddrBufSend =
-        MemInst.getPointer<uint32_t *>(AddrBufPtr, sizeof(uint32_t));
+    auto *AddrBufSend = MemInst.getPointer<uint32_t *>(AddrBufPtr);
     *AddrBufSend = htonl(INADDR_LOOPBACK);
     Addr->buf_len = sizeof(uint32_t);
 
@@ -225,12 +219,10 @@ TEST(WasiSockTest, SocketUDP_4V1) {
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     uint32_t MaxMsgBufLen = 100;
-    auto *MsgBuf =
-        MemInst.getPointer<char *>(MsgOutPtr, sizeof(char) * MaxMsgBufLen);
-    ::memset(MsgBuf, 0x00, MaxMsgBufLen);
+    auto MsgBuf = MemInst.getSpan<char>(MsgOutPtr, MaxMsgBufLen);
+    std::fill_n(MsgBuf.data(), MsgBuf.size(), 0x00);
 
-    auto *MsgOutPack = MemInst.getPointer<__wasi_ciovec_t *>(
-        MsgOutPackPtr, sizeof(__wasi_ciovec_t));
+    auto *MsgOutPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgOutPackPtr);
     MsgOutPack->buf = MsgOutPtr;
     MsgOutPack->buf_len = MaxMsgBufLen;
 
@@ -243,7 +235,7 @@ TEST(WasiSockTest, SocketUDP_4V1) {
                          Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
-    std::string_view MsgRecv{MsgBuf, Msg1.size()};
+    std::string_view MsgRecv{MsgBuf.data(), Msg1.size()};
     EXPECT_EQ(MsgRecv, Msg1);
 
     WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{FdServer},
@@ -287,12 +279,10 @@ TEST(WasiSockTest, SocketUDP_4V1) {
     uint8_t_ptr AddrBufPtr = 100;
     uint32_t AddrBuflen = 7;
     uint32_t AddrPtr = 200;
-    auto *AddrBuf =
-        MemInst.getPointer<uint8_t *>(AddrBufPtr, sizeof(uint8_t) * AddrBuflen);
-    auto *Addr = MemInst.getPointer<__wasi_address_t *>(
-        AddrPtr, sizeof(__wasi_address_t));
+    auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
+    auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
 
-    ::memset(AddrBuf, 0x00, AddrBuflen);
+    std::fill_n(AddrBuf.data(), AddrBuf.size(), 0x00);
     Addr->buf = AddrBufPtr;
     Addr->buf_len = AddrBuflen;
 
@@ -308,12 +298,10 @@ TEST(WasiSockTest, SocketUDP_4V1) {
     uint8_t_ptr AddrBufPtr = 100;
     uint32_t AddrBuflen = 16;
     uint32_t AddrPtr = 200;
-    auto *AddrBuf =
-        MemInst.getPointer<uint8_t *>(AddrBufPtr, sizeof(uint8_t) * AddrBuflen);
-    auto *Addr = MemInst.getPointer<__wasi_address_t *>(
-        AddrPtr, sizeof(__wasi_address_t));
+    auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
+    auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
 
-    ::memset(AddrBuf, 0x00, AddrBuflen);
+    std::fill_n(AddrBuf.data(), AddrBuf.size(), 0x00);
     Addr->buf = AddrBufPtr;
     Addr->buf_len = AddrBuflen;
 
@@ -387,12 +375,10 @@ TEST(WasiSockTest, SocketUDP_4V2) {
                      Errno);
     EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
 
-    auto *AddrBuf =
-        MemInst.getPointer<uint8_t *>(AddrBufPtr, sizeof(uint8_t) * AddrBuflen);
-    auto *Addr = MemInst.getPointer<__wasi_address_t *>(
-        AddrPtr, sizeof(__wasi_address_t));
+    auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
+    auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
 
-    ::memset(AddrBuf, 0x00, AddrBuflen);
+    std::fill_n(AddrBuf.data(), AddrBuf.size(), 0x00);
     *MemInst.getPointer<uint16_t *>(AddrBufPtr) = __WASI_ADDRESS_FAMILY_INET4;
     Addr->buf = AddrBufPtr;
     Addr->buf_len = AddrBuflen;
@@ -406,14 +392,12 @@ TEST(WasiSockTest, SocketUDP_4V2) {
     uint32_t Msg1Len = Msg1.size();
     writeString(MemInst, Msg1, MsgInPtr);
 
-    auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(
-        MsgInPackPtr, sizeof(__wasi_ciovec_t));
+    auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgInPackPtr);
     MsgInPack->buf = MsgInPtr;
     MsgInPack->buf_len = Msg1Len;
 
     *MemInst.getPointer<uint16_t *>(AddrBufPtr) = __WASI_ADDRESS_FAMILY_INET4;
-    auto *AddrBufSend =
-        MemInst.getPointer<uint32_t *>(AddrBufPtr + 2, sizeof(uint32_t));
+    auto *AddrBufSend = MemInst.getPointer<uint32_t *>(AddrBufPtr + 2);
     *AddrBufSend = htonl(INADDR_LOOPBACK);
     Addr->buf_len = 128; // sizeof(uint32_t);
 
@@ -427,12 +411,10 @@ TEST(WasiSockTest, SocketUDP_4V2) {
     if (Errno[0].get<int32_t>() != __WASI_ERRNO_SUCCESS)
       GTEST_SKIP();
     uint32_t MaxMsgBufLen = 100;
-    auto *MsgBuf =
-        MemInst.getPointer<char *>(MsgOutPtr, sizeof(char) * MaxMsgBufLen);
-    ::memset(MsgBuf, 0x00, MaxMsgBufLen);
+    auto MsgBuf = MemInst.getSpan<char>(MsgOutPtr, MaxMsgBufLen);
+    std::fill_n(MsgBuf.data(), MsgBuf.size(), 0x00);
 
-    auto *MsgOutPack = MemInst.getPointer<__wasi_ciovec_t *>(
-        MsgOutPackPtr, sizeof(__wasi_ciovec_t));
+    auto *MsgOutPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgOutPackPtr);
     MsgOutPack->buf = MsgOutPtr;
     MsgOutPack->buf_len = MaxMsgBufLen;
 
@@ -445,7 +427,7 @@ TEST(WasiSockTest, SocketUDP_4V2) {
                          Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
-    std::string_view MsgRecv{MsgBuf, Msg1.size()};
+    std::string_view MsgRecv{MsgBuf.data(), Msg1.size()};
     EXPECT_EQ(MsgRecv, Msg1);
 
     WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{FdServer},
@@ -489,12 +471,10 @@ TEST(WasiSockTest, SocketUDP_4V2) {
     uint8_t_ptr AddrBufPtr = 100;
     uint32_t AddrBuflen = 7;
     uint32_t AddrPtr = 200;
-    auto *AddrBuf =
-        MemInst.getPointer<uint8_t *>(AddrBufPtr, sizeof(uint8_t) * AddrBuflen);
-    auto *Addr = MemInst.getPointer<__wasi_address_t *>(
-        AddrPtr, sizeof(__wasi_address_t));
+    auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
+    auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
 
-    ::memset(AddrBuf, 0x00, AddrBuflen);
+    std::fill_n(AddrBuf.data(), AddrBuf.size(), 0x00);
     Addr->buf = AddrBufPtr;
     Addr->buf_len = AddrBuflen;
 
@@ -510,12 +490,10 @@ TEST(WasiSockTest, SocketUDP_4V2) {
     uint8_t_ptr AddrPtr = 100;
     uint32_t AddrBuflen = 128;
     uint32_t AddrBufPtr = 200;
-    auto *AddrBuf =
-        MemInst.getPointer<uint8_t *>(AddrBufPtr, sizeof(uint8_t) * AddrBuflen);
-    auto *Addr = MemInst.getPointer<__wasi_address_t *>(
-        AddrPtr, sizeof(__wasi_address_t));
+    auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
+    auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
 
-    ::memset(AddrBuf, 0x00, AddrBuflen);
+    std::fill_n(AddrBuf.data(), AddrBuf.size(), 0x00);
     Addr->buf = AddrBufPtr;
     Addr->buf_len = AddrBuflen;
 
@@ -593,12 +571,10 @@ TEST(WasiSockTest, SocketUDP_6) {
                      Errno);
     EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
 
-    auto *AddrBuf =
-        MemInst.getPointer<uint8_t *>(AddrBufPtr, sizeof(uint8_t) * AddrBuflen);
-    auto *Addr = MemInst.getPointer<__wasi_address_t *>(
-        AddrPtr, sizeof(__wasi_address_t));
+    auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
+    auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
 
-    ::memset(AddrBuf, 0x00, AddrBuflen);
+    std::fill_n(AddrBuf.data(), AddrBuf.size(), 0x00);
     *MemInst.getPointer<uint16_t *>(AddrBufPtr) = __WASI_ADDRESS_FAMILY_INET6;
     Addr->buf = AddrBufPtr;
     Addr->buf_len = AddrBuflen;
@@ -612,16 +588,13 @@ TEST(WasiSockTest, SocketUDP_6) {
     uint32_t Msg1Len = Msg1.size();
     writeString(MemInst, Msg1, MsgInPtr);
 
-    auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(
-        MsgInPackPtr, sizeof(__wasi_ciovec_t));
+    auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgInPackPtr);
     MsgInPack->buf = MsgInPtr;
     MsgInPack->buf_len = Msg1Len;
 
-    uint32_t IPv6AddrSize = sizeof(in6addr_loopback);
     *MemInst.getPointer<uint16_t *>(AddrBufPtr) = __WASI_ADDRESS_FAMILY_INET6;
-    auto *AddrBufSend =
-        MemInst.getPointer<uint8_t *>(AddrBufPtr + 2, IPv6AddrSize);
-    memcpy(AddrBufSend, &in6addr_loopback, IPv6AddrSize);
+    auto *AddrBufSend = MemInst.getPointer<in6_addr *>(AddrBufPtr + 2);
+    *AddrBufSend = in6addr_loopback;
     Addr->buf_len = 128;
 
     WasiSockSendTo.run(CallFrame,
@@ -635,12 +608,10 @@ TEST(WasiSockTest, SocketUDP_6) {
       GTEST_SKIP();
 
     uint32_t MaxMsgBufLen = 100;
-    auto *MsgBuf =
-        MemInst.getPointer<char *>(MsgOutPtr, sizeof(char) * MaxMsgBufLen);
-    ::memset(MsgBuf, 0x00, MaxMsgBufLen);
+    auto MsgBuf = MemInst.getSpan<char>(MsgOutPtr, MaxMsgBufLen);
+    std::fill_n(MsgBuf.data(), MsgBuf.size(), 0x00);
 
-    auto *MsgOutPack = MemInst.getPointer<__wasi_ciovec_t *>(
-        MsgOutPackPtr, sizeof(__wasi_ciovec_t));
+    auto *MsgOutPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgOutPackPtr);
     MsgOutPack->buf = MsgOutPtr;
     MsgOutPack->buf_len = MaxMsgBufLen;
 
@@ -652,7 +623,7 @@ TEST(WasiSockTest, SocketUDP_6) {
                          Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
-    std::string_view MsgRecv{MsgBuf, Msg1.size()};
+    std::string_view MsgRecv{MsgBuf.data(), Msg1.size()};
     EXPECT_EQ(MsgRecv, Msg1);
 
     WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{FdServer},
@@ -728,12 +699,10 @@ TEST(WasiSockTest, SocketUDP_4_Fallback) {
                      Errno);
     EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
 
-    auto *AddrBuf =
-        MemInst.getPointer<uint8_t *>(AddrBufPtr, sizeof(uint8_t) * AddrBuflen);
-    auto *Addr = MemInst.getPointer<__wasi_address_t *>(
-        AddrPtr, sizeof(__wasi_address_t));
+    auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
+    auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
 
-    ::memset(AddrBuf, 0x00, AddrBuflen);
+    std::fill_n(AddrBuf.data(), AddrBuf.size(), 0x00);
     Addr->buf = AddrBufPtr;
     Addr->buf_len = AddrBuflen;
 
@@ -746,13 +715,11 @@ TEST(WasiSockTest, SocketUDP_4_Fallback) {
     uint32_t Msg1Len = Msg1.size();
     writeString(MemInst, Msg1, MsgInPtr);
 
-    auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(
-        MsgInPackPtr, sizeof(__wasi_ciovec_t));
+    auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgInPackPtr);
     MsgInPack->buf = MsgInPtr;
     MsgInPack->buf_len = Msg1Len;
 
-    auto *AddrBufSend =
-        MemInst.getPointer<uint32_t *>(AddrBufPtr, sizeof(uint32_t));
+    auto *AddrBufSend = MemInst.getPointer<uint32_t *>(AddrBufPtr);
     *AddrBufSend = htonl(INADDR_LOOPBACK);
     Addr->buf_len = sizeof(uint32_t);
 
@@ -765,12 +732,10 @@ TEST(WasiSockTest, SocketUDP_4_Fallback) {
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
     uint32_t MaxMsgBufLen = 100;
-    auto *MsgBuf =
-        MemInst.getPointer<char *>(MsgOutPtr, sizeof(char) * MaxMsgBufLen);
-    ::memset(MsgBuf, 0x00, MaxMsgBufLen);
+    auto MsgBuf = MemInst.getSpan<char>(MsgOutPtr, MaxMsgBufLen);
+    std::fill_n(MsgBuf.data(), MsgBuf.size(), 0x00);
 
-    auto *MsgOutPack = MemInst.getPointer<__wasi_ciovec_t *>(
-        MsgOutPackPtr, sizeof(__wasi_ciovec_t));
+    auto *MsgOutPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgOutPackPtr);
     MsgOutPack->buf = MsgOutPtr;
     MsgOutPack->buf_len = MaxMsgBufLen;
 
@@ -783,7 +748,7 @@ TEST(WasiSockTest, SocketUDP_4_Fallback) {
                          Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
-    std::string_view MsgRecv{MsgBuf, Msg1.size()};
+    std::string_view MsgRecv{MsgBuf.data(), Msg1.size()};
     EXPECT_EQ(MsgRecv, Msg1);
 
     WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{FdServer},
@@ -864,12 +829,10 @@ TEST(WasiSockTest, SocketUDP_6_Fallback) {
                      Errno);
     EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
 
-    auto *AddrBuf =
-        MemInst.getPointer<uint8_t *>(AddrBufPtr, sizeof(uint8_t) * AddrBuflen);
-    auto *Addr = MemInst.getPointer<__wasi_address_t *>(
-        AddrPtr, sizeof(__wasi_address_t));
+    auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
+    auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
 
-    ::memset(AddrBuf, 0x00, AddrBuflen);
+    std::fill_n(AddrBuf.data(), AddrBuf.size(), 0x00);
     Addr->buf = AddrBufPtr;
     Addr->buf_len = AddrBuflen;
 
@@ -882,15 +845,13 @@ TEST(WasiSockTest, SocketUDP_6_Fallback) {
     uint32_t Msg1Len = Msg1.size();
     writeString(MemInst, Msg1, MsgInPtr);
 
-    auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(
-        MsgInPackPtr, sizeof(__wasi_ciovec_t));
+    auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgInPackPtr);
     MsgInPack->buf = MsgInPtr;
     MsgInPack->buf_len = Msg1Len;
 
-    uint32_t IPv6AddrSize = sizeof(in6addr_loopback);
-    auto *AddrBufSend = MemInst.getPointer<uint8_t *>(AddrBufPtr, IPv6AddrSize);
-    memcpy(AddrBufSend, &in6addr_loopback, IPv6AddrSize);
-    Addr->buf_len = IPv6AddrSize;
+    auto *AddrBufSend = MemInst.getPointer<in6_addr *>(AddrBufPtr);
+    *AddrBufSend = in6addr_loopback;
+    Addr->buf_len = sizeof(*AddrBufSend);
 
     WasiSockSendTo.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 7>{
@@ -901,12 +862,10 @@ TEST(WasiSockTest, SocketUDP_6_Fallback) {
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
     uint32_t MaxMsgBufLen = 100;
-    auto *MsgBuf =
-        MemInst.getPointer<char *>(MsgOutPtr, sizeof(char) * MaxMsgBufLen);
-    ::memset(MsgBuf, 0x00, MaxMsgBufLen);
+    auto MsgBuf = MemInst.getSpan<char>(MsgOutPtr, MaxMsgBufLen);
+    std::fill_n(MsgBuf.data(), MsgBuf.size(), 0x00);
 
-    auto *MsgOutPack = MemInst.getPointer<__wasi_ciovec_t *>(
-        MsgOutPackPtr, sizeof(__wasi_ciovec_t));
+    auto *MsgOutPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgOutPackPtr);
     MsgOutPack->buf = MsgOutPtr;
     MsgOutPack->buf_len = MaxMsgBufLen;
 
@@ -917,7 +876,7 @@ TEST(WasiSockTest, SocketUDP_6_Fallback) {
                          Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
-    std::string_view MsgRecv{MsgBuf, Msg1.size()};
+    std::string_view MsgRecv{MsgBuf.data(), Msg1.size()};
     EXPECT_EQ(MsgRecv, Msg1);
 
     WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{FdServer},
@@ -970,10 +929,10 @@ TEST(WasiSockTest, SockOpt) {
         __wasi_sock_opt_level_t::__WASI_SOCK_OPT_LEVEL_SOL_SOCKET;
     uint32_t OptName = __wasi_sock_opt_so_t::__WASI_SOCK_OPT_SO_TYPE;
 
-    auto ResBuf = MemInst.getPointer<uint8_t *>(ResBufPtr, ResMaxLen);
-    auto ResBufSz = MemInst.getPointer<uint32_t *>(ResBufSzPtr, 1);
+    auto ResBuf = MemInst.getSpan<uint8_t>(ResBufPtr, ResMaxLen);
+    auto ResBufSz = MemInst.getPointer<uint32_t *>(ResBufSzPtr);
     *ResBufSz = ResMaxLen;
-    ::memset(ResBuf, 0x00, ResMaxLen);
+    std::fill_n(ResBuf.data(), ResBuf.size(), 0x00);
 
     WasiSockGetOpt.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 5>{
@@ -1016,8 +975,8 @@ TEST(WasiSockTest, SockOpt) {
         __wasi_sock_opt_level_t::__WASI_SOCK_OPT_LEVEL_SOL_SOCKET;
     uint32_t OptName = __wasi_sock_opt_so_t::__WASI_SOCK_OPT_SO_BROADCAST;
 
-    auto ResBuf = MemInst.getPointer<decltype(&Opt)>(ResBufPtr, ResMaxLen);
-    auto ResBufSz = MemInst.getPointer<uint32_t *>(ResBufSzPtr, 1);
+    auto ResBuf = MemInst.getPointer<decltype(&Opt)>(ResBufPtr);
+    auto ResBufSz = MemInst.getPointer<uint32_t *>(ResBufSzPtr);
     *ResBufSz = ResMaxLen;
     ::memset(ResBuf, 0x00, ResMaxLen);
 
@@ -1091,16 +1050,13 @@ TEST(WasiSockTest, SockGetLocalAddr_4) {
 
     int32_t Fd = *MemInst.getPointer<const int32_t *>(FdPtr);
 
-    auto *Addr = MemInst.getPointer<__wasi_address_t *>(
-        AddrPtr, sizeof(__wasi_address_t));
+    auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
 
-    auto *AddrBuf =
-        MemInst.getPointer<uint8_t *>(AddrBufPtr, sizeof(uint8_t) * AddrBuflen);
-    ::memset(AddrBuf, 0x00, AddrBuflen);
+    auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
+    std::fill_n(AddrBuf.data(), AddrBuf.size(), 0x00);
 
     *MemInst.getPointer<uint16_t *>(AddrBufPtr) = __WASI_ADDRESS_FAMILY_INET4;
-    *MemInst.getPointer<uint32_t *>(AddrBufPtr + 2, sizeof(uint32_t)) =
-        BindAddress;
+    *MemInst.getPointer<uint32_t *>(AddrBufPtr + 2) = BindAddress;
 
     Addr->buf = AddrBufPtr;
     Addr->buf_len = AddrBuflen;
@@ -1112,12 +1068,10 @@ TEST(WasiSockTest, SockGetLocalAddr_4) {
 
     *MemInst.getPointer<uint32_t *>(ResPortPtr) = UINT32_C(0);
 
-    auto *ResAddr = MemInst.getPointer<__wasi_address_t *>(
-        ResAddrPtr, sizeof(__wasi_address_t));
+    auto *ResAddr = MemInst.getPointer<__wasi_address_t *>(ResAddrPtr);
 
-    auto *ResAddrBuf = MemInst.getPointer<uint8_t *>(
-        ResAddrBufPtr, sizeof(uint8_t) * AddrBuflen);
-    ::memset(ResAddrBuf, 0x00, AddrBuflen);
+    auto ResAddrBuf = MemInst.getSpan<uint8_t>(ResAddrBufPtr, AddrBuflen);
+    std::fill_n(ResAddrBuf.data(), ResAddrBuf.size(), 0x00);
 
     ResAddr->buf = ResAddrBufPtr;
     ResAddr->buf_len = 128;
@@ -1180,13 +1134,11 @@ TEST(WasiSockTest, SockGetLocalAddr_6) {
 
     int32_t Fd = *MemInst.getPointer<const int32_t *>(FdPtr);
 
-    auto *Addr = MemInst.getPointer<__wasi_address_t *>(
-        AddrPtr, sizeof(__wasi_address_t));
+    auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
 
     *MemInst.getPointer<uint16_t *>(AddrBufPtr) = __WASI_ADDRESS_FAMILY_INET6;
-    auto *AddrBuf = MemInst.getPointer<uint8_t *>(
-        AddrBufPtr + 2, sizeof(uint8_t) * (AddrBuflen - 2));
-    memcpy(AddrBuf, &in6addr_loopback, sizeof(in6addr_loopback));
+    auto *AddrBuf = MemInst.getPointer<in6_addr *>(AddrBufPtr + 2);
+    *AddrBuf = in6addr_loopback;
 
     Addr->buf = AddrBufPtr;
     Addr->buf_len = AddrBuflen;
@@ -1198,12 +1150,10 @@ TEST(WasiSockTest, SockGetLocalAddr_6) {
 
     *MemInst.getPointer<uint32_t *>(ResPortPtr) = UINT32_C(0);
 
-    auto *ResAddr = MemInst.getPointer<__wasi_address_t *>(
-        ResAddrPtr, sizeof(__wasi_address_t));
+    auto *ResAddr = MemInst.getPointer<__wasi_address_t *>(ResAddrPtr);
 
-    auto *ResAddrBuf = MemInst.getPointer<uint8_t *>(
-        ResAddrBufPtr, sizeof(uint8_t) * AddrBuflen);
-    ::memset(ResAddrBuf, 0x00, AddrBuflen);
+    auto ResAddrBuf = MemInst.getSpan<uint8_t>(ResAddrBufPtr, AddrBuflen);
+    std::fill_n(ResAddrBuf.data(), ResAddrBuf.size(), 0x00);
 
     ResAddr->buf = ResAddrBufPtr;
     ResAddr->buf_len = 128;
@@ -1215,11 +1165,12 @@ TEST(WasiSockTest, SockGetLocalAddr_6) {
 
     EXPECT_EQ(*MemInst.getPointer<uint16_t *>(ResAddrBufPtr),
               __WASI_ADDRESS_FAMILY_INET6);
-    ResAddrBuf = MemInst.getPointer<uint8_t *>(ResAddrBufPtr + 2);
-
-    for (uint32_t i = 0; i < sizeof(in6_addr); ++i) {
-      SCOPED_TRACE(i);
-      EXPECT_EQ(ResAddrBuf[i], AddrBuf[i]);
+    const auto LHS =
+        MemInst.getSpan<const char>(ResAddrBufPtr + 2, sizeof(in6_addr));
+    const auto RHS = WasmEdge::Span<const char>(
+        reinterpret_cast<const char *>(&in6addr_loopback), sizeof(in6_addr));
+    for (uint32_t I = 0; I < sizeof(in6_addr); ++I) {
+      EXPECT_EQ(LHS[I], RHS[I]);
     }
     EXPECT_EQ(*MemInst.getPointer<uint32_t *>(ResPortPtr), Port);
 
@@ -1266,11 +1217,9 @@ TEST(WasiSockTest, GetAddrinfo) {
   writeString(MemInst, Node, NodePtr);
   writeString(MemInst, Service, ServicePtr);
   writeAddrinfo(MemInst, &Hints, HintsPtr);
-  auto *ResLength =
-      MemInst.getPointer<uint32_t *>(ResLengthPtr, sizeof(uint32_t));
+  auto *ResLength = MemInst.getPointer<uint32_t *>(ResLengthPtr);
   *ResLength = 0;
-  auto *Result =
-      MemInst.getPointer<uint8_t_ptr *>(ResultPtr, sizeof(uint8_t_ptr));
+  auto *Result = MemInst.getPointer<uint8_t_ptr *>(ResultPtr);
   *Result = 108;
   // allocate Res Item;
   allocateAddrinfoArray(MemInst, *Result, MaxLength, CanonnameMaxSize);
@@ -1319,24 +1268,21 @@ TEST(WasiSockTest, GetAddrinfo) {
                                 HintsPtr, ResultPtr, MaxLength, ResLengthPtr},
                             Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    auto *Res =
-        MemInst.getPointer<uint8_t_ptr *>(ResultPtr, sizeof(uint8_t_ptr));
+    auto *Res = MemInst.getPointer<uint8_t_ptr *>(ResultPtr);
 
-    auto *ResHead = MemInst.getPointer<__wasi_addrinfo_t *>(
-        *Res, sizeof(__wasi_addrinfo_t));
+    auto *ResHead = MemInst.getPointer<__wasi_addrinfo_t *>(*Res);
     auto *ResItem = ResHead;
     EXPECT_NE(*ResLength, 0);
     for (uint32_t Idx = 0; Idx < *ResLength; Idx++) {
       EXPECT_NE(ResItem->ai_addrlen, 0);
-      auto *TmpSockAddr = MemInst.getPointer<__wasi_sockaddr_t *>(
-          ResItem->ai_addr, sizeof(__wasi_sockaddr_t));
+      auto *TmpSockAddr =
+          MemInst.getPointer<__wasi_sockaddr_t *>(ResItem->ai_addr);
       EXPECT_EQ(TmpSockAddr->sa_data_len, 14);
-      EXPECT_EQ(MemInst.getPointer<char *>(TmpSockAddr->sa_data,
-                                           TmpSockAddr->sa_data_len)[0],
+      EXPECT_EQ(MemInst.getSpan<char>(TmpSockAddr->sa_data,
+                                      TmpSockAddr->sa_data_len)[0],
                 'i');
       if (Idx != (*ResLength) - 1) {
-        ResItem = MemInst.getPointer<__wasi_addrinfo_t *>(
-            ResItem->ai_next, sizeof(__wasi_addrinfo_t));
+        ResItem = MemInst.getPointer<__wasi_addrinfo_t *>(ResItem->ai_next);
       }
     }
   }
@@ -1367,17 +1313,17 @@ TEST(WasiSockTest, GetAddrinfo) {
                             Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     EXPECT_NE(*ResLength, 0);
-    auto *Res =
-        MemInst.getPointer<uint8_t_ptr *>(ResultPtr, sizeof(uint8_t_ptr));
+    auto *Res = MemInst.getPointer<uint8_t_ptr *>(ResultPtr);
 
-    auto *ResHead = MemInst.getPointer<__wasi_addrinfo_t *>(
-        *Res, sizeof(__wasi_addrinfo_t));
+    auto *ResHead = MemInst.getPointer<__wasi_addrinfo_t *>(*Res);
     EXPECT_NE(ResHead->ai_canonname_len, 0);
-    EXPECT_STREQ(MemInst.getPointer<const char *>(ResHead->ai_canonname,
-                                                  ResHead->ai_canonname_len),
+    EXPECT_STREQ(MemInst
+                     .getSpan<const char>(ResHead->ai_canonname,
+                                          ResHead->ai_canonname_len)
+                     .data(),
                  "google.com");
-    auto *WasiSockAddr = MemInst.getPointer<__wasi_sockaddr_t *>(
-        ResHead->ai_addr, sizeof(__wasi_sockaddr_t));
+    auto *WasiSockAddr =
+        MemInst.getPointer<__wasi_sockaddr_t *>(ResHead->ai_addr);
     EXPECT_EQ(WasiSockAddr->sa_data_len, 14);
   }
 }

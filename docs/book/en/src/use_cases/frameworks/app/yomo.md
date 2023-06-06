@@ -131,7 +131,7 @@ cp target/wasm32-wasi/release/rust_mobilenet_food_lib.wasm ../
 To release the best performance of WasmEdge, you should enable the AOT mode by compiling the `.wasm` file to the `.so`.
 
 ```bash
-wasmedgec rust_mobilenet_food_lib.wasm rust_mobilenet_food_lib.so
+wasmedge compile rust_mobilenet_food_lib.wasm rust_mobilenet_food_lib.so
 ```
 
 ## Integration with YoMo

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "dense_enum_map.h"
+#include "log.h"
 #include "spare_enum_map.h"
 
 #include <cstdint>
@@ -72,3 +73,23 @@ static inline constexpr const auto OpCodeStr = []() constexpr {
 ();
 
 } // namespace WasmEdge
+
+template <>
+struct fmt::formatter<WasmEdge::ASTNodeAttr>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ASTNodeAttr &Attr,
+         fmt::format_context &Ctx) const noexcept {
+    return formatter<std::string_view>::format(WasmEdge::ASTNodeAttrStr[Attr],
+                                               Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::OpCode> : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::OpCode &Code,
+         fmt::format_context &Ctx) const noexcept {
+    return formatter<std::string_view>::format(WasmEdge::OpCodeStr[Code], Ctx);
+  }
+};

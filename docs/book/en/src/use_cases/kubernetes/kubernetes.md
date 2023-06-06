@@ -10,3 +10,4 @@ Check out specific instructions for different flavors of Kubernetes setup in thi
 * [SuperEdge](kubernetes/superedge.md)
 * [OpenYurt](kubernetes/openyurt.md)
 * [Knative](kubernetes/knative.md)
+* [Kwasm](kubernetes/kwasm.md)

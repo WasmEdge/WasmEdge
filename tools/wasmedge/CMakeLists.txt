@@ -26,7 +26,7 @@ endif()
 
 wasmedge_add_executable(wasmedge
   wincli_helper.cpp
-  wasmedger.cpp
+  wasmedge.cpp
 )
 
 install(TARGETS wasmedge EXPORT wasmedge
@@ -44,3 +44,4 @@ else()
     wasmedge_shared
   )
 endif()
+

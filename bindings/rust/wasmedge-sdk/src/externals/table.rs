@@ -123,8 +123,8 @@ mod tests {
         config::{CommonConfigOptions, ConfigBuilder},
         error::HostFuncError,
         types::Val,
-        CallingFrame, Executor, ImportObjectBuilder, RefType, Statistics, Store, ValType,
-        WasmValue,
+        CallingFrame, Executor, ImportObjectBuilder, NeverType, RefType, Statistics, Store,
+        ValType, WasmValue,
     };
 
     #[test]
@@ -151,7 +151,7 @@ mod tests {
 
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", real_add)
+            .with_func::<(i32, i32), i32, NeverType>("add", real_add, None)
             .expect("failed to add host func")
             .with_table("table", table)
             .expect("failed to add table")
@@ -254,9 +254,10 @@ mod tests {
         }
     }
 
-    fn real_add(
+    fn real_add<T>(
         _frame: CallingFrame,
         inputs: Vec<WasmValue>,
+        _data: Option<&mut T>,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

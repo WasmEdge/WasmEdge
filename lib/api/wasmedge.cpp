@@ -6,6 +6,7 @@
 #include "aot/compiler.h"
 #include "driver/compiler.h"
 #include "driver/tool.h"
+#include "driver/unitool.h"
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
 #include "vm/vm.h"
@@ -2133,7 +2134,10 @@ WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
                                   const uint32_t Offset,
                                   const uint32_t Length) {
   if (Cxt) {
-    return fromMemCxt(Cxt)->getPointer<uint8_t *>(Offset, Length);
+    const auto S = fromMemCxt(Cxt)->getSpan<uint8_t>(Offset, Length);
+    if (S.size() == Length) {
+      return S.data();
+    }
   }
   return nullptr;
 }
@@ -2142,7 +2146,10 @@ WASMEDGE_CAPI_EXPORT const uint8_t *WasmEdge_MemoryInstanceGetPointerConst(
     const WasmEdge_MemoryInstanceContext *Cxt, const uint32_t Offset,
     const uint32_t Length) {
   if (Cxt) {
-    return fromMemCxt(Cxt)->getPointer<const uint8_t *>(Offset, Length);
+    const auto S = fromMemCxt(Cxt)->getSpan<const uint8_t>(Offset, Length);
+    if (S.size() == Length) {
+      return S.data();
+    }
   }
   return nullptr;
 }
@@ -2702,11 +2709,17 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Compiler(int Argc,
                                                   const char *Argv[]) {
-  return WasmEdge::Driver::Compiler(Argc, Argv);
+  return WasmEdge::Driver::UniTool(Argc, Argv,
+                                   WasmEdge::Driver::ToolType::Compiler);
 }
 
 WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Tool(int Argc, const char *Argv[]) {
-  return WasmEdge::Driver::Tool(Argc, Argv);
+  return WasmEdge::Driver::UniTool(Argc, Argv,
+                                   WasmEdge::Driver::ToolType::Tool);
+}
+
+WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_UniTool(int Argc, const char *Argv[]) {
+  return WasmEdge::Driver::UniTool(Argc, Argv, WasmEdge::Driver::ToolType::All);
 }
 
 #ifdef WASMEDGE_BUILD_FUZZING

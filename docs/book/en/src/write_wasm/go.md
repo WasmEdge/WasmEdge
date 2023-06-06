@@ -100,10 +100,10 @@ $ wasmedge --reactor fib.wasm fibArray 10
 
 ## Improve performance
 
-To achieve native Go performance for those applications, you could use the `wasmedgec` command to AOT compile the `wasm` program, and then run it with the `wasmedge` command.
+To achieve native Go performance for those applications, you could use the `wasmedge compile` command to AOT compile the `wasm` program, and then run it with the `wasmedge` command.
 
 ```bash
-$ wasmedgec hello.wasm hello.wasm
+$ wasmedge compile hello.wasm hello.wasm
 
 $ wasmedge hello.wasm
 Hello TinyGo from WasmEdge!
@@ -112,7 +112,7 @@ Hello TinyGo from WasmEdge!
 For the `--reactor` mode,
 
 ```bash
-$ wasmedgec fib.wasm fib.wasm
+$ wasmedge compile fib.wasm fib.wasm
 
 $ wasmedge --reactor fib.wasm fibArray 10
 34

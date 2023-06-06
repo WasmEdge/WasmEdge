@@ -38,12 +38,12 @@ TEST(WasmEdgeZlibTest, Module) {
   EXPECT_FALSE(ZlibMod == nullptr);
   EXPECT_TRUE(ZlibMod->getEnv().ZStreamMap.empty());
   EXPECT_EQ(ZlibMod->getFuncExportNum(), 6U);
-  EXPECT_NE(ZlibMod->findFuncExports("wasmedge_zlib_deflateInit_"), nullptr);
-  EXPECT_NE(ZlibMod->findFuncExports("wasmedge_zlib_inflateInit_"), nullptr);
-  EXPECT_NE(ZlibMod->findFuncExports("wasmedge_zlib_deflate"), nullptr);
-  EXPECT_NE(ZlibMod->findFuncExports("wasmedge_zlib_inflate"), nullptr);
-  EXPECT_NE(ZlibMod->findFuncExports("wasmedge_zlib_deflateEnd"), nullptr);
-  EXPECT_NE(ZlibMod->findFuncExports("wasmedge_zlib_inflateEnd"), nullptr);
+  EXPECT_NE(ZlibMod->findFuncExports("deflateInit_"), nullptr);
+  EXPECT_NE(ZlibMod->findFuncExports("inflateInit_"), nullptr);
+  EXPECT_NE(ZlibMod->findFuncExports("deflate"), nullptr);
+  EXPECT_NE(ZlibMod->findFuncExports("inflate"), nullptr);
+  EXPECT_NE(ZlibMod->findFuncExports("deflateEnd"), nullptr);
+  EXPECT_NE(ZlibMod->findFuncExports("inflateEnd"), nullptr);
 
   delete ZlibMod;
 }

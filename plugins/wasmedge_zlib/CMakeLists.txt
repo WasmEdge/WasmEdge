@@ -37,11 +37,13 @@ if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmedgePluginWasmEdgeZlib
     PRIVATE
     wasmedgeCAPI
+    ZLIB
   )
 else()
   target_link_libraries(wasmedgePluginWasmEdgeZlib
     PRIVATE
     wasmedge_shared
+    ZLIB
   )
 endif()
 

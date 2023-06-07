@@ -248,9 +248,7 @@ public:
   }
 
   /// Getter and setter of jump count to delegate instruction.
-  uint32_t getDelegateIdx() const noexcept {
-    return Data.TryBlock.DelegateIdx;
-  }
+  uint32_t getDelegateIdx() const noexcept { return Data.TryBlock.DelegateIdx; }
   void setDelegateIdx(const uint32_t Cnt) noexcept {
     Data.TryBlock.DelegateIdx = Cnt;
   }

@@ -2048,7 +2048,7 @@ WasmEdge_ModuleInstanceFindMemory(const WasmEdge_ModuleInstanceContext *Cxt,
 /// \returns pointer to the tag instance context. NULL if not found.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_TagInstanceContext *
 WasmEdge_ModuleInstanceFindTag(const WasmEdge_ModuleInstanceContext *Cxt,
-                                  const WasmEdge_String Name);
+                               const WasmEdge_String Name);
 
 /// Get the exported global instance context of a module instance.
 ///
@@ -2160,8 +2160,8 @@ WasmEdge_ModuleInstanceListMemory(const WasmEdge_ModuleInstanceContext *Cxt,
 /// \param Cxt the WasmEdge_ModuleInstanceContext.
 ///
 /// \returns length of the exported tag list.
-WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListTagLength(
-    const WasmEdge_ModuleInstanceContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ModuleInstanceListTagLength(const WasmEdge_ModuleInstanceContext *Cxt);
 
 /// List the exported tag names of a module instance.
 ///
@@ -2180,7 +2180,7 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListTagLength(
 /// \returns actual exported tag list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ModuleInstanceListTag(const WasmEdge_ModuleInstanceContext *Cxt,
-                                  WasmEdge_String *Names, const uint32_t Len);
+                               WasmEdge_String *Names, const uint32_t Len);
 
 /// Get the length of exported global list of a module instance.
 ///

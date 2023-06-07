@@ -31,12 +31,12 @@ class TableInstance {
 public:
   TableInstance() = delete;
   TableInstance(const AST::TableType &TType) noexcept
-      : TabType(TType), Refs(TType.getLimit().getMin(), UnknownRef()) {
+      : TabType(TType), Refs(TType.getLimit().getMin(), RefVariant()) {
     // TODO: check whether the ref type of table type is nullable
   }
   TableInstance(const AST::TableSegment &Table) noexcept
       : TabType(Table.getTableType()),
-        Refs(Table.getTableType().getLimit().getMin(), UnknownRef()) {
+        Refs(Table.getTableType().getLimit().getMin(), RefVariant()) {
     // TODO: initialized the table instance by TableSegment.getExpr()
   }
 
@@ -79,7 +79,8 @@ public:
     return true;
   }
   bool growTable(uint32_t Count) noexcept {
-    return growTable(Count, UnknownRef());
+    // TODO: use the value defined in InitExpr
+    return growTable(Count, RefVariant());
   }
 
   /// Get slice of Refs[Offset : Offset + Length - 1]

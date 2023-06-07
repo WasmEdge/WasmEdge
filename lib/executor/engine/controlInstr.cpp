@@ -118,9 +118,13 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::UndefinedElement);
   }
 
-  // Get function address.
-  ValVariant Ref = TabInst->getRefAddr(Idx)->get<UnknownRef>();
-  if (isNullRef(Ref)) {
+  RefVariant Ref;
+  if (auto Res = TabInst->getRefAddr(Idx)) {
+    Ref = *Res;
+  } else {
+    return Unexpect(Res.error());
+  }
+  if (Ref.isNull()) {
     spdlog::error(ErrCode::Value::UninitializedElement);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},

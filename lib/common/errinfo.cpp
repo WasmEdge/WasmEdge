@@ -267,7 +267,7 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
       case ValTypeCode::Ref:
       case ValTypeCode::RefNull:
         printValType(OS, Rhs.ArgsTypes[I]);
-        if (isNullRef(Rhs.Args[I])) {
+        if (Rhs.Args[I].get<RefVariant>().isNull()) {
           OS << ":null";
         } else {
           OS << ":" << &Rhs.Args[I].get<uint64_t>();

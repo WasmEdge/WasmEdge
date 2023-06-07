@@ -189,9 +189,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       output_prefix: build/plugins
-      build_options: -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON
-      tar_names: wasi_crypto wasmedge_process
-      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so
+      build_options: -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON
+      tar_names: wasi_crypto wasmedge_process wasi_logging
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasiLogging.so
     needs: create_release
     container:
       image: wasmedge/wasmedge:latest
@@ -350,9 +350,9 @@ jobs:
     runs-on: ${{ matrix.host_runner }}
     env:
       output_prefix: build/plugins
-      build_options: -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON
-      tar_names: wasi_crypto wasmedge_process
-      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so
+      build_options: -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON
+      tar_names: wasi_crypto wasmedge_process wasi_logging
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasiLogging.so
     needs: create_release
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -414,9 +414,9 @@ jobs:
     runs-on: macos-11
     env:
       output_prefix: build/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON
-      tar_names: wasi_crypto
-      output_bins: libwasmedgePluginWasiCrypto.dylib
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON
+      tar_names: wasi_crypto wasi_logging
+      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib
     needs: create_release
     steps:
       - name: Checkout code

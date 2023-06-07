@@ -100,6 +100,9 @@ typedef struct WasmEdge_MemoryTypeContext WasmEdge_MemoryTypeContext;
 /// Opaque struct of WasmEdge table type.
 typedef struct WasmEdge_TableTypeContext WasmEdge_TableTypeContext;
 
+/// Opaque struct of WasmEdge tag type.
+typedef struct WasmEdge_TagTypeContext WasmEdge_TagTypeContext;
+
 /// Opaque struct of WasmEdge global type.
 typedef struct WasmEdge_GlobalTypeContext WasmEdge_GlobalTypeContext;
 
@@ -136,6 +139,9 @@ typedef struct WasmEdge_TableInstanceContext WasmEdge_TableInstanceContext;
 
 /// Opaque struct of WasmEdge memory instance.
 typedef struct WasmEdge_MemoryInstanceContext WasmEdge_MemoryInstanceContext;
+
+/// Opaque struct of WasmEdge tag instance.
+typedef struct WasmEdge_TagInstanceContext WasmEdge_TagInstanceContext;
 
 /// Opaque struct of WasmEdge global instance.
 typedef struct WasmEdge_GlobalInstanceContext WasmEdge_GlobalInstanceContext;
@@ -1177,6 +1183,18 @@ WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt);
 
 // <<<<<<<< WasmEdge memory type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> WasmEdge tag type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Get the function type from a tag type.
+///
+/// \param Cxt the WasmEdge_TagTypeContext.
+///
+/// \returns pointer to function type context of the tag type, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
+WasmEdge_TagTypeGetFunctionType(const WasmEdge_TagTypeContext *Cxt);
+
+// <<<<<<<< WasmEdge tag type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 // >>>>>>>> WasmEdge global type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_GlobalTypeContext.
@@ -1302,6 +1320,22 @@ WASMEDGE_CAPI_EXPORT extern const WasmEdge_MemoryTypeContext *
 WasmEdge_ImportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
                                  const WasmEdge_ImportTypeContext *Cxt);
 
+/// Get the external value (which is tag type) from an import type.
+///
+/// The import type context should be the one queried from the AST module
+/// context, or this function will cause unexpected error.
+/// The tag type context links to the tag type in the import type context
+/// and the AST module context.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the tag type. NULL if failed or the external type of the import
+/// type is not `WasmEdge_ExternalType_TagType`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_TagTypeContext *
+WasmEdge_ImportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
+                              const WasmEdge_ImportTypeContext *Cxt);
+
 /// Get the external value (which is global type) from an import type.
 ///
 /// The import type context should be the one queried from the AST module
@@ -1392,6 +1426,22 @@ WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_MemoryTypeContext *
 WasmEdge_ExportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
                                  const WasmEdge_ExportTypeContext *Cxt);
+
+/// Get the external value (which is tag type) from an export type.
+///
+/// The export type context should be the one queried from the AST module
+/// context, or this function will cause unexpected error.
+/// The tag type context links to the tag type in the export type context
+/// and the AST module context.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the tag type. NULL if failed or the external type of the export
+/// type is not `WasmEdge_ExternalType_Tag`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_TagTypeContext *
+WasmEdge_ExportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
+                              const WasmEdge_ExportTypeContext *Cxt);
 
 /// Get the external value (which is global type) from an export type.
 ///
@@ -1789,7 +1839,7 @@ WasmEdge_StoreDelete(WasmEdge_StoreContext *Cxt);
 ///
 /// Create a module instance context with exported module name for host
 /// instances. Developer can use this API to create a module instance for
-/// collecting host functions, tables, memories, and globals.
+/// collecting host functions, tables, memories, tags, and globals.
 /// The caller owns the object and should call `WasmEdge_ModuleInstanceDelete`
 /// to destroy it.
 ///
@@ -1985,6 +2035,21 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryInstanceContext *
 WasmEdge_ModuleInstanceFindMemory(const WasmEdge_ModuleInstanceContext *Cxt,
                                   const WasmEdge_String Name);
 
+/// Get the exported tag instance context of a module instance.
+///
+/// The result tag instance context links to the tag instance in the
+/// module instance context and owned by the module instance context.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+/// \param Name the tag name WasmEdge_String.
+///
+/// \returns pointer to the tag instance context. NULL if not found.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_TagInstanceContext *
+WasmEdge_ModuleInstanceFindTag(const WasmEdge_ModuleInstanceContext *Cxt,
+                                  const WasmEdge_String Name);
+
 /// Get the exported global instance context of a module instance.
 ///
 /// The result global instance context links to the global instance in the
@@ -2086,6 +2151,35 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListMemoryLength(
 /// \returns actual exported memory list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ModuleInstanceListMemory(const WasmEdge_ModuleInstanceContext *Cxt,
+                                  WasmEdge_String *Names, const uint32_t Len);
+
+/// Get the length of exported tag list of a module instance.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+///
+/// \returns length of the exported tag list.
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListTagLength(
+    const WasmEdge_ModuleInstanceContext *Cxt);
+
+/// List the exported tag names of a module instance.
+///
+/// The returned tag names filled into the `Names` array are linked to the
+/// exported names of tags of the module instance context, and the caller
+/// should __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// tag list size, the overflowed return values will be discarded.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+/// \param [out] Names the output WasmEdge_String buffer of the tag names.
+/// \param Len the buffer length.
+///
+/// \returns actual exported tag list size.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ModuleInstanceListTag(const WasmEdge_ModuleInstanceContext *Cxt,
                                   WasmEdge_String *Names, const uint32_t Len);
 
 /// Get the length of exported global list of a module instance.
@@ -2555,6 +2649,21 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_MemoryInstanceDelete(WasmEdge_MemoryInstanceContext *Cxt);
 
 // <<<<<<<< WasmEdge memory instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge tag instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Get the tag type context from a tag instance.
+///
+/// The tag type context links to the tag type in the tag instance
+/// context and owned by the context.
+///
+/// \param Cxt the WasmEdge_TagInstanceContext.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_TagTypeContext *
+WasmEdge_TagInstanceGetTagType(const WasmEdge_TagInstanceContext *Cxt);
+
+// <<<<<<<< WasmEdge tag instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge global instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

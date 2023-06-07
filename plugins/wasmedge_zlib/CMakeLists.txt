@@ -8,12 +8,12 @@ set(ZLIB_COMPAT ON)
 set(ZLIBNG_ENABLE_TESTS OFF)
 
 FetchContent_Declare(
-    ZLIB
+    zlib
     GIT_REPOSITORY "https://github.com/zlib-ng/zlib-ng.git"
     GIT_TAG 2.0.7
     GIT_PROGRESS TRUE
 )
-FetchContent_MakeAvailable(ZLIB)
+FetchContent_MakeAvailable(zlib)
 
 wasmedge_add_library(wasmedgePluginWasmEdgeZlib
   SHARED
@@ -37,13 +37,13 @@ if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmedgePluginWasmEdgeZlib
     PRIVATE
     wasmedgeCAPI
-    ZLIB
+    zlib
   )
 else()
   target_link_libraries(wasmedgePluginWasmEdgeZlib
     PRIVATE
     wasmedge_shared
-    ZLIB
+    zlib
   )
 endif()
 

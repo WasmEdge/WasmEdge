@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+# Change "," into ";" to support <backend_name1>,<backend_name2>
+string(REPLACE "," ";" WASMEDGE_PLUGIN_WASI_NN_BACKEND "${WASMEDGE_PLUGIN_WASI_NN_BACKEND}")
+
 # Add backends building flags.
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   string(TOLOWER ${BACKEND} BACKEND)

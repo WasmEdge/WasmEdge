@@ -429,7 +429,7 @@ INLINE void transpose_msg_vecs(const uint8_t *const *inputs,
   out[14] = loadu(&inputs[2][block_offset + 3 * sizeof(__m128i)]);
   out[15] = loadu(&inputs[3][block_offset + 3 * sizeof(__m128i)]);
   for (size_t i = 0; i < 4; ++i) {
-    _mm_prefetch(&inputs[i][block_offset + 256], _MM_HINT_T0);
+    _mm_prefetch((const void *)&inputs[i][block_offset + 256], _MM_HINT_T0);
   }
   transpose_vecs(&out[0]);
   transpose_vecs(&out[4]);
@@ -442,18 +442,20 @@ INLINE void load_counters(uint64_t counter, bool increment_counter,
   const __m128i mask = _mm_set1_epi32(-(int32_t)increment_counter);
   const __m128i add0 = _mm_set_epi32(3, 2, 1, 0);
   const __m128i add1 = _mm_and_si128(mask, add0);
-  __m128i l = _mm_add_epi32(_mm_set1_epi32(counter), add1);
-  __m128i carry = _mm_cmpgt_epi32(_mm_xor_si128(add1, _mm_set1_epi32(0x80000000)),
-                                  _mm_xor_si128(   l, _mm_set1_epi32(0x80000000)));
-  __m128i h = _mm_sub_epi32(_mm_set1_epi32(counter >> 32), carry);
+  __m128i l = _mm_add_epi32(_mm_set1_epi32((int32_t)counter), add1);
+  __m128i carry =
+      _mm_cmpgt_epi32(_mm_xor_si128(add1, _mm_set1_epi32(0x80000000)),
+                      _mm_xor_si128(l, _mm_set1_epi32(0x80000000)));
+  __m128i h = _mm_sub_epi32(_mm_set1_epi32((int32_t)(counter >> 32)), carry);
   *out_lo = l;
   *out_hi = h;
 }
 
-void blake3_hash4_sse41(const uint8_t *const *inputs, size_t blocks,
-                        const uint32_t key[8], uint64_t counter,
-                        bool increment_counter, uint8_t flags,
-                        uint8_t flags_start, uint8_t flags_end, uint8_t *out) {
+static void blake3_hash4_sse41(const uint8_t *const *inputs, size_t blocks,
+                               const uint32_t key[8], uint64_t counter,
+                               bool increment_counter, uint8_t flags,
+                               uint8_t flags_start, uint8_t flags_end,
+                               uint8_t *out) {
   __m128i h_vecs[8] = {
       set1(key[0]), set1(key[1]), set1(key[2]), set1(key[3]),
       set1(key[4]), set1(key[5]), set1(key[6]), set1(key[7]),

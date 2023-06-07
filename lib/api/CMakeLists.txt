@@ -60,6 +60,7 @@ endfunction()
 
 set(WASMEDGE_CAPI_HEADERS
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge.hh
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/version.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/enum.inc
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/enum_configure.h
@@ -71,6 +72,7 @@ set(WASMEDGE_CAPI_HEADERS
 # Object library of the C API wrapper.
 wasmedge_add_library(wasmedgeCAPI OBJECT
   wasmedge.cpp
+  wasmedge_cpp.cpp
 )
 
 target_link_libraries(wasmedgeCAPI
@@ -96,6 +98,7 @@ if(WASMEDGE_BUILD_SHARED_LIB)
 
   wasmedge_add_library(wasmedge_shared SHARED
     ../../include/api/wasmedge/wasmedge.h
+    ../../include/api/wasmedge/wasmedge.hh
   )
 
   set_target_properties(wasmedge_shared PROPERTIES

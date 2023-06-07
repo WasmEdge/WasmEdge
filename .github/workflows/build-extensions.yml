@@ -157,7 +157,7 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_ZLIB=ON
+      build_options: -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON
       tar_names: wasi_crypto wasmedge_process wasmedge_zlib
       test_bins: wasiCryptoTests wasmedgeProcessTests wasmedgeZlibTests
       output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeZlib.so
@@ -321,7 +321,7 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_ZLIB=ON
+      build_options: -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON
       tar_names: wasi_crypto wasmedge_process wasmedge_zlib
       test_bins: wasiCryptoTests wasmedgeProcessTests wasmedgeZlibTests
       output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeZlib.so

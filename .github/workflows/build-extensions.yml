@@ -220,6 +220,11 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_process-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasmedge_process.tar.gz
+      - name: Upload artifact - wasi_logging
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          path: plugin_wasi_logging.tar.gz
 
   # Due to the dependencies and exclusions of WASI-NN, build them saperately.
   build_manylinux_wasi_nn:
@@ -378,6 +383,11 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_process-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasmedge_process.tar.gz
+      - name: Upload artifact - wasi_logging
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          path: plugin_wasi_logging.tar.gz
 
   build_macos:
     strategy:
@@ -456,3 +466,8 @@ jobs:
         with:
           name: WasmEdge-plugin-wasi_crypto-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_x86_64.tar.gz
           path: plugin_wasi_crypto.tar.gz
+      - name: Upload artifact - wasi_logging
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_x86_64.tar.gz
+          path: plugin_wasi_logging.tar.gz

@@ -1,4 +1,4 @@
-wit_bindgen::generate!({ path: "wasi-logging/wit" });
+wit_bindgen::generate!({ path: "wit" });
 
 use wasi::logging::logging::{
     Level, 

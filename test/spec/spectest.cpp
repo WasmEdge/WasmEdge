@@ -244,7 +244,7 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"tail-call"sv, {Proposal::TailCall}},
     {"extended-const"sv, {Proposal::ExtendedConst}},
     {"threads"sv, {Proposal::Threads}},
-    {"exception-handling"sv, {Proposal::ExceptionHandling}},
+    {"exception-handling"sv, {Proposal::ExceptionHandling, Proposal::TailCall}},
 };
 
 } // namespace

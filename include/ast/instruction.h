@@ -290,15 +290,15 @@ public:
 #endif
   }
 
-  /// Getter and setter of IsLast for End instruction.
+  /// Getter and setter of IsTryLast for End instruction.
   bool isTryLast() const noexcept { return Flags.IsTryLast; }
   void setTryLast(bool Last = true) noexcept { Flags.IsTryLast = Last; }
 
-  /// Getter and setter of IsLast for End instruction.
+  /// Getter and setter of IsCatchLast for End instruction.
   bool isCatchLast() const noexcept { return Flags.IsCatchLast; }
   void setCatchLast(bool Last = true) noexcept { Flags.IsCatchLast = Last; }
 
-  /// Getter and setter of IsLast for End instruction.
+  /// Getter and setter of IsDelegate for Try instruction.
   bool isDelegate() const noexcept { return Flags.IsDelegate; }
   void setDelegate(bool Last = true) noexcept { Flags.IsDelegate = Last; }
 

@@ -5,7 +5,7 @@ The [wasmedge_wasi_socket](https://github.com/second-state/wasmedge_wasi_socket)
 In this chapter, we will start with simple HTTP client and server examples. Then [in the next chapter](networking-nonblocking.md), we will cover the more complex non-blocking examples.
 
 ## Cargo packages to be used
-```
+```text
 wasmedge_wasi_socket
 wasmedge_http_req
 bytecodec

@@ -1678,7 +1678,7 @@ public:
   uint64_t getSize() const noexcept { return LLVMGetSectionSize(Ref); }
   Span<const uint8_t> getContents() const noexcept {
     return {reinterpret_cast<const uint8_t *>(LLVMGetSectionContents(Ref)),
-            LLVMGetSectionSize(Ref)};
+            static_cast<size_t>(LLVMGetSectionSize(Ref))};
   }
 
   inline bool isText() const noexcept;

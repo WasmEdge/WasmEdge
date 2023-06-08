@@ -2,7 +2,18 @@
 
 The [wasmedge_wasi_socket](https://github.com/second-state/wasmedge_wasi_socket) crate enables Rust developers to create networking applications and compile them into WebAssembly for WasmEdge Runtime. One of the key features of WasmEdge is that it supports non-blocking sockets. That allows even a single threaded WASM application to handle concurrent network requests. For example, while the program is waiting for data to stream in from one connection, it can start or handle another connection.
 
-In this chapter, we will start with simple HTTP client and server examples. Then [in the next chapter](networking-nonblocking.md), we will cover the more complex non-blocking examples. And [in this chapter](networking-https.md), we will give the examples for HTTPS requests.
+In this chapter, we will start with simple HTTP client and server examples. Then [in the next chapter](networking-nonblocking.md), we will cover the more complex non-blocking examples.
+
+## Cargo packages to be used
+```
+wasmedge_wasi_socket
+wasmedge_http_req
+bytecodec
+httpcodec
+```
+
+> **Note**
+Currently the HTTPS support is not available you need to add *OpenSSL* and the *TLS plugin* in WasmEdge [tls-plugin](https://wasmedge.org/docs/develop/build-and-run/install#tls-plugin) and [http_req](https://wasmedge.org/docs/develop/rust/http_service/client/#synchronous-client-with-http_req)
 
 ## An HTTP client example
 
@@ -45,7 +56,7 @@ The following command runs the application in WasmEdge.
 wasmedge target/wasm32-wasi/release/http_client.wasm
 ```
 
-> Noticed that you should [install the WasmEdge-HttpsReq plug-in](networking-https.md#prerequisites).
+> ~Noticed that you should [install the WasmEdge-HttpsReq plug-in](networking-https.md#prerequisites)~.
 
 ## An HTTP server example
 
@@ -61,12 +72,25 @@ use std::net::{Shutdown, TcpListener, TcpStream};
 use wasmedge_wasi_socket::{Shutdown, TcpListener, TcpStream};
 
 fn handle_http(req: Request<String>) -> bytecodec::Result<Response<String>> {
-  Ok(Response::new(
-    HttpVersion::V1_0,
-    StatusCode::new(200)?,
-    ReasonPhrase::new("")?,
-    format!("echo: {}", req.body()),
-  ))
+  let request_path = req.request_target().to_string();
+  let request_type = req.method().to_string();
+  std::println!("Method [{request_type}]\nendpoint [{request_path}]");
+  return match (request_type.as_str(), request_path.as_str()) {
+    ("GET", "/ping") => {
+      Ok(Response::new(
+        HttpVersion::V1_1,
+        StatusCode::new(200)?,
+        ReasonPhrase::new("")?,
+        format!("Pong! echo_body: {}", req.body())))
+    }
+    _ => {
+      Ok(Response::new(
+        HttpVersion::V1_0,
+        StatusCode::new(403)?,
+        ReasonPhrase::new("")?,
+        format!("Route path or method is invalid!")))
+    }
+  };
 }
 
 fn handle_client(mut stream: TcpStream) -> std::io::Result<()> {
@@ -134,6 +158,6 @@ new connection at 1234
 To test the HTTP server, you can submit a HTTP request to it via `curl`.
 
 ```bash
-$ curl -d "name=WasmEdge" -X POST http://127.0.0.1:1234
-echo: name=WasmEdge
+$ curl -d "name=WasmEdge" -X GET http://127.0.0.1:1234/ping
+Pong! echo_body: name=WasmEdge
 ```

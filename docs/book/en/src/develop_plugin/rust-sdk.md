@@ -20,7 +20,7 @@ witc plugin wasmedge_opencvmini.wit
 
 Now, you will create a SDK crate by
 
-```
+```shell
 cargo new --lib opencvmini-sdk && cd opencvmini-sdk
 ```
 

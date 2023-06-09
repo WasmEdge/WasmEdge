@@ -28,7 +28,7 @@ $ cd kubernetes
 $ git checkout v1.22.2
 
 # Install etcd with hack script in k8s
-$ sudo CGROUP_DRIVER=systemd CONTAINER_RUNTIME=remote CONTAINER_RUNTIME_ENDPOINT='unix:///var/run/crio/crio.sock' ./hack/install-etcd.sh
+$ sudo CGROUP_DRIVER=systemd CONTAINER_RUNTIME=remote CONTAINER_RUNTIME_ENDPOINT='unix:///var/run/containerd/containerd.sock' ./hack/install-etcd.sh
 $ export PATH="/home/${USER}/kubernetes/third_party/etcd:${PATH}"
 $ sudo cp third_party/etcd/etcd* /usr/local/bin/
 
@@ -36,7 +36,7 @@ $ sudo cp third_party/etcd/etcd* /usr/local/bin/
 
 # Build and run k8s with containerd
 $ sudo apt-get install -y build-essential
-$ sudo CGROUP_DRIVER=systemd CONTAINER_RUNTIME=remote CONTAINER_RUNTIME_ENDPOINT='unix:///var/run/crio/crio.sock' ./hack/local-up-cluster.sh
+$ sudo CGROUP_DRIVER=systemd CONTAINER_RUNTIME=remote CONTAINER_RUNTIME_ENDPOINT='unix:///var/run/containerd/containerd.sock' ./hack/local-up-cluster.sh
 
 ... ...
 Local Kubernetes cluster is running. Press Ctrl-C to shut it down.

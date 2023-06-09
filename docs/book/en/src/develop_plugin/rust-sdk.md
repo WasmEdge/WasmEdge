@@ -1,6 +1,6 @@
 # Develop Plugin Rust SDK with witc
 
-Once you complete C++ plugin code, you can use witc to generate Rust Plugin SDK
+Once you complete C++ plugin code, you can use witc[^1] to generate Rust Plugin SDK
 
 ## Example wasmedge_opencvmini
 
@@ -45,3 +45,5 @@ pub fn waitkey(delay: u32) -> () {
     unsafe { generated::waitkey(delay) }
 }
 ```
+
+[^1]: https://github.com/second-state/witc

@@ -506,7 +506,7 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
                 Buffer.begin());
       Buffer = Buffer.subspan(NewDataSize);
       Size += NewDataSize;
-      Dir.Buffer.erase(Dir.Buffer.begin(), Dir.Buffer.begin() + NewDataSize);
+      Dir.Buffer.clear();
       if (unlikely(Buffer.empty())) {
         break;
       }

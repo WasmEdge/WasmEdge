@@ -419,7 +419,7 @@ jobs:
           fetch-depth: 0
       - name: Build and install dependencies
         run: |
-          brew install llvm ninja boost cmake openssl
+          brew install llvm ninja cmake openssl
       - name: Build WasmEdge plugins using clang++ with ${{ matrix.build_type }} mode
         shell: bash
         run: |

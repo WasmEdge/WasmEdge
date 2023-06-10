@@ -2,23 +2,22 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "common/defines.h"
-#include <gtest/gtest.h>
-
 #include "host/wasi/wasibase.h"
 #include "host/wasi/wasifunc.h"
 #include "runtime/instance/module.h"
+#include "system/winapi.h"
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <gtest/gtest.h>
 #include <string>
 #include <string_view>
 
-#if WASMEDGE_OS_WINDOWS
-#include <winsock2.h>
-#include <ws2ipdef.h>
-#else
+#if !WASMEDGE_OS_WINDOWS
 #include <netinet/in.h>
+#else
+using namespace WasmEdge::winapi;
 #endif
 using namespace std::literals;
 
@@ -32,10 +31,10 @@ bool TrySetUpIPV6Socket() {
   bool State = false;
 
 #if WASMEDGE_OS_WINDOWS
-  WSADATA WSAData;
-  WSAStartup(MAKEWORD(2, 2), &WSAData);
-  const SOCKET ErrFd = INVALID_SOCKET;
-  SOCKET Fd;
+  WSADATA_ WSAData;
+  WSAStartup(0x0202, &WSAData);
+  const SOCKET_ ErrFd = INVALID_SOCKET_;
+  SOCKET_ Fd;
 #else
   const int ErrFd = -1;
   int Fd;
@@ -47,7 +46,7 @@ bool TrySetUpIPV6Socket() {
       break;
 
     struct sockaddr_in6 Sock6;
-    memset(&Sock6, 0, sizeof(Sock6));
+    std::memset(&Sock6, 0, sizeof(Sock6));
     Sock6.sin6_family = AF_INET6;
     Sock6.sin6_port = htons(10000);
     Sock6.sin6_addr = in6addr_loopback;

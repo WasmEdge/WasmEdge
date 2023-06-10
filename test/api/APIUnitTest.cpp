@@ -16,30 +16,7 @@
 #include <vector>
 
 #if WASMEDGE_OS_WINDOWS
-#include <boost/winapi/basic_types.hpp>
-#if !defined(BOOST_USE_WINDOWS_H)
-extern "C" {
-BOOST_WINAPI_IMPORT boost::winapi::HANDLE_ BOOST_WINAPI_WINAPI_CC
-GetStdHandle(boost::winapi::DWORD_ nStdHandle);
-}
-#else
-#include <winternl.h>
-#endif
-
-namespace boost::winapi {
-#if defined(BOOST_USE_WINDOWS_H)
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_INPUT_HANDLE_ = STD_INPUT_HANDLE;
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = STD_OUTPUT_HANDLE;
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_ERROR_HANDLE_ = STD_ERROR_HANDLE;
-#else
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_INPUT_HANDLE_ = static_cast<DWORD_>(-10);
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = static_cast<DWORD_>(-11);
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_ERROR_HANDLE_ = static_cast<DWORD_>(-12);
-#endif
-BOOST_FORCEINLINE HANDLE_ GetStdHandle(DWORD_ nStdHandle) {
-  return ::GetStdHandle(nStdHandle);
-}
-} // namespace boost::winapi
+#include "system/winapi.h"
 #endif
 
 namespace {
@@ -2094,7 +2071,7 @@ TEST(APICoreTest, ModuleInstance) {
     // STDIN
 #if WASMEDGE_OS_WINDOWS
     const uint64_t StdIn = reinterpret_cast<uint64_t>(
-        boost::winapi::GetStdHandle(boost::winapi::STD_INPUT_HANDLE_));
+        WasmEdge::winapi::GetStdHandle(WasmEdge::winapi::STD_INPUT_HANDLE_));
 #else
     const uint64_t StdIn = STDIN_FILENO;
 #endif
@@ -2108,7 +2085,7 @@ TEST(APICoreTest, ModuleInstance) {
     // STDOUT
 #if WASMEDGE_OS_WINDOWS
     const uint64_t StdOut = reinterpret_cast<uint64_t>(
-        boost::winapi::GetStdHandle(boost::winapi::STD_OUTPUT_HANDLE_));
+        WasmEdge::winapi::GetStdHandle(WasmEdge::winapi::STD_OUTPUT_HANDLE_));
 #else
     const uint64_t StdOut = STDOUT_FILENO;
 #endif
@@ -2122,7 +2099,7 @@ TEST(APICoreTest, ModuleInstance) {
     // STDERR
 #if WASMEDGE_OS_WINDOWS
     const uint64_t StdErr = reinterpret_cast<uint64_t>(
-        boost::winapi::GetStdHandle(boost::winapi::STD_ERROR_HANDLE_));
+        WasmEdge::winapi::GetStdHandle(WasmEdge::winapi::STD_ERROR_HANDLE_));
 #else
     const uint64_t StdErr = STDERR_FILENO;
 #endif

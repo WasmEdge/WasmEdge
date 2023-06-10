@@ -29,4 +29,6 @@ endif()
 
 if(WASMEDGE_PLUGIN_WASI_OCR)
   add_subdirectory(wasi_ocr)
+if(WASMEDGE_PLUGIN_WASI_LOGGING)
+  add_subdirectory(wasi_logging)
 endif()

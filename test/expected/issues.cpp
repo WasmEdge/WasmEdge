@@ -121,3 +121,57 @@ TEST(RegressionTest, Issue49) { auto m = test(10).and_then(test2); }
 static cxx20::expected<int, std::unique_ptr<std::string>> func() { return 1; }
 
 TEST(RegressionTest, Issue61) { EXPECT_EQ(func().value(), 1); }
+
+struct move_tracker {
+  int moved = 0;
+
+  move_tracker() = default;
+  move_tracker(move_tracker const &) noexcept {}
+  move_tracker(move_tracker &&orig) noexcept : moved(orig.moved + 1) {}
+
+  move_tracker &operator=(move_tracker const &) noexcept { return *this; }
+  move_tracker &operator=(move_tracker &&orig) noexcept {
+    moved = orig.moved + 1;
+    return *this;
+  }
+};
+
+TEST(RegressionTest, Issue122) {
+  cxx20::expected<move_tracker, int> res;
+  res.emplace();
+  EXPECT_EQ(res.value().moved, 0);
+}
+
+#ifdef __cpp_deduction_guides
+TEST(RegressionTest, Issue89) {
+  auto s = cxx20::unexpected("Some string");
+  EXPECT_EQ(s.value(), std::string("Some string"));
+}
+#endif
+
+struct S {
+  int i = 0;
+  int j = 0;
+  S(int i) : i(i) {}
+  S(int i, int j) : i(i), j(j) {}
+};
+
+TEST(RegressionTest, Issue107) {
+  cxx20::expected<int, S> ex1(cxx20::unexpect, 2);
+  cxx20::expected<int, S> ex2(cxx20::unexpect, 2, 2);
+
+  EXPECT_EQ(ex1.error().i, 2);
+  EXPECT_EQ(ex1.error().j, 0);
+  EXPECT_EQ(ex2.error().i, 2);
+  EXPECT_EQ(ex2.error().j, 2);
+}
+
+TEST(RegressionTest, Issue129) {
+  cxx20::expected<std::unique_ptr<int>, int> x1{
+      std::unique_ptr<int>(new int(4))};
+  cxx20::expected<std::unique_ptr<int>, int> y1{
+      std::unique_ptr<int>(new int(2))};
+  x1 = std::move(y1);
+
+  EXPECT_EQ(**x1, 2);
+}

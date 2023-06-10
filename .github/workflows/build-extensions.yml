@@ -157,10 +157,10 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON
-      tar_names: wasi_crypto wasmedge_process
-      test_bins: wasiCryptoTests wasmedgeProcessTests
-      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so
+      build_options: -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON
+      tar_names: wasi_crypto wasmedge_process wasi_logging
+      test_bins: wasiCryptoTests wasmedgeProcessTests wasiLoggingTests
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasiLogging.so
     needs: [get_version_v2]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -220,6 +220,11 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_process-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasmedge_process.tar.gz
+      - name: Upload artifact - wasi_logging
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          path: plugin_wasi_logging.tar.gz
 
   # Due to the dependencies and exclusions of WASI-NN, build them saperately.
   build_manylinux_wasi_nn:
@@ -316,10 +321,10 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON
-      tar_names: wasi_crypto wasmedge_process
-      test_bins: wasiCryptoTests wasmedgeProcessTests
-      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so
+      build_options: -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON
+      tar_names: wasi_crypto wasmedge_process wasi_logging
+      test_bins: wasiCryptoTests wasmedgeProcessTests wasiLoggingTests
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasiLogging.so
     needs: [get_version_v2]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -378,6 +383,11 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_process-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasmedge_process.tar.gz
+      - name: Upload artifact - wasi_logging
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          path: plugin_wasi_logging.tar.gz
 
   build_macos:
     strategy:
@@ -398,10 +408,10 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON
-      tar_names: wasi_crypto
-      test_bins: wasiCryptoTests
-      output_bins: libwasmedgePluginWasiCrypto.dylib
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON
+      tar_names: wasi_crypto wasi_logging
+      test_bins: wasiCryptoTests wasiLoggingTests
+      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib
     needs: [get_version_v2]
     steps:
       - uses: actions/checkout@v3
@@ -456,3 +466,8 @@ jobs:
         with:
           name: WasmEdge-plugin-wasi_crypto-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_x86_64.tar.gz
           path: plugin_wasi_crypto.tar.gz
+      - name: Upload artifact - wasi_logging
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_x86_64.tar.gz
+          path: plugin_wasi_logging.tar.gz

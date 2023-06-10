@@ -31,7 +31,7 @@ jobs:
           fetch-depth: 0
       - name: Setup build environment
         run: |
-          brew install llvm ninja boost cmake
+          brew install llvm ninja cmake
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |

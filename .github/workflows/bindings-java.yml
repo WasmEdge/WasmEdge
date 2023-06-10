@@ -91,7 +91,7 @@ jobs:
 
       - name: Install build tools
         run: |
-          brew install llvm ninja boost cmake
+          brew install llvm ninja cmake
 
       - name: Build WasmEdge with Release mode
         run: |

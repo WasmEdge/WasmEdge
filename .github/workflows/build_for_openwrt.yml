@@ -91,7 +91,6 @@ jobs:
         CONFIG_TARGET_ARCH_PACKAGES="x86_64"
         CONFIG_PACKAGE_libpthread=y
         CONFIG_PACKAGE_libstdcpp=y
-        CONFIG_PACKAGE_boost=y
         CONFIG_PACKAGE_WasmEdge=y
         EOF
         sed -i 's/^[ \t]*//g' ./.config

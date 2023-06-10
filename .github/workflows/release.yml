@@ -443,7 +443,7 @@ jobs:
           fetch-depth: 0
       - name: Install dependencies
         run: |
-          brew install llvm ninja boost cmake openssl
+          brew install llvm ninja cmake openssl
       - name: Build plugins
         shell: bash
         run: |

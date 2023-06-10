@@ -558,7 +558,7 @@ size_t FindHolderBase<T>::write(Span<uint8_t> Output) noexcept {
   const auto Diff = static_cast<std::ptrdiff_t>(Size);
   if (!Buffer.empty()) {
     std::copy(Buffer.begin(), Buffer.begin() + Diff, Output.begin());
-    Buffer.erase(Buffer.begin(), Buffer.begin() + Diff);
+    Buffer.clear();
   }
   return Size;
 }

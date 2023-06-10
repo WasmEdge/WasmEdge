@@ -25,7 +25,6 @@ target_include_directories(wasmedgeHostModuleWasi
 target_link_libraries(wasmedgeHostModuleWasi
   PUBLIC
   Threads::Threads
-  Boost::boost
   wasmedgeSystem
 )
 

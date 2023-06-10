@@ -55,7 +55,7 @@ $ npm install -g rustwasmc # 如果权限有问题，加上 --unsafe-perm
 # WasmEdge 需要的系统依赖
 $ sudo apt-get update
 $ sudo apt-get -y upgrade
-$ sudo apt install -y build-essential curl wget git vim libboost-all-dev llvm-dev liblld-10-dev
+$ sudo apt install -y build-essential curl wget git vim llvm-dev liblld-10-dev
 
 # 安装 WasmEdge 需要的 nodejs addon 
 $ npm install wasmedge-core

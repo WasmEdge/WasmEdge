@@ -38,10 +38,9 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         working-directory: WasmEdge
         run: |
-          sudo apt install -y software-properties-common cmake libboost-all-dev
-          sudo apt install -y clang
-          mkdir -p build && cd build
-          cmake -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .. && make -j
+          sudo apt install -y software-properties-common cmake libboost-all-dev clang ninja-build
+          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .
+          cmake --build build
           echo "$GITHUB_WORKSPACE/WasmEdge/build/tools/wasmedge" >> $GITHUB_PATH
 
       - name: Build WasmEdge on macOS

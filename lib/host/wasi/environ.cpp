@@ -93,7 +93,7 @@ void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
           ReadOnly ? kPreOpenBaseRightsReadOnly : kPreOpenBaseRights;
       const auto InheritingRights = ReadOnly ? kPreOpenInheritingRightsReadOnly
                                              : kPreOpenInheritingRights;
-      if (auto Res = VINode::bind(FS, BaseRights, InheritingRights,
+      if (auto Res = VINode::bind(BaseRights, InheritingRights,
                                   std::move(GuestDir), std::move(HostDir));
           unlikely(!Res)) {
         spdlog::error("Bind guest directory failed:{}", Res.error());
@@ -105,12 +105,9 @@ void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
 
     std::sort(PreopenedDirs.begin(), PreopenedDirs.end());
 
-    FdMap.emplace(0,
-                  VINode::stdIn(FS, kStdInDefaultRights, kNoInheritingRights));
-    FdMap.emplace(
-        1, VINode::stdOut(FS, kStdOutDefaultRights, kNoInheritingRights));
-    FdMap.emplace(
-        2, VINode::stdErr(FS, kStdErrDefaultRights, kNoInheritingRights));
+    FdMap.emplace(0, VINode::stdIn(kStdInDefaultRights, kNoInheritingRights));
+    FdMap.emplace(1, VINode::stdOut(kStdOutDefaultRights, kNoInheritingRights));
+    FdMap.emplace(2, VINode::stdErr(kStdErrDefaultRights, kNoInheritingRights));
 
     int NewFd = 3;
     for (auto &PreopenedDir : PreopenedDirs) {

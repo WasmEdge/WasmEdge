@@ -3356,6 +3356,31 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt);
 
 // >>>>>>>> WasmEdge Driver functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
+    defined(__TOS_WIN__) || defined(__WINDOWS__)
+/// Convert UTF16 Args to UTF8 Args
+///
+/// This function is an argument converter for windows platform.
+///
+/// The caller owns the vector and should call `WasmEdge_Driver_ArgvDelete` to
+/// destroy it.
+///
+/// \param Argc the argument count.
+/// \param Argv the argument vector.
+///
+/// \returns Allocated argument vector.
+WASMEDGE_CAPI_EXPORT extern const char **
+WasmEdge_Driver_ArgvCreate(int Argc, const wchar_t *Argv[]);
+
+/// Deletion of the argument vector
+///
+/// \param Argv the argument vector.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_Driver_ArgvDelete(const char *Argv[]);
+
+/// Set console output code page to UTF-8 in windows.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_Driver_SetConsoleOutputCPtoUTF8(void);
+#endif
+
 /// Entrypoint for the compiler tool.
 ///
 /// This function provides an entrypoint to the WasmEdge AOT compiler tool with

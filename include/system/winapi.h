@@ -624,6 +624,9 @@ NT_SUCCESS_(NTSTATUS_ Status) noexcept {
 }
 static inline constexpr const ULONG_ FILE_SEQUENTIAL_ONLY_ = 0x00000004;
 static inline constexpr const ULONG_ FILE_RANDOM_ACCESS_ = 0x00000800;
+
+static inline constexpr const DWORD_ ENABLE_VIRTUAL_TERMINAL_PROCESSING_ =
+    0x0004;
 #endif
 
 } // namespace WasmEdge::winapi
@@ -778,6 +781,11 @@ CreateHardLinkW(WasmEdge::winapi::LPCWSTR_ lpFileName,
                 WasmEdge::winapi::LPCWSTR_ lpExistingFileName,
                 WasmEdge::winapi::LPSECURITY_ATTRIBUTES_ lpSecurityAttributes);
 
+WASMEDGE_WINAPI_SYMBOL_IMPORT
+WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
+GetConsoleMode(WasmEdge::winapi::HANDLE_ hConsoleHandle,
+               WasmEdge::winapi::LPDWORD_ lpMode);
+
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
 GetFileInformationByHandle(
     WasmEdge::winapi::HANDLE_ hFile,
@@ -820,6 +828,10 @@ WASMEDGE_WINAPI_SYMBOL_IMPORT
 WasmEdge::winapi::DWORD_ WASMEDGE_WINAPI_WINAPI_CC QueryDosDeviceW(
     WasmEdge::winapi::LPCWSTR_ lpDeviceName,
     WasmEdge::winapi::LPWSTR_ lpTargetPath, WasmEdge::winapi::DWORD_ ucchMax);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT
+WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC SetConsoleMode(
+    WasmEdge::winapi::HANDLE_ hConsoleHandle, WasmEdge::winapi::DWORD_ dwMode);
 #endif
 
 #if NTDDI_VERSION >= NTDDI_VISTA
@@ -924,6 +936,7 @@ using ::WriteFileEx;
 using ::CreateFileMappingW;
 using ::CreateFileW;
 using ::CreateHardLinkW;
+using ::GetConsoleMode;
 using ::GetFileInformationByHandle;
 using ::GetLogicalDriveStringsW;
 using ::MapViewOfFile;
@@ -931,6 +944,7 @@ using ::NtQueryInformationFile;
 using ::NtQueryObject;
 using ::NtSetInformationFile;
 using ::QueryDosDeviceW;
+using ::SetConsoleMode;
 #endif
 
 #if NTDDI_VERSION >= NTDDI_VISTA

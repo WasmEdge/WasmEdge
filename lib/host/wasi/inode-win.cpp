@@ -71,7 +71,7 @@ createNullTerminatedString(std::string_view View) noexcept {
 
 WasiExpect<std::tuple<DWORD_, DWORD_, DWORD_>> inline constexpr getOpenFlags(
     __wasi_oflags_t OpenFlags, __wasi_fdflags_t FdFlags,
-    uint8_t VFSFlags) noexcept {
+    VFS::Flags VFSFlags) noexcept {
   // Always use FILE_FLAG_BACKUP_SEMANTICS to prevent failure on opening a
   // directory.
   DWORD_ AttributeFlags = FILE_FLAG_BACKUP_SEMANTICS_;
@@ -693,7 +693,7 @@ INode INode::stdErr() noexcept {
 
 WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
                               __wasi_fdflags_t FdFlags,
-                              uint8_t VFSFlags) noexcept {
+                              VFS::Flags VFSFlags) noexcept {
   DWORD_ AttributeFlags;
   DWORD_ AccessFlags;
   DWORD_ CreationDisposition;
@@ -1350,7 +1350,7 @@ WasiExpect<void> INode::pathLink(const INode &, std::string, const INode &,
 
 WasiExpect<INode> INode::pathOpen(std::string Path, __wasi_oflags_t OpenFlags,
                                   __wasi_fdflags_t FdFlags,
-                                  uint8_t VFSFlags) const noexcept {
+                                  VFS::Flags VFSFlags) const noexcept {
   DWORD_ AttributeFlags;
   DWORD_ AccessFlags;
   DWORD_ CreationDisposition;

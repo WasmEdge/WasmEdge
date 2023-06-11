@@ -5,6 +5,7 @@
 
 #include "common/filesystem.h"
 #include "host/wasi/error.h"
+#include "wasi/api.hpp"
 
 #include <cstdint>
 
@@ -12,23 +13,16 @@ namespace WasmEdge {
 namespace Host {
 namespace WASI {
 
-class VINode;
 class VFS {
 public:
-  VFS(const VFS &) = delete;
-  VFS &operator=(const VFS &) = delete;
-  VFS(VFS &&) = default;
-  VFS &operator=(VFS &&) = default;
-
-  VFS() = default;
-
   /// Flags for open path
-  enum VFSFlags : uint8_t {
+  enum Flags : uint8_t {
     Read = 1,       ///< Open for read.
     Write = 2,      ///< Open for write.
     AllowEmpty = 4, ///< Allow empty path for self reference.
   };
 };
+DEFINE_ENUM_OPERATORS(VFS::Flags)
 
 } // namespace WASI
 } // namespace Host

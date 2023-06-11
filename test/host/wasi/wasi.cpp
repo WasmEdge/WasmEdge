@@ -767,15 +767,15 @@ TEST(WasiTest, PollOneoffSocketV1) {
                              Errno));
         EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
-        ActionDone.store(true);
-        ActionProcessed.notify_one();
-
         // listen port
         EXPECT_TRUE(WasiSockListen.run(
             CallFrame,
             std::initializer_list<WasmEdge::ValVariant>{ServerFd, Backlog},
             Errno));
         EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+        ActionDone.store(true);
+        ActionProcessed.notify_one();
 
         // accept port
         EXPECT_TRUE(WasiSockAccept.run(
@@ -1372,15 +1372,15 @@ TEST(WasiTest, PollOneoffSocketV2) {
                              Errno));
         EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
-        ActionDone.store(true);
-        ActionProcessed.notify_one();
-
         // listen port
         EXPECT_TRUE(WasiSockListen.run(
             CallFrame,
             std::initializer_list<WasmEdge::ValVariant>{ServerFd, Backlog},
             Errno));
         EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+        ActionDone.store(true);
+        ActionProcessed.notify_one();
 
         // accept port
         EXPECT_TRUE(
@@ -1979,15 +1979,15 @@ TEST(WasiTest, EpollOneoffSocketV1) {
                              Errno));
         EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
-        ActionDone.store(true);
-        ActionProcessed.notify_one();
-
         // listen port
         EXPECT_TRUE(WasiSockListen.run(
             CallFrame,
             std::initializer_list<WasmEdge::ValVariant>{ServerFd, Backlog},
             Errno));
         EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+        ActionDone.store(true);
+        ActionProcessed.notify_one();
 
         // accept port
         EXPECT_TRUE(WasiSockAccept.run(

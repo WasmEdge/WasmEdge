@@ -7,6 +7,7 @@
 #include "common/errcode.h"
 #include "common/span.h"
 #include "host/wasi/error.h"
+#include "host/wasi/vfs.h"
 #include <functional>
 #include <limits>
 #include <optional>
@@ -345,7 +346,7 @@ public:
   /// error.
   static WasiExpect<INode> open(std::string Path, __wasi_oflags_t OpenFlags,
                                 __wasi_fdflags_t FdFlags,
-                                uint8_t VFSFlags) noexcept;
+                                VFS::Flags VFSFlags) noexcept;
 
   /// Provide file advisory information on a file descriptor.
   ///
@@ -592,7 +593,7 @@ public:
   /// error.
   WasiExpect<INode> pathOpen(std::string Path, __wasi_oflags_t OpenFlags,
                              __wasi_fdflags_t FdFlags,
-                             uint8_t VFSFlags) const noexcept;
+                             VFS::Flags VFSFlags) const noexcept;
 
   /// Read the contents of a symbolic link.
   ///

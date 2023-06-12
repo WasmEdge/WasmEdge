@@ -1,6 +1,5 @@
 # `wasmedge compile` CLI
 
-
 After [installation](../quick_start/install.md), users can execute the `wasmedge compile` command.
 
 The usage of the `wasmedge compile` command will be:

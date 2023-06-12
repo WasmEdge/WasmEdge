@@ -1,6 +1,6 @@
 # WasmEdge Proprietary Extensions
 
-# *This part have moved to https://wasmedge.org/docs/develop/wasmedge/extensions/unique_extensions. Please use our new docs.*
+> *This part have moved to <https://wasmedge.org/docs/develop/wasmedge/extensions/unique_extensions>. Please use our new docs.*
 
 A key differentiator of WasmEdge from other WebAssembly runtimes is its support for non-standard extensions. The [WebAssembly System Interface (WASI)](https://github.com/WebAssembly/WASI) provides a mechanism for developers to extend WebAssembly efficiently and securely. The WasmEdge team created the following WASI-like extensions based on real-world customer demands.
 

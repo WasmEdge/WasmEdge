@@ -1,23 +1,3 @@
 # Build WasmEdge With WasmEdge-Process Plug-in
 
-> *This part has moved to <https://wasmedge.org/docs/contribute/source/plugin/process>. Please use our new docs.*
-
-## Prerequisites
-
-The prerequisite of the WasmEdge-Process plug-in is the same as the [WasmEdge building environment on the Linux platforms](linux.md).
-
-## Build WasmEdge with WasmEdge-Process Plug-in
-
-To enable the WasmEdge WasmEdge-Process, developers need to [build the WasmEdge from the source](linux.md) with the cmake option `-DWASMEDGE_PLUGIN_PROCESS=On`.
-
-```bash
-cd <path/to/your/wasmedge/source/folder>
-mkdir -p build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On .. && make -j
-# For the WasmEdge-Process plugin, you should install this project.
-cmake --install .
-```
-
-> If the built `wasmedge` CLI tool cannot find the WasmEdge-Process plug-in, you can set the `WASMEDGE_PLUGIN_PATH` environment variable to the plug-in installation path (`/usr/local/lib/wasmedge/`, or the built plug-in path `build/plugins/wasmedge_process/`) to try to fix this issue.
-
-Then you will have an executable `wasmedge` runtime under `/usr/local/bin` and the WasmEdge-Process plug-in under `/usr/local/lib/wasmedge/libwasmedgePluginWasmEdgeProcess.so` after installation.
+This part has moved to <https://wasmedge.org/docs/contribute/source/plugin/process>. Please use our new docs.

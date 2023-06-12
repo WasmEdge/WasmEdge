@@ -618,7 +618,7 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
-    return VINode::pathCreateDirectory(FS, std::move(Node), Path);
+    return VINode::pathCreateDirectory(std::move(Node), Path);
   }
 
   /// Return the attributes of a file or directory.
@@ -638,7 +638,7 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
-    return VINode::pathFilestatGet(FS, std::move(Node), Path, Flags, Filestat);
+    return VINode::pathFilestatGet(std::move(Node), Path, Flags, Filestat);
   }
 
   /// Adjust the timestamps of a file or directory.
@@ -662,7 +662,7 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
-    return VINode::pathFilestatSetTimes(FS, std::move(Node), Path, Flags, ATim,
+    return VINode::pathFilestatSetTimes(std::move(Node), Path, Flags, ATim,
                                         MTim, FstFlags);
   }
 
@@ -690,7 +690,7 @@ public:
     }
     auto OldNode = getNodeOrNull(Old);
     auto NewNode = getNodeOrNull(New);
-    return VINode::pathLink(FS, std::move(OldNode), OldPath, std::move(NewNode),
+    return VINode::pathLink(std::move(OldNode), OldPath, std::move(NewNode),
                             NewPath, LookupFlags);
   }
 
@@ -735,7 +735,7 @@ public:
     }
     auto Node = getNodeOrNull(Fd);
     if (auto Res =
-            VINode::pathOpen(FS, std::move(Node), Path, LookupFlags, OpenFlags,
+            VINode::pathOpen(std::move(Node), Path, LookupFlags, OpenFlags,
                              FsRightsBase, FsRightsInheriting, FdFlags);
         unlikely(!Res)) {
       return WasiUnexpect(Res);
@@ -763,7 +763,7 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
-    return VINode::pathReadlink(FS, std::move(Node), Path, Buffer, NRead);
+    return VINode::pathReadlink(std::move(Node), Path, Buffer, NRead);
   }
 
   /// Remove a directory.
@@ -781,7 +781,7 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
-    return VINode::pathRemoveDirectory(FS, std::move(Node), Path);
+    return VINode::pathRemoveDirectory(std::move(Node), Path);
   }
 
   /// Rename a file or directory.
@@ -806,8 +806,8 @@ public:
     }
     auto OldNode = getNodeOrNull(Old);
     auto NewNode = getNodeOrNull(New);
-    return VINode::pathRename(FS, std::move(OldNode), OldPath,
-                              std::move(NewNode), NewPath);
+    return VINode::pathRename(std::move(OldNode), OldPath, std::move(NewNode),
+                              NewPath);
   }
 
   /// Create a symbolic link.
@@ -829,7 +829,7 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto NewNode = getNodeOrNull(New);
-    return VINode::pathSymlink(FS, OldPath, std::move(NewNode), NewPath);
+    return VINode::pathSymlink(OldPath, std::move(NewNode), NewPath);
   }
 
   /// Unlink a file.
@@ -847,7 +847,7 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
-    return VINode::pathUnlinkFile(FS, std::move(Node), Path);
+    return VINode::pathUnlinkFile(std::move(Node), Path);
   }
 
   /// Acquire a Poller for concurrently poll for the occurrence of a set of
@@ -916,8 +916,7 @@ public:
                                    __wasi_sock_type_t SockType) noexcept {
 
     std::shared_ptr<VINode> Node;
-    if (auto Res = VINode::sockOpen(FS, AddressFamily, SockType);
-        unlikely(!Res)) {
+    if (auto Res = VINode::sockOpen(AddressFamily, SockType); unlikely(!Res)) {
       return WasiUnexpect(Res);
     } else {
       Node = std::move(*Res);
@@ -1164,7 +1163,6 @@ public:
 private:
   std::vector<std::string> Arguments;
   std::vector<std::string> EnvironVariables;
-  VFS FS;
   __wasi_exitcode_t ExitCode = 0;
 
   mutable std::shared_mutex PollerMutex; ///< Protect PollerPool

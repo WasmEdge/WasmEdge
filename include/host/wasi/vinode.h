@@ -6,6 +6,7 @@
 #include "common/filesystem.h"
 #include "host/wasi/error.h"
 #include "host/wasi/inode.h"
+#include "host/wasi/vfs.h"
 
 #include <cstdint>
 #include <functional>
@@ -19,7 +20,6 @@ namespace WasmEdge {
 namespace Host {
 namespace WASI {
 
-class VFS;
 class VPoller;
 class VINode : public std::enable_shared_from_this<VINode> {
 public:
@@ -30,17 +30,15 @@ public:
 
   /// Create a VINode with a parent.
   ///
-  /// @param[in] FS Filesystem.
   /// @param[in] Node System INode.
-  VINode(VFS &FS, INode Node);
+  VINode(INode Node);
 
   /// Create a orphan VINode.
   ///
-  /// @param[in] FS Filesystem.
   /// @param[in] Node System INode.
   /// @param[in] FRB The desired rights of the VINode.
   /// @param[in] FRI The desired rights of the VINode.
-  VINode(VFS &FS, INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
+  VINode(INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
          std::string N = {});
 
   /// Check path is valid.
@@ -48,16 +46,16 @@ public:
     return Path.find('\0') == std::string_view::npos;
   }
 
-  static std::shared_ptr<VINode> stdIn(VFS &FS, __wasi_rights_t FRB,
+  static std::shared_ptr<VINode> stdIn(__wasi_rights_t FRB,
                                        __wasi_rights_t FRI);
-  static std::shared_ptr<VINode> stdOut(VFS &FS, __wasi_rights_t FRB,
+  static std::shared_ptr<VINode> stdOut(__wasi_rights_t FRB,
                                         __wasi_rights_t FRI);
-  static std::shared_ptr<VINode> stdErr(VFS &FS, __wasi_rights_t FRB,
+  static std::shared_ptr<VINode> stdErr(__wasi_rights_t FRB,
                                         __wasi_rights_t FRI);
 
   static std::string canonicalGuest(std::string_view Path);
 
-  static WasiExpect<std::shared_ptr<VINode>> bind(VFS &FS, __wasi_rights_t FRB,
+  static WasiExpect<std::shared_ptr<VINode>> bind(__wasi_rights_t FRB,
                                                   __wasi_rights_t FRI,
                                                   std::string Name,
                                                   std::string SystemPath);
@@ -358,27 +356,24 @@ public:
   ///
   /// Note: This is similar to `mkdirat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path at which to create the directory.
   /// @return Nothing or WASI error
-  static WasiExpect<void> pathCreateDirectory(VFS &FS,
-                                              std::shared_ptr<VINode> Fd,
+  static WasiExpect<void> pathCreateDirectory(std::shared_ptr<VINode> Fd,
                                               std::string_view Path);
 
   /// Return the attributes of a file or directory.
   ///
   /// Note: This is similar to `stat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path of the file or directory to inspect.
   /// @param[in] Flags Flags determining the method of how the path is resolved.
   /// @param[out] Filestat The buffer where the file's attributes are stored.
   /// @return Nothing or WASI error
-  static WasiExpect<void> pathFilestatGet(VFS &FS, std::shared_ptr<VINode> Fd,
+  static WasiExpect<void> pathFilestatGet(std::shared_ptr<VINode> Fd,
                                           std::string_view Path,
                                           __wasi_lookupflags_t Flags,
                                           __wasi_filestat_t &Filestat);
@@ -387,7 +382,6 @@ public:
   ///
   /// Note: This is similar to `utimensat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path of the file or directory to inspect.
@@ -397,16 +391,14 @@ public:
   /// @param[in] FstFlags A bitmask indicating which timestamps to adjust.
   /// @return Nothing or WASI error
   static WasiExpect<void>
-  pathFilestatSetTimes(VFS &FS, std::shared_ptr<VINode> Fd,
-                       std::string_view Path, __wasi_lookupflags_t Flags,
-                       __wasi_timestamp_t ATim, __wasi_timestamp_t MTim,
-                       __wasi_fstflags_t FstFlags);
+  pathFilestatSetTimes(std::shared_ptr<VINode> Fd, std::string_view Path,
+                       __wasi_lookupflags_t Flags, __wasi_timestamp_t ATim,
+                       __wasi_timestamp_t MTim, __wasi_fstflags_t FstFlags);
 
   /// Create a hard link.
   ///
   /// Note: This is similar to `linkat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Old The working directory at which the resolution of the old
   /// path starts.
   /// @param[in] OldPath The source path from which to link.
@@ -416,7 +408,7 @@ public:
   /// @param[in] LookupFlags Flags determining the method of how the path is
   /// resolved.
   /// @return Nothing or WASI error
-  static WasiExpect<void> pathLink(VFS &FS, std::shared_ptr<VINode> Old,
+  static WasiExpect<void> pathLink(std::shared_ptr<VINode> Old,
                                    std::string_view OldPath,
                                    std::shared_ptr<VINode> New,
                                    std::string_view NewPath,
@@ -432,7 +424,6 @@ public:
   ///
   /// Note: This is similar to `openat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The relative path of the file or directory to open,
@@ -454,7 +445,7 @@ public:
   /// @return The file descriptor of the file that has been opened, or WASI
   /// error.
   static WasiExpect<std::shared_ptr<VINode>>
-  pathOpen(VFS &FS, std::shared_ptr<VINode> Fd, std::string_view Path,
+  pathOpen(std::shared_ptr<VINode> Fd, std::string_view Path,
            __wasi_lookupflags_t LookupFlags, __wasi_oflags_t OpenFlags,
            __wasi_rights_t FsRightsBase, __wasi_rights_t FsRightsInheriting,
            __wasi_fdflags_t FdFlags);
@@ -463,7 +454,6 @@ public:
   ///
   /// Note: This is similar to `readlinkat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path of the symbolic link from which to read.
@@ -471,7 +461,7 @@ public:
   /// symbolic link.
   /// @param[out] NRead The number of bytes read.
   /// @return Nothing or WASI error.
-  static WasiExpect<void> pathReadlink(VFS &FS, std::shared_ptr<VINode> Fd,
+  static WasiExpect<void> pathReadlink(std::shared_ptr<VINode> Fd,
                                        std::string_view Path, Span<char> Buffer,
                                        __wasi_size_t &NRead);
 
@@ -481,20 +471,17 @@ public:
   ///
   /// Note: This is similar to `unlinkat(fd, path, AT_REMOVEDIR)` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path to a directory to remove.
   /// @return Nothing or WASI error.
-  static WasiExpect<void> pathRemoveDirectory(VFS &FS,
-                                              std::shared_ptr<VINode> Fd,
+  static WasiExpect<void> pathRemoveDirectory(std::shared_ptr<VINode> Fd,
                                               std::string_view Path);
 
   /// Rename a file or directory.
   ///
   /// Note: This is similar to `renameat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Old The working directory at which the resolution of the old
   /// path starts.
   /// @param[in] OldPath The source path of the file or directory to rename.
@@ -503,7 +490,7 @@ public:
   /// @param[in] NewPath The destination path to which to rename the file or
   /// directory.
   /// @return Nothing or WASI error.
-  static WasiExpect<void> pathRename(VFS &FS, std::shared_ptr<VINode> Old,
+  static WasiExpect<void> pathRename(std::shared_ptr<VINode> Old,
                                      std::string_view OldPath,
                                      std::shared_ptr<VINode> New,
                                      std::string_view NewPath);
@@ -512,14 +499,13 @@ public:
   ///
   /// Note: This is similar to `symlinkat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] OldPath The contents of the symbolic link.
   /// @param[in] New The working directory at which the resolution of the new
   /// path starts.
   /// @param[in] NewPath The destination path at which to create the symbolic
   /// link.
   /// @return Nothing or WASI error
-  static WasiExpect<void> pathSymlink(VFS &FS, std::string_view OldPath,
+  static WasiExpect<void> pathSymlink(std::string_view OldPath,
                                       std::shared_ptr<VINode> New,
                                       std::string_view NewPath);
 
@@ -529,12 +515,11 @@ public:
   ///
   /// Note: This is similar to `unlinkat(fd, path, 0)` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path to a file to unlink.
   /// @return Nothing or WASI error.
-  static WasiExpect<void> pathUnlinkFile(VFS &FS, std::shared_ptr<VINode> Fd,
+  static WasiExpect<void> pathUnlinkFile(std::shared_ptr<VINode> Fd,
                                          std::string_view Path);
 
   static WasiExpect<void>
@@ -546,8 +531,7 @@ public:
               /*Out*/ __wasi_size_t &ResLength) noexcept;
 
   static WasiExpect<std::shared_ptr<VINode>>
-  sockOpen(VFS &FS, __wasi_address_family_t SysDomain,
-           __wasi_sock_type_t SockType);
+  sockOpen(__wasi_address_family_t SysDomain, __wasi_sock_type_t SockType);
 
   WasiExpect<void> sockBind(__wasi_address_family_t AddressFamily,
                             Span<const uint8_t> Address,
@@ -713,7 +697,6 @@ public:
   }
 
 private:
-  std::reference_wrapper<VFS> FS;
   INode Node;
   __wasi_rights_t FsRightsBase;
   __wasi_rights_t FsRightsInheriting;
@@ -727,11 +710,10 @@ private:
   /// @return VINode found, or WASI error.
   WasiExpect<std::shared_ptr<VINode>>
   directOpen(std::string_view Path, __wasi_oflags_t OpenFlags,
-             __wasi_fdflags_t FdFlags, uint8_t VFSFlags,
+             __wasi_fdflags_t FdFlags, VFS::Flags VFSFlags,
              __wasi_rights_t RightsBase, __wasi_rights_t RightsInheriting);
 
   /// Resolve path until last element.
-  /// @param[in] FS Filesystem.
   /// @param[in,out] Fd Fd. Return parent of last part if found.
   /// @param[in,out] Path path. Return last part of path if found.
   /// @param[in] LookupFlags WASI lookup flags.
@@ -739,9 +721,9 @@ private:
   /// @param[in] LinkCount Counting symbolic link lookup times.
   /// @return Allocated buffer, or WASI error.
   static WasiExpect<std::vector<char>> resolvePath(
-      VFS &FS, std::shared_ptr<VINode> &Fd, std::string_view &Path,
+      std::shared_ptr<VINode> &Fd, std::string_view &Path,
       __wasi_lookupflags_t LookupFlags = __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW,
-      uint8_t VFSFlags = 0, uint8_t LinkCount = 0);
+      VFS::Flags VFSFlags = static_cast<VFS::Flags>(0), uint8_t LinkCount = 0);
 };
 
 class VPoller : protected Poller {

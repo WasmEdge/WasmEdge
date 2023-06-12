@@ -62,7 +62,7 @@ class FunctionInstance;
 }
 struct FuncRef {
 #if __INTPTR_WIDTH__ == 32
-  const uint32_t Padding = -1;
+  uint32_t Padding = -1;
 #endif
   const Runtime::Instance::FunctionInstance *Ptr = nullptr;
   FuncRef() = default;
@@ -72,7 +72,7 @@ struct FuncRef {
 /// ExternRef definition.
 struct ExternRef {
 #if __INTPTR_WIDTH__ == 32
-  const uint32_t Padding = -1;
+  uint32_t Padding = -1;
 #endif
   void *Ptr = nullptr;
   ExternRef() = default;

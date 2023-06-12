@@ -25,5 +25,7 @@
 | Shreyas Atre    | @SAtacker     | SRA VJTI                                      | <shreyasatre16@gmail.com> |
 | 叶坚白          | @gusye1234    | University of Science and Technology of China | <jianbaiye@outlook.com>   |
 | Tricster        | @MediosZ      | Southeast University                          | <mediosrity@gmail.com>    |
-| WenShuo Yang    | @sonder-joker | NanChang university                           | <highmagic@outlook.com>   |
+| Wenshuo Yang    | @sonder-joker | Bytedance                                    | <highmagic@outlook.com>   |
 | csh             | @L-jasmine    | Second State                                  | <458761603@qq.com>        |
+| Amun             | @hangedfish | Giant Network Group Co., Ltd.  | <bravohangedman@outlook.com>        |
+| yb            | @yanghaku | Nanjing University  | <bo.yang@smail.nju.edu.cn>        |

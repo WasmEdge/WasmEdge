@@ -104,188 +104,392 @@ jobs:
       upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
     secrets: inherit
 
-  build_and_upload_plugin_ubuntu:
-    strategy:
-      matrix:
-        include:
-          - name: WASI-NN OpenVINO
-            backend: OpenVINO
-            output_path: plugins/wasi_nn
-            output_bin: libwasmedgePluginWasiNN.so
-            tar_name: wasi_nn-openvino
-          - name: WASI-NN PyTorch
-            backend: PyTorch
-            output_path: plugins/wasi_nn
-            output_bin: libwasmedgePluginWasiNN.so
-            tar_name: wasi_nn-pytorch
-          - name: WASI-NN TensorFlowLite
-            backend: TensorFlowLite
-            output_path: plugins/wasi_nn
-            output_bin: libwasmedgePluginWasiNN.so
-            tar_name: wasi_nn-tensorflowlite
-          - name: WASI-Crypto
-            output_path: plugins/wasi_crypto
-            output_bin: libwasmedgePluginWasiCrypto.so
-            tar_name: wasi_crypto
-          - name: WasmEdge-Process
-            output_path: plugins/wasmedge_process
-            output_bin: libwasmedgePluginWasmEdgeProcess.so
-            tar_name: wasmedge_process
-    name: Build and upload WasmEdge ${{ matrix.name }} plugin on Ubuntu 22.04
-    needs: create_release
+  build_and_upload_wasinn_ubuntu:
+    name: Build and upload WASI-NN on Ubuntu 22.04
     runs-on: ubuntu-latest
+    env:
+      output_dir: build/plugins/wasi_nn
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite
+      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite
+      output_bin: libwasmedgePluginWasiNN.so
+      OPENVINO_VERSION: "2021.4.582"
+      OPENVINO_YEAR: "2021"
+      PYTORCH_VERSION: "1.8.2"
+      PYTORCH_INSTALL_TO: "build"
+    needs: create_release
     container:
       image: wasmedge/wasmedge:latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Build WasmEdge WASI-NN ${{ matrix.backend }} plugin
+        with:
+          fetch-depth: 0
+      - name: Install dependencies
         shell: bash
-        if: contains(matrix.name, 'WASI-NN')
-        env:
-          OPENVINO_VERSION: "2021.4.582"
-          OPENVINO_YEAR: "2021"
-          PYTORCH_VERSION: "1.8.2"
-          PYTORCH_INSTALL_TO: "build"
-        run: |
-          mkdir -p build
-          if [[ "${{ matrix.name }}" == *"OpenVINO"* ]]; then
-            bash utils/wasi-nn/install-openvino.sh
-            source /opt/intel/openvino_2021/bin/setupvars.sh
-            ldconfig
-          fi
-          if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
-            apt update
-            apt install unzip
-            bash utils/wasi-nn/install-pytorch.sh
-            export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
-            export LD_LIBRARY_PATH=$Torch_DIR/lib:$LD_LIBRARY_PATH
-          fi
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="${{ matrix.backend }}" ..
-          cd ${{ matrix.output_path }}
-          make -j
-      - name: Build WasmEdge WASI-Crypto plugin
-        if: contains(matrix.name, 'WASI-Crypto')
         run: |
           apt update
-          apt install -y libssl-dev
+          apt install unzip
           mkdir -p build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_CRYPTO=On ..
-          cd ${{ matrix.output_path }}
-          make -j
-      - name: Build WasmEdge-Process plugin
-        if: contains(matrix.name, 'WasmEdge-Process')
+          bash utils/wasi-nn/install-openvino.sh
+          bash utils/wasi-nn/install-pytorch.sh
+      - name: Build WASI-NN plugin
+        shell: bash
         run: |
-          mkdir -p build
+          source /opt/intel/openvino_2021/bin/setupvars.sh
+          export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
+          ldconfig
+          plugin_array=(${tar_names})
+          option_array=(${build_options})
           cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_PROCESS=On ..
-          cd ${{ matrix.output_path }}
-          make -j
-      - name: Prepare the WasmEdge ${{ matrix.name }} plugin tar.gz package
-        run: |
-          cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}
-          tar -zcvf plugin.tar.gz ${{ matrix.output_bin }}
-      - name: Upload WasmEdge ${{ matrix.name }} plugin tar.gz package
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          cd ..
+          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          do
+            echo "Building ${plugin_array[$i]} backend:"
+            cd build
+            cmake ${option_array[$i]} ..
+            cd ..
+            cd ${output_dir}
+            make -j
+
+            echo "Copying ${plugin_array[$i]} backend:"
+            cp -f ${output_dir}/${output_bin} ${output_bin}
+            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${output_bin}
+          done
+      - name: Upload wasi_nn-pytorch plugin tar.gz package
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: plugin.tar.gz
-          asset_name: WasmEdge-plugin-${{ matrix.tar_name }}-${{ needs.create_release.outputs.version }}-ubuntu22.04_x86_64.tar.gz
+          asset_path: plugin_wasi_nn-pytorch.tar.gz
+          asset_name: WasmEdge-plugin-wasi_nn-pytorch-${{ needs.create_release.outputs.version }}-ubuntu22.04_x86_64.tar.gz
+          asset_content_type: application/x-gzip
+      - name: Upload wasi_nn-openvino plugin tar.gz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: plugin_wasi_nn-openvino.tar.gz
+          asset_name: WasmEdge-plugin-wasi_nn-openvino-${{ needs.create_release.outputs.version }}-ubuntu22.04_x86_64.tar.gz
+          asset_content_type: application/x-gzip
+      - name: Upload wasi_nn-tensorflowlite plugin tar.gz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: plugin_wasi_nn-tensorflowlite.tar.gz
+          asset_name: WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.create_release.outputs.version }}-ubuntu22.04_x86_64.tar.gz
+          asset_content_type: application/x-gzip
+
+  build_and_upload_plugin_ubuntu:
+    name: Build and upload plugins on Ubuntu 22.04
+    runs-on: ubuntu-latest
+    env:
+      output_prefix: build/plugins
+      build_options: -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON
+      tar_names: wasi_crypto wasmedge_process wasi_logging
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasiLogging.so
+    needs: create_release
+    container:
+      image: wasmedge/wasmedge:latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install dependencies
+        run: |
+          apt update
+          apt install -y libssl-dev
+      - name: Build plugins
+        shell: bash
+        run: |
+          plugin_array=(${tar_names})
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release ${build_options} ..
+          cd ..
+          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          do
+            echo "Building ${plugin_array[$i]} :"
+            cd ${test_prefix}/${plugin_array[$i]}
+            make -j
+            cd -
+          done
+      - name: Prepare the plugins tar.gz package
+        shell: bash
+        run: |
+          plugin_array=(${tar_names})
+          outbin_array=(${output_bins})
+          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          do
+            echo "Copying ${plugin_array[$i]} :"
+            cp ${output_prefix}/${plugin_array[$i]}/${outbin_array[$i]} ${outbin_array[$i]}
+            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${outbin_array[$i]}
+          done
+      - name: Upload wasi_crypto plugin tar.gz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: plugin_wasi_crypto.tar.gz
+          asset_name: WasmEdge-plugin-wasi_crypto-${{ needs.create_release.outputs.version }}-ubuntu22.04_x86_64.tar.gz
+          asset_content_type: application/x-gzip
+      - name: Upload wasmedge_process plugin tar.gz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: plugin_wasmedge_process.tar.gz
+          asset_name: WasmEdge-plugin-wasmedge_process-${{ needs.create_release.outputs.version }}-ubuntu22.04_x86_64.tar.gz
+          asset_content_type: application/x-gzip
+      - name: Upload wasi_logging plugin tar.gz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: plugin_wasi_logging.tar.gz
+          asset_name: WasmEdge-plugin-wasi_logging-${{ needs.create_release.outputs.version }}-ubuntu22.04_x86_64.tar.gz
+          asset_content_type: application/x-gzip
+
+  build_and_upload_wasinn_manylinux:
+    strategy:
+      matrix:
+        include:
+          - name: Plugins_x86_64
+            host_runner: ubuntu-latest
+            docker_tag: manylinux2014_x86_64
+            build_type: Release
+          - name: Plugins_aarch64
+            host_runner: linux-arm64
+            docker_tag: manylinux2014_aarch64
+            build_type: Release
+    name: Build and upload plugins on ${{ matrix.docker_tag }}
+    needs: create_release
+    runs-on: ${{ matrix.host_runner }}
+    env:
+      output_dir: build/plugins/wasi_nn
+      build_options_manylinux2014_x86_64: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite
+      build_options_manylinux2014_aarch64: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite
+      tar_names_manylinux2014_x86_64: wasi_nn-pytorch wasi_nn-tensorflowlite
+      tar_names_manylinux2014_aarch64: wasi_nn-tensorflowlite
+      output_bin: libwasmedgePluginWasiNN.so
+      OPENVINO_VERSION: "2021.4.582"
+      OPENVINO_YEAR: "2021"
+      PYTORCH_VERSION: "1.8.2"
+      PYTORCH_INSTALL_TO: "build"
+    container:
+      image: wasmedge/wasmedge:${{ matrix.docker_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install dependencies
+        shell: bash
+        run: |
+          mkdir -p build
+          bash ./utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi
+      - name: Build WASI-NN plugin
+        shell: bash
+        run: |
+          export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
+          plugin_array=(${tar_names_${{ matrix.docker_tag }}})
+          option_array=(${build_options_${{ matrix.docker_tag }}})
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ..
+          cd ..
+          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          do
+            echo "Building ${plugin_array[$i]} backend:"
+            cd build
+            cmake ${option_array[$i]} ..
+            cd ..
+            cd ${test_dir}
+            make -j
+
+            echo "Testing ${plugin_array[$i]} backend:"
+            ./${test_bin}
+            cd -
+
+            echo "Copying ${plugin_array[$i]} backend:"
+            cp -f ${output_dir}/${output_bin} ${output_bin}
+            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${output_bin}
+          done
+      - name: Upload WasmEdge wasi_nn-pytorch plugin tar.gz package
+        if: contains(matrix.docker_tag, 'manylinux2014_x86_64')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: plugin_wasi_nn-pytorch.tar.gz
+          asset_name: WasmEdge-plugin-wasi_nn-pytorch-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          asset_content_type: application/x-gzip
+      - name: Upload WasmEdge wasi_nn-tensorflowlite plugin tar.gz package
+        if: contains(matrix.docker_tag, 'manylinux2014_x86_64')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: plugin_wasi_nn-tensorflowlite.tar.gz
+          asset_name: WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           asset_content_type: application/x-gzip
 
   build_and_upload_plugin_manylinux:
     strategy:
       matrix:
         include:
-          - name: WasmEdge-Process
-            docker_tag: manylinux2014_x86_64
-            output_path: plugins/wasmedge_process
-            output_bin: libwasmedgePluginWasmEdgeProcess.so
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_PROCESS=ON"
-            tar_name: wasmedge_process
+          - name: Plugins_x86_64
             host_runner: ubuntu-latest
-          - name: WasmEdge-Process
-            docker_tag: manylinux2014_aarch64
-            output_path: plugins/wasmedge_process
-            output_bin: libwasmedgePluginWasmEdgeProcess.so
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_PROCESS=ON"
-            tar_name: wasmedge_process
+            docker_tag: manylinux2014_x86_64
+            build_type: Release
+          - name: Plugins_aarch64
             host_runner: linux-arm64
-          - name: WASI-NN PyTorch
-            docker_tag: manylinux2014_x86_64
-            output_path: plugins/wasi_nn
-            output_bin: libwasmedgePluginWasiNN.so
-            deps_path: "utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi"
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch"
-            tar_name: wasi_nn-pytorch
-            host_runner: ubuntu-latest
-          - name: WASI-NN TensorflowLite
-            docker_tag: manylinux2014_x86_64
-            output_path: plugins/wasi_nn
-            output_bin: libwasmedgePluginWasiNN.so
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
-            tar_name: wasi_nn-tensorflowlite
-            host_runner: ubuntu-latest
-          - name: WASI-NN TensorflowLite
             docker_tag: manylinux2014_aarch64
-            output_path: plugins/wasi_nn
-            output_bin: libwasmedgePluginWasiNN.so
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
-            tar_name: wasi_nn-tensorflowlite
-            host_runner: linux-arm64
-          - name: WASI-Crypto
-            docker_tag: manylinux2014_x86_64
-            output_path: plugins/wasi_crypto
-            output_bin: libwasmedgePluginWasiCrypto.so
-            deps_path: "utils/wasi-crypto/build-openssl.sh"
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
-            tar_name: wasi_crypto
-            host_runner: ubuntu-latest
-          - name: WASI-Crypto
-            docker_tag: manylinux2014_aarch64
-            output_path: plugins/wasi_crypto
-            output_bin: libwasmedgePluginWasiCrypto.so
-            deps_path: "utils/wasi-crypto/build-openssl.sh"
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
-            tar_name: wasi_crypto
-            host_runner: linux-arm64
+            build_type: Release
     name: Build and upload WasmEdge ${{ matrix.name }} plugin on ${{ matrix.docker_tag }}
-    needs: create_release
     runs-on: ${{ matrix.host_runner }}
+    env:
+      output_prefix: build/plugins
+      build_options: -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON
+      tar_names: wasi_crypto wasmedge_process wasi_logging
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasiLogging.so
+    needs: create_release
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Build ${{ matrix.name }} dependency
-        if: matrix.deps_path
+        with:
+          fetch-depth: 0
+      - name: Build and install dependencies
         run: |
-          bash ${{ matrix.deps_path }}
-      - name: Build ${{ matrix.name }} plugin
+          mkdir -p build
+          bash ./utils/wasi-crypto/build-openssl.sh
+      - name: Build plugins
+        shell: bash
         run: |
-          if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
-            export Torch_DIR=$(pwd)/libtorch
-          fi
-          bash utils/docker/build-manylinux.sh --not-build --not-ninja ${{ matrix.cmake_plugin_option }}
+          plugin_array=(${tar_names})
           cd build
-          cd ${{ matrix.output_path }}
-          make -j
-      - name: Prepare the WasmEdge ${{ matrix.name }} plugin tar.gz package
+          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${build_options} -DOPENSSL_ROOT_DIR=$(pwd)/../openssl-1.1.1n/openssl ..
+          cd ..
+          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          do
+            echo "Building ${plugin_array[$i]} :"
+            cd ${output_prefix}/${plugin_array[$i]}
+            make -j
+            cd -
+          done
+      - name: Prepare the plugins tar.gz package
+        shell: bash
         run: |
-          cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}
-          tar -zcvf plugin.tar.gz ${{ matrix.output_bin }}
-      - name: Upload WasmEdge ${{ matrix.name }} plugin tar.gz package
+          plugin_array=(${tar_names})
+          outbin_array=(${output_bins})
+          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          do
+            echo "Copying ${plugin_array[$i]} :"
+            cp ${output_prefix}/${plugin_array[$i]}/${outbin_array[$i]} ${outbin_array[$i]}
+            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${outbin_array[$i]}
+          done
+      - name: Upload wasi_crypto plugin tar.gz package
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: plugin.tar.gz
-          asset_name: WasmEdge-plugin-${{ matrix.tar_name }}-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          asset_path: plugin_wasi_crypto.tar.gz
+          asset_name: WasmEdge-plugin-wasi_crypto-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          asset_content_type: application/x-gzip
+      - name: Upload wasmedge_process plugin tar.gz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: plugin_wasmedge_process.tar.gz
+          asset_name: WasmEdge-plugin-wasmedge_process-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          asset_content_type: application/x-gzip
+      - name: Upload wasi_logging plugin tar.gz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: plugin_wasi_logging.tar.gz
+          asset_name: WasmEdge-plugin-wasi_logging-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          asset_content_type: application/x-gzip
+
+  build_and_upload_plugin_macos:
+    name: Build and upload plugins on MacOS 11
+    runs-on: macos-11
+    env:
+      output_prefix: build/plugins
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON
+      tar_names: wasi_crypto wasi_logging
+      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib
+    needs: create_release
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install dependencies
+        run: |
+          brew install llvm ninja boost cmake openssl
+      - name: Build plugins
+        shell: bash
+        run: |
+          plugin_array=(${tar_names})
+          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
+          export CC=clang
+          export CXX=clang++
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DWASMEDGE_BUILD_TESTS=ON ${build_options} ..
+          cd ..
+          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          do
+            echo "Building ${plugin_array[$i]} :"
+            cd ${output_prefix}/${plugin_array[$i]}
+            make -j
+            cd -
+          done
+      - name: Prepare the WasmEdge plugins tar.gz package
+        shell: bash
+        run: |
+          plugin_array=(${tar_names})
+          outbin_array=(${output_bins})
+          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          do
+            echo "Copying ${plugin_array[$i]} :"
+            cp ${output_prefix}/${plugin_array[$i]}/${outbin_array[$i]} ${outbin_array[$i]}
+            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${outbin_array[$i]}
+          done
+      - name: Upload wasi_crypto plugin tar.gz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: plugin_wasi_crypto.tar.gz
+          asset_name: WasmEdge-plugin-wasi_crypto-${{ needs.create_release.outputs.version }}-darwin_x86_64.tar.gz
+          asset_content_type: application/x-gzip
+      - name: Upload wasi_logging plugin tar.gz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: plugin_wasi_logging.tar.gz
+          asset_name: WasmEdge-plugin-wasi_logging-${{ needs.create_release.outputs.version }}-darwin_x86_64.tar.gz
           asset_content_type: application/x-gzip
 
   build_manylinux2014_runtime_only:

@@ -47,7 +47,7 @@ class uint128_t;
 
 class uint128_t {
 public:
-  constexpr uint128_t() noexcept = default;
+  uint128_t() noexcept = default;
   constexpr uint128_t(const uint128_t &) noexcept = default;
   constexpr uint128_t(uint128_t &&) noexcept = default;
   constexpr uint128_t &operator=(const uint128_t &V) noexcept = default;
@@ -276,13 +276,13 @@ public:
   }
 
 private:
-  uint64_t Low = 0;
-  uint64_t High = 0;
+  uint64_t Low;
+  uint64_t High;
 };
 
 class int128_t {
 public:
-  constexpr int128_t() noexcept = default;
+  int128_t() noexcept = default;
   constexpr int128_t(const int128_t &) noexcept = default;
   constexpr int128_t(int128_t &&) noexcept = default;
   constexpr int128_t &operator=(const int128_t &V) noexcept = default;
@@ -330,8 +330,8 @@ public:
   constexpr int64_t high() const noexcept { return High; }
 
 private:
-  uint64_t Low = 0;
-  int64_t High = 0;
+  uint64_t Low;
+  int64_t High;
 };
 
 inline constexpr uint128_t::uint128_t(int128_t V) noexcept

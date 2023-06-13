@@ -46,4 +46,4 @@ pub fn waitkey(delay: u32) -> () {
 }
 ```
 
-[^1]: https://github.com/second-state/witc
+[^1]: <https://github.com/second-state/witc>

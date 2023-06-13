@@ -1,5 +1,7 @@
 # WasmEdge Installation And Uninstallation
 
+> *This part has moved to <https://wasmedge.org/docs/develop/build-and-run/install>. Please use our new docs.*
+
 ## Quick Install
 
 The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `curl` as prerequisites.
@@ -7,6 +9,7 @@ The easiest way to install WasmEdge is to run the following command. Your system
 ```bash
 curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
 ```
+
 If the installation fails with `[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate`, make sure install certificates for the Python `ssl` module[^1]
 
 For `Windows 10`, you could use Windows Package Manager Client (aka `winget.exe`) to install WasmEdge with a single command in your terminal.

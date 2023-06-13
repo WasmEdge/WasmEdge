@@ -1,5 +1,7 @@
 # Installer Guide
 
+> *This part has moved to <https://wasmedge.org/docs/contribute/installer>. Please use pur new docs.*
+
 ## Overview
 
 WasmEdge installer is designed for installing the Core Tools (`wasmedge`, `wasmedgec`), the Libraries (`libwasmedge`), the Extensions(`wasmedge-tensorflow`), and the Plugins(`wasi-nn`, `wasi-crytpo`).

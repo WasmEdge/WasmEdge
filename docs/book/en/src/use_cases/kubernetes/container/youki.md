@@ -1,3 +1,3 @@
 # youki
 
-Coming soon, or you can [help out](https://github.com/WasmEdge/WasmEdge/issues/664)
+This part has moved to <https://wasmedge.org/docs/develop/deploy/oci-runtime/youki>. Please use our new docs.

@@ -1,5 +1,7 @@
 # Supported WASM And WASI Proposals
 
+> *This part has moved to <https://wasmedge.org/docs/develop/wasmedge/extensions/proposals>. Please use our new docs.*
+
 ## WebAssembly proposals
 
 WasmEdge supports the following [WebAssembly proposals](https://github.com/WebAssembly/proposals). Those proposals are likely to become official WebAssembly specifications in the future.

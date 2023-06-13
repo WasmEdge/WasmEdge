@@ -157,10 +157,10 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON
-      tar_names: wasi_crypto wasmedge_process wasmedge_zlib
-      test_bins: wasiCryptoTests wasmedgeProcessTests wasmedgeZlibTests
-      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeZlib.so
+      build_options: -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_ZLIB=ON
+      tar_names: wasi_crypto wasmedge_process wasi_logging wasmedge_zlib
+      test_bins: wasiCryptoTests wasmedgeProcessTests wasiLoggingTests wasmedgeZlibTests
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeZlib.so
     needs: [get_version_v2]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -220,6 +220,11 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_process-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasmedge_process.tar.gz
+      - name: Upload artifact - wasi_logging
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          path: plugin_wasi_logging.tar.gz
       - name: Upload artifact - wasmedge_zlib
         uses: actions/upload-artifact@v3
         with:
@@ -321,10 +326,10 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON
-      tar_names: wasi_crypto wasmedge_process wasmedge_zlib
-      test_bins: wasiCryptoTests wasmedgeProcessTests wasmedgeZlibTests
-      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeZlib.so
+      build_options: -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_ZLIB=ON
+      tar_names: wasi_crypto wasmedge_process wasi_logging wasmedge_zlib
+      test_bins: wasiCryptoTests wasmedgeProcessTests wasiLoggingTests wasmedgeZlibTests
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeZlib.so
     needs: [get_version_v2]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -383,6 +388,11 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_process-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasmedge_process.tar.gz
+      - name: Upload artifact - wasi_logging
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          path: plugin_wasi_logging.tar.gz
       - name: Upload artifact - wasmedge_zlib
         uses: actions/upload-artifact@v3
         with:
@@ -408,10 +418,10 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON
-      tar_names: wasi_crypto
-      test_bins: wasiCryptoTests
-      output_bins: libwasmedgePluginWasiCrypto.dylib
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON
+      tar_names: wasi_crypto wasi_logging
+      test_bins: wasiCryptoTests wasiLoggingTests
+      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib
     needs: [get_version_v2]
     steps:
       - uses: actions/checkout@v3
@@ -466,3 +476,8 @@ jobs:
         with:
           name: WasmEdge-plugin-wasi_crypto-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_x86_64.tar.gz
           path: plugin_wasi_crypto.tar.gz
+      - name: Upload artifact - wasi_logging
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_x86_64.tar.gz
+          path: plugin_wasi_logging.tar.gz

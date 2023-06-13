@@ -339,41 +339,15 @@ private:
   /// @}
 };
 
-class SharedMemoryInstance : private MemoryInstance {
-  SharedMemoryInstance() = delete;
-  SharedMemoryInstance(MemoryInstance &&Inst) noexcept
-      : MemoryInstance(std::move(Inst)) {}
-  SharedMemoryInstance(const AST::MemoryType &MType,
-                       uint32_t PageLim = UINT32_C(65536)) noexcept
-      : MemoryInstance(MType, PageLim) {}
-
-  bool isShared() const noexcept {
-    std::shared_lock Lock(Mutex);
-    return MemoryInstance::isShared();
+class SharedMemory: public MemoryInstance {
+public:
+  SharedMemory() = delete;
+  SharedMemory(const AST::MemoryType &MType,
+                 uint32_t PageLim = UINT32_C(65536)) noexcept
+      : MemoryInstance(MType, PageLim) {
   }
-
-  uint32_t getPageSize() const noexcept {
-    std::shared_lock Lock(Mutex);
-    return MemoryInstance::getPageSize();
-  }
-
-  const AST::MemoryType &getMemoryType() const noexcept {
-    std::shared_lock Lock(Mutex);
-    return MemoryInstance::getMemoryType();
-  }
-
-  bool checkAccessBound(uint32_t Offset, uint32_t Length) const noexcept {
-    std::shared_lock Lock(Mutex);
-    return MemoryInstance::checkAccessBound(Offset, Length);
-  }
-
-  uint32_t getBoundIdx() const noexcept {
-    std::shared_lock Lock(Mutex);
-    return MemoryInstance::getBoundIdx();
-  }
-
 private:
-  mutable std::shared_mutex Mutex;
+  mutable std::shared_mutex Lock;
 };
 
 } // namespace Instance

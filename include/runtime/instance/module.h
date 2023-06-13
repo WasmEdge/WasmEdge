@@ -87,30 +87,15 @@ public:
 
   void *getHostData() const noexcept { return HostData; }
 
-  ModuleInstance *Clone() const {
+  std::unique_ptr<ModuleInstance> CloneMemoryInEnv() const {
     std::unique_lock Lock(Mutex);
-    return UnsafeClone();
+    return UnsafeCloneMemoryInEnv();
   }
 
-  ModuleInstance *UnsafeClone() const {
-    ModuleInstance *Res = new ModuleInstance(ModName);
-
-    Res->FuncInsts = FuncInsts;
-    Res->TabInsts = TabInsts;
+  std::unique_ptr<ModuleInstance> UnsafeCloneMemoryInEnv() const {
+    std::unique_ptr<ModuleInstance> Res(new ModuleInstance("env"));
     Res->MemInsts = MemInsts;
-    Res->GlobInsts = GlobInsts;
-    Res->ElemInsts = ElemInsts;
-    Res->DataInsts = DataInsts;
-
-    Res->ImpGlobalNum = ImpGlobalNum;
-
-    Res->ExpFuncs = ExpFuncs;
-    Res->ExpTables = ExpTables;
     Res->ExpMems = ExpMems;
-    Res->ExpGlobals = ExpGlobals;
-
-    Res->StartFunc = StartFunc;
-
     return Res;
   }
 

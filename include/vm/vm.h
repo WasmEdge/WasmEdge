@@ -266,6 +266,9 @@ private:
   void unsafeLoadPlugInHosts();
   void unsafeRegisterBuiltInHosts();
   void unsafeRegisterPlugInHosts();
+  std::function<std::vector<
+      std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance>>()>
+  unsafeGetRegisterHostsCallback();
 
   /// Helper function for execution.
   Expect<std::vector<std::pair<ValVariant, ValType>>>

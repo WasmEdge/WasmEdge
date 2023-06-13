@@ -16,7 +16,7 @@ using namespace std::literals;
 
 class ThreadSpawn : public Runtime::HostFunction<ThreadSpawn> {
 public:
-  Expect<void> body(const Runtime::CallingFrame &, uint32_t) {
+  Expect<void> body(const Runtime::CallingFrame &, int32_t) {
     printPluginMock("Wasi-Threads"sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }

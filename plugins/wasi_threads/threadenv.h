@@ -77,8 +77,8 @@ public:
 
   Expect<wasmedge_tid_t>
   wasiThreadSpawn(Executor::Executor *Exec,
-                  Runtime::Instance::ModuleInstance *Mods,
-                  uint32_t ThreadStartArg);
+                  std::unique_ptr<Runtime::Instance::ModuleInstance> EnvMod,
+                  int32_t ThreadStartArg);
 
   static Plugin::PluginRegister Register;
 

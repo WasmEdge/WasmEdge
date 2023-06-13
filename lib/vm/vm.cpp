@@ -57,6 +57,8 @@ void VM::unsafeInitVM() {
   // Register all module instances.
   unsafeRegisterBuiltInHosts();
   unsafeRegisterPlugInHosts();
+
+  ExecutorEngine.setHostCallback(unsafeGetRegisterHostsCallback());
 }
 
 void VM::unsafeLoadBuiltInHosts() {
@@ -139,6 +141,42 @@ void VM::unsafeRegisterPlugInHosts() {
   for (auto &It : PlugInModInsts) {
     ExecutorEngine.registerModule(StoreRef, *(It.get()));
   }
+}
+
+std::function<
+    std::vector<std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance>>()>
+VM::unsafeGetRegisterHostsCallback() {
+  auto Callback = [&]() {
+    // Note: if copy unsafeLoadPlugInHosts() and unsafeLoadBuiltInHosts() to
+    // here can make this to lock-free
+    static std::shared_mutex Mutex;
+    std::unique_lock Lock(Mutex);
+
+    std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>> Res;
+    /// Built-in module instances mapped to the configurations. For WASI.
+    std::unordered_map<HostRegistration,
+                       std::unique_ptr<Runtime::Instance::ModuleInstance>>
+        BuiltInModInstsBackUp;
+    /// Loaded module instances from plug-ins.
+    std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+        PlugInModInstsBackUp;
+
+    BuiltInModInstsBackUp.swap(BuiltInModInsts);
+    PlugInModInstsBackUp.swap(PlugInModInsts);
+    unsafeLoadBuiltInHosts();
+    unsafeLoadPlugInHosts();
+
+    for (auto &It : BuiltInModInsts)
+      Res.emplace_back(std::move(It.second));
+    for (auto &It : PlugInModInsts)
+      Res.emplace_back(std::move(It));
+    spdlog::info("add {} mods", Res.size());
+    // restore
+    BuiltInModInstsBackUp.swap(BuiltInModInsts);
+    PlugInModInstsBackUp.swap(PlugInModInsts);
+    return Res;
+  };
+  return Callback;
 }
 
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,

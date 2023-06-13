@@ -117,7 +117,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
             auto EnvMod = new Runtime::Instance::ModuleInstance("env");
             EnvMod->addHostMemory(
                 ExtName,
-                std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                std::make_unique<WasmEdge::Runtime::Instance::SharedMemory>(
                     MemType));
             StoreMgr.registerModule(EnvMod);
           }

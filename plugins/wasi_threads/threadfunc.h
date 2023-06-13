@@ -16,7 +16,7 @@ public:
   WasiThreadSpawn(WasiThreadsEnvironment &HostEnv) : WasiThreads(HostEnv) {}
 
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
-                       uint32_t ThreadStartArg);
+                       int32_t ThreadStartArg);
 };
 
 } // namespace Host

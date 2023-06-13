@@ -92,7 +92,7 @@ jobs:
         shell: bash
         run: |
           apt update
-          apt install unzip
+          apt install -y unzip
           bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode

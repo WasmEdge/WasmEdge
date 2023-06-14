@@ -88,11 +88,6 @@
     - [Built-in Modules](write_wasm/js/modules.md)
     - [Native JS API in Rust](write_wasm/js/rust.md)
   - [Go](write_wasm/go.md)
-  - [Swift](write_wasm/swift.md)
-  - [AssemblyScript](write_wasm/as.md)
-  - [Kotlin](write_wasm/kotlin.md)
-  - [Grain](write_wasm/grain.md)
-  - [Python](write_wasm/python.md)
 
 - [Use WasmEdge Library](sdk.md)
   - [C SDK](sdk/c.md)

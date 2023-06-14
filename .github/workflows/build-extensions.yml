@@ -92,7 +92,7 @@ jobs:
         shell: bash
         run: |
           apt update
-          apt install unzip
+          apt install -y unzip
           bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
@@ -385,6 +385,11 @@ jobs:
             host_runner: macos-12
             darwin_version: darwin_21
             build_type: Release
+          - name: Plugins_MacOS_aarch64
+            system: MacOS 13 (aarch64)
+            host_runner: mac-arm64
+            darwin_version: darwin_22
+            build_type: Release
     name: ${{ matrix.system }} plugin with clang++ ${{ matrix.build_type }}
     runs-on: ${{ matrix.host_runner }}
     env:
@@ -406,10 +411,10 @@ jobs:
         shell: bash
         run: |
           testbin_array=(${test_bins})
-          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
+          export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON ${build_options} -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON ${build_options} -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl
           for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
             echo "Building ${testbin_array[$i]} :"

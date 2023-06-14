@@ -141,7 +141,7 @@ jobs:
           option_array=(${build_options})
           outtarget=${output_bin%.*}
           outtarget=${outtarget#lib}
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Building ${plugin_array[$i]} backend:"
@@ -204,7 +204,7 @@ jobs:
         shell: bash
         run: |
           outbin_array=(${output_bins})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release ${build_options}
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options}
           for (( i=0; i<${#outbin_array[@]}; i++ ));
           do
             echo "Building ${outbin_array[$i]} :"
@@ -323,7 +323,7 @@ jobs:
           outtarget=${output_bin%.*}
           outtarget=${outtarget#lib}
 
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Building ${plugin_array[$i]} backend:"
@@ -388,7 +388,7 @@ jobs:
         shell: bash
         run: |
           outbin_array=(${output_bins})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release ${build_options}
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options}
           for (( i=0; i<${#outbin_array[@]}; i++ ));
           do
             echo "Building ${outbin_array[$i]} :"
@@ -497,7 +497,7 @@ jobs:
           export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl ${build_options}
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl ${build_options}
           for (( i=0; i<${#outbin_array[@]}; i++ ));
           do
             echo "Building ${outbin_array[$i]} :"

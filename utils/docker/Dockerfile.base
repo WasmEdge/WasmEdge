@@ -12,7 +12,6 @@ RUN apt update && apt upgrade -y \
 	ninja-build \
 	curl \
 	git \
-	libboost-all-dev \
 	llvm-15-dev \
 	liblld-15-dev
 

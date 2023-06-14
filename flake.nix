@@ -37,7 +37,6 @@
           src = ./.;
 
           buildInputs = with pkgs; [
-            boost
             cmake
             llvmPackages.clang-unwrapped
             llvmPackages.lld

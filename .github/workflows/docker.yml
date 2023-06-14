@@ -11,11 +11,27 @@ on:
     branches:
       - master
     paths:
-      - 'utils/docker/**'
+      - 'utils/docker/Dockerfile.base'
+      - 'utils/docker/Dockerfile.build-clang'
+      - 'utils/docker/Dockerfile.build-gcc'
+      - 'utils/docker/Dockerfile.ci-image-base'
+      - 'utils/docker/Dockerfile.manylinux2014_aarch64'
+      - 'utils/docker/Dockerfile.manylinux2014_x86_64'
+      - 'utils/docker/Dockerfile.release'
+      - 'utils/docker/SHA256SUM'
+      - 'utils/docker/build-manylinux.sh'
       - '.github/workflows/docker.yml'
   pull_request:
     paths:
-      - 'utils/docker/**'
+      - 'utils/docker/Dockerfile.base'
+      - 'utils/docker/Dockerfile.build-clang'
+      - 'utils/docker/Dockerfile.build-gcc'
+      - 'utils/docker/Dockerfile.ci-image-base'
+      - 'utils/docker/Dockerfile.manylinux2014_aarch64'
+      - 'utils/docker/Dockerfile.manylinux2014_x86_64'
+      - 'utils/docker/Dockerfile.release'
+      - 'utils/docker/SHA256SUM'
+      - 'utils/docker/build-manylinux.sh'
       - '.github/workflows/docker.yml'
   schedule:
     - cron: "0 0 */7 * *"

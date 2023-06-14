@@ -35,12 +35,7 @@
     - [ES6 模組](dev/js/es6.md)
     - [NodeJS &amp; NPM 模組](dev/js/npm.md)
     - [使用 Rust 實作 JS API](dev/js/rust.md)
-  - [Python](dev/python.md)
   - [Go](dev/go.md)
-  - [Swift](dev/swift.md)
-  - [AssemblyScript](dev/as.md)
-  - [Kotlin](dev/kotlin.md)
-  - [Grain](dev/grain.md)
 
 - [嵌入 WasmEdge 函式](embed.md)
   - [C SDK](embed/c.md)

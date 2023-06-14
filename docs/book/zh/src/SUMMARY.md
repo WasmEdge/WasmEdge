@@ -38,11 +38,7 @@
     - [NodeJS &amp; NPM 模块](dev/js/npm.md)
     - [用 Rust 实现 JS API](dev/js/rust.md)
   - [Python](dev/python.md)
-  - [Go](dev/go.md)
-  - [Swift](dev/swift.md)
-  - [AssemblyScript](dev/as.md)
-  - [Kotlin](dev/kotlin.md)
-  - [Grain](dev/grain.md)
+
 
 - [嵌入 WasmEdge 函数](embed.md)
   - [C SDK](embed/c.md)

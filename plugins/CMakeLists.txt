@@ -26,3 +26,7 @@ if(WASMEDGE_PLUGIN_WASM_BPF)
     message(WARNING "Only Linux platforms support wasm_bpf plug-in now.")
   endif()
 endif()
+
+if(WASMEDGE_PLUGIN_WASI_LOGGING)
+  add_subdirectory(wasi_logging)
+endif()

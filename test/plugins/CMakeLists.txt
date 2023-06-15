@@ -21,6 +21,10 @@ if(WASMEDGE_PLUGIN_WASM_BPF)
   endif()
 endif()
 
+if(WASMEDGE_PLUGIN_WASI_LOGGING)
+  add_subdirectory(wasi_logging)
+endif()
+
 if(CMAKE_SYSTEM_NAME MATCHES "Linux" OR CMAKE_SYSTEM_NAME MATCHES "Darwin")
   add_subdirectory(unittest)
 endif()

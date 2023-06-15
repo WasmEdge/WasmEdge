@@ -43,23 +43,6 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Filesystem REQUIRED Final Experimental)
 find_package(Threads REQUIRED)
 
-find_package(Boost QUIET)
-if(${Boost_FOUND})
-else()
-  FetchContent_Declare(
-    Boost
-    URL https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.bz2
-    URL_HASH SHA256=f0397ba6e982c4450f27bf32a2a83292aba035b827a5623a14636ea583318c41
-  )
-  set(BOOST_ENABLE_CMAKE ON)
-  set(BOOST_RUNTIME_LINK static)
-  set(BUILD_TESTING OFF)
-  FetchContent_MakeAvailable(Boost)
-  add_library(Boost_boost INTERFACE)
-  add_library(Boost::boost ALIAS Boost_boost)
-  target_include_directories(Boost_boost INTERFACE ${boost_SOURCE_DIR})
-endif()
-
 # List of WasmEdge options
 option(WASMEDGE_BUILD_TESTS "Generate build targets for the wasmedge unit tests." OFF)
 option(WASMEDGE_BUILD_COVERAGE "Generate coverage report. Require WASMEDGE_BUILD_TESTS." OFF)
@@ -79,6 +62,7 @@ set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge Wasi-NN plu
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge Wasi-crypto plugin." OFF)
 option(WASMEDGE_PLUGIN_PROCESS "Enable WasmEdge process plugin." OFF)
 option(WASMEDGE_PLUGIN_WASM_BPF "Enable WasmEdge wasm-bpf plugin." OFF)
+option(WASMEDGE_PLUGIN_WASI_LOGGING "Enable WasmEdge wasi-logging plugin." OFF)
 
 if(WASMEDGE_BUILD_TOOLS AND WASMEDGE_BUILD_FUZZING)
   message(FATAL_ERROR "wasmedge tool and fuzzing tool are exclusive options.")

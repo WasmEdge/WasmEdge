@@ -49,7 +49,7 @@ calculateAddrinfoLinkedListSize(struct addrinfo *const Addrinfo) {
 };
 
 constexpr int openFlags(__wasi_oflags_t OpenFlags, __wasi_fdflags_t FdFlags,
-                        uint8_t VFSFlags) noexcept {
+                        VFS::Flags VFSFlags) noexcept {
   int Flags = O_CLOEXEC | O_NOFOLLOW;
 
   if (VFSFlags & VFS::Read) {
@@ -136,7 +136,7 @@ INode INode::stdErr() noexcept { return INode(STDERR_FILENO); }
 
 WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
                               __wasi_fdflags_t FdFlags,
-                              uint8_t VFSFlags) noexcept {
+                              VFS::Flags VFSFlags) noexcept {
   const int Flags = openFlags(OpenFlags, FdFlags, VFSFlags);
 
   if (auto NewFd = ::open(Path.c_str(), Flags, 0644); unlikely(NewFd < 0)) {
@@ -690,7 +690,7 @@ WasiExpect<void> INode::pathLink(const INode &Old, std::string OldPath,
 
 WasiExpect<INode> INode::pathOpen(std::string Path, __wasi_oflags_t OpenFlags,
                                   __wasi_fdflags_t FdFlags,
-                                  uint8_t VFSFlags) const noexcept {
+                                  VFS::Flags VFSFlags) const noexcept {
   const int Flags = openFlags(OpenFlags, FdFlags, VFSFlags);
 
   if (auto NewFd = ::openat(Fd, Path.c_str(), Flags, 0644);

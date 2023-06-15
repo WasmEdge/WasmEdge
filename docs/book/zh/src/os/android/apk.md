@@ -1,6 +1,6 @@
 # 从 Android APK 应用调用 WasmEdge 函数
 
-在本节中，我们将向您展示如何构建 Android Package（即可以安装在 Android 设备上的 APK 文件）。 APK 嵌入了 WasmEdge 运行时，即它可以通过嵌入的 WasmEdge 调用 WebAssembly 函数。这使开发人员可以安全地将用几种不同语言（例如，Rust、JS、Grain、TinyGo 等）编写的高性能函数嵌入到 Kotlin 应用程序中。
+在本节中，我们将向您展示如何构建 Android Package（即可以安装在 Android 设备上的 APK 文件）。 APK 嵌入了 WasmEdge 运行时，即它可以通过嵌入的 WasmEdge 调用 WebAssembly 函数。这使开发人员可以安全地将用几种不同语言（例如，Rust、JS、TinyGo 等）编写的高性能函数嵌入到 Kotlin 应用程序中。
 
 ## 快速开始
 

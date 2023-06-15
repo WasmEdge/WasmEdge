@@ -14,7 +14,7 @@ on:
       - 'proposal/**'
     paths-ignore:
       - '**/*.md'
-      - docs
+      - 'docs/**'
   schedule:
     - cron: '15 18 * * 6'
 

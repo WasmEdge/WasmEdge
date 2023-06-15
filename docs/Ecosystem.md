@@ -1,6 +1,6 @@
 # WasmEdge Ecosystem
 
-![WasmEdge architecture](./docs/architecture.png)
+![WasmEdge architecture](architecture.png)
 
 ## Introduction
 

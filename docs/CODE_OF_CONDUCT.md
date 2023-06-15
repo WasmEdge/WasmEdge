@@ -1,9 +1,8 @@
 # Code of Conduct
 
-As a CNCF project, WasmEdge follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md). In addition to this code of conduct, we have also implemented guidelines for the use of other developers' open-source work in your code. 
+As a CNCF project, WasmEdge follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md). In addition to this code of conduct, we have also implemented guidelines for the use of other developers' open-source work in your code.
 
-
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the WasmEdge team via WasmEdge@googlegroups.com.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the WasmEdge team via <WasmEdge@googlegroups.com>.
 
 As contributors and maintainers of this project, and in the interest of fostering an open and welcoming community, we pledge to respect all people who contribute through reporting issues, posting feature requests, updating documentation, submitting pull requests or patches, and other activities.
 

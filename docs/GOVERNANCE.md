@@ -4,16 +4,16 @@ As a sandbox project hosted by CNCF, the WasmEdge Runtime follows the [CNCF Code
 
 ## Maintainer responsibilities
 
-- Monitor email aliases.
-- Monitor Slack (delayed response is perfectly acceptable).
-- Triage GitHub issues and perform pull request reviews for other maintainers and the community. The areas of specialization listed in OWNERS.md can be used to help with routing an issue/question to the right person.
-- Triage build issues - file issues for known flaky builds or bugs, and either fix or find someone to fix any main build breakages.
-- During GitHub issue triage, apply all applicable [labels](https://github.com/WasmEdge/WasmEdge/labels) to each new issue. Labels are extremely useful for future issue to follow-up. Which labels to apply is somewhat subjective so just use your best judgment. A few of the most important labels that are not self-explanatory are:
-  - `good first issue`: Mark any issue that can reasonably be accomplished by a new contributor with this label.
-  - `help wanted`: Unless it is immediately obvious that someone is going to work on an issue (and if so assign it), mark it help wanted.
-  - `question`: If it's unclear if an issue is immediately actionable, mark it with the question label. Questions are easy to search for and close out at a later time. Questions can be promoted to other issue types once it's clear they are actionable (at which point the question label should be removed).
-- Make sure that ongoing PRs are moving forward at the right pace or closing them.
-- Participate when called upon in the security release process. Note that although this should be a rare occurrence, if a serious vulnerability is found, the process may take up to several full days of work to implement. This reality should be taken into account when discussing time commitment obligations with employers.
+* Monitor email aliases.
+* Monitor Slack (delayed response is perfectly acceptable).
+* Triage GitHub issues and perform pull request reviews for other maintainers and the community. The areas of specialization listed in OWNERS.md can be used to help with routing an issue/question to the right person.
+* Triage build issues - file issues for known flaky builds or bugs, and either fix or find someone to fix any main build breakages.
+* During GitHub issue triage, apply all applicable [labels](https://github.com/WasmEdge/WasmEdge/labels) to each new issue. Labels are extremely useful for future issue to follow-up. Which labels to apply is somewhat subjective so just use your best judgment. A few of the most important labels that are not self-explanatory are:
+  * `good first issue`: Mark any issue that can reasonably be accomplished by a new contributor with this label.
+  * `help wanted`: Unless it is immediately obvious that someone is going to work on an issue (and if so assign it), mark it help wanted.
+  * `question`: If it's unclear if an issue is immediately actionable, mark it with the question label. Questions are easy to search for and close out at a later time. Questions can be promoted to other issue types once it's clear they are actionable (at which point the question label should be removed).
+* Make sure that ongoing PRs are moving forward at the right pace or closing them.
+* Participate when called upon in the security release process. Note that although this should be a rare occurrence, if a serious vulnerability is found, the process may take up to several full days of work to implement. This reality should be taken into account when discussing time commitment obligations with employers.
 
 ## Reviewers
 
@@ -53,8 +53,8 @@ New projects will be added to the WasmEdge organization via GitHub issue discuss
 
 The following licenses and contributor agreements will be used for WasmRuntime projects:
 
-- [Apache 2.0](https://opensource.org/licenses/Apache-2.0) for code
-- [Developer Certificate of Origin](https://developercertificate.org/) for new contributions
+* [Apache 2.0](https://opensource.org/licenses/Apache-2.0) for code
+* [Developer Certificate of Origin](https://developercertificate.org/) for new contributions
 
 ## Credits
 

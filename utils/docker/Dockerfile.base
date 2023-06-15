@@ -12,6 +12,7 @@ RUN apt update && apt upgrade -y \
 	ninja-build \
 	curl \
 	git \
+	zlib1g-dev \
 	llvm-15-dev \
 	liblld-15-dev
 

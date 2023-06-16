@@ -289,6 +289,8 @@ cast<__wasi_sock_opt_level_t>(uint64_t SockOptLevel) noexcept {
   switch (WasiRawTypeT<__wasi_sock_opt_level_t>(SockOptLevel)) {
   case __WASI_SOCK_OPT_LEVEL_SOL_SOCKET:
     return static_cast<__wasi_sock_opt_level_t>(SockOptLevel);
+  case __WASI_SOCK_OPT_LEVEL_IPPROTO_TCP:
+    return static_cast<__wasi_sock_opt_level_t>(SockOptLevel);
   default:
     return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
   }
@@ -313,6 +315,7 @@ cast<__wasi_sock_opt_so_t>(uint64_t SockOptName) noexcept {
   case __WASI_SOCK_OPT_SO_SNDTIMEO:
   case __WASI_SOCK_OPT_SO_ACCEPTCONN:
   case __WASI_SOCK_OPT_SO_BINDTODEVICE:
+  case __WASI_SOCK_OPT_TCP_NODELAY:
     return static_cast<__wasi_sock_opt_so_t>(SockOptName);
   default:
     return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);

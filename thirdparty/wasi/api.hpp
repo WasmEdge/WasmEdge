@@ -1715,6 +1715,7 @@ static_assert(offsetof(__wasi_address_t, buf_len) == 4,
 
 enum __wasi_sock_opt_level_t : uint32_t {
   __WASI_SOCK_OPT_LEVEL_SOL_SOCKET = 0,
+  __WASI_SOCK_OPT_LEVEL_IPPROTO_TCP = 1,
 
 };
 static_assert(sizeof(__wasi_sock_opt_level_t) == 4, "witx calculated size");
@@ -1751,6 +1752,7 @@ enum __wasi_sock_opt_so_t : uint32_t {
 
   __WASI_SOCK_OPT_SO_BINDTODEVICE = 14,
 
+  __WASI_SOCK_OPT_TCP_NODELAY = 15,
 };
 static_assert(sizeof(__wasi_sock_opt_so_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_sock_opt_so_t) == 4, "witx calculated align");

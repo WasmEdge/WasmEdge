@@ -33,6 +33,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 
 #include <sys/stat.h>
 
@@ -377,6 +378,8 @@ inline constexpr int toSockOptLevel(__wasi_sock_opt_level_t Level) noexcept {
   switch (Level) {
   case __WASI_SOCK_OPT_LEVEL_SOL_SOCKET:
     return SOL_SOCKET;
+  case __WASI_SOCK_OPT_LEVEL_IPPROTO_TCP:
+    return IPPROTO_TCP;
   default:
     assumingUnreachable();
   }
@@ -414,6 +417,8 @@ inline constexpr int toSockOptSoName(__wasi_sock_opt_so_t SoName) noexcept {
     return SO_ACCEPTCONN;
   case __WASI_SOCK_OPT_SO_BINDTODEVICE:
     return SO_BINDTODEVICE;
+  case __WASI_SOCK_OPT_TCP_NODELAY:
+    return TCP_NODELAY;
 
   default:
     assumingUnreachable();

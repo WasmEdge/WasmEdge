@@ -15,6 +15,7 @@
 
 #include <ostream>
 
+// If there is a built-in type __int128, then use it directly
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64)
 
@@ -26,12 +27,16 @@ std::ostream &operator<<(std::ostream &OS, uint128_t Value);
 
 #else
 
-#include <boost/predef/other/endian.h>
+// We have to detect for those environments who don't support __int128 type
+// natively.
+#include "endian.h"
+
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
 
-#if !BOOST_ENDIAN_LITTLE_BYTE
+// Currently, only byte-swapped little endian is handled.
+#if !WASMEDGE_ENDIAN_LITTLE_BYTE
 #error unsupported endian!
 #endif
 
@@ -42,7 +47,7 @@ class uint128_t;
 
 class uint128_t {
 public:
-  constexpr uint128_t() noexcept = default;
+  uint128_t() noexcept = default;
   constexpr uint128_t(const uint128_t &) noexcept = default;
   constexpr uint128_t(uint128_t &&) noexcept = default;
   constexpr uint128_t &operator=(const uint128_t &V) noexcept = default;
@@ -271,13 +276,13 @@ public:
   }
 
 private:
-  uint64_t Low = 0;
-  uint64_t High = 0;
+  uint64_t Low;
+  uint64_t High;
 };
 
 class int128_t {
 public:
-  constexpr int128_t() noexcept = default;
+  int128_t() noexcept = default;
   constexpr int128_t(const int128_t &) noexcept = default;
   constexpr int128_t(int128_t &&) noexcept = default;
   constexpr int128_t &operator=(const int128_t &V) noexcept = default;
@@ -325,8 +330,8 @@ public:
   constexpr int64_t high() const noexcept { return High; }
 
 private:
-  uint64_t Low = 0;
-  int64_t High = 0;
+  uint64_t Low;
+  int64_t High;
 };
 
 inline constexpr uint128_t::uint128_t(int128_t V) noexcept

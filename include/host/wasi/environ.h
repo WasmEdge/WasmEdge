@@ -36,6 +36,20 @@ inline constexpr const int32_t kIOVMax = 1024;
 inline constexpr const int32_t kMaxSaDataLen = 26;
 } // namespace detail
 
+struct WasiAddrStorage {
+  uint16_t AddressFamily;
+  uint8_t Address[128 - sizeof(uint16_t)];
+  __wasi_address_family_t getAddressFamily() const noexcept {
+    return static_cast<__wasi_address_family_t>(AddressFamily);
+  }
+  void setAddressFamily(__wasi_address_family_t AddrFamily) noexcept {
+    AddressFamily = static_cast<uint16_t>(AddrFamily);
+  }
+  Span<uint8_t> getAddress() noexcept { return Address; }
+  Span<const uint8_t> getAddress() const noexcept { return Address; }
+};
+static_assert(sizeof(WasiAddrStorage) == 128, "wrong size");
+
 class EVPoller;
 class Environ : public PollerContext {
 public:
@@ -604,7 +618,7 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
-    return VINode::pathCreateDirectory(FS, std::move(Node), Path);
+    return VINode::pathCreateDirectory(std::move(Node), Path);
   }
 
   /// Return the attributes of a file or directory.
@@ -624,7 +638,7 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
-    return VINode::pathFilestatGet(FS, std::move(Node), Path, Flags, Filestat);
+    return VINode::pathFilestatGet(std::move(Node), Path, Flags, Filestat);
   }
 
   /// Adjust the timestamps of a file or directory.
@@ -648,7 +662,7 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
-    return VINode::pathFilestatSetTimes(FS, std::move(Node), Path, Flags, ATim,
+    return VINode::pathFilestatSetTimes(std::move(Node), Path, Flags, ATim,
                                         MTim, FstFlags);
   }
 
@@ -676,7 +690,7 @@ public:
     }
     auto OldNode = getNodeOrNull(Old);
     auto NewNode = getNodeOrNull(New);
-    return VINode::pathLink(FS, std::move(OldNode), OldPath, std::move(NewNode),
+    return VINode::pathLink(std::move(OldNode), OldPath, std::move(NewNode),
                             NewPath, LookupFlags);
   }
 
@@ -721,7 +735,7 @@ public:
     }
     auto Node = getNodeOrNull(Fd);
     if (auto Res =
-            VINode::pathOpen(FS, std::move(Node), Path, LookupFlags, OpenFlags,
+            VINode::pathOpen(std::move(Node), Path, LookupFlags, OpenFlags,
                              FsRightsBase, FsRightsInheriting, FdFlags);
         unlikely(!Res)) {
       return WasiUnexpect(Res);
@@ -749,7 +763,7 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
-    return VINode::pathReadlink(FS, std::move(Node), Path, Buffer, NRead);
+    return VINode::pathReadlink(std::move(Node), Path, Buffer, NRead);
   }
 
   /// Remove a directory.
@@ -767,7 +781,7 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
-    return VINode::pathRemoveDirectory(FS, std::move(Node), Path);
+    return VINode::pathRemoveDirectory(std::move(Node), Path);
   }
 
   /// Rename a file or directory.
@@ -792,8 +806,8 @@ public:
     }
     auto OldNode = getNodeOrNull(Old);
     auto NewNode = getNodeOrNull(New);
-    return VINode::pathRename(FS, std::move(OldNode), OldPath,
-                              std::move(NewNode), NewPath);
+    return VINode::pathRename(std::move(OldNode), OldPath, std::move(NewNode),
+                              NewPath);
   }
 
   /// Create a symbolic link.
@@ -815,7 +829,7 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto NewNode = getNodeOrNull(New);
-    return VINode::pathSymlink(FS, OldPath, std::move(NewNode), NewPath);
+    return VINode::pathSymlink(OldPath, std::move(NewNode), NewPath);
   }
 
   /// Unlink a file.
@@ -833,7 +847,7 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
-    return VINode::pathUnlinkFile(FS, std::move(Node), Path);
+    return VINode::pathUnlinkFile(std::move(Node), Path);
   }
 
   /// Acquire a Poller for concurrently poll for the occurrence of a set of
@@ -902,8 +916,7 @@ public:
                                    __wasi_sock_type_t SockType) noexcept {
 
     std::shared_ptr<VINode> Node;
-    if (auto Res = VINode::sockOpen(FS, AddressFamily, SockType);
-        unlikely(!Res)) {
+    if (auto Res = VINode::sockOpen(AddressFamily, SockType); unlikely(!Res)) {
       return WasiUnexpect(Res);
     } else {
       Node = std::move(*Res);
@@ -912,23 +925,15 @@ public:
     return generateRandomFdToNode(Node);
   }
 
-  WasiExpect<void> sockBindV1(__wasi_fd_t Fd, uint8_t *Address,
-                              uint8_t AddressLength, uint16_t Port) noexcept {
+  WasiExpect<void> sockBind(__wasi_fd_t Fd,
+                            __wasi_address_family_t AddressFamily,
+                            Span<const uint8_t> Address,
+                            uint16_t Port) noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockBindV1(Address, AddressLength, Port);
-    }
-  }
-
-  WasiExpect<void> sockBindV2(__wasi_fd_t Fd, uint8_t *Address,
-                              uint8_t AddressLength, uint16_t Port) noexcept {
-    auto Node = getNodeOrNull(Fd);
-    if (unlikely(!Node)) {
-      return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockBindV2(Address, AddressLength, Port);
+      return Node->sockBind(AddressFamily, Address, Port);
     }
   }
 
@@ -941,11 +946,12 @@ public:
     }
   }
 
-  WasiExpect<__wasi_fd_t> sockAcceptV1(__wasi_fd_t Fd) noexcept {
+  WasiExpect<__wasi_fd_t> sockAccept(__wasi_fd_t Fd,
+                                     __wasi_fdflags_t FdFlags) noexcept {
     auto Node = getNodeOrNull(Fd);
     std::shared_ptr<VINode> NewNode;
 
-    if (auto Res = Node->sockAcceptV1(); unlikely(!Res)) {
+    if (auto Res = Node->sockAccept(FdFlags); unlikely(!Res)) {
       return WasiUnexpect(Res);
     } else {
       NewNode = std::move(*Res);
@@ -954,39 +960,15 @@ public:
     return generateRandomFdToNode(NewNode);
   }
 
-  WasiExpect<__wasi_fd_t> sockAcceptV2(__wasi_fd_t Fd,
-                                       __wasi_fdflags_t FdFlags) noexcept {
-    auto Node = getNodeOrNull(Fd);
-    std::shared_ptr<VINode> NewNode;
-
-    if (auto Res = Node->sockAcceptV2(FdFlags); unlikely(!Res)) {
-      return WasiUnexpect(Res);
-    } else {
-      NewNode = std::move(*Res);
-    }
-
-    return generateRandomFdToNode(NewNode);
-  }
-
-  WasiExpect<void> sockConnectV1(__wasi_fd_t Fd, uint8_t *Address,
-                                 uint8_t AddressLength,
-                                 uint16_t Port) noexcept {
+  WasiExpect<void> sockConnect(__wasi_fd_t Fd,
+                               __wasi_address_family_t AddressFamily,
+                               Span<const uint8_t> Address,
+                               uint16_t Port) noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockConnectV1(Address, AddressLength, Port);
-    }
-  }
-
-  WasiExpect<void> sockConnectV2(__wasi_fd_t Fd, uint8_t *Address,
-                                 uint8_t AddressLength,
-                                 uint16_t Port) noexcept {
-    auto Node = getNodeOrNull(Fd);
-    if (unlikely(!Node)) {
-      return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockConnectV2(Address, AddressLength, Port);
+      return Node->sockConnect(AddressFamily, Address, Port);
     }
   }
 
@@ -1012,58 +994,30 @@ public:
   }
 
   /// Receive a message from a socket.
-  /// This is a V1 version, which doesn't return the Port in the very first
-  /// version.
   ///
-  /// Note: This is similar to `recv` in POSIX, though it also supports reading
-  /// the data into multiple buffers in the manner of `readv`.
+  /// Note: This is similar to `recvfrom` in POSIX, though it also supports
+  /// reading the data into multiple buffers in the manner of `readv`.
   ///
   /// @param[in] RiData List of scatter/gather vectors to which to store data.
   /// @param[in] RiFlags Message flags.
-  /// @param[in] Address Address of the target.
-  /// @param[in] AddressLength The buffer size of Address.
+  /// @param[out] AddressFamilyPtr The pointer to store address family.
+  /// @param[out] Address The buffer to store address.
+  /// @param[out] PortPtr The pointer to store port.
   /// @param[out] NRead Return the number of bytes stored in RiData.
   /// @param[out] RoFlags Return message flags.
   /// @return Nothing or WASI error.
-  WasiExpect<void> sockRecvFromV1(__wasi_fd_t Fd, Span<Span<uint8_t>> RiData,
-                                  __wasi_riflags_t RiFlags, uint8_t *Address,
-                                  uint8_t AddressLength, __wasi_size_t &NRead,
-                                  __wasi_roflags_t &RoFlags) const noexcept {
+  WasiExpect<void> sockRecvFrom(__wasi_fd_t Fd, Span<Span<uint8_t>> RiData,
+                                __wasi_riflags_t RiFlags,
+                                __wasi_address_family_t *AddressFamilyPtr,
+                                Span<uint8_t> Address, uint16_t *PortPtr,
+                                __wasi_size_t &NRead,
+                                __wasi_roflags_t &RoFlags) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockRecvFromV1(RiData, RiFlags, Address, AddressLength,
-                                  NRead, RoFlags);
-    }
-  }
-
-  /// Receive a message from a socket.
-  /// This is the V2 version, which is almost the same as V1, except for
-  /// returning the Port information.
-  ///
-  /// Note: This is similar to `recv` in POSIX, though it also supports reading
-  /// the data into multiple buffers in the manner of `readv`.
-  ///
-  /// @param[in] RiData List of scatter/gather vectors to which to store data.
-  /// @param[in] RiFlags Message flags.
-  /// @param[in] Address Address of the target.
-  /// @param[in] AddressLength The buffer size of Address.
-  /// @param[out] PortPtr The address to store port.
-  /// @param[out] NRead Return the number of bytes stored in RiData.
-  /// @param[out] RoFlags Return message flags.
-  /// @return Nothing or WASI error.
-  WasiExpect<void> sockRecvFromV2(__wasi_fd_t Fd, Span<Span<uint8_t>> RiData,
-                                  __wasi_riflags_t RiFlags, uint8_t *Address,
-                                  uint8_t AddressLength, uint32_t *PortPtr,
-                                  __wasi_size_t &NRead,
-                                  __wasi_roflags_t &RoFlags) const noexcept {
-    auto Node = getNodeOrNull(Fd);
-    if (unlikely(!Node)) {
-      return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockRecvFromV2(RiData, RiFlags, Address, AddressLength,
-                                  PortPtr, NRead, RoFlags);
+      return Node->sockRecvFrom(RiData, RiFlags, AddressFamilyPtr, Address,
+                                PortPtr, NRead, RoFlags);
     }
   }
 
@@ -1096,19 +1050,21 @@ public:
   /// @param[in] SiData List of scatter/gather vectors to which to retrieve
   /// data.
   /// @param[in] SiFlags Message flags.
+  /// @param[in] AddressFamily Address family of the target.
   /// @param[in] Address Address of the target.
-  /// @param[in] AddressLength The buffer size of Address.
+  /// @param[in] Port Connected port.
   /// @param[out] NWritten The number of bytes transmitted.
   /// @return Nothing or WASI error
   WasiExpect<void> sockSendTo(__wasi_fd_t Fd, Span<Span<const uint8_t>> SiData,
-                              __wasi_siflags_t SiFlags, uint8_t *Address,
-                              uint8_t AddressLength, int32_t Port,
+                              __wasi_siflags_t SiFlags,
+                              __wasi_address_family_t AddressFamily,
+                              Span<const uint8_t> Address, uint16_t Port,
                               __wasi_size_t &NWritten) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockSendTo(SiData, SiFlags, Address, AddressLength, Port,
+      return Node->sockSendTo(SiData, SiFlags, AddressFamily, Address, Port,
                               NWritten);
     }
   }
@@ -1131,79 +1087,51 @@ public:
 
   WasiExpect<void> sockGetOpt(__wasi_fd_t Fd,
                               __wasi_sock_opt_level_t SockOptLevel,
-                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
-                              uint32_t *FlagSizePtr) const noexcept {
+                              __wasi_sock_opt_so_t SockOptName,
+                              Span<uint8_t> &Flag) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockGetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
+      return Node->sockGetOpt(SockOptLevel, SockOptName, Flag);
     }
   }
 
   WasiExpect<void> sockSetOpt(__wasi_fd_t Fd,
                               __wasi_sock_opt_level_t SockOptLevel,
-                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
-                              uint32_t FlagSizePtr) const noexcept {
+                              __wasi_sock_opt_so_t SockOptName,
+                              Span<const uint8_t> Flag) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockSetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
+      return Node->sockSetOpt(SockOptLevel, SockOptName, Flag);
     }
   }
 
   /// Return the address and port of the file descriptor.
-  /// The V1 will also return the type of the address, so users can
-  /// identify the address type from `AddrTypePtr`.
-  WasiExpect<void> sockGetLocalAddrV1(__wasi_fd_t Fd, uint8_t *Address,
-                                      uint32_t *AddrTypePtr,
-                                      uint32_t *PortPtr) const noexcept {
+  WasiExpect<void> sockGetLocalAddr(__wasi_fd_t Fd,
+                                    __wasi_address_family_t *AddressFamilyPtr,
+                                    Span<uint8_t> Address,
+                                    uint16_t *PortPtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockGetLocalAddrV1(Address, AddrTypePtr, PortPtr);
-    }
-  }
-
-  /// Return the address and port of the file descriptor.
-  /// The the new address type will become an unified size, there is
-  /// no need to return the address type.
-  WasiExpect<void> sockGetLocalAddrV2(__wasi_fd_t Fd, uint8_t *Address,
-                                      uint32_t *PortPtr) const noexcept {
-    auto Node = getNodeOrNull(Fd);
-    if (unlikely(!Node)) {
-      return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockGetLocalAddrV2(Address, PortPtr);
+      return Node->sockGetLocalAddr(AddressFamilyPtr, Address, PortPtr);
     }
   }
 
   /// Retrieve the remote address and port from the given file descriptor.
-  /// The V1 will also return the type of the address, so users can
-  /// identify the address type from `AddrTypePtr`.
-  WasiExpect<void> sockGetPeerAddrV1(__wasi_fd_t Fd, uint8_t *Address,
-                                     uint32_t *AddrTypePtr,
-                                     uint32_t *PortPtr) const noexcept {
+  WasiExpect<void> sockGetPeerAddr(__wasi_fd_t Fd,
+                                   __wasi_address_family_t *AddressFamilyPtr,
+                                   Span<uint8_t> Address,
+                                   uint16_t *PortPtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockGetPeerAddrV1(Address, AddrTypePtr, PortPtr);
-    }
-  }
-
-  /// Retrieve the remote address and port from the given file descriptor.
-  /// The the new address type will become an unified size, there is
-  /// no need to return the address type.
-  WasiExpect<void> sockGetPeerAddrV2(__wasi_fd_t Fd, uint8_t *Address,
-                                     uint32_t *PortPtr) const noexcept {
-    auto Node = getNodeOrNull(Fd);
-    if (unlikely(!Node)) {
-      return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockGetPeerAddrV2(Address, PortPtr);
+      return Node->sockGetPeerAddr(AddressFamilyPtr, Address, PortPtr);
     }
   }
 
@@ -1235,7 +1163,6 @@ public:
 private:
   std::vector<std::string> Arguments;
   std::vector<std::string> EnvironVariables;
-  VFS FS;
   __wasi_exitcode_t ExitCode = 0;
 
   mutable std::shared_mutex PollerMutex; ///< Protect PollerPool

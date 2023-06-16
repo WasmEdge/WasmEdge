@@ -2,23 +2,22 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "common/defines.h"
-#include <gtest/gtest.h>
-
 #include "host/wasi/wasibase.h"
 #include "host/wasi/wasifunc.h"
 #include "runtime/instance/module.h"
+#include "system/winapi.h"
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <gtest/gtest.h>
 #include <string>
 #include <string_view>
 
-#if WASMEDGE_OS_WINDOWS
-#include <winsock2.h>
-#include <ws2ipdef.h>
-#else
+#if !WASMEDGE_OS_WINDOWS
 #include <netinet/in.h>
+#else
+using namespace WasmEdge::winapi;
 #endif
 using namespace std::literals;
 
@@ -32,10 +31,10 @@ bool TrySetUpIPV6Socket() {
   bool State = false;
 
 #if WASMEDGE_OS_WINDOWS
-  WSADATA WSAData;
-  WSAStartup(MAKEWORD(2, 2), &WSAData);
-  const SOCKET ErrFd = INVALID_SOCKET;
-  SOCKET Fd;
+  WSADATA_ WSAData;
+  WSAStartup(0x0202, &WSAData);
+  const SOCKET_ ErrFd = INVALID_SOCKET_;
+  SOCKET_ Fd;
 #else
   const int ErrFd = -1;
   int Fd;
@@ -47,7 +46,7 @@ bool TrySetUpIPV6Socket() {
       break;
 
     struct sockaddr_in6 Sock6;
-    memset(&Sock6, 0, sizeof(Sock6));
+    std::memset(&Sock6, 0, sizeof(Sock6));
     Sock6.sin6_family = AF_INET6;
     Sock6.sin6_port = htons(10000);
     Sock6.sin6_addr = in6addr_loopback;
@@ -940,9 +939,8 @@ TEST(WasiSockTest, SockOpt) {
                        Errno);
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    // XXX: WasiSockGetOpt return a native value (SOCK_DGRAM, 2), not the
-    // definition of the wasmedge (__WASI_SOCK_TYPE_SOCK_DGRAM, 0)
-    EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(ResBufPtr), SOCK_DGRAM);
+    EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(ResBufPtr),
+              __WASI_SOCK_TYPE_SOCK_DGRAM);
 
     WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{Fd}, Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
@@ -954,11 +952,7 @@ TEST(WasiSockTest, SockOpt) {
     uint32_t FdPtr = 0;
     uint32_t ResBufSzPtr = 12;
     uint32_t ResBufPtr = 24;
-#if WASMEDGE_OS_WINDOWS
-    bool Opt = true;
-#else
     int32_t Opt = 1;
-#endif
     uint32_t ResMaxLen = sizeof(Opt);
 
     writeDummyMemoryContent(MemInst);
@@ -971,9 +965,8 @@ TEST(WasiSockTest, SockOpt) {
 
     int32_t Fd = *MemInst.getPointer<const int32_t *>(FdPtr);
 
-    uint32_t OptLevel =
-        __wasi_sock_opt_level_t::__WASI_SOCK_OPT_LEVEL_SOL_SOCKET;
-    uint32_t OptName = __wasi_sock_opt_so_t::__WASI_SOCK_OPT_SO_BROADCAST;
+    const uint32_t OptLevel = __WASI_SOCK_OPT_LEVEL_SOL_SOCKET;
+    const uint32_t OptName = __WASI_SOCK_OPT_SO_BROADCAST;
 
     auto ResBuf = MemInst.getPointer<decltype(&Opt)>(ResBufPtr);
     auto ResBufSz = MemInst.getPointer<uint32_t *>(ResBufSzPtr);
@@ -1002,7 +995,8 @@ TEST(WasiSockTest, SockOpt) {
                        Errno);
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_TRUE(*MemInst.getPointer<const bool *>(ResBufPtr));
+    EXPECT_TRUE(
+        static_cast<bool>(*MemInst.getPointer<decltype(&Opt)>(ResBufPtr)));
 
     WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{Fd}, Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);

@@ -56,7 +56,7 @@ npm install -g rustwasmc # Append --unsafe-perm if permission denied
 # OS dependencies for WasmEdge
 sudo apt-get update
 sudo apt-get -y upgrade
-sudo apt install -y build-essential curl wget git vim libboost-all-dev llvm-dev liblld-10-dev
+sudo apt install -y build-essential curl wget git vim llvm-dev liblld-10-dev
 
 # Install the nodejs addon for WasmEdge
 npm install wasmedge-core

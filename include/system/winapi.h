@@ -616,6 +616,8 @@ static inline constexpr const DWORD_ STD_ERROR_HANDLE_ =
 static inline constexpr const size_t UNICODE_STRING_MAX_BYTES_ = 65534;
 static inline constexpr const size_t UNICODE_STRING_MAX_CHARS_ = 32767;
 
+static inline constexpr const UINT_ CP_UTF8_ = 65001u;
+
 #if WINAPI_PARTITION_DESKTOP
 static inline constexpr const NTSTATUS_ STATUS_SUCCESS_ = 0x00000000;
 [[nodiscard]] static inline constexpr bool
@@ -624,6 +626,9 @@ NT_SUCCESS_(NTSTATUS_ Status) noexcept {
 }
 static inline constexpr const ULONG_ FILE_SEQUENTIAL_ONLY_ = 0x00000004;
 static inline constexpr const ULONG_ FILE_RANDOM_ACCESS_ = 0x00000800;
+
+static inline constexpr const DWORD_ ENABLE_VIRTUAL_TERMINAL_PROCESSING_ =
+    0x0004;
 #endif
 
 } // namespace WasmEdge::winapi
@@ -745,6 +750,14 @@ WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
 UnmapViewOfFile(WasmEdge::winapi::LPCVOID_ lpBaseAddress);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT
+int WASMEDGE_WINAPI_WINAPI_CC WideCharToMultiByte(
+    WasmEdge::winapi::UINT_ CodePage, WasmEdge::winapi::DWORD_ dwFlags,
+    WasmEdge::winapi::LPCWSTR_ lpWideCharStr, int cchWideChar,
+    WasmEdge::winapi::LPSTR_ lpMultiByteStr, int cbMultiByte,
+    WasmEdge::winapi::LPCSTR_ lpDefaultChar,
+    WasmEdge::winapi::LPBOOL_ lpUsedDefaultChar);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT
 WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC WriteFileEx(
     WasmEdge::winapi::HANDLE_ hFile, WasmEdge::winapi::LPCVOID_ lpBuffer,
     WasmEdge::winapi::DWORD_ nNumberOfBytesToWrite,
@@ -777,6 +790,11 @@ WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
 CreateHardLinkW(WasmEdge::winapi::LPCWSTR_ lpFileName,
                 WasmEdge::winapi::LPCWSTR_ lpExistingFileName,
                 WasmEdge::winapi::LPSECURITY_ATTRIBUTES_ lpSecurityAttributes);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT
+WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
+GetConsoleMode(WasmEdge::winapi::HANDLE_ hConsoleHandle,
+               WasmEdge::winapi::LPDWORD_ lpMode);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
 GetFileInformationByHandle(
@@ -820,6 +838,14 @@ WASMEDGE_WINAPI_SYMBOL_IMPORT
 WasmEdge::winapi::DWORD_ WASMEDGE_WINAPI_WINAPI_CC QueryDosDeviceW(
     WasmEdge::winapi::LPCWSTR_ lpDeviceName,
     WasmEdge::winapi::LPWSTR_ lpTargetPath, WasmEdge::winapi::DWORD_ ucchMax);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT
+WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC SetConsoleMode(
+    WasmEdge::winapi::HANDLE_ hConsoleHandle, WasmEdge::winapi::DWORD_ dwMode);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT
+WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
+SetConsoleOutputCP(WasmEdge::winapi::UINT_ wCodePageID);
 #endif
 
 #if NTDDI_VERSION >= NTDDI_VISTA
@@ -891,7 +917,6 @@ MapViewOfFileFromApp(WasmEdge::winapi::HANDLE_ hFileMappingObject,
 } // extern "C"
 
 namespace WasmEdge::winapi {
-
 using ::CancelIo;
 using ::CloseHandle;
 using ::CreateDirectoryW;
@@ -918,12 +943,14 @@ using ::SetFilePointerEx;
 using ::SetFileTime;
 using ::SwitchToThread;
 using ::UnmapViewOfFile;
+using ::WideCharToMultiByte;
 using ::WriteFileEx;
 
 #if WINAPI_PARTITION_DESKTOP
 using ::CreateFileMappingW;
 using ::CreateFileW;
 using ::CreateHardLinkW;
+using ::GetConsoleMode;
 using ::GetFileInformationByHandle;
 using ::GetLogicalDriveStringsW;
 using ::MapViewOfFile;
@@ -931,6 +958,8 @@ using ::NtQueryInformationFile;
 using ::NtQueryObject;
 using ::NtSetInformationFile;
 using ::QueryDosDeviceW;
+using ::SetConsoleMode;
+using ::SetConsoleOutputCP;
 #endif
 
 #if NTDDI_VERSION >= NTDDI_VISTA

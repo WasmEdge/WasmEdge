@@ -4,12 +4,8 @@
 #include "po/argument_parser.h"
 #include "common/defines.h"
 #include "common/log.h"
+#include "system/winapi.h"
 #include <cstdio>
-
-// For enabling Windows PowerShell color support.
-#if WASMEDGE_OS_WINDOWS
-#include <windows.h>
-#endif
 
 namespace WasmEdge {
 namespace PO {
@@ -163,13 +159,14 @@ void ArgumentParser::SubCommandDescriptor::usage(
 
 void ArgumentParser::SubCommandDescriptor::help(std::FILE *Out) const noexcept {
 // For enabling Windows PowerShell color support.
-#if WASMEDGE_OS_WINDOWS
-  HANDLE OutputHandler = ::GetStdHandle(STD_OUTPUT_HANDLE);
-  if (OutputHandler != INVALID_HANDLE_VALUE) {
-    DWORD ConsoleMode = 0;
-    if (::GetConsoleMode(OutputHandler, &ConsoleMode)) {
-      ConsoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-      ::SetConsoleMode(OutputHandler, ConsoleMode);
+#if WASMEDGE_OS_WINDOWS && WINAPI_PARTITION_DESKTOP
+  winapi::HANDLE_ OutputHandler =
+      winapi::GetStdHandle(winapi::STD_OUTPUT_HANDLE_);
+  if (OutputHandler != winapi::INVALID_HANDLE_VALUE_) {
+    winapi::DWORD_ ConsoleMode = 0;
+    if (winapi::GetConsoleMode(OutputHandler, &ConsoleMode)) {
+      ConsoleMode |= winapi::ENABLE_VIRTUAL_TERMINAL_PROCESSING_;
+      winapi::SetConsoleMode(OutputHandler, ConsoleMode);
     }
   }
 #endif

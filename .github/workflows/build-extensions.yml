@@ -80,7 +80,7 @@ jobs:
       OPENVINO_VERSION: "2021.4.582"
       OPENVINO_YEAR: "2021"
       PYTORCH_VERSION: "1.8.2"
-      PYTORCH_INSTALL_TO: "build"
+      PYTORCH_INSTALL_TO: "."
     needs: [get_version_v2]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -92,8 +92,7 @@ jobs:
         shell: bash
         run: |
           apt update
-          apt install unzip
-          mkdir -p build
+          apt install -y unzip
           bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
@@ -104,19 +103,15 @@ jobs:
           ldconfig
           plugin_array=(${tar_names})
           option_array=(${build_options})
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON ..
-          cd ..
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Building ${plugin_array[$i]} backend:"
-            cd build
-            cmake ${option_array[$i]} ..
-            cd ..
-            cd ${test_dir}
-            make -j
+            cmake -Bbuild -GNinja ${option_array[$i]}
+            cmake --build build --target ${test_bin}
 
             echo "Testing ${plugin_array[$i]} backend:"
+            cd ${test_dir}
             ./${test_bin}
             cd -
 
@@ -175,17 +170,12 @@ jobs:
       - name: Build plugins using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
         run: |
-          plugin_array=(${tar_names})
-          mkdir -p build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON ${build_options} ..
-          cd ..
-          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          testbin_array=(${test_bins})
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON ${build_options}
+          for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
-            echo "Building ${plugin_array[$i]} :"
-            cd ${test_prefix}/${plugin_array[$i]}
-            make -j
-            cd -
+            echo "Building ${testbin_array[$i]} :"
+            cmake --build build --target ${testbin_array[$i]}
           done
       - name: Test plugins
         shell: bash
@@ -258,7 +248,7 @@ jobs:
       OPENVINO_VERSION: "2021.4.582"
       OPENVINO_YEAR: "2021"
       PYTORCH_VERSION: "1.8.2"
-      PYTORCH_INSTALL_TO: "build"
+      PYTORCH_INSTALL_TO: "."
     needs: [get_version_v2]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -269,7 +259,6 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          mkdir -p build
           bash ./utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi
       - name: Build and test WASI-NN using g++ with ${{ matrix.build_type }} mode
         shell: bash
@@ -277,18 +266,15 @@ jobs:
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
           plugin_array=(${tar_names_${{ matrix.docker_tag }}})
           option_array=(${build_options_${{ matrix.docker_tag }}})
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON ..
-          cd ..
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Building ${plugin_array[$i]} backend:"
-            cd build
-            cmake ${option_array[$i]} ..
-            cd ..
-            cd ${test_dir}
-            make -j
+            cmake -Bbuild -GNinja ${option_array[$i]}
+            cmake --build build --target ${test_bin}
 
+            echo "Testing ${plugin_array[$i]} backend:"
+            cd ${test_dir}
             echo "Testing ${plugin_array[$i]} backend:"
             ./${test_bin}
             cd -
@@ -344,16 +330,12 @@ jobs:
       - name: Build and test plugins using g++ with ${{ matrix.build_type }} mode
         shell: bash
         run: |
-          plugin_array=(${tar_names})
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON ${build_options} -DOPENSSL_ROOT_DIR=$(pwd)/../openssl-1.1.1n/openssl ..
-          cd ..
-          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          testbin_array=(${test_bins})
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON ${build_options} -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
+          for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
-            echo "Building ${plugin_array[$i]} :"
-            cd ${test_prefix}/${plugin_array[$i]}
-            make -j
-            cd -
+            echo "Building ${testbin_array[$i]} :"
+            cmake --build build --target ${testbin_array[$i]}
           done
       - name: Test plugins
         shell: bash
@@ -413,6 +395,11 @@ jobs:
             host_runner: macos-12
             darwin_version: darwin_21
             build_type: Release
+          - name: Plugins_MacOS_aarch64
+            system: MacOS 13 (aarch64)
+            host_runner: mac-arm64
+            darwin_version: darwin_22
+            build_type: Release
     name: ${{ matrix.system }} plugin with clang++ ${{ matrix.build_type }}
     runs-on: ${{ matrix.host_runner }}
     env:
@@ -429,24 +416,19 @@ jobs:
           fetch-depth: 0
       - name: Build and install dependencies
         run: |
-          brew install llvm ninja boost cmake openssl
+          brew install llvm ninja cmake openssl
       - name: Build WasmEdge plugins using clang++ with ${{ matrix.build_type }} mode
         shell: bash
         run: |
-          plugin_array=(${tar_names})
-          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
+          testbin_array=(${test_bins})
+          export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
-          mkdir -p build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DWASMEDGE_BUILD_TESTS=ON ${build_options} ..
-          cd ..
-          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON ${build_options} -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl
+          for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
-            echo "Building ${plugin_array[$i]} :"
-            cd ${test_prefix}/${plugin_array[$i]}
-            make -j
-            cd -
+            echo "Building ${testbin_array[$i]} :"
+            cmake --build build --target ${testbin_array[$i]}
           done
       - name: Test WasmEdge plugins
         shell: bash

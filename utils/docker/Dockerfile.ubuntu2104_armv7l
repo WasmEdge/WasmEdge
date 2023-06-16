@@ -18,7 +18,6 @@ RUN apt update && apt upgrade -y \
 	g++-multilib \
 	git \
 	llvm-12-dev \
-	libboost-all-dev \
 	liblld-12-dev \
 	libssl-dev \
 	ninja-build \

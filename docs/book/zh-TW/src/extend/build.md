@@ -50,8 +50,7 @@ docker pull wasmedge/wasmedge # 等同於 wasmedge/wasmedge:latest
 # 工具和函式庫
 sudo apt install -y \
     software-properties-common \
-    cmake \
-    libboost-all-dev
+    cmake
 
 # 需要 llvm 來支援 wasmedgec 工具
 sudo apt install -y \

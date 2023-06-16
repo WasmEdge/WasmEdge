@@ -14,6 +14,7 @@ lib/                            @q82419
 **/system/                      @ibmibmibm
 **/api/                         @q82419
 plugins/                        @ibmibmibm
+plugins/wasi_logging/           @michael1017
 rpm/                            @hydai @dm4
 test/                           @q82419
 test/aot/                       @ibmibmibm

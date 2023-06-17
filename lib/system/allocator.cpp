@@ -22,8 +22,14 @@ namespace WasmEdge {
 
 namespace {
 static inline constexpr const uint64_t kPageSize = UINT64_C(65536);
+
+#if WASMEDGE_OS_WINDOWS || defined(HAVE_MMAP) && defined(__x86_64__) ||        \
+    defined(__aarch64__) || (defined(__riscv) && __riscv_xlen == 64)
+// Only define these two constants on the supported platform to avoid
+// -Wunused-const-variable error when applying -Werror.
 static inline constexpr const uint64_t k4G = UINT64_C(0x100000000);
 static inline constexpr const uint64_t k12G = UINT64_C(0x300000000);
+#endif
 
 } // namespace
 

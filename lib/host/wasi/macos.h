@@ -18,10 +18,10 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <netinet/tcp.h>
 #include <sys/event.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <netinet/tcp.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>

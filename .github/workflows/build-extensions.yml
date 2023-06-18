@@ -366,7 +366,6 @@ jobs:
           yum update -y
           yum install -y zlib-devel zlib-static
           bash ./utils/wasi-crypto/build-openssl.sh
-          bash ./utils/wasm_bpf/install-clang.sh
 
           # Running tests of wasm_bpf requires proper ebpf running environment
           mount -t debugfs none /sys/kernel/debug

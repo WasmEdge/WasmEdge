@@ -68,7 +68,7 @@ def show_progress(block_num, block_size, total_size):
     if downloaded < total_size:
         pass
     else:
-        print("Downloaded")
+        logging.info("Downloaded")
 
 
 @contextmanager
@@ -483,7 +483,7 @@ def shell_configure(args, compat):
         logging.error("Unknown shell found")
         return -1
 
-    print("shell configuration updated")
+    logging.info("shell configuration updated")
     return 0
 
 
@@ -581,7 +581,7 @@ def install_image_extension(args, compat):
         )
         return -1
 
-    print("Downloading image extension")
+    logging.info("Downloading image extension")
 
     local_release_package = CONST_release_pkg
 
@@ -715,10 +715,10 @@ def install_tensorflow_extension(args, compat):
             + CONST_release_pkg
         )
 
-        print("Downloading tensorflow extension")
+        logging.info("Downloading tensorflow extension")
         download_url(CONST_urls[TENSORFLOW], join(TEMP_PATH, tf_pkg), show_progress)
 
-        print("Downloading tensorflow-deps")
+        logging.info("Downloading tensorflow-deps")
         download_url(
             CONST_urls[TENSORFLOW_DEPS], join(TEMP_PATH, tf_deps_pkg), show_progress
         )
@@ -755,12 +755,12 @@ def install_tensorflow_extension(args, compat):
             + CONST_release_pkg
         )
 
-        print("Downloading tensorflow-lite extension")
+        logging.info("Downloading tensorflow-lite extension")
         download_url(
             CONST_urls[TENSORFLOW_LITE], join(TEMP_PATH, tf_lite_pkg), show_progress
         )
 
-        print("Downloading tensorflow-lite-deps")
+        logging.info("Downloading tensorflow-lite-deps")
         download_url(
             CONST_urls[TENSORFLOW_LITE_DEPS],
             join(TEMP_PATH, tf_deps_lite_pkg),
@@ -792,7 +792,7 @@ def install_tensorflow_extension(args, compat):
         "WasmEdge-tensorflow-tools-" + args.tf_tools_version + "-" + CONST_release_pkg
     )
 
-    print("Downloading tensorflow-tools extension")
+    logging.info("Downloading tensorflow-tools extension")
     download_url(
         CONST_urls[TENSORFLOW_TOOLS], join(TEMP_PATH, tf_tools_pkg), show_progress
     )
@@ -945,7 +945,7 @@ def install_tensorflow_extension(args, compat):
         )
 
         if args.tf_version in wasmedge_tf_output:
-            print("WasmEdge Successfully installed")
+            logging.info("WasmEdge Successfully installed")
         else:
             logging.critical(
                 "WasmEdge Tensorflow installation incorrect: {0}".format(
@@ -960,7 +960,7 @@ def install_tensorflow_extension(args, compat):
         )
 
         if args.tf_version in wasmedge_tf_lite_output:
-            print("WasmEdge Tensorflow Lite Successfully installed")
+            logging.info("WasmEdge Tensorflow Lite Successfully installed")
         else:
             logging.critical(
                 "WasmEdge Tensorflow installation incorrect: {0}".format(
@@ -1021,7 +1021,7 @@ def install_plugins(args, compat):
                 )
                 logging.debug("Plugin URL: %s", plugin_url)
 
-                print("Downloading Plugin: " + plugin_name)
+                logging.info("Downloading Plugin: " + plugin_name)
                 download_url(
                     plugin_url,
                     join(TEMP_PATH, "Plugin" + plugin_name) + ".tar.gz",
@@ -1319,7 +1319,7 @@ def main(args):
         logging.warning("plugins option may change later")
 
     if compat:
-        print("Compatible with current configuration")
+        logging.info("Compatible with current configuration")
 
         set_consts(args, compat)
 
@@ -1335,7 +1335,7 @@ def main(args):
         uninstaller_path = join(TEMP_PATH, "uninstall.sh")
         download_url(CONST_urls[WASMEDGE_UNINSTALLER], uninstaller_path)
 
-        print("Running Uninstaller")
+        logging.info("Running Uninstaller")
 
         logging.debug(
             run_shell_command("bash {0}  -p {1} -q".format(uninstaller_path, args.path))
@@ -1364,7 +1364,7 @@ def main(args):
         logging.debug("CONST_shell_profile: %s", CONST_shell_profile)
         logging.debug("CONST_shell_config: %s", CONST_shell_config)
 
-        print("Downloading WasmEdge")
+        logging.info("Downloading WasmEdge")
 
         # Download WasmEdge
         download_url(
@@ -1380,7 +1380,7 @@ def main(args):
             remove_finished=True,
         )
 
-        print("Installing WasmEdge")
+        logging.info("Installing WasmEdge")
         # Copy the tree
         for sub_dir in listdir(join(TEMP_PATH, CONST_ipkg)):
             if "._" in sub_dir:
@@ -1410,7 +1410,7 @@ def main(args):
         )
 
         if args.version in wasmedge_output:
-            print("WasmEdge Successfully installed")
+            logging.info("WasmEdge Successfully installed")
         else:
             logging.critical(
                 "WasmEdge installation incorrect: {0}".format(wasmedge_output)
@@ -1420,13 +1420,13 @@ def main(args):
             if install_image_extension(args, compat) != 0:
                 logging.error("Error in installing image extensions")
             else:
-                print("Image extension installed")
+                logging.info("Image extension installed")
 
         if TENSORFLOW in args.extensions or "all" in args.extensions:
             if install_tensorflow_extension(args, compat) != 0:
                 logging.error("Error in installing tensorflow extensions")
             else:
-                print("Tensorflow extension installed")
+                logging.info("Tensorflow extension installed")
 
         install_plugins(args, compat)
 
@@ -1436,9 +1436,9 @@ def main(args):
         shutil.rmtree(TEMP_PATH)
 
         if compat.platform != "Darwin":
-            print("Run:\nsource {0}".format(CONST_shell_config))
+            logging.info("Run:\nsource {0}".format(CONST_shell_config))
         else:
-            print("Run:\nsource {0}".format(CONST_shell_profile))
+            logging.info("Run:\nsource {0}".format(CONST_shell_profile))
     else:
         reraise(Exception("Incompatible with your machine\n{0}".format(compat)))
 
@@ -1471,6 +1471,7 @@ if __name__ == "__main__":
         dest="loglevel",
         required=False,
         action="store_const",
+        default=logging.INFO,
         const=logging.DEBUG,
         help="Verbosity debug",
     )

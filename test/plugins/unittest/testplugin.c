@@ -5,38 +5,63 @@
 #include "wasmedge/wasmedge.h"
 
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 static WasmEdge_String NameString;
 static const char NameCString[] = "name";
 static const WasmEdge_String NameStringDefaultValue = {.Buf = NameCString,
                                                        .Length = 4};
+void Finalizer(void *Data) {
+  printf("Deallocate host data\n");
+  free((int32_t *)Data);
+}
 
-WasmEdge_Result HostFuncAdd(void *Data __attribute__((unused)),
+WasmEdge_Result HostFuncAdd(void *Data,
                             const WasmEdge_CallingFrameContext *CallFrameCxt
                             __attribute__((unused)),
                             const WasmEdge_Value *In, WasmEdge_Value *Out) {
+  /*
+   * Host function to calculate A + B,
+   * and accumulate (A + B) to the host data.
+   */
   int32_t Val1 = WasmEdge_ValueGetI32(In[0]);
   int32_t Val2 = WasmEdge_ValueGetI32(In[1]);
   Out[0] = WasmEdge_ValueGenI32(Val1 + Val2);
+  int32_t *Accum = (int32_t *)Data;
+  *Accum += WasmEdge_ValueGetI32(Out[0]);
+  printf("Current accumulate: %d\n", *Accum);
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result HostFuncSub(void *Data __attribute__((unused)),
+WasmEdge_Result HostFuncSub(void *Data,
                             const WasmEdge_CallingFrameContext *CallFrameCxt
                             __attribute__((unused)),
                             const WasmEdge_Value *In, WasmEdge_Value *Out) {
+  /*
+   * Host function to calculate A - B,
+   * and accumulate (A - B) to the host data.
+   */
   int32_t Val1 = WasmEdge_ValueGetI32(In[0]);
   int32_t Val2 = WasmEdge_ValueGetI32(In[1]);
   Out[0] = WasmEdge_ValueGenI32(Val1 - Val2);
+  int32_t *Accum = (int32_t *)Data;
+  *Accum += WasmEdge_ValueGetI32(Out[0]);
+  printf("Current accumulate: %d\n", *Accum);
   return WasmEdge_Result_Success;
 }
 
 WasmEdge_ModuleInstanceContext *
 CreateTestModule(const struct WasmEdge_ModuleDescriptor *Desc) {
-  WasmEdge_String ModuleName =
-      WasmEdge_StringCreateByCString(Desc->Name);
+  /* Allocate and initialize a host data. */
+  printf("Allocate host data\n");
+  int32_t *Accumulate = (int32_t *)malloc(sizeof(int32_t));
+  *Accumulate = 0;
+
+  /* Create the module instance. */
+  WasmEdge_String ModuleName = WasmEdge_StringCreateByCString(Desc->Name);
   WasmEdge_ModuleInstanceContext *Mod =
-      WasmEdge_ModuleInstanceCreate(ModuleName);
+      WasmEdge_ModuleInstanceCreateWithData(ModuleName, Accumulate, Finalizer);
   WasmEdge_StringDelete(ModuleName);
 
   WasmEdge_String FuncName;
@@ -47,13 +72,15 @@ CreateTestModule(const struct WasmEdge_ModuleDescriptor *Desc) {
   ParamTypes[1] = WasmEdge_ValType_I32;
   ReturnTypes[0] = WasmEdge_ValType_I32;
 
+  /* Create the "add" function and add into the module instance. */
   FType = WasmEdge_FunctionTypeCreate(ParamTypes, 2, ReturnTypes, 1);
   FuncName = WasmEdge_StringCreateByCString("add");
-  FuncCxt = WasmEdge_FunctionInstanceCreate(FType, HostFuncAdd, NULL, 0);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FType, HostFuncAdd, Accumulate, 0);
   WasmEdge_ModuleInstanceAddFunction(Mod, FuncName, FuncCxt);
   WasmEdge_StringDelete(FuncName);
+  /* Create the "sub" function and add into the module instance. */
   FuncName = WasmEdge_StringCreateByCString("sub");
-  FuncCxt = WasmEdge_FunctionInstanceCreate(FType, HostFuncSub, NULL, 0);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FType, HostFuncSub, Accumulate, 0);
   WasmEdge_ModuleInstanceAddFunction(Mod, FuncName, FuncCxt);
   WasmEdge_StringDelete(FuncName);
   WasmEdge_FunctionTypeDelete(FType);

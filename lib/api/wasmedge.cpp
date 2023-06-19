@@ -1721,6 +1721,14 @@ WasmEdge_ModuleInstanceCreateWASI(const char *const *Args,
   return toModCxt(WasiMod);
 }
 
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWithData(const WasmEdge_String ModuleName,
+                                      void *HostData,
+                                      void (*Finalizer)(void *)) {
+  return toModCxt(new WasmEdge::Runtime::Instance::ModuleInstance(
+      genStrView(ModuleName), HostData, Finalizer));
+}
+
 WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASI(
     WasmEdge_ModuleInstanceContext *Cxt, const char *const *Args,
     const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
@@ -1813,6 +1821,14 @@ WASMEDGE_CAPI_EXPORT WasmEdge_String WasmEdge_ModuleInstanceGetModuleName(
                            .Buf = StrView.data()};
   }
   return WasmEdge_String{.Length = 0, .Buf = nullptr};
+}
+
+WASMEDGE_CAPI_EXPORT void *
+WasmEdge_ModuleInstanceGetHostData(const WasmEdge_ModuleInstanceContext *Cxt) {
+  if (Cxt) {
+    return fromModCxt(Cxt)->getHostData();
+  }
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_FunctionInstanceContext *

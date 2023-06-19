@@ -1973,11 +1973,40 @@ TEST(APICoreTest, ModuleInstance) {
   WasmEdge_TableInstanceContext *HostTable = nullptr;
   WasmEdge_MemoryInstanceContext *HostMemory = nullptr;
   WasmEdge_GlobalInstanceContext *HostGlobal = nullptr;
+  auto HostFinalizer = [](void *Data) {
+    std::cout << "Data address: " << Data << std::endl;
+  };
   enum WasmEdge_ValType Param[2], Result[1];
 
   // Create module instance with name ""
   HostMod = WasmEdge_ModuleInstanceCreate({.Length = 0, .Buf = nullptr});
   EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(nullptr), nullptr);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+
+  // Create module instance with empty host data and finalizer
+  HostMod = WasmEdge_ModuleInstanceCreateWithData({.Length = 0, .Buf = nullptr},
+                                                  nullptr, nullptr);
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), nullptr);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+
+  // Create module instance with host data and finalizer
+  HostMod = WasmEdge_ModuleInstanceCreateWithData({.Length = 0, .Buf = nullptr},
+                                                  nullptr, HostFinalizer);
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), nullptr);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  HostMod = WasmEdge_ModuleInstanceCreateWithData({.Length = 0, .Buf = nullptr},
+                                                  &HostName, nullptr);
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), &HostName);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  HostMod = WasmEdge_ModuleInstanceCreateWithData({.Length = 0, .Buf = nullptr},
+                                                  &HostName, HostFinalizer);
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), &HostName);
   WasmEdge_ModuleInstanceDelete(HostMod);
 
   // Create module instance with name "extern"

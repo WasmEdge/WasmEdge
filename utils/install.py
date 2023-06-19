@@ -280,20 +280,20 @@ SUPPORTED_EXTENSIONS = {
 }
 
 SUPPORTED_EXTENSIONS_VERSION = {
-    "Linux" + "x86_64" + TENSORFLOW: VersionString("0.9.0"),
+    "Linux" + "x86_64" + TENSORFLOW: VersionString("TF-2.6.0"),
     "Linux" + "x86_64" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "amd64" + TENSORFLOW: VersionString("0.9.0"),
+    "Linux" + "amd64" + TENSORFLOW: VersionString("TF-2.6.0"),
     "Linux" + "amd64" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "arm64" + TENSORFLOW: VersionString("0.9.0"),
+    "Linux" + "arm64" + TENSORFLOW: VersionString("TF-2.6.0"),
     "Linux" + "arm64" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "armv8" + TENSORFLOW: VersionString("0.9.0"),
+    "Linux" + "armv8" + TENSORFLOW: VersionString("TF-2.6.0"),
     "Linux" + "armv8" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "aarch64" + TENSORFLOW: VersionString("0.9.1-beta.1"),
+    "Linux" + "aarch64" + TENSORFLOW: VersionString("TF-2.6.0"),
     "Linux" + "aarch64" + IMAGE: VersionString("0.9.1-beta.1"),
-    "Darwin" + "x86_64" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
+    "Darwin" + "x86_64" + TENSORFLOW: VersionString("TF-2.6.0"),
     "Darwin" + "x86_64" + IMAGE: VersionString("0.10.0-alpha.1"),
-    "Darwin" + "arm64" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
-    "Darwin" + "arm" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
+    "Darwin" + "arm64" + TENSORFLOW: VersionString("TF-2.6.0"),
+    "Darwin" + "arm" + TENSORFLOW: VersionString("TF-2.6.0"),
 }
 
 WASI_NN_OPENVINO = "wasi_nn-openvino"
@@ -315,13 +315,9 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "x86_64" + WASI_NN_OPENVINO: VersionString("0.10.1-alpha.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.1-alpha.1"),
     "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.2-alpha.1"),
-    "manylinux2014"
-    + "x86_64"
-    + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-alpha.1"),
-    "manylinux2014"
-    + "aarch64"
-    + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-alpha.1"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-rc.1"),
+    "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("TF-2.6.0"),
+    "manylinux2014" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("TF-2.6.0"),
+    "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("TF-2.6.0"),
 }
 
 HOME = expanduser("~")
@@ -1573,13 +1569,34 @@ if __name__ == "__main__":
     args.path = abspath(args.path)
 
     if args.tf_version is None:
-        args.tf_version = args.version
+        if VersionString(args.version).compare("0.12.0") == -1:
+            args.tf_version = "TF-2.6.0"
+        elif VersionString(args.version).compare("0.13.0") == -1:
+            args.tf_version = "TF-2.6.0-CC"
+        elif VersionString(args.version).compare("0.13.0") >= 0:
+            args.tf_version = "TF-2.12.0-CC"
+        else:
+            reraise("Should not reach here")
 
     if args.tf_deps_version is None:
-        args.tf_deps_version = args.version
+        if VersionString(args.version).compare("0.12.0") == -1:
+            args.tf_deps_version = "TF-2.6.0"
+        elif VersionString(args.version).compare("0.13.0") == -1:
+            args.tf_deps_version = "TF-2.6.0-CC"
+        elif VersionString(args.version).compare("0.13.0") >= 0:
+            args.tf_deps_version = "TF-2.12.0-CC"
+        else:
+            reraise("Should not reach here")
 
     if args.tf_tools_version is None:
-        args.tf_tools_version = args.version
+        if VersionString(args.version).compare("0.12.0") == -1:
+            args.tf_tools_version = "TF-2.6.0"
+        elif VersionString(args.version).compare("0.13.0") == -1:
+            args.tf_tools_version = "TF-2.6.0-CC"
+        elif VersionString(args.version).compare("0.13.0") >= 0:
+            args.tf_tools_version = "#DNE"  # Does not exist
+        else:
+            reraise("Should not reach here")
 
     if args.image_version is None:
         args.image_version = args.version

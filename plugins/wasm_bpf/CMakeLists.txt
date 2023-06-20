@@ -6,7 +6,7 @@
 # - ${LIBBPF_SOURCE_DIR}
 # - FetchContent
 
-option(WASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF "Build libbpf with pkg-config. If disabled, the headers and  libs of libz and libelf should be placed at correct places" YES)
+option(WASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF "Configure libbpf to use pkg-config for the build process. If enabled, the libbpf build script will utilize pkg-config to search for dependencies such as libz and libelf. If this feature is disabled, the headers and binaries for libz and libelf need to be correctly positioned." YES)
 
 message(STATUS "Trying to get libbpf..")
 message(STATUS "Build libbpf with pkg-config: ${WASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF}")

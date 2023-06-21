@@ -74,12 +74,12 @@ jobs:
         if: ${{ !inputs.release }}
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-${{ inputs.version }}-darwin_${{ matrix.darwin_version }}_x86_64.tar.gz
+          name: WasmEdge-${{ inputs.version }}-darwin_${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz
       - name: Upload package tarball
         if: ${{ inputs.release }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz WasmEdge-${{ inputs.version }}-darwin_x86_64.tar.gz
-          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-darwin_x86_64.tar.gz --clobber
+          mv build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz WasmEdge-${{ inputs.version }}-darwin_${{ matrix.arch }}.tar.gz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber

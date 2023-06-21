@@ -8,8 +8,6 @@ on:
         required: true
       release:
         type: boolean
-      upload_asset_url:
-        type: string
 
 jobs:
   build_on_windows:
@@ -84,21 +82,15 @@ jobs:
           path: build\\WasmEdge-${{ env.product_version }}-windows.msi
       - name: Upload Windows 10 zip package
         if: ${{ inputs.release }}
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ inputs.upload_asset_url }}
-          asset_name: WasmEdge-${{ inputs.version }}-windows.zip
-          asset_path: build\\WasmEdge-${{ inputs.version }}-Windows.zip
-          asset_content_type: application/zip
+        run: |
+          mv build\\WasmEdge-${{ inputs.version }}-Windows.zip WasmEdge-${{ inputs.version }}-windows.zip
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-windows.zip --clobber
       - name: Upload Windows installer
         if: ${{ inputs.release }}
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ inputs.upload_asset_url }}
-          asset_name: WasmEdge-${{ env.product_version }}-windows.msi
-          asset_path: build\\WasmEdge-${{ env.product_version }}-windows.msi
-          asset_content_type: application/octet-stream
+        run: |
+          mv build\\WasmEdge-${{ env.product_version }}-windows.msi WasmEdge-${{ env.product_version }}-windows.msi
+          gh release upload ${{ inputs.version }} WasmEdge-${{ env.product_version }}-windows.msi --clobber

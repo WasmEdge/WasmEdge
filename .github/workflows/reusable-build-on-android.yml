@@ -46,11 +46,14 @@ jobs:
           path: build/WasmEdge-${{ inputs.version }}-Android.tar.gz
       - name: Upload tar.gz package
         if: ${{ inputs.release }}
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ inputs.upload_asset_url }}
-          asset_name: WasmEdge-${{ inputs.version }}-android_aarch64.tar.gz
-          asset_path: build/WasmEdge-${{ inputs.version }}-Android.tar.gz
-          asset_content_type: application/x-gzip
+        run: |
+          type -p curl >/dev/null || (apt update && apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && apt update \
+          && apt install gh -y
+          mv build/WasmEdge-${{ inputs.version }}-Android.tar.gz WasmEdge-${{ inputs.version }}-android_aarch64.tar.gz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-android_aarch64.tar.gz --clobber

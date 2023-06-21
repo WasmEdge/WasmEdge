@@ -11,8 +11,6 @@ on:
         required: true
       release:
         type: boolean
-      upload_asset_url:
-        type: string
 
 jobs:
   build_on_macos:
@@ -80,11 +78,8 @@ jobs:
           path: build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz
       - name: Upload package tarball
         if: ${{ inputs.release }}
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ inputs.upload_asset_url }}
-          asset_name: WasmEdge-${{ inputs.version }}-darwin_x86_64.tar.gz
-          asset_path: build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz
-          asset_content_type: application/x-gzip
+        run: |
+          mv build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz WasmEdge-${{ inputs.version }}-darwin_x86_64.tar.gz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-darwin_x86_64.tar.gz --clobber

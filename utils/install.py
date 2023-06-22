@@ -280,20 +280,20 @@ SUPPORTED_EXTENSIONS = {
 }
 
 SUPPORTED_EXTENSIONS_VERSION = {
-    "Linux" + "x86_64" + TENSORFLOW: VersionString("TF-2.6.0"),
+    "Linux" + "x86_64" + TENSORFLOW: VersionString("0.9.0"),
     "Linux" + "x86_64" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "amd64" + TENSORFLOW: VersionString("TF-2.6.0"),
+    "Linux" + "amd64" + TENSORFLOW: VersionString("0.9.0"),
     "Linux" + "amd64" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "arm64" + TENSORFLOW: VersionString("TF-2.6.0"),
+    "Linux" + "arm64" + TENSORFLOW: VersionString("0.9.0"),
     "Linux" + "arm64" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "armv8" + TENSORFLOW: VersionString("TF-2.6.0"),
+    "Linux" + "armv8" + TENSORFLOW: VersionString("0.9.0"),
     "Linux" + "armv8" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "aarch64" + TENSORFLOW: VersionString("TF-2.6.0"),
+    "Linux" + "aarch64" + TENSORFLOW: VersionString("0.9.1-beta.1"),
     "Linux" + "aarch64" + IMAGE: VersionString("0.9.1-beta.1"),
-    "Darwin" + "x86_64" + TENSORFLOW: VersionString("TF-2.6.0"),
+    "Darwin" + "x86_64" + TENSORFLOW: VersionString("0.9.1-beta.1"),
     "Darwin" + "x86_64" + IMAGE: VersionString("0.10.0-alpha.1"),
-    "Darwin" + "arm64" + TENSORFLOW: VersionString("TF-2.6.0"),
-    "Darwin" + "arm" + TENSORFLOW: VersionString("TF-2.6.0"),
+    "Darwin" + "arm64" + TENSORFLOW: VersionString("0.9.1-beta.1"),
+    "Darwin" + "arm" + TENSORFLOW: VersionString("0.9.1-beta.1"),
 }
 
 WASI_NN_OPENVINO = "wasi_nn-openvino"
@@ -315,9 +315,9 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "x86_64" + WASI_NN_OPENVINO: VersionString("0.10.1-alpha.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.1-alpha.1"),
     "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.2-alpha.1"),
-    "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("TF-2.6.0"),
-    "manylinux2014" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("TF-2.6.0"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("TF-2.6.0"),
+    "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.9.1-beta.1"),
+    "manylinux2014" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.9.1-beta.1"),
+    "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.9.1-beta.1"),
 }
 
 HOME = expanduser("~")
@@ -690,9 +690,16 @@ def install_tensorflow_extension(args, compat):
 
     download_tf = True
     download_tf_lite = True
+    download_tf_deps = True
+    download_tf_lite_deps = True
 
     if compat.machine == "aarch64":
         download_tf = False
+        download_tf_deps = False
+    else:
+        logging.warning(
+            "Cannot download WasmEdge Tensorflow, Tools & Deps because it is aarch64"
+        )
 
     local_release_package = CONST_release_pkg
 
@@ -704,21 +711,8 @@ def install_tensorflow_extension(args, compat):
 
     if download_tf:
         tf_pkg = "WasmEdge-tensorflow-" + args.tf_version + "-" + local_release_package
-        tf_deps_pkg = (
-            "WasmEdge-tensorflow-deps-TF-"
-            + args.tf_deps_version
-            + "-"
-            + CONST_release_pkg
-        )
-
         logging.info("Downloading tensorflow extension")
         download_url(CONST_urls[TENSORFLOW], join(TEMP_PATH, tf_pkg), show_progress)
-
-        logging.info("Downloading tensorflow-deps")
-        download_url(
-            CONST_urls[TENSORFLOW_DEPS], join(TEMP_PATH, tf_deps_pkg), show_progress
-        )
-
         # Extract archive
         extract_archive(
             join(TEMP_PATH, tf_pkg),
@@ -726,6 +720,20 @@ def install_tensorflow_extension(args, compat):
             join(TEMP_PATH, "WasmEdge-tensorflow"),
             env_file_path=CONST_env_path,
             remove_finished=True,
+        )
+        copytree(join(TEMP_PATH, "WasmEdge-tensorflow"), args.path)
+
+    if download_tf_deps:
+        tf_deps_pkg = (
+            "WasmEdge-tensorflow-deps-TF-"
+            + args.tf_deps_version
+            + "-"
+            + CONST_release_pkg
+        )
+
+        logging.info("Downloading tensorflow-deps")
+        download_url(
+            CONST_urls[TENSORFLOW_DEPS], join(TEMP_PATH, tf_deps_pkg), show_progress
         )
 
         # Extract archive
@@ -736,24 +744,32 @@ def install_tensorflow_extension(args, compat):
             env_file_path=CONST_env_path,
             remove_finished=True,
         )
-
-        copytree(join(TEMP_PATH, "WasmEdge-tensorflow"), args.path)
         copytree(join(TEMP_PATH, "WasmEdge-tensorflow-deps"), args.path)
 
     if download_tf_lite:
         tf_lite_pkg = (
             "WasmEdge-tensorflowlite-" + args.tf_version + "-" + local_release_package
         )
+        logging.info("Downloading tensorflow-lite extension")
+        download_url(
+            CONST_urls[TENSORFLOW_LITE], join(TEMP_PATH, tf_lite_pkg), show_progress
+        )
+        # Extract archive
+        extract_archive(
+            join(TEMP_PATH, tf_lite_pkg),
+            args.path,
+            join(TEMP_PATH, "WasmEdge-tensorflow-lite"),
+            env_file_path=CONST_env_path,
+            remove_finished=True,
+        )
+        copytree(join(TEMP_PATH, "WasmEdge-tensorflow-lite"), args.path)
+
+    if download_tf_lite_deps:
         tf_deps_lite_pkg = (
             "WasmEdge-tensorflow-deps-TFLite-"
             + args.tf_deps_version
             + "-"
             + CONST_release_pkg
-        )
-
-        logging.info("Downloading tensorflow-lite extension")
-        download_url(
-            CONST_urls[TENSORFLOW_LITE], join(TEMP_PATH, tf_lite_pkg), show_progress
         )
 
         logging.info("Downloading tensorflow-lite-deps")
@@ -765,15 +781,6 @@ def install_tensorflow_extension(args, compat):
 
         # Extract archive
         extract_archive(
-            join(TEMP_PATH, tf_lite_pkg),
-            args.path,
-            join(TEMP_PATH, "WasmEdge-tensorflow-lite"),
-            env_file_path=CONST_env_path,
-            remove_finished=True,
-        )
-
-        # Extract archive
-        extract_archive(
             join(TEMP_PATH, tf_deps_lite_pkg),
             join(args.path, CONST_lib_dir),
             join(TEMP_PATH, "WasmEdge-tensorflow-lite-deps", CONST_lib_dir),
@@ -781,7 +788,6 @@ def install_tensorflow_extension(args, compat):
             remove_finished=True,
         )
 
-        copytree(join(TEMP_PATH, "WasmEdge-tensorflow-lite"), args.path)
         copytree(join(TEMP_PATH, "WasmEdge-tensorflow-lite-deps"), args.path)
 
     tf_tools_pkg = (
@@ -1569,14 +1575,7 @@ if __name__ == "__main__":
     args.path = abspath(args.path)
 
     if args.tf_version is None:
-        if VersionString(args.version).compare("0.12.0") == -1:
-            args.tf_version = "TF-2.6.0"
-        elif VersionString(args.version).compare("0.13.0") == -1:
-            args.tf_version = "TF-2.6.0-CC"
-        elif VersionString(args.version).compare("0.13.0") >= 0:
-            args.tf_version = "TF-2.12.0-CC"
-        else:
-            reraise("Should not reach here")
+        args.tf_version = args.version
 
     if args.tf_deps_version is None:
         if VersionString(args.version).compare("0.12.0") == -1:
@@ -1589,14 +1588,7 @@ if __name__ == "__main__":
             reraise("Should not reach here")
 
     if args.tf_tools_version is None:
-        if VersionString(args.version).compare("0.12.0") == -1:
-            args.tf_tools_version = "TF-2.6.0"
-        elif VersionString(args.version).compare("0.13.0") == -1:
-            args.tf_tools_version = "TF-2.6.0-CC"
-        elif VersionString(args.version).compare("0.13.0") >= 0:
-            args.tf_tools_version = "#DNE"  # Does not exist
-        else:
-            reraise("Should not reach here")
+        args.tf_tools_version = args.version
 
     if args.image_version is None:
         args.image_version = args.version

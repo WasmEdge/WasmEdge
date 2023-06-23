@@ -316,7 +316,9 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.1-alpha.1"),
     "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.2-alpha.1"),
     "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.9.1-beta.1"),
-    "manylinux2014" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.9.1-beta.1"),
+    "manylinux2014"
+    + "aarch64"
+    + WASI_NN_TENSORFLOW_LITE: VersionString("0.9.1-beta.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.9.1-beta.1"),
 }
 
@@ -696,7 +698,6 @@ def install_tensorflow_extension(args, compat):
     if compat.machine == "aarch64":
         download_tf = False
         download_tf_deps = False
-    else:
         logging.warning(
             "Cannot download WasmEdge Tensorflow, Tools & Deps because it is aarch64"
         )

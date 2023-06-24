@@ -44,6 +44,26 @@ target_include_directories(wasmedgeAPIUnitTests
   ${CMAKE_SOURCE_DIR}/include
 )
 
+wasmedge_add_executable(wasmedgeAPIMallocTest
+  APIMallocTest.cpp
+)
+
+add_test(wasmedgeAPIMallocTest wasmedgeAPIMallocTest)
+
+target_link_libraries(wasmedgeAPIMallocTest
+  PRIVATE
+  std::filesystem
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedgeTestSpec
+  wasmedgeAPITestHelpers
+  wasmedge_shared
+)
+
+target_include_directories(wasmedgeAPIMallocTest
+  PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+)
+
 wasmedge_add_executable(wasmedgeAPIVMCoreTests
   APIVMCoreTest.cpp
 )

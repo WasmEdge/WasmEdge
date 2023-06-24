@@ -1146,6 +1146,10 @@ WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt);
 
+WASMEDGE_CAPI_EXPORT extern int32_t
+WasmEdge_Module_Malloc(WasmEdge_VMContext *VMCxt, uint32_t Size,
+                       void **P_Native_Addr);
+
 // <<<<<<<< WasmEdge memory type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge global type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

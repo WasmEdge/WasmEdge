@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+#include "ast/type.h"
 #include "executor/executor.h"
 
 #include <cstdint>
@@ -23,7 +24,21 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
     switch (ExtType) {
     case ExternalType::Function:
       ModInst.exportFunction(ExtName, ExtIdx);
+
+      // Set exported malloc and free functions.
+      if (ExtName.compare("malloc") == 0) {
+        // Verify function signature.
+        spdlog::info("Found malloc function in module {0}",
+                     ModInst.getModuleName());
+        const auto MallocFunc = ModInst.findFuncExports(ExtName);
+        const auto MallocFuncType =
+            AST::FunctionType({ValType::I32}, {ValType::I32});
+        if (MallocFunc->getFuncType() == MallocFuncType) {
+          ModInst.setMallocFunction(MallocFunc);
+        }
+      }
       break;
+
     case ExternalType::Global:
       ModInst.exportGlobal(ExtName, ExtIdx);
       break;

@@ -367,6 +367,33 @@ CONVFROM(CallFrame, Runtime::CallingFrame, CallingFrame, const)
 CONVFROM(Plugin, Plugin::Plugin, Plugin, const)
 #undef CONVFROM
 
+// Helper function for memory allocation in module
+Expect<int32_t> WasmEdge_Module_Malloc_Internal(WasmEdge_VMContext *VMCxt,
+                                                uint32_t Size,
+                                                void **P_Native_Addr) {
+  auto const ModInst = fromModCxt(WasmEdge_VMGetActiveModule(VMCxt));
+  auto MallocFunc = ModInst->getMallocFunc();
+  if (!MallocFunc) {
+    spdlog::error(ErrCode::Value::NoMallocExport);
+    return Unexpect(ErrCode::Value::NoMallocExport);
+  }
+  auto MemoryInst = ModInst->findMemoryExports("memory");
+  uint8_t *base_ptr = MemoryInst->getDataPtr();
+
+  // Call
+  auto Returns = VMCxt->VM.getExecutor().invoke(MallocFunc, {ValVariant(Size)},
+                                                {ValType::I32});
+  if (!Returns.has_value()) {
+    spdlog::error(Returns.error());
+    return Unexpect(Returns.error());
+  }
+
+  auto value = Returns.value()[0].first;
+  int32_t offset = value.get<int32_t>();
+  *P_Native_Addr = base_ptr + offset;
+  return offset;
+}
+
 // C API Host function class
 class CAPIHostFunc : public Runtime::HostFunctionBase {
 public:
@@ -1160,6 +1187,16 @@ WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt) {
   delete fromMemTypeCxt(Cxt);
 }
 
+WASMEDGE_CAPI_EXPORT int32_t WasmEdge_Module_Malloc(WasmEdge_VMContext *VMCxt,
+                                                    uint32_t Size,
+                                                    void **P_Native_Addr) {
+  auto res = WasmEdge_Module_Malloc_Internal(VMCxt, Size, P_Native_Addr);
+  if (res.has_value()) {
+    return res.value();
+  } else {
+    return -1;
+  }
+}
 // <<<<<<<< WasmEdge memory type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge global type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

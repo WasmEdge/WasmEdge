@@ -157,6 +157,28 @@ public:
     return static_cast<uint32_t>(ExpGlobals.size());
   }
 
+  /// Set the malloc function.
+  void setMallocFunction(FunctionInstance *FuncInst) noexcept {
+    MallocFunc = FuncInst;
+  }
+
+  /// Get malloc function address in Store.
+  FunctionInstance *getMallocFunc() const noexcept {
+    std::shared_lock Lock(Mutex);
+    return MallocFunc;
+  }
+
+  /// Set the free function.
+  void setFreeFunction(FunctionInstance *FuncInst) noexcept {
+    FreeFunc = FuncInst;
+  }
+
+  /// Get free function address in Store.
+  FunctionInstance *getFreeFunc() const noexcept {
+    std::shared_lock Lock(Mutex);
+    return FreeFunc;
+  }
+
   /// Get the exported instances maps.
   template <typename CallbackT>
   auto getFuncExports(CallbackT &&CallBack) const noexcept {
@@ -456,6 +478,12 @@ protected:
 
   /// Start function instance.
   FunctionInstance *StartFunc = nullptr;
+
+  /// Malloc function instance.
+  FunctionInstance *MallocFunc = nullptr;
+
+  /// Free function instance.
+  FunctionInstance *FreeFunc = nullptr;
 
   /// Linked store.
   std::map<StoreManager *, std::function<BeforeModuleDestroyCallback>>

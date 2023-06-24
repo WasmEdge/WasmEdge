@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasmedge/vm/async.h - Asynchronous Result class definition --------===//
+//===-- wasmedge/common/async.h - Asynchronous execution class definition -===//
 //
 // Part of the WasmEdge Project.
 //
@@ -13,27 +13,26 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "vm.h"
+#include "errcode.h"
 
 #include <future>
 #include <thread>
 
 namespace WasmEdge {
-namespace VM {
 
-/// VM execution flow class
+/// Async execution flow class
 template <typename T> class Async {
 public:
   Async() noexcept = default;
-  template <typename... FArgsT, typename... ArgsT>
-  Async(T (VM::*FPtr)(FArgsT...), VM &TargetVM, ArgsT &&...Args)
-      : VMPtr(&TargetVM) {
+  template <typename Inst, typename... FArgsT, typename... ArgsT>
+  Async(T (Inst::*FPtr)(FArgsT...), Inst &TargetInst, ArgsT &&...Args)
+      : StopFunc([&TargetInst]() { TargetInst.stop(); }) {
     std::promise<T> Promise;
     Future = Promise.get_future();
     Thread =
         std::thread([FPtr, P = std::move(Promise),
                      Tuple = std::tuple(
-                         &TargetVM, std::forward<ArgsT>(Args)...)]() mutable {
+                         &TargetInst, std::forward<ArgsT>(Args)...)]() mutable {
           P.set_value(std::apply(FPtr, Tuple));
         });
     Thread.detach();
@@ -66,20 +65,19 @@ public:
     using std::swap;
     swap(LHS.Future, RHS.Future);
     swap(LHS.Thread, RHS.Thread);
-    swap(LHS.VMPtr, RHS.VMPtr);
+    swap(LHS.StopFunc, RHS.StopFunc);
   }
 
   void cancel() noexcept {
-    if (likely(VMPtr)) {
-      VMPtr->stop();
+    if (likely(StopFunc.operator bool())) {
+      StopFunc();
     }
   }
 
-private:
+protected:
   std::shared_future<T> Future;
   std::thread Thread;
-  VM *VMPtr;
+  std::function<void()> StopFunc;
 };
 
-} // namespace VM
 } // namespace WasmEdge

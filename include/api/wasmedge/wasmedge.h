@@ -1646,6 +1646,25 @@ WasmEdge_ExecutorInvoke(WasmEdge_ExecutorContext *Cxt,
                         const WasmEdge_Value *Params, const uint32_t ParamLen,
                         WasmEdge_Value *Returns, const uint32_t ReturnLen);
 
+/// Asynchronous invoke a WASM function by the function instance.
+///
+/// After instantiating a WASM module, developers can get the function instance
+/// context from the module instance. Then developers can invoke the function
+/// asynchronously through this API.
+///
+/// \param Cxt the WasmEdge_ExecutorContext.
+/// \param FuncCxt the function instance context to invoke.
+/// \param Params the WasmEdge_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+///
+/// \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
+/// `WasmEdge_AsyncDelete` to destroy this object.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *
+WasmEdge_ExecutorAsyncInvoke(WasmEdge_ExecutorContext *Cxt,
+                             const WasmEdge_FunctionInstanceContext *FuncCxt,
+                             const WasmEdge_Value *Params,
+                             const uint32_t ParamLen);
+
 /// Deletion of the WasmEdge_ExecutorContext.
 ///
 /// After calling this function, the context will be destroyed and should
@@ -1739,6 +1758,28 @@ WasmEdge_StoreDelete(WasmEdge_StoreContext *Cxt);
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
 WasmEdge_ModuleInstanceCreate(const WasmEdge_String ModuleName);
+
+/// Creation of the WasmEdge_ModuleInstanceContext with host data.
+///
+/// Create a module instance context with exported module name, host data, and
+/// host data finalizer for host instances. Developer can use this API to create
+/// a module instance for collecting host functions, tables, memories, and
+/// globals. When this created module instance being destroyed, the host data
+/// finalizer will be invoked. The caller owns the object and should call
+/// `WasmEdge_ModuleInstanceDelete` to destroy it.
+///
+/// \param ModuleName the module name WasmEdge_String of this host module to
+/// import.
+/// \param HostData the host data to set into the module instance. When calling
+/// the finalizer, this pointer will become the argument of the finalizer
+/// function.
+/// \param Finalizer the function to finalize the host data.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWithData(const WasmEdge_String ModuleName,
+                                      void *HostData,
+                                      void (*Finalizer)(void *));
 
 /// Creation of the WasmEdge_ModuleInstanceContext for the WASI specification.
 ///
@@ -1842,6 +1883,18 @@ WasmEdge_ModuleInstanceInitWasmEdgeProcess(const char *const *AllowedCmds,
 /// \returns string object. Length will be 0 and Buf will be NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
 WasmEdge_ModuleInstanceGetModuleName(const WasmEdge_ModuleInstanceContext *Cxt);
+
+/// Get the host data set into the module instance when creating.
+///
+/// The returned data is owned by the module instance, and will be passed into
+/// the finalizer when deleting this module instance.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+///
+/// \returns host data. NULL if the module instance context is NULL or no host
+/// data set into the module instance.
+WASMEDGE_CAPI_EXPORT extern void *
+WasmEdge_ModuleInstanceGetHostData(const WasmEdge_ModuleInstanceContext *Cxt);
 
 /// Get the exported function instance context of a module instance.
 ///

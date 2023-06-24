@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/async.h"
 #include "common/configure.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
@@ -37,7 +38,6 @@
 namespace WasmEdge {
 namespace VM {
 
-template <typename T> class Async;
 /// VM execution flow class
 class VM {
 public:
@@ -312,5 +312,3 @@ private:
 
 } // namespace VM
 } // namespace WasmEdge
-
-#include "async.h"

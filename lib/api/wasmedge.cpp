@@ -106,7 +106,7 @@ struct WasmEdge_Async {
   template <typename... Args>
   WasmEdge_Async(Args &&...Vals) noexcept
       : Async(std::forward<Args>(Vals)...) {}
-  WasmEdge::VM::Async<WasmEdge::Expect<
+  WasmEdge::Async<WasmEdge::Expect<
       std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>
       Async;
 };
@@ -1634,11 +1634,24 @@ WasmEdge_ExecutorInvoke(WasmEdge_ExecutorContext *Cxt,
       [&]()
           -> WasmEdge::Expect<
               std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>> {
-        return fromExecutorCxt(Cxt)->invoke(*fromFuncCxt(FuncCxt),
+        return fromExecutorCxt(Cxt)->invoke(fromFuncCxt(FuncCxt),
                                             ParamPair.first, ParamPair.second);
       },
       [&](auto &&Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); }, Cxt,
       FuncCxt);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Async *
+WasmEdge_ExecutorAsyncInvoke(WasmEdge_ExecutorContext *Cxt,
+                             const WasmEdge_FunctionInstanceContext *FuncCxt,
+                             const WasmEdge_Value *Params,
+                             const uint32_t ParamLen) {
+  if (Cxt && FuncCxt) {
+    auto ParamPair = genParamPair(Params, ParamLen);
+    return new WasmEdge_Async(fromExecutorCxt(Cxt)->asyncInvoke(
+        fromFuncCxt(FuncCxt), ParamPair.first, ParamPair.second));
+  }
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT void
@@ -1706,6 +1719,14 @@ WasmEdge_ModuleInstanceCreateWASI(const char *const *Args,
   WasmEdge_ModuleInstanceInitWASI(toModCxt(WasiMod), Args, ArgLen, Envs, EnvLen,
                                   Preopens, PreopenLen);
   return toModCxt(WasiMod);
+}
+
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWithData(const WasmEdge_String ModuleName,
+                                      void *HostData,
+                                      void (*Finalizer)(void *)) {
+  return toModCxt(new WasmEdge::Runtime::Instance::ModuleInstance(
+      genStrView(ModuleName), HostData, Finalizer));
 }
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASI(
@@ -1800,6 +1821,14 @@ WASMEDGE_CAPI_EXPORT WasmEdge_String WasmEdge_ModuleInstanceGetModuleName(
                            .Buf = StrView.data()};
   }
   return WasmEdge_String{.Length = 0, .Buf = nullptr};
+}
+
+WASMEDGE_CAPI_EXPORT void *
+WasmEdge_ModuleInstanceGetHostData(const WasmEdge_ModuleInstanceContext *Cxt) {
+  if (Cxt) {
+    return fromModCxt(Cxt)->getHostData();
+  }
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_FunctionInstanceContext *

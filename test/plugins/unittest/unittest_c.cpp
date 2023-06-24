@@ -56,6 +56,9 @@ TEST(wasmedgePluginTests, C_Run) {
   // Create the wasmedge_plugintest_c_module module instance.
   auto *ModInstC = createModuleC();
   EXPECT_FALSE(ModInstC == nullptr);
+  int32_t *HostData =
+      static_cast<int32_t *>(WasmEdge_ModuleInstanceGetHostData(ModInstC));
+  EXPECT_FALSE(HostData == nullptr);
 
   // Create the wasmedge_plugintest_cpp_module module instance.
   auto *ModInstCPP = createModuleCPP();
@@ -71,6 +74,7 @@ TEST(wasmedgePluginTests, C_Run) {
   Res = WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, Params, 2, Returns, 1);
   EXPECT_TRUE(WasmEdge_ResultOK(Res));
   EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 444);
+  EXPECT_EQ(*HostData, 444);
 
   // Test: Run the function "wasmedge_plugintest_c.sub".
   FuncName = WasmEdge_StringCreateByCString("sub");
@@ -82,6 +86,7 @@ TEST(wasmedgePluginTests, C_Run) {
   Res = WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, Params, 2, Returns, 1);
   EXPECT_TRUE(WasmEdge_ResultOK(Res));
   EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 111);
+  EXPECT_EQ(*HostData, 555);
 
   // Test: Run the function "wasmedge_plugintest_cpp.add".
   FuncName = WasmEdge_StringCreateByCString("add");

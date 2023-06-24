@@ -11,8 +11,6 @@ on:
         required: true
       release:
         type: boolean
-      upload_asset_url:
-        type: string
 
 jobs:
   build_on_manylinux:
@@ -36,39 +34,30 @@ jobs:
         with:
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
           name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
+      - name: Install gh on manylinux
+        if: ${{ inputs.release }}
+        run: |
+          type -p yum-config-manager >/dev/null || sudo yum install yum-utils
+          yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+          yum install -y gh
       - name: Upload rpm package
         if: ${{ inputs.release }}
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ inputs.upload_asset_url }}
-          asset_path: build/WasmEdge-${{ inputs.version }}-Linux.rpm
-          asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.rpm
-          asset_content_type: application/x-rpm
-      - name: Sleep 5 second to avoid GitHub ECONNRESET error
         run: |
-          sleep 5
+          mv build/WasmEdge-${{ inputs.version }}-Linux.rpm WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.rpm
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.rpm --clobber
       - name: Upload tar.gz package
         if: ${{ inputs.release }}
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ inputs.upload_asset_url }}
-          asset_path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
-          asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          asset_content_type: application/x-gzip
-      - name: Sleep 5 second to avoid GitHub ECONNRESET error
         run: |
-          sleep 5
+          mv build/WasmEdge-${{ inputs.version }}-Linux.tar.gz WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz --clobber
       - name: Upload tar.xz package
         if: ${{ inputs.release }}
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ inputs.upload_asset_url }}
-          asset_path: build/WasmEdge-${{ inputs.version }}-Linux.tar.xz
-          asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.xz
-          asset_content_type: application/x-xz
+        run: |
+          mv build/WasmEdge-${{ inputs.version }}-Linux.tar.xz WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.xz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.xz --clobber

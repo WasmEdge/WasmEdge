@@ -25,7 +25,8 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
         https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.5/lld-16.0.5.src.tar.xz \
         https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.5/libunwind-16.0.5.src.tar.xz \
         https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.5/cmake-16.0.5.src.tar.xz \
-        https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.5/third-party-16.0.5.src.tar.xz && \
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.5/third-party-16.0.5.src.tar.xz \
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.5/clang-16.0.5.src.tar.xz && \
     sha256sum -c SHA256SUM && \
     gzip -dc zstd-1.5.5.tar.gz | tar -xf - && \
     gzip -dc cmake-3.26.4.tar.gz | tar -xf - && \
@@ -35,6 +36,7 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
     xz -dc libunwind-16.0.5.src.tar.xz | tar -xf - && \
     xz -dc cmake-16.0.5.src.tar.xz | tar -xf - && \
     xz -dc third-party-16.0.5.src.tar.xz | tar -xf - && \
+    xz -dc clang-16.0.5.src.tar.xz | tar -xf - && \
     export ZSTDFLAGS=(PREFIX=/opt/rh/devtoolset-11/root/usr LIBDIR=/opt/rh/devtoolset-11/root/usr/lib64 SED_ERE_OPT=--regexp-extended MOREFLAGS="-std=c17 -O3 -fPIC -fPIE -fvisibility=hidden") && \
     cd zstd-1.5.5 && make -s "${ZSTDFLAGS[@]}" -j $CPU && make -s "${ZSTDFLAGS[@]}" install && rm -vf /opt/rh/devtoolset-11/root/usr/lib64/libzstd.so* && cd - && \
     mkdir build && cd build && /opt/python/cp311-cp311/bin/python \
@@ -48,10 +50,11 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
     mv -v libunwind-16.0.5.src libunwind && \
     mv -v cmake-16.0.5.src cmake && \
     mv -v third-party-16.0.5.src third-party && \
+    mv -v clang-16.0.5.src clang && \
     cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/opt/rh/devtoolset-11/root/usr \
         -DPython3_ROOT_DIR=/opt/python/cp311-cp311 -DLLVM_LIBDIR_SUFFIX=64 \
-        -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_PROJECTS=lld \
+        -DLLVM_TARGETS_TO_BUILD="X86;BPF" -DLLVM_ENABLE_PROJECTS="lld;clang" \
         -DLLVM_DEFAULT_TARGET_TRIPLE="x86_64-pc-linux-gnu" \
         -DBUILD_SHARED_LIBS=OFF llvm && \
     cmake --build build --target install && \

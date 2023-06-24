@@ -12,7 +12,7 @@ namespace Host {
 Expect<int32_t>
 WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr, int32_t Level,
-                               uint32_t VersionPtr, uint32_t StreamSize) {
+                               uint32_t VersionPtr, int32_t StreamSize) {
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -54,7 +54,7 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t>
 WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr, uint32_t VersionPtr,
-                               uint32_t StreamSize) {
+                               int32_t StreamSize) {
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -123,6 +123,7 @@ Expect<int32_t> WasmEdgeZlibDeflate::WasmEdgeZlibDeflate::body(
 
 Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
                                           uint32_t ZStreamPtr, int32_t Flush) {
+
   const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {
     return Unexpect(ErrCode::Value::HostFuncError);

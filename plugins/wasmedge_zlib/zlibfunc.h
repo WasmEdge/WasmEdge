@@ -13,7 +13,7 @@ public:
   WasmEdgeZlibDeflateInit_(WasmEdgeZlibEnvironment &HostEnv)
       : WasmEdgeZlib(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
-                       int32_t Level, uint32_t VersionPtr, uint32_t StreamSize);
+                       int32_t Level, uint32_t VersionPtr, int32_t StreamSize);
 };
 
 class WasmEdgeZlibInflateInit_ : public WasmEdgeZlib<WasmEdgeZlibInflateInit_> {
@@ -21,7 +21,7 @@ public:
   WasmEdgeZlibInflateInit_(WasmEdgeZlibEnvironment &HostEnv)
       : WasmEdgeZlib(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
-                       uint32_t VersionPtr, uint32_t StreamSize);
+                       uint32_t VersionPtr, int32_t StreamSize);
 };
 
 class WasmEdgeZlibDeflate : public WasmEdgeZlib<WasmEdgeZlibDeflate> {

@@ -125,7 +125,6 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
 
   // ----- Deflate Routine START------
   fillMemContent(MemInst, wasm_z_stream, sizeof(Wasm_z_stream), 0U);
-  strm->zalloc = Z_NULL, strm->zfree = Z_NULL, strm->opaque = Z_NULL;
 
   // deflateInit_ Test
   // WASM z_stream size Mismatch
@@ -186,7 +185,6 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
 
   // ----- Inflate Routine START------
   fillMemContent(MemInst, wasm_z_stream, sizeof(Wasm_z_stream), 0U);
-  strm->zalloc = Z_NULL, strm->zfree = Z_NULL, strm->opaque = Z_NULL;
 
   // inflateInit_ Test
   // WASM z_stream size Mismatch

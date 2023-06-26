@@ -247,7 +247,13 @@ public:
   ~FindHolderBase() noexcept { reset(); }
 
   WasiExpect<void> emplace(winapi::HANDLE_ PathHandle) noexcept;
-  void reset() noexcept;
+  void reset() noexcept {
+    Proxy::doReset(static_cast<T &>(*this));
+    Path.clear();
+    Handle = nullptr;
+    Cookie = 0;
+    Buffer.clear();
+  }
   WasiExpect<void> seek(uint64_t NewCookie) noexcept;
   bool next() noexcept;
   WasiExpect<void> loadDirent() noexcept;

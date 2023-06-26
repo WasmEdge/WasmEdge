@@ -31,7 +31,7 @@ bool decodeImgToSize(Span<const char> Buf, uint32_t W, uint32_t H,
   ImgStream.write(Buf.data(), Buf.size());
   Image Img;
   try {
-    boost::gil::read_image(ImgStream, Img, FormatTag());
+    boost::gil::read_and_convert_image(ImgStream, Img, FormatTag());
   } catch (std::exception const &e) {
     spdlog::error("[WasmEdge-Image] Decode image fail: {}"sv, e.what());
     return false;

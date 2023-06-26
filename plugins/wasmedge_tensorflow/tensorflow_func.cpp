@@ -117,10 +117,6 @@ Expect<uint32_t> CreateSession::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> CreateSessionSavedModel::body(
     const Runtime::CallingFrame &Frame, uint32_t PathPtr, uint32_t PathLen,
     uint32_t TagsBufPtr, uint32_t TagsBufLen, uint32_t SessionIdPtr) {
-  // TODO: Implement this function.
-  spdlog::error("[WasmEdge-Tensorflow] Saved model is not supported yet."sv);
-  return static_cast<uint32_t>(ErrNo::InvalidArgument);
-
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
 
@@ -137,21 +133,44 @@ Expect<uint32_t> CreateSessionSavedModel::body(
                  "Failed when accessing the tags memory."sv)
 
   // Check the elements of tags.
-  std::vector<std::string_view> Tags;
+  std::vector<std::string> Tags;
+  std::vector<const char *> TagsArgv;
   Tags.reserve(TagsBufLen);
+  TagsArgv.reserve(TagsBufLen);
   for (size_t I = 0; I < TagSpan.size(); ++I) {
+    // Should use std::string to copy the tag name here to prevent from no
+    // null-termination of the tag strings here.
     const auto &Tag = TagSpan[I];
     MEM_SV_CHECK(TagNameSV, MemInst, Tag.Ptr, Tag.Len,
                  "Failed when accessing the tag name memory."sv)
     Tags.emplace_back(TagNameSV);
+    TagsArgv.emplace_back(Tags.back().c_str());
   }
 
   // Check the return value: SessionIdPtr should be valid.
   MEM_PTR_CHECK(SessionId, MemInst, uint32_t, SessionIdPtr,
                 "Failed when accessing the return SessionID memory."sv)
 
-  // TODO: Implement here.
+  // Create context and import graph.
+  uint32_t NewID = Env.newContext();
+  SESSION_CHECK(Cxt, NewID, "Failed when allocating resources."sv,
+                ErrNo::MissingMemory)
 
+  // Create session.
+  Cxt->Graph = TF_NewGraph();
+  Cxt->GraphOpts = TF_NewImportGraphDefOptions();
+  Cxt->SessionOpts = TF_NewSessionOptions();
+  Cxt->Session = TF_LoadSessionFromSavedModel(
+      Cxt->SessionOpts, nullptr, std::string(PathSV).c_str(), TagsArgv.data(),
+      TagsArgv.size(), Cxt->Graph, nullptr, Cxt->Stat);
+  if (unlikely(TF_GetCode(Cxt->Stat) != TF_OK)) {
+    spdlog::error("[WasmEdge-Tensorflow] Unable to create session: {}"sv,
+                  TF_Message(Cxt->Stat));
+    Env.deleteContext(NewID);
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  }
+
+  *SessionId = NewID;
   return static_cast<uint32_t>(ErrNo::Success);
 }
 

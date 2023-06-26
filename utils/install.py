@@ -1183,7 +1183,7 @@ class Compat:
                     if (
                         VersionString(__platform_dist[1]).compare("20.04") >= 0
                         or VersionString(__lsb_rel).compare("20.04") >= 0
-                    ):
+                    ) and self.machine in ["x86_64", "amd64"]:
                         self.dist = "ubuntu20.04"
                     else:
                         self.dist = "manylinux2014"
@@ -1191,10 +1191,13 @@ class Compat:
                     __lsb_rel = run_shell_command(
                         "cat /etc/lsb-release 2>/dev/null | grep RELEASE"
                     )[-5:]
-                    if VersionString(__lsb_rel).compare(
-                        "20.04"
-                    ) >= 0 or "Ubuntu 20.04" in run_shell_command(
-                        "lsb_release -d 2>/dev/null | awk -F'\t' '{print $2}'"
+                    if (
+                        VersionString(__lsb_rel).compare("20.04") >= 0
+                        or "Ubuntu 20.04"
+                        in run_shell_command(
+                            "lsb_release -d 2>/dev/null | awk -F'\t' '{print $2}'"
+                        )
+                        and self.machine in ["x86_64", "amd64"]
                     ):
                         self.dist = "ubuntu20.04"
                     else:

@@ -37,6 +37,8 @@ struct Wasm_z_stream {
   uint32_t reserved;
 }; // 56 bytes
 
+static_assert(sizeof(Wasm_z_stream) == 56, "Wasm_z_stream should be 56 bytes");
+
 namespace WasmEdge {
 namespace Host {
 

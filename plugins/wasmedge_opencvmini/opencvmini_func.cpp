@@ -25,30 +25,26 @@ WasmEdgeOpenCVMiniImdecode::body(const Runtime::CallingFrame &Frame,
   std::vector<char> Content(Buf, Buf + BufLen);
   cv::Mat Img = cv::imdecode(cv::InputArray(Content), cv::IMREAD_COLOR);
 
-  // cv::Mat::flags contains magic signature & I believe it's a good enough key
-  // for this purpose.
-  Env.MatPool[static_cast<uint32_t>(Img.flags)] = Img;
-
-  return static_cast<uint32_t>(Img.flags);
+  return Env.insertMat(Img);
 }
 
 Expect<void> WasmEdgeOpenCVMiniImshow::body(const Runtime::CallingFrame &Frame,
                                             uint32_t WindowNamePtr,
                                             uint32_t WindowNameLen,
                                             uint32_t MatKey) {
-  if (auto V = Env.MatPool.find(MatKey); V != Env.MatPool.end()) {
-    std::string WindowName;
+  std::string WindowName;
 
-    // Check memory instance from module.
-    auto *MemInst = Frame.getMemoryByIndex(0);
-    if (MemInst == nullptr) {
-      return Unexpect(ErrCode::Value::HostFuncError);
-    }
+  // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
 
-    char *Buf = MemInst->getPointer<char *>(WindowNamePtr);
-    std::copy_n(Buf, WindowNameLen, std::back_inserter(WindowName));
+  char *Buf = MemInst->getPointer<char *>(WindowNamePtr);
+  std::copy_n(Buf, WindowNameLen, std::back_inserter(WindowName));
 
-    cv::imshow(WindowName.c_str(), V->second);
+  if (auto Img = Env.getMat(MatKey); Img) {
+    cv::imshow(WindowName.c_str(), *Img);
   }
 
   return {};
@@ -57,6 +53,37 @@ Expect<void> WasmEdgeOpenCVMiniImshow::body(const Runtime::CallingFrame &Frame,
 Expect<void> WasmEdgeOpenCVMiniWaitKey::body(const Runtime::CallingFrame &,
                                              uint32_t Delay) {
   cv::waitKey(static_cast<int>(Delay));
+  return {};
+}
+
+Expect<uint32_t> WasmEdgeOpenCVMiniBlur::body(const Runtime::CallingFrame &,
+                                              uint32_t SrcMatKey) {
+  cv::Mat Dst;
+  if (auto Src = Env.getMat(SrcMatKey); Src) {
+    cv::blur(*Src, Dst, cv::Size(5, 5));
+  }
+  return Env.insertMat(Dst);
+}
+
+Expect<void> WasmEdgeOpenCVMiniImwrite::body(const Runtime::CallingFrame &Frame,
+                                             uint32_t TargetFileNamePtr,
+                                             uint32_t TargetFileNameLen,
+                                             uint32_t MatKey) {
+  std::string TargetFileName;
+
+  // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  char *Buf = MemInst->getPointer<char *>(TargetFileNamePtr);
+  std::copy_n(Buf, TargetFileNameLen, std::back_inserter(TargetFileName));
+
+  if (auto Img = Env.getMat(MatKey); Img) {
+    cv::imwrite(TargetFileName.c_str(), *Img);
+  }
+
   return {};
 }
 

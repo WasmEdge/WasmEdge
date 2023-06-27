@@ -36,5 +36,25 @@ public:
   Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t Delay);
 };
 
+class WasmEdgeOpenCVMiniBlur
+    : public WasmEdgeOpenCVMini<WasmEdgeOpenCVMiniBlur> {
+public:
+  WasmEdgeOpenCVMiniBlur(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t SrcMatKey);
+};
+
+class WasmEdgeOpenCVMiniImwrite
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniImwrite> {
+public:
+  WasmEdgeOpenCVMiniImwrite(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+
+  Expect<void> body(const Runtime::CallingFrame &Frame,
+                    uint32_t TargetFileNamePtr, uint32_t TargetFileNameLen,
+                    uint32_t SrcMatKey);
+};
+
 } // namespace Host
 } // namespace WasmEdge

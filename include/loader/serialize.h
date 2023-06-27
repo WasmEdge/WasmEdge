@@ -89,6 +89,11 @@ private:
     serializeU32(Num, OutVec, OutVec.end());
   }
 
+  void serializeVec(std::vector<uint8_t> &Vec, std::vector<uint8_t> &OutVec) {
+    serializeU32(Vec.size(), OutVec);
+    OutVec.insert(OutVec.end(), Vec.begin(), Vec.end());
+  }
+
   template <typename T, typename L>
   std::vector<uint8_t> serializeSectionContent(const T &Sec, uint8_t Code,
                                                L &&Func) {

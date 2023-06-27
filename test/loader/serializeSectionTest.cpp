@@ -224,6 +224,45 @@ TEST(SerializeSectionTest, SerializeStartSection) {
   EXPECT_EQ(Output, Expected);
 }
 
+TEST(SerializeSectionTest, SerializeElementSection) {
+  WasmEdge::AST::ElementSection ElementSec;
+  ElementSec.setContentSize(1);
+
+  WasmEdge::AST::ElementSegment ElementSeg1;
+  ElementSeg1.setMode(WasmEdge::AST::ElementSegment::ElemMode::Active);
+
+  WasmEdge::AST::Expression Expr;
+  Expr.getInstrs() = {
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne)
+  };
+  ElementSeg1.getExpr() = Expr;
+
+  WasmEdge::AST::Expression InitExpr;
+  auto RefFunc1 = WasmEdge::AST::Instruction(WasmEdge::OpCode::Ref__func);
+  RefFunc1.getTargetIndex() = 0x0A;
+  auto RefFunc2 = WasmEdge::AST::Instruction(WasmEdge::OpCode::Ref__func);
+  RefFunc2.getTargetIndex() = 0x0B;
+  auto RefFunc3 = WasmEdge::AST::Instruction(WasmEdge::OpCode::Ref__func);
+  RefFunc3.getTargetIndex() = 0x0C;
+  InitExpr.getInstrs() = {RefFunc1, RefFunc2, RefFunc3};
+  ElementSeg1.getInitExprs() = {InitExpr};
+
+  ElementSec.getContent() = {ElementSeg1};
+
+  std::vector<uint8_t> Output = Ser.serializeSection(ElementSec);
+  std::vector<uint8_t> Expected = {
+      0x09U, // Element section
+      0x0AU, // Content size = 10
+      0x01U, // Vector length = 1
+      0x00U,                      // Prefix 0x00
+      0x45U, 0x46U, 0x47U, 0x0BU, // Expression
+      0x03U, 0x0AU, 0x0BU, 0x0CU  // Vec(3)
+  };
+  EXPECT_EQ(Output, Expected);
+}
+
 TEST(SerializeSectionTest, SerializeCodeSection) {
   WasmEdge::AST::CodeSection CodeSec;
   WasmEdge::AST::CodeSegment CodeSeg;

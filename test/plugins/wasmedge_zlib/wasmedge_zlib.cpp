@@ -64,7 +64,7 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
   auto &MemInst = *MemInstPtr;
   uint32_t
       // WASM Memory Heap Pointer
-      wasm_hp = 0,
+      wasm_hp = 1,
       wasm_data, wasm_zlib_version, wasm_z_stream, wasm_compressed_data,
       wasm_decompressed_data;
   uint32_t wasm_compressed_data_size = 0, wasm_decompressed_data_size = 0;

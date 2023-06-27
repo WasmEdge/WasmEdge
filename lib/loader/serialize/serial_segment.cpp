@@ -16,8 +16,8 @@ void Serializer::serializeSegment(const AST::ElementSegment &Seg,
                                   std::vector<uint8_t> &OutVec) {
   // Element segment: u32 + tableidx:u32 + offset:expr + elemkind:reftype + vec(u32) + vec(expr)
   // TODO: check proposals
+  std::vector<uint8_t> Result;
   uint8_t Mode = 0x00;
-  auto ModePosition = OutVec.end();
   switch (Seg.getMode()) {
   case AST::ElementSegment::ElemMode::Declarative:
     Mode |= 0x02;
@@ -30,9 +30,9 @@ void Serializer::serializeSegment(const AST::ElementSegment &Seg,
     break;
   }
 
-  // Serialize idx
+  // Serialize idx.
   if (Seg.getIdx() != 0) {
-    serializeU32(Seg.getIdx(), OutVec);
+    serializeU32(Seg.getIdx(), Result);
     if (Seg.getMode() == AST::ElementSegment::ElemMode::Active) {
       Mode |= 0x02;
     } else {
@@ -41,35 +41,38 @@ void Serializer::serializeSegment(const AST::ElementSegment &Seg,
     }
   }
 
+  // Serialize OffExpr.
   if (Seg.getMode() == AST::ElementSegment::ElemMode::Active) {
-    serializeExpression(Seg.getExpr(), OutVec);
+    serializeExpression(Seg.getExpr(), Result);
   }
 
-  if (Mode == 0) {
-    // TODO: not sure whether elementType can be a FuncRef.
-    if (Seg.getRefType() == RefType::FuncRef) {
-      serializeU32(0x00, OutVec);
-    } else {
-      serializeU32(static_cast<uint8_t>(Seg.getRefType()), OutVec);
-      Mode |= 0x04;
+  if (Seg.getRefType() == RefType::FuncRef) {
+    if (Mode != 0x00) {
+      // Serialize ElemKind.
+      serializeU32(0x00, Result);
     }
+  } else {
+    // Serialize RefType.
+    serializeU32(static_cast<uint8_t>(Seg.getRefType()), Result);
+    Mode |= 0x04;
+  }
 
-    for (auto Expr : Seg.getInitExprs()) {
-      if (Mode & 0x04) {
-        // vec(expr)
-        serializeExpression(Expr, OutVec);
-      } else {
-        // vec(expr)
-        for (auto Instr : Expr.getInstrs()) {
-          serializeU32(Instr.getTargetIndex(), OutVec);
-        }
-        serializeU32(0x0B, OutVec);
+  std::vector<uint8_t> Vec;
+  for (auto Expr : Seg.getInitExprs()) {
+    if (Mode & 0x04) {
+      // Serialize vec(expr).
+      serializeExpression(Expr, Vec);
+    } else {
+      // Serialize vec(FuncIdx).
+      for (auto Instr : Expr.getInstrs()) {
+        serializeU32(Instr.getTargetIndex(), Vec);
       }
     }
-    serializeU32(0x0B, OutVec);
   }
+  serializeVec(Vec, Result);
 
-  serializeU32(Mode, OutVec, ModePosition);
+  serializeU32(Mode, Result, Result.begin());
+  OutVec.insert(OutVec.end(), Result.begin(), Result.end());
 }
 
 // Serialize code segment. See "include/loader/serialize.h".

@@ -15,6 +15,7 @@
 #pragma once
 
 #include "ast/module.h"
+#include "common/async.h"
 #include "common/configure.h"
 #include "common/defines.h"
 #include "common/errcode.h"
@@ -125,8 +126,13 @@ public:
 
   /// Invoke a WASM function by function instance.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
-  invoke(const Runtime::Instance::FunctionInstance &FuncInst,
+  invoke(const Runtime::Instance::FunctionInstance *FuncInst,
          Span<const ValVariant> Params, Span<const ValType> ParamTypes);
+
+  /// Asynchronous invoke a WASM function by function instance.
+  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+  asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
+              Span<const ValVariant> Params, Span<const ValType> ParamTypes);
 
   /// Stop execution
   void stop() noexcept {

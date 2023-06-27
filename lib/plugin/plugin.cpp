@@ -13,10 +13,7 @@
 #include <pwd.h>
 #include <unistd.h>
 #elif WASMEDGE_OS_WINDOWS
-#include <windows.h>
-
-#include <KnownFolders.h>
-#include <ShlObj.h>
+#include "system/winapi.h"
 #endif
 
 namespace WasmEdge {
@@ -285,13 +282,22 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
   if (const auto HomeEnv = ::getenv("USERPROFILE")) {
     Home = std::filesystem::u8path(HomeEnv);
   } else {
+#if NTDDI_VERSION >= NTDDI_VISTA
     wchar_t *Path = nullptr;
-    if (HRESULT Res =
-            ::SHGetKnownFolderPath(FOLDERID_Profile, 0, nullptr, &Path);
-        SUCCEEDED(Res)) {
+    if (winapi::HRESULT_ Res = winapi::SHGetKnownFolderPath(
+            winapi::FOLDERID_Profile, 0, nullptr, &Path);
+        winapi::SUCCEEDED_(Res)) {
       Home = std::filesystem::path(Path);
-      ::CoTaskMemFree(Path);
+      winapi::CoTaskMemFree(Path);
     }
+#else
+    wchar_t Path[winapi::MAX_PATH_];
+    if (winapi::HRESULT_ Res = winapi::SHGetFolderPathW(
+            nullptr, winapi::CSIDL_PROFILE_, nullptr, 0, Path);
+        winapi::SUCCEEDED_(Res)) {
+      Home = std::filesystem::path(Path);
+    }
+#endif
   }
   Result.push_back(Home / std::filesystem::u8path(".wasmedge"sv) /
                    std::filesystem::u8path("plugin"sv));

@@ -14,43 +14,7 @@
 #include <utility>
 
 #if WASMEDGE_OS_WINDOWS
-#include <boost/winapi/dll.hpp>
-#include <boost/winapi/error_handling.hpp>
-#include <boost/winapi/local_memory.hpp>
-
-#if !defined(BOOST_USE_WINDOWS_H)
-extern "C" {
-struct _IMAGE_RUNTIME_FUNCTION_ENTRY;
-}
-#endif
-
-namespace boost::winapi {
-typedef struct BOOST_MAY_ALIAS _IMAGE_RUNTIME_FUNCTION_ENTRY {
-  DWORD_ BeginAddress;
-  DWORD_ EndAddress;
-  union {
-    DWORD_ UnwindInfoAddress;
-    DWORD_ UnwindData;
-  } DUMMYUNIONNAME;
-} RUNTIME_FUNCTION_, *PRUNTIME_FUNCTION_;
-} // namespace boost::winapi
-
-#if !defined(BOOST_USE_WINDOWS_H)
-extern "C" {
-BOOST_SYMBOL_IMPORT boost::winapi::BOOLEAN_ BOOST_WINAPI_WINAPI_CC
-RtlAddFunctionTable(boost::winapi::PRUNTIME_FUNCTION_ FunctionTable,
-                    boost::winapi::ULONG_ EntryCount,
-                    boost::winapi::ULONG_PTR_ BaseAddress);
-BOOST_SYMBOL_IMPORT boost::winapi::BOOLEAN_ BOOST_WINAPI_WINAPI_CC
-RtlDeleteFunctionTable(boost::winapi::PRUNTIME_FUNCTION_ FunctionTable);
-}
-#endif
-namespace boost::winapi {
-using ::RtlAddFunctionTable;
-using ::RtlDeleteFunctionTable;
-} // namespace boost::winapi
-
-namespace winapi = boost::winapi;
+#include "system/winapi.h"
 #elif WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <dlfcn.h>
 #else
@@ -82,7 +46,7 @@ namespace Loader {
 // Open so file. See "include/loader/shared_library.h".
 Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
 #if WASMEDGE_OS_WINDOWS
-  Handle = winapi::load_library_ex(Path.c_str(), nullptr, 0);
+  Handle = winapi::LoadLibraryExW(Path.c_str(), nullptr, 0);
 #else
   Handle = ::dlopen(Path.c_str(), RTLD_LAZY | RTLD_LOCAL);
 #endif
@@ -91,7 +55,7 @@ Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
 #if WASMEDGE_OS_WINDOWS
     const auto Code = winapi::GetLastError();
     winapi::LPSTR_ ErrorText = nullptr;
-    if (winapi::format_message(winapi::FORMAT_MESSAGE_FROM_SYSTEM_ |
+    if (winapi::FormatMessageA(winapi::FORMAT_MESSAGE_FROM_SYSTEM_ |
                                    winapi::FORMAT_MESSAGE_ALLOCATE_BUFFER_ |
                                    winapi::FORMAT_MESSAGE_IGNORE_INSERTS_,
                                nullptr, Code,
@@ -205,7 +169,7 @@ void *SharedLibrary::getSymbolAddr(const char *Name) const noexcept {
     return nullptr;
   }
 #if WASMEDGE_OS_WINDOWS
-  return reinterpret_cast<void *>(winapi::get_proc_address(Handle, Name));
+  return reinterpret_cast<void *>(winapi::GetProcAddress(Handle, Name));
 #else
   return ::dlsym(Handle, Name);
 #endif

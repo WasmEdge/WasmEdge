@@ -16,30 +16,7 @@
 #include <vector>
 
 #if WASMEDGE_OS_WINDOWS
-#include <boost/winapi/basic_types.hpp>
-#if !defined(BOOST_USE_WINDOWS_H)
-extern "C" {
-BOOST_WINAPI_IMPORT boost::winapi::HANDLE_ BOOST_WINAPI_WINAPI_CC
-GetStdHandle(boost::winapi::DWORD_ nStdHandle);
-}
-#else
-#include <winternl.h>
-#endif
-
-namespace boost::winapi {
-#if defined(BOOST_USE_WINDOWS_H)
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_INPUT_HANDLE_ = STD_INPUT_HANDLE;
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = STD_OUTPUT_HANDLE;
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_ERROR_HANDLE_ = STD_ERROR_HANDLE;
-#else
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_INPUT_HANDLE_ = static_cast<DWORD_>(-10);
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = static_cast<DWORD_>(-11);
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_ERROR_HANDLE_ = static_cast<DWORD_>(-12);
-#endif
-BOOST_FORCEINLINE HANDLE_ GetStdHandle(DWORD_ nStdHandle) {
-  return ::GetStdHandle(nStdHandle);
-}
-} // namespace boost::winapi
+#include "system/winapi.h"
 #endif
 
 namespace {
@@ -948,8 +925,8 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.wasm")));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
-      Compiler, "../spec/testSuites/core/binary/binary.164.wasm",
-      "binary_164_aot.wasm")));
+      Compiler, "../spec/testSuites/core/binary/binary.55.wasm",
+      "success_aot.wasm")));
   // File not found
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
                          WasmEdge_CompilerCompile(Compiler, "not_exist.wasm",
@@ -959,14 +936,14 @@ TEST(APICoreTest, Compiler) {
       WasmEdge_ErrCode_UnexpectedEnd,
       WasmEdge_CompilerCompile(Compiler,
                                "../spec/testSuites/core/binary/binary.4.wasm",
-                               "binary_4_aot.wasm")));
+                               "parse_error_aot.wasm")));
   WasmEdge_CompilerDelete(Compiler);
   // Check the header of the output files.
   OutFile.open("test_aot.wasm", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_TRUE(std::equal(WASMMagic, WASMMagic + 4, Buf));
-  OutFile.open("binary_164_aot.wasm", std::ios::binary);
+  OutFile.open("success_aot.wasm", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_TRUE(std::equal(WASMMagic, WASMMagic + 4, Buf));
@@ -978,14 +955,14 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
       Compiler, TPath, "test_aot" WASMEDGE_LIB_EXTENSION)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
-      Compiler, "../spec/testSuites/core/binary/binary.164.wasm",
-      "binary_164_aot" WASMEDGE_LIB_EXTENSION)));
+      Compiler, "../spec/testSuites/core/binary/binary.55.wasm",
+      "success_aot" WASMEDGE_LIB_EXTENSION)));
   // Check the header of the output files.
   OutFile.open("test_aot" WASMEDGE_LIB_EXTENSION, std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
-  OutFile.open("binary_164_aot" WASMEDGE_LIB_EXTENSION, std::ios::binary);
+  OutFile.open("success_aot" WASMEDGE_LIB_EXTENSION, std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
@@ -1996,11 +1973,40 @@ TEST(APICoreTest, ModuleInstance) {
   WasmEdge_TableInstanceContext *HostTable = nullptr;
   WasmEdge_MemoryInstanceContext *HostMemory = nullptr;
   WasmEdge_GlobalInstanceContext *HostGlobal = nullptr;
+  auto HostFinalizer = [](void *Data) {
+    std::cout << "Data address: " << Data << std::endl;
+  };
   enum WasmEdge_ValType Param[2], Result[1];
 
   // Create module instance with name ""
   HostMod = WasmEdge_ModuleInstanceCreate({.Length = 0, .Buf = nullptr});
   EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(nullptr), nullptr);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+
+  // Create module instance with empty host data and finalizer
+  HostMod = WasmEdge_ModuleInstanceCreateWithData({.Length = 0, .Buf = nullptr},
+                                                  nullptr, nullptr);
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), nullptr);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+
+  // Create module instance with host data and finalizer
+  HostMod = WasmEdge_ModuleInstanceCreateWithData({.Length = 0, .Buf = nullptr},
+                                                  nullptr, HostFinalizer);
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), nullptr);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  HostMod = WasmEdge_ModuleInstanceCreateWithData({.Length = 0, .Buf = nullptr},
+                                                  &HostName, nullptr);
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), &HostName);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  HostMod = WasmEdge_ModuleInstanceCreateWithData({.Length = 0, .Buf = nullptr},
+                                                  &HostName, HostFinalizer);
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), &HostName);
   WasmEdge_ModuleInstanceDelete(HostMod);
 
   // Create module instance with name "extern"
@@ -2094,7 +2100,7 @@ TEST(APICoreTest, ModuleInstance) {
     // STDIN
 #if WASMEDGE_OS_WINDOWS
     const uint64_t StdIn = reinterpret_cast<uint64_t>(
-        boost::winapi::GetStdHandle(boost::winapi::STD_INPUT_HANDLE_));
+        WasmEdge::winapi::GetStdHandle(WasmEdge::winapi::STD_INPUT_HANDLE_));
 #else
     const uint64_t StdIn = STDIN_FILENO;
 #endif
@@ -2108,7 +2114,7 @@ TEST(APICoreTest, ModuleInstance) {
     // STDOUT
 #if WASMEDGE_OS_WINDOWS
     const uint64_t StdOut = reinterpret_cast<uint64_t>(
-        boost::winapi::GetStdHandle(boost::winapi::STD_OUTPUT_HANDLE_));
+        WasmEdge::winapi::GetStdHandle(WasmEdge::winapi::STD_OUTPUT_HANDLE_));
 #else
     const uint64_t StdOut = STDOUT_FILENO;
 #endif
@@ -2122,7 +2128,7 @@ TEST(APICoreTest, ModuleInstance) {
     // STDERR
 #if WASMEDGE_OS_WINDOWS
     const uint64_t StdErr = reinterpret_cast<uint64_t>(
-        boost::winapi::GetStdHandle(boost::winapi::STD_ERROR_HANDLE_));
+        WasmEdge::winapi::GetStdHandle(WasmEdge::winapi::STD_ERROR_HANDLE_));
 #else
     const uint64_t StdErr = STDERR_FILENO;
 #endif
@@ -2165,6 +2171,8 @@ TEST(APICoreTest, ModuleInstance) {
 
 TEST(APICoreTest, Async) {
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(nullptr, nullptr);
+  WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+  WasmEdge_ExecutorContext *Exec = WasmEdge_ExecutorCreate(nullptr, nullptr);
   WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
   WasmEdge_VMRegisterModuleFromImport(VM, HostMod);
   WasmEdge_String ModName, ModName2, FuncName, FuncName2;
@@ -2616,6 +2624,83 @@ TEST(APICoreTest, Async) {
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
   WasmEdge_AsyncDelete(Async);
 
+  // Async Executor invoke
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_ExecutorRegisterImport(Exec, Store, HostMod)));
+  WasmEdge_ModuleInstanceContext *ModInst = nullptr;
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInstantiate(Exec, &ModInst, Store, Mod)));
+  EXPECT_NE(ModInst, nullptr);
+  WasmEdge_FunctionInstanceContext *FuncInst =
+      WasmEdge_ModuleInstanceFindFunction(ModInst, FuncName);
+  EXPECT_NE(FuncInst, nullptr);
+  // Success case
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  WasmEdge_AsyncWait(Async);
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(Async), 2);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[0].Type);
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[1].Type);
+  WasmEdge_AsyncDelete(Async);
+  // Executor nullptr case
+  Async = WasmEdge_ExecutorAsyncInvoke(nullptr, FuncInst, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // Function instance nullptr case
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, nullptr, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // Function type mismatch
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 1);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, nullptr, 0);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, nullptr, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Discard result
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 1)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[0].Type);
+  EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[1].Type);
+  // Discard result
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
+  WasmEdge_AsyncDelete(Async);
+
   WasmEdge_StringDelete(FuncName);
   WasmEdge_StringDelete(FuncName2);
   WasmEdge_StringDelete(ModName);
@@ -2623,6 +2708,8 @@ TEST(APICoreTest, Async) {
   WasmEdge_ASTModuleDelete(Mod);
   WasmEdge_ModuleInstanceDelete(HostMod);
   WasmEdge_VMDelete(VM);
+  WasmEdge_StoreDelete(Store);
+  WasmEdge_ExecutorDelete(Exec);
 }
 
 TEST(APICoreTest, VM) {
@@ -2630,7 +2717,7 @@ TEST(APICoreTest, VM) {
   WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
   WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
   WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
-  WasmEdge_String ModName, ModName2, FuncName, FuncName2, Names[15];
+  WasmEdge_String ModName, ModName2, FuncName, FuncName2, Names[20];
   WasmEdge_Value P[10], R[10];
   const WasmEdge_FunctionTypeContext *FuncTypes[15];
 
@@ -2879,16 +2966,16 @@ TEST(APICoreTest, VM) {
       WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, nullptr, 1)));
 
   // VM get registered module
-  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 12U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 16U);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(nullptr), 0U);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(nullptr, Names, 15), 0U);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 15), 12U);
-  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 12U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(nullptr, Names, 20), 0U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 20), 16U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 20);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 16U);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
   EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string(""));
-  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 15), 12U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 20);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 20), 16U);
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
   EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length),
             std::string("reg-wasm-ast"));

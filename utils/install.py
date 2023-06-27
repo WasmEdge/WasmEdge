@@ -1103,7 +1103,12 @@ def run_shell_command(cmd):
         if "Cannot detect installation path" in str(e.output):
             logging.warning("Uninstaller did not find previous installation")
         else:
-            print("Exception on process, rc=", e.returncode, "output=", e.output, e.cmd)
+            logging.error(
+                "Exception on process - rc= %s output= %s command= %s",
+                e.returncode,
+                e.output,
+                e.cmd,
+            )
 
     return ""
 
@@ -1171,20 +1176,28 @@ class Compat:
 
             if self.dist is None:
                 if sys.version_info[0] == 2:
+                    __lsb_rel = run_shell_command(
+                        "cat /etc/lsb-release 2>/dev/null | grep RELEASE"
+                    )[-5:]
+                    __platform_dist = platform.dist()
                     if (
-                        "Ubuntu" in platform.dist() and "20.04" in platform.dist()
-                    ) or "Ubuntu 20.04" in run_shell_command(
-                        "lsb_release -d | awk -F'\t' '{print $2}'"
-                    ):
+                        VersionString(__platform_dist[1]).compare("20.04") >= 0
+                        or VersionString(__lsb_rel).compare("20.04") >= 0
+                    ) and self.machine in ["x86_64", "amd64"]:
                         self.dist = "ubuntu20.04"
                     else:
                         self.dist = "manylinux2014"
                 elif sys.version_info[0] == 3:
                     __lsb_rel = run_shell_command(
-                        "cat /etc/lsb-release | grep RELEASE"
+                        "cat /etc/lsb-release 2>/dev/null | grep RELEASE"
                     )[-5:]
-                    if "20.04" == __lsb_rel or "Ubuntu 20.04" in run_shell_command(
-                        "lsb_release -d | awk -F'\t' '{print $2}'"
+                    if (
+                        VersionString(__lsb_rel).compare("20.04") >= 0
+                        or "Ubuntu 20.04"
+                        in run_shell_command(
+                            "lsb_release -d 2>/dev/null | awk -F'\t' '{print $2}'"
+                        )
+                        and self.machine in ["x86_64", "amd64"]
                     ):
                         self.dist = "ubuntu20.04"
                     else:

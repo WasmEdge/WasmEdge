@@ -29,7 +29,7 @@ WasmEdge 会基于最新版本的 LLVM 来创建我们的每日构建。如果�
 
 ```bash
 # 工具和库
-$ brew install boost cmake ninja llvm@12
+$ brew install cmake ninja llvm@12
 # 使用 brew 版本的 llvm，而不是系统自带的 LLVM。
 $ export PATH="/usr/local/opt/llvm@12/bin:$PATH"
 $ export LDFLAGS="-L/usr/local/opt/llvm@12/lib -Wl，-rpath，/usr/local/opt/llvm@12/lib"

@@ -11,8 +11,6 @@ on:
         required: true
       release:
         type: boolean
-      upload_asset_url:
-        type: string
 
 jobs:
   build_on_macos:
@@ -31,7 +29,7 @@ jobs:
           fetch-depth: 0
       - name: Setup build environment
         run: |
-          brew install llvm ninja boost cmake
+          brew install llvm ninja cmake
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |
@@ -39,23 +37,18 @@ jobs:
           echo "BUILD_TYPE=Release" | tee -a $GITHUB_ENV
       - name: Build WasmEdge
         run: |
-          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
+          export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
-          rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          rm -rf build output
+          mkdir -p output
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" -DCMAKE_INSTALL_PREFIX:PATH=$GITHUB_WORKSPACE/output .
           cmake --build build
       - name: Test WasmEdge
         run: |
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           cd build
-          ctest -E wasiSocketTests
-      - name: Test WasmEdge (continue on error)
-        continue-on-error: true
-        run: |
-          export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
-          cd build
-          ctest -R wasiSocketTests
+          ctest
       - name: Create package tarball
         run: |
           cmake --build build --target package
@@ -81,15 +74,12 @@ jobs:
         if: ${{ !inputs.release }}
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-${{ inputs.version }}-darwin_${{ matrix.darwin_version }}_x86_64.tar.gz
+          name: WasmEdge-${{ inputs.version }}-darwin_${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz
       - name: Upload package tarball
         if: ${{ inputs.release }}
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ inputs.upload_asset_url }}
-          asset_name: WasmEdge-${{ inputs.version }}-darwin_x86_64.tar.gz
-          asset_path: build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz
-          asset_content_type: application/x-gzip
+        run: |
+          mv build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz WasmEdge-${{ inputs.version }}-darwin_${{ matrix.arch }}.tar.gz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber

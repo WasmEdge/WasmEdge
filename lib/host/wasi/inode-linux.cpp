@@ -2,16 +2,18 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "common/defines.h"
-#include <cstdint>
-#include <cstring>
 #if WASMEDGE_OS_LINUX
 
 #include "common/errcode.h"
+#include "common/variant.h"
 #include "host/wasi/environ.h"
 #include "host/wasi/inode.h"
 #include "host/wasi/vfs.h"
 #include "linux.h"
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <new>
 #include <string>
 #include <string_view>
@@ -22,16 +24,6 @@ namespace Host {
 namespace WASI {
 
 namespace {
-
-static __wasi_address_family_t *getAddressFamily(uint8_t *AddressBuf) {
-  return reinterpret_cast<__wasi_address_family_t *>(AddressBuf);
-}
-
-static uint8_t *getAddress(uint8_t *AddressBuf) {
-  // The first 2 bytes is for AddressFamily
-  const auto Diff = sizeof(uint16_t);
-  return &AddressBuf[Diff];
-}
 
 inline constexpr bool isSpecialFd(int Fd) noexcept {
   switch (Fd) {
@@ -55,7 +47,7 @@ calculateAddrinfoLinkedListSize(struct addrinfo *const Addrinfo) {
 };
 
 constexpr int openFlags(__wasi_oflags_t OpenFlags, __wasi_fdflags_t FdFlags,
-                        uint8_t VFSFlags) noexcept {
+                        VFS::Flags VFSFlags) noexcept {
   int Flags = O_NOFOLLOW;
 #ifdef O_CLOEXEC
   Flags |= O_CLOEXEC;
@@ -173,7 +165,7 @@ INode INode::stdErr() noexcept { return INode(STDERR_FILENO); }
 
 WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
                               __wasi_fdflags_t FdFlags,
-                              uint8_t VFSFlags) noexcept {
+                              VFS::Flags VFSFlags) noexcept {
   const int Flags = openFlags(OpenFlags, FdFlags, VFSFlags);
 
   if (auto NewFd = ::open(Path.c_str(), Flags, 0644); unlikely(NewFd < 0)) {
@@ -734,7 +726,7 @@ WasiExpect<void> INode::pathLink(const INode &Old, std::string OldPath,
 
 WasiExpect<INode> INode::pathOpen(std::string Path, __wasi_oflags_t OpenFlags,
                                   __wasi_fdflags_t FdFlags,
-                                  uint8_t VFSFlags) const noexcept {
+                                  VFS::Flags VFSFlags) const noexcept {
   const int Flags = openFlags(OpenFlags, FdFlags, VFSFlags);
 
   if (auto NewFd = ::openat(Fd, Path.c_str(), Flags, 0644);
@@ -862,11 +854,11 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
       // process sa_data in socket address
       size_t SaSize = 0;
       switch (CurSockaddr->sa_family) {
-      case __wasi_address_family_t::__WASI_ADDRESS_FAMILY_INET4:
-        SaSize = sizeof(sockaddr_in) - sizeof(sockaddr_in::sin_family);
+      case __WASI_ADDRESS_FAMILY_INET4:
+        SaSize = sizeof(sockaddr_in) - offsetof(sockaddr_in, sin_port);
         break;
-      case __wasi_address_family_t::__WASI_ADDRESS_FAMILY_INET6:
-        SaSize = sizeof(sockaddr_in6) - sizeof(sockaddr_in6::sin6_family);
+      case __WASI_ADDRESS_FAMILY_INET6:
+        SaSize = sizeof(sockaddr_in6) - offsetof(sockaddr_in6, sin6_port);
         break;
       default:
         assumingUnreachable();
@@ -884,9 +876,7 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
 
 WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
                                   __wasi_sock_type_t SockType) noexcept {
-
   int SysProtocol = IPPROTO_IP;
-
   int SysDomain = 0;
   int SysType = 0;
 
@@ -921,81 +911,34 @@ WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
   }
 }
 
-WasiExpect<void> INode::sockBindV1(uint8_t *Address, uint8_t AddressLength,
-                                   uint16_t Port) noexcept {
-  if (AddressLength == 4) {
-    struct sockaddr_in ServerAddr;
-    ServerAddr.sin_family = AF_INET;
-    ServerAddr.sin_port = htons(Port);
-    std::memcpy(&ServerAddr.sin_addr.s_addr, Address, AddressLength);
-    if (auto Res = ::bind(Fd, reinterpret_cast<struct sockaddr *>(&ServerAddr),
-                          sizeof(ServerAddr));
-        unlikely(Res < 0)) {
-      return WasiUnexpect(fromErrNo(errno));
-    }
-  } else if (AddressLength == 16) {
-    struct sockaddr_in6 ServerAddr;
-    std::memset(&ServerAddr, 0x00, sizeof(ServerAddr));
+WasiExpect<void> INode::sockBind(__wasi_address_family_t AddressFamily,
+                                 Span<const uint8_t> Address,
+                                 uint16_t Port) noexcept {
+  Variant<sockaddr, sockaddr_in, sockaddr_in6> ServerAddr;
+  size_t Size;
 
-    ServerAddr.sin6_family = AF_INET6;
-    ServerAddr.sin6_port = htons(Port);
-    std::memcpy(ServerAddr.sin6_addr.s6_addr, Address, AddressLength);
-    if (auto Res = ::bind(Fd, reinterpret_cast<struct sockaddr *>(&ServerAddr),
-                          sizeof(ServerAddr));
-        unlikely(Res < 0)) {
-      return WasiUnexpect(fromErrNo(errno));
-    }
-  }
-  return {};
-}
-
-WasiExpect<void> INode::sockBindV2(uint8_t *AddressBuf,
-                                   [[maybe_unused]] uint8_t AddressLength,
-                                   uint16_t Port) noexcept {
-  int AddrFamily;
-  uint8_t *Address;
-
-  if (AddressLength != 128) {
-    // Fallback
-    switch (AddressLength) {
-    case 4:
-      AddrFamily = AF_INET;
-      break;
-    case 16:
-      AddrFamily = AF_INET6;
-      break;
-    default:
-      return WasiUnexpect(__WASI_ERRNO_INVAL);
-    }
-    Address = AddressBuf;
-  } else {
-    AddrFamily = toAddressFamily(*getAddressFamily(AddressBuf));
-    Address = getAddress(AddressBuf);
-  }
-
-  struct sockaddr_in ServerAddr4 = {};
-  struct sockaddr_in6 ServerAddr6 = {};
-  struct sockaddr *ServerAddr = nullptr;
-  int RealSize = 0;
-
-  if (AddrFamily == AF_INET) {
-    ServerAddr = reinterpret_cast<struct sockaddr *>(&ServerAddr4);
-    RealSize = sizeof(ServerAddr4);
+  if (AddressFamily == __WASI_ADDRESS_FAMILY_INET4) {
+    auto &ServerAddr4 = ServerAddr.emplace<sockaddr_in>();
+    Size = sizeof(ServerAddr4);
 
     ServerAddr4.sin_family = AF_INET;
     ServerAddr4.sin_port = htons(Port);
-    std::memcpy(&ServerAddr4.sin_addr, Address, sizeof(in_addr));
-  } else if (AddrFamily == AF_INET6) {
-    ServerAddr = reinterpret_cast<struct sockaddr *>(&ServerAddr6);
-    RealSize = sizeof(ServerAddr6);
+    assuming(Address.size() >= sizeof(in_addr));
+    std::memcpy(&ServerAddr4.sin_addr, Address.data(), sizeof(in_addr));
+  } else if (AddressFamily == __WASI_ADDRESS_FAMILY_INET6) {
+    auto &ServerAddr6 = ServerAddr.emplace<sockaddr_in6>();
+    Size = sizeof(ServerAddr6);
 
     ServerAddr6.sin6_family = AF_INET6;
     ServerAddr6.sin6_port = htons(Port);
-    ServerAddr6.sin6_flowinfo = 0;
-    std::memcpy(&ServerAddr6.sin6_addr, Address, sizeof(in6_addr));
+    assuming(Address.size() >= sizeof(in6_addr));
+    std::memcpy(&ServerAddr6.sin6_addr, Address.data(), sizeof(in6_addr));
+  } else {
+    assumingUnreachable();
   }
 
-  if (auto Res = ::bind(Fd, ServerAddr, RealSize); unlikely(Res < 0)) {
+  if (auto Res = ::bind(Fd, &ServerAddr.get<sockaddr>(), Size);
+      unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
   return {};
@@ -1008,138 +951,71 @@ WasiExpect<void> INode::sockListen(int32_t Backlog) noexcept {
   return {};
 }
 
-WasiExpect<INode> INode::sockAcceptV1() noexcept {
-  struct sockaddr_in ServerSocketAddr;
-  ServerSocketAddr.sin_family = AF_INET;
-  ServerSocketAddr.sin_addr.s_addr = INADDR_ANY;
-  socklen_t AddressLen = sizeof(ServerSocketAddr);
-
-  if (auto NewFd =
-          ::accept(Fd, reinterpret_cast<struct sockaddr *>(&ServerSocketAddr),
-                   &AddressLen);
-      unlikely(NewFd < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
-  } else {
-    INode New(NewFd);
-    return New;
-  }
-}
-
-WasiExpect<INode> INode::sockAcceptV2(__wasi_fdflags_t FdFlags) noexcept {
+WasiExpect<INode> INode::sockAccept(__wasi_fdflags_t FdFlags) noexcept {
   int NewFd;
   if (NewFd = ::accept(Fd, nullptr, nullptr); unlikely(NewFd < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
 
   INode New(NewFd);
-  int SysFlag = fcntl(NewFd, F_GETFL, 0);
-  if (FdFlags) {
-    if (FdFlags & __WASI_FDFLAGS_NONBLOCK) {
-      SysFlag |= O_NONBLOCK;
-    }
-  }
 
-  if (auto Res = ::fcntl(Fd, F_SETFL, SysFlag); unlikely(Res != 0)) {
-    return WasiUnexpect(fromErrNo(errno));
-  } else {
-    return New;
-  }
-}
-
-WasiExpect<void> INode::sockConnectV1(uint8_t *Address, uint8_t AddressLength,
-                                      uint16_t Port) noexcept {
-  if (AddressLength == 4) {
-    struct sockaddr_in ClientSocketAddr;
-    ClientSocketAddr.sin_family = AF_INET;
-    ClientSocketAddr.sin_port = htons(Port);
-    std::memcpy(&ClientSocketAddr.sin_addr.s_addr, Address, AddressLength);
-
-    if (auto Res = ::connect(
-            Fd, reinterpret_cast<struct sockaddr *>(&ClientSocketAddr),
-            sizeof(ClientSocketAddr));
-        unlikely(Res < 0)) {
-      return WasiUnexpect(fromErrNo(errno));
-    }
-  } else if (AddressLength == 16) {
-    struct sockaddr_in6 ClientSocketAddr;
-    std::memset(&ClientSocketAddr, 0x00, sizeof(ClientSocketAddr));
-
-    ClientSocketAddr.sin6_family = AF_INET6;
-    ClientSocketAddr.sin6_port = htons(Port);
-    std::memcpy(ClientSocketAddr.sin6_addr.s6_addr, Address, AddressLength);
-    if (auto Res = ::connect(
-            Fd, reinterpret_cast<struct sockaddr *>(&ClientSocketAddr),
-            sizeof(ClientSocketAddr));
-        unlikely(Res < 0)) {
+  if (FdFlags & __WASI_FDFLAGS_NONBLOCK) {
+    int SysFlag = fcntl(NewFd, F_GETFL, 0);
+    SysFlag |= O_NONBLOCK;
+    if (auto Res = ::fcntl(Fd, F_SETFL, SysFlag); unlikely(Res != 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
   }
-  return {};
+
+  return New;
 }
 
-WasiExpect<void> INode::sockConnectV2(uint8_t *AddressBuf,
-                                      [[maybe_unused]] uint8_t AddressLength,
-                                      uint16_t Port) noexcept {
-  int AddrFamily;
-  uint8_t *Address;
+WasiExpect<void> INode::sockConnect(__wasi_address_family_t AddressFamily,
+                                    Span<const uint8_t> Address,
+                                    uint16_t Port) noexcept {
+  Variant<sockaddr, sockaddr_in, sockaddr_in6> ClientAddr;
+  size_t Size;
 
-  if (AddressLength != 128) {
-    // Fallback
-    switch (AddressLength) {
-    case 4:
-      AddrFamily = AF_INET;
-      break;
-    case 16:
-      AddrFamily = AF_INET6;
-      break;
-    default:
-      return WasiUnexpect(__WASI_ERRNO_INVAL);
-    }
-    Address = AddressBuf;
-  } else {
-    AddrFamily = toAddressFamily(*getAddressFamily(AddressBuf));
-    Address = getAddress(AddressBuf);
-  }
-
-  struct sockaddr_in ClientAddr4 {};
-  struct sockaddr_in6 ClientAddr6 {};
-  struct sockaddr *ClientAddr = nullptr;
-  int RealSize = 0;
-
-  if (AddrFamily == AF_INET) {
-    ClientAddr = reinterpret_cast<struct sockaddr *>(&ClientAddr4);
-    RealSize = sizeof(ClientAddr4);
+  if (AddressFamily == __WASI_ADDRESS_FAMILY_INET4) {
+    auto &ClientAddr4 = ClientAddr.emplace<sockaddr_in>();
+    Size = sizeof(ClientAddr4);
 
     ClientAddr4.sin_family = AF_INET;
     ClientAddr4.sin_port = htons(Port);
-    std::memcpy(&ClientAddr4.sin_addr, Address, sizeof(in_addr));
-  } else if (AddrFamily == AF_INET6) {
-    ClientAddr = reinterpret_cast<struct sockaddr *>(&ClientAddr6);
-    RealSize = sizeof(ClientAddr6);
+    assuming(Address.size() >= sizeof(in_addr));
+    std::memcpy(&ClientAddr4.sin_addr, Address.data(), sizeof(in_addr));
+  } else if (AddressFamily == __WASI_ADDRESS_FAMILY_INET6) {
+    auto &ClientAddr6 = ClientAddr.emplace<sockaddr_in6>();
+    Size = sizeof(ClientAddr6);
 
     ClientAddr6.sin6_family = AF_INET6;
-    ClientAddr6.sin6_flowinfo = 0;
     ClientAddr6.sin6_port = htons(Port);
-    std::memcpy(&ClientAddr6.sin6_addr, Address, sizeof(in6_addr));
+    assuming(Address.size() >= sizeof(in6_addr));
+    std::memcpy(&ClientAddr6.sin6_addr, Address.data(), sizeof(in6_addr));
+  } else {
+    assumingUnreachable();
   }
 
-  if (auto Res = ::connect(Fd, ClientAddr, RealSize); unlikely(Res < 0)) {
+  if (auto Res = ::connect(Fd, &ClientAddr.get<sockaddr>(), Size);
+      unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
+
   return {};
 }
 
 WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>> RiData,
                                  __wasi_riflags_t RiFlags, __wasi_size_t &NRead,
                                  __wasi_roflags_t &RoFlags) const noexcept {
-  return sockRecvFromV1(RiData, RiFlags, nullptr, 0, NRead, RoFlags);
+  return sockRecvFrom(RiData, RiFlags, nullptr, {}, nullptr, NRead, RoFlags);
 }
 
-WasiExpect<void>
-INode::sockRecvFromV1(Span<Span<uint8_t>> RiData, __wasi_riflags_t RiFlags,
-                      uint8_t *Address, uint8_t AddressLength,
-                      __wasi_size_t &NRead,
-                      __wasi_roflags_t &RoFlags) const noexcept {
+WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
+                                     __wasi_riflags_t RiFlags,
+                                     __wasi_address_family_t *AddressFamilyPtr,
+                                     Span<uint8_t> Address, uint16_t *PortPtr,
+                                     __wasi_size_t &NRead,
+                                     __wasi_roflags_t &RoFlags) const noexcept {
   int SysRiFlags = 0;
   if (RiFlags & __WASI_RIFLAGS_RECV_PEEK) {
     SysRiFlags |= MSG_PEEK;
@@ -1156,18 +1032,17 @@ INode::sockRecvFromV1(Span<Span<uint8_t>> RiData, __wasi_riflags_t RiFlags,
     ++SysIOVsSize;
   }
 
-  sockaddr_storage SockAddrStorage{};
-
-  int MaxAllowLength = 0;
-  if (AddressLength == 4) {
-    MaxAllowLength = sizeof(sockaddr_in);
-  } else if (AddressLength == 16) {
-    MaxAllowLength = sizeof(sockaddr_in6);
-  }
-
+  const bool NeedAddress =
+      AddressFamilyPtr != nullptr || !Address.empty() || PortPtr != nullptr;
+  Variant<sockaddr_storage, sockaddr_in, sockaddr_in6> SockAddr;
   msghdr SysMsgHdr;
-  SysMsgHdr.msg_name = &SockAddrStorage;
-  SysMsgHdr.msg_namelen = MaxAllowLength;
+  if (NeedAddress) {
+    SysMsgHdr.msg_name = &SockAddr;
+    SysMsgHdr.msg_namelen = sizeof(SockAddr);
+  } else {
+    SysMsgHdr.msg_name = nullptr;
+    SysMsgHdr.msg_namelen = 0;
+  }
   SysMsgHdr.msg_iov = SysIOVs;
   SysMsgHdr.msg_iovlen = SysIOVsSize;
   SysMsgHdr.msg_control = nullptr;
@@ -1181,98 +1056,36 @@ INode::sockRecvFromV1(Span<Span<uint8_t>> RiData, __wasi_riflags_t RiFlags,
     NRead = Res;
   }
 
-  if (AddressLength == 4) {
-    std::memcpy(Address,
-                &reinterpret_cast<sockaddr_in *>(&SockAddrStorage)->sin_addr,
-                AddressLength);
-  } else if (AddressLength == 16) {
-    std::memcpy(Address,
-                &reinterpret_cast<sockaddr_in6 *>(&SockAddrStorage)->sin6_addr,
-                AddressLength);
-  }
-
-  RoFlags = static_cast<__wasi_roflags_t>(0);
-  if (SysMsgHdr.msg_flags & MSG_TRUNC) {
-    RoFlags |= __WASI_ROFLAGS_RECV_DATA_TRUNCATED;
-  }
-
-  return {};
-}
-
-WasiExpect<void> INode::sockRecvFromV2(
-    Span<Span<uint8_t>> RiData, __wasi_riflags_t RiFlags, uint8_t *AddressBuf,
-    [[maybe_unused]] uint8_t AddressLength, uint32_t *PortPtr,
-    __wasi_size_t &NRead, __wasi_roflags_t &RoFlags) const noexcept {
-  uint8_t *Address = nullptr;
-  __wasi_address_family_t *AddrFamily = nullptr;
-  __wasi_address_family_t Dummy; // Write garbage on fallback mode.
-
-  if (AddressBuf) {
-    if (AddressLength != 128) {
-      // Fallback
-      AddrFamily = &Dummy;
-      Address = AddressBuf;
-    } else {
-      AddrFamily = getAddressFamily(AddressBuf);
-      Address = getAddress(AddressBuf);
+  if (NeedAddress) {
+    switch (SockAddr.get<sockaddr_storage>().ss_family) {
+    case AF_INET: {
+      const auto &SockAddr4 = SockAddr.get<sockaddr_in>();
+      if (AddressFamilyPtr) {
+        *AddressFamilyPtr = __WASI_ADDRESS_FAMILY_INET4;
+      }
+      if (Address.size() >= sizeof(in_addr)) {
+        std::memcpy(Address.data(), &SockAddr4.sin_addr, sizeof(in_addr));
+      }
+      if (PortPtr != nullptr) {
+        *PortPtr = SockAddr4.sin_port;
+      }
+      break;
     }
-  }
-
-  int SysRiFlags = 0;
-  if (RiFlags & __WASI_RIFLAGS_RECV_PEEK) {
-    SysRiFlags |= MSG_PEEK;
-  }
-  if (RiFlags & __WASI_RIFLAGS_RECV_WAITALL) {
-    SysRiFlags |= MSG_WAITALL;
-  }
-
-  iovec SysIOVs[kIOVMax];
-  size_t SysIOVsSize = 0;
-  for (auto &IOV : RiData) {
-    SysIOVs[SysIOVsSize].iov_base = IOV.data();
-    SysIOVs[SysIOVsSize].iov_len = IOV.size();
-    ++SysIOVsSize;
-  }
-
-  sockaddr_storage SockAddrStorage{};
-  int MaxAllowLength = sizeof(SockAddrStorage);
-
-  msghdr SysMsgHdr;
-  SysMsgHdr.msg_name = &SockAddrStorage;
-  SysMsgHdr.msg_namelen = MaxAllowLength;
-  SysMsgHdr.msg_iov = SysIOVs;
-  SysMsgHdr.msg_iovlen = SysIOVsSize;
-  SysMsgHdr.msg_control = nullptr;
-  SysMsgHdr.msg_controllen = 0;
-  SysMsgHdr.msg_flags = 0;
-
-  // Store recv bytes length and flags.
-  if (auto Res = ::recvmsg(Fd, &SysMsgHdr, SysRiFlags); unlikely(Res < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
-  } else {
-    NRead = Res;
-  }
-
-  if (AddressBuf) {
-    *AddrFamily = fromAddressFamily(SockAddrStorage.ss_family);
-    if (SockAddrStorage.ss_family == AF_INET) {
-      std::memcpy(Address,
-                  &reinterpret_cast<sockaddr_in *>(&SockAddrStorage)->sin_addr,
-                  sizeof(in_addr));
-    } else if (SockAddrStorage.ss_family == AF_INET6) {
-      std::memcpy(
-          Address,
-          &reinterpret_cast<sockaddr_in6 *>(&SockAddrStorage)->sin6_addr,
-          sizeof(in6_addr));
+    case AF_INET6: {
+      const auto &SockAddr6 = SockAddr.get<sockaddr_in6>();
+      if (AddressFamilyPtr) {
+        *AddressFamilyPtr = __WASI_ADDRESS_FAMILY_INET6;
+      }
+      if (Address.size() >= sizeof(in6_addr)) {
+        std::memcpy(Address.data(), &SockAddr6.sin6_addr, sizeof(in6_addr));
+      }
+      if (PortPtr != nullptr) {
+        *PortPtr = SockAddr6.sin6_port;
+      }
+      break;
     }
-  }
-
-  if (PortPtr) {
-    *AddrFamily = fromAddressFamily(SockAddrStorage.ss_family);
-    if (SockAddrStorage.ss_family == AF_INET) {
-      *PortPtr = reinterpret_cast<sockaddr_in *>(&SockAddrStorage)->sin_port;
-    } else if (SockAddrStorage.ss_family == AF_INET6) {
-      *PortPtr = reinterpret_cast<sockaddr_in6 *>(&SockAddrStorage)->sin6_port;
+    default:
+      return WasiUnexpect(__WASI_ERRNO_NOSYS);
     }
   }
 
@@ -1287,61 +1100,36 @@ WasiExpect<void> INode::sockRecvFromV2(
 WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>> SiData,
                                  __wasi_siflags_t SiFlags,
                                  __wasi_size_t &NWritten) const noexcept {
-  return sockSendTo(SiData, SiFlags, nullptr, 0, 0, NWritten);
+  return sockSendTo(SiData, SiFlags, __WASI_ADDRESS_FAMILY_UNSPEC, {}, 0,
+                    NWritten);
 }
 
 WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
-                                   __wasi_siflags_t, uint8_t *AddressBuf,
-                                   [[maybe_unused]] uint8_t AddressLength,
-                                   int32_t Port,
+                                   __wasi_siflags_t,
+                                   __wasi_address_family_t AddressFamily,
+                                   Span<const uint8_t> Address, uint16_t Port,
                                    __wasi_size_t &NWritten) const noexcept {
   int SysSiFlags = MSG_NOSIGNAL;
-
-  uint8_t *Address = nullptr;
-  int AddrFamily = 0;
-
-  if (AddressBuf) {
-    if (AddressLength != 128) {
-      // Fallback
-      switch (AddressLength) {
-      case 4:
-        AddrFamily = AF_INET;
-        break;
-      case 16:
-        AddrFamily = AF_INET6;
-        break;
-      default:
-        return WasiUnexpect(__WASI_ERRNO_INVAL);
-      }
-      Address = AddressBuf;
-    } else {
-      AddrFamily = toAddressFamily(*getAddressFamily(AddressBuf));
-      Address = getAddress(AddressBuf);
-    }
-  }
-
-  void *MsgName = nullptr;
+  Variant<sockaddr, sockaddr_in, sockaddr_in6> ClientAddr;
   socklen_t MsgNameLen = 0;
-  struct sockaddr_in ClientAddr4 = {};
-  struct sockaddr_in6 ClientAddr6 = {};
 
-  if (Address) {
-    if (AddrFamily == AF_INET) {
-      MsgName = &ClientAddr4;
-      MsgNameLen = sizeof(ClientAddr4);
+  if (AddressFamily == __WASI_ADDRESS_FAMILY_INET4) {
+    auto &ClientAddr4 = ClientAddr.emplace<sockaddr_in>();
+    MsgNameLen = sizeof(ClientAddr4);
 
-      ClientAddr4.sin_family = AF_INET;
-      ClientAddr4.sin_port = htons(Port);
-      std::memcpy(&ClientAddr4.sin_addr, Address, sizeof(in_addr));
-    } else if (AddrFamily == AF_INET6) {
-      MsgName = &ClientAddr6;
-      MsgNameLen = sizeof(ClientAddr6);
+    ClientAddr4.sin_family = AF_INET;
+    ClientAddr4.sin_port = htons(Port);
+    assuming(Address.size() >= sizeof(in_addr));
+    std::memcpy(&ClientAddr4.sin_addr, Address.data(), sizeof(in_addr));
+  } else if (AddressFamily == __WASI_ADDRESS_FAMILY_INET6) {
+    auto &ClientAddr6 = ClientAddr.emplace<sockaddr_in6>();
+    MsgNameLen = sizeof(ClientAddr6);
 
-      ClientAddr6.sin6_family = AF_INET6;
-      ClientAddr6.sin6_flowinfo = 0;
-      ClientAddr6.sin6_port = htons(Port);
-      std::memcpy(&ClientAddr6.sin6_addr, Address, sizeof(in6_addr));
-    }
+    ClientAddr6.sin6_family = AF_INET6;
+    ClientAddr6.sin6_flowinfo = 0;
+    ClientAddr6.sin6_port = htons(Port);
+    assuming(Address.size() >= sizeof(in6_addr));
+    std::memcpy(&ClientAddr6.sin6_addr, Address.data(), sizeof(in6_addr));
   }
 
   iovec SysIOVs[kIOVMax];
@@ -1353,7 +1141,7 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
   }
 
   msghdr SysMsgHdr;
-  SysMsgHdr.msg_name = MsgName;
+  SysMsgHdr.msg_name = MsgNameLen == 0 ? nullptr : &ClientAddr.get<sockaddr>();
   SysMsgHdr.msg_namelen = MsgNameLen;
   SysMsgHdr.msg_iov = SysIOVs;
   SysMsgHdr.msg_iovlen = SysIOVsSize;
@@ -1389,25 +1177,34 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
 
 WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
                                    __wasi_sock_opt_so_t SockOptName,
-                                   void *FlagPtr,
-                                   uint32_t *FlagSizePtr) const noexcept {
+                                   Span<uint8_t> &Flag) const noexcept {
   auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
   auto SysSockOptName = toSockOptSoName(SockOptName);
-  if (SockOptName == __WASI_SOCK_OPT_SO_ERROR) {
-    int ErrorCode = 0;
-    int *WasiErrorPtr = static_cast<int *>(FlagPtr);
-    if (auto Res = ::getsockopt(Fd, SysSockOptLevel, SysSockOptName, &ErrorCode,
-                                FlagSizePtr);
-        unlikely(Res < 0)) {
-      return WasiUnexpect(fromErrNo(errno));
-    }
-    *WasiErrorPtr = fromErrNo(ErrorCode);
-  } else {
-    if (auto Res = ::getsockopt(Fd, SysSockOptLevel, SysSockOptName, FlagPtr,
-                                FlagSizePtr);
-        unlikely(Res < 0)) {
-      return WasiUnexpect(fromErrNo(errno));
-    }
+  socklen_t Size = static_cast<socklen_t>(Flag.size());
+  if (auto Res =
+          ::getsockopt(Fd, SysSockOptLevel, SysSockOptName, Flag.data(), &Size);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  switch (SockOptName) {
+  case __WASI_SOCK_OPT_SO_ERROR: {
+    assuming(Size == sizeof(int32_t));
+    Flag = Flag.first(static_cast<size_t>(Size));
+    auto *Error = reinterpret_cast<int32_t *>(Flag.data());
+    *Error = static_cast<int32_t>(fromErrNo(*Error));
+    break;
+  }
+  case __WASI_SOCK_OPT_SO_TYPE: {
+    assuming(Size == sizeof(int32_t));
+    Flag = Flag.first(static_cast<size_t>(Size));
+    assuming(Flag.size() == sizeof(int32_t));
+    auto &SockType = *reinterpret_cast<int32_t *>(Flag.data());
+    SockType = static_cast<int32_t>(fromSockType(SockType));
+    break;
+  }
+  default:
+    Flag = Flag.first(static_cast<size_t>(Size));
   }
 
   return {};
@@ -1415,13 +1212,12 @@ WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
 
 WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
                                    __wasi_sock_opt_so_t SockOptName,
-                                   void *FlagPtr,
-                                   uint32_t FlagSizePtr) const noexcept {
+                                   Span<const uint8_t> Flag) const noexcept {
   auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
   auto SysSockOptName = toSockOptSoName(SockOptName);
 
-  if (auto Res = ::setsockopt(Fd, SysSockOptLevel, SysSockOptName, FlagPtr,
-                              FlagSizePtr);
+  if (auto Res = ::setsockopt(Fd, SysSockOptLevel, SysSockOptName, Flag.data(),
+                              Flag.size());
       unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
@@ -1429,140 +1225,96 @@ WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
   return {};
 }
 
-WasiExpect<void> INode::sockGetLocalAddrV1(uint8_t *AddressPtr,
-                                           uint32_t *AddrTypePtr,
-                                           uint32_t *PortPtr) const noexcept {
-  sockaddr_storage SocketAddr{};
+WasiExpect<void>
+INode::sockGetLocalAddr(__wasi_address_family_t *AddressFamilyPtr,
+                        Span<uint8_t> Address,
+                        uint16_t *PortPtr) const noexcept {
+  Variant<sockaddr, sockaddr_in, sockaddr_in6, sockaddr_storage> SocketAddr;
   socklen_t Slen = sizeof(SocketAddr);
 
-  if (auto Res =
-          ::getsockname(Fd, reinterpret_cast<sockaddr *>(&SocketAddr), &Slen);
+  if (auto Res = ::getsockname(Fd, &SocketAddr.get<sockaddr>(), &Slen);
       unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
 
-  auto AddrLen = 4;
-  if (Slen != 16) {
-    AddrLen = 16;
+  switch (SocketAddr.get<sockaddr_storage>().ss_family) {
+  case AF_INET: {
+    if (Address.size() < sizeof(in_addr)) {
+      return WasiUnexpect(__WASI_ERRNO_NOMEM);
+    }
+    const auto &SocketAddr4 = SocketAddr.get<sockaddr_in>();
+    if (AddressFamilyPtr) {
+      *AddressFamilyPtr = __WASI_ADDRESS_FAMILY_INET4;
+    }
+    if (PortPtr) {
+      *PortPtr = ntohs(SocketAddr4.sin_port);
+    }
+    std::memcpy(Address.data(), &SocketAddr4.sin_addr, sizeof(in_addr));
+    return {};
   }
-
-  if (SocketAddr.ss_family == AF_INET) {
-    *AddrTypePtr = 4;
-    auto SocketAddrv4 = reinterpret_cast<struct sockaddr_in *>(&SocketAddr);
-    *PortPtr = ntohs(SocketAddrv4->sin_port);
-    std::memcpy(AddressPtr, &(SocketAddrv4->sin_addr.s_addr), AddrLen);
-  } else if (SocketAddr.ss_family == AF_INET6) {
-    *AddrTypePtr = 6;
-    auto SocketAddrv6 = reinterpret_cast<struct sockaddr_in6 *>(&SocketAddr);
-
-    *PortPtr = ntohs(SocketAddrv6->sin6_port);
-    std::memcpy(AddressPtr, SocketAddrv6->sin6_addr.s6_addr, AddrLen);
-  } else {
+  case AF_INET6: {
+    if (Address.size() < sizeof(in6_addr)) {
+      return WasiUnexpect(__WASI_ERRNO_NOMEM);
+    }
+    const auto &SocketAddr6 = SocketAddr.get<sockaddr_in6>();
+    if (AddressFamilyPtr) {
+      *AddressFamilyPtr = __WASI_ADDRESS_FAMILY_INET6;
+    }
+    if (PortPtr) {
+      *PortPtr = ntohs(SocketAddr6.sin6_port);
+    }
+    std::memcpy(Address.data(), &SocketAddr6.sin6_addr, sizeof(in6_addr));
+    return {};
+  }
+  default:
     return WasiUnexpect(__WASI_ERRNO_NOSYS);
   }
-
-  return {};
 }
 
-WasiExpect<void> INode::sockGetLocalAddrV2(uint8_t *AddressBufPtr,
-                                           uint32_t *PortPtr) const noexcept {
-  auto AddrFamilyPtr = getAddressFamily(AddressBufPtr);
-  auto AddressPtr = getAddress(AddressBufPtr);
-
-  sockaddr_storage SocketAddr{};
+WasiExpect<void>
+INode::sockGetPeerAddr(__wasi_address_family_t *AddressFamilyPtr,
+                       Span<uint8_t> Address,
+                       uint16_t *PortPtr) const noexcept {
+  Variant<sockaddr, sockaddr_in, sockaddr_in6, sockaddr_storage> SocketAddr;
   socklen_t Slen = sizeof(SocketAddr);
 
-  if (auto Res =
-          ::getsockname(Fd, reinterpret_cast<sockaddr *>(&SocketAddr), &Slen);
+  if (auto Res = ::getpeername(Fd, &SocketAddr.get<sockaddr>(), &Slen);
       unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
 
-  if (SocketAddr.ss_family == AF_INET) {
-    auto SocketAddrv4 = reinterpret_cast<struct sockaddr_in *>(&SocketAddr);
-
-    *AddrFamilyPtr = fromAddressFamily(AF_INET);
-    *PortPtr = ntohs(SocketAddrv4->sin_port);
-    std::memcpy(AddressPtr, &SocketAddrv4->sin_addr, sizeof(in_addr));
-  } else if (SocketAddr.ss_family == AF_INET6) {
-    auto SocketAddrv6 = reinterpret_cast<struct sockaddr_in6 *>(&SocketAddr);
-
-    *AddrFamilyPtr = fromAddressFamily(AF_INET6);
-    *PortPtr = ntohs(SocketAddrv6->sin6_port);
-    std::memcpy(AddressPtr, &SocketAddrv6->sin6_addr, sizeof(in6_addr));
-  } else {
+  switch (SocketAddr.get<sockaddr_storage>().ss_family) {
+  case AF_INET: {
+    if (Address.size() < sizeof(in_addr)) {
+      return WasiUnexpect(__WASI_ERRNO_NOMEM);
+    }
+    const auto &SocketAddr4 = SocketAddr.get<sockaddr_in>();
+    if (AddressFamilyPtr) {
+      *AddressFamilyPtr = __WASI_ADDRESS_FAMILY_INET4;
+    }
+    if (PortPtr) {
+      *PortPtr = ntohs(SocketAddr4.sin_port);
+    }
+    std::memcpy(Address.data(), &SocketAddr4.sin_addr, sizeof(in_addr));
+    return {};
+  }
+  case AF_INET6: {
+    if (Address.size() < sizeof(in6_addr)) {
+      return WasiUnexpect(__WASI_ERRNO_NOMEM);
+    }
+    const auto &SocketAddr6 = SocketAddr.get<sockaddr_in6>();
+    if (AddressFamilyPtr) {
+      *AddressFamilyPtr = __WASI_ADDRESS_FAMILY_INET6;
+    }
+    if (PortPtr) {
+      *PortPtr = ntohs(SocketAddr6.sin6_port);
+    }
+    std::memcpy(Address.data(), &SocketAddr6.sin6_addr, sizeof(in6_addr));
+    return {};
+  }
+  default:
     return WasiUnexpect(__WASI_ERRNO_NOSYS);
   }
-
-  return {};
-}
-
-WasiExpect<void> INode::sockGetPeerAddrV1(uint8_t *AddressPtr,
-                                          uint32_t *AddrTypePtr,
-                                          uint32_t *PortPtr) const noexcept {
-  sockaddr_storage SocketAddr{};
-  socklen_t Slen = sizeof(SocketAddr);
-
-  if (auto Res =
-          ::getpeername(Fd, reinterpret_cast<sockaddr *>(&SocketAddr), &Slen);
-      unlikely(Res < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
-  }
-
-  auto AddrLen = 4;
-  if (Slen != 16) {
-    AddrLen = 16;
-  }
-
-  if (SocketAddr.ss_family == AF_INET) {
-    *AddrTypePtr = 4;
-    auto SocketAddrv4 = reinterpret_cast<struct sockaddr_in *>(&SocketAddr);
-
-    *PortPtr = ntohs(SocketAddrv4->sin_port);
-    std::memcpy(AddressPtr, &(SocketAddrv4->sin_addr.s_addr), AddrLen);
-  } else if (SocketAddr.ss_family == AF_INET6) {
-    *AddrTypePtr = 6;
-    auto SocketAddrv6 = reinterpret_cast<struct sockaddr_in6 *>(&SocketAddr);
-    *PortPtr = ntohs(SocketAddrv6->sin6_port);
-    std::memcpy(AddressPtr, SocketAddrv6->sin6_addr.s6_addr, AddrLen);
-  } else {
-    return WasiUnexpect(__WASI_ERRNO_NOSYS);
-  }
-
-  return {};
-}
-
-WasiExpect<void> INode::sockGetPeerAddrV2(uint8_t *AddressBufPtr,
-                                          uint32_t *PortPtr) const noexcept {
-  auto AddrFamilyPtr = getAddressFamily(AddressBufPtr);
-  auto AddressPtr = getAddress(AddressBufPtr);
-
-  sockaddr_storage SocketAddr{};
-  socklen_t Slen = sizeof(SocketAddr);
-
-  if (auto Res =
-          ::getpeername(Fd, reinterpret_cast<sockaddr *>(&SocketAddr), &Slen);
-      unlikely(Res < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
-  }
-
-  if (SocketAddr.ss_family == AF_INET) {
-    auto SocketAddrv4 = reinterpret_cast<struct sockaddr_in *>(&SocketAddr);
-
-    *AddrFamilyPtr = fromAddressFamily(AF_INET);
-    *PortPtr = ntohs(SocketAddrv4->sin_port);
-    std::memcpy(AddressPtr, &SocketAddrv4->sin_addr, sizeof(in_addr));
-  } else if (SocketAddr.ss_family == AF_INET6) {
-    auto SocketAddrv6 = reinterpret_cast<struct sockaddr_in6 *>(&SocketAddr);
-
-    *AddrFamilyPtr = fromAddressFamily(AF_INET6);
-    *PortPtr = ntohs(SocketAddrv6->sin6_port);
-    std::memcpy(AddressPtr, &SocketAddrv6->sin6_addr, sizeof(in6_addr));
-  } else {
-    return WasiUnexpect(__WASI_ERRNO_NOSYS);
-  }
-
-  return {};
 }
 
 __wasi_filetype_t INode::unsafeFiletype() const noexcept {

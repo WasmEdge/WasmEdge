@@ -23,12 +23,14 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                   Builders.size());
     return WASINN::ErrNo::InvalidArgument;
   }
-  auto Weight = Builders[0];
   // Add a new graph.
   Env.NNGraph.emplace_back(WASINN::Backend::TensorflowLite);
   auto &GraphRef = Env.NNGraph.back().get<Graph>();
 
-  GraphRef.TFLiteMod = TfLiteModelCreate(Weight.data(), Weight.size());
+  // Copy graph builder data to TfLiteModData and create a new TfLiteModel.
+  GraphRef.TfLiteModData.assign(Builders[0].begin(), Builders[0].end());
+  GraphRef.TFLiteMod = TfLiteModelCreate(GraphRef.TfLiteModData.data(),
+                                         GraphRef.TfLiteModData.size());
   if (unlikely(GraphRef.TFLiteMod == nullptr)) {
     spdlog::error("[WASI-NN] Cannot import TFLite model");
     Env.NNGraph.pop_back();

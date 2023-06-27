@@ -34,7 +34,6 @@ add_test(wasmedgeAPIUnitTests wasmedgeAPIUnitTests)
 target_link_libraries(wasmedgeAPIUnitTests
   PRIVATE
   std::filesystem
-  Boost::boost
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeAPITestHelpers
   wasmedge_shared

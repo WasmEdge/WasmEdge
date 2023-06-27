@@ -36,6 +36,5 @@ target_link_libraries(wasmedgeLoader
   PUBLIC
   wasmedgeCommon
   wasmedgeLoaderFileMgr
-  Boost::boost
   std::filesystem
 )

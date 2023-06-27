@@ -3,12 +3,15 @@
 
 cmake_minimum_required(VERSION 3.15)
 cmake_policy(SET CMP0091 NEW)
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+  cmake_policy(SET CMP0135 NEW)
+endif()
 project(WasmEdge)
 
 # Overwrite it if you want to use static MSVC runtime library.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 
-set(WASMEDGE_CAPI_VERSION "0.0.2" CACHE STRING "WasmEdge C API library version")
+set(WASMEDGE_CAPI_VERSION "0.0.3" CACHE STRING "WasmEdge C API library version")
 set(WASMEDGE_CAPI_SOVERSION "0" CACHE STRING "WasmEdge C API library soversion")
 
 find_program(GIT_CMD git)
@@ -43,23 +46,6 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Filesystem REQUIRED Final Experimental)
 find_package(Threads REQUIRED)
 
-find_package(Boost QUIET)
-if(${Boost_FOUND})
-else()
-  FetchContent_Declare(
-    Boost
-    URL https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.bz2
-    URL_HASH SHA256=f0397ba6e982c4450f27bf32a2a83292aba035b827a5623a14636ea583318c41
-  )
-  set(BOOST_ENABLE_CMAKE ON)
-  set(BOOST_RUNTIME_LINK static)
-  set(BUILD_TESTING OFF)
-  FetchContent_MakeAvailable(Boost)
-  add_library(Boost_boost INTERFACE)
-  add_library(Boost::boost ALIAS Boost_boost)
-  target_include_directories(Boost_boost INTERFACE ${boost_SOURCE_DIR})
-endif()
-
 # List of WasmEdge options
 option(WASMEDGE_BUILD_TESTS "Generate build targets for the wasmedge unit tests." OFF)
 option(WASMEDGE_BUILD_COVERAGE "Generate coverage report. Require WASMEDGE_BUILD_TESTS." OFF)
@@ -73,13 +59,16 @@ option(WASMEDGE_BUILD_EXAMPLE "Generate examples." OFF)
 option(WASMEDGE_FORCE_DISABLE_LTO "Forcefully disable link time optimization when linking even in Release/RelWithDeb build." OFF)
 option(WASMEDGE_LINK_LLVM_STATIC "Statically link the LLVM library into the WasmEdge tools and libraries." OFF)
 option(WASMEDGE_LINK_TOOLS_STATIC "Statically link the wasmedge and wasmedgec tools. Will forcefully link the LLVM library statically." OFF)
-option(WASMEDGE_ENABLE_UB_SANITIZER "Enable undefined behavior senitizer" OFF)
+option(WASMEDGE_ENABLE_UB_SANITIZER "Enable undefined behavior sanitizer." OFF)
 set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge Wasi-NN plugin with backends.")
 # Currently supported WASI-NN backend: "OpenVINO" on Linux x86_64
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge Wasi-crypto plugin." OFF)
-option(WASMEDGE_PLUGIN_PROCESS "Enable WasmEdge process plugin." OFF)
+option(WASMEDGE_PLUGIN_WASI_LOGGING "Enable WasmEdge wasi-logging plugin." OFF)
 option(WASMEDGE_PLUGIN_WASM_BPF "Enable WasmEdge wasm-bpf plugin." OFF)
 option(WASMEDGE_PLUGIN_OPENCVMINI "Enable WasmEdge opencvmini plugin." OFF)
+option(WASMEDGE_PLUGIN_PROCESS "Enable WasmEdge process plugin." OFF)
+option(WASMEDGE_PLUGIN_TENSORFLOW "Enable WasmEdge TensorFlow plugin." OFF)
+option(WASMEDGE_PLUGIN_TENSORFLOWLITE "Enable WasmEdge TensorFlow-Lite plugin." OFF)
 
 if(WASMEDGE_BUILD_TOOLS AND WASMEDGE_BUILD_FUZZING)
   message(FATAL_ERROR "wasmedge tool and fuzzing tool are exclusive options.")

@@ -12,6 +12,7 @@ void serializeOpCode(OpCode Code, std::vector<uint8_t> &OutVec) {
 }
 
 void serializeBlockType(BlockType Type, std::vector<uint8_t> &OutVec) {
+  // TODO: Check proposals
   switch (Type.TypeFlag) {
   case BlockType::TypeEnum::Empty:
     OutVec.push_back(0x40U);
@@ -56,37 +57,57 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
     serializeU32(Instr.getJump().TargetIndex, OutVec);
     return;
 
-  case OpCode::Br_table:
+  case OpCode::Br_table: {
     // TODO
+    int VecCnt = Instr.getLabelList().size() - 1;
+    serializeU32(VecCnt, OutVec);
+    for (auto Label : Instr.getLabelList()) {
+      serializeU32(Label.TargetIndex, OutVec);
+    }
     return;
+  }
 
   case OpCode::Call:
   case OpCode::Return_call:
     // TODO
+    serializeU32(Instr.getTargetIndex(), OutVec);
     return;
 
   case OpCode::Call_indirect:
   case OpCode::Return_call_indirect:
     // TODO
+    // Serialize the type index.
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    // Serialize the table index.
+    serializeU32(Instr.getSourceIndex(), OutVec);
+    // TODO: Check ReferenceTypes proposal
     return;
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    // TODO
+    // TODO: checkRefTypeProposals
+    serializeU32(static_cast<uint8_t>(Instr.getRefType()), OutVec);
     return;
   case OpCode::Ref__is_null:
     return;
   case OpCode::Ref__func:
     // TODO
+    serializeU32(Instr.getTargetIndex(), OutVec);
     return;
 
   // Parametric Instructions.
   case OpCode::Drop:
   case OpCode::Select:
     return;
-  case OpCode::Select_t:
-    // TODO
+  case OpCode::Select_t: {
+    // TODO: checkValTypeProposals
+    uint32_t VecCnt = Instr.getValTypeList().size();
+    serializeU32(VecCnt, OutVec);
+    for (auto VType : Instr.getValTypeList()) {
+      serializeU32(static_cast<uint8_t>(VType), OutVec);
+    }
     return;
+  }
 
   // Variable Instructions.
   case OpCode::Local__get:
@@ -95,10 +116,13 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Global__get:
   case OpCode::Global__set:
     // TODO
+    serializeU32(Instr.getTargetIndex(), OutVec);
     return;
 
   // Table Instructions.
   case OpCode::Table__init:
+    serializeU32(Instr.getSourceIndex(), OutVec);
+    [[fallthrough]];
   case OpCode::Table__get:
   case OpCode::Table__set:
   case OpCode::Table__grow:
@@ -107,6 +131,7 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Elem__drop:
   case OpCode::Table__copy:
     // TODO
+    serializeU32(Instr.getTargetIndex(), OutVec);
     return;
 
   // Memory Instructions.
@@ -133,22 +158,39 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::I64__store8:
   case OpCode::I64__store16:
   case OpCode::I64__store32:
-    // TODO
+    // TODO: Check MultiMemories proposal.
+    serializeU32(Instr.getMemoryAlign(), OutVec);
+    serializeU32(Instr.getTargetIndex(), OutVec);
     return;
 
   case OpCode::Memory__init:
+    // TODO: Check HasDataSection.
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    [[fallthrough]];
   case OpCode::Memory__grow:
   case OpCode::Memory__size:
   case OpCode::Memory__fill:
+    // TODO: Check MultiMemories proposal.
+    serializeU32(0x00, OutVec);
+    return;
+
   case OpCode::Memory__copy:
+    // TODO: Check MultiMemories proposal.
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    serializeU32(Instr.getSourceIndex(), OutVec);
+    return;
+
   case OpCode::Data__drop:
-    // TODO
+    // TODO: Check HasDataSection.
+    serializeU32(Instr.getTargetIndex(), OutVec);
     return;
 
   // Const Instructions.
   case OpCode::I32__const:
     // TODO
+    serializeU32(Instr.getNum().get<uint32_t>(), OutVec);
     return;
+
   case OpCode::I64__const:
     // TODO
     return;

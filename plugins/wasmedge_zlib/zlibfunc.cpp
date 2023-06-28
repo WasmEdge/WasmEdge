@@ -6,6 +6,13 @@
 #include <cstring>
 #include <iostream>
 
+constexpr bool CheckVersionSize(const char *WasmZlibVersion,
+                                int32_t StreamSize) {
+
+  return (WasmZlibVersion != 0 && WasmZlibVersion[0] == ZLIB_VERSION[0] &&
+          StreamSize == (int32_t)sizeof(Wasm_z_stream));
+}
+
 namespace WasmEdge {
 namespace Host {
 
@@ -18,23 +25,10 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  // Wasm_z_stream *WasmZStream = MemInst->getPointer<Wasm_z_stream
-  // *>(ZStreamPtr);
-  if (StreamSize != 56) {
-    spdlog::error("[WasmEdge Zlib] [WasmEdgeZlibDeflateInit_] WASM "
-                  "sizeof(z_stream) != 56 but {}",
-                  StreamSize);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
 
   const char *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  if (WasmZlibVersion[0] != ZLIB_VERSION[0]) {
-    spdlog::error("[WasmEdge Zlib] [WasmEdgeZlibDeflateInit_] Major Zlib "
-                  "version of Host ({}) & Wasm ({}) "
-                  "does not match",
-                  ZLIB_VERSION[0], WasmZlibVersion[0]);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  if (!CheckVersionSize(WasmZlibVersion, StreamSize))
+    return static_cast<int32_t>(Z_VERSION_ERROR);
 
   auto HostZStream = std::make_unique<z_stream>();
 
@@ -60,23 +54,10 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  // Wasm_z_stream *WasmZStream = MemInst->getPointer<Wasm_z_stream
-  // *>(ZStreamPtr);
-  if (StreamSize != 56) {
-    spdlog::error("[WasmEdge Zlib] [WasmEdgeZlibInflateInit_] WASM "
-                  "sizeof(z_stream) != 56 but {}",
-                  StreamSize);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
 
   const char *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  if (WasmZlibVersion[0] != ZLIB_VERSION[0]) {
-    spdlog::error("[WasmEdge Zlib] [WasmEdgeZlibInflateInit_] Major Zlib "
-                  "version of Host ({}) & Wasm ({}) "
-                  "does not match",
-                  ZLIB_VERSION[0], WasmZlibVersion[0]);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  if (!CheckVersionSize(WasmZlibVersion, StreamSize))
+    return static_cast<int32_t>(Z_VERSION_ERROR);
 
   auto HostZStream = std::make_unique<z_stream>();
 

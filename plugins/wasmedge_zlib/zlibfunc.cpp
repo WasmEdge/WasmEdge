@@ -8,6 +8,11 @@
 
 constexpr bool CheckVersionSize(const char *WasmZlibVersion,
                                 int32_t StreamSize) {
+  /*
+  Reason behind just comparing the first character of zlib version strings.
+  https://github.com/zlib-ng/zlib-ng/blob/2f4ebe2bb68380366b90f1db1f3c5b32601130a0/zutil.h#L130
+  https://github.com/madler/zlib/blob/04f42ceca40f73e2978b50e93806c2a18c1281fc/inflate.c#L207
+  */
 
   return (WasmZlibVersion != 0 && WasmZlibVersion[0] == ZLIB_VERSION[0] &&
           StreamSize == (int32_t)sizeof(Wasm_z_stream));

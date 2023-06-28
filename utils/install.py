@@ -1175,6 +1175,8 @@ class Compat:
             self.release_package_wasmedge = self.release_package
 
             if self.dist is None:
+                # Only use Ubuntu when the arch is x86_64
+                # See https://github.com/WasmEdge/WasmEdge/issues/2595#issuecomment-1592460709
                 if sys.version_info[0] == 2:
                     __lsb_rel = run_shell_command(
                         "cat /etc/lsb-release 2>/dev/null | grep RELEASE"
@@ -1195,10 +1197,8 @@ class Compat:
                         VersionString(__lsb_rel).compare("20.04") >= 0
                         or "Ubuntu 20.04"
                         in run_shell_command(
-                            "lsb_release -d 2>/dev/null | awk -F'\t' '{print $2}'"
-                        )
-                        and self.machine in ["x86_64", "amd64"]
-                    ):
+                            "cat /etc/lsb_release 2>/dev/null | grep DESCRIPTION"
+                            )) and self.machine in ["x86_64", "amd64"]:
                         self.dist = "ubuntu20.04"
                     else:
                         self.dist = "manylinux2014"

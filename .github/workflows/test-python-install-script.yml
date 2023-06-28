@@ -117,13 +117,13 @@ jobs:
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         bash utils/uninstall.sh -q -V
-    - name: Install WasmEdge deprecated release (0.9.0)
+    - name: Install WasmEdge deprecated release (0.9.0) - Fail purposefully
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
-        ${{ matrix.python2_ex }} utils/install.py -v 0.9.0 -D 2>&1 | grep -q deprecated && echo "Pass: Deprecated found" \
-          || (echo "Failed: Deprecated message not found" && exit 1)
-        ${{ matrix.python3_ex }} utils/install.py -v 0.9.0 -D 2>&1 | grep -q deprecated && echo "Pass: Deprecated found" \
-          || (echo "Failed: Deprecated message not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -v 0.9.0 -D 2>&1 | grep -q "Version not supported. Min Version: 0.10.0" && echo "Pass: Version not supported. Min Version: 0.10.0 found" \
+          || (echo "Failed: Version not supported. Min Version: 0.10.0 not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -v 0.9.0 -D 2>&1 | grep -q "Version not supported. Min Version: 0.10.0" && echo "Pass: Version not supported. Min Version: 0.10.0 found" \
+          || (echo "Failed: Version not supported. Min Version: 0.10.0 not found" && exit 1)
     - name: Uninstall WasmEdge
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
@@ -285,10 +285,10 @@ jobs:
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
-    - name: Install WasmEdge deprecated release (0.9.0)
+    - name: Install WasmEdge deprecated release (0.9.0) - Fails purposefully
       run: |
-        python utils/install.py -v 0.9.0 -D 2>&1 | grep -q deprecated && echo "Pass: Deprecated found" \
-          || (echo "Failed: Deprecated message not found" && exit 1)
+        python utils/install.py -v 0.9.0 -D 2>&1 | grep -q "Version not supported. Min Version: 0.10.0" && echo "Pass: Version not supported. Min Version: 0.10.0 found" \
+          || (echo "Failed: Version not supported. Min Version: 0.10.0 message not found" && exit 1)
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V

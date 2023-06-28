@@ -248,14 +248,14 @@ SUPPORTED_PLATFORM_MACHINE = {
 }
 
 SUPPORTED_MIN_VERSION = {
-    "Linux" + "x86_64": VersionString("0.9.0"),
-    "Linux" + "amd64": VersionString("0.9.0"),
-    "Linux" + "arm64": VersionString("0.9.0"),
-    "Linux" + "armv8": VersionString("0.9.0"),
-    "Linux" + "aarch64": VersionString("0.9.0"),
-    "Darwin" + "x86_64": VersionString("0.9.0"),
-    "Darwin" + "arm64": VersionString("0.9.0"),
-    "Darwin" + "arm": VersionString("0.9.0"),
+    "Linux" + "x86_64": VersionString("0.10.0"),
+    "Linux" + "amd64": VersionString("0.10.0"),
+    "Linux" + "arm64": VersionString("0.10.0"),
+    "Linux" + "armv8": VersionString("0.10.0"),
+    "Linux" + "aarch64": VersionString("0.10.0"),
+    "Darwin" + "x86_64": VersionString("0.10.0"),
+    "Darwin" + "arm64": VersionString("0.10.0"),
+    "Darwin" + "arm": VersionString("0.10.0"),
 }
 
 WASMEDGE = "WasmEdge"
@@ -280,20 +280,20 @@ SUPPORTED_EXTENSIONS = {
 }
 
 SUPPORTED_EXTENSIONS_VERSION = {
-    "Linux" + "x86_64" + TENSORFLOW: VersionString("0.9.0"),
-    "Linux" + "x86_64" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "amd64" + TENSORFLOW: VersionString("0.9.0"),
-    "Linux" + "amd64" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "arm64" + TENSORFLOW: VersionString("0.9.0"),
-    "Linux" + "arm64" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "armv8" + TENSORFLOW: VersionString("0.9.0"),
-    "Linux" + "armv8" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "aarch64" + TENSORFLOW: VersionString("0.9.1-beta.1"),
-    "Linux" + "aarch64" + IMAGE: VersionString("0.9.1-beta.1"),
-    "Darwin" + "x86_64" + TENSORFLOW: VersionString("0.9.1-beta.1"),
-    "Darwin" + "x86_64" + IMAGE: VersionString("0.10.0-alpha.1"),
-    "Darwin" + "arm64" + TENSORFLOW: VersionString("0.9.1-beta.1"),
-    "Darwin" + "arm" + TENSORFLOW: VersionString("0.9.1-beta.1"),
+    "Linux" + "x86_64" + TENSORFLOW: VersionString("0.10.0"),
+    "Linux" + "x86_64" + IMAGE: VersionString("0.10.0"),
+    "Linux" + "amd64" + TENSORFLOW: VersionString("0.10.0"),
+    "Linux" + "amd64" + IMAGE: VersionString("0.10.0"),
+    "Linux" + "arm64" + TENSORFLOW: VersionString("0.10.0"),
+    "Linux" + "arm64" + IMAGE: VersionString("0.10.0"),
+    "Linux" + "armv8" + TENSORFLOW: VersionString("0.10.0"),
+    "Linux" + "armv8" + IMAGE: VersionString("0.10.0"),
+    "Linux" + "aarch64" + TENSORFLOW: VersionString("0.10.0"),
+    "Linux" + "aarch64" + IMAGE: VersionString("0.10.0"),
+    "Darwin" + "x86_64" + TENSORFLOW: VersionString("0.10.0"),
+    "Darwin" + "x86_64" + IMAGE: VersionString("0.10.0"),
+    "Darwin" + "arm64" + TENSORFLOW: VersionString("0.10.0"),
+    "Darwin" + "arm" + TENSORFLOW: VersionString("0.10.0"),
 }
 
 WASI_NN_OPENVINO = "wasi_nn-openvino"
@@ -315,11 +315,9 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "x86_64" + WASI_NN_OPENVINO: VersionString("0.10.1-alpha.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.1-alpha.1"),
     "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.2-alpha.1"),
-    "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.9.1-beta.1"),
-    "manylinux2014"
-    + "aarch64"
-    + WASI_NN_TENSORFLOW_LITE: VersionString("0.9.1-beta.1"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.9.1-beta.1"),
+    "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
+    "manylinux2014" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
+    "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
 }
 
 HOME = expanduser("~")

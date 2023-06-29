@@ -3,10 +3,10 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 if [[ ! -v "${OPENVINO_VERSION}" ]]; then
-  OPENVINO_VERSION="2021.4.582"
+  OPENVINO_VERSION="2023.0"
 fi
 if [[ ! -v "${OPENVINO_YEAR}" ]]; then
-  OPENVINO_YEAR="2021"
+  OPENVINO_YEAR="2023"
 fi
 
 set -e

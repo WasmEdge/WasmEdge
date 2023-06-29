@@ -87,5 +87,32 @@ Expect<void> WasmEdgeOpenCVMiniImwrite::body(const Runtime::CallingFrame &Frame,
   return {};
 }
 
+Expect<void>
+WasmEdgeOpenCVMiniImencode::body(const Runtime::CallingFrame &Frame,
+                                 uint32_t MatKey, uint32_t BufPtr,
+                                 uint32_t BufLen) {
+  auto Img = Env.getMat(MatKey);
+  if (!Img) {
+    spdlog::error("[WasmEdge-OpenCVMini] "sv
+                  "Failed to get matrix by key."sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto OutSpan = MemInst->getSpan<uchar>(BufPtr, BufLen);
+  if (unlikely(OutSpan.size() != BufLen)) {
+    spdlog::error("[WasmEdge-OpenCVMini] "sv
+                  "Failed when accessing the image target buffer memory."sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  std::vector<uchar> WriteTo;
+  cv::imencode(".jpg", *Img, WriteTo);
+
+  std::copy_n(WriteTo.begin(), WriteTo.size(), OutSpan.begin());
+
+  return {};
+}
+
 } // namespace Host
 } // namespace WasmEdge

@@ -9,6 +9,7 @@
 namespace WasmEdge {
 namespace Host {
 
+/// Read image from buffer
 class WasmEdgeOpenCVMiniImdecode
     : public WasmEdgeOpenCVMini<WasmEdgeOpenCVMiniImdecode> {
 public:
@@ -16,6 +17,17 @@ public:
       : WasmEdgeOpenCVMini(HostEnv) {}
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t BufPtr,
                         uint32_t BufLen);
+};
+
+/// Write image into buffer
+class WasmEdgeOpenCVMiniImencode
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniImencode> {
+public:
+  WasmEdgeOpenCVMiniImencode(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t MatKey,
+                    uint32_t BufPtr, uint32_t BufLen);
 };
 
 class WasmEdgeOpenCVMiniImshow

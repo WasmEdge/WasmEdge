@@ -15,7 +15,7 @@ constexpr bool CheckVersionSize(const char *WasmZlibVersion,
   */
 
   return (WasmZlibVersion != 0 && WasmZlibVersion[0] == ZLIB_VERSION[0] &&
-          StreamSize == (int32_t)sizeof(Wasm_z_stream));
+          StreamSize == (int32_t)sizeof(WasmZStream));
 }
 
 namespace WasmEdge {
@@ -88,24 +88,25 @@ Expect<int32_t> WasmEdgeZlibDeflate::WasmEdgeZlibDeflate::body(
   }
   auto HostZStream = HostZStreamIt->second.get();
   auto *MemInst = Frame.getMemoryByIndex(0);
-  Wasm_z_stream *WasmZStream = MemInst->getPointer<Wasm_z_stream *>(ZStreamPtr);
+  WasmZStream *ModuleZStream =
+      MemInst->getPointer<WasmZStream *>(ZStreamPtr);
 
-  HostZStream->avail_in = WasmZStream->avail_in;   // value
-  HostZStream->avail_out = WasmZStream->avail_out; // value
+  HostZStream->avail_in = ModuleZStream->avail_in;   // value
+  HostZStream->avail_out = ModuleZStream->avail_out; // value
   HostZStream->next_in =
-      MemInst->getPointer<unsigned char *>(WasmZStream->next_in); // ptr
+      MemInst->getPointer<unsigned char *>(ModuleZStream->next_in); // ptr
   HostZStream->next_out =
-      MemInst->getPointer<unsigned char *>(WasmZStream->next_out); // ptr
+      MemInst->getPointer<unsigned char *>(ModuleZStream->next_out); // ptr
 
   const auto PreComputeNextIn = HostZStream->next_in;
   const auto PreComputeNextOut = HostZStream->next_out;
 
   const auto z_res = deflate(HostZStream, Flush);
 
-  WasmZStream->avail_in = HostZStream->avail_in;
-  WasmZStream->avail_out = HostZStream->avail_out;
-  WasmZStream->next_in += HostZStream->next_in - PreComputeNextIn;
-  WasmZStream->next_out += HostZStream->next_out - PreComputeNextOut;
+  ModuleZStream->avail_in = HostZStream->avail_in;
+  ModuleZStream->avail_out = HostZStream->avail_out;
+  ModuleZStream->next_in += HostZStream->next_in - PreComputeNextIn;
+  ModuleZStream->next_out += HostZStream->next_out - PreComputeNextOut;
 
   return static_cast<int32_t>(z_res);
 }
@@ -119,24 +120,25 @@ Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
   }
   auto HostZStream = HostZStreamIt->second.get();
   auto *MemInst = Frame.getMemoryByIndex(0);
-  Wasm_z_stream *WasmZStream = MemInst->getPointer<Wasm_z_stream *>(ZStreamPtr);
+  WasmZStream *ModuleZStream =
+      MemInst->getPointer<WasmZStream *>(ZStreamPtr);
 
-  HostZStream->avail_in = WasmZStream->avail_in;   // value
-  HostZStream->avail_out = WasmZStream->avail_out; // value
+  HostZStream->avail_in = ModuleZStream->avail_in;   // value
+  HostZStream->avail_out = ModuleZStream->avail_out; // value
   HostZStream->next_in =
-      MemInst->getPointer<unsigned char *>(WasmZStream->next_in); // ptr
+      MemInst->getPointer<unsigned char *>(ModuleZStream->next_in); // ptr
   HostZStream->next_out =
-      MemInst->getPointer<unsigned char *>(WasmZStream->next_out); // ptr
+      MemInst->getPointer<unsigned char *>(ModuleZStream->next_out); // ptr
 
   const auto PreComputeNextIn = HostZStream->next_in;
   const auto PreComputeNextOut = HostZStream->next_out;
 
   const auto z_res = inflate(HostZStream, Flush);
 
-  WasmZStream->avail_in = HostZStream->avail_in;
-  WasmZStream->avail_out = HostZStream->avail_out;
-  WasmZStream->next_in += HostZStream->next_in - PreComputeNextIn;
-  WasmZStream->next_out += HostZStream->next_out - PreComputeNextOut;
+  ModuleZStream->avail_in = HostZStream->avail_in;
+  ModuleZStream->avail_out = HostZStream->avail_out;
+  ModuleZStream->next_in += HostZStream->next_in - PreComputeNextIn;
+  ModuleZStream->next_out += HostZStream->next_out - PreComputeNextOut;
 
   return static_cast<int32_t>(z_res);
 }

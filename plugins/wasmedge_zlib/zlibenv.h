@@ -15,7 +15,7 @@
  * @brief A struct which maps perfectly to a wasm 32bit z_stream object
  *
  */
-struct Wasm_z_stream {
+struct WasmZStream {
   /* [Wasm Offset] next input byte */
   uint32_t next_in;
   /* number of bytes available at next_in */
@@ -53,7 +53,7 @@ struct Wasm_z_stream {
   uint32_t reserved;
 };
 
-static_assert(sizeof(Wasm_z_stream) == 56, "Wasm_z_stream should be 56 bytes");
+static_assert(sizeof(WasmZStream) == 56, "WasmZStream should be 56 bytes");
 
 namespace WasmEdge {
 namespace Host {

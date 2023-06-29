@@ -120,11 +120,11 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
   wasm_hp += DATA_SIZE;
 
   wasm_z_stream = wasm_hp;
-  Wasm_z_stream *strm = MemInst.getPointer<Wasm_z_stream *>(wasm_z_stream);
-  wasm_hp += sizeof(Wasm_z_stream);
+  WasmZStream *strm = MemInst.getPointer<WasmZStream *>(wasm_z_stream);
+  wasm_hp += sizeof(WasmZStream);
 
   // ----- Deflate Routine START------
-  fillMemContent(MemInst, wasm_z_stream, sizeof(Wasm_z_stream), 0U);
+  fillMemContent(MemInst, wasm_z_stream, sizeof(WasmZStream), 0U);
 
   // deflateInit_ Test
   // WASM z_stream size Mismatch
@@ -132,7 +132,7 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{wasm_z_stream, INT32_C(-1),
                                                   wasm_zlib_version,
-                                                  sizeof(Wasm_z_stream) + 16},
+                                                  sizeof(WasmZStream) + 16},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
 
@@ -141,14 +141,14 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{wasm_z_stream, INT32_C(-1),
                                                   wasm_zlib_version + 2,
-                                                  sizeof(Wasm_z_stream)},
+                                                  sizeof(WasmZStream)},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
 
   EXPECT_TRUE(__deflateInit_.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
-          wasm_z_stream, INT32_C(-1), wasm_zlib_version, sizeof(Wasm_z_stream)},
+          wasm_z_stream, INT32_C(-1), wasm_zlib_version, sizeof(WasmZStream)},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
@@ -186,14 +186,14 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
   // ----- Deflate Routine END------
 
   // ----- Inflate Routine START------
-  fillMemContent(MemInst, wasm_z_stream, sizeof(Wasm_z_stream), 0U);
+  fillMemContent(MemInst, wasm_z_stream, sizeof(WasmZStream), 0U);
 
   // inflateInit_ Test
   // WASM z_stream size Mismatch
   EXPECT_TRUE(__inflateInit_.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
-          wasm_z_stream, wasm_zlib_version, sizeof(Wasm_z_stream) + 16},
+          wasm_z_stream, wasm_zlib_version, sizeof(WasmZStream) + 16},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
 
@@ -201,14 +201,14 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
   EXPECT_TRUE(__inflateInit_.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
-          wasm_z_stream, wasm_zlib_version + 2, sizeof(Wasm_z_stream)},
+          wasm_z_stream, wasm_zlib_version + 2, sizeof(WasmZStream)},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
 
   EXPECT_TRUE(__inflateInit_.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
-          wasm_z_stream, wasm_zlib_version, sizeof(Wasm_z_stream)},
+          wasm_z_stream, wasm_zlib_version, sizeof(WasmZStream)},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 

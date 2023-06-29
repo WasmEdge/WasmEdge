@@ -88,8 +88,7 @@ Expect<int32_t> WasmEdgeZlibDeflate::WasmEdgeZlibDeflate::body(
   }
   auto HostZStream = HostZStreamIt->second.get();
   auto *MemInst = Frame.getMemoryByIndex(0);
-  WasmZStream *ModuleZStream =
-      MemInst->getPointer<WasmZStream *>(ZStreamPtr);
+  WasmZStream *ModuleZStream = MemInst->getPointer<WasmZStream *>(ZStreamPtr);
 
   HostZStream->avail_in = ModuleZStream->avail_in;   // value
   HostZStream->avail_out = ModuleZStream->avail_out; // value
@@ -120,8 +119,7 @@ Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
   }
   auto HostZStream = HostZStreamIt->second.get();
   auto *MemInst = Frame.getMemoryByIndex(0);
-  WasmZStream *ModuleZStream =
-      MemInst->getPointer<WasmZStream *>(ZStreamPtr);
+  WasmZStream *ModuleZStream = MemInst->getPointer<WasmZStream *>(ZStreamPtr);
 
   HostZStream->avail_in = ModuleZStream->avail_in;   // value
   HostZStream->avail_out = ModuleZStream->avail_out; // value

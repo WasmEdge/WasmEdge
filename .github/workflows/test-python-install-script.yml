@@ -203,8 +203,8 @@ jobs:
       run: |
         ${{ matrix.python2_ex }} utils/install.py -e tensorflow -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && echo "Pass: Ubuntu Package selected for tensorflow" || (echo "Fail: Ubuntu Package not selected for tensorflow" && exit 1)
         ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && echo "Pass: Ubuntu Package selected for tensorflow" || (echo "Fail: Ubuntu Package not selected for tensorflow" && exit 1)
-        ${{ matrix.python2_ex }} utils/install.py -e image -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && echo "Pass: Ubuntu Package selected for image" || (echo "Fail: Ubuntu Package not selected for image" && exit 1)
-        ${{ matrix.python3_ex }} utils/install.py -e image -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && echo "Pass: Ubuntu Package selected for image" || (echo "Fail: Ubuntu Package not selected for image" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -e image -D -v 0.12.0 2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && echo "Pass: Ubuntu Package selected for image" || (echo "Fail: Ubuntu Package not selected for image" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -e image -D -v 0.12.0 2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && echo "Pass: Ubuntu Package selected for image" || (echo "Fail: Ubuntu Package not selected for image" && exit 1)
 
 
     - name: Check if distro-specific downloads are selected(Non-Ubuntu)
@@ -212,8 +212,8 @@ jobs:
       run: |
         ${{ matrix.python2_ex }} utils/install.py -e tensorflow -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && (echo "Fail: Ubuntu Package selected for tensorflow" && exit 1) || (echo "Pass: Ubuntu Package not selected for tensorflow")
         ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && (echo "Fail: Ubuntu Package selected for tensorflow" && exit 1) || (echo "Pass: Ubuntu Package not selected for tensorflow")
-        ${{ matrix.python2_ex }} utils/install.py -e image -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && (echo "Fail: Ubuntu Package selected for image" && exit 1) || (echo "Pass: Ubuntu Package not selected for image")
-        ${{ matrix.python3_ex }} utils/install.py -e image -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && (echo "Fail: Ubuntu Package selected for image" && exit 1) || (echo "Pass: Ubuntu Package not selected for image")
+        ${{ matrix.python2_ex }} utils/install.py -e image -D -v 0.12.0 2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && (echo "Fail: Ubuntu Package selected for image" && exit 1) || (echo "Pass: Ubuntu Package not selected for image")
+        ${{ matrix.python3_ex }} utils/install.py -e image -D -v 0.12.0 2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && (echo "Fail: Ubuntu Package selected for image" && exit 1) || (echo "Pass: Ubuntu Package not selected for image")
 
     - name: Externally Specified plugin install check (single)(Non Ubuntu)
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
@@ -318,21 +318,15 @@ jobs:
 
     - name: Install multiple versions and Tensroflow extension/plugins for pre and post 0.13.x
       run: |
-        ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 -v 0.12.0
-        ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 -v 0.13.0
-        ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 
-        ${{ matrix.python2_ex }} utils/install.py -e tensorflow -D  2>&1 -v 0.12.0
-        ${{ matrix.python2_ex }} utils/install.py -e tensorflow -D  2>&1 -v 0.13.0
-        ${{ matrix.python2_ex }} utils/install.py -e tensorflow -D  2>&1 
+        python utils/install.py -e tensorflow -D  2>&1 -v 0.12.0
+        python utils/install.py -e tensorflow -D  2>&1 -v 0.13.0
+        python utils/install.py -e tensorflow -D  2>&1 
     
     - name: Install multiple versions and Image extension/plugins for pre and post 0.13.x
       run: |  
-        ${{ matrix.python3_ex }} utils/install.py -e image -D  2>&1 -v 0.12.0
-        ${{ matrix.python3_ex }} utils/install.py -e image -D  2>&1 -v 0.13.0
-        ${{ matrix.python3_ex }} utils/install.py -e image -D  2>&1
-        ${{ matrix.python2_ex }} utils/install.py -e image -D  2>&1 -v 0.12.0
-        ${{ matrix.python2_ex }} utils/install.py -e image -D  2>&1 -v 0.13.0
-        ${{ matrix.python2_ex }} utils/install.py -e image -D  2>&1
+        python utils/install.py -e image -D  2>&1 -v 0.12.0
+        python utils/install.py -e image -D  2>&1 -v 0.13.0
+        python utils/install.py -e image -D  2>&1
 
     - name: Check for differences in the installation
       run: |

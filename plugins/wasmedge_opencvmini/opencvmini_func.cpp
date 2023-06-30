@@ -114,5 +114,18 @@ WasmEdgeOpenCVMiniImencode::body(const Runtime::CallingFrame &Frame,
   return {};
 }
 
+Expect<uint32_t>
+WasmEdgeOpenCVMiniNormalize::body(const Runtime::CallingFrame &,
+                                  uint32_t SrcMatKey) {
+  auto Src = Env.getMat(SrcMatKey);
+  if (!Src) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  cv::Mat Dst;
+  // convert each elements `v` of `Src` to `(1/255) * v + 0`
+  Src->convertTo(Dst, CV_32F, 1. / 255., 0.);
+  return Env.insertMat(Dst);
+}
+
 } // namespace Host
 } // namespace WasmEdge

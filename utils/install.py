@@ -718,7 +718,7 @@ def install_tensorflow_extension(args, compat):
         logging.debug(
             "Tensorflow Tools version not found: {0}".format(args.tf_tools_version)
         )
-        download_tf_tools
+        download_tf_tools = False
 
     if compat.prefix() + TENSORFLOW not in SUPPORTED_EXTENSIONS_VERSION:
         logging.error(
@@ -1467,10 +1467,11 @@ def main(args):
             if VersionString(args.version).compare("0.13.0") >= 0:
                 if WASMEDGE_IMAGE_PLUGIN not in args.plugins:
                     args.plugins.append(WASMEDGE_IMAGE_PLUGIN)
-            if install_image_extension(args, compat) != 0:
-                logging.error("Error in installing image extensions")
-            else:
-                logging.info("Image extension installed")
+                else:
+                    if install_image_extension(args, compat) != 0:
+                        logging.error("Error in installing image extensions")
+                    else:
+                        logging.info("Image extension installed")
 
         if TENSORFLOW in args.extensions or "all" in args.extensions:
             if VersionString(args.version).compare("0.13.0") >= 0:

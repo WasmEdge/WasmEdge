@@ -1467,11 +1467,11 @@ def main(args):
             if VersionString(args.version).compare("0.13.0") >= 0:
                 if WASMEDGE_IMAGE_PLUGIN not in args.plugins:
                     args.plugins.append(WASMEDGE_IMAGE_PLUGIN)
+            else:
+                if install_image_extension(args, compat) != 0:
+                    logging.error("Error in installing image extensions")
                 else:
-                    if install_image_extension(args, compat) != 0:
-                        logging.error("Error in installing image extensions")
-                    else:
-                        logging.info("Image extension installed")
+                    logging.info("Image extension installed")
 
         if TENSORFLOW in args.extensions or "all" in args.extensions:
             if VersionString(args.version).compare("0.13.0") >= 0:

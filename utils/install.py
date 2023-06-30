@@ -262,6 +262,7 @@ WASMEDGE = "WasmEdge"
 WASMEDGE_UNINSTALLER = "WasmEdge_Uninstaller"
 TENSORFLOW = "tensorflow"
 TENSORFLOW_LITE = "tensorflow_lite"
+TENSORFLOW_LITE_P = "tensorflowlite"
 TENSORFLOW_DEPS = "tensorflow_deps"
 TENSORFLOW_LITE_DEPS = "tensorflow_lite_deps"
 TENSORFLOW_TOOLS = "tensorflow_tools"
@@ -300,11 +301,18 @@ WASI_NN_OPENVINO = "wasi_nn-openvino"
 WASI_CRYPTO = "wasi_crypto"
 WASI_NN_PYTORCH = "wasi_nn-pytorch"
 WASI_NN_TENSORFLOW_LITE = "wasi_nn-tensorflowlite"
+WASMEDGE_TENSORFLOW_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW
+WASMEDGE_TENSORFLOW_LITE_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW_LITE_P
+WASMEDGE_IMAGE_PLUGIN = WASMEDGE.lower() + "_" + IMAGE
+
 PLUGINS_AVAILABLE = [
     WASI_NN_OPENVINO,
     WASI_CRYPTO,
     WASI_NN_PYTORCH,
     WASI_NN_TENSORFLOW_LITE,
+    WASMEDGE_TENSORFLOW_PLUGIN,
+    WASMEDGE_TENSORFLOW_LITE_PLUGIN,
+    WASMEDGE_IMAGE_PLUGIN,
 ]
 
 SUPPORTTED_PLUGINS = {
@@ -317,7 +325,25 @@ SUPPORTTED_PLUGINS = {
     "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.2-alpha.1"),
     "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
     "manylinux2014" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
+    "darwin" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "aarch" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
+    "manylinux2014" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
+    "manylinux2014" + "aarch64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
+    "ubuntu20.04" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "x86_64" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "aarch" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
+    "manylinux2014"
+    + "x86_64"
+    + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
+    "manylinux2014"
+    + "aarch64"
+    + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
+    "ubuntu20.04" + "x86_64" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "aarch" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
+    "manylinux2014" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
+    "manylinux2014" + "aarch64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
+    "ubuntu20.04" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
 }
 
 HOME = expanduser("~")
@@ -646,29 +672,53 @@ def install_image_extension(args, compat):
 def install_tensorflow_extension(args, compat):
     global CONST_release_pkg, CONST_lib_ext, CONST_lib_dir, CONST_env_path
 
-    if not get_remote_version_availability(
-        "second-state/WasmEdge-tensorflow", args.tf_version
-    ):
-        logging.error(
-            "Tensorflow extension version incorrect: {0}".format(args.tf_version)
+    download_tf = True
+    download_tf_lite = True
+    download_tf_deps = True
+    download_tf_lite_deps = True
+    download_tf_tools = True
+
+    if VersionString(args.version).compare("0.13.0") >= 0:
+        # if greater than 0.13.0 then No WasmEdge-tensorflow and WasmEdge-tensorflow-tools
+        download_tf = False
+        download_tf_lite = False
+        download_tf_tools = False
+        logging.debug("No WasmEdge-tensorflow and WasmEdge-tensorflow-tools")
+
+    if (
+        not get_remote_version_availability(
+            "second-state/WasmEdge-tensorflow", args.tf_version
         )
-        return -1
-    elif not get_remote_version_availability(
-        "second-state/WasmEdge-tensorflow-deps", args.tf_deps_version
+        and download_tf
     ):
-        logging.error(
-            "Tensorflow Deps extension version incorrect: {0}".format(
+        logging.debug(
+            "Tensorflow extension version not found: {0}".format(args.tf_version)
+        )
+        download_tf = False
+
+    if (
+        not get_remote_version_availability(
+            "second-state/WasmEdge-tensorflow-deps", args.tf_deps_version
+        )
+        and download_tf_deps
+    ):
+        logging.debug(
+            "Tensorflow Deps extension version not found: {0}".format(
                 args.tf_deps_version
             )
         )
-        return -1
-    elif not get_remote_version_availability(
-        "second-state/WasmEdge-tensorflow", args.tf_tools_version
-    ):
-        logging.error(
-            "Tensorflow Tools version incorrect: {0}".format(args.tf_tools_version)
+        download_tf_deps = False
+
+    if (
+        not get_remote_version_availability(
+            "second-state/WasmEdge-tensorflow", args.tf_tools_version
         )
-        return -1
+        and download_tf_tools
+    ):
+        logging.debug(
+            "Tensorflow Tools version not found: {0}".format(args.tf_tools_version)
+        )
+        download_tf_tools
 
     if compat.prefix() + TENSORFLOW not in SUPPORTED_EXTENSIONS_VERSION:
         logging.error(
@@ -688,11 +738,6 @@ def install_tensorflow_extension(args, compat):
         )
         return -1
 
-    download_tf = True
-    download_tf_lite = True
-    download_tf_deps = True
-    download_tf_lite_deps = True
-
     if compat.machine == "aarch64":
         download_tf = False
         download_tf_deps = False
@@ -704,7 +749,7 @@ def install_tensorflow_extension(args, compat):
 
     # From WasmEdge 0.11.1, we have the Ubuntu release.
     # Installation of ubuntu version extensions when the ubuntu version of WasmEdge selected.
-    if VersionString(args.tf_version).compare("0.11.1") >= 0:
+    if VersionString(args.version).compare("0.11.1") >= 0:
         local_release_package = compat.release_package_wasmedge
         logging.debug("Downloading dist package: {0}".format(local_release_package))
 
@@ -789,25 +834,29 @@ def install_tensorflow_extension(args, compat):
 
         copytree(join(TEMP_PATH, "WasmEdge-tensorflow-lite-deps"), args.path)
 
-    tf_tools_pkg = (
-        "WasmEdge-tensorflow-tools-" + args.tf_tools_version + "-" + CONST_release_pkg
-    )
+    if download_tf_tools:
+        tf_tools_pkg = (
+            "WasmEdge-tensorflow-tools-"
+            + args.tf_tools_version
+            + "-"
+            + CONST_release_pkg
+        )
 
-    logging.info("Downloading tensorflow-tools extension")
-    download_url(
-        CONST_urls[TENSORFLOW_TOOLS], join(TEMP_PATH, tf_tools_pkg), show_progress
-    )
+        logging.info("Downloading tensorflow-tools extension")
+        download_url(
+            CONST_urls[TENSORFLOW_TOOLS], join(TEMP_PATH, tf_tools_pkg), show_progress
+        )
 
-    # Extract archive
-    extract_archive(
-        join(TEMP_PATH, tf_tools_pkg),
-        join(args.path, "bin"),
-        join(TEMP_PATH, "WasmEdge-tensorflow-tools", "bin"),
-        env_file_path=CONST_env_path,
-        remove_finished=True,
-    )
+        # Extract archive
+        extract_archive(
+            join(TEMP_PATH, tf_tools_pkg),
+            join(args.path, "bin"),
+            join(TEMP_PATH, "WasmEdge-tensorflow-tools", "bin"),
+            env_file_path=CONST_env_path,
+            remove_finished=True,
+        )
 
-    copytree(join(TEMP_PATH, "WasmEdge-tensorflow-tools"), args.path)
+        copytree(join(TEMP_PATH, "WasmEdge-tensorflow-tools"), args.path)
 
     fix_gnu_sparse(args)
 
@@ -939,7 +988,7 @@ def install_tensorflow_extension(args, compat):
                             join(args.path, "bin", _file),
                         )
 
-    if download_tf:
+    if download_tf_tools and download_tf:
         # Check if wasmedge binary works
         wasmedge_tf_output = run_shell_command(
             ". {0}/env &&{0}/bin/wasmedge-tensorflow --version".format(args.path)
@@ -954,7 +1003,7 @@ def install_tensorflow_extension(args, compat):
                 )
             )
 
-    if download_tf_lite:
+    if download_tf_tools and download_tf_lite:
         # Check if wasmedge binary works
         wasmedge_tf_lite_output = run_shell_command(
             ". {0}/env && {0}/bin/wasmedge-tensorflow-lite --version".format(args.path)
@@ -1199,7 +1248,8 @@ class Compat:
                         or "Ubuntu 20.04"
                         in run_shell_command(
                             "cat /etc/lsb_release 2>/dev/null | grep DESCRIPTION"
-                            )) and self.machine in ["x86_64", "amd64"]:
+                        )
+                    ) and self.machine in ["x86_64", "amd64"]:
                         self.dist = "ubuntu20.04"
                     else:
                         self.dist = "manylinux2014"
@@ -1414,12 +1464,19 @@ def main(args):
             )
 
         if IMAGE in args.extensions or "all" in args.extensions:
+            if VersionString(args.version).compare("0.13.0") >= 0:
+                if WASMEDGE_IMAGE_PLUGIN not in args.plugins:
+                    args.plugins.append(WASMEDGE_IMAGE_PLUGIN)
             if install_image_extension(args, compat) != 0:
                 logging.error("Error in installing image extensions")
             else:
                 logging.info("Image extension installed")
 
         if TENSORFLOW in args.extensions or "all" in args.extensions:
+            if VersionString(args.version).compare("0.13.0") >= 0:
+                if WASMEDGE_TENSORFLOW_PLUGIN not in args.plugins:
+                    args.plugins.append(WASMEDGE_TENSORFLOW_PLUGIN)
+                    args.plugins.append(WASMEDGE_TENSORFLOW_LITE_PLUGIN)
             if install_tensorflow_extension(args, compat) != 0:
                 logging.error("Error in installing tensorflow extensions")
             else:

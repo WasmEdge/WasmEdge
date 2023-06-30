@@ -206,6 +206,7 @@ jobs:
         ${{ matrix.python2_ex }} utils/install.py -e image -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && echo "Pass: Ubuntu Package selected for image" || (echo "Fail: Ubuntu Package not selected for image" && exit 1)
         ${{ matrix.python3_ex }} utils/install.py -e image -D  2>&1 | grep -q "DEBUG   - Downloading dist package: ubuntu20.04_x86_64.tar.gz" && echo "Pass: Ubuntu Package selected for image" || (echo "Fail: Ubuntu Package not selected for image" && exit 1)
 
+
     - name: Check if distro-specific downloads are selected(Non-Ubuntu)
       if: ${{ matrix.name != 'Ubuntu 20.04' }}
       run: |
@@ -232,6 +233,24 @@ jobs:
         ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-rc.1 -p /usr --plugins wasi_crypto -D
         (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
     
+    - name: Install multiple versions and Tensroflow extension/plugins for pre and post 0.13.x
+      run: |
+        ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 -v 0.12.0
+        ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 -v 0.13.0
+        ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 
+        ${{ matrix.python2_ex }} utils/install.py -e tensorflow -D  2>&1 -v 0.12.0
+        ${{ matrix.python2_ex }} utils/install.py -e tensorflow -D  2>&1 -v 0.13.0
+        ${{ matrix.python2_ex }} utils/install.py -e tensorflow -D  2>&1 
+    
+    - name: Install multiple versions and Image extension/plugins for pre and post 0.13.x
+      run: |  
+        ${{ matrix.python3_ex }} utils/install.py -e image -D  2>&1 -v 0.12.0
+        ${{ matrix.python3_ex }} utils/install.py -e image -D  2>&1 -v 0.13.0
+        ${{ matrix.python3_ex }} utils/install.py -e image -D  2>&1
+        ${{ matrix.python2_ex }} utils/install.py -e image -D  2>&1 -v 0.12.0
+        ${{ matrix.python2_ex }} utils/install.py -e image -D  2>&1 -v 0.13.0
+        ${{ matrix.python2_ex }} utils/install.py -e image -D  2>&1
+
     - name: Check for differences in the installation
       run: |
         PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh
@@ -296,6 +315,24 @@ jobs:
         # MacOS container does not have access for /usr directory
         # python utils/install.py -v 0.10.0-alpha.1 -p /usr
         # ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+
+    - name: Install multiple versions and Tensroflow extension/plugins for pre and post 0.13.x
+      run: |
+        ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 -v 0.12.0
+        ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 -v 0.13.0
+        ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 
+        ${{ matrix.python2_ex }} utils/install.py -e tensorflow -D  2>&1 -v 0.12.0
+        ${{ matrix.python2_ex }} utils/install.py -e tensorflow -D  2>&1 -v 0.13.0
+        ${{ matrix.python2_ex }} utils/install.py -e tensorflow -D  2>&1 
+    
+    - name: Install multiple versions and Image extension/plugins for pre and post 0.13.x
+      run: |  
+        ${{ matrix.python3_ex }} utils/install.py -e image -D  2>&1 -v 0.12.0
+        ${{ matrix.python3_ex }} utils/install.py -e image -D  2>&1 -v 0.13.0
+        ${{ matrix.python3_ex }} utils/install.py -e image -D  2>&1
+        ${{ matrix.python2_ex }} utils/install.py -e image -D  2>&1 -v 0.12.0
+        ${{ matrix.python2_ex }} utils/install.py -e image -D  2>&1 -v 0.13.0
+        ${{ matrix.python2_ex }} utils/install.py -e image -D  2>&1
 
     - name: Check for differences in the installation
       run: |

@@ -17,6 +17,8 @@ on:
       - "tools/**"
       - "CMakeLists.txt"
       - "cmake/**"
+      - "utils/wasi-nn/**"
+      - "utils/wasi-crypto/**"
   pull_request:
     branches:
       - master
@@ -30,6 +32,8 @@ on:
       - "tools/**"
       - "CMakeLists.txt"
       - "cmake/**"
+      - "utils/wasi-nn/**"
+      - "utils/wasi-crypto/**"
 
 jobs:
   # TODO: Refactor `lint` with `on.workflow_run`

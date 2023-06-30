@@ -29,7 +29,7 @@ jobs:
           fetch-depth: 0
       - name: Setup build environment
         run: |
-          brew install llvm ninja cmake
+          brew install llvm ninja cmake wabt
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |
@@ -62,6 +62,9 @@ jobs:
           otool -L ./build/tools/wasmedge/wasmedgec
           echo "otool -L ./build/lib/api/libwasmedge.dylib:"
           otool -L ./build/lib/api/libwasmedge.dylib
+          echo "Generate fibonacci.wasm from fibonacci.wat"
+
+          wat2wasm examples/wasm/fibonacci.wat -o examples/wasm/fibonacci.wasm
           echo "./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib_c.dylib"
           ./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib_c.dylib
           echo "./build/tools/wasmedge/wasmedge --reactor fib_c.dylib fib 20"

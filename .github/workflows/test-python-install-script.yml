@@ -131,19 +131,15 @@ jobs:
         ${{ matrix.python3_ex }} utils/install.py -e all -v 0.10.0 -D
     - name: Install WasmEdge with all extensions compatible with min version for all platforms
       run: |
-        ${{ matrix.python2_ex }} utils/install.py -e all --version=0.10.0-rc.1 \
-        --tf-version=0.10.0-rc.1 --tf-deps-version=0.10.0-rc.1  --tf-tools-version=0.10.0-rc.1  \
-        --image-version=0.10.0-rc.1 -D
-        ${{ matrix.python3_ex }} utils/install.py -e all --version=0.10.0-rc.1 \
-        --tf-version=0.10.0-rc.1 --tf-deps-version=0.10.0-rc.1  --tf-tools-version=0.10.0-rc.1  \
-        --image-version=0.10.0-rc.1 -D
+        ${{ matrix.python2_ex }} utils/install.py -e all --version=0.10.1-alpha.1 -D
+        ${{ matrix.python3_ex }} utils/install.py -e all --version=0.10.1-alpha.1 -D
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install versions multiple times
       run: |
         ${{ matrix.python2_ex }} utils/install.py -e all -D
-        ${{ matrix.python2_ex }} utils/install.py -e all -v 0.10.0-rc.1 -D
+        ${{ matrix.python2_ex }} utils/install.py -e all -v 0.10.1-alpha.1 -D
         ${{ matrix.python2_ex }} utils/install.py -e all -v 0.10.0 -D
         ${{ matrix.python3_ex }} utils/install.py -e all -D
     - name: Uninstall WasmEdge

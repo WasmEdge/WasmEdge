@@ -233,7 +233,7 @@ jobs:
         ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-rc.1 -p /usr --plugins wasi_crypto -D
         (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
     
-    - name: Install multiple versions and Tensroflow extension/plugins for pre and post 0.13.x
+    - name: Install multiple versions and Tensorflow extension/plugins for pre and post 0.13.x
       run: |
         ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 -v 0.12.0
         ${{ matrix.python3_ex }} utils/install.py -e tensorflow -D  2>&1 -v 0.13.0
@@ -316,7 +316,7 @@ jobs:
         # python utils/install.py -v 0.10.0-alpha.1 -p /usr
         # ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
 
-    - name: Install multiple versions and Tensroflow extension/plugins for pre and post 0.13.x
+    - name: Install multiple versions and Tensorflow extension/plugins for pre and post 0.13.x
       run: |
         python utils/install.py -e tensorflow -D  2>&1 -v 0.12.0
         python utils/install.py -e tensorflow -D  2>&1 -v 0.13.0

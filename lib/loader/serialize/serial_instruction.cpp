@@ -10,23 +10,6 @@ void serializeOpCode(OpCode Code, std::vector<uint8_t> &OutVec) {
   }
   OutVec.push_back(static_cast<uint16_t>(Code) & 0xFFU);
 }
-
-void serializeBlockType(BlockType Type, std::vector<uint8_t> &OutVec) {
-  // TODO: Check proposals
-  switch (Type.TypeFlag) {
-  case BlockType::TypeEnum::Empty:
-    OutVec.push_back(0x40U);
-    break;
-
-  case BlockType::TypeEnum::ValType:
-    OutVec.push_back(static_cast<uint8_t>(Type.Data.Type));
-    break;
-
-  case BlockType::TypeEnum::TypeIdx:
-    OutVec.push_back(static_cast<uint8_t>(Type.Data.Idx));
-    break;
-  }
-}
 } // namespace
 
 // Serialize instruction. See "include/loader/serialize.h".
@@ -47,8 +30,20 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Block:
   case OpCode::Loop:
   case OpCode::If:
-    // TODO
-    serializeBlockType(Instr.getBlockType(), OutVec);
+    // TODO: Check proposals
+    switch (Instr.getBlockType().TypeFlag) {
+    case BlockType::TypeEnum::Empty:
+      OutVec.push_back(0x40U);
+      break;
+
+    case BlockType::TypeEnum::ValType:
+      OutVec.push_back(static_cast<uint8_t>(Instr.getBlockType().Data.Type));
+      break;
+
+    case BlockType::TypeEnum::TypeIdx:
+      serializeS33(Instr.getBlockType().Data.Idx, OutVec);
+      break;
+    }
     return;
 
   case OpCode::Br:
@@ -188,17 +183,20 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   // Const Instructions.
   case OpCode::I32__const:
     // TODO
-    serializeU32(Instr.getNum().get<uint32_t>(), OutVec);
+    serializeS32(Instr.getNum().get<int32_t>(), OutVec);
     return;
 
   case OpCode::I64__const:
     // TODO
+    serializeS64(Instr.getNum().get<int64_t>(), OutVec);
     return;
   case OpCode::F32__const:
     // TODO
+    serializeF32(Instr.getNum().get<float>(), OutVec);
     return;
   case OpCode::F64__const:
     // TODO
+    serializeF64(Instr.getNum().get<double>(), OutVec);
     return;
 
   // Unary Numeric Instructions.

@@ -70,9 +70,9 @@ private:
 
   /// \name Helper functions
   /// @{
-  void serializeU32(uint32_t Num, std::vector<uint8_t> &OutVec,
-                    std::vector<uint8_t>::iterator It) {
-    uint8_t Buf[5];
+  template <typename NumType, size_t N> void serializeUN(NumType Num,
+                   std::vector<uint8_t> &OutVec, std::vector<uint8_t>::iterator It) {
+    uint8_t Buf[N / 7 + 1];
     uint32_t Len = 0;
     do {
       uint8_t X = Num & 0x7FU;
@@ -85,13 +85,83 @@ private:
     } while (Num);
     OutVec.insert(It, Buf, Buf + Len);
   }
+
+  void serializeU32(uint32_t Num, std::vector<uint8_t> &OutVec,
+                    std::vector<uint8_t>::iterator It) {
+    serializeUN<uint32_t, 32>(Num, OutVec, It);
+  }
   void serializeU32(uint32_t Num, std::vector<uint8_t> &OutVec) {
-    serializeU32(Num, OutVec, OutVec.end());
+    serializeUN<uint32_t, 32>(Num, OutVec, OutVec.end());
+  }
+
+  void serializeU64(uint64_t Num, std::vector<uint8_t> &OutVec,
+                    std::vector<uint8_t>::iterator It) {
+    serializeUN<uint64_t, 64>(Num, OutVec, It);
+  }
+  void serializeU64(uint64_t Num, std::vector<uint8_t> &OutVec) {
+    serializeUN<uint64_t, 64>(Num, OutVec, OutVec.end());
+  }
+
+  template <typename NumType, size_t N> void serializeSN(NumType Num,
+                   std::vector<uint8_t> &OutVec, std::vector<uint8_t>::iterator It) {
+    uint8_t Buf[N / 7 + 1];
+    uint32_t Len = 0;
+    int32_t More = 1;
+    while (More) {
+      uint8_t X = Num & 0x7FU;
+      Num >>= 7;
+      if ((Num == 0 && X >= 0) || (Num == -1 && X < 0)) {
+        More = 0;
+      } else {
+        X |= 0x80;
+      }
+      Buf[Len] = X;
+      Len++;
+    }
+    OutVec.insert(It, Buf, Buf + Len);
+  }
+
+  void serializeS32(int32_t Num, std::vector<uint8_t> &OutVec) {
+    serializeSN<int32_t, 32>(Num, OutVec, OutVec.end());
+  }
+
+  void serializeS33(int64_t Num, std::vector<uint8_t> &OutVec) {
+    serializeSN<int64_t, 33>(Num, OutVec, OutVec.end());
+  }
+
+  void serializeS64(int64_t Num, std::vector<uint8_t> &OutVec) {
+    serializeSN<int64_t, 64>(Num, OutVec, OutVec.end());
   }
 
   void serializeVec(std::vector<uint8_t> &Vec, std::vector<uint8_t> &OutVec) {
     serializeU32(Vec.size(), OutVec);
     OutVec.insert(OutVec.end(), Vec.begin(), Vec.end());
+  }
+
+  template <typename NumType, size_t N> void serializeFN(NumType Num,
+                   std::vector<uint8_t> &OutVec, std::vector<uint8_t>::iterator It) {
+    uint8_t Buf[N / 8];
+    const std::uint8_t* Ptr = reinterpret_cast<const uint8_t*>(&Num);
+    for (uint32_t I = 0; I < N / 8; I++) {
+      Buf[I] = Ptr[N / 8 - I - 1];
+    }
+    OutVec.insert(It, Buf, Buf + N / 8);
+  }
+
+  void serializeF32(float Num, std::vector<uint8_t> &OutVec,
+                   std::vector<uint8_t>::iterator It) {
+    serializeFN<float, 32>(Num, OutVec, It);
+  }
+  void serializeF32(float Num, std::vector<uint8_t> &OutVec) {
+    serializeFN<float, 32>(Num, OutVec, OutVec.end());
+  }
+
+  void serializeF64(double Num, std::vector<uint8_t> &OutVec,
+                    std::vector<uint8_t>::iterator It) {
+    serializeFN<double, 64>(Num, OutVec, It);
+  }
+  void serializeF64(double Num, std::vector<uint8_t> &OutVec) {
+    serializeFN<double, 64>(Num, OutVec, OutVec.end());
   }
 
   template <typename T, typename L>

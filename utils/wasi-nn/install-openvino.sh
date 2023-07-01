@@ -11,12 +11,10 @@ fi
 
 set -e
 echo "Installing OpenVINO with version ${OPENVINO_VERSION}"
-wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+curl -sSL https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor > /usr/share/keyrings/GPG-PUB-KEY-INTEL-OPENVINO-$OPENVINO_YEAR.gpg
 apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu22 main" | tee /etc/apt/sources.list.d/intel-openvino-2023.list
+echo "deb [signed-by=/usr/share/keyrings/GPG-PUB-KEY-INTEL-OPENVINO-$OPENVINO_YEAR.gpg] https://apt.repos.intel.com/openvino/$OPENVINO_YEAR ubuntu20 main" | tee /etc/apt/sources.list.d/intel-openvino-$OPENVINO_YEAR.list
 apt update
-apt-cache search openvino
 apt install openvino
-apt list --installed | grep openvino
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2023/bin/setupvars.sh
 ldconfig

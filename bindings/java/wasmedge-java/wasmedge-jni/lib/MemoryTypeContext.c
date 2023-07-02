@@ -10,7 +10,7 @@ GETTER(MemoryTypeContext)
 JNIEXPORT void JNICALL Java_org_wasmedge_MemoryTypeContext_nativeInit(
     JNIEnv *env, jobject thisObject, jboolean jHasMax, jlong jMin, jlong jMax) {
 
-  const WasmEdge_Limit limit = {.HasMax = jHasMax, .Min = jMin, .Max = jMax};
+  const WasmEdge_Limit limit = {/*.HasMax =*/ jHasMax, /*.Shared =*/ false, /*.Min =*/ jMin, /*.Max =*/ jMax};
 
   WasmEdge_MemoryTypeContext *memCxt = WasmEdge_MemoryTypeCreate(limit);
 

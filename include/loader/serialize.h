@@ -110,7 +110,7 @@ private:
     while (More) {
       uint8_t X = Num & 0x7FU;
       Num >>= 7;
-      if ((Num == 0 && X >= 0) || (Num == -1 && X < 0)) {
+      if ((Num == 0 && !(X & 0x40)) || (Num == -1 && X & 0x40)) {
         More = 0;
       } else {
         X |= 0x80;

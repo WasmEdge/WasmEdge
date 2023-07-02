@@ -129,11 +129,11 @@ using namespace WasmEdge;
 // Helper function for returning a WasmEdge_Result by error code.
 inline constexpr WasmEdge_Result
 genWasmEdge_Result(const ErrCode::Value &Code) noexcept {
-  return WasmEdge_Result{.Code = static_cast<uint32_t>(Code) & 0x00FFFFFFU};
+  return WasmEdge_Result{/*.Code =*/static_cast<uint32_t>(Code) & 0x00FFFFFFU};
 }
 inline constexpr WasmEdge_Result
 genWasmEdge_Result(const ErrCode &Code) noexcept {
-  return WasmEdge_Result{.Code = Code.operator uint32_t()};
+  return WasmEdge_Result{/*.Code =*/Code.operator uint32_t()};
 }
 
 // Helper function for returning a struct uint128_t / int128_t
@@ -144,7 +144,7 @@ inline constexpr ::uint128_t to_uint128_t(C Val) noexcept {
     (defined(__riscv) && __riscv_xlen == 64)
   return Val;
 #else
-  return {.Low = Val.low(), .High = static_cast<uint64_t>(Val.high())};
+  return {/*.Low =*/Val.low(), /*.High =*/static_cast<uint64_t>(Val.high())};
 #endif
 }
 template <typename C> inline constexpr ::int128_t to_int128_t(C Val) noexcept {
@@ -152,7 +152,7 @@ template <typename C> inline constexpr ::int128_t to_int128_t(C Val) noexcept {
     (defined(__riscv) && __riscv_xlen == 64)
   return Val;
 #else
-  return {.Low = Val.low(), .High = Val.high()};
+  return {/*.Low =*/Val.low(), /*.High =*/Val.high()};
 #endif
 }
 
@@ -171,12 +171,12 @@ inline constexpr C to_WasmEdge_128_t(T Val) noexcept {
 // Helper functions for returning a WasmEdge_Value by various values.
 template <typename T> inline WasmEdge_Value genWasmEdge_Value(T Val) noexcept {
   return WasmEdge_Value{
-      .Value = to_uint128_t(ValVariant(Val).unwrap()),
-      .Type = static_cast<WasmEdge_ValType>(WasmEdge::ValTypeFromType<T>())};
+      /*.Value =*/to_uint128_t(ValVariant(Val).unwrap()),
+      /*.Type =*/static_cast<WasmEdge_ValType>(WasmEdge::ValTypeFromType<T>())};
 }
 inline WasmEdge_Value genWasmEdge_Value(ValVariant Val,
                                         WasmEdge_ValType T) noexcept {
-  return WasmEdge_Value{.Value = to_uint128_t(Val.unwrap()), .Type = T};
+  return WasmEdge_Value{/*.Value =*/to_uint128_t(Val.unwrap()), /*.Type =*/T};
 }
 
 // Helper function for converting a WasmEdge_Value array to a ValVariant
@@ -288,9 +288,9 @@ inline uint32_t fillMap(const std::map<std::string, T *, std::less<>> &Map,
       break;
     }
     if (Names) {
-      Names[I] =
-          WasmEdge_String{.Length = static_cast<uint32_t>(Pair.first.length()),
-                          .Buf = Pair.first.data()};
+      Names[I] = WasmEdge_String{
+          /*.Length =*/static_cast<uint32_t>(Pair.first.length()),
+          /*.Buf =*/Pair.first.data()};
     }
     I++;
   }
@@ -568,7 +568,7 @@ WasmEdge_StringCreateByCString(const char *Str) {
     return WasmEdge_StringCreateByBuffer(
         Str, static_cast<uint32_t>(std::strlen(Str)));
   }
-  return WasmEdge_String{.Length = 0, .Buf = nullptr};
+  return WasmEdge_String{/*.Length =*/0, /*.Buf =*/nullptr};
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_String
@@ -576,14 +576,14 @@ WasmEdge_StringCreateByBuffer(const char *Buf, const uint32_t Len) {
   if (Buf && Len) {
     char *Str = new char[Len];
     std::copy_n(Buf, Len, Str);
-    return WasmEdge_String{.Length = Len, .Buf = Str};
+    return WasmEdge_String{/*.Length =*/Len, /*.Buf =*/Str};
   }
-  return WasmEdge_String{.Length = 0, .Buf = nullptr};
+  return WasmEdge_String{/*.Length =*/0, /*.Buf =*/nullptr};
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_String WasmEdge_StringWrap(const char *Buf,
                                                          const uint32_t Len) {
-  return WasmEdge_String{.Length = Len, .Buf = Buf};
+  return WasmEdge_String{/*.Length =*/Len, /*.Buf =*/Buf};
 }
 
 WASMEDGE_CAPI_EXPORT bool WasmEdge_StringIsEqual(const WasmEdge_String Str1,
@@ -631,8 +631,8 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ResultOK(const WasmEdge_Result Res) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ResultGen(
     const enum WasmEdge_ErrCategory Category, const uint32_t Code) {
-  return WasmEdge_Result{.Code = (static_cast<uint32_t>(Category) << 24) +
-                                 (Code & 0x00FFFFFFU)};
+  return WasmEdge_Result{/*.Code =*/(static_cast<uint32_t>(Category) << 24) +
+                         (Code & 0x00FFFFFFU)};
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t
@@ -1130,12 +1130,13 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Limit
 WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt) {
   if (Cxt) {
     const auto &Lim = fromTabTypeCxt(Cxt)->getLimit();
-    return WasmEdge_Limit{.HasMax = Lim.hasMax(),
-                          .Shared = Lim.isShared(),
-                          .Min = Lim.getMin(),
-                          .Max = Lim.getMax()};
+    return WasmEdge_Limit{/*.HasMax =*/Lim.hasMax(),
+                          /*.Shared =*/Lim.isShared(),
+                          /*.Min =*/Lim.getMin(),
+                          /*.Max =*/Lim.getMax()};
   }
-  return WasmEdge_Limit{.HasMax = false, .Shared = false, .Min = 0, .Max = 0};
+  return WasmEdge_Limit{/*.HasMax =*/false, /*.Shared =*/false, /*.Min =*/0,
+                        /*.Max =*/0};
 }
 
 WASMEDGE_CAPI_EXPORT void
@@ -1163,12 +1164,13 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Limit
 WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt) {
   if (Cxt) {
     const auto &Lim = fromMemTypeCxt(Cxt)->getLimit();
-    return WasmEdge_Limit{.HasMax = Lim.hasMax(),
-                          .Shared = Lim.isShared(),
-                          .Min = Lim.getMin(),
-                          .Max = Lim.getMax()};
+    return WasmEdge_Limit{/*.HasMax =*/Lim.hasMax(),
+                          /*.Shared =*/Lim.isShared(),
+                          /*.Min =*/Lim.getMin(),
+                          /*.Max =*/Lim.getMax()};
   }
-  return WasmEdge_Limit{.HasMax = false, .Shared = false, .Min = 0, .Max = 0};
+  return WasmEdge_Limit{/*.HasMax =*/false, /*.Shared =*/false, /*.Min =*/0,
+                        /*.Max =*/0};
 }
 
 WASMEDGE_CAPI_EXPORT void
@@ -1226,20 +1228,20 @@ WASMEDGE_CAPI_EXPORT WasmEdge_String
 WasmEdge_ImportTypeGetModuleName(const WasmEdge_ImportTypeContext *Cxt) {
   if (Cxt) {
     auto StrView = fromImpTypeCxt(Cxt)->getModuleName();
-    return WasmEdge_String{.Length = static_cast<uint32_t>(StrView.length()),
-                           .Buf = StrView.data()};
+    return WasmEdge_String{/*.Length =*/static_cast<uint32_t>(StrView.length()),
+                           /*.Buf =*/StrView.data()};
   }
-  return WasmEdge_String{.Length = 0, .Buf = nullptr};
+  return WasmEdge_String{/*.Length =*/0, /*.Buf =*/nullptr};
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_String
 WasmEdge_ImportTypeGetExternalName(const WasmEdge_ImportTypeContext *Cxt) {
   if (Cxt) {
     auto StrView = fromImpTypeCxt(Cxt)->getExternalName();
-    return WasmEdge_String{.Length = static_cast<uint32_t>(StrView.length()),
-                           .Buf = StrView.data()};
+    return WasmEdge_String{/*.Length =*/static_cast<uint32_t>(StrView.length()),
+                           /*.Buf =*/StrView.data()};
   }
-  return WasmEdge_String{.Length = 0, .Buf = nullptr};
+  return WasmEdge_String{/*.Length =*/0, /*.Buf =*/nullptr};
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
@@ -1308,10 +1310,10 @@ WASMEDGE_CAPI_EXPORT WasmEdge_String
 WasmEdge_ExportTypeGetExternalName(const WasmEdge_ExportTypeContext *Cxt) {
   if (Cxt) {
     auto StrView = fromExpTypeCxt(Cxt)->getExternalName();
-    return WasmEdge_String{.Length = static_cast<uint32_t>(StrView.length()),
-                           .Buf = StrView.data()};
+    return WasmEdge_String{/*.Length =*/static_cast<uint32_t>(StrView.length()),
+                           /*.Buf =*/StrView.data()};
   }
-  return WasmEdge_String{.Length = 0, .Buf = nullptr};
+  return WasmEdge_String{/*.Length =*/0, /*.Buf =*/nullptr};
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
@@ -1833,10 +1835,10 @@ WASMEDGE_CAPI_EXPORT WasmEdge_String WasmEdge_ModuleInstanceGetModuleName(
     const WasmEdge_ModuleInstanceContext *Cxt) {
   if (Cxt) {
     auto StrView = fromModCxt(Cxt)->getModuleName();
-    return WasmEdge_String{.Length = static_cast<uint32_t>(StrView.length()),
-                           .Buf = StrView.data()};
+    return WasmEdge_String{/*.Length =*/static_cast<uint32_t>(StrView.length()),
+                           /*.Buf =*/StrView.data()};
   }
-  return WasmEdge_String{.Length = 0, .Buf = nullptr};
+  return WasmEdge_String{/*.Length =*/0, /*.Buf =*/nullptr};
 }
 
 WASMEDGE_CAPI_EXPORT void *
@@ -2647,8 +2649,8 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMGetFunctionList(
           const auto &FuncType = FuncInst->getFuncType();
           if (Names) {
             Names[I] = WasmEdge_String{
-                .Length = static_cast<uint32_t>(It->first.length()),
-                .Buf = It->first.data()};
+                /*.Length =*/static_cast<uint32_t>(It->first.length()),
+                /*.Buf =*/It->first.data()};
           }
           if (FuncTypes) {
             FuncTypes[I] = toFuncTypeCxt(&FuncType);
@@ -2848,8 +2850,8 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPlugins(WasmEdge_String *Names,
   if (Names) {
     for (uint32_t I = 0; I < Len && I < PList.size(); I++) {
       Names[I] = WasmEdge_String{
-          .Length = static_cast<uint32_t>(std::strlen(PList[I].name())),
-          .Buf = PList[I].name()};
+          /*.Length =*/static_cast<uint32_t>(std::strlen(PList[I].name())),
+          /*.Buf =*/PList[I].name()};
     }
   }
   return static_cast<uint32_t>(PList.size());
@@ -2864,10 +2866,11 @@ WASMEDGE_CAPI_EXPORT WasmEdge_String
 WasmEdge_PluginGetPluginName(const WasmEdge_PluginContext *Cxt) {
   if (Cxt) {
     const char *Name = fromPluginCxt(Cxt)->name();
-    return WasmEdge_String{.Length = static_cast<uint32_t>(std::strlen(Name)),
-                           .Buf = Name};
+    return WasmEdge_String{
+        /*.Length =*/static_cast<uint32_t>(std::strlen(Name)),
+        /*.Buf =*/Name};
   }
-  return WasmEdge_String{.Length = 0, .Buf = nullptr};
+  return WasmEdge_String{/*.Length =*/0, /*.Buf =*/nullptr};
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t
@@ -2886,8 +2889,8 @@ WasmEdge_PluginListModule(const WasmEdge_PluginContext *Cxt,
     if (Names) {
       for (uint32_t I = 0; I < Len && I < MList.size(); I++) {
         Names[I] = WasmEdge_String{
-            .Length = static_cast<uint32_t>(std::strlen(MList[I].name())),
-            .Buf = MList[I].name()};
+            /*.Length =*/static_cast<uint32_t>(std::strlen(MList[I].name())),
+            /*.Buf =*/MList[I].name()};
       }
     }
     return static_cast<uint32_t>(MList.size());

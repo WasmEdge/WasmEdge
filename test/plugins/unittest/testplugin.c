@@ -10,8 +10,8 @@
 
 static WasmEdge_String NameString;
 static const char NameCString[] = "name";
-static const WasmEdge_String NameStringDefaultValue = {.Buf = NameCString,
-                                                       .Length = 4};
+static const WasmEdge_String NameStringDefaultValue = {/*.Length =*/ 4,
+                                                       /*.Buf =*/ NameCString};
 void Finalizer(void *Data) {
   printf("Deallocate host data\n");
   free((int32_t *)Data);

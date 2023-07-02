@@ -61,10 +61,15 @@ typedef struct WasmEdge_String {
 typedef struct WasmEdge_Result {
   uint32_t Code;
 } WasmEdge_Result;
+#ifdef __cplusplus
+#define WasmEdge_Result_Success (WasmEdge_Result{/*.Code =*/0x00})
+#define WasmEdge_Result_Terminate (WasmEdge_Result{/*.Code =*/0x01})
+#define WasmEdge_Result_Fail (WasmEdge_Result{/*.Code =*/0x02})
+#else
 #define WasmEdge_Result_Success ((WasmEdge_Result){.Code = 0x00})
 #define WasmEdge_Result_Terminate ((WasmEdge_Result){.Code = 0x01})
 #define WasmEdge_Result_Fail ((WasmEdge_Result){.Code = 0x02})
-
+#endif
 /// Struct of WASM limit.
 typedef struct WasmEdge_Limit {
   /// Boolean to describe has max value or not.

@@ -82,13 +82,13 @@ public:
                : static_cast<WasmPhase>((getCode() & 0xF0U) >> 5);
   }
 
-  constexpr ErrCode() noexcept : Inner({.Num = 0}) {}
-  constexpr ErrCode(const ErrCode &E) noexcept : Inner({.Num = E.Inner.Num}) {}
-  constexpr ErrCode(const ErrCode::Value E) noexcept : Inner({.Code = E}) {}
+  constexpr ErrCode() noexcept : Inner(0) {}
+  constexpr ErrCode(const ErrCode &E) noexcept : Inner(E.Inner.Num) {}
+  constexpr ErrCode(const ErrCode::Value E) noexcept : Inner(E) {}
   constexpr ErrCode(const uint32_t N) noexcept
-      : Inner({.Num = (N & 0x00FFFFFFU)}) {}
+      : Inner((N & 0x00FFFFFFU)) {}
   constexpr ErrCode(const ErrCategory C, const uint32_t N) noexcept
-      : Inner({.Num = (static_cast<uint32_t>(C) << 24) + (N & 0x00FFFFFFU)}) {}
+      : Inner((static_cast<uint32_t>(C) << 24) + (N & 0x00FFFFFFU)) {}
 
   friend constexpr bool operator==(const ErrCode &LHS,
                                    const ErrCode::Value &RHS) noexcept {
@@ -118,7 +118,9 @@ public:
   constexpr operator uint32_t() const noexcept { return Inner.Num; }
 
 private:
-  union {
+  union Inner_t {
+    constexpr Inner_t(uint32_t num): Num(num) {}
+    constexpr Inner_t(ErrCode::Value code): Code(code) {}
     uint32_t Num;
     ErrCode::Value Code;
   } Inner;

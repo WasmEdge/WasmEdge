@@ -213,8 +213,8 @@ static inline constexpr const FiletimeDuration NTToUnixEpoch =
 static constexpr __wasi_timestamp_t fromFiletime(FILETIME_ FileTime) noexcept {
   using std::chrono::duration_cast;
   using std::chrono::nanoseconds;
-  ULARGE_INTEGER_ Temp = {.LowPart = FileTime.dwLowDateTime,
-                          .HighPart = FileTime.dwHighDateTime};
+  ULARGE_INTEGER_ Temp = {/*.LowPart =*/FileTime.dwLowDateTime,
+                          /*.HighPart =*/FileTime.dwHighDateTime};
   auto Duration = duration_cast<nanoseconds>(FiletimeDuration{Temp.QuadPart} -
                                              NTToUnixEpoch);
   return static_cast<__wasi_timestamp_t>(Duration.count());
@@ -225,9 +225,9 @@ static constexpr FILETIME_ toFiletime(__wasi_timestamp_t TimeStamp) noexcept {
   using std::chrono::nanoseconds;
   auto Duration =
       duration_cast<FiletimeDuration>(nanoseconds{TimeStamp}) + NTToUnixEpoch;
-  ULARGE_INTEGER_ Temp = {.QuadPart = Duration.count()};
-  return FILETIME_{.dwLowDateTime = Temp.LowPart,
-                   .dwHighDateTime = Temp.HighPart};
+  ULARGE_INTEGER_ Temp = ULARGE_INTEGER_(Duration.count());
+  return FILETIME_{/*.dwLowDateTime =*/Temp.LowPart,
+                   /*.dwHighDateTime =*/Temp.HighPart};
 }
 
 inline __wasi_errno_t fromWSALastError() noexcept {

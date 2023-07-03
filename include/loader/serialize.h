@@ -142,8 +142,8 @@ private:
                    std::vector<uint8_t> &OutVec, std::vector<uint8_t>::iterator It) {
     uint8_t Buf[N / 8];
     const std::uint8_t* Ptr = reinterpret_cast<const uint8_t*>(&Num);
-    for (uint32_t I = 0; I < N / 8; I++) {
-      Buf[I] = Ptr[N / 8 - I - 1];
+    for (uint32_t I = 0; I < N / 8; ++I) {
+      Buf[I] = Ptr[I];
     }
     OutVec.insert(It, Buf, Buf + N / 8);
   }

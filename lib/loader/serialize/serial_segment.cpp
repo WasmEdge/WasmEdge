@@ -65,6 +65,9 @@ void Serializer::serializeSegment(const AST::ElementSegment &Seg,
     } else {
       // Serialize vec(FuncIdx).
       for (auto Instr : Expr.getInstrs()) {
+        if (Instr.getOpCode() == OpCode::End) {
+          break;
+        }
         serializeU32(Instr.getTargetIndex(), Vec);
       }
     }

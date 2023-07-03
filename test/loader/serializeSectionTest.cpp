@@ -235,7 +235,8 @@ TEST(SerializeSectionTest, SerializeElementSection) {
   Expr.getInstrs() = {
       WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
       WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne)
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne),
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)
   };
   ElementSeg1.getExpr() = Expr;
 
@@ -246,7 +247,7 @@ TEST(SerializeSectionTest, SerializeElementSection) {
   RefFunc2.getTargetIndex() = 0x0B;
   auto RefFunc3 = WasmEdge::AST::Instruction(WasmEdge::OpCode::Ref__func);
   RefFunc3.getTargetIndex() = 0x0C;
-  InitExpr.getInstrs() = {RefFunc1, RefFunc2, RefFunc3};
+  InitExpr.getInstrs() = {RefFunc1, RefFunc2, RefFunc3, WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
   ElementSeg1.getInitExprs() = {InitExpr};
 
   ElementSec.getContent() = {ElementSeg1};
@@ -269,7 +270,11 @@ TEST(SerializeSectionTest, SerializeCodeSection) {
   CodeSeg.setSegSize(8);
   CodeSeg.getLocals() = {{1, WasmEdge::ValType::F64}, {3, WasmEdge::ValType::F32}};
   WasmEdge::AST::Expression Expr;
-  Expr.getInstrs() = {WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz), WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq)};
+  Expr.getInstrs() = {
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)
+  };
   CodeSeg.getExpr() = Expr;
   CodeSec.getContent().push_back(CodeSeg);
 
@@ -294,7 +299,8 @@ TEST(SerializeSectionTest, SerializeDataSection) {
   Expr.getInstrs() = {
       WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
       WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne)
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne),
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)
   };
   DataSeg.setMode(WasmEdge::AST::DataSegment::DataMode::Active);
   DataSeg.getExpr() = Expr;

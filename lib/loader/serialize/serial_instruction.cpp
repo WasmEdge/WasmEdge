@@ -54,7 +54,7 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
 
   case OpCode::Br_table: {
     // TODO
-    int VecCnt = Instr.getLabelList().size() - 1;
+    uint32_t VecCnt = Instr.getLabelList().size() - 1;
     serializeU32(VecCnt, OutVec);
     for (auto Label : Instr.getLabelList()) {
       serializeU32(Label.TargetIndex, OutVec);
@@ -81,7 +81,7 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   // Reference Instructions.
   case OpCode::Ref__null:
     // TODO: checkRefTypeProposals
-    serializeU32(static_cast<uint8_t>(Instr.getRefType()), OutVec);
+    OutVec.push_back(static_cast<uint8_t>(Instr.getRefType()));
     return;
   case OpCode::Ref__is_null:
     return;
@@ -99,7 +99,7 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
     uint32_t VecCnt = Instr.getValTypeList().size();
     serializeU32(VecCnt, OutVec);
     for (auto VType : Instr.getValTypeList()) {
-      serializeU32(static_cast<uint8_t>(VType), OutVec);
+      OutVec.push_back(static_cast<uint8_t>(VType));
     }
     return;
   }
@@ -155,7 +155,7 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::I64__store32:
     // TODO: Check MultiMemories proposal.
     serializeU32(Instr.getMemoryAlign(), OutVec);
-    serializeU32(Instr.getTargetIndex(), OutVec);
+    serializeU32(Instr.getMemoryOffset(), OutVec);
     return;
 
   case OpCode::Memory__init:
@@ -166,7 +166,7 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Memory__size:
   case OpCode::Memory__fill:
     // TODO: Check MultiMemories proposal.
-    serializeU32(0x00, OutVec);
+    OutVec.push_back(0x00U);
     return;
 
   case OpCode::Memory__copy:
@@ -365,14 +365,23 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::V128__store32_lane:
   case OpCode::V128__store64_lane:
     // TODO
+    serializeU32(Instr.getMemoryAlign(), OutVec);
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    serializeU32(Instr.getMemoryLane(), OutVec);
     return;
 
   // SIMD Const Instruction.
   case OpCode::V128__const:
   // SIMD Shuffle Instruction.
-  case OpCode::I8x16__shuffle:
+  case OpCode::I8x16__shuffle: {
     // TODO
+    uint128_t Value = Instr.getNum().get<uint128_t>();
+    const std::uint8_t* Ptr = reinterpret_cast<const uint8_t*>(&Value);
+    for (uint32_t I = 0; I < 16; ++I) {
+      OutVec.push_back(Ptr[15 - I]);
+    }
     return;
+  }
 
   // SIMD Lane Instructions.
   case OpCode::I8x16__extract_lane_s:
@@ -390,6 +399,7 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::F64x2__extract_lane:
   case OpCode::F64x2__replace_lane:
     // TODO
+    OutVec.push_back(Instr.getMemoryLane());
     return;
 
   // SIMD Numeric Instructions.
@@ -610,6 +620,7 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   // Atomic Memory Instructions.
   case OpCode::Atomic__fence:
     // TODO
+    OutVec.push_back(Instr.getTargetIndex());
     return;
 
   case OpCode::Memory__atomic__notify:
@@ -680,6 +691,8 @@ void Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::I64__atomic__rmw16__cmpxchg_u:
   case OpCode::I64__atomic__rmw32__cmpxchg_u:
     // TODO
+    serializeU32(Instr.getMemoryAlign(), OutVec);
+    serializeU32(Instr.getMemoryOffset(), OutVec);
     return;
 
   default:

@@ -10,7 +10,6 @@ void Serializer::serializeExpression(const AST::Expression &Expr,
   for (const auto &Instr : Expr.getInstrs()) {
     serializeInstruction(Instr, OutVec);
   }
-  OutVec.push_back(0x0BU);
 }
 
 } // namespace Loader

@@ -105,6 +105,7 @@ find_package(ZLIB REQUIRED)
 find_package(Boost 1.74.0)
 if(${Boost_FOUND})
 else()
+  include(FetchContent)
   FetchContent_Declare(
     Boost
     URL https://boostorg.jfrog.io/artifactory/main/release/1.82.0/source/boost_1_82_0.tar.bz2

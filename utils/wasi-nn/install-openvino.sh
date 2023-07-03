@@ -16,4 +16,5 @@ apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
 echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | tee /etc/apt/sources.list.d/intel-openvino-2023.list
 apt update
 apt-get -y install openvino
+source /opt/intel/openvino_2021/bin/setupvars.sh
 ldconfig

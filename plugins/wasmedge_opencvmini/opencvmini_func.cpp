@@ -127,5 +127,18 @@ WasmEdgeOpenCVMiniNormalize::body(const Runtime::CallingFrame &,
   return Env.insertMat(Dst);
 }
 
+Expect<uint32_t>
+WasmEdgeOpenCVMiniBilinearSampling::body(const Runtime::CallingFrame &,
+                                         uint32_t SrcMatKey, uint32_t OutImgW,
+                                         uint32_t OutImgH) {
+  auto Src = Env.getMat(SrcMatKey);
+  if (!Src) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  cv::Mat Dst;
+  cv::resize(*Src, Dst, cv::Size(OutImgW, OutImgH), 0, 0, cv::INTER_LINEAR);
+  return Env.insertMat(Dst);
+}
+
 } // namespace Host
 } // namespace WasmEdge

@@ -79,5 +79,15 @@ public:
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t SrcMatKey);
 };
 
+class WasmEdgeOpenCVMiniBilinearSampling
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniBilinearSampling> {
+public:
+  WasmEdgeOpenCVMiniBilinearSampling(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t SrcMatKey,
+                        uint32_t OutImgW, uint32_t OutImgH);
+};
+
 } // namespace Host
 } // namespace WasmEdge

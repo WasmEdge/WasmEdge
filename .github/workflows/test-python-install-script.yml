@@ -147,6 +147,10 @@ jobs:
         bash utils/uninstall.sh -q -V
     - name: Uninstall WasmEdge and Source Line removal check
       run: |
+        echo > ~/.bashrc
+        echo > ~/.bash_profile
+        echo > ~/.profile
+
         ${{ matrix.python2_ex }} utils/install.py && bash utils/uninstall.sh -q
         if echo >> ~/.bashrc && grep -qE ".wasmedge/env" ~/.bashrc; then echo "Failed: Source Lines found" && cat ~/.bashrc && exit 1;else echo "Pass: Source Lines Removed"; fi;
         if echo >> ~/.bash_profile && grep -qE ".wasmedge/env" ~/.bash_profile; then echo "Failed: Source Lines found" && cat ~/.bash_profile && exit 1;else echo "Pass: Source Lines Removed"; fi;

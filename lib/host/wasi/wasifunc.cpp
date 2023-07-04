@@ -1471,6 +1471,13 @@ Expect<uint32_t> WasiPollOneoff<Trigger>::body(
     *NEvents = WasiNSub;
     return Poll.error();
   } else {
+    struct SubInfo {
+      bool ReadFlag;
+      bool WriteFlag;
+      __wasi_userdata_t ReadData;
+      __wasi_userdata_t WriteData;
+    };
+    std::unordered_map<int32_t, SubInfo> SubInfoMap = {};
     auto &Poller = *Poll;
     for (auto &Sub : Subs) {
       const __wasi_userdata_t WasiUserData = Sub.userdata;
@@ -1512,17 +1519,57 @@ Expect<uint32_t> WasiPollOneoff<Trigger>::body(
       }
       case __WASI_EVENTTYPE_FD_READ: {
         const __wasi_fd_t WasiFd = Sub.u.u.fd_read.file_descriptor;
-        Poller.read(WasiFd, Trigger, WasiUserData);
+        auto Iter = SubInfoMap.find(WasiFd);
+        const bool NotFound = Iter == SubInfoMap.end();
+        if (NotFound) {
+          SubInfo Info = {.ReadFlag = true,
+                          .WriteFlag = false,
+                          .ReadData = WasiUserData,
+                          .WriteData = 0};
+          SubInfoMap.try_emplace(WasiFd, Info);
+        } else {
+          if (Iter->second.ReadFlag) {
+            Poller.error(WasiUserData, __WASI_ERRNO_EXIST,
+                         __WASI_EVENTTYPE_FD_READ);
+          } else {
+            Iter->second.ReadFlag = true;
+            Iter->second.ReadData = WasiUserData;
+          }
+        }
+        // Poller.read(WasiFd, Trigger, WasiUserData);
         continue;
       }
       case __WASI_EVENTTYPE_FD_WRITE: {
         const __wasi_fd_t WasiFd = Sub.u.u.fd_write.file_descriptor;
-        Poller.write(WasiFd, Trigger, WasiUserData);
+
+        auto Iter = SubInfoMap.find(WasiFd);
+        const bool NotFound = Iter == SubInfoMap.end();
+        if (NotFound) {
+          SubInfo Info = {.ReadFlag = false,
+                          .WriteFlag = true,
+                          .ReadData = 0,
+                          .WriteData = WasiUserData};
+          SubInfoMap.try_emplace(WasiFd, Info);
+        } else {
+          if (Iter->second.WriteFlag) {
+            Poller.error(WasiUserData, __WASI_ERRNO_EXIST,
+                         __WASI_EVENTTYPE_FD_WRITE);
+          } else {
+            Iter->second.WriteFlag = true;
+            Iter->second.WriteData = WasiUserData;
+          }
+        }
+        // Poller.write(WasiFd, Trigger, WasiUserData);
         continue;
       }
       default:
         assumingUnreachable();
       }
+    }
+    for (auto &Info : SubInfoMap) {
+      Poller.process(Info.first, Trigger, Info.second.ReadFlag,
+                     Info.second.WriteFlag, Info.second.ReadData,
+                     Info.second.WriteData);
     }
     Poller.wait();
     *NEvents = Poller.result();

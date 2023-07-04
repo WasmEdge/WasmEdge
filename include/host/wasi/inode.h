@@ -876,6 +876,14 @@ public:
   /// Concurrently poll for events.
   void wait() noexcept;
 
+#if WASMEDGE_OS_LINUX
+  void process(const INode &Fd [[maybe_unused]],
+               TriggerType Trigger [[maybe_unused]],
+               bool ReadFlag [[maybe_unused]], bool WriteFlag [[maybe_unused]],
+               __wasi_userdata_t ReadUserData [[maybe_unused]],
+               __wasi_userdata_t WriteUserData [[maybe_unused]]) noexcept;
+#endif
+
   /// Return number of events.
   ///
   /// @return Number of event occurred

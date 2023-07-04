@@ -1598,6 +1598,190 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
   }
 }
 
+void Poller::process(const INode &Node [[maybe_unused]],
+                     TriggerType Trigger [[maybe_unused]],
+                     bool ReadFlag [[maybe_unused]],
+                     bool WriteFlag [[maybe_unused]],
+                     __wasi_userdata_t ReadUserData [[maybe_unused]],
+                     __wasi_userdata_t WriteUserData
+                     [[maybe_unused]]) noexcept {
+
+  if (ReadFlag && WriteFlag) {
+    assuming(Events.size() < WasiEvents.size());
+    auto &ReadEvent = Events.emplace_back();
+    ReadEvent.Valid = false;
+    ReadEvent.userdata = ReadUserData;
+    ReadEvent.type = __WASI_EVENTTYPE_FD_READ;
+
+    assuming(Events.size() < WasiEvents.size());
+    auto &WriteEvent = Events.emplace_back();
+    WriteEvent.Valid = false;
+    WriteEvent.userdata = WriteUserData;
+    WriteEvent.type = __WASI_EVENTTYPE_FD_WRITE;
+
+    assuming(Node.Fd != Fd);
+
+    try {
+      auto [Iter, Added] = FdDatas.try_emplace(Node.Fd);
+      assuming(Added);
+      auto OldIter = OldFdDatas.find(Node.Fd);
+      const bool New = OldIter == OldFdDatas.end();
+
+      Iter->second.ReadEvent = &ReadEvent;
+      Iter->second.WriteEvent = &WriteEvent;
+
+      epoll_event EPollEvent;
+      EPollEvent.events = EPOLLIN;
+      EPollEvent.events |= EPOLLOUT;
+
+      if (Trigger == TriggerType::Edge) {
+        EPollEvent.events |= EPOLLET;
+      }
+#if defined(EPOLLRDHUP)
+      EPollEvent.events |= EPOLLRDHUP;
+#endif
+      EPollEvent.data.fd = Node.Fd;
+
+      if (New) {
+        if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_ADD, Node.Fd, &EPollEvent);
+            unlikely(Res < 0)) {
+          FdDatas.erase(Iter);
+          ReadEvent.Valid = true;
+          ReadEvent.error = fromErrNo(errno);
+          WriteEvent.Valid = true;
+          WriteEvent.error = fromErrNo(errno);
+          return;
+        }
+      } else {
+        //
+        if ((ReadFlag && OldIter->second.ReadEvent == nullptr) ||
+            (WriteFlag && OldIter->second.WriteEvent == nullptr)) {
+          if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_MOD, Node.Fd, &EPollEvent);
+              unlikely(Res < 0)) {
+            ReadEvent.Valid = true;
+            ReadEvent.error = fromErrNo(errno);
+            WriteEvent.Valid = true;
+            WriteEvent.error = fromErrNo(errno);
+            return;
+          }
+        }
+      }
+    } catch (std::bad_alloc &) {
+      ReadEvent.Valid = true;
+      ReadEvent.error = __WASI_ERRNO_NOMEM;
+      WriteEvent.Valid = true;
+      WriteEvent.error = __WASI_ERRNO_NOMEM;
+      return;
+    }
+
+  } else if (ReadFlag) {
+
+    assuming(Events.size() < WasiEvents.size());
+    auto &ReadEvent = Events.emplace_back();
+    ReadEvent.Valid = false;
+    ReadEvent.userdata = ReadUserData;
+    ReadEvent.type = __WASI_EVENTTYPE_FD_READ;
+
+    assuming(Node.Fd != Fd);
+
+    try {
+      auto [Iter, Added] = FdDatas.try_emplace(Node.Fd);
+      assuming(Added);
+      auto OldIter = OldFdDatas.find(Node.Fd);
+      const bool New = OldIter == OldFdDatas.end();
+
+      Iter->second.ReadEvent = &ReadEvent;
+
+      epoll_event EPollEvent;
+      EPollEvent.events = EPOLLIN;
+      if (Trigger == TriggerType::Edge) {
+        EPollEvent.events |= EPOLLET;
+      }
+#if defined(EPOLLRDHUP)
+      EPollEvent.events |= EPOLLRDHUP;
+#endif
+      EPollEvent.data.fd = Node.Fd;
+
+      if (New) {
+        if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_ADD, Node.Fd, &EPollEvent);
+            unlikely(Res < 0)) {
+          FdDatas.erase(Iter);
+          ReadEvent.Valid = true;
+          ReadEvent.error = fromErrNo(errno);
+          return;
+        }
+      } else {
+        //
+        if ((ReadFlag && OldIter->second.ReadEvent == nullptr) ||
+            (WriteFlag && OldIter->second.WriteEvent == nullptr)) {
+          if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_MOD, Node.Fd, &EPollEvent);
+              unlikely(Res < 0)) {
+            ReadEvent.Valid = true;
+            ReadEvent.error = fromErrNo(errno);
+            return;
+          }
+        }
+      }
+    } catch (std::bad_alloc &) {
+      ReadEvent.Valid = true;
+      ReadEvent.error = __WASI_ERRNO_NOMEM;
+      return;
+    }
+
+  } else if (WriteFlag) {
+    assuming(Events.size() < WasiEvents.size());
+    auto &WriteEvent = Events.emplace_back();
+    WriteEvent.Valid = false;
+    WriteEvent.userdata = WriteUserData;
+    WriteEvent.type = __WASI_EVENTTYPE_FD_WRITE;
+
+    assuming(Node.Fd != Fd);
+
+    try {
+      auto [Iter, Added] = FdDatas.try_emplace(Node.Fd);
+      assuming(Added);
+      auto OldIter = OldFdDatas.find(Node.Fd);
+      const bool New = OldIter == OldFdDatas.end();
+
+      Iter->second.WriteEvent = &WriteEvent;
+
+      epoll_event EPollEvent;
+      EPollEvent.events = EPOLLOUT;
+      if (Trigger == TriggerType::Edge) {
+        EPollEvent.events |= EPOLLET;
+      }
+#if defined(EPOLLRDHUP)
+      EPollEvent.events |= EPOLLRDHUP;
+#endif
+      EPollEvent.data.fd = Node.Fd;
+
+      if (New) {
+        if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_ADD, Node.Fd, &EPollEvent);
+            unlikely(Res < 0)) {
+          FdDatas.erase(Iter);
+          WriteEvent.Valid = true;
+          WriteEvent.error = fromErrNo(errno);
+          return;
+        }
+      } else {
+        if ((ReadFlag && OldIter->second.ReadEvent == nullptr) ||
+            (WriteFlag && OldIter->second.WriteEvent == nullptr)) {
+          if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_MOD, Node.Fd, &EPollEvent);
+              unlikely(Res < 0)) {
+            WriteEvent.Valid = true;
+            WriteEvent.error = fromErrNo(errno);
+            return;
+          }
+        }
+      }
+    } catch (std::bad_alloc &) {
+      WriteEvent.Valid = true;
+      WriteEvent.error = __WASI_ERRNO_NOMEM;
+      return;
+    }
+  }
+}
+
 void Poller::read(const INode &Node, TriggerType Trigger,
                   __wasi_userdata_t UserData) noexcept {
   assuming(Events.size() < WasiEvents.size());

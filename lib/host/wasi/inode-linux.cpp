@@ -1598,13 +1598,9 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
   }
 }
 
-void Poller::process(const INode &Node [[maybe_unused]],
-                     TriggerType Trigger [[maybe_unused]],
-                     bool ReadFlag [[maybe_unused]],
-                     bool WriteFlag [[maybe_unused]],
-                     __wasi_userdata_t ReadUserData [[maybe_unused]],
-                     __wasi_userdata_t WriteUserData
-                     [[maybe_unused]]) noexcept {
+void Poller::process(const INode &Node, TriggerType Trigger, bool ReadFlag,
+                     bool WriteFlag, __wasi_userdata_t ReadUserData,
+                     __wasi_userdata_t WriteUserData) noexcept {
 
   if (ReadFlag && WriteFlag) {
     assuming(Events.size() < WasiEvents.size());

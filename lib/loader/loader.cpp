@@ -67,7 +67,7 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
   std::lock_guard Lock(Mutex);
   // Set path and check the header.
   if (auto Res = FMgr.setPath(FilePath); !Res) {
-    spdlog::error(Res.error());
+    spdlog::error(static_cast<uint32_t>(Res.error()));
     spdlog::error(ErrInfo::InfoFile(FilePath));
     return Unexpect(Res);
   }

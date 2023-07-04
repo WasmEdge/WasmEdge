@@ -105,14 +105,14 @@ private:
   /// @{
   inline auto logLoadError(ErrCode Code, uint64_t Off,
                            ASTNodeAttr Node) const noexcept {
-    spdlog::error(Code);
+    spdlog::error(static_cast<uint32_t>(Code));
     spdlog::error(ErrInfo::InfoLoading(Off));
     spdlog::error(ErrInfo::InfoAST(Node));
     return Unexpect(Code);
   }
   inline auto logNeedProposal(ErrCode Code, Proposal Prop, uint64_t Off,
                               ASTNodeAttr Node) const noexcept {
-    spdlog::error(Code);
+    spdlog::error(static_cast<uint32_t>(Code));
     spdlog::error(ErrInfo::InfoProposal(Prop));
     spdlog::error(ErrInfo::InfoLoading(Off));
     spdlog::error(ErrInfo::InfoAST(Node));

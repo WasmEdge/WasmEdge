@@ -80,7 +80,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     if (!Ret) {
       if (Ret.error() == ErrCode::Value::HostFuncError ||
           Ret.error().getCategory() != ErrCategory::WASM) {
-        spdlog::error(Ret.error());
+        spdlog::error(static_cast<uint32_t>(Ret.error()));
       }
       return Unexpect(Ret);
     }
@@ -132,7 +132,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       if (auto Err = ErrCode(static_cast<ErrCategory>(Code >> 24), Code);
           unlikely(Err != ErrCode::Value::Success)) {
         if (Err != ErrCode::Value::Terminated) {
-          spdlog::error(Err);
+          spdlog::error(static_cast<uint32_t>(Err));
         }
         return Unexpect(Err);
       }

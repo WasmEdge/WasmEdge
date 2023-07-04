@@ -36,7 +36,7 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
 
   uint32_t Count = RawCount.get<uint32_t>();
   if (auto Res = atomicNotify(MemInst, Address, Count); unlikely(!Res)) {
-    spdlog::error(Res.error());
+    spdlog::error(static_cast<uint32_t>(Res.error()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);

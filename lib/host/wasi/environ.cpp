@@ -102,7 +102,7 @@ void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
       if (auto Res = VINode::bind(BaseRights, InheritingRights,
                                   std::move(GuestDir), std::move(HostDir));
           unlikely(!Res)) {
-        spdlog::error("Bind guest directory failed:{}", Res.error());
+        spdlog::error("Bind guest directory failed:{}", static_cast<uint32_t>(Res.error()));
         continue;
       } else {
         PreopenedDirs.emplace_back(std::move(*Res));

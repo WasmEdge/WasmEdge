@@ -288,7 +288,7 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
     if (auto Res = Library->load(Mod->getAOTSection()); unlikely(!Res)) {
       spdlog::error("    AOT section -- library load failed:{} , use "
                     "interpreter mode instead.",
-                    Res.error());
+                    static_cast<uint32_t>(Res.error()));
       FallBackInterpreter = true;
     }
 

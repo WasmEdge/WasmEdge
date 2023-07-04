@@ -42,7 +42,7 @@ TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
 
   if (auto Res = atomicWait<T>(MemInst, Address, RawValue.get<T>(), Timeout);
       unlikely(!Res)) {
-    spdlog::error(Res.error());
+    spdlog::error(static_cast<uint32_t>(Res.error()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);

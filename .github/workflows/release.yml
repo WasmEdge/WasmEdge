@@ -49,8 +49,9 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-macos.yml
     with:
       version: ${{ needs.create_release.outputs.version }}
-      matrix: "[{'name':'MacOS 11 (x86_64)','runner':'macos-11','darwin_version':20,'arch':'x86_64'},
-                {'name':'MacOS 13 (arm64)','runner':'mac-arm64','darwin_version':22,'arch':'arm64'}]"
+      matrix:
+        "[{'name':'MacOS 11 (x86_64)','runner':'macos-11','darwin_version':20,'arch':'x86_64'},
+        {'name':'MacOS 13 (arm64)','runner':'mac-arm64','darwin_version':22,'arch':'arm64'}]"
       release: true
     secrets: inherit
 
@@ -68,8 +69,9 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-manylinux.yml
     with:
       version: ${{ needs.create_release.outputs.version }}
-      matrix: "[{'name':'manylinux 2014 x86_64','runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},
-                {'name':'manylinux 2014 aarch64','runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
+      matrix:
+        "[{'name':'manylinux 2014 x86_64','runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},
+        {'name':'manylinux 2014 aarch64','runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
       release: true
     secrets: inherit
 
@@ -188,7 +190,8 @@ jobs:
       - name: Install dependencies
         run: |
           apt update
-          apt install -y libssl-dev
+          apt install -y libssl-dev cmake g++ wget unzip
+          bash utils/opencvmini/install-opencvmini.sh
       - name: Build plugins
         shell: bash
         run: |
@@ -373,8 +376,9 @@ jobs:
       - name: Build and install dependencies
         run: |
           yum update -y
-          yum install -y zlib-devel zlib-static
+          yum install -y zlib-devel zlib-static cmake devtoolset-8 wget unzip
           bash ./utils/wasi-crypto/build-openssl.sh
+          bash utils/opencvmini/install-opencvmini.sh
       - name: Build plugins
         shell: bash
         run: |
@@ -444,8 +448,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv plugin_wasmedge_opencvmini.tar.gz WasmEdge-plugin-wasmedge_opencvmini-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
-          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_opencvmini-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+          mv plugin_wasmedge_opencvmini.tar.gz WasmEdge-plugin-wasmedge_opencvmini-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_opencvmini-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz --clobber
 
   build_and_upload_plugin_macos:
     strategy:
@@ -479,7 +483,7 @@ jobs:
           git config --global --add safe.directory $(pwd)
       - name: Install dependencies
         run: |
-          brew install llvm ninja cmake openssl
+          brew install llvm ninja cmake openssl opencv
       - name: Build plugins
         shell: bash
         run: |
@@ -541,8 +545,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv plugin_wasmedge_opencvmini.tar.gz WasmEdge-plugin-wasmedge_opencvmini-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
-          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_opencvmini-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+          mv plugin_wasmedge_opencvmini.tar.gz WasmEdge-plugin-wasmedge_opencvmini-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_opencvmini-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
 
   build_manylinux2014_runtime_only:
     name: Build runtime only on manylinux2014 platform

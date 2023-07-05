@@ -170,7 +170,8 @@ jobs:
       - name: Install dependencies
         run: |
           apt update
-          apt install -y libssl-dev
+          apt install -y libssl-dev cmake g++ wget unzip
+          bash utils/opencvmini/install-opencvmini.sh
       - name: Build plugins using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
         run: |
@@ -345,8 +346,9 @@ jobs:
       - name: Build and install dependencies
         run: |
           yum update -y
-          yum install -y zlib-devel zlib-static
+          yum install -y zlib-devel zlib-static cmake devtoolset-8 wget unzip
           bash ./utils/wasi-crypto/build-openssl.sh
+          bash utils/opencvmini/install-opencvmini.sh
       - name: Build and test plugins using g++ with ${{ matrix.build_type }} mode
         shell: bash
         run: |
@@ -451,7 +453,7 @@ jobs:
           fetch-depth: 0
       - name: Build and install dependencies
         run: |
-          brew install llvm ninja cmake openssl
+          brew install llvm ninja cmake openssl opencv
       - name: Build WasmEdge plugins using clang++ with ${{ matrix.build_type }} mode
         shell: bash
         run: |

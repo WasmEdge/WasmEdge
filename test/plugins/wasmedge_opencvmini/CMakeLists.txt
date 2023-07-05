@@ -6,13 +6,13 @@ wasmedge_add_executable(wasmedgeOpencvminiTests
 )
 
 add_dependencies(wasmedgeOpencvminiTests
-  wasmedgePluginWasmEdgeOpencvmini
+  wasmedgePluginWasmEdgeOpenCVMini
 )
 
 target_include_directories(wasmedgeOpencvminiTests
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
-  $<TARGET_PROPERTY:wasmedgePluginWasmEdgeOpencvmini,INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:wasmedgePluginWasmEdgeOpenCVMini,INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(wasmedgeOpencvminiTests

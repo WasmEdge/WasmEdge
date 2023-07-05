@@ -158,7 +158,7 @@ jobs:
       test_prefix: build/test/plugins
       build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON
       tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini
-      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpecvminiTests
+      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests
       output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmEdgeOpencvmini.so
     needs: [get_version_v2]
     container:
@@ -334,7 +334,7 @@ jobs:
       test_prefix: build/test/plugins
       build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON
       tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini
-      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpecvminiTests
+      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests
       output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmEdgeOpencvmini.so
     needs: [get_version_v2]
     container:
@@ -444,7 +444,7 @@ jobs:
       test_prefix: build/test/plugins
       build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON
       tar_names: wasi_crypto wasi_logging wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini
-      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpecvminiTests
+      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests
       output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpencvmini.dylib
     needs: [get_version_v2]
     steps:

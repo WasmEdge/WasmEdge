@@ -34,7 +34,7 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
 TEST(WasmEdgeOpecvminiTest, Module) {
   // Create the wasmedge_opencvmini module instance.
   auto *ImgMod =
-      dynamic_cast<WasmEdge::Host::WasmEdgeOpecvminiModule *>(createModule());
+      dynamic_cast<WasmEdge::Host::WasmEdgeOpenCVMiniModule *>(createModule());
   EXPECT_FALSE(ImgMod == nullptr);
   EXPECT_EQ(ImgMod->getFuncExportNum(), 2U);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_imdecode"), nullptr);

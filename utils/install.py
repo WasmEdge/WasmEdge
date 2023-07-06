@@ -37,8 +37,17 @@ download_url = None
 # Define version specific things
 if sys.version_info[0] == 3:
     import urllib.request
+    import urllib.error
 
-    download_url = urllib.request.urlretrieve
+    def wrap_download_url(url, *args):
+        try:
+            return urllib.request.urlretrieve(url, *args)
+        except urllib.error.HTTPError as e:
+            logging.error("Download error from urllib: %s", e)
+            logging.error("URL: %s", url)
+            exit(1)
+
+    download_url = wrap_download_url
 
     def reraise(tp, value=None, tb=None):
         if value is None:
@@ -52,16 +61,33 @@ else:
 
     import urllib
 
-    download_url = urllib.urlretrieve
+    def wrap_download_url(url, *args):
+        headers = ""
+        try:
+            _, headers = urllib.urlretrieve(url, *args)
+        except:
+            logging.error("Download error from urllib")
+            logging.error("URL: %s", url)
+            logging.debug("Header response: %s", headers)
+            exit(1)
+
+        if "text/plain" in str(headers) and not "uninstall" in args[0]:
+            logging.error("Download error from urllib")
+            logging.error("URL: %s", url)
+            logging.debug("Header response: %s", headers)
+            exit(1)
+
+    download_url = wrap_download_url
 
 
 def show_progress(block_num, block_size, total_size):
     downloaded = block_num * block_size
+    downloaded_lim = min(1, downloaded / (total_size))
 
     print(
         end=(
-            "\r|%-60s|" % ("=" * int(60 * downloaded / (total_size)))
-            + "%6.2f %%" % (downloaded / (total_size) * 100)
+            "\r|%-60s|" % ("=" * int(60 * downloaded_lim))
+            + "%6.2f %%" % (downloaded_lim * 100)
         )
     )
 
@@ -220,10 +246,12 @@ class VersionString:
         ]
 
     def compare(self, version2, separator=". |-", ignorecase=True):
+        """
         # return 1 if self.version > version2
         # return 0 if self.version == version2
         # return -1 if self.version < version2
         # return False if not comparable
+        """
         if "rc" in self.version and not "rc" in version2:
             a = self._preprocess(
                 self.version.split("rc")[0].strip("-"), separator, ignorecase
@@ -359,6 +387,7 @@ CONST_ipkg = None
 CONST_lib_ext = None
 CONST_env_path = None
 CONST_lib_dir = "lib"
+CONST_tf_deps_installed = False
 
 try:
     mkdir(TEMP_PATH)
@@ -1022,7 +1051,7 @@ def install_tensorflow_extension(args, compat):
 
 
 def install_plugins(args, compat):
-    global CONST_lib_dir
+    global CONST_lib_dir, CONST_tf_deps_installed
     url_root = "https://github.com/WasmEdge/WasmEdge/releases/download/"
     url_root += "$VERSION$/WasmEdge-plugin-$PLUGIN_NAME$-$VERSION$-$DIST$_$ARCH$.tar.gz"
 
@@ -1062,6 +1091,27 @@ def install_plugins(args, compat):
                         plugin_version_supplied,
                     )
                     continue
+
+                if (
+                    WASMEDGE_TENSORFLOW_PLUGIN == plugin_name
+                    and VersionString(args.version).compare("0.13.0") >= 0
+                    and not CONST_tf_deps_installed
+                ):
+                    if install_tensorflow_extension(args, compat) != 0:
+                        logging.error("Error in installing tensorflow deps")
+                    else:
+                        CONST_tf_deps_installed = True
+                        logging.info("Tensorflow deps installed")
+
+                if (
+                    WASI_NN_TENSORFLOW_LITE == plugin_name
+                    and not CONST_tf_deps_installed
+                ):
+                    if install_tensorflow_extension(args, compat) != 0:
+                        logging.error("Error in installing tensorflow deps")
+                    else:
+                        CONST_tf_deps_installed = True
+                        logging.info("Tensorflow deps installed")
 
                 plugin_url = (
                     url_root.replace("$PLUGIN_NAME$", plugin_name)
@@ -1350,7 +1400,8 @@ class Compat:
 
 
 def main(args):
-    global CONST_env_path, CONST_release_pkg, CONST_ipkg, CONST_shell_config, CONST_shell_profile, CONST_lib_dir
+    global CONST_env_path, CONST_release_pkg, CONST_ipkg, CONST_shell_config
+    global CONST_shell_profile, CONST_lib_dir, CONST_tf_deps_installed
 
     compat = Compat(
         version=args.version,
@@ -1368,6 +1419,29 @@ def main(args):
     if len(args.plugins) >= 1:
         logging.warning("Experimental Option Selected: plugins")
         logging.warning("plugins option may change later")
+
+        if "all" in args.plugins:
+            args.plugins = PLUGINS_AVAILABLE[:]
+            logging.debug("Selected all of the available plugins: %s", args.plugins)
+
+    if len(args.extensions) >= 1 and compat.version.compare("0.13.0") != -1:
+        logging.warning(
+            "Extensions exist only for versions below 0.13.0, use plugins instead"
+        )
+        if TENSORFLOW in args.extensions or "all" in args.extensions:
+            if (
+                WASMEDGE_TENSORFLOW_PLUGIN not in args.plugins
+                or "all" not in args.plugins
+            ):
+                args.plugins.append(WASMEDGE_TENSORFLOW_PLUGIN)
+            if (
+                WASMEDGE_TENSORFLOW_LITE_PLUGIN not in args.plugins
+                or "all" not in args.plugins
+            ):
+                args.plugins.append(WASMEDGE_TENSORFLOW_LITE_PLUGIN)
+        if IMAGE in args.extensions or "all" in args.extensions:
+            if WASMEDGE_IMAGE_PLUGIN not in args.plugins or "all" not in args.plugins:
+                args.plugins.append(WASMEDGE_IMAGE_PLUGIN)
 
     if compat:
         logging.info("Compatible with current configuration")
@@ -1463,25 +1537,26 @@ def main(args):
                 "WasmEdge installation incorrect: {0}".format(wasmedge_output)
             )
 
-        if IMAGE in args.extensions or "all" in args.extensions:
-            if VersionString(args.version).compare("0.13.0") >= 0:
-                if WASMEDGE_IMAGE_PLUGIN not in args.plugins:
-                    args.plugins.append(WASMEDGE_IMAGE_PLUGIN)
+        if (
+            IMAGE in args.extensions
+            or "all" in args.extensions
+            and VersionString(args.version).compare("0.13.0") == -1
+        ):
+            if install_image_extension(args, compat) != 0:
+                logging.error("Error in installing image extensions")
             else:
-                if install_image_extension(args, compat) != 0:
-                    logging.error("Error in installing image extensions")
-                else:
-                    logging.info("Image extension installed")
+                logging.info("Image extension installed")
 
-        if TENSORFLOW in args.extensions or "all" in args.extensions:
-            if VersionString(args.version).compare("0.13.0") >= 0:
-                if WASMEDGE_TENSORFLOW_PLUGIN not in args.plugins:
-                    args.plugins.append(WASMEDGE_TENSORFLOW_PLUGIN)
-                    args.plugins.append(WASMEDGE_TENSORFLOW_LITE_PLUGIN)
+        if (
+            TENSORFLOW in args.extensions
+            or "all" in args.extensions
+            and VersionString(args.version).compare("0.13.0") == -1
+        ):
             if install_tensorflow_extension(args, compat) != 0:
                 logging.error("Error in installing tensorflow extensions")
             else:
                 logging.info("Tensorflow extension installed")
+                CONST_tf_deps_installed = True
 
         install_plugins(args, compat)
 
@@ -1560,9 +1635,12 @@ if __name__ == "__main__":
         required=False,
         default=[],
         nargs="*",
-        help="(experimental option)Supported Plugins. Example\n"
-        + "--plugins wasi_crypto:0.11.0\n"
-        + "--plugins wasi_crypto",
+        help="(experimental option)Install Supported Plugins - ["
+        + ",".join(PLUGINS_AVAILABLE)
+        + "]. Example"
+        " '--plugins wasi_crypto:0.11.0'"
+        " '--plugins wasi_crypto'"
+        " '--plugins all' [Downloads all the supported plugins]",
     )
     parser.add_argument(
         "--tf-version",

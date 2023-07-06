@@ -23,7 +23,7 @@ on:
       - 'utils/install.py'
 
 env:
-  INSTALL_PY_URL: https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.py
+  INSTALL_PY_PATH: utils/install.py
 
 jobs:
   linux:
@@ -120,9 +120,9 @@ jobs:
         bash utils/install.sh -e all -v 0.10.0 -D
     - name: Install WasmEdge and test for arm extension installation
       run: |
-        bash utils/install.sh -e all --version=0.10.0-rc.1 \
-        --tf-version=0.10.0-rc.1 --tf-deps-version=0.10.0-rc.1  --tf-tools-version=0.10.0-rc.1  \
-        --image-version=0.10.0-rc.1
+        bash utils/install.sh -e all --version=0.10.0-alpha.1 \
+        --tf-version=0.10.0-alpha.1 --tf-deps-version=0.10.0-alpha.1  --tf-tools-version=0.10.0-alpha.1  \
+        --image-version=0.10.0-alpha.1
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V 

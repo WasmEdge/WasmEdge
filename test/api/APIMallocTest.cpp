@@ -7,7 +7,7 @@ namespace {
 
 char WasmFilePath[] = "apiTestData/cmalloc.wasm";
 
-TEST(MemoryManipulation, ExportedMalloc) {
+TEST(MemoryManipulation, ExportedMallocFree) {
   int32_t *Buffer = nullptr;
   int32_t Size = 8;
   int32_t offset = -1;
@@ -27,6 +27,8 @@ TEST(MemoryManipulation, ExportedMalloc) {
 
   EXPECT_NE(Buffer, nullptr);
   EXPECT_NE(offset, -1);
+
+  EXPECT_EQ(WasmEdge_Module_Free(VMCxt, offset), 0);
 
   WasmEdge_VMDelete(VMCxt);
   WasmEdge_ConfigureDelete(ConfCxt);

@@ -36,6 +36,15 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
         if (MallocFunc->getFuncType() == MallocFuncType) {
           ModInst.setMallocFunction(MallocFunc);
         }
+      } else if (ExtName.compare("free") == 0) {
+        // Verify function signature.
+        spdlog::info("Found free function in module {0}",
+                     ModInst.getModuleName());
+        const auto FreeFunc = ModInst.findFuncExports(ExtName);
+        const auto FreeFuncType = AST::FunctionType({ValType::I32}, {});
+        if (FreeFunc->getFuncType() == FreeFuncType) {
+          ModInst.setFreeFunction(FreeFunc);
+        }
       }
       break;
 

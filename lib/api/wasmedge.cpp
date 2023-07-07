@@ -394,6 +394,34 @@ Expect<int32_t> WasmEdge_Module_Malloc_Internal(WasmEdge_VMContext *VMCxt,
   return offset;
 }
 
+// Helper function to free memory
+Expect<int32_t> WasmEdge_Module_Free_Internal(WasmEdge_VMContext *VMCxt,
+                                              int32_t Offset) {
+  auto const ModInst = fromModCxt(WasmEdge_VMGetActiveModule(VMCxt));
+  auto FreeFunc = ModInst->getFreeFunc();
+  if (!FreeFunc) {
+    spdlog::error(ErrCode::Value::NoFreeExport);
+    return Unexpect(ErrCode::Value::NoFreeExport);
+  }
+
+  // Verify that offset is valid
+  auto MemoryInst = ModInst->findMemoryExports("memory");
+  if (!MemoryInst->checkAccessBound(Offset, 0)) {
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+    spdlog::error(ErrInfo::InfoBoundary(Offset, 0, MemoryInst->getBoundIdx()));
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  }
+
+  // Call
+  auto Returns = VMCxt->VM.getExecutor().invoke(FreeFunc, {ValVariant(Offset)},
+                                                {ValType::I32});
+  if (!Returns.has_value()) {
+    spdlog::error(Returns.error());
+    return Unexpect(Returns.error());
+  }
+  return 0;
+}
+
 // C API Host function class
 class CAPIHostFunc : public Runtime::HostFunctionBase {
 public:
@@ -1191,6 +1219,16 @@ WASMEDGE_CAPI_EXPORT int32_t WasmEdge_Module_Malloc(WasmEdge_VMContext *VMCxt,
                                                     uint32_t Size,
                                                     void **P_Native_Addr) {
   auto res = WasmEdge_Module_Malloc_Internal(VMCxt, Size, P_Native_Addr);
+  if (res.has_value()) {
+    return res.value();
+  } else {
+    return -1;
+  }
+}
+
+WASMEDGE_CAPI_EXPORT int32_t WasmEdge_Module_Free(WasmEdge_VMContext *VMCxt,
+                                                  int32_t Offset) {
+  auto res = WasmEdge_Module_Free_Internal(VMCxt, Offset);
   if (res.has_value()) {
     return res.value();
   } else {

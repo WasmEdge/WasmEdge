@@ -102,7 +102,6 @@ jobs:
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
         run: |
-          source /opt/intel/openvino_2023/bin/setupvars.sh
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
           ldconfig
           plugin_array=(${tar_names})

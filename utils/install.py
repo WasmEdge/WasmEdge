@@ -496,25 +496,24 @@ def shell_configure(args, compat):
         CONST_shell_config = join(HOME, "." + SHELL + "rc")
 
         if "zsh" in SHELL:
-            CONST_shell_profile = join(HOME, "." + "zprofile")
+            CONST_shell_profile = join(HOME, "." + "zshenv")
         else:
             CONST_shell_profile = join(HOME, "." + SHELL + "_profile")
 
-        # On Darwin: Create shell config only if shell_profile does not exist
-        # On Linux: Create shell config anyway
-        if not exists(CONST_shell_config) and compat.platform != "Darwin":
+        if not exists(CONST_shell_config):
             open(CONST_shell_config, "a").close()
 
         write_shell = False
-        if compat.platform != "Darwin":
-            with opened_w_error(CONST_shell_config, "r") as shell_config:
-                if shell_config is not None:
-                    if source_string not in shell_config.read():
-                        write_shell = True
+        with opened_w_error(CONST_shell_config, "r") as shell_config:
+            if shell_config is not None:
+                if source_string not in shell_config.read():
+                    write_shell = True
+            else:
+                write_shell = True
 
         # On Darwin: Append to shell config only if shell_profile does not exist
         # On Linux: Append to shell config anyway
-        if write_shell and compat.platform != "Darwin":
+        if write_shell:
             with opened_w_error(CONST_shell_config, "a") as shell_config:
                 if shell_config is not None:
                     shell_config.write(source_string)
@@ -1603,10 +1602,7 @@ def main(args):
         # Cleanup
         shutil.rmtree(TEMP_PATH)
 
-        if compat.platform != "Darwin":
-            logging.info("Run:\nsource {0}".format(CONST_shell_config))
-        else:
-            logging.info("Run:\nsource {0}".format(CONST_shell_profile))
+        logging.info("Run:\nsource {0}".format(CONST_shell_profile))
     else:
         reraise(Exception("Incompatible with your machine\n{0}".format(compat)))
 

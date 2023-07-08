@@ -698,14 +698,31 @@ def install_image_extension(args, compat):
     return 0
 
 
-def install_tensorflow_extension(args, compat):
+def install_tensorflow_extension(
+    args,
+    compat,
+    download_tf_=False,
+    download_tf_lite_=False,
+    download_tf_deps_=False,
+    download_tf_lite_deps_=False,
+    download_tf_tools_=False,
+):
     global CONST_release_pkg, CONST_lib_ext, CONST_lib_dir, CONST_env_path
 
-    download_tf = True
-    download_tf_lite = True
-    download_tf_deps = True
-    download_tf_lite_deps = True
-    download_tf_tools = True
+    download_tf = download_tf_
+    download_tf_lite = download_tf_lite_
+    download_tf_deps = download_tf_deps_
+    download_tf_lite_deps = download_tf_lite_deps_
+    download_tf_tools = download_tf_tools_
+
+    logging.debug(
+        "install_tensorflow_extension: %s %s %s %s %s",
+        download_tf,
+        download_tf_lite,
+        download_tf_deps,
+        download_tf_lite_deps,
+        download_tf_tools,
+    )
 
     if VersionString(args.version).compare("0.13.0") >= 0:
         # if greater than 0.13.0 then No WasmEdge-tensorflow and WasmEdge-tensorflow-tools
@@ -1097,7 +1114,12 @@ def install_plugins(args, compat):
                     and VersionString(args.version).compare("0.13.0") >= 0
                     and not CONST_tf_deps_installed
                 ):
-                    if install_tensorflow_extension(args, compat) != 0:
+                    if (
+                        install_tensorflow_extension(
+                            args, compat, download_tf_deps_=True
+                        )
+                        != 0
+                    ):
                         logging.error("Error in installing tensorflow deps")
                     else:
                         CONST_tf_deps_installed = True
@@ -1107,7 +1129,12 @@ def install_plugins(args, compat):
                     WASI_NN_TENSORFLOW_LITE == plugin_name
                     and not CONST_tf_deps_installed
                 ):
-                    if install_tensorflow_extension(args, compat) != 0:
+                    if (
+                        install_tensorflow_extension(
+                            args, compat, download_tf_lite_deps_=True
+                        )
+                        != 0
+                    ):
                         logging.error("Error in installing tensorflow deps")
                     else:
                         CONST_tf_deps_installed = True
@@ -1552,7 +1579,18 @@ def main(args):
             or "all" in args.extensions
             and VersionString(args.version).compare("0.13.0") == -1
         ):
-            if install_tensorflow_extension(args, compat) != 0:
+            if (
+                install_tensorflow_extension(
+                    args,
+                    compat,
+                    download_tf_=True,
+                    download_tf_deps_=True,
+                    download_tf_lite_=True,
+                    download_tf_lite_deps_=True,
+                    download_tf_tools_=True,
+                )
+                != 0
+            ):
                 logging.error("Error in installing tensorflow extensions")
             else:
                 logging.info("Tensorflow extension installed")

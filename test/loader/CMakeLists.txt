@@ -42,6 +42,7 @@ wasmedge_add_executable(wasmedgeLoaderSerializerTests
   serializeInstructionTest.cpp
   serializeDescriptionTest.cpp
   serializeExpressionTest.cpp
+  serializeSegmentTest.cpp
 )
 
 add_test(wasmedgeLoaderSerializerTests wasmedgeLoaderSerializerTests)

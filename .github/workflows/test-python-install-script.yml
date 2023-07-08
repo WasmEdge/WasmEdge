@@ -165,9 +165,9 @@ jobs:
       run: |
         ${{ matrix.python2_ex }} utils/install.py -v 0.10.0-alpha.1
         ls ~/.wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        ${{ matrix.python2_ex }} utils/install.py -v 0.10.0 --plugins wasmedge_tensorflowlite
+        ${{ matrix.python2_ex }} utils/install.py -v 0.13.0 --plugins wasmedge_tensorflowlite
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge Tensorflowlite Plugin not found" && exit 1)
-        ${{ matrix.python2_ex }} utils/install.py -v 0.10.0 --plugins wasmedge_tensorflow
+        ${{ matrix.python2_ex }} utils/install.py -v 0.13.0 --plugins wasmedge_tensorflow
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge Tensorflowlite Plugin not found" && exit 1)
         ${{ matrix.python2_ex }} utils/install.py -v 0.10.0-alpha.1 -p ~/new_wasmedge
         ls ~/new_wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
@@ -176,9 +176,9 @@ jobs:
 
         ${{ matrix.python3_ex }} utils/install.py -v 0.10.0-alpha.1
         ls ~/.wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        ${{ matrix.python3_ex }} utils/install.py -v 0.10.0 --plugins wasmedge_tensorflowlite
+        ${{ matrix.python3_ex }} utils/install.py -v 0.13.0 --plugins wasmedge_tensorflowlite
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge Tensorflowlite Plugin not found" && exit 1)
-        ${{ matrix.python3_ex }} utils/install.py -v 0.10.0 --plugins wasmedge_tensorflow
+        ${{ matrix.python3_ex }} utils/install.py -v 0.13.0 --plugins wasmedge_tensorflow
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge Tensorflowlite Plugin not found" && exit 1)
         ${{ matrix.python3_ex }} utils/install.py -v 0.10.0-alpha.1 -p ~/new_wasmedge
         ls ~/new_wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
@@ -330,9 +330,9 @@ jobs:
       run: |
         python utils/install.py -v 0.10.0-alpha.1
         ls ~/.wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        python utils/install.py -v 0.10.0 --plugins wasmedge_tensorflow
+        python utils/install.py -v 0.13.0 --plugins wasmedge_tensorflow
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        python utils/install.py -v 0.10.0 --plugins wasmedge_tensorflowlite
+        python utils/install.py -v 0.13.0 --plugins wasmedge_tensorflowlite
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         python utils/install.py -v 0.10.0-alpha.1 -p ~/new_wasmedge
         ls ~/new_wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)

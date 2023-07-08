@@ -57,22 +57,21 @@ void Serializer::serializeSegment(const AST::ElementSegment &Seg,
     Mode |= 0x04;
   }
 
-  std::vector<uint8_t> Vec;
+  serializeU32(Seg.getInitExprs().size(), Result);
   for (auto Expr : Seg.getInitExprs()) {
     if (Mode & 0x04) {
       // Serialize vec(expr).
-      serializeExpression(Expr, Vec);
+      serializeExpression(Expr, Result);
     } else {
       // Serialize vec(FuncIdx).
       for (auto Instr : Expr.getInstrs()) {
         if (Instr.getOpCode() == OpCode::End) {
           break;
         }
-        serializeU32(Instr.getTargetIndex(), Vec);
+        serializeU32(Instr.getTargetIndex(), Result);
       }
     }
   }
-  serializeVec(Vec, Result);
 
   serializeU32(Mode, Result, Result.begin());
   OutVec.insert(OutVec.end(), Result.begin(), Result.end());

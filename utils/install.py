@@ -304,8 +304,8 @@ SUPPORTED_EXTENSIONS = {
     "Linux" + "armv8": EXTENSIONS,
     "Linux" + "aarch64": EXTENSIONS,
     "Darwin" + "x86_64": EXTENSIONS,
-    "Darwin" + "arm64": [],
-    "Darwin" + "arm": [],
+    "Darwin" + "arm64": EXTENSIONS,
+    "Darwin" + "arm": EXTENSIONS,
 }
 
 SUPPORTED_EXTENSIONS_VERSION = {
@@ -354,12 +354,12 @@ SUPPORTTED_PLUGINS = {
     "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
     "manylinux2014" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
     "darwin" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
-    "darwin" + "aarch" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "arm64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
     "manylinux2014" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
     "manylinux2014" + "aarch64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
     "darwin" + "x86_64" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
-    "darwin" + "aarch" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "arm64" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
     "manylinux2014"
     + "x86_64"
     + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
@@ -368,7 +368,7 @@ SUPPORTTED_PLUGINS = {
     + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
     "darwin" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
-    "darwin" + "aarch" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "arm64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "manylinux2014" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "manylinux2014" + "aarch64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),

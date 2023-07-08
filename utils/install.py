@@ -500,20 +500,21 @@ def shell_configure(args, compat):
         else:
             CONST_shell_profile = join(HOME, "." + SHELL + "_profile")
 
-        if not exists(CONST_shell_config):
+        if not exists(CONST_shell_config) and compat.platform != "Darwin":
             open(CONST_shell_config, "a").close()
 
         write_shell = False
-        with opened_w_error(CONST_shell_config, "r") as shell_config:
-            if shell_config is not None:
-                if source_string not in shell_config.read():
+        if compat.platform != "Darwin":
+            with opened_w_error(CONST_shell_config, "r") as shell_config:
+                if shell_config is not None:
+                    if source_string not in shell_config.read():
+                        write_shell = True
+                else:
                     write_shell = True
-            else:
-                write_shell = True
 
         # On Darwin: Append to shell config only if shell_profile does not exist
         # On Linux: Append to shell config anyway
-        if write_shell:
+        if write_shell and compat.platform != "Darwin":
             with opened_w_error(CONST_shell_config, "a") as shell_config:
                 if shell_config is not None:
                     shell_config.write(source_string)
@@ -529,6 +530,20 @@ def shell_configure(args, compat):
                     if shell_profile is not None:
                         shell_profile.write(source_string)
                 write_shell = False
+        elif compat.platform == "Darwin" and "zsh" in SHELL:
+            open(CONST_shell_profile, "a").close()
+            with opened_w_error(CONST_shell_profile, "r") as shell_config:
+                if shell_config is not None:
+                    if source_string not in shell_config.read():
+                        write_shell = True
+                else:
+                    write_shell = True
+            if write_shell:
+                with opened_w_error(CONST_shell_profile, "a") as shell_profile:
+                    if shell_profile is not None:
+                        shell_profile.write(source_string)
+                write_shell = False
+
     else:
         logging.error("Unknown shell found")
         return -1

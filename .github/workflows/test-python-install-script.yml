@@ -300,57 +300,57 @@ jobs:
 
     - name: Install WasmEdge latest release
       run: |
-        python utils/install.py -D
+        python3 utils/install.py -D
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install WasmEdge latest release with all extensions
       run: |
-        python utils/install.py -e all -D
+        python3 utils/install.py -e all -D
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install WasmEdge specific release (0.10.0)
       run: |
-        python utils/install.py -v 0.10.0 -D
+        python3 utils/install.py -v 0.10.0 -D
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install WasmEdge deprecated release (0.9.0) - Fails purposefully
       run: |
-        python utils/install.py -v 0.9.0 -D 2>&1 | grep -q "Version not supported. Min Version: 0.10.0" && echo "Pass: Version not supported. Min Version: 0.10.0 found" \
+        python3 utils/install.py -v 0.9.0 -D 2>&1 | grep -q "Version not supported. Min Version: 0.10.0" && echo "Pass: Version not supported. Min Version: 0.10.0 found" \
           || (echo "Failed: Version not supported. Min Version: 0.10.0 message not found" && exit 1)
     - name: Install WasmEdge specific release (0.10.0) with all extensions
       run: |
-        python utils/install.py -e all -v 0.10.0 -D
+        python3 utils/install.py -e all -v 0.10.0 -D
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V
     - name: Plugins Install check
       run: |
-        python utils/install.py -v 0.10.0-alpha.1
+        python3 utils/install.py -v 0.10.0-alpha.1
         ls ~/.wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        python utils/install.py -v 0.13.0 --plugins wasmedge_tensorflow
+        python3 utils/install.py -v 0.13.0 --plugins wasmedge_tensorflow
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        python utils/install.py -v 0.13.0 --plugins wasmedge_tensorflowlite
+        python3 utils/install.py -v 0.13.0 --plugins wasmedge_tensorflowlite
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        python utils/install.py -v 0.10.0-alpha.1 -p ~/new_wasmedge
+        python3 utils/install.py -v 0.10.0-alpha.1 -p ~/new_wasmedge
         ls ~/new_wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         # MacOS container does not have access for /usr directory
-        # python utils/install.py -v 0.10.0-alpha.1 -p /usr
+        # python3 utils/install.py -v 0.10.0-alpha.1 -p /usr
         # ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
 
     - name: Install multiple versions and Tensorflow extension/plugins for pre and post 0.13.x
       run: |
-        python utils/install.py -e tensorflow -D  2>&1 -v 0.12.0
-        python utils/install.py -e tensorflow -D  2>&1 -v 0.13.0
-        python utils/install.py -e tensorflow -D  2>&1 
+        python3 utils/install.py -e tensorflow -D  2>&1 -v 0.12.0
+        python3 utils/install.py -e tensorflow -D  2>&1 -v 0.13.0
+        python3 utils/install.py -e tensorflow -D  2>&1 
     
     - name: Install multiple versions and Image extension/plugins for pre and post 0.13.x
       run: |  
-        python utils/install.py -e image -D  2>&1 -v 0.12.0
-        python utils/install.py -e image -D  2>&1 -v 0.13.0
-        python utils/install.py -e image -D  2>&1
+        python3 utils/install.py -e image -D  2>&1 -v 0.12.0
+        python3 utils/install.py -e image -D  2>&1 -v 0.13.0
+        python3 utils/install.py -e image -D  2>&1
 
     - name: Check for differences in the installation
       run: |

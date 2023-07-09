@@ -103,7 +103,7 @@ jobs:
         shell: bash
         run: |
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
-          export OpenVINO_DIR=opt/intel/openvino_2023
+          export OpenVINO_DIR=/opt/intel/openvino_2023
           ldconfig
           plugin_array=(${tar_names})
           option_array=(${build_options})

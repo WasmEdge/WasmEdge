@@ -108,6 +108,7 @@ jobs:
           plugin_array=(${tar_names})
           option_array=(${build_options})
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF
+          export CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:${OpenVINO_DIR}
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Building ${plugin_array[$i]} backend:"

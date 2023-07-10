@@ -13,6 +13,10 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma intrinsic(_BitScanForward64)
+#endif
+
 #include <ostream>
 
 // If there is a built-in type __int128, then use it directly
@@ -225,6 +229,9 @@ public:
   friend constexpr uint128_t operator^(uint128_t LHS, uint128_t RHS) noexcept {
     return uint128_t(LHS.High ^ RHS.High, LHS.Low ^ RHS.Low);
   }
+  friend constexpr uint128_t operator~(uint128_t Value) noexcept {
+    return uint128_t(~Value.High, ~Value.Low);
+  }
   friend constexpr uint128_t operator<<(uint128_t Value,
                                         unsigned int Shift) noexcept {
     if (Shift < 64) {
@@ -253,6 +260,14 @@ public:
   friend constexpr uint128_t operator>>(uint128_t Value, int Shift) noexcept {
     return Value >> static_cast<unsigned int>(Shift);
   }
+  friend constexpr uint128_t operator<<(uint128_t Value,
+                                        unsigned long long Shift) noexcept {
+    return Value << static_cast<unsigned int>(Shift);
+  }
+  friend constexpr uint128_t operator>>(uint128_t Value,
+                                        unsigned long long Shift) noexcept {
+    return Value >> static_cast<unsigned int>(Shift);
+  }
 
   static constexpr uint128_t numericMin() noexcept {
     return uint128_t(std::numeric_limits<uint64_t>::min(),
@@ -266,6 +281,18 @@ public:
   constexpr uint64_t low() const noexcept { return Low; }
   constexpr uint64_t high() const noexcept { return High; }
   constexpr unsigned int clz() const noexcept {
+#if defined(_MSC_VER) && !defined(__clang__)
+    unsigned long leading_zero = 0;
+    if (High) {
+      _BitScanReverse64(&leading_zero, High);
+      return (63 - leading_zero);
+    }
+    if (Low) {
+      _BitScanReverse64(&leading_zero, Low);
+      return (63 - leading_zero) + 64;
+    }
+    return 128;
+#else
     if (High) {
       return __builtin_clzll(High);
     }
@@ -273,6 +300,7 @@ public:
       return __builtin_clzll(Low) + 64;
     }
     return 128;
+#endif
   }
 
 private:

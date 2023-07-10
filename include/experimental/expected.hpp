@@ -19,6 +19,10 @@
 #include <utility>
 #include <variant>
 
+#if defined(_MSC_VER) && !defined(__clang__)
+#define __builtin_expect(exp, c) (exp)
+#endif
+
 #if defined(__has_feature)
 #if __has_feature(cxx_exceptions)
 #define M_ENABLE_EXCEPTIONS 1

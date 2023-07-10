@@ -387,7 +387,6 @@ CONST_ipkg = None
 CONST_lib_ext = None
 CONST_env_path = None
 CONST_lib_dir = "lib"
-CONST_tf_deps_installed = False
 
 try:
     mkdir(TEMP_PATH)
@@ -1082,7 +1081,7 @@ def install_tensorflow_extension(
 
 
 def install_plugins(args, compat):
-    global CONST_lib_dir, CONST_tf_deps_installed
+    global CONST_lib_dir
     url_root = "https://github.com/WasmEdge/WasmEdge/releases/download/"
     url_root += "$VERSION$/WasmEdge-plugin-$PLUGIN_NAME$-$VERSION$-$DIST$_$ARCH$.tar.gz"
 
@@ -1126,7 +1125,6 @@ def install_plugins(args, compat):
                 if (
                     WASMEDGE_TENSORFLOW_PLUGIN == plugin_name
                     and VersionString(args.version).compare("0.13.0") >= 0
-                    and not CONST_tf_deps_installed
                 ):
                     if (
                         install_tensorflow_extension(
@@ -1136,13 +1134,9 @@ def install_plugins(args, compat):
                     ):
                         logging.error("Error in installing tensorflow deps")
                     else:
-                        CONST_tf_deps_installed = True
                         logging.info("Tensorflow deps installed")
 
-                if (
-                    WASMEDGE_TENSORFLOW_LITE_PLUGIN == plugin_name
-                    and not CONST_tf_deps_installed
-                ):
+                if WASMEDGE_TENSORFLOW_LITE_PLUGIN == plugin_name:
                     if (
                         install_tensorflow_extension(
                             args, compat, download_tf_lite_deps_=True
@@ -1151,7 +1145,6 @@ def install_plugins(args, compat):
                     ):
                         logging.error("Error in installing tensorflow deps")
                     else:
-                        CONST_tf_deps_installed = True
                         logging.info("Tensorflow deps installed")
 
                 if WASI_NN_TENSORFLOW_LITE == plugin_name:
@@ -1453,7 +1446,7 @@ class Compat:
 
 def main(args):
     global CONST_env_path, CONST_release_pkg, CONST_ipkg, CONST_shell_config
-    global CONST_shell_profile, CONST_lib_dir, CONST_tf_deps_installed
+    global CONST_shell_profile, CONST_lib_dir
 
     compat = Compat(
         version=args.version,
@@ -1619,7 +1612,6 @@ def main(args):
                 logging.error("Error in installing tensorflow extensions")
             else:
                 logging.info("Tensorflow extension installed")
-                CONST_tf_deps_installed = True
 
         install_plugins(args, compat)
 

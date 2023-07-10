@@ -1140,7 +1140,7 @@ def install_plugins(args, compat):
                         logging.info("Tensorflow deps installed")
 
                 if (
-                    WASI_NN_TENSORFLOW_LITE == plugin_name
+                    WASMEDGE_TENSORFLOW_LITE_PLUGIN == plugin_name
                     and not CONST_tf_deps_installed
                 ):
                     if (
@@ -1152,6 +1152,17 @@ def install_plugins(args, compat):
                         logging.error("Error in installing tensorflow deps")
                     else:
                         CONST_tf_deps_installed = True
+                        logging.info("Tensorflow deps installed")
+
+                if WASI_NN_TENSORFLOW_LITE == plugin_name:
+                    if (
+                        install_tensorflow_extension(
+                            args, compat, download_tf_deps_=True
+                        )
+                        != 0
+                    ):
+                        logging.error("Error in installing tensorflow deps")
+                    else:
                         logging.info("Tensorflow deps installed")
 
                 plugin_url = (

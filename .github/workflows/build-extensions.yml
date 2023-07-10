@@ -170,8 +170,7 @@ jobs:
       - name: Install dependencies
         run: |
           apt update
-          apt install -y libssl-dev cmake g++ wget unzip
-          bash utils/opencvmini/install-opencvmini.sh
+          apt install -y libssl-dev libopencv-dev
       - name: Build plugins using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
         run: |

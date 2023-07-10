@@ -344,14 +344,14 @@ jobs:
     - name: Install multiple versions and Tensorflow extension/plugins for pre and post 0.13.x
       run: |
         python3 utils/install.py -e tensorflow -D  2>&1 -v 0.12.0
-        python3 utils/install.py -e tensorflow -D  2>&1 -v 0.13.0
-        python3 utils/install.py -e tensorflow -D  2>&1 
+        python3 utils/install.py --plugins wasmedge_tensorflow -D  2>&1 -v 0.13.0
+        python3 utils/install.py --plugins wasmedge_tensorflow -D  2>&1 
     
     - name: Install multiple versions and Image extension/plugins for pre and post 0.13.x
       run: |  
         python3 utils/install.py -e image -D  2>&1 -v 0.12.0
-        python3 utils/install.py -e image -D  2>&1 -v 0.13.0
-        python3 utils/install.py -e image -D  2>&1
+        python3 utils/install.py --plugins wasmedge_image -D  2>&1 -v 0.13.0
+        python3 utils/install.py --plugins wasmedge_image -D  2>&1
 
     - name: Check for differences in the installation
       run: |

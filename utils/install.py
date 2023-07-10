@@ -1473,20 +1473,6 @@ def main(args):
         logging.warning(
             "Extensions exist only for versions below 0.13.0, use plugins instead"
         )
-        if TENSORFLOW in args.extensions or "all" in args.extensions:
-            if (
-                WASMEDGE_TENSORFLOW_PLUGIN not in args.plugins
-                or "all" not in args.plugins
-            ):
-                args.plugins.append(WASMEDGE_TENSORFLOW_PLUGIN)
-            if (
-                WASMEDGE_TENSORFLOW_LITE_PLUGIN not in args.plugins
-                or "all" not in args.plugins
-            ):
-                args.plugins.append(WASMEDGE_TENSORFLOW_LITE_PLUGIN)
-        if IMAGE in args.extensions or "all" in args.extensions:
-            if WASMEDGE_IMAGE_PLUGIN not in args.plugins or "all" not in args.plugins:
-                args.plugins.append(WASMEDGE_IMAGE_PLUGIN)
 
     if compat:
         logging.info("Compatible with current configuration")

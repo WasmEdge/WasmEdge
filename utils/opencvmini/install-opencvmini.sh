@@ -12,4 +12,4 @@ cmake ../opencv-4.x
 # Build
 cmake --build . -j2
 # Install to system
-sudo cmake --install .
+cmake --install .

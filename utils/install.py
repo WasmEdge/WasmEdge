@@ -1150,7 +1150,7 @@ def install_plugins(args, compat):
                 if WASI_NN_TENSORFLOW_LITE == plugin_name:
                     if (
                         install_tensorflow_extension(
-                            args, compat, download_tf_deps_=True
+                            args, compat, download_tf_lite_deps_=True
                         )
                         != 0
                     ):

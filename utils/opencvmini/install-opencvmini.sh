@@ -6,9 +6,9 @@ wget -O opencv.zip https://github.com/opencv/opencv/archive/4.x.zip
 
 unzip opencv.zip
 
-mkdir -p build && cd build
+mkdir -p opencv-4.x/build && cd opencv-4.x/build
 # Configure
-cmake ../opencv-4.x
+cmake ..
 # Build
 cmake --build . -j2
 # Install to system

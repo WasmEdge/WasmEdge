@@ -266,7 +266,15 @@ jobs:
 
     - name: Check for differences in the installation
       run: |
-        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh "$HOME"/.wasmedge
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh "$HOME"/new_folder
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh /usr/local
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh /usr
+
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh "$HOME"/.wasmedge "-e all" "-v 0.12.1"
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh "$HOME"/new_folder "-e all" "-v 0.12.1"
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh /usr/local "-e all" "-v 0.12.1"
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh /usr "-e all" "-v 0.12.1"
 
     - name: Latest Release Check
       run: |
@@ -385,8 +393,23 @@ jobs:
         python3 utils/install.py --plugins wasmedge_image -D  2>&1
 
     - name: Check for differences in the installation
+      if: ${{ matrix.name == 'MacOS-arm64' }}
       run: |
-        bash utils/installer_changes.sh
+        bash utils/installer_changes.sh $HOME/.wasmedge
+        bash utils/installer_changes.sh $HOME/new_folder
+
+    - name: Check for differences in the installation
+      if: ${{ matrix.name != 'MacOS-arm64' }}
+      run: |
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh "$HOME"/.wasmedge
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh "$HOME"/new_folder
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh /usr/local
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh /usr
+
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh "$HOME"/.wasmedge "-e all" "-v 0.12.1"
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh "$HOME"/new_folder "-e all" "-v 0.12.1"
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh /usr/local "-e all" "-v 0.12.1"
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh /usr "-e all" "-v 0.12.1"
 
     - name: Latest Release Check
       run: |

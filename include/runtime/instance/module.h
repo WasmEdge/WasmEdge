@@ -179,6 +179,15 @@ public:
     return std::forward<CallbackT>(CallBack)(ExpGlobals);
   }
 
+  // Migration function
+  void dump(std::ofstream &dumpFile) const noexcept {
+      for (uint32_t I = 0; I < getMemoryNum(); ++I) {
+          auto Res = getMemory(I);
+          MemoryInstance* MemInst = Res.value();
+          MemInst->dump(dumpFile);
+      }
+  }
+
 protected:
   friend class Executor::Executor;
   friend class Runtime::CallingFrame;

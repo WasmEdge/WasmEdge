@@ -328,6 +328,13 @@ public:
 
   uint8_t *getDataPtr() const noexcept { return DataPtr; }
 
+  // Migration functions
+  void dump(std::ofstream &dumpFile) const noexcept {
+      // TODO: MemTypeの保存方法
+      dumpFile << getStringView(0, MemType.getLimit().getMin() * kPageSize) << std::endl;
+      dumpFile << PageLimit << std::endl;
+  }
+
 private:
   /// \name Data of memory instance.
   /// @{

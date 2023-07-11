@@ -14,6 +14,8 @@
 #include "host/mock/wasmedge_tensorflow_module.h"
 #include "host/mock/wasmedge_tensorflowlite_module.h"
 
+#include <iostream>
+
 namespace WasmEdge {
 namespace VM {
 
@@ -398,6 +400,17 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
   Runtime::Instance::FunctionInstance *FuncInst =
       ModInst->findFuncExports(Func);
 
+  auto dumpMem = [&]() {
+    std::ofstream dumpFile;
+    std::string filename = "memInst.img";
+    dumpFile.open(filename);
+    if (!dumpFile) {
+        std::cout << filename + " can't open" << std::endl;
+    }
+    ModInst->dump(dumpFile);
+    dumpFile.close();
+  };
+
   // Execute function.
   if (auto Res = ExecutorEngine.invoke(FuncInst, Params, ParamTypes);
       unlikely(!Res)) {
@@ -406,6 +419,7 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
     }
     return Unexpect(Res);
   } else {
+    dumpMem();
     return Res;
   }
 }

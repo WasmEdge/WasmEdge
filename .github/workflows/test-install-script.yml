@@ -184,17 +184,26 @@ jobs:
       run: |
         bash utils/uninstall.sh -q -V
     - name: Check for bashrc generation
+      if: ${{ matrix.name != 'MacOS-arm64' }}
       run: |
         rm ~/.bashrc
         bash utils/install.sh -D
         if ls -a ~ | grep .bashrc; then echo "Fail: Bashrc found" && exit 1; else echo "Pass: Bashrc not found"; fi;
+    - name: Check for bashrc generation
+      if: ${{ matrix.name == 'MacOS-arm64' }}
+      run: |
+        rm ~/.zshenv
+        bash utils/install.sh -D
+        if ls -a ~ | grep .zshenv; then echo echo "Pass: zshenv found"; else "Fail: zshenv not found" && exit 1; fi;
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install WasmEdge latest release with all extensions
+      if: ${{ matrix.name != 'MacOS-arm64' }}
       run: |
         bash utils/install.sh -e all -D
     - name: Uninstall WasmEdge with all extensions
+      if: ${{ matrix.name != 'MacOS-arm64' }}
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install deprecated WasmEdge specific release (0.10.0)
@@ -204,21 +213,43 @@ jobs:
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install WasmEdge specific release (0.10.0) with all extensions
+      if: ${{ matrix.name != 'MacOS-arm64' }}
       run: |
         bash utils/install.sh -e all -v 0.10.0 -D
     - name: Uninstall WasmEdge with all extensions
+      if: ${{ matrix.name != 'MacOS-arm64' }}
       run: |
         bash utils/uninstall.sh -q -V
-    - name: Plugins Install check
+    - name: Plugins Install check MacOS-x86
+      if: ${{ matrix.name != 'MacOS-arm64' }}
       run: |
         bash utils/install.sh -v 0.10.0-alpha.1
         ls ~/.wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        bash utils/install.sh -v 0.13.1 --plugins wasmedge_tensorflow
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        bash utils/install.sh -v 0.13.1 --plugins wasmedge_tensorflowlite
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         bash utils/install.sh -v 0.10.0-alpha.1 -p ~/new_wasmedge
         ls ~/new_wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         # MacOS container does not have access for /usr directory
         # bash utils/install.sh -v 0.10.0-alpha.1 -p /usr
         # ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    
+    # macos-arm64 does not have plugins
+    # - name: Plugins Install check MacOS-arm64
+    #   if: ${{ matrix.name == 'MacOS-arm64' }}
+    #   run: |
+    #     bash utils/install.sh -v 0.13.1
+    #     ls ~/.wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    #     bash utils/install.sh -v 0.13.1 --plugins wasmedge_tensorflow
+    #     ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    #     bash utils/install.sh -v 0.13.1 --plugins wasmedge_tensorflowlite
+    #     ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    #     bash utils/install.sh -v 0.13.1 -p ~/new_wasmedge
+    #     ls ~/new_wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+
     - name: Tensorflow changes - libtensorflow_cc 2.6.0 will replace the old libtensorflow 2.6.0
+      if: ${{ matrix.name != 'MacOS-arm64' }}
       run: |
         bash utils/install.sh -v 0.12.0-alpha.2 -e tensorflow --tf-version 0.12.0-alpha.2 --tf-deps-version 0.12.0-alpha.2 --tf-tools-version 0.12.0-alpha.2
         ls ~/.wasmedge/lib/ | grep libtensorflow_cc* && echo "Pass: libtensorflow_cc found" || (echo "Fail: libtensorflow_cc found not found" && exit 1)

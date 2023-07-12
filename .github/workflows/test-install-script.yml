@@ -235,18 +235,17 @@ jobs:
         # bash utils/install.sh -v 0.10.0-alpha.1 -p /usr
         # ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
     
-    # macos-arm64 does not have plugins
-    # - name: Plugins Install check MacOS-arm64
-    #   if: ${{ matrix.name == 'MacOS-arm64' }}
-    #   run: |
-    #     bash utils/install.sh -v 0.13.1
-    #     ls ~/.wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-    #     bash utils/install.sh -v 0.13.1 --plugins wasmedge_tensorflow
-    #     ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-    #     bash utils/install.sh -v 0.13.1 --plugins wasmedge_tensorflowlite
-    #     ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-    #     bash utils/install.sh -v 0.13.1 -p ~/new_wasmedge
-    #     ls ~/new_wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    - name: Plugins Install check MacOS-arm64
+      if: ${{ matrix.name == 'MacOS-arm64' }}
+      run: |
+        bash utils/install.sh -v 0.13.1
+        ls ~/.wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        bash utils/install.sh -v 0.13.1 --plugins wasmedge_tensorflow
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        bash utils/install.sh -v 0.13.1 --plugins wasmedge_tensorflowlite
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        bash utils/install.sh -v 0.13.1 -p ~/new_wasmedge
+        ls ~/new_wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
 
     - name: Tensorflow changes - libtensorflow_cc 2.6.0 will replace the old libtensorflow 2.6.0
       if: ${{ matrix.name != 'MacOS-arm64' }}

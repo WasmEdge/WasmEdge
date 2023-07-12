@@ -123,13 +123,13 @@ jobs:
         shell: bash
         run: |
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
-          export OpenVINO_DIR=/usr/lib/x86_64-linux-gnu/cmake/openvino2023.0.1
           ldconfig
           plugin_array=(${tar_names})
           option_array=(${build_options})
           outtarget=${output_bin%.*}
           outtarget=${outtarget#lib}
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DOpenVINO_DIR=/usr/lib/x86_64-linux-gnu/cmake/openvino2023.0.1
+
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Building ${plugin_array[$i]} backend:"

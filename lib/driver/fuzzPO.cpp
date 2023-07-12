@@ -8,9 +8,108 @@
 #include "po/argument_parser.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
 #include <iostream>
+#include <type_traits>
+#include <utility>
 #include <vector>
+namespace {
+template <class Key, class Value, class Hash, class BinaryPredicate>
+class SkipTable {
+private:
+  using UnsignedKey = std::make_unsigned_t<Key>;
+  std::array<Value,
+             static_cast<std::size_t>(std::numeric_limits<UnsignedKey>::max()) +
+                 1u>
+      Table;
+
+public:
+  SkipTable(std::size_t, Value Default, Hash, BinaryPredicate) {
+    std::fill_n(Table.begin(), Table.size(), Default);
+  }
+
+  void insert(const Key &K, Value V) { Table[static_cast<UnsignedKey>(K)] = V; }
+
+  const Value &at(const Key &K) const {
+    return Table[static_cast<UnsignedKey>(K)];
+  }
+};
+
+template <class RandomIt1,
+          class Hash =
+              std::hash<typename std::iterator_traits<RandomIt1>::value_type>,
+          class BinaryPredicate = std::equal_to<>>
+class BoyerMooreHorspoolSearcher {
+private:
+  using Key = typename std::iterator_traits<RandomIt1>::value_type;
+  using Value = typename std::iterator_traits<RandomIt1>::difference_type;
+  static_assert(std::is_integral_v<Key> && sizeof(Key) == 1 &&
+                std::is_same_v<Hash, std::hash<Key>> &&
+                std::is_same_v<BinaryPredicate, std::equal_to<>>);
+  using SkipTableType = SkipTable<Key, Value, Hash, BinaryPredicate>;
+
+public:
+  BoyerMooreHorspoolSearcher(RandomIt1 First, RandomIt1 Last, Hash HF = Hash(),
+                             BinaryPredicate Pred = BinaryPredicate())
+      : Pattern(First), PatternLength(std::distance(First, Last)), Pred(Pred),
+        Table(PatternLength, PatternLength, HF, Pred) {
+    if (First != Last) {
+      --Last;
+      for (Value I = 0; First != Last; ++First, ++I) {
+        Table.insert(*First, PatternLength - 1 - I);
+      }
+    }
+  }
+
+  template <class RandomIt2>
+  std::pair<RandomIt2, RandomIt2> operator()(RandomIt2 First,
+                                             RandomIt2 Last) const {
+    static_assert(
+        std::is_same_v<
+            std::remove_cv_t<std::remove_reference_t<
+                typename std::iterator_traits<RandomIt1>::value_type>>,
+            std::remove_cv_t<std::remove_reference_t<
+                typename std::iterator_traits<RandomIt2>::value_type>>>,
+        "Corpus and Pattern iterators must point to the same type");
+    if (First == Last) {
+      // empty corpus
+      return {Last, Last};
+    }
+    if (PatternLength == 0) {
+      // empty pattern
+      return {First, First};
+    }
+    // the pattern is larger than the corpus
+    if (PatternLength > std::distance(First, Last)) {
+      return {Last, Last};
+    }
+
+    RandomIt2 Curr = First;
+    const RandomIt2 End = Last - PatternLength;
+    while (Curr <= End) {
+      Value J = PatternLength;
+      while (Pred(Pattern[J - 1], Curr[J - 1])) {
+        --J;
+        if (J == 0) {
+          // found
+          return {Curr, Curr + PatternLength};
+        }
+      }
+      const auto K = Curr[PatternLength - 1];
+      const auto D = Table.at(K);
+      Curr += D;
+    }
+    return {Last, Last};
+  }
+
+private:
+  RandomIt1 Pattern;
+  Value PatternLength;
+  BinaryPredicate Pred;
+  SkipTableType Table;
+};
+} // namespace
 
 namespace WasmEdge {
 namespace Driver {
@@ -121,8 +220,8 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
 
   static constexpr const std::array<char, 4> Separator = {'\xde', '\xad',
                                                           '\xbe', '\xef'};
-  static const std::boyer_moore_horspool_searcher Searcher(Separator.begin(),
-                                                           Separator.end());
+  static const BoyerMooreHorspoolSearcher Searcher(Separator.begin(),
+                                                   Separator.end());
   Span<const char> RawArgs(reinterpret_cast<const char *>(Data), Size);
   std::vector<std::string> ArgvStr;
   std::vector<const char *> Argv;

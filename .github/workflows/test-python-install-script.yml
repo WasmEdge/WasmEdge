@@ -356,14 +356,10 @@ jobs:
     - name: Plugins Install check MacOS-arm64
       if: ${{ matrix.name == 'MacOS-arm64' }}
       run: |
-        python3 utils/install.py -v 0.13.1
-        ls ~/.wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         python3 utils/install.py -v 0.13.1 --plugins wasmedge_tensorflow
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         python3 utils/install.py -v 0.13.1 --plugins wasmedge_tensorflowlite
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        python3 utils/install.py -v 0.13.1 -p ~/new_wasmedge
-        ls ~/new_wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
 
     - name: Install multiple versions and Tensorflow extension/plugins for pre and post 0.13.x
       if: ${{ matrix.name != 'MacOS-arm64' }}

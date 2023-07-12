@@ -11,7 +11,7 @@ mandelbrot.wat: mandelbrot.wasm
 	wasm2wat --enable-all mandelbrot.wasm -o mandelbrot.wat
 
 mandelbrot.so: mandelbrot.wasm
-	wasmedgec --enable-threads mandelbrot.wasm mandelbrot.so
+	wasmedge compile --enable-threads mandelbrot.wasm mandelbrot.so
 
 main: main.cc
 	clang++ -lwasmedge -std=c++17 -pthread -o $@ $^

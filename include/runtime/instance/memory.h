@@ -345,7 +345,6 @@ public:
     for (size_t i = 0; i < Res.value().size(); i++) 
       dataPtrStream << *(Res.value().data() + i);
     memTypeStream << MemType.getLimit().getMin() << std::endl;
-    memTypeStream << MemType.getLimit().getMax() << std::endl;
 
     // Close file
     dataPtrStream.close();
@@ -376,10 +375,6 @@ public:
     std::string memTypeString;
     getline(memTypeStream, memTypeString);
     MemType.getLimit().setMin(stoi(memTypeString));
-    getline(memTypeStream, memTypeString);
-    MemType.getLimit().setMax(stoi(memTypeString));
-    
-    
 
     // Close file
     dataPtrStream.close();

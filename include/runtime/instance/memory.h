@@ -26,6 +26,7 @@
 #include <memory>
 #include <set>
 #include <utility>
+#include <iostream>
 
 namespace WasmEdge {
 namespace Runtime {
@@ -337,8 +338,8 @@ public:
     // Open file
     std::string dataPtrFile = filename + "_dataptr.img";
     std::string memTypeFile = filename + "_memtype.img";
-    dataPtrStream.open(dataPtrFile);
-    memTypeStream.open(memTypeFile);
+    dataPtrStream.open(dataPtrFile, std::ios::trunc);
+    memTypeStream.open(memTypeFile, std::ios::trunc);
 
     // DataPtrとPageLimitをfileにdump
     auto Res = getBytes(0, MemType.getLimit().getMin() * kPageSize);

@@ -400,10 +400,6 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
   Runtime::Instance::FunctionInstance *FuncInst =
       ModInst->findFuncExports(Func);
 
-  auto dumpMem = [&]() {
-    ModInst->dump("meminst");
-  };
-
   // Execute function.
   if (auto Res = ExecutorEngine.invoke(FuncInst, Params, ParamTypes);
       unlikely(!Res)) {
@@ -412,7 +408,8 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
     }
     return Unexpect(Res);
   } else {
-    dumpMem();
+    // TODO: invokeが途中で中断した場合にdumpするようにする
+    ModInst->dump();
     return Res;
   }
 }

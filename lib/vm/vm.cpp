@@ -401,14 +401,7 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
       ModInst->findFuncExports(Func);
 
   auto dumpMem = [&]() {
-    std::ofstream dumpFile;
-    std::string filename = "memInst.img";
-    dumpFile.open(filename);
-    if (!dumpFile) {
-        std::cout << filename + " can't open" << std::endl;
-    }
-    ModInst->dump(dumpFile);
-    dumpFile.close();
+    ModInst->dump("meminst");
   };
 
   // Execute function.

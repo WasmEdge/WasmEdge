@@ -329,10 +329,61 @@ public:
   uint8_t *getDataPtr() const noexcept { return DataPtr; }
 
   // Migration functions
-  void dump(std::ofstream &dumpFile) const noexcept {
-      // TODO: MemTypeの保存方法
-      dumpFile << getStringView(0, MemType.getLimit().getMin() * kPageSize) << std::endl;
-      dumpFile << PageLimit << std::endl;
+
+  // filename = meminst_{i}
+  void dump(std::string filename) const noexcept {
+    std::ofstream dataPtrStream, memTypeStream;
+
+    // Open file
+    std::string dataPtrFile = filename + "_dataptr.img";
+    std::string memTypeFile = filename + "_memtype.img";
+    dataPtrStream.open(dataPtrFile);
+    memTypeStream.open(memTypeFile);
+
+    // DataPtrとPageLimitをfileにdump
+    auto Res = getBytes(0, MemType.getLimit().getMin() * kPageSize);
+    for (size_t i = 0; i < Res.value().size(); i++) 
+      dataPtrStream << *(Res.value().data() + i);
+    memTypeStream << MemType.getLimit().getMin() << std::endl;
+    memTypeStream << MemType.getLimit().getMax() << std::endl;
+
+    // Close file
+    dataPtrStream.close();
+    memTypeStream.close();
+  }
+
+  void restore(std::string filename)  noexcept {
+    // restoreFileをparseする
+    std::ifstream dataPtrStream, memTypeStream;
+
+    // Open file
+    std::string dataPtrFile = filename + "_dataptr.img";
+    std::string memTypeFile = filename + "_memtype.img";
+    dataPtrStream.open(dataPtrFile);
+    memTypeStream.open(memTypeFile);
+
+    // TODO: DataPtrとPageLimitを読み取って、それぞれに代入する
+    char ch;
+    std::vector<Byte> byteVec(0);
+    int size = 0;
+    while (dataPtrStream.get(ch)) {
+      byteVec.push_back((Byte)ch);
+      size++;
+    }
+    setBytes(Span<Byte>{byteVec}, 0, 0, size);
+    
+    // Restore MemType
+    std::string memTypeString;
+    getline(memTypeStream, memTypeString);
+    MemType.getLimit().setMin(stoi(memTypeString));
+    getline(memTypeStream, memTypeString);
+    MemType.getLimit().setMax(stoi(memTypeString));
+    
+    
+
+    // Close file
+    dataPtrStream.close();
+    memTypeStream.close();
   }
 
 private:

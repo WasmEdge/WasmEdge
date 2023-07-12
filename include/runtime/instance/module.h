@@ -180,13 +180,18 @@ public:
   }
 
   // Migration function
-  void dump(std::ofstream &dumpFile) const noexcept {
+  void dump(std::string filename) const noexcept {
+      // MemoryInstanceの保存
       for (uint32_t I = 0; I < getMemoryNum(); ++I) {
           auto Res = getMemory(I);
           MemoryInstance* MemInst = Res.value();
-          MemInst->dump(dumpFile);
+          MemInst->dump(filename + "_" + std::to_string(I));
       }
+      // GlobalInstanceの保存
   }
+
+  // void restore(std::ifstream &restoreFile) const noexcept {
+  // }
 
 protected:
   friend class Executor::Executor;

@@ -74,8 +74,10 @@ public:
         break;
       }
       /// TODO: FuncRef and ExternRef
-      default:
+      default: {
+        assert(-1);
         break;
+      }
     }
     // valueStream << Value.get<int32_t>();
 
@@ -118,8 +120,10 @@ public:
         break;
       }
       /// TODO: FuncRef and ExternRef
-      default:
+      default: {
+        assert(-1);
         break;
+      }
     }
 
     // Close file

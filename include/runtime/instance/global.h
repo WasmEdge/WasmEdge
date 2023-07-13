@@ -49,7 +49,34 @@ public:
     valueStream.open(valueFile, std::ios::trunc);
 
     // TODO: uint32_t型以外の場合どうなるのか(int32_tとかは同じ値が出力された)
-    valueStream << Value.get<uint32_t>();
+    
+    // valueStream << (int)GlobType.getValType() << std::endl;
+    switch (GlobType.getValType()) {
+      case ValType::I32: {
+        valueStream << Value.get<uint32_t>();
+        break;
+      }
+      case ValType::I64: {
+        valueStream << Value.get<uint64_t>();
+        break;
+      }
+      case ValType::F32: {
+        valueStream << Value.get<float>();
+        break;
+      }
+      case ValType::F64: {
+        valueStream << Value.get<double>();
+        break;
+      }
+      /// TODO: V128の処理についてもう少し精査する
+      case ValType::V128: {
+        valueStream << Value.get<uint128_t>();
+        break;
+      }
+      /// TODO: FuncRef and ExternRef
+      default:
+        break;
+    }
     // valueStream << Value.get<int32_t>();
 
     // Close file
@@ -64,24 +91,39 @@ public:
     std::string valueFile = filename + "_value.img";
     valueStream.open(valueFile);
 
-    // TODO: DataPtrとPageLimitを読み取って、それぞれに代入する
-    // char ch;
-    // std::vector<Byte> byteVec(0);
-    // int size = 0;
-    // while (dataPtrStream.get(ch)) {
-    //   byteVec.push_back((Byte)ch);
-    //   size++;
-    // }
-    // setBytes(Span<Byte>{byteVec}, 0, 0, size);
-    // 
-    // Restore MemType
+    // Restore Value
     std::string valueString;
+    // TODO: getlineじゃなくてファイルの中身全部とってくるようにする
     getline(valueStream, valueString);
-    Value.set(valueString);
+    switch (GlobType.getValType()) {
+      case ValType::I32: {
+        Value = static_cast<uint32_t>(std::stoul(valueString));
+        break;
+      }
+      case ValType::I64: {
+        Value = static_cast<uint64_t>(std::stoul(valueString));
+        break;
+      }
+      case ValType::F32: {
+        Value = static_cast<float>(std::stof(valueString));
+        break;
+      }
+      case ValType::F64: {
+        Value = static_cast<double>(std::stod(valueString));
+        break;
+      }
+      /// TODO: V128の処理についてもう少し精査する
+      case ValType::V128: {
+        Value = static_cast<uint128_t>(std::stoul(valueString));
+        break;
+      }
+      /// TODO: FuncRef and ExternRef
+      default:
+        break;
+    }
 
     // Close file
     valueStream.close();
-    globTypeStream.close();
   }
 private:
   /// \name Data of global instance.

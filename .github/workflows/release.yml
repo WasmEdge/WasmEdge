@@ -282,10 +282,12 @@ jobs:
     runs-on: ${{ matrix.host_runner }}
     env:
       output_dir: build/plugins/wasi_nn
-      build_options_manylinux2014_x86_64: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite
-      build_options_manylinux2014_aarch64: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite
-      tar_names_manylinux2014_x86_64: wasi_nn-pytorch wasi_nn-tensorflowlite
-      tar_names_manylinux2014_aarch64: wasi_nn-tensorflowlite
+      build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite
+      build_options_manylinux2014_x86_64: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch
+      build_options_manylinux2014_aarch64:
+      tar_names_all_platforms: wasi_nn-tensorflowlite
+      tar_names_manylinux2014_x86_64: wasi_nn-pytorch
+      tar_names_manylinux2014_aarch64:
       output_bin: libwasmedgePluginWasiNN.so
       OPENVINO_VERSION: "2021.4.582"
       OPENVINO_YEAR: "2021"
@@ -310,8 +312,8 @@ jobs:
         shell: bash
         run: |
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
-          plugin_array=(${tar_names_${{ matrix.docker_tag }}})
-          option_array=(${build_options_${{ matrix.docker_tag }}})
+          plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.docker_tag }}})
+          testbin_array=(${test_bins_all_platforms} ${test_bins_${{ matrix.docker_tag }}})
           outtarget=${output_bin%.*}
           outtarget=${outtarget#lib}
 
@@ -359,9 +361,15 @@ jobs:
     runs-on: ${{ matrix.host_runner }}
     env:
       output_prefix: build/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON
-      tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini
-      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so
+      build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON
+      build_options_manylinux2014_x86_64:
+      build_options_manylinux2014_aarch64:
+      tar_names_all_platforms: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini
+      tar_names_manylinux2014_x86_64:
+      tar_names_manylinux2014_aarch64:
+      output_bins_all_platforms: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmEdgeOpenCVMini.so
+      output_bins_manylinux2014_x86_64:
+      output_bins_manylinux2014_aarch64:
     needs: create_release
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -382,8 +390,8 @@ jobs:
       - name: Build plugins
         shell: bash
         run: |
-          outbin_array=(${output_bins})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options} -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
+          outbin_array=(${output_bins_all_platforms} ${output_bins_${{ matrix.docker_tag }}})
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options_all_platforms} ${build_options_${{ matrix.docker_tag }}} -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
           for (( i=0; i<${#outbin_array[@]}; i++ ));
           do
             echo "Building ${outbin_array[$i]} :"
@@ -395,8 +403,8 @@ jobs:
       - name: Prepare the plugins tar.gz package
         shell: bash
         run: |
-          plugin_array=(${tar_names})
-          outbin_array=(${output_bins})
+          plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.docker_tag }}})
+          outbin_array=(${output_bins_all_platforms} ${output_bins_${{ matrix.docker_tag }}})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Copying ${plugin_array[$i]} :"
@@ -483,7 +491,7 @@ jobs:
           git config --global --add safe.directory $(pwd)
       - name: Install dependencies
         run: |
-          brew install llvm ninja cmake openssl opencv
+          brew install llvm ninja cmake openssl
       - name: Build plugins
         shell: bash
         run: |

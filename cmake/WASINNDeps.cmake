@@ -150,7 +150,7 @@ function(wasmedge_setup_wasinn_target target)
       find_package(OpenVINO REQUIRED)
       add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO)
       list(APPEND WASMEDGE_PLUGIN_WASI_NN_DEPS
-        ${OpenVINO_LIBRARIES}
+        ${openvino::runtime openvino::runtime::c}
       )
     elseif(BACKEND STREQUAL "pytorch")
       message(STATUS "WASI-NN: Build PyTorch backend for WASI-NN")

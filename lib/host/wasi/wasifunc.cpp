@@ -560,6 +560,13 @@ Expect<uint32_t> WasiFdAllocate::body(const Runtime::CallingFrame &, int32_t Fd,
 Expect<uint32_t> WasiFdClose::body(const Runtime::CallingFrame &, int32_t Fd) {
   const __wasi_fd_t WasiFd = Fd;
 
+  if (auto Poll = this->Env.acquirePollerOnly(); unlikely(!Poll)) {
+  } else {
+    auto &Poller = *Poll;
+    Poller.fdClose(WasiFd);
+    this->Env.releasePoller(std::move(Poller));
+  }
+
   if (auto Res = Env.fdClose(WasiFd); unlikely(!Res)) {
     return Res.error();
   }

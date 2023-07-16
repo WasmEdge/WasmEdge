@@ -873,6 +873,7 @@ public:
   void write(const INode &Fd, TriggerType Trigger,
              __wasi_userdata_t UserData) noexcept;
 
+  void fdClose(const INode &Fd) noexcept;
   /// Concurrently poll for events.
   void wait() noexcept;
 

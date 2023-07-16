@@ -857,6 +857,12 @@ public:
   /// @return Poll helper or WASI error.
   WasiExpect<EVPoller> acquirePoller(Span<__wasi_event_t> Events) noexcept;
 
+  /// Acquire a Poller for concurrently poll for the occurrence of a set of
+  /// events without changing internal members.
+  ///
+  /// @return Poll helper or WASI error.
+  WasiExpect<EVPoller> acquirePollerOnly() noexcept;
+
   /// Release a used Poller object.
   ///
   /// @param[in] Poller Used poller object.
@@ -1202,6 +1208,7 @@ public:
 
   using VPoller::clock;
   using VPoller::error;
+  using VPoller::fdClose;
   using VPoller::prepare;
   using VPoller::reset;
   using VPoller::result;
@@ -1242,6 +1249,13 @@ public:
     }
   }
 
+  void fdClose(__wasi_fd_t Fd) noexcept {
+    if (auto Node = env().getNodeOrNull(Fd); unlikely(!Node)) {
+    } else {
+      VPoller::fdClose(Node);
+    }
+  }
+
 private:
   Environ &env() noexcept { return static_cast<Environ &>(Ctx.get()); }
 };
@@ -1262,6 +1276,20 @@ Environ::acquirePoller(Span<__wasi_event_t> Events) noexcept {
   if (auto Res = Poller.prepare(Events); !Res) {
     return WasiUnexpect(Res);
   }
+  return Poller;
+}
+
+inline WasiExpect<EVPoller> Environ::acquirePollerOnly() noexcept {
+  auto Poller = [this]() noexcept -> EVPoller {
+    std::unique_lock Lock(PollerMutex);
+    if (PollerPool.empty()) {
+      return EVPoller(*this);
+    } else {
+      EVPoller Result(std::move(PollerPool.back()));
+      PollerPool.pop_back();
+      return Result;
+    }
+  }();
   return Poller;
 }
 

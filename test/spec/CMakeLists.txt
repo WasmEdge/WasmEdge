@@ -21,7 +21,7 @@ else()
   FetchContent_Declare(
     simdjson
     GIT_REPOSITORY https://github.com/simdjson/simdjson.git
-    GIT_TAG  tags/v3.2.0
+    GIT_TAG  tags/v3.2.1
     GIT_SHALLOW TRUE)
   FetchContent_MakeAvailable(simdjson)
   message(STATUS "Downloading SIMDJSON source -- done")

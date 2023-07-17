@@ -15,6 +15,7 @@
 
 #include "ast/instruction.h"
 #include "runtime/instance/module.h"
+#include "executor/migrator.h"
 
 #include <vector>
 
@@ -138,6 +139,42 @@ public:
     FrameStack.clear();
   }
 
+  void dumpValue() {
+    std::ofstream ValueStream;
+    ValueStream.open("stackmgr_value.img", std::ios::trunc);
+
+    for (size_t I = 0; I < ValueStack.size(); ++I) {
+      Value v = ValueStack[I];
+      ValueStream << typeid(v).name() << std::endl;
+      // ValueStream << v<typeid(v)>.get() << std::endl;
+      ValueStream << std::endl;
+    }
+    
+    ValueStream.close();
+  }
+
+  void dumpFrame(std::map<AST::InstrView::iterator, struct Executor::Migrator::IterData> IterMigrator) {
+    std::ofstream FrameStream;
+    FrameStream.open("stackmgr_frame.img", std::ios::trunc);
+
+    for (size_t I = 0; I < FrameStack.size(); ++I) {
+      Frame f = FrameStack[I];
+      // ModuleInstance
+      FrameStream << f.Module->getModuleName() << std::endl;
+      // Iterator
+      struct Executor::Migrator::IterData Data = IterMigrator[const_cast<AST::InstrView::iterator>(f.From)];
+      FrameStream << Data.FuncIdx << std::endl;
+      FrameStream << Data.Offset << std::endl;
+      // Locals, VPos, Arity
+      FrameStream << f.Locals << std::endl;
+      FrameStream << f.VPos << std::endl;
+      FrameStream << f.Arity << std::endl;
+      FrameStream << std::endl; 
+    }  
+    
+    FrameStream.close();
+  }
+  
 private:
   /// \name Data of stack manager.
   /// @{

@@ -3,15 +3,26 @@
 #include "ast/instruction.h"
 #include "runtime/instance/module.h"
 #include "runtime/instance/function.h"
+#include "executor/executor.h"
 
 #include <map>
 #include <iostream>
 
 namespace WasmEdge {
+  
+namespace Runtime {
+  class StackManager;
+}
+
 namespace Executor {
 
 class Migrator {
 public:
+  struct IterData {
+    uint32_t FuncIdx;
+    uint32_t Offset;
+  };
+
   // TODO: コンストラクタにする
   void preDumpIter(const Runtime::Instance::ModuleInstance* ModInstA) {
     ModInst = ModInstA;
@@ -67,6 +78,14 @@ public:
     return Iter;
   }
   
+  void dumpStackMgr(Runtime::StackManager& StackMgr) {
+    StackMgr.dumpValue();
+    // StackMgr->dumpFrame(IterMigrator);
+  }
+  
+  // Runtime::StackManager restoreStackMgr() {
+  // }
+  
   void dumpMemInst() {
     ModInst->dumpMemInst();
   }
@@ -77,10 +96,6 @@ public:
 
 
 private:
-  struct IterData {
-    uint32_t FuncIdx;
-    uint32_t Offset;
-  };
   std::map<AST::InstrView::iterator, IterData> IterMigrator;
   const Runtime::Instance::ModuleInstance* ModInst;
 };

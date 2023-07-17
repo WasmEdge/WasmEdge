@@ -15,7 +15,7 @@
 
 #include "ast/instruction.h"
 #include "runtime/instance/module.h"
-#include "executor/migrator.h"
+// #include "executor/migrator.h"
 
 #include <vector>
 
@@ -139,65 +139,22 @@ public:
     FrameStack.clear();
   }
 
-  void dumpValue() {
-    std::ofstream ValueStream;
-    ValueStream.open("stackmgr_value.img", std::ios::trunc);
+  // void dumpValue() {
+  //   std::ofstream ValueStream;
+  //   ValueStream.open("stackmgr_value.img", std::ios::trunc);
 
-    for (size_t I = 0; I < ValueStack.size(); ++I) {
-      Value v = ValueStack[I];
-      ValueStream << typeid(v).name() << std::endl;
-      // ValueStream << v<typeid(v)>.get() << std::endl;
-      ValueStream << std::endl;
-    }
+  //   for (size_t I = 0; I < ValueStack.size(); ++I) {
+  //     Value v = ValueStack[I];
+  //     ValueStream << typeid(v).name() << std::endl;
+  //     // ValueStream << v<typeid(v)>.get() << std::endl;
+  //     ValueStream << std::endl;
+  //   }
     
-    ValueStream.close();
-  }
-
-  void dumpFrame(std::map<AST::InstrView::iterator, struct Executor::Migrator::IterData> IterMigrator) {
-    std::ofstream FrameStream;
-    FrameStream.open("stackmgr_frame.img", std::ios::trunc);
-
-    for (size_t I = 0; I < FrameStack.size(); ++I) {
-      Frame f = FrameStack[I];
-      // ModuleInstance
-      FrameStream << f.Module->getModuleName() << std::endl;
-      // Iterator
-      struct Executor::Migrator::IterData Data = IterMigrator[const_cast<AST::InstrView::iterator>(f.From)];
-      FrameStream << Data.FuncIdx << std::endl;
-      FrameStream << Data.Offset << std::endl;
-      // Locals, VPos, Arity
-      FrameStream << f.Locals << std::endl;
-      FrameStream << f.VPos << std::endl;
-      FrameStream << f.Arity << std::endl;
-      FrameStream << std::endl; 
-    }  
-    
-    FrameStream.close();
-  }
+  //   ValueStream.close();
+  // }
   
-  void restoreFrame(StoreManager StoreMgr) {
-    std::ifstream FrameStream;
-    FrameStream.open("stackmgr_frame.img");
-
-    std::string FrameString;
-    // ModuleInstance
-    getline(FrameStream, FrameString);
-    std::string ModName = FrameString;
-    const Instance::ModuleInstance ModInst = StoreMgr.findModule(ModName);
-    // Iterator
-    getline(FrameString, FrameStream);
-    uint32_t FuncIdx = static_cast<uint32_t>(std::stoul(FrameString));
-    getline(FrameString, FrameStream);
-    uint32_t Offset = static_cast<uint32_t>(std::stoul(FrameString));
-
-    iterStream.close();
-    
-    // FuncIdxとOffsetからitertorを復元
-    Runtime::Instance::FunctionInstance* FuncInst = ModInst->getFunc(FuncIdx).value();
-    AST::InstrView::iterator Iter = FuncInst->getInstrs().begin();
-    for (uint32_t I = 0; I < Offset; ++I) {
-      Iter++;
-    }
+  std::vector<Frame> getFrameStack() {
+    return FrameStack;
   }
   
 private:

@@ -3,10 +3,14 @@
 #include "ast/instruction.h"
 #include "runtime/instance/module.h"
 #include "runtime/instance/function.h"
+#include "runtime/stackmgr.h"
+#include "runtime/storemgr.h"
 #include "executor/executor.h"
 
 #include <map>
 #include <iostream>
+#include <vector>
+#include <string>
 
 namespace WasmEdge {
   
@@ -53,7 +57,15 @@ public:
       
     iterStream.close();
   }
-
+  
+  AST::InstrView::iterator _restoreIter(uint32_t FuncIdx, uint32_t Offset) {
+    Runtime::Instance::FunctionInstance* FuncInst = ModInst->getFunc(FuncIdx).value();
+    AST::InstrView::iterator Iter = FuncInst->getInstrs().begin();
+    for (uint32_t I = 0; I < Offset; ++I) {
+      Iter++;
+    }
+    return Iter;
+  }
   AST::InstrView::iterator restoreIter() {
     std::ifstream iterStream;
     iterStream.open("iter.img");
@@ -69,18 +81,74 @@ public:
     iterStream.close();
     
     // FuncIdxとOffsetからitertorを復元
-    Runtime::Instance::FunctionInstance* FuncInst = ModInst->getFunc(FuncIdx).value();
-    AST::InstrView::iterator Iter = FuncInst->getInstrs().begin();
-    for (uint32_t I = 0; I < Offset; ++I) {
-      Iter++;
-    }
-
-    return Iter;
+    return _restoreIter(FuncIdx, Offset);
   }
   
-  void dumpStackMgr(Runtime::StackManager& StackMgr) {
-    StackMgr.dumpValue();
-    // StackMgr->dumpFrame(IterMigrator);
+  // void dumpStackMgr(Runtime::StackManager& StackMgr) {
+  //   // StackMgr.dumpValue();
+  //   // StackMgr->dumpFrame(IterMigrator);
+  // }
+  
+  void dumpStackMgrFrame(Runtime::StackManager& StackMgr) {
+    std::vector<Runtime::StackManager::Frame> FrameStack = StackMgr.getFrameStack();
+    std::ofstream FrameStream;
+    FrameStream.open("stackmgr_frame.img", std::ios::trunc);
+
+    for (size_t I = 0; I < FrameStack.size(); ++I) {
+      Runtime::StackManager::Frame f = FrameStack[I];
+      // ModuleInstance
+      FrameStream << f.Module->getModuleName() << std::endl;
+      // Iterator
+      struct IterData Data = IterMigrator[const_cast<AST::InstrView::iterator>(f.From)];
+      FrameStream << Data.FuncIdx << std::endl;
+      FrameStream << Data.Offset << std::endl;
+      // Locals, VPos, Arity
+      FrameStream << f.Locals << std::endl;
+      FrameStream << f.VPos << std::endl;
+      FrameStream << f.Arity << std::endl;
+      FrameStream << std::endl; 
+    }  
+    
+    FrameStream.close();
+  }
+
+  std::vector<Runtime::StackManager::Frame> restoreFrame(Runtime::StoreManager StoreMgr) {
+    std::ifstream FrameStream;
+    FrameStream.open("stackmgr_frame.img");
+    Runtime::StackManager StackMgr;
+
+    std::vector<Runtime::StackManager::Frame> FrameStack;
+    std::string FrameString;
+    /// TODO: ループ条件見直す
+    while(1) {
+      // ModuleInstance
+      getline(FrameStream, FrameString);
+      std::string ModName = FrameString;
+      const Runtime::Instance::ModuleInstance* ModInst = StoreMgr.findModule(ModName);
+      // Iterator
+      getline(FrameStream, FrameString);
+      uint32_t FuncIdx = static_cast<uint32_t>(std::stoul(FrameString));
+      getline(FrameStream, FrameString);
+      uint32_t Offset = static_cast<uint32_t>(std::stoul(FrameString));
+      AST::InstrView::iterator From = _restoreIter(FuncIdx, Offset);
+      // Locals, VPos, Arity
+      getline(FrameStream, FrameString);
+      uint32_t Locals = static_cast<uint32_t>(std::stoul(FrameString));
+      getline(FrameStream, FrameString);
+      uint32_t VPos = static_cast<uint32_t>(std::stoul(FrameString));
+      getline(FrameStream, FrameString);
+      uint32_t Arity = static_cast<uint32_t>(std::stoul(FrameString));
+
+      if(!getline(FrameStream, FrameString)) {
+        break;
+      }
+
+      Runtime::StackManager::Frame f(ModInst, From, Locals, VPos, Arity);
+      FrameStack.push_back(f);
+    }
+
+    FrameStream.close();
+    return FrameStack;    
   }
   
   // Runtime::StackManager restoreStackMgr() {

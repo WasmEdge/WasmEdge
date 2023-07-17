@@ -112,7 +112,7 @@ public:
     FrameStream.close();
   }
 
-  std::vector<Runtime::StackManager::Frame> restoreFrame(Runtime::StoreManager StoreMgr) {
+  std::vector<Runtime::StackManager::Frame> restoreStackMgrFrame(Runtime::StoreManager StoreMgr) {
     std::ifstream FrameStream;
     FrameStream.open("stackmgr_frame.img");
     Runtime::StackManager StackMgr;

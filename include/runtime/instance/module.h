@@ -38,6 +38,7 @@ namespace WasmEdge {
 
 namespace Executor {
 class Executor;
+class Migrator;
 }
 
 namespace Runtime {
@@ -180,19 +181,22 @@ public:
   }
 
   // Migration function
-  void dump() const noexcept {
-      // MemoryInstanceの保存
-      for (uint32_t I = 0; I < getMemoryNum(); ++I) {
-          auto Res = getMemory(I);
-          MemoryInstance* MemInst = Res.value();
-          MemInst->dump("meminst_" + std::to_string(I));
-      }
-      // GlobalInstanceの保存
-      for (uint32_t I = 0; I < getGlobalNum(); ++I) {
-          auto Res = getGlobal(I);
-          GlobalInstance* GlobInst = Res.value();
-          GlobInst->dump("globinst_" + std::to_string(I));
-      }
+  void dumpMemInst() const noexcept {
+    // MemoryInstanceの保存
+    for (uint32_t I = 0; I < getMemoryNum(); ++I) {
+        auto Res = getMemory(I);
+        MemoryInstance* MemInst = Res.value();
+        MemInst->dump("meminst_" + std::to_string(I));
+    }
+  }
+  
+  void dumpGlobInst() const noexcept {
+    // GlobalInstanceの保存
+    for (uint32_t I = 0; I < getGlobalNum(); ++I) {
+        auto Res = getGlobal(I);
+        GlobalInstance* GlobInst = Res.value();
+        GlobInst->dump("globinst_" + std::to_string(I));
+    }
   }
 
   // void restore(std::ifstream &restoreFile) const noexcept {
@@ -200,6 +204,7 @@ public:
 
 protected:
   friend class Executor::Executor;
+  friend class Executor::Migrator;
   friend class Runtime::CallingFrame;
 
   /// Copy the function types in type section to this module instance.

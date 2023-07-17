@@ -47,6 +47,7 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
     }
   }
   if (Res) {
+    getMigrator().preDumpIter(Func.getModule());
     // If not terminated, execute the instructions in interpreter mode.
     // For the entering AOT or host functions, the `StartIt` is equal to the end
     // of instruction list, therefore the execution will return immediately.
@@ -1811,6 +1812,9 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     }
   };
 
+  // Runtime::Instance::ModuleInstance* ModInst = Func->getModule();
+  // ModInst.preDumpIter();
+
   while (PC != PCEnd) {
     if (Stat) {
       OpCode Code = PC->getOpCode();
@@ -1829,6 +1833,16 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     }
     if (auto Res = Dispatch(); !Res) {
       return Unexpect(Res);
+    }
+    
+    // 何かしらのシグナルを受け取るとdumpする
+    if (1) {
+      Migrator Migr = getMigrator();
+      Migr.dumpIter(PC);
+      Migr.dumpMemInst();
+      Migr.dumpGlobInst();
+      // TODO: 途中で止まったことがわかるエラーを返す
+      return {};
     }
     PC++;
   }

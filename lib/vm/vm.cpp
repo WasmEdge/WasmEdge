@@ -14,8 +14,6 @@
 #include "host/mock/wasmedge_tensorflow_module.h"
 #include "host/mock/wasmedge_tensorflowlite_module.h"
 
-#include <iostream>
-
 namespace WasmEdge {
 namespace VM {
 
@@ -408,8 +406,6 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
     }
     return Unexpect(Res);
   } else {
-    // TODO: invokeが途中で中断した場合にdumpするようにする
-    ModInst->dump();
     return Res;
   }
 }

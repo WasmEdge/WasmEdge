@@ -175,6 +175,31 @@ public:
     FrameStream.close();
   }
   
+  void restoreFrame(StoreManager StoreMgr) {
+    std::ifstream FrameStream;
+    FrameStream.open("stackmgr_frame.img");
+
+    std::string FrameString;
+    // ModuleInstance
+    getline(FrameStream, FrameString);
+    std::string ModName = FrameString;
+    const Instance::ModuleInstance ModInst = StoreMgr.findModule(ModName);
+    // Iterator
+    getline(FrameString, FrameStream);
+    uint32_t FuncIdx = static_cast<uint32_t>(std::stoul(FrameString));
+    getline(FrameString, FrameStream);
+    uint32_t Offset = static_cast<uint32_t>(std::stoul(FrameString));
+
+    iterStream.close();
+    
+    // FuncIdxとOffsetからitertorを復元
+    Runtime::Instance::FunctionInstance* FuncInst = ModInst->getFunc(FuncIdx).value();
+    AST::InstrView::iterator Iter = FuncInst->getInstrs().begin();
+    for (uint32_t I = 0; I < Offset; ++I) {
+      Iter++;
+    }
+  }
+  
 private:
   /// \name Data of stack manager.
   /// @{

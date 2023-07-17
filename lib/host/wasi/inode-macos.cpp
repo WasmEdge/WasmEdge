@@ -1377,7 +1377,7 @@ void Poller::clock(__wasi_clockid_t, __wasi_timestamp_t Timeout,
   }
 }
 
-void Poller::fdClose(const INode &Node [[maybe_unused]]) noexcept {}
+void Poller::close(const INode &Node [[maybe_unused]]) noexcept {}
 
 void Poller::read(const INode &Node, TriggerType Trigger,
                   __wasi_userdata_t UserData) noexcept {

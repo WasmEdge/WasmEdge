@@ -857,16 +857,15 @@ public:
   /// @return Poll helper or WASI error.
   WasiExpect<EVPoller> acquirePoller(Span<__wasi_event_t> Events) noexcept;
 
-  /// Acquire a Poller for concurrently poll for the occurrence of a set of
-  /// events without changing internal members.
-  ///
-  /// @return Poll helper or WASI error.
-  WasiExpect<EVPoller> acquirePollerOnly() noexcept;
-
   /// Release a used Poller object.
   ///
   /// @param[in] Poller Used poller object.
   void releasePoller(EVPoller &&Poller) noexcept;
+
+  /// Close unused Fd in Pollers.
+  ///
+  /// @param[in] Fd The Fd to be deleted.
+  void close(__wasi_fd_t Fd) noexcept;
 
   /// Terminate the process normally. An exit code of 0 indicates successful
   /// termination of the program. The meanings of other values is dependent on
@@ -1207,8 +1206,8 @@ public:
   EVPoller &operator=(EVPoller &&) = default;
 
   using VPoller::clock;
+  using VPoller::close;
   using VPoller::error;
-  using VPoller::fdClose;
   using VPoller::prepare;
   using VPoller::reset;
   using VPoller::result;
@@ -1249,10 +1248,10 @@ public:
     }
   }
 
-  void fdClose(__wasi_fd_t Fd) noexcept {
+  void close(__wasi_fd_t Fd) noexcept {
     if (auto Node = env().getNodeOrNull(Fd); unlikely(!Node)) {
     } else {
-      VPoller::fdClose(Node);
+      VPoller::close(Node);
     }
   }
 
@@ -1279,18 +1278,11 @@ Environ::acquirePoller(Span<__wasi_event_t> Events) noexcept {
   return Poller;
 }
 
-inline WasiExpect<EVPoller> Environ::acquirePollerOnly() noexcept {
-  auto Poller = [this]() noexcept -> EVPoller {
-    std::unique_lock Lock(PollerMutex);
-    if (PollerPool.empty()) {
-      return EVPoller(*this);
-    } else {
-      EVPoller Result(std::move(PollerPool.back()));
-      PollerPool.pop_back();
-      return Result;
-    }
-  }();
-  return Poller;
+inline void Environ::close(__wasi_fd_t Fd) noexcept {
+  std::unique_lock Lock(PollerMutex);
+  for (auto &Poller : PollerPool) {
+    Poller.close(Fd);
+  }
 }
 
 inline void Environ::releasePoller(EVPoller &&Poller) noexcept {

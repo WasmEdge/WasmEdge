@@ -1598,7 +1598,7 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
   }
 }
 
-void Poller::fdClose(const INode &Node) noexcept {
+void Poller::close(const INode &Node) noexcept {
   FdDatas.erase(Node.Fd);
   OldFdDatas.erase(Node.Fd);
 }

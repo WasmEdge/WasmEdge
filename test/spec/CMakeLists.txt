@@ -24,6 +24,10 @@ else()
     GIT_TAG  tags/v3.2.1
     GIT_SHALLOW TRUE)
   FetchContent_MakeAvailable(simdjson)
+
+  set(SIMDJSON_JUST_LIBRARY ON CACHE INTERNAL "")
+  set(SIMDJSON_BUILD_STATIC ON CACHE INTERNAL "")
+
   message(STATUS "Downloading SIMDJSON source -- done")
 endif()
 
@@ -47,7 +51,7 @@ wasmedge_add_library(wasmedgeTestSpec
 
 target_link_libraries(wasmedgeTestSpec
   PUBLIC
-  simdjson::simdjson
+  simdjson
   std::filesystem
   wasmedgeCommon
   ${GTEST_BOTH_LIBRARIES}

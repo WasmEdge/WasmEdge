@@ -149,7 +149,6 @@ function(wasmedge_setup_wasinn_target target)
       message(STATUS "WASI-NN: Build OpenVINO backend for WASI-NN")
       find_package(OpenVINO REQUIRED)
       add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO)
-      target_link_libraries(${target} PRIVATE openvino::runtime openvino::runtime::c)
       list(APPEND WASMEDGE_PLUGIN_WASI_NN_DEPS
         openvino::runtime openvino::runtime::c
       )

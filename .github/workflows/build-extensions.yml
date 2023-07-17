@@ -103,7 +103,6 @@ jobs:
         shell: bash
         run: |
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
-          export OpenVINO_DIR=./usr/lib/x86_64-linux-gnu/cmake/openvino2023.0.1
           ldconfig
           plugin_array=(${tar_names})
           option_array=(${build_options})

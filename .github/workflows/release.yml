@@ -97,8 +97,8 @@ jobs:
       build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite
       tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite
       output_bin: libwasmedgePluginWasiNN.so
-      OPENVINO_VERSION: "2021.4.582"
-      OPENVINO_YEAR: "2021"
+      OPENVINO_VERSION: "2023.0.0"
+      OPENVINO_YEAR: "2023"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."
     needs: create_release
@@ -122,7 +122,6 @@ jobs:
       - name: Build WASI-NN plugin
         shell: bash
         run: |
-          source /opt/intel/openvino_2021/bin/setupvars.sh
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
           ldconfig
           plugin_array=(${tar_names})
@@ -288,8 +287,8 @@ jobs:
       tar_names_manylinux2014_x86_64: wasi_nn-pytorch
       tar_names_manylinux2014_aarch64:
       output_bin: libwasmedgePluginWasiNN.so
-      OPENVINO_VERSION: "2021.4.582"
-      OPENVINO_YEAR: "2021"
+      OPENVINO_VERSION: "2023.0.0"
+      OPENVINO_YEAR: "2023"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."
     container:

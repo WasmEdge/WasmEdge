@@ -560,7 +560,7 @@ Expect<uint32_t> WasiFdAllocate::body(const Runtime::CallingFrame &, int32_t Fd,
 Expect<uint32_t> WasiFdClose::body(const Runtime::CallingFrame &, int32_t Fd) {
   const __wasi_fd_t WasiFd = Fd;
 
-  this->Env.close(WasiFd);
+  Env.close(WasiFd);
 
   if (auto Res = Env.fdClose(WasiFd); unlikely(!Res)) {
     return Res.error();

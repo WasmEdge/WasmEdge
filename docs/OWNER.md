@@ -17,12 +17,12 @@
 | yi                       | @0yi0         | Second State                                  | <yi@secondstate.io>          |
 | Sam                      | @apepkuss     | Second State                                  | <sam@secondstate.io>         |
 | danny                    | @dannypsnl    | Second State                                  | <dannypsnl@secondstate.io>   |
+| Shreyas Atre             | @SAtacker     | SRA VJTI                                      | <shreyasatre16@gmail.com>    |
 
 ## WasmEdge Reviewers
 
 | Reviewers                | GitHub ID     | Organization                                  | Email                        |
 | ---------------          | ---------     | -----------                                   | -----------                  |
-| Shreyas Atre             | @SAtacker     | SRA VJTI                                      | <shreyasatre16@gmail.com>    |
 | 叶坚白                   | @gusye1234    | University of Science and Technology of China | <jianbaiye@outlook.com>      |
 | Tricster                 | @MediosZ      | Southeast University                          | <mediosrity@gmail.com>       |
 | Wenshuo Yang             | @sonder-joker | Bytedance                                     | <highmagic@outlook.com>      |

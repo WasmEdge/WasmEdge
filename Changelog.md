@@ -1,3 +1,29 @@
+### 0.13.1 (2023-07-06)
+
+This is a bugfix release.
+
+Fixed issues:
+
+* Rollback the WasmEdge WASI Socket behavior of V1 functions.
+  * Related functions: `getlocaladdr`, and `getpeeraddr`
+  * Reason:
+    * The address type should be INET4(0) and INET6(1).
+    * This regrasion is introduced in [#2557](https://github.com/WasmEdge/WasmEdge/pull/2557).
+    * However, the original values of the previous version (< 0.13.0): INET4(4) and INET6(6).
+    * To avoid this incompatible behavior, we choose to keep the old behavior.
+
+Known issues:
+
+* Universal WASM format failed on macOS platforms.
+  * In the current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause a bus error during execution.
+  * We are trying to fix this issue. For a working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+
+Thank all the contributors that made this release possible!
+
+If you want to build from source, please use WasmEdge-0.13.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.13.0 (2023-06-30)
 
 Breaking changes:

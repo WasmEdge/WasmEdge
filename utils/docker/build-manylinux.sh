@@ -35,7 +35,7 @@ for i in "$@"; do
 done
 
 if $IS_NINJA; then
-  if ! cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DWASMEDGE_BUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM;DEB" ${CMAKE_OPTS} .; then
+  if ! cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DWASMEDGE_BUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" ${CMAKE_OPTS} .; then
     echo === CMakeOutput.log ===
     cat build/CMakeFiles/CMakeOutput.log
     echo === CMakeError.log ===

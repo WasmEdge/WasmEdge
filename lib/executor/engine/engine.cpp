@@ -1836,7 +1836,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     }
     
     // 何かしらのシグナルを受け取るとdumpする
-    if (1) {
+    if (0) {
       Migrator Migr = getMigrator();
       Migr.dumpIter(PC);
       Migr.dumpMemInst();

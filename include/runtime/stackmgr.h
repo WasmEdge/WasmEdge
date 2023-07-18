@@ -139,22 +139,12 @@ public:
     FrameStack.clear();
   }
 
-  // void dumpValue() {
-  //   std::ofstream ValueStream;
-  //   ValueStream.open("stackmgr_value.img", std::ios::trunc);
-
-  //   for (size_t I = 0; I < ValueStack.size(); ++I) {
-  //     Value v = ValueStack[I];
-  //     ValueStream << typeid(v).name() << std::endl;
-  //     // ValueStream << v<typeid(v)>.get() << std::endl;
-  //     ValueStream << std::endl;
-  //   }
-    
-  //   ValueStream.close();
-  // }
-  
+  // TODO: protectedとかつける
   std::vector<Frame> getFrameStack() {
     return FrameStack;
+  }
+  std::vector<Value> getValueStack() {
+    return ValueStack;
   }
   
 private:

@@ -151,6 +151,22 @@ public:
     return FrameStack;    
   }
   
+  void dumpStackMgrValue(Runtime::StackManager& StackMgr) {
+    std::ofstream ValueStream;
+    ValueStream.open("stackmgr_value.img", std::ios::trunc);
+
+    using Value = ValVariant;
+    std::vector<Value> ValueStack = StackMgr.getValueStack();
+    for (size_t I = 0; I < ValueStack.size(); ++I) {
+      Value v = ValueStack[I];
+      ValueStream << typeid(v).name() << std::endl;
+      // ValueStream << v<typeid(v)>.get() << std::endl;
+      ValueStream << std::endl;
+    }
+    
+    ValueStream.close();
+  }
+  
   // Runtime::StackManager restoreStackMgr() {
   // }
   

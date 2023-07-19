@@ -1249,8 +1249,7 @@ public:
   }
 
   void close(__wasi_fd_t Fd) noexcept {
-    if (auto Node = env().getNodeOrNull(Fd); unlikely(!Node)) {
-    } else {
+    if (auto Node = env().getNodeOrNull(Fd); likely(!!Node)) {
       VPoller::close(Node);
     }
   }

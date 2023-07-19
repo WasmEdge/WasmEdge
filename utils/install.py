@@ -375,8 +375,8 @@ SUPPORTTED_PLUGINS = {
     "manylinux2014" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "manylinux2014" + "aarch64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
-    "ubuntu20.04" + "x86_64" + WASM_BPF: VersionString("0.13.0"),
-    "manylinux2014" + "x86_64" + WASM_BPF: VersionString("0.13.0"),
+    "ubuntu20.04" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
+    "manylinux2014" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
 }
 
 HOME = expanduser("~")

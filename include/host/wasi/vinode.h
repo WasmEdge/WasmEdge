@@ -733,6 +733,7 @@ public:
   using Poller::ok;
   using Poller::Poller;
   using Poller::prepare;
+  using Poller::process;
   using Poller::reset;
   using Poller::result;
   using Poller::wait;
@@ -756,6 +757,35 @@ public:
                     __WASI_EVENTTYPE_FD_WRITE);
     } else {
       Poller::write(Fd->Node, Trigger, UserData);
+    }
+  }
+
+  void process(std::shared_ptr<VINode> Fd [[maybe_unused]],
+               TriggerType Trigger [[maybe_unused]],
+               bool ReadFlag [[maybe_unused]], bool WriteFlag [[maybe_unused]],
+               __wasi_userdata_t ReadUserData [[maybe_unused]],
+               __wasi_userdata_t WriteUserData [[maybe_unused]]) noexcept {
+    auto TempReadFlag = ReadFlag;
+    if (ReadFlag) {
+      if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
+          !Fd->can(__WASI_RIGHTS_FD_READ)) {
+        Poller::error(ReadUserData, __WASI_ERRNO_NOTCAPABLE,
+                      __WASI_EVENTTYPE_FD_READ);
+        TempReadFlag = false;
+      }
+    }
+    auto TempWriteFlag = WriteFlag;
+    if (WriteFlag) {
+      if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
+          !Fd->can(__WASI_RIGHTS_FD_WRITE)) {
+        Poller::error(WriteUserData, __WASI_ERRNO_NOTCAPABLE,
+                      __WASI_EVENTTYPE_FD_WRITE);
+        TempWriteFlag = false;
+      }
+    }
+    if (TempReadFlag || TempWriteFlag) {
+      Poller::process(Fd->Node, Trigger, TempReadFlag, TempWriteFlag,
+                      ReadUserData, WriteUserData);
     }
   }
 };

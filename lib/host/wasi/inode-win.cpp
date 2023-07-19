@@ -2255,7 +2255,18 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
     MinimumTimeout = SysTimeout;
   }
 }
-
+void Poller::process(const INode &Node, TriggerType Trigger, bool ReadFlag,
+                     bool WriteFlag, __wasi_userdata_t ReadUserData,
+                     __wasi_userdata_t WriteUserData) noexcept {
+  if (ReadFlag && WriteFlag) {
+    Poller::read(Node, Trigger, ReadUserData);
+    Poller::write(Node, Trigger, WriteUserData);
+  } else if (ReadFlag) {
+    Poller::read(Node, Trigger, ReadUserData);
+  } else if (WriteFlag) {
+    Poller::write(Node, Trigger, WriteUserData);
+  }
+}
 void Poller::read(const INode &Node, TriggerType Trigger,
                   __wasi_userdata_t UserData) noexcept {
   if (Node.Type != HandleHolder::HandleType::NormalSocket ||

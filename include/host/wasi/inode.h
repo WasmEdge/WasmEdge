@@ -876,6 +876,10 @@ public:
   /// Concurrently poll for events.
   void wait() noexcept;
 
+  void process(const INode &Fd, TriggerType Trigger, bool ReadFlag,
+               bool WriteFlag, __wasi_userdata_t ReadUserData,
+               __wasi_userdata_t WriteUserData) noexcept;
+
   /// Return number of events.
   ///
   /// @return Number of event occurred

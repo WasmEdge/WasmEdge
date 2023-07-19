@@ -1203,6 +1203,7 @@ public:
   using VPoller::clock;
   using VPoller::error;
   using VPoller::prepare;
+  using VPoller::process;
   using VPoller::reset;
   using VPoller::result;
   using VPoller::VPoller;
@@ -1239,6 +1240,24 @@ public:
       VPoller::error(UserData, __WASI_ERRNO_BADF, __WASI_EVENTTYPE_FD_WRITE);
     } else {
       VPoller::write(Node, Trigger, UserData);
+    }
+  }
+
+  void process(__wasi_fd_t Fd, TriggerType Trigger, bool ReadFlag,
+               bool WriteFlag, __wasi_userdata_t ReadUserData,
+               __wasi_userdata_t WriteUserData) noexcept {
+    if (auto Node = env().getNodeOrNull(Fd); unlikely(!Node)) {
+      if (ReadFlag) {
+        VPoller::error(ReadUserData, __WASI_ERRNO_BADF,
+                       __WASI_EVENTTYPE_FD_READ);
+      }
+      if (WriteFlag) {
+        VPoller::error(WriteUserData, __WASI_ERRNO_BADF,
+                       __WASI_EVENTTYPE_FD_WRITE);
+      }
+    } else {
+      VPoller::process(Node, Trigger, ReadFlag, WriteFlag, ReadUserData,
+                       WriteUserData);
     }
   }
 

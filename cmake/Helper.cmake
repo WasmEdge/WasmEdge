@@ -190,13 +190,31 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_BUILD_A
       ${LLVM_LIBRARY_DIR}/liblldWasm.a
     )
   endif()
+
   if (APPLE AND LLVM_VERSION_MAJOR GREATER_EQUAL 15)
     # For LLVM 15 or greater on MacOS
     find_package(zstd REQUIRED)
     get_filename_component(ZSTD_PATH "${zstd_LIBRARY}" DIRECTORY)
     list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
       ${ZSTD_PATH}/libzstd.a
-    )
+      )
+  endif()
+
+  if(UNIX AND LLVM_VERSION_MAJOR GREATER_EQUAL 15)
+    # Check ZSTD is enabled by LLVM
+    execute_process(COMMAND bash "-c" "llvm-config --system-libs"
+      OUTPUT_VARIABLE LLVM_SYSTEM_LIBS
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    string(FIND "${LLVM_SYSTEM_LIBS}" "zstd" POS)
+
+    if(${POS} GREATER -1)
+      find_package(zstd REQUIRED)
+      get_filename_component(ZSTD_PATH "${zstd_LIBRARY}" DIRECTORY)
+      list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
+        ${ZSTD_PATH}/libzstd.a
+      )
+    endif()
   endif()
 
   list(APPEND WASMEDGE_LLVM_LINK_SHARED_COMPONENTS

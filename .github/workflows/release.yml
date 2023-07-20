@@ -172,9 +172,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       output_prefix: build/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON
-      tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini
-      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON
+      tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasm_bpf wasmedge_opencvmini
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmBpf.so libwasmedgePluginWasmEdgeOpenCVMini.so
     needs: create_release
     container:
       image: wasmedge/wasmedge:ubuntu-20.04-build-clang
@@ -190,6 +190,7 @@ jobs:
         run: |
           apt update
           apt install -y libssl-dev cmake g++ wget unzip
+          apt install -y libelf-dev zlib1g-dev pkg-config
           bash utils/opencvmini/install-opencvmini.sh
       - name: Build plugins
         shell: bash
@@ -259,6 +260,12 @@ jobs:
         run: |
           mv plugin_wasmedge_image.tar.gz WasmEdge-plugin-wasmedge_image-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_image-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+      - name: Upload wasm_bpf plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasm_bpf.tar.gz WasmEdge-plugin-wasm_bpf-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasm_bpf-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
       - name: Upload wasmedge_opencvmini plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -361,13 +368,13 @@ jobs:
     env:
       output_prefix: build/plugins
       build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON
-      build_options_manylinux2014_x86_64:
+      build_options_manylinux2014_x86_64: -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF=OFF
       build_options_manylinux2014_aarch64:
       tar_names_all_platforms: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini
-      tar_names_manylinux2014_x86_64:
+      tar_names_manylinux2014_x86_64: wasm_bpf
       tar_names_manylinux2014_aarch64:
       output_bins_all_platforms: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmEdgeOpenCVMini.so
-      output_bins_manylinux2014_x86_64:
+      output_bins_manylinux2014_x86_64: libwasmedgePluginWasmBpf.so
       output_bins_manylinux2014_aarch64:
     needs: create_release
     container:
@@ -451,7 +458,12 @@ jobs:
         run: |
           mv plugin_wasmedge_image.tar.gz WasmEdge-plugin-wasmedge_image-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_image-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz --clobber
-      - name: Upload wasmedge_opencvmini plugin tar.gz package
+      - name: Upload wasm_bpf plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasm_bpf.tar.gz WasmEdge-plugin-wasm_bpf-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasm_bpf-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz --clobber      - name: Upload wasmedge_opencvmini plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

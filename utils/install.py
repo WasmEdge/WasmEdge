@@ -332,6 +332,7 @@ WASI_NN_TENSORFLOW_LITE = "wasi_nn-tensorflowlite"
 WASMEDGE_TENSORFLOW_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW
 WASMEDGE_TENSORFLOW_LITE_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW_LITE_P
 WASMEDGE_IMAGE_PLUGIN = WASMEDGE.lower() + "_" + IMAGE
+WASM_BPF = "wasm_bpf"
 
 PLUGINS_AVAILABLE = [
     WASI_NN_OPENVINO,
@@ -341,6 +342,7 @@ PLUGINS_AVAILABLE = [
     WASMEDGE_TENSORFLOW_PLUGIN,
     WASMEDGE_TENSORFLOW_LITE_PLUGIN,
     WASMEDGE_IMAGE_PLUGIN,
+    WASM_BPF
 ]
 
 SUPPORTTED_PLUGINS = {
@@ -373,6 +375,8 @@ SUPPORTTED_PLUGINS = {
     "manylinux2014" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "manylinux2014" + "aarch64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
+    "ubuntu20.04" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
+    "manylinux2014" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
 }
 
 HOME = expanduser("~")

@@ -23,17 +23,20 @@ target_include_directories(wasmBpfTests
 target_link_libraries(wasmBpfTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
+  wasmedgePluginWasmBpf
 )
 # Link to the WasmEdge library
 if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmBpfTests
     PRIVATE
     wasmedgeCAPI
+    wasmedgeExecutor
   )
 else()
   target_link_libraries(wasmBpfTests
     PRIVATE
     wasmedge_shared
+    wasmedgeExecutor
   )
 endif()
 

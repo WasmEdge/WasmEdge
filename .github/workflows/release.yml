@@ -72,6 +72,14 @@ jobs:
                 {'name':'manylinux 2014 aarch64','runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
       release: true
     secrets: inherit
+  
+  build_on_debian_static:
+    needs: create_release
+    uses: ./.github/workflows/reusable-build-on-debian-static.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      release: true
+    secrets: inherit
 
   build_on_windows:
     needs: create_release

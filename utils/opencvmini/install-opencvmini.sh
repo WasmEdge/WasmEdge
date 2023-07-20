@@ -5,7 +5,7 @@
 wget -O opencv.zip https://github.com/opencv/opencv/archive/refs/tags/4.8.0.zip
 
 unzip opencv.zip
-mv opencv-4.x opencv
+mv opencv-4.8.0 opencv
 
 mkdir -p opencv/build && cd opencv/build
 # Configure

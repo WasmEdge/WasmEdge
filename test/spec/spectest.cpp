@@ -676,14 +676,16 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
   };
 
   // Get command list.
-  simdjson::dom::array CmdArray = Doc["commands"];
-  // Preprocessing register command.
-  resolveRegister(Alias, CmdArray);
+  simdjson::dom::array CmdArray;
+  if (!Doc["commands"].get(CmdArray)) {
+        
+    // Preprocessing register command.
+    resolveRegister(Alias, CmdArray);
 
-  // Iterate commands.
-  for (const simdjson::dom::object &Cmd : CmdArray) {
-    RunCommand(Cmd);
+    // Iterate commands.
+    for (const simdjson::dom::object &Cmd : CmdArray) {
+      RunCommand(Cmd);
+    }
   }
 }
-
 } // namespace WasmEdge

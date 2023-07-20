@@ -17,6 +17,9 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
       - name: Propagate version information
         run: |
           echo -n $VERSION | tee VERSION

@@ -29,6 +29,9 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
 
       - name: Lint markdown format
         uses: github/super-linter/slim@v5
@@ -47,6 +50,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
 
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v1

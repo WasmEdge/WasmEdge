@@ -25,6 +25,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
       - name: Get version
         id: prep
         run: |
@@ -72,7 +75,7 @@ jobs:
                 {'name':'manylinux 2014 aarch64','runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
       release: true
     secrets: inherit
-  
+
   build_on_debian_static:
     needs: create_release
     uses: ./.github/workflows/reusable-build-on-debian-static.yml

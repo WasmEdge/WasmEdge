@@ -1,3 +1,34 @@
+### 0.13.2 (2023-07-21)
+
+This is a bugfix release.
+
+Features:
+
+* Provide static library on `x86_64` and `aarch64` Linux (#2666)
+* Provide `wasm_bpf` plugins in the release assets (#2610)
+* WASI-NN: Updating install script for OpenVino 2023.0.0 version (#2636)
+* Installer: Add new tags support for wasmedge-tensorflow (#2608)
+* Fuss: Use own implement of `BoyerMooreHorspoolSearcher` (#2657)
+
+Fixed issues:
+
+* WASI Socket: Fix blocking when multiple requests have the same fds. (#2662)
+* Utils: devtoolset-11 is not available on manylinux2014 aarch64, downgrade to devtoolset-10 (#2663)
+
+Known issues:
+
+* Universal WASM format failed on macOS platforms.
+  * In the current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause a bus error during execution.
+  * We are trying to fix this issue. For a working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+
+Thank all the contributors that made this release possible!
+
+Divyanshu Gupta, Faidon Liambotis, hydai, Jorge Prendes, Officeyutong, Shen-Ta Hsieh, Shreyas Atre, Tricster, YiYing He
+
+If you want to build from source, please use WasmEdge-0.13.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.13.1 (2023-07-06)
 
 This is a bugfix release.

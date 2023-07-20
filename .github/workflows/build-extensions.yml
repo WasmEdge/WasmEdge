@@ -554,5 +554,5 @@ jobs:
       - name: Upload artifact - wasmedge_opencvmini
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasmedge_opencvmini.tar.gz

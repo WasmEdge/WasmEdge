@@ -56,7 +56,7 @@ class PollCallbackFunction
         if (data_sz < static_cast<uint32_t>(sizeof(uint32_t))) {
             return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
         }
-        const uint32_t* dataPtr = memory->getPointer<const uint32_t*>(data, 1);
+        const uint32_t* dataPtr = memory->getSpan<const uint32_t>(data, 1).data();
         if (unlikely(!dataPtr)) {
             return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
         }

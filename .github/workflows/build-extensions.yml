@@ -81,8 +81,8 @@ jobs:
       tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite
       test_bin: wasiNNTests
       output_bin: libwasmedgePluginWasiNN.so
-      OPENVINO_VERSION: "2021.4.582"
-      OPENVINO_YEAR: "2021"
+      OPENVINO_VERSION: "2023.0.0"
+      OPENVINO_YEAR: "2023"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."
     needs: [get_version_v2]
@@ -102,7 +102,6 @@ jobs:
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
         run: |
-          source /opt/intel/openvino_2021/bin/setupvars.sh
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
           ldconfig
           plugin_array=(${tar_names})
@@ -156,13 +155,16 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON
-      tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image
-      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests
-      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_WASM_BPF=ON
+      tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasm_bpf
+      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmBpfTests
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmBpf.so
     needs: [get_version_v2]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
+      # Required for mounting debugfs
+      # Tests of wasm_bpf also require privileges
+      options: --privileged
     steps:
       - uses: actions/checkout@v3
         with:
@@ -171,6 +173,10 @@ jobs:
         run: |
           apt update
           apt install -y libssl-dev
+          apt install -y libelf-dev zlib1g-dev pkg-config
+          apt install -y clang liblld-14-dev llvm
+          # Running tests of wasm_bpf requires proper ebpf running environment
+          mount -t debugfs none /sys/kernel/debug
       - name: Build plugins using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
         run: |
@@ -234,6 +240,11 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_image-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasmedge_image.tar.gz
+      - name: Upload artifact - wasm_bpf
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasm_bpf-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          path: plugin_wasm_bpf.tar.gz
 
   # Due to the dependencies and exclusions of WASI-NN, build them saperately.
   build_manylinux_wasi_nn:
@@ -261,8 +272,8 @@ jobs:
       tar_names_manylinux2014_aarch64:
       test_bin: wasiNNTests
       output_bin: libwasmedgePluginWasiNN.so
-      OPENVINO_VERSION: "2021.4.582"
-      OPENVINO_YEAR: "2021"
+      OPENVINO_VERSION: "2023.0.0"
+      OPENVINO_YEAR: "2023"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."
     needs: [get_version_v2]
@@ -329,20 +340,23 @@ jobs:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
       build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON
-      build_options_manylinux2014_x86_64:
+      build_options_manylinux2014_x86_64: -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF=OFF
       build_options_manylinux2014_aarch64:
       tar_names_all_platforms: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image
-      tar_names_manylinux2014_x86_64:
+      tar_names_manylinux2014_x86_64: wasm_bpf
       tar_names_manylinux2014_aarch64:
       test_bins_all_platforms: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests
-      test_bins_manylinux2014_x86_64:
+      test_bins_manylinux2014_x86_64: wasmBpfTests
       test_bins_manylinux2014_aarch64:
       output_bins_all_platforms: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so
-      output_bins_manylinux2014_x86_64:
+      output_bins_manylinux2014_x86_64: libwasmedgePluginWasmBpf.so
       output_bins_manylinux2014_aarch64:
     needs: [get_version_v2]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
+      # Required for mounting debugfs
+      # Tests of wasm_bpf also require privileges
+      options: --privileged
     steps:
       - uses: actions/checkout@v3
         with:
@@ -352,6 +366,9 @@ jobs:
           yum update -y
           yum install -y zlib-devel zlib-static
           bash ./utils/wasi-crypto/build-openssl.sh
+
+          # Running tests of wasm_bpf requires proper ebpf running environment
+          mount -t debugfs none /sys/kernel/debug
       - name: Build and test plugins using g++ with ${{ matrix.build_type }} mode
         shell: bash
         run: |
@@ -415,6 +432,12 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_image-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasmedge_image.tar.gz
+      - name: Upload artifact - wasm_bpf
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasm_bpf-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          path: plugin_wasm_bpf.tar.gz
+  
 
   build_macos:
     strategy:

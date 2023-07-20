@@ -72,6 +72,14 @@ jobs:
                 {'name':'manylinux 2014 aarch64','runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
       release: true
     secrets: inherit
+  
+  build_on_debian_static:
+    needs: create_release
+    uses: ./.github/workflows/reusable-build-on-debian-static.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      release: true
+    secrets: inherit
 
   build_on_windows:
     needs: create_release
@@ -97,8 +105,8 @@ jobs:
       build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite
       tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite
       output_bin: libwasmedgePluginWasiNN.so
-      OPENVINO_VERSION: "2021.4.582"
-      OPENVINO_YEAR: "2021"
+      OPENVINO_VERSION: "2023.0.0"
+      OPENVINO_YEAR: "2023"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."
     needs: create_release
@@ -122,7 +130,6 @@ jobs:
       - name: Build WASI-NN plugin
         shell: bash
         run: |
-          source /opt/intel/openvino_2021/bin/setupvars.sh
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
           ldconfig
           plugin_array=(${tar_names})
@@ -172,9 +179,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       output_prefix: build/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON
-      tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image
-      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_WASM_BPF=ON
+      tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasm_bpf
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmBpf.so
     needs: create_release
     container:
       image: wasmedge/wasmedge:ubuntu-20.04-build-clang
@@ -190,6 +197,7 @@ jobs:
         run: |
           apt update
           apt install -y libssl-dev
+          apt install -y libelf-dev zlib1g-dev pkg-config
       - name: Build plugins
         shell: bash
         run: |
@@ -258,6 +266,12 @@ jobs:
         run: |
           mv plugin_wasmedge_image.tar.gz WasmEdge-plugin-wasmedge_image-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_image-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+      - name: Upload wasm_bpf plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasm_bpf.tar.gz WasmEdge-plugin-wasm_bpf-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasm_bpf-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
 
   build_and_upload_wasinn_manylinux:
     strategy:
@@ -281,8 +295,8 @@ jobs:
       tar_names_manylinux2014_x86_64: wasi_nn-pytorch
       tar_names_manylinux2014_aarch64:
       output_bin: libwasmedgePluginWasiNN.so
-      OPENVINO_VERSION: "2021.4.582"
-      OPENVINO_YEAR: "2021"
+      OPENVINO_VERSION: "2023.0.0"
+      OPENVINO_YEAR: "2023"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."
     container:
@@ -354,13 +368,13 @@ jobs:
     env:
       output_prefix: build/plugins
       build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON
-      build_options_manylinux2014_x86_64:
+      build_options_manylinux2014_x86_64: -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF=OFF
       build_options_manylinux2014_aarch64:
       tar_names_all_platforms: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image
-      tar_names_manylinux2014_x86_64:
+      tar_names_manylinux2014_x86_64: wasm_bpf
       tar_names_manylinux2014_aarch64:
       output_bins_all_platforms: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so
-      output_bins_manylinux2014_x86_64:
+      output_bins_manylinux2014_x86_64: libwasmedgePluginWasmBpf.so
       output_bins_manylinux2014_aarch64:
     needs: create_release
     container:
@@ -443,7 +457,12 @@ jobs:
         run: |
           mv plugin_wasmedge_image.tar.gz WasmEdge-plugin-wasmedge_image-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_image-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz --clobber
-
+      - name: Upload wasm_bpf plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasm_bpf.tar.gz WasmEdge-plugin-wasm_bpf-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasm_bpf-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz --clobber
   build_and_upload_plugin_macos:
     strategy:
       matrix:

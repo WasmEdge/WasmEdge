@@ -11,6 +11,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <cassert>
 
 namespace WasmEdge {
   
@@ -58,6 +59,7 @@ public:
     iterStream.close();
   }
   
+  // TODO: renameする
   AST::InstrView::iterator _restoreIter(uint32_t FuncIdx, uint32_t Offset) {
     Runtime::Instance::FunctionInstance* FuncInst = ModInst->getFunc(FuncIdx).value();
     AST::InstrView::iterator Iter = FuncInst->getInstrs().begin();
@@ -139,12 +141,12 @@ public:
       getline(FrameStream, FrameString);
       uint32_t Arity = static_cast<uint32_t>(std::stoul(FrameString));
 
+      Runtime::StackManager::Frame f(ModInst, From, Locals, VPos, Arity);
+      FrameStack.push_back(f);
+
       if(!getline(FrameStream, FrameString)) {
         break;
       }
-
-      Runtime::StackManager::Frame f(ModInst, From, Locals, VPos, Arity);
-      FrameStack.push_back(f);
     }
 
     FrameStream.close();
@@ -159,16 +161,37 @@ public:
     std::vector<Value> ValueStack = StackMgr.getValueStack();
     for (size_t I = 0; I < ValueStack.size(); ++I) {
       Value v = ValueStack[I];
-      ValueStream << typeid(v).name() << std::endl;
-      // ValueStream << v<typeid(v)>.get() << std::endl;
+      ValueStream << v.get<uint128_t>() << std::endl;
       ValueStream << std::endl;
     }
     
     ValueStream.close();
   }
   
-  // Runtime::StackManager restoreStackMgr() {
-  // }
+  std::vector<Runtime::StackManager::Value> restoreStackMgrValue() {
+    std::ifstream ValueStream;
+    ValueStream.open("stackmgr_value.img");
+    Runtime::StackManager StackMgr;
+
+    std::vector<Runtime::StackManager::Value> ValueStack;
+    std::string ValueString;
+    /// TODO: ループ条件見直す
+    while(1) {
+      getline(ValueStream, ValueString);
+      // ValueStringが空の場合はエラー
+      assert(ValueString.size() > 0);
+
+      Runtime::StackManager::Value v = static_cast<uint128_t>(std::stoul(ValueString));
+      ValueStack.push_back(v);
+
+      if(!getline(ValueStream, ValueString)) {
+        break;
+      }
+    }
+
+    ValueStream.close();
+    return ValueStack;    
+  }
   
   void dumpMemInst() {
     ModInst->dumpMemInst();

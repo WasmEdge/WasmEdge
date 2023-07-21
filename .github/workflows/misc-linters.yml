@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
       - name: check spell
         run: |
           pip install codespell

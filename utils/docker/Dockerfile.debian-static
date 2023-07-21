@@ -1,0 +1,92 @@
+# syntax=docker/dockerfile:1.5-labs
+
+ARG XX_VERSION=1.2.1
+ARG DEBIAN_VERSION=bullseye
+ARG LLVM_VERSION=16
+
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
+FROM --platform=$BUILDPLATFORM debian:${DEBIAN_VERSION} AS base
+COPY --from=xx / /
+
+# Install host dependencies
+RUN apt-get update -y && apt-get install --no-install-recommends -y \
+    lsb-release software-properties-common curl wget gnupg \
+    cmake ninja-build git clang xz-utils
+
+# Set up llvm's apt repo
+ARG LLVM_VERSION
+RUN /bin/bash <<EOT
+    set -ex
+    curl -sSfL https://apt.llvm.org/llvm-snapshot.gpg.key > /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+    add-apt-repository "deb http://apt.llvm.org/$(lsb_release -sc)/  llvm-toolchain-$(lsb_release -sc)-${LLVM_VERSION} main"
+    apt-get update -y
+EOT
+
+FROM base as deps
+ARG TARGETPLATFORM LLVM_VERSION
+
+# Install llvm-*-dev:<target-arch>
+RUN /bin/bash <<EOT
+    set -ex
+    # The llvm-*-dev:<target-arch> package depends on llvm-*:<target-arch> and llvm-*-tools:<target-arch> but
+    # should depend on llvm-*-tools:<build-arch> and llvm-*:<build-arch>.
+    # Patch llvm-*-dev:<target-arch> to replace those dependencies.
+    # See: https://groups.google.com/g/linux.debian.bugs.dist/c/OrHgd5vY278
+    cd $(mktemp -d)
+    xx-apt show llvm-${LLVM_VERSION}-dev
+    apt-get download llvm-${LLVM_VERSION}-dev:$(xx-info debian-arch)
+    ar x llvm-${LLVM_VERSION}-dev_*.deb
+    tar xJf control.tar.*
+    sed -Ei 's|(llvm-[0-9]*(-tools)?) |\1:'$(TARGETPLATFORM='' TARGETPAIR='' TARGETOS='' TARGETARCH='' TARGETVARIANT='' xx-info debian-arch)' |g' control
+    tar --ignore-failed-read -czf control.tar.gz {post,pre}{inst,rm} md5sums control
+    ar rcs llvm-dev-patched.deb debian-binary control.tar.gz data.tar.*
+    apt-get install --no-install-recommends -y ./llvm-dev-patched.deb
+EOT
+
+# Install other *:<target-arch> dev dependencies
+RUN xx-apt-get install --no-install-recommends -y \
+    xx-cxx-essentials \
+    liblld-${LLVM_VERSION}-dev libpolly-${LLVM_VERSION}-dev \
+    libncurses5-dev zlib1g-dev
+
+# Make a cmake toolchain file
+RUN cat <<EOT > /toolchain.cmake
+    set(CMAKE_SYSTEM_NAME "Linux")
+    set(CMAKE_SYSTEM_VERSION 1)
+    set(CMAKE_SYSTEM_PROCESSOR "$(xx-info march)")
+    set(CMAKE_C_COMPILER "xx-clang")
+    set(CMAKE_CXX_COMPILER "xx-clang++")
+    set(CMAKE_ASM_COMPILER "xx-clang")
+    set(CMAKE_AR "ar")
+    set(DPKG_CONFIG_EXECUTABLE $(xx-clang --print-prog-name=pkg-config))
+    set(DCMAKE_C_COMPILER_TARGET $(xx-clang --print-target-triple))
+    set(DCMAKE_CXX_COMPILER_TARGET $(xx-clang --print-target-triple))
+    set(DCMAKE_ASM_COMPILER_TARGET $(xx-clang --print-target-triple))
+EOT
+
+FROM deps as src
+ADD . /src
+
+FROM src as build
+RUN cmake -S /src -B /build -G Ninja \
+    -DCMAKE_TOOLCHAIN_FILE=/toolchain.cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+    -DCMAKE_INSTALL_PREFIX=/install \
+    -DWASMEDGE_BUILD_PACKAGE="TGZ" \
+    -DWASMEDGE_BUILD_TESTS=OFF \
+    -DWASMEDGE_BUILD_AOT_RUNTIME=ON \
+    -DWASMEDGE_BUILD_SHARED_LIB=OFF \
+    -DWASMEDGE_BUILD_STATIC_LIB=ON \
+    -DWASMEDGE_BUILD_TOOLS=OFF \
+    -DWASMEDGE_BUILD_PLUGINS=OFF \
+    -DWASMEDGE_BUILD_EXAMPLE=OFF \
+    -DWASMEDGE_LINK_LLVM_STATIC=ON \
+    -DWASMEDGE_LINK_TOOLS_STATIC=ON
+
+RUN cmake --build /build -- install
+RUN cmake --build /build -- package
+RUN mv /build/WasmEdge-*-Linux.tar.gz $(echo build/WasmEdge-*-Linux.tar.gz | sed 's|WasmEdge-\(.*\)-Linux.tar.gz|WasmEdge-\1-debian'$(lsb_release -sr)'_'$(xx-info march)'_static.tar.gz|')
+
+FROM scratch as tar
+COPY --from=build /build/WasmEdge-*.tar.gz /

@@ -125,7 +125,7 @@ jobs:
         --image-version=0.10.0-alpha.1
     - name: Uninstall WasmEdge with all extensions
       run: |
-        bash utils/uninstall.sh -q -V 
+        bash utils/uninstall.sh -q -V
     - name: Install versions multiple times
       run: |
         bash utils/install.sh -e all -D
@@ -157,7 +157,7 @@ jobs:
         _res_curl_=$(curl -w "%{url_effective}\n" -I -L -s -S https://github.com/WasmEdge/WasmEdge/releases/latest -o /dev/null | grep -Eo '[0-9]+.[0-9]+.[0-9]+*')
         [ "$_res_git_" = "$_res_curl_" ] && echo "Pass: Fetched version equals release" ||
         (echo "Fail: Fetched version does not equal GitHub Ref\nFetched:$_res_git_\nCI:$_res_curl_" && exit 1)
-        
+
 
   macos:
     strategy:
@@ -234,7 +234,7 @@ jobs:
         # MacOS container does not have access for /usr directory
         # bash utils/install.sh -v 0.10.0-alpha.1 -p /usr
         # ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-    
+
     - name: Plugins Install check MacOS-arm64
       if: ${{ matrix.name == 'MacOS-arm64' }}
       run: |

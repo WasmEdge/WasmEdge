@@ -63,11 +63,11 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // 2. Test load element segment.
+  // 2. Test serialize element segment.
   //
-  //   1.  Load element segment with expression of only End operation and empty
+  //   1.  Serialize element segment with expression of only End operation and empty
   //       function indices list.
-  //   2.  Load element segment with expression and function indices list.
+  //   2.  Serialize element segment with expression and function indices list.
 
   WasmEdge::AST::ElementSection ElementSec;
   WasmEdge::AST::ElementSegment ElementSeg;

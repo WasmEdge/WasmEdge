@@ -26,8 +26,8 @@ TEST(ExpressionTest, SerializeExpression) {
 
   // 1. Test serialize expression.
   //
-  //   1.  Load expression with only end operation.
-  //   2.  Load expression with instructions.
+  //   1.  Serialize expression with only end operation.
+  //   2.  Serialize expression with instructions.
 
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
   WasmEdge::AST::Instruction I32Eqz(WasmEdge::OpCode::I32__eqz);

@@ -1,4 +1,4 @@
-name: Build
+name: Build WasmEdge on Nix
 
 on:
   push:

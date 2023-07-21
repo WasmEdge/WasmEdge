@@ -563,6 +563,8 @@ Expect<uint32_t> WasiFdClose::body(const Runtime::CallingFrame &, int32_t Fd) {
   if (auto Res = Env.fdClose(WasiFd); unlikely(!Res)) {
     return Res.error();
   }
+
+  Env.close(WasiFd);
   return __WASI_ERRNO_SUCCESS;
 }
 
@@ -2348,8 +2350,21 @@ WasiSockGetLocalAddrV1::body(const Runtime::CallingFrame &Frame, int32_t Fd,
       unlikely(!Res)) {
     return Res.error();
   }
-  *RoAddressType = AddressType;
   *RoPort = Port;
+  // XXX: This is a workaround
+  // The correct one should be `*RoAddressType = AddressType;`
+  // However, due to this bugfix will break the existing applications.
+  // So we changed back to the old way.
+  switch (AddressType) {
+  case __WASI_ADDRESS_FAMILY_INET4:
+    *RoAddressType = 4;
+    break;
+  case __WASI_ADDRESS_FAMILY_INET6:
+    *RoAddressType = 6;
+    break;
+  default:
+    assumingUnreachable();
+  }
   return __WASI_ERRNO_SUCCESS;
 }
 
@@ -2401,8 +2416,21 @@ Expect<uint32_t> WasiSockGetPeerAddrV1::body(const Runtime::CallingFrame &Frame,
       unlikely(!Res)) {
     return Res.error();
   }
-  *RoAddressType = AddressType;
   *RoPort = Port;
+  // XXX: This is a workaround
+  // The correct one should be `*RoAddressType = AddressType;`
+  // However, due to this bugfix will break the existing applications.
+  // So we changed back to the old way.
+  switch (AddressType) {
+  case __WASI_ADDRESS_FAMILY_INET4:
+    *RoAddressType = 4;
+    break;
+  case __WASI_ADDRESS_FAMILY_INET6:
+    *RoAddressType = 6;
+    break;
+  default:
+    assumingUnreachable();
+  }
   return __WASI_ERRNO_SUCCESS;
 }
 

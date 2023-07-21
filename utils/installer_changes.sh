@@ -40,12 +40,4 @@ test_diff_env() {
     fi
 }
 
-test_diff_env "$HOME"/.wasmedge
-test_diff_env "$HOME"/new_folder
-test_diff_env /usr/local
-test_diff_env /usr
-
-test_diff_env "$HOME"/.wasmedge "-e all"
-test_diff_env "$HOME"/new_folder "-e all"
-test_diff_env /usr/local "-e all"
-test_diff_env /usr "-e all"
+test_diff_env "$@"

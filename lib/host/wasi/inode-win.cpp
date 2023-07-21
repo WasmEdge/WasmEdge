@@ -2256,6 +2256,8 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
   }
 }
 
+void Poller::close(const INode &) noexcept {}
+
 void Poller::read(const INode &Node, TriggerType Trigger,
                   __wasi_userdata_t UserData) noexcept {
   if (Node.Type != HandleHolder::HandleType::NormalSocket ||

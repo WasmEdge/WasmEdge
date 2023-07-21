@@ -546,9 +546,10 @@ WasmEdge_ConfigureCreate(void);
 
 /// Add a proposal setting into the WasmEdge_ConfigureContext.
 ///
-/// For turning on a specific WASM proposal in WasmEdge_VMContext, you can set
-/// the proposal value into the WasmEdge_ConfigureContext and create VM with
-/// this context.
+/// For turning on a specific WASM proposal in VM, loader, or compiler contexts,
+/// etc., you can set the proposal value into the WasmEdge_ConfigureContext and
+/// create the VM, loader, or compiler contexts, etc. with this context.
+///
 /// ```c
 /// WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
 /// WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_BulkMemoryOperations);
@@ -592,6 +593,7 @@ WasmEdge_ConfigureHasProposal(const WasmEdge_ConfigureContext *Cxt,
 /// For turning on the Wasi support in `WasmEdge_VMContext`, you can set the
 /// built-in host registration value into the `WasmEdge_ConfigureContext` and
 /// create VM with this context.
+///
 /// ```c
 /// WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
 /// WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
@@ -642,7 +644,7 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
                                    const uint32_t Page);
 
-/// Get the page limit of memory instances.
+/// Get the setting of the page limit of memory instances.
 ///
 /// This function is thread-safe.
 ///
@@ -675,7 +677,7 @@ WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureIsForceInterpreter(const WasmEdge_ConfigureContext *Cxt);
 
-/// Set the optimization level of AOT compiler.
+/// Set the optimization level of the AOT compiler.
 ///
 /// This function is thread-safe.
 ///
@@ -685,7 +687,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetOptimizationLevel(
     WasmEdge_ConfigureContext *Cxt,
     const enum WasmEdge_CompilerOptimizationLevel Level);
 
-/// Get the optimization level of AOT compiler.
+/// Get the optimization level of the AOT compiler.
 ///
 /// This function is thread-safe.
 ///
@@ -696,7 +698,7 @@ WASMEDGE_CAPI_EXPORT extern enum WasmEdge_CompilerOptimizationLevel
 WasmEdge_ConfigureCompilerGetOptimizationLevel(
     const WasmEdge_ConfigureContext *Cxt);
 
-/// Set the output binary format of AOT compiler.
+/// Set the output binary format of the AOT compiler.
 ///
 /// This function is thread-safe.
 ///
@@ -706,7 +708,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetOutputFormat(
     WasmEdge_ConfigureContext *Cxt,
     const enum WasmEdge_CompilerOutputFormat Format);
 
-/// Get the output binary format of AOT compiler.
+/// Get the output binary format of the AOT compiler.
 ///
 /// This function is thread-safe.
 ///
@@ -716,7 +718,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetOutputFormat(
 WASMEDGE_CAPI_EXPORT extern enum WasmEdge_CompilerOutputFormat
 WasmEdge_ConfigureCompilerGetOutputFormat(const WasmEdge_ConfigureContext *Cxt);
 
-/// Set the dump IR option of AOT compiler.
+/// Set the dump IR option of the AOT compiler.
 ///
 /// This function is thread-safe.
 ///
@@ -727,7 +729,7 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureCompilerSetDumpIR(WasmEdge_ConfigureContext *Cxt,
                                     const bool IsDump);
 
-/// Get the dump IR option of AOT compiler.
+/// Get the dump IR option of the AOT compiler.
 ///
 /// This function is thread-safe.
 ///
@@ -738,7 +740,7 @@ WasmEdge_ConfigureCompilerSetDumpIR(WasmEdge_ConfigureContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureCompilerIsDumpIR(const WasmEdge_ConfigureContext *Cxt);
 
-/// Set the generic binary option of AOT compiler.
+/// Set the generic binary option of the AOT compiler.
 ///
 /// This function is thread-safe.
 ///
@@ -749,7 +751,7 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureCompilerSetGenericBinary(WasmEdge_ConfigureContext *Cxt,
                                            const bool IsGeneric);
 
-/// Get the generic binary option of AOT compiler.
+/// Get the generic binary option of the AOT compiler.
 ///
 /// This function is thread-safe.
 ///
@@ -760,7 +762,7 @@ WasmEdge_ConfigureCompilerSetGenericBinary(WasmEdge_ConfigureContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureCompilerIsGenericBinary(const WasmEdge_ConfigureContext *Cxt);
 
-/// Set the interruptible option of AOT compiler.
+/// Set the interruptible option of the AOT compiler.
 ///
 /// This function is thread-safe.
 ///
@@ -771,7 +773,7 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureCompilerSetInterruptible(WasmEdge_ConfigureContext *Cxt,
                                            const bool IsInterruptible);
 
-/// Get the interruptible option of AOT compiler.
+/// Get the interruptible option of the AOT compiler.
 ///
 /// This function is thread-safe.
 ///
@@ -782,7 +784,7 @@ WasmEdge_ConfigureCompilerSetInterruptible(WasmEdge_ConfigureContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureCompilerIsInterruptible(const WasmEdge_ConfigureContext *Cxt);
 
-/// Set the instruction counting option.
+/// Set the instruction counting option for the statistics.
 ///
 /// This function is thread-safe.
 ///
@@ -793,7 +795,7 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureStatisticsSetInstructionCounting(
     WasmEdge_ConfigureContext *Cxt, const bool IsCount);
 
-/// Get the instruction counting option.
+/// Get the instruction counting option for the statistics.
 ///
 /// This function is thread-safe.
 ///
@@ -805,7 +807,7 @@ WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureStatisticsIsInstructionCounting(
     const WasmEdge_ConfigureContext *Cxt);
 
-/// Set the cost measuring option.
+/// Set the cost measuring option for the statistics.
 ///
 /// This function is thread-safe.
 ///
@@ -816,7 +818,7 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureStatisticsSetCostMeasuring(WasmEdge_ConfigureContext *Cxt,
                                              const bool IsMeasure);
 
-/// Get the cost measuring option.
+/// Get the cost measuring option for the statistics.
 ///
 /// This function is thread-safe.
 ///
@@ -827,7 +829,7 @@ WasmEdge_ConfigureStatisticsSetCostMeasuring(WasmEdge_ConfigureContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsCostMeasuring(
     const WasmEdge_ConfigureContext *Cxt);
 
-/// Set the time measuring option.
+/// Set the time measuring option for the statistics.
 ///
 /// This function is thread-safe.
 ///
@@ -838,7 +840,7 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureStatisticsSetTimeMeasuring(WasmEdge_ConfigureContext *Cxt,
                                              const bool IsMeasure);
 
-/// Get the time measuring option.
+/// Get the time measuring option for the statistics.
 ///
 /// This function is thread-safe.
 ///
@@ -851,10 +853,10 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
 
 /// Deletion of the WasmEdge_ConfigureContext.
 ///
-/// This function is thread-safe.
-///
 /// After calling this function, the context will be destroyed and should
 /// __NOT__ be used.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to destroy.
 WASMEDGE_CAPI_EXPORT extern void
@@ -1564,8 +1566,8 @@ WasmEdge_ValidatorDelete(WasmEdge_ValidatorContext *Cxt);
 /// Executor. NULL for the default configuration.
 /// \param StatCxt the WasmEdge_StatisticsContext as the statistics object set
 /// into Executor. The statistics will refer to this context, and the life cycle
-/// should be ensured until the executor context is deleted. NULL for not doing
-/// the statistics.
+/// should be guaranteed until the executor context is deleted. NULL for not
+/// doing the statistics.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ExecutorContext *
@@ -1574,10 +1576,10 @@ WasmEdge_ExecutorCreate(const WasmEdge_ConfigureContext *ConfCxt,
 
 /// Instantiate an AST Module into a module instance.
 ///
-/// Instantiate an AST Module, and return an instantiated
-/// WasmEdge_ASTModuleContext as the result. The caller owns the object and
-/// should call `WasmEdge_ModuleInstanceDelete` to destroy it.
-/// Developers can use the `WasmEdge_ModuleInstanceListFunction`,
+/// Instantiate an AST Module, and return an instantiated module instance
+/// context as the result. The caller owns the object and should call
+/// `WasmEdge_ModuleInstanceDelete` to destroy it. Developers can use the
+/// `WasmEdge_ModuleInstanceListFunction`,
 /// `WasmEdge_ModuleInstanceFindFunction`, etc. APIs to retrieve the exported
 /// instances from the result module instance.
 ///
@@ -1594,19 +1596,24 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorInstantiate(
     WasmEdge_ExecutorContext *Cxt, WasmEdge_ModuleInstanceContext **ModuleCxt,
     WasmEdge_StoreContext *StoreCxt, const WasmEdge_ASTModuleContext *ASTCxt);
 
-/// Instantiate and register an AST Module into a named module instance.
+/// Instantiate an AST Module into a named module instance and link into store.
 ///
-/// Instantiate an AST Module with the module name, and return an instantiated
-/// WasmEdge_ASTModuleContext as the result. The caller owns the object and
-/// should call `WasmEdge_ModuleInstanceDelete` to destroy it.
+/// Instantiate an AST Module with the module name, return the instantiated
+/// module instance context as the result, and also register the module instance
+/// to the store. The caller owns the object and should call
+/// `WasmEdge_ModuleInstanceDelete` to destroy it.
 /// Developers can use the `WasmEdge_ModuleInstanceListFunction`,
 /// `WasmEdge_ModuleInstanceFindFunction`, etc. APIs to retrieve the exported
 /// instances from the result module instance.
-/// After calling this function, the module is registered into the store, and
-/// the other modules can import the instances for linking when instantiation.
-/// Developers should guarantee the life cycle of this registered module
-/// instance, or the error will occur when in execution after the module
-/// instance destroyed if it has been imported by other modules.
+/// After calling this function, the output module instance will also be
+/// registered into the store, and the other modules can import the exported
+/// instances for linking when instantiation. Developers SHOULD guarantee the
+/// life cycle of this output module instance, or the error will occur when in
+/// execution after the module instance being destroyed if it has been imported
+/// by other modules. That is, developers have the responsibility to delete the
+/// output module instance even though the store being destroyed. When the
+/// module instance is deleted, it will be unregistered to the store
+/// automatically.
 ///
 /// \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
 /// \param [out] ModuleCxt the output WasmEdge_ModuleInstanceContext if
@@ -1627,11 +1634,13 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorRegister(
 /// Register a module instance into a store with exporting its module name.
 ///
 /// Register an existing module into the store with its module name.
-/// After calling this function, the module instance is registered into the
-/// store, and the other modules can import the instances for linking when
-/// instantiation. Developers should guarantee the life cycle of this registered
-/// module instance, or the error will occur when in execution after the module
-/// instance destroyed if it has been imported by other modules.
+/// After calling this function, the existing module instance will be registered
+/// into the store, and the other modules can import the exported instances for
+/// linking when instantiation. Developers SHOULD guarantee the life cycle of
+/// this existing module instance, or the error will occur when in execution
+/// after the module instance being destroyed if it has been imported by other
+/// modules. When the module instance is deleted, it will be unregistered to the
+/// store automatically.
 ///
 /// \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
 /// \param StoreCxt the WasmEdge_StoreContext to store the instantiated module.
@@ -1700,14 +1709,17 @@ WasmEdge_ExecutorDelete(WasmEdge_ExecutorContext *Cxt);
 ///
 /// The caller owns the object and should call `WasmEdge_StoreDelete` to destroy
 /// it.
+/// The store is the linker for multiple WASM module instances. The store will
+/// not own any module instance registered into it, and the module instances
+/// will automatically be unregistered if they are destroyed.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_StoreContext *WasmEdge_StoreCreate(void);
 
 /// Get the module instance context by the module name.
 ///
-/// After registering a WASM module, you can call this function to get the
-/// registered module instance context by the module name.
+/// After registering a WASM module, developers can call this function to find
+/// and get the registered module instance context by the module name.
 ///
 /// This function is thread-safe.
 ///
@@ -1753,6 +1765,8 @@ WasmEdge_StoreListModule(const WasmEdge_StoreContext *Cxt,
 ///
 /// After calling this function, the context will be destroyed and should
 /// __NOT__ be used.
+/// If there are module instances registered into this store context, they will
+/// be automatically un-link to this store context.
 ///
 /// \param Cxt the WasmEdge_StoreContext to destroy.
 WASMEDGE_CAPI_EXPORT extern void
@@ -2162,6 +2176,8 @@ WasmEdge_ModuleInstanceAddGlobal(WasmEdge_ModuleInstanceContext *Cxt,
 ///
 /// After calling this function, the context will be destroyed and should
 /// __NOT__ be used.
+/// If the module instance has been registered into one or more store contexts,
+/// it will be automatically unregistered.
 ///
 /// \param Cxt the WasmEdge_ModuleInstanceContext to destroy.
 WASMEDGE_CAPI_EXPORT extern void
@@ -2343,7 +2359,8 @@ WasmEdge_FunctionInstanceDelete(WasmEdge_FunctionInstanceContext *Cxt);
 /// Creation of the WasmEdge_TableInstanceContext.
 ///
 /// The caller owns the object and should call `WasmEdge_TableInstanceDelete` to
-/// destroy it.
+/// destroy it if the returned object is not added into a
+/// `WasmEdge_ModuleInstanceContext`.
 ///
 /// \param TabType the table type context to initialize the table instance
 /// context.
@@ -2423,7 +2440,8 @@ WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt);
 /// Creation of the WasmEdge_MemoryInstanceContext.
 ///
 /// The caller owns the object and should call `WasmEdge_MemoryInstanceDelete`
-/// to destroy it.
+/// to destroy it if the returned object is not added into a
+/// `WasmEdge_ModuleInstanceContext`.
 ///
 /// \param MemType the memory type context to initialize the memory instance
 /// context.
@@ -2534,7 +2552,8 @@ WasmEdge_MemoryInstanceDelete(WasmEdge_MemoryInstanceContext *Cxt);
 /// Creation of the WasmEdge_GlobalInstanceContext.
 ///
 /// The caller owns the object and should call `WasmEdge_GlobalInstanceDelete`
-/// to destroy it.
+/// to destroy it if the returned object is not added into a
+/// `WasmEdge_ModuleInstanceContext`.
 ///
 /// \param GlobType the global type context to initialize the global instance
 /// context.
@@ -2784,13 +2803,16 @@ WasmEdge_VMRegisterModuleFromASTModule(WasmEdge_VMContext *Cxt,
 /// Register a module instance into the store in VM with exporting its module
 /// name.
 ///
-/// Register an existing module into the store in VM with its module name.
-/// After calling this function, the module instance is registered into the
-/// store in VM, and the other modules can import the instances for linking when
-/// instantiating other modules. Developers should guarantee the life cycle of
-/// this registered module instance, or the error will occur when in execution
-/// after the module instance destroyed if it has been imported by other
-/// modules.
+/// After calling this function, the existing module instance will be registered
+/// into the store context in this VM, and the other modules can import the
+/// exported instances for linking when instantiation. Developers SHOULD
+/// guarantee the life cycle of this existing module instance, or the error will
+/// occur when in execution after the module instance being destroyed if it has
+/// been imported by other modules. That is, developers should call the
+/// `WasmEdge_ModuleInstanceDelete` if this existing module instance will not be
+/// used anymore or after the deletion of this VM. When the module instance is
+/// deleted, it will be unregistered to the store context in this VM
+/// automatically.
 ///
 /// This function is thread-safe.
 ///
@@ -3431,8 +3453,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt);
     defined(__TOS_WIN__) || defined(__WINDOWS__)
 /// Convert UTF16 Args to UTF8 Args
 ///
-/// This function is an argument converter for windows platform.
-///
+/// This function is an argument converter for Windows platforms.
 /// The caller owns the vector and should call `WasmEdge_Driver_ArgvDelete` to
 /// destroy it.
 ///
@@ -3448,7 +3469,7 @@ WasmEdge_Driver_ArgvCreate(int Argc, const wchar_t *Argv[]);
 /// \param Argv the argument vector.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_Driver_ArgvDelete(const char *Argv[]);
 
-/// Set console output code page to UTF-8 in windows.
+/// Set console output code page to UTF-8 on windows.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_Driver_SetConsoleOutputCPtoUTF8(void);
 #endif
 

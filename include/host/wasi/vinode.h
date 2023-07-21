@@ -729,6 +729,7 @@ private:
 class VPoller : protected Poller {
 public:
   using Poller::clock;
+  using Poller::close;
   using Poller::error;
   using Poller::ok;
   using Poller::Poller;
@@ -758,6 +759,8 @@ public:
       Poller::write(Fd->Node, Trigger, UserData);
     }
   }
+
+  void close(std::shared_ptr<VINode> Fd) noexcept { Poller::close(Fd->Node); }
 };
 
 } // namespace WASI

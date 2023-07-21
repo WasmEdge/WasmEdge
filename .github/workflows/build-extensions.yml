@@ -51,6 +51,9 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
       - name: Get version
         id: prep
         run: |
@@ -92,6 +95,9 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
       - name: Install dependencies
         shell: bash
         run: |
@@ -437,7 +443,6 @@ jobs:
         with:
           name: WasmEdge-plugin-wasm_bpf-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasm_bpf.tar.gz
-  
 
   build_macos:
     strategy:

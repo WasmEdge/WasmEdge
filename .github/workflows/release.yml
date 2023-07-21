@@ -322,6 +322,7 @@ jobs:
         run: |
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
           plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.docker_tag }}})
+          option_array=(${build_options_all_platforms} ${build_options_${{ matrix.docker_tag }}})
           testbin_array=(${test_bins_all_platforms} ${test_bins_${{ matrix.docker_tag }}})
           outtarget=${output_bin%.*}
           outtarget=${outtarget#lib}

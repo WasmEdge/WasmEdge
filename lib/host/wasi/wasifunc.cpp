@@ -563,6 +563,8 @@ Expect<uint32_t> WasiFdClose::body(const Runtime::CallingFrame &, int32_t Fd) {
   if (auto Res = Env.fdClose(WasiFd); unlikely(!Res)) {
     return Res.error();
   }
+
+  Env.close(WasiFd);
   return __WASI_ERRNO_SUCCESS;
 }
 

@@ -39,7 +39,7 @@ void resolveRegister(std::map<std::string, std::string> &Alias,
                      simdjson::dom::array CmdArray) {
   std::string_view OrgName;
   uint64_t LastModLine;
-  for (simdjson::dom::object Cmd : CmdArray) {
+  for (const simdjson::dom::object &Cmd : CmdArray) {
     std::string_view CmdType = Cmd["type"];
     bool Replaced = false;
     if (CmdType == "module"sv) {
@@ -100,7 +100,7 @@ parseValueList(const simdjson::dom::array &Args) {
   std::vector<WasmEdge::ValType> ResultTypes;
   Result.reserve(Args.size());
   ResultTypes.reserve(Args.size());
-  for (simdjson::dom::object Element : Args) {
+  for (const simdjson::dom::object &Element : Args) {
     std::string_view Type = Element["type"];
     simdjson::dom::array ValueNodeArray;
     if (!Element["value"].get(ValueNodeArray)) {
@@ -193,7 +193,8 @@ parseExpectedList(const simdjson::dom::array &Args) {
   std::vector<std::pair<std::string, std::string>> Result;
   Result.reserve(Args.size());
   simdjson::dom::array ValueNodeArray;
-  for (simdjson::dom::object Element : Args) {
+  std::string_view Value;
+  for (const simdjson::dom::object &Element : Args) {
     std::string_view Type = Element["type"];
     if (!Element["value"].get(ValueNodeArray)) {
       std::string StrValue;
@@ -203,10 +204,12 @@ parseExpectedList(const simdjson::dom::array &Args) {
         StrValue += ' ';
       }
       StrValue.pop_back();
-      Result.emplace_back(std::string(Type) + std::string(LaneType), StrValue);
-    } else {
-      std::string_view Value = Element["value"];
+      Result.emplace_back(std::string(Type) + std::string(LaneType),
+                          std::move(StrValue));
+    } else if (!Element["value"].get(Value)) {
       Result.emplace_back(std::string(Type), Value);
+    } else {
+      assumingUnreachable();
     }
   }
   return Result;
@@ -471,12 +474,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
           .string();
 
   simdjson::dom::parser parser;
-  simdjson::dom::element Doc;
-  try {
-    Doc = parser.load(FName);
-  } catch (simdjson::error_code &err) {
-    ;
-  }
+  simdjson::dom::element Doc = parser.load(FName);
 
   std::map<std::string, std::string> Alias;
   std::string LastModName;
@@ -572,104 +570,107 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
 
   // Command processing. Return true for expected result.
   auto RunCommand = [&](const simdjson::dom::object &Cmd) {
-    std::string_view TypeField = Cmd["type"];
-    switch (resolveCommand(TypeField)) {
-    case SpecTest::CommandID::Module: {
-      std::string_view Name = Cmd["filename"];
-      const auto FileName =
-          (TestsuiteRoot / Proposal / UnitName / Name).u8string();
-      const uint64_t LineNumber = Cmd["line"];
-      std::string LineStr = std::to_string(LineNumber);
-      std::string_view TempName;
-      if (!Cmd["name"].get(TempName)) {
-        // Module has name. Register module with module name.
-        if (auto It = Alias.find(std::string(TempName)); It != Alias.end()) {
+    std::string_view TypeField;
+
+    if (!Cmd["type"].get(TypeField)) {
+      switch (resolveCommand(TypeField)) {
+      case SpecTest::CommandID::Module: {
+        std::string_view Name = Cmd["filename"];
+        const auto FileName =
+            (TestsuiteRoot / Proposal / UnitName / Name).u8string();
+        const uint64_t LineNumber = Cmd["line"];
+        std::string LineStr = std::to_string(LineNumber);
+        std::string_view TempName;
+        if (!Cmd["name"].get(TempName)) {
+          // Module has name. Register module with module name.
+          if (auto It = Alias.find(std::string(TempName)); It != Alias.end()) {
+            LastModName = (It->second);
+          } else {
+            LastModName = (TempName);
+          }
+        } else if (auto It = Alias.find(LineStr); It != Alias.end()) {
           LastModName = (It->second);
         } else {
-          LastModName = (TempName);
+          // Instantiate the anonymous module.
+          LastModName.clear();
         }
-      } else if (auto It = Alias.find(LineStr); It != Alias.end()) {
-        LastModName = (It->second);
-      } else {
-        // Instantiate the anonymous module.
-        LastModName.clear();
+        if (onModule(LastModName, FileName)) {
+          EXPECT_TRUE(true);
+        } else {
+          EXPECT_NE(LineNumber, LineNumber);
+        }
+        return;
       }
-      if (onModule(LastModName, FileName)) {
-        EXPECT_TRUE(true);
-      } else {
-        EXPECT_NE(LineNumber, LineNumber);
-      }
-      return;
-    }
-    case CommandID::Action: {
-      const simdjson::dom::object Action = Cmd["action"].get_object();
-      const simdjson::dom::array Expected = Cmd["expected"];
-      const uint64_t LineNumber = Cmd["line"];
-      Invoke(Action, Expected, LineNumber);
-      return;
-    }
-    case CommandID::Register: {
-      // Preprocessed. Ignore this.
-      return;
-    }
-    case CommandID::AssertReturn: {
-      const uint64_t LineNumber = Cmd["line"];
-      const simdjson::dom::object Action = Cmd["action"].get_object();
-      const simdjson::dom::array Expected = Cmd["expected"];
-      std::string_view ActType = Action["type"];
-      if (ActType == "invoke"sv) {
+      case CommandID::Action: {
+        const simdjson::dom::object Action = Cmd["action"].get_object();
+        const simdjson::dom::array Expected = Cmd["expected"];
+        const uint64_t LineNumber = Cmd["line"];
         Invoke(Action, Expected, LineNumber);
         return;
-      } else if (ActType == "get"sv) {
-        Get(Action, Expected, LineNumber);
+      }
+      case CommandID::Register: {
+        // Preprocessed. Ignore this.
         return;
       }
-      EXPECT_TRUE(false);
-      return;
-    }
-    case CommandID::AssertTrap: {
-      const simdjson::dom::object Action = Cmd["action"].get_object();
-      const std::string_view Text = Cmd["text"];
-      const uint64_t LineNumber = Cmd["line"];
-      TrapInvoke(Action, std::string(Text), LineNumber);
-      return;
-    }
-    case CommandID::AssertExhaustion: {
-      // TODO: Add stack overflow mechanism.
-      return;
-    }
-    case CommandID::AssertMalformed: {
-      std::string_view ModType = Cmd["module_type"];
-      std::string Binary = "binary";
-      if (Binary.compare(std::string(ModType))) {
-        // TODO: Wat is not supported in WasmEdge yet.
+      case CommandID::AssertReturn: {
+        const uint64_t LineNumber = Cmd["line"];
+        const simdjson::dom::object Action = Cmd["action"].get_object();
+        const simdjson::dom::array Expected = Cmd["expected"];
+        std::string_view ActType = Action["type"];
+        if (ActType == "invoke"sv) {
+          Invoke(Action, Expected, LineNumber);
+          return;
+        } else if (ActType == "get"sv) {
+          Get(Action, Expected, LineNumber);
+          return;
+        }
+        EXPECT_TRUE(false);
         return;
       }
-      std::string_view Name = Cmd["filename"];
-      const auto Filename =
-          (TestsuiteRoot / Proposal / UnitName / Name).u8string();
-      Name = Cmd["text"];
-      TrapLoad(Filename, std::string(Name));
-      return;
-    }
-    case CommandID::AssertInvalid: {
-      std::string_view Name = Cmd["filename"];
-      const auto Filename =
-          (TestsuiteRoot / Proposal / UnitName / Name).u8string();
-      Name = Cmd["text"];
-      TrapValidate(Filename, std::string(Name));
-      return;
-    }
-    case CommandID::AssertUnlinkable:
-    case CommandID::AssertUninstantiable: {
-      std::string_view Name = Cmd["filename"];
-      const auto Filename =
-          (TestsuiteRoot / Proposal / UnitName / Name).u8string();
-      Name = Cmd["text"];
-      TrapInstantiate(Filename, std::string(Name));
-      return;
-    }
-    default:;
+      case CommandID::AssertTrap: {
+        const simdjson::dom::object Action = Cmd["action"].get_object();
+        const std::string_view Text = Cmd["text"];
+        const uint64_t LineNumber = Cmd["line"];
+        TrapInvoke(Action, std::string(Text), LineNumber);
+        return;
+      }
+      case CommandID::AssertExhaustion: {
+        // TODO: Add stack overflow mechanism.
+        return;
+      }
+      case CommandID::AssertMalformed: {
+        std::string_view ModType = Cmd["module_type"];
+        std::string Binary = "binary";
+        if (Binary.compare(std::string(ModType))) {
+          // TODO: Wat is not supported in WasmEdge yet.
+          return;
+        }
+        std::string_view Name = Cmd["filename"];
+        const auto Filename =
+            (TestsuiteRoot / Proposal / UnitName / Name).u8string();
+        Name = Cmd["text"];
+        TrapLoad(Filename, std::string(Name));
+        return;
+      }
+      case CommandID::AssertInvalid: {
+        std::string_view Name = Cmd["filename"];
+        const auto Filename =
+            (TestsuiteRoot / Proposal / UnitName / Name).u8string();
+        Name = Cmd["text"];
+        TrapValidate(Filename, std::string(Name));
+        return;
+      }
+      case CommandID::AssertUnlinkable:
+      case CommandID::AssertUninstantiable: {
+        std::string_view Name = Cmd["filename"];
+        const auto Filename =
+            (TestsuiteRoot / Proposal / UnitName / Name).u8string();
+        Name = Cmd["text"];
+        TrapInstantiate(Filename, std::string(Name));
+        return;
+      }
+      default:;
+      }
     }
     // Unknown command.
     EXPECT_TRUE(false);
@@ -677,8 +678,9 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
 
   // Get command list.
   simdjson::dom::array CmdArray;
+
   if (!Doc["commands"].get(CmdArray)) {
-        
+
     // Preprocessing register command.
     resolveRegister(Alias, CmdArray);
 
@@ -688,4 +690,5 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     }
   }
 }
+
 } // namespace WasmEdge

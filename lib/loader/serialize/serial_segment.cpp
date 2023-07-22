@@ -54,7 +54,20 @@ void Serializer::serializeSegment(const AST::ElementSegment &Seg,
   } else {
     // Serialize RefType.
     serializeU32(static_cast<uint8_t>(Seg.getRefType()), Result);
-    Mode |= 0x04;
+  }
+
+  // Distinguish between FuncIdx and Expr.
+  if (Seg.getInitExprs().size() != 0) {
+    auto IsExpr = false;
+    for (auto Expr : Seg.getInitExprs()) {
+      if (Expr.getInstrs().size() != 2 || Expr.getInstrs().at(0).getOpCode() != OpCode::Ref__func) {
+        IsExpr = true;
+        break;
+      }
+    }
+    if (IsExpr) {
+      Mode |= 0x04;
+    }
   }
 
   serializeU32(Seg.getInitExprs().size(), Result);

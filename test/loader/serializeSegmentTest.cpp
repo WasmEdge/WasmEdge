@@ -68,6 +68,13 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   //   1.  Serialize element segment with expression of only End operation and empty
   //       function indices list.
   //   2.  Serialize element segment with expression and function indices list.
+  //   3.  Serialize element segment with element kind and function indices list.
+  //   4.  Serialize element segment with expression, element kind and function indices list.
+  //   5.  Serialize element segment with element kind and function indices list.
+  //   6.  Serialize element segment with offset expression and init expression list.
+  //   7.  Serialize element segment with reference type and init expression list.
+  //   8.  Serialize element segment with table index, offset expression, reference type and init expression list.
+  //   9.  Serialize element segment with reference type and init expression list.
 
   WasmEdge::AST::ElementSection ElementSec;
   WasmEdge::AST::ElementSegment ElementSeg;
@@ -125,6 +132,167 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // vec[0]
       0x00U,                             // vec[1]
       0xB9U, 0x60U                       // vec[2]
+  };
+  EXPECT_EQ(Output, Expected);
+
+  ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Passive);
+  ElementSeg.getExpr().getInstrs().clear();
+  ElementSec.getContent() = {ElementSeg};
+
+  Output = Ser.serializeSection(ElementSec);
+  Expected = {
+      0x09U,                             // Element section
+      0x0CU,                             // Content size = 12
+      0x01U,                             // Vector length = 1
+      0x01U,                             // Prefix checking byte
+      0x00U,                             // ElementKind
+      0x03U,                             // Vector length = 3
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // vec[0]
+      0x00U,                             // vec[1]
+      0xB9U, 0x60U                       // vec[2]
+  };
+  EXPECT_EQ(Output, Expected);
+
+  ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Active);
+  ElementSeg.setIdx(0x01U);
+  ElementSeg.getExpr().getInstrs() = {
+      I32Eqz, I32Eq, I32Ne,
+      End
+  };
+  ElementSec.getContent() = {ElementSeg};
+
+  Output = Ser.serializeSection(ElementSec);
+  Expected = {
+      0x09U,                             // Element section
+      0x11U,                             // Content size = 17
+      0x01U,                             // Vector length = 1
+      0x02U,                             // Prefix checking byte
+      0x01U,                             // TableIdx
+      0x45U, 0x46U, 0x47U, 0x0BU,        // Offset expression
+      0x00U,                             // ElementKind
+      0x03U,                             // Vector length = 3
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // vec[0]
+      0x00U,                             // vec[1]
+      0xB9U, 0x60U                       // vec[2]
+  };
+  EXPECT_EQ(Output, Expected);
+
+  ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Declarative);
+  ElementSeg.setIdx(0x00U);
+  ElementSeg.getExpr().getInstrs().clear();
+  ElementSec.getContent() = {ElementSeg};
+
+  Output = Ser.serializeSection(ElementSec);
+  Expected = {
+      0x09U,                             // Element section
+      0x0CU,                             // Content size = 12
+      0x01U,                             // Vector length = 1
+      0x03U,                             // Prefix checking byte
+      0x00U,                             // ElementKind
+      0x03U,                             // Vector length = 3
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // vec[0]
+      0x00U,                             // vec[1]
+      0xB9U, 0x60U                       // vec[2]
+  };
+  EXPECT_EQ(Output, Expected);
+
+  ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Declarative);
+  ElementSeg.setIdx(0x00U);
+  ElementSeg.getExpr().getInstrs().clear();
+  ElementSec.getContent() = {ElementSeg};
+
+  Output = Ser.serializeSection(ElementSec);
+  Expected = {
+      0x09U,                             // Element section
+      0x0CU,                             // Content size = 12
+      0x01U,                             // Vector length = 1
+      0x03U,                             // Prefix checking byte
+      0x00U,                             // ElementKind
+      0x03U,                             // Vector length = 3
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // vec[0]
+      0x00U,                             // vec[1]
+      0xB9U, 0x60U                       // vec[2]
+  };
+  EXPECT_EQ(Output, Expected);
+
+  ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Active);
+  ElementSeg.getExpr().getInstrs() = {
+      I32Eqz, I32Eq, I32Ne,
+      End
+  };
+  ElementSeg.getInitExprs().clear();
+  ElementSeg.getInitExprs().emplace_back();
+  ElementSeg.getInitExprs().back().getInstrs() = {
+      I32Eqz, I32Eq, I32Ne,
+      End
+  };
+  ElementSec.getContent() = {ElementSeg};
+
+  Output = Ser.serializeSection(ElementSec);
+  Expected = {
+      0x09U,                             // Element section
+      0x0BU,                             // Content size = 11
+      0x01U,                             // Vector length = 1
+      0x04U,                             // Prefix checking byte
+      0x45U, 0x46U, 0x47U, 0x0BU,        // Offset expression
+      0x01U,                             // Vector length = 1
+      0x45U, 0x46U, 0x47U, 0x0BU,        // Vec[0]
+  };
+  EXPECT_EQ(Output, Expected);
+
+  ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Passive);
+  ElementSeg.getExpr().getInstrs().clear();
+  ElementSeg.setRefType(WasmEdge::RefType::ExternRef);
+  ElementSec.getContent() = {ElementSeg};
+
+  Output = Ser.serializeSection(ElementSec);
+  Expected = {
+      0x09U,                             // Element section
+      0x08U,                             // Content size = 8
+      0x01U,                             // Vector length = 1
+      0x05U,                             // Prefix checking byte
+      0x6FU,                             // RefType
+      0x01U,                             // Vector length = 1
+      0x45U, 0x46U, 0x47U, 0x0BU,        // Vec[0]
+  };
+  EXPECT_EQ(Output, Expected);
+
+  ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Active);
+  ElementSeg.setIdx(0x01U);
+  ElementSeg.getExpr().getInstrs() = {
+      I32Eqz, I32Eq, I32Ne,
+      End
+  };
+  ElementSec.getContent() = {ElementSeg};
+
+  Output = Ser.serializeSection(ElementSec);
+  Expected = {
+      0x09U,                             // Element section
+      0x0DU,                             // Content size = 13
+      0x01U,                             // Vector length = 1
+      0x06U,                             // Prefix checking byte
+      0x01U,                             // TableIdx
+      0x45U, 0x46U, 0x47U, 0x0BU,        // Offset Expression
+      0x6FU,                             // RefType
+      0x01U,                             // Vector length = 1
+      0x45U, 0x46U, 0x47U, 0x0BU,        // Vec[0]
+  };
+  EXPECT_EQ(Output, Expected);
+
+  ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Declarative);
+  ElementSeg.setIdx(0x00U);
+  ElementSeg.getExpr().getInstrs().clear();
+  ElementSec.getContent() = {ElementSeg};
+
+  Output = Ser.serializeSection(ElementSec);
+  Expected = {
+      0x09U,                             // Element section
+      0x08U,                             // Content size = 8
+      0x01U,                             // Vector length = 1
+      0x07U,                             // Prefix checking byte
+      0x6FU,                             // RefType
+      0x01U,                             // Vector length = 1
+      0x45U, 0x46U, 0x47U, 0x0BU,        // Vec[0]
   };
   EXPECT_EQ(Output, Expected);
 }
@@ -242,6 +410,40 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
       0x0BU,                            // Content size = 11
       0x01U,                            // Vector length = 1
       0x00U,                            // Prefix checking byte
+      0x45U, 0x46U, 0x47U, 0x0BU,       // Expression
+      0x04U, 0x74U, 0x65U, 0x73U, 0x74U // Vector length = 4, "test"
+  };
+  EXPECT_EQ(Output, Expected);
+
+  DataSeg.setMode(WasmEdge::AST::DataSegment::DataMode::Passive);
+  DataSeg.getExpr().getInstrs().clear();
+  DataSec.getContent() = {DataSeg};
+
+  Output = Ser.serializeSection(DataSec);
+  Expected = {
+      0x0BU,                            // Data section
+      0x07U,                            // Content size = 7
+      0x01U,                            // Vector length = 1
+      0x01U,                            // Prefix checking byte
+      0x04U, 0x74U, 0x65U, 0x73U, 0x74U // Vector length = 4, "test"
+  };
+  EXPECT_EQ(Output, Expected);
+
+  DataSeg.setMode(WasmEdge::AST::DataSegment::DataMode::Active);
+  DataSeg.setIdx(0x01U);
+  DataSeg.getExpr().getInstrs() = {
+      I32Eqz, I32Eq, I32Ne,
+      End
+  };
+  DataSec.getContent() = {DataSeg};
+
+  Output = Ser.serializeSection(DataSec);
+  Expected = {
+      0x0BU,                            // Data section
+      0x0CU,                            // Content size = 12
+      0x01U,                            // Vector length = 1
+      0x02U,                            // Prefix checking byte
+      0x01U,                            // MemoryIdx
       0x45U, 0x46U, 0x47U, 0x0BU,       // Expression
       0x04U, 0x74U, 0x65U, 0x73U, 0x74U // Vector length = 4, "test"
   };

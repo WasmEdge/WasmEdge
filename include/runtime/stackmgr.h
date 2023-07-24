@@ -147,6 +147,13 @@ public:
     return ValueStack;
   }
   
+  void setFrameStack(std::vector<Frame> fs) {
+    FrameStack = fs;
+  }
+  void setValueStack(std::vector<Value> vs) {
+    ValueStack = vs;
+  }
+  
 private:
   /// \name Data of stack manager.
   /// @{

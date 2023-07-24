@@ -49,37 +49,7 @@ public:
     valueStream.open(valueFile, std::ios::trunc);
 
     // TODO: uint32_t型以外の場合どうなるのか(int32_tとかは同じ値が出力された)
-    
-    // valueStream << (int)GlobType.getValType() << std::endl;
-    switch (GlobType.getValType()) {
-      case ValType::I32: {
-        valueStream << Value.get<uint32_t>();
-        break;
-      }
-      case ValType::I64: {
-        valueStream << Value.get<uint64_t>();
-        break;
-      }
-      case ValType::F32: {
-        valueStream << Value.get<float>();
-        break;
-      }
-      case ValType::F64: {
-        valueStream << Value.get<double>();
-        break;
-      }
-      /// TODO: V128の処理についてもう少し精査する
-      case ValType::V128: {
-        valueStream << Value.get<uint128_t>();
-        break;
-      }
-      /// TODO: FuncRef and ExternRef
-      default: {
-        assert(-1);
-        break;
-      }
-    }
-    // valueStream << Value.get<int32_t>();
+    valueStream << Value.get<uint128_t>() << std::endl;
 
     // Close file
     valueStream.close();
@@ -95,36 +65,8 @@ public:
 
     // Restore Value
     std::string valueString;
-    // TODO: getlineじゃなくてファイルの中身全部とってくるようにする
     getline(valueStream, valueString);
-    switch (GlobType.getValType()) {
-      case ValType::I32: {
-        Value = static_cast<uint32_t>(std::stoul(valueString));
-        break;
-      }
-      case ValType::I64: {
-        Value = static_cast<uint64_t>(std::stoul(valueString));
-        break;
-      }
-      case ValType::F32: {
-        Value = static_cast<float>(std::stof(valueString));
-        break;
-      }
-      case ValType::F64: {
-        Value = static_cast<double>(std::stod(valueString));
-        break;
-      }
-      /// TODO: V128の処理についてもう少し精査する
-      case ValType::V128: {
-        Value = static_cast<uint128_t>(std::stoul(valueString));
-        break;
-      }
-      /// TODO: FuncRef and ExternRef
-      default: {
-        assert(-1);
-        break;
-      }
-    }
+    Value = static_cast<uint128_t>(std::stoul(valueString));
 
     // Close file
     valueStream.close();

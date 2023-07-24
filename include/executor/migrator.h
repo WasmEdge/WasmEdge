@@ -159,7 +159,7 @@ public:
     }
 
     FrameStream.close();
-    return FrameStack;    
+    return FrameStack;
   }
   
   void dumpStackMgrValue(Runtime::StackManager& StackMgr) {
@@ -201,11 +201,11 @@ public:
     return ValueStack;    	
   }
   
-  void dumpMemInst() {
+  void dumpMemInst(const Runtime::Instance::ModuleInstance* ModInst) {
     ModInst->dumpMemInst();
   }
 
-  void dumpGlobInst() {
+  void dumpGlobInst(const Runtime::Instance::ModuleInstance* ModInst) {
     ModInst->dumpGlobInst();
   }
 

@@ -12,6 +12,7 @@ namespace WasmEdge {
 namespace Executor {
 
 bool DumpFlag;
+// TODO: signumの処理無駄なのでどうにかする
 void signalHandler(int signum) {
   if (signum)
     DumpFlag = true;
@@ -60,6 +61,14 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
     // For the entering AOT or host functions, the `StartIt` is equal to the end
     // of instruction list, therefore the execution will return immediately.
     Res = execute(StackMgr, StartIt, Func.getInstrs().end());
+  }
+  
+  /// TODO: dumpする場所が散らかってるので、整理する
+  if (DumpFlag) {
+    Migr.dumpMemInst(Func.getModule());
+    std::cout << "Success dumpMemInst" << std::endl;
+    Migr.dumpGlobInst(Func.getModule());
+    std::cout << "Success dumpGlobInst" << std::endl;
   }
 
   if (Res) {
@@ -1825,10 +1834,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
 
   while (PC != PCEnd) {
     if (DumpFlag) {
-      // Migr.dumpMemInst();
-      // std::cout << "Success dumpMemInst" << std::endl;
-      // Migr.dumpGlobInst();
-      // std::cout << "Success dumpGlobInst" << std::endl;
       Migr.dumpIter(PC);
       std::cout << "Success dumpIter" << std::endl;
       Migr.dumpStackMgrFrame(StackMgr);

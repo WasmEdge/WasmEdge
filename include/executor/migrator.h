@@ -130,7 +130,12 @@ public:
       // ModuleInstance
       getline(FrameStream, FrameString);
       std::string ModName = FrameString;
-      const Runtime::Instance::ModuleInstance* ModInst = StoreMgr.findModule(ModName);
+      const Runtime::Instance::ModuleInstance* ModInst;
+      // ModName == errorの場合、ModNameはない
+      // TODO: errorじゃない名前にする
+      if (ModName != "error") {
+          ModInst = StoreMgr.findModule(ModName);
+      }
       // Iterator
       getline(FrameStream, FrameString);
       uint32_t FuncIdx = static_cast<uint32_t>(std::stoul(FrameString));
@@ -166,15 +171,35 @@ public:
     for (size_t I = 0; I < ValueStack.size(); ++I) {
       Value v = ValueStack[I];
       ValueStream << v.get<uint128_t>() << std::endl;
-      // ValueStream << v<typeid(v)>.get() << std::endl;
-      ValueStream << std::endl;
     }
     
     ValueStream.close();
   }
   
-  // Runtime::StackManager restoreStackMgr() {
-  // }
+  std::vector<Runtime::StackManager::Value> restoreStackMgrValue() {	  // Runtime::StackManager restoreStackMgr() {
+    std::ifstream ValueStream;	  // }
+    ValueStream.open("stackmgr_value.img");	
+    Runtime::StackManager StackMgr;	
+
+    std::vector<Runtime::StackManager::Value> ValueStack;	
+    std::string ValueString;	
+    /// TODO: ループ条件見直す	
+    while(1) {	
+      getline(ValueStream, ValueString);	
+      // ValueStringが空の場合はエラー	
+      assert(ValueString.size() > 0);	
+
+      Runtime::StackManager::Value v = static_cast<uint128_t>(std::stoul(ValueString));	
+      ValueStack.push_back(v);	
+
+      if(!getline(ValueStream, ValueString)) {	
+        break;	
+      }	
+    }	
+
+    ValueStream.close();	
+    return ValueStack;    	
+  }
   
   void dumpMemInst() {
     ModInst->dumpMemInst();

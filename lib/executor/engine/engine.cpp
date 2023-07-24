@@ -55,6 +55,13 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
       return Unexpect(GetIt);
     }
   }
+
+  if (RestoreFlag && Conf.getStatisticsConfigure().getRestoreFlag()) {
+    StartIt = Migr.restoreIter();
+    StackMgr = Migr.restoreStackMgr();
+    RestoreFlag = false;
+  }
+
   if (Res) {
     getMigrator().preDumpIter(Func.getModule());
     // If not terminated, execute the instructions in interpreter mode.
@@ -1828,6 +1835,13 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return {};
     }
   };
+  
+  if (RestoreFlag && Conf.getStatisticsConfigure().getRestoreFlag()) {
+    std::cout << "==========" << std::endl;
+    std::cout << "Restore!" << std::endl;
+    std::cout << "==========" << std::endl;
+    RestoreFlag = false;
+  }
 
   // signal handler
   signal(SIGINT, &signalHandler);

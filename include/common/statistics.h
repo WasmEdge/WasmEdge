@@ -181,6 +181,10 @@ public:
       spdlog::info("=======================   End   ======================");
     }
   }
+  
+  // RestoreFlag
+  void setRestoreFlag(bool f) { RestoreFlag = f; }
+  bool getRestoreFlag() { return RestoreFlag; }
 
 private:
   std::vector<uint64_t> CostTab;
@@ -188,6 +192,7 @@ private:
   uint64_t CostLimit;
   std::atomic_uint64_t CostSum;
   Timer::Timer TimeRecorder;
+  bool RestoreFlag;
 };
 
 } // namespace Statistics

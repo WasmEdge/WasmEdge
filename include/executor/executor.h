@@ -692,6 +692,7 @@ private:
   /// Migrator
   Migrator Migr;
   Migrator getMigrator() { return Migr; }
+  bool RestoreFlag = true;
 };
 
 } // namespace Executor

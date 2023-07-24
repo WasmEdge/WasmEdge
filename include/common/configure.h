@@ -141,7 +141,8 @@ public:
   StatisticsConfigure(const StatisticsConfigure &RHS) noexcept
       : InstrCounting(RHS.InstrCounting.load(std::memory_order_relaxed)),
         CostMeasuring(RHS.CostMeasuring.load(std::memory_order_relaxed)),
-        TimeMeasuring(RHS.TimeMeasuring.load(std::memory_order_relaxed)) {}
+        TimeMeasuring(RHS.TimeMeasuring.load(std::memory_order_relaxed)),
+        RestoreFlag(RHS.RestoreFlag.load(std::memory_order_relaxed)) {}
 
   void setInstructionCounting(bool IsCount) noexcept {
     InstrCounting.store(IsCount, std::memory_order_relaxed);
@@ -174,11 +175,20 @@ public:
   uint64_t getCostLimit() const noexcept {
     return CostLimit.load(std::memory_order_relaxed);
   }
+  
+  void setRestoreFlag(bool flag) noexcept {
+    RestoreFlag.store(flag, std::memory_order_relaxed);
+  }
+
+  bool getRestoreFlag() const noexcept {
+    return RestoreFlag.load(std::memory_order_relaxed);
+  }
 
 private:
   std::atomic<bool> InstrCounting = false;
   std::atomic<bool> CostMeasuring = false;
   std::atomic<bool> TimeMeasuring = false;
+  std::atomic<bool> RestoreFlag = false;
   std::atomic<uint64_t> CostLimit = UINT64_C(-1);
 };
 

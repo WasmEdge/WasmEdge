@@ -98,8 +98,11 @@ public:
       Runtime::StackManager::Frame f = FrameStack[I];
       // ModuleInstance
       // TODO: ここで壊れるので直す
-      std::string_view ModName = (f.Module)->getModuleName();
-      assert(ModName != "");
+      const Runtime::Instance::ModuleInstance* ModInst = f.Module;
+      std::string_view ModName = "error";
+      if (ModInst != nullptr) {
+        ModName = ModInst->getModuleName();
+      }
       FrameStream << ModName << std::endl;
       // Iterator
       struct IterData Data = IterMigrator[const_cast<AST::InstrView::iterator>(f.From)];
@@ -162,7 +165,7 @@ public:
     std::vector<Value> ValueStack = StackMgr.getValueStack();
     for (size_t I = 0; I < ValueStack.size(); ++I) {
       Value v = ValueStack[I];
-      ValueStream << typeid(v).name() << std::endl;
+      ValueStream << v.get<uint128_t>() << std::endl;
       // ValueStream << v<typeid(v)>.get() << std::endl;
       ValueStream << std::endl;
     }

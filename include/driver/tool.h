@@ -85,7 +85,6 @@ struct DriverToolOptions {
             PO::MetaVar("PAGE_COUNT"sv)),
         ForbiddenPlugins(PO::Description("List of plugins to ignore."sv),
                          PO::MetaVar("NAMES"sv)) {}
-        // RestoreFlag(PO::Description("Resotre statement by img files."sv)) {}
 
   PO::Option<std::string> SoName;
   PO::List<std::string> Args;

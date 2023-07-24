@@ -18,8 +18,6 @@ target_compile_options(wasmedgePluginWasmEdgeOpenCVMini
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   target_link_options(wasmedgePluginWasmEdgeOpenCVMini
     PUBLIC
-    -Wl,-U,__ZN8WasmEdge6Plugin14PluginRegisterC1EPKNS0_6Plugin16PluginDescriptorE
-    -Wl,-U,__ZN8WasmEdge6Plugin14PluginRegisterD1Ev
   )
 endif()
 

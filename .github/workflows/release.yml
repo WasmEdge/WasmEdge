@@ -330,6 +330,7 @@ jobs:
         run: |
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
           plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.docker_tag }}})
+          option_array=(${build_options_all_platforms} ${build_options_${{ matrix.docker_tag }}})
           testbin_array=(${test_bins_all_platforms} ${test_bins_${{ matrix.docker_tag }}})
           outtarget=${output_bin%.*}
           outtarget=${outtarget#lib}
@@ -470,6 +471,7 @@ jobs:
           mv plugin_wasmedge_image.tar.gz WasmEdge-plugin-wasmedge_image-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_image-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz --clobber
       - name: Upload wasm_bpf plugin tar.gz package
+        if: contains(matrix.docker_tag, 'manylinux2014_x86_64')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

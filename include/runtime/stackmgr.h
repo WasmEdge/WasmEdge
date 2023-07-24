@@ -73,13 +73,6 @@ public:
   Value pop() {
     Value V = std::move(ValueStack.back());
     ValueStack.pop_back();
-    std::cout << "==============================" << std::endl;
-    std::cout << "V.get<uint32_t>: " << V.get<uint32_t>() << std::endl;
-    std::cout << "V.get<uint64_t>: " << V.get<uint64_t>() << std::endl;
-    std::cout << "V.get<float>: " << V.get<float>() << std::endl;
-    std::cout << "V.get<double>: " << V.get<double>() << std::endl;
-    std::cout << "V.get<uint128_t> " << V.get<uint128_t>() << std::endl;
-    std::cout << "==============================" << std::endl;
     return V;
   }
 

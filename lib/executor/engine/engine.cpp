@@ -6,9 +6,17 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <signal.h>
 
 namespace WasmEdge {
 namespace Executor {
+
+bool DumpFlag;
+void signalHandler(int signum) {
+  if (signum)
+    DumpFlag = true;
+  DumpFlag = true;
+}
 
 Expect<void> Executor::runExpression(Runtime::StackManager &StackMgr,
                                      AST::InstrView Instrs) {
@@ -1812,10 +1820,25 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     }
   };
 
-  // Runtime::Instance::ModuleInstance* ModInst = Func->getModule();
-  // ModInst.preDumpIter();
+  // signal handler
+  signal(SIGINT, &signalHandler);
 
   while (PC != PCEnd) {
+    if (DumpFlag) {
+      // Migr.dumpMemInst();
+      // std::cout << "Success dumpMemInst" << std::endl;
+      // Migr.dumpGlobInst();
+      // std::cout << "Success dumpGlobInst" << std::endl;
+      Migr.dumpIter(PC);
+      std::cout << "Success dumpIter" << std::endl;
+      Migr.dumpStackMgrFrame(StackMgr);
+      std::cout << "Success dumpStackMgrFrame" << std::endl;
+      Migr.dumpStackMgrValue(StackMgr);
+      std::cout << "Success dumpStackMgrValue" << std::endl;
+      // TODO: 途中で止まったことがわかるエラーを返す
+      return {};
+    }
+
     if (Stat) {
       OpCode Code = PC->getOpCode();
       if (Conf.getStatisticsConfigure().isInstructionCounting()) {
@@ -1835,15 +1858,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return Unexpect(Res);
     }
     
-    // 何かしらのシグナルを受け取るとdumpする
-    if (0) {
-      Migrator Migr = getMigrator();
-      Migr.dumpIter(PC);
-      Migr.dumpMemInst();
-      Migr.dumpGlobInst();
-      // TODO: 途中で止まったことがわかるエラーを返す
-      return {};
-    }
     PC++;
   }
   return {};

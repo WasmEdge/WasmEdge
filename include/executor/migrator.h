@@ -11,7 +11,6 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <cassert>
 
 namespace WasmEdge {
   
@@ -59,7 +58,6 @@ public:
     iterStream.close();
   }
   
-  // TODO: renameする
   AST::InstrView::iterator _restoreIter(uint32_t FuncIdx, uint32_t Offset) {
     Runtime::Instance::FunctionInstance* FuncInst = ModInst->getFunc(FuncIdx).value();
     AST::InstrView::iterator Iter = FuncInst->getInstrs().begin();
@@ -99,7 +97,10 @@ public:
     for (size_t I = 0; I < FrameStack.size(); ++I) {
       Runtime::StackManager::Frame f = FrameStack[I];
       // ModuleInstance
-      FrameStream << f.Module->getModuleName() << std::endl;
+      // TODO: ここで壊れるので直す
+      std::string_view ModName = (f.Module)->getModuleName();
+      assert(ModName != "");
+      FrameStream << ModName << std::endl;
       // Iterator
       struct IterData Data = IterMigrator[const_cast<AST::InstrView::iterator>(f.From)];
       FrameStream << Data.FuncIdx << std::endl;
@@ -141,12 +142,12 @@ public:
       getline(FrameStream, FrameString);
       uint32_t Arity = static_cast<uint32_t>(std::stoul(FrameString));
 
-      Runtime::StackManager::Frame f(ModInst, From, Locals, VPos, Arity);
-      FrameStack.push_back(f);
-
       if(!getline(FrameStream, FrameString)) {
         break;
       }
+
+      Runtime::StackManager::Frame f(ModInst, From, Locals, VPos, Arity);
+      FrameStack.push_back(f);
     }
 
     FrameStream.close();
@@ -161,37 +162,16 @@ public:
     std::vector<Value> ValueStack = StackMgr.getValueStack();
     for (size_t I = 0; I < ValueStack.size(); ++I) {
       Value v = ValueStack[I];
-      ValueStream << v.get<uint128_t>() << std::endl;
+      ValueStream << typeid(v).name() << std::endl;
+      // ValueStream << v<typeid(v)>.get() << std::endl;
       ValueStream << std::endl;
     }
     
     ValueStream.close();
   }
   
-  std::vector<Runtime::StackManager::Value> restoreStackMgrValue() {
-    std::ifstream ValueStream;
-    ValueStream.open("stackmgr_value.img");
-    Runtime::StackManager StackMgr;
-
-    std::vector<Runtime::StackManager::Value> ValueStack;
-    std::string ValueString;
-    /// TODO: ループ条件見直す
-    while(1) {
-      getline(ValueStream, ValueString);
-      // ValueStringが空の場合はエラー
-      assert(ValueString.size() > 0);
-
-      Runtime::StackManager::Value v = static_cast<uint128_t>(std::stoul(ValueString));
-      ValueStack.push_back(v);
-
-      if(!getline(ValueStream, ValueString)) {
-        break;
-      }
-    }
-
-    ValueStream.close();
-    return ValueStack;    
-  }
+  // Runtime::StackManager restoreStackMgr() {
+  // }
   
   void dumpMemInst() {
     ModInst->dumpMemInst();
@@ -201,7 +181,8 @@ public:
     ModInst->dumpGlobInst();
   }
 
-
+  bool DumpFlag; 
+  bool RestoreFlag;
 private:
   std::map<AST::InstrView::iterator, IterData> IterMigrator;
   const Runtime::Instance::ModuleInstance* ModInst;

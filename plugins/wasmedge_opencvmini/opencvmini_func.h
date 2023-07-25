@@ -54,7 +54,8 @@ public:
   WasmEdgeOpenCVMiniBlur(WasmEdgeOpenCVMiniEnvironment &HostEnv)
       : WasmEdgeOpenCVMini(HostEnv) {}
 
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t SrcMatKey);
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t SrcMatKey,
+                        uint32_t KernelWidth, uint32_t KernelHeight);
 };
 
 class WasmEdgeOpenCVMiniImwrite

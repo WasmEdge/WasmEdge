@@ -57,10 +57,12 @@ Expect<void> WasmEdgeOpenCVMiniWaitKey::body(const Runtime::CallingFrame &,
 }
 
 Expect<uint32_t> WasmEdgeOpenCVMiniBlur::body(const Runtime::CallingFrame &,
-                                              uint32_t SrcMatKey) {
+                                              uint32_t SrcMatKey,
+                                              uint32_t KernelWidth,
+                                              uint32_t KernelHeight) {
   cv::Mat Dst;
   if (auto Src = Env.getMat(SrcMatKey); Src) {
-    cv::blur(*Src, Dst, cv::Size(5, 5));
+    cv::blur(*Src, Dst, cv::Size(KernelWidth, KernelHeight));
   }
   return Env.insertMat(Dst);
 }

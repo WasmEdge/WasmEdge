@@ -255,6 +255,7 @@ public:
     if (auto It = FdMap.find(Fd); It == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
+      close(It->second);
       FdMap.erase(It);
       return {};
     }
@@ -864,8 +865,8 @@ public:
 
   /// Close unused Fd in Pollers.
   ///
-  /// @param[in] Fd The Fd to be deleted.
-  void close(__wasi_fd_t Fd) noexcept;
+  /// @param[in] Node The Node to be deleted.
+  void close(std::shared_ptr<VINode> Node) noexcept;
 
   /// Terminate the process normally. An exit code of 0 indicates successful
   /// termination of the program. The meanings of other values is dependent on
@@ -1248,11 +1249,7 @@ public:
     }
   }
 
-  void close(__wasi_fd_t Fd) noexcept {
-    if (auto Node = env().getNodeOrNull(Fd); likely(!!Node)) {
-      VPoller::close(Node);
-    }
-  }
+  void close(std::shared_ptr<VINode> Node) noexcept { VPoller::close(Node); }
 
 private:
   Environ &env() noexcept { return static_cast<Environ &>(Ctx.get()); }
@@ -1277,10 +1274,10 @@ Environ::acquirePoller(Span<__wasi_event_t> Events) noexcept {
   return Poller;
 }
 
-inline void Environ::close(__wasi_fd_t Fd) noexcept {
+inline void Environ::close(std::shared_ptr<VINode> Node) noexcept {
   std::unique_lock Lock(PollerMutex);
   for (auto &Poller : PollerPool) {
-    Poller.close(Fd);
+    Poller.close(Node);
   }
 }
 

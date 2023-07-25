@@ -402,7 +402,7 @@ jobs:
       - name: Build and install dependencies
         run: |
           yum update -y
-          yum install -y zlib-devel zlib-static cmake devtoolset-8 wget unzip
+          yum install -y zlib-devel zlib-static cmake wget unzip
           bash ./utils/wasi-crypto/build-openssl.sh
           bash utils/opencvmini/install-opencvmini.sh
       - name: Build plugins

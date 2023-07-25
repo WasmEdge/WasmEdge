@@ -39,7 +39,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       id: nix-cache
       with:
         path: /tmp/nix-store

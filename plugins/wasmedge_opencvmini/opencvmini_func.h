@@ -26,8 +26,9 @@ public:
   WasmEdgeOpenCVMiniImencode(WasmEdgeOpenCVMiniEnvironment &HostEnv)
       : WasmEdgeOpenCVMini(HostEnv) {}
 
-  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t MatKey,
-                    uint32_t BufPtr, uint32_t BufLen);
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t ExtPtr,
+                    uint32_t ExtLen, uint32_t MatKey, uint32_t BufPtr,
+                    uint32_t BufLen);
 };
 
 class WasmEdgeOpenCVMiniImshow

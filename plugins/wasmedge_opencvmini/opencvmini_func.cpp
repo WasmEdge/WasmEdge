@@ -89,10 +89,16 @@ Expect<void> WasmEdgeOpenCVMiniImwrite::body(const Runtime::CallingFrame &Frame,
   return {};
 }
 
-Expect<void>
-WasmEdgeOpenCVMiniImencode::body(const Runtime::CallingFrame &Frame,
-                                 uint32_t MatKey, uint32_t BufPtr,
-                                 uint32_t BufLen) {
+Expect<void> WasmEdgeOpenCVMiniImencode::body(
+    const Runtime::CallingFrame &Frame, uint32_t ExtPtr, uint32_t ExtLen,
+    uint32_t MatKey, uint32_t BufPtr, uint32_t BufLen) {
+  std::string Ext;
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+
+  char *Buf = MemInst->getPointer<char *>(ExtPtr);
+  std::copy_n(Buf, ExtLen, std::back_inserter(Ext));
+
   auto Img = Env.getMat(MatKey);
   if (!Img) {
     spdlog::error("[WasmEdge-OpenCVMini] "sv
@@ -100,7 +106,6 @@ WasmEdgeOpenCVMiniImencode::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
   auto OutSpan = MemInst->getSpan<uchar>(BufPtr, BufLen);
   if (unlikely(OutSpan.size() != BufLen)) {
     spdlog::error("[WasmEdge-OpenCVMini] "sv
@@ -109,7 +114,7 @@ WasmEdgeOpenCVMiniImencode::body(const Runtime::CallingFrame &Frame,
   }
 
   std::vector<uchar> WriteTo;
-  cv::imencode(".jpg", *Img, WriteTo);
+  cv::imencode(Ext, *Img, WriteTo);
 
   std::copy_n(WriteTo.begin(), WriteTo.size(), OutSpan.begin());
 

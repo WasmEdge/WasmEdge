@@ -65,6 +65,7 @@ set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge Wasi-NN plu
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge Wasi-crypto plugin." OFF)
 option(WASMEDGE_PLUGIN_WASI_LOGGING "Enable WasmEdge wasi-logging plugin." OFF)
 option(WASMEDGE_PLUGIN_WASM_BPF "Enable WasmEdge wasm-bpf plugin." OFF)
+option(WASMEDGE_PLUGIN_OPENCVMINI "Enable WasmEdge opencvmini plugin." OFF)
 option(WASMEDGE_PLUGIN_PROCESS "Enable WasmEdge process plugin." OFF)
 option(WASMEDGE_PLUGIN_IMAGE "Enable WasmEdge image plugin." OFF)
 option(WASMEDGE_PLUGIN_TENSORFLOW "Enable WasmEdge TensorFlow plugin." OFF)

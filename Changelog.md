@@ -1,3 +1,31 @@
+### 0.13.3 (2023-07-25)
+
+This is a bugfix release.
+
+Features:
+
+* [CMake] Add a flag to disable libtinfo (#2676)
+* [Plugin] Implement OpenCV-mini (#2648)
+* [CI] Build wasmedge on Nix (#2674)
+
+Fixed issues:
+
+* WASI Socket: Remove unused fds before closing them. (#2675), part of #2662
+
+Known issues:
+
+* Universal WASM format failed on macOS platforms.
+  * In the current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause a bus error during execution.
+  * We are trying to fix this issue. For a working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+
+Thank all the contributors that made this release possible!
+
+Lîm Tsú-thuàn, Tricster, Tyler Rockwood
+
+If you want to build from source, please use WasmEdge-0.13.3-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.13.2 (2023-07-21)
 
 This is a bugfix release.

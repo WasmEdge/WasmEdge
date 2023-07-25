@@ -516,7 +516,7 @@ jobs:
           git config --global --add safe.directory $(pwd)
       - name: Install dependencies
         run: |
-          brew install llvm ninja cmake openssl
+          brew install llvm ninja cmake openssl opencv
       - name: Build plugins
         shell: bash
         run: |

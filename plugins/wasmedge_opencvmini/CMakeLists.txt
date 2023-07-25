@@ -15,12 +15,6 @@ target_compile_options(wasmedgePluginWasmEdgeOpenCVMini
   -DWASMEDGE_PLUGIN
 )
 
-if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  target_link_options(wasmedgePluginWasmEdgeOpenCVMini
-    PUBLIC
-  )
-endif()
-
 target_include_directories(wasmedgePluginWasmEdgeOpenCVMini
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>

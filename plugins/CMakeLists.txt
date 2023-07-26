@@ -54,6 +54,15 @@ if(WASMEDGE_PLUGIN_WASM_BPF)
   endif()
 endif()
 
+if(WASMEDGE_PLUGIN_OPENCVMINI)
+  # Only Linux and MacOS support wasmedge_opencvmini now.
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
+    add_subdirectory(wasmedge_opencvmini)
+  else()
+    message(WARNING "Only Linux and Darwin platforms support WasmEdge_OpenCVMini plug-in now.")
+  endif()
+endif()
+
 if(WASMEDGE_PLUGIN_WASI_LOGGING)
   add_subdirectory(wasi_logging)
 endif()

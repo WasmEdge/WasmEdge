@@ -159,6 +159,7 @@ public:
 
   /// Set the malloc function.
   void setMallocFunction(FunctionInstance *FuncInst) noexcept {
+    std::unique_lock Lock(Mutex);
     MallocFunc = FuncInst;
   }
 
@@ -170,6 +171,7 @@ public:
 
   /// Set the free function.
   void setFreeFunction(FunctionInstance *FuncInst) noexcept {
+    std::unique_lock Lock(Mutex);
     FreeFunc = FuncInst;
   }
 

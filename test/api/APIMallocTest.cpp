@@ -10,7 +10,7 @@ char WasmFilePath[] = "apiTestData/cmalloc.wasm";
 TEST(MemoryManipulation, ExportedMallocFree) {
   int32_t *Buffer = nullptr;
   int32_t Size = 8;
-  int32_t offset = -1;
+  int32_t Offset = -1;
 
   WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
   WasmEdge_ConfigureAddHostRegistration(ConfCxt,
@@ -22,13 +22,13 @@ TEST(MemoryManipulation, ExportedMallocFree) {
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VMCxt)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VMCxt)));
 
-  offset =
+  Offset =
       WasmEdge_Module_Malloc(VMCxt, Size * sizeof(int32_t), (void **)&Buffer);
 
   EXPECT_NE(Buffer, nullptr);
-  EXPECT_NE(offset, -1);
+  EXPECT_NE(Offset, -1);
 
-  EXPECT_EQ(WasmEdge_Module_Free(VMCxt, offset), 0);
+  EXPECT_EQ(WasmEdge_Module_Free(VMCxt, Offset), 0);
 
   WasmEdge_VMDelete(VMCxt);
   WasmEdge_ConfigureDelete(ConfCxt);

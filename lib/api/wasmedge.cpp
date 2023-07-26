@@ -370,7 +370,7 @@ CONVFROM(Plugin, Plugin::Plugin, Plugin, const)
 // Helper function for memory allocation in module
 Expect<int32_t> WasmEdge_Module_Malloc_Internal(WasmEdge_VMContext *VMCxt,
                                                 uint32_t Size,
-                                                void **P_Native_Addr) {
+                                                void **NativeAddrPtr) {
   auto const ModInst = fromModCxt(WasmEdge_VMGetActiveModule(VMCxt));
   auto MallocFunc = ModInst->getMallocFunc();
   if (!MallocFunc) {
@@ -378,7 +378,7 @@ Expect<int32_t> WasmEdge_Module_Malloc_Internal(WasmEdge_VMContext *VMCxt,
     return Unexpect(ErrCode::Value::NoMallocExport);
   }
   auto MemoryInst = ModInst->findMemoryExports("memory");
-  uint8_t *base_ptr = MemoryInst->getDataPtr();
+  uint8_t *BasePtr = MemoryInst->getDataPtr();
 
   // Call
   auto Returns = VMCxt->VM.getExecutor().invoke(MallocFunc, {ValVariant(Size)},
@@ -388,10 +388,10 @@ Expect<int32_t> WasmEdge_Module_Malloc_Internal(WasmEdge_VMContext *VMCxt,
     return Unexpect(Returns.error());
   }
 
-  auto value = Returns.value()[0].first;
-  int32_t offset = value.get<int32_t>();
-  *P_Native_Addr = base_ptr + offset;
-  return offset;
+  auto Value = Returns.value()[0].first;
+  int32_t Offset = Value.get<int32_t>();
+  *NativeAddrPtr = BasePtr + Offset;
+  return Offset;
 }
 
 // Helper function to free memory
@@ -1217,10 +1217,10 @@ WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT int32_t WasmEdge_Module_Malloc(WasmEdge_VMContext *VMCxt,
                                                     uint32_t Size,
-                                                    void **P_Native_Addr) {
-  auto res = WasmEdge_Module_Malloc_Internal(VMCxt, Size, P_Native_Addr);
-  if (res.has_value()) {
-    return res.value();
+                                                    void **NativeAddrPtr) {
+  auto Result = WasmEdge_Module_Malloc_Internal(VMCxt, Size, NativeAddrPtr);
+  if (Result.has_value()) {
+    return Result.value();
   } else {
     return -1;
   }
@@ -1228,9 +1228,9 @@ WASMEDGE_CAPI_EXPORT int32_t WasmEdge_Module_Malloc(WasmEdge_VMContext *VMCxt,
 
 WASMEDGE_CAPI_EXPORT int32_t WasmEdge_Module_Free(WasmEdge_VMContext *VMCxt,
                                                   int32_t Offset) {
-  auto res = WasmEdge_Module_Free_Internal(VMCxt, Offset);
-  if (res.has_value()) {
-    return res.value();
+  auto Result = WasmEdge_Module_Free_Internal(VMCxt, Offset);
+  if (Result.has_value()) {
+    return Result.value();
   } else {
     return -1;
   }

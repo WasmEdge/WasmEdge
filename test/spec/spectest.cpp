@@ -36,7 +36,7 @@ using namespace WasmEdge;
 
 // Preprocessing for set up aliasing.
 void resolveRegister(std::map<std::string, std::string> &Alias,
-                     simdjson::dom::array CmdArray) {
+                     simdjson::dom::array &CmdArray) {
   std::string_view OrgName;
   uint64_t LastModLine;
   for (const simdjson::dom::object &Cmd : CmdArray) {
@@ -98,12 +98,12 @@ std::pair<std::vector<WasmEdge::ValVariant>, std::vector<WasmEdge::ValType>>
 parseValueList(const simdjson::dom::array &Args) {
   std::vector<WasmEdge::ValVariant> Result;
   std::vector<WasmEdge::ValType> ResultTypes;
-  Result.reserve(Args.size());
-  ResultTypes.reserve(Args.size());
+  Result.reserve(Args.size());  ResultTypes.reserve(Args.size());
   for (const simdjson::dom::object &Element : Args) {
     std::string_view Type = Element["type"];
-    simdjson::dom::array ValueNodeArray;
-    if (!Element["value"].get(ValueNodeArray)) {
+    simdjson::dom::element Value = Element["value"];
+    if (Value.type() == simdjson::dom::element_type::ARRAY) {
+      simdjson::dom::array ValueNodeArray = Value;
       WasmEdge::uint64x2_t I64x2;
       std::string_view LaneType = Element["lane_type"];
       if (LaneType == "i64"sv || LaneType == "f64"sv) {
@@ -142,15 +142,15 @@ parseValueList(const simdjson::dom::array &Args) {
       }
       Result.emplace_back(I64x2);
       ResultTypes.emplace_back(WasmEdge::ValType::V128);
-    } else {
-      std::string_view Value = Element["value"];
+    } else if (Value.type() == simdjson::dom::element_type::STRING) {
+      std::string_view ValueStr = Value;
       if (Type == "externref"sv) {
         if (Value == "null"sv) {
           Result.emplace_back(WasmEdge::UnknownRef());
         } else {
           // Add 0x1 uint32_t prefix in this externref index case.
           Result.emplace_back(WasmEdge::ExternRef(reinterpret_cast<void *>(
-              std::stoul(std::string(Value)) + 0x100000000ULL)));
+              std::stoul(std::string(ValueStr)) + 0x100000000ULL)));
         }
         ResultTypes.emplace_back(WasmEdge::ValType::ExternRef);
       } else if (Type == "funcref"sv) {
@@ -160,28 +160,30 @@ parseValueList(const simdjson::dom::array &Args) {
           // Add 0x1 uint32_t prefix in this funcref index case.
           Result.emplace_back(WasmEdge::FuncRef(
               reinterpret_cast<WasmEdge::Runtime::Instance::FunctionInstance *>(
-                  std::stoul(std::string(Value)) + 0x100000000ULL)));
+                  std::stoul(std::string(ValueStr)) + 0x100000000ULL)));
         }
         ResultTypes.emplace_back(WasmEdge::ValType::FuncRef);
       } else if (Type == "i32"sv) {
         Result.emplace_back(
-            static_cast<uint32_t>(std::stoul(std::string(Value))));
+            static_cast<uint32_t>(std::stoul(std::string(ValueStr))));
         ResultTypes.emplace_back(WasmEdge::ValType::I32);
       } else if (Type == "f32"sv) {
         Result.emplace_back(
-            static_cast<uint32_t>(std::stoul(std::string(Value))));
+            static_cast<uint32_t>(std::stoul(std::string(ValueStr))));
         ResultTypes.emplace_back(WasmEdge::ValType::F32);
       } else if (Type == "i64"sv) {
         Result.emplace_back(
-            static_cast<uint64_t>(std::stoull(std::string(Value))));
+            static_cast<uint64_t>(std::stoull(std::string(ValueStr))));
         ResultTypes.emplace_back(WasmEdge::ValType::I64);
       } else if (Type == "f64"sv) {
         Result.emplace_back(
-            static_cast<uint64_t>(std::stoull(std::string(Value))));
+            static_cast<uint64_t>(std::stoull(std::string(ValueStr))));
         ResultTypes.emplace_back(WasmEdge::ValType::F64);
       } else {
         assumingUnreachable();
       }
+    } else {
+      assumingUnreachable();
     }
   }
   return {Result, ResultTypes};
@@ -192,11 +194,11 @@ std::vector<std::pair<std::string, std::string>>
 parseExpectedList(const simdjson::dom::array &Args) {
   std::vector<std::pair<std::string, std::string>> Result;
   Result.reserve(Args.size());
-  simdjson::dom::array ValueNodeArray;
-  std::string_view Value;
   for (const simdjson::dom::object &Element : Args) {
     std::string_view Type = Element["type"];
-    if (!Element["value"].get(ValueNodeArray)) {
+    simdjson::dom::element Value = Element["value"];
+    if (Value.type() == simdjson::dom::element_type::ARRAY) {
+      simdjson::dom::array ValueNodeArray = Value;
       std::string StrValue;
       std::string_view LaneType = Element["lane_type"];
       for (std::string_view X : ValueNodeArray) {
@@ -206,11 +208,10 @@ parseExpectedList(const simdjson::dom::array &Args) {
       StrValue.pop_back();
       Result.emplace_back(std::string(Type) + std::string(LaneType),
                           std::move(StrValue));
-    } else if (!Element["value"].get(Value)) {
-      Result.emplace_back(std::string(Type), Value);
-    } else {
-      assumingUnreachable();
-    }
+    } else if (Value.type() == simdjson::dom::element_type::STRING) {
+      std::string_view ValueStr = Value;
+      Result.emplace_back(std::string(Type), std::string(ValueStr));
+    } 
   }
   return Result;
 }
@@ -469,12 +470,12 @@ bool SpecTest::stringContains(std::string_view Expected,
 
 void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
   spdlog::info("{} {}", Proposal, UnitName);
-  auto FName =
+  auto TestFileName =
       (TestsuiteRoot / Proposal / UnitName / (std::string(UnitName) + ".json"s))
           .string();
 
-  simdjson::dom::parser parser;
-  simdjson::dom::element Doc = parser.load(FName);
+  simdjson::dom::parser Parser;
+  simdjson::dom::element Doc = Parser.load(TestFileName);
 
   std::map<std::string, std::string> Alias;
   std::string LastModName;
@@ -640,24 +641,23 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       }
       case CommandID::AssertMalformed: {
         std::string_view ModType = Cmd["module_type"];
-        std::string Binary = "binary";
-        if (Binary.compare(std::string(ModType))) {
+        if (std::string ModStr = (std::string) ModType; ModStr.compare("binary")) {
           // TODO: Wat is not supported in WasmEdge yet.
           return;
         }
         std::string_view Name = Cmd["filename"];
         const auto Filename =
             (TestsuiteRoot / Proposal / UnitName / Name).u8string();
-        Name = Cmd["text"];
-        TrapLoad(Filename, std::string(Name));
+        std::string_view Text = Cmd["text"];
+        TrapLoad(Filename, std::string(Text));
         return;
       }
       case CommandID::AssertInvalid: {
         std::string_view Name = Cmd["filename"];
         const auto Filename =
             (TestsuiteRoot / Proposal / UnitName / Name).u8string();
-        Name = Cmd["text"];
-        TrapValidate(Filename, std::string(Name));
+        std::string_view Text = Cmd["text"];
+        TrapValidate(Filename, std::string(Text));
         return;
       }
       case CommandID::AssertUnlinkable:
@@ -665,8 +665,8 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         std::string_view Name = Cmd["filename"];
         const auto Filename =
             (TestsuiteRoot / Proposal / UnitName / Name).u8string();
-        Name = Cmd["text"];
-        TrapInstantiate(Filename, std::string(Name));
+        std::string_view Text = Cmd["text"];
+        TrapInstantiate(Filename, std::string(Text));
         return;
       }
       default:;

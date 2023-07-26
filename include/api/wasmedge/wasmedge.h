@@ -1152,11 +1152,11 @@ WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt);
 ///
 /// \param VMCxt the WasmEdge_VMContext.
 /// \param Size  Size of the memory to allocate.
-/// \param P_Native_Addr Allocated memory address, set by the function.
+/// \param NativeAddrPtr Allocated memory address, set by the function.
 /// \returns Offset from the default module memory.
 WASMEDGE_CAPI_EXPORT extern int32_t
 WasmEdge_Module_Malloc(WasmEdge_VMContext *VMCxt, uint32_t Size,
-                       void **P_Native_Addr);
+                       void **NativeAddrPtr);
 
 /// Free dynamically allocated memory using exported free function.
 ///

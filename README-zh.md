@@ -1,6 +1,6 @@
 <div align="right">
 
-  [Readme in English](README.md) | [正體中文文件](README-zh-TW.md)
+  [Readme in English](README.md)
 
 </div>
 

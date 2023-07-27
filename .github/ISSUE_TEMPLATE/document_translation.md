@@ -6,6 +6,6 @@ about: Translate the original WasmEdge Book to other languages
 <!-- Please paste the github link here.-->
 
 ### Target language
-<!-- Please select from zh or zh-tw.-->
+<!-- Please select from zh-->
 
 

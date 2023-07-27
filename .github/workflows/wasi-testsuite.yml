@@ -41,7 +41,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         working-directory: WasmEdge
         run: |
-          sudo apt install -y software-properties-common cmake libboost-all-dev clang ninja-build
+          sudo apt install -y software-properties-common cmake clang ninja-build
           cmake -Bbuild -GNinja -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .
           cmake --build build
           echo "$GITHUB_WORKSPACE/WasmEdge/build/tools/wasmedge" >> $GITHUB_PATH

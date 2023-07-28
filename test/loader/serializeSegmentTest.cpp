@@ -60,30 +60,36 @@ TEST(SerializeSegmentTest, SerializeGlobalSegment) {
 }
 
 TEST(SerializeSegmentTest, SerializeElementSegment) {
-  // TODO: add more tests.
+  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(Conf);
+  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
   // 2. Test serialize element segment.
   //
   //   1.  Serialize element segment with expression of only End operation and
-  //   empty
-  //       function indices list.
+  //       empty function indices list.
   //   2.  Serialize element segment with expression and function indices list.
   //   3.  Serialize element segment with element kind and function indices
-  //   list.
+  //       list.
   //   4.  Serialize element segment with expression, element kind and function
-  //   indices list.
+  //       indices list.
   //   5.  Serialize element segment with element kind and function indices
-  //   list.
+  //       list.
   //   6.  Serialize element segment with offset expression and init expression
-  //   list.
+  //       list.
   //   7.  Serialize element segment with reference type and init expression
-  //   list.
+  //       list.
   //   8.  Serialize element segment with table index, offset expression,
-  //   reference type and init expression list.
+  //       reference type and init expression list.
   //   9.  Serialize element segment with reference type and init expression
-  //   list.
+  //       list.
+  //   10. Serialize element segment with invalid checking byte without
+  //       Ref-Types proposal.
 
   WasmEdge::AST::ElementSection ElementSec;
   WasmEdge::AST::ElementSegment ElementSeg;
@@ -287,9 +293,17 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
       0x45U, 0x46U, 0x47U, 0x0BU, // Vec[0]
   };
   EXPECT_EQ(Output, Expected);
+
+  EXPECT_FALSE(SerNoRefType.serializeSection(ElementSec));
 }
 
 TEST(SerializeSegmentTest, SerializeCodeSegment) {
+  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(Conf);
+  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
@@ -298,6 +312,8 @@ TEST(SerializeSegmentTest, SerializeCodeSegment) {
   //   1.  Serialize code segment of empty locals and expression with only End
   //       operation.
   //   2.  Serialize code segment with expression and local lists.
+  //   3.  Serialize code segment with invalid local number type without
+  //       Ref-Types proposal.
 
   WasmEdge::AST::CodeSection CodeSec;
   WasmEdge::AST::CodeSegment CodeSeg;
@@ -344,18 +360,30 @@ TEST(SerializeSegmentTest, SerializeCodeSegment) {
       0x45U, 0x46U, 0x47U, 0x0BU         // Expression
   };
   EXPECT_EQ(Output, Expected);
+
+  CodeSeg.getLocals() = {{0x01U, WasmEdge::ValType::ExternRef}};
+  CodeSec.getContent() = {CodeSeg};
+  EXPECT_FALSE(SerNoRefType.serializeSection(CodeSec));
 }
 
 TEST(SerializeSegmentTest, SerializeDataSegment) {
+  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(Conf);
+  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
   // 4. Test serialize data segment.
   //
   //   1.  Serialize data segment of expression with only End operation and
-  //   empty
+  //       empty
   //       initialization data.
   //   2.  Serialize data segment with expression and initialization data.
+  //   3.  Serialize data segment with invalid checking byte without Bulk-Mem
+  //       proposal.
 
   WasmEdge::AST::DataSection DataSec;
   WasmEdge::AST::DataSegment DataSeg;
@@ -426,5 +454,7 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
       0x04U, 0x74U, 0x65U, 0x73U, 0x74U // Vector length = 4, "test"
   };
   EXPECT_EQ(Output, Expected);
+
+  EXPECT_FALSE(SerNoRefType.serializeSection(DataSec));
 }
 } // namespace

@@ -26,15 +26,21 @@ TEST(ExpressionTest, SerializeExpression) {
   std::vector<uint8_t> Output;
   WasmEdge::AST::Expression Expr;
 
+  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(Conf);
+
   // 1. Test serialize expression.
   //
   //   1.  Serialize expression with only end operation.
   //   2.  Serialize expression with instructions.
+  //   3.  Serialize expression with instructions not in proposals.
 
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
   WasmEdge::AST::Instruction I32Eqz(WasmEdge::OpCode::I32__eqz);
   WasmEdge::AST::Instruction I32Eq(WasmEdge::OpCode::I32__eq);
   WasmEdge::AST::Instruction I32Ne(WasmEdge::OpCode::I32__ne);
+  WasmEdge::AST::Instruction TableGet(WasmEdge::OpCode::Table__get);
 
   Expr.getInstrs() = {End};
   Output = *Ser.serializeSection(createCodeSec(2, Expr));
@@ -60,5 +66,8 @@ TEST(ExpressionTest, SerializeExpression) {
       0x0BU                // OpCode End.
   };
   EXPECT_EQ(Output, Expected);
+
+  Expr.getInstrs() = {TableGet, End};
+  EXPECT_FALSE(SerNoRefType.serializeSection(createCodeSec(4, Expr)));
 }
 } // namespace

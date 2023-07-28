@@ -38,12 +38,13 @@ target_link_libraries(wasmedgeLoaderASTTests
 )
 
 wasmedge_add_executable(wasmedgeLoaderSerializerTests
+  serializeModuleTest.cpp
   serializeSectionTest.cpp
-  serializeInstructionTest.cpp
   serializeDescriptionTest.cpp
-  serializeExpressionTest.cpp
   serializeSegmentTest.cpp
   serializeTypeTest.cpp
+  serializeExpressionTest.cpp
+  serializeInstructionTest.cpp
 )
 
 add_test(wasmedgeLoaderSerializerTests wasmedgeLoaderSerializerTests)

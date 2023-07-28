@@ -42,6 +42,15 @@ createGlobalSec(WasmEdge::AST::GlobalType GlobalType) {
 }
 
 TEST(serializeTypeTest, SerializeFunctionType) {
+  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(Conf);
+  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+  Conf.removeProposal(WasmEdge::Proposal::MultiValue);
+  WasmEdge::Loader::Serializer SerNoMultiVal(Conf);
+  Conf.addProposal(WasmEdge::Proposal::MultiValue);
+
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
@@ -51,6 +60,11 @@ TEST(serializeTypeTest, SerializeFunctionType) {
   //   2.  Serialize non-void parameter function type.
   //   3.  Serialize non-void result function type.
   //   4.  Serialize function type with parameters and result.
+  //   5.  Serialize invalid parameters with ExternRef without Ref-Types
+  //       proposal.
+  //   6.  Serialize invalid results with ExternRef without Ref-Types proposal.
+  //   7.  Serialize invalid function type with multi-value returns without
+  //       Multi-Value proposal.
 
   WasmEdge::AST::FunctionType FuncType;
 
@@ -107,9 +121,26 @@ TEST(serializeTypeTest, SerializeFunctionType) {
       0x7CU                       // Result list
   };
   EXPECT_EQ(Output, Expected);
+
+  FuncType.getParamTypes() = {WasmEdge::ValType::ExternRef};
+  FuncType.getReturnTypes() = {};
+  EXPECT_FALSE(SerNoRefType.serializeSection(createTypeSec(FuncType)));
+
+  FuncType.getParamTypes() = {};
+  FuncType.getReturnTypes() = {WasmEdge::ValType::ExternRef};
+  EXPECT_FALSE(SerNoRefType.serializeSection(createTypeSec(FuncType)));
+
+  FuncType.getReturnTypes() = {WasmEdge::ValType::I32, WasmEdge::ValType::I32};
+  EXPECT_FALSE(SerNoMultiVal.serializeSection(createTypeSec(FuncType)));
 }
 
 TEST(serializeTypeTest, SerializeTableType) {
+  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(Conf);
+  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
@@ -117,6 +148,7 @@ TEST(serializeTypeTest, SerializeTableType) {
   //
   //   1.  Serialize limit with only min.
   //   2.  Serialize limit with min and max.
+  //   3.  Serialize invalid ExternRef without Ref-Types proposal.
 
   WasmEdge::AST::TableType TableType;
 
@@ -151,6 +183,9 @@ TEST(serializeTypeTest, SerializeTableType) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  // Max = 4294967295
   };
   EXPECT_EQ(Output, Expected);
+
+  TableType.setRefType(WasmEdge::RefType::ExternRef);
+  EXPECT_FALSE(SerNoRefType.serializeSection(createTableSec(TableType)));
 }
 
 TEST(serializeTypeTest, SerializeMemoryType) {
@@ -194,12 +229,19 @@ TEST(serializeTypeTest, SerializeMemoryType) {
 }
 
 TEST(serializeTypeTest, SerializeGlobalType) {
+  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(Conf);
+  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
   // 4. Test serialize global type.
   //
   //   1.  Serialize valid global type.
+  //   2.  Load invalid global type with ExternRef without Ref-Types proposal.
 
   WasmEdge::AST::GlobalType GlobalType;
 
@@ -215,5 +257,8 @@ TEST(serializeTypeTest, SerializeGlobalType) {
       0x0BU  // Expression
   };
   EXPECT_EQ(Output, Expected);
+
+  GlobalType.setValType(WasmEdge::ValType::ExternRef);
+  EXPECT_FALSE(SerNoRefType.serializeSection(createGlobalSec(GlobalType)));
 }
 } // namespace

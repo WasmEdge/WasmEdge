@@ -28,6 +28,9 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
+  Conf.removeProposal(WasmEdge::Proposal::ImportExportMutGlobals);
+  WasmEdge::Loader::Serializer SerNoImpMutGlob(Conf);
+
   // 1. Test serialize import description.
   //
   //   1.  Serialize import description with empty module and external name.
@@ -35,6 +38,8 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   //   3.  Serialize import description of table type.
   //   4.  Serialize import description of memory type.
   //   5.  Serialize import description of global type.
+  //   6.  Serialize invalid import description of global type without
+  //       Mut-Globals proposal.
 
   Desc.setModuleName("");
   Desc.setExternalName("");
@@ -68,8 +73,6 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   };
   EXPECT_EQ(Output, Expected);
 
-  Desc.setModuleName("test");
-  Desc.setExternalName("Loader");
   Desc.setExternalType(WasmEdge::ExternalType::Table);
   Desc.getExternalTableType().setRefType(WasmEdge::RefType::FuncRef);
   Desc.getExternalTableType().getLimit().setMin(4294967281);
@@ -92,8 +95,6 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   };
   EXPECT_EQ(Output, Expected);
 
-  Desc.setModuleName("test");
-  Desc.setExternalName("Loader");
   Desc.setExternalType(WasmEdge::ExternalType::Memory);
   Desc.getExternalMemoryType().getLimit().setMin(4294967281);
   Desc.getExternalMemoryType().getLimit().setMax(4294967295);
@@ -114,8 +115,6 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   };
   EXPECT_EQ(Output, Expected);
 
-  Desc.setModuleName("test");
-  Desc.setExternalName("Loader");
   Desc.setExternalType(WasmEdge::ExternalType::Global);
   Desc.getExternalGlobalType().setValType(WasmEdge::ValType::F64);
   Desc.getExternalGlobalType().setValMut(WasmEdge::ValMut::Const);
@@ -131,6 +130,9 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
       0x7CU, 0x00U                                     // Const F64 number type
   };
   EXPECT_EQ(Output, Expected);
+
+  Desc.getExternalGlobalType().setValMut(WasmEdge::ValMut::Var);
+  EXPECT_FALSE(SerNoImpMutGlob.serializeSection(createImportSec(Desc)));
 }
 
 TEST(SerializeDescriptionTest, SerializeExportDesc) {

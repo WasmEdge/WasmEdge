@@ -290,6 +290,10 @@ TEST(SerializeInstructionTest, SerializeBrTableControlInstruction) {
 }
 
 TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
+  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(Conf);
+  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
@@ -298,6 +302,8 @@ TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
   //
   //   1.  Serialize call instruction with valid type index.
   //   2.  Serialize call_indirect instruction with valid type and table index.
+  //   3.  Serialize call_indirect instruction with invalid table index without
+  //       Ref-Types proposal.
 
   WasmEdge::AST::Instruction Call(WasmEdge::OpCode::Call);
   WasmEdge::AST::Instruction CallIndirect(WasmEdge::OpCode::Call_indirect);
@@ -334,9 +340,15 @@ TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
       0x0BU                              // Expression End.
   };
   EXPECT_EQ(Output, Expected);
+
+  EXPECT_FALSE(SerNoRefType.serializeSection(createCodeSec(9, Instructions)));
 }
 
 TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
+  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(Conf);
+  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
@@ -344,6 +356,7 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   // 6. Test reference instructions.
   //
   //   1.  Serialize function reference type.
+  //   2.  Serialize invalid reference type without Ref-Types proposal.
 
   WasmEdge::AST::Instruction RefNull(WasmEdge::OpCode::Ref__null);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
@@ -362,9 +375,17 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
       0x0BU  // Expression End.
   };
   EXPECT_EQ(Output, Expected);
+
+  RefNull.setRefType(WasmEdge::RefType::ExternRef);
+  Instructions = {RefNull, End};
+  EXPECT_FALSE(SerNoRefType.serializeSection(createCodeSec(3, Instructions)));
 }
 
 TEST(SerializeInstructionTest, SerializeParametricInstruction) {
+  Conf.removeProposal(WasmEdge::Proposal::SIMD);
+  WasmEdge::Loader::Serializer SerNoSIMD(Conf);
+  Conf.addProposal(WasmEdge::Proposal::SIMD);
+
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
@@ -372,6 +393,7 @@ TEST(SerializeInstructionTest, SerializeParametricInstruction) {
   // 7. Test parametric instructions.
   //
   //   1.  Serialize valid select_t instruction with value type list.
+  //   2.  Serialize invalid value type list without SIMD proposal.
 
   WasmEdge::AST::Instruction SelectT(WasmEdge::OpCode::Select_t);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
@@ -393,6 +415,11 @@ TEST(SerializeInstructionTest, SerializeParametricInstruction) {
       0x0BU         // Expression End.
   };
   EXPECT_EQ(Output, Expected);
+
+  SelectT.getValTypeList()[0] = WasmEdge::ValType::V128;
+  SelectT.getValTypeList()[1] = WasmEdge::ValType::V128;
+  Instructions = {SelectT, End};
+  EXPECT_FALSE(SerNoSIMD.serializeSection(createCodeSec(6, Instructions)));
 }
 
 TEST(SerializeInstructionTest, SerializeVariableInstruction) {

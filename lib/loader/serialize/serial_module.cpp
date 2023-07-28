@@ -4,7 +4,8 @@ namespace WasmEdge {
 namespace Loader {
 
 // Serialize module. See "include/loader/serialize.h".
-Expect<std::vector<uint8_t>> Serializer::serializeModule(const AST::Module &Mod) {
+Expect<std::vector<uint8_t>>
+Serializer::serializeModule(const AST::Module &Mod) {
   std::vector<uint8_t> OutVec;
   // Serialize Magic and Version.
   OutVec.insert(OutVec.end(), Mod.getMagic().begin(), Mod.getMagic().end());

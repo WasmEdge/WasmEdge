@@ -14,9 +14,10 @@ void serializeOpCode(OpCode Code, std::vector<uint8_t> &OutVec) {
 
 // Serialize instruction. See "include/loader/serialize.h".
 Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
-                                      std::vector<uint8_t> &OutVec) {
+                                              std::vector<uint8_t> &OutVec) {
   auto serializeMemImmediate = [this, &Instr, &OutVec]() -> Expect<void> {
-    if (Conf.hasProposal(Proposal::MultiMemories) && Instr.getMemoryAlign() < 64 && Instr.getTargetIndex() != 0) {
+    if (Conf.hasProposal(Proposal::MultiMemories) &&
+        Instr.getMemoryAlign() < 64 && Instr.getTargetIndex() != 0) {
       serializeU32(Instr.getMemoryAlign() + 64, OutVec);
       serializeU32(Instr.getTargetIndex(), OutVec);
     } else {
@@ -28,7 +29,8 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
 
   auto serializeCheckZero = [this, &OutVec](uint8_t C) -> Expect<void> {
     if (C != UINT8_C(0)) {
-      return logSerializeError(ErrCode::Value::ExpectedZeroByte, ASTNodeAttr::Instruction);
+      return logSerializeError(ErrCode::Value::ExpectedZeroByte,
+                               ASTNodeAttr::Instruction);
     }
     OutVec.push_back(C);
     return {};
@@ -78,7 +80,8 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
       break;
 
     default:
-      return logSerializeError(ErrCode::Value::Unreachable, ASTNodeAttr::Instruction);
+      return logSerializeError(ErrCode::Value::Unreachable,
+                               ASTNodeAttr::Instruction);
     }
     return {};
 
@@ -105,9 +108,11 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Return_call_indirect:
     // Serialize the type index.
     serializeU32(Instr.getTargetIndex(), OutVec);
-    if (Instr.getSourceIndex() > 0 && !Conf.hasProposal(Proposal::ReferenceTypes)) {
+    if (Instr.getSourceIndex() > 0 &&
+        !Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
-                             Proposal::ReferenceTypes, ASTNodeAttr::Instruction);
+                             Proposal::ReferenceTypes,
+                             ASTNodeAttr::Instruction);
     }
     // Serialize the table index.
     serializeU32(Instr.getSourceIndex(), OutVec);
@@ -115,7 +120,9 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    if (auto Check = checkRefTypeProposals(Instr.getRefType(), ASTNodeAttr::Instruction); unlikely(!Check)) {
+    if (auto Check =
+            checkRefTypeProposals(Instr.getRefType(), ASTNodeAttr::Instruction);
+        unlikely(!Check)) {
       return Unexpect(Check);
     }
     OutVec.push_back(static_cast<uint8_t>(Instr.getRefType()));
@@ -134,7 +141,8 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
     uint32_t VecCnt = Instr.getValTypeList().size();
     serializeU32(VecCnt, OutVec);
     for (auto VType : Instr.getValTypeList()) {
-      if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Instruction); unlikely(!Check)) {
+      if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Instruction);
+          unlikely(!Check)) {
         return Unexpect(Check);
       }
       OutVec.push_back(static_cast<uint8_t>(VType));
@@ -210,7 +218,8 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
       serializeU32(Instr.getSourceIndex(), OutVec);
       return {};
     } else {
-      if (auto Res = serializeCheckZero(Instr.getTargetIndex()); unlikely(!Res)) {
+      if (auto Res = serializeCheckZero(Instr.getTargetIndex());
+          unlikely(!Res)) {
         return Unexpect(Res);
       }
       return serializeCheckZero(Instr.getTargetIndex());
@@ -412,7 +421,7 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
   // SIMD Shuffle Instruction.
   case OpCode::I8x16__shuffle: {
     uint128_t Value = Instr.getNum().get<uint128_t>();
-    const std::uint8_t* Ptr = reinterpret_cast<const uint8_t*>(&Value);
+    const std::uint8_t *Ptr = reinterpret_cast<const uint8_t *>(&Value);
     for (uint32_t I = 0; I < 16; ++I) {
       OutVec.push_back(Ptr[15 - I]);
     }
@@ -726,7 +735,8 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
     return serializeMemImmediate();
 
   default:
-    return logSerializeError(ErrCode::Value::IllegalOpCode, ASTNodeAttr::Instruction);
+    return logSerializeError(ErrCode::Value::IllegalOpCode,
+                             ASTNodeAttr::Instruction);
   }
 }
 

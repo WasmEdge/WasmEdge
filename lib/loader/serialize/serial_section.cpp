@@ -20,7 +20,8 @@ Serializer::serializeSection(const AST::CustomSection &Sec) {
 }
 
 // Serialize type section. See "include/loader/serialize.h".
-Expect<std::vector<uint8_t>> Serializer::serializeSection(const AST::TypeSection &Sec) {
+Expect<std::vector<uint8_t>>
+Serializer::serializeSection(const AST::TypeSection &Sec) {
   // Type section: 0x01 + size:u32 + content:vec(functype).
   return serializeSectionContent(
       Sec, 0x01U, [=](const AST::FunctionType &R, std::vector<uint8_t> &V) {
@@ -108,12 +109,12 @@ Serializer::serializeSection(const AST::StartSection &Sec) {
 
 // Serialize element section. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeSection(const AST::ElementSection & Sec) {
+Serializer::serializeSection(const AST::ElementSection &Sec) {
   // Element section: 0x09 + size:u32 + content:vec(elemseg).
   return serializeSectionContent(
-    Sec, 0x09U, [=](const AST::ElementSegment &R, std::vector<uint8_t> &V) {
-      return serializeSegment(R, V);
-    });
+      Sec, 0x09U, [=](const AST::ElementSegment &R, std::vector<uint8_t> &V) {
+        return serializeSegment(R, V);
+      });
 }
 
 // Serialize code section. See "include/loader/serialize.h".

@@ -11,7 +11,8 @@ namespace {
 WasmEdge::Configure Conf;
 WasmEdge::Loader::Serializer Ser(Conf);
 
-WasmEdge::AST::CodeSection createCodeSec(size_t SegSize, WasmEdge::AST::Expression Expr) {
+WasmEdge::AST::CodeSection createCodeSec(size_t SegSize,
+                                         WasmEdge::AST::Expression Expr) {
   WasmEdge::AST::CodeSection CodeSec;
   WasmEdge::AST::CodeSegment CodeSeg;
   CodeSeg.getExpr() = Expr;
@@ -35,9 +36,7 @@ TEST(ExpressionTest, SerializeExpression) {
   WasmEdge::AST::Instruction I32Eq(WasmEdge::OpCode::I32__eq);
   WasmEdge::AST::Instruction I32Ne(WasmEdge::OpCode::I32__ne);
 
-  Expr.getInstrs() = {
-    End
-  };
+  Expr.getInstrs() = {End};
   Output = *Ser.serializeSection(createCodeSec(2, Expr));
   Expected = {
       0x0AU, // Code section
@@ -49,10 +48,7 @@ TEST(ExpressionTest, SerializeExpression) {
   };
   EXPECT_EQ(Output, Expected);
 
-  Expr.getInstrs() = {
-      I32Eqz, I32Eq, I32Ne,
-      End
-  };
+  Expr.getInstrs() = {I32Eqz, I32Eq, I32Ne, End};
   Output = *Ser.serializeSection(createCodeSec(5, Expr));
   Expected = {
       0x0AU,               // Code section
@@ -65,4 +61,4 @@ TEST(ExpressionTest, SerializeExpression) {
   };
   EXPECT_EQ(Output, Expected);
 }
-}
+} // namespace

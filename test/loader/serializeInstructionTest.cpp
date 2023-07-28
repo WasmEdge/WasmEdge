@@ -11,7 +11,9 @@ namespace {
 WasmEdge::Configure Conf;
 WasmEdge::Loader::Serializer Ser(Conf);
 
-WasmEdge::AST::CodeSection createCodeSec(size_t SegSize, std::vector<WasmEdge::AST::Instruction> Instructions) {
+WasmEdge::AST::CodeSection
+createCodeSec(size_t SegSize,
+              std::vector<WasmEdge::AST::Instruction> Instructions) {
   WasmEdge::AST::CodeSection CodeSec;
   WasmEdge::AST::CodeSegment CodeSeg;
   WasmEdge::AST::Expression Expr;
@@ -74,12 +76,7 @@ TEST(SerializeInstructionTest, SerializeBlockControlInstruction) {
   EXPECT_EQ(Output, Expected);
 
   Loop.setEmptyBlockType();
-  Instructions = {
-      Block,
-      I32Eqz, I32Eq, I32Ne,
-      End,
-      End
-  };
+  Instructions = {Block, I32Eqz, I32Eq, I32Ne, End, End};
   Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,               // Code section
@@ -96,12 +93,7 @@ TEST(SerializeInstructionTest, SerializeBlockControlInstruction) {
   EXPECT_EQ(Output, Expected);
 
   Loop.setEmptyBlockType();
-  Instructions = {
-      Loop,
-      I32Eqz, I32Eq, I32Ne,
-      End,
-      End
-  };
+  Instructions = {Loop, I32Eqz, I32Eq, I32Ne, End, End};
   Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,               // Code section
@@ -138,11 +130,7 @@ TEST(SerializeInstructionTest, SerializeIfElseControlInstruction) {
   WasmEdge::AST::Instruction I32Ne(WasmEdge::OpCode::I32__ne);
 
   If.setEmptyBlockType();
-  Instructions = {
-      If,
-      End,
-      End
-  };
+  Instructions = {If, End, End};
   Output = *Ser.serializeSection(createCodeSec(5, Instructions));
   Expected = {
       0x0AU, // Code section
@@ -158,12 +146,7 @@ TEST(SerializeInstructionTest, SerializeIfElseControlInstruction) {
   EXPECT_EQ(Output, Expected);
 
   If.setEmptyBlockType();
-  Instructions = {
-      If,
-      Else,
-      End,
-      End
-  };
+  Instructions = {If, Else, End, End};
   Output = *Ser.serializeSection(createCodeSec(6, Instructions));
   Expected = {
       0x0AU, // Code section
@@ -180,12 +163,7 @@ TEST(SerializeInstructionTest, SerializeIfElseControlInstruction) {
   EXPECT_EQ(Output, Expected);
 
   If.setEmptyBlockType();
-  Instructions = {
-      If,
-      I32Eqz, I32Eq, I32Ne,
-      End,
-      End
-  };
+  Instructions = {If, I32Eqz, I32Eq, I32Ne, End, End};
   Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,               // Code section
@@ -202,14 +180,8 @@ TEST(SerializeInstructionTest, SerializeIfElseControlInstruction) {
   EXPECT_EQ(Output, Expected);
 
   If.setEmptyBlockType();
-  Instructions = {
-      If,
-      I32Eqz, I32Eq, I32Ne,
-      Else,
-      I32Eqz, I32Eq, I32Ne,
-      End,
-      End
-  };
+  Instructions = {If,     I32Eqz, I32Eq, I32Ne, Else,
+                  I32Eqz, I32Eq,  I32Ne, End,   End};
   Output = *Ser.serializeSection(createCodeSec(12, Instructions));
   Expected = {
       0x0AU,               // Code section
@@ -242,10 +214,7 @@ TEST(SerializeInstructionTest, SerializeBrControlInstruction) {
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   Br.getJump().TargetIndex = 0xFFFFFFFFU;
-  Instructions = {
-      Br,
-      End
-  };
+  Instructions = {Br, End};
   Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,                             // Code section
@@ -260,10 +229,7 @@ TEST(SerializeInstructionTest, SerializeBrControlInstruction) {
   EXPECT_EQ(Output, Expected);
 
   BrIf.getJump().TargetIndex = 0xFFFFFFFFU;
-  Instructions = {
-      BrIf,
-      End
-  };
+  Instructions = {BrIf, End};
   Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected[5] = 0x0DU; // OpCode Br_if.
   EXPECT_EQ(Output, Expected);
@@ -284,10 +250,7 @@ TEST(SerializeInstructionTest, SerializeBrTableControlInstruction) {
 
   BrTable.setLabelListSize(1);
   BrTable.getLabelList()[0].TargetIndex = 0xFFFFFFFFU;
-  Instructions = {
-      BrTable,
-      End
-  };
+  Instructions = {BrTable, End};
   Output = *Ser.serializeSection(createCodeSec(9, Instructions));
   Expected = {
       0x0AU,                             // Code section
@@ -307,10 +270,7 @@ TEST(SerializeInstructionTest, SerializeBrTableControlInstruction) {
   BrTable.getLabelList()[1].TargetIndex = 0xFFFFFFF2U;
   BrTable.getLabelList()[2].TargetIndex = 0xFFFFFFF3U;
   BrTable.getLabelList()[3].TargetIndex = 0xFFFFFFFFU;
-  Instructions = {
-      BrTable,
-      End
-  };
+  Instructions = {BrTable, End};
   Output = *Ser.serializeSection(createCodeSec(24, Instructions));
   Expected = {
       0x0AU,                             // Code section
@@ -344,10 +304,7 @@ TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   Call.getTargetIndex() = 0xFFFFFFFFU;
-  Instructions = {
-      Call,
-      End
-  };
+  Instructions = {Call, End};
   Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,                             // Code section
@@ -363,10 +320,7 @@ TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
 
   CallIndirect.getTargetIndex() = 0xFFFFFFFFU;
   CallIndirect.getSourceIndex() = 0x05U;
-  Instructions = {
-      CallIndirect,
-      End
-  };
+  Instructions = {CallIndirect, End};
   Output = *Ser.serializeSection(createCodeSec(9, Instructions));
   Expected = {
       0x0AU,                             // Code section
@@ -395,10 +349,7 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   RefNull.setRefType(WasmEdge::RefType::FuncRef);
-  Instructions = {
-      RefNull,
-      End
-  };
+  Instructions = {RefNull, End};
   Output = *Ser.serializeSection(createCodeSec(3, Instructions));
   Expected = {
       0x0AU, // Code section
@@ -428,10 +379,7 @@ TEST(SerializeInstructionTest, SerializeParametricInstruction) {
   SelectT.setValTypeListSize(2);
   SelectT.getValTypeList()[0] = WasmEdge::ValType::I32;
   SelectT.getValTypeList()[1] = WasmEdge::ValType::I64;
-  Instructions = {
-      SelectT,
-      End
-  };
+  Instructions = {SelectT, End};
   Output = *Ser.serializeSection(createCodeSec(6, Instructions));
   Expected = {
       0x0AU,        // Code section
@@ -460,10 +408,7 @@ TEST(SerializeInstructionTest, SerializeVariableInstruction) {
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   LocalGet.getTargetIndex() = 0xFFFFFFFFU;
-  Instructions = {
-      LocalGet,
-      End
-  };
+  Instructions = {LocalGet, End};
   Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,                             // Code section
@@ -493,10 +438,7 @@ TEST(SerializeInstructionTest, SerializeTableInstruction) {
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   TableGet.getTargetIndex() = 0xFFFFFFFFU;
-  Instructions = {
-      TableGet,
-      End
-  };
+  Instructions = {TableGet, End};
   Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,                             // Code section
@@ -512,10 +454,7 @@ TEST(SerializeInstructionTest, SerializeTableInstruction) {
 
   TableInit.getSourceIndex() = 0x05U;
   TableInit.getTargetIndex() = 0xFFFFFFFFU;
-  Instructions = {
-      TableInit,
-      End
-  };
+  Instructions = {TableInit, End};
   Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,                             // Code section
@@ -545,10 +484,7 @@ TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
   WasmEdge::AST::Instruction I32Load(WasmEdge::OpCode::I32__load);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
-  Instructions = {
-      MemoryGrow,
-      End
-  };
+  Instructions = {MemoryGrow, End};
   Output = *Ser.serializeSection(createCodeSec(4, Instructions));
   Expected = {
       0x0AU, // Code section
@@ -564,10 +500,7 @@ TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
 
   I32Load.getMemoryAlign() = 0xFFFFFFFFU;
   I32Load.getMemoryOffset() = 0xFFFFFFFEU;
-  Instructions = {
-      I32Load,
-      End
-  };
+  Instructions = {I32Load, End};
   Output = *Ser.serializeSection(createCodeSec(13, Instructions));
   Expected = {
       0x0AU,                             // Code section
@@ -584,10 +517,7 @@ TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
 
   I32Load.getMemoryAlign() = 0xFFFFFFFFU;
   I32Load.getMemoryOffset() = 0xFFFFFFFEU;
-  Instructions = {
-      I32Load,
-      End
-  };
+  Instructions = {I32Load, End};
   Output = *Ser.serializeSection(createCodeSec(13, Instructions));
   Expected = {
       0x0AU,                             // Code section
@@ -622,10 +552,7 @@ TEST(SerializeInstructionTest, SerializeConstInstruction) {
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   I32Const.setNum(-123456);
-  Instructions = {
-      I32Const,
-      End
-  };
+  Instructions = {I32Const, End};
   Output = *Ser.serializeSection(createCodeSec(6, Instructions));
   Expected = {
       0x0AU,               // Code section
@@ -640,10 +567,7 @@ TEST(SerializeInstructionTest, SerializeConstInstruction) {
   EXPECT_EQ(Output, Expected);
 
   I64Const.setNum(-112233445566);
-  Instructions = {
-      I64Const,
-      End
-  };
+  Instructions = {I64Const, End};
   Output = *Ser.serializeSection(createCodeSec(9, Instructions));
   Expected = {
       0x0AU,                                    // Code section
@@ -658,10 +582,7 @@ TEST(SerializeInstructionTest, SerializeConstInstruction) {
   EXPECT_EQ(Output, Expected);
 
   F32Const.setNum(-3.1415926F);
-  Instructions = {
-      F32Const,
-      End
-  };
+  Instructions = {F32Const, End};
   Output = *Ser.serializeSection(createCodeSec(7, Instructions));
   Expected = {
       0x0AU,                      // Code section
@@ -676,10 +597,7 @@ TEST(SerializeInstructionTest, SerializeConstInstruction) {
   EXPECT_EQ(Output, Expected);
 
   F64Const.setNum(-3.1415926535897932);
-  Instructions = {
-      F64Const,
-      End
-  };
+  Instructions = {F64Const, End};
   Output = *Ser.serializeSection(createCodeSec(11, Instructions));
   Expected = {
       0x0AU, // Code section

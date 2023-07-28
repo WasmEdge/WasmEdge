@@ -5,7 +5,7 @@ namespace Loader {
 
 // Serialize limit. See "include/loader/serialize.h".
 Expect<void> Serializer::serializeLimit(const AST::Limit &Lim,
-                                std::vector<uint8_t> &OutVec) {
+                                        std::vector<uint8_t> &OutVec) {
   // Limit: 0x00 + min:u32
   //       |0x01 + min:u32 + max:u32
   //       |0x02 + min:u32 (shared)
@@ -17,11 +17,14 @@ Expect<void> Serializer::serializeLimit(const AST::Limit &Lim,
   if (Lim.hasMax()) {
     Flag |= 0x01U;
   }
-  if (static_cast<AST::Limit::LimitType>(Flag) == AST::Limit::LimitType::SharedNoMax) {
+  if (static_cast<AST::Limit::LimitType>(Flag) ==
+      AST::Limit::LimitType::SharedNoMax) {
     if (Conf.hasProposal(Proposal::Threads)) {
-      return logSerializeError(ErrCode::Value::SharedMemoryNoMax, ASTNodeAttr::Type_Limit);
+      return logSerializeError(ErrCode::Value::SharedMemoryNoMax,
+                               ASTNodeAttr::Type_Limit);
     }
-    return logSerializeError(ErrCode::Value::IntegerTooLarge, ASTNodeAttr::Type_Limit);
+    return logSerializeError(ErrCode::Value::IntegerTooLarge,
+                             ASTNodeAttr::Type_Limit);
   }
   OutVec.push_back(Flag);
   serializeU32(Lim.getMin(), OutVec);
@@ -32,25 +35,29 @@ Expect<void> Serializer::serializeLimit(const AST::Limit &Lim,
 }
 
 Expect<void> Serializer::serializeType(const AST::FunctionType &Type,
-                               std::vector<uint8_t> &OutVec) {
+                                       std::vector<uint8_t> &OutVec) {
   // Function type: 0x60 + paramtypes:vec(valtype) + returntypes:vec(valtype).
   // Prefix 0x60.
   OutVec.push_back(0x60U);
   // Param types: vec(valtype).
   serializeU32(Type.getParamTypes().size(), OutVec);
   for (auto VType : Type.getParamTypes()) {
-    if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Type_Function); !Check) {
+    if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Type_Function);
+        !Check) {
       return Unexpect(Check);
     }
     OutVec.push_back(static_cast<uint8_t>(VType));
   }
   // Return types: vec(valtype).
-  if (unlikely(!Conf.hasProposal(Proposal::MultiValue)) && Type.getReturnTypes().size() > 1) {
-    return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::MultiValue, ASTNodeAttr::Type_Function);
+  if (unlikely(!Conf.hasProposal(Proposal::MultiValue)) &&
+      Type.getReturnTypes().size() > 1) {
+    return logNeedProposal(ErrCode::Value::MalformedValType,
+                           Proposal::MultiValue, ASTNodeAttr::Type_Function);
   }
   serializeU32(Type.getReturnTypes().size(), OutVec);
   for (auto VType : Type.getReturnTypes()) {
-    if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Type_Function); !Check) {
+    if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Type_Function);
+        !Check) {
       return Unexpect(Check);
     }
     OutVec.push_back(static_cast<uint8_t>(VType));
@@ -59,9 +66,11 @@ Expect<void> Serializer::serializeType(const AST::FunctionType &Type,
 }
 
 Expect<void> Serializer::serializeType(const AST::TableType &Type,
-                               std::vector<uint8_t> &OutVec) {
+                                       std::vector<uint8_t> &OutVec) {
   // Table type: elemtype:valtype + limit.
-  if (auto Check = checkRefTypeProposals(Type.getRefType(), ASTNodeAttr::Type_Table); !Check) {
+  if (auto Check =
+          checkRefTypeProposals(Type.getRefType(), ASTNodeAttr::Type_Table);
+      !Check) {
     return Unexpect(Check);
   }
   OutVec.push_back(static_cast<uint8_t>(Type.getRefType()));
@@ -73,7 +82,7 @@ Expect<void> Serializer::serializeType(const AST::TableType &Type,
 }
 
 Expect<void> Serializer::serializeType(const AST::MemoryType &Type,
-                               std::vector<uint8_t> &OutVec) {
+                                       std::vector<uint8_t> &OutVec) {
   // Memory type: limit.
   if (auto Res = serializeLimit(Type.getLimit(), OutVec); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Memory));
@@ -83,9 +92,11 @@ Expect<void> Serializer::serializeType(const AST::MemoryType &Type,
 }
 
 Expect<void> Serializer::serializeType(const AST::GlobalType &Type,
-                               std::vector<uint8_t> &OutVec) {
+                                       std::vector<uint8_t> &OutVec) {
   // Global type: valtype + valmut.
-  if (auto Check = checkValTypeProposals(Type.getValType(), ASTNodeAttr::Type_Global); !Check) {
+  if (auto Check =
+          checkValTypeProposals(Type.getValType(), ASTNodeAttr::Type_Global);
+      !Check) {
     return Unexpect(Check);
   }
   OutVec.push_back(static_cast<uint8_t>(Type.getValType()));

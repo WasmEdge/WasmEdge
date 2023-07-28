@@ -13,35 +13,30 @@ WasmEdge::Loader::Serializer Ser(Conf);
 
 WasmEdge::AST::TypeSection createTypeSec(WasmEdge::AST::FunctionType FuncType) {
   WasmEdge::AST::TypeSection TypeSec;
-  TypeSec.getContent() = {
-    FuncType
-  };
+  TypeSec.getContent() = {FuncType};
   return TypeSec;
 }
 
 WasmEdge::AST::TableSection createTableSec(WasmEdge::AST::TableType TableType) {
   WasmEdge::AST::TableSection TableSec;
-  TableSec.getContent() = {
-    TableType
-  };
+  TableSec.getContent() = {TableType};
   return TableSec;
 }
 
-WasmEdge::AST::MemorySection createMemorySec(WasmEdge::AST::MemoryType MemoryType) {
+WasmEdge::AST::MemorySection
+createMemorySec(WasmEdge::AST::MemoryType MemoryType) {
   WasmEdge::AST::MemorySection MemorySec;
-  MemorySec.getContent() = {
-      MemoryType
-  };
+  MemorySec.getContent() = {MemoryType};
   return MemorySec;
 }
 
-WasmEdge::AST::GlobalSection createGlobalSec(WasmEdge::AST::GlobalType GlobalType) {
+WasmEdge::AST::GlobalSection
+createGlobalSec(WasmEdge::AST::GlobalType GlobalType) {
   WasmEdge::AST::GlobalSection GlobalSec;
   WasmEdge::AST::GlobalSegment GlobalSeg;
   GlobalSeg.getGlobalType() = GlobalType;
   GlobalSeg.getExpr().getInstrs() = {
-    WasmEdge::AST::Instruction(WasmEdge::OpCode::End)
-  };
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
   GlobalSec.getContent() = {GlobalSeg};
   return GlobalSec;
 }
@@ -70,12 +65,8 @@ TEST(serializeTypeTest, SerializeFunctionType) {
   };
   EXPECT_EQ(Output, Expected);
 
-  FuncType.getParamTypes() = {
-    WasmEdge::ValType::F64,
-    WasmEdge::ValType::F32,
-    WasmEdge::ValType::I64,
-    WasmEdge::ValType::I32
-  };
+  FuncType.getParamTypes() = {WasmEdge::ValType::F64, WasmEdge::ValType::F32,
+                              WasmEdge::ValType::I64, WasmEdge::ValType::I32};
   Output = *Ser.serializeSection(createTypeSec(FuncType));
   Expected = {
       0x01U,                      // Type section
@@ -89,9 +80,7 @@ TEST(serializeTypeTest, SerializeFunctionType) {
   EXPECT_EQ(Output, Expected);
 
   FuncType.getParamTypes() = {};
-  FuncType.getReturnTypes() = {
-    WasmEdge::ValType::F64
-  };
+  FuncType.getReturnTypes() = {WasmEdge::ValType::F64};
   Output = *Ser.serializeSection(createTypeSec(FuncType));
   Expected = {
       0x01U, // Type section
@@ -104,12 +93,8 @@ TEST(serializeTypeTest, SerializeFunctionType) {
   };
   EXPECT_EQ(Output, Expected);
 
-  FuncType.getParamTypes() = {
-      WasmEdge::ValType::F64,
-      WasmEdge::ValType::F32,
-      WasmEdge::ValType::I64,
-      WasmEdge::ValType::I32
-  };
+  FuncType.getParamTypes() = {WasmEdge::ValType::F64, WasmEdge::ValType::F32,
+                              WasmEdge::ValType::I64, WasmEdge::ValType::I32};
   Output = *Ser.serializeSection(createTypeSec(FuncType));
   Expected = {
       0x01U,                      // Type section
@@ -231,4 +216,4 @@ TEST(serializeTypeTest, SerializeGlobalType) {
   };
   EXPECT_EQ(Output, Expected);
 }
-}
+} // namespace

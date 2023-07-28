@@ -64,7 +64,8 @@ TEST(SerializeSectionTest, SerializeImportSection) {
   ID2.setExternalType(WasmEdge::ExternalType::Memory);
   ID2.getExternalMemoryType().getLimit().setMin(0);
   ID2.getExternalMemoryType().getLimit().setMax(15);
-  ID2.getExternalMemoryType().getLimit().setType(WasmEdge::AST::Limit::LimitType::HasMinMax);
+  ID2.getExternalMemoryType().getLimit().setType(
+      WasmEdge::AST::Limit::LimitType::HasMinMax);
 
   WasmEdge::AST::ImportDesc ID3;
   ID3.setModuleName("test");
@@ -158,30 +159,30 @@ TEST(SerializeSectionTest, SerializeMemorySection) {
 TEST(SerializeSectionTest, SerializeGlobalSection) {
   WasmEdge::AST::GlobalSection GlobalSec;
   WasmEdge::AST::GlobalSegment GlobalSeg1;
-  WasmEdge::AST::GlobalType GlobalType1(WasmEdge::ValType::F64, WasmEdge::ValMut::Const);
+  WasmEdge::AST::GlobalType GlobalType1(WasmEdge::ValType::F64,
+                                        WasmEdge::ValMut::Const);
   GlobalSeg1.getGlobalType() = GlobalType1;
   GlobalSeg1.getExpr().getInstrs() = {
-    WasmEdge::AST::Instruction(WasmEdge::OpCode::End)
-  };
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
 
   WasmEdge::AST::GlobalSegment GlobalSeg2;
-  WasmEdge::AST::GlobalType GlobalType2(WasmEdge::ValType::F32, WasmEdge::ValMut::Const);
+  WasmEdge::AST::GlobalType GlobalType2(WasmEdge::ValType::F32,
+                                        WasmEdge::ValMut::Const);
   GlobalSeg2.getGlobalType() = GlobalType2;
   GlobalSeg2.getExpr().getInstrs() = {
       WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)
-  };
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
 
   GlobalSec.getContent().push_back(GlobalSeg1);
   GlobalSec.getContent().push_back(GlobalSeg2);
 
   std::vector<uint8_t> Output = *Ser.serializeSection(GlobalSec);
   std::vector<uint8_t> Expected = {
-      0x06U,                            // Global section
-      0x08U,                            // Content size = 8
-      0x02U,                            // Vector length = 2
-      0x7CU, 0x00U, 0x0BU,              // vec[0]
-      0x7DU, 0x00U, 0x45U, 0x0BU,       // vec[1]
+      0x06U,                      // Global section
+      0x08U,                      // Content size = 8
+      0x02U,                      // Vector length = 2
+      0x7CU, 0x00U, 0x0BU,        // vec[0]
+      0x7DU, 0x00U, 0x45U, 0x0BU, // vec[1]
   };
   EXPECT_EQ(Output, Expected);
 }
@@ -237,12 +238,10 @@ TEST(SerializeSectionTest, SerializeElementSection) {
   ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Active);
 
   WasmEdge::AST::Expression Expr;
-  Expr.getInstrs() = {
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)
-  };
+  Expr.getInstrs() = {WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
+                      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
+                      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne),
+                      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
   ElementSeg.getExpr() = Expr;
 
   auto RefFunc1 = WasmEdge::AST::Instruction(WasmEdge::OpCode::Ref__func);
@@ -254,28 +253,20 @@ TEST(SerializeSectionTest, SerializeElementSection) {
   auto End = WasmEdge::AST::Instruction(WasmEdge::OpCode::End);
 
   WasmEdge::AST::Expression InitExpr1;
-  InitExpr1.getInstrs() = {
-    RefFunc1, End
-  };
+  InitExpr1.getInstrs() = {RefFunc1, End};
   WasmEdge::AST::Expression InitExpr2;
-  InitExpr2.getInstrs() = {
-      RefFunc2, End
-  };
+  InitExpr2.getInstrs() = {RefFunc2, End};
   WasmEdge::AST::Expression InitExpr3;
-  InitExpr3.getInstrs() = {
-      RefFunc3, End
-  };
-  ElementSeg.getInitExprs() = {
-      InitExpr1, InitExpr2, InitExpr3
-  };
+  InitExpr3.getInstrs() = {RefFunc3, End};
+  ElementSeg.getInitExprs() = {InitExpr1, InitExpr2, InitExpr3};
 
   ElementSec.getContent() = {ElementSeg};
 
   std::vector<uint8_t> Output = *Ser.serializeSection(ElementSec);
   std::vector<uint8_t> Expected = {
-      0x09U, // Element section
-      0x0AU, // Content size = 10
-      0x01U, // Vector length = 1
+      0x09U,                      // Element section
+      0x0AU,                      // Content size = 10
+      0x01U,                      // Vector length = 1
       0x00U,                      // Prefix 0x00
       0x45U, 0x46U, 0x47U, 0x0BU, // Expression
       0x03U, 0x0AU, 0x0BU, 0x0CU  // Vec(3)
@@ -287,13 +278,12 @@ TEST(SerializeSectionTest, SerializeCodeSection) {
   WasmEdge::AST::CodeSection CodeSec;
   WasmEdge::AST::CodeSegment CodeSeg;
   CodeSeg.setSegSize(8);
-  CodeSeg.getLocals() = {{1, WasmEdge::ValType::F64}, {3, WasmEdge::ValType::F32}};
+  CodeSeg.getLocals() = {{1, WasmEdge::ValType::F64},
+                         {3, WasmEdge::ValType::F32}};
   WasmEdge::AST::Expression Expr;
-  Expr.getInstrs() = {
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)
-  };
+  Expr.getInstrs() = {WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
+                      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
+                      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
   CodeSeg.getExpr() = Expr;
   CodeSec.getContent().push_back(CodeSeg);
 
@@ -315,12 +305,10 @@ TEST(SerializeSectionTest, SerializeDataSection) {
   WasmEdge::AST::DataSection DataSec;
   WasmEdge::AST::DataSegment DataSeg;
   WasmEdge::AST::Expression Expr;
-  Expr.getInstrs() = {
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)
-  };
+  Expr.getInstrs() = {WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
+                      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
+                      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne),
+                      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
   DataSeg.setMode(WasmEdge::AST::DataSegment::DataMode::Active);
   DataSeg.getExpr() = Expr;
   DataSeg.getData() = {'t', 'e', 's', 't'};

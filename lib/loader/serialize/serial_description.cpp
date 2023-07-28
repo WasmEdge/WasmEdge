@@ -5,7 +5,7 @@ namespace Loader {
 
 // Serialize import description. See "include/loader/serialize.h".
 Expect<void> Serializer::serializeDesc(const AST::ImportDesc &Desc,
-                               std::vector<uint8_t> &OutVec) {
+                                       std::vector<uint8_t> &OutVec) {
   // Import description: modname:vec(byte) + extname:vec(byte) + importdesc
   // Module name: vec(byte).
   serializeU32(Desc.getModuleName().size(), OutVec);
@@ -35,14 +35,15 @@ Expect<void> Serializer::serializeDesc(const AST::ImportDesc &Desc,
     }
     return serializeType(Desc.getExternalGlobalType(), OutVec);
   default:
-    return logSerializeError(ErrCode::Value::Unreachable, ASTNodeAttr::Desc_Import);
+    return logSerializeError(ErrCode::Value::Unreachable,
+                             ASTNodeAttr::Desc_Import);
   }
   return {};
 }
 
 // Serialize export description. See "include/loader/serialize.h".
 Expect<void> Serializer::serializeDesc(const AST::ExportDesc &Desc,
-                               std::vector<uint8_t> &OutVec) {
+                                       std::vector<uint8_t> &OutVec) {
   // Export description: extname:vec(byte) + exportdesc
   // External name: vec(byte).
   serializeU32(Desc.getExternalName().size(), OutVec);

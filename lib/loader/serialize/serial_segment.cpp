@@ -5,7 +5,7 @@ namespace Loader {
 
 // Serialize global segment. See "include/loader/serialize.h".
 Expect<void> Serializer::serializeSegment(const AST::GlobalSegment &Seg,
-                                  std::vector<uint8_t> &OutVec) {
+                                          std::vector<uint8_t> &OutVec) {
   // Global segment: globaltype + expr.
   if (auto Res = serializeType(Seg.getGlobalType(), OutVec); unlikely(!Res)) {
     return Unexpect(Res);
@@ -19,8 +19,9 @@ Expect<void> Serializer::serializeSegment(const AST::GlobalSegment &Seg,
 
 // Serialize element segment. See "include/loader/serialize.h".
 Expect<void> Serializer::serializeSegment(const AST::ElementSegment &Seg,
-                                  std::vector<uint8_t> &OutVec) {
-  // Element segment: mode:u32 + tableidx:u32 + offset:expr + elemkind:reftype + vec(u32) + vec(expr)
+                                          std::vector<uint8_t> &OutVec) {
+  // Element segment: mode:u32 + tableidx:u32 + offset:expr + elemkind:reftype +
+  // vec(u32) + vec(expr)
   std::vector<uint8_t> Result;
   uint8_t Mode = 0x00;
   switch (Seg.getMode()) {
@@ -42,7 +43,8 @@ Expect<void> Serializer::serializeSegment(const AST::ElementSegment &Seg,
     if (Seg.getMode() == AST::ElementSegment::ElemMode::Active) {
       Mode |= 0x02;
     } else {
-      return logSerializeError(ErrCode::Value::Unreachable, ASTNodeAttr::Seg_Element);
+      return logSerializeError(ErrCode::Value::Unreachable,
+                               ASTNodeAttr::Seg_Element);
     }
   }
 
@@ -68,7 +70,8 @@ Expect<void> Serializer::serializeSegment(const AST::ElementSegment &Seg,
   if (Seg.getInitExprs().size() != 0) {
     auto IsExpr = false;
     for (auto Expr : Seg.getInitExprs()) {
-      if (Expr.getInstrs().size() != 2 || Expr.getInstrs().at(0).getOpCode() != OpCode::Ref__func) {
+      if (Expr.getInstrs().size() != 2 ||
+          Expr.getInstrs().at(0).getOpCode() != OpCode::Ref__func) {
         IsExpr = true;
         break;
       }
@@ -79,8 +82,11 @@ Expect<void> Serializer::serializeSegment(const AST::ElementSegment &Seg,
   }
 
   //  Mode > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
-  if (Mode > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations) && !Conf.hasProposal(Proposal::ReferenceTypes)) {
-    return logNeedProposal(ErrCode::Value::ExpectedZeroByte, Proposal::BulkMemoryOperations, ASTNodeAttr::Seg_Element);
+  if (Mode > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations) &&
+      !Conf.hasProposal(Proposal::ReferenceTypes)) {
+    return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
+                           Proposal::BulkMemoryOperations,
+                           ASTNodeAttr::Seg_Element);
   }
 
   serializeU32(Seg.getInitExprs().size(), Result);
@@ -109,7 +115,7 @@ Expect<void> Serializer::serializeSegment(const AST::ElementSegment &Seg,
 
 // Serialize code segment. See "include/loader/serialize.h".
 Expect<void> Serializer::serializeSegment(const AST::CodeSegment &Seg,
-                                  std::vector<uint8_t> &OutVec) {
+                                          std::vector<uint8_t> &OutVec) {
   // Code segment: size:u32 + locals:vec(u32 + valtype) + body:expr.
   serializeU32(Seg.getSegSize(), OutVec);
   serializeU32(Seg.getLocals().size(), OutVec);
@@ -119,10 +125,12 @@ Expect<void> Serializer::serializeSegment(const AST::CodeSegment &Seg,
     uint32_t LocalCnt = Locals.first;
     // Total local variables should not more than 2^32. Capped at 2^26.
     if (UINT32_C(67108864) - TotalLocalCnt < LocalCnt) {
-      return logSerializeError(ErrCode::Value::TooManyLocals, ASTNodeAttr::Seg_Code);
+      return logSerializeError(ErrCode::Value::TooManyLocals,
+                               ASTNodeAttr::Seg_Code);
     }
     TotalLocalCnt += LocalCnt;
-    if (auto Res = checkValTypeProposals(Locals.second, ASTNodeAttr::Seg_Code); unlikely(!Res)) {
+    if (auto Res = checkValTypeProposals(Locals.second, ASTNodeAttr::Seg_Code);
+        unlikely(!Res)) {
       return Unexpect(Res);
     }
     serializeU32(Locals.first, OutVec);
@@ -137,13 +145,16 @@ Expect<void> Serializer::serializeSegment(const AST::CodeSegment &Seg,
 
 // Serialize data segment. See "include/loader/serialize.h".
 Expect<void> Serializer::serializeSegment(const AST::DataSegment &Seg,
-                                  std::vector<uint8_t> &OutVec) {
+                                          std::vector<uint8_t> &OutVec) {
   // Data segment: mode:u32 + memidx:u32 + expr + vec(byte)
   switch (Seg.getMode()) {
   case AST::DataSegment::DataMode::Active:
     if (Seg.getIdx() != 0) {
-      if (!Conf.hasProposal(Proposal::BulkMemoryOperations) && !Conf.hasProposal(Proposal::ReferenceTypes)) {
-        return logNeedProposal(ErrCode::Value::ExpectedZeroByte, Proposal::BulkMemoryOperations, ASTNodeAttr::Seg_Data);
+      if (!Conf.hasProposal(Proposal::BulkMemoryOperations) &&
+          !Conf.hasProposal(Proposal::ReferenceTypes)) {
+        return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
+                               Proposal::BulkMemoryOperations,
+                               ASTNodeAttr::Seg_Data);
       }
       serializeU32(0x02, OutVec);
       serializeU32(Seg.getIdx(), OutVec);
@@ -157,8 +168,11 @@ Expect<void> Serializer::serializeSegment(const AST::DataSegment &Seg,
     break;
 
   case AST::DataSegment::DataMode::Passive:
-    if (!Conf.hasProposal(Proposal::BulkMemoryOperations) && !Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logNeedProposal(ErrCode::Value::ExpectedZeroByte, Proposal::BulkMemoryOperations, ASTNodeAttr::Seg_Data);
+    if (!Conf.hasProposal(Proposal::BulkMemoryOperations) &&
+        !Conf.hasProposal(Proposal::ReferenceTypes)) {
+      return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
+                             Proposal::BulkMemoryOperations,
+                             ASTNodeAttr::Seg_Data);
     }
     serializeU32(0x01, OutVec);
     break;

@@ -74,7 +74,8 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.getExternalTableType().setRefType(WasmEdge::RefType::FuncRef);
   Desc.getExternalTableType().getLimit().setMin(4294967281);
   Desc.getExternalTableType().getLimit().setMax(4294967295);
-  Desc.getExternalTableType().getLimit().setType(WasmEdge::AST::Limit::LimitType::HasMinMax);
+  Desc.getExternalTableType().getLimit().setType(
+      WasmEdge::AST::Limit::LimitType::HasMinMax);
 
   Output = *Ser.serializeSection(createImportSec(Desc));
   Expected = {
@@ -96,7 +97,8 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.setExternalType(WasmEdge::ExternalType::Memory);
   Desc.getExternalMemoryType().getLimit().setMin(4294967281);
   Desc.getExternalMemoryType().getLimit().setMax(4294967295);
-  Desc.getExternalMemoryType().getLimit().setType(WasmEdge::AST::Limit::LimitType::HasMinMax);
+  Desc.getExternalMemoryType().getLimit().setType(
+      WasmEdge::AST::Limit::LimitType::HasMinMax);
 
   Output = *Ser.serializeSection(createImportSec(Desc));
   Expected = {
@@ -184,4 +186,4 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   };
   EXPECT_EQ(Output, Expected);
 }
-}
+} // namespace

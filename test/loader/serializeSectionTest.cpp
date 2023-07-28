@@ -8,14 +8,15 @@
 
 namespace {
 
-WasmEdge::Loader::Serializer Ser;
+WasmEdge::Configure Conf;
+WasmEdge::Loader::Serializer Ser(Conf);
 
 TEST(SerializeSectionTest, SerializeCustomSection) {
   WasmEdge::AST::CustomSection CustomSec;
   CustomSec.setName("name");
   CustomSec.getContent() = {0x01U, 0x02U, 0x03U, 0x04U, 0x05U};
 
-  std::vector<uint8_t> Output = Ser.serializeSection(CustomSec);
+  std::vector<uint8_t> Output = *Ser.serializeSection(CustomSec);
   std::vector<uint8_t> Expected = {
       0x00U,                            // Section ID
       0x0AU,                            // Content size = 10
@@ -38,7 +39,7 @@ TEST(SerializeSectionTest, SerializeTypeSection) {
   TypeSec.getContent().push_back(FT2);
   TypeSec.getContent().push_back(FT3);
 
-  std::vector<uint8_t> Output = Ser.serializeSection(TypeSec);
+  std::vector<uint8_t> Output = *Ser.serializeSection(TypeSec);
   std::vector<uint8_t> Expected = {
       0x01U,                                    // section ID
       0x10U,                                    // Content size = 16
@@ -77,7 +78,7 @@ TEST(SerializeSectionTest, SerializeImportSection) {
   ImpSec.getContent().push_back(ID2);
   ImpSec.getContent().push_back(ID3);
 
-  std::vector<uint8_t> Output = Ser.serializeSection(ImpSec);
+  std::vector<uint8_t> Output = *Ser.serializeSection(ImpSec);
   std::vector<uint8_t> Expected = {
       0x02U, // section ID
       0x31U, // Content size = 49
@@ -105,7 +106,7 @@ TEST(SerializeSectionTest, SerializeFunctionSection) {
   WasmEdge::AST::FunctionSection FuncSec;
   FuncSec.getContent() = {1, 2, 1, 1};
 
-  std::vector<uint8_t> Output = Ser.serializeSection(FuncSec);
+  std::vector<uint8_t> Output = *Ser.serializeSection(FuncSec);
   std::vector<uint8_t> Expected = {
       0x03U,                     // section ID
       0x05U,                     // Content size = 5
@@ -122,7 +123,7 @@ TEST(SerializeSectionTest, SerializeTableSection) {
   TableSec.getContent().push_back(TT1);
   TableSec.getContent().push_back(TT2);
 
-  std::vector<uint8_t> Output = Ser.serializeSection(TableSec);
+  std::vector<uint8_t> Output = *Ser.serializeSection(TableSec);
   std::vector<uint8_t> Expected = {
       0x04U,                      // section ID
       0x09U,                      // Content size = 9
@@ -142,7 +143,7 @@ TEST(SerializeSectionTest, SerializeMemorySection) {
   MemSec.getContent().push_back(MT2);
   MemSec.getContent().push_back(MT3);
 
-  std::vector<uint8_t> Output = Ser.serializeSection(MemSec);
+  std::vector<uint8_t> Output = *Ser.serializeSection(MemSec);
   std::vector<uint8_t> Expected = {
       0x05U,               // section ID
       0x09U,               // Content size = 9
@@ -159,22 +160,26 @@ TEST(SerializeSectionTest, SerializeGlobalSection) {
   WasmEdge::AST::GlobalSegment GlobalSeg1;
   WasmEdge::AST::GlobalType GlobalType1(WasmEdge::ValType::F64, WasmEdge::ValMut::Const);
   GlobalSeg1.getGlobalType() = GlobalType1;
+  GlobalSeg1.getExpr().getInstrs() = {
+    WasmEdge::AST::Instruction(WasmEdge::OpCode::End)
+  };
 
   WasmEdge::AST::GlobalSegment GlobalSeg2;
   WasmEdge::AST::GlobalType GlobalType2(WasmEdge::ValType::F32, WasmEdge::ValMut::Const);
-  WasmEdge::AST::Expression Expr;
-  Expr.getInstrs() = {WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz)};
   GlobalSeg2.getGlobalType() = GlobalType2;
-  GlobalSeg2.getExpr() = Expr;
+  GlobalSeg2.getExpr().getInstrs() = {
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)
+  };
 
   GlobalSec.getContent().push_back(GlobalSeg1);
   GlobalSec.getContent().push_back(GlobalSeg2);
 
-  std::vector<uint8_t> Output = Ser.serializeSection(GlobalSec);
+  std::vector<uint8_t> Output = *Ser.serializeSection(GlobalSec);
   std::vector<uint8_t> Expected = {
       0x06U,                            // Global section
       0x08U,                            // Content size = 8
-      0x02U,                            // Vector length = 3
+      0x02U,                            // Vector length = 2
       0x7CU, 0x00U, 0x0BU,              // vec[0]
       0x7DU, 0x00U, 0x45U, 0x0BU,       // vec[1]
   };
@@ -196,7 +201,7 @@ TEST(SerializeSectionTest, SerializeExportSection) {
   ExpSec.getContent().push_back(ED1);
   ExpSec.getContent().push_back(ED2);
 
-  std::vector<uint8_t> Output = Ser.serializeSection(ExpSec);
+  std::vector<uint8_t> Output = *Ser.serializeSection(ExpSec);
   std::vector<uint8_t> Expected = {
       0x07U, // section ID
       0x14U, // Content size = 20
@@ -215,7 +220,7 @@ TEST(SerializeSectionTest, SerializeStartSection) {
   WasmEdge::AST::StartSection StartSec;
   StartSec.setContent(717936);
 
-  std::vector<uint8_t> Output = Ser.serializeSection(StartSec);
+  std::vector<uint8_t> Output = *Ser.serializeSection(StartSec);
   std::vector<uint8_t> Expected = {
       0x08U,              // section ID
       0x03U,              // Content size = 3
@@ -228,8 +233,8 @@ TEST(SerializeSectionTest, SerializeElementSection) {
   WasmEdge::AST::ElementSection ElementSec;
   ElementSec.setContentSize(1);
 
-  WasmEdge::AST::ElementSegment ElementSeg1;
-  ElementSeg1.setMode(WasmEdge::AST::ElementSegment::ElemMode::Active);
+  WasmEdge::AST::ElementSegment ElementSeg;
+  ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Active);
 
   WasmEdge::AST::Expression Expr;
   Expr.getInstrs() = {
@@ -238,21 +243,35 @@ TEST(SerializeSectionTest, SerializeElementSection) {
       WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne),
       WasmEdge::AST::Instruction(WasmEdge::OpCode::End)
   };
-  ElementSeg1.getExpr() = Expr;
+  ElementSeg.getExpr() = Expr;
 
-  WasmEdge::AST::Expression InitExpr;
   auto RefFunc1 = WasmEdge::AST::Instruction(WasmEdge::OpCode::Ref__func);
   RefFunc1.getTargetIndex() = 0x0A;
   auto RefFunc2 = WasmEdge::AST::Instruction(WasmEdge::OpCode::Ref__func);
   RefFunc2.getTargetIndex() = 0x0B;
   auto RefFunc3 = WasmEdge::AST::Instruction(WasmEdge::OpCode::Ref__func);
   RefFunc3.getTargetIndex() = 0x0C;
-  InitExpr.getInstrs() = {RefFunc1, RefFunc2, RefFunc3, WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
-  ElementSeg1.getInitExprs() = {InitExpr};
+  auto End = WasmEdge::AST::Instruction(WasmEdge::OpCode::End);
 
-  ElementSec.getContent() = {ElementSeg1};
+  WasmEdge::AST::Expression InitExpr1;
+  InitExpr1.getInstrs() = {
+    RefFunc1, End
+  };
+  WasmEdge::AST::Expression InitExpr2;
+  InitExpr2.getInstrs() = {
+      RefFunc2, End
+  };
+  WasmEdge::AST::Expression InitExpr3;
+  InitExpr3.getInstrs() = {
+      RefFunc3, End
+  };
+  ElementSeg.getInitExprs() = {
+      InitExpr1, InitExpr2, InitExpr3
+  };
 
-  std::vector<uint8_t> Output = Ser.serializeSection(ElementSec);
+  ElementSec.getContent() = {ElementSeg};
+
+  std::vector<uint8_t> Output = *Ser.serializeSection(ElementSec);
   std::vector<uint8_t> Expected = {
       0x09U, // Element section
       0x0AU, // Content size = 10
@@ -278,7 +297,7 @@ TEST(SerializeSectionTest, SerializeCodeSection) {
   CodeSeg.getExpr() = Expr;
   CodeSec.getContent().push_back(CodeSeg);
 
-  std::vector<uint8_t> Output = Ser.serializeSection(CodeSec);
+  std::vector<uint8_t> Output = *Ser.serializeSection(CodeSec);
   std::vector<uint8_t> Expected = {
       0x0AU,              // Code section
       0x0AU,              // Content size = 10
@@ -307,7 +326,7 @@ TEST(SerializeSectionTest, SerializeDataSection) {
   DataSeg.getData() = {'t', 'e', 's', 't'};
   DataSec.getContent().push_back(DataSeg);
 
-  std::vector<uint8_t> Output = Ser.serializeSection(DataSec);
+  std::vector<uint8_t> Output = *Ser.serializeSection(DataSec);
   std::vector<uint8_t> Expected = {
       0x0BU,                            // Data section
       0x0BU,                            // Content size = 11
@@ -323,7 +342,7 @@ TEST(SerializeSectionTest, SerializeDataCountSection) {
   WasmEdge::AST::DataCountSection DataSec;
   DataSec.setContent(4279234575);
 
-  std::vector<uint8_t> Output = Ser.serializeSection(DataSec);
+  std::vector<uint8_t> Output = *Ser.serializeSection(DataSec);
   std::vector<uint8_t> Expected = {
       0x0CU,                            // section ID
       0x05U,                            // Content size = 5

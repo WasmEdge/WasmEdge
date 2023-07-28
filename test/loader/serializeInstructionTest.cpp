@@ -8,7 +8,8 @@
 
 namespace {
 
-WasmEdge::Loader::Serializer Ser;
+WasmEdge::Configure Conf;
+WasmEdge::Loader::Serializer Ser(Conf);
 
 WasmEdge::AST::CodeSection createCodeSec(size_t SegSize, std::vector<WasmEdge::AST::Instruction> Instructions) {
   WasmEdge::AST::CodeSection CodeSec;
@@ -42,7 +43,7 @@ TEST(SerializeInstructionTest, SerializeBlockControlInstruction) {
 
   Block.setEmptyBlockType();
   Instructions = {Block, End, End};
-  Output = Ser.serializeSection(createCodeSec(5, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(5, Instructions));
   Expected = {
       0x0AU, // Code section
       0x07U, // Content size = 7
@@ -58,7 +59,7 @@ TEST(SerializeInstructionTest, SerializeBlockControlInstruction) {
 
   Loop.setEmptyBlockType();
   Instructions = {Loop, End, End};
-  Output = Ser.serializeSection(createCodeSec(5, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(5, Instructions));
   Expected = {
       0x0AU, // Code section
       0x07U, // Content size = 7
@@ -79,7 +80,7 @@ TEST(SerializeInstructionTest, SerializeBlockControlInstruction) {
       End,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(8, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,               // Code section
       0x0AU,               // Content size = 10
@@ -101,7 +102,7 @@ TEST(SerializeInstructionTest, SerializeBlockControlInstruction) {
       End,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(8, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,               // Code section
       0x0AU,               // Content size = 10
@@ -142,7 +143,7 @@ TEST(SerializeInstructionTest, SerializeIfElseControlInstruction) {
       End,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(5, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(5, Instructions));
   Expected = {
       0x0AU, // Code section
       0x07U, // Content size = 7
@@ -163,7 +164,7 @@ TEST(SerializeInstructionTest, SerializeIfElseControlInstruction) {
       End,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(6, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(6, Instructions));
   Expected = {
       0x0AU, // Code section
       0x08U, // Content size = 8
@@ -185,7 +186,7 @@ TEST(SerializeInstructionTest, SerializeIfElseControlInstruction) {
       End,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(8, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,               // Code section
       0x0AU,               // Content size = 10
@@ -209,7 +210,7 @@ TEST(SerializeInstructionTest, SerializeIfElseControlInstruction) {
       End,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(12, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(12, Instructions));
   Expected = {
       0x0AU,               // Code section
       0x0EU,               // Content size = 14
@@ -245,7 +246,7 @@ TEST(SerializeInstructionTest, SerializeBrControlInstruction) {
       Br,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(8, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,                             // Code section
       0x0AU,                             // Content size = 10
@@ -263,7 +264,7 @@ TEST(SerializeInstructionTest, SerializeBrControlInstruction) {
       BrIf,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(8, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected[5] = 0x0DU; // OpCode Br_if.
   EXPECT_EQ(Output, Expected);
 }
@@ -287,7 +288,7 @@ TEST(SerializeInstructionTest, SerializeBrTableControlInstruction) {
       BrTable,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(9, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(9, Instructions));
   Expected = {
       0x0AU,                             // Code section
       0x0BU,                             // Content size = 11
@@ -310,7 +311,7 @@ TEST(SerializeInstructionTest, SerializeBrTableControlInstruction) {
       BrTable,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(24, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(24, Instructions));
   Expected = {
       0x0AU,                             // Code section
       0x1AU,                             // Content size = 26
@@ -347,7 +348,7 @@ TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
       Call,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(8, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,                             // Code section
       0x0AU,                             // Content size = 10
@@ -366,7 +367,7 @@ TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
       CallIndirect,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(9, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(9, Instructions));
   Expected = {
       0x0AU,                             // Code section
       0x0BU,                             // Content size = 11
@@ -398,7 +399,7 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
       RefNull,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(3, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(3, Instructions));
   Expected = {
       0x0AU, // Code section
       0x06U, // Content size = 6
@@ -431,7 +432,7 @@ TEST(SerializeInstructionTest, SerializeParametricInstruction) {
       SelectT,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(6, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(6, Instructions));
   Expected = {
       0x0AU,        // Code section
       0x08U,        // Content size = 8
@@ -463,7 +464,7 @@ TEST(SerializeInstructionTest, SerializeVariableInstruction) {
       LocalGet,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(8, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,                             // Code section
       0x0AU,                             // Content size = 10
@@ -496,7 +497,7 @@ TEST(SerializeInstructionTest, SerializeTableInstruction) {
       TableGet,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(8, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,                             // Code section
       0x0AU,                             // Content size = 10
@@ -515,7 +516,7 @@ TEST(SerializeInstructionTest, SerializeTableInstruction) {
       TableInit,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(8, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(8, Instructions));
   Expected = {
       0x0AU,                             // Code section
       0x0CU,                             // Content size = 12
@@ -548,7 +549,7 @@ TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
       MemoryGrow,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(4, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(4, Instructions));
   Expected = {
       0x0AU, // Code section
       0x06U, // Content size = 6
@@ -567,7 +568,7 @@ TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
       I32Load,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(13, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(13, Instructions));
   Expected = {
       0x0AU,                             // Code section
       0x0FU,                             // Content size = 15
@@ -587,7 +588,7 @@ TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
       I32Load,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(13, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(13, Instructions));
   Expected = {
       0x0AU,                             // Code section
       0x0FU,                             // Content size = 15
@@ -625,7 +626,7 @@ TEST(SerializeInstructionTest, SerializeConstInstruction) {
       I32Const,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(6, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(6, Instructions));
   Expected = {
       0x0AU,               // Code section
       0x08U,               // Content size = 8
@@ -643,7 +644,7 @@ TEST(SerializeInstructionTest, SerializeConstInstruction) {
       I64Const,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(9, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(9, Instructions));
   Expected = {
       0x0AU,                                    // Code section
       0x0BU,                                    // Content size = 11
@@ -661,7 +662,7 @@ TEST(SerializeInstructionTest, SerializeConstInstruction) {
       F32Const,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(7, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(7, Instructions));
   Expected = {
       0x0AU,                      // Code section
       0x09U,                      // Content size = 9
@@ -679,7 +680,7 @@ TEST(SerializeInstructionTest, SerializeConstInstruction) {
       F64Const,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(11, Instructions));
+  Output = *Ser.serializeSection(createCodeSec(11, Instructions));
   Expected = {
       0x0AU, // Code section
       0x0DU, // Content size = 13

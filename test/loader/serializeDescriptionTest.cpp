@@ -8,7 +8,8 @@
 
 namespace {
 
-WasmEdge::Loader::Serializer Ser;
+WasmEdge::Configure Conf;
+WasmEdge::Loader::Serializer Ser(Conf);
 
 WasmEdge::AST::ImportSection createImportSec(WasmEdge::AST::ImportDesc &Desc) {
   WasmEdge::AST::ImportSection ImportSec;
@@ -40,7 +41,7 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.setExternalType(WasmEdge::ExternalType::Function);
   Desc.setExternalFuncTypeIdx(0x00U);
 
-  Output = Ser.serializeSection(createImportSec(Desc));
+  Output = *Ser.serializeSection(createImportSec(Desc));
   Expected = {
       0x02U,       // Import section
       0x05U,       // Content size = 5
@@ -56,7 +57,7 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.setExternalType(WasmEdge::ExternalType::Function);
   Desc.setExternalFuncTypeIdx(0x00U);
 
-  Output = Ser.serializeSection(createImportSec(Desc));
+  Output = *Ser.serializeSection(createImportSec(Desc));
   Expected = {
       0x02U,                                           // Import section
       0x0FU,                                           // Content size = 15
@@ -75,7 +76,7 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.getExternalTableType().getLimit().setMax(4294967295);
   Desc.getExternalTableType().getLimit().setType(WasmEdge::AST::Limit::LimitType::HasMinMax);
 
-  Output = Ser.serializeSection(createImportSec(Desc));
+  Output = *Ser.serializeSection(createImportSec(Desc));
   Expected = {
       0x02U,                                           // Import section
       0x1AU,                                           // Content size = 26
@@ -97,7 +98,7 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.getExternalMemoryType().getLimit().setMax(4294967295);
   Desc.getExternalMemoryType().getLimit().setType(WasmEdge::AST::Limit::LimitType::HasMinMax);
 
-  Output = Ser.serializeSection(createImportSec(Desc));
+  Output = *Ser.serializeSection(createImportSec(Desc));
   Expected = {
       0x02U,                                           // Import section
       0x19U,                                           // Content size = 25
@@ -117,7 +118,7 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.getExternalGlobalType().setValType(WasmEdge::ValType::F64);
   Desc.getExternalGlobalType().setValMut(WasmEdge::ValMut::Const);
 
-  Output = Ser.serializeSection(createImportSec(Desc));
+  Output = *Ser.serializeSection(createImportSec(Desc));
   Expected = {
       0x02U,                                           // Import section
       0x10U,                                           // Content size = 16
@@ -145,7 +146,7 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   Desc.setExternalType(WasmEdge::ExternalType::Function);
   Desc.setExternalIndex(0x00U);
 
-  Output = Ser.serializeSection(createExportSec(Desc));
+  Output = *Ser.serializeSection(createExportSec(Desc));
   Expected = {
       0x07U,       // Export section
       0x04U,       // Content size = 4
@@ -159,7 +160,7 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   Desc.setExternalType(WasmEdge::ExternalType::Function);
   Desc.setExternalIndex(0x00U);
 
-  Output = Ser.serializeSection(createExportSec(Desc));
+  Output = *Ser.serializeSection(createExportSec(Desc));
   Expected = {
       0x07U,                                           // Export section
       0x0AU,                                           // Content size = 10
@@ -173,7 +174,7 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   Desc.setExternalType(WasmEdge::ExternalType::Table);
   Desc.setExternalIndex(0xFFFFFFFFU);
 
-  Output = Ser.serializeSection(createExportSec(Desc));
+  Output = *Ser.serializeSection(createExportSec(Desc));
   Expected = {
       0x07U,                                           // Export section
       0x0EU,                                           // Content size = 14

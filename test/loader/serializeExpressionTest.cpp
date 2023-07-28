@@ -8,7 +8,8 @@
 
 namespace {
 
-WasmEdge::Loader::Serializer Ser;
+WasmEdge::Configure Conf;
+WasmEdge::Loader::Serializer Ser(Conf);
 
 WasmEdge::AST::CodeSection createCodeSec(size_t SegSize, WasmEdge::AST::Expression Expr) {
   WasmEdge::AST::CodeSection CodeSec;
@@ -37,7 +38,7 @@ TEST(ExpressionTest, SerializeExpression) {
   Expr.getInstrs() = {
     End
   };
-  Output = Ser.serializeSection(createCodeSec(2, Expr));
+  Output = *Ser.serializeSection(createCodeSec(2, Expr));
   Expected = {
       0x0AU, // Code section
       0x04U, // Content size = 4
@@ -52,7 +53,7 @@ TEST(ExpressionTest, SerializeExpression) {
       I32Eqz, I32Eq, I32Ne,
       End
   };
-  Output = Ser.serializeSection(createCodeSec(5, Expr));
+  Output = *Ser.serializeSection(createCodeSec(5, Expr));
   Expected = {
       0x0AU,               // Code section
       0x07U,               // Content size = 7

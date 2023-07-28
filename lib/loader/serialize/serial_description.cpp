@@ -4,7 +4,7 @@ namespace WasmEdge {
 namespace Loader {
 
 // Serialize import description. See "include/loader/serialize.h".
-void Serializer::serializeDesc(const AST::ImportDesc &Desc,
+Expect<void> Serializer::serializeDesc(const AST::ImportDesc &Desc,
                                std::vector<uint8_t> &OutVec) {
   // Import description: modname:vec(byte) + extname:vec(byte) + importdesc
   // Module name: vec(byte).
@@ -23,21 +23,25 @@ void Serializer::serializeDesc(const AST::ImportDesc &Desc,
     serializeU32(Desc.getExternalFuncTypeIdx(), OutVec);
     break;
   case ExternalType::Table:
-    serializeType(Desc.getExternalTableType(), OutVec);
-    break;
+    return serializeType(Desc.getExternalTableType(), OutVec);
   case ExternalType::Memory:
-    serializeType(Desc.getExternalMemoryType(), OutVec);
-    break;
+    return serializeType(Desc.getExternalMemoryType(), OutVec);
   case ExternalType::Global:
-    serializeType(Desc.getExternalGlobalType(), OutVec);
-    break;
+    if (Desc.getExternalGlobalType().getValMut() == ValMut::Var &&
+        unlikely(!Conf.hasProposal(Proposal::ImportExportMutGlobals))) {
+      return logNeedProposal(ErrCode::Value::InvalidMut,
+                             Proposal::ImportExportMutGlobals,
+                             ASTNodeAttr::Desc_Import);
+    }
+    return serializeType(Desc.getExternalGlobalType(), OutVec);
   default:
-    assumingUnreachable();
+    return logSerializeError(ErrCode::Value::Unreachable, ASTNodeAttr::Desc_Import);
   }
+  return {};
 }
 
 // Serialize export description. See "include/loader/serialize.h".
-void Serializer::serializeDesc(const AST::ExportDesc &Desc,
+Expect<void> Serializer::serializeDesc(const AST::ExportDesc &Desc,
                                std::vector<uint8_t> &OutVec) {
   // Export description: extname:vec(byte) + exportdesc
   // External name: vec(byte).
@@ -47,6 +51,7 @@ void Serializer::serializeDesc(const AST::ExportDesc &Desc,
   // Export Desc: extern_type:byte + idx:u32.
   OutVec.push_back(static_cast<uint8_t>(Desc.getExternalType()));
   serializeU32(Desc.getExternalIndex(), OutVec);
+  return {};
 }
 
 } // namespace Loader

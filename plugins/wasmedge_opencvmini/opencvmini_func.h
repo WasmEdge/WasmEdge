@@ -101,5 +101,14 @@ public:
                     uint32_t top, uint32_t left, uint32_t bot, uint32_t right);
 };
 
+class WasmEdgeOpenCVMiniCvtColor
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniCvtColor> {
+public:
+  WasmEdgeOpenCVMiniCvtColor(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t SrcMatKey);
+};
+
 } // namespace Host
 } // namespace WasmEdge

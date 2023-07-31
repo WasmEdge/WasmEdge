@@ -163,5 +163,18 @@ Expect<void> WasmEdgeOpenCVMiniRectangle::body(const Runtime::CallingFrame &,
   return {};
 }
 
+Expect<uint32_t> WasmEdgeOpenCVMiniCvtColor::body(const Runtime::CallingFrame &,
+                                                  uint32_t SrcMatKey) {
+  auto Src = Env.getMat(SrcMatKey);
+  if (!Src) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  auto Img = *Src;
+
+  cv::Mat Dst;
+  cvtColor(Img, Dst, cv::COLOR_RGB2Luv, 3);
+  return Env.insertMat(Dst);
+}
+
 } // namespace Host
 } // namespace WasmEdge

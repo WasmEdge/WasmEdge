@@ -209,23 +209,30 @@ parseExpectedList(const simdjson::dom::array &Args) {
   Result.reserve(Args.size());
   for (const simdjson::dom::object &Element : Args) {
     std::string_view Type = Element["type"];
-    simdjson::dom::element Value = Element["value"];
-    if (Value.type() == simdjson::dom::element_type::ARRAY) {
-      simdjson::dom::array ValueNodeArray = Value;
-      std::string StrValue;
-      std::string_view LaneType = Element["lane_type"];
-      for (std::string_view X : ValueNodeArray) {
-        StrValue += std::string(X);
-        StrValue += ' ';
-      }
-      StrValue.pop_back();
-      Result.emplace_back(std::string(Type) + std::string(LaneType),
-                          std::move(StrValue));
-    } else if (Value.type() == simdjson::dom::element_type::STRING) {
-      std::string_view ValueStr = Value;
-      Result.emplace_back(std::string(Type), std::string(ValueStr));
+    simdjson::dom::element Value;
+    auto NoValue = Element["value"].get(Value);
+    if (NoValue) {
+      // Only marked the result type, not check the opaque result reference
+      // value.
+      Result.emplace_back(std::string(Type), "");
     } else {
-      assumingUnreachable();
+      if (Value.type() == simdjson::dom::element_type::ARRAY) {
+        simdjson::dom::array ValueNodeArray = Value;
+        std::string StrValue;
+        std::string_view LaneType = Element["lane_type"];
+        for (std::string_view X : ValueNodeArray) {
+          StrValue += std::string(X);
+          StrValue += ' ';
+        }
+        StrValue.pop_back();
+        Result.emplace_back(std::string(Type) + std::string(LaneType),
+                            std::move(StrValue));
+      } else if (Value.type() == simdjson::dom::element_type::STRING) {
+        std::string_view ValueStr = Value;
+        Result.emplace_back(std::string(Type), std::string(ValueStr));
+      } else {
+        assumingUnreachable();
+      }
     }
   }
   return Result;
@@ -243,6 +250,8 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"tail-call"sv, {Proposal::TailCall}},
     {"extended-const"sv, {Proposal::ExtendedConst}},
     {"threads"sv, {Proposal::Threads}},
+    {"function-references"sv,
+     {Proposal::FunctionReferences, Proposal::TailCall}},
 };
 
 } // namespace
@@ -310,12 +319,9 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
     if (ValStr == "null"sv) {
       return Got.first.get<RefVariant>().isNull();
     } else {
-      if (Got.first.get<RefVariant>().isNull()) {
-        return false;
-      }
-      return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
-                 WasmEdge::retrieveFuncRef(Got.first.get<RefVariant>()))) ==
-             static_cast<uint32_t>(std::stoul(ValStr));
+      // Due to the implementations of the embedders, the value of FuncRef is
+      // opaque. Therefore not to compare the value here.
+      return !Got.first.get<RefVariant>().isNull();
     }
   } else if (TypeStr == "externref"sv) {
     if (!Got.second.isExternRefType()) {
@@ -331,6 +337,17 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
                  &WasmEdge::retrieveExternRef<uint32_t>(
                      Got.first.get<RefVariant>()))) ==
              static_cast<uint32_t>(std::stoul(ValStr));
+    }
+  } else if (TypeStr == "ref"sv) {
+    if (!Got.second.isNullableRefType()) {
+      return false;
+    }
+    if (ValStr == "null"sv) {
+      return Got.first.get<RefVariant>().isNull();
+    } else {
+      // Due to the implementations of the embedders, the value of Ref is
+      // opaque. Therefore not to compare the value here.
+      return !Got.first.get<RefVariant>().isNull();
     }
   } else if (TypeStr == "i32"sv) {
     if (Got.second.getCode() != ValTypeCode::I32) {

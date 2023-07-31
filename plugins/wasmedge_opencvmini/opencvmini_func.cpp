@@ -147,10 +147,10 @@ WasmEdgeOpenCVMiniBilinearSampling::body(const Runtime::CallingFrame &,
   return Env.insertMat(Dst);
 }
 
-Expect<uint32_t>
-WasmEdgeOpenCVMiniRectangle::body(const Runtime::CallingFrame &,
-                                  uint32_t SrcMatKey, uint32_t top,
-                                  uint32_t left, uint32_t bot, uint32_t right) {
+Expect<void> WasmEdgeOpenCVMiniRectangle::body(const Runtime::CallingFrame &,
+                                               uint32_t SrcMatKey, uint32_t top,
+                                               uint32_t left, uint32_t bot,
+                                               uint32_t right) {
   auto Src = Env.getMat(SrcMatKey);
   if (!Src) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -160,7 +160,7 @@ WasmEdgeOpenCVMiniRectangle::body(const Runtime::CallingFrame &,
   cv::Point bottom_right(bot, right);
 
   cv::rectangle(*Src, top_left, bottom_right, cv::Scalar(0, 255, 0), 2);
-  return SrcMatKey;
+  return {};
 }
 
 } // namespace Host

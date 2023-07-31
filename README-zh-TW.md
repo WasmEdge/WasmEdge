@@ -8,7 +8,7 @@
   
 ![WasmEdge Logo](/docs/wasmedge-runtime-logo.png)
 
-WasmEdge （前名為 SSVM ） 是為邊緣運算最佳化的輕量級、高性能、可擴充的 WebAssembly (Wasm) 虛擬機器，可運用在雲端原生、邊緣運算、去中心化的應用程式。 WasmEdge 現今是目前市面上 [最快的 Wasm 虛擬機器之一](https://ieeexplore.ieee.org/document/9214403)。 WasmEdge 是由 [CNCF](https://www.cncf.io/) （Cloud Native Computing Foundation ，雲端原生運算基金會）託管的官方沙箱項目之一。其[使用情境](docs/use_cases-zh-TW.md)包含 serverless apps 、嵌入式函數、微型服務、智慧合約和 IoT 裝置。
+WasmEdge （前名為 SSVM ） 是為邊緣運算最佳化的輕量級、高性能、可擴充的 WebAssembly (Wasm) 虛擬機器，可運用在雲端原生、邊緣運算、去中心化的應用程式。 WasmEdge 現今是目前市面上 [最快的 Wasm 虛擬機器之一](https://ieeexplore.ieee.org/document/9214403)。 WasmEdge 是由 [CNCF](https://www.cncf.io/) （Cloud Native Computing Foundation ，雲端原生運算基金會）託管的官方沙箱項目之一。其[使用情境](docs/use_cases-en.md)包含 serverless apps 、嵌入式函數、微型服務、智慧合約和 IoT 裝置。
 
 ![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/alerts/)
@@ -22,9 +22,9 @@ WasmEdge （前名為 SSVM ） 是為邊緣運算最佳化的輕量級、高性�
 
 # 快速開始指引
 
-🚀 [安装](docs/book/zh-TW/src/start/install.md) WasmEdge\
-🤖 [編譯](docs/book/zh-TW/src/extend/build.md) 並[貢獻](docs/book/en/src/contribute.md) WasmEdge\
-⌨️ [從 CLI 執行](docs/book/zh-TW/src/start/cli.md)一個獨立的 Wasm 程式或 [JavaScript 程式](docs/book/zh-TW/src/intro/use/js.md) \
+🚀 [安装](docs/book/en/src/start/install.md) WasmEdge\
+🤖 [編譯](docs/book/en/src/extend/build.md) 並[貢獻](docs/book/en/src/contribute.md) WasmEdge\
+⌨️ [從 CLI 執行](docs/book/en/src/start/cli.md)一個獨立的 Wasm 程式或 [JavaScript 程式](docs/book/en/src/intro/use/js.md) \
 🔌 在 [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) 、 [Go 語言](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)、或是 [Rust 應用程式](https://www.secondstate.io/articles/getting-started-with-rust-function/)嵌入 Wasm 函式 \
 🛠 使用 [Docker 工具](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/)、[即時資料流框架](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/), 和 [區塊鏈](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) 管理和編排 Wasm runtimes
 
@@ -34,7 +34,7 @@ WasmEdge 為其執行的 Wasm bytecode 程式提供了一個有良好定義的�
 
 <div align="center">
   
-**檢視 WasmEdge 的[使用情境](docs/book/zh-TW/src/intro/use.md)。**
+**檢視 WasmEdge 的[使用情境](docs/book/en/src/intro/use.md)。**
 
 </div>
 

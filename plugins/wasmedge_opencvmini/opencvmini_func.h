@@ -91,5 +91,16 @@ public:
                         uint32_t OutImgW, uint32_t OutImgH);
 };
 
+class WasmEdgeOpenCVMiniRectangle
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniRectangle> {
+public:
+  WasmEdgeOpenCVMiniRectangle(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t SrcMatKey,
+                        uint32_t top, uint32_t left, uint32_t bot,
+                        uint32_t right);
+};
+
 } // namespace Host
 } // namespace WasmEdge

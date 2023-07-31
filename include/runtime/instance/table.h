@@ -31,17 +31,11 @@ class TableInstance {
 public:
   TableInstance() = delete;
   TableInstance(const AST::TableType &TType,
-                const RefVariant InitValue) noexcept
-      : TabType(TType), Refs(TType.getLimit().getMin(), InitValue),
-        InitValue(InitValue) {
-    // TODO: check whether the ref type of table type is nullable
-  }
-  TableInstance(const AST::TableSegment &Table,
-                const RefVariant InitValue) noexcept
-      : TabType(Table.getTableType()),
-        Refs(Table.getTableType().getLimit().getMin(), InitValue),
-        InitValue(InitValue) {
-    // TODO: initialized the table instance by TableSegment.getExpr()
+                const RefVariant InitVal = RefVariant()) noexcept
+      : TabType(TType), Refs(TType.getLimit().getMin(), InitVal),
+        InitValue(InitVal) {
+    // If the reftype is not a nullable reference, the init ref is required.
+    assuming(TType.getRefType().isNullableRefType() || !InitVal.isNull());
   }
 
   /// Get size of table.refs

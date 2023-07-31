@@ -65,11 +65,6 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // This function will always success.
   instantiate(*ModInst, FuncSec, CodeSec);
 
-  // Instantiate TableSection (TableSec)
-  const AST::TableSection &TabSec = Mod.getTableSection();
-  // This function will always success.
-  instantiate(*ModInst, TabSec);
-
   // Instantiate MemorySection (MemorySec)
   const AST::MemorySection &MemSec = Mod.getMemorySection();
   // This function will always success.
@@ -92,6 +87,15 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   const AST::GlobalSection &GlobSec = Mod.getGlobalSection();
   if (auto Res = instantiate(StackMgr, *ModInst, GlobSec); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Global));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    StoreMgr.recycleModule(std::move(ModInst));
+    return Unexpect(Res);
+  }
+
+  // Instantiate TableSection (TableSec)
+  const AST::TableSection &TabSec = Mod.getTableSection();
+  if (auto Res = instantiate(StackMgr, *ModInst, TabSec); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Table));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     StoreMgr.recycleModule(std::move(ModInst));
     return Unexpect(Res);

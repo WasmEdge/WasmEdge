@@ -181,17 +181,6 @@ public:
   GlobalType(const ValType &VType, ValMut VMut) noexcept
       : Type(VType), Mut(VMut) {}
 
-  /// `==` and `!=` operator overloadings.
-  friend bool operator==(const GlobalType &LHS,
-                         const GlobalType &RHS) noexcept {
-    return LHS.Type == RHS.Type && LHS.Mut == RHS.Mut;
-  }
-
-  friend bool operator!=(const GlobalType &LHS,
-                         const GlobalType &RHS) noexcept {
-    return !(LHS == RHS);
-  }
-
   /// Getter and setter of value type.
   const ValType &getValType() const noexcept { return Type; }
   void setValType(const ValType &VType) noexcept { Type = VType; }

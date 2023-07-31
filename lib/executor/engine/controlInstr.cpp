@@ -116,17 +116,20 @@ Expect<void> Executor::runCallOp(Runtime::StackManager &StackMgr,
 }
 
 Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
+                                    const AST::Instruction &Instr,
                                     AST::InstrView::iterator &PC,
                                     bool IsTailCall) noexcept {
 
   const auto Ref = StackMgr.pop().get<RefVariant>();
   if (Ref.isNull()) {
     spdlog::error(ErrCode::Value::InvokeNullFunc);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::InvokeNullFunc);
   }
 
   // Get Function address.
-  const auto *FuncInst = Ref.asPtr<Runtime::Instance::FunctionInstance>();
+  const auto *FuncInst = retrieveFuncRef(Ref);
   if (auto Res = enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall); !Res) {
     return Unexpect(Res);
   } else {
@@ -171,7 +174,10 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
   // Check function type.
   const auto *FuncInst = retrieveFuncRef(Ref);
   const auto &FuncType = FuncInst->getFuncType();
-  if (*TargetFuncType != FuncType) {
+  if (!matchTypes(*ModInst, TargetFuncType->getParamTypes(),
+                  *FuncInst->getModule(), FuncType.getParamTypes()) ||
+      !matchTypes(*ModInst, TargetFuncType->getReturnTypes(),
+                  *FuncInst->getModule(), FuncType.getReturnTypes())) {
     spdlog::error(ErrCode::Value::IndirectCallTypeMismatch);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},

@@ -135,26 +135,19 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runCallOp(StackMgr, Instr, PC);
     case OpCode::Call_indirect:
       return runCallIndirectOp(StackMgr, Instr, PC);
-    case OpCode::Call_ref:
-      return runCallRefOp(StackMgr, PC);
     case OpCode::Return_call:
       return runCallOp(StackMgr, Instr, PC, true);
     case OpCode::Return_call_indirect:
       return runCallIndirectOp(StackMgr, Instr, PC, true);
+    case OpCode::Call_ref:
+      return runCallRefOp(StackMgr, Instr, PC);
     case OpCode::Return_call_ref:
-      return runCallRefOp(StackMgr, PC, true);
+      return runCallRefOp(StackMgr, Instr, PC, true);
 
     // Reference Instructions
     case OpCode::Ref__null:
       StackMgr.push(RefVariant());
       return {};
-    case OpCode::Ref__as_non_null:
-      if (StackMgr.getTop().get<RefVariant>().isNull()) {
-        spdlog::error(ErrCode::Value::CastNullToNonNull);
-        return Unexpect(ErrCode::Value::CastNullToNonNull);
-      }
-      return {};
-
     case OpCode::Ref__is_null: {
       ValVariant &Val = StackMgr.getTop();
       if (Val.get<RefVariant>().isNull()) {
@@ -170,6 +163,14 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       StackMgr.push(RefVariant(FuncInst));
       return {};
     }
+    case OpCode::Ref__as_non_null:
+      if (StackMgr.getTop().get<RefVariant>().isNull()) {
+        spdlog::error(ErrCode::Value::CastNullToNonNull);
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+        return Unexpect(ErrCode::Value::CastNullToNonNull);
+      }
+      return {};
 
     // Parametric Instructions
     case OpCode::Drop:

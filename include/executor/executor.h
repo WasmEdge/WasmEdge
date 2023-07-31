@@ -220,7 +220,8 @@ private:
                            const AST::CodeSection &CodeSec);
 
   /// Instantiation of Table Instances.
-  Expect<void> instantiate(Runtime::Instance::ModuleInstance &ModInst,
+  Expect<void> instantiate(Runtime::StackManager &StackMgr,
+                           Runtime::Instance::ModuleInstance &ModInst,
                            const AST::TableSection &TabSec);
 
   /// Instantiation of Memory Instances.
@@ -268,6 +269,24 @@ private:
                              uint32_t EraseBegin, uint32_t EraseEnd,
                              int32_t PCOffset,
                              AST::InstrView::iterator &PC) noexcept;
+  /// @}
+
+  /// \name Helper Functions for matching value types.
+  /// @{
+  bool matchType(const Runtime::Instance::ModuleInstance &ModExp,
+                 const ValType &Exp,
+                 const Runtime::Instance::ModuleInstance &ModGot,
+                 const ValType &Got) const noexcept;
+
+  bool matchType(const Runtime::Instance::ModuleInstance &ModExp,
+                 const RefType &Exp,
+                 const Runtime::Instance::ModuleInstance &ModGot,
+                 const RefType &Got) const noexcept;
+
+  bool matchTypes(const Runtime::Instance::ModuleInstance &ModExp,
+                  Span<const ValType> Exp,
+                  const Runtime::Instance::ModuleInstance &ModGot,
+                  Span<const ValType> Got) const noexcept;
   /// @}
 
   /// \name Helper Functions for getting instances.
@@ -321,6 +340,7 @@ private:
                          AST::InstrView::iterator &PC,
                          bool IsTailCall = false) noexcept;
   Expect<void> runCallRefOp(Runtime::StackManager &StackMgr,
+                            const AST::Instruction &Instr,
                             AST::InstrView::iterator &PC,
                             bool IsTailCall = false) noexcept;
   Expect<void> runCallIndirectOp(Runtime::StackManager &StackMgr,

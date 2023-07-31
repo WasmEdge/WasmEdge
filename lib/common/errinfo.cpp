@@ -258,8 +258,8 @@ fmt::formatter<WasmEdge::ErrInfo::InfoInstruction>::format(
         Iter = fmt::format_to(Iter, "0x{:08x}{:08x}"sv, Value[1], Value[0]);
         break;
       }
-      case WasmEdge::ValTypeCode::FuncRef:
-      case WasmEdge::ValTypeCode::ExternRef:
+      case WasmEdge::ValTypeCode::Ref:
+      case WasmEdge::ValTypeCode::RefNull:
         Iter = fmt::format_to(Iter, "{}"sv, Info.ArgsTypes[I]);
         if (Info.Args[I].get<WasmEdge::RefVariant>().isNull()) {
           Iter = fmt::format_to(Iter, ":null"sv);

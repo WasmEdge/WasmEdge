@@ -252,5 +252,70 @@ Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
   return ModInst->unsafeGetData(Idx);
 }
 
+bool Executor::matchType(const Runtime::Instance::ModuleInstance &ModExp,
+                         const ValType &Exp,
+                         const Runtime::Instance::ModuleInstance &ModGot,
+                         const ValType &Got) const noexcept {
+  if (Exp == Got) {
+    return true;
+  }
+  if (Exp.isRefType() && Got.isRefType()) {
+    return matchType(ModExp, Exp.toRefType(), ModGot, Got.toRefType());
+  }
+  return false;
+}
+
+bool Executor::matchType(const Runtime::Instance::ModuleInstance &ModExp,
+                         const RefType &Exp,
+                         const Runtime::Instance::ModuleInstance &ModGot,
+                         const RefType &Got) const noexcept {
+  // Nullable matching.
+  bool NullableMatch = Exp.isNullableRefType() || !Got.isNullableRefType();
+
+  // Match the heap type.
+  if (Exp.getHeapType() == Got.getHeapType()) {
+    // Heap type is the same.
+    // (both any funcref, externref, or the same type index)
+    return NullableMatch;
+  }
+  if (Exp.getHeapTypeCode() == HeapTypeCode::Func &&
+      Got.getHeapTypeCode() == HeapTypeCode::TypeIndex) {
+    // Match type index to any funcref.
+    return NullableMatch;
+  }
+  if (Exp.getHeapTypeCode() == HeapTypeCode::TypeIndex &&
+      Got.getHeapTypeCode() == HeapTypeCode::TypeIndex) {
+    // Match got type index to expected type index.
+    if (matchTypes(ModExp, ModExp.FuncTypes[Exp.getTypeIndex()].getParamTypes(),
+                   ModGot,
+                   ModGot.FuncTypes[Got.getTypeIndex()].getParamTypes()) &&
+        matchTypes(
+            ModExp, ModExp.FuncTypes[Exp.getTypeIndex()].getReturnTypes(),
+            ModGot, ModGot.FuncTypes[Got.getTypeIndex()].getReturnTypes())) {
+      // Note: In future versions of WebAssembly, subtyping on function types
+      // may be relaxed to support co- and contra-variance.
+      // Due to passing the validation of type section, this will not cause
+      // infinite recursion.
+      return NullableMatch;
+    }
+  }
+  return false;
+}
+
+bool Executor::matchTypes(const Runtime::Instance::ModuleInstance &ModExp,
+                          Span<const ValType> Exp,
+                          const Runtime::Instance::ModuleInstance &ModGot,
+                          Span<const ValType> Got) const noexcept {
+  if (Exp.size() != Got.size()) {
+    return false;
+  }
+  for (uint32_t I = 0; I < Exp.size(); I++) {
+    if (!matchType(ModExp, Exp[I], ModGot, Got[I])) {
+      return false;
+    }
+  }
+  return true;
+}
+
 } // namespace Executor
 } // namespace WasmEdge

@@ -58,7 +58,7 @@ A(Sec_AOT, "aot section")
 #ifdef UseOpCode
 #define O Line
 
-// Control instructions
+// Control instructions (part 1)
 O(Unreachable, 0x00, "unreachable")
 O(Nop, 0x01, "nop")
 O(Block, 0x02, "block")
@@ -76,14 +76,6 @@ O(Return_call, 0x12, "return_call")
 O(Return_call_indirect, 0x13, "return_call_indirect")
 O(Call_ref, 0x14, "call_ref")
 O(Return_call_ref, 0x15, "return_call_ref")
-
-// Reference Instructions
-O(Ref__null, 0xD0, "ref.null")
-O(Ref__is_null, 0xD1, "ref.is_null")
-O(Ref__func, 0xD2, "ref.func")
-O(Ref__as_non_null, 0xD3, "ref.as_non_null")
-O(Br_on_null, 0xD4, "br_on_null")
-O(Br_on_non_null, 0xD6, "br_on_non_null")
 
 // Parametric Instructions
 O(Drop, 0x1A, "drop")
@@ -263,6 +255,18 @@ O(I32__extend16_s, 0xC1, "i32.extend16_s")
 O(I64__extend8_s, 0xC2, "i64.extend8_s")
 O(I64__extend16_s, 0xC3, "i64.extend16_s")
 O(I64__extend32_s, 0xC4, "i64.extend32_s")
+
+// Reference Instructions
+O(Ref__null, 0xD0, "ref.null")
+O(Ref__is_null, 0xD1, "ref.is_null")
+O(Ref__func, 0xD2, "ref.func")
+O(Ref__as_non_null, 0xD4, "ref.as_non_null")
+
+// Control Instructions (part 2)
+O(Br_on_null, 0xD5, "br_on_null")
+O(Br_on_non_null, 0xD6, "br_on_non_null")
+
+// Saturating Truncation Instructions
 O(I32__trunc_sat_f32_s, 0xFC00, "i32.trunc_sat_f32_s")
 O(I32__trunc_sat_f32_u, 0xFC01, "i32.trunc_sat_f32_u")
 O(I32__trunc_sat_f64_s, 0xFC02, "i32.trunc_sat_f64_s")
@@ -679,8 +683,14 @@ E(AOTDisabled, 0x06, "AOT runtime is disabled in this build")
 E(Interrupted, 0x07, "execution interrupted")
 // Not validated module
 E(NotValidated, 0x08, "wasm module hasn't passed validation yet")
+// Non-Null value is required
+E(NonNullRequired, 0x09, "set null value into non-nullable value type")
+// Unable to set value due to const
+E(SetValueToConst, 0x0A, "set value into const")
+// Set value failed due to mismatch value type
+E(SetValueErrorType, 0x0B, "set value type mismatch")
 // User defined error
-E(UserDefError, 0x09, "user defined error code")
+E(UserDefError, 0x0C, "user defined error code")
 
 // Load phase
 // @{
@@ -927,8 +937,8 @@ V(F64, 0x7C, "f64")
 V(V128, 0x7B, "v128")
 V(FuncRef, 0x70, "func")
 V(ExternRef, 0x6F, "extern")
-V(Ref, 0x6B, "ref")
-V(RefNull, 0x6C, "nullable ref")
+V(Ref, 0x64, "ref")
+V(RefNull, 0x63, "nullable ref")
 
 #undef V
 #endif // UseValTypeCode
@@ -948,8 +958,8 @@ N(V128, 0x7B)
 #ifdef UseRefTypeCode
 #define R Line
 
-R(Ref, 0x6B)
-R(RefNull, 0x6C)
+R(RefNull, 0x63)
+R(Ref, 0x64)
 R(ExternRef, 0x6F)
 R(FuncRef, 0x70)
 

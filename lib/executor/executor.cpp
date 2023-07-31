@@ -85,12 +85,24 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
   const auto &FuncType = FuncInst->getFuncType();
   const auto &PTypes = FuncType.getParamTypes();
   const auto &RTypes = FuncType.getReturnTypes();
-  std::vector<ValType> GotParamTypes(ParamTypes.begin(), ParamTypes.end());
-  GotParamTypes.resize(Params.size(), ValTypeCode::I32);
-  if (PTypes != GotParamTypes) {
+  if (!matchTypes(*FuncInst->getModule(), ParamTypes, *FuncInst->getModule(),
+                  PTypes)) {
     spdlog::error(ErrCode::Value::FuncSigMismatch);
-    spdlog::error(ErrInfo::InfoMismatch(PTypes, RTypes, GotParamTypes, RTypes));
+    spdlog::error(ErrInfo::InfoMismatch(
+        PTypes, RTypes, std::vector(ParamTypes.begin(), ParamTypes.end()),
+        RTypes));
     return Unexpect(ErrCode::Value::FuncSigMismatch);
+  }
+
+  // Check the reference value validation.
+  for (uint32_t I = 0; I < ParamTypes.size(); ++I) {
+    if (ParamTypes[I].isRefType() && (!ParamTypes[I].isNullableRefType() &&
+                                      Params[I].get<RefVariant>().isNull())) {
+      spdlog::error(ErrCode::Value::NonNullRequired);
+      spdlog::error("    Cannot pass a null reference as argument of {}.",
+                    ParamTypes[I]);
+      return Unexpect(ErrCode::Value::NonNullRequired);
+    }
   }
 
   Runtime::StackManager StackMgr;

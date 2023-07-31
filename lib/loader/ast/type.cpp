@@ -12,29 +12,33 @@ namespace Loader {
 Expect<HeapType> Loader::loadHeapType(ASTNodeAttr From) {
   if (auto Res = FMgr.readS33()) {
     if (*Res < 0) {
-      // Type index case.
+      // FuncRef or ExternRef case.
       HeapTypeCode HTCode = static_cast<HeapTypeCode>(
           static_cast<uint8_t>((*Res) & INT64_C(0x7F)));
       switch (HTCode) {
       case HeapTypeCode::Extern:
+        // For the ref.func instruction, the immediate changed to store the heap
+        // type directly instead of the reference type after applying the
+        // typed function reference proposal. Therefore the reference-types
+        // proposal should be checked here.
         if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
-          return logNeedProposal(ErrCode::Value::MalformedRefType,
+          return logNeedProposal(ErrCode::Value::MalformedElemType,
                                  Proposal::ReferenceTypes, FMgr.getLastOffset(),
                                  From);
         }
         [[fallthrough]];
       case HeapTypeCode::Func:
-        // The FuncRef (0x70) is always allowed in the RefType even if the
-        // reference-types proposal not enabled.
         return HeapType(HTCode);
       default:
-        return logLoadError(Res.error(), FMgr.getLastOffset(), From);
+        return logLoadError(ErrCode::Value::MalformedRefType,
+                            FMgr.getLastOffset(), From);
       }
     } else {
+      // Type index case. Legal if the function reference proposal is enabled.
       if (!Conf.hasProposal(Proposal::FunctionReferences)) {
         return logNeedProposal(ErrCode::Value::MalformedRefType,
                                Proposal::FunctionReferences,
-                               FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+                               FMgr.getLastOffset(), From);
       }
       return HeapType(static_cast<uint32_t>(*Res));
     }

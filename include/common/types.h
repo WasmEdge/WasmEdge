@@ -67,8 +67,8 @@ using floatx4_t = SIMDArray<float, 16>;
 //       |             | ValTypeCode | HeapTypeCode |     Type index
 //       |             | 0x7F, 0x7E, | 0x6F or 0x70 |     (uint32_t)
 //  code |  Reserved   | 0x7D, 0x7C, |              |
-//       |  (Padding)  | 0x7B, 0x6B, |        For the HeapType use
-//       |             | or 0x6C     |    (Function references proposal)
+//       |  (Padding)  | 0x7B, 0x64, |        For the HeapType use
+//       |             | or 0x63     |    (Function references proposal)
 // -----------------------------------------------------------------------
 // Due to compress the whole value types into uint64_t length, WasmEdge
 // implements the HeapType into the RefType and ValType classes.

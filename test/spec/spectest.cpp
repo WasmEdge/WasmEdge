@@ -65,8 +65,7 @@ void resolveRegister(std::map<std::string, std::string> &Alias,
         Alias.emplace(std::string(OrgName), NewNameStr);
       } else {
         // Module has no origin name. Add the aliased one.
-        std::string X = std::to_string(LastModLine);
-        Alias.emplace(X, NewNameStr);
+        Alias.emplace(std::to_string(LastModLine), NewNameStr);
       }
     }
   }
@@ -212,6 +211,8 @@ parseExpectedList(const simdjson::dom::array &Args) {
     } else if (Value.type() == simdjson::dom::element_type::STRING) {
       std::string_view ValueStr = Value;
       Result.emplace_back(std::string(Type), std::string(ValueStr));
+    } else {
+      assumingUnreachable();
     }
   }
   return Result;

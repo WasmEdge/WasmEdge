@@ -15,7 +15,7 @@ constexpr bool CheckVersionSize(const char *WasmZlibVersion,
   */
 
   return (WasmZlibVersion != 0 && WasmZlibVersion[0] == ZLIB_VERSION[0] &&
-          StreamSize == (int32_t)sizeof(WasmZStream));
+          StreamSize == static_cast<int32_t>(sizeof(WasmZStream)));
 }
 
 namespace WasmEdge {

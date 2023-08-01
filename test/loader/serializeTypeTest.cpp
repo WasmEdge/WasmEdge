@@ -13,20 +13,20 @@ WasmEdge::Loader::Serializer Ser(Conf);
 
 WasmEdge::AST::TypeSection createTypeSec(WasmEdge::AST::FunctionType FuncType) {
   WasmEdge::AST::TypeSection TypeSec;
-  TypeSec.getContent() = {FuncType};
+  TypeSec.getContent().push_back(FuncType);
   return TypeSec;
 }
 
 WasmEdge::AST::TableSection createTableSec(WasmEdge::AST::TableType TableType) {
   WasmEdge::AST::TableSection TableSec;
-  TableSec.getContent() = {TableType};
+  TableSec.getContent().push_back(TableType);
   return TableSec;
 }
 
 WasmEdge::AST::MemorySection
 createMemorySec(WasmEdge::AST::MemoryType MemoryType) {
   WasmEdge::AST::MemorySection MemorySec;
-  MemorySec.getContent() = {MemoryType};
+  MemorySec.getContent().push_back(MemoryType);
   return MemorySec;
 }
 

@@ -42,12 +42,12 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
   HostZStream.get()->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
-  const auto z_res =
+  const auto ZRes =
       deflateInit_(HostZStream.get(), Level, ZLIB_VERSION, sizeof(z_stream));
 
   Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)));
 
-  return static_cast<int32_t>(z_res);
+  return static_cast<int32_t>(ZRes);
 }
 
 Expect<int32_t>
@@ -71,12 +71,12 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
   HostZStream.get()->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
-  const auto z_res =
+  const auto ZRes =
       inflateInit_(HostZStream.get(), ZLIB_VERSION, sizeof(z_stream));
 
   Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)));
 
-  return static_cast<int32_t>(z_res);
+  return static_cast<int32_t>(ZRes);
 }
 
 Expect<int32_t> WasmEdgeZlibDeflate::WasmEdgeZlibDeflate::body(
@@ -100,14 +100,14 @@ Expect<int32_t> WasmEdgeZlibDeflate::WasmEdgeZlibDeflate::body(
   const auto PreComputeNextIn = HostZStream->next_in;
   const auto PreComputeNextOut = HostZStream->next_out;
 
-  const auto z_res = deflate(HostZStream, Flush);
+  const auto ZRes = deflate(HostZStream, Flush);
 
   ModuleZStream->avail_in = HostZStream->avail_in;
   ModuleZStream->avail_out = HostZStream->avail_out;
   ModuleZStream->next_in += HostZStream->next_in - PreComputeNextIn;
   ModuleZStream->next_out += HostZStream->next_out - PreComputeNextOut;
 
-  return static_cast<int32_t>(z_res);
+  return static_cast<int32_t>(ZRes);
 }
 
 Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
@@ -131,14 +131,14 @@ Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
   const auto PreComputeNextIn = HostZStream->next_in;
   const auto PreComputeNextOut = HostZStream->next_out;
 
-  const auto z_res = inflate(HostZStream, Flush);
+  const auto ZRes = inflate(HostZStream, Flush);
 
   ModuleZStream->avail_in = HostZStream->avail_in;
   ModuleZStream->avail_out = HostZStream->avail_out;
   ModuleZStream->next_in += HostZStream->next_in - PreComputeNextIn;
   ModuleZStream->next_out += HostZStream->next_out - PreComputeNextOut;
 
-  return static_cast<int32_t>(z_res);
+  return static_cast<int32_t>(ZRes);
 }
 
 Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &,

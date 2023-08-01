@@ -41,12 +41,12 @@ static constexpr size_t DATA_SIZE = 1 * 1024 * 1024ULL;
 // static constexpr size_t INPUT_BUFFER_SIZE = 32 * 1024llu;
 static constexpr size_t OUTPUT_BUFFER_SIZE = 64 * 1024ULL;
 
-constexpr auto randChar = []() -> char {
-  constexpr char charset[] = "0123456789"
+constexpr auto RandChar = []() -> char {
+  constexpr char Charset[] = "0123456789"
                              "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                              "abcdefghijklmnopqrstuvwxyz";
-  constexpr size_t max_index = (sizeof(charset) - 1);
-  return charset[std::rand() % max_index];
+  constexpr size_t MaxIndex = (sizeof(Charset) - 1);
+  return Charset[std::rand() % MaxIndex];
 };
 
 TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
@@ -116,7 +116,7 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
   wasm_hp += std::strlen(ZLIB_VERSION);
 
   wasm_data = wasm_hp;
-  std::generate_n(MemInst.getPointer<char *>(wasm_hp), DATA_SIZE, randChar);
+  std::generate_n(MemInst.getPointer<char *>(wasm_hp), DATA_SIZE, RandChar);
   wasm_hp += DATA_SIZE;
 
   wasm_z_stream = wasm_hp;

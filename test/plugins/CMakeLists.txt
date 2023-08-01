@@ -37,6 +37,12 @@ if(WASMEDGE_PLUGIN_IMAGE)
   endif()
 endif()
 
+if(WASMEDGE_PLUGIN_OPENCVMINI)
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
+    add_subdirectory(wasmedge_opencvmini)
+  endif()
+endif()
+
 if(WASMEDGE_PLUGIN_WASM_BPF)
   if(CMAKE_SYSTEM_NAME MATCHES "Linux")
     add_subdirectory(wasm_bpf)

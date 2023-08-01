@@ -255,6 +255,7 @@ public:
     if (auto It = FdMap.find(Fd); It == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
+      close(It->second);
       FdMap.erase(It);
       return {};
     }
@@ -862,6 +863,11 @@ public:
   /// @param[in] Poller Used poller object.
   void releasePoller(EVPoller &&Poller) noexcept;
 
+  /// Close unused Fd in Pollers.
+  ///
+  /// @param[in] Node The Node to be deleted.
+  void close(std::shared_ptr<VINode> Node) noexcept;
+
   /// Terminate the process normally. An exit code of 0 indicates successful
   /// termination of the program. The meanings of other values is dependent on
   /// the environment.
@@ -1201,6 +1207,7 @@ public:
   EVPoller &operator=(EVPoller &&) = default;
 
   using VPoller::clock;
+  using VPoller::close;
   using VPoller::error;
   using VPoller::prepare;
   using VPoller::reset;
@@ -1242,6 +1249,8 @@ public:
     }
   }
 
+  void close(std::shared_ptr<VINode> Node) noexcept { VPoller::close(Node); }
+
 private:
   Environ &env() noexcept { return static_cast<Environ &>(Ctx.get()); }
 };
@@ -1263,6 +1272,13 @@ Environ::acquirePoller(Span<__wasi_event_t> Events) noexcept {
     return WasiUnexpect(Res);
   }
   return Poller;
+}
+
+inline void Environ::close(std::shared_ptr<VINode> Node) noexcept {
+  std::unique_lock Lock(PollerMutex);
+  for (auto &Poller : PollerPool) {
+    Poller.close(Node);
+  }
 }
 
 inline void Environ::releasePoller(EVPoller &&Poller) noexcept {

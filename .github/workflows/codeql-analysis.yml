@@ -70,6 +70,9 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
+    - name: Ensure git safe directory
+      run: |
+        git config --global --add safe.directory $(pwd)
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL

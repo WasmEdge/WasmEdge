@@ -1,3 +1,0 @@
-# WasmEdge Go v0.11.2 API references
-
-This part has moved to <https://wasmedge.org/docs/embed/go/reference/0.11.2>. Please use our new docs.

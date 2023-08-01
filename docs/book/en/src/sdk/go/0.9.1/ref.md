@@ -1,3 +1,0 @@
-# WasmEdge Go v0.9.1 API Documentation
-
-This part has moved to <https://wasmedge.org/docs/embed/go/reference/0.9.1>. Please use our new docs.

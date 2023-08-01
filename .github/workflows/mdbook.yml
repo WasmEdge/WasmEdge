@@ -74,12 +74,6 @@ jobs:
           mdbook build
           cp -r book ../target/en
 
-      - name: Build Chinese version
-        run: |
-          cd docs/book/zh
-          mdbook build
-          cp -r book ../target/zh
-
       - name: Publish EN version
         if: ${{ github.event_name == 'push' }}
         uses: cpina/github-action-push-to-another-repository@main

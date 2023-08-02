@@ -4,6 +4,7 @@
 #include "aot/compiler.h"
 #include "common/configure.h"
 #include "common/errinfo.h"
+#include "common/filesystem.h"
 #include "loader/loader.h"
 #include "runtime/instance/module.h"
 #include "validator/validator.h"
@@ -72,7 +73,7 @@ std::vector<uint8_t> Module2Wasm = {
     0x31};
 
 void HexToFile(std::vector<uint8_t> &Wasm, const char *Path) {
-  std::ofstream TFile(Path);
+  std::ofstream TFile(std::filesystem::u8path(Path), std::ios_base::binary);
   for (auto &Hex : Wasm) {
     TFile << Hex;
   }

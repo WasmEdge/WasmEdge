@@ -98,7 +98,9 @@ public:
       : WasmEdgeOpenCVMini(HostEnv) {}
 
   Expect<void> body(const Runtime::CallingFrame &, uint32_t SrcMatKey,
-                    uint32_t top, uint32_t left, uint32_t bot, uint32_t right);
+                    uint32_t top, uint32_t left, uint32_t bot, uint32_t right,
+                    double R, double G, double B, int thickness, int lineType,
+                    int shift);
 };
 
 class WasmEdgeOpenCVMiniCvtColor

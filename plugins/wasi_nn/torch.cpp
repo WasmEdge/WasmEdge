@@ -137,6 +137,11 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     for (auto &OneOf : OutTensors) {
       CxtRef.TorchOutputs.push_back(OneOf.clone());
     }
+  } else if (RawOutput.isTuple()) {
+    auto OutTensorsTuple = RawOutput.toTuple()->elements();
+    for (auto &OneOf : OutTensorsTuple) {
+      CxtRef.TorchOutputs.push_back(OneOf.toTensor().clone());
+    }
   } else if (RawOutput.isTensor()) {
     auto OutTensor = RawOutput.toTensor();
     CxtRef.TorchOutputs.push_back(OutTensor.clone());

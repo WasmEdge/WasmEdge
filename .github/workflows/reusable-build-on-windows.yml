@@ -41,6 +41,7 @@ jobs:
           $Env:CC = "clang-cl"
           $Env:CXX = "clang-cl"
           $cmake_sys_version = "10.0.19041.0"
+          Get-ChildItem -Recurse "C:/Program Files/LLVM" | Where { $_.PSIsContainer } | Select Name,FullName
           cmake -Bbuild -GNinja "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded "-DWASMEDGE_BUILD_TESTS=$Env:build_tests" -DWASMEDGE_BUILD_PACKAGE="ZIP" .
           cmake --build build
       - name: Test WasmEdge

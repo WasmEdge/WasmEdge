@@ -8,8 +8,6 @@ on:
         required: true
       release:
         type: boolean
-      upload_asset_url:
-        type: string
 
 jobs:
   create_source_tarball:
@@ -19,6 +17,9 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
       - name: Propagate version information
         run: |
           echo -n $VERSION | tee VERSION
@@ -42,11 +43,8 @@ jobs:
           path: WasmEdge-${{ inputs.version }}.tar.gz
       - name: Upload source tarball
         if: ${{ inputs.release }} # Only for release
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ inputs.upload_asset_url }}
-          asset_name: WasmEdge-${{ inputs.version }}-src.tar.gz
-          asset_path: WasmEdge-${{ inputs.version }}.tar.gz
-          asset_content_type: application/x-gzip
+        run: |
+          mv WasmEdge-${{ inputs.version }}.tar.gz WasmEdge-${{ inputs.version }}-src.tar.gz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-src.tar.gz --clobber

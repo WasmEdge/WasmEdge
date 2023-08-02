@@ -33,22 +33,24 @@ jobs:
       - uses: actions/checkout@v3
         with:
           path: WasmEdge
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
 
       - name: Build WasmEdge on Ubuntu
         if: matrix.os == 'ubuntu-latest'
         working-directory: WasmEdge
         run: |
-          sudo apt install -y software-properties-common cmake libboost-all-dev
-          sudo apt install -y clang
-          mkdir -p build && cd build
-          cmake -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .. && make -j
+          sudo apt install -y software-properties-common cmake clang ninja-build
+          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .
+          cmake --build build
           echo "$GITHUB_WORKSPACE/WasmEdge/build/tools/wasmedge" >> $GITHUB_PATH
 
       - name: Build WasmEdge on macOS
         if: matrix.os == 'macos-latest'
         working-directory: WasmEdge
         run: |
-          brew install llvm ninja boost cmake
+          brew install llvm ninja cmake
           export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
@@ -72,7 +74,7 @@ jobs:
       - name: Install wasi testsuite dependencies
         working-directory: wasi-testsuite/test-runner
         run: pip install -r requirements.txt
-      
+
       - name: Test Wasi testsuite
         working-directory: wasi-testsuite
         run: python3 test-runner/wasi_test_runner.py -t ./tests/assemblyscript/testsuite/ ./tests/c/testsuite/ ./tests/rust/testsuite/ -r ../WasmEdge/.github/scripts/wasi-testsuite-adapter.py

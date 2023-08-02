@@ -19,14 +19,11 @@
 #include "common/errcode.h"
 #include "common/filesystem.h"
 #include "common/symbol.h"
+#include "system/winapi.h"
 
 #include <cstdint>
 #include <memory>
 #include <vector>
-
-#if WASMEDGE_OS_WINDOWS
-#include <boost/winapi/dll.hpp>
-#endif
 
 namespace WasmEdge {
 namespace Loader {
@@ -40,7 +37,7 @@ class SharedLibrary : public std::enable_shared_from_this<SharedLibrary> {
 
 public:
 #if WASMEDGE_OS_WINDOWS
-  using NativeHandle = boost::winapi::HMODULE_;
+  using NativeHandle = winapi::HMODULE_;
 #else
   using NativeHandle = void *;
 #endif

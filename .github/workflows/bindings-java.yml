@@ -35,6 +35,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
+
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
@@ -45,7 +49,7 @@ jobs:
       - name: Install clang-format-15
         run: |
           apt-get update
-          apt-get install clang-format-15
+          apt-get install -y clang-format-15
 
       - name: Lint
         run: |
@@ -65,7 +69,7 @@ jobs:
         run: |
           export WasmEdge_ROOT=$(pwd)/build
           cd bindings/java/wasmedge-java
-          ./gradlew clean 
+          ./gradlew clean
           ./gradlew build
 
       - name: Upload JNI lib
@@ -91,7 +95,7 @@ jobs:
 
       - name: Install build tools
         run: |
-          brew install llvm ninja boost cmake
+          brew install llvm ninja cmake
 
       - name: Build WasmEdge with Release mode
         run: |
@@ -122,7 +126,7 @@ jobs:
         run: |
           export WasmEdge_ROOT=$(pwd)/build
           cd bindings/java/wasmedge-java
-          ./gradlew clean 
+          ./gradlew clean
           ./gradlew assemble
 
       - name: Run Tests
@@ -210,7 +214,7 @@ jobs:
           $Env:CXX = "clang-cl"
           $cmake_sys_version = "10.0.19041.0"
           $Env:PATH += ";$pwd\\build\\lib\\api"
-          ./gradlew clean 
+          ./gradlew clean
           ./gradlew assemble
 
       - name: Run Tests

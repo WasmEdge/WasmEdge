@@ -37,8 +37,17 @@ download_url = None
 # Define version specific things
 if sys.version_info[0] == 3:
     import urllib.request
+    import urllib.error
 
-    download_url = urllib.request.urlretrieve
+    def wrap_download_url(url, *args):
+        try:
+            return urllib.request.urlretrieve(url, *args)
+        except urllib.error.HTTPError as e:
+            logging.error("Download error from urllib: %s", e)
+            logging.error("URL: %s", url)
+            exit(1)
+
+    download_url = wrap_download_url
 
     def reraise(tp, value=None, tb=None):
         if value is None:
@@ -52,23 +61,40 @@ else:
 
     import urllib
 
-    download_url = urllib.urlretrieve
+    def wrap_download_url(url, *args):
+        headers = ""
+        try:
+            _, headers = urllib.urlretrieve(url, *args)
+        except:
+            logging.error("Download error from urllib")
+            logging.error("URL: %s", url)
+            logging.debug("Header response: %s", headers)
+            exit(1)
+
+        if "text/plain" in str(headers) and not "uninstall" in args[0]:
+            logging.error("Download error from urllib")
+            logging.error("URL: %s", url)
+            logging.debug("Header response: %s", headers)
+            exit(1)
+
+    download_url = wrap_download_url
 
 
 def show_progress(block_num, block_size, total_size):
     downloaded = block_num * block_size
+    downloaded_lim = min(1, downloaded / (total_size))
 
     print(
         end=(
-            "\r|%-60s|" % ("=" * int(60 * downloaded / (total_size)))
-            + "%6.2f %%" % (downloaded / (total_size) * 100)
+            "\r|%-60s|" % ("=" * int(60 * downloaded_lim))
+            + "%6.2f %%" % (downloaded_lim * 100)
         )
     )
 
     if downloaded < total_size:
         pass
     else:
-        print("Downloaded")
+        logging.info("Downloaded")
 
 
 @contextmanager
@@ -220,10 +246,12 @@ class VersionString:
         ]
 
     def compare(self, version2, separator=". |-", ignorecase=True):
+        """
         # return 1 if self.version > version2
         # return 0 if self.version == version2
         # return -1 if self.version < version2
         # return False if not comparable
+        """
         if "rc" in self.version and not "rc" in version2:
             a = self._preprocess(
                 self.version.split("rc")[0].strip("-"), separator, ignorecase
@@ -248,20 +276,21 @@ SUPPORTED_PLATFORM_MACHINE = {
 }
 
 SUPPORTED_MIN_VERSION = {
-    "Linux" + "x86_64": VersionString("0.9.0"),
-    "Linux" + "amd64": VersionString("0.9.0"),
-    "Linux" + "arm64": VersionString("0.9.0"),
-    "Linux" + "armv8": VersionString("0.9.0"),
-    "Linux" + "aarch64": VersionString("0.9.0"),
-    "Darwin" + "x86_64": VersionString("0.9.0"),
-    "Darwin" + "arm64": VersionString("0.9.0"),
-    "Darwin" + "arm": VersionString("0.9.0"),
+    "Linux" + "x86_64": VersionString("0.10.0"),
+    "Linux" + "amd64": VersionString("0.10.0"),
+    "Linux" + "arm64": VersionString("0.10.0"),
+    "Linux" + "armv8": VersionString("0.10.0"),
+    "Linux" + "aarch64": VersionString("0.10.0"),
+    "Darwin" + "x86_64": VersionString("0.10.0"),
+    "Darwin" + "arm64": VersionString("0.10.0"),
+    "Darwin" + "arm": VersionString("0.10.0"),
 }
 
 WASMEDGE = "WasmEdge"
 WASMEDGE_UNINSTALLER = "WasmEdge_Uninstaller"
 TENSORFLOW = "tensorflow"
 TENSORFLOW_LITE = "tensorflow_lite"
+TENSORFLOW_LITE_P = "tensorflowlite"
 TENSORFLOW_DEPS = "tensorflow_deps"
 TENSORFLOW_LITE_DEPS = "tensorflow_lite_deps"
 TENSORFLOW_TOOLS = "tensorflow_tools"
@@ -275,36 +304,45 @@ SUPPORTED_EXTENSIONS = {
     "Linux" + "armv8": EXTENSIONS,
     "Linux" + "aarch64": EXTENSIONS,
     "Darwin" + "x86_64": EXTENSIONS,
-    "Darwin" + "arm64": [],
-    "Darwin" + "arm": [],
+    "Darwin" + "arm64": EXTENSIONS,
+    "Darwin" + "arm": EXTENSIONS,
 }
 
 SUPPORTED_EXTENSIONS_VERSION = {
-    "Linux" + "x86_64" + TENSORFLOW: VersionString("0.9.0"),
-    "Linux" + "x86_64" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "amd64" + TENSORFLOW: VersionString("0.9.0"),
-    "Linux" + "amd64" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "arm64" + TENSORFLOW: VersionString("0.9.0"),
-    "Linux" + "arm64" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "armv8" + TENSORFLOW: VersionString("0.9.0"),
-    "Linux" + "armv8" + IMAGE: VersionString("0.9.0"),
-    "Linux" + "aarch64" + TENSORFLOW: VersionString("0.9.1-beta.1"),
-    "Linux" + "aarch64" + IMAGE: VersionString("0.9.1-beta.1"),
-    "Darwin" + "x86_64" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
-    "Darwin" + "x86_64" + IMAGE: VersionString("0.10.0-alpha.1"),
-    "Darwin" + "arm64" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
-    "Darwin" + "arm" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
+    "Linux" + "x86_64" + TENSORFLOW: VersionString("0.10.0"),
+    "Linux" + "x86_64" + IMAGE: VersionString("0.10.0"),
+    "Linux" + "amd64" + TENSORFLOW: VersionString("0.10.0"),
+    "Linux" + "amd64" + IMAGE: VersionString("0.10.0"),
+    "Linux" + "arm64" + TENSORFLOW: VersionString("0.10.0"),
+    "Linux" + "arm64" + IMAGE: VersionString("0.10.0"),
+    "Linux" + "armv8" + TENSORFLOW: VersionString("0.10.0"),
+    "Linux" + "armv8" + IMAGE: VersionString("0.10.0"),
+    "Linux" + "aarch64" + TENSORFLOW: VersionString("0.10.0"),
+    "Linux" + "aarch64" + IMAGE: VersionString("0.10.0"),
+    "Darwin" + "x86_64" + TENSORFLOW: VersionString("0.10.0"),
+    "Darwin" + "x86_64" + IMAGE: VersionString("0.10.0"),
+    "Darwin" + "arm64" + TENSORFLOW: VersionString("0.10.0"),
+    "Darwin" + "arm" + TENSORFLOW: VersionString("0.10.0"),
 }
 
 WASI_NN_OPENVINO = "wasi_nn-openvino"
 WASI_CRYPTO = "wasi_crypto"
 WASI_NN_PYTORCH = "wasi_nn-pytorch"
 WASI_NN_TENSORFLOW_LITE = "wasi_nn-tensorflowlite"
+WASMEDGE_TENSORFLOW_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW
+WASMEDGE_TENSORFLOW_LITE_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW_LITE_P
+WASMEDGE_IMAGE_PLUGIN = WASMEDGE.lower() + "_" + IMAGE
+WASM_BPF = "wasm_bpf"
+
 PLUGINS_AVAILABLE = [
     WASI_NN_OPENVINO,
     WASI_CRYPTO,
     WASI_NN_PYTORCH,
     WASI_NN_TENSORFLOW_LITE,
+    WASMEDGE_TENSORFLOW_PLUGIN,
+    WASMEDGE_TENSORFLOW_LITE_PLUGIN,
+    WASMEDGE_IMAGE_PLUGIN,
+    WASM_BPF
 ]
 
 SUPPORTTED_PLUGINS = {
@@ -315,13 +353,30 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "x86_64" + WASI_NN_OPENVINO: VersionString("0.10.1-alpha.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.1-alpha.1"),
     "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.2-alpha.1"),
+    "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
+    "manylinux2014" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
+    "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-rc.1"),
+    "darwin" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "arm64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
+    "manylinux2014" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
+    "manylinux2014" + "aarch64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
+    "ubuntu20.04" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "x86_64" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "arm64" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
     "manylinux2014"
     + "x86_64"
-    + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-alpha.1"),
+    + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
     "manylinux2014"
     + "aarch64"
-    + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-alpha.1"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-rc.1"),
+    + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
+    "ubuntu20.04" + "x86_64" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "arm64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
+    "manylinux2014" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
+    "manylinux2014" + "aarch64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
+    "ubuntu20.04" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
+    "ubuntu20.04" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
+    "manylinux2014" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
 }
 
 HOME = expanduser("~")
@@ -445,12 +500,10 @@ def shell_configure(args, compat):
         CONST_shell_config = join(HOME, "." + SHELL + "rc")
 
         if "zsh" in SHELL:
-            CONST_shell_profile = join(HOME, "." + "zprofile")
+            CONST_shell_profile = join(HOME, "." + "zshenv")
         else:
             CONST_shell_profile = join(HOME, "." + SHELL + "_profile")
 
-        # On Darwin: Create shell config only if shell_profile does not exist
-        # On Linux: Create shell config anyway
         if not exists(CONST_shell_config) and compat.platform != "Darwin":
             open(CONST_shell_config, "a").close()
 
@@ -460,6 +513,8 @@ def shell_configure(args, compat):
                 if shell_config is not None:
                     if source_string not in shell_config.read():
                         write_shell = True
+                else:
+                    write_shell = True
 
         # On Darwin: Append to shell config only if shell_profile does not exist
         # On Linux: Append to shell config anyway
@@ -479,11 +534,25 @@ def shell_configure(args, compat):
                     if shell_profile is not None:
                         shell_profile.write(source_string)
                 write_shell = False
+        elif compat.platform == "Darwin" and "zsh" in SHELL:
+            open(CONST_shell_profile, "a").close()
+            with opened_w_error(CONST_shell_profile, "r") as shell_config:
+                if shell_config is not None:
+                    if source_string not in shell_config.read():
+                        write_shell = True
+                else:
+                    write_shell = True
+            if write_shell:
+                with opened_w_error(CONST_shell_profile, "a") as shell_profile:
+                    if shell_profile is not None:
+                        shell_profile.write(source_string)
+                write_shell = False
+
     else:
         logging.error("Unknown shell found")
         return -1
 
-    print("shell configuration updated")
+    logging.info("shell configuration updated")
     return 0
 
 
@@ -581,7 +650,7 @@ def install_image_extension(args, compat):
         )
         return -1
 
-    print("Downloading image extension")
+    logging.info("Downloading image extension")
 
     local_release_package = CONST_release_pkg
 
@@ -647,32 +716,73 @@ def install_image_extension(args, compat):
     return 0
 
 
-def install_tensorflow_extension(args, compat):
+def install_tensorflow_extension(
+    args,
+    compat,
+    download_tf_=False,
+    download_tf_lite_=False,
+    download_tf_deps_=False,
+    download_tf_lite_deps_=False,
+    download_tf_tools_=False,
+):
     global CONST_release_pkg, CONST_lib_ext, CONST_lib_dir, CONST_env_path
 
-    if not get_remote_version_availability(
-        "second-state/WasmEdge-tensorflow", args.tf_version
-    ):
-        logging.error(
-            "Tensorflow extension version incorrect: {0}".format(args.tf_version)
+    download_tf = download_tf_
+    download_tf_lite = download_tf_lite_
+    download_tf_deps = download_tf_deps_
+    download_tf_lite_deps = download_tf_lite_deps_
+    download_tf_tools = download_tf_tools_
+
+    logging.debug(
+        "install_tensorflow_extension: %s %s %s %s %s",
+        download_tf,
+        download_tf_lite,
+        download_tf_deps,
+        download_tf_lite_deps,
+        download_tf_tools,
+    )
+
+    if VersionString(args.version).compare("0.13.0") >= 0:
+        # if greater than 0.13.0 then No WasmEdge-tensorflow and WasmEdge-tensorflow-tools
+        download_tf = False
+        download_tf_lite = False
+        download_tf_tools = False
+        logging.debug("No WasmEdge-tensorflow and WasmEdge-tensorflow-tools")
+
+    if (
+        not get_remote_version_availability(
+            "second-state/WasmEdge-tensorflow", args.tf_version
         )
-        return -1
-    elif not get_remote_version_availability(
-        "second-state/WasmEdge-tensorflow-deps", args.tf_deps_version
+        and download_tf
     ):
-        logging.error(
-            "Tensorflow Deps extension version incorrect: {0}".format(
+        logging.debug(
+            "Tensorflow extension version not found: {0}".format(args.tf_version)
+        )
+        download_tf = False
+
+    if (
+        not get_remote_version_availability(
+            "second-state/WasmEdge-tensorflow-deps", args.tf_deps_version
+        )
+        and download_tf_deps
+    ):
+        logging.debug(
+            "Tensorflow Deps extension version not found: {0}".format(
                 args.tf_deps_version
             )
         )
-        return -1
-    elif not get_remote_version_availability(
-        "second-state/WasmEdge-tensorflow", args.tf_tools_version
-    ):
-        logging.error(
-            "Tensorflow Tools version incorrect: {0}".format(args.tf_tools_version)
+        download_tf_deps = False
+
+    if (
+        not get_remote_version_availability(
+            "second-state/WasmEdge-tensorflow", args.tf_tools_version
         )
-        return -1
+        and download_tf_tools
+    ):
+        logging.debug(
+            "Tensorflow Tools version not found: {0}".format(args.tf_tools_version)
+        )
+        download_tf_tools = False
 
     if compat.prefix() + TENSORFLOW not in SUPPORTED_EXTENSIONS_VERSION:
         logging.error(
@@ -692,37 +802,25 @@ def install_tensorflow_extension(args, compat):
         )
         return -1
 
-    download_tf = True
-    download_tf_lite = True
-
     if compat.machine == "aarch64":
         download_tf = False
+        download_tf_deps = False
+        logging.warning(
+            "Cannot download WasmEdge Tensorflow, Tools & Deps because it is aarch64"
+        )
 
     local_release_package = CONST_release_pkg
 
     # From WasmEdge 0.11.1, we have the Ubuntu release.
     # Installation of ubuntu version extensions when the ubuntu version of WasmEdge selected.
-    if VersionString(args.tf_version).compare("0.11.1") >= 0:
+    if VersionString(args.version).compare("0.11.1") >= 0:
         local_release_package = compat.release_package_wasmedge
         logging.debug("Downloading dist package: {0}".format(local_release_package))
 
     if download_tf:
         tf_pkg = "WasmEdge-tensorflow-" + args.tf_version + "-" + local_release_package
-        tf_deps_pkg = (
-            "WasmEdge-tensorflow-deps-TF-"
-            + args.tf_deps_version
-            + "-"
-            + CONST_release_pkg
-        )
-
-        print("Downloading tensorflow extension")
+        logging.info("Downloading tensorflow extension")
         download_url(CONST_urls[TENSORFLOW], join(TEMP_PATH, tf_pkg), show_progress)
-
-        print("Downloading tensorflow-deps")
-        download_url(
-            CONST_urls[TENSORFLOW_DEPS], join(TEMP_PATH, tf_deps_pkg), show_progress
-        )
-
         # Extract archive
         extract_archive(
             join(TEMP_PATH, tf_pkg),
@@ -730,6 +828,20 @@ def install_tensorflow_extension(args, compat):
             join(TEMP_PATH, "WasmEdge-tensorflow"),
             env_file_path=CONST_env_path,
             remove_finished=True,
+        )
+        copytree(join(TEMP_PATH, "WasmEdge-tensorflow"), args.path)
+
+    if download_tf_deps:
+        tf_deps_pkg = (
+            "WasmEdge-tensorflow-deps-TF-"
+            + args.tf_deps_version
+            + "-"
+            + CONST_release_pkg
+        )
+
+        logging.info("Downloading tensorflow-deps")
+        download_url(
+            CONST_urls[TENSORFLOW_DEPS], join(TEMP_PATH, tf_deps_pkg), show_progress
         )
 
         # Extract archive
@@ -740,33 +852,16 @@ def install_tensorflow_extension(args, compat):
             env_file_path=CONST_env_path,
             remove_finished=True,
         )
-
-        copytree(join(TEMP_PATH, "WasmEdge-tensorflow"), args.path)
         copytree(join(TEMP_PATH, "WasmEdge-tensorflow-deps"), args.path)
 
     if download_tf_lite:
         tf_lite_pkg = (
             "WasmEdge-tensorflowlite-" + args.tf_version + "-" + local_release_package
         )
-        tf_deps_lite_pkg = (
-            "WasmEdge-tensorflow-deps-TFLite-"
-            + args.tf_deps_version
-            + "-"
-            + CONST_release_pkg
-        )
-
-        print("Downloading tensorflow-lite extension")
+        logging.info("Downloading tensorflow-lite extension")
         download_url(
             CONST_urls[TENSORFLOW_LITE], join(TEMP_PATH, tf_lite_pkg), show_progress
         )
-
-        print("Downloading tensorflow-lite-deps")
-        download_url(
-            CONST_urls[TENSORFLOW_LITE_DEPS],
-            join(TEMP_PATH, tf_deps_lite_pkg),
-            show_progress,
-        )
-
         # Extract archive
         extract_archive(
             join(TEMP_PATH, tf_lite_pkg),
@@ -774,6 +869,22 @@ def install_tensorflow_extension(args, compat):
             join(TEMP_PATH, "WasmEdge-tensorflow-lite"),
             env_file_path=CONST_env_path,
             remove_finished=True,
+        )
+        copytree(join(TEMP_PATH, "WasmEdge-tensorflow-lite"), args.path)
+
+    if download_tf_lite_deps:
+        tf_deps_lite_pkg = (
+            "WasmEdge-tensorflow-deps-TFLite-"
+            + args.tf_deps_version
+            + "-"
+            + CONST_release_pkg
+        )
+
+        logging.info("Downloading tensorflow-lite-deps")
+        download_url(
+            CONST_urls[TENSORFLOW_LITE_DEPS],
+            join(TEMP_PATH, tf_deps_lite_pkg),
+            show_progress,
         )
 
         # Extract archive
@@ -785,28 +896,31 @@ def install_tensorflow_extension(args, compat):
             remove_finished=True,
         )
 
-        copytree(join(TEMP_PATH, "WasmEdge-tensorflow-lite"), args.path)
         copytree(join(TEMP_PATH, "WasmEdge-tensorflow-lite-deps"), args.path)
 
-    tf_tools_pkg = (
-        "WasmEdge-tensorflow-tools-" + args.tf_tools_version + "-" + CONST_release_pkg
-    )
+    if download_tf_tools:
+        tf_tools_pkg = (
+            "WasmEdge-tensorflow-tools-"
+            + args.tf_tools_version
+            + "-"
+            + CONST_release_pkg
+        )
 
-    print("Downloading tensorflow-tools extension")
-    download_url(
-        CONST_urls[TENSORFLOW_TOOLS], join(TEMP_PATH, tf_tools_pkg), show_progress
-    )
+        logging.info("Downloading tensorflow-tools extension")
+        download_url(
+            CONST_urls[TENSORFLOW_TOOLS], join(TEMP_PATH, tf_tools_pkg), show_progress
+        )
 
-    # Extract archive
-    extract_archive(
-        join(TEMP_PATH, tf_tools_pkg),
-        join(args.path, "bin"),
-        join(TEMP_PATH, "WasmEdge-tensorflow-tools", "bin"),
-        env_file_path=CONST_env_path,
-        remove_finished=True,
-    )
+        # Extract archive
+        extract_archive(
+            join(TEMP_PATH, tf_tools_pkg),
+            join(args.path, "bin"),
+            join(TEMP_PATH, "WasmEdge-tensorflow-tools", "bin"),
+            env_file_path=CONST_env_path,
+            remove_finished=True,
+        )
 
-    copytree(join(TEMP_PATH, "WasmEdge-tensorflow-tools"), args.path)
+        copytree(join(TEMP_PATH, "WasmEdge-tensorflow-tools"), args.path)
 
     fix_gnu_sparse(args)
 
@@ -938,14 +1052,14 @@ def install_tensorflow_extension(args, compat):
                             join(args.path, "bin", _file),
                         )
 
-    if download_tf:
+    if download_tf_tools and download_tf:
         # Check if wasmedge binary works
         wasmedge_tf_output = run_shell_command(
             ". {0}/env &&{0}/bin/wasmedge-tensorflow --version".format(args.path)
         )
 
         if args.tf_version in wasmedge_tf_output:
-            print("WasmEdge Successfully installed")
+            logging.info("WasmEdge Successfully installed")
         else:
             logging.critical(
                 "WasmEdge Tensorflow installation incorrect: {0}".format(
@@ -953,14 +1067,14 @@ def install_tensorflow_extension(args, compat):
                 )
             )
 
-    if download_tf_lite:
+    if download_tf_tools and download_tf_lite:
         # Check if wasmedge binary works
         wasmedge_tf_lite_output = run_shell_command(
             ". {0}/env && {0}/bin/wasmedge-tensorflow-lite --version".format(args.path)
         )
 
         if args.tf_version in wasmedge_tf_lite_output:
-            print("WasmEdge Tensorflow Lite Successfully installed")
+            logging.info("WasmEdge Tensorflow Lite Successfully installed")
         else:
             logging.critical(
                 "WasmEdge Tensorflow installation incorrect: {0}".format(
@@ -1013,6 +1127,42 @@ def install_plugins(args, compat):
                     )
                     continue
 
+                if (
+                    WASMEDGE_TENSORFLOW_PLUGIN == plugin_name
+                    and VersionString(args.version).compare("0.13.0") >= 0
+                ):
+                    if (
+                        install_tensorflow_extension(
+                            args, compat, download_tf_deps_=True
+                        )
+                        != 0
+                    ):
+                        logging.error("Error in installing tensorflow deps")
+                    else:
+                        logging.info("Tensorflow deps installed")
+
+                if WASMEDGE_TENSORFLOW_LITE_PLUGIN == plugin_name:
+                    if (
+                        install_tensorflow_extension(
+                            args, compat, download_tf_lite_deps_=True
+                        )
+                        != 0
+                    ):
+                        logging.error("Error in installing tensorflow deps")
+                    else:
+                        logging.info("Tensorflow deps installed")
+
+                if WASI_NN_TENSORFLOW_LITE == plugin_name:
+                    if (
+                        install_tensorflow_extension(
+                            args, compat, download_tf_lite_deps_=True
+                        )
+                        != 0
+                    ):
+                        logging.error("Error in installing tensorflow deps")
+                    else:
+                        logging.info("Tensorflow deps installed")
+
                 plugin_url = (
                     url_root.replace("$PLUGIN_NAME$", plugin_name)
                     .replace("$VERSION$", plugin_version_supplied)
@@ -1021,7 +1171,7 @@ def install_plugins(args, compat):
                 )
                 logging.debug("Plugin URL: %s", plugin_url)
 
-                print("Downloading Plugin: " + plugin_name)
+                logging.info("Downloading Plugin: " + plugin_name)
                 download_url(
                     plugin_url,
                     join(TEMP_PATH, "Plugin" + plugin_name) + ".tar.gz",
@@ -1103,7 +1253,12 @@ def run_shell_command(cmd):
         if "Cannot detect installation path" in str(e.output):
             logging.warning("Uninstaller did not find previous installation")
         else:
-            print("Exception on process, rc=", e.returncode, "output=", e.output, e.cmd)
+            logging.error(
+                "Exception on process - rc= %s output= %s command= %s",
+                e.returncode,
+                e.output,
+                e.cmd,
+            )
 
     return ""
 
@@ -1170,22 +1325,31 @@ class Compat:
             self.release_package_wasmedge = self.release_package
 
             if self.dist is None:
+                # Only use Ubuntu when the arch is x86_64
+                # See https://github.com/WasmEdge/WasmEdge/issues/2595#issuecomment-1592460709
                 if sys.version_info[0] == 2:
+                    __lsb_rel = run_shell_command(
+                        "cat /etc/lsb-release 2>/dev/null | grep RELEASE"
+                    )[-5:]
+                    __platform_dist = platform.dist()
                     if (
-                        "Ubuntu" in platform.dist() and "20.04" in platform.dist()
-                    ) or "Ubuntu 20.04" in run_shell_command(
-                        "lsb_release -d | awk -F'\t' '{print $2}'"
-                    ):
+                        VersionString(__platform_dist[1]).compare("20.04") >= 0
+                        or VersionString(__lsb_rel).compare("20.04") >= 0
+                    ) and self.machine in ["x86_64", "amd64"]:
                         self.dist = "ubuntu20.04"
                     else:
                         self.dist = "manylinux2014"
                 elif sys.version_info[0] == 3:
                     __lsb_rel = run_shell_command(
-                        "cat /etc/lsb-release | grep RELEASE"
+                        "cat /etc/lsb-release 2>/dev/null | grep RELEASE"
                     )[-5:]
-                    if "20.04" == __lsb_rel or "Ubuntu 20.04" in run_shell_command(
-                        "lsb_release -d | awk -F'\t' '{print $2}'"
-                    ):
+                    if (
+                        VersionString(__lsb_rel).compare("20.04") >= 0
+                        or "Ubuntu 20.04"
+                        in run_shell_command(
+                            "cat /etc/lsb_release 2>/dev/null | grep DESCRIPTION"
+                        )
+                    ) and self.machine in ["x86_64", "amd64"]:
                         self.dist = "ubuntu20.04"
                     else:
                         self.dist = "manylinux2014"
@@ -1286,7 +1450,8 @@ class Compat:
 
 
 def main(args):
-    global CONST_env_path, CONST_release_pkg, CONST_ipkg, CONST_shell_config, CONST_shell_profile, CONST_lib_dir
+    global CONST_env_path, CONST_release_pkg, CONST_ipkg, CONST_shell_config
+    global CONST_shell_profile, CONST_lib_dir
 
     compat = Compat(
         version=args.version,
@@ -1305,24 +1470,29 @@ def main(args):
         logging.warning("Experimental Option Selected: plugins")
         logging.warning("plugins option may change later")
 
+        if "all" in args.plugins:
+            args.plugins = PLUGINS_AVAILABLE[:]
+            logging.debug("Selected all of the available plugins: %s", args.plugins)
+
+    if len(args.extensions) >= 1 and compat.version.compare("0.13.0") != -1:
+        logging.warning(
+            "Extensions exist only for versions below 0.13.0, use plugins instead"
+        )
+
     if compat:
-        print("Compatible with current configuration")
+        logging.info("Compatible with current configuration")
 
         set_consts(args, compat)
 
         if compat.version.compare("0.10.0") == -1:
-            logging.warning(
-                "Installation of WasmEdge {0} will be deprecated by 31/05/2023.".format(
-                    compat.version
-                )
-            )
-            logging.warning("Please install the 0.10.0 or above versions.")
+            logging.error("Please install the 0.10.0 or above versions.")
+            exit(1)
 
         # Run uninstaller
         uninstaller_path = join(TEMP_PATH, "uninstall.sh")
         download_url(CONST_urls[WASMEDGE_UNINSTALLER], uninstaller_path)
 
-        print("Running Uninstaller")
+        logging.info("Running Uninstaller")
 
         logging.debug(
             run_shell_command("bash {0}  -p {1} -q".format(uninstaller_path, args.path))
@@ -1351,7 +1521,7 @@ def main(args):
         logging.debug("CONST_shell_profile: %s", CONST_shell_profile)
         logging.debug("CONST_shell_config: %s", CONST_shell_config)
 
-        print("Downloading WasmEdge")
+        logging.info("Downloading WasmEdge")
 
         # Download WasmEdge
         download_url(
@@ -1367,7 +1537,7 @@ def main(args):
             remove_finished=True,
         )
 
-        print("Installing WasmEdge")
+        logging.info("Installing WasmEdge")
         # Copy the tree
         for sub_dir in listdir(join(TEMP_PATH, CONST_ipkg)):
             if "._" in sub_dir:
@@ -1397,23 +1567,42 @@ def main(args):
         )
 
         if args.version in wasmedge_output:
-            print("WasmEdge Successfully installed")
+            logging.info("WasmEdge Successfully installed")
         else:
             logging.critical(
                 "WasmEdge installation incorrect: {0}".format(wasmedge_output)
             )
 
-        if IMAGE in args.extensions or "all" in args.extensions:
+        if (
+            IMAGE in args.extensions
+            or "all" in args.extensions
+            and VersionString(args.version).compare("0.13.0") == -1
+        ):
             if install_image_extension(args, compat) != 0:
                 logging.error("Error in installing image extensions")
             else:
-                print("Image extension installed")
+                logging.info("Image extension installed")
 
-        if TENSORFLOW in args.extensions or "all" in args.extensions:
-            if install_tensorflow_extension(args, compat) != 0:
+        if (
+            TENSORFLOW in args.extensions
+            or "all" in args.extensions
+            and VersionString(args.version).compare("0.13.0") == -1
+        ):
+            if (
+                install_tensorflow_extension(
+                    args,
+                    compat,
+                    download_tf_=True,
+                    download_tf_deps_=True,
+                    download_tf_lite_=True,
+                    download_tf_lite_deps_=True,
+                    download_tf_tools_=True,
+                )
+                != 0
+            ):
                 logging.error("Error in installing tensorflow extensions")
             else:
-                print("Tensorflow extension installed")
+                logging.info("Tensorflow extension installed")
 
         install_plugins(args, compat)
 
@@ -1422,10 +1611,7 @@ def main(args):
         # Cleanup
         shutil.rmtree(TEMP_PATH)
 
-        if compat.platform != "Darwin":
-            print("Run:\nsource {0}".format(CONST_shell_config))
-        else:
-            print("Run:\nsource {0}".format(CONST_shell_profile))
+        logging.info("Run:\nsource {0}".format(CONST_shell_profile))
     else:
         reraise(Exception("Incompatible with your machine\n{0}".format(compat)))
 
@@ -1458,6 +1644,7 @@ if __name__ == "__main__":
         dest="loglevel",
         required=False,
         action="store_const",
+        default=logging.INFO,
         const=logging.DEBUG,
         help="Verbosity debug",
     )
@@ -1491,9 +1678,12 @@ if __name__ == "__main__":
         required=False,
         default=[],
         nargs="*",
-        help="(experimental option)Supported Plugins. Example\n"
-        + "--plugins wasi_crypto:0.11.0\n"
-        + "--plugins wasi_crypto",
+        help="(experimental option)Install Supported Plugins - ["
+        + ",".join(PLUGINS_AVAILABLE)
+        + "]. Example"
+        " '--plugins wasi_crypto:0.11.0'"
+        " '--plugins wasi_crypto'"
+        " '--plugins all' [Downloads all the supported plugins]",
     )
     parser.add_argument(
         "--tf-version",
@@ -1562,7 +1752,14 @@ if __name__ == "__main__":
         args.tf_version = args.version
 
     if args.tf_deps_version is None:
-        args.tf_deps_version = args.version
+        if VersionString(args.version).compare("0.12.0") == -1:
+            args.tf_deps_version = "TF-2.6.0"
+        elif VersionString(args.version).compare("0.13.0") == -1:
+            args.tf_deps_version = "TF-2.6.0-CC"
+        elif VersionString(args.version).compare("0.13.0") >= 0:
+            args.tf_deps_version = "TF-2.12.0-CC"
+        else:
+            reraise("Should not reach here")
 
     if args.tf_tools_version is None:
         args.tf_tools_version = args.version

@@ -11,12 +11,12 @@
 
 // internal flags
 enum blake3_flags {
-  CHUNK_START         = 1 << 0,
-  CHUNK_END           = 1 << 1,
-  PARENT              = 1 << 2,
-  ROOT                = 1 << 3,
-  KEYED_HASH          = 1 << 4,
-  DERIVE_KEY_CONTEXT  = 1 << 5,
+  CHUNK_START = 1 << 0,
+  CHUNK_END = 1 << 1,
+  PARENT = 1 << 2,
+  ROOT = 1 << 3,
+  KEYED_HASH = 1 << 4,
+  DERIVE_KEY_CONTEXT = 1 << 5,
   DERIVE_KEY_MATERIAL = 1 << 6,
 };
 
@@ -46,16 +46,15 @@ enum blake3_flags {
 #if defined(_MSC_VER)
 #include <intrin.h>
 #endif
-#include <immintrin.h>
 #endif
 
 #if !defined(BLAKE3_USE_NEON)
-  // If BLAKE3_USE_NEON not manually set, autodetect based on AArch64ness
-  #if defined(IS_AARCH64)
-    #define BLAKE3_USE_NEON 1
-  #else
-    #define BLAKE3_USE_NEON 0
-  #endif
+// If BLAKE3_USE_NEON not manually set, autodetect based on AArch64ness
+#if defined(IS_AARCH64)
+#define BLAKE3_USE_NEON 1
+#else
+#define BLAKE3_USE_NEON 0
+#endif
 #endif
 
 #if defined(IS_X86)
@@ -94,23 +93,40 @@ static unsigned int highest_one(uint64_t x) {
   _BitScanReverse64(&index, x);
   return index;
 #elif defined(_MSC_VER) && defined(IS_X86_32)
-  if(x >> 32) {
+  if (x >> 32) {
     unsigned long index;
-    _BitScanReverse(&index, x >> 32);
+    _BitScanReverse(&index, (unsigned long)(x >> 32));
     return 32 + index;
   } else {
     unsigned long index;
-    _BitScanReverse(&index, x);
+    _BitScanReverse(&index, (unsigned long)x);
     return index;
   }
 #else
   unsigned int c = 0;
-  if(x & 0xffffffff00000000ULL) { x >>= 32; c += 32; }
-  if(x & 0x00000000ffff0000ULL) { x >>= 16; c += 16; }
-  if(x & 0x000000000000ff00ULL) { x >>=  8; c +=  8; }
-  if(x & 0x00000000000000f0ULL) { x >>=  4; c +=  4; }
-  if(x & 0x000000000000000cULL) { x >>=  2; c +=  2; }
-  if(x & 0x0000000000000002ULL) {           c +=  1; }
+  if (x & 0xffffffff00000000ULL) {
+    x >>= 32;
+    c += 32;
+  }
+  if (x & 0x00000000ffff0000ULL) {
+    x >>= 16;
+    c += 16;
+  }
+  if (x & 0x000000000000ff00ULL) {
+    x >>= 8;
+    c += 8;
+  }
+  if (x & 0x00000000000000f0ULL) {
+    x >>= 4;
+    c += 4;
+  }
+  if (x & 0x000000000000000cULL) {
+    x >>= 2;
+    c += 2;
+  }
+  if (x & 0x0000000000000002ULL) {
+    c += 1;
+  }
   return c;
 #endif
 }
@@ -195,7 +211,6 @@ void blake3_hash_many(const uint8_t *const *inputs, size_t num_inputs,
 
 size_t blake3_simd_degree(void);
 
-
 // Declarations for implementation-specific functions.
 void blake3_compress_in_place_portable(uint32_t cv[8],
                                        const uint8_t block[BLAKE3_BLOCK_LEN],
@@ -277,6 +292,5 @@ void blake3_hash_many_neon(const uint8_t *const *inputs, size_t num_inputs,
                            uint8_t flags, uint8_t flags_start,
                            uint8_t flags_end, uint8_t *out);
 #endif
-
 
 #endif /* BLAKE3_IMPL_H */

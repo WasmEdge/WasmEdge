@@ -4,11 +4,13 @@
 #include "wasmedge/wasmedge.h"
 
 #include "aot/compiler.h"
+#include "common/defines.h"
 #include "driver/compiler.h"
 #include "driver/tool.h"
 #include "driver/unitool.h"
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
+#include "system/winapi.h"
 #include "vm/vm.h"
 
 #ifdef WASMEDGE_BUILD_FUZZING
@@ -104,7 +106,7 @@ struct WasmEdge_Async {
   template <typename... Args>
   WasmEdge_Async(Args &&...Vals) noexcept
       : Async(std::forward<Args>(Vals)...) {}
-  WasmEdge::VM::Async<WasmEdge::Expect<
+  WasmEdge::Async<WasmEdge::Expect<
       std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>
       Async;
 };
@@ -1632,11 +1634,24 @@ WasmEdge_ExecutorInvoke(WasmEdge_ExecutorContext *Cxt,
       [&]()
           -> WasmEdge::Expect<
               std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>> {
-        return fromExecutorCxt(Cxt)->invoke(*fromFuncCxt(FuncCxt),
+        return fromExecutorCxt(Cxt)->invoke(fromFuncCxt(FuncCxt),
                                             ParamPair.first, ParamPair.second);
       },
       [&](auto &&Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); }, Cxt,
       FuncCxt);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Async *
+WasmEdge_ExecutorAsyncInvoke(WasmEdge_ExecutorContext *Cxt,
+                             const WasmEdge_FunctionInstanceContext *FuncCxt,
+                             const WasmEdge_Value *Params,
+                             const uint32_t ParamLen) {
+  if (Cxt && FuncCxt) {
+    auto ParamPair = genParamPair(Params, ParamLen);
+    return new WasmEdge_Async(fromExecutorCxt(Cxt)->asyncInvoke(
+        fromFuncCxt(FuncCxt), ParamPair.first, ParamPair.second));
+  }
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT void
@@ -1704,6 +1719,14 @@ WasmEdge_ModuleInstanceCreateWASI(const char *const *Args,
   WasmEdge_ModuleInstanceInitWASI(toModCxt(WasiMod), Args, ArgLen, Envs, EnvLen,
                                   Preopens, PreopenLen);
   return toModCxt(WasiMod);
+}
+
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWithData(const WasmEdge_String ModuleName,
+                                      void *HostData,
+                                      void (*Finalizer)(void *)) {
+  return toModCxt(new WasmEdge::Runtime::Instance::ModuleInstance(
+      genStrView(ModuleName), HostData, Finalizer));
 }
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASI(
@@ -1798,6 +1821,14 @@ WASMEDGE_CAPI_EXPORT WasmEdge_String WasmEdge_ModuleInstanceGetModuleName(
                            .Buf = StrView.data()};
   }
   return WasmEdge_String{.Length = 0, .Buf = nullptr};
+}
+
+WASMEDGE_CAPI_EXPORT void *
+WasmEdge_ModuleInstanceGetHostData(const WasmEdge_ModuleInstanceContext *Cxt) {
+  if (Cxt) {
+    return fromModCxt(Cxt)->getHostData();
+  }
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_FunctionInstanceContext *
@@ -2706,6 +2737,49 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt) {
 // <<<<<<<< WasmEdge VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge Driver functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+#if WASMEDGE_OS_WINDOWS
+WASMEDGE_CAPI_EXPORT const char **
+WasmEdge_Driver_ArgvCreate(int Argc, const wchar_t *Argv[]) {
+  const Span<const wchar_t *> Args(Argv, static_cast<size_t>(Argc));
+  const size_t PointerArraySize = static_cast<size_t>(Argc) * sizeof(char *);
+  size_t StringBufferSize = 0;
+  for (auto Arg : Args) {
+    const auto Res = std::max<size_t>(
+        static_cast<size_t>(winapi::WideCharToMultiByte(
+            winapi::CP_UTF8_, 0, Arg, -1, nullptr, 0, nullptr, nullptr)),
+        1u);
+    StringBufferSize += Res;
+  }
+  auto Buffer = std::make_unique<char[]>(PointerArraySize + StringBufferSize);
+  Span<char *> PointerArray(reinterpret_cast<char **>(Buffer.get()),
+                            static_cast<size_t>(Argc));
+  Span<char> StringBuffer(Buffer.get() + PointerArraySize, StringBufferSize);
+  for (auto Arg : Args) {
+    PointerArray[0] = StringBuffer.data();
+    PointerArray = PointerArray.subspan(1);
+    const auto Res = std::max<size_t>(
+        static_cast<size_t>(winapi::WideCharToMultiByte(
+            winapi::CP_UTF8_, 0, Arg, -1, StringBuffer.data(),
+            static_cast<int>(StringBuffer.size()), nullptr, nullptr)),
+        1);
+    StringBuffer = StringBuffer.subspan(Res);
+  }
+
+  return reinterpret_cast<const char **>(Buffer.release());
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_Driver_ArgvDelete(const char *Argv[]) {
+  std::unique_ptr<char[]> Buffer(reinterpret_cast<char *>(Argv));
+  Buffer.reset();
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_Driver_SetConsoleOutputCPtoUTF8(void) {
+#if WINAPI_PARTITION_DESKTOP
+  winapi::SetConsoleOutputCP(winapi::CP_UTF8_);
+#endif
+}
+#endif
 
 WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Compiler(int Argc,
                                                   const char *Argv[]) {

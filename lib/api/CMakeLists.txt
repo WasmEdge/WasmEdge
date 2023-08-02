@@ -25,7 +25,7 @@ function(wasmedge_add_static_lib_component_command target)
   else()
     list(APPEND CMDS
       COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
-      COMMAND ${CMAKE_COMMAND} -E chdir objs/${target_name} ${CMAKE_AR} -x $<TARGET_FILE:${target}>
+      COMMAND ${CMAKE_COMMAND} -E chdir objs/${target} ${CMAKE_AR} -x $<TARGET_FILE:${target}>
     )
     set(WASMEDGE_STATIC_LIB_AR_CMDS ${WASMEDGE_STATIC_LIB_AR_CMDS} ${CMDS} PARENT_SCOPE)
   endif()

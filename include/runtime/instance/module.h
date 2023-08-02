@@ -65,7 +65,9 @@ inline constexpr const bool IsInstanceV =
 
 class ModuleInstance {
 public:
-  ModuleInstance(std::string_view Name) : ModName(Name) {}
+  ModuleInstance(std::string_view Name, void *Data = nullptr,
+                 std::function<void(void *)> Finalizer = nullptr)
+      : ModName(Name), HostData(Data), HostDataFinalizer(Finalizer) {}
   virtual ~ModuleInstance() noexcept {
     // When destroying this module instance, call the callbacks to unlink to the
     // store managers.
@@ -73,12 +75,17 @@ public:
       assuming(Pair.second);
       Pair.second(Pair.first, this);
     }
+    if (HostDataFinalizer.operator bool()) {
+      HostDataFinalizer(HostData);
+    }
   }
 
   std::string_view getModuleName() const noexcept {
     std::shared_lock Lock(Mutex);
     return ModName;
   }
+
+  void *getHostData() const noexcept { return HostData; }
 
   /// Add exist instances and move ownership with exporting name.
   void addHostFunc(std::string_view Name,
@@ -453,6 +460,10 @@ protected:
   /// Linked store.
   std::map<StoreManager *, std::function<BeforeModuleDestroyCallback>>
       LinkedStore;
+
+  /// External data and its finalizer function pointer.
+  void *HostData;
+  std::function<void(void *)> HostDataFinalizer;
 };
 
 } // namespace Instance

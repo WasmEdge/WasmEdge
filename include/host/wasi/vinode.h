@@ -6,6 +6,7 @@
 #include "common/filesystem.h"
 #include "host/wasi/error.h"
 #include "host/wasi/inode.h"
+#include "host/wasi/vfs.h"
 
 #include <cstdint>
 #include <functional>
@@ -19,7 +20,6 @@ namespace WasmEdge {
 namespace Host {
 namespace WASI {
 
-class VFS;
 class VPoller;
 class VINode : public std::enable_shared_from_this<VINode> {
 public:
@@ -30,17 +30,15 @@ public:
 
   /// Create a VINode with a parent.
   ///
-  /// @param[in] FS Filesystem.
   /// @param[in] Node System INode.
-  VINode(VFS &FS, INode Node);
+  VINode(INode Node);
 
   /// Create a orphan VINode.
   ///
-  /// @param[in] FS Filesystem.
   /// @param[in] Node System INode.
   /// @param[in] FRB The desired rights of the VINode.
   /// @param[in] FRI The desired rights of the VINode.
-  VINode(VFS &FS, INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
+  VINode(INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
          std::string N = {});
 
   /// Check path is valid.
@@ -48,16 +46,16 @@ public:
     return Path.find('\0') == std::string_view::npos;
   }
 
-  static std::shared_ptr<VINode> stdIn(VFS &FS, __wasi_rights_t FRB,
+  static std::shared_ptr<VINode> stdIn(__wasi_rights_t FRB,
                                        __wasi_rights_t FRI);
-  static std::shared_ptr<VINode> stdOut(VFS &FS, __wasi_rights_t FRB,
+  static std::shared_ptr<VINode> stdOut(__wasi_rights_t FRB,
                                         __wasi_rights_t FRI);
-  static std::shared_ptr<VINode> stdErr(VFS &FS, __wasi_rights_t FRB,
+  static std::shared_ptr<VINode> stdErr(__wasi_rights_t FRB,
                                         __wasi_rights_t FRI);
 
   static std::string canonicalGuest(std::string_view Path);
 
-  static WasiExpect<std::shared_ptr<VINode>> bind(VFS &FS, __wasi_rights_t FRB,
+  static WasiExpect<std::shared_ptr<VINode>> bind(__wasi_rights_t FRB,
                                                   __wasi_rights_t FRI,
                                                   std::string Name,
                                                   std::string SystemPath);
@@ -358,27 +356,24 @@ public:
   ///
   /// Note: This is similar to `mkdirat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path at which to create the directory.
   /// @return Nothing or WASI error
-  static WasiExpect<void> pathCreateDirectory(VFS &FS,
-                                              std::shared_ptr<VINode> Fd,
+  static WasiExpect<void> pathCreateDirectory(std::shared_ptr<VINode> Fd,
                                               std::string_view Path);
 
   /// Return the attributes of a file or directory.
   ///
   /// Note: This is similar to `stat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path of the file or directory to inspect.
   /// @param[in] Flags Flags determining the method of how the path is resolved.
   /// @param[out] Filestat The buffer where the file's attributes are stored.
   /// @return Nothing or WASI error
-  static WasiExpect<void> pathFilestatGet(VFS &FS, std::shared_ptr<VINode> Fd,
+  static WasiExpect<void> pathFilestatGet(std::shared_ptr<VINode> Fd,
                                           std::string_view Path,
                                           __wasi_lookupflags_t Flags,
                                           __wasi_filestat_t &Filestat);
@@ -387,7 +382,6 @@ public:
   ///
   /// Note: This is similar to `utimensat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path of the file or directory to inspect.
@@ -397,16 +391,14 @@ public:
   /// @param[in] FstFlags A bitmask indicating which timestamps to adjust.
   /// @return Nothing or WASI error
   static WasiExpect<void>
-  pathFilestatSetTimes(VFS &FS, std::shared_ptr<VINode> Fd,
-                       std::string_view Path, __wasi_lookupflags_t Flags,
-                       __wasi_timestamp_t ATim, __wasi_timestamp_t MTim,
-                       __wasi_fstflags_t FstFlags);
+  pathFilestatSetTimes(std::shared_ptr<VINode> Fd, std::string_view Path,
+                       __wasi_lookupflags_t Flags, __wasi_timestamp_t ATim,
+                       __wasi_timestamp_t MTim, __wasi_fstflags_t FstFlags);
 
   /// Create a hard link.
   ///
   /// Note: This is similar to `linkat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Old The working directory at which the resolution of the old
   /// path starts.
   /// @param[in] OldPath The source path from which to link.
@@ -416,7 +408,7 @@ public:
   /// @param[in] LookupFlags Flags determining the method of how the path is
   /// resolved.
   /// @return Nothing or WASI error
-  static WasiExpect<void> pathLink(VFS &FS, std::shared_ptr<VINode> Old,
+  static WasiExpect<void> pathLink(std::shared_ptr<VINode> Old,
                                    std::string_view OldPath,
                                    std::shared_ptr<VINode> New,
                                    std::string_view NewPath,
@@ -432,7 +424,6 @@ public:
   ///
   /// Note: This is similar to `openat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The relative path of the file or directory to open,
@@ -454,7 +445,7 @@ public:
   /// @return The file descriptor of the file that has been opened, or WASI
   /// error.
   static WasiExpect<std::shared_ptr<VINode>>
-  pathOpen(VFS &FS, std::shared_ptr<VINode> Fd, std::string_view Path,
+  pathOpen(std::shared_ptr<VINode> Fd, std::string_view Path,
            __wasi_lookupflags_t LookupFlags, __wasi_oflags_t OpenFlags,
            __wasi_rights_t FsRightsBase, __wasi_rights_t FsRightsInheriting,
            __wasi_fdflags_t FdFlags);
@@ -463,7 +454,6 @@ public:
   ///
   /// Note: This is similar to `readlinkat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path of the symbolic link from which to read.
@@ -471,7 +461,7 @@ public:
   /// symbolic link.
   /// @param[out] NRead The number of bytes read.
   /// @return Nothing or WASI error.
-  static WasiExpect<void> pathReadlink(VFS &FS, std::shared_ptr<VINode> Fd,
+  static WasiExpect<void> pathReadlink(std::shared_ptr<VINode> Fd,
                                        std::string_view Path, Span<char> Buffer,
                                        __wasi_size_t &NRead);
 
@@ -481,20 +471,17 @@ public:
   ///
   /// Note: This is similar to `unlinkat(fd, path, AT_REMOVEDIR)` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path to a directory to remove.
   /// @return Nothing or WASI error.
-  static WasiExpect<void> pathRemoveDirectory(VFS &FS,
-                                              std::shared_ptr<VINode> Fd,
+  static WasiExpect<void> pathRemoveDirectory(std::shared_ptr<VINode> Fd,
                                               std::string_view Path);
 
   /// Rename a file or directory.
   ///
   /// Note: This is similar to `renameat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Old The working directory at which the resolution of the old
   /// path starts.
   /// @param[in] OldPath The source path of the file or directory to rename.
@@ -503,7 +490,7 @@ public:
   /// @param[in] NewPath The destination path to which to rename the file or
   /// directory.
   /// @return Nothing or WASI error.
-  static WasiExpect<void> pathRename(VFS &FS, std::shared_ptr<VINode> Old,
+  static WasiExpect<void> pathRename(std::shared_ptr<VINode> Old,
                                      std::string_view OldPath,
                                      std::shared_ptr<VINode> New,
                                      std::string_view NewPath);
@@ -512,14 +499,13 @@ public:
   ///
   /// Note: This is similar to `symlinkat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] OldPath The contents of the symbolic link.
   /// @param[in] New The working directory at which the resolution of the new
   /// path starts.
   /// @param[in] NewPath The destination path at which to create the symbolic
   /// link.
   /// @return Nothing or WASI error
-  static WasiExpect<void> pathSymlink(VFS &FS, std::string_view OldPath,
+  static WasiExpect<void> pathSymlink(std::string_view OldPath,
                                       std::shared_ptr<VINode> New,
                                       std::string_view NewPath);
 
@@ -529,12 +515,11 @@ public:
   ///
   /// Note: This is similar to `unlinkat(fd, path, 0)` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path to a file to unlink.
   /// @return Nothing or WASI error.
-  static WasiExpect<void> pathUnlinkFile(VFS &FS, std::shared_ptr<VINode> Fd,
+  static WasiExpect<void> pathUnlinkFile(std::shared_ptr<VINode> Fd,
                                          std::string_view Path);
 
   static WasiExpect<void>
@@ -546,34 +531,24 @@ public:
               /*Out*/ __wasi_size_t &ResLength) noexcept;
 
   static WasiExpect<std::shared_ptr<VINode>>
-  sockOpen(VFS &FS, __wasi_address_family_t SysDomain,
-           __wasi_sock_type_t SockType);
+  sockOpen(__wasi_address_family_t SysDomain, __wasi_sock_type_t SockType);
 
-  WasiExpect<void> sockBindV1(uint8_t *Address, uint8_t AddressLength,
-                              uint16_t Port) noexcept {
-    return Node.sockBindV1(Address, AddressLength, Port);
-  }
-
-  WasiExpect<void> sockBindV2(uint8_t *Address, uint8_t AddressLength,
-                              uint16_t Port) noexcept {
-    return Node.sockBindV2(Address, AddressLength, Port);
+  WasiExpect<void> sockBind(__wasi_address_family_t AddressFamily,
+                            Span<const uint8_t> Address,
+                            uint16_t Port) noexcept {
+    return Node.sockBind(AddressFamily, Address, Port);
   }
 
   WasiExpect<void> sockListen(int32_t Backlog) noexcept {
     return Node.sockListen(Backlog);
   }
 
-  WasiExpect<std::shared_ptr<VINode>> sockAcceptV1();
-  WasiExpect<std::shared_ptr<VINode>> sockAcceptV2(__wasi_fdflags_t FdFlags);
+  WasiExpect<std::shared_ptr<VINode>> sockAccept(__wasi_fdflags_t FdFlags);
 
-  WasiExpect<void> sockConnectV1(uint8_t *Address, uint8_t AddressLength,
-                                 uint16_t Port) noexcept {
-    return Node.sockConnectV1(Address, AddressLength, Port);
-  }
-
-  WasiExpect<void> sockConnectV2(uint8_t *Address, uint8_t AddressLength,
-                                 uint16_t Port) noexcept {
-    return Node.sockConnectV2(Address, AddressLength, Port);
+  WasiExpect<void> sockConnect(__wasi_address_family_t AddressFamily,
+                               Span<const uint8_t> Address,
+                               uint16_t Port) noexcept {
+    return Node.sockConnect(AddressFamily, Address, Port);
   }
 
   /// Receive a message from a socket.
@@ -599,39 +574,20 @@ public:
   ///
   /// @param[in] RiData List of scatter/gather vectors to which to store data.
   /// @param[in] RiFlags Message flags.
-  /// @param[in] Address Address of the target.
-  /// @param[in] AddressLength The buffer size of Address.
+  /// @param[out] AddressFamilyPtr The pointer to store address family.
+  /// @param[out] Address The buffer to store address.
+  /// @param[out] PortPtr The pointer to store port.
   /// @param[out] NRead Return the number of bytes stored in RiData.
   /// @param[out] RoFlags Return message flags.
   /// @return Nothing or WASI error.
-  WasiExpect<void> sockRecvFromV1(Span<Span<uint8_t>> RiData,
-                                  __wasi_riflags_t RiFlags, uint8_t *Address,
-                                  uint8_t AddressLength, __wasi_size_t &NRead,
-                                  __wasi_roflags_t &RoFlags) const noexcept {
-    return Node.sockRecvFromV1(RiData, RiFlags, Address, AddressLength, NRead,
-                               RoFlags);
-  }
-
-  /// Receive a message from a socket.
-  ///
-  /// Note: This is similar to `recvfrom` in POSIX, though it also supports
-  /// reading the data into multiple buffers in the manner of `readv`.
-  ///
-  /// @param[in] RiData List of scatter/gather vectors to which to store data.
-  /// @param[in] RiFlags Message flags.
-  /// @param[in] Address Address of the target.
-  /// @param[in] AddressLength The buffer size of Address.
-  /// @param[out] PortPtr The port from the given address.
-  /// @param[out] NRead Return the number of bytes stored in RiData.
-  /// @param[out] RoFlags Return message flags.
-  /// @return Nothing or WASI error.
-  WasiExpect<void> sockRecvFromV2(Span<Span<uint8_t>> RiData,
-                                  __wasi_riflags_t RiFlags, uint8_t *Address,
-                                  uint8_t AddressLength, uint32_t *PortPtr,
-                                  __wasi_size_t &NRead,
-                                  __wasi_roflags_t &RoFlags) const noexcept {
-    return Node.sockRecvFromV2(RiData, RiFlags, Address, AddressLength, PortPtr,
-                               NRead, RoFlags);
+  WasiExpect<void> sockRecvFrom(Span<Span<uint8_t>> RiData,
+                                __wasi_riflags_t RiFlags,
+                                __wasi_address_family_t *AddressFamilyPtr,
+                                Span<uint8_t> Address, uint16_t *PortPtr,
+                                __wasi_size_t &NRead,
+                                __wasi_roflags_t &RoFlags) const noexcept {
+    return Node.sockRecvFrom(RiData, RiFlags, AddressFamilyPtr, Address,
+                             PortPtr, NRead, RoFlags);
   }
 
   /// Send a message on a socket.
@@ -658,15 +614,17 @@ public:
   /// @param[in] SiData List of scatter/gather vectors to which to retrieve
   /// data.
   /// @param[in] SiFlags Message flags.
+  /// @param[in] AddressFamily Address family of the target.
   /// @param[in] Address Address of the target.
-  /// @param[in] AddressLength The buffer size of Address.
+  /// @param[in] Port Connected port.
   /// @param[out] NWritten The number of bytes transmitted.
   /// @return Nothing or WASI error
   WasiExpect<void> sockSendTo(Span<Span<const uint8_t>> SiData,
-                              __wasi_siflags_t SiFlags, uint8_t *Address,
-                              uint8_t AddressLength, int32_t Port,
+                              __wasi_siflags_t SiFlags,
+                              __wasi_address_family_t AddressFamily,
+                              Span<const uint8_t> Address, uint16_t Port,
                               __wasi_size_t &NWritten) const noexcept {
-    return Node.sockSendTo(SiData, SiFlags, Address, AddressLength, Port,
+    return Node.sockSendTo(SiData, SiFlags, AddressFamily, Address, Port,
                            NWritten);
   }
 
@@ -681,35 +639,27 @@ public:
   }
 
   WasiExpect<void> sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
-                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
-                              uint32_t *FlagSizePtr) const noexcept {
-    return Node.sockGetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
+                              __wasi_sock_opt_so_t SockOptName,
+                              Span<uint8_t> &Flag) const noexcept {
+    return Node.sockGetOpt(SockOptLevel, SockOptName, Flag);
   }
 
   WasiExpect<void> sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
-                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
-                              uint32_t FlagSizePtr) const noexcept {
-    return Node.sockSetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
+                              __wasi_sock_opt_so_t SockOptName,
+                              Span<const uint8_t> Flag) const noexcept {
+    return Node.sockSetOpt(SockOptLevel, SockOptName, Flag);
   }
 
-  WasiExpect<void> sockGetLocalAddrV1(uint8_t *Address, uint32_t *AddrTypePtr,
-                                      uint32_t *PortPtr) const noexcept {
-    return Node.sockGetLocalAddrV1(Address, AddrTypePtr, PortPtr);
+  WasiExpect<void> sockGetLocalAddr(__wasi_address_family_t *AddressFamilyPtr,
+                                    Span<uint8_t> Address,
+                                    uint16_t *PortPtr) const noexcept {
+    return Node.sockGetLocalAddr(AddressFamilyPtr, Address, PortPtr);
   }
 
-  WasiExpect<void> sockGetPeerAddrV1(uint8_t *Address, uint32_t *AddrTypePtr,
-                                     uint32_t *PortPtr) const noexcept {
-    return Node.sockGetPeerAddrV1(Address, AddrTypePtr, PortPtr);
-  }
-
-  WasiExpect<void> sockGetLocalAddrV2(uint8_t *Address,
-                                      uint32_t *PortPtr) const noexcept {
-    return Node.sockGetLocalAddrV2(Address, PortPtr);
-  }
-
-  WasiExpect<void> sockGetPeerAddrV2(uint8_t *Address,
-                                     uint32_t *PortPtr) const noexcept {
-    return Node.sockGetPeerAddrV2(Address, PortPtr);
+  WasiExpect<void> sockGetPeerAddr(__wasi_address_family_t *AddressFamilyPtr,
+                                   Span<uint8_t> Address,
+                                   uint16_t *PortPtr) const noexcept {
+    return Node.sockGetPeerAddr(AddressFamilyPtr, Address, PortPtr);
   }
 
   __wasi_rights_t fsRightsBase() const noexcept { return FsRightsBase; }
@@ -747,7 +697,6 @@ public:
   }
 
 private:
-  std::reference_wrapper<VFS> FS;
   INode Node;
   __wasi_rights_t FsRightsBase;
   __wasi_rights_t FsRightsInheriting;
@@ -761,11 +710,10 @@ private:
   /// @return VINode found, or WASI error.
   WasiExpect<std::shared_ptr<VINode>>
   directOpen(std::string_view Path, __wasi_oflags_t OpenFlags,
-             __wasi_fdflags_t FdFlags, uint8_t VFSFlags,
+             __wasi_fdflags_t FdFlags, VFS::Flags VFSFlags,
              __wasi_rights_t RightsBase, __wasi_rights_t RightsInheriting);
 
   /// Resolve path until last element.
-  /// @param[in] FS Filesystem.
   /// @param[in,out] Fd Fd. Return parent of last part if found.
   /// @param[in,out] Path path. Return last part of path if found.
   /// @param[in] LookupFlags WASI lookup flags.
@@ -773,14 +721,15 @@ private:
   /// @param[in] LinkCount Counting symbolic link lookup times.
   /// @return Allocated buffer, or WASI error.
   static WasiExpect<std::vector<char>> resolvePath(
-      VFS &FS, std::shared_ptr<VINode> &Fd, std::string_view &Path,
+      std::shared_ptr<VINode> &Fd, std::string_view &Path,
       __wasi_lookupflags_t LookupFlags = __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW,
-      uint8_t VFSFlags = 0, uint8_t LinkCount = 0);
+      VFS::Flags VFSFlags = static_cast<VFS::Flags>(0), uint8_t LinkCount = 0);
 };
 
 class VPoller : protected Poller {
 public:
   using Poller::clock;
+  using Poller::close;
   using Poller::error;
   using Poller::ok;
   using Poller::Poller;
@@ -810,6 +759,8 @@ public:
       Poller::write(Fd->Node, Trigger, UserData);
     }
   }
+
+  void close(std::shared_ptr<VINode> Fd) noexcept { Poller::close(Fd->Node); }
 };
 
 } // namespace WASI

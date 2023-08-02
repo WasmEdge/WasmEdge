@@ -57,11 +57,16 @@ Executor::registerModule(Runtime::StoreManager &StoreMgr,
 
 // Invoke function. See "include/executor/executor.h".
 Expect<std::vector<std::pair<ValVariant, ValType>>>
-Executor::invoke(const Runtime::Instance::FunctionInstance &FuncInst,
+Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
                  Span<const ValVariant> Params,
                  Span<const ValType> ParamTypes) {
+  if (unlikely(FuncInst == nullptr)) {
+    spdlog::error(ErrCode::Value::FuncNotFound);
+    return Unexpect(ErrCode::Value::FuncNotFound);
+  }
+
   // Check parameter and function type.
-  const auto &FuncType = FuncInst.getFuncType();
+  const auto &FuncType = FuncInst->getFuncType();
   const auto &PTypes = FuncType.getParamTypes();
   const auto &RTypes = FuncType.getReturnTypes();
   std::vector<ValType> GotParamTypes(ParamTypes.begin(), ParamTypes.end());
@@ -75,7 +80,7 @@ Executor::invoke(const Runtime::Instance::FunctionInstance &FuncInst,
   Runtime::StackManager StackMgr;
 
   // Call runFunction.
-  if (auto Res = runFunction(StackMgr, FuncInst, Params); !Res) {
+  if (auto Res = runFunction(StackMgr, *FuncInst, Params); !Res) {
     return Unexpect(Res);
   }
 
@@ -89,6 +94,17 @@ Executor::invoke(const Runtime::Instance::FunctionInstance &FuncInst,
   // After execution, the value stack size should be 0.
   assuming(StackMgr.size() == 0);
   return Returns;
+}
+
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+Executor::asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
+                      Span<const ValVariant> Params,
+                      Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (Executor::*FPtr)(
+      const Runtime::Instance::FunctionInstance *, Span<const ValVariant>,
+      Span<const ValType>) = &Executor::invoke;
+  return {FPtr, *this, FuncInst, std::vector(Params.begin(), Params.end()),
+          std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
 } // namespace Executor

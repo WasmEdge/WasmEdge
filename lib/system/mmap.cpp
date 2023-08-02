@@ -16,11 +16,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #elif WASMEDGE_OS_WINDOWS
-#include <boost/winapi/access_rights.hpp>
-#include <boost/winapi/file_management.hpp>
-#include <boost/winapi/file_mapping.hpp>
-#include <boost/winapi/handles.hpp>
-#include <boost/winapi/page_protection_flags.hpp>
+#include "system/winapi.h"
 #endif
 
 namespace WasmEdge {
@@ -62,45 +58,66 @@ struct Implement {
 static inline bool kSupported = true;
 struct Implement {
   void *Address = nullptr;
-  boost::winapi::HANDLE_ File = nullptr;
-  boost::winapi::HANDLE_ Map = nullptr;
+  winapi::HANDLE_ File = nullptr;
+  winapi::HANDLE_ Map = nullptr;
   Implement(const std::filesystem::path &Path) noexcept {
-    File = boost::winapi::create_file(
-        Path.native().c_str(), boost::winapi::GENERIC_READ_,
-        boost::winapi::FILE_SHARE_READ_, nullptr, boost::winapi::OPEN_EXISTING_,
-        boost::winapi::FILE_FLAG_SEQUENTIAL_SCAN_, nullptr);
-    if (File == boost::winapi::invalid_handle_value) {
+
+#if NTDDI_VERSION >= NTDDI_WIN8
+    winapi::CREATEFILE2_EXTENDED_PARAMETERS_ Create2ExParams;
+    Create2ExParams.dwSize = sizeof(Create2ExParams);
+    Create2ExParams.dwFileAttributes = 0;
+    Create2ExParams.dwFileFlags = winapi::FILE_FLAG_SEQUENTIAL_SCAN_;
+    Create2ExParams.dwSecurityQosFlags = 0;
+    Create2ExParams.lpSecurityAttributes = nullptr;
+    Create2ExParams.hTemplateFile = nullptr;
+
+    File = winapi::CreateFile2(Path.c_str(), winapi::GENERIC_READ_,
+                               winapi::FILE_SHARE_READ_, winapi::OPEN_EXISTING_,
+                               &Create2ExParams);
+#else
+    File = winapi::CreateFileW(
+        Path.c_str(), winapi::GENERIC_READ_, winapi::FILE_SHARE_READ_, nullptr,
+        winapi::OPEN_EXISTING_, winapi::FILE_FLAG_SEQUENTIAL_SCAN_, nullptr);
+#endif
+    if (File == winapi::INVALID_HANDLE_VALUE_) {
       File = nullptr;
       return;
     }
 
-    boost::winapi::LARGE_INTEGER_ Size;
-    boost::winapi::GetFileSizeEx(File, &Size);
+    winapi::LARGE_INTEGER_ Size;
+    winapi::GetFileSizeEx(File, &Size);
 
-    Map = boost::winapi::CreateFileMappingW(
-        File, nullptr, boost::winapi::PAGE_READONLY_,
-        static_cast<boost::winapi::ULONG_>(Size.HighPart), Size.LowPart,
-        nullptr);
+#if NTDDI_VERSION >= NTDDI_WIN8
+    Map = winapi::CreateFileMappingFromApp(
+        File, nullptr, winapi::PAGE_READONLY_,
+        static_cast<WasmEdge::winapi::ULONG64_>(Size.QuadPart), nullptr);
+#else
+    Map = winapi::CreateFileMappingW(File, nullptr, winapi::PAGE_READONLY_,
+                                     static_cast<winapi::ULONG_>(Size.HighPart),
+                                     Size.LowPart, nullptr);
+#endif
     if (Map == nullptr) {
-      Map = boost::winapi::invalid_handle_value;
       return;
     }
 
-    Address = boost::winapi::MapViewOfFile(Map, boost::winapi::FILE_MAP_READ_,
-                                           0, 0, 0);
+#if NTDDI_VERSION >= NTDDI_WIN8
+    Address = winapi::MapViewOfFileFromApp(Map, winapi::FILE_MAP_READ_, 0, 0);
+#else
+    Address = winapi::MapViewOfFile(Map, winapi::FILE_MAP_READ_, 0, 0, 0);
+#endif
     if (Address == nullptr) {
       return;
     }
   }
   ~Implement() noexcept {
     if (Address) {
-      boost::winapi::UnmapViewOfFile(Address);
+      winapi::UnmapViewOfFile(Address);
     }
     if (Map) {
-      boost::winapi::CloseHandle(Map);
+      winapi::CloseHandle(Map);
     }
     if (File) {
-      boost::winapi::CloseHandle(File);
+      winapi::CloseHandle(File);
     }
   }
   bool ok() const noexcept { return Address != nullptr; }

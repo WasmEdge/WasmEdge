@@ -51,6 +51,9 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
       - name: Get version
         id: prep
         run: |
@@ -70,8 +73,9 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-macos.yml
     with:
       version: ${{ needs.get_version_v2.outputs.version }}
-      matrix: "[{'name':'MacOS 11 (x86_64)','runner':'macos-11','darwin_version':20},
-                {'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21}]"
+      matrix: "[{'name':'MacOS 11 (x86_64)','runner':'macos-11','darwin_version':20,'arch':'x86_64'},
+                {'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21,'arch':'x86_64'},
+                {'name':'MacOS 13 (arm64)','runner':'mac-arm64','darwin_version':22,'arch':'arm64'}]"
 
   build_on_manylinux_2014:
     needs: [get_version_v2, lint]
@@ -80,6 +84,18 @@ jobs:
       version: ${{ needs.get_version_v2.outputs.version }}
       matrix: "[{'name':'manylinux 2014 x86_64','runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},
                 {'name':'manylinux 2014 aarch64','runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
+
+  build_on_debian_static:
+    needs: [get_version_v2, lint]
+    uses: ./.github/workflows/reusable-build-on-debian-static.yml
+    with:
+      version: ${{ needs.get_version_v2.outputs.version }}
+  
+  build_on_alpine_static:
+    needs: [get_version_v2, lint]
+    uses: ./.github/workflows/reusable-build-on-alpine-static.yml
+    with:
+      version: ${{ needs.get_version_v2.outputs.version }}
 
   build_on_ubuntu_22_04:
     needs: [get_version_v2, lint]

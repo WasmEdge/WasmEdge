@@ -2,14 +2,17 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "vm/vm.h"
-#include "vm/async.h"
 
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
 
 #include "host/mock/wasi_crypto_module.h"
+#include "host/mock/wasi_logging_module.h"
 #include "host/mock/wasi_nn_module.h"
+#include "host/mock/wasmedge_image_module.h"
 #include "host/mock/wasmedge_process_module.h"
+#include "host/mock/wasmedge_tensorflow_module.h"
+#include "host/mock/wasmedge_tensorflowlite_module.h"
 
 namespace WasmEdge {
 namespace VM {
@@ -24,8 +27,8 @@ createPluginModule(std::string_view PName, std::string_view MName) {
       return Module->create();
     }
   }
-  spdlog::debug("Plugin: "sv, PName, " , module name: "sv, MName,
-                "not found. Mock instead."sv);
+  spdlog::debug("Plugin: {} , module name: {} not found. Mock instead."sv,
+                PName, MName);
   return std::make_unique<T>();
 }
 } // namespace
@@ -88,15 +91,30 @@ void VM::unsafeLoadPlugInHosts() {
           "wasi_crypto"sv, "wasi_crypto_symmetric"sv));
   PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeProcessModuleMock>(
       "wasmedge_process"sv, "wasmedge_process"sv));
+  PlugInModInsts.push_back(createPluginModule<Host::WasiLoggingModuleMock>(
+      "wasi_logging"sv, "wasi:logging/logging"sv));
+  PlugInModInsts.push_back(
+      createPluginModule<Host::WasmEdgeTensorflowModuleMock>(
+          "wasmedge_tensorflow"sv, "wasmedge_tensorflow"sv));
+  PlugInModInsts.push_back(
+      createPluginModule<Host::WasmEdgeTensorflowLiteModuleMock>(
+          "wasmedge_tensorflowlite"sv, "wasmedge_tensorflowlite"sv));
+  PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeImageModuleMock>(
+      "wasmedge_image"sv, "wasmedge_image"sv));
 
   // Load the other non-official plugins.
   for (const auto &Plugin : Plugin::Plugin::plugins()) {
     if (Conf.isForbiddenPlugins(Plugin.name())) {
       continue;
     }
-    // Skip WasmEdge_Process, wasi_nn, and wasi_crypto.
-    if (Plugin.name() == "wasmedge_process"sv || Plugin.name() == "wasi_nn"sv ||
-        Plugin.name() == "wasi_crypto"sv) {
+    // Skip wasi_crypto, wasi_nn, wasi_logging, WasmEdge_Process,
+    // WasmEdge_Tensorflow, WasmEdge_TensorflowLite, and WasmEdge_Image.
+    if (Plugin.name() == "wasi_crypto"sv || Plugin.name() == "wasi_nn"sv ||
+        Plugin.name() == "wasi_logging"sv ||
+        Plugin.name() == "wasmedge_process"sv ||
+        Plugin.name() == "wasmedge_tensorflow"sv ||
+        Plugin.name() == "wasmedge_tensorflowlite"sv ||
+        Plugin.name() == "wasmedge_image"sv) {
       continue;
     }
     for (const auto &Module : Plugin.modules()) {
@@ -379,14 +397,9 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
   // Find exported function by name.
   Runtime::Instance::FunctionInstance *FuncInst =
       ModInst->findFuncExports(Func);
-  if (unlikely(FuncInst == nullptr)) {
-    spdlog::error(ErrCode::Value::FuncNotFound);
-    spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
-    return Unexpect(ErrCode::Value::FuncNotFound);
-  }
 
   // Execute function.
-  if (auto Res = ExecutorEngine.invoke(*FuncInst, Params, ParamTypes);
+  if (auto Res = ExecutorEngine.invoke(FuncInst, Params, ParamTypes);
       unlikely(!Res)) {
     if (Res.error() != ErrCode::Value::Terminated) {
       spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));

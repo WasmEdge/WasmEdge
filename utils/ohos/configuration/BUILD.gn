@@ -10,7 +10,6 @@ config("WASMEDGE_CFLAGS"){
         "$WASMEDGE_ROOT_DIR/include",
         "$WASMEDGE_ROOT_DIR/build/include",
         "$WASMEDGE_ROOT_DIR/build/_deps/spdlog-src/include",
-        "//third_party/boost",
         "$WASMEDGE_ROOT_DIR/thirdparty"
     ]
     cflags = [

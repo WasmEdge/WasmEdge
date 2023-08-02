@@ -102,7 +102,7 @@ public:
     if (data_sz < static_cast<uint32_t>(sizeof(event))) {
       return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
     }
-    const event *dataPtr = memory->getPointer<const event *>(data, 1);
+    const event *dataPtr = memory->getSpan<const event>(data, 1).data();
     if (unlikely(!dataPtr)) {
       return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
     }

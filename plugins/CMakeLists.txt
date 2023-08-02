@@ -9,6 +9,33 @@ if(WASMEDGE_PLUGIN_WASI_CRYPTO)
   add_subdirectory(wasi_crypto)
 endif()
 
+if(WASMEDGE_PLUGIN_IMAGE)
+  # Only Linux and MacOS support wasmedge_image now.
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
+    add_subdirectory(wasmedge_image)
+  else()
+    message(WARNING "Only Linux and Darwin platforms support WasmEdge_Image plug-in now.")
+  endif()
+endif()
+
+if(WASMEDGE_PLUGIN_TENSORFLOW)
+  # Only Linux and MacOS support wasmedge_tensorflow now.
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
+    add_subdirectory(wasmedge_tensorflow)
+  else()
+    message(WARNING "Only Linux and Darwin platforms support WasmEdge_Tensorflow plug-in now.")
+  endif()
+endif()
+
+if(WASMEDGE_PLUGIN_TENSORFLOWLITE)
+  # Only Linux and MacOS support wasmedge_tensorflowlite now.
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
+    add_subdirectory(wasmedge_tensorflowlite)
+  else()
+    message(WARNING "Only Linux and Darwin platforms support WasmEdge_TensorflowLite plug-in now.")
+  endif()
+endif()
+
 if(WASMEDGE_PLUGIN_PROCESS)
   # Only Linux systems support wasmedge_process now.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -25,4 +52,17 @@ if(WASMEDGE_PLUGIN_WASM_BPF)
   else()
     message(WARNING "Only Linux platforms support wasm_bpf plug-in now.")
   endif()
+endif()
+
+if(WASMEDGE_PLUGIN_OPENCVMINI)
+  # Only Linux and MacOS support wasmedge_opencvmini now.
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
+    add_subdirectory(wasmedge_opencvmini)
+  else()
+    message(WARNING "Only Linux and Darwin platforms support WasmEdge_OpenCVMini plug-in now.")
+  endif()
+endif()
+
+if(WASMEDGE_PLUGIN_WASI_LOGGING)
+  add_subdirectory(wasi_logging)
 endif()

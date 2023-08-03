@@ -141,6 +141,9 @@ typedef struct WasmEdge_CallingFrameContext WasmEdge_CallingFrameContext;
 /// Opaque struct of WasmEdge asynchronous result.
 typedef struct WasmEdge_Async WasmEdge_Async;
 
+/// Opaque struct of WasmEdge coroutine result.
+typedef struct WasmEdge_Coroutine WasmEdge_Coroutine;
+
 /// Opaque struct of WasmEdge VM.
 typedef struct WasmEdge_VMContext WasmEdge_VMContext;
 
@@ -1674,6 +1677,25 @@ WasmEdge_ExecutorAsyncInvoke(WasmEdge_ExecutorContext *Cxt,
                              const WasmEdge_Value *Params,
                              const uint32_t ParamLen);
 
+/// Invoke a WASM function by the function instance using coroutine.
+///
+/// After instantiating a WASM module, developers can get the function instance
+/// context from the module instance. Then developers can invoke the function
+/// in the coroutine mode through this API.
+///
+/// \param Cxt the WasmEdge_ExecutorContext.
+/// \param FuncCxt the function instance context to invoke.
+/// \param Params the WasmEdge_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+///
+/// \returns WasmEdge_Coroutine. Call `WasmEdge_CoroutineGet` for the result, and call
+/// `WasmEdge_CoroutineDelete` to destroy this object.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Coroutine *
+WasmEdge_ExecutorCoroutineInvoke(WasmEdge_ExecutorContext *Cxt,
+                             const WasmEdge_FunctionInstanceContext *FuncCxt,
+                             const WasmEdge_Value *Params,
+                             const uint32_t ParamLen);
+
 /// Deletion of the WasmEdge_ExecutorContext.
 ///
 /// After calling this function, the context will be destroyed and should
@@ -2636,6 +2658,13 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryInstanceContext *
 WasmEdge_CallingFrameGetMemoryInstance(const WasmEdge_CallingFrameContext *Cxt,
                                        const uint32_t Idx);
 
+/// Suspend the execution from the current calling frame.
+/// This is only available when using WasmEdge_Coroutine.
+///
+/// \param Cxt the WasmEdge_CallingFrameContext.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_CallingFrameCoroutineSuspend(const WasmEdge_CallingFrameContext *Cxt);
+
 // <<<<<<<< WasmEdge calling frame functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge Async functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -2700,6 +2729,71 @@ WasmEdge_AsyncGet(const WasmEdge_Async *Cxt, WasmEdge_Value *Returns,
 WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncDelete(WasmEdge_Async *Cxt);
 
 // <<<<<<<< WasmEdge Async functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Coroutine functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Start to execute a WasmEdge_Coroutine execution.
+///
+/// \param Cxt the WasmEdge_Coroutine.
+WASMEDGE_CAPI_EXPORT void WasmEdge_CoroutineSpawn(WasmEdge_Coroutine *Cxt);
+
+/// Continue to execute a WasmEdge_Coroutine execution.
+///
+/// \param Cxt the WasmEdge_Coroutine.
+WASMEDGE_CAPI_EXPORT void WasmEdge_CoroutineResume(WasmEdge_Coroutine *Cxt);
+
+/// Release a WasmEdge_Coroutine execution.
+///
+/// \param Cxt the WasmEdge_Coroutine.
+WASMEDGE_CAPI_EXPORT void WasmEdge_CoroutineRelease(WasmEdge_Coroutine *Cxt);
+
+/// Wait and get the return list length of the WasmEdge_Coroutine execution.
+///
+/// This function will wait until the execution finished and return the return
+/// value list length of the executed function. This function will return 0 if
+/// the `Cxt` is NULL, the execution was failed, the execution was pending, or
+/// the execution was canceled.
+/// Developers can call the `WasmEdge_CoroutineGet` to get the execution status and
+/// the return values.
+///
+/// \param Cxt the WasmEdge_Coroutine.
+///
+/// \returns the return list length of the executed function.
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_CoroutineGetReturnsLength(const WasmEdge_Coroutine *Cxt);
+
+/// Wait and get the result of WasmEdge_Coroutine execution.
+///
+/// Coroutine will have several states:
+/// 1. Not started
+/// 2. Running
+/// 3. Pending
+/// 4. Finished
+/// 5. Canceled
+/// This function will return the wait until the execution finished and return the
+/// execution status and the return values.
+/// If the `Returns` buffer length is smaller than the arity of the function,
+/// the overflowed return values will be discarded.
+///
+/// \param Cxt the WasmEdge_Coroutine.
+/// \param [out] Returns the WasmEdge_Value buffer to fill the return values.
+/// \param ReturnLen the return buffer length.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT WasmEdge_Result
+WasmEdge_CoroutineGet(const WasmEdge_Coroutine *Cxt, WasmEdge_Value *Returns,
+                  const uint32_t ReturnLen);
+
+/// Deletion of the WasmEdge_Coroutine.
+///
+/// After calling this function, the context will be destroyed and should
+/// __NOT__ be used.
+///
+/// \param Cxt the WasmEdge_Coroutine to destroy.
+WASMEDGE_CAPI_EXPORT void WasmEdge_CoroutineDelete(WasmEdge_Coroutine *Cxt);
+
+// <<<<<<<< WasmEdge Coroutine functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge VM functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

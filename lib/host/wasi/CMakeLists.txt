@@ -17,6 +17,12 @@ wasmedge_add_library(wasmedgeHostModuleWasi
   ${WASMEDGE_WASI_SRCS}
 )
 
+if("${CMAKE_GENERATOR}" STREQUAL "Xcode")
+  target_compile_options(wasmedgeHostModuleWasi PRIVATE
+    -Wno-shorten-64-to-32
+  )
+endif()
+
 target_include_directories(wasmedgeHostModuleWasi
   PUBLIC
   ${PROJECT_SOURCE_DIR}/thirdparty

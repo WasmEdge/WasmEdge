@@ -1,6 +1,6 @@
 # Execution in AOT Mode
 
-> *This part has moved to <https://wasmedge.org/docs/develop/build-and-run/aot>. Please use our new docs.*
+> *This part has moved to <https://wasmedge.org/docs/start/build-and-run/aot>. Please use our new docs.*
 
 The `wasmedge` command line tool will execute the original WASM files in interpreter mode. For the much better performance, we recommend users to compile the WASM with the `wasmedge compile` AOT compiler to execute the WASM in AOT mode. There are 2 output formats of the AOT compiler:
 

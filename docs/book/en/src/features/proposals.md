@@ -1,6 +1,6 @@
 # Supported WASM And WASI Proposals
 
-> *This part has moved to <https://wasmedge.org/docs/develop/wasmedge/extensions/proposals>. Please use our new docs.*
+> *This part has moved to <https://wasmedge.org/docs/start/wasmedge/extensions/proposals>. Please use our new docs.*
 
 ## WebAssembly proposals
 

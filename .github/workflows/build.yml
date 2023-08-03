@@ -90,6 +90,12 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-debian-static.yml
     with:
       version: ${{ needs.get_version_v2.outputs.version }}
+  
+  build_on_alpine_static:
+    needs: [get_version_v2, lint]
+    uses: ./.github/workflows/reusable-build-on-alpine-static.yml
+    with:
+      version: ${{ needs.get_version_v2.outputs.version }}
 
   build_on_ubuntu_22_04:
     needs: [get_version_v2, lint]

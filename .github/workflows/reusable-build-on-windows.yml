@@ -48,7 +48,6 @@ jobs:
           cmake -Bbuild -GNinja "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" "-DWASMEDGE_BUILD_TESTS=$Env:build_tests" -DWASMEDGE_BUILD_PACKAGE="ZIP" .
           cmake --build build
       - name: Test WasmEdge
-        continue-on-error: true
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")

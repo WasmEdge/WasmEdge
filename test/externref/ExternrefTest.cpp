@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+#include "common/filesystem.h"
 #include "wasmedge/wasmedge.h"
 
 #include <cstdint>
@@ -12,6 +13,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+
 
 namespace {
 
@@ -114,7 +116,7 @@ std::vector<uint8_t> STLWasm = {
     0x0};
 
 void HexToFile(std::vector<uint8_t> &Wasm, const char *Path) {
-  std::ofstream TFile(Path);
+  std::ofstream TFile(std::filesystem::u8path(Path), std::ios_base::binary);
   for (auto &Hex : Wasm) {
     TFile << Hex;
   }

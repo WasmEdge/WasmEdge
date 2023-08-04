@@ -23,6 +23,23 @@ on:
       - 'utils/install.py'
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Python env
+        uses: actions/setup-python@v3
+
+      - name: Install black
+        run: pip install black
+      
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Check formatting for installer
+        run: |
+            black --check --verbose --diff ./utils/install.py
+
   linux:
     strategy:
       fail-fast: false

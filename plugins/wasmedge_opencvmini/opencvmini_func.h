@@ -98,9 +98,9 @@ public:
       : WasmEdgeOpenCVMini(HostEnv) {}
 
   Expect<void> body(const Runtime::CallingFrame &, uint32_t SrcMatKey,
-                    uint32_t top, uint32_t left, uint32_t bot, uint32_t right,
-                    double R, double G, double B, int thickness, int lineType,
-                    int shift);
+                    uint32_t Top, uint32_t Left, uint32_t Bot, uint32_t Right,
+                    double R, double G, double B, int32_t Thickness,
+                    int32_t LineType, int32_t Shift);
 };
 
 class WasmEdgeOpenCVMiniCvtColor
@@ -109,7 +109,8 @@ public:
   WasmEdgeOpenCVMiniCvtColor(WasmEdgeOpenCVMiniEnvironment &HostEnv)
       : WasmEdgeOpenCVMini(HostEnv) {}
 
-  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t SrcMatKey);
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t SrcMatKey,
+                        int32_t Code, int32_t DestChannelN);
 };
 
 } // namespace Host

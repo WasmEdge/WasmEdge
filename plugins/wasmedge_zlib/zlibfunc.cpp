@@ -37,7 +37,8 @@ auto SyncRun(z_stream *HostZStream, uint32_t ZStreamPtr,
   HostZStream->avail_out = ModuleZStream->avail_out;
   HostZStream->total_out = ModuleZStream->total_out;
 
-  // ignore msg, state
+  // TODO: ignore msg for now
+  // ignore state
   // ignore zalloc, zfree, opaque
 
   HostZStream->data_type = ModuleZStream->data_type;
@@ -57,7 +58,8 @@ auto SyncRun(z_stream *HostZStream, uint32_t ZStreamPtr,
   ModuleZStream->avail_out = HostZStream->avail_out;
   ModuleZStream->total_out = HostZStream->total_out;
 
-  // ignore msg, state
+  // TODO: ignore msg for now
+  // ignore state
   // ignore zalloc, zfree, opaque
 
   ModuleZStream->data_type = HostZStream->data_type;
@@ -192,8 +194,3 @@ Expect<int32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &Frame,
 
 } // namespace Host
 } // namespace WasmEdge
-
-/*
-TODO:
-sync *msg in [inflate|deflate]End()
-*/

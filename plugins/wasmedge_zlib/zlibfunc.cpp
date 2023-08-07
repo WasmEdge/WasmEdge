@@ -72,7 +72,7 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const char *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
+  const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
   if (!CheckSize(StreamSize))
     return static_cast<int32_t>(Z_VERSION_ERROR);
 
@@ -104,7 +104,7 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const char *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
+  const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
   if (!CheckSize(StreamSize))
     return static_cast<int32_t>(Z_VERSION_ERROR);
 
@@ -183,6 +183,49 @@ Expect<int32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &Frame,
               [&]() { return inflateEnd(HostZStreamIt->second.get()); });
 
   Env.ZStreamMap.erase(ZStreamPtr);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibDeflateSetDictionary::body(
+    const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+    uint32_t DictionaryPtr, uint32_t DictLength) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  const auto *Dictionary = MemInst->getPointer<const Bytef *>(DictionaryPtr);
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame, [&]() {
+        return deflateSetDictionary(HostZStreamIt->second.get(), Dictionary,
+                                    DictLength);
+      });
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibDeflateGetDictionary::body(
+    const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+    uint32_t DictionaryPtr, uint32_t DictLengthPtr) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
+  auto *DictLength = MemInst->getPointer<uint32_t *>(DictLengthPtr);
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame, [&]() {
+        return deflateGetDictionary(HostZStreamIt->second.get(), Dictionary,
+                                    DictLength);
+      });
 
   return ZRes;
 }

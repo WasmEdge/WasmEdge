@@ -54,5 +54,23 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr);
 };
 
+class WasmEdgeZlibDeflateSetDictionary
+    : public WasmEdgeZlib<WasmEdgeZlibDeflateSetDictionary> {
+public:
+  WasmEdgeZlibDeflateSetDictionary(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       uint32_t DictionaryPtr, uint32_t DictLength);
+};
+
+class WasmEdgeZlibDeflateGetDictionary
+    : public WasmEdgeZlib<WasmEdgeZlibDeflateGetDictionary> {
+public:
+  WasmEdgeZlibDeflateGetDictionary(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       uint32_t DictionaryPtr, uint32_t DictLengthPtr);
+};
+
 } // namespace Host
 } // namespace WasmEdge

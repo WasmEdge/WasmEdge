@@ -9,16 +9,9 @@
 namespace WasmEdge {
 namespace Host {
 
-constexpr bool CheckVersionSize(const char *WasmZlibVersion,
-                                int32_t StreamSize) {
-  /*
-  Reason behind just comparing the first character of zlib version strings.
-  https://github.com/zlib-ng/zlib-ng/blob/2f4ebe2bb68380366b90f1db1f3c5b32601130a0/zutil.h#L130
-  https://github.com/madler/zlib/blob/04f42ceca40f73e2978b50e93806c2a18c1281fc/inflate.c#L207
-  */
+constexpr bool CheckSize(int32_t StreamSize) {
 
-  return (WasmZlibVersion != 0 && WasmZlibVersion[0] == ZLIB_VERSION[0] &&
-          StreamSize == static_cast<int32_t>(sizeof(WasmZStream)));
+  return (StreamSize == static_cast<int32_t>(sizeof(WasmZStream)));
 }
 
 template <typename T>
@@ -80,7 +73,7 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
   }
 
   const char *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  if (!CheckVersionSize(WasmZlibVersion, StreamSize))
+  if (!CheckSize(StreamSize))
     return static_cast<int32_t>(Z_VERSION_ERROR);
 
   auto HostZStream = std::make_unique<z_stream>();
@@ -91,7 +84,7 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
   const int32_t ZRes = SyncRun(HostZStream.get(), ZStreamPtr, Frame, [&]() {
-    return deflateInit_(HostZStream.get(), Level, ZLIB_VERSION,
+    return deflateInit_(HostZStream.get(), Level, WasmZlibVersion,
                         sizeof(z_stream));
   });
 
@@ -112,7 +105,7 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
   }
 
   const char *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  if (!CheckVersionSize(WasmZlibVersion, StreamSize))
+  if (!CheckSize(StreamSize))
     return static_cast<int32_t>(Z_VERSION_ERROR);
 
   auto HostZStream = std::make_unique<z_stream>();
@@ -123,7 +116,7 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
   const int32_t ZRes = SyncRun(HostZStream.get(), ZStreamPtr, Frame, [&]() {
-    return inflateInit_(HostZStream.get(), ZLIB_VERSION, sizeof(z_stream));
+    return inflateInit_(HostZStream.get(), WasmZlibVersion, sizeof(z_stream));
   });
 
   if (ZRes == Z_OK)

@@ -72,5 +72,13 @@ public:
                        uint32_t DictionaryPtr, uint32_t DictLengthPtr);
 };
 
+class WasmEdgeZlibDeflateCopy : public WasmEdgeZlib<WasmEdgeZlibDeflateCopy> {
+public:
+  WasmEdgeZlibDeflateCopy(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t DestPtr,
+                       uint32_t SourcePtr);
+};
+
 } // namespace Host
 } // namespace WasmEdge

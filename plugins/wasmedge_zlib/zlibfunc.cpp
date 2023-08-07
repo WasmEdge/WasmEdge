@@ -230,5 +230,34 @@ Expect<int32_t> WasmEdgeZlibDeflateGetDictionary::body(
   return ZRes;
 }
 
+/*
+"The deflateCopy() function shall copy the compression state information in
+source to the uninitialized z_stream structure referenced by dest."
+
+https://refspecs.linuxbase.org/LSB_3.0.0/LSB-Core-generic/LSB-Core-generic/zlib-deflatecopy-1.html
+*/
+Expect<int32_t>
+WasmEdgeZlibDeflateCopy::body(const Runtime::CallingFrame &Frame,
+                              uint32_t DestPtr, uint32_t SourcePtr) {
+
+  const auto SourceZStreamIt = Env.ZStreamMap.find(SourcePtr);
+  if (SourceZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto DestZStream = std::make_unique<z_stream>();
+
+  SyncRun(SourceZStreamIt->second.get(), SourcePtr, Frame, []() { return 0; });
+
+  const int32_t ZRes = SyncRun(DestZStream.get(), DestPtr, Frame, [&]() {
+    return deflateCopy(DestZStream.get(), SourceZStreamIt->second.get());
+  });
+
+  if (ZRes == Z_OK)
+    Env.ZStreamMap.emplace(std::make_pair(DestPtr, std::move(DestZStream)));
+
+  return ZRes;
+}
+
 } // namespace Host
 } // namespace WasmEdge

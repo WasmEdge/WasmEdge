@@ -95,7 +95,8 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
                         sizeof(z_stream));
   });
 
-  Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)));
+  if (ZRes == Z_OK)
+    Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)));
 
   return ZRes;
 }
@@ -125,7 +126,8 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
     return inflateInit_(HostZStream.get(), ZLIB_VERSION, sizeof(z_stream));
   });
 
-  Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)));
+  if (ZRes == Z_OK)
+    Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)));
 
   return ZRes;
 }

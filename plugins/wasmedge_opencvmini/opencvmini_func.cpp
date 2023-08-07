@@ -142,8 +142,41 @@ WasmEdgeOpenCVMiniBilinearSampling::body(const Runtime::CallingFrame &,
   if (!Src) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
+
   cv::Mat Dst;
   cv::resize(*Src, Dst, cv::Size(OutImgW, OutImgH), 0, 0, cv::INTER_LINEAR);
+  return Env.insertMat(Dst);
+}
+
+Expect<void> WasmEdgeOpenCVMiniRectangle::body(
+    const Runtime::CallingFrame &, uint32_t SrcMatKey, uint32_t Top,
+    uint32_t Left, uint32_t Bot, uint32_t Right, double R, double G, double B,
+    int32_t Thickness, int32_t LineType, int32_t Shift) {
+  auto Src = Env.getMat(SrcMatKey);
+  if (!Src) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  cv::Point TopLeft(Top, Left);
+  cv::Point BottomRight(Bot, Right);
+
+  cv::rectangle(*Src, TopLeft, BottomRight, cv::Scalar(B, G, R), Thickness,
+                LineType, Shift);
+  return {};
+}
+
+Expect<uint32_t> WasmEdgeOpenCVMiniCvtColor::body(const Runtime::CallingFrame &,
+                                                  uint32_t SrcMatKey,
+                                                  int32_t Code,
+                                                  int32_t DestChannelN) {
+  auto Src = Env.getMat(SrcMatKey);
+  if (!Src) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  auto Img = *Src;
+
+  cv::Mat Dst;
+  cvtColor(Img, Dst, Code, DestChannelN);
   return Env.insertMat(Dst);
 }
 

@@ -6,4 +6,4 @@ This Part have moved to
 2. OpenVINO: <https://wasmedge.org/docs/develop/rust/wasinn/openvino>
 3. TensorFlow-Lite: <https://wasmedge.org/docs/develop/rust/wasinn/tensorflow_lite>
 
-Please use our new docs.
+Please use our new docs..

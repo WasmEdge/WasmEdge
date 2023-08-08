@@ -1,5 +1,6 @@
 # Comparison
 
+// TODO: TBD in New Docs - @adithyaakrishna
 ## What's the relationship between WebAssembly and Docker?
 
 Check out our infographic [WebAssembly vs. Docker](https://wasmedge.org/wasm_docker/). WebAssembly runs side by side with Docker in cloud native and edge native applications.

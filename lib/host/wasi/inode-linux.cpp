@@ -1424,6 +1424,9 @@ WasiExpect<void> Poller::Timer::setTime(__wasi_timestamp_t Timeout,
   if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
     SysFlags |= TFD_TIMER_ABSTIME;
   }
+  // Zero timeout has a special meaning. When the itimerspec is set to 0, then
+  // it will disarm timer.
+  Timeout = std::max<__wasi_timestamp_t>(Timeout, 1U);
   itimerspec Spec{toTimespec(0), toTimespec(Timeout)};
   if (auto Res = ::timerfd_settime(Fd, SysFlags, &Spec, nullptr);
       unlikely(Res < 0)) {
@@ -1498,6 +1501,9 @@ WasiExpect<void> Poller::Timer::setTime(__wasi_timestamp_t Timeout,
   if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
     SysFlags |= TIMER_ABSTIME;
   }
+  // Zero timeout has a special meaning. When the itimerspec is set to 0, then
+  // it will disarm timer.
+  Timeout = std::max<__wasi_timestamp_t>(Timeout, 1U);
   itimerspec Spec{toTimespec(0), toTimespec(Timeout)};
   if (auto Res = ::timer_settime(*TimerId.Id, SysFlags, &Spec, nullptr);
       unlikely(Res < 0)) {

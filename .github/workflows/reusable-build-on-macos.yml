@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(inputs.matrix) }}
-    name: Build on ${{ matrix.name }}
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
     env:
       BUILD_TESTS: ON
@@ -33,6 +33,7 @@ jobs:
       - name: Setup build environment
         run: |
           brew install llvm ninja cmake wabt
+        shell: /bin/zsh {0}
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |

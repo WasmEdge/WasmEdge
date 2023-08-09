@@ -743,8 +743,14 @@ private:
 } // namespace WasmEdge
 
 #include "engine/atomic.ipp"
-#include "engine/binary_numeric.ipp"
 #include "engine/cast_numeric.ipp"
 #include "engine/memory.ipp"
 #include "engine/relation_numeric.ipp"
+
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+#include "engine/binary_numeric_msvc.ipp"
+#include "engine/unary_numeric_msvc.ipp"
+#else
+#include "engine/binary_numeric.ipp"
 #include "engine/unary_numeric.ipp"
+#endif // MSVC

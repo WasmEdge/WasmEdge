@@ -885,7 +885,26 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
                                       Instr.getMemoryLane());
     }
 
-      // SIMD Numeric Instructions
+    // SIMD Numeric Instructions
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+    case OpCode::I8x16__swizzle: {
+      const ValVariant Val2 = StackMgr.pop();
+      ValVariant &Val1 = StackMgr.getTop();
+      const uint8x16_t &Index = Val2.get<uint8x16_t>();
+      uint8x16_t &Vector = Val1.get<uint8x16_t>();
+      uint8x16_t Result;
+      for (size_t I = 0; I < 16; ++I) {
+        const uint8_t SwizzleIndex = Index[I];
+        if (SwizzleIndex < 16) {
+          Result[I] = Vector[SwizzleIndex];
+        } else {
+          Result[I] = 0;
+        }
+      }
+      Vector = Result;
+      return {};
+    }
+#else
     case OpCode::I8x16__swizzle: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
@@ -909,6 +928,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       Vector = detail::vectorSelect(Exceed, Zero, Result);
       return {};
     }
+#endif // MSVC
     case OpCode::I8x16__splat:
       return runSplatOp<uint32_t, uint8_t>(StackMgr.getTop());
     case OpCode::I16x8__splat:
@@ -1116,38 +1136,76 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
 
     case OpCode::V128__not: {
       auto &Val = StackMgr.getTop().get<uint64x2_t>();
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      Val[0] = ~Val[0];
+      Val[1] = ~Val[1];
+#else
       Val = ~Val;
+#endif // MSVC
       return {};
     }
     case OpCode::V128__and: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      auto &Result = Val1.get<uint64x2_t>();
+      auto &Vector = Val2.get<uint64x2_t>();
+      Result[0] &= Vector[0];
+      Result[1] &= Vector[1];
+#else
       Val1.get<uint64x2_t>() &= Val2.get<uint64x2_t>();
+#endif // MSVC
       return {};
     }
     case OpCode::V128__andnot: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      auto &Result = Val1.get<uint64x2_t>();
+      auto &Vector = Val2.get<uint64x2_t>();
+      Result[0] &= ~Vector[0];
+      Result[1] &= ~Vector[1];
+#else
       Val1.get<uint64x2_t>() &= ~Val2.get<uint64x2_t>();
+#endif // MSVC
       return {};
     }
     case OpCode::V128__or: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      auto &Result = Val1.get<uint64x2_t>();
+      auto &Vector = Val2.get<uint64x2_t>();
+      Result[0] |= Vector[0];
+      Result[1] |= Vector[1];
+#else
       Val1.get<uint64x2_t>() |= Val2.get<uint64x2_t>();
+#endif // MSVC
       return {};
     }
     case OpCode::V128__xor: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      auto &Result = Val1.get<uint64x2_t>();
+      auto &Vector = Val2.get<uint64x2_t>();
+      Result[0] ^= Vector[0];
+      Result[1] ^= Vector[1];
+#else
       Val1.get<uint64x2_t>() ^= Val2.get<uint64x2_t>();
+#endif // MSVC
       return {};
     }
     case OpCode::V128__bitselect: {
       const uint64x2_t C = StackMgr.pop().get<uint64x2_t>();
       const uint64x2_t Val2 = StackMgr.pop().get<uint64x2_t>();
       uint64x2_t &Val1 = StackMgr.getTop().get<uint64x2_t>();
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      Val1[0] = (Val1[0] & C[0]) | (Val2[0] & ~C[0]);
+      Val1[1] = (Val1[1] & C[1]) | (Val2[1] & ~C[1]);
+#else
       Val1 = (Val1 & C) | (Val2 & ~C);
+#endif // MSVC
       return {};
     }
     case OpCode::V128__any_true:
@@ -1570,6 +1628,28 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::F64x2__promote_low_f32x4:
       return runVectorPromoteOp(StackMgr.getTop());
 
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+    case OpCode::I32x4__dot_i16x8_s: {
+      using int32x8_t = SIMDArray<int32_t, 32>;
+      const ValVariant Val2 = StackMgr.pop();
+      ValVariant &Val1 = StackMgr.getTop();
+
+      auto &V2 = Val2.get<int16x8_t>();
+      auto &V1 = Val1.get<int16x8_t>();
+      int32x8_t M;
+
+      for (size_t I = 0; I < 8; ++I) {
+        M[I] = V1[I] * V2[I];
+      }
+
+      int32x4_t Result;
+      for (size_t I = 0; I < 4; I += 2) {
+        Result[I] = M[I] + M[I + 1];
+      }
+      Val1.emplace<int32x4_t>(Result);
+      return {};
+    }
+#else
     case OpCode::I32x4__dot_i16x8_s: {
       using int32x8_t [[gnu::vector_size(32)]] = int32_t;
       const ValVariant Val2 = StackMgr.pop();
@@ -1585,6 +1665,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
 
       return {};
     }
+#endif // MSVC
     case OpCode::F32x4__ceil:
       return runVectorCeilOp<float>(StackMgr.getTop());
     case OpCode::F32x4__floor:

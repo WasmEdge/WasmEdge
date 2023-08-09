@@ -69,9 +69,9 @@ target_include_directories(wasmedgeAPIMallocTest
 # Add custom command to convert cmalloc.wat to cmalloc.wasm
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/apitestData/cmalloc.wasm
-    COMMAND wat2wasm ${CMAKE_CURRENT_SOURCE_DIR}/apitestData/cmalloc.wat
+    COMMAND wat2wasm ${CMAKE_CURRENT_BINARY_DIR}/apitestData/cmalloc.wat
                     -o ${CMAKE_CURRENT_BINARY_DIR}/apitestData/cmalloc.wasm
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/apitestData/cmalloc.wat
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/apitestData/cmalloc.wat
 )
 
 # Mark the generated cmalloc.wasm as a custom target

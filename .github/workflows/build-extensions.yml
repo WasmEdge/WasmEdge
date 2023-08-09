@@ -150,11 +150,11 @@ jobs:
         include:
           - name: Plugins_g++
             compiler: g++
-            docker_tag: ubuntu-build-opencv-gcc
+            docker_tag: ubuntu-build-gcc
             build_type: Release
           - name: Plugins_clang++
             compiler: clang++
-            docker_tag: ubuntu-build-opencv-clang
+            docker_tag: ubuntu-build-clang
             build_type: Release
     name: Ubuntu plugins with ${{ matrix.compiler }} ${{ matrix.build_type }}
     runs-on: ubuntu-latest

@@ -496,10 +496,12 @@ jobs:
           fetch-depth: 0
       - name: Build and install dependencies
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           brew install llvm ninja cmake openssl opencv
       - name: Build WasmEdge plugins using clang++ with ${{ matrix.build_type }} mode
         shell: bash
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           testbin_array=(${test_bins})
           export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
           export CC=clang
@@ -513,6 +515,7 @@ jobs:
       - name: Test WasmEdge plugins
         shell: bash
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           plugin_array=(${tar_names})
           testbin_array=(${test_bins})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
@@ -525,6 +528,7 @@ jobs:
       - name: Prepare the WasmEdge plugins tar.gz package
         shell: bash
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           plugin_array=(${tar_names})
           outbin_array=(${output_bins})
           for (( i=0; i<${#plugin_array[@]}; i++ ));

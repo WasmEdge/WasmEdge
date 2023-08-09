@@ -1,0 +1,18 @@
+ARG BASE=wasmedge/wasmedge:ubuntu-build-gcc
+FROM ${BASE}
+
+RUN apt update && apt install -y \
+  wget \
+  unzip
+
+RUN rm -rf /var/lib/apt/lists/*
+
+RUN wget -O opencv.zip https://github.com/opencv/opencv/archive/refs/tags/4.8.0.zip
+RUN unzip opencv.zip
+RUN mv opencv-4.8.0 opencv
+RUN mkdir -p opencv/build
+# Configure
+RUN cd opencv/build \
+  cmake -GNinja ..  \
+  cmake --build .   \
+  cmake --install .

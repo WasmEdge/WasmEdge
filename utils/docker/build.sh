@@ -25,14 +25,18 @@ function docker_build
 }
 
 # Build all images.
-docker_build Dockerfile.base            ubuntu-base
-docker_build Dockerfile.ci-image-base   ci-image-base
-docker_build Dockerfile.build-clang     ubuntu-build-clang  \
+docker_build Dockerfile.base                ubuntu-base
+docker_build Dockerfile.ci-image-base       ci-image-base
+docker_build Dockerfile.build-clang         ubuntu-build-clang        \
     --build-arg "BASE=${NAME}:ubuntu-base"
-docker_build Dockerfile.build-clang     latest              \
+docker_build Dockerfile.build-clang         latest                    \
     --build-arg "BASE=${NAME}:ubuntu-base"
-docker_build Dockerfile.build-gcc       ubuntu-build-gcc    \
+docker_build Dockerfile.build-gcc           ubuntu-build-gcc          \
     --build-arg "BASE=${NAME}:ubuntu-base"
+docker_build Dockerfile.build-opencv-clang  ubuntu-build-opencv-clang \
+    --build-arg "BASE=${NAME}:ubuntu-build-clang"
+docker_build Dockerfile.build-opencv-gcc    ubuntu-build-opencv-gcc   \
+    --build-arg "BASE=${NAME}:ubuntu-build-gcc"
 
 # Remove intermediate images.
 for NAME_TAG in "${INTERMEDIATES[@]}"; do

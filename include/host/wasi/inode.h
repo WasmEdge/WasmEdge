@@ -190,10 +190,15 @@ struct HandleHolder {
     reset();
     Handle = NewHandle;
   }
-  friend void swap(HandleHolder &LHS, HandleHolder &RHS) noexcept {
-    using std::swap;
-    swap(LHS.Handle, RHS.Handle);
-    swap(LHS.Type, RHS.Type);
+  friend constexpr void swap(HandleHolder &LHS, HandleHolder &RHS) noexcept {
+    // swap(LHS.Handle, RHS.Handle);
+    winapi::HANDLE_ Tmp = std::move(LHS.Handle);
+    LHS.Handle = std::move(RHS.Handle);
+    RHS.Handle = std::move(Tmp);
+    // swap(LHS.Type, RHS.Type);
+    HandleHolder::HandleType TmpTy = std::move(LHS.Type);
+    LHS.Type = std::move(RHS.Type);
+    RHS.Type = std::move(TmpTy);
   }
   WasiExpect<void> filestatGet(__wasi_filestat_t &FileStat) const noexcept;
 

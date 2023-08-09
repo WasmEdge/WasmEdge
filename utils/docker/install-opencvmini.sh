@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 # SPDX-FileCopyrightText: 2019-2023 Second State INC
 
-wget -O opencv.zip https://github.com/opencv/opencv/archive/refs/tags/4.8.0.zip
+wget -O opencv.zip https://github.com/opencv/opencv/archive/refs/tags/${OPENCV_VERSION}.zip
 
 unzip opencv.zip
 mv opencv-4.8.0 opencv

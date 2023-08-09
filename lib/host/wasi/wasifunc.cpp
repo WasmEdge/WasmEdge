@@ -15,6 +15,10 @@
 #include <type_traits>
 #include <vector>
 
+#if defined(_MSC_VER) && !defined(__clang__)
+#define __restrict__ __restrict
+#endif
+
 namespace WasmEdge {
 namespace Host {
 

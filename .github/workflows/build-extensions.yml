@@ -178,8 +178,10 @@ jobs:
       - name: Install dependencies
         run: |
           apt update
-          apt install -y libssl-dev
+          apt install -y libssl-dev cmake wget unzip
           apt install -y libelf-dev zlib1g-dev pkg-config
+          apt install -y clang liblld-14-dev llvm
+          bash utils/opencvmini/install-opencvmini.sh
           # Running tests of wasm_bpf requires proper ebpf running environment
           mount -t debugfs none /sys/kernel/debug
       - name: Build plugins using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode

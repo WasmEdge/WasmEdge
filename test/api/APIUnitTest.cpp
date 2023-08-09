@@ -216,7 +216,7 @@ char *Preopens[] = {&PreopensVec[0], &PreopensVec[12], &PreopensVec[21],
 char TPath[] = "apiTestData/test.wasm";
 
 void HexToFile(std::vector<uint8_t> &Wasm, const char *Path) {
-  std::ofstream TFile(Path);
+  std::ofstream TFile(std::filesystem::u8path(Path), std::ios_base::binary);
   for (auto &Hex : Wasm) {
     TFile << Hex;
   }

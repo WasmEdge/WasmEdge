@@ -23,7 +23,6 @@ The following information is optional. Please provide them only if you have buil
 - C++ Compiler version:
 - CMake version:
 - CMake flags: (e.g. `-DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=ON`)
-- Boost version:
 
 ## Steps to Reproduce
 

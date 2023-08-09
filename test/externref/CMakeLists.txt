@@ -13,6 +13,11 @@ file(COPY
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+target_include_directories(wasmedgeExternrefTests
+  PRIVATE
+  ${PROJECT_SOURCE_DIR}/include
+)
+
 target_link_libraries(wasmedgeExternrefTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}

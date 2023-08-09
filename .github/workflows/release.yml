@@ -85,6 +85,14 @@ jobs:
       version: ${{ needs.create_release.outputs.version }}
       release: true
     secrets: inherit
+  
+  build_on_alpine_static:
+    needs: create_release
+    uses: ./.github/workflows/reusable-build-on-alpine-static.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      release: true
+    secrets: inherit
 
   build_on_windows:
     needs: create_release

@@ -1,0 +1,96 @@
+# syntax=docker/dockerfile:1.5-labs
+
+ARG XX_VERSION=1.2.1
+ARG ALPINE_VERSION=3.16
+# alpine 3.16 ships with llvm 13.
+# alpine 3.17 and 3.18 do not ship lld-static.
+
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
+FROM --platform=$BUILDPLATFORM alpine:${ALPINE_VERSION} AS base
+COPY --from=xx / /
+
+# Install host dependencies
+RUN apk add bash cmake samurai g++ clang
+SHELL [ "bash", "-c" ]
+
+# Make a cmake toolchain file
+RUN cat <<'EOT' > /usr/bin/xx-toolchain && chmod a+x /usr/bin/xx-toolchain
+#!/bin/bash
+mkdir -p /etc/xx-toolchains/
+TOOLCHAIN_FILE="/etc/xx-toolchains/$(xx-clang --print-target-triple).cmake"
+[ -f "$TOOLCHAIN_FILE" ] || cat <<EOF > "$TOOLCHAIN_FILE"
+set(CMAKE_CROSSCOMPILING ON)
+set(CMAKE_SYSROOT "$(xx-info sysroot)")
+set(CMAKE_SYSTEM_NAME "Linux")
+set(CMAKE_SYSTEM_VERSION 1)
+set(CMAKE_SYSTEM_PROCESSOR "$(xx-info march)")
+set(CMAKE_C_COMPILER "$(which clang)")
+set(CMAKE_CXX_COMPILER "$(which clang++)")
+set(CMAKE_ASM_COMPILER "$(which clang)")
+set(CMAKE_AR "$(which ar)")
+set(CMAKE_RANLIB "$(which ranlib)")
+set(PKG_CONFIG_EXECUTABLE "$(xx-clang --print-prog-name=pkg-config)")
+set(CMAKE_C_COMPILER_TARGET "$(xx-clang --print-target-triple)")
+set(CMAKE_CXX_COMPILER_TARGET "$(xx-clang --print-target-triple)")
+set(CMAKE_ASM_COMPILER_TARGET "$(xx-clang --print-target-triple)")
+EOF
+echo "$TOOLCHAIN_FILE"
+EOT
+
+FROM base AS config
+ARG TARGETPLATFORM
+
+RUN apk add git llvm-dev
+RUN xx-apk add \
+    g++ \
+    llvm-dev llvm-static \
+    lld lld-dev lld-static \
+    zlib-dev zlib-static
+
+# Fix LLVMConfig.cmake to account for the sysroot
+RUN sed -i 's|/usr/lib/llvm|${CMAKE_SYSROOT}usr/lib/llvm|' $(xx-info sysroot)usr/lib/cmake/llvm*/LLVMConfig.cmake
+# In cmake/Helper.cmake we assume that lld is installed alongside llvm, so copy files over
+RUN cp $(xx-info sysroot)usr/lib/liblld*.a $(xx-info sysroot)usr/lib/llvm*/lib/
+# Use the native version of llvm-config
+RUN ! xx-info is-cross || cp -f /usr/lib/llvm*/bin/llvm-config $(xx-info sysroot)usr/lib/llvm*/bin/llvm-config
+
+RUN --mount=type=bind,target=/src,source=. \
+    cmake -S /src -B /build -G Ninja \
+        -DCMAKE_BUILD_TYPE=MinSizeRel \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DCMAKE_INSTALL_PREFIX="/install" \
+        # For cross compiling
+        -DCMAKE_TOOLCHAIN_FILE="$(xx-toolchain)" \
+        -DWASMEDGE_BUILD_PACKAGE="TGZ" \
+        -DWASMEDGE_BUILD_AOT_RUNTIME=ON \
+        # Build just what we need
+        -DWASMEDGE_BUILD_STATIC_LIB=ON \
+        -DWASMEDGE_BUILD_TESTS=OFF \
+        -DWASMEDGE_BUILD_SHARED_LIB=OFF \
+        -DWASMEDGE_BUILD_TOOLS=OFF \
+        -DWASMEDGE_BUILD_PLUGINS=OFF \
+        -DWASMEDGE_BUILD_EXAMPLE=OFF \
+        # Link llvm statically
+        -DWASMEDGE_LINK_LLVM_STATIC=ON \
+        -DWASMEDGE_LINK_TOOLS_STATIC=ON \
+        # Disable extra dependencies
+        -DWASMEDGE_DISABLE_LIBTINFO=ON
+
+FROM  config AS build
+RUN --mount=type=bind,target=/src,source=. \
+    cmake --build /build -- install package
+
+ARG ALPINE_VERSION
+RUN --mount=type=bind,target=/src,source=. <<EOT
+    set -ex
+    WASMEDGE_VERSION="$(cd /src && git describe --match '[0-9].[0-9]*' --tag)"
+    ARCH="$(xx-info march)"
+    ARCHIVE_TAG=${WASMEDGE_VERSION%%-*}-alpine${ALPINE_VERSION}_$(xx-info march)
+    mv /build/WasmEdge-*-Linux.tar.gz /build/WasmEdge-${ARCHIVE_TAG}_static.tar.gz
+EOT
+
+FROM scratch AS install
+COPY --from=build /install /
+
+FROM scratch AS tar
+COPY --from=build /build/WasmEdge-*.tar.gz /

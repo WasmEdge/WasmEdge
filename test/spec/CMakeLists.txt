@@ -12,44 +12,53 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(wasmedge_unit_test)
 message(STATUS "Downloading the WASM spec test suite -- done")
 
-find_package(RapidJSON QUIET)
-if(NOT RapidJSON_FOUND)
-  message(STATUS "Downloading RapidJSON source")
-  FetchContent_Declare(
-    RapidJSON
-    GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
-    GIT_TAG        master
-    GIT_SHALLOW    TRUE
-    )
-
-  get_property(
-    compile_options
-    DIRECTORY
-    PROPERTY COMPILE_OPTIONS
-    )
-  set_property(
-    DIRECTORY
-    APPEND
-    PROPERTY COMPILE_OPTIONS
-    -Wno-conditional-uninitialized
-    -Wno-implicit-int-conversion
-    -Wno-zero-as-null-pointer-constant
-    )
-  unset(compile_options)
-  set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "Build RapidJSON documentation." FORCE)
-  set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "Build RapidJSON examples." FORCE)
-  set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "Build RapidJSON perftests and unittests." FORCE)
-  set(RAPIDJSON_BUILD_CXX11 OFF CACHE BOOL "Build RapidJSON with C++11" FORCE)
-  set(RAPIDJSON_BUILD_CXX17 ON CACHE BOOL "Build RapidJSON with C++17" FORCE)
-  FetchContent_MakeAvailable(RapidJSON)
-  message(STATUS "Downloading RapidJSON source -- done")
-endif()
-
-add_library(RapidJSON INTERFACE)
-if(RAPIDJSON_INCLUDE_DIRS)
-  target_include_directories(RapidJSON INTERFACE ${RAPIDJSON_INCLUDE_DIRS})
+find_package(simdjson QUIET)
+if(simdjson_FOUND)
+  message(STATUS "SIMDJSON found")
 else()
-  target_include_directories(RapidJSON INTERFACE ${RapidJSON_SOURCE_DIR}/include)
+  message(STATUS "Downloading SIMDJSON source")
+  include(FetchContent)
+  FetchContent_Declare(
+    simdjson
+    GIT_REPOSITORY https://github.com/simdjson/simdjson.git
+    GIT_TAG  tags/v3.2.1
+    GIT_SHALLOW TRUE)
+
+  if( MSVC )
+    get_property(
+      compile_options
+      DIRECTORY
+      PROPERTY COMPILE_OPTIONS
+      )
+    set_property(
+      DIRECTORY
+      APPEND
+      PROPERTY COMPILE_OPTIONS
+      -Wno-undef
+      -Wno-suggest-override
+      -Wno-documentation
+      -Wno-sign-conversion
+      -Wno-extra-semi-stmt
+      -Wno-old-style-cast
+      -Wno-error=unused-parameter
+      -Wno-error=unused-template
+      -Wno-conditional-uninitialized
+      -Wno-implicit-int-conversion
+      -Wno-shorten-64-to-32
+      -Wno-range-loop-bind-reference
+      -Wno-format-nonliteral
+      -Wno-unused-exception-parameter
+      -Wno-unused-member-function
+      )
+    unset(compile_options)
+  endif( MSVC )
+  
+  FetchContent_MakeAvailable(simdjson)
+
+  set(SIMDJSON_JUST_LIBRARY ON CACHE INTERNAL "")
+  set(SIMDJSON_BUILD_STATIC ON CACHE INTERNAL "")
+
+  message(STATUS "Downloading SIMDJSON source -- done")
 endif()
 
 function(wasmedge_copy_spec_testsuite proposal)
@@ -72,7 +81,7 @@ wasmedge_add_library(wasmedgeTestSpec
 
 target_link_libraries(wasmedgeTestSpec
   PRIVATE
-  RapidJSON
+  simdjson
   PUBLIC
   std::filesystem
   wasmedgeCommon

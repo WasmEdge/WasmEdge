@@ -1,0 +1,46 @@
+name: Build on Alpine (static lib)
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+
+jobs:
+  build_on_debian_static:
+    name: Build on Alpine (static lib)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Build WasmEdge
+        uses: docker/bake-action@v3
+        with:
+          files: ./utils/docker/docker-bake.alpine-static.hcl
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: static-libs
+          path: ./build/*/WasmEdge-*.tar.gz
+      - name: Upload package tarball
+        if: ${{ inputs.release }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          type -p curl >/dev/null || (apt update && apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && apt update \
+          && apt install gh -y
+          gh release upload ${{ inputs.version }} ./build/*/WasmEdge-*.tar.gz --clobber

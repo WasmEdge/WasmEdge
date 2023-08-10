@@ -113,32 +113,57 @@ parseValueList(const simdjson::dom::array &Args) {
           I++;
         }
       } else if (LaneType == "i32"sv || LaneType == "f32"sv) {
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+        using uint32x4_t = SIMDArray<uint32_t, 16>;
+#else
         using uint32x4_t = uint32_t __attribute__((vector_size(16)));
+#endif
         uint32x4_t I32x4 = {0};
         size_t I = 0;
         for (std::string_view X : ValueNodeArray) {
           I32x4[I] = std::stoull(std::string(X));
           I++;
         }
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t&>(I32x4);
+#else
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I32x4);
+#endif
+
       } else if (LaneType == "i16"sv) {
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+        using uint16x8_t = SIMDArray<uint16_t, 16>;
+#else
         using uint16x8_t = uint16_t __attribute__((vector_size(16)));
+#endif
         uint16x8_t I16x8 = {0};
         size_t I = 0;
         for (std::string_view X : ValueNodeArray) {
           I16x8[I] = std::stoull(std::string(X));
           I++;
         }
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t&>(I16x8);
+#else
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I16x8);
+#endif
       } else if (LaneType == "i8"sv) {
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+        using uint8x16_t = SIMDArray<uint8_t, 16>;
+#else
         using uint8x16_t = uint8_t __attribute__((vector_size(16)));
+#endif
         uint8x16_t I8x16 = {0};
         size_t I = 0;
         for (std::string_view X : ValueNodeArray) {
           I8x16[I] = std::stoull(std::string(X));
           I++;
         }
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t&>(I8x16);
+#else
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I8x16);
+#endif
       }
       Result.emplace_back(I64x2);
       ResultTypes.emplace_back(WasmEdge::ValType::V128);
@@ -355,8 +380,13 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      const auto VF = reinterpret_cast<const floatx4_t&>(V64);
+      const auto VI = reinterpret_cast<const uint32x4_t&>(V64);
+#else
       const auto VF = reinterpret_cast<floatx4_t>(V64);
       const auto VI = reinterpret_cast<uint32x4_t>(V64);
+#endif
       for (size_t I = 0; I < 4; ++I) {
         if (Parts[I].substr(0, 4) == "nan:"sv) {
           if (!std::isnan(VF[I])) {
@@ -374,8 +404,13 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      const auto VF = reinterpret_cast<const doublex2_t&>(V64);
+      const auto VI = reinterpret_cast<const uint64x2_t&>(V64);
+#else
       const auto VF = reinterpret_cast<doublex2_t>(V64);
       const auto VI = reinterpret_cast<uint64x2_t>(V64);
+#endif
       for (size_t I = 0; I < 2; ++I) {
         if (Parts[I].substr(0, 4) == "nan:"sv) {
           if (!std::isnan(VF[I])) {
@@ -393,7 +428,11 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      const auto V = reinterpret_cast<const uint8x16_t&>(V64);
+#else
       const auto V = reinterpret_cast<uint8x16_t>(V64);
+#endif
       for (size_t I = 0; I < 16; ++I) {
         const uint8_t V1 = V[I];
         const uint8_t V2 =
@@ -406,7 +445,11 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      const auto V = reinterpret_cast<const uint16x8_t&>(V64);
+#else
       const auto V = reinterpret_cast<uint16x8_t>(V64);
+#endif
       for (size_t I = 0; I < 8; ++I) {
         const uint16_t V1 = V[I];
         const uint16_t V2 =
@@ -419,7 +462,11 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      const auto V = reinterpret_cast<const uint32x4_t&>(V64);
+#else
       const auto V = reinterpret_cast<uint32x4_t>(V64);
+#endif
       for (size_t I = 0; I < 4; ++I) {
         const uint32_t V1 = V[I];
         const uint32_t V2 = std::stoul(std::string(Parts[I]));

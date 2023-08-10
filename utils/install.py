@@ -342,7 +342,7 @@ PLUGINS_AVAILABLE = [
     WASMEDGE_TENSORFLOW_PLUGIN,
     WASMEDGE_TENSORFLOW_LITE_PLUGIN,
     WASMEDGE_IMAGE_PLUGIN,
-    WASM_BPF
+    WASM_BPF,
 ]
 
 SUPPORTTED_PLUGINS = {
@@ -1611,7 +1611,12 @@ def main(args):
         # Cleanup
         shutil.rmtree(TEMP_PATH)
 
-        logging.info("Run:\nsource {0}".format(CONST_shell_profile))
+        if exists(CONST_shell_config) and compat.platform != "Darwin":
+            logging.info("Run:\nsource {0}".format(CONST_shell_config))
+        elif exists(CONST_shell_profile):
+            logging.info("Run:\nsource {0}".format(CONST_shell_profile))
+        else:
+            logging.info("Please source the env file: %s", join(args.path, "env"))
     else:
         reraise(Exception("Incompatible with your machine\n{0}".format(compat)))
 

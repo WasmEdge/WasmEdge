@@ -891,6 +891,28 @@ public:
             LLVM::BasicBlock::create(LLContext, F.Fn, "br_table.end"));
         break;
       }
+      case OpCode::Br_on_null: {
+        const auto Label = Instr.getJump().TargetIndex;
+        auto Value = stackPop();
+        auto Cond = Builder.createICmpEQ(Value, LLContext.getInt64(0));
+        setLableJumpPHI(Label);
+        auto Next = LLVM::BasicBlock::create(LLContext, F.Fn, "br_on_null.end");
+        Builder.createCondBr(Cond, getLabel(Label), Next);
+        Builder.positionAtEnd(Next);
+        stackPush(Value);
+        break;
+      }
+      case OpCode::Br_on_non_null: {
+        const auto Label = Instr.getJump().TargetIndex;
+        auto Cond = Builder.createICmpNE(Stack.back(), LLContext.getInt64(0));
+        setLableJumpPHI(Label);
+        auto Next =
+            LLVM::BasicBlock::create(LLContext, F.Fn, "br_on_non_null.end");
+        Builder.createCondBr(Cond, getLabel(Label), Next);
+        Builder.positionAtEnd(Next);
+        stackPop();
+        break;
+      }
       case OpCode::Call:
         updateInstrCount();
         updateGas();
@@ -918,6 +940,19 @@ public:
         Builder.positionAtEnd(
             LLVM::BasicBlock::create(LLContext, F.Fn, "ret_call_indir.end"));
         break;
+      case OpCode::Call_ref:
+        updateInstrCount();
+        updateGas();
+        compileCallRefOp(Instr.getTargetIndex());
+        break;
+      case OpCode::Return_call_ref:
+        updateInstrCount();
+        updateGas();
+        compileReturnCallRefOp(Instr.getTargetIndex());
+        setUnreachable();
+        Builder.positionAtEnd(
+            LLVM::BasicBlock::create(LLContext, F.Fn, "ret_call_ref.end"));
+        break;
       case OpCode::Ref__null:
         stackPush(LLContext.getInt64(0));
         break;
@@ -934,6 +969,16 @@ public:
                                                              false)),
             {LLContext.getInt32(Instr.getTargetIndex())}));
         break;
+      case OpCode::Ref__as_non_null: {
+        auto Next =
+            LLVM::BasicBlock::create(LLContext, F.Fn, "ref_as_non_null.ok");
+        auto IsNotNull = Builder.createLikely(
+            Builder.createICmpNE(Stack.back(), LLContext.getInt64(0)));
+        Builder.createCondBr(IsNotNull, Next,
+                             getTrapBB(ErrCode::Value::CastNullToNonNull));
+        Builder.positionAtEnd(Next);
+        break;
+      }
       case OpCode::Drop:
         stackPop();
         break;
@@ -3656,7 +3701,7 @@ private:
     {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kPtrFunc,
+              Builder, AST::Module::Intrinsics::kTableGetFuncSymbol,
               LLVM::Type::getFunctionType(
                   FTy.getPointerTo(),
                   {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
@@ -3796,7 +3841,7 @@ private:
     {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kPtrFunc,
+              Builder, AST::Module::Intrinsics::kTableGetFuncSymbol,
               LLVM::Type::getFunctionType(
                   FTy.getPointerTo(),
                   {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
@@ -3857,6 +3902,236 @@ private:
                                           false)),
           {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
            FuncIndex, Args, Rets});
+
+      if (RetSize == 0) {
+        Builder.createRetVoid();
+      } else if (RetSize == 1) {
+        auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
+        auto Ptr = Builder.createBitCast(VPtr, RTy.getPointerTo());
+        Builder.createRet(Builder.createLoad(RTy, Ptr));
+      } else {
+        std::vector<LLVM::Value> Ret(RetSize);
+        for (unsigned I = 0; I < RetSize; ++I) {
+          auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets,
+                                                         I * kValSize);
+          auto Ptr = Builder.createBitCast(
+              VPtr, RTy.getStructElementType(I).getPointerTo());
+          Ret[I] = Builder.createLoad(RTy.getStructElementType(I), Ptr);
+        }
+        Builder.createAggregateRet(Ret);
+      }
+    }
+  }
+
+  void compileCallRefOp(const unsigned int TypeIndex) noexcept {
+    auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.not_null");
+    auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.is_null");
+    auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.end");
+
+    auto Ref = stackPop();
+    auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.ref_not_null");
+    auto IsRefNotNull =
+        Builder.createLikely(Builder.createICmpNE(Ref, LLContext.getInt64(0)));
+    Builder.createCondBr(IsRefNotNull, OkBB,
+                         getTrapBB(ErrCode::Value::InvokeNullFunc));
+    Builder.positionAtEnd(OkBB);
+
+    const auto &FuncType = *Context.FunctionTypes[TypeIndex];
+    auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
+    auto RTy = FTy.getReturnType();
+
+    const size_t ArgSize = FuncType.getParamTypes().size();
+    const size_t RetSize =
+        RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
+    std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+    ArgsVec[0] = F.Fn.getFirstParam();
+    for (size_t I = 0; I < ArgSize; ++I) {
+      const size_t J = ArgSize - I;
+      ArgsVec[J] = stackPop();
+    }
+
+    std::vector<LLVM::Value> FPtrRetsVec;
+    FPtrRetsVec.reserve(RetSize);
+    {
+      auto FPtr = Builder.createCall(
+          Context.getIntrinsic(
+              Builder, AST::Module::Intrinsics::kRefGetFuncSymbol,
+              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int64Ty},
+                                          false)),
+          {Ref});
+      Builder.createCondBr(
+          Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
+          NotNullBB, IsNullBB);
+      Builder.positionAtEnd(NotNullBB);
+
+      auto FPtrRet =
+          Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, ArgsVec);
+      if (RetSize == 0) {
+        // nothing to do
+      } else if (RetSize == 1) {
+        FPtrRetsVec.push_back(FPtrRet);
+      } else {
+        for (auto Val : unpackStruct(Builder, FPtrRet)) {
+          FPtrRetsVec.push_back(Val);
+        }
+      }
+    }
+
+    Builder.createBr(EndBB);
+    Builder.positionAtEnd(IsNullBB);
+
+    std::vector<LLVM::Value> RetsVec(RetSize);
+    {
+      LLVM::Value Args;
+      if (ArgSize == 0) {
+        Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
+      } else {
+        auto Alloca = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(ArgSize * kValSize));
+        Alloca.setAlignment(kValSize);
+        Args = Alloca;
+      }
+
+      LLVM::Value Rets;
+      if (RetSize == 0) {
+        Rets = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
+      } else {
+        auto Alloca = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(RetSize * kValSize));
+        Alloca.setAlignment(kValSize);
+        Rets = Alloca;
+      }
+
+      for (size_t I = 0; I < ArgSize; ++I) {
+        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Args,
+                                                      I * kValSize);
+        auto Arg = ArgsVec[I + 1];
+        Builder.createStore(
+            Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
+      }
+
+      Builder.createCall(
+          Context.getIntrinsic(
+              Builder, AST::Module::Intrinsics::kCallRef,
+              LLVM::Type::getFunctionType(
+                  Context.VoidTy,
+                  {Context.Int64Ty, Context.Int8PtrTy, Context.Int8PtrTy},
+                  false)),
+          {Ref, Args, Rets});
+
+      if (RetSize == 0) {
+        // nothing to do
+      } else if (RetSize == 1) {
+        auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
+        auto Ptr = Builder.createBitCast(VPtr, RTy.getPointerTo());
+        RetsVec[0] = Builder.createLoad(RTy, Ptr);
+      } else {
+        for (unsigned I = 0; I < RetSize; ++I) {
+          auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets,
+                                                         I * kValSize);
+          auto Ptr = Builder.createBitCast(
+              VPtr, RTy.getStructElementType(I).getPointerTo());
+          RetsVec[I] = Builder.createLoad(RTy.getStructElementType(I), Ptr);
+        }
+      }
+      Builder.createBr(EndBB);
+      Builder.positionAtEnd(EndBB);
+    }
+
+    for (unsigned I = 0; I < RetSize; ++I) {
+      auto PHIRet = Builder.createPHI(FPtrRetsVec[I].getType());
+      PHIRet.addIncoming(FPtrRetsVec[I], NotNullBB);
+      PHIRet.addIncoming(RetsVec[I], IsNullBB);
+      stackPush(PHIRet);
+    }
+  }
+
+  void compileReturnCallRefOp(const unsigned int TypeIndex) noexcept {
+    auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.not_null");
+    auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.is_null");
+
+    auto Ref = stackPop();
+    auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.ref_not_null");
+    auto IsRefNotNull =
+        Builder.createLikely(Builder.createICmpNE(Ref, LLContext.getInt64(0)));
+    Builder.createCondBr(IsRefNotNull, OkBB,
+                         getTrapBB(ErrCode::Value::InvokeNullFunc));
+    Builder.positionAtEnd(OkBB);
+
+    const auto &FuncType = *Context.FunctionTypes[TypeIndex];
+    auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
+    auto RTy = FTy.getReturnType();
+
+    const size_t ArgSize = FuncType.getParamTypes().size();
+    const size_t RetSize =
+        RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
+    std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+    ArgsVec[0] = F.Fn.getFirstParam();
+    for (size_t I = 0; I < ArgSize; ++I) {
+      const size_t J = ArgSize - I;
+      ArgsVec[J] = stackPop();
+    }
+
+    {
+      auto FPtr = Builder.createCall(
+          Context.getIntrinsic(
+              Builder, AST::Module::Intrinsics::kRefGetFuncSymbol,
+              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int64Ty},
+                                          false)),
+          {Ref});
+      Builder.createCondBr(
+          Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
+          NotNullBB, IsNullBB);
+      Builder.positionAtEnd(NotNullBB);
+
+      auto FPtrRet =
+          Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), ArgsVec);
+      if (RetSize == 0) {
+        Builder.createRetVoid();
+      } else {
+        Builder.createRet(FPtrRet);
+      }
+    }
+
+    Builder.positionAtEnd(IsNullBB);
+
+    {
+      LLVM::Value Args;
+      if (ArgSize == 0) {
+        Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
+      } else {
+        auto Alloca = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(ArgSize * kValSize));
+        Alloca.setAlignment(kValSize);
+        Args = Alloca;
+      }
+
+      LLVM::Value Rets;
+      if (RetSize == 0) {
+        Rets = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
+      } else {
+        auto Alloca = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(RetSize * kValSize));
+        Alloca.setAlignment(kValSize);
+        Rets = Alloca;
+      }
+
+      for (size_t I = 0; I < ArgSize; ++I) {
+        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Args,
+                                                      I * kValSize);
+        auto Arg = ArgsVec[I + 1];
+        Builder.createStore(
+            Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
+      }
+
+      Builder.createCall(
+          Context.getIntrinsic(
+              Builder, AST::Module::Intrinsics::kCallRef,
+              LLVM::Type::getFunctionType(
+                  Context.VoidTy,
+                  {Context.Int64Ty, Context.Int8PtrTy, Context.Int8PtrTy},
+                  false)),
+          {Ref, Args, Rets});
 
       if (RetSize == 0) {
         Builder.createRetVoid();

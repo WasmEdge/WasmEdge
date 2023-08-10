@@ -641,7 +641,6 @@ public:
                             const uint32_t TableIdx, const uint32_t FuncTypeIdx,
                             const uint32_t FuncIdx, const ValVariant *Args,
                             ValVariant *Rets) noexcept;
-
   Expect<uint32_t> memGrow(Runtime::StackManager &StackMgr,
                            const uint32_t MemIdx,
                            const uint32_t NewSize) noexcept;
@@ -686,9 +685,10 @@ public:
                         const uint32_t ElemIdx) noexcept;
   Expect<RefVariant> refFunc(Runtime::StackManager &StackMgr,
                              const uint32_t FuncIdx) noexcept;
-  Expect<void *> ptrFunc(Runtime::StackManager &StackMgr,
-                         const uint32_t TableIdx, const uint32_t FuncTypeIdx,
-                         const uint32_t FuncIdx) noexcept;
+  Expect<void *> tableGetFuncSymbol(Runtime::StackManager &StackMgr,
+                                    const uint32_t TableIdx,
+                                    const uint32_t FuncTypeIdx,
+                                    const uint32_t FuncIdx) noexcept;
   Expect<uint32_t> memoryAtomicNotify(Runtime::StackManager &StackMgr,
                                       const uint32_t MemIdx,
                                       const uint32_t Offset,
@@ -697,6 +697,10 @@ public:
   memoryAtomicWait(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
                    const uint32_t Offset, const uint64_t Expected,
                    const int64_t Timeout, const uint32_t BitWidth) noexcept;
+  Expect<void> callRef(Runtime::StackManager &StackMgr, const RefVariant Ref,
+                       const ValVariant *Args, ValVariant *Rets) noexcept;
+  Expect<void *> refGetFuncSymbol(Runtime::StackManager &StackMgr,
+                                  const RefVariant Ref) noexcept;
 
   template <typename FuncPtr> struct ProxyHelper;
 

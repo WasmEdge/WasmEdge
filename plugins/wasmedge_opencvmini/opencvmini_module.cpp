@@ -25,6 +25,11 @@ WasmEdgeOpenCVMiniModule::WasmEdgeOpenCVMiniModule()
               std::make_unique<WasmEdgeOpenCVMiniNormalize>(Env));
   addHostFunc("wasmedge_opencvmini_bilinear_sampling",
               std::make_unique<WasmEdgeOpenCVMiniBilinearSampling>(Env));
+  addHostFunc("wasmedge_opencvmini_cvt_color",
+              std::make_unique<WasmEdgeOpenCVMiniCvtColor>(Env));
+
+  addHostFunc("wasmedge_opencvmini_rectangle",
+              std::make_unique<WasmEdgeOpenCVMiniRectangle>(Env));
 
   addHostFunc("wasmedge_opencvmini_imshow",
               std::make_unique<WasmEdgeOpenCVMiniImshow>(Env));

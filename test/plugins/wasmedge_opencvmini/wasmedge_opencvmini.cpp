@@ -36,8 +36,11 @@ TEST(WasmEdgeOpecvminiTest, Module) {
   auto *ImgMod =
       dynamic_cast<WasmEdge::Host::WasmEdgeOpenCVMiniModule *>(createModule());
   EXPECT_FALSE(ImgMod == nullptr);
-  EXPECT_EQ(ImgMod->getFuncExportNum(), 8U);
+  EXPECT_EQ(ImgMod->getFuncExportNum(), 10U);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_imdecode"), nullptr);
+  EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_imencode"), nullptr);
+  EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_rectangle"), nullptr);
+  EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_cvt_color"), nullptr);
   delete ImgMod;
 }
 

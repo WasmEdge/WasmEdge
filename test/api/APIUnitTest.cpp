@@ -483,10 +483,10 @@ TEST(APICoreTest, Value) {
   EXPECT_EQ(WasmEdge_ValueGetI32(Val), INT32_MAX);
   Val = WasmEdge_ValueGenI64(INT64_MAX);
   EXPECT_EQ(WasmEdge_ValueGetI64(Val), INT64_MAX);
-  Val = WasmEdge_ValueGenF32(1 / 0.0f);
-  EXPECT_EQ(WasmEdge_ValueGetF32(Val), 1 / 0.0f);
-  Val = WasmEdge_ValueGenF64(-1 / 0.0);
-  EXPECT_EQ(WasmEdge_ValueGetF64(Val), -1 / 0.0);
+  Val = WasmEdge_ValueGenF32(std::numeric_limits<float>::infinity());
+  EXPECT_EQ(WasmEdge_ValueGetF32(Val), std::numeric_limits<float>::infinity());
+  Val = WasmEdge_ValueGenF64(-std::numeric_limits<double>::infinity());
+  EXPECT_EQ(WasmEdge_ValueGetF64(Val), -std::numeric_limits<double>::infinity());
 #if defined(__x86_64__) || defined(__aarch64__)
   Val = WasmEdge_ValueGenV128(static_cast<int128_t>(INT64_MAX) * 2 + 1);
   EXPECT_EQ(WasmEdge_ValueGetV128(Val),

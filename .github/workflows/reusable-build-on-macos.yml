@@ -32,6 +32,9 @@ jobs:
           git config --global --add safe.directory $(pwd)
       - name: Setup build environment
         run: |
+          if ! command -v brew &> /dev/null; then
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          fi
           brew install llvm ninja cmake wabt
       - name: Set environment variables for release
         if: ${{ inputs.release }}

@@ -248,7 +248,7 @@ public:
     if (Shift < 64) {
       if (Shift != 0) {
         return uint128_t((Value.High >> Shift),
-                         Value.Low >> Shift | (Value.Low << (64 - Shift)));
+                         Value.Low >> Shift | (Value.High << (64 - Shift)));
       }
       return Value;
     }

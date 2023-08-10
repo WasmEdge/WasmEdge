@@ -508,14 +508,6 @@ WasiExpect<void> FindHolderBase<T>::emplace(HANDLE_ PathHandle) noexcept {
   return {};
 }
 
-template <typename T> void FindHolderBase<T>::reset() noexcept {
-  Proxy::doReset(static_cast<T &>(*this));
-  Path.clear();
-  Handle = nullptr;
-  Cookie = 0;
-  Buffer.clear();
-}
-
 template <typename T>
 WasiExpect<void> FindHolderBase<T>::seek(uint64_t NewCookie) noexcept {
   if (NewCookie < Cookie) {

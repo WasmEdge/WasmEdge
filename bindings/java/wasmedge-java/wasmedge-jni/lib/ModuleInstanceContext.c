@@ -48,34 +48,6 @@ JNIEXPORT jint JNICALL Java_org_wasmedge_ModuleInstanceContext_getWasiExitCode(
       getModuleInstanceContext(env, thisObject));
 }
 
-JNIEXPORT jobject JNICALL
-Java_org_wasmedge_ModuleInstanceContext_createWasmEdgeProcess(
-    JNIEnv *env, jclass thisClass, jobjectArray jAllowedCmds,
-    jboolean jAllowAll) {
-
-  const char **allowedCmds = JStringArrayToPtr(env, jAllowedCmds);
-
-  WasmEdge_ModuleInstanceContext *impCxt =
-      WasmEdge_ModuleInstanceCreateWasmEdgeProcess(
-          allowedCmds, (*env)->GetArrayLength(env, jAllowedCmds), jAllowAll);
-
-  ReleaseCString(env, jAllowedCmds, allowedCmds);
-
-  return createJModuleInstanceContext(env, impCxt);
-}
-
-JNIEXPORT void JNICALL
-Java_org_wasmedge_ModuleInstanceContext_initWasmEdgeProcess(
-    JNIEnv *env, jobject thisObject, jobjectArray jAllowedCmds,
-    jboolean jAllowAll) {
-  const char **allowedCmds = JStringArrayToPtr(env, jAllowedCmds);
-
-  WasmEdge_ModuleInstanceInitWasmEdgeProcess(
-      allowedCmds, (*env)->GetArrayLength(env, jAllowedCmds), jAllowAll);
-
-  ReleaseCString(env, jAllowedCmds, allowedCmds);
-}
-
 JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_addFunction(
     JNIEnv *env, jobject thisObject, jstring jFuncName, jobject jFunc) {
   WasmEdge_ModuleInstanceContext *impObjCxt =

@@ -54,7 +54,7 @@ jobs:
       run: nix-store --import < /tmp/nix-store
 
     - run: nix flake check
-    - run: nix build .
+    - run: nix build -L .
 
     - name: "export nix store"
       run: nix-store --export $(find /nix/store -maxdepth 1 -name '*-*') > /tmp/nix-store

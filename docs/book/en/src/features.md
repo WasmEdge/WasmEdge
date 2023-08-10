@@ -1,3 +1,3 @@
 # WasmEdge Features
 
-This doc has moved to <https://wasmedge.org/docs/develop/wasmedge/features>. Please use our new docs.
+This doc has moved to <https://wasmedge.org/docs/start/wasmedge/features>. Please use our new docs.

@@ -36,7 +36,7 @@ jobs:
           cd wabt
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -G "Visual Studio 16 2019" -DCMAKE_INSTALL_PREFIX=..\ -A x64
+          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -G "Visual Studio 16 2019" -DCMAKE_INSTALL_PREFIX=..\ -A x64 -DBUILD_TESTS=OFF
           cmake --build . --config RELEASE --target install
       - name: Set environment variables for release
         if: ${{ inputs.release }}

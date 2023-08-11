@@ -87,5 +87,14 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr);
 };
 
+class WasmEdgeZlibDeflateParams
+    : public WasmEdgeZlib<WasmEdgeZlibDeflateParams> {
+public:
+  WasmEdgeZlibDeflateParams(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       int32_t Level, int32_t Strategy);
+};
+
 } // namespace Host
 } // namespace WasmEdge

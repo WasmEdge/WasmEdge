@@ -4376,8 +4376,10 @@ private:
           // If the XOP, SSSE3, or SSE2 is not supported on the x86_64 platform
           // or the NEON is not supported on the aarch64 platform,
           // then fallback to this.
-          const auto Width = LLContext.getInt32(
+          auto Width = LLVM::Value::getConstInt(
+              ExtTy.getElementType(),
               VectorTy.getElementType().getIntegerBitWidth());
+          Width = Builder.createVectorSplat(ExtTy.getVectorSize(), Width);
           auto EV = Builder.createBitCast(V, ExtTy);
           LLVM::Value L, R;
           if (Signed) {

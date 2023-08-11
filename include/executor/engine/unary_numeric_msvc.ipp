@@ -61,7 +61,16 @@ template <typename T> TypeU<T> Executor::runPopcntOp(ValVariant &Val) const {
 }
 
 template <typename T> TypeF<T> Executor::runAbsOp(ValVariant &Val) const {
-  Val.get<T>() = std::fabs(Val.get<T>());
+  // In MSVC, std::fabs cannot be used. If input is NAN, std::fabs will set the highest bit of fraction.
+  T &Fp = Val.get<T>();
+  static_assert(std::is_floating_point_v<T>);
+  if constexpr (sizeof(T) == 4) {
+    uint32_t Tmp = reinterpret_cast<uint32_t&>(Fp) & UINT32_C(0x7fffffff);
+    Val.get<T>() = reinterpret_cast<T&>(Tmp);
+  } else {
+    uint64_t Tmp = reinterpret_cast<uint64_t&>(Fp) & UINT64_C(0x7fffffffffffffff);
+    Val.get<T>() = reinterpret_cast<T&>(Tmp);
+  }
   return {};
 }
 
@@ -174,7 +183,17 @@ Expect<void> Executor::runVectorAbsOp(ValVariant &Val) const {
   using VT = SIMDArray<T, 16>;
   VT &Result = Val.get<VT>();
   for (size_t I = 0; I < (16 / sizeof(T)); ++I) {
-    Result[I] = Result[I] > 0 ? Result[I] : -Result[I];
+    if constexpr (std::is_floating_point_v<T>) {
+      if constexpr (sizeof(T) == 4) {
+        uint32_t Tmp = reinterpret_cast<uint32_t&>(Result[I]) & UINT32_C(0x7fffffff);
+        Result[I] = reinterpret_cast<T&>(Tmp);
+      } else {
+        uint64_t Tmp = reinterpret_cast<uint64_t&>(Result[I]) & UINT64_C(0x7fffffffffffffff);
+        Result[I] = reinterpret_cast<T&>(Tmp);
+      }
+    } else {
+      Result[I] = Result[I] > 0 ? Result[I] : -Result[I];
+    }
   }
   return {};
 }
@@ -224,12 +243,13 @@ Expect<void> Executor::runVectorTruncSatOp(ValVariant &Val) const {
   VTOut Result = {}; // all zero initialization for i32x4.trunc_sat_f64x2
   for (size_t I = 0; I < (16 / sizeof(TIn)); ++I) {
     if (std::isnan(V[I])) {
-      Result[I] = 0;
+      // For NaN, return 0.
+      Result[I] = static_cast<TOut>(0);
     } else {
       TIn Tr = std::trunc(V[I]);
-      if (Tr < static_cast<TIn>(std::numeric_limits<TOut>::min())) {
+      if (Tr <= static_cast<TIn>(std::numeric_limits<TOut>::min())) {
         Result[I] = std::numeric_limits<TOut>::min();
-      } else if (Tr > static_cast<TIn>(std::numeric_limits<TOut>::max())) {
+      } else if (Tr >= static_cast<TIn>(std::numeric_limits<TOut>::max())) {
         Result[I] = std::numeric_limits<TOut>::max();
       } else {
         Result[I] = static_cast<TOut>(Tr);
@@ -309,7 +329,7 @@ Expect<void> Executor::runVectorBitMaskOp(ValVariant &Val) const {
     const uint16x16_t Mask = {0x1,    0x2,    0x4,    0x8,   0x10,  0x20,
                               0x40,   0x80,   0x100,  0x200, 0x400, 0x800,
                               0x1000, 0x2000, 0x4000, 0x8000};
-    uint16_t Result;
+    uint16_t Result = 0;
     for(size_t I = 0; I < 16; ++I) {
         Result |= Vector[I] < 0 ? Mask[I] : 0;
     }
@@ -317,7 +337,7 @@ Expect<void> Executor::runVectorBitMaskOp(ValVariant &Val) const {
   } else if constexpr (sizeof(T) == 2) {
     const uint16x8_t Mask = {0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80};
     using uint8x8_t = SIMDArray<uint8_t, 8>;
-    uint8_t Result;
+    uint8_t Result = 0;
     for(size_t I = 0; I < 8; ++I) {
         Result |= Vector[I] < 0 ? Mask[I] : 0;
     }
@@ -325,7 +345,7 @@ Expect<void> Executor::runVectorBitMaskOp(ValVariant &Val) const {
   } else if constexpr (sizeof(T) == 4) {
     const uint32x4_t Mask = {0x1, 0x2, 0x4, 0x8};
     using uint8x4_t = SIMDArray<uint8_t, 4>;
-    uint8_t Result;
+    uint8_t Result = 0;
     for(size_t I = 0; I < 4; ++I) {
         Result |= Vector[I] < 0 ? Mask[I] : 0;
     }
@@ -333,7 +353,7 @@ Expect<void> Executor::runVectorBitMaskOp(ValVariant &Val) const {
   } else if constexpr (sizeof(T) == 8) {
     const uint64x2_t Mask = {0x1, 0x2};
     using uint8x2_t = SIMDArray<uint8_t, 2>;
-    uint8_t Result;
+    uint8_t Result = 0;
     for(size_t I = 0; I < 2; ++I) {
         Result |= Vector[I] < 0 ? Mask[I] : 0;
     }

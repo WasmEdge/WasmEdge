@@ -243,12 +243,15 @@ Expect<void> Executor::runVectorEqOp(ValVariant &Val1,
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
 
+  uint64_t IAllOnes = ~UINT64_C(0);
+  const T AllOnes = reinterpret_cast<T&>(IAllOnes);
+
   // unrolling V1 = (V1 == V2);
   VT VOut;
   for(size_t I = 0; I < (16 / sizeof(T)); I++) {
     if (V1[I] == V2[I]) {
       // all ones
-      VOut[I] = ~UINT64_C(0);
+      VOut[I] = AllOnes;
     } else {
       VOut[I] = 0;
     }
@@ -266,12 +269,15 @@ Expect<void> Executor::runVectorNeOp(ValVariant &Val1,
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
 
+  uint64_t IAllOnes = ~UINT64_C(0);
+  const T AllOnes = reinterpret_cast<T&>(IAllOnes);
+
   // unrolling V1 = (V1 != V2);
   VT VOut;
   for(size_t I = 0; I < (16 / sizeof(T)); I++) {
     if (V1[I] != V2[I]) {
       // all ones
-      VOut[I] = ~UINT64_C(0);
+      VOut[I] = AllOnes;
     } else {
       VOut[I] = 0;
     }
@@ -289,12 +295,15 @@ Expect<void> Executor::runVectorLtOp(ValVariant &Val1,
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
 
+  uint64_t IAllOnes = ~UINT64_C(0);
+  const T AllOnes = reinterpret_cast<T&>(IAllOnes);
+
   // unrolling V1 = (V1 < V2);
   VT VOut;
   for(size_t I = 0; I < (16 / sizeof(T)); I++) {
     if (V1[I] < V2[I]) {
       // all ones
-      VOut[I] = ~UINT64_C(0);
+      VOut[I] = AllOnes;
     } else {
       VOut[I] = 0;
     }
@@ -312,12 +321,15 @@ Expect<void> Executor::runVectorGtOp(ValVariant &Val1,
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
 
+  uint64_t IAllOnes = ~UINT64_C(0);
+  const T AllOnes = reinterpret_cast<T&>(IAllOnes);
+
   // unrolling V1 = (V1 > V2);
   VT VOut;
   for(size_t I = 0; I < (16 / sizeof(T)); I++) {
     if (V1[I] > V2[I]) {
       // all ones
-      VOut[I] = ~UINT64_C(0);
+      VOut[I] = AllOnes;
     } else {
       VOut[I] = 0;
     }
@@ -335,12 +347,15 @@ Expect<void> Executor::runVectorLeOp(ValVariant &Val1,
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
 
+  uint64_t IAllOnes = ~UINT64_C(0);
+  const T AllOnes = reinterpret_cast<T&>(IAllOnes);
+
   // unrolling V1 = (V1 <= V2);
   VT VOut;
   for(size_t I = 0; I < (16 / sizeof(T)); I++) {
     if (V1[I] <= V2[I]) {
       // all ones
-      VOut[I] = ~UINT64_C(0);
+      VOut[I] = AllOnes;
     } else {
       VOut[I] = 0;
     }
@@ -358,12 +373,15 @@ Expect<void> Executor::runVectorGeOp(ValVariant &Val1,
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
 
+  uint64_t IAllOnes = ~UINT64_C(0);
+  const T AllOnes = reinterpret_cast<T&>(IAllOnes);
+
   // unrolling V1 = (V1 >= V2);
   VT VOut;
   for(size_t I = 0; I < (16 / sizeof(T)); I++) {
     if (V1[I] >= V2[I]) {
       // all ones
-      VOut[I] = ~UINT64_C(0);
+      VOut[I] = AllOnes;
     } else {
       VOut[I] = 0;
     }
@@ -552,7 +570,7 @@ Expect<void> Executor::runVectorMaxOp(ValVariant &Val1,
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
   for (size_t I = 0; I < (16 / sizeof(T)); ++I) {
-    V1[I] = V1[I] > V2[I] ? V1[I] : V2[I];
+    V1[I] = V1[I] < V2[I] ? V2[I] : V1[I];
   }
 
   return {};
@@ -566,12 +584,17 @@ Expect<void> Executor::runVectorFMinOp(ValVariant &Val1,
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
   for (size_t I = 0; I < (16 / sizeof(T)); ++I) {
-    if (std::isnan(V1[I])) {
-      // V1[I] = V1[I];
-    } else if (std::isnan(V2[I])) {
+    if (V1[I] > V2[I]) {
       V1[I] = V2[I];
-    } else {
-      V1[I] = V1[I] > V2[I] ? V2[I] : V1[I];
+    } else if (V1[I] < V2[I]) {
+      // do nothing
+    } else if (std::isnan(V2[I]) && !std::isnan(V1[I])) {
+      V1[I] = V2[I];
+    } else if (V1[I] == ((T)0.0)) {
+      // prefer negative zero
+      if (std::signbit(V2[I]) && !std::signbit(V1[I])) {
+        V1[I] = V2[I];
+      }
     }
   }
 
@@ -585,12 +608,17 @@ Expect<void> Executor::runVectorFMaxOp(ValVariant &Val1,
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
   for (size_t I = 0; I < (16 / sizeof(T)); ++I) {
-    if (std::isnan(V1[I])) {
-      // V1[I] = V1[I];
-    } else if (std::isnan(V2[I])) {
+    if (V1[I] < V2[I]) {
       V1[I] = V2[I];
-    } else {
-      V1[I] = V1[I] > V2[I] ? V1[I] : V2[I];
+    } else if (V1[I] > V2[I]) {
+      // do nothing
+    } else if (std::isnan(V2[I]) && !std::isnan(V1[I])) {
+      V1[I] = V2[I];
+    } else if (V1[I] == ((T)0.0)) {
+      // prefer positive zero
+      if (!std::signbit(V2[I]) && std::signbit(V1[I])) {
+        V1[I] = V2[I];
+      }
     }
   }
 

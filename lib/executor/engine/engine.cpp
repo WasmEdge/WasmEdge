@@ -1643,8 +1643,8 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       }
 
       int32x4_t Result;
-      for (size_t I = 0; I < 4; I += 2) {
-        Result[I] = M[I] + M[I + 1];
+      for (size_t I = 0; I < 4; ++I) {
+        Result[I] = M[I * 2] + M[I * 2 + 1];
       }
       Val1.emplace<int32x4_t>(Result);
       return {};

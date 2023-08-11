@@ -181,21 +181,37 @@ public:
   }
 
   // Migration function
-  void dumpMemInst() const noexcept {
+  void dumpMemInst(std::string name) const noexcept {
     // MemoryInstanceの保存
     for (uint32_t I = 0; I < getMemoryNum(); ++I) {
         auto Res = getMemory(I);
         MemoryInstance* MemInst = Res.value();
-        MemInst->dump("meminst_" + std::to_string(I));
+        MemInst->dump(name + "_meminst_" + std::to_string(I));
+    }
+  }
+
+  void restoreMemInst(std::string name) const noexcept {
+    for (uint32_t I = 0; I < getMemoryNum(); ++I) {
+      auto Res = getMemory(I);
+      MemoryInstance* MemInst = Res.value();
+      MemInst->restore(name + "_meminst_" + std::to_string(I));
     }
   }
   
-  void dumpGlobInst() const noexcept {
+  void dumpGlobInst(std::string name) const noexcept {
     // GlobalInstanceの保存
     for (uint32_t I = 0; I < getGlobalNum(); ++I) {
         auto Res = getGlobal(I);
         GlobalInstance* GlobInst = Res.value();
-        GlobInst->dump("globinst_" + std::to_string(I));
+        GlobInst->dump(name + "_globinst_" + std::to_string(I));
+    }
+  }
+
+  void restoreGlobInst(std::string name) const noexcept {
+    for (uint32_t I = 0; I < getGlobalNum(); ++I) {
+        auto Res = getGlobal(I);
+        GlobalInstance* GlobInst = Res.value();
+        GlobInst->restore(name + "_globinst_" + std::to_string(I));
     }
   }
 

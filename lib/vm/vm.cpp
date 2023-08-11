@@ -398,6 +398,7 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
   Runtime::Instance::FunctionInstance *FuncInst =
       ModInst->findFuncExports(Func);
 
+  // ExecutorEngine.setStoreMgr(StoreRef);
   // Execute function.
   if (auto Res = ExecutorEngine.invoke(FuncInst, Params, ParamTypes);
       unlikely(!Res)) {

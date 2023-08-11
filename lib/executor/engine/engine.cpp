@@ -58,26 +58,18 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
 
   if (RestoreFlag && Conf.getStatisticsConfigure().getRestoreFlag()) {
     StartIt = Migr.restoreIter();
-    StackMgr = Migr.restoreStackMgr();
+    // StackMgr = Migr.restoreStackMgr();
     RestoreFlag = false;
   }
 
   if (Res) {
-    getMigrator().preDumpIter(Func.getModule());
+    Migr.preDumpIter(Func.getModule());
     // If not terminated, execute the instructions in interpreter mode.
     // For the entering AOT or host functions, the `StartIt` is equal to the end
     // of instruction list, therefore the execution will return immediately.
     Res = execute(StackMgr, StartIt, Func.getInstrs().end());
   }
   
-  /// TODO: dumpする場所が散らかってるので、整理する
-  if (DumpFlag) {
-    Migr.dumpMemInst(Func.getModule());
-    std::cout << "Success dumpMemInst" << std::endl;
-    Migr.dumpGlobInst(Func.getModule());
-    std::cout << "Success dumpGlobInst" << std::endl;
-  }
-
   if (Res) {
     spdlog::debug(" Execution succeeded.");
   } else if (Res.error() == ErrCode::Value::Terminated) {

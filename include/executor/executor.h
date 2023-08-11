@@ -691,8 +691,12 @@ private:
   std::atomic_uint32_t StopToken = 0;
   /// Migrator
   Migrator Migr;
-  Migrator getMigrator() { return Migr; }
   bool RestoreFlag = true;
+  Runtime::StoreManager StoreMgr;
+  Runtime::StackManager StackMgr;
+public:
+  void setStoreMgr(Runtime::StoreManager sm) { StoreMgr = sm; }
+  void setStackMgr(Runtime::StackManager sm) { StackMgr = sm; }
 };
 
 } // namespace Executor

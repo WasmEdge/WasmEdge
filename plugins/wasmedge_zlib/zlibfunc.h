@@ -80,5 +80,12 @@ public:
                        uint32_t SourcePtr);
 };
 
+class WasmEdgeZlibDeflateReset : public WasmEdgeZlib<WasmEdgeZlibDeflateReset> {
+public:
+  WasmEdgeZlibDeflateReset(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr);
+};
+
 } // namespace Host
 } // namespace WasmEdge

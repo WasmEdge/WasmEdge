@@ -259,5 +259,21 @@ WasmEdgeZlibDeflateCopy::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
+Expect<int32_t>
+WasmEdgeZlibDeflateReset::body(const Runtime::CallingFrame &Frame,
+                               uint32_t ZStreamPtr) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame,
+              [&]() { return deflateReset(HostZStreamIt->second.get()); });
+
+  return ZRes;
+}
+
 } // namespace Host
 } // namespace WasmEdge

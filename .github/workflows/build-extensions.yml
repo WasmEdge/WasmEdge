@@ -180,7 +180,7 @@ jobs:
           apt update
           apt install -y libssl-dev
           apt install -y libelf-dev zlib1g-dev pkg-config
-          apt install -y clang
+          apt install -y clang llvm
           # Running tests of wasm_bpf requires proper ebpf running environment
           mount -t debugfs none /sys/kernel/debug
       - name: Build plugins using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode

@@ -496,7 +496,7 @@ jobs:
       - name: Build and install dependencies
         run: |
           if ! command -v brew &> /dev/null; then
-            CI=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            sudo CI=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           fi
           brew install llvm ninja cmake openssl opencv wabt
         shell: /bin/bash -e {0}

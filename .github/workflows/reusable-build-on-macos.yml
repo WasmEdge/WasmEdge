@@ -33,7 +33,7 @@ jobs:
       - name: Setup build environment
         run: |
           if ! command -v brew &> /dev/null; then
-            CI=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            sudo CI=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           fi
           brew install llvm ninja cmake wabt
         shell: /bin/bash -e {0}

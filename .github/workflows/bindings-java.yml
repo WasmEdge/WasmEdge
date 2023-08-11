@@ -58,7 +58,7 @@ jobs:
       - name: Build & Install WasmEdge
         run: |
           apt-get update
-          apt-get install -y make
+          apt-get install -y make wabt
           mkdir -p build
           cd build
           cmake -DWASMEDGE_BUILD_TESTS=ON ..

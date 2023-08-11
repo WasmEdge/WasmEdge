@@ -102,7 +102,7 @@ jobs:
         shell: bash
         run: |
           apt update
-          apt install -y unzip
+          apt install -y unzip wabt
           bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
@@ -178,7 +178,7 @@ jobs:
       - name: Install dependencies
         run: |
           apt update
-          apt install -y libssl-dev cmake wget unzip
+          apt install -y libssl-dev cmake wget unzip wabt
           apt install -y libelf-dev zlib1g-dev pkg-config
           apt install -y clang liblld-14-dev llvm
           bash utils/opencvmini/install-opencvmini.sh

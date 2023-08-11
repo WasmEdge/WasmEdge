@@ -328,5 +328,45 @@ WasmEdgeZlibDeflateBound::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
+Expect<int32_t>
+WasmEdgeZlibDeflatePending::body(const Runtime::CallingFrame &Frame,
+                                 uint32_t ZStreamPtr, uint32_t PendingPtr,
+                                 uint32_t BitsPtr) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *Pending = MemInst->getPointer<uint32_t *>(PendingPtr);
+  auto *Bits = MemInst->getPointer<int32_t *>(BitsPtr);
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame, [&]() {
+        return deflatePending(HostZStreamIt->second.get(), Pending, Bits);
+      });
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibDeflatePrime::body(const Runtime::CallingFrame &Frame,
+                               uint32_t ZStreamPtr, int32_t Bits,
+                               int32_t Value) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame, [&]() {
+        return deflatePrime(HostZStreamIt->second.get(), Bits, Value);
+      });
+
+  return ZRes;
+}
+
 } // namespace Host
 } // namespace WasmEdge

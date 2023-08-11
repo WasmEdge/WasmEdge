@@ -115,5 +115,22 @@ public:
                        uint32_t SourceLen);
 };
 
+class WasmEdgeZlibDeflatePending
+    : public WasmEdgeZlib<WasmEdgeZlibDeflatePending> {
+public:
+  WasmEdgeZlibDeflatePending(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       uint32_t PendingPtr, uint32_t BitsPtr);
+};
+
+class WasmEdgeZlibDeflatePrime : public WasmEdgeZlib<WasmEdgeZlibDeflatePrime> {
+public:
+  WasmEdgeZlibDeflatePrime(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       int32_t Bits, int32_t Value);
+};
+
 } // namespace Host
 } // namespace WasmEdge

@@ -306,8 +306,7 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
   return Result;
 }
 
-[[gnu::visibility("default")]] bool
-Plugin::load(const std::filesystem::path &Path) noexcept {
+WASMEDGE_EXPORT bool Plugin::load(const std::filesystem::path &Path) noexcept {
   std::error_code Error;
   auto Status = std::filesystem::status(Path, Error);
   if (likely(!Error)) {
@@ -369,8 +368,7 @@ void Plugin::addPluginOptions(PO::ArgumentParser &Parser) noexcept {
   }
 }
 
-[[gnu::visibility("default")]] const Plugin *
-Plugin::find(std::string_view Name) noexcept {
+WASMEDGE_EXPORT const Plugin *Plugin::find(std::string_view Name) noexcept {
   if (NiftyCounter != 0) {
     if (auto Iter = PluginNameLookup.find(Name);
         Iter != PluginNameLookup.end()) {
@@ -382,7 +380,7 @@ Plugin::find(std::string_view Name) noexcept {
 
 Span<const Plugin> Plugin::plugins() noexcept { return PluginRegistory; }
 
-[[gnu::visibility("default")]] void
+WASMEDGE_EXPORT void
 Plugin::registerPlugin(const PluginDescriptor *Desc) noexcept {
   assuming(NiftyCounter != 0);
   if (Desc->APIVersion != CurrentAPIVersion) {
@@ -405,7 +403,7 @@ Plugin::Plugin(const PluginDescriptor *D) noexcept : Desc(D) {
   }
 }
 
-[[gnu::visibility("default")]] const PluginModule *
+WASMEDGE_EXPORT const PluginModule *
 Plugin::findModule(std::string_view Name) const noexcept {
   if (auto Iter = ModuleNameLookup.find(Name); Iter != ModuleNameLookup.end()) {
     return std::addressof(ModuleRegistory[Iter->second]);
@@ -413,13 +411,13 @@ Plugin::findModule(std::string_view Name) const noexcept {
   return nullptr;
 }
 
-[[gnu::visibility("default")]] PluginRegister::PluginRegister(
-    const Plugin::PluginDescriptor *Desc) noexcept {
+WASMEDGE_EXPORT
+PluginRegister::PluginRegister(const Plugin::PluginDescriptor *Desc) noexcept {
   IncreaseNiftyCounter();
   Plugin::registerPlugin(Desc);
 }
 
-[[gnu::visibility("default")]] PluginRegister::~PluginRegister() noexcept {
+WASMEDGE_EXPORT PluginRegister::~PluginRegister() noexcept {
   DecreaseNiftyCounter();
 }
 

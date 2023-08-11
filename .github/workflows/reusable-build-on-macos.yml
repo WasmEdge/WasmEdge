@@ -32,6 +32,7 @@ jobs:
           git config --global --add safe.directory $(pwd)
       - name: Setup build environment
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           brew install llvm ninja cmake wabt
       - name: Set environment variables for release
         if: ${{ inputs.release }}

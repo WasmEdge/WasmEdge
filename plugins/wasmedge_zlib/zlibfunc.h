@@ -96,5 +96,24 @@ public:
                        int32_t Level, int32_t Strategy);
 };
 
+class WasmEdgeZlibDeflateTune : public WasmEdgeZlib<WasmEdgeZlibDeflateTune> {
+public:
+  WasmEdgeZlibDeflateTune(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       int32_t GoodLength, int32_t MaxLazy, int32_t NiceLength,
+                       int32_t MaxChain);
+};
+
+// https://github.com/emscripten-core/emscripten/issues/17009
+// Using 32bit, because on wasm-side it will be 32bit long
+class WasmEdgeZlibDeflateBound : public WasmEdgeZlib<WasmEdgeZlibDeflateBound> {
+public:
+  WasmEdgeZlibDeflateBound(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       uint32_t SourceLen);
+};
+
 } // namespace Host
 } // namespace WasmEdge

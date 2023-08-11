@@ -50,9 +50,6 @@ jobs:
         if: matrix.os == 'macos-latest'
         working-directory: WasmEdge
         run: |
-          if ! command -v brew &> /dev/null; then
-            sudo CI=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          fi
           brew install llvm ninja cmake wabt
           export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
           export CC=clang
@@ -60,9 +57,6 @@ jobs:
           cmake -Bbuild -GNinja -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .
           cmake --build build
           echo "$GITHUB_WORKSPACE/WasmEdge/build/tools/wasmedge" >> $GITHUB_PATH
-        shell: /bin/bash -e {0}
-        env:
-          CI: 1 # Set the CI environment variable to run Homebrew in non-interactive mode
       - name: Checkout wasi-testsuite
         uses: actions/checkout@v3
         with:

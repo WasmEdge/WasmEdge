@@ -32,13 +32,7 @@ jobs:
           git config --global --add safe.directory $(pwd)
       - name: Setup build environment
         run: |
-          if ! command -v brew &> /dev/null; then
-            sudo CI=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          fi
           brew install llvm ninja cmake wabt
-        shell: /bin/bash -e {0}
-        env:
-          CI: 1 # Set the CI environment variable to run Homebrew in non-interactive mode
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |

@@ -25,10 +25,19 @@ jobs:
       - name: Install dependency
         uses: crazy-max/ghaction-chocolatey@v2
         with:
-          args: install cmake ninja vswhere wabt
+          args: install cmake ninja vswhere
       - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
         with:
           sdk-version: 19041
+      - name: Install wabt
+        run: |
+          choco install visualstudio2019buildtools --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
+          git clone https://github.com/WebAssembly/wabt.git
+          cd wabt
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -G "Visual Studio 16 2019" -DCMAKE_INSTALL_PREFIX=..\ -A x64
+          cmake --build . --config RELEASE --target install
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |

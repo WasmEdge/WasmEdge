@@ -108,7 +108,10 @@ jobs:
     - name: Build and scan WasmEdge with IWYU
       shell: bash
       run: |
-        brew install llvm ninja cmake
+        if ! command -v brew &> /dev/null; then
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        fi
+        brew install llvm ninja cmake wabt
         export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
         export Clang_DIR="/usr/local/opt/llvm/lib/cmake/clang"
         export CC=clang

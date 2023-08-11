@@ -814,8 +814,8 @@ public:
   using HandleHolder::HandleHolder;
 
 private:
-  __wasi_fdflags_t SavedFdFlags;
-  uint8_t SavedVFSFlags;
+  __wasi_fdflags_t SavedFdFlags = {};
+  uint8_t SavedVFSFlags = {};
 
   FindHolder Find;
 #endif

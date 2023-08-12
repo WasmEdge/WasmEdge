@@ -141,12 +141,14 @@ public:
   /// ================
   /// Restore functions
   /// ================
-  AST::InstrView::iterator _restoreIter(uint32_t FuncIdx, uint32_t Offset) {
+  AST::InstrView::iterator _restoreIter(const Runtime::Instance::ModuleInstance* ModInst, uint32_t FuncIdx, uint32_t Offset) {
     std::cout << "_restoreIter 1" << std::endl;
     assert(ModInst != nullptr);
     
     auto Res = ModInst->getFunc(FuncIdx);
+    std::cout << "_restoreIter 1.1" << std::endl;
     Runtime::Instance::FunctionInstance* FuncInst = Res.value();
+    std::cout << "_restoreIter 1.2" << std::endl;
     assert(FuncInst != nullptr);
 
     std::cout << "_restoreIter 2" << std::endl;
@@ -161,7 +163,7 @@ public:
     return Iter;
   }
 
-  AST::InstrView::iterator restoreIter() {
+  AST::InstrView::iterator restoreIter(const Runtime::Instance::ModuleInstance* ModInst) {
     std::ifstream iterStream;
     iterStream.open("iter.img");
     
@@ -178,7 +180,7 @@ public:
     std::cout << FuncIdx << " " << Offset << std::endl;
     
     // FuncIdxとOffsetからitertorを復元
-    auto Iter = _restoreIter(FuncIdx, Offset);
+    auto Iter = _restoreIter(ModInst, FuncIdx, Offset);
     std::cout << "Success to restore iter" << std::endl;
     return Iter;
   }
@@ -197,6 +199,7 @@ public:
       getline(FrameStream, FrameString);
       std::string ModName = FrameString;
       const Runtime::Instance::ModuleInstance* ModInst;
+      // ModInstがnullのときの処理どうする
       if (ModName != NULL_MOD_NAME) {
           ModInst = findModule(ModName);
       }
@@ -211,7 +214,7 @@ public:
       uint32_t FuncIdx = static_cast<uint32_t>(std::stoul(FrameString));
       getline(FrameStream, FrameString);
       uint32_t Offset = static_cast<uint32_t>(std::stoul(FrameString));
-      AST::InstrView::iterator From = _restoreIter(FuncIdx, Offset);
+      AST::InstrView::iterator From = _restoreIter(ModInst, FuncIdx, Offset);
 
       // Locals, VPos, Arity
       getline(FrameStream, FrameString);
@@ -274,13 +277,6 @@ public:
     return StackMgr;
   }
 
-  // const Runtime::Instance::ModuleInstance* restoreModInst(const Runtime::Instance::ModuleInstance* ModInst) {
-  //   ModInst->restoreMemInst();
-  //   ModInst->restoreGlobInst();
-  //   return ModInst;
-  // }
-  //
-  
   bool DumpFlag; 
   bool RestoreFlag;
 private:

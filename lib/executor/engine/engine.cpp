@@ -59,6 +59,16 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
 
   if (Res) {
     Migr.preDumpIter(Func.getModule());
+
+    // Restore
+    if (RestoreFlag && Conf.getStatisticsConfigure().getRestoreFlag()) {
+      std::cout << "### Restore! ###" << std::endl;
+      StartIt = Migr.restoreIter(Func.getModule());
+      std::cout << "Success to restore iterator" << std::endl;
+      StackMgr = Migr.restoreStackMgr();
+      std::cout << "Success to restore stack manager" << std::endl;
+      RestoreFlag = false;
+    }
   
     // If not terminated, execute the instructions in interpreter mode.
     // For the entering AOT or host functions, the `StartIt` is equal to the end
@@ -1823,16 +1833,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return {};
     }
   };
-
-  // Restore
-  if (RestoreFlag && Conf.getStatisticsConfigure().getRestoreFlag()) {
-    std::cout << "### Restore! ###" << std::endl;
-    PC = Migr.restoreIter();
-    std::cout << "Success to restore iterator" << std::endl;
-    StackMgr = Migr.restoreStackMgr();
-    std::cout << "Success to restore stack manager" << std::endl;
-    RestoreFlag = false;
-  }
 
   // signal handler
   signal(SIGINT, &signalHandler);

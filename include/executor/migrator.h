@@ -138,29 +138,29 @@ public:
     ValueStream.close();
   }
   
-  // void dumpModInst(const Runtime::Instance::ModuleInstance* ModInst) {
-  //   ModInst->dumpMemInst();
-  //   ModInst->dumpGlobInst();
-  // }
-  // void dumpMemInst(const Runtime::Instance::ModuleInstance* ModInst) {
-  //   ModInst->dumpMemInst();
-  // }
-
-  // void dumpGlobInst(const Runtime::Instance::ModuleInstance* ModInst) {
-  //   ModInst->dumpGlobInst();
-  // }
-
   /// ================
   /// Restore functions
   /// ================
   AST::InstrView::iterator _restoreIter(uint32_t FuncIdx, uint32_t Offset) {
-    Runtime::Instance::FunctionInstance* FuncInst = ModInst->getFunc(FuncIdx).value();
+    std::cout << "_restoreIter 1" << std::endl;
+    assert(ModInst != nullptr);
+    
+    auto Res = ModInst->getFunc(FuncIdx);
+    Runtime::Instance::FunctionInstance* FuncInst = Res.value();
+    assert(FuncInst != nullptr);
+
+    std::cout << "_restoreIter 2" << std::endl;
     AST::InstrView::iterator Iter = FuncInst->getInstrs().begin();
+    assert(Iter != nullptr);
+
+    std::cout << "_restoreIter 3" << std::endl;
     for (uint32_t I = 0; I < Offset; ++I) {
       Iter++;
     }
+    std::cout << "_restoreIter 4" << std::endl;
     return Iter;
   }
+
   AST::InstrView::iterator restoreIter() {
     std::ifstream iterStream;
     iterStream.open("iter.img");
@@ -174,9 +174,13 @@ public:
     uint32_t Offset = static_cast<uint32_t>(std::stoul(iterString));
 
     iterStream.close();
+
+    std::cout << FuncIdx << " " << Offset << std::endl;
     
     // FuncIdxとOffsetからitertorを復元
-    return _restoreIter(FuncIdx, Offset);
+    auto Iter = _restoreIter(FuncIdx, Offset);
+    std::cout << "Success to restore iter" << std::endl;
+    return Iter;
   }
   
   std::vector<Runtime::StackManager::Frame> restoreStackMgrFrame() {
@@ -258,11 +262,14 @@ public:
 
   Runtime::StackManager restoreStackMgr() {
     std::vector<Runtime::StackManager::Frame> fs = restoreStackMgrFrame();
+    std::cout << "Success to restore stack frame" << std::endl;
     std::vector<Runtime::StackManager::Value> vs = restoreStackMgrValue();
+    std::cout << "Success to restore stack value" << std::endl;
 
     Runtime::StackManager StackMgr;
     StackMgr.setFrameStack(fs);
     StackMgr.setValueStack(vs);
+    std::cout << "Success to restore stack manager" << std::endl;
 
     return StackMgr;
   }

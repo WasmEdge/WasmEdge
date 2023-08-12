@@ -12,6 +12,7 @@ namespace WasmEdge {
 namespace Executor {
 
 bool DumpFlag;
+bool restoreTestFlag = true;
 // TODO: signumの処理無駄なのでどうにかする
 void signalHandler(int signum) {
   if (signum)
@@ -56,15 +57,9 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
     }
   }
 
-  if (RestoreFlag && Conf.getStatisticsConfigure().getRestoreFlag()) {
-    std::cout << "### Restore! ###" << std::endl;
-    StartIt = Migr.restoreIter();
-    StackMgr = Migr.restoreStackMgr();
-    RestoreFlag = false;
-  }
-
   if (Res) {
     Migr.preDumpIter(Func.getModule());
+  
     // If not terminated, execute the instructions in interpreter mode.
     // For the entering AOT or host functions, the `StartIt` is equal to the end
     // of instruction list, therefore the execution will return immediately.
@@ -1828,19 +1823,28 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return {};
     }
   };
-  
+
+  // Restore
+  if (RestoreFlag && Conf.getStatisticsConfigure().getRestoreFlag()) {
+    std::cout << "### Restore! ###" << std::endl;
+    PC = Migr.restoreIter();
+    std::cout << "Success to restore iterator" << std::endl;
+    StackMgr = Migr.restoreStackMgr();
+    std::cout << "Success to restore stack manager" << std::endl;
+    RestoreFlag = false;
+  }
+
   // signal handler
   signal(SIGINT, &signalHandler);
 
-  bool restoreTestFlag = true;
   while (PC != PCEnd) {
     // restoreした場合に、restoreした直後にdumpしたimgファイルと、restore元のimgファイルは一致することを確認するもの
     if (restoreTestFlag && Conf.getStatisticsConfigure().getRestoreFlag()) {
-      Migr.dumpIter(PC);
+      Migr.dumpIter(PC, "restored_");
       std::cout << "Success dumpIter" << std::endl;
-      Migr.dumpStackMgrFrame(StackMgr);
+      Migr.dumpStackMgrFrame(StackMgr, "restored_");
       std::cout << "Success dumpStackMgrFrame" << std::endl;
-      Migr.dumpStackMgrValue(StackMgr);
+      Migr.dumpStackMgrValue(StackMgr, "restored_");
       std::cout << "Success dumpStackMgrValue" << std::endl;
       restoreTestFlag = false;
     }

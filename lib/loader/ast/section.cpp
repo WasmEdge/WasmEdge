@@ -195,7 +195,7 @@ inline constexpr uint8_t HostOSType() noexcept {
 }
 
 inline constexpr uint8_t HostArchType() noexcept {
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(_M_X64)
   return UINT8_C(1);
 #elif defined(__aarch64__)
   return UINT8_C(2);

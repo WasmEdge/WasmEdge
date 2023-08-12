@@ -42,6 +42,15 @@ public:
   //   return constFunc;
   // } 
 
+  /// Find module by name.
+  const Runtime::Instance::ModuleInstance *findModule(std::string_view Name) const {
+    auto Iter = NamedMod.find(Name);
+    if (likely(Iter != NamedMod.cend())) {
+      return Iter->second;
+    }
+    return nullptr;
+  }
+
   /// ================
   /// Dump functions
   /// ================
@@ -65,10 +74,10 @@ public:
     return;
   }
   
-  void dumpIter(AST::InstrView::iterator Iter) {
+  void dumpIter(AST::InstrView::iterator Iter, std::string fname_header = "") {
     struct IterData Data = IterMigrator[Iter];
     std::ofstream iterStream;
-    iterStream.open("iter.img", std::ios::trunc);
+    iterStream.open(fname_header + "iter.img", std::ios::trunc);
 
     iterStream << Data.FuncIdx << std::endl;
     iterStream << Data.Offset;
@@ -76,10 +85,10 @@ public:
     iterStream.close();
   }
 
-  void dumpStackMgrFrame(Runtime::StackManager& StackMgr) {
+  void dumpStackMgrFrame(Runtime::StackManager& StackMgr, std::string fname_header = "") {
     std::vector<Runtime::StackManager::Frame> FrameStack = StackMgr.getFrameStack();
     std::ofstream FrameStream;
-    FrameStream.open("stackmgr_frame.img", std::ios::trunc);
+    FrameStream.open(fname_header + "stackmgr_frame.img", std::ios::trunc);
 
     std::map<std::string_view, bool> seenModInst;
     for (size_t I = 0; I < FrameStack.size(); ++I) {
@@ -94,7 +103,7 @@ public:
 
       FrameStream << ModName << std::endl;
       // まだそのModInstを保存してなければ、dumpする
-      if(seenModInst[ModName]) {
+      if(ModInst != nullptr && !seenModInst[ModName]) {
         ModInst->dumpMemInst(std::string(ModName));
         ModInst->dumpGlobInst(std::string(ModName));
         seenModInst[ModName] = true;
@@ -115,9 +124,9 @@ public:
     FrameStream.close();
   }
   
-  void dumpStackMgrValue(Runtime::StackManager& StackMgr) {
+  void dumpStackMgrValue(Runtime::StackManager& StackMgr, std::string fname_header = "") {
     std::ofstream ValueStream;
-    ValueStream.open("stackmgr_value.img", std::ios::trunc);
+    ValueStream.open(fname_header + "stackmgr_value.img", std::ios::trunc);
 
     using Value = ValVariant;
     std::vector<Value> ValueStack = StackMgr.getValueStack();
@@ -170,7 +179,7 @@ public:
     return _restoreIter(FuncIdx, Offset);
   }
   
-  std::vector<Runtime::StackManager::Frame> restoreStackMgrFrame(Runtime::StoreManager* StoreMgr) {
+  std::vector<Runtime::StackManager::Frame> restoreStackMgrFrame() {
     std::ifstream FrameStream;
     FrameStream.open("stackmgr_frame.img");
     Runtime::StackManager StackMgr;
@@ -185,7 +194,7 @@ public:
       std::string ModName = FrameString;
       const Runtime::Instance::ModuleInstance* ModInst;
       if (ModName != NULL_MOD_NAME) {
-          ModInst = StoreMgr->findModule(ModName);
+          ModInst = findModule(ModName);
       }
       /// TODO: 同じModuleの復元をしないよう、キャッシュを作る
       if (1) {
@@ -247,8 +256,8 @@ public:
     return ValueStack;    	
   }
 
-  Runtime::StackManager restoreStackMgr(Runtime::StoreManager* StoreMgr) {
-    std::vector<Runtime::StackManager::Frame> fs = restoreStackMgrFrame(StoreMgr);
+  Runtime::StackManager restoreStackMgr() {
+    std::vector<Runtime::StackManager::Frame> fs = restoreStackMgrFrame();
     std::vector<Runtime::StackManager::Value> vs = restoreStackMgrValue();
 
     Runtime::StackManager StackMgr;
@@ -263,12 +272,17 @@ public:
   //   ModInst->restoreGlobInst();
   //   return ModInst;
   // }
+  //
   
   bool DumpFlag; 
   bool RestoreFlag;
 private:
+  friend class Executor;
+
   std::map<AST::InstrView::iterator, IterData> IterMigrator;
   const Runtime::Instance::ModuleInstance* ModInst;
+  /// \name Module name mapping.
+  std::map<std::string, const Runtime::Instance::ModuleInstance *, std::less<>> NamedMod;
 };
 
 } // namespace Runtime

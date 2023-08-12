@@ -17,6 +17,11 @@
 #include <utility>
 #include <vector>
 
+// Enable __x86_64__ for MSVC
+#if defined(_M_X64) && !defined(__x86_64__)
+#define __x86_64__ 1
+#endif
+
 namespace WasmEdge::AOT::LLVM {
 
 class Core {

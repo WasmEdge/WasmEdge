@@ -283,7 +283,6 @@ private:
   friend class Executor;
 
   std::map<AST::InstrView::iterator, IterData> IterMigrator;
-  const Runtime::Instance::ModuleInstance* ModInst;
   /// \name Module name mapping.
   std::map<std::string, const Runtime::Instance::ModuleInstance *, std::less<>> NamedMod;
 };

@@ -302,7 +302,7 @@ public:
       uint32_t Arity = static_cast<uint32_t>(std::stoul(FrameString));
       std::cout << "restore frame: 5" << std::endl;
 
-      Runtime::StackManager::Frame f(ModInst, From, Locals, VPos, Arity);
+      Runtime::StackManager::Frame f(ModInst, From, Locals, Arity, VPos);
       FrameStack.push_back(f);
 
       // 空の行を読み捨て

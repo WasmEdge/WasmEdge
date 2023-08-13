@@ -99,6 +99,20 @@ public:
     }
   }
   
+  uint128_t stou128(std::string s) {
+    uint128_t ret = 0;
+    for (size_t i = 0; i < s.size(); i++) {
+      if (s[i] < '0' || '9' < s[i]) {
+        std::cout << "value is number!!" << std::endl;
+        assert(-1);
+        return -1;
+      }
+      int n = (int)(s[i] - '0');
+      ret = ret * 10 + n;
+    }
+    return ret;
+  }
+  
   /// ================
   /// Dump functions
   /// ================
@@ -308,17 +322,18 @@ public:
     ValueStack.reserve(2048U);
     std::string ValueString;	
     /// TODO: ループ条件見直す	
-    while(1) {	
-      getline(ValueStream, ValueString);	
+    int cnt = 0;
+    while(getline(ValueStream, ValueString)) {	
       // ValueStringが空の場合はエラー	
       assert(ValueString.size() > 0);	
 
-      Runtime::StackManager::Value v = static_cast<uint128_t>(std::stoul(ValueString));	
+      std::cout << "count " << cnt << std::endl;
+      cnt++;
+      std::cout << "restore value: 1" << std::endl;
+      /// TODO: stoullは64bitまでしか受け取らないので、128bitの入力が来たら壊れる
+      Runtime::StackManager::Value v = static_cast<uint128_t>(stou128(ValueString));	
       ValueStack.push_back(v);	
-
-      if(!getline(ValueStream, ValueString)) {	
-        break;	
-      }	
+      std::cout << "restore value: 2" << std::endl;
     }	
 
     ValueStream.close();	

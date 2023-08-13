@@ -64,9 +64,16 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
     if (RestoreFlag && Conf.getStatisticsConfigure().getRestoreFlag()) {
       std::cout << "### Restore! ###" << std::endl;
       StartIt = Migr.restoreIter(Func.getModule());
-      std::cout << "Success to restore iterator" << std::endl;
       StackMgr = Migr.restoreStackMgr();
-      std::cout << "Success to restore stack manager" << std::endl;
+      
+      /// restoreしたものが元のものと一致するかtest
+      Migr.dumpIter(StartIt, "restored_");
+      std::cout << "Success dumpIter" << std::endl;
+      Migr.dumpStackMgrFrame(StackMgr, "restored_");
+      std::cout << "Success dumpStackMgrFrame" << std::endl;
+      Migr.dumpStackMgrValue(StackMgr, "restored_");
+      std::cout << "Success dumpStackMgrValue" << std::endl;
+
       RestoreFlag = false;
     }
   
@@ -1839,15 +1846,15 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
 
   while (PC != PCEnd) {
     // restoreした場合に、restoreした直後にdumpしたimgファイルと、restore元のimgファイルは一致することを確認するもの
-    if (restoreTestFlag && Conf.getStatisticsConfigure().getRestoreFlag()) {
-      Migr.dumpIter(PC, "restored_");
-      std::cout << "Success dumpIter" << std::endl;
-      Migr.dumpStackMgrFrame(StackMgr, "restored_");
-      std::cout << "Success dumpStackMgrFrame" << std::endl;
-      Migr.dumpStackMgrValue(StackMgr, "restored_");
-      std::cout << "Success dumpStackMgrValue" << std::endl;
-      restoreTestFlag = false;
-    }
+    // if (restoreTestFlag && Conf.getStatisticsConfigure().getRestoreFlag()) {
+    //   Migr.dumpIter(PC, "restored_");
+    //   std::cout << "Success dumpIter" << std::endl;
+    //   Migr.dumpStackMgrFrame(StackMgr, "restored_");
+    //   std::cout << "Success dumpStackMgrFrame" << std::endl;
+    //   Migr.dumpStackMgrValue(StackMgr, "restored_");
+    //   std::cout << "Success dumpStackMgrValue" << std::endl;
+    //   restoreTestFlag = false;
+    // }
 
     if (DumpFlag) {
       Migr.dumpIter(PC);

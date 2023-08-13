@@ -232,9 +232,9 @@ public:
     FrameStack.reserve(16U);
     std::string FrameString;
     /// TODO: ループ条件見直す
-    while(1) {
+    while(getline(FrameStream, FrameString)) {
       // ModuleInstance
-      getline(FrameStream, FrameString);
+      // getline(FrameStream, FrameString);
       std::string ModName = FrameString;
       const Runtime::Instance::ModuleInstance* ModInst;
       std::cout << "restore frame: 1" << std::endl;
@@ -291,10 +291,8 @@ public:
       Runtime::StackManager::Frame f(ModInst, From, Locals, VPos, Arity);
       FrameStack.push_back(f);
 
-      // 次の行がなければ終了
-      if(!getline(FrameStream, FrameString)) {
-        break;
-      }
+      // 空の行を読み捨て
+      getline(FrameStream, FrameString);
     }
 
     FrameStream.close();

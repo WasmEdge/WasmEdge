@@ -236,9 +236,9 @@ convertFiletime(WasmEdge::winapi::FILETIME_ FileTime) noexcept {
 // and recving data. There is a chance that PollOneoff may not immediately get
 // the read event when it is called right after the server has sent the data.
 // Without the sleep, there is a risk that the unit test may not pass. We found
-// this problem on macOS.
-void sleepForMacOS() noexcept {
-#if WASMEDGE_OS_MACOS
+// this problem on macOS and Windows.
+void sleepForMacWin() noexcept {
+#if WASMEDGE_OS_MACOS || WASMEDGE_OS_WINDOWS
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 #endif
 }
@@ -1256,7 +1256,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       ActionProcessed.wait(Lock, [&]() { return ActionDone.exchange(false); });
     }
 
-    sleepForMacOS();
+    sleepForMacWin();
 
     // poll read, write and 100 milliseconds, expect read and write
     PollReadWriteReadWrite();
@@ -1862,7 +1862,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
       ActionProcessed.wait(Lock, [&]() { return ActionDone.exchange(false); });
     }
 
-    sleepForMacOS();
+    sleepForMacWin();
 
     // poll read, write and 100 milliseconds, expect read and write
     PollReadWriteReadWrite();
@@ -2468,7 +2468,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       ActionProcessed.wait(Lock, [&]() { return ActionDone.exchange(false); });
     }
 
-    sleepForMacOS();
+    sleepForMacWin();
 
     // poll read, write and 100 milliseconds, expect read and write
     PollReadWriteReadWrite();

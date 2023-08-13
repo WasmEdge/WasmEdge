@@ -103,7 +103,7 @@ public:
     uint128_t ret = 0;
     for (size_t i = 0; i < s.size(); i++) {
       if (s[i] < '0' || '9' < s[i]) {
-        std::cout << "value is number!!" << std::endl;
+        // std::cout << "value is number!!" << std::endl;
         assert(-1);
         return -1;
       }
@@ -229,11 +229,11 @@ public:
 
     iterStream.close();
 
-    std::cout << FuncIdx << " " << Offset << std::endl;
+    // std::cout << FuncIdx << " " << Offset << std::endl;
     
     // FuncIdxとOffsetからitertorを復元
     auto Iter = _restoreIter(ModInst, FuncIdx, Offset);
-    std::cout << "Success to restore iter" << std::endl;
+    // std::cout << "Success to restore iter" << std::endl;
     return Iter;
   }
   
@@ -251,7 +251,7 @@ public:
       // getline(FrameStream, FrameString);
       std::string ModName = FrameString;
       const Runtime::Instance::ModuleInstance* ModInst;
-      std::cout << "restore frame: 1" << std::endl;
+      // std::cout << "restore frame: 1" << std::endl;
 
       // ModInstがnullの場合
       if (ModName == NULL_MOD_NAME) {
@@ -270,20 +270,20 @@ public:
 
       // ModInstがnullじゃない場合
       ModInst = findModule(ModName);
-      std::cout << "restored ModName is " << ModName << std::endl;
+      // std::cout << "restored ModName is " << ModName << std::endl;
       if (ModInst == nullptr) {
-        std::cout << "ModInst is nullptr" << std::endl;
+        // std::cout << "ModInst is nullptr" << std::endl;
         assert(-1);
       }
-      std::cout << "restore frame: 2" << std::endl;
+      // std::cout << "restore frame: 2" << std::endl;
 
       /// TODO: 同じModuleの復元をしないよう、キャッシュを作る
       if (1) {
-        std::cout << ModInst->getMemoryNum() << std::endl;
+        // std::cout << ModInst->getMemoryNum() << std::endl;
         ModInst->restoreMemInst(std::string(ModName));
         ModInst->restoreGlobInst(std::string(ModName));
       }
-      std::cout << "restore frame: 3" << std::endl;
+      // std::cout << "restore frame: 3" << std::endl;
 
       // Iterator
       getline(FrameStream, FrameString);
@@ -291,7 +291,7 @@ public:
       getline(FrameStream, FrameString);
       uint32_t Offset = static_cast<uint32_t>(std::stoul(FrameString));
       AST::InstrView::iterator From = _restoreIter(ModInst, FuncIdx, Offset);
-      std::cout << "restore frame: 4" << std::endl;
+      // std::cout << "restore frame: 4" << std::endl;
 
       // Locals, VPos, Arity
       getline(FrameStream, FrameString);
@@ -300,7 +300,7 @@ public:
       uint32_t VPos = static_cast<uint32_t>(std::stoul(FrameString));
       getline(FrameStream, FrameString);
       uint32_t Arity = static_cast<uint32_t>(std::stoul(FrameString));
-      std::cout << "restore frame: 5" << std::endl;
+      // std::cout << "restore frame: 5" << std::endl;
 
       Runtime::StackManager::Frame f(ModInst, From, Locals, Arity, VPos);
       FrameStack.push_back(f);
@@ -322,18 +322,18 @@ public:
     ValueStack.reserve(2048U);
     std::string ValueString;	
     /// TODO: ループ条件見直す	
-    int cnt = 0;
+    // int cnt = 0;
     while(getline(ValueStream, ValueString)) {	
       // ValueStringが空の場合はエラー	
       assert(ValueString.size() > 0);	
 
-      std::cout << "count " << cnt << std::endl;
-      cnt++;
-      std::cout << "restore value: 1" << std::endl;
+      // std::cout << "count " << cnt << std::endl;
+      // cnt++;
+      // std::cout << "restore value: 1" << std::endl;
       /// TODO: stoullは64bitまでしか受け取らないので、128bitの入力が来たら壊れる
       Runtime::StackManager::Value v = static_cast<uint128_t>(stou128(ValueString));	
       ValueStack.push_back(v);	
-      std::cout << "restore value: 2" << std::endl;
+      // std::cout << "restore value: 2" << std::endl;
     }	
 
     ValueStream.close();	
@@ -342,14 +342,14 @@ public:
 
   Runtime::StackManager restoreStackMgr() {
     std::vector<Runtime::StackManager::Frame> fs = restoreStackMgrFrame();
-    std::cout << "Success to restore stack frame" << std::endl;
+    // std::cout << "Success to restore stack frame" << std::endl;
     std::vector<Runtime::StackManager::Value> vs = restoreStackMgrValue();
-    std::cout << "Success to restore stack value" << std::endl;
+    // std::cout << "Success to restore stack value" << std::endl;
 
     Runtime::StackManager StackMgr;
     StackMgr.setFrameStack(fs);
     StackMgr.setValueStack(vs);
-    std::cout << "Success to restore stack manager" << std::endl;
+    // std::cout << "Success to restore stack manager" << std::endl;
 
     return StackMgr;
   }

@@ -191,10 +191,16 @@ public:
   }
 
   void restoreMemInst(std::string name) const noexcept {
+    std::cout << "restore mem_inst: start" << std::endl; 
+    assert(MemInsts);
+
     for (uint32_t I = 0; I < getMemoryNum(); ++I) {
+      std::cout << "restore mem_inst: " << I << ", 0" << std::endl; 
       auto Res = getMemory(I);
+      std::cout << "restore mem_inst: " << I << ", 1" << std::endl; 
       MemoryInstance* MemInst = Res.value();
       MemInst->restore(name + "_meminst_" + std::to_string(I));
+      std::cout << "restore mem_inst: " << I << ", 2" << std::endl; 
     }
   }
   

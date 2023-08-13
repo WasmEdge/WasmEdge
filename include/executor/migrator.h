@@ -28,6 +28,7 @@ public:
   };
   /// TODO: ModuleInstanceがnullだったときの名前。重複しないようにする
   const std::string NULL_MOD_NAME = "null";
+  using IterMigratorType = std::map<AST::InstrView::iterator, IterData>;
 
   /// ================
   /// Interface
@@ -52,11 +53,14 @@ public:
   }
 
   /// ================
-  /// Dump functions
+  /// Tools
   /// ================
-  /// TODO: コンストラクタにする
-  void preDumpIter(const Runtime::Instance::ModuleInstance* ModInstA) {
-    ModInst = ModInstA;
+  void setIterMigrator(const Runtime::Instance::ModuleInstance* ModInst) {
+    if (IterMigrators.count((std::string)ModInst->getModuleName())) {
+      return;
+    }
+
+    IterMigratorType IterMigrator;
 
     for (uint32_t I = 0; I < ModInst->getFuncNum(); ++I) {
       Runtime::Instance::FunctionInstance* FuncInst = ModInst->getFunc(I).value();
@@ -71,10 +75,42 @@ public:
         PC++;
       }
     }
-    return;
+
+    IterMigrators[(std::string)ModInst->getModuleName()] = IterMigrator;
+  }
+  
+  IterMigratorType getIterMigrator(const Runtime::Instance::ModuleInstance* ModInst) {
+    if (IterMigrators.count((std::string)ModInst->getModuleName())) {
+      return IterMigrators[(std::string)ModInst->getModuleName()];
+    }
+
+    std::string_view ModName = ModInst->getModuleName();
+    setIterMigrator(ModInst);
+    return IterMigrators[(std::string)ModName];
+  }
+
+  IterMigratorType getIterMigratorByName(std::string ModName) {
+    if (IterMigrators.count(ModName)) {
+      return IterMigrators[ModName];
+    } else {
+      IterMigratorType I;
+      return I;
+    }
+  }
+  
+  /// ================
+  /// Dump functions
+  /// ================
+  /// TODO: 関数名を中身にあったものにrenameする
+  void preDumpIter(const Runtime::Instance::ModuleInstance* ModInst) {
+    setIterMigrator(ModInst);
+    BaseModName = ModInst->getModuleName();
   }
   
   void dumpIter(AST::InstrView::iterator Iter, std::string fname_header = "") {
+    IterMigratorType IterMigrator = getIterMigratorByName(BaseModName);
+    assert(IterMigrator);
+
     struct IterData Data = IterMigrator[Iter];
     std::ofstream iterStream;
     iterStream.open(fname_header + "iter.img", std::ios::trunc);
@@ -97,19 +133,26 @@ public:
       // ModuleInstance
       const Runtime::Instance::ModuleInstance* ModInst = f.Module;
       std::string_view ModName = NULL_MOD_NAME;
-      if (ModInst != nullptr) {
-        ModName = ModInst->getModuleName();
+
+      // ModInstがnullの場合は、ModNameだけ出力して、continue
+      if (ModInst == nullptr) {
+        FrameStream << NULL_MOD_NAME;
+        FrameStream << std::endl; 
+        continue; 
       }
 
+      ModName = ModInst->getModuleName();
       FrameStream << ModName << std::endl;
+
       // まだそのModInstを保存してなければ、dumpする
-      if(ModInst != nullptr && !seenModInst[ModName]) {
+      if(!seenModInst[ModName]) {
         ModInst->dumpMemInst(std::string(ModName));
         ModInst->dumpGlobInst(std::string(ModName));
         seenModInst[ModName] = true;
       }
       
       // Iterator
+      IterMigratorType IterMigrator = getIterMigrator(ModInst);
       struct IterData Data = IterMigrator[const_cast<AST::InstrView::iterator>(f.From)];
       FrameStream << Data.FuncIdx << std::endl;
       FrameStream << Data.Offset << std::endl;
@@ -142,24 +185,18 @@ public:
   /// Restore functions
   /// ================
   AST::InstrView::iterator _restoreIter(const Runtime::Instance::ModuleInstance* ModInst, uint32_t FuncIdx, uint32_t Offset) {
-    std::cout << "_restoreIter 1" << std::endl;
     assert(ModInst != nullptr);
     
     auto Res = ModInst->getFunc(FuncIdx);
-    std::cout << "_restoreIter 1.1" << std::endl;
     Runtime::Instance::FunctionInstance* FuncInst = Res.value();
-    std::cout << "_restoreIter 1.2" << std::endl;
     assert(FuncInst != nullptr);
 
-    std::cout << "_restoreIter 2" << std::endl;
     AST::InstrView::iterator Iter = FuncInst->getInstrs().begin();
     assert(Iter != nullptr);
 
-    std::cout << "_restoreIter 3" << std::endl;
     for (uint32_t I = 0; I < Offset; ++I) {
       Iter++;
     }
-    std::cout << "_restoreIter 4" << std::endl;
     return Iter;
   }
 
@@ -199,15 +236,35 @@ public:
       getline(FrameStream, FrameString);
       std::string ModName = FrameString;
       const Runtime::Instance::ModuleInstance* ModInst;
-      // ModInstがnullのときの処理どうする
-      if (ModName != NULL_MOD_NAME) {
-          ModInst = findModule(ModName);
+      std::cout << "restore frame: 1" << std::endl;
+
+      // ModInstがnullの場合
+      if (ModName == NULL_MOD_NAME) {
+        AST::InstrView::iterator From;
+        uint32_t Locals, VPos, Arity;
+
+        Runtime::StackManager::Frame f(ModInst, From, Locals, VPos, Arity);
+        FrameStack.push_back(f);
+
+        // 次の行がなければ終了
+        if(!getline(FrameStream, FrameString)) {
+          break;
+        }
+        continue;
       }
+
+      // ModInstがnullじゃない場合
+      ModInst = findModule(ModName);
+      assert(ModInst);
+      std::cout << "restore frame: 2" << std::endl;
+
       /// TODO: 同じModuleの復元をしないよう、キャッシュを作る
       if (1) {
+        std::cout << ModInst->getMemoryNum() << std::endl;
         ModInst->restoreMemInst(std::string(ModName));
         ModInst->restoreGlobInst(std::string(ModName));
       }
+      std::cout << "restore frame: 3" << std::endl;
 
       // Iterator
       getline(FrameStream, FrameString);
@@ -215,6 +272,7 @@ public:
       getline(FrameStream, FrameString);
       uint32_t Offset = static_cast<uint32_t>(std::stoul(FrameString));
       AST::InstrView::iterator From = _restoreIter(ModInst, FuncIdx, Offset);
+      std::cout << "restore frame: 4" << std::endl;
 
       // Locals, VPos, Arity
       getline(FrameStream, FrameString);
@@ -223,14 +281,15 @@ public:
       uint32_t VPos = static_cast<uint32_t>(std::stoul(FrameString));
       getline(FrameStream, FrameString);
       uint32_t Arity = static_cast<uint32_t>(std::stoul(FrameString));
+      std::cout << "restore frame: 5" << std::endl;
+
+      Runtime::StackManager::Frame f(ModInst, From, Locals, VPos, Arity);
+      FrameStack.push_back(f);
 
       // 次の行がなければ終了
       if(!getline(FrameStream, FrameString)) {
         break;
       }
-
-      Runtime::StackManager::Frame f(ModInst, From, Locals, VPos, Arity);
-      FrameStack.push_back(f);
     }
 
     FrameStream.close();
@@ -282,7 +341,8 @@ public:
 private:
   friend class Executor;
 
-  std::map<AST::InstrView::iterator, IterData> IterMigrator;
+  std::map<std::string, IterMigratorType> IterMigrators;
+  std::string BaseModName;
   /// \name Module name mapping.
   std::map<std::string, const Runtime::Instance::ModuleInstance *, std::less<>> NamedMod;
 };

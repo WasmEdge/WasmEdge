@@ -366,6 +366,12 @@ VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
                   Span<const ValType> ParamTypes) {
   if (ActiveModInst) {
     // Execute function and return values with the module instance.
+    const Runtime::Instance::ModuleInstance* ModInst = ActiveModInst.get();
+    if(ModInst == nullptr) {
+      assert(0);
+    }
+    ExecutorEngine.registerModule(StoreRef, *ModInst);
+
     return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
   } else {
     spdlog::error(ErrCode::Value::WrongInstanceAddress);

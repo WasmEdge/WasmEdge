@@ -11,6 +11,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <cassert>
 
 namespace WasmEdge {
   
@@ -136,7 +137,7 @@ public:
 
       // ModInstがnullの場合は、ModNameだけ出力して、continue
       if (ModInst == nullptr) {
-        FrameStream << NULL_MOD_NAME;
+        FrameStream << NULL_MOD_NAME << std::endl;
         FrameStream << std::endl; 
         continue; 
       }
@@ -255,7 +256,11 @@ public:
 
       // ModInstがnullじゃない場合
       ModInst = findModule(ModName);
-      assert(ModInst);
+      std::cout << "restored ModName is " << ModName << std::endl;
+      if (ModInst == nullptr) {
+        std::cout << "ModInst is nullptr" << std::endl;
+        assert(-1);
+      }
       std::cout << "restore frame: 2" << std::endl;
 
       /// TODO: 同じModuleの復元をしないよう、キャッシュを作る

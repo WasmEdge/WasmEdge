@@ -2104,8 +2104,8 @@ public:
         if (Context.SupportNEON) {
           assuming(LLVM::Core::AArch64NeonTbl1 != LLVM::Core::NotIntrinsic);
           stackPush(Builder.createBitCast(
-              Builder.createBinaryIntrinsic(LLVM::Core::AArch64NeonTbl1, Vector,
-                                            Index),
+              Builder.createIntrinsic(LLVM::Core::AArch64NeonTbl1,
+                                      {Context.Int8x16Ty}, {Vector, Index}),
               Context.Int64x2Ty));
           break;
         }

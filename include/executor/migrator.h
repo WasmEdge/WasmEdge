@@ -142,12 +142,14 @@ public:
     FrameStream.open(fname_header + "stackmgr_frame.img", std::ios::trunc);
 
     std::map<std::string_view, bool> seenModInst;
+    std::cout << "dumpStackMgrFrame 0" << std::endl;
     for (size_t I = 0; I < FrameStack.size(); ++I) {
       Runtime::StackManager::Frame f = FrameStack[I];
+      std::cout << "dumpStackMgrFrame 0.1" << std::endl;
 
       // ModuleInstance
       const Runtime::Instance::ModuleInstance* ModInst = f.Module;
-      std::string_view ModName = NULL_MOD_NAME;
+      std::cout << "dumpStackMgrFrame 0.2" << std::endl;
 
       // ModInstがnullの場合は、ModNameだけ出力して、continue
       if (ModInst == nullptr) {
@@ -156,8 +158,9 @@ public:
         continue; 
       }
 
-      ModName = ModInst->getModuleName();
+      std::string_view ModName = ModInst->getModuleName();
       FrameStream << ModName << std::endl;
+      std::cout << "dumpStackMgrFrame 1" << std::endl;
 
       // まだそのModInstを保存してなければ、dumpする
       if(!seenModInst[ModName]) {
@@ -165,18 +168,21 @@ public:
         ModInst->dumpGlobInst(std::string(ModName));
         seenModInst[ModName] = true;
       }
+      std::cout << "dumpStackMgrFrame 2" << std::endl;
       
       // Iterator
       IterMigratorType IterMigrator = getIterMigrator(ModInst);
       struct IterData Data = IterMigrator[const_cast<AST::InstrView::iterator>(f.From)];
       FrameStream << Data.FuncIdx << std::endl;
       FrameStream << Data.Offset << std::endl;
+      std::cout << "dumpStackMgrFrame 3" << std::endl;
 
       // Locals, VPos, Arity
       FrameStream << f.Locals << std::endl;
       FrameStream << f.VPos << std::endl;
       FrameStream << f.Arity << std::endl;
       FrameStream << std::endl; 
+      std::cout << "dumpStackMgrFrame 4" << std::endl;
     }  
     
     FrameStream.close();
@@ -248,17 +254,16 @@ public:
     /// TODO: ループ条件見直す
     while(getline(FrameStream, FrameString)) {
       // ModuleInstance
-      // getline(FrameStream, FrameString);
       std::string ModName = FrameString;
       const Runtime::Instance::ModuleInstance* ModInst;
       // std::cout << "restore frame: 1" << std::endl;
 
       // ModInstがnullの場合
       if (ModName == NULL_MOD_NAME) {
-        AST::InstrView::iterator From;
-        uint32_t Locals, VPos, Arity;
+        // AST::InstrView::iterator From;
+        // uint32_t Locals, VPos, Arity;
 
-        Runtime::StackManager::Frame f(ModInst, From, Locals, VPos, Arity);
+        Runtime::StackManager::Frame f(nullptr, nullptr, 0, 0, 0);
         FrameStack.push_back(f);
 
         // 次の行がなければ終了

@@ -1,0 +1,15 @@
+ARG BASE=wasmedge/wasmedge:manylinux2014_x86_64
+FROM ${BASE}
+
+ENV PATH /opt/rh/devtoolset-11/root/usr/bin${PATH:+:${PATH}}
+ENV MANPATH /opt/rh/devtoolset-11/root/usr/share/man${MANPATH:+:${MANPATH}}
+ENV INFOPATH /opt/rh/devtoolset-11/root/usr/share/info${INFOPATH:+:${INFOPATH}}
+ENV PKG_CONFIG_PATH /opt/rh/devtoolset-11/root/usr/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+
+RUN cd && (yum check-update || true) && yum install -y cmake wget unzip
+
+COPY install-opencvmini.sh .
+ENV OPENCV_VERSION=4.8.0
+RUN [ "/bin/bash", "install-opencvmini.sh" ]
+
+RUN yum clean all

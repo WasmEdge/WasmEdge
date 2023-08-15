@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(inputs.matrix) }}
-    name: Build on ${{ matrix.name }}
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
     env:
       BUILD_TESTS: ON
@@ -32,6 +32,7 @@ jobs:
           git config --global --add safe.directory $(pwd)
       - name: Setup build environment
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           brew install llvm ninja cmake wabt
       - name: Set environment variables for release
         if: ${{ inputs.release }}
@@ -40,6 +41,7 @@ jobs:
           echo "BUILD_TYPE=Release" | tee -a $GITHUB_ENV
       - name: Build WasmEdge
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
@@ -49,14 +51,17 @@ jobs:
           cmake --build build
       - name: Test WasmEdge
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           cd build
           ctest
       - name: Create package tarball
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           cmake --build build --target package
       - name: Test Standalone WasmEdge without LLVM
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           brew uninstall llvm
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           echo "otool -L ./build/tools/wasmedge/wasmedge:"
@@ -87,5 +92,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           mv build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz WasmEdge-${{ inputs.version }}-darwin_${{ matrix.arch }}.tar.gz
           gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber

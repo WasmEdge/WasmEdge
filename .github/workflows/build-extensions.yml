@@ -41,8 +41,8 @@ jobs:
   lint:
     uses: ./.github/workflows/reusable-call-linter.yml
 
-  get_version_v2:
-    name: Retrieve version information (v2)
+  get_version:
+    name: Retrieve version information
     needs: lint
     runs-on: ubuntu-latest
     outputs:
@@ -75,7 +75,7 @@ jobs:
             compiler: clang++
             docker_tag: ubuntu-build-clang
             build_type: Release
-    name: Ubuntu WASI-NN with ${{ matrix.compiler }} ${{ matrix.build_type }}
+    name: WASI-NN (Ubuntu, ${{ matrix.compiler }}, ${{ matrix.build_type }})
     runs-on: ubuntu-latest
     env:
       output_dir: build/plugins/wasi_nn
@@ -88,7 +88,7 @@ jobs:
       OPENVINO_YEAR: "2023"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."
-    needs: [get_version_v2]
+    needs: [get_version]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
@@ -131,17 +131,17 @@ jobs:
       - name: Upload artifact - wasi_nn-pytorch
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasi_nn-pytorch-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          name: WasmEdge-plugin-wasi_nn-pytorch-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasi_nn-pytorch.tar.gz
       - name: Upload artifact - wasi_nn-openvino
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasi_nn-openvino-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          name: WasmEdge-plugin-wasi_nn-openvino-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasi_nn-openvino.tar.gz
       - name: Upload artifact - wasi_nn-tensorflowlite
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          name: WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasi_nn-tensorflowlite.tar.gz
 
   build_ubuntu:
@@ -150,13 +150,13 @@ jobs:
         include:
           - name: Plugins_g++
             compiler: g++
-            docker_tag: ubuntu-build-gcc
+            docker_tag: ubuntu-build-gcc-plugins-deps
             build_type: Release
           - name: Plugins_clang++
             compiler: clang++
-            docker_tag: ubuntu-build-clang
+            docker_tag: ubuntu-build-clang-plugins-deps
             build_type: Release
-    name: Ubuntu plugins with ${{ matrix.compiler }} ${{ matrix.build_type }}
+    name: Plugins (Ubuntu, ${{ matrix.compiler }}, ${{ matrix.build_type }})
     runs-on: ubuntu-latest
     env:
       output_prefix: build/plugins
@@ -165,7 +165,7 @@ jobs:
       tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasm_bpf wasmedge_opencvmini
       test_bins: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmBpfTests wasmedgeOpencvminiTests
       output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmBpf.so libwasmedgePluginWasmEdgeOpenCVMini.so
-    needs: [get_version_v2]
+    needs: [get_version]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
       # Required for mounting debugfs
@@ -178,10 +178,9 @@ jobs:
       - name: Install dependencies
         run: |
           apt update
-          apt install -y libssl-dev cmake wget unzip
+          apt install -y libssl-dev
           apt install -y libelf-dev zlib1g-dev pkg-config
-          apt install -y clang liblld-14-dev llvm
-          bash utils/opencvmini/install-opencvmini.sh
+          apt install -y clang llvm
           # Running tests of wasm_bpf requires proper ebpf running environment
           mount -t debugfs none /sys/kernel/debug
       - name: Build plugins using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
@@ -220,42 +219,42 @@ jobs:
       - name: Upload artifact - wasi_crypto
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasi_crypto-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          name: WasmEdge-plugin-wasi_crypto-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasi_crypto.tar.gz
       - name: Upload artifact - wasi_logging
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasi_logging.tar.gz
       - name: Upload artifact - wasmedge_process
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_process-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_process-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasmedge_process.tar.gz
       - name: Upload artifact - wasmedge_tensorflow
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_tensorflow-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_tensorflow-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasmedge_tensorflow.tar.gz
       - name: Upload artifact - wasmedge_tensorflowlite
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_tensorflowlite-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_tensorflowlite-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasmedge_tensorflowlite.tar.gz
       - name: Upload artifact - wasmedge_image
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_image-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_image-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasmedge_image.tar.gz
       - name: Upload artifact - wasm_bpf
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasm_bpf-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          name: WasmEdge-plugin-wasm_bpf-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasm_bpf.tar.gz
       - name: Upload artifact - wasmedge_opencvmini
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasmedge_opencvmini.tar.gz
 
   # Due to the dependencies and exclusions of WASI-NN, build them saperately.
@@ -271,7 +270,7 @@ jobs:
             host_runner: linux-arm64
             docker_tag: manylinux2014_aarch64
             build_type: Release
-    name: ${{ matrix.docker_tag }} WASI-NN with g++ ${{ matrix.build_type }}
+    name: WASI-NN (${{ matrix.docker_tag }}, g++, ${{ matrix.build_type }})
     runs-on: ${{ matrix.host_runner }}
     env:
       output_dir: build/plugins/wasi_nn
@@ -288,7 +287,7 @@ jobs:
       OPENVINO_YEAR: "2023"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."
-    needs: [get_version_v2]
+    needs: [get_version]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
@@ -326,12 +325,12 @@ jobs:
         if: contains(matrix.docker_tag, 'manylinux2014_x86_64')
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasi_nn-pytorch-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasi_nn-pytorch-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasi_nn-pytorch.tar.gz
       - name: Upload artifact - wasi_nn-tensorflowlite
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasi_nn-tensorflowlite.tar.gz
 
   build_manylinux:
@@ -346,7 +345,7 @@ jobs:
             host_runner: linux-arm64
             docker_tag: manylinux2014_aarch64
             build_type: Release
-    name: ${{ matrix.docker_tag }} plugins with g++ ${{ matrix.build_type }}
+    name: Plugins (${{ matrix.docker_tag }}, g++, ${{ matrix.build_type }})
     runs-on: ${{ matrix.host_runner }}
     env:
       output_prefix: build/plugins
@@ -363,7 +362,7 @@ jobs:
       output_bins_all_platforms: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmEdgeOpenCVMini.so
       output_bins_manylinux2014_x86_64: libwasmedgePluginWasmBpf.so
       output_bins_manylinux2014_aarch64:
-    needs: [get_version_v2]
+    needs: [get_version]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
       # Required for mounting debugfs
@@ -418,43 +417,44 @@ jobs:
       - name: Upload artifact - wasi_crypto
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasi_crypto-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasi_crypto-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasi_crypto.tar.gz
       - name: Upload artifact - wasi_logging
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasi_logging.tar.gz
       - name: Upload artifact - wasmedge_process
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_process-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_process-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasmedge_process.tar.gz
       - name: Upload artifact - wasmedge_tensorflow
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_tensorflow-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_tensorflow-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasmedge_tensorflow.tar.gz
       - name: Upload artifact - wasmedge_tensorflowlite
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_tensorflowlite-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_tensorflowlite-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasmedge_tensorflowlite.tar.gz
       - name: Upload artifact - wasmedge_image
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_image-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_image-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasmedge_image.tar.gz
       - name: Upload artifact - wasm_bpf
+        if: contains(matrix.docker_tag, 'manylinux2014_x86_64')
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasm_bpf-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasm_bpf-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasm_bpf.tar.gz
 
       - name: Upload artifact - wasmedge_opencvmini
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasmedge_opencvmini.tar.gz
 
   build_macos:
@@ -479,7 +479,7 @@ jobs:
             darwin_version: darwin_22
             build_type: Release
             arch: arm64
-    name: ${{ matrix.system }} plugin with clang++ ${{ matrix.build_type }}
+    name: Plugins (${{ matrix.system }}, clang++,  ${{ matrix.build_type }})
     runs-on: ${{ matrix.host_runner }}
     env:
       output_prefix: build/plugins
@@ -488,17 +488,19 @@ jobs:
       tar_names: wasi_crypto wasi_logging wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini
       test_bins: wasiCryptoTests wasiLoggingTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests
       output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib
-    needs: [get_version_v2]
+    needs: [get_version]
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Build and install dependencies
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           brew install llvm ninja cmake openssl opencv
       - name: Build WasmEdge plugins using clang++ with ${{ matrix.build_type }} mode
         shell: bash
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           testbin_array=(${test_bins})
           export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
           export CC=clang
@@ -512,6 +514,7 @@ jobs:
       - name: Test WasmEdge plugins
         shell: bash
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           plugin_array=(${tar_names})
           testbin_array=(${test_bins})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
@@ -524,6 +527,7 @@ jobs:
       - name: Prepare the WasmEdge plugins tar.gz package
         shell: bash
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           plugin_array=(${tar_names})
           outbin_array=(${output_bins})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
@@ -535,30 +539,30 @@ jobs:
       - name: Upload artifact - wasi_crypto
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasi_crypto-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
+          name: WasmEdge-plugin-wasi_crypto-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasi_crypto.tar.gz
       - name: Upload artifact - wasi_logging
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
+          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasi_logging.tar.gz
       - name: Upload artifact - wasmedge_tensorflow
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_tensorflow-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_tensorflow-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasmedge_tensorflow.tar.gz
       - name: Upload artifact - wasmedge_tensorflowlite
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_tensorflowlite-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_tensorflowlite-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasmedge_tensorflowlite.tar.gz
       - name: Upload artifact - wasmedge_image
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_image-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_image-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasmedge_image.tar.gz
       - name: Upload artifact - wasmedge_opencvmini
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasmedge_opencvmini.tar.gz

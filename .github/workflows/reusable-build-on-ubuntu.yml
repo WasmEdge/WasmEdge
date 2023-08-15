@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(inputs.matrix) }}
-    name: Build on ${{ matrix.name }} with ${{ matrix.compiler }} ${{ matrix.build_type }}
+    name: ${{ matrix.name }} (${{ matrix.compiler }}, ${{ matrix.build_type }})
     runs-on: ubuntu-latest
     env:
       BUILD_TESTS: OFF
@@ -37,7 +37,7 @@ jobs:
       - name: Grant the safe directory for git
         run: |
           git config --global --add safe.directory $(pwd)
-      - name: Build WasmEdge using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
+      - name: Build (${{ matrix.compiler }}, ${{ matrix.build_type }})
         if: ${{ ! matrix.coverage }}
         shell: bash
         env:
@@ -50,7 +50,7 @@ jobs:
           fi
           cmake --build build
           cmake --build build --target package
-      - name: Test WasmEdge
+      - name: Test
         if: ${{ !matrix.coverage && env.BUILD_TESTS }}
         run: |
           export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
@@ -58,7 +58,7 @@ jobs:
           ./tools/wasmedge/wasmedge -v
           ctest
           cd -
-      - name: Build WasmEdge using ${{ matrix.compiler }} with Coverage mode
+      - name: Build (${{ matrix.compiler }}, Coverage)
         if: ${{ matrix.coverage }}
         run: |
           apt update

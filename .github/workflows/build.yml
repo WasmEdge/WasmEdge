@@ -124,6 +124,13 @@ jobs:
     with:
       version: ${{ needs.get_version.outputs.version }}
 
+  build_on_windows_msvc:
+    needs: [get_version, lint]
+    name: Windows-MSVC
+    uses: ./.github/workflows/reusable-build-on-windows-msvc.yml
+    with:
+      version: ${{ needs.get_version.outputs.version }}
+
   build_on_android:
     needs: [get_version, lint]
     name: Android

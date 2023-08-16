@@ -375,10 +375,8 @@ jobs:
       - name: Build and install dependencies
         run: |
           yum update -y
-          yum install -y zlib-devel zlib-static cmake wget unzip
+          yum install -y zlib-devel zlib-static cmake
           bash ./utils/wasi-crypto/build-openssl.sh
-
-          bash utils/opencvmini/install-opencvmini.sh
           # Running tests of wasm_bpf requires proper ebpf running environment
           mount -t debugfs none /sys/kernel/debug
       - name: Build and test plugins using g++ with ${{ matrix.build_type }} mode

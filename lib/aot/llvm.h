@@ -1140,6 +1140,13 @@ public:
     return Ret;
   }
 
+// disable MSVC warning C4267: 'argument': conversion from 'size_t' to 'unsigned
+// int'
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(push)
+#pragma warning(disable : 4267)
+#endif
+
   Value createInBoundsGEP1(Type Ty, Value Pointer, Value Idx0,
                            const char *Name = "") noexcept {
     LLVMValueRef Data[1] = {Idx0.unwrap()};
@@ -1169,6 +1176,10 @@ public:
     return LLVMBuildInBoundsGEP2(Ref, Ty.unwrap(), Pointer.unwrap(), Data,
                                  std::size(Data), Name);
   }
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(pop)
+#endif
 
   Value createTrunc(Value Val, Type DestTy, const char *Name = "") noexcept {
     return LLVMBuildTrunc(Ref, Val.unwrap(), DestTy.unwrap(), Name);

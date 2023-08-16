@@ -188,7 +188,16 @@ private:
   std::atomic<bool> InstrCounting = false;
   std::atomic<bool> CostMeasuring = false;
   std::atomic<bool> TimeMeasuring = false;
+
+// disable warning for MSVC
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(push)
+#pragma warning(disable : 4146)
+#endif
   std::atomic<uint64_t> CostLimit = UINT64_C(-1);
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(pop)
+#endif
 };
 
 class Configure {

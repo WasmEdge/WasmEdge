@@ -19,6 +19,7 @@ endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   list(APPEND WASMEDGE_CFLAGS
     /std:c++17
+    /WX
     /W4
     /we5030 # treat unknown attribute as error
     # disable some warnings
@@ -29,7 +30,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     /wd4819 # file contains a character not in current code page
     /wd4127 # conditional expression is constant
     /wd4611 # interaction between '_setjmp' and C++ object destruction is non-portable
-    # /WX
   )
 else()
   list(APPEND WASMEDGE_CFLAGS

@@ -28,9 +28,11 @@ if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "
   set(SIMD_AVX512_WIN_FILES
     blake3_avx512_x86-64_unix.S
   )
-  set_source_files_properties(blake3_avx2.c PROPERTIES COMPILE_FLAGS -mavx2)
-  set_source_files_properties(blake3_sse2.c PROPERTIES COMPILE_FLAGS -msse2)
-  set_source_files_properties(blake3_sse41.c PROPERTIES COMPILE_FLAGS -msse4.1)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    set_source_files_properties(blake3_avx2.c PROPERTIES COMPILE_FLAGS -mavx2)
+    set_source_files_properties(blake3_sse2.c PROPERTIES COMPILE_FLAGS -msse2)
+    set_source_files_properties(blake3_sse41.c PROPERTIES COMPILE_FLAGS -msse4.1)
+  endif()
   set(SIMD_DEFS)
 
   if(CMAKE_ASM-ATT_COMPILER_ID STREQUAL "GNU")

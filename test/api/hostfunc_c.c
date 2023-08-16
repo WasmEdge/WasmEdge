@@ -19,6 +19,7 @@
 
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
 #define __maybe_unused
+#pragma warning( disable : 4100 ) // unreferenced formal parameter
 #else
 #define __maybe_unused __attribute__((unused))
 #endif

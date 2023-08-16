@@ -435,8 +435,8 @@ Expect<uint32_t> WasiEnvironGet::body(const Runtime::CallingFrame &Frame,
   const uint32_t EnvBufSize = calculateBufferSize(EnvironVariables);
 
   // Check for invalid address.
-  const auto Env = MemInst->getSpan<uint8_t_ptr>(EnvPtr, EnvSize);
-  if (unlikely(Env.size() != EnvSize)) {
+  const auto EnvSpan = MemInst->getSpan<uint8_t_ptr>(EnvPtr, EnvSize);
+  if (unlikely(EnvSpan.size() != EnvSize)) {
     return __WASI_ERRNO_FAULT;
   }
   const auto EnvBuf = MemInst->getSpan<uint8_t>(EnvBufPtr, EnvBufSize);
@@ -444,11 +444,11 @@ Expect<uint32_t> WasiEnvironGet::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (!Env.empty()) {
-    Env[0] = EnvBufPtr;
+  if (!EnvSpan.empty()) {
+    EnvSpan[0] = EnvBufPtr;
   }
 
-  if (auto Res = this->Env.environGet(Env, EnvBuf); unlikely(!Res)) {
+  if (auto Res = this->Env.environGet(EnvSpan, EnvBuf); unlikely(!Res)) {
     return Res.error();
   }
 

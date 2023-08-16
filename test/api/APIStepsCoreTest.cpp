@@ -243,7 +243,7 @@ TEST(AsyncInvoke, InterruptTest) {
 
   WasmEdge_ASTModuleContext *AST = nullptr;
   ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
-      Loader, &AST, AsyncWasm.data(), AsyncWasm.size())));
+      Loader, &AST, AsyncWasm.data(), static_cast<uint32_t>(AsyncWasm.size()))));
   ASSERT_NE(AST, nullptr);
   ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_ValidatorValidate(Validator, AST)));
   WasmEdge_ModuleInstanceContext *Module = nullptr;

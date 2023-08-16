@@ -38,7 +38,7 @@ using namespace WasmEdge;
 void resolveRegister(std::map<std::string, std::string> &Alias,
                      simdjson::dom::array &CmdArray) {
   std::string_view OrgName;
-  uint64_t LastModLine;
+  uint64_t LastModLine = 0;
   for (const simdjson::dom::object &Cmd : CmdArray) {
     std::string_view CmdType = Cmd["type"];
     bool Replaced = false;
@@ -121,7 +121,7 @@ parseValueList(const simdjson::dom::array &Args) {
         uint32x4_t I32x4 = {0};
         size_t I = 0;
         for (std::string_view X : ValueNodeArray) {
-          I32x4[I] = std::stoull(std::string(X));
+          I32x4[I] = static_cast<uint32_t>(std::stoull(std::string(X)));
           I++;
         }
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
@@ -139,7 +139,7 @@ parseValueList(const simdjson::dom::array &Args) {
         uint16x8_t I16x8 = {0};
         size_t I = 0;
         for (std::string_view X : ValueNodeArray) {
-          I16x8[I] = std::stoull(std::string(X));
+          I16x8[I] = static_cast<uint16_t>(std::stoull(std::string(X)));
           I++;
         }
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
@@ -156,7 +156,7 @@ parseValueList(const simdjson::dom::array &Args) {
         uint8x16_t I8x16 = {0};
         size_t I = 0;
         for (std::string_view X : ValueNodeArray) {
-          I8x16[I] = std::stoull(std::string(X));
+          I8x16[I] = static_cast<uint8_t>(std::stoull(std::string(X)));
           I++;
         }
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC

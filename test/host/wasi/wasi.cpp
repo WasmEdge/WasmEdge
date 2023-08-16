@@ -2541,7 +2541,8 @@ TEST(WasiTest, ClockTimeGet) {
                              Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     const uint64_t Time = convertFiletime(SysNow);
-    EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
+    EXPECT_NEAR(static_cast<double>(*MemInst.getPointer<const uint64_t *>(0)), 
+                    static_cast<double>(Time), 1000000.0);
   }
 #endif
 

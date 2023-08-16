@@ -86,19 +86,21 @@ wasmedge_add_library(utilBlake3
   ${SIMD_FILES}
 )
 
-target_compile_options(utilBlake3
-  PRIVATE
-  -Wno-assign-enum
-  -Wno-cast-align
-  -Wno-cast-qual
-  -Wno-implicit-int-conversion
-  -Wno-language-extension-token
-  -Wno-missing-prototypes
-  -Wno-pointer-sign
-  -Wno-shorten-64-to-32
-  -Wno-sign-conversion
-  -Wno-unused-function
-)
+if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  target_compile_options(utilBlake3
+    PRIVATE
+    -Wno-assign-enum
+    -Wno-cast-align
+    -Wno-cast-qual
+    -Wno-implicit-int-conversion
+    -Wno-language-extension-token
+    -Wno-missing-prototypes
+    -Wno-pointer-sign
+    -Wno-shorten-64-to-32
+    -Wno-sign-conversion
+    -Wno-unused-function
+  )
+endif()
 
 target_include_directories(utilBlake3
   PUBLIC

@@ -222,9 +222,9 @@ getHandlePath(HANDLE_ Handle) noexcept {
   // First get the path of the handle
 #if NTDDI_VERSION >= NTDDI_VISTA
   std::array<wchar_t, UNICODE_STRING_MAX_CHARS_ + 1> Buffer;
-  const auto Size =
-      GetFinalPathNameByHandleW(Handle, Buffer.data(), Buffer.size(),
-                                FILE_NAME_NORMALIZED_ | VOLUME_NAME_DOS_);
+  const auto Size = GetFinalPathNameByHandleW(
+      Handle, Buffer.data(), static_cast<DWORD_>(Buffer.size()),
+      FILE_NAME_NORMALIZED_ | VOLUME_NAME_DOS_);
   if (unlikely(Size == 0)) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
@@ -758,6 +758,12 @@ WasiExpect<void> INode::fdAdvise(__wasi_filesize_t Offset, __wasi_filesize_t,
   return {};
 }
 
+// disable MSVC warning C4018: '>': signed/unsigned mismatch
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(push)
+#pragma warning(disable : 4018)
+#endif
+
 WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
                                    __wasi_filesize_t Len) const noexcept {
   if (unlikely(Offset > std::numeric_limits<int64_t>::max())) {
@@ -810,6 +816,10 @@ WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
 
   return {};
 }
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(pop)
+#endif
 
 WasiExpect<void> INode::fdDatasync() const noexcept {
   if (unlikely(!FlushFileBuffers(Handle))) {
@@ -865,6 +875,12 @@ INode::fdFilestatGet(__wasi_filestat_t &FileStat) const noexcept {
   return filestatGet(FileStat);
 }
 
+// disable MSVC warning C4018: '>': signed/unsigned mismatch
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(push)
+#pragma warning(disable : 4018)
+#endif
+
 WasiExpect<void>
 INode::fdFilestatSetSize(__wasi_filesize_t Size) const noexcept {
   if (unlikely(Size > std::numeric_limits<int64_t>::max())) {
@@ -902,6 +918,10 @@ INode::fdFilestatSetSize(__wasi_filesize_t Size) const noexcept {
 
   return {};
 }
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(pop)
+#endif
 
 WasiExpect<void>
 INode::fdFilestatSetTimes(__wasi_timestamp_t ATim, __wasi_timestamp_t MTim,
@@ -1105,7 +1125,7 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
   do {
     const auto Written = Find.write(Buffer);
     Buffer = Buffer.subspan(Written);
-    Size += Written;
+    Size += static_cast<uint32_t>(Written);
     if (unlikely(Buffer.empty())) {
       break;
     }

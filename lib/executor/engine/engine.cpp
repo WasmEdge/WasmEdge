@@ -15,6 +15,15 @@ Expect<void> Executor::runExpression(Runtime::StackManager &StackMgr,
   return execute(StackMgr, Instrs.begin(), Instrs.end());
 }
 
+// disable MSVC warnings
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(push)
+// potentially uninitialized local variable 'StartIt' used
+#pragma warning(disable : 4701)
+// potentially uninitialized local pointer variable 'StartIt' used
+#pragma warning(disable : 4703)
+#endif
+
 Expect<void>
 Executor::runFunction(Runtime::StackManager &StackMgr,
                       const Runtime::Instance::FunctionInstance &Func,
@@ -76,6 +85,10 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
   }
   return Unexpect(Res);
 }
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(pop)
+#endif
 
 Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
                                const AST::InstrView::iterator Start,

@@ -16,19 +16,36 @@ if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo
   endif()
 endif()
 
-list(APPEND WASMEDGE_CFLAGS
-  -Wall
-  -Wextra
-  -Werror
-  -Wno-error=pedantic
-)
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  list(APPEND WASMEDGE_CFLAGS
+    /std:c++17
+    /W4
+    /we5030 # treat unknown attribute as error
+    # disable some warnings
+    /wd4201 # nonstandard extension used: nameless struct/union
+    /wd4141 # 'inline': used more than once
+    /wd4324 # structure was padded due to alignment specifier
+    /wd4702 # unreachable code
+    /wd4819 # file contains a character not in current code page
+    /wd4127 # conditional expression is constant
+    /wd4611 # interaction between '_setjmp' and C++ object destruction is non-portable
+    # /WX
+  )
+else()
+  list(APPEND WASMEDGE_CFLAGS
+    -Wall
+    -Wextra
+    -Werror
+    -Wno-error=pedantic
+  )
 
-if(WASMEDGE_ENABLE_UB_SANITIZER)
-  list(APPEND WASMEDGE_CFLAGS -fsanitize=undefined)
-endif()
+  if(WASMEDGE_ENABLE_UB_SANITIZER)
+    list(APPEND WASMEDGE_CFLAGS -fsanitize=undefined)
+  endif()
 
-if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-  list(APPEND WASMEDGE_CFLAGS -Wno-psabi)
+  if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    list(APPEND WASMEDGE_CFLAGS -Wno-psabi)
+  endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -68,24 +85,26 @@ endif()
 
 if(WIN32)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_ENABLE_EXTENDED_ALIGNED_STORAGE -DNOMINMAX -D_ITERATOR_DEBUG_LEVEL=0)
-  list(APPEND WASMEDGE_CFLAGS
-    "/EHa"
-    -Wno-c++98-compat
-    -Wno-c++98-compat-pedantic
-    -Wno-exit-time-destructors
-    -Wno-global-constructors
-    -Wno-used-but-marked-unused
-    -Wno-nonportable-system-include-path
-    -Wno-float-equal
-    -Wno-declaration-after-statement
-    -Wno-zero-as-null-pointer-constant
-    -Wno-implicit-int-float-conversion
-    -Wno-double-promotion
-    -Wno-unsafe-buffer-usage
-    -Wno-deprecated-declarations
-    -Wno-error=rtti
-    -Wno-error=cast-function-type-strict
-  )
+  if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    list(APPEND WASMEDGE_CFLAGS
+      "/EHa"
+      -Wno-c++98-compat
+      -Wno-c++98-compat-pedantic
+      -Wno-exit-time-destructors
+      -Wno-global-constructors
+      -Wno-used-but-marked-unused
+      -Wno-nonportable-system-include-path
+      -Wno-float-equal
+      -Wno-declaration-after-statement
+      -Wno-zero-as-null-pointer-constant
+      -Wno-implicit-int-float-conversion
+      -Wno-double-promotion
+      -Wno-unsafe-buffer-usage
+      -Wno-deprecated-declarations
+      -Wno-error=rtti
+      -Wno-error=cast-function-type-strict
+    )
+  endif()
 endif()
 
 function(wasmedge_setup_target target)

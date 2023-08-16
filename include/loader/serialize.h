@@ -311,6 +311,11 @@ private:
     }
     return {};
   }
+
+  template <typename C, typename T>
+  bool instanceof(const std::shared_ptr<T> Ptr) {
+    return std::dynamic_pointer_cast<const C>(Ptr) != nullptr;
+  }
   /// @}
 
   /// \name Serializer members

@@ -33,6 +33,8 @@ public:
   uint64_t getStartOffset() const noexcept { return StartOffset; }
   void setStartOffset(uint64_t Off) noexcept { StartOffset = Off; }
 
+  virtual ~Section() noexcept = default;
+
 protected:
   /// Content size of this section.
   uint64_t ContentSize = 0;

@@ -343,7 +343,7 @@ jobs:
             build_type: Release
           - name: Plugins_aarch64
             host_runner: linux-arm64
-            docker_tag: manylinux2014_aarch64
+            docker_tag: manylinux2014_aarch64-plugins-deps
             build_type: Release
     name: Plugins (${{ matrix.docker_tag }}, g++, ${{ matrix.build_type }})
     runs-on: ${{ matrix.host_runner }}

@@ -317,7 +317,8 @@ jobs:
 
     - name: Install python
       run: |
-         ${{ matrix.package_manager }} install python
+        eval $(/opt/homebrew/bin/brew shellenv)
+        ${{ matrix.package_manager }} install python
 
     - name: Install WasmEdge latest release
       run: |

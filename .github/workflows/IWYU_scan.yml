@@ -108,6 +108,7 @@ jobs:
     - name: Build and scan WasmEdge with IWYU
       shell: bash
       run: |
+        eval $(/opt/homebrew/bin/brew shellenv)
         brew install llvm ninja cmake
         export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
         export Clang_DIR="/usr/local/opt/llvm/lib/cmake/clang"

@@ -50,6 +50,7 @@ jobs:
         if: matrix.os == 'macos-latest'
         working-directory: WasmEdge
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           brew install llvm ninja cmake
           export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
           export CC=clang

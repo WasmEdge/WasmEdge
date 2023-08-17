@@ -8,6 +8,7 @@ NC=$'\e[0m' # No Color
 PYTHON_EXECUTABLE="${PYTHON_EXECUTABLE:=}"
 INSTALL_PY_URL="${INSTALL_PY_URL:=}"
 INSTALL_PY_PATH="${INSTALL_PY_PATH:=}"
+USE_GITEE="${USE_GITEE:=}"
 
 if ! command -v git &>/dev/null; then
     echo "${RED}Please install git${NC}"
@@ -45,19 +46,25 @@ main() {
     fi
 
     if [ "$INSTALL_PY_URL" = "" ]; then
-        INSTALL_PY_URL="https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.py"
+        if [ "$USE_GITEE" = "" ]; then
+            GITEE_OPTION="--use-gitee"
+            INSTALL_PY_URL="https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.py"
+        else
+            # Due to a well-known issue, users in China have to use gitee instead of GitHub
+            INSTALL_PY_URL="https://gitee.com/mirrors/wasmedge/raw/master/utils/install.py"
+        fi
     fi
 
     if command -v curl &>/dev/null; then
         if curl --output /dev/null --silent --head --fail "$INSTALL_PY_URL"; then
-            curl -sSf "$INSTALL_PY_URL" | "$PYTHON_EXECUTABLE" - "$@"
+            curl -sSf "$INSTALL_PY_URL" | "$PYTHON_EXECUTABLE" - "$@" "$GITEE_OPTION"
         else
             echo "${RED}$INSTALL_PY_URL not reachable${NC}"
         fi
 
     elif command -v wget &>/dev/null; then
         if wget -q --method=HEAD "$INSTALL_PY_URL"; then
-            wget -qO- "$INSTALL_PY_URL" | "$PYTHON_EXECUTABLE" - "$@"
+            wget -qO- "$INSTALL_PY_URL" | "$PYTHON_EXECUTABLE" - "$@" "$GITEE_OPTION"
         else
             echo "${RED}$INSTALL_PY_URL not reachable{NC}"
         fi

@@ -1200,6 +1200,11 @@ def set_consts(args, compat):
     CONST_release_pkg = compat.release_package
     CONST_ipkg = compat.install_package_name
     CONST_lib_ext = compat.lib_extension
+    CONST_uninstaller_url = (
+        "https://gitee.com/mirrors/wasmedge/raw/{0}/utils/uninstall.sh"
+        if args.use_gitee
+        else "https://raw.githubusercontent.com/WasmEdge/WasmEdge/{0}/utils/uninstall.sh"
+    )
 
     local_release_package_tf = CONST_release_pkg
 
@@ -1221,9 +1226,7 @@ def set_consts(args, compat):
         WASMEDGE: "https://github.com/WasmEdge/WasmEdge/releases/download/{0}/WasmEdge-{0}-{1}".format(
             args.version, compat.release_package_wasmedge
         ),
-        WASMEDGE_UNINSTALLER: "https://raw.githubusercontent.com/WasmEdge/WasmEdge/{0}/utils/uninstall.sh".format(
-            args.uninstall_script_tag
-        ),
+        WASMEDGE_UNINSTALLER: CONST_uninstaller_url.format(args.uninstall_script_tag),
         IMAGE: "https://github.com/second-state/WasmEdge-image/releases/download/{0}/WasmEdge-image-{0}-{1}".format(
             args.image_version, local_release_package_im
         ),
@@ -1689,6 +1692,13 @@ if __name__ == "__main__":
         " '--plugins wasi_crypto:0.11.0'"
         " '--plugins wasi_crypto'"
         " '--plugins all' [Downloads all the supported plugins]",
+    )
+    parser.add_argument(
+        "--use-gitee",
+        dest="use_gitee",
+        required=False,
+        default=False,
+        help="Use gitee url instead of the GitHub url",
     )
     parser.add_argument(
         "--tf-version",

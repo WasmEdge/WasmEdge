@@ -52,8 +52,29 @@ struct WasmZStream {
   /* reserved for future use */
   uint32_t reserved;
 };
-
 static_assert(sizeof(WasmZStream) == 56, "WasmZStream should be 56 bytes");
+
+/*
+     gzip header information passed to and from zlib routines.  See RFC 1952
+  for more details on the meanings of these fields.
+*/
+struct WasmGZHeader {
+  int32_t text;       /* true if compressed data believed to be text */
+  uint32_t time;      /* modification time */
+  int32_t xflags;     /* extra flags (not used when writing a gzip file) */
+  int32_t os;         /* operating system */
+  uint32_t extra;     /* pointer to extra field or Z_NULL if none */
+  uint32_t extra_len; /* extra field length (valid if extra != Z_NULL) */
+  uint32_t extra_max; /* space at extra (only when reading header) */
+  uint32_t name;      /* pointer to zero-terminated file name or Z_NULL */
+  uint32_t name_max;  /* space at name (only when reading header) */
+  uint32_t comment;   /* pointer to zero-terminated comment or Z_NULL */
+  uint32_t comm_max;  /* space at comment (only when reading header) */
+  int32_t hcrc;       /* true if there was or will be a header crc */
+  int32_t done;       /* true when done reading gzip header (not used
+                     when writing a gzip file) */
+};
+static_assert(sizeof(WasmGZHeader) == 52, "WasmGZHeader should be 52 bytes");
 
 namespace WasmEdge {
 namespace Host {

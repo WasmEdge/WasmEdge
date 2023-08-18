@@ -11,11 +11,19 @@ wasmedge_add_library(wasmedgePluginWasiNN
   tf.cpp
   torch.cpp
   tfl.cpp
+  ggml.cpp
+  ggml/common.cpp
+  ggml/ggml-alloc.c
+  ggml/ggml.c
+  ggml/k_quants.c
+  ggml/ggml-alloc.c
+  ggml/llama.cpp
 )
 
 target_compile_options(wasmedgePluginWasiNN
   PUBLIC
   -DWASMEDGE_PLUGIN
+  -DGGML_USE_K_QUANTS
 )
 
 target_include_directories(wasmedgePluginWasiNN

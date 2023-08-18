@@ -344,11 +344,11 @@ jobs:
         include:
           - name: Plugins_x86_64
             host_runner: ubuntu-latest
-            docker_tag: manylinux2014_x86_64
+            docker_tag: manylinux2014_x86_64-plugins-deps
             build_type: Release
           - name: Plugins_aarch64
             host_runner: linux-arm64
-            docker_tag: manylinux2014_aarch64
+            docker_tag: manylinux2014_aarch64-plugins-deps
             build_type: Release
     name: Plugins (${{ matrix.docker_tag }}, g++, ${{ matrix.build_type }})
     runs-on: ${{ matrix.host_runner }}
@@ -380,10 +380,8 @@ jobs:
       - name: Build and install dependencies
         run: |
           yum update -y
-          yum install -y zlib-devel zlib-static cmake wget unzip
+          yum install -y zlib-devel zlib-static cmake
           bash ./utils/wasi-crypto/build-openssl.sh
-
-          bash utils/opencvmini/install-opencvmini.sh
           # Running tests of wasm_bpf requires proper ebpf running environment
           mount -t debugfs none /sys/kernel/debug
       - name: Build and test plugins using g++ with ${{ matrix.build_type }} mode

@@ -63,6 +63,11 @@ Expect<void> Serializer::serializeSegment(const AST::ElementSegment &Seg,
     }
   } else {
     // Serialize RefType.
+    if (auto Res =
+            checkRefTypeProposals(Seg.getRefType(), ASTNodeAttr::Seg_Element);
+        unlikely(!Res)) {
+      return Unexpect(Res);
+    }
     serializeU32(static_cast<uint8_t>(Seg.getRefType()), Result);
   }
 

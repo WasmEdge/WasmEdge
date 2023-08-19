@@ -118,10 +118,10 @@ private:
     spdlog::error(ErrInfo::InfoAST(Node));
     return Unexpect(Code);
   }
-  Expect<ValType> checkValTypeProposals(ValType VType, uint64_t Off,
-                                        ASTNodeAttr Node) const noexcept;
-  Expect<RefType> checkRefTypeProposals(RefType RType, uint64_t Off,
-                                        ASTNodeAttr Node) const noexcept;
+  Expect<void> checkValTypeProposals(ValType VType, uint64_t Off,
+                                     ASTNodeAttr Node) const noexcept;
+  Expect<void> checkRefTypeProposals(RefType RType, uint64_t Off,
+                                     ASTNodeAttr Node) const noexcept;
   Expect<void> checkInstrProposals(OpCode Code, uint64_t Offset) const noexcept;
   /// @}
 

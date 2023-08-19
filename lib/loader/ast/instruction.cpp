@@ -957,63 +957,9 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
 Expect<void> Loader::checkInstrProposals(OpCode Code,
                                          uint64_t Offset) const noexcept {
-  if (Code >= OpCode::I32__trunc_sat_f32_s &&
-      Code <= OpCode::I64__trunc_sat_f64_u) {
-    // These instructions are for NonTrapFloatToIntConversions proposal.
-    if (unlikely(!Conf.hasProposal(Proposal::NonTrapFloatToIntConversions))) {
-      return logNeedProposal(ErrCode::Value::IllegalOpCode,
-                             Proposal::NonTrapFloatToIntConversions, Offset,
-                             ASTNodeAttr::Instruction);
-    }
-  } else if (Code >= OpCode::I32__extend8_s &&
-             Code <= OpCode::I64__extend32_s) {
-    // These instructions are for SignExtensionOperators proposal.
-    if (unlikely(!Conf.hasProposal(Proposal::SignExtensionOperators))) {
-      return logNeedProposal(ErrCode::Value::IllegalOpCode,
-                             Proposal::SignExtensionOperators, Offset,
-                             ASTNodeAttr::Instruction);
-    }
-  } else if ((Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
-             (Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||
-             (Code >= OpCode::Memory__init && Code <= OpCode::Memory__fill)) {
-    // These instructions are for ReferenceTypes or BulkMemoryOperations
-    // proposal.
-    if (unlikely(!Conf.hasProposal(Proposal::ReferenceTypes)) &&
-        unlikely(!Conf.hasProposal(Proposal::BulkMemoryOperations))) {
-      return logNeedProposal(ErrCode::Value::IllegalOpCode,
-                             Proposal::ReferenceTypes, Offset,
-                             ASTNodeAttr::Instruction);
-    }
-  } else if (Code == OpCode::Select_t ||
-             (Code >= OpCode::Table__get && Code <= OpCode::Table__set) ||
-             (Code >= OpCode::Table__grow && Code <= OpCode::Table__fill)) {
-    // These instructions are for ReferenceTypes proposal.
-    if (unlikely(!Conf.hasProposal(Proposal::ReferenceTypes))) {
-      return logNeedProposal(ErrCode::Value::IllegalOpCode,
-                             Proposal::ReferenceTypes, Offset,
-                             ASTNodeAttr::Instruction);
-    }
-  } else if (Code >= OpCode::V128__load &&
-             Code <= OpCode::F64x2__convert_low_i32x4_u) {
-    // These instructions are for SIMD proposal.
-    if (!Conf.hasProposal(Proposal::SIMD)) {
-      return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::SIMD,
-                             Offset, ASTNodeAttr::Instruction);
-    }
-  } else if (Code == OpCode::Return_call ||
-             Code == OpCode::Return_call_indirect) {
-    // These instructions are for TailCall proposal.
-    if (!Conf.hasProposal(Proposal::TailCall)) {
-      return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::TailCall,
-                             Offset, ASTNodeAttr::Instruction);
-    }
-  } else if (Code >= OpCode::I32__atomic__load &&
-             Code <= OpCode::I64__atomic__rmw32__cmpxchg_u) {
-    // These instructions are for Thread proposal.
-    if (!Conf.hasProposal(Proposal::Threads)) {
-      return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::Threads,
-                             Offset, ASTNodeAttr::Instruction);
-    }
+  if (auto Res = Conf.checkInstrProposals(Code); !Res) {
+    spdlog::error(ErrInfo::InfoLoading(Offset));
+    return Unexpect(Res);
   }
   return {};
 }

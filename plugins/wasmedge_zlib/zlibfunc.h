@@ -132,5 +132,85 @@ public:
                        int32_t Bits, int32_t Value);
 };
 
+class WasmEdgeZlibInflateSetDictionary
+    : public WasmEdgeZlib<WasmEdgeZlibInflateSetDictionary> {
+public:
+  WasmEdgeZlibInflateSetDictionary(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       uint32_t DictionaryPtr, uint32_t DictLength);
+};
+
+class WasmEdgeZlibInflateGetDictionary
+    : public WasmEdgeZlib<WasmEdgeZlibInflateGetDictionary> {
+public:
+  WasmEdgeZlibInflateGetDictionary(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       uint32_t DictionaryPtr, uint32_t DictLengthPtr);
+};
+
+class WasmEdgeZlibInflateSync : public WasmEdgeZlib<WasmEdgeZlibInflateSync> {
+public:
+  WasmEdgeZlibInflateSync(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr);
+};
+
+class WasmEdgeZlibInflateCopy : public WasmEdgeZlib<WasmEdgeZlibInflateCopy> {
+public:
+  WasmEdgeZlibInflateCopy(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t DestPtr,
+                       uint32_t SourcePtr);
+};
+
+class WasmEdgeZlibInflateReset : public WasmEdgeZlib<WasmEdgeZlibInflateReset> {
+public:
+  WasmEdgeZlibInflateReset(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr);
+};
+
+class WasmEdgeZlibInflateReset2
+    : public WasmEdgeZlib<WasmEdgeZlibInflateReset2> {
+public:
+  WasmEdgeZlibInflateReset2(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       int32_t WindowBits);
+};
+
+class WasmEdgeZlibInflatePrime : public WasmEdgeZlib<WasmEdgeZlibInflatePrime> {
+public:
+  WasmEdgeZlibInflatePrime(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       int32_t Bits, int32_t Value);
+};
+
+class WasmEdgeZlibInflateMark : public WasmEdgeZlib<WasmEdgeZlibInflateMark> {
+public:
+  WasmEdgeZlibInflateMark(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr);
+};
+
+class WasmEdgeZlibInflateBack : public WasmEdgeZlib<WasmEdgeZlibInflateBack> {
+public:
+  WasmEdgeZlibInflateBack(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       int32_t Bits, int32_t Value);
+};
+
+class WasmEdgeZlibInflateBackEnd
+    : public WasmEdgeZlib<WasmEdgeZlibInflateBackEnd> {
+public:
+  WasmEdgeZlibInflateBackEnd(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr);
+};
+
 } // namespace Host
 } // namespace WasmEdge

@@ -368,5 +368,192 @@ WasmEdgeZlibDeflatePrime::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
+Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
+    const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+    uint32_t DictionaryPtr, uint32_t DictLength) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame, [&]() {
+        return inflateSetDictionary(HostZStreamIt->second.get(), Dictionary,
+                                    DictLength);
+      });
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
+    const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+    uint32_t DictionaryPtr, uint32_t DictLength) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame, [&]() {
+        return inflateSetDictionary(HostZStreamIt->second.get(), Dictionary,
+                                    DictLength);
+      });
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
+    const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+    uint32_t DictionaryPtr, uint32_t DictLengthPtr) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
+  auto *DictLength = MemInst->getPointer<uint32_t *>(DictLengthPtr);
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame, [&]() {
+        return inflateGetDictionary(HostZStreamIt->second.get(), Dictionary,
+                                    DictLength);
+      });
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibInflateSync::body(const Runtime::CallingFrame &Frame,
+                              uint32_t ZStreamPtr) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame,
+              [&]() { return inflateSync(HostZStreamIt->second.get()); });
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibInflateCopy::body(const Runtime::CallingFrame &Frame,
+                              uint32_t DestPtr, uint32_t SourcePtr) {
+
+  const auto SourceZStreamIt = Env.ZStreamMap.find(SourcePtr);
+  if (SourceZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto DestZStream = std::make_unique<z_stream>();
+
+  SyncRun(SourceZStreamIt->second.get(), SourcePtr, Frame, []() { return 0; });
+
+  const int32_t ZRes = SyncRun(DestZStream.get(), DestPtr, Frame, [&]() {
+    return inflateCopy(DestZStream.get(), SourceZStreamIt->second.get());
+  });
+
+  if (ZRes == Z_OK)
+    Env.ZStreamMap.emplace(std::make_pair(DestPtr, std::move(DestZStream)));
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibInflateReset::body(const Runtime::CallingFrame &Frame,
+                               uint32_t ZStreamPtr) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame,
+              [&]() { return inflateReset(HostZStreamIt->second.get()); });
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibInflateReset2::body(const Runtime::CallingFrame &Frame,
+                                uint32_t ZStreamPtr, int32_t WindowBits) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame, [&]() {
+        return inflateReset2(HostZStreamIt->second.get(), WindowBits);
+      });
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibInflatePrime::body(const Runtime::CallingFrame &Frame,
+                               uint32_t ZStreamPtr, int32_t Bits,
+                               int32_t Value) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame, [&]() {
+        return inflatePrime(HostZStreamIt->second.get(), Bits, Value);
+      });
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibInflateMark::body(const Runtime::CallingFrame &Frame,
+                              uint32_t ZStreamPtr) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame,
+              [&]() { return inflateMark(HostZStreamIt->second.get()); });
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibInflateBackEnd::body(const Runtime::CallingFrame &Frame,
+                                 uint32_t ZStreamPtr) {
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame,
+              [&]() { return inflateBackEnd(HostZStreamIt->second.get()); });
+
+  Env.ZStreamMap.erase(ZStreamPtr);
+
+  return ZRes;
+}
+
 } // namespace Host
 } // namespace WasmEdge

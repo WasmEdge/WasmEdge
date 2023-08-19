@@ -663,11 +663,10 @@ Expect<int32_t> WasmEdgeZlibUncompress::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibUncompress::body(const Runtime::CallingFrame &Frame,
-                                             uint32_t DestPtr,
-                                             uint32_t DestLenPtr,
-                                             uint32_t SourcePtr,
-                                             uint32_t SourceLenPtr) {
+Expect<int32_t>
+WasmEdgeZlibUncompress2::body(const Runtime::CallingFrame &Frame,
+                              uint32_t DestPtr, uint32_t DestLenPtr,
+                              uint32_t SourcePtr, uint32_t SourceLenPtr) {
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -685,6 +684,70 @@ Expect<int32_t> WasmEdgeZlibUncompress::body(const Runtime::CallingFrame &Frame,
   const int32_t ZRes = uncompress2(Dest, HostDestLen, Source, HostSourceLen);
   *DestLen = *HostDestLen;
   *SourceLen = *HostSourceLen;
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibAdler32::body(const Runtime::CallingFrame &Frame,
+                                          uint32_t Adler, uint32_t BufPtr,
+                                          uint32_t Len) {
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
+
+  const int32_t ZRes = adler32(Adler, Buf, Len);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibAdler32_z::body(const Runtime::CallingFrame &Frame,
+                                            uint32_t Adler, uint32_t BufPtr,
+                                            uint32_t Len) {
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
+
+  const int32_t ZRes = adler32_z(Adler, Buf, Len);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibCRC32::body(const Runtime::CallingFrame &Frame,
+                                        uint32_t CRC, uint32_t BufPtr,
+                                        uint32_t Len) {
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
+
+  const int32_t ZRes = crc32(CRC, Buf, Len);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibCRC32_z::body(const Runtime::CallingFrame &Frame,
+                                          uint32_t CRC, uint32_t BufPtr,
+                                          uint32_t Len) {
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
+
+  const int32_t ZRes = crc32_z(CRC, Buf, Len);
 
   return ZRes;
 }

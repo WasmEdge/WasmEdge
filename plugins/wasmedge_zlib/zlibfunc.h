@@ -264,5 +264,36 @@ public:
                        uint32_t SourceLenPtr);
 };
 
+class WasmEdgeZlibAdler32 : public WasmEdgeZlib<WasmEdgeZlibAdler32> {
+public:
+  WasmEdgeZlibAdler32(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t Adler,
+                       uint32_t BufPtr, uint32_t Len);
+};
+
+class WasmEdgeZlibAdler32_z : public WasmEdgeZlib<WasmEdgeZlibAdler32_z> {
+public:
+  WasmEdgeZlibAdler32_z(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t Adler,
+                       uint32_t BufPtr, uint32_t Len);
+};
+
+class WasmEdgeZlibCRC32 : public WasmEdgeZlib<WasmEdgeZlibCRC32> {
+public:
+  WasmEdgeZlibCRC32(WasmEdgeZlibEnvironment &HostEnv) : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t CRC,
+                       uint32_t BufPtr, uint32_t Len);
+};
+
+class WasmEdgeZlibCRC32_z : public WasmEdgeZlib<WasmEdgeZlibCRC32_z> {
+public:
+  WasmEdgeZlibCRC32_z(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t CRC,
+                       uint32_t BufPtr, uint32_t Len);
+};
+
 } // namespace Host
 } // namespace WasmEdge

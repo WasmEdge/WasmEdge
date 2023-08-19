@@ -197,6 +197,10 @@ Expect<int32_t> WasmEdgeZlibDeflateSetDictionary::body(
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
   const auto *Dictionary = MemInst->getPointer<const Bytef *>(DictionaryPtr);
 
   const int32_t ZRes =
@@ -218,6 +222,10 @@ Expect<int32_t> WasmEdgeZlibDeflateGetDictionary::body(
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
   auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
   auto *DictLength = MemInst->getPointer<uint32_t *>(DictLengthPtr);
 
@@ -339,6 +347,10 @@ WasmEdgeZlibDeflatePending::body(const Runtime::CallingFrame &Frame,
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
   auto *Pending = MemInst->getPointer<uint32_t *>(PendingPtr);
   auto *Bits = MemInst->getPointer<int32_t *>(BitsPtr);
 
@@ -378,6 +390,10 @@ Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
   auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
 
   const int32_t ZRes =
@@ -399,6 +415,10 @@ Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
   auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
 
   const int32_t ZRes =
@@ -420,6 +440,10 @@ Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
   auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
   auto *DictLength = MemInst->getPointer<uint32_t *>(DictLengthPtr);
 
@@ -551,6 +575,116 @@ WasmEdgeZlibInflateBackEnd::body(const Runtime::CallingFrame &Frame,
               [&]() { return inflateBackEnd(HostZStreamIt->second.get()); });
 
   Env.ZStreamMap.erase(ZStreamPtr);
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibZlibCompilerFlags::body(const Runtime::CallingFrame &Frame) {
+  const int32_t ZRes = zlibCompileFlags();
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibCompress::body(const Runtime::CallingFrame &Frame,
+                                           uint32_t DestPtr,
+                                           uint32_t DestLenPtr,
+                                           uint32_t SourcePtr,
+                                           uint32_t SourceLen) {
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Dest = MemInst->getPointer<Bytef *>(DestPtr);
+  auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
+  auto *Source = MemInst->getPointer<Bytef *>(SourcePtr);
+
+  unsigned long *HostDestLen;
+  *HostDestLen = *DestLen;
+  const int32_t ZRes = compress(Dest, HostDestLen, Source, SourceLen);
+  *DestLen = *HostDestLen;
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibCompress2::body(const Runtime::CallingFrame &Frame,
+                                            uint32_t DestPtr,
+                                            uint32_t DestLenPtr,
+                                            uint32_t SourcePtr,
+                                            uint32_t SourceLen, int32_t Level) {
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Dest = MemInst->getPointer<Bytef *>(DestPtr);
+  auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
+  auto *Source = MemInst->getPointer<Bytef *>(SourcePtr);
+
+  unsigned long *HostDestLen;
+  *HostDestLen = *DestLen;
+  const int32_t ZRes = compress2(Dest, HostDestLen, Source, SourceLen, Level);
+  *DestLen = *HostDestLen;
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibCompressBound::body(const Runtime::CallingFrame &Frame,
+                                uint32_t SourceLen) {
+  const int32_t ZRes = compressBound(SourceLen);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibUncompress::body(const Runtime::CallingFrame &Frame,
+                                             uint32_t DestPtr,
+                                             uint32_t DestLenPtr,
+                                             uint32_t SourcePtr,
+                                             uint32_t SourceLen) {
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Dest = MemInst->getPointer<Bytef *>(DestPtr);
+  auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
+  auto *Source = MemInst->getPointer<Bytef *>(SourcePtr);
+
+  unsigned long *HostDestLen;
+  *HostDestLen = *DestLen;
+  const int32_t ZRes = uncompress(Dest, HostDestLen, Source, SourceLen);
+  *DestLen = *HostDestLen;
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibUncompress::body(const Runtime::CallingFrame &Frame,
+                                             uint32_t DestPtr,
+                                             uint32_t DestLenPtr,
+                                             uint32_t SourcePtr,
+                                             uint32_t SourceLenPtr) {
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Dest = MemInst->getPointer<Bytef *>(DestPtr);
+  auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
+  auto *Source = MemInst->getPointer<Bytef *>(SourcePtr);
+  auto *SourceLen = MemInst->getPointer<uint32_t *>(SourceLenPtr);
+
+  unsigned long *HostDestLen, *HostSourceLen;
+  *HostDestLen = *DestLen;
+  *HostSourceLen = *SourceLen;
+  const int32_t ZRes = uncompress2(Dest, HostDestLen, Source, HostSourceLen);
+  *DestLen = *HostDestLen;
+  *SourceLen = *HostSourceLen;
 
   return ZRes;
 }

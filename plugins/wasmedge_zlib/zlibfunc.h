@@ -212,5 +212,57 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr);
 };
 
+class WasmEdgeZlibZlibCompilerFlags
+    : public WasmEdgeZlib<WasmEdgeZlibZlibCompilerFlags> {
+public:
+  WasmEdgeZlibZlibCompilerFlags(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class WasmEdgeZlibCompress : public WasmEdgeZlib<WasmEdgeZlibCompress> {
+public:
+  WasmEdgeZlibCompress(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t DestPtr,
+                       uint32_t DestLenPtr, uint32_t SourcePtr,
+                       uint32_t SourceLen);
+};
+
+class WasmEdgeZlibCompress2 : public WasmEdgeZlib<WasmEdgeZlibCompress2> {
+public:
+  WasmEdgeZlibCompress2(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t DestPtr,
+                       uint32_t DestLenPtr, uint32_t SourcePtr,
+                       uint32_t SourceLen, int32_t Level);
+};
+
+class WasmEdgeZlibCompressBound
+    : public WasmEdgeZlib<WasmEdgeZlibCompressBound> {
+public:
+  WasmEdgeZlibCompressBound(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t SourceLen);
+};
+
+class WasmEdgeZlibUncompress : public WasmEdgeZlib<WasmEdgeZlibUncompress> {
+public:
+  WasmEdgeZlibUncompress(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t DestPtr,
+                       uint32_t DestLenPtr, uint32_t SourcePtr,
+                       uint32_t SourceLen);
+};
+
+class WasmEdgeZlibUncompress2 : public WasmEdgeZlib<WasmEdgeZlibUncompress2> {
+public:
+  WasmEdgeZlibUncompress2(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t DestPtr,
+                       uint32_t DestLenPtr, uint32_t SourcePtr,
+                       uint32_t SourceLenPtr);
+};
+
 } // namespace Host
 } // namespace WasmEdge

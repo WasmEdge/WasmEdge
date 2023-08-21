@@ -531,11 +531,11 @@ TEST(APICoreTest, Value) {
   Val = WasmEdge_ValueGenV128(V);
   EXPECT_TRUE(0 == std::memcmp(&V, &Val, sizeof(V)));
 #endif
-  Val = WasmEdge_ValueGenNullRef(WasmEdge_RefTypeCode_FuncRef);
-  EXPECT_TRUE(WasmEdge_ValueIsNullRef(Val));
   Val = WasmEdge_ValueGenFuncRef(nullptr);
+  EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(Val.Type));
   EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
   Val = WasmEdge_ValueGenExternRef(&Vec);
+  EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(Val.Type));
   EXPECT_EQ(
       static_cast<std::vector<uint32_t> *>(WasmEdge_ValueGetExternRef(Val))
           ->data()[1],
@@ -1894,6 +1894,7 @@ TEST(APICoreTest, Store) {
 }
 
 TEST(APICoreTest, Instance) {
+  WasmEdge_ValType VType;
   WasmEdge_Value Val, TmpVal;
 
   // WasmEdge_ModuleInstanceContext related APIs tested in `Store` and
@@ -1983,6 +1984,9 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(TabCxt, Val, 5)));
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
                          WasmEdge_TableInstanceSetData(TabCxt, TmpVal, 6)));
+  TmpVal = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
+                         WasmEdge_TableInstanceSetData(TabCxt, TmpVal, 7)));
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
                          WasmEdge_TableInstanceSetData(nullptr, Val, 5)));
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_TableOutOfBounds,
@@ -2025,6 +2029,36 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(true);
   WasmEdge_TableInstanceDelete(TabCxt);
   EXPECT_TRUE(true);
+
+  // Table instance create with init
+  VType = WasmEdge_ValTypeGenExternRef();
+  // TODO: Forcibly change to non-nullable. Refine this after providing the
+  // corresponding API.
+  VType.Data[2] = WasmEdge_ValTypeCode_Ref;
+  TabType = WasmEdge_TableTypeCreate(
+      VType, WasmEdge_Limit{/* HasMax */ true, /* Shared */ false, /* Min */ 10,
+                            /* Max */ 10});
+  TabCxt = WasmEdge_TableInstanceCreate(TabType);
+  EXPECT_EQ(TabCxt, nullptr);
+  Val = WasmEdge_ValueGenFuncRef(nullptr);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(nullptr, Val);
+  EXPECT_EQ(TabCxt, nullptr);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_EQ(TabCxt, nullptr);
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_EQ(TabCxt, nullptr);
+  Val = WasmEdge_ValueGenExternRef(&TabType);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_NE(TabCxt, nullptr);
+  WasmEdge_TableTypeDelete(TabType);
+
+  // Table instance set data with non-nullable reference
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(TabCxt, Val, 5)));
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_NonNullRequired,
+                         WasmEdge_TableInstanceSetData(TabCxt, Val, 5)));
+  WasmEdge_TableInstanceDelete(TabCxt);
 
   // Memory instance
   WasmEdge_MemoryInstanceContext *MemCxt;
@@ -2184,19 +2218,22 @@ TEST(APICoreTest, Instance) {
 
   // Global instance set value
   Val = WasmEdge_ValueGenI64(77777777777LL);
-  WasmEdge_GlobalInstanceSetValue(GlobCCxt, Val);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_SetValueToConst,
+                         WasmEdge_GlobalInstanceSetValue(GlobCCxt, Val)));
   Val = WasmEdge_GlobalInstanceGetValue(GlobCCxt);
   EXPECT_EQ(WasmEdge_ValueGetI64(Val), 55555555555LL);
   Val = WasmEdge_ValueGenI64(88888888888LL);
-  WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
   Val = WasmEdge_GlobalInstanceGetValue(GlobVCxt);
   EXPECT_EQ(WasmEdge_ValueGetI64(Val), 88888888888LL);
   Val = WasmEdge_ValueGenF32(12.345f);
-  WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_SetValueErrorType,
+                         WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
   Val = WasmEdge_GlobalInstanceGetValue(GlobVCxt);
   EXPECT_EQ(WasmEdge_ValueGetI64(Val), 88888888888LL);
-  WasmEdge_GlobalInstanceSetValue(nullptr, Val);
-  EXPECT_TRUE(true);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_GlobalInstanceSetValue(nullptr, Val)));
 
   // Global instance deletion
   WasmEdge_GlobalInstanceDelete(nullptr);
@@ -2205,6 +2242,34 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(true);
   WasmEdge_GlobalInstanceDelete(GlobVCxt);
   EXPECT_TRUE(true);
+
+  // Global instance with non-nullable reference
+  VType = WasmEdge_ValTypeGenExternRef();
+  // TODO: Forcibly change to non-nullable. Refine this after providing the
+  // corresponding API.
+  VType.Data[2] = WasmEdge_ValTypeCode_Ref;
+  GlobVType = WasmEdge_GlobalTypeCreate(VType, WasmEdge_Mutability_Var);
+  Val = WasmEdge_ValueGenFuncRef(nullptr);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
+  EXPECT_EQ(GlobVCxt, nullptr);
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
+  EXPECT_EQ(GlobVCxt, nullptr);
+  Val = WasmEdge_ValueGenExternRef(&GlobVType);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
+  EXPECT_NE(GlobVCxt, nullptr);
+  WasmEdge_GlobalTypeDelete(GlobVType);
+
+  // Global instance set value with non-nullable reference
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_NonNullRequired,
+                         WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
+  Val = WasmEdge_ValueGenFuncRef(nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
+                         WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
+  WasmEdge_GlobalInstanceDelete(GlobVCxt);
 }
 
 TEST(APICoreTest, ModuleInstance) {

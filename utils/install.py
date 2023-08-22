@@ -1611,6 +1611,12 @@ def main(args):
         # Cleanup
         shutil.rmtree(TEMP_PATH)
 
+        if CONST_shell_config is None:
+            CONST_shell_config = "/DOES NOT EXIST;"
+
+        if CONST_shell_profile is None:
+            CONST_shell_profile = "/DOES NOT EXIST;"
+
         if exists(CONST_shell_config) and compat.platform != "Darwin":
             logging.info("Run:\nsource {0}".format(CONST_shell_config))
         elif exists(CONST_shell_profile):

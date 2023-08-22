@@ -9,12 +9,15 @@
 namespace WasmEdge::Host::WASINN {
 
 enum class ErrNo : uint32_t {
-  Success = 0,         // No error occurred.
-  InvalidArgument = 1, // Caller module passed an invalid argument.
-  InvalidEncoding = 2, // Invalid encoding.
-  MissingMemory = 3,   // Caller module is missing a memory export.
-  Busy = 4,            // Device or resource busy.
-  RuntimeError = 5,    // Runtime Error.
+  Success = 0,              // No error occurred.
+  InvalidArgument = 1,      // Caller module passed an invalid argument.
+  InvalidEncoding = 2,      // Invalid encoding.
+  MissingMemory = 3,        // Caller module is missing a memory export.
+  Busy = 4,                 // Device or resource busy.
+  RuntimeError = 5,         // Runtime Error.
+  UnsupportedOperation = 6, // Unsupported Operation.
+  TooLarge = 7,             // Too Large.
+  NotFound = 8,             // Not Found.
 };
 
 enum class TensorType : uint8_t { F16 = 0, F32 = 1, U8 = 2, I32 = 3 };
@@ -26,7 +29,8 @@ enum class Backend : uint8_t {
   ONNX = 1,
   Tensorflow = 2,
   PyTorch = 3,
-  TensorflowLite = 4
+  TensorflowLite = 4,
+  Autodetect = 5,
 };
 
 #define FOR_EACH_BACKEND(F)                                                    \

@@ -28,6 +28,20 @@ private:
                                  uint32_t GraphIdPtr);
 };
 
+class WasiNNLoadByName : public WasiNN<WasiNNLoadByName> {
+public:
+  WasiNNLoadByName(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
+                        uint32_t NameLen, uint32_t GraphIdPtr) {
+    return bodyImpl(Frame, NamePtr, NameLen, GraphIdPtr).map(castErrNo);
+  }
+
+private:
+  Expect<WASINN::ErrNo> bodyImpl(const Runtime::CallingFrame &,
+                                 uint32_t NamePtr, uint32_t NameLen,
+                                 uint32_t GraphIdPtr);
+};
+
 class WasiNNInitExecCtx : public WasiNN<WasiNNInitExecCtx> {
 public:
   WasiNNInitExecCtx(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}

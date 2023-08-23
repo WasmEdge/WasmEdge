@@ -392,6 +392,7 @@ CONST_ipkg = None
 CONST_lib_ext = None
 CONST_env_path = None
 CONST_lib_dir = "lib"
+CONST_PATH_NOT_EXIST_STR = "/DOES NOT EXIST;"
 
 try:
     mkdir(TEMP_PATH)
@@ -1612,10 +1613,10 @@ def main(args):
         shutil.rmtree(TEMP_PATH)
 
         if CONST_shell_config is None:
-            CONST_shell_config = "/DOES NOT EXIST;"
+            CONST_shell_config = CONST_PATH_NOT_EXIST_STR
 
         if CONST_shell_profile is None:
-            CONST_shell_profile = "/DOES NOT EXIST;"
+            CONST_shell_profile = CONST_PATH_NOT_EXIST_STR
 
         if exists(CONST_shell_config) and compat.platform != "Darwin":
             logging.info("Run:\nsource {0}".format(CONST_shell_config))

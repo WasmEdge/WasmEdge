@@ -1844,6 +1844,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
   // signal handler
   signal(SIGINT, &signalHandler);
 
+  int cnt = 0;
   while (PC != PCEnd) {
     // restoreした場合に、restoreした直後にdumpしたimgファイルと、restore元のimgファイルは一致することを確認するもの
     // if (restoreTestFlag && Conf.getStatisticsConfigure().getRestoreFlag()) {
@@ -1882,11 +1883,38 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
         }
       }
     }
+    
+    std::string command;
+    while(1) {
+      OpCode Code = PC->getOpCode();
+      std::cout << cnt << " " << Code << std::endl;
+      std::cin >> command;
+
+      // 表示する横の長さ
+      // const int a = 28;
+
+      if (command == "info stack" || command == "i s") {
+        int size = StackMgr.size();
+        auto stack = StackMgr.getTopN(size);
+
+        std::cout << "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓";
+        for (int i = size-1; i >= 0; i++) {
+          std::cout << "┃  " << StackMgr.getTopN(i) << "  ┃" << std::endl;
+          std::cout << "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫";
+        }  
+        std::cout << "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛";
+      }
+      else {
+        break;
+      }
+    }
+     
     if (auto Res = Dispatch(); !Res) {
       return Unexpect(Res);
     }
     
     PC++;
+    cnt++;
   }
   return {};
 }

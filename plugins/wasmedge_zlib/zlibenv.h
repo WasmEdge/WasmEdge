@@ -81,8 +81,11 @@ namespace Host {
 
 class WasmEdgeZlibEnvironment {
 public:
+  using GZFile_s = std::remove_pointer_t<gzFile>;
+
   std::unordered_map<uint32_t, std::unique_ptr<z_stream>> ZStreamMap;
-  std::map<uint32_t, std::unique_ptr<gzFile>, std::greater<uint32_t>> GZFileMap;
+  std::map<uint32_t, std::unique_ptr<GZFile_s>, std::greater<uint32_t>>
+      GZFileMap;
 
   /// Initial Configurations
   static Plugin::PluginRegister Register;

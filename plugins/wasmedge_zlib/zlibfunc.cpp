@@ -738,13 +738,62 @@ Expect<uint32_t> WasmEdgeZlibGZDOpen::body(const Runtime::CallingFrame &Frame,
 
   auto *Mode = MemInst->getPointer<const char *>(ModePtr);
 
-  gzFile ZRes = gzdopen(FD, Mode);
+  auto ZRes = gzdopen(FD, Mode);
 
   const auto NewWasmGZFile = WasmGZFileStart + Env.GZFileMap.size();
   Env.GZFileMap.emplace(std::pair<uint32_t, std::unique_ptr<gzFile>>{
       NewWasmGZFile, std::make_unique<gzFile>(ZRes)});
 
   return NewWasmGZFile;
+}
+
+Expect<int32_t> WasmEdgeZlibGZBuffer::body(const Runtime::CallingFrame &Frame,
+                                           uint32_t GZFile, uint32_t Size) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gzbuffer(GZFileIt->second.get(), Size);
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibGZSetParams::body(const Runtime::CallingFrame &Frame,
+                              uint32_t GZFile, int32_t Level,
+                              int32_t Strategy) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gzsetparams(GZFileIt->second.get(), Level, Strategy);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibGZRead::body(const Runtime::CallingFrame &Frame,
+                                         uint32_t GZFile, uint32_t BufPtr,
+                                         uint32_t Len) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Buf = MemInst->getPointer<void *>(BufPtr);
+
+  auto ZRes = gzread(GZFileIt->second.get(), Buf, Len);
+
+  return ZRes;
 }
 
 } // namespace Host

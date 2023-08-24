@@ -917,5 +917,76 @@ Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &,
   return ZRes;
 }
 
+Expect<int32_t> WasmEdgeZlibGZEof::body(const Runtime::CallingFrame &,
+                                        uint32_t GZFile) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gzeof(GZFileIt->second.get());
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibGZDirect::body(const Runtime::CallingFrame &,
+                                           uint32_t GZFile) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gzdirect(GZFileIt->second.get());
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibGZDirect::body(const Runtime::CallingFrame &,
+                                           uint32_t GZFile) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gzclose(GZFileIt->second.get());
+
+  Env.GZFileMap.erase(GZFileIt);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &,
+                                            uint32_t GZFile) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gzclose_r(GZFileIt->second.get());
+
+  Env.GZFileMap.erase(GZFileIt);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &,
+                                            uint32_t GZFile) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gzclose_w(GZFileIt->second.get());
+
+  Env.GZFileMap.erase(GZFileIt);
+
+  return ZRes;
+}
+
 } // namespace Host
 } // namespace WasmEdge

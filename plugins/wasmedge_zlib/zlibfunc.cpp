@@ -576,10 +576,10 @@ Expect<int32_t> WasmEdgeZlibCompress::body(const Runtime::CallingFrame &Frame,
   auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
   auto *Source = MemInst->getPointer<Bytef *>(SourcePtr);
 
-  unsigned long *HostDestLen;
-  *HostDestLen = *DestLen;
-  const int32_t ZRes = compress(Dest, HostDestLen, Source, SourceLen);
-  *DestLen = *HostDestLen;
+  unsigned long HostDestLen;
+  HostDestLen = *DestLen;
+  const int32_t ZRes = compress(Dest, &HostDestLen, Source, SourceLen);
+  *DestLen = HostDestLen;
 
   return ZRes;
 }
@@ -599,10 +599,10 @@ Expect<int32_t> WasmEdgeZlibCompress2::body(const Runtime::CallingFrame &Frame,
   auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
   auto *Source = MemInst->getPointer<Bytef *>(SourcePtr);
 
-  unsigned long *HostDestLen;
-  *HostDestLen = *DestLen;
-  const int32_t ZRes = compress2(Dest, HostDestLen, Source, SourceLen, Level);
-  *DestLen = *HostDestLen;
+  unsigned long HostDestLen;
+  HostDestLen = *DestLen;
+  const int32_t ZRes = compress2(Dest, &HostDestLen, Source, SourceLen, Level);
+  *DestLen = HostDestLen;
 
   return ZRes;
 }
@@ -629,10 +629,10 @@ Expect<int32_t> WasmEdgeZlibUncompress::body(const Runtime::CallingFrame &Frame,
   auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
   auto *Source = MemInst->getPointer<Bytef *>(SourcePtr);
 
-  unsigned long *HostDestLen;
-  *HostDestLen = *DestLen;
-  const int32_t ZRes = uncompress(Dest, HostDestLen, Source, SourceLen);
-  *DestLen = *HostDestLen;
+  unsigned long HostDestLen;
+  HostDestLen = *DestLen;
+  const int32_t ZRes = uncompress(Dest, &HostDestLen, Source, SourceLen);
+  *DestLen = HostDestLen;
 
   return ZRes;
 }
@@ -652,12 +652,12 @@ WasmEdgeZlibUncompress2::body(const Runtime::CallingFrame &Frame,
   auto *Source = MemInst->getPointer<Bytef *>(SourcePtr);
   auto *SourceLen = MemInst->getPointer<uint32_t *>(SourceLenPtr);
 
-  unsigned long *HostDestLen, *HostSourceLen;
-  *HostDestLen = *DestLen;
-  *HostSourceLen = *SourceLen;
-  const int32_t ZRes = uncompress2(Dest, HostDestLen, Source, HostSourceLen);
-  *DestLen = *HostDestLen;
-  *SourceLen = *HostSourceLen;
+  unsigned long HostDestLen, HostSourceLen;
+  HostDestLen = *DestLen;
+  HostSourceLen = *SourceLen;
+  const int32_t ZRes = uncompress2(Dest, &HostDestLen, Source, &HostSourceLen);
+  *DestLen = HostDestLen;
+  *SourceLen = HostSourceLen;
 
   return ZRes;
 }

@@ -10,6 +10,7 @@ on:
       - master
     paths:
       - ".github/workflows/build.yml"
+      - ".github/workflows/reusable**"
       - "include/**"
       - "lib/**"
       - "plugins/**"
@@ -25,6 +26,7 @@ on:
       - "proposal/**"
     paths:
       - ".github/workflows/build.yml"
+      - ".github/workflows/reusable**"
       - "include/**"
       - "lib/**"
       - "plugins/**"

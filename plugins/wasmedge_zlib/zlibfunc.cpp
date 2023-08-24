@@ -555,7 +555,7 @@ WasmEdgeZlibInflateBackEnd::body(const Runtime::CallingFrame &Frame,
 }
 
 Expect<int32_t>
-WasmEdgeZlibZlibCompilerFlags::body(const Runtime::CallingFrame &Frame) {
+WasmEdgeZlibZlibCompilerFlags::body(const Runtime::CallingFrame &) {
   const int32_t ZRes = zlibCompileFlags();
 
   return ZRes;
@@ -607,9 +607,8 @@ Expect<int32_t> WasmEdgeZlibCompress2::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
-Expect<int32_t>
-WasmEdgeZlibCompressBound::body(const Runtime::CallingFrame &Frame,
-                                uint32_t SourceLen) {
+Expect<int32_t> WasmEdgeZlibCompressBound::body(const Runtime::CallingFrame &,
+                                                uint32_t SourceLen) {
   const int32_t ZRes = compressBound(SourceLen);
 
   return ZRes;

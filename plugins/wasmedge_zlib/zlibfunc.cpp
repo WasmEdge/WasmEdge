@@ -405,32 +405,7 @@ Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
-    const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
-    uint32_t DictionaryPtr, uint32_t DictLength) {
-
-  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
-  if (HostZStreamIt == Env.ZStreamMap.end()) {
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
-
-  const int32_t ZRes =
-      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame, [&]() {
-        return inflateSetDictionary(HostZStreamIt->second.get(), Dictionary,
-                                    DictLength);
-      });
-
-  return ZRes;
-}
-
-Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
+Expect<int32_t> WasmEdgeZlibInflateGetDictionary::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
     uint32_t DictionaryPtr, uint32_t DictLengthPtr) {
 

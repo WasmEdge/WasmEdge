@@ -351,5 +351,44 @@ public:
                        uint32_t Size, uint32_t NItems, uint32_t GZFile);
 };
 
+/* class WasmEdgeZlibGZPrintf : public WasmEdgeZlib<WasmEdgeZlibGZPrintf> {
+public:
+  WasmEdgeZlibGZPrintf(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t BufPtr,
+                       uint32_t Size, uint32_t NItems, uint32_t GZFile);
+}; */
+
+class WasmEdgeZlibGZPuts : public WasmEdgeZlib<WasmEdgeZlibGZPuts> {
+public:
+  WasmEdgeZlibGZPuts(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile,
+                       uint32_t StringPtr);
+};
+
+class WasmEdgeZlibGZGets : public WasmEdgeZlib<WasmEdgeZlibGZGets> {
+public:
+  WasmEdgeZlibGZGets(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile,
+                        uint32_t BufPtr, int32_t Len);
+};
+
+class WasmEdgeZlibGZPutc : public WasmEdgeZlib<WasmEdgeZlibGZPutc> {
+public:
+  WasmEdgeZlibGZPutc(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile,
+                       int32_t C);
+};
+
+class WasmEdgeZlibGZGetc : public WasmEdgeZlib<WasmEdgeZlibGZGetc> {
+public:
+  WasmEdgeZlibGZGetc(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile);
+};
+
 } // namespace Host
 } // namespace WasmEdge

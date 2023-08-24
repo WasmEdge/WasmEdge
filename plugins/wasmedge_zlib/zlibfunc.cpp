@@ -859,5 +859,38 @@ Expect<int32_t> WasmEdgeZlibGZFwrite::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
+Expect<int32_t> WasmEdgeZlibGZPuts::body(const Runtime::CallingFrame &Frame,
+                                         uint32_t GZFile, uint32_t StringPtr) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *String = MemInst->getPointer<const char *>(StringPtr);
+
+  auto ZRes = gzputs(GZFileIt->second.get(), String);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &Frame,
+                                         uint32_t GZFile, int32_t C) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gzgetc(GZFileIt->second.get());
+
+  return ZRes;
+}
+
 } // namespace Host
 } // namespace WasmEdge

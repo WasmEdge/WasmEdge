@@ -796,5 +796,68 @@ Expect<int32_t> WasmEdgeZlibGZRead::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
+Expect<int32_t> WasmEdgeZlibGZFread::body(const Runtime::CallingFrame &Frame,
+                                          uint32_t BufPtr, uint32_t Size,
+                                          uint32_t NItems, uint32_t GZFile) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Buf = MemInst->getPointer<void *>(BufPtr);
+
+  auto ZRes = gzfread(Buf, Size, NItems, GZFileIt->second.get());
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibGZWrite::body(const Runtime::CallingFrame &Frame,
+                                          uint32_t GZFile, uint32_t BufPtr,
+                                          uint32_t Len) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Buf = MemInst->getPointer<void *>(BufPtr);
+
+  auto ZRes = gzwrite(GZFileIt->second.get(), Buf, Len);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibGZFwrite::body(const Runtime::CallingFrame &Frame,
+                                           uint32_t BufPtr, uint32_t Size,
+                                           uint32_t NItems, uint32_t GZFile) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Buf = MemInst->getPointer<void *>(BufPtr);
+
+  auto ZRes = gzfwrite(Buf, Size, NItems, GZFileIt->second.get());
+
+  return ZRes;
+}
+
 } // namespace Host
 } // namespace WasmEdge

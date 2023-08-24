@@ -295,5 +295,21 @@ public:
                        uint32_t BufPtr, uint32_t Len);
 };
 
+class WasmEdgeZlibGZDOpen : public WasmEdgeZlib<WasmEdgeZlibGZDOpen> {
+public:
+  WasmEdgeZlibGZDOpen(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t FD,
+                        uint32_t ModePtr);
+};
+
+class WasmEdgeZlibGZBuffer : public WasmEdgeZlib<WasmEdgeZlibGZBuffer> {
+public:
+  WasmEdgeZlibGZBuffer(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile,
+                       uint32_t Size);
+};
+
 } // namespace Host
 } // namespace WasmEdge

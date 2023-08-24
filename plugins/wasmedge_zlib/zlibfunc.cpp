@@ -14,6 +14,8 @@ constexpr bool CheckSize(int32_t StreamSize) {
   return (StreamSize == static_cast<int32_t>(sizeof(WasmZStream)));
 }
 
+static constexpr uint32_t WasmGZFileStart = sizeof(gzFile);
+
 template <typename T>
 auto SyncRun(z_stream *HostZStream, uint32_t ZStreamPtr,
              const Runtime::CallingFrame &Frame, T Callback) {
@@ -724,6 +726,25 @@ Expect<int32_t> WasmEdgeZlibCRC32_z::body(const Runtime::CallingFrame &Frame,
   const int32_t ZRes = crc32_z(CRC, Buf, Len);
 
   return ZRes;
+}
+
+Expect<uint32_t> WasmEdgeZlibGZDOpen::body(const Runtime::CallingFrame &Frame,
+                                           int32_t FD, uint32_t ModePtr) {
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Mode = MemInst->getPointer<const char *>(ModePtr);
+
+  gzFile ZRes = gzdopen(FD, Mode);
+
+  const auto NewWasmGZFile = WasmGZFileStart + Env.GZFileMap.size();
+  Env.GZFileMap.emplace(std::pair<uint32_t, std::unique_ptr<gzFile>>{
+      NewWasmGZFile, std::make_unique<gzFile>(ZRes)});
+
+  return NewWasmGZFile;
 }
 
 } // namespace Host

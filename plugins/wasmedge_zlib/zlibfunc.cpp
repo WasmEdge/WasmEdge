@@ -988,5 +988,16 @@ Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &,
   return ZRes;
 }
 
+Expect<void> WasmEdgeZlibGZClearerr::body(const Runtime::CallingFrame &,
+                                          uint32_t GZFile) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  gzclearerr(GZFileIt->second.get());
+}
+
 } // namespace Host
 } // namespace WasmEdge

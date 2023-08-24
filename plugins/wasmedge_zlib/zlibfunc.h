@@ -447,5 +447,19 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile);
 };
 
+/* class WasmEdgeZlibGZError : public WasmEdgeZlib<WasmEdgeZlibGZError> {
+public:
+  WasmEdgeZlibGZError(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile);
+}; */
+
+class WasmEdgeZlibGZClearerr : public WasmEdgeZlib<WasmEdgeZlibGZClearerr> {
+public:
+  WasmEdgeZlibGZClearerr(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t GZFile);
+};
+
 } // namespace Host
 } // namespace WasmEdge

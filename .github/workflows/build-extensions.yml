@@ -259,7 +259,7 @@ jobs:
       - name: Upload artifact - wasmedge_zlib
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_zlib-${{ needs.get_version_v2.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_zlib-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasmedge_zlib.tar.gz
 
   # Due to the dependencies and exclusions of WASI-NN, build them saperately.
@@ -462,7 +462,7 @@ jobs:
       - name: Upload artifact - wasmedge_zlib
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_zlib-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_zlib-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasmedge_zlib.tar.gz
 
   build_macos:

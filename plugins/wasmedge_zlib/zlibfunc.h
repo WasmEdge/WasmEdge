@@ -390,5 +390,28 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile);
 };
 
+class WasmEdgeZlibGZUngetc : public WasmEdgeZlib<WasmEdgeZlibGZUngetc> {
+public:
+  WasmEdgeZlibGZUngetc(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, int32_t C,
+                       uint32_t GZFile);
+};
+
+class WasmEdgeZlibGZFlush : public WasmEdgeZlib<WasmEdgeZlibGZFlush> {
+public:
+  WasmEdgeZlibGZFlush(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile,
+                       int32_t Flush);
+};
+
+class WasmEdgeZlibGZRewind : public WasmEdgeZlib<WasmEdgeZlibGZRewind> {
+public:
+  WasmEdgeZlibGZRewind(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile);
+};
+
 } // namespace Host
 } // namespace WasmEdge

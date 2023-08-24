@@ -892,5 +892,31 @@ Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
+Expect<int32_t> WasmEdgeZlibGZFlush::body(const Runtime::CallingFrame &Frame,
+                                          uint32_t GZFile, int32_t Flush) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gzflush(GZFileIt->second.get(), Flush);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &Frame,
+                                           uint32_t GZFile) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gzrewind(GZFileIt->second.get());
+
+  return ZRes;
+}
+
 } // namespace Host
 } // namespace WasmEdge

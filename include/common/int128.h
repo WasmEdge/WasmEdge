@@ -282,14 +282,14 @@ public:
   constexpr uint64_t high() const noexcept { return High; }
   constexpr unsigned int clz() const noexcept {
 #if defined(_MSC_VER) && !defined(__clang__)
-    unsigned long leading_zero = 0;
+    unsigned long LeadingZero = 0;
     if (High) {
-      _BitScanReverse64(&leading_zero, High);
-      return (63 - leading_zero);
+      _BitScanReverse64(&LeadingZero, High);
+      return (63 - LeadingZero);
     }
     if (Low) {
-      _BitScanReverse64(&leading_zero, Low);
-      return (63 - leading_zero) + 64;
+      _BitScanReverse64(&LeadingZero, Low);
+      return (63 - LeadingZero) + 64;
     }
     return 128;
 #else

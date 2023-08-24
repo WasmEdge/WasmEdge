@@ -788,7 +788,7 @@ Expect<int32_t> WasmEdgeZlibGZRead::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto *Buf = MemInst->getPointer<void *>(BufPtr);
+  auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
 
   auto ZRes = gzread(GZFileIt->second.get(), Buf, Len);
 
@@ -809,7 +809,7 @@ Expect<int32_t> WasmEdgeZlibGZFread::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto *Buf = MemInst->getPointer<void *>(BufPtr);
+  auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
 
   auto ZRes = gzfread(Buf, Size, NItems, GZFileIt->second.get());
 
@@ -830,7 +830,7 @@ Expect<int32_t> WasmEdgeZlibGZWrite::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto *Buf = MemInst->getPointer<void *>(BufPtr);
+  auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
 
   auto ZRes = gzwrite(GZFileIt->second.get(), Buf, Len);
 
@@ -851,7 +851,7 @@ Expect<int32_t> WasmEdgeZlibGZFwrite::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto *Buf = MemInst->getPointer<void *>(BufPtr);
+  auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
 
   auto ZRes = gzfwrite(Buf, Size, NItems, GZFileIt->second.get());
 

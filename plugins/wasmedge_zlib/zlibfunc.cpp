@@ -747,7 +747,7 @@ Expect<uint32_t> WasmEdgeZlibGZDOpen::body(const Runtime::CallingFrame &Frame,
   return NewWasmGZFile;
 }
 
-Expect<int32_t> WasmEdgeZlibGZBuffer::body(const Runtime::CallingFrame &Frame,
+Expect<int32_t> WasmEdgeZlibGZBuffer::body(const Runtime::CallingFrame &,
                                            uint32_t GZFile, uint32_t Size) {
 
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
@@ -760,10 +760,9 @@ Expect<int32_t> WasmEdgeZlibGZBuffer::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
-Expect<int32_t>
-WasmEdgeZlibGZSetParams::body(const Runtime::CallingFrame &Frame,
-                              uint32_t GZFile, int32_t Level,
-                              int32_t Strategy) {
+Expect<int32_t> WasmEdgeZlibGZSetParams::body(const Runtime::CallingFrame &,
+                                              uint32_t GZFile, int32_t Level,
+                                              int32_t Strategy) {
 
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
@@ -879,7 +878,7 @@ Expect<int32_t> WasmEdgeZlibGZPuts::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &Frame,
+Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &,
                                          uint32_t GZFile, int32_t C) {
 
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
@@ -892,7 +891,7 @@ Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibGZFlush::body(const Runtime::CallingFrame &Frame,
+Expect<int32_t> WasmEdgeZlibGZFlush::body(const Runtime::CallingFrame &,
                                           uint32_t GZFile, int32_t Flush) {
 
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
@@ -905,7 +904,7 @@ Expect<int32_t> WasmEdgeZlibGZFlush::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &Frame,
+Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &,
                                            uint32_t GZFile) {
 
   const auto GZFileIt = Env.GZFileMap.find(GZFile);

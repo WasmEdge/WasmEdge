@@ -1,4 +1,4 @@
-name: Build on Windows
+name: Build on Windows with MSVC
 
 on:
   workflow_call:

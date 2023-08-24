@@ -62,11 +62,11 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   set_property(
-      DIRECTORY
-      APPEND
-      PROPERTY COMPILE_OPTIONS
-      /wd4267 # conversion from 'size_t' to 'const uint32_t', possible loss of data
-      /wd4146 # unary minus operator applied to unsigned type, result still unsigned (`UINT32_C(-1)`)
+    DIRECTORY
+    APPEND
+    PROPERTY COMPILE_OPTIONS
+    /wd4267 # conversion from 'size_t' to 'const uint32_t', possible loss of data
+    /wd4146 # unary minus operator applied to unsigned type, result still unsigned (`UINT32_C(-1)`)
   )
 endif()
 

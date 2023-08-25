@@ -886,7 +886,33 @@ Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
+  auto ZRes = gzputc(GZFileIt->second.get(), C);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibGZGetc::body(const Runtime::CallingFrame &,
+                                         uint32_t GZFile) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
   auto ZRes = gzgetc(GZFileIt->second.get());
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibGZUngetc::body(const Runtime::CallingFrame &,
+                                           int32_t C, uint32_t GZFile) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gzungetc(C, GZFileIt->second.get());
 
   return ZRes;
 }

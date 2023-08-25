@@ -367,13 +367,13 @@ public:
                        uint32_t StringPtr);
 };
 
-class WasmEdgeZlibGZGets : public WasmEdgeZlib<WasmEdgeZlibGZGets> {
+/* class WasmEdgeZlibGZGets : public WasmEdgeZlib<WasmEdgeZlibGZGets> {
 public:
   WasmEdgeZlibGZGets(WasmEdgeZlibEnvironment &HostEnv)
       : WasmEdgeZlib(HostEnv) {}
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile,
                         uint32_t BufPtr, int32_t Len);
-};
+}; */
 
 class WasmEdgeZlibGZPutc : public WasmEdgeZlib<WasmEdgeZlibGZPutc> {
 public:

@@ -74,8 +74,9 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
 
     case BlockType::TypeEnum::TypeIdx:
       if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
-        return logNeedProposal(ErrCode::Value::MalformedValType,
-                               Proposal::MultiValue, ASTNodeAttr::Instruction);
+        return Conf.logNeedProposal(ErrCode::Value::MalformedValType,
+                                    Proposal::MultiValue,
+                                    ASTNodeAttr::Instruction);
       }
       serializeS33(Instr.getBlockType().Data.Idx, OutVec);
       break;
@@ -111,9 +112,9 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
     serializeU32(Instr.getTargetIndex(), OutVec);
     if (Instr.getSourceIndex() > 0 &&
         !Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
-                             Proposal::ReferenceTypes,
-                             ASTNodeAttr::Instruction);
+      return Conf.logNeedProposal(ErrCode::Value::ExpectedZeroByte,
+                                  Proposal::ReferenceTypes,
+                                  ASTNodeAttr::Instruction);
     }
     // Serialize the table index.
     serializeU32(Instr.getSourceIndex(), OutVec);

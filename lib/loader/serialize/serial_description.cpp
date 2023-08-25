@@ -29,9 +29,9 @@ Expect<void> Serializer::serializeDesc(const AST::ImportDesc &Desc,
   case ExternalType::Global:
     if (Desc.getExternalGlobalType().getValMut() == ValMut::Var &&
         unlikely(!Conf.hasProposal(Proposal::ImportExportMutGlobals))) {
-      return logNeedProposal(ErrCode::Value::InvalidMut,
-                             Proposal::ImportExportMutGlobals,
-                             ASTNodeAttr::Desc_Import);
+      return Conf.logNeedProposal(ErrCode::Value::InvalidMut,
+                                  Proposal::ImportExportMutGlobals,
+                                  ASTNodeAttr::Desc_Import);
     }
     return serializeType(Desc.getExternalGlobalType(), OutVec);
   default:

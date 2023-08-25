@@ -52,8 +52,9 @@ Expect<void> Serializer::serializeType(const AST::FunctionType &Type,
   // Return types: vec(valtype).
   if (unlikely(!Conf.hasProposal(Proposal::MultiValue)) &&
       Type.getReturnTypes().size() > 1) {
-    return logNeedProposal(ErrCode::Value::MalformedValType,
-                           Proposal::MultiValue, ASTNodeAttr::Type_Function);
+    return Conf.logNeedProposal(ErrCode::Value::MalformedValType,
+                                Proposal::MultiValue,
+                                ASTNodeAttr::Type_Function);
   }
   serializeU32(Type.getReturnTypes().size(), OutVec);
   for (auto VType : Type.getReturnTypes()) {

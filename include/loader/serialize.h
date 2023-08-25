@@ -80,12 +80,6 @@ private:
     spdlog::error(ErrInfo::InfoAST(Node));
     return Unexpect(Code);
   }
-  inline auto logNeedProposal(ErrCode Code, Proposal Prop, ASTNodeAttr Node) const noexcept {
-    spdlog::error(Code);
-    spdlog::error(ErrInfo::InfoProposal(Prop));
-    spdlog::error(ErrInfo::InfoAST(Node));
-    return Unexpect(Code);
-  }
 
   template <typename NumType, size_t N> void serializeUN(NumType Num,
                    std::vector<uint8_t> &OutVec, std::vector<uint8_t>::iterator It) {

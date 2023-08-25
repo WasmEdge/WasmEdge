@@ -89,9 +89,9 @@ Expect<void> Serializer::serializeSegment(const AST::ElementSegment &Seg,
   //  Mode > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
   if (Mode > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations) &&
       !Conf.hasProposal(Proposal::ReferenceTypes)) {
-    return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
-                           Proposal::BulkMemoryOperations,
-                           ASTNodeAttr::Seg_Element);
+    return Conf.logNeedProposal(ErrCode::Value::ExpectedZeroByte,
+                                Proposal::BulkMemoryOperations,
+                                ASTNodeAttr::Seg_Element);
   }
 
   serializeU32(Seg.getInitExprs().size(), Result);
@@ -158,9 +158,9 @@ Expect<void> Serializer::serializeSegment(const AST::DataSegment &Seg,
     if (Seg.getIdx() != 0) {
       if (!Conf.hasProposal(Proposal::BulkMemoryOperations) &&
           !Conf.hasProposal(Proposal::ReferenceTypes)) {
-        return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
-                               Proposal::BulkMemoryOperations,
-                               ASTNodeAttr::Seg_Data);
+        return Conf.logNeedProposal(ErrCode::Value::ExpectedZeroByte,
+                                    Proposal::BulkMemoryOperations,
+                                    ASTNodeAttr::Seg_Data);
       }
       serializeU32(0x02, OutVec);
       serializeU32(Seg.getIdx(), OutVec);
@@ -176,9 +176,9 @@ Expect<void> Serializer::serializeSegment(const AST::DataSegment &Seg,
   case AST::DataSegment::DataMode::Passive:
     if (!Conf.hasProposal(Proposal::BulkMemoryOperations) &&
         !Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
-                             Proposal::BulkMemoryOperations,
-                             ASTNodeAttr::Seg_Data);
+      return Conf.logNeedProposal(ErrCode::Value::ExpectedZeroByte,
+                                  Proposal::BulkMemoryOperations,
+                                  ASTNodeAttr::Seg_Data);
     }
     serializeU32(0x01, OutVec);
     break;

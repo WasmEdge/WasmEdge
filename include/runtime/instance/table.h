@@ -97,7 +97,8 @@ public:
     }
 
     // Check the input data validation.
-    if (Start + Length > Slice.size()) {
+    if (static_cast<uint64_t>(Start) + static_cast<uint64_t>(Length) >
+        Slice.size()) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(
           Start, Length,

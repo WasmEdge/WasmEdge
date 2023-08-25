@@ -259,13 +259,14 @@ public:
     return StatisticsConf;
   }
 
-  inline auto logCheckError(ErrCode Code, ASTNodeAttr Node) const noexcept {
+  inline Unexpected<ErrCode> logCheckError(ErrCode Code,
+                                           ASTNodeAttr Node) const noexcept {
     spdlog::error(Code);
     spdlog::error(ErrInfo::InfoAST(Node));
     return Unexpect(Code);
   }
-  inline auto logNeedProposal(ErrCode Code, Proposal Prop,
-                              ASTNodeAttr Node) const noexcept {
+  inline Unexpected<ErrCode> logNeedProposal(ErrCode Code, Proposal Prop,
+                                             ASTNodeAttr Node) const noexcept {
     spdlog::error(Code);
     spdlog::error(ErrInfo::InfoProposal(Prop));
     spdlog::error(ErrInfo::InfoAST(Node));

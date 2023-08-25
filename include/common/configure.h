@@ -282,19 +282,19 @@ public:
     case ValType::F64:
       return {};
     case ValType::V128:
-      if (!this->hasProposal(Proposal::SIMD)) {
+      if (!hasProposal(Proposal::SIMD)) {
         return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::SIMD,
                                Node);
       }
       return {};
     case ValType::FuncRef:
-      if (!this->hasProposal(Proposal::BulkMemoryOperations)) {
+      if (!hasProposal(Proposal::BulkMemoryOperations)) {
         return logNeedProposal(ErrCode::Value::MalformedElemType,
                                Proposal::BulkMemoryOperations, Node);
       }
       [[fallthrough]];
     case ValType::ExternRef:
-      if (!this->hasProposal(Proposal::ReferenceTypes)) {
+      if (!hasProposal(Proposal::ReferenceTypes)) {
         return logNeedProposal(ErrCode::Value::MalformedElemType,
                                Proposal::ReferenceTypes, Node);
       }
@@ -310,7 +310,7 @@ public:
                                      ASTNodeAttr Node) const noexcept {
     switch (RType) {
     case RefType::ExternRef:
-      if (!this->hasProposal(Proposal::ReferenceTypes)) {
+      if (!hasProposal(Proposal::ReferenceTypes)) {
         return logNeedProposal(ErrCode::Value::MalformedElemType,
                                Proposal::ReferenceTypes, Node);
       }
@@ -318,7 +318,7 @@ public:
     case RefType::FuncRef:
       return {};
     default:
-      if (this->hasProposal(Proposal::ReferenceTypes)) {
+      if (hasProposal(Proposal::ReferenceTypes)) {
         return logCheckError(ErrCode::Value::MalformedRefType, Node);
       } else {
         return logCheckError(ErrCode::Value::MalformedElemType, Node);
@@ -330,8 +330,7 @@ public:
     if (Code >= OpCode::I32__trunc_sat_f32_s &&
         Code <= OpCode::I64__trunc_sat_f64_u) {
       // These instructions are for NonTrapFloatToIntConversions proposal.
-      if (unlikely(
-              !this->hasProposal(Proposal::NonTrapFloatToIntConversions))) {
+      if (unlikely(!hasProposal(Proposal::NonTrapFloatToIntConversions))) {
         return logNeedProposal(ErrCode::Value::IllegalOpCode,
                                Proposal::NonTrapFloatToIntConversions,
                                ASTNodeAttr::Instruction);
@@ -339,7 +338,7 @@ public:
     } else if (Code >= OpCode::I32__extend8_s &&
                Code <= OpCode::I64__extend32_s) {
       // These instructions are for SignExtensionOperators proposal.
-      if (unlikely(!this->hasProposal(Proposal::SignExtensionOperators))) {
+      if (unlikely(!hasProposal(Proposal::SignExtensionOperators))) {
         return logNeedProposal(ErrCode::Value::IllegalOpCode,
                                Proposal::SignExtensionOperators,
                                ASTNodeAttr::Instruction);
@@ -349,8 +348,8 @@ public:
                (Code >= OpCode::Memory__init && Code <= OpCode::Memory__fill)) {
       // These instructions are for ReferenceTypes or BulkMemoryOperations
       // proposal.
-      if (unlikely(!this->hasProposal(Proposal::ReferenceTypes)) &&
-          unlikely(!this->hasProposal(Proposal::BulkMemoryOperations))) {
+      if (unlikely(!hasProposal(Proposal::ReferenceTypes)) &&
+          unlikely(!hasProposal(Proposal::BulkMemoryOperations))) {
         return logNeedProposal(ErrCode::Value::IllegalOpCode,
                                Proposal::ReferenceTypes,
                                ASTNodeAttr::Instruction);
@@ -359,7 +358,7 @@ public:
                (Code >= OpCode::Table__get && Code <= OpCode::Table__set) ||
                (Code >= OpCode::Table__grow && Code <= OpCode::Table__fill)) {
       // These instructions are for ReferenceTypes proposal.
-      if (unlikely(!this->hasProposal(Proposal::ReferenceTypes))) {
+      if (unlikely(!hasProposal(Proposal::ReferenceTypes))) {
         return logNeedProposal(ErrCode::Value::IllegalOpCode,
                                Proposal::ReferenceTypes,
                                ASTNodeAttr::Instruction);
@@ -367,21 +366,21 @@ public:
     } else if (Code >= OpCode::V128__load &&
                Code <= OpCode::F64x2__convert_low_i32x4_u) {
       // These instructions are for SIMD proposal.
-      if (!this->hasProposal(Proposal::SIMD)) {
+      if (!hasProposal(Proposal::SIMD)) {
         return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::SIMD,
                                ASTNodeAttr::Instruction);
       }
     } else if (Code == OpCode::Return_call ||
                Code == OpCode::Return_call_indirect) {
       // These instructions are for TailCall proposal.
-      if (!this->hasProposal(Proposal::TailCall)) {
+      if (!hasProposal(Proposal::TailCall)) {
         return logNeedProposal(ErrCode::Value::IllegalOpCode,
                                Proposal::TailCall, ASTNodeAttr::Instruction);
       }
     } else if (Code >= OpCode::I32__atomic__load &&
                Code <= OpCode::I64__atomic__rmw32__cmpxchg_u) {
       // These instructions are for Thread proposal.
-      if (!this->hasProposal(Proposal::Threads)) {
+      if (!hasProposal(Proposal::Threads)) {
         return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::Threads,
                                ASTNodeAttr::Instruction);
       }

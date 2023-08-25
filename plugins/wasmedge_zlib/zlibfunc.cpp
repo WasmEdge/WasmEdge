@@ -969,8 +969,8 @@ Expect<int32_t> WasmEdgeZlibGZDirect::body(const Runtime::CallingFrame &,
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibGZDirect::body(const Runtime::CallingFrame &,
-                                           uint32_t GZFile) {
+Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &,
+                                          uint32_t GZFile) {
 
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {

@@ -40,7 +40,7 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
   serializeOpCode(Instr.getOpCode(), OutVec);
 
   // Check with proposals.
-  if (auto Res = checkInstrProposals(Instr.getOpCode()); !Res) {
+  if (auto Res = Conf.checkInstrProposals(Instr.getOpCode()); !Res) {
     return Unexpect(Res);
   }
 
@@ -63,7 +63,8 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
 
     case BlockType::TypeEnum::ValType: {
       auto VType = Instr.getBlockType().Data.Type;
-      if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Instruction);
+      if (auto Check =
+              Conf.checkValTypeProposals(VType, ASTNodeAttr::Instruction);
           unlikely(!Check)) {
         return Unexpect(Check);
       }
@@ -120,8 +121,8 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    if (auto Check =
-            checkRefTypeProposals(Instr.getRefType(), ASTNodeAttr::Instruction);
+    if (auto Check = Conf.checkRefTypeProposals(Instr.getRefType(),
+                                                ASTNodeAttr::Instruction);
         unlikely(!Check)) {
       return Unexpect(Check);
     }
@@ -141,7 +142,8 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
     uint32_t VecCnt = Instr.getValTypeList().size();
     serializeU32(VecCnt, OutVec);
     for (auto VType : Instr.getValTypeList()) {
-      if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Instruction);
+      if (auto Check =
+              Conf.checkValTypeProposals(VType, ASTNodeAttr::Instruction);
           unlikely(!Check)) {
         return Unexpect(Check);
       }

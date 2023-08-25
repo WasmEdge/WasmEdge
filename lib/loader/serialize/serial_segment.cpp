@@ -63,8 +63,8 @@ Expect<void> Serializer::serializeSegment(const AST::ElementSegment &Seg,
     }
   } else {
     // Serialize RefType.
-    if (auto Res =
-            checkRefTypeProposals(Seg.getRefType(), ASTNodeAttr::Seg_Element);
+    if (auto Res = Conf.checkRefTypeProposals(Seg.getRefType(),
+                                              ASTNodeAttr::Seg_Element);
         unlikely(!Res)) {
       return Unexpect(Res);
     }
@@ -134,7 +134,8 @@ Expect<void> Serializer::serializeSegment(const AST::CodeSegment &Seg,
                                ASTNodeAttr::Seg_Code);
     }
     TotalLocalCnt += LocalCnt;
-    if (auto Res = checkValTypeProposals(Locals.second, ASTNodeAttr::Seg_Code);
+    if (auto Res =
+            Conf.checkValTypeProposals(Locals.second, ASTNodeAttr::Seg_Code);
         unlikely(!Res)) {
       return Unexpect(Res);
     }

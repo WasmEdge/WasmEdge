@@ -87,22 +87,6 @@ private:
     return Unexpect(Code);
   }
 
-  // Helper function of checking the valid value types.
-  Expect<void> checkValTypeProposals(ValType VType,
-                                     ASTNodeAttr Node) const noexcept {
-    return Conf.checkValTypeProposals(VType, Node);
-  }
-
-  // Helper function of checking the valid reference types.
-  Expect<void> checkRefTypeProposals(RefType RType,
-                                     ASTNodeAttr Node) const noexcept {
-    return Conf.checkRefTypeProposals(RType, Node);
-  }
-
-  Expect<void> checkInstrProposals(OpCode Code) const noexcept {
-    return Conf.checkInstrProposals(Code);
-  }
-
   template <typename NumType, size_t N> void serializeUN(NumType Num,
                    std::vector<uint8_t> &OutVec, std::vector<uint8_t>::iterator It) {
     uint8_t Buf[N / 7 + 1];

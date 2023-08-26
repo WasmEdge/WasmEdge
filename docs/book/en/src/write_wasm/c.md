@@ -1,3 +1,3 @@
 # C
 
-A simple example for compiling C code into WebAssembly is [SIMD](c/simd.md).
+> This part has been moved to <https://wasmedge.org/docs/develop/c/simd>. Please use our new docs

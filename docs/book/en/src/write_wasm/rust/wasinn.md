@@ -1,6 +1,6 @@
 # Neural Network for WASI
 
-This Part have moved to
+This Part has been moved to
 
 1. Pytorch: <https://wasmedge.org/docs/develop/rust/wasinn/pytorch>
 2. OpenVINO: <https://wasmedge.org/docs/develop/rust/wasinn/openvino>

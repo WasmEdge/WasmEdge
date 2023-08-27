@@ -138,8 +138,7 @@ public:
     }
 
     // Check the input data validation.
-    if (unlikely(static_cast<uint64_t>(Start) + static_cast<uint64_t>(Length) >
-                 Slice.size())) {
+    if (unlikely(static_cast<uint64_t>(Start) + static_cast<uint64_t>(Length) > Slice.size())) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);

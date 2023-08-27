@@ -60,6 +60,8 @@ struct DriverToolOptions {
         PropTailCall(PO::Description("Enable Tail-call proposal"sv)),
         PropExtendConst(PO::Description("Enable Extended-const proposal"sv)),
         PropThreads(PO::Description("Enable Threads proposal"sv)),
+        PropExceptionHandling(
+            PO::Description("Enable Exception handling proposal"sv)),
         PropAll(PO::Description("Enable all features"sv)),
         ConfEnableInstructionCounting(PO::Description(
             "Enable generating code for counting Wasm instructions executed."sv)),
@@ -103,6 +105,7 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> PropTailCall;
   PO::Option<PO::Toggle> PropExtendConst;
   PO::Option<PO::Toggle> PropThreads;
+  PO::Option<PO::Toggle> PropExceptionHandling;
   PO::Option<PO::Toggle> PropAll;
   PO::Option<PO::Toggle> ConfEnableInstructionCounting;
   PO::Option<PO::Toggle> ConfEnableGasMeasuring;

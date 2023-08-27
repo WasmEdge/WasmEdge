@@ -611,13 +611,15 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
           stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
     }
   };
-  auto ExceptionInvoke = [&](const rapidjson::Value &Action,
+  auto ExceptionInvoke = [&](const simdjson::dom::object &Action,
                              uint64_t LineNumber) {
     const auto ModName = GetModuleName(Action);
-    const auto Field = Action["field"s].Get<std::string>();
-    const auto Params = parseValueList(Action["args"s]);
+    const std::string_view Field = Action["field"];
+    simdjson::dom::array Args = Action["args"];
+    const auto Params = parseValueList(Args);
 
-    if (auto Res = onInvoke(ModName, Field, Params.first, Params.second)) {
+    if (auto Res = onInvoke(ModName, std::string(Field), Params.first,
+                            Params.second)) {
       EXPECT_NE(LineNumber, LineNumber);
     } else {
       EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UncaughtException);
@@ -725,9 +727,9 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         return;
       }
       case CommandID::AssertException: {
-        const auto &Action = Cmd["action"s];
-        const auto ActType = Action["type"].Get<std::string>();
-        const uint64_t LineNumber = Cmd["line"].Get<uint64_t>();
+        const simdjson::dom::object &Action = Cmd["action"];
+        const std::string_view ActType = Action["type"];
+        const uint64_t LineNumber = Cmd["line"];
         // TODO: Check expected exception type
         if (ActType == "invoke"sv) {
           ExceptionInvoke(Action, LineNumber);

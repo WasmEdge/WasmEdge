@@ -141,6 +141,7 @@ struct DriverToolOptions {
         .add_option("enable-tail-call"sv, PropTailCall)
         .add_option("enable-extended-const"sv, PropExtendConst)
         .add_option("enable-threads"sv, PropThreads)
+        .add_option("enable-exception-handling"sv, PropExceptionHandling)
         .add_option("enable-all"sv, PropAll)
         .add_option("time-limit"sv, TimeLim)
         .add_option("gas-limit"sv, GasLim)

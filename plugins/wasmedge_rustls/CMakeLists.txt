@@ -17,5 +17,3 @@ add_custom_target(wasmedge_rustls_plugin ALL
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   DEPENDS wasmedge_shared
 )
-
-set_target_properties(wasmedge_rustls_plugin PROPERTIES LOCATION ${CMAKE_CURRENT_BINARY_DIR})

@@ -68,5 +68,5 @@ if(WASMEDGE_PLUGIN_WASI_LOGGING)
 endif()
 
 if(WASMEDGE_PLUGIN_RUSTLS)
-  add_subdirectory(wasmedge_rustls_plugin)
+  add_subdirectory(wasmedge_rustls)
 endif()

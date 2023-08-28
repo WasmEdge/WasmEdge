@@ -39,6 +39,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     return ErrNo::InvalidArgument;
   }
 
+  // TODO: pass the model directly to ggml
   // Write ggml model to file.
   std::string modelfilepath("ggml-model.bin");
   std::ofstream tempFile(modelfilepath);
@@ -116,6 +117,8 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
 
   // Main predict loop.
+  // TODO: recompute a compressed context based on previous tokens once the
+  // cache is full.
   const int max_context_size = llama_n_ctx(GraphRef.LlamaContext);
   while (llama_get_kv_cache_token_count(GraphRef.LlamaContext) <
          max_context_size) {

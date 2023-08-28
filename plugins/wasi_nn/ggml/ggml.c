@@ -1398,7 +1398,7 @@ static void quantize_row_q8_1_reference(const float *restrict x,
 static void quantize_row_q8_1(const float *restrict x, void *restrict vy,
                               int k) {
   assert(k % QK8_1 == 0);
-//   const int nb = k / QK8_1;
+  //   const int nb = k / QK8_1;
 
   block_q8_1 *restrict y = vy;
 

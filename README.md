@@ -20,16 +20,16 @@ WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime.
 
 # Quick start guides
 
-🚀 [Install](https://wasmedge.org/book/en/quick_start/install.html) WasmEdge \
-🤖 [Build](https://wasmedge.org/book/en/extend/build.html) and [contribute to](https://wasmedge.org/book/en/contribute.html) WasmEdge \
-⌨️ [Run](https://wasmedge.org/book/en/quick_start/run_cli.html) a standalone Wasm program or a [JavaScript program](https://wasmedge.org/book/en/dev/js.html) from CLI or [Docker](https://wasmedge.org/book/en/quick_start/use_docker.html) \
-🔌 Embed a Wasm function in your [Node.js](https://wasmedge.org/book/en/embed/node.html), [Go](https://wasmedge.org/book/en/embed/go.html), [Rust](bindings/rust/), or [C](https://wasmedge.org/book/en/embed/c.html) app \
-🛠 Manage and orchestrate Wasm runtimes using [Kubernetes](https://wasmedge.org/book/en/use_cases/kubernetes.html), [data streaming frameworks](https://wasmedge.org/book/en/use_cases/frameworks/app/yomo.html), and [blockchains](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) \
-📚 **[Check out our official documentation](https://wasmedge.org/book/en/)**
+🚀 [Install](https://wasmedge.org/docs/start/install) WasmEdge \
+🤖 [Build](https://wasmedge.org/docs/category/build-wasmedge-from-source) and [contribute to](https://wasmedge.org/docs/contribute/) WasmEdge \
+⌨️ [Run](https://wasmedge.org/docs/category/running-with-wasmedge) a standalone Wasm program or a [JavaScript program](https://wasmedge.org/docs/category/develop-wasm-apps-in-javascript) from CLI or [Docker](https://wasmedge.org/docs/start/getting-started/quick_start_docker) \
+🔌 Embed a Wasm function in your [Go](https://wasmedge.org/docs/category/go-sdk-for-embedding-wasmedge), [Rust](https://wasmedge.org/docs/category/rust-sdk-for-embedding-wasmedge), or [C](https://wasmedge.org/docs/category/c-sdk-for-embedding-wasmedge) app \
+🛠 Manage and orchestrate Wasm runtimes using [Kubernetes](https://wasmedge.org/docs/category/deploy-wasmedge-apps-in-kubernetes), [data streaming frameworks](https://wasmedge.org/docs/embed/use-case/yomo), and [blockchains](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) \
+📚 **[Check out our official documentation](https://wasmedge.org/docs/)**
 
 # Introduction
 
-The WasmEdge Runtime provides a well-defined execution sandbox for its contained WebAssembly bytecode program. The runtime offers isolation and protection for operating system resources (e.g., file system, sockets, environment variables, processes) and memory space. The most important use case for WasmEdge is to safely execute user-defined or community-contributed code as plug-ins in a software product (e.g., SaaS, software-defined vehicles, edge nodes, or even blockchain nodes). It enables third-party developers, vendors, suppliers, and community members to extend and customize the software product. **[Learn more here](https://wasmedge.org/book/en/use_cases.html)**
+The WasmEdge Runtime provides a well-defined execution sandbox for its contained WebAssembly bytecode program. The runtime offers isolation and protection for operating system resources (e.g., file system, sockets, environment variables, processes) and memory space. The most important use case for WasmEdge is to safely execute user-defined or community-contributed code as plug-ins in a software product (e.g., SaaS, software-defined vehicles, edge nodes, or even blockchain nodes). It enables third-party developers, vendors, suppliers, and community members to extend and customize the software product. **[Learn more here](https://wasmedge.org/docs/contribute/users)**
 
 ## Performance
 
@@ -39,26 +39,26 @@ The WasmEdge Runtime provides a well-defined execution sandbox for its contained
 
 ## Features
 
-WasmEdge can run standard WebAssembly bytecode programs compiled from C/C++, Rust, Swift, AssemblyScript, or Kotlin source code. It [runs JavaScript](https://wasmedge.org/book/en/dev/js.html), including 3rd party ES6, CJS, and NPM modules, in a secure, fast, lightweight, portable, and containerized sandbox. It also supports mixing of those languages (e.g., to [use Rust to implement a JavaScript API](https://wasmedge.org/book/en/dev/js/rust.html)), the [Fetch](https://wasmedge.org/book/en/dev/js/fetch.html) API, and [Server-side Rendering (SSR)](https://wasmedge.org/book/en/dev/js/ssr.html) functions on edge servers.
+WasmEdge can run standard WebAssembly bytecode programs compiled from C/C++, Rust, Swift, AssemblyScript, or Kotlin source code. It [runs JavaScript](https://wasmedge.org/docs/category/develop-wasm-apps-in-javascript), including 3rd party ES6, CJS, and NPM modules, in a secure, fast, lightweight, portable, and containerized sandbox. It also supports mixing of those languages (e.g., to [use Rust to implement a JavaScript API](https://wasmedge.org/docs/develop/javascript/rust)), the [Fetch](https://wasmedge.org/docs/develop/javascript/networking#fetch-client) API, and [Server-side Rendering (SSR)](https://wasmedge.org/docs/develop/javascript/ssr) functions on edge servers.
 
-WasmEdge supports [all standard WebAssembly features and many proposed extensions](https://wasmedge.org/book/en/intro/standard.html). It also supports a number of extensions tailored for cloud-native and edge computing uses (e.g., the [WasmEdge network sockets](https://wasmedge.org/book/en/dev/rust/networking.html),[Postgres and MySQL-based database driver](https://github.com/WasmEdge/wasmedge-db-examples), and the [WasmEdge Tensorflow extension](https://wasmedge.org/book/en/dev/rust/tensorflow.html)).
+WasmEdge supports [all standard WebAssembly features and many proposed extensions](https://wasmedge.org/docs/start/wasmedge/extensions/proposals). It also supports a number of extensions tailored for cloud-native and edge computing uses (e.g., the [WasmEdge network sockets](hhttps://wasmedge.org/docs/category/socket-networking),[Postgres and MySQL-based database driver](https://wasmedge.org/docs/category/database-drivers), and the [WasmEdge AI extension](https://wasmedge.org/docs/category/ai-inference)).
 
- **Learn more about [technical highlights](https://wasmedge.org/book/en/intro/features.html) of WasmEdge.**
+ **Learn more about [technical highlights](https://wasmedge.org/docs/start/wasmedge/features) of WasmEdge.**
 
 ## Integrations and management
 
-WasmEdge and its contained wasm program can be started from the [CLI](https://wasmedge.org/book/en/index.html) as a new process, or from a existing process. If started from an existing process (e.g., from a running [Node.js](https://wasmedge.org/book/en/embed/node.html) or [Go](https://wasmedge.org/book/en/embed/go.html) or [Rust](bindings/rust/wasmedge-sdk) program), WasmEdge will simply run inside the process as a function. Currently, WasmEdge is not yet thread-safe. In order to use WasmEdge in your own application or cloud-native frameworks, please refer to the guides below.
+WasmEdge and its contained wasm program can be started from the [CLI](https://wasmedge.org/docs/category/running-with-wasmedge) as a new process, or from a existing process. If started from an existing process (e.g., from a running [Go](https://wasmedge.org/docs/category/go-sdk-for-embedding-wasmedge) or [Rust](https://wasmedge.org/docs/category/rust-sdk-for-embedding-wasmedge) program), WasmEdge will simply run inside the process as a function. Currently, WasmEdge is not yet thread-safe. In order to use WasmEdge in your own application or cloud-native frameworks, please refer to the guides below.
 
-* [Embed WasmEdge into a host application](https://wasmedge.org/book/en/embed.html)
-* [Orchestrate and manage WasmEdge instances using container tools](https://wasmedge.org/book/en/use_cases/kubernetes.html)
-* [Run a WasmEdge app as a Dapr microservice](https://wasmedge.org/book/en/use_cases/frameworks/mesh/dapr.html)
-* [Use Reactr to embed and extend WasmEdge functions in SaaS](https://wasmedge.org/book/en/use_cases/frameworks/app/reactr.html)
+* [Embed WasmEdge into a host application](https://wasmedge.org/docs/embed/overview)
+* [Orchestrate and manage WasmEdge instances using container tools](https://wasmedge.org/docs/category/deploy-wasmedge-apps-in-kubernetes)
+* [Run a WasmEdge app as a Dapr microservice](https://wasmedge.org/docs/develop/rust/dapr)
+=
 
 # Community
 
 ## Contributing
 
-If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTING](https://wasmedge.org/book/en/contribute.html) document for details. If you are looking for ideas, checkout our ["help wanted" issues](https://github.com/WasmEdge/WasmEdge/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)!
+If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTING](https://wasmedge.org/docs/contribute/overview) document for details. If you are looking for ideas, checkout our ["help wanted" issues](https://github.com/WasmEdge/WasmEdge/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)!
 
 ## Contact
 

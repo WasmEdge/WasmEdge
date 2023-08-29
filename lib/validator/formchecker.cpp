@@ -351,11 +351,11 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         auto [TryCnt, CatchCnt] = countCtrlStackType(*D + 1);
         auto &NonConstInstr = const_cast<AST::Instruction &>(Instr);
         if (*D + 1 < CtrlStack.size()) {
-          NonConstInstr.setTryBlockVSize(static_cast<uint32_t>(Locals.size()) +
-                                         CtrlStack[*D + 1].Height);
+          NonConstInstr.setTryBlockVSize(static_cast<uint32_t>(Locals.size() +
+                                         CtrlStack[*D + 1].Height));
         } else {
-          NonConstInstr.setTryBlockVSize(static_cast<uint32_t>(Locals.size()) +
-                                         ValStack.size());
+          NonConstInstr.setTryBlockVSize(static_cast<uint32_t>(Locals.size() +
+                                         ValStack.size()));
         }
         // The try block itself may push an additional handler to stack
         NonConstInstr.setTryBlockHOffset(TryCnt);

@@ -354,7 +354,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
           NonConstInstr.setTryBlockVSize(static_cast<uint32_t>(Locals.size()) +
                                          CtrlStack[*D + 1].Height);
         } else {
-          NonConstInstr.setTryBlockVSize(static_cast<uint32_t>(Locals.size()) + ValStack.size());
+          NonConstInstr.setTryBlockVSize(static_cast<uint32_t>(Locals.size()) +
+                                         ValStack.size());
         }
         // The try block itself may push an additional handler to stack
         NonConstInstr.setTryBlockHOffset(TryCnt);
@@ -373,7 +374,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(Res);
     }
     if (Instr.getOpCode() == OpCode::Try) {
-      const_cast<AST::Instruction &>(Instr).setTryBlockParamNum(static_cast<uint32_t>(T1.size()));
+      const_cast<AST::Instruction &>(Instr).setTryBlockParamNum(
+          static_cast<uint32_t>(T1.size()));
     }
     // Pop and check [t1*]
     if (auto Res = popTypes(T1); !Res) {

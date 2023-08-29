@@ -19,6 +19,31 @@ target_compile_options(utilGgml
   -Wno-missing-braces
 )
 
+if(WIN32)
+  target_compile_options(utilGgml
+    PRIVATE
+    -Wno-string-conversion
+    -Wno-sign-conversion
+    -Wno-macro-redefined
+    -Wno-missing-prototypes
+    -Wno-unreachable-code-return
+    -Wno-shorten-64-to-32
+    -Wno-implicit-int-conversion
+    -Wno-implicit-float-conversion
+    -Wno-float-conversion
+    -Wno-unused-macros
+    -Wno-unreachable-code-break
+    -Wno-cast-align
+    -Wno-undef
+    -Wno-shadow-uncaptured-local
+    -Wno-unreachable-code
+    -Wno-cast-function-type
+    -Wno-format-nonliteral
+    -Wno-extra-semi-stmt
+    -Wno-bad-function-cast
+  )
+endif()
+
 target_include_directories(utilGgml
   PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}

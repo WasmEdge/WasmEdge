@@ -5,6 +5,7 @@
 #include "host/wasi/wasibase.h"
 #include "host/wasi/wasifunc.h"
 #include "runtime/instance/module.h"
+#include "executor/executor.h"
 #include "system/winapi.h"
 #include <algorithm>
 #include <array>
@@ -452,7 +453,7 @@ TEST(WasiSockTest, SocketUDP_4V2) {
   }
   // False AddressFamily
   {
-    uint32_t AddressFamily = 255;
+    uint32_t AddressFamily = UINT32_MAX;
     uint32_t SockType = __WASI_SOCK_TYPE_SOCK_DGRAM;
 
     writeDummyMemoryContent(MemInst);
@@ -1328,8 +1329,11 @@ GTEST_API_ int main(int argc, char **argv) {
 }
 
 // TODO: add af_unix for windows
-#if WASMEDGE_OS_WINDOWS
+#if WASMEDGE_OS_MACOS || WASMEDGE_OS_LINUX
 TEST(WasiTest, UNIX_Socket) {
+  WasmEdge::Configure Configure;
+  Configure.getRuntimeConfigure().setAllowAFUNIX(true);
+  WasmEdge::Executor::Executor Executor(Configure);
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -1338,7 +1342,7 @@ TEST(WasiTest, UNIX_Socket) {
   auto *MemInstPtr = Mod.findMemoryExports("memory");
   ASSERT_TRUE(MemInstPtr != nullptr);
   auto &MemInst = *MemInstPtr;
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  WasmEdge::Runtime::CallingFrame CallFrame(&Executor, &Mod);
 
   WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
   WasmEdge::Host::WasiSockBindV2 WasiSockBind(Env);

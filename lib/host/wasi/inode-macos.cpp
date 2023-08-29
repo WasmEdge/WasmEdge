@@ -877,8 +877,8 @@ using VarAddrT = std::variant<SockEmptyAddr, sockaddr_storage, sockaddr,
                               sockaddr_in, sockaddr_in6, sockaddr_un>;
 
 struct VarAddrBuf {
-  template <typename T> sockaddr *operator()(T &v) {
-    return reinterpret_cast<struct sockaddr *>(&v);
+  template <typename T> sockaddr *operator()(T &V) {
+    return reinterpret_cast<struct sockaddr *>(&V);
   }
   sockaddr *operator()(SockEmptyAddr &) { return nullptr; }
 };
@@ -892,8 +892,8 @@ template <typename U> struct VarAddrAs {
   template <typename T> U &operator()(const T &) { assumingUnreachable(); };
 
   // sockaddr_storage is safe enough to storage all kinds of address
-  U &operator()(sockaddr_storage &storage) {
-    return *reinterpret_cast<U *>(&storage);
+  U &operator()(sockaddr_storage &Storage) {
+    return *reinterpret_cast<U *>(&Storage);
   }
 };
 

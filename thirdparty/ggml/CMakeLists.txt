@@ -16,6 +16,7 @@ target_compile_options(utilGgml
   -Wno-unused-variable
   -Wno-unused-but-set-variable
   -Wno-unused-function
+  -Wno-missing-braces
 )
 
 target_include_directories(utilGgml

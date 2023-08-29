@@ -350,7 +350,12 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         // Delegate to the label itself, not before the label
         auto [TryCnt, CatchCnt] = countCtrlStackType(*D + 1);
         auto &NonConstInstr = const_cast<AST::Instruction &>(Instr);
-        NonConstInstr.setTryBlockVSize(CtrlStack[*D + 1].Height);
+        if (*D + 1 < CtrlStack.size()) {
+          NonConstInstr.setTryBlockVSize(Locals.size() +
+                                         CtrlStack[*D + 1].Height);
+        } else {
+          NonConstInstr.setTryBlockVSize(Locals.size() + ValStack.size());
+        }
         // The try block itself may push an additional handler to stack
         NonConstInstr.setTryBlockHOffset(TryCnt);
         NonConstInstr.setTryBlockCOffset(CatchCnt);

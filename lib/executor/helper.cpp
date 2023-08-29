@@ -227,6 +227,7 @@ Expect<void> Executor::throwException(Runtime::StackManager &StackMgr,
       return throwException(StackMgr, TagInst, PC);
     }
   }
+  spdlog::error(ErrCode::Value::UncaughtException);
   return Unexpect(ErrCode::Value::UncaughtException);
 }
 

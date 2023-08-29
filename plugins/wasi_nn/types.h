@@ -31,11 +31,11 @@ enum class Backend : uint8_t {
   PyTorch = 3,
   TensorflowLite = 4,
   Autodetect = 5,
-  Ggml = 6,
+  GGML = 6,
 };
 
 #define FOR_EACH_BACKEND(F)                                                    \
-  F(OpenVINO) F(ONNX) F(Tensorflow) F(PyTorch) F(TensorflowLite) F(Ggml)
+  F(OpenVINO) F(ONNX) F(Tensorflow) F(PyTorch) F(TensorflowLite) F(GGML)
 
 struct TensorData {
   Span<uint32_t> Dimension;

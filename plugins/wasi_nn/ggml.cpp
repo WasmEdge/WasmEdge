@@ -9,7 +9,7 @@
 #include <llama.h>
 #endif
 
-namespace WasmEdge::Host::WASINN::Ggml {
+namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
                    Device Device, uint32_t &GraphId) noexcept {
@@ -21,7 +21,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   }
 
   // Add a new graph.
-  Env.NNGraph.emplace_back(Backend::Ggml);
+  Env.NNGraph.emplace_back(Backend::GGML);
   auto &GraphRef = Env.NNGraph.back().get<Graph>();
 
   // Setup Graph Device
@@ -41,23 +41,26 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
   // TODO: pass the model directly to ggml
   // Write ggml model to file.
-  std::string modelfilepath("ggml-model.bin");
-  std::ofstream tempFile(modelfilepath);
-  if (!tempFile) {
-    spdlog::error("[WASI-NN] Failed to create the temporary file.");
+  std::string ModelFilePath("ggml-model.bin");
+  std::ofstream TempFile(ModelFilePath);
+  if (!TempFile) {
+    spdlog::error("[WASI-NN] Failed to create the temporary file. Currently, "
+                  "our workaround involves creating a temporary model file "
+                  "named \"ggml-model.bin\" and passing this filename as a "
+                  "parameter to the ggml llama library.");
     return ErrNo::InvalidArgument;
   }
-  tempFile << BinModel;
-  tempFile.close();
+  TempFile << BinModel;
+  TempFile.close();
 
   // Initialize ggml model.
-  gpt_params params;
-  params.model = modelfilepath;
-  llama_backend_init(params.numa);
+  gpt_params Params;
+  Params.model = ModelFilePath;
+  llama_backend_init(Params.numa);
   std::tie(GraphRef.LlamaModel, GraphRef.LlamaContext) =
-      llama_init_from_gpt_params(params);
+      llama_init_from_gpt_params(Params);
   if (GraphRef.LlamaModel == nullptr) {
-    spdlog::error("[WASI-NN] Error: unable to load model.");
+    spdlog::error("[WASI-NN] Error: unable to init model.");
     return ErrNo::InvalidArgument;
   }
 
@@ -75,7 +78,7 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
 }
 
 Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
-                       __attribute__((unused)) uint32_t Index,
+                       [[maybe_unused]] uint32_t Index,
                        const TensorData &Tensor) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
@@ -93,7 +96,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 }
 
 Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
-                        __attribute__((unused)) uint32_t Index,
+                        [[maybe_unused]] uint32_t Index,
                         Span<uint8_t> OutBuffer,
                         uint32_t &BytesWritten) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
@@ -190,4 +193,4 @@ Expect<ErrNo> compute(WasiNNEnvironment &, uint32_t) noexcept {
 }
 
 #endif
-} // namespace WasmEdge::Host::WASINN::Ggml
+} // namespace WasmEdge::Host::WASINN::GGML

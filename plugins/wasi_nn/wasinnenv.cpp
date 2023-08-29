@@ -21,7 +21,7 @@ std::map<std::string_view, Backend> BackendMap = {
     {"PyTorch"sv, Backend::PyTorch},
     {"TensorflowLite"sv, Backend::TensorflowLite},
     {"Autodetect"sv, Backend::Autodetect},
-    {"Ggml"sv, Backend::Ggml}};
+    {"GGML"sv, Backend::GGML}};
 
 std::map<std::string_view, Device> DeviceMap = {
     {"CPU"sv, Device::CPU}, {"GPU"sv, Device::GPU}, {"TPU"sv, Device::TPU}};

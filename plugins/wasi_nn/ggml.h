@@ -14,7 +14,7 @@ namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
 }
 
-namespace WasmEdge::Host::WASINN::Ggml {
+namespace WasmEdge::Host::WASINN::GGML {
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 struct Graph {
@@ -53,4 +53,4 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
                                 uint32_t &BytesWritten) noexcept;
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
-} // namespace WasmEdge::Host::WASINN::Ggml
+} // namespace WasmEdge::Host::WASINN::GGML

@@ -174,7 +174,7 @@ public:
 
   // Erase the stacks so that the exception handler is on the top of the stack
   // Associated Value should remain on top of ValueStack.
-  Handler popToTopHandler(size_t AssocValSize) noexcept {
+  Handler popToTopHandler(uint32_t AssocValSize) noexcept {
     auto TopHandler = std::move(HandlerStack.back());
     HandlerStack.pop_back();
     assuming(ValueStack.size() - AssocValSize >= TopHandler.VPos);

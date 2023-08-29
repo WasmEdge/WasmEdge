@@ -28,7 +28,7 @@ public:
   /// Getter of tag type.
   const AST::TagType &getTagType() const noexcept { return TgType; }
 
-  size_t getAssocValSize() const noexcept { return TgType.getAssocValSize(); }
+  uint32_t getAssocValSize() const noexcept { return TgType.getAssocValSize(); }
 
 private:
   /// \name Data of tag instance.

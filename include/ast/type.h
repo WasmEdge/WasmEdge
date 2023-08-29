@@ -225,8 +225,8 @@ public:
   void setFuncType(FunctionType *FuncType) noexcept { Type = FuncType; }
 
   // Getter of the size of value that is associated with the tag.
-  size_t getAssocValSize() const noexcept {
-    return Type->getParamTypes().size();
+  uint32_t getAssocValSize() const noexcept {
+    return static_cast<uint32_t>(Type->getParamTypes().size());
   }
 
 private:

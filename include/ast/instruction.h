@@ -207,7 +207,7 @@ public:
   void setJumpCatchList(const std::vector<uint32_t> &CatchList) {
     reset();
     if (!CatchList.empty()) {
-      Data.TryBlock.JumpCatchListSize = CatchList.size();
+      Data.TryBlock.JumpCatchListSize = static_cast<uint32_t>(CatchList.size());
       Data.TryBlock.JumpCatchList = new uint32_t[CatchList.size()];
       Flags.IsAllocJumpCatchList = true;
       std::copy_n(CatchList.begin(), CatchList.size(),

@@ -5,8 +5,8 @@
 #include "wasinnenv.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
-#include "ggml/common.h"
-#include "ggml/llama.h"
+#include <common.h>
+#include <llama.h>
 #endif
 
 namespace WasmEdge::Host::WASINN::Ggml {

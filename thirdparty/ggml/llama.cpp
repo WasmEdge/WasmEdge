@@ -3218,10 +3218,10 @@ llama_model_quantize_internal(const std::string &fname_inp,
   std::vector<std::thread> workers;
   std::mutex mutex;
 
-  auto use_more_bits = [](int i_layer, int num_layers) -> bool {
-    return i_layer < num_layers / 8 || i_layer >= 7 * num_layers / 8 ||
-           (i_layer - num_layers / 8) % 3 == 2;
-  };
+  // auto use_more_bits = [](int i_layer, int num_layers) -> bool {
+  //   return i_layer < num_layers / 8 || i_layer >= 7 * num_layers / 8 ||
+  //          (i_layer - num_layers / 8) % 3 == 2;
+  // };
 
   size_t idx = 0;
   for (llama_load_tensor &tensor : model_loader->tensors_map.tensors) {

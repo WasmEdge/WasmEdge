@@ -12,12 +12,6 @@ wasmedge_add_library(wasmedgePluginWasiNN
   torch.cpp
   tfl.cpp
   ggml.cpp
-  ggml/common.cpp
-  ggml/ggml-alloc.c
-  ggml/ggml.c
-  ggml/k_quants.c
-  ggml/ggml-alloc.c
-  ggml/llama.cpp
 )
 
 target_compile_options(wasmedgePluginWasiNN
@@ -30,17 +24,20 @@ target_include_directories(wasmedgePluginWasiNN
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
+  ${PROJECT_SOURCE_DIR}/thirdparty/ggml
 )
 
 if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmedgePluginWasiNN
     PRIVATE
     wasmedgeCAPI
+    utilGgml
   )
 else()
   target_link_libraries(wasmedgePluginWasiNN
     PRIVATE
     wasmedge_shared
+    utilGgml
   )
 endif()
 

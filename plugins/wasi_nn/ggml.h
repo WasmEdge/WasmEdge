@@ -7,7 +7,7 @@
 #include "types.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
-#include "ggml/llama.h"
+#include <llama.h>
 #endif
 
 namespace WasmEdge::Host::WASINN {

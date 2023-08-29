@@ -4334,6 +4334,6 @@ static void llama_log_internal(llama_log_level level, const char * format, ...) 
 static void llama_log_callback_default(llama_log_level level, const char * text, void * user_data) {
     (void) level;
     (void) user_data;
-    fputs(text, stderr);
+    // fputs(text, stderr);
     fflush(stderr);
 }

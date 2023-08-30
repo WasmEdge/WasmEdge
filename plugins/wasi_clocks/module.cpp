@@ -10,7 +10,13 @@ namespace WasmEdge {
 namespace Host {
 
 WasmEdgeWasiClocksModule::WasmEdgeWasiClocksModule()
-    : ModuleInstance("wasmedge_wasi_clocks") {}
+    : ModuleInstance("wasmedge_wasi_clocks") {
+
+  addHostFunc("wasi_clocks_monotonic_clock_now",
+              std::make_unique<MonotonicClock::Now>(Env));
+  addHostFunc("wasi_clocks_monotonic_clock_resolution",
+              std::make_unique<MonotonicClock::Resolution>(Env));
+}
 
 } // namespace Host
 } // namespace WasmEdge

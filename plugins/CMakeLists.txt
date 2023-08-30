@@ -9,6 +9,10 @@ if(WASMEDGE_PLUGIN_WASI_CRYPTO)
   add_subdirectory(wasi_crypto)
 endif()
 
+if(WASMEDGE_PLUGIN_WASI_CLOCKS)
+  add_subdirectory(wasi_clocks)
+endif()
+
 if(WASMEDGE_PLUGIN_IMAGE)
   # Only Linux and MacOS support wasmedge_image now.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")

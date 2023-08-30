@@ -20,6 +20,10 @@ template <typename T>
 auto SyncRun(z_stream *HostZStream, uint32_t ZStreamPtr,
              const Runtime::CallingFrame &Frame, T Callback) {
   auto *MemInst = Frame.getMemoryByIndex(0);
+  /* if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  } */
+
   WasmZStream *ModuleZStream = MemInst->getPointer<WasmZStream *>(ZStreamPtr);
 
   HostZStream->next_in =
@@ -65,60 +69,17 @@ auto SyncRun(z_stream *HostZStream, uint32_t ZStreamPtr,
 }
 
 Expect<int32_t>
-WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
-                               uint32_t ZStreamPtr, int32_t Level,
-                               uint32_t VersionPtr, int32_t StreamSize) {
-
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  if (!CheckSize(StreamSize))
-    return static_cast<int32_t>(Z_VERSION_ERROR);
+WasmEdgeZlibDeflateInit::body(const Runtime::CallingFrame &Frame,
+                              uint32_t ZStreamPtr, int32_t Level) {
 
   auto HostZStream = std::make_unique<z_stream>();
-
   HostZStream.get()->zalloc = Z_NULL;
   HostZStream.get()->zfree = Z_NULL;
   HostZStream.get()->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
   const int32_t ZRes = SyncRun(HostZStream.get(), ZStreamPtr, Frame, [&]() {
-    return deflateInit_(HostZStream.get(), Level, WasmZlibVersion,
-                        sizeof(z_stream));
-  });
-
-  if (ZRes == Z_OK)
-    Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)));
-
-  return ZRes;
-}
-
-Expect<int32_t>
-WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
-                               uint32_t ZStreamPtr, uint32_t VersionPtr,
-                               int32_t StreamSize) {
-
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  if (!CheckSize(StreamSize))
-    return static_cast<int32_t>(Z_VERSION_ERROR);
-
-  auto HostZStream = std::make_unique<z_stream>();
-
-  HostZStream.get()->zalloc = Z_NULL;
-  HostZStream.get()->zfree = Z_NULL;
-  HostZStream.get()->opaque =
-      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
-
-  const int32_t ZRes = SyncRun(HostZStream.get(), ZStreamPtr, Frame, [&]() {
-    return inflateInit_(HostZStream.get(), WasmZlibVersion, sizeof(z_stream));
+    return deflateInit(HostZStream.get(), Level);
   });
 
   if (ZRes == Z_OK)
@@ -142,6 +103,44 @@ Expect<int32_t> WasmEdgeZlibDeflate::WasmEdgeZlibDeflate::body(
   return ZRes;
 }
 
+Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &Frame,
+                                             uint32_t ZStreamPtr) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame,
+              [&]() { return deflateEnd(HostZStreamIt->second.get()); });
+
+  if (ZRes == Z_OK)
+    Env.ZStreamMap.erase(ZStreamPtr);
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibInflateInit::body(const Runtime::CallingFrame &Frame,
+                              uint32_t ZStreamPtr) {
+
+  auto HostZStream = std::make_unique<z_stream>();
+  HostZStream.get()->zalloc = Z_NULL;
+  HostZStream.get()->zfree = Z_NULL;
+  HostZStream.get()->opaque =
+      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
+
+  const int32_t ZRes = SyncRun(HostZStream.get(), ZStreamPtr, Frame, [&]() {
+    return inflateInit(HostZStream.get());
+  });
+
+  if (ZRes == Z_OK)
+    Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)));
+
+  return ZRes;
+}
+
 Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
                                           uint32_t ZStreamPtr, int32_t Flush) {
 
@@ -157,24 +156,9 @@ Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &Frame,
-                                             uint32_t ZStreamPtr) {
-  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
-  if (HostZStreamIt == Env.ZStreamMap.end()) {
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  const int32_t ZRes =
-      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame,
-              [&]() { return deflateEnd(HostZStreamIt->second.get()); });
-
-  Env.ZStreamMap.erase(ZStreamPtr);
-
-  return ZRes;
-}
-
 Expect<int32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &Frame,
                                              uint32_t ZStreamPtr) {
+
   const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -185,6 +169,27 @@ Expect<int32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &Frame,
               [&]() { return inflateEnd(HostZStreamIt->second.get()); });
 
   Env.ZStreamMap.erase(ZStreamPtr);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibDeflateInit2::body(
+    const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr, int32_t Level,
+    int32_t Method, int32_t WindowBits, int32_t MemLevel, int32_t Strategy) {
+
+  auto HostZStream = std::make_unique<z_stream>();
+  HostZStream.get()->zalloc = Z_NULL;
+  HostZStream.get()->zfree = Z_NULL;
+  HostZStream.get()->opaque =
+      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
+
+  const int32_t ZRes = SyncRun(HostZStream.get(), ZStreamPtr, Frame, [&]() {
+    return deflateInit2(HostZStream.get(), Level, Method, WindowBits, MemLevel,
+                        Strategy);
+  });
+
+  if (ZRes == Z_OK)
+    Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)));
 
   return ZRes;
 }
@@ -382,6 +387,26 @@ WasmEdgeZlibDeflatePrime::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
+Expect<int32_t>
+WasmEdgeZlibInflateInit2::body(const Runtime::CallingFrame &Frame,
+                               uint32_t ZStreamPtr, int32_t WindowBits) {
+
+  auto HostZStream = std::make_unique<z_stream>();
+  HostZStream.get()->zalloc = Z_NULL;
+  HostZStream.get()->zfree = Z_NULL;
+  HostZStream.get()->opaque =
+      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
+
+  const int32_t ZRes = SyncRun(HostZStream.get(), ZStreamPtr, Frame, [&]() {
+    return inflateInit2(HostZStream.get(), WindowBits);
+  });
+
+  if (ZRes == Z_OK)
+    Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)));
+
+  return ZRes;
+}
+
 Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
     uint32_t DictionaryPtr, uint32_t DictLength) {
@@ -540,6 +565,34 @@ WasmEdgeZlibInflateMark::body(const Runtime::CallingFrame &Frame,
 }
 
 Expect<int32_t>
+WasmEdgeZlibInflateBackInit::body(const Runtime::CallingFrame &Frame,
+                                  uint32_t ZStreamPtr, int32_t WindowBits,
+                                  uint32_t WindowPtr) {
+
+  auto HostZStream = std::make_unique<z_stream>();
+  HostZStream.get()->zalloc = Z_NULL;
+  HostZStream.get()->zfree = Z_NULL;
+  HostZStream.get()->opaque =
+      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Window = MemInst->getPointer<unsigned char *>(WindowPtr);
+
+  const int32_t ZRes = SyncRun(HostZStream.get(), ZStreamPtr, Frame, [&]() {
+    return inflateBackInit(HostZStream.get(), WindowBits, Window);
+  });
+
+  if (ZRes == Z_OK)
+    Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)));
+
+  return ZRes;
+}
+
+Expect<int32_t>
 WasmEdgeZlibInflateBackEnd::body(const Runtime::CallingFrame &Frame,
                                  uint32_t ZStreamPtr) {
   const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
@@ -558,8 +611,8 @@ WasmEdgeZlibInflateBackEnd::body(const Runtime::CallingFrame &Frame,
 
 Expect<int32_t>
 WasmEdgeZlibZlibCompilerFlags::body(const Runtime::CallingFrame &) {
-  const int32_t ZRes = zlibCompileFlags();
 
+  const int32_t ZRes = zlibCompileFlags();
   return ZRes;
 }
 
@@ -1028,6 +1081,68 @@ Expect<void> WasmEdgeZlibGZClearerr::body(const Runtime::CallingFrame &,
   gzclearerr(GZFileIt->second.get());
 
   return Expect<void>{};
+}
+
+Expect<int32_t>
+WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
+                               uint32_t ZStreamPtr, int32_t Level,
+                               uint32_t VersionPtr, int32_t StreamSize) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
+  if (!CheckSize(StreamSize))
+    return static_cast<int32_t>(Z_VERSION_ERROR);
+
+  auto HostZStream = std::make_unique<z_stream>();
+
+  HostZStream.get()->zalloc = Z_NULL;
+  HostZStream.get()->zfree = Z_NULL;
+  HostZStream.get()->opaque =
+      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
+
+  const int32_t ZRes = SyncRun(HostZStream.get(), ZStreamPtr, Frame, [&]() {
+    return deflateInit_(HostZStream.get(), Level, WasmZlibVersion,
+                        sizeof(z_stream));
+  });
+
+  if (ZRes == Z_OK)
+    Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)));
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
+                               uint32_t ZStreamPtr, uint32_t VersionPtr,
+                               int32_t StreamSize) {
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
+  if (!CheckSize(StreamSize))
+    return static_cast<int32_t>(Z_VERSION_ERROR);
+
+  auto HostZStream = std::make_unique<z_stream>();
+
+  HostZStream.get()->zalloc = Z_NULL;
+  HostZStream.get()->zfree = Z_NULL;
+  HostZStream.get()->opaque =
+      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
+
+  const int32_t ZRes = SyncRun(HostZStream.get(), ZStreamPtr, Frame, [&]() {
+    return inflateInit_(HostZStream.get(), WasmZlibVersion, sizeof(z_stream));
+  });
+
+  if (ZRes == Z_OK)
+    Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)));
+
+  return ZRes;
 }
 
 } // namespace Host

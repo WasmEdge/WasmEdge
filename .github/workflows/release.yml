@@ -115,8 +115,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       output_dir: build/plugins/wasi_nn
-      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite
-      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
+      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml
       output_bin: libwasmedgePluginWasiNN.so
       OPENVINO_VERSION: "2023.0.0"
       OPENVINO_YEAR: "2023"
@@ -186,6 +186,13 @@ jobs:
         run: |
           mv plugin_wasi_nn-tensorflowlite.tar.gz WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+      - name: Upload wasi_nn-ggml plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasi_nn-ggml.tar.gz WasmEdge-plugin-wasi_nn-ggml-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-ggml-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+
   build_and_upload_plugin_ubuntu:
     name: Build and upload plugins on Ubuntu 20.04
     runs-on: ubuntu-latest
@@ -307,10 +314,10 @@ jobs:
     runs-on: ${{ matrix.host_runner }}
     env:
       output_dir: build/plugins/wasi_nn
-      build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite
+      build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
       build_options_manylinux2014_x86_64: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch
       build_options_manylinux2014_aarch64:
-      tar_names_all_platforms: wasi_nn-tensorflowlite
+      tar_names_all_platforms: wasi_nn-tensorflowlite wasi_nn-ggml
       tar_names_manylinux2014_x86_64: wasi_nn-pytorch
       tar_names_manylinux2014_aarch64:
       output_bin: libwasmedgePluginWasiNN.so
@@ -372,6 +379,12 @@ jobs:
         run: |
           mv plugin_wasi_nn-tensorflowlite.tar.gz WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz --clobber
+      - name: Upload WasmEdge wasi_nn-ggml plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasi_nn-ggml.tar.gz WasmEdge-plugin-wasi_nn-ggml-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-ggml-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz --clobber
 
   build_and_upload_plugin_manylinux:
     strategy:

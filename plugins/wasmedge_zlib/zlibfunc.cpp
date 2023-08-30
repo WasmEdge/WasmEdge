@@ -1023,6 +1023,8 @@ Expect<void> WasmEdgeZlibGZClearerr::body(const Runtime::CallingFrame &,
   }
 
   gzclearerr(GZFileIt->second.get());
+
+  return Expect<void>{};
 }
 
 } // namespace Host

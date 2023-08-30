@@ -15,7 +15,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
                    Device Device, uint32_t &GraphId) noexcept {
   // The graph builder length must be 1.
   if (Builders.size() != 1) {
-    spdlog::error("[WASI-NN] Wrong GraphBuilder Length {:d}, expect 1",
+    spdlog::error("[WASI-NN] Wrong GraphBuilder Length {:d}, expect 1"sv,
                   Builders.size());
     return ErrNo::InvalidArgument;
   }
@@ -26,7 +26,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
   // Setup Graph Device
   if (Device != Device::CPU) {
-    spdlog::error("[WASI-NN] ggml backend only support CPU target currently.");
+    spdlog::error(
+        "[WASI-NN] ggml backend only support CPU target currently."sv);
     return ErrNo::InvalidArgument;
   }
 
@@ -34,20 +35,15 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   std::string BinModel(reinterpret_cast<char *>(Weight.data()), Weight.size());
   std::istringstream BinRead(BinModel);
 
-  if (BinModel.substr(0, 4) != "tjgg") {
-    spdlog::error("[WASI-NN] Invalid ggml model.");
-    return ErrNo::InvalidArgument;
-  }
-
   // TODO: pass the model directly to ggml
   // Write ggml model to file.
-  std::string ModelFilePath("ggml-model.bin");
+  std::string ModelFilePath("ggml-model.bin"sv);
   std::ofstream TempFile(ModelFilePath);
   if (!TempFile) {
     spdlog::error("[WASI-NN] Failed to create the temporary file. Currently, "
                   "our workaround involves creating a temporary model file "
                   "named \"ggml-model.bin\" and passing this filename as a "
-                  "parameter to the ggml llama library.");
+                  "parameter to the ggml llama library."sv);
     return ErrNo::InvalidArgument;
   }
   TempFile << BinModel;
@@ -60,7 +56,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   std::tie(GraphRef.LlamaModel, GraphRef.LlamaContext) =
       llama_init_from_gpt_params(Params);
   if (GraphRef.LlamaModel == nullptr) {
-    spdlog::error("[WASI-NN] Error: unable to init model.");
+    spdlog::error("[WASI-NN] Error: unable to init model."sv);
     return ErrNo::InvalidArgument;
   }
 
@@ -82,14 +78,14 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                        const TensorData &Tensor) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  std::string prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
+  std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
                      Tensor.Tensor.size());
-  CxtRef.LlamaInputs = llama_tokenize(GraphRef.LlamaContext, prompt, true);
-  const uint32_t max_context_size = llama_n_ctx(GraphRef.LlamaContext);
-  const uint32_t max_tokens_list_size = max_context_size - 4;
-  if (CxtRef.LlamaInputs.size() > max_tokens_list_size) {
-    spdlog::error("[WASI-NN]: Error: prompt too long ({} tokens, max %{})",
-                  CxtRef.LlamaInputs.size(), max_tokens_list_size);
+  CxtRef.LlamaInputs = llama_tokenize(GraphRef.LlamaContext, Prompt, true);
+  const uint32_t MaxContextSize = llama_n_ctx(GraphRef.LlamaContext);
+  const uint32_t MaxTokensListSize = MaxContextSize - 4;
+  if (CxtRef.LlamaInputs.size() > MaxTokensListSize) {
+    spdlog::error("[WASI-NN]: Error: prompt too long ({} tokens, max %{})"sv,
+                  CxtRef.LlamaInputs.size(), MaxTokensListSize);
     return ErrNo::InvalidArgument;
   }
   return ErrNo::Success;
@@ -110,56 +106,54 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   if (CxtRef.LlamaInputs.size() == 0) {
-    spdlog::error("[WASI-NN] Llama input is not set!");
+    spdlog::error("[WASI-NN] Llama input is not set!"sv);
     return ErrNo::InvalidArgument;
   }
 
   // Output start from prompt.
-  for (auto id : CxtRef.LlamaInputs) {
-    CxtRef.LlamaOutputs += llama_token_to_str(GraphRef.LlamaContext, id);
+  for (auto Id : CxtRef.LlamaInputs) {
+    CxtRef.LlamaOutputs += llama_token_to_str(GraphRef.LlamaContext, Id);
   }
 
   // Main predict loop.
   // TODO: recompute a compressed context based on previous tokens once the
   // cache is full.
-  const int max_context_size = llama_n_ctx(GraphRef.LlamaContext);
+  const int MaxContextSize = llama_n_ctx(GraphRef.LlamaContext);
   while (llama_get_kv_cache_token_count(GraphRef.LlamaContext) <
-         max_context_size) {
+         MaxContextSize) {
     if (llama_eval(GraphRef.LlamaContext, CxtRef.LlamaInputs.data(),
                    int(CxtRef.LlamaInputs.size()),
                    llama_get_kv_cache_token_count(GraphRef.LlamaContext),
                    get_num_physical_cores())) {
-      spdlog::error("[WASI-NN] Llama failed to eval.");
+      spdlog::error("[WASI-NN] Llama failed to eval."sv);
       return ErrNo::InvalidArgument;
     }
     CxtRef.LlamaInputs.clear();
 
     // Select the best prediction.
-    llama_token new_token_id = 0;
-    auto logits = llama_get_logits(GraphRef.LlamaContext);
-    auto n_vocab = llama_n_vocab(GraphRef.LlamaContext);
-    std::vector<llama_token_data> candidates;
-    candidates.reserve(n_vocab);
-    for (llama_token token_id = 0; token_id < n_vocab; token_id++) {
-      candidates.emplace_back(
-          llama_token_data{token_id, logits[token_id], 0.0f});
+    llama_token NewTokenId = 0;
+    auto Logits = llama_get_logits(GraphRef.LlamaContext);
+    auto NVocab = llama_n_vocab(GraphRef.LlamaContext);
+    std::vector<llama_token_data> Candidates;
+    Candidates.reserve(NVocab);
+    for (llama_token TokenId = 0; TokenId < NVocab; TokenId++) {
+      Candidates.emplace_back(llama_token_data{TokenId, Logits[TokenId], 0.0f});
     }
-    llama_token_data_array candidates_p = {candidates.data(), candidates.size(),
-                                           false};
-    new_token_id =
-        llama_sample_token_greedy(GraphRef.LlamaContext, &candidates_p);
+    llama_token_data_array CandidatesP = {Candidates.data(), Candidates.size(),
+                                          false};
+    NewTokenId = llama_sample_token_greedy(GraphRef.LlamaContext, &CandidatesP);
 
-    if (new_token_id == llama_token_eos()) {
-      CxtRef.LlamaOutputs += "[end of text]";
+    if (NewTokenId == llama_token_eos()) {
+      CxtRef.LlamaOutputs += "[end of text]"sv;
       break;
     }
 
     // Append the new token.
     CxtRef.LlamaOutputs +=
-        llama_token_to_str(GraphRef.LlamaContext, new_token_id);
+        llama_token_to_str(GraphRef.LlamaContext, NewTokenId);
 
     // Push this new token for next evaluation.
-    CxtRef.LlamaInputs.push_back(new_token_id);
+    CxtRef.LlamaInputs.push_back(NewTokenId);
   }
 
   return ErrNo::Success;
@@ -168,7 +162,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 namespace {
 Expect<ErrNo> reportBackendNotSupported() noexcept {
   spdlog::error("[WASI-NN] ggml backend is not built. use "
-                "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"ggml\" to build it.");
+                "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"ggml\" to build it."sv);
   return ErrNo::InvalidArgument;
 }
 } // namespace

@@ -556,5 +556,36 @@ public:
                        uint32_t VersionPtr, int32_t StreamSize);
 };
 
+class WasmEdgeZlibDeflateInit2_
+    : public WasmEdgeZlib<WasmEdgeZlibDeflateInit2_> {
+public:
+  WasmEdgeZlibDeflateInit2_(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       int32_t Level, int32_t Method, int32_t WindowBits,
+                       int32_t MemLevel, int32_t Strategy, uint32_t VersionPtr,
+                       int32_t StreamSize);
+};
+
+class WasmEdgeZlibInflateInit2_
+    : public WasmEdgeZlib<WasmEdgeZlibInflateInit2_> {
+public:
+  WasmEdgeZlibInflateInit2_(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       int32_t WindowBits, uint32_t VersionPtr,
+                       int32_t StreamSize);
+};
+
+class WasmEdgeZlibInflateBackInit_
+    : public WasmEdgeZlib<WasmEdgeZlibInflateBackInit_> {
+public:
+  WasmEdgeZlibInflateBackInit_(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       int32_t WindowBits, uint32_t WindowPtr,
+                       uint32_t VersionPtr, int32_t StreamSize);
+};
+
 } // namespace Host
 } // namespace WasmEdge

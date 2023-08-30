@@ -741,10 +741,13 @@ Expect<uint32_t> WasmEdgeZlibGZDOpen::body(const Runtime::CallingFrame &Frame,
   auto ZRes = gzdopen(FD, Mode);
 
   const auto NewWasmGZFile = WasmGZFileStart + Env.GZFileMap.size();
-  Env.GZFileMap.emplace(std::pair<uint32_t, std::unique_ptr<gzFile>>{
-      NewWasmGZFile, std::make_unique<gzFile>(ZRes)});
+  auto El =
+      std::pair<uint32_t, std::unique_ptr<WasmEdgeZlibEnvironment::GZFile_s>>(
+          NewWasmGZFile, ZRes);
 
-  return NewWasmGZFile;
+  Env.GZFileMap.emplace(std::move(El));
+
+  return 0;
 }
 
 Expect<int32_t> WasmEdgeZlibGZBuffer::body(const Runtime::CallingFrame &,

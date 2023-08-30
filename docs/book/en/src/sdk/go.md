@@ -1,3 +1,3 @@
 # WasmEdge Go SDK
 
-This doc has moved to <https://wasmedge.org/docs/embed/go/intro>. Please use our new doc.
+> This part has been moved to <https://wasmedge.org/docs/embed/go/intro>. Please use our new doc.

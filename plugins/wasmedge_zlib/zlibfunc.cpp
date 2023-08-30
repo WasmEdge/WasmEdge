@@ -717,68 +717,27 @@ WasmEdgeZlibUncompress2::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibAdler32::body(const Runtime::CallingFrame &Frame,
-                                          uint32_t Adler, uint32_t BufPtr,
-                                          uint32_t Len) {
+Expect<uint32_t> WasmEdgeZlibGZOpen::body(const Runtime::CallingFrame &Frame,
+                                          uint32_t PathPtr, uint32_t ModePtr) {
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
+  auto *Path = MemInst->getPointer<const char *>(PathPtr);
+  auto *Mode = MemInst->getPointer<const char *>(ModePtr);
 
-  const int32_t ZRes = adler32(Adler, Buf, Len);
+  auto ZRes = gzopen(Path, Mode);
 
-  return ZRes;
-}
+  const auto NewWasmGZFile = WasmGZFileStart + Env.GZFileMap.size();
+  auto El =
+      std::pair<uint32_t, std::unique_ptr<WasmEdgeZlibEnvironment::GZFile_s>>(
+          NewWasmGZFile, ZRes);
 
-Expect<int32_t> WasmEdgeZlibAdler32_z::body(const Runtime::CallingFrame &Frame,
-                                            uint32_t Adler, uint32_t BufPtr,
-                                            uint32_t Len) {
+  Env.GZFileMap.emplace(std::move(El));
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
-
-  const int32_t ZRes = adler32_z(Adler, Buf, Len);
-
-  return ZRes;
-}
-
-Expect<int32_t> WasmEdgeZlibCRC32::body(const Runtime::CallingFrame &Frame,
-                                        uint32_t CRC, uint32_t BufPtr,
-                                        uint32_t Len) {
-
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
-
-  const int32_t ZRes = crc32(CRC, Buf, Len);
-
-  return ZRes;
-}
-
-Expect<int32_t> WasmEdgeZlibCRC32_z::body(const Runtime::CallingFrame &Frame,
-                                          uint32_t CRC, uint32_t BufPtr,
-                                          uint32_t Len) {
-
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
-
-  const int32_t ZRes = crc32_z(CRC, Buf, Len);
-
-  return ZRes;
+  return 0;
 }
 
 Expect<uint32_t> WasmEdgeZlibGZDOpen::body(const Runtime::CallingFrame &Frame,
@@ -986,6 +945,20 @@ Expect<int32_t> WasmEdgeZlibGZFlush::body(const Runtime::CallingFrame &,
   return ZRes;
 }
 
+Expect<int32_t> WasmEdgeZlibGZSeek::body(const Runtime::CallingFrame &,
+                                         uint32_t GZFile, int32_t Offset,
+                                         int32_t Whence) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gzseek(GZFileIt->second.get(), Offset, Whence);
+
+  return ZRes;
+}
+
 Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &,
                                            uint32_t GZFile) {
 
@@ -995,6 +968,32 @@ Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &,
   }
 
   auto ZRes = gzrewind(GZFileIt->second.get());
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibGZTell::body(const Runtime::CallingFrame &,
+                                         uint32_t GZFile) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gztell(GZFileIt->second.get());
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibGZOffset::body(const Runtime::CallingFrame &,
+                                           uint32_t GZFile) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gzoffset(GZFileIt->second.get());
 
   return ZRes;
 }
@@ -1081,6 +1080,85 @@ Expect<void> WasmEdgeZlibGZClearerr::body(const Runtime::CallingFrame &,
   gzclearerr(GZFileIt->second.get());
 
   return Expect<void>{};
+}
+
+Expect<int32_t> WasmEdgeZlibAdler32::body(const Runtime::CallingFrame &Frame,
+                                          uint32_t Adler, uint32_t BufPtr,
+                                          uint32_t Len) {
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
+
+  const int32_t ZRes = adler32(Adler, Buf, Len);
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibAdler32_z::body(const Runtime::CallingFrame &Frame,
+                                            uint32_t Adler, uint32_t BufPtr,
+                                            uint32_t Len) {
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
+
+  const int32_t ZRes = adler32_z(Adler, Buf, Len);
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibAdler32Combine::body(const Runtime::CallingFrame &Frame,
+                                 uint32_t Adler1, uint32_t Adler2,
+                                 int32_t Len2) {
+
+  const int32_t ZRes = adler32_combine(Adler1, Adler2, Len2);
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibCRC32::body(const Runtime::CallingFrame &Frame,
+                                        uint32_t CRC, uint32_t BufPtr,
+                                        uint32_t Len) {
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
+
+  const int32_t ZRes = crc32(CRC, Buf, Len);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibCRC32_z::body(const Runtime::CallingFrame &Frame,
+                                          uint32_t CRC, uint32_t BufPtr,
+                                          uint32_t Len) {
+
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
+
+  const int32_t ZRes = crc32_z(CRC, Buf, Len);
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibCRC32Combine::body(const Runtime::CallingFrame &Frame,
+                               uint32_t CRC1, uint32_t CRC2, int32_t Len2) {
+
+  const int32_t ZRes = crc32_combine(CRC1, CRC2, Len2);
+  return ZRes;
 }
 
 Expect<int32_t>

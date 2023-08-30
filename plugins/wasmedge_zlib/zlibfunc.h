@@ -293,35 +293,12 @@ public:
                        uint32_t SourceLenPtr);
 };
 
-class WasmEdgeZlibAdler32 : public WasmEdgeZlib<WasmEdgeZlibAdler32> {
+class WasmEdgeZlibGZOpen : public WasmEdgeZlib<WasmEdgeZlibGZOpen> {
 public:
-  WasmEdgeZlibAdler32(WasmEdgeZlibEnvironment &HostEnv)
+  WasmEdgeZlibGZOpen(WasmEdgeZlibEnvironment &HostEnv)
       : WasmEdgeZlib(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t Adler,
-                       uint32_t BufPtr, uint32_t Len);
-};
-
-class WasmEdgeZlibAdler32_z : public WasmEdgeZlib<WasmEdgeZlibAdler32_z> {
-public:
-  WasmEdgeZlibAdler32_z(WasmEdgeZlibEnvironment &HostEnv)
-      : WasmEdgeZlib(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t Adler,
-                       uint32_t BufPtr, uint32_t Len);
-};
-
-class WasmEdgeZlibCRC32 : public WasmEdgeZlib<WasmEdgeZlibCRC32> {
-public:
-  WasmEdgeZlibCRC32(WasmEdgeZlibEnvironment &HostEnv) : WasmEdgeZlib(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t CRC,
-                       uint32_t BufPtr, uint32_t Len);
-};
-
-class WasmEdgeZlibCRC32_z : public WasmEdgeZlib<WasmEdgeZlibCRC32_z> {
-public:
-  WasmEdgeZlibCRC32_z(WasmEdgeZlibEnvironment &HostEnv)
-      : WasmEdgeZlib(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t CRC,
-                       uint32_t BufPtr, uint32_t Len);
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t PathPtr,
+                        uint32_t ModePtr);
 };
 
 class WasmEdgeZlibGZDOpen : public WasmEdgeZlib<WasmEdgeZlibGZDOpen> {
@@ -435,9 +412,32 @@ public:
                        int32_t Flush);
 };
 
+// z_off_t --> long
+class WasmEdgeZlibGZSeek : public WasmEdgeZlib<WasmEdgeZlibGZSeek> {
+public:
+  WasmEdgeZlibGZSeek(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile,
+                       int32_t Offset, int32_t Whence);
+};
+
 class WasmEdgeZlibGZRewind : public WasmEdgeZlib<WasmEdgeZlibGZRewind> {
 public:
   WasmEdgeZlibGZRewind(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile);
+};
+
+class WasmEdgeZlibGZTell : public WasmEdgeZlib<WasmEdgeZlibGZTell> {
+public:
+  WasmEdgeZlibGZTell(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile);
+};
+
+class WasmEdgeZlibGZOffset : public WasmEdgeZlib<WasmEdgeZlibGZOffset> {
+public:
+  WasmEdgeZlibGZOffset(WasmEdgeZlibEnvironment &HostEnv)
       : WasmEdgeZlib(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile);
 };
@@ -488,6 +488,56 @@ public:
   WasmEdgeZlibGZClearerr(WasmEdgeZlibEnvironment &HostEnv)
       : WasmEdgeZlib(HostEnv) {}
   Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t GZFile);
+};
+
+class WasmEdgeZlibAdler32 : public WasmEdgeZlib<WasmEdgeZlibAdler32> {
+public:
+  WasmEdgeZlibAdler32(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t Adler,
+                       uint32_t BufPtr, uint32_t Len);
+};
+
+class WasmEdgeZlibAdler32_z : public WasmEdgeZlib<WasmEdgeZlibAdler32_z> {
+public:
+  WasmEdgeZlibAdler32_z(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t Adler,
+                       uint32_t BufPtr, uint32_t Len);
+};
+
+// z_off_t --> long
+class WasmEdgeZlibAdler32Combine
+    : public WasmEdgeZlib<WasmEdgeZlibAdler32Combine> {
+public:
+  WasmEdgeZlibAdler32Combine(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t Adler1,
+                       uint32_t Adler2, int32_t Len2);
+};
+
+class WasmEdgeZlibCRC32 : public WasmEdgeZlib<WasmEdgeZlibCRC32> {
+public:
+  WasmEdgeZlibCRC32(WasmEdgeZlibEnvironment &HostEnv) : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t CRC,
+                       uint32_t BufPtr, uint32_t Len);
+};
+
+class WasmEdgeZlibCRC32_z : public WasmEdgeZlib<WasmEdgeZlibCRC32_z> {
+public:
+  WasmEdgeZlibCRC32_z(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t CRC,
+                       uint32_t BufPtr, uint32_t Len);
+};
+
+// z_off_t --> long
+class WasmEdgeZlibCRC32Combine : public WasmEdgeZlib<WasmEdgeZlibCRC32Combine> {
+public:
+  WasmEdgeZlibCRC32Combine(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t CRC1,
+                       uint32_t CRC2, int32_t Len2);
 };
 
 class WasmEdgeZlibDeflateInit_ : public WasmEdgeZlib<WasmEdgeZlibDeflateInit_> {

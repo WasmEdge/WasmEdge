@@ -225,7 +225,7 @@ convertFiletime(WasmEdge::winapi::FILETIME_ FileTime) noexcept {
   constexpr const FiletimeDuration NTToUnixEpoch =
       std::chrono::seconds{134774u * 86400u};
   WasmEdge::winapi::ULARGE_INTEGER_ Temp = {
-      /*.LowPart =*/ FileTime.dwLowDateTime, /*.HighPart =*/ FileTime.dwHighDateTime};
+      /* LowPart */ FileTime.dwLowDateTime, /* HighPart */ FileTime.dwHighDateTime};
   auto Duration = duration_cast<nanoseconds>(FiletimeDuration{Temp.QuadPart} -
                                              NTToUnixEpoch);
   return static_cast<__wasi_timestamp_t>(Duration.count());

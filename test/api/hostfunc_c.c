@@ -18,71 +18,71 @@
 #include <stddef.h>
 
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-#define __maybe_unused
+#define MAYBE_UNUSED
 #pragma warning( disable : 4100 ) // unreferenced formal parameter
 #else
-#define __maybe_unused __attribute__((unused))
+#define MAYBE_UNUSED __attribute__((unused))
 #endif
 
-WasmEdge_Result SpecTestPrint(void *Data __maybe_unused,
+WasmEdge_Result SpecTestPrint(void *Data MAYBE_UNUSED,
                               const WasmEdge_CallingFrameContext *CallFrameCxt
-                              __maybe_unused,
-                              const WasmEdge_Value *In __maybe_unused,
-                              WasmEdge_Value *Out __maybe_unused) {
+                              MAYBE_UNUSED,
+                              const WasmEdge_Value *In MAYBE_UNUSED,
+                              WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
 WasmEdge_Result
-SpecTestPrintI32(void *Data __maybe_unused,
+SpecTestPrintI32(void *Data MAYBE_UNUSED,
                  const WasmEdge_CallingFrameContext *CallFrameCxt
-                 __maybe_unused,
-                 const WasmEdge_Value *In __maybe_unused,
-                 WasmEdge_Value *Out __maybe_unused) {
+                 MAYBE_UNUSED,
+                 const WasmEdge_Value *In MAYBE_UNUSED,
+                 WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
 WasmEdge_Result
-SpecTestPrintI64(void *Data __maybe_unused,
+SpecTestPrintI64(void *Data MAYBE_UNUSED,
                  const WasmEdge_CallingFrameContext *CallFrameCxt
-                 __maybe_unused,
-                 const WasmEdge_Value *In __maybe_unused,
-                 WasmEdge_Value *Out __maybe_unused) {
+                 MAYBE_UNUSED,
+                 const WasmEdge_Value *In MAYBE_UNUSED,
+                 WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
 WasmEdge_Result
-SpecTestPrintF32(void *Data __maybe_unused,
+SpecTestPrintF32(void *Data MAYBE_UNUSED,
                  const WasmEdge_CallingFrameContext *CallFrameCxt
-                 __maybe_unused,
-                 const WasmEdge_Value *In __maybe_unused,
-                 WasmEdge_Value *Out __maybe_unused) {
+                 MAYBE_UNUSED,
+                 const WasmEdge_Value *In MAYBE_UNUSED,
+                 WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
 WasmEdge_Result
-SpecTestPrintF64(void *Data __maybe_unused,
+SpecTestPrintF64(void *Data MAYBE_UNUSED,
                  const WasmEdge_CallingFrameContext *CallFrameCxt
-                 __maybe_unused,
-                 const WasmEdge_Value *In __maybe_unused,
-                 WasmEdge_Value *Out __maybe_unused) {
+                 MAYBE_UNUSED,
+                 const WasmEdge_Value *In MAYBE_UNUSED,
+                 WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
 WasmEdge_Result
-SpecTestPrintI32F32(void *Data __maybe_unused,
+SpecTestPrintI32F32(void *Data MAYBE_UNUSED,
                     const WasmEdge_CallingFrameContext *CallFrameCxt
-                    __maybe_unused,
-                    const WasmEdge_Value *In __maybe_unused,
-                    WasmEdge_Value *Out __maybe_unused) {
+                    MAYBE_UNUSED,
+                    const WasmEdge_Value *In MAYBE_UNUSED,
+                    WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
 WasmEdge_Result
-SpecTestPrintF64F64(void *Data __maybe_unused,
+SpecTestPrintF64F64(void *Data MAYBE_UNUSED,
                     const WasmEdge_CallingFrameContext *CallFrameCxt
-                    __maybe_unused,
-                    const WasmEdge_Value *In __maybe_unused,
-                    WasmEdge_Value *Out __maybe_unused) {
+                    MAYBE_UNUSED,
+                    const WasmEdge_Value *In MAYBE_UNUSED,
+                    WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 

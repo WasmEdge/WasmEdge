@@ -62,9 +62,9 @@ typedef struct WasmEdge_Result {
   uint32_t Code;
 } WasmEdge_Result;
 #ifdef __cplusplus
-#define WasmEdge_Result_Success (WasmEdge_Result{/*.Code =*/0x00})
-#define WasmEdge_Result_Terminate (WasmEdge_Result{/*.Code =*/0x01})
-#define WasmEdge_Result_Fail (WasmEdge_Result{/*.Code =*/0x02})
+#define WasmEdge_Result_Success (WasmEdge_Result{/* Code */ 0x00})
+#define WasmEdge_Result_Terminate (WasmEdge_Result{/* Code */ 0x01})
+#define WasmEdge_Result_Fail (WasmEdge_Result{/* Code */ 0x02})
 #else
 #define WasmEdge_Result_Success ((WasmEdge_Result){.Code = 0x00})
 #define WasmEdge_Result_Terminate ((WasmEdge_Result){.Code = 0x01})

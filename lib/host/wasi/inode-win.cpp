@@ -28,7 +28,7 @@ namespace {
 #if WINAPI_PARTITION_DESKTOP
 inline constexpr uint64_t combineHighLow(uint32_t HighPart,
                                          uint32_t LowPart) noexcept {
-  const ULARGE_INTEGER_ Temp = {/*.LowPart =*/LowPart, /*.HighPart =*/HighPart};
+  const ULARGE_INTEGER_ Temp = {/* LowPart */ LowPart, /* HighPart */ HighPart};
   return Temp.QuadPart;
 }
 #endif

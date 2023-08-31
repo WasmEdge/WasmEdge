@@ -63,13 +63,13 @@ std::vector<WasmEdge_Value> convFromValVec(const std::vector<ValVariant> &Vals,
   std::vector<WasmEdge_Value> CVals(Vals.size());
   for (uint32_t I = 0; I < Vals.size(); I++) {
 #if defined(__x86_64__) || defined(__aarch64__)
-    CVals[I] = WasmEdge_Value{/*.Value =*/ Vals[I].get<WasmEdge::uint128_t>(),
-                              /*.Type =*/ static_cast<WasmEdge_ValType>(Types[I])};
+    CVals[I] = WasmEdge_Value{/* Value */ Vals[I].get<WasmEdge::uint128_t>(),
+                              /* Type */ static_cast<WasmEdge_ValType>(Types[I])};
 #else
     WasmEdge::uint128_t Val = Vals[I].get<WasmEdge::uint128_t>();
     CVals[I] = WasmEdge_Value{
-        /*.Value =*/ {/*.Low =*/ Val.low(), /*.High =*/ static_cast<uint64_t>(Val.high())},
-        /*.Type =*/ static_cast<WasmEdge_ValType>(Types[I])};
+        /* Value */ {/* Low */ Val.low(), /* High */ static_cast<uint64_t>(Val.high())},
+        /* Type */ static_cast<WasmEdge_ValType>(Types[I])};
 #endif
   }
   return CVals;

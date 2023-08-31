@@ -21,7 +21,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_TableTypeContext_nativeInit(
   jmethodID minMid = (*env)->GetMethodID(env, cls, LIMIT_GET_MIN, VOID_LONG);
   jlong min = (*env)->CallLongMethod(env, jLimit, minMid);
 
-  WasmEdge_Limit tableLimit = {/*.HasMax =*/ hasMax, /*.Shared =*/ false, /*.Min =*/ min, /*.Max =*/ max};
+  WasmEdge_Limit tableLimit = {.HasMax = hasMax, .Min = min, .Max = max};
   WasmEdge_TableTypeContext *tableTypeContext =
       WasmEdge_TableTypeCreate((enum WasmEdge_RefType)refType, tableLimit);
   setPointer(env, thisObject, (long)tableTypeContext);

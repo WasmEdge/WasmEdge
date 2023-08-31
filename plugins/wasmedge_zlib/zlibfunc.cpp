@@ -1319,15 +1319,86 @@ Expect<int32_t> WasmEdgeZlibInflateBackInit_::body(
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibGZGetc_::body(const Runtime::CallingFrame &,
-                                          uint32_t GZFile) {
+Expect<int32_t>
+WasmEdgeZlibInflateSyncPoint::body(const Runtime::CallingFrame &,
+                                   uint32_t ZStreamPtr) {
 
-  const auto GZFileIt = Env.GZFileMap.find(GZFile);
-  if (GZFileIt == Env.GZFileMap.end()) {
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzgetc_(GZFileIt->second.get());
+  auto ZRes = inflateSyncPoint(HostZStreamIt->second.get());
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibInflateUndermine::body(const Runtime::CallingFrame &,
+                                   uint32_t ZStreamPtr, int32_t Subvert) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = inflateUndermine(HostZStreamIt->second.get(), Subvert);
+
+  return ZRes;
+}
+
+Expect<int32_t> WasmEdgeZlibInflateValidate::body(const Runtime::CallingFrame &,
+                                                  uint32_t ZStreamPtr,
+                                                  int32_t Check) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = inflateValidate(HostZStreamIt->second.get(), Check);
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibInflateCodesUsed::body(const Runtime::CallingFrame &,
+                                   uint32_t ZStreamPtr) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = inflateCodesUsed(HostZStreamIt->second.get());
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibInflateResetKeep::body(const Runtime::CallingFrame &,
+                                   uint32_t ZStreamPtr) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = inflateResetKeep(HostZStreamIt->second.get());
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibDeflateResetKeep::body(const Runtime::CallingFrame &,
+                                   uint32_t ZStreamPtr) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = deflateResetKeep(HostZStreamIt->second.get());
 
   return ZRes;
 }

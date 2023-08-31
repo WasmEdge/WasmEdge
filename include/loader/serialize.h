@@ -36,7 +36,8 @@ public:
   Expect<std::vector<uint8_t>> serializeSection(const AST::CustomSection &Sec);
   Expect<std::vector<uint8_t>> serializeSection(const AST::TypeSection &Sec);
   Expect<std::vector<uint8_t>> serializeSection(const AST::ImportSection &Sec);
-  Expect<std::vector<uint8_t>> serializeSection(const AST::FunctionSection &Sec);
+  Expect<std::vector<uint8_t>>
+  serializeSection(const AST::FunctionSection &Sec);
   Expect<std::vector<uint8_t>> serializeSection(const AST::TableSection &Sec);
   Expect<std::vector<uint8_t>> serializeSection(const AST::MemorySection &Sec);
   Expect<std::vector<uint8_t>> serializeSection(const AST::GlobalSection &Sec);
@@ -45,32 +46,39 @@ public:
   Expect<std::vector<uint8_t>> serializeSection(const AST::ElementSection &Sec);
   Expect<std::vector<uint8_t>> serializeSection(const AST::CodeSection &Sec);
   Expect<std::vector<uint8_t>> serializeSection(const AST::DataSection &Sec);
-  Expect<std::vector<uint8_t>> serializeSection(const AST::DataCountSection &Sec);
+  Expect<std::vector<uint8_t>>
+  serializeSection(const AST::DataCountSection &Sec);
   /// @}
 
 private:
   /// \name Serialize functions for the other nodes of AST.
   /// @{
   Expect<void> serializeSegment(const AST::GlobalSegment &Seg,
-                        std::vector<uint8_t> &OutVec);
+                                std::vector<uint8_t> &OutVec);
   Expect<void> serializeSegment(const AST::ElementSegment &Seg,
-                        std::vector<uint8_t> &OutVec);
+                                std::vector<uint8_t> &OutVec);
   Expect<void> serializeSegment(const AST::CodeSegment &Seg,
-                        std::vector<uint8_t> &OutVec);
+                                std::vector<uint8_t> &OutVec);
   Expect<void> serializeSegment(const AST::DataSegment &Seg,
-                        std::vector<uint8_t> &OutVec);
-  Expect<void> serializeDesc(const AST::ImportDesc &Desc, std::vector<uint8_t> &OutVec);
-  Expect<void> serializeDesc(const AST::ExportDesc &Desc, std::vector<uint8_t> &OutVec);
-  Expect<void> serializeLimit(const AST::Limit &Lim, std::vector<uint8_t> &OutVec);
+                                std::vector<uint8_t> &OutVec);
+  Expect<void> serializeDesc(const AST::ImportDesc &Desc,
+                             std::vector<uint8_t> &OutVec);
+  Expect<void> serializeDesc(const AST::ExportDesc &Desc,
+                             std::vector<uint8_t> &OutVec);
+  Expect<void> serializeLimit(const AST::Limit &Lim,
+                              std::vector<uint8_t> &OutVec);
   Expect<void> serializeType(const AST::FunctionType &Type,
-                     std::vector<uint8_t> &OutVec);
-  Expect<void> serializeType(const AST::TableType &Type, std::vector<uint8_t> &OutVec);
-  Expect<void> serializeType(const AST::MemoryType &Type, std::vector<uint8_t> &OutVec);
-  Expect<void> serializeType(const AST::GlobalType &Type, std::vector<uint8_t> &OutVec);
+                             std::vector<uint8_t> &OutVec);
+  Expect<void> serializeType(const AST::TableType &Type,
+                             std::vector<uint8_t> &OutVec);
+  Expect<void> serializeType(const AST::MemoryType &Type,
+                             std::vector<uint8_t> &OutVec);
+  Expect<void> serializeType(const AST::GlobalType &Type,
+                             std::vector<uint8_t> &OutVec);
   Expect<void> serializeExpression(const AST::Expression &Expr,
-                           std::vector<uint8_t> &OutVec);
+                                   std::vector<uint8_t> &OutVec);
   Expect<void> serializeInstruction(const AST::Instruction &Instr,
-                            std::vector<uint8_t> &OutVec);
+                                    std::vector<uint8_t> &OutVec);
   /// @}
 
   /// \name Helper functions
@@ -82,8 +90,9 @@ private:
     return Unexpect(Code);
   }
 
-  template <typename NumType, size_t N> void serializeUN(NumType Num,
-                   std::vector<uint8_t> &OutVec, std::vector<uint8_t>::iterator It) {
+  template <typename NumType, size_t N>
+  void serializeUN(NumType Num, std::vector<uint8_t> &OutVec,
+                   std::vector<uint8_t>::iterator It) {
     uint8_t Buf[N / 7 + 1];
     uint32_t Len = 0;
     do {
@@ -114,8 +123,9 @@ private:
     serializeUN<uint64_t, 64>(Num, OutVec, OutVec.end());
   }
 
-  template <typename NumType, size_t N> void serializeSN(NumType Num,
-                   std::vector<uint8_t> &OutVec, std::vector<uint8_t>::iterator It) {
+  template <typename NumType, size_t N>
+  void serializeSN(NumType Num, std::vector<uint8_t> &OutVec,
+                   std::vector<uint8_t>::iterator It) {
     uint8_t Buf[N / 7 + 1];
     uint32_t Len = 0;
     int32_t More = 1;
@@ -150,10 +160,11 @@ private:
     OutVec.insert(OutVec.end(), Vec.begin(), Vec.end());
   }
 
-  template <typename NumType, size_t N> void serializeFN(NumType Num,
-                   std::vector<uint8_t> &OutVec, std::vector<uint8_t>::iterator It) {
+  template <typename NumType, size_t N>
+  void serializeFN(NumType Num, std::vector<uint8_t> &OutVec,
+                   std::vector<uint8_t>::iterator It) {
     uint8_t Buf[N / 8];
-    const std::uint8_t* Ptr = reinterpret_cast<const uint8_t*>(&Num);
+    const std::uint8_t *Ptr = reinterpret_cast<const uint8_t *>(&Num);
     for (uint32_t I = 0; I < N / 8; ++I) {
       Buf[I] = Ptr[I];
     }
@@ -161,7 +172,7 @@ private:
   }
 
   void serializeF32(float Num, std::vector<uint8_t> &OutVec,
-                   std::vector<uint8_t>::iterator It) {
+                    std::vector<uint8_t>::iterator It) {
     serializeFN<float, 32>(Num, OutVec, It);
   }
   void serializeF32(float Num, std::vector<uint8_t> &OutVec) {
@@ -177,8 +188,8 @@ private:
   }
 
   template <typename T, typename L>
-  Expect<std::vector<uint8_t>> serializeSectionContent(const T &Sec, uint8_t Code,
-                                               L &&Func) {
+  Expect<std::vector<uint8_t>> serializeSectionContent(const T &Sec,
+                                                       uint8_t Code, L &&Func) {
     // Section: section_id + size:u32 + content.
     auto Content = Sec.getContent();
     if (Content.size()) {

@@ -1319,5 +1319,18 @@ Expect<int32_t> WasmEdgeZlibInflateBackInit_::body(
   return ZRes;
 }
 
+Expect<int32_t> WasmEdgeZlibGZGetc_::body(const Runtime::CallingFrame &,
+                                          uint32_t GZFile) {
+
+  const auto GZFileIt = Env.GZFileMap.find(GZFile);
+  if (GZFileIt == Env.GZFileMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto ZRes = gzgetc_(GZFileIt->second.get());
+
+  return ZRes;
+}
+
 } // namespace Host
 } // namespace WasmEdge

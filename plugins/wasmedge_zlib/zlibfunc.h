@@ -587,5 +587,12 @@ public:
                        uint32_t VersionPtr, int32_t StreamSize);
 };
 
+class WasmEdgeZlibGZGetc_ : public WasmEdgeZlib<WasmEdgeZlibGZGetc_> {
+public:
+  WasmEdgeZlibGZGetc_(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile);
+};
+
 } // namespace Host
 } // namespace WasmEdge

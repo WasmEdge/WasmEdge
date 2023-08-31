@@ -29,5 +29,27 @@ Expect<Instant> Resolution::body(const Runtime::CallingFrame &) {
 
 } // namespace MonotonicClock
 
+namespace WallClock {
+
+Expect<Datetime> Now::body(const Runtime::CallingFrame &) {
+  timespec Ts;
+  auto Err = clock_gettime(CLOCK_REALTIME, &Ts);
+  if (Err) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  return Datetime(Ts.tv_sec, Ts.tv_nsec);
+}
+
+Expect<Datetime> Resolution::body(const Runtime::CallingFrame &) {
+  timespec Ts;
+  auto Err = clock_getres(CLOCK_REALTIME, &Ts);
+  if (Err) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  return Datetime(Ts.tv_sec, Ts.tv_nsec);
+}
+
+} // namespace WallClock
+
 } // namespace Host
 } // namespace WasmEdge

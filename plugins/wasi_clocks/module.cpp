@@ -16,6 +16,11 @@ WasmEdgeWasiClocksModule::WasmEdgeWasiClocksModule()
               std::make_unique<MonotonicClock::Now>(Env));
   addHostFunc("wasi_clocks_monotonic_clock_resolution",
               std::make_unique<MonotonicClock::Resolution>(Env));
+
+  addHostFunc("wasi_clocks_wall_clock_now",
+              std::make_unique<WallClock::Now>(Env));
+  addHostFunc("wasi_clocks_wall_clock_resolution",
+              std::make_unique<WallClock::Resolution>(Env));
 }
 
 } // namespace Host

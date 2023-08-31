@@ -29,6 +29,9 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   Log::setInfoLoggingLevel();
 
   Configure Conf;
+  if (Opt.PropAFUNIX.value()) {
+    Conf.getRuntimeConfigure().setAllowAFUNIX(true);
+  }
   if (Opt.PropMutGlobals.value()) {
     Conf.removeProposal(Proposal::ImportExportMutGlobals);
   }

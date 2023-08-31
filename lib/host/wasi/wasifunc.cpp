@@ -4,6 +4,7 @@
 #include "host/wasi/wasifunc.h"
 #include "common/filesystem.h"
 #include "common/log.h"
+#include "executor/executor.h"
 #include "host/wasi/environ.h"
 #include "runtime/instance/memory.h"
 
@@ -344,6 +345,16 @@ private:
   alignas(alignof(T)) uint8_t Storage[sizeof(T[MaxSize])];
 };
 
+bool AllowAFUNIX(const Runtime::CallingFrame &Frame,
+                 __wasi_address_family_t AddressFamily) {
+  if (AddressFamily == __WASI_ADDRESS_FAMILY_AF_UNIX) {
+    return Frame.getExecutor()
+        ->getConfigure()
+        .getRuntimeConfigure()
+        .isAllowAFUNIX();
+  }
+  return true;
+}
 } // namespace
 
 Expect<uint32_t> WasiArgsGet::body(const Runtime::CallingFrame &Frame,
@@ -1607,6 +1618,10 @@ Expect<uint32_t> WasiSockOpenV1::body(const Runtime::CallingFrame &Frame,
     WasiAddressFamily = *Res;
   }
 
+  if (!AllowAFUNIX(Frame, WasiAddressFamily)) {
+    return __WASI_ERRNO_NOSYS;
+  }
+
   __wasi_sock_type_t WasiSockType;
   if (auto Res = cast<__wasi_sock_type_t>(SockType); unlikely(!Res)) {
     return Res.error();
@@ -2452,6 +2467,10 @@ Expect<uint32_t> WasiSockOpenV2::body(const Runtime::CallingFrame &Frame,
     return Res.error();
   } else {
     WasiAddressFamily = *Res;
+  }
+
+  if (!AllowAFUNIX(Frame, WasiAddressFamily)) {
+    return __WASI_ERRNO_NOSYS;
   }
 
   __wasi_sock_type_t WasiSockType;

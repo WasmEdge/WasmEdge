@@ -657,5 +657,13 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr);
 };
 
+/* class WasmEdgeZlibGZVPrintf : public WasmEdgeZlib<WasmEdgeZlibGZVPrintf> {
+public:
+  WasmEdgeZlibGZVPrintf(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFilePtr,
+                       uint32_t FormatPtr);
+}; */
+
 } // namespace Host
 } // namespace WasmEdge

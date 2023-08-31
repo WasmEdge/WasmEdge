@@ -1112,10 +1112,10 @@ Expect<int32_t> WasmEdgeZlibAdler32_z::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
-Expect<int32_t>
-WasmEdgeZlibAdler32Combine::body(const Runtime::CallingFrame &Frame,
-                                 uint32_t Adler1, uint32_t Adler2,
-                                 int32_t Len2) {
+Expect<int32_t> WasmEdgeZlibAdler32Combine::body(const Runtime::CallingFrame &,
+                                                 uint32_t Adler1,
+                                                 uint32_t Adler2,
+                                                 int32_t Len2) {
 
   const int32_t ZRes = adler32_combine(Adler1, Adler2, Len2);
   return ZRes;
@@ -1153,9 +1153,9 @@ Expect<int32_t> WasmEdgeZlibCRC32_z::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
-Expect<int32_t>
-WasmEdgeZlibCRC32Combine::body(const Runtime::CallingFrame &Frame,
-                               uint32_t CRC1, uint32_t CRC2, int32_t Len2) {
+Expect<int32_t> WasmEdgeZlibCRC32Combine::body(const Runtime::CallingFrame &,
+                                               uint32_t CRC1, uint32_t CRC2,
+                                               int32_t Len2) {
 
   const int32_t ZRes = crc32_combine(CRC1, CRC2, Len2);
   return ZRes;

@@ -118,9 +118,9 @@ public:
   constexpr operator uint32_t() const noexcept { return Inner.Num; }
 
 private:
-  union Inner_t {
-    constexpr Inner_t(uint32_t num): Num(num) {}
-    constexpr Inner_t(ErrCode::Value code): Code(code) {}
+  union InnerT {
+    constexpr InnerT(uint32_t Num): Num(Num) {}
+    constexpr InnerT(ErrCode::Value Code): Code(Code) {}
     uint32_t Num;
     ErrCode::Value Code;
   } Inner;

@@ -758,23 +758,17 @@ WasiExpect<void> INode::fdAdvise(__wasi_filesize_t Offset, __wasi_filesize_t,
   return {};
 }
 
-// disable MSVC warning C4018: '>': signed/unsigned mismatch
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(push)
-#pragma warning(disable : 4018)
-#endif
-
 WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
                                    __wasi_filesize_t Len) const noexcept {
-  if (unlikely(Offset > std::numeric_limits<int64_t>::max())) {
+  if (unlikely(Offset > static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
 
-  if (unlikely(Len > std::numeric_limits<int64_t>::max())) {
+  if (unlikely(Len > static_cast<uint64_t>((std::numeric_limits<int64_t>::max())))) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
 
-  if (unlikely((Offset + Len) > std::numeric_limits<int64_t>::max())) {
+  if (unlikely((Offset + Len) >  static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
 
@@ -816,10 +810,6 @@ WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
 
   return {};
 }
-
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(pop)
-#endif
 
 WasiExpect<void> INode::fdDatasync() const noexcept {
   if (unlikely(!FlushFileBuffers(Handle))) {
@@ -875,15 +865,9 @@ INode::fdFilestatGet(__wasi_filestat_t &FileStat) const noexcept {
   return filestatGet(FileStat);
 }
 
-// disable MSVC warning C4018: '>': signed/unsigned mismatch
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(push)
-#pragma warning(disable : 4018)
-#endif
-
 WasiExpect<void>
 INode::fdFilestatSetSize(__wasi_filesize_t Size) const noexcept {
-  if (unlikely(Size > std::numeric_limits<int64_t>::max())) {
+  if (unlikely(Size > static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
 
@@ -918,10 +902,6 @@ INode::fdFilestatSetSize(__wasi_filesize_t Size) const noexcept {
 
   return {};
 }
-
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(pop)
-#endif
 
 WasiExpect<void>
 INode::fdFilestatSetTimes(__wasi_timestamp_t ATim, __wasi_timestamp_t MTim,

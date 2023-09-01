@@ -21,7 +21,7 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
       "libwasmedgePluginWasiClocks" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin =
           WasmEdge::Plugin::Plugin::find("wasmedge_wasi_clocks"sv)) {
-    if (const auto *Module = Plugin->findModule("wasmedge_wasi_clocks"sv)) {
+    if (const auto *Module = Plugin->findModule("wasi_clocks"sv)) {
       return Module->create().release();
     }
   }

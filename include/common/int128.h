@@ -14,7 +14,7 @@
 #pragma once
 
 #if defined(_MSC_VER) && !defined(__clang__)
-#pragma intrinsic(_BitScanForward64)
+#pragma intrinsic(_BitScanReverse64)
 #endif
 
 #include <ostream>

@@ -15,8 +15,6 @@ namespace MonotonicClock {
 // A timestamp in nanoseconds.
 using Instant = uint64_t;
 
-// The clock is monotonic, therefore calling this function repeatedly
-// will produce a sequence of non-decreasing values.
 class Now : public WasmEdgeWasiClocks<class Now> {
 public:
   Now(WasmEdgeWasiClocksEnvironment &HostEnv) : WasmEdgeWasiClocks(HostEnv) {}
@@ -24,7 +22,6 @@ public:
   Expect<Instant> body(const Runtime::CallingFrame &);
 };
 
-// Query the resolution of the clock.
 class Resolution : public WasmEdgeWasiClocks<class Resolution> {
 public:
   Resolution(WasmEdgeWasiClocksEnvironment &HostEnv)
@@ -37,22 +34,8 @@ public:
 
 namespace WallClock {
 
-using Datetime = cxx20::tuple<uint64_t, uint32_t>;
+using Datetime = std::tuple</* seconds */ uint64_t, /* nanoseconds */ uint32_t>;
 
-/// Read the current value of the clock.
-///
-/// This clock is not monotonic, therefore calling this function repeatedly
-/// will not necessarily produce a sequence of non-decreasing values.
-///
-/// The returned timestamps represent the number of seconds since
-/// 1970-01-01T00:00:00Z, also known as [POSIX's Seconds Since the Epoch],
-/// also known as [Unix Time].
-///
-/// The nanoseconds field of the output is always less than 1000000000.
-///
-/// [POSIX's Seconds Since the Epoch]:
-/// https://pubs.opengroup.org/onlinepubs/9699919799/xrat/V4_xbd_chap04.html#tag_21_04_16
-/// [Unix Time]: https://en.wikipedia.org/wiki/Unix_time
 class Now : public WasmEdgeWasiClocks<class Now> {
 public:
   Now(WasmEdgeWasiClocksEnvironment &HostEnv) : WasmEdgeWasiClocks(HostEnv) {}
@@ -60,9 +43,6 @@ public:
   Expect<Datetime> body(const Runtime::CallingFrame &);
 };
 
-/// Query the resolution of the clock.
-///
-/// The nanoseconds field of the output is always less than 1000000000.
 class Resolution : public WasmEdgeWasiClocks<class Resolution> {
 public:
   Resolution(WasmEdgeWasiClocksEnvironment &HostEnv)
@@ -72,6 +52,21 @@ public:
 };
 
 } // namespace WallClock
+
+namespace Timezone {
+
+using Timezone = uint32_t;
+
+class UtcOffset : public WasmEdgeWasiClocks<class UtcOffset> {
+public:
+  UtcOffset(WasmEdgeWasiClocksEnvironment &HostEnv)
+      : WasmEdgeWasiClocks(HostEnv) {}
+
+  Expect<int32_t> body(const Runtime::CallingFrame &, Timezone This,
+                       uint64_t Secs, uint32_t NanoSecs);
+};
+
+} // namespace Timezone
 
 } // namespace Host
 } // namespace WasmEdge

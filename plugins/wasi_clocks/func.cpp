@@ -51,5 +51,16 @@ Expect<Datetime> Resolution::body(const Runtime::CallingFrame &) {
 
 } // namespace WallClock
 
+namespace Timezone {
+
+Expect<int32_t> UtcOffset::body(const Runtime::CallingFrame &, Timezone,
+                                uint64_t Secs, uint32_t) {
+  time_t S = static_cast<time_t>(Secs);
+  tm *T = localtime(&S);
+  return static_cast<int32_t>(T->tm_gmtoff);
+}
+
+} // namespace Timezone
+
 } // namespace Host
 } // namespace WasmEdge

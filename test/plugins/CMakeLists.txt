@@ -15,6 +15,10 @@ if(WASMEDGE_PLUGIN_WASI_CRYPTO)
   add_subdirectory(wasi_crypto)
 endif()
 
+if(WASMEDGE_PLUGIN_WASI_CLOCKS)
+  add_subdirectory(wasi_clocks)
+endif()
+
 if(WASMEDGE_PLUGIN_TENSORFLOW)
   if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
     add_subdirectory(wasmedge_tensorflow)

@@ -4,105 +4,8 @@
 #include "common/roundeven.h"
 #include "executor/executor.h"
 
-#include <cmath>
-
 namespace WasmEdge {
 namespace Executor {
-
-template <typename T> TypeU<T> Executor::runClzOp(ValVariant &Val) const {
-  T I = Val.get<T>();
-  // Return the count of leading zero bits in i.
-  if (I != 0U) {
-    T Cnt = 0;
-    T Mask = static_cast<T>(0x1U) << (sizeof(T) * 8 - 1);
-    while ((I & Mask) == 0U) {
-      Cnt++;
-      I <<= 1;
-    }
-    Val.get<T>() = Cnt;
-  } else {
-    Val.get<T>() = static_cast<T>(sizeof(T) * 8);
-  }
-  return {};
-}
-
-template <typename T> TypeU<T> Executor::runCtzOp(ValVariant &Val) const {
-  T I = Val.get<T>();
-  // Return the count of trailing zero bits in i.
-  if (I != 0U) {
-    T Cnt = 0;
-    T Mask = static_cast<T>(0x1U);
-    while ((I & Mask) == 0U) {
-      Cnt++;
-      I >>= 1;
-    }
-    Val.get<T>() = Cnt;
-  } else {
-    Val.get<T>() = static_cast<T>(sizeof(T) * 8);
-  }
-  return {};
-}
-
-template <typename T> TypeU<T> Executor::runPopcntOp(ValVariant &Val) const {
-  T I = Val.get<T>();
-  // Return the count of non-zero bits in i.
-  if (I != 0U) {
-    T Cnt = 0;
-    T Mask = static_cast<T>(0x1U);
-    while (I != 0U) {
-      if (I & Mask) {
-        Cnt++;
-      }
-      I >>= 1;
-    }
-    Val.get<T>() = Cnt;
-  }
-  return {};
-}
-
-template <typename T> TypeF<T> Executor::runAbsOp(ValVariant &Val) const {
-  // In MSVC, std::fabs cannot be used. If input is NAN, std::fabs will set the highest bit of fraction.
-  T &Fp = Val.get<T>();
-  static_assert(std::is_floating_point_v<T>);
-  if constexpr (sizeof(T) == 4) {
-    uint32_t Tmp = reinterpret_cast<uint32_t&>(Fp) & UINT32_C(0x7fffffff);
-    Val.get<T>() = reinterpret_cast<T&>(Tmp);
-  } else {
-    uint64_t Tmp = reinterpret_cast<uint64_t&>(Fp) & UINT64_C(0x7fffffffffffffff);
-    Val.get<T>() = reinterpret_cast<T&>(Tmp);
-  }
-  return {};
-}
-
-template <typename T> TypeF<T> Executor::runNegOp(ValVariant &Val) const {
-  Val.get<T>() = -Val.get<T>();
-  return {};
-}
-
-template <typename T> TypeF<T> Executor::runCeilOp(ValVariant &Val) const {
-  Val.get<T>() = std::ceil(Val.get<T>());
-  return {};
-}
-
-template <typename T> TypeF<T> Executor::runFloorOp(ValVariant &Val) const {
-  Val.get<T>() = std::floor(Val.get<T>());
-  return {};
-}
-
-template <typename T> TypeF<T> Executor::runTruncOp(ValVariant &Val) const {
-  Val.get<T>() = std::trunc(Val.get<T>());
-  return {};
-}
-
-template <typename T> TypeF<T> Executor::runNearestOp(ValVariant &Val) const {
-  Val.get<T>() = WasmEdge::roundeven(Val.get<T>());
-  return {};
-}
-
-template <typename T> TypeF<T> Executor::runSqrtOp(ValVariant &Val) const {
-  Val.get<T>() = std::sqrt(Val.get<T>());
-  return {};
-}
 
 template <typename TIn, typename TOut>
 Expect<void> Executor::runExtractLaneOp(ValVariant &Val,
@@ -139,7 +42,7 @@ Expect<void> Executor::runVectorExtendLowOp(ValVariant &Val) const {
   using VTOut = SIMDArray<TOut, 16>;
   const VTIn &V = Val.get<VTIn>();
   VTOut Result;
-  for (size_t I = 0; I < (8 / sizeof(TIn)); ++I) {
+  for (size_t I = 0; I < Result.size(); ++I) {
     Result[I] = V[I];
   }
   Val.emplace<VTOut>(Result);
@@ -152,9 +55,9 @@ Expect<void> Executor::runVectorExtendHighOp(ValVariant &Val) const {
   static_assert(sizeof(TIn) == 1 || sizeof(TIn) == 2 || sizeof(TIn) == 4);
   using VTIn = SIMDArray<TIn, 16>;
   using VTOut = SIMDArray<TOut, 16>;
-  constexpr size_t HSize = (8 / sizeof(TIn));
-  const VTIn &V = Val.get<VTIn>();
   VTOut Result;
+  const VTIn &V = Val.get<VTIn>();
+  constexpr size_t HSize = Result.size();
   for (size_t I = 0; I < HSize; ++I) {
     Result[I] = V[HSize + I];
   }
@@ -170,7 +73,7 @@ Expect<void> Executor::runVectorExtAddPairwiseOp(ValVariant &Val) const {
 
   VTOut Result;
   const VTIn &V = Val.get<VTIn>();
-  for (size_t I = 0; I < (16 / sizeof(TOut)); ++I) {
+  for (size_t I = 0; I < Result.size(); ++I) {
     Result[I] = ((TOut)V[I*2]) + ((TOut)V[I*2+1]);
   }
   Val.emplace<VTOut>(Result);
@@ -182,7 +85,7 @@ template <typename T>
 Expect<void> Executor::runVectorAbsOp(ValVariant &Val) const {
   using VT = SIMDArray<T, 16>;
   VT &Result = Val.get<VT>();
-  for (size_t I = 0; I < (16 / sizeof(T)); ++I) {
+  for (size_t I = 0; I < Result.size(); ++I) {
     if constexpr (std::is_floating_point_v<T>) {
       if constexpr (sizeof(T) == 4) {
         uint32_t Tmp = reinterpret_cast<uint32_t&>(Result[I]) & UINT32_C(0x7fffffff);
@@ -202,7 +105,7 @@ template <typename T>
 Expect<void> Executor::runVectorNegOp(ValVariant &Val) const {
   using VT = SIMDArray<T, 16>;
   VT &Result = Val.get<VT>();
-  for (size_t I = 0; I < (16 / sizeof(T)); ++I) {
+  for (size_t I = 0; I < Result.size(); ++I) {
     Result[I] = -Result[I];
   }
   return {};
@@ -237,11 +140,9 @@ Expect<void> Executor::runVectorTruncSatOp(ValVariant &Val) const {
   static_assert((sizeof(TIn) == 4 || sizeof(TIn) == 8) && sizeof(TOut) == 4);
   using VTIn = SIMDArray<TIn, 16>;
   using VTOut = SIMDArray<TOut, 16>;
-  // const VTIn FMin = VTIn{} + static_cast<TIn>(std::numeric_limits<TOut>::min());
-  // const VTIn FMax = VTIn{} + static_cast<TIn>(std::numeric_limits<TOut>::max());
   auto &V = Val.get<VTIn>();
   VTOut Result = {}; // all zero initialization for i32x4.trunc_sat_f64x2
-  for (size_t I = 0; I < (16 / sizeof(TIn)); ++I) {
+  for (size_t I = 0; I < V.size(); ++I) {
     if (std::isnan(V[I])) {
       // For NaN, return 0.
       Result[I] = static_cast<TOut>(0);
@@ -320,8 +221,8 @@ Expect<void> Executor::runVectorAllTrueOp(ValVariant &Val) const {
 
 template <typename T>
 Expect<void> Executor::runVectorBitMaskOp(ValVariant &Val) const {
-  using SVT = std::array<std::make_signed_t<T>, (16 / sizeof(std::make_signed_t<T>))>;
-  using UVT = std::array<std::make_unsigned_t<T>, (16 / sizeof(std::make_unsigned_t<T>))>;
+  using SVT = SIMDArray<std::make_signed_t<T>, 16>;
+  using UVT = SIMDArray<std::make_unsigned_t<T>, 16>;
   SVT &Vector = Val.get<SVT>();
   if constexpr (sizeof(T) == 1) {
     using int16x16_t = SIMDArray<int16_t, 32>;

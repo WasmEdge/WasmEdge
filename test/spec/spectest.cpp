@@ -113,11 +113,7 @@ parseValueList(const simdjson::dom::array &Args) {
           I++;
         }
       } else if (LaneType == "i32"sv || LaneType == "f32"sv) {
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
         using uint32x4_t = SIMDArray<uint32_t, 16>;
-#else
-        using uint32x4_t = uint32_t __attribute__((vector_size(16)));
-#endif
         uint32x4_t I32x4 = {0};
         size_t I = 0;
         for (std::string_view X : ValueNodeArray) {
@@ -131,11 +127,7 @@ parseValueList(const simdjson::dom::array &Args) {
 #endif
 
       } else if (LaneType == "i16"sv) {
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
         using uint16x8_t = SIMDArray<uint16_t, 16>;
-#else
-        using uint16x8_t = uint16_t __attribute__((vector_size(16)));
-#endif
         uint16x8_t I16x8 = {0};
         size_t I = 0;
         for (std::string_view X : ValueNodeArray) {
@@ -148,11 +140,7 @@ parseValueList(const simdjson::dom::array &Args) {
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I16x8);
 #endif
       } else if (LaneType == "i8"sv) {
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
         using uint8x16_t = SIMDArray<uint8_t, 16>;
-#else
-        using uint8x16_t = uint8_t __attribute__((vector_size(16)));
-#endif
         uint8x16_t I8x16 = {0};
         size_t I = 0;
         for (std::string_view X : ValueNodeArray) {

@@ -86,7 +86,7 @@ public:
   constexpr ErrCode(const ErrCode &E) noexcept : Inner(E.Inner.Num) {}
   constexpr ErrCode(const ErrCode::Value E) noexcept : Inner(E) {}
   constexpr ErrCode(const uint32_t N) noexcept
-      : Inner((N & 0x00FFFFFFU)) {}
+      : Inner(N & 0x00FFFFFFU) {}
   constexpr ErrCode(const ErrCategory C, const uint32_t N) noexcept
       : Inner((static_cast<uint32_t>(C) << 24) + (N & 0x00FFFFFFU)) {}
 

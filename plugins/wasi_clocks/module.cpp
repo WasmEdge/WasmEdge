@@ -17,6 +17,10 @@ WasmEdgeWasiClocksModule::WasmEdgeWasiClocksModule()
   addHostFunc("wasi_clocks_monotonic_clock_resolution",
               std::make_unique<MonotonicClock::Resolution>(Env));
 
+  addHostFunc("wasi_clocks_timezone_get_display_name_len",
+              std::make_unique<Timezone::GetDisplayNameLen>(Env));
+  addHostFunc("wasi_clocks_timezone_display",
+              std::make_unique<Timezone::Display>(Env));
   addHostFunc("wasi_clocks_timezone_utc_offset",
               std::make_unique<Timezone::UtcOffset>(Env));
 

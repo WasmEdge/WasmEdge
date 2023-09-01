@@ -56,6 +56,29 @@ public:
 namespace Timezone {
 
 using Timezone = uint32_t;
+using TimezoneDisplay = std::tuple</* utc-offset */ int32_t,
+                                   /* name_ptr */ uint32_t,
+                                   /* name_len */ uint32_t,
+                                   /* in-daylight-saving-time */ int32_t>;
+
+class GetDisplayNameLen : public WasmEdgeWasiClocks<class GetDisplayNameLen> {
+public:
+  GetDisplayNameLen(WasmEdgeWasiClocksEnvironment &HostEnv)
+      : WasmEdgeWasiClocks(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &, Timezone _This,
+                        uint64_t Secs, uint32_t NanoSecs);
+};
+
+class Display : public WasmEdgeWasiClocks<class Display> {
+public:
+  Display(WasmEdgeWasiClocksEnvironment &HostEnv)
+      : WasmEdgeWasiClocks(HostEnv) {}
+
+  Expect<TimezoneDisplay> body(const Runtime::CallingFrame &, Timezone _This,
+                               uint64_t Secs, uint32_t NanoSecs,
+                               uint32_t NamePtr, uint32_t NameLen);
+};
 
 class UtcOffset : public WasmEdgeWasiClocks<class UtcOffset> {
 public:

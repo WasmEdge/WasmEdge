@@ -39,36 +39,26 @@ using RemoveCVRefT = std::remove_cv_t<std::remove_reference_t<T>>;
 using Byte = uint8_t;
 
 /// SIMD types definition.
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-
+template <typename Ty, size_t TotalSize,
+          std::enable_if_t<(TotalSize % sizeof(Ty) == 0), int> = 0>
+#if defined(_MSC_VER) && !defined(__clang__)
 /// Because MSVC does not support [[gnu::vector_size(16)]] or
 /// __attribute__((vector_size(16)), we use this type to fill the gap.
-template <typename Ty, size_t TotalSize = 16,
-          std::enable_if_t<(TotalSize % sizeof(Ty) == 0), int> = 0>
 using SIMDArray = std::array<Ty, (TotalSize / sizeof(Ty))>;
-
-using int64x2_t = SIMDArray<int64_t>;
-using uint64x2_t = SIMDArray<uint64_t>;
-using int32x4_t = SIMDArray<int32_t>;
-using uint32x4_t = SIMDArray<uint32_t>;
-using int16x8_t = SIMDArray<int16_t>;
-using uint16x8_t = SIMDArray<uint16_t>;
-using int8x16_t = SIMDArray<int8_t>;
-using uint8x16_t = SIMDArray<uint8_t>;
-using doublex2_t = SIMDArray<double>;
-using floatx4_t = SIMDArray<float>;
 #else
-using int64x2_t [[gnu::vector_size(16)]] = int64_t;
-using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
-using int32x4_t [[gnu::vector_size(16)]] = int32_t;
-using uint32x4_t [[gnu::vector_size(16)]] = uint32_t;
-using int16x8_t [[gnu::vector_size(16)]] = int16_t;
-using uint16x8_t [[gnu::vector_size(16)]] = uint16_t;
-using int8x16_t [[gnu::vector_size(16)]] = int8_t;
-using uint8x16_t [[gnu::vector_size(16)]] = uint8_t;
-using doublex2_t [[gnu::vector_size(16)]] = double;
-using floatx4_t [[gnu::vector_size(16)]] = float;
+using SIMDArray [[gnu::vector_size(TotalSize)]] = Ty;
 #endif
+
+using int64x2_t = SIMDArray<int64_t, 16>;
+using uint64x2_t = SIMDArray<uint64_t, 16>;
+using int32x4_t = SIMDArray<int32_t, 16>;
+using uint32x4_t = SIMDArray<uint32_t, 16>;
+using int16x8_t = SIMDArray<int16_t, 16>;
+using uint16x8_t = SIMDArray<uint16_t, 16>;
+using int8x16_t = SIMDArray<int8_t, 16>;
+using uint8x16_t = SIMDArray<uint8_t, 16>;
+using doublex2_t = SIMDArray<double, 16>;
+using floatx4_t = SIMDArray<float, 16>;
 
 /// UnknownRef definition.
 struct UnknownRef {

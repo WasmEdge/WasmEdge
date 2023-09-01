@@ -15,15 +15,6 @@ Expect<void> Executor::runExpression(Runtime::StackManager &StackMgr,
   return execute(StackMgr, Instrs.begin(), Instrs.end());
 }
 
-// disable MSVC warnings
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(push)
-// potentially uninitialized local variable 'StartIt' used
-#pragma warning(disable : 4701)
-// potentially uninitialized local pointer variable 'StartIt' used
-#pragma warning(disable : 4703)
-#endif
-
 Expect<void>
 Executor::runFunction(Runtime::StackManager &StackMgr,
                       const Runtime::Instance::FunctionInstance &Func,
@@ -42,7 +33,7 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
   }
 
   // Enter and execute function.
-  AST::InstrView::iterator StartIt;
+  AST::InstrView::iterator StartIt = {};
   Expect<void> Res = {};
   if (auto GetIt = enterFunction(StackMgr, Func, Func.getInstrs().end())) {
     StartIt = *GetIt;
@@ -85,10 +76,6 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
   }
   return Unexpect(Res);
 }
-
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(pop)
-#endif
 
 Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
                                const AST::InstrView::iterator Start,
@@ -1148,13 +1135,8 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     }
 
     case OpCode::V128__not: {
-      auto &Val = StackMgr.getTop().get<uint64x2_t>();
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      Val[0] = ~Val[0];
-      Val[1] = ~Val[1];
-#else
+      auto &Val = StackMgr.getTop().get<uint128_t>();
       Val = ~Val;
-#endif // MSVC
       return {};
     }
     case OpCode::V128__and: {

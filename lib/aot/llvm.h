@@ -1140,31 +1140,24 @@ public:
     return Ret;
   }
 
-// disable MSVC warning C4267: 'argument': conversion from 'size_t' to 'unsigned
-// int'
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(push)
-#pragma warning(disable : 4267)
-#endif
-
   Value createInBoundsGEP1(Type Ty, Value Pointer, Value Idx0,
                            const char *Name = "") noexcept {
     LLVMValueRef Data[1] = {Idx0.unwrap()};
     return LLVMBuildInBoundsGEP2(Ref, Ty.unwrap(), Pointer.unwrap(), Data,
-                                 std::size(Data), Name);
+                                 static_cast<unsigned>(std::size(Data)), Name);
   }
   Value createInBoundsGEP2(Type Ty, Value Pointer, Value Idx0, Value Idx1,
                            const char *Name = "") noexcept {
     LLVMValueRef Data[2] = {Idx0.unwrap(), Idx1.unwrap()};
     return LLVMBuildInBoundsGEP2(Ref, Ty.unwrap(), Pointer.unwrap(), Data,
-                                 std::size(Data), Name);
+                                 static_cast<unsigned>(std::size(Data)), Name);
   }
   Value createConstInBoundsGEP1_64(Type Ty, Value Pointer, uint64_t Idx0,
                                    const char *Name = "") noexcept {
     Type Int64Ty = LLVMInt64TypeInContext(LLVMGetTypeContext(Ty.unwrap()));
     LLVMValueRef Data[1] = {Value::getConstInt(Int64Ty, Idx0).unwrap()};
     return LLVMBuildInBoundsGEP2(Ref, Ty.unwrap(), Pointer.unwrap(), Data,
-                                 std::size(Data), Name);
+                                 static_cast<unsigned>(std::size(Data)), Name);
   }
 
   Value createConstInBoundsGEP2_64(Type Ty, Value Pointer, uint64_t Idx0,
@@ -1174,12 +1167,8 @@ public:
     LLVMValueRef Data[2] = {Value::getConstInt(Int64Ty, Idx0).unwrap(),
                             Value::getConstInt(Int64Ty, Idx1).unwrap()};
     return LLVMBuildInBoundsGEP2(Ref, Ty.unwrap(), Pointer.unwrap(), Data,
-                                 std::size(Data), Name);
+                                 static_cast<unsigned>(std::size(Data)), Name);
   }
-
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(pop)
-#endif
 
   Value createTrunc(Value Val, Type DestTy, const char *Name = "") noexcept {
     return LLVMBuildTrunc(Ref, Val.unwrap(), DestTy.unwrap(), Name);

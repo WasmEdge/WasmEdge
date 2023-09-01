@@ -20,10 +20,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     return ErrNo::InvalidArgument;
   }
 
-  // Add a new graph.
-  Env.NNGraph.emplace_back(Backend::GGML);
-  auto &GraphRef = Env.NNGraph.back().get<Graph>();
-
   // Setup Graph Device
   if (Device != Device::CPU) {
     spdlog::error(
@@ -49,6 +45,10 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   TempFile << BinModel;
   TempFile.close();
 
+  // Add a new graph.
+  Env.NNGraph.emplace_back(Backend::GGML);
+  auto &GraphRef = Env.NNGraph.back().get<Graph>();
+
   // Initialize ggml model.
   gpt_params Params;
   Params.model = ModelFilePath;
@@ -57,6 +57,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
       llama_init_from_gpt_params(Params);
   if (GraphRef.LlamaModel == nullptr) {
     spdlog::error("[WASI-NN] Error: unable to init model."sv);
+    Env.NNGraph.pop_back();
     return ErrNo::InvalidArgument;
   }
 
@@ -82,6 +83,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                      Tensor.Tensor.size());
   CxtRef.LlamaInputs = llama_tokenize(GraphRef.LlamaContext, Prompt, true);
   const uint32_t MaxContextSize = llama_n_ctx(GraphRef.LlamaContext);
+  // Minus 4 for the special tokens.
   const uint32_t MaxTokensListSize = MaxContextSize - 4;
   if (CxtRef.LlamaInputs.size() > MaxTokensListSize) {
     spdlog::error("[WASI-NN]: Error: prompt too long ({} tokens, max %{})"sv,

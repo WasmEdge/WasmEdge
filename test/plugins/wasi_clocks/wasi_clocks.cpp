@@ -19,8 +19,7 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
       "../../../plugins/wasi_clocks/"
       "libwasmedgePluginWasiClocks" WASMEDGE_LIB_EXTENSION));
-  if (const auto *Plugin =
-          WasmEdge::Plugin::Plugin::find("wasmedge_wasi_clocks"sv)) {
+  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_clocks"sv)) {
     if (const auto *Module = Plugin->findModule("wasi_clocks"sv)) {
       return Module->create().release();
     }
@@ -30,7 +29,7 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
 } // namespace
 
 TEST(WasmedgeWasiClocksTests, Module) {
-  // Create the wasmedge_wasi_clocks module instance.
+  // Create the wasi_clocks module instance.
   auto *ImgMod =
       dynamic_cast<WasmEdge::Host::WasmEdgeWasiClocksModule *>(createModule());
   EXPECT_FALSE(ImgMod == nullptr);

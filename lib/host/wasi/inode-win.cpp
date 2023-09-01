@@ -760,15 +760,18 @@ WasiExpect<void> INode::fdAdvise(__wasi_filesize_t Offset, __wasi_filesize_t,
 
 WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
                                    __wasi_filesize_t Len) const noexcept {
-  if (unlikely(Offset > static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))) {
+  if (unlikely(Offset >
+               static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
 
-  if (unlikely(Len > static_cast<uint64_t>((std::numeric_limits<int64_t>::max())))) {
+  if (unlikely(Len >
+               static_cast<uint64_t>((std::numeric_limits<int64_t>::max())))) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
 
-  if (unlikely((Offset + Len) >  static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))) {
+  if (unlikely((Offset + Len) >
+               static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
 
@@ -867,7 +870,8 @@ INode::fdFilestatGet(__wasi_filestat_t &FileStat) const noexcept {
 
 WasiExpect<void>
 INode::fdFilestatSetSize(__wasi_filesize_t Size) const noexcept {
-  if (unlikely(Size > static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))) {
+  if (unlikely(Size >
+               static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
 

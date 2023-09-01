@@ -2079,7 +2079,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result
 WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
                               WasmEdge_Value *Data, const uint32_t Offset) {
   return wrap([&]() { return fromTabCxt(Cxt)->getRefAddr(Offset); },
-              [&, Cxt](auto &&Res) {
+              [&Data, &Cxt](auto &&Res) {
                 *Data = genWasmEdge_Value(
                     Res->template get<UnknownRef>(),
                     static_cast<WasmEdge_ValType>(

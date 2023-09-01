@@ -17,7 +17,7 @@ create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
 }
 
 Plugin::Plugin::PluginDescriptor Descriptor{
-    .Name = "wasmedge_wasi_clocks",
+    .Name = "wasi_clocks",
     .Description = "",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
     .Version = {0, 1, 0, 0},
@@ -25,7 +25,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .ModuleDescriptions =
         (Plugin::PluginModule::ModuleDescriptor[]){
             {
-                .Name = "wasmedge_wasi_clocks",
+                .Name = "wasi_clocks",
                 .Description = "",
                 .Create = create,
             },

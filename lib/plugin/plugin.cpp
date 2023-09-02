@@ -26,9 +26,9 @@ template <> struct Parser<WasmEdge_String> {
       const uint32_t Length = static_cast<uint32_t>(Value.size());
       char *Buf = new char[Value.size()];
       std::copy_n(Value.data(), Value.size(), Buf);
-      return WasmEdge_String{/*.Length = */ Length, /*.Buf = */ Buf};
+      return WasmEdge_String{/* Length */ Length, /* Buf */ Buf};
     }
-    return WasmEdge_String{/*.Length = */ 0, /*.Buf = */ nullptr};
+    return WasmEdge_String{/* Length */ 0, /* Buf */ nullptr};
   }
 };
 } // namespace PO

@@ -251,21 +251,26 @@ Expect<void> Executor::runVectorAddOp(ValVariant &Val1,
 template <typename T>
 Expect<void> Executor::runVectorAddSatOp(ValVariant &Val1,
                                          const ValVariant &Val2) const {
-  // use int32 to check for overflow.
   static_assert(sizeof(T) < 4);
   using VT = SIMDArray<T, 16>;
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
 
   for (size_t I = 0; I < V1.size(); ++I) {
-    int32_t Result = ((int32_t)V1[I]) + ((int32_t)V2[I]);
-    if (Result > std::numeric_limits<T>::max()) {
-      V1[I] = std::numeric_limits<T>::max();
-    } else if (Result < std::numeric_limits<T>::min()) {
-      V1[I] = std::numeric_limits<T>::min();
+    // check for overflow
+    // see: https://stackoverflow.com/a/3947943
+    if (V1[I] >= 0) {
+      if (std::numeric_limits<T>::max() - V1[I] < V2[I]) {
+        V1[I] = std::numeric_limits<T>::max();
+        continue;
+      }
     } else {
-      V1[I] = static_cast<T>(Result);
+      if (std::numeric_limits<T>::min() - V1[I] > V2[I] ) {
+        V1[I] = std::numeric_limits<T>::min();
+        continue;
+      }
     }
+    V1[I] = V1[I] + V2[I];
   }
   return {};
 }
@@ -286,21 +291,25 @@ Expect<void> Executor::runVectorSubOp(ValVariant &Val1,
 template <typename T>
 Expect<void> Executor::runVectorSubSatOp(ValVariant &Val1,
                                          const ValVariant &Val2) const {
-  // use int32 to check for overflow.
   static_assert(sizeof(T) < 4);
   using VT = SIMDArray<T, 16>;
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
 
   for (size_t I = 0; I < V1.size(); ++I) {
-    int32_t Result = ((int32_t)V1[I]) - ((int32_t)V2[I]);
-    if (Result > std::numeric_limits<T>::max()) {
-      V1[I] = std::numeric_limits<T>::max();
-    } else if (Result < std::numeric_limits<T>::min()) {
-      V1[I] = std::numeric_limits<T>::min();
+    // check for underflow
+    if (V2[I] >= 0) {
+      if (std::numeric_limits<T>::min() + V2[I] > V1[I]) {
+        V1[I] = std::numeric_limits<T>::min();
+        continue;
+      }
     } else {
-      V1[I] = static_cast<T>(Result);
+      if (std::numeric_limits<T>::max() + V2[I] < V1[I]) {
+        V1[I] = std::numeric_limits<T>::max();
+        continue;
+      }
     }
+    V1[I] = V1[I] - V2[I];
   }
   return {};
 }
@@ -371,7 +380,7 @@ Expect<void> Executor::runVectorFMinOp(ValVariant &Val1,
       // do nothing
     } else if (std::isnan(V2[I]) && !std::isnan(V1[I])) {
       V1[I] = V2[I];
-    } else if (V1[I] == ((T)0.0)) {
+    } else if (V1[I] == static_cast<T>(0.0)) {
       // prefer negative zero
       if (std::signbit(V2[I]) && !std::signbit(V1[I])) {
         V1[I] = V2[I];
@@ -395,7 +404,7 @@ Expect<void> Executor::runVectorFMaxOp(ValVariant &Val1,
       // do nothing
     } else if (std::isnan(V2[I]) && !std::isnan(V1[I])) {
       V1[I] = V2[I];
-    } else if (V1[I] == ((T)0.0)) {
+    } else if (V1[I] == static_cast<T>(0.0)) {
       // prefer positive zero
       if (!std::signbit(V2[I]) && std::signbit(V1[I])) {
         V1[I] = V2[I];
@@ -415,7 +424,7 @@ Expect<void> Executor::runVectorAvgrOp(ValVariant &Val1,
   const VT &V2 = Val2.get<VT>();
   for (size_t I = 0; I < V1.size(); ++I) {
     // Add 1 for rounding up .5
-    V1[I] = (((ET)V1[I]) + ((ET)V2[I]) + 1) / 2;
+    V1[I] = (static_cast<ET>(V1[I]) + static_cast<ET>(V2[I]) + 1) / 2;
   }
 
   return {};
@@ -432,7 +441,7 @@ Expect<void> Executor::runVectorExtMulLowOp(ValVariant &Val1,
   const VTIn &V2 = Val2.get<VTIn>();
   VTOut Result;
   for (size_t I = 0; I < Result.size(); ++I) {
-    Result[I] = ((TOut)V1[I]) * ((TOut)V2[I]);
+    Result[I] = static_cast<TOut>(V1[I]) * static_cast<TOut>(V2[I]);
   }
   Val1.emplace<VTOut>(Result);
   return {};
@@ -450,7 +459,7 @@ Expect<void> Executor::runVectorExtMulHighOp(ValVariant &Val1,
   const VTIn &V2 = Val2.get<VTIn>();
   constexpr size_t HSize = Result.size();
   for (size_t I = 0; I < HSize; ++I) {
-    Result[I] = ((TOut)V1[HSize + I]) * ((TOut)V2[HSize + I]);
+    Result[I] = static_cast<TOut>(V1[HSize + I]) * static_cast<TOut>(V2[HSize + I]);
   }
   Val1.emplace<VTOut>(Result);
   return {};

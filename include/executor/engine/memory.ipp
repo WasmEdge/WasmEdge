@@ -94,13 +94,8 @@ Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
     return Unexpect(Res);
   }
 
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
   using VTIn = SIMDArray<TIn, 8>;
   using VTOut = SIMDArray<TOut, 16>;
-#else
-  using VTIn [[gnu::vector_size(8)]] = TIn;
-  using VTOut [[gnu::vector_size(16)]] = TOut;
-#endif // MSVC
 
   VTIn Value;
   std::memcpy(&Value, &Buffer, 8);

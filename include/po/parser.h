@@ -17,21 +17,11 @@
 namespace WasmEdge {
 namespace PO {
 
-// disable MSVC warning on `std::tolower(c)`: '=': conversion from 'int' to
-// 'char', possible loss of data
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(push)
-#pragma warning(disable : 4244)
-#endif
-
 inline void tolower(std::string &String) noexcept {
-  std::transform(String.begin(), String.end(), String.begin(),
-                 [](char c) noexcept { return std::tolower(c); });
+  std::transform(
+      String.begin(), String.end(), String.begin(),
+      [](char c) noexcept { return static_cast<char>(std::tolower(c)); });
 }
-
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(pop)
-#endif
 
 template <typename ConvResultT, typename ResultT = ConvResultT>
 inline cxx20::expected<ResultT, Error>

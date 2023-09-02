@@ -14,6 +14,7 @@
 #include <gtest/gtest.h>
 #include <string>
 #include <string_view>
+#include <climits>
 
 #if !WASMEDGE_OS_WINDOWS
 #include <netinet/in.h>
@@ -168,7 +169,7 @@ TEST(WasiSockTest, SocketUDP_4V1) {
                                                          SockType, FdServerPtr},
                      Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdServerPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdServerPtr), UINT_MAX);
 
     int32_t FdServer = *MemInst.getPointer<const int32_t *>(FdServerPtr);
 
@@ -177,7 +178,7 @@ TEST(WasiSockTest, SocketUDP_4V1) {
                                                          SockType, FdClientPtr},
                      Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT_MAX);
 
     int32_t FdClient = *MemInst.getPointer<const int32_t *>(FdClientPtr);
 
@@ -185,7 +186,7 @@ TEST(WasiSockTest, SocketUDP_4V1) {
                      std::array<WasmEdge::ValVariant, 3>{AddressFamily,
                                                          SockType, FdClientPtr},
                      Errno);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT_MAX);
 
     auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
     auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
@@ -200,7 +201,7 @@ TEST(WasiSockTest, SocketUDP_4V1) {
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
     const auto Msg1 = "hello, wasmedge."sv;
-    uint32_t Msg1Len = Msg1.size();
+    uint32_t Msg1Len = static_cast<uint32_t>(Msg1.size());
     writeString(MemInst, Msg1, MsgInPtr);
 
     auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgInPackPtr);
@@ -356,7 +357,7 @@ TEST(WasiSockTest, SocketUDP_4V2) {
                                                          SockType, FdServerPtr},
                      Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdServerPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdServerPtr), UINT_MAX);
 
     int32_t FdServer = *MemInst.getPointer<const int32_t *>(FdServerPtr);
 
@@ -365,7 +366,7 @@ TEST(WasiSockTest, SocketUDP_4V2) {
                                                          SockType, FdClientPtr},
                      Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT_MAX);
 
     int32_t FdClient = *MemInst.getPointer<const int32_t *>(FdClientPtr);
 
@@ -373,7 +374,7 @@ TEST(WasiSockTest, SocketUDP_4V2) {
                      std::array<WasmEdge::ValVariant, 3>{AddressFamily,
                                                          SockType, FdClientPtr},
                      Errno);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT_MAX);
 
     auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
     auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
@@ -389,7 +390,7 @@ TEST(WasiSockTest, SocketUDP_4V2) {
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
     const auto Msg1 = "hello, wasmedge."sv;
-    uint32_t Msg1Len = Msg1.size();
+    uint32_t Msg1Len = static_cast<uint32_t>(Msg1.size());
     writeString(MemInst, Msg1, MsgInPtr);
 
     auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgInPackPtr);
@@ -552,7 +553,7 @@ TEST(WasiSockTest, SocketUDP_6) {
                                                          SockType, FdServerPtr},
                      Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdServerPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdServerPtr), UINT_MAX);
 
     int32_t FdServer = *MemInst.getPointer<const int32_t *>(FdServerPtr);
 
@@ -561,7 +562,7 @@ TEST(WasiSockTest, SocketUDP_6) {
                                                          SockType, FdClientPtr},
                      Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT_MAX);
 
     int32_t FdClient = *MemInst.getPointer<const int32_t *>(FdClientPtr);
 
@@ -569,7 +570,7 @@ TEST(WasiSockTest, SocketUDP_6) {
                      std::array<WasmEdge::ValVariant, 3>{AddressFamily,
                                                          SockType, FdClientPtr},
                      Errno);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT_MAX);
 
     auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
     auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
@@ -585,7 +586,7 @@ TEST(WasiSockTest, SocketUDP_6) {
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
     const auto Msg1 = "hello, wasmedge in ipv6."sv;
-    uint32_t Msg1Len = Msg1.size();
+    uint32_t Msg1Len = static_cast<uint32_t>(Msg1.size());
     writeString(MemInst, Msg1, MsgInPtr);
 
     auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgInPackPtr);
@@ -680,7 +681,7 @@ TEST(WasiSockTest, SocketUDP_4_Fallback) {
                                                          SockType, FdServerPtr},
                      Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdServerPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdServerPtr), UINT_MAX);
 
     int32_t FdServer = *MemInst.getPointer<const int32_t *>(FdServerPtr);
 
@@ -689,7 +690,7 @@ TEST(WasiSockTest, SocketUDP_4_Fallback) {
                                                          SockType, FdClientPtr},
                      Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT_MAX);
 
     int32_t FdClient = *MemInst.getPointer<const int32_t *>(FdClientPtr);
 
@@ -697,7 +698,7 @@ TEST(WasiSockTest, SocketUDP_4_Fallback) {
                      std::array<WasmEdge::ValVariant, 3>{AddressFamily,
                                                          SockType, FdClientPtr},
                      Errno);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT_MAX);
 
     auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
     auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
@@ -712,7 +713,7 @@ TEST(WasiSockTest, SocketUDP_4_Fallback) {
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
     const auto Msg1 = "hello, wasmedge."sv;
-    uint32_t Msg1Len = Msg1.size();
+    uint32_t Msg1Len = static_cast<uint32_t>(Msg1.size());
     writeString(MemInst, Msg1, MsgInPtr);
 
     auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgInPackPtr);
@@ -810,7 +811,7 @@ TEST(WasiSockTest, SocketUDP_6_Fallback) {
                                                          SockType, FdServerPtr},
                      Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdServerPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdServerPtr), UINT_MAX);
 
     int32_t FdServer = *MemInst.getPointer<const int32_t *>(FdServerPtr);
 
@@ -819,7 +820,7 @@ TEST(WasiSockTest, SocketUDP_6_Fallback) {
                                                          SockType, FdClientPtr},
                      Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT_MAX);
 
     int32_t FdClient = *MemInst.getPointer<const int32_t *>(FdClientPtr);
 
@@ -827,7 +828,7 @@ TEST(WasiSockTest, SocketUDP_6_Fallback) {
                      std::array<WasmEdge::ValVariant, 3>{AddressFamily,
                                                          SockType, FdClientPtr},
                      Errno);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdClientPtr), UINT_MAX);
 
     auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
     auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
@@ -842,7 +843,7 @@ TEST(WasiSockTest, SocketUDP_6_Fallback) {
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
     const auto Msg1 = "hello, wasmedge in ipv6."sv;
-    uint32_t Msg1Len = Msg1.size();
+    uint32_t Msg1Len = static_cast<uint32_t>(Msg1.size());
     writeString(MemInst, Msg1, MsgInPtr);
 
     auto *MsgInPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgInPackPtr);
@@ -921,7 +922,7 @@ TEST(WasiSockTest, SockOpt) {
         std::array<WasmEdge::ValVariant, 3>{AddressFamily, SockType, FdPtr},
         Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdPtr), UINT_MAX);
 
     int32_t Fd = *MemInst.getPointer<const int32_t *>(FdPtr);
 
@@ -962,7 +963,7 @@ TEST(WasiSockTest, SockOpt) {
         std::array<WasmEdge::ValVariant, 3>{AddressFamily, SockType, FdPtr},
         Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdPtr), UINT_MAX);
 
     int32_t Fd = *MemInst.getPointer<const int32_t *>(FdPtr);
 
@@ -1041,7 +1042,7 @@ TEST(WasiSockTest, SockGetLocalAddr_4) {
         std::array<WasmEdge::ValVariant, 3>{AddressFamily, SockType, FdPtr},
         Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdPtr), UINT_MAX);
 
     int32_t Fd = *MemInst.getPointer<const int32_t *>(FdPtr);
 
@@ -1125,7 +1126,7 @@ TEST(WasiSockTest, SockGetLocalAddr_6) {
         std::array<WasmEdge::ValVariant, 3>{AddressFamily, SockType, FdPtr},
         Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdPtr), UINT32_C(-1));
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdPtr), UINT_MAX);
 
     int32_t Fd = *MemInst.getPointer<const int32_t *>(FdPtr);
 

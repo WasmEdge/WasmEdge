@@ -811,7 +811,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
         writeString(MemInst, Data, DataPtr);
         auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
         IOVec[0].buf = DataPtr;
-        IOVec[0].buf_len = Data.size();
+        IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
         EXPECT_TRUE(WasiSockSend.run(
             CallFrame,
             std::initializer_list<WasmEdge::ValVariant>{
@@ -1184,7 +1184,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       writeString(MemInst, Data, DataPtr);
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = Data.size();
+      IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
       EXPECT_TRUE(
           WasiSockSend.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -1222,7 +1222,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       writeString(MemInst, Data, DataPtr);
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = Data.size();
+      IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
       EXPECT_TRUE(
           WasiSockSend.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -1417,7 +1417,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
         writeString(MemInst, Data, DataPtr);
         auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
         IOVec[0].buf = DataPtr;
-        IOVec[0].buf_len = Data.size();
+        IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
         EXPECT_TRUE(WasiSockSend.run(
             CallFrame,
             std::initializer_list<WasmEdge::ValVariant>{
@@ -1790,7 +1790,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
       writeString(MemInst, Data, DataPtr);
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = Data.size();
+      IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
       EXPECT_TRUE(
           WasiSockSend.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -1828,7 +1828,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
       writeString(MemInst, Data, DataPtr);
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = Data.size();
+      IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
       EXPECT_TRUE(
           WasiSockSend.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -2797,7 +2797,7 @@ TEST(WasiTest, Directory) {
   {
     Env.init({"/:."s}, "test"s, {}, {});
     const auto Path = ""sv;
-    const uint32_t PathSize = Path.size();
+    const uint32_t PathSize = static_cast<uint32_t>(Path.size());
     writeString(MemInst, Path, PathPtr);
     EXPECT_TRUE(WasiPathCreateDirectory.run(
         CallFrame,
@@ -2811,7 +2811,7 @@ TEST(WasiTest, Directory) {
   {
     Env.init({"/:."s}, "test"s, {}, {});
     const auto Path = "."sv;
-    const uint32_t PathSize = Path.size();
+    const uint32_t PathSize = static_cast<uint32_t>(Path.size());
     writeString(MemInst, Path, PathPtr);
     EXPECT_TRUE(WasiPathCreateDirectory.run(
         CallFrame,
@@ -2825,7 +2825,7 @@ TEST(WasiTest, Directory) {
   {
     Env.init({"/:."s}, "test"s, {}, {});
     const auto Path = "tmp"sv;
-    const uint32_t PathSize = Path.size();
+    const uint32_t PathSize = static_cast<uint32_t>(Path.size());
     writeString(MemInst, Path, PathPtr);
     EXPECT_TRUE(WasiPathCreateDirectory.run(
         CallFrame,

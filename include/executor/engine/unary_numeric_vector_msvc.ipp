@@ -74,7 +74,7 @@ Expect<void> Executor::runVectorExtAddPairwiseOp(ValVariant &Val) const {
   VTOut Result;
   const VTIn &V = Val.get<VTIn>();
   for (size_t I = 0; I < Result.size(); ++I) {
-    Result[I] = ((TOut)V[I*2]) + ((TOut)V[I*2+1]);
+    Result[I] = static_cast<TOut>(V[I*2]) + static_cast<TOut>(V[I*2+1]);
   }
   Val.emplace<VTOut>(Result);
 

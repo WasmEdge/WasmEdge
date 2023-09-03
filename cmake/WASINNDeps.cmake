@@ -170,6 +170,9 @@ function(wasmedge_setup_wasinn_target target)
       list(APPEND WASMEDGE_PLUGIN_WASI_NN_DEPS
         ${WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB}
       )
+    elseif(BACKEND STREQUAL "ggml")
+      message(STATUS "WASI-NN: Build ggml backend for WASI-NN")
+      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML)
     else()
       # Add the other backends here.
       message(FATAL_ERROR "WASI-NN: backend ${BACKEND} not found or unimplemented.")

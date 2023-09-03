@@ -4,3 +4,5 @@
 if(WASMEDGE_BUILD_AOT_RUNTIME)
   add_subdirectory(blake3)
 endif()
+
+add_subdirectory(ggml)

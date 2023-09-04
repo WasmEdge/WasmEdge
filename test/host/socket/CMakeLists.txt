@@ -11,6 +11,7 @@ target_link_libraries(wasiSocketTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeHostModuleWasi
+  wasmedgeExecutor
 )
 
 if(WIN32)

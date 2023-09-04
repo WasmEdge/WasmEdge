@@ -64,10 +64,16 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       Stat->startRecordHost();
     }
 
+    // Call pre-host-function
+    HostFuncHelper.invokePreHostFunc();
+
     // Run host function.
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
     auto Ret = HostFunc.run(CallFrame, std::move(Args), Rets);
+
+    // Call post-host-function
+    HostFuncHelper.invokePostHostFunc();
 
     // Do the statistics if the statistics turned on.
     if (Stat) {

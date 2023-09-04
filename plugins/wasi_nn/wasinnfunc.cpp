@@ -107,7 +107,6 @@ WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
   }
 
   // Get the name of model
-  std::vector<Span<uint8_t>> Builders;
   uint32_t *Name = MemInst->getPointer<uint32_t *>(NamePtr);
   if (unlikely(Name == nullptr)) {
     spdlog::error("[WASI-NN] Failed when accessing the return Name memory."sv);

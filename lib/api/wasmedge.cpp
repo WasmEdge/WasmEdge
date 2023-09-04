@@ -2910,6 +2910,25 @@ WasmEdge_PluginCreateModule(const WasmEdge_PluginContext *Cxt,
 
 // <<<<<<<< WasmEdge Plugin functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> WasmEdge Experimental functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_ExecutorExperimentalRegisterPreHostFunction(
+    WasmEdge_ExecutorContext *Cxt, void *Data, void (*Func)(void *)) {
+  if (!Cxt) {
+    return;
+  }
+  fromExecutorCxt(Cxt)->registerPreHostFunction(Data, Func);
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_ExecutorExperimentalRegisterPostHostFunction(
+    WasmEdge_ExecutorContext *Cxt, void *Data, void (*Func)(void *)) {
+  if (!Cxt) {
+    return;
+  }
+  fromExecutorCxt(Cxt)->registerPostHostFunction(Data, Func);
+}
+
+// <<<<<<<< WasmEdge Experimental Functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #ifdef __cplusplus
 } // extern "C"
 #endif

@@ -111,6 +111,9 @@ public:
     ExecutionContext.Gas = nullptr;
   }
 
+  /// Getter of Configure
+  const Configure &getConfigure() const { return Conf; }
+
   /// Instantiate a WASM Module into an anonymous module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   instantiateModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod);

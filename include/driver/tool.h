@@ -44,6 +44,7 @@ struct DriverToolOptions {
         Env(PO::Description(
                 "Environ variables. Each variable can be specified as --env `NAME=VALUE`."sv),
             PO::MetaVar("ENVS"sv)),
+        PropAFUNIX(PO::Description("Enable UNIX domain sockets"sv)),
         PropMutGlobals(PO::Description(
             "Disable Import/Export of mutable globals proposal"sv)),
         PropNonTrapF2IConvs(PO::Description(
@@ -90,6 +91,7 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> Reactor;
   PO::List<std::string> Dir;
   PO::List<std::string> Env;
+  PO::Option<PO::Toggle> PropAFUNIX;
   PO::Option<PO::Toggle> PropMutGlobals;
   PO::Option<PO::Toggle> PropNonTrapF2IConvs;
   PO::Option<PO::Toggle> PropSignExtendOps;
@@ -131,6 +133,7 @@ struct DriverToolOptions {
         .add_option("disable-bulk-memory"sv, PropBulkMemOps)
         .add_option("disable-reference-types"sv, PropRefTypes)
         .add_option("disable-simd"sv, PropSIMD)
+        .add_option("allow-af-unix"sv, PropAFUNIX)
         .add_option("enable-multi-memory"sv, PropMultiMem)
         .add_option("enable-tail-call"sv, PropTailCall)
         .add_option("enable-extended-const"sv, PropExtendConst)

@@ -2,10 +2,10 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "common/defines.h"
+#include "executor/executor.h"
 #include "host/wasi/wasibase.h"
 #include "host/wasi/wasifunc.h"
 #include "runtime/instance/module.h"
-#include "executor/executor.h"
 #include "system/winapi.h"
 #include <algorithm>
 #include <array>
@@ -1428,8 +1428,7 @@ TEST(WasiTest, UNIX_Socket) {
     if (Errno[0].get<int32_t>() != __WASI_ERRNO_SUCCESS)
       GTEST_SKIP();
     uint32_t MaxMsgBufLen = 100;
-    auto MsgBuf =
-        MemInst.getSpan<char>(MsgOutPtr, MaxMsgBufLen);
+    auto MsgBuf = MemInst.getSpan<char>(MsgOutPtr, MaxMsgBufLen);
     std::fill_n(MsgBuf.data(), AddrBuf.size(), 0x00);
 
     auto *MsgOutPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgOutPackPtr);

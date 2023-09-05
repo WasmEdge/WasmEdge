@@ -29,9 +29,11 @@
 #include <condition_variable>
 #include <csignal>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <shared_mutex>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -88,6 +90,38 @@ using TypeNN =
 
 } // namespace
 
+/// Helper class for handling the pre- and post- host functions
+class HostFuncHandler {
+public:
+  void setPreHost(void *HostData, std::function<void(void *)> HostFunc) {
+    std::unique_lock Lock(Mutex);
+    PreHostData = HostData;
+    PreHostFunc = HostFunc;
+  }
+  void setPostHost(void *HostData, std::function<void(void *)> HostFunc) {
+    std::unique_lock Lock(Mutex);
+    PostHostData = HostData;
+    PostHostFunc = HostFunc;
+  }
+  void invokePreHostFunc() {
+    if (PreHostFunc.operator bool()) {
+      PreHostFunc(PreHostData);
+    }
+  }
+  void invokePostHostFunc() {
+    if (PostHostFunc.operator bool()) {
+      PostHostFunc(PostHostData);
+    }
+  }
+
+private:
+  void *PreHostData = nullptr;
+  void *PostHostData = nullptr;
+  std::function<void(void *)> PreHostFunc = {};
+  std::function<void(void *)> PostHostFunc = {};
+  mutable std::shared_mutex Mutex;
+};
+
 /// Executor flow control class.
 class Executor {
 public:
@@ -111,6 +145,9 @@ public:
     ExecutionContext.Gas = nullptr;
   }
 
+  /// Getter of Configure
+  const Configure &getConfigure() const { return Conf; }
+
   /// Instantiate a WASM Module into an anonymous module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   instantiateModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod);
@@ -123,6 +160,16 @@ public:
   /// Register an instantiated module into a named module instance.
   Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
                               const Runtime::Instance::ModuleInstance &ModInst);
+
+  /// Register a host function which will be invoked before calling a
+  /// host function.
+  Expect<void> registerPreHostFunction(void *HostData,
+                                       std::function<void(void *)> HostFunc);
+
+  /// Register a host function which will be invoked after calling a
+  /// host function.
+  Expect<void> registerPostHostFunction(void *HostData,
+                                        std::function<void(void *)> HostFunc);
 
   /// Invoke a WASM function by function instance.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -688,6 +735,8 @@ private:
   Statistics::Statistics *Stat;
   /// Stop Execution
   std::atomic_uint32_t StopToken = 0;
+  /// Executor Host Function Handler
+  HostFuncHandler HostFuncHelper = {};
 };
 
 } // namespace Executor

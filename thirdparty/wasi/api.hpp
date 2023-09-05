@@ -1694,6 +1694,7 @@ enum __wasi_address_family_t : uint8_t {
 
   __WASI_ADDRESS_FAMILY_INET6 = 2,
 
+  __WASI_ADDRESS_FAMILY_AF_UNIX = 3
 };
 static_assert(sizeof(__wasi_address_family_t) == 1, "witx calculated size");
 static_assert(alignof(__wasi_address_family_t) == 1, "witx calculated align");

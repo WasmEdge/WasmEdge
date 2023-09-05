@@ -11,8 +11,10 @@ namespace Host {
 
 WasmEdgeOpenCVMiniModule::WasmEdgeOpenCVMiniModule()
     : ModuleInstance("wasmedge_opencvmini") {
+
   addHostFunc("wasmedge_opencvmini_imdecode",
               std::make_unique<WasmEdgeOpenCVMiniImdecode>(Env));
+
   addHostFunc("wasmedge_opencvmini_imencode",
               std::make_unique<WasmEdgeOpenCVMiniImencode>(Env));
 
@@ -21,10 +23,13 @@ WasmEdgeOpenCVMiniModule::WasmEdgeOpenCVMiniModule()
 
   addHostFunc("wasmedge_opencvmini_blur",
               std::make_unique<WasmEdgeOpenCVMiniBlur>(Env));
+
   addHostFunc("wasmedge_opencvmini_normalize",
               std::make_unique<WasmEdgeOpenCVMiniNormalize>(Env));
+
   addHostFunc("wasmedge_opencvmini_bilinear_sampling",
               std::make_unique<WasmEdgeOpenCVMiniBilinearSampling>(Env));
+
   addHostFunc("wasmedge_opencvmini_cvt_color",
               std::make_unique<WasmEdgeOpenCVMiniCvtColor>(Env));
 
@@ -33,8 +38,15 @@ WasmEdgeOpenCVMiniModule::WasmEdgeOpenCVMiniModule()
 
   addHostFunc("wasmedge_opencvmini_imshow",
               std::make_unique<WasmEdgeOpenCVMiniImshow>(Env));
+
   addHostFunc("wasmedge_opencvmini_waitkey",
               std::make_unique<WasmEdgeOpenCVMiniWaitKey>(Env));
+
+  addHostFunc("wasmedge_opencvmini_resize",
+              std::make_unique<WasmEdgeOpenCVMiniResize>(Env));
+
+  addHostFunc("wasmedge_opencvmini_no_array",
+              std::make_unique<WasmEdgeOpenCVMiniNoArray>(Env));
 }
 
 } // namespace Host

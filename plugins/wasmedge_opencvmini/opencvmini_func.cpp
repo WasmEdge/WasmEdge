@@ -121,16 +121,23 @@ Expect<void> WasmEdgeOpenCVMiniImencode::body(
   return {};
 }
 
-Expect<uint32_t>
-WasmEdgeOpenCVMiniNormalize::body(const Runtime::CallingFrame &,
-                                  uint32_t SrcMatKey) {
+Expect<uint32_t> WasmEdgeOpenCVMiniNormalize::body(
+    const Runtime::CallingFrame &, uint32_t SrcMatKey, uint32_t Alpha,
+    uint32_t Beta, uint32_t NormType, uint32_t DataType, uint32_t MaskMatKey) {
   auto Src = Env.getMat(SrcMatKey);
+
   if (!Src) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
+
+  auto MaskMat = Env.getMat(MaskMatKey);
+  if (!MaskMat) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
   cv::Mat Dst;
-  // convert each elements `v` of `Src` to `(1/255) * v + 0`
-  Src->convertTo(Dst, CV_32F, 1. / 255., 0.);
+
+  cv::normalize(*Src, Dst, Alpha, Beta, NormType, DataType, *MaskMat);
   return Env.insertMat(Dst);
 }
 
@@ -178,6 +185,31 @@ Expect<uint32_t> WasmEdgeOpenCVMiniCvtColor::body(const Runtime::CallingFrame &,
   cv::Mat Dst;
   cvtColor(Img, Dst, Code, DestChannelN);
   return Env.insertMat(Dst);
+}
+
+Expect<uint32_t>
+WasmEdgeOpenCVMiniResize::body(const Runtime::CallingFrame &,
+                               uint32_t SrcMatKey, uint32_t OutImgW,
+                               uint32_t OutImgH, double ScaleFactorX,
+                               double ScaleFactorY, uint32_t Interpolation) {
+  auto Src = Env.getMat(SrcMatKey);
+
+  if (!Src) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  cv::Mat Dst;
+  cv::resize(*Src, Dst, cv::Size(OutImgW, OutImgH), ScaleFactorX, ScaleFactorY,
+             Interpolation);
+  return Env.insertMat(Dst);
+}
+
+Expect<uint32_t>
+WasmEdgeOpenCVMiniNoArray::body(const Runtime::CallingFrame &) {
+
+  cv::Mat NoArray = cv::noArray().getMat();
+
+  return Env.insertMat(NoArray);
 }
 
 } // namespace Host

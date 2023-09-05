@@ -477,12 +477,13 @@ jobs:
           mv plugin_wasi_logging.tar.gz WasmEdge-plugin-wasi_logging-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_logging-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz --clobber
       - name: Upload wasmedge_rustls plugin tar.gz package
+        if: contains(matrix.docker_tag, 'manylinux2014_x86_64')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mv plugin_wasmedge_rustls.tar.gz WasmEdge-plugin-wasmedge_rustls-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_rustls-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz --clobber
-      - name: Upload wasmedge_rustls plugin tar.gz package
+      - name: Upload wasmedge_process plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

@@ -9,6 +9,7 @@
 #include <functional>
 #include <vector>
 
+#include "ggml.h"
 #include "onnx.h"
 #include "openvino.h"
 #include "tf.h"

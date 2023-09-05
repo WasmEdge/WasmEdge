@@ -62,7 +62,6 @@ jobs:
       - name: Test Standalone WasmEdge without LLVM
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew uninstall llvm
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           echo "otool -L ./build/tools/wasmedge/wasmedge:"
           otool -L ./build/tools/wasmedge/wasmedge
@@ -70,8 +69,9 @@ jobs:
           otool -L ./build/tools/wasmedge/wasmedgec
           echo "otool -L ./build/lib/api/libwasmedge.dylib:"
           otool -L ./build/lib/api/libwasmedge.dylib
-          echo "Generate fibonacci.wasm from fibonacci.wat"
+          if otool -L ./build/lib/api/libwasmedge.dylib | grep libLLVM; then echo "Fail: libLLVM shared library linked" && exit 1; else echo "Pass: libLLVM shared library not linked"; fi;
 
+          echo "Generate fibonacci.wasm from fibonacci.wat"
           wat2wasm examples/wasm/fibonacci.wat -o examples/wasm/fibonacci.wasm
           echo "./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib_c.dylib"
           ./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib_c.dylib

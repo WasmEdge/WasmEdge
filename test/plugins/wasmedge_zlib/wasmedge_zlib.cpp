@@ -154,17 +154,17 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
 
   wasm_compressed_data = wasm_hp;
 
-  strm->avail_in = DATA_SIZE;
-  strm->next_in = wasm_data;
-  strm->avail_out = OUTPUT_BUFFER_SIZE;
-  strm->next_out = wasm_compressed_data;
+  strm->AvailIn = DATA_SIZE;
+  strm->NextIn = wasm_data;
+  strm->AvailOut = OUTPUT_BUFFER_SIZE;
+  strm->NextOut = wasm_compressed_data;
 
   // deflate Test
   do {
-    if (strm->avail_out == 0) {
+    if (strm->AvailOut == 0) {
       wasm_hp += OUTPUT_BUFFER_SIZE;
-      strm->avail_out = OUTPUT_BUFFER_SIZE;
-      strm->next_out = wasm_hp;
+      strm->AvailOut = OUTPUT_BUFFER_SIZE;
+      strm->NextOut = wasm_hp;
     }
 
     EXPECT_TRUE(__deflate.run(CallFrame,
@@ -181,7 +181,7 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{wasm_z_stream},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
-  wasm_hp += OUTPUT_BUFFER_SIZE - strm->avail_out;
+  wasm_hp += OUTPUT_BUFFER_SIZE - strm->AvailOut;
   wasm_compressed_data_size = wasm_hp - wasm_compressed_data;
   // ----- Deflate Routine END------
 
@@ -214,17 +214,17 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
 
   wasm_decompressed_data = wasm_hp;
 
-  strm->avail_in = wasm_compressed_data_size;
-  strm->next_in = wasm_compressed_data;
-  strm->avail_out = OUTPUT_BUFFER_SIZE;
-  strm->next_out = wasm_decompressed_data;
+  strm->AvailIn = wasm_compressed_data_size;
+  strm->NextIn = wasm_compressed_data;
+  strm->AvailOut = OUTPUT_BUFFER_SIZE;
+  strm->NextOut = wasm_decompressed_data;
 
   // inflate test
   do {
-    if (strm->avail_out == 0) {
+    if (strm->AvailOut == 0) {
       wasm_hp += OUTPUT_BUFFER_SIZE;
-      strm->avail_out = OUTPUT_BUFFER_SIZE;
-      strm->next_out = wasm_hp;
+      strm->AvailOut = OUTPUT_BUFFER_SIZE;
+      strm->NextOut = wasm_hp;
     }
 
     EXPECT_TRUE(__inflate.run(CallFrame,
@@ -240,7 +240,7 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{wasm_z_stream},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
-  wasm_hp += OUTPUT_BUFFER_SIZE - strm->avail_out;
+  wasm_hp += OUTPUT_BUFFER_SIZE - strm->AvailOut;
   wasm_decompressed_data_size = wasm_hp - wasm_decompressed_data;
   // ----- Inflate Routine END------
 

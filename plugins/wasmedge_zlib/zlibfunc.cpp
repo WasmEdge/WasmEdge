@@ -27,43 +27,43 @@ auto SyncRun(z_stream *HostZStream, uint32_t ZStreamPtr,
   WasmZStream *ModuleZStream = MemInst->getPointer<WasmZStream *>(ZStreamPtr);
 
   HostZStream->next_in =
-      MemInst->getPointer<unsigned char *>(ModuleZStream->next_in);
-  HostZStream->avail_in = ModuleZStream->avail_in;
-  HostZStream->total_in = ModuleZStream->total_in;
+      MemInst->getPointer<unsigned char *>(ModuleZStream->NextIn);
+  HostZStream->avail_in = ModuleZStream->AvailIn;
+  HostZStream->total_in = ModuleZStream->TotalIn;
 
   HostZStream->next_out =
-      MemInst->getPointer<unsigned char *>(ModuleZStream->next_out);
-  HostZStream->avail_out = ModuleZStream->avail_out;
-  HostZStream->total_out = ModuleZStream->total_out;
+      MemInst->getPointer<unsigned char *>(ModuleZStream->NextOut);
+  HostZStream->avail_out = ModuleZStream->AvailOut;
+  HostZStream->total_out = ModuleZStream->TotalOut;
 
   // TODO: ignore msg for now
   // ignore state
   // ignore zalloc, zfree, opaque
 
-  HostZStream->data_type = ModuleZStream->data_type;
-  HostZStream->adler = ModuleZStream->adler;
-  HostZStream->reserved = ModuleZStream->reserved;
+  HostZStream->data_type = ModuleZStream->DataType;
+  HostZStream->adler = ModuleZStream->Adler;
+  HostZStream->reserved = ModuleZStream->Reserved;
 
   const auto PreComputeNextIn = HostZStream->next_in;
   const auto PreComputeNextOut = HostZStream->next_out;
 
   const auto ZRes = Callback();
 
-  ModuleZStream->next_in += HostZStream->next_in - PreComputeNextIn;
-  ModuleZStream->avail_in = HostZStream->avail_in;
-  ModuleZStream->total_in = HostZStream->total_in;
+  ModuleZStream->NextIn += HostZStream->next_in - PreComputeNextIn;
+  ModuleZStream->AvailIn = HostZStream->avail_in;
+  ModuleZStream->TotalIn = HostZStream->total_in;
 
-  ModuleZStream->next_out += HostZStream->next_out - PreComputeNextOut;
-  ModuleZStream->avail_out = HostZStream->avail_out;
-  ModuleZStream->total_out = HostZStream->total_out;
+  ModuleZStream->NextOut += HostZStream->next_out - PreComputeNextOut;
+  ModuleZStream->AvailOut = HostZStream->avail_out;
+  ModuleZStream->TotalOut = HostZStream->total_out;
 
   // TODO: ignore msg for now
   // ignore state
   // ignore zalloc, zfree, opaque
 
-  ModuleZStream->data_type = HostZStream->data_type;
-  ModuleZStream->adler = HostZStream->adler;
-  ModuleZStream->reserved = HostZStream->reserved;
+  ModuleZStream->DataType = HostZStream->data_type;
+  ModuleZStream->Adler = HostZStream->adler;
+  ModuleZStream->Reserved = HostZStream->reserved;
 
   return ZRes;
 }

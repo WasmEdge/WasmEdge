@@ -552,10 +552,12 @@ jobs:
           git config --global --add safe.directory $(pwd)
       - name: Install dependencies
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           brew install llvm ninja cmake openssl opencv rust
       - name: Build plugins
         shell: bash
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           outbin_array=(${output_bins})
           export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
           export CC=clang

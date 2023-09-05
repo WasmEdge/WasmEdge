@@ -6,13 +6,13 @@ wasmedge_add_executable(wasmEdgeRUSTLSTests
 )
 
 add_dependencies(wasmEdgeRUSTLSTests
-  wasmedge_rustls_plugin
+  wasmedge_rustls
 )
 
 target_include_directories(wasmEdgeRUSTLSTests
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
-  $<TARGET_PROPERTY:wasmedge_rustls_plugin,INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:wasmedge_rustls,INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(wasmEdgeRUSTLSTests

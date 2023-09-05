@@ -750,6 +750,22 @@ WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
   }
 }
 
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetAllowAFUNIX(WasmEdge_ConfigureContext *Cxt,
+                                 const bool EnableAFUNIX) {
+  if (Cxt) {
+    Cxt->Conf.getRuntimeConfigure().setAllowAFUNIX(EnableAFUNIX);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ConfigureIsAllowAFUNIX(const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getRuntimeConfigure().isAllowAFUNIX();
+  }
+  return false;
+}
+
 WASMEDGE_CAPI_EXPORT bool
 WasmEdge_ConfigureIsForceInterpreter(const WasmEdge_ConfigureContext *Cxt) {
   if (Cxt) {

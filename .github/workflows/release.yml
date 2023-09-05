@@ -553,7 +553,7 @@ jobs:
       - name: Install dependencies
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm ninja cmake openssl opencv rust
+          brew install llvm ninja cmake openssl opencv rust gh
       - name: Build plugins
         shell: bash
         run: |
@@ -586,42 +586,49 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           mv plugin_wasi_crypto.tar.gz WasmEdge-plugin-wasi_crypto-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_crypto-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
       - name: Upload wasi_logging plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           mv plugin_wasi_logging.tar.gz WasmEdge-plugin-wasi_logging-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_logging-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
       - name: Upload wasmedge_rustls plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           mv plugin_wasmedge_rustls.tar.gz WasmEdge-plugin-wasmedge_rustls-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_rustls-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
       - name: Upload wasmedge_tensorflow plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           mv plugin_wasmedge_tensorflow.tar.gz WasmEdge-plugin-wasmedge_tensorflow-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_tensorflow-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
       - name: Upload wasmedge_tensorflowlite plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           mv plugin_wasmedge_tensorflowlite.tar.gz WasmEdge-plugin-wasmedge_tensorflowlite-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_tensorflowlite-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
       - name: Upload wasmedge_image plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           mv plugin_wasmedge_image.tar.gz WasmEdge-plugin-wasmedge_image-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_image-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
       - name: Upload wasmedge_opencvmini plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           mv plugin_wasmedge_opencvmini.tar.gz WasmEdge-plugin-wasmedge_opencvmini-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_opencvmini-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
 

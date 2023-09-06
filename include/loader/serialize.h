@@ -83,8 +83,7 @@ private:
 
   /// \name Helper functions
   /// @{
-  inline Unexpected<ErrCode>
-  logSerializeError(ErrCode Code, ASTNodeAttr Node) const noexcept {
+  inline auto logSerializeError(ErrCode Code, ASTNodeAttr Node) const noexcept {
     spdlog::error(Code);
     spdlog::error(ErrInfo::InfoAST(Node));
     return Unexpect(Code);
@@ -207,6 +206,11 @@ private:
       return OutVec;
     }
     return {};
+  }
+
+  template <typename C, typename T>
+  bool instanceof(const std::shared_ptr<T> Ptr) {
+    return std::dynamic_pointer_cast<const C>(Ptr) != nullptr;
   }
   /// @}
 

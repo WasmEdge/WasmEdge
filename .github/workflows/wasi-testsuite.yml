@@ -30,7 +30,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: WasmEdge
       - name: Ensure git safe directory
@@ -59,7 +59,7 @@ jobs:
           echo "$GITHUB_WORKSPACE/WasmEdge/build/tools/wasmedge" >> $GITHUB_PATH
 
       - name: Checkout wasi-testsuite
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: WebAssembly/wasi-testsuite
           ref: prod/testsuite-base

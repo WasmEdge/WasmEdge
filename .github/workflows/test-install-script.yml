@@ -85,7 +85,7 @@ jobs:
       image: ${{ matrix.docker_image }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
@@ -180,7 +180,7 @@ jobs:
     runs-on: ${{ matrix.host_runner }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 

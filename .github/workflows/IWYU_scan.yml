@@ -40,7 +40,7 @@ jobs:
     outputs:
       version: ${{ steps.prep.outputs.version }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Ensure git safe directory
@@ -74,7 +74,7 @@ jobs:
         make install
         cd ..
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Ensure git safe directory
@@ -98,7 +98,7 @@ jobs:
     needs: get_version
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Ensure git safe directory

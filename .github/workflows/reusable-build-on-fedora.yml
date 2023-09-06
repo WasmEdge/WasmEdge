@@ -22,7 +22,7 @@ jobs:
         run: |
           dnf update -y
           dnf install -y cmake ninja-build llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev spdlog-devel
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Grant the safe directory for git

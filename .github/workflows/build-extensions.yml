@@ -48,7 +48,7 @@ jobs:
     outputs:
       version: ${{ steps.prep.outputs.version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -92,7 +92,7 @@ jobs:
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -177,7 +177,7 @@ jobs:
       # Tests of wasm_bpf also require privileges
       options: --privileged
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Install dependencies
@@ -302,7 +302,7 @@ jobs:
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Install dependencies
@@ -385,7 +385,7 @@ jobs:
       # Tests of wasm_bpf also require privileges
       options: --privileged
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Build and install dependencies
@@ -511,7 +511,7 @@ jobs:
       output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib libwasmedge_rustls.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib
     needs: [get_version]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Build and install dependencies

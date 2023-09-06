@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -49,7 +49,7 @@ jobs:
       && (needs.lint-markdown.result == 'success' || needs.lint-markdown.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)

@@ -11,7 +11,7 @@ jobs:
     name: misc linters
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)

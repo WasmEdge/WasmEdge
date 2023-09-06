@@ -11,7 +11,7 @@ namespace {
 WasmEdge::Configure Conf;
 WasmEdge::Loader::Serializer Ser(Conf);
 
-WasmEdge::AST::CodeSection createCodeSec(size_t SegSize,
+WasmEdge::AST::CodeSection createCodeSec(uint32_t SegSize,
                                          WasmEdge::AST::Expression Expr) {
   WasmEdge::AST::CodeSection CodeSec;
   WasmEdge::AST::CodeSegment CodeSeg;

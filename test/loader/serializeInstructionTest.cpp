@@ -12,7 +12,7 @@ WasmEdge::Configure Conf;
 WasmEdge::Loader::Serializer Ser(Conf);
 
 WasmEdge::AST::CodeSection
-createCodeSec(size_t SegSize,
+createCodeSec(uint32_t SegSize,
               std::vector<WasmEdge::AST::Instruction> Instructions) {
   WasmEdge::AST::CodeSection CodeSec;
   WasmEdge::AST::CodeSegment CodeSeg;
@@ -593,7 +593,7 @@ TEST(SerializeInstructionTest, SerializeConstInstruction) {
   };
   EXPECT_EQ(Output, Expected);
 
-  I64Const.setNum(-112233445566);
+  I64Const.setNum(static_cast<uint64_t>(-112233445566L));
   Instructions = {I64Const, End};
   Output = *Ser.serializeSection(createCodeSec(9, Instructions));
   Expected = {

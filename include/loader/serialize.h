@@ -96,7 +96,7 @@ private:
     uint8_t Buf[N / 7 + 1];
     uint32_t Len = 0;
     do {
-      uint8_t X = Num & 0x7FU;
+      uint8_t X = std::make_unsigned_t<NumType>(Num) & 0x7FU;
       Num >>= 7;
       if (Num) {
         X |= 0x80U;
@@ -130,7 +130,7 @@ private:
     uint32_t Len = 0;
     int32_t More = 1;
     while (More) {
-      uint8_t X = Num & 0x7FU;
+      uint8_t X = std::make_unsigned_t<NumType>(Num) & 0x7FU;
       Num >>= 7;
       if ((Num == 0 && !(X & 0x40)) || (Num == -1 && X & 0x40)) {
         More = 0;
@@ -153,11 +153,6 @@ private:
 
   void serializeS64(int64_t Num, std::vector<uint8_t> &OutVec) {
     serializeSN<int64_t, 64>(Num, OutVec, OutVec.end());
-  }
-
-  void serializeVec(std::vector<uint8_t> &Vec, std::vector<uint8_t> &OutVec) {
-    serializeU32(Vec.size(), OutVec);
-    OutVec.insert(OutVec.end(), Vec.begin(), Vec.end());
   }
 
   template <typename NumType, size_t N>

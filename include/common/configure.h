@@ -302,7 +302,6 @@ public:
       return {};
     default:
       return logCheckError(ErrCode::Value::MalformedValType, Node);
-      ;
     }
   }
 

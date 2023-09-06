@@ -35,34 +35,45 @@ Serializer::serializeModule(const AST::Module &Mod) {
   // Serialize sections.
   for (auto Sec : Sections) {
     Expect<std::vector<uint8_t>> Res;
-    if (instanceof<AST::TypeSection>(Sec)) {
+    if (instanceof <AST::TypeSection>(Sec)) {
       Res = serializeSection(*std::dynamic_pointer_cast<AST::TypeSection>(Sec));
-    } else if (instanceof<AST::ImportSection>(Sec)) {
-      Res = serializeSection(*std::dynamic_pointer_cast<AST::ImportSection>(Sec));
-    } else if (instanceof<AST::FunctionSection>(Sec)) {
-      Res = serializeSection(*std::dynamic_pointer_cast<AST::FunctionSection>(Sec));
-    } else if (instanceof<AST::TableSection>(Sec)) {
-      Res = serializeSection(*std::dynamic_pointer_cast<AST::TableSection>(Sec));
-    } else if (instanceof<AST::MemorySection>(Sec)) {
-      Res = serializeSection(*std::dynamic_pointer_cast<AST::MemorySection>(Sec));
-    } else if (instanceof<AST::GlobalSection>(Sec)) {
-      Res = serializeSection(*std::dynamic_pointer_cast<AST::GlobalSection>(Sec));
-    } else if (instanceof<AST::ExportSection>(Sec)) {
-      Res = serializeSection(*std::dynamic_pointer_cast<AST::ExportSection>(Sec));
-    } else if (instanceof<AST::StartSection>(Sec)) {
-      Res = serializeSection(*std::dynamic_pointer_cast<AST::StartSection>(Sec));
-    } else if (instanceof<AST::ElementSection>(Sec)) {
-      Res = serializeSection(*std::dynamic_pointer_cast<AST::ElementSection>(Sec));
-    } else if (instanceof<AST::CodeSection>(Sec)) {
+    } else if (instanceof <AST::ImportSection>(Sec)) {
+      Res =
+          serializeSection(*std::dynamic_pointer_cast<AST::ImportSection>(Sec));
+    } else if (instanceof <AST::FunctionSection>(Sec)) {
+      Res = serializeSection(
+          *std::dynamic_pointer_cast<AST::FunctionSection>(Sec));
+    } else if (instanceof <AST::TableSection>(Sec)) {
+      Res =
+          serializeSection(*std::dynamic_pointer_cast<AST::TableSection>(Sec));
+    } else if (instanceof <AST::MemorySection>(Sec)) {
+      Res =
+          serializeSection(*std::dynamic_pointer_cast<AST::MemorySection>(Sec));
+    } else if (instanceof <AST::GlobalSection>(Sec)) {
+      Res =
+          serializeSection(*std::dynamic_pointer_cast<AST::GlobalSection>(Sec));
+    } else if (instanceof <AST::ExportSection>(Sec)) {
+      Res =
+          serializeSection(*std::dynamic_pointer_cast<AST::ExportSection>(Sec));
+    } else if (instanceof <AST::StartSection>(Sec)) {
+      Res =
+          serializeSection(*std::dynamic_pointer_cast<AST::StartSection>(Sec));
+    } else if (instanceof <AST::ElementSection>(Sec)) {
+      Res = serializeSection(
+          *std::dynamic_pointer_cast<AST::ElementSection>(Sec));
+    } else if (instanceof <AST::CodeSection>(Sec)) {
       Res = serializeSection(*std::dynamic_pointer_cast<AST::CodeSection>(Sec));
-    } else if (instanceof<AST::DataSection>(Sec)) {
+    } else if (instanceof <AST::DataSection>(Sec)) {
       Res = serializeSection(*std::dynamic_pointer_cast<AST::DataSection>(Sec));
-    } else if (instanceof<AST::DataCountSection>(Sec)) {
-      Res = serializeSection(*std::dynamic_pointer_cast<AST::DataCountSection>(Sec));
-    } else if (instanceof<AST::CustomSection>(Sec)) {
-      Res = serializeSection(*std::dynamic_pointer_cast<AST::CustomSection>(Sec));
+    } else if (instanceof <AST::DataCountSection>(Sec)) {
+      Res = serializeSection(
+          *std::dynamic_pointer_cast<AST::DataCountSection>(Sec));
+    } else if (instanceof <AST::CustomSection>(Sec)) {
+      Res =
+          serializeSection(*std::dynamic_pointer_cast<AST::CustomSection>(Sec));
     } else {
-      return logSerializeError(ErrCode::Value::IllegalPath, ASTNodeAttr::Module);
+      return logSerializeError(ErrCode::Value::IllegalPath,
+                               ASTNodeAttr::Module);
     }
     if (!Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));

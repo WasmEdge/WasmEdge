@@ -173,21 +173,21 @@ AVReadPlay::body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr) {
     return av_read_play(avFormatContext);
 }
 
-Expect<int32_t>
-AVFormatSeekFile::body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr) {
-    auto* MemInst = Frame.getMemoryByIndex(0);
-    auto* ffmpegMemory = Env.get();
-
-    uint32_t* avFormatCtxIdx = MemInst->getPointerOrNull<uint32_t*>(avFormatCtxPtr);
-
-    if(avFormatCtxIdx == nullptr){
-        // Error handling...
-    }
-
-    AVFormatContext* avFormatContext = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(*avFormatCtxIdx));
-
-    return av_read_play(avFormatContext);
-}
+//Expect<int32_t>
+//AVFormatSeekFile::body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr) {
+//    auto* MemInst = Frame.getMemoryByIndex(0);
+//    auto* ffmpegMemory = Env.get();
+//
+//    uint32_t* avFormatCtxIdx = MemInst->getPointerOrNull<uint32_t*>(avFormatCtxPtr);
+//
+//    if(avFormatCtxIdx == nullptr){
+//        // Error handling...
+//    }
+//
+//    AVFormatContext* avFormatContext = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(*avFormatCtxIdx));
+//
+//    return av_read_play(avFormatContext);
+//}
 //
 //Expect<int32_t>
 //AVFormatSeekFile::body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr) {

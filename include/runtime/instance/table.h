@@ -35,7 +35,7 @@ public:
   /// Get size of table.refs
   uint32_t getSize() const noexcept {
     // The table size is binded with the limit in table type.
-    return TabType.getLimit().getMin();
+    return static_cast<uint32_t>(TabType.getLimit().getMin());
   }
 
   /// Getter of table type.

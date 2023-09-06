@@ -153,7 +153,17 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   };
 
-  auto readMemImmediate = [this, readU32, &Instr]() -> Expect<void> {
+  auto readU64 = [this](uint64_t &Dst) -> Expect<void> {
+    if (auto Res = FMgr.readU64()) {
+      Dst = *Res;
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    return {};
+  };
+
+  auto readMemImmediate = [this, readU32, readU64, &Instr]() -> Expect<void> {
     Instr.getTargetIndex() = 0;
     if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
       return Unexpect(Res);
@@ -165,7 +175,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
         return Unexpect(Res);
       }
     }
-    if (auto Res = readU32(Instr.getMemoryOffset()); unlikely(!Res)) {
+    auto Offset = Instr.getMemoryOffset();
+    uint32_t Off32 = static_cast<uint32_t>(Offset);
+
+    if (auto Res = Conf.hasProposal(Proposal::Memory64) ? readU64(Offset)
+                                                        : readU32(Off32);
+        unlikely(!Res)) {
       return Unexpect(Res);
     }
     return {};

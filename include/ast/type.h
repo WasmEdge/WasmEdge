@@ -67,12 +67,10 @@ public:
     // Hint: if one ensure it, is not 64-bit, do static_cast<uint32_t>(getMin())
     return Min;
   }
-  void setMin(uint32_t Val) noexcept { Min = Val; }
   void setMin(uint64_t Val) noexcept { Min = Val; }
 
   /// Getter and setter of max value.
   uint64_t getMax() const noexcept { return Max; }
-  void setMax(uint32_t Val) noexcept { Max = Val; }
   void setMax(uint64_t Val) noexcept { Max = Val; }
 
 private:

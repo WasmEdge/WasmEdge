@@ -1,21 +1,22 @@
 #pragma once
 
-#include "../ffmpeg_env.h"
+#include "ffmpeg_env.h"
 #include "runtime/hostfunc.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
-namespace AVCodec {
+namespace AVUtil {
 
 template <typename T>
-class WasmEdgeFFmpegAVCodec : public Runtime::HostFunction<T> {
+class WasmEdgeFFmpegAVUtil : public Runtime::HostFunction<T> {
 public:
-  WasmEdgeFFmpegAVCodec(std::shared_ptr<WasmEdgeFFmpegEnv> &HostEnv)
+  WasmEdgeFFmpegAVUtil(
+      std::shared_ptr<WasmEdgeFFmpeg::WasmEdgeFFmpegEnv> HostEnv)
       : Runtime::HostFunction<T>(0), Env(HostEnv) {}
 
 protected:
-  std::shared_ptr<WasmEdgeFFmpegEnv> &Env;
+  std::shared_ptr<WasmEdgeFFmpegEnv> Env;
 };
 
 }

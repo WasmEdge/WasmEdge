@@ -2,17 +2,24 @@
 
 namespace WasmEdge{
 namespace Host{
-  WasmEdgeFFmpegAVCodecModule::
-    WasmEdgeFFmpegAVCodecModule(std::shared_ptr<WasmEdgeFFmpeg::WasmEdgeFFmpegEnv> env __attribute__((unused)))
-  : ModuleInstance("wasmedge_ffmpeg_avcodec"){
+namespace WasmEdgeFFmpeg {
+namespace AVCodec {
 
-    // Below all the functions of Host function will be present.
+WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
+    std::shared_ptr<WasmEdgeFFmpeg::WasmEdgeFFmpegEnv> env
+    __attribute__((unused)))
+    : ModuleInstance("wasmedge_ffmpeg_avcodec") {
 
-//    addHostFunc();
-//    addHostFunc();
-//    addHostFunc();
-//    addHostFunc();
-//    addHostFunc();
-  }
+  // Below all the functions of Host function will be present.
+
+  //    addHostFunc();
+  //    addHostFunc();
+  //    addHostFunc();
+  //    addHostFunc();
+  //    addHostFunc();
+}
+
+}
+}
 }
 }

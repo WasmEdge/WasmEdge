@@ -30,6 +30,18 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
     case AST::Limit::LimitType::Shared:
       Lim.setType(AST::Limit::LimitType::Shared);
       break;
+    case AST::Limit::LimitType::I64HasMin:
+      Lim.setType(AST::Limit::LimitType::I64HasMin);
+      break;
+    case AST::Limit::LimitType::I64HasMinMax:
+      Lim.setType(AST::Limit::LimitType::I64HasMinMax);
+      break;
+    case AST::Limit::LimitType::I64SharedNoMax:
+      Lim.setType(AST::Limit::LimitType::I64SharedNoMax);
+      break;
+    case AST::Limit::LimitType::I64Shared:
+      Lim.setType(AST::Limit::LimitType::I64Shared);
+      break;
     default:
       if (*Res == 0x80 || *Res == 0x81) {
         // LEB128 cases will fail.
@@ -45,20 +57,39 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
                         ASTNodeAttr::Type_Limit);
   }
 
-  // Read min and max number.
-  if (auto Res = FMgr.readU32()) {
-    Lim.setMin(*Res);
-    Lim.setMax(*Res);
-  } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Type_Limit);
-  }
-  if (Lim.hasMax()) {
-    if (auto Res = FMgr.readU32()) {
+  if (Lim.is64()) {
+    // Read min and max number.
+    if (auto Res = FMgr.readU64()) {
+      Lim.setMin(*Res);
       Lim.setMax(*Res);
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Type_Limit);
+    }
+    if (Lim.hasMax()) {
+      if (auto Res = FMgr.readU64()) {
+        Lim.setMax(*Res);
+      } else {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::Type_Limit);
+      }
+    }
+  } else {
+    // Read min and max number.
+    if (auto Res = FMgr.readU32()) {
+      Lim.setMin(*Res);
+      Lim.setMax(*Res);
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Type_Limit);
+    }
+    if (Lim.hasMax()) {
+      if (auto Res = FMgr.readU32()) {
+        Lim.setMax(*Res);
+      } else {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::Type_Limit);
+      }
     }
   }
   return {};

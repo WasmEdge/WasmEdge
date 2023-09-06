@@ -30,8 +30,12 @@ public:
   enum class LimitType : uint8_t {
     HasMin = 0x00,
     HasMinMax = 0x01,
-    SharedNoMax = 0x02,
-    Shared = 0x03
+    SharedNoMax = 0x02, // from threads proposal
+    Shared = 0x03,      // from threads proposal
+    I64HasMin = 0x04,
+    I64HasMinMax = 0x05,
+    I64SharedNoMax = 0x06, // from threads proposal
+    I64Shared = 0x07,      // from threads proposal
   };
 
   /// Constructors.
@@ -50,25 +54,37 @@ public:
 
   /// Getter and setter of limit mode.
   bool hasMax() const noexcept {
-    return Type == LimitType::HasMinMax || Type == LimitType::Shared;
+    return Type == LimitType::HasMinMax || Type == LimitType::Shared ||
+           Type == LimitType::I64HasMinMax || Type == LimitType::I64Shared;
   }
-  bool isShared() const noexcept { return Type == LimitType::Shared; }
+  bool isShared() const noexcept {
+    return Type == LimitType::Shared || Type == LimitType::I64Shared;
+  }
+  bool is64() const noexcept {
+    return Type == LimitType::I64HasMin || Type == LimitType::I64HasMinMax ||
+           Type == LimitType::I64SharedNoMax || Type == LimitType::I64Shared;
+  }
   void setType(LimitType TargetType) noexcept { Type = TargetType; }
 
   /// Getter and setter of min value.
-  uint32_t getMin() const noexcept { return Min; }
+  uint64_t getMin() const noexcept {
+    // Hint: if one ensure it, is not 64-bit, do static_cast<uint32_t>(getMin())
+    return Min;
+  }
   void setMin(uint32_t Val) noexcept { Min = Val; }
+  void setMin(uint64_t Val) noexcept { Min = Val; }
 
   /// Getter and setter of max value.
-  uint32_t getMax() const noexcept { return Max; }
+  uint64_t getMax() const noexcept { return Max; }
   void setMax(uint32_t Val) noexcept { Max = Val; }
+  void setMax(uint64_t Val) noexcept { Max = Val; }
 
 private:
   /// \name Data of Limit.
   /// @{
   LimitType Type;
-  uint32_t Min;
-  uint32_t Max;
+  uint64_t Min;
+  uint64_t Max;
   /// @}
 };
 
@@ -130,6 +146,7 @@ public:
   /// Constructors.
   MemoryType() noexcept = default;
   MemoryType(uint32_t MinVal) noexcept : Lim(MinVal) {}
+  // TODO: memory64
   MemoryType(uint32_t MinVal, uint32_t MaxVal, bool Shared = false) noexcept
       : Lim(MinVal, MaxVal, Shared) {}
   MemoryType(const Limit &L) noexcept : Lim(L) {}

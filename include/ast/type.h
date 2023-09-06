@@ -152,6 +152,8 @@ private:
 /// AST MemoryType node.
 class MemoryType {
 public:
+  enum class IndexType { I32, I64 };
+
   /// Constructors.
   MemoryType() noexcept = default;
   MemoryType(uint64_t MinVal) noexcept : Lim(MinVal) {}
@@ -162,10 +164,12 @@ public:
   /// Getter of limit.
   const Limit &getLimit() const noexcept { return Lim; }
   Limit &getLimit() noexcept { return Lim; }
+  IndexType getIdxType() const noexcept { return IdxType; }
 
 private:
   /// \name Data of MemoryType.
   /// @{
+  IndexType IdxType;
   Limit Lim;
   /// @}
 };

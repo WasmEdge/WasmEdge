@@ -6,6 +6,19 @@
 namespace WasmEdge {
 namespace Executor {
 
+uint64_t popIndexType(Runtime::StackManager &StackMgr,
+                      Runtime::Instance::MemoryInstance &MemInst) {
+  switch (MemInst.getMemoryType().getIdxType()) {
+  case AST::MemoryType::IndexType::I64:
+    return StackMgr.pop().get<uint64_t>();
+  case AST::MemoryType::IndexType::I32:
+  default:
+    return StackMgr.pop().get<uint32_t>();
+  }
+}
+
+// TODO: these memory instructions needs to do special when memory instance is
+// 64-bit mode
 Expect<void>
 Executor::runMemorySizeOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst) {
@@ -18,14 +31,19 @@ Expect<void>
 Executor::runMemoryGrowOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst) {
   // Pop N for growing page size.
-  uint32_t &N = StackMgr.getTop().get<uint32_t>();
+  uint64_t N = popIndexType(StackMgr, MemInst);
 
   // Grow page and push result.
-  const uint32_t CurrPageSize = static_cast<uint32_t>(MemInst.getPageSize());
+  const uint64_t CurrPageSize = MemInst.getPageSize();
   if (MemInst.growPage(N)) {
     N = CurrPageSize;
   } else {
-    N = static_cast<uint32_t>(-1);
+    switch (MemInst.getMemoryType().getIdxType()) {
+    case AST::MemoryType::IndexType::I64:
+      N = static_cast<uint64_t>(-1);
+    case AST::MemoryType::IndexType::I32:
+      N = static_cast<uint32_t>(-1);
+    }
   }
   return {};
 }
@@ -34,7 +52,7 @@ Expect<void> Executor::runMemoryInitOp(
     Runtime::StackManager &StackMgr, Runtime::Instance::MemoryInstance &MemInst,
     Runtime::Instance::DataInstance &DataInst, const AST::Instruction &Instr) {
   // Pop the length, source, and destination from stack.
-  uint32_t Len = StackMgr.pop().get<uint32_t>();
+  auto Len = popIndexType(StackMgr, MemInst);
   uint32_t Src = StackMgr.pop().get<uint32_t>();
   uint32_t Dst = StackMgr.pop().get<uint32_t>();
 
@@ -61,9 +79,9 @@ Executor::runMemoryCopyOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInstSrc,
                           const AST::Instruction &Instr) {
   // Pop the length, source, and destination from stack.
-  uint32_t Len = StackMgr.pop().get<uint32_t>();
-  uint32_t Src = StackMgr.pop().get<uint32_t>();
-  uint32_t Dst = StackMgr.pop().get<uint32_t>();
+  auto Len = popIndexType(StackMgr, MemInstSrc);
+  auto Src = popIndexType(StackMgr, MemInstSrc);
+  auto Dst = popIndexType(StackMgr, MemInstDst);
 
   // Replace mem[Dst : Dst + Len] with mem[Src : Src + Len].
   if (auto Data = MemInstSrc.getBytes(Src, Len)) {
@@ -86,9 +104,9 @@ Executor::runMemoryFillOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst,
                           const AST::Instruction &Instr) {
   // Pop the length, value, and offset from stack.
-  uint32_t Len = StackMgr.pop().get<uint32_t>();
+  auto Len = popIndexType(StackMgr, MemInst);
   uint8_t Val = static_cast<uint8_t>(StackMgr.pop().get<uint32_t>());
-  uint32_t Off = StackMgr.pop().get<uint32_t>();
+  auto Off = popIndexType(StackMgr, MemInst);
 
   // Fill data with Val.
   if (auto Res = MemInst.fillBytes(Val, Off, Len)) {

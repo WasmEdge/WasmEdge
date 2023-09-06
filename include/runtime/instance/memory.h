@@ -72,8 +72,8 @@ public:
   const AST::MemoryType &getMemoryType() const noexcept { return MemType; }
 
   /// Check access size is valid.
-  bool checkAccessBound(uint64_t Offset, uint32_t Length) const noexcept {
-    const uint64_t AccessLen = Offset + static_cast<uint64_t>(Length);
+  bool checkAccessBound(uint64_t Offset, uint64_t Length) const noexcept {
+    const uint64_t AccessLen = Offset + Length;
     return AccessLen <= MemType.getLimit().getMin() * kPageSize;
   }
 
@@ -129,7 +129,7 @@ public:
 
   /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Length - 1]
   Expect<void> setBytes(Span<const Byte> Slice, uint64_t Offset, uint32_t Start,
-                        uint32_t Length) noexcept {
+                        uint64_t Length) noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);

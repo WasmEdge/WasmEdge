@@ -40,9 +40,9 @@ public:
 
   /// Constructors.
   Limit() noexcept : Type(LimitType::HasMin), Min(0U), Max(0U) {}
-  Limit(uint32_t MinVal) noexcept
+  Limit(uint64_t MinVal) noexcept
       : Type(LimitType::HasMin), Min(MinVal), Max(MinVal) {}
-  Limit(uint32_t MinVal, uint32_t MaxVal, bool Shared = false) noexcept
+  Limit(uint64_t MinVal, uint64_t MaxVal, bool Shared = false) noexcept
       : Min(MinVal), Max(MaxVal) {
     if (Shared) {
       Type = LimitType::Shared;
@@ -59,6 +59,20 @@ public:
   }
   bool isShared() const noexcept {
     return Type == LimitType::Shared || Type == LimitType::I64Shared;
+  }
+  uint64_t getPageLimit() const noexcept {
+    switch (Type) {
+    case LimitType::HasMin:
+    case LimitType::HasMinMax:
+    case LimitType::SharedNoMax:
+    case LimitType::Shared:
+      return UINT32_C(65536);
+    case LimitType::I64HasMin:
+    case LimitType::I64HasMinMax:
+    case LimitType::I64SharedNoMax:
+    case LimitType::I64Shared:
+      return UINT64_C(281474976710656);
+    }
   }
   void setType(LimitType TargetType) noexcept { Type = TargetType; }
 
@@ -139,9 +153,8 @@ class MemoryType {
 public:
   /// Constructors.
   MemoryType() noexcept = default;
-  MemoryType(uint32_t MinVal) noexcept : Lim(MinVal) {}
-  // TODO: memory64
-  MemoryType(uint32_t MinVal, uint32_t MaxVal, bool Shared = false) noexcept
+  MemoryType(uint64_t MinVal) noexcept : Lim(MinVal) {}
+  MemoryType(uint64_t MinVal, uint64_t MaxVal, bool Shared = false) noexcept
       : Lim(MinVal, MaxVal, Shared) {}
   MemoryType(const Limit &L) noexcept : Lim(L) {}
 

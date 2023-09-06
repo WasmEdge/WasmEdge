@@ -242,12 +242,12 @@ struct InfoBoundary {
   InfoBoundary() = delete;
   InfoBoundary(
       const uint64_t Off, const uint32_t Len = 0,
-      const uint32_t Lim = std::numeric_limits<uint32_t>::max()) noexcept
+      const uint64_t Lim = std::numeric_limits<uint64_t>::max()) noexcept
       : Offset(Off), Size(Len), Limit(Lim) {}
 
   uint64_t Offset;
   uint32_t Size;
-  uint32_t Limit;
+  uint64_t Limit;
 };
 
 struct InfoProposal {

@@ -42,6 +42,7 @@ Executor::runMemoryGrowOp(Runtime::StackManager &StackMgr,
     case AST::MemoryType::IndexType::I64:
       N = static_cast<uint64_t>(-1);
     case AST::MemoryType::IndexType::I32:
+    default:
       N = static_cast<uint32_t>(-1);
     }
   }

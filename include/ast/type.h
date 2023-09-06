@@ -60,10 +60,6 @@ public:
   bool isShared() const noexcept {
     return Type == LimitType::Shared || Type == LimitType::I64Shared;
   }
-  bool is64() const noexcept {
-    return Type == LimitType::I64HasMin || Type == LimitType::I64HasMinMax ||
-           Type == LimitType::I64SharedNoMax || Type == LimitType::I64Shared;
-  }
   void setType(LimitType TargetType) noexcept { Type = TargetType; }
 
   /// Getter and setter of min value.

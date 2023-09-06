@@ -9,16 +9,18 @@ namespace WasmEdge {
 namespace Loader {
 
 Expect<void> Loader::loadLimit(AST::Limit &Lim) {
+  Expect<uint64_t> Min, Max;
+
   // Read limit.
   if (auto Res = FMgr.readByte()) {
 
     switch (static_cast<AST::Limit::LimitType>(*Res)) {
     case AST::Limit::LimitType::HasMin:
       Lim.setType(AST::Limit::LimitType::HasMin);
-      break;
+      goto handle32;
     case AST::Limit::LimitType::HasMinMax:
       Lim.setType(AST::Limit::LimitType::HasMinMax);
-      break;
+      goto handle32;
     case AST::Limit::LimitType::SharedNoMax:
       if (Conf.hasProposal(Proposal::Threads)) {
         return logLoadError(ErrCode::Value::SharedMemoryNoMax,
@@ -29,19 +31,19 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
       }
     case AST::Limit::LimitType::Shared:
       Lim.setType(AST::Limit::LimitType::Shared);
-      break;
+      goto handle32;
     case AST::Limit::LimitType::I64HasMin:
       Lim.setType(AST::Limit::LimitType::I64HasMin);
-      break;
+      goto handle64;
     case AST::Limit::LimitType::I64HasMinMax:
       Lim.setType(AST::Limit::LimitType::I64HasMinMax);
-      break;
+      goto handle64;
     case AST::Limit::LimitType::I64SharedNoMax:
       Lim.setType(AST::Limit::LimitType::I64SharedNoMax);
-      break;
+      goto handle64;
     case AST::Limit::LimitType::I64Shared:
       Lim.setType(AST::Limit::LimitType::I64Shared);
-      break;
+      goto handle64;
     default:
       if (*Res == 0x80 || *Res == 0x81) {
         // LEB128 cases will fail.
@@ -57,41 +59,33 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
                         ASTNodeAttr::Type_Limit);
   }
 
-  if (Lim.is64()) {
-    // Read min and max number.
-    if (auto Res = FMgr.readU64()) {
-      Lim.setMin(*Res);
-      Lim.setMax(*Res);
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Type_Limit);
-    }
-    if (Lim.hasMax()) {
-      if (auto Res = FMgr.readU64()) {
-        Lim.setMax(*Res);
-      } else {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::Type_Limit);
-      }
-    }
-  } else {
-    // Read min and max number.
-    if (auto Res = FMgr.readU32()) {
-      Lim.setMin(*Res);
-      Lim.setMax(*Res);
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Type_Limit);
-    }
-    if (Lim.hasMax()) {
-      if (auto Res = FMgr.readU32()) {
-        Lim.setMax(*Res);
-      } else {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::Type_Limit);
-      }
-    }
+handle32:
+  // Read min and max number.
+  if (Min = FMgr.readU32(); !Min) {
+    return logLoadError(Min.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_Limit);
   }
+  Max = Min;
+  if (Lim.hasMax() && (Max = FMgr.readU32()) && !Max) {
+    return logLoadError(Max.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_Limit);
+  }
+  goto setup;
+handle64:
+  // Read min and max number.
+  if (Min = FMgr.readU64(); !Min) {
+    return logLoadError(Min.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_Limit);
+  }
+  Max = Min;
+  if (Lim.hasMax() && (Max = FMgr.readU64()) && !Max) {
+    return logLoadError(Max.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_Limit);
+  }
+  goto setup;
+setup:
+  Lim.setMin(*Min);
+  Lim.setMax(*Max);
   return {};
 }
 

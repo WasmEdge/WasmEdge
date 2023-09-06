@@ -40,7 +40,7 @@ Expect<void> Serializer::serializeType(const AST::FunctionType &Type,
   // Prefix 0x60.
   OutVec.push_back(0x60U);
   // Param types: vec(valtype).
-  serializeU32(Type.getParamTypes().size(), OutVec);
+  serializeU32(static_cast<uint32_t>(Type.getParamTypes().size()), OutVec);
   for (auto VType : Type.getParamTypes()) {
     if (auto Check =
             Conf.checkValTypeProposals(VType, ASTNodeAttr::Type_Function);
@@ -56,7 +56,7 @@ Expect<void> Serializer::serializeType(const AST::FunctionType &Type,
                                 Proposal::MultiValue,
                                 ASTNodeAttr::Type_Function);
   }
-  serializeU32(Type.getReturnTypes().size(), OutVec);
+  serializeU32(static_cast<uint32_t>(Type.getReturnTypes().size()), OutVec);
   for (auto VType : Type.getReturnTypes()) {
     if (auto Check =
             Conf.checkValTypeProposals(VType, ASTNodeAttr::Type_Function);

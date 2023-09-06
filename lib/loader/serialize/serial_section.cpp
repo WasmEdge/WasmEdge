@@ -10,12 +10,13 @@ Serializer::serializeSection(const AST::CustomSection &Sec) {
   // Section ID.
   std::vector<uint8_t> OutVec = {0x00U};
   // Name: vec(byte).
-  serializeU32(Sec.getName().size(), OutVec);
+  serializeU32(static_cast<uint32_t>(Sec.getName().size()), OutVec);
   OutVec.insert(OutVec.end(), Sec.getName().begin(), Sec.getName().end());
   // Content: byte*.
   OutVec.insert(OutVec.end(), Sec.getContent().begin(), Sec.getContent().end());
   // Backward insert the section size.
-  serializeU32(OutVec.size() - 1, OutVec, std::next(OutVec.begin(), 1));
+  serializeU32(static_cast<uint32_t>(OutVec.size()) - 1, OutVec,
+               std::next(OutVec.begin(), 1));
   return OutVec;
 }
 
@@ -101,7 +102,8 @@ Serializer::serializeSection(const AST::StartSection &Sec) {
     // Idx: u32.
     serializeU32(*Sec.getContent(), OutVec);
     // Backward insert the section size.
-    serializeU32(OutVec.size() - 1, OutVec, std::next(OutVec.begin(), 1));
+    serializeU32(static_cast<uint32_t>(OutVec.size()) - 1, OutVec,
+                 std::next(OutVec.begin(), 1));
     return OutVec;
   }
   return {};
@@ -147,7 +149,8 @@ Serializer::serializeSection(const AST::DataCountSection &Sec) {
     // Idx: u32.
     serializeU32(*Sec.getContent(), OutVec);
     // Backward insert the section size.
-    serializeU32(OutVec.size() - 1, OutVec, std::next(OutVec.begin(), 1));
+    serializeU32(static_cast<uint32_t>(OutVec.size()) - 1, OutVec,
+                 std::next(OutVec.begin(), 1));
     return OutVec;
   }
   return {};

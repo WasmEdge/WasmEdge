@@ -191,14 +191,15 @@ private:
       // Section ID.
       std::vector<uint8_t> OutVec = {Code};
       // Content: vec(T).
-      serializeU32(Content.size(), OutVec);
+      serializeU32(static_cast<uint32_t>(Content.size()), OutVec);
       for (const auto &Item : Content) {
         if (auto Res = Func(Item, OutVec); unlikely(!Res)) {
           return Unexpect(Res);
         }
       }
       // Backward insert the section size.
-      serializeU32(OutVec.size() - 1, OutVec, std::next(OutVec.begin(), 1));
+      serializeU32(static_cast<uint32_t>(OutVec.size()) - 1, OutVec,
+                   std::next(OutVec.begin(), 1));
       return OutVec;
     }
     return {};

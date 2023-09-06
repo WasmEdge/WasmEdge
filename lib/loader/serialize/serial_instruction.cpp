@@ -27,12 +27,12 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
     return {};
   };
 
-  auto serializeCheckZero = [this, &OutVec](uint8_t C) -> Expect<void> {
-    if (C != UINT8_C(0)) {
+  auto serializeCheckZero = [this, &OutVec](uint32_t C) -> Expect<void> {
+    if (C != 0) {
       return logSerializeError(ErrCode::Value::ExpectedZeroByte,
                                ASTNodeAttr::Instruction);
     }
-    OutVec.push_back(C);
+    OutVec.push_back(0x00);
     return {};
   };
 
@@ -78,7 +78,7 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
                                     Proposal::MultiValue,
                                     ASTNodeAttr::Instruction);
       }
-      serializeS33(Instr.getBlockType().Data.Idx, OutVec);
+      serializeS33(static_cast<int64_t>(Instr.getBlockType().Data.Idx), OutVec);
       break;
 
     default:
@@ -93,7 +93,7 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
     return {};
 
   case OpCode::Br_table: {
-    uint32_t VecCnt = Instr.getLabelList().size() - 1;
+    uint32_t VecCnt = static_cast<uint32_t>(Instr.getLabelList().size()) - 1;
     serializeU32(VecCnt, OutVec);
     for (auto Label : Instr.getLabelList()) {
       serializeU32(Label.TargetIndex, OutVec);
@@ -140,7 +140,7 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Select:
     return {};
   case OpCode::Select_t: {
-    uint32_t VecCnt = Instr.getValTypeList().size();
+    uint32_t VecCnt = static_cast<uint32_t>(Instr.getValTypeList().size());
     serializeU32(VecCnt, OutVec);
     for (auto VType : Instr.getValTypeList()) {
       if (auto Check =

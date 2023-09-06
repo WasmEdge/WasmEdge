@@ -8,11 +8,11 @@ Expect<void> Serializer::serializeDesc(const AST::ImportDesc &Desc,
                                        std::vector<uint8_t> &OutVec) {
   // Import description: modname:vec(byte) + extname:vec(byte) + importdesc
   // Module name: vec(byte).
-  serializeU32(Desc.getModuleName().size(), OutVec);
+  serializeU32(static_cast<uint32_t>(Desc.getModuleName().size()), OutVec);
   OutVec.insert(OutVec.end(), Desc.getModuleName().begin(),
                 Desc.getModuleName().end());
   // External name: vec(byte).
-  serializeU32(Desc.getExternalName().size(), OutVec);
+  serializeU32(static_cast<uint32_t>(Desc.getExternalName().size()), OutVec);
   OutVec.insert(OutVec.end(), Desc.getExternalName().begin(),
                 Desc.getExternalName().end());
 
@@ -46,7 +46,7 @@ Expect<void> Serializer::serializeDesc(const AST::ExportDesc &Desc,
                                        std::vector<uint8_t> &OutVec) {
   // Export description: extname:vec(byte) + exportdesc
   // External name: vec(byte).
-  serializeU32(Desc.getExternalName().size(), OutVec);
+  serializeU32(static_cast<uint32_t>(Desc.getExternalName().size()), OutVec);
   OutVec.insert(OutVec.end(), Desc.getExternalName().begin(),
                 Desc.getExternalName().end());
   // Export Desc: extern_type:byte + idx:u32.

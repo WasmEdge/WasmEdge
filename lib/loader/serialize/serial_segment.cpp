@@ -59,7 +59,7 @@ Expect<void> Serializer::serializeSegment(const AST::ElementSegment &Seg,
   if (Seg.getRefType() == RefType::FuncRef) {
     if (Mode != 0x00) {
       // Serialize ElemKind.
-      serializeU32(0x00, Result);
+      Result.push_back(0x00);
     }
   } else {
     // Serialize RefType.
@@ -68,7 +68,7 @@ Expect<void> Serializer::serializeSegment(const AST::ElementSegment &Seg,
         unlikely(!Res)) {
       return Unexpect(Res);
     }
-    serializeU32(static_cast<uint8_t>(Seg.getRefType()), Result);
+    Result.push_back(static_cast<uint8_t>(Seg.getRefType()));
   }
 
   // Distinguish between FuncIdx and Expr.
@@ -94,7 +94,7 @@ Expect<void> Serializer::serializeSegment(const AST::ElementSegment &Seg,
                                 ASTNodeAttr::Seg_Element);
   }
 
-  serializeU32(Seg.getInitExprs().size(), Result);
+  serializeU32(static_cast<uint32_t>(Seg.getInitExprs().size()), Result);
   for (auto Expr : Seg.getInitExprs()) {
     if (Mode & 0x04) {
       // Serialize vec(expr).
@@ -113,7 +113,7 @@ Expect<void> Serializer::serializeSegment(const AST::ElementSegment &Seg,
     }
   }
 
-  serializeU32(Mode, Result, Result.begin());
+  Result.insert(Result.begin(), Mode);
   OutVec.insert(OutVec.end(), Result.begin(), Result.end());
   return {};
 }
@@ -123,7 +123,7 @@ Expect<void> Serializer::serializeSegment(const AST::CodeSegment &Seg,
                                           std::vector<uint8_t> &OutVec) {
   // Code segment: size:u32 + locals:vec(u32 + valtype) + body:expr.
   serializeU32(Seg.getSegSize(), OutVec);
-  serializeU32(Seg.getLocals().size(), OutVec);
+  serializeU32(static_cast<uint32_t>(Seg.getLocals().size()), OutVec);
 
   uint32_t TotalLocalCnt = 0;
   for (auto Locals : Seg.getLocals()) {
@@ -162,10 +162,10 @@ Expect<void> Serializer::serializeSegment(const AST::DataSegment &Seg,
                                     Proposal::BulkMemoryOperations,
                                     ASTNodeAttr::Seg_Data);
       }
-      serializeU32(0x02, OutVec);
+      OutVec.push_back(0x02);
       serializeU32(Seg.getIdx(), OutVec);
     } else {
-      serializeU32(0x00, OutVec);
+      OutVec.push_back(0x00);
     }
     if (auto Res = serializeExpression(Seg.getExpr(), OutVec); unlikely(!Res)) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
@@ -180,14 +180,14 @@ Expect<void> Serializer::serializeSegment(const AST::DataSegment &Seg,
                                   Proposal::BulkMemoryOperations,
                                   ASTNodeAttr::Seg_Data);
     }
-    serializeU32(0x01, OutVec);
+    OutVec.push_back(0x01);
     break;
 
   default:
     break;
   }
 
-  serializeU32(Seg.getData().size(), OutVec);
+  serializeU32(static_cast<uint32_t>(Seg.getData().size()), OutVec);
   OutVec.insert(OutVec.end(), Seg.getData().begin(), Seg.getData().end());
   return {};
 }

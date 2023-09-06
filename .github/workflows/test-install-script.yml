@@ -126,6 +126,13 @@ jobs:
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge and wasi_nn-ggml plugin (0.13.4)
+      run: |
+        bash utils/install.sh -v 0.13.4 --plugins wasi_nn-ggml -D
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
+    - name: Uninstall WasmEdge with wasi_nn-ggml
+      run: |
+        bash utils/uninstall.sh -q -V
     - name: Install versions multiple times
       run: |
         bash utils/install.sh -e all -D

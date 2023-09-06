@@ -62,16 +62,17 @@ public:
   }
   uint64_t getPageLimit() const noexcept {
     switch (Type) {
-    case LimitType::HasMin:
-    case LimitType::HasMinMax:
-    case LimitType::SharedNoMax:
-    case LimitType::Shared:
-      return UINT32_C(65536);
     case LimitType::I64HasMin:
     case LimitType::I64HasMinMax:
     case LimitType::I64SharedNoMax:
     case LimitType::I64Shared:
       return UINT64_C(281474976710656);
+    case LimitType::HasMin:
+    case LimitType::HasMinMax:
+    case LimitType::SharedNoMax:
+    case LimitType::Shared:
+    default:
+      return UINT32_C(65536);
     }
   }
   void setType(LimitType TargetType) noexcept { Type = TargetType; }

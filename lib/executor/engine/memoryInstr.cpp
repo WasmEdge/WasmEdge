@@ -41,9 +41,11 @@ Executor::runMemoryGrowOp(Runtime::StackManager &StackMgr,
     switch (MemInst.getMemoryType().getIdxType()) {
     case AST::MemoryType::IndexType::I64:
       N = static_cast<uint64_t>(-1);
+      break;
     case AST::MemoryType::IndexType::I32:
     default:
       N = static_cast<uint32_t>(-1);
+      break;
     }
   }
   return {};

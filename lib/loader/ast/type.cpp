@@ -10,16 +10,14 @@ namespace Loader {
 
 Expect<void> Loader::loadLimit(AST::Limit &Lim) {
   Expect<uint64_t> Min, Max;
-
   // Read limit.
   if (auto Res = FMgr.readByte()) {
-
-    switch (static_cast<AST::Limit::LimitType>(*Res)) {
+    auto LimitType = static_cast<AST::Limit::LimitType>(*Res);
+    switch (LimitType) {
     case AST::Limit::LimitType::HasMin:
-      Lim.setType(AST::Limit::LimitType::HasMin);
-      goto handle32;
     case AST::Limit::LimitType::HasMinMax:
-      Lim.setType(AST::Limit::LimitType::HasMinMax);
+    case AST::Limit::LimitType::Shared:
+      Lim.setType(LimitType);
       goto handle32;
     case AST::Limit::LimitType::SharedNoMax:
       if (Conf.hasProposal(Proposal::Threads)) {
@@ -29,20 +27,11 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
         return logLoadError(ErrCode::Value::IntegerTooLarge,
                             FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
       }
-    case AST::Limit::LimitType::Shared:
-      Lim.setType(AST::Limit::LimitType::Shared);
-      goto handle32;
     case AST::Limit::LimitType::I64HasMin:
-      Lim.setType(AST::Limit::LimitType::I64HasMin);
-      goto handle64;
     case AST::Limit::LimitType::I64HasMinMax:
-      Lim.setType(AST::Limit::LimitType::I64HasMinMax);
-      goto handle64;
     case AST::Limit::LimitType::I64SharedNoMax:
-      Lim.setType(AST::Limit::LimitType::I64SharedNoMax);
-      goto handle64;
     case AST::Limit::LimitType::I64Shared:
-      Lim.setType(AST::Limit::LimitType::I64Shared);
+      Lim.setType(LimitType);
       goto handle64;
     default:
       if (*Res == 0x80 || *Res == 0x81) {

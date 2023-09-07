@@ -131,11 +131,7 @@ Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
   uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
 
   // Value = Mem.Data[EA : N / 8]
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
   using VT = SIMDArray<T, 16>;
-#else
-  using VT [[gnu::vector_size(16)]] = T;
-#endif // MSVC
   uint64_t Buffer;
   if (auto Res = MemInst.loadValue<decltype(Buffer), sizeof(T)>(Buffer, EA);
       !Res) {
@@ -162,11 +158,7 @@ template <typename T>
 Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
                                      Runtime::Instance::MemoryInstance &MemInst,
                                      const AST::Instruction &Instr) {
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
   using VT = SIMDArray<T, 16>;
-#else
-  using VT [[gnu::vector_size(16)]] = T;
-#endif // MSVC
   VT Result = StackMgr.pop().get<VT>();
 
   // Calculate EA
@@ -202,11 +194,7 @@ Expect<void>
 Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
                          Runtime::Instance::MemoryInstance &MemInst,
                          const AST::Instruction &Instr) {
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
   using VT = SIMDArray<T, 16>;
-#else
-  using VT [[gnu::vector_size(16)]] = T;
-#endif // MSVC
   using TBuf = std::conditional_t<sizeof(T) < 4, uint32_t, T>;
   const TBuf C = StackMgr.pop().get<VT>()[Instr.getMemoryLane()];
 

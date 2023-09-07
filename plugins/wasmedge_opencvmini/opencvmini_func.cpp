@@ -3,7 +3,11 @@
 
 #include "opencvmini_func.h"
 #include "common/defines.h"
+#include "common/errcode.h"
 
+#include <cstdint>
+#include <opencv2/core/mat.hpp>
+#include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
@@ -63,6 +67,108 @@ Expect<uint32_t> WasmEdgeOpenCVMiniBlur::body(const Runtime::CallingFrame &,
   cv::Mat Dst;
   if (auto Src = Env.getMat(SrcMatKey); Src) {
     cv::blur(*Src, Dst, cv::Size(KernelWidth, KernelHeight));
+  }
+  return Env.insertMat(Dst);
+}
+
+Expect<uint32_t>
+WasmEdgeOpenCVMiniBilateralFilter::body(const Runtime::CallingFrame &,
+                                        uint32_t SrcMatKey, uint32_t D,
+                                        double SigmaColor, double SigmaSpace) {
+  cv::Mat Dst;
+  if (auto Src = Env.getMat(SrcMatKey); Src) {
+    cv::bilateralFilter(*Src, Dst, D, SigmaColor, SigmaSpace);
+  }
+  return Env.insertMat(Dst);
+}
+
+Expect<uint32_t>
+WasmEdgeOpenCVMiniBoxFilter::body(const Runtime::CallingFrame &,
+                                  uint32_t SrcMatKey, uint32_t Ddepth,
+                                  uint32_t KernelWidth, uint32_t KernelHeight) {
+  cv::Mat Dst;
+  if (auto Src = Env.getMat(SrcMatKey); Src) {
+    cv::boxFilter(*Src, Dst, Ddepth, cv::Size(KernelWidth, KernelHeight));
+  }
+  return Env.insertMat(Dst);
+}
+
+Expect<uint32_t> WasmEdgeOpenCVMiniEmptyMat::body() {
+  cv::Mat Kernel;
+  return Env.insertMat(Kernel);
+}
+
+Expect<uint32_t> WasmEdgeOpenCVMiniDilate::body(const Runtime::CallingFrame &,
+                                                uint32_t SrcMatKey,
+                                                uint32_t KernelMatKey) {
+  cv::Mat Dst;
+  auto Kernel = Env.getMat(KernelMatKey);
+  if (auto Src = Env.getMat(SrcMatKey); Src) {
+    cv::dilate(*Src, Dst, *Kernel);
+  }
+  return Env.insertMat(Dst);
+}
+
+Expect<uint32_t> WasmEdgeOpenCVMiniErode::body(const Runtime::CallingFrame &,
+                                               uint32_t SrcMatKey,
+                                               uint32_t KernelMatKey) {
+  cv::Mat Dst;
+  auto Kernel = Env.getMat(KernelMatKey);
+  if (auto Src = Env.getMat(SrcMatKey); Src) {
+    cv::erode(*Src, Dst, *Kernel);
+  }
+  return Env.insertMat(Dst);
+}
+
+Expect<uint32_t>
+WasmEdgeOpenCVMiniGaussianBlur::body(const Runtime::CallingFrame &,
+                                     uint32_t SrcMatKey, uint32_t KernelWidth,
+                                     uint32_t KernelHeight, double SigmaX) {
+  cv::Mat Dst;
+  if (auto Src = Env.getMat(SrcMatKey); Src) {
+    cv::GaussianBlur(*Src, Dst, cv::Size(KernelWidth, KernelHeight), SigmaX);
+  }
+  return Env.insertMat(Dst);
+}
+
+Expect<uint32_t>
+WasmEdgeOpenCVMiniLaplacian::body(const Runtime::CallingFrame &,
+                                  uint32_t SrcMatKey, uint32_t Ddepth) {
+  cv::Mat Dst;
+  if (auto Src = Env.getMat(SrcMatKey); Src) {
+    cv::Laplacian(*Src, Dst, Ddepth);
+  }
+  return Env.insertMat(Dst);
+}
+
+Expect<uint32_t>
+WasmEdgeOpenCVMiniMedianBlur::body(const Runtime::CallingFrame &,
+                                   uint32_t SrcMatKey, uint32_t Ksize) {
+  cv::Mat Dst;
+  if (auto Src = Env.getMat(SrcMatKey); Src) {
+    cv::medianBlur(*Src, Dst, Ksize);
+  }
+  return Env.insertMat(Dst);
+}
+
+Expect<uint32_t> WasmEdgeOpenCVMiniPyrDown::body(const Runtime::CallingFrame &,
+                                                 uint32_t SrcMatKey,
+                                                 uint32_t KernelWidth,
+                                                 uint32_t KernelHeight) {
+  cv::Mat Dst;
+  if (auto Src = Env.getMat(SrcMatKey); Src) {
+    cv::pyrDown(*Src, Dst, cv::Size(KernelWidth, KernelHeight));
+  }
+  return Env.insertMat(Dst);
+}
+
+Expect<uint32_t> WasmEdgeOpenCVMiniPyrUp::body(const Runtime::CallingFrame &,
+                                               uint32_t SrcMatKey,
+                                               uint32_t KernelWidth,
+                                               uint32_t KernelHeight) {
+  cv::Mat Dst;
+  if (auto Src = Env.getMat(SrcMatKey); Src) {
+    cv::pyrUp(*Src, Dst, cv::Size(KernelWidth, KernelHeight));
   }
   return Env.insertMat(Dst);
 }

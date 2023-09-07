@@ -260,7 +260,8 @@ TEST(TypeTest, LoadTableType) {
       0x01U, // Content size = 1
       0x01U  // Vector length = 1
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)))
+      << "Expect one but get no element for table section";
 
   Vec = {
       0x04U, // Table section
@@ -290,7 +291,8 @@ TEST(TypeTest, LoadTableType) {
       0x00U,                            // Only has min
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU // Min = 4294967295
   };
-  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)))
+      << "Only has min with value 4294967295 should be valid";
 
   Vec = {
       0x04U,                            // Table section
@@ -356,10 +358,11 @@ TEST(TypeTest, LoadMemoryType) {
       0x05U, // Memory section
       0x03U, // Content size = 3
       0x01U, // Vector length = 1
-      0x02U, // Unknown limit type
+      0x08U, // Unknown limit type
       0x00U  // Min = 0
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)))
+      << "Unknown limit type should fail";
 
   Vec = {
       0x05U,                            // Memory section
@@ -368,7 +371,8 @@ TEST(TypeTest, LoadMemoryType) {
       0x00U,                            // Only has min
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU // Min = 4294967295
   };
-  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)))
+      << "Only has min with value 4294967295 should be valid";
 
   Vec = {
       0x05U,                            // Memory section

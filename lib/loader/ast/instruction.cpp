@@ -175,8 +175,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
         return Unexpect(Res);
       }
     }
-    auto Offset = Instr.getMemoryOffset();
-    uint32_t Off32 = static_cast<uint32_t>(Offset);
+    uint64_t &Offset = Instr.getMemoryOffset();
+    uint32_t &Off32 = (uint32_t &)Instr.getMemoryOffset();
 
     if (auto Res = Conf.hasProposal(Proposal::Memory64) ? readU64(Offset)
                                                         : readU32(Off32);

@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(inputs.matrix) }}
-    name: Build on ${{ matrix.name }}
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
     env:
       BUILD_TESTS: ON
@@ -51,15 +51,17 @@ jobs:
           cmake --build build
       - name: Test WasmEdge
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           cd build
           ctest
       - name: Create package tarball
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           cmake --build build --target package
       - name: Test Standalone WasmEdge without LLVM
         run: |
-          brew uninstall llvm
+          eval $(/opt/homebrew/bin/brew shellenv)
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           echo "otool -L ./build/tools/wasmedge/wasmedge:"
           otool -L ./build/tools/wasmedge/wasmedge
@@ -67,8 +69,9 @@ jobs:
           otool -L ./build/tools/wasmedge/wasmedgec
           echo "otool -L ./build/lib/api/libwasmedge.dylib:"
           otool -L ./build/lib/api/libwasmedge.dylib
-          echo "Generate fibonacci.wasm from fibonacci.wat"
+          if otool -L ./build/lib/api/libwasmedge.dylib | grep libLLVM; then echo "Fail: libLLVM shared library linked" && exit 1; else echo "Pass: libLLVM shared library not linked"; fi;
 
+          echo "Generate fibonacci.wasm from fibonacci.wat"
           wat2wasm examples/wasm/fibonacci.wat -o examples/wasm/fibonacci.wasm
           echo "./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib_c.dylib"
           ./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib_c.dylib
@@ -89,5 +92,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
           mv build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz WasmEdge-${{ inputs.version }}-darwin_${{ matrix.arch }}.tar.gz
           gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber

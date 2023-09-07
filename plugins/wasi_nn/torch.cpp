@@ -146,8 +146,8 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     auto OutTensor = RawOutput.toTensor();
     CxtRef.TorchOutputs.push_back(OutTensor.clone());
   } else {
-    spdlog::error("[WASI-NN] PyTorch backend only supports output a tensor "
-                  "or a list of tensor");
+    spdlog::error("[WASI-NN] PyTorch backend only supports output a tensor, "
+                  "a list of tensor or a tuple of tensor");
     return ErrNo::InvalidArgument;
   }
   return ErrNo::Success;

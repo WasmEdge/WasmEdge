@@ -329,6 +329,7 @@ WASI_NN_OPENVINO = "wasi_nn-openvino"
 WASI_CRYPTO = "wasi_crypto"
 WASI_NN_PYTORCH = "wasi_nn-pytorch"
 WASI_NN_TENSORFLOW_LITE = "wasi_nn-tensorflowlite"
+WASI_NN_GGML = "wasi_nn-ggml"
 WASMEDGE_TENSORFLOW_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW
 WASMEDGE_TENSORFLOW_LITE_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW_LITE_P
 WASMEDGE_IMAGE_PLUGIN = WASMEDGE.lower() + "_" + IMAGE
@@ -339,10 +340,11 @@ PLUGINS_AVAILABLE = [
     WASI_CRYPTO,
     WASI_NN_PYTORCH,
     WASI_NN_TENSORFLOW_LITE,
+    WASI_NN_GGML,
     WASMEDGE_TENSORFLOW_PLUGIN,
     WASMEDGE_TENSORFLOW_LITE_PLUGIN,
     WASMEDGE_IMAGE_PLUGIN,
-    WASM_BPF
+    WASM_BPF,
 ]
 
 SUPPORTTED_PLUGINS = {
@@ -352,9 +354,12 @@ SUPPORTTED_PLUGINS = {
     "manylinux2014" + "arm64" + WASI_CRYPTO: VersionString("0.10.1-rc.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_OPENVINO: VersionString("0.10.1-alpha.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.1-alpha.1"),
+    "ubuntu20.04" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
     "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.2-alpha.1"),
     "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
+    "manylinux2014" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
     "manylinux2014" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
+    "manylinux2014" + "aarch64" + WASI_NN_GGML: VersionString("0.13.4"),
     "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-rc.1"),
     "darwin" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
     "darwin" + "arm64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
@@ -392,6 +397,7 @@ CONST_ipkg = None
 CONST_lib_ext = None
 CONST_env_path = None
 CONST_lib_dir = "lib"
+CONST_PATH_NOT_EXIST_STR = "/DOES NOT EXIST;"
 
 try:
     mkdir(TEMP_PATH)
@@ -1611,7 +1617,18 @@ def main(args):
         # Cleanup
         shutil.rmtree(TEMP_PATH)
 
-        logging.info("Run:\nsource {0}".format(CONST_shell_profile))
+        if CONST_shell_config is None:
+            CONST_shell_config = CONST_PATH_NOT_EXIST_STR
+
+        if CONST_shell_profile is None:
+            CONST_shell_profile = CONST_PATH_NOT_EXIST_STR
+
+        if exists(CONST_shell_config) and compat.platform != "Darwin":
+            logging.info("Run:\nsource {0}".format(CONST_shell_config))
+        elif exists(CONST_shell_profile):
+            logging.info("Run:\nsource {0}".format(CONST_shell_profile))
+        else:
+            logging.info("Please source the env file: %s", join(args.path, "env"))
     else:
         reraise(Exception("Incompatible with your machine\n{0}".format(compat)))
 

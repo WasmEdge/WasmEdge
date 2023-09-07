@@ -34,7 +34,7 @@ on:
       - "CMakeLists.txt"
 
 jobs:
-  get_version_v2:
+  get_version:
     name: Retrieve version information
     runs-on: ubuntu-latest
     outputs:
@@ -56,7 +56,7 @@ jobs:
 
   build_fedora:
     name: Fedora latest
-    needs: get_version_v2
+    needs: get_version
     runs-on: ubuntu-latest
     container:
       image: fedora:latest
@@ -95,7 +95,7 @@ jobs:
   build_macos:
     name: macOS
     runs-on: macos-latest
-    needs: get_version_v2
+    needs: get_version
 
     steps:
     - uses: actions/checkout@v3

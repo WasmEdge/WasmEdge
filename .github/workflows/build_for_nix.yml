@@ -45,7 +45,7 @@ jobs:
         path: /tmp/nix-store
         key: ${{ runner.os }}-nix-store
 
-    - uses: cachix/install-nix-action@v22
+    - uses: cachix/install-nix-action@v23
       with:
         nix_path: nixpkgs=channel:nixos-unstable
 

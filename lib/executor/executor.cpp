@@ -55,6 +55,22 @@ Executor::registerModule(Runtime::StoreManager &StoreMgr,
   return {};
 }
 
+/// Register a host function which will be invoked before calling a
+/// host function.
+Expect<void> Executor::registerPreHostFunction(
+    void *HostData = nullptr, std::function<void(void *)> HostFunc = nullptr) {
+  HostFuncHelper.setPreHost(HostData, HostFunc);
+  return {};
+}
+
+/// Register a host function which will be invoked after calling a
+/// host function.
+Expect<void> Executor::registerPostHostFunction(
+    void *HostData = nullptr, std::function<void(void *)> HostFunc = nullptr) {
+  HostFuncHelper.setPostHost(HostData, HostFunc);
+  return {};
+}
+
 // Invoke function. See "include/executor/executor.h".
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,

@@ -141,6 +141,42 @@ jobs:
             org.opencontainers.image.created=${{ needs.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
+      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-clang-plugins-deps"
+        uses: docker/build-push-action@v4
+        with:
+          build-args: BASE=wasmedge/wasmedge:ubuntu-build-clang
+          context: ./utils/docker
+          file: ./utils/docker/Dockerfile.build-plugins-deps
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ needs.prep.outputs.docker_image }}:ubuntu-build-clang-plugins-deps
+          labels: |
+            org.opencontainers.image.title=${{ github.event.repository.name }}
+            org.opencontainers.image.description=${{ github.event.repository.description }}
+            org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            org.opencontainers.image.version=${{ needs.prep.outputs.version }}
+            org.opencontainers.image.created=${{ needs.prep.outputs.created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-gcc-plugins-deps"
+        uses: docker/build-push-action@v4
+        with:
+          build-args: BASE=wasmedge/wasmedge:ubuntu-build-gcc
+          context: ./utils/docker
+          file: ./utils/docker/Dockerfile.build-plugins-deps
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ needs.prep.outputs.docker_image }}:ubuntu-build-gcc-plugins-deps
+          labels: |
+            org.opencontainers.image.title=${{ github.event.repository.name }}
+            org.opencontainers.image.description=${{ github.event.repository.description }}
+            org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            org.opencontainers.image.version=${{ needs.prep.outputs.version }}
+            org.opencontainers.image.created=${{ needs.prep.outputs.created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
       - name: "Rebuild wasmedge/wasmedge:latest"
         uses: docker/build-push-action@v4
         with:
@@ -189,6 +225,24 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ needs.prep.outputs.docker_image }}:manylinux2014_x86_64
+          labels: |
+            org.opencontainers.image.title=${{ github.event.repository.name }}
+            org.opencontainers.image.description=${{ github.event.repository.description }}
+            org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            org.opencontainers.image.version=${{ needs.prep.outputs.version }}
+            org.opencontainers.image.created=${{ needs.prep.outputs.created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: "Rebuild wasmedge/wasmedge:manylinux2014_x86_64-plugins-deps"
+        uses: docker/build-push-action@v4
+        with:
+          build-args: BASE=wasmedge/wasmedge:manylinux2014_x86_64
+          context: ./utils/docker
+          file: utils/docker/Dockerfile.manylinux2014-build-plugins-deps
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ needs.prep.outputs.docker_image }}:manylinux2014_x86_64-plugins-deps
           labels: |
             org.opencontainers.image.title=${{ github.event.repository.name }}
             org.opencontainers.image.description=${{ github.event.repository.description }}

@@ -2104,8 +2104,8 @@ public:
         if (Context.SupportNEON) {
           assuming(LLVM::Core::AArch64NeonTbl1 != LLVM::Core::NotIntrinsic);
           stackPush(Builder.createBitCast(
-              Builder.createBinaryIntrinsic(LLVM::Core::AArch64NeonTbl1, Vector,
-                                            Index),
+              Builder.createIntrinsic(LLVM::Core::AArch64NeonTbl1,
+                                      {Context.Int8x16Ty}, {Vector, Index}),
               Context.Int64x2Ty));
           break;
         }
@@ -4376,8 +4376,10 @@ private:
           // If the XOP, SSSE3, or SSE2 is not supported on the x86_64 platform
           // or the NEON is not supported on the aarch64 platform,
           // then fallback to this.
-          const auto Width = LLContext.getInt32(
+          auto Width = LLVM::Value::getConstInt(
+              ExtTy.getElementType(),
               VectorTy.getElementType().getIntegerBitWidth());
+          Width = Builder.createVectorSplat(ExtTy.getVectorSize(), Width);
           auto EV = Builder.createBitCast(V, ExtTy);
           LLVM::Value L, R;
           if (Signed) {

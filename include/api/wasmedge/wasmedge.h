@@ -660,11 +660,11 @@ WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt);
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
-/// \param isForceInterpreter the boolean value to determine to forcibly run
+/// \param IsForceInterpreter the boolean value to determine to forcibly run
 /// WASM in interpreter mode or not.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
-                                      const bool isForceInterpreter);
+                                      const bool IsForceInterpreter);
 
 /// Get the force interpreter mode execution option.
 ///
@@ -676,6 +676,28 @@ WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
 /// mode or not.
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureIsForceInterpreter(const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the option of enabling/disabling AF_UNIX support in the WASI socket.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param EnableAFUNIX the boolean value to determine to enable
+/// the AF_UNIX support in the WASI socket or not.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureSetAllowAFUNIX(WasmEdge_ConfigureContext *Cxt,
+                                 const bool EnableAFUNIX);
+
+/// Get the AllowAFUNIX option.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to enable AF_UNIX support in the
+/// WASI socket or not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ConfigureIsAllowAFUNIX(const WasmEdge_ConfigureContext *Cxt);
 
 /// Set the optimization level of the AOT compiler.
 ///
@@ -1826,8 +1848,8 @@ WasmEdge_ModuleInstanceCreateWithData(const WasmEdge_String ModuleName,
 /// length is 0.
 /// \param EnvLen the length of the environment variables.
 /// \param Preopens the directory paths to preopen. String format in
-/// `PATH1:PATH2` means the path mapping, or the same path will be mapped. NULL
-/// if the length is 0.
+/// `GUEST_PATH:HOST_PATH` means the path mapping, or the same path will be
+/// mapped. NULL if the length is 0.
 /// \param PreopenLen the length of the directory paths to preopen.
 ///
 /// \returns pointer to context, NULL if failed.
@@ -1851,8 +1873,8 @@ WasmEdge_ModuleInstanceCreateWASI(const char *const *Args,
 /// length is 0.
 /// \param EnvLen the length of the environment variables.
 /// \param Preopens the directory paths to preopen. String format in
-/// `PATH1:PATH2` means the path mapping, or the same path will be mapped. NULL
-/// if the length is 0.
+/// `GUEST_PATH:HOST_PATH` means the path mapping, or the same path will be
+/// mapped. NULL if the length is 0.
 /// \param PreopenLen the length of the directory paths to preopen.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWASI(
     WasmEdge_ModuleInstanceContext *Cxt, const char *const *Args,
@@ -3626,6 +3648,45 @@ WasmEdge_Plugin_GetDescriptor(void);
 
 // <<<<<<<< WasmEdge Pluginfunctions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> WasmEdge Experimental functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Register a host function that will be invoked before executing any host
+/// functions.
+///
+/// There is only one pre-host-function. After calling this function, the
+/// previous registered host function will be replaced. This is a experimental
+/// feature. Use it at your own risk.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ExecutorContext.
+/// \param Data the host data to set into the given host function. When calling
+/// the Func, this pointer will be the argument of the Func function.
+/// \param Func the function to be invoked before executing any other host
+/// functions.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ExecutorExperimentalRegisterPreHostFunction(
+    WasmEdge_ExecutorContext *Cxt, void *Data, void (*Func)(void *));
+
+/// Register a host function that will be invoked after executing any host
+/// functions.
+///
+/// There is only one post-host-function. After calling this function, the
+/// previous registered host function will be replaced. This is a experimental
+/// feature. Use it at your own risk.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_VMContext.
+/// \param Data the host data to set into the given host function. When calling
+/// the Func, this pointer will be the argument of the Func function.
+/// \param Func the function to be invoked after executing any other host
+/// functions.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ExecutorExperimentalRegisterPostHostFunction(
+    WasmEdge_ExecutorContext *Cxt, void *Data, void (*Func)(void *));
+
+// <<<<<<<< WasmEdge Experimental Functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #ifdef __cplusplus
 } /// extern "C"
 #endif

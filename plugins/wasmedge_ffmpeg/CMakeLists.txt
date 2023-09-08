@@ -7,6 +7,8 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFfmpeg
         avformat/module.cpp
         avformat/avformat_func.cpp
         avformat/avformatContext.cpp
+        avformat/avio_func.cpp
+        avformat/avInputFormat.cpp
 
         avutil/error.cpp
         avutil/module.cpp

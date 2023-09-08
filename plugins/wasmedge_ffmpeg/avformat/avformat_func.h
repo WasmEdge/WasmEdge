@@ -27,7 +27,7 @@ class AVFormatCloseInput : public WasmEdgeFFmpegAVFormat<AVFormatCloseInput> {
 public:
     AVFormatCloseInput(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
             : WasmEdgeFFmpegAVFormat(HostEnv) {}
-    Expect<int32_t > body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr);
+    Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr);
 };
 
 class AVReadPause : public WasmEdgeFFmpegAVFormat<AVReadPause> {
@@ -43,21 +43,28 @@ public:
             : WasmEdgeFFmpegAVFormat(HostEnv) {}
     Expect<int32_t > body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr);
 };
-//
-//class AVFormatSeekFile : public WasmEdgeFFmpegAVFormat<AVFormatSeekFile> {
-//public:
-//    AVFormatSeekFile(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-//            : WasmEdgeFFmpegAVFormat(HostEnv) {}
-//    Expect<int32_t > body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr);
-//};
-//
-//class AVDumpFormat : public WasmEdgeFFmpegAVFormat<AVDumpFormat> {
-//public:
-//    AVDumpFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-//            : WasmEdgeFFmpegAVFormat(HostEnv) {}
-//    Expect<int32_t > body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr,uint32_t avInputFormatPtr);
-//};
-//
+
+class AVFormatSeekFile : public WasmEdgeFFmpegAVFormat<AVFormatSeekFile> {
+public:
+    AVFormatSeekFile(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+            : WasmEdgeFFmpegAVFormat(HostEnv) {}
+    Expect<int32_t > body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr,uint32_t streamIdx,int64_t min_ts,int64_t ts,int64_t max_ts, int32_t flags);
+};
+
+class AVDumpFormat : public WasmEdgeFFmpegAVFormat<AVDumpFormat> {
+public:
+    AVDumpFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+            : WasmEdgeFFmpegAVFormat(HostEnv) {}
+    Expect<void > body(const Runtime::CallingFrame &Frame,uint32_t avFormatCtxPtr,int32_t idx,uint32_t urlPtr,uint32_t urlSize,int32_t isOutput);
+};
+
+class AVFormatFreeContext : public WasmEdgeFFmpegAVFormat<AVFormatFreeContext> {
+public:
+    AVFormatFreeContext(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+            : WasmEdgeFFmpegAVFormat(HostEnv) {}
+    Expect<void > body(const Runtime::CallingFrame &Frame,uint32_t avFormatCtxPtr);
+};
+
 }
 }
 }

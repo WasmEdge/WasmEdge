@@ -34,10 +34,14 @@ public:
     *dataPtr = ffmpegLinearMemory.size() - 1;
   }
 
-  void *fetchData(size_t index) {
+  void* fetchData(size_t index) {
     if(index >= ffmpegLinearMemory.size()){
       // Error Handling...
     }
+    if(ffmpegLinearMemory[index] == nullptr){
+      // Error Handling...
+    }
+
     return ffmpegLinearMemory[index];
   }
 

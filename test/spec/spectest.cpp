@@ -550,7 +550,11 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     } else {
       // Check value.
       EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
+          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]))
+          << "spec " << ModName << "/" << std::string(Field) << " should work"
+          << "\n\terror should be: \""
+          << WasmEdge::ErrCodeStr[Res.error().getEnum()] << "\""
+          << "\n\tbut got: \"" << Text << "\"";
     }
   };
   auto TrapValidate = [&](const std::string &Filename,

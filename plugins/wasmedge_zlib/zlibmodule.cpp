@@ -29,6 +29,8 @@ WasmEdgeZlibModule::WasmEdgeZlibModule() : ModuleInstance("wasmedge_zlib") {
   addHostFunc("deflatePending",
               std::make_unique<WasmEdgeZlibDeflatePending>(Env));
   addHostFunc("deflatePrime", std::make_unique<WasmEdgeZlibDeflatePrime>(Env));
+  addHostFunc("deflateSetHeader",
+              std::make_unique<WasmEdgeZlibDeflateSetHeader>(Env));
   addHostFunc("inflateInit2", std::make_unique<WasmEdgeZlibInflateInit2>(Env));
   addHostFunc("inflateSetDictionary",
               std::make_unique<WasmEdgeZlibInflateSetDictionary>(Env));
@@ -41,6 +43,8 @@ WasmEdgeZlibModule::WasmEdgeZlibModule() : ModuleInstance("wasmedge_zlib") {
               std::make_unique<WasmEdgeZlibInflateReset2>(Env));
   addHostFunc("inflatePrime", std::make_unique<WasmEdgeZlibInflatePrime>(Env));
   addHostFunc("inflateMark", std::make_unique<WasmEdgeZlibInflateMark>(Env));
+  addHostFunc("inflateGetHeader",
+              std::make_unique<WasmEdgeZlibInflateGetHeader>(Env));
   addHostFunc("inflateBackInit",
               std::make_unique<WasmEdgeZlibInflateBackInit>(Env));
   addHostFunc("inflateBackEnd",

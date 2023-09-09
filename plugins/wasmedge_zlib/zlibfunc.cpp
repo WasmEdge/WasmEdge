@@ -310,7 +310,9 @@ WasmEdgeZlibDeflateCopy::body(const Runtime::CallingFrame &Frame,
   auto [It, _] =
       Env.ZStreamMap.emplace(std::make_pair(DestPtr, std::move(DestZStream)));
 
-  SyncRun(Env, DestPtr, Frame, [&](z_stream *) { return 0; });
+  const auto Res = SyncRun(Env, DestPtr, Frame, [&](z_stream *) { return 0; });
+  if (!Res.has_value())
+    return Res;
 
   const auto ZRes = SyncRun(Env, DestPtr, Frame, [&](z_stream *DestZStream) {
     return deflateCopy(DestZStream, SourceZStreamIt->second.get());
@@ -505,7 +507,9 @@ WasmEdgeZlibInflateCopy::body(const Runtime::CallingFrame &Frame,
   auto [It, _] =
       Env.ZStreamMap.emplace(std::make_pair(DestPtr, std::move(DestZStream)));
 
-  SyncRun(Env, DestPtr, Frame, [&](z_stream *) { return 0; });
+  const auto Res = SyncRun(Env, DestPtr, Frame, [&](z_stream *) { return 0; });
+  if (!Res.has_value())
+    return Res;
 
   const auto ZRes = SyncRun(Env, DestPtr, Frame, [&](z_stream *DestZStream) {
     return inflateCopy(DestZStream, SourceZStreamIt->second.get());

@@ -23,12 +23,16 @@ auto SyncRun(WasmEdgeZlibEnvironment &Env, uint32_t ZStreamPtr,
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [SyncRun]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   WasmZStream *ModuleZStream = MemInst->getPointer<WasmZStream *>(ZStreamPtr);
 
   const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [SyncRun]"sv
+                  "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto HostZStream = HostZStreamIt->second.get();
@@ -263,6 +267,8 @@ Expect<int32_t> WasmEdgeZlibDeflateSetDictionary::body(
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateSetDictionary]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -281,6 +287,8 @@ Expect<int32_t> WasmEdgeZlibDeflateGetDictionary::body(
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateGetDictionary]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -305,6 +313,8 @@ WasmEdgeZlibDeflateCopy::body(const Runtime::CallingFrame &Frame,
                               uint32_t DestPtr, uint32_t SourcePtr) {
   const auto SourceZStreamIt = Env.ZStreamMap.find(SourcePtr);
   if (SourceZStreamIt == Env.ZStreamMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateCopy]"sv
+                  "Invalid SourcePtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -380,6 +390,8 @@ WasmEdgeZlibDeflatePending::body(const Runtime::CallingFrame &Frame,
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflatePending]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -459,6 +471,8 @@ Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateSetDictionary]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -477,6 +491,8 @@ Expect<int32_t> WasmEdgeZlibInflateGetDictionary::body(
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateGetDictionary]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -506,6 +522,8 @@ WasmEdgeZlibInflateCopy::body(const Runtime::CallingFrame &Frame,
                               uint32_t DestPtr, uint32_t SourcePtr) {
   const auto SourceZStreamIt = Env.ZStreamMap.find(SourcePtr);
   if (SourceZStreamIt == Env.ZStreamMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateCopy]"sv
+                  "Invalid SourcePtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -611,6 +629,8 @@ WasmEdgeZlibInflateBackInit::body(const Runtime::CallingFrame &Frame,
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateBackInit]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -656,6 +676,8 @@ Expect<int32_t> WasmEdgeZlibCompress::body(const Runtime::CallingFrame &Frame,
                                            uint32_t SourceLen) {
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibCompress]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -678,6 +700,8 @@ Expect<int32_t> WasmEdgeZlibCompress2::body(const Runtime::CallingFrame &Frame,
                                             uint32_t SourceLen, int32_t Level) {
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibCompress2]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -707,6 +731,8 @@ Expect<int32_t> WasmEdgeZlibUncompress::body(const Runtime::CallingFrame &Frame,
                                              uint32_t SourceLen) {
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibUncompress]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -728,6 +754,8 @@ WasmEdgeZlibUncompress2::body(const Runtime::CallingFrame &Frame,
                               uint32_t SourcePtr, uint32_t SourceLenPtr) {
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibUncompress2]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -750,6 +778,8 @@ Expect<uint32_t> WasmEdgeZlibGZOpen::body(const Runtime::CallingFrame &Frame,
                                           uint32_t PathPtr, uint32_t ModePtr) {
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZOpen]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -772,6 +802,8 @@ Expect<uint32_t> WasmEdgeZlibGZDOpen::body(const Runtime::CallingFrame &Frame,
                                            int32_t FD, uint32_t ModePtr) {
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZDOpen]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -793,6 +825,8 @@ Expect<int32_t> WasmEdgeZlibGZBuffer::body(const Runtime::CallingFrame &,
                                            uint32_t GZFile, uint32_t Size) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZBuffer]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -806,6 +840,8 @@ Expect<int32_t> WasmEdgeZlibGZSetParams::body(const Runtime::CallingFrame &,
                                               int32_t Strategy) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZSetParams]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -819,11 +855,15 @@ Expect<int32_t> WasmEdgeZlibGZRead::body(const Runtime::CallingFrame &Frame,
                                          uint32_t Len) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZRead]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZRead]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -839,11 +879,15 @@ Expect<int32_t> WasmEdgeZlibGZFread::body(const Runtime::CallingFrame &Frame,
                                           uint32_t NItems, uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZFread]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZFread]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -859,11 +903,15 @@ Expect<int32_t> WasmEdgeZlibGZWrite::body(const Runtime::CallingFrame &Frame,
                                           uint32_t Len) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZWrite]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZWrite]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -879,11 +927,15 @@ Expect<int32_t> WasmEdgeZlibGZFwrite::body(const Runtime::CallingFrame &Frame,
                                            uint32_t NItems, uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZFwrite]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZFwrite]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -898,11 +950,15 @@ Expect<int32_t> WasmEdgeZlibGZPuts::body(const Runtime::CallingFrame &Frame,
                                          uint32_t GZFile, uint32_t StringPtr) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZPuts]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZPuts]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -917,6 +973,8 @@ Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &,
                                          uint32_t GZFile, int32_t C) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZPutc]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -929,6 +987,8 @@ Expect<int32_t> WasmEdgeZlibGZGetc::body(const Runtime::CallingFrame &,
                                          uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZGetc]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -941,6 +1001,8 @@ Expect<int32_t> WasmEdgeZlibGZUngetc::body(const Runtime::CallingFrame &,
                                            int32_t C, uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZUngetc]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -953,6 +1015,8 @@ Expect<int32_t> WasmEdgeZlibGZFlush::body(const Runtime::CallingFrame &,
                                           uint32_t GZFile, int32_t Flush) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZFlush]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -966,6 +1030,8 @@ Expect<int32_t> WasmEdgeZlibGZSeek::body(const Runtime::CallingFrame &,
                                          int32_t Whence) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZSeek]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -978,6 +1044,8 @@ Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &,
                                            uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZRewind]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -990,6 +1058,8 @@ Expect<int32_t> WasmEdgeZlibGZTell::body(const Runtime::CallingFrame &,
                                          uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZTell]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1002,6 +1072,8 @@ Expect<int32_t> WasmEdgeZlibGZOffset::body(const Runtime::CallingFrame &,
                                            uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZOffset]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1014,6 +1086,8 @@ Expect<int32_t> WasmEdgeZlibGZEof::body(const Runtime::CallingFrame &,
                                         uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZEof]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1026,6 +1100,8 @@ Expect<int32_t> WasmEdgeZlibGZDirect::body(const Runtime::CallingFrame &,
                                            uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZDirect]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1038,6 +1114,8 @@ Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &,
                                           uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZClose]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1052,6 +1130,8 @@ Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &,
                                             uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZClose_r]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1066,6 +1146,8 @@ Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &,
                                             uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZClose_w]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1080,6 +1162,8 @@ Expect<void> WasmEdgeZlibGZClearerr::body(const Runtime::CallingFrame &,
                                           uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZClearerr]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1093,6 +1177,8 @@ Expect<int32_t> WasmEdgeZlibAdler32::body(const Runtime::CallingFrame &Frame,
                                           uint32_t Len) {
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibAdler32]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1107,6 +1193,8 @@ Expect<int32_t> WasmEdgeZlibAdler32_z::body(const Runtime::CallingFrame &Frame,
                                             uint32_t Len) {
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibAdler32_z]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1129,6 +1217,8 @@ Expect<int32_t> WasmEdgeZlibCRC32::body(const Runtime::CallingFrame &Frame,
                                         uint32_t Len) {
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibCRC32]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1144,6 +1234,8 @@ Expect<int32_t> WasmEdgeZlibCRC32_z::body(const Runtime::CallingFrame &Frame,
                                           uint32_t Len) {
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibCRC32_z]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1170,6 +1262,8 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateInit_]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1205,6 +1299,8 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateInit_]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1240,6 +1336,8 @@ Expect<int32_t> WasmEdgeZlibDeflateInit2_::body(
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateInit2_]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1274,6 +1372,8 @@ WasmEdgeZlibInflateInit2_::body(const Runtime::CallingFrame &Frame,
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateInit2_]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1307,6 +1407,8 @@ Expect<int32_t> WasmEdgeZlibInflateBackInit_::body(
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateBackInit_]"sv
+                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1337,6 +1439,8 @@ Expect<int32_t> WasmEdgeZlibGZGetc_::body(const Runtime::CallingFrame &,
                                           uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZGetc_]"sv
+                  "Invalid GZFile received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1350,6 +1454,8 @@ WasmEdgeZlibInflateSyncPoint::body(const Runtime::CallingFrame &,
                                    uint32_t ZStreamPtr) {
   const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateSyncPoint]"sv
+                  "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1363,6 +1469,8 @@ WasmEdgeZlibInflateUndermine::body(const Runtime::CallingFrame &,
                                    uint32_t ZStreamPtr, int32_t Subvert) {
   const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateUndermine]"sv
+                  "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1376,6 +1484,8 @@ Expect<int32_t> WasmEdgeZlibInflateValidate::body(const Runtime::CallingFrame &,
                                                   int32_t Check) {
   const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateValidate]"sv
+                  "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1389,6 +1499,8 @@ WasmEdgeZlibInflateCodesUsed::body(const Runtime::CallingFrame &,
                                    uint32_t ZStreamPtr) {
   const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateCodesUsed]"sv
+                  "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1402,6 +1514,8 @@ WasmEdgeZlibInflateResetKeep::body(const Runtime::CallingFrame &,
                                    uint32_t ZStreamPtr) {
   const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateResetKeep]"sv
+                  "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1415,6 +1529,8 @@ WasmEdgeZlibDeflateResetKeep::body(const Runtime::CallingFrame &,
                                    uint32_t ZStreamPtr) {
   const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateResetKeep]"sv
+                  "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 

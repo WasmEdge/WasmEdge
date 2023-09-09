@@ -38,7 +38,6 @@ void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 }
 
 static constexpr size_t DATA_SIZE = 1 * 1024 * 1024ULL;
-// static constexpr size_t INPUT_BUFFER_SIZE = 32 * 1024llu;
 static constexpr size_t OUTPUT_BUFFER_SIZE = 64 * 1024ULL;
 
 constexpr auto RandChar = []() -> char {
@@ -64,194 +63,189 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
   auto &MemInst = *MemInstPtr;
   uint32_t
       // WASM Memory Heap Pointer
-      wasm_hp = 1,
-      wasm_data, wasm_zlib_version, wasm_z_stream, wasm_compressed_data,
-      wasm_decompressed_data;
-  uint32_t wasm_compressed_data_size = 0, wasm_decompressed_data_size = 0;
+      WasmHP = 1,
+      WasmData, WasmZlibVersion, ModuleZStream, WasmCompressedData,
+      WasmDecompressedData;
+  uint32_t WasmCompressedData_size = 0, WasmDecompressedData_size = 0;
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
   auto *FuncInst = ZlibMod->findFuncExports("deflateInit_");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &__deflateInit_ =
-      dynamic_cast<WasmEdge::Host::WasmEdgeZlibDeflateInit_ &>(
-          FuncInst->getHostFunc());
+  auto &DeflateInit_ = dynamic_cast<WasmEdge::Host::WasmEdgeZlibDeflateInit_ &>(
+      FuncInst->getHostFunc());
 
   FuncInst = ZlibMod->findFuncExports("deflate");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &__deflate = dynamic_cast<WasmEdge::Host::WasmEdgeZlibDeflate &>(
+  auto &Deflate = dynamic_cast<WasmEdge::Host::WasmEdgeZlibDeflate &>(
       FuncInst->getHostFunc());
 
   FuncInst = ZlibMod->findFuncExports("deflateEnd");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &__deflateEnd = dynamic_cast<WasmEdge::Host::WasmEdgeZlibDeflateEnd &>(
+  auto &DeflateEnd = dynamic_cast<WasmEdge::Host::WasmEdgeZlibDeflateEnd &>(
       FuncInst->getHostFunc());
 
   FuncInst = ZlibMod->findFuncExports("inflateInit_");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &__inflateInit_ =
-      dynamic_cast<WasmEdge::Host::WasmEdgeZlibInflateInit_ &>(
-          FuncInst->getHostFunc());
+  auto &InflateInit_ = dynamic_cast<WasmEdge::Host::WasmEdgeZlibInflateInit_ &>(
+      FuncInst->getHostFunc());
 
   FuncInst = ZlibMod->findFuncExports("inflate");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &__inflate = dynamic_cast<WasmEdge::Host::WasmEdgeZlibInflate &>(
+  auto &Inflate = dynamic_cast<WasmEdge::Host::WasmEdgeZlibInflate &>(
       FuncInst->getHostFunc());
 
   FuncInst = ZlibMod->findFuncExports("inflateEnd");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &__inflateEnd = dynamic_cast<WasmEdge::Host::WasmEdgeZlibInflateEnd &>(
+  auto &InflateEnd = dynamic_cast<WasmEdge::Host::WasmEdgeZlibInflateEnd &>(
       FuncInst->getHostFunc());
 
   std::array<WasmEdge::ValVariant, 1> RetVal;
 
-  wasm_zlib_version = wasm_hp;
-  std::snprintf(MemInst.getPointer<char *>(wasm_hp), std::strlen(ZLIB_VERSION),
+  WasmZlibVersion = WasmHP;
+  std::snprintf(MemInst.getPointer<char *>(WasmHP), std::strlen(ZLIB_VERSION),
                 ZLIB_VERSION);
-  wasm_hp += std::strlen(ZLIB_VERSION);
+  WasmHP += std::strlen(ZLIB_VERSION);
 
-  wasm_data = wasm_hp;
-  std::generate_n(MemInst.getPointer<char *>(wasm_hp), DATA_SIZE, RandChar);
-  wasm_hp += DATA_SIZE;
+  WasmData = WasmHP;
+  std::generate_n(MemInst.getPointer<char *>(WasmHP), DATA_SIZE, RandChar);
+  WasmHP += DATA_SIZE;
 
-  wasm_z_stream = wasm_hp;
-  WasmZStream *strm = MemInst.getPointer<WasmZStream *>(wasm_z_stream);
-  wasm_hp += sizeof(WasmZStream);
+  ModuleZStream = WasmHP;
+  WasmZStream *strm = MemInst.getPointer<WasmZStream *>(ModuleZStream);
+  WasmHP += sizeof(WasmZStream);
 
   // ----- Deflate Routine START------
-  fillMemContent(MemInst, wasm_z_stream, sizeof(WasmZStream), 0U);
+  fillMemContent(MemInst, ModuleZStream, sizeof(WasmZStream), 0U);
 
   // deflateInit_ Test
   // WASM z_stream size Mismatch
-  EXPECT_TRUE(__deflateInit_.run(
-      CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{wasm_z_stream, INT32_C(-1),
-                                                  wasm_zlib_version,
-                                                  sizeof(WasmZStream) + 16},
-      RetVal));
+  EXPECT_TRUE(DeflateInit_.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   ModuleZStream, INT32_C(-1), WasmZlibVersion,
+                                   sizeof(WasmZStream) + 16},
+                               RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
 
   // Version Mismatch
-  EXPECT_TRUE(__deflateInit_.run(
+  EXPECT_TRUE(DeflateInit_.run(
       CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{wasm_z_stream, INT32_C(-1),
-                                                  wasm_zlib_version + 2,
-                                                  sizeof(WasmZStream)},
+      std::initializer_list<WasmEdge::ValVariant>{
+          ModuleZStream, INT32_C(-1), WasmZlibVersion + 2, sizeof(WasmZStream)},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
 
-  EXPECT_TRUE(__deflateInit_.run(
+  EXPECT_TRUE(DeflateInit_.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
-          wasm_z_stream, INT32_C(-1), wasm_zlib_version, sizeof(WasmZStream)},
+          ModuleZStream, INT32_C(-1), WasmZlibVersion, sizeof(WasmZStream)},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  wasm_compressed_data = wasm_hp;
+  WasmCompressedData = WasmHP;
 
   strm->AvailIn = DATA_SIZE;
-  strm->NextIn = wasm_data;
+  strm->NextIn = WasmData;
   strm->AvailOut = OUTPUT_BUFFER_SIZE;
-  strm->NextOut = wasm_compressed_data;
+  strm->NextOut = WasmCompressedData;
 
   // deflate Test
   do {
     if (strm->AvailOut == 0) {
-      wasm_hp += OUTPUT_BUFFER_SIZE;
+      WasmHP += OUTPUT_BUFFER_SIZE;
       strm->AvailOut = OUTPUT_BUFFER_SIZE;
-      strm->NextOut = wasm_hp;
+      strm->NextOut = WasmHP;
     }
 
-    EXPECT_TRUE(__deflate.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  wasm_z_stream,
-                                  INT32_C(Z_FINISH),
-                              },
-                              RetVal));
+    EXPECT_TRUE(Deflate.run(CallFrame,
+                            std::initializer_list<WasmEdge::ValVariant>{
+                                ModuleZStream,
+                                INT32_C(Z_FINISH),
+                            },
+                            RetVal));
     EXPECT_NE(RetVal[0].get<int32_t>(), Z_STREAM_ERROR);
   } while (RetVal[0].get<int32_t>() != Z_STREAM_END);
 
   // deflateEnd Test
-  EXPECT_TRUE(__deflateEnd.run(
-      CallFrame, std::initializer_list<WasmEdge::ValVariant>{wasm_z_stream},
+  EXPECT_TRUE(DeflateEnd.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{ModuleZStream},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
-  wasm_hp += OUTPUT_BUFFER_SIZE - strm->AvailOut;
-  wasm_compressed_data_size = wasm_hp - wasm_compressed_data;
+  WasmHP += OUTPUT_BUFFER_SIZE - strm->AvailOut;
+  WasmCompressedData_size = WasmHP - WasmCompressedData;
   // ----- Deflate Routine END------
 
   // ----- Inflate Routine START------
-  fillMemContent(MemInst, wasm_z_stream, sizeof(WasmZStream), 0U);
+  fillMemContent(MemInst, ModuleZStream, sizeof(WasmZStream), 0U);
 
   // inflateInit_ Test
   // WASM z_stream size Mismatch
-  EXPECT_TRUE(__inflateInit_.run(
+  EXPECT_TRUE(InflateInit_.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
-          wasm_z_stream, wasm_zlib_version, sizeof(WasmZStream) + 16},
+          ModuleZStream, WasmZlibVersion, sizeof(WasmZStream) + 16},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
 
   // Version Mismatch
-  EXPECT_TRUE(__inflateInit_.run(
+  EXPECT_TRUE(InflateInit_.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
-          wasm_z_stream, wasm_zlib_version + 2, sizeof(WasmZStream)},
+          ModuleZStream, WasmZlibVersion + 2, sizeof(WasmZStream)},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
 
-  EXPECT_TRUE(__inflateInit_.run(
-      CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{
-          wasm_z_stream, wasm_zlib_version, sizeof(WasmZStream)},
-      RetVal));
+  EXPECT_TRUE(
+      InflateInit_.run(CallFrame,
+                       std::initializer_list<WasmEdge::ValVariant>{
+                           ModuleZStream, WasmZlibVersion, sizeof(WasmZStream)},
+                       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  wasm_decompressed_data = wasm_hp;
+  WasmDecompressedData = WasmHP;
 
-  strm->AvailIn = wasm_compressed_data_size;
-  strm->NextIn = wasm_compressed_data;
+  strm->AvailIn = WasmCompressedData_size;
+  strm->NextIn = WasmCompressedData;
   strm->AvailOut = OUTPUT_BUFFER_SIZE;
-  strm->NextOut = wasm_decompressed_data;
+  strm->NextOut = WasmDecompressedData;
 
   // inflate test
   do {
     if (strm->AvailOut == 0) {
-      wasm_hp += OUTPUT_BUFFER_SIZE;
+      WasmHP += OUTPUT_BUFFER_SIZE;
       strm->AvailOut = OUTPUT_BUFFER_SIZE;
-      strm->NextOut = wasm_hp;
+      strm->NextOut = WasmHP;
     }
 
-    EXPECT_TRUE(__inflate.run(CallFrame,
-                              std::initializer_list<WasmEdge::ValVariant>{
-                                  wasm_z_stream,
-                                  INT32_C(Z_FINISH),
-                              },
-                              RetVal));
+    EXPECT_TRUE(Inflate.run(CallFrame,
+                            std::initializer_list<WasmEdge::ValVariant>{
+                                ModuleZStream,
+                                INT32_C(Z_FINISH),
+                            },
+                            RetVal));
     EXPECT_NE(RetVal[0].get<int32_t>(), Z_STREAM_ERROR);
   } while (RetVal[0].get<int32_t>() != Z_STREAM_END);
 
-  EXPECT_TRUE(__inflateEnd.run(
-      CallFrame, std::initializer_list<WasmEdge::ValVariant>{wasm_z_stream},
+  EXPECT_TRUE(InflateEnd.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{ModuleZStream},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
-  wasm_hp += OUTPUT_BUFFER_SIZE - strm->AvailOut;
-  wasm_decompressed_data_size = wasm_hp - wasm_decompressed_data;
+  WasmHP += OUTPUT_BUFFER_SIZE - strm->AvailOut;
+  WasmDecompressedData_size = WasmHP - WasmDecompressedData;
   // ----- Inflate Routine END------
 
   // Test Decompressed Buffer size against source Data size.
-  EXPECT_EQ(wasm_decompressed_data_size, DATA_SIZE);
+  EXPECT_EQ(WasmDecompressedData_size, DATA_SIZE);
   // Test Decompressed Buffer content against source Data.
-  EXPECT_TRUE(
-      std::equal(MemInst.getPointer<uint8_t *>(wasm_decompressed_data),
-                 MemInst.getPointer<uint8_t *>(wasm_decompressed_data +
-                                               wasm_decompressed_data_size),
-                 MemInst.getPointer<uint8_t *>(wasm_data)));
+  EXPECT_TRUE(std::equal(MemInst.getPointer<uint8_t *>(WasmDecompressedData),
+                         MemInst.getPointer<uint8_t *>(
+                             WasmDecompressedData + WasmDecompressedData_size),
+                         MemInst.getPointer<uint8_t *>(WasmData)));
 }
 
 TEST(WasmEdgeZlibTest, Module) {
@@ -342,7 +336,7 @@ TEST(WasmEdgeZlibTest, Module) {
   delete ZlibMod;
 }
 
-GTEST_API_ int main(int argc, char **argv) {
-  testing::InitGoogleTest(&argc, argv);
+GTEST_API_ int main(int ArgC, char **ArgV) {
+  testing::InitGoogleTest(&ArgC, ArgV);
   return RUN_ALL_TESTS();
 }

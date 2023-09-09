@@ -8,15 +8,6 @@
 namespace WasmEdge {
 namespace Host {
 
-/*
-class WasmEdgeZlibZlibVersion : public WasmEdgeZlib<WasmEdgeZlibZlibVersion> {
-public:
-  WasmEdgeZlibZlibVersion(WasmEdgeZlibEnvironment &HostEnv)
-      : WasmEdgeZlib(HostEnv) {}
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
-};
-*/
-
 class WasmEdgeZlibDeflateInit : public WasmEdgeZlib<WasmEdgeZlibDeflateInit> {
 public:
   WasmEdgeZlibDeflateInit(WasmEdgeZlibEnvironment &HostEnv)
@@ -248,16 +239,6 @@ public:
                        int32_t WindowBits, uint32_t WindowPtr);
 };
 
-/*
-class WasmEdgeZlibInflateBack : public WasmEdgeZlib<WasmEdgeZlibInflateBack> {
-public:
-  WasmEdgeZlibInflateBack(WasmEdgeZlibEnvironment &HostEnv)
-      : WasmEdgeZlib(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
-                       int32_t Bits, int32_t Value);
-};
-*/
-
 class WasmEdgeZlibInflateBackEnd
     : public WasmEdgeZlib<WasmEdgeZlibInflateBackEnd> {
 public:
@@ -382,14 +363,6 @@ public:
                        uint32_t Size, uint32_t NItems, uint32_t GZFile);
 };
 
-/* class WasmEdgeZlibGZPrintf : public WasmEdgeZlib<WasmEdgeZlibGZPrintf> {
-public:
-  WasmEdgeZlibGZPrintf(WasmEdgeZlibEnvironment &HostEnv)
-      : WasmEdgeZlib(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t BufPtr,
-                       uint32_t Size, uint32_t NItems, uint32_t GZFile);
-}; */
-
 class WasmEdgeZlibGZPuts : public WasmEdgeZlib<WasmEdgeZlibGZPuts> {
 public:
   WasmEdgeZlibGZPuts(WasmEdgeZlibEnvironment &HostEnv)
@@ -397,14 +370,6 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile,
                        uint32_t StringPtr);
 };
-
-/* class WasmEdgeZlibGZGets : public WasmEdgeZlib<WasmEdgeZlibGZGets> {
-public:
-  WasmEdgeZlibGZGets(WasmEdgeZlibEnvironment &HostEnv)
-      : WasmEdgeZlib(HostEnv) {}
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile,
-                        uint32_t BufPtr, int32_t Len);
-}; */
 
 class WasmEdgeZlibGZPutc : public WasmEdgeZlib<WasmEdgeZlibGZPutc> {
 public:
@@ -500,13 +465,6 @@ public:
       : WasmEdgeZlib(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile);
 };
-
-/* class WasmEdgeZlibGZError : public WasmEdgeZlib<WasmEdgeZlibGZError> {
-public:
-  WasmEdgeZlibGZError(WasmEdgeZlibEnvironment &HostEnv)
-      : WasmEdgeZlib(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile);
-}; */
 
 class WasmEdgeZlibGZClearerr : public WasmEdgeZlib<WasmEdgeZlibGZClearerr> {
 public:
@@ -619,13 +577,6 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFile);
 };
 
-/* class WasmEdgeZlibZError : public WasmEdgeZlib<WasmEdgeZlibZError> {
-public:
-  WasmEdgeZlibZError(WasmEdgeZlibEnvironment &HostEnv)
-      : WasmEdgeZlib(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, int32_t Err);
-}; */
-
 class WasmEdgeZlibInflateSyncPoint
     : public WasmEdgeZlib<WasmEdgeZlibInflateSyncPoint> {
 public:
@@ -633,12 +584,6 @@ public:
       : WasmEdgeZlib(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr);
 };
-
-/* class WasmEdgeZlibGetCRCTable : public WasmEdgeZlib<WasmEdgeZlibGetCRCTable>
-{ public: WasmEdgeZlibGetCRCTable(WasmEdgeZlibEnvironment &HostEnv) :
-WasmEdgeZlib(HostEnv) {} Expect<uint32_t> body(const Runtime::CallingFrame
-&Frame);
-}; */
 
 class WasmEdgeZlibInflateUndermine
     : public WasmEdgeZlib<WasmEdgeZlibInflateUndermine> {
@@ -681,14 +626,6 @@ public:
       : WasmEdgeZlib(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr);
 };
-
-/* class WasmEdgeZlibGZVPrintf : public WasmEdgeZlib<WasmEdgeZlibGZVPrintf> {
-public:
-  WasmEdgeZlibGZVPrintf(WasmEdgeZlibEnvironment &HostEnv)
-      : WasmEdgeZlib(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t GZFilePtr,
-                       uint32_t FormatPtr);
-}; */
 
 } // namespace Host
 } // namespace WasmEdge

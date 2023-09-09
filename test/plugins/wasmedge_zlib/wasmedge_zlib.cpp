@@ -260,7 +260,7 @@ TEST(WasmEdgeZlibTest, Module) {
       dynamic_cast<WasmEdge::Host::WasmEdgeZlibModule *>(createModule());
   EXPECT_FALSE(ZlibMod == nullptr);
   EXPECT_TRUE(ZlibMod->getEnv().ZStreamMap.empty());
-  EXPECT_EQ(ZlibMod->getFuncExportNum(), 74U);
+  EXPECT_EQ(ZlibMod->getFuncExportNum(), 76U);
 
   EXPECT_NE(ZlibMod->findFuncExports("deflateInit"), nullptr);
   EXPECT_NE(ZlibMod->findFuncExports("deflate"), nullptr);

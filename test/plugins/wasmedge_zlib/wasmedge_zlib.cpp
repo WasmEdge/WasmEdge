@@ -278,6 +278,7 @@ TEST(WasmEdgeZlibTest, Module) {
   EXPECT_NE(ZlibMod->findFuncExports("deflateBound"), nullptr);
   EXPECT_NE(ZlibMod->findFuncExports("deflatePending"), nullptr);
   EXPECT_NE(ZlibMod->findFuncExports("deflatePrime"), nullptr);
+  EXPECT_NE(ZlibMod->findFuncExports("deflateSetHeader"), nullptr);
   EXPECT_NE(ZlibMod->findFuncExports("inflateInit2"), nullptr);
   EXPECT_NE(ZlibMod->findFuncExports("inflateSetDictionary"), nullptr);
   EXPECT_NE(ZlibMod->findFuncExports("inflateGetDictionary"), nullptr);
@@ -287,6 +288,7 @@ TEST(WasmEdgeZlibTest, Module) {
   EXPECT_NE(ZlibMod->findFuncExports("inflateReset2"), nullptr);
   EXPECT_NE(ZlibMod->findFuncExports("inflatePrime"), nullptr);
   EXPECT_NE(ZlibMod->findFuncExports("inflateMark"), nullptr);
+  EXPECT_NE(ZlibMod->findFuncExports("inflateGetHeader"), nullptr);
   EXPECT_NE(ZlibMod->findFuncExports("inflateBackInit"), nullptr);
   EXPECT_NE(ZlibMod->findFuncExports("inflateBackEnd"), nullptr);
   EXPECT_NE(ZlibMod->findFuncExports("zlibCompileFlags"), nullptr);

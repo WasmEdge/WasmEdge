@@ -20,6 +20,7 @@ template <typename T>
 auto SyncRun(WasmEdgeZlibEnvironment &Env, uint32_t ZStreamPtr,
              const Runtime::CallingFrame &Frame, T Callback)
     -> Expect<int32_t> {
+
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -339,6 +340,7 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
                                    uint32_t ZStreamPtr, uint32_t HeadPtr) {
 
   auto HostGZHeader = std::make_unique<gz_header>();
+  auto HostGZHeaderPtr = HostGZHeader.get();
 
   auto [It, _] = Env.GZHeaderMap.emplace(
       std::pair<uint32_t, WasmEdgeZlibEnvironment::GZStore>{
@@ -347,7 +349,7 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
                           .HostGZHeader = std::move(HostGZHeader)}});
 
   const auto ZRes = SyncRun(Env, ZStreamPtr, Frame, [&](z_stream *HostZStream) {
-    return deflateSetHeader(HostZStream, HostGZHeader.get());
+    return deflateSetHeader(HostZStream, HostGZHeaderPtr);
   });
 
   if (ZRes != Z_OK)
@@ -501,6 +503,7 @@ WasmEdgeZlibInflateGetHeader::body(const Runtime::CallingFrame &Frame,
                                    uint32_t ZStreamPtr, uint32_t HeadPtr) {
 
   auto HostGZHeader = std::make_unique<gz_header>();
+  auto HostGZHeaderPtr = HostGZHeader.get();
 
   auto [It, _] = Env.GZHeaderMap.emplace(
       std::pair<uint32_t, WasmEdgeZlibEnvironment::GZStore>{
@@ -509,7 +512,7 @@ WasmEdgeZlibInflateGetHeader::body(const Runtime::CallingFrame &Frame,
                           .HostGZHeader = std::move(HostGZHeader)}});
 
   const auto ZRes = SyncRun(Env, ZStreamPtr, Frame, [&](z_stream *HostZStream) {
-    return inflateGetHeader(HostZStream, HostGZHeader.get());
+    return inflateGetHeader(HostZStream, HostGZHeaderPtr);
   });
 
   if (ZRes != Z_OK)

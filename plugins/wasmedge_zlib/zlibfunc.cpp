@@ -388,6 +388,35 @@ WasmEdgeZlibDeflatePrime::body(const Runtime::CallingFrame &Frame,
 }
 
 Expect<int32_t>
+WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
+                                   uint32_t ZStreamPtr, uint32_t HeadPtr) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto HostGZHeader = std::make_unique<gz_header>();
+
+  auto [It, _] = Env.GZHeaderMap.emplace(
+      std::pair<uint32_t, WasmEdgeZlibEnvironment::GZStore>{
+          ZStreamPtr, WasmEdgeZlibEnvironment::GZStore{
+                          .WasmGZHeaderOffset = HeadPtr,
+                          .HostGZHeader = std::move(HostGZHeader)}});
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame, [&]() {
+        return deflateSetHeader(HostZStreamIt->second.get(),
+                                HostGZHeader.get());
+      });
+
+  if (ZRes != Z_OK)
+    Env.GZHeaderMap.erase(It);
+
+  return ZRes;
+}
+
+Expect<int32_t>
 WasmEdgeZlibInflateInit2::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr, int32_t WindowBits) {
 
@@ -560,6 +589,35 @@ WasmEdgeZlibInflateMark::body(const Runtime::CallingFrame &Frame,
   const int32_t ZRes =
       SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame,
               [&]() { return inflateMark(HostZStreamIt->second.get()); });
+
+  return ZRes;
+}
+
+Expect<int32_t>
+WasmEdgeZlibInflateGetHeader::body(const Runtime::CallingFrame &Frame,
+                                   uint32_t ZStreamPtr, uint32_t HeadPtr) {
+
+  const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (HostZStreamIt == Env.ZStreamMap.end()) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto HostGZHeader = std::make_unique<gz_header>();
+
+  auto [It, _] = Env.GZHeaderMap.emplace(
+      std::pair<uint32_t, WasmEdgeZlibEnvironment::GZStore>{
+          ZStreamPtr, WasmEdgeZlibEnvironment::GZStore{
+                          .WasmGZHeaderOffset = HeadPtr,
+                          .HostGZHeader = std::move(HostGZHeader)}});
+
+  const int32_t ZRes =
+      SyncRun(HostZStreamIt->second.get(), ZStreamPtr, Frame, [&]() {
+        return inflateGetHeader(HostZStreamIt->second.get(),
+                                HostGZHeader.get());
+      });
+
+  if (ZRes != Z_OK)
+    Env.GZHeaderMap.erase(It);
 
   return ZRes;
 }

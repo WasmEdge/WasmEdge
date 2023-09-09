@@ -83,9 +83,15 @@ class WasmEdgeZlibEnvironment {
 public:
   using GZFile_s = std::remove_pointer_t<gzFile>;
 
+  struct GZStore {
+    uint32_t WasmGZHeaderOffset;
+    std::unique_ptr<gz_header> HostGZHeader;
+  };
+
   std::unordered_map<uint32_t, std::unique_ptr<z_stream>> ZStreamMap;
   std::map<uint32_t, std::unique_ptr<GZFile_s>, std::greater<uint32_t>>
       GZFileMap;
+  std::unordered_map<uint32_t, GZStore> GZHeaderMap;
 
   /// Initial Configurations
   static Plugin::PluginRegister Register;

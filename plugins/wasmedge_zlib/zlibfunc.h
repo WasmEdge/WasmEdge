@@ -149,6 +149,15 @@ public:
                        int32_t Bits, int32_t Value);
 };
 
+class WasmEdgeZlibDeflateSetHeader
+    : public WasmEdgeZlib<WasmEdgeZlibDeflateSetHeader> {
+public:
+  WasmEdgeZlibDeflateSetHeader(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       uint32_t HeadPtr);
+};
+
 class WasmEdgeZlibInflateInit2 : public WasmEdgeZlib<WasmEdgeZlibInflateInit2> {
 public:
   WasmEdgeZlibInflateInit2(WasmEdgeZlibEnvironment &HostEnv)
@@ -219,6 +228,15 @@ public:
   WasmEdgeZlibInflateMark(WasmEdgeZlibEnvironment &HostEnv)
       : WasmEdgeZlib(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr);
+};
+
+class WasmEdgeZlibInflateGetHeader
+    : public WasmEdgeZlib<WasmEdgeZlibInflateGetHeader> {
+public:
+  WasmEdgeZlibInflateGetHeader(WasmEdgeZlibEnvironment &HostEnv)
+      : WasmEdgeZlib(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
+                       uint32_t HeadPtr);
 };
 
 class WasmEdgeZlibInflateBackInit

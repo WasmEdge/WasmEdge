@@ -32,6 +32,7 @@ auto SyncRun(WasmEdgeZlibEnvironment &Env, uint32_t ZStreamPtr,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto HostZStream = HostZStreamIt->second.get();
+  const auto GZHeaderStoreIt = Env.GZHeaderMap.find(ZStreamPtr);
 
   HostZStream->next_in =
       MemInst->getPointer<unsigned char *>(ModuleZStream->NextIn);
@@ -54,6 +55,43 @@ auto SyncRun(WasmEdgeZlibEnvironment &Env, uint32_t ZStreamPtr,
   const auto PreComputeNextIn = HostZStream->next_in;
   const auto PreComputeNextOut = HostZStream->next_out;
 
+  unsigned char *PreComputeExtra{};
+  unsigned char *PreComputeName{};
+  unsigned char *PreComputeComment{};
+
+  if (GZHeaderStoreIt != Env.GZHeaderMap.end()) {
+    // Sync GZ Header
+
+    auto *ModuleGZHeader = MemInst->getPointer<WasmGZHeader *>(
+        GZHeaderStoreIt->second.WasmGZHeaderOffset);
+    auto *HostGZHeader = GZHeaderStoreIt->second.HostGZHeader.get();
+
+    HostGZHeader->text = ModuleGZHeader->Text;
+    HostGZHeader->time = ModuleGZHeader->Time;
+    HostGZHeader->xflags = ModuleGZHeader->XFlags;
+    HostGZHeader->os = ModuleGZHeader->OS;
+
+    HostGZHeader->extra =
+        MemInst->getPointer<unsigned char *>(ModuleGZHeader->Extra);
+    HostGZHeader->extra_len = ModuleGZHeader->ExtraLen;
+    HostGZHeader->extra_max = ModuleGZHeader->ExtraMax;
+
+    HostGZHeader->name =
+        MemInst->getPointer<unsigned char *>(ModuleGZHeader->Name);
+    HostGZHeader->name_max = ModuleGZHeader->NameMax;
+
+    HostGZHeader->comment =
+        MemInst->getPointer<unsigned char *>(ModuleGZHeader->Comment);
+    HostGZHeader->comm_max = ModuleGZHeader->CommMax;
+
+    HostGZHeader->hcrc = ModuleGZHeader->HCRC;
+    HostGZHeader->done = ModuleGZHeader->Done;
+
+    PreComputeExtra = HostGZHeader->extra;
+    PreComputeName = HostGZHeader->name;
+    PreComputeComment = HostGZHeader->comment;
+  }
+
   const auto ZRes = Callback(HostZStream);
 
   ModuleZStream->NextIn += HostZStream->next_in - PreComputeNextIn;
@@ -71,6 +109,32 @@ auto SyncRun(WasmEdgeZlibEnvironment &Env, uint32_t ZStreamPtr,
   ModuleZStream->DataType = HostZStream->data_type;
   ModuleZStream->Adler = HostZStream->adler;
   ModuleZStream->Reserved = HostZStream->reserved;
+
+  if (GZHeaderStoreIt != Env.GZHeaderMap.end()) {
+    // Sync GZ Header
+
+    auto *ModuleGZHeader = MemInst->getPointer<WasmGZHeader *>(
+        GZHeaderStoreIt->second.WasmGZHeaderOffset);
+    auto *HostGZHeader = GZHeaderStoreIt->second.HostGZHeader.get();
+
+    ModuleGZHeader->Text = HostGZHeader->text;
+    ModuleGZHeader->Time = HostGZHeader->time;
+    ModuleGZHeader->XFlags = HostGZHeader->xflags;
+    ModuleGZHeader->OS = HostGZHeader->os;
+
+    ModuleGZHeader->Extra += HostGZHeader->extra - PreComputeExtra;
+    ModuleGZHeader->ExtraLen = HostGZHeader->extra_len;
+    ModuleGZHeader->ExtraMax = HostGZHeader->extra_max;
+
+    ModuleGZHeader->Name += HostGZHeader->name - PreComputeName;
+    ModuleGZHeader->NameMax = HostGZHeader->name_max;
+
+    ModuleGZHeader->Comment += HostGZHeader->comment - PreComputeComment;
+    ModuleGZHeader->CommMax = HostGZHeader->comm_max;
+
+    ModuleGZHeader->HCRC = HostGZHeader->hcrc;
+    ModuleGZHeader->Done = HostGZHeader->done;
+  }
 
   return ZRes;
 }

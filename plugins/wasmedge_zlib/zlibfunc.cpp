@@ -23,7 +23,7 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
 
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [{}] "sv
+    spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
                   "Frame.getMemoryByIndex(0) returned nullptr."sv,
                   Msg);
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -32,7 +32,7 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
 
   const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {
-    spdlog::error("[WasmEdge-Zlib] [{}] "sv
+    spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
                   "Invalid ZStreamPtr received."sv,
                   Msg);
     return Unexpect(ErrCode::Value::HostFuncError);

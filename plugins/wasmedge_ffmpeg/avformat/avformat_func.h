@@ -65,6 +65,13 @@ public:
     Expect<void > body(const Runtime::CallingFrame &Frame,uint32_t avFormatCtxPtr);
 };
 
+class AVFindBestStream : public WasmEdgeFFmpegAVFormat<AVFindBestStream> {
+public:
+  AVFindBestStream(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t avFormatCtxPtr,int32_t mediaType,int32_t wanted_stream,int32_t related_stream,uint32_t decoderRet,int32_t flags);
+};
+
 }
 }
 }

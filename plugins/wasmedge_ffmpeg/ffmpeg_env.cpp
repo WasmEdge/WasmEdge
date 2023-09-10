@@ -75,7 +75,7 @@ Plugin::Plugin::PluginDescriptor Descriptor {
             },
             {
                 .Name = "AVUtil",
-                .Description = "common utility library",
+                .Description = "utils utility library",
                 .Create = createAVUtil,
             },
 //            {

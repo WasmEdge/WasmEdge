@@ -9,9 +9,12 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFfmpeg
         avformat/avformatContext.cpp
         avformat/avio_func.cpp
         avformat/avInputFormat.cpp
+        avformat/avStream.cpp
 
         avutil/error.cpp
         avutil/module.cpp
+
+#        utils/mediaType.cpp
 )
 
 target_link_directories(wasmedgePluginWasmEdgeFfmpeg PUBLIC ${FFMPEG_LIB})

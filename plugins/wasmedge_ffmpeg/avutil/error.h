@@ -1,6 +1,7 @@
+#pragma once
+
 #include "avutil_base.h"
 #include "runtime/callingframe.h"
-#pragma once
 
 namespace WasmEdge {
 namespace Host {

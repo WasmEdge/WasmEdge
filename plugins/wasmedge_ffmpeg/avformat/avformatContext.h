@@ -53,6 +53,13 @@ public:
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr);
 };
 
+class AVFormatCtxGetAVStream : public WasmEdgeFFmpegAVFormat<AVFormatCtxGetAVStream> {
+public:
+  AVFormatCtxGetAVStream(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr,uint32_t avStreamPtr);
+};
+
 }
 }
 }

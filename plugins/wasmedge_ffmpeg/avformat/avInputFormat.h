@@ -1,3 +1,4 @@
+#pragma once
 #include "avformat_base.h"
 #include "runtime/callingframe.h"
 

@@ -788,7 +788,7 @@ Expect<uint32_t> WasmEdgeZlibGZOpen::body(const Runtime::CallingFrame &Frame,
       WasmGZFileStart +
       static_cast<decltype(WasmGZFileStart)>(Env.GZFileMap.size());
   auto El =
-      std::pair<uint32_t, std::unique_ptr<WasmEdgeZlibEnvironment::GZFile_s>>(
+      std::pair<uint32_t, std::unique_ptr<WasmEdgeZlibEnvironment::GZFile>>(
           NewWasmGZFile, ZRes);
 
   Env.GZFileMap.emplace(std::move(El));
@@ -813,7 +813,7 @@ Expect<uint32_t> WasmEdgeZlibGZDOpen::body(const Runtime::CallingFrame &Frame,
       WasmGZFileStart +
       static_cast<decltype(WasmGZFileStart)>(Env.GZFileMap.size());
   auto El =
-      std::pair<uint32_t, std::unique_ptr<WasmEdgeZlibEnvironment::GZFile_s>>(
+      std::pair<uint32_t, std::unique_ptr<WasmEdgeZlibEnvironment::GZFile>>(
           NewWasmGZFile, ZRes);
 
   Env.GZFileMap.emplace(std::move(El));

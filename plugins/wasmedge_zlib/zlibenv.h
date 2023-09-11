@@ -81,7 +81,7 @@ namespace Host {
 
 class WasmEdgeZlibEnvironment {
 public:
-  using GZFile_s = std::remove_pointer_t<gzFile>;
+  using GZFile = std::remove_pointer_t<gzFile>;
 
   struct GZStore {
     uint32_t WasmGZHeaderOffset;
@@ -89,8 +89,7 @@ public:
   };
 
   std::unordered_map<uint32_t, std::unique_ptr<z_stream>> ZStreamMap;
-  std::map<uint32_t, std::unique_ptr<GZFile_s>, std::greater<uint32_t>>
-      GZFileMap;
+  std::map<uint32_t, std::unique_ptr<GZFile>, std::greater<uint32_t>> GZFileMap;
   std::unordered_map<uint32_t, GZStore> GZHeaderMap;
 
   /// Initial Configurations

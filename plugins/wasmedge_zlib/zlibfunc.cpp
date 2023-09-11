@@ -172,11 +172,9 @@ WasmEdgeZlibDeflateInit::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> WasmEdgeZlibDeflate::WasmEdgeZlibDeflate::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr, int32_t Flush) {
 
-  const auto ZRes = SyncRun(
+  return SyncRun(
       "WasmEdgeZlibDeflate", Env, ZStreamPtr, Frame,
       [&](z_stream *HostZStream) { return deflate(HostZStream, Flush); });
-
-  return ZRes;
 }
 
 Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &Frame,
@@ -219,11 +217,9 @@ WasmEdgeZlibInflateInit::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
                                           uint32_t ZStreamPtr, int32_t Flush) {
 
-  const auto ZRes = SyncRun(
+  return SyncRun(
       "WasmEdgeZlibInflate", Env, ZStreamPtr, Frame,
       [&](z_stream *HostZStream) { return inflate(HostZStream, Flush); });
-
-  return ZRes;
 }
 
 Expect<int32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &Frame,
@@ -278,13 +274,11 @@ Expect<int32_t> WasmEdgeZlibDeflateSetDictionary::body(
 
   const auto *Dictionary = MemInst->getPointer<const Bytef *>(DictionaryPtr);
 
-  const auto ZRes = SyncRun("WasmEdgeZlibDeflateSetDictionary", Env, ZStreamPtr,
-                            Frame, [&](z_stream *HostZStream) {
-                              return deflateSetDictionary(
-                                  HostZStream, Dictionary, DictLength);
-                            });
-
-  return ZRes;
+  return SyncRun("WasmEdgeZlibDeflateSetDictionary", Env, ZStreamPtr, Frame,
+                 [&](z_stream *HostZStream) {
+                   return deflateSetDictionary(HostZStream, Dictionary,
+                                               DictLength);
+                 });
 }
 
 Expect<int32_t> WasmEdgeZlibDeflateGetDictionary::body(
@@ -301,13 +295,11 @@ Expect<int32_t> WasmEdgeZlibDeflateGetDictionary::body(
   auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
   auto *DictLength = MemInst->getPointer<uint32_t *>(DictLengthPtr);
 
-  const auto ZRes = SyncRun("WasmEdgeZlibDeflateGetDictionary", Env, ZStreamPtr,
-                            Frame, [&](z_stream *HostZStream) {
-                              return deflateGetDictionary(
-                                  HostZStream, Dictionary, DictLength);
-                            });
-
-  return ZRes;
+  return SyncRun("WasmEdgeZlibDeflateGetDictionary", Env, ZStreamPtr, Frame,
+                 [&](z_stream *HostZStream) {
+                   return deflateGetDictionary(HostZStream, Dictionary,
+                                               DictLength);
+                 });
 }
 
 /*
@@ -353,11 +345,9 @@ Expect<int32_t>
 WasmEdgeZlibDeflateReset::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr) {
 
-  const auto ZRes =
-      SyncRun("WasmEdgeZlibDeflateReset", Env, ZStreamPtr, Frame,
-              [&](z_stream *HostZStream) { return deflateReset(HostZStream); });
-
-  return ZRes;
+  return SyncRun(
+      "WasmEdgeZlibDeflateReset", Env, ZStreamPtr, Frame,
+      [&](z_stream *HostZStream) { return deflateReset(HostZStream); });
 }
 
 Expect<int32_t>
@@ -365,38 +355,31 @@ WasmEdgeZlibDeflateParams::body(const Runtime::CallingFrame &Frame,
                                 uint32_t ZStreamPtr, int32_t Level,
                                 int32_t Strategy) {
 
-  const auto ZRes =
-      SyncRun("WasmEdgeZlibDeflateParams", Env, ZStreamPtr, Frame,
-              [&](z_stream *HostZStream) {
-                return deflateParams(HostZStream, Level, Strategy);
-              });
-
-  return ZRes;
+  return SyncRun("WasmEdgeZlibDeflateParams", Env, ZStreamPtr, Frame,
+                 [&](z_stream *HostZStream) {
+                   return deflateParams(HostZStream, Level, Strategy);
+                 });
 }
 
 Expect<int32_t> WasmEdgeZlibDeflateTune::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr, int32_t GoodLength,
     int32_t MaxLazy, int32_t NiceLength, int32_t MaxChain) {
 
-  const auto ZRes = SyncRun("WasmEdgeZlibDeflateTune", Env, ZStreamPtr, Frame,
-                            [&](z_stream *HostZStream) {
-                              return deflateTune(HostZStream, GoodLength,
-                                                 MaxLazy, NiceLength, MaxChain);
-                            });
-
-  return ZRes;
+  return SyncRun("WasmEdgeZlibDeflateTune", Env, ZStreamPtr, Frame,
+                 [&](z_stream *HostZStream) {
+                   return deflateTune(HostZStream, GoodLength, MaxLazy,
+                                      NiceLength, MaxChain);
+                 });
 }
 
 Expect<int32_t>
 WasmEdgeZlibDeflateBound::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr, uint32_t SourceLen) {
 
-  const auto ZRes = SyncRun("WasmEdgeZlibDeflateBound", Env, ZStreamPtr, Frame,
-                            [&](z_stream *HostZStream) {
-                              return deflateBound(HostZStream, SourceLen);
-                            });
-
-  return ZRes;
+  return SyncRun("WasmEdgeZlibDeflateBound", Env, ZStreamPtr, Frame,
+                 [&](z_stream *HostZStream) {
+                   return deflateBound(HostZStream, SourceLen);
+                 });
 }
 
 Expect<int32_t>
@@ -414,12 +397,10 @@ WasmEdgeZlibDeflatePending::body(const Runtime::CallingFrame &Frame,
   auto *Pending = MemInst->getPointer<uint32_t *>(PendingPtr);
   auto *Bits = MemInst->getPointer<int32_t *>(BitsPtr);
 
-  const auto ZRes = SyncRun("WasmEdgeZlibDeflatePending", Env, ZStreamPtr,
-                            Frame, [&](z_stream *HostZStream) {
-                              return deflatePending(HostZStream, Pending, Bits);
-                            });
-
-  return ZRes;
+  return SyncRun("WasmEdgeZlibDeflatePending", Env, ZStreamPtr, Frame,
+                 [&](z_stream *HostZStream) {
+                   return deflatePending(HostZStream, Pending, Bits);
+                 });
 }
 
 Expect<int32_t>
@@ -427,12 +408,10 @@ WasmEdgeZlibDeflatePrime::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr, int32_t Bits,
                                int32_t Value) {
 
-  const auto ZRes = SyncRun("WasmEdgeZlibDeflatePrime", Env, ZStreamPtr, Frame,
-                            [&](z_stream *HostZStream) {
-                              return deflatePrime(HostZStream, Bits, Value);
-                            });
-
-  return ZRes;
+  return SyncRun("WasmEdgeZlibDeflatePrime", Env, ZStreamPtr, Frame,
+                 [&](z_stream *HostZStream) {
+                   return deflatePrime(HostZStream, Bits, Value);
+                 });
 }
 
 Expect<int32_t>
@@ -499,13 +478,11 @@ Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
 
   auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
 
-  const auto ZRes = SyncRun("WasmEdgeZlibInflateSetDictionary", Env, ZStreamPtr,
-                            Frame, [&](z_stream *HostZStream) {
-                              return inflateSetDictionary(
-                                  HostZStream, Dictionary, DictLength);
-                            });
-
-  return ZRes;
+  return SyncRun("WasmEdgeZlibInflateSetDictionary", Env, ZStreamPtr, Frame,
+                 [&](z_stream *HostZStream) {
+                   return inflateSetDictionary(HostZStream, Dictionary,
+                                               DictLength);
+                 });
 }
 
 Expect<int32_t> WasmEdgeZlibInflateGetDictionary::body(
@@ -522,24 +499,20 @@ Expect<int32_t> WasmEdgeZlibInflateGetDictionary::body(
   auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
   auto *DictLength = MemInst->getPointer<uint32_t *>(DictLengthPtr);
 
-  const auto ZRes = SyncRun("WasmEdgeZlibInflateGetDictionary", Env, ZStreamPtr,
-                            Frame, [&](z_stream *HostZStream) {
-                              return inflateGetDictionary(
-                                  HostZStream, Dictionary, DictLength);
-                            });
-
-  return ZRes;
+  return SyncRun("WasmEdgeZlibInflateGetDictionary", Env, ZStreamPtr, Frame,
+                 [&](z_stream *HostZStream) {
+                   return inflateGetDictionary(HostZStream, Dictionary,
+                                               DictLength);
+                 });
 }
 
 Expect<int32_t>
 WasmEdgeZlibInflateSync::body(const Runtime::CallingFrame &Frame,
                               uint32_t ZStreamPtr) {
 
-  const auto ZRes =
-      SyncRun("WasmEdgeZlibInflateSync", Env, ZStreamPtr, Frame,
-              [&](z_stream *HostZStream) { return inflateSync(HostZStream); });
-
-  return ZRes;
+  return SyncRun(
+      "WasmEdgeZlibInflateSync", Env, ZStreamPtr, Frame,
+      [&](z_stream *HostZStream) { return inflateSync(HostZStream); });
 }
 
 Expect<int32_t>
@@ -579,23 +552,19 @@ Expect<int32_t>
 WasmEdgeZlibInflateReset::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr) {
 
-  const auto ZRes =
-      SyncRun("WasmEdgeZlibInflateReset", Env, ZStreamPtr, Frame,
-              [&](z_stream *HostZStream) { return inflateReset(HostZStream); });
-
-  return ZRes;
+  return SyncRun(
+      "WasmEdgeZlibInflateReset", Env, ZStreamPtr, Frame,
+      [&](z_stream *HostZStream) { return inflateReset(HostZStream); });
 }
 
 Expect<int32_t>
 WasmEdgeZlibInflateReset2::body(const Runtime::CallingFrame &Frame,
                                 uint32_t ZStreamPtr, int32_t WindowBits) {
 
-  const auto ZRes = SyncRun("WasmEdgeZlibInflateReset2", Env, ZStreamPtr, Frame,
-                            [&](z_stream *HostZStream) {
-                              return inflateReset2(HostZStream, WindowBits);
-                            });
-
-  return ZRes;
+  return SyncRun("WasmEdgeZlibInflateReset2", Env, ZStreamPtr, Frame,
+                 [&](z_stream *HostZStream) {
+                   return inflateReset2(HostZStream, WindowBits);
+                 });
 }
 
 Expect<int32_t>
@@ -603,23 +572,19 @@ WasmEdgeZlibInflatePrime::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr, int32_t Bits,
                                int32_t Value) {
 
-  const auto ZRes = SyncRun("WasmEdgeZlibInflatePrime", Env, ZStreamPtr, Frame,
-                            [&](z_stream *HostZStream) {
-                              return inflatePrime(HostZStream, Bits, Value);
-                            });
-
-  return ZRes;
+  return SyncRun("WasmEdgeZlibInflatePrime", Env, ZStreamPtr, Frame,
+                 [&](z_stream *HostZStream) {
+                   return inflatePrime(HostZStream, Bits, Value);
+                 });
 }
 
 Expect<int32_t>
 WasmEdgeZlibInflateMark::body(const Runtime::CallingFrame &Frame,
                               uint32_t ZStreamPtr) {
 
-  const auto ZRes =
-      SyncRun("WasmEdgeZlibInflateMark", Env, ZStreamPtr, Frame,
-              [&](z_stream *HostZStream) { return inflateMark(HostZStream); });
-
-  return ZRes;
+  return SyncRun(
+      "WasmEdgeZlibInflateMark", Env, ZStreamPtr, Frame,
+      [&](z_stream *HostZStream) { return inflateMark(HostZStream); });
 }
 
 Expect<int32_t>
@@ -699,8 +664,7 @@ WasmEdgeZlibInflateBackEnd::body(const Runtime::CallingFrame &Frame,
 
 Expect<int32_t>
 WasmEdgeZlibZlibCompilerFlags::body(const Runtime::CallingFrame &) {
-  const auto ZRes = zlibCompileFlags();
-  return ZRes;
+  return zlibCompileFlags();
 }
 
 Expect<int32_t> WasmEdgeZlibCompress::body(const Runtime::CallingFrame &Frame,
@@ -753,9 +717,7 @@ Expect<int32_t> WasmEdgeZlibCompress2::body(const Runtime::CallingFrame &Frame,
 
 Expect<int32_t> WasmEdgeZlibCompressBound::body(const Runtime::CallingFrame &,
                                                 uint32_t SourceLen) {
-  const auto ZRes = compressBound(SourceLen);
-
-  return ZRes;
+  return compressBound(SourceLen);
 }
 
 Expect<int32_t> WasmEdgeZlibUncompress::body(const Runtime::CallingFrame &Frame,
@@ -864,9 +826,7 @@ Expect<int32_t> WasmEdgeZlibGZBuffer::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzbuffer(GZFileIt->second.get(), Size);
-
-  return ZRes;
+  return gzbuffer(GZFileIt->second.get(), Size);
 }
 
 Expect<int32_t> WasmEdgeZlibGZSetParams::body(const Runtime::CallingFrame &,
@@ -879,9 +839,7 @@ Expect<int32_t> WasmEdgeZlibGZSetParams::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzsetparams(GZFileIt->second.get(), Level, Strategy);
-
-  return ZRes;
+  return gzsetparams(GZFileIt->second.get(), Level, Strategy);
 }
 
 Expect<int32_t> WasmEdgeZlibGZRead::body(const Runtime::CallingFrame &Frame,
@@ -903,9 +861,7 @@ Expect<int32_t> WasmEdgeZlibGZRead::body(const Runtime::CallingFrame &Frame,
 
   auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
 
-  auto ZRes = gzread(GZFileIt->second.get(), Buf, Len);
-
-  return ZRes;
+  return gzread(GZFileIt->second.get(), Buf, Len);
 }
 
 Expect<int32_t> WasmEdgeZlibGZFread::body(const Runtime::CallingFrame &Frame,
@@ -927,9 +883,7 @@ Expect<int32_t> WasmEdgeZlibGZFread::body(const Runtime::CallingFrame &Frame,
 
   auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
 
-  auto ZRes = gzfread(Buf, Size, NItems, GZFileIt->second.get());
-
-  return ZRes;
+  return gzfread(Buf, Size, NItems, GZFileIt->second.get());
 }
 
 Expect<int32_t> WasmEdgeZlibGZWrite::body(const Runtime::CallingFrame &Frame,
@@ -951,9 +905,7 @@ Expect<int32_t> WasmEdgeZlibGZWrite::body(const Runtime::CallingFrame &Frame,
 
   auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
 
-  auto ZRes = gzwrite(GZFileIt->second.get(), Buf, Len);
-
-  return ZRes;
+  return gzwrite(GZFileIt->second.get(), Buf, Len);
 }
 
 Expect<int32_t> WasmEdgeZlibGZFwrite::body(const Runtime::CallingFrame &Frame,
@@ -975,9 +927,7 @@ Expect<int32_t> WasmEdgeZlibGZFwrite::body(const Runtime::CallingFrame &Frame,
 
   auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
 
-  auto ZRes = gzfwrite(Buf, Size, NItems, GZFileIt->second.get());
-
-  return ZRes;
+  return gzfwrite(Buf, Size, NItems, GZFileIt->second.get());
 }
 
 Expect<int32_t> WasmEdgeZlibGZPuts::body(const Runtime::CallingFrame &Frame,
@@ -998,9 +948,7 @@ Expect<int32_t> WasmEdgeZlibGZPuts::body(const Runtime::CallingFrame &Frame,
 
   auto *String = MemInst->getPointer<const char *>(StringPtr);
 
-  auto ZRes = gzputs(GZFileIt->second.get(), String);
-
-  return ZRes;
+  return gzputs(GZFileIt->second.get(), String);
 }
 
 Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &,
@@ -1012,9 +960,7 @@ Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzputc(GZFileIt->second.get(), C);
-
-  return ZRes;
+  return gzputc(GZFileIt->second.get(), C);
 }
 
 Expect<int32_t> WasmEdgeZlibGZGetc::body(const Runtime::CallingFrame &,
@@ -1026,9 +972,7 @@ Expect<int32_t> WasmEdgeZlibGZGetc::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzgetc(GZFileIt->second.get());
-
-  return ZRes;
+  return gzgetc(GZFileIt->second.get());
 }
 
 Expect<int32_t> WasmEdgeZlibGZUngetc::body(const Runtime::CallingFrame &,
@@ -1040,9 +984,7 @@ Expect<int32_t> WasmEdgeZlibGZUngetc::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzungetc(C, GZFileIt->second.get());
-
-  return ZRes;
+  return gzungetc(C, GZFileIt->second.get());
 }
 
 Expect<int32_t> WasmEdgeZlibGZFlush::body(const Runtime::CallingFrame &,
@@ -1054,9 +996,7 @@ Expect<int32_t> WasmEdgeZlibGZFlush::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzflush(GZFileIt->second.get(), Flush);
-
-  return ZRes;
+  return gzflush(GZFileIt->second.get(), Flush);
 }
 
 Expect<int32_t> WasmEdgeZlibGZSeek::body(const Runtime::CallingFrame &,
@@ -1069,9 +1009,7 @@ Expect<int32_t> WasmEdgeZlibGZSeek::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzseek(GZFileIt->second.get(), Offset, Whence);
-
-  return ZRes;
+  return gzseek(GZFileIt->second.get(), Offset, Whence);
 }
 
 Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &,
@@ -1083,9 +1021,7 @@ Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzrewind(GZFileIt->second.get());
-
-  return ZRes;
+  return gzrewind(GZFileIt->second.get());
 }
 
 Expect<int32_t> WasmEdgeZlibGZTell::body(const Runtime::CallingFrame &,
@@ -1097,9 +1033,7 @@ Expect<int32_t> WasmEdgeZlibGZTell::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gztell(GZFileIt->second.get());
-
-  return ZRes;
+  return gztell(GZFileIt->second.get());
 }
 
 Expect<int32_t> WasmEdgeZlibGZOffset::body(const Runtime::CallingFrame &,
@@ -1111,9 +1045,7 @@ Expect<int32_t> WasmEdgeZlibGZOffset::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzoffset(GZFileIt->second.get());
-
-  return ZRes;
+  return gzoffset(GZFileIt->second.get());
 }
 
 Expect<int32_t> WasmEdgeZlibGZEof::body(const Runtime::CallingFrame &,
@@ -1125,9 +1057,7 @@ Expect<int32_t> WasmEdgeZlibGZEof::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzeof(GZFileIt->second.get());
-
-  return ZRes;
+  return gzeof(GZFileIt->second.get());
 }
 
 Expect<int32_t> WasmEdgeZlibGZDirect::body(const Runtime::CallingFrame &,
@@ -1139,9 +1069,7 @@ Expect<int32_t> WasmEdgeZlibGZDirect::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzdirect(GZFileIt->second.get());
-
-  return ZRes;
+  return gzdirect(GZFileIt->second.get());
 }
 
 Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &,
@@ -1153,7 +1081,7 @@ Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzclose(GZFileIt->second.get());
+  const auto ZRes = gzclose(GZFileIt->second.get());
 
   Env.GZFileMap.erase(GZFileIt);
 
@@ -1169,7 +1097,7 @@ Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzclose_r(GZFileIt->second.get());
+  const auto ZRes = gzclose_r(GZFileIt->second.get());
 
   Env.GZFileMap.erase(GZFileIt);
 
@@ -1185,7 +1113,7 @@ Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzclose_w(GZFileIt->second.get());
+  const auto ZRes = gzclose_w(GZFileIt->second.get());
 
   Env.GZFileMap.erase(GZFileIt);
 
@@ -1218,8 +1146,7 @@ Expect<int32_t> WasmEdgeZlibAdler32::body(const Runtime::CallingFrame &Frame,
 
   auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
 
-  const auto ZRes = adler32(Adler, Buf, Len);
-  return ZRes;
+  return adler32(Adler, Buf, Len);
 }
 
 Expect<int32_t> WasmEdgeZlibAdler32_z::body(const Runtime::CallingFrame &Frame,
@@ -1234,16 +1161,14 @@ Expect<int32_t> WasmEdgeZlibAdler32_z::body(const Runtime::CallingFrame &Frame,
 
   auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
 
-  const auto ZRes = adler32_z(Adler, Buf, Len);
-  return ZRes;
+  return adler32_z(Adler, Buf, Len);
 }
 
 Expect<int32_t> WasmEdgeZlibAdler32Combine::body(const Runtime::CallingFrame &,
                                                  uint32_t Adler1,
                                                  uint32_t Adler2,
                                                  int32_t Len2) {
-  const auto ZRes = adler32_combine(Adler1, Adler2, Len2);
-  return ZRes;
+  return adler32_combine(Adler1, Adler2, Len2);
 }
 
 Expect<int32_t> WasmEdgeZlibCRC32::body(const Runtime::CallingFrame &Frame,
@@ -1258,9 +1183,7 @@ Expect<int32_t> WasmEdgeZlibCRC32::body(const Runtime::CallingFrame &Frame,
 
   auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
 
-  const auto ZRes = crc32(CRC, Buf, Len);
-
-  return ZRes;
+  return crc32(CRC, Buf, Len);
 }
 
 Expect<int32_t> WasmEdgeZlibCRC32_z::body(const Runtime::CallingFrame &Frame,
@@ -1275,16 +1198,13 @@ Expect<int32_t> WasmEdgeZlibCRC32_z::body(const Runtime::CallingFrame &Frame,
 
   auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
 
-  const auto ZRes = crc32_z(CRC, Buf, Len);
-
-  return ZRes;
+  return crc32_z(CRC, Buf, Len);
 }
 
 Expect<int32_t> WasmEdgeZlibCRC32Combine::body(const Runtime::CallingFrame &,
                                                uint32_t CRC1, uint32_t CRC2,
                                                int32_t Len2) {
-  const auto ZRes = crc32_combine(CRC1, CRC2, Len2);
-  return ZRes;
+  return crc32_combine(CRC1, CRC2, Len2);
 }
 
 Expect<int32_t>
@@ -1489,9 +1409,7 @@ Expect<int32_t> WasmEdgeZlibGZGetc_::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = gzgetc_(GZFileIt->second.get());
-
-  return ZRes;
+  return gzgetc_(GZFileIt->second.get());
 }
 
 Expect<int32_t>
@@ -1504,9 +1422,7 @@ WasmEdgeZlibInflateSyncPoint::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = inflateSyncPoint(HostZStreamIt->second.get());
-
-  return ZRes;
+  return inflateSyncPoint(HostZStreamIt->second.get());
 }
 
 Expect<int32_t>
@@ -1519,9 +1435,7 @@ WasmEdgeZlibInflateUndermine::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = inflateUndermine(HostZStreamIt->second.get(), Subvert);
-
-  return ZRes;
+  return inflateUndermine(HostZStreamIt->second.get(), Subvert);
 }
 
 Expect<int32_t> WasmEdgeZlibInflateValidate::body(const Runtime::CallingFrame &,
@@ -1534,9 +1448,7 @@ Expect<int32_t> WasmEdgeZlibInflateValidate::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = inflateValidate(HostZStreamIt->second.get(), Check);
-
-  return ZRes;
+  return inflateValidate(HostZStreamIt->second.get(), Check);
 }
 
 Expect<int32_t>
@@ -1549,9 +1461,7 @@ WasmEdgeZlibInflateCodesUsed::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = inflateCodesUsed(HostZStreamIt->second.get());
-
-  return ZRes;
+  return inflateCodesUsed(HostZStreamIt->second.get());
 }
 
 Expect<int32_t>
@@ -1564,9 +1474,7 @@ WasmEdgeZlibInflateResetKeep::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = inflateResetKeep(HostZStreamIt->second.get());
-
-  return ZRes;
+  return inflateResetKeep(HostZStreamIt->second.get());
 }
 
 Expect<int32_t>
@@ -1579,9 +1487,7 @@ WasmEdgeZlibDeflateResetKeep::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto ZRes = deflateResetKeep(HostZStreamIt->second.get());
-
-  return ZRes;
+  return deflateResetKeep(HostZStreamIt->second.get());
 }
 
 } // namespace Host

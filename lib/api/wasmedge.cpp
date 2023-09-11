@@ -750,6 +750,22 @@ WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
   }
 }
 
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetAllowAFUNIX(WasmEdge_ConfigureContext *Cxt,
+                                 const bool EnableAFUNIX) {
+  if (Cxt) {
+    Cxt->Conf.getRuntimeConfigure().setAllowAFUNIX(EnableAFUNIX);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ConfigureIsAllowAFUNIX(const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getRuntimeConfigure().isAllowAFUNIX();
+  }
+  return false;
+}
+
 WASMEDGE_CAPI_EXPORT bool
 WasmEdge_ConfigureIsForceInterpreter(const WasmEdge_ConfigureContext *Cxt) {
   if (Cxt) {
@@ -2894,6 +2910,25 @@ WasmEdge_PluginCreateModule(const WasmEdge_PluginContext *Cxt,
 
 // <<<<<<<< WasmEdge Plugin functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> WasmEdge Experimental functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_ExecutorExperimentalRegisterPreHostFunction(
+    WasmEdge_ExecutorContext *Cxt, void *Data, void (*Func)(void *)) {
+  if (!Cxt) {
+    return;
+  }
+  fromExecutorCxt(Cxt)->registerPreHostFunction(Data, Func);
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_ExecutorExperimentalRegisterPostHostFunction(
+    WasmEdge_ExecutorContext *Cxt, void *Data, void (*Func)(void *)) {
+  if (!Cxt) {
+    return;
+  }
+  fromExecutorCxt(Cxt)->registerPostHostFunction(Data, Func);
+}
+
+// <<<<<<<< WasmEdge Experimental Functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #ifdef __cplusplus
 } // extern "C"
 #endif

@@ -31,7 +31,7 @@ jobs:
 
       - name: Install black
         run: pip install black
-      
+
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
@@ -215,6 +215,24 @@ jobs:
         ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-alpha.1 -p /usr --plugins wasi_nn-openvino -D
         (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
 
+    - name: Externally Specified plugin install check (single)(Ubuntu) - WASI-NN GGML (>= 0.13.4)
+      if: ${{ matrix.name == 'Ubuntu 20.04' }}
+      run: |
+        # Single plugin download
+        ${{ matrix.python2_ex }} utils/install.py -v 0.13.4 --plugins wasi_nn-ggml -D
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -v 0.13.4 -p ~/new_wasmedge --plugins wasi_nn-ggml -D
+        ls ~/new_wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -v 0.13.4 -p /usr --plugins wasi_nn-ggml -D
+        (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+
+        ${{ matrix.python3_ex }} utils/install.py -v 0.13.4 --plugins wasi_nn-ggml -D
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -v 0.13.4 -p ~/new_wasmedge --plugins wasi_nn-ggml -D
+        ls ~/new_wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -v 0.13.4 -p /usr --plugins wasi_nn-ggml -D
+        (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+
     - name: Externally Specified plugins install check (wrong name)(Ubuntu)
       if: ${{ matrix.name == 'Ubuntu 20.04' }}
       run: |
@@ -299,6 +317,7 @@ jobs:
 
   macos:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: MacOS-latest

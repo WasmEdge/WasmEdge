@@ -111,7 +111,9 @@ TEST_P(CoreTest, TestSuites) {
 }
 
 // Initiate test suite.
-INSTANTIATE_TEST_SUITE_P(TestUnit, CoreTest, testing::ValuesIn(T.enumerate()));
+INSTANTIATE_TEST_SUITE_P(
+    TestUnit, CoreTest,
+    testing::ValuesIn(T.enumerate(SpecTest::TestMode::Interpreter)));
 
 std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,

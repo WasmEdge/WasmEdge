@@ -153,9 +153,9 @@ public:
   void pushHandler(AST::InstrView::iterator EndIt, uint32_t VSize,
                    uint32_t HOffset, uint32_t COffset) noexcept {
     // The POS is the stack size after jumping to the label
-    HandlerStack.emplace_back(EndIt, VSize, FrameStack.size(),
-                              HandlerStack.size() - HOffset,
-                              CaughtStack.size() - COffset);
+    HandlerStack.emplace_back(
+        EndIt, VSize, static_cast<uint32_t>(FrameStack.size()),
+        HandlerStack.size() - HOffset, CaughtStack.size() - COffset);
   }
 
   // Push handler for try-catch block

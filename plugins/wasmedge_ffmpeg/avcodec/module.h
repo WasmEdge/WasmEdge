@@ -6,15 +6,16 @@
 namespace WasmEdge{
 namespace Host{
 namespace WasmEdgeFFmpeg {
-namespace AVCodec {
+namespace AVcodec {
 
 class WasmEdgeFFmpegAVCodecModule : public Runtime::Instance::ModuleInstance {
 public:
   WasmEdgeFFmpegAVCodecModule(std::shared_ptr<WasmEdgeFFmpegEnv> Env);
-};
 
-}
-}
 };
 }
+}
+}
+}
+
 

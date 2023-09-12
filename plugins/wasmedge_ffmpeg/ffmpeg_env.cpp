@@ -10,7 +10,7 @@ namespace {
 Runtime::Instance::ModuleInstance *createAVCodec(
     const Plugin::PluginModule::ModuleDescriptor *) noexcept {
     printf("Creating avcodec %p\n",WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance().get());
-  return new WasmEdgeFFmpeg::AVCodec::WasmEdgeFFmpegAVCodecModule(WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance());
+  return new WasmEdgeFFmpeg::AVcodec::WasmEdgeFFmpegAVCodecModule(WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance());
 }
 
 //Runtime::Instance::ModuleInstance *createAVDevice(

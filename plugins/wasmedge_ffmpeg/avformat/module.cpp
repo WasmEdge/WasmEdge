@@ -36,7 +36,7 @@ WasmEdgeFFmpegAVFormatModule(std::shared_ptr<WasmEdgeFFmpegEnv> env )
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_duration",std::make_unique<AVFormatCtxDuration>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_bit_rate",std::make_unique<AVFormatCtxBitRate>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_nb_chapters",std::make_unique<AVFormatCtxNbChapters>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_avstream",std::make_unique<AVFormatCtxGetAVStream>(env));
+//  addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_avstream",std::make_unique<AVFormatCtxGetAVStream>(env));
 
   // avInputFormat Struct functions.
   addHostFunc("wasmedge_ffmpeg_avformat_avInputFormat_name",std::make_unique<AVInputFormat_name>(env));
@@ -44,9 +44,10 @@ WasmEdgeFFmpegAVFormatModule(std::shared_ptr<WasmEdgeFFmpegEnv> env )
   addHostFunc("wasmedge_ffmpeg_avformat_avInputFormat_extensions",std::make_unique<AVInputFormat_extensions>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avInputFormat_mime_type",std::make_unique<AVInputFormat_mime_type>(env));
 
-  // avStream
+  // avStream Struct Functions.
   addHostFunc("wasmedge_ffmpeg_avformat_avStream_id",std::make_unique<AVStreamId>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avStream_index",std::make_unique<AVStreamIndex>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avStream_codecpar",std::make_unique<AVStreamCodecPar>(env));
 
 }
 

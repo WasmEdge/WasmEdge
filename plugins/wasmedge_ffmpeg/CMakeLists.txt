@@ -1,8 +1,12 @@
 wasmedge_add_library(wasmedgePluginWasmEdgeFfmpeg
         SHARED
         ffmpeg_env.cpp
+
         avcodec/module.cpp
-        avcodec/avcodec_base.h
+        avcodec/avcodec_func.cpp
+        avcodec/avCodecContext.cpp
+        avcodec/avCodec.cpp
+        avcodec/avCodecParameters.cpp
 
         avformat/module.cpp
         avformat/avformat_func.cpp
@@ -14,7 +18,6 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFfmpeg
         avutil/error.cpp
         avutil/module.cpp
 
-#        utils/mediaType.cpp
 )
 
 target_link_directories(wasmedgePluginWasmEdgeFfmpeg PUBLIC ${FFMPEG_LIB})

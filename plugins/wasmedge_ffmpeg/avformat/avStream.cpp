@@ -9,40 +9,56 @@ namespace Host{
 namespace WasmEdgeFFmpeg {
 namespace AVFormat {
 
-Expect<int32_t> AVStreamId::body(const Runtime::CallingFrame &Frame, uint32_t avStreamPtr,uint32_t idx){
-
-  MEMINST_CHECK(MemInst,Frame,0);
-  MEM_PTR_CHECK(avStreamId,MemInst,uint32_t,avStreamPtr,"Failed when accessing the return AVStream Memory",true);
+Expect<int32_t> AVStreamId::body(const Runtime::CallingFrame &, uint32_t avFormatCtxId,uint32_t streamIdx){
 
   auto ffmpegMemory = Env.get();
-  AVStream** avStream = static_cast<AVStream**>(ffmpegMemory->fetchData(*avStreamId));
+  AVFormatContext* avFormatCtx = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(avFormatCtxId));
+
+  AVStream** avStream = avFormatCtx->streams;
 
   // No check here (Check)
-  AVStream* requiredStream;
-  for(unsigned int i=0;i<= idx;i++){
-    requiredStream = *avStream;
+  for(unsigned int i=1;i<= streamIdx;i++){
     avStream++;
   }
 
-  return requiredStream->id;
+  return static_cast<AVStream*>(*avStream)->id;
 }
 
-Expect<int32_t> AVStreamIndex::body(const Runtime::CallingFrame &Frame, uint32_t avStreamPtr,uint32_t idx){
-
-    MEMINST_CHECK(MemInst,Frame,0);
-    MEM_PTR_CHECK(avStreamId,MemInst,uint32_t,avStreamPtr,"Failed when accessing the return AVStream Memory",true);
+Expect<int32_t> AVStreamIndex::body(const Runtime::CallingFrame &, uint32_t avFormatCtxId,uint32_t streamIdx){
 
     auto ffmpegMemory = Env.get();
-    AVStream** avStream = static_cast<AVStream**>(ffmpegMemory->fetchData(*avStreamId));
+    AVFormatContext* avFormatCtx = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(avFormatCtxId));
+
+    AVStream** avStream = avFormatCtx->streams;
 
     // No check here (Check)
-    AVStream* requiredStream;
-    for(unsigned int i=0;i<= idx;i++){
-      requiredStream = *avStream;
+    // Get the Requried AVStream
+    for(unsigned int i=1;i<=streamIdx;i++){
       avStream++;
     }
 
-    return requiredStream->index;
+    return static_cast<AVStream*>(*avStream)->index;
+}
+
+Expect<int32_t> AVStreamCodecPar::body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxId,uint32_t streamIdx, uint32_t codecParameterPtr){
+  MEMINST_CHECK(MemInst,Frame,0);
+  MEM_PTR_CHECK(codecParamId,MemInst,uint32_t,codecParameterPtr,"Failed when accessing the return CodecParameter Memory",true);
+
+  auto ffmpegMemory = Env.get();
+  AVFormatContext* avFormatCtx = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(avFormatCtxId));
+
+  AVStream** avStream = avFormatCtx->streams;
+
+  // No check here (Check)
+  // Get the Requried AVStream
+  for(unsigned int i=1;i<=streamIdx;i++){
+    avStream++;
+  }
+
+  AVCodecParameters* codecpar =  (static_cast<AVStream*>(*avStream))->codecpar;
+
+  ffmpegMemory->alloc(codecpar,codecParamId);
+  return 0;
 }
 
 }

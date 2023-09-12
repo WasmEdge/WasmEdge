@@ -52,13 +52,13 @@ public:
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr);
 };
-
-class AVFormatCtxGetAVStream : public WasmEdgeFFmpegAVFormat<AVFormatCtxGetAVStream> {
-public:
-  AVFormatCtxGetAVStream(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFormat(HostEnv) {}
-  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr,uint32_t avStreamPtr);
-};
+//
+//class avformatctxgetavstream : public wasmedgeffmpegavformat<avformatctxgetavstream> {
+//public:
+//  avformatctxgetavstream(std::shared_ptr<wasmedgeffmpegenv> hostenv)
+//      : wasmedgeffmpegavformat(hostenv) {}
+//  expect<void> body(const runtime::callingframe &frame, uint32_t avformatctxptr,uint32_t avstreamptr);
+//};
 
 }
 }

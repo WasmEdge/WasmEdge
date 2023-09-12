@@ -1322,25 +1322,32 @@ WasmEdge_ExportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
   if (ASTCxt && Cxt &&
       fromExpTypeCxt(Cxt)->getExternalType() ==
           WasmEdge::ExternalType::Function) {
-    // `external_index` = `func_index` + `import_func_nums`
+    auto ImpDescs = fromASTModCxt(ASTCxt)->getImportSection().getContent();
+    auto FuncIdxs = fromASTModCxt(ASTCxt)->getFunctionSection().getContent();
+    auto FuncTypes = fromASTModCxt(ASTCxt)->getTypeSection().getContent();
     uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
-    const auto &ImpDescs =
-        fromASTModCxt(ASTCxt)->getImportSection().getContent();
-    for (auto &&ImpDesc : ImpDescs) {
-      if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Function) {
-        ExtIdx--;
+
+    // Indexing the import descriptions.
+    std::vector<uint32_t> ImpFuncs;
+    ImpFuncs.reserve(ImpDescs.size());
+    for (uint32_t I = 0; I < ImpDescs.size(); I++) {
+      if (ImpDescs[I].getExternalType() == WasmEdge::ExternalType::Function) {
+        ImpFuncs.push_back(I);
       }
     }
-    // Get the function type index by the function index
-    const auto &FuncIdxs =
-        fromASTModCxt(ASTCxt)->getFunctionSection().getContent();
-    if (ExtIdx >= FuncIdxs.size()) {
+    // Get the function type index.
+    uint32_t TypeIdx = 0;
+    if (ExtIdx < ImpFuncs.size()) {
+      // Imported function. Get the function type index from the import desc.
+      TypeIdx = ImpDescs[ImpFuncs[ExtIdx]].getExternalFuncTypeIdx();
+    } else if (ExtIdx < ImpFuncs.size() + FuncIdxs.size()) {
+      // Module owned function. Get the function type index from the section.
+      TypeIdx = FuncIdxs[ExtIdx - ImpFuncs.size()];
+    } else {
+      // Invalid function index.
       return nullptr;
     }
-    uint32_t TypeIdx = FuncIdxs[ExtIdx];
-    // Get the function type
-    const auto &FuncTypes =
-        fromASTModCxt(ASTCxt)->getTypeSection().getContent();
+    // Get the function type by index.
     if (TypeIdx >= FuncTypes.size()) {
       return nullptr;
     }
@@ -1354,22 +1361,29 @@ WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
                                 const WasmEdge_ExportTypeContext *Cxt) {
   if (ASTCxt && Cxt &&
       fromExpTypeCxt(Cxt)->getExternalType() == WasmEdge::ExternalType::Table) {
-    // `external_index` = `table_type_index` + `import_table_nums`
+    auto ImpDescs = fromASTModCxt(ASTCxt)->getImportSection().getContent();
+    auto TabTypes = fromASTModCxt(ASTCxt)->getTableSection().getContent();
     uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
-    const auto &ImpDescs =
-        fromASTModCxt(ASTCxt)->getImportSection().getContent();
-    for (auto &&ImpDesc : ImpDescs) {
-      if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Table) {
-        ExtIdx--;
+
+    // Indexing the import descriptions.
+    std::vector<uint32_t> ImpTabs;
+    ImpTabs.reserve(ImpDescs.size());
+    for (uint32_t I = 0; I < ImpDescs.size(); I++) {
+      if (ImpDescs[I].getExternalType() == WasmEdge::ExternalType::Table) {
+        ImpTabs.push_back(I);
       }
     }
-    // Get the table type
-    const auto &TabTypes =
-        fromASTModCxt(ASTCxt)->getTableSection().getContent();
-    if (ExtIdx >= TabTypes.size()) {
+    // Get the table type.
+    if (ExtIdx < ImpTabs.size()) {
+      // Imported table. Get the table type from the import desc.
+      return toTabTypeCxt(&ImpDescs[ImpTabs[ExtIdx]].getExternalTableType());
+    } else if (ExtIdx < ImpTabs.size() + TabTypes.size()) {
+      // Module owned table. Get the table type from the section.
+      return toTabTypeCxt(&TabTypes[ExtIdx - ImpTabs.size()]);
+    } else {
+      // Invalid table type index.
       return nullptr;
     }
-    return toTabTypeCxt(&TabTypes[ExtIdx]);
   }
   return nullptr;
 }
@@ -1380,22 +1394,29 @@ WasmEdge_ExportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
   if (ASTCxt && Cxt &&
       fromExpTypeCxt(Cxt)->getExternalType() ==
           WasmEdge::ExternalType::Memory) {
-    // `external_index` = `memory_type_index` + `import_memory_nums`
+    auto ImpDescs = fromASTModCxt(ASTCxt)->getImportSection().getContent();
+    auto MemTypes = fromASTModCxt(ASTCxt)->getMemorySection().getContent();
     uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
-    const auto &ImpDescs =
-        fromASTModCxt(ASTCxt)->getImportSection().getContent();
-    for (auto &&ImpDesc : ImpDescs) {
-      if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Memory) {
-        ExtIdx--;
+
+    // Indexing the import descriptions.
+    std::vector<uint32_t> ImpMems;
+    ImpMems.reserve(ImpDescs.size());
+    for (uint32_t I = 0; I < ImpDescs.size(); I++) {
+      if (ImpDescs[I].getExternalType() == WasmEdge::ExternalType::Memory) {
+        ImpMems.push_back(I);
       }
     }
-    // Get the memory type
-    const auto &MemTypes =
-        fromASTModCxt(ASTCxt)->getMemorySection().getContent();
-    if (ExtIdx >= MemTypes.size()) {
+    // Get the memory type.
+    if (ExtIdx < ImpMems.size()) {
+      // Imported memory. Get the memory type from the import desc.
+      return toMemTypeCxt(&ImpDescs[ImpMems[ExtIdx]].getExternalMemoryType());
+    } else if (ExtIdx < ImpMems.size() + MemTypes.size()) {
+      // Module owned memory. Get the memory type from the section.
+      return toMemTypeCxt(&MemTypes[ExtIdx - ImpMems.size()]);
+    } else {
+      // Invalid memory type index.
       return nullptr;
     }
-    return toMemTypeCxt(&MemTypes[ExtIdx]);
   }
   return nullptr;
 }
@@ -1406,22 +1427,30 @@ WasmEdge_ExportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
   if (ASTCxt && Cxt &&
       fromExpTypeCxt(Cxt)->getExternalType() ==
           WasmEdge::ExternalType::Global) {
-    // `external_index` = `global_type_index` + `import_global_nums`
+    auto ImpDescs = fromASTModCxt(ASTCxt)->getImportSection().getContent();
+    auto GlobDescs = fromASTModCxt(ASTCxt)->getGlobalSection().getContent();
     uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
-    const auto &ImpDescs =
-        fromASTModCxt(ASTCxt)->getImportSection().getContent();
-    for (auto &&ImpDesc : ImpDescs) {
-      if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Global) {
-        ExtIdx--;
+
+    // Indexing the import descriptions.
+    std::vector<uint32_t> ImpGlobs;
+    ImpGlobs.reserve(ImpDescs.size());
+    for (uint32_t I = 0; I < ImpDescs.size(); I++) {
+      if (ImpDescs[I].getExternalType() == WasmEdge::ExternalType::Global) {
+        ImpGlobs.push_back(I);
       }
     }
-    // Get the global type
-    const auto &GlobDescs =
-        fromASTModCxt(ASTCxt)->getGlobalSection().getContent();
-    if (ExtIdx >= GlobDescs.size()) {
+    // Get the global type.
+    if (ExtIdx < ImpGlobs.size()) {
+      // Imported global. Get the global type from the import desc.
+      return toGlobTypeCxt(&ImpDescs[ImpGlobs[ExtIdx]].getExternalGlobalType());
+    } else if (ExtIdx < ImpGlobs.size() + GlobDescs.size()) {
+      // Module owned global. Get the global type from the section.
+      return toGlobTypeCxt(
+          &GlobDescs[ExtIdx - ImpGlobs.size()].getGlobalType());
+    } else {
+      // Invalid global type index.
       return nullptr;
     }
-    return toGlobTypeCxt(&GlobDescs[ExtIdx].getGlobalType());
   }
   return nullptr;
 }

@@ -122,7 +122,7 @@ parseValueList(const simdjson::dom::array &Args) {
           I++;
         }
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t&>(I32x4);
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t &>(I32x4);
 #else
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I32x4);
 #endif
@@ -136,7 +136,7 @@ parseValueList(const simdjson::dom::array &Args) {
           I++;
         }
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t&>(I16x8);
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t &>(I16x8);
 #else
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I16x8);
 #endif
@@ -149,7 +149,7 @@ parseValueList(const simdjson::dom::array &Args) {
           I++;
         }
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t&>(I8x16);
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t &>(I8x16);
 #else
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I8x16);
 #endif
@@ -244,7 +244,9 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"tail-call"sv, {Proposal::TailCall}},
     {"extended-const"sv, {Proposal::ExtendedConst}},
     {"threads"sv, {Proposal::Threads}},
-    {"exception-handling"sv, {Proposal::ExceptionHandling, Proposal::TailCall}},
+    {"exception-handling"sv,
+     {Proposal::ExceptionHandling, Proposal::TailCall},
+     WasmEdge::SpecTest::TestMode::Interpreter},
 };
 
 } // namespace
@@ -375,8 +377,8 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto VF = reinterpret_cast<const floatx4_t&>(V64);
-      const auto VI = reinterpret_cast<const uint32x4_t&>(V64);
+      const auto VF = reinterpret_cast<const floatx4_t &>(V64);
+      const auto VI = reinterpret_cast<const uint32x4_t &>(V64);
 #else
       const auto VF = reinterpret_cast<floatx4_t>(V64);
       const auto VI = reinterpret_cast<uint32x4_t>(V64);
@@ -399,8 +401,8 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto VF = reinterpret_cast<const doublex2_t&>(V64);
-      const auto VI = reinterpret_cast<const uint64x2_t&>(V64);
+      const auto VF = reinterpret_cast<const doublex2_t &>(V64);
+      const auto VI = reinterpret_cast<const uint64x2_t &>(V64);
 #else
       const auto VF = reinterpret_cast<doublex2_t>(V64);
       const auto VI = reinterpret_cast<uint64x2_t>(V64);
@@ -423,7 +425,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto V = reinterpret_cast<const uint8x16_t&>(V64);
+      const auto V = reinterpret_cast<const uint8x16_t &>(V64);
 #else
       const auto V = reinterpret_cast<uint8x16_t>(V64);
 #endif
@@ -440,7 +442,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto V = reinterpret_cast<const uint16x8_t&>(V64);
+      const auto V = reinterpret_cast<const uint16x8_t &>(V64);
 #else
       const auto V = reinterpret_cast<uint16x8_t>(V64);
 #endif
@@ -457,7 +459,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto V = reinterpret_cast<const uint32x4_t&>(V64);
+      const auto V = reinterpret_cast<const uint32x4_t &>(V64);
 #else
       const auto V = reinterpret_cast<uint32x4_t>(V64);
 #endif

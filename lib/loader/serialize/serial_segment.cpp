@@ -122,8 +122,8 @@ Expect<void> Serializer::serializeSegment(const AST::ElementSegment &Seg,
 Expect<void> Serializer::serializeSegment(const AST::CodeSegment &Seg,
                                           std::vector<uint8_t> &OutVec) {
   // Code segment: size:u32 + locals:vec(u32 + valtype) + body:expr.
-  serializeU32(Seg.getSegSize(), OutVec);
-  serializeU32(static_cast<uint32_t>(Seg.getLocals().size()), OutVec);
+  std::vector<uint8_t> Result;
+  serializeU32(static_cast<uint32_t>(Seg.getLocals().size()), Result);
 
   uint32_t TotalLocalCnt = 0;
   for (auto Locals : Seg.getLocals()) {
@@ -139,13 +139,15 @@ Expect<void> Serializer::serializeSegment(const AST::CodeSegment &Seg,
         unlikely(!Res)) {
       return Unexpect(Res);
     }
-    serializeU32(Locals.first, OutVec);
-    OutVec.push_back(static_cast<uint8_t>(Locals.second));
+    serializeU32(Locals.first, Result);
+    Result.push_back(static_cast<uint8_t>(Locals.second));
   }
-  if (auto Res = serializeExpression(Seg.getExpr(), OutVec); unlikely(!Res)) {
+  if (auto Res = serializeExpression(Seg.getExpr(), Result); unlikely(!Res)) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
     return Unexpect(Res);
   }
+  serializeU32(static_cast<uint32_t>(Result.size()), OutVec);
+  OutVec.insert(OutVec.end(), Result.begin(), Result.end());
   return {};
 }
 

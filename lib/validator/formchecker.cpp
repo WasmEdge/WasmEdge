@@ -237,10 +237,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   auto countCtrlStackType =
       [this](uint32_t N) -> std::pair<uint32_t, uint32_t> {
     uint32_t CatchCnt = 0, TryCnt = 0;
-    for (auto it = CtrlStack.begin() + N; it != CtrlStack.end(); it++) {
-      if (it->Code == OpCode::Try)
+    for (auto It = CtrlStack.begin() + N; It != CtrlStack.end(); It++) {
+      if (It->Code == OpCode::Try)
         TryCnt++;
-      if (it->Code == OpCode::Catch || it->Code == OpCode::Catch_all) {
+      if (It->Code == OpCode::Catch || It->Code == OpCode::Catch_all) {
         CatchCnt++;
       }
     }

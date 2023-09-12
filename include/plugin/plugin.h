@@ -23,6 +23,12 @@
 #include <memory>
 #include <vector>
 
+#if WASMEDGE_OS_WINDOWS
+#define WASMEDGE_EXPORT __declspec(dllexport)
+#else
+#define WASMEDGE_EXPORT [[gnu::visibility("default")]]
+#endif
+
 namespace WasmEdge {
 namespace Plugin {
 
@@ -88,9 +94,9 @@ public:
   static inline constexpr const uint32_t CurrentAPIVersion [[maybe_unused]] =
       kPluginCurrentAPIVersion;
   static std::vector<std::filesystem::path> getDefaultPluginPaths() noexcept;
-  static bool load(const std::filesystem::path &Path) noexcept;
+  WASMEDGE_EXPORT static bool load(const std::filesystem::path &Path) noexcept;
   static void addPluginOptions(PO::ArgumentParser &Parser) noexcept;
-  static const Plugin *find(std::string_view Name) noexcept;
+  WASMEDGE_EXPORT static const Plugin *find(std::string_view Name) noexcept;
   static Span<const Plugin> plugins() noexcept;
 
   Plugin(const Plugin &) = delete;
@@ -127,7 +133,8 @@ public:
     return ModuleRegistory;
   }
 
-  const PluginModule *findModule(std::string_view Name) const noexcept;
+  WASMEDGE_EXPORT const PluginModule *
+  findModule(std::string_view Name) const noexcept;
 
 private:
   static std::vector<Plugin> &PluginRegistory;
@@ -144,13 +151,14 @@ private:
   explicit Plugin(const PluginDescriptor *D) noexcept;
 
 public:
-  static void registerPlugin(const PluginDescriptor *Desc) noexcept;
+  WASMEDGE_EXPORT static void
+  registerPlugin(const PluginDescriptor *Desc) noexcept;
 };
 
 struct PluginRegister {
-  PluginRegister(const Plugin::PluginDescriptor *Desc) noexcept;
+  WASMEDGE_EXPORT PluginRegister(const Plugin::PluginDescriptor *Desc) noexcept;
 
-  ~PluginRegister() noexcept;
+  WASMEDGE_EXPORT ~PluginRegister() noexcept;
 };
 
 } // namespace Plugin

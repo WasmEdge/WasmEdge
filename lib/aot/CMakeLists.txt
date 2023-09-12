@@ -41,6 +41,12 @@ else()
     list(APPEND LLD_LIBS lldDriver)
   endif()
 
+  # Command line warning D9025 : overriding '/EHs' with '/EHs-'
+  # prevent LLVM from adding /EHs-c-.
+  if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    set(LLVM_REQUIRES_EH ON)
+  endif()
+
   llvm_add_library(wasmedgeAOT
     blake3.cpp
     cache.cpp

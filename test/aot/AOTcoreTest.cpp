@@ -52,7 +52,7 @@ TEST_P(NativeCoreTest, TestSuites) {
   VM.registerModule(SpecTestMod);
   auto Compile = [&, Conf = std::cref(Conf)](
                      const std::string &Filename) -> Expect<std::string> {
-    WasmEdge::Configure CopyConf = Conf;
+    WasmEdge::Configure CopyConf = Conf.get();
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
     CopyConf.getCompilerConfigure().setOutputFormat(
@@ -160,7 +160,7 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
   VM.registerModule(SpecTestMod);
   auto Compile = [&, Conf = std::cref(Conf)](
                      const std::string &Filename) -> Expect<std::string> {
-    WasmEdge::Configure CopyConf = Conf;
+    WasmEdge::Configure CopyConf = Conf.get();
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
     CopyConf.getCompilerConfigure().setOptimizationLevel(

@@ -9,24 +9,52 @@
 namespace WasmEdge {
 namespace Executor {
 
+// If `memoryOffset + instruction Value` is overflow, it's an out of bound
+// access, trap.
+template <uint32_t BitWidth>
+Expect<void> checkOutOfBound(Runtime::Instance::MemoryInstance &MemInst,
+                             const AST::Instruction &Instr, uint64_t Val) {
+  switch (MemInst.getMemoryType().getIdxType()) {
+  case AST::MemoryType::IndexType::I64: {
+    if (Val > std::numeric_limits<uint64_t>::max() - Instr.getMemoryOffset()) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Val + Instr.getMemoryOffset(),
+                                          BitWidth / 8, MemInst.getBoundIdx()));
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+    break;
+  }
+  case AST::MemoryType::IndexType::I32:
+  default: {
+    if (Val > std::numeric_limits<uint32_t>::max() -
+                  static_cast<uint32_t>(Instr.getMemoryOffset())) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(
+          Val + static_cast<uint32_t>(Instr.getMemoryOffset()), BitWidth / 8,
+          MemInst.getBoundIdx()));
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+    break;
+  }
+  }
+  return {};
+}
+
 template <typename T, uint32_t BitWidth>
 TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
                              Runtime::Instance::MemoryInstance &MemInst,
                              const AST::Instruction &Instr) {
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
-  if (Val.get<uint32_t>() >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Val.get<uint32_t>() + static_cast<uint64_t>(Instr.getMemoryOffset()),
-        BitWidth / 8, MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  if (auto Res = checkOutOfBound<BitWidth>(MemInst, Instr, Val.get<uint64_t>());
+      !Res) {
+    return Unexpect(Res);
   }
-  uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
-
+  uint64_t EA = Val.get<uint64_t>() + Instr.getMemoryOffset();
   // Value = Mem.Data[EA : N / 8]
   if (auto Res = MemInst.loadValue<T, BitWidth / 8>(Val.emplace<T>(), EA);
       !Res) {

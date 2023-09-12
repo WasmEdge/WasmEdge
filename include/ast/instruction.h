@@ -172,7 +172,7 @@ public:
   uint32_t &getMemoryAlign() noexcept { return Data.Memories.MemAlign; }
 
   /// Getter of memory offset.
-  uint32_t getMemoryOffset() const noexcept { return Data.Memories.MemOffset; }
+  uint64_t getMemoryOffset() const noexcept { return Data.Memories.MemOffset; }
   uint64_t &getMemoryOffset() noexcept { return Data.Memories.MemOffset; }
 
   /// Getter of memory lane.

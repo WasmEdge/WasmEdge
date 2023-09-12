@@ -73,17 +73,11 @@ TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
   T C = StackMgr.pop().get<T>();
 
   // Calculate EA = i + offset
-  uint32_t I = StackMgr.pop().get<uint32_t>();
-  if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        I + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  uint64_t I = StackMgr.popIndexType(MemInst.getMemoryType().getIdxType());
+  if (auto Res = checkOutOfBound<BitWidth>(MemInst, Instr, I); !Res) {
+    return Unexpect(Res);
   }
-  uint32_t EA = I + Instr.getMemoryOffset();
+  uint64_t EA = I + Instr.getMemoryOffset();
 
   // Store value to bytes.
   if (auto Res = MemInst.storeValue<T, BitWidth / 8>(C, EA); !Res) {

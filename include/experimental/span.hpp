@@ -240,14 +240,14 @@ span(R &&) -> span<remove_pointer_t<decltype(data(declval<R>()))>>;
 template <class T, size_t N> auto as_bytes(span<T, N> s) noexcept {
   constexpr size_t NewExtend =
       (N == dynamic_extent ? dynamic_extent : sizeof(T) * N);
-  return span<const byte, NewExtend>(reinterpret_cast<const byte *>(s.data()),
+  return span<const std::byte, NewExtend>(reinterpret_cast<const std::byte *>(s.data()),
                                      s.size_bytes());
 }
 
 template <class T, size_t N> auto as_writable_bytes(span<T, N> s) noexcept {
   constexpr size_t NewExtend =
       (N == dynamic_extent ? dynamic_extent : sizeof(T) * N);
-  return span<byte, NewExtend>(reinterpret_cast<byte *>(s.data()),
+  return span<std::byte, NewExtend>(reinterpret_cast<std::byte *>(s.data()),
                                s.size_bytes());
 }
 

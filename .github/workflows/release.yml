@@ -102,6 +102,14 @@ jobs:
       release: true
     secrets: inherit
 
+  build_on_windows_msvc:
+    needs: create_release
+    uses: ./.github/workflows/reusable-build-on-windows-msvc.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      release: true
+    secrets: inherit
+
   build_on_android:
     needs: create_release
     uses: ./.github/workflows/reusable-build-on-android.yml

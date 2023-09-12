@@ -228,8 +228,9 @@ TEST_P(CoreCompileTest, TestSuites) {
 }
 
 // Initiate test suite.
-INSTANTIATE_TEST_SUITE_P(TestUnit, CoreCompileTest,
-                         testing::ValuesIn(T.enumerate()));
+INSTANTIATE_TEST_SUITE_P(
+    TestUnit, CoreCompileTest,
+    testing::ValuesIn(T.enumerate(SpecTest::TestMode::AOT)));
 
 } // namespace
 

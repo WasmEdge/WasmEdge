@@ -225,7 +225,7 @@ convertFiletime(WasmEdge::winapi::FILETIME_ FileTime) noexcept {
   constexpr const FiletimeDuration NTToUnixEpoch =
       std::chrono::seconds{134774u * 86400u};
   WasmEdge::winapi::ULARGE_INTEGER_ Temp = {
-      .LowPart = FileTime.dwLowDateTime, .HighPart = FileTime.dwHighDateTime};
+      /* LowPart */ FileTime.dwLowDateTime, /* HighPart */ FileTime.dwHighDateTime};
   auto Duration = duration_cast<nanoseconds>(FiletimeDuration{Temp.QuadPart} -
                                              NTToUnixEpoch);
   return static_cast<__wasi_timestamp_t>(Duration.count());
@@ -236,9 +236,9 @@ convertFiletime(WasmEdge::winapi::FILETIME_ FileTime) noexcept {
 // and recving data. There is a chance that PollOneoff may not immediately get
 // the read event when it is called right after the server has sent the data.
 // Without the sleep, there is a risk that the unit test may not pass. We found
-// this problem on macOS.
-void sleepForMacOS() noexcept {
-#if WASMEDGE_OS_MACOS
+// this problem on macOS and Windows.
+void sleepForMacWin() noexcept {
+#if WASMEDGE_OS_MACOS || WASMEDGE_OS_WINDOWS
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 #endif
 }
@@ -811,7 +811,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
         writeString(MemInst, Data, DataPtr);
         auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
         IOVec[0].buf = DataPtr;
-        IOVec[0].buf_len = Data.size();
+        IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
         EXPECT_TRUE(WasiSockSend.run(
             CallFrame,
             std::initializer_list<WasmEdge::ValVariant>{
@@ -1184,7 +1184,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       writeString(MemInst, Data, DataPtr);
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = Data.size();
+      IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
       EXPECT_TRUE(
           WasiSockSend.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -1222,7 +1222,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       writeString(MemInst, Data, DataPtr);
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = Data.size();
+      IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
       EXPECT_TRUE(
           WasiSockSend.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -1256,7 +1256,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       ActionProcessed.wait(Lock, [&]() { return ActionDone.exchange(false); });
     }
 
-    sleepForMacOS();
+    sleepForMacWin();
 
     // poll read, write and 100 milliseconds, expect read and write
     PollReadWriteReadWrite();
@@ -1417,7 +1417,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
         writeString(MemInst, Data, DataPtr);
         auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
         IOVec[0].buf = DataPtr;
-        IOVec[0].buf_len = Data.size();
+        IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
         EXPECT_TRUE(WasiSockSend.run(
             CallFrame,
             std::initializer_list<WasmEdge::ValVariant>{
@@ -1790,7 +1790,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
       writeString(MemInst, Data, DataPtr);
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = Data.size();
+      IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
       EXPECT_TRUE(
           WasiSockSend.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -1828,7 +1828,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
       writeString(MemInst, Data, DataPtr);
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
       IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = Data.size();
+      IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
       EXPECT_TRUE(
           WasiSockSend.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -1862,7 +1862,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
       ActionProcessed.wait(Lock, [&]() { return ActionDone.exchange(false); });
     }
 
-    sleepForMacOS();
+    sleepForMacWin();
 
     // poll read, write and 100 milliseconds, expect read and write
     PollReadWriteReadWrite();
@@ -2468,7 +2468,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       ActionProcessed.wait(Lock, [&]() { return ActionDone.exchange(false); });
     }
 
-    sleepForMacOS();
+    sleepForMacWin();
 
     // poll read, write and 100 milliseconds, expect read and write
     PollReadWriteReadWrite();
@@ -2541,7 +2541,8 @@ TEST(WasiTest, ClockTimeGet) {
                              Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     const uint64_t Time = convertFiletime(SysNow);
-    EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
+    EXPECT_NEAR(static_cast<double>(*MemInst.getPointer<const uint64_t *>(0)), 
+                    static_cast<double>(Time), 1000000.0);
   }
 #endif
 
@@ -2796,7 +2797,7 @@ TEST(WasiTest, Directory) {
   {
     Env.init({"/:."s}, "test"s, {}, {});
     const auto Path = ""sv;
-    const uint32_t PathSize = Path.size();
+    const uint32_t PathSize = static_cast<uint32_t>(Path.size());
     writeString(MemInst, Path, PathPtr);
     EXPECT_TRUE(WasiPathCreateDirectory.run(
         CallFrame,
@@ -2810,7 +2811,7 @@ TEST(WasiTest, Directory) {
   {
     Env.init({"/:."s}, "test"s, {}, {});
     const auto Path = "."sv;
-    const uint32_t PathSize = Path.size();
+    const uint32_t PathSize = static_cast<uint32_t>(Path.size());
     writeString(MemInst, Path, PathPtr);
     EXPECT_TRUE(WasiPathCreateDirectory.run(
         CallFrame,
@@ -2824,7 +2825,7 @@ TEST(WasiTest, Directory) {
   {
     Env.init({"/:."s}, "test"s, {}, {});
     const auto Path = "tmp"sv;
-    const uint32_t PathSize = Path.size();
+    const uint32_t PathSize = static_cast<uint32_t>(Path.size());
     writeString(MemInst, Path, PathPtr);
     EXPECT_TRUE(WasiPathCreateDirectory.run(
         CallFrame,

@@ -221,6 +221,7 @@ parseExpectedList(const simdjson::dom::array &Args) {
 struct TestsuiteProposal {
   std::string_view Path;
   WasmEdge::Configure Conf;
+  WasmEdge::SpecTest::TestMode Mode = WasmEdge::SpecTest::TestMode::All;
 };
 
 static const TestsuiteProposal TestsuiteProposals[] = {
@@ -235,17 +236,20 @@ static const TestsuiteProposal TestsuiteProposals[] = {
 
 namespace WasmEdge {
 
-std::vector<std::string> SpecTest::enumerate() const {
+std::vector<std::string>
+SpecTest::enumerate(const SpecTest::TestMode Mode) const {
   std::vector<std::string> Cases;
   for (const auto &Proposal : TestsuiteProposals) {
-    const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;
-    for (const auto &Subdir :
-         std::filesystem::directory_iterator(ProposalRoot)) {
-      const auto SubdirPath = Subdir.path();
-      const auto UnitName = SubdirPath.filename().u8string();
-      const auto UnitJson = UnitName + ".json"s;
-      if (std::filesystem::is_regular_file(SubdirPath / UnitJson)) {
-        Cases.push_back(std::string(Proposal.Path) + ' ' + UnitName);
+    if (static_cast<uint8_t>(Proposal.Mode) & static_cast<uint8_t>(Mode)) {
+      const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;
+      for (const auto &Subdir :
+           std::filesystem::directory_iterator(ProposalRoot)) {
+        const auto SubdirPath = Subdir.path();
+        const auto UnitName = SubdirPath.filename().u8string();
+        const auto UnitJson = UnitName + ".json"s;
+        if (std::filesystem::is_regular_file(SubdirPath / UnitJson)) {
+          Cases.push_back(std::string(Proposal.Path) + ' ' + UnitName);
+        }
       }
     }
   }

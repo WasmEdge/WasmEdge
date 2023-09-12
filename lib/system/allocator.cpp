@@ -34,7 +34,7 @@ static inline constexpr const uint64_t k12G = UINT64_C(0x300000000);
 } // namespace
 
 [[gnu::visibility("default")]] uint8_t *
-Allocator::allocate(uint32_t PageCount) noexcept {
+Allocator::allocate(uint64_t PageCount) noexcept {
 #if WASMEDGE_OS_WINDOWS
   auto Reserved = reinterpret_cast<uint8_t *>(winapi::VirtualAlloc(
       nullptr, k12G, winapi::MEM_RESERVE_, winapi::PAGE_NOACCESS_));
@@ -76,8 +76,8 @@ Allocator::allocate(uint32_t PageCount) noexcept {
 }
 
 [[gnu::visibility("default")]] uint8_t *
-Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
-                  uint32_t NewPageCount) noexcept {
+Allocator::resize(uint8_t *Pointer, uint64_t OldPageCount,
+                  uint64_t NewPageCount) noexcept {
   assuming(NewPageCount > OldPageCount);
 #if WASMEDGE_OS_WINDOWS
   if (winapi::VirtualAlloc(Pointer + OldPageCount * kPageSize,
@@ -108,7 +108,7 @@ Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
 }
 
 [[gnu::visibility("default")]] void Allocator::release(uint8_t *Pointer,
-                                                       uint32_t) noexcept {
+                                                       uint64_t) noexcept {
 #if WASMEDGE_OS_WINDOWS
   winapi::VirtualFree(Pointer - k4G, 0, winapi::MEM_RELEASE_);
 #elif defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) ||     \

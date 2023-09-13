@@ -2,7 +2,6 @@
 
 extern "C" {
     #include "libavutil/error.h"
-    #include "libavutil/avutil.h"
 }
 
 

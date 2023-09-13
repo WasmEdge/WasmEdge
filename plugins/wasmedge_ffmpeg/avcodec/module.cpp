@@ -30,6 +30,7 @@ WasmEdgeFFmpegAVCodecModule(std::shared_ptr<WasmEdgeFFmpegEnv> env )
     //avCodecContext Struct fields access
     addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_codec_id",std::make_unique<AVCodecCtxCodecID>(env));
     addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_codec_type",std::make_unique<AVCodecCtxCodecType>(env));
+    addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_time_base",std::make_unique<AVCodecCtxTimeBase>(env));
 
     //avCodec Struct fields access
     addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_id",std::make_unique<AVCodec_ID>(env));

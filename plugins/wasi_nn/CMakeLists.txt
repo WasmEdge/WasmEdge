@@ -30,14 +30,17 @@ if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmedgePluginWasiNN
     PRIVATE
     wasmedgeCAPI
-    llama
   )
 else()
   target_link_libraries(wasmedgePluginWasiNN
     PRIVATE
     wasmedge_shared
-    llama
   )
+endif()
+
+string(TOLOWER ${WASMEDGE_PLUGIN_WASI_NN_BACKEND} BACKEND)
+if(BACKEND STREQUAL "ggml")
+  target_link_libraries(wasmedgePluginWasiNN PRIVATE llama)
 endif()
 
 include(WASINNDeps)

@@ -114,7 +114,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   // Output start from prompt.
   for (auto Id : CxtRef.LlamaInputs) {
-    CxtRef.LlamaOutputs += llama_token_to_str(GraphRef.LlamaContext, Id);
+    CxtRef.LlamaOutputs += llama_token_to_piece(GraphRef.LlamaContext, Id);
   }
 
   // Main predict loop.
@@ -145,14 +145,14 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
                                           false};
     NewTokenId = llama_sample_token_greedy(GraphRef.LlamaContext, &CandidatesP);
 
-    if (NewTokenId == llama_token_eos()) {
+    if (NewTokenId == llama_token_eos(GraphRef.LlamaContext)) {
       CxtRef.LlamaOutputs += "[end of text]"sv;
       break;
     }
 
     // Append the new token.
     CxtRef.LlamaOutputs +=
-        llama_token_to_str(GraphRef.LlamaContext, NewTokenId);
+        llama_token_to_piece(GraphRef.LlamaContext, NewTokenId);
 
     // Push this new token for next evaluation.
     CxtRef.LlamaInputs.push_back(NewTokenId);

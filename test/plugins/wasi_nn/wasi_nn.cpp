@@ -1228,7 +1228,7 @@ TEST(WasiNNTest, GGMLBackend) {
   std::string Prompt = "Once upon a time, ";
   std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
   std::vector<uint8_t> WeightRead =
-      readEntireFile("./wasinn_ggml_fixtures/orca-mini-3b.ggmlv3.q4_0.bin");
+      readEntireFile("./wasinn_ggml_fixtures/orca-mini-3b.q4_0.gguf");
 
   std::vector<uint32_t> TensorDim{1};
   uint32_t BuilderPtr = UINT32_C(0);
@@ -1477,10 +1477,11 @@ TEST(WasiNNTest, GGMLBackend) {
     // Should output more than 100 bytes.
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GE(BytesWritten, 100);
-    // Output should begin with the prompt.
+    // Output should begin with the prompt. (+1 to skip bos token)
     const auto Output = MemInst.getSpan<const uint8_t>(StorePtr, 100);
-    EXPECT_EQ(std::string(Output.begin(), Output.begin() + Prompt.size()),
-              Prompt);
+    EXPECT_EQ(
+        std::string(Output.begin() + 1, Output.begin() + 1 + Prompt.size()),
+        Prompt);
   }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML

@@ -30,13 +30,13 @@ if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmedgePluginWasiNN
     PRIVATE
     wasmedgeCAPI
-    utilGgml
+    llama
   )
 else()
   target_link_libraries(wasmedgePluginWasiNN
     PRIVATE
     wasmedge_shared
-    utilGgml
+    llama
   )
 endif()
 

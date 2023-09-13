@@ -17,6 +17,8 @@ target_compile_options(utilGgml
   -Wno-unused-but-set-variable
   -Wno-unused-function
   -Wno-missing-braces
+  -DGGML_USE_K_QUANTS
+  -DGGML_USE_OPENBLAS
 )
 
 if(WIN32)

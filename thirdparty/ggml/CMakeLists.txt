@@ -14,7 +14,7 @@ option(LLAMA_NATIVE                     "llama: enable -march=native flag"      
 option(LLAMA_LTO                        "llama: enable link time optimization"                  OFF)
 
 # debug
-option(LLAMA_ALL_WARNINGS               "llama: enable all compiler warnings"                   ON)
+option(LLAMA_ALL_WARNINGS               "llama: enable all compiler warnings"                   OFF)
 option(LLAMA_ALL_WARNINGS_3RD_PARTY     "llama: enable all compiler warnings in 3rd party libs" OFF)
 option(LLAMA_GPROF                      "llama: enable gprof"                                   OFF)
 

@@ -162,10 +162,11 @@ public:
   // Push handler for try-catch block
   void pushHandler(AST::InstrView::iterator EndIt,
                    uint32_t BlockParamNum) noexcept {
-    HandlerStack.emplace_back(EndIt, ValueStack.size() - BlockParamNum,
-                              static_cast<uint32_t>(FrameStack.size()),
-                              static_cast<uint32_t>(HandlerStack.size()),
-                              static_cast<uint32_t>(CaughtStack.size()));
+    HandlerStack.emplace_back(
+        EndIt, static_cast<uint32_t>(ValueStack.size() - BlockParamNum),
+        static_cast<uint32_t>(FrameStack.size()),
+        static_cast<uint32_t>(HandlerStack.size()),
+        static_cast<uint32_t>(CaughtStack.size()));
   }
 
   // Push a handler to the current try block

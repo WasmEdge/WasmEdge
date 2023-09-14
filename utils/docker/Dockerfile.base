@@ -13,6 +13,7 @@ RUN apt update && apt upgrade -y \
 	curl \
 	git \
 	zlib1g-dev \
+	libopenblas-dev \
 	llvm-15-dev \
 	liblld-15-dev
 

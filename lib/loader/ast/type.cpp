@@ -9,14 +9,14 @@ namespace WasmEdge {
 namespace Loader {
 
 // Load binary and decode HeapType. See "include/loader/loader.h".
-Expect<HeapType> Loader::loadHeapType(ASTNodeAttr From) {
+Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
   if (auto Res = FMgr.readS33()) {
     if (*Res < 0) {
       // FuncRef or ExternRef case.
-      HeapTypeCode HTCode = static_cast<HeapTypeCode>(
-          static_cast<uint8_t>((*Res) & INT64_C(0x7F)));
+      TypeCode HTCode =
+          static_cast<TypeCode>(static_cast<uint8_t>((*Res) & INT64_C(0x7F)));
       switch (HTCode) {
-      case HeapTypeCode::Extern:
+      case TypeCode::ExternRef:
         // For the ref.func instruction, the immediate changed to store the heap
         // type directly instead of the reference type after applying the
         // typed function reference proposal. Therefore the reference-types
@@ -27,8 +27,8 @@ Expect<HeapType> Loader::loadHeapType(ASTNodeAttr From) {
                                  From);
         }
         [[fallthrough]];
-      case HeapTypeCode::Func:
-        return HeapType(HTCode);
+      case TypeCode::FuncRef:
+        return ValType(TC, HTCode);
       default:
         return logLoadError(ErrCode::Value::MalformedRefType,
                             FMgr.getLastOffset(), From);
@@ -40,7 +40,7 @@ Expect<HeapType> Loader::loadHeapType(ASTNodeAttr From) {
                                Proposal::FunctionReferences,
                                FMgr.getLastOffset(), From);
       }
-      return HeapType(static_cast<uint32_t>(*Res));
+      return ValType(TC, static_cast<uint32_t>(*Res));
     }
   } else {
     return logLoadError(Res.error(), FMgr.getLastOffset(), From);
@@ -48,35 +48,32 @@ Expect<HeapType> Loader::loadHeapType(ASTNodeAttr From) {
 }
 
 // Load binary and decode RefType. See "include/loader/loader.h".
-Expect<RefType> Loader::loadRefType(ASTNodeAttr From) {
+Expect<ValType> Loader::loadRefType(ASTNodeAttr From) {
   if (auto Res = FMgr.readByte()) {
     // The error code is different when the reference-types proposal turned off.
     ErrCode::Value FailCode = Conf.hasProposal(Proposal::ReferenceTypes)
                                   ? ErrCode::Value::MalformedRefType
                                   : ErrCode::Value::MalformedElemType;
-    RefTypeCode Code = static_cast<RefTypeCode>(*Res);
+    TypeCode Code = static_cast<TypeCode>(*Res);
     switch (Code) {
-    case RefTypeCode::ExternRef:
+    case TypeCode::ExternRef:
       if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
         return logNeedProposal(FailCode, Proposal::ReferenceTypes,
                                FMgr.getLastOffset(), From);
       }
       [[fallthrough]];
-    case RefTypeCode::FuncRef:
+    case TypeCode::FuncRef:
       // The FuncRef (0x70) is always allowed in the RefType even if the
       // reference-types proposal not enabled.
-      return RefType(Code);
-    case RefTypeCode::Ref:
-    case RefTypeCode::RefNull:
+      return ValType(Code);
+    case TypeCode::Ref:
+    case TypeCode::RefNull: {
       if (!Conf.hasProposal(Proposal::FunctionReferences)) {
         return logNeedProposal(FailCode, Proposal::FunctionReferences,
                                FMgr.getLastOffset(), From);
       }
-      if (auto HTypeRes = loadHeapType(From)) {
-        return RefType(Code, *HTypeRes);
-      } else {
-        return Unexpect(HTypeRes);
-      }
+      return loadHeapType(Code, From);
+    }
     default:
       return logLoadError(FailCode, FMgr.getLastOffset(), From);
     }
@@ -88,20 +85,20 @@ Expect<RefType> Loader::loadRefType(ASTNodeAttr From) {
 // Load binary and decode ValType. See "include/loader/loader.h".
 Expect<ValType> Loader::loadValType(ASTNodeAttr From) {
   if (auto Res = FMgr.readByte()) {
-    ValTypeCode Code = static_cast<ValTypeCode>(*Res);
+    TypeCode Code = static_cast<TypeCode>(*Res);
     switch (Code) {
-    case ValTypeCode::V128:
+    case TypeCode::V128:
       if (!Conf.hasProposal(Proposal::SIMD)) {
         return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::SIMD,
                                FMgr.getLastOffset(), From);
       }
       [[fallthrough]];
-    case ValTypeCode::I32:
-    case ValTypeCode::I64:
-    case ValTypeCode::F32:
-    case ValTypeCode::F64:
+    case TypeCode::I32:
+    case TypeCode::I64:
+    case TypeCode::F32:
+    case TypeCode::F64:
       return ValType(Code);
-    case ValTypeCode::FuncRef:
+    case TypeCode::FuncRef:
       if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
           !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
         return logNeedProposal(ErrCode::Value::MalformedElemType,
@@ -109,25 +106,21 @@ Expect<ValType> Loader::loadValType(ASTNodeAttr From) {
                                From);
       }
       return ValType(Code);
-    case ValTypeCode::ExternRef:
+    case TypeCode::ExternRef:
       if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
         return logNeedProposal(ErrCode::Value::MalformedElemType,
                                Proposal::ReferenceTypes, FMgr.getLastOffset(),
                                From);
       }
       return ValType(Code);
-    case ValTypeCode::Ref:
-    case ValTypeCode::RefNull:
+    case TypeCode::Ref:
+    case TypeCode::RefNull:
       if (!Conf.hasProposal(Proposal::FunctionReferences)) {
         return logNeedProposal(ErrCode::Value::MalformedValType,
                                Proposal::FunctionReferences,
                                FMgr.getLastOffset(), From);
       }
-      if (auto HTypeRes = loadHeapType(From)) {
-        return RefType(static_cast<RefTypeCode>(Code), *HTypeRes);
-      } else {
-        return Unexpect(HTypeRes);
-      }
+      return loadHeapType(Code, From);
     default:
       return logLoadError(ErrCode::Value::MalformedValType,
                           FMgr.getLastOffset(), From);
@@ -197,9 +190,9 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
 Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   uint32_t VecCnt = 0;
 
-  // Read function type (0x60).
+  // Read type of Func (0x60).
   if (auto Res = FMgr.readByte()) {
-    if (*Res != 0x60U) {
+    if (static_cast<TypeCode>(*Res) != TypeCode::Func) {
       return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
                           ASTNodeAttr::Type_Function);
     }

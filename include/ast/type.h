@@ -149,17 +149,28 @@ private:
 class TableType {
 public:
   /// Constructors.
-  TableType() noexcept : Type(RefTypeCode::FuncRef), Lim() {}
-  TableType(const RefType &RType, uint32_t MinVal) noexcept
-      : Type(RType), Lim(MinVal) {}
-  TableType(const RefType &RType, uint32_t MinVal, uint32_t MaxVal) noexcept
-      : Type(RType), Lim(MinVal, MaxVal) {}
-  TableType(const RefType &RType, const Limit &L) noexcept
-      : Type(RType), Lim(L) {}
+  TableType() noexcept : Type(TypeCode::FuncRef), Lim() {
+    assuming(Type.isRefType());
+  }
+  TableType(const ValType &RType, uint32_t MinVal) noexcept
+      : Type(RType), Lim(MinVal) {
+    assuming(Type.isRefType());
+  }
+  TableType(const ValType &RType, uint32_t MinVal, uint32_t MaxVal) noexcept
+      : Type(RType), Lim(MinVal, MaxVal) {
+    assuming(Type.isRefType());
+  }
+  TableType(const ValType &RType, const Limit &L) noexcept
+      : Type(RType), Lim(L) {
+    assuming(Type.isRefType());
+  }
 
   /// Getter of reference type.
-  const RefType &getRefType() const noexcept { return Type; }
-  void setRefType(const RefType &RType) noexcept { Type = RType; }
+  const ValType &getRefType() const noexcept { return Type; }
+  void setRefType(const ValType &RType) noexcept {
+    assuming(RType.isRefType());
+    Type = RType;
+  }
 
   /// Getter of limit.
   const Limit &getLimit() const noexcept { return Lim; }
@@ -168,7 +179,7 @@ public:
 private:
   /// \name Data of TableType.
   /// @{
-  RefType Type;
+  ValType Type;
   Limit Lim;
   /// @}
 };
@@ -177,7 +188,7 @@ private:
 class GlobalType {
 public:
   /// Constructors.
-  GlobalType() noexcept : Type(ValTypeCode::I32), Mut(ValMut::Const) {}
+  GlobalType() noexcept : Type(TypeCode::I32), Mut(ValMut::Const) {}
   GlobalType(const ValType &VType, ValMut VMut) noexcept
       : Type(VType), Mut(VMut) {}
 

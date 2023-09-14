@@ -74,7 +74,6 @@ public:
 
   /// ValType matcher
   bool matchType(const ValType &Exp, const ValType &Got) const noexcept;
-  bool matchType(const RefType &Exp, const RefType &Got) const noexcept;
   bool matchTypes(Span<const ValType> Exp,
                   Span<const ValType> Got) const noexcept;
 
@@ -139,10 +138,10 @@ private:
   /// Contexts.
   std::vector<std::pair<std::vector<ValType>, std::vector<ValType>>> Types;
   std::vector<uint32_t> Funcs;
-  std::vector<RefType> Tables;
+  std::vector<ValType> Tables;
   uint32_t Mems = 0;
   std::vector<std::pair<ValType, ValMut>> Globals;
-  std::vector<RefType> Elems;
+  std::vector<ValType> Elems;
   std::vector<uint32_t> Datas;
   std::unordered_set<uint32_t> Refs;
   uint32_t NumImportFuncs = 0;

@@ -758,59 +758,46 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   // Memory Instructions.
   case OpCode::I32__load:
     // TODO: extend this selection to all new memory64 instructions
-    WasmEdge::Span<const VType> Span = {
-        IndexType == WasmEdge::AST::MemoryType::IndexType::I64
-            ? VType(ValType::I64)
-            : VType(ValType::I32)};
-    return checkAlignAndTrans(32, Span, {VType(ValType::I32)});
+    return checkAlignAndTrans(32, {getIt()}, {VType(ValType::I32)});
   case OpCode::I64__load:
-    return checkAlignAndTrans(64, {VType(ValType::I32)}, {VType(ValType::I64)});
+    return checkAlignAndTrans(64, {getIt()}, {VType(ValType::I64)});
   case OpCode::F32__load:
-    return checkAlignAndTrans(32, {VType(ValType::I32)}, {VType(ValType::F32)});
+    return checkAlignAndTrans(32, {getIt()}, {VType(ValType::F32)});
   case OpCode::F64__load:
-    return checkAlignAndTrans(64, {VType(ValType::I32)}, {VType(ValType::F64)});
+    return checkAlignAndTrans(64, {getIt()}, {VType(ValType::F64)});
   case OpCode::I32__load8_s:
   case OpCode::I32__load8_u:
-    return checkAlignAndTrans(8, {VType(ValType::I32)}, {VType(ValType::I32)});
+    return checkAlignAndTrans(8, {getIt()}, {VType(ValType::I32)});
   case OpCode::I32__load16_s:
   case OpCode::I32__load16_u:
-    return checkAlignAndTrans(16, {VType(ValType::I32)}, {VType(ValType::I32)});
+    return checkAlignAndTrans(16, {getIt()}, {VType(ValType::I32)});
   case OpCode::I64__load8_s:
   case OpCode::I64__load8_u:
-    return checkAlignAndTrans(8, {VType(ValType::I32)}, {VType(ValType::I64)});
+    return checkAlignAndTrans(8, {getIt()}, {VType(ValType::I64)});
   case OpCode::I64__load16_s:
   case OpCode::I64__load16_u:
-    return checkAlignAndTrans(16, {VType(ValType::I32)}, {VType(ValType::I64)});
+    return checkAlignAndTrans(16, {getIt()}, {VType(ValType::I64)});
   case OpCode::I64__load32_s:
   case OpCode::I64__load32_u:
-    return checkAlignAndTrans(32, {VType(ValType::I32)}, {VType(ValType::I64)});
+    return checkAlignAndTrans(32, {getIt()}, {VType(ValType::I64)});
   case OpCode::I32__store:
-    return checkAlignAndTrans(32, {VType(ValType::I32), VType(ValType::I32)},
-                              {});
+    return checkAlignAndTrans(32, {getIt(), VType(ValType::I32)}, {});
   case OpCode::I64__store:
-    return checkAlignAndTrans(64, {VType(ValType::I32), VType(ValType::I64)},
-                              {});
+    return checkAlignAndTrans(64, {getIt(), VType(ValType::I64)}, {});
   case OpCode::F32__store:
-    return checkAlignAndTrans(32, {VType(ValType::I32), VType(ValType::F32)},
-                              {});
+    return checkAlignAndTrans(32, {getIt(), VType(ValType::F32)}, {});
   case OpCode::F64__store:
-    return checkAlignAndTrans(64, {VType(ValType::I32), VType(ValType::F64)},
-                              {});
+    return checkAlignAndTrans(64, {getIt(), VType(ValType::F64)}, {});
   case OpCode::I32__store8:
-    return checkAlignAndTrans(8, {VType(ValType::I32), VType(ValType::I32)},
-                              {});
+    return checkAlignAndTrans(8, {getIt(), VType(ValType::I32)}, {});
   case OpCode::I32__store16:
-    return checkAlignAndTrans(16, {VType(ValType::I32), VType(ValType::I32)},
-                              {});
+    return checkAlignAndTrans(16, {getIt(), VType(ValType::I32)}, {});
   case OpCode::I64__store8:
-    return checkAlignAndTrans(8, {VType(ValType::I32), VType(ValType::I64)},
-                              {});
+    return checkAlignAndTrans(8, {getIt(), VType(ValType::I64)}, {});
   case OpCode::I64__store16:
-    return checkAlignAndTrans(16, {VType(ValType::I32), VType(ValType::I64)},
-                              {});
+    return checkAlignAndTrans(16, {getIt(), VType(ValType::I64)}, {});
   case OpCode::I64__store32:
-    return checkAlignAndTrans(32, {VType(ValType::I32), VType(ValType::I64)},
-                              {});
+    return checkAlignAndTrans(32, {getIt(), VType(ValType::I64)}, {});
   case OpCode::Memory__size:
     return checkMemAndTrans({}, {VType(ValType::I32)});
   case OpCode::Memory__grow:

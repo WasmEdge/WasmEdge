@@ -66,6 +66,15 @@ public:
   void setIndexType(WasmEdge::AST::MemoryType::IndexType IdxType) {
     IndexType = IdxType;
   }
+  VType getIt() {
+    switch (IndexType) {
+    case WasmEdge::AST::MemoryType::IndexType::I64:
+      return VType(ValType::I64);
+    case WasmEdge::AST::MemoryType::IndexType::I32:
+    default:
+      return VType(ValType::I32);
+    }
+  }
 
   std::vector<VType> result() { return ValStack; }
   auto &getTypes() { return Types; }

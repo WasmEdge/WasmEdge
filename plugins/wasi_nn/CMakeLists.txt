@@ -1,6 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+# llama.cpp options
+set(LLAMA_ALL_WARNINGS OFF)
+set(LLAMA_BLAS ON)
+set(LLAMA_BLAS_VENDOR "OpenBLAS")
+
+add_subdirectory(thirdparty)
+
 wasmedge_add_library(wasmedgePluginWasiNN
   SHARED
   wasinnenv.cpp

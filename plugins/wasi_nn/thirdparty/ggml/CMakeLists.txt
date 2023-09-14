@@ -14,7 +14,7 @@ option(LLAMA_NATIVE                     "llama: enable -march=native flag"      
 option(LLAMA_LTO                        "llama: enable link time optimization"                  OFF)
 
 # debug
-option(LLAMA_ALL_WARNINGS               "llama: enable all compiler warnings"                   OFF)
+option(LLAMA_ALL_WARNINGS               "llama: enable all compiler warnings"                   ON)
 option(LLAMA_ALL_WARNINGS_3RD_PARTY     "llama: enable all compiler warnings in 3rd party libs" OFF)
 option(LLAMA_GPROF                      "llama: enable gprof"                                   OFF)
 
@@ -37,7 +37,7 @@ endif()
 
 # 3rd party libs
 option(LLAMA_ACCELERATE                      "llama: enable Accelerate framework"               ON)
-option(LLAMA_BLAS                            "llama: use BLAS"                                  ON)
+option(LLAMA_BLAS                            "llama: use BLAS"                                  OFF)
 set(LLAMA_BLAS_VENDOR "Generic" CACHE STRING "llama: BLAS library vendor")
 option(LLAMA_CUBLAS                          "llama: use CUDA"                                  OFF)
 #option(LLAMA_CUDA_CUBLAS                     "llama: use cuBLAS for prompt processing"          OFF)
@@ -604,4 +604,41 @@ if (BUILD_SHARED_LIBS)
     if (LLAMA_METAL)
         set_target_properties(llama PROPERTIES RESOURCE "${CMAKE_CURRENT_SOURCE_DIR}/ggml-metal.metal")
     endif()
+endif()
+
+# disable warnings
+if (NOT WIN32)
+    target_compile_options(ggml
+        PRIVATE
+        -Wno-unused-parameter
+        -Wno-unused-variable
+        -Wno-unused-but-set-variable
+        -Wno-unused-function
+        -Wno-missing-braces
+        -DGGML_USE_K_QUANTS
+        -DGGML_USE_OPENBLAS
+    )
+else()
+    target_compile_options(ggml
+        PRIVATE
+        -Wno-string-conversion
+        -Wno-sign-conversion
+        -Wno-macro-redefined
+        -Wno-missing-prototypes
+        -Wno-unreachable-code-return
+        -Wno-shorten-64-to-32
+        -Wno-implicit-int-conversion
+        -Wno-implicit-float-conversion
+        -Wno-float-conversion
+        -Wno-unused-macros
+        -Wno-unreachable-code-break
+        -Wno-cast-align
+        -Wno-undef
+        -Wno-shadow-uncaptured-local
+        -Wno-unreachable-code
+        -Wno-cast-function-type
+        -Wno-format-nonliteral
+        -Wno-extra-semi-stmt
+        -Wno-bad-function-cast
+    )
 endif()

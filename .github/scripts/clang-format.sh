@@ -18,6 +18,7 @@ lint() {
     fi
 
     find ${targets} -type f -iname *.[ch] -o -iname *.cpp -o -iname *.[ch]xx \
+        | grep -v "/thirdparty/" \
         | xargs -n1 ${clang_format} -i -style=file -Werror --dry-run
 
     exit $?

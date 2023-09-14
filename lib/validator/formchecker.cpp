@@ -757,7 +757,12 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   // Memory Instructions.
   case OpCode::I32__load:
-    return checkAlignAndTrans(32, {VType(ValType::I32)}, {VType(ValType::I32)});
+    // TODO: extend this selection to all new memory64 instructions
+    WasmEdge::Span<const VType> Span = {
+        IndexType == WasmEdge::AST::MemoryType::IndexType::I64
+            ? VType(ValType::I64)
+            : VType(ValType::I32)};
+    return checkAlignAndTrans(32, Span, {VType(ValType::I32)});
   case OpCode::I64__load:
     return checkAlignAndTrans(64, {VType(ValType::I32)}, {VType(ValType::I64)});
   case OpCode::F32__load:

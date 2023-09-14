@@ -568,17 +568,17 @@ static bool isVoidReturn(Span<const WasmEdge::ValType> ValTypes) noexcept {
 static LLVM::Type toLLVMType(LLVM::Context &LLContext,
                              const ValType &ValType) noexcept {
   switch (ValType.getCode()) {
-  case ValTypeCode::I32:
+  case TypeCode::I32:
     return LLContext.getInt32Ty();
-  case ValTypeCode::I64:
-  case ValTypeCode::Ref:
-  case ValTypeCode::RefNull:
+  case TypeCode::I64:
+  case TypeCode::Ref:
+  case TypeCode::RefNull:
     return LLContext.getInt64Ty();
-  case ValTypeCode::V128:
+  case TypeCode::V128:
     return LLVM::Type::getVectorType(LLContext.getInt64Ty(), 2);
-  case ValTypeCode::F32:
+  case TypeCode::F32:
     return LLContext.getFloatTy();
-  case ValTypeCode::F64:
+  case TypeCode::F64:
     return LLContext.getDoubleTy();
   default:
     assumingUnreachable();
@@ -631,18 +631,18 @@ static LLVM::Type toLLVMType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
 static LLVM::Value toLLVMConstantZero(LLVM::Context &LLContext,
                                       const ValType &ValType) noexcept {
   switch (ValType.getCode()) {
-  case ValTypeCode::I32:
+  case TypeCode::I32:
     return LLVM::Value::getConstNull(LLContext.getInt32Ty());
-  case ValTypeCode::I64:
-  case ValTypeCode::Ref:
-  case ValTypeCode::RefNull:
+  case TypeCode::I64:
+  case TypeCode::Ref:
+  case TypeCode::RefNull:
     return LLVM::Value::getConstNull(LLContext.getInt64Ty());
-  case ValTypeCode::V128:
+  case TypeCode::V128:
     return LLVM::Value::getConstNull(
         LLVM::Type::getVectorType(LLContext.getInt64Ty(), 2));
-  case ValTypeCode::F32:
+  case TypeCode::F32:
     return LLVM::Value::getConstNull(LLContext.getFloatTy());
-  case ValTypeCode::F64:
+  case TypeCode::F64:
     return LLVM::Value::getConstNull(LLContext.getDoubleTy());
   default:
     assumingUnreachable();

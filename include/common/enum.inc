@@ -927,44 +927,39 @@ I(Lane, "lane")
 
 // enum_types.h
 
-#ifdef UseValTypeCode
-#define V Line
+#ifdef UseTypeCode
+#define T Line
 
-V(I32, 0x7F, "i32")
-V(I64, 0x7E, "i64")
-V(F32, 0x7D, "f32")
-V(F64, 0x7C, "f64")
-V(V128, 0x7B, "v128")
-V(FuncRef, 0x70, "func")
-V(ExternRef, 0x6F, "extern")
-V(Ref, 0x64, "ref")
-V(RefNull, 0x63, "nullable ref")
+T(TypeIndex, 0x00, "type_index")   // 0x00 reserved for type index case
+T(I32, 0x7F, "i32")                // -0x01 for number type
+T(I64, 0x7E, "i64")                // -0x02 for number type
+T(F32, 0x7D, "f32")                // -0x03 for number type
+T(F64, 0x7C, "f64")                // -0x04 for number type
+T(V128, 0x7B, "v128")              // -0x05 for vector type
+T(I8, 0x78, "i8")                  // -0x08 for packed type
+T(I16, 0x77, "i16")                // -0x09 for packed type
+T(NullFuncRef, 0x73, "nofunc")     // -0x0D for heap type
+T(NullExternRef, 0x72, "noextern") // -0x0E for heap type
+T(NullRef, 0x71, "none")           // -0x0F for heap type
+T(FuncRef, 0x70, "func")           // -0x10 for heap type
+T(ExternRef, 0x6F, "extern")       // -0x11 for heap type
+T(AnyRef, 0x6E, "any")             // -0x12 for heap type
+T(EqRef, 0x6D, "eq")               // -0x13 for heap type
+T(I31Ref, 0x6C, "i31")             // -0x14 for heap type
+T(StructRef, 0x6B, "struct")       // -0x15 for heap type
+T(ArrayRef, 0x6A, "array")         // -0x16 for heap type
+T(Ref, 0x64, "ref")                // -0x1C for reference type
+T(RefNull, 0x63, "ref_null")       // -0x1D for reference type
+T(Func, 0x60, "func")              // -0x20 for composite type
+T(Struct, 0x5F, "struct")          // -0x21 for composite type
+T(Array, 0x5E, "array")            // -0x22 for composite type
+T(Sub, 0x50, "sub")                // -0x30 for sub type
+T(SubFinal, 0x4F, "sub_final")     // -0x31 for sub type
+T(Rec, 0x4E, "rec")                // -0x32 for recursive type
+T(Epsilon, 0x40, "-")              // -0x40 for result type
 
-#undef V
-#endif // UseValTypeCode
-
-#ifdef UseNumTypeCode
-#define N Line
-
-N(I32, 0x7F)
-N(I64, 0x7E)
-N(F32, 0x7D)
-N(F64, 0x7C)
-N(V128, 0x7B)
-
-#undef N
-#endif // UseNumTypeCode
-
-#ifdef UseRefTypeCode
-#define R Line
-
-R(RefNull, 0x63)
-R(Ref, 0x64)
-R(ExternRef, 0x6F)
-R(FuncRef, 0x70)
-
-#undef R
-#endif // UseRefTypeCode
+#undef T
+#endif // UseTypeCode
 
 #ifdef UseValMut
 #define M Line
@@ -985,5 +980,3 @@ E(Global, 0x03U, "global")
 
 #undef E
 #endif // UseExternalType
-
-// vim: ft=cpp

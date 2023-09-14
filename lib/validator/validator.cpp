@@ -190,8 +190,9 @@ Expect<void> Validator::validate(const AST::TableSegment &TabSeg) {
     if (!TabSeg.getTableType().getRefType().isNullableRefType()) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(ErrInfo::InfoMismatch(
-          RefType(RefTypeCode::RefNull,
-                  TabSeg.getTableType().getRefType().getHeapType()),
+          ValType(TypeCode::RefNull,
+                  TabSeg.getTableType().getRefType().getHeapTypeCode(),
+                  TabSeg.getTableType().getRefType().getTypeIndex()),
           TabSeg.getTableType().getRefType()));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
@@ -265,7 +266,7 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
     }
     // Check table initialization is a const expression.
     if (auto Res = validateConstExpr(ElemSeg.getExpr().getInstrs(),
-                                     {ValType(ValTypeCode::I32)});
+                                     {ValType(TypeCode::I32)});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
@@ -317,7 +318,7 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
     }
     // Check memory initialization is a const expression.
     if (auto Res = validateConstExpr(DataSeg.getExpr().getInstrs(),
-                                     {ValType(ValTypeCode::I32)});
+                                     {ValType(TypeCode::I32)});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);

@@ -184,10 +184,10 @@ fmt::formatter<WasmEdge::ErrInfo::InfoMismatch>::format(
     break;
   case WasmEdge::ErrInfo::MismatchCategory::Table:
     Iter = fmt::format_to(Iter, "Expected: TableType {{RefType{{{}}} "sv,
-                          static_cast<WasmEdge::ValType>(Info.ExpRefType));
+                          static_cast<WasmEdge::ValType>(Info.ExpValType));
     Iter = FormatLimit(Iter, Info.ExpLimHasMax, Info.ExpLimMin, Info.ExpLimMax);
     Iter = fmt::format_to(Iter, "}} , Got: TableType {{RefType{{{}}} "sv,
-                          static_cast<WasmEdge::ValType>(Info.GotRefType));
+                          static_cast<WasmEdge::ValType>(Info.GotValType));
     Iter = FormatLimit(Iter, Info.GotLimHasMax, Info.GotLimMin, Info.GotLimMax);
     fmt::format_to(Iter, "}}"sv);
     break;
@@ -233,33 +233,33 @@ fmt::formatter<WasmEdge::ErrInfo::InfoInstruction>::format(
     Iter = fmt::format_to(Iter, " , Args: ["sv);
     for (uint32_t I = 0; I < Info.Args.size(); ++I) {
       switch (Info.ArgsTypes[I].getCode()) {
-      case WasmEdge::ValTypeCode::I32:
+      case WasmEdge::TypeCode::I32:
         if (Info.IsSigned) {
           Iter = fmt::format_to(Iter, "{}"sv, Info.Args[I].get<int32_t>());
         } else {
           Iter = fmt::format_to(Iter, "{}"sv, Info.Args[I].get<uint32_t>());
         }
         break;
-      case WasmEdge::ValTypeCode::I64:
+      case WasmEdge::TypeCode::I64:
         if (Info.IsSigned) {
           Iter = fmt::format_to(Iter, "{}"sv, Info.Args[I].get<int64_t>());
         } else {
           Iter = fmt::format_to(Iter, "{}"sv, Info.Args[I].get<uint64_t>());
         }
         break;
-      case WasmEdge::ValTypeCode::F32:
+      case WasmEdge::TypeCode::F32:
         Iter = fmt::format_to(Iter, "{}"sv, Info.Args[I].get<float>());
         break;
-      case WasmEdge::ValTypeCode::F64:
+      case WasmEdge::TypeCode::F64:
         Iter = fmt::format_to(Iter, "{}"sv, Info.Args[I].get<double>());
         break;
-      case WasmEdge::ValTypeCode::V128: {
+      case WasmEdge::TypeCode::V128: {
         const auto Value = Info.Args[I].get<WasmEdge::uint64x2_t>();
         Iter = fmt::format_to(Iter, "0x{:08x}{:08x}"sv, Value[1], Value[0]);
         break;
       }
-      case WasmEdge::ValTypeCode::Ref:
-      case WasmEdge::ValTypeCode::RefNull:
+      case WasmEdge::TypeCode::Ref:
+      case WasmEdge::TypeCode::RefNull:
         Iter = fmt::format_to(Iter, "{}"sv, Info.ArgsTypes[I]);
         if (Info.Args[I].get<WasmEdge::RefVariant>().isNull()) {
           Iter = fmt::format_to(Iter, ":null"sv);

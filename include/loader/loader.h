@@ -247,8 +247,8 @@ private:
   Expect<void> loadSegment(AST::DataSegment &DataSeg);
   Expect<void> loadDesc(AST::ImportDesc &ImpDesc);
   Expect<void> loadDesc(AST::ExportDesc &ExpDesc);
-  Expect<HeapType> loadHeapType(ASTNodeAttr From);
-  Expect<RefType> loadRefType(ASTNodeAttr From);
+  Expect<ValType> loadHeapType(TypeCode TC, ASTNodeAttr From);
+  Expect<ValType> loadRefType(ASTNodeAttr From);
   Expect<ValType> loadValType(ASTNodeAttr From);
   Expect<void> loadLimit(AST::Limit &Lim);
   Expect<void> loadType(AST::FunctionType &FuncType);

@@ -192,7 +192,7 @@ TEST(WasmBpfTest, SimpleRingbuf) {
   // Create a function table, and fill the callback function into it
   auto funcTableInst =
       std::make_unique<WasmEdge::Runtime::Instance::TableInstance>(
-          WasmEdge::AST::TableType(WasmEdge::RefTypeCode::FuncRef, 1));
+          WasmEdge::AST::TableType(WasmEdge::TypeCode::FuncRef, 1));
   ASSERT_TRUE(funcTableInst->setRefs(
       std::initializer_list<const WasmEdge::RefVariant>{callbackFuncInst.get()},
       0, 0, 1));

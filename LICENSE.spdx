@@ -35,7 +35,7 @@ PackageLicenseDeclared: Apache-2.0
 
 PackageName: llama.cpp
 SPDXID: SPDXRef-llama.cpp
-PackageFileName: ./thirdparty/ggml
+PackageFileName: ./plugins/wasi_nn/thirdparty/ggml
 PackageHomePage: https://github.com/ggerganov/llama.cpp
 PackageOriginator: Georgi Gerganov
 PackageLicenseDeclared: MIT

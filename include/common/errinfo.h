@@ -157,23 +157,29 @@ struct InfoMismatch {
         GotParams(GotP), ExpReturns(ExpR), GotReturns(GotR) {}
 
   /// Case 7: unexpected table types
-  InfoMismatch(const RefType &ExpRType, /// Reference type
+  InfoMismatch(const ValType &ExpRType,
+               // Expected reference type
                const bool ExpHasMax, const uint32_t ExpMin,
-               const uint32_t ExpMax,   /// Expect Limit
-               const RefType &GotRType, /// Got reference type
+               const uint32_t ExpMax,
+               // Expected Limit
+               const ValType &GotRType,
+               // Got reference type
                const bool GotHasMax, const uint32_t GotMin,
-               const uint32_t GotMax /// Got limit
+               const uint32_t GotMax
+               // Got limit
                ) noexcept
-      : Category(MismatchCategory::Table), ExpRefType(ExpRType),
-        GotRefType(GotRType), ExpLimHasMax(ExpHasMax), GotLimHasMax(GotHasMax),
+      : Category(MismatchCategory::Table), ExpValType(ExpRType),
+        GotValType(GotRType), ExpLimHasMax(ExpHasMax), GotLimHasMax(GotHasMax),
         ExpLimMin(ExpMin), GotLimMin(GotMin), ExpLimMax(ExpMax),
         GotLimMax(GotMax) {}
 
   /// Case 8: unexpected memory limits
   InfoMismatch(const bool ExpHasMax, const uint32_t ExpMin,
-               const uint32_t ExpMax, /// Expect Limit
+               const uint32_t ExpMax,
+               // Expect Limit
                const bool GotHasMax, const uint32_t GotMin,
-               const uint32_t GotMax /// Got limit
+               const uint32_t GotMax
+               // Got limit
                ) noexcept
       : Category(MismatchCategory::Memory), ExpLimHasMax(ExpHasMax),
         GotLimHasMax(GotHasMax), ExpLimMin(ExpMin), GotLimMin(GotMin),
@@ -205,18 +211,17 @@ struct InfoMismatch {
   std::vector<ValType> ExpParams, GotParams;
   std::vector<ValType> ExpReturns, GotReturns;
 
-  /// Case 7 & 8: unexpected table or memory limit
-  RefType ExpRefType, GotRefType;
-  bool ExpLimHasMax, GotLimHasMax;
-  uint32_t ExpLimMin, GotLimMin;
-  uint32_t ExpLimMax, GotLimMax;
-
   /// Case 2: unexpected value type
+  /// Case 7: unexpected table type: reference type
   /// Case 9: unexpected global type: value type
   ValType ExpValType, GotValType;
   /// Case 4: unexpected mutation settings
   /// Case 9: unexpected global type: value mutation
   ValMut ExpValMut, GotValMut;
+  /// Case 7 & 8: unexpected table or memory type: limit
+  bool ExpLimHasMax, GotLimHasMax;
+  uint32_t ExpLimMin, GotLimMin;
+  uint32_t ExpLimMax, GotLimMax;
 
   /// Case 10: unexpected version
   uint32_t ExpVersion, GotVersion;

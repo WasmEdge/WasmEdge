@@ -175,7 +175,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   }
 
   // Read element kind and init function indices.
-  ElemSeg.setRefType(RefTypeCode::FuncRef);
+  ElemSeg.setRefType(TypeCode::FuncRef);
   switch (Check) {
   case 0x01:
   case 0x02:

@@ -24,43 +24,25 @@
 namespace WasmEdge {
 
 /// WASM Value type C++ enumeration class.
-enum class ValTypeCode : uint8_t {
-#define UseValTypeCode
+enum class TypeCode : uint8_t {
+#define UseTypeCode
 #define Line(NAME, VALUE, STRING) NAME = VALUE,
 #include "enum.inc"
 #undef Line
-#undef UseValTypeCode
+#undef UseTypeCode
 };
 
-static inline constexpr const auto ValTypeStr = []() constexpr {
+static inline constexpr const auto TypeCodeStr = []() constexpr {
   using namespace std::literals::string_view_literals;
-  std::pair<ValTypeCode, std::string_view> Array[] = {
-#define UseValTypeCode
-#define Line(NAME, VALUE, STRING) {ValTypeCode::NAME, STRING},
+  std::pair<TypeCode, std::string_view> Array[] = {
+#define UseTypeCode
+#define Line(NAME, VALUE, STRING) {TypeCode::NAME, STRING},
 #include "enum.inc"
 #undef Line
-#undef UseValTypeCode
+#undef UseTypeCode
   };
   return SpareEnumMap(Array);
 }();
-
-/// WASM Number type C++ enumeration class.
-enum class NumTypeCode : uint8_t {
-#define UseNumTypeCode
-#define Line(NAME, VALUE) NAME = VALUE,
-#include "enum.inc"
-#undef Line
-#undef UseNumTypeCode
-};
-
-/// WASM Reference type C++ enumeration class.
-enum class RefTypeCode : uint8_t {
-#define UseRefTypeCode
-#define Line(NAME, VALUE) NAME = VALUE,
-#include "enum.inc"
-#undef Line
-#undef UseRefTypeCode
-};
 
 /// WASM Mutability C++ enumeration class.
 enum class ValMut : uint8_t {

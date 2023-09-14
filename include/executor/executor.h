@@ -278,11 +278,6 @@ private:
                  const Runtime::Instance::ModuleInstance &ModGot,
                  const ValType &Got) const noexcept;
 
-  bool matchType(const Runtime::Instance::ModuleInstance &ModExp,
-                 const RefType &Exp,
-                 const Runtime::Instance::ModuleInstance &ModGot,
-                 const RefType &Got) const noexcept;
-
   bool matchTypes(const Runtime::Instance::ModuleInstance &ModExp,
                   Span<const ValType> Exp,
                   const Runtime::Instance::ModuleInstance &ModGot,

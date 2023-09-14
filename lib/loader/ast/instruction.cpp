@@ -202,8 +202,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     // Read the block return type.
     if (auto Res = FMgr.readS33()) {
       if (*Res < 0) {
-        Byte TypeByte = static_cast<Byte>((*Res) & INT64_C(0x7F));
-        if (TypeByte == 0x40U) {
+        TypeCode TypeByte = static_cast<TypeCode>((*Res) & INT64_C(0x7F));
+        if (TypeByte == TypeCode::Epsilon) {
           // Empty case.
           Instr.setEmptyBlockType();
         } else {
@@ -289,8 +289,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    if (auto Res = loadHeapType(ASTNodeAttr::Instruction)) {
-      Instr.setHeapType(*Res);
+    if (auto Res = loadHeapType(TypeCode::RefNull, ASTNodeAttr::Instruction)) {
+      Instr.setValType(*Res);
     } else {
       // The AST node information is handled.
       return Unexpect(Res);

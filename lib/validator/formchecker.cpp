@@ -56,7 +56,7 @@ Expect<void> FormChecker::validate(AST::InstrView Instrs,
 
 Expect<void> FormChecker::validate(const ValType &VT) const noexcept {
   // The value type should be validated for the type index case.
-  if (VT.isRefType() && VT.getHeapTypeCode() == HeapTypeCode::TypeIndex) {
+  if (VT.isRefType() && VT.getHeapTypeCode() == TypeCode::TypeIndex) {
     if (VT.getTypeIndex() >= Types.size()) {
       spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
       spdlog::error(ErrInfo::InfoForbidIndex(
@@ -97,7 +97,7 @@ void FormChecker::addTable(const AST::TableType &Tab) {
 void FormChecker::addMemory(const AST::MemoryType &) { Mems++; }
 
 void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
-  // Type in global is comfirmed in loading phase.
+  // Type in global is confirmed in loading phase.
   Globals.emplace_back(Glob.getValType(), Glob.getValMut());
   if (IsImport) {
     NumImportGlobals++;
@@ -124,50 +124,47 @@ void FormChecker::addLocal(const ValType &V, bool Initialized) {
 
 ValType FormChecker::VTypeToAST(const VType &V) {
   if (!V) {
-    return ValTypeCode::I32;
+    return TypeCode::I32;
   }
   return *V;
 }
 
 bool FormChecker::matchType(const ValType &Exp,
                             const ValType &Got) const noexcept {
-  if (Exp == Got) {
+  if (!Exp.isRefType() && !Got.isRefType() && Exp.getCode() == Got.getCode()) {
+    // Match for the non-reference type case.
     return true;
   }
   if (Exp.isRefType() && Got.isRefType()) {
-    return matchType(Exp.toRefType(), Got.toRefType());
-  }
-  return false;
-}
+    // Nullable matching.
+    if (!Exp.isNullableRefType() && Got.isNullableRefType()) {
+      return false;
+    }
 
-bool FormChecker::matchType(const RefType &Exp,
-                            const RefType &Got) const noexcept {
-  // Nullable matching.
-  bool NullableMatch = Exp.isNullableRefType() || !Got.isNullableRefType();
-
-  // Match the heap type.
-  if (Exp.getHeapType() == Got.getHeapType()) {
-    // Heap type is the same.
-    // (both any funcref, externref, or the same type index)
-    return NullableMatch;
-  }
-  if (Exp.getHeapTypeCode() == HeapTypeCode::Func &&
-      Got.getHeapTypeCode() == HeapTypeCode::TypeIndex) {
-    // Match type index to any funcref.
-    return NullableMatch;
-  }
-  if (Exp.getHeapTypeCode() == HeapTypeCode::TypeIndex &&
-      Got.getHeapTypeCode() == HeapTypeCode::TypeIndex) {
-    // Match got type index to expected type index.
-    if (matchTypes(Types[Exp.getTypeIndex()].first,
-                   Types[Got.getTypeIndex()].first) &&
-        matchTypes(Types[Exp.getTypeIndex()].second,
-                   Types[Got.getTypeIndex()].second)) {
-      // Note: In future versions of WebAssembly, subtyping on function types
-      // may be relaxed to support co- and contra-variance.
-      // Due to passing the validation of type section, this will not cause
-      // infinite recursion.
-      return NullableMatch;
+    // Match the heap type.
+    if (Exp.getHeapTypeCode() == Got.getHeapTypeCode() &&
+        Exp.getHeapTypeCode() != TypeCode::TypeIndex) {
+      // Abs heap types are the same.
+      return true;
+    }
+    if (Exp.getHeapTypeCode() == TypeCode::FuncRef &&
+        Got.getHeapTypeCode() == TypeCode::TypeIndex) {
+      // Match type index to any funcref.
+      return true;
+    }
+    if (Exp.getHeapTypeCode() == TypeCode::TypeIndex &&
+        Got.getHeapTypeCode() == TypeCode::TypeIndex) {
+      // Match got type index to expected type index.
+      if (matchTypes(Types[Exp.getTypeIndex()].first,
+                     Types[Got.getTypeIndex()].first) &&
+          matchTypes(Types[Exp.getTypeIndex()].second,
+                     Types[Got.getTypeIndex()].second)) {
+        // Note: In future versions of WebAssembly, subtyping on function types
+        // may be relaxed to support co- and contra-variance.
+        // Due to passing the validation of type section, this will not cause
+        // infinite recursion.
+        return true;
+      }
     }
   }
   return false;
@@ -338,7 +335,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
     // For the if instruction, pop I32 first.
     if (Instr.getOpCode() == OpCode::If) {
-      if (auto Res = popType(ValTypeCode::I32); !Res) {
+      if (auto Res = popType(TypeCode::I32); !Res) {
         return Unexpect(Res);
       }
     }
@@ -400,7 +397,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(D);
     } else {
       // D is the last D element of control stack.
-      if (auto Res = popType(ValTypeCode::I32); !Res) {
+      if (auto Res = popType(TypeCode::I32); !Res) {
         return Unexpect(Res);
       }
       const auto NTypes = getLabelTypes(CtrlStack[*D]);
@@ -418,7 +415,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return {};
     }
   case OpCode::Br_table: {
-    if (auto Res = popType(ValTypeCode::I32); !Res) {
+    if (auto Res = popType(TypeCode::I32); !Res) {
       return Unexpect(Res);
     }
     auto LabelTable = const_cast<AST::Instruction &>(Instr).getLabelList();
@@ -484,62 +481,53 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   case OpCode::Br_on_null:
     // D is the last D element of control stack.
-    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex()); !D) {
-      return Unexpect(D);
-    } else {
+    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex())) {
       const auto NTypes = getLabelTypes(CtrlStack[*D]);
-      RefType RType;
-      if (auto Res = popType()) {
-        if (*Res == unreachableVType()) {
+      if (auto ResT = popType()) {
+        if (*ResT == unreachableVType()) {
           // will not reach here. Validation succeeds.
           return {};
         }
-        if (!(*Res)->isRefType()) {
+        if (!(*ResT)->isRefType()) {
           spdlog::error(ErrCode::Value::InvalidBrRefType);
           return Unexpect(ErrCode::ErrCode::Value::InvalidBrRefType);
         }
-        RType = (*Res)->toRefType();
+        if (auto Res = popTypes(NTypes); !Res) {
+          return Unexpect(Res);
+        }
+        const uint32_t Remain =
+            static_cast<uint32_t>(ValStack.size() - CtrlStack[*D].Height);
+        const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
+        auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
+        Jump.StackEraseBegin = Remain + Arity;
+        Jump.StackEraseEnd = Arity;
+        Jump.PCOffset = static_cast<int32_t>(CtrlStack[*D].Jump - &Instr);
+        pushTypes(NTypes);
+        pushType(ValType(TypeCode::Ref, (*ResT)->getHeapTypeCode(),
+                         (*ResT)->getTypeIndex()));
+        return {};
       } else {
-        return Unexpect(Res);
+        return Unexpect(ResT);
       }
-      if (auto Res = popTypes(NTypes); !Res) {
-        return Unexpect(Res);
-      }
-      const uint32_t Remain =
-          static_cast<uint32_t>(ValStack.size() - CtrlStack[*D].Height);
-      const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
-      auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
-      Jump.StackEraseBegin = Remain + Arity;
-      Jump.StackEraseEnd = Arity;
-      Jump.PCOffset = static_cast<int32_t>(CtrlStack[*D].Jump - &Instr);
-      pushTypes(NTypes);
-      pushType(ValType(RefTypeCode::Ref, RType.getHeapType()));
-      return {};
+    } else {
+      return Unexpect(D);
     }
   case OpCode::Br_on_non_null:
-    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex()); !D) {
-      return Unexpect(D);
-    } else {
+    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex())) {
       auto LabelTypes = getLabelTypes(CtrlStack[*D]);
       std::vector<ValType> NTypes(LabelTypes.begin(), LabelTypes.end());
       if (NTypes.empty()) {
         spdlog::error(ErrCode::Value::InvalidBrRefType);
         return Unexpect(ErrCode::Value::InvalidBrRefType);
       }
-      RefType RType;
-      if (!NTypes.back().isRefType()) {
-        spdlog::error(ErrCode::Value::InvalidBrRefType);
-        return Unexpect(ErrCode::Value::InvalidBrRefType);
-      } else {
-        RType = NTypes.back().toRefType();
-        NTypes.pop_back();
-      }
-      if (RType.isNullableRefType()) {
+      ValType RType = NTypes.back();
+      NTypes.pop_back();
+      if (!RType.isRefType() || RType.isNullableRefType()) {
         spdlog::error(ErrCode::Value::InvalidBrRefType);
         return Unexpect(ErrCode::Value::InvalidBrRefType);
       }
-      if (auto Res =
-              popType(RefType(RefTypeCode::RefNull, RType.getHeapType()));
+      if (auto Res = popType(ValType(TypeCode::RefNull, RType.getHeapTypeCode(),
+                                     RType.getTypeIndex()));
           !Res) {
         spdlog::error(ErrCode::Value::InvalidBrRefType);
         return Unexpect(ErrCode::Value::InvalidBrRefType);
@@ -558,6 +546,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       Jump.PCOffset = static_cast<int32_t>(CtrlStack[*D].Jump - &Instr);
       pushTypes(NTypes);
       return {};
+    } else {
+      return Unexpect(D);
     }
 
   case OpCode::Return:
@@ -594,7 +584,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            ErrInfo::IndexCategory::FunctionType, N,
                            static_cast<uint32_t>(Types.size()));
     }
-    if (auto Res = popType(ValTypeCode::I32); !Res) {
+    if (auto Res = popType(TypeCode::I32); !Res) {
       return Unexpect(Res);
     }
     return StackTrans(Types[N].first, Types[N].second);
@@ -647,7 +637,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       spdlog::error(ErrInfo::InfoMismatch(Returns, Types[N].second));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
-    if (auto Res = popType(ValTypeCode::I32); !Res) {
+    if (auto Res = popType(TypeCode::I32); !Res) {
       return Unexpect(Res);
     }
     if (auto Res = popTypes(Types[N].first); !Res) {
@@ -663,7 +653,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            static_cast<uint32_t>(Types.size()));
     }
     std::vector<ValType> Input = Types[TypeIdx].first;
-    Input.push_back(ValType(RefTypeCode::RefNull, TypeIdx));
+    Input.push_back(ValType(TypeCode::RefNull, TypeIdx));
     return StackTrans(Input, Types[TypeIdx].second);
   }
   case OpCode::Return_call_ref: {
@@ -682,7 +672,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
     std::vector<ValType> Input = Types[TypeIdx].first;
-    Input.push_back(ValType(RefTypeCode::RefNull, TypeIdx));
+    Input.push_back(ValType(TypeCode::RefNull, TypeIdx));
     if (auto Res = popTypes(Input); !Res) {
       return Unexpect(Res);
     }
@@ -691,19 +681,23 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    return StackTrans({}, {ValType(RefTypeCode::RefNull, Instr.getHeapType())});
+    if (auto Res = validate(Instr.getValType())) {
+      return StackTrans({}, {Instr.getValType()});
+    } else {
+      return Unexpect(Res);
+    }
   case OpCode::Ref__is_null:
     if (auto Res = popType()) {
       if (!isRefType(*Res)) {
         spdlog::error(ErrCode::Value::TypeCheckFailed);
         spdlog::error(
-            ErrInfo::InfoMismatch(ValTypeCode::FuncRef, VTypeToAST(*Res)));
+            ErrInfo::InfoMismatch(TypeCode::FuncRef, VTypeToAST(*Res)));
         return Unexpect(ErrCode::Value::TypeCheckFailed);
       }
     } else {
       return Unexpect(Res);
     }
-    return StackTrans({}, {ValType(ValTypeCode::I32)});
+    return StackTrans({}, {ValType(TypeCode::I32)});
   case OpCode::Ref__func: {
     auto FuncIdx = Instr.getTargetIndex();
     if (Refs.find(FuncIdx) == Refs.cend()) {
@@ -714,8 +708,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     assuming(FuncIdx < Funcs.size());
     auto TypeIdx = Funcs[FuncIdx];
     assuming(TypeIdx < Types.size());
-
-    return StackTrans({}, {ValType(RefType(RefTypeCode::Ref, TypeIdx))});
+    return StackTrans({}, {ValType(TypeCode::Ref, TypeIdx)});
   }
   case OpCode::Ref__as_non_null: {
     if (auto Res = popType()) {
@@ -723,16 +716,14 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         pushType(unreachableVType());
         return {};
       }
-      if (!(**Res).isRefType()) {
+      if (!(*Res)->isRefType()) {
         spdlog::error(ErrCode::Value::TypeCheckFailed);
         spdlog::error(ErrInfo::InfoMismatch(
-            ValType(RefType(RefTypeCode::RefNull, HeapTypeCode::Func)),
-            VTypeToAST(*Res)));
+            ValType(TypeCode::RefNull, TypeCode::FuncRef), VTypeToAST(*Res)));
         return Unexpect(ErrCode::Value::TypeCheckFailed);
       }
-      return StackTrans({},
-                        {ValType(RefType(RefTypeCode::Ref,
-                                         (*Res)->toRefType().getHeapType()))});
+      return StackTrans({}, {ValType(TypeCode::Ref, (*Res)->getHeapTypeCode(),
+                                     (*Res)->getTypeIndex())});
     } else {
       return Unexpect(Res);
     }
@@ -742,7 +733,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return StackPopAny();
   case OpCode::Select: {
     // Pop I32.
-    if (auto Res = popType(ValTypeCode::I32); !Res) {
+    if (auto Res = popType(TypeCode::I32); !Res) {
       return Unexpect(Res);
     }
     // Pop T1 and T2.
@@ -760,7 +751,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     // T1 and T2 should be number type.
     if (!isNumType(T1)) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
-      spdlog::error(ErrInfo::InfoMismatch(ValTypeCode::I32, VTypeToAST(T1)));
+      spdlog::error(ErrInfo::InfoMismatch(TypeCode::I32, VTypeToAST(T1)));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
     if (!isNumType(T2)) {
@@ -792,7 +783,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     if (auto Res = validate(ExpT); !Res) {
       return Unexpect(Res);
     }
-    if (auto Res = popTypes({ExpT, ExpT, ValType(ValTypeCode::I32)}); !Res) {
+    if (auto Res = popTypes({ExpT, ExpT, ValType(TypeCode::I32)}); !Res) {
       return Unexpect(Res);
     }
     pushType(ExpT);
@@ -873,17 +864,17 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
     ValType ExpT = Tables[Instr.getTargetIndex()];
     if (Instr.getOpCode() == OpCode::Table__get) {
-      return StackTrans({ValType(ValTypeCode::I32)}, {ExpT});
+      return StackTrans({ValType(TypeCode::I32)}, {ExpT});
     } else if (Instr.getOpCode() == OpCode::Table__set) {
-      return StackTrans({ValType(ValTypeCode::I32), ExpT}, {});
+      return StackTrans({ValType(TypeCode::I32), ExpT}, {});
     } else if (Instr.getOpCode() == OpCode::Table__grow) {
-      return StackTrans({ExpT, ValType(ValTypeCode::I32)},
-                        {ValType(ValTypeCode::I32)});
+      return StackTrans({ExpT, ValType(TypeCode::I32)},
+                        {ValType(TypeCode::I32)});
     } else if (Instr.getOpCode() == OpCode::Table__size) {
-      return StackTrans({}, {ValType(ValTypeCode::I32)});
+      return StackTrans({}, {ValType(TypeCode::I32)});
     } else if (Instr.getOpCode() == OpCode::Table__fill) {
-      return StackTrans(
-          {ValType(ValTypeCode::I32), ExpT, ValType(ValTypeCode::I32)}, {});
+      return StackTrans({ValType(TypeCode::I32), ExpT, ValType(TypeCode::I32)},
+                        {});
     } else if (Instr.getOpCode() == OpCode::Table__init) {
       // Check source element index for initialization.
       if (Instr.getSourceIndex() >= Elems.size()) {
@@ -899,8 +890,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                                             Elems[Instr.getSourceIndex()]));
         return Unexpect(ErrCode::Value::TypeCheckFailed);
       }
-      return StackTrans({ValType(ValTypeCode::I32), ValType(ValTypeCode::I32),
-                         ValType(ValTypeCode::I32)},
+      return StackTrans({ValType(TypeCode::I32), ValType(TypeCode::I32),
+                         ValType(TypeCode::I32)},
                         {});
     } else if (Instr.getOpCode() == OpCode::Table__copy) {
       // Check source table index for copying.
@@ -917,8 +908,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                                             Tables[Instr.getSourceIndex()]));
         return Unexpect(ErrCode::Value::TypeCheckFailed);
       }
-      return StackTrans({ValType(ValTypeCode::I32), ValType(ValTypeCode::I32),
-                         ValType(ValTypeCode::I32)},
+      return StackTrans({ValType(TypeCode::I32), ValType(TypeCode::I32),
+                         ValType(TypeCode::I32)},
                         {});
     } else {
       assumingUnreachable();
@@ -935,69 +926,68 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   // Memory Instructions.
   case OpCode::I32__load:
-    return checkAlignAndTrans(32, {ValType(ValTypeCode::I32)},
-                              {ValType(ValTypeCode::I32)});
+    return checkAlignAndTrans(32, {ValType(TypeCode::I32)},
+                              {ValType(TypeCode::I32)});
   case OpCode::I64__load:
-    return checkAlignAndTrans(64, {ValType(ValTypeCode::I32)},
-                              {ValType(ValTypeCode::I64)});
+    return checkAlignAndTrans(64, {ValType(TypeCode::I32)},
+                              {ValType(TypeCode::I64)});
   case OpCode::F32__load:
-    return checkAlignAndTrans(32, {ValType(ValTypeCode::I32)},
-                              {ValType(ValTypeCode::F32)});
+    return checkAlignAndTrans(32, {ValType(TypeCode::I32)},
+                              {ValType(TypeCode::F32)});
   case OpCode::F64__load:
-    return checkAlignAndTrans(64, {ValType(ValTypeCode::I32)},
-                              {ValType(ValTypeCode::F64)});
+    return checkAlignAndTrans(64, {ValType(TypeCode::I32)},
+                              {ValType(TypeCode::F64)});
   case OpCode::I32__load8_s:
   case OpCode::I32__load8_u:
-    return checkAlignAndTrans(8, {ValType(ValTypeCode::I32)},
-                              {ValType(ValTypeCode::I32)});
+    return checkAlignAndTrans(8, {ValType(TypeCode::I32)},
+                              {ValType(TypeCode::I32)});
   case OpCode::I32__load16_s:
   case OpCode::I32__load16_u:
-    return checkAlignAndTrans(16, {ValType(ValTypeCode::I32)},
-                              {ValType(ValTypeCode::I32)});
+    return checkAlignAndTrans(16, {ValType(TypeCode::I32)},
+                              {ValType(TypeCode::I32)});
   case OpCode::I64__load8_s:
   case OpCode::I64__load8_u:
-    return checkAlignAndTrans(8, {ValType(ValTypeCode::I32)},
-                              {ValType(ValTypeCode::I64)});
+    return checkAlignAndTrans(8, {ValType(TypeCode::I32)},
+                              {ValType(TypeCode::I64)});
   case OpCode::I64__load16_s:
   case OpCode::I64__load16_u:
-    return checkAlignAndTrans(16, {ValType(ValTypeCode::I32)},
-                              {ValType(ValTypeCode::I64)});
+    return checkAlignAndTrans(16, {ValType(TypeCode::I32)},
+                              {ValType(TypeCode::I64)});
   case OpCode::I64__load32_s:
   case OpCode::I64__load32_u:
-    return checkAlignAndTrans(32, {ValType(ValTypeCode::I32)},
-                              {ValType(ValTypeCode::I64)});
+    return checkAlignAndTrans(32, {ValType(TypeCode::I32)},
+                              {ValType(TypeCode::I64)});
   case OpCode::I32__store:
     return checkAlignAndTrans(
-        32, {ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)}, {});
+        32, {ValType(TypeCode::I32), ValType(TypeCode::I32)}, {});
   case OpCode::I64__store:
     return checkAlignAndTrans(
-        64, {ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)}, {});
+        64, {ValType(TypeCode::I32), ValType(TypeCode::I64)}, {});
   case OpCode::F32__store:
     return checkAlignAndTrans(
-        32, {ValType(ValTypeCode::I32), ValType(ValTypeCode::F32)}, {});
+        32, {ValType(TypeCode::I32), ValType(TypeCode::F32)}, {});
   case OpCode::F64__store:
     return checkAlignAndTrans(
-        64, {ValType(ValTypeCode::I32), ValType(ValTypeCode::F64)}, {});
+        64, {ValType(TypeCode::I32), ValType(TypeCode::F64)}, {});
   case OpCode::I32__store8:
     return checkAlignAndTrans(
-        8, {ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)}, {});
+        8, {ValType(TypeCode::I32), ValType(TypeCode::I32)}, {});
   case OpCode::I32__store16:
     return checkAlignAndTrans(
-        16, {ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)}, {});
+        16, {ValType(TypeCode::I32), ValType(TypeCode::I32)}, {});
   case OpCode::I64__store8:
     return checkAlignAndTrans(
-        8, {ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)}, {});
+        8, {ValType(TypeCode::I32), ValType(TypeCode::I64)}, {});
   case OpCode::I64__store16:
     return checkAlignAndTrans(
-        16, {ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)}, {});
+        16, {ValType(TypeCode::I32), ValType(TypeCode::I64)}, {});
   case OpCode::I64__store32:
     return checkAlignAndTrans(
-        32, {ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)}, {});
+        32, {ValType(TypeCode::I32), ValType(TypeCode::I64)}, {});
   case OpCode::Memory__size:
-    return checkMemAndTrans({}, {ValType(ValTypeCode::I32)});
+    return checkMemAndTrans({}, {ValType(TypeCode::I32)});
   case OpCode::Memory__grow:
-    return checkMemAndTrans({ValType(ValTypeCode::I32)},
-                            {ValType(ValTypeCode::I32)});
+    return checkMemAndTrans({ValType(TypeCode::I32)}, {ValType(TypeCode::I32)});
   case OpCode::Memory__init:
     // Check the target memory index. Memory index should be checked first.
     if (Instr.getTargetIndex() >= Mems) {
@@ -1011,8 +1001,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            ErrInfo::IndexCategory::Data, Instr.getSourceIndex(),
                            static_cast<uint32_t>(Datas.size()));
     }
-    return StackTrans({ValType(ValTypeCode::I32), ValType(ValTypeCode::I32),
-                       ValType(ValTypeCode::I32)},
+    return StackTrans({ValType(TypeCode::I32), ValType(TypeCode::I32),
+                       ValType(TypeCode::I32)},
                       {});
   case OpCode::Memory__copy:
     /// Check the source memory index.
@@ -1023,9 +1013,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
     [[fallthrough]];
   case OpCode::Memory__fill:
-    return checkMemAndTrans({ValType(ValTypeCode::I32),
-                             ValType(ValTypeCode::I32),
-                             ValType(ValTypeCode::I32)},
+    return checkMemAndTrans({ValType(TypeCode::I32), ValType(TypeCode::I32),
+                             ValType(TypeCode::I32)},
                             {});
   case OpCode::Data__drop:
     // Check the target data index.
@@ -1038,27 +1027,27 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   // Const Instructions.
   case OpCode::I32__const:
-    return StackTrans({}, {ValType(ValTypeCode::I32)});
+    return StackTrans({}, {ValType(TypeCode::I32)});
   case OpCode::I64__const:
-    return StackTrans({}, {ValType(ValTypeCode::I64)});
+    return StackTrans({}, {ValType(TypeCode::I64)});
   case OpCode::F32__const:
-    return StackTrans({}, {ValType(ValTypeCode::F32)});
+    return StackTrans({}, {ValType(TypeCode::F32)});
   case OpCode::F64__const:
-    return StackTrans({}, {ValType(ValTypeCode::F64)});
+    return StackTrans({}, {ValType(TypeCode::F64)});
 
   // Unary Numeric Instructions.
   case OpCode::I32__eqz:
-    return StackTrans({ValType(ValTypeCode::I32)}, {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::I32)}, {ValType(TypeCode::I32)});
   case OpCode::I64__eqz:
-    return StackTrans({ValType(ValTypeCode::I64)}, {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::I64)}, {ValType(TypeCode::I32)});
   case OpCode::I32__clz:
   case OpCode::I32__ctz:
   case OpCode::I32__popcnt:
-    return StackTrans({ValType(ValTypeCode::I32)}, {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::I32)}, {ValType(TypeCode::I32)});
   case OpCode::I64__clz:
   case OpCode::I64__ctz:
   case OpCode::I64__popcnt:
-    return StackTrans({ValType(ValTypeCode::I64)}, {ValType(ValTypeCode::I64)});
+    return StackTrans({ValType(TypeCode::I64)}, {ValType(TypeCode::I64)});
   case OpCode::F32__abs:
   case OpCode::F32__neg:
   case OpCode::F32__ceil:
@@ -1066,7 +1055,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F32__trunc:
   case OpCode::F32__nearest:
   case OpCode::F32__sqrt:
-    return StackTrans({ValType(ValTypeCode::F32)}, {ValType(ValTypeCode::F32)});
+    return StackTrans({ValType(TypeCode::F32)}, {ValType(TypeCode::F32)});
   case OpCode::F64__abs:
   case OpCode::F64__neg:
   case OpCode::F64__ceil:
@@ -1074,67 +1063,67 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F64__trunc:
   case OpCode::F64__nearest:
   case OpCode::F64__sqrt:
-    return StackTrans({ValType(ValTypeCode::F64)}, {ValType(ValTypeCode::F64)});
+    return StackTrans({ValType(TypeCode::F64)}, {ValType(TypeCode::F64)});
   case OpCode::I32__wrap_i64:
-    return StackTrans({ValType(ValTypeCode::I64)}, {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::I64)}, {ValType(TypeCode::I32)});
   case OpCode::I32__trunc_f32_s:
   case OpCode::I32__trunc_f32_u:
-    return StackTrans({ValType(ValTypeCode::F32)}, {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::F32)}, {ValType(TypeCode::I32)});
   case OpCode::I32__trunc_f64_s:
   case OpCode::I32__trunc_f64_u:
-    return StackTrans({ValType(ValTypeCode::F64)}, {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::F64)}, {ValType(TypeCode::I32)});
   case OpCode::I64__extend_i32_s:
   case OpCode::I64__extend_i32_u:
-    return StackTrans({ValType(ValTypeCode::I32)}, {ValType(ValTypeCode::I64)});
+    return StackTrans({ValType(TypeCode::I32)}, {ValType(TypeCode::I64)});
   case OpCode::I64__trunc_f32_s:
   case OpCode::I64__trunc_f32_u:
-    return StackTrans({ValType(ValTypeCode::F32)}, {ValType(ValTypeCode::I64)});
+    return StackTrans({ValType(TypeCode::F32)}, {ValType(TypeCode::I64)});
   case OpCode::I64__trunc_f64_s:
   case OpCode::I64__trunc_f64_u:
-    return StackTrans({ValType(ValTypeCode::F64)}, {ValType(ValTypeCode::I64)});
+    return StackTrans({ValType(TypeCode::F64)}, {ValType(TypeCode::I64)});
   case OpCode::F32__convert_i32_s:
   case OpCode::F32__convert_i32_u:
-    return StackTrans({ValType(ValTypeCode::I32)}, {ValType(ValTypeCode::F32)});
+    return StackTrans({ValType(TypeCode::I32)}, {ValType(TypeCode::F32)});
   case OpCode::F32__convert_i64_s:
   case OpCode::F32__convert_i64_u:
-    return StackTrans({ValType(ValTypeCode::I64)}, {ValType(ValTypeCode::F32)});
+    return StackTrans({ValType(TypeCode::I64)}, {ValType(TypeCode::F32)});
   case OpCode::F32__demote_f64:
-    return StackTrans({ValType(ValTypeCode::F64)}, {ValType(ValTypeCode::F32)});
+    return StackTrans({ValType(TypeCode::F64)}, {ValType(TypeCode::F32)});
   case OpCode::F64__convert_i32_s:
   case OpCode::F64__convert_i32_u:
-    return StackTrans({ValType(ValTypeCode::I32)}, {ValType(ValTypeCode::F64)});
+    return StackTrans({ValType(TypeCode::I32)}, {ValType(TypeCode::F64)});
   case OpCode::F64__convert_i64_s:
   case OpCode::F64__convert_i64_u:
-    return StackTrans({ValType(ValTypeCode::I64)}, {ValType(ValTypeCode::F64)});
+    return StackTrans({ValType(TypeCode::I64)}, {ValType(TypeCode::F64)});
   case OpCode::F64__promote_f32:
-    return StackTrans({ValType(ValTypeCode::F32)}, {ValType(ValTypeCode::F64)});
+    return StackTrans({ValType(TypeCode::F32)}, {ValType(TypeCode::F64)});
   case OpCode::I32__reinterpret_f32:
-    return StackTrans({ValType(ValTypeCode::F32)}, {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::F32)}, {ValType(TypeCode::I32)});
   case OpCode::I64__reinterpret_f64:
-    return StackTrans({ValType(ValTypeCode::F64)}, {ValType(ValTypeCode::I64)});
+    return StackTrans({ValType(TypeCode::F64)}, {ValType(TypeCode::I64)});
   case OpCode::F32__reinterpret_i32:
-    return StackTrans({ValType(ValTypeCode::I32)}, {ValType(ValTypeCode::F32)});
+    return StackTrans({ValType(TypeCode::I32)}, {ValType(TypeCode::F32)});
   case OpCode::F64__reinterpret_i64:
-    return StackTrans({ValType(ValTypeCode::I64)}, {ValType(ValTypeCode::F64)});
+    return StackTrans({ValType(TypeCode::I64)}, {ValType(TypeCode::F64)});
   case OpCode::I32__extend8_s:
   case OpCode::I32__extend16_s:
-    return StackTrans({ValType(ValTypeCode::I32)}, {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::I32)}, {ValType(TypeCode::I32)});
   case OpCode::I64__extend8_s:
   case OpCode::I64__extend16_s:
   case OpCode::I64__extend32_s:
-    return StackTrans({ValType(ValTypeCode::I64)}, {ValType(ValTypeCode::I64)});
+    return StackTrans({ValType(TypeCode::I64)}, {ValType(TypeCode::I64)});
   case OpCode::I32__trunc_sat_f32_s:
   case OpCode::I32__trunc_sat_f32_u:
-    return StackTrans({ValType(ValTypeCode::F32)}, {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::F32)}, {ValType(TypeCode::I32)});
   case OpCode::I32__trunc_sat_f64_s:
   case OpCode::I32__trunc_sat_f64_u:
-    return StackTrans({ValType(ValTypeCode::F64)}, {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::F64)}, {ValType(TypeCode::I32)});
   case OpCode::I64__trunc_sat_f32_s:
   case OpCode::I64__trunc_sat_f32_u:
-    return StackTrans({ValType(ValTypeCode::F32)}, {ValType(ValTypeCode::I64)});
+    return StackTrans({ValType(TypeCode::F32)}, {ValType(TypeCode::I64)});
   case OpCode::I64__trunc_sat_f64_s:
   case OpCode::I64__trunc_sat_f64_u:
-    return StackTrans({ValType(ValTypeCode::F64)}, {ValType(ValTypeCode::I64)});
+    return StackTrans({ValType(TypeCode::F64)}, {ValType(TypeCode::I64)});
 
   // Binary Numeric Instructions.
   case OpCode::I32__eq:
@@ -1147,8 +1136,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I32__le_u:
   case OpCode::I32__ge_s:
   case OpCode::I32__ge_u:
-    return StackTrans({ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-                      {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::I32), ValType(TypeCode::I32)},
+                      {ValType(TypeCode::I32)});
   case OpCode::I64__eq:
   case OpCode::I64__ne:
   case OpCode::I64__lt_s:
@@ -1159,24 +1148,24 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I64__le_u:
   case OpCode::I64__ge_s:
   case OpCode::I64__ge_u:
-    return StackTrans({ValType(ValTypeCode::I64), ValType(ValTypeCode::I64)},
-                      {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::I64), ValType(TypeCode::I64)},
+                      {ValType(TypeCode::I32)});
   case OpCode::F32__eq:
   case OpCode::F32__ne:
   case OpCode::F32__lt:
   case OpCode::F32__gt:
   case OpCode::F32__le:
   case OpCode::F32__ge:
-    return StackTrans({ValType(ValTypeCode::F32), ValType(ValTypeCode::F32)},
-                      {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::F32), ValType(TypeCode::F32)},
+                      {ValType(TypeCode::I32)});
   case OpCode::F64__eq:
   case OpCode::F64__ne:
   case OpCode::F64__lt:
   case OpCode::F64__gt:
   case OpCode::F64__le:
   case OpCode::F64__ge:
-    return StackTrans({ValType(ValTypeCode::F64), ValType(ValTypeCode::F64)},
-                      {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::F64), ValType(TypeCode::F64)},
+                      {ValType(TypeCode::I32)});
   case OpCode::I32__add:
   case OpCode::I32__sub:
   case OpCode::I32__mul:
@@ -1192,8 +1181,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I32__shr_u:
   case OpCode::I32__rotl:
   case OpCode::I32__rotr:
-    return StackTrans({ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-                      {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::I32), ValType(TypeCode::I32)},
+                      {ValType(TypeCode::I32)});
   case OpCode::I64__add:
   case OpCode::I64__sub:
   case OpCode::I64__mul:
@@ -1209,8 +1198,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I64__shr_u:
   case OpCode::I64__rotl:
   case OpCode::I64__rotr:
-    return StackTrans({ValType(ValTypeCode::I64), ValType(ValTypeCode::I64)},
-                      {ValType(ValTypeCode::I64)});
+    return StackTrans({ValType(TypeCode::I64), ValType(TypeCode::I64)},
+                      {ValType(TypeCode::I64)});
   case OpCode::F32__add:
   case OpCode::F32__sub:
   case OpCode::F32__mul:
@@ -1218,8 +1207,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F32__min:
   case OpCode::F32__max:
   case OpCode::F32__copysign:
-    return StackTrans({ValType(ValTypeCode::F32), ValType(ValTypeCode::F32)},
-                      {ValType(ValTypeCode::F32)});
+    return StackTrans({ValType(TypeCode::F32), ValType(TypeCode::F32)},
+                      {ValType(TypeCode::F32)});
   case OpCode::F64__add:
   case OpCode::F64__sub:
   case OpCode::F64__mul:
@@ -1227,13 +1216,13 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F64__min:
   case OpCode::F64__max:
   case OpCode::F64__copysign:
-    return StackTrans({ValType(ValTypeCode::F64), ValType(ValTypeCode::F64)},
-                      {ValType(ValTypeCode::F64)});
+    return StackTrans({ValType(TypeCode::F64), ValType(TypeCode::F64)},
+                      {ValType(TypeCode::F64)});
 
   // SIMD Memory Instruction.
   case OpCode::V128__load:
-    return checkAlignAndTrans(128, {ValType(ValTypeCode::I32)},
-                              {ValType(ValTypeCode::V128)});
+    return checkAlignAndTrans(128, {ValType(TypeCode::I32)},
+                              {ValType(TypeCode::V128)});
   case OpCode::V128__load8x8_s:
   case OpCode::V128__load8x8_u:
   case OpCode::V128__load16x4_s:
@@ -1242,53 +1231,53 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::V128__load32x2_u:
   case OpCode::V128__load64_splat:
   case OpCode::V128__load64_zero:
-    return checkAlignAndTrans(64, {ValType(ValTypeCode::I32)},
-                              {ValType(ValTypeCode::V128)});
+    return checkAlignAndTrans(64, {ValType(TypeCode::I32)},
+                              {ValType(TypeCode::V128)});
   case OpCode::V128__load8_splat:
-    return checkAlignAndTrans(8, {ValType(ValTypeCode::I32)},
-                              {ValType(ValTypeCode::V128)});
+    return checkAlignAndTrans(8, {ValType(TypeCode::I32)},
+                              {ValType(TypeCode::V128)});
   case OpCode::V128__load16_splat:
-    return checkAlignAndTrans(16, {ValType(ValTypeCode::I32)},
-                              {ValType(ValTypeCode::V128)});
+    return checkAlignAndTrans(16, {ValType(TypeCode::I32)},
+                              {ValType(TypeCode::V128)});
   case OpCode::V128__load32_splat:
   case OpCode::V128__load32_zero:
-    return checkAlignAndTrans(32, {ValType(ValTypeCode::I32)},
-                              {ValType(ValTypeCode::V128)});
+    return checkAlignAndTrans(32, {ValType(TypeCode::I32)},
+                              {ValType(TypeCode::V128)});
   case OpCode::V128__store:
     return checkAlignAndTrans(
-        128, {ValType(ValTypeCode::I32), ValType(ValTypeCode::V128)}, {});
+        128, {ValType(TypeCode::I32), ValType(TypeCode::V128)}, {});
   case OpCode::V128__load8_lane:
-    return checkAlignAndTrans(
-        8, {ValType(ValTypeCode::I32), ValType(ValTypeCode::V128)},
-        {ValType(ValTypeCode::V128)}, true);
+    return checkAlignAndTrans(8,
+                              {ValType(TypeCode::I32), ValType(TypeCode::V128)},
+                              {ValType(TypeCode::V128)}, true);
   case OpCode::V128__load16_lane:
-    return checkAlignAndTrans(
-        16, {ValType(ValTypeCode::I32), ValType(ValTypeCode::V128)},
-        {ValType(ValTypeCode::V128)}, true);
+    return checkAlignAndTrans(16,
+                              {ValType(TypeCode::I32), ValType(TypeCode::V128)},
+                              {ValType(TypeCode::V128)}, true);
   case OpCode::V128__load32_lane:
-    return checkAlignAndTrans(
-        32, {ValType(ValTypeCode::I32), ValType(ValTypeCode::V128)},
-        {ValType(ValTypeCode::V128)}, true);
+    return checkAlignAndTrans(32,
+                              {ValType(TypeCode::I32), ValType(TypeCode::V128)},
+                              {ValType(TypeCode::V128)}, true);
   case OpCode::V128__load64_lane:
-    return checkAlignAndTrans(
-        64, {ValType(ValTypeCode::I32), ValType(ValTypeCode::V128)},
-        {ValType(ValTypeCode::V128)}, true);
+    return checkAlignAndTrans(64,
+                              {ValType(TypeCode::I32), ValType(TypeCode::V128)},
+                              {ValType(TypeCode::V128)}, true);
   case OpCode::V128__store8_lane:
     return checkAlignAndTrans(
-        8, {ValType(ValTypeCode::I32), ValType(ValTypeCode::V128)}, {}, true);
+        8, {ValType(TypeCode::I32), ValType(TypeCode::V128)}, {}, true);
   case OpCode::V128__store16_lane:
     return checkAlignAndTrans(
-        16, {ValType(ValTypeCode::I32), ValType(ValTypeCode::V128)}, {}, true);
+        16, {ValType(TypeCode::I32), ValType(TypeCode::V128)}, {}, true);
   case OpCode::V128__store32_lane:
     return checkAlignAndTrans(
-        32, {ValType(ValTypeCode::I32), ValType(ValTypeCode::V128)}, {}, true);
+        32, {ValType(TypeCode::I32), ValType(TypeCode::V128)}, {}, true);
   case OpCode::V128__store64_lane:
     return checkAlignAndTrans(
-        64, {ValType(ValTypeCode::I32), ValType(ValTypeCode::V128)}, {}, true);
+        64, {ValType(TypeCode::I32), ValType(TypeCode::V128)}, {}, true);
 
   // SIMD Const Instruction.
   case OpCode::V128__const:
-    return StackTrans({}, {ValType(ValTypeCode::V128)});
+    return StackTrans({}, {ValType(TypeCode::V128)});
 
   // SIMD Shuffle Instruction.
   case OpCode::I8x16__shuffle: {
@@ -1300,71 +1289,67 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       spdlog::error(ErrCode::Value::InvalidLaneIdx);
       return Unexpect(ErrCode::Value::InvalidLaneIdx);
     }
-    return StackTrans({ValType(ValTypeCode::V128), ValType(ValTypeCode::V128)},
-                      {ValType(ValTypeCode::V128)});
+    return StackTrans({ValType(TypeCode::V128), ValType(TypeCode::V128)},
+                      {ValType(TypeCode::V128)});
   }
 
   // SIMD Lane Instructions.
   case OpCode::I8x16__extract_lane_s:
   case OpCode::I8x16__extract_lane_u:
-    return checkLaneAndTrans(16, {ValType(ValTypeCode::V128)},
-                             {ValType(ValTypeCode::I32)});
+    return checkLaneAndTrans(16, {ValType(TypeCode::V128)},
+                             {ValType(TypeCode::I32)});
   case OpCode::I8x16__replace_lane:
-    return checkLaneAndTrans(
-        16, {ValType(ValTypeCode::V128), ValType(ValTypeCode::I32)},
-        {ValType(ValTypeCode::V128)});
+    return checkLaneAndTrans(16,
+                             {ValType(TypeCode::V128), ValType(TypeCode::I32)},
+                             {ValType(TypeCode::V128)});
   case OpCode::I16x8__extract_lane_s:
   case OpCode::I16x8__extract_lane_u:
-    return checkLaneAndTrans(8, {ValType(ValTypeCode::V128)},
-                             {ValType(ValTypeCode::I32)});
+    return checkLaneAndTrans(8, {ValType(TypeCode::V128)},
+                             {ValType(TypeCode::I32)});
   case OpCode::I16x8__replace_lane:
-    return checkLaneAndTrans(
-        8, {ValType(ValTypeCode::V128), ValType(ValTypeCode::I32)},
-        {ValType(ValTypeCode::V128)});
+    return checkLaneAndTrans(8,
+                             {ValType(TypeCode::V128), ValType(TypeCode::I32)},
+                             {ValType(TypeCode::V128)});
   case OpCode::I32x4__extract_lane:
-    return checkLaneAndTrans(4, {ValType(ValTypeCode::V128)},
-                             {ValType(ValTypeCode::I32)});
+    return checkLaneAndTrans(4, {ValType(TypeCode::V128)},
+                             {ValType(TypeCode::I32)});
   case OpCode::I32x4__replace_lane:
-    return checkLaneAndTrans(
-        4, {ValType(ValTypeCode::V128), ValType(ValTypeCode::I32)},
-        {ValType(ValTypeCode::V128)});
+    return checkLaneAndTrans(4,
+                             {ValType(TypeCode::V128), ValType(TypeCode::I32)},
+                             {ValType(TypeCode::V128)});
   case OpCode::I64x2__extract_lane:
-    return checkLaneAndTrans(2, {ValType(ValTypeCode::V128)},
-                             {ValType(ValTypeCode::I64)});
+    return checkLaneAndTrans(2, {ValType(TypeCode::V128)},
+                             {ValType(TypeCode::I64)});
   case OpCode::I64x2__replace_lane:
-    return checkLaneAndTrans(
-        2, {ValType(ValTypeCode::V128), ValType(ValTypeCode::I64)},
-        {ValType(ValTypeCode::V128)});
+    return checkLaneAndTrans(2,
+                             {ValType(TypeCode::V128), ValType(TypeCode::I64)},
+                             {ValType(TypeCode::V128)});
   case OpCode::F32x4__extract_lane:
-    return checkLaneAndTrans(4, {ValType(ValTypeCode::V128)},
-                             {ValType(ValTypeCode::F32)});
+    return checkLaneAndTrans(4, {ValType(TypeCode::V128)},
+                             {ValType(TypeCode::F32)});
   case OpCode::F32x4__replace_lane:
-    return checkLaneAndTrans(
-        4, {ValType(ValTypeCode::V128), ValType(ValTypeCode::F32)},
-        {ValType(ValTypeCode::V128)});
+    return checkLaneAndTrans(4,
+                             {ValType(TypeCode::V128), ValType(TypeCode::F32)},
+                             {ValType(TypeCode::V128)});
   case OpCode::F64x2__extract_lane:
-    return checkLaneAndTrans(2, {ValType(ValTypeCode::V128)},
-                             {ValType(ValTypeCode::F64)});
+    return checkLaneAndTrans(2, {ValType(TypeCode::V128)},
+                             {ValType(TypeCode::F64)});
   case OpCode::F64x2__replace_lane:
-    return checkLaneAndTrans(
-        2, {ValType(ValTypeCode::V128), ValType(ValTypeCode::F64)},
-        {ValType(ValTypeCode::V128)});
+    return checkLaneAndTrans(2,
+                             {ValType(TypeCode::V128), ValType(TypeCode::F64)},
+                             {ValType(TypeCode::V128)});
 
   // SIMD Numeric Instructions.
   case OpCode::I8x16__splat:
   case OpCode::I16x8__splat:
   case OpCode::I32x4__splat:
-    return StackTrans({ValType(ValTypeCode::I32)},
-                      {ValType(ValTypeCode::V128)});
+    return StackTrans({ValType(TypeCode::I32)}, {ValType(TypeCode::V128)});
   case OpCode::I64x2__splat:
-    return StackTrans({ValType(ValTypeCode::I64)},
-                      {ValType(ValTypeCode::V128)});
+    return StackTrans({ValType(TypeCode::I64)}, {ValType(TypeCode::V128)});
   case OpCode::F32x4__splat:
-    return StackTrans({ValType(ValTypeCode::F32)},
-                      {ValType(ValTypeCode::V128)});
+    return StackTrans({ValType(TypeCode::F32)}, {ValType(TypeCode::V128)});
   case OpCode::F64x2__splat:
-    return StackTrans({ValType(ValTypeCode::F64)},
-                      {ValType(ValTypeCode::V128)});
+    return StackTrans({ValType(TypeCode::F64)}, {ValType(TypeCode::V128)});
   case OpCode::V128__not:
   case OpCode::I8x16__abs:
   case OpCode::I8x16__neg:
@@ -1415,8 +1400,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F64x2__floor:
   case OpCode::F64x2__trunc:
   case OpCode::F64x2__nearest:
-    return StackTrans({ValType(ValTypeCode::V128)},
-                      {ValType(ValTypeCode::V128)});
+    return StackTrans({ValType(TypeCode::V128)}, {ValType(TypeCode::V128)});
   case OpCode::I8x16__swizzle:
   case OpCode::I8x16__eq:
   case OpCode::I8x16__ne:
@@ -1537,12 +1521,12 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F64x2__pmin:
   case OpCode::F64x2__pmax:
   case OpCode::I32x4__dot_i16x8_s:
-    return StackTrans({ValType(ValTypeCode::V128), ValType(ValTypeCode::V128)},
-                      {ValType(ValTypeCode::V128)});
+    return StackTrans({ValType(TypeCode::V128), ValType(TypeCode::V128)},
+                      {ValType(TypeCode::V128)});
   case OpCode::V128__bitselect:
-    return StackTrans({ValType(ValTypeCode::V128), ValType(ValTypeCode::V128),
-                       ValType(ValTypeCode::V128)},
-                      {ValType(ValTypeCode::V128)});
+    return StackTrans({ValType(TypeCode::V128), ValType(TypeCode::V128),
+                       ValType(TypeCode::V128)},
+                      {ValType(TypeCode::V128)});
   case OpCode::V128__any_true:
   case OpCode::I8x16__all_true:
   case OpCode::I8x16__bitmask:
@@ -1552,8 +1536,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I32x4__bitmask:
   case OpCode::I64x2__all_true:
   case OpCode::I64x2__bitmask:
-    return StackTrans({ValType(ValTypeCode::V128)},
-                      {ValType(ValTypeCode::I32)});
+    return StackTrans({ValType(TypeCode::V128)}, {ValType(TypeCode::I32)});
   case OpCode::I8x16__shl:
   case OpCode::I8x16__shr_s:
   case OpCode::I8x16__shr_u:
@@ -1566,288 +1549,281 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I64x2__shl:
   case OpCode::I64x2__shr_s:
   case OpCode::I64x2__shr_u:
-    return StackTrans({ValType(ValTypeCode::V128), ValType(ValTypeCode::I32)},
-                      {ValType(ValTypeCode::V128)});
+    return StackTrans({ValType(TypeCode::V128), ValType(TypeCode::I32)},
+                      {ValType(TypeCode::V128)});
 
   case OpCode::Atomic__fence:
     return {};
 
   case OpCode::Memory__atomic__notify:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::Memory__atomic__wait32:
     return checkAlignAndTrans(32,
-                              std::array{ValType(ValTypeCode::I32),
-                                         ValType(ValTypeCode::I32),
-                                         ValType(ValTypeCode::I64)},
-                              std::array{ValType(ValTypeCode::I32)});
+                              std::array{ValType(TypeCode::I32),
+                                         ValType(TypeCode::I32),
+                                         ValType(TypeCode::I64)},
+                              std::array{ValType(TypeCode::I32)});
   case OpCode::Memory__atomic__wait64:
     return checkAlignAndTrans(64,
-                              std::array{ValType(ValTypeCode::I32),
-                                         ValType(ValTypeCode::I64),
-                                         ValType(ValTypeCode::I64)},
-                              std::array{ValType(ValTypeCode::I32)});
+                              std::array{ValType(TypeCode::I32),
+                                         ValType(TypeCode::I64),
+                                         ValType(TypeCode::I64)},
+                              std::array{ValType(TypeCode::I32)});
 
   case OpCode::I32__atomic__load:
-    return checkAlignAndTrans(32, std::array{ValType(ValTypeCode::I32)},
-                              std::array{ValType(ValTypeCode::I32)});
+    return checkAlignAndTrans(32, std::array{ValType(TypeCode::I32)},
+                              std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__load:
-    return checkAlignAndTrans(64, std::array{ValType(ValTypeCode::I32)},
-                              std::array{ValType(ValTypeCode::I64)});
+    return checkAlignAndTrans(64, std::array{ValType(TypeCode::I32)},
+                              std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__load8_u:
-    return checkAlignAndTrans(8, std::array{ValType(ValTypeCode::I32)},
-                              std::array{ValType(ValTypeCode::I32)});
+    return checkAlignAndTrans(8, std::array{ValType(TypeCode::I32)},
+                              std::array{ValType(TypeCode::I32)});
   case OpCode::I32__atomic__load16_u:
-    return checkAlignAndTrans(16, std::array{ValType(ValTypeCode::I32)},
-                              std::array{ValType(ValTypeCode::I32)});
+    return checkAlignAndTrans(16, std::array{ValType(TypeCode::I32)},
+                              std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__load8_u:
-    return checkAlignAndTrans(8, std::array{ValType(ValTypeCode::I32)},
-                              std::array{ValType(ValTypeCode::I64)});
+    return checkAlignAndTrans(8, std::array{ValType(TypeCode::I32)},
+                              std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__load16_u:
-    return checkAlignAndTrans(16, std::array{ValType(ValTypeCode::I32)},
-                              std::array{ValType(ValTypeCode::I64)});
+    return checkAlignAndTrans(16, std::array{ValType(TypeCode::I32)},
+                              std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__load32_u:
-    return checkAlignAndTrans(32, std::array{ValType(ValTypeCode::I32)},
-                              std::array{ValType(ValTypeCode::I64)});
+    return checkAlignAndTrans(32, std::array{ValType(TypeCode::I32)},
+                              std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__store:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        {});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)}, {});
   case OpCode::I64__atomic__store:
     return checkAlignAndTrans(
-        64, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        {});
+        64, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)}, {});
   case OpCode::I32__atomic__store8:
     return checkAlignAndTrans(
-        8, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        {});
+        8, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)}, {});
   case OpCode::I32__atomic__store16:
     return checkAlignAndTrans(
-        16, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        {});
+        16, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)}, {});
   case OpCode::I64__atomic__store8:
     return checkAlignAndTrans(
-        8, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        {});
+        8, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)}, {});
   case OpCode::I64__atomic__store16:
     return checkAlignAndTrans(
-        16, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        {});
+        16, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)}, {});
   case OpCode::I64__atomic__store32:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        {});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)}, {});
   case OpCode::I32__atomic__rmw__add:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__rmw__add:
     return checkAlignAndTrans(
-        64, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        64, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__rmw8__add_u:
     return checkAlignAndTrans(
-        8, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        8, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I32__atomic__rmw16__add_u:
     return checkAlignAndTrans(
-        16, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        16, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__rmw8__add_u:
     return checkAlignAndTrans(
-        8, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        8, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__rmw16__add_u:
     return checkAlignAndTrans(
-        16, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        16, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__rmw32__add_u:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__rmw__sub:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__rmw__sub:
     return checkAlignAndTrans(
-        64, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        64, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__rmw8__sub_u:
     return checkAlignAndTrans(
-        8, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        8, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I32__atomic__rmw16__sub_u:
     return checkAlignAndTrans(
-        16, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        16, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__rmw8__sub_u:
     return checkAlignAndTrans(
-        8, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        8, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__rmw16__sub_u:
     return checkAlignAndTrans(
-        16, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        16, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__rmw32__sub_u:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__rmw__and:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__rmw__and:
     return checkAlignAndTrans(
-        64, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        64, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__rmw8__and_u:
     return checkAlignAndTrans(
-        8, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        8, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I32__atomic__rmw16__and_u:
     return checkAlignAndTrans(
-        16, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        16, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__rmw8__and_u:
     return checkAlignAndTrans(
-        8, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        8, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__rmw16__and_u:
     return checkAlignAndTrans(
-        16, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        16, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__rmw32__and_u:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__rmw__or:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__rmw__or:
     return checkAlignAndTrans(
-        64, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        64, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__rmw8__or_u:
     return checkAlignAndTrans(
-        8, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        8, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I32__atomic__rmw16__or_u:
     return checkAlignAndTrans(
-        16, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        16, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__rmw8__or_u:
     return checkAlignAndTrans(
-        8, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        8, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__rmw16__or_u:
     return checkAlignAndTrans(
-        16, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        16, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__rmw32__or_u:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__rmw__xor:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__rmw__xor:
     return checkAlignAndTrans(
-        64, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        64, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__rmw8__xor_u:
     return checkAlignAndTrans(
-        8, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        8, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I32__atomic__rmw16__xor_u:
     return checkAlignAndTrans(
-        16, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        16, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__rmw8__xor_u:
     return checkAlignAndTrans(
-        8, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        8, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__rmw16__xor_u:
     return checkAlignAndTrans(
-        16, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        16, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__rmw32__xor_u:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__rmw__xchg:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__rmw__xchg:
     return checkAlignAndTrans(
-        64, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        64, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__rmw8__xchg_u:
     return checkAlignAndTrans(
-        8, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        8, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I32__atomic__rmw16__xchg_u:
     return checkAlignAndTrans(
-        16, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I32)},
-        std::array{ValType(ValTypeCode::I32)});
+        16, std::array{ValType(TypeCode::I32), ValType(TypeCode::I32)},
+        std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__rmw8__xchg_u:
     return checkAlignAndTrans(
-        8, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        8, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__rmw16__xchg_u:
     return checkAlignAndTrans(
-        16, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        16, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__rmw32__xchg_u:
     return checkAlignAndTrans(
-        32, std::array{ValType(ValTypeCode::I32), ValType(ValTypeCode::I64)},
-        std::array{ValType(ValTypeCode::I64)});
+        32, std::array{ValType(TypeCode::I32), ValType(TypeCode::I64)},
+        std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__rmw__cmpxchg:
     return checkAlignAndTrans(32,
-                              std::array{ValType(ValTypeCode::I32),
-                                         ValType(ValTypeCode::I32),
-                                         ValType(ValTypeCode::I32)},
-                              std::array{ValType(ValTypeCode::I32)});
+                              std::array{ValType(TypeCode::I32),
+                                         ValType(TypeCode::I32),
+                                         ValType(TypeCode::I32)},
+                              std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__rmw__cmpxchg:
     return checkAlignAndTrans(64,
-                              std::array{ValType(ValTypeCode::I32),
-                                         ValType(ValTypeCode::I64),
-                                         ValType(ValTypeCode::I64)},
-                              std::array{ValType(ValTypeCode::I64)});
+                              std::array{ValType(TypeCode::I32),
+                                         ValType(TypeCode::I64),
+                                         ValType(TypeCode::I64)},
+                              std::array{ValType(TypeCode::I64)});
   case OpCode::I32__atomic__rmw8__cmpxchg_u:
     return checkAlignAndTrans(8,
-                              std::array{ValType(ValTypeCode::I32),
-                                         ValType(ValTypeCode::I32),
-                                         ValType(ValTypeCode::I32)},
-                              std::array{ValType(ValTypeCode::I32)});
+                              std::array{ValType(TypeCode::I32),
+                                         ValType(TypeCode::I32),
+                                         ValType(TypeCode::I32)},
+                              std::array{ValType(TypeCode::I32)});
   case OpCode::I32__atomic__rmw16__cmpxchg_u:
     return checkAlignAndTrans(16,
-                              std::array{ValType(ValTypeCode::I32),
-                                         ValType(ValTypeCode::I32),
-                                         ValType(ValTypeCode::I32)},
-                              std::array{ValType(ValTypeCode::I32)});
+                              std::array{ValType(TypeCode::I32),
+                                         ValType(TypeCode::I32),
+                                         ValType(TypeCode::I32)},
+                              std::array{ValType(TypeCode::I32)});
   case OpCode::I64__atomic__rmw8__cmpxchg_u:
     return checkAlignAndTrans(8,
-                              std::array{ValType(ValTypeCode::I32),
-                                         ValType(ValTypeCode::I64),
-                                         ValType(ValTypeCode::I64)},
-                              std::array{ValType(ValTypeCode::I64)});
+                              std::array{ValType(TypeCode::I32),
+                                         ValType(TypeCode::I64),
+                                         ValType(TypeCode::I64)},
+                              std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__rmw16__cmpxchg_u:
     return checkAlignAndTrans(16,
-                              std::array{ValType(ValTypeCode::I32),
-                                         ValType(ValTypeCode::I64),
-                                         ValType(ValTypeCode::I64)},
-                              std::array{ValType(ValTypeCode::I64)});
+                              std::array{ValType(TypeCode::I32),
+                                         ValType(TypeCode::I64),
+                                         ValType(TypeCode::I64)},
+                              std::array{ValType(TypeCode::I64)});
   case OpCode::I64__atomic__rmw32__cmpxchg_u:
     return checkAlignAndTrans(32,
-                              std::array{ValType(ValTypeCode::I32),
-                                         ValType(ValTypeCode::I64),
-                                         ValType(ValTypeCode::I64)},
-                              std::array{ValType(ValTypeCode::I64)});
+                              std::array{ValType(TypeCode::I32),
+                                         ValType(TypeCode::I64),
+                                         ValType(TypeCode::I64)},
+                              std::array{ValType(TypeCode::I64)});
 
   default:
     assumingUnreachable();

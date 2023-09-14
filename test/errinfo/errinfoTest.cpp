@@ -84,13 +84,13 @@ TEST(ErrInfoTest, Info__Executing) {
 TEST(ErrInfoTest, Info__Mismatch) {
   WasmEdge::ErrInfo::InfoMismatch Info1(static_cast<uint8_t>(16), 8888);
   fmt::print("{}\n"sv, Info1);
-  WasmEdge::ErrInfo::InfoMismatch Info2(WasmEdge::ValTypeCode::ExternRef,
-                                        WasmEdge::ValTypeCode::FuncRef);
+  WasmEdge::ErrInfo::InfoMismatch Info2(WasmEdge::TypeCode::ExternRef,
+                                        WasmEdge::TypeCode::FuncRef);
   fmt::print("{}\n"sv, Info2);
   WasmEdge::ErrInfo::InfoMismatch Info3(
-      {WasmEdge::ValTypeCode::I32, WasmEdge::ValTypeCode::FuncRef},
-      {WasmEdge::ValTypeCode::F64, WasmEdge::ValTypeCode::ExternRef,
-       WasmEdge::ValTypeCode::V128});
+      {WasmEdge::TypeCode::I32, WasmEdge::TypeCode::FuncRef},
+      {WasmEdge::TypeCode::F64, WasmEdge::TypeCode::ExternRef,
+       WasmEdge::TypeCode::V128});
   fmt::print("{}\n"sv, Info3);
   WasmEdge::ErrInfo::InfoMismatch Info4(WasmEdge::ValMut::Const,
                                         WasmEdge::ValMut::Var);
@@ -99,18 +99,18 @@ TEST(ErrInfoTest, Info__Mismatch) {
                                         WasmEdge::ExternalType::Global);
   fmt::print("{}\n"sv, Info5);
   WasmEdge::ErrInfo::InfoMismatch Info6(
-      {WasmEdge::ValTypeCode::I32, WasmEdge::ValTypeCode::FuncRef},
-      {WasmEdge::ValTypeCode::I64, WasmEdge::ValTypeCode::F64},
-      {WasmEdge::ValTypeCode::F64, WasmEdge::ValTypeCode::ExternRef,
-       WasmEdge::ValTypeCode::V128},
-      {WasmEdge::ValTypeCode::V128});
+      {WasmEdge::TypeCode::I32, WasmEdge::TypeCode::FuncRef},
+      {WasmEdge::TypeCode::I64, WasmEdge::TypeCode::F64},
+      {WasmEdge::TypeCode::F64, WasmEdge::TypeCode::ExternRef,
+       WasmEdge::TypeCode::V128},
+      {WasmEdge::TypeCode::V128});
   fmt::print("{}\n"sv, Info6);
-  WasmEdge::ErrInfo::InfoMismatch Info7(WasmEdge::RefTypeCode::ExternRef, true,
-                                        10, 20, WasmEdge::RefTypeCode::FuncRef,
-                                        true, 20, 50);
+  WasmEdge::ErrInfo::InfoMismatch Info7(WasmEdge::TypeCode::ExternRef, true, 10,
+                                        20, WasmEdge::TypeCode::FuncRef, true,
+                                        20, 50);
   fmt::print("{}\n"sv, Info7);
-  WasmEdge::ErrInfo::InfoMismatch Info8(WasmEdge::RefTypeCode::ExternRef, false,
-                                        10, 10, WasmEdge::RefTypeCode::FuncRef,
+  WasmEdge::ErrInfo::InfoMismatch Info8(WasmEdge::TypeCode::ExternRef, false,
+                                        10, 10, WasmEdge::TypeCode::FuncRef,
                                         false, 20, 20);
   fmt::print("{}\n"sv, Info8);
   WasmEdge::ErrInfo::InfoMismatch Info9(true, 10, 20, true, 20, 50);
@@ -118,8 +118,8 @@ TEST(ErrInfoTest, Info__Mismatch) {
   WasmEdge::ErrInfo::InfoMismatch Info10(false, 10, 10, false, 20, 20);
   fmt::print("{}\n"sv, Info10);
   WasmEdge::ErrInfo::InfoMismatch Info11(
-      WasmEdge::ValTypeCode::I32, WasmEdge::ValMut::Var,
-      WasmEdge::ValTypeCode::I64, WasmEdge::ValMut::Const);
+      WasmEdge::TypeCode::I32, WasmEdge::ValMut::Var, WasmEdge::TypeCode::I64,
+      WasmEdge::ValMut::Const);
   fmt::print("{}\n"sv, Info11);
   WasmEdge::ErrInfo::InfoMismatch Info12(12345678U, 98765432U);
   fmt::print("{}\n"sv, Info12);
@@ -134,44 +134,44 @@ TEST(ErrInfoTest, Info__Instruction) {
           reinterpret_cast<WasmEdge::Runtime::Instance::FunctionInstance *>(
               100))};
   WasmEdge::ErrInfo::InfoInstruction Info1(WasmEdge::OpCode::Block, 255, Args,
-                                           {WasmEdge::ValTypeCode::I32,
-                                            WasmEdge::ValTypeCode::I32,
-                                            WasmEdge::ValTypeCode::I32});
+                                           {WasmEdge::TypeCode::I32,
+                                            WasmEdge::TypeCode::I32,
+                                            WasmEdge::TypeCode::I32});
   fmt::print("{}\n"sv, Info1);
   WasmEdge::ErrInfo::InfoInstruction Info2(WasmEdge::OpCode::Block, 255, Args,
-                                           {WasmEdge::ValTypeCode::I32,
-                                            WasmEdge::ValTypeCode::I32,
-                                            WasmEdge::ValTypeCode::I32});
+                                           {WasmEdge::TypeCode::I32,
+                                            WasmEdge::TypeCode::I32,
+                                            WasmEdge::TypeCode::I32});
   fmt::print("{}\n"sv, Info2);
   WasmEdge::ErrInfo::InfoInstruction Info3(WasmEdge::OpCode::Block, 255, Args,
-                                           {WasmEdge::ValTypeCode::I64,
-                                            WasmEdge::ValTypeCode::I64,
-                                            WasmEdge::ValTypeCode::I64});
+                                           {WasmEdge::TypeCode::I64,
+                                            WasmEdge::TypeCode::I64,
+                                            WasmEdge::TypeCode::I64});
   fmt::print("{}\n"sv, Info3);
   WasmEdge::ErrInfo::InfoInstruction Info4(WasmEdge::OpCode::Block, 255, Args,
-                                           {WasmEdge::ValTypeCode::F32,
-                                            WasmEdge::ValTypeCode::F32,
-                                            WasmEdge::ValTypeCode::F32});
+                                           {WasmEdge::TypeCode::F32,
+                                            WasmEdge::TypeCode::F32,
+                                            WasmEdge::TypeCode::F32});
   fmt::print("{}\n"sv, Info4);
   WasmEdge::ErrInfo::InfoInstruction Info5(WasmEdge::OpCode::Block, 255, Args,
-                                           {WasmEdge::ValTypeCode::F64,
-                                            WasmEdge::ValTypeCode::F64,
-                                            WasmEdge::ValTypeCode::F64});
+                                           {WasmEdge::TypeCode::F64,
+                                            WasmEdge::TypeCode::F64,
+                                            WasmEdge::TypeCode::F64});
   fmt::print("{}\n"sv, Info5);
   WasmEdge::ErrInfo::InfoInstruction Info6(WasmEdge::OpCode::Block, 255, Args,
-                                           {WasmEdge::ValTypeCode::V128,
-                                            WasmEdge::ValTypeCode::V128,
-                                            WasmEdge::ValTypeCode::V128});
+                                           {WasmEdge::TypeCode::V128,
+                                            WasmEdge::TypeCode::V128,
+                                            WasmEdge::TypeCode::V128});
   fmt::print("{}\n"sv, Info6);
   WasmEdge::ErrInfo::InfoInstruction Info7(WasmEdge::OpCode::Block, 255, Args,
-                                           {WasmEdge::ValTypeCode::FuncRef,
-                                            WasmEdge::ValTypeCode::FuncRef,
-                                            WasmEdge::ValTypeCode::FuncRef});
+                                           {WasmEdge::TypeCode::FuncRef,
+                                            WasmEdge::TypeCode::FuncRef,
+                                            WasmEdge::TypeCode::FuncRef});
   fmt::print("{}\n"sv, Info7);
   WasmEdge::ErrInfo::InfoInstruction Info8(WasmEdge::OpCode::Block, 255, Args,
-                                           {WasmEdge::ValTypeCode::ExternRef,
-                                            WasmEdge::ValTypeCode::ExternRef,
-                                            WasmEdge::ValTypeCode::ExternRef});
+                                           {WasmEdge::TypeCode::ExternRef,
+                                            WasmEdge::TypeCode::ExternRef,
+                                            WasmEdge::TypeCode::ExternRef});
   fmt::print("{}\n"sv, Info8);
   EXPECT_TRUE(true);
 }

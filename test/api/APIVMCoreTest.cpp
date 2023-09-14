@@ -187,7 +187,9 @@ TEST_P(CoreTest, TestSuites) {
 }
 
 // Initiate test suite.
-INSTANTIATE_TEST_SUITE_P(TestUnit, CoreTest, testing::ValuesIn(T.enumerate()));
+INSTANTIATE_TEST_SUITE_P(
+    TestUnit, CoreTest,
+    testing::ValuesIn(T.enumerate(SpecTest::TestMode::Interpreter)));
 
 std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
@@ -199,7 +201,7 @@ TEST(AsyncRunWsmFile, InterruptTest) {
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(nullptr, nullptr);
   {
     WasmEdge_Async *AsyncCxt = WasmEdge_VMAsyncRunWasmFromBuffer(
-        VM, AsyncWasm.data(), AsyncWasm.size(),
+        VM, AsyncWasm.data(), static_cast<uint32_t>(AsyncWasm.size()),
         WasmEdge_StringWrap("_start", 6), nullptr, 0);
     EXPECT_NE(AsyncCxt, nullptr);
     EXPECT_FALSE(WasmEdge_AsyncWaitFor(AsyncCxt, 1));
@@ -215,7 +217,7 @@ TEST(AsyncRunWsmFile, InterruptTest) {
 TEST(AsyncExecute, InterruptTest) {
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(nullptr, nullptr);
   ASSERT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_VMLoadWasmFromBuffer(VM, AsyncWasm.data(), AsyncWasm.size())));
+      WasmEdge_VMLoadWasmFromBuffer(VM, AsyncWasm.data(), static_cast<uint32_t>(AsyncWasm.size()))));
   ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
   ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
   {

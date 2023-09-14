@@ -28,7 +28,7 @@ namespace {
 #if WINAPI_PARTITION_DESKTOP
 inline constexpr uint64_t combineHighLow(uint32_t HighPart,
                                          uint32_t LowPart) noexcept {
-  const ULARGE_INTEGER_ Temp = {.LowPart = LowPart, .HighPart = HighPart};
+  const ULARGE_INTEGER_ Temp = {/* LowPart */ LowPart, /* HighPart */ HighPart};
   return Temp.QuadPart;
 }
 #endif
@@ -222,9 +222,9 @@ getHandlePath(HANDLE_ Handle) noexcept {
   // First get the path of the handle
 #if NTDDI_VERSION >= NTDDI_VISTA
   std::array<wchar_t, UNICODE_STRING_MAX_CHARS_ + 1> Buffer;
-  const auto Size =
-      GetFinalPathNameByHandleW(Handle, Buffer.data(), Buffer.size(),
-                                FILE_NAME_NORMALIZED_ | VOLUME_NAME_DOS_);
+  const auto Size = GetFinalPathNameByHandleW(
+      Handle, Buffer.data(), static_cast<DWORD_>(Buffer.size()),
+      FILE_NAME_NORMALIZED_ | VOLUME_NAME_DOS_);
   if (unlikely(Size == 0)) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
@@ -760,15 +760,18 @@ WasiExpect<void> INode::fdAdvise(__wasi_filesize_t Offset, __wasi_filesize_t,
 
 WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
                                    __wasi_filesize_t Len) const noexcept {
-  if (unlikely(Offset > std::numeric_limits<int64_t>::max())) {
+  if (unlikely(Offset >
+               static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
 
-  if (unlikely(Len > std::numeric_limits<int64_t>::max())) {
+  if (unlikely(Len >
+               static_cast<uint64_t>((std::numeric_limits<int64_t>::max())))) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
 
-  if (unlikely((Offset + Len) > std::numeric_limits<int64_t>::max())) {
+  if (unlikely((Offset + Len) >
+               static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
 
@@ -790,12 +793,12 @@ WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
 #else
-  LARGE_INTEGER_ Old = {.QuadPart = 0};
+  LARGE_INTEGER_ Old = _LARGE_INTEGER(0);
   if (unlikely(!SetFilePointerEx(Handle, Old, &Old, FILE_CURRENT_))) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
 
-  LARGE_INTEGER_ New = {.QuadPart = RequestSize};
+  LARGE_INTEGER_ New = _LARGE_INTEGER(RequestSize);
   if (unlikely(!SetFilePointerEx(Handle, New, nullptr, FILE_BEGIN_))) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
@@ -867,7 +870,8 @@ INode::fdFilestatGet(__wasi_filestat_t &FileStat) const noexcept {
 
 WasiExpect<void>
 INode::fdFilestatSetSize(__wasi_filesize_t Size) const noexcept {
-  if (unlikely(Size > std::numeric_limits<int64_t>::max())) {
+  if (unlikely(Size >
+               static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
 
@@ -882,12 +886,12 @@ INode::fdFilestatSetSize(__wasi_filesize_t Size) const noexcept {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
 #else
-  LARGE_INTEGER_ Old = {.QuadPart = 0};
+  LARGE_INTEGER_ Old = _LARGE_INTEGER(0);
   if (unlikely(!SetFilePointerEx(Handle, Old, &Old, FILE_CURRENT_))) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
 
-  LARGE_INTEGER_ New = {.QuadPart = RequestSize};
+  LARGE_INTEGER_ New = _LARGE_INTEGER(RequestSize);
   if (unlikely(!SetFilePointerEx(Handle, New, nullptr, FILE_BEGIN_))) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
@@ -943,7 +947,7 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
                                 __wasi_size_t &NRead) const noexcept {
   WasiExpect<void> Result;
   std::vector<OVERLAPPED_> Queries(IOVs.size());
-  ULARGE_INTEGER_ LocalOffset = {.QuadPart = Offset};
+  ULARGE_INTEGER_ LocalOffset = _ULARGE_INTEGER(Offset);
 
   for (size_t I = 0; I < IOVs.size(); ++I) {
     auto &IOV = IOVs[I];
@@ -987,7 +991,7 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
   const bool Append = SavedFdFlags & __WASI_FDFLAGS_APPEND;
   WasiExpect<void> Result;
   std::vector<OVERLAPPED_> Queries(IOVs.size());
-  ULARGE_INTEGER_ LocalOffset = {.QuadPart = Offset};
+  ULARGE_INTEGER_ LocalOffset = _ULARGE_INTEGER(Offset);
 
   for (size_t I = 0; I < IOVs.size(); ++I) {
     auto &IOV = IOVs[I];
@@ -1037,7 +1041,7 @@ WasiExpect<void> INode::fdRead(Span<Span<uint8_t>> IOVs,
                                __wasi_size_t &NRead) const noexcept {
   WasiExpect<void> Result;
   std::vector<OVERLAPPED_> Queries(IOVs.size());
-  LARGE_INTEGER_ OldOffset = {.QuadPart = 0};
+  LARGE_INTEGER_ OldOffset = _LARGE_INTEGER(0);
   if (unlikely(
           !SetFilePointerEx(Handle, OldOffset, &OldOffset, FILE_CURRENT_))) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
@@ -1105,7 +1109,7 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
   do {
     const auto Written = Find.write(Buffer);
     Buffer = Buffer.subspan(Written);
-    Size += Written;
+    Size += static_cast<uint32_t>(Written);
     if (unlikely(Buffer.empty())) {
       break;
     }
@@ -1133,7 +1137,7 @@ WasiExpect<void> INode::fdSeek(__wasi_filedelta_t Offset,
                                __wasi_whence_t Whence,
                                __wasi_filesize_t &Size) const noexcept {
   DWORD_ SysWhence = toWhence(Whence);
-  LARGE_INTEGER_ Pointer = {.QuadPart = Offset};
+  LARGE_INTEGER_ Pointer = _LARGE_INTEGER(Offset);
   if (unlikely(!SetFilePointerEx(Handle, Pointer, &Pointer, SysWhence))) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
@@ -1149,7 +1153,7 @@ WasiExpect<void> INode::fdSync() const noexcept {
 }
 
 WasiExpect<void> INode::fdTell(__wasi_filesize_t &Size) const noexcept {
-  LARGE_INTEGER_ Pointer = {.QuadPart = 0};
+  LARGE_INTEGER_ Pointer = _LARGE_INTEGER(0);
   if (unlikely(!SetFilePointerEx(Handle, Pointer, &Pointer, FILE_CURRENT_))) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
@@ -1162,7 +1166,7 @@ WasiExpect<void> INode::fdWrite(Span<Span<const uint8_t>> IOVs,
   const bool Append = SavedFdFlags & __WASI_FDFLAGS_APPEND;
   WasiExpect<void> Result;
   std::vector<OVERLAPPED_> Queries(IOVs.size());
-  LARGE_INTEGER_ OldOffset = {.QuadPart = 0};
+  LARGE_INTEGER_ OldOffset = _LARGE_INTEGER(0);
   if (!Append) {
     if (unlikely(
             !SetFilePointerEx(Handle, OldOffset, &OldOffset, FILE_CURRENT_))) {

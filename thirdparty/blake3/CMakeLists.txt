@@ -28,9 +28,11 @@ if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "
   set(SIMD_AVX512_WIN_FILES
     blake3_avx512_x86-64_unix.S
   )
-  set_source_files_properties(blake3_avx2.c PROPERTIES COMPILE_FLAGS -mavx2)
-  set_source_files_properties(blake3_sse2.c PROPERTIES COMPILE_FLAGS -msse2)
-  set_source_files_properties(blake3_sse41.c PROPERTIES COMPILE_FLAGS -msse4.1)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    set_source_files_properties(blake3_avx2.c PROPERTIES COMPILE_FLAGS -mavx2)
+    set_source_files_properties(blake3_sse2.c PROPERTIES COMPILE_FLAGS -msse2)
+    set_source_files_properties(blake3_sse41.c PROPERTIES COMPILE_FLAGS -msse4.1)
+  endif()
   set(SIMD_DEFS)
 
   if(CMAKE_ASM-ATT_COMPILER_ID STREQUAL "GNU")
@@ -86,19 +88,21 @@ wasmedge_add_library(utilBlake3
   ${SIMD_FILES}
 )
 
-target_compile_options(utilBlake3
-  PRIVATE
-  -Wno-assign-enum
-  -Wno-cast-align
-  -Wno-cast-qual
-  -Wno-implicit-int-conversion
-  -Wno-language-extension-token
-  -Wno-missing-prototypes
-  -Wno-pointer-sign
-  -Wno-shorten-64-to-32
-  -Wno-sign-conversion
-  -Wno-unused-function
-)
+if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  target_compile_options(utilBlake3
+    PRIVATE
+    -Wno-assign-enum
+    -Wno-cast-align
+    -Wno-cast-qual
+    -Wno-implicit-int-conversion
+    -Wno-language-extension-token
+    -Wno-missing-prototypes
+    -Wno-pointer-sign
+    -Wno-shorten-64-to-32
+    -Wno-sign-conversion
+    -Wno-unused-function
+  )
+endif()
 
 target_include_directories(utilBlake3
   PUBLIC

@@ -99,7 +99,7 @@ void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
 }
 
 void FormChecker::addData(const AST::DataSegment &) {
-  Datas.emplace_back(Datas.size());
+  Datas.emplace_back(static_cast<uint32_t>(Datas.size()));
 }
 
 void FormChecker::addElem(const AST::ElementSegment &Elem) {

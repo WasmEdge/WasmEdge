@@ -188,7 +188,8 @@ private:
   std::atomic<bool> InstrCounting = false;
   std::atomic<bool> CostMeasuring = false;
   std::atomic<bool> TimeMeasuring = false;
-  std::atomic<uint64_t> CostLimit = UINT64_C(-1);
+
+  std::atomic<uint64_t> CostLimit = std::numeric_limits<uint64_t>::max();
 };
 
 class Configure {

@@ -43,10 +43,16 @@ struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StackManager &,
 
 // Intrinsics table
 const AST::Module::IntrinsicsTable Executor::Intrinsics = {
+#if defined(_MSC_VER) && !defined(__clang__)
+#define ENTRY(NAME, FUNC)                                                      \
+  reinterpret_cast<void *>(&Executor::ProxyHelper<                             \
+                           decltype(&Executor::FUNC)>::proxy<&Executor::FUNC>)
+#else
 #define ENTRY(NAME, FUNC)                                                      \
   [uint8_t(AST::Module::Intrinsics::NAME)] = reinterpret_cast<void *>(         \
       &Executor::ProxyHelper<decltype(&Executor::FUNC)>::proxy<                \
           &Executor::FUNC>)
+#endif
     ENTRY(kTrap, trap),
     ENTRY(kCall, call),
     ENTRY(kCallIndirect, callIndirect),

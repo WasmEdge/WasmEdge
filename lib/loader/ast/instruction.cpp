@@ -23,7 +23,7 @@ Expect<OpCode> Loader::loadOpCode() {
     // 2-bytes OpCode case.
     if (auto B2 = FMgr.readU32()) {
       Payload <<= 8;
-      Payload += (*B2);
+      Payload += static_cast<uint16_t>(*B2);
     } else {
       return Unexpect(B2);
     }
@@ -100,7 +100,7 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     }
 
     // Create the instruction node and load contents.
-    Instrs.emplace_back(Code, Offset);
+    Instrs.emplace_back(Code, static_cast<uint32_t>(Offset));
     if (auto Res = loadInstruction(Instrs.back()); !Res) {
       return Unexpect(Res);
     }

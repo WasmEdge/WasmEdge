@@ -13,8 +13,8 @@ public:
     WasmEdgeFFmpegAVUtilModule(std::shared_ptr<WasmEdgeFFmpegEnv> Env);
 };
 
-}
-}
-};
-}
+} // namespace AVUtil
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge
 

@@ -76,15 +76,18 @@ private:
       auto *Out = CallFrame.getMemoryByIndex(Index);                               \
       if (unlikely(Out == nullptr)) {                                              \
         spdlog::error("[WasmEdge-FFmpeg] Memory instance not found."sv);           \
-        return static_cast<int32_t >(ErrNo::MissingMemory);                        \
+        return static_cast<int32_t>(ErrNo::MissingMemory);                        \
       }
 
-#define SESSION_CHECK(Out, SessionID, Message, ErrNo)                          \
-      auto *Out = Env.getContext(SessionID);                                       \
-      if (unlikely(Out == nullptr)) {                                              \
-        spdlog::error("[WasmEdge-FFmpeg] "sv Message);                         \
-        return static_cast<uint32_t>(ErrNo);                                       \
-      }
+// If FFmpegStructID == 0, means Struct Pointer Doesn't exist in WasmEdge Plugin.
+#define FFMPEG_PTR_FETCH(StructPtr,FFmpegStructId,Type,Message,isRequired)             \
+      Type* StructPtr = NULL;                                                           \
+      if (unlikely(isRequired && FFmpegStructId == 0)) {                           \
+        spdlog::error("[WasmEdge-FFmpeg] No Memory Address found for "sv Message);       \
+        return static_cast<int32_t>(ErrNo::NullStructId);                          \
+      }                                                                             \
+      if(FFmpegStructId != 0)                                                       \
+        StructPtr = static_cast<Type*>(Env.get()->fetchData(FFmpegStructId));             \
 
 #define MEM_SPAN_CHECK(OutSpan, MemInst, Type, BufPtr, BufLen, Message)        \
       auto OutSpan = MemInst->getSpan<Type>(BufPtr, BufLen);                       \
@@ -93,16 +96,15 @@ private:
         return static_cast<uint32_t>(ErrNo::MissingMemory);                        \
       }
 
-#define MEM_SV_CHECK(OutSV, MemInst, BufPtr, BufLen, Message)                  \
-      auto OutSV = MemInst->getStringView(BufPtr, BufLen);                         \
-      if (unlikely(OutSV.size() != BufLen)) {                                      \
-        spdlog::error("[WasmEdge-FFmpeg] "sv Message);                         \
-        return static_cast<uint32_t>(ErrNo::MissingMemory);                        \
-      }
+#define FFMPEG_PTR_STORE(StructPtr, FFmpegStructId)         \
+      Env.get()->alloc(StructPtr,FFmpegStructId);           \
 
-#define MEM_PTR_CHECK(OutPtr, MemInst, Type, Offset, Message,isRequired)                  \
+#define FFMPEG_PTR_DELETE(FFmpegStructId)         \
+        Env.get()->dealloc(FFmpegStructId);          \
+
+#define MEM_PTR_CHECK(OutPtr, MemInst, Type, Offset, Message)                  \
       Type *OutPtr = MemInst->getPointerOrNull<Type *>(Offset);                                     \
-      if (isRequired && unlikely(OutPtr == nullptr)) {                                           \
+      if (unlikely(OutPtr == nullptr)) {                                           \
         spdlog::error("[WasmEdge-FFmpeg] "sv Message);                         \
         return static_cast<int32_t>(ErrNo::MissingMemory);                        \
       }
@@ -111,13 +113,10 @@ private:
   // Hence using 200.
   enum class ErrNo : int32_t {
     Success = 0,         // No error occurred.
-    InvalidArgument = -200, // Caller module passed an invalid argument.
-    InvalidEncoding = -201, // Invalid encoding.
-    MissingMemory = -202,   // Caller module is missing a memory export.
-    Busy = -203,            // Device or resource busy.
-    RuntimeError = -204,    // Runtime Error.
+    MissingMemory = -201,   // Caller module is missing a memory export.
+    NullStructId = -202 // Rust Sdk Passes null id.
   };
 
-}
-}
-}
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

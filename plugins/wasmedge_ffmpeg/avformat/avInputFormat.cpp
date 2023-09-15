@@ -7,7 +7,7 @@ namespace WasmEdgeFFmpeg {
 namespace AVFormat {
 
 // Need to write logic to return string back to rust....
-Expect<void> AVInputFormat_name::body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr) {
+Expect<void> AVInputFormatName::body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr) {
   auto* MemInst = Frame.getMemoryByIndex(0);
   uint32_t* avFormatCtxIdx = MemInst->getPointerOrNull<uint32_t*>(avInputFormatPtr);
   if(avFormatCtxIdx == nullptr){
@@ -21,7 +21,7 @@ Expect<void> AVInputFormat_name::body(const Runtime::CallingFrame &Frame, uint32
   return {};
 }
 
-Expect<void> AVInputFormat_long_name::body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr) {
+Expect<void> AVInputFormatLongName::body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr) {
 
     auto* MemInst = Frame.getMemoryByIndex(0);
     uint32_t* avFormatCtxIdx = MemInst->getPointerOrNull<uint32_t*>(avInputFormatPtr);
@@ -36,7 +36,7 @@ Expect<void> AVInputFormat_long_name::body(const Runtime::CallingFrame &Frame, u
     return {};
 }
 
-Expect<void> AVInputFormat_extensions::body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr) {
+Expect<void> AVInputFormatExtensions::body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr) {
 
     auto* MemInst = Frame.getMemoryByIndex(0);
     uint32_t* avFormatCtxIdx = MemInst->getPointerOrNull<uint32_t*>(avInputFormatPtr);
@@ -51,7 +51,7 @@ Expect<void> AVInputFormat_extensions::body(const Runtime::CallingFrame &Frame, 
     return {};
 }
 
-Expect<void> AVInputFormat_mime_type::body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr) {
+Expect<void> AVInputFormatMimeType::body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr) {
 
     auto* MemInst = Frame.getMemoryByIndex(0);
     uint32_t* avFormatCtxIdx = MemInst->getPointerOrNull<uint32_t*>(avInputFormatPtr);
@@ -65,7 +65,8 @@ Expect<void> AVInputFormat_mime_type::body(const Runtime::CallingFrame &Frame, u
     printf("%s",avInputFormat->mime_type);
     return {};
 }
-}
-}
-}
-}
+
+} // namespace AVFormat
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

@@ -6,7 +6,7 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVUtil{
 
-}
-}
-}
-}
+} // namespace AVUtil
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

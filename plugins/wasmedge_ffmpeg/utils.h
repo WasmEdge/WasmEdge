@@ -3338,7 +3338,7 @@ public:
 };
 
 
-}
+} // namespace FFmpegUtils
 } // namespace WasmEdgeFFmpeg
 } // namespace Host
 } // namespace WasmEdge

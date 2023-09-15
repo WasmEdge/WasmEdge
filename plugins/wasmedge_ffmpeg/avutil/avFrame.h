@@ -38,14 +38,14 @@ class AVFrameSetWidth : public WasmEdgeFFmpegAVUtil<AVFrameSetWidth> {
 public:
   AVFrameSetWidth(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
-  Expect<void> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint32_t width);
+  Expect<void> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint32_t Width);
 };
 
 class AVFrameSetHeight : public WasmEdgeFFmpegAVUtil<AVFrameSetHeight> {
 public:
   AVFrameSetHeight(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
-  Expect<void> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint32_t height);
+  Expect<void> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint32_t Height);
 };
 
 class AVFrameFormat : public WasmEdgeFFmpegAVUtil<AVFrameFormat> {
@@ -55,8 +55,16 @@ public:
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId);
 };
 
+class AVFrameIsNull : public WasmEdgeFFmpegAVUtil<AVFrameIsNull> {
+public:
+  AVFrameIsNull(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId);
+};
 
-}
-}
-}
-}
+
+
+} // namespace AVUtil
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

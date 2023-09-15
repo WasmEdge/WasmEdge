@@ -7,22 +7,22 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVcodec {
 
-class AVCodecParam_codecId : public WasmEdgeFFmpegAVCodec<AVCodecParam_codecId> {
+class AVCodecParamCodecId : public WasmEdgeFFmpegAVCodec<AVCodecParamCodecId> {
 public:
-  AVCodecParam_codecId(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+  AVCodecParamCodecId(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVCodec(HostEnv) {}
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,uint32_t avCodecParamId);
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,uint32_t AvCodecParamId);
 };
 
-class AVCodecParam_codecType : public WasmEdgeFFmpegAVCodec<AVCodecParam_codecType> {
+class AVCodecParamCodecType : public WasmEdgeFFmpegAVCodec<AVCodecParamCodecType> {
 public:
-  AVCodecParam_codecType(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+  AVCodecParamCodecType(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVCodec(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t avCodecParamId);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t AvCodecParamId);
 };
 
 
-}
-}
-}
-}
+} // namespace AVcodec
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

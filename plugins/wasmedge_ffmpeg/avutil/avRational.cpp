@@ -13,8 +13,8 @@ namespace AVUtil{
 Expect<int32_t> AVAddQ::body(const Runtime::CallingFrame &Frame,int32_t ANum,int32_t ADen,int32_t BNum,int32_t BDen,uint32_t CNumPtr,uint32_t CDenPtr){
 
   MEMINST_CHECK(MemInst,Frame,0);
-  MEM_PTR_CHECK(CNum,MemInst,int32_t ,CNumPtr,"Failed to access Numerator Ptr for AVRational",true);
-  MEM_PTR_CHECK(CDen,MemInst,int32_t ,CDenPtr,"Failed to access Denominator Ptr for AVRational",true);
+  MEM_PTR_CHECK(CNum,MemInst,int32_t ,CNumPtr,"Failed to access Numerator Ptr for AVRational");
+  MEM_PTR_CHECK(CDen,MemInst,int32_t ,CDenPtr,"Failed to access Denominator Ptr for AVRational");
 
   AVRational const A = av_make_q(ANum,ADen);
   AVRational const B = av_make_q(BNum,BDen);
@@ -30,8 +30,8 @@ Expect<int32_t> AVAddQ::body(const Runtime::CallingFrame &Frame,int32_t ANum,int
 Expect<int32_t> AVSubQ::body(const Runtime::CallingFrame &Frame,int32_t ANum,int32_t ADen,int32_t BNum,int32_t BDen,uint32_t CNumPtr,uint32_t CDenPtr){
 
   MEMINST_CHECK(MemInst,Frame,0);
-  MEM_PTR_CHECK(CNum,MemInst,int32_t ,CNumPtr,"Failed to access Numerator Ptr for AVRational",true);
-  MEM_PTR_CHECK(CDen,MemInst,int32_t ,CDenPtr,"Failed to access Denominator Ptr for AVRational",true);
+  MEM_PTR_CHECK(CNum,MemInst,int32_t ,CNumPtr,"Failed to access Numerator Ptr for AVRational");
+  MEM_PTR_CHECK(CDen,MemInst,int32_t ,CDenPtr,"Failed to access Denominator Ptr for AVRational");
 
   AVRational const A = av_make_q(ANum,ADen);
   AVRational const B = av_make_q(BNum,BDen);
@@ -45,8 +45,8 @@ Expect<int32_t> AVSubQ::body(const Runtime::CallingFrame &Frame,int32_t ANum,int
 Expect<int32_t> AVMulQ::body(const Runtime::CallingFrame &Frame,int32_t ANum,int32_t ADen,int32_t BNum,int32_t BDen,uint32_t CNumPtr,uint32_t CDenPtr){
 
   MEMINST_CHECK(MemInst,Frame,0);
-  MEM_PTR_CHECK(CNum,MemInst,int32_t ,CNumPtr,"Failed to access Numerator Ptr for AVRational",true);
-  MEM_PTR_CHECK(CDen,MemInst,int32_t ,CDenPtr,"Failed to access Denominator Ptr for AVRational",true);
+  MEM_PTR_CHECK(CNum,MemInst,int32_t ,CNumPtr,"Failed to access Numerator Ptr for AVRational");
+  MEM_PTR_CHECK(CDen,MemInst,int32_t ,CDenPtr,"Failed to access Denominator Ptr for AVRational");
 
   AVRational const A = av_make_q(ANum,ADen);
   AVRational const B = av_make_q(BNum,BDen);
@@ -60,8 +60,8 @@ Expect<int32_t> AVMulQ::body(const Runtime::CallingFrame &Frame,int32_t ANum,int
 Expect<int32_t> AVDivQ::body(const Runtime::CallingFrame &Frame,int32_t ANum,int32_t ADen,int32_t BNum,int32_t BDen,uint32_t CNumPtr,uint32_t CDenPtr){
 
   MEMINST_CHECK(MemInst,Frame,0);
-  MEM_PTR_CHECK(CNum,MemInst,int32_t ,CNumPtr,"Failed to access Numerator Ptr for AVRational",true);
-  MEM_PTR_CHECK(CDen,MemInst,int32_t ,CDenPtr,"Failed to access Denominator Ptr for AVRational",true);
+  MEM_PTR_CHECK(CNum,MemInst,int32_t ,CNumPtr,"Failed to access Numerator Ptr for AVRational");
+  MEM_PTR_CHECK(CDen,MemInst,int32_t ,CDenPtr,"Failed to access Denominator Ptr for AVRational");
 
   AVRational const A = av_make_q(ANum,ADen);
   AVRational const B = av_make_q(BNum,BDen);
@@ -94,13 +94,13 @@ Expect<double_t> AVQ2d::body(const Runtime::CallingFrame &,int32_t ANum,int32_t 
   return av_q2d(A);
 }
 
-Expect<int32_t> AVD2Q::body(const Runtime::CallingFrame &Frame,double_t d,int32_t max,uint32_t ANumPtr,uint32_t ADenPtr){
+Expect<int32_t> AVD2Q::body(const Runtime::CallingFrame &Frame,double_t D,int32_t Max,uint32_t ANumPtr,uint32_t ADenPtr){
 
   MEMINST_CHECK(MemInst,Frame,0);
-  MEM_PTR_CHECK(ANum,MemInst,int32_t,ANumPtr,"Failed to access Numerator Ptr for AVRational",true);
-  MEM_PTR_CHECK(ADen,MemInst,int32_t,ADenPtr,"Failed to access Denominator Ptr for AVRational",true);
+  MEM_PTR_CHECK(ANum,MemInst,int32_t,ANumPtr,"Failed to access Numerator Ptr for AVRational");
+  MEM_PTR_CHECK(ADen,MemInst,int32_t,ADenPtr,"Failed to access Denominator Ptr for AVRational");
 
-  AVRational const A = av_d2q(d,max);
+  AVRational const A = av_d2q(D,Max);
   *ANum = A.num;
   *ADen = A.den;
   return static_cast<int32_t>(ErrNo::Success);
@@ -115,8 +115,8 @@ Expect<uint32_t> AVQ2IntFloat::body(const Runtime::CallingFrame &,int32_t ANum,i
 Expect<int32_t> AVInvQ::body(const Runtime::CallingFrame &Frame,int32_t ANum,int32_t ADen,uint32_t BNumPtr, uint32_t BDenPtr){
 
   MEMINST_CHECK(MemInst,Frame,0);
-  MEM_PTR_CHECK(BNum,MemInst,int32_t,BNumPtr,"Failed to access Numerator Ptr for AVRational",true);
-  MEM_PTR_CHECK(BDen,MemInst,int32_t,BDenPtr,"Failed to access Denominator Ptr for AVRational",true);
+  MEM_PTR_CHECK(BNum,MemInst,int32_t,BNumPtr,"Failed to access Numerator Ptr for AVRational");
+  MEM_PTR_CHECK(BDen,MemInst,int32_t,BDenPtr,"Failed to access Denominator Ptr for AVRational");
 
   AVRational const A = av_make_q(ANum,ADen);
   AVRational const B =  av_inv_q(A);
@@ -129,13 +129,13 @@ Expect<int32_t> AVInvQ::body(const Runtime::CallingFrame &Frame,int32_t ANum,int
 Expect<int32_t> AVReduce::body(const Runtime::CallingFrame &Frame,uint32_t ANumPtr,uint32_t ADenPtr,int64_t BNum,int64_t BDen,int64_t Max){
 
   MEMINST_CHECK(MemInst,Frame,0);
-  MEM_PTR_CHECK(ANum,MemInst,int32_t,ANumPtr,"Failed to access Numerator Ptr for AVRational",true);
-  MEM_PTR_CHECK(ADen,MemInst,int32_t,ADenPtr,"Failed to access Denominator Ptr for AVRational",true);
+  MEM_PTR_CHECK(ANum,MemInst,int32_t,ANumPtr,"Failed to access Numerator Ptr for AVRational");
+  MEM_PTR_CHECK(ADen,MemInst,int32_t,ADenPtr,"Failed to access Denominator Ptr for AVRational");
   return av_reduce(ANum,ADen,BNum,BDen,Max);
 }
 
 
-}
-}
-}
+} // namespace AVUtil
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
 } // namespace WasmEdge

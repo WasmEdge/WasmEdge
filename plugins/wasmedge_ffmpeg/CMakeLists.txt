@@ -7,6 +7,7 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFfmpeg
         avcodec/avCodecContext.cpp
         avcodec/avCodec.cpp
         avcodec/avCodecParameters.cpp
+        avcodec/avPacket.cpp
 
         avformat/module.cpp
         avformat/avformat_func.cpp

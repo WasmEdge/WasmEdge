@@ -13,8 +13,8 @@ namespace AVFormat {
 Expect<int32_t> AVFormatCtxIFormat::body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr,uint32_t avInputFormatPtr){
 
     MEMINST_CHECK(MemInst,Frame,0);
-    MEM_PTR_CHECK(avFormatCtxId,MemInst,uint32_t,avFormatCtxPtr,"Failed when accessing the return AVFormatContext Memory",true);
-    MEM_PTR_CHECK(avInputFormatId,MemInst,uint32_t,avInputFormatPtr,"Failed when accessing the return AVInputFormat Memory",true);
+    MEM_PTR_CHECK(avFormatCtxId,MemInst,uint32_t,avFormatCtxPtr,"Failed when accessing the return AVFormatContext Memory");
+    MEM_PTR_CHECK(avInputFormatId,MemInst,uint32_t,avInputFormatPtr,"Failed when accessing the return AVInputFormat Memory");
 
     auto ffmpegMemory = Env.get();
 
@@ -27,11 +27,10 @@ Expect<int32_t> AVFormatCtxIFormat::body(const Runtime::CallingFrame &Frame, uin
     return 0;
 }
 
-Expect<int32_t> AVFormatCtxProbeScore::body(const Runtime::CallingFrame &, uint32_t avFormatCtxId){
+Expect<int32_t> AVFormatCtxProbeScore::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId){
 
-    auto ffmpegMemory = Env.get();
-    AVFormatContext* avFormatCtx = static_cast<AVFormatContext *>(ffmpegMemory->fetchData(avFormatCtxId));
-    return avFormatCtx->probe_score;
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"",true);
+    return AvFormatContext->probe_score;
 }
 
 
@@ -43,17 +42,16 @@ Expect<uint32_t> AVFormatCtxNbStreams::body(const Runtime::CallingFrame &, uint3
 };
 
 
-Expect<int64_t> AVFormatCtxBitRate::body(const Runtime::CallingFrame &, uint32_t avFormatCtxId){
-    auto ffmpegMemory = Env.get();
-    AVFormatContext* avFormatCtx = static_cast<AVFormatContext *>(ffmpegMemory->fetchData(avFormatCtxId));
-    return avFormatCtx->bit_rate;
+Expect<int64_t> AVFormatCtxBitRate::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId){
+
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"",true);
+    return AvFormatContext->bit_rate;
 }
 
-Expect<int64_t> AVFormatCtxDuration::body(const Runtime::CallingFrame &, uint32_t avFormatCtxId){
+Expect<int64_t> AVFormatCtxDuration::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId){
 
-    auto ffmpegMemory = Env.get();
-    AVFormatContext* avFormatCtx = static_cast<AVFormatContext *>(ffmpegMemory->fetchData(avFormatCtxId));
-    return avFormatCtx->duration;
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"",true);
+    return AvFormatContext->duration;
 }
 
 Expect<uint32_t> AVFormatCtxNbChapters::body(const Runtime::CallingFrame &, uint32_t avFormatCtxId){
@@ -63,27 +61,8 @@ Expect<uint32_t> AVFormatCtxNbChapters::body(const Runtime::CallingFrame &, uint
     return avFormatCtx->nb_chapters;
 }
 
-//Expect<void> AVFormatCtxGetAVStream::body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr,uint32_t avStreamPtr){
-//
-//    auto* MemInst = Frame.getMemoryByIndex(0);
-//
-//    uint32_t* avFormatCtxIdx = MemInst->getPointerOrNull<uint32_t*>(avFormatCtxPtr);
-//    uint32_t* avStreamIdx = MemInst->getPointerOrNull<uint32_t*>(avStreamPtr);
-//
-//    if(avFormatCtxIdx == nullptr){
-//      // Error Management
-//    }
-//
-//    auto ffmpegMemory = Env.get();
-//    AVFormatContext* avFormatCtx = static_cast<AVFormatContext *>(ffmpegMemory->fetchData(*avFormatCtxIdx));
-//
-//    AVStream** streams = avFormatCtx->streams;
-//    ffmpegMemory->alloc(streams,avStreamIdx);
-//    return {};
-//}
-
-}
-}
-}
-}
+} // namespace AVFormat
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge
 

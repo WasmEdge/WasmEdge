@@ -2,6 +2,7 @@
 
 extern "C"{
   #include "libavformat/avformat.h"
+  #include "libavcodec/packet.h"
 }
 
 namespace WasmEdge{
@@ -10,49 +11,32 @@ namespace WasmEdgeFFmpeg {
 namespace AVFormat {
 
 Expect<int32_t>
-AVFormatOpenInput::body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr,
-                        uint32_t urlPtr, uint32_t urlSize,uint32_t avInputFormatId,uint32_t avDictionaryId){
+AVFormatOpenInput::body(const Runtime::CallingFrame &Frame, uint32_t AvFormatCtxPtr,
+                        uint32_t UrlPtr, uint32_t UrlSize,uint32_t AvInputFormatId,uint32_t AvDictionaryId){
 
   MEMINST_CHECK(MemInst,Frame,0);
-  MEM_PTR_CHECK(urlId,MemInst,char,urlPtr,"Failed when accessing the return SessionID memory",true);
-  MEM_PTR_CHECK(avFormatCtxId,MemInst,uint32_t,avFormatCtxPtr,"Failed when accessing the return AVFormatContext Memory",true);
+  MEM_PTR_CHECK(urlId,MemInst,char,UrlPtr,"Failed when accessing the return URL memory");
+  MEM_PTR_CHECK(AvFormatCtxId,MemInst,uint32_t,AvFormatCtxPtr,"Failed when accessing the return AVFormatContext Memory");
 
-  std::string targetUrl;
-  std::copy_n(urlId,urlSize,std::back_inserter(targetUrl));
+  std::string TargetUrl;
+  std::copy_n(urlId,UrlSize,std::back_inserter(TargetUrl));
 
-  AVDictionary** avDictionary = NULL;
-  AVInputFormat* avInputFormat = NULL;
-  AVFormatContext* avFormatContext = NULL;
+  AVFormatContext* AvFormatContext = NULL;
+  FFMPEG_PTR_FETCH(AvDictionary,AvDictionaryId,AVDictionary*,"AVDictionary in Function AVFormatOpenInput",false);
+  FFMPEG_PTR_FETCH(AvInputFormat,AvInputFormatId,AVInputFormat ,"AVInputFormat in Function AVFormatOpenInput",false);
 
-  WasmEdgeFFmpegEnv* ffmpegMemory = Env.get();
-  if(avDictionaryId)
-    avDictionary = static_cast<AVDictionary **>(ffmpegMemory->fetchData(avDictionaryId));
-  if(avInputFormatId)
-    avInputFormat = static_cast<AVInputFormat *>(ffmpegMemory->fetchData(avInputFormatId));
-
-  // Think of proper error handling.
-  printf("Executed all if statement\n");
-  int res =  avformat_open_input(&avFormatContext,targetUrl.c_str(),avInputFormat,avDictionary);
-  ffmpegMemory->alloc(avFormatContext,avFormatCtxId);
-  return res;
+  int Res =  avformat_open_input(&AvFormatContext,TargetUrl.c_str(),AvInputFormat,AvDictionary);
+  FFMPEG_PTR_STORE(AvFormatContext,AvFormatCtxId);
+  return Res;
 }
 
 
 Expect<int32_t>
-AVFormatFindStreamInfo::body(const Runtime::CallingFrame &, uint32_t avFormatCtxId,uint32_t avDictionaryId){
-  printf("Inside Find Stream Info\n");
+AVFormatFindStreamInfo::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId,uint32_t AvDictionaryId){
 
-  AVDictionary** avDictionary = NULL;
-  AVFormatContext* avFormatContext = NULL;
-  WasmEdgeFFmpegEnv* ffmpegMemory = Env.get();
-  if(avFormatCtxId == 0)
-    return static_cast<int32_t>(ErrNo::InvalidArgument);
-
-  avFormatContext = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(avFormatCtxId));
-  if(avDictionaryId)
-    avDictionary = static_cast<AVDictionary**>(ffmpegMemory->fetchData(avDictionaryId));
-
-  return avformat_find_stream_info(avFormatContext,avDictionary);
+  FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"AVFormatContext in Function AVFormatFindStreamInfo",true);
+  FFMPEG_PTR_FETCH(AvDictionary,AvDictionaryId,AVDictionary*,"AVDictionary",false);
+  return avformat_find_stream_info(AvFormatContext,AvDictionary);
 }
 
 Expect<void>
@@ -69,26 +53,23 @@ AVFormatCloseInput::body(const Runtime::CallingFrame &, uint32_t avFormatCtxId) 
 }
 
 Expect<int32_t>
-AVReadPause::body(const Runtime::CallingFrame &, uint32_t avFormatCtxId) {
+AVReadPause::body(const Runtime::CallingFrame &,uint32_t AvFormatCtxId) {
 
-    auto* ffmpegMemory = Env.get();
-    AVFormatContext* avFormatContext = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(avFormatCtxId));
-    return av_read_pause(avFormatContext);
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"AVFormatContext in Function AVReadPause",true);
+    return av_read_pause(AvFormatContext);
 }
 
 Expect<int32_t>
-AVReadPlay::body(const Runtime::CallingFrame &, uint32_t avFormatCtxId) {
+AVReadPlay::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId) {
 
-    auto* ffmpegMemory = Env.get();
-    AVFormatContext* avFormatContext = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(avFormatCtxId));
-    return av_read_play(avFormatContext);
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"AVFormatContext in Function AVReadPlay",true);
+    return av_read_play(AvFormatContext);
 }
 
-Expect<int32_t > AVFormatSeekFile::body(const Runtime::CallingFrame &, uint32_t avFormatCtxId,uint32_t streamIdx,int64_t min_ts,int64_t ts,int64_t max_ts, int32_t flags){
+Expect<int32_t> AVFormatSeekFile::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId,uint32_t StreamIdx,int64_t MinTs,int64_t Ts,int64_t MaxTs, int32_t Flags){
 
-    auto* ffmpegMemory = Env.get();
-    AVFormatContext* avFormatContext = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(avFormatCtxId));
-    return avformat_seek_file(avFormatContext,streamIdx,min_ts,ts,max_ts,flags);
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"AVFormatContext in Function AVFormatSeekFile",true);
+    return avformat_seek_file(AvFormatContext,StreamIdx,MinTs,Ts,MaxTs,Flags);
 }
 
 Expect<void>
@@ -104,40 +85,39 @@ AVDumpFormat::body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxId,in
         // Error handling...
     }
 
-
     AVFormatContext* avFormatContext = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(avFormatCtxId));
-
     av_dump_format(avFormatContext,idx,targetUrl.c_str(),isOutput);
     return {};
 }
 
 Expect<void>
-AVFormatFreeContext::body(const Runtime::CallingFrame &, uint32_t avFormatCtxId) {
+AVFormatFreeContext::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId) {
 
     auto* ffmpegMemory = Env.get();
-    AVFormatContext* avFormatCtx = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(avFormatCtxId));
+    AVFormatContext* avFormatCtx = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(AvFormatCtxId));
     avformat_free_context(avFormatCtx);
-    ffmpegMemory->dealloc(avFormatCtxId);
+    ffmpegMemory->dealloc(AvFormatCtxId);
     return {};
 }
 
-Expect<int32_t> AVFindBestStream::body(const Runtime::CallingFrame &,uint32_t avFormatCtxId,int32_t mediaTypeId,int32_t wanted_stream,int32_t related_stream,uint32_t decoderRetId,int32_t flags){
+Expect<int32_t> AVFindBestStream::body(const Runtime::CallingFrame &,uint32_t AvFormatCtxId,int32_t MediaTypeId,int32_t WantedStream,int32_t RelatedStream,uint32_t DecoderRetId,int32_t Flags){
 
-    if(!avFormatCtxId){
-      // Error handling
-    }
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"AVFormatContext in Function AVFindBestStream",true);
+    FFMPEG_PTR_FETCH(DecoderRet,DecoderRetId,const AVCodec*,"AVCodec in Function AVFindBestStream",false);
 
-    auto* ffmpegMemory = Env.get();
-    const AVCodec** decoderRet = NULL;
-    if(decoderRetId)
-      decoderRet = static_cast<const AVCodec**>(ffmpegMemory->fetchData(decoderRetId));
-
-    AVFormatContext* avFormatCtx = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(avFormatCtxId));
-    AVMediaType avMediaType = FFmpegUtils::MediaType::intoMediaType(mediaTypeId);
-    return av_find_best_stream(avFormatCtx, avMediaType,wanted_stream,related_stream,decoderRet,flags);
+    AVMediaType const AvMediaType = FFmpegUtils::MediaType::intoMediaType(MediaTypeId);
+    return av_find_best_stream(AvFormatContext, AvMediaType,WantedStream,RelatedStream,DecoderRet,Flags);
 }
 
+Expect<int32_t> AVReadFrame::body(const Runtime::CallingFrame &,uint32_t AvFormatCtxId,uint32_t PacketId){
+
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"AVFormatContext in Function AVFindBestStream",true);
+    FFMPEG_PTR_FETCH(AvPacket,PacketId,AVPacket,"AVPacket in Function AVFindBestStream",true);
+
+    return av_read_frame(AvFormatContext,AvPacket);
 }
-}
-}
-}
+
+} // namespace AVFormat
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

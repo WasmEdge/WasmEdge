@@ -18,7 +18,7 @@ protected:
   std::shared_ptr<WasmEdgeFFmpegEnv> Env;
 };
 
-}
-}
+} // namespace AVcodec
+} // namespace WasmEdgeFFmpeg
 } // namespace Host
 } // namespace WasmEdge

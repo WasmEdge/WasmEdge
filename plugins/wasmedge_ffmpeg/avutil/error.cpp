@@ -10,11 +10,11 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVUtil{
 
-Expect<int32_t> AVUtilAVStrError::body(const Runtime::CallingFrame &Frame, int32_t errnum,uint32_t errbuf,uint32_t bufLen){
+Expect<int32_t> AVUtilAVStrError::body(const Runtime::CallingFrame &Frame, int32_t Errnum,uint32_t Errbuf,uint32_t BufLen){
 
-  auto* MemInst = Frame.getMemoryByIndex(0);
-  auto buffer =  MemInst->getSpan<uint8_t>(errbuf,bufLen);
-  return av_strerror(errnum, reinterpret_cast<char *>(buffer.data()),bufLen);
+  MEMINST_CHECK(MemInst,Frame,0);
+  MEM_SPAN_CHECK(buffer,MemInst,uint8_t,Errbuf,BufLen,"");
+  return av_strerror(Errnum, reinterpret_cast<char *>(buffer.data()),BufLen);
 }
 
 Expect<int32_t> AVUtilAVError::body(const Runtime::CallingFrame &Frame  __attribute__((unused)) , int32_t errnum){
@@ -25,7 +25,7 @@ Expect<int32_t> AVUtilAVUNError::body(const Runtime::CallingFrame &Frame  __attr
   return AVUNERROR(errnum);
 }
 
-}
-}
-}
-}
+} // namespace AVUtil
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

@@ -10,16 +10,16 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVFormat {
 
-Expect<void> AVIOClose::body(const Runtime::CallingFrame &, uint32_t avFormatCtxId){
+Expect<void> AVIOClose::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId){
 
     auto ffmpegMemory = Env.get();
-    AVFormatContext* avFormatCtx = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(avFormatCtxId));
+    AVFormatContext* avFormatCtx = static_cast<AVFormatContext*>(ffmpegMemory->fetchData(AvFormatCtxId));
     avio_close(avFormatCtx->pb);
     return {};
 }
 
-}
-}
-}
-}
+} // namespace AVFormat
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge
 

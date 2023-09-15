@@ -11,36 +11,36 @@ namespace Host{
 namespace WasmEdgeFFmpeg {
 namespace AVFormat {
 
-class AVInputFormat_name : public WasmEdgeFFmpegAVFormat<AVInputFormat_name> {
+class AVInputFormatName : public WasmEdgeFFmpegAVFormat<AVInputFormatName> {
 public:
-    AVInputFormat_name(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+    AVInputFormatName(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
             : WasmEdgeFFmpegAVFormat(HostEnv) {}
     Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr);
 };
 
 
-class AVInputFormat_long_name : public WasmEdgeFFmpegAVFormat<AVInputFormat_long_name> {
+class AVInputFormatLongName : public WasmEdgeFFmpegAVFormat<AVInputFormatLongName> {
 public:
-    AVInputFormat_long_name(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+  AVInputFormatLongName(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
             : WasmEdgeFFmpegAVFormat(HostEnv) {}
     Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr);
 };
 
-class AVInputFormat_extensions : public WasmEdgeFFmpegAVFormat<AVInputFormat_extensions> {
+class AVInputFormatExtensions : public WasmEdgeFFmpegAVFormat<AVInputFormatExtensions> {
 public:
-    AVInputFormat_extensions(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+  AVInputFormatExtensions(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
             : WasmEdgeFFmpegAVFormat(HostEnv) {}
     Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr);
 };
 
-class AVInputFormat_mime_type : public WasmEdgeFFmpegAVFormat<AVInputFormat_mime_type> {
+class AVInputFormatMimeType : public WasmEdgeFFmpegAVFormat<AVInputFormatMimeType> {
 public:
-    AVInputFormat_mime_type(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+  AVInputFormatMimeType(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
             : WasmEdgeFFmpegAVFormat(HostEnv) {}
     Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr);
 };
 
-}
-}
-}
-}
+} // namespace AVFormat
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

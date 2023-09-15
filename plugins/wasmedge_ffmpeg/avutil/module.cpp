@@ -39,9 +39,10 @@ WasmEdgeFFmpegAVUtilModule::
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_width",std::make_unique<AVFrameSetWidth>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_height",std::make_unique<AVFrameSetHeight>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_format",std::make_unique<AVFrameFormat>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_isnull",std::make_unique<AVFrameIsNull>(Env));
 }
 
-}
-}
-}
-}
+} // namespace AVUtil
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

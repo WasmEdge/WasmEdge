@@ -9,22 +9,19 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVcodec {
 
-Expect<uint32_t> AVCodecParam_codecId::body(const Runtime::CallingFrame &,uint32_t avCodecParamId){
-  auto* ffmpegMemory = Env.get();
-  const AVCodecParameters* avCodecParams = static_cast<AVCodecParameters*>(ffmpegMemory->fetchData(avCodecParamId));
+Expect<uint32_t> AVCodecParamCodecId::body(const Runtime::CallingFrame &,uint32_t AvCodecParamId){
 
-  return FFmpegUtils::CodecID::fromAVCodecID(avCodecParams->codec_id);
-}
-
-Expect<int32_t> AVCodecParam_codecType::body(const Runtime::CallingFrame &,uint32_t avCodecParamId){
-
-  auto* ffmpegMemory = Env.get();
-  const AVCodecParameters* avCodecParams = static_cast<AVCodecParameters*>(ffmpegMemory->fetchData(avCodecParamId));
-
-  return FFmpegUtils::MediaType::fromMediaType(avCodecParams->codec_type);
+  FFMPEG_PTR_FETCH(AvCodecParams,AvCodecParamId,AVCodecParameters ,"",true);
+  return FFmpegUtils::CodecID::fromAVCodecID(AvCodecParams->codec_id);
 }
 
+Expect<int32_t> AVCodecParamCodecType::body(const Runtime::CallingFrame &,uint32_t AvCodecParamId){
+
+  FFMPEG_PTR_FETCH(AvCodecParams,AvCodecParamId,AVCodecParameters ,"",true);
+  return FFmpegUtils::MediaType::fromMediaType(AvCodecParams->codec_type);
 }
-}
-}
-}
+
+} // namespace AVcodec
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

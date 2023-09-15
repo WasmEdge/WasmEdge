@@ -92,9 +92,9 @@ Plugin::Plugin::PluginDescriptor Descriptor {
   .AddOptions = nullptr,
 };
 
-}
+} // namespace
 
 Plugin::PluginRegister WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::Register(&Descriptor);
 std::weak_ptr<WasmEdgeFFmpeg::WasmEdgeFFmpegEnv> WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::Instance = std::make_shared<WasmEdgeFFmpeg::WasmEdgeFFmpegEnv>();
-}
-}
+} // namespace Host
+} // namespace WasmEdge

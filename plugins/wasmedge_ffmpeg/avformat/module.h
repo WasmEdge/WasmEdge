@@ -15,8 +15,7 @@ public:
 
 };
 
-}
-}
-};
-}
-
+} // namespace AVFormat
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

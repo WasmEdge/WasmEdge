@@ -52,15 +52,8 @@ public:
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t avFormatCtxPtr);
 };
-//
-//class avformatctxgetavstream : public wasmedgeffmpegavformat<avformatctxgetavstream> {
-//public:
-//  avformatctxgetavstream(std::shared_ptr<wasmedgeffmpegenv> hostenv)
-//      : wasmedgeffmpegavformat(hostenv) {}
-//  expect<void> body(const runtime::callingframe &frame, uint32_t avformatctxptr,uint32_t avstreamptr);
-//};
 
-}
-}
-}
-}
+} // namespace AVFormat
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

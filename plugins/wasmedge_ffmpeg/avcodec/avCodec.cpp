@@ -9,24 +9,20 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVcodec {
 
-Expect<uint32_t> AVCodec_ID::body(const Runtime::CallingFrame &,uint32_t avCodecId){
+Expect<uint32_t> AVCodecID::body(const Runtime::CallingFrame &,uint32_t AvCodecId){
 
-  auto* ffmpegMemory = Env.get();
-  const AVCodec* avCodecCtx = static_cast<const AVCodec*>(ffmpegMemory->fetchData(avCodecId));
-
-  return FFmpegUtils::CodecID::fromAVCodecID(avCodecCtx->id);
+  FFMPEG_PTR_FETCH(AvCodec,AvCodecId,const AVCodec,"",true);
+  return FFmpegUtils::CodecID::fromAVCodecID(AvCodec->id);
 }
 
-Expect<int32_t> AVCodec_Type::body(const Runtime::CallingFrame &,uint32_t avCodecId){
+Expect<int32_t> AVCodecType::body(const Runtime::CallingFrame &,uint32_t AvCodecId){
 
-  auto* ffmpegMemory = Env.get();
-  const AVCodec* avCodecCtx = static_cast<const AVCodec*>(ffmpegMemory->fetchData(avCodecId));
-
-  return FFmpegUtils::MediaType::fromMediaType(avCodecCtx->type);
+  FFMPEG_PTR_FETCH(AvCodec,AvCodecId,const AVCodec,"",true);
+  return FFmpegUtils::MediaType::fromMediaType(AvCodec->type);
 }
 
-}
-}
-}
-}
+} // namespace AVcodec
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge
 

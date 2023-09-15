@@ -18,6 +18,8 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFfmpeg
         avutil/error.cpp
         avutil/module.cpp
         avutil/avRational.cpp
+        avutil/avFrame.cpp
+        avutil/pixfmt.cpp
 
 )
 

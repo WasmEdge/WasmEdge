@@ -1,6 +1,8 @@
 #include "module.h"
 #include "error.h"
 #include "avRational.h"
+#include "avFrame.h"
+#include "pixfmt.h"
 
 namespace WasmEdge{
 namespace Host{
@@ -28,6 +30,15 @@ WasmEdgeFFmpegAVUtilModule::
     addHostFunc("wasmedge_ffmpeg_avutil_av_nearer_q",std::make_unique<AVNearerQ>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_cmp_q",std::make_unique<AVCmpQ>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_reduce",std::make_unique<AVReduce>(Env));
+
+    // frame.h
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_alloc",std::make_unique<AVFrameAlloc>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_free",std::make_unique<AVFrameFree>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_width",std::make_unique<AVFrameWidth>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_height",std::make_unique<AVFrameHeight>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_width",std::make_unique<AVFrameSetWidth>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_height",std::make_unique<AVFrameSetHeight>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_format",std::make_unique<AVFrameFormat>(Env));
 }
 
 }

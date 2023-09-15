@@ -2127,6 +2127,1216 @@ public:
   }
 };
 
+class PixFmt {
+
+public:
+  static uint32_t fromAVPixFmt(AVPixelFormat avPixelFormat){
+    switch (avPixelFormat) {
+        case AV_PIX_FMT_NONE:
+          return 0;
+        case AV_PIX_FMT_YUV420P:
+          return 1;
+        case AV_PIX_FMT_YUYV422:
+          return 2;
+        case AV_PIX_FMT_RGB24:
+          return 3;
+        case AV_PIX_FMT_BGR24:
+          return 4;
+        case AV_PIX_FMT_YUV422P:
+          return 5;
+        case AV_PIX_FMT_YUV444P:
+          return 7;
+        case AV_PIX_FMT_YUV410P:
+          return 8;
+        case AV_PIX_FMT_YUV411P:
+          return 9;
+        case AV_PIX_FMT_GRAY8:
+          return 10;
+        case AV_PIX_FMT_MONOWHITE:
+          return 11;
+        case AV_PIX_FMT_MONOBLACK:
+          return 12;
+        case AV_PIX_FMT_PAL8:
+          return 13;
+        case AV_PIX_FMT_YUVJ420P:
+          return 14;
+        case AV_PIX_FMT_YUVJ422P:
+          return 15;
+        case AV_PIX_FMT_YUVJ444P:
+          return 16;
+        //       case AV_PIX_FMT_XVMC_MPEG2_MC :     // Lower FFmpeg Version
+      //     return 17;
+        //       case AV_PIX_FMT_XVMC_MPEG2_IDCT :
+      //     return 18;
+        case AV_PIX_FMT_UYVY422:
+          return 19;
+        case AV_PIX_FMT_UYYVYY411:
+          return 20;
+        case AV_PIX_FMT_BGR8:
+          return 21;
+        case AV_PIX_FMT_BGR4:
+          return 22;
+        case AV_PIX_FMT_BGR4_BYTE:
+          return 23;
+        case AV_PIX_FMT_RGB8:
+          return 24;
+        case AV_PIX_FMT_RGB4:
+          return 25;
+        case AV_PIX_FMT_RGB4_BYTE:
+          return 26;
+        case AV_PIX_FMT_NV12:
+          return 27;
+        case AV_PIX_FMT_NV21:
+          return 28;
+        case AV_PIX_FMT_ARGB:  // Big Endian
+          return 29;
+        case AV_PIX_FMT_RGBA:  // Big
+          return 30;
+        case AV_PIX_FMT_ABGR: // Big
+          return 31;
+        case AV_PIX_FMT_BGRA:  // little
+          return 32;
+        case AV_PIX_FMT_GRAY16BE: // big
+          return 33;
+        case AV_PIX_FMT_GRAY16LE:
+          return 34;
+        case AV_PIX_FMT_YUV440P:
+          return 35;
+        case AV_PIX_FMT_YUVJ440P:
+          return 36;
+        case AV_PIX_FMT_YUVA420P:
+          return 37;
+        //       case AV_PIX_FMT_VDPAU_H264 :
+      //     return 38;
+        //       case AV_PIX_FMT_VDPAU_MPEG1 :
+      //     return 39;
+        //       case AV_PIX_FMT_VDPAU_MPEG2 :
+      //     return 40;
+        //       case AV_PIX_FMT_VDPAU_WMV3 :    // Conditional compile.
+      //     return 41;
+        //       case AV_PIX_FMT_VDPAU_VC1 :     // ff_api_vdpau is present
+      //     return 42;
+        case AV_PIX_FMT_RGB48BE:
+          return 43;
+        case AV_PIX_FMT_RGB48LE:
+          return 44;
+        case AV_PIX_FMT_RGB565BE:
+          return 45;
+        case AV_PIX_FMT_RGB565LE:
+          return 46;
+        case AV_PIX_FMT_RGB555BE:
+          return 47;
+        case AV_PIX_FMT_RGB555LE:
+          return 48;
+        case AV_PIX_FMT_BGR565BE:
+          return 49;
+        case AV_PIX_FMT_BGR565LE:
+          return 50;
+        case AV_PIX_FMT_BGR555BE:
+          return 51;
+        case AV_PIX_FMT_BGR555LE:
+          return 52;
+        //       case AV_PIX_FMT_VAAPI_MOCO :
+      //     return 53;
+        //       case AV_PIX_FMT_VAAPI_IDCT :
+      //     return 54;
+        //       case AV_PIX_FMT_VAAPI_VLD :
+      //     return 55;
+        //       case AV_PIX_FMT_VAAPI :    // ff_api_vdpau is present
+      //     return 56;
+        case AV_PIX_FMT_YUV420P16LE:
+          return 57;
+        case AV_PIX_FMT_YUV420P16BE:
+          return 58;
+        case AV_PIX_FMT_YUV422P16LE:
+          return 59;
+        case AV_PIX_FMT_YUV422P16BE:
+          return 60;
+        case AV_PIX_FMT_YUV444P16LE:
+          return 61;
+        case AV_PIX_FMT_YUV444P16BE:
+          return 62;
+        //       case AV_PIX_FMT_VDPAU_MPEG4 :   // ff_api_vdpau is present
+      //     return 63;
+        case AV_PIX_FMT_DXVA2_VLD:
+          return 64;
+        case AV_PIX_FMT_RGB444LE:
+          return 65;
+        case AV_PIX_FMT_RGB444BE:
+          return 66;
+        case AV_PIX_FMT_BGR444LE:
+          return 67;
+        case AV_PIX_FMT_BGR444BE:
+          return 68;
+        case AV_PIX_FMT_YA8:
+          return 69;
+        case AV_PIX_FMT_BGR48BE:
+          return 70;
+        case AV_PIX_FMT_BGR48LE:
+          return 71;
+        case AV_PIX_FMT_YUV420P9BE:
+          return 72;
+        case AV_PIX_FMT_YUV420P9LE:
+          return 73;
+        case AV_PIX_FMT_YUV420P10BE:
+          return 74;
+        case AV_PIX_FMT_YUV420P10LE:
+          return 75;
+        case AV_PIX_FMT_YUV422P10BE:
+          return 76;
+        case AV_PIX_FMT_YUV422P10LE:
+          return 77;
+        case AV_PIX_FMT_YUV444P9BE:
+          return 78;
+        case AV_PIX_FMT_YUV444P9LE:
+          return 79;
+        case AV_PIX_FMT_YUV444P10BE:
+          return 80;
+        case AV_PIX_FMT_YUV444P10LE:
+          return 81;
+        case AV_PIX_FMT_YUV422P9BE:
+          return 82;
+        case AV_PIX_FMT_YUV422P9LE:
+          return 83;
+        //       case AV_PIX_FMT_VDA_VLD :   // Lower than ffmpeg version 4
+      //     return 84;
+        case AV_PIX_FMT_GBRP:
+          return 85;
+        case AV_PIX_FMT_GBRP9BE:
+          return 86;
+        case AV_PIX_FMT_GBRP9LE:
+          return 87;
+        case AV_PIX_FMT_GBRP10BE:
+          return 88;
+        case AV_PIX_FMT_GBRP10LE:
+          return 89;
+        case AV_PIX_FMT_GBRP16BE:
+          return 90;
+        case AV_PIX_FMT_GBRP16LE:
+          return 91;
+        case AV_PIX_FMT_YUVA420P9BE:
+          return 92;
+        case AV_PIX_FMT_YUVA420P9LE:
+          return 93;
+        case AV_PIX_FMT_YUVA422P9BE:
+          return 94;
+        case AV_PIX_FMT_YUVA422P9LE:
+          return 95;
+        case AV_PIX_FMT_YUVA444P9BE:
+          return 96;
+        case AV_PIX_FMT_YUVA444P9LE:
+          return 97;
+        case AV_PIX_FMT_YUVA420P10BE:
+          return 98;
+        case AV_PIX_FMT_YUVA420P10LE:
+          return 99;
+        case AV_PIX_FMT_YUVA422P10BE:
+          return 100;
+        case AV_PIX_FMT_YUVA422P10LE:
+          return 101;
+        case AV_PIX_FMT_YUVA444P10BE:
+          return 102;
+        case AV_PIX_FMT_YUVA444P10LE:
+          return 103;
+        case AV_PIX_FMT_YUVA420P16BE:
+          return 104;
+        case AV_PIX_FMT_YUVA420P16LE:
+          return 105;
+        case AV_PIX_FMT_YUVA422P16BE:
+          return 106;
+        case AV_PIX_FMT_YUVA422P16LE:
+          return 107;
+        case AV_PIX_FMT_YUVA444P16BE:
+          return 108;
+        case AV_PIX_FMT_YUVA444P16LE:
+          return 109;
+        case AV_PIX_FMT_VDPAU:
+          return 110;
+        case AV_PIX_FMT_XYZ12LE:
+          return 111;
+        case AV_PIX_FMT_XYZ12BE:
+          return 112;
+        case AV_PIX_FMT_NV16:
+          return 113;
+        case AV_PIX_FMT_NV20LE:
+          return 114;
+        case AV_PIX_FMT_NV20BE:
+          return 115;
+        case AV_PIX_FMT_RGBA64BE:
+          return 116;
+        case AV_PIX_FMT_RGBA64LE:
+          return 117;
+        case AV_PIX_FMT_BGRA64BE:
+          return 118;
+        case AV_PIX_FMT_BGRA64LE:
+          return 119;
+        case AV_PIX_FMT_YVYU422:
+          return 120;
+        //       case AV_PIX_FMT_VDA :   // Lower than ffmpeg version 4.
+      //     return 121;
+        case AV_PIX_FMT_YA16BE: // big
+          return 122;
+        case AV_PIX_FMT_YA16LE:
+          return 123;
+        case AV_PIX_FMT_QSV:
+          return 124;
+        case AV_PIX_FMT_MMAL:
+          return 125;
+        case AV_PIX_FMT_D3D11VA_VLD:
+          return 126;
+        case AV_PIX_FMT_CUDA:
+          return 127;
+        case AV_PIX_FMT_0RGB:  // big
+          return 128;
+        case AV_PIX_FMT_RGB0:
+          return 129;
+        case AV_PIX_FMT_0BGR:   // big
+          return 130;
+        case AV_PIX_FMT_BGR0:
+          return 131;
+        case AV_PIX_FMT_YUVA444P:
+          return 132;
+        case AV_PIX_FMT_YUVA422P:
+          return 133;
+        case AV_PIX_FMT_YUV420P12BE:
+          return 134;
+        case AV_PIX_FMT_YUV420P12LE:
+          return 135;
+        case AV_PIX_FMT_YUV420P14BE:
+          return 136;
+        case AV_PIX_FMT_YUV420P14LE:
+          return 137;
+        case AV_PIX_FMT_YUV422P12BE:
+          return 138;
+        case AV_PIX_FMT_YUV422P12LE:
+          return 139;
+        case AV_PIX_FMT_YUV422P14BE:
+          return 140;
+        case AV_PIX_FMT_YUV422P14LE:
+          return 141;
+        case AV_PIX_FMT_YUV444P12BE:
+          return 142;
+        case AV_PIX_FMT_YUV444P12LE:
+          return 143;
+        case AV_PIX_FMT_YUV444P14BE:
+          return 144;
+        case AV_PIX_FMT_YUV444P14LE:
+          return 146;
+        case AV_PIX_FMT_GBRP12BE:
+          return 147;
+        case AV_PIX_FMT_GBRP12LE:
+          return 148;
+        case AV_PIX_FMT_GBRP14BE:
+          return 149;
+        case AV_PIX_FMT_GBRP14LE:
+          return 150;
+        case AV_PIX_FMT_GBRAP:
+          return 151;
+        case AV_PIX_FMT_GBRAP16BE:
+          return 152;
+        case AV_PIX_FMT_GBRAP16LE:
+          return 153;
+        case AV_PIX_FMT_YUVJ411P:
+          return 154;
+        case AV_PIX_FMT_BAYER_BGGR8:
+          return 155;
+        case AV_PIX_FMT_BAYER_RGGB8:
+          return 156;
+        case AV_PIX_FMT_BAYER_GBRG8:
+          return 157;
+        case AV_PIX_FMT_BAYER_GRBG8:
+          return 158;
+        case AV_PIX_FMT_BAYER_BGGR16LE:
+          return 159;
+        case AV_PIX_FMT_BAYER_BGGR16BE:
+          return 160;
+        case AV_PIX_FMT_BAYER_RGGB16LE:
+          return 161;
+        case AV_PIX_FMT_BAYER_RGGB16BE:
+          return 162;
+        case AV_PIX_FMT_BAYER_GBRG16LE:
+          return 163;
+        case AV_PIX_FMT_BAYER_GBRG16BE:
+          return 164;
+        case AV_PIX_FMT_BAYER_GRBG16LE:
+          return 165;
+        case AV_PIX_FMT_BAYER_GRBG16BE:
+          return 166;
+        case AV_PIX_FMT_YUV440P10LE:
+          return 167;
+        case AV_PIX_FMT_YUV440P10BE:
+          return 168;
+        case AV_PIX_FMT_YUV440P12LE:
+          return 169;
+        case AV_PIX_FMT_YUV440P12BE:
+          return 170;
+        case AV_PIX_FMT_AYUV64LE:
+          return 171;
+        case AV_PIX_FMT_AYUV64BE:
+          return 172;
+        case AV_PIX_FMT_VIDEOTOOLBOX:
+          return 173;
+        case AV_PIX_FMT_XVMC:
+          return 174;
+//        case AV_PIX_FMT_RGB32:  // IF format is this type, based on endianness, it resolves to big endian or small endian.
+//          return 175;           // The Switch case contains both big and small endian, so No need to add these in switch case.
+//        case AV_PIX_FMT_RGB32_1:  // Will Automatically resolve.
+//          return 176;
+//        case AV_PIX_FMT_BGR32:
+//          return 177;
+//        case AV_PIX_FMT_BGR32_1:
+//          return 178;
+//        case AV_PIX_FMT_0RGB32:
+//          return 179;
+//        case AV_PIX_FMT_0BGR32:
+//          return 180;
+//        case AV_PIX_FMT_GRAY16:
+//          return 181;
+//        case AV_PIX_FMT_YA16:
+//          return 182;
+//        case AV_PIX_FMT_RGB48:
+//          return 183;
+//        case AV_PIX_FMT_RGB565:
+//          return 184;
+//        case AV_PIX_FMT_RGB444:
+//          return 185;
+//        case AV_PIX_FMT_BGR48:
+//          return 186;
+//        case AV_PIX_FMT_BGR565:
+//          return 187;
+//        case AV_PIX_FMT_BGR555:
+//          return 188;
+//        case AV_PIX_FMT_BGR444:
+//          return 189;
+//        case AV_PIX_FMT_YUV420P9:
+//          return 190;
+//        case AV_PIX_FMT_YUV422P9:
+//          return 191;
+//        case AV_PIX_FMT_YUV444P9:
+//          return 192;
+//        case AV_PIX_FMT_YUV420P10:
+//          return 193;
+//        case AV_PIX_FMT_YUV422P10:
+//          return 194;
+//        case AV_PIX_FMT_YUV440P10:
+//          return 195;
+//        case AV_PIX_FMT_YUV444P10:
+//          return 196;
+//        case AV_PIX_FMT_YUV420P12:
+//          return 197;
+//        case AV_PIX_FMT_YUV422P12:
+//          return 198;
+//        case AV_PIX_FMT_YUV440P12:
+//          return 199;
+//        case AV_PIX_FMT_YUV444P12:
+//          return 200;
+//        case AV_PIX_FMT_YUV420P14:
+//          return 201;
+//        case AV_PIX_FMT_YUV422P14:
+//          return 202;
+//        case AV_PIX_FMT_YUV444P14:
+//          return 203;
+//        case AV_PIX_FMT_YUV420P16:
+//          return 204;
+//        case AV_PIX_FMT_YUV422P16:
+//          return 205;
+//        case AV_PIX_FMT_YUV444P16:
+//          return 206;
+//        case AV_PIX_FMT_GBRP9:
+//          return 207;
+//        case AV_PIX_FMT_GBRP10:
+//          return 208;
+//        case AV_PIX_FMT_GBRP12:
+//          return 209;
+//        case AV_PIX_FMT_GBRP14:
+//          return 210;
+//        case AV_PIX_FMT_GBRP16:
+//          return 211;
+//        case AV_PIX_FMT_GBRAP16:
+//          return 212;
+//        case AV_PIX_FMT_BAYER_BGGR16:
+//          return 213;
+//        case AV_PIX_FMT_BAYER_RGGB16:
+//          return 214;
+//        case AV_PIX_FMT_BAYER_GBRG16:
+//          return 215;
+//        case AV_PIX_FMT_BAYER_GRBG16:
+//          return 216;
+//        case AV_PIX_FMT_YUVA420P9:
+//          return 217;
+//        case AV_PIX_FMT_YUVA422P9:
+//          return 218;
+//        case AV_PIX_FMT_YUVA444P9:
+//          return 219;
+//        case AV_PIX_FMT_YUVA420P10:
+//          return 220;
+//        case AV_PIX_FMT_YUVA422P10:
+//          return 221;
+//        case AV_PIX_FMT_YUVA444P10:
+//          return 222;
+//        case AV_PIX_FMT_YUVA420P16:
+//          return 223;
+//        case AV_PIX_FMT_YUVA422P16:
+//          return 224;
+//        case AV_PIX_FMT_YUVA444P16:
+//          return 225;
+//        case AV_PIX_FMT_XYZ12:
+//          return 226;
+//        case AV_PIX_FMT_NV20:
+//          return 227;
+//        case AV_PIX_FMT_AYUV64:
+//          return 228;
+        case AV_PIX_FMT_P010LE:
+          return 229;
+        case AV_PIX_FMT_P010BE:
+          return 230;
+        case AV_PIX_FMT_GBRAP12BE:
+          return 231;
+        case AV_PIX_FMT_GBRAP12LE:
+          return 232;
+        case AV_PIX_FMT_GBRAP10LE:
+          return 233;
+        case AV_PIX_FMT_GBRAP10BE:
+          return 234;
+        case AV_PIX_FMT_MEDIACODEC:
+          return 235;
+        case AV_PIX_FMT_GRAY12BE:
+          return 236;
+        case AV_PIX_FMT_GRAY12LE:
+          return 237;
+        case AV_PIX_FMT_GRAY10BE:
+          return 238;
+        case AV_PIX_FMT_GRAY10LE:
+          return 239;
+        case AV_PIX_FMT_P016LE:
+          return 240;
+        case AV_PIX_FMT_P016BE:
+          return 241;
+        case AV_PIX_FMT_D3D11:
+          return 242;
+        case AV_PIX_FMT_GRAY9BE:
+          return 243;
+        case AV_PIX_FMT_GRAY9LE:
+          return 244;
+        case AV_PIX_FMT_GBRPF32BE:
+          return 245;
+        case AV_PIX_FMT_GBRPF32LE:
+          return 246;
+        case AV_PIX_FMT_GBRAPF32BE:
+          return 247;
+        case AV_PIX_FMT_GBRAPF32LE:
+          return 248;
+        case AV_PIX_FMT_DRM_PRIME:
+          return 249;
+
+        // Above ffmpeg 4.0  Need to add versions.
+        case AV_PIX_FMT_OPENCL:
+          return 250;
+        case AV_PIX_FMT_GRAY14BE:
+          return 251;
+        case AV_PIX_FMT_GRAY14LE:
+          return 252;
+        case AV_PIX_FMT_GRAYF32BE:
+          return 253;
+        case AV_PIX_FMT_GRAYF32LE:
+          return 254;
+        case AV_PIX_FMT_YUVA422P12BE:
+          return 255;
+        case AV_PIX_FMT_YUVA422P12LE:
+          return 256;
+        case AV_PIX_FMT_YUVA444P12BE:
+          return 257;
+        case AV_PIX_FMT_YUVA444P12LE:
+          return 258;
+        case AV_PIX_FMT_NV24:
+          return 259;
+        case AV_PIX_FMT_NV42:
+          return 260;
+        case AV_PIX_FMT_VULKAN:
+          return 261;
+        case AV_PIX_FMT_Y210BE:
+          return 262;
+        case AV_PIX_FMT_Y210LE:
+          return 263;
+        case AV_PIX_FMT_X2RGB10LE:
+          return 264;
+        case AV_PIX_FMT_X2RGB10BE:
+          return 265;
+        case AV_PIX_FMT_X2BGR10LE:
+          return 266;
+        case AV_PIX_FMT_X2BGR10BE:
+          return 267;
+        case AV_PIX_FMT_P210BE:
+          return 268;
+        case AV_PIX_FMT_P210LE:
+          return 269;
+        case AV_PIX_FMT_P410BE:
+          return 270;
+        case AV_PIX_FMT_P410LE:
+          return 271;
+        case AV_PIX_FMT_P216BE:
+          return 272;
+        case AV_PIX_FMT_P216LE:
+          return 273;
+        case AV_PIX_FMT_P416BE:
+          return 274;
+        case AV_PIX_FMT_P416LE:
+          return 275;
+        case AV_PIX_FMT_VUYA:
+          return 276;
+        case AV_PIX_FMT_RGBAF16BE:
+          return 277;
+        case AV_PIX_FMT_RGBAF16LE:
+          return 278;
+        case AV_PIX_FMT_VUYX:
+          return 279;
+        case AV_PIX_FMT_P012LE:
+          return 280;
+        case AV_PIX_FMT_P012BE:
+          return 281;
+        case AV_PIX_FMT_Y212BE:
+          return 282;
+        case AV_PIX_FMT_Y212LE:
+          return 283;
+        case AV_PIX_FMT_XV30BE:
+          return 284;
+        case AV_PIX_FMT_XV30LE:
+          return 285;
+        case AV_PIX_FMT_XV36BE:
+          return 286;
+        case AV_PIX_FMT_XV36LE:
+          return 287;
+        case AV_PIX_FMT_RGBF32BE:
+          return 288;
+        case AV_PIX_FMT_RGBF32LE:
+          return 289;
+        case AV_PIX_FMT_RGBAF32BE:
+          return 290;
+        case AV_PIX_FMT_RGBAF32LE:
+          return 291;
+        //       case AV_PIX_FMT_RPI :
+      //     return 292;
+        //       case AV_PIX_FMT_SAND128 :
+      //     return 293;
+        //       case AV_PIX_FMT_SAND64_10 :
+      //     return 294;
+        //       case AV_PIX_FMT_SAND64_16 :
+      //     return 295;
+        //       case AV_PIX_FMT_RPI4_8 :       // rpi turn on then only
+      //     return 296;
+        //      case AV_PIX_FMT_RPI4_10 :
+      //     return 297;
+//        case AV_PIX_FMT_RGB555:      // Little Endian, Big Endian WIll Resolve on it's own.
+//          return 298;
+        default:
+          return 0;
+    }
+  }
+
+  static AVPixelFormat intoAVPixFmt(uint32_t avPixFmtId){
+    switch (avPixFmtId) {
+       case 0:
+         return AV_PIX_FMT_NONE ;
+       case 1:
+         return AV_PIX_FMT_YUV420P ;
+       case 2:
+         return AV_PIX_FMT_YUYV422 ;
+       case 3:
+         return AV_PIX_FMT_RGB24 ;
+       case 4:
+         return AV_PIX_FMT_BGR24 ;
+       case 5:
+         return AV_PIX_FMT_YUV422P ;
+       case 7:
+         return AV_PIX_FMT_YUV444P ;
+       case 8:
+         return AV_PIX_FMT_YUV410P ;
+       case 9:
+         return AV_PIX_FMT_YUV411P ;
+       case 10:
+         return AV_PIX_FMT_GRAY8 ;
+       case 11:
+         return AV_PIX_FMT_MONOWHITE ;
+       case 12:
+         return AV_PIX_FMT_MONOBLACK ;
+       case 13:
+         return AV_PIX_FMT_PAL8 ;
+       case 14:
+         return AV_PIX_FMT_YUVJ420P ;
+       case 15:
+         return AV_PIX_FMT_YUVJ422P ;
+       case 16:
+         return AV_PIX_FMT_YUVJ444P ;
+  //     case 17:
+  //       return AV_PIX_FMT_XVMC_MPEG2_MC ;     // Lower FFmpeg Version
+  //     case 18:
+  //       return AV_PIX_FMT_XVMC_MPEG2_IDCT ;
+       case 19:
+         return AV_PIX_FMT_UYVY422 ;
+       case 20:
+         return AV_PIX_FMT_UYYVYY411 ;
+       case 21:
+         return AV_PIX_FMT_BGR8 ;
+       case 22:
+         return AV_PIX_FMT_BGR4 ;
+       case 23:
+         return AV_PIX_FMT_BGR4_BYTE ;
+       case 24:
+         return AV_PIX_FMT_RGB8 ;
+       case 25:
+         return AV_PIX_FMT_RGB4 ;
+       case 26:
+         return AV_PIX_FMT_RGB4_BYTE ;
+       case 27:
+         return AV_PIX_FMT_NV12 ;
+       case 28:
+         return AV_PIX_FMT_NV21 ;
+       case 29:
+         return AV_PIX_FMT_ARGB ;
+       case 30:
+         return AV_PIX_FMT_RGBA ;
+       case 31:
+         return AV_PIX_FMT_ABGR ;
+       case 32:
+         return AV_PIX_FMT_BGRA ;  // Little
+       case 33:
+         return AV_PIX_FMT_GRAY16BE ;
+       case 34:
+         return AV_PIX_FMT_GRAY16LE ;
+       case 35:
+         return AV_PIX_FMT_YUV440P ;
+       case 36:
+         return AV_PIX_FMT_YUVJ440P ;
+       case 37:
+         return AV_PIX_FMT_YUVA420P ;
+  //     case 38:
+  //       return AV_PIX_FMT_VDPAU_H264 ;
+  //     case 39:
+  //       return AV_PIX_FMT_VDPAU_MPEG1 ;
+  //     case 40:
+  //       return AV_PIX_FMT_VDPAU_MPEG2 ;
+  //     case 41:
+  //       return AV_PIX_FMT_VDPAU_WMV3 ;    // Conditional compile.
+  //     case 42:
+  //       return AV_PIX_FMT_VDPAU_VC1 ;     // ff_api_vdpau is present
+       case 43:
+         return AV_PIX_FMT_RGB48BE ;
+       case 44:
+         return AV_PIX_FMT_RGB48LE ;
+       case 45:
+         return AV_PIX_FMT_RGB565BE ;
+       case 46:
+         return AV_PIX_FMT_RGB565LE ;
+       case 47:
+         return AV_PIX_FMT_RGB555BE ;
+       case 48:
+         return AV_PIX_FMT_RGB555LE ;
+       case 49:
+         return AV_PIX_FMT_BGR565BE ;
+       case 50:
+         return AV_PIX_FMT_BGR565LE ;
+       case 51:
+         return AV_PIX_FMT_BGR555BE ;
+       case 52:
+         return AV_PIX_FMT_BGR555LE ;
+  //     case 53:
+  //       return AV_PIX_FMT_VAAPI_MOCO ;
+  //     case 54:
+  //       return AV_PIX_FMT_VAAPI_IDCT ;
+  //     case 55:
+  //       return AV_PIX_FMT_VAAPI_VLD ;
+  //     case 56:
+  //       return AV_PIX_FMT_VAAPI ;    // ff_api_vdpau is present
+       case 57:
+         return AV_PIX_FMT_YUV420P16LE ;
+       case 58:
+         return AV_PIX_FMT_YUV420P16BE ;
+       case 59:
+         return AV_PIX_FMT_YUV422P16LE ;
+       case 60:
+         return AV_PIX_FMT_YUV422P16BE ;
+       case 61:
+         return AV_PIX_FMT_YUV444P16LE ;
+       case 62:
+         return AV_PIX_FMT_YUV444P16BE ;
+  //     case 63:
+  //       return AV_PIX_FMT_VDPAU_MPEG4 ;   // ff_api_vdpau is present
+       case 64:
+         return AV_PIX_FMT_DXVA2_VLD ;
+       case 65:
+         return AV_PIX_FMT_RGB444LE ;
+       case 66:
+         return AV_PIX_FMT_RGB444BE ;
+       case 67:
+         return AV_PIX_FMT_BGR444LE ;
+       case 68:
+         return AV_PIX_FMT_BGR444BE ;
+       case 69:
+         return AV_PIX_FMT_YA8 ;
+       case 70:
+         return AV_PIX_FMT_BGR48BE ;
+       case 71:
+         return AV_PIX_FMT_BGR48LE ;
+       case 72:
+         return AV_PIX_FMT_YUV420P9BE ;
+       case 73:
+         return AV_PIX_FMT_YUV420P9LE ;
+       case 74:
+         return AV_PIX_FMT_YUV420P10BE ;
+       case 75:
+         return AV_PIX_FMT_YUV420P10LE ;
+       case 76:
+         return AV_PIX_FMT_YUV422P10BE ;
+       case 77:
+         return AV_PIX_FMT_YUV422P10LE ;
+       case 78:
+         return AV_PIX_FMT_YUV444P9BE ;
+       case 79:
+         return AV_PIX_FMT_YUV444P9LE ;
+       case 80:
+         return AV_PIX_FMT_YUV444P10BE ;
+       case 81:
+         return AV_PIX_FMT_YUV444P10LE ;
+       case 82:
+         return AV_PIX_FMT_YUV422P9BE ;
+       case 83:
+         return AV_PIX_FMT_YUV422P9LE ;
+  //     case 84:
+  //       return AV_PIX_FMT_VDA_VLD ;   // Lower than ffmpeg version 4
+       case 85:
+         return AV_PIX_FMT_GBRP ;
+       case 86:
+         return AV_PIX_FMT_GBRP9BE ;
+       case 87:
+         return AV_PIX_FMT_GBRP9LE ;
+       case 88:
+         return AV_PIX_FMT_GBRP10BE ;
+       case 89:
+         return AV_PIX_FMT_GBRP10LE ;
+       case 90:
+         return AV_PIX_FMT_GBRP16BE ;
+       case 91:
+         return AV_PIX_FMT_GBRP16LE ;
+       case 92:
+         return AV_PIX_FMT_YUVA420P9BE ;
+       case 93:
+         return AV_PIX_FMT_YUVA420P9LE ;
+       case 94:
+         return AV_PIX_FMT_YUVA422P9BE ;
+       case 95:
+         return AV_PIX_FMT_YUVA422P9LE ;
+       case 96:
+         return AV_PIX_FMT_YUVA444P9BE ;
+       case 97:
+         return AV_PIX_FMT_YUVA444P9LE ;
+       case 98:
+         return AV_PIX_FMT_YUVA420P10BE ;
+       case 99:
+         return AV_PIX_FMT_YUVA420P10LE ;
+       case 100:
+         return AV_PIX_FMT_YUVA422P10BE ;
+       case 101:
+         return AV_PIX_FMT_YUVA422P10LE ;
+       case 102:
+         return AV_PIX_FMT_YUVA444P10BE ;
+       case 103:
+         return AV_PIX_FMT_YUVA444P10LE ;
+       case 104:
+         return AV_PIX_FMT_YUVA420P16BE ;
+       case 105:
+         return AV_PIX_FMT_YUVA420P16LE ;
+       case 106:
+         return AV_PIX_FMT_YUVA422P16BE ;
+       case 107:
+         return AV_PIX_FMT_YUVA422P16LE ;
+       case 108:
+         return AV_PIX_FMT_YUVA444P16BE ;
+       case 109:
+         return AV_PIX_FMT_YUVA444P16LE ;
+       case 110:
+         return AV_PIX_FMT_VDPAU ;
+       case 111:
+         return AV_PIX_FMT_XYZ12LE ;
+       case 112:
+         return AV_PIX_FMT_XYZ12BE ;
+       case 113:
+         return AV_PIX_FMT_NV16 ;
+       case 114:
+         return AV_PIX_FMT_NV20LE ;
+       case 115:
+         return AV_PIX_FMT_NV20BE ;
+       case 116:
+         return AV_PIX_FMT_RGBA64BE ;
+       case 117:
+         return AV_PIX_FMT_RGBA64LE ;
+       case 118:
+         return AV_PIX_FMT_BGRA64BE ;
+       case 119:
+         return AV_PIX_FMT_BGRA64LE ;
+       case 120:
+         return AV_PIX_FMT_YVYU422 ;
+  //     case 121:
+  //       return AV_PIX_FMT_VDA ;   // Lower than ffmpeg version 4.
+       case 122:
+         return AV_PIX_FMT_YA16BE ;
+       case 123:
+         return AV_PIX_FMT_YA16LE ;
+       case 124:
+         return AV_PIX_FMT_QSV ;
+       case 125:
+         return AV_PIX_FMT_MMAL ;
+       case 126:
+         return AV_PIX_FMT_D3D11VA_VLD ;
+       case 127:
+         return AV_PIX_FMT_CUDA ;
+       case 128:
+         return AV_PIX_FMT_0RGB ;
+       case 129:
+         return AV_PIX_FMT_RGB0 ;
+       case 130:
+         return AV_PIX_FMT_0BGR ;
+       case 131:
+         return AV_PIX_FMT_BGR0 ;
+       case 132:
+         return AV_PIX_FMT_YUVA444P ;
+       case 133:
+         return AV_PIX_FMT_YUVA422P ;
+       case 134:
+         return AV_PIX_FMT_YUV420P12BE ;
+       case 135:
+         return AV_PIX_FMT_YUV420P12LE ;
+       case 136:
+         return AV_PIX_FMT_YUV420P14BE ;
+       case 137:
+         return AV_PIX_FMT_YUV420P14LE ;
+       case 138:
+         return AV_PIX_FMT_YUV422P12BE ;
+       case 139:
+         return AV_PIX_FMT_YUV422P12LE ;
+       case 140:
+         return AV_PIX_FMT_YUV422P14BE ;
+       case 141:
+         return AV_PIX_FMT_YUV422P14LE ;
+       case 142:
+         return AV_PIX_FMT_YUV444P12BE ;
+       case 143:
+         return AV_PIX_FMT_YUV444P12LE ;
+       case 144:
+         return AV_PIX_FMT_YUV444P14BE ;
+       case 146:
+         return AV_PIX_FMT_YUV444P14LE ;
+       case 147:
+         return AV_PIX_FMT_GBRP12BE ;
+       case 148:
+         return AV_PIX_FMT_GBRP12LE ;
+       case 149:
+         return AV_PIX_FMT_GBRP14BE ;
+       case 150:
+         return AV_PIX_FMT_GBRP14LE ;
+       case 151:
+         return AV_PIX_FMT_GBRAP ;
+       case 152:
+         return AV_PIX_FMT_GBRAP16BE ;
+       case 153:
+         return AV_PIX_FMT_GBRAP16LE ;
+       case 154:
+         return AV_PIX_FMT_YUVJ411P ;
+       case 155:
+         return AV_PIX_FMT_BAYER_BGGR8 ;
+       case 156:
+         return AV_PIX_FMT_BAYER_RGGB8 ;
+       case 157:
+         return AV_PIX_FMT_BAYER_GBRG8 ;
+       case 158:
+         return AV_PIX_FMT_BAYER_GRBG8 ;
+       case 159:
+         return AV_PIX_FMT_BAYER_BGGR16LE ;
+       case 160:
+         return AV_PIX_FMT_BAYER_BGGR16BE ;
+       case 161:
+         return AV_PIX_FMT_BAYER_RGGB16LE ;
+       case 162:
+         return AV_PIX_FMT_BAYER_RGGB16BE ;
+       case 163:
+         return AV_PIX_FMT_BAYER_GBRG16LE ;
+       case 164:
+         return AV_PIX_FMT_BAYER_GBRG16BE ;
+       case 165:
+         return AV_PIX_FMT_BAYER_GRBG16LE ;
+       case 166:
+         return AV_PIX_FMT_BAYER_GRBG16BE ;
+       case 167:
+         return AV_PIX_FMT_YUV440P10LE ;
+       case 168:
+         return AV_PIX_FMT_YUV440P10BE ;
+       case 169:
+         return AV_PIX_FMT_YUV440P12LE ;
+       case  170:
+         return AV_PIX_FMT_YUV440P12BE ;
+       case 171:
+         return AV_PIX_FMT_AYUV64LE ;
+       case 172:
+         return AV_PIX_FMT_AYUV64BE ;
+       case 173:
+         return AV_PIX_FMT_VIDEOTOOLBOX ;
+       case 174:
+         return AV_PIX_FMT_XVMC ;
+       case 175:
+         return AV_PIX_FMT_RGB32 ;
+       case 176:
+         return AV_PIX_FMT_RGB32_1 ;
+       case 177:
+         return AV_PIX_FMT_BGR32 ;
+       case 178:
+         return AV_PIX_FMT_BGR32_1 ;
+       case 179:
+         return AV_PIX_FMT_0RGB32 ;
+       case 180:
+         return AV_PIX_FMT_0BGR32 ;
+       case 181:
+         return AV_PIX_FMT_GRAY16 ;
+       case 182:
+         return AV_PIX_FMT_YA16 ;
+       case 183:
+         return AV_PIX_FMT_RGB48 ;
+       case 184:
+         return AV_PIX_FMT_RGB565 ;
+       case 185:
+         return AV_PIX_FMT_RGB444 ;
+       case 186:
+         return AV_PIX_FMT_BGR48 ;
+       case 187:
+         return AV_PIX_FMT_BGR565 ;
+       case 188:
+         return AV_PIX_FMT_BGR555 ;
+       case 189:
+         return AV_PIX_FMT_BGR444 ;
+       case 190:
+         return AV_PIX_FMT_YUV420P9 ;
+       case 191:
+         return AV_PIX_FMT_YUV422P9 ;
+       case 192:
+         return AV_PIX_FMT_YUV444P9 ;
+       case 193:
+         return AV_PIX_FMT_YUV420P10 ;
+       case 194:
+         return AV_PIX_FMT_YUV422P10 ;
+       case 195:
+         return AV_PIX_FMT_YUV440P10 ;
+       case 196:
+         return AV_PIX_FMT_YUV444P10 ;
+       case 197:
+         return AV_PIX_FMT_YUV420P12 ;
+       case 198:
+         return AV_PIX_FMT_YUV422P12 ;
+       case 199:
+         return AV_PIX_FMT_YUV440P12 ;
+       case 200:
+         return AV_PIX_FMT_YUV444P12 ;
+       case 201:
+         return AV_PIX_FMT_YUV420P14 ;
+       case 202:
+         return AV_PIX_FMT_YUV422P14 ;
+       case 203:
+         return AV_PIX_FMT_YUV444P14 ;
+       case 204:
+         return AV_PIX_FMT_YUV420P16 ;
+       case 205:
+         return AV_PIX_FMT_YUV422P16 ;
+       case 206:
+         return AV_PIX_FMT_YUV444P16 ;
+       case 207:
+         return AV_PIX_FMT_GBRP9 ;
+       case 208:
+         return AV_PIX_FMT_GBRP10 ;
+       case 209:
+         return AV_PIX_FMT_GBRP12 ;
+       case 210:
+         return AV_PIX_FMT_GBRP14 ;
+       case 211:
+         return AV_PIX_FMT_GBRP16 ;
+       case 212:
+         return AV_PIX_FMT_GBRAP16 ;
+       case 213:
+         return AV_PIX_FMT_BAYER_BGGR16 ;
+       case 214:
+         return AV_PIX_FMT_BAYER_RGGB16 ;
+       case 215:
+         return AV_PIX_FMT_BAYER_GBRG16 ;
+       case 216:
+         return AV_PIX_FMT_BAYER_GRBG16 ;
+       case 217:
+         return AV_PIX_FMT_YUVA420P9 ;
+       case 218:
+         return AV_PIX_FMT_YUVA422P9 ;
+       case 219:
+         return AV_PIX_FMT_YUVA444P9 ;
+       case 220:
+         return AV_PIX_FMT_YUVA420P10 ;
+       case 221:
+         return AV_PIX_FMT_YUVA422P10 ;
+       case 222:
+         return AV_PIX_FMT_YUVA444P10 ;
+       case 223:
+         return AV_PIX_FMT_YUVA420P16 ;
+       case 224:
+         return AV_PIX_FMT_YUVA422P16 ;
+       case 225:
+         return AV_PIX_FMT_YUVA444P16 ;
+       case 226:
+         return AV_PIX_FMT_XYZ12 ;
+       case 227:
+         return AV_PIX_FMT_NV20 ;
+       case 228:
+         return AV_PIX_FMT_AYUV64 ;
+       case 229:
+         return AV_PIX_FMT_P010LE ;
+       case 230:
+         return AV_PIX_FMT_P010BE ;
+       case 231:
+         return AV_PIX_FMT_GBRAP12BE ;
+       case 232:
+         return AV_PIX_FMT_GBRAP12LE ;
+       case 233:
+         return AV_PIX_FMT_GBRAP10LE ;
+       case 234:
+         return AV_PIX_FMT_GBRAP10BE ;
+       case 235:
+         return AV_PIX_FMT_MEDIACODEC ;
+       case 236:
+         return AV_PIX_FMT_GRAY12BE ;
+       case 237:
+         return AV_PIX_FMT_GRAY12LE ;
+       case 238:
+         return AV_PIX_FMT_GRAY10BE ;
+       case 239:
+         return AV_PIX_FMT_GRAY10LE ;
+       case 240:
+         return AV_PIX_FMT_P016LE ;
+       case 241:
+         return AV_PIX_FMT_P016BE ;
+       case 242:
+         return AV_PIX_FMT_D3D11 ;
+       case 243:
+         return AV_PIX_FMT_GRAY9BE ;
+       case 244:
+         return AV_PIX_FMT_GRAY9LE ;
+       case 245:
+         return AV_PIX_FMT_GBRPF32BE ;
+       case 246:
+         return AV_PIX_FMT_GBRPF32LE ;
+       case 247:
+         return AV_PIX_FMT_GBRAPF32BE ;
+       case 248:
+         return AV_PIX_FMT_GBRAPF32LE ;
+       case 249:
+         return AV_PIX_FMT_DRM_PRIME ;
+
+         // Above ffmpeg 4.0  Need to add versions.
+       case 250:
+         return AV_PIX_FMT_OPENCL ;
+       case 251:
+         return AV_PIX_FMT_GRAY14BE ;
+       case 252:
+         return AV_PIX_FMT_GRAY14LE ;
+       case 253:
+         return AV_PIX_FMT_GRAYF32BE ;
+       case 254:
+         return AV_PIX_FMT_GRAYF32LE ;
+       case 255:
+         return AV_PIX_FMT_YUVA422P12BE ;
+       case 256:
+         return AV_PIX_FMT_YUVA422P12LE ;
+       case 257:
+         return AV_PIX_FMT_YUVA444P12BE ;
+       case 258:
+         return AV_PIX_FMT_YUVA444P12LE ;
+       case 259:
+         return AV_PIX_FMT_NV24 ;
+       case 260:
+         return AV_PIX_FMT_NV42 ;
+       case 261:
+         return AV_PIX_FMT_VULKAN ;
+       case 262:
+         return AV_PIX_FMT_Y210BE ;
+       case 263:
+         return AV_PIX_FMT_Y210LE ;
+       case 264:
+         return AV_PIX_FMT_X2RGB10LE ;
+       case 265:
+         return AV_PIX_FMT_X2RGB10BE ;
+       case 266:
+         return AV_PIX_FMT_X2BGR10LE ;
+       case 267:
+         return AV_PIX_FMT_X2BGR10BE ;
+       case 268:
+         return AV_PIX_FMT_P210BE ;
+       case 269:
+         return AV_PIX_FMT_P210LE ;
+       case 270:
+         return AV_PIX_FMT_P410BE ;
+       case 271:
+         return AV_PIX_FMT_P410LE ;
+       case 272:
+         return AV_PIX_FMT_P216BE ;
+       case 273:
+         return AV_PIX_FMT_P216LE ;
+       case 274:
+         return AV_PIX_FMT_P416BE ;
+       case 275:
+         return AV_PIX_FMT_P416LE ;
+       case 276:
+         return AV_PIX_FMT_VUYA ;
+       case 277:
+         return AV_PIX_FMT_RGBAF16BE ;
+       case 278:
+         return AV_PIX_FMT_RGBAF16LE ;
+       case 279:
+         return AV_PIX_FMT_VUYX ;
+       case 280:
+         return AV_PIX_FMT_P012LE ;
+       case 281:
+         return AV_PIX_FMT_P012BE ;
+       case 282:
+         return AV_PIX_FMT_Y212BE ;
+       case 283:
+         return AV_PIX_FMT_Y212LE ;
+       case 284:
+         return AV_PIX_FMT_XV30BE ;
+       case 285:
+         return AV_PIX_FMT_XV30LE ;
+       case 286:
+         return AV_PIX_FMT_XV36BE ;
+       case 287:
+         return AV_PIX_FMT_XV36LE ;
+       case 288:
+         return AV_PIX_FMT_RGBF32BE ;
+       case 289:
+         return AV_PIX_FMT_RGBF32LE ;
+       case 290:
+         return AV_PIX_FMT_RGBAF32BE ;
+       case 291:
+         return AV_PIX_FMT_RGBAF32LE ;
+  //     case 292:
+  //       return AV_PIX_FMT_RPI ;
+  //     case 293:
+  //       return AV_PIX_FMT_SAND128 ;
+  //     case 294:
+  //       return AV_PIX_FMT_SAND64_10 ;
+  //     case 295:
+  //       return AV_PIX_FMT_SAND64_16 ;
+  //     case 296:
+  //       return AV_PIX_FMT_RPI4_8 ;       // rpi turn on then only
+  //     case 297:
+  //      return AV_PIX_FMT_RPI4_10 ;
+       case 298:
+        return AV_PIX_FMT_RGB555 ;
+       default:
+        return AV_PIX_FMT_NONE;
+     }
+  }
+};
+
 
 }
 } // namespace WasmEdgeFFmpeg

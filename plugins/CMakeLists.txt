@@ -74,3 +74,7 @@ endif()
 if(WASMEDGE_PLUGIN_RUSTLS)
   add_subdirectory(wasmedge_rustls)
 endif()
+
+if(WASMEDGE_PLUGIN_ZLIB)
+  add_subdirectory(wasmedge_zlib)
+endif()

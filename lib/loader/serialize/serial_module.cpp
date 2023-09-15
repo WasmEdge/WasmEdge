@@ -1,85 +1,130 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "loader/serialize.h"
+
+#include <functional>
 
 namespace WasmEdge {
 namespace Loader {
 
 // Serialize module. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeModule(const AST::Module &Mod) {
+Serializer::serializeModule(const AST::Module &Mod) const noexcept {
   std::vector<uint8_t> OutVec;
+  OutVec.reserve(Mod.getMagic().size() + Mod.getVersion().size());
   // Serialize Magic and Version.
   OutVec.insert(OutVec.end(), Mod.getMagic().begin(), Mod.getMagic().end());
   OutVec.insert(OutVec.end(), Mod.getVersion().begin(), Mod.getVersion().end());
 
   // Sort sections according to start offset.
-  std::vector<std::shared_ptr<AST::Section>> Sections = {
-      std::make_shared<AST::TypeSection>(Mod.getTypeSection()),
-      std::make_shared<AST::ImportSection>(Mod.getImportSection()),
-      std::make_shared<AST::FunctionSection>(Mod.getFunctionSection()),
-      std::make_shared<AST::TableSection>(Mod.getTableSection()),
-      std::make_shared<AST::MemorySection>(Mod.getMemorySection()),
-      std::make_shared<AST::GlobalSection>(Mod.getGlobalSection()),
-      std::make_shared<AST::ExportSection>(Mod.getExportSection()),
-      std::make_shared<AST::StartSection>(Mod.getStartSection()),
-      std::make_shared<AST::ElementSection>(Mod.getElementSection()),
-      std::make_shared<AST::CodeSection>(Mod.getCodeSection()),
-      std::make_shared<AST::DataSection>(Mod.getDataSection()),
-      std::make_shared<AST::DataCountSection>(Mod.getDataCountSection())};
-  for (auto CustomSec : Mod.getCustomSections()) {
-    Sections.push_back(std::make_shared<AST::CustomSection>(CustomSec));
+  using SerialWrap = Expect<std::vector<uint8_t>>(const AST::Section *);
+  std::vector<std::pair<const AST::Section *, std::function<SerialWrap>>>
+      Sections;
+  Sections.reserve(Mod.getCustomSections().size() + 12);
+  for (auto &CustomSec : Mod.getCustomSections()) {
+    Sections.push_back(std::pair(&CustomSec, [this](const AST::Section *Sec) {
+      return serializeSection(*static_cast<const AST::CustomSection *>(Sec));
+    }));
   }
-  std::sort(Sections.begin(), Sections.end(), [](auto A, auto B) {
-    return A->getStartOffset() < B->getStartOffset();
+  if (Mod.getTypeSection().getContentSize() > 0) {
+    Sections.push_back(
+        std::pair(&Mod.getTypeSection(), [this](const AST::Section *Sec) {
+          return serializeSection(*static_cast<const AST::TypeSection *>(Sec));
+        }));
+  }
+  if (Mod.getImportSection().getContentSize() > 0) {
+    Sections.push_back(
+        std::pair(&Mod.getImportSection(), [this](const AST::Section *Sec) {
+          return serializeSection(
+              *static_cast<const AST::ImportSection *>(Sec));
+        }));
+  }
+  if (Mod.getFunctionSection().getContentSize() > 0) {
+    Sections.push_back(
+        std::pair(&Mod.getFunctionSection(), [this](const AST::Section *Sec) {
+          return serializeSection(
+              *static_cast<const AST::FunctionSection *>(Sec));
+        }));
+  }
+  if (Mod.getTableSection().getContentSize() > 0) {
+    Sections.push_back(
+        std::pair(&Mod.getTableSection(), [this](const AST::Section *Sec) {
+          return serializeSection(*static_cast<const AST::TableSection *>(Sec));
+        }));
+  }
+  if (Mod.getMemorySection().getContentSize() > 0) {
+    Sections.push_back(
+        std::pair(&Mod.getMemorySection(), [this](const AST::Section *Sec) {
+          return serializeSection(
+              *static_cast<const AST::MemorySection *>(Sec));
+        }));
+  }
+  if (Mod.getGlobalSection().getContentSize() > 0) {
+    Sections.push_back(
+        std::pair(&Mod.getGlobalSection(), [this](const AST::Section *Sec) {
+          return serializeSection(
+              *static_cast<const AST::GlobalSection *>(Sec));
+        }));
+  }
+  if (Mod.getExportSection().getContentSize() > 0) {
+    Sections.push_back(
+        std::pair(&Mod.getExportSection(), [this](const AST::Section *Sec) {
+          return serializeSection(
+              *static_cast<const AST::ExportSection *>(Sec));
+        }));
+  }
+  if (Mod.getStartSection().getContentSize() > 0) {
+    Sections.push_back(
+        std::pair(&Mod.getStartSection(), [this](const AST::Section *Sec) {
+          return serializeSection(*static_cast<const AST::StartSection *>(Sec));
+        }));
+  }
+  if (Mod.getElementSection().getContentSize() > 0) {
+    Sections.push_back(
+        std::pair(&Mod.getElementSection(), [this](const AST::Section *Sec) {
+          return serializeSection(
+              *static_cast<const AST::ElementSection *>(Sec));
+        }));
+  }
+  if (Mod.getCodeSection().getContentSize() > 0) {
+    Sections.push_back(
+        std::pair(&Mod.getCodeSection(), [this](const AST::Section *Sec) {
+          return serializeSection(*static_cast<const AST::CodeSection *>(Sec));
+        }));
+  }
+  if (Mod.getDataSection().getContentSize() > 0) {
+    Sections.push_back(
+        std::pair(&Mod.getDataSection(), [this](const AST::Section *Sec) {
+          return serializeSection(*static_cast<const AST::DataSection *>(Sec));
+        }));
+  }
+  if (Mod.getDataCountSection().getContentSize() > 0) {
+    // This section is for BulkMemoryOperations or ReferenceTypes proposal.
+    if (!Conf.hasProposal(Proposal::BulkMemoryOperations) &&
+        !Conf.hasProposal(Proposal::ReferenceTypes)) {
+      return logNeedProposal(ErrCode::Value::MalformedSection,
+                             Proposal::BulkMemoryOperations,
+                             ASTNodeAttr::Module);
+    }
+    Sections.push_back(
+        std::pair(&Mod.getDataCountSection(), [this](const AST::Section *Sec) {
+          return serializeSection(
+              *static_cast<const AST::DataCountSection *>(Sec));
+        }));
+  }
+  std::sort(Sections.begin(), Sections.end(), [](auto &A, auto &B) {
+    return (A.first)->getStartOffset() < (B.first)->getStartOffset();
   });
 
   // Serialize sections.
-  for (auto Sec : Sections) {
-    Expect<std::vector<uint8_t>> Res;
-    if (instanceof <AST::TypeSection>(Sec)) {
-      Res = serializeSection(*std::dynamic_pointer_cast<AST::TypeSection>(Sec));
-    } else if (instanceof <AST::ImportSection>(Sec)) {
-      Res =
-          serializeSection(*std::dynamic_pointer_cast<AST::ImportSection>(Sec));
-    } else if (instanceof <AST::FunctionSection>(Sec)) {
-      Res = serializeSection(
-          *std::dynamic_pointer_cast<AST::FunctionSection>(Sec));
-    } else if (instanceof <AST::TableSection>(Sec)) {
-      Res =
-          serializeSection(*std::dynamic_pointer_cast<AST::TableSection>(Sec));
-    } else if (instanceof <AST::MemorySection>(Sec)) {
-      Res =
-          serializeSection(*std::dynamic_pointer_cast<AST::MemorySection>(Sec));
-    } else if (instanceof <AST::GlobalSection>(Sec)) {
-      Res =
-          serializeSection(*std::dynamic_pointer_cast<AST::GlobalSection>(Sec));
-    } else if (instanceof <AST::ExportSection>(Sec)) {
-      Res =
-          serializeSection(*std::dynamic_pointer_cast<AST::ExportSection>(Sec));
-    } else if (instanceof <AST::StartSection>(Sec)) {
-      Res =
-          serializeSection(*std::dynamic_pointer_cast<AST::StartSection>(Sec));
-    } else if (instanceof <AST::ElementSection>(Sec)) {
-      Res = serializeSection(
-          *std::dynamic_pointer_cast<AST::ElementSection>(Sec));
-    } else if (instanceof <AST::CodeSection>(Sec)) {
-      Res = serializeSection(*std::dynamic_pointer_cast<AST::CodeSection>(Sec));
-    } else if (instanceof <AST::DataSection>(Sec)) {
-      Res = serializeSection(*std::dynamic_pointer_cast<AST::DataSection>(Sec));
-    } else if (instanceof <AST::DataCountSection>(Sec)) {
-      Res = serializeSection(
-          *std::dynamic_pointer_cast<AST::DataCountSection>(Sec));
-    } else if (instanceof <AST::CustomSection>(Sec)) {
-      Res =
-          serializeSection(*std::dynamic_pointer_cast<AST::CustomSection>(Sec));
+  for (auto &Sec : Sections) {
+    if (auto Res = Sec.second(Sec.first)) {
+      OutVec.insert(OutVec.end(), Res->begin(), Res->end());
     } else {
-      return logSerializeError(ErrCode::Value::IllegalPath,
-                               ASTNodeAttr::Module);
-    }
-    if (!Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
       return Unexpect(Res);
     }
-    OutVec.insert(OutVec.end(), Res->begin(), Res->end());
   }
   return OutVec;
 }

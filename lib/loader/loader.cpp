@@ -209,24 +209,9 @@ Loader::parseModule(Span<const uint8_t> Code) {
   }
 }
 
-// Helper function of checking the valid value types.
-Expect<void> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
-                                           ASTNodeAttr Node) const noexcept {
-  if (auto Res = Conf.checkValTypeProposals(VType, Node); !Res) {
-    spdlog::error(ErrInfo::InfoLoading(Off));
-    return Unexpect(Res);
-  }
-  return {};
-}
-
-// Helper function of checking the valid reference types.
-Expect<void> Loader::checkRefTypeProposals(RefType RType, uint64_t Off,
-                                           ASTNodeAttr Node) const noexcept {
-  if (auto Res = Conf.checkRefTypeProposals(RType, Node); !Res) {
-    spdlog::error(ErrInfo::InfoLoading(Off));
-    return Unexpect(Res);
-  }
-  return {};
+// Serialize module into byte code. See "include/loader/loader.h".
+Expect<std::vector<Byte>> Loader::serializeModule(const AST::Module &Mod) {
+  return SLZer.serializeModule(Mod);
 }
 
 } // namespace Loader

@@ -14,8 +14,10 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/enum_ast.hpp"
 #include "common/enum_configure.hpp"
-#include "errinfo.h"
+#include "common/enum_types.hpp"
+#include "common/errcode.h"
 
 #include <atomic>
 #include <bitset>
@@ -269,23 +271,25 @@ public:
     return StatisticsConf;
   }
 
-  inline Unexpected<ErrCode> logCheckError(ErrCode Code,
-                                           ASTNodeAttr Node) const noexcept {
-    spdlog::error(Code);
-    spdlog::error(ErrInfo::InfoAST(Node));
-    return Unexpect(Code);
-  }
-  inline Unexpected<ErrCode> logNeedProposal(ErrCode Code, Proposal Prop,
-                                             ASTNodeAttr Node) const noexcept {
-    spdlog::error(Code);
-    spdlog::error(ErrInfo::InfoProposal(Prop));
-    spdlog::error(ErrInfo::InfoAST(Node));
-    return Unexpect(Code);
-  }
+  class ProposalErrCode {
+  public:
+    ProposalErrCode(const ErrCode::Value E) noexcept : Code(E) {}
+    ProposalErrCode(const ErrCode::Value E, const Proposal P) noexcept
+        : Code(E), IsNeedProposal(true), Prop(P) {}
 
-  // Helper function of checking the valid value types.
-  Expect<void> checkValTypeProposals(ValType VType,
-                                     ASTNodeAttr Node) const noexcept {
+    bool isNeedProposal() const noexcept { return IsNeedProposal; }
+    ErrCode::Value getErrCode() const noexcept { return Code; }
+    Proposal getNeedProposal() const noexcept { return Prop; }
+
+  private:
+    ErrCode::Value Code = ErrCode::Value::Success;
+    bool IsNeedProposal = false;
+    Proposal Prop = Proposal::Max;
+  };
+
+  /// Helper function of checking the valid value types.
+  Expected<void, ProposalErrCode>
+  checkValTypeProposals(ValType VType) const noexcept {
     switch (VType) {
     case ValType::I32:
     case ValType::I64:
@@ -294,64 +298,68 @@ public:
       return {};
     case ValType::V128:
       if (!hasProposal(Proposal::SIMD)) {
-        return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::SIMD,
-                               Node);
+        return Unexpected<ProposalErrCode>(
+            ProposalErrCode(ErrCode::Value::MalformedValType, Proposal::SIMD));
       }
       return {};
     case ValType::FuncRef:
       if (!hasProposal(Proposal::BulkMemoryOperations)) {
-        return logNeedProposal(ErrCode::Value::MalformedElemType,
-                               Proposal::BulkMemoryOperations, Node);
+        return Unexpected<ProposalErrCode>(ProposalErrCode(
+            ErrCode::Value::MalformedElemType, Proposal::BulkMemoryOperations));
       }
       [[fallthrough]];
     case ValType::ExternRef:
       if (!hasProposal(Proposal::ReferenceTypes)) {
-        return logNeedProposal(ErrCode::Value::MalformedElemType,
-                               Proposal::ReferenceTypes, Node);
+        return Unexpected<ProposalErrCode>(ProposalErrCode(
+            ErrCode::Value::MalformedElemType, Proposal::ReferenceTypes));
       }
       return {};
     default:
-      return logCheckError(ErrCode::Value::MalformedValType, Node);
+      return Unexpected<ProposalErrCode>(
+          ProposalErrCode(ErrCode::Value::MalformedValType));
     }
   }
 
-  // Helper function of checking the valid reference types.
-  Expect<void> checkRefTypeProposals(RefType RType,
-                                     ASTNodeAttr Node) const noexcept {
+  /// Helper function of checking the valid reference types.
+  Expected<void, ProposalErrCode>
+  checkRefTypeProposals(RefType RType) const noexcept {
     switch (RType) {
     case RefType::ExternRef:
       if (!hasProposal(Proposal::ReferenceTypes)) {
-        return logNeedProposal(ErrCode::Value::MalformedElemType,
-                               Proposal::ReferenceTypes, Node);
+        return Unexpected<ProposalErrCode>(ProposalErrCode(
+            ErrCode::Value::MalformedElemType, Proposal::ReferenceTypes));
       }
       [[fallthrough]];
     case RefType::FuncRef:
       return {};
     default:
       if (hasProposal(Proposal::ReferenceTypes)) {
-        return logCheckError(ErrCode::Value::MalformedRefType, Node);
+        return Unexpected<ProposalErrCode>(
+            ProposalErrCode(ErrCode::Value::MalformedRefType));
       } else {
-        return logCheckError(ErrCode::Value::MalformedElemType, Node);
+        return Unexpected<ProposalErrCode>(
+            ProposalErrCode(ErrCode::Value::MalformedElemType));
       }
     }
   }
 
-  Expect<void> checkInstrProposals(OpCode Code) const noexcept {
+  /// Helper function of checking the proposal of instructions.
+  Expected<void, ProposalErrCode>
+  checkInstrProposals(OpCode Code) const noexcept {
     if (Code >= OpCode::I32__trunc_sat_f32_s &&
         Code <= OpCode::I64__trunc_sat_f64_u) {
       // These instructions are for NonTrapFloatToIntConversions proposal.
       if (unlikely(!hasProposal(Proposal::NonTrapFloatToIntConversions))) {
-        return logNeedProposal(ErrCode::Value::IllegalOpCode,
-                               Proposal::NonTrapFloatToIntConversions,
-                               ASTNodeAttr::Instruction);
+        return Unexpected<ProposalErrCode>(
+            ProposalErrCode(ErrCode::Value::IllegalOpCode,
+                            Proposal::NonTrapFloatToIntConversions));
       }
     } else if (Code >= OpCode::I32__extend8_s &&
                Code <= OpCode::I64__extend32_s) {
       // These instructions are for SignExtensionOperators proposal.
       if (unlikely(!hasProposal(Proposal::SignExtensionOperators))) {
-        return logNeedProposal(ErrCode::Value::IllegalOpCode,
-                               Proposal::SignExtensionOperators,
-                               ASTNodeAttr::Instruction);
+        return Unexpected<ProposalErrCode>(ProposalErrCode(
+            ErrCode::Value::IllegalOpCode, Proposal::SignExtensionOperators));
       }
     } else if ((Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
                (Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||
@@ -360,39 +368,37 @@ public:
       // proposal.
       if (unlikely(!hasProposal(Proposal::ReferenceTypes)) &&
           unlikely(!hasProposal(Proposal::BulkMemoryOperations))) {
-        return logNeedProposal(ErrCode::Value::IllegalOpCode,
-                               Proposal::ReferenceTypes,
-                               ASTNodeAttr::Instruction);
+        return Unexpected<ProposalErrCode>(ProposalErrCode(
+            ErrCode::Value::IllegalOpCode, Proposal::ReferenceTypes));
       }
     } else if (Code == OpCode::Select_t ||
                (Code >= OpCode::Table__get && Code <= OpCode::Table__set) ||
                (Code >= OpCode::Table__grow && Code <= OpCode::Table__fill)) {
       // These instructions are for ReferenceTypes proposal.
       if (unlikely(!hasProposal(Proposal::ReferenceTypes))) {
-        return logNeedProposal(ErrCode::Value::IllegalOpCode,
-                               Proposal::ReferenceTypes,
-                               ASTNodeAttr::Instruction);
+        return Unexpected<ProposalErrCode>(ProposalErrCode(
+            ErrCode::Value::IllegalOpCode, Proposal::ReferenceTypes));
       }
     } else if (Code >= OpCode::V128__load &&
                Code <= OpCode::F64x2__convert_low_i32x4_u) {
       // These instructions are for SIMD proposal.
       if (!hasProposal(Proposal::SIMD)) {
-        return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::SIMD,
-                               ASTNodeAttr::Instruction);
+        return Unexpected<ProposalErrCode>(
+            ProposalErrCode(ErrCode::Value::IllegalOpCode, Proposal::SIMD));
       }
     } else if (Code == OpCode::Return_call ||
                Code == OpCode::Return_call_indirect) {
       // These instructions are for TailCall proposal.
       if (!hasProposal(Proposal::TailCall)) {
-        return logNeedProposal(ErrCode::Value::IllegalOpCode,
-                               Proposal::TailCall, ASTNodeAttr::Instruction);
+        return Unexpected<ProposalErrCode>(
+            ProposalErrCode(ErrCode::Value::IllegalOpCode, Proposal::TailCall));
       }
     } else if (Code >= OpCode::I32__atomic__load &&
                Code <= OpCode::I64__atomic__rmw32__cmpxchg_u) {
       // These instructions are for Thread proposal.
       if (!hasProposal(Proposal::Threads)) {
-        return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::Threads,
-                               ASTNodeAttr::Instruction);
+        return Unexpected<ProposalErrCode>(
+            ProposalErrCode(ErrCode::Value::IllegalOpCode, Proposal::Threads));
       }
     }
     return {};

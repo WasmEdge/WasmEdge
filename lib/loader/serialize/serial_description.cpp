@@ -1,11 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "loader/serialize.h"
 
 namespace WasmEdge {
 namespace Loader {
 
 // Serialize import description. See "include/loader/serialize.h".
-Expect<void> Serializer::serializeDesc(const AST::ImportDesc &Desc,
-                                       std::vector<uint8_t> &OutVec) {
+Expect<void>
+Serializer::serializeDesc(const AST::ImportDesc &Desc,
+                          std::vector<uint8_t> &OutVec) const noexcept {
   // Import description: modname:vec(byte) + extname:vec(byte) + importdesc
   // Module name: vec(byte).
   serializeU32(static_cast<uint32_t>(Desc.getModuleName().size()), OutVec);
@@ -29,9 +33,9 @@ Expect<void> Serializer::serializeDesc(const AST::ImportDesc &Desc,
   case ExternalType::Global:
     if (Desc.getExternalGlobalType().getValMut() == ValMut::Var &&
         unlikely(!Conf.hasProposal(Proposal::ImportExportMutGlobals))) {
-      return Conf.logNeedProposal(ErrCode::Value::InvalidMut,
-                                  Proposal::ImportExportMutGlobals,
-                                  ASTNodeAttr::Desc_Import);
+      return logNeedProposal(ErrCode::Value::InvalidMut,
+                             Proposal::ImportExportMutGlobals,
+                             ASTNodeAttr::Desc_Import);
     }
     return serializeType(Desc.getExternalGlobalType(), OutVec);
   default:
@@ -42,8 +46,9 @@ Expect<void> Serializer::serializeDesc(const AST::ImportDesc &Desc,
 }
 
 // Serialize export description. See "include/loader/serialize.h".
-Expect<void> Serializer::serializeDesc(const AST::ExportDesc &Desc,
-                                       std::vector<uint8_t> &OutVec) {
+Expect<void>
+Serializer::serializeDesc(const AST::ExportDesc &Desc,
+                          std::vector<uint8_t> &OutVec) const noexcept {
   // Export description: extname:vec(byte) + exportdesc
   // External name: vec(byte).
   serializeU32(static_cast<uint32_t>(Desc.getExternalName().size()), OutVec);

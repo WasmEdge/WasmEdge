@@ -1,4 +1,5 @@
-/// Unit tests of serialize instructions
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "loader/serialize.h"
 
@@ -288,9 +289,9 @@ TEST(SerializeInstructionTest, SerializeBrTableControlInstruction) {
 }
 
 TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(Conf);
-  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Configure ConfNoRefType;
+  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
@@ -343,9 +344,9 @@ TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
 }
 
 TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(Conf);
-  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Configure ConfNoRefType;
+  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
@@ -380,9 +381,9 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
 }
 
 TEST(SerializeInstructionTest, SerializeParametricInstruction) {
-  Conf.removeProposal(WasmEdge::Proposal::SIMD);
-  WasmEdge::Loader::Serializer SerNoSIMD(Conf);
-  Conf.addProposal(WasmEdge::Proposal::SIMD);
+  WasmEdge::Configure ConfNoSIMD;
+  ConfNoSIMD.removeProposal(WasmEdge::Proposal::SIMD);
+  WasmEdge::Loader::Serializer SerNoSIMD(ConfNoSIMD);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;

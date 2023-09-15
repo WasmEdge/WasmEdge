@@ -50,8 +50,10 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     }
 
     // Check with proposals.
-    if (auto Res = checkInstrProposals(Code, Offset); !Res) {
-      return Unexpect(Res);
+    if (auto Res = Conf.checkInstrProposals(Code); !Res) {
+      return logNeedProposal(Res.error().getErrCode(),
+                             Res.error().getNeedProposal(), Offset,
+                             ASTNodeAttr::Instruction);
     }
 
     // Process the instructions which contain a block.
@@ -953,15 +955,6 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return logLoadError(ErrCode::Value::IllegalOpCode, Instr.getOffset(),
                         ASTNodeAttr::Instruction);
   }
-}
-
-Expect<void> Loader::checkInstrProposals(OpCode Code,
-                                         uint64_t Offset) const noexcept {
-  if (auto Res = Conf.checkInstrProposals(Code); !Res) {
-    spdlog::error(ErrInfo::InfoLoading(Offset));
-    return Unexpect(Res);
-  }
-  return {};
 }
 
 } // namespace Loader

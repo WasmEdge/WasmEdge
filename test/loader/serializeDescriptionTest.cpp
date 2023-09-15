@@ -1,4 +1,5 @@
-/// Unit tests of serialize descriptions
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "loader/serialize.h"
 
@@ -28,8 +29,9 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  Conf.removeProposal(WasmEdge::Proposal::ImportExportMutGlobals);
-  WasmEdge::Loader::Serializer SerNoImpMutGlob(Conf);
+  WasmEdge::Configure ConfNoImpMutGlob;
+  ConfNoImpMutGlob.removeProposal(WasmEdge::Proposal::ImportExportMutGlobals);
+  WasmEdge::Loader::Serializer SerNoImpMutGlob(ConfNoImpMutGlob);
 
   // 1. Test serialize import description.
   //

@@ -1,4 +1,5 @@
-/// Unit tests of serialize modules
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "loader/serialize.h"
 
@@ -26,8 +27,8 @@ TEST(serializeModuleTest, SerializeModule) {
   Module.getVersion() = {0x01U, 0x00U, 0x00U, 0x00U};
   Output = *Ser.serializeModule(Module);
   Expected = {
-      0x00U, 0x61U, 0x73U, 0x6DU,                      // Magic
-      0x01U, 0x00U, 0x00U, 0x00U,                      // Version
+      0x00U, 0x61U, 0x73U, 0x6DU, // Magic
+      0x01U, 0x00U, 0x00U, 0x00U, // Version
   };
   EXPECT_EQ(Output, Expected);
 

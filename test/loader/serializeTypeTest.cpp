@@ -1,4 +1,5 @@
-/// Unit tests of serialize types
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "loader/serialize.h"
 
@@ -42,14 +43,13 @@ createGlobalSec(WasmEdge::AST::GlobalType GlobalType) {
 }
 
 TEST(serializeTypeTest, SerializeFunctionType) {
-  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(Conf);
-  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
-  Conf.removeProposal(WasmEdge::Proposal::MultiValue);
-  WasmEdge::Loader::Serializer SerNoMultiVal(Conf);
-  Conf.addProposal(WasmEdge::Proposal::MultiValue);
+  WasmEdge::Configure ConfNoRefType;
+  ConfNoRefType.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
+  WasmEdge::Configure ConfNoMultiVal;
+  ConfNoMultiVal.removeProposal(WasmEdge::Proposal::MultiValue);
+  WasmEdge::Loader::Serializer SerNoMultiVal(ConfNoMultiVal);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
@@ -135,11 +135,10 @@ TEST(serializeTypeTest, SerializeFunctionType) {
 }
 
 TEST(serializeTypeTest, SerializeTableType) {
-  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(Conf);
-  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Configure ConfNoRefType;
+  ConfNoRefType.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
@@ -229,11 +228,10 @@ TEST(serializeTypeTest, SerializeMemoryType) {
 }
 
 TEST(serializeTypeTest, SerializeGlobalType) {
-  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(Conf);
-  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Configure ConfNoRefType;
+  ConfNoRefType.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;

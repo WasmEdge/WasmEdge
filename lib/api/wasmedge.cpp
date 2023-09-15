@@ -1577,6 +1577,23 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromBuffer(
       Module);
 }
 
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderSerializeASTModule(
+    WasmEdge_LoaderContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,
+    uint8_t *Buf, const uint32_t BufLen, uint32_t *SizePtr) {
+  return wrap(
+      [&]() {
+        return fromLoaderCxt(Cxt)->serializeModule(*fromASTModCxt(ASTCxt));
+      },
+      [&](auto &&Res) {
+        uint32_t ActualSize = static_cast<uint32_t>((*Res).size());
+        if (SizePtr) {
+          *SizePtr = ActualSize;
+        }
+        std::copy_n((*Res).begin(), std::min(BufLen, ActualSize), Buf);
+      },
+      Cxt, ASTCxt);
+}
+
 WASMEDGE_CAPI_EXPORT void WasmEdge_LoaderDelete(WasmEdge_LoaderContext *Cxt) {
   delete fromLoaderCxt(Cxt);
 }

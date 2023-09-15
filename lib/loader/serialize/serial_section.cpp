@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "loader/serialize.h"
 
 namespace WasmEdge {
@@ -5,7 +8,7 @@ namespace Loader {
 
 // Serialize custom section. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeSection(const AST::CustomSection &Sec) {
+Serializer::serializeSection(const AST::CustomSection &Sec) const noexcept {
   // Custom section: 0x00 + size:u32 + name:vec(byte) + content:byte*.
   // Section ID.
   std::vector<uint8_t> OutVec = {0x00U};
@@ -22,7 +25,7 @@ Serializer::serializeSection(const AST::CustomSection &Sec) {
 
 // Serialize type section. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeSection(const AST::TypeSection &Sec) {
+Serializer::serializeSection(const AST::TypeSection &Sec) const noexcept {
   // Type section: 0x01 + size:u32 + content:vec(functype).
   return serializeSectionContent(
       Sec, 0x01U, [=](const AST::FunctionType &R, std::vector<uint8_t> &V) {
@@ -32,7 +35,7 @@ Serializer::serializeSection(const AST::TypeSection &Sec) {
 
 // Serialize import section. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeSection(const AST::ImportSection &Sec) {
+Serializer::serializeSection(const AST::ImportSection &Sec) const noexcept {
   // Import section: 0x02 + size:u32 + content:vec(importdesc).
   return serializeSectionContent(
       Sec, 0x02U, [=](const AST::ImportDesc &R, std::vector<uint8_t> &V) {
@@ -42,7 +45,7 @@ Serializer::serializeSection(const AST::ImportSection &Sec) {
 
 // Serialize function section. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeSection(const AST::FunctionSection &Sec) {
+Serializer::serializeSection(const AST::FunctionSection &Sec) const noexcept {
   // Function section: 0x03 + size:u32 + content:vec(u32).
   return serializeSectionContent(
       Sec, 0x03U,
@@ -54,7 +57,7 @@ Serializer::serializeSection(const AST::FunctionSection &Sec) {
 
 // Serialize table section. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeSection(const AST::TableSection &Sec) {
+Serializer::serializeSection(const AST::TableSection &Sec) const noexcept {
   // Table section: 0x04 + size:u32 + content:vec(tabletype).
   return serializeSectionContent(
       Sec, 0x04U, [=](const AST::TableType &R, std::vector<uint8_t> &V) {
@@ -64,7 +67,7 @@ Serializer::serializeSection(const AST::TableSection &Sec) {
 
 // Serialize memory section. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeSection(const AST::MemorySection &Sec) {
+Serializer::serializeSection(const AST::MemorySection &Sec) const noexcept {
   // Memory section: 0x05 + size:u32 + content:vec(memorytype).
   return serializeSectionContent(
       Sec, 0x05U, [=](const AST::MemoryType &R, std::vector<uint8_t> &V) {
@@ -74,7 +77,7 @@ Serializer::serializeSection(const AST::MemorySection &Sec) {
 
 // Serialize global section. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeSection(const AST::GlobalSection &Sec) {
+Serializer::serializeSection(const AST::GlobalSection &Sec) const noexcept {
   // Global section: 0x06 + size:u32 + content:vec(globaltype).
   return serializeSectionContent(
       Sec, 0x06U, [=](const AST::GlobalSegment &R, std::vector<uint8_t> &V) {
@@ -84,7 +87,7 @@ Serializer::serializeSection(const AST::GlobalSection &Sec) {
 
 // Serialize export section. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeSection(const AST::ExportSection &Sec) {
+Serializer::serializeSection(const AST::ExportSection &Sec) const noexcept {
   // Export section: 0x07 + size:u32 + content:vec(exportdesc).
   return serializeSectionContent(
       Sec, 0x07U, [=](const AST::ExportDesc &R, std::vector<uint8_t> &V) {
@@ -94,7 +97,7 @@ Serializer::serializeSection(const AST::ExportSection &Sec) {
 
 // Serialize start section. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeSection(const AST::StartSection &Sec) {
+Serializer::serializeSection(const AST::StartSection &Sec) const noexcept {
   // Start section: 0x08 + size:u32 + idx:u32.
   if (Sec.getContent()) {
     // Section ID.
@@ -111,7 +114,7 @@ Serializer::serializeSection(const AST::StartSection &Sec) {
 
 // Serialize element section. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeSection(const AST::ElementSection &Sec) {
+Serializer::serializeSection(const AST::ElementSection &Sec) const noexcept {
   // Element section: 0x09 + size:u32 + content:vec(elemseg).
   return serializeSectionContent(
       Sec, 0x09U, [=](const AST::ElementSegment &R, std::vector<uint8_t> &V) {
@@ -121,7 +124,7 @@ Serializer::serializeSection(const AST::ElementSection &Sec) {
 
 // Serialize code section. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeSection(const AST::CodeSection &Sec) {
+Serializer::serializeSection(const AST::CodeSection &Sec) const noexcept {
   // Code section: 0x0A + size:u32 + content:vec(codeseg).
   return serializeSectionContent(
       Sec, 0x0AU, [=](const AST::CodeSegment &R, std::vector<uint8_t> &V) {
@@ -131,7 +134,7 @@ Serializer::serializeSection(const AST::CodeSection &Sec) {
 
 // Serialize data section. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeSection(const AST::DataSection &Sec) {
+Serializer::serializeSection(const AST::DataSection &Sec) const noexcept {
   // Data section: 0x0B + size:u32 + content:vec(dataseg).
   return serializeSectionContent(
       Sec, 0x0BU, [=](const AST::DataSegment &R, std::vector<uint8_t> &V) {
@@ -141,7 +144,7 @@ Serializer::serializeSection(const AST::DataSection &Sec) {
 
 // Serialize datacount section. See "include/loader/serialize.h".
 Expect<std::vector<uint8_t>>
-Serializer::serializeSection(const AST::DataCountSection &Sec) {
+Serializer::serializeSection(const AST::DataCountSection &Sec) const noexcept {
   // Datacount section: 0x0C + size:u32 + idx:u32.
   if (Sec.getContent()) {
     // Section ID.

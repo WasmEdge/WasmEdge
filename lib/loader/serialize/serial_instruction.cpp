@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "loader/serialize.h"
 
 namespace WasmEdge {
@@ -13,8 +16,9 @@ void serializeOpCode(OpCode Code, std::vector<uint8_t> &OutVec) {
 } // namespace
 
 // Serialize instruction. See "include/loader/serialize.h".
-Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
-                                              std::vector<uint8_t> &OutVec) {
+Expect<void>
+Serializer::serializeInstruction(const AST::Instruction &Instr,
+                                 std::vector<uint8_t> &OutVec) const noexcept {
   auto serializeMemImmediate = [this, &Instr, &OutVec]() -> Expect<void> {
     if (Conf.hasProposal(Proposal::MultiMemories) &&
         Instr.getMemoryAlign() < 64 && Instr.getTargetIndex() != 0) {
@@ -41,7 +45,12 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
 
   // Check with proposals.
   if (auto Res = Conf.checkInstrProposals(Instr.getOpCode()); !Res) {
-    return Unexpect(Res);
+    spdlog::error(Res.error().getErrCode());
+    if (Res.error().isNeedProposal()) {
+      spdlog::error(ErrInfo::InfoProposal(Res.error().getNeedProposal()));
+    }
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Instruction));
+    return Unexpect(Res.error().getErrCode());
   }
 
   switch (Instr.getOpCode()) {
@@ -63,8 +72,7 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
 
     case BlockType::TypeEnum::ValType: {
       auto VType = Instr.getBlockType().Data.Type;
-      if (auto Check =
-              Conf.checkValTypeProposals(VType, ASTNodeAttr::Instruction);
+      if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Instruction);
           unlikely(!Check)) {
         return Unexpect(Check);
       }
@@ -74,9 +82,8 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
 
     case BlockType::TypeEnum::TypeIdx:
       if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
-        return Conf.logNeedProposal(ErrCode::Value::MalformedValType,
-                                    Proposal::MultiValue,
-                                    ASTNodeAttr::Instruction);
+        return logNeedProposal(ErrCode::Value::MalformedValType,
+                               Proposal::MultiValue, ASTNodeAttr::Instruction);
       }
       serializeS33(static_cast<int64_t>(Instr.getBlockType().Data.Idx), OutVec);
       break;
@@ -95,7 +102,7 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Br_table: {
     uint32_t VecCnt = static_cast<uint32_t>(Instr.getLabelList().size()) - 1;
     serializeU32(VecCnt, OutVec);
-    for (auto Label : Instr.getLabelList()) {
+    for (auto &Label : Instr.getLabelList()) {
       serializeU32(Label.TargetIndex, OutVec);
     }
     return {};
@@ -112,9 +119,9 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
     serializeU32(Instr.getTargetIndex(), OutVec);
     if (Instr.getSourceIndex() > 0 &&
         !Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return Conf.logNeedProposal(ErrCode::Value::ExpectedZeroByte,
-                                  Proposal::ReferenceTypes,
-                                  ASTNodeAttr::Instruction);
+      return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
+                             Proposal::ReferenceTypes,
+                             ASTNodeAttr::Instruction);
     }
     // Serialize the table index.
     serializeU32(Instr.getSourceIndex(), OutVec);
@@ -122,8 +129,8 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    if (auto Check = Conf.checkRefTypeProposals(Instr.getRefType(),
-                                                ASTNodeAttr::Instruction);
+    if (auto Check =
+            checkRefTypeProposals(Instr.getRefType(), ASTNodeAttr::Instruction);
         unlikely(!Check)) {
       return Unexpect(Check);
     }
@@ -142,9 +149,8 @@ Expect<void> Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Select_t: {
     uint32_t VecCnt = static_cast<uint32_t>(Instr.getValTypeList().size());
     serializeU32(VecCnt, OutVec);
-    for (auto VType : Instr.getValTypeList()) {
-      if (auto Check =
-              Conf.checkValTypeProposals(VType, ASTNodeAttr::Instruction);
+    for (auto &VType : Instr.getValTypeList()) {
+      if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Instruction);
           unlikely(!Check)) {
         return Unexpect(Check);
       }

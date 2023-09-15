@@ -20,6 +20,7 @@
 #include "common/log.h"
 #include "loader/filemgr.h"
 #include "loader/ldmgr.h"
+#include "loader/serialize.h"
 
 #include <cstdint>
 #include <memory>
@@ -80,7 +81,7 @@ class Loader {
 public:
   Loader(const Configure &Conf,
          const AST::Module::IntrinsicsTable *IT = nullptr) noexcept
-      : Conf(Conf), LMgr(IT), IntrinsicsTable(IT) {}
+      : Conf(Conf), SLZer(Conf), LMgr(IT), IntrinsicsTable(IT) {}
   ~Loader() noexcept = default;
 
   /// Load data from file path.
@@ -107,6 +108,9 @@ public:
   /// Parse module from byte code.
   Expect<std::unique_ptr<AST::Module>> parseModule(Span<const uint8_t> Code);
 
+  /// Serialize module into byte code.
+  Expect<std::vector<Byte>> serializeModule(const AST::Module &Mod);
+
   /// Reset status.
   void reset() noexcept {
     FMgr.reset();
@@ -116,15 +120,16 @@ public:
 private:
   /// \name Helper functions to print error log when loading AST nodes
   /// @{
-  inline auto logLoadError(ErrCode Code, uint64_t Off,
-                           ASTNodeAttr Node) const noexcept {
+  inline Unexpected<ErrCode> logLoadError(ErrCode Code, uint64_t Off,
+                                          ASTNodeAttr Node) const noexcept {
     spdlog::error(Code);
     spdlog::error(ErrInfo::InfoLoading(Off));
     spdlog::error(ErrInfo::InfoAST(Node));
     return Unexpect(Code);
   }
-  inline auto logNeedProposal(ErrCode Code, Proposal Prop, uint64_t Off,
-                              ASTNodeAttr Node) const noexcept {
+  inline Unexpected<ErrCode> logNeedProposal(ErrCode Code, Proposal Prop,
+                                             uint64_t Off,
+                                             ASTNodeAttr Node) const noexcept {
     spdlog::error(Code);
     spdlog::error(ErrInfo::InfoProposal(Prop));
     spdlog::error(ErrInfo::InfoLoading(Off));
@@ -132,10 +137,29 @@ private:
     return Unexpect(Code);
   }
   Expect<void> checkValTypeProposals(ValType VType, uint64_t Off,
-                                     ASTNodeAttr Node) const noexcept;
+                                     ASTNodeAttr Node) const noexcept {
+    if (auto Res = Conf.checkValTypeProposals(VType); !Res) {
+      if (Res.error().isNeedProposal()) {
+        return logNeedProposal(Res.error().getErrCode(),
+                               Res.error().getNeedProposal(), Off, Node);
+      } else {
+        return logLoadError(Res.error().getErrCode(), Off, Node);
+      }
+    }
+    return {};
+  }
   Expect<void> checkRefTypeProposals(RefType RType, uint64_t Off,
-                                     ASTNodeAttr Node) const noexcept;
-  Expect<void> checkInstrProposals(OpCode Code, uint64_t Offset) const noexcept;
+                                     ASTNodeAttr Node) const noexcept {
+    if (auto Res = Conf.checkRefTypeProposals(RType); !Res) {
+      if (Res.error().isNeedProposal()) {
+        return logNeedProposal(Res.error().getErrCode(),
+                               Res.error().getNeedProposal(), Off, Node);
+      } else {
+        return logLoadError(Res.error().getErrCode(), Off, Node);
+      }
+    }
+    return {};
+  }
   /// @}
 
   Expect<std::variant<AST::Component, AST::Module>> loadUnit();
@@ -237,6 +261,7 @@ private:
   /// \name Loader members
   /// @{
   const Configure Conf;
+  const Serializer SLZer;
   FileMgr FMgr;
   LDMgr LMgr;
   const AST::Module::IntrinsicsTable *IntrinsicsTable;

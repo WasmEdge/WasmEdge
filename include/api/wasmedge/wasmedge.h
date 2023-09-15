@@ -1517,6 +1517,26 @@ WasmEdge_LoaderParseFromBuffer(WasmEdge_LoaderContext *Cxt,
                                WasmEdge_ASTModuleContext **Module,
                                const uint8_t *Buf, const uint32_t BufLen);
 
+/// Serialize the WasmEdge_ASTModuleContext into WASM binary.
+///
+/// Serialize the loaded WasmEdge_ASTModuleContext into the WASM binary format.
+/// If the `Buf` Buffer length is smaller than the result of the serialized
+/// WASM, the overflowed return values will be discarded. This function will
+/// output the actual WASM binary size into the `SizePtr`. Developers can check
+/// that value to verify whether the provided buffer length is enough or not.
+///
+/// \param Cxt the WasmEdge_LoaderContext.
+/// \param ASTCxt the WasmEdge_ASTModuleContext to serialize.
+/// \param [out] Buf the buffer to fill the serialized WASM binary.
+/// \param BufLen the length of the buffer.
+/// \param [out] SizePtr the actual size of the serialized binary.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_LoaderSerializeASTModule(
+    WasmEdge_LoaderContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,
+    uint8_t *Buf, const uint32_t BufLen, uint32_t *SizePtr);
+
 /// Deletion of the WasmEdge_LoaderContext.
 ///
 /// After calling this function, the context will be destroyed and should

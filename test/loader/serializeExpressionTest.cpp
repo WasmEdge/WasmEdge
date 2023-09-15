@@ -1,4 +1,5 @@
-/// Unit tests of serialize expressions
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "loader/serialize.h"
 
@@ -24,9 +25,10 @@ TEST(ExpressionTest, SerializeExpression) {
   std::vector<uint8_t> Output;
   WasmEdge::AST::Expression Expr;
 
-  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(Conf);
+  WasmEdge::Configure ConfNoRefType;
+  ConfNoRefType.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
 
   // 1. Test serialize expression.
   //

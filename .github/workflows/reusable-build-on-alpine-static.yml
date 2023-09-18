@@ -24,7 +24,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build WasmEdge
-        uses: docker/bake-action@v3
+        uses: docker/bake-action@v4
         with:
           files: ./utils/docker/docker-bake.alpine-static.hcl
       - name: Upload artifact

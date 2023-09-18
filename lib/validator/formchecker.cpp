@@ -757,7 +757,6 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   // Memory Instructions.
   case OpCode::I32__load:
-    // TODO: extend this selection to all new memory64 instructions
     return checkAlignAndTrans(32, {getIt()}, {VType(ValType::I32)});
   case OpCode::I64__load:
     return checkAlignAndTrans(64, {getIt()}, {VType(ValType::I64)});
@@ -799,9 +798,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I64__store32:
     return checkAlignAndTrans(32, {getIt(), VType(ValType::I64)}, {});
   case OpCode::Memory__size:
-    return checkMemAndTrans({}, {VType(ValType::I32)});
+    return checkMemAndTrans({}, {getIt()});
   case OpCode::Memory__grow:
-    return checkMemAndTrans({VType(ValType::I32)}, {VType(ValType::I32)});
+    return checkMemAndTrans({getIt()}, {getIt()});
   case OpCode::Memory__init:
     // Check the target memory index. Memory index should be checked first.
     if (Instr.getTargetIndex() >= Mems) {
@@ -815,8 +814,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            ErrInfo::IndexCategory::Data, Instr.getSourceIndex(),
                            static_cast<uint32_t>(Datas.size()));
     }
-    return StackTrans(
-        {VType(ValType::I32), VType(ValType::I32), VType(ValType::I32)}, {});
+    return StackTrans({getIt(), VType(ValType::I32), VType(ValType::I32)}, {});
   case OpCode::Memory__copy:
     /// Check the source memory index.
     if (Instr.getSourceIndex() >= Mems) {
@@ -824,10 +822,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            ErrInfo::IndexCategory::Memory,
                            Instr.getSourceIndex(), Mems);
     }
-    [[fallthrough]];
+    return checkMemAndTrans({getIt(), getIt(), getIt()}, {});
   case OpCode::Memory__fill:
-    return checkMemAndTrans(
-        {VType(ValType::I32), VType(ValType::I32), VType(ValType::I32)}, {});
+    return checkMemAndTrans({getIt(), VType(ValType::I32), getIt()}, {});
   case OpCode::Data__drop:
     // Check the target data index.
     if (Instr.getTargetIndex() >= Datas.size()) {
@@ -1033,8 +1030,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   // SIMD Memory Instruction.
   case OpCode::V128__load:
-    return checkAlignAndTrans(128, {VType(ValType::I32)},
-                              {VType(ValType::V128)});
+    return checkAlignAndTrans(128, {getIt()}, {VType(ValType::V128)});
   case OpCode::V128__load8x8_s:
   case OpCode::V128__load8x8_u:
   case OpCode::V128__load16x4_s:
@@ -1043,44 +1039,36 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::V128__load32x2_u:
   case OpCode::V128__load64_splat:
   case OpCode::V128__load64_zero:
-    return checkAlignAndTrans(64, {VType(ValType::I32)},
-                              {VType(ValType::V128)});
+    return checkAlignAndTrans(64, {getIt()}, {VType(ValType::V128)});
   case OpCode::V128__load8_splat:
-    return checkAlignAndTrans(8, {VType(ValType::I32)}, {VType(ValType::V128)});
+    return checkAlignAndTrans(8, {getIt()}, {VType(ValType::V128)});
   case OpCode::V128__load16_splat:
-    return checkAlignAndTrans(16, {VType(ValType::I32)},
-                              {VType(ValType::V128)});
+    return checkAlignAndTrans(16, {getIt()}, {VType(ValType::V128)});
   case OpCode::V128__load32_splat:
   case OpCode::V128__load32_zero:
-    return checkAlignAndTrans(32, {VType(ValType::I32)},
-                              {VType(ValType::V128)});
+    return checkAlignAndTrans(32, {getIt()}, {VType(ValType::V128)});
   case OpCode::V128__store:
-    return checkAlignAndTrans(128, {VType(ValType::I32), VType(ValType::V128)},
-                              {});
+    return checkAlignAndTrans(128, {getIt(), VType(ValType::V128)}, {});
   case OpCode::V128__load8_lane:
-    return checkAlignAndTrans(8, {VType(ValType::I32), VType(ValType::V128)},
+    return checkAlignAndTrans(8, {getIt(), VType(ValType::V128)},
                               {VType(ValType::V128)}, true);
   case OpCode::V128__load16_lane:
-    return checkAlignAndTrans(16, {VType(ValType::I32), VType(ValType::V128)},
+    return checkAlignAndTrans(16, {getIt(), VType(ValType::V128)},
                               {VType(ValType::V128)}, true);
   case OpCode::V128__load32_lane:
-    return checkAlignAndTrans(32, {VType(ValType::I32), VType(ValType::V128)},
+    return checkAlignAndTrans(32, {getIt(), VType(ValType::V128)},
                               {VType(ValType::V128)}, true);
   case OpCode::V128__load64_lane:
-    return checkAlignAndTrans(64, {VType(ValType::I32), VType(ValType::V128)},
+    return checkAlignAndTrans(64, {getIt(), VType(ValType::V128)},
                               {VType(ValType::V128)}, true);
   case OpCode::V128__store8_lane:
-    return checkAlignAndTrans(8, {VType(ValType::I32), VType(ValType::V128)},
-                              {}, true);
+    return checkAlignAndTrans(8, {getIt(), VType(ValType::V128)}, {}, true);
   case OpCode::V128__store16_lane:
-    return checkAlignAndTrans(16, {VType(ValType::I32), VType(ValType::V128)},
-                              {}, true);
+    return checkAlignAndTrans(16, {getIt(), VType(ValType::V128)}, {}, true);
   case OpCode::V128__store32_lane:
-    return checkAlignAndTrans(32, {VType(ValType::I32), VType(ValType::V128)},
-                              {}, true);
+    return checkAlignAndTrans(32, {getIt(), VType(ValType::V128)}, {}, true);
   case OpCode::V128__store64_lane:
-    return checkAlignAndTrans(64, {VType(ValType::I32), VType(ValType::V128)},
-                              {}, true);
+    return checkAlignAndTrans(64, {getIt(), VType(ValType::V128)}, {}, true);
 
   // SIMD Const Instruction.
   case OpCode::V128__const:

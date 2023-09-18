@@ -23,7 +23,7 @@ jobs:
         run: |
           git config --global --add safe.directory $(pwd)
       - name: Install dependency
-        uses: crazy-max/ghaction-chocolatey@v2
+        uses: crazy-max/ghaction-chocolatey@v3
         with:
           args: install cmake ninja vswhere
       - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11

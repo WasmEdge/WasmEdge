@@ -123,10 +123,8 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     spdlog::info("llama_system_info: {}"sv, llama_print_system_info());
   }
 
-  // Output start from prompt.
-  for (auto Id : CxtRef.LlamaInputs) {
-    CxtRef.LlamaOutputs += llama_token_to_piece(GraphRef.LlamaContext, Id);
-  }
+  // Clear the outputs.
+  CxtRef.LlamaOutputs = ""sv;
 
   // Main predict loop.
   // TODO: recompute a compressed context based on previous tokens once the

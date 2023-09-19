@@ -57,6 +57,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <fstream>
@@ -6393,6 +6394,8 @@ static void llama_log_internal(llama_log_level level, const char * format, ...) 
 static void llama_log_callback_default(llama_log_level level, const char * text, void * user_data) {
     (void) level;
     (void) user_data;
-    fputs(text, stderr);
+    if (std::getenv("LLAMA_LOG") != nullptr) {
+        fputs(text, stderr);
+    }
     fflush(stderr);
 }

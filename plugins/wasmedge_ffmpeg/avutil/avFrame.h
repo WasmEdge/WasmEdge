@@ -1,3 +1,4 @@
+#pragma once
 #include "avutil_base.h"
 #include "runtime/callingframe.h"
 
@@ -55,6 +56,13 @@ public:
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId);
 };
 
+class AVFrameSetFormat : public WasmEdgeFFmpegAVUtil<AVFrameSetFormat> {
+public:
+  AVFrameSetFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint32_t AvPixFormatId);
+};
+
 class AVFrameIsNull : public WasmEdgeFFmpegAVUtil<AVFrameIsNull> {
 public:
   AVFrameIsNull(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
@@ -63,6 +71,26 @@ public:
 };
 
 
+class AVFrameLinesize : public WasmEdgeFFmpegAVUtil<AVFrameLinesize> {
+public:
+  AVFrameLinesize(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint32_t Idx);
+};
+
+class AVFrameData : public WasmEdgeFFmpegAVUtil<AVFrameData> {
+public:
+  AVFrameData(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint32_t FrameBufPtr,uint32_t FrameBufLen);
+};
+
+class AVFrameGetBuffer : public WasmEdgeFFmpegAVUtil<AVFrameGetBuffer> {
+public:
+  AVFrameGetBuffer(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,int32_t Align);
+};
 
 } // namespace AVUtil
 } // namespace WasmEdgeFFmpeg

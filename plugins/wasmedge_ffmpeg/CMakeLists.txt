@@ -9,6 +9,12 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFfmpeg
         avcodec/avCodecParameters.cpp
         avcodec/avPacket.cpp
 
+
+        avfilter/module.cpp
+        avfilter/avfilter_func.cpp
+        avfilter/buffer_source_sink.cpp
+
+
         avformat/module.cpp
         avformat/avformat_func.cpp
         avformat/avformatContext.cpp
@@ -21,6 +27,9 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFfmpeg
         avutil/avRational.cpp
         avutil/avFrame.cpp
         avutil/pixfmt.cpp
+
+        swscale/module.cpp
+        swscale/swscale_func.cpp
 
 )
 

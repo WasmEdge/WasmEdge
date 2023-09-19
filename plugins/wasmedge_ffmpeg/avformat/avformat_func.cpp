@@ -22,8 +22,8 @@ AVFormatOpenInput::body(const Runtime::CallingFrame &Frame, uint32_t AvFormatCtx
   std::copy_n(urlId,UrlSize,std::back_inserter(TargetUrl));
 
   AVFormatContext* AvFormatContext = NULL;
-  FFMPEG_PTR_FETCH(AvDictionary,AvDictionaryId,AVDictionary*,"AVDictionary in Function AVFormatOpenInput",false);
-  FFMPEG_PTR_FETCH(AvInputFormat,AvInputFormatId,AVInputFormat ,"AVInputFormat in Function AVFormatOpenInput",false);
+  FFMPEG_PTR_FETCH(AvDictionary,AvDictionaryId,AVDictionary*);
+  FFMPEG_PTR_FETCH(AvInputFormat,AvInputFormatId,AVInputFormat);
 
   int Res =  avformat_open_input(&AvFormatContext,TargetUrl.c_str(),AvInputFormat,AvDictionary);
   FFMPEG_PTR_STORE(AvFormatContext,AvFormatCtxId);
@@ -34,8 +34,8 @@ AVFormatOpenInput::body(const Runtime::CallingFrame &Frame, uint32_t AvFormatCtx
 Expect<int32_t>
 AVFormatFindStreamInfo::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId,uint32_t AvDictionaryId){
 
-  FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"AVFormatContext in Function AVFormatFindStreamInfo",true);
-  FFMPEG_PTR_FETCH(AvDictionary,AvDictionaryId,AVDictionary*,"AVDictionary",false);
+  FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext);
+  FFMPEG_PTR_FETCH(AvDictionary,AvDictionaryId,AVDictionary*);
   return avformat_find_stream_info(AvFormatContext,AvDictionary);
 }
 
@@ -55,20 +55,20 @@ AVFormatCloseInput::body(const Runtime::CallingFrame &, uint32_t avFormatCtxId) 
 Expect<int32_t>
 AVReadPause::body(const Runtime::CallingFrame &,uint32_t AvFormatCtxId) {
 
-    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"AVFormatContext in Function AVReadPause",true);
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext);
     return av_read_pause(AvFormatContext);
 }
 
 Expect<int32_t>
 AVReadPlay::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId) {
 
-    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"AVFormatContext in Function AVReadPlay",true);
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext);
     return av_read_play(AvFormatContext);
 }
 
 Expect<int32_t> AVFormatSeekFile::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId,uint32_t StreamIdx,int64_t MinTs,int64_t Ts,int64_t MaxTs, int32_t Flags){
 
-    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"AVFormatContext in Function AVFormatSeekFile",true);
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext);
     return avformat_seek_file(AvFormatContext,StreamIdx,MinTs,Ts,MaxTs,Flags);
 }
 
@@ -102,8 +102,8 @@ AVFormatFreeContext::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId)
 
 Expect<int32_t> AVFindBestStream::body(const Runtime::CallingFrame &,uint32_t AvFormatCtxId,int32_t MediaTypeId,int32_t WantedStream,int32_t RelatedStream,uint32_t DecoderRetId,int32_t Flags){
 
-    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"AVFormatContext in Function AVFindBestStream",true);
-    FFMPEG_PTR_FETCH(DecoderRet,DecoderRetId,const AVCodec*,"AVCodec in Function AVFindBestStream",false);
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext);
+    FFMPEG_PTR_FETCH(DecoderRet,DecoderRetId,const AVCodec*);
 
     AVMediaType const AvMediaType = FFmpegUtils::MediaType::intoMediaType(MediaTypeId);
     return av_find_best_stream(AvFormatContext, AvMediaType,WantedStream,RelatedStream,DecoderRet,Flags);
@@ -111,8 +111,8 @@ Expect<int32_t> AVFindBestStream::body(const Runtime::CallingFrame &,uint32_t Av
 
 Expect<int32_t> AVReadFrame::body(const Runtime::CallingFrame &,uint32_t AvFormatCtxId,uint32_t PacketId){
 
-    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"AVFormatContext in Function AVFindBestStream",true);
-    FFMPEG_PTR_FETCH(AvPacket,PacketId,AVPacket,"AVPacket in Function AVFindBestStream",true);
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext);
+    FFMPEG_PTR_FETCH(AvPacket,PacketId,AVPacket);
 
     return av_read_frame(AvFormatContext,AvPacket);
 }

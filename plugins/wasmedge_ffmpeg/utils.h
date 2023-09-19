@@ -2733,8 +2733,8 @@ public:
     }
   }
 
-  static AVPixelFormat intoAVPixFmt(uint32_t avPixFmtId){
-    switch (avPixFmtId) {
+  static AVPixelFormat intoAVPixFmt(uint32_t AvPixFmtId){
+    switch (AvPixFmtId) {
        case 0:
          return AV_PIX_FMT_NONE ;
        case 1:

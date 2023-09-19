@@ -2,6 +2,7 @@
 #include "avcodec/module.h"
 #include "avformat/module.h"
 #include "avutil/module.h"
+#include "swscale/module.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -35,10 +36,10 @@ Runtime::Instance::ModuleInstance *createAVUtil(
     return new WasmEdgeFFmpeg::AVUtil::WasmEdgeFFmpegAVUtilModule(WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance());
 }
 
-//Runtime::Instance::ModuleInstance *createSWScale(
-//    const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-//  return nullptr;
-//}
+Runtime::Instance::ModuleInstance *createSWScale(
+    const Plugin::PluginModule::ModuleDescriptor *) noexcept {
+  return new WasmEdgeFFmpeg::SWScale::WasmEdgeFFmpegSWScaleModule(WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance());
+}
 
 //Runtime::Instance::ModuleInstance *createSWResample(
 //    const Plugin::PluginModule::ModuleDescriptor *) noexcept {
@@ -50,7 +51,7 @@ Plugin::Plugin::PluginDescriptor Descriptor {
   .Description = "",
   .APIVersion = Plugin::Plugin::CurrentAPIVersion,
   .Version = {0, 0, 0, 1} ,
-  .ModuleCount = 3,
+  .ModuleCount = 4,
   .ModuleDescriptions =
         (Plugin::PluginModule::ModuleDescriptor[]){
             {
@@ -83,11 +84,11 @@ Plugin::Plugin::PluginDescriptor Descriptor {
 //                .Description = "audio resampling, format conversion and mixing",
 //                .Create = createSWResample,
 //            },
-//            {
-//                .Name = "SWScale",
-//                .Description = "color conversion and scaling library",
-//                .Create = createSWScale,
-//            }
+            {
+                .Name = "SWScale",
+                .Description = "color conversion and scaling library",
+                .Create = createSWScale,
+            }
         },
   .AddOptions = nullptr,
 };

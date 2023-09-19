@@ -29,7 +29,7 @@ Expect<int32_t> AVFormatCtxIFormat::body(const Runtime::CallingFrame &Frame, uin
 
 Expect<int32_t> AVFormatCtxProbeScore::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId){
 
-    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"",true);
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext);
     return AvFormatContext->probe_score;
 }
 
@@ -44,13 +44,13 @@ Expect<uint32_t> AVFormatCtxNbStreams::body(const Runtime::CallingFrame &, uint3
 
 Expect<int64_t> AVFormatCtxBitRate::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId){
 
-    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"",true);
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext);
     return AvFormatContext->bit_rate;
 }
 
 Expect<int64_t> AVFormatCtxDuration::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId){
 
-    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"",true);
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext);
     return AvFormatContext->duration;
 }
 

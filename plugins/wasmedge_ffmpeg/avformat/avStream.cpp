@@ -11,7 +11,7 @@ namespace AVFormat {
 
 Expect<int32_t> AVStreamId::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId,uint32_t StreamIdx){
 
-  FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"",true);
+  FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext);
   AVStream** AvStream = AvFormatContext->streams;
 
   // No check here (Check)
@@ -24,7 +24,7 @@ Expect<int32_t> AVStreamId::body(const Runtime::CallingFrame &, uint32_t AvForma
 
 Expect<int32_t> AVStreamIndex::body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId,uint32_t StreamIdx){
 
-    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"",true);
+    FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext);
     AVStream** AvStream = AvFormatContext->streams;
 
     // No check here (Check)
@@ -39,7 +39,7 @@ Expect<int32_t> AVStreamCodecPar::body(const Runtime::CallingFrame &Frame, uint3
   MEMINST_CHECK(MemInst,Frame,0);
   MEM_PTR_CHECK(CodecParamId,MemInst,uint32_t,CodecParameterPtr,"Failed when accessing the return CodecParameter Memory");
 
-  FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext ,"",true);
+  FFMPEG_PTR_FETCH(AvFormatContext,AvFormatCtxId,AVFormatContext);
   AVStream** AvStream = AvFormatContext->streams;
 
   // No check here (Check)

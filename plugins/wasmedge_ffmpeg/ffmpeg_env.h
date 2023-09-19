@@ -37,8 +37,9 @@ public:
     if(index >= ffmpegPtrArrKey){
       // Error Handling...
     }
+    // Check this condition.
     if(ffmpegPtrArr[ffmpegPtrArrKey] == nullptr){
-      // Error Handling...
+      return nullptr;
     }
 
     return ffmpegPtrArr[index];
@@ -80,12 +81,9 @@ private:
       }
 
 // If FFmpegStructID == 0, means Struct Pointer Doesn't exist in WasmEdge Plugin.
-#define FFMPEG_PTR_FETCH(StructPtr,FFmpegStructId,Type,Message,isRequired)             \
-      Type* StructPtr = NULL;                                                           \
-      if (unlikely(isRequired && FFmpegStructId == 0)) {                           \
-        spdlog::error("[WasmEdge-FFmpeg] No Memory Address found for "sv Message);       \
-        return static_cast<int32_t>(ErrNo::NullStructId);                          \
-      }                                                                             \
+// Can Remove the If statement. Doesn't Matter I think.
+#define FFMPEG_PTR_FETCH(StructPtr,FFmpegStructId,Type)             \
+      Type* StructPtr = NULL;                                                          \
       if(FFmpegStructId != 0)                                                       \
         StructPtr = static_cast<Type*>(Env.get()->fetchData(FFmpegStructId));             \
 

@@ -11,14 +11,14 @@ namespace AVcodec {
 
 Expect<uint32_t> AVCodecCtxCodecID::body(const Runtime::CallingFrame &,uint32_t AvCodecCtxId){
 
-  FFMPEG_PTR_FETCH(AvCodecCtx,AvCodecCtxId,AVCodecContext,"",true);
+  FFMPEG_PTR_FETCH(AvCodecCtx,AvCodecCtxId,AVCodecContext);
   AVCodecID const AvCodecId = AvCodecCtx->codec_id;
   return FFmpegUtils::CodecID::fromAVCodecID(AvCodecId);
 }
 
 Expect<uint32_t> AVCodecCtxCodecType::body(const Runtime::CallingFrame &,uint32_t AvCodecCtxId){
 
-  FFMPEG_PTR_FETCH(AvCodecCtx,AvCodecCtxId,AVCodecContext,"",true);
+  FFMPEG_PTR_FETCH(AvCodecCtx,AvCodecCtxId,AVCodecContext);
   AVMediaType const AvMediaType = AvCodecCtx->codec_type;
   return FFmpegUtils::MediaType::fromMediaType(AvMediaType);
 }
@@ -29,7 +29,7 @@ Expect<int32_t> AVCodecCtxTimeBase::body(const Runtime::CallingFrame &Frame,uint
   MEM_PTR_CHECK(Num,MemInst,int32_t ,NumPtr,"Failed to access Numerator Ptr for AVRational");
   MEM_PTR_CHECK(Den,MemInst,int32_t ,DenPtr,"Failed to access Denominator Ptr for AVRational");
 
-  FFMPEG_PTR_FETCH(AvCodecCtx,AvCodecCtxId,AVCodecContext,"",true);
+  FFMPEG_PTR_FETCH(AvCodecCtx,AvCodecCtxId,AVCodecContext);
   AVRational const AvRational = AvCodecCtx->time_base;
   *Num = AvRational.num;
   *Den = AvRational.den;
@@ -38,13 +38,13 @@ Expect<int32_t> AVCodecCtxTimeBase::body(const Runtime::CallingFrame &Frame,uint
 
 Expect<uint32_t> AVCodecCtxWidth::body(const Runtime::CallingFrame &,uint32_t AvCodecCtxId){
 
-  FFMPEG_PTR_FETCH(AvCodecCtx,AvCodecCtxId,AVCodecContext,"",true);
+  FFMPEG_PTR_FETCH(AvCodecCtx,AvCodecCtxId,AVCodecContext);
   return AvCodecCtx->width;
 }
 
 Expect<uint32_t> AVCodecCtxHeight::body(const Runtime::CallingFrame &,uint32_t AvCodecCtxId){
 
-  FFMPEG_PTR_FETCH(AvCodecCtx,AvCodecCtxId,AVCodecContext,"",true);
+  FFMPEG_PTR_FETCH(AvCodecCtx,AvCodecCtxId,AVCodecContext);
   return AvCodecCtx->height;
 }
 

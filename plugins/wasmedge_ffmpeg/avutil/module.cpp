@@ -39,7 +39,17 @@ WasmEdgeFFmpegAVUtilModule::
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_width",std::make_unique<AVFrameSetWidth>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_height",std::make_unique<AVFrameSetHeight>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_format",std::make_unique<AVFrameFormat>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_format",std::make_unique<AVFrameSetFormat>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_isnull",std::make_unique<AVFrameIsNull>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_linesize",std::make_unique<AVFrameLinesize>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_data",std::make_unique<AVFrameData>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_get_buffer",std::make_unique<AVFrameGetBuffer>(Env));
+
+    // pixfmt.h (Even AvPixFmtDesc is in this file)
+
+    addHostFunc("wasmedge_ffmpeg_avutil_avpixfmtdescriptor_nb_components",std::make_unique<AvPixFmtDescriptorNbComponents>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_avpixfmtdescriptor_log2_chromaw",std::make_unique<AvPixFmtDescriptorLog2ChromaW>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_avpixfmtdescriptor_log2_chromah",std::make_unique<AvPixFmtDescriptorLog2ChromaH>(Env));
 }
 
 } // namespace AVUtil

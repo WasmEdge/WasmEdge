@@ -6,6 +6,7 @@
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 #include <common.h>
+#include <cstdlib>
 #include <llama.h>
 #endif
 
@@ -63,6 +64,10 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
   // Store the loaded graph.
   GraphId = Env.NNGraph.size() - 1;
+
+  // Disable llama log by default.
+  log_disable();
+
   return ErrNo::Success;
 }
 
@@ -112,6 +117,12 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     return ErrNo::InvalidArgument;
   }
 
+  // Use env LLAMA_LOG=1 to enable llama log.
+  const char *LlamaLogEnv = std::getenv("LLAMA_LOG");
+  if (LlamaLogEnv != nullptr) {
+    spdlog::info("llama_system_info: {}"sv, llama_print_system_info());
+  }
+
   // Output start from prompt.
   for (auto Id : CxtRef.LlamaInputs) {
     CxtRef.LlamaOutputs += llama_token_to_piece(GraphRef.LlamaContext, Id);
@@ -156,6 +167,10 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
     // Push this new token for next evaluation.
     CxtRef.LlamaInputs.push_back(NewTokenId);
+  }
+
+  if (LlamaLogEnv != nullptr) {
+    llama_print_timings(GraphRef.LlamaContext);
   }
 
   return ErrNo::Success;

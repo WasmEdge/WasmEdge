@@ -38,7 +38,8 @@ public:
       // Error Handling...
     }
     // Check this condition.
-    if(ffmpegPtrArr[ffmpegPtrArrKey] == nullptr){
+    if(ffmpegPtrArr[index] == nullptr){
+      // Error Handling...
       return nullptr;
     }
 

@@ -66,13 +66,14 @@ public:
   void setIndexType(WasmEdge::AST::MemoryType::IndexType IdxType) {
     IndexType = IdxType;
   }
-  VType getIt() {
+  VType getIt() { return VType(getValTypeIt()); }
+  ValType getValTypeIt() {
     switch (IndexType) {
     case WasmEdge::AST::MemoryType::IndexType::I64:
-      return VType(ValType::I64);
+      return ValType::I64;
     case WasmEdge::AST::MemoryType::IndexType::I32:
     default:
-      return VType(ValType::I32);
+      return ValType::I32;
     }
   }
 

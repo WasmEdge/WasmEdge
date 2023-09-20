@@ -59,7 +59,6 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
-
   // Validate export section.
   if (auto Res = validate(Mod.getExportSection()); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Export));
@@ -261,8 +260,8 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
       return Unexpect(ErrCode::Value::InvalidMemoryIdx);
     }
     // Check memory initialization is a const expression.
-    if (auto Res =
-            validateConstExpr(DataSeg.getExpr().getInstrs(), {ValType::I32});
+    if (auto Res = validateConstExpr(DataSeg.getExpr().getInstrs(),
+                                     {Checker.getValTypeIt()});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);

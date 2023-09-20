@@ -162,7 +162,6 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     NewTokenId = llama_sample_token_greedy(GraphRef.LlamaContext, &CandidatesP);
 
     if (NewTokenId == llama_token_eos(GraphRef.LlamaContext)) {
-      CxtRef.LlamaOutputs += "[end of text]"sv;
       break;
     }
 

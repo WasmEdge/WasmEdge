@@ -167,6 +167,12 @@ Expect<void> Loader::loadType(AST::MemoryType &MemType) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Memory));
     return Unexpect(Res);
   }
+  auto &IdxType = MemType.getIdxType();
+  if (MemType.getLimit().is64()) {
+    IdxType = AST::MemoryType::IndexType::I64;
+  } else {
+    IdxType = AST::MemoryType::IndexType::I32;
+  }
   return {};
 }
 

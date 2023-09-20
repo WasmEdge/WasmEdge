@@ -60,18 +60,25 @@ public:
   bool isShared() const noexcept {
     return Type == LimitType::Shared || Type == LimitType::I64Shared;
   }
-  uint64_t getPageLimit() const noexcept {
+  bool is64() const noexcept {
     switch (Type) {
     case LimitType::I64HasMin:
     case LimitType::I64HasMinMax:
     case LimitType::I64SharedNoMax:
     case LimitType::I64Shared:
-      return UINT64_C(281474976710656);
+      return true;
     case LimitType::HasMin:
     case LimitType::HasMinMax:
     case LimitType::SharedNoMax:
     case LimitType::Shared:
     default:
+      return false;
+    }
+  }
+  uint64_t getPageLimit() const noexcept {
+    if (is64()) {
+      return UINT64_C(281474976710656);
+    } else {
       return UINT32_C(65536);
     }
   }
@@ -165,6 +172,7 @@ public:
   const Limit &getLimit() const noexcept { return Lim; }
   Limit &getLimit() noexcept { return Lim; }
   IndexType getIdxType() const noexcept { return IdxType; }
+  IndexType &getIdxType() noexcept { return IdxType; }
 
 private:
   /// \name Data of MemoryType.

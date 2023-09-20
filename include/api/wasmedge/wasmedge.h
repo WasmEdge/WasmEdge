@@ -3627,6 +3627,18 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
 WasmEdge_PluginCreateModule(const WasmEdge_PluginContext *Cxt,
                             const WasmEdge_String ModuleName);
 
+/// Initialize the wasi_nn plug-in.
+///
+/// This function will initialize the wasi_nn plug-in with the preloads string
+/// list. Only available after loading the wasi_nn plug-in and before creating
+/// the module instance from the plug-in.
+///
+/// \param NNPreloads the preload string list. NULL if the length is 0.
+/// \param PreloadsLen the length of the preload list.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_PluginInitWASINN(const char *const *NNPreloads,
+                          const uint32_t PreloadsLen);
+
 /// Implement by plugins for returning the plugin descriptor.
 ///
 /// \returns the plugin descriptor.

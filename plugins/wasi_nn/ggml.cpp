@@ -52,10 +52,10 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
   // Initialize ggml model.
   gpt_params Params;
-  Params.model = ModelFilePath;
   llama_backend_init(Params.numa);
-  std::tie(GraphRef.LlamaModel, GraphRef.LlamaContext) =
-      llama_init_from_gpt_params(Params);
+  llama_context_params ContextParams = llama_context_default_params();
+  GraphRef.LlamaModel =
+      llama_load_model_from_file(ModelFilePath.c_str(), ContextParams);
   if (GraphRef.LlamaModel == nullptr) {
     spdlog::error("[WASI-NN] Error: unable to init model."sv);
     Env.NNGraph.pop_back();
@@ -84,6 +84,13 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                        const TensorData &Tensor) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+
+  // Initialize the llama context.
+  llama_context_params ContextParams = llama_context_default_params();
+  GraphRef.LlamaContext =
+      llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
+
+  // Set the input.
   std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
                      Tensor.Tensor.size());
   CxtRef.LlamaInputs = llama_tokenize(GraphRef.LlamaContext, Prompt, true);
@@ -168,6 +175,8 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
 
   if (LlamaLogEnv != nullptr) {
+    spdlog::info("llama_get_kv_cache_token_count {}"sv,
+                 llama_get_kv_cache_token_count(GraphRef.LlamaContext));
     llama_print_timings(GraphRef.LlamaContext);
   }
 

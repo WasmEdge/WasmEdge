@@ -4,6 +4,8 @@
 #include "wasinnenv.h"
 #include "wasinnmodule.h"
 
+#include <sstream>
+
 namespace WasmEdge {
 namespace Host {
 

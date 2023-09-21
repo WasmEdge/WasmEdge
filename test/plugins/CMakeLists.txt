@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+# Todo, add it in if statement.
+add_subdirectory(wasmedge_ffmpeg)
 if(WASMEDGE_PLUGIN_PROCESS)
   if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     add_subdirectory(wasmedge_process)

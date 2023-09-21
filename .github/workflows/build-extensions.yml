@@ -503,10 +503,10 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_RUSTLS=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON
-      tar_names: wasi_crypto wasi_logging wasmedge_rustls wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini
-      test_bins: wasiCryptoTests wasiLoggingTests wasmEdgeRUSTLSTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests
-      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib libwasmedge_rustls.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_RUSTLS=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
+      tar_names: wasi_crypto wasi_logging wasmedge_rustls wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasi_nn
+      test_bins: wasiCryptoTests wasiLoggingTests wasmEdgeRUSTLSTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests wasiNNTests
+      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib libwasmedge_rustls.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib libwasmedgePluginWasiNN.dylib
     needs: [get_version]
     steps:
       - uses: actions/checkout@v3
@@ -524,7 +524,7 @@ jobs:
           export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options} -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options} -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS=OFF
           for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
             echo "Building ${testbin_array[$i]} :"
@@ -590,3 +590,8 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasmedge_opencvmini.tar.gz
+      - name: Upload artifact - wasi_nn-ggml
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_nn-ggml-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
+          path: plugin_wasi_nn.tar.gz

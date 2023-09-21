@@ -606,6 +606,14 @@ if (BUILD_SHARED_LIBS)
     endif()
 endif()
 
+# global flags for ggml
+if (NOT WIN32)
+    target_compile_options(ggml
+        PRIVATE
+        -DGGML_USE_K_QUANTS
+    )
+endif()
+
 # disable warnings
 if (NOT WIN32)
     target_compile_options(ggml
@@ -615,8 +623,6 @@ if (NOT WIN32)
         -Wno-unused-but-set-variable
         -Wno-unused-function
         -Wno-missing-braces
-        -DGGML_USE_K_QUANTS
-        -DGGML_USE_OPENBLAS
     )
 else()
     target_compile_options(ggml

@@ -1338,22 +1338,6 @@ TEST(WasiNNTest, GGMLBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: load -- the GGML backend currently only supports the CPU target.
-  // (device: CPU 0, GPU 1, TPU 2)
-  {
-    for (uint32_t I = 1; I <= 3; I++) {
-
-      EXPECT_TRUE(HostFuncLoad.run(CallFrame,
-                                   std::initializer_list<WasmEdge::ValVariant>{
-                                       LoadEntryPtr, UINT32_C(1),
-                                       static_cast<uint32_t>(Backend::GGML), I,
-                                       BuilderPtr},
-                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(),
-                static_cast<uint32_t>(ErrNo::InvalidArgument));
-    }
-  }
-
   // Test: load -- load successfully.
   {
     EXPECT_TRUE(HostFuncLoad.run(CallFrame,

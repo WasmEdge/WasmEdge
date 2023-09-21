@@ -2,11 +2,9 @@
 # Option list
 #
 
-if (APPLE)
-    set(LLAMA_METAL_DEFAULT ON)
-else()
-    set(LLAMA_METAL_DEFAULT OFF)
-endif()
+# Get errors when enabling METAL API
+# Disable it currently
+set(LLAMA_METAL_DEFAULT OFF)
 
 # general
 option(LLAMA_STATIC                     "llama: static link libraries"                          OFF)
@@ -86,18 +84,6 @@ if (NOT MSVC)
     if (LLAMA_SANITIZE_UNDEFINED)
         add_compile_options(-fsanitize=undefined)
         link_libraries(-fsanitize=undefined)
-    endif()
-endif()
-
-if (APPLE AND LLAMA_ACCELERATE)
-    find_library(ACCELERATE_FRAMEWORK Accelerate)
-    if (ACCELERATE_FRAMEWORK)
-        message(STATUS "Accelerate framework found")
-
-        add_compile_definitions(GGML_USE_ACCELERATE)
-        set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} ${ACCELERATE_FRAMEWORK})
-    else()
-        message(WARNING "Accelerate framework not found")
     endif()
 endif()
 

@@ -50,9 +50,8 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     }
 
     // Check with proposals.
-    if (auto Res = Conf.checkInstrProposals(Code); !Res) {
-      return logNeedProposal(Res.error().getErrCode(),
-                             Res.error().getNeedProposal(), Offset,
+    if (auto Res = Conf.isInstrNeedProposal(Code); unlikely(Res.has_value())) {
+      return logNeedProposal(ErrCode::Value::IllegalOpCode, Res.value(), Offset,
                              ASTNodeAttr::Instruction);
     }
 

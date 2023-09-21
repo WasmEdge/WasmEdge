@@ -46,7 +46,6 @@ public:
       Type = LimitType::HasMinMax;
     }
   }
-  Limit(const Limit &L) noexcept : Type(L.Type), Min(L.Min), Max(L.Max) {}
 
   /// Getter and setter of limit mode.
   bool hasMax() const noexcept {

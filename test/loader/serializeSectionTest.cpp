@@ -32,11 +32,15 @@ TEST(SerializeSectionTest, SerializeCustomSection) {
 TEST(SerializeSectionTest, SerializeTypeSection) {
   WasmEdge::AST::TypeSection TypeSec;
   WasmEdge::AST::FunctionType FT1(
-      {WasmEdge::ValType::I32, WasmEdge::ValType::I64}, {});
+      std::vector<WasmEdge::ValType>{WasmEdge::TypeCode::I32,
+                                     WasmEdge::TypeCode::I64},
+      {});
   WasmEdge::AST::FunctionType FT2(
-      {WasmEdge::ValType::F32, WasmEdge::ValType::F64},
-      {WasmEdge::ValType::FuncRef});
-  WasmEdge::AST::FunctionType FT3({}, {WasmEdge::ValType::V128});
+      std::vector<WasmEdge::ValType>{WasmEdge::TypeCode::F32,
+                                     WasmEdge::TypeCode::F64},
+      std::vector<WasmEdge::ValType>{WasmEdge::TypeCode::FuncRef});
+  WasmEdge::AST::FunctionType FT3(
+      {}, std::vector<WasmEdge::ValType>{WasmEdge::TypeCode::V128});
   TypeSec.getContent().push_back(FT1);
   TypeSec.getContent().push_back(FT2);
   TypeSec.getContent().push_back(FT3);
@@ -74,7 +78,7 @@ TEST(SerializeSectionTest, SerializeImportSection) {
   ID3.setModuleName("test");
   ID3.setExternalName("Loader3");
   ID3.setExternalType(WasmEdge::ExternalType::Global);
-  ID3.getExternalGlobalType().setValType(WasmEdge::ValType::F64);
+  ID3.getExternalGlobalType().setValType(WasmEdge::TypeCode::F64);
   ID3.getExternalGlobalType().setValMut(WasmEdge::ValMut::Const);
 
   WasmEdge::AST::ImportSection ImpSec;
@@ -124,10 +128,14 @@ TEST(SerializeSectionTest, SerializeFunctionSection) {
 
 TEST(SerializeSectionTest, SerializeTableSection) {
   WasmEdge::AST::TableSection TableSec;
-  WasmEdge::AST::TableType TT1(WasmEdge::RefType::ExternRef, 0, 15);
-  WasmEdge::AST::TableType TT2(WasmEdge::RefType::FuncRef, 0, 14);
-  TableSec.getContent().push_back(TT1);
-  TableSec.getContent().push_back(TT2);
+  WasmEdge::AST::TableSegment TS1;
+  WasmEdge::AST::TableType TT1(WasmEdge::TypeCode::ExternRef, 0, 15);
+  TS1.getTableType() = TT1;
+  WasmEdge::AST::TableSegment TS2;
+  WasmEdge::AST::TableType TT2(WasmEdge::TypeCode::FuncRef, 0, 14);
+  TS2.getTableType() = TT2;
+  TableSec.getContent().push_back(TS1);
+  TableSec.getContent().push_back(TS2);
 
   std::vector<uint8_t> Output;
   EXPECT_TRUE(Ser.serializeSection(TableSec, Output));
@@ -166,14 +174,14 @@ TEST(SerializeSectionTest, SerializeMemorySection) {
 TEST(SerializeSectionTest, SerializeGlobalSection) {
   WasmEdge::AST::GlobalSection GlobalSec;
   WasmEdge::AST::GlobalSegment GlobalSeg1;
-  WasmEdge::AST::GlobalType GlobalType1(WasmEdge::ValType::F64,
+  WasmEdge::AST::GlobalType GlobalType1(WasmEdge::TypeCode::F64,
                                         WasmEdge::ValMut::Const);
   GlobalSeg1.getGlobalType() = GlobalType1;
   GlobalSeg1.getExpr().getInstrs() = {
       WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
 
   WasmEdge::AST::GlobalSegment GlobalSeg2;
-  WasmEdge::AST::GlobalType GlobalType2(WasmEdge::ValType::F32,
+  WasmEdge::AST::GlobalType GlobalType2(WasmEdge::TypeCode::F32,
                                         WasmEdge::ValMut::Const);
   GlobalSeg2.getGlobalType() = GlobalType2;
   GlobalSeg2.getExpr().getInstrs() = {
@@ -289,8 +297,8 @@ TEST(SerializeSectionTest, SerializeCodeSection) {
   WasmEdge::AST::CodeSection CodeSec;
   WasmEdge::AST::CodeSegment CodeSeg;
   CodeSeg.setSegSize(8);
-  CodeSeg.getLocals() = {{1, WasmEdge::ValType::F64},
-                         {3, WasmEdge::ValType::F32}};
+  CodeSeg.getLocals() = {{1, WasmEdge::TypeCode::F64},
+                         {3, WasmEdge::TypeCode::F32}};
   WasmEdge::AST::Expression Expr;
   Expr.getInstrs() = {WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
                       WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),

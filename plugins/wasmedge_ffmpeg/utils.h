@@ -3337,6 +3337,79 @@ public:
   }
 };
 
+class SampleFmt{
+public:
+  static AVSampleFormat fromSampleID(uint32_t SampleID){
+     switch (SampleID) {
+     case 0:
+        return AV_SAMPLE_FMT_NONE;
+     case 1:
+       return AV_SAMPLE_FMT_U8;
+     case 2:
+       return AV_SAMPLE_FMT_S16;
+     case 3:
+       return AV_SAMPLE_FMT_S32;
+     case 4:
+       return AV_SAMPLE_FMT_FLT;
+     case 5:
+       return AV_SAMPLE_FMT_DBL;
+     case 6:
+       return AV_SAMPLE_FMT_U8P;
+     case 7:
+       return AV_SAMPLE_FMT_S16P;
+     case 8:
+       return AV_SAMPLE_FMT_S32P;
+     case 9:
+       return AV_SAMPLE_FMT_FLTP;
+     case 10:
+       return AV_SAMPLE_FMT_DBLP;
+     case 11:
+       return AV_SAMPLE_FMT_S64;
+     case 12:
+       return AV_SAMPLE_FMT_S64P;
+     case 13:
+       return AV_SAMPLE_FMT_NB;
+     default:
+       return AV_SAMPLE_FMT_NONE;
+     }
+  }
+
+  static uint32_t toSampleID(AVSampleFormat AvSampleFormat){
+     switch (AvSampleFormat) {
+     case AV_SAMPLE_FMT_NONE:
+       return 0;
+     case AV_SAMPLE_FMT_U8:
+       return 1;
+     case AV_SAMPLE_FMT_S16:
+       return 2;
+     case AV_SAMPLE_FMT_S32:
+       return 3;
+     case AV_SAMPLE_FMT_FLT:
+       return 4;
+     case AV_SAMPLE_FMT_DBL:
+       return 5;
+     case AV_SAMPLE_FMT_U8P:
+       return 6;
+     case AV_SAMPLE_FMT_S16P:
+       return 7;
+     case AV_SAMPLE_FMT_S32P:
+       return 8;
+     case AV_SAMPLE_FMT_FLTP:
+       return 9;
+     case AV_SAMPLE_FMT_DBLP:
+       return 10;
+     case AV_SAMPLE_FMT_S64:
+       return 11;
+     case AV_SAMPLE_FMT_S64P:
+       return 12;
+     case AV_SAMPLE_FMT_NB:
+       return 13;
+     default:
+       return 0;
+     }
+  }
+};
+
 
 } // namespace FFmpegUtils
 } // namespace WasmEdgeFFmpeg

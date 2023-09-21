@@ -3,6 +3,7 @@
 #include "avRational.h"
 #include "avFrame.h"
 #include "pixfmt.h"
+#include "samplefmt.h"
 
 namespace WasmEdge{
 namespace Host{
@@ -46,10 +47,21 @@ WasmEdgeFFmpegAVUtilModule::
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_get_buffer",std::make_unique<AVFrameGetBuffer>(Env));
 
     // pixfmt.h (Even AvPixFmtDesc is in this file)
-
     addHostFunc("wasmedge_ffmpeg_avutil_avpixfmtdescriptor_nb_components",std::make_unique<AvPixFmtDescriptorNbComponents>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_avpixfmtdescriptor_log2_chromaw",std::make_unique<AvPixFmtDescriptorLog2ChromaW>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_avpixfmtdescriptor_log2_chromah",std::make_unique<AvPixFmtDescriptorLog2ChromaH>(Env));
+
+    // samplefmt.h
+    addHostFunc("wasmedge_ffmpeg_avutil_av_get_packed_sample_fmt",std::make_unique<AVGetPackedSampleFmt>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_get_planar_sample_fmt",std::make_unique<AVGetPlanarSampleFmt>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_sample_fmt_is_planar",std::make_unique<AVSampleFmtIsPlanar>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_get_bytes_per_sample",std::make_unique<AVGetBytesPerSample>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_get_sample_fmt",std::make_unique<AVGetSampleFmt>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_samples_get_buffer_size",std::make_unique<AVSamplesGetBufferSize>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_samples_alloc_array_and_samples",std::make_unique<AVSamplesAllocArrayAndSamples>(Env));
+//    addHostFunc("wasmedge_ffmpeg_avutil_av_samples_copy",std::make_unique<AVSamplesCopy>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_samples_get_buffer",std::make_unique<AVSamplesGetBuffer>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_freep",std::make_unique<AVFreep>(Env));
 }
 
 } // namespace AVUtil

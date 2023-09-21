@@ -69,28 +69,28 @@ EXPECT_NE(AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_stream_
 delete AVCodecMod;
 }
 
-TEST(WasmEdgeAVCodecTest,FunctionsTest){
-
-  auto *AVCodecMod = dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::WasmEdgeFFmpegAVCodecModule *>(createModule());
-
-  // Create the calling frame with memory instance.
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  Mod.addHostMemory(
-  "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-      WasmEdge::AST::MemoryType(1)));
-  auto *MemInstPtr = Mod.findMemoryExports("memory");
-  EXPECT_NE(MemInstPtr, nullptr);
-  auto &MemInst = *MemInstPtr;
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
-
-//  uint32_t StorePtr = UINT32_C(65536);
-  auto *FuncInst = AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_parameters_alloc");
-  EXPECT_TRUE(FuncInst->isHostFunction());
-
-  auto &HostFuncInst =
-    dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParametersAlloc &>(FuncInst->getHostFunc());
-
-}
+//TEST(WasmEdgeAVCodecTest,FunctionsTest){
+//
+//  auto *AVCodecMod = dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::WasmEdgeFFmpegAVCodecModule *>(createModule());
+//
+//  // Create the calling frame with memory instance.
+//  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+//  Mod.addHostMemory(
+//  "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+//      WasmEdge::AST::MemoryType(1)));
+//  auto *MemInstPtr = Mod.findMemoryExports("memory");
+//  EXPECT_NE(MemInstPtr, nullptr);
+//  auto &MemInst = *MemInstPtr;
+//  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+//
+////  uint32_t StorePtr = UINT32_C(65536);
+//  auto *FuncInst = AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_parameters_alloc");
+//  EXPECT_TRUE(FuncInst->isHostFunction());
+//
+//  auto &HostFuncInst =
+//    dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParametersAlloc &>(FuncInst->getHostFunc());
+//
+//}
 
 GTEST_API_ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);

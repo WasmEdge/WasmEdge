@@ -3,8 +3,16 @@
 
 # llama.cpp options
 set(LLAMA_ALL_WARNINGS OFF)
-set(LLAMA_BLAS ON)
-set(LLAMA_BLAS_VENDOR "OpenBLAS")
+option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS "Enable LLAMA_BLAS in the WASI-NN GGML backend" ON)
+if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS)
+  message(INFO "WASI-NN GGML LLAMA backend: Enable LLAMA_BLAS")
+  # Default use OpenBLAS
+  set(LLAMA_BLAS ON)
+  set(LLAMA_BLAS_VENDOR "OpenBLAS")
+else()
+  message(INFO "WASI-NN GGML LLAMA backend: Disable LLAMA_BLAS")
+  set(LLAMA_BLAS OFF)
+endif()
 
 add_subdirectory(thirdparty)
 

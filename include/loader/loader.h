@@ -136,30 +136,6 @@ private:
     spdlog::error(ErrInfo::InfoAST(Node));
     return Unexpect(Code);
   }
-  Expect<void> checkValTypeProposals(ValType VType, uint64_t Off,
-                                     ASTNodeAttr Node) const noexcept {
-    if (auto Res = Conf.checkValTypeProposals(VType); !Res) {
-      if (Res.error().isNeedProposal()) {
-        return logNeedProposal(Res.error().getErrCode(),
-                               Res.error().getNeedProposal(), Off, Node);
-      } else {
-        return logLoadError(Res.error().getErrCode(), Off, Node);
-      }
-    }
-    return {};
-  }
-  Expect<void> checkRefTypeProposals(RefType RType, uint64_t Off,
-                                     ASTNodeAttr Node) const noexcept {
-    if (auto Res = Conf.checkRefTypeProposals(RType); !Res) {
-      if (Res.error().isNeedProposal()) {
-        return logNeedProposal(Res.error().getErrCode(),
-                               Res.error().getNeedProposal(), Off, Node);
-      } else {
-        return logLoadError(Res.error().getErrCode(), Off, Node);
-      }
-    }
-    return {};
-  }
   /// @}
 
   Expect<std::variant<AST::Component, AST::Module>> loadUnit();

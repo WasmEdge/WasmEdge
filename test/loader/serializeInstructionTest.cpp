@@ -375,7 +375,7 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   WasmEdge::AST::Instruction RefNull(WasmEdge::OpCode::Ref__null);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
-  RefNull.setRefType(WasmEdge::RefType::FuncRef);
+  RefNull.setValType(WasmEdge::TypeCode::FuncRef);
   Instructions = {RefNull, End};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
@@ -391,7 +391,7 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   };
   EXPECT_EQ(Output, Expected);
 
-  RefNull.setRefType(WasmEdge::RefType::ExternRef);
+  RefNull.setValType(WasmEdge::TypeCode::ExternRef);
   Instructions = {RefNull, End};
   EXPECT_FALSE(
       SerNoRefType.serializeSection(createCodeSec(Instructions), Output));
@@ -415,8 +415,8 @@ TEST(SerializeInstructionTest, SerializeParametricInstruction) {
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   SelectT.setValTypeListSize(2);
-  SelectT.getValTypeList()[0] = WasmEdge::ValType::I32;
-  SelectT.getValTypeList()[1] = WasmEdge::ValType::I64;
+  SelectT.getValTypeList()[0] = WasmEdge::TypeCode::I32;
+  SelectT.getValTypeList()[1] = WasmEdge::TypeCode::I64;
   Instructions = {SelectT, End};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
@@ -433,8 +433,8 @@ TEST(SerializeInstructionTest, SerializeParametricInstruction) {
   };
   EXPECT_EQ(Output, Expected);
 
-  SelectT.getValTypeList()[0] = WasmEdge::ValType::V128;
-  SelectT.getValTypeList()[1] = WasmEdge::ValType::V128;
+  SelectT.getValTypeList()[0] = WasmEdge::TypeCode::V128;
+  SelectT.getValTypeList()[1] = WasmEdge::TypeCode::V128;
   Instructions = {SelectT, End};
   EXPECT_FALSE(SerNoSIMD.serializeSection(createCodeSec(Instructions), Output));
 }

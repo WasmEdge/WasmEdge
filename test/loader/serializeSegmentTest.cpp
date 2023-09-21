@@ -25,7 +25,7 @@ TEST(SerializeSegmentTest, SerializeGlobalSegment) {
   WasmEdge::AST::GlobalSegment GlobalSeg;
 
   GlobalSeg.getGlobalType() = WasmEdge::AST::GlobalType(
-      WasmEdge::ValType::I32, WasmEdge::ValMut::Const);
+      WasmEdge::TypeCode::I32, WasmEdge::ValMut::Const);
   GlobalSeg.getExpr().getInstrs() = {
       WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
   GlobalSec.getContent() = {GlobalSeg};
@@ -42,7 +42,7 @@ TEST(SerializeSegmentTest, SerializeGlobalSegment) {
   EXPECT_EQ(Output, Expected);
 
   GlobalSeg.getGlobalType() = WasmEdge::AST::GlobalType(
-      WasmEdge::ValType::I32, WasmEdge::ValMut::Const);
+      WasmEdge::TypeCode::I32, WasmEdge::ValMut::Const);
   GlobalSeg.getExpr().getInstrs() = {
       WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
       WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
@@ -252,7 +252,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
 
   ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Passive);
   ElementSeg.getExpr().getInstrs().clear();
-  ElementSeg.setRefType(WasmEdge::RefType::ExternRef);
+  ElementSeg.setRefType(WasmEdge::TypeCode::ExternRef);
   ElementSec.getContent() = {ElementSeg};
 
   Output = {};
@@ -351,10 +351,10 @@ TEST(SerializeSegmentTest, SerializeCodeSegment) {
   EXPECT_EQ(Output, Expected);
 
   CodeSeg.setSegSize(19);
-  CodeSeg.getLocals() = {{0x01U, WasmEdge::ValType::F64},
-                         {0x03U, WasmEdge::ValType::F32},
-                         {0x1FFFFFFU, WasmEdge::ValType::I64},
-                         {0x1FFFFF3U, WasmEdge::ValType::I32}};
+  CodeSeg.getLocals() = {{0x01U, WasmEdge::TypeCode::F64},
+                         {0x03U, WasmEdge::TypeCode::F32},
+                         {0x1FFFFFFU, WasmEdge::TypeCode::I64},
+                         {0x1FFFFF3U, WasmEdge::TypeCode::I32}};
   CodeSeg.getExpr().getInstrs() = {I32Eqz, I32Eq, I32Ne, End};
   CodeSec.getContent() = {CodeSeg};
 
@@ -374,7 +374,7 @@ TEST(SerializeSegmentTest, SerializeCodeSegment) {
   };
   EXPECT_EQ(Output, Expected);
 
-  CodeSeg.getLocals() = {{0x01U, WasmEdge::ValType::ExternRef}};
+  CodeSeg.getLocals() = {{0x01U, WasmEdge::TypeCode::ExternRef}};
   CodeSec.getContent() = {CodeSeg};
   EXPECT_FALSE(SerNoRefType.serializeSection(CodeSec, Output));
 }

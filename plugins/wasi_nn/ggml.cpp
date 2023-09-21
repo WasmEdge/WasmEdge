@@ -13,7 +13,7 @@
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
-                   Device Device, uint32_t &GraphId) noexcept {
+                   [[maybe_unused]] Device Device, uint32_t &GraphId) noexcept {
   // The graph builder length must be 1.
   if (Builders.size() != 1) {
     spdlog::error(
@@ -22,31 +22,28 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     return ErrNo::InvalidArgument;
   }
 
-  // Setup Graph Device
-  if (Device != Device::CPU) {
-    spdlog::error(
-        "[WASI-NN] GGML backend: Only support CPU target currently."sv);
-    return ErrNo::InvalidArgument;
-  }
-
   auto Weight = Builders[0];
   std::string BinModel(reinterpret_cast<char *>(Weight.data()), Weight.size());
-  std::istringstream BinRead(BinModel);
-
-  // TODO: pass the model directly to ggml
-  // Write ggml model to file.
-  std::string ModelFilePath("ggml-model.bin"sv);
-  std::ofstream TempFile(ModelFilePath);
-  if (!TempFile) {
-    spdlog::error(
-        "[WASI-NN] GGML backend: Failed to create the temporary file. "
-        "Currently, our workaround involves creating a temporary model "
-        "file named \"ggml-model.bin\" and passing this filename as a "
-        "parameter to the ggml llama library."sv);
-    return ErrNo::InvalidArgument;
+  std::string ModelFilePath;
+  if (BinModel.substr(0, 8) == "preload:") {
+    ModelFilePath = BinModel.substr(8);
+  } else {
+    // TODO: pass the model directly to ggml
+    // Write ggml model to file.
+    std::istringstream BinRead(BinModel);
+    ModelFilePath = "ggml-model.bin"sv;
+    std::ofstream TempFile(ModelFilePath);
+    if (!TempFile) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Failed to create the temporary file. "
+          "Currently, our workaround involves creating a temporary model "
+          "file named \"ggml-model.bin\" and passing this filename as a "
+          "parameter to the ggml llama library."sv);
+      return ErrNo::InvalidArgument;
+    }
+    TempFile << BinModel;
+    TempFile.close();
   }
-  TempFile << BinModel;
-  TempFile.close();
 
   // Add a new graph.
   Env.NNGraph.emplace_back(Backend::GGML);

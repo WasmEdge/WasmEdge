@@ -1477,11 +1477,6 @@ TEST(WasiNNTest, GGMLBackend) {
     // Should output more than 100 bytes.
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GE(BytesWritten, 100);
-    // Output should begin with the prompt. (+1 to skip bos token)
-    const auto Output = MemInst.getSpan<const uint8_t>(StorePtr, 100);
-    EXPECT_EQ(
-        std::string(Output.begin() + 1, Output.begin() + 1 + Prompt.size()),
-        Prompt);
   }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML

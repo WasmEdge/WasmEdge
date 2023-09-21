@@ -3,6 +3,7 @@
 #include "avformat/module.h"
 #include "avutil/module.h"
 #include "swscale/module.h"
+#include "avfilter/module.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -19,10 +20,10 @@ Runtime::Instance::ModuleInstance *createAVCodec(
 //  return nullptr;
 //}
 
-//Runtime::Instance::ModuleInstance *createAVFilter(
-//    const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-//  return nullptr;
-//}
+Runtime::Instance::ModuleInstance *createAVFilter(
+    const Plugin::PluginModule::ModuleDescriptor *) noexcept {
+  return new WasmEdgeFFmpeg::AVFilter::WasmEdgeFFmpegAVFilterModule(WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance());
+}
 
 Runtime::Instance::ModuleInstance *createAVFormat(
     const Plugin::PluginModule::ModuleDescriptor *) noexcept {
@@ -47,35 +48,35 @@ Runtime::Instance::ModuleInstance *createSWScale(
 //}
 
 Plugin::Plugin::PluginDescriptor Descriptor {
-  .Name = "",
+  .Name = "wasmedge_ffmpeg",
   .Description = "",
   .APIVersion = Plugin::Plugin::CurrentAPIVersion,
   .Version = {0, 0, 0, 1} ,
-  .ModuleCount = 4,
+  .ModuleCount = 5,
   .ModuleDescriptions =
         (Plugin::PluginModule::ModuleDescriptor[]){
             {
-               .Name = "AVCodec",
+               .Name = "wasmedge_ffmpeg_avcodec",
                .Description = "encoding/decoding library",
                .Create = createAVCodec,
             },
 //            {
-//               .Name = "AVDevice" ,
+//               .Name = "wasmedge_ffmpeg_avdevice" ,
 //               .Description = "special devices muxing/demuxing library",
 //               .Create = createAVDevice,
 //            },
-//            {
-//               .Name = "AVFilter",
-//               .Description = "graph-based frame editing library",
-//               .Create = createAVFilter,
-//            },
             {
-                .Name = "AVFormat",
+               .Name = "wasmedge_ffmpeg_avfilter",
+               .Description = "graph-based frame editing library",
+               .Create = createAVFilter,
+            },
+            {
+                .Name = "wasmedge_ffmpeg_avformat",
                 .Description = "I/O and muxing/demuxing library",
                 .Create = createAVFormat,
             },
             {
-                .Name = "AVUtil",
+                .Name = "wasmedge_ffmpeg_avutil",
                 .Description = "utils utility library",
                 .Create = createAVUtil,
             },
@@ -85,7 +86,7 @@ Plugin::Plugin::PluginDescriptor Descriptor {
 //                .Create = createSWResample,
 //            },
             {
-                .Name = "SWScale",
+                .Name = "wasmedge_ffmpeg_swscale",
                 .Description = "color conversion and scaling library",
                 .Create = createSWScale,
             }

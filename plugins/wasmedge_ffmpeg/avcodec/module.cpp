@@ -21,7 +21,6 @@ WasmEdgeFFmpegAVCodecModule(std::shared_ptr<WasmEdgeFFmpegEnv> env )
     addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_parameters_alloc",std::make_unique<AVCodecParametersAlloc>(env));
     addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_get_type",std::make_unique<AVCodecGetType>(env));
     addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_open2",std::make_unique<AVCodecOpen2>(env));
-    addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_open2",std::make_unique<AVCodecOpen2>(env));
     addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_find_decoder",std::make_unique<AVCodecFindDecoder>(env));
     addHostFunc("wasmedge_ffmpeg_avcodec_av_codec_is_encoder",std::make_unique<AVCodecIsEncoder>(env));
     addHostFunc("wasmedge_ffmpeg_avcodec_av_codec_is_decoder",std::make_unique<AVCodecIsDecoder>(env));

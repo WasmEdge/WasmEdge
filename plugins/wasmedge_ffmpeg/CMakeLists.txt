@@ -1,4 +1,4 @@
-wasmedge_add_library(wasmedgePluginWasmEdgeFfmpeg
+wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
         SHARED
         ffmpeg_env.cpp
 
@@ -33,21 +33,21 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFfmpeg
 
 )
 
-target_link_directories(wasmedgePluginWasmEdgeFfmpeg PUBLIC ${FFMPEG_LIB})
-target_compile_options(wasmedgePluginWasmEdgeFfmpeg
+target_link_directories(wasmedgePluginWasmEdgeFFmpeg PUBLIC ${FFMPEG_LIB})
+target_compile_options(wasmedgePluginWasmEdgeFFmpeg
         PUBLIC
         -DWASMEDGE_PLUGIN
 )
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-    target_link_options(wasmedgePluginWasmEdgeFfmpeg
+    target_link_options(wasmedgePluginWasmEdgeFFmpeg
             PUBLIC
             -Wl,-U,__ZN8WasmEdge6Plugin14PluginRegisterC1EPKNS0_6Plugin16PluginDescriptorE
             -Wl,-U,__ZN8WasmEdge6Plugin14PluginRegisterD1Ev
     )
 endif()
 
-target_include_directories(wasmedgePluginWasmEdgeFfmpeg
+target_include_directories(wasmedgePluginWasmEdgeFFmpeg
         PUBLIC
         $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -56,12 +56,12 @@ target_include_directories(wasmedgePluginWasmEdgeFfmpeg
 )
 
 if(WASMEDGE_LINK_PLUGINS_STATIC)
-    target_link_libraries(wasmedgePluginWasmEdgeFfmpeg
+    target_link_libraries(wasmedgePluginWasmEdgeFFmpeg
             PRIVATE
             wasmedgeCAPI
     )
 else()
-    target_link_libraries(wasmedgePluginWasmEdgeFfmpeg
+    target_link_libraries(wasmedgePluginWasmEdgeFFmpeg
             PRIVATE
             wasmedge_shared
             avformat
@@ -74,4 +74,4 @@ else()
     )
 endif()
 
-install(TARGETS wasmedgePluginWasmEdgeFfmpeg DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
+install(TARGETS wasmedgePluginWasmEdgeFFmpeg DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)

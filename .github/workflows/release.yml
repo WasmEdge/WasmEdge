@@ -145,7 +145,7 @@ jobs:
         shell: bash
         run: |
           apt update
-          apt install unzip
+          apt install unzip libopenblas-dev
           bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
       - name: Build WASI-NN plugin
@@ -375,7 +375,7 @@ jobs:
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Building ${plugin_array[$i]} backend:"
-            cmake -Bbuild -GNinja ${option_array[$i]}
+            cmake -Bbuild -GNinja ${option_array[$i]} -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS=OFF
             cmake --build build --target ${outtarget}
 
             echo "Copying ${plugin_array[$i]} backend:"

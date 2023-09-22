@@ -1,4 +1,6 @@
 #pragma once
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 #include "avutil_base.h"
 #include "runtime/callingframe.h"
 
@@ -49,16 +51,16 @@ public:
   Expect<void> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint32_t Height);
 };
 
-class AVFrameFormat : public WasmEdgeFFmpegAVUtil<AVFrameFormat> {
+class AVFrameVideoFormat : public WasmEdgeFFmpegAVUtil<AVFrameVideoFormat> {
 public:
-  AVFrameFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+  AVFrameVideoFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId);
 };
 
-class AVFrameSetFormat : public WasmEdgeFFmpegAVUtil<AVFrameSetFormat> {
+class AVFrameSetVideoFormat : public WasmEdgeFFmpegAVUtil<AVFrameSetVideoFormat> {
 public:
-  AVFrameSetFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+  AVFrameSetVideoFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint32_t AvPixFormatId);
 };
@@ -91,6 +93,57 @@ public:
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,int32_t Align);
 };
+
+
+class AVFrameAudioFormat : public WasmEdgeFFmpegAVUtil<AVFrameAudioFormat> {
+public:
+  AVFrameAudioFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId);
+};
+
+class AVFrameSetAudioFormat : public WasmEdgeFFmpegAVUtil<AVFrameSetAudioFormat> {
+public:
+  AVFrameSetAudioFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint32_t SampleFormatId);
+};
+
+class AVFrameSetChannelLayout : public WasmEdgeFFmpegAVUtil<AVFrameSetChannelLayout> {
+public:
+  AVFrameSetChannelLayout(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint64_t ChannelLayoutID);
+};
+
+class AVFrameSetNbSamples : public WasmEdgeFFmpegAVUtil<AVFrameSetNbSamples> {
+public:
+  AVFrameSetNbSamples(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,int32_t Samples);
+};
+
+class AVFrameNbSamples : public WasmEdgeFFmpegAVUtil<AVFrameNbSamples> {
+public:
+  AVFrameNbSamples(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId);
+};
+
+class AVFrameSampleRate : public WasmEdgeFFmpegAVUtil<AVFrameSampleRate> {
+public:
+  AVFrameSampleRate(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId);
+};
+
+class AVFrameChannels : public WasmEdgeFFmpegAVUtil<AVFrameChannels> {
+public:
+  AVFrameChannels(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId);
+};
+
 
 } // namespace AVUtil
 } // namespace WasmEdgeFFmpeg

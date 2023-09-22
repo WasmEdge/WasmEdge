@@ -28,6 +28,7 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
         avutil/avFrame.cpp
         avutil/pixfmt.cpp
         avutil/samplefmt.cpp
+        avutil/channel_layout.cpp
 
         swscale/module.cpp
         swscale/swscale_func.cpp

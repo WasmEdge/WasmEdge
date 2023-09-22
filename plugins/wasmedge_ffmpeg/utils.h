@@ -1,6 +1,7 @@
 extern "C" {
   #include "libavutil/avutil.h"
   #include "libavcodec/codec_id.h"
+  #include "libavutil/channel_layout.h"
 }
 namespace WasmEdge{
 namespace Host{
@@ -3410,6 +3411,298 @@ public:
   }
 };
 
+// Could have avoided, but Did this to support older version of FFMPEG (V5,V4,V3)
+// Version 6 FFmpeg uses AVChannelLayout Struct;
+class ChannelLayout {
+private:
+  const static uint64_t FRONT_LEFT            = 1;
+  const static uint64_t FRONT_RIGHT           = 1ULL << 1;
+  const static uint64_t FRONT_CENTER          = 1ULL << 2;
+  const static uint64_t LOW_FREQUENCY         = 1ULL << 3;
+  const static uint64_t BACK_LEFT             = 1ULL << 4;
+  const static uint64_t BACK_RIGHT            = 1ULL << 5;
+  const static uint64_t FRONT_LEFT_OF_CENTER  = 1ULL << 6;
+  const static uint64_t FRONT_RIGHT_OF_CENTER = 1ULL << 7;
+  const static uint64_t BACK_CENTER           = 1ULL << 8;
+  const static uint64_t SIDE_LEFT             = 1ULL << 9;
+  const static uint64_t SIDE_RIGHT            = 1ULL << 10;
+  const static uint64_t TOP_CENTER            = 1ULL << 11;
+  const static uint64_t TOP_FRONT_LEFT        = 1ULL << 12;
+  const static uint64_t TOP_FRONT_CENTER      = 1ULL << 13;
+  const static uint64_t TOP_FRONT_RIGHT       = 1ULL << 14;
+  const static uint64_t TOP_BACK_LEFT         = 1ULL << 15;
+  const static uint64_t TOP_BACK_CENTER       = 1ULL << 16;
+  const static uint64_t TOP_BACK_RIGHT        = 1ULL << 17;
+  const static uint64_t STEREO_LEFT           = 1ULL << 18;
+  const static uint64_t STEREO_RIGHT          = 1ULL << 19;
+  const static uint64_t WIDE_LEFT             = 1ULL << 20;
+  const static uint64_t WIDE_RIGHT            = 1ULL << 21;
+  const static uint64_t SURROUND_DIRECT_LEFT  = 1ULL << 22;
+  const static uint64_t SURROUND_DIRECT_RIGHT = 1ULL << 23;
+  const static uint64_t LOW_FREQUENCY_2       = 1ULL << 24;
+  const static uint64_t NATIVE                = 1ULL << 25;
+
+  const static uint64_t MONO               = 1ULL << 26;
+  const static uint64_t STEREO             = 1ULL << 27;
+  const static uint64_t _2POINT1           = 1ULL << 28;
+  const static uint64_t _2_1               = 1ULL << 29;
+  const static uint64_t SURROUND           = 1ULL << 30;
+  const static uint64_t _3POINT1           = 1ULL << 31;
+  const static uint64_t _4POINT0           = 1ULL << 32;
+  const static uint64_t _4POINT1           = 1ULL << 33;
+  const static uint64_t _2_2               = 1ULL << 34;
+  const static uint64_t QUAD               = 1ULL << 35;
+  const static uint64_t _5POINT0           = 1ULL << 36;
+  const static uint64_t _5POINT1           = 1ULL << 37;
+  const static uint64_t _5POINT0_BACK      = 1ULL << 38;
+  const static uint64_t _5POINT1_BACK      = 1ULL << 39;
+  const static uint64_t _6POINT0           = 1ULL << 40;
+  const static uint64_t _6POINT0_FRONT     = 1ULL << 41;
+  const static uint64_t HEXAGONAL          = 1ULL << 42;
+  const static uint64_t _6POINT1           = 1ULL << 43;
+  const static uint64_t _6POINT1_BACK      = 1ULL << 44;
+  const static uint64_t _6POINT1_FRONT     = 1ULL << 45;
+  const static uint64_t _7POINT0           = 1ULL << 46;
+  const static uint64_t _7POINT0_FRONT     = 1ULL << 47;
+  const static uint64_t _7POINT1           = 1ULL << 48;
+  const static uint64_t _7POINT1_WIDE      = 1ULL << 49;
+  const static uint64_t _7POINT1_WIDE_BACK = 1ULL << 50;
+  const static uint64_t OCTAGONAL          = 1ULL << 51;
+  const static uint64_t HEXADECAGONAL      = 1ULL << 52;
+  const static uint64_t STEREO_DOWNMIX     = 1ULL << 53;
+
+public:
+
+  // Check This function. (Looks good, test it)
+  static uint64_t fromChannelLayoutID(uint64_t ChannelLayout) {
+     uint64_t Channel = 0;
+     if(ChannelLayout & FRONT_LEFT)
+       Channel |= AV_CH_FRONT_LEFT;
+     if(ChannelLayout & FRONT_RIGHT)
+       Channel |= AV_CH_FRONT_RIGHT;
+     if(ChannelLayout & FRONT_CENTER)
+       Channel |= AV_CH_FRONT_CENTER;
+     if(ChannelLayout & LOW_FREQUENCY)
+       Channel |= AV_CH_LOW_FREQUENCY;
+     if(ChannelLayout & BACK_LEFT)
+       Channel |= AV_CH_BACK_LEFT;
+     if(ChannelLayout & BACK_RIGHT)
+       Channel |= AV_CH_BACK_RIGHT;
+     if(ChannelLayout & FRONT_LEFT_OF_CENTER)
+       Channel |= AV_CH_FRONT_LEFT_OF_CENTER;
+     if(ChannelLayout & FRONT_RIGHT_OF_CENTER)
+       Channel |= AV_CH_FRONT_RIGHT_OF_CENTER;
+     if(ChannelLayout & BACK_CENTER)
+       Channel |= AV_CH_BACK_CENTER;
+     if(ChannelLayout & SIDE_LEFT)
+       Channel |= AV_CH_SIDE_LEFT;
+     if(ChannelLayout & SIDE_RIGHT)
+       Channel |= AV_CH_SIDE_RIGHT;
+     if(ChannelLayout & TOP_CENTER)
+       Channel |= AV_CH_TOP_CENTER;
+     if(ChannelLayout & TOP_FRONT_LEFT)
+       Channel |= AV_CH_TOP_FRONT_LEFT;
+     if(ChannelLayout & TOP_FRONT_CENTER)
+       Channel |= AV_CH_TOP_FRONT_CENTER;
+     if(ChannelLayout & TOP_FRONT_RIGHT)
+       Channel |= AV_CH_TOP_FRONT_RIGHT;
+     if(ChannelLayout & TOP_BACK_LEFT)
+       Channel |= AV_CH_TOP_BACK_LEFT;
+     if(ChannelLayout & TOP_BACK_CENTER)
+       Channel |= AV_CH_TOP_FRONT_CENTER;
+     if(ChannelLayout & TOP_BACK_RIGHT)
+       Channel |= AV_CH_TOP_BACK_RIGHT;
+     if(ChannelLayout & STEREO_LEFT)
+       Channel |= AV_CH_STEREO_LEFT;
+     if(ChannelLayout & STEREO_RIGHT)
+       Channel |= AV_CH_STEREO_RIGHT;
+     if(ChannelLayout & WIDE_LEFT)
+       Channel |= AV_CH_WIDE_LEFT;
+     if(ChannelLayout & WIDE_RIGHT)
+       Channel |= AV_CH_WIDE_RIGHT;
+     if(ChannelLayout & SURROUND_DIRECT_LEFT)
+       Channel |= AV_CH_SURROUND_DIRECT_LEFT;
+     if(ChannelLayout & SURROUND_DIRECT_RIGHT)
+       Channel |= AV_CH_SURROUND_DIRECT_RIGHT;
+     if(ChannelLayout & LOW_FREQUENCY_2)
+       Channel |= AV_CH_LOW_FREQUENCY_2;
+     if(ChannelLayout & NATIVE)
+       Channel |= AV_CH_LAYOUT_NATIVE;
+     if(ChannelLayout & MONO)
+       Channel |= AV_CH_LAYOUT_MONO;
+     if(ChannelLayout & STEREO)
+       Channel |= AV_CH_LAYOUT_STEREO;
+     if(ChannelLayout & _2POINT1)
+       Channel |= AV_CH_LAYOUT_2POINT1;
+     if(ChannelLayout & _2_1)
+       Channel |= AV_CH_LAYOUT_2_1;
+     if(ChannelLayout & SURROUND)
+       Channel |= AV_CH_LAYOUT_SURROUND;
+     if(ChannelLayout & _3POINT1)
+       Channel |= AV_CH_LAYOUT_3POINT1;
+     if(ChannelLayout & _4POINT0)
+       Channel |= AV_CH_LAYOUT_4POINT0;
+     if(ChannelLayout & _4POINT1)
+       Channel |= AV_CH_LAYOUT_4POINT1;
+     if(ChannelLayout & _2_2)
+       Channel |= AV_CH_LAYOUT_2_2;
+     if(ChannelLayout & QUAD)
+       Channel |= AV_CH_LAYOUT_QUAD;
+     if(ChannelLayout & _5POINT0)
+       Channel |= AV_CH_LAYOUT_5POINT0;
+     if(ChannelLayout & _5POINT1)
+       Channel |= AV_CH_LAYOUT_5POINT1;
+     if(ChannelLayout & _5POINT0_BACK)
+       Channel |= AV_CH_LAYOUT_5POINT0_BACK;
+     if(ChannelLayout & _5POINT1_BACK)
+       Channel |= AV_CH_LAYOUT_5POINT1_BACK;
+     if(ChannelLayout & _6POINT0)
+       Channel |= AV_CH_LAYOUT_6POINT0;
+     if(ChannelLayout & _6POINT0_FRONT)
+       Channel |= AV_CH_LAYOUT_6POINT0_FRONT;
+     if(ChannelLayout & HEXAGONAL)
+       Channel |= AV_CH_LAYOUT_HEXAGONAL;
+     if(ChannelLayout & _6POINT1)
+       Channel |= AV_CH_LAYOUT_6POINT1;
+     if(ChannelLayout & _6POINT1_BACK)
+       Channel |= AV_CH_LAYOUT_6POINT1_BACK;
+     if(ChannelLayout & _6POINT1_FRONT)
+       Channel |= AV_CH_LAYOUT_6POINT1_FRONT;
+     if(ChannelLayout & _7POINT0)
+       Channel |= AV_CH_LAYOUT_7POINT0;
+     if(ChannelLayout & _7POINT0_FRONT)
+       Channel |= AV_CH_LAYOUT_7POINT0_FRONT;
+     if(ChannelLayout & _7POINT1)
+       Channel |= AV_CH_LAYOUT_7POINT1;
+     if(ChannelLayout & _7POINT1_WIDE)
+       Channel |= AV_CH_LAYOUT_7POINT1_WIDE;
+     if(ChannelLayout & _7POINT1_WIDE_BACK)
+       Channel |= AV_CH_LAYOUT_7POINT1_WIDE_BACK;
+     if(ChannelLayout & OCTAGONAL)
+       Channel |= AV_CH_LAYOUT_OCTAGONAL;
+     if(ChannelLayout & HEXADECAGONAL)
+       Channel |= AV_CH_LAYOUT_HEXADECAGONAL;
+     if(ChannelLayout & STEREO_DOWNMIX)
+       Channel |= AV_CH_LAYOUT_STEREO_DOWNMIX;
+     return Channel;
+  }
+
+    // Perfect Logic :)
+    static uint64_t intoAVChannelID(uint64_t ChannelLayout) {
+     uint64_t Channel = 0;
+     if((ChannelLayout &  AV_CH_FRONT_LEFT) == AV_CH_FRONT_LEFT)
+       Channel |= FRONT_LEFT;
+     if((ChannelLayout &  AV_CH_FRONT_RIGHT) == AV_CH_FRONT_RIGHT)
+       Channel |= FRONT_RIGHT;
+     if((ChannelLayout &  AV_CH_FRONT_CENTER) == AV_CH_FRONT_CENTER)
+       Channel |= FRONT_CENTER;
+     if((ChannelLayout &  AV_CH_LOW_FREQUENCY) == AV_CH_LOW_FREQUENCY)
+       Channel |= LOW_FREQUENCY;
+     if((ChannelLayout &  AV_CH_BACK_LEFT) == AV_CH_BACK_LEFT)
+       Channel |= BACK_LEFT;
+     if((ChannelLayout &  AV_CH_BACK_RIGHT) == AV_CH_BACK_RIGHT)
+       Channel |= BACK_RIGHT;
+     if((ChannelLayout &  AV_CH_FRONT_LEFT_OF_CENTER) == AV_CH_FRONT_LEFT_OF_CENTER)
+       Channel |= FRONT_LEFT_OF_CENTER;
+     if((ChannelLayout &  AV_CH_FRONT_RIGHT_OF_CENTER) == AV_CH_FRONT_RIGHT_OF_CENTER)
+       Channel |= FRONT_RIGHT_OF_CENTER;
+     if((ChannelLayout &  AV_CH_BACK_CENTER) == AV_CH_BACK_CENTER)
+       Channel |= BACK_CENTER;
+     if((ChannelLayout &  AV_CH_SIDE_LEFT) == AV_CH_SIDE_LEFT)
+       Channel |= SIDE_LEFT;
+     if((ChannelLayout &  AV_CH_SIDE_RIGHT) == AV_CH_SIDE_RIGHT)
+       Channel |= SIDE_RIGHT;
+     if((ChannelLayout &  AV_CH_TOP_CENTER) == AV_CH_TOP_CENTER)
+       Channel |= TOP_CENTER;
+     if((ChannelLayout &  AV_CH_TOP_FRONT_LEFT) == AV_CH_TOP_FRONT_LEFT)
+       Channel |= TOP_FRONT_LEFT;
+     if((ChannelLayout &  AV_CH_TOP_FRONT_CENTER) == AV_CH_TOP_FRONT_CENTER)
+       Channel |= TOP_FRONT_CENTER;
+     if((ChannelLayout &  AV_CH_TOP_FRONT_RIGHT) == AV_CH_TOP_FRONT_RIGHT)
+       Channel |= TOP_FRONT_RIGHT;
+     if((ChannelLayout &  AV_CH_TOP_BACK_LEFT) == AV_CH_TOP_BACK_LEFT)
+       Channel |= TOP_BACK_LEFT;
+     if((ChannelLayout &  AV_CH_TOP_BACK_CENTER) == AV_CH_TOP_BACK_CENTER)
+       Channel |= TOP_FRONT_CENTER;
+     if((ChannelLayout &  AV_CH_TOP_BACK_RIGHT) == AV_CH_TOP_BACK_RIGHT)
+       Channel |= TOP_BACK_RIGHT;
+     if((ChannelLayout &  AV_CH_STEREO_LEFT) == AV_CH_STEREO_LEFT)
+       Channel |= STEREO_LEFT;
+     if((ChannelLayout &  AV_CH_STEREO_RIGHT) == AV_CH_STEREO_RIGHT)
+       Channel |= STEREO_RIGHT;
+     if((ChannelLayout &  AV_CH_WIDE_LEFT) == AV_CH_WIDE_LEFT)
+       Channel |= WIDE_LEFT;
+     if((ChannelLayout &  AV_CH_WIDE_RIGHT) == AV_CH_WIDE_RIGHT)
+       Channel |= WIDE_RIGHT;
+     if((ChannelLayout &  AV_CH_SURROUND_DIRECT_LEFT) == AV_CH_SURROUND_DIRECT_LEFT)
+       Channel |= SURROUND_DIRECT_LEFT;
+     if((ChannelLayout &  AV_CH_SURROUND_DIRECT_RIGHT) == AV_CH_SURROUND_DIRECT_RIGHT)
+       Channel |= SURROUND_DIRECT_RIGHT;
+     if((ChannelLayout &  AV_CH_LOW_FREQUENCY_2) == AV_CH_LOW_FREQUENCY_2)
+       Channel |= LOW_FREQUENCY_2;
+
+     // Channel Mask C;
+     if((ChannelLayout &  AV_CH_LAYOUT_NATIVE) == AV_CH_LAYOUT_NATIVE)
+       Channel |=NATIVE;
+     if((ChannelLayout & AV_CH_LAYOUT_MONO) == AV_CH_LAYOUT_MONO)
+       Channel |=MONO;
+     if((ChannelLayout &  AV_CH_LAYOUT_STEREO) == AV_CH_LAYOUT_STEREO)
+       Channel |=STEREO;
+     if((ChannelLayout &  AV_CH_LAYOUT_2POINT1) == AV_CH_LAYOUT_2POINT1)
+       Channel |= _2POINT1;
+     if((ChannelLayout & AV_CH_LAYOUT_2_1) == AV_CH_LAYOUT_2_1)
+       Channel |= _2_1;
+     if((ChannelLayout &  AV_CH_LAYOUT_SURROUND) == AV_CH_LAYOUT_SURROUND)
+       Channel |= SURROUND;
+     if((ChannelLayout &  AV_CH_LAYOUT_3POINT1) == AV_CH_LAYOUT_3POINT1)
+       Channel |= _3POINT1;
+     if((ChannelLayout &  AV_CH_LAYOUT_4POINT0) == AV_CH_LAYOUT_4POINT0)
+       Channel |= _4POINT0;
+     if((ChannelLayout &  AV_CH_LAYOUT_4POINT1) == AV_CH_LAYOUT_4POINT1)
+       Channel |= _4POINT1;
+     if((ChannelLayout &  AV_CH_LAYOUT_2_2) == AV_CH_LAYOUT_2_2)
+       Channel |= _2_2;
+     if((ChannelLayout &  AV_CH_LAYOUT_QUAD) == AV_CH_LAYOUT_QUAD)
+       Channel |= QUAD;
+     if((ChannelLayout &  AV_CH_LAYOUT_5POINT0) == AV_CH_LAYOUT_5POINT0)
+       Channel |= _5POINT0;
+     if((ChannelLayout &  AV_CH_LAYOUT_5POINT1) == AV_CH_LAYOUT_5POINT1)
+       Channel |= _5POINT1;
+     if((ChannelLayout &  AV_CH_LAYOUT_5POINT0_BACK) == AV_CH_LAYOUT_5POINT0_BACK)
+       Channel |= _5POINT0_BACK;
+     if((ChannelLayout &  AV_CH_LAYOUT_5POINT1_BACK) == AV_CH_LAYOUT_5POINT1_BACK)
+       Channel |= _5POINT1_BACK;
+     if((ChannelLayout &  AV_CH_LAYOUT_6POINT0) == AV_CH_LAYOUT_6POINT0)
+       Channel |= _6POINT0;
+     if((ChannelLayout &  AV_CH_LAYOUT_6POINT0_FRONT) == AV_CH_LAYOUT_6POINT0_FRONT)
+       Channel |= _6POINT0_FRONT;
+     if((ChannelLayout &  AV_CH_LAYOUT_HEXAGONAL) == AV_CH_LAYOUT_HEXAGONAL)
+       Channel |= HEXAGONAL;
+     if((ChannelLayout &  AV_CH_LAYOUT_6POINT1) == AV_CH_LAYOUT_6POINT1)
+       Channel |= _6POINT1;
+     if((ChannelLayout &  AV_CH_LAYOUT_6POINT1_BACK) == AV_CH_LAYOUT_6POINT1_BACK)
+       Channel |= _6POINT1_BACK;
+     if((ChannelLayout &  AV_CH_LAYOUT_6POINT1_FRONT) == AV_CH_LAYOUT_6POINT1_FRONT)
+       Channel |= _6POINT1_FRONT;
+     if((ChannelLayout &  AV_CH_LAYOUT_7POINT0) == AV_CH_LAYOUT_7POINT0)
+       Channel |= _7POINT0;
+     if((ChannelLayout &  AV_CH_LAYOUT_7POINT0_FRONT) == AV_CH_LAYOUT_7POINT0_FRONT)
+       Channel |= _7POINT0_FRONT;
+     if((ChannelLayout &  AV_CH_LAYOUT_7POINT1) == AV_CH_LAYOUT_7POINT1)
+       Channel |= _7POINT1;
+     if((ChannelLayout &  AV_CH_LAYOUT_7POINT1_WIDE) == AV_CH_LAYOUT_7POINT1_WIDE)
+       Channel |= _7POINT1_WIDE;
+     if((ChannelLayout &  AV_CH_LAYOUT_7POINT1_WIDE_BACK) == AV_CH_LAYOUT_7POINT1_WIDE_BACK)
+       Channel |= _7POINT1_WIDE_BACK;
+     if((ChannelLayout &  AV_CH_LAYOUT_OCTAGONAL) == AV_CH_LAYOUT_OCTAGONAL)
+       Channel |= OCTAGONAL;
+     if((ChannelLayout &  AV_CH_LAYOUT_HEXADECAGONAL) == AV_CH_LAYOUT_HEXADECAGONAL)
+       Channel |= HEXADECAGONAL;
+     if((ChannelLayout &  AV_CH_LAYOUT_STEREO_DOWNMIX) == AV_CH_LAYOUT_STEREO_DOWNMIX)
+       Channel |= STEREO_DOWNMIX;
+     return Channel;
+    }
+};
 
 } // namespace FFmpegUtils
 } // namespace WasmEdgeFFmpeg

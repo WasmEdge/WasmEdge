@@ -53,9 +53,7 @@ Expect<int32_t> AVCodecCtxSampleAspectRatio::body(const Runtime::CallingFrame &F
   MEMINST_CHECK(MemInst,Frame,0);
   MEM_PTR_CHECK(Num,MemInst,int32_t ,NumPtr,"Failed to access Numerator Ptr for AVRational");
   MEM_PTR_CHECK(Den,MemInst,int32_t ,DenPtr,"Failed to access Denominator Ptr for AVRational");
-
-  auto* FfmpegMemory = Env.get();
-  AVCodecContext* AvCodecCtx = static_cast<AVCodecContext*>(FfmpegMemory->fetchData(AvCodecCtxId));
+  FFMPEG_PTR_FETCH(AvCodecCtx,AvCodecCtxId,AVCodecContext);
 
   const AVRational AvRational = AvCodecCtx->sample_aspect_ratio;
   *Num = AvRational.num;
@@ -63,6 +61,14 @@ Expect<int32_t> AVCodecCtxSampleAspectRatio::body(const Runtime::CallingFrame &F
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<uint64_t> AVCodecCtxChannelLayout::body(const Runtime::CallingFrame &,uint32_t AvCodecCtxId){
+
+  FFMPEG_PTR_FETCH(AvCodecCtx,AvCodecCtxId,AVCodecContext);
+  // Deprecated method
+  uint64_t const AvChannel = AvCodecCtx->channel_layout;
+  printf("AVChannel %llu\n",AvChannel);
+  return FFmpegUtils::ChannelLayout::intoAVChannelID(AvChannel);
+}
 
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg

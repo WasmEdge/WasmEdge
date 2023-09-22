@@ -4,6 +4,7 @@
 #include "avFrame.h"
 #include "pixfmt.h"
 #include "samplefmt.h"
+#include "channel_layout.h"
 
 namespace WasmEdge{
 namespace Host{
@@ -39,12 +40,19 @@ WasmEdgeFFmpegAVUtilModule::
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_height",std::make_unique<AVFrameHeight>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_width",std::make_unique<AVFrameSetWidth>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_height",std::make_unique<AVFrameSetHeight>(Env));
-    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_format",std::make_unique<AVFrameFormat>(Env));
-    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_format",std::make_unique<AVFrameSetFormat>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_video_format",std::make_unique<AVFrameVideoFormat>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_video_format",std::make_unique<AVFrameSetVideoFormat>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_isnull",std::make_unique<AVFrameIsNull>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_linesize",std::make_unique<AVFrameLinesize>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_data",std::make_unique<AVFrameData>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_get_buffer",std::make_unique<AVFrameGetBuffer>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_audio_format",std::make_unique<AVFrameAudioFormat>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_audio_format",std::make_unique<AVFrameSetAudioFormat>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_nb_samples",std::make_unique<AVFrameSetNbSamples>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_channel_layout",std::make_unique<AVFrameSetChannelLayout>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_nb_samples",std::make_unique<AVFrameNbSamples>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_sample_rate",std::make_unique<AVFrameSampleRate>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channels",std::make_unique<AVFrameChannels>(Env));
 
     // pixfmt.h (Even AvPixFmtDesc is in this file)
     addHostFunc("wasmedge_ffmpeg_avutil_avpixfmtdescriptor_nb_components",std::make_unique<AvPixFmtDescriptorNbComponents>(Env));
@@ -62,6 +70,10 @@ WasmEdgeFFmpegAVUtilModule::
 //    addHostFunc("wasmedge_ffmpeg_avutil_av_samples_copy",std::make_unique<AVSamplesCopy>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_samples_get_buffer",std::make_unique<AVSamplesGetBuffer>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_freep",std::make_unique<AVFreep>(Env));
+
+    // channelLayout.h
+    addHostFunc("wasmedge_ffmpeg_avutil_av_get_channel_layout_nb_channels",std::make_unique<AVGetChannelLayoutNbChannels>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_get_default_channel_layout",std::make_unique<AVGetDefaultChannelLayout>(Env));
 }
 
 } // namespace AVUtil

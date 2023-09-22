@@ -36,6 +36,7 @@ WasmEdgeFFmpegAVCodecModule(std::shared_ptr<WasmEdgeFFmpegEnv> env )
     addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_width",std::make_unique<AVCodecCtxWidth>(env));
     addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_height",std::make_unique<AVCodecCtxHeight>(env));
     addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_sample_aspect_ratio",std::make_unique<AVCodecCtxSampleAspectRatio>(env));
+    addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_channel_layout",std::make_unique<AVCodecCtxChannelLayout>(env));
 
     //avCodec Struct fields access
     addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_id",std::make_unique<AVCodecID>(env));

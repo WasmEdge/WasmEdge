@@ -1,5 +1,6 @@
 #include "avcodec_base.h"
 #include "runtime/callingframe.h"
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
 namespace WasmEdge {
 namespace Host {
@@ -48,6 +49,12 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t AvCodecCtxId,uint32_t NumPtr, uint32_t DenPtr);
 };
 
+class AVCodecCtxChannelLayout : public WasmEdgeFFmpegAVCodec<AVCodecCtxChannelLayout> {
+public:
+  AVCodecCtxChannelLayout(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<uint64_t> body(const Runtime::CallingFrame &Frame,uint32_t AvCodecCtxId);
+};
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

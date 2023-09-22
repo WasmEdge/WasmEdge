@@ -66,7 +66,6 @@ Expect<uint64_t> AVCodecCtxChannelLayout::body(const Runtime::CallingFrame &,uin
   FFMPEG_PTR_FETCH(AvCodecCtx,AvCodecCtxId,AVCodecContext);
   // Deprecated method
   uint64_t const AvChannel = AvCodecCtx->channel_layout;
-  printf("AVChannel %llu\n",AvChannel);
   return FFmpegUtils::ChannelLayout::intoAVChannelID(AvChannel);
 }
 

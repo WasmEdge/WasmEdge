@@ -85,14 +85,14 @@ Expect<int32_t> AVFrameLinesize::body(const Runtime::CallingFrame &,uint32_t Fra
   return AvFrame->linesize[Idx];
 }
 
-Expect<int32_t> AVFrameData::body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint32_t FrameBufPtr,uint32_t FrameBufLen){
+Expect<int32_t> AVFrameData::body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint32_t FrameBufPtr,uint32_t FrameBufLen,uint32_t Index){
 
   MEMINST_CHECK(MemInst,Frame,0)
   MEM_SPAN_CHECK(Buffer,MemInst,uint8_t,FrameBufPtr,FrameBufLen,"");
   FFMPEG_PTR_FETCH(AvFrame,FrameId,AVFrame);
 
-  uint8_t** Data = AvFrame->data;
-  memmove(Buffer.data(),*Data,FrameBufLen);
+  uint8_t* Data = AvFrame->data[Index];
+  memmove(Buffer.data(),Data,FrameBufLen);
   return static_cast<int32_t>(ErrNo::Success);
 }
 

@@ -84,7 +84,7 @@ class AVFrameData : public WasmEdgeFFmpegAVUtil<AVFrameData> {
 public:
   AVFrameData(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint32_t FrameBufPtr,uint32_t FrameBufLen);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId,uint32_t FrameBufPtr,uint32_t FrameBufLen,uint32_t Index);
 };
 
 class AVFrameGetBuffer : public WasmEdgeFFmpegAVUtil<AVFrameGetBuffer> {

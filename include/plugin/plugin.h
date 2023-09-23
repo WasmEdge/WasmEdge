@@ -105,6 +105,7 @@ public:
   Plugin &operator=(Plugin &&) noexcept = default;
 
   Plugin() noexcept = default;
+  explicit Plugin(const PluginDescriptor *D) noexcept;
 
   constexpr const char *name() const noexcept {
     assuming(Desc);
@@ -149,8 +150,6 @@ private:
   std::unordered_map<std::string_view, std::size_t> ModuleNameLookup;
 
   static bool loadFile(const std::filesystem::path &Path) noexcept;
-
-  explicit Plugin(const PluginDescriptor *D) noexcept;
 
 public:
   WASMEDGE_EXPORT static void

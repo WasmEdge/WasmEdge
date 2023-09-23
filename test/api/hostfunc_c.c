@@ -17,65 +17,72 @@
 #include "hostfunc_c.h"
 #include <stddef.h>
 
-WasmEdge_Result SpecTestPrint(void *Data __attribute__((unused)),
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+#define MAYBE_UNUSED
+#pragma warning( disable : 4100 ) // unreferenced formal parameter
+#else
+#define MAYBE_UNUSED __attribute__((unused))
+#endif
+
+WasmEdge_Result SpecTestPrint(void *Data MAYBE_UNUSED,
                               const WasmEdge_CallingFrameContext *CallFrameCxt
-                              __attribute__((unused)),
-                              const WasmEdge_Value *In __attribute__((unused)),
-                              WasmEdge_Value *Out __attribute__((unused))) {
+                              MAYBE_UNUSED,
+                              const WasmEdge_Value *In MAYBE_UNUSED,
+                              WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
 WasmEdge_Result
-SpecTestPrintI32(void *Data __attribute__((unused)),
+SpecTestPrintI32(void *Data MAYBE_UNUSED,
                  const WasmEdge_CallingFrameContext *CallFrameCxt
-                 __attribute__((unused)),
-                 const WasmEdge_Value *In __attribute__((unused)),
-                 WasmEdge_Value *Out __attribute__((unused))) {
+                 MAYBE_UNUSED,
+                 const WasmEdge_Value *In MAYBE_UNUSED,
+                 WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
 WasmEdge_Result
-SpecTestPrintI64(void *Data __attribute__((unused)),
+SpecTestPrintI64(void *Data MAYBE_UNUSED,
                  const WasmEdge_CallingFrameContext *CallFrameCxt
-                 __attribute__((unused)),
-                 const WasmEdge_Value *In __attribute__((unused)),
-                 WasmEdge_Value *Out __attribute__((unused))) {
+                 MAYBE_UNUSED,
+                 const WasmEdge_Value *In MAYBE_UNUSED,
+                 WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
 WasmEdge_Result
-SpecTestPrintF32(void *Data __attribute__((unused)),
+SpecTestPrintF32(void *Data MAYBE_UNUSED,
                  const WasmEdge_CallingFrameContext *CallFrameCxt
-                 __attribute__((unused)),
-                 const WasmEdge_Value *In __attribute__((unused)),
-                 WasmEdge_Value *Out __attribute__((unused))) {
+                 MAYBE_UNUSED,
+                 const WasmEdge_Value *In MAYBE_UNUSED,
+                 WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
 WasmEdge_Result
-SpecTestPrintF64(void *Data __attribute__((unused)),
+SpecTestPrintF64(void *Data MAYBE_UNUSED,
                  const WasmEdge_CallingFrameContext *CallFrameCxt
-                 __attribute__((unused)),
-                 const WasmEdge_Value *In __attribute__((unused)),
-                 WasmEdge_Value *Out __attribute__((unused))) {
+                 MAYBE_UNUSED,
+                 const WasmEdge_Value *In MAYBE_UNUSED,
+                 WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
 WasmEdge_Result
-SpecTestPrintI32F32(void *Data __attribute__((unused)),
+SpecTestPrintI32F32(void *Data MAYBE_UNUSED,
                     const WasmEdge_CallingFrameContext *CallFrameCxt
-                    __attribute__((unused)),
-                    const WasmEdge_Value *In __attribute__((unused)),
-                    WasmEdge_Value *Out __attribute__((unused))) {
+                    MAYBE_UNUSED,
+                    const WasmEdge_Value *In MAYBE_UNUSED,
+                    WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
 WasmEdge_Result
-SpecTestPrintF64F64(void *Data __attribute__((unused)),
+SpecTestPrintF64F64(void *Data MAYBE_UNUSED,
                     const WasmEdge_CallingFrameContext *CallFrameCxt
-                    __attribute__((unused)),
-                    const WasmEdge_Value *In __attribute__((unused)),
-                    WasmEdge_Value *Out __attribute__((unused))) {
+                    MAYBE_UNUSED,
+                    const WasmEdge_Value *In MAYBE_UNUSED,
+                    WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 

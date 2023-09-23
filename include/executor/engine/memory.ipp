@@ -94,8 +94,8 @@ Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
     return Unexpect(Res);
   }
 
-  using VTIn [[gnu::vector_size(8)]] = TIn;
-  using VTOut [[gnu::vector_size(16)]] = TOut;
+  using VTIn = SIMDArray<TIn, 8>;
+  using VTOut = SIMDArray<TOut, 16>;
 
   VTIn Value;
   std::memcpy(&Value, &Buffer, 8);
@@ -131,7 +131,7 @@ Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
   uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
 
   // Value = Mem.Data[EA : N / 8]
-  using VT [[gnu::vector_size(16)]] = T;
+  using VT = SIMDArray<T, 16>;
   uint64_t Buffer;
   if (auto Res = MemInst.loadValue<decltype(Buffer), sizeof(T)>(Buffer, EA);
       !Res) {
@@ -158,7 +158,7 @@ template <typename T>
 Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
                                      Runtime::Instance::MemoryInstance &MemInst,
                                      const AST::Instruction &Instr) {
-  using VT [[gnu::vector_size(16)]] = T;
+  using VT = SIMDArray<T, 16>;
   VT Result = StackMgr.pop().get<VT>();
 
   // Calculate EA
@@ -194,7 +194,7 @@ Expect<void>
 Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
                          Runtime::Instance::MemoryInstance &MemInst,
                          const AST::Instruction &Instr) {
-  using VT [[gnu::vector_size(16)]] = T;
+  using VT = SIMDArray<T, 16>;
   using TBuf = std::conditional_t<sizeof(T) < 4, uint32_t, T>;
   const TBuf C = StackMgr.pop().get<VT>()[Instr.getMemoryLane()];
 

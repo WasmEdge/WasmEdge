@@ -1,6 +1,20 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+# llama.cpp options
+set(LLAMA_ALL_WARNINGS OFF)
+if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS)
+  message(INFO "WASI-NN GGML LLAMA backend: Enable LLAMA_BLAS")
+  # Default use OpenBLAS
+  set(LLAMA_BLAS ON)
+  set(LLAMA_BLAS_VENDOR "OpenBLAS")
+else()
+  message(INFO "WASI-NN GGML LLAMA backend: Disable LLAMA_BLAS")
+  set(LLAMA_BLAS OFF)
+endif()
+
+add_subdirectory(thirdparty)
+
 wasmedge_add_library(wasmedgePluginWasiNN
   SHARED
   wasinnenv.cpp
@@ -17,7 +31,6 @@ wasmedge_add_library(wasmedgePluginWasiNN
 target_compile_options(wasmedgePluginWasiNN
   PUBLIC
   -DWASMEDGE_PLUGIN
-  -DGGML_USE_K_QUANTS
 )
 
 target_include_directories(wasmedgePluginWasiNN
@@ -31,14 +44,17 @@ if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmedgePluginWasiNN
     PRIVATE
     wasmedgeCAPI
-    utilGgml
   )
 else()
   target_link_libraries(wasmedgePluginWasiNN
     PRIVATE
     wasmedge_shared
-    utilGgml
   )
+endif()
+
+string(TOLOWER ${WASMEDGE_PLUGIN_WASI_NN_BACKEND} BACKEND)
+if(BACKEND STREQUAL "ggml")
+  target_link_libraries(wasmedgePluginWasiNN PRIVATE llama)
 endif()
 
 include(WASINNDeps)

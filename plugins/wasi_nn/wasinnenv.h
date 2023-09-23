@@ -206,7 +206,6 @@ struct WasiNNEnvironment :
   static PO::Option<std::string> NNRPCURI; // For RPC client mode
   std::shared_ptr<grpc::Channel> NNRPCChannel;
 #endif
-  static Plugin::PluginRegister Register;
 };
 
 } // namespace WASINN

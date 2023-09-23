@@ -350,6 +350,11 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
     return false;
   }
 
+  if (auto GetDescriptor =
+          Lib->get<Plugin::PluginDescriptor const *()>("GetDescriptor")) {
+    Plugin::registerPlugin(GetDescriptor());
+  }
+
   if (PluginRegistry.size() != Index + 1) {
     // Check C interface
     if (auto GetDescriptor = Lib->get<decltype(WasmEdge_Plugin_GetDescriptor)>(
@@ -393,6 +398,7 @@ Span<const Plugin> Plugin::plugins() noexcept { return PluginRegistry; }
 
 WASMEDGE_EXPORT void
 Plugin::registerPlugin(const PluginDescriptor *Desc) noexcept {
+  IncreaseNiftyCounter();
   assuming(NiftyCounter != 0);
   if (Desc->APIVersion != CurrentAPIVersion) {
     return;
@@ -421,16 +427,5 @@ Plugin::findModule(std::string_view Name) const noexcept {
   }
   return nullptr;
 }
-
-WASMEDGE_EXPORT
-PluginRegister::PluginRegister(const Plugin::PluginDescriptor *Desc) noexcept {
-  IncreaseNiftyCounter();
-  Plugin::registerPlugin(Desc);
-}
-
-WASMEDGE_EXPORT PluginRegister::~PluginRegister() noexcept {
-  DecreaseNiftyCounter();
-}
-
 } // namespace Plugin
 } // namespace WasmEdge

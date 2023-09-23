@@ -91,9 +91,6 @@ public:
   std::unordered_map<uint32_t, std::unique_ptr<z_stream>> ZStreamMap;
   std::map<uint32_t, std::unique_ptr<GZFile>, std::greater<uint32_t>> GZFileMap;
   std::unordered_map<uint32_t, GZStore> GZHeaderMap;
-
-  /// Initial Configurations
-  static Plugin::PluginRegister Register;
 };
 
 } // namespace Host

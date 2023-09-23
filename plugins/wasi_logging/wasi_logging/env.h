@@ -16,7 +16,6 @@ public:
       spdlog::stdout_color_mt("wasi_logging_stdout");
   inline const static std::shared_ptr<spdlog::logger> StderrLogger =
       spdlog::stderr_color_mt("wasi_logging_stderr");
-  static Plugin::PluginRegister Register;
 };
 
 } // namespace Host

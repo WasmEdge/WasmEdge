@@ -113,7 +113,8 @@ private:
   enum class ErrNo : int32_t {
     Success = 0,         // No error occurred.
     MissingMemory = -201,   // Caller module is missing a memory export.
-    NullStructId = -202 // Rust Sdk Passes null id.
+    NullStructId = -202, // Rust Sdk Passes null id.
+    InternalError = -203
   };
 
 } // namespace WasmEdgeFFmpeg

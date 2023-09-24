@@ -69,6 +69,12 @@ Expect<uint64_t> AVCodecCtxChannelLayout::body(const Runtime::CallingFrame &,uin
   return FFmpegUtils::ChannelLayout::intoAVChannelID(AvChannel);
 }
 
+Expect<uint32_t> AVCodecCtxPixFormat::body(const Runtime::CallingFrame &,uint32_t AvCodecCtxId){
+  FFMPEG_PTR_FETCH(AvCodecCtx,AvCodecCtxId,AVCodecContext);
+  AVPixelFormat const PixFmt = AvCodecCtx->pix_fmt;
+  return FFmpegUtils::PixFmt::fromAVPixFmt(PixFmt);
+}
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

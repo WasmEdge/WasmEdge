@@ -55,6 +55,14 @@ public:
       : WasmEdgeFFmpegAVCodec(HostEnv) {}
   Expect<uint64_t> body(const Runtime::CallingFrame &Frame,uint32_t AvCodecCtxId);
 };
+
+class AVCodecCtxPixFormat : public WasmEdgeFFmpegAVCodec<AVCodecCtxPixFormat> {
+public:
+  AVCodecCtxPixFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,uint32_t AvCodecCtxId);
+};
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

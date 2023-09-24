@@ -3,6 +3,7 @@
 
 wasmedge_add_executable(wasmedgeFFmpegTests
         avcodec.cpp
+        avutil/avRational.cpp
 )
 
 add_dependencies(wasmedgeFFmpegTests

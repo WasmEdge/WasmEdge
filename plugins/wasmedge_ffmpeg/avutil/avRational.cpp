@@ -19,7 +19,7 @@ Expect<int32_t> AVAddQ::body(const Runtime::CallingFrame &Frame,int32_t ANum,int
   AVRational const A = av_make_q(ANum,ADen);
   AVRational const B = av_make_q(BNum,BDen);
 
-  AVRational C = av_add_q(A,B);
+  AVRational const C = av_add_q(A,B);
   *CNum = C.num;
   *CDen = C.den;
 

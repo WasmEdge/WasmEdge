@@ -1,0 +1,23 @@
+name: "General Issue"
+description: Don't see your issue kind in other issue templates? Use this one instead.
+title: "question: <title>"
+labels: [
+  "question"
+]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: "Summary"
+      description: Please shortly describe by example what question you have
+      placeholder: Describe in a few lines your questions
+    validations:
+      required: true
+  - type: textarea
+    id: appendix
+    attributes:
+      label: "Appendix"
+      description: Provide anything you want to supplement.
+      placeholder: Some reference links or any information related to this question.
+    validations:
+      required: false

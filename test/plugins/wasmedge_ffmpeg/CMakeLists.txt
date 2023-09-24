@@ -2,8 +2,12 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 wasmedge_add_executable(wasmedgeFFmpegTests
+        avcodec/avcodec_func.cpp
         avcodec.cpp
+
         avutil/avRational.cpp
+
+        swscale/swscale_func.cpp
 )
 
 add_dependencies(wasmedgeFFmpegTests

@@ -57,6 +57,10 @@ if(WASMEDGE_PLUGIN_RUSTLS)
   add_subdirectory(wasmedge_rustls)
 endif()
 
+if(WASMEDGE_PLUGIN_WASI_RANDOM)
+  add_subdirectory(wasi_random)
+endif()
+
 if(CMAKE_SYSTEM_NAME MATCHES "Linux" OR CMAKE_SYSTEM_NAME MATCHES "Darwin")
   add_subdirectory(unittest)
 endif()

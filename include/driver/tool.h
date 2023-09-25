@@ -60,7 +60,7 @@ struct DriverToolOptions {
         PropTailCall(PO::Description("Enable Tail-call proposal"sv)),
         PropExtendConst(PO::Description("Enable Extended-const proposal"sv)),
         PropThreads(PO::Description("Enable Threads proposal"sv)),
-        PropMemory64(PO::Description("Enable 64-bit memory proposal"sv)),
+        PropMemory64(PO::Description("Enable Memory64 proposal"sv)),
         PropAll(PO::Description("Enable all features"sv)),
         ConfEnableInstructionCounting(PO::Description(
             "Enable generating code for counting Wasm instructions executed."sv)),

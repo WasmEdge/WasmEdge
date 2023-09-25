@@ -38,7 +38,7 @@ using namespace WasmEdge;
 void resolveRegister(std::map<std::string, std::string> &Alias,
                      simdjson::dom::array &CmdArray) {
   std::string_view OrgName;
-  uint64_t LastModLine;
+  uint64_t LastModLine = 0;
   for (const simdjson::dom::object &Cmd : CmdArray) {
     std::string_view CmdType = Cmd["type"];
     bool Replaced = false;
@@ -113,32 +113,45 @@ parseValueList(const simdjson::dom::array &Args) {
           I++;
         }
       } else if (LaneType == "i32"sv || LaneType == "f32"sv) {
-        using uint32x4_t = uint32_t __attribute__((vector_size(16)));
+        using uint32x4_t = SIMDArray<uint32_t, 16>;
         uint32x4_t I32x4 = {0};
         size_t I = 0;
         for (std::string_view X : ValueNodeArray) {
-          I32x4[I] = std::stoull(std::string(X));
+          I32x4[I] = static_cast<uint32_t>(std::stoull(std::string(X)));
           I++;
         }
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t&>(I32x4);
+#else
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I32x4);
+#endif
+
       } else if (LaneType == "i16"sv) {
-        using uint16x8_t = uint16_t __attribute__((vector_size(16)));
+        using uint16x8_t = SIMDArray<uint16_t, 16>;
         uint16x8_t I16x8 = {0};
         size_t I = 0;
         for (std::string_view X : ValueNodeArray) {
-          I16x8[I] = std::stoull(std::string(X));
+          I16x8[I] = static_cast<uint16_t>(std::stoull(std::string(X)));
           I++;
         }
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t&>(I16x8);
+#else
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I16x8);
+#endif
       } else if (LaneType == "i8"sv) {
-        using uint8x16_t = uint8_t __attribute__((vector_size(16)));
+        using uint8x16_t = SIMDArray<uint8_t, 16>;
         uint8x16_t I8x16 = {0};
         size_t I = 0;
         for (std::string_view X : ValueNodeArray) {
-          I8x16[I] = std::stoull(std::string(X));
+          I8x16[I] = static_cast<uint8_t>(std::stoull(std::string(X)));
           I++;
         }
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t&>(I8x16);
+#else
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I8x16);
+#endif
       }
       Result.emplace_back(I64x2);
       ResultTypes.emplace_back(WasmEdge::ValType::V128);
@@ -221,6 +234,7 @@ parseExpectedList(const simdjson::dom::array &Args) {
 struct TestsuiteProposal {
   std::string_view Path;
   WasmEdge::Configure Conf;
+  WasmEdge::SpecTest::TestMode Mode = WasmEdge::SpecTest::TestMode::All;
 };
 
 static const TestsuiteProposal TestsuiteProposals[] = {
@@ -235,17 +249,20 @@ static const TestsuiteProposal TestsuiteProposals[] = {
 
 namespace WasmEdge {
 
-std::vector<std::string> SpecTest::enumerate() const {
+std::vector<std::string>
+SpecTest::enumerate(const SpecTest::TestMode Mode) const {
   std::vector<std::string> Cases;
   for (const auto &Proposal : TestsuiteProposals) {
-    const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;
-    for (const auto &Subdir :
-         std::filesystem::directory_iterator(ProposalRoot)) {
-      const auto SubdirPath = Subdir.path();
-      const auto UnitName = SubdirPath.filename().u8string();
-      const auto UnitJson = UnitName + ".json"s;
-      if (std::filesystem::is_regular_file(SubdirPath / UnitJson)) {
-        Cases.push_back(std::string(Proposal.Path) + ' ' + UnitName);
+    if (static_cast<uint8_t>(Proposal.Mode) & static_cast<uint8_t>(Mode)) {
+      const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;
+      for (const auto &Subdir :
+           std::filesystem::directory_iterator(ProposalRoot)) {
+        const auto SubdirPath = Subdir.path();
+        const auto UnitName = SubdirPath.filename().u8string();
+        const auto UnitJson = UnitName + ".json"s;
+        if (std::filesystem::is_regular_file(SubdirPath / UnitJson)) {
+          Cases.push_back(std::string(Proposal.Path) + ' ' + UnitName);
+        }
       }
     }
   }
@@ -355,8 +372,13 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      const auto VF = reinterpret_cast<const floatx4_t&>(V64);
+      const auto VI = reinterpret_cast<const uint32x4_t&>(V64);
+#else
       const auto VF = reinterpret_cast<floatx4_t>(V64);
       const auto VI = reinterpret_cast<uint32x4_t>(V64);
+#endif
       for (size_t I = 0; I < 4; ++I) {
         if (Parts[I].substr(0, 4) == "nan:"sv) {
           if (!std::isnan(VF[I])) {
@@ -374,8 +396,13 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      const auto VF = reinterpret_cast<const doublex2_t&>(V64);
+      const auto VI = reinterpret_cast<const uint64x2_t&>(V64);
+#else
       const auto VF = reinterpret_cast<doublex2_t>(V64);
       const auto VI = reinterpret_cast<uint64x2_t>(V64);
+#endif
       for (size_t I = 0; I < 2; ++I) {
         if (Parts[I].substr(0, 4) == "nan:"sv) {
           if (!std::isnan(VF[I])) {
@@ -393,7 +420,11 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      const auto V = reinterpret_cast<const uint8x16_t&>(V64);
+#else
       const auto V = reinterpret_cast<uint8x16_t>(V64);
+#endif
       for (size_t I = 0; I < 16; ++I) {
         const uint8_t V1 = V[I];
         const uint8_t V2 =
@@ -406,7 +437,11 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      const auto V = reinterpret_cast<const uint16x8_t&>(V64);
+#else
       const auto V = reinterpret_cast<uint16x8_t>(V64);
+#endif
       for (size_t I = 0; I < 8; ++I) {
         const uint16_t V1 = V[I];
         const uint16_t V2 =
@@ -419,7 +454,11 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      const auto V = reinterpret_cast<const uint32x4_t&>(V64);
+#else
       const auto V = reinterpret_cast<uint32x4_t>(V64);
+#endif
       for (size_t I = 0; I < 4; ++I) {
         const uint32_t V1 = V[I];
         const uint32_t V2 = std::stoul(std::string(Parts[I]));

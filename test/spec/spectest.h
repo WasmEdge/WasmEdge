@@ -46,10 +46,20 @@ public:
     AssertUninstantiable,
   };
 
+  enum class TestMode : uint8_t {
+    Interpreter = 0x01U,
+    AOT = 0x02U,
+    AOT_Interpreter = 0x03U,
+    JIT = 0x04U,
+    JIT_Interpreter = 0x05U,
+    JIT_AOT = 0x06U,
+    All = 0x07U,
+  };
+
   explicit SpecTest(std::filesystem::path Root)
       : TestsuiteRoot(std::move(Root)) {}
 
-  std::vector<std::string> enumerate() const;
+  std::vector<std::string> enumerate(const TestMode Mode) const;
   std::tuple<std::string_view, WasmEdge::Configure, std::string>
   resolve(std::string_view Params) const;
   bool compare(const std::pair<std::string, std::string> &Expected,

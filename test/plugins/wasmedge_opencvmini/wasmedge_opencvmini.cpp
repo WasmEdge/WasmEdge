@@ -36,11 +36,20 @@ TEST(WasmEdgeOpecvminiTest, Module) {
   auto *ImgMod =
       dynamic_cast<WasmEdge::Host::WasmEdgeOpenCVMiniModule *>(createModule());
   EXPECT_FALSE(ImgMod == nullptr);
-  EXPECT_EQ(ImgMod->getFuncExportNum(), 10U);
+  EXPECT_EQ(ImgMod->getFuncExportNum(), 12U);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_imdecode"), nullptr);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_imencode"), nullptr);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_rectangle"), nullptr);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_cvt_color"), nullptr);
+  EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_resize"), nullptr);
+  EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_imwrite"), nullptr);
+  EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_blur"), nullptr);
+  EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_bilinear_sampling"),
+            nullptr);
+  EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_imshow"), nullptr);
+  EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_waitkey"), nullptr);
+  EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_normalize"), nullptr);
+  EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_no_array"), nullptr);
   delete ImgMod;
 }
 

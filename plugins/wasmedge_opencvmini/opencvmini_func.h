@@ -70,15 +70,15 @@ public:
                     uint32_t SrcMatKey);
 };
 
-/// This is not `cv::normalize`, refers to:
-/// https://github.com/WasmEdge/WasmEdge/commit/77051da4995d7318d91a82102a72ce2557151764#diff-3333d926ca87cf4285bfcd6deae45ee310307be66fca8a4ca6f0f8a946743fccR50-R54
 class WasmEdgeOpenCVMiniNormalize
     : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniNormalize> {
 public:
   WasmEdgeOpenCVMiniNormalize(WasmEdgeOpenCVMiniEnvironment &HostEnv)
       : WasmEdgeOpenCVMini(HostEnv) {}
 
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t SrcMatKey);
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t SrcMatKey,
+                        uint32_t Alpha, uint32_t Beta, uint32_t NormType,
+                        uint32_t DataType, uint32_t MaskMatKey);
 };
 
 class WasmEdgeOpenCVMiniBilinearSampling
@@ -111,6 +111,24 @@ public:
 
   Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t SrcMatKey,
                         int32_t Code, int32_t DestChannelN);
+};
+
+class WasmEdgeOpenCVMiniResize
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniResize> {
+public:
+  WasmEdgeOpenCVMiniResize(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t SrcMatKey,
+                        uint32_t OutImgW, uint32_t OutImgH, double ScaleFactorX,
+                        double ScaleFactorY, uint32_t Interpolation);
+};
+
+class WasmEdgeOpenCVMiniNoArray
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniNoArray> {
+public:
+  WasmEdgeOpenCVMiniNoArray(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
 };
 
 } // namespace Host

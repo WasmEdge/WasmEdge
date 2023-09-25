@@ -360,6 +360,7 @@ SUPPORTTED_PLUGINS = {
     "manylinux2014" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
     "manylinux2014" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
     "manylinux2014" + "aarch64" + WASI_NN_GGML: VersionString("0.13.4"),
+    "darwin" + "arm64" + WASI_NN_GGML: VersionString("0.13.4"),
     "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-rc.1"),
     "darwin" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
     "darwin" + "arm64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),

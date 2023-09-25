@@ -102,7 +102,7 @@ jobs:
         shell: bash
         run: |
           apt update
-          apt install -y unzip
+          apt install -y unzip libopenblas-dev
           bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
@@ -320,11 +320,11 @@ jobs:
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
           plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.docker_tag }}})
           option_array=(${build_options_all_platforms} ${build_options_${{ matrix.docker_tag }}})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS=OFF
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Building ${plugin_array[$i]} backend:"
-            cmake -Bbuild -GNinja ${option_array[$i]}
+            cmake -Bbuild -GNinja ${option_array[$i]} -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS=OFF
             cmake --build build --target ${test_bin}
 
             echo "Testing ${plugin_array[$i]} backend:"

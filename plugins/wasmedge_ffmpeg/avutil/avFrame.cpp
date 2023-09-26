@@ -76,7 +76,7 @@ Expect<uint32_t> AVFrameSetVideoFormat::body(const Runtime::CallingFrame &,uint3
 Expect<int32_t> AVFrameIsNull::body(const Runtime::CallingFrame &,uint32_t FrameId){
 
   FFMPEG_PTR_FETCH(AvFrame,FrameId,AVFrame);
-  return AvFrame->data[0] == nullptr;
+  return AvFrame->data[0] == NULL;
 }
 
 Expect<int32_t> AVFrameLinesize::body(const Runtime::CallingFrame &,uint32_t FrameId,uint32_t Idx){

@@ -124,7 +124,7 @@ public:
   }
 
   /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Length - 1]
-  Expect<void> setBytes(Span<const Byte> Slice, uint64_t Offset, uint32_t Start,
+  Expect<void> setBytes(Span<const Byte> Slice, uint64_t Offset, uint64_t Start,
                         uint64_t Length) noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {

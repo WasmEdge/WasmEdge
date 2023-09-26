@@ -6,8 +6,6 @@
 namespace WasmEdge {
 namespace Executor {
 
-// TODO: these memory instructions needs to do special when memory instance is
-// 64-bit mode
 Expect<void>
 Executor::runMemorySizeOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst) {
@@ -20,23 +18,31 @@ Expect<void>
 Executor::runMemoryGrowOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst) {
   // Pop N for growing page size.
-  uint64_t N = StackMgr.popIndexType(MemInst.getMemoryType().getIdxType());
-
-  // Grow page and push result.
-  const uint64_t CurrPageSize = MemInst.getPageSize();
-  if (MemInst.growPage(N)) {
-    N = CurrPageSize;
-  } else {
-    switch (MemInst.getMemoryType().getIdxType()) {
-    case AST::MemoryType::IndexType::I64:
+  switch (MemInst.getMemoryType().getIdxType()) {
+  case AST::MemoryType::IndexType::I64: {
+    uint64_t &N = StackMgr.getTop().get<uint64_t>();
+    const uint64_t CurrPageSize = MemInst.getPageSize();
+    if (MemInst.growPage(N)) {
+      N = CurrPageSize;
+    } else {
       N = static_cast<uint64_t>(-1);
-      break;
-    case AST::MemoryType::IndexType::I32:
-    default:
-      N = static_cast<uint32_t>(-1);
-      break;
     }
+    break;
   }
+  case AST::MemoryType::IndexType::I32:
+  default: {
+    uint32_t &N = StackMgr.getTop().get<uint32_t>();
+    // Grow page and push result.
+    const uint32_t CurrPageSize = static_cast<uint32_t>(MemInst.getPageSize());
+    if (MemInst.growPage(N)) {
+      N = CurrPageSize;
+    } else {
+      N = static_cast<uint32_t>(-1);
+    }
+    break;
+  }
+  }
+
   return {};
 }
 
@@ -45,8 +51,8 @@ Expect<void> Executor::runMemoryInitOp(
     Runtime::Instance::DataInstance &DataInst, const AST::Instruction &Instr) {
   // Pop the length, source, and destination from stack.
   auto Len = StackMgr.popIndexType(MemInst.getMemoryType().getIdxType());
-  uint32_t Src = StackMgr.pop().get<uint32_t>();
-  uint32_t Dst = StackMgr.pop().get<uint32_t>();
+  auto Src = StackMgr.popIndexType(MemInst.getMemoryType().getIdxType());
+  auto Dst = StackMgr.popIndexType(MemInst.getMemoryType().getIdxType());
 
   // Replace mem[Dst : Dst + Len] with data[Src : Src + Len].
   if (auto Res = MemInst.setBytes(DataInst.getData(), Dst, Src, Len)) {

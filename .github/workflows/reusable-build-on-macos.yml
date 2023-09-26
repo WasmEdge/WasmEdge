@@ -33,7 +33,7 @@ jobs:
       - name: Setup build environment
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm ninja cmake wabt
+          brew install llvm@16 ninja cmake wabt
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |
@@ -42,7 +42,7 @@ jobs:
       - name: Build WasmEdge
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
+          export LLVM_DIR="$(brew --prefix)/opt/llvm@16/lib/cmake"
           export CC=clang
           export CXX=clang++
           rm -rf build output

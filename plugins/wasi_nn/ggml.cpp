@@ -152,8 +152,17 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   // TODO: recompute a compressed context based on previous tokens once the
   // cache is full.
   const int MaxContextSize = llama_n_ctx(GraphRef.LlamaContext);
+  int NPredict = std::numeric_limits<int>::max();
+  const char *LlamaNPredictEnv = std::getenv("LLAMA_N_PREDICT");
+  if (LlamaNPredictEnv != nullptr) {
+    NPredict = std::stoi(LlamaNPredictEnv);
+    if (LlamaLogEnv != nullptr) {
+      spdlog::info("[WASI-NN] GGML backend: set n_predict to {}"sv, NPredict);
+    }
+  }
   while (llama_get_kv_cache_token_count(GraphRef.LlamaContext) <
-         MaxContextSize) {
+             MaxContextSize &&
+         llama_get_kv_cache_token_count(GraphRef.LlamaContext) < NPredict) {
     if (llama_eval(GraphRef.LlamaContext, CxtRef.LlamaInputs.data(),
                    int(CxtRef.LlamaInputs.size()),
                    llama_get_kv_cache_token_count(GraphRef.LlamaContext),

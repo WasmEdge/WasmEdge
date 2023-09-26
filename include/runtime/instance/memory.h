@@ -113,7 +113,7 @@ public:
   }
 
   /// Get slice of Data[Offset : Offset + Length - 1]
-  Expect<Span<Byte>> getBytes(uint64_t Offset, uint32_t Length) const noexcept {
+  Expect<Span<Byte>> getBytes(uint64_t Offset, uint64_t Length) const noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
@@ -134,8 +134,7 @@ public:
     }
 
     // Check the input data validation.
-    if (unlikely(static_cast<uint64_t>(Start) + static_cast<uint64_t>(Length) >
-                 Slice.size())) {
+    if (unlikely(static_cast<uint64_t>(Start) + Length > Slice.size())) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
@@ -151,7 +150,7 @@ public:
 
   /// Fill the bytes of Data[Offset : Offset + Length - 1] by Val.
   Expect<void> fillBytes(uint8_t Val, uint64_t Offset,
-                         uint32_t Length) noexcept {
+                         uint64_t Length) noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
@@ -167,7 +166,7 @@ public:
   }
 
   /// Get an uint8 array from Data[Offset : Offset + Length - 1]
-  Expect<void> getArray(uint8_t *Arr, uint64_t Offset, uint32_t Length,
+  Expect<void> getArray(uint8_t *Arr, uint64_t Offset, uint64_t Length,
                         bool IsReverse = false) const noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
@@ -187,7 +186,7 @@ public:
   }
 
   /// Replace Data[Offset : Offset + Length - 1] to an uint8 array
-  Expect<void> setArray(const uint8_t *Arr, uint64_t Offset, uint32_t Length,
+  Expect<void> setArray(const uint8_t *Arr, uint64_t Offset, uint64_t Length,
                         bool IsReverse = false) noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {

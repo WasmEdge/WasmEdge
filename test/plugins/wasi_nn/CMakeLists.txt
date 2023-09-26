@@ -61,7 +61,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       RESULT_VARIABLE DOWNLOAD_ERROR
       OUTPUT_STRIP_TRAILING_WHITESPACE)
     file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/orca-mini-3b.q4_0.gguf CHECKSUM_MODEL)
-    if(NOT CHECKSUM_MODEL STREQUAL "516027963397e180d7a92aded43d6b3d")
+    if(NOT CHECKSUM_MODEL STREQUAL "aae346fe095e60139ca39b3fda4ac7ae")
       message(FATAL_ERROR "orca-mini-3b.q4_0.gguf downloaded with wrong md5")
     endif()
   else()

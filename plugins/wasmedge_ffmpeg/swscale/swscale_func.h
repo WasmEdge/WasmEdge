@@ -149,6 +149,13 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t SwsVectorId);
 };
 
+class SwscaleVersion : public WasmEdgeFFmpegSWScale<SwscaleVersion> {
+public:
+  SwscaleVersion(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegSWScale(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
+};
+
 } // namespace SWScale
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

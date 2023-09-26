@@ -203,6 +203,10 @@ Expect<int32_t> SwsFreeVec::body(const Runtime::CallingFrame &,uint32_t SwsVecto
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<uint32_t> SwscaleVersion::body(const Runtime::CallingFrame &){
+  return swscale_version();
+}
+
 } // namespace SWScale
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

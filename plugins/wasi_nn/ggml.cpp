@@ -12,6 +12,20 @@
 
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+llama_context_params wasmedge_llama_context_params() noexcept {
+  llama_context_params Params = llama_context_default_params();
+  const char *LlamaNContextEnv = std::getenv("LLAMA_N_CTX");
+  const char *LlamaLogEnv = std::getenv("LLAMA_LOG");
+  if (LlamaNContextEnv != nullptr) {
+    Params.n_ctx = std::stoi(LlamaNContextEnv);
+    if (LlamaLogEnv != nullptr) {
+      spdlog::info("[WASI-NN] GGML backend: set n_ctx to {}"sv, Params.n_ctx);
+    }
+  }
+
+  return Params;
+}
+
 Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
                    [[maybe_unused]] Device Device, uint32_t &GraphId) noexcept {
   // The graph builder length must be 1.
@@ -52,7 +66,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Initialize ggml model.
   gpt_params Params;
   llama_backend_init(Params.numa);
-  llama_context_params ContextParams = llama_context_default_params();
+  llama_context_params ContextParams = wasmedge_llama_context_params();
   GraphRef.LlamaModel =
       llama_load_model_from_file(ModelFilePath.c_str(), ContextParams);
   if (GraphRef.LlamaModel == nullptr) {
@@ -85,7 +99,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
 
   // Initialize the llama context.
-  llama_context_params ContextParams = llama_context_default_params();
+  llama_context_params ContextParams = wasmedge_llama_context_params();
   GraphRef.LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
 
@@ -98,7 +112,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   const uint32_t MaxTokensListSize = MaxContextSize - 4;
   if (CxtRef.LlamaInputs.size() > MaxTokensListSize) {
     spdlog::error(
-        "[WASI-NN] GGML backend: Error: prompt too long ({} tokens, max %{})"sv,
+        "[WASI-NN] GGML backend: Error: prompt too long ({} tokens, max {})"sv,
         CxtRef.LlamaInputs.size(), MaxTokensListSize);
     return ErrNo::InvalidArgument;
   }

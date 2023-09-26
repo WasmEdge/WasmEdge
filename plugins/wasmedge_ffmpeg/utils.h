@@ -2,6 +2,7 @@ extern "C" {
   #include "libavutil/avutil.h"
   #include "libavcodec/codec_id.h"
   #include "libavutil/channel_layout.h"
+  #include "libswresample/swresample.h"
 }
 namespace WasmEdge{
 namespace Host{
@@ -3702,6 +3703,131 @@ public:
        Channel |= STEREO_DOWNMIX;
      return Channel;
     }
+};
+
+class SWRFilterType{
+  public:
+    uint32_t fromSwrFilterType(SwrFilterType FilterType){
+     switch (FilterType) {
+       case SWR_FILTER_TYPE_CUBIC:
+         return 1;
+       case SWR_FILTER_TYPE_BLACKMAN_NUTTALL:
+         return 2;
+       case SWR_FILTER_TYPE_KAISER:
+         return 3;
+       default:
+         return 1;
+       }
+    }
+
+    SwrFilterType intoSwrFilterType(uint32_t FilterID){
+     switch (FilterID) {
+     case 1:
+       return SWR_FILTER_TYPE_CUBIC;
+     case 2:
+       return SWR_FILTER_TYPE_BLACKMAN_NUTTALL;
+     case 3:
+       return SWR_FILTER_TYPE_KAISER;
+     default:
+       return SWR_FILTER_TYPE_CUBIC;
+     }
+    }
+};
+
+class SWREngine {
+  public:
+    SwrEngine intoSwrEngine(uint32_t EngineId){
+     switch (EngineId) {
+     case 1:
+       return SWR_ENGINE_SWR;
+     case 2:
+       return SWR_ENGINE_SOXR;
+     default:
+       return SWR_ENGINE_SWR;
+     }
+    }
+
+  uint32_t fromSwrEngine(SwrEngine Engine){
+     switch (Engine) {
+     case SWR_ENGINE_SWR:
+       return 1;
+     case SWR_ENGINE_SOXR:
+       return 2;
+     case SWR_ENGINE_NB:
+       return 3;
+     default:
+       return SWR_ENGINE_SWR;
+     }
+  }
+};
+
+class SWRDitherType {
+public:
+  SwrDitherType intoSwrDitherType(uint32_t SwrDitherId){
+     switch (SwrDitherId) {
+     case 0:
+       return SWR_DITHER_NONE;
+     case 1:
+       return SWR_DITHER_RECTANGULAR;
+     case 2:
+       return SWR_DITHER_TRIANGULAR;
+     case 3:
+       return SWR_DITHER_TRIANGULAR_HIGHPASS;
+     case 64:
+       return SWR_DITHER_NS;
+     case 4:
+       return SWR_DITHER_NS_LIPSHITZ;
+     case 5:
+       return SWR_DITHER_NS_F_WEIGHTED;
+     case 6:
+       return SWR_DITHER_NS_MODIFIED_E_WEIGHTED;
+     case 7:
+       return SWR_DITHER_NS_IMPROVED_E_WEIGHTED;
+     case 8:
+       return SWR_DITHER_NS_SHIBATA;
+     case 9:
+       return SWR_DITHER_NS_LOW_SHIBATA;
+     case 10:
+       return SWR_DITHER_NS_HIGH_SHIBATA;
+     case 11:
+       return SWR_DITHER_NB;
+     default:
+       return SWR_DITHER_NONE;
+     }
+  }
+
+  uint32_t fromSwrDitherType(SwrDitherType SwrDitherType){
+     switch (SwrDitherType) {
+     case SWR_DITHER_NONE:
+       return 0;
+     case SWR_DITHER_RECTANGULAR:
+       return 1;
+     case SWR_DITHER_TRIANGULAR:
+       return 2;
+     case SWR_DITHER_TRIANGULAR_HIGHPASS:
+       return 3;
+     case SWR_DITHER_NS:
+       return 64;
+     case SWR_DITHER_NS_LIPSHITZ:
+       return 4;
+     case SWR_DITHER_NS_F_WEIGHTED:
+       return 5;
+     case SWR_DITHER_NS_MODIFIED_E_WEIGHTED:
+       return 6;
+     case SWR_DITHER_NS_IMPROVED_E_WEIGHTED:
+       return 7;
+     case SWR_DITHER_NS_SHIBATA:
+       return 8;
+     case SWR_DITHER_NS_LOW_SHIBATA:
+       return 9;
+     case SWR_DITHER_NS_HIGH_SHIBATA:
+       return 10;
+     case SWR_DITHER_NB:
+       return 11;
+     default:
+       return 0;
+     }
+  }
 };
 
 } // namespace FFmpegUtils

@@ -144,6 +144,13 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId);
 };
 
+class AVFrameChannelLayout : public WasmEdgeFFmpegAVUtil<AVFrameChannelLayout> {
+public:
+  AVFrameChannelLayout(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<uint64_t> body(const Runtime::CallingFrame &Frame,uint32_t FrameId);
+};
+
 
 } // namespace AVUtil
 } // namespace WasmEdgeFFmpeg

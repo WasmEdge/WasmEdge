@@ -53,6 +53,7 @@ WasmEdgeFFmpegAVUtilModule::
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_nb_samples",std::make_unique<AVFrameNbSamples>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_sample_rate",std::make_unique<AVFrameSampleRate>(Env));
     addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channels",std::make_unique<AVFrameChannels>(Env));
+    addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channel_layout",std::make_unique<AVFrameChannelLayout>(Env));
 
     // pixfmt.h (Even AvPixFmtDesc is in this file)
     addHostFunc("wasmedge_ffmpeg_avutil_avpixfmtdescriptor_nb_components",std::make_unique<AvPixFmtDescriptorNbComponents>(Env));

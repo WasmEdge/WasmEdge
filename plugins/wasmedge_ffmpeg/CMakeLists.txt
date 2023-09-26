@@ -30,6 +30,9 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
         avutil/samplefmt.cpp
         avutil/channel_layout.cpp
 
+        swresample/module.cpp
+        swresample/swresample_func.cpp
+
         swscale/module.cpp
         swscale/swscale_func.cpp
 

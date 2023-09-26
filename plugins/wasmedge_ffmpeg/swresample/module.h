@@ -1,10 +1,19 @@
-//
-// Created by Pc on 03/09/23.
-//
+#pragma once
 
-#ifndef WASMEDGE_MODULE_H
-#define WASMEDGE_MODULE_H
+#include "runtime/instance/module.h"
+#include "ffmpeg_env.h"
 
-class module {};
+namespace WasmEdge {
+namespace Host {
+namespace WasmEdgeFFmpeg {
+namespace SWResample{
 
-#endif // WASMEDGE_MODULE_H
+class WasmEdgeFFmpegSWResampleModule: public Runtime::Instance::ModuleInstance {
+public:
+  WasmEdgeFFmpegSWResampleModule(std::shared_ptr<WasmEdgeFFmpegEnv> Env);
+};
+
+} // namespace SWResample
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

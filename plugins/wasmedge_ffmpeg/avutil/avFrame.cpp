@@ -153,6 +153,12 @@ Expect<int32_t> AVFrameChannels::body(const Runtime::CallingFrame &,uint32_t Fra
   return AvFrame->channels;
 }
 
+Expect<uint64_t> AVFrameChannelLayout::body(const Runtime::CallingFrame &,uint32_t FrameId){
+  FFMPEG_PTR_FETCH(AvFrame,FrameId,AVFrame);
+  uint64_t const ChannelLayout = AvFrame->channel_layout;
+  return FFmpegUtils::ChannelLayout::intoAVChannelID(ChannelLayout);
+}
+
 } // namespace AVUtil
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

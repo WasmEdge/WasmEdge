@@ -12,7 +12,7 @@ namespace Executor {
 // If `memoryOffset + instruction Value` is overflow, it's an out of bound
 // access, trap.
 template <uint32_t BitWidth>
-Expect<void> checkOutOfBound(Runtime::Instance::MemoryInstance &MemInst,
+Expect<void> checkOutOfBound(const Runtime::Instance::MemoryInstance &MemInst,
                              const AST::Instruction &Instr, uint64_t Val) {
   switch (MemInst.getMemoryType().getIdxType()) {
   case AST::MemoryType::IndexType::I64: {

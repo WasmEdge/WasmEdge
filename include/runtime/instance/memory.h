@@ -42,8 +42,7 @@ public:
     Inst.DataPtr = nullptr;
   }
   MemoryInstance(const AST::MemoryType &MType, uint64_t PageLim = 0) noexcept
-      : MemType(MType),
-        PageLimit(PageLim ? PageLim : MType.getLimit().getPageLimit()) {
+      : MemType(MType), PageLimit(PageLim ? PageLim : MType.getPageLimit()) {
     if (MemType.getLimit().getMin() > PageLimit) {
       spdlog::error(
           "Create memory instance failed -- exceeded limit page size: {}",
@@ -89,10 +88,7 @@ public:
     if (Count == 0) {
       return true;
     }
-    // Maximum pages count
-    // 32 mode: 2^16
-    // 64 mode: 2^48
-    uint64_t MaxPageCaped = MemType.getLimit().getPageLimit();
+    uint64_t MaxPageCaped = MemType.getPageLimit();
     uint64_t Min = MemType.getLimit().getMin();
     uint64_t Max = MemType.getLimit().getMax();
     if (MemType.getLimit().hasMax()) {

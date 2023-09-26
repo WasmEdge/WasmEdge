@@ -75,13 +75,6 @@ public:
       return false;
     }
   }
-  uint64_t getPageLimit() const noexcept {
-    if (is64()) {
-      return UINT64_C(281474976710656);
-    } else {
-      return UINT32_C(65536);
-    }
-  }
   void setType(LimitType TargetType) noexcept { Type = TargetType; }
 
   /// Getter and setter of min value.
@@ -173,6 +166,18 @@ public:
   Limit &getLimit() noexcept { return Lim; }
   IndexType getIdxType() const noexcept { return IdxType; }
   IndexType &getIdxType() noexcept { return IdxType; }
+  uint64_t getPageLimit() const noexcept {
+    // Maximum pages count
+    switch (IdxType) {
+    // 64 mode: 2^48
+    case IndexType::I64:
+      return UINT64_C(281474976710656);
+    // 32 mode: 2^16
+    case IndexType::I32:
+    default:
+      return UINT32_C(65536);
+    }
+  }
 
 private:
   /// \name Data of MemoryType.

@@ -1,0 +1,108 @@
+name: "Bug Report"
+description: Building or Using WasmEdge, but it's not working as you expect?
+title: "bug: <title>"
+labels: [
+  "bug"
+]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: "Summary"
+      description: Please shortly describe what bug you encounter in the current WasmEdge project.
+      placeholder: Describe in a few lines about the bug
+    validations:
+      required: true
+  - type: textarea
+    id: current_state
+    attributes:
+      label: "Current State"
+      description: Please shortly describe the bug you have found
+    validations:
+      required: false
+  - type: textarea
+    id: expected_state
+    attributes:
+      label: "Expected State"
+      description: Please shortly describe what you expect instead
+    validations:
+      required: false
+  - type: textarea
+    id: reproducuction_steps
+    attributes:
+      label: "Reproduction steps"
+      description: Please provide as much information as necessary to reproduce the bug.
+      value: |
+        1. Build with options '...'
+        2. Execute with flags '....'
+        3. Execute with inputs '....'
+        4. Get error
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: "Screenshots"
+      description: If applicable, add screenshots to help explain your problem.
+      value: |
+        ![DESCRIPTION](LINK.png)
+      render: bash
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Any logs you want to share for showing the specific issue"
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: bash
+    validations:
+      required: false
+  - type: dropdown
+    id: components
+    attributes:
+      label: "Components"
+      description: Which kind of WasmEdge components do you use?
+      multiple: true
+      options:
+        - CLI
+        - C SDK
+        - Rust SDK
+        - Others
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: "WasmEdge Version or Commit you used"
+      description: WasmEdge Version or Commit you used
+      placeholder: ex. 0.13.4, 0.12.1, or 5286cc, etc.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: "Operating system information"
+      description: Operating system information
+      placeholder: ex. Ubuntu 20.04, CentOS 7.6, macOS 13.5.2, or Windows 11, etc.
+    validations:
+      required: true
+  - type: input
+    id: arch
+    attributes:
+      label: "Hardware Architecture"
+      description: Hardware Architecture
+      placeholder: ex. amd64, x86_64, arm64, aarch64, or RISC-V, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: compiler_flags_and_options
+    attributes:
+      label: "Compiler flags and options"
+      description: Compiler flags and options. Please provide these information if you are building from source.
+      placeholder: |
+        - C++ Compiler version:
+        - CMake version:
+        - CMake flags: (e.g. `-DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=ON`)
+    validations:
+      required: false

@@ -46,6 +46,8 @@ set(LLAMA_CUDA_DMMV_X      "32" CACHE STRING "llama: x stride for dmmv CUDA kern
 set(LLAMA_CUDA_MMV_Y        "1" CACHE STRING "llama: y block size for mmv CUDA kernels")
 option(LLAMA_CUDA_F16                        "llama: use 16 bit floats for some calculations"   OFF)
 set(LLAMA_CUDA_KQUANTS_ITER "2" CACHE STRING "llama: iters./thread per block for Q2_K/Q6_K")
+set(LLAMA_CUDA_PEER_MAX_BATCH_SIZE "128" CACHE STRING
+                                             "llama: max. batch size for using peer access")
 option(LLAMA_HIPBLAS                         "llama: use hipBLAS"                               OFF)
 option(LLAMA_CLBLAST                         "llama: use CLBlast"                               OFF)
 option(LLAMA_METAL                           "llama: use Metal"                                 ${LLAMA_METAL_DEFAULT})
@@ -68,6 +70,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED true)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
+include(CheckCXXCompilerFlag)
 
 if (NOT MSVC)
     if (LLAMA_SANITIZE_THREAD)
@@ -104,8 +107,8 @@ if (LLAMA_METAL)
     find_library(METALKIT_FRAMEWORK         MetalKit                REQUIRED)
 
     message(STATUS "Metal framework found")
-
-    set(GGML_SOURCES_METAL ggml-metal.m ggml-metal.h)
+    set(GGML_HEADERS_METAL ggml-metal.h)
+    set(GGML_SOURCES_METAL ggml-metal.m)
 
     add_compile_definitions(GGML_USE_METAL)
     if (LLAMA_METAL_NDEBUG)
@@ -124,7 +127,6 @@ if (LLAMA_METAL)
         ${METALKIT_FRAMEWORK}
         )
 endif()
-
 if (LLAMA_BLAS)
     if (LLAMA_STATIC)
         set(BLA_STATIC ON)
@@ -201,7 +203,8 @@ if (LLAMA_BLAS)
 endif()
 
 if (LLAMA_K_QUANTS)
-    set(GGML_SOURCES_EXTRA ${GGML_SOURCES_EXTRA} k_quants.c k_quants.h)
+    set(GGML_HEADERS_EXTRA k_quants.h)
+    set(GGML_SOURCES_EXTRA k_quants.c)
     add_compile_definitions(GGML_USE_K_QUANTS)
     if (LLAMA_QKK_64)
         add_compile_definitions(GGML_QKK_64)
@@ -217,7 +220,8 @@ if (LLAMA_CUBLAS)
 
         enable_language(CUDA)
 
-        set(GGML_SOURCES_CUDA ggml-cuda.cu ggml-cuda.h)
+        set(GGML_HEADERS_CUDA ggml-cuda.h)
+        set(GGML_SOURCES_CUDA ggml-cuda.cu)
 
         add_compile_definitions(GGML_USE_CUBLAS)
 #        if (LLAMA_CUDA_CUBLAS)
@@ -235,6 +239,7 @@ if (LLAMA_CUBLAS)
             add_compile_definitions(GGML_CUDA_F16)
         endif()
         add_compile_definitions(K_QUANTS_PER_ITERATION=${LLAMA_CUDA_KQUANTS_ITER})
+        add_compile_definitions(GGML_CUDA_PEER_MAX_BATCH_SIZE=${LLAMA_CUDA_PEER_MAX_BATCH_SIZE})
 
         if (LLAMA_STATIC)
             set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas_static CUDA::cublasLt_static)
@@ -265,6 +270,7 @@ if (LLAMA_MPI)
     find_package(MPI)
     if (MPI_C_FOUND)
         message(STATUS "MPI found")
+        set(GGML_HEADERS_MPI ggml-mpi.h)
         set(GGML_SOURCES_MPI ggml-mpi.c ggml-mpi.h)
         add_compile_definitions(GGML_USE_MPI)
         add_compile_definitions(${MPI_C_COMPILE_DEFINITIONS})
@@ -287,7 +293,8 @@ if (LLAMA_CLBLAST)
     if (CLBlast_FOUND)
         message(STATUS "CLBlast found")
 
-        set(GGML_SOURCES_OPENCL ggml-opencl.cpp ggml-opencl.h)
+        set(GGML_HEADERS_OPENCL ggml-opencl.h)
+        set(GGML_SOURCES_OPENCL ggml-opencl.cpp)
 
         add_compile_definitions(GGML_USE_CLBLAST)
 
@@ -315,13 +322,15 @@ if (LLAMA_HIPBLAS)
         message(STATUS "HIP and hipBLAS found")
         add_compile_definitions(GGML_USE_HIPBLAS GGML_USE_CUBLAS)
         add_library(ggml-rocm OBJECT ggml-cuda.cu ggml-cuda.h)
+        if (BUILD_SHARED_LIBS)
+            set_target_properties(ggml-rocm PROPERTIES POSITION_INDEPENDENT_CODE ON)
+        endif()
         if (LLAMA_CUDA_FORCE_DMMV)
             target_compile_definitions(ggml-rocm PRIVATE GGML_CUDA_FORCE_DMMV)
         endif()
         target_compile_definitions(ggml-rocm PRIVATE GGML_CUDA_DMMV_X=${LLAMA_CUDA_DMMV_X})
         target_compile_definitions(ggml-rocm PRIVATE GGML_CUDA_MMV_Y=${LLAMA_CUDA_MMV_Y})
         target_compile_definitions(ggml-rocm PRIVATE K_QUANTS_PER_ITERATION=${LLAMA_CUDA_KQUANTS_ITER})
-        target_compile_definitions(ggml-rocm PRIVATE CC_TURING=1000000000)
         set_source_files_properties(ggml-cuda.cu PROPERTIES LANGUAGE CXX)
         target_link_libraries(ggml-rocm PRIVATE hip::device PUBLIC hip::host roc::rocblas roc::hipblas)
 
@@ -354,6 +363,7 @@ if (LLAMA_ALL_WARNINGS)
             -Wextra
             -Wpedantic
             -Wcast-qual
+            -Wmissing-declarations
             -Wno-unused-function
             -Wno-multichar
         )
@@ -372,7 +382,7 @@ if (LLAMA_ALL_WARNINGS)
 
 endif()
 
-if (MSVC)
+if (WIN32)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 
     if (BUILD_SHARED_LIBS)
@@ -425,17 +435,21 @@ if ((${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") OR (${CMAKE_SYSTEM_PROCESSOR} MATC
         # add_compile_definitions(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC) # MSVC doesn't support vdupq_n_f16, vld1q_f16, vst1q_f16
         add_compile_definitions(__aarch64__) # MSVC defines _M_ARM64 instead
     else()
+        check_cxx_compiler_flag(-mfp16-format=ieee COMPILER_SUPPORTS_FP16_FORMAT_I3E)
+        if (NOT "${COMPILER_SUPPORTS_FP16_FORMAT_I3E}" STREQUAL "")
+            add_compile_options(-mfp16-format=ieee)
+        endif()
         if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "armv6")
             # Raspberry Pi 1, Zero
-            add_compile_options(-mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access)
+            add_compile_options(-mfpu=neon-fp-armv8 -mno-unaligned-access)
         endif()
         if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "armv7")
             # Raspberry Pi 2
-            add_compile_options(-mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access -funsafe-math-optimizations)
+            add_compile_options(-mfpu=neon-fp-armv8 -mno-unaligned-access -funsafe-math-optimizations)
         endif()
         if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "armv8")
             # Raspberry Pi 3, 4, Zero 2 (32-bit)
-            add_compile_options(-mfp16-format=ieee -mno-unaligned-access)
+            add_compile_options(-mno-unaligned-access)
         endif()
     endif()
 elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$" OR "${CMAKE_GENERATOR_PLATFORM_LWR}" MATCHES "^(x86_64|i686|amd64|x64)$" )
@@ -562,11 +576,11 @@ wasmedge_add_library(ggml OBJECT
                      ggml-alloc.h
                      common.cpp
                      common.h
-                     ${GGML_SOURCES_CUDA}
-                     ${GGML_SOURCES_OPENCL}
-                     ${GGML_SOURCES_METAL}
-                     ${GGML_SOURCES_MPI}
-                     ${GGML_SOURCES_EXTRA}
+                     ${GGML_SOURCES_CUDA} ${GGML_HEADERS_CUDA}
+                     ${GGML_SOURCES_OPENCL} ${GGML_HEADERS_OPENCL}
+                     ${GGML_SOURCES_METAL} ${GGML_HEADERS_METAL}
+                     ${GGML_SOURCES_MPI} ${GGML_HEADERS_MPI}
+                     ${GGML_SOURCES_EXTRA} ${GGML_HEADERS_EXTRA}
                      )
 
 target_include_directories(ggml PUBLIC . ${LLAMA_EXTRA_INCLUDES})
@@ -624,8 +638,38 @@ if (NOT WIN32)
         -Wno-unused-function
         -Wno-missing-braces
     )
+    target_compile_options(llama
+        PRIVATE
+        -Wno-unused-parameter
+        -Wno-unused-variable
+        -Wno-unused-but-set-variable
+        -Wno-unused-function
+        -Wno-missing-braces
+    )
 else()
     target_compile_options(ggml
+        PRIVATE
+        -Wno-string-conversion
+        -Wno-sign-conversion
+        -Wno-macro-redefined
+        -Wno-missing-prototypes
+        -Wno-unreachable-code-return
+        -Wno-shorten-64-to-32
+        -Wno-implicit-int-conversion
+        -Wno-implicit-float-conversion
+        -Wno-float-conversion
+        -Wno-unused-macros
+        -Wno-unreachable-code-break
+        -Wno-cast-align
+        -Wno-undef
+        -Wno-shadow-uncaptured-local
+        -Wno-unreachable-code
+        -Wno-cast-function-type
+        -Wno-format-nonliteral
+        -Wno-extra-semi-stmt
+        -Wno-bad-function-cast
+    )
+    target_compile_options(llama
         PRIVATE
         -Wno-string-conversion
         -Wno-sign-conversion

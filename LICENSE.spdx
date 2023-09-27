@@ -39,7 +39,7 @@ PackageFileName: ./plugins/wasi_nn/thirdparty/ggml
 PackageHomePage: https://github.com/ggerganov/llama.cpp
 PackageOriginator: Georgi Gerganov
 PackageLicenseDeclared: MIT
-PackageDownloadLocation: git://github.com/ggerganov/llama.cpp.git@b1217
+PackageDownloadLocation: git://github.com/ggerganov/llama.cpp.git@b1273
 
 ## Relationships
 Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-blake3

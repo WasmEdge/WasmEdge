@@ -12,18 +12,29 @@
 
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
-llama_context_params wasmedge_llama_context_params() noexcept {
-  llama_context_params Params = llama_context_default_params();
+ErrNo wasmedge_llama_context_params(llama_context_params &Params) noexcept {
   const char *LlamaNContextEnv = std::getenv("LLAMA_N_CTX");
   const char *LlamaLogEnv = std::getenv("LLAMA_LOG");
   if (LlamaNContextEnv != nullptr) {
-    Params.n_ctx = std::stoi(LlamaNContextEnv);
+    try {
+      Params.n_ctx = std::stoi(LlamaNContextEnv);
+    } catch (const std::out_of_range &e) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: set n_ctx failed: out_of_range {}"sv,
+          e.what());
+      return ErrNo::InvalidArgument;
+    } catch (const std::invalid_argument &e) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: set n_ctx failed: invalid_argument {}"sv,
+          e.what());
+      return ErrNo::InvalidArgument;
+    }
     if (LlamaLogEnv != nullptr) {
       spdlog::info("[WASI-NN] GGML backend: set n_ctx to {}"sv, Params.n_ctx);
     }
   }
 
-  return Params;
+  return ErrNo::Success;
 }
 
 Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
@@ -66,7 +77,12 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Initialize ggml model.
   gpt_params Params;
   llama_backend_init(Params.numa);
-  llama_context_params ContextParams = wasmedge_llama_context_params();
+  llama_context_params ContextParams = llama_context_default_params();
+  ErrNo Err = wasmedge_llama_context_params(ContextParams);
+  if (Err != ErrNo::Success) {
+    spdlog::error("[WASI-NN] GGML backend: Error: unable to init context."sv);
+    return ErrNo::InvalidArgument;
+  }
   GraphRef.LlamaModel =
       llama_load_model_from_file(ModelFilePath.c_str(), ContextParams);
   if (GraphRef.LlamaModel == nullptr) {
@@ -99,7 +115,12 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
 
   // Initialize the llama context.
-  llama_context_params ContextParams = wasmedge_llama_context_params();
+  llama_context_params ContextParams = llama_context_default_params();
+  ErrNo Err = wasmedge_llama_context_params(ContextParams);
+  if (Err != ErrNo::Success) {
+    spdlog::error("[WASI-NN] GGML backend: Error: unable to init context."sv);
+    return ErrNo::InvalidArgument;
+  }
   GraphRef.LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
 
@@ -152,10 +173,24 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   // TODO: recompute a compressed context based on previous tokens once the
   // cache is full.
   const int MaxContextSize = llama_n_ctx(GraphRef.LlamaContext);
+  // NPredict is the number of tokens to predict. Same as -n, --n-predict in
+  // llama.cpp.
   int NPredict = std::numeric_limits<int>::max();
   const char *LlamaNPredictEnv = std::getenv("LLAMA_N_PREDICT");
   if (LlamaNPredictEnv != nullptr) {
-    NPredict = std::stoi(LlamaNPredictEnv);
+    try {
+      NPredict = std::stoi(LlamaNPredictEnv);
+    } catch (const std::out_of_range &e) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: set n_predict failed: out_of_range {}"sv,
+          e.what());
+      return ErrNo::InvalidArgument;
+    } catch (const std::invalid_argument &e) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: set n_predict failed: invalid_argument {}"sv,
+          e.what());
+      return ErrNo::InvalidArgument;
+    }
     if (LlamaLogEnv != nullptr) {
       spdlog::info("[WASI-NN] GGML backend: set n_predict to {}"sv, NPredict);
     }

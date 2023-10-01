@@ -84,7 +84,7 @@ jobs:
       tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml
       test_bin: wasiNNTests
       output_bin: libwasmedgePluginWasiNN.so
-      OPENVINO_VERSION: "2023.0.0"
+      OPENVINO_VERSION: "2023.1.0"
       OPENVINO_YEAR: "2023"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."

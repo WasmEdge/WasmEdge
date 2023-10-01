@@ -367,6 +367,61 @@ CONVFROM(CallFrame, Runtime::CallingFrame, CallingFrame, const)
 CONVFROM(Plugin, Plugin::Plugin, Plugin, const)
 #undef CONVFROM
 
+// Helper function for memory allocation in module
+Expect<int32_t> WasmEdge_Module_Malloc_Internal(WasmEdge_VMContext *VMCxt,
+                                                uint32_t Size,
+                                                void **NativeAddrPtr) {
+  auto const ModInst = fromModCxt(WasmEdge_VMGetActiveModule(VMCxt));
+  auto MallocFunc = ModInst->getMallocFunc();
+  if (!MallocFunc) {
+    spdlog::error(ErrCode::Value::NoMallocExport);
+    return Unexpect(ErrCode::Value::NoMallocExport);
+  }
+  auto MemoryInst = ModInst->findMemoryExports("memory");
+  uint8_t *BasePtr = MemoryInst->getDataPtr();
+
+  // Call
+  auto Returns = VMCxt->VM.getExecutor().invoke(MallocFunc, {ValVariant(Size)},
+                                                {ValType::I32});
+  if (!Returns.has_value()) {
+    spdlog::error(Returns.error());
+    return Unexpect(Returns.error());
+  }
+
+  auto Value = Returns.value()[0].first;
+  int32_t Offset = Value.get<int32_t>();
+  *NativeAddrPtr = BasePtr + Offset;
+  return Offset;
+}
+
+// Helper function to free memory
+Expect<int32_t> WasmEdge_Module_Free_Internal(WasmEdge_VMContext *VMCxt,
+                                              int32_t Offset) {
+  auto const ModInst = fromModCxt(WasmEdge_VMGetActiveModule(VMCxt));
+  auto FreeFunc = ModInst->getFreeFunc();
+  if (!FreeFunc) {
+    spdlog::error(ErrCode::Value::NoFreeExport);
+    return Unexpect(ErrCode::Value::NoFreeExport);
+  }
+
+  // Verify that offset is valid
+  auto MemoryInst = ModInst->findMemoryExports("memory");
+  if (!MemoryInst->checkAccessBound(Offset, 0)) {
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+    spdlog::error(ErrInfo::InfoBoundary(Offset, 0, MemoryInst->getBoundIdx()));
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  }
+
+  // Call
+  auto Returns = VMCxt->VM.getExecutor().invoke(FreeFunc, {ValVariant(Offset)},
+                                                {ValType::I32});
+  if (!Returns.has_value()) {
+    spdlog::error(Returns.error());
+    return Unexpect(Returns.error());
+  }
+  return 0;
+}
+
 // C API Host function class
 class CAPIHostFunc : public Runtime::HostFunctionBase {
 public:
@@ -1178,6 +1233,26 @@ WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt) {
   delete fromMemTypeCxt(Cxt);
 }
 
+WASMEDGE_CAPI_EXPORT int32_t WasmEdge_Module_Malloc(WasmEdge_VMContext *VMCxt,
+                                                    uint32_t Size,
+                                                    void **NativeAddrPtr) {
+  auto Result = WasmEdge_Module_Malloc_Internal(VMCxt, Size, NativeAddrPtr);
+  if (Result.has_value()) {
+    return Result.value();
+  } else {
+    return -1;
+  }
+}
+
+WASMEDGE_CAPI_EXPORT int32_t WasmEdge_Module_Free(WasmEdge_VMContext *VMCxt,
+                                                  int32_t Offset) {
+  auto Result = WasmEdge_Module_Free_Internal(VMCxt, Offset);
+  if (Result.has_value()) {
+    return Result.value();
+  } else {
+    return -1;
+  }
+}
 // <<<<<<<< WasmEdge memory type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge global type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

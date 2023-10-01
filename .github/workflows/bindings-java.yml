@@ -58,7 +58,7 @@ jobs:
       - name: Build & Install WasmEdge
         run: |
           apt-get update
-          apt-get install -y make
+          apt-get install -y make wabt
           mkdir -p build
           cd build
           cmake -DWASMEDGE_BUILD_TESTS=ON ..
@@ -95,8 +95,7 @@ jobs:
 
       - name: Install build tools
         run: |
-          brew install llvm ninja cmake
-
+          brew install llvm ninja cmake wabt
       - name: Build WasmEdge with Release mode
         run: |
           export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"

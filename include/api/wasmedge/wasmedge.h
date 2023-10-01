@@ -1175,6 +1175,24 @@ WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt);
 
+/// Dynamically allocate memory using exported malloc function.
+///
+/// \param VMCxt the WasmEdge_VMContext.
+/// \param Size  Size of the memory to allocate.
+/// \param NativeAddrPtr Allocated memory address, set by the function.
+/// \returns Offset from the default module memory.
+WASMEDGE_CAPI_EXPORT extern int32_t
+WasmEdge_Module_Malloc(WasmEdge_VMContext *VMCxt, uint32_t Size,
+                       void **NativeAddrPtr);
+
+/// Free dynamically allocated memory using exported free function.
+///
+/// \param VMCxt the WasmEdge_VMContext.
+/// \param Offset  Offset from default module memory. R
+/// \returns 0 on success, -1 on error.
+WASMEDGE_CAPI_EXPORT extern int32_t
+WasmEdge_Module_Free(WasmEdge_VMContext *VMCxt, int32_t Offset);
+
 // <<<<<<<< WasmEdge memory type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge global type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

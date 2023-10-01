@@ -44,6 +44,45 @@ target_include_directories(wasmedgeAPIUnitTests
   ${CMAKE_SOURCE_DIR}/include
 )
 
+# Build the APIMallocTest
+
+wasmedge_add_executable(wasmedgeAPIMallocTest
+  APIMallocTest.cpp
+)
+
+add_test(wasmedgeAPIMallocTest wasmedgeAPIMallocTest)
+
+target_link_libraries(wasmedgeAPIMallocTest
+  PRIVATE
+  std::filesystem
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedgeTestSpec
+  wasmedgeAPITestHelpers
+  wasmedge_shared
+)
+
+target_include_directories(wasmedgeAPIMallocTest
+  PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+)
+
+
+# Add custom command to convert cmalloc.wat to cmalloc.wasm
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/apiTestData/cmalloc.wasm
+    COMMAND wat2wasm ${CMAKE_CURRENT_BINARY_DIR}/apiTestData/cmalloc.wat
+                    -o ${CMAKE_CURRENT_BINARY_DIR}/apiTestData/cmalloc.wasm
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/apiTestData/cmalloc.wat
+)
+
+# Mark the generated cmalloc.wasm as a custom target
+add_custom_target(cmalloc_wasm_target DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/apiTestData/cmalloc.wasm)
+
+# Make sure the target is built before the unit tests
+add_dependencies(wasmedgeAPIMallocTest cmalloc_wasm_target)
+
+############################################################
+
 wasmedge_add_executable(wasmedgeAPIVMCoreTests
   APIVMCoreTest.cpp
 )

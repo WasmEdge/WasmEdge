@@ -50,14 +50,13 @@ jobs:
         if: matrix.os == 'macos-latest'
         working-directory: WasmEdge
         run: |
-          brew install llvm ninja cmake
+          brew install llvm ninja cmake wabt
           export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
           cmake -Bbuild -GNinja -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .
           cmake --build build
           echo "$GITHUB_WORKSPACE/WasmEdge/build/tools/wasmedge" >> $GITHUB_PATH
-
       - name: Checkout wasi-testsuite
         uses: actions/checkout@v3
         with:

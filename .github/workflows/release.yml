@@ -575,7 +575,7 @@ jobs:
       - name: Install dependencies
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm ninja cmake openssl opencv rust gh
+          brew install llvm ninja cmake openssl opencv rust gh wabt
       - name: Build plugins
         shell: bash
         run: |

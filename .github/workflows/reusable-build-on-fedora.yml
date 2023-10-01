@@ -21,7 +21,7 @@ jobs:
       - name: Install dependency
         run: |
           dnf update -y
-          dnf install -y cmake ninja-build llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev spdlog-devel
+          dnf install -y cmake ninja-build llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev spdlog-devel wabt
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0

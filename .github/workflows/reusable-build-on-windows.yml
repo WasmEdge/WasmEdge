@@ -29,6 +29,16 @@ jobs:
       - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
         with:
           sdk-version: 19041
+      - name: Install wabt
+        run: |
+          choco install visualstudio2019buildtools --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
+          git clone https://github.com/WebAssembly/wabt.git
+          cd wabt
+          git submodule update --init
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -G "Visual Studio 16 2019" -DCMAKE_INSTALL_PREFIX=..\ -A x64 -DBUILD_TESTS=OFF
+          cmake --build . --config RELEASE --target install
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |
@@ -44,6 +54,7 @@ jobs:
           $llvm_dir = "$pwd\\LLVM-16.0.6-win64-MultiThreadedDLL\\LLVM-16.0.6-win64\\lib\\cmake\\llvm"
           $Env:CC = "clang-cl"
           $Env:CXX = "clang-cl"
+          $Env:PATH += ";$pwd\\wabt\\build\\bin"
           $cmake_sys_version = "10.0.19041.0"
           cmake -Bbuild -GNinja "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" "-DWASMEDGE_BUILD_TESTS=$Env:build_tests" -DWASMEDGE_BUILD_PACKAGE="ZIP" .
           cmake --build build

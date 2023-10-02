@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "executor/executor.h"
 #include "host/wasi_preview2/wasibase.h"
 
 namespace WasmEdge {
@@ -14,12 +15,13 @@ public:
   Expect<void> body(const Runtime::CallingFrame &Frame, Pollable This);
 };
 
-// class PollOneoff : public WasiPreview2<PollOneoff> {
-// public:
-//   PollOneoff(WASIPreview2::Environ &HostEnv) : WasiPreview2(HostEnv) {}
-//   Expect<ComponentModel::List> body(const Runtime::CallingFrame &Frame,
-//                                     ComponentModel::List In);
-// };
+class PollOneoff : public WasiPreview2<PollOneoff> {
+public:
+  PollOneoff(WASIPreview2::Environ &HostEnv) : WasiPreview2(HostEnv) {}
+  Expect<ComponentModel::List<bool>> body(const Runtime::CallingFrame &Frame,
+                                          uint32_t PollableListAddr,
+                                          uint32_t PollableListLen);
+};
 
 } // namespace Host
 } // namespace WasmEdge

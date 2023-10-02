@@ -12,7 +12,7 @@ namespace Host {
 WasiPreview2Module::WasiPreview2Module()
     : ModuleInstance("wasi_snapshot_preview2") {
   addHostFunc("drop-pollable", std::make_unique<DropPollable>(Env));
-  // addHostFunc("poll-oneoff", std::make_unique<PollOneoff>(Env));
+  addHostFunc("poll-oneoff", std::make_unique<PollOneoff>(Env));
 }
 
 } // namespace Host

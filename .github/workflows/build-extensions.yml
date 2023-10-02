@@ -11,7 +11,6 @@ on:
     paths:
       - ".github/workflows/build-extensions.yml"
       - "plugins/**"
-      - "examples/**"
       - "test/**"
       - "thirdparty/**"
       - "tools/**"
@@ -26,7 +25,6 @@ on:
     paths:
       - ".github/workflows/build-extensions.yml"
       - "plugins/**"
-      - "examples/**"
       - "test/**"
       - "thirdparty/**"
       - "tools/**"
@@ -80,12 +78,10 @@ jobs:
     env:
       output_dir: build/plugins/wasi_nn
       test_dir: build/test/plugins/wasi_nn
-      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
-      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
+      tar_names: wasi_nn-pytorch wasi_nn-tensorflowlite wasi_nn-ggml
       test_bin: wasiNNTests
       output_bin: libwasmedgePluginWasiNN.so
-      OPENVINO_VERSION: "2023.0.0"
-      OPENVINO_YEAR: "2023"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."
     needs: [get_version]
@@ -102,8 +98,7 @@ jobs:
         shell: bash
         run: |
           apt update
-          apt install -y unzip
-          bash utils/wasi-nn/install-openvino.sh
+          apt install -y unzip libopenblas-dev pkg-config
           bash utils/wasi-nn/install-pytorch.sh
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
@@ -133,11 +128,6 @@ jobs:
         with:
           name: WasmEdge-plugin-wasi_nn-pytorch-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasi_nn-pytorch.tar.gz
-      - name: Upload artifact - wasi_nn-openvino
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-openvino-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
-          path: plugin_wasi_nn-openvino.tar.gz
       - name: Upload artifact - wasi_nn-tensorflowlite
         uses: actions/upload-artifact@v3
         with:
@@ -166,10 +156,10 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_RUSTLS=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_WASI_CLOCKS=ON
-      tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasm_bpf wasmedge_rustls wasmedge_opencvmini wasi_clocks
-      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmBpfTests wasmEdgeRUSTLSTests wasmedgeOpencvminiTests wasmedgePluginWasiClocksTests
-      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmBpf.so libwasmedge_rustls.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasiClocks.so
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_RUSTLS=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_WASI_CLOCKS=ON
+      tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasm_bpf wasmedge_rustls wasmedge_opencvmini wasmedge_zlib wasi_clocks
+      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmBpfTests wasmEdgeRUSTLSTests wasmedgeOpencvminiTests wasmedgeZlibTests wasmedgePluginWasiClocksTests
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmBpf.so libwasmedge_rustls.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasmEdgeZlib.so libwasmedgePluginWasiClocks.so
     needs: [get_version]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -267,6 +257,11 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasmedge_opencvmini.tar.gz
+      - name: Upload artifact - wasmedge_zlib
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasmedge_zlib-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          path: plugin_wasmedge_zlib.tar.gz
       - name: Upload artifact - wasi_clocks
         uses: actions/upload-artifact@v3
         with:
@@ -299,8 +294,6 @@ jobs:
       tar_names_manylinux2014_aarch64:
       test_bin: wasiNNTests
       output_bin: libwasmedgePluginWasiNN.so
-      OPENVINO_VERSION: "2023.0.0"
-      OPENVINO_YEAR: "2023"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."
     needs: [get_version]
@@ -320,11 +313,11 @@ jobs:
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
           plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.docker_tag }}})
           option_array=(${build_options_all_platforms} ${build_options_${{ matrix.docker_tag }}})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS=OFF
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Building ${plugin_array[$i]} backend:"
-            cmake -Bbuild -GNinja ${option_array[$i]}
+            cmake -Bbuild -GNinja ${option_array[$i]} -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS=OFF
             cmake --build build --target ${test_bin}
 
             echo "Testing ${plugin_array[$i]} backend:"
@@ -371,16 +364,16 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_WASI_CLOCKS=ON
+      build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_WASI_CLOCKS=ON
       build_options_manylinux2014_x86_64: -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_RUSTLS=ON -DWASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF=OFF
       build_options_manylinux2014_aarch64:
-      tar_names_all_platforms: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasi_clocks
+      tar_names_all_platforms: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasmedge_zlib wasi_clocks
       tar_names_manylinux2014_x86_64: wasm_bpf wasmedge_rustls
       tar_names_manylinux2014_aarch64:
-      test_bins_all_platforms: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests wasmedgePluginWasiClocksTests
+      test_bins_all_platforms: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests wasmedgeZlibTests wasmedgePluginWasiClocksTests
       test_bins_manylinux2014_x86_64: wasmBpfTests wasmEdgeRUSTLSTests
       test_bins_manylinux2014_aarch64:
-      output_bins_all_platforms: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasiClocks.so
+      output_bins_all_platforms: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasmEdgeZlib.so libwasmedgePluginWasiClocks.so
       output_bins_manylinux2014_x86_64: libwasmedgePluginWasmBpf.so libwasmedge_rustls.so
       output_bins_manylinux2014_aarch64:
     needs: [get_version]
@@ -482,6 +475,11 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: plugin_wasmedge_opencvmini.tar.gz
+      - name: Upload artifact - wasmedge_zlib
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasmedge_zlib-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          path: plugin_wasmedge_zlib.tar.gz
 
       - name: Upload artifact - wasi_clocks
         uses: actions/upload-artifact@v3

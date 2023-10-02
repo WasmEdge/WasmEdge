@@ -14,7 +14,6 @@ on:
       - "include/**"
       - "lib/**"
       - "plugins/**"
-      - "examples/**"
       - "test/**"
       - "thirdparty/**"
       - "tools/**"
@@ -30,7 +29,6 @@ on:
       - "include/**"
       - "lib/**"
       - "plugins/**"
-      - "examples/**"
       - "test/**"
       - "thirdparty/**"
       - "tools/**"
@@ -121,6 +119,13 @@ jobs:
     needs: [get_version, lint]
     name: Windows
     uses: ./.github/workflows/reusable-build-on-windows.yml
+    with:
+      version: ${{ needs.get_version.outputs.version }}
+
+  build_on_windows_msvc:
+    needs: [get_version, lint]
+    name: Windows-MSVC
+    uses: ./.github/workflows/reusable-build-on-windows-msvc.yml
     with:
       version: ${{ needs.get_version.outputs.version }}
 

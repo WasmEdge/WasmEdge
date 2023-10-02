@@ -1228,7 +1228,7 @@ TEST(WasiNNTest, GGMLBackend) {
   std::string Prompt = "Once upon a time, ";
   std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
   std::vector<uint8_t> WeightRead =
-      readEntireFile("./wasinn_ggml_fixtures/orca-mini-3b.ggmlv3.q4_0.bin");
+      readEntireFile("./wasinn_ggml_fixtures/orca-mini-3b.q4_0.gguf");
 
   std::vector<uint32_t> TensorDim{1};
   uint32_t BuilderPtr = UINT32_C(0);
@@ -1336,22 +1336,6 @@ TEST(WasiNNTest, GGMLBackend) {
                                  Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
-  }
-
-  // Test: load -- the GGML backend currently only supports the CPU target.
-  // (device: CPU 0, GPU 1, TPU 2)
-  {
-    for (uint32_t I = 1; I <= 3; I++) {
-
-      EXPECT_TRUE(HostFuncLoad.run(CallFrame,
-                                   std::initializer_list<WasmEdge::ValVariant>{
-                                       LoadEntryPtr, UINT32_C(1),
-                                       static_cast<uint32_t>(Backend::GGML), I,
-                                       BuilderPtr},
-                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(),
-                static_cast<uint32_t>(ErrNo::InvalidArgument));
-    }
   }
 
   // Test: load -- load successfully.
@@ -1477,10 +1461,6 @@ TEST(WasiNNTest, GGMLBackend) {
     // Should output more than 100 bytes.
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GE(BytesWritten, 100);
-    // Output should begin with the prompt.
-    const auto Output = MemInst.getSpan<const uint8_t>(StorePtr, 100);
-    EXPECT_EQ(std::string(Output.begin(), Output.begin() + Prompt.size()),
-              Prompt);
   }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML

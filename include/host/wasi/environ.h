@@ -1156,7 +1156,8 @@ public:
         "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"sv;
     std::random_device Device;
     std::default_random_engine Engine(Device());
-    std::uniform_int_distribution<uint32_t> Distribution(0, Charset.size() - 1);
+    std::uniform_int_distribution<uint32_t> Distribution(
+        0, static_cast<uint32_t>(Charset.size() - 1));
     std::array<char, 8> Buffer;
     std::array<uint32_t, 2> Values = {Distribution(Engine),
                                       Distribution(Engine)};

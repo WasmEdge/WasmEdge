@@ -205,6 +205,9 @@ using LARGE_INTEGER_ = union _LARGE_INTEGER {
     LONG_ HighPart;
   } u;
   LONGLONG_ QuadPart;
+
+  _LARGE_INTEGER() = default;
+  constexpr _LARGE_INTEGER(LONGLONG_ Quad) : QuadPart(Quad) {}
 };
 
 using ULARGE_INTEGER_ = union _ULARGE_INTEGER {
@@ -217,6 +220,10 @@ using ULARGE_INTEGER_ = union _ULARGE_INTEGER {
     DWORD_ HighPart;
   } u;
   ULONGLONG_ QuadPart;
+
+  constexpr _ULARGE_INTEGER(DWORD_ LowPart, DWORD_ HighPart)
+      : LowPart(LowPart), HighPart(HighPart) {}
+  constexpr _ULARGE_INTEGER(ULONGLONG_ Quad) : QuadPart(Quad) {}
 };
 
 using SECURITY_ATTRIBUTES_ = struct _SECURITY_ATTRIBUTES {

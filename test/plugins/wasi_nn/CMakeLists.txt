@@ -60,9 +60,9 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       COMMAND bash ${CMAKE_SOURCE_DIR}/utils/wasi-nn/download-ggml-fixtures.sh ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures
       RESULT_VARIABLE DOWNLOAD_ERROR
       OUTPUT_STRIP_TRAILING_WHITESPACE)
-    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/orca-mini-3b.ggmlv3.q4_0.bin CHECKSUM_MODEL)
-    if(NOT CHECKSUM_MODEL STREQUAL "6a087f7f4598fad0bb70e6cb4023645e")
-      message(FATAL_ERROR "orca-mini-3b.ggmlv3.q4_0.bin downloaded with wrong md5")
+    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/orca-mini-3b.q4_0.gguf CHECKSUM_MODEL)
+    if(NOT CHECKSUM_MODEL STREQUAL "aae346fe095e60139ca39b3fda4ac7ae")
+      message(FATAL_ERROR "orca-mini-3b.q4_0.gguf downloaded with wrong md5")
     endif()
   else()
     # Add the other backend test files fetching here.

@@ -21,6 +21,10 @@
 #include <cassert>
 #include <ostream>
 
+#if defined(_MSC_VER) && !defined(__clang__)
+#define __builtin_unreachable() __assume(0)
+#endif
+
 #ifdef NDEBUG
 #define assuming(R)                                                            \
   (static_cast<bool>(R) ? static_cast<void>(0) : __builtin_unreachable())

@@ -80,7 +80,8 @@ public:
                  AST::InstrView::iterator From, uint32_t LocalNum = 0,
                  uint32_t Arity = 0, bool IsTailCall = false) noexcept {
     if (likely(!IsTailCall)) {
-      FrameStack.emplace_back(Module, From, LocalNum, Arity, ValueStack.size());
+      FrameStack.emplace_back(Module, From, LocalNum, Arity,
+                              static_cast<uint32_t>(ValueStack.size()));
     } else {
       assuming(!FrameStack.empty());
       assuming(FrameStack.back().VPos >= FrameStack.back().Locals);

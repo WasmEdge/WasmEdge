@@ -51,11 +51,6 @@ namespace LLVM = WasmEdge::AOT::LLVM;
 
 namespace {
 
-// is x86_64
-#if defined(_M_X64) && !defined(__x86_64__)
-#define __x86_64__ 1
-#endif
-
 #if WASMEDGE_OS_MACOS
 // Get current OS version
 std::string getOSVersion() noexcept {

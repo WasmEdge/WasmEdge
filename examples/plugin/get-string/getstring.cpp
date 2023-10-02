@@ -36,8 +36,8 @@ public:
     }
 
     // Validate range of the buffer.
-    char *const Buf = MemInst->getPointer<char *>(BufPtr, BufLen);
-    if (unlikely(Buf == nullptr)) {
+    auto Buf = MemInst->getSpan<char>(BufPtr, BufLen);
+    if (unlikely(Buf.size() != BufLen)) {
       return Unexpect(ErrCode::Value::HostFuncError);
     }
 
@@ -49,12 +49,12 @@ public:
 
     if (Upper) {
       char *const End =
-          std::transform(String.begin(), String.end(), Buf,
+          std::transform(String.begin(), String.end(), Buf.data(),
                          [](unsigned char C) { return std::toupper(C); });
-      *Written = End - Buf;
+      *Written = End - Buf.data();
     } else {
-      char *const End = std::copy(String.begin(), String.end(), Buf);
-      *Written = End - Buf;
+      char *const End = std::copy(String.begin(), String.end(), Buf.data());
+      *Written = End - Buf.data();
     }
     return {};
   }
@@ -81,7 +81,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .Name = "plugin_name",
     .Description = "Example plugin",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
-    .Version = {0, 10, 0, 0},
+    .Version = {0, 13, 4, 0},
     .ModuleCount = 1,
     .ModuleDescriptions =
         (Plugin::PluginModule::ModuleDescriptor[]){

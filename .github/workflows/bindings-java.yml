@@ -156,7 +156,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install dependency
-        uses: crazy-max/ghaction-chocolatey@v2
+        uses: crazy-max/ghaction-chocolatey@v3
         with:
           args: install cmake ninja vswhere
 

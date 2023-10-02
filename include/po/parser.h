@@ -18,8 +18,9 @@ namespace WasmEdge {
 namespace PO {
 
 inline void tolower(std::string &String) noexcept {
-  std::transform(String.begin(), String.end(), String.begin(),
-                 [](char c) noexcept { return std::tolower(c); });
+  std::transform(
+      String.begin(), String.end(), String.begin(),
+      [](char c) noexcept { return static_cast<char>(std::tolower(c)); });
 }
 
 template <typename ConvResultT, typename ResultT = ConvResultT>

@@ -17,6 +17,11 @@
 #include <utility>
 #include <vector>
 
+// Enable __x86_64__ for MSVC
+#if defined(_M_X64) && !defined(__x86_64__)
+#define __x86_64__ 1
+#endif
+
 namespace WasmEdge::AOT::LLVM {
 
 class Core {
@@ -1139,20 +1144,20 @@ public:
                            const char *Name = "") noexcept {
     LLVMValueRef Data[1] = {Idx0.unwrap()};
     return LLVMBuildInBoundsGEP2(Ref, Ty.unwrap(), Pointer.unwrap(), Data,
-                                 std::size(Data), Name);
+                                 static_cast<unsigned>(std::size(Data)), Name);
   }
   Value createInBoundsGEP2(Type Ty, Value Pointer, Value Idx0, Value Idx1,
                            const char *Name = "") noexcept {
     LLVMValueRef Data[2] = {Idx0.unwrap(), Idx1.unwrap()};
     return LLVMBuildInBoundsGEP2(Ref, Ty.unwrap(), Pointer.unwrap(), Data,
-                                 std::size(Data), Name);
+                                 static_cast<unsigned>(std::size(Data)), Name);
   }
   Value createConstInBoundsGEP1_64(Type Ty, Value Pointer, uint64_t Idx0,
                                    const char *Name = "") noexcept {
     Type Int64Ty = LLVMInt64TypeInContext(LLVMGetTypeContext(Ty.unwrap()));
     LLVMValueRef Data[1] = {Value::getConstInt(Int64Ty, Idx0).unwrap()};
     return LLVMBuildInBoundsGEP2(Ref, Ty.unwrap(), Pointer.unwrap(), Data,
-                                 std::size(Data), Name);
+                                 static_cast<unsigned>(std::size(Data)), Name);
   }
 
   Value createConstInBoundsGEP2_64(Type Ty, Value Pointer, uint64_t Idx0,
@@ -1162,7 +1167,7 @@ public:
     LLVMValueRef Data[2] = {Value::getConstInt(Int64Ty, Idx0).unwrap(),
                             Value::getConstInt(Int64Ty, Idx1).unwrap()};
     return LLVMBuildInBoundsGEP2(Ref, Ty.unwrap(), Pointer.unwrap(), Data,
-                                 std::size(Data), Name);
+                                 static_cast<unsigned>(std::size(Data)), Name);
   }
 
   Value createTrunc(Value Val, Type DestTy, const char *Name = "") noexcept {

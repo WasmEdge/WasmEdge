@@ -62,7 +62,8 @@ PollOneoff::body(const Runtime::CallingFrame &Frame, uint32_t PollableListAddr,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   auto Offset = (*Ptr)[0].first.get<uint32_t>();
-  auto OutSpan = Mem->getSpan<bool>(Offset, Result.size());
+  auto OutSpan =
+      Mem->getSpan<bool>(Offset, static_cast<uint32_t>(Result.size()));
   std::copy_n(Result.begin(), Result.size(), OutSpan.begin());
 
   return ComponentModel::List<bool>(Offset, PollableListLen);

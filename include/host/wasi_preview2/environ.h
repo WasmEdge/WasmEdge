@@ -25,33 +25,19 @@ using Pollable = uint32_t;
 
 class PollableObject {
 public:
-  bool isReady() { return false; }
+  bool isReady();
 };
 
 namespace WASIPreview2 {
 
 class Environ {
 public:
-  Expect<PollableObject> getPollable(Pollable Id) {
-    if (auto V = this->Polls.find(Id); V != this->Polls.end()) {
-      return V->second;
-    } else {
-      return Unexpect(ErrCode::Value::HostFuncError);
-    }
-  }
-
-  Expect<void> dropPollable(Pollable Id) {
-    this->Polls.erase(Id);
-    return {};
-  }
+  Expect<PollableObject> getPollable(Pollable Id);
+  void dropPollable(Pollable Id);
 
   template <typename T>
   Span<T> load(Runtime::Instance::MemoryInstance *Mem,
-               ComponentModel::List<T> Arg) {
-    auto Offset = std::get<0>(Arg);
-    auto Len = std::get<0>(Arg);
-    return Mem->getSpan<T>(Offset, Len);
-  }
+               ComponentModel::List<T> Arg);
 
   ~Environ() noexcept;
 

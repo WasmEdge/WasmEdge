@@ -16,7 +16,8 @@ using WasmEdge::ValType;
 using WasmEdge::ValVariant;
 
 Expect<void> DropPollable::body(const Runtime::CallingFrame &, Pollable This) {
-  return Env.dropPollable(This);
+  Env.dropPollable(This);
+  return {};
 }
 
 Expect<ComponentModel::List<bool>>

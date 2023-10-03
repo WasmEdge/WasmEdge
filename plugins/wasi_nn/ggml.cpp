@@ -83,8 +83,9 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     spdlog::error("[WASI-NN] GGML backend: Error: unable to init context."sv);
     return ErrNo::InvalidArgument;
   }
+  llama_model_params ModelParams = llama_model_default_params();
   GraphRef.LlamaModel =
-      llama_load_model_from_file(ModelFilePath.c_str(), ContextParams);
+      llama_load_model_from_file(ModelFilePath.c_str(), ModelParams);
   if (GraphRef.LlamaModel == nullptr) {
     spdlog::error("[WASI-NN] GGML backend: Error: unable to init model."sv);
     Env.NNGraph.pop_back();

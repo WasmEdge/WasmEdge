@@ -51,7 +51,7 @@ TEST(Int128Test, Int128OutputTest) {
     OS.str("");
     OS.clear();
     const WasmEdge::uint128_t P10(10000000000000);
-    Value = 1234567890123 * P10 * P10 + 1234567890123;
+    Value = WasmEdge::uint128_t(1234567890123) * P10 * P10 + WasmEdge::uint128_t(1234567890123);
     OS << Value;
     EXPECT_EQ(OS.str(), "123456789012300000000000001234567890123");
   }
@@ -60,7 +60,7 @@ TEST(Int128Test, Int128OutputTest) {
     OS.str("");
     OS.clear();
     const WasmEdge::uint128_t P10(10000000000000);
-    Value = 1234567890123 * P10 * P10;
+    Value = WasmEdge::uint128_t(1234567890123) * P10 * P10;
     OS << Value;
     EXPECT_EQ(OS.str(), "123456789012300000000000000000000000000");
   }
@@ -69,7 +69,7 @@ TEST(Int128Test, Int128OutputTest) {
     OS.str("");
     OS.clear();
     const WasmEdge::uint128_t P10(10000000000000);
-    Value = 1234567890123 * P10 * P10 + 1234567890123 * P10;
+    Value = WasmEdge::uint128_t(1234567890123) * P10 * P10 + WasmEdge::uint128_t(1234567890123) * P10;
     OS << Value;
     EXPECT_EQ(OS.str(), "123456789012312345678901230000000000000");
   }

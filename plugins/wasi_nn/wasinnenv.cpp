@@ -4,6 +4,8 @@
 #include "wasinnenv.h"
 #include "wasinnmodule.h"
 
+#include <sstream>
+
 namespace WasmEdge {
 namespace Host {
 
@@ -63,9 +65,17 @@ WasiNNEnvironment::WasiNNEnvironment() noexcept {
     auto Device = DeviceMap.find(Target);
     if (Backend != BackendMap.end() && Device != DeviceMap.end()) {
       for (const std::string &Path : Paths) {
-        std::vector<uint8_t> Model;
-        if (load(std::filesystem::u8path(Path), Model)) {
-          Models.push_back(std::move(Model));
+        if (Backend->second == Backend::GGML) {
+          // We write model path to model data to avoid file IO in llama.cpp.
+          std::string ModelPath = "preload:" + Path;
+          std::vector<uint8_t> ModelPathData(ModelPath.begin(),
+                                             ModelPath.end());
+          Models.push_back(std::move(ModelPathData));
+        } else {
+          std::vector<uint8_t> Model;
+          if (load(std::filesystem::u8path(Path), Model)) {
+            Models.push_back(std::move(Model));
+          }
         }
       }
       RawMdMap.emplace(Name, std::make_tuple(std::move(Models), Backend->second,

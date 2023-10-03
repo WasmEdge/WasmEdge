@@ -148,11 +148,11 @@ struct HandleHolder {
 
   HandleHolder(const HandleHolder &) = delete;
   HandleHolder &operator=(const HandleHolder &) = delete;
-  constexpr HandleHolder(HandleHolder &&RHS) noexcept {
+  HandleHolder(HandleHolder &&RHS) noexcept {
     using std::swap;
     swap(*this, RHS);
   }
-  constexpr HandleHolder &operator=(HandleHolder &&RHS) noexcept {
+  HandleHolder &operator=(HandleHolder &&RHS) noexcept {
     using std::swap;
     swap(*this, RHS);
     return *this;
@@ -809,8 +809,8 @@ public:
   using HandleHolder::HandleHolder;
 
 private:
-  __wasi_fdflags_t SavedFdFlags;
-  uint8_t SavedVFSFlags;
+  __wasi_fdflags_t SavedFdFlags = {};
+  uint8_t SavedVFSFlags = {};
 
   FindHolder Find;
 #endif

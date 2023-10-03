@@ -39,7 +39,7 @@ private:
   /// \name Data of global instance.
   /// @{
   AST::GlobalType GlobType;
-  ValVariant Value;
+  alignas(16) ValVariant Value;
   /// @}
 };
 

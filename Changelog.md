@@ -341,7 +341,7 @@ Fixed issues:
 * Fixed the lost intrinsics table in AOT mode when using the WasmEdge C API.
 * Fixed the registration failed of WasmEdge plug-in through the C API.
 * Fixed the implementation in `threads` proposal.
-  * Fixed the error in `atomic.nofify` and `atomic.wait` instructions.
+  * Fixed the error in `atomic.notify` and `atomic.wait` instructions.
   * Fixed the decoding of `atomic.fence` instruction.
   * Corrected the error message of waiting on unshared memory.
 * Handle canonical and arithmetical `NaN` in `runMaxOp()` and `runMinOp()`.
@@ -1044,7 +1044,7 @@ Bindings:
 Tests:
 
 * Updated the core test suite to the newest WASM spec.
-* Updated and fixed the value comarison in core tests.
+* Updated and fixed the value comparison in core tests.
 * Added `ErrInfo` unit tests.
 * Added instruction tests for turning on/off the old proposals.
 * Moved and updated the `AST` unit tests into `loader`.
@@ -1428,7 +1428,7 @@ Refactor:
 
 * Refactor symbols in AOT.
   * Removed the symbols in instances.
-  * Added instrinsics table for dynamic linking when running a compiled wasm.
+  * Added intrinsics table for dynamic linking when running a compiled wasm.
 * Merged the program counter into `stack manager`.
 * Added back the `OpCode::End` instruction.
 * Refactored the validator workflow of checking expressions.

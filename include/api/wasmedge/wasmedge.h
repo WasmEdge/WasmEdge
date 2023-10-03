@@ -61,10 +61,15 @@ typedef struct WasmEdge_String {
 typedef struct WasmEdge_Result {
   uint32_t Code;
 } WasmEdge_Result;
+#ifdef __cplusplus
+#define WasmEdge_Result_Success (WasmEdge_Result{/* Code */ 0x00})
+#define WasmEdge_Result_Terminate (WasmEdge_Result{/* Code */ 0x01})
+#define WasmEdge_Result_Fail (WasmEdge_Result{/* Code */ 0x02})
+#else
 #define WasmEdge_Result_Success ((WasmEdge_Result){.Code = 0x00})
 #define WasmEdge_Result_Terminate ((WasmEdge_Result){.Code = 0x01})
 #define WasmEdge_Result_Fail ((WasmEdge_Result){.Code = 0x02})
-
+#endif
 /// Struct of WASM limit.
 typedef struct WasmEdge_Limit {
   /// Boolean to describe has max value or not.
@@ -3621,6 +3626,18 @@ WasmEdge_PluginListModule(const WasmEdge_PluginContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
 WasmEdge_PluginCreateModule(const WasmEdge_PluginContext *Cxt,
                             const WasmEdge_String ModuleName);
+
+/// Initialize the wasi_nn plug-in.
+///
+/// This function will initialize the wasi_nn plug-in with the preloads string
+/// list. Only available after loading the wasi_nn plug-in and before creating
+/// the module instance from the plug-in.
+///
+/// \param NNPreloads the preload string list. NULL if the length is 0.
+/// \param PreloadsLen the length of the preload list.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_PluginInitWASINN(const char *const *NNPreloads,
+                          const uint32_t PreloadsLen);
 
 /// Implement by plugins for returning the plugin descriptor.
 ///

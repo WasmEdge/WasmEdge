@@ -52,7 +52,7 @@ TEST_P(NativeCoreTest, TestSuites) {
   VM.registerModule(SpecTestMod);
   auto Compile = [&, Conf = std::cref(Conf)](
                      const std::string &Filename) -> Expect<std::string> {
-    WasmEdge::Configure CopyConf = Conf;
+    WasmEdge::Configure CopyConf = Conf.get();
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
     CopyConf.getCompilerConfigure().setOutputFormat(
@@ -160,7 +160,7 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
   VM.registerModule(SpecTestMod);
   auto Compile = [&, Conf = std::cref(Conf)](
                      const std::string &Filename) -> Expect<std::string> {
-    WasmEdge::Configure CopyConf = Conf;
+    WasmEdge::Configure CopyConf = Conf.get();
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
     CopyConf.getCompilerConfigure().setOptimizationLevel(
@@ -260,10 +260,12 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
 }
 
 // Initiate test suite.
-INSTANTIATE_TEST_SUITE_P(TestUnit, NativeCoreTest,
-                         testing::ValuesIn(T.enumerate()));
-INSTANTIATE_TEST_SUITE_P(TestUnit, CustomWasmCoreTest,
-                         testing::ValuesIn(T.enumerate()));
+INSTANTIATE_TEST_SUITE_P(
+    TestUnit, NativeCoreTest,
+    testing::ValuesIn(T.enumerate(SpecTest::TestMode::AOT)));
+INSTANTIATE_TEST_SUITE_P(
+    TestUnit, CustomWasmCoreTest,
+    testing::ValuesIn(T.enumerate(SpecTest::TestMode::AOT)));
 
 std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,

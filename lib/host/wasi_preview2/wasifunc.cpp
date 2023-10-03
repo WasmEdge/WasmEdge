@@ -49,7 +49,6 @@ PollOneoff::body(const Runtime::CallingFrame &Frame, uint32_t PollableListAddr,
   // assert(dst_byte_length == len(encoded))
   // cx.opts.memory[ptr : ptr+len(encoded)] = encoded
   // return (ptr, src_code_units)
-
   auto F = Mod->findFuncExports("realloc");
   // refers to alignment
   // 1.
@@ -59,9 +58,14 @@ PollOneoff::body(const Runtime::CallingFrame &Frame, uint32_t PollableListAddr,
   auto Ptr = Exe->invoke(F, Span<const ValVariant>({0, 0, 4, 8}),
                          Span<const ValType>({ValType::I32, ValType::I32,
                                               ValType::I32, ValType::I32}));
+  if (!Ptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  auto Offset = (*Ptr)[0].first.get<uint32_t>();
+  auto OutSpan = Mem->getSpan<bool>(Offset, Result.size());
+  std::copy_n(Result.begin(), Result.size(), OutSpan.begin());
 
-  // TODO: understand the above pseudo code and implement it
-  return ComponentModel::List<bool>(0, 0);
+  return ComponentModel::List<bool>(Offset, PollableListLen);
 }
 
 } // namespace Host

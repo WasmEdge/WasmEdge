@@ -176,7 +176,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   const int MaxContextSize = llama_n_ctx(GraphRef.LlamaContext);
   // NPredict is the number of tokens to predict. Same as -n, --n-predict in
   // llama.cpp.
-  int NPredict = std::numeric_limits<int>::max();
+  int NPredict = MaxContextSize;
   const char *LlamaNPredictEnv = std::getenv("LLAMA_N_PREDICT");
   if (LlamaNPredictEnv != nullptr) {
     try {
@@ -196,22 +196,31 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       spdlog::info("[WASI-NN] GGML backend: set n_predict to {}"sv, NPredict);
     }
   }
-  while (llama_get_kv_cache_token_count(GraphRef.LlamaContext) <
-             MaxContextSize &&
-         llama_get_kv_cache_token_count(GraphRef.LlamaContext) < NPredict) {
-    if (llama_eval(GraphRef.LlamaContext, CxtRef.LlamaInputs.data(),
-                   int(CxtRef.LlamaInputs.size()),
-                   llama_get_kv_cache_token_count(GraphRef.LlamaContext),
-                   get_num_physical_cores())) {
-      spdlog::error("[WASI-NN] GGML backend: Llama failed to eval."sv);
-      return ErrNo::InvalidArgument;
-    }
-    CxtRef.LlamaInputs.clear();
 
-    // Select the best prediction.
-    llama_token NewTokenId = 0;
-    auto Logits = llama_get_logits(GraphRef.LlamaContext);
-    auto NVocab = llama_n_vocab(GraphRef.LlamaContext);
+  // Evaluate the initial prompt.
+  llama_batch LlamaBatch = llama_batch_init(NPredict, 0);
+  LlamaBatch.n_tokens = CxtRef.LlamaInputs.size();
+  for (int32_t I = 0; I < LlamaBatch.n_tokens; I++) {
+    LlamaBatch.token[I] = CxtRef.LlamaInputs[I];
+    LlamaBatch.pos[I] = I;
+    LlamaBatch.seq_id[I] = 0;
+    LlamaBatch.logits[I] = false;
+  }
+
+  // llama_decode will output logits only for the last token of the prompt
+  LlamaBatch.logits[LlamaBatch.n_tokens - 1] = true;
+  if (llama_decode(GraphRef.LlamaContext, LlamaBatch) != 0) {
+    spdlog::info("[WASI-NN] GGML backend: llama_decode() failed"sv);
+    return ErrNo::RuntimeError;
+  }
+
+  int NCur = LlamaBatch.n_tokens;
+  while (NCur < MaxContextSize && NCur < NPredict) {
+    // Sample the next token
+    auto NVocab = llama_n_vocab(GraphRef.LlamaModel);
+    auto *Logits =
+        llama_get_logits_ith(GraphRef.LlamaContext, LlamaBatch.n_tokens - 1);
+
     std::vector<llama_token_data> Candidates;
     Candidates.reserve(NVocab);
     for (llama_token TokenId = 0; TokenId < NVocab; TokenId++) {
@@ -219,9 +228,14 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     }
     llama_token_data_array CandidatesP = {Candidates.data(), Candidates.size(),
                                           false};
-    NewTokenId = llama_sample_token_greedy(GraphRef.LlamaContext, &CandidatesP);
 
-    if (NewTokenId == llama_token_eos(GraphRef.LlamaContext)) {
+    // Sample the most likely token
+    const llama_token NewTokenId =
+        llama_sample_token_greedy(GraphRef.LlamaContext, &CandidatesP);
+
+    // Is it an end of stream?
+    if (NewTokenId == llama_token_eos(GraphRef.LlamaContext) ||
+        NCur == MaxContextSize || NCur == NPredict) {
       break;
     }
 
@@ -229,13 +243,25 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     CxtRef.LlamaOutputs +=
         llama_token_to_piece(GraphRef.LlamaContext, NewTokenId);
 
-    // Push this new token for next evaluation.
-    CxtRef.LlamaInputs.push_back(NewTokenId);
+    // Prepare the next batch
+    LlamaBatch.n_tokens = 0;
+
+    // Push this new token for next evaluation
+    LlamaBatch.token[LlamaBatch.n_tokens] = NewTokenId;
+    LlamaBatch.pos[LlamaBatch.n_tokens] = NCur;
+    LlamaBatch.seq_id[LlamaBatch.n_tokens] = 0;
+    LlamaBatch.logits[LlamaBatch.n_tokens] = true;
+    LlamaBatch.n_tokens += 1;
+    NCur += 1;
+
+    // Evaluate the current batch with the transformer model
+    if (llama_decode(GraphRef.LlamaContext, LlamaBatch)) {
+      spdlog::error("[WASI-NN] GGML backend: failed to llama_decode"sv);
+      return ErrNo::RuntimeError;
+    }
   }
 
   if (LlamaLogEnv != nullptr) {
-    spdlog::info("[WASI-NN] GGML backend: llama_get_kv_cache_token_count {}"sv,
-                 llama_get_kv_cache_token_count(GraphRef.LlamaContext));
     llama_print_timings(GraphRef.LlamaContext);
   }
 

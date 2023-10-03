@@ -91,7 +91,7 @@ void FormChecker::addTable(const AST::TableType &Tab) {
 void FormChecker::addMemory(const AST::MemoryType &) { Mems++; }
 
 void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
-  // Type in global is comfirmed in loading phase.
+  // Type in global is confirmed in loading phase.
   Globals.emplace_back(ASTToVType(Glob.getValType()), Glob.getValMut());
   if (IsImport) {
     NumImportGlobals++;

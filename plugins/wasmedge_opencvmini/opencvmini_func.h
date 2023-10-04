@@ -116,7 +116,7 @@ class WasmEdgeOpenCVMiniEmptyMat
 public:
   WasmEdgeOpenCVMiniEmptyMat(WasmEdgeOpenCVMiniEnvironment &HostEnv)
       : WasmEdgeOpenCVMini(HostEnv) {}
-  Expect<uint32_t> body();
+  Expect<uint32_t> body(const Runtime::CallingFrame &);
 };
 
 class WasmEdgeOpenCVMiniDilate

@@ -93,7 +93,8 @@ WasmEdgeOpenCVMiniBoxFilter::body(const Runtime::CallingFrame &,
   return Env.insertMat(Dst);
 }
 
-Expect<uint32_t> WasmEdgeOpenCVMiniEmptyMat::body() {
+Expect<uint32_t>
+WasmEdgeOpenCVMiniEmptyMat::body(const Runtime::CallingFrame &) {
   cv::Mat Kernel;
   return Env.insertMat(Kernel);
 }

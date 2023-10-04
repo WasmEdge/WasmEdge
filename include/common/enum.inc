@@ -21,6 +21,7 @@
 #ifdef UseASTNodeAttr
 #define A Line
 
+A(Component, "component")
 A(Module, "module")
 A(Sec_Custom, "custom section")
 A(Sec_Type, "type section")

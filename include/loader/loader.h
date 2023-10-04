@@ -87,6 +87,19 @@ public:
   static Expect<std::vector<Byte>>
   loadFile(const std::filesystem::path &FilePath);
 
+  Expect<std::variant<AST::Component, AST::Module>>
+  parseWasmUnit(const std::filesystem::path &FilePath);
+  Expect<std::variant<AST::Component, AST::Module>>
+  parseWasmUnit(Span<const uint8_t> Code);
+
+  /// Parse component from file path.
+  Expect<std::unique_ptr<AST::Component>>
+  parseComponent(const std::filesystem::path &FilePath);
+
+  /// Parse component from byte code.
+  Expect<std::unique_ptr<AST::Component>>
+  parseComponent(Span<const uint8_t> Code);
+
   /// Parse module from file path.
   Expect<std::unique_ptr<AST::Module>>
   parseModule(const std::filesystem::path &FilePath);
@@ -124,6 +137,8 @@ private:
                                         ASTNodeAttr Node) const noexcept;
   Expect<void> checkInstrProposals(OpCode Code, uint64_t Offset) const noexcept;
   /// @}
+
+  Expect<std::variant<AST::Component, AST::Module>> loadUnit();
 
   /// \name Load AST Module functions
   /// @{

@@ -22,7 +22,7 @@ enum class ErrNo : uint32_t {
 
 enum class TensorType : uint8_t { F16 = 0, F32 = 1, U8 = 2, I32 = 3 };
 
-enum class Device : uint32_t { CPU = 0, GPU = 1, TPU = 2 };
+enum class Device : uint32_t { CPU = 0, GPU = 1, TPU = 2, AUTO = 3 };
 
 enum class Backend : uint8_t {
   OpenVINO = 0,

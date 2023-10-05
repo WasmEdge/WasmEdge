@@ -82,7 +82,7 @@ Plugin::Plugin::PluginDescriptor Descriptor {
                 .Create = createAVUtil,
             },
             {
-                .Name = "SWResample",
+                .Name = "wasmedge_ffmpeg_swresample",
                 .Description = "audio resampling, format conversion and mixing",
                 .Create = createSWResample,
             },

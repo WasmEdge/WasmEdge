@@ -41,7 +41,7 @@ int32_t readIInt32(WasmEdge::Runtime::Instance::MemoryInstance &MemInst, uint32_
   return *BufPtr;
 }
 
-TEST(WasmEdgeAVCodecTest, AVRational) {
+TEST(WasmEdgeAVUtilTest, AVRational) {
 
   // Create the wasmedge_process module instance.
   auto *AVUtilMod = dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::WasmEdgeFFmpegAVUtilModule *>(createModule());

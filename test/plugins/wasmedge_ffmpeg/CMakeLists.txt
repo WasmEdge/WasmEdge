@@ -8,6 +8,8 @@ wasmedge_add_executable(wasmedgeFFmpegTests
         avutil/avRational.cpp
 
         swscale/swscale_func.cpp
+
+        swresample/swresample_func.cpp
 )
 
 add_dependencies(wasmedgeFFmpegTests

@@ -32,7 +32,7 @@ export WASMEDGE_PATH=$PWD
 export WASMEDGE_PLUGIN_PATH=$WASMEDGE_PATH/build/plugins/wasmedge_zlib
 mkdir build; cd build
 cmake .. -DWASMEDGE_PLUGIN_WASMEDGE_ZLIB=ON
-# incase you don't wan't lld & AOT, try the variant below
+# in case you don't wasn't lld & AOT, try the variant below
 # cmake .. -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF
 cmake --build . -j
 # compiled wasmedge is located in: ./tools/wasmedge/wasmedge

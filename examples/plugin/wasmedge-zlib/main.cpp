@@ -226,10 +226,10 @@ int test() {
             << "B" << std::endl;
   const auto DecompressedBuffer = Inflate<char>(CompressedBuffer);
 
-  auto CompRes = Data == DecompressedBuffer;
-  std::cout << (CompRes ? "Success" : "Fail") << std::endl;
+  auto CompareResult = Data == DecompressedBuffer;
+  std::cout << (CompareResult ? "Success" : "Fail") << std::endl;
 
-  return CompRes;
+  return CompareResult;
 }
 
 int main() {

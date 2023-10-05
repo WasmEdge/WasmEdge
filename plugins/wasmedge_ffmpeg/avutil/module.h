@@ -1,20 +1,19 @@
 #pragma once
 
-#include "runtime/instance/module.h"
 #include "ffmpeg_env.h"
+#include "runtime/instance/module.h"
 
-namespace WasmEdge{
-namespace Host{
-namespace WasmEdgeFFmpeg{
-namespace AVUtil{
+namespace WasmEdge {
+namespace Host {
+namespace WasmEdgeFFmpeg {
+namespace AVUtil {
 
-class WasmEdgeFFmpegAVUtilModule: public Runtime::Instance::ModuleInstance {
+class WasmEdgeFFmpegAVUtilModule : public Runtime::Instance::ModuleInstance {
 public:
-    WasmEdgeFFmpegAVUtilModule(std::shared_ptr<WasmEdgeFFmpegEnv> Env);
+  WasmEdgeFFmpegAVUtilModule(std::shared_ptr<WasmEdgeFFmpegEnv> Env);
 };
 
 } // namespace AVUtil
 } // namespace WasmEdgeFFmpeg
 } // namespace Host
 } // namespace WasmEdge
-

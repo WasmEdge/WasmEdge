@@ -44,13 +44,13 @@ target_compile_options(wasmedgePluginWasmEdgeFFmpeg
         -DWASMEDGE_PLUGIN
 )
 
-if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     target_link_options(wasmedgePluginWasmEdgeFFmpeg
             PUBLIC
             -Wl,-U,__ZN8WasmEdge6Plugin14PluginRegisterC1EPKNS0_6Plugin16PluginDescriptorE
             -Wl,-U,__ZN8WasmEdge6Plugin14PluginRegisterD1Ev
     )
-endif()
+endif ()
 
 target_include_directories(wasmedgePluginWasmEdgeFFmpeg
         PUBLIC
@@ -60,12 +60,12 @@ target_include_directories(wasmedgePluginWasmEdgeFFmpeg
         "/usr/local/include" # Only for testing.
 )
 
-if(WASMEDGE_LINK_PLUGINS_STATIC)
+if (WASMEDGE_LINK_PLUGINS_STATIC)
     target_link_libraries(wasmedgePluginWasmEdgeFFmpeg
             PRIVATE
             wasmedgeCAPI
     )
-else()
+else ()
     target_link_libraries(wasmedgePluginWasmEdgeFFmpeg
             PRIVATE
             wasmedge_shared
@@ -77,6 +77,6 @@ else()
             swresample
             swscale
     )
-endif()
+endif ()
 
 install(TARGETS wasmedgePluginWasmEdgeFFmpeg DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)

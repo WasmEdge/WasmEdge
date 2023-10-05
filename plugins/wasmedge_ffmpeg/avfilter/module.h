@@ -1,14 +1,14 @@
 #pragma once
 
-#include "runtime/instance/module.h"
 #include "ffmpeg_env.h"
+#include "runtime/instance/module.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
-namespace AVFilter{
+namespace AVFilter {
 
-class WasmEdgeFFmpegAVFilterModule: public Runtime::Instance::ModuleInstance {
+class WasmEdgeFFmpegAVFilterModule : public Runtime::Instance::ModuleInstance {
 public:
   WasmEdgeFFmpegAVFilterModule(std::shared_ptr<WasmEdgeFFmpegEnv> Env);
 };

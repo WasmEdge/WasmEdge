@@ -6,7 +6,7 @@
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
-namespace AVFilter{
+namespace AVFilter {
 
 template <typename T>
 class WasmEdgeFFmpegAVFilter : public Runtime::HostFunction<T> {

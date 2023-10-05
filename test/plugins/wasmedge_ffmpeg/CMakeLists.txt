@@ -28,16 +28,16 @@ target_link_libraries(wasmedgeFFmpegTests
 )
 
 # Link to the WasmEdge library
-if(WASMEDGE_LINK_PLUGINS_STATIC)
+if (WASMEDGE_LINK_PLUGINS_STATIC)
     target_link_libraries(wasmedgeFFmpegTests
             PRIVATE
             wasmedgeCAPI
     )
-else()
+else ()
     target_link_libraries(wasmedgeFFmpegTests
             PRIVATE
             wasmedge_shared
     )
-endif()
+endif ()
 
 add_test(wasmedgeFFmpegTests wasmedgeFFmpegTests)

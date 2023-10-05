@@ -78,8 +78,16 @@ endif()
 if(WASMEDGE_PLUGIN_ZLIB)
   add_subdirectory(wasmedge_zlib)
 
+<<<<<<< HEAD
 endif()
 
 if(WASMEDGE_PLUGIN_FFMPEG)
   add_subdirectory(wasmedge_ffmpeg)
 endif()
+=======
+if(WASMEDGE_PLUGIN_FFMPEG)
+  add_subdirectory(wasmedge_ffmpeg)
+else ()
+  add_subdirectory(wasmedge_ffmpeg) # Just for testing.
+endif ()
+>>>>>>> 6f164fcc (refactor based on code style, add ffmpeg to github workflow)

@@ -6,8 +6,7 @@
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
-namespace SWScale{
-
+namespace SWScale {
 
 template <typename T>
 class WasmEdgeFFmpegSWScale : public Runtime::HostFunction<T> {

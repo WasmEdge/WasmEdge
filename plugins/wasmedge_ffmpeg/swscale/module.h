@@ -1,14 +1,14 @@
 #pragma once
 
-#include "runtime/instance/module.h"
 #include "ffmpeg_env.h"
+#include "runtime/instance/module.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
-namespace SWScale{
+namespace SWScale {
 
-class WasmEdgeFFmpegSWScaleModule: public Runtime::Instance::ModuleInstance {
+class WasmEdgeFFmpegSWScaleModule : public Runtime::Instance::ModuleInstance {
 public:
   WasmEdgeFFmpegSWScaleModule(std::shared_ptr<WasmEdgeFFmpegEnv> Env);
 };

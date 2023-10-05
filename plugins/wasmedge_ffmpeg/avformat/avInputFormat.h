@@ -6,38 +6,44 @@ extern "C" {
 #include "libavformat/avformat.h"
 }
 
-namespace WasmEdge{
-namespace Host{
+namespace WasmEdge {
+namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVFormat {
 
 class AVInputFormatName : public WasmEdgeFFmpegAVFormat<AVInputFormatName> {
 public:
-    AVInputFormatName(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-            : WasmEdgeFFmpegAVFormat(HostEnv) {}
-    Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr);
+  AVInputFormatName(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<void> body(const Runtime::CallingFrame &Frame,
+                    uint32_t avInputFormatPtr);
 };
 
-
-class AVInputFormatLongName : public WasmEdgeFFmpegAVFormat<AVInputFormatLongName> {
+class AVInputFormatLongName
+    : public WasmEdgeFFmpegAVFormat<AVInputFormatLongName> {
 public:
   AVInputFormatLongName(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-            : WasmEdgeFFmpegAVFormat(HostEnv) {}
-    Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr);
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<void> body(const Runtime::CallingFrame &Frame,
+                    uint32_t avInputFormatPtr);
 };
 
-class AVInputFormatExtensions : public WasmEdgeFFmpegAVFormat<AVInputFormatExtensions> {
+class AVInputFormatExtensions
+    : public WasmEdgeFFmpegAVFormat<AVInputFormatExtensions> {
 public:
   AVInputFormatExtensions(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-            : WasmEdgeFFmpegAVFormat(HostEnv) {}
-    Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr);
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<void> body(const Runtime::CallingFrame &Frame,
+                    uint32_t avInputFormatPtr);
 };
 
-class AVInputFormatMimeType : public WasmEdgeFFmpegAVFormat<AVInputFormatMimeType> {
+class AVInputFormatMimeType
+    : public WasmEdgeFFmpegAVFormat<AVInputFormatMimeType> {
 public:
   AVInputFormatMimeType(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-            : WasmEdgeFFmpegAVFormat(HostEnv) {}
-    Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t avInputFormatPtr);
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<void> body(const Runtime::CallingFrame &Frame,
+                    uint32_t avInputFormatPtr);
 };
 
 } // namespace AVFormat

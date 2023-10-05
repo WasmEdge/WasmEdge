@@ -8,7 +8,6 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace SWResample {
 
-
 template <typename T>
 class WasmEdgeFFmpegSWResample : public Runtime::HostFunction<T> {
 public:

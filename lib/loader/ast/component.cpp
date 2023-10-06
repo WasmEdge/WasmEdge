@@ -46,7 +46,7 @@ Expect<std::variant<AST::Component, AST::Module>> Loader::loadUnit() {
   if (*Ver == ModuleVersion) {
     auto Mod = std::make_unique<AST::Module>();
     Mod->getMagic() = WasmMagic;
-    Mod->getVersion() = ModuleVersion;
+    Mod->getVersion() = *Ver;
     if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
 
       if (auto Res = loadModuleAOT(Mod->getAOTSection()); !Res) {
@@ -71,8 +71,8 @@ Expect<std::variant<AST::Component, AST::Module>> Loader::loadUnit() {
   } else if (*Ver == ComponentVersion) {
     auto Comp = std::make_unique<AST::Component>();
     Comp->getMagic() = WasmMagic;
-    Comp->getVersion() = {0x0a, 0x00};
-    Comp->getLayer() = {0x01, 0x00};
+    Comp->getVersion() = {(*Ver)[0], (*Ver)[1]};
+    Comp->getLayer() = {(*Ver)[2], (*Ver)[3]};
     spdlog::error("Component model is not fully parsed yet!");
     return *Comp;
   } else {

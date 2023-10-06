@@ -15,7 +15,7 @@
 namespace WasmEdge {
 namespace Validator {
 
-Expect<void> validate(const AST::Component &) { return {}; }
+Expect<void> Validator::validate(const AST::Component &) { return {}; }
 
 // Validate Module. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::Module &Mod) {

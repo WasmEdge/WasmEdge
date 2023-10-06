@@ -103,8 +103,10 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
       }
-      if (auto Res = loadModule()) {
-        Mod = std::move(*Res);
+      if (auto Res = loadUnit()) {
+        if (std::holds_alternative<AST::Module>(*Res)) {
+          Mod = std::make_unique<AST::Module>(std::get<AST::Module>(*Res));
+        }
       } else {
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
@@ -181,13 +183,11 @@ Loader::parseWasmUnit(Span<const uint8_t> Code) {
 Expect<std::unique_ptr<AST::Module>>
 Loader::parseModule(const std::filesystem::path &FilePath) {
   if (auto R = parseWasmUnit(FilePath)) {
-    switch ((*R).index()) {
-    case 0: // component
-      return Unexpect(ErrCode::Value::MalformedVersion);
-    case 1: // module
-    default:
+    if (std::holds_alternative<AST::Module>(*R)) {
       auto Res = std::make_unique<AST::Module>(std::get<AST::Module>(*R));
       return Res;
+    } else {
+      return Unexpect(ErrCode::Value::MalformedVersion);
     }
   } else {
     return Unexpect(R);
@@ -198,13 +198,11 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
 Expect<std::unique_ptr<AST::Module>>
 Loader::parseModule(Span<const uint8_t> Code) {
   if (auto R = parseWasmUnit(Code)) {
-    switch ((*R).index()) {
-    case 0: // component
-      return Unexpect(ErrCode::Value::MalformedVersion);
-    case 1: // module
-    default:
+    if (std::holds_alternative<AST::Module>(*R)) {
       auto Res = std::make_unique<AST::Module>(std::get<AST::Module>(*R));
       return Res;
+    } else {
+      return Unexpect(ErrCode::Value::MalformedVersion);
     }
   } else {
     return Unexpect(R);

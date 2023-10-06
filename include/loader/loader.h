@@ -142,12 +142,15 @@ private:
 
   /// \name Load AST Module functions
   /// @{
-  Expect<std::unique_ptr<AST::Module>> loadModule();
+  Expect<void> loadModule(AST::Module &Mod);
   Expect<void> loadCompiled(AST::Module &Mod);
   /// @}
 
   /// \name Load AST section node helper functions
   /// @{
+  Expect<void> loadUniversalWASM(AST::Module &Mod);
+  Expect<void> loadModuleAOT(AST::AOTSection &AOTSection);
+
   Expect<uint32_t> loadSectionSize(ASTNodeAttr Node);
   template <typename T, typename L>
   Expect<void> loadSectionContent(T &Sec, L &&Func) {

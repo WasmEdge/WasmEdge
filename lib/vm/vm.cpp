@@ -212,8 +212,8 @@ VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
       auto Mod = std::get<AST::Module>(*Res);
       return unsafeRunWasmFile(Mod, Func, Params, ParamTypes);
     } else {
-      spdlog::error("component executable is not done yet.");
-      return Unexpect(Res);
+      auto Comp = std::get<AST::Component>(*Res);
+      return unsafeRunWasmFile(Comp, Func, Params, ParamTypes);
     }
   } else {
     return Unexpect(Res);
@@ -235,12 +235,27 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
       auto Mod = std::get<AST::Module>(*Res);
       return unsafeRunWasmFile(Mod, Func, Params, ParamTypes);
     } else {
-      spdlog::error("component executable is not done yet.");
-      return Unexpect(Res);
+      auto Comp = std::get<AST::Component>(*Res);
+      return unsafeRunWasmFile(Comp, Func, Params, ParamTypes);
     }
   } else {
     return Unexpect(Res);
   }
+}
+
+Expect<std::vector<std::pair<ValVariant, ValType>>>
+VM::unsafeRunWasmFile(const AST::Component &Component, std::string_view,
+                      Span<const ValVariant>, Span<const ValType>) {
+  if (Stage == VMStage::Instantiated) {
+    // When running another module, instantiated module in store will be reset.
+    // Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
+  if (auto Res = ValidatorEngine.validate(Component); !Res) {
+    return Unexpect(Res);
+  }
+  spdlog::error("component execution is not done yet.");
+  return Unexpect(ErrCode::Value::RuntimeError);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>

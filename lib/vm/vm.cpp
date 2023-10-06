@@ -206,9 +206,15 @@ VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
     // Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
-  // Load module.
-  if (auto Res = LoaderEngine.parseModule(Path)) {
-    return unsafeRunWasmFile(*(*Res).get(), Func, Params, ParamTypes);
+  // Load wasm unit.
+  if (auto Res = LoaderEngine.parseWasmUnit(Path)) {
+    if (std::holds_alternative<AST::Module>(*Res)) {
+      auto Mod = std::get<AST::Module>(*Res);
+      return unsafeRunWasmFile(Mod, Func, Params, ParamTypes);
+    } else {
+      spdlog::error("component executable is not done yet.");
+      return Unexpect(Res);
+    }
   } else {
     return Unexpect(Res);
   }
@@ -223,9 +229,15 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
     // Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
-  // Load module.
-  if (auto Res = LoaderEngine.parseModule(Code)) {
-    return unsafeRunWasmFile(*(*Res).get(), Func, Params, ParamTypes);
+  // Load wasm unit.
+  if (auto Res = LoaderEngine.parseWasmUnit(Code)) {
+    if (std::holds_alternative<AST::Module>(*Res)) {
+      auto Mod = std::get<AST::Module>(*Res);
+      return unsafeRunWasmFile(Mod, Func, Params, ParamTypes);
+    } else {
+      spdlog::error("component executable is not done yet.");
+      return Unexpect(Res);
+    }
   } else {
     return Unexpect(Res);
   }
@@ -306,8 +318,13 @@ VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
 
 Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
   // If not load successfully, the previous status will be reserved.
-  if (auto Res = LoaderEngine.parseModule(Path)) {
-    Mod = std::move(*Res);
+  if (auto Res = LoaderEngine.parseWasmUnit(Path)) {
+    if (std::holds_alternative<AST::Module>(*Res)) {
+      Mod = std::make_unique<AST::Module>(std::get<AST::Module>(*Res));
+    } else {
+      spdlog::error("component load is not done yet.");
+      return Unexpect(Res);
+    }
     Stage = VMStage::Loaded;
   } else {
     return Unexpect(Res);
@@ -317,8 +334,13 @@ Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
 
 Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
   // If not load successfully, the previous status will be reserved.
-  if (auto Res = LoaderEngine.parseModule(Code)) {
-    Mod = std::move(*Res);
+  if (auto Res = LoaderEngine.parseWasmUnit(Code)) {
+    if (std::holds_alternative<AST::Module>(*Res)) {
+      Mod = std::make_unique<AST::Module>(std::get<AST::Module>(*Res));
+    } else {
+      spdlog::error("component load is not done yet.");
+      return Unexpect(Res);
+    }
     Stage = VMStage::Loaded;
   } else {
     return Unexpect(Res);

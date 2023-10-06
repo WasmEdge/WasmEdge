@@ -209,11 +209,11 @@ VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
   // Load wasm unit.
   if (auto Res = LoaderEngine.parseWasmUnit(Path)) {
     if (std::holds_alternative<AST::Module>(*Res)) {
-      auto Mod = std::get<AST::Module>(*Res);
-      return unsafeRunWasmFile(Mod, Func, Params, ParamTypes);
+      return unsafeRunWasmFile(std::get<AST::Module>(*Res), Func, Params,
+                               ParamTypes);
     } else {
-      auto Comp = std::get<AST::Component>(*Res);
-      return unsafeRunWasmFile(Comp, Func, Params, ParamTypes);
+      return unsafeRunWasmFile(std::get<AST::Component>(*Res), Func, Params,
+                               ParamTypes);
     }
   } else {
     return Unexpect(Res);
@@ -232,11 +232,11 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
   // Load wasm unit.
   if (auto Res = LoaderEngine.parseWasmUnit(Code)) {
     if (std::holds_alternative<AST::Module>(*Res)) {
-      auto Mod = std::get<AST::Module>(*Res);
-      return unsafeRunWasmFile(Mod, Func, Params, ParamTypes);
+      return unsafeRunWasmFile(std::get<AST::Module>(*Res), Func, Params,
+                               ParamTypes);
     } else {
-      auto Comp = std::get<AST::Component>(*Res);
-      return unsafeRunWasmFile(Comp, Func, Params, ParamTypes);
+      return unsafeRunWasmFile(std::get<AST::Component>(*Res), Func, Params,
+                               ParamTypes);
     }
   } else {
     return Unexpect(Res);

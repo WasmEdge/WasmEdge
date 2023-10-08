@@ -18,16 +18,14 @@ Expect<int32_t> AVUtilAVStrError::body(const Runtime::CallingFrame &Frame,
   return av_strerror(Errnum, reinterpret_cast<char *>(buffer.data()), BufLen);
 }
 
-Expect<int32_t> AVUtilAVError::body(const Runtime::CallingFrame &Frame
-                                    __attribute__((unused)),
-                                    int32_t errnum) {
-  return AVERROR(errnum);
+Expect<int32_t> AVUtilAVError::body(const Runtime::CallingFrame &,
+                                    int32_t Errnum) {
+  return AVERROR(Errnum);
 }
 
-Expect<int32_t> AVUtilAVUNError::body(const Runtime::CallingFrame &Frame
-                                      __attribute__((unused)),
-                                      int32_t errnum) {
-  return AVUNERROR(errnum);
+Expect<int32_t> AVUtilAVUNError::body(const Runtime::CallingFrame &,
+                                      int32_t Errnum) {
+  return AVUNERROR(Errnum);
 }
 
 } // namespace AVUtil

@@ -41,7 +41,6 @@ WasmEdgeFFmpegAVFilterModule::WasmEdgeFFmpegAVFilterModule(
               std::make_unique<AVBufferSrcAddFrame>(Env));
   addHostFunc("wasmedge_ffmpeg_avfilter_av_buffersrc_close",
               std::make_unique<AVBufferSrcClose>(Env));
-
 }
 
 } // namespace AVFilter

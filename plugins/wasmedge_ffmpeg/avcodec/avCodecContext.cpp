@@ -91,7 +91,7 @@ Expect<uint32_t> AVCodecCtxPixFormat::body(const Runtime::CallingFrame &,
 }
 
 Expect<uint32_t> AVCodecCtxSampleFormat::body(const Runtime::CallingFrame &,
-                                              uint32_t AvCodecCtxId){
+                                              uint32_t AvCodecCtxId) {
 
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   AVSampleFormat const AvSampleFormat = AvCodecCtx->sample_fmt;
@@ -99,7 +99,7 @@ Expect<uint32_t> AVCodecCtxSampleFormat::body(const Runtime::CallingFrame &,
 }
 
 Expect<int32_t> AVCodecCtxSampleRate::body(const Runtime::CallingFrame &,
-                                           uint32_t AvCodecCtxId){
+                                           uint32_t AvCodecCtxId) {
 
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   return AvCodecCtx->sample_rate;

@@ -82,6 +82,8 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVFrameChannels>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channel_layout",
               std::make_unique<AVFrameChannelLayout>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_best_effort_timestamp",
+              std::make_unique<AVFrameChannelLayout>(Env));
 
   // pixfmt.h (Even AvPixFmtDesc is in this file)
   addHostFunc("wasmedge_ffmpeg_avutil_avpixfmtdescriptor_nb_components",

@@ -173,7 +173,9 @@ Expect<int32_t> AVFrameSampleRate::body(const Runtime::CallingFrame &,
   return AvFrame->sample_rate;
 }
 
-Expect<int32_t> AVFrameSetSampleRate::body(const Runtime::CallingFrame &, uint32_t FrameId,int32_t SampleRate){
+Expect<int32_t> AVFrameSetSampleRate::body(const Runtime::CallingFrame &,
+                                           uint32_t FrameId,
+                                           int32_t SampleRate) {
 
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   AvFrame->sample_rate = SampleRate;
@@ -192,6 +194,13 @@ Expect<uint64_t> AVFrameChannelLayout::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   uint64_t const ChannelLayout = AvFrame->channel_layout;
   return FFmpegUtils::ChannelLayout::intoAVChannelID(ChannelLayout);
+}
+
+Expect<int64_t> AVFrameBestEffortTimestamp::body(const Runtime::CallingFrame &,
+                                                 uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  return AvFrame->best_effort_timestamp;
 }
 
 } // namespace AVUtil

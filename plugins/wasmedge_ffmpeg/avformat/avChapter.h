@@ -20,8 +20,9 @@ class AVChapterTimebase : public WasmEdgeFFmpegAVFormat<AVChapterTimebase> {
 public:
   AVChapterTimebase(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t NumPtr,uint32_t DenPtr,
-                       uint32_t AvFormatCtxId, uint32_t ChapterIdx);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t NumPtr,
+                       uint32_t DenPtr, uint32_t AvFormatCtxId,
+                       uint32_t ChapterIdx);
 };
 
 class AVChapterStart : public WasmEdgeFFmpegAVFormat<AVChapterStart> {

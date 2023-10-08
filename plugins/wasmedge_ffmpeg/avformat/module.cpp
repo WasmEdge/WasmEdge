@@ -1,10 +1,10 @@
 #include "module.h"
+#include "avChapter.h"
 #include "avInputFormat.h"
 #include "avStream.h"
 #include "avformatContext.h"
 #include "avformat_func.h"
 #include "avio_func.h"
-#include "avChapter.h"
 
 namespace WasmEdge {
 namespace Host {

@@ -71,7 +71,8 @@ class AVFilterGetByName : public WasmEdgeFFmpegAVFilter<AVFilterGetByName> {
 public:
   AVFilterGetByName(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFilter(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FilterPtr,uint32_t StrPtr,uint32_t StrLen);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FilterPtr,
+                       uint32_t StrPtr, uint32_t StrLen);
 };
 
 } // namespace AVFilter

@@ -152,7 +152,8 @@ class AVFrameSetSampleRate : public WasmEdgeFFmpegAVUtil<AVFrameSetSampleRate> {
 public:
   AVFrameSetSampleRate(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId,int32_t SampleRate);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId,
+                       int32_t SampleRate);
 };
 
 class AVFrameChannels : public WasmEdgeFFmpegAVUtil<AVFrameChannels> {
@@ -167,6 +168,14 @@ public:
   AVFrameChannelLayout(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
   Expect<uint64_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId);
+};
+
+class AVFrameBestEffortTimestamp
+    : public WasmEdgeFFmpegAVUtil<AVFrameBestEffortTimestamp> {
+public:
+  AVFrameBestEffortTimestamp(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int64_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId);
 };
 
 } // namespace AVUtil

@@ -95,24 +95,26 @@ Expect<int32_t> AVFilterInOutFree::body(const Runtime::CallingFrame &,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
-Expect<uint32_t> AVFilterVersion::body(const Runtime::CallingFrame &Frame){
+Expect<uint32_t> AVFilterVersion::body(const Runtime::CallingFrame &) {
   return avfilter_version();
 }
 
-Expect<int32_t> AVFilterGetByName::body(const Runtime::CallingFrame &Frame,uint32_t FilterPtr,uint32_t StrPtr,uint32_t StrLen){
+Expect<int32_t> AVFilterGetByName::body(const Runtime::CallingFrame &Frame,
+                                        uint32_t FilterPtr, uint32_t StrPtr,
+                                        uint32_t StrLen) {
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(StrId, MemInst, char, StrPtr,
                 "Failed when accessing the return Str memory");
-  MEM_PTR_CHECK(FilterId, MemInst, uint32_t , FilterPtr,
+  MEM_PTR_CHECK(FilterId, MemInst, uint32_t, FilterPtr,
                 "Failed when accessing the return Filter memory");
 
-  FFMPEG_PTR_FETCH(AvFilter,*FilterId,const struct AVFilter);
+  FFMPEG_PTR_FETCH(AvFilter, *FilterId, const struct AVFilter);
   std::string Name;
   std::copy_n(StrId, StrLen, std::back_inserter(Name));
 
   AvFilter = avfilter_get_by_name(Name.c_str());
-  FFMPEG_PTR_STORE((void *)AvFilter,FilterId); // Check this...
+  FFMPEG_PTR_STORE((void *)AvFilter, FilterId); // Check this...
   return static_cast<int32_t>(ErrNo::Success);
 }
 

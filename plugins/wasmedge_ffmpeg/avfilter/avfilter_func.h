@@ -60,6 +60,20 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InoutId);
 };
 
+class AVFilterVersion : public WasmEdgeFFmpegAVFilter<AVFilterVersion> {
+public:
+  AVFilterVersion(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVFilterGetByName : public WasmEdgeFFmpegAVFilter<AVFilterGetByName> {
+public:
+  AVFilterGetByName(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t FilterPtr,uint32_t StrPtr,uint32_t StrLen);
+};
+
 } // namespace AVFilter
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

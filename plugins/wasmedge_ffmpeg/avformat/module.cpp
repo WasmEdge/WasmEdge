@@ -4,6 +4,7 @@
 #include "avformatContext.h"
 #include "avformat_func.h"
 #include "avio_func.h"
+#include "avChapter.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -73,6 +74,16 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVStreamIndex>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avStream_codecpar",
               std::make_unique<AVStreamCodecPar>(env));
+
+  // avChapter Struct Functions.
+  addHostFunc("wasmedge_ffmpeg_avformat_avChapter_id",
+              std::make_unique<AVChapterId>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avChapter_timebase",
+              std::make_unique<AVChapterTimebase>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avChapter_start",
+              std::make_unique<AVChapterStart>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avChapter_end",
+              std::make_unique<AVChapterEnd>(env));
 }
 
 } // namespace AVFormat

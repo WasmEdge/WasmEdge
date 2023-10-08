@@ -21,6 +21,7 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
         avformat/avio_func.cpp
         avformat/avInputFormat.cpp
         avformat/avStream.cpp
+        avformat/avChapter.cpp
 
         avutil/error.cpp
         avutil/module.cpp
@@ -29,6 +30,7 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
         avutil/pixfmt.cpp
         avutil/samplefmt.cpp
         avutil/channel_layout.cpp
+        avutil/avDictionary.cpp
 
         swresample/module.cpp
         swresample/swresample_func.cpp

@@ -23,6 +23,10 @@ WasmEdgeFFmpegAVFilterModule::WasmEdgeFFmpegAVFilterModule(
               std::make_unique<AVFilterGraphParsePtr>(Env));
   addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_inout_free",
               std::make_unique<AVFilterInOutFree>(Env));
+  addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_version",
+              std::make_unique<AVFilterVersion>(Env));
+  addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_get_by_name",
+              std::make_unique<AVFilterGetByName>(Env));
 
   // buffersrc.h && buffersink.h
   addHostFunc("wasmedge_ffmpeg_avfilter_av_buffersink_get_frame",
@@ -37,6 +41,7 @@ WasmEdgeFFmpegAVFilterModule::WasmEdgeFFmpegAVFilterModule(
               std::make_unique<AVBufferSrcAddFrame>(Env));
   addHostFunc("wasmedge_ffmpeg_avfilter_av_buffersrc_close",
               std::make_unique<AVBufferSrcClose>(Env));
+
 }
 
 } // namespace AVFilter

@@ -76,6 +76,8 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVFrameNbSamples>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_sample_rate",
               std::make_unique<AVFrameSampleRate>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_sample_rate",
+              std::make_unique<AVFrameSetSampleRate>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channels",
               std::make_unique<AVFrameChannels>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channel_layout",

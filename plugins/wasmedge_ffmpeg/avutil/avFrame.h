@@ -148,6 +148,13 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId);
 };
 
+class AVFrameSetSampleRate : public WasmEdgeFFmpegAVUtil<AVFrameSetSampleRate> {
+public:
+  AVFrameSetSampleRate(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId,int32_t SampleRate);
+};
+
 class AVFrameChannels : public WasmEdgeFFmpegAVUtil<AVFrameChannels> {
 public:
   AVFrameChannels(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)

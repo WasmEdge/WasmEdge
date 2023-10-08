@@ -11,7 +11,7 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace SWResample {
 
-Expect<int32_t> SWResampleVersion::body(const Runtime::CallingFrame &) {
+Expect<uint32_t> SWResampleVersion::body(const Runtime::CallingFrame &) {
   return swresample_version();
 }
 

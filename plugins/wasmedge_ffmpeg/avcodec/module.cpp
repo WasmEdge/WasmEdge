@@ -60,6 +60,10 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
               std::make_unique<AVCodecCtxChannelLayout>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_pix_fmt",
               std::make_unique<AVCodecCtxPixFormat>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_sample_format",
+              std::make_unique<AVCodecCtxSampleFormat>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_sample_rate",
+              std::make_unique<AVCodecCtxSampleRate>(env));
 
   // avCodec Struct fields access
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_id",

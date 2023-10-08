@@ -14,7 +14,7 @@ class SWResampleVersion : public WasmEdgeFFmpegSWResample<SWResampleVersion> {
 public:
   SWResampleVersion(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegSWResample(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
 };
 
 class SWRGetDelay : public WasmEdgeFFmpegSWResample<SWRGetDelay> {

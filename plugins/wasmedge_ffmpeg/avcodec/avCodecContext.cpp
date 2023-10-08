@@ -90,6 +90,21 @@ Expect<uint32_t> AVCodecCtxPixFormat::body(const Runtime::CallingFrame &,
   return FFmpegUtils::PixFmt::fromAVPixFmt(PixFmt);
 }
 
+Expect<uint32_t> AVCodecCtxSampleFormat::body(const Runtime::CallingFrame &,
+                                              uint32_t AvCodecCtxId){
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  AVSampleFormat const AvSampleFormat = AvCodecCtx->sample_fmt;
+  return FFmpegUtils::SampleFmt::toSampleID(AvSampleFormat);
+}
+
+Expect<int32_t> AVCodecCtxSampleRate::body(const Runtime::CallingFrame &,
+                                           uint32_t AvCodecCtxId){
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  return AvCodecCtx->sample_rate;
+}
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

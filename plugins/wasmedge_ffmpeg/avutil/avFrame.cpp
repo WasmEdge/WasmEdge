@@ -173,6 +173,13 @@ Expect<int32_t> AVFrameSampleRate::body(const Runtime::CallingFrame &,
   return AvFrame->sample_rate;
 }
 
+Expect<int32_t> AVFrameSetSampleRate::body(const Runtime::CallingFrame &, uint32_t FrameId,int32_t SampleRate){
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  AvFrame->sample_rate = SampleRate;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 Expect<int32_t> AVFrameChannels::body(const Runtime::CallingFrame &,
                                       uint32_t FrameId) {
 

@@ -73,6 +73,22 @@ public:
                         uint32_t AvCodecCtxId);
 };
 
+class AVCodecCtxSampleFormat : public WasmEdgeFFmpegAVCodec<AVCodecCtxSampleFormat> {
+public:
+  AVCodecCtxSampleFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
+                        uint32_t AvCodecCtxId);
+};
+
+class AVCodecCtxSampleRate : public WasmEdgeFFmpegAVCodec<AVCodecCtxSampleRate> {
+public:
+  AVCodecCtxSampleRate(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId);
+};
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

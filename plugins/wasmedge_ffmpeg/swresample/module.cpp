@@ -10,7 +10,7 @@ WasmEdgeFFmpegSWResampleModule::WasmEdgeFFmpegSWResampleModule(
     std::shared_ptr<WasmEdgeFFmpegEnv> Env)
     : ModuleInstance("wasmedge_ffmpeg_swresample") {
 
-  addHostFunc("wasmedge_ffmpeg_swresample_swresample_getVersion",
+  addHostFunc("wasmedge_ffmpeg_swresample_swresample_version",
               std::make_unique<SWResampleVersion>(Env));
   addHostFunc("wasmedge_ffmpeg_swresample_swr_get_delay",
               std::make_unique<SWRGetDelay>(Env));

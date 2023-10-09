@@ -59,6 +59,16 @@ public:
                         uint32_t KernelWidth, uint32_t KernelHeight);
 };
 
+class WasmEdgeOpenCVMiniBilateralFilter
+    : public WasmEdgeOpenCVMini<WasmEdgeOpenCVMiniBilateralFilter> {
+public:
+  WasmEdgeOpenCVMiniBilateralFilter(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t SrcMatKey,
+                        uint32_t D, double SigmaColor, double SigmaSpace);
+};
+
 class WasmEdgeOpenCVMiniImwrite
     : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniImwrite> {
 public:
@@ -89,6 +99,88 @@ public:
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t SrcMatKey,
                         uint32_t OutImgW, uint32_t OutImgH);
+};
+
+class WasmEdgeOpenCVMiniBoxFilter
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniBoxFilter> {
+public:
+  WasmEdgeOpenCVMiniBoxFilter(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t SrcMatKey,
+                        uint32_t Ddepth, uint32_t KernelWidth,
+                        uint32_t KernelHeight);
+};
+
+class WasmEdgeOpenCVMiniEmptyMat
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniEmptyMat> {
+public:
+  WasmEdgeOpenCVMiniEmptyMat(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &);
+};
+
+class WasmEdgeOpenCVMiniDilate
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniDilate> {
+public:
+  WasmEdgeOpenCVMiniDilate(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t SrcMatKey,
+                        uint32_t KernelMatKey);
+};
+
+class WasmEdgeOpenCVMiniErode
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniErode> {
+public:
+  WasmEdgeOpenCVMiniErode(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t SrcMatKey,
+                        uint32_t Kernel);
+};
+
+class WasmEdgeOpenCVMiniGaussianBlur
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniGaussianBlur> {
+public:
+  WasmEdgeOpenCVMiniGaussianBlur(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t SrcMatKey,
+                        uint32_t KernelWidth, uint32_t KernelHeight,
+                        double SigmaX);
+};
+
+class WasmEdgeOpenCVMiniLaplacian
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniLaplacian> {
+public:
+  WasmEdgeOpenCVMiniLaplacian(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t SrcMatKey,
+                        uint32_t Ddepth);
+};
+
+class WasmEdgeOpenCVMiniMedianBlur
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniMedianBlur> {
+public:
+  WasmEdgeOpenCVMiniMedianBlur(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t SrcMatKey,
+                        uint32_t Ksize);
+};
+
+class WasmEdgeOpenCVMiniPyrDown
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniPyrDown> {
+public:
+  WasmEdgeOpenCVMiniPyrDown(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t SrcMatKey,
+                        uint32_t KernelWidth, uint32_t KernelHeight);
+};
+
+class WasmEdgeOpenCVMiniPyrUp
+    : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniPyrUp> {
+public:
+  WasmEdgeOpenCVMiniPyrUp(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t SrcMatKey,
+                        uint32_t KernelWidth, uint32_t KernelHeight);
 };
 
 class WasmEdgeOpenCVMiniRectangle

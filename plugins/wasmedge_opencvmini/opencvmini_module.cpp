@@ -21,6 +21,26 @@ WasmEdgeOpenCVMiniModule::WasmEdgeOpenCVMiniModule()
 
   addHostFunc("wasmedge_opencvmini_blur",
               std::make_unique<WasmEdgeOpenCVMiniBlur>(Env));
+
+  addHostFunc("wasmedge_opencvmini_bilateral_filter",
+              std::make_unique<WasmEdgeOpenCVMiniBilateralFilter>(Env));
+
+  addHostFunc("wasmedge_opencvmini_box_filter",
+              std::make_unique<WasmEdgeOpenCVMiniBoxFilter>(Env));
+  addHostFunc("wasmedge_opencvmin_dilate",
+              std::make_unique<WasmEdgeOpenCVMiniDilate>(Env));
+  addHostFunc("wasmedge_opencvmini_erode",
+              std::make_unique<WasmEdgeOpenCVMiniErode>(Env));
+  addHostFunc("wasmedge_opencvmini_gaussian_blur",
+              std::make_unique<WasmEdgeOpenCVMiniGaussianBlur>(Env));
+  addHostFunc("wasmedge_opencvmini_Laplacian",
+              std::make_unique<WasmEdgeOpenCVMiniLaplacian>(Env));
+  addHostFunc("wasmedge_opencvmini_median_blur",
+              std::make_unique<WasmEdgeOpenCVMiniMedianBlur>(Env));
+  addHostFunc("wasmedge_opencvmini_pyrDown",
+              std::make_unique<WasmEdgeOpenCVMiniPyrDown>(Env));
+  addHostFunc("wasmedge_opencvmini_pyrUp",
+              std::make_unique<WasmEdgeOpenCVMiniPyrUp>(Env));
   addHostFunc("wasmedge_opencvmini_normalize",
               std::make_unique<WasmEdgeOpenCVMiniNormalize>(Env));
   addHostFunc("wasmedge_opencvmini_bilinear_sampling",

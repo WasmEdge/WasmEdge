@@ -12,6 +12,13 @@ wasmedge_add_executable(wasmedgeFFmpegTests
         swresample/swresample_func.cpp
 )
 
+# Downloading a sample file
+execute_process(
+        COMMAND bash ${CMAKE_SOURCE_DIR}/utils/ffmpeg/download-ffmpeg-sample-video.sh ${CMAKE_CURRENT_BINARY_DIR}/ffmpeg-assets
+        RESULT_VARIABLE DOWNLOAD_ERROR
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
 add_dependencies(wasmedgeFFmpegTests
         wasmedgePluginWasmEdgeFFmpeg
 )

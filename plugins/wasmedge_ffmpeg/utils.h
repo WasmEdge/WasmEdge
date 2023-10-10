@@ -1,5 +1,5 @@
 extern "C" {
-#include "libavcodec/codec_id.h"
+#include "libavcodec/avcodec.h"
 #include "libavutil/avutil.h"
 #include "libavutil/channel_layout.h"
 #include "libswresample/swresample.h"

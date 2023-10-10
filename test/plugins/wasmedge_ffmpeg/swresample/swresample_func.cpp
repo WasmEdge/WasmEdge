@@ -46,7 +46,7 @@ TEST(WasmEdgeAVSWResampleTest, SWResampleFunc) {
   std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
 
   auto *FuncInst = SWResampleMod->findFuncExports(
-      "wasmedge_ffmpeg_swresample_swresample_getVersion");
+      "wasmedge_ffmpeg_swresample_swresample_version");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncSWResampleVersion = dynamic_cast<

@@ -1,4 +1,5 @@
 #include "module.h"
+#include "avDictionary.h"
 #include "avFrame.h"
 #include "avRational.h"
 #include "channel_layout.h"
@@ -119,6 +120,18 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVGetChannelLayoutNbChannels>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_get_default_channel_layout",
               std::make_unique<AVGetDefaultChannelLayout>(Env));
+
+  // dict.h
+  addHostFunc("wasmedge_ffmpeg_avutil_av_dict_new",
+              std::make_unique<AVDictNew>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_dict_set",
+              std::make_unique<AVDictSet>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_dict_get",
+              std::make_unique<AVDictGet>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_dict_copy",
+              std::make_unique<AVDictCopy>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_dict_free",
+              std::make_unique<AVDictFree>(Env));
 }
 
 } // namespace AVUtil

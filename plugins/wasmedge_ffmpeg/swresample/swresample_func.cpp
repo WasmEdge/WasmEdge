@@ -39,7 +39,7 @@ SWRAllocSetOpts::body(const Runtime::CallingFrame &Frame, uint32_t SwrCtxPtr,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(SwrCtxId, MemInst, uint32_t, SwrCtxPtr, "")
   FFMPEG_PTR_FETCH(CurrSwrCtx, *SwrCtxId, SwrContext);
-  FFMPEG_PTR_FETCH(SWRContext, SWRContextId, SwrContext);
+  FFMPEG_PTR_FETCH(ExistSWRContext, SWRContextId, SwrContext);
 
   uint64_t const OutChLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(OutChLayoutId);
@@ -49,10 +49,10 @@ SWRAllocSetOpts::body(const Runtime::CallingFrame &Frame, uint32_t SwrCtxPtr,
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(InChLayoutId);
   AVSampleFormat const InSampleFmt =
       FFmpegUtils::SampleFmt::fromSampleID(InSampleFmtId);
-  CurrSwrCtx =
-      swr_alloc_set_opts(SWRContext, OutChLayout, OutSampleFmt, OutSampleRate,
-                         InChLayout, InSampleFmt, InSampleRate, LogOffset,
-                         NULL); // Always being used as null in rust sdk.
+  CurrSwrCtx = swr_alloc_set_opts(
+      ExistSWRContext, OutChLayout, OutSampleFmt, OutSampleRate, InChLayout,
+      InSampleFmt, InSampleRate, LogOffset,
+      NULL); // Always being used as null in rust sdk.
   FFMPEG_PTR_STORE(CurrSwrCtx, SwrCtxId);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -80,6 +80,7 @@ Expect<int32_t> SWRFree::body(const Runtime::CallingFrame &,
                               uint32_t SWRContextId) {
   FFMPEG_PTR_FETCH(SWRContext, SWRContextId, SwrContext);
   swr_close(SWRContext);
+  FFMPEG_PTR_DELETE(SWRContextId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 

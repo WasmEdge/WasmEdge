@@ -70,6 +70,11 @@ checkImportMatched(std::string_view ModName, std::string_view ExtName,
       return {};
     }
     break;
+  case ExternalType::Tag:
+    if (auto Res = ModInst.findTagExports(ExtName); likely(Res != nullptr)) {
+      return {};
+    }
+    break;
   default:
     return logUnknownError(ModName, ExtName, ExtType);
   }
@@ -86,6 +91,9 @@ checkImportMatched(std::string_view ModName, std::string_view ExtName,
   if (ModInst.findMemoryExports(ExtName)) {
     return logMatchError(ModName, ExtName, ExtType, ExtType,
                          ExternalType::Memory);
+  }
+  if (ModInst.findTagExports(ExtName)) {
+    return logMatchError(ModName, ExtName, ExtType, ExtType, ExternalType::Tag);
   }
   if (ModInst.findGlobalExports(ExtName)) {
     return logMatchError(ModName, ExtName, ExtType, ExtType,
@@ -242,6 +250,22 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       }
       // Set the matched memory address to module instance.
       ModInst.importMemory(ImpInst);
+      break;
+    }
+    case ExternalType::Tag: {
+      // Get tag type. External type checked in validation.
+      const auto &T = ImpDesc.getExternalTagType();
+      // Import matching.
+      auto *TargetInst = TargetModInst->findTagExports(ExtName);
+      const auto &TargetType = TargetInst->getTagType().getFuncType();
+      const auto *TType = *ModInst.getFuncType(T.getTypeIdx());
+      if (TargetType != *TType) {
+        return logMatchError(ModName, ExtName, ExtType, TType->getParamTypes(),
+                             TType->getReturnTypes(),
+                             TargetType.getParamTypes(),
+                             TargetType.getReturnTypes());
+      }
+      ModInst.importTag(TargetInst);
       break;
     }
     case ExternalType::Global: {

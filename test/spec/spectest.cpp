@@ -85,6 +85,7 @@ SpecTest::CommandID resolveCommand(std::string_view Name) {
           {"assert_unlinkable"sv, SpecTest::CommandID::AssertUnlinkable},
           {"assert_uninstantiable"sv,
            SpecTest::CommandID::AssertUninstantiable},
+          {"assert_exception"sv, SpecTest::CommandID::AssertException},
       };
   if (auto Iter = CommandMapping.find(Name); Iter != CommandMapping.end()) {
     return Iter->second;
@@ -259,6 +260,9 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"function-references"sv,
      {Proposal::FunctionReferences, Proposal::TailCall}},
     {"gc"sv, {Proposal::GC}, WasmEdge::SpecTest::TestMode::Interpreter},
+    {"exception-handling"sv,
+     {Proposal::ExceptionHandling, Proposal::TailCall},
+     WasmEdge::SpecTest::TestMode::Interpreter},
 };
 
 } // namespace
@@ -709,6 +713,20 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
           stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
     }
   };
+  auto ExceptionInvoke = [&](const simdjson::dom::object &Action,
+                             uint64_t LineNumber) {
+    const auto ModName = GetModuleName(Action);
+    const std::string_view Field = Action["field"];
+    simdjson::dom::array Args = Action["args"];
+    const auto Params = parseValueList(Args);
+
+    if (auto Res = onInvoke(ModName, std::string(Field), Params.first,
+                            Params.second)) {
+      EXPECT_NE(LineNumber, LineNumber);
+    } else {
+      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UncaughtException);
+    }
+  };
 
   // Command processing. Return true for expected result.
   auto RunCommand = [&](const simdjson::dom::object &Cmd) {
@@ -808,6 +826,18 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
             (TestsuiteRoot / Proposal / UnitName / Name).u8string();
         const std::string_view &Text = Cmd["text"];
         TrapInstantiate(Filename, std::string(Text));
+        return;
+      }
+      case CommandID::AssertException: {
+        const simdjson::dom::object &Action = Cmd["action"];
+        const std::string_view ActType = Action["type"];
+        const uint64_t LineNumber = Cmd["line"];
+        // TODO: Check expected exception type
+        if (ActType == "invoke"sv) {
+          ExceptionInvoke(Action, LineNumber);
+          return;
+        }
+        EXPECT_TRUE(false);
         return;
       }
       default:;

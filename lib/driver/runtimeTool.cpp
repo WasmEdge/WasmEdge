@@ -76,6 +76,9 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     Conf.addProposal(Proposal::Component);
     spdlog::warn("component model is enabled, this is experimental.");
   }
+  if (Opt.PropExceptionHandling.value()) {
+    Conf.addProposal(Proposal::ExceptionHandling);
+  }
   if (Opt.PropAll.value()) {
     Conf.addProposal(Proposal::MultiMemories);
     Conf.addProposal(Proposal::TailCall);
@@ -85,6 +88,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     Conf.addProposal(Proposal::Component);
     spdlog::warn("GC proposal is enabled, this is experimental.");
     spdlog::warn("component model is enabled, this is experimental.");
+    Conf.addProposal(Proposal::ExceptionHandling);
   }
 
   std::optional<std::chrono::system_clock::time_point> Timeout;

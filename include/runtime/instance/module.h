@@ -24,6 +24,7 @@
 #include "runtime/instance/memory.h"
 #include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
+#include "runtime/instance/tag.h"
 
 #include <atomic>
 #include <functional>
@@ -56,7 +57,8 @@ inline constexpr const bool IsEntityV =
     std::is_same_v<T, Instance::FunctionInstance> ||
     std::is_same_v<T, Instance::TableInstance> ||
     std::is_same_v<T, Instance::MemoryInstance> ||
-    std::is_same_v<T, Instance::GlobalInstance>;
+    std::is_same_v<T, Instance::GlobalInstance> ||
+    std::is_same_v<T, Instance::TagInstance>;
 
 /// Return true if T is an instance.
 template <typename T>
@@ -140,6 +142,10 @@ public:
     std::shared_lock Lock(Mutex);
     return unsafeFindExports(ExpMems, ExtName);
   }
+  TagInstance *findTagExports(std::string_view ExtName) const noexcept {
+    std::shared_lock Lock(Mutex);
+    return unsafeFindExports(ExpTags, ExtName);
+  }
   GlobalInstance *findGlobalExports(std::string_view ExtName) const noexcept {
     std::shared_lock Lock(Mutex);
     return unsafeFindExports(ExpGlobals, ExtName);
@@ -157,6 +163,10 @@ public:
   uint32_t getMemoryExportNum() const noexcept {
     std::shared_lock Lock(Mutex);
     return static_cast<uint32_t>(ExpMems.size());
+  }
+  uint32_t getTagExportNum() const noexcept {
+    std::shared_lock Lock(Mutex);
+    return static_cast<uint32_t>(ExpTags.size());
   }
   uint32_t getGlobalExportNum() const noexcept {
     std::shared_lock Lock(Mutex);
@@ -178,6 +188,11 @@ public:
   auto getMemoryExports(CallbackT &&CallBack) const noexcept {
     std::shared_lock Lock(Mutex);
     return std::forward<CallbackT>(CallBack)(ExpMems);
+  }
+  template <typename CallbackT>
+  auto getTagExports(CallbackT &&CallBack) const noexcept {
+    std::shared_lock Lock(Mutex);
+    return std::forward<CallbackT>(CallBack)(ExpTags);
   }
   template <typename CallbackT>
   auto getGlobalExports(CallbackT &&CallBack) const noexcept {
@@ -209,6 +224,10 @@ protected:
   template <typename... Args> void addMemory(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedMemInsts, MemInsts, std::forward<Args>(Values)...);
+  }
+  template <typename... Args> void addTag(Args &&...Values) {
+    std::unique_lock Lock(Mutex);
+    unsafeAddInstance(OwnedTagInsts, TagInsts, std::forward<Args>(Values)...);
   }
   template <typename... Args> void addGlobal(Args &&...Values) {
     std::unique_lock Lock(Mutex);
@@ -248,6 +267,10 @@ protected:
     std::unique_lock Lock(Mutex);
     unsafeImportInstance(MemInsts, Mem);
   }
+  void importTag(TagInstance *Tg) {
+    std::unique_lock Lock(Mutex);
+    unsafeImportInstance(TagInsts, Tg);
+  }
   void importGlobal(GlobalInstance *Glob) {
     std::unique_lock Lock(Mutex);
     ImpGlobalNum++;
@@ -270,6 +293,10 @@ protected:
   void exportGlobal(std::string_view Name, uint32_t Idx) {
     std::unique_lock Lock(Mutex);
     ExpGlobals.insert_or_assign(std::string(Name), GlobInsts[Idx]);
+  }
+  void exportTag(std::string_view Name, uint32_t Idx) {
+    std::unique_lock Lock(Mutex);
+    ExpTags.insert_or_assign(std::string(Name), TagInsts[Idx]);
   }
 
   /// Get defined type list.
@@ -319,6 +346,9 @@ protected:
   }
   MemoryInstance *unsafeGetMemory(uint32_t Idx) const noexcept {
     return MemInsts[Idx];
+  }
+  TagInstance *unsafeGetTag(uint32_t Idx) const noexcept {
+    return TagInsts[Idx];
   }
   Expect<GlobalInstance *> getGlobal(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
@@ -467,6 +497,7 @@ protected:
   std::vector<std::unique_ptr<FunctionInstance>> OwnedFuncInsts;
   std::vector<std::unique_ptr<TableInstance>> OwnedTabInsts;
   std::vector<std::unique_ptr<MemoryInstance>> OwnedMemInsts;
+  std::vector<std::unique_ptr<TagInstance>> OwnedTagInsts;
   std::vector<std::unique_ptr<GlobalInstance>> OwnedGlobInsts;
   std::vector<std::unique_ptr<ElementInstance>> OwnedElemInsts;
   std::vector<std::unique_ptr<DataInstance>> OwnedDataInsts;
@@ -477,6 +508,7 @@ protected:
   std::vector<FunctionInstance *> FuncInsts;
   std::vector<TableInstance *> TabInsts;
   std::vector<MemoryInstance *> MemInsts;
+  std::vector<TagInstance *> TagInsts;
   std::vector<GlobalInstance *> GlobInsts;
   std::vector<ElementInstance *> ElemInsts;
   std::vector<DataInstance *> DataInsts;
@@ -488,6 +520,7 @@ protected:
   std::map<std::string, FunctionInstance *, std::less<>> ExpFuncs;
   std::map<std::string, TableInstance *, std::less<>> ExpTables;
   std::map<std::string, MemoryInstance *, std::less<>> ExpMems;
+  std::map<std::string, TagInstance *, std::less<>> ExpTags;
   std::map<std::string, GlobalInstance *, std::less<>> ExpGlobals;
 
   /// Start function instance.

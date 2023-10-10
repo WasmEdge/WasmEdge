@@ -44,6 +44,7 @@ public:
     AssertInvalid,
     AssertUnlinkable,
     AssertUninstantiable,
+    AssertException,
   };
 
   enum class TestMode : uint8_t {

@@ -33,12 +33,53 @@ Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
   return {};
 }
 
+Expect<void> Executor::runTryOp(Runtime::StackManager &StackMgr,
+                                const AST::Instruction &Instr,
+                                AST::InstrView::iterator &PC) noexcept {
+  if (Instr.isDelegate()) {
+    StackMgr.pushHandler(PC + Instr.getTryBlockJumpEnd(),
+                         Instr.getTryBlockVSize(), Instr.getTryBlockHOffset(),
+                         Instr.getTryBlockCOffset());
+
+  } else {
+    StackMgr.pushHandler(PC + Instr.getTryBlockJumpEnd(),
+                         Instr.getTryBlockParamNum());
+    for (auto CatchOffset : Instr.getJumpCatchList()) {
+      auto CatchInstrIt = PC + CatchOffset;
+      StackMgr.addCatchCaluseToLastHandler(
+          getTagInstByIdx(StackMgr, CatchInstrIt->getTargetIndex()),
+          CatchInstrIt);
+    }
+    if (auto CatchAllOffset = Instr.getJumpCatchAll(); CatchAllOffset) {
+      auto CatchAllInstrIt = PC + CatchAllOffset;
+      StackMgr.addCatchCaluseToLastHandler(nullptr, CatchAllInstrIt);
+    }
+  }
+  return {};
+}
+
+Expect<void> Executor::runThrowOp(Runtime::StackManager &StackMgr,
+                                  const AST::Instruction &Instr,
+                                  AST::InstrView::iterator &PC) noexcept {
+  auto *TagInst = getTagInstByIdx(StackMgr, Instr.getTargetIndex());
+  return throwException(StackMgr, TagInst, PC);
+}
+
+Expect<void> Executor::runRethrowOp(Runtime::StackManager &StackMgr,
+                                    const AST::Instruction &Instr,
+                                    AST::InstrView::iterator &PC) noexcept {
+  auto Exception = StackMgr.getCaughtTopN(Instr.getJump().CaughtStackOffset);
+  StackMgr.pushValVec(Exception.Val);
+  return throwException(StackMgr, Exception.TagInst, PC);
+}
+
 Expect<void> Executor::runBrOp(Runtime::StackManager &StackMgr,
                                const AST::Instruction &Instr,
                                AST::InstrView::iterator &PC) noexcept {
-  return branchToLabel(StackMgr, Instr.getJump().StackEraseBegin,
-                       Instr.getJump().StackEraseEnd, Instr.getJump().PCOffset,
-                       PC);
+  auto &JumpDesc = Instr.getJump();
+  return branchToLabel(StackMgr, JumpDesc.ValueStackEraseBegin,
+                       JumpDesc.ValueStackEraseEnd, JumpDesc.HandlerStackOffset,
+                       JumpDesc.CaughtStackOffset, JumpDesc.PCOffset, PC);
 }
 
 Expect<void> Executor::runBrIfOp(Runtime::StackManager &StackMgr,
@@ -80,13 +121,16 @@ Expect<void> Executor::runBrTableOp(Runtime::StackManager &StackMgr,
   auto LabelTable = Instr.getLabelList();
   const auto LabelTableSize = static_cast<uint32_t>(LabelTable.size() - 1);
   if (Value < LabelTableSize) {
-    return branchToLabel(StackMgr, LabelTable[Value].StackEraseBegin,
-                         LabelTable[Value].StackEraseEnd,
-                         LabelTable[Value].PCOffset, PC);
+    auto &JumpDesc = LabelTable[Value];
+    return branchToLabel(StackMgr, JumpDesc.ValueStackEraseBegin,
+                         JumpDesc.ValueStackEraseEnd,
+                         JumpDesc.HandlerStackOffset,
+                         JumpDesc.CaughtStackOffset, JumpDesc.PCOffset, PC);
   }
-  return branchToLabel(StackMgr, LabelTable[LabelTableSize].StackEraseBegin,
-                       LabelTable[LabelTableSize].StackEraseEnd,
-                       LabelTable[LabelTableSize].PCOffset, PC);
+  auto &JumpDesc = LabelTable[LabelTableSize];
+  return branchToLabel(StackMgr, JumpDesc.ValueStackEraseBegin,
+                       JumpDesc.ValueStackEraseEnd, JumpDesc.HandlerStackOffset,
+                       JumpDesc.CaughtStackOffset, JumpDesc.PCOffset, PC);
 }
 
 Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,

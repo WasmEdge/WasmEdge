@@ -139,8 +139,17 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       PC += PC->getJumpEnd();
       [[fallthrough]];
     case OpCode::End:
-      PC = StackMgr.maybePopFrame(PC);
+      PC = StackMgr.maybePopFrameOrHandlerOrCaught(PC);
       return {};
+    case OpCode::Try:
+      return runTryOp(StackMgr, Instr, PC);
+    case OpCode::Catch:
+      PC = StackMgr.popHandlerOrCaught(PC);
+      return {};
+    case OpCode::Throw:
+      return runThrowOp(StackMgr, Instr, PC);
+    case OpCode::Rethrow:
+      return runRethrowOp(StackMgr, Instr, PC);
     case OpCode::Br:
       return runBrOp(StackMgr, Instr, PC);
     case OpCode::Br_if:
@@ -169,6 +178,12 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runCallRefOp(StackMgr, Instr, PC);
     case OpCode::Return_call_ref:
       return runCallRefOp(StackMgr, Instr, PC, true);
+    case OpCode::Delegate:
+      PC = StackMgr.popHandler();
+      return {};
+    case OpCode::Catch_all:
+      PC = StackMgr.popHandlerOrCaught(PC);
+      return {};
 
     // Reference Instructions
     case OpCode::Ref__null:

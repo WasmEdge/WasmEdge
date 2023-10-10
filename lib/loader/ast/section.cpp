@@ -209,6 +209,13 @@ Expect<void> Loader::loadSection(AST::DataCountSection &Sec) {
   });
 }
 
+Expect<void> Loader::loadSection(AST::TagSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::TagType &TgType) { return loadType(TgType); });
+  });
+}
+
 Expect<void> Loader::loadSection(AST::Component::ComponentSection &Sec) {
   auto ResPreamble = Loader::loadPreamble();
   if (!ResPreamble) {

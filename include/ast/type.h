@@ -731,5 +731,34 @@ private:
   /// @}
 };
 
+class TagType {
+public:
+  TagType() = default;
+  TagType(const TagType &T, const FunctionType *F) noexcept
+      : Attribute(T.getAttribute()), TypeIdx(T.getTypeIdx()), Type(F) {}
+
+  /// Getter and setter of Attribute.
+  uint8_t getAttribute() const noexcept { return Attribute; }
+  void setAttribute(uint8_t Attr) noexcept { Attribute = Attr; }
+
+  /// Getter and setter of TypeIdx.
+  uint32_t getTypeIdx() const noexcept { return TypeIdx; }
+  void setTypeIdx(uint32_t TyIdx) noexcept { TypeIdx = TyIdx; }
+
+  // Getter and setter of FunctionType.
+  const FunctionType &getFuncType() const noexcept { return *Type; }
+  void setFuncType(FunctionType *FuncType) noexcept { Type = FuncType; }
+
+  // Getter of the size of value that is associated with the tag.
+  uint32_t getAssocValSize() const noexcept {
+    return static_cast<uint32_t>(Type->getParamTypes().size());
+  }
+
+private:
+  uint8_t Attribute;
+  uint32_t TypeIdx;
+  const FunctionType *Type;
+};
+
 } // namespace AST
 } // namespace WasmEdge

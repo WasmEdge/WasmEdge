@@ -76,7 +76,7 @@ function(wasmedge_copy_spec_testsuite proposal)
   message(STATUS "Copying test suite to ${CMAKE_CURRENT_BINARY_DIR}/testSuites/${proposal} -- done")
 endfunction()
 
-foreach(PROPOSAL core multi-memory tail-call extended-const threads function-references gc)
+foreach(PROPOSAL core multi-memory tail-call extended-const threads function-references gc exception-handling)
   wasmedge_copy_spec_testsuite(${PROPOSAL})
 endforeach()
 

@@ -215,5 +215,27 @@ Expect<std::vector<Byte>> Loader::serializeModule(const AST::Module &Mod) {
   return Ser.serializeModule(Mod);
 }
 
+// Helper function to set the function type for tag.
+void Loader::setTagFunctionType(AST::TagSection &TagSec,
+                                AST::ImportSection &ImportSec,
+                                AST::TypeSection &TypeSec) {
+  auto &TypeVec = TypeSec.getContent();
+  for (auto &TgType : TagSec.getContent()) {
+    auto TypeIdx = TgType.getTypeIdx();
+    // Invalid type index would be checked during validation
+    if (TypeIdx < TypeVec.size()) {
+      TgType.setFuncType(&TypeVec[TypeIdx]);
+    }
+  }
+  for (auto &Desc : ImportSec.getContent()) {
+    auto &TgType = Desc.getExternalTagType();
+    auto TypeIdx = TgType.getTypeIdx();
+    // Invalid type index would be checked during validation
+    if (TypeIdx < TypeVec.size()) {
+      TgType.setFuncType(&TypeVec[TypeIdx]);
+    }
+  }
+}
+
 } // namespace Loader
 } // namespace WasmEdge

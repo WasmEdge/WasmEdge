@@ -28,8 +28,10 @@ class Instruction {
 public:
   struct JumpDescriptor {
     uint32_t TargetIndex;
-    uint32_t StackEraseBegin;
-    uint32_t StackEraseEnd;
+    uint32_t ValueStackEraseBegin;
+    uint32_t ValueStackEraseEnd;
+    uint32_t HandlerStackOffset;
+    uint32_t CaughtStackOffset;
     int32_t PCOffset;
   };
   struct BrCastDescriptor {
@@ -48,9 +50,16 @@ public:
     Data.Num.Low = static_cast<uint64_t>(0);
     Data.Num.High = static_cast<uint64_t>(0);
 #endif
+    // Initializing JumpCatchAll to check whether it is set during loading phase
+    Data.TryBlock.JumpCatchAll = 0;
+
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
     Flags.IsAllocBrCast = false;
+    Flags.IsAllocJumpCatchList = false;
+    Flags.IsTryLast = false;
+    Flags.IsCatchLast = false;
+    Flags.IsDelegate = false;
   }
 
   /// Copy constructor.
@@ -67,6 +76,11 @@ public:
                   Data.SelectT.ValTypeList);
     } else if (Flags.IsAllocBrCast) {
       Data.BrCast = new BrCastDescriptor(*Instr.Data.BrCast);
+    } else if (Flags.IsAllocJumpCatchList) {
+      Data.TryBlock.JumpCatchList =
+          new uint32_t[Data.TryBlock.JumpCatchListSize];
+      std::copy_n(Instr.Data.TryBlock.JumpCatchList,
+                  Data.TryBlock.JumpCatchListSize, Data.TryBlock.JumpCatchList);
     }
   }
 
@@ -77,6 +91,7 @@ public:
     Instr.Flags.IsAllocLabelList = false;
     Instr.Flags.IsAllocValTypeList = false;
     Instr.Flags.IsAllocBrCast = false;
+    Instr.Flags.IsAllocJumpCatchList = false;
   }
 
   /// Destructor.
@@ -98,12 +113,21 @@ public:
   uint32_t getOffset() const noexcept { return Offset; }
 
   /// Getter and setter of block type.
-  const BlockType &getBlockType() const noexcept { return Data.Blocks.ResType; }
-  void setBlockType(const ValType &VType) noexcept {
-    Data.Blocks.ResType.setData(VType);
+  const BlockType &getBlockType() const noexcept {
+    return Code == OpCode::Try ? Data.TryBlock.ResType : Data.Blocks.ResType;
   }
-  void setBlockType(uint32_t Idx) noexcept { Data.Blocks.ResType.setData(Idx); }
-  void setEmptyBlockType() noexcept { Data.Blocks.ResType.setEmpty(); }
+  void setBlockType(const ValType &VType) noexcept {
+    Code == OpCode::Try ? Data.TryBlock.ResType.setData(VType)
+                        : Data.Blocks.ResType.setData(VType);
+  }
+  void setBlockType(uint32_t Idx) noexcept {
+    Code == OpCode::Try ? Data.TryBlock.ResType.setData(Idx)
+                        : Data.Blocks.ResType.setData(Idx);
+  }
+  void setEmptyBlockType() noexcept {
+    Code == OpCode::Try ? Data.TryBlock.ResType.setEmpty()
+                        : Data.Blocks.ResType.setEmpty();
+  }
 
   /// Getter and setter of jump count to End instruction.
   uint32_t getJumpEnd() const noexcept { return Data.Blocks.JumpEnd; }
@@ -187,6 +211,74 @@ public:
   uint8_t getMemoryLane() const noexcept { return Data.Memories.MemLane; }
   uint8_t &getMemoryLane() noexcept { return Data.Memories.MemLane; }
 
+  /// Getter and setter of jump catch list.
+  void setJumpCatchList(const std::vector<uint32_t> &CatchList) {
+    reset();
+    if (!CatchList.empty()) {
+      Data.TryBlock.JumpCatchListSize = static_cast<uint32_t>(CatchList.size());
+      Data.TryBlock.JumpCatchList = new uint32_t[CatchList.size()];
+      Flags.IsAllocJumpCatchList = true;
+      std::copy_n(CatchList.begin(), CatchList.size(),
+                  Data.TryBlock.JumpCatchList);
+    }
+  }
+  Span<const uint32_t> getJumpCatchList() const noexcept {
+    return Span<const uint32_t>(
+        Data.TryBlock.JumpCatchList,
+        Flags.IsAllocJumpCatchList ? Data.TryBlock.JumpCatchListSize : 0);
+  }
+  Span<uint32_t> getJumpCatchList() noexcept {
+    return Span<uint32_t>(
+        Data.TryBlock.JumpCatchList,
+        Flags.IsAllocJumpCatchList ? Data.TryBlock.JumpCatchListSize : 0);
+  }
+
+  /// Getter and setter of jump count to catch_all instruction.
+  uint32_t getJumpCatchAll() const noexcept {
+    return Data.TryBlock.JumpCatchAll;
+  }
+  void setJumpCatchAll(const uint32_t Cnt) noexcept {
+    Data.TryBlock.JumpCatchAll = Cnt;
+  }
+
+  /// Getter and setter of jump count to the end of try block.
+  uint32_t getTryBlockJumpEnd() const noexcept { return Data.TryBlock.JumpEnd; }
+  void setTryBlockJumpEnd(const uint32_t Cnt) noexcept {
+    Data.TryBlock.JumpEnd = Cnt;
+  }
+
+  /// Getter and setter of number of block type parameter.
+  uint32_t getTryBlockParamNum() const noexcept {
+    return Data.TryBlock.BlockParamNum;
+  }
+  void setTryBlockParamNum(const uint32_t Num) noexcept {
+    Data.TryBlock.BlockParamNum = Num;
+  }
+
+  /// Getter and setter of jump count to delegate instruction.
+  uint32_t getDelegateIdx() const noexcept { return Data.TryBlock.DelegateIdx; }
+  void setDelegateIdx(const uint32_t Cnt) noexcept {
+    Data.TryBlock.DelegateIdx = Cnt;
+  }
+
+  /// Getter and setter of VSize
+  uint32_t getTryBlockVSize() const noexcept { return Data.TryBlock.VSize; }
+  void setTryBlockVSize(const uint32_t Num) noexcept {
+    Data.TryBlock.VSize = Num;
+  }
+
+  /// Getter and setter of HOffset
+  uint32_t getTryBlockHOffset() const noexcept { return Data.TryBlock.HOffset; }
+  void setTryBlockHOffset(const uint32_t Num) noexcept {
+    Data.TryBlock.HOffset = Num;
+  }
+
+  /// Getter and setter of COffset
+  uint32_t getTryBlockCOffset() const noexcept { return Data.TryBlock.COffset; }
+  void setTryBlockCOffset(const uint32_t Num) noexcept {
+    Data.TryBlock.COffset = Num;
+  }
+
   /// Getter and setter of the constant value.
   ValVariant getNum() const noexcept {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
@@ -216,6 +308,18 @@ public:
   const BrCastDescriptor &getBrCast() const noexcept { return *Data.BrCast; }
   BrCastDescriptor &getBrCast() noexcept { return *Data.BrCast; }
 
+  /// Getter and setter of IsTryLast for End instruction.
+  bool isTryLast() const noexcept { return Flags.IsTryLast; }
+  void setTryLast(bool Last = true) noexcept { Flags.IsTryLast = Last; }
+
+  /// Getter and setter of IsCatchLast for End instruction.
+  bool isCatchLast() const noexcept { return Flags.IsCatchLast; }
+  void setCatchLast(bool Last = true) noexcept { Flags.IsCatchLast = Last; }
+
+  /// Getter and setter of IsDelegate for Try instruction.
+  bool isDelegate() const noexcept { return Flags.IsDelegate; }
+  void setDelegate(bool Last = true) noexcept { Flags.IsDelegate = Last; }
+
 private:
   /// Release allocated resources.
   void reset() noexcept {
@@ -227,10 +331,14 @@ private:
       delete[] Data.SelectT.ValTypeList;
     } else if (Flags.IsAllocBrCast) {
       delete Data.BrCast;
+    } else if (Flags.IsAllocJumpCatchList) {
+      Data.TryBlock.JumpCatchListSize = 0;
+      delete[] Data.TryBlock.JumpCatchList;
     }
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
     Flags.IsAllocBrCast = false;
+    Flags.IsAllocJumpCatchList = false;
   }
 
   /// Swap function.
@@ -291,6 +399,19 @@ private:
     bool IsLast;
     // Type 10: TypeCastBranch.
     BrCastDescriptor *BrCast;
+    // Type 11: Try Block
+    struct {
+      uint32_t JumpCatchListSize;
+      uint32_t *JumpCatchList;
+      uint32_t JumpCatchAll;
+      uint32_t JumpEnd;
+      uint32_t BlockParamNum;
+      uint32_t DelegateIdx;
+      uint32_t VSize;
+      uint32_t HOffset;
+      uint32_t COffset;
+      BlockType ResType;
+    } TryBlock;
   } Data;
   uint32_t Offset = 0;
   OpCode Code = OpCode::End;
@@ -298,6 +419,10 @@ private:
     bool IsAllocLabelList : 1;
     bool IsAllocValTypeList : 1;
     bool IsAllocBrCast : 1;
+    bool IsAllocJumpCatchList : 1;
+    bool IsTryLast : 1;
+    bool IsCatchLast : 1;
+    bool IsDelegate : 1;
   } Flags;
   /// @}
 };

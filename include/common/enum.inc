@@ -59,6 +59,7 @@ A(Sec_Element, "element section")
 A(Sec_Code, "code section")
 A(Sec_Data, "data section")
 A(Sec_DataCount, "data count section")
+A(Sec_Tag, "tag section")
 A(Desc_Import, "import description")
 A(Desc_Export, "export description")
 A(Seg_Table, "table segment")
@@ -100,7 +101,11 @@ O(Block, "block", 0x02)
 O(Loop, "loop", 0x03)
 O(If, "if", 0x04)
 O(Else, "else", 0x05)
-// 0x06 ~ 0x0A: Reserved
+O(Try, "try", 0x06)
+O(Catch, "catch", 0x07)
+O(Throw, "throw", 0x08)
+O(Rethrow, "rethrow", 0x09)
+// 0x0A: Reserved
 O(End, "end", 0x0B)
 O(Br, "br", 0x0C)
 O(Br_if, "br_if", 0x0D)
@@ -112,7 +117,10 @@ O(Return_call, "return_call", 0x12)
 O(Return_call_indirect, "return_call_indirect", 0x13)
 O(Call_ref, "call_ref", 0x14)
 O(Return_call_ref, "return_call_ref", 0x15)
-// 0x16 ~ 0x19: Reserved
+// 0x16: Reserved
+// 0x17: Reserved
+O(Delegate, "delegate", 0x18)
+O(Catch_all, "catch_all", 0x19)
 
 // Parametric Instructions
 O(Drop, "drop", 0x1A)
@@ -865,58 +873,64 @@ E(InvalidTableIdx, 0x0207, "unknown table")
 E(InvalidMemoryIdx, 0x0208, "unknown memory")
 // Global index not defined
 E(InvalidGlobalIdx, 0x0209, "unknown global")
+// Tag index not defined
+E(InvalidTagIdx, 0x020A, "unknown tag")
 // Element segment index not defined
-E(InvalidElemIdx, 0x020A, "unknown elem segment")
+E(InvalidElemIdx, 0x020B, "unknown elem segment")
 // Data segment index not defined
-E(InvalidDataIdx, 0x020B, "unknown data segment")
+E(InvalidDataIdx, 0x020C, "unknown data segment")
 // Undeclared reference
-E(InvalidRefIdx, 0x020C, "undeclared function reference")
+E(InvalidRefIdx, 0x020D, "undeclared function reference")
 // Should be constant expression
-E(ConstExprRequired, 0x020D, "constant expression required")
+E(ConstExprRequired, 0x020E, "constant expression required")
 // Export name conflicted
-E(DupExportName, 0x020E, "duplicate export name")
+E(DupExportName, 0x020F, "duplicate export name")
 // Tried to store to const global value
-E(ImmutableGlobal, 0x020F, "global is immutable")
+E(ImmutableGlobal, 0x0210, "global is immutable")
 // Tried to store to const field of structure
-E(ImmutableField, 0x0210, "field is immutable")
+E(ImmutableField, 0x0211, "field is immutable")
 // Tried to store to const array
-E(ImmutableArray, 0x0211, "array is immutable")
+E(ImmutableArray, 0x0212, "array is immutable")
 // Invalid result arity in select t* instruction
-E(InvalidResultArity, 0x0212, "invalid result arity")
+E(InvalidResultArity, 0x0213, "invalid result arity")
 // #Tables > 1 (without Ref-types proposal)
-E(MultiTables, 0x0213, "multiple tables")
+E(MultiTables, 0x0214, "multiple tables")
 // #Memories > 1
-E(MultiMemories, 0x0214, "multiple memories")
+E(MultiMemories, 0x0215, "multiple memories")
 // Invalid Limit grammar
-E(InvalidLimit, 0x0215, "size minimum must not be greater than maximum")
+E(InvalidLimit, 0x0216, "size minimum must not be greater than maximum")
 // Memory pages > 65536
-E(InvalidMemPages, 0x0216, "memory size must be at most 65536 pages (4GiB)")
+E(InvalidMemPages, 0x0217, "memory size must be at most 65536 pages (4GiB)")
 // Invalid start function signature
-E(InvalidStartFunc, 0x0217, "start function")
+E(InvalidStartFunc, 0x0218, "start function")
 // Invalid lane index
-E(InvalidLaneIdx, 0x0218, "invalid lane index")
+E(InvalidLaneIdx, 0x0219, "invalid lane index")
 // Invalid uninitialized local
-E(InvalidUninitLocal, 0x0219, "uninitialized local")
+E(InvalidUninitLocal, 0x021A, "uninitialized local")
 // Defaultable field type required
-E(InvalidNotDefaultableField, 0x021A, "field type is not defaultable")
+E(InvalidNotDefaultableField, 0x021B, "field type is not defaultable")
 // Defaultable array type required
-E(InvalidNotDefaultableArray, 0x021B, "array type is not defaultable")
+E(InvalidNotDefaultableArray, 0x021C, "array type is not defaultable")
 // Unpacked field type required, but got packed one
-E(InvalidPackedField, 0x021C, "field is packed")
+E(InvalidPackedField, 0x021D, "field is packed")
 // Unpacked array type required, but got packed one
-E(InvalidPackedArray, 0x021D, "array is packed")
+E(InvalidPackedArray, 0x021E, "array is packed")
 // Packed field type required, but got unpacked one
-E(InvalidUnpackedField, 0x021E, "field is unpacked")
+E(InvalidUnpackedField, 0x021F, "field is unpacked")
 // Packed array type required, but got unpacked one
-E(InvalidUnpackedArray, 0x021F, "array is unpacked")
+E(InvalidUnpackedArray, 0x0220, "array is unpacked")
 // Invalid Br ref type
-E(InvalidBrRefType, 0x0220, "invalid br ref type")
+E(InvalidBrRefType, 0x0221, "invalid br ref type")
 // 2 array types not matched
-E(ArrayTypesMismatch, 0x0221, "array types do not match")
+E(ArrayTypesMismatch, 0x0222, "array types do not match")
 // Should be numeric type in array type
-E(ArrayTypesNumtypeRequired, 0x0222, "array type is not numeric or vector")
+E(ArrayTypesNumtypeRequired, 0x0223, "array type is not numeric or vector")
 // Sub type matching or validation failed
-E(InvalidSubType, 0x0223, "sub type")
+E(InvalidSubType, 0x0224, "sub type")
+// Invalid Tag type
+E(InvalidTag, 0x0225, "non-empty tag result type")
+// Invalid rethrow label
+E(InvalidRethrowLabel, 0x0226, "invalid rethrow label")
 // @}
 
 // Instantiation phase
@@ -983,6 +997,8 @@ E(AccessNullArray, 0x0415, "null array reference")
 E(AccessNullI31, 0x0416, "null i31 reference")
 // Fail to cast reference
 E(CastFailed, 0x0417, "cast failure")
+// Uncaught Exception
+E(UncaughtException, 0x0418, "uncaught exception")
 // @}
 
 // Component model phase
@@ -1072,6 +1088,8 @@ I(Element, "element")
 I(Data, "data")
 I(Lane, "lane")
 I(Field, "field")
+I(TagType, "tag type")
+I(Tag, "tag")
 
 #undef I
 #endif // UseIndexCategory
@@ -1128,6 +1146,7 @@ E(Function, 0x00U, "function")
 E(Table, 0x01U, "table")
 E(Memory, 0x02U, "memory")
 E(Global, 0x03U, "global")
+E(Tag, 0x04U, "tag")
 
 #undef E
 #endif // UseExternalType

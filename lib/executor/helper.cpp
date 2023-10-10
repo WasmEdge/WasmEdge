@@ -193,7 +193,10 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
 }
 
 Expect<void> Executor::branchToLabel(Runtime::StackManager &StackMgr,
-                                     uint32_t EraseBegin, uint32_t EraseEnd,
+                                     uint32_t ValueStackEraseBegin,
+                                     uint32_t ValueStackEraseEnd,
+                                     uint32_t HandlerStackOffset,
+                                     uint32_t CaughtStackOffset,
                                      int32_t PCOffset,
                                      AST::InstrView::iterator &PC) noexcept {
   // Check stop token
@@ -202,10 +205,41 @@ Expect<void> Executor::branchToLabel(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::Interrupted);
   }
 
-  StackMgr.stackErase(EraseBegin, EraseEnd);
+  StackMgr.eraseValueStack(ValueStackEraseBegin, ValueStackEraseEnd);
+  StackMgr.eraseHandlerStack(HandlerStackOffset);
+  StackMgr.eraseCaughtStack(CaughtStackOffset);
   // PC need to -1 here because the PC will increase in the next iteration.
   PC += (PCOffset - 1);
   return {};
+}
+
+Expect<void> Executor::throwException(Runtime::StackManager &StackMgr,
+                                      Runtime::Instance::TagInstance *TagInst,
+                                      AST::InstrView::iterator &PC) noexcept {
+  while (!StackMgr.isHandlerStackEmpty()) {
+    auto AssocValSize = TagInst->getAssocValSize();
+    // The value that associated with the exception should remain on the stack
+    auto ExceptionHandler = StackMgr.popToTopHandler(AssocValSize);
+    if (!ExceptionHandler.CatchCaluse.empty()) {
+      for (auto &[CatchTagInst, StartIt] : ExceptionHandler.CatchCaluse) {
+        if (CatchTagInst == nullptr || TagInst == CatchTagInst) {
+          PC = StartIt;
+          StackMgr.pushCaught(TagInst, StackMgr.getTopSpan(AssocValSize),
+                              ExceptionHandler.EndIt);
+          if (CatchTagInst == nullptr) {
+            StackMgr.eraseValueStack(AssocValSize, 0);
+          }
+          return {};
+        }
+      }
+    } else {
+      // The stack has transformed to the state after jumping to the label by
+      // StackMgr.popToTopHandler(AssocValSize)
+      return throwException(StackMgr, TagInst, PC);
+    }
+  }
+  spdlog::error(ErrCode::Value::UncaughtException);
+  return Unexpect(ErrCode::Value::UncaughtException);
 }
 
 const AST::SubType *Executor::getDefTypeByIdx(Runtime::StackManager &StackMgr,
@@ -249,6 +283,17 @@ Executor::getMemInstByIdx(Runtime::StackManager &StackMgr,
     return nullptr;
   }
   return ModInst->unsafeGetMemory(Idx);
+}
+
+Runtime::Instance::TagInstance *
+Executor::getTagInstByIdx(Runtime::StackManager &StackMgr,
+                          const uint32_t Idx) const {
+  const auto *ModInst = StackMgr.getModule();
+  // When top frame is dummy frame, cannot find instance.
+  if (unlikely(ModInst == nullptr)) {
+    return nullptr;
+  }
+  return ModInst->unsafeGetTag(Idx);
 }
 
 Runtime::Instance::GlobalInstance *

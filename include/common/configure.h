@@ -353,8 +353,15 @@ public:
       }
     } else if (Code == OpCode::Ref__eq ||
                (Code >= OpCode::Struct__new && Code <= OpCode::I31__get_u)) {
+      // These instructions are for GC proposal.
       if (!hasProposal(Proposal::GC)) {
         return Proposal::GC;
+      }
+    } else if ((Code >= OpCode::Try && Code <= OpCode::Rethrow) ||
+               Code == OpCode::Delegate || Code == OpCode::Catch_all) {
+      // These instructions are for ExceptionHandling proposal.
+      if (!hasProposal(Proposal::ExceptionHandling)) {
+        return Proposal::ExceptionHandling;
       }
     }
     return {};

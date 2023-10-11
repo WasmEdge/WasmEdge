@@ -1,6 +1,7 @@
 #include "common/types.h"
 #include "runtime/instance/module.h"
 
+#include "../testUtils.h"
 #include "avutil/avRational.h"
 #include "avutil/module.h"
 
@@ -23,26 +24,6 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   return nullptr;
 }
 } // namespace
-
-void writeUInt32(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
-                 uint32_t Value, uint32_t &Ptr) {
-  uint32_t *BufPtr = MemInst.getPointer<uint32_t *>(Ptr);
-  *BufPtr = Value;
-  Ptr += 4;
-}
-
-void writeIInt32(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
-                 int32_t Value, uint32_t &Ptr) {
-  int32_t *BufPtr = MemInst.getPointer<int32_t *>(Ptr);
-  *BufPtr = Value;
-  Ptr += 4;
-}
-
-int32_t readIInt32(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
-                   uint32_t &Ptr) {
-  int32_t *BufPtr = MemInst.getPointer<int32_t *>(Ptr);
-  return *BufPtr;
-}
 
 TEST(WasmEdgeAVUtilTest, AVRational) {
 

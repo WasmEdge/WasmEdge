@@ -8,13 +8,6 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVUtil {
 
-class AVDictNew : public WasmEdgeFFmpegAVUtil<AVDictNew> {
-public:
-  AVDictNew(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t DictPtr);
-};
-
 class AVDictSet : public WasmEdgeFFmpegAVUtil<AVDictSet> {
 public:
   AVDictSet(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
@@ -28,20 +21,21 @@ class AVDictGet : public WasmEdgeFFmpegAVUtil<AVDictGet> {
 public:
   AVDictGet(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
-
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t DictId,
                        uint32_t KeyPtr, uint32_t KeyLen,
-                       uint32_t PrevDictEntryId, uint32_t Flags);
+                       uint32_t PrevDictEntryIdx, uint32_t Flags,
+                       uint32_t KeyLenPtr, uint32_t ValueLenPtr);
 };
 
-class AVDictGetValue : public WasmEdgeFFmpegAVUtil<AVDictGetValue> {
+class AVDictGetKeyValue : public WasmEdgeFFmpegAVUtil<AVDictGetKeyValue> {
 public:
-  AVDictGetValue(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+  AVDictGetKeyValue(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
-
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t DictId,
-                       uint32_t KeyPtr, uint32_t KeyLen, uint32_t ValPtr,
-                       uint32_t ValLen, uint32_t DictEntryIdx, uint32_t Flags);
+                       uint32_t KeyPtr, uint32_t KeyLen, uint32_t ValBufPtr,
+                       uint32_t ValBufLen, uint32_t KeyBufPtr,
+                       uint32_t KeyBufLen, uint32_t PrevDictEntryIdx,
+                       uint32_t Flags);
 };
 
 class AVDictCopy : public WasmEdgeFFmpegAVUtil<AVDictCopy> {

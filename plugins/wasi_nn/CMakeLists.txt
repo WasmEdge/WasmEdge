@@ -6,6 +6,15 @@
 set(LLAMA_ALL_WARNINGS OFF)
 set(LLAMA_METAL_NDEBUG ON)
 
+if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
+  message(STATUS "WASI-NN GGML LLAMA backend: Enable LLAMA_CUBLAS")
+  # Default use OpenBLAS
+  set(LLAMA_CUBLAS ON)
+else()
+  message(STATUS "WASI-NN GGML LLAMA backend: Disable LLAMA_CUBLAS")
+  set(LLAMA_CUBLAS OFF)
+endif()
+
 if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS)
   message(STATUS "WASI-NN GGML LLAMA backend: Enable LLAMA_BLAS")
   # Default use OpenBLAS

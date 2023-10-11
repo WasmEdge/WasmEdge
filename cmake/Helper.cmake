@@ -35,9 +35,14 @@ else()
   list(APPEND WASMEDGE_CFLAGS
     -Wall
     -Wextra
-    -Werror
-    -Wno-error=pedantic
   )
+
+  if(NOT WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
+    list(APPEND WASMEDGE_CFLAGS
+       -Werror
+       -Wno-error=pedantic
+    )
+  endif()
 
   if(WASMEDGE_ENABLE_UB_SANITIZER)
     list(APPEND WASMEDGE_CFLAGS -fsanitize=undefined)

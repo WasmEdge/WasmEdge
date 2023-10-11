@@ -54,6 +54,24 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   gpt_params Params;
   llama_backend_init(Params.numa);
   llama_model_params ModelParams = llama_model_default_params();
+
+  const char *LlamaNGPULayerEnv = std::getenv("LLAMA_N_GL");
+  if (LlamaNGPULayerEnv != nullptr) {
+    try {
+      ModelParams.n_gpu_layers = std::stoi(LlamaNGPULayerEnv);
+    } catch (const std::out_of_range &e) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: set n_gpu_layers failed: out_of_range {}"sv,
+          e.what());
+      return ErrNo::InvalidArgument;
+    } catch (const std::invalid_argument &e) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: set n_gpu_layers failed: invalid_argument {}"sv,
+          e.what());
+      return ErrNo::InvalidArgument;
+    }
+  }
+
   GraphRef.LlamaModel =
       llama_load_model_from_file(ModelFilePath.c_str(), ModelParams);
   if (GraphRef.LlamaModel == nullptr) {

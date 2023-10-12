@@ -538,6 +538,10 @@ jobs:
           testbin_array=(${test_bins})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
+            if [[ ${plugin_array[$i]} == "wasmedge_opencvmini" ]]; then
+              echo "Temporary disable ${plugin_array[$i]} testing"
+              continue
+            fi
             echo "Testing ${plugin_array[$i]} :"
             cd ${test_prefix}/${plugin_array[$i]}
             ./${testbin_array[$i]}

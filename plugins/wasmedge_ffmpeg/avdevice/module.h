@@ -1,10 +1,19 @@
-//
-// Created by Pc on 03/09/23.
-//
+#pragma once
 
-#ifndef WASMEDGE_MODULE_H
-#define WASMEDGE_MODULE_H
+#include "ffmpeg_env.h"
+#include "runtime/instance/module.h"
 
-class module {};
+namespace WasmEdge {
+namespace Host {
+namespace WasmEdgeFFmpeg {
+namespace AVDevice {
 
-#endif // WASMEDGE_MODULE_H
+class WasmEdgeFFmpegAVDeviceModule : public Runtime::Instance::ModuleInstance {
+public:
+  WasmEdgeFFmpegAVDeviceModule(std::shared_ptr<WasmEdgeFFmpegEnv> Env);
+};
+
+} // namespace AVDevice
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

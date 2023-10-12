@@ -1,5 +1,6 @@
 #include "ffmpeg_env.h"
 #include "avcodec/module.h"
+#include "avdevice/module.h"
 #include "avfilter/module.h"
 #include "avformat/module.h"
 #include "avutil/module.h"
@@ -18,10 +19,11 @@ createAVCodec(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
       WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance());
 }
 
-// Runtime::Instance::ModuleInstance *createAVDevice(
-//     const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-//   return nullptr;
-// }
+Runtime::Instance::ModuleInstance *
+createAVDevice(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
+  return new WasmEdgeFFmpeg::AVDevice::WasmEdgeFFmpegAVDeviceModule(
+      WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance());
+}
 
 Runtime::Instance::ModuleInstance *
 createAVFilter(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
@@ -62,7 +64,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .Description = "",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
     .Version = {0, 0, 0, 1},
-    .ModuleCount = 6,
+    .ModuleCount = 7,
     .ModuleDescriptions =
         (Plugin::PluginModule::ModuleDescriptor[]){
             {
@@ -70,11 +72,11 @@ Plugin::Plugin::PluginDescriptor Descriptor{
                 .Description = "encoding/decoding library",
                 .Create = createAVCodec,
             },
-            //            {
-            //               .Name = "wasmedge_ffmpeg_avdevice" ,
-            //               .Description = "special devices muxing/demuxing
-            //               library", .Create = createAVDevice,
-            //            },
+            {
+                .Name = "wasmedge_ffmpeg_avdevice",
+                .Description = "special devices muxing/demuxing library ",
+                .Create = createAVDevice,
+            },
             {
                 .Name = "wasmedge_ffmpeg_avfilter",
                 .Description = "graph-based frame editing library",

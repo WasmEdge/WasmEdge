@@ -9,6 +9,8 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
         avcodec/avCodecParameters.cpp
         avcodec/avPacket.cpp
 
+        avdevice/module.cpp
+        avdevice/avDevice_func.cpp
 
         avfilter/module.cpp
         avfilter/avfilter_func.cpp
@@ -19,7 +21,7 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
         avformat/avformat_func.cpp
         avformat/avformatContext.cpp
         avformat/avio_func.cpp
-        avformat/avInputFormat.cpp
+        avformat/avInputOutputFormat.cpp
         avformat/avStream.cpp
         avformat/avChapter.cpp
 

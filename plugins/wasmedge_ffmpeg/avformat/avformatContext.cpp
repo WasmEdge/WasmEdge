@@ -10,26 +10,18 @@ namespace WasmEdgeFFmpeg {
 namespace AVFormat {
 
 Expect<int32_t> AVFormatCtxIFormat::body(const Runtime::CallingFrame &Frame,
-                                         uint32_t avFormatCtxPtr,
-                                         uint32_t avInputFormatPtr) {
+                                         uint32_t AvFormatCtxId,
+                                         uint32_t AvInputFormatPtr) {
 
   MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_PTR_CHECK(avFormatCtxId, MemInst, uint32_t, avFormatCtxPtr,
-                "Failed when accessing the return AVFormatContext Memory");
-  MEM_PTR_CHECK(avInputFormatId, MemInst, uint32_t, avInputFormatPtr,
+  MEM_PTR_CHECK(AvInputFormatId, MemInst, uint32_t, AvInputFormatPtr,
                 "Failed when accessing the return AVInputFormat Memory");
 
-  auto ffmpegMemory = Env.get();
+  FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
 
-  AVFormatContext *avFormatCtx =
-      static_cast<AVFormatContext *>(ffmpegMemory->fetchData(*avFormatCtxId));
-
-  const AVInputFormat *avInputFormat = avFormatCtx->iformat;
-  ffmpegMemory->alloc(const_cast<AVInputFormat *>(avInputFormat),
-                      avInputFormatId);
-
-  // Think of strategy to return value.
-  return 0;
+  AVInputFormat const *AvInputFormat = AvFormatCtx->iformat;
+  FFMPEG_PTR_STORE((void *)AvInputFormat, AvInputFormatId);
+  return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<int32_t> AVFormatCtxProbeScore::body(const Runtime::CallingFrame &,

@@ -1,12 +1,10 @@
 # WasmEdge WASMEDGE-Zlib example.
 
-This is a example to demonstrate how to use wasmedge-zlib plugin of WasmEdge with C++.
+This is an example to demonstrate how to use `wasmedge-zlib` plugin of WasmEdge with C++.
 
 ## Prerequisites
 
 ### Install Emscripten SDK (C++ Compiler Toolkit for wasm targets).
-
-Follow the instructions below to install rust and wasm32-wasi target.
 
 ```bash
 cd ~/
@@ -32,7 +30,7 @@ export WASMEDGE_PATH=$PWD
 export WASMEDGE_PLUGIN_PATH=$WASMEDGE_PATH/build/plugins/wasmedge_zlib
 mkdir build; cd build
 cmake .. -DWASMEDGE_PLUGIN_WASMEDGE_ZLIB=ON
-# in case you don't wasn't lld & AOT, try the variant below
+# in case you don't want `AOT` support, try the variant below
 # cmake .. -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF
 cmake --build . -j
 # compiled wasmedge is located in: ./tools/wasmedge/wasmedge
@@ -48,7 +46,7 @@ em++ main.cpp -O2 -o build/main.wasm -sSTANDALONE_WASM -sWARN_ON_UNDEFINED_SYMBO
 
 Then we get `build/main.wasm`.
 
-We can run this example with `wasmedge` like
+We can run this example with `wasmedge` with the following command
 
 ```sh
 ../../../build/tools/wasmedge/wasmedge build/main.wasm
@@ -76,5 +74,5 @@ Success
 
 ## Difference between Native & WASM Module
 
-- Since wasmedge-zlib ignores the custom memory allocators provided by the program for zlib library, any code on the allocator (including log statements) won't run.
-- This will have no effect on the actual zlib compression & decompression & library usage, and will therefore be almost transparent to the program/module using the zlib library (wasmedge-zlib).
+- Since wasmedge-zlib ignores the custom memory allocators provided by the program to the zlib library, any code on the custom allocator function won't run.
+- This will have no effect on the actual zlib compression, decompression or any library usage, and will therefore be almost transparent to the program/module using the zlib library (wasmedge-zlib).

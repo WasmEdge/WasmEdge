@@ -37,8 +37,8 @@ void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
   std::fill_n(MemInst.getPointer<uint8_t *>(Offset), Cnt, C);
 }
 
-static constexpr size_t DATA_SIZE = 1 * 1024 * 1024ULL;
-static constexpr size_t OUTPUT_BUFFER_SIZE = 64 * 1024ULL;
+static constexpr size_t DataSize = 1 * 1024 * 1024ULL;
+static constexpr size_t OutputBufferSize = 64 * 1024ULL;
 
 constexpr auto RandChar = []() -> char {
   constexpr char Charset[] = "0123456789"
@@ -66,7 +66,7 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
       WasmHP = 1,
       WasmData, WasmZlibVersion, ModuleZStream, WasmCompressedData,
       WasmDecompressedData;
-  uint32_t WasmCompressedData_size = 0, WasmDecompressedData_size = 0;
+  uint32_t WasmCompressedData_size = 0, WasmDecompressedDataSize = 0;
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
   auto *FuncInst = ZlibMod->findFuncExports("deflateInit_");
@@ -113,8 +113,8 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
   WasmHP += std::strlen(ZLIB_VERSION);
 
   WasmData = WasmHP;
-  std::generate_n(MemInst.getPointer<char *>(WasmHP), DATA_SIZE, RandChar);
-  WasmHP += DATA_SIZE;
+  std::generate_n(MemInst.getPointer<char *>(WasmHP), DataSize, RandChar);
+  WasmHP += DataSize;
 
   ModuleZStream = WasmHP;
   WasmZStream *strm = MemInst.getPointer<WasmZStream *>(ModuleZStream);
@@ -149,16 +149,16 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
 
   WasmCompressedData = WasmHP;
 
-  strm->AvailIn = DATA_SIZE;
+  strm->AvailIn = DataSize;
   strm->NextIn = WasmData;
-  strm->AvailOut = OUTPUT_BUFFER_SIZE;
+  strm->AvailOut = OutputBufferSize;
   strm->NextOut = WasmCompressedData;
 
   // deflate Test
   do {
     if (strm->AvailOut == 0) {
-      WasmHP += OUTPUT_BUFFER_SIZE;
-      strm->AvailOut = OUTPUT_BUFFER_SIZE;
+      WasmHP += OutputBufferSize;
+      strm->AvailOut = OutputBufferSize;
       strm->NextOut = WasmHP;
     }
 
@@ -176,7 +176,7 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ModuleZStream},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
-  WasmHP += OUTPUT_BUFFER_SIZE - strm->AvailOut;
+  WasmHP += OutputBufferSize - strm->AvailOut;
   WasmCompressedData_size = WasmHP - WasmCompressedData;
   // ----- Deflate Routine END------
 
@@ -211,14 +211,14 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
 
   strm->AvailIn = WasmCompressedData_size;
   strm->NextIn = WasmCompressedData;
-  strm->AvailOut = OUTPUT_BUFFER_SIZE;
+  strm->AvailOut = OutputBufferSize;
   strm->NextOut = WasmDecompressedData;
 
   // inflate test
   do {
     if (strm->AvailOut == 0) {
-      WasmHP += OUTPUT_BUFFER_SIZE;
-      strm->AvailOut = OUTPUT_BUFFER_SIZE;
+      WasmHP += OutputBufferSize;
+      strm->AvailOut = OutputBufferSize;
       strm->NextOut = WasmHP;
     }
 
@@ -235,21 +235,21 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ModuleZStream},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
-  WasmHP += OUTPUT_BUFFER_SIZE - strm->AvailOut;
-  WasmDecompressedData_size = WasmHP - WasmDecompressedData;
+  WasmHP += OutputBufferSize - strm->AvailOut;
+  WasmDecompressedDataSize = WasmHP - WasmDecompressedData;
   // ----- Inflate Routine END------
 
   // Test Decompressed Buffer size against source Data size.
-  EXPECT_EQ(WasmDecompressedData_size, DATA_SIZE);
+  EXPECT_EQ(WasmDecompressedDataSize, DataSize);
   // Test Decompressed Buffer content against source Data.
   EXPECT_TRUE(std::equal(MemInst.getPointer<uint8_t *>(WasmDecompressedData),
                          MemInst.getPointer<uint8_t *>(
-                             WasmDecompressedData + WasmDecompressedData_size),
+                             WasmDecompressedData + WasmDecompressedDataSize),
                          MemInst.getPointer<uint8_t *>(WasmData)));
 }
 
 TEST(WasmEdgeZlibTest, Module) {
-  // Create the wasmedge_process module instance.
+  // Create the wasmedge_zlib module instance.
   auto *ZlibMod =
       dynamic_cast<WasmEdge::Host::WasmEdgeZlibModule *>(createModule());
   EXPECT_FALSE(ZlibMod == nullptr);

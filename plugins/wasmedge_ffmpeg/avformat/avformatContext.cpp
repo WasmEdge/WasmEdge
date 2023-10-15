@@ -24,6 +24,21 @@ Expect<int32_t> AVFormatCtxIFormat::body(const Runtime::CallingFrame &Frame,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<int32_t> AVFormatCtxOFormat::body(const Runtime::CallingFrame &Frame,
+                                         uint32_t AvFormatCtxId,
+                                         uint32_t AvOutputFormatPtr) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(AvOutputFormatId, MemInst, uint32_t, AvOutputFormatPtr,
+                "Failed when accessing the return AVOutputFormat Memory");
+
+  FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+
+  AVOutputFormat const *AvOutputFormat = AvFormatCtx->oformat;
+  FFMPEG_PTR_STORE((void *)AvOutputFormat, AvOutputFormatId);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 Expect<int32_t> AVFormatCtxProbeScore::body(const Runtime::CallingFrame &,
                                             uint32_t AvFormatCtxId) {
 
@@ -32,11 +47,11 @@ Expect<int32_t> AVFormatCtxProbeScore::body(const Runtime::CallingFrame &,
 }
 
 Expect<uint32_t> AVFormatCtxNbStreams::body(const Runtime::CallingFrame &,
-                                            uint32_t avFormatCtxId) {
+                                            uint32_t AvFormatCtxId) {
 
   auto ffmpegMemory = Env.get();
   AVFormatContext *avFormatCtx =
-      static_cast<AVFormatContext *>(ffmpegMemory->fetchData(avFormatCtxId));
+      static_cast<AVFormatContext *>(ffmpegMemory->fetchData(AvFormatCtxId));
   return avFormatCtx->nb_streams;
 };
 
@@ -55,11 +70,11 @@ Expect<int64_t> AVFormatCtxDuration::body(const Runtime::CallingFrame &,
 }
 
 Expect<uint32_t> AVFormatCtxNbChapters::body(const Runtime::CallingFrame &,
-                                             uint32_t avFormatCtxId) {
+                                             uint32_t AvFormatCtxId) {
 
   auto ffmpegMemory = Env.get();
   AVFormatContext *avFormatCtx =
-      static_cast<AVFormatContext *>(ffmpegMemory->fetchData(avFormatCtxId));
+      static_cast<AVFormatContext *>(ffmpegMemory->fetchData(AvFormatCtxId));
   return avFormatCtx->nb_chapters;
 }
 

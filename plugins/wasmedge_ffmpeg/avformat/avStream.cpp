@@ -17,7 +17,7 @@ Expect<int32_t> AVStreamId::body(const Runtime::CallingFrame &,
 
   // No check here (Check)
   // Raw Pointer Iteration.
-  for (unsigned int i = 1; i <= StreamIdx; i++)
+  for (unsigned int I = 1; I <= StreamIdx; I++)
     AvStream++;
 
   return static_cast<AVStream *>(*AvStream)->id;
@@ -32,7 +32,7 @@ Expect<int32_t> AVStreamIndex::body(const Runtime::CallingFrame &,
 
   // No check here (Check)
   // Get the Requried AVStream
-  for (unsigned int i = 1; i <= StreamIdx; i++)
+  for (unsigned int I = 1; I <= StreamIdx; I++)
     AvStream++;
 
   return static_cast<AVStream *>(*AvStream)->index;
@@ -51,7 +51,7 @@ Expect<int32_t> AVStreamCodecPar::body(const Runtime::CallingFrame &Frame,
 
   // No check here (Check)
   // Get the Required AVStream
-  for (unsigned int i = 1; i <= StreamIdx; i++)
+  for (unsigned int I = 1; I <= StreamIdx; I++)
     AvStream++;
 
   AVCodecParameters *CodecParam =

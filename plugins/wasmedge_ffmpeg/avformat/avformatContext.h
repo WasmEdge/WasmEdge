@@ -13,7 +13,15 @@ public:
   AVFormatCtxIFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
-                       uint32_t avFormatCtxPtr, uint32_t avInputFormatPtr);
+                       uint32_t AvFormatCtxId, uint32_t AvInputFormatPtr);
+};
+
+class AVFormatCtxOFormat : public WasmEdgeFFmpegAVFormat<AVFormatCtxOFormat> {
+public:
+  AVFormatCtxOFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvFormatCtxId, uint32_t AvOutputFormatPtr);
 };
 
 class AVFormatCtxProbeScore
@@ -22,7 +30,7 @@ public:
   AVFormatCtxProbeScore(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
-                       uint32_t avFormatCtxPtr);
+                       uint32_t AvFormatCtxId);
 };
 
 class AVFormatCtxNbStreams
@@ -31,7 +39,7 @@ public:
   AVFormatCtxNbStreams(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
-                        uint32_t avFormatCtxPtr);
+                        uint32_t AvFormatCtxId);
 };
 
 class AVFormatCtxBitRate : public WasmEdgeFFmpegAVFormat<AVFormatCtxBitRate> {
@@ -39,7 +47,7 @@ public:
   AVFormatCtxBitRate(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
   Expect<int64_t> body(const Runtime::CallingFrame &Frame,
-                       uint32_t avFormatCtxPtr);
+                       uint32_t AvFormatCtxId);
 };
 
 class AVFormatCtxDuration : public WasmEdgeFFmpegAVFormat<AVFormatCtxDuration> {
@@ -47,7 +55,7 @@ public:
   AVFormatCtxDuration(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
   Expect<int64_t> body(const Runtime::CallingFrame &Frame,
-                       uint32_t avFormatCtxPtr);
+                       uint32_t AvFormatCtxId);
 };
 
 class AVFormatCtxNbChapters
@@ -56,7 +64,7 @@ public:
   AVFormatCtxNbChapters(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
-                        uint32_t avFormatCtxPtr);
+                        uint32_t AvFormatCtxId);
 };
 
 } // namespace AVFormat

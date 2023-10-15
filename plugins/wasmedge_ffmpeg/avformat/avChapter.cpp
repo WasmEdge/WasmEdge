@@ -17,7 +17,7 @@ Expect<int64_t> AVChapterId::body(const Runtime::CallingFrame &,
 
   // No check here (Check)
   // Raw Pointer Iteration.
-  for (unsigned int i = 1; i <= ChapterIdx; i++)
+  for (unsigned int I = 1; I <= ChapterIdx; I++)
     AvChapter++;
 
   return static_cast<AVChapter *>(*AvChapter)->id;
@@ -38,7 +38,7 @@ Expect<int32_t> AVChapterTimebase::body(const Runtime::CallingFrame &Frame,
 
   // No check here (Check)
   // Raw Pointer Iteration.
-  for (unsigned int i = 1; i <= ChapterIdx; i++)
+  for (unsigned int I = 1; I <= ChapterIdx; I++)
     AvChapter++;
 
   AVRational const AvRational = static_cast<AVChapter *>(*AvChapter)->time_base;
@@ -57,7 +57,7 @@ Expect<int64_t> AVChapterStart::body(const Runtime::CallingFrame &,
 
   // No check here (Check)
   // Raw Pointer Iteration.
-  for (unsigned int i = 1; i <= ChapterIdx; i++)
+  for (unsigned int I = 1; I <= ChapterIdx; I++)
     AvChapter++;
 
   return static_cast<AVChapter *>(*AvChapter)->start;
@@ -73,7 +73,7 @@ Expect<int64_t> AVChapterEnd::body(const Runtime::CallingFrame &,
 
   // No check here (Check)
   // Raw Pointer Iteration.
-  for (unsigned int i = 1; i <= ChapterIdx; i++)
+  for (unsigned int I = 1; I <= ChapterIdx; I++)
     AvChapter++;
 
   return static_cast<AVChapter *>(*AvChapter)->end;

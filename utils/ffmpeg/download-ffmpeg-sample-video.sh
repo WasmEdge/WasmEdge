@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 TODIR=$1
-SAMPLE_VIDEO=https://github.com/Hrushi20/ffmpeg-rust/blob/main/assets/small_bunny_1080p_60fps.mp4
+SAMPLE_VIDEO=https://raw.githubusercontent.com/Hrushi20/ffmpeg-rust/main/assets/small_bunny_1080p_60fps.mp4
 if [[ $# -eq 0 ]]; then
     TODIR=.
 fi

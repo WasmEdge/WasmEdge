@@ -4,7 +4,7 @@
 #include "avcodec/avcodec_func.h"
 #include "avcodec/module.h"
 
-#include "../testUtils.h"
+#include "../utils.h"
 #include <gtest/gtest.h>
 
 using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;

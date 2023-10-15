@@ -14,6 +14,8 @@ Expect<int32_t> AVIOFormatNameLength::body(const Runtime::CallingFrame &,
 
   if (FormatType == 0) {
     FFMPEG_PTR_FETCH(AvInputFormat, AVIOFormatId, AVInputFormat);
+    printf("AvInputFormat %s\n", AvInputFormat->name);
+    return 1;
     Name = AvInputFormat->name;
   } else {
     FFMPEG_PTR_FETCH(AvOutputFormat, AVIOFormatId, AVOutputFormat);
@@ -33,8 +35,8 @@ Expect<int32_t> AVInputFormatName::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(NameBuf, MemInst, char, NamePtr, NameLen, "");
   FFMPEG_PTR_FETCH(AvInputFormat, AVInputFormatId, AVInputFormat);
 
-  const char *name = AvInputFormat->name;
-  memmove(NameBuf.data(), name, NameLen);
+  const char *Name = AvInputFormat->name;
+  memmove(NameBuf.data(), Name, NameLen);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -46,8 +48,8 @@ Expect<int32_t> AVOutputFormatName::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(NameBuf, MemInst, char, NamePtr, NameLen, "");
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
 
-  const char *name = AvOutputFormat->name;
-  memmove(NameBuf.data(), name, NameLen);
+  const char *Name = AvOutputFormat->name;
+  memmove(NameBuf.data(), Name, NameLen);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -205,16 +207,17 @@ Expect<int32_t> AVInputOutputFormatFree::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_DELETE(AVInputOutputId);
   return static_cast<int32_t>(ErrNo::Success);
 }
-
-Expect<uint32_t> AVGuessCodec::body(const Runtime::CallingFrame &,
-                                    uint32_t AVOutputFormatId) {
-
-  //  FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, const AVOutputFormat);
-  //  enum AVCodecID const AvCodecId = av_guess_codec(AvOutputFormat, );
-  //  return FFmpegUtils::CodecID::fromAVCodecID(AvCodecId);
-  return 1;
-}
-
+//
+// Expect<uint32_t> AVGuessCodec::body(const Runtime::CallingFrame &,
+//                                    uint32_t AVOutputFormatId) {
+//
+//  //  FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, const
+//  AVOutputFormat);
+//  //  enum AVCodecID const AvCodecId = av_guess_codec(AvOutputFormat, );
+//  //  return FFmpegUtils::CodecID::fromAVCodecID(AvCodecId);
+//  return 1;
+//}
+//
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

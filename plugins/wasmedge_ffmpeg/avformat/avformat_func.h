@@ -31,7 +31,8 @@ class AVFormatCloseInput : public WasmEdgeFFmpegAVFormat<AVFormatCloseInput> {
 public:
   AVFormatCloseInput(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
-  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t AvFormatCtxId);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvFormatCtxId);
 };
 
 class AVReadPause : public WasmEdgeFFmpegAVFormat<AVReadPause> {
@@ -61,17 +62,17 @@ class AVDumpFormat : public WasmEdgeFFmpegAVFormat<AVDumpFormat> {
 public:
   AVDumpFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
-  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t AvFormatCtxId,
-                    int32_t Idx, uint32_t UrlPtr, uint32_t urlSize,
-                    int32_t IsOutput);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvFormatCtxId, int32_t Idx, uint32_t UrlPtr,
+                       uint32_t urlSize, int32_t IsOutput);
 };
 
 class AVFormatFreeContext : public WasmEdgeFFmpegAVFormat<AVFormatFreeContext> {
 public:
   AVFormatFreeContext(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
-  Expect<void> body(const Runtime::CallingFrame &Frame,
-                    uint32_t AvFormatCtxPtr);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvFormatCtxPtr);
 };
 
 class AVFindBestStream : public WasmEdgeFFmpegAVFormat<AVFindBestStream> {
@@ -90,6 +91,14 @@ public:
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId,
                        uint32_t PacketId);
+};
+
+class AVIOClose : public WasmEdgeFFmpegAVFormat<AVIOClose> {
+public:
+  AVIOClose(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvFormatCtxId);
 };
 
 } // namespace AVFormat

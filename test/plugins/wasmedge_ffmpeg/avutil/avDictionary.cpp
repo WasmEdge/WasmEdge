@@ -1,36 +1,15 @@
-#include "common/types.h"
-#include "runtime/instance/module.h"
-
-#include "../testUtils.h"
 #include "avutil/avDictionary.h"
+#include "../utils.h"
 #include "avutil/module.h"
 
 #include <gtest/gtest.h>
 
 using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
 
-namespace {
-WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
-  using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/wasmedge_ffmpeg/"
-      "libwasmedgePluginWasmEdgeFFmpeg" WASMEDGE_LIB_EXTENSION));
-  if (const auto *Plugin =
-          WasmEdge::Plugin::Plugin::find("wasmedge_ffmpeg"sv)) {
-    if (const auto *Module = Plugin->findModule("wasmedge_ffmpeg_avutil"sv)) {
-      return Module->create().release();
-    }
-  }
-  return nullptr;
-}
-} // namespace
-
 TEST(WasmEdgeAVUtilTest, AVDictionary) {
 
   // Create the wasmedge_process module instance.
-  auto *AVUtilMod = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::WasmEdgeFFmpegAVUtilModule *>(
-      createModule());
+  auto *AVUtilMod = TestUtils::InitModules::createAVUtilModule();
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   // Create the calling frame with memory instance.
@@ -45,7 +24,7 @@ TEST(WasmEdgeAVUtilTest, AVDictionary) {
 
   std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
 
-  uint32_t DictPtr = UINT32_C(100);
+  uint32_t DictPtr = UINT32_C(80);
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_set");
   EXPECT_NE(FuncInst, nullptr);
@@ -59,7 +38,6 @@ TEST(WasmEdgeAVUtilTest, AVDictionary) {
   fillMemContent(MemInst, 1, std::string("KEY"));
   fillMemContent(MemInst, 4, std::string("VALUE"));
   {
-    writeUInt32(MemInst, INT32_C(0), DictPtr);
     EXPECT_TRUE(HostFuncAVDictSet.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
@@ -70,24 +48,22 @@ TEST(WasmEdgeAVUtilTest, AVDictionary) {
   }
 
   // Getting Subprocess error.
-  //  FuncInst =
-  //  AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_copy");
-  //  EXPECT_NE(FuncInst, nullptr);
-  //  EXPECT_TRUE(FuncInst->isHostFunction());
-  //  auto &HostFuncAVDictCopy =
-  //      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictCopy &>(
-  //          FuncInst->getHostFunc());
-  //
-  //  {
-  //    uint32_t DestDictPtr = UINT32_C(80);
-  //    writeUInt32(MemInst, UINT32_C(0), DestDictPtr);
-  //    uint32_t SrcDictId = readUInt32(MemInst, DictPtr);
-  //    EXPECT_TRUE(HostFuncAVDictCopy.run(
-  //        CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{DestDictPtr, SrcDictId,
-  //        0}, Result));
-  //    ASSERT_TRUE(Result[0].get<int32_t>() >= 0);
-  //  }
+  FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_copy");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVDictCopy =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictCopy &>(
+          FuncInst->getHostFunc());
+
+  {
+    uint32_t DestDictPtr = UINT32_C(80);
+    uint32_t SrcDictId = readUInt32(MemInst, DictPtr);
+    EXPECT_TRUE(HostFuncAVDictCopy.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{DestDictPtr, SrcDictId, 0},
+        Result));
+    ASSERT_TRUE(Result[0].get<int32_t>() >= 0);
+  }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_get");
   EXPECT_NE(FuncInst, nullptr);
@@ -97,10 +73,8 @@ TEST(WasmEdgeAVUtilTest, AVDictionary) {
           FuncInst->getHostFunc());
 
   {
-    uint32_t KeyLenPtr = UINT32_C(35);
-    uint32_t ValueLenPtr = UINT32_C(42);
-    writeUInt32(MemInst, UINT32_C(0), KeyLenPtr);
-    writeUInt32(MemInst, UINT32_C(0), ValueLenPtr);
+    uint32_t KeyLenPtr = UINT32_C(36);
+    uint32_t ValueLenPtr = UINT32_C(40);
     uint32_t DictId = readUInt32(MemInst, DictPtr);
     EXPECT_TRUE(
         HostFuncAVDictGet.run(CallFrame,
@@ -122,10 +96,8 @@ TEST(WasmEdgeAVUtilTest, AVDictionary) {
           FuncInst->getHostFunc());
 
   {
-    uint32_t KeyBufPtr = UINT32_C(35);
-    uint32_t ValueBufPtr = UINT32_C(42);
-    writeUInt32(MemInst, UINT32_C(0), KeyBufPtr);
-    writeUInt32(MemInst, UINT32_C(0), ValueBufPtr);
+    uint32_t KeyBufPtr = UINT32_C(36);
+    uint32_t ValueBufPtr = UINT32_C(40);
     uint32_t DictId = readUInt32(MemInst, DictPtr);
     EXPECT_TRUE(HostFuncAVDictGetKeyValue.run(
         CallFrame,
@@ -145,9 +117,9 @@ TEST(WasmEdgeAVUtilTest, AVDictionary) {
           FuncInst->getHostFunc());
 
   {
-    uint32_t dictId = readUInt32(MemInst, DictPtr);
+    uint32_t DictId = readUInt32(MemInst, DictPtr);
     EXPECT_TRUE(HostFuncAVDictFree.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{dictId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{DictId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }

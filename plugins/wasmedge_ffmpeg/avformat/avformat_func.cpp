@@ -29,8 +29,8 @@ Expect<int32_t> AVFormatOpenInput::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvDictionary, AvDictionaryId, AVDictionary *);
   FFMPEG_PTR_FETCH(AvInputFormat, AvInputFormatId, AVInputFormat);
 
-  int Res = avformat_open_input(&AvFormatContext, TargetUrl.c_str(),
-                                AvInputFormat, AvDictionary);
+  int const Res = avformat_open_input(&AvFormatContext, TargetUrl.c_str(),
+                                      AvInputFormat, AvDictionary);
   FFMPEG_PTR_STORE(AvFormatContext, AvFormatCtxId);
   return Res;
 }
@@ -44,17 +44,13 @@ Expect<int32_t> AVFormatFindStreamInfo::body(const Runtime::CallingFrame &,
   return avformat_find_stream_info(AvFormatContext, AvDictionary);
 }
 
-Expect<void> AVFormatCloseInput::body(const Runtime::CallingFrame &,
-                                      uint32_t avFormatCtxId) {
-  if (!avFormatCtxId) {
-  }
+Expect<int32_t> AVFormatCloseInput::body(const Runtime::CallingFrame &,
+                                         uint32_t AvFormatCtxId) {
 
-  WasmEdgeFFmpegEnv *ffmpegMemory = Env.get();
-  AVFormatContext *avFormatContext =
-      static_cast<AVFormatContext *>(ffmpegMemory->fetchData(avFormatCtxId));
-  avformat_close_input(&avFormatContext);
-  ffmpegMemory->dealloc(avFormatCtxId);
-  return {};
+  FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  avformat_close_input(&AvFormatCtx);
+  FFMPEG_PTR_DELETE(AvFormatCtxId);
+  return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<int32_t> AVReadPause::body(const Runtime::CallingFrame &,
@@ -82,36 +78,29 @@ Expect<int32_t> AVFormatSeekFile::body(const Runtime::CallingFrame &,
                             Flags);
 }
 
-Expect<void> AVDumpFormat::body(const Runtime::CallingFrame &Frame,
-                                uint32_t avFormatCtxId, int32_t idx,
-                                uint32_t urlPtr, uint32_t urlSize,
-                                int32_t isOutput) {
-  std::string targetUrl;
+Expect<int32_t> AVDumpFormat::body(const Runtime::CallingFrame &Frame,
+                                   uint32_t AvFormatCtxId, int32_t Idx,
+                                   uint32_t UrlPtr, uint32_t UrlSize,
+                                   int32_t IsOutput) {
+  std::string TargetUrl;
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  char *buf = MemInst->getPointer<char *>(urlPtr);
-  std::copy_n(buf, urlSize, std::back_inserter(targetUrl));
-  auto *ffmpegMemory = Env.get();
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(UrlBuf, MemInst, char, UrlPtr, "");
 
-  if (!avFormatCtxId) {
-    // Error handling...
-  }
+  std::copy_n(UrlBuf, UrlSize, std::back_inserter(TargetUrl));
+  FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
 
-  AVFormatContext *avFormatContext =
-      static_cast<AVFormatContext *>(ffmpegMemory->fetchData(avFormatCtxId));
-  av_dump_format(avFormatContext, idx, targetUrl.c_str(), isOutput);
-  return {};
+  av_dump_format(AvFormatCtx, Idx, TargetUrl.c_str(), IsOutput);
+  return static_cast<int32_t>(ErrNo::Success);
 }
 
-Expect<void> AVFormatFreeContext::body(const Runtime::CallingFrame &,
-                                       uint32_t AvFormatCtxId) {
+Expect<int32_t> AVFormatFreeContext::body(const Runtime::CallingFrame &,
+                                          uint32_t AvFormatCtxId) {
 
-  auto *ffmpegMemory = Env.get();
-  AVFormatContext *avFormatCtx =
-      static_cast<AVFormatContext *>(ffmpegMemory->fetchData(AvFormatCtxId));
-  avformat_free_context(avFormatCtx);
-  ffmpegMemory->dealloc(AvFormatCtxId);
-  return {};
+  FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  avformat_free_context(AvFormatCtx);
+  FFMPEG_PTR_DELETE(AvFormatCtxId);
+  return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<int32_t> AVFindBestStream::body(const Runtime::CallingFrame &,
@@ -137,6 +126,14 @@ Expect<int32_t> AVReadFrame::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvPacket, PacketId, AVPacket);
 
   return av_read_frame(AvFormatContext, AvPacket);
+}
+
+Expect<int32_t> AVIOClose::body(const Runtime::CallingFrame &,
+                                uint32_t AvFormatCtxId) {
+
+  FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  avio_close(AvFormatCtx->pb);
+  return static_cast<int32_t>(ErrNo::Success);
 }
 
 } // namespace AVFormat

@@ -1,36 +1,15 @@
-#include "common/types.h"
-#include "runtime/instance/module.h"
-
-#include "../testUtils.h"
 #include "avutil/avRational.h"
+#include "../utils.h"
 #include "avutil/module.h"
 
 #include <gtest/gtest.h>
 
 using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
 
-namespace {
-WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
-  using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/wasmedge_ffmpeg/"
-      "libwasmedgePluginWasmEdgeFFmpeg" WASMEDGE_LIB_EXTENSION));
-  if (const auto *Plugin =
-          WasmEdge::Plugin::Plugin::find("wasmedge_ffmpeg"sv)) {
-    if (const auto *Module = Plugin->findModule("wasmedge_ffmpeg_avutil"sv)) {
-      return Module->create().release();
-    }
-  }
-  return nullptr;
-}
-} // namespace
-
 TEST(WasmEdgeAVUtilTest, AVRational) {
 
   // Create the wasmedge_process module instance.
-  auto *AVUtilMod = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::WasmEdgeFFmpegAVUtilModule *>(
-      createModule());
+  auto *AVUtilMod = TestUtils::InitModules::createAVUtilModule();
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   // Create the calling frame with memory instance.

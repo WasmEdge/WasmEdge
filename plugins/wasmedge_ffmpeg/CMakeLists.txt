@@ -20,7 +20,6 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
         avformat/module.cpp
         avformat/avformat_func.cpp
         avformat/avformatContext.cpp
-        avformat/avio_func.cpp
         avformat/avInputOutputFormat.cpp
         avformat/avStream.cpp
         avformat/avChapter.cpp

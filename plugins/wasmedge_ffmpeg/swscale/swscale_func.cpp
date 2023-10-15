@@ -17,7 +17,8 @@ SwsGetContext::body(const Runtime::CallingFrame &Frame, uint32_t SwsCtxPtr,
                     int32_t Flags, uint32_t SrcFilterId, uint32_t DesFilterId) {
 
   MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_PTR_CHECK(SwsCtxId, MemInst, uint32_t, SwsCtxPtr, "")
+  MEM_PTR_CHECK(SwsCtxId, MemInst, uint32_t, SwsCtxPtr,
+                "Failed when accessing the return SWSContext Memory")
 
   FFMPEG_PTR_FETCH(SwsCtx, *SwsCtxId, SwsContext)
   FFMPEG_PTR_FETCH(SrcSwsFilter, SrcFilterId, SwsFilter)

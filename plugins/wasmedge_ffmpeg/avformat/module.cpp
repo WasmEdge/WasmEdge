@@ -4,7 +4,6 @@
 #include "avStream.h"
 #include "avformatContext.h"
 #include "avformat_func.h"
-#include "avio_func.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -37,14 +36,14 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVFindBestStream>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_av_read_frame",
               std::make_unique<AVReadFrame>(env));
-
-  // avio.h
   addHostFunc("wasmedge_ffmpeg_avformat_avio_close",
               std::make_unique<AVIOClose>(env));
 
   // avformatContext Struct functions.
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_iformat",
               std::make_unique<AVFormatCtxIFormat>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_oformat",
+              std::make_unique<AVFormatCtxOFormat>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_probescope",
               std::make_unique<AVFormatCtxProbeScore>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_nb_streams",
@@ -86,8 +85,8 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVOutputFormatMimeType>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avInputOutputFormat_free",
               std::make_unique<AVInputOutputFormatFree>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_av_guess_codec",
-              std::make_unique<AVGuessCodec>(env));
+  //  addHostFunc("wasmedge_ffmpeg_avformat_av_guess_codec",
+  //              std::make_unique<AVGuessCodec>(env));
 
   // avStream Struct Functions.
   addHostFunc("wasmedge_ffmpeg_avformat_avStream_id",

@@ -1,36 +1,14 @@
-#include "common/types.h"
-#include "runtime/instance/module.h"
-
-#include "swresample/module.h"
 #include "swresample/swresample_func.h"
+#include "swresample/module.h"
 
-#include "../testUtils.h"
+#include "../utils.h"
 #include <gtest/gtest.h>
 
 using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
 
-namespace {
-WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
-  using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/wasmedge_ffmpeg/"
-      "libwasmedgePluginWasmEdgeFFmpeg" WASMEDGE_LIB_EXTENSION));
-  if (const auto *Plugin =
-          WasmEdge::Plugin::Plugin::find("wasmedge_ffmpeg"sv)) {
-    if (const auto *Module =
-            Plugin->findModule("wasmedge_ffmpeg_swresample"sv)) {
-      return Module->create().release();
-    }
-  }
-  return nullptr;
-}
-} // namespace
-
 TEST(WasmEdgeAVSWResampleTest, SWResampleFunc) {
 
-  auto *SWResampleMod =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWResample::
-                       WasmEdgeFFmpegSWResampleModule *>(createModule());
+  auto *SWResampleMod = TestUtils::InitModules::createSWResampleModule();
   ASSERT_TRUE(SWResampleMod != nullptr);
 
   // Create the calling frame with memory instance.
@@ -66,11 +44,10 @@ TEST(WasmEdgeAVSWResampleTest, SWResampleFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWRAllocSetOpts &>(
       FuncInst->getHostFunc());
 
-  uint32_t SWResamplePtr = UINT32_C(0);
+  uint32_t SWResamplePtr = UINT32_C(1);
 
   // Testing with Null Old SwrCtx. Hence 2nd argument is 0.
   {
-    writeUInt32(MemInst, UINT32_C(0), SWResamplePtr);
     EXPECT_TRUE(HostFuncSwrAllocSetOpts.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{SWResamplePtr, 0, 1 << 1, 2,
@@ -83,7 +60,6 @@ TEST(WasmEdgeAVSWResampleTest, SWResampleFunc) {
   // Test with Existing SwrCtx.
   uint32_t SwrId = readUInt32(MemInst, SWResamplePtr);
   {
-    writeUInt32(MemInst, UINT32_C(0), SWResamplePtr);
     EXPECT_TRUE(HostFuncSwrAllocSetOpts.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
@@ -142,7 +118,7 @@ TEST(WasmEdgeAVSWResampleTest, SWResampleFunc) {
 
   //  {
   //    SwrId = readUInt32(MemInst,SWResamplePtr);
-  //    EXPECT_TRUE(HostFuncSwrInit.run(CallFrame,std::initializer_list<WasmEdge::ValVariant>{SwrId,0},Result));
+  //    EXPECT_TRUE(HostFuncAVOptSetDict.run(CallFrame,std::initializer_list<WasmEdge::ValVariant>{SwrId,0},Result));
   //    EXPECT_EQ(Result[0].get<int32_t>(),
   //    static_cast<int32_t>(ErrNo::Success));
   //  }

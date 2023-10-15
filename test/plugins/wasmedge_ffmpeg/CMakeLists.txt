@@ -5,6 +5,11 @@ wasmedge_add_executable(wasmedgeFFmpegTests
         avcodec/avcodec_func.cpp
         avcodec.cpp
 
+        avformat/avformat_func.cpp
+        avformat/avformatContext.cpp
+        #        avformat/avInputOutputContext.cpp
+        avformat/avStream.cpp
+
         avutil/avRational.cpp
         avutil/avDictionary.cpp
 

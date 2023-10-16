@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
+
 // Sample Video under test has only Single Chapter.
 TEST(WasmEdgeAVFormatTest, AVChapter) {
 
@@ -94,5 +96,125 @@ TEST(WasmEdgeAVFormatTest, AVChapter) {
         std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, ChapterIdx},
         Result));
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+  }
+
+  FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avChapter_metadata");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVChapterMetadata = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterMetadata &>(
+      FuncInst->getHostFunc());
+
+  {
+    uint32_t AVDictionaryPtr = UINT32_C(56);
+    EXPECT_TRUE(HostFuncAVChapterMetadata.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId,
+                                                    AVDictionaryPtr},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_TRUE(readUInt32(MemInst, AVDictionaryPtr) > 0);
+  }
+
+  FuncInst =
+      AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avChapter_set_id");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVChapterSetId =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterSetId &>(
+          FuncInst->getHostFunc());
+
+  {
+    EXPECT_TRUE(HostFuncAVChapterSetId.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, ChapterIdx,
+                                                    INT64_C(10000)},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+    // Verify Set Data
+    EXPECT_TRUE(HostFuncAVChapterId.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, ChapterIdx},
+        Result));
+    EXPECT_EQ(Result[0].get<int64_t>(), 10000);
+  }
+
+  FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avChapter_set_timebase");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVChapterSetTimebase = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterSetTimebase &>(
+      FuncInst->getHostFunc());
+
+  {
+    EXPECT_TRUE(HostFuncAVChapterSetTimebase.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{INT32_C(3), INT32_C(4),
+                                                    AvFormatCtxId, ChapterIdx},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+    // Verify Set Data
+    uint32_t NumPtr = UINT32_C(80);
+    uint32_t DenPtr = UINT32_C(84);
+    EXPECT_TRUE(HostFuncAVChapterTimebase.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{NumPtr, DenPtr,
+                                                    AvFormatCtxId, ChapterIdx},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(readIInt32(MemInst, NumPtr), 3);
+    EXPECT_EQ(readIInt32(MemInst, DenPtr), 4);
+  }
+
+  FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avChapter_set_start");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVChapterSetStart = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterSetStart &>(
+      FuncInst->getHostFunc());
+
+  {
+    EXPECT_TRUE(HostFuncAVChapterSetStart.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, ChapterIdx,
+                                                    INT64_C(1000)},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+    // Verify Set Data
+    EXPECT_TRUE(HostFuncAVChapterStart.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, ChapterIdx},
+        Result));
+    EXPECT_EQ(Result[0].get<int64_t>(), 1000);
+  }
+
+  FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avChapter_set_end");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVChapterSetEnd =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterSetEnd &>(
+          FuncInst->getHostFunc());
+
+  {
+    EXPECT_TRUE(HostFuncAVChapterSetEnd.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, ChapterIdx,
+                                                    INT64_C(99999)},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+    // Verify Set Data
+    EXPECT_TRUE(HostFuncAVChapterEnd.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, ChapterIdx},
+        Result));
+    EXPECT_EQ(Result[0].get<int64_t>(), 99999);
   }
 }

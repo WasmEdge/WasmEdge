@@ -99,12 +99,24 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
   // avChapter Struct Functions.
   addHostFunc("wasmedge_ffmpeg_avformat_avChapter_id",
               std::make_unique<AVChapterId>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avChapter_set_id",
+              std::make_unique<AVChapterSetId>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avChapter_timebase",
               std::make_unique<AVChapterTimebase>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avChapter_set_timebase",
+              std::make_unique<AVChapterSetTimebase>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avChapter_start",
               std::make_unique<AVChapterStart>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avChapter_set_start",
+              std::make_unique<AVChapterSetStart>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avChapter_end",
               std::make_unique<AVChapterEnd>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avChapter_set_end",
+              std::make_unique<AVChapterSetEnd>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avChapter_metadata",
+              std::make_unique<AVChapterMetadata>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avChapter_set_metadata",
+              std::make_unique<AVChapterSetMetadata>(env));
 }
 
 } // namespace AVFormat

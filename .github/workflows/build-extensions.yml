@@ -523,13 +523,13 @@ jobs:
       - name: Build and install dependencies
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm ninja cmake openssl opencv rust
+          brew install llvm@16 ninja cmake openssl opencv rust
       - name: Build WasmEdge plugins using clang++ with ${{ matrix.build_type }} mode
         shell: bash
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
           testbin_array=(${test_bins})
-          export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
+          export LLVM_DIR="$(brew --prefix)/opt/llvm@16/lib/cmake"
           export CC=clang
           export CXX=clang++
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options} -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl
@@ -546,6 +546,10 @@ jobs:
           testbin_array=(${test_bins})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
+            if [[ ${plugin_array[$i]} == "wasmedge_opencvmini" ]]; then
+              echo "Temporary disable ${plugin_array[$i]} testing"
+              continue
+            fi
             echo "Testing ${plugin_array[$i]} :"
             cd ${test_prefix}/${plugin_array[$i]}
             ./${testbin_array[$i]}

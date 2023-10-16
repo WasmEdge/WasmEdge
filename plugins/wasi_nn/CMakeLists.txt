@@ -2,15 +2,30 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 # llama.cpp options
+# Disable warnings and debug messages
 set(LLAMA_ALL_WARNINGS OFF)
+set(LLAMA_METAL_NDEBUG ON)
+
 if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS)
-  message(INFO "WASI-NN GGML LLAMA backend: Enable LLAMA_BLAS")
+  message(STATUS "WASI-NN GGML LLAMA backend: Enable LLAMA_BLAS")
   # Default use OpenBLAS
   set(LLAMA_BLAS ON)
   set(LLAMA_BLAS_VENDOR "OpenBLAS")
 else()
-  message(INFO "WASI-NN GGML LLAMA backend: Disable LLAMA_BLAS")
+  message(STATUS "WASI-NN GGML LLAMA backend: Disable LLAMA_BLAS")
   set(LLAMA_BLAS OFF)
+endif()
+
+if(NOT APPLE)
+  set(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL OFF)
+endif()
+
+if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
+  message(STATUS "WASI-NN GGML LLAMA backend: Enable LLAMA_METAL")
+  set(LLAMA_METAL ON)
+else()
+  message(STATUS "WASI-NN GGML LLAMA backend: Disable LLAMA_METAL")
+  set(LLAMA_METAL OFF)
 endif()
 
 add_subdirectory(thirdparty)

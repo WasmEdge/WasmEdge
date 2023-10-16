@@ -560,7 +560,7 @@ jobs:
       output_prefix: build/plugins
       build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_RUSTLS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON
       tar_names: wasi_crypto wasi_logging wasmedge_rustls wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasmedge_zlib
-      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib libwasmedge_rustls.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib libwasmedgePluginWasmEdgeZlib.so
+      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib libwasmedge_rustls.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib libwasmedgePluginWasmEdgeZlib.dylib
     needs: create_release
     steps:
       - name: Checkout code
@@ -573,13 +573,13 @@ jobs:
       - name: Install dependencies
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm ninja cmake openssl opencv rust gh
+          brew install llvm@16 ninja cmake openssl wabt opencv rust gh
       - name: Build plugins
         shell: bash
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
           outbin_array=(${output_bins})
-          export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
+          export LLVM_DIR="$(brew --prefix)/opt/llvm@16/lib/cmake"
           export CC=clang
           export CXX=clang++
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl ${build_options}

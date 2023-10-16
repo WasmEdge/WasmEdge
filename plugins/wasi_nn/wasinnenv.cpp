@@ -4,6 +4,8 @@
 #include "wasinnenv.h"
 #include "wasinnmodule.h"
 
+#include <sstream>
+
 namespace WasmEdge {
 namespace Host {
 
@@ -15,16 +17,18 @@ create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
 }
 
 std::map<std::string_view, Backend> BackendMap = {
-    {"OpenVINO"sv, Backend::OpenVINO},
-    {"ONNX"sv, Backend::ONNX},
-    {"Tensorflow"sv, Backend::Tensorflow},
-    {"PyTorch"sv, Backend::PyTorch},
-    {"TensorflowLite"sv, Backend::TensorflowLite},
-    {"Autodetect"sv, Backend::Autodetect},
-    {"GGML"sv, Backend::GGML}};
+    {"openvino"sv, Backend::OpenVINO},
+    {"onnx"sv, Backend::ONNX},
+    {"tensorflow"sv, Backend::Tensorflow},
+    {"pytorch"sv, Backend::PyTorch},
+    {"tensorflowlite"sv, Backend::TensorflowLite},
+    {"autodetect"sv, Backend::Autodetect},
+    {"ggml"sv, Backend::GGML}};
 
-std::map<std::string_view, Device> DeviceMap = {
-    {"CPU"sv, Device::CPU}, {"GPU"sv, Device::GPU}, {"TPU"sv, Device::TPU}};
+std::map<std::string_view, Device> DeviceMap = {{"cpu"sv, Device::CPU},
+                                                {"gpu"sv, Device::GPU},
+                                                {"tpu"sv, Device::TPU},
+                                                {"auto"sv, Device::AUTO}};
 
 bool load(const std::filesystem::path &Path, std::vector<uint8_t> &Data) {
   std::ifstream File(Path, std::ios::binary);
@@ -59,6 +63,10 @@ WasiNNEnvironment::WasiNNEnvironment() noexcept {
     }
     std::vector<std::vector<uint8_t>> Models;
     Models.reserve(Paths.size());
+    std::transform(Encode.begin(), Encode.end(), Encode.begin(),
+                   [](unsigned char C) { return std::tolower(C); });
+    std::transform(Target.begin(), Target.end(), Target.begin(),
+                   [](unsigned char C) { return std::tolower(C); });
     auto Backend = BackendMap.find(Encode);
     auto Device = DeviceMap.find(Target);
     if (Backend != BackendMap.end() && Device != DeviceMap.end()) {

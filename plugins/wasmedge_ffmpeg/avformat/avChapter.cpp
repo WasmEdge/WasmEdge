@@ -17,8 +17,9 @@ Expect<int64_t> AVChapterId::body(const Runtime::CallingFrame &,
 
   // No check here (Check)
   // Raw Pointer Iteration.
-  for (unsigned int I = 1; I <= ChapterIdx; I++)
+  for (unsigned int I = 1; I <= ChapterIdx; I++) {
     AvChapter++;
+  }
 
   return static_cast<AVChapter *>(*AvChapter)->id;
 }

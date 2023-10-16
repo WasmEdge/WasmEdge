@@ -123,9 +123,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       output_dir: build/plugins/wasi_nn
-      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
-      tar_names: wasi_nn-pytorch wasi_nn-tensorflowlite wasi_nn-ggml
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
+      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml
       output_bin: libwasmedgePluginWasiNN.so
+      OPENVINO_VERSION: "2023.0.2"
+      OPENVINO_YEAR: "2023"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."
     needs: create_release
@@ -144,6 +146,7 @@ jobs:
         run: |
           apt update
           apt install unzip libopenblas-dev pkg-config
+          bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
       - name: Build WASI-NN plugin
         shell: bash
@@ -179,6 +182,12 @@ jobs:
         run: |
           mv plugin_wasi_nn-pytorch.tar.gz WasmEdge-plugin-wasi_nn-pytorch-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-pytorch-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+      - name: Upload wasi_nn-openvino plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasi_nn-openvino.tar.gz WasmEdge-plugin-wasi_nn-openvino-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-openvino-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
       - name: Upload wasi_nn-tensorflowlite plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

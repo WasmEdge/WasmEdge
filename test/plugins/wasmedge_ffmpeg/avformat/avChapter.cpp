@@ -110,7 +110,7 @@ TEST(WasmEdgeAVFormatTest, AVChapter) {
     uint32_t AVDictionaryPtr = UINT32_C(56);
     EXPECT_TRUE(HostFuncAVChapterMetadata.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId,
+        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, ChapterIdx,
                                                     AVDictionaryPtr},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));

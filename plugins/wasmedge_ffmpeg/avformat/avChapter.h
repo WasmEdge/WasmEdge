@@ -83,7 +83,8 @@ public:
   AVChapterMetadata(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
-                       uint32_t AvFormatCtxId, uint32_t DictPtr);
+                       uint32_t AvFormatCtxId, uint32_t ChapterIdx,
+                       uint32_t DictPtr);
 };
 
 class AVChapterSetMetadata
@@ -92,7 +93,8 @@ public:
   AVChapterSetMetadata(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
-                       uint32_t AvFormatCtxId, uint32_t DictId);
+                       uint32_t AvFormatCtxId, uint32_t ChapterIdx,
+                       uint32_t DictId);
 };
 
 } // namespace AVFormat

@@ -78,6 +78,24 @@ Expect<uint32_t> AVFormatCtxNbChapters::body(const Runtime::CallingFrame &,
   return avFormatCtx->nb_chapters;
 }
 
+Expect<int32_t> AVFormatCtxMetadata::body(const Runtime::CallingFrame &Frame,
+                                          uint32_t AvFormatCtxId,
+                                          uint32_t DictPtr) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(DictId, MemInst, uint32_t, DictPtr,
+                "Failed when accessing the return AVDictionary memory");
+
+  FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+
+  AVDictionary **AvDictionary =
+      (AVDictionary **)malloc(sizeof(AVDictionary **));
+
+  *AvDictionary = AvFormatCtx->metadata;
+  FFMPEG_PTR_STORE(AvDictionary, DictId);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

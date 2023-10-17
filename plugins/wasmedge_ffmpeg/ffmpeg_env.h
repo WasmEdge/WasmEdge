@@ -67,6 +67,7 @@ public:
 private:
   //  Using zero as NULL Value.
   uint32_t ffmpegPtrArrKey = 1;
+  // Can update this to uint64_t to get more memory.
   std::map<uint32_t, void *> ffmpegPtrArr;
   static Plugin::PluginRegister Register;
   static std::weak_ptr<WasmEdgeFFmpegEnv> Instance;

@@ -54,7 +54,8 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVFormatCtxBitRate>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_nb_chapters",
               std::make_unique<AVFormatCtxNbChapters>(env));
-  //  addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_avstream",std::make_unique<AVFormatCtxGetAVStream>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_metadata",
+              std::make_unique<AVFormatCtxMetadata>(env)); // Need to test.
 
   // avInputFormat Struct functions.
   addHostFunc("wasmedge_ffmpeg_avformat_avIOFormat_name_length",
@@ -95,6 +96,33 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVStreamIndex>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avStream_codecpar",
               std::make_unique<AVStreamCodecPar>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avStream_timebase", // Need to test.
+              std::make_unique<AVStreamTimebase>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avStream_set_timebase", // Need to test.
+              std::make_unique<AVStreamSetTimebase>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avStream_duration", // Need to test.
+              std::make_unique<AVStreamDuration>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avStream_start_time", // Need to test.
+              std::make_unique<AVStreamStartTime>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avStream_nb_frames", // Need to test.
+              std::make_unique<AVStreamNbFrames>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avStream_disposition", // Need to test.
+              std::make_unique<AVStreamDisposition>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avStream_r_frame_rate", // Need to test.
+              std::make_unique<AVStreamRFrameRate>(env));
+  addHostFunc(
+      "wasmedge_ffmpeg_avformat_avStream_set_r_frame_rate", // Need to test.
+      std::make_unique<AVStreamSetRFrameRate>(env));
+  addHostFunc(
+      "wasmedge_ffmpeg_avformat_avStream_avg_frame_rate", // Need to test.
+      std::make_unique<AVStreamAvgFrameRate>(env));
+  addHostFunc(
+      "wasmedge_ffmpeg_avformat_avStream_set_avg_frame_rate", // Need to test.
+      std::make_unique<AVStreamSetAvgFrameRate>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avStream_metadata", // Need to test.
+              std::make_unique<AVStreamMetadata>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avStream_set_metadata", // Need to test.
+              std::make_unique<AVStreamSetMetadata>(env));
 
   // avChapter Struct Functions.
   addHostFunc("wasmedge_ffmpeg_avformat_avChapter_id",

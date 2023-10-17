@@ -67,6 +67,14 @@ public:
                         uint32_t AvFormatCtxId);
 };
 
+class AVFormatCtxMetadata : public WasmEdgeFFmpegAVFormat<AVFormatCtxMetadata> {
+public:
+  AVFormatCtxMetadata(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvFormatCtxId, uint32_t DictPtr);
+};
+
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

@@ -248,4 +248,32 @@ TEST(WasmEdgeAVFormatTest, AVFormatFunc) {
         Result));
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
+
+  FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformat_network_init");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatNetworkInit = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatNetworkInit &>(
+      FuncInst->getHostFunc());
+  {
+    EXPECT_TRUE(HostFuncAVFormatNetworkInit.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));
+
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformat_network_deinit");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatNetworkDeInit = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatNetworkDeInit &>(
+      FuncInst->getHostFunc());
+  {
+    EXPECT_TRUE(HostFuncAVFormatNetworkDeInit.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));
+
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
 }

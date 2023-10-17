@@ -101,6 +101,21 @@ public:
                        uint32_t AvFormatCtxId);
 };
 
+class AVFormatNetworkInit : public WasmEdgeFFmpegAVFormat<AVFormatNetworkInit> {
+public:
+  AVFormatNetworkInit(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVFormatNetworkDeInit
+    : public WasmEdgeFFmpegAVFormat<AVFormatNetworkDeInit> {
+public:
+  AVFormatNetworkDeInit(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

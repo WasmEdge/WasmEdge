@@ -38,6 +38,10 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVReadFrame>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avio_close",
               std::make_unique<AVIOClose>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_network_init",
+              std::make_unique<AVFormatNetworkInit>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_network_deinit",
+              std::make_unique<AVFormatNetworkDeInit>(env));
 
   // avformatContext Struct functions.
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_iformat",

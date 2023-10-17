@@ -136,6 +136,14 @@ Expect<int32_t> AVIOClose::body(const Runtime::CallingFrame &,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<int32_t> AVFormatNetworkInit::body(const Runtime::CallingFrame &) {
+  return avformat_network_init();
+}
+
+Expect<int32_t> AVFormatNetworkDeInit::body(const Runtime::CallingFrame &) {
+  return avformat_network_deinit();
+}
+
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

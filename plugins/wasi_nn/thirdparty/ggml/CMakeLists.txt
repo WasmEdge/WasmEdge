@@ -24,6 +24,12 @@ option(LLAMA_SANITIZE_ADDRESS           "llama: enable address sanitizer"       
 option(LLAMA_SANITIZE_UNDEFINED         "llama: enable undefined sanitizer"                     OFF)
 
 # instruction set specific
+if (LLAMA_NATIVE)
+    set(INS_ENB OFF)
+else()
+    set(INS_ENB ON)
+endif()
+
 option(LLAMA_AVX                        "llama: enable AVX"                                     ON)
 option(LLAMA_AVX2                       "llama: enable AVX2"                                    ON)
 option(LLAMA_AVX512                     "llama: enable AVX512"                                  OFF)
@@ -86,6 +92,20 @@ if (NOT MSVC)
     if (LLAMA_SANITIZE_UNDEFINED)
         add_compile_options(-fsanitize=undefined)
         link_libraries(-fsanitize=undefined)
+    endif()
+endif()
+
+if (APPLE AND LLAMA_ACCELERATE)
+    find_library(ACCELERATE_FRAMEWORK Accelerate)
+    if (ACCELERATE_FRAMEWORK)
+        message(STATUS "Accelerate framework found")
+
+        add_compile_definitions(GGML_USE_ACCELERATE)
+        add_compile_definitions(ACCELERATE_NEW_LAPACK)
+        add_compile_definitions(ACCELERATE_LAPACK_ILP64)
+        set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} ${ACCELERATE_FRAMEWORK})
+    else()
+        message(WARNING "Accelerate framework not found")
     endif()
 endif()
 
@@ -335,8 +355,7 @@ endif()
 if (LLAMA_ALL_WARNINGS)
     if (NOT MSVC)
         set(warning_flags -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function)
-        set(c_flags -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int
-            -Werror=implicit-function-declaration)
+        set(c_flags -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int -Werror=implicit-function-declaration)
         set(cxx_flags -Wmissing-declarations -Wmissing-noreturn)
         set(host_cxx_flags "")
 
@@ -368,7 +387,8 @@ if (LLAMA_ALL_WARNINGS)
     set(c_flags   ${c_flags}   ${warning_flags})
     set(cxx_flags ${cxx_flags} ${warning_flags})
     add_compile_options("$<$<COMPILE_LANGUAGE:C>:${c_flags}>"
-                        "$<$<COMPILE_LANGUAGE:CXX>:${cxx_flags} ${host_cxx_flags}>")
+                        "$<$<COMPILE_LANGUAGE:CXX>:${cxx_flags}>"
+                        "$<$<COMPILE_LANGUAGE:CXX>:${host_cxx_flags}>")
 
 endif()
 
@@ -422,9 +442,6 @@ if (NOT MSVC)
     endif()
     if (LLAMA_GPROF)
         add_compile_options(-pg)
-    endif()
-    if (LLAMA_NATIVE)
-        add_compile_options(-march=native)
     endif()
 endif()
 
@@ -480,6 +497,9 @@ elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$" OR "${CMAKE_GE
             add_compile_options($<$<COMPILE_LANGUAGE:CXX>:/arch:AVX>)
         endif()
     else()
+        if (LLAMA_NATIVE)
+            add_compile_options(-march=native)
+        endif()
         if (LLAMA_F16C)
             add_compile_options(-mf16c)
         endif()
@@ -576,8 +596,12 @@ wasmedge_add_library(ggml OBJECT
                      ggml.h
                      ggml-alloc.c
                      ggml-alloc.h
+                     ggml-backend.c
+                     ggml-backend.h
                      common.cpp
                      common.h
+                     sampling.cpp
+                     sampling.h
                      ${GGML_SOURCES_CUDA} ${GGML_HEADERS_CUDA}
                      ${GGML_SOURCES_OPENCL} ${GGML_HEADERS_OPENCL}
                      ${GGML_SOURCES_METAL} ${GGML_HEADERS_METAL}
@@ -620,14 +644,6 @@ if (BUILD_SHARED_LIBS)
     if (LLAMA_METAL)
         set_target_properties(llama PROPERTIES RESOURCE "${CMAKE_CURRENT_SOURCE_DIR}/ggml-metal.metal")
     endif()
-endif()
-
-# global flags for ggml
-if (NOT WIN32)
-    target_compile_options(ggml
-        PRIVATE
-        -DGGML_USE_K_QUANTS
-    )
 endif()
 
 # disable warnings

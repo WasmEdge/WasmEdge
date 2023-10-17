@@ -239,9 +239,17 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       break;
     }
 
-    // Append the new token.
-    CxtRef.LlamaOutputs +=
+    std::string NextToken =
         llama_token_to_piece(GraphRef.LlamaContext, NewTokenId);
+
+    // When setting STREAM_TO_STDOUT, we print the output to stdout.
+    const char *StreamOutput = std::getenv("STREAM_TO_STDOUT");
+    if (StreamOutput != nullptr) {
+      std::cout << NextToken << std::flush;
+    }
+
+    // Append the new token.
+    CxtRef.LlamaOutputs += NextToken;
 
     // Prepare the next batch
     LlamaBatch.n_tokens = 0;

@@ -420,6 +420,7 @@ public:
     }
     return {};
   }
+  void *getData() const noexcept { return Data; }
 
 private:
   WasmEdge_HostFunc_t Func;
@@ -2074,6 +2075,15 @@ WasmEdge_FunctionInstanceGetFunctionType(
     const WasmEdge_FunctionInstanceContext *Cxt) {
   if (Cxt) {
     return toFuncTypeCxt(&fromFuncCxt(Cxt)->getFuncType());
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT extern const void *
+WasmEdge_FunctionInstanceGetData(const WasmEdge_FunctionInstanceContext *Cxt) {
+  if (Cxt) {
+    return reinterpret_cast<CAPIHostFunc *>(&fromFuncCxt(Cxt)->getHostFunc())
+        ->getData();
   }
   return nullptr;
 }

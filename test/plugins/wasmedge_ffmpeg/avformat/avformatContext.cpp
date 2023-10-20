@@ -140,4 +140,22 @@ TEST(WasmEdgeAVFormatTest, AVFormatContextStruct) {
         Result));
     EXPECT_TRUE(Result[0].get<uint32_t>() >= 0);
   }
+
+  FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformatContext_metadata");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxMetadata = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxMetadata &>(
+      FuncInst->getHostFunc());
+
+  {
+    uint32_t DicPtr = uint32_t(40);
+    EXPECT_TRUE(HostFuncAVFormatCtxMetadata.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, DicPtr},
+        Result));
+    EXPECT_TRUE(Result[0].get<uint32_t>() >= 0);
+    EXPECT_TRUE(readUInt32(MemInst, DicPtr) > 0);
+  }
 }

@@ -56,6 +56,7 @@ endif()
 
 if(WASMEDGE_PLUGIN_WASI_OCR)
   add_subdirectory(wasi_ocr)
+endif()
   
 if(WASMEDGE_PLUGIN_OPENCVMINI)
   # Only Linux and MacOS support wasmedge_opencvmini now.

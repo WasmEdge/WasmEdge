@@ -27,7 +27,7 @@ public:
     // check Tesseract API by initializing tesseract-ocr with English, without
     // specifying tessdata path
     if (TesseractApi->Init(NULL, "eng")) {
-      spdlog::error("[WASI-OCR] Error occured when initializing tesseract.");
+      spdlog::error("[WASI-OCR] Error occurred when initializing tesseract.");
     }
   }
   ~WasiOCREnvironment() noexcept {

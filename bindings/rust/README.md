@@ -1,5 +1,8 @@
 # WasmEdge Rust Bindings
 
+** Rust Binding and related projects are moved to [wasmedge-rust-sdk](https://github.com/WasmEdge/wasmedge-rust-sdk) **
+** Please refer to the new repository for the further updates **
+
 WasmEdge Rust bindings consist of the following crates. They together provide different levels of APIs for Rust developers to use WasmEdge runtime. For example, `wasmedge-sdk` defines the high-level APIs for application development.
 
 ## Versioning Table
@@ -18,60 +21,24 @@ The following table provides the versioning information about each crate of Wasm
 
 ## wasmedge-sdk
 
+** `wasmedge-sdk` is moved to [wasmedge-rust-sdk](https://github.com/WasmEdge/wasmedge-rust-sdk)
 The `wasmedge-sdk` crate defines a group of high-level Rust APIs, which are used to build up business applications.
 
-<p align = "left">
-    <strong>
-        <a href="https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sdk/README.md">README</a> | <a href="https://wasmedge.github.io/WasmEdge/wasmedge_sdk/">API Documentation</a>
-    </strong>
-</p>
-<p align="left">
-    <a href="https://crates.io/crates/wasmedge-sdk">
-        <img src="https://img.shields.io/crates/v/wasmedge-sdk.svg">
-    </a>
-</p>
 
 ## wasmedge-sys
 
-The `wasmedge-sys` crate defines a group of low-level Rust APIs for WasmEdge, a light-weight, high-performance, and extensible WebAssembly runtime for cloud-native, edge, and decentralized applications.
+** `wasmedge-sys` is under [wasmedge-rust-sdk/crates/wasmedge-sys](https://github.com/WasmEdge/wasmedge-rust-sdk/tree/main/crates/wasmedge-sys) now. **
 
-<p align = "left">
-    <strong>
-        <a href="https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys/README.md">README</a> | <a href="https://wasmedge.github.io/WasmEdge/wasmedge_sys/">API Documentation</a>
-    </strong>
-</p>
-<p align="left">
-    <a href="https://crates.io/crates/wasmedge-sys">
-        <img src="https://img.shields.io/crates/v/wasmedge-sys.svg">
-    </a>
-</p>
+The `wasmedge-sys` crate defines a group of low-level Rust APIs for WasmEdge, a light-weight, high-performance, and extensible WebAssembly runtime for cloud-native, edge, and decentralized applications.
 
 ## wasmedge-types
 
-The `wasmedge-types` crate defines a group of common data structures used by both [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) and [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crates.
+** `wasmedge-types` is under [wasmedge-rust-sdk/crates/wasmedge-types](https://github.com/WasmEdge/wasmedge-rust-sdk/tree/main/crates/wasmedge-types) now. **
 
-<p align = "left">
-    <strong>
-        <a href="https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-types/README.md">README</a> | <a href="https://wasmedge.github.io/WasmEdge/wasmedge_types/">API Documentation</a>
-    </strong>
-</p>
-<p align="left">
-    <a href="https://crates.io/crates/wasmedge-types">
-        <img src="https://img.shields.io/crates/v/wasmedge-types.svg">
-    </a>
-</p>
+The `wasmedge-types` crate defines a group of common data structures used by both [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) and [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crates.
 
 ## wasmedge-macro
 
-The [wasmedge-macro](https://crates.io/crates/wasmedge-macro) crate defines a group of procedural macros used by both [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) and [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crates.
+** `wasmedge-mcaro` is under [wasmedge-rust-sdk/crates/wasmedge-mcaro](https://github.com/WasmEdge/wasmedge-rust-sdk/tree/main/crates/wasmedge-mcaro) now. **
 
-<p align = "left">
-    <strong>
-        <a href="https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-macro/README.md">README</a> | <a href="https://wasmedge.github.io/WasmEdge/wasmedge_macro/">API Documentation</a>
-    </strong>
-</p>
-<p align="left">
-    <a href="https://crates.io/crates/wasmedge-macro">
-        <img src="https://img.shields.io/crates/v/wasmedge-macro.svg">
-    </a>
-</p>
+The [wasmedge-macro](https://crates.io/crates/wasmedge-macro) crate defines a group of procedural macros used by both [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) and [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crates.

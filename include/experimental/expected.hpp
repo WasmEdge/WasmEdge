@@ -19,6 +19,10 @@
 #include <utility>
 #include <variant>
 
+#if defined(_MSC_VER) && !defined(__clang__)
+#define __builtin_expect(exp, c) (exp)
+#endif
+
 #if defined(__has_feature)
 #if __has_feature(cxx_exceptions)
 #define M_ENABLE_EXCEPTIONS 1
@@ -610,22 +614,42 @@ struct expected_view_base : public expected_storage_base<T, E> {
                 is_nothrow_move_assignable_v<T> &&is_nothrow_destructible_v<E>>
   T &emplace(Args &&...args) noexcept(NoExcept) {
     if (has_value()) {
-      val() = T(std::forward<Args>(args)...);
-    } else if constexpr (is_nothrow_constructible_v<T, Args...>) {
-      base::destruct_error();
-      construct_value(std::forward<Args>(args)...);
-    } else if constexpr (is_nothrow_move_constructible_v<T>) {
-      T tmp(std::forward<Args>(args)...);
-      base::destruct_error();
-      construct_value(std::move(tmp));
-    } else {
-      E tmp = std::move(error());
-      base::destruct_error();
-      try {
+      if constexpr (is_nothrow_constructible_v<T, Args...>) {
+        base::destruct_value();
         construct_value(std::forward<Args>(args)...);
-      } catch (...) {
-        base::construct_error(std::move(tmp));
-        throw_exception_again;
+      } else if constexpr (is_nothrow_move_constructible_v<T>) {
+        T tmp(std::forward<Args>(args)...);
+        base::destruct_value();
+        construct_value(std::move(tmp));
+      } else if constexpr (is_nothrow_move_assignable_v<T>) {
+        val() = T(std::forward<Args>(args)...);
+      } else {
+        T tmp = std::move(val());
+        base::destruct_value();
+        try {
+          construct_value(std::forward<Args>(args)...);
+        } catch (...) {
+          base::construct(std::move(tmp));
+          throw_exception_again;
+        }
+      }
+    } else {
+      if constexpr (is_nothrow_constructible_v<T, Args...>) {
+        base::destruct_error();
+        construct_value(std::forward<Args>(args)...);
+      } else if constexpr (is_nothrow_move_constructible_v<T>) {
+        T tmp(std::forward<Args>(args)...);
+        base::destruct_error();
+        construct_value(std::move(tmp));
+      } else {
+        E tmp = std::move(error());
+        base::destruct_error();
+        try {
+          construct_value(std::forward<Args>(args)...);
+        } catch (...) {
+          base::construct_error(std::move(tmp));
+          throw_exception_again;
+        }
       }
     }
     return val();
@@ -641,22 +665,42 @@ struct expected_view_base : public expected_storage_base<T, E> {
                 is_nothrow_move_assignable_v<T> &&is_nothrow_destructible_v<E>>
   T &emplace(initializer_list<U> il, Args &&...args) noexcept(NoExcept) {
     if (has_value()) {
-      val() = T(il, std::forward<Args>(args)...);
-    } else if constexpr (is_nothrow_constructible_v<T, Args...>) {
-      base::destruct_error();
-      construct_value(il, std::forward<Args>(args)...);
-    } else if constexpr (is_nothrow_move_constructible_v<T>) {
-      T tmp(il, std::forward<Args>(args)...);
-      base::destruct_error();
-      construct_value(std::move(tmp));
-    } else {
-      E tmp = std::move(error());
-      base::destruct_error();
-      try {
+      if constexpr (is_nothrow_constructible_v<T, Args...>) {
+        base::destruct_value();
         construct_value(il, std::forward<Args>(args)...);
-      } catch (...) {
-        base::construct_error(std::move(tmp));
-        throw_exception_again;
+      } else if constexpr (is_nothrow_move_constructible_v<T>) {
+        T tmp(il, std::forward<Args>(args)...);
+        base::destruct_value();
+        construct_value(std::move(tmp));
+      } else if constexpr (is_nothrow_move_assignable_v<T>) {
+        val() = T(il, std::forward<Args>(args)...);
+      } else {
+        T tmp = std::move(val());
+        base::destruct_value();
+        try {
+          construct_value(il, std::forward<Args>(args)...);
+        } catch (...) {
+          base::construct_value(std::move(tmp));
+          throw_exception_again;
+        }
+      }
+    } else {
+      if constexpr (is_nothrow_constructible_v<T, Args...>) {
+        base::destruct_error();
+        construct_value(il, std::forward<Args>(args)...);
+      } else if constexpr (is_nothrow_move_constructible_v<T>) {
+        T tmp(il, std::forward<Args>(args)...);
+        base::destruct_error();
+        construct_value(std::move(tmp));
+      } else {
+        E tmp = std::move(error());
+        base::destruct_error();
+        try {
+          construct_value(il, std::forward<Args>(args)...);
+        } catch (...) {
+          base::construct_error(std::move(tmp));
+          throw_exception_again;
+        }
       }
     }
     return val();

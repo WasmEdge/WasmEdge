@@ -21,13 +21,15 @@ jobs:
       - name: Install dependency
         run: |
           dnf update -y
-          dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev spdlog-devel
+          dnf install -y cmake ninja-build llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev spdlog-devel
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Build WasmEdge
+      - name: Grant the safe directory for git
         run: |
           git config --global --add safe.directory $(pwd)
+      - name: Build WasmEdge
+        run: |
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
           cmake --build build
       - name: Test WasmEdge

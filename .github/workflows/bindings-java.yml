@@ -35,6 +35,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
+
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
@@ -45,7 +49,7 @@ jobs:
       - name: Install clang-format-15
         run: |
           apt-get update
-          apt-get install clang-format-15
+          apt-get install -y clang-format-15
 
       - name: Lint
         run: |
@@ -65,7 +69,7 @@ jobs:
         run: |
           export WasmEdge_ROOT=$(pwd)/build
           cd bindings/java/wasmedge-java
-          ./gradlew clean 
+          ./gradlew clean
           ./gradlew build
 
       - name: Upload JNI lib
@@ -91,7 +95,7 @@ jobs:
 
       - name: Install build tools
         run: |
-          brew install llvm ninja boost cmake
+          brew install llvm ninja cmake
 
       - name: Build WasmEdge with Release mode
         run: |
@@ -103,7 +107,6 @@ jobs:
           cmake --build build
 
       - name: Test WasmEdge
-        continue-on-error: true
         run: |
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           cd build
@@ -122,7 +125,7 @@ jobs:
         run: |
           export WasmEdge_ROOT=$(pwd)/build
           cd bindings/java/wasmedge-java
-          ./gradlew clean 
+          ./gradlew clean
           ./gradlew assemble
 
       - name: Run Tests
@@ -153,7 +156,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install dependency
-        uses: crazy-max/ghaction-chocolatey@v2
+        uses: crazy-max/ghaction-chocolatey@v3
         with:
           args: install cmake ninja vswhere
 
@@ -173,10 +176,10 @@ jobs:
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $llvm = "LLVM-13.0.1-win64.zip"
-          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.1/LLVM-13.0.1-win64.zip -o $llvm
+          $llvm = "LLVM-16.0.6-win64-MultiThreadedDLL.zip"
+          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-16.0.6/LLVM-16.0.6-win64-MultiThreadedDLL.zip -o $llvm
           Expand-Archive -Path $llvm
-          $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
+          $llvm_dir = "$pwd\\LLVM-16.0.6-win64-MultiThreadedDLL\\LLVM-16.0.6-win64\\lib\\cmake\\llvm"
           $Env:CC = "clang-cl"
           $Env:CXX = "clang-cl"
           $cmake_sys_version = "10.0.19041.0"
@@ -184,7 +187,6 @@ jobs:
           cmake --build build
 
       - name: Test WasmEdge
-        continue-on-error: true
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
@@ -202,15 +204,15 @@ jobs:
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $llvm = "LLVM-13.0.1-win64.zip"
-          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.1/LLVM-13.0.1-win64.zip -o $llvm
+          $llvm = "LLVM-16.0.6-win64-MultiThreadedDLL.zip"
+          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-16.0.6/LLVM-16.0.6-win64-MultiThreadedDLL.zip -o $llvm
           Expand-Archive -Path $llvm
-          $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
+          $llvm_dir = "$pwd\\LLVM-16.0.6-win64-MultiThreadedDLL\\LLVM-16.0.6-win64\\lib\\cmake\\llvm"
           $Env:CC = "clang-cl"
           $Env:CXX = "clang-cl"
           $cmake_sys_version = "10.0.19041.0"
           $Env:PATH += ";$pwd\\build\\lib\\api"
-          ./gradlew clean 
+          ./gradlew clean
           ./gradlew assemble
 
       - name: Run Tests

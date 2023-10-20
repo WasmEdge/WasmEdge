@@ -6,8 +6,10 @@
 #include "common/log.h"
 #include "plugin/plugin.h"
 #include <cstdint>
+#include <functional>
 #include <vector>
 
+#include "ggml.h"
 #include "onnx.h"
 #include "openvino.h"
 #include "tf.h"
@@ -145,13 +147,51 @@ struct WasiNNEnvironment :
     FOR_EACH_BACKEND(EACH)
 #undef EACH
         std::monostate {
-  WasiNNEnvironment() noexcept {
-    NNGraph.reserve(16U);
-    NNContext.reserve(16U);
+
+  using Callback = std::function<Expect<WASINN::ErrNo>(
+      WASINN::WasiNNEnvironment &, Span<const Span<uint8_t>>, WASINN::Backend,
+      WASINN::Device, uint32_t &)>;
+
+  WasiNNEnvironment() noexcept;
+
+  bool mdGet(std::string Name, uint32_t &GraphId) noexcept {
+    std::shared_lock Lock(MdMutex);
+    if (auto It = MdMap.find(Name); It != MdMap.end()) {
+      GraphId = static_cast<uint32_t>(It->second);
+      return true;
+    }
+    return false;
   }
 
+  Expect<WASINN::ErrNo> mdBuild(std::string Name, uint32_t &GraphId,
+                                Callback Load) noexcept {
+    std::unique_lock Lock(MdMutex);
+    auto It = RawMdMap.find(Name);
+    if (It != RawMdMap.end()) {
+      auto RawMd = std::get<0>(It->second);
+      std::vector<Span<uint8_t>> Builders;
+      Builders.reserve(RawMd.size());
+      for (auto &Builder : RawMd) {
+        Builders.emplace_back(Builder);
+      }
+      auto Result = Load(*this, Builders, std::get<1>(It->second),
+                         std::get<2>(It->second), GraphId);
+      if (Result.has_value()) {
+        MdMap[Name] = GraphId;
+      }
+      return Result;
+    }
+    return WASINN::ErrNo::NotFound;
+  }
+
+  mutable std::shared_mutex MdMutex; ///< Protect MdMap
+  std::unordered_map<std::string, std::tuple<std::vector<std::vector<uint8_t>>,
+                                             Backend, Device>>
+      RawMdMap;
+  std::unordered_map<std::string, uint32_t> MdMap;
   std::vector<Graph> NNGraph;
   std::vector<Context> NNContext;
+  static PO::List<std::string> NNModels;
 
   static Plugin::PluginRegister Register;
 };

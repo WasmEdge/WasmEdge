@@ -51,11 +51,6 @@ namespace LLVM = WasmEdge::AOT::LLVM;
 
 namespace {
 
-// is x86_64
-#if defined(_M_X64) && !defined(__x86_64__)
-#define __x86_64__ 1
-#endif
-
 #if WASMEDGE_OS_MACOS
 // Get current OS version
 std::string getOSVersion() noexcept {
@@ -2104,8 +2099,8 @@ public:
         if (Context.SupportNEON) {
           assuming(LLVM::Core::AArch64NeonTbl1 != LLVM::Core::NotIntrinsic);
           stackPush(Builder.createBitCast(
-              Builder.createBinaryIntrinsic(LLVM::Core::AArch64NeonTbl1, Vector,
-                                            Index),
+              Builder.createIntrinsic(LLVM::Core::AArch64NeonTbl1,
+                                      {Context.Int8x16Ty}, {Vector, Index}),
               Context.Int64x2Ty));
           break;
         }
@@ -4376,8 +4371,10 @@ private:
           // If the XOP, SSSE3, or SSE2 is not supported on the x86_64 platform
           // or the NEON is not supported on the aarch64 platform,
           // then fallback to this.
-          const auto Width = LLContext.getInt32(
+          auto Width = LLVM::Value::getConstInt(
+              ExtTy.getElementType(),
               VectorTy.getElementType().getIntegerBitWidth());
+          Width = Builder.createVectorSplat(ExtTy.getVectorSize(), Width);
           auto EV = Builder.createBitCast(V, ExtTy);
           LLVM::Value L, R;
           if (Signed) {
@@ -5024,6 +5021,8 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
     WriteByte(OS, UINT8_C(2));
 #elif defined(__riscv) && __riscv_xlen == 64
     WriteByte(OS, UINT8_C(3));
+#elif defined(__arm__) && __ARM_ARCH == 7
+    WriteByte(OS, UINT8_C(4));
 #else
 #error Unsupported hardware architecture!
 #endif

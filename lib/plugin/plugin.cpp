@@ -13,10 +13,7 @@
 #include <pwd.h>
 #include <unistd.h>
 #elif WASMEDGE_OS_WINDOWS
-#include <windows.h>
-
-#include <KnownFolders.h>
-#include <ShlObj.h>
+#include "system/winapi.h"
 #endif
 
 namespace WasmEdge {
@@ -29,9 +26,9 @@ template <> struct Parser<WasmEdge_String> {
       const uint32_t Length = static_cast<uint32_t>(Value.size());
       char *Buf = new char[Value.size()];
       std::copy_n(Value.data(), Value.size(), Buf);
-      return WasmEdge_String{.Length = Length, .Buf = Buf};
+      return WasmEdge_String{/* Length */ Length, /* Buf */ Buf};
     }
-    return WasmEdge_String{.Length = 0, .Buf = nullptr};
+    return WasmEdge_String{/* Length */ 0, /* Buf */ nullptr};
   }
 };
 } // namespace PO
@@ -285,13 +282,22 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
   if (const auto HomeEnv = ::getenv("USERPROFILE")) {
     Home = std::filesystem::u8path(HomeEnv);
   } else {
+#if NTDDI_VERSION >= NTDDI_VISTA
     wchar_t *Path = nullptr;
-    if (HRESULT Res =
-            ::SHGetKnownFolderPath(FOLDERID_Profile, 0, nullptr, &Path);
-        SUCCEEDED(Res)) {
+    if (winapi::HRESULT_ Res = winapi::SHGetKnownFolderPath(
+            winapi::FOLDERID_Profile, 0, nullptr, &Path);
+        winapi::SUCCEEDED_(Res)) {
       Home = std::filesystem::path(Path);
-      ::CoTaskMemFree(Path);
+      winapi::CoTaskMemFree(Path);
     }
+#else
+    wchar_t Path[winapi::MAX_PATH_];
+    if (winapi::HRESULT_ Res = winapi::SHGetFolderPathW(
+            nullptr, winapi::CSIDL_PROFILE_, nullptr, 0, Path);
+        winapi::SUCCEEDED_(Res)) {
+      Home = std::filesystem::path(Path);
+    }
+#endif
   }
   Result.push_back(Home / std::filesystem::u8path(".wasmedge"sv) /
                    std::filesystem::u8path("plugin"sv));
@@ -300,8 +306,7 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
   return Result;
 }
 
-[[gnu::visibility("default")]] bool
-Plugin::load(const std::filesystem::path &Path) noexcept {
+WASMEDGE_EXPORT bool Plugin::load(const std::filesystem::path &Path) noexcept {
   std::error_code Error;
   auto Status = std::filesystem::status(Path, Error);
   if (likely(!Error)) {
@@ -363,8 +368,7 @@ void Plugin::addPluginOptions(PO::ArgumentParser &Parser) noexcept {
   }
 }
 
-[[gnu::visibility("default")]] const Plugin *
-Plugin::find(std::string_view Name) noexcept {
+WASMEDGE_EXPORT const Plugin *Plugin::find(std::string_view Name) noexcept {
   if (NiftyCounter != 0) {
     if (auto Iter = PluginNameLookup.find(Name);
         Iter != PluginNameLookup.end()) {
@@ -376,7 +380,7 @@ Plugin::find(std::string_view Name) noexcept {
 
 Span<const Plugin> Plugin::plugins() noexcept { return PluginRegistory; }
 
-[[gnu::visibility("default")]] void
+WASMEDGE_EXPORT void
 Plugin::registerPlugin(const PluginDescriptor *Desc) noexcept {
   assuming(NiftyCounter != 0);
   if (Desc->APIVersion != CurrentAPIVersion) {
@@ -399,7 +403,7 @@ Plugin::Plugin(const PluginDescriptor *D) noexcept : Desc(D) {
   }
 }
 
-[[gnu::visibility("default")]] const PluginModule *
+WASMEDGE_EXPORT const PluginModule *
 Plugin::findModule(std::string_view Name) const noexcept {
   if (auto Iter = ModuleNameLookup.find(Name); Iter != ModuleNameLookup.end()) {
     return std::addressof(ModuleRegistory[Iter->second]);
@@ -407,13 +411,13 @@ Plugin::findModule(std::string_view Name) const noexcept {
   return nullptr;
 }
 
-[[gnu::visibility("default")]] PluginRegister::PluginRegister(
-    const Plugin::PluginDescriptor *Desc) noexcept {
+WASMEDGE_EXPORT
+PluginRegister::PluginRegister(const Plugin::PluginDescriptor *Desc) noexcept {
   IncreaseNiftyCounter();
   Plugin::registerPlugin(Desc);
 }
 
-[[gnu::visibility("default")]] PluginRegister::~PluginRegister() noexcept {
+WASMEDGE_EXPORT PluginRegister::~PluginRegister() noexcept {
   DecreaseNiftyCounter();
 }
 

@@ -33,6 +33,15 @@ PackageFileName: ./utils/wasi-cpp-header
 PackageOriginator: Organization: Second State INC (contact@secondstate.io)
 PackageLicenseDeclared: Apache-2.0
 
+PackageName: llama.cpp
+SPDXID: SPDXRef-llama.cpp
+PackageFileName: ./plugins/wasi_nn/thirdparty/ggml
+PackageHomePage: https://github.com/ggerganov/llama.cpp
+PackageOriginator: Georgi Gerganov
+PackageLicenseDeclared: MIT
+PackageDownloadLocation: git://github.com/ggerganov/llama.cpp.git@b1309
+
 ## Relationships
 Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-blake3
 Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-wasi-cpp-header
+Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-llama.cpp

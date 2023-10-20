@@ -1,0 +1,58 @@
+name: Build WasmEdge on Nix
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "flake.nix"
+      - ".github/workflows/build_for_nix.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
+  pull_request:
+    branches:
+      - master
+      - "proposal/**"
+    paths:
+      - "flake.nix"
+      - ".github/workflows/build_for_nix.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
+
+jobs:
+  build_nix:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/cache@v3
+      id: nix-cache
+      with:
+        path: /tmp/nix-store
+        key: ${{ runner.os }}-nix-store
+
+    - uses: cachix/install-nix-action@v23
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+
+    - name: "import nix store"
+      if: "steps.nix-cache.outputs.cache-hit == 'true'"
+      run: nix-store --import < /tmp/nix-store
+
+    - run: nix flake check
+    - run: nix build -L .
+
+    - name: "export nix store"
+      run: nix-store --export $(find /nix/store -maxdepth 1 -name '*-*') > /tmp/nix-store

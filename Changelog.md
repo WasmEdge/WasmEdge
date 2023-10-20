@@ -1,8 +1,240 @@
+### 0.13.4 (2023-09-05)
+
+Features:
+
+* [C API] Provide API for registering the Pre- and Post- host functions
+  * Pre host function will be triggered before calling every host function
+  * Post host function will be triggered after calling every host function
+* [CI] Update llvm-windows from 13.0.3 to 16.0.6
+  * WasmEdge supports multiple LLVM version, users can choose whatever they want.
+  * This change is for CI.
+* [CI] build alpine static libraries (#2699)
+  * This provides pre-built static libraries using musl-libc on alpine.
+* [Plugin] add wasmedge_rustls_plugin (#2762)
+* [Plugin] implement opencvmini `rectangle` and `cvtColor` (#2705)
+* [Test] Migrating spec test from RapidJSON to SIMDJSON (#2659)
+* [WASI Socket] AF\_UNIX Support (#2216)
+  * This is disable by default.
+  * How to enable this feature:
+    * CLI: Use `--allow-af-unix`.
+    * C API: Use `WasmEdge\_ConfigureSetAllowAFUNIX`.
+* [WASI-NN] Add ggml backend for llama (#2763)
+  * Integrate llama.cpp as a new WASI-NN backend.
+* [WASI-NN] Add load_by_name implementation into wasi-nn plugin (#2742)
+  * Support named_model feature.
+* [WASI-NN] Added support for Tuple Type Output Tensors in Pytorch Backend (#2564)
+
+Fixed issues:
+
+* [AOT] Fix fallback case of `compileVectorExtAddPairwise`. (#2736)
+* [AOT] Fix the neontbl1 codegen error on macOS (#2738)
+* [Runtime] fix memory.init oob. issue #2743  (#2758)
+* [Runtime] fix table.init oob. issue #2744 (#2756)
+* [System] Remove "inline" from Fault::emitFault (#2695) (#2720)
+* [Test] Use std::filesystem::u8path instead of a const char* Path (#2706)
+* [Utils] Installer: Fix checking of shell paths (#2752)
+* [Utils] Installer: Formatting and Better source message (#2721)
+* [WASI] Avoid undefined function `FindHolderBase::reset`
+* [WASI] itimerspec with 0 timeout will disarm timer, +1 to workaround (#2730)
+
+Thank all the contributors that made this release possible!
+
+Adithya Krishna, Divyanshu Gupta, Faidon Liambotis, Jorge Prendes, LFsWang, Lev Veyde, Lîm Tsú-thuàn, Sarrah Bastawala, Shen-Ta Hsieh, Shreyas Atre, Vedant R. Nimje, Yi-Ying He, alabulei1, am009, dm4, erxiaozhou, hydai, vincent, zzz
+
+If you want to build from source, please use WasmEdge-0.13.4-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
+### 0.13.3 (2023-07-25)
+
+This is a bugfix release.
+
+Features:
+
+* [CMake] Add a flag to disable libtinfo (#2676)
+* [Plugin] Implement OpenCV-mini (#2648)
+* [CI] Build wasmedge on Nix (#2674)
+
+Fixed issues:
+
+* WASI Socket: Remove unused fds before closing them. (#2675), part of #2662
+
+Known issues:
+
+* Universal WASM format failed on macOS platforms.
+  * In the current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause a bus error during execution.
+  * We are trying to fix this issue. For a working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+
+Thank all the contributors that made this release possible!
+
+Lîm Tsú-thuàn, Tricster, Tyler Rockwood
+
+If you want to build from source, please use WasmEdge-0.13.3-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
+### 0.13.2 (2023-07-21)
+
+This is a bugfix release.
+
+Features:
+
+* Provide static library on `x86_64` and `aarch64` Linux (#2666)
+* Provide `wasm_bpf` plugins in the release assets (#2610)
+* WASI-NN: Updating install script for OpenVino 2023.0.0 version (#2636)
+* Installer: Add new tags support for wasmedge-tensorflow (#2608)
+* Fuss: Use own implement of `BoyerMooreHorspoolSearcher` (#2657)
+
+Fixed issues:
+
+* WASI Socket: Fix blocking when multiple requests have the same fds. (#2662)
+* Utils: devtoolset-11 is not available on manylinux2014 aarch64, downgrade to devtoolset-10 (#2663)
+
+Known issues:
+
+* Universal WASM format failed on macOS platforms.
+  * In the current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause a bus error during execution.
+  * We are trying to fix this issue. For a working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+
+Thank all the contributors that made this release possible!
+
+Divyanshu Gupta, Faidon Liambotis, hydai, Jorge Prendes, Officeyutong, Shen-Ta Hsieh, Shreyas Atre, Tricster, YiYing He
+
+If you want to build from source, please use WasmEdge-0.13.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
+### 0.13.1 (2023-07-06)
+
+This is a bugfix release.
+
+Fixed issues:
+
+* Rollback the WasmEdge WASI Socket behavior of V1 functions.
+  * Related functions: `getlocaladdr`, and `getpeeraddr`
+  * Reason:
+    * The address type should be INET4(0) and INET6(1).
+    * This regrasion is introduced in [#2557](https://github.com/WasmEdge/WasmEdge/pull/2557).
+    * However, the original values of the previous version (< 0.13.0): INET4(4) and INET6(6).
+    * To avoid this incompatible behavior, we choose to keep the old behavior.
+
+Known issues:
+
+* Universal WASM format failed on macOS platforms.
+  * In the current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause a bus error during execution.
+  * We are trying to fix this issue. For a working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+
+Thank all the contributors that made this release possible!
+
+If you want to build from source, please use WasmEdge-0.13.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
+### 0.13.0 (2023-06-30)
+
+Breaking changes:
+
+Features:
+
+* Updated the WasmEdge shared library.
+  * Due to the breaking change of API, bump the `SOVERSION` to `0.0.3`.
+* Unified the `wasmedge` CLI tool.
+  * Supported the subcommand `run` and `compile` for the `wasmedge` CLI.
+  * Users now can use the command `wasmedge run [ARGS]` to drive the original `wasmedge` tool.
+  * Users now can use the command `wasmedge compile [ARGS]` to drive the original `wasmedgec` AOT compiler tool.
+* Made WasmEdge on `armv7l` great again.
+* Bumpped `spdlog` to `v1.11.0`.
+  * Refactored the logs to use the `fmt` for formatting.
+* Bumpped `blake3` to `1.3.3`.
+* Added the CMake option `WASMEDGE_ENABLE_UB_SANITIZER` to enable the undefined behavior sanitizer.
+* Deprecated the `wasmedge_httpsreq` plug-in.
+* Migrated the WasmEdge extensions into plug-ins.
+  * Migrated the [WasmEdge-image](https://github.com/second-state/WasmEdge-image) into the `wasmedge_image` plug-in.
+  * Migrated the [WasmEdge-tensorflow](https://github.com/second-state/WasmEdge-tensorflow) into the `wasmedge_tensorflow` and `wasmedge_tensorflowlite` plug-ins.
+  * Supported `manylinux2014_x86_64`, `manylinux2014_aarch64`, `darwin_x86_64`, and `darwin_arm64` platforms for the above plug-ins.
+* Introduced the `wasi_logging` plug-in.
+* Added GPU support for WASI-NN PyTorch backend.
+* New APIs for containing data into module instances when in creation.
+  * Added the `WasmEdge_ModuleInstanceCreateWithData()` API for creating a module instance with data and its finalizer callback function pointer.
+  * Added the `WasmEdge_ModuleInstanceGetHostData()` API for accessing the host data set into the module instance.
+* Supported the async invocation with executor.
+  * Added the `WasmEdge_ExecutorAsyncInvoke()` API for invoking a WASM function asynchronously.
+* Added helper functions for Windows CLI.
+  * Added the `WasmEdge_Driver_ArgvCreate()` and `WasmEdge_Driver_ArgvDelete()` APIs to convert UTF-16 arguments to UTF-8.
+  * Added the `WasmEdge_Driver_SetConsoleOutputCPtoUTF8()` API to set the output code page to UTF-8.
+* Added the unifed tool API.
+  * Added the `WasmEdge_Driver_UniTool()` API to trigger the WasmEdge CLI tool with command line arguments.
+
+Fixed issues:
+
+* Fixed the WasmEdge C API static library linking command for `llvm-ar-14`.
+* Fixed the undefined behavior issues in Loader and Validator.
+* Fixed the WASI issues.
+  * Denied the absolute path accessing.
+  * Opened directories with `__WASI_OFLAGS_DIRECTORY` flag.
+  * Don't use `O_PATH` unless flag is exactly `__WASI_OFLAGS_DIRECTORY`.
+  * Removed seeking rights on directories.
+  * Fixed checking wrong rights in `path_open`.
+  * Allowed renumbering and closing preopened `fd`.
+  * Disallowed accessing parent directory through `..`.
+  * Don't write null pointer at end of args/envs pointer array.
+  * Don't write first entry when buffer size is zero.
+  * Removed unused VFS objects.
+  * Fixed the `fd_readdir`.
+  * Corrected the readonly inheriting right.
+* Fixed plug-in issues.
+  * Fixed the error enumeration in WASI-NN.
+  * Fixed the error messages of tensor type in WASI-NN Tensorflow-Lite backend.
+  * Handled the model data ownership in WASI-NN Tensorflow-Lite backend.
+  * Returned error with the following cases in WASI-Crypto, because OpenSSL 3.0 didn't implement context duplication for `aes-gcm` and `chacha20`.
+
+Refactor:
+
+* Moved the Windows API definitions to `include/system/winapi.h`.
+* Dropped the `boost` dependency.
+  * Replaced the `boost` endian detection by the macros.
+  * Used the `std::boyer_moore_horspool_searcher` instead.
+* Refactored the functions for accessing slides on memory instances.
+* Moved the `WasmEdge::VM::Async` class to the `include/common` for supporting async invocation in executor.
+* Refactored the WASI host functions.
+  * Removed duplicate codes on `poll_oneoff` with `edge-trigger` configuration.
+  * Refactored Poller interface for reusing the same objects.
+  * Supported absolute time flags for `poll_oneoff` on MacOS.
+  * Used static vector to speedup CI.
+  * Refactored the internal APIs of wasi-socket.
+* Refactored the WASI-NN plug-in source.
+  * Refined the WASI-NN dependency linking in CMake.
+  * Separated the source files for different backends.
+
+Documentations:
+
+* Moved and published the WasmEdge document to <https://wasmedge.org/docs/>.
+* Removed all WASM binary files in the source tree.
+
+Tests:
+
+* Updated the WASM spec tests to the date 2023/05/11.
+* Added the plug-in unit tests and CI for Linux and MacOS platforms.
+* Added new test cases of `cxx20::expected`.
+
+Known issues:
+
+* Universal WASM format failed on macOS platforms.
+  * In the current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause a bus error during execution.
+  * We are trying to fix this issue. For a working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+
+Thank all the contributors that made this release possible!
+
+Adithya Krishna, Chris O'Hara, Edward Chen, Louis Tu, Lîm Tsú-thuàn, Maurizio Pillitu, Officeyutong, Shen-Ta Hsieh, Shreyas Atre, Tricster, Tyler Rockwood, Xin Liu, YiYing He, Yu Xingzi, alabulei1, hydai, michael1017, vincent, yanghaku
+
+If you want to build from source, please use WasmEdge-0.13.0-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.12.1 (2023-05-12)
 
 This is a hotfix release.
 
 Fixed issues:
+
 * WASI:
   * fix rights of pre-open fd cannot write and fix read-only flag parse (#2458)
 * WASI Socket:
@@ -18,8 +250,8 @@ Fixed issues:
   * Fix building with statically linked LLVM-15 on MacOS.
   * cmake: quote WASMEDGE_LLVM_LINK_LIBS_NAME variable in order to fix arm64-osx AOT build (#2443)
 * Windows:
-    * Fix missing msvcp140.dll issue (#2455)
-    * Revert #2455 temporarily. Use `CMAKE_MSVC_RUNTIME_LIBRARY` instead of `MSVC_RUNTIME_LIBRARY`.
+  * Fix missing msvcp140.dll issue (#2455)
+  * Revert #2455 temporarily. Use `CMAKE_MSVC_RUNTIME_LIBRARY` instead of `MSVC_RUNTIME_LIBRARY`.
 * Rust Binding:
   * Introduce `fiber-for-wasmedge` (#2468). The Rust binding relies on fiber for some features. Because the runwasi project supports both wasmtime and wasmedge, the wasmtime-fiber with different versions will make the compilation complex. To avoid this, we forked wasmtime-fiber as fiber-for-wasmedge.
   * Add a second phase mechanism to load plugins after the VM has already been built. (#2469)
@@ -109,7 +341,7 @@ Fixed issues:
 * Fixed the lost intrinsics table in AOT mode when using the WasmEdge C API.
 * Fixed the registration failed of WasmEdge plug-in through the C API.
 * Fixed the implementation in `threads` proposal.
-  * Fixed the error in `atomic.nofify` and `atomic.wait` instructions.
+  * Fixed the error in `atomic.notify` and `atomic.wait` instructions.
   * Fixed the decoding of `atomic.fence` instruction.
   * Corrected the error message of waiting on unshared memory.
 * Handle canonical and arithmetical `NaN` in `runMaxOp()` and `runMinOp()`.
@@ -812,7 +1044,7 @@ Bindings:
 Tests:
 
 * Updated the core test suite to the newest WASM spec.
-* Updated and fixed the value comarison in core tests.
+* Updated and fixed the value comparison in core tests.
 * Added `ErrInfo` unit tests.
 * Added instruction tests for turning on/off the old proposals.
 * Moved and updated the `AST` unit tests into `loader`.
@@ -1196,7 +1428,7 @@ Refactor:
 
 * Refactor symbols in AOT.
   * Removed the symbols in instances.
-  * Added instrinsics table for dynamic linking when running a compiled wasm.
+  * Added intrinsics table for dynamic linking when running a compiled wasm.
 * Merged the program counter into `stack manager`.
 * Added back the `OpCode::End` instruction.
 * Refactored the validator workflow of checking expressions.

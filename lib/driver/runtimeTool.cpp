@@ -29,6 +29,9 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   Log::setInfoLoggingLevel();
 
   Configure Conf;
+  if (Opt.PropAFUNIX.value()) {
+    Conf.getRuntimeConfigure().setAllowAFUNIX(true);
+  }
   if (Opt.PropMutGlobals.value()) {
     Conf.removeProposal(Proposal::ImportExportMutGlobals);
   }
@@ -107,7 +110,8 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   }
 
   Conf.addHostRegistration(HostRegistration::Wasi);
-  const auto InputPath = std::filesystem::absolute(Opt.SoName.value());
+  const auto InputPath =
+      std::filesystem::absolute(std::filesystem::u8path(Opt.SoName.value()));
   VM::VM VM(Conf);
 
   Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(

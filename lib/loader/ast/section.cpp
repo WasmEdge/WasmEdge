@@ -195,12 +195,14 @@ inline constexpr uint8_t HostOSType() noexcept {
 }
 
 inline constexpr uint8_t HostArchType() noexcept {
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(_M_X64)
   return UINT8_C(1);
 #elif defined(__aarch64__)
   return UINT8_C(2);
 #elif defined(__riscv) && __riscv_xlen == 64
   return UINT8_C(3);
+#elif defined(__arm__) && __ARM_ARCH == 7
+  return UINT8_C(4);
 #else
   // Means universal wasm binary is not yet supported on this arch.
   return UINT8_C(-1);

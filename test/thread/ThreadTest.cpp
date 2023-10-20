@@ -171,7 +171,7 @@ TEST(AsyncExecute, ThreadTest) {
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
   {
-    std::array<WasmEdge::VM::Async<WasmEdge::Expect<std::vector<
+    std::array<WasmEdge::Async<WasmEdge::Expect<std::vector<
                    std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>,
                4>
         AsyncResults;
@@ -202,7 +202,7 @@ TEST(AsyncExecute, GasThreadTest) {
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
   {
-    std::array<WasmEdge::VM::Async<WasmEdge::Expect<std::vector<
+    std::array<WasmEdge::Async<WasmEdge::Expect<std::vector<
                    std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>,
                4>
         AsyncResults;
@@ -247,7 +247,7 @@ TEST(AOTAsyncExecute, ThreadTest) {
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
   {
-    std::array<WasmEdge::VM::Async<WasmEdge::Expect<std::vector<
+    std::array<WasmEdge::Async<WasmEdge::Expect<std::vector<
                    std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>,
                4>
         AsyncResults;
@@ -295,7 +295,7 @@ TEST(AOTAsyncExecute, GasThreadTest) {
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
   {
-    std::array<WasmEdge::VM::Async<WasmEdge::Expect<std::vector<
+    std::array<WasmEdge::Async<WasmEdge::Expect<std::vector<
                    std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>,
                4>
         AsyncResults;

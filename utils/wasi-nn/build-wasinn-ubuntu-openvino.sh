@@ -6,7 +6,6 @@ if [[ ! -v "${CMAKE_BUILD_TYPE}" ]]; then
   CMAKE_BUILD_TYPE=Release
 fi
 
-source /opt/intel/openvino_2021/bin/setupvars.sh
 ldconfig
 git config --global --add safe.directory $(pwd)
 if ! cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="OpenVINO" .; then

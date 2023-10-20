@@ -8,8 +8,6 @@ on:
         required: true
       release:
         type: boolean
-      upload_asset_url:
-        type: string
 
 jobs:
   build_on_windows:
@@ -21,8 +19,11 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
       - name: Install dependency
-        uses: crazy-max/ghaction-chocolatey@v2
+        uses: crazy-max/ghaction-chocolatey@v3
         with:
           args: install cmake ninja vswhere
       - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
@@ -37,17 +38,16 @@ jobs:
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $llvm = "LLVM-13.0.1-win64.zip"
-          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.1/LLVM-13.0.1-win64.zip -o $llvm
+          $llvm = "LLVM-16.0.6-win64-MultiThreadedDLL.zip"
+          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-16.0.6/LLVM-16.0.6-win64-MultiThreadedDLL.zip -o $llvm
           Expand-Archive -Path $llvm
-          $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
+          $llvm_dir = "$pwd\\LLVM-16.0.6-win64-MultiThreadedDLL\\LLVM-16.0.6-win64\\lib\\cmake\\llvm"
           $Env:CC = "clang-cl"
           $Env:CXX = "clang-cl"
           $cmake_sys_version = "10.0.19041.0"
           cmake -Bbuild -GNinja "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" "-DWASMEDGE_BUILD_TESTS=$Env:build_tests" -DWASMEDGE_BUILD_PACKAGE="ZIP" .
           cmake --build build
       - name: Test WasmEdge
-        continue-on-error: true
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
@@ -84,21 +84,15 @@ jobs:
           path: build\\WasmEdge-${{ env.product_version }}-windows.msi
       - name: Upload Windows 10 zip package
         if: ${{ inputs.release }}
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ inputs.upload_asset_url }}
-          asset_name: WasmEdge-${{ inputs.version }}-windows.zip
-          asset_path: build\\WasmEdge-${{ inputs.version }}-Windows.zip
-          asset_content_type: application/zip
+        run: |
+          mv build\\WasmEdge-${{ inputs.version }}-Windows.zip WasmEdge-${{ inputs.version }}-windows.zip
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-windows.zip --clobber
       - name: Upload Windows installer
         if: ${{ inputs.release }}
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ inputs.upload_asset_url }}
-          asset_name: WasmEdge-${{ env.product_version }}-windows.msi
-          asset_path: build\\WasmEdge-${{ env.product_version }}-windows.msi
-          asset_content_type: application/octet-stream
+        run: |
+          mv build\\WasmEdge-${{ env.product_version }}-windows.msi WasmEdge-${{ env.product_version }}-windows.msi
+          gh release upload ${{ inputs.version }} WasmEdge-${{ env.product_version }}-windows.msi --clobber

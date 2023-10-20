@@ -52,7 +52,7 @@ fn real_add(_caller: &Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, H
     };
 
     let c = a + b;
-    println!("Rust: calcuating in real_add c: {:?}", c);
+    println!("Rust: calculating in real_add c: {:?}", c);
 
     println!("Rust: Leaving Rust function real_add");
     Ok(vec![WasmValue::from_i32(c)])

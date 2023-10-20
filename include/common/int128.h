@@ -13,6 +13,10 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma intrinsic(_BitScanReverse64)
+#endif
+
 #include <ostream>
 
 // If there is a built-in type __int128, then use it directly
@@ -47,7 +51,7 @@ class uint128_t;
 
 class uint128_t {
 public:
-  constexpr uint128_t() noexcept = default;
+  uint128_t() noexcept = default;
   constexpr uint128_t(const uint128_t &) noexcept = default;
   constexpr uint128_t(uint128_t &&) noexcept = default;
   constexpr uint128_t &operator=(const uint128_t &V) noexcept = default;
@@ -225,6 +229,9 @@ public:
   friend constexpr uint128_t operator^(uint128_t LHS, uint128_t RHS) noexcept {
     return uint128_t(LHS.High ^ RHS.High, LHS.Low ^ RHS.Low);
   }
+  friend constexpr uint128_t operator~(uint128_t Value) noexcept {
+    return uint128_t(~Value.High, ~Value.Low);
+  }
   friend constexpr uint128_t operator<<(uint128_t Value,
                                         unsigned int Shift) noexcept {
     if (Shift < 64) {
@@ -241,7 +248,7 @@ public:
     if (Shift < 64) {
       if (Shift != 0) {
         return uint128_t((Value.High >> Shift),
-                         Value.Low >> Shift | (Value.Low << (64 - Shift)));
+                         Value.Low >> Shift | (Value.High << (64 - Shift)));
       }
       return Value;
     }
@@ -251,6 +258,14 @@ public:
     return Value << static_cast<unsigned int>(Shift);
   }
   friend constexpr uint128_t operator>>(uint128_t Value, int Shift) noexcept {
+    return Value >> static_cast<unsigned int>(Shift);
+  }
+  friend constexpr uint128_t operator<<(uint128_t Value,
+                                        unsigned long long Shift) noexcept {
+    return Value << static_cast<unsigned int>(Shift);
+  }
+  friend constexpr uint128_t operator>>(uint128_t Value,
+                                        unsigned long long Shift) noexcept {
     return Value >> static_cast<unsigned int>(Shift);
   }
 
@@ -266,6 +281,18 @@ public:
   constexpr uint64_t low() const noexcept { return Low; }
   constexpr uint64_t high() const noexcept { return High; }
   constexpr unsigned int clz() const noexcept {
+#if defined(_MSC_VER) && !defined(__clang__)
+    unsigned long LeadingZero = 0;
+    if (High) {
+      _BitScanReverse64(&LeadingZero, High);
+      return (63 - LeadingZero);
+    }
+    if (Low) {
+      _BitScanReverse64(&LeadingZero, Low);
+      return (63 - LeadingZero) + 64;
+    }
+    return 128;
+#else
     if (High) {
       return __builtin_clzll(High);
     }
@@ -273,16 +300,17 @@ public:
       return __builtin_clzll(Low) + 64;
     }
     return 128;
+#endif
   }
 
 private:
-  uint64_t Low = 0;
-  uint64_t High = 0;
+  uint64_t Low;
+  uint64_t High;
 };
 
 class int128_t {
 public:
-  constexpr int128_t() noexcept = default;
+  int128_t() noexcept = default;
   constexpr int128_t(const int128_t &) noexcept = default;
   constexpr int128_t(int128_t &&) noexcept = default;
   constexpr int128_t &operator=(const int128_t &V) noexcept = default;
@@ -330,8 +358,8 @@ public:
   constexpr int64_t high() const noexcept { return High; }
 
 private:
-  uint64_t Low = 0;
-  int64_t High = 0;
+  uint64_t Low;
+  int64_t High;
 };
 
 inline constexpr uint128_t::uint128_t(int128_t V) noexcept

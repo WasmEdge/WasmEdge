@@ -111,8 +111,8 @@ public:
   RuntimeConfigure() noexcept = default;
   RuntimeConfigure(const RuntimeConfigure &RHS) noexcept
       : MaxMemPage(RHS.MaxMemPage.load(std::memory_order_relaxed)),
-        ForceInterpreter(RHS.ForceInterpreter.load(std::memory_order_relaxed)) {
-  }
+        ForceInterpreter(RHS.ForceInterpreter.load(std::memory_order_relaxed)),
+        AllowAFUNIX(RHS.AllowAFUNIX.load(std::memory_order_relaxed)) {}
 
   void setMaxMemoryPage(const uint32_t Page) noexcept {
     MaxMemPage.store(Page, std::memory_order_relaxed);
@@ -130,9 +130,18 @@ public:
     return ForceInterpreter.load(std::memory_order_relaxed);
   }
 
+  void setAllowAFUNIX(bool IsAllowAFUNIX) noexcept {
+    AllowAFUNIX.store(IsAllowAFUNIX, std::memory_order_relaxed);
+  }
+
+  bool isAllowAFUNIX() const noexcept {
+    return AllowAFUNIX.load(std::memory_order_relaxed);
+  }
+
 private:
   std::atomic<uint32_t> MaxMemPage = 65536;
   std::atomic<bool> ForceInterpreter = false;
+  std::atomic<bool> AllowAFUNIX = false;
 };
 
 class StatisticsConfigure {
@@ -179,7 +188,8 @@ private:
   std::atomic<bool> InstrCounting = false;
   std::atomic<bool> CostMeasuring = false;
   std::atomic<bool> TimeMeasuring = false;
-  std::atomic<uint64_t> CostLimit = UINT64_C(-1);
+
+  std::atomic<uint64_t> CostLimit = std::numeric_limits<uint64_t>::max();
 };
 
 class Configure {

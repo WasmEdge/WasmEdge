@@ -2,6 +2,10 @@
 
 These examples showcase how to run JavaScript programs with the WasmEdge binary tools. WasmEdge provides [a lightweight sandbox](https://www.secondstate.io/articles/run-javascript-in-webassembly-with-wasmedge/) for running and managing JavaScript applications. More examples are available in [this Github repo](https://github.com/second-state/wasmedge-quickjs/).
 
+## Get qjs.wasm from the wasmedge-quickjs repo
+
+The `qjs.wasm` can be found on the [wasmedge-quickjs release page](https://github.com/second-state/wasmedge-quickjs/releases)
+
 ## Basic examples
 
 The `qjs.wasm` is a JavaScript interpreter compiled into WebAssembly. Below is a very simple JavaScript example in WasmEdge.

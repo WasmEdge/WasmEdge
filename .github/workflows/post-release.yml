@@ -21,7 +21,7 @@ jobs:
           curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -p ${{ github.workspace }}/wasmedge-latest
       # TODO: check if latest version match ref
       - name: Run libsodium tests
-        uses: second-state/wasmedge-actions-libsodium-tests@v0.0.1
+        uses: second-state/wasmedge-actions-libsodium-tests@v0.0.2
         with:
           path: wasmedge-latest/bin
           wasi-runtime: wasmedge

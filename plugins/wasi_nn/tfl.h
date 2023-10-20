@@ -24,6 +24,7 @@ struct Graph {
       TfLiteModelDelete(TFLiteMod);
     }
   }
+  std::vector<unsigned char> TfLiteModData;
   TfLiteModel *TFLiteMod = nullptr;
 };
 

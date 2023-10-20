@@ -11,8 +11,6 @@ on:
         required: true
       release:
         type: boolean
-      upload_asset_url:
-        type: string
 
 jobs:
   build_on_ubuntu:
@@ -20,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(inputs.matrix) }}
-    name: Build on ${{ matrix.name }} with ${{ matrix.compiler }} ${{ matrix.build_type }}
+    name: ${{ matrix.name }} (${{ matrix.compiler }}, ${{ matrix.build_type }})
     runs-on: ubuntu-latest
     env:
       BUILD_TESTS: OFF
@@ -29,17 +27,22 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
       - name: Set environment variables for tests
         if: ${{ matrix.tests }}
         run: |
           echo "BUILD_TESTS=ON" | tee -a $GITHUB_ENV
-      - name: Build WasmEdge using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
+      - name: Grant the safe directory for git
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - name: Build (${{ matrix.compiler }}, ${{ matrix.build_type }})
         if: ${{ ! matrix.coverage }}
         shell: bash
         env:
           CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
         run: |
-          git config --global --add safe.directory $(pwd)
           if [[ "${{ matrix.compiler }}" == "clang++" ]]; then
             cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_BUILD_PACKAGE="TGZ" ${{ matrix.options }} .
           else
@@ -47,7 +50,7 @@ jobs:
           fi
           cmake --build build
           cmake --build build --target package
-      - name: Test WasmEdge
+      - name: Test
         if: ${{ !matrix.coverage && env.BUILD_TESTS }}
         run: |
           export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
@@ -55,13 +58,11 @@ jobs:
           ./tools/wasmedge/wasmedge -v
           ctest
           cd -
-      - name: Build WasmEdge using ${{ matrix.compiler }} with Coverage mode
+      - name: Build (${{ matrix.compiler }}, Coverage)
         if: ${{ matrix.coverage }}
         run: |
           apt update
           apt install -y gcovr
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --target wasm32-wasi
-          git config --global --add safe.directory $(pwd)
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_COVERAGE=ON .
           cmake --build build
           LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target codecov
@@ -73,14 +74,17 @@ jobs:
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
       - name: Upload package tarball
         if: ${{ inputs.release }}
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ inputs.upload_asset_url }}
-          asset_path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
-          asset_name: WasmEdge-${{ inputs.version }}-ubuntu22.04_x86_64.tar.gz
-          asset_content_type: application/x-gzip
+        run: |
+          type -p curl >/dev/null || (apt update && apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && apt update \
+          && apt install gh -y
+          mv build/WasmEdge-${{ inputs.version }}-Linux.tar.gz WasmEdge-${{ inputs.version }}-ubuntu20.04_x86_64.tar.gz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
       - name: Create and upload coverage report to Codecov
         if: ${{ matrix.coverage }}
         uses: codecov/codecov-action@v3

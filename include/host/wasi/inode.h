@@ -7,6 +7,7 @@
 #include "common/errcode.h"
 #include "common/span.h"
 #include "host/wasi/error.h"
+#include "host/wasi/vfs.h"
 #include <functional>
 #include <limits>
 #include <optional>
@@ -17,19 +18,8 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unordered_map>
-
-#include <boost/align/aligned_allocator.hpp>
-#endif
-
-#if WASMEDGE_OS_WINDOWS
-#include <boost/winapi/basic_types.hpp>
-
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-
-#include <Pathcch.h>
-#include <Shlwapi.h>
-
+#elif WASMEDGE_OS_WINDOWS
+#include "system/winapi.h"
 #endif
 
 #if WASMEDGE_OS_LINUX
@@ -117,9 +107,8 @@ struct DirHolder {
 
   DIR *Dir = nullptr;
   uint64_t Cookie = 0;
-  std::vector<uint8_t, boost::alignment::aligned_allocator<
-                           uint8_t, alignof(__wasi_dirent_t)>>
-      Buffer;
+  static_assert(__STDCPP_DEFAULT_NEW_ALIGNMENT__ >= alignof(__wasi_dirent_t));
+  std::vector<uint8_t> Buffer;
 };
 #endif
 
@@ -151,37 +140,181 @@ struct TimerHolder {
 
 #if WASMEDGE_OS_WINDOWS
 struct HandleHolder {
+  enum class HandleType : uint8_t {
+    NormalHandle,
+    StdHandle,
+    NormalSocket,
+  };
+
   HandleHolder(const HandleHolder &) = delete;
   HandleHolder &operator=(const HandleHolder &) = delete;
-  HandleHolder(HandleHolder &&RHS) noexcept
-      : Handle(std::exchange(RHS.Handle, nullptr)),
-        IsStdHandle(std::exchange(RHS.IsStdHandle, false)) {}
+  HandleHolder(HandleHolder &&RHS) noexcept {
+    using std::swap;
+    swap(*this, RHS);
+  }
   HandleHolder &operator=(HandleHolder &&RHS) noexcept {
     using std::swap;
-    swap(Handle, RHS.Handle);
-    swap(IsStdHandle, RHS.IsStdHandle);
+    swap(*this, RHS);
     return *this;
   }
 
   constexpr HandleHolder() noexcept = default;
   ~HandleHolder() noexcept { reset(); }
-  explicit constexpr HandleHolder(boost::winapi::HANDLE_ Handle,
-                                  bool IsStdHandle = false) noexcept
-      : Handle(Handle), IsStdHandle(IsStdHandle) {}
+  HandleHolder(winapi::HANDLE_ Handle, bool IsStdHandle) noexcept
+      : Handle(likely(Handle != winapi::INVALID_HANDLE_VALUE_) ? Handle
+                                                               : nullptr),
+        Type(IsStdHandle ? HandleType::StdHandle : HandleType::NormalHandle) {}
+  HandleHolder(winapi::SOCKET_ Socket) noexcept
+      : Socket(Socket), Type(HandleType::NormalSocket) {}
+  HandleHolder(const std::filesystem::path &Path,
+               const winapi::DWORD_ AccessFlags,
+               const winapi::DWORD_ ShareFlags,
+               const winapi::DWORD_ CreationDisposition,
+               const winapi::DWORD_ AttributeFlags) noexcept;
+  bool reopen(const winapi::DWORD_ AccessFlags, const winapi::DWORD_ ShareFlags,
+
+              const winapi::DWORD_ AttributeFlags) noexcept;
   constexpr bool ok() const noexcept { return Handle != nullptr; }
-  constexpr bool isStdHandle() const noexcept { return IsStdHandle; }
-  void reset() noexcept;
-  boost::winapi::HANDLE_ release() noexcept {
-    return std::exchange(Handle, nullptr);
+  constexpr bool isStdHandle() const noexcept {
+    return Type == HandleType::StdHandle;
   }
-  void emplace(boost::winapi::HANDLE_ NewHandle) noexcept {
+  constexpr bool isSocket() const noexcept {
+    return Type == HandleType::NormalSocket;
+  }
+  void reset() noexcept;
+  winapi::HANDLE_ release() noexcept { return std::exchange(Handle, nullptr); }
+  winapi::HANDLE_ exchange(winapi::HANDLE_ NewHandle) noexcept {
+    return std::exchange(Handle, NewHandle);
+  }
+  void emplace(winapi::HANDLE_ NewHandle) noexcept {
     reset();
     Handle = NewHandle;
   }
-  // TODO: move isSocket here
-  boost::winapi::HANDLE_ Handle = nullptr;
-  bool IsStdHandle = false;
+  friend void swap(HandleHolder &LHS, HandleHolder &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Handle, RHS.Handle);
+    swap(LHS.Type, RHS.Type);
+  }
+  WasiExpect<void> filestatGet(__wasi_filestat_t &FileStat) const noexcept;
+
+  union {
+    winapi::HANDLE_ Handle = nullptr;
+    winapi::SOCKET_ Socket;
+  };
+  HandleType Type = HandleType::NormalHandle;
 };
+
+template <typename T> class FindHolderBase {
+private:
+  struct Proxy : T {
+    static void doReset(T &Base) noexcept {
+      const auto Ptr = &T::doReset;
+      return (Base.*Ptr)();
+    }
+    static WasiExpect<void> doRewind(T &Base, bool First) noexcept {
+      const auto Ptr = &T::doRewind;
+      return (Base.*Ptr)(First);
+    }
+    static bool doNext(T &Base) noexcept {
+      const auto Ptr = &T::doNext;
+      return (Base.*Ptr)();
+    }
+    static WasiExpect<void> doLoadDirent(T &Base) noexcept {
+      const auto Ptr = &T::doLoadDirent;
+      return (Base.*Ptr)();
+    }
+  };
+
+public:
+  FindHolderBase(FindHolderBase &&RHS) noexcept {
+    using std::swap;
+    swap(Handle, RHS.Handle);
+    swap(Cookie, RHS.Cookie);
+    swap(Buffer, RHS.Buffer);
+  }
+  FindHolderBase &operator=(FindHolderBase &&RHS) noexcept {
+    using std::swap;
+    swap(Handle, RHS.Handle);
+    swap(Cookie, RHS.Cookie);
+    swap(Buffer, RHS.Buffer);
+    return *this;
+  }
+
+  FindHolderBase() noexcept = default;
+  FindHolderBase(const FindHolderBase &) noexcept = delete;
+  FindHolderBase &operator=(const FindHolderBase &) noexcept = delete;
+  constexpr bool ok() const noexcept { return Handle != nullptr; }
+  ~FindHolderBase() noexcept { reset(); }
+
+  WasiExpect<void> emplace(winapi::HANDLE_ PathHandle) noexcept;
+  void reset() noexcept {
+    Proxy::doReset(static_cast<T &>(*this));
+    Path.clear();
+    Handle = nullptr;
+    Cookie = 0;
+    Buffer.clear();
+  }
+  WasiExpect<void> seek(uint64_t NewCookie) noexcept;
+  bool next() noexcept;
+  WasiExpect<void> loadDirent() noexcept;
+  size_t write(Span<uint8_t> Output) noexcept;
+
+protected:
+  auto getPath() const noexcept { return Path; }
+  auto getHandle() const noexcept { return Handle; }
+  void setHandle(winapi::HANDLE_ New) noexcept { Handle = New; }
+  auto getCookie() const noexcept { return Cookie; }
+  Span<const uint8_t> getBuffer() const noexcept { return Buffer; }
+  Span<uint8_t> getBuffer() noexcept { return Buffer; }
+  void resizeBuffer(size_t Size) noexcept { Buffer.resize(Size); }
+
+private:
+  std::filesystem::path Path;
+  winapi::HANDLE_ Handle = nullptr;
+  uint64_t Cookie = 0;
+  static_assert(__STDCPP_DEFAULT_NEW_ALIGNMENT__ >= alignof(__wasi_dirent_t));
+  std::vector<uint8_t> Buffer;
+};
+
+#if !WINAPI_PARTITION_DESKTOP || NTDDI_VERSION >= NTDDI_VISTA
+class FindHolder : public FindHolderBase<FindHolder> {
+public:
+  const winapi::FILE_ID_BOTH_DIR_INFO_ &getData() const noexcept;
+
+protected:
+  void doReset() noexcept;
+  WasiExpect<void> doRewind(bool First) noexcept;
+  bool doNext() noexcept;
+  WasiExpect<void> doLoadDirent() noexcept;
+
+private:
+  bool nextData() noexcept;
+  WASMEDGE_WINAPI_DETAIL_EXTENSION union {
+    winapi::FILE_ID_BOTH_DIR_INFO_ FindData;
+    std::array<uint8_t,
+               sizeof(winapi::FILE_ID_BOTH_DIR_INFO_) +
+                   sizeof(wchar_t[winapi::UNICODE_STRING_MAX_CHARS_ + 1])>
+        FindDataPadding;
+  } FindDataUnion;
+  uint32_t Cursor = 0;
+  static_assert(std::numeric_limits<decltype(Cursor)>::max() >
+                sizeof(FindDataUnion));
+};
+#else
+class FindHolder : public FindHolderBase<FindHolder> {
+protected:
+  WasiExpect<winapi::HANDLE_> doEmplace(const std::filesystem::path &NewPath,
+                                        winapi::HANDLE_ PathHandle) noexcept;
+  void doReset() noexcept;
+  WasiExpect<void> doRewind(bool First) noexcept;
+  bool doNext() noexcept;
+  WasiExpect<void> doLoadDirent() noexcept;
+
+private:
+  winapi::WIN32_FIND_DATAW_ FindData;
+};
+#endif
+
 #endif
 
 enum class TriggerType {
@@ -219,7 +352,7 @@ public:
   /// error.
   static WasiExpect<INode> open(std::string Path, __wasi_oflags_t OpenFlags,
                                 __wasi_fdflags_t FdFlags,
-                                uint8_t VFSFlags) noexcept;
+                                VFS::Flags VFSFlags) noexcept;
 
   /// Provide file advisory information on a file descriptor.
   ///
@@ -466,7 +599,7 @@ public:
   /// error.
   WasiExpect<INode> pathOpen(std::string Path, __wasi_oflags_t OpenFlags,
                              __wasi_fdflags_t FdFlags,
-                             uint8_t VFSFlags) const noexcept;
+                             VFS::Flags VFSFlags) const noexcept;
 
   /// Read the contents of a symbolic link.
   ///
@@ -538,22 +671,17 @@ public:
   static WasiExpect<INode> sockOpen(__wasi_address_family_t SysDomain,
                                     __wasi_sock_type_t SockType) noexcept;
 
-  WasiExpect<void> sockBindV1(uint8_t *AddressBuf, uint8_t AddressLength,
-                              uint16_t Port) noexcept;
-
-  WasiExpect<void> sockBindV2(uint8_t *AddressBuf, uint8_t AddressLength,
-                              uint16_t Port) noexcept;
+  WasiExpect<void> sockBind(__wasi_address_family_t AddressFamily,
+                            Span<const uint8_t> Address,
+                            uint16_t Port) noexcept;
 
   WasiExpect<void> sockListen(int32_t Backlog) noexcept;
 
-  WasiExpect<INode> sockAcceptV1() noexcept;
-  WasiExpect<INode> sockAcceptV2(__wasi_fdflags_t FdFlags) noexcept;
+  WasiExpect<INode> sockAccept(__wasi_fdflags_t FdFlags) noexcept;
 
-  WasiExpect<void> sockConnectV1(uint8_t *Address, uint8_t AddressLength,
-                                 uint16_t Port) noexcept;
-
-  WasiExpect<void> sockConnectV2(uint8_t *Address, uint8_t AddressLength,
-                                 uint16_t Port) noexcept;
+  WasiExpect<void> sockConnect(__wasi_address_family_t AddressFamily,
+                               Span<const uint8_t> Address,
+                               uint16_t Port) noexcept;
 
   /// Receive a message from a socket.
   ///
@@ -571,35 +699,23 @@ public:
 
   /// Receive a message from a socket.
   ///
-  /// Note: This is similar to `recv` in POSIX, though it also supports
+  /// Note: This is similar to `recvfrom` in POSIX, though it also supports
   /// reading the data into multiple buffers in the manner of `readv`.
   ///
   /// @param[in] RiData List of scatter/gather vectors to which to store data.
   /// @param[in] RiFlags Message flags.
+  /// @param[out] AddressFamilyPtr The pointer to store address family.
+  /// @param[out] Address The buffer to store address.
+  /// @param[out] PortPtr The pointer to store port.
   /// @param[out] NRead Return the number of bytes stored in RiData.
   /// @param[out] RoFlags Return message flags.
   /// @return Nothing or WASI error.
-  WasiExpect<void> sockRecvFromV1(Span<Span<uint8_t>> RiData,
-                                  __wasi_riflags_t RiFlags, uint8_t *Address,
-                                  uint8_t AddressLength, __wasi_size_t &NRead,
-                                  __wasi_roflags_t &RoFlags) const noexcept;
-
-  /// Receive a message from a socket.
-  ///
-  /// Note: This is similar to `recv` in POSIX, though it also supports
-  /// reading the data into multiple buffers in the manner of `readv`.
-  ///
-  /// @param[in] RiData List of scatter/gather vectors to which to store data.
-  /// @param[in] RiFlags Message flags.
-  /// @param[out] PortPtr the Port information.
-  /// @param[out] NRead Return the number of bytes stored in RiData.
-  /// @param[out] RoFlags Return message flags.
-  /// @return Nothing or WASI error.
-  WasiExpect<void> sockRecvFromV2(Span<Span<uint8_t>> RiData,
-                                  __wasi_riflags_t RiFlags, uint8_t *Address,
-                                  uint8_t AddressLength, uint32_t *PortPtr,
-                                  __wasi_size_t &NRead,
-                                  __wasi_roflags_t &RoFlags) const noexcept;
+  WasiExpect<void> sockRecvFrom(Span<Span<uint8_t>> RiData,
+                                __wasi_riflags_t RiFlags,
+                                __wasi_address_family_t *AddressFamilyPtr,
+                                Span<uint8_t> Address, uint16_t *PortPtr,
+                                __wasi_size_t &NRead,
+                                __wasi_roflags_t &RoFlags) const noexcept;
 
   /// Send a message on a socket.
   ///
@@ -623,14 +739,15 @@ public:
   /// @param[in] SiData List of scatter/gather vectors to which to retrieve
   /// data.
   /// @param[in] SiFlags Message flags.
+  /// @param[in] AddressFamily Address family of the target.
   /// @param[in] Address Address of the target.
-  /// @param[in] AddressLength The buffer size of Address.
   /// @param[in] Port Connected port.
   /// @param[out] NWritten The number of bytes transmitted.
   /// @return Nothing or WASI error
   WasiExpect<void> sockSendTo(Span<Span<const uint8_t>> SiData,
-                              __wasi_siflags_t SiFlags, uint8_t *Address,
-                              uint8_t AddressLength, int32_t Port,
+                              __wasi_siflags_t SiFlags,
+                              __wasi_address_family_t AddressFamily,
+                              Span<const uint8_t> Address, uint16_t Port,
                               __wasi_size_t &NWritten) const noexcept;
 
   /// Shut down socket send and receive channels.
@@ -642,24 +759,20 @@ public:
   WasiExpect<void> sockShutdown(__wasi_sdflags_t SdFlags) const noexcept;
 
   WasiExpect<void> sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
-                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
-                              uint32_t *FlagSizePtr) const noexcept;
+                              __wasi_sock_opt_so_t SockOptName,
+                              Span<uint8_t> &Flag) const noexcept;
 
   WasiExpect<void> sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
-                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
-                              uint32_t FlagSizePtr) const noexcept;
+                              __wasi_sock_opt_so_t SockOptName,
+                              Span<const uint8_t> Flag) const noexcept;
 
-  WasiExpect<void> sockGetLocalAddrV1(uint8_t *Address, uint32_t *AddrTypePtr,
-                                      uint32_t *PortPtr) const noexcept;
+  WasiExpect<void> sockGetLocalAddr(__wasi_address_family_t *AddressFamilyPtr,
+                                    Span<uint8_t> Address,
+                                    uint16_t *PortPtr) const noexcept;
 
-  WasiExpect<void> sockGetPeerAddrV1(uint8_t *Address, uint32_t *AddrTypePtr,
-                                     uint32_t *PortPtr) const noexcept;
-
-  WasiExpect<void> sockGetLocalAddrV2(uint8_t *Address,
-                                      uint32_t *PortPtr) const noexcept;
-
-  WasiExpect<void> sockGetPeerAddrV2(uint8_t *Address,
-                                     uint32_t *PortPtr) const noexcept;
+  WasiExpect<void> sockGetPeerAddr(__wasi_address_family_t *AddressFamilyPtr,
+                                   Span<uint8_t> Address,
+                                   uint16_t *PortPtr) const noexcept;
 
   /// File type.
   WasiExpect<__wasi_filetype_t> filetype() const noexcept;
@@ -679,8 +792,6 @@ public:
 private:
   friend class Poller;
 
-  __wasi_filetype_t unsafeFiletype() const noexcept;
-
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 public:
   using FdHolder::FdHolder;
@@ -690,6 +801,7 @@ private:
 
   DirHolder Dir;
 
+  __wasi_filetype_t unsafeFiletype() const noexcept;
   WasiExpect<void> updateStat() const noexcept;
 
 #elif WASMEDGE_OS_WINDOWS
@@ -697,13 +809,10 @@ public:
   using HandleHolder::HandleHolder;
 
 private:
-  mutable std::optional<BY_HANDLE_FILE_INFORMATION> FileInfo;
-  mutable std::optional<__wasi_oflags_t> SavedOpenFlags;
-  mutable std::optional<__wasi_fdflags_t> SavedFdFlags;
-  mutable std::optional<uint8_t> SavedVFSFlags;
+  __wasi_fdflags_t SavedFdFlags = {};
+  uint8_t SavedVFSFlags = {};
 
-  WasiExpect<void> updateFileInfo() const noexcept;
-
+  FindHolder Find;
 #endif
 };
 
@@ -770,6 +879,7 @@ public:
   void write(const INode &Fd, TriggerType Trigger,
              __wasi_userdata_t UserData) noexcept;
 
+  void close(const INode &Fd) noexcept;
   /// Concurrently poll for events.
   void wait() noexcept;
 
@@ -812,6 +922,15 @@ private:
   std::unordered_map<int, FdData> OldFdDatas;
 #endif
 
+#if WASMEDGE_OS_WINDOWS
+  struct SocketData {
+    OptionalEvent *ReadEvent = nullptr;
+    OptionalEvent *WriteEvent = nullptr;
+  };
+  std::unordered_map<winapi::SOCKET_, SocketData> SocketDatas;
+  winapi::FD_SET_ ReadFds = {0, {}}, WriteFds = {0, {}};
+#endif
+
 #if WASMEDGE_OS_LINUX
   friend class PollerContext;
   struct Timer : public FdHolder {
@@ -841,6 +960,10 @@ private:
 #if WASMEDGE_OS_MACOS
   std::vector<struct kevent> KEvents;
   uint64_t NextTimerId = 0;
+#endif
+#if WASMEDGE_OS_WINDOWS
+  OptionalEvent *TimeoutEvent = nullptr;
+  winapi::TIMEVAL_ MinimumTimeout;
 #endif
 };
 

@@ -26,7 +26,8 @@ INLINE __m256i rot16(__m256i x) {
 }
 
 INLINE __m256i rot12(__m256i x) {
-  return _mm256_or_si256(_mm256_srli_epi32(x, 12), _mm256_slli_epi32(x, 32 - 12));
+  return _mm256_or_si256(_mm256_srli_epi32(x, 12),
+                         _mm256_slli_epi32(x, 32 - 12));
 }
 
 INLINE __m256i rot8(__m256i x) {
@@ -208,7 +209,7 @@ INLINE void transpose_msg_vecs(const uint8_t *const *inputs,
   out[14] = loadu(&inputs[6][block_offset + 1 * sizeof(__m256i)]);
   out[15] = loadu(&inputs[7][block_offset + 1 * sizeof(__m256i)]);
   for (size_t i = 0; i < 8; ++i) {
-    _mm_prefetch(&inputs[i][block_offset + 256], _MM_HINT_T0);
+    _mm_prefetch((const void *)&inputs[i][block_offset + 256], _MM_HINT_T0);
   }
   transpose_vecs(&out[0]);
   transpose_vecs(&out[8]);
@@ -219,18 +220,21 @@ INLINE void load_counters(uint64_t counter, bool increment_counter,
   const __m256i mask = _mm256_set1_epi32(-(int32_t)increment_counter);
   const __m256i add0 = _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0);
   const __m256i add1 = _mm256_and_si256(mask, add0);
-  __m256i l = _mm256_add_epi32(_mm256_set1_epi32(counter), add1);
-  __m256i carry = _mm256_cmpgt_epi32(_mm256_xor_si256(add1, _mm256_set1_epi32(0x80000000)),
-                                     _mm256_xor_si256(   l, _mm256_set1_epi32(0x80000000)));
-  __m256i h = _mm256_sub_epi32(_mm256_set1_epi32(counter >> 32), carry);
+  __m256i l = _mm256_add_epi32(_mm256_set1_epi32((int32_t)counter), add1);
+  __m256i carry =
+      _mm256_cmpgt_epi32(_mm256_xor_si256(add1, _mm256_set1_epi32(0x80000000)),
+                         _mm256_xor_si256(l, _mm256_set1_epi32(0x80000000)));
+  __m256i h =
+      _mm256_sub_epi32(_mm256_set1_epi32((int32_t)(counter >> 32)), carry);
   *out_lo = l;
   *out_hi = h;
 }
 
-void blake3_hash8_avx2(const uint8_t *const *inputs, size_t blocks,
-                       const uint32_t key[8], uint64_t counter,
-                       bool increment_counter, uint8_t flags,
-                       uint8_t flags_start, uint8_t flags_end, uint8_t *out) {
+static void blake3_hash8_avx2(const uint8_t *const *inputs, size_t blocks,
+                              const uint32_t key[8], uint64_t counter,
+                              bool increment_counter, uint8_t flags,
+                              uint8_t flags_start, uint8_t flags_end,
+                              uint8_t *out) {
   __m256i h_vecs[8] = {
       set1(key[0]), set1(key[1]), set1(key[2]), set1(key[3]),
       set1(key[4]), set1(key[5]), set1(key[6]), set1(key[7]),

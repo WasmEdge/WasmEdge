@@ -13,7 +13,6 @@ on:
       - "include/**"
       - "lib/**"
       - "plugins/**"
-      - "examples/**"
       - "test/**"
       - "thirdparty/**"
       - "tools/**"
@@ -28,7 +27,6 @@ on:
       - "include/**"
       - "lib/**"
       - "plugins/**"
-      - "examples/**"
       - "test/**"
       - "thirdparty/**"
       - "tools/**"
@@ -49,6 +47,9 @@ jobs:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
+    - name: Ensure git safe directory
+      run: |
+        git config --global --add safe.directory $(pwd)
     - uses: uraimo/run-on-arch-action@v2
       name: Build WasmEdge
       with:
@@ -60,20 +61,21 @@ jobs:
         install: |
           apt-get update -q -y
           apt-get install -q -y git cmake g++ dpkg
-          apt-get install -q -y software-properties-common libboost-all-dev
+          apt-get install -q -y software-properties-common
           apt-get install -q -y llvm-12-dev liblld-12-dev
+          apt-get install -q -y wabt # For generating wasm
         run: |
           mkdir -p build && cd build
-          cmake -DCMAKE_BUILD_TYPE=Release .. && make -j && make install
+          cmake -DCMAKE_BUILD_TYPE=Release .. && make -j $(nproc) && make install
           wasmedge -v
           wasmedgec -v
           wasmedge compile -h
           wasmedge run -h
           cd ../examples/wasm
+          wat2wasm fibonacci.wat -o fibonacci.wasm
           wasmedgec fibonacci.wasm fibonacci_aot_c.wasm
           wasmedge --reactor fibonacci_aot_c.wasm fib 30
           wasmedge run --reactor fibonacci_aot_c.wasm fib 30
           wasmedge compile fibonacci.wasm fibonacci_aot_compile.wasm
           wasmedge --reactor fibonacci_aot_compile.wasm fib 30
           wasmedge run --reactor fibonacci_aot_compile.wasm fib 30
-          

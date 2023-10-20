@@ -93,9 +93,9 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
   Conf.getRuntimeConfigure().setForceInterpreter(true);
 
   std::filesystem::path InputPath =
-      std::filesystem::absolute(Opt.WasmName.value());
+      std::filesystem::absolute(std::filesystem::u8path(Opt.WasmName.value()));
   std::filesystem::path OutputPath =
-      std::filesystem::absolute(Opt.SoName.value());
+      std::filesystem::absolute(std::filesystem::u8path(Opt.SoName.value()));
   Loader::Loader Loader(Conf);
 
   std::vector<Byte> Data;

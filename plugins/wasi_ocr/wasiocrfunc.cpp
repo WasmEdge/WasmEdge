@@ -18,8 +18,11 @@ Expect<uint32_t> WasiOCRNumOfExtractions::body(const Runtime::CallingFrame &Fram
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  char *ImagePtr = MemInst->getPointer<char *>(ImagePathPtr, ImagePathLen);
-  Pix *image = pixRead(ImagePtr);
+  auto ImagePtr = MemInst->getSpan<char>(ImagePathPtr, ImagePathLen);
+  if (unlikely(ImagePtr.size() != ImagePathLen)) {
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+  Pix *image = pixRead(ImagePtr.data());
 
   Env.TesseractApi->SetImage(image);
   Env.TesseractApi->Recognize(0);
@@ -42,15 +45,15 @@ Expect<uint32_t> WasiOCRGetOutput::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check the return value: OutBufferPtr should be valid.
-  char *Buf = MemInst->getPointer<char *>(OutBufferPtr, OutBufferMaxSize);
-  if (unlikely(Buf == nullptr)) {
+  auto Buf = MemInst->getSpan<char>(OutBufferPtr, OutBufferMaxSize);
+  if (unlikely(Buf.empty())) {
     spdlog::error("[WASI-OCR] Failed when accessing the return OutBufferPtr memory.");
     return static_cast<uint32_t>(WASIOCR::ErrNo::InvalidArgument);
   }
 
   tesseract::PageIteratorLevel level = tesseract::RIL_WORD;
   const char* outText = Env.TesseractApi->GetTSVText(level);
-  std::strcpy(Buf,outText);
+  std::strcpy(Buf.data(),outText);
 
   // remaining free and deltee memory stuff
   Env.TesseractApi->End();

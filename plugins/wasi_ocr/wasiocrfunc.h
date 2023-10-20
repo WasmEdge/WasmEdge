@@ -13,9 +13,11 @@ namespace Host {
 
 class WasiOCRNumOfExtractions : public WasiOCR<WasiOCRNumOfExtractions> {
 public:
-  WasiOCRNumOfExtractions(WASIOCR::WasiOCREnvironment &HostEnv) : WasiOCR(HostEnv) {}
-  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t ImagePathPtr,
-                      uint32_t ImagePathLen); //, uint32_t NumOfExtractionsPtr);
+  WasiOCRNumOfExtractions(WASIOCR::WasiOCREnvironment &HostEnv)
+      : WasiOCR(HostEnv) {}
+  Expect<uint32_t>
+  body(const Runtime::CallingFrame &, uint32_t ImagePathPtr,
+       uint32_t ImagePathLen); //, uint32_t NumOfExtractionsPtr);
 };
 
 class WasiOCRGetOutput : public WasiOCR<WasiOCRGetOutput> {
@@ -25,5 +27,5 @@ public:
                         uint32_t OutBufferMaxSize);
 };
 
-}
-}
+} // namespace Host
+} // namespace WasmEdge

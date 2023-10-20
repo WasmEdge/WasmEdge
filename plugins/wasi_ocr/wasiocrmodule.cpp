@@ -8,7 +8,8 @@ namespace WasmEdge {
 namespace Host {
 
 WasiOCRModule::WasiOCRModule() : ModuleInstance("wasi_ephemeral_ocr") {
-  addHostFunc("num_of_extractions", std::make_unique<WasiOCRNumOfExtractions>(Env));
+  addHostFunc("num_of_extractions",
+              std::make_unique<WasiOCRNumOfExtractions>(Env));
   addHostFunc("get_output", std::make_unique<WasiOCRGetOutput>(Env));
 }
 

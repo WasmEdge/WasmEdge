@@ -28,6 +28,11 @@ public:
   size_t GraphId;
   std::vector<llama_token> LlamaInputs;
   std::string LlamaOutputs;
+  bool EnableLog;
+  bool StreamStdout;
+  uint64_t CtxSize;
+  uint64_t NPredict;
+  uint64_t NGPULayers;
 };
 #else
 struct Graph {};

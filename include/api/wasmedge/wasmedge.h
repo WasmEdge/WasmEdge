@@ -2339,6 +2339,16 @@ WasmEdge_FunctionInstanceCreateBinding(const WasmEdge_FunctionTypeContext *Type,
                                        void *Binding, void *Data,
                                        const uint64_t Cost);
 
+/// Get the function data field of the function instance.
+///
+/// The function data is passed when creating the FunctionInstance.
+///
+/// \param Cxt the WasmEdge_FunctionInstanceContext.
+///
+/// \returns pointer to Data, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const void *
+WasmEdge_FunctionInstanceGetData(const WasmEdge_FunctionInstanceContext *Cxt);
+
 /// Get the function type context of the function instance.
 ///
 /// The function type context links to the function type in the function

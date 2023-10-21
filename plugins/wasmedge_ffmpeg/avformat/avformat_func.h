@@ -116,6 +116,86 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame);
 };
 
+class AVFormatWriteHeader : public WasmEdgeFFmpegAVFormat<AVFormatWriteHeader> {
+public:
+  AVFormatWriteHeader(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvFormatCtxId, uint32_t DictId);
+};
+
+class AVFormatWriteTrailer
+    : public WasmEdgeFFmpegAVFormat<AVFormatWriteTrailer> {
+public:
+  AVFormatWriteTrailer(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvFormatCtxId);
+};
+
+class AVFormatAllocOutputContext2
+    : public WasmEdgeFFmpegAVFormat<AVFormatAllocOutputContext2> {
+public:
+  AVFormatAllocOutputContext2(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvFormatCtxPtr, uint32_t AVOutputFormatId,
+                       uint32_t FormatNamePtr, uint32_t FormatLen,
+                       uint32_t FileNamePtr, uint32_t FileNameLen);
+};
+
+class AVIOOpen : public WasmEdgeFFmpegAVFormat<AVIOOpen> {
+public:
+  AVIOOpen(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvFormatCtxId, uint32_t FileNamePtr,
+                       uint32_t FileNameLen, int32_t Flags);
+};
+
+class AVIOOpen2 : public WasmEdgeFFmpegAVFormat<AVIOOpen2> {
+public:
+  AVIOOpen2(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvFormatCtxtId, uint32_t UrlPtr,
+                       uint32_t UrlLen, int32_t Flags,
+                       uint32_t AVIOInterruptCBId, uint32_t AVDictionaryId);
+};
+
+class AVFormatVersion : public WasmEdgeFFmpegAVFormat<AVFormatVersion> {
+public:
+  AVFormatVersion(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVChapterMallocz : public WasmEdgeFFmpegAVFormat<AVChapterMallocz> {
+public:
+  AVChapterMallocz(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AVChapterPtr);
+};
+
+class AVChapterDynarrayAdd
+    : public WasmEdgeFFmpegAVFormat<AVChapterDynarrayAdd> {
+public:
+  AVChapterDynarrayAdd(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+
+  Expect<int32_t> body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId,
+                       int32_t NbChaptersPtr, uint32_t AvChapterId);
+};
+
+class AVFreeP : public WasmEdgeFFmpegAVFormat<AVFreeP> {
+public:
+  AVFreeP(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+
+  Expect<int32_t> body(const Runtime::CallingFrame &, uint32_t AvChapterId);
+};
+
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

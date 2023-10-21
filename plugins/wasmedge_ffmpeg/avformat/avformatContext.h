@@ -67,12 +67,30 @@ public:
                         uint32_t AvFormatCtxId);
 };
 
+class AVFormatCtxSetNbChapters
+    : public WasmEdgeFFmpegAVFormat<AVFormatCtxSetNbChapters> {
+public:
+  AVFormatCtxSetNbChapters(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvFormatCtxId, uint32_t NbChapters);
+};
+
 class AVFormatCtxMetadata : public WasmEdgeFFmpegAVFormat<AVFormatCtxMetadata> {
 public:
   AVFormatCtxMetadata(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AvFormatCtxId, uint32_t DictPtr);
+};
+
+class AVFormatCtxSetMetadata
+    : public WasmEdgeFFmpegAVFormat<AVFormatCtxSetMetadata> {
+public:
+  AVFormatCtxSetMetadata(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvFormatCtxId, uint32_t DictId);
 };
 
 } // namespace AVFormat

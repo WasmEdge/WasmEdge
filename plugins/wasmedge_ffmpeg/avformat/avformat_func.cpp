@@ -144,6 +144,138 @@ Expect<int32_t> AVFormatNetworkDeInit::body(const Runtime::CallingFrame &) {
   return avformat_network_deinit();
 }
 
+Expect<int32_t> AVFormatWriteHeader::body(const Runtime::CallingFrame &,
+                                          uint32_t AvFormatCtxId,
+                                          uint32_t DictId) {
+
+  FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
+  return avformat_write_header(AvFormatContext, AvDict);
+}
+
+Expect<int32_t> AVFormatWriteTrailer::body(const Runtime::CallingFrame &,
+                                           uint32_t AvFormatCtxId) {
+
+  FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  return av_write_trailer(AvFormatContext);
+}
+
+Expect<int32_t> AVFormatAllocOutputContext2::body(
+    const Runtime::CallingFrame &Frame, uint32_t AvFormatCtxPtr,
+    uint32_t AVOutputFormatId, uint32_t FormatNamePtr, uint32_t FormatLen,
+    uint32_t FileNamePtr, uint32_t FileNameLen) {
+
+  std::string Format;
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(FileId, MemInst, char, FileNamePtr,
+                "Failed when accessing the return FileName memory");
+  if (FormatLen > 0) {
+    MEM_PTR_CHECK(FormatId, MemInst, char, FormatNamePtr,
+                  "Failed when accessing the return FormatName memory");
+
+    std::copy_n(FormatId, FormatLen, std::back_inserter(Format));
+  }
+  MEM_PTR_CHECK(AvFormatCtxId, MemInst, uint32_t, AvFormatCtxPtr,
+                "Failed when accessing the return AVFormatContext Memory");
+
+  std::string File;
+  std::copy_n(FileId, FileNameLen, std::back_inserter(File));
+
+  AVFormatContext *AvFormatContext = NULL;
+  FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
+
+  int Res;
+  if (FormatLen == 0) {
+    Res = avformat_alloc_output_context2(&AvFormatContext, AvOutputFormat, NULL,
+                                         File.c_str());
+  } else {
+    Res = avformat_alloc_output_context2(&AvFormatContext, AvOutputFormat,
+                                         Format.c_str(), File.c_str());
+  }
+  FFMPEG_PTR_STORE(AvFormatContext, AvFormatCtxId);
+  return Res;
+}
+
+Expect<int32_t> AVIOOpen::body(const Runtime::CallingFrame &Frame,
+                               uint32_t AvFormatCtxId, uint32_t FileNamePtr,
+                               uint32_t FileNameLen, int32_t Flags) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(FileId, MemInst, char, FileNamePtr,
+                "Failed when accessing the return FileName memory");
+
+  std::string File;
+  std::copy_n(FileId, FileNameLen, std::back_inserter(File));
+
+  FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+
+  return avio_open(&(AvFormatContext->pb), File.c_str(), Flags);
+}
+
+Expect<int32_t> AVIOOpen2::body(const Runtime::CallingFrame &Frame,
+                                uint32_t AvFormatCtxtId, uint32_t UrlPtr,
+                                uint32_t UrlLen, int32_t Flags,
+                                uint32_t AVIOInterruptCBId,
+                                uint32_t AVDictionaryId) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(UrlId, MemInst, char, UrlPtr,
+                "Failed when accessing the return Url memory");
+
+  FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxtId, AVFormatContext);
+  FFMPEG_PTR_FETCH(AvDictionary, AVDictionaryId, AVDictionary *);
+  FFMPEG_PTR_FETCH(AvIOInterruptCB, AVIOInterruptCBId, AVIOInterruptCB);
+
+  std::string TargetUrl;
+  std::copy_n(UrlId, UrlLen, std::back_inserter(TargetUrl));
+
+  return avio_open2(&(AvFormatCtx->pb), TargetUrl.c_str(), Flags,
+                    AvIOInterruptCB, AvDictionary);
+}
+
+Expect<uint32_t> AVFormatVersion::body(const Runtime::CallingFrame &) {
+  return avformat_version();
+}
+
+Expect<int32_t> AVChapterMallocz::body(const Runtime::CallingFrame &Frame,
+                                       uint32_t AVChapterPtr) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(AvChapterId, MemInst, uint32_t, AVChapterPtr,
+                "Failed to access Memory for AVChapterPtr")
+
+  AVChapter *AvChapter =
+      static_cast<AVChapter *>(av_mallocz(sizeof(AVChapter)));
+  FFMPEG_PTR_STORE(AvChapter, AvChapterId);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVChapterDynarrayAdd::body(const Runtime::CallingFrame &Frame,
+                                           uint32_t AvFormatCtxId,
+                                           int32_t NbChaptersPtr,
+                                           uint32_t AvChapterId) {
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(NbChapters, MemInst, int32_t, NbChaptersPtr,
+                "Failed to access Memory for NbChaptersPtr")
+
+  FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_FETCH(AvChapter, AvChapterId, AVChapter);
+
+  av_dynarray_add(&(AvFormatContext->chapters), NbChapters, AvChapter);
+  if (*(AvFormatContext->chapters) == NULL && *(NbChapters) == 0)
+    return static_cast<int32_t>(ErrNo::InternalError);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVFreeP::body(const Runtime::CallingFrame &,
+                              uint32_t AvChapterId) {
+
+  FFMPEG_PTR_FETCH(AvChapter, AvChapterId, AVChapter);
+  av_freep(AvChapter);
+  FFMPEG_PTR_DELETE(AvChapterId);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

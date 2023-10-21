@@ -24,8 +24,9 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
         avformat/avStream.cpp
         avformat/avChapter.cpp
 
-        avutil/error.cpp
         avutil/module.cpp
+        avutil/avutil_func.cpp
+        avutil/error.cpp
         avutil/avRational.cpp
         avutil/avFrame.cpp
         avutil/pixfmt.cpp

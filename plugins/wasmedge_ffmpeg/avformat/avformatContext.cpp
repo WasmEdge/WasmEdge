@@ -78,6 +78,15 @@ Expect<uint32_t> AVFormatCtxNbChapters::body(const Runtime::CallingFrame &,
   return avFormatCtx->nb_chapters;
 }
 
+Expect<int32_t> AVFormatCtxSetNbChapters::body(const Runtime::CallingFrame &,
+                                               uint32_t AvFormatCtxId,
+                                               uint32_t NbChapters) {
+
+  FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  AvFormatContext->nb_chapters = NbChapters;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 Expect<int32_t> AVFormatCtxMetadata::body(const Runtime::CallingFrame &Frame,
                                           uint32_t AvFormatCtxId,
                                           uint32_t DictPtr) {
@@ -93,6 +102,17 @@ Expect<int32_t> AVFormatCtxMetadata::body(const Runtime::CallingFrame &Frame,
 
   *AvDictionary = AvFormatCtx->metadata;
   FFMPEG_PTR_STORE(AvDictionary, DictId);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVFormatCtxSetMetadata::body(const Runtime::CallingFrame &,
+                                             uint32_t AvFormatCtxId,
+                                             uint32_t DictId) {
+
+  FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_FETCH(AvDictionary, DictId, AVDictionary);
+
+  AvFormatCtx->metadata = AvDictionary;
   return static_cast<int32_t>(ErrNo::Success);
 }
 

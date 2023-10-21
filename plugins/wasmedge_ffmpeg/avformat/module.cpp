@@ -42,6 +42,23 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVFormatNetworkInit>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformat_network_deinit",
               std::make_unique<AVFormatNetworkDeInit>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_write_header", // need to test
+              std::make_unique<AVFormatWriteHeader>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_write_trailer", // need to test
+              std::make_unique<AVFormatWriteTrailer>(env));
+  addHostFunc(
+      "wasmedge_ffmpeg_avformat_avformat_alloc_output_context2", // need to test
+      std::make_unique<AVFormatAllocOutputContext2>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avio_open", // need to test
+              std::make_unique<AVIOOpen>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avio_open2", // need to test
+              std::make_unique<AVIOOpen2>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avchapter_mallocz", // need to test
+              std::make_unique<AVChapterMallocz>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avchapter_dynarray_add", // need to test
+              std::make_unique<AVChapterDynarrayAdd>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_avfreep", // need to test
+              std::make_unique<AVFreeP>(env));
 
   // avformatContext Struct functions.
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_iformat",
@@ -58,8 +75,15 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVFormatCtxBitRate>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_nb_chapters",
               std::make_unique<AVFormatCtxNbChapters>(env));
+  addHostFunc(
+      "wasmedge_ffmpeg_avformat_avformatContext_set_nb_chapters", // need to
+                                                                  // test
+      std::make_unique<AVFormatCtxSetNbChapters>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_metadata",
               std::make_unique<AVFormatCtxMetadata>(env));
+  addHostFunc(
+      "wasmedge_ffmpeg_avformat_avformatContext_set_metadata", // need to test
+      std::make_unique<AVFormatCtxSetMetadata>(env));
 
   // avInputFormat Struct functions.
   addHostFunc("wasmedge_ffmpeg_avformat_avIOFormat_name_length",

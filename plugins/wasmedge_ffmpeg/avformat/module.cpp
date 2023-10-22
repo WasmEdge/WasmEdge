@@ -75,15 +75,12 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVFormatCtxBitRate>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_nb_chapters",
               std::make_unique<AVFormatCtxNbChapters>(env));
-  addHostFunc(
-      "wasmedge_ffmpeg_avformat_avformatContext_set_nb_chapters", // need to
-                                                                  // test
-      std::make_unique<AVFormatCtxSetNbChapters>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_set_nb_chapters",
+              std::make_unique<AVFormatCtxSetNbChapters>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_metadata",
               std::make_unique<AVFormatCtxMetadata>(env));
-  addHostFunc(
-      "wasmedge_ffmpeg_avformat_avformatContext_set_metadata", // need to test
-      std::make_unique<AVFormatCtxSetMetadata>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_set_metadata",
+              std::make_unique<AVFormatCtxSetMetadata>(env));
 
   // avInputFormat Struct functions.
   addHostFunc("wasmedge_ffmpeg_avformat_avIOFormat_name_length",

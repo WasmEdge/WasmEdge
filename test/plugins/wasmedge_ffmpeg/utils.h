@@ -138,9 +138,9 @@ public:
     auto *MemInstPtr = Mod.findMemoryExports("memory");
     auto &MemInst = *MemInstPtr;
 
-    fillMemContent(MemInst, AVFormatCtxPtr, 32);
+    fillMemContent(MemInst, 100, 32);
     std::string Url = std::string("ffmpeg-assets/sample_video.mp4");
-    fillMemContent(MemInst, AVFormatCtxPtr, Url);
+    fillMemContent(MemInst, 100, Url);
 
     auto *FuncInst = AVFormatMod->findFuncExports(
         "wasmedge_ffmpeg_avformat_avformat_open_input");
@@ -149,8 +149,8 @@ public:
         FuncInst->getHostFunc());
     HostFuncAVFormatOpenInput.run(CallFrame,
                                   std::initializer_list<WasmEdge::ValVariant>{
-                                      AVFormatCtxPtr, UINT32_C(1), UINT32_C(30),
-                                      UINT32_C(0), UINT32_C(0)},
+                                      AVFormatCtxPtr, UINT32_C(100),
+                                      UINT32_C(30), UINT32_C(0), UINT32_C(0)},
                                   Result);
   }
 };

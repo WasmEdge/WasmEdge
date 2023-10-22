@@ -127,18 +127,32 @@ TEST(WasmEdgeAVFormatTest, AVFormatContextStruct) {
   }
 
   FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformatContext_set_nb_chapters");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxSetNbChapters = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxSetNbChapters &>(
+      FuncInst->getHostFunc());
+
+  FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_nb_chapters");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVFormatCtxNbChapters = dynamic_cast<
       WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxNbChapters &>(
       FuncInst->getHostFunc());
-
   {
+
+    EXPECT_TRUE(HostFuncAVFormatCtxSetNbChapters.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, 200},
+        Result));
+    EXPECT_TRUE(Result[0].get<uint32_t>() >= 0);
+
     EXPECT_TRUE(HostFuncAVFormatCtxNbChapters.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId},
         Result));
-    EXPECT_TRUE(Result[0].get<uint32_t>() >= 0);
+    EXPECT_EQ(Result[0].get<uint32_t>(), 200);
   }
 
   FuncInst = AVFormatMod->findFuncExports(
@@ -149,6 +163,14 @@ TEST(WasmEdgeAVFormatTest, AVFormatContextStruct) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxMetadata &>(
       FuncInst->getHostFunc());
 
+  FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformatContext_set_metadata");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxSetMetadata = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxSetMetadata &>(
+      FuncInst->getHostFunc());
+
   {
     uint32_t DicPtr = uint32_t(40);
     EXPECT_TRUE(HostFuncAVFormatCtxMetadata.run(
@@ -157,5 +179,12 @@ TEST(WasmEdgeAVFormatTest, AVFormatContextStruct) {
         Result));
     EXPECT_TRUE(Result[0].get<uint32_t>() >= 0);
     EXPECT_TRUE(readUInt32(MemInst, DicPtr) > 0);
+
+    uint32_t DictId = readUInt32(MemInst, DicPtr);
+    EXPECT_TRUE(HostFuncAVFormatCtxSetMetadata.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, DictId},
+        Result));
+    EXPECT_TRUE(Result[0].get<uint32_t>() >= 0);
   }
 }

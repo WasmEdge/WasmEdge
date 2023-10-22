@@ -46,19 +46,20 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVFormatWriteHeader>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformat_write_trailer", // need to test
               std::make_unique<AVFormatWriteTrailer>(env));
-  addHostFunc(
-      "wasmedge_ffmpeg_avformat_avformat_alloc_output_context2", // need to test
-      std::make_unique<AVFormatAllocOutputContext2>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avio_open", // need to test
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_alloc_output_context2",
+              std::make_unique<AVFormatAllocOutputContext2>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avio_open",
               std::make_unique<AVIOOpen>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avio_open2", // need to test
+  addHostFunc("wasmedge_ffmpeg_avformat_avio_open2",
               std::make_unique<AVIOOpen2>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avchapter_mallocz", // need to test
+  addHostFunc("wasmedge_ffmpeg_avformat_avchapter_mallocz",
               std::make_unique<AVChapterMallocz>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avchapter_dynarray_add", // need to test
               std::make_unique<AVChapterDynarrayAdd>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avformat_avfreep", // need to test
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_avfreep",
               std::make_unique<AVFreeP>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_version",
+              std::make_unique<AVFormatVersion>(env));
 
   // avformatContext Struct functions.
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_iformat",

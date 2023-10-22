@@ -1,6 +1,7 @@
 #pragma once
 #include "avformat/avformat_func.h"
 #include "avformat/module.h"
+#include "avutil/avDictionary.h"
 #include "avutil/module.h"
 #include "common/types.h"
 #include "runtime/callingframe.h"
@@ -152,6 +153,35 @@ public:
                                       AVFormatCtxPtr, UINT32_C(100),
                                       UINT32_C(30), UINT32_C(0), UINT32_C(0)},
                                   Result);
+  }
+};
+
+class AVDictionary {
+public:
+  static void initDict(WasmEdge::Runtime::Instance::ModuleInstance &Mod,
+                       uint32_t DictPtr,
+                       std::array<WasmEdge::ValVariant, 1> Result) {
+
+    auto *AVUtilMod = InitModules::createAVUtilModule();
+    WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+    auto *MemInstPtr = Mod.findMemoryExports("memory");
+    auto &MemInst = *MemInstPtr;
+
+    fillMemContent(MemInst, 133, 8);
+    fillMemContent(MemInst, 100, std::string("Key"));
+    fillMemContent(MemInst, 137, std::string("Value"));
+
+    auto *FuncInst =
+        AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_set");
+    auto &HostFuncAVDictSet =
+        dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictSet &>(
+            FuncInst->getHostFunc());
+
+    HostFuncAVDictSet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            DictPtr, UINT32_C(133), UINT32_C(3), UINT32_C(137), UINT32_C(5), 0},
+        Result);
   }
 };
 

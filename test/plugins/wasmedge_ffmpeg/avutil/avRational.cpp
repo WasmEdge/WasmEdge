@@ -280,4 +280,6 @@ TEST(WasmEdgeAVUtilTest, AVRational) {
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(1));
   }
+
+  delete AVUtilMod;
 }

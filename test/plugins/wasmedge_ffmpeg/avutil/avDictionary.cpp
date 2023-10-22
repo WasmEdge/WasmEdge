@@ -123,4 +123,6 @@ TEST(WasmEdgeAVUtilTest, AVDictionary) {
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
+
+  delete AVUtilMod;
 }

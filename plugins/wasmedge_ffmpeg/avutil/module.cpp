@@ -2,6 +2,7 @@
 #include "avDictionary.h"
 #include "avFrame.h"
 #include "avRational.h"
+#include "avutil_func.h"
 #include "channel_layout.h"
 #include "error.h"
 #include "pixfmt.h"
@@ -132,6 +133,16 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVDictCopy>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_dict_free",
               std::make_unique<AVDictFree>(Env));
+
+  // avutil_func.h
+  addHostFunc("wasmedge_ffmpeg_avutil_av_log_set_level",
+              std::make_unique<AVLogSetLevel>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_log_get_level",
+              std::make_unique<AVLogGetLevel>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_log_set_flags",
+              std::make_unique<AVLogSetFlags>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_log_get_flags",
+              std::make_unique<AVLogGetFlags>(Env));
 }
 
 } // namespace AVUtil

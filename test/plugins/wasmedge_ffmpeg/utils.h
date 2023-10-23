@@ -2,6 +2,7 @@
 #include "avformat/avformat_func.h"
 #include "avformat/module.h"
 #include "avutil/avDictionary.h"
+#include "avutil/avFrame.h"
 #include "avutil/module.h"
 #include "common/types.h"
 #include "runtime/callingframe.h"
@@ -181,6 +182,26 @@ public:
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             DictPtr, UINT32_C(133), UINT32_C(3), UINT32_C(137), UINT32_C(5), 0},
+        Result);
+  }
+};
+
+class AVFrame {
+public:
+  static void initEmptyFrame(WasmEdge::Runtime::Instance::ModuleInstance &Mod,
+                             uint32_t AVFramePtr,
+                             std::array<WasmEdge::ValVariant, 1> Result) {
+
+    auto *AVFormatMod = InitModules::createAVFormatModule();
+    WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+    auto *FuncInst =
+        AVFormatMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_alloc");
+    auto &HostFuncAVFrameAlloc =
+        dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameAlloc &>(
+            FuncInst->getHostFunc());
+    HostFuncAVFrameAlloc.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFramePtr},
         Result);
   }
 };

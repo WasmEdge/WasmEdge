@@ -1,7 +1,7 @@
 extern "C" {
 #include "libavcodec/avcodec.h"
 #include "libavutil/avutil.h"
-#include "libavutil/channel_layout.h"
+#include "libavutil/opt.h"
 #include "libswresample/swresample.h"
 }
 namespace WasmEdge {
@@ -10,8 +10,8 @@ namespace WasmEdgeFFmpeg {
 namespace FFmpegUtils {
 class MediaType {
 public:
-  static AVMediaType intoMediaType(int32_t mediaTypeId) {
-    switch (mediaTypeId) {
+  static AVMediaType intoMediaType(int32_t MediaTypeId) {
+    switch (MediaTypeId) {
     case 0:
       return AVMEDIA_TYPE_VIDEO;
     case 1:
@@ -29,8 +29,8 @@ public:
     }
   }
 
-  static int32_t fromMediaType(AVMediaType mediaType) {
-    switch (mediaType) {
+  static int32_t fromMediaType(AVMediaType MediaType) {
+    switch (MediaType) {
     case AVMEDIA_TYPE_VIDEO:
       return 0;
     case AVMEDIA_TYPE_AUDIO:
@@ -51,8 +51,8 @@ public:
 
 class CodecID {
 public:
-  static AVCodecID intoAVCodecID(uint32_t avCodecIndex) {
-    switch (avCodecIndex) {
+  static AVCodecID intoAVCodecID(uint32_t AvCodecIndex) {
+    switch (AvCodecIndex) {
     case 0:
       return AV_CODEC_ID_NONE;
     case 1:
@@ -1090,8 +1090,8 @@ public:
   }
 
   // Convert AVCodecID to uint32_t for rust SDK.
-  static uint32_t fromAVCodecID(AVCodecID avCodecId) {
-    switch (avCodecId) {
+  static uint32_t fromAVCodecID(AVCodecID AvCodecId) {
+    switch (AvCodecId) {
     case AV_CODEC_ID_NONE:
       return 0;
     case AV_CODEC_ID_MPEG1VIDEO:
@@ -2131,8 +2131,8 @@ public:
 class PixFmt {
 
 public:
-  static uint32_t fromAVPixFmt(AVPixelFormat avPixelFormat) {
-    switch (avPixelFormat) {
+  static uint32_t fromAVPixFmt(AVPixelFormat AvPixelFormat) {
+    switch (AvPixelFormat) {
     case AV_PIX_FMT_NONE:
       return 0;
     case AV_PIX_FMT_YUV420P:
@@ -3843,6 +3843,422 @@ public:
       return 0;
     }
   }
+};
+
+class ChromaLocation {
+public:
+  static AVChromaLocation intoAVChromaLocation(uint32_t ChromaLocationId) {
+    switch (ChromaLocationId) {
+    case 0:
+      return AVCHROMA_LOC_UNSPECIFIED;
+    case 1:
+      return AVCHROMA_LOC_LEFT;
+    case 2:
+      return AVCHROMA_LOC_CENTER;
+    case 3:
+      return AVCHROMA_LOC_TOPLEFT;
+    case 4:
+      return AVCHROMA_LOC_TOP;
+    case 5:
+      return AVCHROMA_LOC_BOTTOMLEFT;
+    case 6:
+      return AVCHROMA_LOC_BOTTOM;
+    default:
+      return AVCHROMA_LOC_UNSPECIFIED;
+    }
+  }
+
+  static uint32_t fromAVChromaLocation(AVChromaLocation ChromaLocation) {
+    switch (ChromaLocation) {
+    case AVCHROMA_LOC_UNSPECIFIED:
+      return 0;
+    case AVCHROMA_LOC_LEFT:
+      return 1;
+    case AVCHROMA_LOC_CENTER:
+      return 2;
+    case AVCHROMA_LOC_TOPLEFT:
+      return 3;
+    case AVCHROMA_LOC_TOP:
+      return 4;
+    case AVCHROMA_LOC_BOTTOMLEFT:
+      return 5;
+    case AVCHROMA_LOC_BOTTOM:
+      return 6;
+    default:
+      return 0;
+    }
+  }
+};
+
+class Rounding {
+
+public:
+  static AVRounding intoAVRounding(uint32_t RoundingId) {
+    switch (RoundingId) {
+    case 0:
+      return AV_ROUND_ZERO;
+    case 1:
+      return AV_ROUND_INF;
+    case 2:
+      return AV_ROUND_DOWN;
+    case 3:
+      return AV_ROUND_UP;
+    case 4:
+      return AV_ROUND_NEAR_INF;
+    case 5:
+      return AV_ROUND_PASS_MINMAX;
+    default:
+      return AV_ROUND_ZERO;
+    }
+  }
+
+  static uint32_t fromAVRounding(AVRounding Rounding) {
+    switch (Rounding) {
+    case AV_ROUND_ZERO:
+      return 0;
+    case AV_ROUND_INF:
+      return 1;
+    case AV_ROUND_DOWN:
+      return 2;
+    case AV_ROUND_UP:
+      return 3;
+    case AV_ROUND_NEAR_INF:
+      return 4;
+    case AV_ROUND_PASS_MINMAX:
+      return 5;
+    default:
+      return 0;
+    }
+  }
+};
+
+class OptionType {
+
+public:
+  static AVOptionType intoAVOptionType(uint32_t RoundingId) {
+    switch (RoundingId) {
+    case 0:
+      return AV_OPT_TYPE_FLAGS;
+    case 1:
+      return AV_OPT_TYPE_INT;
+    case 2:
+      return AV_OPT_TYPE_INT64;
+    case 3:
+      return AV_OPT_TYPE_DOUBLE;
+    case 4:
+      return AV_OPT_TYPE_FLOAT;
+    case 5:
+      return AV_OPT_TYPE_STRING;
+    case 6:
+      return AV_OPT_TYPE_RATIONAL;
+    case 7:
+      return AV_OPT_TYPE_BINARY;
+    case 8:
+      return AV_OPT_TYPE_DICT;
+    case 9:
+      return AV_OPT_TYPE_CONST;
+    case 10:
+      return AV_OPT_TYPE_IMAGE_SIZE;
+    case 11:
+      return AV_OPT_TYPE_PIXEL_FMT;
+    case 12:
+      return AV_OPT_TYPE_SAMPLE_FMT;
+    case 13:
+      return AV_OPT_TYPE_VIDEO_RATE;
+    case 14:
+      return AV_OPT_TYPE_DURATION;
+    case 15:
+      return AV_OPT_TYPE_COLOR;
+    case 16:
+      return AV_OPT_TYPE_CHANNEL_LAYOUT;
+    case 17:
+      return AV_OPT_TYPE_UINT64;
+    case 18:
+      return AV_OPT_TYPE_BOOL;
+    case 19:
+      return AV_OPT_TYPE_CHLAYOUT;
+    default:
+      return AV_OPT_TYPE_FLAGS;
+    }
+  }
+
+  static uint32_t fromAVOptionType(AVOptionType OptionType) {
+    switch (OptionType) {
+    case AV_OPT_TYPE_FLAGS:
+      return 0;
+    case AV_OPT_TYPE_INT:
+      return 1;
+    case AV_OPT_TYPE_INT64:
+      return 2;
+    case AV_OPT_TYPE_DOUBLE:
+      return 3;
+    case AV_OPT_TYPE_FLOAT:
+      return 4;
+    case AV_OPT_TYPE_STRING:
+      return 5;
+    case AV_OPT_TYPE_RATIONAL:
+      return 6;
+    case AV_OPT_TYPE_BINARY:
+      return 7;
+    case AV_OPT_TYPE_DICT:
+      return 8;
+    case AV_OPT_TYPE_CONST:
+      return 9;
+    case AV_OPT_TYPE_IMAGE_SIZE:
+      return 10;
+    case AV_OPT_TYPE_PIXEL_FMT:
+      return 11;
+    case AV_OPT_TYPE_SAMPLE_FMT:
+      return 12;
+    case AV_OPT_TYPE_VIDEO_RATE:
+      return 13;
+    case AV_OPT_TYPE_DURATION:
+      return 14;
+    case AV_OPT_TYPE_COLOR:
+      return 15;
+    case AV_OPT_TYPE_CHANNEL_LAYOUT:
+      return 16;
+    case AV_OPT_TYPE_UINT64:
+      return 17;
+    case AV_OPT_TYPE_BOOL:
+      return 18;
+    case AV_OPT_TYPE_CHLAYOUT:
+      return 19;
+    default:
+      return 0;
+    }
+  }
+};
+
+class PictureType {
+public:
+  static AVPictureType intoAVPictureType(uint32_t PictureId) {
+    switch (PictureId) {
+    case 0:
+      return AV_PICTURE_TYPE_NONE;
+    case 1:
+      return AV_PICTURE_TYPE_I;
+    case 2:
+      return AV_PICTURE_TYPE_P;
+    case 3:
+      return AV_PICTURE_TYPE_B;
+    case 4:
+      return AV_PICTURE_TYPE_S;
+    case 5:
+      return AV_PICTURE_TYPE_SI;
+    case 6:
+      return AV_PICTURE_TYPE_SP;
+    case 7:
+      return AV_PICTURE_TYPE_BI;
+    default:
+      return AV_PICTURE_TYPE_NONE;
+    }
+  };
+
+  static uint32_t fromAVPictureType(uint32_t PictureType) {
+    switch (PictureType) {
+    case AV_PICTURE_TYPE_NONE:
+      return 0;
+    case AV_PICTURE_TYPE_I:
+      return 1;
+    case AV_PICTURE_TYPE_P:
+      return 2;
+    case AV_PICTURE_TYPE_B:
+      return 3;
+    case AV_PICTURE_TYPE_S:
+      return 4;
+    case AV_PICTURE_TYPE_SI:
+      return 5;
+    case AV_PICTURE_TYPE_SP:
+      return 6;
+    case AV_PICTURE_TYPE_BI:
+      return 7;
+    default:
+      return 0;
+    }
+  }
+};
+
+// Direct mapping in rust. Not required. Can be used for decoupling (Clean
+// Code).
+//
+// class ColorTransferCharacteristic {
+//
+//  static AVColorTransferCharacteristic
+//  intoColorTransferCharacteristic(uint32_t ColorTransferCharacteristicId) {
+//    switch (ColorTransferCharacteristicId) {
+//    case 0:
+//      return AVCOL_TRC_RESERVED0;
+//    case 1:
+//      return AVCOL_TRC_BT709;
+//    case 2:
+//      return AVCOL_TRC_UNSPECIFIED;
+//    case 3:
+//      return AVCOL_TRC_RESERVED;
+//    case 4:
+//      return AVCOL_TRC_GAMMA22;
+//    case 5:
+//      return AVCOL_TRC_GAMMA28;
+//    case 6:
+//      return AVCOL_TRC_SMPTE170M;
+//    case 7:
+//      return AVCOL_TRC_SMPTE240M;
+//    case 8:
+//      return AVCOL_TRC_LINEAR;
+//    case 9:
+//      return AVCOL_TRC_LOG;
+//    case 10:
+//      return AVCOL_TRC_LOG_SQRT;
+//    case 11:
+//      return AVCOL_TRC_IEC61966_2_4;
+//    case 12:
+//      return AVCOL_TRC_BT1361_ECG;
+//    case 13:
+//      return AVCOL_TRC_IEC61966_2_1;
+//    case 14:
+//      return AVCOL_TRC_BT2020_10;
+//    case 15:
+//      return AVCOL_TRC_BT2020_12;
+//    case 16:
+//      return AVCOL_TRC_SMPTE2084;
+//    case 17:
+//      return AVCOL_TRC_SMPTE428;
+//    case 18:
+//      return AVCOL_TRC_ARIB_STD_B67;
+//    case 19:
+//      return AVCOL_TRC_NB;
+//    default:
+//      return AVCOL_TRC_RESERVED0;
+//    }
+//  };
+//
+//  static uint32_t
+//  fromColorTransferCharacteristic(uint32_t ColorTransferCharacteristic) {
+//    switch (ColorTransferCharacteristic) {
+//    case AVCOL_TRC_RESERVED0:
+//      return 0;
+//    case AVCOL_TRC_BT709:
+//      return 1;
+//    case AVCOL_TRC_UNSPECIFIED:
+//      return 2;
+//    case AVCOL_TRC_RESERVED:
+//      return 3;
+//    case AVCOL_TRC_GAMMA22:
+//      return 4;
+//    case AVCOL_TRC_GAMMA28:
+//      return 5;
+//    case AVCOL_TRC_SMPTE170M:
+//      return 6;
+//    case AVCOL_TRC_SMPTE240M:
+//      return 7;
+//    case AVCOL_TRC_LINEAR:
+//      return 8;
+//    case AVCOL_TRC_LOG:
+//      return 9;
+//    case AVCOL_TRC_LOG_SQRT:
+//      return 10;
+//    case AVCOL_TRC_IEC61966_2_4:
+//      return 11;
+//    case AVCOL_TRC_BT1361_ECG:
+//      return 12;
+//    case AVCOL_TRC_IEC61966_2_1:
+//      return 13;
+//    case AVCOL_TRC_BT2020_10:
+//      return 14;
+//    case AVCOL_TRC_BT2020_12:
+//      return 15;
+//    case AVCOL_TRC_SMPTE2084:
+//      return 16;
+//    case AVCOL_TRC_SMPTE428:
+//      return 17;
+//    case AVCOL_TRC_ARIB_STD_B67:
+//      return 18;
+//    case AVCOL_TRC_NB:
+//      return 19;
+//    default:
+//      return 0;
+//    }
+//  };
+//};
+
+// We can keep or remove the binding.
+class ColorSpace {
+
+  static AVColorSpace intoAVColorSpace(uint32_t ColorSpaceId) {
+
+    switch (ColorSpaceId) {
+    case 0:
+      return AVCOL_SPC_RGB;
+    case 1:
+      return AVCOL_SPC_BT709;
+    case 2:
+      return AVCOL_SPC_UNSPECIFIED;
+    case 3:
+      return AVCOL_SPC_RESERVED;
+    case 4:
+      return AVCOL_SPC_FCC;
+    case 5:
+      return AVCOL_SPC_BT470BG;
+    case 6:
+      return AVCOL_SPC_SMPTE170M;
+    case 7:
+      return AVCOL_SPC_SMPTE240M;
+    case 8:
+      return AVCOL_SPC_YCGCO;
+    case 9:
+      return AVCOL_SPC_BT2020_NCL;
+    case 10:
+      return AVCOL_SPC_BT2020_CL;
+    case 11:
+      return AVCOL_SPC_SMPTE2085;
+    case 12:
+      return AVCOL_SPC_CHROMA_DERIVED_NCL;
+    case 13:
+      return AVCOL_SPC_CHROMA_DERIVED_CL;
+    case 14:
+      return AVCOL_SPC_ICTCP;
+    default:
+      return AVCOL_SPC_RGB;
+    }
+  };
+
+  static uint32_t fromAVColorSpace(AVColorSpace ColorSpace) {
+
+    switch (ColorSpace) {
+    case AVCOL_SPC_RGB:
+      return 0;
+    case AVCOL_SPC_BT709:
+      return 1;
+    case AVCOL_SPC_UNSPECIFIED:
+      return 2;
+    case AVCOL_SPC_RESERVED:
+      return 3;
+    case AVCOL_SPC_FCC:
+      return 4;
+    case AVCOL_SPC_BT470BG:
+      return 5;
+    case AVCOL_SPC_SMPTE170M:
+      return 6;
+    case AVCOL_SPC_SMPTE240M:
+      return 7;
+    case AVCOL_SPC_YCGCO:
+      return 8;
+    case AVCOL_SPC_BT2020_NCL:
+      return 9;
+    case AVCOL_SPC_BT2020_CL:
+      return 10;
+    case AVCOL_SPC_SMPTE2085:
+      return 11;
+    case AVCOL_SPC_CHROMA_DERIVED_NCL:
+      return 12;
+    case AVCOL_SPC_CHROMA_DERIVED_CL:
+      return 13;
+    case AVCOL_SPC_ICTCP:
+      return 14;
+    default:
+      return 0;
+    }
+  };
 };
 
 } // namespace FFmpegUtils

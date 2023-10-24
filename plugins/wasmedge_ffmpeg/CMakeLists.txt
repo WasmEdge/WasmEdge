@@ -33,6 +33,7 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
         avutil/samplefmt.cpp
         avutil/channel_layout.cpp
         avutil/avDictionary.cpp
+        avutil/avTime.cpp
 
         swresample/module.cpp
         swresample/swresample_func.cpp

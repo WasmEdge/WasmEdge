@@ -2,6 +2,7 @@
 #include "avDictionary.h"
 #include "avFrame.h"
 #include "avRational.h"
+#include "avTime.h"
 #include "avutil_func.h"
 #include "channel_layout.h"
 #include "error.h"
@@ -143,6 +144,16 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVLogSetFlags>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_log_get_flags",
               std::make_unique<AVLogGetFlags>(Env));
+
+  // time.h
+  addHostFunc("wasmedge_ffmpeg_avutil_av_gettime",
+              std::make_unique<AVGetTime>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_gettime_relative",
+              std::make_unique<AVGetTimeRelative>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_gettime_relative_is_monotonic",
+              std::make_unique<AVGetTimeRelativeIsMonotonic>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_usleep",
+              std::make_unique<AVUSleep>(Env));
 }
 
 } // namespace AVUtil

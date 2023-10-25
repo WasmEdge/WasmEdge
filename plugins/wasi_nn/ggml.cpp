@@ -85,6 +85,7 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
   CxtRef.NPredict = ContextDefault.n_ctx;
   CxtRef.NGPULayers = 0;
   CxtRef.BatchSize = ContextDefault.n_batch;
+  CxtRef.ReversePrompt = ""sv;
 
   return ErrNo::Success;
 }
@@ -155,6 +156,17 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
             "[WASI-NN] GGML backend: Unable to retrieve the batch-size option."sv);
         return ErrNo::InvalidArgument;
       }
+    }
+    if (Doc.at_key("reverse-prompt").error() == simdjson::SUCCESS) {
+      std::string_view ReversePrompt;
+      auto Err =
+          Doc["reverse-prompt"].get<std::string_view>().get(ReversePrompt);
+      if (Err) {
+        spdlog::error(
+            "[WASI-NN] GGML backend: Unable to retrieve the reverse-prompt option."sv);
+        return ErrNo::InvalidArgument;
+      }
+      CxtRef.ReversePrompt = ReversePrompt;
     }
 
     return ErrNo::Success;
@@ -286,6 +298,15 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     if (llama_decode(GraphRef.LlamaContext, LlamaBatch)) {
       spdlog::error("[WASI-NN] GGML backend: failed to llama_decode"sv);
       return ErrNo::RuntimeError;
+    }
+
+    // Break if reverse prompt is found.
+    if (!CxtRef.ReversePrompt.empty() &&
+        CxtRef.LlamaOutputs.find(CxtRef.ReversePrompt) != std::string::npos) {
+      if (CxtRef.EnableLog) {
+        spdlog::info("[WASI-NN] GGML backend: reverse prompt found"sv);
+      }
+      break;
     }
   }
 

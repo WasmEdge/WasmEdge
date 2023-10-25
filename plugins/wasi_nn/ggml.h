@@ -34,6 +34,7 @@ public:
   uint64_t NPredict;
   uint64_t NGPULayers;
   uint64_t BatchSize;
+  std::string ReversePrompt;
 };
 #else
 struct Graph {};

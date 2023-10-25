@@ -84,6 +84,7 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
   CxtRef.CtxSize = ContextDefault.n_ctx;
   CxtRef.NPredict = ContextDefault.n_ctx;
   CxtRef.NGPULayers = 0;
+  CxtRef.BatchSize = ContextDefault.n_batch;
 
   return ErrNo::Success;
 }
@@ -147,6 +148,14 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         return ErrNo::InvalidArgument;
       }
     }
+    if (Doc.at_key("batch-size").error() == simdjson::SUCCESS) {
+      auto Err = Doc["batch-size"].get<uint64_t>().get(CxtRef.BatchSize);
+      if (Err) {
+        spdlog::error(
+            "[WASI-NN] GGML backend: Unable to retrieve the batch-size option."sv);
+        return ErrNo::InvalidArgument;
+      }
+    }
 
     return ErrNo::Success;
   }
@@ -154,6 +163,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   // Initialize the llama context.
   llama_context_params ContextParams = llama_context_default_params();
   ContextParams.n_ctx = CxtRef.CtxSize;
+  ContextParams.n_batch = CxtRef.BatchSize;
   GraphRef.LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
 
@@ -209,7 +219,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   int NPredict = CxtRef.NPredict;
 
   // Evaluate the initial prompt.
-  llama_batch LlamaBatch = llama_batch_init(NPredict, 0);
+  llama_batch LlamaBatch = llama_batch_init(CxtRef.BatchSize, 0);
   LlamaBatch.n_tokens = CxtRef.LlamaInputs.size();
   for (int32_t I = 0; I < LlamaBatch.n_tokens; I++) {
     LlamaBatch.token[I] = CxtRef.LlamaInputs[I];

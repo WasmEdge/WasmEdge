@@ -30,36 +30,34 @@ Expect<int32_t> AVFrameFree::body(const Runtime::CallingFrame &,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
-Expect<uint32_t> AVFrameWidth::body(const Runtime::CallingFrame &,
-                                    uint32_t FrameId) {
+Expect<int32_t> AVFrameWidth::body(const Runtime::CallingFrame &,
+                                   uint32_t FrameId) {
 
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   return AvFrame->width;
 }
 
-Expect<uint32_t> AVFrameHeight::body(const Runtime::CallingFrame &,
-                                     uint32_t FrameId) {
+Expect<int32_t> AVFrameHeight::body(const Runtime::CallingFrame &,
+                                    uint32_t FrameId) {
 
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   return AvFrame->height;
 }
 
-Expect<void> AVFrameSetHeight::body(const Runtime::CallingFrame &,
-                                    uint32_t FrameId, uint32_t Height) {
+Expect<int32_t> AVFrameSetHeight::body(const Runtime::CallingFrame &,
+                                       uint32_t FrameId, uint32_t Height) {
 
-  auto *ffmpegMemory = Env.get();
-  AVFrame *AvFrame = static_cast<AVFrame *>(ffmpegMemory->fetchData(FrameId));
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   AvFrame->height = Height;
-  return {};
+  return static_cast<int32_t>(ErrNo::Success);
 }
 
-Expect<void> AVFrameSetWidth::body(const Runtime::CallingFrame &,
-                                   uint32_t FrameId, uint32_t Width) {
+Expect<int32_t> AVFrameSetWidth::body(const Runtime::CallingFrame &,
+                                      uint32_t FrameId, uint32_t Width) {
 
-  auto *ffmpegMemory = Env.get();
-  AVFrame *AvFrame = static_cast<AVFrame *>(ffmpegMemory->fetchData(FrameId));
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   AvFrame->width = Width;
-  return {};
+  return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<int32_t> AVFrameVideoFormat::body(const Runtime::CallingFrame &,

@@ -1,3 +1,4 @@
+#pragma once
 #include "avcodec_base.h"
 #include "runtime/callingframe.h"
 

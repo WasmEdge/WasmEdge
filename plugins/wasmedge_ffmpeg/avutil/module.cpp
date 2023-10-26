@@ -194,6 +194,10 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVLogSetFlags>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_log_get_flags",
               std::make_unique<AVLogGetFlags>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_rescale_q",
+              std::make_unique<AVRescaleQ>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_rescale_q_rnd",
+              std::make_unique<AVRescaleQRnd>(Env));
 
   // time.h
   addHostFunc("wasmedge_ffmpeg_avutil_av_gettime",

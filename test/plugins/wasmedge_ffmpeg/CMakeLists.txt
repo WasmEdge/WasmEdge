@@ -13,6 +13,7 @@ wasmedge_add_executable(wasmedgeFFmpegTests
 
         avutil/avRational.cpp
         avutil/avDictionary.cpp
+        avutil/avFrame.cpp
 
         swscale/swscale_func.cpp
 

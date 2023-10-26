@@ -23,6 +23,10 @@ TEST(WasmEdgeAVSWResampleTest, SWResampleFunc) {
 
   std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
 
+  uint32_t DictPtr = UINT32_C(4);
+  TestUtils::AVDictionary::initDict(Mod, DictPtr, Result);
+  uint32_t DictId = readUInt32(MemInst, DictPtr);
+
   auto *FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swresample_version");
   EXPECT_NE(FuncInst, nullptr);
@@ -116,12 +120,13 @@ TEST(WasmEdgeAVSWResampleTest, SWResampleFunc) {
 
   // Need to pass an actual AVDictionary Id and check.
 
-  //  {
-  //    SwrId = readUInt32(MemInst,SWResamplePtr);
-  //    EXPECT_TRUE(HostFuncAVOptSetDict.run(CallFrame,std::initializer_list<WasmEdge::ValVariant>{SwrId,0},Result));
-  //    EXPECT_EQ(Result[0].get<int32_t>(),
-  //    static_cast<int32_t>(ErrNo::Success));
-  //  }
+  {
+    SwrId = readUInt32(MemInst, SWResamplePtr);
+    EXPECT_TRUE(HostFuncAVOptSetDict.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{SwrId, DictId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
 
   // Need a way to Create a frame and pass frame Id to the function.
 

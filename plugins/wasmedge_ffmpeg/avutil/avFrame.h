@@ -27,30 +27,30 @@ class AVFrameWidth : public WasmEdgeFFmpegAVUtil<AVFrameWidth> {
 public:
   AVFrameWidth(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId);
 };
 
 class AVFrameHeight : public WasmEdgeFFmpegAVUtil<AVFrameHeight> {
 public:
   AVFrameHeight(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId);
 };
 
 class AVFrameSetWidth : public WasmEdgeFFmpegAVUtil<AVFrameSetWidth> {
 public:
   AVFrameSetWidth(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
-  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t FrameId,
-                    uint32_t Width);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId,
+                       uint32_t Width);
 };
 
 class AVFrameSetHeight : public WasmEdgeFFmpegAVUtil<AVFrameSetHeight> {
 public:
   AVFrameSetHeight(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
-  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t FrameId,
-                    uint32_t Height);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId,
+                       uint32_t Height);
 };
 
 class AVFrameVideoFormat : public WasmEdgeFFmpegAVUtil<AVFrameVideoFormat> {

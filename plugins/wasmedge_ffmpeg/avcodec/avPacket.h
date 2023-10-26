@@ -1,3 +1,4 @@
+#pragma once
 #include "avcodec_base.h"
 #include "runtime/callingframe.h"
 
@@ -40,14 +41,6 @@ public:
 class AVShrinkPacket : public WasmEdgeFFmpegAVCodec<AVShrinkPacket> {
 public:
   AVShrinkPacket(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVCodec(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t AvPacketId,
-                       int32_t Size);
-};
-
-class AVReadFrame : public WasmEdgeFFmpegAVCodec<AVReadFrame> {
-public:
-  AVReadFrame(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVCodec(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t AvPacketId,
                        int32_t Size);

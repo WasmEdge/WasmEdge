@@ -80,8 +80,8 @@ task buildJarWithJni(type : Jar) {
 
 task platformJar {
     dependsOn jar
-    def os = System.getProperty('os.name').toLowerCase()
-    def arch = System.getProperty('os.arch').toLowerCase()
+    def os = System.getProperty('os.name').toLowerCase().replace(" ", "")
+    def arch = System.getProperty('os.arch').toLowerCase().replace(" ", "")
 
     doLast {
         copy {

@@ -70,14 +70,14 @@ jobs:
           export WasmEdge_ROOT=$(pwd)/build
           cd bindings/java/wasmedge-java
           ./gradlew clean
-          ./gradlew build
+          ./gradlew platformJar
 
-      - name: Upload JNI lib
+      - name: Upload Jar
         uses: actions/upload-artifact@v3
         with:
           name: jni-libs
           path: |
-            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*
+            bindings/java/wasmedge-java/build/libs/wasmedge-java-*.jar
             bindings/java/wasmedge-java/build/native/wasmedge-version.properties
 
   build_macos:
@@ -126,7 +126,7 @@ jobs:
           export WasmEdge_ROOT=$(pwd)/build
           cd bindings/java/wasmedge-java
           ./gradlew clean
-          ./gradlew assemble
+          ./gradlew platformJar
 
       - name: Run Tests
         if: ${{ false }}
@@ -140,7 +140,7 @@ jobs:
         with:
           name: jni-libs
           path: |
-            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*
+            bindings/java/wasmedge-java/build/libs/wasmedge-java-*.jar
 
   build_windows:
     name: Windows
@@ -213,7 +213,7 @@ jobs:
           $cmake_sys_version = "10.0.19041.0"
           $Env:PATH += ";$pwd\\build\\lib\\api"
           ./gradlew clean
-          ./gradlew assemble
+          ./gradlew platformJar
 
       - name: Run Tests
         if: ${{ false }}
@@ -230,4 +230,4 @@ jobs:
         with:
           name: jni-libs
           path: |
-            bindings/java/wasmedge-java/build/native/libwasmedge_jni.*
+            bindings/java/wasmedge-java/build/libs/wasmedge-java-*.jar

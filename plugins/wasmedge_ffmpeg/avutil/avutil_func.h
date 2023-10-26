@@ -35,6 +35,95 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame);
 };
 
+// Option funcs.
+class AVOptSetBin : public WasmEdgeFFmpegAVUtil<AVOptSetBin> {
+public:
+  AVOptSetBin(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVOptSet : public WasmEdgeFFmpegAVUtil<AVOptSet> {
+public:
+  AVOptSet(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVOptSetInt : public WasmEdgeFFmpegAVUtil<AVOptSetInt> {
+public:
+  AVOptSetInt(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVOptSetDouble : public WasmEdgeFFmpegAVUtil<AVOptSetDouble> {
+public:
+  AVOptSetDouble(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVOptSetQ : public WasmEdgeFFmpegAVUtil<AVOptSetQ> {
+public:
+  AVOptSetQ(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVOptSetImageSize : public WasmEdgeFFmpegAVUtil<AVOptSetImageSize> {
+public:
+  AVOptSetImageSize(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVOptSetPixelFmt : public WasmEdgeFFmpegAVUtil<AVOptSetPixelFmt> {
+public:
+  AVOptSetPixelFmt(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVOptSetSampleFmt : public WasmEdgeFFmpegAVUtil<AVOptSetSampleFmt> {
+public:
+  AVOptSetSampleFmt(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVOptSetChannelLayout
+    : public WasmEdgeFFmpegAVUtil<AVOptSetChannelLayout> {
+public:
+  AVOptSetChannelLayout(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVRescaleQ : public WasmEdgeFFmpegAVUtil<AVRescaleQ> {
+public:
+  AVRescaleQ(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int64_t> body(const Runtime::CallingFrame &Frame, int64_t A,
+                       int32_t BNum, int32_t BDen, int32_t CNum, int32_t CDen);
+};
+
+class AVRescaleQRnd : public WasmEdgeFFmpegAVUtil<AVRescaleQRnd> {
+public:
+  AVRescaleQRnd(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int64_t> body(const Runtime::CallingFrame &, int64_t A, int32_t BNum,
+                       int32_t BDen, int32_t CNum, int32_t CDen,
+                       int32_t RoundingId);
+};
+
+class AVUtilVersion : public WasmEdgeFFmpegAVUtil<AVUtilVersion> {
+public:
+  AVUtilVersion(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &);
+};
+
 } // namespace AVUtil
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

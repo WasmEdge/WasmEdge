@@ -69,6 +69,10 @@ If you have any questions, feel free to open a GitHub issue on a related project
 * Slack: Join the #WasmEdge channel on the [CNCF Slack](https://slack.cncf.io/)
 * Twitter: Follow @realwasmedge on [Twitter](https://twitter.com/realwasmedge)
 
+## Adopters
+
+Check out our [list of Adopters](https://wasmedge.org/docs/contribute/users/) who are using WasmEdge in their projects.
+
 ## Community Meeting
 
 We host a monthly community meeting to showcase new features, demo new use cases, and a Q&A part. Everyone is welcome!

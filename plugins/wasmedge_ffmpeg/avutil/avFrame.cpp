@@ -189,6 +189,14 @@ Expect<int32_t> AVFrameChannels::body(const Runtime::CallingFrame &,
   return AvFrame->channels;
 }
 
+Expect<int32_t> AVFrameSetChannels::body(const Runtime::CallingFrame &,
+                                         uint32_t FrameId, int32_t Channels) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  AvFrame->channels = Channels;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 Expect<uint64_t> AVFrameChannelLayout::body(const Runtime::CallingFrame &,
                                             uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
@@ -201,6 +209,214 @@ Expect<int64_t> AVFrameBestEffortTimestamp::body(const Runtime::CallingFrame &,
 
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   return AvFrame->best_effort_timestamp;
+}
+
+Expect<int32_t> AVFramePictType::body(const Runtime::CallingFrame &,
+                                      uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  AVPictureType const AvPictureType = AvFrame->pict_type;
+  return FFmpegUtils::PictureType::fromAVPictureType(AvPictureType);
+}
+
+Expect<int32_t> AVFrameSetPictType::body(const Runtime::CallingFrame &,
+                                         uint32_t FrameId, int32_t PictureId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  AVPictureType const AvPictureType =
+      FFmpegUtils::PictureType::intoAVPictureType(PictureId);
+
+  AvFrame->pict_type = AvPictureType;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVFrameInterlacedFrame::body(const Runtime::CallingFrame &,
+                                             uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  return AvFrame->interlaced_frame;
+}
+
+Expect<int32_t> AVFrameTopFieldFirst::body(const Runtime::CallingFrame &,
+                                           uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  return AvFrame->top_field_first;
+}
+
+Expect<int32_t> AVFramePaletteHasChanged::body(const Runtime::CallingFrame &,
+                                               uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  return AvFrame->palette_has_changed;
+}
+
+Expect<int32_t> AVFrameColorSpace::body(const Runtime::CallingFrame &,
+                                        uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  AVColorSpace const AvColorSpace = AvFrame->colorspace;
+  return FFmpegUtils::ColorSpace::fromAVColorSpace(AvColorSpace);
+}
+
+Expect<int32_t> AVFrameSetColorSpace::body(const Runtime::CallingFrame &,
+                                           uint32_t FrameId,
+                                           int32_t ColorSpaceId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  AvFrame->colorspace = FFmpegUtils::ColorSpace::intoAVColorSpace(ColorSpaceId);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVFrameColorRange::body(const Runtime::CallingFrame &,
+                                        uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  AVColorRange const AvColorRange = AvFrame->color_range;
+
+  return static_cast<int32_t>(AvColorRange);
+}
+
+Expect<int32_t> AVFrameSetColorRange::body(const Runtime::CallingFrame &,
+                                           uint32_t FrameId,
+                                           int32_t ColorRangeId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  AvFrame->color_range = static_cast<AVColorRange>(ColorRangeId);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t>
+AVFrameColorTransferCharacteristic::body(const Runtime::CallingFrame &,
+                                         uint32_t FrameId) {
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  AVColorTransferCharacteristic const Characteristic = AvFrame->color_trc;
+
+  // Can use the binding as well. Currently, Commented the binding.
+  return static_cast<int32_t>(Characteristic);
+}
+
+Expect<int32_t> AVFrameSetColorTransferCharacteristic::body(
+    const Runtime::CallingFrame &, uint32_t FrameId,
+    int32_t ColorTransferCharacteristicId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  AvFrame->color_trc =
+      static_cast<AVColorTransferCharacteristic>(ColorTransferCharacteristicId);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVFrameChromaLocation::body(const Runtime::CallingFrame &,
+                                            uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  AVChromaLocation const AvChromaLocation = AvFrame->chroma_location;
+  return FFmpegUtils::ChromaLocation::fromAVChromaLocation(AvChromaLocation);
+}
+
+Expect<int32_t> AVFrameCodedPictureNumber::body(const Runtime::CallingFrame &,
+                                                uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  return AvFrame->coded_picture_number;
+}
+
+Expect<int32_t> AVFrameDisplayPictureNumber::body(const Runtime::CallingFrame &,
+                                                  uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  return AvFrame->display_picture_number;
+}
+
+Expect<int32_t> AVFrameRepeatPict::body(const Runtime::CallingFrame &,
+                                        uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  return AvFrame->repeat_pict;
+}
+
+Expect<int32_t> AVFrameFlags::body(const Runtime::CallingFrame &,
+                                   uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  return AvFrame->flags;
+}
+
+Expect<int32_t> AVFrameQuality::body(const Runtime::CallingFrame &,
+                                     uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  return AvFrame->quality;
+}
+
+Expect<int32_t> AVFrameMetadata::body(const Runtime::CallingFrame &Frame,
+                                      uint32_t FrameId, uint32_t DictPtr) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(DictId, MemInst, uint32_t, DictPtr,
+                "Failed when accessing the return AVDictionary memory");
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+
+  AVDictionary **AvDictionary =
+      (AVDictionary **)malloc(sizeof(AVDictionary **));
+
+  *AvDictionary = AvFrame->metadata;
+  FFMPEG_PTR_STORE(AvDictionary, DictId);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVFrameSetMetadata::body(const Runtime::CallingFrame &,
+                                         uint32_t FrameId, uint32_t DictId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
+
+  AvFrame->metadata = *AvDict;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVFrameKeyFrame::body(const Runtime::CallingFrame &,
+                                      uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  return AvFrame->key_frame;
+}
+
+Expect<int64_t> AVFramePts::body(const Runtime::CallingFrame &,
+                                 uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  return AvFrame->pts;
+}
+
+Expect<int32_t> AVFrameSetPts::body(const Runtime::CallingFrame &,
+                                    uint32_t FrameId, int64_t Pts) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  AvFrame->pts = Pts;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVFrameCopy::body(const Runtime::CallingFrame &,
+                                  uint32_t DestFrameId, uint32_t SrcFrameId) {
+
+  FFMPEG_PTR_FETCH(DestAvFrame, DestFrameId, AVFrame);
+  FFMPEG_PTR_FETCH(SrcAvFrame, SrcFrameId, AVFrame);
+
+  av_frame_copy(DestAvFrame, SrcAvFrame);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVFrameCopyProps::body(const Runtime::CallingFrame &,
+                                       uint32_t DestFrameId,
+                                       uint32_t SrcFrameId) {
+
+  FFMPEG_PTR_FETCH(DestAvFrame, DestFrameId, AVFrame);
+  FFMPEG_PTR_FETCH(SrcAvFrame, SrcFrameId, AVFrame);
+
+  av_frame_copy_props(DestAvFrame, SrcAvFrame);
+  return static_cast<int32_t>(ErrNo::Success);
 }
 
 } // namespace AVUtil

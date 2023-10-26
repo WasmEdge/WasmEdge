@@ -83,10 +83,60 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVFrameSetSampleRate>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channels",
               std::make_unique<AVFrameChannels>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_channels",
+              std::make_unique<AVFrameSetChannels>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channel_layout",
               std::make_unique<AVFrameChannelLayout>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_best_effort_timestamp",
               std::make_unique<AVFrameChannelLayout>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_pict_type",
+              std::make_unique<AVFramePictType>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_pict_type",
+              std::make_unique<AVFrameSetPictType>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_interlaced_frame",
+              std::make_unique<AVFrameInterlacedFrame>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_top_field_first",
+              std::make_unique<AVFrameTopFieldFirst>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_palette_has_changed",
+              std::make_unique<AVFramePaletteHasChanged>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_colorspace",
+              std::make_unique<AVFrameColorSpace>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_colorspace",
+              std::make_unique<AVFrameSetColorSpace>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_color_range",
+              std::make_unique<AVFrameColorRange>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_color_range",
+              std::make_unique<AVFrameSetColorRange>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_color_trc",
+              std::make_unique<AVFrameColorTransferCharacteristic>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_color_trc",
+              std::make_unique<AVFrameSetColorTransferCharacteristic>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_chroma_location",
+              std::make_unique<AVFrameChromaLocation>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_coded_picture_number",
+              std::make_unique<AVFrameCodedPictureNumber>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_display_picture_number",
+              std::make_unique<AVFrameDisplayPictureNumber>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_repeat_pict",
+              std::make_unique<AVFrameRepeatPict>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_flags",
+              std::make_unique<AVFrameFlags>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_quality",
+              std::make_unique<AVFrameQuality>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_metadata",
+              std::make_unique<AVFrameMetadata>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_metadata",
+              std::make_unique<AVFrameSetMetadata>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_key_frame",
+              std::make_unique<AVFrameKeyFrame>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_pts",
+              std::make_unique<AVFramePts>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_pts",
+              std::make_unique<AVFrameSetPts>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_copy",
+              std::make_unique<AVFrameCopy>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_copy_props",
+              std::make_unique<AVFrameCopyProps>(Env));
 
   // pixfmt.h (Even AvPixFmtDesc is in this file)
   addHostFunc("wasmedge_ffmpeg_avutil_avpixfmtdescriptor_nb_components",

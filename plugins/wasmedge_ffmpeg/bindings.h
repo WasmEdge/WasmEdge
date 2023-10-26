@@ -3847,7 +3847,7 @@ public:
 
 class ChromaLocation {
 public:
-  static AVChromaLocation intoAVChromaLocation(uint32_t ChromaLocationId) {
+  static AVChromaLocation intoAVChromaLocation(int32_t ChromaLocationId) {
     switch (ChromaLocationId) {
     case 0:
       return AVCHROMA_LOC_UNSPECIFIED;
@@ -3868,7 +3868,7 @@ public:
     }
   }
 
-  static uint32_t fromAVChromaLocation(AVChromaLocation ChromaLocation) {
+  static int32_t fromAVChromaLocation(AVChromaLocation ChromaLocation) {
     switch (ChromaLocation) {
     case AVCHROMA_LOC_UNSPECIFIED:
       return 0;
@@ -3893,7 +3893,7 @@ public:
 class Rounding {
 
 public:
-  static AVRounding intoAVRounding(uint32_t RoundingId) {
+  static AVRounding intoAVRounding(int32_t RoundingId) {
     switch (RoundingId) {
     case 0:
       return AV_ROUND_ZERO;
@@ -3912,7 +3912,7 @@ public:
     }
   }
 
-  static uint32_t fromAVRounding(AVRounding Rounding) {
+  static int32_t fromAVRounding(AVRounding Rounding) {
     switch (Rounding) {
     case AV_ROUND_ZERO:
       return 0;
@@ -3935,7 +3935,7 @@ public:
 class OptionType {
 
 public:
-  static AVOptionType intoAVOptionType(uint32_t RoundingId) {
+  static AVOptionType intoAVOptionType(int32_t RoundingId) {
     switch (RoundingId) {
     case 0:
       return AV_OPT_TYPE_FLAGS;
@@ -3982,7 +3982,7 @@ public:
     }
   }
 
-  static uint32_t fromAVOptionType(AVOptionType OptionType) {
+  static int32_t fromAVOptionType(AVOptionType OptionType) {
     switch (OptionType) {
     case AV_OPT_TYPE_FLAGS:
       return 0;
@@ -4032,7 +4032,7 @@ public:
 
 class PictureType {
 public:
-  static AVPictureType intoAVPictureType(uint32_t PictureId) {
+  static AVPictureType intoAVPictureType(int32_t PictureId) {
     switch (PictureId) {
     case 0:
       return AV_PICTURE_TYPE_NONE;
@@ -4055,7 +4055,7 @@ public:
     }
   };
 
-  static uint32_t fromAVPictureType(uint32_t PictureType) {
+  static int32_t fromAVPictureType(AVPictureType PictureType) {
     switch (PictureType) {
     case AV_PICTURE_TYPE_NONE:
       return 0;
@@ -4184,7 +4184,8 @@ public:
 // We can keep or remove the binding.
 class ColorSpace {
 
-  static AVColorSpace intoAVColorSpace(uint32_t ColorSpaceId) {
+public:
+  static AVColorSpace intoAVColorSpace(int32_t ColorSpaceId) {
 
     switch (ColorSpaceId) {
     case 0:
@@ -4222,7 +4223,7 @@ class ColorSpace {
     }
   };
 
-  static uint32_t fromAVColorSpace(AVColorSpace ColorSpace) {
+  static int32_t fromAVColorSpace(AVColorSpace ColorSpace) {
 
     switch (ColorSpace) {
     case AVCOL_SPC_RGB:

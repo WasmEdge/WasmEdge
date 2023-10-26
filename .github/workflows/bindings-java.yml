@@ -42,9 +42,9 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
-          distribution: 'temurin' # See 'Supported distributions' for available options
-          java-version: '11'
-          cache: 'gradle'
+          distribution: "temurin" # See 'Supported distributions' for available options
+          java-version: "11"
+          cache: "gradle"
 
       - name: Install clang-format-15
         run: |
@@ -75,10 +75,9 @@ jobs:
       - name: Upload Jar
         uses: actions/upload-artifact@v3
         with:
-          name: jni-libs
+          name: java-libs
           path: |
             bindings/java/wasmedge-java/build/libs/wasmedge-java-*.jar
-            bindings/java/wasmedge-java/build/native/wasmedge-version.properties
 
   build_macos:
     name: MacOS
@@ -117,9 +116,9 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
-          distribution: 'temurin' # See 'Supported distributions' for available options
-          java-version: '11'
-          cache: 'gradle'
+          distribution: "temurin" # See 'Supported distributions' for available options
+          java-version: "11"
+          cache: "gradle"
 
       - name: Build WasmEdge Java
         run: |
@@ -138,7 +137,7 @@ jobs:
       - name: Upload JNI lib
         uses: actions/upload-artifact@v3
         with:
-          name: jni-libs
+          name: java-libs
           path: |
             bindings/java/wasmedge-java/build/libs/wasmedge-java-*.jar
 
@@ -167,9 +166,9 @@ jobs:
       - name: Set up java
         uses: actions/setup-java@v3
         with:
-          distribution: 'temurin' # See 'Supported distributions' for available options
-          java-version: '11'
-          cache: 'gradle'
+          distribution: "temurin" # See 'Supported distributions' for available options
+          java-version: "11"
+          cache: "gradle"
 
       - name: Build WasmEdge with Release mode
         run: |
@@ -228,6 +227,6 @@ jobs:
       - name: Upload JNI lib
         uses: actions/upload-artifact@v3
         with:
-          name: jni-libs
+          name: java-libs
           path: |
             bindings/java/wasmedge-java/build/libs/wasmedge-java-*.jar

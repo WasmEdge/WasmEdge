@@ -58,6 +58,11 @@ clean.doFirst {
 
 processResources {
     dependsOn compileJNI
+
+    from "build/native/"
+
+    include "*.dll", "*.so", "*.dylib"
+
 }
 
 
@@ -71,4 +76,20 @@ task buildJarWithJni(type : Jar) {
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
     from new File(project.buildDir, 'jni-libs')
+}
+
+task platformJar {
+    dependsOn jar
+    def os = System.getProperty('os.name').toLowerCase()
+    def arch = System.getProperty('os.arch').toLowerCase()
+
+    doLast {
+        copy {
+            from jar
+            into 'build/libs'
+            rename { String fileName ->
+                fileName.replace('wasmedge-java', """wasmedge-java-$os-$arch""")
+            }
+        }
+    }
 }

@@ -15,7 +15,11 @@ public class WasmEdge {
     private static final String NATIVE_LIBRARY_NAME = "wasmedge_jni";
 
     public static synchronized void init() {
-        System.loadLibrary(NATIVE_LIBRARY_NAME);
+        try {
+            NativeUtils.loadLibraryFromJar("/" + System.mapLibraryName(NATIVE_LIBRARY_NAME));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -107,14 +111,14 @@ public class WasmEdge {
      */
     public static void setLogLevel(LogLevel logLevel) {
         switch (logLevel) {
-          case ERROR:
-              setErrorLevel();
-              return;
-          case DEBUG:
-              setDebugLevel();
-              return;
-          default:
-              throw new RuntimeException("Invalid log level " + logLevel);
+            case ERROR:
+                setErrorLevel();
+                return;
+            case DEBUG:
+                setDebugLevel();
+                return;
+            default:
+                throw new RuntimeException("Invalid log level " + logLevel);
         }
 
     }

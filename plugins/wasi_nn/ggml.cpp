@@ -311,6 +311,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
 
   if (CxtRef.EnableLog) {
+    llama_log_set(nullptr, &CxtRef.EnableLog);
     llama_print_timings(GraphRef.LlamaContext);
   }
 

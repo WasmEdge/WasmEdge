@@ -3,6 +3,8 @@ name: Clang-Format
 on:
   workflow_call:
 
+permissions: read-all
+
 jobs:
   lint:
     runs-on: ubuntu-latest

@@ -22,6 +22,8 @@ on:
       - "include/host/wasi/**"
       - "thirdparty/wasi/**"
 
+permissions: read-all
+
 jobs:
   test:
     strategy:

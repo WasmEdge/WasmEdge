@@ -11,6 +11,8 @@ on:
       upload_asset_url:
         type: string
 
+permissions: read-all
+
 jobs:
   build_fedora:
     name: Fedora latest

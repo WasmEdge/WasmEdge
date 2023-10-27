@@ -20,6 +20,8 @@ on:
   schedule:
     - cron: "0 0 */7 * *"
 
+permissions: read-all
+
 jobs:
   prep:
     name: Prepare docker env

@@ -12,6 +12,8 @@ on:
       release:
         type: boolean
 
+permissions: read-all
+
 jobs:
   build_on_ubuntu:
     strategy:

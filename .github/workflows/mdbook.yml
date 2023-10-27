@@ -20,6 +20,8 @@ on:
     paths:
       - 'docs/**'
 
+permissions: read-all
+
 jobs:
   lint-markdown:
     if: ${{ github.event_name != 'push' }}

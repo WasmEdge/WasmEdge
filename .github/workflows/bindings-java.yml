@@ -22,6 +22,8 @@ on:
       - "include/api/wasmedge/**"
       - "lib/api/**"
 
+permissions: read-all
+
 jobs:
   build_ubuntu:
     name: Ubuntu 22.04

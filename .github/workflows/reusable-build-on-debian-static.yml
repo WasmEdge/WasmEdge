@@ -9,6 +9,8 @@ on:
       release:
         type: boolean
 
+permissions: read-all
+
 jobs:
   build_on_debian_static:
     name: Build on Debian (static lib)

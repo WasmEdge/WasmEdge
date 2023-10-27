@@ -39,6 +39,8 @@ on:
       - "CMakeLists.txt"
       - "cmake/**"
 
+permissions: read-all
+
 jobs:
   static_analysis:
     name: Run Static Code Analysis using Infer

@@ -11,6 +11,8 @@ on:
     types:
       - completed
 
+permissions: read-all
+
 jobs:
   post_ubuntu_release:
     runs-on: ubuntu-latest

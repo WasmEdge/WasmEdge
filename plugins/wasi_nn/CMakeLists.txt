@@ -79,8 +79,8 @@ else()
     endif()
   endif()
 
-  set_property(TARGET simdjson PROPERTY POSITION_INDEPENDENT_CODE ON)
   FetchContent_MakeAvailable(simdjson)
+  set_property(TARGET simdjson PROPERTY POSITION_INDEPENDENT_CODE ON)
 
   message(STATUS "Downloading SIMDJSON source -- done")
 endif()

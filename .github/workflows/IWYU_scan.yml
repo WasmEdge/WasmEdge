@@ -31,7 +31,8 @@ on:
       - "tools/**"
       - "CMakeLists.txt"
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   get_version:

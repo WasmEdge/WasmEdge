@@ -20,7 +20,8 @@ on:
     paths:
       - 'docs/**'
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   lint-markdown:

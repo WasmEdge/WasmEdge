@@ -9,7 +9,8 @@ on:
       release:
         type: boolean
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   build_on_debian_static:

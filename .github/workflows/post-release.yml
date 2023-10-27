@@ -11,7 +11,8 @@ on:
     types:
       - completed
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   post_ubuntu_release:

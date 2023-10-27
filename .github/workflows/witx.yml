@@ -16,7 +16,8 @@ on:
     paths:
       - 'docs/witx/**'
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   gen_doc:

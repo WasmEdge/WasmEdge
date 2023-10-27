@@ -25,7 +25,8 @@ on:
 env:
   INSTALL_PY_PATH: utils/install.py
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   linux:

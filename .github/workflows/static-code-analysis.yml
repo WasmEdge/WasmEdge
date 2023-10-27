@@ -39,7 +39,8 @@ on:
       - "CMakeLists.txt"
       - "cmake/**"
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   static_analysis:

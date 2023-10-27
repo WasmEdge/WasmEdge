@@ -45,7 +45,8 @@ on:
   schedule:
     - cron: '15 18 * * 6'
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   # TODO: Refactor `lint` with `on.workflow_run`

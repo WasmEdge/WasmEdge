@@ -11,7 +11,8 @@ on:
       upload_asset_url:
         type: string
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   build_on_android:

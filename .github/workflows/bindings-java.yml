@@ -22,7 +22,8 @@ on:
       - "include/api/wasmedge/**"
       - "lib/api/**"
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   build_ubuntu:

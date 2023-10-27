@@ -33,7 +33,8 @@ on:
       - "CMakeLists.txt"
       - "cmake/**"
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   # TODO: Refactor `lint` with `on.workflow_run`

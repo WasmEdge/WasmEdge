@@ -22,7 +22,8 @@ on:
       - 'utils/uninstall.sh'
       - 'utils/install.py'
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   lint:

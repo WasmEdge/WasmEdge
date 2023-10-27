@@ -10,6 +10,7 @@ on:
       - master
     paths:
       - ".github/workflows/build-extensions.yml"
+      - ".github/actions/expand-variables/**"
       - ".github/workflows/reusable-build-extensions**"
       - ".github/workflows/reusable-call-linter.yml"
       - "plugins/**"
@@ -26,6 +27,7 @@ on:
       - "proposal/**"
     paths:
       - ".github/workflows/build-extensions.yml"
+      - ".github/actions/expand-variables/**"
       - ".github/workflows/reusable-build-extensions**"
       - ".github/workflows/reusable-call-linter.yml"
       - "plugins/**"
@@ -276,83 +278,12 @@ jobs:
           path: plugin_wasmedge_zlib.tar.gz
 
   # Due to the dependencies and exclusions of WASI-NN, build them saperately.
-  build_manylinux_wasi_nn:
-    strategy:
-      matrix:
-        include:
-          - name: Plugins_x86_64
-            host_runner: ubuntu-latest
-            docker_tag: manylinux2014_x86_64
-            build_type: Release
-          - name: Plugins_aarch64
-            host_runner: linux-arm64
-            docker_tag: manylinux2014_aarch64
-            build_type: Release
-    name: WASI-NN (${{ matrix.docker_tag }}, g++, ${{ matrix.build_type }})
-    runs-on: ${{ matrix.host_runner }}
-    env:
-      output_dir: build/plugins/wasi_nn
-      test_dir: build/test/plugins/wasi_nn
-      build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
-      build_options_manylinux2014_x86_64: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch
-      build_options_manylinux2014_aarch64:
-      tar_names_all_platforms: wasi_nn-tensorflowlite wasi_nn-ggml
-      tar_names_manylinux2014_x86_64: wasi_nn-pytorch
-      tar_names_manylinux2014_aarch64:
-      test_bin: wasiNNTests
-      output_bin: libwasmedgePluginWasiNN.so
-      PYTORCH_VERSION: "1.8.2"
-      PYTORCH_INSTALL_TO: "."
-    needs: [get_version]
-    container:
-      image: wasmedge/wasmedge:${{ matrix.docker_tag }}
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Install dependencies
-        shell: bash
-        run: |
-          bash ./utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi
-      - name: Build and test WASI-NN using g++ with ${{ matrix.build_type }} mode
-        shell: bash
-        run: |
-          export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
-          plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.docker_tag }}})
-          option_array=(${build_options_all_platforms} ${build_options_${{ matrix.docker_tag }}})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS=OFF
-          for (( i=0; i<${#plugin_array[@]}; i++ ));
-          do
-            echo "Building ${plugin_array[$i]} backend:"
-            cmake -Bbuild -GNinja ${option_array[$i]} -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS=OFF
-            cmake --build build --target ${test_bin}
-
-            echo "Testing ${plugin_array[$i]} backend:"
-            cd ${test_dir}
-            echo "Testing ${plugin_array[$i]} backend:"
-            ./${test_bin}
-            cd -
-
-            echo "Copying ${plugin_array[$i]} backend:"
-            cp -f ${output_dir}/${output_bin} ${output_bin}
-            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${output_bin}
-          done
-      - name: Upload artifact - wasi_nn-pytorch
-        if: contains(matrix.docker_tag, 'manylinux2014_x86_64')
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-pytorch-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasi_nn-pytorch.tar.gz
-      - name: Upload artifact - wasi_nn-tensorflowlite
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasi_nn-tensorflowlite.tar.gz
-      - name: Upload artifact - wasi_nn-ggml
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-ggml-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasi_nn-ggml.tar.gz
+  build_wasinn_manylinux:
+    name: WASI-NN (manylinux, g++, Release)
+    needs: get_version
+    uses: ./.github/workflows/reusable-build-extensions.yml
+    with:
+      version: ${{ needs.get_version.outputs.version }}
 
   build_manylinux:
     strategy:

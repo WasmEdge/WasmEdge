@@ -111,14 +111,14 @@ public class WasmEdge {
      */
     public static void setLogLevel(LogLevel logLevel) {
         switch (logLevel) {
-            case ERROR:
-                setErrorLevel();
-                return;
-            case DEBUG:
-                setDebugLevel();
-                return;
-            default:
-                throw new RuntimeException("Invalid log level " + logLevel);
+          case ERROR:
+              setErrorLevel();
+              return;
+          case DEBUG:
+              setDebugLevel();
+              return;
+          default:
+              throw new RuntimeException("Invalid log level " + logLevel);
         }
 
     }

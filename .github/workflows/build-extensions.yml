@@ -10,6 +10,8 @@ on:
       - master
     paths:
       - ".github/workflows/build-extensions.yml"
+      - ".github/workflows/reusable-build-extensions**"
+      - ".github/workflows/reusable-call-linter.yml"
       - "plugins/**"
       - "test/**"
       - "thirdparty/**"
@@ -24,6 +26,8 @@ on:
       - "proposal/**"
     paths:
       - ".github/workflows/build-extensions.yml"
+      - ".github/workflows/reusable-build-extensions**"
+      - ".github/workflows/reusable-call-linter.yml"
       - "plugins/**"
       - "test/**"
       - "thirdparty/**"

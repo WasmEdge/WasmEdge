@@ -10,7 +10,9 @@ on:
       - master
     paths:
       - ".github/workflows/build.yml"
-      - ".github/workflows/reusable**"
+      - ".github/workflows/reusable-build-on-**"
+      - ".github/workflows/reusable-call-linter.yml"
+      - ".github/workflows/reusable-create-source-tarball.yml"
       - "include/**"
       - "lib/**"
       - "plugins/**"
@@ -25,7 +27,9 @@ on:
       - "proposal/**"
     paths:
       - ".github/workflows/build.yml"
-      - ".github/workflows/reusable**"
+      - ".github/workflows/reusable-build-on-**"
+      - ".github/workflows/reusable-call-linter.yml"
+      - ".github/workflows/reusable-create-source-tarball.yml"
       - "include/**"
       - "lib/**"
       - "plugins/**"

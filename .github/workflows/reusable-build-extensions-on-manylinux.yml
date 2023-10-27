@@ -1,0 +1,103 @@
+name: Build extensions on manylinux
+
+on:
+  workflow_call:
+    inputs:
+      arch:
+        type: string
+        required: true
+      runner:
+        type: string
+        required: true
+      docker_tag:
+        type: string
+        required: true
+      plugins:
+        type: string
+        required: true
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+        default: false
+
+env:
+  OPENVINO_VERSION: "2023.0.2"
+  OPENVINO_YEAR: "2023"
+  PYTORCH_VERSION: "1.8.2"
+  PYTORCH_INSTALL_TO: "."
+
+jobs:
+  build_on_manylinux:
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include: ${{ fromJSON(inputs.plugins) }}
+    name: Build and upload ${{ matrix.plugin }} (${{ inputs.docker_tag }})
+    runs-on: ${{ inputs.runner }}
+    container: wasmedge/wasmedge:${{ inputs.docker_tag }}
+    env:
+      bin_name: ${{ matrix.bin }}
+      build_tests: ${{ inputs.release && 'Off' || 'On' }}
+      build_type: Release
+      target: ${{ inputs.release && matrix.bin || matrix.testBin }}
+      test_dir: build/test/plugins/${{ matrix.dir }}
+      output_dir: build/plugins/${{ matrix.dir }}
+    steps:
+      - id: prep
+        run: |
+          echo "artifact=WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.docker_tag }}.tar.gz" >> $GITHUB_OUTPUT
+          echo "filename=plugin_${{ matrix.plugin }}.tar.gz" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - name: Install WASI-NN dependencies
+        shell: bash
+        run: |
+          mkdir -p build
+          bash ./utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi
+      - name: Build ${{ matrix.plugin }}
+        shell: bash
+        run: |
+          export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
+          if [[ ${build_tests} != "On" ]]; then
+            target=${bin_name%.*}
+            target=${target#lib}
+          fi
+
+          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=${build_tests} -DCMAKE_BUILD_TYPE=${build_type} -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF
+          cmake -Bbuild -GNinja ${{ matrix.options }}
+          cmake --build build --target ${target}
+
+          if [[ ${build_tests} == "On" ]]; then
+            cd ${test_dir}
+            ./${target}
+            cd -
+          fi
+
+          cp -f ${output_dir}/${bin_name} ${bin_name}
+          tar -zcvf ${{ steps.prep.outputs.filename }} ${bin_name}
+      - name: Upload artifact ${{ matrix.plugin }}
+        if: ${{ !inputs.release }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ steps.prep.outputs.artifact }}
+          path: ${{ steps.prep.outputs.filename }}
+      - name: Install gh on manylinux
+        if: ${{ inputs.release }}
+        run: |
+          type -p yum-config-manager >/dev/null || sudo yum install yum-utils
+          yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+          yum install -y gh
+      - name: Upload WasmEdge ${{ matrix.plugin }} plugin tar.gz package
+        if: ${{ inputs.release }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv ${{ steps.prep.outputs.filename }} ${{ steps.prep.outputs.artifact }}
+          gh release upload ${{ inputs.version }} ${{ steps.prep.outputs.artifact }} --clobber

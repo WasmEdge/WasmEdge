@@ -1,0 +1,41 @@
+name: Build extensions
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+        default: false
+
+jobs:
+  prepare:
+    name: Prepare matrix values for manylinux plugins
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.prep.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - id: prep
+        uses: ./.github/actions/expand-variables
+
+  build_extensions_on_manylinux:
+    needs: [prepare]
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    name: Build all plugins on ${{ matrix.docker_tag }}
+    uses: ./.github/workflows/reusable-build-extensions-on-manylinux.yml
+    with:
+      arch: ${{ matrix.arch }}
+      runner: ${{ matrix.runner }}
+      docker_tag: ${{ matrix.docker_tag }}
+      plugins: ${{ toJSON(matrix.plugins) }}
+      version: ${{ inputs.version }}
+      release: ${{ inputs.release }}
+    secrets: inherit

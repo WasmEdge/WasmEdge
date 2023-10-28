@@ -31,7 +31,6 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
         avutil/avFrame.cpp
         avutil/pixfmt.cpp
         avutil/samplefmt.cpp
-        avutil/channel_layout.cpp
         avutil/avDictionary.cpp
         avutil/avTime.cpp
 

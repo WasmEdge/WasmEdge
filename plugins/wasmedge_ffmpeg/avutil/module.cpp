@@ -4,7 +4,6 @@
 #include "avRational.h"
 #include "avTime.h"
 #include "avutil_func.h"
-#include "channel_layout.h"
 #include "error.h"
 #include "pixfmt.h"
 #include "samplefmt.h"
@@ -63,32 +62,33 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVFrameIsNull>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_linesize",
               std::make_unique<AVFrameLinesize>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_data",
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_data", // test
               std::make_unique<AVFrameData>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_get_buffer",
               std::make_unique<AVFrameGetBuffer>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_audio_format",
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_audio_format", // test audio
               std::make_unique<AVFrameAudioFormat>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_audio_format",
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_audio_format", // test audio
               std::make_unique<AVFrameSetAudioFormat>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_nb_samples",
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_nb_samples", // test audio
               std::make_unique<AVFrameSetNbSamples>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_channel_layout",
-              std::make_unique<AVFrameSetChannelLayout>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_nb_samples",
+  addHostFunc(
+      "wasmedge_ffmpeg_avutil_av_frame_set_channel_layout", // test audio
+      std::make_unique<AVFrameSetChannelLayout>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_nb_samples", // test audio
               std::make_unique<AVFrameNbSamples>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_sample_rate",
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_sample_rate", // test audio
               std::make_unique<AVFrameSampleRate>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_sample_rate",
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_sample_rate", // test audio
               std::make_unique<AVFrameSetSampleRate>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channels",
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channels", // test audio
               std::make_unique<AVFrameChannels>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_channels",
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_channels", // test audio
               std::make_unique<AVFrameSetChannels>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channel_layout",
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channel_layout", // test audio
               std::make_unique<AVFrameChannelLayout>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_best_effort_timestamp",
-              std::make_unique<AVFrameChannelLayout>(Env));
+              std::make_unique<AVFrameBestEffortTimestamp>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_pict_type",
               std::make_unique<AVFramePictType>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_pict_type",
@@ -167,12 +167,6 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
   addHostFunc("wasmedge_ffmpeg_avutil_av_freep",
               std::make_unique<AVFreep>(Env));
 
-  // channelLayout.h
-  addHostFunc("wasmedge_ffmpeg_avutil_av_get_channel_layout_nb_channels",
-              std::make_unique<AVGetChannelLayoutNbChannels>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_get_default_channel_layout",
-              std::make_unique<AVGetDefaultChannelLayout>(Env));
-
   // dict.h
   addHostFunc("wasmedge_ffmpeg_avutil_av_dict_set",
               std::make_unique<AVDictSet>(Env));
@@ -198,6 +192,12 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVRescaleQ>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_rescale_q_rnd",
               std::make_unique<AVRescaleQRnd>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_avutil_version",
+              std::make_unique<AVUtilVersion>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_get_channel_layout_nb_channels",
+              std::make_unique<AVGetChannelLayoutNbChannels>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_get_default_channel_layout",
+              std::make_unique<AVGetDefaultChannelLayout>(Env));
 
   // time.h
   addHostFunc("wasmedge_ffmpeg_avutil_av_gettime",

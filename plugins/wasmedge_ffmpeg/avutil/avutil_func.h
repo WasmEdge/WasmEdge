@@ -1,5 +1,7 @@
 #pragma once
 #include "avutil_base.h"
+
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #include "runtime/callingframe.h"
 
 namespace WasmEdge {
@@ -122,6 +124,24 @@ public:
   AVUtilVersion(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
   Expect<uint32_t> body(const Runtime::CallingFrame &);
+};
+
+class AVGetChannelLayoutNbChannels
+    : public WasmEdgeFFmpegAVUtil<AVGetChannelLayoutNbChannels> {
+public:
+  AVGetChannelLayoutNbChannels(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint64_t ChannelLayoutId);
+};
+
+class AVGetDefaultChannelLayout
+    : public WasmEdgeFFmpegAVUtil<AVGetDefaultChannelLayout> {
+public:
+  AVGetDefaultChannelLayout(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<uint64_t> body(const Runtime::CallingFrame &Frame,
+                        int32_t ChannelLayoutId);
 };
 
 } // namespace AVUtil

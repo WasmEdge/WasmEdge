@@ -10,22 +10,27 @@ namespace WasmEdgeFFmpeg {
 namespace AVUtil {
 
 Expect<int32_t> AVUtilAVStrError::body(const Runtime::CallingFrame &Frame,
-                                       int32_t Errnum, uint32_t Errbuf,
+                                       int32_t ErrNum, uint32_t ErrBuf,
                                        uint32_t BufLen) {
 
   MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_SPAN_CHECK(buffer, MemInst, uint8_t, Errbuf, BufLen, "");
-  return av_strerror(Errnum, reinterpret_cast<char *>(buffer.data()), BufLen);
+
+  MEM_PTR_CHECK(ErrId, MemInst, char, ErrBuf,
+                "Failed when accessing the return URL memory");
+
+  std::string Error;
+  std::copy_n(ErrId, BufLen, std::back_inserter(Error));
+  return av_strerror(ErrNum, const_cast<char *>(Error.c_str()), BufLen);
 }
 
 Expect<int32_t> AVUtilAVError::body(const Runtime::CallingFrame &,
-                                    int32_t Errnum) {
-  return AVERROR(Errnum);
+                                    int32_t ErrNum) {
+  return AVERROR(ErrNum);
 }
 
 Expect<int32_t> AVUtilAVUNError::body(const Runtime::CallingFrame &,
-                                      int32_t Errnum) {
-  return AVUNERROR(Errnum);
+                                      int32_t ErrNum) {
+  return AVUNERROR(ErrNum);
 }
 
 } // namespace AVUtil

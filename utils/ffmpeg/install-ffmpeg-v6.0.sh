@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-wget -O ffmpeg.zip https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n6.0.zip
+curl -sL https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n6.0.zip -o ffmpeg.zip
 
 unzip ffmpeg.zip
 

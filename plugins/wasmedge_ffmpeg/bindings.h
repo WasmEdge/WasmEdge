@@ -4262,6 +4262,47 @@ public:
   };
 };
 
+class FieldOrder {
+public:
+  static AVFieldOrder intoAVFieldOrder(int32_t FieldOrderId) {
+    switch (FieldOrderId) {
+    case 0:
+      return AV_FIELD_UNKNOWN;
+    case 1:
+      return AV_FIELD_PROGRESSIVE;
+    case 2:
+      return AV_FIELD_TT;
+    case 3:
+      return AV_FIELD_BB;
+    case 4:
+      return AV_FIELD_TB;
+    case 5:
+      return AV_FIELD_BT;
+    default:
+      return AV_FIELD_UNKNOWN;
+    }
+  }
+
+  static int32_t fromAVFieldOrder(AVFieldOrder FieldOrder) {
+    switch (FieldOrder) {
+    case AV_FIELD_UNKNOWN:
+      return 0;
+    case AV_FIELD_PROGRESSIVE:
+      return 1;
+    case AV_FIELD_TT:
+      return 2;
+    case AV_FIELD_BB:
+      return 3;
+    case AV_FIELD_TB:
+      return 4;
+    case AV_FIELD_BT:
+      return 5;
+    default:
+      return 0;
+    }
+  }
+};
+
 } // namespace FFmpegUtils
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

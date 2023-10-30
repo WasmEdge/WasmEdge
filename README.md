@@ -73,10 +73,6 @@ If you have any questions, feel free to open a GitHub issue on a related project
 
 Check out our [list of Adopters](https://wasmedge.org/docs/contribute/users/) who are using WasmEdge in their projects.
 
-## Community Adoption
-
-We invite all organizations and individuals using WasmEdge to add their names to our [list of Adopters](https://wasmedge.org/docs/contribute/users/).If you're using WasmEdge in your project, please consider adding your name to our list of adopters.
-
 ## Community Meeting
 
 We host a monthly community meeting to showcase new features, demo new use cases, and a Q&A part. Everyone is welcome!

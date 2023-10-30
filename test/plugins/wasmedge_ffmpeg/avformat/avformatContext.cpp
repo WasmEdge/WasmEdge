@@ -147,7 +147,7 @@ TEST(WasmEdgeAVFormatTest, AVFormatContextStruct) {
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, 200},
         Result));
-    EXPECT_TRUE(Result[0].get<uint32_t>() >= 0);
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(Err::Success));
 
     EXPECT_TRUE(HostFuncAVFormatCtxNbChapters.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId},
@@ -177,7 +177,7 @@ TEST(WasmEdgeAVFormatTest, AVFormatContextStruct) {
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, DicPtr},
         Result));
-    EXPECT_TRUE(Result[0].get<uint32_t>() >= 0);
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(Err::Success));
     EXPECT_TRUE(readUInt32(MemInst, DicPtr) > 0);
 
     uint32_t DictId = readUInt32(MemInst, DicPtr);
@@ -185,6 +185,6 @@ TEST(WasmEdgeAVFormatTest, AVFormatContextStruct) {
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, DictId},
         Result));
-    EXPECT_TRUE(Result[0].get<uint32_t>() >= 0);
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(Err::Success));
   }
 }

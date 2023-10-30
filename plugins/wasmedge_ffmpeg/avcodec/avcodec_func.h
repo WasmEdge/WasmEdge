@@ -71,8 +71,8 @@ class AVCodecFindDecoder : public WasmEdgeFFmpegAVCodec<AVCodecFindDecoder> {
 public:
   AVCodecFindDecoder(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVCodec(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
-                       uint32_t AvCodecIdIndex, uint32_t AvCodecId);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ID,
+                       uint32_t AvCodecId);
 };
 
 class AVCodecIsEncoder : public WasmEdgeFFmpegAVCodec<AVCodecIsEncoder> {
@@ -119,6 +119,14 @@ public:
       : WasmEdgeFFmpegAVCodec(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AvCodecCtxId, uint32_t PacketId);
+};
+
+class AVCodecFindEncoder : public WasmEdgeFFmpegAVCodec<AVCodecFindEncoder> {
+public:
+  AVCodecFindEncoder(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ID,
+                       uint32_t AVCodecPtr);
 };
 
 } // namespace AVcodec

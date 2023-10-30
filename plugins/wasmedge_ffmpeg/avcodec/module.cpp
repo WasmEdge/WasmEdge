@@ -64,6 +64,70 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
               std::make_unique<AVCodecCtxSampleFormat>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_sample_rate",
               std::make_unique<AVCodecCtxSampleRate>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_gop_size",
+              std::make_unique<AVCodecCtxSetGopSize>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_max_b_frames",
+              std::make_unique<AVCodecCtxSetMaxBFrames>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_b_quant_factor",
+              std::make_unique<AVCodecCtxSetBQuantFactor>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_b_quant_offset",
+              std::make_unique<AVCodecCtxSetBQuantOffset>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_i_quant_factor",
+              std::make_unique<AVCodecCtxSetIQuantFactor>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_i_quant_offset",
+              std::make_unique<AVCodecCtxSetIQuantOffset>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_lumi_masking",
+              std::make_unique<AVCodecCtxSetLumiMasking>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_spatial_cplx_masking",
+              std::make_unique<AVCodecCtxSetSpatialCplxMasking>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_p_masking",
+              std::make_unique<AVCodecCtxSetPMasking>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_dark_masking",
+              std::make_unique<AVCodecCtxSetDarkMasking>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_cmp",
+              std::make_unique<AVCodecCtxSetMeCmp>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_sub_cmp",
+              std::make_unique<AVCodecCtxSetMeSubCmp>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_cmp",
+              std::make_unique<AVCodecCtxSetMbCmp>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_ildct_cmp",
+              std::make_unique<AVCodecCtxSetIldctCmp>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_dia_size",
+              std::make_unique<AVCodecCtxSetDiaSize>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_last_predictor_count",
+              std::make_unique<AVCodecCtxSetLastPredictorsCount>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_pre_cmp",
+              std::make_unique<AVCodecCtxSetMePreCmp>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_pre_dia_size",
+              std::make_unique<AVCodecCtxSetPreDiaSize>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_subpel_quality",
+              std::make_unique<AVCodecCtxSetMeSubpelQuality>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_range",
+              std::make_unique<AVCodecCtxSetMeRange>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_decision",
+              std::make_unique<AVCodecCtxSetMbDecision>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_lmin",
+              std::make_unique<AVCodecCtxSetMbLMin>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_lmax",
+              std::make_unique<AVCodecCtxSetMbLMax>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_intra_dc_precision",
+              std::make_unique<AVCodecCtxSetIntraDcPrecision>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_qmin",
+              std::make_unique<AVCodecCtxSetQMin>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_qmax",
+              std::make_unique<AVCodecCtxSetQMax>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_global_quality",
+              std::make_unique<AVCodecCtxSetGlobalQuality>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_colorspace",
+              std::make_unique<AVCodecCtxSetColorspace>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_colorspace",
+              std::make_unique<AVCodecCtxColorspace>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_color_range",
+              std::make_unique<AVCodecCtxSetColorRange>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_color_range",
+              std::make_unique<AVCodecCtxColorRange>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_frame_size",
+              std::make_unique<AVCodecCtxFrameSize>(env));
 
   // avCodec Struct fields access
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_id",

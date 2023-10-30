@@ -90,25 +90,23 @@ Expect<int32_t> AVCodecOpen2::body(const Runtime::CallingFrame &,
 }
 
 Expect<int32_t> AVCodecFindDecoder::body(const Runtime::CallingFrame &Frame,
-                                         uint32_t AvCodecIdIndex,
-                                         uint32_t AvCodecPtr) {
+                                         uint32_t ID, uint32_t AvCodecPtr) {
 
   MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_PTR_CHECK(avCodecId, MemInst, uint32_t, AvCodecPtr,
+  MEM_PTR_CHECK(AVCodecId, MemInst, uint32_t, AvCodecPtr,
                 "Failed when accessing the return AVCodec Memory");
 
-  AVCodecID const AvCodecId =
-      FFmpegUtils::CodecID::intoAVCodecID(AvCodecIdIndex);
+  AVCodecID const Id = FFmpegUtils::CodecID::intoAVCodecID(ID);
 
-  const AVCodec *AvCodec = avcodec_find_decoder(AvCodecId);
+  const AVCodec *AvCodec = avcodec_find_decoder(Id);
 
   // Setting AvCodec value as NULL.
   if (AvCodec == NULL) {
-    *avCodecId = 0;
+    *AVCodecId = 0;
     return static_cast<int32_t>(ErrNo::Success);
   }
 
-  FFMPEG_PTR_STORE(const_cast<AVCodec *>(AvCodec), avCodecId);
+  FFMPEG_PTR_STORE(const_cast<AVCodec *>(AvCodec), AVCodecId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -162,6 +160,27 @@ Expect<int32_t> AVCodecSendPacket::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvPacket, PacketId,
                    AVPacket); // Can send Null AVPacket, to close the stream.
   return avcodec_send_packet(AVCodecCtx, AvPacket);
+}
+
+Expect<int32_t> AVCodecFindEncoder::body(const Runtime::CallingFrame &Frame,
+                                         uint32_t ID, uint32_t AVCodecPtr) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(AVCodecId, MemInst, uint32_t, AVCodecPtr,
+                "Failed when accessing the return AVCodec Memory");
+
+  AVCodecID const Id = FFmpegUtils::CodecID::intoAVCodecID(ID);
+
+  const AVCodec *AvCodec = avcodec_find_encoder(Id);
+
+  // Setting AvCodec value as NULL.
+  if (AvCodec == NULL) {
+    *AVCodecId = 0;
+    return static_cast<int32_t>(ErrNo::Success);
+  }
+
+  FFMPEG_PTR_STORE(const_cast<AVCodec *>(AvCodec), AVCodecId);
+  return static_cast<int32_t>(ErrNo::Success);
 }
 
 } // namespace AVcodec

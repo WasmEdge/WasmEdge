@@ -1,0 +1,55 @@
+header:
+  schema-version: 0.13.4
+  last-updated: '2023-09-05'
+  last-reviewed: '2023-09-05'
+  expiration-date: '2024-09-05T01:00:00.000Z'
+  project-url: https://github.com/WasmEdge/WasmEdge
+  project-release: '0.13.4'
+project-lifecycle:
+  stage: active
+  bug-fixes-only: false
+  core-maintainers:
+  - github:juntao
+  - github:hydai
+  - github:q82419
+  - github:ibmibmibm
+contribution-policy:
+  accepts-pull-requests: true
+  accepts-automated-pull-requests: true
+  code-of-conduct: https://github.com/WasmEdge/WasmEdge/blob/master/docs/CODE_OF_CONDUCT.md
+documentation:
+- https://github.com/ossf/security-insights-spec/blob/main/README.md
+distribution-points:
+- https://github.com/WasmEdge/WasmEdge
+security-artifacts:
+  threat-model:
+    threat-model-created: true
+    evidence-url:
+    - https://github.com/WasmEdge/WasmEdge/blob/master/SECURITY.md
+security-testing:
+- tool-type: sca
+  tool-name: Dependabot
+  tool-version: latest
+  integration:
+    ad-hoc: false
+    ci: true
+    before-release: true
+  comment: |
+    Dependabot is enabled for this repo.
+security-contacts:
+- type: email
+  value: security@secondstate.io
+vulnerability-reporting:
+  accepts-vulnerability-reports: true
+  security-policy: https://github.com/WasmEdge/WasmEdge/blob/master/SECURITY.md
+  email-contact: security@secondstate.io
+  comment: |
+    You will receive an acknowledgement mail within 24 hours. After that, we will give a detailed response about the subsequent process within 48 hours.
+dependencies:
+  third-party-packages: true
+  dependencies-lists:
+  - https://github.com/WasmEdge/WasmEdge/tree/master/thirdparty
+  env-dependencies-policy:
+    policy-url: https://github.com/WasmEdge/WasmEdge/blob/master/SECURITY.md
+    comment: |
+      You will receive an acknowledgement mail within 24 hours

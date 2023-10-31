@@ -14,12 +14,12 @@ Expect<int32_t> AVCodecAllocContext3::body(const Runtime::CallingFrame &Frame,
                                            uint32_t AvCodecCtxPtr) {
 
   MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_PTR_CHECK(avCodecCtxId, MemInst, uint32_t, AvCodecCtxPtr,
+  MEM_PTR_CHECK(AvCodecCtxId, MemInst, uint32_t, AvCodecCtxPtr,
                 "Failed when accessing the return AVCodecContext Memory");
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, AVCodec);
 
   AVCodecContext *AvCodecCtx = avcodec_alloc_context3(AvCodec);
-  FFMPEG_PTR_STORE(AvCodecCtx, avCodecCtxId);
+  FFMPEG_PTR_STORE(AvCodecCtx, AvCodecCtxId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -174,6 +174,74 @@ Expect<int32_t> AVCodecFindEncoder::body(const Runtime::CallingFrame &Frame,
   const AVCodec *AvCodec = avcodec_find_encoder(Id);
 
   // Setting AvCodec value as NULL.
+  if (AvCodec == NULL) {
+    *AVCodecId = 0;
+    return static_cast<int32_t>(ErrNo::Success);
+  }
+
+  FFMPEG_PTR_STORE(const_cast<AVCodec *>(AvCodec), AVCodecId);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVCodecReceivePacket::body(const Runtime::CallingFrame &,
+                                           uint32_t AVCodecCtxId,
+                                           uint32_t PacketId) {
+
+  FFMPEG_PTR_FETCH(AVCodecCtx, AVCodecCtxId, AVCodecContext);
+  FFMPEG_PTR_FETCH(AvPacket, PacketId, AVPacket);
+  return avcodec_receive_packet(AVCodecCtx, AvPacket);
+}
+
+Expect<int32_t> AVCodecSendFrame::body(const Runtime::CallingFrame &,
+                                       uint32_t AVCodecCtxId,
+                                       uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AVCodecCtx, AVCodecCtxId, AVCodecContext);
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  return avcodec_send_frame(AVCodecCtx, AvFrame);
+}
+
+Expect<int32_t>
+AVCodecFindDecoderByName::body(const Runtime::CallingFrame &Frame,
+                               uint32_t AVCodecPtr, uint32_t NamePtr,
+                               uint32_t NameLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(AVCodecId, MemInst, uint32_t, AVCodecPtr,
+                "Failed when accessing the return AVCodec Memory");
+  MEM_PTR_CHECK(NameId, MemInst, char, NamePtr,
+                "Failed when accessing the return URL memory");
+
+  std::string Name;
+  std::copy_n(NameId, NameLen, std::back_inserter(Name));
+
+  AVCodec const *AvCodec = avcodec_find_decoder_by_name(Name.c_str());
+
+  if (AvCodec == NULL) {
+    *AVCodecId = 0;
+    return static_cast<int32_t>(ErrNo::Success);
+  }
+
+  FFMPEG_PTR_STORE(const_cast<AVCodec *>(AvCodec), AVCodecId);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t>
+AVCodecFindEncoderByName::body(const Runtime::CallingFrame &Frame,
+                               uint32_t AVCodecPtr, uint32_t NamePtr,
+                               uint32_t NameLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(AVCodecId, MemInst, uint32_t, AVCodecPtr,
+                "Failed when accessing the return AVCodec Memory");
+  MEM_PTR_CHECK(NameId, MemInst, char, NamePtr,
+                "Failed when accessing the return URL memory");
+
+  std::string Name;
+  std::copy_n(NameId, NameLen, std::back_inserter(Name));
+
+  AVCodec const *AvCodec = avcodec_find_encoder_by_name(Name.c_str());
+
   if (AvCodec == NULL) {
     *AVCodecId = 0;
     return static_cast<int32_t>(ErrNo::Success);

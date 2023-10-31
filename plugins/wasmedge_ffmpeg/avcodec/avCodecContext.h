@@ -24,6 +24,15 @@ public:
                         uint32_t AvCodecCtxId);
 };
 
+class AVCodecCtxSetCodecType
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxSetCodecType> {
+public:
+  AVCodecCtxSetCodecType(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
+                        uint32_t AvCodecCtxId, int32_t CodecTypeId);
+};
+
 class AVCodecCtxTimeBase : public WasmEdgeFFmpegAVCodec<AVCodecCtxTimeBase> {
 public:
   AVCodecCtxTimeBase(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
@@ -99,6 +108,15 @@ public:
                         uint32_t AvCodecCtxId);
 };
 
+class AVCodecCtxSetSampleFormat
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxSetSampleFormat> {
+public:
+  AVCodecCtxSetSampleFormat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId, uint32_t SampleFmtId);
+};
+
 class AVCodecCtxSampleRate
     : public WasmEdgeFFmpegAVCodec<AVCodecCtxSampleRate> {
 public:
@@ -106,6 +124,15 @@ public:
       : WasmEdgeFFmpegAVCodec(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AvCodecCtxId);
+};
+
+class AVCodecCtxSetSampleRate
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxSetSampleRate> {
+public:
+  AVCodecCtxSetSampleRate(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId, int32_t SampleRate);
 };
 
 class AVCodecCtxSetGopSize
@@ -169,6 +196,15 @@ public:
       : WasmEdgeFFmpegAVCodec(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AvCodecCtxId, float LumiMasking);
+};
+
+class AVCodecCtxSetTemporalCplxMasking
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxSetTemporalCplxMasking> {
+public:
+  AVCodecCtxSetTemporalCplxMasking(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId, float TemporalCplxMasking);
 };
 
 class AVCodecCtxSetSpatialCplxMasking
@@ -387,6 +423,60 @@ public:
       : WasmEdgeFFmpegAVCodec(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AvCodecCtxId);
+};
+
+class AVCodecCtxSetBitRate
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxSetBitRate> {
+public:
+  AVCodecCtxSetBitRate(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId, int64_t BitRate);
+};
+
+class AVCodecCtxSetRcMaxRate
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxSetRcMaxRate> {
+public:
+  AVCodecCtxSetRcMaxRate(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId, int64_t RcMaxRate);
+};
+
+class AVCodecCtxSetBitRateTolerance
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxSetBitRateTolerance> {
+public:
+  AVCodecCtxSetBitRateTolerance(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId, int32_t BitRateTolerance);
+};
+
+class AVCodecCtxSetCompressionLevel
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxSetCompressionLevel> {
+public:
+  AVCodecCtxSetCompressionLevel(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId, int32_t CompressionLevel);
+};
+
+class AVCodecCtxSetTimebase
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxSetTimebase> {
+public:
+  AVCodecCtxSetTimebase(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId, int32_t Num, int32_t Den);
+};
+
+class AVCodecCtxSetFrameRate
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxSetFrameRate> {
+public:
+  AVCodecCtxSetFrameRate(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId, int32_t Num, int32_t Den);
 };
 
 } // namespace AVcodec

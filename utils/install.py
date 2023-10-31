@@ -419,7 +419,7 @@ case :"${1}": in
     *)
         # Prepending path in case a system-installed wasmedge needs to be overridden
         if [ -n "${1}" ]; then
-            export PATH="{0}/bin":$PATH
+            export PATH="{0}/bin:$PATH"
         else
             export PATH="{0}/bin"
         fi
@@ -431,7 +431,7 @@ case :"${2}": in
     *)
         # Prepending path in case a system-installed wasmedge libs needs to be overridden
         if [ -n "${2}" ]; then
-            export {2}="{0}/{6}":${2}
+            export {2}="{0}/{6}:${2}"
         else
             export {2}="{0}/{6}"
         fi
@@ -442,7 +442,7 @@ case :"${3}": in
         ;;
     *)
         if [ -n "${3}" ]; then
-            export LIBRARY_PATH="{0}/{6}":$LIBRARY_PATH
+            export LIBRARY_PATH="{0}/{6}:$LIBRARY_PATH"
         else
             export LIBRARY_PATH="{0}/{6}"
         fi
@@ -453,7 +453,7 @@ case :"${4}": in
         ;;
     *)
         if [ -n "${4}" ]; then
-            export C_INCLUDE_PATH="{0}/include":$C_INCLUDE_PATH
+            export C_INCLUDE_PATH="{0}/include:$C_INCLUDE_PATH"
         else
             export C_INCLUDE_PATH="{0}/include"
         fi
@@ -464,7 +464,7 @@ case :"${5}": in
         ;;
     *)
         if [ -n "${5}" ]; then
-            export CPLUS_INCLUDE_PATH="{0}/include":$CPLUS_INCLUDE_PATH
+            export CPLUS_INCLUDE_PATH="{0}/include:$CPLUS_INCLUDE_PATH"
         else
             export CPLUS_INCLUDE_PATH="{0}/include"
         fi

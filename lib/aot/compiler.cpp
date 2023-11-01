@@ -453,6 +453,8 @@ struct WasmEdge::AOT::Compiler::CompileContext {
     auto VPtr = Builder.createLoad(
         Int8PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
                                               LLContext.getInt64(Index)));
+    VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
+                     LLVM::Metadata(LLContext, {}));
     return Builder.createBitCast(VPtr, Int8PtrTy);
   }
   std::pair<LLVM::Type, LLVM::Value> getGlobal(LLVM::Builder &Builder,
@@ -463,6 +465,8 @@ struct WasmEdge::AOT::Compiler::CompileContext {
     auto VPtr = Builder.createLoad(
         Int128PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
                                                 LLContext.getInt64(Index)));
+    VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
+                     LLVM::Metadata(LLContext, {}));
     auto Ptr = Builder.createBitCast(VPtr, Ty.getPointerTo());
     return {Ty, Ptr};
   }
@@ -492,7 +496,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
     auto PtrTy = Ty.getPointerTo();
     auto PtrPtrTy = PtrTy.getPointerTo();
     auto IT = Builder.createLoad(IntrinsicsTablePtrTy, IntrinsicsTable);
-    IT.setMetadata(LLContext, LLVM::Core::InvariantLoad,
+    IT.setMetadata(LLContext, LLVM::Core::InvariantGroup,
                    LLVM::Metadata(LLContext, {}));
     auto VPtr =
         Builder.createInBoundsGEP2(IntrinsicsTableTy, IT, LLContext.getInt64(0),

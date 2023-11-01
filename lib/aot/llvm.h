@@ -87,7 +87,7 @@ public:
   static inline unsigned int ReadOnly = 0;
   static inline unsigned int StrictFP = 0;
 
-  static inline unsigned int InvariantLoad = 0;
+  static inline unsigned int InvariantGroup = 0;
 
 private:
   static inline std::once_flag Once;
@@ -162,7 +162,7 @@ private:
     ReadOnly = getEnumAttributeKind("readonly"sv);
     StrictFP = getEnumAttributeKind("strictfp"sv);
 
-    InvariantLoad = getMetadataKind("invariant.load");
+    InvariantGroup = getMetadataKind("invariant.group");
   }
 
   template <typename... ArgsT>

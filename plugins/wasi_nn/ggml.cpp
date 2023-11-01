@@ -54,26 +54,9 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   gpt_params Params;
   llama_backend_init(Params.numa);
   llama_model_params ModelParams = llama_model_default_params();
-
-  const char *LlamaNGPULayerEnv = std::getenv("LLAMA_N_GL");
-  if (LlamaNGPULayerEnv != nullptr) {
-    try {
-      ModelParams.n_gpu_layers = std::stoi(LlamaNGPULayerEnv);
-    } catch (const std::out_of_range &e) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: set n_gpu_layers failed: out_of_range {}"sv,
-          e.what());
-      return ErrNo::InvalidArgument;
-    } catch (const std::invalid_argument &e) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: set n_gpu_layers failed: invalid_argument {}"sv,
-          e.what());
-      return ErrNo::InvalidArgument;
-    }
-  }
-
+  GraphRef.ModelFilePath = ModelFilePath;
   GraphRef.LlamaModel =
-      llama_load_model_from_file(ModelFilePath.c_str(), ModelParams);
+      llama_load_model_from_file(GraphRef.ModelFilePath.c_str(), ModelParams);
   if (GraphRef.LlamaModel == nullptr) {
     spdlog::error("[WASI-NN] GGML backend: Error: unable to init model."sv);
     Env.NNGraph.pop_back();
@@ -194,6 +177,28 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   llama_context_params ContextParams = llama_context_default_params();
   ContextParams.n_ctx = CxtRef.CtxSize;
   ContextParams.n_batch = CxtRef.BatchSize;
+
+  // XXX: Due to the limitation of WASI-NN proposal,
+  // we have no way to pass the metadata before the setInput phase
+  // when we want to do some configurations in the load phase.
+  // That's why we have this hack.
+  {
+    llama_model_params ModelParams = llama_model_default_params();
+    // If the `n_gpu_layers` in `setInput` is different from the
+    // `n_gpu_layers` in `llama_model_params`, we will reload
+    // the model with the new configuration.
+    if (ModelParams.n_gpu_layers != CxtRef.NGPULayers) {
+      ModelParams.n_gpu_layers = CxtRef.NGPULayers;
+      GraphRef.LlamaModel = llama_load_model_from_file(
+          GraphRef.ModelFilePath.c_str(), ModelParams);
+      if (GraphRef.LlamaModel == nullptr) {
+        spdlog::error("[WASI-NN] GGML backend: Error: unable to init model."sv);
+        Env.NNGraph.pop_back();
+        return ErrNo::InvalidArgument;
+      }
+    }
+  }
+
   GraphRef.LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
 

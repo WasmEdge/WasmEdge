@@ -6,7 +6,8 @@ header:
   project-url: https://github.com/WasmEdge/WasmEdge
   project-release: '0.13.4'
 project-lifecycle:
-  stage: active
+  status: active
+  roadmap: https://github.com/WasmEdge/WasmEdge/blob/master/docs/ROADMAP.md
   bug-fixes-only: false
   core-maintainers:
   - github:juntao
@@ -16,11 +17,16 @@ project-lifecycle:
 contribution-policy:
   accepts-pull-requests: true
   accepts-automated-pull-requests: true
+  automated-tools-list:
+  - automated-tool: misc linters
+    action: denied
+    path:
+    - .github/linters
   code-of-conduct: https://github.com/WasmEdge/WasmEdge/blob/master/docs/CODE_OF_CONDUCT.md
 documentation:
-- https://github.com/ossf/security-insights-spec/blob/main/README.md
+- https://github.com/WasmEdge/WasmEdge/blob/master/README.md
 distribution-points:
-- https://github.com/WasmEdge/WasmEdge
+- https://github.com/WasmEdge/WasmEdge/releases
 security-artifacts:
   threat-model:
     threat-model-created: true

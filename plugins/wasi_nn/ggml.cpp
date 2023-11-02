@@ -117,6 +117,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
             "[WASI-NN] GGML backend: Unable to retrieve the enable-log option."sv);
         return ErrNo::InvalidArgument;
       }
+      llama_log_set(nullptr, &CxtRef.EnableLog);
     }
     if (Doc.at_key("stream-stdout").error() == simdjson::SUCCESS) {
       auto Err = Doc["stream-stdout"].get<bool>().get(CxtRef.StreamStdout);
@@ -187,7 +188,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     // If the `n_gpu_layers` in `setInput` is different from the
     // `n_gpu_layers` in `llama_model_params`, we will reload
     // the model with the new configuration.
-    if (ModelParams.n_gpu_layers != CxtRef.NGPULayers) {
+    if (ModelParams.n_gpu_layers != static_cast<int32_t>(CxtRef.NGPULayers)) {
       ModelParams.n_gpu_layers = CxtRef.NGPULayers;
       GraphRef.LlamaModel = llama_load_model_from_file(
           GraphRef.ModelFilePath.c_str(), ModelParams);

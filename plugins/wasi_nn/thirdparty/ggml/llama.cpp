@@ -9625,8 +9625,8 @@ static void llama_log_internal(ggml_log_level level, const char * format, ...) {
 
 static void llama_log_callback_default(ggml_log_level level, const char * text, void * user_data) {
     (void) level;
-    bool enable_log = static_cast<bool>(user_data);
-    if (enable_log) {
+    bool * enable_log = static_cast<bool *>(user_data);
+    if (enable_log && *enable_log) {
         fputs(text, stderr);
         fflush(stderr);
     }

@@ -3627,7 +3627,7 @@ public:
     if ((ChannelLayout & AV_CH_TOP_BACK_LEFT) == AV_CH_TOP_BACK_LEFT)
       Channel |= TOP_BACK_LEFT;
     if ((ChannelLayout & AV_CH_TOP_BACK_CENTER) == AV_CH_TOP_BACK_CENTER)
-      Channel |= TOP_FRONT_CENTER;
+      Channel |= TOP_BACK_CENTER;
     if ((ChannelLayout & AV_CH_TOP_BACK_RIGHT) == AV_CH_TOP_BACK_RIGHT)
       Channel |= TOP_BACK_RIGHT;
     if ((ChannelLayout & AV_CH_STEREO_LEFT) == AV_CH_STEREO_LEFT)

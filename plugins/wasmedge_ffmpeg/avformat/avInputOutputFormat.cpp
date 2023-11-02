@@ -14,8 +14,6 @@ Expect<int32_t> AVIOFormatNameLength::body(const Runtime::CallingFrame &,
 
   if (FormatType == 0) {
     FFMPEG_PTR_FETCH(AvInputFormat, AVIOFormatId, AVInputFormat);
-    printf("AvInputFormat %s\n", AvInputFormat->name);
-    return 1;
     Name = AvInputFormat->name;
   } else {
     FFMPEG_PTR_FETCH(AvOutputFormat, AVIOFormatId, AVOutputFormat);

@@ -23,6 +23,204 @@ Expect<int32_t> AVCodecType::body(const Runtime::CallingFrame &,
   return FFmpegUtils::MediaType::fromMediaType(AvCodec->type);
 }
 
+Expect<int32_t> AVCodecMaxLowres::body(const Runtime::CallingFrame &,
+                                       uint32_t AvCodecId) {
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  return AvCodec->max_lowres;
+}
+
+Expect<int32_t> AVCodecCapabilities::body(const Runtime::CallingFrame &,
+                                          uint32_t AvCodecId) {
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  return AvCodec->capabilities;
+}
+
+Expect<int32_t> AVCodecGetNameLen::body(const Runtime::CallingFrame &,
+                                        uint32_t AvCodecId) {
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  return strlen(AvCodec->name);
+}
+
+Expect<int32_t> AVCodecGetName::body(const Runtime::CallingFrame &Frame,
+                                     uint32_t AvCodecId, uint32_t NamePtr,
+                                     uint32_t NameLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(NameBuf, MemInst, char, NamePtr, NameLen, "");
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+
+  const char *Name = AvCodec->name;
+  memmove(NameBuf.data(), Name, NameLen);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVCodecGetLongNameLen::body(const Runtime::CallingFrame &,
+                                            uint32_t AvCodecId) {
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  return strlen(AvCodec->long_name);
+}
+
+Expect<int32_t> AVCodecGetLongName::body(const Runtime::CallingFrame &Frame,
+                                         uint32_t AvCodecId,
+                                         uint32_t LongNamePtr,
+                                         uint32_t LongNameLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(LongNameBuf, MemInst, char, LongNamePtr, LongNameLen, "");
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+
+  const char *LongName = AvCodec->long_name;
+  memmove(LongNameBuf.data(), LongName, LongNameLen);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVCodecProfiles::body(const Runtime::CallingFrame &,
+                                      uint32_t AvCodecId) {
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  if (AvCodec->profiles)
+    return 1;
+  return 0;
+}
+
+Expect<int32_t> AVCodecPixFmtsIsNull::body(const Runtime::CallingFrame &,
+                                           uint32_t AvCodecId) {
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  if (AvCodec->pix_fmts != NULL)
+    return 1;
+  return 0;
+}
+
+Expect<uint32_t> AVCodecPixFmtsIter::body(const Runtime::CallingFrame &,
+                                          uint32_t AvCodecId, uint32_t Idx) {
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  AVPixelFormat const *PixelFormat = AvCodec->pix_fmts;
+
+  uint32_t Curr = 0;
+  while (Curr < Idx) {
+    PixelFormat++;
+    Curr++;
+  }
+
+  return FFmpegUtils::PixFmt::fromAVPixFmt(*PixelFormat);
+}
+
+Expect<int32_t>
+AVCodecSupportedFrameratesIsNull::body(const Runtime::CallingFrame &,
+                                       uint32_t AvCodecId) {
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  if (AvCodec->supported_framerates != NULL)
+    return 1;
+  return 0;
+}
+
+Expect<int32_t>
+AVCodecSupportedFrameratesIter::body(const Runtime::CallingFrame &Frame,
+                                     uint32_t AvCodecId, uint32_t Idx,
+                                     uint32_t NumPtr, uint32_t DenPtr) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(NumId, MemInst, int32_t, NumPtr,
+                "Failed when accessing the return NumPtr Memory");
+  MEM_PTR_CHECK(DenId, MemInst, int32_t, DenPtr,
+                "Failed when accessing the return DenPtr Memory");
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  AVRational const *Rational = AvCodec->supported_framerates;
+
+  uint32_t Curr = 0;
+  while (Curr < Idx) {
+    Rational++;
+    Curr++;
+  }
+
+  *NumId = Rational->num;
+  *DenId = Rational->den;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t>
+AVCodecSupportedSampleRatesIsNull::body(const Runtime::CallingFrame &,
+                                        uint32_t AvCodecId) {
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  if (AvCodec->supported_samplerates != NULL)
+    return 1;
+  return 0;
+}
+
+Expect<int32_t>
+AVCodecSupportedSampleRatesIter::body(const Runtime::CallingFrame &,
+                                      uint32_t AvCodecId, uint32_t Idx) {
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  const int32_t *SampleRates = AvCodec->supported_samplerates;
+
+  uint32_t Curr = 0;
+  while (Curr < Idx) {
+    SampleRates++;
+    Curr++;
+  }
+
+  return *SampleRates;
+}
+
+Expect<int32_t> AVCodecChannelLayoutIsNull::body(const Runtime::CallingFrame &,
+                                                 uint32_t AvCodecId) {
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  if (AvCodec->channel_layouts != NULL)
+    return 1;
+  return 0;
+}
+
+Expect<uint64_t> AVCodecChannelLayoutIter::body(const Runtime::CallingFrame &,
+                                                uint32_t AvCodecId,
+                                                uint32_t Idx) {
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  const uint64_t *ChannelLayout = AvCodec->channel_layouts;
+
+  uint32_t Curr = 0;
+  while (Curr < Idx) {
+    ChannelLayout++;
+    Curr++;
+  }
+
+  return FFmpegUtils::ChannelLayout::intoAVChannelID(*ChannelLayout);
+}
+
+Expect<int32_t> AVCodecSampleFmtsIsNull::body(const Runtime::CallingFrame &,
+                                              uint32_t AvCodecId) {
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  if (AvCodec->sample_fmts != NULL)
+    return 1;
+  return 0;
+}
+
+Expect<uint32_t> AVCodecSampleFmtsIter::body(const Runtime::CallingFrame &,
+                                             uint32_t AvCodecId, uint32_t Idx) {
+
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  AVSampleFormat const *SampleFormat = AvCodec->sample_fmts;
+
+  uint32_t Curr = 0;
+  while (Curr < Idx) {
+    SampleFormat++;
+    Curr++;
+  }
+
+  return FFmpegUtils::SampleFmt::toSampleID(*SampleFormat);
+}
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

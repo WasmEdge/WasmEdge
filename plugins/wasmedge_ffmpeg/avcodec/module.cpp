@@ -167,6 +167,40 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
               std::make_unique<AVCodecID>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_type",
               std::make_unique<AVCodecType>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_max_lowres",
+              std::make_unique<AVCodecMaxLowres>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_capabilities",
+              std::make_unique<AVCodecCapabilities>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_get_name_len",
+              std::make_unique<AVCodecGetNameLen>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_get_name",
+              std::make_unique<AVCodecGetName>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_get_long_name_len",
+              std::make_unique<AVCodecGetLongNameLen>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_get_long_name",
+              std::make_unique<AVCodecGetLongName>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_profiles",
+              std::make_unique<AVCodecProfiles>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_pix_fmts_is_null",
+              std::make_unique<AVCodecPixFmtsIsNull>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_pix_fmts_iter",
+              std::make_unique<AVCodecPixFmtsIter>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_supported_framerate_is_null",
+              std::make_unique<AVCodecSupportedFrameratesIsNull>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_supported_framerate_iter",
+              std::make_unique<AVCodecSupportedFrameratesIter>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_supported_samplerates_is_null",
+              std::make_unique<AVCodecSupportedSampleRatesIsNull>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_supported_samplerates_iter",
+              std::make_unique<AVCodecSupportedSampleRatesIter>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_channel_layouts_is_null",
+              std::make_unique<AVCodecChannelLayoutIsNull>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_channel_layouts_iter",
+              std::make_unique<AVCodecChannelLayoutIter>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_sample_fmts_is_null",
+              std::make_unique<AVCodecSampleFmtsIsNull>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_sample_fmts_iter",
+              std::make_unique<AVCodecSampleFmtsIter>(env));
 
   // AVCodecParam Struct fields access.
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodecparam_codec_id",

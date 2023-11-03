@@ -330,6 +330,7 @@ WASI_CRYPTO = "wasi_crypto"
 WASI_NN_PYTORCH = "wasi_nn-pytorch"
 WASI_NN_TENSORFLOW_LITE = "wasi_nn-tensorflowlite"
 WASI_NN_GGML = "wasi_nn-ggml"
+WASI_NN_GGML_CUDA = "wasi_nn-ggml-cuda"
 WASMEDGE_TENSORFLOW_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW
 WASMEDGE_TENSORFLOW_LITE_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW_LITE_P
 WASMEDGE_IMAGE_PLUGIN = WASMEDGE.lower() + "_" + IMAGE
@@ -341,6 +342,7 @@ PLUGINS_AVAILABLE = [
     WASI_NN_PYTORCH,
     WASI_NN_TENSORFLOW_LITE,
     WASI_NN_GGML,
+    WASI_NN_GGML_CUDA,
     WASMEDGE_TENSORFLOW_PLUGIN,
     WASMEDGE_TENSORFLOW_LITE_PLUGIN,
     WASMEDGE_IMAGE_PLUGIN,
@@ -355,6 +357,9 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "x86_64" + WASI_NN_OPENVINO: VersionString("0.10.1-alpha.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.1-alpha.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
+    "ubuntu20.04" + "aarch64" + WASI_NN_GGML: VersionString("0.13.5"),
+    "ubuntu20.04" + "x86_64" + WASI_NN_GGML_CUDA: VersionString("0.13.4"),
+    "ubuntu20.04" + "aarch64" + WASI_NN_GGML_CUDA: VersionString("0.13.5"),
     "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.2-alpha.1"),
     "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
     "manylinux2014" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
@@ -608,6 +613,18 @@ def fix_gnu_sparse(args):
                     )
                 if len(listdir(join(args.path, dir, sub_dir))) == 0:
                     shutil.rmtree(join(args.path, dir, sub_dir))
+
+
+def check_nvcc(platform):
+    if platform == "Linux":
+        cmd = "/usr/local/cuda/bin/nvcc --version 2>/dev/null"
+        output = run_shell_command(cmd)
+        logging.debug("%s: %s", cmd, output)
+        if "nvcc: NVIDIA (R) Cuda compiler driver" in output:
+            return True
+    else:
+        logging.warning("CUDA should be only available on Linux")
+    return False
 
 
 def ldconfig(args, compat):
@@ -1112,6 +1129,10 @@ def install_plugins(args, compat):
                 )
                 continue
 
+            # Re-write the plugin name if CUDA is available
+            if plugin_name == WASI_NN_GGML and compat.cuda:
+                plugin_name = WASI_NN_GGML_CUDA
+
             if compat.dist + compat.machine + plugin_name not in SUPPORTTED_PLUGINS:
                 logging.error(
                     "Plugin not compatible: %s",
@@ -1317,6 +1338,7 @@ class Compat:
         self.ld_library_path = None
         self.dist = dist_
         self.release_package_wasmedge = None
+        self.cuda = check_nvcc(self.platform)
 
         if self.platform == "Linux":
             self.install_package_name = "WasmEdge-{0}-Linux".format(self.version)

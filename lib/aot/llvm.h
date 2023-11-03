@@ -5,17 +5,23 @@
 #include "common/span.h"
 #include <llvm-c/Analysis.h>
 #include <llvm-c/Core.h>
+#include <llvm-c/Error.h>
 #include <llvm-c/Object.h>
 #include <llvm-c/Target.h>
 #include <llvm-c/TargetMachine.h>
-#include <llvm-c/Transforms/IPO.h>
-#include <llvm-c/Transforms/PassManagerBuilder.h>
-#include <llvm-c/Transforms/Scalar.h>
 #include <llvm-c/Types.h>
 #include <mutex>
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#if LLVM_VERSION_MAJOR >= 13
+#include <llvm-c/Transforms/PassBuilder.h>
+#else
+#include <llvm-c/Transforms/IPO.h>
+#include <llvm-c/Transforms/PassManagerBuilder.h>
+#include <llvm-c/Transforms/Scalar.h>
+#endif
 
 // Enable __x86_64__ for MSVC
 #if defined(_M_X64) && !defined(__x86_64__)
@@ -93,7 +99,9 @@ private:
   static inline std::once_flag Once;
   static inline void initOnce() noexcept {
     using namespace std::literals;
+#if LLVM_VERSION_MAJOR < 17
     LLVMInitializeCore(LLVMGetGlobalPassRegistry());
+#endif
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();
 
@@ -286,6 +294,64 @@ public:
 
 private:
   LLVMModuleRef Ref = nullptr;
+};
+
+class ErrorMessage {
+public:
+  constexpr ErrorMessage() noexcept = default;
+  constexpr ErrorMessage(char *M) noexcept : Data(M) {}
+  ErrorMessage(const ErrorMessage &) = delete;
+  ErrorMessage &operator=(const ErrorMessage &) = delete;
+  ErrorMessage(ErrorMessage &&M) noexcept : ErrorMessage() { swap(*this, M); }
+  ErrorMessage &operator=(ErrorMessage &&M) noexcept {
+    swap(*this, M);
+    return *this;
+  }
+
+  ~ErrorMessage() noexcept { LLVMDisposeErrorMessage(Data); }
+
+  constexpr operator bool() const noexcept { return Data != nullptr; }
+  constexpr auto &unwrap() const noexcept { return Data; }
+  constexpr auto &unwrap() noexcept { return Data; }
+  friend void swap(ErrorMessage &LHS, ErrorMessage &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Data, RHS.Data);
+  }
+
+  std::string_view string_view() const noexcept { return Data; }
+
+private:
+  char *Data = nullptr;
+};
+
+class Error {
+public:
+  constexpr Error() noexcept = default;
+  constexpr Error(LLVMErrorRef R) noexcept : Ref(R) {}
+  Error(const Error &) = delete;
+  Error &operator=(const Error &) = delete;
+  Error(Error &&E) noexcept : Error() { swap(*this, E); }
+  Error &operator=(Error &&E) noexcept {
+    swap(*this, E);
+    return *this;
+  }
+
+  ~Error() noexcept { LLVMConsumeError(Ref); }
+
+  constexpr operator bool() const noexcept { return Ref != nullptr; }
+  constexpr auto &unwrap() const noexcept { return Ref; }
+  constexpr auto &unwrap() noexcept { return Ref; }
+  friend void swap(Error &LHS, Error &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Ref, RHS.Ref);
+  }
+
+  ErrorMessage message() noexcept {
+    return LLVMGetErrorMessage(std::exchange(Ref, nullptr));
+  }
+
+private:
+  LLVMErrorRef Ref = nullptr;
 };
 
 class Message {
@@ -1509,6 +1575,7 @@ private:
   LLVMTargetRef Ref = nullptr;
 };
 
+#if LLVM_VERSION_MAJOR < 13
 class PassManager {
 public:
   constexpr PassManager() noexcept = default;
@@ -1602,6 +1669,7 @@ public:
 private:
   LLVMPassManagerBuilderRef Ref = nullptr;
 };
+#endif
 
 class TargetMachine {
 public:
@@ -1635,9 +1703,11 @@ public:
                                    Reloc, CodeModel);
   }
 
+#if LLVM_VERSION_MAJOR < 13
   void addAnalysisPasses(PassManager &P) noexcept {
     LLVMAddAnalysisPasses(Ref, P.unwrap());
   }
+#endif
 
   std::pair<MemoryBuffer, Message>
   emitToMemoryBuffer(Module &M, LLVMCodeGenFileType CodeGen) noexcept {
@@ -1651,6 +1721,90 @@ public:
 private:
   LLVMTargetMachineRef Ref = nullptr;
 };
+
+#if LLVM_VERSION_MAJOR >= 13
+class PassBuilderOptions {
+public:
+  constexpr PassBuilderOptions() noexcept = default;
+  constexpr PassBuilderOptions(LLVMPassBuilderOptionsRef R) noexcept : Ref(R) {}
+  PassBuilderOptions(const PassBuilderOptions &) = delete;
+  PassBuilderOptions &operator=(const PassBuilderOptions &) = delete;
+  PassBuilderOptions(PassBuilderOptions &&O) noexcept : PassBuilderOptions() {
+    swap(*this, O);
+  }
+  PassBuilderOptions &operator=(PassBuilderOptions &&O) noexcept {
+    swap(*this, O);
+    return *this;
+  }
+
+  ~PassBuilderOptions() noexcept { LLVMDisposePassBuilderOptions(Ref); }
+
+  constexpr operator bool() const noexcept { return Ref != nullptr; }
+  constexpr auto &unwrap() noexcept { return Ref; }
+  friend void swap(PassBuilderOptions &LHS, PassBuilderOptions &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Ref, RHS.Ref);
+  }
+
+  static PassBuilderOptions create() noexcept {
+    return LLVMCreatePassBuilderOptions();
+  }
+
+  void setVerifyEach(bool VerifyEach) noexcept {
+    LLVMPassBuilderOptionsSetVerifyEach(Ref, VerifyEach);
+  }
+
+  void setDebugLogging(bool DebugLogging) noexcept {
+    LLVMPassBuilderOptionsSetDebugLogging(Ref, DebugLogging);
+  }
+
+  void setLoopInterleaving(bool LoopInterleaving) noexcept {
+    LLVMPassBuilderOptionsSetLoopInterleaving(Ref, LoopInterleaving);
+  }
+
+  void setLoopVectorization(bool LoopVectorization) noexcept {
+    LLVMPassBuilderOptionsSetLoopVectorization(Ref, LoopVectorization);
+  }
+
+  void setSLPVectorization(bool SLPVectorization) noexcept {
+    LLVMPassBuilderOptionsSetSLPVectorization(Ref, SLPVectorization);
+  }
+
+  void setLoopUnrolling(bool LoopUnrolling) noexcept {
+    LLVMPassBuilderOptionsSetLoopUnrolling(Ref, LoopUnrolling);
+  }
+
+  void setForgetAllSCEVInLoopUnroll(bool ForgetAllSCEVInLoopUnroll) noexcept {
+    LLVMPassBuilderOptionsSetForgetAllSCEVInLoopUnroll(
+        Ref, ForgetAllSCEVInLoopUnroll);
+  }
+
+  void setLicmMssaOptCap(unsigned int LicmMssaOptCap) noexcept {
+    LLVMPassBuilderOptionsSetLicmMssaOptCap(Ref, LicmMssaOptCap);
+  }
+
+  void setLicmMssaNoAccForPromotionCap(
+      unsigned int LicmMssaNoAccForPromotionCap) noexcept {
+    LLVMPassBuilderOptionsSetLicmMssaNoAccForPromotionCap(
+        Ref, LicmMssaNoAccForPromotionCap);
+  }
+
+  void setCallGraphProfile(bool CallGraphProfile) noexcept {
+    LLVMPassBuilderOptionsSetCallGraphProfile(Ref, CallGraphProfile);
+  }
+
+  void setMergeFunctions(bool MergeFunctions) noexcept {
+    LLVMPassBuilderOptionsSetMergeFunctions(Ref, MergeFunctions);
+  }
+
+  Error runPasses(Module &M, const char *Passes, TargetMachine &TM) noexcept {
+    return LLVMRunPasses(M.unwrap(), Passes, TM.unwrap(), Ref);
+  }
+
+private:
+  LLVMPassBuilderOptionsRef Ref = nullptr;
+};
+#endif
 
 class SectionIterator {
 public:

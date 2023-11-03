@@ -79,7 +79,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: WasmEdge-${{ env.product_version }}-windows-msvc.msi
-          path: build\\WasmEdge-${{ env.product_version }}-windows.msi
+          path: build\\WasmEdge-${{ env.product_version }}-windows-msvc.msi
       - name: Upload Windows 10 zip package
         if: ${{ inputs.release }}
         env:
@@ -92,5 +92,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv build\\WasmEdge-${{ env.product_version }}-windows.msi WasmEdge-${{ env.product_version }}-windows-msvc.msi
+          mv build\\WasmEdge-${{ env.product_version }}-windows-msvc.msi WasmEdge-${{ env.product_version }}-windows-msvc.msi
           gh release upload ${{ inputs.version }} WasmEdge-${{ env.product_version }}-windows-msvc.msi --clobber

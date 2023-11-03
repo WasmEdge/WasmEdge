@@ -1365,21 +1365,34 @@ class Compat:
                     if (
                         VersionString(__platform_dist[1]).compare("20.04") >= 0
                         or VersionString(__lsb_rel).compare("20.04") >= 0
-                    ) and self.machine in ["x86_64", "amd64"]:
-                        self.dist = "ubuntu20.04"
+                    ):
+                        # ARM-based Ubuntu 20.04 is supported after 0.13.5
+                        if self.machine in ["x86_64", "amd64"] or (
+                            self.machine in ["aarch64", "arm64"]
+                            and self.version.compare("0.13.5") >= 0
+                        ):
+                            self.dist = "ubuntu20.04"
+                        else:
+                            self.dist = "manylinux2014"
                     else:
                         self.dist = "manylinux2014"
                 elif sys.version_info[0] == 3:
                     __lsb_rel = run_shell_command(
                         "cat /etc/lsb-release 2>/dev/null | grep RELEASE"
                     )[-5:]
-                    if (
-                        VersionString(__lsb_rel).compare("20.04") >= 0
-                        or "Ubuntu 20.04"
-                        in run_shell_command(
-                            "cat /etc/lsb_release 2>/dev/null | grep DESCRIPTION"
-                        )
-                    ) and self.machine in ["x86_64", "amd64"]:
+                    if VersionString(__lsb_rel).compare(
+                        "20.04"
+                    ) >= 0 or "Ubuntu 20.04" in run_shell_command(
+                        "cat /etc/lsb_release 2>/dev/null | grep DESCRIPTION"
+                    ):
+                        # ARM-based Ubuntu 20.04 is supported after 0.13.5
+                        if self.machine in ["x86_64", "amd64"] or (
+                            self.machine in ["aarch64", "arm64"]
+                            and self.version.compare("0.13.5") >= 0
+                        ):
+                            self.dist = "ubuntu20.04"
+                        else:
+                            self.dist = "manylinux2014"
                         self.dist = "ubuntu20.04"
                     else:
                         self.dist = "manylinux2014"

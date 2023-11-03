@@ -144,12 +144,18 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       }
     }
     if (Doc.at_key("n-gpu-layers").error() == simdjson::SUCCESS) {
+      // Metal framework has the different behavior of CUDA.
+      // Hence, we have to set the n_gpu_layers to 0 on the macOS platform.
+#ifndef __APPLE__
       auto Err = Doc["n-gpu-layers"].get<uint64_t>().get(CxtRef.NGPULayers);
       if (Err) {
         spdlog::error(
             "[WASI-NN] GGML backend: Unable to retrieve the n-gpu-layers option."sv);
         return ErrNo::InvalidArgument;
       }
+#else
+      CxtRef.NGPULayers = 0;
+#endif
     }
     if (Doc.at_key("batch-size").error() == simdjson::SUCCESS) {
       auto Err = Doc["batch-size"].get<uint64_t>().get(CxtRef.BatchSize);

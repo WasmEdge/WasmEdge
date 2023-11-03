@@ -1,3 +1,56 @@
+### 0.13.5 (2023-11-03)
+
+Features:
+* [Component] share loading entry for component and module (#2945)
+  * Initial support for the component model proposal.
+  * This PR allows WasmEdge to recognize the component and module format.
+* [WASI-NN] ggml backend:
+  * Provide options for enabling OpenBLAS, Metal, and cuBLAS.
+  * Bump llama.cpp to b1383
+  * Build thirdparty/ggml only when the ggml backend is enabled.
+  * Enable the ggml plugin on the macOS platform.
+  * Introduce `AUTO` detection. Wasm application will no longer need to specify the hardware spec (e.g., CPU or GPU). It will auto-detect by the runtime.
+  * Unified the preload options with case-insensitive matching
+  * Introduce `metadata` for setting the ggml options.
+    * The following options are supported:
+      * `enable-log`: `true` to enable logging. (default: `false`)
+      * `stream-stdout`: `true` to print the inferred tokens in the streaming mode to standard output. (default: `false`)
+      * `ctx-size`: Set the context size the same as the `--ctx-size` parameter in llama.cpp. (default: `512`)
+      * `n-predict`: Set the number of tokens to predict, the same as the `--n-predict` parameter in llama.cpp. (default: `512`)
+      * `n-gpu-layers`: Set the number of layers to store in VRAM, the same as the `--n-gpu-layers` parameter in llama.cpp. (default: `0`)
+      * `reverse-prompt`: Set the token pattern at which you want to halt the generation. Similar to the `--reverse-prompt` parameter in llama.cpp. (default: `""`)
+      * `batch-size`: Set the number of batch sizes for prompt processing, the same as the `--batch-size` parameter in llama.cpp. (default: `512`)
+  * Notice: Because of the limitation of the WASI-NN proposal, there is no way to set the metadata during the loading process. The current workaround will re-load the model when `n_gpu_layers` is set to a non-zero value.
+  * Installer: Support WASI-NN ggml plugin on both macOS Intel model (CPU only) and macOS Apple Silicon model. (#2882)
+* [Java Bindings] provide platform-specific jni and jar for Java bindings (#2980)
+* [C API]:
+  * Provide getData API for FunctionInstance (#2937)
+  * Add the API to set WASI-NN preloads. (#2827)
+* [Plugin]:
+  * [zlib]:
+    * initial support of the zlib plugin (#2562)
+    * With a simple building guide and basic working examples
+* [MSVC] Support MSVC for building WasmEdge
+
+Fixed issues:
+* [Installer]: Double quote the strings to prevent splitting in env file (#2994)
+* [AOT]:
+  * Validate AOT section header fields
+  * Add invariant attribute for memory and global pointer
+* [C API]:
+  * Fix the wrong logic of getting types from exports.
+* [Example] Fix get-string with the latest C++ internal getSpan API. Fixes #2887 (#2929)
+* [CI] install llvm@16 to fix macOS build (#2878)
+
+Misc:
+* [Example] Update wit-bindgen version from 0.7.0 to 0.11.0 (#2770)
+
+Thank all the contributors who made this release possible!
+
+dm4, hydai, Lîm Tsú-thuàn, Meenu Yadav, michael1017, proohit, Saikat Dey, Shen-Ta Hsieh, Shreyas Atre, Wang Jikai, Wck-iipi, YiYing He
+
+If you want to build from source, please use WasmEdge-0.13.5-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.13.4 (2023-09-05)
 
 Features:
@@ -10,7 +63,7 @@ Features:
   * This change is for CI.
 * [CI] build alpine static libraries (#2699)
   * This provides pre-built static libraries using musl-libc on alpine.
-* [Plugin] add wasmedge_rustls_plugin (#2762)
+* [Plugin] add wasmedge\_rustls\_plugin (#2762)
 * [Plugin] implement opencvmini `rectangle` and `cvtColor` (#2705)
 * [Test] Migrating spec test from RapidJSON to SIMDJSON (#2659)
 * [WASI Socket] AF\_UNIX Support (#2216)
@@ -20,8 +73,8 @@ Features:
     * C API: Use `WasmEdge\_ConfigureSetAllowAFUNIX`.
 * [WASI-NN] Add ggml backend for llama (#2763)
   * Integrate llama.cpp as a new WASI-NN backend.
-* [WASI-NN] Add load_by_name implementation into wasi-nn plugin (#2742)
-  * Support named_model feature.
+* [WASI-NN] Add load\_by\_name implementation into wasi-nn plugin (#2742)
+  * Support named\_model feature.
 * [WASI-NN] Added support for Tuple Type Output Tensors in Pytorch Backend (#2564)
 
 Fixed issues:
@@ -31,7 +84,7 @@ Fixed issues:
 * [Runtime] fix memory.init oob. issue #2743  (#2758)
 * [Runtime] fix table.init oob. issue #2744 (#2756)
 * [System] Remove "inline" from Fault::emitFault (#2695) (#2720)
-* [Test] Use std::filesystem::u8path instead of a const char* Path (#2706)
+* [Test] Use std::filesystem::u8path instead of a `const char*` Path (#2706)
 * [Utils] Installer: Fix checking of shell paths (#2752)
 * [Utils] Installer: Formatting and Better source message (#2721)
 * [WASI] Avoid undefined function `FindHolderBase::reset`

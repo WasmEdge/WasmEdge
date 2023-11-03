@@ -31,6 +31,7 @@ Features:
     * initial support of the zlib plugin (#2562)
     * With a simple building guide and basic working examples
 * [MSVC] Support MSVC for building WasmEdge
+* [AOT] Support LLVM 17
 
 Fixed issues:
 * [Installer]: Double quote the strings to prevent splitting in env file (#2994)

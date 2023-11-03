@@ -42,6 +42,14 @@ security-testing:
     before-release: true
   comment: |
     Dependabot is enabled for this repo.
+- tool-type: sca
+  tool-name: Google OSS Fuzz
+  tool-version: latest
+  tool-url: https://github.com/google/oss-fuzz/tree/master/projects/wasmedge
+  integration:
+    ad-hoc: false
+    ci: true
+    before-release: true
 security-contacts:
 - type: email
   value: security@secondstate.io

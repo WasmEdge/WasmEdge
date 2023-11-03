@@ -39,9 +39,14 @@ else()
 
   if(NOT WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
     list(APPEND WASMEDGE_CFLAGS
-       -Werror
-       -Wno-error=pedantic
+      -Werror
+      -Wno-error=pedantic
     )
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
+      list(APPEND WASMEDGE_CFLAGS
+        -Wno-error=dangling-reference
+      )
+    endif()
   endif()
 
   if(WASMEDGE_ENABLE_UB_SANITIZER)

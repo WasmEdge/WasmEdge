@@ -18,8 +18,9 @@ namespace WasmEdge::Host::WASINN::GGML {
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 struct Graph {
-  llama_model *LlamaModel;
-  llama_context *LlamaContext;
+  llama_model *LlamaModel = nullptr;
+  llama_context *LlamaContext = nullptr;
+  std::string ModelFilePath;
 };
 
 struct Context {

@@ -54,8 +54,9 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   gpt_params Params;
   llama_backend_init(Params.numa);
   llama_model_params ModelParams = llama_model_default_params();
+  GraphRef.ModelFilePath = ModelFilePath;
   GraphRef.LlamaModel =
-      llama_load_model_from_file(ModelFilePath.c_str(), ModelParams);
+      llama_load_model_from_file(GraphRef.ModelFilePath.c_str(), ModelParams);
   if (GraphRef.LlamaModel == nullptr) {
     spdlog::error("[WASI-NN] GGML backend: Error: unable to init model."sv);
     Env.NNGraph.pop_back();
@@ -116,6 +117,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
             "[WASI-NN] GGML backend: Unable to retrieve the enable-log option."sv);
         return ErrNo::InvalidArgument;
       }
+      llama_log_set(nullptr, &CxtRef.EnableLog);
     }
     if (Doc.at_key("stream-stdout").error() == simdjson::SUCCESS) {
       auto Err = Doc["stream-stdout"].get<bool>().get(CxtRef.StreamStdout);
@@ -142,12 +144,18 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       }
     }
     if (Doc.at_key("n-gpu-layers").error() == simdjson::SUCCESS) {
+      // Metal framework has the different behavior of CUDA.
+      // Hence, we have to set the n_gpu_layers to 0 on the macOS platform.
+#ifndef __APPLE__
       auto Err = Doc["n-gpu-layers"].get<uint64_t>().get(CxtRef.NGPULayers);
       if (Err) {
         spdlog::error(
             "[WASI-NN] GGML backend: Unable to retrieve the n-gpu-layers option."sv);
         return ErrNo::InvalidArgument;
       }
+#else
+      CxtRef.NGPULayers = 0;
+#endif
     }
     if (Doc.at_key("batch-size").error() == simdjson::SUCCESS) {
       auto Err = Doc["batch-size"].get<uint64_t>().get(CxtRef.BatchSize);
@@ -176,6 +184,28 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   llama_context_params ContextParams = llama_context_default_params();
   ContextParams.n_ctx = CxtRef.CtxSize;
   ContextParams.n_batch = CxtRef.BatchSize;
+
+  // XXX: Due to the limitation of WASI-NN proposal,
+  // we have no way to pass the metadata before the setInput phase
+  // when we want to do some configurations in the load phase.
+  // That's why we have this hack.
+  {
+    llama_model_params ModelParams = llama_model_default_params();
+    // If the `n_gpu_layers` in `setInput` is different from the
+    // `n_gpu_layers` in `llama_model_params`, we will reload
+    // the model with the new configuration.
+    if (ModelParams.n_gpu_layers != static_cast<int32_t>(CxtRef.NGPULayers)) {
+      ModelParams.n_gpu_layers = CxtRef.NGPULayers;
+      GraphRef.LlamaModel = llama_load_model_from_file(
+          GraphRef.ModelFilePath.c_str(), ModelParams);
+      if (GraphRef.LlamaModel == nullptr) {
+        spdlog::error("[WASI-NN] GGML backend: Error: unable to init model."sv);
+        Env.NNGraph.pop_back();
+        return ErrNo::InvalidArgument;
+      }
+    }
+  }
+
   GraphRef.LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
 

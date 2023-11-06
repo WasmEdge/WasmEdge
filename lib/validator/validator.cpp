@@ -15,6 +15,11 @@
 namespace WasmEdge {
 namespace Validator {
 
+Expect<void> Validator::validate(const AST::Component &) {
+  spdlog::error("component validation is not done yet.");
+  return Unexpect(ErrCode::Value::RuntimeError);
+}
+
 // Validate Module. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::Module &Mod) {
   // https://webassembly.github.io/spec/core/valid/modules.html

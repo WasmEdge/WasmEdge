@@ -60,10 +60,8 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
   return Buf;
 }
 
-// Parse module from file path. See "include/loader/loader.h".
-Expect<std::unique_ptr<AST::Module>>
-Loader::parseModule(const std::filesystem::path &FilePath) {
-  using namespace std::literals::string_view_literals;
+Expect<std::variant<AST::Component, AST::Module>>
+Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   std::lock_guard Lock(Mutex);
   // Set path and check the header.
   if (auto Res = FMgr.setPath(FilePath); !Res) {
@@ -73,6 +71,8 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
   }
 
   switch (FMgr.getHeaderType()) {
+  // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
+  // shared-library-WASM.
   case FileMgr::FileHeader::ELF:
   case FileMgr::FileHeader::DLL:
   case FileMgr::FileHeader::MachO_32:
@@ -103,8 +103,10 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
       }
-      if (auto Res = loadModule()) {
-        Mod = std::move(*Res);
+      if (auto Res = loadUnit()) {
+        if (std::holds_alternative<AST::Module>(*Res)) {
+          Mod = std::make_unique<AST::Module>(std::get<AST::Module>(*Res));
+        }
       } else {
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
@@ -121,35 +123,41 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
         return Unexpect(Res);
       }
     }
-    return Mod;
+    return *Mod.get();
   }
   default:
     // Universal WASM, WASM, or other cases. Load and parse the module directly.
     WASMType = InputType::WASM;
-    if (auto Res = loadModule()) {
+    auto Unit = loadUnit();
+    if (!Unit) {
+      spdlog::error(ErrInfo::InfoFile(FilePath));
+      return Unexpect(Unit);
+    }
+    switch (Unit->index()) {
+    case 0: // component
+      return Unit;
+    case 1: // module
+    default: {
+      auto Mod = std::get<AST::Module>(*Unit);
       if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
         // If the configure is set to force interpreter mode, not to set the
         // symbol.
-        if (auto &Symbol = (*Res)->getSymbol()) {
+        if (auto &Symbol = Mod.getSymbol()) {
           *Symbol = IntrinsicsTable;
         }
       }
-      return std::move(*Res);
-    } else {
-      spdlog::error(ErrInfo::InfoFile(FilePath));
-      return Unexpect(Res);
+      return Mod;
+    }
     }
   }
 }
 
-// Parse module from byte code. See "include/loader/loader.h".
-Expect<std::unique_ptr<AST::Module>>
-Loader::parseModule(Span<const uint8_t> Code) {
+Expect<std::variant<AST::Component, AST::Module>>
+Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
   if (auto Res = FMgr.setCode(Code); !Res) {
     return Unexpect(Res);
   }
-
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
   // shared-library-WASM.
@@ -168,7 +176,37 @@ Loader::parseModule(Span<const uint8_t> Code) {
   }
   // For malformed header checking, handle in the module loading.
   WASMType = InputType::WASM;
-  return loadModule();
+  return loadUnit();
+}
+
+// Parse module from file path. See "include/loader/loader.h".
+Expect<std::unique_ptr<AST::Module>>
+Loader::parseModule(const std::filesystem::path &FilePath) {
+  if (auto R = parseWasmUnit(FilePath)) {
+    if (std::holds_alternative<AST::Module>(*R)) {
+      auto Res = std::make_unique<AST::Module>(std::get<AST::Module>(*R));
+      return Res;
+    } else {
+      return Unexpect(ErrCode::Value::MalformedVersion);
+    }
+  } else {
+    return Unexpect(R);
+  }
+}
+
+// Parse module from byte code. See "include/loader/loader.h".
+Expect<std::unique_ptr<AST::Module>>
+Loader::parseModule(Span<const uint8_t> Code) {
+  if (auto R = parseWasmUnit(Code)) {
+    if (std::holds_alternative<AST::Module>(*R)) {
+      auto Res = std::make_unique<AST::Module>(std::get<AST::Module>(*R));
+      return Res;
+    } else {
+      return Unexpect(ErrCode::Value::MalformedVersion);
+    }
+  } else {
+    return Unexpect(R);
+  }
 }
 
 // Helper function of checking the valid value types.

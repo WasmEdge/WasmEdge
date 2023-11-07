@@ -488,12 +488,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: Plugins_MacOS_11
-            system: MacOS 11
-            host_runner: macos-11
-            darwin_version: darwin_20
-            build_type: Release
-            arch: x86_64
           - name: Plugins_MacOS_12
             system: MacOS 12
             host_runner: macos-12

@@ -258,7 +258,11 @@ Expect<int32_t> AVStreamSetMetadata::body(const Runtime::CallingFrame &,
   for (unsigned int I = 1; I <= StreamIdx; I++)
     AvStream++;
 
-  (*AvStream)->metadata = *AvDictionary;
+  if (AvDictionary == NULL)
+    (*AvStream)->metadata = NULL;
+  else
+    (*AvStream)->metadata = *AvDictionary;
+
   return static_cast<int32_t>(ErrNo::Success);
 }
 

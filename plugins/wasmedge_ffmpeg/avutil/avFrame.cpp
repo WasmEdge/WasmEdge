@@ -370,7 +370,10 @@ Expect<int32_t> AVFrameSetMetadata::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
 
-  AvFrame->metadata = *AvDict;
+  if (AvDict == NULL)
+    AvFrame->metadata = NULL;
+  else
+    AvFrame->metadata = *AvDict;
   return static_cast<int32_t>(ErrNo::Success);
 }
 

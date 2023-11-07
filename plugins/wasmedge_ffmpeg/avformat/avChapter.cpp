@@ -183,7 +183,10 @@ Expect<int32_t> AVChapterSetMetadata::body(const Runtime::CallingFrame &,
   for (unsigned int I = 1; I <= ChapterIdx; I++)
     AvChapter++;
 
-  (*AvChapter)->metadata = *AvDictionary;
+  if (AvDictionary == NULL)
+    (*AvChapter)->metadata = NULL;
+  else
+    (*AvChapter)->metadata = *AvDictionary;
   return static_cast<int32_t>(ErrNo::Success);
 }
 

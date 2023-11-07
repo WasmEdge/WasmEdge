@@ -276,6 +276,38 @@ Expect<int32_t> AVFreeP::body(const Runtime::CallingFrame &,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<int32_t> AVInterleavedWriteFrame::body(const Runtime::CallingFrame &,
+                                              uint32_t AvFormatCtxId,
+                                              uint32_t AvPacketId) {
+
+  FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+
+  return av_interleaved_write_frame(AvFormatCtx, AvPacket);
+}
+
+Expect<int32_t> AVWriteFrame::body(const Runtime::CallingFrame &,
+                                   uint32_t AvFormatCtxId,
+                                   uint32_t AvPacketId) {
+
+  FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+
+  return av_write_frame(AvFormatCtx, AvPacket);
+}
+
+Expect<int32_t> AVFormatNewStream::body(const Runtime::CallingFrame &,
+                                        uint32_t AvFormatCtxId,
+                                        uint32_t AvCodecId) {
+
+  FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  AVStream *Stream = avformat_new_stream(AvFormatCtx, AvCodec);
+  if (Stream == NULL)
+    return 0;
+  return 1;
+}
+
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

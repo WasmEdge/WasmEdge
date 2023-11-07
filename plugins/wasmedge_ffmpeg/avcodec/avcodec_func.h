@@ -164,6 +164,41 @@ public:
                        uint32_t NamePtr, uint32_t NameLen);
 };
 
+class AVPacketRescaleTs : public WasmEdgeFFmpegAVCodec<AVPacketRescaleTs> {
+public:
+  AVPacketRescaleTs(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t AVPacketId,
+                       int32_t SrcNum, int32_t SrcDen, int32_t DestNum,
+                       int32_t DestDen);
+};
+
+class AVPacketRef : public WasmEdgeFFmpegAVCodec<AVPacketRef> {
+public:
+  AVPacketRef(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t DestPacketId, uint32_t SrcPacketId);
+};
+
+class AVPacketMakeWritable
+    : public WasmEdgeFFmpegAVCodec<AVPacketMakeWritable> {
+public:
+  AVPacketMakeWritable(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t AVPacketId);
+};
+
+class AVCodecParametersCopy
+    : public WasmEdgeFFmpegAVCodec<AVCodecParametersCopy> {
+public:
+  AVCodecParametersCopy(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AVFormatCtxId, uint32_t AVCodecParamId,
+                       uint32_t StreamIdx);
+};
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

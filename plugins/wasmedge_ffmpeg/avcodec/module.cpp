@@ -52,6 +52,14 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
               std::make_unique<AVCodecFindDecoderByName>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_find_encoder_by_name",
               std::make_unique<AVCodecFindEncoderByName>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_rescale_ts",
+              std::make_unique<AVPacketRescaleTs>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_ref",
+              std::make_unique<AVPacketRef>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_make_writable",
+              std::make_unique<AVPacketMakeWritable>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_parameters_copy",
+              std::make_unique<AVCodecParametersCopy>(env));
 
   // avCodecContext Struct fields access
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_codec_id",
@@ -207,6 +215,8 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
               std::make_unique<AVCodecParamCodecId>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodecparam_codec_type",
               std::make_unique<AVCodecParamCodecType>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodecparam_set_codec_tag",
+              std::make_unique<AVCodecParamSetCodecTag>(env));
 
   // AVPacket functions.
   addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_alloc",
@@ -221,6 +231,32 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
               std::make_unique<AVShrinkPacket>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_stream_index",
               std::make_unique<AVPacketStreamIndex>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_set_stream_index",
+              std::make_unique<AVPacketSetStreamIndex>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_size",
+              std::make_unique<AVPacketSize>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_flags",
+              std::make_unique<AVPacketFlags>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_set_flags",
+              std::make_unique<AVPacketSetFlags>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_pos",
+              std::make_unique<AVPacketPos>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_set_pos",
+              std::make_unique<AVPacketSetPos>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_duration",
+              std::make_unique<AVPacketDuration>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_set_duration",
+              std::make_unique<AVPacketSetDuration>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_dts",
+              std::make_unique<AVPacketDts>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_set_dts",
+              std::make_unique<AVPacketSetDts>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_pts",
+              std::make_unique<AVPacketPts>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_set_pts",
+              std::make_unique<AVPacketSetPts>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_is_data_null",
+              std::make_unique<AVPacketIsDataNull>(env));
 }
 
 } // namespace AVcodec

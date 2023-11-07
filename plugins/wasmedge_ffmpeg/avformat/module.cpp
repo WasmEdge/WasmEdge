@@ -60,6 +60,13 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVFreeP>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformat_version",
               std::make_unique<AVFormatVersion>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_av_write_frame", // need to test
+              std::make_unique<AVWriteFrame>(env));
+  addHostFunc(
+      "wasmedge_ffmpeg_avformat_av_interleaved_write_frame", // need to test
+      std::make_unique<AVInterleavedWriteFrame>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_new_stream", // need to test
+              std::make_unique<AVFormatNewStream>(env));
 
   // avformatContext Struct functions.
   addHostFunc("wasmedge_ffmpeg_avformat_avformatContext_iformat",

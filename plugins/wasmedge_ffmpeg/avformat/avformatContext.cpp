@@ -110,9 +110,12 @@ Expect<int32_t> AVFormatCtxSetMetadata::body(const Runtime::CallingFrame &,
                                              uint32_t DictId) {
 
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
-  FFMPEG_PTR_FETCH(AvDictionary, DictId, AVDictionary);
+  FFMPEG_PTR_FETCH(AvDictionary, DictId, AVDictionary *);
 
-  AvFormatCtx->metadata = AvDictionary;
+  if (AvDictionary == NULL)
+    AvFormatCtx->metadata = NULL;
+  else
+    AvFormatCtx->metadata = *AvDictionary;
   return static_cast<int32_t>(ErrNo::Success);
 }
 

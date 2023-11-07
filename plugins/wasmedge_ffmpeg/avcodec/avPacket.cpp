@@ -60,6 +60,107 @@ Expect<int32_t> AVPacketStreamIndex::body(const Runtime::CallingFrame &,
   return AvPacket->stream_index;
 }
 
+Expect<int32_t> AVPacketSetStreamIndex::body(const Runtime::CallingFrame &,
+                                             uint32_t AvPacketId,
+                                             int32_t StreamIdx) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  AvPacket->stream_index = StreamIdx;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVPacketSize::body(const Runtime::CallingFrame &,
+                                   uint32_t AvPacketId) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  return AvPacket->size;
+}
+
+Expect<int32_t> AVPacketFlags::body(const Runtime::CallingFrame &,
+                                    uint32_t AvPacketId) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  return AvPacket->flags;
+}
+
+Expect<int32_t> AVPacketSetFlags::body(const Runtime::CallingFrame &,
+                                       uint32_t AvPacketId, int32_t Flags) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  AvPacket->flags = Flags;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int64_t> AVPacketPos::body(const Runtime::CallingFrame &,
+                                  uint32_t AvPacketId) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  return AvPacket->pos;
+}
+
+Expect<int32_t> AVPacketSetPos::body(const Runtime::CallingFrame &,
+                                     uint32_t AvPacketId, int64_t Pos) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  AvPacket->pos = Pos;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int64_t> AVPacketDuration::body(const Runtime::CallingFrame &,
+                                       uint32_t AvPacketId) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  return AvPacket->duration;
+}
+
+Expect<int32_t> AVPacketSetDuration::body(const Runtime::CallingFrame &,
+                                          uint32_t AvPacketId,
+                                          int64_t Duration) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  AvPacket->duration = Duration;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int64_t> AVPacketDts::body(const Runtime::CallingFrame &,
+                                  uint32_t AvPacketId) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  return AvPacket->dts;
+}
+
+Expect<int32_t> AVPacketSetDts::body(const Runtime::CallingFrame &,
+                                     uint32_t AvPacketId, int64_t Dts) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  AvPacket->dts = Dts;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int64_t> AVPacketPts::body(const Runtime::CallingFrame &,
+                                  uint32_t AvPacketId) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  return AvPacket->pts;
+}
+
+Expect<int32_t> AVPacketSetPts::body(const Runtime::CallingFrame &,
+                                     uint32_t AvPacketId, int64_t Pts) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  AvPacket->pts = Pts;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVPacketIsDataNull::body(const Runtime::CallingFrame &,
+                                         uint32_t AvPacketId) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  if (AvPacket->data == NULL)
+    return 1;
+  return 0;
+}
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

@@ -24,6 +24,15 @@ public:
                        uint32_t AvCodecParamId);
 };
 
+class AVCodecParamSetCodecTag
+    : public WasmEdgeFFmpegAVCodec<AVCodecParamSetCodecTag> {
+public:
+  AVCodecParamSetCodecTag(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecParamId, uint32_t CodecTag);
+};
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

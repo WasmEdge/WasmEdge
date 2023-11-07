@@ -23,6 +23,15 @@ Expect<int32_t> AVCodecParamCodecType::body(const Runtime::CallingFrame &,
   return FFmpegUtils::MediaType::fromMediaType(AvCodecParams->codec_type);
 }
 
+Expect<int32_t> AVCodecParamSetCodecTag::body(const Runtime::CallingFrame &,
+                                              uint32_t AvCodecParamId,
+                                              uint32_t CodecTag) {
+
+  FFMPEG_PTR_FETCH(AvCodecParams, AvCodecParamId, AVCodecParameters);
+  AvCodecParams->codec_tag = CodecTag;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

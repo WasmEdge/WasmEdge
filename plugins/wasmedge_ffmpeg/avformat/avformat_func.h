@@ -196,6 +196,35 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &, uint32_t AvChapterId);
 };
 
+class AVInterleavedWriteFrame
+    : public WasmEdgeFFmpegAVFormat<AVInterleavedWriteFrame> {
+public:
+  AVInterleavedWriteFrame(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+
+  Expect<int32_t> body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId,
+                       uint32_t AvPacketId);
+};
+
+class AVWriteFrame : public WasmEdgeFFmpegAVFormat<AVWriteFrame> {
+public:
+  AVWriteFrame(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+
+  Expect<int32_t> body(const Runtime::CallingFrame &, uint32_t AvFormatCtxId,
+                       uint32_t AvPacketId);
+};
+
+class AVFormatNewStream : public WasmEdgeFFmpegAVFormat<AVFormatNewStream> {
+public:
+  AVFormatNewStream(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AVFormatCtxId, uint32_t AVCodecId);
+};
+
+// avformat_new_stream
+
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

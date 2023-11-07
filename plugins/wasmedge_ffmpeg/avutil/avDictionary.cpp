@@ -84,10 +84,10 @@ Expect<int32_t> AVDictGet::body(const Runtime::CallingFrame &Frame,
   std::copy_n(KeyStr, KeyLen, std::back_inserter(Key));
 
   AVDictionaryEntry *DictEntry = nullptr;
-  uint32_t curr = 0;
-  while (curr <= PrevDictEntryIdx) {
+  uint32_t Curr = 0;
+  while (Curr <= PrevDictEntryIdx) {
     DictEntry = av_dict_get(*AvDict, Key.c_str(), DictEntry, Flags);
-    curr++;
+    Curr++;
   }
 
   if (DictEntry == nullptr)
@@ -95,7 +95,7 @@ Expect<int32_t> AVDictGet::body(const Runtime::CallingFrame &Frame,
 
   *KeyLenId = strlen(DictEntry->key);
   *ValueLenId = strlen(DictEntry->value);
-  return curr;
+  return Curr;
 }
 
 Expect<int32_t> AVDictGetKeyValue::body(

@@ -2,6 +2,7 @@
 
 extern "C" {
 #include "libavcodec/avcodec.h"
+#include "libavformat/avformat.h"
 }
 
 namespace WasmEdge {
@@ -249,6 +250,53 @@ AVCodecFindEncoderByName::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_STORE(const_cast<AVCodec *>(AvCodec), AVCodecId);
   return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVPacketRescaleTs::body(const Runtime::CallingFrame &,
+                                        uint32_t AvPacketId, int32_t SrcNum,
+                                        int32_t SrcDen, int32_t DestNum,
+                                        int32_t DestDen) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  AVRational const Src = av_make_q(SrcNum, SrcDen);
+  AVRational const Dest = av_make_q(DestNum, DestDen);
+
+  av_packet_rescale_ts(AvPacket, Src, Dest);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVPacketRef::body(const Runtime::CallingFrame &,
+                                  uint32_t DestPacketId, uint32_t SrcPacketId) {
+
+  FFMPEG_PTR_FETCH(DestAvPacket, DestPacketId, AVPacket);
+  FFMPEG_PTR_FETCH(SrcAvPacket, SrcPacketId, AVPacket);
+
+  return av_packet_ref(DestAvPacket, SrcAvPacket);
+}
+
+Expect<int32_t> AVPacketMakeWritable::body(const Runtime::CallingFrame &,
+                                           uint32_t AVPacketId) {
+
+  FFMPEG_PTR_FETCH(AvPacket, AVPacketId, AVPacket);
+  return av_packet_make_writable(AvPacket);
+}
+
+Expect<int32_t> AVCodecParametersCopy::body(const Runtime::CallingFrame &,
+                                            uint32_t AvFormatCtxId,
+                                            uint32_t AVCodecParamId,
+                                            uint32_t StreamIdx) {
+
+  FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_FETCH(AvCodecParam, AVCodecParamId, AVCodecParameters);
+
+  AVStream **AvStream = AvFormatCtx->streams;
+
+  // No check here (Check)
+  // Raw Pointer Iteration.
+  for (unsigned int I = 1; I <= StreamIdx; I++)
+    AvStream++;
+
+  return avcodec_parameters_copy((*AvStream)->codecpar, AvCodecParam);
 }
 
 } // namespace AVcodec

@@ -199,6 +199,13 @@ public:
                        uint32_t StreamIdx);
 };
 
+class AVCodecVersion : public WasmEdgeFFmpegAVCodec<AVCodecVersion> {
+public:
+  AVCodecVersion(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
+};
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

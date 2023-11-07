@@ -103,6 +103,17 @@ AVCodecCtxSampleAspectRatio::body(const Runtime::CallingFrame &Frame,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<int32_t>
+AVCodecCtxSetSampleAspectRatio::body(const Runtime::CallingFrame &,
+                                     uint32_t AvCodecCtxId, int32_t Num,
+                                     int32_t Den) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  const AVRational AspectRatio = av_make_q(Num, Den);
+  AvCodecCtx->sample_aspect_ratio = AspectRatio;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 Expect<uint64_t> AVCodecCtxChannelLayout::body(const Runtime::CallingFrame &,
                                                uint32_t AvCodecCtxId) {
 
@@ -112,11 +123,32 @@ Expect<uint64_t> AVCodecCtxChannelLayout::body(const Runtime::CallingFrame &,
   return FFmpegUtils::ChannelLayout::intoAVChannelID(AvChannel);
 }
 
+Expect<int32_t> AVCodecCtxSetChannelLayout::body(const Runtime::CallingFrame &,
+                                                 uint32_t AvCodecCtxId,
+                                                 uint64_t ChannelLayoutId) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  uint64_t const AvChannel =
+      FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
+  AvCodecCtx->channel_layout = AvChannel;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 Expect<uint32_t> AVCodecCtxPixFormat::body(const Runtime::CallingFrame &,
                                            uint32_t AvCodecCtxId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   AVPixelFormat const PixFmt = AvCodecCtx->pix_fmt;
   return FFmpegUtils::PixFmt::fromAVPixFmt(PixFmt);
+}
+
+Expect<uint32_t> AVCodecCtxSetPixFormat::body(const Runtime::CallingFrame &,
+                                              uint32_t AvCodecCtxId,
+                                              uint32_t PixFmtId) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  AVPixelFormat const PixFmt = FFmpegUtils::PixFmt::intoAVPixFmt(PixFmtId);
+  AvCodecCtx->pix_fmt = PixFmt;
+  return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<uint32_t> AVCodecCtxSampleFormat::body(const Runtime::CallingFrame &,
@@ -505,6 +537,67 @@ Expect<int32_t> AVCodecCtxSetFrameRate::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   AVRational const Rational = av_make_q(Num, Den);
   AvCodecCtx->framerate = Rational;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVCodecCtxSetFlags::body(const Runtime::CallingFrame &,
+                                         uint32_t AvCodecCtxId, int32_t Flags) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  AvCodecCtx->flags = Flags;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t>
+AVCodecCtxSetStrictStdCompliance::body(const Runtime::CallingFrame &,
+                                       uint32_t AvCodecCtxId,
+                                       int32_t ComplianceId) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  AvCodecCtx->strict_std_compliance = ComplianceId;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVCodecCtxSetDebug::body(const Runtime::CallingFrame &,
+                                         uint32_t AvCodecCtxId, int32_t Debug) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  AvCodecCtx->debug = Debug;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVCodecCtxCodec::body(const Runtime::CallingFrame &Frame,
+                                      uint32_t AvCodecCtxId,
+                                      uint32_t AvCodecPtr) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(AVCodecId, MemInst, uint32_t, AvCodecPtr,
+                "Failed to access Ptr for AvCodecPtr");
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  FFMPEG_PTR_FETCH(AvCodec, *AVCodecId, const AVCodec);
+
+  AvCodec = AvCodecCtx->codec;
+  if (AvCodec == NULL)
+    return -1;
+
+  FFMPEG_PTR_STORE((void *)AvCodec, AVCodecId);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVCodecCtxChannels::body(const Runtime::CallingFrame &,
+                                         uint32_t AvCodecCtxId) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  return AvCodecCtx->channels;
+}
+
+Expect<int32_t> AVCodecCtxSetChannels::body(const Runtime::CallingFrame &,
+                                            uint32_t AvCodecCtxId,
+                                            int32_t Channels) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  AvCodecCtx->channels = Channels;
   return static_cast<int32_t>(ErrNo::Success);
 }
 

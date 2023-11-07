@@ -299,6 +299,10 @@ Expect<int32_t> AVCodecParametersCopy::body(const Runtime::CallingFrame &,
   return avcodec_parameters_copy((*AvStream)->codecpar, AvCodecParam);
 }
 
+Expect<uint32_t> AVCodecVersion::body(const Runtime::CallingFrame &) {
+  return avcodec_version();
+}
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

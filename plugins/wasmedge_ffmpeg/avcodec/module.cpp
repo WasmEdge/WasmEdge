@@ -60,6 +60,8 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
               std::make_unique<AVPacketMakeWritable>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_parameters_copy",
               std::make_unique<AVCodecParametersCopy>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_version",
+              std::make_unique<AVCodecVersion>(env));
 
   // avCodecContext Struct fields access
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_codec_id",
@@ -80,16 +82,24 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
               std::make_unique<AVCodecCtxSetHeight>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_sample_aspect_ratio",
               std::make_unique<AVCodecCtxSampleAspectRatio>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_aspect_ratio",
+              std::make_unique<AVCodecCtxSampleAspectRatio>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_channel_layout",
               std::make_unique<AVCodecCtxChannelLayout>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_channel_layout",
+              std::make_unique<AVCodecCtxSetChannelLayout>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_pix_fmt",
               std::make_unique<AVCodecCtxPixFormat>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_pix_fmt",
+              std::make_unique<AVCodecCtxSetPixFormat>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_sample_format",
               std::make_unique<AVCodecCtxSampleFormat>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_format",
               std::make_unique<AVCodecCtxSetSampleFormat>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_sample_rate",
               std::make_unique<AVCodecCtxSampleRate>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_rate",
+              std::make_unique<AVCodecCtxSetSampleRate>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_gop_size",
               std::make_unique<AVCodecCtxSetGopSize>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_max_b_frames",
@@ -169,6 +179,19 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
               std::make_unique<AVCodecCtxSetTimebase>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_framerate",
               std::make_unique<AVCodecCtxSetFrameRate>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_flags",
+              std::make_unique<AVCodecCtxSetFlags>(env));
+  addHostFunc(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_strict_std_compliance",
+      std::make_unique<AVCodecCtxSetStrictStdCompliance>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_debug",
+              std::make_unique<AVCodecCtxSetDebug>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_codec",
+              std::make_unique<AVCodecCtxCodec>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_channels",
+              std::make_unique<AVCodecCtxChannels>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_channels",
+              std::make_unique<AVCodecCtxSetChannels>(env));
 
   // avCodec Struct fields access
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_id",

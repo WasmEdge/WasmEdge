@@ -53,7 +53,7 @@ jobs:
     with:
       version: ${{ needs.create_release.outputs.version }}
       matrix:
-        "[{'name':'MacOS 11 (x86_64)','runner':'macos-11','darwin_version':20,'arch':'x86_64'},
+        "[{'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21,'arch':'x86_64'},
         {'name':'MacOS 13 (arm64)','runner':'mac-arm64','darwin_version':22,'arch':'arm64'}]"
       release: true
     secrets: inherit
@@ -542,10 +542,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: Plugins_MacOS_11
-            system: MacOS 11
-            host_runner: macos-11
-            darwin_version: darwin_20
+          - name: Plugins_MacOS_12
+            system: MacOS 12
+            host_runner: macos-12
+            darwin_version: darwin_21
             arch: x86_64
           - name: Plugins_MacOS_arm64
             system: MacOS 13 (arm64)

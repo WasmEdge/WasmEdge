@@ -13,6 +13,107 @@
 
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+
+namespace details {
+Expect<ErrNo> getMetadata(Context &CxtRef, const TensorData &Tensor,
+                          bool &IsUpdated) noexcept {
+  // Decode metadata.
+  const std::string Metadata(reinterpret_cast<char *>(Tensor.Tensor.data()),
+                             Tensor.Tensor.size());
+  simdjson::dom::parser Parser;
+  simdjson::dom::element Doc;
+  auto ParseError = Parser.parse(Metadata).get(Doc);
+  if (ParseError) {
+    spdlog::error("[WASI-NN] GGML backend: Parse metadata error"sv);
+    return ErrNo::InvalidEncoding;
+  }
+
+  // Get metadata from the json.
+  // Need to update Model:
+  // * n_gpu_layers
+  // Need to update Context:
+  // * ctx-size
+  // * batch-size
+  // Initialize the llama context.
+  llama_context_params CxtParams = llama_context_default_params();
+  CxtParams.n_ctx = CxtRef.CtxSize;
+  CxtParams.n_batch = CxtRef.BatchSize;
+
+  if (Doc.at_key("enable-log").error() == simdjson::SUCCESS) {
+    auto Err = Doc["enable-log"].get<bool>().get(CxtRef.EnableLog);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the enable-log option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    llama_log_set(nullptr, &CxtRef.EnableLog);
+  }
+  if (Doc.at_key("stream-stdout").error() == simdjson::SUCCESS) {
+    auto Err = Doc["stream-stdout"].get<bool>().get(CxtRef.StreamStdout);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the stream-stdout option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("ctx-size").error() == simdjson::SUCCESS) {
+    auto Err = Doc["ctx-size"].get<uint64_t>().get(CxtRef.CtxSize);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the ctx-size option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("n-predict").error() == simdjson::SUCCESS) {
+    auto Err = Doc["n-predict"].get<uint64_t>().get(CxtRef.NPredict);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the n-predict option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("n-gpu-layers").error() == simdjson::SUCCESS) {
+    // Metal framework has the different behavior of CUDA.
+    // Hence, we have to set the n_gpu_layers to 0 on the macOS platform.
+#ifndef __APPLE__
+    auto Err = Doc["n-gpu-layers"].get<uint64_t>().get(CxtRef.NGPULayers);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the n-gpu-layers option."sv);
+      return ErrNo::InvalidArgument;
+    }
+#else
+    CxtRef.NGPULayers = 0;
+#endif
+  }
+  if (Doc.at_key("batch-size").error() == simdjson::SUCCESS) {
+    auto Err = Doc["batch-size"].get<uint64_t>().get(CxtRef.BatchSize);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the batch-size option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("reverse-prompt").error() == simdjson::SUCCESS) {
+    std::string_view ReversePrompt;
+    auto Err = Doc["reverse-prompt"].get<std::string_view>().get(ReversePrompt);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the reverse-prompt option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    CxtRef.ReversePrompt = ReversePrompt;
+  }
+
+  // Check if the context is updated.
+  if (CxtParams.n_ctx != CxtRef.CtxSize ||
+      CxtParams.n_batch != CxtRef.BatchSize) {
+    IsUpdated = true;
+  }
+  return ErrNo::Success;
+}
+} // namespace details
+
 Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
                    [[maybe_unused]] Device Device, uint32_t &GraphId) noexcept {
   // The graph builder length must be 1.
@@ -96,99 +197,17 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
 
+  bool IsCxtParamsUpdated = false;
   // Use index 1 for metadata.
   if (Index == 1) {
-    // Decode metadata.
-    std::string Metadata(reinterpret_cast<char *>(Tensor.Tensor.data()),
-                         Tensor.Tensor.size());
-    simdjson::dom::parser Parser;
-    simdjson::dom::element Doc;
-    auto ParseError = Parser.parse(Metadata).get(Doc);
-    if (ParseError) {
-      spdlog::error("[WASI-NN] GGML backend: Parse metadata error"sv);
-      return ErrNo::InvalidEncoding;
-    }
-
-    // Get metadata from the json.
-    if (Doc.at_key("enable-log").error() == simdjson::SUCCESS) {
-      auto Err = Doc["enable-log"].get<bool>().get(CxtRef.EnableLog);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: Unable to retrieve the enable-log option."sv);
-        return ErrNo::InvalidArgument;
-      }
-      llama_log_set(nullptr, &CxtRef.EnableLog);
-    }
-    if (Doc.at_key("stream-stdout").error() == simdjson::SUCCESS) {
-      auto Err = Doc["stream-stdout"].get<bool>().get(CxtRef.StreamStdout);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: Unable to retrieve the stream-stdout option."sv);
-        return ErrNo::InvalidArgument;
-      }
-    }
-    if (Doc.at_key("ctx-size").error() == simdjson::SUCCESS) {
-      auto Err = Doc["ctx-size"].get<uint64_t>().get(CxtRef.CtxSize);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: Unable to retrieve the ctx-size option."sv);
-        return ErrNo::InvalidArgument;
-      }
-    }
-    if (Doc.at_key("n-predict").error() == simdjson::SUCCESS) {
-      auto Err = Doc["n-predict"].get<uint64_t>().get(CxtRef.NPredict);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: Unable to retrieve the n-predict option."sv);
-        return ErrNo::InvalidArgument;
-      }
-    }
-    if (Doc.at_key("n-gpu-layers").error() == simdjson::SUCCESS) {
-      // Metal framework has the different behavior of CUDA.
-      // Hence, we have to set the n_gpu_layers to 0 on the macOS platform.
-#ifndef __APPLE__
-      auto Err = Doc["n-gpu-layers"].get<uint64_t>().get(CxtRef.NGPULayers);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: Unable to retrieve the n-gpu-layers option."sv);
-        return ErrNo::InvalidArgument;
-      }
-#else
-      CxtRef.NGPULayers = 0;
-#endif
-    }
-    if (Doc.at_key("batch-size").error() == simdjson::SUCCESS) {
-      auto Err = Doc["batch-size"].get<uint64_t>().get(CxtRef.BatchSize);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: Unable to retrieve the batch-size option."sv);
-        return ErrNo::InvalidArgument;
-      }
-    }
-    if (Doc.at_key("reverse-prompt").error() == simdjson::SUCCESS) {
-      std::string_view ReversePrompt;
-      auto Err =
-          Doc["reverse-prompt"].get<std::string_view>().get(ReversePrompt);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: Unable to retrieve the reverse-prompt option."sv);
-        return ErrNo::InvalidArgument;
-      }
-      CxtRef.ReversePrompt = ReversePrompt;
-    }
-
-    return ErrNo::Success;
+    return details::getMetadata(CxtRef, Tensor, IsCxtParamsUpdated);
   }
-
-  // Initialize the llama context.
-  llama_context_params ContextParams = llama_context_default_params();
-  ContextParams.n_ctx = CxtRef.CtxSize;
-  ContextParams.n_batch = CxtRef.BatchSize;
 
   // XXX: Due to the limitation of WASI-NN proposal,
   // we have no way to pass the metadata before the setInput phase
   // when we want to do some configurations in the load phase.
   // That's why we have this hack.
+#ifndef __APPLE__
   {
     llama_model_params ModelParams = llama_model_default_params();
     // If the `n_gpu_layers` in `setInput` is different from the
@@ -196,6 +215,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     // the model with the new configuration.
     if (ModelParams.n_gpu_layers != static_cast<int32_t>(CxtRef.NGPULayers)) {
       ModelParams.n_gpu_layers = CxtRef.NGPULayers;
+      llama_free_model(GraphRef.LlamaModel);
       GraphRef.LlamaModel = llama_load_model_from_file(
           GraphRef.ModelFilePath.c_str(), ModelParams);
       if (GraphRef.LlamaModel == nullptr) {
@@ -205,9 +225,19 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       }
     }
   }
+#endif
 
-  GraphRef.LlamaContext =
-      llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
+  // Initialize the llama context.
+  if (GraphRef.LlamaContext == nullptr || IsCxtParamsUpdated) {
+    llama_context_params ContextParams = llama_context_default_params();
+    ContextParams.n_ctx = CxtRef.CtxSize;
+    ContextParams.n_batch = CxtRef.BatchSize;
+    if (GraphRef.LlamaContext != nullptr) {
+      llama_free(GraphRef.LlamaContext);
+    }
+    GraphRef.LlamaContext =
+        llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
+  }
 
   // Set the input.
   std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),

@@ -29,13 +29,16 @@ public:
   size_t GraphId;
   std::vector<llama_token> LlamaInputs;
   std::string LlamaOutputs;
+  // Plugin parameters:
   bool EnableLog;
   bool StreamStdout;
-  uint64_t CtxSize;
   uint64_t NPredict;
-  uint64_t NGPULayers;
-  uint64_t BatchSize;
   std::string ReversePrompt;
+  // Model parameters:
+  uint64_t NGPULayers;
+  // Context parameters:
+  uint64_t CtxSize;
+  uint64_t BatchSize;
 };
 #else
 struct Graph {};

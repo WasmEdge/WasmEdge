@@ -42,7 +42,7 @@ if (NOT MSVC)
 endif()
 
 # 3rd party libs
-option(LLAMA_ACCELERATE                      "llama: enable Accelerate framework"               ON)
+option(LLAMA_ACCELERATE                      "llama: enable Accelerate framework"               OFF)
 option(LLAMA_BLAS                            "llama: use BLAS"                                  OFF)
 set(LLAMA_BLAS_VENDOR "Generic" CACHE STRING "llama: BLAS library vendor")
 option(LLAMA_CUBLAS                          "llama: use CUDA"                                  OFF)

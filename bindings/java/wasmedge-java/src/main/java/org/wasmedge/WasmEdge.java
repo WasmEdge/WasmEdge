@@ -15,7 +15,8 @@ public class WasmEdge {
     private static final String NATIVE_LIBRARY_NAME = "wasmedge_jni";
 
     public static synchronized void init() {
-        System.loadLibrary(NATIVE_LIBRARY_NAME);
+        NativeUtils.loadLibraryFromJar(NATIVE_LIBRARY_NAME);
+        loaded = true;
     }
 
     /**

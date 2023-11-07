@@ -30,6 +30,8 @@ public:
   Validator(const Configure &Conf) noexcept : Conf(Conf) {}
   ~Validator() noexcept = default;
 
+  /// Validate AST::Component.
+  Expect<void> validate(const AST::Component &Comp);
   /// Validate AST::Module.
   Expect<void> validate(const AST::Module &Mod);
 

@@ -96,7 +96,10 @@ Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
     const auto Offset = std::get<1>(Section);
     const auto Size = std::get<2>(Section);
     const auto &Content = std::get<3>(Section);
-    assuming(Content.size() <= Size);
+    if (Size > BinarySize || Offset > BinarySize ||
+        Offset + Size > BinarySize || Content.size() > Size) {
+      return Unexpect(ErrCode::Value::IntegerTooLarge);
+    }
     std::copy(Content.begin(), Content.end(), Binary + Offset);
     switch (std::get<0>(Section)) {
     case 1: { // Text
@@ -116,6 +119,8 @@ Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
           static_cast<uint32_t>(Size / sizeof(winapi::RUNTIME_FUNCTION_));
       break;
 #endif
+    default:
+      return Unexpect(ErrCode::Value::IntegerTooLarge);
     }
   }
 

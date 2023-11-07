@@ -73,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: WasmEdge-${{ inputs.version }}-windows-msvc.zip
-          path: build\\WasmEdge-${{ inputs.version }}-Windows-msvc.zip
+          path: build\\WasmEdge-${{ inputs.version }}-Windows.zip
       - name: Upload Windows installer
         if: ${{ !inputs.release }}
         uses: actions/upload-artifact@v3
@@ -85,7 +85,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv build\\WasmEdge-${{ inputs.version }}-Windows-msvc.zip WasmEdge-${{ inputs.version }}-windows-msvc.zip
+          mv build\\WasmEdge-${{ inputs.version }}-Windows.zip WasmEdge-${{ inputs.version }}-windows-msvc.zip
           gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-windows-msvc.zip --clobber
       - name: Upload Windows installer
         if: ${{ inputs.release }}

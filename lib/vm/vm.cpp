@@ -206,9 +206,15 @@ VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
     // Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
-  // Load module.
-  if (auto Res = LoaderEngine.parseModule(Path)) {
-    return unsafeRunWasmFile(*(*Res).get(), Func, Params, ParamTypes);
+  // Load wasm unit.
+  if (auto Res = LoaderEngine.parseWasmUnit(Path)) {
+    if (std::holds_alternative<AST::Module>(*Res)) {
+      return unsafeRunWasmFile(std::get<AST::Module>(*Res), Func, Params,
+                               ParamTypes);
+    } else {
+      return unsafeRunWasmFile(std::get<AST::Component>(*Res), Func, Params,
+                               ParamTypes);
+    }
   } else {
     return Unexpect(Res);
   }
@@ -223,12 +229,33 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
     // Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
-  // Load module.
-  if (auto Res = LoaderEngine.parseModule(Code)) {
-    return unsafeRunWasmFile(*(*Res).get(), Func, Params, ParamTypes);
+  // Load wasm unit.
+  if (auto Res = LoaderEngine.parseWasmUnit(Code)) {
+    if (std::holds_alternative<AST::Module>(*Res)) {
+      return unsafeRunWasmFile(std::get<AST::Module>(*Res), Func, Params,
+                               ParamTypes);
+    } else {
+      return unsafeRunWasmFile(std::get<AST::Component>(*Res), Func, Params,
+                               ParamTypes);
+    }
   } else {
     return Unexpect(Res);
   }
+}
+
+Expect<std::vector<std::pair<ValVariant, ValType>>>
+VM::unsafeRunWasmFile(const AST::Component &Component, std::string_view,
+                      Span<const ValVariant>, Span<const ValType>) {
+  if (Stage == VMStage::Instantiated) {
+    // When running another module, instantiated module in store will be reset.
+    // Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
+  if (auto Res = ValidatorEngine.validate(Component); !Res) {
+    return Unexpect(Res);
+  }
+  spdlog::error("component execution is not done yet.");
+  return Unexpect(ErrCode::Value::RuntimeError);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -306,8 +333,13 @@ VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
 
 Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
   // If not load successfully, the previous status will be reserved.
-  if (auto Res = LoaderEngine.parseModule(Path)) {
-    Mod = std::move(*Res);
+  if (auto Res = LoaderEngine.parseWasmUnit(Path)) {
+    if (std::holds_alternative<AST::Module>(*Res)) {
+      Mod = std::make_unique<AST::Module>(std::get<AST::Module>(*Res));
+    } else {
+      spdlog::error("component load is not done yet.");
+      return Unexpect(Res);
+    }
     Stage = VMStage::Loaded;
   } else {
     return Unexpect(Res);
@@ -317,8 +349,13 @@ Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
 
 Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
   // If not load successfully, the previous status will be reserved.
-  if (auto Res = LoaderEngine.parseModule(Code)) {
-    Mod = std::move(*Res);
+  if (auto Res = LoaderEngine.parseWasmUnit(Code)) {
+    if (std::holds_alternative<AST::Module>(*Res)) {
+      Mod = std::make_unique<AST::Module>(std::get<AST::Module>(*Res));
+    } else {
+      spdlog::error("component load is not done yet.");
+      return Unexpect(Res);
+    }
     Stage = VMStage::Loaded;
   } else {
     return Unexpect(Res);

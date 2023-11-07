@@ -29,6 +29,15 @@
 #if LLVM_VERSION_MAJOR >= 14
 #include <lld/Common/CommonLinkerContext.h>
 #endif
+#if LLVM_VERSION_MAJOR >= 17
+#if WASMEDGE_OS_MACOS
+LLD_HAS_DRIVER(macho)
+#elif WASMEDGE_OS_LINUX
+LLD_HAS_DRIVER(elf)
+#elif WASMEDGE_OS_WINDOWS
+LLD_HAS_DRIVER(coff)
+#endif
+#endif
 
 #if WASMEDGE_OS_MACOS
 #include <sys/utsname.h>
@@ -136,6 +145,28 @@ static inline constexpr const bool kForceDivCheck = true;
 static inline constexpr const uint32_t kValSize = sizeof(WasmEdge::ValVariant);
 
 // Translate Compiler::OptimizationLevel to llvm::PassBuilder version
+#if LLVM_VERSION_MAJOR >= 13
+static inline const char *
+toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
+  using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
+  switch (Level) {
+  case OL::O0:
+    return "default<O0>,function(tailcallelim)";
+  case OL::O1:
+    return "default<O1>";
+  case OL::O2:
+    return "default<O2>";
+  case OL::O3:
+    return "default<O3>";
+  case OL::Os:
+    return "default<Os>";
+  case OL::Oz:
+    return "default<Oz>";
+  default:
+    assumingUnreachable();
+  }
+}
+#else
 static inline std::pair<unsigned int, unsigned int>
 toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
   using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
@@ -156,6 +187,8 @@ toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
     assumingUnreachable();
   }
 }
+#endif
+
 static inline LLVMCodeGenOptLevel toLLVMCodeGenLevel(
     WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
   using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
@@ -453,6 +486,8 @@ struct WasmEdge::AOT::Compiler::CompileContext {
     auto VPtr = Builder.createLoad(
         Int8PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
                                               LLContext.getInt64(Index)));
+    VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
+                     LLVM::Metadata(LLContext, {}));
     return Builder.createBitCast(VPtr, Int8PtrTy);
   }
   std::pair<LLVM::Type, LLVM::Value> getGlobal(LLVM::Builder &Builder,
@@ -463,6 +498,8 @@ struct WasmEdge::AOT::Compiler::CompileContext {
     auto VPtr = Builder.createLoad(
         Int128PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
                                                 LLContext.getInt64(Index)));
+    VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
+                     LLVM::Metadata(LLContext, {}));
     auto Ptr = Builder.createBitCast(VPtr, Ty.getPointerTo());
     return {Ty, Ptr};
   }
@@ -492,7 +529,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
     auto PtrTy = Ty.getPointerTo();
     auto PtrPtrTy = PtrTy.getPointerTo();
     auto IT = Builder.createLoad(IntrinsicsTablePtrTy, IntrinsicsTable);
-    IT.setMetadata(LLContext, LLVM::Core::InvariantLoad,
+    IT.setMetadata(LLContext, LLVM::Core::InvariantGroup,
                    LLVM::Metadata(LLContext, {}));
     auto VPtr =
         Builder.createInBoundsGEP2(IntrinsicsTableTy, IT, LLContext.getInt64(0),
@@ -5303,17 +5340,24 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
           LLVMRelocPIC, LLVMCodeModelDefault);
     }
 
+#if LLVM_VERSION_MAJOR >= 13
+    {
+      auto PBO = LLVM::PassBuilderOptions::create();
+      LLVM::Error Error = PBO.runPasses(
+          LLModule,
+          toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel()), TM);
+      if (Error) {
+        spdlog::error("{}"sv, Error.message().string_view());
+      }
+    }
+#else
     {
       auto FP = LLVM::PassManager::createForModule(LLModule);
       auto MP = LLVM::PassManager::create();
 
       TM.addAnalysisPasses(MP);
       TM.addAnalysisPasses(FP);
-      if (Conf.getCompilerConfigure().getOptimizationLevel() ==
-          CompilerConfigure::OptimizationLevel::O0) {
-        FP.addTailCallEliminationPass();
-        MP.addAlwaysInlinerPass();
-      } else {
+      {
         auto PMB = LLVM::PassManagerBuilder::create();
         auto [OptLevel, SizeLevel] =
             toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel());
@@ -5321,6 +5365,10 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
         PMB.setSizeLevel(SizeLevel);
         PMB.populateFunctionPassManager(FP);
         PMB.populateModulePassManager(MP);
+      }
+      if (Conf.getCompilerConfigure().getOptimizationLevel() ==
+          CompilerConfigure::OptimizationLevel::O0) {
+        FP.addTailCallEliminationPass();
       }
 
       FP.initializeFunctionPassManager();
@@ -5331,6 +5379,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       FP.finalizeFunctionPassManager();
       MP.runPassManager(LLModule);
     }
+#endif
 
     // Set initializer for constant value
     if (auto IntrinsicsTable = LLModule.getNamedGlobal("intrinsics")) {

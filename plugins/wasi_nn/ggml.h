@@ -21,6 +21,8 @@ struct Graph {
   llama_model *LlamaModel = nullptr;
   llama_context *LlamaContext = nullptr;
   std::string ModelFilePath;
+  // Model parameters:
+  int64_t NGPULayers;
 };
 
 struct Context {
@@ -34,8 +36,6 @@ public:
   bool StreamStdout;
   uint64_t NPredict;
   std::string ReversePrompt;
-  // Model parameters:
-  uint64_t NGPULayers;
   // Context parameters:
   uint64_t CtxSize;
   uint64_t BatchSize;

@@ -15,8 +15,9 @@ namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 
 namespace details {
-Expect<ErrNo> getMetadata(Context &CxtRef, const TensorData &Tensor,
-                          bool &IsUpdated) noexcept {
+Expect<ErrNo> getMetadata(Context &CxtRef, Graph &GraphRef,
+                          const TensorData &Tensor, bool &IsCxtUpdated,
+                          bool &IsModelUpdated) noexcept {
   // Decode metadata.
   const std::string Metadata(reinterpret_cast<char *>(Tensor.Tensor.data()),
                              Tensor.Tensor.size());
@@ -34,7 +35,10 @@ Expect<ErrNo> getMetadata(Context &CxtRef, const TensorData &Tensor,
   // Need to update Context:
   // * ctx-size
   // * batch-size
-  // Initialize the llama context.
+
+  // Get the current llama parameters.
+  llama_model_params ModelParams = llama_model_default_params();
+  ModelParams.n_gpu_layers = GraphRef.NGPULayers;
   llama_context_params CxtParams = llama_context_default_params();
   CxtParams.n_ctx = CxtRef.CtxSize;
   CxtParams.n_batch = CxtRef.BatchSize;
@@ -73,18 +77,12 @@ Expect<ErrNo> getMetadata(Context &CxtRef, const TensorData &Tensor,
     }
   }
   if (Doc.at_key("n-gpu-layers").error() == simdjson::SUCCESS) {
-    // Metal framework has the different behavior of CUDA.
-    // Hence, we have to set the n_gpu_layers to 0 on the macOS platform.
-#ifndef __APPLE__
-    auto Err = Doc["n-gpu-layers"].get<uint64_t>().get(CxtRef.NGPULayers);
+    auto Err = Doc["n-gpu-layers"].get<int64_t>().get(GraphRef.NGPULayers);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the n-gpu-layers option."sv);
       return ErrNo::InvalidArgument;
     }
-#else
-    CxtRef.NGPULayers = 0;
-#endif
   }
   if (Doc.at_key("batch-size").error() == simdjson::SUCCESS) {
     auto Err = Doc["batch-size"].get<uint64_t>().get(CxtRef.BatchSize);
@@ -105,11 +103,17 @@ Expect<ErrNo> getMetadata(Context &CxtRef, const TensorData &Tensor,
     CxtRef.ReversePrompt = ReversePrompt;
   }
 
+  // Check if the model is updated.
+  if (ModelParams.n_gpu_layers != GraphRef.NGPULayers) {
+    IsModelUpdated = true;
+  }
+
   // Check if the context is updated.
   if (CxtParams.n_ctx != CxtRef.CtxSize ||
       CxtParams.n_batch != CxtRef.BatchSize) {
-    IsUpdated = true;
+    IsCxtUpdated = true;
   }
+
   return ErrNo::Success;
 }
 } // namespace details
@@ -124,11 +128,67 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     return ErrNo::InvalidArgument;
   }
 
+  // Add a new graph.
+  Env.NNGraph.emplace_back(Backend::GGML);
+  auto &GraphRef = Env.NNGraph.back().get<Graph>();
+
+  // Initialize the model parameters.
+  GraphRef.NGPULayers = 0;
+
+  // Handle the model path.
   auto Weight = Builders[0];
   std::string BinModel(reinterpret_cast<char *>(Weight.data()), Weight.size());
   std::string ModelFilePath;
   if (BinModel.substr(0, 8) == "preload:") {
-    ModelFilePath = BinModel.substr(8);
+    // If BinModel starts with 'preload:', it means that the model name passed
+    // in as the --nn-preload parameter may have a config separated by ',' at
+    // the end. For example, "preload:./model.bin,n_gpu_layers=99"
+    std::vector<std::string> Configs;
+    std::string Delimiter = ",";
+    std::string ModelFilePathWithConfig = BinModel.substr(8);
+    if (ModelFilePathWithConfig.find(Delimiter) == std::string::npos) {
+      ModelFilePath = ModelFilePathWithConfig;
+    } else {
+      // Handle model path with config.
+      size_t Pos = 0;
+      std::string Token;
+      Pos = ModelFilePathWithConfig.find(Delimiter);
+      ModelFilePath = ModelFilePathWithConfig.substr(0, Pos);
+      ModelFilePathWithConfig.erase(0, Pos + Delimiter.length());
+      while ((Pos = ModelFilePathWithConfig.find(Delimiter)) !=
+             std::string::npos) {
+        Token = ModelFilePathWithConfig.substr(0, Pos);
+        Configs.push_back(Token);
+        ModelFilePathWithConfig.erase(0, Pos + Delimiter.length());
+      }
+      Configs.push_back(ModelFilePathWithConfig);
+    }
+    // Parse the configs.
+    for (const auto &Config : Configs) {
+      std::string Delimiter = "=";
+      size_t Pos = 0;
+      std::string Token;
+      Pos = Config.find(Delimiter);
+      Token = Config.substr(0, Pos);
+      try {
+        if (Token == "n_gpu_layers" || Token == "ngl") {
+          GraphRef.NGPULayers =
+              std::stoi(Config.substr(Pos + Delimiter.length()));
+        }
+      } catch (const std::invalid_argument &e) {
+        spdlog::error(
+            "[WASI-NN] GGML backend: parse model parameter failed: invalid_argument {}"sv,
+            e.what());
+        Env.NNGraph.pop_back();
+        return ErrNo::InvalidArgument;
+      } catch (const std::out_of_range &e) {
+        spdlog::error(
+            "[WASI-NN] GGML backend: parse parameter failed: out_of_range {}"sv,
+            e.what());
+        Env.NNGraph.pop_back();
+        return ErrNo::InvalidArgument;
+      }
+    }
   } else {
     // TODO: pass the model directly to ggml
     // Write ggml model to file.
@@ -141,21 +201,19 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
           "Currently, our workaround involves creating a temporary model "
           "file named \"ggml-model.bin\" and passing this filename as a "
           "parameter to the ggml llama library."sv);
+      Env.NNGraph.pop_back();
       return ErrNo::InvalidArgument;
     }
     TempFile << BinModel;
     TempFile.close();
   }
 
-  // Add a new graph.
-  Env.NNGraph.emplace_back(Backend::GGML);
-  auto &GraphRef = Env.NNGraph.back().get<Graph>();
-
-  // Initialize ggml model.
+  // Initialize ggml model with model parameters.
   gpt_params Params;
   llama_backend_init(Params.numa);
-  llama_model_params ModelParams = llama_model_default_params();
   GraphRef.ModelFilePath = ModelFilePath;
+  llama_model_params ModelParams = llama_model_default_params();
+  ModelParams.n_gpu_layers = GraphRef.NGPULayers;
   GraphRef.LlamaModel =
       llama_load_model_from_file(GraphRef.ModelFilePath.c_str(), ModelParams);
   if (GraphRef.LlamaModel == nullptr) {
@@ -185,7 +243,6 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
   CxtRef.StreamStdout = false;
   CxtRef.CtxSize = ContextDefault.n_ctx;
   CxtRef.NPredict = ContextDefault.n_ctx;
-  CxtRef.NGPULayers = 0;
   CxtRef.BatchSize = ContextDefault.n_batch;
   CxtRef.ReversePrompt = ""sv;
 
@@ -198,9 +255,11 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
 
   bool IsCxtParamsUpdated = false;
+  bool IsModelParamsUpdated = false;
   // Use index 1 for metadata.
   if (Index == 1) {
-    return details::getMetadata(CxtRef, Tensor, IsCxtParamsUpdated);
+    return details::getMetadata(CxtRef, GraphRef, Tensor, IsCxtParamsUpdated,
+                                IsModelParamsUpdated);
   }
 
   // XXX: Due to the limitation of WASI-NN proposal,
@@ -209,12 +268,9 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   // That's why we have this hack.
 #ifndef __APPLE__
   {
-    llama_model_params ModelParams = llama_model_default_params();
-    // If the `n_gpu_layers` in `setInput` is different from the
-    // `n_gpu_layers` in `llama_model_params`, we will reload
-    // the model with the new configuration.
-    if (ModelParams.n_gpu_layers != static_cast<int32_t>(CxtRef.NGPULayers)) {
-      ModelParams.n_gpu_layers = CxtRef.NGPULayers;
+    if (IsModelParamsUpdated) {
+      llama_model_params ModelParams = llama_model_default_params();
+      ModelParams.n_gpu_layers = GraphRef.NGPULayers;
       llama_free_model(GraphRef.LlamaModel);
       GraphRef.LlamaModel = llama_load_model_from_file(
           GraphRef.ModelFilePath.c_str(), ModelParams);

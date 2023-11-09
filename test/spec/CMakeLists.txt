@@ -31,7 +31,7 @@ set(WASMEDGE_SPECTEST_FOLDERS
   "wasm-3.0-bulk-memory"
   "wasm-3.0-exceptions"
   "wasm-3.0-gc"
-  # "wasm-3.0-memory64"
+  "wasm-3.0-memory64"
   "wasm-3.0-multi-memory"
   "wasm-3.0-relaxed-simd"
   "wasm-3.0-simd"

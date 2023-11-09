@@ -144,8 +144,8 @@ fmt::formatter<WasmEdge::ErrInfo::InfoMismatch>::format(
   fmt::memory_buffer Buffer;
   auto Iter = fmt::format_to(std::back_inserter(Buffer),
                              "    Mismatched {}. "sv, Info.Category);
-  auto FormatLimit = [](auto Out, bool LimHasMax, uint32_t LimMin,
-                        uint32_t LimMax) {
+  auto FormatLimit = [](auto Out, bool LimHasMax, uint64_t LimMin,
+                        uint64_t LimMax) {
     Out = fmt::format_to(Out, "Limit{{{}"sv, LimMin);
     if (LimHasMax) {
       Out = fmt::format_to(Out, " , {}"sv, LimMax);

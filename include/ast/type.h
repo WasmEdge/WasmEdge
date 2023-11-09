@@ -32,15 +32,19 @@ public:
   enum class LimitType : uint8_t {
     HasMin = 0x00,
     HasMinMax = 0x01,
-    SharedNoMax = 0x02, // For threads proposal, invalid
-    Shared = 0x03       // For threads proposal
+    SharedNoMax = 0x02, // from threads proposal, invalid
+    Shared = 0x03,      // from threads proposal
+    I64HasMin = 0x04,
+    I64HasMinMax = 0x05,
+    I64SharedNoMax = 0x06, // from threads proposal, invalid
+    I64Shared = 0x07,      // from threads proposal
   };
 
   /// Constructors.
   Limit() noexcept : Type(LimitType::HasMin), Min(0U), Max(0U) {}
-  Limit(uint32_t MinVal) noexcept
+  Limit(uint64_t MinVal) noexcept
       : Type(LimitType::HasMin), Min(MinVal), Max(MinVal) {}
-  Limit(uint32_t MinVal, uint32_t MaxVal, bool Shared = false) noexcept
+  Limit(uint64_t MinVal, uint64_t MaxVal, bool Shared = false) noexcept
       : Min(MinVal), Max(MaxVal) {
     if (Shared) {
       Type = LimitType::Shared;
@@ -52,22 +56,40 @@ public:
   /// Getter and setter of limit mode.
   bool hasMax() const noexcept { return static_cast<uint8_t>(Type) & 0x01U; }
   bool isShared() const noexcept { return static_cast<uint8_t>(Type) & 0x02U; }
+  bool is64() const noexcept {
+    switch (Type) {
+    case LimitType::I64HasMin:
+    case LimitType::I64HasMinMax:
+    case LimitType::I64SharedNoMax:
+    case LimitType::I64Shared:
+      return true;
+    case LimitType::HasMin:
+    case LimitType::HasMinMax:
+    case LimitType::SharedNoMax:
+    case LimitType::Shared:
+    default:
+      return false;
+    }
+  }
   void setType(LimitType TargetType) noexcept { Type = TargetType; }
 
   /// Getter and setter of min value.
-  uint32_t getMin() const noexcept { return Min; }
-  void setMin(uint32_t Val) noexcept { Min = Val; }
+  uint64_t getMin() const noexcept {
+    // Hint: if one ensure it, is not 64-bit, do static_cast<uint32_t>(getMin())
+    return Min;
+  }
+  void setMin(uint64_t Val) noexcept { Min = Val; }
 
   /// Getter and setter of max value.
-  uint32_t getMax() const noexcept { return Max; }
-  void setMax(uint32_t Val) noexcept { Max = Val; }
+  uint64_t getMax() const noexcept { return Max; }
+  void setMax(uint64_t Val) noexcept { Max = Val; }
 
 private:
   /// \name Data of Limit.
   /// @{
   LimitType Type;
-  uint32_t Min;
-  uint32_t Max;
+  uint64_t Min;
+  uint64_t Max;
   /// @}
 };
 
@@ -656,20 +678,37 @@ private:
 /// AST MemoryType node.
 class MemoryType {
 public:
+  enum class IndexType { I32, I64 };
+
   /// Constructors.
   MemoryType() noexcept = default;
-  MemoryType(uint32_t MinVal) noexcept : Lim(MinVal) {}
-  MemoryType(uint32_t MinVal, uint32_t MaxVal, bool Shared = false) noexcept
+  MemoryType(uint64_t MinVal) noexcept : Lim(MinVal) {}
+  MemoryType(uint64_t MinVal, uint64_t MaxVal, bool Shared = false) noexcept
       : Lim(MinVal, MaxVal, Shared) {}
   MemoryType(const Limit &L) noexcept : Lim(L) {}
 
   /// Getter of limit.
   const Limit &getLimit() const noexcept { return Lim; }
   Limit &getLimit() noexcept { return Lim; }
+  IndexType getIdxType() const noexcept { return IdxType; }
+  IndexType &getIdxType() noexcept { return IdxType; }
+  uint64_t getPageLimit() const noexcept {
+    // Maximum pages count
+    switch (IdxType) {
+    // 64 mode: 2^48
+    case IndexType::I64:
+      return UINT64_C(281474976710656);
+    // 32 mode: 2^16
+    case IndexType::I32:
+    default:
+      return UINT32_C(65536);
+    }
+  }
 
 private:
   /// \name Data of MemoryType.
   /// @{
+  IndexType IdxType;
   Limit Lim;
   /// @}
 };

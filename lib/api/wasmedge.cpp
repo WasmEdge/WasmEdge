@@ -258,7 +258,7 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
 // Helper function for making a Span to a uint8_t array.
 template <typename T>
 inline constexpr Span<const T> genSpan(const T *Buf,
-                                       const uint32_t Len) noexcept {
+                                       const uint64_t Len) noexcept {
   if (Buf && Len > 0) {
     return Span<const T>(Buf, Len);
   }
@@ -919,13 +919,13 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureHasHostRegistration(
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
-                                   const uint32_t Page) {
+                                   const uint64_t Page) {
   if (Cxt) {
     Cxt->Conf.getRuntimeConfigure().setMaxMemoryPage(Page);
   }
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
+WASMEDGE_CAPI_EXPORT uint64_t
 WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt) {
   if (Cxt) {
     return Cxt->Conf.getRuntimeConfigure().getMaxMemoryPage();
@@ -1303,9 +1303,12 @@ WasmEdge_TableTypeCreate(const WasmEdge_ValType RefType,
     return nullptr;
   }
   if (Limit.HasMax) {
-    return toTabTypeCxt(new WasmEdge::AST::TableType(RT, Limit.Min, Limit.Max));
+    return toTabTypeCxt(
+        new WasmEdge::AST::TableType(RT, static_cast<uint32_t>(Limit.Min),
+                                     static_cast<uint32_t>(Limit.Max)));
   } else {
-    return toTabTypeCxt(new WasmEdge::AST::TableType(RT, Limit.Min));
+    return toTabTypeCxt(
+        new WasmEdge::AST::TableType(RT, static_cast<uint32_t>(Limit.Min)));
   }
 }
 
@@ -2593,7 +2596,7 @@ WasmEdge_MemoryInstanceGetMemoryType(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGetData(
     const WasmEdge_MemoryInstanceContext *Cxt, uint8_t *Data,
-    const uint32_t Offset, const uint32_t Length) {
+    const uint64_t Offset, const uint64_t Length) {
   return wrap([&]() { return fromMemCxt(Cxt)->getBytes(Offset, Length); },
               [&](auto &&Res) { std::copy_n((*Res).begin(), Length, Data); },
               Cxt, Data);
@@ -2601,7 +2604,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGetData(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceSetData(
     WasmEdge_MemoryInstanceContext *Cxt, const uint8_t *Data,
-    const uint32_t Offset, const uint32_t Length) {
+    const uint64_t Offset, const uint64_t Length) {
   return wrap(
       [&]() {
         return fromMemCxt(Cxt)->setBytes(genSpan(Data, Length), Offset, 0,
@@ -2612,8 +2615,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceSetData(
 
 WASMEDGE_CAPI_EXPORT uint8_t *
 WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
-                                  const uint32_t Offset,
-                                  const uint32_t Length) {
+                                  const uint64_t Offset,
+                                  const uint64_t Length) {
   if (Cxt) {
     const auto S = fromMemCxt(Cxt)->getSpan<uint8_t>(Offset, Length);
     if (S.size() == Length) {
@@ -2624,8 +2627,8 @@ WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT const uint8_t *WasmEdge_MemoryInstanceGetPointerConst(
-    const WasmEdge_MemoryInstanceContext *Cxt, const uint32_t Offset,
-    const uint32_t Length) {
+    const WasmEdge_MemoryInstanceContext *Cxt, const uint64_t Offset,
+    const uint64_t Length) {
   if (Cxt) {
     const auto S = fromMemCxt(Cxt)->getSpan<const uint8_t>(Offset, Length);
     if (S.size() == Length) {
@@ -2635,7 +2638,7 @@ WASMEDGE_CAPI_EXPORT const uint8_t *WasmEdge_MemoryInstanceGetPointerConst(
   return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
+WASMEDGE_CAPI_EXPORT uint64_t
 WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt) {
   if (Cxt) {
     return fromMemCxt(Cxt)->getPageSize();
@@ -2644,7 +2647,7 @@ WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGrowPage(
-    WasmEdge_MemoryInstanceContext *Cxt, const uint32_t Page) {
+    WasmEdge_MemoryInstanceContext *Cxt, const uint64_t Page) {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         if (fromMemCxt(Cxt)->growPage(Page)) {

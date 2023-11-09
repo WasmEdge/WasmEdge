@@ -92,9 +92,9 @@ typedef struct WasmEdge_Limit {
   /// Boolean to describe is shared memory or not.
   bool Shared;
   /// Minimum value.
-  uint32_t Min;
+  uint64_t Min;
   /// Maximum value. Will be ignored if the `HasMax` is false.
-  uint32_t Max;
+  uint64_t Max;
 } WasmEdge_Limit;
 
 /// Opaque struct of WasmEdge configure.
@@ -841,7 +841,7 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureHasHostRegistration(
 /// \param Page the maximum page count.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
-                                   const uint32_t Page);
+                                   const uint64_t Page);
 
 /// Get the setting of the page limit of memory instances.
 ///
@@ -851,7 +851,7 @@ WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
 /// setting.
 ///
 /// \returns the page count limitation value.
-WASMEDGE_CAPI_EXPORT extern uint32_t
+WASMEDGE_CAPI_EXPORT extern uint64_t
 WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt);
 
 /// Set the force interpreter mode execution option.
@@ -2860,8 +2860,8 @@ WasmEdge_MemoryInstanceGetMemoryType(const WasmEdge_MemoryInstanceContext *Cxt);
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_MemoryInstanceGetData(const WasmEdge_MemoryInstanceContext *Cxt,
-                               uint8_t *Data, const uint32_t Offset,
-                               const uint32_t Length);
+                               uint8_t *Data, const uint64_t Offset,
+                               const uint64_t Length);
 
 /// Copy the data into a memory instance from the input buffer.
 ///
@@ -2875,8 +2875,8 @@ WasmEdge_MemoryInstanceGetData(const WasmEdge_MemoryInstanceContext *Cxt,
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_MemoryInstanceSetData(WasmEdge_MemoryInstanceContext *Cxt,
-                               const uint8_t *Data, const uint32_t Offset,
-                               const uint32_t Length);
+                               const uint8_t *Data, const uint64_t Offset,
+                               const uint64_t Length);
 
 /// Get the data pointer in a memory instance.
 ///
@@ -2888,7 +2888,7 @@ WasmEdge_MemoryInstanceSetData(WasmEdge_MemoryInstanceContext *Cxt,
 /// \returns the pointer to data with the start offset. NULL if failed.
 WASMEDGE_CAPI_EXPORT extern uint8_t *
 WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
-                                  const uint32_t Offset, const uint32_t Length);
+                                  const uint64_t Offset, const uint64_t Length);
 
 /// Get the const data pointer in a const memory instance.
 ///
@@ -2900,15 +2900,15 @@ WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
 /// \returns the pointer to data with the start offset. NULL if failed.
 WASMEDGE_CAPI_EXPORT extern const uint8_t *
 WasmEdge_MemoryInstanceGetPointerConst(
-    const WasmEdge_MemoryInstanceContext *Cxt, const uint32_t Offset,
-    const uint32_t Length);
+    const WasmEdge_MemoryInstanceContext *Cxt, const uint64_t Offset,
+    const uint64_t Length);
 
 /// Get the current page size (64 KiB of each page) of a memory instance.
 ///
 /// \param Cxt the WasmEdge_MemoryInstanceContext.
 ///
 /// \returns the page size of the memory instance.
-WASMEDGE_CAPI_EXPORT extern uint32_t
+WASMEDGE_CAPI_EXPORT extern uint64_t
 WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt);
 
 /// Grow a memory instance with a page size.
@@ -2920,7 +2920,7 @@ WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt);
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_MemoryInstanceGrowPage(WasmEdge_MemoryInstanceContext *Cxt,
-                                const uint32_t Page);
+                                const uint64_t Page);
 
 /// Deletion of the WasmEdge_MemoryInstanceContext.
 ///

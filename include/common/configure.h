@@ -121,11 +121,11 @@ public:
         ForceInterpreter(RHS.ForceInterpreter.load(std::memory_order_relaxed)),
         AllowAFUNIX(RHS.AllowAFUNIX.load(std::memory_order_relaxed)) {}
 
-  void setMaxMemoryPage(const uint32_t Page) noexcept {
+  void setMaxMemoryPage(const uint64_t Page) noexcept {
     MaxMemPage.store(Page, std::memory_order_relaxed);
   }
 
-  uint32_t getMaxMemoryPage() const noexcept {
+  uint64_t getMaxMemoryPage() const noexcept {
     return MaxMemPage.load(std::memory_order_relaxed);
   }
 

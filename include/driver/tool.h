@@ -65,8 +65,7 @@ struct DriverToolOptions {
         PropRelaxedSIMD(PO::Description("Disable Relaxed SIMD proposal"sv)),
         PropExceptionHandling(
             PO::Description("Disable Exception handling proposal"sv)),
-        // TODO: MEMORY64 - enable the option.
-        // PropMemory64(PO::Description("Disable Memory64 proposal"sv)),
+        PropMemory64(PO::Description("Disable Memory64 proposal"sv)),
         PropThreads(PO::Description("Disable Threads proposal"sv)),
         PropComponent(PO::Description(
             "Enable Component Model proposal, this is experimental"sv)),
@@ -130,8 +129,7 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> PropMultiMem;
   PO::Option<PO::Toggle> PropRelaxedSIMD;
   PO::Option<PO::Toggle> PropExceptionHandling;
-  // TODO: MEMORY64 - enable the option.
-  // PO::Option<PO::Toggle> PropMemory64;
+  PO::Option<PO::Toggle> PropMemory64;
   PO::Option<PO::Toggle> PropThreads;
   PO::Option<PO::Toggle> PropComponent;
   PO::Option<PO::Toggle> PropAll;
@@ -150,7 +148,6 @@ struct DriverToolOptions {
   PO::List<std::string> ForbiddenPlugins;
 
   void add_option(PO::ArgumentParser &Parser) noexcept {
-
     Parser.add_option(SoName)
         .add_option(Args)
         .add_option("reactor"sv, Reactor)
@@ -182,8 +179,7 @@ struct DriverToolOptions {
         .add_option("disable-multi-memory"sv, PropMultiMem)
         .add_option("disable-relaxed-simd"sv, PropRelaxedSIMD)
         .add_option("disable-exception-handling"sv, PropExceptionHandling)
-        // TODO: MEMORY64 - enable the option.
-        // .add_option("disable-memory64"sv, PropMemory64)
+        .add_option("disable-memory64"sv, PropMemory64)
         .add_option("disable-threads"sv, PropThreads)
         .add_option("enable-component"sv, PropComponent)
         .add_option("enable-all"sv, PropAll)

@@ -288,10 +288,9 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   if (Opt.PropExceptionHandling.value()) {
     Conf.removeProposal(Proposal::ExceptionHandling);
   }
-  // TODO: MEMORY64 - enable the option.
-  // if (Opt.PropMemory64.value()) {
-  //   Conf.removeProposal(Proposal::Memory64);
-  // }
+  if (Opt.PropMemory64.value()) {
+    Conf.removeProposal(Proposal::Memory64);
+  }
 
   // Handle the proposal removal which has dependency.
   // The GC proposal depends on the func-ref proposal, and the func-ref proposal

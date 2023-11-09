@@ -27,9 +27,9 @@ typedef struct WasmEdge_Limit {
   /// Boolean to describe is shared memory or not.
   bool Shared;
   /// Minimum value.
-  uint32_t Min;
+  uint64_t Min;
   /// Maximum value. Will be ignored if the `HasMax` is false.
-  uint32_t Max;
+  uint64_t Max;
 } WasmEdge_Limit;
 
 #ifdef __cplusplus

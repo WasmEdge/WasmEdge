@@ -201,8 +201,8 @@ public:
   uint32_t &getMemoryAlign() noexcept { return Data.Memories.MemAlign; }
 
   /// Getter of memory offset.
-  uint32_t getMemoryOffset() const noexcept { return Data.Memories.MemOffset; }
-  uint32_t &getMemoryOffset() noexcept { return Data.Memories.MemOffset; }
+  uint64_t getMemoryOffset() const noexcept { return Data.Memories.MemOffset; }
+  uint64_t &getMemoryOffset() noexcept { return Data.Memories.MemOffset; }
 
   /// Getter of memory lane.
   uint8_t getMemoryLane() const noexcept { return Data.Memories.MemLane; }
@@ -309,7 +309,7 @@ private:
     struct {
       uint32_t TargetIdx;
       uint32_t MemAlign;
-      uint32_t MemOffset;
+      uint64_t MemOffset;
       uint8_t MemLane;
     } Memories;
     // Type 8: Num.

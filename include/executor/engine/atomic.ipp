@@ -19,17 +19,10 @@ TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
   ValVariant RawTimeout = StackMgr.pop();
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-
-  uint32_t Address = RawAddress.get<uint32_t>();
-  if (Address >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(T),
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  uint64_t Address = RawAddress.get<uint64_t>();
+  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
+      !Res) {
+    return Unexpect(Res);
   }
   Address += Instr.getMemoryOffset();
 
@@ -49,7 +42,7 @@ TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return E;
       })
-      .map([&](auto V) { RawAddress.emplace<uint32_t>(V); });
+      .map([&](auto V) { RawAddress.emplace<uint64_t>(V); });
 }
 
 template <typename T, typename I>
@@ -57,17 +50,10 @@ TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::MemoryInstance &MemInst,
                                    const AST::Instruction &Instr) {
   ValVariant &RawAddress = StackMgr.getTop();
-  uint32_t Address = RawAddress.get<uint32_t>();
-
-  if (Address >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  uint64_t Address = RawAddress.get<uint64_t>();
+  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
+      !Res) {
+    return Unexpect(Res);
   }
   Address += Instr.getMemoryOffset();
 
@@ -98,17 +84,10 @@ TypeT<T> Executor::runAtomicStoreOp(Runtime::StackManager &StackMgr,
                                     const AST::Instruction &Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant RawAddress = StackMgr.pop();
-  uint32_t Address = RawAddress.get<uint32_t>();
-
-  if (Address >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  uint64_t Address = RawAddress.get<uint64_t>();
+  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
+      !Res) {
+    return Unexpect(Res);
   }
   Address += Instr.getMemoryOffset();
 
@@ -155,17 +134,10 @@ TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint32_t Address = RawAddress.get<uint32_t>();
-
-  if (Address >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  uint64_t Address = RawAddress.get<uint64_t>();
+  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
+      !Res) {
+    return Unexpect(Res);
   }
   Address += Instr.getMemoryOffset();
 
@@ -200,17 +172,10 @@ TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint32_t Address = RawAddress.get<uint32_t>();
-
-  if (Address >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  uint64_t Address = RawAddress.get<uint64_t>();
+  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
+      !Res) {
+    return Unexpect(Res);
   }
   Address += Instr.getMemoryOffset();
 
@@ -245,17 +210,10 @@ TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
                                  const AST::Instruction &Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint32_t Address = RawAddress.get<uint32_t>();
-
-  if (Address >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  uint64_t Address = RawAddress.get<uint64_t>();
+  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
+      !Res) {
+    return Unexpect(Res);
   }
   Address += Instr.getMemoryOffset();
 
@@ -287,17 +245,10 @@ TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint32_t Address = RawAddress.get<uint32_t>();
-
-  if (Address >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  uint64_t Address = RawAddress.get<uint64_t>();
+  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
+      !Res) {
+    return Unexpect(Res);
   }
   Address += Instr.getMemoryOffset();
 
@@ -329,17 +280,10 @@ TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint32_t Address = RawAddress.get<uint32_t>();
-
-  if (Address >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  uint64_t Address = RawAddress.get<uint64_t>();
+  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
+      !Res) {
+    return Unexpect(Res);
   }
   Address += Instr.getMemoryOffset();
 
@@ -372,17 +316,10 @@ Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
                               const AST::Instruction &Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint32_t Address = RawAddress.get<uint32_t>();
-
-  if (Address >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  uint64_t Address = RawAddress.get<uint64_t>();
+  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
+      !Res) {
+    return Unexpect(Res);
   }
   Address += Instr.getMemoryOffset();
 
@@ -416,17 +353,10 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
   ValVariant RawReplacement = StackMgr.pop();
   ValVariant RawExpected = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint32_t Address = RawAddress.get<uint32_t>();
-
-  if (Address >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  uint64_t Address = RawAddress.get<uint64_t>();
+  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
+      !Res) {
+    return Unexpect(Res);
   }
   Address += Instr.getMemoryOffset();
 
@@ -454,9 +384,9 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
 }
 
 template <typename T>
-Expect<uint32_t>
+Expect<uint64_t>
 Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
-                     uint32_t Address, EndianValue<T> Expected,
+                     uint64_t Address, EndianValue<T> Expected,
                      int64_t Timeout) noexcept {
   // The error message should be handled by the caller, or the AOT mode will
   // produce the duplicated messages.
@@ -479,7 +409,7 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
   assuming(AtomicObj);
 
   if (AtomicObj->load() != Expected.le()) {
-    return UINT32_C(1); // NotEqual
+    return UINT64_C(1); // NotEqual
   }
 
   decltype(WaiterMap)::iterator WaiterIterator;
@@ -506,10 +436,10 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
       return Unexpect(ErrCode::Value::Interrupted);
     }
     if (likely(AtomicObj->load() != Expected.le())) {
-      return UINT32_C(0); // ok
+      return UINT64_C(0); // ok
     }
     if (WaitResult == std::cv_status::timeout) {
-      return UINT32_C(2); // Timed-out
+      return UINT64_C(2); // Timed-out
     }
   }
 }

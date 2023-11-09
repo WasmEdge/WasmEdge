@@ -373,7 +373,7 @@ protected:
     }
     return unsafeGetMemory(Idx);
   }
-  MemoryInstance *unsafeGetMemory(uint32_t Idx) const noexcept {
+  MemoryInstance *unsafeGetMemory(uint64_t Idx) const noexcept {
     return MemInsts[Idx];
   }
   TagInstance *unsafeGetTag(uint32_t Idx) const noexcept {
@@ -409,7 +409,7 @@ protected:
     }
     return unsafeGetData(Idx);
   }
-  DataInstance *unsafeGetData(uint32_t Idx) const noexcept {
+  DataInstance *unsafeGetData(uint64_t Idx) const noexcept {
     return DataInsts[Idx];
   }
 

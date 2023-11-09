@@ -66,6 +66,7 @@ struct DriverToolOptions {
         PropRelaxedSIMD(PO::Description("Enable Relaxed SIMD proposal"sv)),
         PropExceptionHandling(
             PO::Description("Enable Exception handling proposal"sv)),
+        PropMemory64(PO::Description("Enable Memory64 proposal"sv)),
         PropComponent(PO::Description(
             "Enable Component Model proposal, this is experimental"sv)),
         PropAll(PO::Description("Enable all features"sv)),
@@ -121,6 +122,7 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> PropThreads;
   PO::Option<PO::Toggle> PropRelaxedSIMD;
   PO::Option<PO::Toggle> PropExceptionHandling;
+  PO::Option<PO::Toggle> PropMemory64;
   PO::Option<PO::Toggle> PropComponent;
   PO::Option<PO::Toggle> PropAll;
   PO::Option<PO::Toggle> ConfEnableInstructionCounting;
@@ -137,7 +139,6 @@ struct DriverToolOptions {
   PO::List<std::string> ForbiddenPlugins;
 
   void add_option(PO::ArgumentParser &Parser) noexcept {
-
     Parser.add_option(SoName)
         .add_option(Args)
         .add_option("reactor"sv, Reactor)
@@ -167,6 +168,7 @@ struct DriverToolOptions {
         .add_option("enable-threads"sv, PropThreads)
         .add_option("enable-relaxed-simd"sv, PropRelaxedSIMD)
         .add_option("enable-exception-handling"sv, PropExceptionHandling)
+        .add_option("enable-memory64"sv, PropMemory64)
         .add_option("enable-component"sv, PropComponent)
         .add_option("enable-all"sv, PropAll)
         .add_option("time-limit"sv, TimeLim)

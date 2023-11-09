@@ -260,14 +260,28 @@ Expect<void> Loader::loadCompositeType(AST::CompositeType &CType) {
 
 // Load binary to construct Limit node. See "include/loader/loader.h".
 Expect<void> Loader::loadLimit(AST::Limit &Lim) {
+  Expect<uint64_t> Min, Max;
   // Read limit.
   if (auto Res = FMgr.readByte()) {
-    switch (static_cast<AST::Limit::LimitType>(*Res)) {
+    auto LimitType = static_cast<AST::Limit::LimitType>(*Res);
+    switch (LimitType) {
     case AST::Limit::LimitType::HasMin:
-      Lim.setType(AST::Limit::LimitType::HasMin);
-      break;
     case AST::Limit::LimitType::HasMinMax:
-      Lim.setType(AST::Limit::LimitType::HasMinMax);
+    case AST::Limit::LimitType::Shared:
+      Lim.setType(LimitType);
+      // Read min and max number.
+      Min = FMgr.readU32();
+      Max = Min;
+      if (!Min.has_value()) {
+        return logLoadError(Min.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::Type_Limit);
+      }
+      if (Lim.hasMax()) {
+        if (Max = FMgr.readU32(); !Max) {
+          return logLoadError(Max.error(), FMgr.getLastOffset(),
+                              ASTNodeAttr::Type_Limit);
+        }
+      }
       break;
     case AST::Limit::LimitType::SharedNoMax:
       if (Conf.hasProposal(Proposal::Threads)) {
@@ -277,8 +291,24 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
         return logLoadError(ErrCode::Value::IntegerTooLarge,
                             FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
       }
-    case AST::Limit::LimitType::Shared:
-      Lim.setType(AST::Limit::LimitType::Shared);
+    case AST::Limit::LimitType::I64HasMin:
+    case AST::Limit::LimitType::I64HasMinMax:
+    case AST::Limit::LimitType::I64SharedNoMax:
+    case AST::Limit::LimitType::I64Shared:
+      Lim.setType(LimitType);
+      // Read min and max number.
+      Min = FMgr.readU64();
+      Max = Min;
+      if (!Min.has_value()) {
+        return logLoadError(Min.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::Type_Limit);
+      }
+      if (Lim.hasMax()) {
+        if (Max = FMgr.readU64(); !Max) {
+          return logLoadError(Max.error(), FMgr.getLastOffset(),
+                              ASTNodeAttr::Type_Limit);
+        }
+      }
       break;
     default:
       if (*Res == 0x80 || *Res == 0x81) {
@@ -294,23 +324,8 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Limit);
   }
-
-  // Read min and max number.
-  if (auto Res = FMgr.readU32()) {
-    Lim.setMin(*Res);
-    Lim.setMax(*Res);
-  } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Type_Limit);
-  }
-  if (Lim.hasMax()) {
-    if (auto Res = FMgr.readU32()) {
-      Lim.setMax(*Res);
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Type_Limit);
-    }
-  }
+  Lim.setMin(*Min);
+  Lim.setMax(*Max);
   return {};
 }
 
@@ -370,10 +385,20 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
 // Load binary to construct MemoryType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::MemoryType &MemType) {
   // Read limit.
-  return loadLimit(MemType.getLimit()).map_error([](auto E) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Memory));
-    return E;
-  });
+  return loadLimit(MemType.getLimit())
+      .and_then([&]() -> Expect<void> {
+        auto &IdxType = MemType.getIdxType();
+        if (MemType.getLimit().is64()) {
+          IdxType = AST::MemoryType::IndexType::I64;
+        } else {
+          IdxType = AST::MemoryType::IndexType::I32;
+        }
+        return {};
+      })
+      .map_error([](auto E) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Memory));
+        return E;
+      });
 }
 
 // Load binary to construct TableType node. See "include/loader/loader.h".

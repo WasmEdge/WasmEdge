@@ -298,7 +298,17 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   };
 
-  auto readMemImmediate = [this, readU32, &Instr]() -> Expect<void> {
+  auto readU64 = [this](uint64_t &Dst) -> Expect<void> {
+    if (auto Res = FMgr.readU64()) {
+      Dst = *Res;
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    return {};
+  };
+
+  auto readMemImmediate = [this, readU32, readU64, &Instr]() -> Expect<void> {
     Instr.getTargetIndex() = 0;
     EXPECTED_TRY(readU32(Instr.getMemoryAlign()));
     if (Conf.hasProposal(Proposal::MultiMemories) &&
@@ -311,7 +321,14 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       return logLoadError(ErrCode::Value::MalformedMemoryOpFlags,
                           FMgr.getLastOffset(), ASTNodeAttr::Instruction);
     }
-    EXPECTED_TRY(readU32(Instr.getMemoryOffset()));
+    uint64_t &Offset = Instr.getMemoryOffset();
+    uint32_t &Off32 = (uint32_t &)Instr.getMemoryOffset();
+
+    if (Conf.hasProposal(Proposal::Memory64)) {
+      EXPECTED_TRY(readU64(Offset));
+    } else {
+      EXPECTED_TRY(readU32(Off32));
+    }
     return {};
   };
 

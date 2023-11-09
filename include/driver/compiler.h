@@ -56,6 +56,7 @@ struct DriverCompilerOptions {
         PropMultiMem(PO::Description("Enable Multiple memories proposal"sv)),
         PropThreads(PO::Description("Enable Threads proposal"sv)),
         PropRelaxedSIMD(PO::Description("Enable Relaxed SIMD proposal"sv)),
+        PropMemory64(PO::Description("Enable Memory64 proposal"sv)),
         PropAll(PO::Description("Enable all features"sv)),
         PropOptimizationLevel(
             PO::Description("Optimization level, one of 0, 1, 2, 3, s, z."sv),
@@ -83,6 +84,7 @@ struct DriverCompilerOptions {
   PO::Option<PO::Toggle> PropMultiMem;
   PO::Option<PO::Toggle> PropThreads;
   PO::Option<PO::Toggle> PropRelaxedSIMD;
+  PO::Option<PO::Toggle> PropMemory64;
   PO::Option<PO::Toggle> PropAll;
   PO::Option<std::string> PropOptimizationLevel;
 
@@ -109,6 +111,7 @@ struct DriverCompilerOptions {
         .add_option("enable-multi-memory"sv, PropMultiMem)
         .add_option("enable-threads"sv, PropThreads)
         .add_option("enable-relaxed-simd"sv, PropRelaxedSIMD)
+        .add_option("enable-memory64"sv, PropMemory64)
         .add_option("enable-all"sv, PropAll)
         .add_option("optimize"sv, PropOptimizationLevel);
   }

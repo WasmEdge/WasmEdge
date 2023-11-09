@@ -64,7 +64,7 @@ AVGetChannelLayoutNbChannels::body(const Runtime::CallingFrame &,
 Expect<uint64_t> AVGetDefaultChannelLayout::body(const Runtime::CallingFrame &,
                                                  int32_t Number) {
   uint64_t const ChannelLayout = av_get_default_channel_layout(Number);
-  return FFmpegUtils::ChannelLayout::intoAVChannelID(ChannelLayout);
+  return FFmpegUtils::ChannelLayout::intoChannelLayoutID(ChannelLayout);
 }
 
 } // namespace AVUtil

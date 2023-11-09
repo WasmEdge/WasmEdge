@@ -303,6 +303,14 @@ Expect<uint32_t> AVCodecVersion::body(const Runtime::CallingFrame &) {
   return avcodec_version();
 }
 
+Expect<int32_t> AVCodecFlushBuffers::body(const Runtime::CallingFrame &,
+                                          uint32_t AVCodecCtxId) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AVCodecCtxId, AVCodecContext);
+  avcodec_flush_buffers(AvCodecCtx);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

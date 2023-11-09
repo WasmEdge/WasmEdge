@@ -194,7 +194,7 @@ Expect<uint64_t> AVCodecChannelLayoutIter::body(const Runtime::CallingFrame &,
     Curr++;
   }
 
-  return FFmpegUtils::ChannelLayout::intoAVChannelID(*ChannelLayout);
+  return FFmpegUtils::ChannelLayout::intoChannelLayoutID(*ChannelLayout);
 }
 
 Expect<int32_t> AVCodecSampleFmtsIsNull::body(const Runtime::CallingFrame &,

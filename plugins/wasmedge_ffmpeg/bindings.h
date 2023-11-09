@@ -3590,7 +3590,7 @@ public:
   }
 
   // Perfect Logic :)
-  static uint64_t intoAVChannelID(uint64_t ChannelLayout) {
+  static uint64_t intoChannelLayoutID(uint64_t ChannelLayout) {
     uint64_t Channel = 0;
     if ((ChannelLayout & AV_CH_FRONT_LEFT) == AV_CH_FRONT_LEFT)
       Channel |= FRONT_LEFT;

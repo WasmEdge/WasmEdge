@@ -206,6 +206,14 @@ public:
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
 };
 
+class AVCodecFlushBuffers : public WasmEdgeFFmpegAVCodec<AVCodecFlushBuffers> {
+public:
+  AVCodecFlushBuffers(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AVCodecCtxId);
+};
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

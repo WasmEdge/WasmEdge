@@ -53,6 +53,7 @@ struct DriverCompilerOptions {
         PropTailCall(PO::Description("Enable Tail-call proposal"sv)),
         PropExtendConst(PO::Description("Enable Extended-const proposal"sv)),
         PropThreads(PO::Description("Enable Threads proposal"sv)),
+        PropMemory64(PO::Description("Enable Memory64 proposal"sv)),
         PropAll(PO::Description("Enable all features"sv)),
         PropOptimizationLevel(
             PO::Description("Optimization level, one of 0, 1, 2, 3, s, z."sv),
@@ -78,6 +79,7 @@ struct DriverCompilerOptions {
   PO::Option<PO::Toggle> PropTailCall;
   PO::Option<PO::Toggle> PropExtendConst;
   PO::Option<PO::Toggle> PropThreads;
+  PO::Option<PO::Toggle> PropMemory64;
   PO::Option<PO::Toggle> PropAll;
   PO::Option<std::string> PropOptimizationLevel;
 
@@ -102,6 +104,7 @@ struct DriverCompilerOptions {
         .add_option("enable-tail-call"sv, PropTailCall)
         .add_option("enable-extended-const"sv, PropExtendConst)
         .add_option("enable-threads"sv, PropThreads)
+        .add_option("enable-memory64"sv, PropMemory64)
         .add_option("enable-all"sv, PropAll)
         .add_option("optimize"sv, PropOptimizationLevel);
   }

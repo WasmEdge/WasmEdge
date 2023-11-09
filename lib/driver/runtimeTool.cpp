@@ -65,6 +65,9 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   if (Opt.PropThreads.value()) {
     Conf.addProposal(Proposal::Threads);
   }
+  if (Opt.PropMemory64.value()) {
+    Conf.addProposal(Proposal::Memory64);
+  }
   if (Opt.PropFunctionReference.value()) {
     Conf.addProposal(Proposal::FunctionReferences);
   }
@@ -77,6 +80,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     Conf.addProposal(Proposal::TailCall);
     Conf.addProposal(Proposal::ExtendedConst);
     Conf.addProposal(Proposal::Threads);
+    Conf.addProposal(Proposal::Memory64);
   }
 
   std::optional<std::chrono::system_clock::time_point> Timeout;

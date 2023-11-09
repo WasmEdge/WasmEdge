@@ -215,10 +215,12 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
           !matchType(*TargetModInst, TargetType.getRefType(), ModInst,
                      TabType.getRefType()) ||
           !matchLimit(TabLim, TargetLim)) {
-        return logMatchError(ModName, ExtName, ExtType, TabType.getRefType(),
-                             TabLim.hasMax(), TabLim.getMin(), TabLim.getMax(),
-                             TargetType.getRefType(), TargetLim.hasMax(),
-                             TargetLim.getMin(), TargetLim.getMax());
+        return logMatchError(
+            ModName, ExtName, ExtType, TabType.getRefType(), TabLim.hasMax(),
+            static_cast<uint32_t>(TabLim.getMin()),
+            static_cast<uint32_t>(TabLim.getMax()), TargetType.getRefType(),
+            TargetLim.hasMax(), static_cast<uint32_t>(TargetLim.getMin()),
+            static_cast<uint32_t>(TargetLim.getMax()));
       }
       // Set the matched table address to module instance.
       ModInst.importTable(TargetInst);

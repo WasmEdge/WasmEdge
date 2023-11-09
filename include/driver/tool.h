@@ -60,6 +60,7 @@ struct DriverToolOptions {
         PropTailCall(PO::Description("Enable Tail-call proposal"sv)),
         PropExtendConst(PO::Description("Enable Extended-const proposal"sv)),
         PropThreads(PO::Description("Enable Threads proposal"sv)),
+        PropMemory64(PO::Description("Enable Memory64 proposal"sv)),
         PropFunctionReference(
             PO::Description("Enable Function Reference proposal"sv)),
         PropComponent(PO::Description(
@@ -107,6 +108,7 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> PropTailCall;
   PO::Option<PO::Toggle> PropExtendConst;
   PO::Option<PO::Toggle> PropThreads;
+  PO::Option<PO::Toggle> PropMemory64;
   PO::Option<PO::Toggle> PropFunctionReference;
   PO::Option<PO::Toggle> PropComponent;
   PO::Option<PO::Toggle> PropAll;
@@ -121,7 +123,6 @@ struct DriverToolOptions {
   PO::List<std::string> ForbiddenPlugins;
 
   void add_option(PO::ArgumentParser &Parser) noexcept {
-
     Parser.add_option(SoName)
         .add_option(Args)
         .add_option("reactor"sv, Reactor)
@@ -144,6 +145,7 @@ struct DriverToolOptions {
         .add_option("enable-tail-call"sv, PropTailCall)
         .add_option("enable-extended-const"sv, PropExtendConst)
         .add_option("enable-threads"sv, PropThreads)
+        .add_option("enable-memory64"sv, PropMemory64)
         .add_option("enable-function-reference"sv, PropFunctionReference)
         .add_option("enable-component"sv, PropComponent)
         .add_option("enable-all"sv, PropAll)

@@ -15,6 +15,7 @@
 #pragma once
 
 #include "ast/module.h"
+#include "ast/type.h"
 #include "common/configure.h"
 #include "common/errinfo.h"
 #include "common/log.h"

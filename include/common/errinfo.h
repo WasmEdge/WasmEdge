@@ -66,12 +66,13 @@ struct InfoInstanceBound {
 
 struct InfoForbidIndex {
   InfoForbidIndex() = delete;
-  InfoForbidIndex(const IndexCategory Cate, const uint32_t Idx,
-                  const uint32_t Bound) noexcept
+  InfoForbidIndex(const IndexCategory Cate, const uint64_t Idx,
+                  const uint64_t Bound) noexcept
       : Category(Cate), Index(Idx), Boundary(Bound) {}
 
   IndexCategory Category;
-  uint32_t Index, Boundary;
+  uint64_t Index;
+  uint64_t Boundary;
 };
 
 struct InfoExporting {
@@ -83,12 +84,12 @@ struct InfoExporting {
 
 struct InfoLimit {
   InfoLimit() = delete;
-  InfoLimit(const bool HasMax, const uint32_t Min,
-            const uint32_t Max = 0) noexcept
+  InfoLimit(const bool HasMax, const uint64_t Min,
+            const uint64_t Max = 0) noexcept
       : LimHasMax(HasMax), LimMin(Min), LimMax(Max) {}
 
   bool LimHasMax;
-  uint32_t LimMin, LimMax;
+  uint64_t LimMin, LimMax;
 };
 
 struct InfoRegistering {
@@ -155,7 +156,6 @@ struct InfoMismatch {
                const std::vector<ValType> &GotR) noexcept
       : Category(MismatchCategory::FunctionType), ExpParams(ExpP),
         GotParams(GotP), ExpReturns(ExpR), GotReturns(GotR) {}
-
   /// Case 7: unexpected table types
   InfoMismatch(const ValType &ExpRType,
                // Expected reference type
@@ -174,11 +174,11 @@ struct InfoMismatch {
         GotLimMax(GotMax) {}
 
   /// Case 8: unexpected memory limits
-  InfoMismatch(const bool ExpHasMax, const uint32_t ExpMin,
-               const uint32_t ExpMax,
+  InfoMismatch(const bool ExpHasMax, const uint64_t ExpMin,
+               const uint64_t ExpMax,
                // Expect Limit
-               const bool GotHasMax, const uint32_t GotMin,
-               const uint32_t GotMax
+               const bool GotHasMax, const uint64_t GotMin,
+               const uint64_t GotMax
                // Got limit
                ) noexcept
       : Category(MismatchCategory::Memory), ExpLimHasMax(ExpHasMax),
@@ -220,8 +220,8 @@ struct InfoMismatch {
   ValMut ExpValMut, GotValMut;
   /// Case 7 & 8: unexpected table or memory type: limit
   bool ExpLimHasMax, GotLimHasMax;
-  uint32_t ExpLimMin, GotLimMin;
-  uint32_t ExpLimMax, GotLimMax;
+  uint64_t ExpLimMin, GotLimMin;
+  uint64_t ExpLimMax, GotLimMax;
 
   /// Case 10: unexpected version
   uint32_t ExpVersion, GotVersion;
@@ -246,13 +246,13 @@ struct InfoInstruction {
 struct InfoBoundary {
   InfoBoundary() = delete;
   InfoBoundary(
-      const uint64_t Off, const uint32_t Len = 0,
-      const uint32_t Lim = std::numeric_limits<uint32_t>::max()) noexcept
+      const uint64_t Off, const uint64_t Len = 0,
+      const uint64_t Lim = std::numeric_limits<uint64_t>::max()) noexcept
       : Offset(Off), Size(Len), Limit(Lim) {}
 
   uint64_t Offset;
-  uint32_t Size;
-  uint32_t Limit;
+  uint64_t Size;
+  uint64_t Limit;
 };
 
 struct InfoProposal {

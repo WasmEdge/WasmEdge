@@ -252,6 +252,7 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"threads"sv, {Proposal::Threads}},
     {"function-references"sv,
      {Proposal::FunctionReferences, Proposal::TailCall}},
+    {"memory64"sv, {Proposal::Memory64}},
 };
 
 } // namespace
@@ -404,7 +405,8 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
           }
         } else {
           const uint32_t V1 = VI[I];
-          const uint32_t V2 = std::stoul(std::string(Parts[I]));
+          const uint32_t V2 =
+              static_cast<uint32_t>(std::stoul(std::string(Parts[I])));
           if (V1 != V2) {
             return false;
           }
@@ -479,7 +481,8 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
 #endif
       for (size_t I = 0; I < 4; ++I) {
         const uint32_t V1 = V[I];
-        const uint32_t V2 = std::stoul(std::string(Parts[I]));
+        const uint32_t V2 =
+            static_cast<uint32_t>(std::stoul(std::string(Parts[I])));
         if (V1 != V2) {
           return false;
         }
@@ -606,7 +609,11 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     } else {
       // Check value.
       EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
+          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]))
+          << "spec " << ModName << "/" << std::string(Field) << " should work"
+          << "\n\terror should be: \"" << Text << "\""
+          << "\n\tbut got: \"" << WasmEdge::ErrCodeStr[Res.error().getEnum()]
+          << "\"";
     }
   };
   auto TrapValidate = [&](const std::string &Filename,

@@ -135,5 +135,15 @@ Executor::asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
+uint64_t valToIndex(ValVariant &Val, AST::MemoryType::IndexType IdxType) {
+  switch (IdxType) {
+  case AST::MemoryType::IndexType::I64:
+    return Val.get<uint64_t>();
+  case AST::MemoryType::IndexType::I32:
+  default:
+    return Val.get<uint32_t>();
+  }
+}
+
 } // namespace Executor
 } // namespace WasmEdge

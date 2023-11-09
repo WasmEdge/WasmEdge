@@ -3939,7 +3939,7 @@ public:
     Builder.createFence(LLVMAtomicOrderingSequentiallyConsistent);
   }
   void compileAtomicNotify(unsigned MemoryIndex,
-                           unsigned MemoryOffset) noexcept {
+                           uint64_t MemoryOffset) noexcept {
     auto Count = stackPop();
     auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
     if (MemoryOffset != 0) {
@@ -3956,7 +3956,7 @@ public:
                 {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
         {LLContext.getInt32(MemoryIndex), Offset, Count}));
   }
-  void compileAtomicWait(unsigned MemoryIndex, unsigned MemoryOffset,
+  void compileAtomicWait(unsigned MemoryIndex, uint64_t MemoryOffset,
                          LLVM::Type TargetType, uint32_t BitWidth) noexcept {
     auto Timeout = stackPop();
     auto ExpectedValue = Builder.createZExtOrTrunc(stackPop(), Context.Int64Ty);
@@ -3978,7 +3978,7 @@ public:
         {LLContext.getInt32(MemoryIndex), Offset, ExpectedValue, Timeout,
          LLContext.getInt32(BitWidth)}));
   }
-  void compileAtomicLoad(unsigned MemoryIndex, unsigned MemoryOffset,
+  void compileAtomicLoad(unsigned MemoryIndex, uint64_t MemoryOffset,
                          unsigned Alignment, LLVM::Type IntType,
                          LLVM::Type TargetType, bool Signed = false) noexcept {
 
@@ -4002,7 +4002,7 @@ public:
       Stack.back() = Builder.createZExt(Load, IntType);
     }
   }
-  void compileAtomicStore(unsigned MemoryIndex, unsigned MemoryOffset,
+  void compileAtomicStore(unsigned MemoryIndex, uint64_t MemoryOffset,
                           unsigned Alignment, LLVM::Type, LLVM::Type TargetType,
                           bool Signed = false) noexcept {
     auto V = stackPop();
@@ -4027,7 +4027,7 @@ public:
     Store.setOrdering(LLVMAtomicOrderingSequentiallyConsistent);
   }
 
-  void compileAtomicRMWOp(unsigned MemoryIndex, unsigned MemoryOffset,
+  void compileAtomicRMWOp(unsigned MemoryIndex, uint64_t MemoryOffset,
                           [[maybe_unused]] unsigned Alignment,
                           LLVMAtomicRMWBinOp BinOp, LLVM::Type IntType,
                           LLVM::Type TargetType, bool Signed = false) noexcept {
@@ -4091,7 +4091,7 @@ public:
       Stack.back() = Builder.createZExt(Ret, IntType);
     }
   }
-  void compileAtomicCompareExchange(unsigned MemoryIndex, unsigned MemoryOffset,
+  void compileAtomicCompareExchange(unsigned MemoryIndex, uint64_t MemoryOffset,
                                     [[maybe_unused]] unsigned Alignment,
                                     LLVM::Type IntType, LLVM::Type TargetType,
                                     bool Signed = false) noexcept {
@@ -4605,7 +4605,7 @@ private:
     }
   }
 
-  void compileLoadOp(unsigned MemoryIndex, unsigned Offset, unsigned Alignment,
+  void compileLoadOp(unsigned MemoryIndex, uint64_t Offset, unsigned Alignment,
                      LLVM::Type LoadTy) noexcept {
     if constexpr (kForceUnalignment) {
       Alignment = 0;
@@ -4622,7 +4622,7 @@ private:
     LoadInst.setAlignment(1 << Alignment);
     stackPush(switchEndian(LoadInst));
   }
-  void compileLoadOp(unsigned MemoryIndex, unsigned Offset, unsigned Alignment,
+  void compileLoadOp(unsigned MemoryIndex, uint64_t Offset, unsigned Alignment,
                      LLVM::Type LoadTy, LLVM::Type ExtendTy,
                      bool Signed) noexcept {
     compileLoadOp(MemoryIndex, Offset, Alignment, LoadTy);
@@ -4632,24 +4632,24 @@ private:
       Stack.back() = Builder.createZExt(Stack.back(), ExtendTy);
     }
   }
-  void compileVectorLoadOp(unsigned MemoryIndex, unsigned Offset,
+  void compileVectorLoadOp(unsigned MemoryIndex, uint64_t Offset,
                            unsigned Alignment, LLVM::Type LoadTy) noexcept {
     compileLoadOp(MemoryIndex, Offset, Alignment, LoadTy);
     Stack.back() = Builder.createBitCast(Stack.back(), Context.Int64x2Ty);
   }
-  void compileVectorLoadOp(unsigned MemoryIndex, unsigned Offset,
+  void compileVectorLoadOp(unsigned MemoryIndex, uint64_t Offset,
                            unsigned Alignment, LLVM::Type LoadTy,
                            LLVM::Type ExtendTy, bool Signed) noexcept {
     compileLoadOp(MemoryIndex, Offset, Alignment, LoadTy, ExtendTy, Signed);
     Stack.back() = Builder.createBitCast(Stack.back(), Context.Int64x2Ty);
   }
-  void compileSplatLoadOp(unsigned MemoryIndex, unsigned Offset,
+  void compileSplatLoadOp(unsigned MemoryIndex, uint64_t Offset,
                           unsigned Alignment, LLVM::Type LoadTy,
                           LLVM::Type VectorTy) noexcept {
     compileLoadOp(MemoryIndex, Offset, Alignment, LoadTy);
     compileSplatOp(VectorTy);
   }
-  void compileLoadLaneOp(unsigned MemoryIndex, unsigned Offset,
+  void compileLoadLaneOp(unsigned MemoryIndex, uint64_t Offset,
                          unsigned Alignment, unsigned Index, LLVM::Type LoadTy,
                          LLVM::Type VectorTy) noexcept {
     auto Vector = stackPop();
@@ -4663,7 +4663,7 @@ private:
                                     Value, LLContext.getInt64(Index)),
         Context.Int64x2Ty);
   }
-  void compileStoreOp(unsigned MemoryIndex, unsigned Offset, unsigned Alignment,
+  void compileStoreOp(unsigned MemoryIndex, uint64_t Offset, unsigned Alignment,
                       LLVM::Type LoadTy, bool Trunc = false,
                       bool BitCast = false) noexcept {
     if constexpr (kForceUnalignment) {

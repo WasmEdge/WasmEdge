@@ -343,7 +343,7 @@ Executor::getTabInstByIdx(Runtime::StackManager &StackMgr,
 
 Runtime::Instance::MemoryInstance *
 Executor::getMemInstByIdx(Runtime::StackManager &StackMgr,
-                          const uint32_t Idx) const {
+                          const uint64_t Idx) const {
   const auto *ModInst = StackMgr.getModule();
   // When top frame is dummy frame, cannot find instance.
   if (unlikely(ModInst == nullptr)) {
@@ -387,7 +387,7 @@ Executor::getElemInstByIdx(Runtime::StackManager &StackMgr,
 
 Runtime::Instance::DataInstance *
 Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
-                           const uint32_t Idx) const {
+                           const uint64_t Idx) const {
   const auto *ModInst = StackMgr.getModule();
   // When top frame is dummy frame, cannot find instance.
   if (unlikely(ModInst == nullptr)) {
@@ -530,5 +530,16 @@ ValVariant Executor::unpackVal(const ValType &Type, const ValVariant &Val,
   }
   return Val;
 }
+
+uint64_t valToIndex(ValVariant &Val, AST::MemoryType::IndexType IdxType) {
+  switch (IdxType) {
+  case AST::MemoryType::IndexType::I64:
+    return Val.get<uint64_t>();
+  case AST::MemoryType::IndexType::I32:
+  default:
+    return Val.get<uint32_t>();
+  }
+}
+
 } // namespace Executor
 } // namespace WasmEdge

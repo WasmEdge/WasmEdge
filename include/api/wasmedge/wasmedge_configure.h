@@ -144,7 +144,7 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureHasHostRegistration(
 /// \param Page the maximum page count.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
-                                   const uint32_t Page);
+                                   const uint64_t Page);
 
 /// Get the setting of the page limit of memory instances.
 ///
@@ -154,7 +154,7 @@ WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
 /// setting.
 ///
 /// \returns the page count limitation value.
-WASMEDGE_CAPI_EXPORT extern uint32_t
+WASMEDGE_CAPI_EXPORT extern uint64_t
 WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt);
 
 /// Set the force interpreter mode execution option.

@@ -47,7 +47,7 @@ public:
   /// Get size of table.refs
   uint32_t getSize() const noexcept {
     // The table size is binded with the limit in table type.
-    return TabType.getLimit().getMin();
+    return static_cast<uint32_t>(TabType.getLimit().getMin());
   }
 
   /// Getter of table type.
@@ -69,8 +69,8 @@ public:
   /// Grow table with initialization value.
   bool growTable(uint32_t Count, const RefVariant &Val) noexcept {
     uint32_t MaxSizeCaped = std::numeric_limits<uint32_t>::max();
-    uint32_t Min = TabType.getLimit().getMin();
-    uint32_t Max = TabType.getLimit().getMax();
+    uint32_t Min = static_cast<uint32_t>(TabType.getLimit().getMin());
+    uint32_t Max = static_cast<uint32_t>(TabType.getLimit().getMax());
     if (TabType.getLimit().hasMax()) {
       MaxSizeCaped = std::min(Max, MaxSizeCaped);
     }

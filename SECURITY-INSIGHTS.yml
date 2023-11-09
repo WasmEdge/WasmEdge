@@ -32,6 +32,10 @@ security-artifacts:
     threat-model-created: true
     evidence-url:
     - https://github.com/WasmEdge/WasmEdge/blob/master/SECURITY.md
+  self-assessment:
+    self-assessment-created: true
+    evidence-url:
+    - https://github.com/WasmEdge/WasmEdge/blob/master/docs/self-assessment.md
 security-testing:
 - tool-type: sca
   tool-name: Dependabot

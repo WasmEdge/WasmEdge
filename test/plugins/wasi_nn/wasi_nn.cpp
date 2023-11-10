@@ -1322,7 +1322,7 @@ TEST(WasiNNTest, GGMLBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: load -- wrong builders' length.
+  // Test: load -- wrong metadata encoding when builders length > 1.
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, WeightRead.size(), BuilderPtr);
   writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr);
@@ -1335,7 +1335,7 @@ TEST(WasiNNTest, GGMLBackend) {
                                      UINT32_C(0), BuilderPtr},
                                  Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
-              static_cast<uint32_t>(ErrNo::InvalidArgument));
+              static_cast<uint32_t>(ErrNo::InvalidEncoding));
   }
 
   // Test: load -- load successfully.

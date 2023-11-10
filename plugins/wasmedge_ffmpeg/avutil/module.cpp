@@ -140,6 +140,12 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
   addHostFunc(
       "wasmedge_ffmpeg_avutil_av_frame_sample_aspect_ratio", // need to test.
       std::make_unique<AVFrameSampleAspectRatio>(Env));
+  addHostFunc(
+      "wasmedge_ffmpeg_avutil_av_frame_set_color_primaries", // need to test.
+      std::make_unique<AVFrameSetColorPrimaries>(Env));
+  addHostFunc(
+      "wasmedge_ffmpeg_avutil_av_frame_color_primaries", // need to test.
+      std::make_unique<AVFrameColorPrimaries>(Env));
 
   // pixfmt.h (Even AvPixFmtDesc is in this file)
   addHostFunc("wasmedge_ffmpeg_avutil_avpixfmtdescriptor_nb_components",

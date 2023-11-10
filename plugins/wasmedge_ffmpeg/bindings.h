@@ -4303,6 +4303,85 @@ public:
   }
 };
 
+class ColorPrimaries {
+
+public:
+  static AVColorPrimaries intoAVColorPrimaries(int32_t ColorPrimariesId) {
+    switch (ColorPrimariesId) {
+    case 0:
+      return AVCOL_PRI_RESERVED0;
+    case 1:
+      return AVCOL_PRI_BT709;
+    case 2:
+      return AVCOL_PRI_UNSPECIFIED;
+    case 3:
+      return AVCOL_PRI_RESERVED;
+    case 4:
+      return AVCOL_PRI_BT470M;
+    case 5:
+      return AVCOL_PRI_BT470BG;
+    case 6:
+      return AVCOL_PRI_SMPTE170M;
+    case 7:
+      return AVCOL_PRI_SMPTE240M;
+    case 8:
+      return AVCOL_PRI_FILM;
+    case 9:
+      return AVCOL_PRI_BT2020;
+    case 10:
+      return AVCOL_PRI_SMPTE428;
+    case 11:
+      return AVCOL_PRI_SMPTE431;
+    case 12:
+      return AVCOL_PRI_SMPTE432;
+    case 13:
+      return AVCOL_PRI_JEDEC_P22;
+    case 14:
+      return AVCOL_PRI_EBU3213;
+    default:
+      return AVCOL_PRI_RESERVED0;
+    }
+  };
+
+  static int32_t fromAVColorPrimaries(AVColorPrimaries ColorPrimaries) {
+    switch (ColorPrimaries) {
+    case AVCOL_PRI_RESERVED0:
+      return 0;
+    case AVCOL_PRI_BT709:
+      return 1;
+    case AVCOL_PRI_UNSPECIFIED:
+      return 2;
+    case AVCOL_PRI_RESERVED:
+      return 3;
+    case AVCOL_PRI_BT470M:
+      return 4;
+    case AVCOL_PRI_BT470BG:
+      return 5;
+    case AVCOL_PRI_SMPTE170M:
+      return 6;
+    case AVCOL_PRI_SMPTE240M:
+      return 7;
+    case AVCOL_PRI_FILM:
+      return 8;
+    case AVCOL_PRI_BT2020:
+      return 9;
+    case AVCOL_PRI_SMPTE428:
+      return 10;
+    case AVCOL_PRI_SMPTE431:
+      return 11;
+    case AVCOL_PRI_SMPTE432:
+      return 12;
+      // #[cfg(not(feature = "ffmpeg_4_3"))]
+      //     case AVCOL_PRI_JEDEC_P22:
+      //       return 13;
+    case AVCOL_PRI_EBU3213:
+      return 14;
+    default:
+      return 0;
+    }
+  };
+};
+
 } // namespace FFmpegUtils
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

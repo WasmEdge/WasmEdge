@@ -157,8 +157,21 @@ Expect<int32_t> AVPacketIsDataNull::body(const Runtime::CallingFrame &,
 
   FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
   if (AvPacket->data == NULL)
-    return 1;
-  return 0;
+    return 0;
+  return 1;
+}
+
+Expect<int32_t> AVPacketData::body(const Runtime::CallingFrame &Frame,
+                                   uint32_t AvPacketId, uint32_t DataPtr,
+                                   uint32_t DataLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0)
+  MEM_SPAN_CHECK(Buffer, MemInst, uint8_t, DataPtr, DataLen, "");
+
+  FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  uint8_t *Data = AvPacket->data;
+  memmove(Buffer.data(), Data, DataLen);
+  return static_cast<int32_t>(ErrNo::Success);
 }
 
 } // namespace AVcodec

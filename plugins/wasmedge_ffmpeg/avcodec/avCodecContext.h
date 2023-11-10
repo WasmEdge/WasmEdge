@@ -802,6 +802,15 @@ public:
                        uint32_t AvCodecCtxId, int32_t ThreadCount);
 };
 
+class AVCodecCtxColorPrimaries
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxColorPrimaries> {
+public:
+  AVCodecCtxColorPrimaries(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId);
+};
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

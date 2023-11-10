@@ -151,6 +151,14 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t AvPacketId);
 };
 
+class AVPacketData : public WasmEdgeFFmpegAVCodec<AVPacketData> {
+public:
+  AVPacketData(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t AvPacketId,
+                       uint32_t DataPtr, uint32_t DataLen);
+};
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

@@ -382,6 +382,23 @@ public:
                        uint32_t NumPtr, uint32_t DenPtr);
 };
 
+class AVFrameColorPrimaries
+    : public WasmEdgeFFmpegAVUtil<AVFrameColorPrimaries> {
+public:
+  AVFrameColorPrimaries(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId);
+};
+
+class AVFrameSetColorPrimaries
+    : public WasmEdgeFFmpegAVUtil<AVFrameSetColorPrimaries> {
+public:
+  AVFrameSetColorPrimaries(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId,
+                       int32_t ColorPrimariesId);
+};
+
 } // namespace AVUtil
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

@@ -845,6 +845,14 @@ Expect<int32_t> AVCodecCtxSetThreadCount::body(const Runtime::CallingFrame &,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<int32_t> AVCodecCtxColorPrimaries::body(const Runtime::CallingFrame &,
+                                               uint32_t AvCodecCtxId) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  AVColorPrimaries const ColorPrimaries = AvCodecCtx->color_primaries;
+  return FFmpegUtils::ColorPrimaries::fromAVColorPrimaries(ColorPrimaries);
+}
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

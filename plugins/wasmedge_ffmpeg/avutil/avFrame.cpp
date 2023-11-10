@@ -439,6 +439,25 @@ AVFrameSampleAspectRatio::body(const Runtime::CallingFrame &Frame,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<int32_t> AVFrameColorPrimaries::body(const Runtime::CallingFrame &,
+                                            uint32_t FrameId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  AVColorPrimaries const ColorPrimaries = AvFrame->color_primaries;
+  return FFmpegUtils::ColorPrimaries::fromAVColorPrimaries(ColorPrimaries);
+}
+
+Expect<int32_t> AVFrameSetColorPrimaries::body(const Runtime::CallingFrame &,
+                                               uint32_t FrameId,
+                                               int32_t ColorPrimariesId) {
+
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  AVColorPrimaries const ColorPrimaries =
+      FFmpegUtils::ColorPrimaries::intoAVColorPrimaries(ColorPrimariesId);
+  AvFrame->color_primaries = ColorPrimaries;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 } // namespace AVUtil
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

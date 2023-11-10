@@ -128,7 +128,7 @@ Expect<int32_t> AVColorPrimariesNameLength::body(const Runtime::CallingFrame &,
                                                  int32_t ColorPrimariesId) {
 
   AVColorPrimaries const ColorPrimaries =
-      static_cast<AVColorPrimaries>(ColorPrimariesId);
+      FFmpegUtils::ColorPrimaries::intoAVColorPrimaries(ColorPrimariesId);
   const char *Name = av_color_primaries_name(ColorPrimaries);
   return strlen(Name);
 }
@@ -143,7 +143,7 @@ Expect<int32_t> AVColorPrimariesName::body(const Runtime::CallingFrame &Frame,
                  ColorPrimariesLen, "");
 
   AVColorPrimaries const ColorPrimaries =
-      static_cast<AVColorPrimaries>(ColorPrimariesId);
+      FFmpegUtils::ColorPrimaries::intoAVColorPrimaries(ColorPrimariesId);
   const char *Name = av_color_primaries_name(ColorPrimaries);
   memmove(ColorPrimariesBuf.data(), Name, ColorPrimariesLen);
   return static_cast<int32_t>(ErrNo::Success);

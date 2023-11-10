@@ -27,6 +27,14 @@ WasmEdgeFFmpegAVFilterModule::WasmEdgeFFmpegAVFilterModule(
               std::make_unique<AVFilterVersion>(Env));
   addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_get_by_name",
               std::make_unique<AVFilterGetByName>(Env));
+  addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_configuration_length",
+              std::make_unique<AVFilterConfigurationLength>(Env));
+  addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_configuration",
+              std::make_unique<AVFilterConfiguration>(Env));
+  addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_license_length",
+              std::make_unique<AVFilterLicenseLength>(Env));
+  addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_license",
+              std::make_unique<AVFilterLicense>(Env));
 
   // buffersrc.h && buffersink.h
   addHostFunc("wasmedge_ffmpeg_avfilter_av_buffersink_get_frame",

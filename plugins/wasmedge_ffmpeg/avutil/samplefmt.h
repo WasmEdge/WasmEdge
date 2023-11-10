@@ -75,6 +75,23 @@ public:
                        uint32_t BufferPtr, uint32_t BufferSize);
 };
 
+class AVGetSampleFmtNameLength
+    : public WasmEdgeFFmpegAVUtil<AVGetSampleFmtNameLength> {
+public:
+  AVGetSampleFmtNameLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t SampleFmtId);
+};
+
+class AVGetSampleFmtName : public WasmEdgeFFmpegAVUtil<AVGetSampleFmtName> {
+public:
+  AVGetSampleFmtName(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t SampleFmtId,
+                       uint32_t SampleFmtNamePtr, uint32_t SampleFmtNameLen);
+};
+
 // class AVSamplesCopy : public WasmEdgeFFmpegAVUtil<AVSamplesCopy> {
 // public:
 //   AVSamplesCopy(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)

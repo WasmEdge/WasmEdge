@@ -420,6 +420,25 @@ Expect<int32_t> AVFrameCopyProps::body(const Runtime::CallingFrame &,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<int32_t>
+AVFrameSampleAspectRatio::body(const Runtime::CallingFrame &Frame,
+                               uint32_t FrameId, uint32_t NumPtr,
+                               uint32_t DenPtr) {
+
+  MEMINST_CHECK(MemInst, Frame, 0)
+  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+
+  MEM_PTR_CHECK(Num, MemInst, int32_t, NumPtr,
+                "Failed to access Numerator Ptr for AVRational");
+  MEM_PTR_CHECK(Den, MemInst, int32_t, DenPtr,
+                "Failed to access Denominator Ptr for AVRational");
+
+  AVRational const Rational = AvFrame->sample_aspect_ratio;
+  *Num = Rational.num;
+  *Den = Rational.den;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 } // namespace AVUtil
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

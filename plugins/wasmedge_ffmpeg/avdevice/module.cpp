@@ -22,6 +22,14 @@ WasmEdgeFFmpegAVDeviceModule::WasmEdgeFFmpegAVDeviceModule(
               std::make_unique<AVDeviceNbDevices>(Env));
   addHostFunc("wasmedge_ffmpeg_avdevice_avdevice_default_device",
               std::make_unique<AVDeviceDefaultDevice>(Env));
+  addHostFunc("wasmedge_ffmpeg_avdevice_avdevice_configuration_length",
+              std::make_unique<AVDeviceConfigurationLength>(Env));
+  addHostFunc("wasmedge_ffmpeg_avdevice_avdevice_configuration",
+              std::make_unique<AVDeviceConfiguration>(Env));
+  addHostFunc("wasmedge_ffmpeg_avdevice_avdevice_license_length",
+              std::make_unique<AVDeviceLicenseLength>(Env));
+  addHostFunc("wasmedge_ffmpeg_avdevice_avdevice_license",
+              std::make_unique<AVDeviceLicense>(Env));
 }
 
 } // namespace AVDevice

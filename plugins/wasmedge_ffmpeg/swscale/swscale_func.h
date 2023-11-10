@@ -187,6 +187,39 @@ public:
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
 };
 
+class SwscaleConfigurationLength
+    : public WasmEdgeFFmpegSWScale<SwscaleConfigurationLength> {
+public:
+  SwscaleConfigurationLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegSWScale(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class SwscaleConfiguration
+    : public WasmEdgeFFmpegSWScale<SwscaleConfiguration> {
+public:
+  SwscaleConfiguration(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegSWScale(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ConfigPtr,
+                       uint32_t ConfigLen);
+};
+
+class SwscaleLicenseLength
+    : public WasmEdgeFFmpegSWScale<SwscaleLicenseLength> {
+public:
+  SwscaleLicenseLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegSWScale(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class SwscaleLicense : public WasmEdgeFFmpegSWScale<SwscaleLicense> {
+public:
+  SwscaleLicense(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegSWScale(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t LicensePtr,
+                       uint32_t LicenseLen);
+};
+
 } // namespace SWScale
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

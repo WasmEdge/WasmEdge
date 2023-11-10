@@ -223,7 +223,49 @@ public:
                        uint32_t AVFormatCtxId, uint32_t AVCodecId);
 };
 
-// avformat_new_stream
+class AVGuessCodec : public WasmEdgeFFmpegAVFormat<AVGuessCodec> {
+public:
+  AVGuessCodec(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
+                        uint32_t AVInputOutputId, uint32_t ShortNamePtr,
+                        uint32_t ShortNameLen, uint32_t FileNamePtr,
+                        uint32_t FileNameLen, uint32_t MimeTypePtr,
+                        uint32_t MimeTypeLen, int32_t MediaTypeId);
+};
+
+class AVFormatConfigurationLength
+    : public WasmEdgeFFmpegAVFormat<AVFormatConfigurationLength> {
+public:
+  AVFormatConfigurationLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVFormatConfiguration
+    : public WasmEdgeFFmpegAVFormat<AVFormatConfiguration> {
+public:
+  AVFormatConfiguration(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ConfigPtr,
+                       uint32_t ConfigLen);
+};
+
+class AVFormatLicenseLength
+    : public WasmEdgeFFmpegAVFormat<AVFormatLicenseLength> {
+public:
+  AVFormatLicenseLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVFormatLicense : public WasmEdgeFFmpegAVFormat<AVFormatLicense> {
+public:
+  AVFormatLicense(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t LicensePtr,
+                       uint32_t LicenseLen);
+};
 
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg

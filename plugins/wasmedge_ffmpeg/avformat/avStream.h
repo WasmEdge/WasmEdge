@@ -138,6 +138,14 @@ public:
                        uint32_t DictId);
 };
 
+class AVStreamDiscard : public WasmEdgeFFmpegAVFormat<AVStreamDiscard> {
+public:
+  AVStreamDiscard(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvFormatCtxId, uint32_t StreamIdx);
+};
+
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

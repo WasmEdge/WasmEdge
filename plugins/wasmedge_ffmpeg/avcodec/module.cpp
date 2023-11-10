@@ -64,6 +64,14 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
               std::make_unique<AVCodecVersion>(env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_flush_buffers",
               std::make_unique<AVCodecFlushBuffers>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_configuration_length",
+              std::make_unique<AVCodecConfigurationLength>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_configuration",
+              std::make_unique<AVCodecConfiguration>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_license_length",
+              std::make_unique<AVCodecLicenseLength>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_license",
+              std::make_unique<AVCodecLicense>(env));
 
   // avCodecContext Struct fields access
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_codec_id",
@@ -243,6 +251,14 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
   addHostFunc(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_request_channel_layout",
       std::make_unique<AVCodecCtxSetChannelLayout>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_active_thread_type",
+              std::make_unique<AVCodecCtxActiveThreadType>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_thread_type",
+              std::make_unique<AVCodecCtxSetThreadCount>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_thread_count",
+              std::make_unique<AVCodecCtxThreadCount>(env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_thread_count",
+              std::make_unique<AVCodecCtxSetThreadCount>(env));
 
   // avCodec Struct fields access
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_id",

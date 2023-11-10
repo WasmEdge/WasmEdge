@@ -142,14 +142,6 @@ public:
                        uint32_t AVInputOutputId);
 };
 
-class AVGuessCodec : public WasmEdgeFFmpegAVFormat<AVGuessCodec> {
-public:
-  AVGuessCodec(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFormat(HostEnv) {}
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
-                        uint32_t AVInputOutputId);
-};
-
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

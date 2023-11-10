@@ -205,17 +205,7 @@ Expect<int32_t> AVInputOutputFormatFree::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_DELETE(AVInputOutputId);
   return static_cast<int32_t>(ErrNo::Success);
 }
-//
-// Expect<uint32_t> AVGuessCodec::body(const Runtime::CallingFrame &,
-//                                    uint32_t AVOutputFormatId) {
-//
-//  //  FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, const
-//  AVOutputFormat);
-//  //  enum AVCodecID const AvCodecId = av_guess_codec(AvOutputFormat, );
-//  //  return FFmpegUtils::CodecID::fromAVCodecID(AvCodecId);
-//  return 1;
-//}
-//
+
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

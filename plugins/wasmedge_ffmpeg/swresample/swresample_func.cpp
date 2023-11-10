@@ -84,6 +84,42 @@ Expect<int32_t> SWRFree::body(const Runtime::CallingFrame &,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<int32_t>
+SWResampleConfigurationLength::body(const Runtime::CallingFrame &) {
+  const char *Config = swresample_configuration();
+  return strlen(Config);
+}
+
+Expect<int32_t>
+SWResampleConfiguration::body(const Runtime::CallingFrame &Frame,
+                              uint32_t ConfigPtr, uint32_t ConfigLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
+
+  const char *Config = swresample_configuration();
+  memmove(ConfigBuf.data(), Config, ConfigLen);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> SWResampleLicenseLength::body(const Runtime::CallingFrame &) {
+
+  const char *License = swresample_license();
+  return strlen(License);
+}
+
+Expect<int32_t> SWResampleLicense::body(const Runtime::CallingFrame &Frame,
+                                        uint32_t LicensePtr,
+                                        uint32_t LicenseLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
+
+  const char *License = swresample_license();
+  memmove(LicenseBuf.data(), License, LicenseLen);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 } // namespace SWResample
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

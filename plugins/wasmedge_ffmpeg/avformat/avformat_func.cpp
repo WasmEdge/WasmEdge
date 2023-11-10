@@ -308,6 +308,72 @@ Expect<int32_t> AVFormatNewStream::body(const Runtime::CallingFrame &,
   return 1;
 }
 
+Expect<uint32_t> AVGuessCodec::body(const Runtime::CallingFrame &Frame,
+                                    uint32_t AVIOFormatId,
+                                    uint32_t ShortNamePtr,
+                                    uint32_t ShortNameLen, uint32_t FileNamePtr,
+                                    uint32_t FileNameLen, uint32_t MimeTypePtr,
+                                    uint32_t MimeTypeLen, int32_t MediaTypeId) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(ShortNameBuf, MemInst, char, ShortNamePtr,
+                "Failed when accessing the return ShortName memory");
+  MEM_PTR_CHECK(FileNameBuf, MemInst, char, FileNamePtr,
+                "Failed when accessing the return FileName memory");
+  MEM_PTR_CHECK(MimeTypeBuf, MemInst, char, MimeTypePtr,
+                "Failed when accessing the return MimeType memory");
+  FFMPEG_PTR_FETCH(AvOutputFormat, AVIOFormatId, AVOutputFormat);
+
+  std::string ShortName;
+  std::string FileName;
+  std::string MimeType;
+  std::copy_n(ShortNameBuf, ShortNameLen, std::back_inserter(ShortName));
+  std::copy_n(FileNameBuf, FileNameLen, std::back_inserter(FileName));
+  std::copy_n(MimeTypeBuf, MimeTypeLen, std::back_inserter(MimeType));
+
+  AVMediaType const MediaType =
+      FFmpegUtils::MediaType::intoMediaType(MediaTypeId);
+  return av_guess_codec(AvOutputFormat, ShortName.c_str(), FileName.c_str(),
+                        MimeType.c_str(), MediaType);
+}
+
+Expect<int32_t>
+AVFormatConfigurationLength::body(const Runtime::CallingFrame &) {
+
+  const char *Config = avformat_configuration();
+  return strlen(Config);
+}
+
+Expect<int32_t> AVFormatConfiguration::body(const Runtime::CallingFrame &Frame,
+                                            uint32_t ConfigPtr,
+                                            uint32_t ConfigLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
+
+  const char *Config = avformat_configuration();
+  memmove(ConfigBuf.data(), Config, ConfigLen);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVFormatLicenseLength::body(const Runtime::CallingFrame &) {
+
+  const char *License = avformat_license();
+  return strlen(License);
+}
+
+Expect<int32_t> AVFormatLicense::body(const Runtime::CallingFrame &Frame,
+                                      uint32_t LicensePtr,
+                                      uint32_t LicenseLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
+
+  const char *License = avformat_license();
+  memmove(LicenseBuf.data(), License, LicenseLen);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

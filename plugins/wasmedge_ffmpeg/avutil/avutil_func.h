@@ -144,6 +144,37 @@ public:
                         int32_t ChannelLayoutId);
 };
 
+class AVUtilConfigurationLength
+    : public WasmEdgeFFmpegAVUtil<AVUtilConfigurationLength> {
+public:
+  AVUtilConfigurationLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVUtilConfiguration : public WasmEdgeFFmpegAVUtil<AVUtilConfiguration> {
+public:
+  AVUtilConfiguration(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ConfigPtr,
+                       uint32_t ConfigLen);
+};
+
+class AVUtilLicenseLength : public WasmEdgeFFmpegAVUtil<AVUtilLicenseLength> {
+public:
+  AVUtilLicenseLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVUtilLicense : public WasmEdgeFFmpegAVUtil<AVUtilLicense> {
+public:
+  AVUtilLicense(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t LicensePtr,
+                       uint32_t LicenseLen);
+};
+
 } // namespace AVUtil
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

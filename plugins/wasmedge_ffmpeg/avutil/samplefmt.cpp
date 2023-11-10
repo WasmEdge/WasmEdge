@@ -112,6 +112,31 @@ Expect<int32_t> AVSamplesGetBuffer::body(const Runtime::CallingFrame &Frame,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<int32_t> AVGetSampleFmtNameLength::body(const Runtime::CallingFrame &,
+                                               uint32_t SampleFmtId) {
+
+  AVSampleFormat const SampleFmt =
+      FFmpegUtils::SampleFmt::fromSampleID(SampleFmtId);
+
+  const char *Name = av_get_sample_fmt_name(SampleFmt);
+  return strlen(Name);
+}
+
+Expect<int32_t> AVGetSampleFmtName::body(const Runtime::CallingFrame &Frame,
+                                         uint32_t SampleFmtId,
+                                         uint32_t SampleFmtNamePtr,
+                                         uint32_t SampleFmtNameLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(SampleFmtBuf, MemInst, char, SampleFmtNamePtr,
+                 SampleFmtNameLen, "");
+
+  AVSampleFormat const SampleFmt = static_cast<AVSampleFormat>(SampleFmtId);
+  const char *Name = av_get_sample_fmt_name(SampleFmt);
+  memmove(SampleFmtBuf.data(), Name, SampleFmtNameLen);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 Expect<int32_t> AVFreep::body(const Runtime::CallingFrame &,
                               uint32_t BufferId) {
   FFMPEG_PTR_FETCH(Buffer, BufferId, uint8_t *);

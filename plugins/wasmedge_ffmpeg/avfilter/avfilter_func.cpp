@@ -118,6 +118,43 @@ Expect<int32_t> AVFilterGetByName::body(const Runtime::CallingFrame &Frame,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<int32_t>
+AVFilterConfigurationLength::body(const Runtime::CallingFrame &) {
+
+  const char *Config = avfilter_configuration();
+  return strlen(Config);
+}
+
+Expect<int32_t> AVFilterConfiguration::body(const Runtime::CallingFrame &Frame,
+                                            uint32_t ConfigPtr,
+                                            uint32_t ConfigLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
+
+  const char *Config = avfilter_configuration();
+  memmove(ConfigBuf.data(), Config, ConfigLen);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVFilterLicenseLength::body(const Runtime::CallingFrame &) {
+
+  const char *License = avfilter_license();
+  return strlen(License);
+}
+
+Expect<int32_t> AVFilterLicense::body(const Runtime::CallingFrame &Frame,
+                                      uint32_t LicensePtr,
+                                      uint32_t LicenseLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
+
+  const char *License = avfilter_license();
+  memmove(LicenseBuf.data(), License, LicenseLen);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 } // namespace AVFilter
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

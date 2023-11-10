@@ -766,6 +766,42 @@ public:
                        uint32_t AvCodecCtxId, uint64_t ChannelLayoutId);
 };
 
+class AVCodecCtxActiveThreadType
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxActiveThreadType> {
+public:
+  AVCodecCtxActiveThreadType(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId);
+};
+
+class AVCodecCtxSetThreadType
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxSetThreadType> {
+public:
+  AVCodecCtxSetThreadType(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId, int32_t ThreadType);
+};
+
+class AVCodecCtxThreadCount
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxThreadCount> {
+public:
+  AVCodecCtxThreadCount(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId);
+};
+
+class AVCodecCtxSetThreadCount
+    : public WasmEdgeFFmpegAVCodec<AVCodecCtxSetThreadCount> {
+public:
+  AVCodecCtxSetThreadCount(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId, int32_t ThreadCount);
+};
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

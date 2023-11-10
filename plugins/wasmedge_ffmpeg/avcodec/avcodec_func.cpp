@@ -311,6 +311,41 @@ Expect<int32_t> AVCodecFlushBuffers::body(const Runtime::CallingFrame &,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<int32_t>
+AVCodecConfigurationLength::body(const Runtime::CallingFrame &) {
+  const char *Config = avcodec_configuration();
+  return strlen(Config);
+}
+
+Expect<int32_t> AVCodecConfiguration::body(const Runtime::CallingFrame &Frame,
+                                           uint32_t ConfigPtr,
+                                           uint32_t ConfigLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
+
+  const char *Config = avcodec_configuration();
+  memmove(ConfigBuf.data(), Config, ConfigLen);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVCodecLicenseLength::body(const Runtime::CallingFrame &) {
+
+  const char *License = avcodec_license();
+  return strlen(License);
+}
+
+Expect<int32_t> AVCodecLicense::body(const Runtime::CallingFrame &Frame,
+                                     uint32_t LicensePtr, uint32_t LicenseLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
+
+  const char *License = avcodec_license();
+  memmove(LicenseBuf.data(), License, LicenseLen);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

@@ -137,6 +137,9 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVFrameCopy>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_copy_props",
               std::make_unique<AVFrameCopyProps>(Env));
+  addHostFunc(
+      "wasmedge_ffmpeg_avutil_av_frame_sample_aspect_ratio", // need to test.
+      std::make_unique<AVFrameSampleAspectRatio>(Env));
 
   // pixfmt.h (Even AvPixFmtDesc is in this file)
   addHostFunc("wasmedge_ffmpeg_avutil_avpixfmtdescriptor_nb_components",
@@ -145,6 +148,26 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AvPixFmtDescriptorLog2ChromaW>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_avpixfmtdescriptor_log2_chromah",
               std::make_unique<AvPixFmtDescriptorLog2ChromaH>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_color_transfer_name_length", // test
+              std::make_unique<AVColorTransferNameLength>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_color_transfer_name", // test
+              std::make_unique<AVColorTransferName>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_color_range_name_length", // test
+              std::make_unique<AVColorRangeNameLength>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_color_range_name", // test
+              std::make_unique<AVColorRangeName>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_color_space_name_length", // test
+              std::make_unique<AVColorSpaceNameLength>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_color_space_name", // test
+              std::make_unique<AVColorSpaceName>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_color_primaries_name_length", // test
+              std::make_unique<AVColorPrimariesNameLength>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_color_primaries_name", // test
+              std::make_unique<AVColorPrimariesName>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_pix_format_name_length", // test
+              std::make_unique<AVPixelFormatNameLength>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_pix_format_name", // test
+              std::make_unique<AVPixelFormatName>(Env));
 
   // samplefmt.h
   addHostFunc("wasmedge_ffmpeg_avutil_av_get_packed_sample_fmt",
@@ -164,6 +187,10 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
   //    addHostFunc("wasmedge_ffmpeg_avutil_av_samples_copy",std::make_unique<AVSamplesCopy>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_samples_get_buffer",
               std::make_unique<AVSamplesGetBuffer>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_get_sample_fmt_name_length", // test
+              std::make_unique<AVGetSampleFmtNameLength>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_get_sample_fmt_name", // test
+              std::make_unique<AVGetSampleFmtName>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_freep",
               std::make_unique<AVFreep>(Env));
 
@@ -192,12 +219,20 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVRescaleQ>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_rescale_q_rnd",
               std::make_unique<AVRescaleQRnd>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_avutil_version",
-              std::make_unique<AVUtilVersion>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_get_channel_layout_nb_channels",
               std::make_unique<AVGetChannelLayoutNbChannels>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_get_default_channel_layout",
               std::make_unique<AVGetDefaultChannelLayout>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_avutil_version", // test
+              std::make_unique<AVUtilVersion>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_avutil_configuration_length", // test
+              std::make_unique<AVUtilConfigurationLength>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_avutil_configuration", // test
+              std::make_unique<AVUtilConfiguration>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_avutil_license_length", // test
+              std::make_unique<AVUtilLicenseLength>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_avutil_license", // test
+              std::make_unique<AVUtilLicense>(Env));
 
   // time.h
   addHostFunc("wasmedge_ffmpeg_avutil_av_gettime",

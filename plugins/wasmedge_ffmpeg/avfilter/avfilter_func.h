@@ -75,6 +75,39 @@ public:
                        uint32_t StrPtr, uint32_t StrLen);
 };
 
+class AVFilterConfigurationLength
+    : public WasmEdgeFFmpegAVFilter<AVFilterConfigurationLength> {
+public:
+  AVFilterConfigurationLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVFilterConfiguration
+    : public WasmEdgeFFmpegAVFilter<AVFilterConfiguration> {
+public:
+  AVFilterConfiguration(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ConfigPtr,
+                       uint32_t ConfigLen);
+};
+
+class AVFilterLicenseLength
+    : public WasmEdgeFFmpegAVFilter<AVFilterLicenseLength> {
+public:
+  AVFilterLicenseLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame);
+};
+
+class AVFilterLicense : public WasmEdgeFFmpegAVFilter<AVFilterLicense> {
+public:
+  AVFilterLicense(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t LicensePtr,
+                       uint32_t LicenseLen);
+};
+
 } // namespace AVFilter
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

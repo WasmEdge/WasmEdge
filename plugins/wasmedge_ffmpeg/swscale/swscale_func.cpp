@@ -257,6 +257,41 @@ Expect<uint32_t> SwscaleVersion::body(const Runtime::CallingFrame &) {
   return swscale_version();
 }
 
+Expect<int32_t>
+SwscaleConfigurationLength::body(const Runtime::CallingFrame &) {
+  const char *Config = swscale_configuration();
+  return strlen(Config);
+}
+
+Expect<int32_t> SwscaleConfiguration::body(const Runtime::CallingFrame &Frame,
+                                           uint32_t ConfigPtr,
+                                           uint32_t ConfigLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
+
+  const char *Config = swscale_configuration();
+  memmove(ConfigBuf.data(), Config, ConfigLen);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> SwscaleLicenseLength::body(const Runtime::CallingFrame &) {
+
+  const char *License = swscale_license();
+  return strlen(License);
+}
+
+Expect<int32_t> SwscaleLicense::body(const Runtime::CallingFrame &Frame,
+                                     uint32_t LicensePtr, uint32_t LicenseLen) {
+
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
+
+  const char *License = swscale_license();
+  memmove(LicenseBuf.data(), License, LicenseLen);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 } // namespace SWScale
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

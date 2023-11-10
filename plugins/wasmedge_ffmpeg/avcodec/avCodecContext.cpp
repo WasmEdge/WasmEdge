@@ -813,6 +813,38 @@ AVCodecCtxSetRequestChannelLayout::body(const Runtime::CallingFrame &,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<int32_t> AVCodecCtxActiveThreadType::body(const Runtime::CallingFrame &,
+                                                 uint32_t AvCodecCtxId) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  return AvCodecCtx->active_thread_type;
+}
+
+Expect<int32_t> AVCodecCtxSetThreadType::body(const Runtime::CallingFrame &,
+                                              uint32_t AvCodecCtxId,
+                                              int32_t ThreadType) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  AvCodecCtx->thread_type = ThreadType;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVCodecCtxThreadCount::body(const Runtime::CallingFrame &,
+                                            uint32_t AvCodecCtxId) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  return AvCodecCtx->thread_count;
+}
+
+Expect<int32_t> AVCodecCtxSetThreadCount::body(const Runtime::CallingFrame &,
+                                               uint32_t AvCodecCtxId,
+                                               int32_t ThreadCount) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  AvCodecCtx->thread_count = ThreadCount;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
 } // namespace AVcodec
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

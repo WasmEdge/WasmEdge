@@ -266,6 +266,19 @@ Expect<int32_t> AVStreamSetMetadata::body(const Runtime::CallingFrame &,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<int32_t> AVStreamDiscard::body(const Runtime::CallingFrame &,
+                                      uint32_t AvFormatCtxId,
+                                      uint32_t StreamIdx) {
+
+  FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  AVStream **AvStream = AvFormatContext->streams;
+
+  for (unsigned int I = 1; I <= StreamIdx; I++)
+    AvStream++;
+
+  return static_cast<int32_t>((*AvStream)->discard);
+}
+
 } // namespace AVFormat
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

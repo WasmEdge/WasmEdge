@@ -163,8 +163,9 @@ struct WasiNNEnvironment :
     return false;
   }
 
-  Expect<WASINN::ErrNo> mdBuild(std::string Name, uint32_t &GraphId,
-                                Callback Load) noexcept {
+  Expect<WASINN::ErrNo>
+  mdBuild(std::string Name, uint32_t &GraphId, Callback Load,
+          std::vector<uint8_t> Config = std::vector<uint8_t>()) noexcept {
     std::unique_lock Lock(MdMutex);
     auto It = RawMdMap.find(Name);
     if (It != RawMdMap.end()) {
@@ -173,6 +174,10 @@ struct WasiNNEnvironment :
       Builders.reserve(RawMd.size());
       for (auto &Builder : RawMd) {
         Builders.emplace_back(Builder);
+      }
+      // Add config to the end of Builders if exists.
+      if (Config.size() > 0) {
+        Builders.emplace_back(Config);
       }
       auto Result = Load(*this, Builders, std::get<1>(It->second),
                          std::get<2>(It->second), GraphId);

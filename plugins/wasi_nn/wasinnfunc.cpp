@@ -107,18 +107,60 @@ WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
   }
 
   // Get the name of model
-  uint32_t *Name = MemInst->getPointer<uint32_t *>(NamePtr);
+  auto Name = MemInst->getPointer<const uint32_t *>(NamePtr);
   if (unlikely(Name == nullptr)) {
     spdlog::error("[WASI-NN] Failed when accessing the return Name memory."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 
   // Get the model
-  std::string ModelName(reinterpret_cast<char *>(Name), NameLen);
+  std::string ModelName(reinterpret_cast<const char *>(Name), NameLen);
   if (Env.mdGet(ModelName, *GraphId)) {
     return WASINN::ErrNo::Success;
   } else {
     return Env.mdBuild(ModelName, *GraphId, load);
+  }
+}
+
+Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
+    const Runtime::CallingFrame &Frame, uint32_t NamePtr, uint32_t NameLen,
+    uint32_t ConfigPtr, uint32_t ConfigLen, uint32_t GraphIdPtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  // Check the return value: GraphIdPtr should be valid.
+  auto GraphId = MemInst->getPointer<uint32_t *>(GraphIdPtr);
+  if (unlikely(GraphId == nullptr)) {
+    spdlog::error(
+        "[WASI-NN] Failed when accessing the return GraphID memory."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  // Get the name of model
+  auto Name = MemInst->getPointer<const uint32_t *>(NamePtr);
+  if (unlikely(Name == nullptr)) {
+    spdlog::error("[WASI-NN] Failed when accessing the return Name memory."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  // Get the config of model
+  auto Config = MemInst->getPointer<const uint32_t *>(ConfigPtr);
+  if (unlikely(Config == nullptr)) {
+    spdlog::error(
+        "[WASI-NN] Failed when accessing the return Config memory."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  // Get the model
+  std::string ModelName(reinterpret_cast<const char *>(Name), NameLen);
+  std::vector<uint8_t> ModelConfig(reinterpret_cast<const uint8_t *>(Config),
+                                   reinterpret_cast<const uint8_t *>(Config) +
+                                       ConfigLen);
+  if (Env.mdGet(ModelName, *GraphId)) {
+    return WASINN::ErrNo::Success;
+  } else {
+    return Env.mdBuild(ModelName, *GraphId, load, ModelConfig);
   }
 }
 

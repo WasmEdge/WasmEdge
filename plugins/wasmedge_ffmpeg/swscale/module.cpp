@@ -10,15 +10,15 @@ WasmEdgeFFmpegSWScaleModule::WasmEdgeFFmpegSWScaleModule(
     std::shared_ptr<WasmEdgeFFmpegEnv> Env)
     : ModuleInstance("wasmedge_ffmpeg_swscale") {
 
-  addHostFunc("wasmedge_ffmpeg_swscale_swscale_version", // tests
+  addHostFunc("wasmedge_ffmpeg_swscale_swscale_version",
               std::make_unique<SwscaleVersion>(Env));
-  addHostFunc("wasmedge_ffmpeg_swscale_swscale_configuration_length", // tests
+  addHostFunc("wasmedge_ffmpeg_swscale_swscale_configuration_length",
               std::make_unique<SwscaleConfigurationLength>(Env));
-  addHostFunc("wasmedge_ffmpeg_swscale_swscale_configuration", // tests
+  addHostFunc("wasmedge_ffmpeg_swscale_swscale_configuration",
               std::make_unique<SwscaleConfiguration>(Env));
-  addHostFunc("wasmedge_ffmpeg_swscale_swscale_license_length", // tests
+  addHostFunc("wasmedge_ffmpeg_swscale_swscale_license_length",
               std::make_unique<SwscaleLicenseLength>(Env));
-  addHostFunc("wasmedge_ffmpeg_swscale_swscale_license", // tests
+  addHostFunc("wasmedge_ffmpeg_swscale_swscale_license",
               std::make_unique<SwscaleLicense>(Env));
 
   // SwsContext

@@ -13,8 +13,8 @@ public:
   SwsGetContext(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegSWScale(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t SwsCtxPtr,
-                       uint32_t SrcW, uint32_t SrcH, uint32_t SrcAvPixFormatId,
-                       uint32_t DesW, uint32_t DesH, uint32_t DesAvPixFormatId,
+                       uint32_t SrcW, uint32_t SrcH, uint32_t SrcPixFormatId,
+                       uint32_t DesW, uint32_t DesH, uint32_t DesPixFormatId,
                        int32_t Flags, uint32_t SrcFilterId,
                        uint32_t DesFilterId);
 };
@@ -41,8 +41,8 @@ public:
       : WasmEdgeFFmpegSWScale(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t SwsCachedCtxPtr, uint32_t SwsCtxPtr,
-                       uint32_t SrcW, uint32_t SrcH, uint32_t SrcAvPixFormatId,
-                       uint32_t DesW, uint32_t DesH, uint32_t DesAvPixFormatId,
+                       uint32_t SrcW, uint32_t SrcH, uint32_t SrcPixFormatId,
+                       uint32_t DesW, uint32_t DesH, uint32_t DesPixFormatId,
                        int32_t Flags, uint32_t SrcFilterId,
                        uint32_t DesFilterId);
 };
@@ -52,7 +52,7 @@ public:
   SwsIsSupportedInput(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegSWScale(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
-                       uint32_t AvPixFormatId);
+                       uint32_t PixFormatId);
 };
 
 class SwsIsSupportedOutput
@@ -61,7 +61,7 @@ public:
   SwsIsSupportedOutput(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegSWScale(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
-                       uint32_t AvPixFormatId);
+                       uint32_t PixFormatId);
 };
 
 class SwsIsSupportedEndiannessConversion
@@ -70,7 +70,7 @@ public:
   SwsIsSupportedEndiannessConversion(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegSWScale(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
-                       uint32_t AvPixFormatId);
+                       uint32_t PixFormatId);
 };
 
 class SwsGetDefaultFilter : public WasmEdgeFFmpegSWScale<SwsGetDefaultFilter> {

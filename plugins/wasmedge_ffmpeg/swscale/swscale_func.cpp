@@ -12,8 +12,8 @@ namespace SWScale {
 
 Expect<int32_t>
 SwsGetContext::body(const Runtime::CallingFrame &Frame, uint32_t SwsCtxPtr,
-                    uint32_t SrcW, uint32_t SrcH, uint32_t SrcAvPixFormatId,
-                    uint32_t DesW, uint32_t DesH, uint32_t DesAvPixFormatId,
+                    uint32_t SrcW, uint32_t SrcH, uint32_t SrcPixFormatId,
+                    uint32_t DesW, uint32_t DesH, uint32_t DesPixFormatId,
                     int32_t Flags, uint32_t SrcFilterId, uint32_t DesFilterId) {
 
   MEMINST_CHECK(MemInst, Frame, 0);
@@ -24,12 +24,12 @@ SwsGetContext::body(const Runtime::CallingFrame &Frame, uint32_t SwsCtxPtr,
   FFMPEG_PTR_FETCH(SrcSwsFilter, SrcFilterId, SwsFilter)
   FFMPEG_PTR_FETCH(DesSwsFilter, DesFilterId, SwsFilter)
 
-  AVPixelFormat const SrcAvPixelFormat =
-      FFmpegUtils::PixFmt::intoAVPixFmt(SrcAvPixFormatId);
-  AVPixelFormat const DestAvPixelFormat =
-      FFmpegUtils::PixFmt::intoAVPixFmt(DesAvPixFormatId);
-  SwsCtx = sws_getContext(SrcW, SrcH, SrcAvPixelFormat, DesW, DesH,
-                          DestAvPixelFormat, Flags, SrcSwsFilter, DesSwsFilter,
+  AVPixelFormat const SrcPixelFormat =
+      FFmpegUtils::PixFmt::intoAVPixFmt(SrcPixFormatId);
+  AVPixelFormat const DestPixelFormat =
+      FFmpegUtils::PixFmt::intoAVPixFmt(DesPixFormatId);
+  SwsCtx = sws_getContext(SrcW, SrcH, SrcPixelFormat, DesW, DesH,
+                          DestPixelFormat, Flags, SrcSwsFilter, DesSwsFilter,
                           NULL); // Not using param anywhere in Rust SDK.
   if (SwsCtx == NULL)
     return static_cast<int32_t>(ErrNo::InternalError);
@@ -59,8 +59,8 @@ Expect<int32_t> SwsScale::body(const Runtime::CallingFrame &, uint32_t SwsCtxId,
 
 Expect<int32_t> SwsGetCachedContext::body(
     const Runtime::CallingFrame &Frame, uint32_t SwsCachedCtxPtr,
-    uint32_t SwsCtxId, uint32_t SrcW, uint32_t SrcH, uint32_t SrcAvPixFormatId,
-    uint32_t DesW, uint32_t DesH, uint32_t DesAvPixFormatId, int32_t Flags,
+    uint32_t SwsCtxId, uint32_t SrcW, uint32_t SrcH, uint32_t SrcPixFormatId,
+    uint32_t DesW, uint32_t DesH, uint32_t DesPixFormatId, int32_t Flags,
     uint32_t SrcFilterId, uint32_t DesFilterId) {
 
   MEMINST_CHECK(MemInst, Frame, 0);
@@ -71,12 +71,12 @@ Expect<int32_t> SwsGetCachedContext::body(
   FFMPEG_PTR_FETCH(SrcSwsFilter, SrcFilterId, SwsFilter)
   FFMPEG_PTR_FETCH(DesSwsFilter, DesFilterId, SwsFilter)
 
-  AVPixelFormat const SrcAvPixelFormat =
-      FFmpegUtils::PixFmt::intoAVPixFmt(SrcAvPixFormatId);
-  AVPixelFormat const DestAvPixelFormat =
-      FFmpegUtils::PixFmt::intoAVPixFmt(DesAvPixFormatId);
-  SwsCachedCtx = sws_getCachedContext(SwsCtx, SrcW, SrcH, SrcAvPixelFormat,
-                                      DesW, DesH, DestAvPixelFormat, Flags,
+  AVPixelFormat const SrcPixelFormat =
+      FFmpegUtils::PixFmt::intoAVPixFmt(SrcPixFormatId);
+  AVPixelFormat const DestPixelFormat =
+      FFmpegUtils::PixFmt::intoAVPixFmt(DesPixFormatId);
+  SwsCachedCtx = sws_getCachedContext(SwsCtx, SrcW, SrcH, SrcPixelFormat, DesW,
+                                      DesH, DestPixelFormat, Flags,
                                       SrcSwsFilter, DesSwsFilter, NULL);
   if (SwsCachedCtx == NULL)
     return static_cast<int32_t>(ErrNo::InternalError);
@@ -86,25 +86,25 @@ Expect<int32_t> SwsGetCachedContext::body(
 }
 
 Expect<int32_t> SwsIsSupportedInput::body(const Runtime::CallingFrame &,
-                                          uint32_t AvPixFormatId) {
-  AVPixelFormat const AvPixelFormat =
-      FFmpegUtils::PixFmt::intoAVPixFmt(AvPixFormatId);
-  return sws_isSupportedInput(AvPixelFormat);
+                                          uint32_t PixFormatId) {
+  AVPixelFormat const PixelFormat =
+      FFmpegUtils::PixFmt::intoAVPixFmt(PixFormatId);
+  return sws_isSupportedInput(PixelFormat);
 }
 
 Expect<int32_t> SwsIsSupportedOutput::body(const Runtime::CallingFrame &,
-                                           uint32_t AvPixFormatId) {
-  AVPixelFormat const AvPixelFormat =
-      FFmpegUtils::PixFmt::intoAVPixFmt(AvPixFormatId);
-  return sws_isSupportedOutput(AvPixelFormat);
+                                           uint32_t PixFormatId) {
+  AVPixelFormat const PixelFormat =
+      FFmpegUtils::PixFmt::intoAVPixFmt(PixFormatId);
+  return sws_isSupportedOutput(PixelFormat);
 }
 
 Expect<int32_t>
 SwsIsSupportedEndiannessConversion::body(const Runtime::CallingFrame &,
-                                         uint32_t AvPixFormatId) {
-  AVPixelFormat const AvPixelFormat =
-      FFmpegUtils::PixFmt::intoAVPixFmt(AvPixFormatId);
-  return sws_isSupportedEndiannessConversion(AvPixelFormat);
+                                         uint32_t PixFormatId) {
+  AVPixelFormat const PixelFormat =
+      FFmpegUtils::PixFmt::intoAVPixFmt(PixFormatId);
+  return sws_isSupportedEndiannessConversion(PixelFormat);
 }
 
 Expect<int32_t> SwsGetDefaultFilter::body(

@@ -27,17 +27,20 @@ Expect<int32_t> AVDictSet::body(const Runtime::CallingFrame &Frame,
   std::copy_n(KeyBuf, KeyLen, std::back_inserter(Key));
   std::copy_n(ValueBuf, ValueLen, std::back_inserter(Value));
 
-  int res;
+  int Res;
+
+  // Using Maybe::uninit(); in Rust. If Uninitialized, zero is
+  // passed. Else the Ptr contains a Number.
   if (*DictId) {
     FFMPEG_PTR_FETCH(AvDict, *DictId, AVDictionary *);
-    res = av_dict_set(AvDict, Key.c_str(), Value.c_str(), Flags);
+    Res = av_dict_set(AvDict, Key.c_str(), Value.c_str(), Flags);
   } else {
     AVDictionary **AvDict = (AVDictionary **)malloc(sizeof(AVDictionary **));
-    res = av_dict_set(AvDict, Key.c_str(), Value.c_str(), Flags);
+    Res = av_dict_set(AvDict, Key.c_str(), Value.c_str(), Flags);
     FFMPEG_PTR_STORE(AvDict, DictId);
   }
 
-  return res;
+  return Res;
 }
 
 Expect<int32_t> AVDictCopy::body(const Runtime::CallingFrame &Frame,
@@ -50,10 +53,13 @@ Expect<int32_t> AVDictCopy::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(SrcAvDict, SrcDictId, AVDictionary *);
 
-  int res;
+  int Res;
+
+  // Using Maybe::uninit(); in Rust. If Uninitialized, zero is
+  // passed. Else the Ptr contains a Number.
   if (*DestDictId) {
     FFMPEG_PTR_FETCH(DestAvDict, *DestDictId, AVDictionary *);
-    res = av_dict_copy(DestAvDict, *SrcAvDict, Flags);
+    Res = av_dict_copy(DestAvDict, *SrcAvDict, Flags);
   } else {
     AVDictionary **DestAvDict =
         (AVDictionary **)malloc(sizeof(AVDictionary **));
@@ -61,7 +67,7 @@ Expect<int32_t> AVDictCopy::body(const Runtime::CallingFrame &Frame,
     FFMPEG_PTR_STORE(DestAvDict, DestDictId);
   }
 
-  return res;
+  return Res;
 }
 
 Expect<int32_t> AVDictGet::body(const Runtime::CallingFrame &Frame,
@@ -80,6 +86,9 @@ Expect<int32_t> AVDictGet::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
 
+  // If Dict Not created return (i.e. 0 is passed as AVDictId)
+  if (AvDict == NULL)
+    return -1;
   std::string Key;
   std::copy_n(KeyStr, KeyLen, std::back_inserter(Key));
 
@@ -111,20 +120,24 @@ Expect<int32_t> AVDictGetKeyValue::body(
 
   FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
 
+  // If Dict Not created return (i.e. 0 is passed as AVDictId)
+  if (AvDict == NULL)
+    return -1;
+
   std::string Key;
   std::copy_n(KeyStr, KeyLen, std::back_inserter(Key));
 
   AVDictionaryEntry *DictEntry = nullptr;
-  uint32_t curr = 0;
-  while (curr <= PrevDictEntryIdx) {
+  uint32_t Curr = 0;
+  while (Curr <= PrevDictEntryIdx) {
     DictEntry = av_dict_get(*AvDict, Key.c_str(), DictEntry, Flags);
-    curr++;
+    Curr++;
   }
   if (DictEntry == nullptr)
     return -1;
   memmove(ValBuf.data(), DictEntry->value, strlen(DictEntry->value));
   memmove(KeyBuf.data(), DictEntry->key, strlen(DictEntry->key));
-  return curr;
+  return Curr;
 }
 
 Expect<int32_t> AVDictFree::body(const Runtime::CallingFrame &,

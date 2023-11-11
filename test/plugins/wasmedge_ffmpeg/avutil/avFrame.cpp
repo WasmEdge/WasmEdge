@@ -37,6 +37,9 @@ TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
   uint32_t AVFrameId = readUInt32(MemInst, AVFramePtr);
   uint32_t AVFrame2Id = readUInt32(MemInst, AVFrame2Ptr);
 
+  uint32_t NumPtr = UINT32_C(80);
+  uint32_t DenPtr = UINT32_C(84);
+
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_alloc");
   auto &HostFuncAVFrameAlloc =
@@ -593,5 +596,48 @@ TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
                        std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
                        Result);
     EXPECT_EQ(Result[0].get<int32_t>(), 10);
+  }
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_frame_sample_aspect_ratio");
+  auto &HostFuncAVFrameSampleAspectRatio = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSampleAspectRatio &>(
+      FuncInst->getHostFunc());
+
+  {
+    HostFuncAVFrameSampleAspectRatio.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, NumPtr, DenPtr},
+        Result);
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  int32_t ColorPrimariesId = 1; // BT709
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_frame_set_color_primaries");
+  auto &HostFuncAVFrameSetColorPrimaries = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetColorPrimaries &>(
+      FuncInst->getHostFunc());
+
+  {
+    HostFuncAVFrameSetColorPrimaries.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVFrameId,
+                                                    ColorPrimariesId},
+        Result);
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_frame_color_primaries");
+  auto &HostFuncAVFrameColorPrimaries = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameColorPrimaries &>(
+      FuncInst->getHostFunc());
+
+  {
+    HostFuncAVFrameColorPrimaries.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
+        Result);
+    EXPECT_EQ(Result[0].get<int32_t>(), ColorPrimariesId);
   }
 }

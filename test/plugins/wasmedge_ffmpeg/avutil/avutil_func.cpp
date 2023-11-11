@@ -18,10 +18,12 @@ TEST(WasmEdgeAVUtilTest, AVUtilFunc) {
                     WasmEdge::AST::MemoryType(5)));
   auto *MemInstPtr = Mod.findMemoryExports("memory");
   ASSERT_TRUE(MemInstPtr != nullptr);
-  //  auto &MemInst = *MemInstPtr;
+  auto &MemInst = *MemInstPtr;
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
   std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
+
+  uint32_t NamePtr = UINT32_C(4);
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_log_set_level");
@@ -133,5 +135,64 @@ TEST(WasmEdgeAVUtilTest, AVUtilFunc) {
     HostFuncAVGetDefaultChannelLayout.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{1}, Result);
     EXPECT_TRUE(Result[0].get<uint32_t>() > 0);
+  }
+
+  uint32_t Length;
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_avutil_configuration_length");
+  auto &HostFuncAVUtilConfigurationLength = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVUtilConfigurationLength &>(
+      FuncInst->getHostFunc());
+
+  {
+    HostFuncAVUtilConfigurationLength.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result);
+
+    Length = Result[0].get<int32_t>();
+    EXPECT_TRUE(Length > 0);
+  }
+
+  // Fill NamePtr with 0.
+  fillMemContent(MemInst, NamePtr, Length);
+  FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_avutil_configuration");
+  auto &HostFuncAVUtilConfiguration = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVUtilConfiguration &>(
+      FuncInst->getHostFunc());
+
+  {
+    HostFuncAVUtilConfiguration.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{NamePtr, Length},
+        Result);
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_avutil_license_length");
+  auto &HostFuncAVUtilLicenseLength = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVUtilLicenseLength &>(
+      FuncInst->getHostFunc());
+
+  {
+    HostFuncAVUtilLicenseLength.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result);
+
+    Length = Result[0].get<int32_t>();
+    EXPECT_TRUE(Length > 0);
+  }
+
+  // Fill NamePtr with 0.
+  fillMemContent(MemInst, NamePtr, Length);
+  FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_avutil_license");
+  auto &HostFuncAVUtilLicense =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVUtilLicense &>(
+          FuncInst->getHostFunc());
+
+  {
+    HostFuncAVUtilLicense.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{NamePtr, Length},
+        Result);
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 }

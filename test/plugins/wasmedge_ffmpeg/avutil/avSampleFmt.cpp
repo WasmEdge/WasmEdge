@@ -24,6 +24,7 @@ TEST(WasmEdgeAVUtilTest, AVSampleFmt) {
   std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
 
   uint32_t BufferPtr = UINT32_C(8);
+  uint32_t NamePtr = UINT32_C(80);
 
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_packed_sample_fmt");
@@ -142,6 +143,40 @@ TEST(WasmEdgeAVUtilTest, AVSampleFmt) {
   //    EXPECT_EQ(Result[0].get<int32_t>(),
   //    static_cast<int32_t>(ErrNo::Success));
   //  }
+
+  uint32_t SampleFmtId = 2; // AV_SAMPLE_FMT_S16
+  int32_t Length;
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name_length");
+  auto &HostFuncAVGetSampleFmtNameLength = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtNameLength &>(
+      FuncInst->getHostFunc());
+
+  {
+    HostFuncAVGetSampleFmtNameLength.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{SampleFmtId},
+        Result);
+
+    Length = Result[0].get<int32_t>();
+    EXPECT_TRUE(Length > 0);
+  }
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name");
+  auto &HostFuncAVGetSampleFmtName = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtName &>(
+      FuncInst->getHostFunc());
+
+  // Fill Memory with 0.
+  fillMemContent(MemInst, NamePtr, Length);
+  {
+    HostFuncAVGetSampleFmtName.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       SampleFmtId, NamePtr, Length},
+                                   Result);
+
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_freep");
   auto &HostFuncAVFreep =

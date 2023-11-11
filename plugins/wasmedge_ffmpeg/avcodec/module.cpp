@@ -14,6 +14,7 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
     std::shared_ptr<WasmEdgeFFmpegEnv> Env)
     : ModuleInstance("wasmedge_ffmpeg_avcodec") {
 
+  // avcodec_func.h
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_alloc_context3",
               std::make_unique<AVCodecAllocContext3>(Env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_parameters_from_context",

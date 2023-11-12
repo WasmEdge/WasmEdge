@@ -4,6 +4,8 @@
 wasmedge_add_executable(wasmedgeFFmpegTests
         avcodec/avcodec_func.cpp
         avcodec.cpp
+        avcodec/avCodec.cpp
+        avcodec/avCodecParameters.cpp
 
         avformat/avformat_func.cpp
         avformat/avformatContext.cpp
@@ -23,6 +25,8 @@ wasmedge_add_executable(wasmedgeFFmpegTests
         swscale/swscale_func.cpp
 
         swresample/swresample_func.cpp
+
+        utils.cpp
 )
 
 # Downloading a sample file

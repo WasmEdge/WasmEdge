@@ -527,7 +527,15 @@ public:
   }
 
 protected:
-  // Result of FUncs to be stored here.
+  void initEmptyFrame(uint32_t FramePtr);
+
+  void initAVCodec(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
+                   uint32_t FilePtr, uint32_t CodecParameterPtr,
+                   uint32_t AVCodecCtxPtr);
+
+  void initFormatCtx(uint32_t AVFormatCtxPtr, uint32_t StartPtr);
+
+  // Result of Funcs to be stored here.
   std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
 
   // Create the calling frame with memory instance.

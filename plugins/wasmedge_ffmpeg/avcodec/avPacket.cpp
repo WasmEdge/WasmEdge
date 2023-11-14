@@ -157,8 +157,8 @@ Expect<int32_t> AVPacketIsDataNull::body(const Runtime::CallingFrame &,
 
   FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
   if (AvPacket->data == NULL)
-    return 0;
-  return 1;
+    return 1;
+  return 0;
 }
 
 Expect<int32_t> AVPacketData::body(const Runtime::CallingFrame &Frame,

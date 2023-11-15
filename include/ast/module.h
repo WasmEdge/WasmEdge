@@ -21,34 +21,6 @@
 namespace WasmEdge {
 namespace AST {
 
-class Component {
-public:
-  /// Getter of magic vector.
-  const std::vector<Byte> &getMagic() const noexcept { return Magic; }
-  std::vector<Byte> &getMagic() noexcept { return Magic; }
-
-  /// Getter of version vector.
-  const std::vector<Byte> &getVersion() const noexcept { return Version; }
-  std::vector<Byte> &getVersion() noexcept { return Version; }
-
-  /// Getter of layer vector.
-  const std::vector<Byte> &getLayer() const noexcept { return Layer; }
-  std::vector<Byte> &getLayer() noexcept { return Layer; }
-
-  std::vector<CustomSection> &getCustomSections() noexcept {
-    return CustomSecs;
-  }
-
-private:
-  /// \name Data of Module node.
-  /// @{
-  std::vector<Byte> Magic;
-  std::vector<Byte> Version;
-  std::vector<Byte> Layer;
-  std::vector<CustomSection> CustomSecs;
-  /// @}
-};
-
 /// AST Module node.
 class Module {
 public:
@@ -165,6 +137,48 @@ private:
   /// \name Validated flag.
   /// @{
   bool IsValidated = false;
+  /// @}
+};
+
+class CoreModuleSection : public Section {
+public:
+  /// Getter of content.
+  Span<const Module> getContent() const noexcept { return Content; }
+  std::vector<Module> &getContent() noexcept { return Content; }
+
+private:
+  std::vector<Module> Content;
+};
+
+class Component {
+public:
+  /// Getter of magic vector.
+  const std::vector<Byte> &getMagic() const noexcept { return Magic; }
+  std::vector<Byte> &getMagic() noexcept { return Magic; }
+
+  /// Getter of version vector.
+  const std::vector<Byte> &getVersion() const noexcept { return Version; }
+  std::vector<Byte> &getVersion() noexcept { return Version; }
+
+  /// Getter of layer vector.
+  const std::vector<Byte> &getLayer() const noexcept { return Layer; }
+  std::vector<Byte> &getLayer() noexcept { return Layer; }
+
+  std::vector<CustomSection> &getCustomSections() noexcept {
+    return CustomSecs;
+  }
+  ComponentSection &getComponentSection() noexcept { return CompSec; }
+  CoreModuleSection &getCoreModuleSection() noexcept { return CoreModSec; }
+
+private:
+  /// \name Data of Module node.
+  /// @{
+  std::vector<Byte> Magic;
+  std::vector<Byte> Version;
+  std::vector<Byte> Layer;
+  std::vector<CustomSection> CustomSecs;
+  CoreModuleSection CoreModSec;
+  ComponentSection CompSec;
   /// @}
 };
 

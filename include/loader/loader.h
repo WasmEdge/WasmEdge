@@ -140,6 +140,11 @@ private:
 
   Expect<std::variant<AST::Component, AST::Module>> loadUnit();
 
+  /// \name Load AST Component functions
+  /// @{
+  Expect<void> loadCompnent(AST::Component &Comp);
+  /// @}
+
   /// \name Load AST Module functions
   /// @{
   Expect<void> loadModule(AST::Module &Mod);

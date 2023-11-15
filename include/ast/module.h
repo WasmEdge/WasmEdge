@@ -35,12 +35,17 @@ public:
   const std::vector<Byte> &getLayer() const noexcept { return Layer; }
   std::vector<Byte> &getLayer() noexcept { return Layer; }
 
+  std::vector<CustomSection> &getCustomSections() noexcept {
+    return CustomSecs;
+  }
+
 private:
   /// \name Data of Module node.
   /// @{
   std::vector<Byte> Magic;
   std::vector<Byte> Version;
   std::vector<Byte> Layer;
+  std::vector<CustomSection> CustomSecs;
   /// @}
 };
 

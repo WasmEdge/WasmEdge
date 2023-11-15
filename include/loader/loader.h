@@ -143,7 +143,7 @@ private:
 
   /// \name Load AST Component functions
   /// @{
-  Expect<void> loadCompnent(AST::Component &Comp);
+  Expect<void> loadComponent(AST::Component &Comp);
   /// @}
 
   /// \name Load AST Module functions

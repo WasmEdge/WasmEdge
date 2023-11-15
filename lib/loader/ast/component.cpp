@@ -80,7 +80,7 @@ Expect<std::variant<AST::Component, AST::Module>> Loader::loadUnit() {
     Comp->getMagic() = WasmMagic;
     Comp->getVersion() = {Ver[0], Ver[1]};
     Comp->getLayer() = {Ver[2], Ver[3]};
-    if (auto Res = loadCompnent(*Comp); !Res) {
+    if (auto Res = loadComponent(*Comp); !Res) {
       return Unexpect(Res);
     }
     return *Comp;
@@ -90,7 +90,7 @@ Expect<std::variant<AST::Component, AST::Module>> Loader::loadUnit() {
   }
 }
 
-Expect<void> Loader::loadCompnent(AST::Component &Comp) {
+Expect<void> Loader::loadComponent(AST::Component &Comp) {
   Expect<Byte> Res;
   while (auto Res = FMgr.readByte()) {
     // only keep going if we have new section ID
@@ -146,15 +146,14 @@ Expect<void> Loader::loadCompnent(AST::Component &Comp) {
       NestedComp->getMagic() = WasmMagic;
       NestedComp->getVersion() = {Ver[0], Ver[1]};
       NestedComp->getLayer() = {Ver[2], Ver[3]};
-      if (auto Res = loadCompnent(*NestedComp); !Res) {
+      if (auto Res = loadComponent(*NestedComp); !Res) {
         return Unexpect(Res);
       }
-      std::vector<std::unique_ptr<AST::Component>> &V =
+      std::vector<AST::Component *> &V =
           Comp.getComponentSection().getContent();
-      V.push_back(std::move(NestedComp));
-      // FIXME: The compiler believe it copies the NestedComp, I can't get why
-      // for now.
-    } break;
+      V.push_back(NestedComp.get());
+      break;
+    }
     case 0x05:
       spdlog::error(
           "Component model is not fully parsed yet! instance section");

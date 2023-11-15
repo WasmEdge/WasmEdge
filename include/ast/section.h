@@ -288,10 +288,15 @@ class Component;
 class ComponentSection : public Section {
 public:
   /// Getter of content.
-  std::vector<Component *> &getContent() noexcept { return Content; }
+  Span<const std::shared_ptr<Component>> getContent() const noexcept {
+    return Content;
+  }
+  std::vector<std::shared_ptr<Component>> &getContent() noexcept {
+    return Content;
+  }
 
 private:
-  std::vector<Component *> Content;
+  std::vector<std::shared_ptr<Component>> Content;
 };
 
 } // namespace AST

@@ -73,12 +73,92 @@ Expect<std::variant<AST::Component, AST::Module>> Loader::loadUnit() {
     Comp->getMagic() = WasmMagic;
     Comp->getVersion() = {(*Ver)[0], (*Ver)[1]};
     Comp->getLayer() = {(*Ver)[2], (*Ver)[3]};
-    spdlog::error("Component model is not fully parsed yet!");
+    if (auto Res = loadCompnent(*Comp); !Res) {
+      return Unexpect(Res);
+    }
     return *Comp;
   } else {
     return logLoadError(ErrCode::Value::MalformedVersion, FMgr.getLastOffset(),
                         ASTNodeAttr::Component);
   }
+}
+
+Expect<void> Loader::loadCompnent(AST::Component &Comp) {
+  Expect<Byte> Res;
+  while (auto Res = FMgr.readByte()) {
+    // only keep going if we have new section ID
+    uint8_t NewSectionId = *Res;
+
+    switch (NewSectionId) {
+    case 0x00:
+      Comp.getCustomSections().emplace_back();
+      if (auto Res = loadSection(Comp.getCustomSections().back()); !Res) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+        return Unexpect(Res);
+      }
+      break;
+    case 0x01:
+      spdlog::error(
+          "Component model is not fully parsed yet! core:module section");
+      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
+                          ASTNodeAttr::Component);
+    case 0x02:
+      spdlog::error(
+          "Component model is not fully parsed yet! core:instance section");
+      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
+                          ASTNodeAttr::Component);
+    case 0x03:
+      spdlog::error(
+          "Component model is not fully parsed yet! core:type section");
+      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
+                          ASTNodeAttr::Component);
+    case 0x04:
+      spdlog::error(
+          "Component model is not fully parsed yet! component section");
+      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
+                          ASTNodeAttr::Component);
+    case 0x05:
+      spdlog::error(
+          "Component model is not fully parsed yet! instance section");
+      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
+                          ASTNodeAttr::Component);
+    case 0x06:
+      spdlog::error("Component model is not fully parsed yet! alias section");
+      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
+                          ASTNodeAttr::Component);
+    case 0x07:
+      spdlog::error("Component model is not fully parsed yet! type section");
+      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
+                          ASTNodeAttr::Component);
+    case 0x08:
+      spdlog::error("Component model is not fully parsed yet! canon section");
+      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
+                          ASTNodeAttr::Component);
+    case 0x09:
+      spdlog::error("Component model is not fully parsed yet! start section");
+      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
+                          ASTNodeAttr::Component);
+    case 0x0A:
+      spdlog::error("Component model is not fully parsed yet! import section");
+      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
+                          ASTNodeAttr::Component);
+    case 0x0B:
+      spdlog::error("Component model is not fully parsed yet! export section");
+      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
+                          ASTNodeAttr::Component);
+
+    default:
+      return logLoadError(ErrCode::Value::MalformedSection,
+                          FMgr.getLastOffset(), ASTNodeAttr::Component);
+    }
+  }
+
+  if (!Res) {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Component);
+  }
+
+  return {};
 }
 
 } // namespace Loader

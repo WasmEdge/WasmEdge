@@ -142,16 +142,14 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
         return logLoadError(ErrCode::Value::MalformedVersion,
                             FMgr.getLastOffset(), ASTNodeAttr::Component);
       }
-      auto NestedComp = std::make_unique<AST::Component>();
+      auto NestedComp = std::make_shared<AST::Component>();
       NestedComp->getMagic() = WasmMagic;
       NestedComp->getVersion() = {Ver[0], Ver[1]};
       NestedComp->getLayer() = {Ver[2], Ver[3]};
       if (auto Res = loadComponent(*NestedComp); !Res) {
         return Unexpect(Res);
       }
-      std::vector<AST::Component *> &V =
-          Comp.getComponentSection().getContent();
-      V.push_back(NestedComp.get());
+      Comp.getComponentSection().getContent().push_back(NestedComp);
       break;
     }
     case 0x05:

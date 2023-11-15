@@ -288,15 +288,10 @@ class Component;
 class ComponentSection : public Section {
 public:
   /// Getter of content.
-  Span<const std::unique_ptr<Component>> getContent() const noexcept {
-    return Content;
-  }
-  std::vector<std::unique_ptr<Component>> &getContent() noexcept {
-    return Content;
-  }
+  std::vector<Component *> &getContent() noexcept { return Content; }
 
 private:
-  std::vector<std::unique_ptr<Component>> Content;
+  std::vector<Component *> Content;
 };
 
 } // namespace AST

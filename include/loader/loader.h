@@ -139,6 +139,7 @@ private:
   /// @}
 
   Expect<std::variant<AST::Component, AST::Module>> loadUnit();
+  Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> loadPreamble();
 
   /// \name Load AST Component functions
   /// @{
@@ -257,6 +258,11 @@ private:
   enum class InputType : uint8_t { WASM, UniversalWASM, SharedLibrary };
   InputType WASMType = InputType::WASM;
   /// @}
+
+  // Metadata
+  std::vector<Byte> ModuleVersion = {0x01, 0x00, 0x00, 0x00};
+  // spec says 0x0a, but it's actually 0x0d, where cargo component compiled out
+  std::vector<Byte> ComponentVersion = {0x0d, 0x00, 0x01, 0x00};
 };
 
 } // namespace Loader

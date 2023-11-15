@@ -1,9 +1,3 @@
-#include "avcodec/avcodec_func.h"
-#include "avcodec/module.h"
-#include "common/defines.h"
-#include "common/types.h"
-#include "runtime/instance/module.h"
-
 #include "gmock/gmock.h"
 #include <gtest/gtest.h>
 

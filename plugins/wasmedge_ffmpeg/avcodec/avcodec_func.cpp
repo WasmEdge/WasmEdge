@@ -29,10 +29,8 @@ AVCodecParametersFromContext::body(const Runtime::CallingFrame &,
                                    uint32_t AvCodecCtxId,
                                    uint32_t AvCodecParamId) {
 
-  FFMPEG_PTR_FETCH(AvCodecParam, AvCodecParamId,
-                   AVCodecParameters); // Check isRequiredField.
-  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId,
-                   AVCodecContext); // Check isRequiredField.
+  FFMPEG_PTR_FETCH(AvCodecParam, AvCodecParamId, AVCodecParameters);
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   return avcodec_parameters_from_context(AvCodecParam, AvCodecCtx);
 }
 
@@ -62,8 +60,7 @@ Expect<int32_t> AVCodecParametersAlloc::body(const Runtime::CallingFrame &Frame,
   MEM_PTR_CHECK(AvCodecParamId, MemInst, uint32_t, AvCodecParamPtr,
                 "Failed when accessing the return AVCodecParameters Memory");
 
-  FFMPEG_PTR_FETCH(AvCodecParam, *AvCodecParamId,
-                   AVCodecParameters); // Check isRequiredField.
+  FFMPEG_PTR_FETCH(AvCodecParam, *AvCodecParamId, AVCodecParameters);
   AvCodecParam = avcodec_parameters_alloc();
   FFMPEG_PTR_STORE(AvCodecParam, AvCodecParamId);
   return static_cast<int32_t>(ErrNo::Success);
@@ -82,11 +79,9 @@ Expect<int32_t> AVCodecOpen2::body(const Runtime::CallingFrame &,
                                    uint32_t AvCodecCtxId, uint32_t AvCodecId,
                                    uint32_t AvDictionaryId) {
 
-  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId,
-                   AVCodecContext); // Check isRequiredField.
-  FFMPEG_PTR_FETCH(AvDictionary, AvDictionaryId,
-                   AVDictionary *);              // Check isRequiredField.
-  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, AVCodec); // Check isRequiredField.
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  FFMPEG_PTR_FETCH(AvDictionary, AvDictionaryId, AVDictionary *);
+  FFMPEG_PTR_FETCH(AvCodec, AvCodecId, AVCodec);
   return avcodec_open2(AvCodecCtx, AvCodec, AvDictionary);
 }
 
@@ -263,15 +258,6 @@ Expect<int32_t> AVPacketRescaleTs::body(const Runtime::CallingFrame &,
 
   av_packet_rescale_ts(AvPacket, Src, Dest);
   return static_cast<int32_t>(ErrNo::Success);
-}
-
-Expect<int32_t> AVPacketRef::body(const Runtime::CallingFrame &,
-                                  uint32_t DestPacketId, uint32_t SrcPacketId) {
-
-  FFMPEG_PTR_FETCH(DestAvPacket, DestPacketId, AVPacket);
-  FFMPEG_PTR_FETCH(SrcAvPacket, SrcPacketId, AVPacket);
-
-  return av_packet_ref(DestAvPacket, SrcAvPacket);
 }
 
 Expect<int32_t> AVPacketMakeWritable::body(const Runtime::CallingFrame &,

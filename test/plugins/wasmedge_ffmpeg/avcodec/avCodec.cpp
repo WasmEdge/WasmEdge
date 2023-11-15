@@ -16,12 +16,12 @@ TEST_F(FFmpegTest, AVCodec) {
 
   ASSERT_TRUE(AVCodecMod != nullptr);
 
-  // File name is 32 char long.
   uint32_t AVCodecPtr = UINT32_C(20);
   uint32_t StringPtr = UINT32_C(68);
   //  uint32_t NumeratorPtr = UINT32_C(72);
   //  uint32_t DenominatorPtr = UINT32_C(76);
-  initAVCodec(AVCodecPtr, UINT32_C(24), UINT32_C(28), UINT32_C(60),
+  std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
+  initAVCodec(AVCodecPtr, UINT32_C(24), UINT32_C(28), FileName, UINT32_C(60),
               UINT32_C(64));
 
   uint32_t AVCodecId = readUInt32(MemInst, AVCodecPtr);

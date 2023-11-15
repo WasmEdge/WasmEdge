@@ -16,9 +16,10 @@ void FFmpegTest::initEmptyFrame(uint32_t FramePtr) {
 }
 
 void FFmpegTest::initAVCodec(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
-                             uint32_t FilePtr, uint32_t CodecParameterPtr,
+                             uint32_t FilePtr, std::string FileName,
+                             uint32_t CodecParameterPtr,
                              uint32_t AVCodecCtxPtr) {
-  initFormatCtx(AVFormatCtxPtr, FilePtr);
+  initFormatCtx(AVFormatCtxPtr, FilePtr, FileName);
 
   uint32_t AvFormatCtxId = readUInt32(MemInst, AVFormatCtxPtr);
 
@@ -109,13 +110,12 @@ void FFmpegTest::initAVCodec(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
       Result);
 }
 
-void FFmpegTest::initFormatCtx(uint32_t AVFormatCtxPtr, uint32_t StartPtr) {
+void FFmpegTest::initFormatCtx(uint32_t AVFormatCtxPtr, uint32_t FilePtr,
+                               std::string FileName) {
 
-  int32_t Length = 32;
-  fillMemContent(MemInst, StartPtr, Length);
-  std::string Url = std::string(
-      "ffmpeg-assets/sample_video.mp4"); // downloaded using bash script
-  fillMemContent(MemInst, StartPtr, Url);
+  int32_t Length = FileName.length();
+  fillMemContent(MemInst, FilePtr, Length);
+  fillMemContent(MemInst, FilePtr, FileName);
 
   auto *FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformat_open_input");
@@ -125,8 +125,29 @@ void FFmpegTest::initFormatCtx(uint32_t AVFormatCtxPtr, uint32_t StartPtr) {
   HostFuncAVFormatOpenInput.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
-          AVFormatCtxPtr, StartPtr, Length, UINT32_C(0), UINT32_C(0)},
+          AVFormatCtxPtr, FilePtr, Length, UINT32_C(0), UINT32_C(0)},
       Result);
+}
+
+void FFmpegTest::initDict(uint32_t DictPtr, uint32_t KeyPtr, std::string Key,
+                          uint32_t ValuePtr, std::string Value) {
+
+  uint32_t KeyLen = Key.length();
+  uint32_t ValueLen = Value.length();
+  fillMemContent(MemInst, KeyPtr, KeyLen + ValueLen);
+  fillMemContent(MemInst, KeyPtr, Key);
+  fillMemContent(MemInst, ValuePtr, Value);
+
+  auto *FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_set");
+  auto &HostFuncAVDictSet =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictSet &>(
+          FuncInst->getHostFunc());
+
+  HostFuncAVDictSet.run(CallFrame,
+                        std::initializer_list<WasmEdge::ValVariant>{
+                            DictPtr, KeyPtr, KeyLen, ValuePtr, ValueLen, 0},
+                        Result);
 }
 
 } // namespace WasmEdgeFFmpeg

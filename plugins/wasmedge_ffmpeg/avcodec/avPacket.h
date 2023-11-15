@@ -23,6 +23,14 @@ public:
                        int32_t Size);
 };
 
+class AVPacketRef : public WasmEdgeFFmpegAVCodec<AVPacketRef> {
+public:
+  AVPacketRef(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVCodec(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t DestPacketId, uint32_t SrcPacketId);
+};
+
 class AVPacketUnref : public WasmEdgeFFmpegAVCodec<AVPacketUnref> {
 public:
   AVPacketUnref(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)

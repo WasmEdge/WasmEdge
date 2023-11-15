@@ -478,7 +478,7 @@ public:
 
     using namespace std::literals::string_view_literals;
     WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-        "../../plugins/wasmedge_ffmpeg/"
+        "../../../plugins/wasmedge_ffmpeg/"
         "libwasmedgePluginWasmEdgeFFmpeg" WASMEDGE_LIB_EXTENSION));
     if (const auto *Plugin =
             WasmEdge::Plugin::Plugin::find("wasmedge_ffmpeg"sv)) {
@@ -529,11 +529,14 @@ public:
 protected:
   void initEmptyFrame(uint32_t FramePtr);
 
+  void initDict(uint32_t DictPtr, uint32_t KeyPtr, std::string Key,
+                uint32_t ValuePtr, std::string Value);
   void initAVCodec(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
-                   uint32_t FilePtr, uint32_t CodecParameterPtr,
-                   uint32_t AVCodecCtxPtr);
+                   uint32_t FilePtr, std::string FileName,
+                   uint32_t CodecParameterPtr, uint32_t AVCodecCtxPtr);
 
-  void initFormatCtx(uint32_t AVFormatCtxPtr, uint32_t StartPtr);
+  void initFormatCtx(uint32_t AVFormatCtxPtr, uint32_t FilePtr,
+                     std::string FileName);
 
   // Result of Funcs to be stored here.
   std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};

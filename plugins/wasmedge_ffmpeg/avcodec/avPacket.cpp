@@ -29,6 +29,15 @@ Expect<int32_t> AVNewPacket::body(const Runtime::CallingFrame &,
   return av_new_packet(AvPacket, Size);
 }
 
+Expect<int32_t> AVPacketRef::body(const Runtime::CallingFrame &,
+                                  uint32_t DestPacketId, uint32_t SrcPacketId) {
+
+  FFMPEG_PTR_FETCH(DestAvPacket, DestPacketId, AVPacket);
+  FFMPEG_PTR_FETCH(SrcAvPacket, SrcPacketId, AVPacket);
+
+  return av_packet_ref(DestAvPacket, SrcAvPacket);
+}
+
 Expect<int32_t> AVPacketUnref::body(const Runtime::CallingFrame &,
                                     uint32_t AvPacketId) {
 

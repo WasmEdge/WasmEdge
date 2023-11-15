@@ -15,11 +15,11 @@ namespace WasmEdgeFFmpeg {
 TEST_F(FFmpegTest, AVCodecParameters) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
-  // File name is 32 char long.
   uint32_t AVCodecParamPtr = UINT32_C(60);
-  // Refactor code.
-  initAVCodec(UINT32_C(20), UINT32_C(24), UINT32_C(28), AVCodecParamPtr,
-              UINT32_C(64));
+
+  std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
+  initAVCodec(UINT32_C(20), UINT32_C(24), UINT32_C(28), FileName,
+              AVCodecParamPtr, UINT32_C(64));
 
   uint32_t AVCodecParamId = readUInt32(MemInst, AVCodecParamPtr);
 

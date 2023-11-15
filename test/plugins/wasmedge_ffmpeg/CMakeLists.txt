@@ -2,8 +2,8 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 wasmedge_add_executable(wasmedgeFFmpegTests
+        main.cpp
         avcodec/avcodec_func.cpp
-        avcodec.cpp
         avcodec/avCodec.cpp
         avcodec/avCodecParameters.cpp
         avcodec/avPacket.cpp

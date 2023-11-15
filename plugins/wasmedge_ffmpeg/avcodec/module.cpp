@@ -55,8 +55,6 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
               std::make_unique<AVCodecFindEncoderByName>(Env));
   addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_rescale_ts",
               std::make_unique<AVPacketRescaleTs>(Env));
-  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_ref",
-              std::make_unique<AVPacketRef>(Env));
   addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_make_writable",
               std::make_unique<AVPacketMakeWritable>(Env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_parameters_copy",
@@ -316,6 +314,8 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
               std::make_unique<AVPacketAlloc>(Env));
   addHostFunc("wasmedge_ffmpeg_avcodec_av_new_packet",
               std::make_unique<AVNewPacket>(Env));
+  addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_ref",
+              std::make_unique<AVPacketRef>(Env));
   addHostFunc("wasmedge_ffmpeg_avcodec_av_packet_unref",
               std::make_unique<AVPacketUnref>(Env));
   addHostFunc("wasmedge_ffmpeg_avcodec_av_grow_packet",

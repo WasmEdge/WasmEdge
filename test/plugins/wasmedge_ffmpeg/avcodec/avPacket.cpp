@@ -17,7 +17,8 @@ TEST_F(FFmpegTest, AVPacketTest) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   uint32_t PacketPtr = UINT32_C(4);
-  uint32_t DataPtr = UINT32_C(8);
+  uint32_t PacketPtr2 = UINT32_C(8);
+  uint32_t DataPtr = UINT32_C(12);
 
   auto *FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_alloc");
@@ -33,10 +34,17 @@ TEST_F(FFmpegTest, AVPacketTest) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketPtr},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+    EXPECT_TRUE(HostFuncAVPacketAlloc.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketPtr2},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 
   uint32_t PacketId = readUInt32(MemInst, PacketPtr);
+  uint32_t PacketId2 = readUInt32(MemInst, PacketPtr2);
   ASSERT_TRUE(PacketId > 0);
+  ASSERT_TRUE(PacketId2 > 0);
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_new_packet");
@@ -54,23 +62,6 @@ TEST_F(FFmpegTest, AVPacketTest) {
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), 0);
   }
-
-  //   FuncInst =
-  //       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_unref");
-  //   EXPECT_NE(FuncInst, nullptr);
-  //   EXPECT_TRUE(FuncInst->isHostFunction());
-  //
-  //   auto &HostFuncAVPacketUnref =
-  //       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketUnref
-  //       &>(
-  //           FuncInst->getHostFunc());
-  //
-  //   {
-  //     EXPECT_TRUE(HostFuncAVPacketUnref.run(
-  //         CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));
-  //     EXPECT_EQ(Result[0].get<int32_t>(),
-  //     static_cast<int32_t>(ErrNo::Success));
-  //   }
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_grow_packet");
@@ -337,6 +328,40 @@ TEST_F(FFmpegTest, AVPacketTest) {
     EXPECT_TRUE(HostFuncAVPacketData.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{PacketId, DataPtr, Size},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+  //
+  //  FuncInst =
+  //      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_ref");
+  //  EXPECT_NE(FuncInst, nullptr);
+  //  EXPECT_TRUE(FuncInst->isHostFunction());
+  //
+  //  auto &HostFuncAVPacketRef =
+  //      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketRef &>(
+  //          FuncInst->getHostFunc());
+  //
+  //  {
+  //    EXPECT_TRUE(HostFuncAVPacketRef.run(
+  //        CallFrame,
+  //        std::initializer_list<WasmEdge::ValVariant>{PacketId2, PacketId},
+  //        Result));
+  //    EXPECT_EQ(Result[0].get<int32_t>(),
+  //    static_cast<int32_t>(ErrNo::Success));
+  //  }
+
+  FuncInst =
+      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_unref");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVPacketUnref =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketUnref &>(
+          FuncInst->getHostFunc());
+
+  {
+    EXPECT_TRUE(HostFuncAVPacketUnref.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }

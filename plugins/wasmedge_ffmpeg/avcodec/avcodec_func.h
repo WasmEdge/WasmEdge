@@ -173,14 +173,6 @@ public:
                        int32_t DestDen);
 };
 
-class AVPacketRef : public WasmEdgeFFmpegAVCodec<AVPacketRef> {
-public:
-  AVPacketRef(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVCodec(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
-                       uint32_t DestPacketId, uint32_t SrcPacketId);
-};
-
 class AVPacketMakeWritable
     : public WasmEdgeFFmpegAVCodec<AVPacketMakeWritable> {
 public:

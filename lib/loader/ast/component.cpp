@@ -130,10 +130,11 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
       return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
                           ASTNodeAttr::Component);
     case 0x03:
-      spdlog::error(
-          "Component model is not fully parsed yet! core:type section");
-      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
-                          ASTNodeAttr::Component);
+      if (auto Res = loadSection(Comp.getTypeSection()); !Res) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+        return Unexpect(Res);
+      }
+      break;
     case 0x04: {
       auto Res = Loader::loadPreamble();
       if (!Res) {

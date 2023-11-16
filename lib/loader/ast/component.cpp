@@ -104,23 +104,26 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
         return Unexpect(Res);
       }
       break;
-    case 0x01:
-      if (auto Res = loadUnit()) {
-        std::variant<AST::Component, AST::Module> Unit = *Res;
-        if (std::holds_alternative<AST::Module>(Unit)) {
-          Comp.getCoreModuleSection().getContent().push_back(
-              std::get<AST::Module>(Unit));
-        } else {
-          spdlog::error("load nested module but get a component");
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
-          return logLoadError(ErrCode::Value::MalformedSection,
-                              FMgr.getLastOffset(), ASTNodeAttr::Component);
-        }
-      } else {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+    case 0x01: {
+      auto Res = Loader::loadPreamble();
+      if (!Res) {
         return Unexpect(Res);
       }
+      auto WasmMagic = Res->first;
+      auto Ver = Res->second;
+      if (Ver != ModuleVersion) {
+        return logLoadError(ErrCode::Value::MalformedVersion,
+                            FMgr.getLastOffset(), ASTNodeAttr::Component);
+      }
+      AST::Module CoreMod;
+      CoreMod.getMagic() = WasmMagic;
+      CoreMod.getVersion() = Ver;
+      if (auto Res = loadModule(CoreMod); !Res) {
+        return Unexpect(Res);
+      }
+      Comp.getCoreModuleSection().getContent().push_back(CoreMod);
       break;
+    }
     case 0x02:
       spdlog::error(
           "Component model is not fully parsed yet! core:instance section");
@@ -138,7 +141,7 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
       }
       auto WasmMagic = Res->first;
       auto Ver = Res->second;
-      if (Ver == ComponentVersion) {
+      if (Ver != ComponentVersion) {
         return logLoadError(ErrCode::Value::MalformedVersion,
                             FMgr.getLastOffset(), ASTNodeAttr::Component);
       }

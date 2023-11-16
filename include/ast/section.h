@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/alias.h"
 #include "ast/description.h"
 #include "ast/segment.h"
 
@@ -280,6 +281,19 @@ private:
   std::vector<uintptr_t> CodesAddress;
   std::vector<std::tuple<uint8_t, uint64_t, uint64_t, std::vector<Byte>>>
       Sections;
+  /// @}
+};
+
+class AliasSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const Alias> getContent() const noexcept { return Content; }
+  std::vector<Alias> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of AliasSection.
+  /// @{
+  std::vector<Alias> Content;
   /// @}
 };
 

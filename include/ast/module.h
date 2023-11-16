@@ -167,8 +167,9 @@ public:
   std::vector<CustomSection> &getCustomSections() noexcept {
     return CustomSecs;
   }
-  ComponentSection &getComponentSection() noexcept { return CompSec; }
   CoreModuleSection &getCoreModuleSection() noexcept { return CoreModSec; }
+  TypeSection &getTypeSection() noexcept { return TypeSec; }
+  ComponentSection &getComponentSection() noexcept { return CompSec; }
 
 private:
   /// \name Data of Module node.
@@ -178,6 +179,7 @@ private:
   std::vector<Byte> Layer;
   std::vector<CustomSection> CustomSecs;
   CoreModuleSection CoreModSec;
+  TypeSection TypeSec;
   ComponentSection CompSec;
   /// @}
 };

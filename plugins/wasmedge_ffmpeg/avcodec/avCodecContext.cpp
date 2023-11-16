@@ -25,15 +25,25 @@ Expect<uint32_t> AVCodecCtxCodecType::body(const Runtime::CallingFrame &,
   return FFmpegUtils::MediaType::fromMediaType(AvMediaType);
 }
 
-Expect<uint32_t> AVCodecCtxSetCodecType::body(const Runtime::CallingFrame &,
-                                              uint32_t AvCodecCtxId,
-                                              int32_t CodecTypeId) {
+Expect<int32_t> AVCodecCtxSetCodecType::body(const Runtime::CallingFrame &,
+                                             uint32_t AvCodecCtxId,
+                                             int32_t CodecTypeId) {
 
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   AVMediaType const AvMediaType =
       FFmpegUtils::MediaType::intoMediaType(CodecTypeId);
 
   AvCodecCtx->codec_type = AvMediaType;
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+Expect<int32_t> AVCodecCtxSetTimebase::body(const Runtime::CallingFrame &,
+                                            uint32_t AvCodecCtxId, int32_t Num,
+                                            int32_t Den) {
+
+  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  AVRational const Rational = av_make_q(Num, Den);
+  AvCodecCtx->time_base = Rational;
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -141,9 +151,9 @@ Expect<uint32_t> AVCodecCtxPixFormat::body(const Runtime::CallingFrame &,
   return FFmpegUtils::PixFmt::fromAVPixFmt(PixFmt);
 }
 
-Expect<uint32_t> AVCodecCtxSetPixFormat::body(const Runtime::CallingFrame &,
-                                              uint32_t AvCodecCtxId,
-                                              uint32_t PixFmtId) {
+Expect<int32_t> AVCodecCtxSetPixFormat::body(const Runtime::CallingFrame &,
+                                             uint32_t AvCodecCtxId,
+                                             uint32_t PixFmtId) {
 
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   AVPixelFormat const PixFmt = FFmpegUtils::PixFmt::intoAVPixFmt(PixFmtId);
@@ -541,16 +551,6 @@ AVCodecCtxSetCompressionLevel::body(const Runtime::CallingFrame &,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
-Expect<int32_t> AVCodecCtxSetTimebase::body(const Runtime::CallingFrame &,
-                                            uint32_t AvCodecCtxId, int32_t Num,
-                                            int32_t Den) {
-
-  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
-  AVRational const Rational = av_make_q(Num, Den);
-  AvCodecCtx->time_base = Rational;
-  return static_cast<int32_t>(ErrNo::Success);
-}
-
 Expect<int32_t> AVCodecCtxFrameRate::body(const Runtime::CallingFrame &Frame,
                                           uint32_t AvCodecCtxId,
                                           uint32_t NumPtr, uint32_t DenPtr) {
@@ -680,10 +680,10 @@ AVCodecCtxSetErrorConcealment::body(const Runtime::CallingFrame &,
 Expect<int32_t>
 AVCodecCtxSetErrorRecognition::body(const Runtime::CallingFrame &,
                                     uint32_t AvCodecCtxId,
-                                    int32_t ErrorConcealment) {
+                                    int32_t ErrRecognition) {
 
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
-  AvCodecCtx->err_recognition = ErrorConcealment;
+  AvCodecCtx->err_recognition = ErrRecognition;
   return static_cast<int32_t>(ErrNo::Success);
 }
 

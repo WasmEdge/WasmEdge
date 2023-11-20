@@ -206,7 +206,7 @@ VINode::pathOpen(std::shared_ptr<VINode> Fd, std::string_view Path,
     RequiredRights |= __WASI_RIGHTS_PATH_CREATE_FILE;
   }
   if (OpenFlags & __WASI_OFLAGS_TRUNC) {
-    RequiredInheritingRights |= __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE;
+    RequiredRights |= __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE;
   }
   if (FdFlags & __WASI_FDFLAGS_RSYNC) {
     RequiredInheritingRights |= __WASI_RIGHTS_FD_SYNC;

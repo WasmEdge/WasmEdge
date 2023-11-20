@@ -91,9 +91,12 @@ Expect<std::variant<AST::Component, AST::Module>> Loader::loadUnit() {
 }
 
 Expect<void> Loader::loadComponent(AST::Component &Comp) {
-  Expect<Byte> ResSecId;
   while (auto ResSecId = FMgr.readByte()) {
-    // only keep going if we have new section ID
+    if (!ResSecId) {
+      return logLoadError(ResSecId.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Component);
+    }
+    // keep going only if we have new section ID
     uint8_t NewSectionId = *ResSecId;
 
     switch (NewSectionId) {
@@ -192,11 +195,6 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
       return logLoadError(ErrCode::Value::MalformedSection,
                           FMgr.getLastOffset(), ASTNodeAttr::Component);
     }
-  }
-
-  if (!ResSecId) {
-    return logLoadError(ResSecId.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Component);
   }
 
   return {};

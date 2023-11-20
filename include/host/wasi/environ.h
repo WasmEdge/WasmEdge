@@ -830,6 +830,10 @@ public:
     if (!VINode::isPathValid(NewPath)) {
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
+    // forbid absolute path
+    if (!OldPath.empty() && OldPath[0] == '/') {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
     auto NewNode = getNodeOrNull(New);
     return VINode::pathSymlink(OldPath, std::move(NewNode), NewPath);
   }

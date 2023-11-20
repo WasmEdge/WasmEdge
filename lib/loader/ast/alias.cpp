@@ -90,9 +90,9 @@ Expect<void> Loader::loadSort(AST::Sort &Sort) {
   }
   switch (*Res) {
   case 0x00:
-    if (auto Res = loadCoreSort(Sort); !Res) {
+    if (auto Res2 = loadCoreSort(Sort); !Res2) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sort));
-      return Unexpect(Res);
+      return Unexpect(Res2);
     }
     break;
   case 0x01:

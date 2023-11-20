@@ -21,23 +21,18 @@
 namespace WasmEdge {
 namespace AST {
 
-enum class CoreSort {
-  Func = 0x00,
-  Table = 0x01,
-  Memory = 0x02,
-  Global = 0x03,
-  Type = 0x10,
-  Module = 0x11,
-  Instance = 0x12,
-};
-
 enum class Sort {
-  Core = 0x00,
-  Func = 0x01,
-  Value = 0x02,
-  Type = 0x03,
-  Component = 0x04,
-  Instance = 0x05,
+  CoreFunc,
+  CoreTable,
+  CoreMemory,
+  CoreGlobal,
+  CoreType,
+  CoreInstance,
+  Func,
+  Value,
+  Type,
+  Component,
+  Instance,
 };
 
 } // namespace AST

@@ -198,8 +198,18 @@ cast<__wasi_fstflags_t>(uint64_t FdFlags) noexcept {
   const auto Mask = __WASI_FSTFLAGS_ATIM | __WASI_FSTFLAGS_ATIM_NOW |
                     __WASI_FSTFLAGS_MTIM | __WASI_FSTFLAGS_MTIM_NOW;
   if ((WasiRawTypeT<__wasi_fstflags_t>(FdFlags) & ~Mask) == 0) {
-    return static_cast<__wasi_fstflags_t>(FdFlags);
+    const auto WasiFstFlags = static_cast<__wasi_fstflags_t>(FdFlags);
+    if ((WasiFstFlags & __WASI_FSTFLAGS_ATIM) &&
+        (WasiFstFlags & __WASI_FSTFLAGS_ATIM_NOW)) {
+      return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
+    if ((WasiFstFlags & __WASI_FSTFLAGS_MTIM) &&
+        (WasiFstFlags & __WASI_FSTFLAGS_MTIM_NOW)) {
+      return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
+    return WasiFstFlags;
   }
+
   return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
 }
 

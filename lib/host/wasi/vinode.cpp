@@ -188,6 +188,9 @@ VINode::pathOpen(std::shared_ptr<VINode> Fd, std::string_view Path,
                  __wasi_rights_t FsRightsInheriting, __wasi_fdflags_t FdFlags) {
   if (OpenFlags & __WASI_OFLAGS_DIRECTORY) {
     FsRightsBase &= ~__WASI_RIGHTS_FD_SEEK;
+  } else {
+    FsRightsBase &= ~__WASI_RIGHTS_PATH_FILESTAT_GET;
+    FsRightsInheriting &= ~__WASI_RIGHTS_PATH_FILESTAT_GET;
   }
 
   __wasi_rights_t RequiredRights = __WASI_RIGHTS_PATH_OPEN;

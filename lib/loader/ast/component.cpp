@@ -108,12 +108,13 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
       }
       break;
     case 0x01: {
-      auto Res = Loader::loadPreamble();
-      if (!Res) {
-        return Unexpect(Res);
+      auto ResPreamble = Loader::loadPreamble();
+      if (!ResPreamble) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+        return Unexpect(ResPreamble);
       }
-      auto WasmMagic = Res->first;
-      auto Ver = Res->second;
+      auto WasmMagic = ResPreamble->first;
+      auto Ver = ResPreamble->second;
       if (Ver != ModuleVersion) {
         return logLoadError(ErrCode::Value::MalformedVersion,
                             FMgr.getLastOffset(), ASTNodeAttr::Component);
@@ -122,6 +123,7 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
       CoreMod.getMagic() = WasmMagic;
       CoreMod.getVersion() = Ver;
       if (auto Res = loadModule(CoreMod); !Res) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
         return Unexpect(Res);
       }
       Comp.getCoreModuleSection().getContent().push_back(CoreMod);
@@ -139,12 +141,12 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
       }
       break;
     case 0x04: {
-      auto Res = Loader::loadPreamble();
-      if (!Res) {
-        return Unexpect(Res);
+      auto ResPreamble = Loader::loadPreamble();
+      if (!ResPreamble) {
+        return Unexpect(ResPreamble);
       }
-      auto WasmMagic = Res->first;
-      auto Ver = Res->second;
+      auto WasmMagic = ResPreamble->first;
+      auto Ver = ResPreamble->second;
       if (Ver != ComponentVersion) {
         return logLoadError(ErrCode::Value::MalformedVersion,
                             FMgr.getLastOffset(), ASTNodeAttr::Component);
@@ -154,6 +156,7 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
       NestedComp->getVersion() = {Ver[0], Ver[1]};
       NestedComp->getLayer() = {Ver[2], Ver[3]};
       if (auto Res = loadComponent(*NestedComp); !Res) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
         return Unexpect(Res);
       }
       Comp.getComponentSection().getContent().push_back(NestedComp);

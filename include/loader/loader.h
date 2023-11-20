@@ -244,6 +244,7 @@ private:
   Expect<void> loadType(AST::GlobalType &GlobType);
   Expect<void> loadAlias(AST::Alias &Alias);
   Expect<void> loadSort(AST::Sort &Sort);
+  Expect<void> loadAliasTarget(AST::AliasTarget &AliasTarget);
   Expect<void> loadCoreSort(AST::Sort &Sort);
   Expect<void> loadExpression(AST::Expression &Expr,
                               std::optional<uint64_t> SizeBound = std::nullopt);

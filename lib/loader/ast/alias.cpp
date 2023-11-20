@@ -12,24 +12,32 @@ Expect<void> Loader::loadAlias(AST::Alias &Alias) {
   if (auto Res = loadSort(Alias.getSort()); !Res) {
     return Unexpect(Res);
   }
-  // aliastarget ::= 0x00 i:<instanceidx> n:<string> => export i n
-  //       | 0x01 i:<core:instanceidx> n:<core:name> => core export i n
-  //       | 0x02 ct:<u32> idx:<u32>                 => outer ct idx
-
-  // TODO: load target
+  if (auto Res = loadAliasTarget(Alias.getTarget()); !Res) {
+    return Unexpect(Res);
+  }
 
   return {};
 }
 
+Expect<void> Loader::loadAliasTarget(AST::AliasTarget &AliasTarget) {
+  // aliastarget ::= 0x00 i:<instanceidx> n:<string> => export i n
+  //       | 0x01 i:<core:instanceidx> n:<core:name> => core export i n
+  //       | 0x02 ct:<u32> idx:<u32>                 => outer ct idx
+}
+
 Expect<void> Loader::loadSort(AST::Sort &Sort) {
-  uint32_t U = 0;
-  if (auto Res = FMgr.readU32(); !Res) {
+  // sort ::= 0x00 cs:<core:sort>   => core cs
+  //        | 0x01                  => func
+  //        | 0x02                  => value 🪙
+  //        | 0x03                  => type
+  //        | 0x04                  => component
+  //        | 0x05                  => instance
+  auto Res = FMgr.readU32();
+  if (!Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sort));
     return Unexpect(Res);
-  } else {
-    U = *Res;
   }
-  switch (U) {
+  switch (*Res) {
   case 0x00:
     if (auto Res = loadCoreSort(Sort); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sort));
@@ -60,11 +68,17 @@ Expect<void> Loader::loadSort(AST::Sort &Sort) {
 }
 
 Expect<void> Loader::loadCoreSort(AST::Sort &Sort) {
+  // core:sort ::= 0x00     => func
+  //           | 0x01       => table
+  //           | 0x02       => memory
+  //           | 0x03       => global
+  //           | 0x10       => type
+  //           | 0x11       => module
+  //           | 0x12       => instance
   auto Res = FMgr.readU32();
   if (!Res) {
     return Unexpect(Res);
   }
-
   switch (*Res) {
   case 0x00:
     Sort = AST::Sort::CoreFunc;

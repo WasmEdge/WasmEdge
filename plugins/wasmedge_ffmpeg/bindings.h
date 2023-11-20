@@ -328,762 +328,793 @@ public:
     case 136:
       return AV_CODEC_ID_IFF_ILBM;
     case 137:
-      return AV_CODEC_ID_KGV1;
+      return AV_CODEC_ID_IFF_ILBM;
     case 138:
-      return AV_CODEC_ID_YOP;
+      return AV_CODEC_ID_KGV1;
     case 139:
-      return AV_CODEC_ID_VP8;
+      return AV_CODEC_ID_YOP;
     case 140:
-      return AV_CODEC_ID_PICTOR;
+      return AV_CODEC_ID_VP8;
     case 141:
-      return AV_CODEC_ID_ANSI;
+      return AV_CODEC_ID_PICTOR;
     case 142:
-      return AV_CODEC_ID_A64_MULTI;
+      return AV_CODEC_ID_ANSI;
     case 143:
-      return AV_CODEC_ID_A64_MULTI5;
+      return AV_CODEC_ID_A64_MULTI;
     case 144:
-      return AV_CODEC_ID_R10K;
+      return AV_CODEC_ID_A64_MULTI5;
     case 145:
-      return AV_CODEC_ID_MXPEG;
+      return AV_CODEC_ID_R10K;
     case 146:
-      return AV_CODEC_ID_LAGARITH;
+      return AV_CODEC_ID_MXPEG;
     case 147:
-      return AV_CODEC_ID_PRORES;
+      return AV_CODEC_ID_LAGARITH;
     case 148:
-      return AV_CODEC_ID_JV;
+      return AV_CODEC_ID_PRORES;
     case 149:
-      return AV_CODEC_ID_DFA;
+      return AV_CODEC_ID_JV;
     case 150:
-      return AV_CODEC_ID_WMV3IMAGE;
+      return AV_CODEC_ID_DFA;
     case 151:
-      return AV_CODEC_ID_VC1IMAGE;
+      return AV_CODEC_ID_WMV3IMAGE;
     case 152:
-      return AV_CODEC_ID_UTVIDEO;
+      return AV_CODEC_ID_VC1IMAGE;
     case 153:
-      return AV_CODEC_ID_BMV_VIDEO;
+      return AV_CODEC_ID_UTVIDEO;
     case 154:
-      return AV_CODEC_ID_VBLE;
+      return AV_CODEC_ID_BMV_VIDEO;
     case 155:
-      return AV_CODEC_ID_DXTORY;
+      return AV_CODEC_ID_VBLE;
     case 156:
-      return AV_CODEC_ID_V410;
+      return AV_CODEC_ID_DXTORY;
     case 157:
-      return AV_CODEC_ID_XWD;
+      return AV_CODEC_ID_V410;
     case 158:
-      return AV_CODEC_ID_CDXL;
+      return AV_CODEC_ID_XWD;
     case 159:
-      return AV_CODEC_ID_XBM;
+      return AV_CODEC_ID_CDXL;
     case 160:
-      return AV_CODEC_ID_ZEROCODEC;
+      return AV_CODEC_ID_XBM;
     case 161:
-      return AV_CODEC_ID_MSS1;
+      return AV_CODEC_ID_ZEROCODEC;
     case 162:
-      return AV_CODEC_ID_MSA1;
+      return AV_CODEC_ID_MSS1;
     case 163:
-      return AV_CODEC_ID_TSCC2;
+      return AV_CODEC_ID_MSA1;
     case 164:
-      return AV_CODEC_ID_MTS2;
+      return AV_CODEC_ID_TSCC2;
     case 165:
-      return AV_CODEC_ID_CLLC;
+      return AV_CODEC_ID_MTS2;
     case 166:
-      return AV_CODEC_ID_MSS2;
+      return AV_CODEC_ID_CLLC;
     case 167:
-      return AV_CODEC_ID_VP9;
+      return AV_CODEC_ID_MSS2;
     case 168:
-      return AV_CODEC_ID_AIC;
+      return AV_CODEC_ID_VP9;
     case 169:
-      return AV_CODEC_ID_ESCAPE130;
+      return AV_CODEC_ID_AIC;
     case 170:
-      return AV_CODEC_ID_G2M;
+      return AV_CODEC_ID_ESCAPE130;
     case 171:
-      return AV_CODEC_ID_WEBP;
+      return AV_CODEC_ID_G2M;
     case 172:
-      return AV_CODEC_ID_HNM4_VIDEO;
+      return AV_CODEC_ID_WEBP;
     case 173:
-      return AV_CODEC_ID_HEVC;
+      return AV_CODEC_ID_HNM4_VIDEO;
     case 174:
-      return AV_CODEC_ID_FIC;
+      return AV_CODEC_ID_HEVC;
     case 175:
-      return AV_CODEC_ID_ALIAS_PIX;
+      return AV_CODEC_ID_HEVC;
     case 176:
-      return AV_CODEC_ID_BRENDER_PIX;
+      return AV_CODEC_ID_FIC;
     case 177:
-      return AV_CODEC_ID_PAF_VIDEO;
+      return AV_CODEC_ID_ALIAS_PIX;
     case 178:
-      return AV_CODEC_ID_EXR;
+      return AV_CODEC_ID_BRENDER_PIX;
     case 179:
-      return AV_CODEC_ID_VP7;
+      return AV_CODEC_ID_PAF_VIDEO;
     case 180:
-      return AV_CODEC_ID_SANM;
+      return AV_CODEC_ID_EXR;
     case 181:
-      return AV_CODEC_ID_SGIRLE;
+      return AV_CODEC_ID_VP7;
     case 182:
-      return AV_CODEC_ID_MVC1;
+      return AV_CODEC_ID_SANM;
     case 183:
-      return AV_CODEC_ID_MVC2;
+      return AV_CODEC_ID_SGIRLE;
     case 184:
-      return AV_CODEC_ID_HQX;
+      return AV_CODEC_ID_MVC1;
     case 185:
-      return AV_CODEC_ID_TDSC;
+      return AV_CODEC_ID_MVC2;
     case 186:
-      return AV_CODEC_ID_HQ_HQA;
+      return AV_CODEC_ID_HQX;
     case 187:
-      return AV_CODEC_ID_HAP;
+      return AV_CODEC_ID_TDSC;
     case 188:
-      return AV_CODEC_ID_DDS;
+      return AV_CODEC_ID_HQ_HQA;
     case 189:
-      return AV_CODEC_ID_DXV;
+      return AV_CODEC_ID_HAP;
     case 190:
-      return AV_CODEC_ID_SCREENPRESSO;
+      return AV_CODEC_ID_DDS;
     case 191:
-      return AV_CODEC_ID_RSCC;
+      return AV_CODEC_ID_DXV;
     case 192:
-      return AV_CODEC_ID_AVS2;
+      return AV_CODEC_ID_SCREENPRESSO;
     case 193:
-      return AV_CODEC_ID_PGX;
+      return AV_CODEC_ID_RSCC;
+      ///////////////////////////////
+      //    case 194:
+      //      return AV_CODEC_ID_Y41P;
+      //    case 194:
+      //      return AV_CODEC_ID_AVS2;
     case 194:
-      return AV_CODEC_ID_AVS3;
-    case 195:
-      return AV_CODEC_ID_MSP2;
-    case 196:
-      return AV_CODEC_ID_VVC;
-    case 197:
       return AV_CODEC_ID_Y41P;
-    case 198:
+    case 195:
       return AV_CODEC_ID_AVRP;
-    case 199:
+    case 196:
       return AV_CODEC_ID_012V;
-    case 200:
+    case 197:
       return AV_CODEC_ID_AVUI;
-    case 201:
+    case 198:
       return AV_CODEC_ID_AYUV;
-    case 202:
+    case 199:
       return AV_CODEC_ID_TARGA_Y216;
-    case 203:
+    case 200:
       return AV_CODEC_ID_V308;
-    case 204:
+    case 201:
       return AV_CODEC_ID_V408;
-    case 205:
+    case 202:
       return AV_CODEC_ID_YUV4;
-    case 206:
+    case 203:
       return AV_CODEC_ID_AVRN;
-    case 207:
+    case 204:
       return AV_CODEC_ID_CPIA;
-    case 208:
+    case 205:
       return AV_CODEC_ID_XFACE;
-    case 209:
+    case 206:
       return AV_CODEC_ID_SNOW;
-    case 210:
+    case 207:
       return AV_CODEC_ID_SMVJPEG;
-    case 211:
+    case 208:
       return AV_CODEC_ID_APNG;
-    case 212:
+    case 209:
       return AV_CODEC_ID_DAALA;
-    case 213:
+    case 210:
       return AV_CODEC_ID_CFHD;
-    case 214:
+    case 211:
       return AV_CODEC_ID_TRUEMOTION2RT;
-    case 215:
+    case 212:
       return AV_CODEC_ID_M101;
-    case 216:
+    case 213:
       return AV_CODEC_ID_MAGICYUV;
-    case 217:
+    case 214:
       return AV_CODEC_ID_SHEERVIDEO;
-    case 218:
+    case 215:
       return AV_CODEC_ID_YLC;
-    case 219:
-      return AV_CODEC_ID_PSD;
-    case 220:
-      return AV_CODEC_ID_PIXLET;
-    case 221:
-      return AV_CODEC_ID_SPEEDHQ;
-    case 222:
-      return AV_CODEC_ID_FMVC;
-    case 223:
-      return AV_CODEC_ID_SCPR;
-    case 224:
-      return AV_CODEC_ID_CLEARVIDEO;
-    case 225:
-      return AV_CODEC_ID_XPM;
-    case 226:
-      return AV_CODEC_ID_AV1;
-    case 227:
-      return AV_CODEC_ID_BITPACKED;
-    case 228:
-      return AV_CODEC_ID_MSCC;
-    case 229:
-      return AV_CODEC_ID_SRGC;
-    case 230:
-      return AV_CODEC_ID_SVG;
-    case 231:
-      return AV_CODEC_ID_GDV;
-    case 232:
-      return AV_CODEC_ID_FITS;
-    case 233:
-      return AV_CODEC_ID_IMM4;
-    case 234:
-      return AV_CODEC_ID_PROSUMER;
-    case 235:
-      return AV_CODEC_ID_MWSC;
-    case 236:
-      return AV_CODEC_ID_WCMV;
-    case 237:
-      return AV_CODEC_ID_RASC;
-    case 238:
-      return AV_CODEC_ID_HYMT;
-    case 239:
-      return AV_CODEC_ID_ARBC;
-    case 240:
-      return AV_CODEC_ID_AGM;
-    case 241:
-      return AV_CODEC_ID_LSCR;
-    case 242:
-      return AV_CODEC_ID_VP4;
-    case 243:
-      return AV_CODEC_ID_IMM5;
-    case 244:
-      return AV_CODEC_ID_MVDV;
-    case 245:
-      return AV_CODEC_ID_MVHA;
-    case 246:
-      return AV_CODEC_ID_CDTOONS;
-    case 247:
-      return AV_CODEC_ID_MV30;
-    case 248:
-      return AV_CODEC_ID_NOTCHLC;
-    case 249:
-      return AV_CODEC_ID_PFM;
-    case 250:
-      return AV_CODEC_ID_MOBICLIP;
-    case 251:
-      return AV_CODEC_ID_PHOTOCD;
-    case 252:
-      return AV_CODEC_ID_IPU;
-    case 253:
-      return AV_CODEC_ID_ARGO;
-    case 254:
-      return AV_CODEC_ID_CRI;
-    case 255:
-      return AV_CODEC_ID_SIMBIOSIS_IMX;
-    case 256:
-      return AV_CODEC_ID_SGA_VIDEO;
-    case 257:
-      return AV_CODEC_ID_GEM;
-    case 258:
-      return AV_CODEC_ID_VBN;
-    case 259:
-      return AV_CODEC_ID_JPEGXL;
-    case 260:
-      return AV_CODEC_ID_QOI;
-    case 261:
-      return AV_CODEC_ID_PHM;
-    case 262:
-      return AV_CODEC_ID_RADIANCE_HDR;
-    case 263:
-      return AV_CODEC_ID_WBMP;
-    case 264:
-      return AV_CODEC_ID_MEDIA100;
-    case 265:
-      return AV_CODEC_ID_VQC;
-    case 65536:
+      // =================================
+      // =================================
+      // =================================
+    case 216:
       return AV_CODEC_ID_PCM_S16LE;
-    case 65537:
+    case 217:
       return AV_CODEC_ID_PCM_S16BE;
-    case 65538:
+    case 218:
       return AV_CODEC_ID_PCM_U16LE;
-    case 65539:
+    case 219:
       return AV_CODEC_ID_PCM_U16BE;
-    case 65540:
+    case 220:
       return AV_CODEC_ID_PCM_S8;
-    case 65541:
+    case 221:
       return AV_CODEC_ID_PCM_U8;
-    case 65542:
+    case 222:
       return AV_CODEC_ID_PCM_MULAW;
-    case 65543:
+    case 223:
       return AV_CODEC_ID_PCM_ALAW;
-    case 65544:
+    case 224:
       return AV_CODEC_ID_PCM_S32LE;
-    case 65545:
+    case 225:
       return AV_CODEC_ID_PCM_S32BE;
-    case 65546:
+    case 226:
       return AV_CODEC_ID_PCM_U32LE;
-    case 65547:
+    case 227:
       return AV_CODEC_ID_PCM_U32BE;
-    case 65548:
+    case 228:
       return AV_CODEC_ID_PCM_S24LE;
-    case 65549:
+    case 229:
       return AV_CODEC_ID_PCM_S24BE;
-    case 65550:
+    case 230:
       return AV_CODEC_ID_PCM_U24LE;
-    case 65551:
+    case 231:
       return AV_CODEC_ID_PCM_U24BE;
-    case 65552:
+    case 232:
       return AV_CODEC_ID_PCM_S24DAUD;
-    case 65553:
+    case 233:
       return AV_CODEC_ID_PCM_ZORK;
-    case 65554:
+    case 234:
       return AV_CODEC_ID_PCM_S16LE_PLANAR;
-    case 65555:
+    case 235:
       return AV_CODEC_ID_PCM_DVD;
-    case 65556:
+    case 236:
       return AV_CODEC_ID_PCM_F32BE;
-    case 65557:
+    case 237:
       return AV_CODEC_ID_PCM_F32LE;
-    case 65558:
+    case 238:
       return AV_CODEC_ID_PCM_F64BE;
-    case 65559:
+    case 239:
       return AV_CODEC_ID_PCM_F64LE;
-    case 65560:
+    case 240:
       return AV_CODEC_ID_PCM_BLURAY;
-    case 65561:
+    case 241:
       return AV_CODEC_ID_PCM_LXF;
-    case 65562:
+    case 242:
       return AV_CODEC_ID_S302M;
-    case 65563:
+    case 243:
       return AV_CODEC_ID_PCM_S8_PLANAR;
-    case 65564:
+    case 244:
       return AV_CODEC_ID_PCM_S24LE_PLANAR;
-    case 65565:
+    case 245:
       return AV_CODEC_ID_PCM_S32LE_PLANAR;
-    case 65566:
+    case 246:
       return AV_CODEC_ID_PCM_S16BE_PLANAR;
-    case 65567:
+    case 247:
       return AV_CODEC_ID_PCM_S64LE;
-    case 65568:
+    case 248:
       return AV_CODEC_ID_PCM_S64BE;
-    case 65569:
-      return AV_CODEC_ID_PCM_F16LE;
-    case 65570:
-      return AV_CODEC_ID_PCM_F24LE;
-    case 65571:
-      return AV_CODEC_ID_PCM_VIDC;
-    case 65572:
-      return AV_CODEC_ID_PCM_SGA;
-    case 69632:
+
+      //////////////////////////
+
+    case 249:
       return AV_CODEC_ID_ADPCM_IMA_QT;
-    case 69633:
+    case 250:
       return AV_CODEC_ID_ADPCM_IMA_WAV;
-    case 69634:
+    case 251:
       return AV_CODEC_ID_ADPCM_IMA_DK3;
-    case 69635:
+    case 252:
       return AV_CODEC_ID_ADPCM_IMA_DK4;
-    case 69636:
+    case 253:
       return AV_CODEC_ID_ADPCM_IMA_WS;
-    case 69637:
+    case 254:
       return AV_CODEC_ID_ADPCM_IMA_SMJPEG;
-    case 69638:
+    case 255:
       return AV_CODEC_ID_ADPCM_MS;
-    case 69639:
+    case 256:
       return AV_CODEC_ID_ADPCM_4XM;
-    case 69640:
+    case 257:
       return AV_CODEC_ID_ADPCM_XA;
-    case 69641:
+    case 258:
       return AV_CODEC_ID_ADPCM_ADX;
-    case 69642:
+    case 259:
       return AV_CODEC_ID_ADPCM_EA;
-    case 69643:
+    case 260:
       return AV_CODEC_ID_ADPCM_G726;
-    case 69644:
+    case 261:
       return AV_CODEC_ID_ADPCM_CT;
-    case 69645:
+    case 262:
       return AV_CODEC_ID_ADPCM_SWF;
-    case 69646:
+    case 263:
       return AV_CODEC_ID_ADPCM_YAMAHA;
-    case 69647:
+    case 264:
       return AV_CODEC_ID_ADPCM_SBPRO_4;
-    case 69648:
+    case 265:
       return AV_CODEC_ID_ADPCM_SBPRO_3;
-    case 69649:
+    case 266:
       return AV_CODEC_ID_ADPCM_SBPRO_2;
-    case 69650:
+    case 267:
       return AV_CODEC_ID_ADPCM_THP;
-    case 69651:
+    case 268:
       return AV_CODEC_ID_ADPCM_IMA_AMV;
-    case 69652:
+    case 269:
       return AV_CODEC_ID_ADPCM_EA_R1;
-    case 69653:
+    case 270:
       return AV_CODEC_ID_ADPCM_EA_R3;
-    case 69654:
+    case 271:
       return AV_CODEC_ID_ADPCM_EA_R2;
-    case 69655:
+    case 272:
       return AV_CODEC_ID_ADPCM_IMA_EA_SEAD;
-    case 69656:
+    case 273:
       return AV_CODEC_ID_ADPCM_IMA_EA_EACS;
-    case 69657:
+    case 274:
       return AV_CODEC_ID_ADPCM_EA_XAS;
-    case 69658:
+    case 275:
       return AV_CODEC_ID_ADPCM_EA_MAXIS_XA;
-    case 69659:
+    case 276:
       return AV_CODEC_ID_ADPCM_IMA_ISS;
-    case 69660:
+    case 277:
       return AV_CODEC_ID_ADPCM_G722;
-    case 69661:
+    case 278:
       return AV_CODEC_ID_ADPCM_IMA_APC;
-    case 69662:
+    case 279:
       return AV_CODEC_ID_ADPCM_VIMA;
-    case 69663:
+    case 280:
       return AV_CODEC_ID_ADPCM_AFC;
-    case 69664:
+    case 281:
       return AV_CODEC_ID_ADPCM_IMA_OKI;
-    case 69665:
+    case 282:
       return AV_CODEC_ID_ADPCM_DTK;
-    case 69666:
+    case 283:
       return AV_CODEC_ID_ADPCM_IMA_RAD;
-    case 69667:
+    case 284:
       return AV_CODEC_ID_ADPCM_G726LE;
-    case 69668:
+    case 285:
       return AV_CODEC_ID_ADPCM_THP_LE;
-    case 69669:
+    case 286:
       return AV_CODEC_ID_ADPCM_PSX;
-    case 69670:
+    case 287:
       return AV_CODEC_ID_ADPCM_AICA;
-    case 69671:
+    case 288:
       return AV_CODEC_ID_ADPCM_IMA_DAT4;
-    case 69672:
+    case 289:
       return AV_CODEC_ID_ADPCM_MTAF;
-    case 69673:
-      return AV_CODEC_ID_ADPCM_AGM;
-    case 69674:
-      return AV_CODEC_ID_ADPCM_ARGO;
-    case 69675:
-      return AV_CODEC_ID_ADPCM_IMA_SSI;
-    case 69676:
-      return AV_CODEC_ID_ADPCM_ZORK;
-    case 69677:
-      return AV_CODEC_ID_ADPCM_IMA_APM;
-    case 69678:
-      return AV_CODEC_ID_ADPCM_IMA_ALP;
-    case 69679:
-      return AV_CODEC_ID_ADPCM_IMA_MTF;
-    case 69680:
-      return AV_CODEC_ID_ADPCM_IMA_CUNNING;
-    case 69681:
-      return AV_CODEC_ID_ADPCM_IMA_MOFLEX;
-    case 69682:
-      return AV_CODEC_ID_ADPCM_IMA_ACORN;
-    case 69683:
-      return AV_CODEC_ID_ADPCM_XMD;
-    case 73828:
+      /////////////////////
+      /////////////////////
+      /////////////////////
+
+    case 290:
       return AV_CODEC_ID_AMR_NB;
-    case 73729:
+    case 291:
       return AV_CODEC_ID_AMR_WB;
-    case 77824:
+    case 292:
       return AV_CODEC_ID_RA_144;
-    case 77825:
+    case 293:
       return AV_CODEC_ID_RA_288;
-    case 81920:
+    case 294:
       return AV_CODEC_ID_ROQ_DPCM;
-    case 81921:
+    case 295:
       return AV_CODEC_ID_INTERPLAY_DPCM;
-    case 81922:
+    case 296:
       return AV_CODEC_ID_XAN_DPCM;
-    case 81923:
+    case 297:
       return AV_CODEC_ID_SOL_DPCM;
-    case 81924:
+    case 298:
       return AV_CODEC_ID_SDX2_DPCM;
-    case 81925:
-      return AV_CODEC_ID_GREMLIN_DPCM;
-    case 81926:
-      return AV_CODEC_ID_DERF_DPCM;
-    case 81927:
-      return AV_CODEC_ID_WADY_DPCM;
-    case 81929:
-      return AV_CODEC_ID_CBD2_DPCM;
-    case 86016:
+      ///////////////////
+      //////////////////
+      //////////////////
+
+    case 299:
       return AV_CODEC_ID_MP2;
-    case 86017:
+    case 300:
       return AV_CODEC_ID_MP3;
-    case 86018:
+    case 301:
       return AV_CODEC_ID_AAC;
-    case 86019:
+    case 302:
       return AV_CODEC_ID_AC3;
-    case 86020:
+    case 303:
       return AV_CODEC_ID_DTS;
-    case 86021:
+    case 304:
       return AV_CODEC_ID_VORBIS;
-    case 86022:
+    case 305:
       return AV_CODEC_ID_DVAUDIO;
-    case 86023:
+    case 306:
       return AV_CODEC_ID_WMAV1;
-    case 86024:
+    case 307:
       return AV_CODEC_ID_WMAV2;
-    case 86025:
+    case 308:
       return AV_CODEC_ID_MACE3;
-    case 86026:
+    case 309:
       return AV_CODEC_ID_MACE6;
-    case 86027:
+    case 310:
       return AV_CODEC_ID_VMDAUDIO;
-    case 86028:
+    case 311:
       return AV_CODEC_ID_FLAC;
-    case 86029:
+    case 312:
       return AV_CODEC_ID_MP3ADU;
-    case 86030:
+    case 313:
       return AV_CODEC_ID_MP3ON4;
-    case 86031:
+    case 314:
       return AV_CODEC_ID_SHORTEN;
-    case 86032:
+    case 315:
       return AV_CODEC_ID_ALAC;
-    case 86033:
+    case 316:
       return AV_CODEC_ID_WESTWOOD_SND1;
-    case 86034:
+    case 317:
       return AV_CODEC_ID_GSM;
-    case 86035:
+    case 318:
       return AV_CODEC_ID_QDM2;
-    case 86036:
+    case 319:
       return AV_CODEC_ID_COOK;
-    case 86037:
+    case 320:
       return AV_CODEC_ID_TRUESPEECH;
-    case 86038:
+    case 321:
       return AV_CODEC_ID_TTA;
-    case 86039:
+    case 322:
       return AV_CODEC_ID_SMACKAUDIO;
-    case 86040:
+    case 323:
       return AV_CODEC_ID_QCELP;
-    case 86041:
+    case 324:
       return AV_CODEC_ID_WAVPACK;
-    case 86042:
+    case 325:
       return AV_CODEC_ID_DSICINAUDIO;
-    case 86043:
+    case 326:
       return AV_CODEC_ID_IMC;
-    case 86044:
+    case 327:
       return AV_CODEC_ID_MUSEPACK7;
-    case 86045:
+    case 328:
       return AV_CODEC_ID_MLP;
-    case 86046:
+    case 329:
       return AV_CODEC_ID_GSM_MS;
-    case 86047:
+    case 330:
       return AV_CODEC_ID_ATRAC3;
-    case 86048:
+      // #[cfg(feature = "ff_api_voxware")]
+      //    case 331:
+      //      return AV_CODEC_ID_VOXWARE;
+    case 332:
       return AV_CODEC_ID_APE;
-    case 86049:
+    case 333:
       return AV_CODEC_ID_NELLYMOSER;
-    case 86050:
+    case 334:
       return AV_CODEC_ID_MUSEPACK8;
-    case 86051:
+    case 335:
       return AV_CODEC_ID_SPEEX;
-    case 86052:
+    case 336:
       return AV_CODEC_ID_WMAVOICE;
-    case 86053:
+    case 337:
       return AV_CODEC_ID_WMAPRO;
-    case 86054:
+    case 338:
       return AV_CODEC_ID_WMALOSSLESS;
-    case 86055:
+    case 339:
       return AV_CODEC_ID_ATRAC3P;
-    case 86056:
+    case 340:
       return AV_CODEC_ID_EAC3;
-    case 86057:
+    case 341:
       return AV_CODEC_ID_SIPR;
-    case 86058:
+    case 342:
       return AV_CODEC_ID_MP1;
-    case 86059:
+    case 343:
       return AV_CODEC_ID_TWINVQ;
-    case 86060:
+    case 344:
       return AV_CODEC_ID_TRUEHD;
-    case 86061:
+    case 345:
       return AV_CODEC_ID_MP4ALS;
-    case 86062:
+    case 346:
       return AV_CODEC_ID_ATRAC1;
-    case 86063:
+    case 347:
       return AV_CODEC_ID_BINKAUDIO_RDFT;
-    case 86064:
+    case 348:
       return AV_CODEC_ID_BINKAUDIO_DCT;
-    case 86065:
+    case 349:
       return AV_CODEC_ID_AAC_LATM;
-    case 86066:
+    case 350:
       return AV_CODEC_ID_QDMC;
-    case 86067:
+    case 351:
       return AV_CODEC_ID_CELT;
-    case 86068:
+    case 352:
       return AV_CODEC_ID_G723_1;
-    case 86069:
+    case 353:
       return AV_CODEC_ID_G729;
-    case 86070:
+    case 354:
       return AV_CODEC_ID_8SVX_EXP;
-    case 86071:
+    case 355:
       return AV_CODEC_ID_8SVX_FIB;
-    case 86072:
+    case 356:
       return AV_CODEC_ID_BMV_AUDIO;
-    case 86073:
+    case 357:
       return AV_CODEC_ID_RALF;
-    case 86074:
+    case 358:
       return AV_CODEC_ID_IAC;
-    case 86075:
+    case 359:
       return AV_CODEC_ID_ILBC;
-    case 86076:
+    case 360:
       return AV_CODEC_ID_OPUS;
-    case 86077:
+    case 361:
       return AV_CODEC_ID_COMFORT_NOISE;
-    case 86078:
+    case 362:
       return AV_CODEC_ID_TAK;
-    case 86079:
+    case 363:
       return AV_CODEC_ID_METASOUND;
-    case 86080:
+    case 364:
       return AV_CODEC_ID_PAF_AUDIO;
-    case 86081:
+    case 365:
       return AV_CODEC_ID_ON2AVC;
-    case 86082:
+    case 366:
       return AV_CODEC_ID_DSS_SP;
-    case 86083:
+    case 367:
       return AV_CODEC_ID_CODEC2;
-    case 86084:
+    case 368:
       return AV_CODEC_ID_FFWAVESYNTH;
-    case 86085:
+    case 369:
       return AV_CODEC_ID_SONIC;
-    case 86086:
+    case 370:
       return AV_CODEC_ID_SONIC_LS;
-    case 86087:
+    case 371:
       return AV_CODEC_ID_EVRC;
-    case 86088:
+    case 372:
       return AV_CODEC_ID_SMV;
-    case 86089:
+    case 373:
       return AV_CODEC_ID_DSD_LSBF;
-    case 86090:
+    case 374:
       return AV_CODEC_ID_DSD_MSBF;
-    case 86091:
+    case 375:
       return AV_CODEC_ID_DSD_LSBF_PLANAR;
-    case 86092:
+    case 376:
       return AV_CODEC_ID_DSD_MSBF_PLANAR;
-    case 86093:
+    case 377:
       return AV_CODEC_ID_4GV;
-    case 86094:
+    case 378:
       return AV_CODEC_ID_INTERPLAY_ACM;
-    case 86095:
+    case 379:
       return AV_CODEC_ID_XMA1;
-    case 86096:
+    case 380:
       return AV_CODEC_ID_XMA2;
-    case 86097:
+    case 381:
       return AV_CODEC_ID_DST;
-    case 86098:
-      return AV_CODEC_ID_ATRAC3AL;
-    case 86099:
-      return AV_CODEC_ID_ATRAC3PAL;
-    case 86100:
-      return AV_CODEC_ID_DOLBY_E;
-    case 86101:
-      return AV_CODEC_ID_APTX;
-    case 86102:
-      return AV_CODEC_ID_APTX_HD;
-    case 86103:
-      return AV_CODEC_ID_SBC;
-    case 86104:
-      return AV_CODEC_ID_ATRAC9;
-    case 86105:
-      return AV_CODEC_ID_HCOM;
-    case 86106:
-      return AV_CODEC_ID_ACELP_KELVIN;
-    case 86107:
-      return AV_CODEC_ID_MPEGH_3D_AUDIO;
-    case 86108:
-      return AV_CODEC_ID_SIREN;
-    case 86109:
-      return AV_CODEC_ID_HCA;
-    case 86110:
-      return AV_CODEC_ID_FASTAUDIO;
-    case 86111:
-      return AV_CODEC_ID_MSNSIREN;
-    case 86112:
-      return AV_CODEC_ID_DFPWM;
-    case 86113:
-      return AV_CODEC_ID_BONK;
-    case 86114:
-      return AV_CODEC_ID_MISC4;
-    case 86115:
-      return AV_CODEC_ID_APAC;
-    case 86116:
-      return AV_CODEC_ID_FTR;
-    case 86117:
-      return AV_CODEC_ID_WAVARC;
-    case 86118:
-      return AV_CODEC_ID_RKA;
-    case 94208:
+      /////////////
+      /////////////
+      /////////////
+    case 382:
       return AV_CODEC_ID_DVD_SUBTITLE;
-    case 94209:
+    case 383:
       return AV_CODEC_ID_DVB_SUBTITLE;
-    case 94210:
+    case 384:
       return AV_CODEC_ID_TEXT;
-    case 94211:
+    case 385:
       return AV_CODEC_ID_XSUB;
-    case 94212:
+    case 386:
       return AV_CODEC_ID_SSA;
-    case 94213:
+    case 387:
       return AV_CODEC_ID_MOV_TEXT;
-    case 94214:
+    case 388:
       return AV_CODEC_ID_HDMV_PGS_SUBTITLE;
-    case 94215:
+    case 389:
       return AV_CODEC_ID_DVB_TELETEXT;
-    case 94216:
+    case 390:
       return AV_CODEC_ID_SRT;
-    case 94217:
+    case 391:
       return AV_CODEC_ID_MICRODVD;
-    case 94218:
+    case 392:
       return AV_CODEC_ID_EIA_608;
-    case 94219:
+    case 393:
       return AV_CODEC_ID_JACOSUB;
-    case 94220:
+    case 394:
       return AV_CODEC_ID_SAMI;
-    case 94221:
+    case 395:
       return AV_CODEC_ID_REALTEXT;
-    case 94222:
+    case 396:
       return AV_CODEC_ID_STL;
-    case 94223:
+    case 397:
       return AV_CODEC_ID_SUBVIEWER1;
-    case 94224:
+    case 398:
       return AV_CODEC_ID_SUBVIEWER;
-    case 94225:
+    case 399:
       return AV_CODEC_ID_SUBRIP;
-    case 94226:
+    case 400:
       return AV_CODEC_ID_WEBVTT;
-    case 94227:
+    case 401:
       return AV_CODEC_ID_MPL2;
-    case 94228:
+    case 402:
       return AV_CODEC_ID_VPLAYER;
-    case 94229:
+    case 403:
       return AV_CODEC_ID_PJS;
-    case 94230:
+    case 404:
       return AV_CODEC_ID_ASS;
-    case 94231:
+    case 405:
       return AV_CODEC_ID_HDMV_TEXT_SUBTITLE;
-    case 94232:
-      return AV_CODEC_ID_TTML;
-    case 94233:
-      return AV_CODEC_ID_ARIB_CAPTION;
-    case 98304:
+    case 406:
       return AV_CODEC_ID_TTF;
-    case 98305:
+    case 407:
       return AV_CODEC_ID_SCTE_35;
-    case 98306:
-      return AV_CODEC_ID_EPG;
-    case 98307:
+    case 408:
       return AV_CODEC_ID_BINTEXT;
-    case 98308:
+    case 409:
       return AV_CODEC_ID_XBIN;
-    case 98309:
+    case 410:
       return AV_CODEC_ID_IDF;
-    case 98310:
+    case 411:
       return AV_CODEC_ID_OTF;
-    case 98311:
+    case 412:
       return AV_CODEC_ID_SMPTE_KLV;
-    case 98312:
+    case 413:
       return AV_CODEC_ID_DVD_NAV;
-    case 98313:
+    case 414:
       return AV_CODEC_ID_TIMED_ID3;
-    case 98314:
+    case 415:
       return AV_CODEC_ID_BIN_DATA;
-    case 102400:
+    case 416:
       return AV_CODEC_ID_PROBE;
-    case 131072:
+    case 417:
       return AV_CODEC_ID_MPEG2TS;
-    case 131073:
+    case 418:
       return AV_CODEC_ID_MPEG4SYSTEMS;
-    case 135168:
+    case 419:
       return AV_CODEC_ID_FFMETADATA;
-    case 135169:
+    case 420:
       return AV_CODEC_ID_WRAPPED_AVFRAME;
-    case 135170:
+    case 421:
+      return AV_CODEC_ID_PSD;
+    case 422:
+      return AV_CODEC_ID_PIXLET;
+    case 423:
+      return AV_CODEC_ID_SPEEDHQ;
+    case 424:
+      return AV_CODEC_ID_CLEARVIDEO;
+    case 425:
+      return AV_CODEC_ID_FMVC;
+    case 426:
+      return AV_CODEC_ID_SCPR;
+    case 427:
+      return AV_CODEC_ID_XPM;
+    case 428:
+      return AV_CODEC_ID_AV1;
+    case 429:
+      return AV_CODEC_ID_PCM_F16LE;
+    case 430:
+      return AV_CODEC_ID_PCM_F24LE;
+      ////////////
+    case 431:
+      return AV_CODEC_ID_ATRAC3AL;
+    case 432:
+      return AV_CODEC_ID_ATRAC3PAL;
+    case 433:
+      return AV_CODEC_ID_BITPACKED;
+    case 434:
+      return AV_CODEC_ID_MSCC;
+    case 435:
+      return AV_CODEC_ID_SRGC;
+    case 436:
+      return AV_CODEC_ID_SVG;
+    case 437:
+      return AV_CODEC_ID_GDV;
+    case 438:
+      return AV_CODEC_ID_FITS;
+    case 439:
+      return AV_CODEC_ID_GREMLIN_DPCM;
+    case 440:
+      return AV_CODEC_ID_DOLBY_E;
+    case 441:
+      return AV_CODEC_ID_APTX;
+    case 442:
+      return AV_CODEC_ID_APTX_HD;
+    case 443:
+      return AV_CODEC_ID_SBC;
+    case 444:
+      return AV_CODEC_ID_AVS2;
+    case 445:
+      return AV_CODEC_ID_IMM4;
+    case 446:
+      return AV_CODEC_ID_PROSUMER;
+    case 447:
+      return AV_CODEC_ID_MWSC;
+    case 448:
+      return AV_CODEC_ID_WCMV;
+    case 449:
+      return AV_CODEC_ID_RASC;
+    case 450:
+      return AV_CODEC_ID_PCM_VIDC;
+    case 451:
+      return AV_CODEC_ID_ATRAC9;
+    case 452:
+      return AV_CODEC_ID_TTML;
+    case 453:
+      return AV_CODEC_ID_HYMT;
+    case 454:
+      return AV_CODEC_ID_ARBC;
+    case 455:
+      return AV_CODEC_ID_AGM;
+    case 456:
+      return AV_CODEC_ID_LSCR;
+    case 457:
+      return AV_CODEC_ID_VP4;
+    case 458:
+      return AV_CODEC_ID_ADPCM_AGM;
+    case 459:
+      return AV_CODEC_ID_HCOM;
+    case 460:
+      return AV_CODEC_ID_ARIB_CAPTION;
+    case 461:
+      return AV_CODEC_ID_IMM5;
+    case 462:
+      return AV_CODEC_ID_MVDV;
+    case 463:
+      return AV_CODEC_ID_MVHA;
+    case 464:
+      return AV_CODEC_ID_CDTOONS;
+    case 465:
+      return AV_CODEC_ID_MV30;
+    case 466:
+      return AV_CODEC_ID_NOTCHLC;
+    case 467:
+      return AV_CODEC_ID_PFM;
+    case 468:
+      return AV_CODEC_ID_ARGO;
+    case 469:
+      return AV_CODEC_ID_ADPCM_IMA_SSI;
+    case 470:
+      return AV_CODEC_ID_ADPCM_ZORK;
+    case 471:
+      return AV_CODEC_ID_ADPCM_IMA_APM;
+    case 472:
+      return AV_CODEC_ID_ADPCM_IMA_ALP;
+    case 473:
+      return AV_CODEC_ID_ADPCM_IMA_MTF;
+    case 474:
+      return AV_CODEC_ID_ADPCM_IMA_CUNNING;
+    case 475:
+      return AV_CODEC_ID_DERF_DPCM;
+    case 476:
+      return AV_CODEC_ID_ACELP_KELVIN;
+    case 477:
+      return AV_CODEC_ID_MPEGH_3D_AUDIO;
+    case 478:
+      return AV_CODEC_ID_SIREN;
+    case 479:
+      return AV_CODEC_ID_HCA;
+    case 480:
+      return AV_CODEC_ID_EPG;
+    case 481:
+      return AV_CODEC_ID_AVS3;
+    case 482:
+      return AV_CODEC_ID_PGX;
+    case 483:
+      return AV_CODEC_ID_MSP2;
+    case 484:
+      return AV_CODEC_ID_VVC;
+    case 485:
+      return AV_CODEC_ID_MOBICLIP;
+    case 486:
+      return AV_CODEC_ID_PHOTOCD;
+    case 487:
+      return AV_CODEC_ID_ADPCM_ARGO;
+    case 488:
+      return AV_CODEC_ID_CRI;
+    case 489:
+      return AV_CODEC_ID_IPU;
+    case 490:
+      return AV_CODEC_ID_SIMBIOSIS_IMX;
+    case 491:
+      return AV_CODEC_ID_SGA_VIDEO;
+    case 492:
+      return AV_CODEC_ID_PCM_SGA;
+    case 493:
+      return AV_CODEC_ID_ADPCM_IMA_MOFLEX;
+    case 494:
+      return AV_CODEC_ID_FASTAUDIO;
+    case 495:
+      return AV_CODEC_ID_GEM;
+    case 496:
+      return AV_CODEC_ID_ADPCM_IMA_ACORN;
+    case 497:
+      return AV_CODEC_ID_MSNSIREN;
+    case 498:
+      return AV_CODEC_ID_VBN;
+    case 499:
+      return AV_CODEC_ID_JPEGXL;
+    case 500:
+      return AV_CODEC_ID_QOI;
+    case 501:
+      return AV_CODEC_ID_PHM;
+    case 502:
+      return AV_CODEC_ID_DFPWM;
+    case 503:
+      return AV_CODEC_ID_RADIANCE_HDR;
+    case 504:
+      return AV_CODEC_ID_WBMP;
+    case 505:
+      return AV_CODEC_ID_MEDIA100;
+    case 506:
+      return AV_CODEC_ID_VQC;
+    case 507:
+      return AV_CODEC_ID_ADPCM_XMD;
+    case 508:
+      return AV_CODEC_ID_WADY_DPCM;
+    case 509:
+      return AV_CODEC_ID_CBD2_DPCM;
+    case 510:
+      return AV_CODEC_ID_BONK;
+    case 511:
+      return AV_CODEC_ID_MISC4;
+    case 512:
+      return AV_CODEC_ID_APAC;
+    case 513:
+      return AV_CODEC_ID_FTR;
+    case 514:
+      return AV_CODEC_ID_WAVARC;
+    case 515:
+      return AV_CODEC_ID_RKA;
+    case 516:
       return AV_CODEC_ID_VNULL;
-    case 135171:
+    case 517:
       return AV_CODEC_ID_ANULL;
-      // Returning NONE as default.
+      //    case 518:
+      //      return AV_CODEC_ID_MPEG2VIDEO_XVMC;
     default:
       return AV_CODEC_ID_NONE;
     };
@@ -1366,764 +1397,796 @@ public:
       return 135;
     case AV_CODEC_ID_IFF_ILBM:
       return 136;
+      //    case AV_CODEC_ID_IFF_ILBM:
+      //      return 137;
     case AV_CODEC_ID_KGV1:
-      return 137;
-    case AV_CODEC_ID_YOP:
       return 138;
-    case AV_CODEC_ID_VP8:
+    case AV_CODEC_ID_YOP:
       return 139;
-    case AV_CODEC_ID_PICTOR:
+    case AV_CODEC_ID_VP8:
       return 140;
-    case AV_CODEC_ID_ANSI:
+    case AV_CODEC_ID_PICTOR:
       return 141;
-    case AV_CODEC_ID_A64_MULTI:
+    case AV_CODEC_ID_ANSI:
       return 142;
-    case AV_CODEC_ID_A64_MULTI5:
+    case AV_CODEC_ID_A64_MULTI:
       return 143;
-    case AV_CODEC_ID_R10K:
+    case AV_CODEC_ID_A64_MULTI5:
       return 144;
-    case AV_CODEC_ID_MXPEG:
+    case AV_CODEC_ID_R10K:
       return 145;
-    case AV_CODEC_ID_LAGARITH:
+    case AV_CODEC_ID_MXPEG:
       return 146;
-    case AV_CODEC_ID_PRORES:
+    case AV_CODEC_ID_LAGARITH:
       return 147;
-    case AV_CODEC_ID_JV:
+    case AV_CODEC_ID_PRORES:
       return 148;
-    case AV_CODEC_ID_DFA:
+    case AV_CODEC_ID_JV:
       return 149;
-    case AV_CODEC_ID_WMV3IMAGE:
+    case AV_CODEC_ID_DFA:
       return 150;
-    case AV_CODEC_ID_VC1IMAGE:
+    case AV_CODEC_ID_WMV3IMAGE:
       return 151;
-    case AV_CODEC_ID_UTVIDEO:
+    case AV_CODEC_ID_VC1IMAGE:
       return 152;
-    case AV_CODEC_ID_BMV_VIDEO:
+    case AV_CODEC_ID_UTVIDEO:
       return 153;
-    case AV_CODEC_ID_VBLE:
+    case AV_CODEC_ID_BMV_VIDEO:
       return 154;
-    case AV_CODEC_ID_DXTORY:
+    case AV_CODEC_ID_VBLE:
       return 155;
-    case AV_CODEC_ID_V410:
+    case AV_CODEC_ID_DXTORY:
       return 156;
-    case AV_CODEC_ID_XWD:
+    case AV_CODEC_ID_V410:
       return 157;
-    case AV_CODEC_ID_CDXL:
+    case AV_CODEC_ID_XWD:
       return 158;
-    case AV_CODEC_ID_XBM:
+    case AV_CODEC_ID_CDXL:
       return 159;
-    case AV_CODEC_ID_ZEROCODEC:
+    case AV_CODEC_ID_XBM:
       return 160;
-    case AV_CODEC_ID_MSS1:
+    case AV_CODEC_ID_ZEROCODEC:
       return 161;
-    case AV_CODEC_ID_MSA1:
+    case AV_CODEC_ID_MSS1:
       return 162;
-    case AV_CODEC_ID_TSCC2:
+    case AV_CODEC_ID_MSA1:
       return 163;
-    case AV_CODEC_ID_MTS2:
+    case AV_CODEC_ID_TSCC2:
       return 164;
-    case AV_CODEC_ID_CLLC:
+    case AV_CODEC_ID_MTS2:
       return 165;
-    case AV_CODEC_ID_MSS2:
+    case AV_CODEC_ID_CLLC:
       return 166;
-    case AV_CODEC_ID_VP9:
+    case AV_CODEC_ID_MSS2:
       return 167;
-    case AV_CODEC_ID_AIC:
+    case AV_CODEC_ID_VP9:
       return 168;
-    case AV_CODEC_ID_ESCAPE130:
+    case AV_CODEC_ID_AIC:
       return 169;
-    case AV_CODEC_ID_G2M:
+    case AV_CODEC_ID_ESCAPE130:
       return 170;
-    case AV_CODEC_ID_WEBP:
+    case AV_CODEC_ID_G2M:
       return 171;
-    case AV_CODEC_ID_HNM4_VIDEO:
+    case AV_CODEC_ID_WEBP:
       return 172;
-    case AV_CODEC_ID_HEVC:
+    case AV_CODEC_ID_HNM4_VIDEO:
       return 173;
-    case AV_CODEC_ID_FIC:
+    case AV_CODEC_ID_HEVC:
       return 174;
-    case AV_CODEC_ID_ALIAS_PIX:
-      return 175;
-    case AV_CODEC_ID_BRENDER_PIX:
+      //    case AV_CODEC_ID_HEVC:
+      //      return 175;
+    case AV_CODEC_ID_FIC:
       return 176;
-    case AV_CODEC_ID_PAF_VIDEO:
+    case AV_CODEC_ID_ALIAS_PIX:
       return 177;
-    case AV_CODEC_ID_EXR:
+    case AV_CODEC_ID_BRENDER_PIX:
       return 178;
-    case AV_CODEC_ID_VP7:
+    case AV_CODEC_ID_PAF_VIDEO:
       return 179;
-    case AV_CODEC_ID_SANM:
+    case AV_CODEC_ID_EXR:
       return 180;
-    case AV_CODEC_ID_SGIRLE:
+    case AV_CODEC_ID_VP7:
       return 181;
-    case AV_CODEC_ID_MVC1:
+    case AV_CODEC_ID_SANM:
       return 182;
-    case AV_CODEC_ID_MVC2:
+    case AV_CODEC_ID_SGIRLE:
       return 183;
-    case AV_CODEC_ID_HQX:
+    case AV_CODEC_ID_MVC1:
       return 184;
-    case AV_CODEC_ID_TDSC:
+    case AV_CODEC_ID_MVC2:
       return 185;
-    case AV_CODEC_ID_HQ_HQA:
+    case AV_CODEC_ID_HQX:
       return 186;
-    case AV_CODEC_ID_HAP:
+    case AV_CODEC_ID_TDSC:
       return 187;
-    case AV_CODEC_ID_DDS:
+    case AV_CODEC_ID_HQ_HQA:
       return 188;
-    case AV_CODEC_ID_DXV:
+    case AV_CODEC_ID_HAP:
       return 189;
-    case AV_CODEC_ID_SCREENPRESSO:
+    case AV_CODEC_ID_DDS:
       return 190;
-    case AV_CODEC_ID_RSCC:
+    case AV_CODEC_ID_DXV:
       return 191;
-    case AV_CODEC_ID_AVS2:
+    case AV_CODEC_ID_SCREENPRESSO:
       return 192;
-    case AV_CODEC_ID_PGX:
+    case AV_CODEC_ID_RSCC:
       return 193;
-    case AV_CODEC_ID_AVS3:
-      return 194;
-    case AV_CODEC_ID_MSP2:
-      return 195;
-    case AV_CODEC_ID_VVC:
-      return 196;
+      ///////////////////////////////
+      //    return ;
+      //      case AV_CODEC_ID_Y41P:
+      //    return ;
+      //      case AV_CODEC_ID_AVS2:
     case AV_CODEC_ID_Y41P:
-      return 197;
+      return 194;
     case AV_CODEC_ID_AVRP:
-      return 198;
+      return 195;
     case AV_CODEC_ID_012V:
-      return 199;
+      return 196;
     case AV_CODEC_ID_AVUI:
-      return 200;
+      return 197;
     case AV_CODEC_ID_AYUV:
-      return 201;
+      return 198;
     case AV_CODEC_ID_TARGA_Y216:
-      return 202;
+      return 199;
     case AV_CODEC_ID_V308:
-      return 203;
+      return 200;
     case AV_CODEC_ID_V408:
-      return 204;
+      return 201;
     case AV_CODEC_ID_YUV4:
-      return 205;
+      return 202;
     case AV_CODEC_ID_AVRN:
-      return 206;
+      return 203;
     case AV_CODEC_ID_CPIA:
-      return 207;
+      return 204;
     case AV_CODEC_ID_XFACE:
-      return 208;
+      return 205;
     case AV_CODEC_ID_SNOW:
-      return 209;
+      return 206;
     case AV_CODEC_ID_SMVJPEG:
-      return 210;
+      return 207;
     case AV_CODEC_ID_APNG:
-      return 211;
+      return 208;
     case AV_CODEC_ID_DAALA:
-      return 212;
+      return 209;
     case AV_CODEC_ID_CFHD:
-      return 213;
+      return 210;
     case AV_CODEC_ID_TRUEMOTION2RT:
-      return 214;
+      return 211;
     case AV_CODEC_ID_M101:
-      return 215;
+      return 212;
     case AV_CODEC_ID_MAGICYUV:
-      return 216;
+      return 213;
     case AV_CODEC_ID_SHEERVIDEO:
-      return 217;
+      return 214;
     case AV_CODEC_ID_YLC:
-      return 218;
-    case AV_CODEC_ID_PSD:
-      return 219;
-    case AV_CODEC_ID_PIXLET:
-      return 220;
-    case AV_CODEC_ID_SPEEDHQ:
-      return 221;
-    case AV_CODEC_ID_FMVC:
-      return 222;
-    case AV_CODEC_ID_SCPR:
-      return 223;
-    case AV_CODEC_ID_CLEARVIDEO:
-      return 224;
-    case AV_CODEC_ID_XPM:
-      return 225;
-    case AV_CODEC_ID_AV1:
-      return 226;
-    case AV_CODEC_ID_BITPACKED:
-      return 227;
-    case AV_CODEC_ID_MSCC:
-      return 228;
-    case AV_CODEC_ID_SRGC:
-      return 229;
-    case AV_CODEC_ID_SVG:
-      return 230;
-    case AV_CODEC_ID_GDV:
-      return 231;
-    case AV_CODEC_ID_FITS:
-      return 232;
-    case AV_CODEC_ID_IMM4:
-      return 233;
-    case AV_CODEC_ID_PROSUMER:
-      return 234;
-    case AV_CODEC_ID_MWSC:
-      return 235;
-    case AV_CODEC_ID_WCMV:
-      return 236;
-    case AV_CODEC_ID_RASC:
-      return 237;
-    case AV_CODEC_ID_HYMT:
-      return 238;
-    case AV_CODEC_ID_ARBC:
-      return 239;
-    case AV_CODEC_ID_AGM:
-      return 240;
-    case AV_CODEC_ID_LSCR:
-      return 241;
-    case AV_CODEC_ID_VP4:
-      return 242;
-    case AV_CODEC_ID_IMM5:
-      return 243;
-    case AV_CODEC_ID_MVDV:
-      return 244;
-    case AV_CODEC_ID_MVHA:
-      return 245;
-    case AV_CODEC_ID_CDTOONS:
-      return 246;
-    case AV_CODEC_ID_MV30:
-      return 247;
-    case AV_CODEC_ID_NOTCHLC:
-      return 248;
-    case AV_CODEC_ID_PFM:
-      return 249;
-    case AV_CODEC_ID_MOBICLIP:
-      return 250;
-    case AV_CODEC_ID_PHOTOCD:
-      return 251;
-    case AV_CODEC_ID_IPU:
-      return 252;
-    case AV_CODEC_ID_ARGO:
-      return 253;
-    case AV_CODEC_ID_CRI:
-      return 254;
-    case AV_CODEC_ID_SIMBIOSIS_IMX:
-      return 255;
-    case AV_CODEC_ID_SGA_VIDEO:
-      return 256;
-    case AV_CODEC_ID_GEM:
-      return 257;
-    case AV_CODEC_ID_VBN:
-      return 258;
-    case AV_CODEC_ID_JPEGXL:
-      return 259;
-    case AV_CODEC_ID_QOI:
-      return 260;
-    case AV_CODEC_ID_PHM:
-      return 261;
-    case AV_CODEC_ID_RADIANCE_HDR:
-      return 262;
-    case AV_CODEC_ID_WBMP:
-      return 263;
-    case AV_CODEC_ID_MEDIA100:
-      return 264;
-    case AV_CODEC_ID_VQC:
-      return 265;
+      return 215;
+      // =================================
+      // =================================
+      // =================================
     case AV_CODEC_ID_PCM_S16LE:
-      return 65536;
+      return 216;
     case AV_CODEC_ID_PCM_S16BE:
-      return 65537;
+      return 217;
     case AV_CODEC_ID_PCM_U16LE:
-      return 65538;
+      return 218;
     case AV_CODEC_ID_PCM_U16BE:
-      return 65539;
+      return 219;
     case AV_CODEC_ID_PCM_S8:
-      return 65540;
+      return 220;
     case AV_CODEC_ID_PCM_U8:
-      return 65541;
+      return 221;
     case AV_CODEC_ID_PCM_MULAW:
-      return 65542;
+      return 222;
     case AV_CODEC_ID_PCM_ALAW:
-      return 65543;
+      return 223;
     case AV_CODEC_ID_PCM_S32LE:
-      return 65544;
+      return 224;
     case AV_CODEC_ID_PCM_S32BE:
-      return 65545;
+      return 225;
     case AV_CODEC_ID_PCM_U32LE:
-      return 65546;
+      return 226;
     case AV_CODEC_ID_PCM_U32BE:
-      return 65547;
+      return 227;
     case AV_CODEC_ID_PCM_S24LE:
-      return 65548;
+      return 228;
     case AV_CODEC_ID_PCM_S24BE:
-      return 65549;
+      return 229;
     case AV_CODEC_ID_PCM_U24LE:
-      return 65550;
+      return 230;
     case AV_CODEC_ID_PCM_U24BE:
-      return 65551;
+      return 231;
     case AV_CODEC_ID_PCM_S24DAUD:
-      return 65552;
+      return 232;
     case AV_CODEC_ID_PCM_ZORK:
-      return 65553;
+      return 233;
     case AV_CODEC_ID_PCM_S16LE_PLANAR:
-      return 65554;
+      return 234;
     case AV_CODEC_ID_PCM_DVD:
-      return 65555;
+      return 235;
     case AV_CODEC_ID_PCM_F32BE:
-      return 65556;
+      return 236;
     case AV_CODEC_ID_PCM_F32LE:
-      return 65557;
+      return 237;
     case AV_CODEC_ID_PCM_F64BE:
-      return 65558;
+      return 238;
     case AV_CODEC_ID_PCM_F64LE:
-      return 65559;
+      return 239;
     case AV_CODEC_ID_PCM_BLURAY:
-      return 65560;
+      return 240;
     case AV_CODEC_ID_PCM_LXF:
-      return 65561;
+      return 241;
     case AV_CODEC_ID_S302M:
-      return 65562;
+      return 242;
     case AV_CODEC_ID_PCM_S8_PLANAR:
-      return 65563;
+      return 243;
     case AV_CODEC_ID_PCM_S24LE_PLANAR:
-      return 65564;
+      return 244;
     case AV_CODEC_ID_PCM_S32LE_PLANAR:
-      return 65565;
+      return 245;
     case AV_CODEC_ID_PCM_S16BE_PLANAR:
-      return 65566;
+      return 246;
     case AV_CODEC_ID_PCM_S64LE:
-      return 65567;
+      return 247;
     case AV_CODEC_ID_PCM_S64BE:
-      return 65568;
-    case AV_CODEC_ID_PCM_F16LE:
-      return 65569;
-    case AV_CODEC_ID_PCM_F24LE:
-      return 65570;
-    case AV_CODEC_ID_PCM_VIDC:
-      return 65571;
-    case AV_CODEC_ID_PCM_SGA:
-      return 65572;
+      return 248;
+
+      //////////////////////////
+
     case AV_CODEC_ID_ADPCM_IMA_QT:
-      return 69632;
+      return 249;
     case AV_CODEC_ID_ADPCM_IMA_WAV:
-      return 69633;
+      return 250;
     case AV_CODEC_ID_ADPCM_IMA_DK3:
-      return 69634;
+      return 251;
     case AV_CODEC_ID_ADPCM_IMA_DK4:
-      return 69635;
+      return 252;
     case AV_CODEC_ID_ADPCM_IMA_WS:
-      return 69636;
+      return 253;
     case AV_CODEC_ID_ADPCM_IMA_SMJPEG:
-      return 69637;
+      return 254;
     case AV_CODEC_ID_ADPCM_MS:
-      return 69638;
+      return 255;
     case AV_CODEC_ID_ADPCM_4XM:
-      return 69639;
+      return 256;
     case AV_CODEC_ID_ADPCM_XA:
-      return 69640;
+      return 257;
     case AV_CODEC_ID_ADPCM_ADX:
-      return 69641;
+      return 258;
     case AV_CODEC_ID_ADPCM_EA:
-      return 69642;
+      return 259;
     case AV_CODEC_ID_ADPCM_G726:
-      return 69643;
+      return 260;
     case AV_CODEC_ID_ADPCM_CT:
-      return 69644;
+      return 261;
     case AV_CODEC_ID_ADPCM_SWF:
-      return 69645;
+      return 262;
     case AV_CODEC_ID_ADPCM_YAMAHA:
-      return 69646;
+      return 263;
     case AV_CODEC_ID_ADPCM_SBPRO_4:
-      return 69647;
+      return 264;
     case AV_CODEC_ID_ADPCM_SBPRO_3:
-      return 69648;
+      return 265;
     case AV_CODEC_ID_ADPCM_SBPRO_2:
-      return 69649;
+      return 266;
     case AV_CODEC_ID_ADPCM_THP:
-      return 69650;
+      return 267;
     case AV_CODEC_ID_ADPCM_IMA_AMV:
-      return 69651;
+      return 268;
     case AV_CODEC_ID_ADPCM_EA_R1:
-      return 69652;
+      return 269;
     case AV_CODEC_ID_ADPCM_EA_R3:
-      return 69653;
+      return 270;
     case AV_CODEC_ID_ADPCM_EA_R2:
-      return 69654;
+      return 271;
     case AV_CODEC_ID_ADPCM_IMA_EA_SEAD:
-      return 69655;
+      return 272;
     case AV_CODEC_ID_ADPCM_IMA_EA_EACS:
-      return 69656;
+      return 273;
     case AV_CODEC_ID_ADPCM_EA_XAS:
-      return 69657;
+      return 274;
     case AV_CODEC_ID_ADPCM_EA_MAXIS_XA:
-      return 69658;
+      return 275;
     case AV_CODEC_ID_ADPCM_IMA_ISS:
-      return 69659;
+      return 276;
     case AV_CODEC_ID_ADPCM_G722:
-      return 69660;
+      return 277;
     case AV_CODEC_ID_ADPCM_IMA_APC:
-      return 69661;
+      return 278;
     case AV_CODEC_ID_ADPCM_VIMA:
-      return 69662;
+      return 279;
     case AV_CODEC_ID_ADPCM_AFC:
-      return 69663;
+      return 280;
     case AV_CODEC_ID_ADPCM_IMA_OKI:
-      return 69664;
+      return 281;
     case AV_CODEC_ID_ADPCM_DTK:
-      return 69665;
+      return 282;
     case AV_CODEC_ID_ADPCM_IMA_RAD:
-      return 69666;
+      return 283;
     case AV_CODEC_ID_ADPCM_G726LE:
-      return 69667;
+      return 284;
     case AV_CODEC_ID_ADPCM_THP_LE:
-      return 69668;
+      return 285;
     case AV_CODEC_ID_ADPCM_PSX:
-      return 69669;
+      return 286;
     case AV_CODEC_ID_ADPCM_AICA:
-      return 69670;
+      return 287;
     case AV_CODEC_ID_ADPCM_IMA_DAT4:
-      return 69671;
+      return 288;
     case AV_CODEC_ID_ADPCM_MTAF:
-      return 69672;
-    case AV_CODEC_ID_ADPCM_AGM:
-      return 69673;
-    case AV_CODEC_ID_ADPCM_ARGO:
-      return 69674;
-    case AV_CODEC_ID_ADPCM_IMA_SSI:
-      return 69675;
-    case AV_CODEC_ID_ADPCM_ZORK:
-      return 69676;
-    case AV_CODEC_ID_ADPCM_IMA_APM:
-      return 69677;
-    case AV_CODEC_ID_ADPCM_IMA_ALP:
-      return 69678;
-    case AV_CODEC_ID_ADPCM_IMA_MTF:
-      return 69679;
-    case AV_CODEC_ID_ADPCM_IMA_CUNNING:
-      return 69680;
-    case AV_CODEC_ID_ADPCM_IMA_MOFLEX:
-      return 69681;
-    case AV_CODEC_ID_ADPCM_IMA_ACORN:
-      return 69682;
-    case AV_CODEC_ID_ADPCM_XMD:
-      return 69683;
+      return 289;
+      /////////////////////
+      /////////////////////
+      /////////////////////
+
     case AV_CODEC_ID_AMR_NB:
-      return 73828;
+      return 290;
     case AV_CODEC_ID_AMR_WB:
-      return 73729;
+      return 291;
     case AV_CODEC_ID_RA_144:
-      return 77824;
+      return 292;
     case AV_CODEC_ID_RA_288:
-      return 77825;
+      return 293;
     case AV_CODEC_ID_ROQ_DPCM:
-      return 81920;
+      return 294;
     case AV_CODEC_ID_INTERPLAY_DPCM:
-      return 81921;
+      return 295;
     case AV_CODEC_ID_XAN_DPCM:
-      return 81922;
+      return 296;
     case AV_CODEC_ID_SOL_DPCM:
-      return 81923;
+      return 297;
     case AV_CODEC_ID_SDX2_DPCM:
-      return 81924;
-    case AV_CODEC_ID_GREMLIN_DPCM:
-      return 81925;
-    case AV_CODEC_ID_DERF_DPCM:
-      return 81926;
-    case AV_CODEC_ID_WADY_DPCM:
-      return 81927;
-    case AV_CODEC_ID_CBD2_DPCM:
-      return 81929;
+      return 298;
+      ///////////////////
+      //////////////////
+      //////////////////
+
     case AV_CODEC_ID_MP2:
-      return 86016;
+      return 299;
     case AV_CODEC_ID_MP3:
-      return 86017;
+      return 300;
     case AV_CODEC_ID_AAC:
-      return 86018;
+      return 301;
     case AV_CODEC_ID_AC3:
-      return 86019;
+      return 302;
     case AV_CODEC_ID_DTS:
-      return 86020;
+      return 303;
     case AV_CODEC_ID_VORBIS:
-      return 86021;
+      return 304;
     case AV_CODEC_ID_DVAUDIO:
-      return 86022;
+      return 305;
     case AV_CODEC_ID_WMAV1:
-      return 86023;
+      return 306;
     case AV_CODEC_ID_WMAV2:
-      return 86024;
+      return 307;
     case AV_CODEC_ID_MACE3:
-      return 86025;
+      return 308;
     case AV_CODEC_ID_MACE6:
-      return 86026;
+      return 309;
     case AV_CODEC_ID_VMDAUDIO:
-      return 86027;
+      return 310;
     case AV_CODEC_ID_FLAC:
-      return 86028;
+      return 311;
     case AV_CODEC_ID_MP3ADU:
-      return 86029;
+      return 312;
     case AV_CODEC_ID_MP3ON4:
-      return 86030;
+      return 313;
     case AV_CODEC_ID_SHORTEN:
-      return 86031;
+      return 314;
     case AV_CODEC_ID_ALAC:
-      return 86032;
+      return 315;
     case AV_CODEC_ID_WESTWOOD_SND1:
-      return 86033;
+      return 316;
     case AV_CODEC_ID_GSM:
-      return 86034;
+      return 317;
     case AV_CODEC_ID_QDM2:
-      return 86035;
+      return 318;
     case AV_CODEC_ID_COOK:
-      return 86036;
+      return 319;
     case AV_CODEC_ID_TRUESPEECH:
-      return 86037;
+      return 320;
     case AV_CODEC_ID_TTA:
-      return 86038;
+      return 321;
     case AV_CODEC_ID_SMACKAUDIO:
-      return 86039;
+      return 322;
     case AV_CODEC_ID_QCELP:
-      return 86040;
+      return 323;
     case AV_CODEC_ID_WAVPACK:
-      return 86041;
+      return 324;
     case AV_CODEC_ID_DSICINAUDIO:
-      return 86042;
+      return 325;
     case AV_CODEC_ID_IMC:
-      return 86043;
+      return 326;
     case AV_CODEC_ID_MUSEPACK7:
-      return 86044;
+      return 327;
     case AV_CODEC_ID_MLP:
-      return 86045;
+      return 328;
     case AV_CODEC_ID_GSM_MS:
-      return 86046;
+      return 329;
     case AV_CODEC_ID_ATRAC3:
-      return 86047;
+      return 330;
+      // #[cfg(feature = "ff_api_voxware")]
+      //      case AV_CODEC_ID_VOXWARE:
+      //    return 331;
     case AV_CODEC_ID_APE:
-      return 86048;
+      return 332;
     case AV_CODEC_ID_NELLYMOSER:
-      return 86049;
+      return 333;
     case AV_CODEC_ID_MUSEPACK8:
-      return 86050;
+      return 334;
     case AV_CODEC_ID_SPEEX:
-      return 86051;
+      return 335;
     case AV_CODEC_ID_WMAVOICE:
-      return 86052;
+      return 336;
     case AV_CODEC_ID_WMAPRO:
-      return 86053;
+      return 337;
     case AV_CODEC_ID_WMALOSSLESS:
-      return 86054;
+      return 338;
     case AV_CODEC_ID_ATRAC3P:
-      return 86055;
+      return 339;
     case AV_CODEC_ID_EAC3:
-      return 86056;
+      return 340;
     case AV_CODEC_ID_SIPR:
-      return 86057;
+      return 341;
     case AV_CODEC_ID_MP1:
-      return 86058;
+      return 342;
     case AV_CODEC_ID_TWINVQ:
-      return 86059;
+      return 343;
     case AV_CODEC_ID_TRUEHD:
-      return 86060;
+      return 344;
     case AV_CODEC_ID_MP4ALS:
-      return 86061;
+      return 345;
     case AV_CODEC_ID_ATRAC1:
-      return 86062;
+      return 346;
     case AV_CODEC_ID_BINKAUDIO_RDFT:
-      return 86063;
+      return 347;
     case AV_CODEC_ID_BINKAUDIO_DCT:
-      return 86064;
+      return 348;
     case AV_CODEC_ID_AAC_LATM:
-      return 86065;
+      return 349;
     case AV_CODEC_ID_QDMC:
-      return 86066;
+      return 350;
     case AV_CODEC_ID_CELT:
-      return 86067;
+      return 351;
     case AV_CODEC_ID_G723_1:
-      return 86068;
+      return 352;
     case AV_CODEC_ID_G729:
-      return 86069;
+      return 353;
     case AV_CODEC_ID_8SVX_EXP:
-      return 86070;
+      return 354;
     case AV_CODEC_ID_8SVX_FIB:
-      return 86071;
+      return 355;
     case AV_CODEC_ID_BMV_AUDIO:
-      return 86072;
+      return 356;
     case AV_CODEC_ID_RALF:
-      return 86073;
+      return 357;
     case AV_CODEC_ID_IAC:
-      return 86074;
+      return 358;
     case AV_CODEC_ID_ILBC:
-      return 86075;
+      return 359;
     case AV_CODEC_ID_OPUS:
-      return 86076;
+      return 360;
     case AV_CODEC_ID_COMFORT_NOISE:
-      return 86077;
+      return 361;
     case AV_CODEC_ID_TAK:
-      return 86078;
+      return 362;
     case AV_CODEC_ID_METASOUND:
-      return 86079;
+      return 363;
     case AV_CODEC_ID_PAF_AUDIO:
-      return 86080;
+      return 364;
     case AV_CODEC_ID_ON2AVC:
-      return 86081;
+      return 365;
     case AV_CODEC_ID_DSS_SP:
-      return 86082;
+      return 366;
     case AV_CODEC_ID_CODEC2:
-      return 86083;
+      return 367;
     case AV_CODEC_ID_FFWAVESYNTH:
-      return 86084;
+      return 368;
     case AV_CODEC_ID_SONIC:
-      return 86085;
+      return 369;
     case AV_CODEC_ID_SONIC_LS:
-      return 86086;
+      return 370;
     case AV_CODEC_ID_EVRC:
-      return 86087;
+      return 371;
     case AV_CODEC_ID_SMV:
-      return 86088;
+      return 372;
     case AV_CODEC_ID_DSD_LSBF:
-      return 86089;
+      return 373;
     case AV_CODEC_ID_DSD_MSBF:
-      return 86090;
+      return 374;
     case AV_CODEC_ID_DSD_LSBF_PLANAR:
-      return 86091;
+      return 375;
     case AV_CODEC_ID_DSD_MSBF_PLANAR:
-      return 86092;
+      return 376;
     case AV_CODEC_ID_4GV:
-      return 86093;
+      return 377;
     case AV_CODEC_ID_INTERPLAY_ACM:
-      return 86094;
+      return 378;
     case AV_CODEC_ID_XMA1:
-      return 86095;
+      return 379;
     case AV_CODEC_ID_XMA2:
-      return 86096;
+      return 380;
     case AV_CODEC_ID_DST:
-      return 86097;
-    case AV_CODEC_ID_ATRAC3AL:
-      return 86098;
-    case AV_CODEC_ID_ATRAC3PAL:
-      return 86099;
-    case AV_CODEC_ID_DOLBY_E:
-      return 86100;
-    case AV_CODEC_ID_APTX:
-      return 86101;
-    case AV_CODEC_ID_APTX_HD:
-      return 86102;
-    case AV_CODEC_ID_SBC:
-      return 86103;
-    case AV_CODEC_ID_ATRAC9:
-      return 86104;
-    case AV_CODEC_ID_HCOM:
-      return 86105;
-    case AV_CODEC_ID_ACELP_KELVIN:
-      return 86106;
-    case AV_CODEC_ID_MPEGH_3D_AUDIO:
-      return 86107;
-    case AV_CODEC_ID_SIREN:
-      return 86108;
-    case AV_CODEC_ID_HCA:
-      return 86109;
-    case AV_CODEC_ID_FASTAUDIO:
-      return 86110;
-    case AV_CODEC_ID_MSNSIREN:
-      return 86111;
-    case AV_CODEC_ID_DFPWM:
-      return 86112;
-    case AV_CODEC_ID_BONK:
-      return 86113;
-    case AV_CODEC_ID_MISC4:
-      return 86114;
-    case AV_CODEC_ID_APAC:
-      return 86115;
-    case AV_CODEC_ID_FTR:
-      return 86116;
-    case AV_CODEC_ID_WAVARC:
-      return 86117;
-    case AV_CODEC_ID_RKA:
-      return 86118;
+      return 381;
+      /////////////
+      /////////////
+      /////////////
     case AV_CODEC_ID_DVD_SUBTITLE:
-      return 94208;
+      return 382;
     case AV_CODEC_ID_DVB_SUBTITLE:
-      return 94209;
+      return 383;
     case AV_CODEC_ID_TEXT:
-      return 94210;
+      return 384;
     case AV_CODEC_ID_XSUB:
-      return 94211;
+      return 385;
     case AV_CODEC_ID_SSA:
-      return 94212;
+      return 386;
     case AV_CODEC_ID_MOV_TEXT:
-      return 94213;
+      return 387;
     case AV_CODEC_ID_HDMV_PGS_SUBTITLE:
-      return 94214;
+      return 388;
     case AV_CODEC_ID_DVB_TELETEXT:
-      return 94215;
+      return 389;
     case AV_CODEC_ID_SRT:
-      return 94216;
+      return 390;
     case AV_CODEC_ID_MICRODVD:
-      return 94217;
+      return 391;
     case AV_CODEC_ID_EIA_608:
-      return 94218;
+      return 392;
     case AV_CODEC_ID_JACOSUB:
-      return 94219;
+      return 393;
     case AV_CODEC_ID_SAMI:
-      return 94220;
+      return 394;
     case AV_CODEC_ID_REALTEXT:
-      return 94221;
+      return 395;
     case AV_CODEC_ID_STL:
-      return 94222;
+      return 396;
     case AV_CODEC_ID_SUBVIEWER1:
-      return 94223;
+      return 397;
     case AV_CODEC_ID_SUBVIEWER:
-      return 94224;
+      return 398;
     case AV_CODEC_ID_SUBRIP:
-      return 94225;
+      return 399;
     case AV_CODEC_ID_WEBVTT:
-      return 94226;
+      return 400;
     case AV_CODEC_ID_MPL2:
-      return 94227;
+      return 401;
     case AV_CODEC_ID_VPLAYER:
-      return 94228;
+      return 402;
     case AV_CODEC_ID_PJS:
-      return 94229;
+      return 403;
     case AV_CODEC_ID_ASS:
-      return 94230;
+      return 404;
     case AV_CODEC_ID_HDMV_TEXT_SUBTITLE:
-      return 94231;
-    case AV_CODEC_ID_TTML:
-      return 94232;
-    case AV_CODEC_ID_ARIB_CAPTION:
-      return 94233;
+      return 405;
     case AV_CODEC_ID_TTF:
-      return 98304;
+      return 406;
     case AV_CODEC_ID_SCTE_35:
-      return 98305;
-    case AV_CODEC_ID_EPG:
-      return 98306;
+      return 407;
     case AV_CODEC_ID_BINTEXT:
-      return 98307;
+      return 408;
     case AV_CODEC_ID_XBIN:
-      return 98308;
+      return 409;
     case AV_CODEC_ID_IDF:
-      return 98309;
+      return 410;
     case AV_CODEC_ID_OTF:
-      return 98310;
+      return 411;
     case AV_CODEC_ID_SMPTE_KLV:
-      return 98311;
+      return 412;
     case AV_CODEC_ID_DVD_NAV:
-      return 98312;
+      return 413;
     case AV_CODEC_ID_TIMED_ID3:
-      return 98313;
+      return 414;
     case AV_CODEC_ID_BIN_DATA:
-      return 98314;
+      return 415;
     case AV_CODEC_ID_PROBE:
-      return 102400;
+      return 416;
     case AV_CODEC_ID_MPEG2TS:
-      return 131072;
+      return 417;
     case AV_CODEC_ID_MPEG4SYSTEMS:
-      return 131073;
+      return 418;
     case AV_CODEC_ID_FFMETADATA:
-      return 135168;
+      return 419;
     case AV_CODEC_ID_WRAPPED_AVFRAME:
-      return 135169;
+      return 420;
+    case AV_CODEC_ID_PSD:
+      return 421;
+    case AV_CODEC_ID_PIXLET:
+      return 422;
+    case AV_CODEC_ID_SPEEDHQ:
+      return 423;
+    case AV_CODEC_ID_CLEARVIDEO:
+      return 424;
+    case AV_CODEC_ID_FMVC:
+      return 425;
+    case AV_CODEC_ID_SCPR:
+      return 426;
+    case AV_CODEC_ID_XPM:
+      return 427;
+    case AV_CODEC_ID_AV1:
+      return 428;
+    case AV_CODEC_ID_PCM_F16LE:
+      return 429;
+    case AV_CODEC_ID_PCM_F24LE:
+      return 430;
+      ////////////
+    case AV_CODEC_ID_ATRAC3AL:
+      return 431;
+    case AV_CODEC_ID_ATRAC3PAL:
+      return 432;
+    case AV_CODEC_ID_BITPACKED:
+      return 433;
+    case AV_CODEC_ID_MSCC:
+      return 434;
+    case AV_CODEC_ID_SRGC:
+      return 435;
+    case AV_CODEC_ID_SVG:
+      return 436;
+    case AV_CODEC_ID_GDV:
+      return 437;
+    case AV_CODEC_ID_FITS:
+      return 438;
+    case AV_CODEC_ID_GREMLIN_DPCM:
+      return 439;
+    case AV_CODEC_ID_DOLBY_E:
+      return 440;
+    case AV_CODEC_ID_APTX:
+      return 441;
+    case AV_CODEC_ID_APTX_HD:
+      return 442;
+    case AV_CODEC_ID_SBC:
+      return 443;
+    case AV_CODEC_ID_AVS2:
+      return 444;
+    case AV_CODEC_ID_IMM4:
+      return 445;
+    case AV_CODEC_ID_PROSUMER:
+      return 446;
+    case AV_CODEC_ID_MWSC:
+      return 447;
+    case AV_CODEC_ID_WCMV:
+      return 448;
+    case AV_CODEC_ID_RASC:
+      return 449;
+    case AV_CODEC_ID_PCM_VIDC:
+      return 450;
+    case AV_CODEC_ID_ATRAC9:
+      return 451;
+    case AV_CODEC_ID_TTML:
+      return 452;
+    case AV_CODEC_ID_HYMT:
+      return 453;
+    case AV_CODEC_ID_ARBC:
+      return 454;
+    case AV_CODEC_ID_AGM:
+      return 455;
+    case AV_CODEC_ID_LSCR:
+      return 456;
+    case AV_CODEC_ID_VP4:
+      return 457;
+    case AV_CODEC_ID_ADPCM_AGM:
+      return 458;
+    case AV_CODEC_ID_HCOM:
+      return 459;
+    case AV_CODEC_ID_ARIB_CAPTION:
+      return 460;
+    case AV_CODEC_ID_IMM5:
+      return 461;
+    case AV_CODEC_ID_MVDV:
+      return 462;
+    case AV_CODEC_ID_MVHA:
+      return 463;
+    case AV_CODEC_ID_CDTOONS:
+      return 464;
+    case AV_CODEC_ID_MV30:
+      return 465;
+    case AV_CODEC_ID_NOTCHLC:
+      return 466;
+    case AV_CODEC_ID_PFM:
+      return 467;
+    case AV_CODEC_ID_ARGO:
+      return 468;
+    case AV_CODEC_ID_ADPCM_IMA_SSI:
+      return 469;
+    case AV_CODEC_ID_ADPCM_ZORK:
+      return 470;
+    case AV_CODEC_ID_ADPCM_IMA_APM:
+      return 471;
+    case AV_CODEC_ID_ADPCM_IMA_ALP:
+      return 472;
+    case AV_CODEC_ID_ADPCM_IMA_MTF:
+      return 473;
+    case AV_CODEC_ID_ADPCM_IMA_CUNNING:
+      return 474;
+    case AV_CODEC_ID_DERF_DPCM:
+      return 475;
+    case AV_CODEC_ID_ACELP_KELVIN:
+      return 476;
+    case AV_CODEC_ID_MPEGH_3D_AUDIO:
+      return 477;
+    case AV_CODEC_ID_SIREN:
+      return 478;
+    case AV_CODEC_ID_HCA:
+      return 479;
+    case AV_CODEC_ID_EPG:
+      return 480;
+    case AV_CODEC_ID_AVS3:
+      return 481;
+    case AV_CODEC_ID_PGX:
+      return 482;
+    case AV_CODEC_ID_MSP2:
+      return 483;
+    case AV_CODEC_ID_VVC:
+      return 484;
+    case AV_CODEC_ID_MOBICLIP:
+      return 485;
+    case AV_CODEC_ID_PHOTOCD:
+      return 486;
+    case AV_CODEC_ID_ADPCM_ARGO:
+      return 487;
+    case AV_CODEC_ID_CRI:
+      return 488;
+    case AV_CODEC_ID_IPU:
+      return 489;
+    case AV_CODEC_ID_SIMBIOSIS_IMX:
+      return 490;
+    case AV_CODEC_ID_SGA_VIDEO:
+      return 491;
+    case AV_CODEC_ID_PCM_SGA:
+      return 492;
+    case AV_CODEC_ID_ADPCM_IMA_MOFLEX:
+      return 493;
+    case AV_CODEC_ID_FASTAUDIO:
+      return 494;
+    case AV_CODEC_ID_GEM:
+      return 495;
+    case AV_CODEC_ID_ADPCM_IMA_ACORN:
+      return 496;
+    case AV_CODEC_ID_MSNSIREN:
+      return 497;
+    case AV_CODEC_ID_VBN:
+      return 498;
+    case AV_CODEC_ID_JPEGXL:
+      return 499;
+    case AV_CODEC_ID_QOI:
+      return 500;
+    case AV_CODEC_ID_PHM:
+      return 501;
+    case AV_CODEC_ID_DFPWM:
+      return 502;
+    case AV_CODEC_ID_RADIANCE_HDR:
+      return 503;
+    case AV_CODEC_ID_WBMP:
+      return 504;
+    case AV_CODEC_ID_MEDIA100:
+      return 505;
+    case AV_CODEC_ID_VQC:
+      return 506;
+    case AV_CODEC_ID_ADPCM_XMD:
+      return 507;
+    case AV_CODEC_ID_WADY_DPCM:
+      return 508;
+    case AV_CODEC_ID_CBD2_DPCM:
+      return 509;
+    case AV_CODEC_ID_BONK:
+      return 510;
+    case AV_CODEC_ID_MISC4:
+      return 511;
+    case AV_CODEC_ID_APAC:
+      return 512;
+    case AV_CODEC_ID_FTR:
+      return 513;
+    case AV_CODEC_ID_WAVARC:
+      return 514;
+    case AV_CODEC_ID_RKA:
+      return 515;
     case AV_CODEC_ID_VNULL:
-      return 135170;
+      return 516;
     case AV_CODEC_ID_ANULL:
-      return 135171;
+      return 517;
+      //      case AV_CODEC_ID_MPEG2VIDEO_XVMC:
+      //    return 518;
     default:
-      return AV_CODEC_ID_NONE;
+      return 0;
     }
   }
 };

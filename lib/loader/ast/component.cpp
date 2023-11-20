@@ -44,12 +44,12 @@ Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> Loader::loadPreamble() {
 }
 
 Expect<std::variant<AST::Component, AST::Module>> Loader::loadUnit() {
-  auto Res = Loader::loadPreamble();
-  if (!Res) {
-    return Unexpect(Res);
+  auto ResPreamble = Loader::loadPreamble();
+  if (!ResPreamble) {
+    return Unexpect(ResPreamble);
   }
-  auto WasmMagic = Res->first;
-  auto Ver = Res->second;
+  auto WasmMagic = ResPreamble->first;
+  auto Ver = ResPreamble->second;
   if (Ver == ModuleVersion) {
     auto Mod = std::make_unique<AST::Module>();
     Mod->getMagic() = WasmMagic;
@@ -91,10 +91,10 @@ Expect<std::variant<AST::Component, AST::Module>> Loader::loadUnit() {
 }
 
 Expect<void> Loader::loadComponent(AST::Component &Comp) {
-  Expect<Byte> Res;
-  while (auto Res = FMgr.readByte()) {
+  Expect<Byte> ResSecId;
+  while (auto ResSecId = FMgr.readByte()) {
     // only keep going if we have new section ID
-    uint8_t NewSectionId = *Res;
+    uint8_t NewSectionId = *ResSecId;
 
     switch (NewSectionId) {
     case 0x00:
@@ -194,8 +194,8 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
     }
   }
 
-  if (!Res) {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
+  if (!ResSecId) {
+    return logLoadError(ResSecId.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Component);
   }
 

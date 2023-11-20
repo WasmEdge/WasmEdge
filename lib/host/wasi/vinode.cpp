@@ -238,7 +238,8 @@ WasiExpect<void> VINode::pathReadlink(std::shared_ptr<VINode> Fd,
                                       std::string_view Path, Span<char> Buffer,
                                       __wasi_size_t &NRead) {
   std::vector<char> PathBuffer;
-  if (auto Res = resolvePath(Fd, Path); unlikely(!Res)) {
+  if (auto Res = resolvePath(Fd, Path, static_cast<__wasi_lookupflags_t>(0));
+      unlikely(!Res)) {
     return WasiUnexpect(Res);
   } else if (!Fd->can(__WASI_RIGHTS_PATH_READLINK)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);

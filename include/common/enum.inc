@@ -23,6 +23,8 @@
 
 A(Component, "component")
 A(Sec_Alias, "component alias section")
+A(Alias, "alias")
+A(AliasTarget, "alias target")
 A(Sort, "sort")
 A(Module, "module")
 A(Sec_Custom, "custom section")
@@ -758,6 +760,8 @@ E(IntrinsicsTableNotFound, 0x011B, "intrinsics table not found")
 E(MalformedTable, 0x011C, "malformed table")
 // Malformed sort
 E(MalformedSort, 0x3C, "malformed sort")
+// Malformed alias target
+E(MalformedAliasTarget, 0x3D, "malformed alias target")
 // @}
 
 // Validation phase

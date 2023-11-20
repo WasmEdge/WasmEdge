@@ -957,7 +957,9 @@ public:
     auto Node = getNodeOrNull(Fd);
     std::shared_ptr<VINode> NewNode;
 
-    if (auto Res = Node->sockAccept(FdFlags); unlikely(!Res)) {
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else if (auto Res = Node->sockAccept(FdFlags); unlikely(!Res)) {
       return WasiUnexpect(Res);
     } else {
       NewNode = std::move(*Res);

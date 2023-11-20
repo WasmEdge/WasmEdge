@@ -175,6 +175,15 @@ Expect<void> Loader::loadSection(AST::DataCountSection &Sec) {
   });
 }
 
+// Load vector of component core:instance section.
+// See "include/loader/loader.h".
+Expect<void> Loader::loadSection(AST::AliasSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::Alias &Alias) { return loadAlias(Alias); });
+  });
+}
+
 namespace {
 
 inline constexpr uint32_t HostVersion() noexcept {

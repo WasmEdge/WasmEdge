@@ -22,6 +22,8 @@
 #define A Line
 
 A(Component, "component")
+A(Sec_Alias, "component alias section")
+A(Sort, "sort")
 A(Module, "module")
 A(Sec_Custom, "custom section")
 A(Sec_Type, "type section")
@@ -754,6 +756,8 @@ E(SharedMemoryNoMax, 0x011A, "shared memory must have maximum")
 E(IntrinsicsTableNotFound, 0x011B, "intrinsics table not found")
 // Malformed table (Ref-types proposal)
 E(MalformedTable, 0x011C, "malformed table")
+// Malformed sort
+E(MalformedSort, 0x3C, "malformed sort")
 // @}
 
 // Validation phase

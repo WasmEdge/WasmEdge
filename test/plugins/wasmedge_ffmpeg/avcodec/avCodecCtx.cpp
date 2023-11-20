@@ -41,7 +41,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
     EXPECT_EQ(Result[0].get<uint32_t>(), 27); // H264
   }
 
-  uint32_t CodecType = 0; // MediaType Video
+  int32_t CodecType = 0; // MediaType Video
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_codec_type");
   EXPECT_NE(FuncInst, nullptr);
@@ -72,7 +72,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
     EXPECT_TRUE(HostFuncAVCodecCtxCodecType.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
         Result));
-    EXPECT_EQ(Result[0].get<uint32_t>(), CodecType); // MediaType Video
+    EXPECT_EQ(Result[0].get<int32_t>(), CodecType); // MediaType Video
   }
 
   int32_t Num = 5;

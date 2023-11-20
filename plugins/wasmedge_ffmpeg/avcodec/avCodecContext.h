@@ -20,8 +20,8 @@ class AVCodecCtxCodecType : public WasmEdgeFFmpegAVCodec<AVCodecCtxCodecType> {
 public:
   AVCodecCtxCodecType(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVCodec(HostEnv) {}
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
-                        uint32_t AvCodecCtxId);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
+                       uint32_t AvCodecCtxId);
 };
 
 class AVCodecCtxSetCodecType

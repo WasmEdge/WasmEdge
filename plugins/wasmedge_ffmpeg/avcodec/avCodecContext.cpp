@@ -17,8 +17,8 @@ Expect<uint32_t> AVCodecCtxCodecID::body(const Runtime::CallingFrame &,
   return FFmpegUtils::CodecID::fromAVCodecID(AvCodecId);
 }
 
-Expect<uint32_t> AVCodecCtxCodecType::body(const Runtime::CallingFrame &,
-                                           uint32_t AvCodecCtxId) {
+Expect<int32_t> AVCodecCtxCodecType::body(const Runtime::CallingFrame &,
+                                          uint32_t AvCodecCtxId) {
 
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   AVMediaType const AvMediaType = AvCodecCtx->codec_type;

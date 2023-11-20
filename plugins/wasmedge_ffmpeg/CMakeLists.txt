@@ -26,6 +26,7 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
         avfilter/module.cpp
         avfilter/avfilter_func.cpp
         avfilter/buffer_source_sink.cpp
+        avfilter/avFilter.cpp
 
 
         avformat/module.cpp

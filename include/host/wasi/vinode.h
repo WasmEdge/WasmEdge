@@ -719,11 +719,27 @@ private:
   /// @param[in] LookupFlags WASI lookup flags.
   /// @param[in] VFSFlags Internal lookup flags.
   /// @param[in] LinkCount Counting symbolic link lookup times.
+  /// @param[in] FollowTrailingSlashes If Path ends with slash, open it and set
+  /// Path to ".".
   /// @return Allocated buffer, or WASI error.
   static WasiExpect<std::vector<char>> resolvePath(
       std::shared_ptr<VINode> &Fd, std::string_view &Path,
       __wasi_lookupflags_t LookupFlags = __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW,
-      VFS::Flags VFSFlags = static_cast<VFS::Flags>(0), uint8_t LinkCount = 0);
+      VFS::Flags VFSFlags = static_cast<VFS::Flags>(0), uint8_t LinkCount = 0,
+      bool FollowTrailingSlashes = true);
+
+  /// Proxy function for `resolvePath`.
+  /// @param[in,out] Fd Fd. Return parent of last part if found.
+  /// @param[in,out] Path path. Return last part of path if found.
+  /// @param[in] FollowTrailingSlashes If Path ends with slash, open it and set
+  /// Path to ".".
+  /// @return Allocated buffer, or WASI error.
+  static inline WasiExpect<std::vector<char>>
+  resolvePath(std::shared_ptr<VINode> &Fd, std::string_view &Path,
+              bool FollowTrailingSlashes) {
+    return resolvePath(Fd, Path, __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW,
+                       static_cast<VFS::Flags>(0), 0, FollowTrailingSlashes);
+  }
 };
 
 class VPoller : protected Poller {

@@ -31,6 +31,9 @@ on:
       - "tools/**"
       - "CMakeLists.txt"
 
+permissions:
+  content: read
+
 jobs:
   get_version:
     name: Retrieve version information

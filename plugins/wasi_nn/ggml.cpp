@@ -118,6 +118,58 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
 
   return ErrNo::Success;
 }
+
+Expect<ErrNo> parseModelConfig(Graph &GraphRef,
+                               std::string ModelFilePathWithConfig,
+                               std::string &ModelFilePath) noexcept {
+  std::vector<std::string> Configs;
+  std::string Delimiter = ",";
+  if (ModelFilePathWithConfig.find(Delimiter) == std::string::npos) {
+    ModelFilePath = ModelFilePathWithConfig;
+  } else {
+    // Handle model path with config.
+    size_t Pos = 0;
+    std::string Token;
+    Pos = ModelFilePathWithConfig.find(Delimiter);
+    ModelFilePath = ModelFilePathWithConfig.substr(0, Pos);
+    ModelFilePathWithConfig.erase(0, Pos + Delimiter.length());
+    while ((Pos = ModelFilePathWithConfig.find(Delimiter)) !=
+           std::string::npos) {
+      Token = ModelFilePathWithConfig.substr(0, Pos);
+      Configs.emplace_back(Token);
+      ModelFilePathWithConfig.erase(0, Pos + Delimiter.length());
+    }
+    Configs.emplace_back(ModelFilePathWithConfig);
+  }
+
+  // Parse the configs.
+  for (const auto &Config : Configs) {
+    std::string Delimiter = "=";
+    size_t Pos = 0;
+    std::string Token;
+    Pos = Config.find(Delimiter);
+    Token = Config.substr(0, Pos);
+    try {
+      if (Token == "n_gpu_layers" || Token == "ngl") {
+        GraphRef.NGPULayers =
+            std::stoi(Config.substr(Pos + Delimiter.length()));
+      }
+    } catch (const std::invalid_argument &e) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: parse model parameter failed: invalid_argument {}"sv,
+          e.what());
+      return ErrNo::InvalidArgument;
+    } catch (const std::out_of_range &e) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: parse parameter failed: out_of_range {}"sv,
+          e.what());
+      return ErrNo::InvalidArgument;
+    }
+  }
+
+  return ErrNo::Success;
+}
+
 } // namespace details
 
 Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
@@ -159,51 +211,12 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     // If BinModel starts with 'preload:', it means that the model name passed
     // in as the --nn-preload parameter may have a config separated by ',' at
     // the end. For example, "preload:./model.bin,n_gpu_layers=99"
-    std::vector<std::string> Configs;
-    std::string Delimiter = ",";
-    std::string ModelFilePathWithConfig = BinModel.substr(8);
-    if (ModelFilePathWithConfig.find(Delimiter) == std::string::npos) {
-      ModelFilePath = ModelFilePathWithConfig;
-    } else {
-      // Handle model path with config.
-      size_t Pos = 0;
-      std::string Token;
-      Pos = ModelFilePathWithConfig.find(Delimiter);
-      ModelFilePath = ModelFilePathWithConfig.substr(0, Pos);
-      ModelFilePathWithConfig.erase(0, Pos + Delimiter.length());
-      while ((Pos = ModelFilePathWithConfig.find(Delimiter)) !=
-             std::string::npos) {
-        Token = ModelFilePathWithConfig.substr(0, Pos);
-        Configs.emplace_back(Token);
-        ModelFilePathWithConfig.erase(0, Pos + Delimiter.length());
-      }
-      Configs.emplace_back(ModelFilePathWithConfig);
-    }
-    // Parse the configs.
-    for (const auto &Config : Configs) {
-      std::string Delimiter = "=";
-      size_t Pos = 0;
-      std::string Token;
-      Pos = Config.find(Delimiter);
-      Token = Config.substr(0, Pos);
-      try {
-        if (Token == "n_gpu_layers" || Token == "ngl") {
-          GraphRef.NGPULayers =
-              std::stoi(Config.substr(Pos + Delimiter.length()));
-        }
-      } catch (const std::invalid_argument &e) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: parse model parameter failed: invalid_argument {}"sv,
-            e.what());
-        Env.NNGraph.pop_back();
-        return ErrNo::InvalidArgument;
-      } catch (const std::out_of_range &e) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: parse parameter failed: out_of_range {}"sv,
-            e.what());
-        Env.NNGraph.pop_back();
-        return ErrNo::InvalidArgument;
-      }
+    auto Res =
+        details::parseModelConfig(GraphRef, BinModel.substr(8), ModelFilePath);
+    if (Res != ErrNo::Success) {
+      spdlog::error("[WASI-NN] GGML backend: Failed to parse model config."sv);
+      Env.NNGraph.pop_back();
+      return Res;
     }
   } else {
     // TODO: pass the model directly to ggml

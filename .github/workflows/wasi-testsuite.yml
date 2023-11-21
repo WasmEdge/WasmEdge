@@ -21,6 +21,8 @@ on:
       - "lib/host/wasi/**"
       - "include/host/wasi/**"
       - "thirdparty/wasi/**"
+permissions:
+  contents: read
 
 jobs:
   test:

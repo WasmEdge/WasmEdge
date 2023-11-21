@@ -32,6 +32,7 @@ on:
       - "CMakeLists.txt"
 permissions:
   contents: read
+  
 jobs:
   get_version:
     name: Retrieve version information

@@ -31,9 +31,9 @@ Expect<int32_t> SWRInit::body(const Runtime::CallingFrame &,
 
 Expect<int32_t>
 SWRAllocSetOpts::body(const Runtime::CallingFrame &Frame, uint32_t SwrCtxPtr,
-                      uint32_t SWRContextId, int64_t OutChLayoutId,
+                      uint32_t SWRContextId, uint64_t OutChLayoutId,
                       uint32_t OutSampleFmtId, int32_t OutSampleRate,
-                      int64_t InChLayoutId, uint32_t InSampleFmtId,
+                      uint64_t InChLayoutId, uint32_t InSampleFmtId,
                       int32_t InSampleRate, int32_t LogOffset) {
 
   MEMINST_CHECK(MemInst, Frame, 0);

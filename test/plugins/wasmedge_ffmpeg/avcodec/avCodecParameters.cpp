@@ -18,8 +18,8 @@ TEST_F(FFmpegTest, AVCodecParameters) {
   uint32_t AVCodecParamPtr = UINT32_C(60);
 
   std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
-  initAVCodec(UINT32_C(20), UINT32_C(24), UINT32_C(28), FileName,
-              AVCodecParamPtr, UINT32_C(64));
+  initFFmpegStructs(UINT32_C(20), UINT32_C(24), UINT32_C(28), FileName,
+                    AVCodecParamPtr, UINT32_C(64), UINT32_C(68), UINT32_C(72));
 
   uint32_t AVCodecParamId = readUInt32(MemInst, AVCodecParamPtr);
 

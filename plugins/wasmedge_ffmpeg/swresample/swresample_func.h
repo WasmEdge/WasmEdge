@@ -38,9 +38,9 @@ public:
   SWRAllocSetOpts(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegSWResample(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t SwrCtxPtr,
-                       uint32_t SWRContextId, int64_t OutChLayout,
+                       uint32_t SWRContextId, uint64_t OutChLayout,
                        uint32_t OutSampleFmtId, int32_t OutSampleRate,
-                       int64_t InChLayout, uint32_t InSampleFmtId,
+                       uint64_t InChLayout, uint32_t InSampleFmtId,
                        int32_t InSampleRate, int32_t LogOffset);
 };
 

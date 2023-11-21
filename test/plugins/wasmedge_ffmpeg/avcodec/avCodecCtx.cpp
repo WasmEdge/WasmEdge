@@ -17,11 +17,11 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   uint32_t AVCodecCtxPtr = UINT32_C(64);
 
   std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
-  initAVCodec(UINT32_C(20), UINT32_C(24), UINT32_C(28), FileName, UINT32_C(60),
-              AVCodecCtxPtr);
-  uint32_t NumPtr = UINT32_C(64);
-  uint32_t DenPtr = UINT32_C(68);
-  uint32_t AVCodecPtr = UINT32_C(72);
+  initFFmpegStructs(UINT32_C(20), UINT32_C(24), UINT32_C(28), FileName,
+                    UINT32_C(60), AVCodecCtxPtr, UINT32_C(68), UINT32_C(72));
+  uint32_t NumPtr = UINT32_C(76);
+  uint32_t DenPtr = UINT32_C(80);
+  uint32_t AVCodecPtr = UINT32_C(84);
 
   uint32_t AVCodecCtxId = readUInt32(MemInst, AVCodecCtxPtr);
 
@@ -1381,7 +1381,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
     EXPECT_TRUE(HostFuncAVCodecCtxRefs.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
         Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), 1);
+    EXPECT_EQ(Result[0].get<int32_t>(), 4);
   }
 
   FuncInst = AVCodecMod->findFuncExports(
@@ -1483,7 +1483,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
     EXPECT_TRUE(HostFuncAVCodecCtxFrameNumber.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
         Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), 0);
+    EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
 
   FuncInst = AVCodecMod->findFuncExports(

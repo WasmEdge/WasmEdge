@@ -505,6 +505,13 @@ public:
             WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::WasmEdgeFFmpegAVCodecModule
                 *>(Module->create().release());
       }
+      if (const auto *Module =
+              Plugin->findModule("wasmedge_ffmpeg_swresample"sv)) {
+        SWResampleMod =
+            dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWResample::
+                             WasmEdgeFFmpegSWResampleModule *>(
+                Module->create().release());
+      }
     }
   }
 
@@ -531,9 +538,10 @@ protected:
 
   void initDict(uint32_t DictPtr, uint32_t KeyPtr, std::string Key,
                 uint32_t ValuePtr, std::string Value);
-  void initAVCodec(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
-                   uint32_t FilePtr, std::string FileName,
-                   uint32_t CodecParameterPtr, uint32_t AVCodecCtxPtr);
+  void initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
+                         uint32_t FilePtr, std::string FileName,
+                         uint32_t CodecParameterPtr, uint32_t AVCodecCtxPtr,
+                         uint32_t PacketPtr, uint32_t FramePtr);
 
   void initFormatCtx(uint32_t AVFormatCtxPtr, uint32_t FilePtr,
                      std::string FileName);

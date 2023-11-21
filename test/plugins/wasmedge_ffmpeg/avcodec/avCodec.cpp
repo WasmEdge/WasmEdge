@@ -21,8 +21,8 @@ TEST_F(FFmpegTest, AVCodec) {
   //  uint32_t NumeratorPtr = UINT32_C(72);
   //  uint32_t DenominatorPtr = UINT32_C(76);
   std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
-  initAVCodec(AVCodecPtr, UINT32_C(24), UINT32_C(28), FileName, UINT32_C(60),
-              UINT32_C(64));
+  initFFmpegStructs(AVCodecPtr, UINT32_C(24), UINT32_C(28), FileName,
+                    UINT32_C(60), UINT32_C(64), UINT32_C(68), UINT32_C(72));
 
   uint32_t AVCodecId = readUInt32(MemInst, AVCodecPtr);
   auto *FuncInst =
@@ -330,7 +330,7 @@ TEST_F(FFmpegTest, AVCodec) {
     EXPECT_TRUE(HostFuncAVCodecSampleFmtsIsNull.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecId},
         Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), 0);
+    EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
 
   //  FuncInst = AVCodecMod->findFuncExports(

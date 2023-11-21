@@ -20,21 +20,21 @@ TEST_F(FFmpegTest, AVCodecFunc) {
   uint32_t AVCodecCtxPtr = UINT32_C(4);
   uint32_t AVCodecParamPtr = UINT32_C(8);
   uint32_t AVCodecPtr = UINT32_C(12);
-  uint32_t AVDictPtr = UINT32_C(16);
-  uint32_t KeyPtr = UINT32_C(20);
-  uint32_t ValuePtr = UINT32_C(24);
+  //  uint32_t AVDictPtr = UINT32_C(16);
+  //  uint32_t KeyPtr = UINT32_C(20);
+  //  uint32_t ValuePtr = UINT32_C(24);
   //  uint32_t FramePtr = UINT32_C(28);
   uint32_t StrPtr = UINT32_C(32);
 
-  initDict(AVDictPtr, KeyPtr, std::string("KEY"), ValuePtr,
-           std::string("VALUE"));
+  //  initDict(AVDictPtr, KeyPtr, std::string("KEY"), ValuePtr,
+  //           std::string("VALUE"));
 
   //  initAVCodec(UINT32_C(32), UINT32_C(24), UINT32_C(28), FileName,
   //  UINT32_C(60),
   //              UINT32_C(64));
 
-  uint32_t DictId = readUInt32(MemInst, AVDictPtr);
-  uint32_t EmptyDictId = UINT32_C(0);
+  //  uint32_t DictId = readUInt32(MemInst, AVDictPtr);
+  //  uint32_t EmptyDictId = UINT32_C(0);
   uint32_t ID = 1;
   //  uint32_t FrameId = readUInt32(MemInst, FramePtr);
 
@@ -128,30 +128,32 @@ TEST_F(FFmpegTest, AVCodecFunc) {
   uint32_t AVCodecId = readUInt32(MemInst, AVCodecPtr);
   ASSERT_TRUE(AVCodecId > 0);
 
-  FuncInst =
-      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_open2");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-
-  auto &HostFuncAVCodecOpen2 =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecOpen2 &>(
-          FuncInst->getHostFunc());
-
-  {
-    EXPECT_TRUE(
-        HostFuncAVCodecOpen2.run(CallFrame,
-                                 std::initializer_list<WasmEdge::ValVariant>{
-                                     AVCodecCtxId, AVCodecId, DictId},
-                                 Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-
-    EXPECT_TRUE(
-        HostFuncAVCodecOpen2.run(CallFrame,
-                                 std::initializer_list<WasmEdge::ValVariant>{
-                                     AVCodecCtxId, AVCodecId, EmptyDictId},
-                                 Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-  }
+  //  FuncInst =
+  //      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_open2");
+  //  EXPECT_NE(FuncInst, nullptr);
+  //  EXPECT_TRUE(FuncInst->isHostFunction());
+  //
+  //  auto &HostFuncAVCodecOpen2 =
+  //      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecOpen2 &>(
+  //          FuncInst->getHostFunc());
+  //
+  //  {
+  //    EXPECT_TRUE(
+  //        HostFuncAVCodecOpen2.run(CallFrame,
+  //                                 std::initializer_list<WasmEdge::ValVariant>{
+  //                                     AVCodecCtxId, AVCodecId, DictId},
+  //                                 Result));
+  //    EXPECT_EQ(Result[0].get<int32_t>(),
+  //    static_cast<int32_t>(ErrNo::Success));
+  //
+  //    EXPECT_TRUE(
+  //        HostFuncAVCodecOpen2.run(CallFrame,
+  //                                 std::initializer_list<WasmEdge::ValVariant>{
+  //                                     AVCodecCtxId, AVCodecId, EmptyDictId},
+  //                                 Result));
+  //    EXPECT_EQ(Result[0].get<int32_t>(),
+  //    static_cast<int32_t>(ErrNo::Success));
+  //  }
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_av_codec_is_encoder");

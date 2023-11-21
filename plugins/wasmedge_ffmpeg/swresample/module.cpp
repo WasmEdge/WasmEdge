@@ -24,14 +24,13 @@ WasmEdgeFFmpegSWResampleModule::WasmEdgeFFmpegSWResampleModule(
               std::make_unique<SWRConvertFrame>(Env));
   addHostFunc("wasmedge_ffmpeg_swresample_swr_free",
               std::make_unique<SWRFree>(Env));
-  addHostFunc(
-      "wasmedge_ffmpeg_swresample_swresample_configuration_length", // test
-      std::make_unique<SWResampleConfigurationLength>(Env));
-  addHostFunc("wasmedge_ffmpeg_swresample_swresample_configuration", // test
+  addHostFunc("wasmedge_ffmpeg_swresample_swresample_configuration_length",
+              std::make_unique<SWResampleConfigurationLength>(Env));
+  addHostFunc("wasmedge_ffmpeg_swresample_swresample_configuration",
               std::make_unique<SWResampleConfiguration>(Env));
-  addHostFunc("wasmedge_ffmpeg_swresample_swresample_license_length", // test
+  addHostFunc("wasmedge_ffmpeg_swresample_swresample_license_length",
               std::make_unique<SWResampleLicenseLength>(Env));
-  addHostFunc("wasmedge_ffmpeg_swresample_swresample_license", // test
+  addHostFunc("wasmedge_ffmpeg_swresample_swresample_license",
               std::make_unique<SWResampleLicense>(Env));
 }
 

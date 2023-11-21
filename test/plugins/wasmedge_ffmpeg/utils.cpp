@@ -15,10 +15,11 @@ void FFmpegTest::initEmptyFrame(uint32_t FramePtr) {
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{FramePtr}, Result);
 }
 
-void FFmpegTest::initAVCodec(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
-                             uint32_t FilePtr, std::string FileName,
-                             uint32_t CodecParameterPtr,
-                             uint32_t AVCodecCtxPtr) {
+void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
+                                   uint32_t FilePtr, std::string FileName,
+                                   uint32_t CodecParameterPtr,
+                                   uint32_t AVCodecCtxPtr, uint32_t PacketPtr,
+                                   uint32_t FramePtr) {
   initFormatCtx(AVFormatCtxPtr, FilePtr, FileName);
 
   uint32_t AvFormatCtxId = readUInt32(MemInst, AVFormatCtxPtr);
@@ -108,6 +109,92 @@ void FFmpegTest::initAVCodec(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, AVCodecId, 0},
       Result);
+
+  initEmptyFrame(FramePtr);
+  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodec_receive_frame");
+  auto &HostFuncAVCodecReceiveFrame = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecReceiveFrame &>(
+      FuncInst->getHostFunc());
+
+  FuncInst =
+      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_alloc");
+  auto &HostFuncAVPacketAlloc =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketAlloc &>(
+          FuncInst->getHostFunc());
+
+  FuncInst =
+      AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_av_read_frame");
+  auto &HostFuncAVReadFrame =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVReadFrame &>(
+          FuncInst->getHostFunc());
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodec_send_packet");
+  auto &HostFuncAVCodecSendPacket = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSendPacket &>(
+      FuncInst->getHostFunc());
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_av_packet_stream_index");
+  auto &HostFuncAVPacketStreamIndex = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketStreamIndex &>(
+      FuncInst->getHostFunc());
+
+  while (true) {
+
+    HostFuncAVCodecReceiveFrame.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, FrameId},
+        Result);
+
+    // Error returned by FFmpeg are negative.
+    int32_t Error = Result[0].get<int32_t>() * -1;
+
+    if (Error == EAGAIN) {
+      while (true) {
+
+        HostFuncAVPacketAlloc.run(
+            CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketPtr},
+            Result);
+
+        uint32_t PackedId = readUInt32(MemInst, PacketPtr);
+
+        while (true) {
+          HostFuncAVReadFrame.run(CallFrame,
+                                  std::initializer_list<WasmEdge::ValVariant>{
+                                      AvFormatCtxId, PackedId},
+                                  Result);
+
+          int32_t Res = Result[0].get<int32_t>();
+          if (Res == 0 || Res == AVERROR_EOF) {
+            break;
+          }
+        }
+
+        HostFuncAVPacketStreamIndex.run(
+            CallFrame,
+            std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, FrameId},
+            Result);
+
+        uint32_t PacketStreamIdx = Result[0].get<int32_t>();
+
+        if (PacketStreamIdx != StreamIdx) {
+          continue;
+        }
+
+        HostFuncAVCodecSendPacket.run(
+            CallFrame,
+            std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, PackedId},
+            Result);
+        break;
+      }
+    } else {
+      break;
+    }
+  }
 }
 
 void FFmpegTest::initFormatCtx(uint32_t AVFormatCtxPtr, uint32_t FilePtr,

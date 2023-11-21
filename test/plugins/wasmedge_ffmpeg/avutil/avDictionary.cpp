@@ -107,7 +107,8 @@ TEST(WasmEdgeAVUtilTest, AVDictionary) {
             NullDictId, KeyStart, KeyLen, PrevDictEntryIdx, Flags, KeyLenPtr,
             ValueLenPtr},
         Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), -1);
+    EXPECT_EQ(Result[0].get<int32_t>(),
+              static_cast<int32_t>(ErrNo::InternalError));
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -139,7 +140,8 @@ TEST(WasmEdgeAVUtilTest, AVDictionary) {
             NullDictId, KeyStart, KeyLen, ValueBufPtr, ValueLen, KeyBufPtr,
             UINT32_C(3), PrevDictEntryIdx, Flags},
         Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), -1);
+    EXPECT_EQ(Result[0].get<int32_t>(),
+              static_cast<int32_t>(ErrNo::InternalError));
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_free");

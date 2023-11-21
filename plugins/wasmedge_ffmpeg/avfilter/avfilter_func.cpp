@@ -18,6 +18,8 @@ Expect<int32_t> AVFilterGraphAlloc::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(FilterGraph, *FilterGraphId, AVFilterGraph);
 
   FilterGraph = avfilter_graph_alloc();
+  if (FilterGraph == NULL)
+    return static_cast<int32_t>(ErrNo::Success);
   FFMPEG_PTR_STORE(FilterGraph, FilterGraphId);
   return static_cast<int32_t>(ErrNo::Success);
 }

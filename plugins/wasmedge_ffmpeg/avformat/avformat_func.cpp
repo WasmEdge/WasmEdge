@@ -333,8 +333,11 @@ Expect<uint32_t> AVGuessCodec::body(const Runtime::CallingFrame &Frame,
 
   AVMediaType const MediaType =
       FFmpegUtils::MediaType::intoMediaType(MediaTypeId);
-  return av_guess_codec(AvOutputFormat, ShortName.c_str(), FileName.c_str(),
-                        MimeType.c_str(), MediaType);
+  AVCodecID const Id =
+      av_guess_codec(AvOutputFormat, ShortName.c_str(), FileName.c_str(),
+                     MimeType.c_str(), MediaType);
+
+  return FFmpegUtils::CodecID::fromAVCodecID(Id);
 }
 
 Expect<int32_t>

@@ -131,7 +131,8 @@ Expect<int32_t> AVGetSampleFmtName::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(SampleFmtBuf, MemInst, char, SampleFmtNamePtr,
                  SampleFmtNameLen, "");
 
-  AVSampleFormat const SampleFmt = static_cast<AVSampleFormat>(SampleFmtId);
+  AVSampleFormat const SampleFmt =
+      FFmpegUtils::SampleFmt::fromSampleID(SampleFmtId);
   const char *Name = av_get_sample_fmt_name(SampleFmt);
   memmove(SampleFmtBuf.data(), Name, SampleFmtNameLen);
   return static_cast<int32_t>(ErrNo::Success);

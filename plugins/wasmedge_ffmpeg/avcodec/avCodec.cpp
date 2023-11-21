@@ -202,8 +202,8 @@ Expect<int32_t> AVCodecSampleFmtsIsNull::body(const Runtime::CallingFrame &,
 
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
   if (AvCodec->sample_fmts == NULL)
-    return 0;
-  return 1;
+    return 1;
+  return 0;
 }
 
 Expect<uint32_t> AVCodecSampleFmtsIter::body(const Runtime::CallingFrame &,

@@ -26,8 +26,8 @@ Expect<int32_t> AVCodecAllocContext3::body(const Runtime::CallingFrame &Frame,
 
 Expect<int32_t>
 AVCodecParametersFromContext::body(const Runtime::CallingFrame &,
-                                   uint32_t AvCodecCtxId,
-                                   uint32_t AvCodecParamId) {
+                                   uint32_t AvCodecParamId,
+                                   uint32_t AvCodecCtxId) {
 
   FFMPEG_PTR_FETCH(AvCodecParam, AvCodecParamId, AVCodecParameters);
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);

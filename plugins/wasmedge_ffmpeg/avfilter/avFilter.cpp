@@ -80,7 +80,7 @@ Expect<int32_t> AVFilterInoutSetName::body(const Runtime::CallingFrame &Frame,
   char *CName = av_strdup(Name.c_str());
   if (CName == NULL)
     return static_cast<int32_t>(ErrNo::Success);
-  memmove(Inout->name, CName, NameLen);
+  Inout->name = CName;
   return static_cast<int32_t>(ErrNo::Success);
 }
 

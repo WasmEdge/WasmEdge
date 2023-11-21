@@ -22,7 +22,7 @@ public:
   AVCodecParametersFromContext(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVCodec(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
-                       uint32_t AvCodecCtxId, uint32_t AvCodecParamId);
+                       uint32_t AvCodecParamId, uint32_t AvCodecCtxId);
 };
 
 class AVCodecParametersFree

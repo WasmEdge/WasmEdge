@@ -55,8 +55,9 @@ Expect<int32_t> AVDictCopy::body(const Runtime::CallingFrame &Frame,
 
   int Res;
 
-  // Using Maybe::uninit(); in Rust. If Uninitialized, zero is
-  // passed. Else the Ptr contains a Number.
+  if (SrcAvDict == NULL)
+    return static_cast<int32_t>(ErrNo::InternalError);
+
   if (*DestDictId) {
     FFMPEG_PTR_FETCH(DestAvDict, *DestDictId, AVDictionary *);
     Res = av_dict_copy(DestAvDict, *SrcAvDict, Flags);
@@ -88,7 +89,7 @@ Expect<int32_t> AVDictGet::body(const Runtime::CallingFrame &Frame,
 
   // If Dict Not created return (i.e. 0 is passed as AVDictId)
   if (AvDict == NULL)
-    return -1;
+    return static_cast<int32_t>(ErrNo::InternalError);
   std::string Key;
   std::copy_n(KeyStr, KeyLen, std::back_inserter(Key));
 
@@ -100,7 +101,7 @@ Expect<int32_t> AVDictGet::body(const Runtime::CallingFrame &Frame,
   }
 
   if (DictEntry == nullptr)
-    return -1;
+    return static_cast<int32_t>(ErrNo::InternalError);
 
   *KeyLenId = strlen(DictEntry->key);
   *ValueLenId = strlen(DictEntry->value);
@@ -122,7 +123,7 @@ Expect<int32_t> AVDictGetKeyValue::body(
 
   // If Dict Not created return (i.e. 0 is passed as AVDictId)
   if (AvDict == NULL)
-    return -1;
+    return static_cast<int32_t>(ErrNo::InternalError);
 
   std::string Key;
   std::copy_n(KeyStr, KeyLen, std::back_inserter(Key));
@@ -134,7 +135,7 @@ Expect<int32_t> AVDictGetKeyValue::body(
     Curr++;
   }
   if (DictEntry == nullptr)
-    return -1;
+    return static_cast<int32_t>(ErrNo::InternalError);
   memmove(ValBuf.data(), DictEntry->value, strlen(DictEntry->value));
   memmove(KeyBuf.data(), DictEntry->key, strlen(DictEntry->key));
   return Curr;

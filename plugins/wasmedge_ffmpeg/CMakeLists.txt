@@ -57,6 +57,7 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
 target_compile_options(wasmedgePluginWasmEdgeFFmpeg
         PUBLIC
         -DWASMEDGE_PLUGIN
+        "-Wall"  # Enables Warning, doesn't treats them as errors.
 )
 
 target_include_directories(wasmedgePluginWasmEdgeFFmpeg

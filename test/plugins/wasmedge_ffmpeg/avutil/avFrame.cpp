@@ -6,33 +6,22 @@
 
 using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
 
-TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
+namespace WasmEdge {
+namespace Host {
+namespace WasmEdgeFFmpeg {
 
-  auto *AVUtilMod = TestUtils::InitModules::createAVUtilModule();
-  ASSERT_TRUE(AVUtilMod != nullptr);
+TEST_F(FFmpegTest, AVVideoFrame) {
 
-  // Create the calling frame with memory instance.
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  Mod.addHostMemory(
-      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(5)));
-  auto *MemInstPtr = Mod.findMemoryExports("memory");
-  ASSERT_TRUE(MemInstPtr != nullptr);
-  auto &MemInst = *MemInstPtr;
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
-
-  std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
-
-  uint32_t AVFramePtr = UINT32_C(8);
+  uint32_t AVFramePtr = UINT32_C(72);
   uint32_t AVFrame2Ptr = UINT32_C(40);
   uint32_t DictPtr = UINT32_C(36);
 
-  TestUtils::AVFrame::initVideoFrame(Mod, AVFramePtr, UINT32_C(12),
-                                     UINT32_C(16), UINT32_C(20), UINT32_C(24),
-                                     UINT32_C(28), Result);
-  TestUtils::AVFrame::initVideoFrame(Mod, AVFrame2Ptr, UINT32_C(44),
-                                     UINT32_C(48), UINT32_C(52), UINT32_C(56),
-                                     UINT32_C(60), Result);
+  std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
+  initFFmpegStructs(UINT32_C(12), UINT32_C(24), UINT32_C(28), FileName,
+                    UINT32_C(60), UINT32_C(64), UINT32_C(68), AVFramePtr);
+
+  initFFmpegStructs(UINT32_C(100), UINT32_C(104), UINT32_C(108), FileName,
+                    UINT32_C(112), UINT32_C(116), UINT32_C(120), AVFrame2Ptr);
 
   uint32_t AVFrameId = readUInt32(MemInst, AVFramePtr);
   uint32_t AVFrame2Id = readUInt32(MemInst, AVFrame2Ptr);
@@ -83,7 +72,7 @@ TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);
 
-    EXPECT_EQ(Result[0].get<int32_t>(), 1920);
+    EXPECT_EQ(Result[0].get<int32_t>(), 1920); // Width
   }
 
   FuncInst =
@@ -98,7 +87,7 @@ TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);
 
-    EXPECT_EQ(Result[0].get<int32_t>(), 1080);
+    EXPECT_EQ(Result[0].get<int32_t>(), 1080); // Height
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -113,7 +102,7 @@ TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);
 
-    EXPECT_EQ(Result[0].get<int32_t>(), 1);
+    EXPECT_EQ(Result[0].get<int32_t>(), 1); // Video Format
   }
 
   FuncInst =
@@ -460,15 +449,16 @@ TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
           FuncInst->getHostFunc());
 
   {
+    int32_t Width = 100;
     HostFuncAVFrameSetWidth.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId, 100},
-        Result);
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, Width}, Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
     HostFuncAVFrameWidth.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);
-    EXPECT_EQ(Result[0].get<int32_t>(), 100);
+    EXPECT_EQ(Result[0].get<int32_t>(), Width);
   }
 
   FuncInst =
@@ -478,15 +468,16 @@ TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
           FuncInst->getHostFunc());
 
   {
+    int32_t Height = 100;
     HostFuncAVFrameSetHeight.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId, 100},
-        Result);
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, Height}, Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
     HostFuncAVFrameHeight.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);
-    EXPECT_EQ(Result[0].get<int32_t>(), 100);
+    EXPECT_EQ(Result[0].get<int32_t>(), Height);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -496,15 +487,17 @@ TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
       FuncInst->getHostFunc());
 
   {
+    uint32_t PixFormatId = 10; // GRAY8
     HostFuncAVFrameSetVideoFormat.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId, 10},
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, PixFormatId},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
     HostFuncAVFrameVideoFormat.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);
-    EXPECT_EQ(Result[0].get<int32_t>(), 10);
+    EXPECT_EQ(Result[0].get<int32_t>(), PixFormatId);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -514,15 +507,17 @@ TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
       FuncInst->getHostFunc());
 
   {
+    int32_t PictureId = 4; // AV_PICTURE_TYPE_S
     HostFuncAVFrameSetPictType.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId, 4},
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, PictureId},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
     HostFuncAVFramePictType.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);
-    EXPECT_EQ(Result[0].get<int32_t>(), 4);
+    EXPECT_EQ(Result[0].get<int32_t>(), PictureId);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -532,15 +527,17 @@ TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
       FuncInst->getHostFunc());
 
   {
+    int32_t ColorSpaceId = 4; // FCC
     HostFuncAVFrameSetColorSpace.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId, 4},
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, ColorSpaceId},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
     HostFuncAVFrameColorspace.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);
-    EXPECT_EQ(Result[0].get<int32_t>(), 4);
+    EXPECT_EQ(Result[0].get<int32_t>(), ColorSpaceId);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -550,15 +547,17 @@ TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
       FuncInst->getHostFunc());
 
   {
+    int32_t ColorRangeId = 1; //  MPEG
     HostFuncAVFrameSetColorRange.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId, 1},
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, ColorRangeId},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
     HostFuncAVFrameColorRange.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);
-    EXPECT_EQ(Result[0].get<int32_t>(), 1);
+    EXPECT_EQ(Result[0].get<int32_t>(), ColorRangeId);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -569,15 +568,17 @@ TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
           FuncInst->getHostFunc());
 
   {
+    int32_t ColorTrcId = 5; // GAMMA28
     HostFuncAVFrameSetColorTransferCharacteristic.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId, 5},
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, ColorTrcId},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
     HostAVFrameColorTransferCharacteristic.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);
-    EXPECT_EQ(Result[0].get<int32_t>(), 5);
+    EXPECT_EQ(Result[0].get<int32_t>(), ColorTrcId);
   }
 
   FuncInst =
@@ -587,15 +588,16 @@ TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
           FuncInst->getHostFunc());
 
   {
+    int64_t Pts = 10;
     HostFuncAVFrameSetPts.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId, 10},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId, Pts},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
     HostAVFramePts.run(CallFrame,
                        std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
                        Result);
-    EXPECT_EQ(Result[0].get<int32_t>(), 10);
+    EXPECT_EQ(Result[0].get<int32_t>(), Pts);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -641,3 +643,7 @@ TEST(WasmEdgeAVUtilTest, AVVideoFrame) {
     EXPECT_EQ(Result[0].get<int32_t>(), ColorPrimariesId);
   }
 }
+
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

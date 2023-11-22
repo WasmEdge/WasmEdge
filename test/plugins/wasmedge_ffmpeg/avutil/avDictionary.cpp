@@ -6,23 +6,11 @@
 
 using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
 
-TEST(WasmEdgeAVUtilTest, AVDictionary) {
+namespace WasmEdge {
+namespace Host {
+namespace WasmEdgeFFmpeg {
 
-  // Create the wasmedge_process module instance.
-  auto *AVUtilMod = TestUtils::InitModules::createAVUtilModule();
-  ASSERT_TRUE(AVUtilMod != nullptr);
-
-  // Create the calling frame with memory instance.
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  Mod.addHostMemory(
-      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(1)));
-  auto *MemInstPtr = Mod.findMemoryExports("memory");
-  ASSERT_TRUE(MemInstPtr != nullptr);
-  auto &MemInst = *MemInstPtr;
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
-
-  std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
+TEST_F(FFmpegTest, AVDictionary) {
 
   uint32_t KeyStart = UINT32_C(1);
   uint32_t KeyLen = 3;
@@ -158,6 +146,8 @@ TEST(WasmEdgeAVUtilTest, AVDictionary) {
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
-
-  delete AVUtilMod;
 }
+
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

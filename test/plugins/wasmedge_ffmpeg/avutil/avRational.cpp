@@ -6,23 +6,16 @@
 
 using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
 
-TEST(WasmEdgeAVUtilTest, AVRational) {
+namespace WasmEdge {
+namespace Host {
+namespace WasmEdgeFFmpeg {
 
-  // Create the wasmedge_process module instance.
-  auto *AVUtilMod = TestUtils::InitModules::createAVUtilModule();
+TEST_F(FFmpegTest, AVRational) {
+
   ASSERT_TRUE(AVUtilMod != nullptr);
 
-  // Create the calling frame with memory instance.
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  Mod.addHostMemory(
-      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(5)));
-  auto *MemInstPtr = Mod.findMemoryExports("memory");
-  ASSERT_TRUE(MemInstPtr != nullptr);
-  auto &MemInst = *MemInstPtr;
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
-
-  std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
+  uint32_t NumPtr = UINT32_C(4);
+  uint32_t DenPtr = UINT32_C(8);
 
   // Addition Function
   auto *FuncInst =
@@ -33,22 +26,19 @@ TEST(WasmEdgeAVUtilTest, AVRational) {
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVAddQ &>(
           FuncInst->getHostFunc());
 
-  uint32_t ANumPtr = UINT32_C(0);    // To separate memory address. Same number
-                                     // leading to Collision of addresses.
-  uint32_t ADenPtr = UINT32_C(4000); // To separate memory address
-
   {
-    writeUInt32(MemInst, INT32_C(0), ANumPtr);
-    writeUInt32(MemInst, INT32_C(0), ADenPtr);
-    EXPECT_TRUE(HostFuncAVAddQ.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{
-            INT32_C(3), INT32_C(4), INT32_C(-6), INT32_C(7), ANumPtr, ADenPtr},
-        Result));
+    int32_t ANum = 3;
+    int32_t ADen = 4;
+    int32_t BNum = -6;
+    int32_t BDen = 7;
+    EXPECT_TRUE(HostFuncAVAddQ.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       ANum, ADen, BNum, BDen, NumPtr, DenPtr},
+                                   Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    EXPECT_EQ(readIInt32(MemInst, ANumPtr), -3);
-    EXPECT_EQ(readIInt32(MemInst, ADenPtr), 28);
+    EXPECT_EQ(readIInt32(MemInst, NumPtr), -3);
+    EXPECT_EQ(readIInt32(MemInst, DenPtr), 28);
   }
 
   // Subtraction Function
@@ -60,17 +50,21 @@ TEST(WasmEdgeAVUtilTest, AVRational) {
           FuncInst->getHostFunc());
 
   {
-    writeUInt32(MemInst, INT32_C(0), ANumPtr);
-    writeUInt32(MemInst, INT32_C(0), ADenPtr);
+    int32_t ANum = -843;
+    int32_t ADen = 11;
+    int32_t BNum = 38;
+    int32_t BDen = 12;
+
+    writeIInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
+    writeIInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
     EXPECT_TRUE(HostFuncAVSubQ.run(CallFrame,
                                    std::initializer_list<WasmEdge::ValVariant>{
-                                       INT32_C(-843), INT32_C(11), INT32_C(38),
-                                       INT32_C(12), ANumPtr, ADenPtr},
+                                       ANum, ADen, BNum, BDen, NumPtr, DenPtr},
                                    Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    EXPECT_EQ(readIInt32(MemInst, ANumPtr), -5267);
-    EXPECT_EQ(readIInt32(MemInst, ADenPtr), 66);
+    EXPECT_EQ(readIInt32(MemInst, NumPtr), -5267);
+    EXPECT_EQ(readIInt32(MemInst, DenPtr), 66);
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_mul_q");
@@ -81,17 +75,22 @@ TEST(WasmEdgeAVUtilTest, AVRational) {
           FuncInst->getHostFunc());
 
   {
-    writeUInt32(MemInst, INT32_C(0), ANumPtr);
-    writeUInt32(MemInst, INT32_C(0), ADenPtr);
-    EXPECT_TRUE(HostFuncAVMulQ.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{
-            INT32_C(-6), INT32_C(7), INT32_C(3), INT32_C(4), ANumPtr, ADenPtr},
-        Result));
+
+    int32_t ANum = -6;
+    int32_t ADen = 7;
+    int32_t BNum = 3;
+    int32_t BDen = 4;
+
+    writeIInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
+    writeIInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
+    EXPECT_TRUE(HostFuncAVMulQ.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       ANum, ADen, BNum, BDen, NumPtr, DenPtr},
+                                   Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    EXPECT_EQ(readIInt32(MemInst, ANumPtr), -9);
-    EXPECT_EQ(readIInt32(MemInst, ADenPtr), 14);
+    EXPECT_EQ(readIInt32(MemInst, NumPtr), -9);
+    EXPECT_EQ(readIInt32(MemInst, DenPtr), 14);
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_div_q");
@@ -102,41 +101,49 @@ TEST(WasmEdgeAVUtilTest, AVRational) {
           FuncInst->getHostFunc());
 
   {
-    writeUInt32(MemInst, INT32_C(0), ANumPtr);
-    writeUInt32(MemInst, INT32_C(0), ADenPtr);
-    EXPECT_TRUE(HostFuncAVDivQ.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{
-            INT32_C(-6), INT32_C(7), INT32_C(3), INT32_C(4), ANumPtr, ADenPtr},
-        Result));
+    int32_t ANum = -6;
+    int32_t ADen = 7;
+    int32_t BNum = 3;
+    int32_t BDen = 4;
+
+    writeIInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
+    writeIInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
+    EXPECT_TRUE(HostFuncAVDivQ.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       ANum, ADen, BNum, BDen, NumPtr, DenPtr},
+                                   Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    EXPECT_EQ(readIInt32(MemInst, ANumPtr), -8);
-    EXPECT_EQ(readIInt32(MemInst, ADenPtr), 7);
+    EXPECT_EQ(readIInt32(MemInst, NumPtr), -8);
+    EXPECT_EQ(readIInt32(MemInst, DenPtr), 7);
   }
 
   // How to Pass a Double functions.
 
-  //  FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_d2q");
-  //  EXPECT_NE(FuncInst, nullptr);
-  //  EXPECT_TRUE(FuncInst->isHostFunction());
-  //  auto &HostFuncAVDivQ =
-  //  dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDivQ
-  //  &>(FuncInst->getHostFunc());
-  //
-  //  {
-  //    writeUInt32(MemInst,INT32_C(0),ANumPtr);
-  //    writeUInt32(MemInst,INT32_C(0),ADenPtr);
-  //    EXPECT_TRUE(HostFuncAVDivQ.run(CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{
-  //        INT32_C(-6), INT32_C(7),ANumPtr, ADenPtr},
-  //        Result));
-  //    EXPECT_EQ(Result[0].get<int32_t>(),
-  //    static_cast<uint32_t>(ErrNo::Success));
-  //
-  //    EXPECT_EQ(readIInt32(MemInst,ANumPtr),-8);
-  //    EXPECT_EQ(readIInt32(MemInst,ADenPtr),7);
-  //  }
+  FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_d2q");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVD2Q =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVD2Q &>(
+          FuncInst->getHostFunc());
+
+  {
+
+    double D = 5;
+    int32_t Max = 10;
+
+    writeIInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
+    writeIInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
+
+    EXPECT_TRUE(HostFuncAVD2Q.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{D, Max, NumPtr, DenPtr},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+
+    EXPECT_EQ(readIInt32(MemInst, NumPtr), 5);
+    EXPECT_EQ(readIInt32(MemInst, DenPtr), 1);
+  }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_q2d");
   EXPECT_NE(FuncInst, nullptr);
@@ -147,11 +154,13 @@ TEST(WasmEdgeAVUtilTest, AVRational) {
 
   {
     // Convert Rational Number to Double.
-    writeUInt32(MemInst, INT32_C(0), ANumPtr);
-    writeUInt32(MemInst, INT32_C(0), ADenPtr);
+    int32_t ANum = 1;
+    int32_t ADen = 2;
+
+    writeIInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
+    writeIInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
     EXPECT_TRUE(HostFuncAVQ2d.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{INT32_C(1), INT32_C(2)},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ANum, ADen},
         Result));
     EXPECT_EQ(Result[0].get<double_t>(), 0.5);
   }
@@ -165,16 +174,19 @@ TEST(WasmEdgeAVUtilTest, AVRational) {
 
   {
     // Inverse a Rational Number.
-    writeUInt32(MemInst, INT32_C(0), ANumPtr);
-    writeUInt32(MemInst, INT32_C(0), ADenPtr);
-    EXPECT_TRUE(HostFuncInvQ.run(CallFrame,
-                                 std::initializer_list<WasmEdge::ValVariant>{
-                                     INT32_C(-3), INT32_C(4), ANumPtr, ADenPtr},
-                                 Result));
+    int32_t ANum = -3;
+    int32_t ADen = 4;
+
+    writeIInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
+    writeIInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
+    EXPECT_TRUE(HostFuncInvQ.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ANum, ADen, NumPtr, DenPtr},
+        Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    EXPECT_EQ(readIInt32(MemInst, ANumPtr), 4);
-    EXPECT_EQ(readIInt32(MemInst, ADenPtr), -3);
+    EXPECT_EQ(readIInt32(MemInst, NumPtr), 4);
+    EXPECT_EQ(readIInt32(MemInst, DenPtr), -3);
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_q2intfloat");
@@ -185,11 +197,11 @@ TEST(WasmEdgeAVUtilTest, AVRational) {
           FuncInst->getHostFunc());
 
   {
-    writeUInt32(MemInst, INT32_C(0), ANumPtr);
-    writeUInt32(MemInst, INT32_C(0), ADenPtr);
+    int32_t ANum = 1;
+    int32_t ADen = 5;
+
     EXPECT_TRUE(HostFuncAVQ2IntFloat.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{INT32_C(1), INT32_C(5)},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ANum, ADen},
         Result));
     EXPECT_EQ(Result[0].get<uint32_t>(), static_cast<uint32_t>(1045220557));
   }
@@ -202,33 +214,40 @@ TEST(WasmEdgeAVUtilTest, AVRational) {
           FuncInst->getHostFunc());
 
   {
-    writeUInt32(MemInst, INT32_C(0), ANumPtr);
-    writeUInt32(MemInst, INT32_C(0), ADenPtr);
+    int32_t ANum = 1;
+    int32_t ADen = 3;
+    int32_t BNum = 1;
+    int32_t BDen = 2;
+    int32_t CNum = -1;
+    int32_t CDen = 2;
+
     // B nearer to A
-    EXPECT_TRUE(HostFuncAVNearerQ.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{INT32_C(1), INT32_C(3),
-                                                    INT32_C(1), INT32_C(2),
-                                                    INT32_C(-1), INT32_C(2)},
-        Result));
+    EXPECT_TRUE(
+        HostFuncAVNearerQ.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  ANum, ADen, BNum, BDen, CNum, CDen},
+                              Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(1));
 
+    ANum = -1;
+
     // C nearer to A
-    EXPECT_TRUE(HostFuncAVNearerQ.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{INT32_C(-1), INT32_C(3),
-                                                    INT32_C(1), INT32_C(2),
-                                                    INT32_C(-1), INT32_C(2)},
-        Result));
+    EXPECT_TRUE(
+        HostFuncAVNearerQ.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  ANum, ADen, BNum, BDen, CNum, CDen},
+                              Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(-1));
 
+    ANum = 0;
+    ADen = 0;
+
     // Both are at same distance
-    EXPECT_TRUE(HostFuncAVNearerQ.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{INT32_C(0), INT32_C(0),
-                                                    INT32_C(1), INT32_C(2),
-                                                    INT32_C(-1), INT32_C(2)},
-        Result));
+    EXPECT_TRUE(
+        HostFuncAVNearerQ.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  ANum, ADen, BNum, BDen, CNum, CDen},
+                              Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(0));
   }
 
@@ -240,28 +259,37 @@ TEST(WasmEdgeAVUtilTest, AVRational) {
           FuncInst->getHostFunc());
 
   {
+    int32_t ANum = 1;
+    int32_t ADen = 2;
+    int32_t BNum = 2;
+    int32_t BDen = 1;
     // A < B
-    EXPECT_TRUE(
-        HostFuncAVCmpQ.run(CallFrame,
-                           std::initializer_list<WasmEdge::ValVariant>{
-                               INT32_C(1), INT32_C(2), INT32_C(2), INT32_C(1)},
-                           Result));
+    EXPECT_TRUE(HostFuncAVCmpQ.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ANum, ADen, BNum, BDen},
+        Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(-1));
 
+    ANum = 2;
+    ADen = 1;
+    BNum = 1;
+    BDen = 2;
     // A > B
-    EXPECT_TRUE(
-        HostFuncAVCmpQ.run(CallFrame,
-                           std::initializer_list<WasmEdge::ValVariant>{
-                               INT32_C(2), INT32_C(1), INT32_C(1), INT32_C(2)},
-                           Result));
+    EXPECT_TRUE(HostFuncAVCmpQ.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ANum, ADen, BNum, BDen},
+        Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(1));
 
+    ANum = 2;
+    ADen = 1;
+    BNum = 2;
+    BDen = 1;
     // A == B
-    EXPECT_TRUE(
-        HostFuncAVCmpQ.run(CallFrame,
-                           std::initializer_list<WasmEdge::ValVariant>{
-                               INT32_C(2), INT32_C(1), INT32_C(2), INT32_C(1)},
-                           Result));
+    EXPECT_TRUE(HostFuncAVCmpQ.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ANum, ADen, BNum, BDen},
+        Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(0));
   }
 
@@ -273,13 +301,17 @@ TEST(WasmEdgeAVUtilTest, AVRational) {
           FuncInst->getHostFunc());
 
   {
-    EXPECT_TRUE(HostFuncAVReduce.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{
-            ANumPtr, ADenPtr, INT32_C(1), INT32_C(2), INT32_C(3)},
-        Result));
+    int64_t ANum = 1;
+    int64_t ADen = 2;
+    int64_t Max = 3;
+    EXPECT_TRUE(
+        HostFuncAVReduce.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 NumPtr, DenPtr, ANum, ADen, Max},
+                             Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(1));
   }
-
-  delete AVUtilMod;
 }
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

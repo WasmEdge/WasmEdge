@@ -18,7 +18,10 @@ TEST_F(FFmpegTest, SWResampleFunc) {
   uint32_t SWResamplePtr = UINT32_C(8);
   uint32_t FramePtr = UINT32_C(72);
   uint32_t Frame2Ptr = UINT32_C(16);
-  TestUtils::AVDictionary::initDict(Mod, DictPtr, Result);
+  uint32_t KeyPtr = UINT32_C(100);
+  uint32_t ValuePtr = UINT32_C(200);
+
+  initDict(DictPtr, KeyPtr, std::string("Key"), ValuePtr, std::string("Value"));
 
   std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
   initFFmpegStructs(UINT32_C(20), UINT32_C(24), UINT32_C(28), FileName,

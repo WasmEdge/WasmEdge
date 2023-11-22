@@ -6,30 +6,21 @@
 
 using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
 
-TEST(WasmEdgeAVUtilTest, AVError) {
+namespace WasmEdge {
+namespace Host {
+namespace WasmEdgeFFmpeg {
 
-  auto *AVUtilMod = TestUtils::InitModules::createAVUtilModule();
+TEST_F(FFmpegTest, AVError) {
+
   ASSERT_TRUE(AVUtilMod != nullptr);
-
-  // Create the calling frame with memory instance.
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  Mod.addHostMemory(
-      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(5)));
-  auto *MemInstPtr = Mod.findMemoryExports("memory");
-  ASSERT_TRUE(MemInstPtr != nullptr);
-  auto &MemInst = *MemInstPtr;
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
-
-  std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
 
   int32_t ErrNum = 35;
 
-  uint32_t ErrStart = 100;
+  uint32_t ErrStartPtr = UINT32_C(100);
   uint32_t ErrSize = 10;
-  fillMemContent(MemInst, ErrStart, ErrSize);
+  fillMemContent(MemInst, ErrStartPtr, ErrSize);
 
-  fillMemContent(MemInst, ErrStart, std::string("Test Error"));
+  fillMemContent(MemInst, ErrStartPtr, std::string("Test Error"));
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_strerror");
@@ -53,7 +44,8 @@ TEST(WasmEdgeAVUtilTest, AVError) {
     HostFuncAVUtilAVError.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{ErrNum}, Result);
 
-    EXPECT_EQ(Result[0].get<int32_t>(), ErrNum * -1);
+    EXPECT_EQ(Result[0].get<int32_t>(),
+              ErrNum * -1); // Returns Negative, convert to Positive
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_AVUNERROR");
@@ -65,6 +57,11 @@ TEST(WasmEdgeAVUtilTest, AVError) {
     HostFuncAVUtilAVUNError.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{ErrNum}, Result);
 
-    EXPECT_EQ(Result[0].get<int32_t>(), ErrNum * -1);
+    EXPECT_EQ(Result[0].get<int32_t>(),
+              ErrNum * -1); // Returns Negative, convert to Positive
   }
 }
+
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

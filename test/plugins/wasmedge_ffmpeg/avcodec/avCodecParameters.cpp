@@ -23,8 +23,6 @@ TEST_F(FFmpegTest, AVCodecParameters) {
 
   uint32_t AVCodecParamId = readUInt32(MemInst, AVCodecParamPtr);
 
-  auto *AVCodecMod = TestUtils::InitModules::createAVCodecModule();
-
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodecparam_codec_id");
   EXPECT_NE(FuncInst, nullptr);

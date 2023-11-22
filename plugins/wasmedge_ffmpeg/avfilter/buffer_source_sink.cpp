@@ -51,8 +51,6 @@ Expect<int32_t> AVBufferSrcAddFrame::body(const Runtime::CallingFrame &,
 
   FFMPEG_PTR_FETCH(FilterCtx, FilterContextId, AVFilterContext);
   FFMPEG_PTR_FETCH(Frame, FrameId, AVFrame);
-  printf("FIlterCtxPtr: %p\n", FilterCtx);
-  printf("AVFramePtr: %p\n", Frame);
   return av_buffersrc_add_frame(FilterCtx, Frame);
 }
 

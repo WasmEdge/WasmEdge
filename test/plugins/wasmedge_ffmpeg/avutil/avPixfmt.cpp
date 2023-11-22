@@ -6,22 +6,11 @@
 
 using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
 
-TEST(WasmEdgeAVUtilTest, AVPixFmt) {
+namespace WasmEdge {
+namespace Host {
+namespace WasmEdgeFFmpeg {
 
-  auto *AVUtilMod = TestUtils::InitModules::createAVUtilModule();
-  ASSERT_TRUE(AVUtilMod != nullptr);
-
-  // Create the calling frame with memory instance.
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  Mod.addHostMemory(
-      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(5)));
-  auto *MemInstPtr = Mod.findMemoryExports("memory");
-  ASSERT_TRUE(MemInstPtr != nullptr);
-  auto &MemInst = *MemInstPtr;
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
-
-  std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
+TEST_F(FFmpegTest, AVPixFmt) {
 
   uint32_t NamePtr = UINT32_C(4);
 
@@ -31,11 +20,14 @@ TEST(WasmEdgeAVUtilTest, AVPixFmt) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AvPixFmtDescriptorNbComponents &>(
       FuncInst->getHostFunc());
 
+  uint32_t PixFmtId = 3; // RGB24
+
   {
     HostFuncAVPixFmtDescriptorNbComponents.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{3}, Result);
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{PixFmtId},
+        Result);
 
-    EXPECT_EQ(Result[0].get<int32_t>(), 3);
+    EXPECT_EQ(Result[0].get<int32_t>(), PixFmtId);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -59,7 +51,8 @@ TEST(WasmEdgeAVUtilTest, AVPixFmt) {
 
   {
     HostFuncAvPixFmtDescriptorLog2ChromaH.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{3}, Result);
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{PixFmtId},
+        Result);
 
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
@@ -199,7 +192,7 @@ TEST(WasmEdgeAVUtilTest, AVPixFmt) {
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 
-  uint32_t AVPixFmtId = 1; // YUV420P
+  PixFmtId = 1; // YUV420P
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_pix_format_name_length");
   auto &HostFuncAVPixFormatNameLength = dynamic_cast<
@@ -208,7 +201,7 @@ TEST(WasmEdgeAVUtilTest, AVPixFmt) {
 
   {
     HostFuncAVPixFormatNameLength.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVPixFmtId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{PixFmtId},
         Result);
 
     Length = Result[0].get<int32_t>();
@@ -224,11 +217,15 @@ TEST(WasmEdgeAVUtilTest, AVPixFmt) {
           FuncInst->getHostFunc());
 
   {
-    HostFuncAVPixFormatName.run(CallFrame,
-                                std::initializer_list<WasmEdge::ValVariant>{
-                                    AVPixFmtId, NamePtr, Length},
-                                Result);
+    HostFuncAVPixFormatName.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{PixFmtId, NamePtr, Length},
+        Result);
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 }
+
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

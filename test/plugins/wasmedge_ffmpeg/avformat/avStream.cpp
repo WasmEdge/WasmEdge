@@ -6,27 +6,27 @@
 
 using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
 
-// Testing all AVFormat_funcs.
-TEST(WasmEdgeAVFormatTest, AVStreamStruct) {
+namespace WasmEdge {
+namespace Host {
+namespace WasmEdgeFFmpeg {
 
-  auto *AVFormatMod = TestUtils::InitModules::createAVFormatModule();
+// Testing all AVFormat_funcs.
+TEST_F(FFmpegTest, AVStreamStruct) {
+
   ASSERT_TRUE(AVFormatMod != nullptr);
 
-  // Create the calling frame with memory instance.
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  Mod.addHostMemory(
-      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(1)));
-  auto *MemInstPtr = Mod.findMemoryExports("memory");
-  ASSERT_TRUE(MemInstPtr != nullptr);
-  auto &MemInst = *MemInstPtr;
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  uint32_t StreamIdx = 0;
 
-  std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
+  uint32_t FormatCtxPtr = UINT32_C(4);
+  uint32_t CodecParameterPtr = UINT32_C(8);
+  uint32_t NumPtr = UINT32_C(12);
+  uint32_t DenPtr = UINT32_C(16);
+  uint32_t DictPtr = UINT32_C(20);
+  uint32_t FilePtr = UINT32_C(100);
 
-  uint32_t AvFormatCtxPtr = UINT32_C(1);
-  uint32_t StreamIdx = UINT32_C(0);
-  TestUtils::AVFormatContext::initFormatCtx(Mod, AvFormatCtxPtr, Result);
+  std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
+  initFormatCtx(FormatCtxPtr, FilePtr, FileName);
+  uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
 
   auto *FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avStream_id");
@@ -36,7 +36,7 @@ TEST(WasmEdgeAVFormatTest, AVStreamStruct) {
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVStreamId &>(
           FuncInst->getHostFunc());
 
-  uint32_t AvFormatCtxId = readUInt32(MemInst, AvFormatCtxPtr);
+  uint32_t AvFormatCtxId = readUInt32(MemInst, FormatCtxPtr);
   {
     EXPECT_TRUE(HostFuncAVStreamId.run(
         CallFrame,
@@ -56,7 +56,7 @@ TEST(WasmEdgeAVFormatTest, AVStreamStruct) {
   {
     EXPECT_TRUE(HostFuncAVStreamIndex.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, StreamIdx},
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, StreamIdx},
         Result));
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
@@ -69,11 +69,10 @@ TEST(WasmEdgeAVFormatTest, AVStreamStruct) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVStreamCodecPar &>(
       FuncInst->getHostFunc());
 
-  uint32_t CodecParameterPtr = UINT32_C(80);
   {
     EXPECT_TRUE(HostFuncAVStreamCodecPar.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, StreamIdx,
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, StreamIdx,
                                                     CodecParameterPtr},
         Result));
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
@@ -97,23 +96,23 @@ TEST(WasmEdgeAVFormatTest, AVStreamStruct) {
       FuncInst->getHostFunc());
 
   {
+    int32_t Num = 3;
+    int32_t Den = 4;
     EXPECT_TRUE(HostFuncAVStreamSetTimebase.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{3, 4, AvFormatCtxId,
+        std::initializer_list<WasmEdge::ValVariant>{Num, Den, FormatCtxId,
                                                     StreamIdx},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    uint32_t NumPtr = UINT32_C(44);
-    uint32_t DenPtr = UINT32_C(48);
     EXPECT_TRUE(HostFuncAVStreamTimebase.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{NumPtr, DenPtr,
-                                                    AvFormatCtxId, StreamIdx},
+        std::initializer_list<WasmEdge::ValVariant>{NumPtr, DenPtr, FormatCtxId,
+                                                    StreamIdx},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-    EXPECT_EQ(readUInt32(MemInst, NumPtr), 3);
-    EXPECT_EQ(readUInt32(MemInst, DenPtr), 4);
+    EXPECT_EQ(readUInt32(MemInst, NumPtr), Num);
+    EXPECT_EQ(readUInt32(MemInst, DenPtr), Den);
   }
 
   FuncInst = AVFormatMod->findFuncExports(
@@ -127,7 +126,7 @@ TEST(WasmEdgeAVFormatTest, AVStreamStruct) {
   {
     EXPECT_TRUE(HostFuncAVStreamDuration.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, StreamIdx},
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, StreamIdx},
         Result));
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
@@ -143,7 +142,7 @@ TEST(WasmEdgeAVFormatTest, AVStreamStruct) {
   {
     EXPECT_TRUE(HostFuncAVStreamStartTime.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, StreamIdx},
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, StreamIdx},
         Result));
     EXPECT_TRUE(Result[0].get<int64_t>() >= 0);
   }
@@ -159,7 +158,7 @@ TEST(WasmEdgeAVFormatTest, AVStreamStruct) {
   {
     EXPECT_TRUE(HostFuncAVStreamNbFrames.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, StreamIdx},
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, StreamIdx},
         Result));
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
@@ -175,7 +174,7 @@ TEST(WasmEdgeAVFormatTest, AVStreamStruct) {
   {
     EXPECT_TRUE(HostFuncAVStreamDisposition.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, StreamIdx},
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, StreamIdx},
         Result));
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
@@ -198,23 +197,23 @@ TEST(WasmEdgeAVFormatTest, AVStreamStruct) {
 
   {
 
+    int32_t Num = 3;
+    int32_t Den = 4;
     EXPECT_TRUE(HostFuncAVStreamSetRFrameRate.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{3, 4, AvFormatCtxId,
+        std::initializer_list<WasmEdge::ValVariant>{Num, Den, FormatCtxId,
                                                     StreamIdx},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    uint32_t NumPtr = UINT32_C(44);
-    uint32_t DenPtr = UINT32_C(48);
     EXPECT_TRUE(HostFuncAVStreamRFrameRate.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{NumPtr, DenPtr,
-                                                    AvFormatCtxId, StreamIdx},
+        std::initializer_list<WasmEdge::ValVariant>{NumPtr, DenPtr, FormatCtxId,
+                                                    StreamIdx},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-    EXPECT_EQ(readUInt32(MemInst, NumPtr), 3);
-    EXPECT_EQ(readUInt32(MemInst, DenPtr), 4);
+    EXPECT_EQ(readUInt32(MemInst, NumPtr), Num);
+    EXPECT_EQ(readUInt32(MemInst, DenPtr), Den);
   }
 
   FuncInst = AVFormatMod->findFuncExports(
@@ -234,23 +233,24 @@ TEST(WasmEdgeAVFormatTest, AVStreamStruct) {
       FuncInst->getHostFunc());
 
   {
+    int32_t Num = 3;
+    int32_t Den = 4;
+
     EXPECT_TRUE(HostFuncAVStreamSetAvgFrameRate.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{3, 4, AvFormatCtxId,
+        std::initializer_list<WasmEdge::ValVariant>{Num, Den, FormatCtxId,
                                                     StreamIdx},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    uint32_t NumPtr = UINT32_C(44);
-    uint32_t DenPtr = UINT32_C(48);
     EXPECT_TRUE(HostFuncAVStreamAvgFrameRate.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{NumPtr, DenPtr,
-                                                    AvFormatCtxId, StreamIdx},
+        std::initializer_list<WasmEdge::ValVariant>{NumPtr, DenPtr, FormatCtxId,
+                                                    StreamIdx},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-    EXPECT_EQ(readUInt32(MemInst, NumPtr), 3);
-    EXPECT_EQ(readUInt32(MemInst, DenPtr), 4);
+    EXPECT_EQ(readUInt32(MemInst, NumPtr), Num);
+    EXPECT_EQ(readUInt32(MemInst, DenPtr), Den);
   }
 
   FuncInst = AVFormatMod->findFuncExports(
@@ -269,10 +269,9 @@ TEST(WasmEdgeAVFormatTest, AVStreamStruct) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVStreamSetMetadata &>(
       FuncInst->getHostFunc());
   {
-    uint32_t DictPtr = UINT32_C(52);
     EXPECT_TRUE(HostFuncAVStreamMetadata.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, StreamIdx,
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, StreamIdx,
                                                     DictPtr},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
@@ -280,9 +279,13 @@ TEST(WasmEdgeAVFormatTest, AVStreamStruct) {
     uint32_t DictId = readUInt32(MemInst, DictPtr);
     EXPECT_TRUE(HostFuncAVStreamSetMetadata.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId, StreamIdx,
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, StreamIdx,
                                                     DictId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 }
+
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

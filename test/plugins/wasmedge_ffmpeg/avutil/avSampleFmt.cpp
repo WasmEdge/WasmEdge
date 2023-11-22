@@ -6,26 +6,18 @@
 
 using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
 
-TEST(WasmEdgeAVUtilTest, AVSampleFmt) {
+namespace WasmEdge {
+namespace Host {
+namespace WasmEdgeFFmpeg {
 
-  auto *AVUtilMod = TestUtils::InitModules::createAVUtilModule();
+TEST_F(FFmpegTest, AVSampleFmt) {
+
   ASSERT_TRUE(AVUtilMod != nullptr);
-
-  // Create the calling frame with memory instance.
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  Mod.addHostMemory(
-      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(5)));
-  auto *MemInstPtr = Mod.findMemoryExports("memory");
-  ASSERT_TRUE(MemInstPtr != nullptr);
-  auto &MemInst = *MemInstPtr;
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
-
-  std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
 
   uint32_t BufferPtr = UINT32_C(8);
   uint32_t NamePtr = UINT32_C(80);
 
+  uint32_t SampleFmtId = 3; // AV_SAMPLE_FMT_S32
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_packed_sample_fmt");
   auto &HostFuncAVGetPackedSampleFmt = dynamic_cast<
@@ -34,9 +26,10 @@ TEST(WasmEdgeAVUtilTest, AVSampleFmt) {
 
   {
     HostFuncAVGetPackedSampleFmt.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{3}, Result);
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{SampleFmtId},
+        Result);
 
-    EXPECT_EQ(Result[0].get<uint32_t>(), 3);
+    EXPECT_EQ(Result[0].get<uint32_t>(), SampleFmtId);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -47,7 +40,8 @@ TEST(WasmEdgeAVUtilTest, AVSampleFmt) {
 
   {
     HostFuncAVGetPlanarSampleFmt.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{3}, Result);
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{SampleFmtId},
+        Result);
 
     EXPECT_EQ(Result[0].get<uint32_t>(), 8);
   }
@@ -60,7 +54,8 @@ TEST(WasmEdgeAVUtilTest, AVSampleFmt) {
 
   {
     HostFuncAVSampleFmtIsPlanar.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{3}, Result);
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{SampleFmtId},
+        Result);
 
     EXPECT_EQ(Result[0].get<uint32_t>(), 0);
   }
@@ -73,7 +68,8 @@ TEST(WasmEdgeAVUtilTest, AVSampleFmt) {
 
   {
     HostFuncAVGetBytesPerSample.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{3}, Result);
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{SampleFmtId},
+        Result);
 
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
@@ -104,9 +100,15 @@ TEST(WasmEdgeAVUtilTest, AVSampleFmt) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVSamplesGetBufferSize &>(
       FuncInst->getHostFunc());
 
+  int32_t NbChannels = 2;
+  int32_t NbSamples = 2;
+  int32_t Align = 0;
+
   {
     HostFuncAVSamplesGetBufferSize.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{2, 2, 2, 0},
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{NbChannels, NbSamples,
+                                                    SampleFmtId, Align},
         Result);
 
     EXPECT_TRUE(Result[0].get<int32_t>() > 0);
@@ -118,10 +120,12 @@ TEST(WasmEdgeAVUtilTest, AVSampleFmt) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVSamplesAllocArrayAndSamples &>(
       FuncInst->getHostFunc());
 
+  int32_t LinesizeValue = 0;
   {
     HostFuncAVSamplesAllocArrayAndSamples.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{BufferPtr, 0, 2, 2, 2, 0},
+        std::initializer_list<WasmEdge::ValVariant>{
+            BufferPtr, LinesizeValue, NbSamples, NbSamples, SampleFmtId, Align},
         Result);
 
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
@@ -144,7 +148,6 @@ TEST(WasmEdgeAVUtilTest, AVSampleFmt) {
   //    static_cast<int32_t>(ErrNo::Success));
   //  }
 
-  uint32_t SampleFmtId = 2; // AV_SAMPLE_FMT_S16
   int32_t Length;
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name_length");
@@ -192,3 +195,7 @@ TEST(WasmEdgeAVUtilTest, AVSampleFmt) {
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 }
+
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

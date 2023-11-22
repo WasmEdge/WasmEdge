@@ -1,27 +1,19 @@
 #include "avutil/avutil_func.h"
 #include "../utils.h"
+#include "avutil/avTime.h"
 #include "avutil/module.h"
 
 #include <gtest/gtest.h>
 
 using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
 
-TEST(WasmEdgeAVUtilTest, AVUtilFunc) {
+namespace WasmEdge {
+namespace Host {
+namespace WasmEdgeFFmpeg {
 
-  auto *AVUtilMod = TestUtils::InitModules::createAVUtilModule();
+TEST_F(FFmpegTest, AVUtilFunc) {
+
   ASSERT_TRUE(AVUtilMod != nullptr);
-
-  // Create the calling frame with memory instance.
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  Mod.addHostMemory(
-      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(5)));
-  auto *MemInstPtr = Mod.findMemoryExports("memory");
-  ASSERT_TRUE(MemInstPtr != nullptr);
-  auto &MemInst = *MemInstPtr;
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
-
-  std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
 
   uint32_t NamePtr = UINT32_C(4);
 
@@ -31,9 +23,11 @@ TEST(WasmEdgeAVUtilTest, AVUtilFunc) {
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVLogSetLevel &>(
           FuncInst->getHostFunc());
 
+  int32_t LogLvlId = 32;
   {
     HostFuncAVLogSetLevel.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{24}, Result);
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{LogLvlId},
+        Result);
   }
 
   FuncInst =
@@ -45,7 +39,7 @@ TEST(WasmEdgeAVUtilTest, AVUtilFunc) {
   {
     HostFuncAVLogGetLevel.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result);
-    EXPECT_EQ(Result[0].get<int32_t>(), 32);
+    EXPECT_EQ(Result[0].get<int32_t>(), LogLvlId);
   }
 
   FuncInst =
@@ -77,10 +71,17 @@ TEST(WasmEdgeAVUtilTest, AVUtilFunc) {
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVRescaleQ &>(
           FuncInst->getHostFunc());
 
+  int64_t A = 20;
+  int32_t BNum = 5;
+  int32_t BDen = 10;
+  int32_t CNum = 5;
+  int32_t CDen = 20;
+
   {
     HostFuncAVRescaleQ.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{20, 5, 10, 5, 20}, Result);
+        std::initializer_list<WasmEdge::ValVariant>{A, BNum, BDen, CNum, CDen},
+        Result);
 
     EXPECT_TRUE(Result[0].get<int64_t>() > 0);
   }
@@ -92,10 +93,11 @@ TEST(WasmEdgeAVUtilTest, AVUtilFunc) {
           FuncInst->getHostFunc());
 
   {
-    HostFuncAVRescaleQRnd.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{20, 5, 10, 5, 20, 2},
-        Result);
+    int32_t RoundingId = 2;
+    HostFuncAVRescaleQRnd.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  A, BNum, BDen, CNum, CDen, RoundingId},
+                              Result);
 
     EXPECT_TRUE(Result[0].get<int64_t>() > 0);
   }
@@ -113,6 +115,7 @@ TEST(WasmEdgeAVUtilTest, AVUtilFunc) {
     EXPECT_TRUE(Result[0].get<uint32_t>() > 0);
   }
 
+  uint64_t ChannelId = 1; // FRONT_LEFT
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_channel_layout_nb_channels");
   auto &HostFuncAVGetChannelLayoutNbChannels = dynamic_cast<
@@ -121,8 +124,9 @@ TEST(WasmEdgeAVUtilTest, AVUtilFunc) {
 
   {
     HostFuncAVGetChannelLayoutNbChannels.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{1}, Result);
-    EXPECT_TRUE(Result[0].get<uint32_t>() > 0);
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ChannelId},
+        Result);
+    EXPECT_TRUE(Result[0].get<int32_t>() > 0);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -133,8 +137,9 @@ TEST(WasmEdgeAVUtilTest, AVUtilFunc) {
 
   {
     HostFuncAVGetDefaultChannelLayout.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{1}, Result);
-    EXPECT_TRUE(Result[0].get<uint32_t>() > 0);
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ChannelId},
+        Result);
+    EXPECT_TRUE(Result[0].get<uint64_t>() > 0);
   }
 
   uint32_t Length;
@@ -196,3 +201,63 @@ TEST(WasmEdgeAVUtilTest, AVUtilFunc) {
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 }
+
+TEST_F(FFmpegTest, AVTime) {
+
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_gettime");
+  auto &HostFuncAVGetTime =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetTime &>(
+          FuncInst->getHostFunc());
+
+  {
+    HostFuncAVGetTime.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result);
+
+    EXPECT_TRUE(Result[0].get<int64_t>() > 0);
+  }
+
+  FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_gettime_relative");
+  auto &HostFuncAVGetTimeRelative =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetTimeRelative &>(
+          FuncInst->getHostFunc());
+
+  {
+    HostFuncAVGetTimeRelative.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result);
+
+    EXPECT_TRUE(Result[0].get<int64_t>() > 0);
+  }
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_gettime_relative_is_monotonic");
+  auto &HostFuncAVGetTimeRelativeIsMonotonic = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetTimeRelativeIsMonotonic &>(
+      FuncInst->getHostFunc());
+
+  {
+    HostFuncAVGetTimeRelativeIsMonotonic.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result);
+
+    EXPECT_EQ(Result[0].get<int32_t>(), 1);
+  }
+
+  FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_usleep");
+  auto &HostFuncAVUSleep =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVUSleep &>(
+          FuncInst->getHostFunc());
+
+  {
+    HostFuncAVUSleep.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{1000}, Result);
+
+    EXPECT_EQ(Result[0].get<int32_t>(), 0);
+  }
+}
+
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

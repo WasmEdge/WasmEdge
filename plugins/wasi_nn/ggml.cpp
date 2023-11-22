@@ -238,8 +238,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   }
 
   // Initialize ggml model with model parameters.
-  gpt_params Params;
-  llama_backend_init(Params.numa);
   GraphRef.ModelFilePath = ModelFilePath;
   llama_model_params ModelParams = llama_model_default_params();
   ModelParams.n_gpu_layers = GraphRef.NGPULayers;

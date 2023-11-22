@@ -116,7 +116,7 @@ Expect<int32_t> AVFilterGetByName::body(const Runtime::CallingFrame &Frame,
   if (Filter == NULL)
     return static_cast<int32_t>(ErrNo::Success);
 
-  FFMPEG_PTR_STORE((void *)Filter, FilterId); // Check this...
+  FFMPEG_PTR_STORE((void *)Filter, FilterId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -169,7 +169,7 @@ Expect<int32_t> AVFilterGraphCreateFilter::body(
 
   FFMPEG_PTR_FETCH(FilterCtx, *FilterCtxId, AVFilterContext);
   FFMPEG_PTR_FETCH(Filter, FilterId, struct AVFilter);
-  FFMPEG_PTR_FETCH(FiltersGraph, FilterGraphId, AVFilterGraph);
+  FFMPEG_PTR_FETCH(FilterGraph, FilterGraphId, AVFilterGraph);
 
   std::string Name;
   std::string Args;
@@ -177,7 +177,7 @@ Expect<int32_t> AVFilterGraphCreateFilter::body(
   std::copy_n(ArgsBuf.data(), ArgsLen, std::back_inserter(Args));
 
   int Res = avfilter_graph_create_filter(&FilterCtx, Filter, Name.c_str(),
-                                         Args.c_str(), NULL, FiltersGraph);
+                                         Args.c_str(), NULL, FilterGraph);
   if (Res < 0)
     return Res;
 

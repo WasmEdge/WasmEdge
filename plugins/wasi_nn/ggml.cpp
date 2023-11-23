@@ -324,9 +324,11 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   }
 
   // Set the input.
+  const bool AddBos = llama_should_add_bos_token(GraphRef.LlamaModel);
   std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
                      Tensor.Tensor.size());
-  CxtRef.LlamaInputs = llama_tokenize(CxtRef.LlamaContext, Prompt, true);
+  CxtRef.LlamaInputs =
+      llama_tokenize(CxtRef.LlamaContext, Prompt, AddBos, true);
   const uint32_t MaxContextSize = llama_n_ctx(CxtRef.LlamaContext);
   // Minus 4 for the special tokens.
   const uint32_t MaxTokensListSize = MaxContextSize - 4;
@@ -364,93 +366,118 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
 
   // Clear the outputs.
-  CxtRef.LlamaOutputs = ""sv;
+  CxtRef.LlamaOutputs.clear();
 
   // Main predict loop.
-  // TODO: recompute a compressed context based on previous tokens once the
-  // cache is full.
-  const int MaxContextSize = llama_n_ctx(CxtRef.LlamaContext);
-  // NPredict is the number of tokens to predict. Same as -n, --n-predict in
-  // llama.cpp.
-  int NPredict = GraphRef.NPredict;
-
-  // Evaluate the initial prompt.
-  llama_batch LlamaBatch = llama_batch_init(GraphRef.BatchSize, 0);
-  LlamaBatch.n_tokens = CxtRef.LlamaInputs.size();
-  for (int32_t I = 0; I < LlamaBatch.n_tokens; I++) {
-    LlamaBatch.token[I] = CxtRef.LlamaInputs[I];
-    LlamaBatch.pos[I] = I;
-    LlamaBatch.seq_id[I] = 0;
-    LlamaBatch.logits[I] = false;
-  }
-
-  // llama_decode will output logits only for the last token of the prompt
-  LlamaBatch.logits[LlamaBatch.n_tokens - 1] = true;
-  if (llama_decode(CxtRef.LlamaContext, LlamaBatch) != 0) {
-    spdlog::info("[WASI-NN] GGML backend: llama_decode() failed"sv);
-    return ErrNo::RuntimeError;
-  }
-
-  int NCur = LlamaBatch.n_tokens;
-  while (NCur < MaxContextSize && NCur < NPredict) {
-    // Sample the next token
-    auto NVocab = llama_n_vocab(GraphRef.LlamaModel);
-    auto *Logits =
-        llama_get_logits_ith(CxtRef.LlamaContext, LlamaBatch.n_tokens - 1);
-
-    std::vector<llama_token_data> Candidates;
-    Candidates.reserve(NVocab);
-    for (llama_token TokenId = 0; TokenId < NVocab; TokenId++) {
-      Candidates.emplace_back(llama_token_data{TokenId, Logits[TokenId], 0.0f});
-    }
-    llama_token_data_array CandidatesP = {Candidates.data(), Candidates.size(),
-                                          false};
-
-    // Sample the most likely token
-    const llama_token NewTokenId =
-        llama_sample_token_greedy(CxtRef.LlamaContext, &CandidatesP);
-
-    // Is it an end of stream?
-    if (NewTokenId == llama_token_eos(CxtRef.LlamaContext) ||
-        NCur == MaxContextSize || NCur == NPredict) {
-      break;
-    }
-
-    std::string NextToken =
-        llama_token_to_piece(CxtRef.LlamaContext, NewTokenId);
-
-    // When setting StreamStdout, we print the output to stdout.
-    if (GraphRef.StreamStdout) {
-      std::cout << NextToken << std::flush;
-    }
-
-    // Append the new token.
-    CxtRef.LlamaOutputs += NextToken;
-
-    // Prepare the next batch
-    LlamaBatch.n_tokens = 0;
-
-    // Push this new token for next evaluation
-    LlamaBatch.token[LlamaBatch.n_tokens] = NewTokenId;
-    LlamaBatch.pos[LlamaBatch.n_tokens] = NCur;
-    LlamaBatch.seq_id[LlamaBatch.n_tokens] = 0;
-    LlamaBatch.logits[LlamaBatch.n_tokens] = true;
-    LlamaBatch.n_tokens += 1;
-    NCur += 1;
-
-    // Evaluate the current batch with the transformer model
-    if (llama_decode(CxtRef.LlamaContext, LlamaBatch)) {
-      spdlog::error("[WASI-NN] GGML backend: failed to llama_decode"sv);
-      return ErrNo::RuntimeError;
-    }
-
-    // Break if reverse prompt is found.
-    if (!GraphRef.ReversePrompt.empty() &&
-        CxtRef.LlamaOutputs.find(GraphRef.ReversePrompt) != std::string::npos) {
-      if (GraphRef.EnableLog) {
-        spdlog::info("[WASI-NN] GGML backend: reverse prompt found"sv);
+  gpt_params GPTParams;
+  struct llama_sampling_context *CtxSampling =
+      llama_sampling_init(GPTParams.sparams);
+  std::vector<llama_token> Embd;
+  int NPast = 0;
+  int NConsumed = 0;
+  int NRemain = GraphRef.NPredict;
+  int NKeep = GPTParams.n_keep;
+  int NCtx = llama_n_ctx(CxtRef.LlamaContext);
+  // Minus 4 for the special tokens.
+  const int MaxTokensListSize = NCtx - 4;
+  while (NRemain != 0) {
+    // Preidct
+    if (!Embd.empty()) {
+      // Truncate if necessary.
+      if (static_cast<int>(Embd.size()) > MaxTokensListSize) {
+        auto NSkipped = Embd.size() - MaxTokensListSize;
+        Embd.resize(MaxTokensListSize);
+        if (GraphRef.EnableLog) {
+          spdlog::info("[WASI-NN] GGML backend: Truncated {} tokens"sv,
+                       NSkipped);
+        }
       }
-      break;
+
+      // Infinite text generation via context swapping.
+      if (NPast + static_cast<int>(Embd.size()) > NCtx) {
+        const int NLeft = NPast + NKeep - 1;
+        const int NDiscard = NLeft / 2;
+        if (GraphRef.EnableLog) {
+          spdlog::info(
+              "[WASI-NN] GGML backend: Context full, swapping: NPast = {}, NLeft = {}, NKeep = {}, NDiscard = {}"sv,
+              NPast, NLeft, NKeep, NDiscard);
+        }
+        llama_kv_cache_seq_rm(CxtRef.LlamaContext, 0, NKeep + 1,
+                              NKeep + NDiscard + 1);
+        llama_kv_cache_seq_shift(CxtRef.LlamaContext, 0, NKeep + 1 + NDiscard,
+                                 NPast, -NDiscard);
+        NPast -= NDiscard;
+        if (GraphRef.EnableLog) {
+          spdlog::info(
+              "[WASI-NN] GGML backend: After context swapping: NPast = {}"sv,
+              NPast);
+        }
+      }
+
+      // Evaluate tokens in batches.
+      for (int I = 0; I < static_cast<int>(Embd.size());
+           I += GraphRef.BatchSize) {
+        int NEval = static_cast<int>(Embd.size()) - I;
+        if (NEval > static_cast<int>(GraphRef.BatchSize)) {
+          NEval = GraphRef.BatchSize;
+        }
+        if (llama_decode(CxtRef.LlamaContext,
+                         llama_batch_get_one(&Embd[I], NEval, NPast, 0))) {
+          spdlog::error("[WASI-NN] GGML backend: failed to llama_decode"sv);
+          return ErrNo::RuntimeError;
+        }
+
+        NPast += NEval;
+      }
+    }
+
+    Embd.clear();
+
+    if (static_cast<int>(CxtRef.LlamaInputs.size()) <= NConsumed) {
+      const llama_token Id =
+          llama_sampling_sample(CtxSampling, CxtRef.LlamaContext, nullptr);
+      llama_sampling_accept(CtxSampling, CxtRef.LlamaContext, Id, true);
+      Embd.emplace_back(Id);
+      --NRemain;
+      // Save the output token.
+      CxtRef.LlamaOutputs += llama_token_to_piece(CxtRef.LlamaContext, Id);
+      // When setting StreamStdout, we print the output to stdout.
+      if (GraphRef.StreamStdout) {
+        std::cout << llama_token_to_piece(CxtRef.LlamaContext, Id)
+                  << std::flush;
+      }
+      // Break if reverse prompt is found.
+      if (!GraphRef.ReversePrompt.empty() &&
+          CxtRef.LlamaOutputs.find(GraphRef.ReversePrompt) !=
+              std::string::npos) {
+        if (GraphRef.EnableLog) {
+          spdlog::info("[WASI-NN] GGML backend: reverse prompt found"sv);
+        }
+        break;
+      }
+    } else {
+      while (static_cast<int>(CxtRef.LlamaInputs.size()) > NConsumed) {
+        Embd.push_back(CxtRef.LlamaInputs[NConsumed]);
+        // Push the prompt in the sampling context.
+        llama_sampling_accept(CtxSampling, CxtRef.LlamaContext,
+                              CxtRef.LlamaInputs[NConsumed], false);
+        ++NConsumed;
+        if (Embd.size() >= GraphRef.BatchSize) {
+          break;
+        }
+      }
+    }
+
+    // If not currently processing queued inputs.
+    if (static_cast<int>(CxtRef.LlamaInputs.size()) <= NConsumed) {
+      // Deal with end of text token.
+      if (llama_sampling_last(CtxSampling) ==
+          llama_token_eos(GraphRef.LlamaModel)) {
+        if (GraphRef.EnableLog) {
+          spdlog::info("[WASI-NN] GGML backend: EOS token found"sv);
+        }
+        break;
+      }
     }
   }
 

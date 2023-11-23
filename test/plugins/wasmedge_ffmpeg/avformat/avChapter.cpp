@@ -1,6 +1,6 @@
 #include "avformat/avChapter.h"
-#include "../utils.h"
 #include "avformat/module.h"
+#include "utils.h"
 
 #include <gtest/gtest.h>
 
@@ -58,8 +58,8 @@ TEST_F(FFmpegTest, AVChapter) {
                                                     ChapterIdx},
         Result));
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
-    EXPECT_EQ(readIInt32(MemInst, NumPtr), 1);
-    EXPECT_TRUE(readIInt32(MemInst, DenPtr) >= 0);
+    EXPECT_EQ(readSInt32(MemInst, NumPtr), 1);
+    EXPECT_TRUE(readSInt32(MemInst, DenPtr) >= 0);
   }
 
   FuncInst =
@@ -162,8 +162,8 @@ TEST_F(FFmpegTest, AVChapter) {
                                                     ChapterIdx},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-    EXPECT_EQ(readIInt32(MemInst, NumPtr), Num);
-    EXPECT_EQ(readIInt32(MemInst, DenPtr), Den);
+    EXPECT_EQ(readSInt32(MemInst, NumPtr), Num);
+    EXPECT_EQ(readSInt32(MemInst, DenPtr), Den);
   }
 
   FuncInst = AVFormatMod->findFuncExports(

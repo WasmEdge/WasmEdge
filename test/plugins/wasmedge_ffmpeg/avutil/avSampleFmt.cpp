@@ -1,6 +1,6 @@
-#include "../utils.h"
 #include "avutil/module.h"
 #include "avutil/samplefmt.h"
+#include "utils.h"
 
 #include <gtest/gtest.h>
 

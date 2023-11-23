@@ -1,7 +1,7 @@
 #include "swresample/swresample_func.h"
 #include "swresample/module.h"
 
-#include "../utils.h"
+#include "utils.h"
 #include <gtest/gtest.h>
 
 using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;

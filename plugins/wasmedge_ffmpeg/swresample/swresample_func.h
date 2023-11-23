@@ -3,7 +3,6 @@
 #include "ffmpeg_env.h"
 #include "runtime/callingframe.h"
 #include "swresample_base.h"
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
 namespace WasmEdge {
 namespace Host {

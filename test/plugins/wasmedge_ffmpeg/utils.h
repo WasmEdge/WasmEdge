@@ -1,15 +1,7 @@
 #pragma once
-#include "avcodec/avCodecContext.h"
-#include "avcodec/avCodecParameters.h"
-#include "avcodec/avPacket.h"
-#include "avcodec/avcodec_func.h"
 #include "avcodec/module.h"
 #include "avfilter/module.h"
-#include "avformat/avStream.h"
-#include "avformat/avformat_func.h"
 #include "avformat/module.h"
-#include "avutil/avDictionary.h"
-#include "avutil/avFrame.h"
 #include "avutil/module.h"
 #include "common/types.h"
 #include "runtime/callingframe.h"
@@ -39,13 +31,13 @@ inline void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance *MemInst,
   std::copy_n(Str.c_str(), Str.length(), Buf);
 }
 
-inline void writeIInt32(WasmEdge::Runtime::Instance::MemoryInstance *MemInst,
+inline void writeSInt32(WasmEdge::Runtime::Instance::MemoryInstance *MemInst,
                         int32_t Value, uint32_t &Ptr) {
   int32_t *BufPtr = MemInst->getPointer<int32_t *>(Ptr);
   *BufPtr = Value;
 }
 
-inline int32_t readIInt32(WasmEdge::Runtime::Instance::MemoryInstance *MemInst,
+inline int32_t readSInt32(WasmEdge::Runtime::Instance::MemoryInstance *MemInst,
                           uint32_t &Ptr) {
   int32_t *BufPtr = MemInst->getPointer<int32_t *>(Ptr);
   return *BufPtr;

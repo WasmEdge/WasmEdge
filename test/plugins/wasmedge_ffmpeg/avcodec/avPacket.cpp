@@ -1,6 +1,6 @@
 #include "avcodec/avPacket.h"
-#include "../utils.h"
 #include "avcodec/module.h"
+#include "utils.h"
 
 #include <gtest/gtest.h>
 

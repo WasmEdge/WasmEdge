@@ -1,7 +1,7 @@
-#include "../utils.h"
 #include "avformat/avInputOutputFormat.h"
 #include "avformat/avformatContext.h"
 #include "avformat/module.h"
+#include "utils.h"
 
 #include <gtest/gtest.h>
 

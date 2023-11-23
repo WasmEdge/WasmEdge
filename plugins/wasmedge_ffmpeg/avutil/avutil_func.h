@@ -1,7 +1,6 @@
 #pragma once
 #include "avutil_base.h"
 
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #include "runtime/callingframe.h"
 
 namespace WasmEdge {

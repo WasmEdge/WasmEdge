@@ -1,6 +1,6 @@
 #include "avutil/avRational.h"
-#include "../utils.h"
 #include "avutil/module.h"
+#include "utils.h"
 
 #include <gtest/gtest.h>
 
@@ -37,8 +37,8 @@ TEST_F(FFmpegTest, AVRational) {
                                    Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    EXPECT_EQ(readIInt32(MemInst, NumPtr), -3);
-    EXPECT_EQ(readIInt32(MemInst, DenPtr), 28);
+    EXPECT_EQ(readSInt32(MemInst, NumPtr), -3);
+    EXPECT_EQ(readSInt32(MemInst, DenPtr), 28);
   }
 
   // Subtraction Function
@@ -55,16 +55,16 @@ TEST_F(FFmpegTest, AVRational) {
     int32_t BNum = 38;
     int32_t BDen = 12;
 
-    writeIInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
-    writeIInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
+    writeSInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
+    writeSInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
     EXPECT_TRUE(HostFuncAVSubQ.run(CallFrame,
                                    std::initializer_list<WasmEdge::ValVariant>{
                                        ANum, ADen, BNum, BDen, NumPtr, DenPtr},
                                    Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    EXPECT_EQ(readIInt32(MemInst, NumPtr), -5267);
-    EXPECT_EQ(readIInt32(MemInst, DenPtr), 66);
+    EXPECT_EQ(readSInt32(MemInst, NumPtr), -5267);
+    EXPECT_EQ(readSInt32(MemInst, DenPtr), 66);
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_mul_q");
@@ -81,16 +81,16 @@ TEST_F(FFmpegTest, AVRational) {
     int32_t BNum = 3;
     int32_t BDen = 4;
 
-    writeIInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
-    writeIInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
+    writeSInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
+    writeSInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
     EXPECT_TRUE(HostFuncAVMulQ.run(CallFrame,
                                    std::initializer_list<WasmEdge::ValVariant>{
                                        ANum, ADen, BNum, BDen, NumPtr, DenPtr},
                                    Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    EXPECT_EQ(readIInt32(MemInst, NumPtr), -9);
-    EXPECT_EQ(readIInt32(MemInst, DenPtr), 14);
+    EXPECT_EQ(readSInt32(MemInst, NumPtr), -9);
+    EXPECT_EQ(readSInt32(MemInst, DenPtr), 14);
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_div_q");
@@ -106,16 +106,16 @@ TEST_F(FFmpegTest, AVRational) {
     int32_t BNum = 3;
     int32_t BDen = 4;
 
-    writeIInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
-    writeIInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
+    writeSInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
+    writeSInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
     EXPECT_TRUE(HostFuncAVDivQ.run(CallFrame,
                                    std::initializer_list<WasmEdge::ValVariant>{
                                        ANum, ADen, BNum, BDen, NumPtr, DenPtr},
                                    Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    EXPECT_EQ(readIInt32(MemInst, NumPtr), -8);
-    EXPECT_EQ(readIInt32(MemInst, DenPtr), 7);
+    EXPECT_EQ(readSInt32(MemInst, NumPtr), -8);
+    EXPECT_EQ(readSInt32(MemInst, DenPtr), 7);
   }
 
   // How to Pass a Double functions.
@@ -132,8 +132,8 @@ TEST_F(FFmpegTest, AVRational) {
     double D = 5;
     int32_t Max = 10;
 
-    writeIInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
-    writeIInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
+    writeSInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
+    writeSInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
 
     EXPECT_TRUE(HostFuncAVD2Q.run(
         CallFrame,
@@ -141,8 +141,8 @@ TEST_F(FFmpegTest, AVRational) {
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
 
-    EXPECT_EQ(readIInt32(MemInst, NumPtr), 5);
-    EXPECT_EQ(readIInt32(MemInst, DenPtr), 1);
+    EXPECT_EQ(readSInt32(MemInst, NumPtr), 5);
+    EXPECT_EQ(readSInt32(MemInst, DenPtr), 1);
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_q2d");
@@ -157,8 +157,8 @@ TEST_F(FFmpegTest, AVRational) {
     int32_t ANum = 1;
     int32_t ADen = 2;
 
-    writeIInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
-    writeIInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
+    writeSInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
+    writeSInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
     EXPECT_TRUE(HostFuncAVQ2d.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{ANum, ADen},
         Result));
@@ -177,16 +177,16 @@ TEST_F(FFmpegTest, AVRational) {
     int32_t ANum = -3;
     int32_t ADen = 4;
 
-    writeIInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
-    writeIInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
+    writeSInt32(MemInst, 0, NumPtr); // Setting value of pointer to 0.
+    writeSInt32(MemInst, 0, DenPtr); // Setting value of pointer to 0.
     EXPECT_TRUE(HostFuncInvQ.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{ANum, ADen, NumPtr, DenPtr},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    EXPECT_EQ(readIInt32(MemInst, NumPtr), 4);
-    EXPECT_EQ(readIInt32(MemInst, DenPtr), -3);
+    EXPECT_EQ(readSInt32(MemInst, NumPtr), 4);
+    EXPECT_EQ(readSInt32(MemInst, DenPtr), -3);
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_q2intfloat");

@@ -221,6 +221,7 @@ jobs:
           update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100
           update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-strip-15 100
           testbin_array=(${test_bins})
+          export PKG_CONFIG_PATH=$(pwd)/FFmpeg-n6.0/output/lib/pkgconfig
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options}
           for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
@@ -367,6 +368,7 @@ jobs:
         run: |
           source "$HOME/.cargo/env"
           testbin_array=(${test_bins_all_platforms} ${test_bins_${{ matrix.asset_tag }}})
+          export PKG_CONFIG_PATH=$(pwd)/FFmpeg-n6.0/output/lib/pkgconfig
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options_all_platforms} ${build_options_${{ matrix.asset_tag }}} -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
           for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
@@ -446,7 +448,7 @@ jobs:
       - name: Upload artifact - wasmedge_ffmpeg
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.get_version.outputs.version }}-${{ matrix.asset_tag }}.tar.gz
           path: plugin_wasmedge_ffmpeg.tar.gz
 
   build_macos:
@@ -484,7 +486,7 @@ jobs:
       - name: Build and install dependencies
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm@16 ninja cmake openssl opencv rust
+          brew install llvm@16 ninja cmake openssl opencv rust ffmpeg@6
       - name: Build WasmEdge plugins using clang++ with ${{ matrix.build_type }} mode
         shell: bash
         run: |

@@ -1,4 +1,12 @@
 #include "utils.h"
+#include "avcodec/avCodecContext.h"
+#include "avcodec/avCodecParameters.h"
+#include "avcodec/avPacket.h"
+#include "avcodec/avcodec_func.h"
+#include "avformat/avStream.h"
+#include "avformat/avformat_func.h"
+#include "avutil/avDictionary.h"
+#include "avutil/avFrame.h"
 
 namespace WasmEdge {
 namespace Host {

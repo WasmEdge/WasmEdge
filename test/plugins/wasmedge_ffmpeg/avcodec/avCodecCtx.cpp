@@ -1,6 +1,6 @@
-#include "../utils.h"
 #include "avcodec/avCodecContext.h"
 #include "avcodec/module.h"
+#include "utils.h"
 
 #include <gtest/gtest.h>
 
@@ -110,8 +110,8 @@ TEST_F(FFmpegTest, AVCodecCtx) {
                                                     DenPtr},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-    int32_t Numerator = readIInt32(MemInst, NumPtr);
-    int32_t Denominator = readIInt32(MemInst, DenPtr);
+    int32_t Numerator = readSInt32(MemInst, NumPtr);
+    int32_t Denominator = readSInt32(MemInst, DenPtr);
     EXPECT_EQ(Numerator, Num);
     EXPECT_EQ(Denominator, Den);
   }
@@ -219,8 +219,8 @@ TEST_F(FFmpegTest, AVCodecCtx) {
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    int32_t Numerator = readIInt32(MemInst, NumPtr);
-    int32_t Denominator = readIInt32(MemInst, DenPtr);
+    int32_t Numerator = readSInt32(MemInst, NumPtr);
+    int32_t Denominator = readSInt32(MemInst, DenPtr);
     EXPECT_EQ(Numerator, Num);
     EXPECT_EQ(Denominator, Den);
   }
@@ -1114,8 +1114,8 @@ TEST_F(FFmpegTest, AVCodecCtx) {
                                                     DenPtr},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-    int32_t Numerator = readIInt32(MemInst, NumPtr);
-    int32_t Denominator = readIInt32(MemInst, DenPtr);
+    int32_t Numerator = readSInt32(MemInst, NumPtr);
+    int32_t Denominator = readSInt32(MemInst, DenPtr);
     EXPECT_EQ(Numerator, Num);
     EXPECT_EQ(Denominator, Den);
   }

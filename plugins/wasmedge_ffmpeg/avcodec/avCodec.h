@@ -1,5 +1,4 @@
 #pragma once
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #include "avcodec_base.h"
 #include "runtime/callingframe.h"
 

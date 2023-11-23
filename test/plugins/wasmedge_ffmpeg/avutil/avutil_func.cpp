@@ -1,7 +1,7 @@
 #include "avutil/avutil_func.h"
-#include "../utils.h"
 #include "avutil/avTime.h"
 #include "avutil/module.h"
+#include "utils.h"
 
 #include <gtest/gtest.h>
 

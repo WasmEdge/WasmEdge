@@ -1,7 +1,7 @@
 #include "swscale/swscale_func.h"
 #include "swscale/module.h"
 
-#include "../utils.h"
+#include "utils.h"
 #include <gtest/gtest.h>
 
 using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;

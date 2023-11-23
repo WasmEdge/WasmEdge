@@ -1,6 +1,6 @@
-#include "../utils.h"
 #include "avutil/error.h"
 #include "avutil/module.h"
+#include "utils.h"
 
 #include <gtest/gtest.h>
 

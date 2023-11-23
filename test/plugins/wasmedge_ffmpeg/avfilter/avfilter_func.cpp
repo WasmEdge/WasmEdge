@@ -1,8 +1,8 @@
 #include "avfilter//avfilter_func.h"
-#include "../utils.h"
 #include "avfilter/avFilter.h"
 #include "avfilter/buffer_source_sink.h"
 #include "avfilter/module.h"
+#include "utils.h"
 
 #include <gtest/gtest.h>
 

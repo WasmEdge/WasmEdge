@@ -1,7 +1,7 @@
 #include "avfilter/avFilter.h"
-#include "../utils.h"
 #include "avfilter//avfilter_func.h"
 #include "avfilter/module.h"
+#include "utils.h"
 
 #include <gtest/gtest.h>
 

@@ -1,7 +1,6 @@
 #pragma once
 #include "avcodec_base.h"
 #include "runtime/callingframe.h"
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
 namespace WasmEdge {
 namespace Host {

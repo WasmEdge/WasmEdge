@@ -1,6 +1,6 @@
 #include "avutil/avFrame.h"
-#include "../utils.h"
 #include "avutil/module.h"
+#include "utils.h"
 
 #include <gtest/gtest.h>
 

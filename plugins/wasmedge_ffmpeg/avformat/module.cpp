@@ -34,7 +34,7 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVFormatFreeContext>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_av_find_best_stream",
               std::make_unique<AVFindBestStream>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_av_read_frame",
+  addHostFunc("wasmedge_ffmpeg_avformat_av_read_frame", // test
               std::make_unique<AVReadFrame>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avio_close",
               std::make_unique<AVIOClose>(env));
@@ -42,7 +42,7 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVFormatNetworkInit>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformat_network_deinit",
               std::make_unique<AVFormatNetworkDeInit>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avformat_write_header", // need to test
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_write_header",
               std::make_unique<AVFormatWriteHeader>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformat_write_trailer", // need to test
               std::make_unique<AVFormatWriteTrailer>(env));
@@ -60,24 +60,21 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVFreeP>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformat_version",
               std::make_unique<AVFormatVersion>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_av_write_frame", // need to test
+  addHostFunc("wasmedge_ffmpeg_avformat_av_write_frame",
               std::make_unique<AVWriteFrame>(env));
-  addHostFunc(
-      "wasmedge_ffmpeg_avformat_av_interleaved_write_frame", // need to test
-      std::make_unique<AVInterleavedWriteFrame>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_av_interleaved_write_frame",
+              std::make_unique<AVInterleavedWriteFrame>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformat_new_stream", // need to test
               std::make_unique<AVFormatNewStream>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_av_guess_codec", // need to test
+  addHostFunc("wasmedge_ffmpeg_avformat_av_guess_codec",
               std::make_unique<AVGuessCodec>(env));
-  addHostFunc(
-      "wasmedge_ffmpeg_avformat_avformat_configuration_length", // need to test
-      std::make_unique<AVFormatConfigurationLength>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avformat_configuration", // need to test
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_configuration_length",
+              std::make_unique<AVFormatConfigurationLength>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_configuration",
               std::make_unique<AVFormatConfiguration>(env));
-  addHostFunc(
-      "wasmedge_ffmpeg_avformat_avformat_license_length", // need to test
-      std::make_unique<AVFormatLicenseLength>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avformat_license", // need to test
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_license_length",
+              std::make_unique<AVFormatLicenseLength>(env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_license",
               std::make_unique<AVFormatLicense>(env));
 
   // avformatContext Struct functions.

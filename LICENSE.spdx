@@ -35,11 +35,11 @@ PackageLicenseDeclared: Apache-2.0
 
 PackageName: llama.cpp
 SPDXID: SPDXRef-llama.cpp
-PackageFileName: ./plugins/wasi_nn/thirdparty/ggml
+PackageFileName: ./plugins/wasi_nn/CMakeLists.txt
 PackageHomePage: https://github.com/ggerganov/llama.cpp
 PackageOriginator: Georgi Gerganov
 PackageLicenseDeclared: MIT
-PackageDownloadLocation: git://github.com/ggerganov/llama.cpp.git@b1383
+PackageDownloadLocation: git://github.com/ggerganov/llama.cpp.git
 
 ## Relationships
 Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-blake3

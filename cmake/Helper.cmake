@@ -137,7 +137,8 @@ function(wasmedge_setup_target target)
   endif()
   target_compile_options(${target}
     PRIVATE
-    ${WASMEDGE_CFLAGS}
+    $<$<COMPILE_LANGUAGE:C>:${WASMEDGE_CFLAGS}>
+    $<$<COMPILE_LANGUAGE:CXX>:${WASMEDGE_CFLAGS}>
   )
 
   if(WASMEDGE_ENABLE_UB_SANITIZER)
@@ -150,7 +151,8 @@ function(wasmedge_setup_target target)
   if(WASMEDGE_BUILD_FUZZING AND NOT DEFINED LIB_FUZZING_ENGINE)
     target_compile_options(${target}
       PUBLIC
-      -fsanitize=fuzzer,address
+      $<$<COMPILE_LANGUAGE:C>:-fsanitize=fuzzer,address>
+      $<$<COMPILE_LANGUAGE:CXX>:-fsanitize=fuzzer,address>
     )
     target_link_options(${target}
       PUBLIC

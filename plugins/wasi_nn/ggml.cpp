@@ -374,14 +374,17 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   CxtRef.LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
   int NCtx = llama_n_ctx(CxtRef.LlamaContext);
-  // Minus 4 for the special tokens.
+  // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
   const int MaxTokensListSize = NCtx - 4;
-  while (NRemain != 0) {
+  // Use the const sequence id here.
+  const int SequenceId = 0;
+  while (NRemain >= 0) {
     // Preidct
     if (!Embd.empty()) {
       // Truncate if necessary.
       if (static_cast<int>(Embd.size()) > MaxTokensListSize) {
         auto NSkipped = Embd.size() - MaxTokensListSize;
+        // We follow llama.cpp/example/main to truncate the last few tokens.
         Embd.resize(MaxTokensListSize);
         if (GraphRef.EnableLog) {
           spdlog::info("[WASI-NN] GGML backend: Truncated {} tokens"sv,
@@ -398,10 +401,16 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
               "[WASI-NN] GGML backend: Context full, swapping: NPast = {}, NLeft = {}, NKeep = {}, NDiscard = {}"sv,
               NPast, NLeft, NKeep, NDiscard);
         }
-        llama_kv_cache_seq_rm(CxtRef.LlamaContext, 0, NKeep + 1,
+        // llama_kv_cache_seq_rm(context, sequence_id, start_pos, end_pos)
+        // This will remove the tokens [start_pos, end_pos).
+        llama_kv_cache_seq_rm(CxtRef.LlamaContext, SequenceId, NKeep + 1,
                               NKeep + NDiscard + 1);
-        llama_kv_cache_seq_shift(CxtRef.LlamaContext, 0, NKeep + 1 + NDiscard,
-                                 NPast, -NDiscard);
+        // llama_kv_cache_seq_shift(context, sequence_id, start_pos, end_pos,
+        // delta)
+        // This will shift the tokens at [start_pos, end_pos) with delta
+        // distance.
+        llama_kv_cache_seq_shift(CxtRef.LlamaContext, SequenceId,
+                                 NKeep + 1 + NDiscard, NPast, -NDiscard);
         NPast -= NDiscard;
         if (GraphRef.EnableLog) {
           spdlog::info(
@@ -417,8 +426,12 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
         if (NEval > static_cast<int>(GraphRef.BatchSize)) {
           NEval = GraphRef.BatchSize;
         }
-        if (llama_decode(CxtRef.LlamaContext,
-                         llama_batch_get_one(&Embd[I], NEval, NPast, 0))) {
+        // llama_batch_get_one(*token, n_tokens, position, sequence_id)
+        // This will return batch for single sequence of tokens starting at
+        // position.
+        if (llama_decode(
+                CxtRef.LlamaContext,
+                llama_batch_get_one(&Embd[I], NEval, NPast, SequenceId))) {
           spdlog::error("[WASI-NN] GGML backend: failed to llama_decode"sv);
           return ErrNo::RuntimeError;
         }
@@ -451,6 +464,14 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
         }
         break;
       }
+      // Deal with end of text token.
+      if (llama_sampling_last(CtxSampling) ==
+          llama_token_eos(GraphRef.LlamaModel)) {
+        if (GraphRef.EnableLog) {
+          spdlog::info("[WASI-NN] GGML backend: EOS token found"sv);
+        }
+        break;
+      }
     } else {
       while (static_cast<int>(CxtRef.LlamaInputs.size()) > NConsumed) {
         Embd.push_back(CxtRef.LlamaInputs[NConsumed]);
@@ -463,24 +484,14 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
         }
       }
     }
-
-    // If not currently processing queued inputs.
-    if (static_cast<int>(CxtRef.LlamaInputs.size()) <= NConsumed) {
-      // Deal with end of text token.
-      if (llama_sampling_last(CtxSampling) ==
-          llama_token_eos(GraphRef.LlamaModel)) {
-        if (GraphRef.EnableLog) {
-          spdlog::info("[WASI-NN] GGML backend: EOS token found"sv);
-        }
-        break;
-      }
-    }
   }
 
   if (GraphRef.EnableLog) {
     llama_print_timings(CxtRef.LlamaContext);
   }
 
+  // We free the contexts here to keep the ggml plugin stateless.
+  // Users could fully controll the contexts by themselves via their prompt.
   llama_sampling_free(CtxSampling);
   llama_free(CxtRef.LlamaContext);
 

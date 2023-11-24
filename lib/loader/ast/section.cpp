@@ -175,12 +175,23 @@ Expect<void> Loader::loadSection(AST::DataCountSection &Sec) {
   });
 }
 
-// Load vector of component core:instance section.
+// Load vector of component alias section.
 // See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::AliasSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
         Sec, [this](AST::Alias &Alias) { return loadAlias(Alias); });
+  });
+}
+
+// Load vector of component core:instance section.
+// See "include/loader/loader.h".
+Expect<void> Loader::loadSection(AST::CoreInstanceSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(Sec,
+                                 [this](AST::CoreInstanceExpr &InstanceExpr) {
+                                   return loadCoreInstance(InstanceExpr);
+                                 });
   });
 }
 

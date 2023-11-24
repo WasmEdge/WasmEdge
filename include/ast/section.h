@@ -14,6 +14,7 @@
 #pragma once
 
 #include "ast/component/alias.h"
+#include "ast/component/instance.h"
 #include "ast/description.h"
 #include "ast/segment.h"
 
@@ -294,6 +295,19 @@ private:
   /// \name Data of AliasSection.
   /// @{
   std::vector<Alias> Content;
+  /// @}
+};
+
+class CoreInstanceSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const CoreInstanceExpr> getContent() const noexcept { return Content; }
+  std::vector<CoreInstanceExpr> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of InstanceSection.
+  /// @{
+  std::vector<CoreInstanceExpr> Content;
   /// @}
 };
 

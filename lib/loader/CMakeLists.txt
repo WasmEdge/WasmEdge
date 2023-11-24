@@ -24,6 +24,7 @@ endif()
 wasmedge_add_library(wasmedgeLoader
   ast/component.cpp
   ast/alias.cpp
+  ast/instance.cpp
   ast/module.cpp
   ast/section.cpp
   ast/description.cpp

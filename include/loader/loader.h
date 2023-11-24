@@ -77,6 +77,13 @@ inline ASTNodeAttr NodeAttrFromAST<AST::DataCountSection>() noexcept {
 template <> inline ASTNodeAttr NodeAttrFromAST<AST::AliasSection>() noexcept {
   return ASTNodeAttr::Sec_Alias;
 }
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::CoreInstanceSection>() noexcept {
+  return ASTNodeAttr::Sec_CoreInstance;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::InstantiateArg>() noexcept {
+  return ASTNodeAttr::Sec_CoreInstance;
+}
 
 } // namespace
 
@@ -210,6 +217,33 @@ private:
     return {};
   }
 
+  template <typename T, typename L>
+  Expect<void> loadVec(std::vector<T> &Vec, L &&Func) {
+    uint32_t VecCnt = 0;
+    // Read the vector size.
+    if (auto Res = FMgr.readU32()) {
+      VecCnt = *Res;
+      if (VecCnt / 2 > FMgr.getRemainSize()) {
+        return logLoadError(ErrCode::Value::IntegerTooLong,
+                            FMgr.getLastOffset(), NodeAttrFromAST<T>());
+      }
+      Vec.resize(VecCnt);
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          NodeAttrFromAST<T>());
+    }
+
+    // Sequently create the AST node T and read data.
+    for (uint32_t I = 0; I < VecCnt; ++I) {
+      if (auto Res = Func(Vec[I]); !Res) {
+        spdlog::error(ErrInfo::InfoAST(NodeAttrFromAST<T>()));
+        return Unexpect(Res);
+      }
+    }
+
+    return {};
+  }
+
   /// \name Load AST nodes functions
   /// @{
   Expect<void> loadSection(AST::CustomSection &Sec);
@@ -226,6 +260,7 @@ private:
   Expect<void> loadSection(AST::DataSection &Sec);
   Expect<void> loadSection(AST::DataCountSection &Sec);
   Expect<void> loadSection(AST::AliasSection &Sec);
+  Expect<void> loadSection(AST::CoreInstanceSection &Sec);
   static Expect<void> loadSection(FileMgr &VecMgr, AST::AOTSection &Sec);
   Expect<void> loadSegment(AST::TableSegment &TabSeg);
   Expect<void> loadSegment(AST::GlobalSegment &GlobSeg);
@@ -242,6 +277,8 @@ private:
   Expect<void> loadType(AST::MemoryType &MemType);
   Expect<void> loadType(AST::TableType &TabType);
   Expect<void> loadType(AST::GlobalType &GlobType);
+  Expect<void> loadCoreInstance(AST::CoreInstanceExpr &InstanceExpr);
+  Expect<void> loadInstantiateArg(AST::InstantiateArg &Arg);
   Expect<void> loadAlias(AST::Alias &Alias);
   Expect<void> loadSort(AST::Sort &Sort);
   Expect<void> loadAliasTarget(AST::AliasTarget &AliasTarget);

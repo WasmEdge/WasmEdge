@@ -23,9 +23,11 @@
 
 A(Component, "component")
 A(Sec_Alias, "component alias section")
+A(Sec_CoreInstance, "component core:instance section")
 A(Alias, "alias")
 A(AliasTarget, "alias target")
 A(Sort, "sort")
+A(CoreInstance, "core:instance expr")
 A(Module, "module")
 A(Sec_Custom, "custom section")
 A(Sec_Type, "type section")
@@ -762,6 +764,8 @@ E(MalformedTable, 0x011C, "malformed table")
 E(MalformedSort, 0x3C, "malformed sort")
 // Malformed alias target
 E(MalformedAliasTarget, 0x3D, "malformed alias target")
+// Malformed core instance
+E(MalformedCoreInstance, 0x3E, "malformed core instance")
 // @}
 
 // Validation phase

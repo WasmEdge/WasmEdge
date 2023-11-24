@@ -39,6 +39,7 @@ public:
   llama_context *LlamaContext = nullptr;
   std::vector<llama_token> LlamaInputs;
   std::string LlamaOutputs;
+  std::vector<llama_token> LlamaOutputTokens;
 };
 #else
 struct Graph {};

@@ -1218,7 +1218,7 @@ TEST(WasiNNTest, GGMLBackend) {
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
       "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(40000)));
+                    WasmEdge::AST::MemoryType(60000)));
   auto *MemInstPtr = Mod.findMemoryExports("memory");
   ASSERT_TRUE(MemInstPtr != nullptr);
   auto &MemInst = *MemInstPtr;
@@ -1228,13 +1228,13 @@ TEST(WasiNNTest, GGMLBackend) {
   std::string Prompt = "Once upon a time, ";
   std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
   std::vector<uint8_t> WeightRead =
-      readEntireFile("./wasinn_ggml_fixtures/orca-mini-3b.q4_0.gguf");
+      readEntireFile("./wasinn_ggml_fixtures/orca_mini.gguf");
 
   std::vector<uint32_t> TensorDim{1};
   uint32_t BuilderPtr = UINT32_C(0);
   uint32_t LoadEntryPtr = UINT32_C(0);
   uint32_t SetInputEntryPtr = UINT32_C(0);
-  uint32_t OutBoundPtr = UINT32_C(41000 * 65536);
+  uint32_t OutBoundPtr = UINT32_C(61000 * 65536);
   uint32_t StorePtr = UINT32_C(65536);
 
   // Return value.

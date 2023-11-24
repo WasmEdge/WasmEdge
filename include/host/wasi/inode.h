@@ -819,7 +819,7 @@ private:
 class PollerContext;
 class Poller
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
-    : public FdHolder
+    : private FdHolder
 #endif
 {
 public:

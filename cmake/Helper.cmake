@@ -35,6 +35,7 @@ else()
   list(APPEND WASMEDGE_CFLAGS
     -Wall
     -Wextra
+    -Wshadow-field
   )
 
   if(NOT WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
@@ -59,7 +60,9 @@ else()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  list(APPEND WASMEDGE_CFLAGS -Wno-c++20-designator)
+  list(APPEND WASMEDGE_CFLAGS
+    -Wno-c++20-designator
+  )
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -87,7 +90,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     )
   elseif(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     list(APPEND WASMEDGE_CFLAGS
-      -Wno-error=shadow-field
       -Wno-reserved-identifier
     )
   endif()

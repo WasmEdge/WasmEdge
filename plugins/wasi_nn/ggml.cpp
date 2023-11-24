@@ -508,7 +508,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
 
   // We free the contexts here to keep the ggml plugin stateless.
-  // Users could fully controll the contexts by themselves via their prompt.
+  // Users could fully control the contexts by themselves via their prompt.
   llama_sampling_free(CtxSampling);
   llama_free(CxtRef.LlamaContext);
 

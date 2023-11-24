@@ -35,6 +35,7 @@ else()
   list(APPEND WASMEDGE_CFLAGS
     -Wall
     -Wextra
+    -Wshadow
     -Wshadow-field
   )
 

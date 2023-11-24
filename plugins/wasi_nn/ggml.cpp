@@ -262,16 +262,6 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
                           uint32_t &ContextId) noexcept {
   Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
   ContextId = Env.NNContext.size() - 1;
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-
-  // Initialize the llama context.
-  llama_context_params ContextParams = llama_context_default_params();
-  ContextParams.n_ctx = GraphRef.CtxSize;
-  ContextParams.n_batch = GraphRef.BatchSize;
-  CxtRef.LlamaContext =
-      llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
-
   return ErrNo::Success;
 }
 
@@ -377,6 +367,12 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   int NConsumed = 0;
   int NRemain = GraphRef.NPredict;
   int NKeep = GPTParams.n_keep;
+  // Initialize the llama context.
+  llama_context_params ContextParams = llama_context_default_params();
+  ContextParams.n_ctx = GraphRef.CtxSize;
+  ContextParams.n_batch = GraphRef.BatchSize;
+  CxtRef.LlamaContext =
+      llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
   int NCtx = llama_n_ctx(CxtRef.LlamaContext);
   // Minus 4 for the special tokens.
   const int MaxTokensListSize = NCtx - 4;
@@ -484,6 +480,9 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   if (GraphRef.EnableLog) {
     llama_print_timings(CxtRef.LlamaContext);
   }
+
+  llama_sampling_free(CtxSampling);
+  llama_free(CxtRef.LlamaContext);
 
   return ErrNo::Success;
 }

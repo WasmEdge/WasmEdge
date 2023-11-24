@@ -332,10 +332,25 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 }
 
 Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
-                        [[maybe_unused]] uint32_t Index,
-                        Span<uint8_t> OutBuffer,
+                        uint32_t Index, Span<uint8_t> OutBuffer,
                         uint32_t &BytesWritten) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  // Index 1 is for the metadata of the outputs.
+  if (Index == 1) {
+    std::string MetadataTemplate =
+        R"({"input_tokens": %d, "output_tokens": %d})";
+    // The 20 bytes are reserved to accommodate two %d placeholders in the
+    // MetadataTemplate. This allows for a decimal integer value up to a
+    // 12-digit number of input/output tokens.
+    char Buffer[MetadataTemplate.size() + 20];
+    snprintf(Buffer, sizeof(Buffer), MetadataTemplate.c_str(),
+             CxtRef.LlamaInputs.size(), CxtRef.LlamaOutputTokens.size());
+    std::string Metadata(Buffer);
+    std::copy_n(Metadata.data(), Metadata.length(), OutBuffer.data());
+    BytesWritten = Metadata.length();
+    return ErrNo::Success;
+  }
+
   std::copy_n(CxtRef.LlamaOutputs.data(), CxtRef.LlamaOutputs.length(),
               OutBuffer.data());
   BytesWritten = CxtRef.LlamaOutputs.length();
@@ -357,6 +372,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   // Clear the outputs.
   CxtRef.LlamaOutputs.clear();
+  CxtRef.LlamaOutputTokens.clear();
 
   // Main predict loop.
   gpt_params GPTParams;
@@ -449,6 +465,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       Embd.emplace_back(Id);
       --NRemain;
       // Save the output token.
+      CxtRef.LlamaOutputTokens.emplace_back(Id);
       CxtRef.LlamaOutputs += llama_token_to_piece(CxtRef.LlamaContext, Id);
       // When setting StreamStdout, we print the output to stdout.
       if (GraphRef.StreamStdout) {

@@ -26,11 +26,12 @@ TEST_F(FFmpegTest, SwsContext) {
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetContext &>(
           FuncInst->getHostFunc());
 
-  uint32_t SWScalePtr = UINT32_C(1);
+  uint32_t SWScalePtr = UINT32_C(4);
+  uint32_t SWCachedScalePtr = UINT32_C(8);
 
-  uint32_t YUV420PId = UINT32_C(1); // YUV420P AVPixFormatId (From Bindings.h)
-  uint32_t RGB24Id = UINT32_C(3);   // RGB24  AVPixFormatId (From Bindings.h)
-  uint32_t XVMCId = UINT32_C(174);  // XVMC AVPixFormatId (From Bindings.h)
+  uint32_t YUV420PId = 1; // YUV420P AVPixFormatId (From Bindings.h)
+  uint32_t RGB24Id = 3;   // RGB24  AVPixFormatId (From Bindings.h)
+  uint32_t XVMCId = 174;  // XVMC AVPixFormatId (From Bindings.h)
 
   uint32_t SrcWidth = 100;
   uint32_t SrcHeight = 100;
@@ -53,6 +54,8 @@ TEST_F(FFmpegTest, SwsContext) {
     ASSERT_TRUE(readUInt32(MemInst, SWScalePtr) > 0);
   }
 
+  uint32_t SWSScaleId = readUInt32(MemInst, SWScalePtr);
+  ASSERT_TRUE(SWSScaleId > 0);
   // Need a way to pass AVFrame with data to test the function.
   // Actual Scale Function...
 
@@ -83,14 +86,12 @@ TEST_F(FFmpegTest, SwsContext) {
       WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetCachedContext &>(
       FuncInst->getHostFunc());
 
-  uint32_t SWCachedScalePtr = UINT32_C(4);
   {
-    uint32_t SWSScaleID = readUInt32(MemInst, SWScalePtr);
 
     EXPECT_TRUE(HostFuncSwsGetCachedContext.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
-            SWCachedScalePtr, SWSScaleID, SrcWidth, SrcHeight, YUV420PId,
+            SWCachedScalePtr, SWSScaleId, SrcWidth, SrcHeight, YUV420PId,
             DestWidth, DestHeight, RGB24Id, Flags, SrcFilterId, DestFilterId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
@@ -168,19 +169,11 @@ TEST_F(FFmpegTest, SwsContext) {
           FuncInst->getHostFunc());
 
   {
-    uint32_t swscaleId = readUInt32(MemInst, SWScalePtr);
-    ASSERT_TRUE(swscaleId > 0);
     EXPECT_TRUE(HostFuncSwsFreeContext.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{swscaleId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{SWSScaleId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    uint32_t swsCachedId = readUInt32(MemInst, SWCachedScalePtr);
-    ASSERT_TRUE(readUInt32(MemInst, SWCachedScalePtr) > 0);
-    EXPECT_TRUE(HostFuncSwsFreeContext.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{swsCachedId},
-        Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 
   {

@@ -13,7 +13,7 @@ class WasmEdgeFFmpegEnv {
 public:
   // Singleton
   static std::shared_ptr<WasmEdgeFFmpegEnv> getInstance() noexcept {
-    // Do I need a lock here???
+    std::unique_lock Lock(Mutex);
     std::shared_ptr<WasmEdgeFFmpegEnv> envPtr = Instance.lock();
     if (!envPtr) {
       envPtr.reset(new WasmEdgeFFmpegEnv());
@@ -29,48 +29,43 @@ public:
   // Can improvise by implementing a queue or by using a hashmap.
   // For now, using a vector and appending it to end.
   void alloc(void *data, uint32_t *dataPtr) {
-    ffmpegPtrArr[ffmpegPtrArrKey++] = data;
-    *dataPtr = ffmpegPtrArrKey - 1;
+    ffmpegPtrMap[ffmpegPtrAllocateKey++] = data;
+    *dataPtr = ffmpegPtrAllocateKey - 1;
   }
 
   void *fetchData(const size_t index) {
-    if (index >= ffmpegPtrArrKey) {
+    if (index >= ffmpegPtrAllocateKey) {
       // Error Handling...
     }
     // Check this condition.
-    if (ffmpegPtrArr[index] == nullptr) {
+    if (ffmpegPtrMap[index] == nullptr) {
       // Error Handling...
       return nullptr;
     }
 
-    return ffmpegPtrArr[index];
+    return ffmpegPtrMap[index];
   }
 
   void dealloc(size_t index) {
-    if (ffmpegPtrArrKey == 0) {
-      // Memory is Empty.
-    }
 
-    if (index >= ffmpegPtrArrKey) {
+    if (index >= ffmpegPtrAllocateKey) {
       // Error Handling...
+      exit(1);
     }
 
-    // Do I need to clear??? Internally Eg: av_close_input(); will clear the
-    // pointer value. Just the pointer exist. However, the rust side will face
-    // problem as we have value to sm kind of index. Need to make that value
-    // null(RUST).
-    ffmpegPtrArr.erase(index);
+    ffmpegPtrMap.erase(index);
   }
 
   WasmEdgeFFmpegEnv() noexcept {}
 
 private:
   //  Using zero as NULL Value.
-  uint32_t ffmpegPtrArrKey = 1;
+  uint32_t ffmpegPtrAllocateKey = 1;
   // Can update this to uint64_t to get more memory.
-  std::map<uint32_t, void *> ffmpegPtrArr;
+  std::map<uint32_t, void *> ffmpegPtrMap;
   static Plugin::PluginRegister Register;
   static std::weak_ptr<WasmEdgeFFmpegEnv> Instance;
+  static std::shared_mutex Mutex;
 };
 
 // Utils functions.

@@ -13,8 +13,6 @@ namespace {
 
 Runtime::Instance::ModuleInstance *
 createAVCodec(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-  printf("Creating avcodec %p\n",
-         WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance().get());
   return new WasmEdgeFFmpeg::AVcodec::WasmEdgeFFmpegAVCodecModule(
       WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance());
 }
@@ -33,16 +31,12 @@ createAVFilter(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
 
 Runtime::Instance::ModuleInstance *
 createAVFormat(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-  printf("Creating avformat %p\n",
-         WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance().get());
   return new WasmEdgeFFmpeg::AVFormat::WasmEdgeFFmpegAVFormatModule(
       WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance());
 }
 
 Runtime::Instance::ModuleInstance *
 createAVUtil(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-  printf("Creating avutil %p\n",
-         WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance().get());
   return new WasmEdgeFFmpeg::AVUtil::WasmEdgeFFmpegAVUtilModule(
       WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance());
 }
@@ -111,5 +105,7 @@ Plugin::PluginRegister WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::Register(&Descriptor);
 std::weak_ptr<WasmEdgeFFmpeg::WasmEdgeFFmpegEnv>
     WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::Instance =
         std::make_shared<WasmEdgeFFmpeg::WasmEdgeFFmpegEnv>();
+
+std::shared_mutex WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::Mutex;
 } // namespace Host
 } // namespace WasmEdge

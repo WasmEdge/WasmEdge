@@ -100,33 +100,33 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVFormatCtxSetMetadata>(env));
 
   // avInputFormat Struct functions.
-  addHostFunc("wasmedge_ffmpeg_avformat_avIOFormat_name_length", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avIOFormat_name_length",
               std::make_unique<AVIOFormatNameLength>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avInputFormat_name", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avInputFormat_name",
               std::make_unique<AVInputFormatName>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avOutputFormat_name", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avOutputFormat_name",
               std::make_unique<AVOutputFormatName>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avIOFormat_long_name_length", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avIOFormat_long_name_length",
               std::make_unique<AVIOFormatLongNameLength>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avInputFormat_long_name", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avInputFormat_long_name",
               std::make_unique<AVInputFormatLongName>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avOutputFormat_long_name", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avOutputFormat_long_name",
               std::make_unique<AVOutputFormatExtensions>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avIOFormat_extensions_length", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avIOFormat_extensions_length",
               std::make_unique<AVIOFormatExtensionsLength>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avInputFormat_extensions", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avInputFormat_extensions",
               std::make_unique<AVInputFormatExtensions>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avOutputFormat_extensions", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avOutputFormat_extensions",
               std::make_unique<AVOutputFormatExtensions>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avIOFormat_mime_type_length", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avIOFormat_mime_type_length",
               std::make_unique<AVIOFormatMimeTypeLength>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avInputFormat_mime_type", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avInputFormat_mime_type",
               std::make_unique<AVInputFormatMimeType>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avOutputFormat_mime_type", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avOutputFormat_mime_type",
               std::make_unique<AVOutputFormatMimeType>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avOutputFormat_flags", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avOutputFormat_flags",
               std::make_unique<AVOutputFormatFlags>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avInputOutputFormat_free", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avInputOutputFormat_free",
               std::make_unique<AVInputOutputFormatFree>(env));
 
   // avStream Struct Functions.
@@ -160,7 +160,7 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVStreamMetadata>(env));
   addHostFunc("wasmedge_ffmpeg_avformat_avStream_set_metadata",
               std::make_unique<AVStreamSetMetadata>(env));
-  addHostFunc("wasmedge_ffmpeg_avformat_avStream_discard", // test
+  addHostFunc("wasmedge_ffmpeg_avformat_avStream_discard",
               std::make_unique<AVStreamDiscard>(env));
 
   // avChapter Struct Functions.

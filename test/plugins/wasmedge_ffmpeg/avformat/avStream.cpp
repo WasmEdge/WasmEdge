@@ -284,6 +284,21 @@ TEST_F(FFmpegTest, AVStreamStruct) {
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
+
+  FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avStream_discard");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVStreamDiscard = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVStreamDiscard &>(
+      FuncInst->getHostFunc());
+  {
+    EXPECT_TRUE(HostFuncAVStreamDiscard.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, StreamIdx},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), 0);
+  }
 }
 
 } // namespace WasmEdgeFFmpeg

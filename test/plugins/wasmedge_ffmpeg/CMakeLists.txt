@@ -4,7 +4,7 @@
 wasmedge_add_executable(wasmedgeFFmpegTests
   main.cpp
 
-  avcodec/avcodec_func.cpp
+#  avcodec/avcodec_func.cpp
   avcodec/avCodec.cpp
   avcodec/avCodecParameters.cpp
   avcodec/avPacket.cpp
@@ -15,7 +15,7 @@ wasmedge_add_executable(wasmedgeFFmpegTests
 
   avformat/avformat_func.cpp
   avformat/avformatContext.cpp
-  #        avformat/avInputOutputContext.cpp
+          avformat/avInputOutputContext.cpp
   avformat/avStream.cpp
   avformat/avChapter.cpp
 

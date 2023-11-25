@@ -177,7 +177,7 @@ WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
   if (auto Res = ::fcntl(Fd, F_PREALLOCATE, &Store); unlikely(Res < 0)) {
     // Try to allocate sparse space.
     Store.fst_flags = F_ALLOCATEALL;
-    if (auto Res = ::fcntl(Fd, F_PREALLOCATE, &Store); unlikely(Res < 0)) {
+    if (auto Res2 = ::fcntl(Fd, F_PREALLOCATE, &Store); unlikely(Res2 < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
   }

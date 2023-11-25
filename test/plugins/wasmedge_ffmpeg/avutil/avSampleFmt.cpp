@@ -14,10 +14,11 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   ASSERT_TRUE(AVUtilMod != nullptr);
 
-  uint32_t BufferPtr = UINT32_C(8);
+  uint32_t BufferPtr = UINT32_C(160);
   uint32_t NamePtr = UINT32_C(80);
+  uint32_t LinesizePtr = UINT32_C(20);
 
-  uint32_t SampleFmtId = 3; // AV_SAMPLE_FMT_S32
+  uint32_t SampleFmtId = 1; // AV_SAMPLE_FMT_S32
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_packed_sample_fmt");
   auto &HostFuncAVGetPackedSampleFmt = dynamic_cast<
@@ -43,7 +44,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{SampleFmtId},
         Result);
 
-    EXPECT_EQ(Result[0].get<uint32_t>(), 8);
+    EXPECT_EQ(Result[0].get<uint32_t>(), 6);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -100,10 +101,10 @@ TEST_F(FFmpegTest, AVSampleFmt) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVSamplesGetBufferSize &>(
       FuncInst->getHostFunc());
 
-  int32_t NbChannels = 2;
-  int32_t NbSamples = 2;
-  int32_t Align = 0;
-
+  int32_t NbChannels = 1;
+  int32_t NbSamples = 5;
+  int32_t Align = 1;
+  int32_t BufSize;
   {
     HostFuncAVSamplesGetBufferSize.run(
         CallFrame,
@@ -111,7 +112,8 @@ TEST_F(FFmpegTest, AVSampleFmt) {
                                                     SampleFmtId, Align},
         Result);
 
-    EXPECT_TRUE(Result[0].get<int32_t>() > 0);
+    BufSize = Result[0].get<int32_t>();
+    EXPECT_TRUE(BufSize);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -120,18 +122,19 @@ TEST_F(FFmpegTest, AVSampleFmt) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVSamplesAllocArrayAndSamples &>(
       FuncInst->getHostFunc());
 
-  int32_t LinesizeValue = 0;
   {
     HostFuncAVSamplesAllocArrayAndSamples.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
-            BufferPtr, LinesizeValue, NbSamples, NbSamples, SampleFmtId, Align},
+            BufferPtr, LinesizePtr, NbChannels, NbSamples, SampleFmtId, Align},
         Result);
 
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
 
-  // Need to pass a buffer, read data and verify.
+  uint32_t BufId = readUInt32(MemInst, BufferPtr);
+  ASSERT_TRUE(BufId > 0);
+
   //  FuncInst = AVUtilMod->findFuncExports(
   //      "wasmedge_ffmpeg_avutil_av_samples_get_buffer");
   //  auto &HostFuncAVSamplesGetBuffer = dynamic_cast<
@@ -139,10 +142,11 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   //      FuncInst->getHostFunc());
   //
   //  {
+  //    uint32_t Size = readUInt32(MemInst, LinesizePtr);
   //    HostFuncAVSamplesGetBuffer.run(
   //        CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{BufferPtr, 0, 2, 2, 2,
-  //        0}, Result);
+  //        std::initializer_list<WasmEdge::ValVariant>{BufId, NamePtr, Size,
+  //        1}, Result);
   //
   //    EXPECT_EQ(Result[0].get<int32_t>(),
   //    static_cast<int32_t>(ErrNo::Success));

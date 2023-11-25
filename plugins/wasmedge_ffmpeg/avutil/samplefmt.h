@@ -63,7 +63,7 @@ public:
   AVSamplesAllocArrayAndSamples(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t BufferPtr,
-                       int32_t LinesizeValue, int32_t NbChannels,
+                       uint32_t LinesizePtr, int32_t NbChannels,
                        int32_t NbSamples, uint32_t SampleFmtId, int32_t Align);
 };
 
@@ -72,7 +72,7 @@ public:
   AVSamplesGetBuffer(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t BufferID,
-                       uint32_t BufferPtr, uint32_t BufferSize);
+                       uint32_t BufferPtr, uint32_t BufferSize, int32_t Idx);
 };
 
 class AVGetSampleFmtNameLength

@@ -66,18 +66,21 @@ Expect<int32_t> AVSamplesGetBufferSize::body(const Runtime::CallingFrame &,
 
 Expect<int32_t>
 AVSamplesAllocArrayAndSamples::body(const Runtime::CallingFrame &Frame,
-                                    uint32_t BufferPtr, int32_t LinesizeValue,
+                                    uint32_t BufferPtr, uint32_t LinesizePtr,
                                     int32_t NbChannels, int32_t NbSamples,
                                     uint32_t SampleFmtId, int32_t Align) {
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(BufId, MemInst, uint32_t, BufferPtr, "");
+  MEM_PTR_CHECK(LineSize, MemInst, int32_t, LinesizePtr, "");
 
   FFMPEG_PTR_FETCH(Buf, *BufId, uint8_t *);
-  int Linesize = LinesizeValue;
+  int LineSizeValue;
   AVSampleFormat const AvSampleFormat =
       FFmpegUtils::SampleFmt::fromSampleID(SampleFmtId);
   int Res = av_samples_alloc_array_and_samples(
-      &Buf, &Linesize, NbChannels, NbSamples, AvSampleFormat, Align);
+      &Buf, &LineSizeValue, NbChannels, NbSamples, AvSampleFormat, Align);
+
+  *LineSize = LineSizeValue;
   FFMPEG_PTR_STORE(Buf, BufId);
   return Res;
 }
@@ -100,17 +103,26 @@ AVSamplesAllocArrayAndSamples::body(const Runtime::CallingFrame &Frame,
 //  return Res;
 //}
 
-Expect<int32_t> AVSamplesGetBuffer::body(const Runtime::CallingFrame &Frame,
-                                         uint32_t BufferID, uint32_t BufferPtr,
-                                         uint32_t BufferSize) {
-
-  MEMINST_CHECK(MemInst, Frame, 0)
-  MEM_SPAN_CHECK(Buffer, MemInst, uint8_t, BufferPtr, BufferSize, "");
-  FFMPEG_PTR_FETCH(Buf, BufferID, uint8_t);
-
-  memmove(Buffer.data(), Buf, BufferSize);
-  return static_cast<int32_t>(ErrNo::Success);
-}
+// Failingggg... Test
+// Expect<int32_t> AVSamplesGetBuffer::body(const Runtime::CallingFrame &Frame,
+//                                         uint32_t BufferID, uint32_t
+//                                         BufferPtr, uint32_t BufferSize,
+//                                         int32_t Idx) {
+//
+//  MEMINST_CHECK(MemInst, Frame, 0)
+//  MEM_SPAN_CHECK(Buffer, MemInst, uint8_t, BufferPtr, BufferSize, "");
+//  FFMPEG_PTR_FETCH(Buf, BufferID, uint8_t *);
+//
+//  uint8_t **Itr = Buf;
+//  int I = 1;
+//  while (I <= Idx) {
+//    Itr++;
+//    I++;
+//  }
+//
+//  memmove(Buffer.data(), *Itr, BufferSize);
+//  return static_cast<int32_t>(ErrNo::Success);
+//}
 
 Expect<int32_t> AVGetSampleFmtNameLength::body(const Runtime::CallingFrame &,
                                                uint32_t SampleFmtId) {

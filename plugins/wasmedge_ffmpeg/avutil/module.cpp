@@ -66,26 +66,25 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVFrameData>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_get_buffer",
               std::make_unique<AVFrameGetBuffer>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_audio_format", // test audio
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_audio_format",
               std::make_unique<AVFrameAudioFormat>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_audio_format", // test audio
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_audio_format",
               std::make_unique<AVFrameSetAudioFormat>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_nb_samples", // test audio
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_nb_samples",
               std::make_unique<AVFrameSetNbSamples>(Env));
-  addHostFunc(
-      "wasmedge_ffmpeg_avutil_av_frame_set_channel_layout", // test audio
-      std::make_unique<AVFrameSetChannelLayout>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_nb_samples", // test audio
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_channel_layout",
+              std::make_unique<AVFrameSetChannelLayout>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_nb_samples",
               std::make_unique<AVFrameNbSamples>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_sample_rate", // test audio
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_sample_rate",
               std::make_unique<AVFrameSampleRate>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_sample_rate", // test audio
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_sample_rate",
               std::make_unique<AVFrameSetSampleRate>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channels", // test audio
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channels",
               std::make_unique<AVFrameChannels>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_channels", // test audio
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_set_channels",
               std::make_unique<AVFrameSetChannels>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channel_layout", // test audio
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_channel_layout",
               std::make_unique<AVFrameChannelLayout>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_best_effort_timestamp",
               std::make_unique<AVFrameBestEffortTimestamp>(Env));
@@ -187,9 +186,8 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVSamplesGetBufferSize>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_samples_alloc_array_and_samples",
               std::make_unique<AVSamplesAllocArrayAndSamples>(Env));
-  //    addHostFunc("wasmedge_ffmpeg_avutil_av_samples_copy",std::make_unique<AVSamplesCopy>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_samples_get_buffer", // test
-              std::make_unique<AVSamplesGetBuffer>(Env));
+  //  addHostFunc("wasmedge_ffmpeg_avutil_av_samples_get_buffer", // test
+  //              std::make_unique<AVSamplesGetBuffer>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_get_sample_fmt_name_length",
               std::make_unique<AVGetSampleFmtNameLength>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_get_sample_fmt_name",

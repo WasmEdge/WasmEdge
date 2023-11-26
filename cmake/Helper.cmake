@@ -69,36 +69,41 @@ else()
     endif()
 
     list(APPEND WASMEDGE_CFLAGS
-      -Wshadow
-      -Wno-c++20-designator
-      -Wno-c99-extensions
-      -Wno-covered-switch-default
-      -Wno-documentation-unknown-command
+      -Wc++20-designator
+      -Wno-error=switch-enum
+      -Wno-error=covered-switch-default
+      -Wno-error=documentation-unknown-command
+      -Wno-error=ctad-maybe-unsupported
+      -Wno-error=undefined-func-template
+      -Wno-error=newline-eof
+      -Wno-error=keyword-macro
       -Wno-error=nested-anon-types
       -Wno-error=old-style-cast
       -Wno-error=unused-command-line-argument
       -Wno-error=unknown-warning-option
-      -Wno-ctad-maybe-unsupported
-      -Wno-gnu-anonymous-struct
-      -Wno-keyword-macro
-      -Wno-language-extension-token
-      -Wno-newline-eof
-      -Wno-shadow-field-in-constructor
-      -Wno-signed-enum-bitfield
-      -Wno-switch-enum
-      -Wno-undefined-func-template
+      -Wc99-extensions
+      -Wgnu-anonymous-struct
+      -Wlanguage-extension-token
+      -Wsigned-enum-bitfield
+      -Wshadow
       -Wshadow-field
+      -Wshadow-field-in-constructor
+      -Wno-exit-time-destructors
+      -Wno-global-constructors
+      -Wno-error=used-but-marked-unused
     )
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
       list(APPEND WASMEDGE_CFLAGS
-        -Wno-reserved-identifier
+        -Wno-error=reserved-identifier
       )
     endif()
   endif()
 
   if(WASMEDGE_ENABLE_UB_SANITIZER)
-    list(APPEND WASMEDGE_CFLAGS -fsanitize=undefined)
+    list(APPEND WASMEDGE_CFLAGS
+      -fsanitize=undefined
+    )
   endif()
 endif()
 
@@ -109,8 +114,6 @@ if(WIN32)
       "/EHa"
       -Wno-c++98-compat
       -Wno-c++98-compat-pedantic
-      -Wno-exit-time-destructors
-      -Wno-global-constructors
       -Wno-used-but-marked-unused
       -Wno-nonportable-system-include-path
       -Wno-float-equal

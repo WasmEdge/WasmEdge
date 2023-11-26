@@ -92,6 +92,13 @@ public:
                        uint32_t SampleFmtNamePtr, uint32_t SampleFmtNameLen);
 };
 
+class AVGetSampleFmtMask : public WasmEdgeFFmpegAVUtil<AVGetSampleFmtMask> {
+public:
+  AVGetSampleFmtMask(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t SampleFmtId);
+};
+
 // class AVSamplesCopy : public WasmEdgeFFmpegAVUtil<AVSamplesCopy> {
 // public:
 //   AVSamplesCopy(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)

@@ -150,6 +150,13 @@ Expect<int32_t> AVGetSampleFmtName::body(const Runtime::CallingFrame &Frame,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
+Expect<int32_t> AVGetSampleFmtMask::body(const Runtime::CallingFrame &,uint32_t SampleFmtId){
+
+  AVSampleFormat const SampleFmt =
+      FFmpegUtils::SampleFmt::fromSampleID(SampleFmtId);
+  return static_cast<int32_t>(SampleFmt);
+}
+
 Expect<int32_t> AVFreep::body(const Runtime::CallingFrame &,
                               uint32_t BufferId) {
   FFMPEG_PTR_FETCH(Buffer, BufferId, uint8_t *);

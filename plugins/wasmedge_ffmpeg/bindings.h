@@ -3540,7 +3540,7 @@ private:
 public:
   // Check This function. (Looks good, test it)
   static uint64_t fromChannelLayoutID(uint64_t ChannelLayout) {
-    uint64_t Channel = 0;
+    uint64_t Channel = 0UL;
     if (ChannelLayout & FRONT_LEFT)
       Channel |= AV_CH_FRONT_LEFT;
     if (ChannelLayout & FRONT_RIGHT)
@@ -3574,7 +3574,7 @@ public:
     if (ChannelLayout & TOP_BACK_LEFT)
       Channel |= AV_CH_TOP_BACK_LEFT;
     if (ChannelLayout & TOP_BACK_CENTER)
-      Channel |= AV_CH_TOP_FRONT_CENTER;
+      Channel |= AV_CH_TOP_BACK_CENTER;
     if (ChannelLayout & TOP_BACK_RIGHT)
       Channel |= AV_CH_TOP_BACK_RIGHT;
     if (ChannelLayout & STEREO_LEFT)

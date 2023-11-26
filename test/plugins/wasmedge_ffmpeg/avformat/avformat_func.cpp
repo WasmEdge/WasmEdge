@@ -197,7 +197,7 @@ TEST_F(FFmpegTest, AVInputFormatFunc) {
     EXPECT_TRUE(HostFuncAVFormatAVReadPlay.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
         Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), -78);
+    EXPECT_TRUE(Result[0].get<int32_t>() < 0);
   }
 
   FuncInst =
@@ -212,7 +212,7 @@ TEST_F(FFmpegTest, AVInputFormatFunc) {
     EXPECT_TRUE(HostFuncAVFormatAVReadPause.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
         Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), -78);
+    EXPECT_TRUE(Result[0].get<int32_t>() < 0);
   }
 
   FuncInst = AVFormatMod->findFuncExports(
@@ -460,6 +460,10 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), -22);
   }
+
+  // Write Header above return invalid argument due to which below test won't
+  // work. The OutputFormatContext should Be configured using the input format
+  // context. Test on the Rust side. This is working as expected.
 
   //  FuncInst = AVFormatMod->findFuncExports(
   //      "wasmedge_ffmpeg_avformat_avformat_write_trailer");

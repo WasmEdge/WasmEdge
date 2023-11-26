@@ -57,7 +57,7 @@ class AVFilterInOutFree : public WasmEdgeFFmpegAVFilter<AVFilterInOutFree> {
 public:
   AVFilterInOutFree(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFilter(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InoutId);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InOutId);
 };
 
 class AVFilterVersion : public WasmEdgeFFmpegAVFilter<AVFilterVersion> {
@@ -119,11 +119,11 @@ public:
                        uint32_t ArgsLen, uint32_t FilterGraphId);
 };
 
-class AVFilterInoutAlloc : public WasmEdgeFFmpegAVFilter<AVFilterInoutAlloc> {
+class AVFilterInOutAlloc : public WasmEdgeFFmpegAVFilter<AVFilterInOutAlloc> {
 public:
-  AVFilterInoutAlloc(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+  AVFilterInOutAlloc(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFilter(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InoutPtr);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InOutPtr);
 };
 
 class AVFilterPadGetNameLength

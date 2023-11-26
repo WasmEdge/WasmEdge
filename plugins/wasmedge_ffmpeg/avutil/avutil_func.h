@@ -149,7 +149,8 @@ public:
   AVGetChannelLayoutName(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
-                       uint64_t ChannelLayoutId,uint32_t NamePtr,uint32_t NameLen);
+                       uint64_t ChannelLayoutId, uint32_t NamePtr,
+                       uint32_t NameLen);
 };
 
 class AVGetChannelLayoutMask
@@ -158,7 +159,7 @@ public:
   AVGetChannelLayoutMask(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}
   Expect<uint64_t> body(const Runtime::CallingFrame &Frame,
-                       uint64_t ChannelLayoutId);
+                        uint64_t ChannelLayoutId);
 };
 
 class AVGetDefaultChannelLayout

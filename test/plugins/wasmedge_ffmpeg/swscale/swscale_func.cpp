@@ -173,7 +173,6 @@ TEST_F(FFmpegTest, SwsContext) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{SWSScaleId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-
   }
 
   {

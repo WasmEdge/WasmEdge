@@ -126,9 +126,7 @@ public:
                        uint32_t PixFormatNamePtr, uint32_t PixFormatNameLen);
 };
 
-
-class AVPixelFormatMask
-    : public WasmEdgeFFmpegAVUtil<AVPixelFormatMask> {
+class AVPixelFormatMask : public WasmEdgeFFmpegAVUtil<AVPixelFormatMask> {
 public:
   AVPixelFormatMask(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVUtil(HostEnv) {}

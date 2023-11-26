@@ -27,7 +27,7 @@ Expect<int32_t> AVDeviceListDevices::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvFormatCtx, AVFormatCtxId, AVFormatContext);
 
   AVDeviceInfoList **AvDeviceInfoList =
-      (AVDeviceInfoList **)malloc(sizeof(AVDeviceInfoList **));
+      (AVDeviceInfoList **)malloc(sizeof(AVDeviceInfoList *));
 
   int res = avdevice_list_devices(AvFormatCtx, AvDeviceInfoList);
   FFMPEG_PTR_STORE(AvDeviceInfoList, AVDeviceInfoListId);

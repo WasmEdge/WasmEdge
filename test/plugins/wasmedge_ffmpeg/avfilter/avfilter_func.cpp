@@ -22,8 +22,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   uint32_t Filter2Ptr = UINT32_C(12);
   uint32_t InputFilterCtxPtr = UINT32_C(28);  // AVFilterContext
   uint32_t OutputFilterCtxPtr = UINT32_C(24); // AVFilterContext
-  uint32_t InputInoutPtr = UINT32_C(32);
-  uint32_t OutputInoutPtr = UINT32_C(36);
+  uint32_t InputInOutPtr = UINT32_C(32);
+  uint32_t OutputInOutPtr = UINT32_C(36);
   uint32_t FramePtr = UINT32_C(40);
 
   // Strings.
@@ -148,27 +148,27 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterInoutAlloc = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInoutAlloc &>(
+  auto &HostFuncAVFilterInOutAlloc = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutAlloc &>(
       FuncInst->getHostFunc());
 
   {
-    EXPECT_TRUE(HostFuncAVFilterInoutAlloc.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{InputInoutPtr},
+    EXPECT_TRUE(HostFuncAVFilterInOutAlloc.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{InputInOutPtr},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    EXPECT_TRUE(HostFuncAVFilterInoutAlloc.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{OutputInoutPtr},
+    EXPECT_TRUE(HostFuncAVFilterInOutAlloc.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{OutputInOutPtr},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 
-  uint32_t InputInoutId = readUInt32(MemInst, InputInoutPtr);
-  ASSERT_TRUE(InputInoutId > 0);
+  uint32_t InputInOutId = readUInt32(MemInst, InputInOutPtr);
+  ASSERT_TRUE(InputInOutId > 0);
 
-  uint32_t OutputInoutId = readUInt32(MemInst, OutputInoutPtr);
-  ASSERT_TRUE(OutputInoutId > 0);
+  uint32_t OutputInOutId = readUInt32(MemInst, OutputInOutPtr);
+  ASSERT_TRUE(OutputInOutId > 0);
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_graph_get_filter");
@@ -204,7 +204,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   ASSERT_TRUE(InputFilterCtxId > 0);
 
   // ==================================================================
-  //                  Setting InoutId Values for Filtering
+  //                  Setting InOutId Values for Filtering
   // ==================================================================
 
   FuncInst = AVFilterMod->findFuncExports(
@@ -212,24 +212,24 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterInoutSetName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInoutSetName &>(
+  auto &HostFuncAVFilterInOutSetName = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutSetName &>(
       FuncInst->getHostFunc());
 
   {
     int32_t Length = InputFilterName.length();
-    EXPECT_TRUE(HostFuncAVFilterInoutSetName.run(
+    EXPECT_TRUE(HostFuncAVFilterInOutSetName.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{OutputInoutId,
+        std::initializer_list<WasmEdge::ValVariant>{OutputInOutId,
                                                     InputFilterNamePtr, Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
     Length = OutputFilterName.length();
-    EXPECT_TRUE(HostFuncAVFilterInoutSetName.run(
+    EXPECT_TRUE(HostFuncAVFilterInOutSetName.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
-            InputInoutId, OutputFilterNamePtr, Length},
+            InputInOutId, OutputFilterNamePtr, Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
@@ -239,21 +239,21 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterInoutSetFilterCtx = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInoutSetFilterCtx &>(
+  auto &HostFuncAVFilterInOutSetFilterCtx = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutSetFilterCtx &>(
       FuncInst->getHostFunc());
 
   {
-    EXPECT_TRUE(HostFuncAVFilterInoutSetFilterCtx.run(
+    EXPECT_TRUE(HostFuncAVFilterInOutSetFilterCtx.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{OutputInoutId,
+        std::initializer_list<WasmEdge::ValVariant>{OutputInOutId,
                                                     InputFilterCtxId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    EXPECT_TRUE(HostFuncAVFilterInoutSetFilterCtx.run(
+    EXPECT_TRUE(HostFuncAVFilterInOutSetFilterCtx.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{InputInoutId,
+        std::initializer_list<WasmEdge::ValVariant>{InputInOutId,
                                                     OutputFilterCtxId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
@@ -264,18 +264,18 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterInoutSetPadIdx = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInoutSetPadIdx &>(
+  auto &HostFuncAVFilterInOutSetPadIdx = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutSetPadIdx &>(
       FuncInst->getHostFunc());
 
   {
-    EXPECT_TRUE(HostFuncAVFilterInoutSetPadIdx.run(
+    EXPECT_TRUE(HostFuncAVFilterInOutSetPadIdx.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{OutputInoutId, 0}, Result));
+        std::initializer_list<WasmEdge::ValVariant>{OutputInOutId, 0}, Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    EXPECT_TRUE(HostFuncAVFilterInoutSetPadIdx.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{InputInoutId, 0},
+    EXPECT_TRUE(HostFuncAVFilterInOutSetPadIdx.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{InputInOutId, 0},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
@@ -285,24 +285,24 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterInoutSetNext = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInoutSetNext &>(
+  auto &HostFuncAVFilterInOutSetNext = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutSetNext &>(
       FuncInst->getHostFunc());
 
   {
-    EXPECT_TRUE(HostFuncAVFilterInoutSetNext.run(
+    EXPECT_TRUE(HostFuncAVFilterInOutSetNext.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{OutputInoutId, 0}, Result));
+        std::initializer_list<WasmEdge::ValVariant>{OutputInOutId, 0}, Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
-    EXPECT_TRUE(HostFuncAVFilterInoutSetNext.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{InputInoutId, 0},
+    EXPECT_TRUE(HostFuncAVFilterInOutSetNext.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{InputInOutId, 0},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 
   // ==================================================================
-  //                  End Setting InoutId Values for Filtering
+  //                  End Setting InOutId Values for Filtering
   // ==================================================================
 
   FuncInst = AVFilterMod->findFuncExports(
@@ -319,7 +319,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
     EXPECT_TRUE(HostFuncAVFilterGraphParsePtr.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
-            FilterGraphId, SpecPtr, Length, InputInoutId, OutputInoutId},
+            FilterGraphId, SpecPtr, Length, InputInOutId, OutputInOutId},
         Result));
     ASSERT_TRUE(Result[0].get<int32_t>() >= 0);
   }
@@ -390,13 +390,13 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   //  {
   //    EXPECT_TRUE(HostFuncAVFilterInOutFree.run(
   //        CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{InputInoutId}, Result));
+  //        std::initializer_list<WasmEdge::ValVariant>{InputInOutId}, Result));
   //    EXPECT_EQ(Result[0].get<int32_t>(),
   //    static_cast<int32_t>(ErrNo::Success));
   //
   //    EXPECT_TRUE(HostFuncAVFilterInOutFree.run(
   //        CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{OutputInoutId},
+  //        std::initializer_list<WasmEdge::ValVariant>{OutputInOutId},
   //        Result));
   //    EXPECT_EQ(Result[0].get<int32_t>(),
   //    static_cast<int32_t>(ErrNo::Success));

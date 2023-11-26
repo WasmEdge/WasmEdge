@@ -39,7 +39,7 @@ WasmEdgeFFmpegAVFilterModule::WasmEdgeFFmpegAVFilterModule(
   addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_graph_create_filter",
               std::make_unique<AVFilterGraphCreateFilter>(Env));
   addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_inout_alloc",
-              std::make_unique<AVFilterInoutAlloc>(Env));
+              std::make_unique<AVFilterInOutAlloc>(Env));
   addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_pad_get_name_length",
               std::make_unique<AVFilterPadGetNameLength>(Env));
   addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_pad_get_name",
@@ -89,13 +89,13 @@ WasmEdgeFFmpegAVFilterModule::WasmEdgeFFmpegAVFilterModule(
   addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_flags",
               std::make_unique<AVFilterFlags>(Env));
   addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_inout_set_name",
-              std::make_unique<AVFilterInoutSetName>(Env));
+              std::make_unique<AVFilterInOutSetName>(Env));
   addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_inout_set_filter_ctx",
-              std::make_unique<AVFilterInoutSetFilterCtx>(Env));
+              std::make_unique<AVFilterInOutSetFilterCtx>(Env));
   addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_inout_set_pad_idx",
-              std::make_unique<AVFilterInoutSetPadIdx>(Env));
+              std::make_unique<AVFilterInOutSetPadIdx>(Env));
   addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_inout_set_next",
-              std::make_unique<AVFilterInoutSetNext>(Env));
+              std::make_unique<AVFilterInOutSetNext>(Env));
   addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_get_inputs_filter_pad",
               std::make_unique<AVFilterGetInputsFilterPad>(Env));
   addHostFunc("wasmedge_ffmpeg_avfilter_avfilter_get_outputs_filter_pad",

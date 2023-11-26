@@ -15,7 +15,7 @@ wasmedge_add_executable(wasmedgeFFmpegTests
 
   avformat/avformat_func.cpp
   avformat/avformatContext.cpp
-          avformat/avInputOutputContext.cpp
+  avformat/avInputOutputContext.cpp
   avformat/avStream.cpp
   avformat/avChapter.cpp
 
@@ -54,6 +54,7 @@ target_include_directories(wasmedgeFFmpegTests
 
 target_link_libraries(wasmedgeFFmpegTests
   PRIVATE
+  wasmedgePluginWasmEdgeFFmpeg
   ${GTEST_BOTH_LIBRARIES}
 )
 

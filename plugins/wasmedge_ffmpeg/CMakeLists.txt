@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
   libavdevice
@@ -27,7 +30,6 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
   avfilter/avfilter_func.cpp
   avfilter/buffer_source_sink.cpp
   avfilter/avFilter.cpp
-
 
   avformat/module.cpp
   avformat/avformat_func.cpp
@@ -66,6 +68,11 @@ target_include_directories(wasmedgePluginWasmEdgeFFmpeg
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+target_link_libraries(wasmedgePluginWasmEdgeFFmpeg
+  PUBLIC
+  PkgConfig::LIBAV
+)
+
 if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmedgePluginWasmEdgeFFmpeg
     PRIVATE
@@ -75,7 +82,6 @@ else()
   target_link_libraries(wasmedgePluginWasmEdgeFFmpeg
     PRIVATE
     wasmedge_shared
-    PkgConfig::LIBAV
   )
 endif()
 

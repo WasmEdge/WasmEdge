@@ -238,8 +238,7 @@ Expect<int32_t> AVStreamMetadata::body(const Runtime::CallingFrame &Frame,
   for (unsigned int I = 1; I <= StreamIdx; I++)
     AvStream++;
 
-  AVDictionary **AvDictionary =
-      (AVDictionary **)(malloc(sizeof(AVDictionary **)));
+  AVDictionary **AvDictionary = (AVDictionary **)malloc(sizeof(AVDictionary *));
 
   *AvDictionary = (*AvStream)->metadata;
   FFMPEG_PTR_STORE(AvDictionary, DictId);

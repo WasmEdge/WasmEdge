@@ -60,40 +60,40 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FilterId);
 };
 
-class AVFilterInoutSetName
-    : public WasmEdgeFFmpegAVFilter<AVFilterInoutSetName> {
+class AVFilterInOutSetName
+    : public WasmEdgeFFmpegAVFilter<AVFilterInOutSetName> {
 public:
-  AVFilterInoutSetName(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+  AVFilterInOutSetName(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFilter(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InoutId,
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InOutId,
                        uint32_t NamePtr, uint32_t NameLen);
 };
 
-class AVFilterInoutSetFilterCtx
-    : public WasmEdgeFFmpegAVFilter<AVFilterInoutSetFilterCtx> {
+class AVFilterInOutSetFilterCtx
+    : public WasmEdgeFFmpegAVFilter<AVFilterInOutSetFilterCtx> {
 public:
-  AVFilterInoutSetFilterCtx(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+  AVFilterInOutSetFilterCtx(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFilter(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InoutId,
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InOutId,
                        uint32_t FilterCtxId);
 };
 
-class AVFilterInoutSetPadIdx
-    : public WasmEdgeFFmpegAVFilter<AVFilterInoutSetPadIdx> {
+class AVFilterInOutSetPadIdx
+    : public WasmEdgeFFmpegAVFilter<AVFilterInOutSetPadIdx> {
 public:
-  AVFilterInoutSetPadIdx(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+  AVFilterInOutSetPadIdx(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFilter(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InoutId,
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InOutId,
                        int32_t PadIdx);
 };
 
-class AVFilterInoutSetNext
-    : public WasmEdgeFFmpegAVFilter<AVFilterInoutSetNext> {
+class AVFilterInOutSetNext
+    : public WasmEdgeFFmpegAVFilter<AVFilterInOutSetNext> {
 public:
-  AVFilterInoutSetNext(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
+  AVFilterInOutSetNext(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVFilter(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InoutId,
-                       uint32_t NextInoutId);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InOutId,
+                       uint32_t NextInOutId);
 };
 
 class AVFilterGetInputsFilterPad

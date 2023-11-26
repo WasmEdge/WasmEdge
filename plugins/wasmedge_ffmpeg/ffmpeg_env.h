@@ -14,55 +14,51 @@ public:
   // Singleton
   static std::shared_ptr<WasmEdgeFFmpegEnv> getInstance() noexcept {
     std::unique_lock Lock(Mutex);
-    std::shared_ptr<WasmEdgeFFmpegEnv> envPtr = Instance.lock();
-    if (!envPtr) {
-      envPtr.reset(new WasmEdgeFFmpegEnv());
-      Instance = envPtr;
+    std::shared_ptr<WasmEdgeFFmpegEnv> EnvPtr = Instance.lock();
+    if (!EnvPtr) {
+      EnvPtr.reset(new WasmEdgeFFmpegEnv());
+      Instance = EnvPtr;
     }
-    return envPtr;
+    return EnvPtr;
   }
 
   // Avoid copy constructor and overloading functions.
   WasmEdgeFFmpegEnv(const WasmEdgeFFmpegEnv &) = delete;
   void operator=(const WasmEdgeFFmpegEnv &) = delete;
 
-  // Can improvise by implementing a queue or by using a hashmap.
-  // For now, using a vector and appending it to end.
-  void alloc(void *data, uint32_t *dataPtr) {
-    ffmpegPtrMap[ffmpegPtrAllocateKey++] = data;
-    *dataPtr = ffmpegPtrAllocateKey - 1;
+  void alloc(void *Data, uint32_t *DataPtr) {
+    FfmpegPtrMap[FfmpegPtrAllocateKey++] = Data;
+    *DataPtr = FfmpegPtrAllocateKey - 1;
   }
 
-  void *fetchData(const size_t index) {
-    if (index >= ffmpegPtrAllocateKey) {
-      // Error Handling...
+  void *fetchData(const size_t Index) {
+    if (Index >= FfmpegPtrAllocateKey) {
+      return nullptr;
     }
     // Check this condition.
-    if (ffmpegPtrMap[index] == nullptr) {
-      // Error Handling...
+    if (FfmpegPtrMap[Index] == nullptr) {
       return nullptr;
     }
 
-    return ffmpegPtrMap[index];
+    return FfmpegPtrMap[Index];
   }
 
-  void dealloc(size_t index) {
+  void dealloc(size_t Index) {
 
-    if (index >= ffmpegPtrAllocateKey) {
-      // Error Handling...
-      exit(1);
+    if (Index >= FfmpegPtrAllocateKey) {
+      return;
     }
 
-    ffmpegPtrMap.erase(index);
+    FfmpegPtrMap.erase(Index);
   }
 
   WasmEdgeFFmpegEnv() noexcept {}
 
 private:
   //  Using zero as NULL Value.
-  uint32_t ffmpegPtrAllocateKey = 1;
+  uint32_t FfmpegPtrAllocateKey = 1;
   // Can update this to uint64_t to get more memory.
-  std::map<uint32_t, void *> ffmpegPtrMap;
+  std::map<uint32_t, void *> FfmpegPtrMap;
   static Plugin::PluginRegister Register;
   static std::weak_ptr<WasmEdgeFFmpegEnv> Instance;
   static std::shared_mutex Mutex;
@@ -76,8 +72,6 @@ private:
     return static_cast<int32_t>(ErrNo::MissingMemory);                         \
   }
 
-// If FFmpegStructID == 0, means Struct Pointer Doesn't exist in WasmEdge
-// Plugin. Can Remove the If statement. Doesn't Matter I think.
 #define FFMPEG_PTR_FETCH(StructPtr, FFmpegStructId, Type)                      \
   Type *StructPtr = NULL;                                                      \
   if (FFmpegStructId != 0)                                                     \

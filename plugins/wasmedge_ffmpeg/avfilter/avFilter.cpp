@@ -66,50 +66,50 @@ Expect<int32_t> AVFilterFlags::body(const Runtime::CallingFrame &,
   return Filter->flags;
 }
 
-Expect<int32_t> AVFilterInoutSetName::body(const Runtime::CallingFrame &Frame,
-                                           uint32_t InoutId, uint32_t NamePtr,
+Expect<int32_t> AVFilterInOutSetName::body(const Runtime::CallingFrame &Frame,
+                                           uint32_t InOutId, uint32_t NamePtr,
                                            uint32_t NameLen) {
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(NameBuf, MemInst, char, NamePtr, NameLen, "");
 
-  FFMPEG_PTR_FETCH(Inout, InoutId, AVFilterInOut);
+  FFMPEG_PTR_FETCH(InOut, InOutId, AVFilterInOut);
 
   std::string Name;
   std::copy_n(NameBuf.data(), NameLen, std::back_inserter(Name));
   char *CName = av_strdup(Name.c_str());
   if (CName == NULL)
     return static_cast<int32_t>(ErrNo::Success);
-  Inout->name = CName;
+  InOut->name = CName;
   return static_cast<int32_t>(ErrNo::Success);
 }
 
-Expect<int32_t> AVFilterInoutSetFilterCtx::body(const Runtime::CallingFrame &,
-                                                uint32_t InoutId,
+Expect<int32_t> AVFilterInOutSetFilterCtx::body(const Runtime::CallingFrame &,
+                                                uint32_t InOutId,
                                                 uint32_t FilterCtxId) {
 
-  FFMPEG_PTR_FETCH(Inout, InoutId, AVFilterInOut);
+  FFMPEG_PTR_FETCH(InOut, InOutId, AVFilterInOut);
   FFMPEG_PTR_FETCH(FilterCtx, FilterCtxId, AVFilterContext);
 
-  Inout->filter_ctx = FilterCtx;
+  InOut->filter_ctx = FilterCtx;
   return static_cast<int32_t>(ErrNo::Success);
 }
 
-Expect<int32_t> AVFilterInoutSetPadIdx::body(const Runtime::CallingFrame &,
-                                             uint32_t InoutId, int32_t PadIdx) {
+Expect<int32_t> AVFilterInOutSetPadIdx::body(const Runtime::CallingFrame &,
+                                             uint32_t InOutId, int32_t PadIdx) {
 
-  FFMPEG_PTR_FETCH(Inout, InoutId, AVFilterInOut);
-  Inout->pad_idx = PadIdx;
+  FFMPEG_PTR_FETCH(InOut, InOutId, AVFilterInOut);
+  InOut->pad_idx = PadIdx;
   return static_cast<int32_t>(ErrNo::Success);
 }
 
-Expect<int32_t> AVFilterInoutSetNext::body(const Runtime::CallingFrame &,
-                                           uint32_t InoutId,
-                                           uint32_t NextInoutId) {
+Expect<int32_t> AVFilterInOutSetNext::body(const Runtime::CallingFrame &,
+                                           uint32_t InOutId,
+                                           uint32_t NextInOutId) {
 
-  FFMPEG_PTR_FETCH(Inout, InoutId, AVFilterInOut);
-  FFMPEG_PTR_FETCH(NextInout, NextInoutId, AVFilterInOut);
-  Inout->next = NextInout;
+  FFMPEG_PTR_FETCH(InOut, InOutId, AVFilterInOut);
+  FFMPEG_PTR_FETCH(NextInOut, NextInOutId, AVFilterInOut);
+  InOut->next = NextInOut;
   return static_cast<int32_t>(ErrNo::Success);
 }
 

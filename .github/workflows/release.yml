@@ -242,6 +242,7 @@ jobs:
       - name: Prepare the plugins tar.gz package
         shell: bash
         run: |
+          export LD_LIBRARY_PATH=$(pwd)/FFmpeg-n6.0/output/lib:$LD_LIBRARY_PATH
           plugin_array=(${tar_names})
           outbin_array=(${output_bins})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
@@ -388,6 +389,7 @@ jobs:
       - name: Prepare the plugins tar.gz package
         shell: bash
         run: |
+          export LD_LIBRARY_PATH=$(pwd)/FFmpeg-n6.0/output/lib:$LD_LIBRARY_PATH
           plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.asset_tag }}})
           outbin_array=(${output_bins_all_platforms} ${output_bins_${{ matrix.asset_tag }}})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
@@ -454,8 +456,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv plugin_wasmedge_ffmpeg.tar.gz WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz --clobber
+          mv plugin_wasmedge_ffmpeg.tar.gz WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.create_release.outputs.version }}-${{ matrix.asset_tag }}.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.create_release.outputs.version }}-${{ matrix.asset_tag }}.tar.gz --clobber
 
   build_and_upload_plugin_macos:
     strategy:

@@ -231,6 +231,7 @@ jobs:
       - name: Test plugins
         shell: bash
         run: |
+          export LD_LIBRARY_PATH=$(pwd)/FFmpeg-n6.0/output/lib:$LD_LIBRARY_PATH 
           plugin_array=(${tar_names})
           testbin_array=(${test_bins})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
@@ -378,6 +379,7 @@ jobs:
       - name: Test plugins
         shell: bash
         run: |
+          export LD_LIBRARY_PATH=$(pwd)/FFmpeg-n6.0/output/lib:$LD_LIBRARY_PATH 
           plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.asset_tag }}})
           testbin_array=(${test_bins_all_platforms} ${test_bins_${{ matrix.asset_tag }}})
           for (( i=0; i<${#plugin_array[@]}; i++ ));

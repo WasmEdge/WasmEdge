@@ -86,11 +86,11 @@ Expect<int32_t> AVFilterGraphParsePtr::body(const Runtime::CallingFrame &Frame,
 }
 
 Expect<int32_t> AVFilterInOutFree::body(const Runtime::CallingFrame &,
-                                        uint32_t InoutId) {
+                                        uint32_t InOutId) {
 
-  FFMPEG_PTR_FETCH(InOuts, InoutId, AVFilterInOut);
-  avfilter_inout_free(&InOuts);
-  FFMPEG_PTR_DELETE(InoutId);
+  FFMPEG_PTR_FETCH(InOut, InOutId, AVFilterInOut);
+  avfilter_inout_free(&InOut);
+  FFMPEG_PTR_DELETE(InOutId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -185,17 +185,17 @@ Expect<int32_t> AVFilterGraphCreateFilter::body(
   return Res;
 }
 
-Expect<int32_t> AVFilterInoutAlloc::body(const Runtime::CallingFrame &Frame,
-                                         uint32_t InoutPtr) {
+Expect<int32_t> AVFilterInOutAlloc::body(const Runtime::CallingFrame &Frame,
+                                         uint32_t InOutPtr) {
 
   MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_PTR_CHECK(InoutId, MemInst, uint32_t, InoutPtr, "")
+  MEM_PTR_CHECK(InOutId, MemInst, uint32_t, InOutPtr, "")
 
-  FFMPEG_PTR_FETCH(Inout, *InoutId, AVFilterInOut);
-  Inout = avfilter_inout_alloc();
-  if (Inout == NULL)
+  FFMPEG_PTR_FETCH(InOut, *InOutId, AVFilterInOut);
+  InOut = avfilter_inout_alloc();
+  if (InOut == NULL)
     return static_cast<int32_t>(ErrNo::Success);
-  FFMPEG_PTR_STORE(Inout, InoutId);
+  FFMPEG_PTR_STORE(InOut, InOutId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 

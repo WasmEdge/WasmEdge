@@ -1,5 +1,8 @@
-
 #include "avInputOutputFormat.h"
+
+extern "C" {
+#include "libavformat/avformat.h"
+}
 
 namespace WasmEdge {
 namespace Host {

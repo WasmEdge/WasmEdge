@@ -150,7 +150,8 @@ Expect<int32_t> AVGetSampleFmtName::body(const Runtime::CallingFrame &Frame,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
-Expect<int32_t> AVGetSampleFmtMask::body(const Runtime::CallingFrame &,uint32_t SampleFmtId){
+Expect<int32_t> AVGetSampleFmtMask::body(const Runtime::CallingFrame &,
+                                         uint32_t SampleFmtId) {
 
   AVSampleFormat const SampleFmt =
       FFmpegUtils::SampleFmt::fromSampleID(SampleFmtId);

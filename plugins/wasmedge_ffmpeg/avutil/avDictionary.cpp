@@ -35,7 +35,7 @@ Expect<int32_t> AVDictSet::body(const Runtime::CallingFrame &Frame,
     FFMPEG_PTR_FETCH(AvDict, *DictId, AVDictionary *);
     Res = av_dict_set(AvDict, Key.c_str(), Value.c_str(), Flags);
   } else {
-    AVDictionary **AvDict = (AVDictionary **)malloc(sizeof(AVDictionary **));
+    AVDictionary **AvDict = (AVDictionary **)calloc(1, sizeof(AVDictionary *));
     Res = av_dict_set(AvDict, Key.c_str(), Value.c_str(), Flags);
     FFMPEG_PTR_STORE(AvDict, DictId);
   }
@@ -63,7 +63,7 @@ Expect<int32_t> AVDictCopy::body(const Runtime::CallingFrame &Frame,
     Res = av_dict_copy(DestAvDict, *SrcAvDict, Flags);
   } else {
     AVDictionary **DestAvDict =
-        (AVDictionary **)malloc(sizeof(AVDictionary **));
+        (AVDictionary **)calloc(1, sizeof(AVDictionary *));
     av_dict_copy(DestAvDict, *SrcAvDict, Flags);
     FFMPEG_PTR_STORE(DestAvDict, DestDictId);
   }

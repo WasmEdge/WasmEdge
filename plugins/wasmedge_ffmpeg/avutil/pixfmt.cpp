@@ -176,9 +176,8 @@ Expect<int32_t> AVPixelFormatName::body(const Runtime::CallingFrame &Frame,
   return static_cast<int32_t>(ErrNo::Success);
 }
 
-Expect<int32_t>
-AVPixelFormatMask::body(const Runtime::CallingFrame &,
-                   uint32_t PixFormatId) {
+Expect<int32_t> AVPixelFormatMask::body(const Runtime::CallingFrame &,
+                                        uint32_t PixFormatId) {
   AVPixelFormat const PixelFormat =
       FFmpegUtils::PixFmt::intoAVPixFmt(PixFormatId);
   return static_cast<int32_t>(PixelFormat);

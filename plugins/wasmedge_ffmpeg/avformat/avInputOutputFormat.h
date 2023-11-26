@@ -2,10 +2,6 @@
 #include "avformat_base.h"
 #include "runtime/callingframe.h"
 
-extern "C" {
-#include "libavformat/avformat.h"
-}
-
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {

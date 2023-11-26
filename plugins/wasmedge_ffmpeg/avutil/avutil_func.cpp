@@ -62,37 +62,38 @@ AVGetChannelLayoutNbChannels::body(const Runtime::CallingFrame &,
 }
 
 Expect<int32_t> AVGetChannelLayoutNameLen::body(const Runtime::CallingFrame &,
-                     uint64_t ChannelLayoutId){
+                                                uint64_t ChannelLayoutId) {
 
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
-  const char* ChName = av_get_channel_name(ChannelLayout);
-  if(ChName == NULL)
+  const char *ChName = av_get_channel_name(ChannelLayout);
+  if (ChName == NULL)
     return 0;
   return strlen(ChName);
 }
 
 Expect<int32_t> AVGetChannelLayoutName::body(const Runtime::CallingFrame &Frame,
-                     uint64_t ChannelLayoutId,uint32_t NamePtr,uint32_t NameLen){
+                                             uint64_t ChannelLayoutId,
+                                             uint32_t NamePtr,
+                                             uint32_t NameLen) {
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(Name, MemInst, char, NamePtr, NameLen, "");
 
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
-  const char* ChName = av_get_channel_name(ChannelLayout);
-  memmove(Name.data(),ChName,NameLen);
+  const char *ChName = av_get_channel_name(ChannelLayout);
+  memmove(Name.data(), ChName, NameLen);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<uint64_t> AVGetChannelLayoutMask::body(const Runtime::CallingFrame &,
-                     uint64_t ChannelLayoutId){
+                                              uint64_t ChannelLayoutId) {
 
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
   return ChannelLayout;
 }
-
 
 Expect<uint64_t> AVGetDefaultChannelLayout::body(const Runtime::CallingFrame &,
                                                  int32_t Number) {

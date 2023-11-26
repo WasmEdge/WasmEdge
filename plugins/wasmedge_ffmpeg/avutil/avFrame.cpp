@@ -356,8 +356,7 @@ Expect<int32_t> AVFrameMetadata::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
 
-  AVDictionary **AvDictionary =
-      (AVDictionary **)malloc(sizeof(AVDictionary **));
+  AVDictionary **AvDictionary = (AVDictionary **)malloc(sizeof(AVDictionary *));
 
   *AvDictionary = AvFrame->metadata;
   FFMPEG_PTR_STORE(AvDictionary, DictId);

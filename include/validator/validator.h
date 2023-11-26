@@ -27,7 +27,7 @@ namespace Validator {
 /// Validator flow control class.
 class Validator {
 public:
-  Validator(const Configure &Conf) noexcept : Conf(Conf) {}
+  Validator(const Configure &C) noexcept : Conf(C) {}
   ~Validator() noexcept = default;
 
   /// Validate AST::Component.

@@ -80,7 +80,7 @@ private:
       add_option("help"sv, *HelpOpt);
     }
     SubCommandDescriptor(SubCommand &SC) noexcept : SubCommandDescriptor() {
-      this->SC = &SC;
+      this->SubCmd = &SC;
     }
 
     template <typename... ArgsT>
@@ -179,7 +179,7 @@ private:
     consume_argument(ArgumentDescriptor &CurrentDesc,
                      std::string_view Argument) noexcept;
 
-    SubCommand *SC = nullptr;
+    SubCommand *SubCmd = nullptr;
     std::vector<std::string_view> SubCommandNames;
     std::vector<const char *> ProgramNames;
     std::vector<ArgumentDescriptor> ArgumentDescriptors;

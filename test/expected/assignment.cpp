@@ -77,7 +77,7 @@ TEST(AssignmentTest, AssignmentDeletion) {
 TEST(AssignmentTest, AssignmentThrowRecovery) {
   struct throw_move {
     int v;
-    throw_move(int v) noexcept : v(v) {}
+    throw_move(int val) noexcept : v(val) {}
     throw_move(const throw_move &) noexcept = default;
     [[noreturn]] throw_move(throw_move &&) noexcept(false) { throw 0; }
     throw_move &operator=(const throw_move &) noexcept = default;

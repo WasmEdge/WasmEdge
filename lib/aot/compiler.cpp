@@ -319,7 +319,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   LLVM::Type IntrinsicsTableTy;
   LLVM::Type IntrinsicsTablePtrTy;
   LLVM::Message SubtargetFeatures;
-  bool IsCustomSection;
+  bool CustomSection;
 
 #if defined(__x86_64__)
 #if defined(__XOP__)
@@ -412,7 +412,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
             Int8PtrTy,
             static_cast<uint32_t>(AST::Module::Intrinsics::kIntrinsicMax))),
         IntrinsicsTablePtrTy(IntrinsicsTableTy.getPointerTo()),
-        IsCustomSection(IsCustomSection),
+        CustomSection(IsCustomSection),
         IntrinsicsTable(LLModule.addGlobal(IntrinsicsTablePtrTy, true,
                                            LLVMExternalLinkage, LLVM::Value(),
                                            "intrinsics")) {
@@ -653,28 +653,28 @@ class FunctionCompiler {
   struct Control;
 
 public:
-  FunctionCompiler(AOT::Compiler::CompileContext &Context,
-                   LLVM::FunctionCallee F, Span<const ValType> Locals,
-                   bool Interruptible, bool InstructionCounting,
-                   bool GasMeasuring, bool OptNone) noexcept
-      : Context(Context), LLContext(Context.LLContext),
-        Interruptible(Interruptible), OptNone(OptNone), F(F),
-        Builder(LLContext) {
-    if (F.Fn) {
-      Builder.positionAtEnd(LLVM::BasicBlock::create(LLContext, F.Fn, "entry"));
-      ExecCtx = Builder.createLoad(Context.ExecCtxTy, F.Fn.getFirstParam());
+  FunctionCompiler(AOT::Compiler::CompileContext &Cxt, LLVM::FunctionCallee FC,
+                   Span<const ValType> Locals, bool IsInterruptible,
+                   bool InstructionCounting, bool GasMeasuring,
+                   bool IsOptNone) noexcept
+      : Context(Cxt), LLContext(Cxt.LLContext), Interruptible(IsInterruptible),
+        OptNone(IsOptNone), F(FC), Builder(LLContext) {
+    if (FC.Fn) {
+      Builder.positionAtEnd(
+          LLVM::BasicBlock::create(LLContext, FC.Fn, "entry"));
+      ExecCtx = Builder.createLoad(Cxt.ExecCtxTy, FC.Fn.getFirstParam());
 
       if (InstructionCounting) {
-        LocalInstrCount = Builder.createAlloca(Context.Int64Ty);
+        LocalInstrCount = Builder.createAlloca(Cxt.Int64Ty);
         Builder.createStore(LLContext.getInt64(0), LocalInstrCount);
       }
 
       if (GasMeasuring) {
-        LocalGas = Builder.createAlloca(Context.Int64Ty);
+        LocalGas = Builder.createAlloca(Cxt.Int64Ty);
         Builder.createStore(LLContext.getInt64(0), LocalGas);
       }
 
-      for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam(); Arg;
+      for (LLVM::Value Arg = FC.Fn.getFirstParam().getNextParam(); Arg;
            Arg = Arg.getNextParam()) {
         LLVM::Type Ty = Arg.getType();
         LLVM::Value ArgPtr = Builder.createAlloca(Ty);
@@ -5227,9 +5227,9 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
                             Conf.getCompilerConfigure().getOutputFormat() ==
                                 CompilerConfigure::OutputFormat::Wasm);
   struct RAIICleanup {
-    RAIICleanup(CompileContext *&Context, CompileContext &NewContext)
-        : Context(Context) {
-      Context = &NewContext;
+    RAIICleanup(CompileContext *&Ctx, CompileContext &NewContext)
+        : Context(Ctx) {
+      Ctx = &NewContext;
     }
     ~RAIICleanup() { Context = nullptr; }
     CompileContext *&Context;
@@ -5275,7 +5275,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   }
 #endif
 
-  if (!Context->IsCustomSection) {
+  if (!Context->CustomSection) {
     // create wasm.code and wasm.size
     auto Int32Ty = Context->Int32Ty;
     auto Content = LLVM::Value::getConstString(
@@ -5405,7 +5405,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       return Unexpect(ErrCode::Value::IllegalPath);
     }
 
-    if (Context->IsCustomSection) {
+    if (Context->CustomSection) {
       if (auto Res = outputWasmLibrary(OutputPath, Data, OSVec);
           unlikely(!Res)) {
         return Unexpect(Res);
@@ -5554,13 +5554,13 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
           toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
       auto RTy = FTy.getReturnType();
       const auto Linkage =
-          Context->IsCustomSection ? LLVMPrivateLinkage : LLVMExternalLinkage;
+          Context->CustomSection ? LLVMPrivateLinkage : LLVMExternalLinkage;
       auto F = LLVM::FunctionCallee{
           FTy, Context->LLModule.addFunction(
                    FTy, Linkage, fmt::format("f{}"sv, FuncID).c_str())};
       F.Fn.setVisibility(LLVMProtectedVisibility);
       F.Fn.setDSOLocal(true);
-      if (!Context->IsCustomSection) {
+      if (!Context->CustomSection) {
         F.Fn.setDLLStorageClass(LLVMDLLExportStorageClass);
       }
       F.Fn.addFnAttr(Context->NoStackArgProbe);

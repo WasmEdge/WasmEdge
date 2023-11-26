@@ -21,11 +21,12 @@ struct Param {
   std::vector<int> C;
   std::vector<const char *> F;
   std::vector<const char *> Args;
-  Param(bool R, bool A, int B, std::vector<int> C, std::vector<const char *> F,
-        std::vector<const char *> Args)
-      : R(R), A(A), B(B), C(std::move(C)), F(std::move(F)),
-        Args(std::move(Args)) {}
-  Param(bool R, std::vector<const char *> Args) : R(R), Args(std::move(Args)) {}
+  Param(bool R_, bool A_, int B_, std::vector<int> C_,
+        std::vector<const char *> F_, std::vector<const char *> Args_)
+      : R(R_), A(A_), B(B_), C(std::move(C_)), F(std::move(F_)),
+        Args(std::move(Args_)) {}
+  Param(bool R_, std::vector<const char *> Args_)
+      : R(R_), Args(std::move(Args_)) {}
 };
 
 class GeneralOptions : public ::testing::TestWithParam<Param> {

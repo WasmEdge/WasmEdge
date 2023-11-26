@@ -61,7 +61,7 @@ cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
           if (auto Iter = SubCommandMap.find(Arg);
               Iter != SubCommandMap.end()) {
             auto &Child = this[Iter->second];
-            Child.SC->select();
+            Child.SubCmd->select();
             return Child.parse(Out, ProgramNames, Argc, Argv, ArgI, VersionOpt);
           }
         }
@@ -188,7 +188,7 @@ void ArgumentParser::SubCommandDescriptor::help(std::FILE *Out) const noexcept {
         First = false;
       }
       fmt::print(Out, "{}\n"sv, RESET_COLOR);
-      indent_output(Out, kIndent, 2, 80, this[Offset].SC->description());
+      indent_output(Out, kIndent, 2, 80, this[Offset].SubCmd->description());
       fmt::print(Out, "\n"sv);
     }
     fmt::print(Out, "\n"sv);

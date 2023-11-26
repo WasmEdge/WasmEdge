@@ -5,11 +5,11 @@
 #include <type_traits>
 
 struct no_throw {
-  no_throw(std::string i) : i(i) {}
+  no_throw(std::string s) : i(s) {}
   std::string i;
 };
 struct canthrow_move {
-  canthrow_move(std::string i) : i(i) {}
+  canthrow_move(std::string s) : i(s) {}
   canthrow_move(canthrow_move const &) = default;
   canthrow_move(canthrow_move &&other) noexcept(false) : i(other.i) {}
   canthrow_move &operator=(canthrow_move &&) = default;
@@ -17,7 +17,7 @@ struct canthrow_move {
 };
 
 template <bool should_throw = false> struct willthrow_move {
-  willthrow_move(std::string i) : i(i) {}
+  willthrow_move(std::string s) : i(s) {}
   willthrow_move(willthrow_move const &) = default;
   willthrow_move(willthrow_move &&other) : i(other.i) {
     if (should_throw)

@@ -78,9 +78,9 @@ inline ASTNodeAttr NodeAttrFromAST<AST::DataCountSection>() noexcept {
 /// Loader flow control class.
 class Loader {
 public:
-  Loader(const Configure &Conf,
+  Loader(const Configure &C,
          const AST::Module::IntrinsicsTable *IT = nullptr) noexcept
-      : Conf(Conf), LMgr(IT), IntrinsicsTable(IT) {}
+      : Conf(C), LMgr(IT), IntrinsicsTable(IT) {}
   ~Loader() noexcept = default;
 
   /// Load data from file path.

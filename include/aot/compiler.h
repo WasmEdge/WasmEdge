@@ -27,7 +27,7 @@ namespace AOT {
 /// Compiling Module into loadable executable binary.
 class Compiler {
 public:
-  Compiler(const Configure &Conf) noexcept : Context(nullptr), Conf(Conf) {}
+  Compiler(const Configure &C) noexcept : Context(nullptr), Conf(C) {}
 
   Expect<void> compile(Span<const Byte> Data, const AST::Module &Module,
                        std::filesystem::path OutputPath) noexcept;

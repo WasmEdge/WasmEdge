@@ -30,7 +30,8 @@ TEST(SerializeSegmentTest, SerializeGlobalSegment) {
       WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
   GlobalSec.getContent() = {GlobalSeg};
 
-  Output = *Ser.serializeSection(GlobalSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(GlobalSec, Output));
   Expected = {
       0x06U,       // Global section
       0x04U,       // Content size = 4
@@ -49,7 +50,8 @@ TEST(SerializeSegmentTest, SerializeGlobalSegment) {
       WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
   GlobalSec.getContent() = {GlobalSeg};
 
-  Output = *Ser.serializeSection(GlobalSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(GlobalSec, Output));
   Expected = {
       0x06U,                     // Global section
       0x07U,                     // Content size = 7
@@ -104,7 +106,8 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSeg.getExpr().getInstrs() = {End};
   ElementSec.getContent() = {ElementSeg};
 
-  Output = *Ser.serializeSection(ElementSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
   Expected = {
       0x09U, // Element section
       0x04U, // Content size = 4
@@ -131,7 +134,8 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSeg.getInitExprs().back().getInstrs().emplace_back(std::move(End));
   ElementSec.getContent() = {ElementSeg};
 
-  Output = *Ser.serializeSection(ElementSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
   Expected = {
       0x09U,                             // Element section
       0x0FU,                             // Content size = 15
@@ -149,7 +153,8 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSeg.getExpr().getInstrs().clear();
   ElementSec.getContent() = {ElementSeg};
 
-  Output = *Ser.serializeSection(ElementSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
   Expected = {
       0x09U,                             // Element section
       0x0CU,                             // Content size = 12
@@ -168,7 +173,8 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSeg.getExpr().getInstrs() = {I32Eqz, I32Eq, I32Ne, End};
   ElementSec.getContent() = {ElementSeg};
 
-  Output = *Ser.serializeSection(ElementSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
   Expected = {
       0x09U,                             // Element section
       0x11U,                             // Content size = 17
@@ -189,7 +195,8 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSeg.getExpr().getInstrs().clear();
   ElementSec.getContent() = {ElementSeg};
 
-  Output = *Ser.serializeSection(ElementSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
   Expected = {
       0x09U,                             // Element section
       0x0CU,                             // Content size = 12
@@ -208,7 +215,8 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSeg.getExpr().getInstrs().clear();
   ElementSec.getContent() = {ElementSeg};
 
-  Output = *Ser.serializeSection(ElementSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
   Expected = {
       0x09U,                             // Element section
       0x0CU,                             // Content size = 12
@@ -229,7 +237,8 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSeg.getInitExprs().back().getInstrs() = {I32Eqz, I32Eq, I32Ne, End};
   ElementSec.getContent() = {ElementSeg};
 
-  Output = *Ser.serializeSection(ElementSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
   Expected = {
       0x09U,                      // Element section
       0x0BU,                      // Content size = 11
@@ -246,7 +255,8 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSeg.setRefType(WasmEdge::RefType::ExternRef);
   ElementSec.getContent() = {ElementSeg};
 
-  Output = *Ser.serializeSection(ElementSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
   Expected = {
       0x09U,                      // Element section
       0x08U,                      // Content size = 8
@@ -263,7 +273,8 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSeg.getExpr().getInstrs() = {I32Eqz, I32Eq, I32Ne, End};
   ElementSec.getContent() = {ElementSeg};
 
-  Output = *Ser.serializeSection(ElementSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
   Expected = {
       0x09U,                      // Element section
       0x0DU,                      // Content size = 13
@@ -282,7 +293,8 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSeg.getExpr().getInstrs().clear();
   ElementSec.getContent() = {ElementSeg};
 
-  Output = *Ser.serializeSection(ElementSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
   Expected = {
       0x09U,                      // Element section
       0x08U,                      // Content size = 8
@@ -294,7 +306,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   };
   EXPECT_EQ(Output, Expected);
 
-  EXPECT_FALSE(SerNoRefType.serializeSection(ElementSec));
+  EXPECT_FALSE(SerNoRefType.serializeSection(ElementSec, Output));
 }
 
 TEST(SerializeSegmentTest, SerializeCodeSegment) {
@@ -326,7 +338,8 @@ TEST(SerializeSegmentTest, SerializeCodeSegment) {
   CodeSeg.getExpr().getInstrs() = {End};
   CodeSec.getContent() = {CodeSeg};
 
-  Output = *Ser.serializeSection(CodeSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(CodeSec, Output));
   Expected = {
       0x0AU, // Code section
       0x04U, // Content size = 4
@@ -345,7 +358,8 @@ TEST(SerializeSegmentTest, SerializeCodeSegment) {
   CodeSeg.getExpr().getInstrs() = {I32Eqz, I32Eq, I32Ne, End};
   CodeSec.getContent() = {CodeSeg};
 
-  Output = *Ser.serializeSection(CodeSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(CodeSec, Output));
   Expected = {
       0x0AU,                             // Code section
       0x15U,                             // Content size = 21
@@ -362,7 +376,7 @@ TEST(SerializeSegmentTest, SerializeCodeSegment) {
 
   CodeSeg.getLocals() = {{0x01U, WasmEdge::ValType::ExternRef}};
   CodeSec.getContent() = {CodeSeg};
-  EXPECT_FALSE(SerNoRefType.serializeSection(CodeSec));
+  EXPECT_FALSE(SerNoRefType.serializeSection(CodeSec, Output));
 }
 
 TEST(SerializeSegmentTest, SerializeDataSegment) {
@@ -395,7 +409,8 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
   DataSeg.getExpr().getInstrs() = {End};
   DataSec.getContent() = {DataSeg};
 
-  Output = *Ser.serializeSection(DataSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(DataSec, Output));
   Expected = {
       0x0BU, // Data section
       0x04U, // Content size = 4
@@ -411,7 +426,8 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
   DataSeg.getData() = {'t', 'e', 's', 't'};
   DataSec.getContent() = {DataSeg};
 
-  Output = *Ser.serializeSection(DataSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(DataSec, Output));
   Expected = {
       0x0BU,                            // Data section
       0x0BU,                            // Content size = 11
@@ -426,7 +442,8 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
   DataSeg.getExpr().getInstrs().clear();
   DataSec.getContent() = {DataSeg};
 
-  Output = *Ser.serializeSection(DataSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(DataSec, Output));
   Expected = {
       0x0BU,                            // Data section
       0x07U,                            // Content size = 7
@@ -441,7 +458,8 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
   DataSeg.getExpr().getInstrs() = {I32Eqz, I32Eq, I32Ne, End};
   DataSec.getContent() = {DataSeg};
 
-  Output = *Ser.serializeSection(DataSec);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(DataSec, Output));
   Expected = {
       0x0BU,                            // Data section
       0x0CU,                            // Content size = 12
@@ -453,6 +471,6 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
   };
   EXPECT_EQ(Output, Expected);
 
-  EXPECT_FALSE(SerNoRefType.serializeSection(DataSec));
+  EXPECT_FALSE(SerNoRefType.serializeSection(DataSec, Output));
 }
 } // namespace

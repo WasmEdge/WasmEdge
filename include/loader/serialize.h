@@ -34,32 +34,32 @@ public:
 
   /// \name Serialize functions for WASM sections.
   /// @{
-  Expect<std::vector<uint8_t>>
-  serializeSection(const AST::CustomSection &Sec) const noexcept;
-  Expect<std::vector<uint8_t>>
-  serializeSection(const AST::TypeSection &Sec) const noexcept;
-  Expect<std::vector<uint8_t>>
-  serializeSection(const AST::ImportSection &Sec) const noexcept;
-  Expect<std::vector<uint8_t>>
-  serializeSection(const AST::FunctionSection &Sec) const noexcept;
-  Expect<std::vector<uint8_t>>
-  serializeSection(const AST::TableSection &Sec) const noexcept;
-  Expect<std::vector<uint8_t>>
-  serializeSection(const AST::MemorySection &Sec) const noexcept;
-  Expect<std::vector<uint8_t>>
-  serializeSection(const AST::GlobalSection &Sec) const noexcept;
-  Expect<std::vector<uint8_t>>
-  serializeSection(const AST::ExportSection &Sec) const noexcept;
-  Expect<std::vector<uint8_t>>
-  serializeSection(const AST::StartSection &Sec) const noexcept;
-  Expect<std::vector<uint8_t>>
-  serializeSection(const AST::ElementSection &Sec) const noexcept;
-  Expect<std::vector<uint8_t>>
-  serializeSection(const AST::CodeSection &Sec) const noexcept;
-  Expect<std::vector<uint8_t>>
-  serializeSection(const AST::DataSection &Sec) const noexcept;
-  Expect<std::vector<uint8_t>>
-  serializeSection(const AST::DataCountSection &Sec) const noexcept;
+  Expect<void> serializeSection(const AST::CustomSection &Sec,
+                                std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeSection(const AST::TypeSection &Sec,
+                                std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeSection(const AST::ImportSection &Sec,
+                                std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeSection(const AST::FunctionSection &Sec,
+                                std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeSection(const AST::TableSection &Sec,
+                                std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeSection(const AST::MemorySection &Sec,
+                                std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeSection(const AST::GlobalSection &Sec,
+                                std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeSection(const AST::ExportSection &Sec,
+                                std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeSection(const AST::StartSection &Sec,
+                                std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeSection(const AST::ElementSection &Sec,
+                                std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeSection(const AST::CodeSection &Sec,
+                                std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeSection(const AST::DataSection &Sec,
+                                std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeSection(const AST::DataCountSection &Sec,
+                                std::vector<uint8_t> &OutVec) const noexcept;
   /// @}
 
 private:
@@ -172,7 +172,7 @@ private:
     uint32_t Len = 0;
     bool More = true;
     while (More) {
-      uint8_t X = std::make_unsigned_t<NumType>(Num) & 0x7FU;
+      uint8_t X = static_cast<std::make_unsigned_t<NumType>>(Num) & 0x7FU;
       Num >>= 7;
       if ((Num == 0 && !(X & 0x40)) || (Num == -1 && X & 0x40)) {
         More = false;
@@ -195,27 +195,36 @@ private:
     serializeSN<int64_t, 64>(Num, OutVec);
   }
 
-  template <typename NumType, size_t N>
-  void serializeFN(NumType Num, std::vector<uint8_t> &OutVec) const noexcept {
-    const uint8_t *Ptr = reinterpret_cast<const uint8_t *>(&Num);
-    OutVec.insert(OutVec.end(), Ptr, Ptr + N / 8);
+  template <typename NumType, typename IntType>
+  typename std::enable_if_t<
+      sizeof(NumType) == sizeof(IntType) && std::is_integral_v<IntType>, void>
+  serializeFN(NumType Num, std::vector<uint8_t> &OutVec) const noexcept {
+    std::make_unsigned_t<IntType> Buf = 0;
+    std::memcpy(&Buf, &Num, sizeof(NumType));
+    // Forcing convert into little endian.
+    for (uint32_t I = 0; I < sizeof(NumType); I++) {
+      OutVec.push_back(static_cast<uint8_t>(Buf & 0xFFU));
+      Buf = Buf >> 8;
+    }
   }
 
   void serializeF32(float Num, std::vector<uint8_t> &OutVec) const noexcept {
-    serializeFN<float, 32>(Num, OutVec);
+    serializeFN<float, uint32_t>(Num, OutVec);
   }
   void serializeF64(double Num, std::vector<uint8_t> &OutVec) const noexcept {
-    serializeFN<double, 64>(Num, OutVec);
+    serializeFN<double, uint64_t>(Num, OutVec);
   }
 
   template <typename T, typename L>
-  Expect<std::vector<uint8_t>>
-  serializeSectionContent(const T &Sec, uint8_t Code, L &&Func) const noexcept {
+  Expect<void> serializeSectionContent(const T &Sec, uint8_t Code,
+                                       std::vector<uint8_t> &OutVec,
+                                       L &&Func) const noexcept {
     // Section: section_id + size:u32 + content.
     auto Content = Sec.getContent();
     if (Content.size()) {
       // Section ID.
-      std::vector<uint8_t> OutVec = {Code};
+      OutVec.push_back(Code);
+      auto OrgSize = OutVec.size();
       // Content: vec(T).
       serializeU32(static_cast<uint32_t>(Content.size()), OutVec);
       for (const auto &Item : Content) {
@@ -224,9 +233,8 @@ private:
         }
       }
       // Backward insert the section size.
-      serializeU32(static_cast<uint32_t>(OutVec.size()) - 1, OutVec,
-                   std::next(OutVec.begin(), 1));
-      return OutVec;
+      serializeU32(static_cast<uint32_t>(OutVec.size() - OrgSize), OutVec,
+                   std::next(OutVec.begin(), static_cast<ptrdiff_t>(OrgSize)));
     }
     return {};
   }

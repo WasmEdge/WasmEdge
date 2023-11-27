@@ -211,7 +211,7 @@ Loader::parseModule(Span<const uint8_t> Code) {
 
 // Serialize module into byte code. See "include/loader/loader.h".
 Expect<std::vector<Byte>> Loader::serializeModule(const AST::Module &Mod) {
-  return SLZer.serializeModule(Mod);
+  return Ser.serializeModule(Mod);
 }
 
 } // namespace Loader

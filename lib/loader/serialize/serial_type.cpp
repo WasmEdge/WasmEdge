@@ -21,8 +21,8 @@ Serializer::serializeLimit(const AST::Limit &Lim,
   if (Lim.hasMax()) {
     Flag |= 0x01U;
   }
-  if (static_cast<AST::Limit::LimitType>(Flag) ==
-      AST::Limit::LimitType::SharedNoMax) {
+  if (unlikely(static_cast<AST::Limit::LimitType>(Flag) ==
+               AST::Limit::LimitType::SharedNoMax)) {
     if (Conf.hasProposal(Proposal::Threads)) {
       return logSerializeError(ErrCode::Value::SharedMemoryNoMax,
                                ASTNodeAttr::Type_Limit);
@@ -49,7 +49,7 @@ Serializer::serializeType(const AST::FunctionType &Type,
   serializeU32(static_cast<uint32_t>(Type.getParamTypes().size()), OutVec);
   for (auto &VType : Type.getParamTypes()) {
     if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Type_Function);
-        !Check) {
+        unlikely(!Check)) {
       return Unexpect(Check);
     }
     OutVec.push_back(static_cast<uint8_t>(VType));
@@ -63,7 +63,7 @@ Serializer::serializeType(const AST::FunctionType &Type,
   serializeU32(static_cast<uint32_t>(Type.getReturnTypes().size()), OutVec);
   for (auto &VType : Type.getReturnTypes()) {
     if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Type_Function);
-        !Check) {
+        unlikely(!Check)) {
       return Unexpect(Check);
     }
     OutVec.push_back(static_cast<uint8_t>(VType));
@@ -78,11 +78,11 @@ Serializer::serializeType(const AST::TableType &Type,
   // Table type: elemtype:valtype + limit.
   if (auto Check =
           checkRefTypeProposals(Type.getRefType(), ASTNodeAttr::Type_Table);
-      !Check) {
+      unlikely(!Check)) {
     return Unexpect(Check);
   }
   OutVec.push_back(static_cast<uint8_t>(Type.getRefType()));
-  if (auto Res = serializeLimit(Type.getLimit(), OutVec); !Res) {
+  if (auto Res = serializeLimit(Type.getLimit(), OutVec); unlikely(!Res)) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Table));
     return Unexpect(Res);
   }
@@ -94,7 +94,7 @@ Expect<void>
 Serializer::serializeType(const AST::MemoryType &Type,
                           std::vector<uint8_t> &OutVec) const noexcept {
   // Memory type: limit.
-  if (auto Res = serializeLimit(Type.getLimit(), OutVec); !Res) {
+  if (auto Res = serializeLimit(Type.getLimit(), OutVec); unlikely(!Res)) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Memory));
     return Unexpect(Res);
   }
@@ -108,7 +108,7 @@ Serializer::serializeType(const AST::GlobalType &Type,
   // Global type: valtype + valmut.
   if (auto Check =
           checkValTypeProposals(Type.getValType(), ASTNodeAttr::Type_Global);
-      !Check) {
+      unlikely(!Check)) {
     return Unexpect(Check);
   }
   OutVec.push_back(static_cast<uint8_t>(Type.getValType()));

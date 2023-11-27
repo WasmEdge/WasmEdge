@@ -486,7 +486,8 @@ TEST(APICoreTest, Value) {
   Val = WasmEdge_ValueGenF32(std::numeric_limits<float>::infinity());
   EXPECT_EQ(WasmEdge_ValueGetF32(Val), std::numeric_limits<float>::infinity());
   Val = WasmEdge_ValueGenF64(-std::numeric_limits<double>::infinity());
-  EXPECT_EQ(WasmEdge_ValueGetF64(Val), -std::numeric_limits<double>::infinity());
+  EXPECT_EQ(WasmEdge_ValueGetF64(Val),
+            -std::numeric_limits<double>::infinity());
 #if defined(__x86_64__) || defined(__aarch64__)
   Val = WasmEdge_ValueGenV128(static_cast<int128_t>(INT64_MAX) * 2 + 1);
   EXPECT_EQ(WasmEdge_ValueGetV128(Val),
@@ -540,6 +541,31 @@ TEST(APICoreTest, String) {
   WasmEdge_StringDelete(Str1);
   WasmEdge_StringDelete(Str2);
   WasmEdge_StringDelete(Str3);
+}
+
+TEST(APICoreTest, Bytes) {
+  // Test to delete nullptr.
+  WasmEdge_Bytes Buf = {/* Length */ 0, /* Buf */ nullptr};
+  WasmEdge_BytesDelete(Buf);
+  EXPECT_TRUE(true);
+  // Test buffers.
+  const uint8_t CBuf[] = {'t', 'e', 's', 't', '_', 'b', 'u', 'f'};
+  WasmEdge_Bytes Buf1 = WasmEdge_BytesCreate(CBuf, 8U);
+  EXPECT_EQ(Buf1.Length, 8U);
+  EXPECT_NE(Buf1.Buf, nullptr);
+  WasmEdge_Bytes Buf2 = WasmEdge_BytesCreate(nullptr, 0U);
+  EXPECT_EQ(Buf2.Length, 0U);
+  EXPECT_EQ(Buf2.Buf, nullptr);
+  WasmEdge_Bytes Buf3 = WasmEdge_BytesCreate(CBuf, 0U);
+  EXPECT_EQ(Buf3.Length, 0U);
+  EXPECT_EQ(Buf3.Buf, nullptr);
+  WasmEdge_Bytes Buf4 = WasmEdge_BytesCreate(nullptr, 8U);
+  EXPECT_EQ(Buf4.Length, 0U);
+  EXPECT_EQ(Buf4.Buf, nullptr);
+  WasmEdge_Bytes Buf5 = WasmEdge_BytesWrap(CBuf, 8U);
+  EXPECT_EQ(Buf5.Length, 8U);
+  EXPECT_EQ(Buf5.Buf, CBuf);
+  WasmEdge_BytesDelete(Buf1);
 }
 
 TEST(APICoreTest, Result) {
@@ -689,9 +715,10 @@ TEST(APICoreTest, FunctionType) {
 }
 
 TEST(APICoreTest, TableType) {
-  WasmEdge_Limit Lim1 = {/* HasMax */ true, /* Shared */ false, /* Min */ 10, /* Max */ 20};
-  WasmEdge_Limit Lim2 = {
-      /* HasMax */ false, /* Shared */ false, /* Min */ 30, /* Max */ 30};
+  WasmEdge_Limit Lim1 = {/* HasMax */ true, /* Shared */ false, /* Min */ 10,
+                         /* Max */ 20};
+  WasmEdge_Limit Lim2 = {/* HasMax */ false, /* Shared */ false, /* Min */ 30,
+                         /* Max */ 30};
   WasmEdge_TableTypeContext *TType =
       WasmEdge_TableTypeCreate(WasmEdge_RefType_ExternRef, Lim1);
   EXPECT_EQ(WasmEdge_TableTypeGetRefType(TType), WasmEdge_RefType_ExternRef);
@@ -709,9 +736,10 @@ TEST(APICoreTest, TableType) {
 }
 
 TEST(APICoreTest, MemoryType) {
-  WasmEdge_Limit Lim1 = {/* HasMax */ true, /* Shared */ false, /* Min */ 10, /* Max */ 20};
-  WasmEdge_Limit Lim2 = {
-      /* HasMax */ false, /* Shared */ false, /* Min */ 30, /* Max */ 30};
+  WasmEdge_Limit Lim1 = {/* HasMax */ true, /* Shared */ false, /* Min */ 10,
+                         /* Max */ 20};
+  WasmEdge_Limit Lim2 = {/* HasMax */ false, /* Shared */ false, /* Min */ 30,
+                         /* Max */ 30};
   WasmEdge_MemoryTypeContext *MType = WasmEdge_MemoryTypeCreate(Lim1);
   EXPECT_TRUE(WasmEdge_LimitIsEqual(WasmEdge_MemoryTypeGetLimit(MType), Lim1));
   EXPECT_FALSE(
@@ -745,9 +773,10 @@ TEST(APICoreTest, ImportType) {
   WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(nullptr);
 
   // Load AST module from buffer
-  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
-      Loader, &Mod, ImportWasm.data(),
-      static_cast<uint32_t>(ImportWasm.size()))));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBytes(
+      Loader, &Mod,
+      WasmEdge_BytesWrap(ImportWasm.data(),
+                         static_cast<uint32_t>(ImportWasm.size())))));
   EXPECT_NE(Mod, nullptr);
 
   // AST list imports
@@ -927,9 +956,10 @@ TEST(APICoreTest, ExportType) {
   WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(nullptr);
 
   // Load AST module from buffer
-  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
-      Loader, &Mod, ImportWasm.data(),
-      static_cast<uint32_t>(ImportWasm.size()))));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBytes(
+      Loader, &Mod,
+      WasmEdge_BytesWrap(ImportWasm.data(),
+                         static_cast<uint32_t>(ImportWasm.size())))));
   EXPECT_NE(Mod, nullptr);
 
   // AST list exports
@@ -1174,8 +1204,7 @@ TEST(APICoreTest, Compiler) {
                                             WasmEdge_CompilerOutputFormat_Wasm);
   Compiler = WasmEdge_CompilerCreate(Conf);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompileFromBuffer(
-      Compiler, FibonacciWasm.data(),
-      static_cast<uint32_t>(FibonacciWasm.size()), "fib_aot1.wasm")));
+      Compiler, FibonacciWasm.data(), FibonacciWasm.size(), "fib_aot1.wasm")));
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_CompilerCompile(Compiler, "fib_aot1.wasm", "fib_aot2.wasm")));
   EXPECT_TRUE(WasmEdge_ResultOK(
@@ -1891,7 +1920,8 @@ TEST(APICoreTest, Instance) {
   EXPECT_EQ(TabCxt, nullptr);
   TabType = WasmEdge_TableTypeCreate(
       WasmEdge_RefType_ExternRef,
-      WasmEdge_Limit{/* HasMax */ false, /* Shared */ false, /* Min */ 10, /* Max */ 10});
+      WasmEdge_Limit{/* HasMax */ false, /* Shared */ false, /* Min */ 10,
+                     /* Max */ 10});
   TabCxt = WasmEdge_TableInstanceCreate(TabType);
   WasmEdge_TableTypeDelete(TabType);
   EXPECT_NE(TabCxt, nullptr);
@@ -1899,7 +1929,8 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(true);
   TabType = WasmEdge_TableTypeCreate(
       WasmEdge_RefType_ExternRef,
-      WasmEdge_Limit{/* HasMax */ true, /* Shared */ false, /* Min */ 10, /* Max */ 20});
+      WasmEdge_Limit{/* HasMax */ true, /* Shared */ false, /* Min */ 10,
+                     /* Max */ 20});
   TabCxt = WasmEdge_TableInstanceCreate(TabType);
   WasmEdge_TableTypeDelete(TabType);
   EXPECT_NE(TabCxt, nullptr);
@@ -1966,15 +1997,15 @@ TEST(APICoreTest, Instance) {
   // Memory instance creation
   MemCxt = WasmEdge_MemoryInstanceCreate(nullptr);
   EXPECT_EQ(MemCxt, nullptr);
-  MemType = WasmEdge_MemoryTypeCreate(
-      WasmEdge_Limit{/* HasMax */ false, /* Shared */ false, /* Min */ 1, /* Max */ 1});
+  MemType = WasmEdge_MemoryTypeCreate(WasmEdge_Limit{
+      /* HasMax */ false, /* Shared */ false, /* Min */ 1, /* Max */ 1});
   MemCxt = WasmEdge_MemoryInstanceCreate(MemType);
   WasmEdge_MemoryTypeDelete(MemType);
   EXPECT_NE(MemCxt, nullptr);
   WasmEdge_MemoryInstanceDelete(MemCxt);
   EXPECT_TRUE(true);
-  MemType = WasmEdge_MemoryTypeCreate(
-      WasmEdge_Limit{/* HasMax */ true, /* Shared */ false, /* Min */ 1, /* Max */ 3});
+  MemType = WasmEdge_MemoryTypeCreate(WasmEdge_Limit{
+      /* HasMax */ true, /* Shared */ false, /* Min */ 1, /* Max */ 3});
   MemCxt = WasmEdge_MemoryInstanceCreate(MemType);
   WasmEdge_MemoryTypeDelete(MemType);
   EXPECT_NE(MemCxt, nullptr);
@@ -2168,25 +2199,25 @@ TEST(APICoreTest, ModuleInstance) {
   WasmEdge_ModuleInstanceDelete(HostMod);
 
   // Create module instance with empty host data and finalizer
-  HostMod = WasmEdge_ModuleInstanceCreateWithData({/* Length */ 0, /* Buf */ nullptr},
-                                                  nullptr, nullptr);
+  HostMod = WasmEdge_ModuleInstanceCreateWithData(
+      {/* Length */ 0, /* Buf */ nullptr}, nullptr, nullptr);
   EXPECT_NE(HostMod, nullptr);
   EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), nullptr);
   WasmEdge_ModuleInstanceDelete(HostMod);
 
   // Create module instance with host data and finalizer
-  HostMod = WasmEdge_ModuleInstanceCreateWithData({/* Length */ 0, /* Buf */ nullptr},
-                                                  nullptr, HostFinalizer);
+  HostMod = WasmEdge_ModuleInstanceCreateWithData(
+      {/* Length */ 0, /* Buf */ nullptr}, nullptr, HostFinalizer);
   EXPECT_NE(HostMod, nullptr);
   EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), nullptr);
   WasmEdge_ModuleInstanceDelete(HostMod);
-  HostMod = WasmEdge_ModuleInstanceCreateWithData({/* Length */ 0, /* Buf */ nullptr},
-                                                  &HostName, nullptr);
+  HostMod = WasmEdge_ModuleInstanceCreateWithData(
+      {/* Length */ 0, /* Buf */ nullptr}, &HostName, nullptr);
   EXPECT_NE(HostMod, nullptr);
   EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), &HostName);
   WasmEdge_ModuleInstanceDelete(HostMod);
-  HostMod = WasmEdge_ModuleInstanceCreateWithData({/* Length */ 0, /* Buf */ nullptr},
-                                                  &HostName, HostFinalizer);
+  HostMod = WasmEdge_ModuleInstanceCreateWithData(
+      {/* Length */ 0, /* Buf */ nullptr}, &HostName, HostFinalizer);
   EXPECT_NE(HostMod, nullptr);
   EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), &HostName);
   WasmEdge_ModuleInstanceDelete(HostMod);
@@ -2217,8 +2248,8 @@ TEST(APICoreTest, ModuleInstance) {
   WasmEdge_StringDelete(HostName);
 
   // Add host table "table"
-  WasmEdge_Limit TabLimit = {
-      /* HasMax */ true, /* Shared */ false, /* Min */ 10, /* Max */ 20};
+  WasmEdge_Limit TabLimit = {/* HasMax */ true, /* Shared */ false,
+                             /* Min */ 10, /* Max */ 20};
   HostTType = WasmEdge_TableTypeCreate(WasmEdge_RefType_FuncRef, TabLimit);
   HostTable = WasmEdge_TableInstanceCreate(HostTType);
   EXPECT_NE(HostTable, nullptr);
@@ -2233,8 +2264,8 @@ TEST(APICoreTest, ModuleInstance) {
   WasmEdge_StringDelete(HostName);
 
   // Add host memory "memory"
-  WasmEdge_Limit MemLimit = {
-      /* HasMax */ true, /* Shared */ false, /* Min */ 1, /* Max */ 2};
+  WasmEdge_Limit MemLimit = {/* HasMax */ true, /* Shared */ false, /* Min */ 1,
+                             /* Max */ 2};
   HostMType = WasmEdge_MemoryTypeCreate(MemLimit);
   HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
   EXPECT_NE(HostMemory, nullptr);
@@ -2732,8 +2763,9 @@ TEST(APICoreTest, Async) {
   R[1] = WasmEdge_ValueGenI32(0);
   WasmEdge_VMCleanup(VM);
   WasmEdge_VMRegisterModuleFromImport(VM, HostMod);
-  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBuffer(
-      VM, ModName, Buf.data(), static_cast<uint32_t>(Buf.size()))));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBytes(
+      VM, ModName,
+      WasmEdge_BytesWrap(Buf.data(), static_cast<uint32_t>(Buf.size())))));
   // Success case
   Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
@@ -3280,8 +3312,9 @@ TEST(APICoreTest, VM) {
   WasmEdge_VMCleanup(VM);
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VM, HostMod)));
-  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBuffer(
-      VM, ModName, Buf.data(), static_cast<uint32_t>(Buf.size()))));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBytes(
+      VM, ModName,
+      WasmEdge_BytesWrap(Buf.data(), static_cast<uint32_t>(Buf.size())))));
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_VMExecuteRegistered(VM, ModName, FuncName, P, 2, R, 2)));
   EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
@@ -3342,8 +3375,9 @@ TEST(APICoreTest, VM) {
   EXPECT_EQ(WasmEdge_VMGetFunctionType(VM, FuncName2), nullptr);
 
   // VM get function type registered
-  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBuffer(
-      VM, ModName, Buf.data(), static_cast<uint32_t>(Buf.size()))));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBytes(
+      VM, ModName,
+      WasmEdge_BytesWrap(Buf.data(), static_cast<uint32_t>(Buf.size())))));
   EXPECT_NE(WasmEdge_VMGetFunctionTypeRegistered(VM, ModName, FuncName),
             nullptr);
   EXPECT_EQ(WasmEdge_VMGetFunctionTypeRegistered(nullptr, ModName, FuncName),

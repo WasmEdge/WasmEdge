@@ -36,7 +36,7 @@ enum class Sort {
 };
 
 // core:sortidx        ::= sort:<core:sort> idx:<u32>
-class SortIdx {
+class SortIndex {
 public:
   Sort getSort() const noexcept { return S; }
   Sort &getSort() noexcept { return S; }

@@ -91,7 +91,7 @@ Expect<void> Loader::loadCoreSort(AST::Sort &Sort) {
   return {};
 }
 
-Expect<void> Loader::loadSortIdx(AST::SortIdx &SortIdx) {
+Expect<void> Loader::loadSortIndex(AST::SortIndex &SortIdx) {
   if (auto Res = loadSort(SortIdx.getSort()); !Res) {
     return Unexpect(Res);
   }
@@ -103,7 +103,7 @@ Expect<void> Loader::loadSortIdx(AST::SortIdx &SortIdx) {
 
   return {};
 }
-Expect<void> Loader::loadCoreSortIdx(AST::SortIdx &SortIdx) {
+Expect<void> Loader::loadCoreSortIndex(AST::SortIndex &SortIdx) {
   if (auto Res = loadCoreSort(SortIdx.getSort()); !Res) {
     return Unexpect(Res);
   }

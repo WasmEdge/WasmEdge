@@ -38,7 +38,7 @@ Expect<void> Loader::loadInlineExport(AST::InlineExport &Exp) {
   } else {
     Exp.getName() = *Res;
   }
-  if (auto Res = loadCoreSortIdx(Exp.getSortIdx()); !Res) {
+  if (auto Res = loadCoreSortIndex(Exp.getSortIdx()); !Res) {
     return Unexpect(Res);
   }
 

@@ -48,7 +48,8 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.setExternalType(WasmEdge::ExternalType::Function);
   Desc.setExternalFuncTypeIdx(0x00U);
 
-  Output = *Ser.serializeSection(createImportSec(Desc));
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
   Expected = {
       0x02U,       // Import section
       0x05U,       // Content size = 5
@@ -64,7 +65,8 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.setExternalType(WasmEdge::ExternalType::Function);
   Desc.setExternalFuncTypeIdx(0x00U);
 
-  Output = *Ser.serializeSection(createImportSec(Desc));
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
   Expected = {
       0x02U,                                           // Import section
       0x0FU,                                           // Content size = 15
@@ -82,7 +84,8 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.getExternalTableType().getLimit().setType(
       WasmEdge::AST::Limit::LimitType::HasMinMax);
 
-  Output = *Ser.serializeSection(createImportSec(Desc));
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
   Expected = {
       0x02U,                                           // Import section
       0x1AU,                                           // Content size = 26
@@ -103,7 +106,8 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.getExternalMemoryType().getLimit().setType(
       WasmEdge::AST::Limit::LimitType::HasMinMax);
 
-  Output = *Ser.serializeSection(createImportSec(Desc));
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
   Expected = {
       0x02U,                                           // Import section
       0x19U,                                           // Content size = 25
@@ -121,7 +125,8 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.getExternalGlobalType().setValType(WasmEdge::ValType::F64);
   Desc.getExternalGlobalType().setValMut(WasmEdge::ValMut::Const);
 
-  Output = *Ser.serializeSection(createImportSec(Desc));
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
   Expected = {
       0x02U,                                           // Import section
       0x10U,                                           // Content size = 16
@@ -134,7 +139,7 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   EXPECT_EQ(Output, Expected);
 
   Desc.getExternalGlobalType().setValMut(WasmEdge::ValMut::Var);
-  EXPECT_FALSE(SerNoImpMutGlob.serializeSection(createImportSec(Desc)));
+  EXPECT_FALSE(SerNoImpMutGlob.serializeSection(createImportSec(Desc), Output));
 }
 
 TEST(SerializeDescriptionTest, SerializeExportDesc) {
@@ -152,7 +157,8 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   Desc.setExternalType(WasmEdge::ExternalType::Function);
   Desc.setExternalIndex(0x00U);
 
-  Output = *Ser.serializeSection(createExportSec(Desc));
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createExportSec(Desc), Output));
   Expected = {
       0x07U,       // Export section
       0x04U,       // Content size = 4
@@ -166,7 +172,8 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   Desc.setExternalType(WasmEdge::ExternalType::Function);
   Desc.setExternalIndex(0x00U);
 
-  Output = *Ser.serializeSection(createExportSec(Desc));
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createExportSec(Desc), Output));
   Expected = {
       0x07U,                                           // Export section
       0x0AU,                                           // Content size = 10
@@ -180,7 +187,8 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   Desc.setExternalType(WasmEdge::ExternalType::Table);
   Desc.setExternalIndex(0xFFFFFFFFU);
 
-  Output = *Ser.serializeSection(createExportSec(Desc));
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createExportSec(Desc), Output));
   Expected = {
       0x07U,                                           // Export section
       0x0EU,                                           // Content size = 14

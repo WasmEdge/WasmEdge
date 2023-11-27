@@ -44,7 +44,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   serializeOpCode(Instr.getOpCode(), OutVec);
 
   // Check with proposals.
-  if (auto Res = Conf.checkInstrProposals(Instr.getOpCode()); !Res) {
+  if (auto Res = Conf.checkInstrProposals(Instr.getOpCode()); unlikely(!Res)) {
     spdlog::error(Res.error().getErrCode());
     if (Res.error().isNeedProposal()) {
       spdlog::error(ErrInfo::InfoProposal(Res.error().getNeedProposal()));

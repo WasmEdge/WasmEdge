@@ -81,7 +81,7 @@ class Loader {
 public:
   Loader(const Configure &Conf,
          const AST::Module::IntrinsicsTable *IT = nullptr) noexcept
-      : Conf(Conf), SLZer(Conf), LMgr(IT), IntrinsicsTable(IT) {}
+      : Conf(Conf), Ser(Conf), LMgr(IT), IntrinsicsTable(IT) {}
   ~Loader() noexcept = default;
 
   /// Load data from file path.
@@ -261,7 +261,7 @@ private:
   /// \name Loader members
   /// @{
   const Configure Conf;
-  const Serializer SLZer;
+  const Serializer Ser;
   FileMgr FMgr;
   LDMgr LMgr;
   const AST::Module::IntrinsicsTable *IntrinsicsTable;

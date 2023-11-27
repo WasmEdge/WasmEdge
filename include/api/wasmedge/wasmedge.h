@@ -57,6 +57,12 @@ typedef struct WasmEdge_String {
   const char *Buf;
 } WasmEdge_String;
 
+/// WasmEdge bytes struct.
+typedef struct WasmEdge_Bytes {
+  uint32_t Length;
+  const uint8_t *Buf;
+} WasmEdge_Bytes;
+
 /// WasmEdge result struct.
 typedef struct WasmEdge_Result {
   uint32_t Code;
@@ -395,7 +401,7 @@ WasmEdge_ValueGetExternRef(const WasmEdge_Value Val);
 
 // <<<<<<<< WasmEdge value functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-// <<<<<<<< WasmEdge string functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// >>>>>>>> WasmEdge string functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_String with the C string.
 ///
@@ -417,7 +423,7 @@ WasmEdge_StringCreateByCString(const char *Str);
 /// The caller owns the object and should call `WasmEdge_StringDelete` to
 /// destroy it.
 ///
-/// \param Buf the buffer to copy into the WasmEdge_String object.
+/// \param Buf the buffer to wrap to the WasmEdge_String object.
 /// \param Len the buffer length.
 ///
 /// \returns string object. Length will be 0 and Buf will be NULL if failed or
@@ -471,7 +477,45 @@ WasmEdge_StringCopy(const WasmEdge_String Str, char *Buf, const uint32_t Len);
 /// \param Str the WasmEdge_String object to destroy.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_StringDelete(WasmEdge_String Str);
 
-// >>>>>>>> WasmEdge string functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// <<<<<<<< WasmEdge string functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge bytes functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_Bytes with the buffer and its length.
+///
+/// The caller owns the object and should call `WasmEdge_BytesDelete` to destroy
+/// it.
+///
+/// \param Buf the buffer to copy into the WasmEdge_Bytes object.
+/// \param Len the buffer length.
+///
+/// \returns bytes object. Length will be 0 and Buf will be NULL if failed or
+/// the input buffer is a NULL.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Bytes
+WasmEdge_BytesCreate(const uint8_t *Buf, const uint32_t Len);
+
+/// Create the WasmEdge_Bytes wraps to the buffer.
+///
+/// This function creates a `WasmEdge_Bytes` object which wraps to the input
+/// buffer. The caller should guarantee the life cycle of the input buffer, and
+/// should __NOT__ call the `WasmEdge_BytesDelete`.
+///
+/// \param Buf the buffer to wrap to the WasmEdge_Bytes object.
+/// \param Len the buffer length.
+///
+/// \returns bytes object refer to the input buffer with its length.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Bytes
+WasmEdge_BytesWrap(const uint8_t *Buf, const uint32_t Len);
+
+/// Deletion of the WasmEdge_Bytes.
+///
+/// After calling this function, the resources in the WasmEdge_Bytes object
+/// will be released and the object should __NOT__ be used.
+///
+/// \param Bytes the WasmEdge_Bytes object to destroy.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_BytesDelete(WasmEdge_Bytes Bytes);
+
+// <<<<<<<< WasmEdge bytes functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge result functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -1440,6 +1484,9 @@ WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt, const char *InPath,
 
 /// Compile the input WASM from the given buffer.
 ///
+/// CAUTION: This function will be deprecated and replaced by
+/// `WasmEdge_CompilerCompileFromBytes()` API in the future.
+///
 /// The compiler compiles the WASM from the given buffer for the
 /// ahead-of-time mode and store the result to the output file path.
 ///
@@ -1453,6 +1500,22 @@ WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt, const char *InPath,
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_CompilerCompileFromBuffer(
     WasmEdge_CompilerContext *Cxt, const uint8_t *InBuffer,
     const uint64_t InBufferLen, const char *OutPath);
+
+/// Compile the input WASM from a WasmEdge_Bytes.
+///
+/// The compiler compiles the WASM from the WasmEdge_Bytes for the
+/// ahead-of-time mode and store the result to the output file path.
+///
+/// \param Cxt the WasmEdge_CompilerContext.
+/// \param Bytes the WasmEdge_Bytes of WASM binary.
+/// \param OutPath the output WASM file path.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_CompilerCompileFromBytes(WasmEdge_CompilerContext *Cxt,
+                                  const WasmEdge_Bytes Bytes,
+                                  const char *OutPath);
 
 /// Deletion of the WasmEdge_CompilerContext.
 ///
@@ -1500,6 +1563,9 @@ WasmEdge_LoaderParseFromFile(WasmEdge_LoaderContext *Cxt,
 
 /// Load and parse the WASM module from a buffer into WasmEdge_ASTModuleContext.
 ///
+/// CAUTION: This function will be deprecated and replaced by
+/// `WasmEdge_LoaderParseFromBytes()` API in the future.
+///
 /// Load and parse the WASM module from a buffer, and return a
 /// WasmEdge_ASTModuleContext as the result. The caller owns the
 /// WasmEdge_ASTModuleContext object and should call `WasmEdge_ASTModuleDelete`
@@ -1517,25 +1583,43 @@ WasmEdge_LoaderParseFromBuffer(WasmEdge_LoaderContext *Cxt,
                                WasmEdge_ASTModuleContext **Module,
                                const uint8_t *Buf, const uint32_t BufLen);
 
-/// Serialize the WasmEdge_ASTModuleContext into WASM binary.
+/// Load and parse the WASM module from a WasmEdge_Bytes into
+/// WasmEdge_ASTModuleContext.
 ///
-/// Serialize the loaded WasmEdge_ASTModuleContext into the WASM binary format.
-/// If the `Buf` Buffer length is smaller than the result of the serialized
-/// WASM, the overflowed return values will be discarded. This function will
-/// output the actual WASM binary size into the `SizePtr`. Developers can check
-/// that value to verify whether the provided buffer length is enough or not.
+/// Load and parse the WASM module from a buffer, and return a
+/// WasmEdge_ASTModuleContext as the result. The caller owns the
+/// WasmEdge_ASTModuleContext object and should call `WasmEdge_ASTModuleDelete`
+/// to destroy it.
 ///
 /// \param Cxt the WasmEdge_LoaderContext.
-/// \param ASTCxt the WasmEdge_ASTModuleContext to serialize.
-/// \param [out] Buf the buffer to fill the serialized WASM binary.
-/// \param BufLen the length of the buffer.
-/// \param [out] SizePtr the actual size of the serialized binary.
+/// \param [out] Module the output WasmEdge_ASTModuleContext if succeeded.
+/// \param Bytes the WasmEdge_Bytes of WASM binary.
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_LoaderSerializeASTModule(
-    WasmEdge_LoaderContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,
-    uint8_t *Buf, const uint32_t BufLen, uint32_t *SizePtr);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_LoaderParseFromBytes(WasmEdge_LoaderContext *Cxt,
+                              WasmEdge_ASTModuleContext **Module,
+                              const WasmEdge_Bytes Bytes);
+
+/// Serialize the WasmEdge_ASTModuleContext into WASM binary.
+///
+/// Serialize the loaded WasmEdge_ASTModuleContext into the WASM binary format.
+/// If the serialization succeeded, this API will allocate a new
+/// `WasmEdge_Bytes` object and fill into the `Buf`. The caller owns the
+/// `WasmEdge_Bytes` object and should call `WasmEdge_BytesDelete` to destroy
+/// it.
+///
+/// \param Cxt the WasmEdge_LoaderContext.
+/// \param ASTCxt the WasmEdge_ASTModuleContext to serialize.
+/// \param [out] Buf the WasmEdge_Bytes to fill the serialized WASM binary.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_LoaderSerializeASTModule(WasmEdge_LoaderContext *Cxt,
+                                  const WasmEdge_ASTModuleContext *ASTCxt,
+                                  WasmEdge_Bytes *Buf);
 
 /// Deletion of the WasmEdge_LoaderContext.
 ///
@@ -2799,6 +2883,9 @@ WasmEdge_VMRegisterModuleFromFile(WasmEdge_VMContext *Cxt,
 
 /// Register and instantiate WASM into the store in VM from a buffer.
 ///
+/// CAUTION: This function will be deprecated and replaced by
+/// `WasmEdge_VMRegisterModuleFromBytes()` API in the future.
+///
 /// Load a WASM module from a buffer, and register all exported instances and
 /// instantiate them into the store into the VM with their exported name and
 /// module name.
@@ -2817,6 +2904,26 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_VMRegisterModuleFromBuffer(WasmEdge_VMContext *Cxt,
                                     const WasmEdge_String ModuleName,
                                     const uint8_t *Buf, const uint32_t BufLen);
+
+/// Register and instantiate WASM into the store in VM from a WasmEdge_Bytes.
+///
+/// Load a WASM module from a WasmEdge_Bytes, and register all exported
+/// instances and instantiate them into the store into the VM with their
+/// exported name and module name.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_VMContext which contains the store.
+/// \param ModuleName the WasmEdge_String of module name for all exported
+/// instances.
+/// \param Bytes the WasmEdge_Bytes of WASM binary.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_VMRegisterModuleFromBytes(WasmEdge_VMContext *Cxt,
+                                   const WasmEdge_String ModuleName,
+                                   const WasmEdge_Bytes Bytes);
 
 /// Instantiate and register an AST Module into a named module instance in VM.
 ///
@@ -2870,8 +2977,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRegisterModuleFromImport(
 /// function by name and parameters. If the `Returns` buffer length is smaller
 /// than the arity of the function, the overflowed return values will be
 /// discarded.
-/// After calling this function, a new module instance is instantiated, and the
-/// old one will be destroyed.
+/// After calling this function, a new anonymous module instance owned by VM is
+/// instantiated, and the old one will be destroyed.
 ///
 /// This function is thread-safe.
 ///
@@ -2892,13 +2999,16 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromFile(
 
 /// Instantiate the WASM module from a buffer and invoke a function by name.
 ///
+/// CAUTION: This function will be deprecated and replaced by
+/// `WasmEdge_VMRunWasmFromBytes()` API in the future.
+///
 /// This is the function to invoke a WASM function rapidly.
 /// Load and instantiate the WASM module from a buffer, and then invoke a
 /// function by name and parameters. If the `Returns` buffer length is smaller
 /// than the arity of the function, the overflowed return values will be
 /// discarded.
-/// After calling this function, a new module instance is instantiated, and the
-/// old one will be destroyed.
+/// After calling this function, a new anonymous module instance owned by VM is
+/// instantiated, and the old one will be destroyed.
 ///
 /// This function is thread-safe.
 ///
@@ -2918,6 +3028,34 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromBuffer(
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
     const uint32_t ParamLen, WasmEdge_Value *Returns, const uint32_t ReturnLen);
 
+/// Instantiate the WASM module from a WasmEdge_Bytes and invoke a function by
+/// name.
+///
+/// This is the function to invoke a WASM function rapidly.
+/// Load and instantiate the WASM module from a WasmEdge_Bytes, and then invoke
+/// a function by name and parameters. If the `Returns` buffer length is smaller
+/// than the arity of the function, the overflowed return values will be
+/// discarded.
+/// After calling this function, a new anonymous module instance owned by VM is
+/// instantiated, and the old one will be destroyed.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_VMContext.
+/// \param Bytes the WasmEdge_Bytes of WASM binary.
+/// \param FuncName the function name WasmEdge_String.
+/// \param Params the WasmEdge_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+/// \param [out] Returns the WasmEdge_Value buffer to fill the return values.
+/// \param ReturnLen the return buffer length.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromBytes(
+    WasmEdge_VMContext *Cxt, const WasmEdge_Bytes Bytes,
+    const WasmEdge_String FuncName, const WasmEdge_Value *Params,
+    const uint32_t ParamLen, WasmEdge_Value *Returns, const uint32_t ReturnLen);
+
 /// Instantiate the WASM module from a WasmEdge AST Module and invoke a function
 /// by name.
 ///
@@ -2926,8 +3064,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromBuffer(
 /// invoke the function by name and parameters. If the `Returns` buffer length
 /// is smaller than the arity of the function, the overflowed return values will
 /// be discarded.
-/// After calling this function, a new module instance is instantiated, and the
-/// old one will be destroyed.
+/// After calling this function, a new anonymous module instance owned by VM is
+/// instantiated, and the old one will be destroyed.
 ///
 /// This function is thread-safe.
 ///
@@ -2955,8 +3093,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromASTModule(
 /// function by name and parameters. If the `Returns` buffer length is smaller
 /// than the arity of the function, the overflowed return values will be
 /// discarded.
-/// After calling this function, a new module instance is instantiated, and the
-/// old one will be destroyed.
+/// After calling this function, a new anonymous module instance owned by VM is
+/// instantiated, and the old one will be destroyed.
 ///
 /// The caller owns the object and should call `WasmEdge_AsyncDelete` to destroy
 /// it.
@@ -2978,13 +3116,16 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromFile(
 /// Instantiate the WASM module from a buffer and asynchronous invoke a function
 /// by name.
 ///
+/// CAUTION: This function will be deprecated and replaced by
+/// `WasmEdge_VMAsyncRunWasmFromBytes()` API in the future.
+///
 /// This is the function to invoke a WASM function rapidly.
 /// Load and instantiate the WASM module from a buffer, and then invoke a
 /// function by name and parameters. If the `Returns` buffer length is smaller
 /// than the arity of the function, the overflowed return values will be
 /// discarded.
-/// After calling this function, a new module instance is instantiated, and the
-/// old one will be destroyed.
+/// After calling this function, a new anonymous module instance owned by VM is
+/// instantiated, and the old one will be destroyed.
 ///
 /// The caller owns the object and should call `WasmEdge_AsyncDelete` to destroy
 /// it.
@@ -3005,6 +3146,35 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBuffer(
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
     const uint32_t ParamLen);
 
+/// Instantiate the WASM module from a WasmEdge_Bytes and asynchronous invoke a
+/// function by name.
+///
+/// This is the function to invoke a WASM function rapidly.
+/// Load and instantiate the WASM module from a WasmEdge_Bytes, and then invoke
+/// a function by name and parameters. If the `Returns` buffer length is smaller
+/// than the arity of the function, the overflowed return values will be
+/// discarded.
+/// After calling this function, a new anonymous module instance owned by VM is
+/// instantiated, and the old one will be destroyed.
+///
+/// The caller owns the object and should call `WasmEdge_AsyncDelete` to destroy
+/// it.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_VMContext.
+/// \param Bytes the WasmEdge_Bytes of WASM binary.
+/// \param FuncName the function name WasmEdge_String.
+/// \param Params the WasmEdge_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+///
+/// \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
+/// `WasmEdge_AsyncDelete` to destroy this object.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBytes(
+    WasmEdge_VMContext *Cxt, const WasmEdge_Bytes Bytes,
+    const WasmEdge_String FuncName, const WasmEdge_Value *Params,
+    const uint32_t ParamLen);
+
 /// Instantiate the WASM module from a WasmEdge AST Module and asynchronous
 /// invoke a function by name.
 ///
@@ -3013,8 +3183,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBuffer(
 /// invoke the function by name and parameters. If the `Returns` buffer length
 /// is smaller than the arity of the function, the overflowed return values will
 /// be discarded.
-/// After calling this function, a new module instance is instantiated, and the
-/// old one will be destroyed.
+/// After calling this function, a new anonymous module instance owned by VM is
+/// instantiated, and the old one will be destroyed.
 ///
 /// The caller owns the object and should call `WasmEdge_AsyncDelete` to destroy
 /// it.
@@ -3055,6 +3225,9 @@ WasmEdge_VMLoadWasmFromFile(WasmEdge_VMContext *Cxt, const char *Path);
 
 /// Load the WASM module from a buffer.
 ///
+/// CAUTION: This function will be deprecated and replaced by
+/// `WasmEdge_VMLoadWasmFromBytes()` API in the future.
+///
 /// This is the first step to invoke a WASM function step by step.
 /// Load and parse the WASM module from a buffer. You can then call
 /// `WasmEdge_VMValidate` for the next step.
@@ -3070,6 +3243,23 @@ WasmEdge_VMLoadWasmFromFile(WasmEdge_VMContext *Cxt, const char *Path);
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_VMLoadWasmFromBuffer(WasmEdge_VMContext *Cxt, const uint8_t *Buf,
                               const uint32_t BufLen);
+
+/// Load the WASM module from a WasmEdge_Bytes.
+///
+/// This is the first step to invoke a WASM function step by step.
+/// Load and parse the WASM module from a WasmEdge_Bytes. You can then call
+/// `WasmEdge_VMValidate` for the next step.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_VMContext.
+/// \param Bytes the WasmEdge_Bytes of WASM binary.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_VMLoadWasmFromBytes(WasmEdge_VMContext *Cxt,
+                             const WasmEdge_Bytes Bytes);
 
 /// Load the WASM module from loaded WasmEdge AST Module.
 ///
@@ -3113,8 +3303,8 @@ WasmEdge_VMValidate(WasmEdge_VMContext *Cxt);
 /// After validating a WASM module in the VM context, You can call this function
 /// to instantiate it. And you can then call `WasmEdge_VMExecute` for invoking
 /// the exported function in this WASM module.
-/// After calling this function, a new module instance is instantiated, and the
-/// old one will be destroyed.
+/// After calling this function, a new anonymous module instance owned by VM is
+/// instantiated, and the old one will be destroyed.
 ///
 /// This function is thread-safe.
 ///
@@ -3345,9 +3535,9 @@ WasmEdge_VMGetImportModuleContext(const WasmEdge_VMContext *Cxt,
 /// Get the current instantiated module in VM.
 ///
 /// After instantiating a module instance into the VM, developers can call this
-/// API to get the module instance to retrieve the exported instances. The
-/// module instance context links to the context owned by the VM context. The
-/// caller should __NOT__ call the `WasmEdge_ModuleInstanceDelete`.
+/// API to get the active anonymous module instance to retrieve the exported
+/// instances. The module instance context links to the context owned by the VM
+/// context. The caller should __NOT__ call the `WasmEdge_ModuleInstanceDelete`.
 ///
 /// This function is thread-safe.
 ///

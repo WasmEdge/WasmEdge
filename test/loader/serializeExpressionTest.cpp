@@ -43,7 +43,8 @@ TEST(ExpressionTest, SerializeExpression) {
   WasmEdge::AST::Instruction TableGet(WasmEdge::OpCode::Table__get);
 
   Expr.getInstrs() = {End};
-  Output = *Ser.serializeSection(createCodeSec(Expr));
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Expr), Output));
   Expected = {
       0x0AU, // Code section
       0x04U, // Content size = 4
@@ -55,7 +56,8 @@ TEST(ExpressionTest, SerializeExpression) {
   EXPECT_EQ(Output, Expected);
 
   Expr.getInstrs() = {I32Eqz, I32Eq, I32Ne, End};
-  Output = *Ser.serializeSection(createCodeSec(Expr));
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Expr), Output));
   Expected = {
       0x0AU,               // Code section
       0x07U,               // Content size = 7
@@ -68,6 +70,6 @@ TEST(ExpressionTest, SerializeExpression) {
   EXPECT_EQ(Output, Expected);
 
   Expr.getInstrs() = {TableGet, End};
-  EXPECT_FALSE(SerNoRefType.serializeSection(createCodeSec(Expr)));
+  EXPECT_FALSE(SerNoRefType.serializeSection(createCodeSec(Expr), Output));
 }
 } // namespace

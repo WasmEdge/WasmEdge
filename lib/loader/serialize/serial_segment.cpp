@@ -38,7 +38,8 @@ Serializer::serializeSegment(const AST::ElementSegment &Seg,
   }
 
   uint8_t Mode = 0x00;
-  std::vector<uint8_t> Result = {Mode};
+  auto ModeIdx = OutVec.size();
+  OutVec.push_back(Mode);
   switch (Seg.getMode()) {
   case AST::ElementSegment::ElemMode::Passive:
     Mode |= 0x01;
@@ -53,12 +54,12 @@ Serializer::serializeSegment(const AST::ElementSegment &Seg,
   // Serialize idx.
   if (Seg.getIdx() != 0) {
     Mode |= 0x02;
-    serializeU32(Seg.getIdx(), Result);
+    serializeU32(Seg.getIdx(), OutVec);
   }
 
   // Serialize OffExpr.
   if (Seg.getMode() == AST::ElementSegment::ElemMode::Active) {
-    if (auto Res = serializeExpression(Seg.getExpr(), Result); unlikely(!Res)) {
+    if (auto Res = serializeExpression(Seg.getExpr(), OutVec); unlikely(!Res)) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
       return Unexpect(Res);
     }
@@ -89,30 +90,29 @@ Serializer::serializeSegment(const AST::ElementSegment &Seg,
           unlikely(!Res)) {
         return Unexpect(Res);
       }
-      Result.push_back(static_cast<uint8_t>(Seg.getRefType()));
+      OutVec.push_back(static_cast<uint8_t>(Seg.getRefType()));
     } else {
       // Serialize ElemKind.
-      Result.push_back(0x00);
+      OutVec.push_back(0x00);
     }
   }
 
   // Serialize vec(FuncIdx) or vec(expr).
-  serializeU32(static_cast<uint32_t>(Seg.getInitExprs().size()), Result);
+  serializeU32(static_cast<uint32_t>(Seg.getInitExprs().size()), OutVec);
   for (auto &Expr : Seg.getInitExprs()) {
     if (Mode & 0x04) {
       // Serialize vec(expr).
-      if (auto Res = serializeExpression(Expr, Result); unlikely(!Res)) {
+      if (auto Res = serializeExpression(Expr, OutVec); unlikely(!Res)) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
         return Unexpect(Res);
       }
     } else {
       // Serialize vec(FuncIdx).
-      serializeU32(Expr.getInstrs()[0].getTargetIndex(), Result);
+      serializeU32(Expr.getInstrs()[0].getTargetIndex(), OutVec);
     }
   }
 
-  Result[0] = Mode;
-  OutVec.insert(OutVec.end(), Result.begin(), Result.end());
+  OutVec[ModeIdx] = Mode;
   return {};
 }
 
@@ -121,22 +121,23 @@ Expect<void>
 Serializer::serializeSegment(const AST::CodeSegment &Seg,
                              std::vector<uint8_t> &OutVec) const noexcept {
   // Code segment: size:u32 + locals:vec(u32 + valtype) + body:expr.
-  std::vector<uint8_t> Result;
-  serializeU32(static_cast<uint32_t>(Seg.getLocals().size()), Result);
+  auto OrgSize = OutVec.size();
+  serializeU32(static_cast<uint32_t>(Seg.getLocals().size()), OutVec);
   for (auto &Locals : Seg.getLocals()) {
     if (auto Res = checkValTypeProposals(Locals.second, ASTNodeAttr::Seg_Code);
         unlikely(!Res)) {
       return Unexpect(Res);
     }
-    serializeU32(Locals.first, Result);
-    Result.push_back(static_cast<uint8_t>(Locals.second));
+    serializeU32(Locals.first, OutVec);
+    OutVec.push_back(static_cast<uint8_t>(Locals.second));
   }
-  if (auto Res = serializeExpression(Seg.getExpr(), Result); unlikely(!Res)) {
+  if (auto Res = serializeExpression(Seg.getExpr(), OutVec); unlikely(!Res)) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
     return Unexpect(Res);
   }
-  serializeU32(static_cast<uint32_t>(Result.size()), OutVec);
-  OutVec.insert(OutVec.end(), Result.begin(), Result.end());
+  // Backward insert the section size.
+  serializeU32(static_cast<uint32_t>(OutVec.size() - OrgSize), OutVec,
+               std::next(OutVec.begin(), static_cast<ptrdiff_t>(OrgSize)));
   return {};
 }
 
@@ -173,7 +174,7 @@ Serializer::serializeSegment(const AST::DataSegment &Seg,
     break;
 
   default:
-    break;
+    assumingUnreachable();
   }
 
   serializeU32(static_cast<uint32_t>(Seg.getData().size()), OutVec);

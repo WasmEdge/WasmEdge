@@ -324,7 +324,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   const uint32_t MaxTokensListSize = MaxContextSize - 4;
   if (CxtRef.LlamaInputs.size() > MaxTokensListSize) {
     spdlog::error(
-        "[WASI-NN] GGML backend: Error: prompt too long ({} tokens, max {})"sv,
+        "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
         CxtRef.LlamaInputs.size(), MaxTokensListSize);
     return ErrNo::InvalidArgument;
   }
@@ -382,7 +382,6 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   int NPast = 0;
   int NConsumed = 0;
   int NRemain = GraphRef.NPredict;
-  int NKeep = GPTParams.n_keep;
   // Initialize the llama context.
   llama_context_params ContextParams = llama_context_default_params();
   ContextParams.n_ctx = GraphRef.CtxSize;
@@ -397,42 +396,22 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   while (NRemain >= 0) {
     // Preidct
     if (!Embd.empty()) {
-      // Truncate if necessary.
+      // Input too long.
       if (static_cast<int>(Embd.size()) > MaxTokensListSize) {
-        auto NSkipped = Embd.size() - MaxTokensListSize;
-        // We follow llama.cpp/example/main to truncate the last few tokens.
-        Embd.resize(MaxTokensListSize);
-        if (GraphRef.EnableLog) {
-          spdlog::info("[WASI-NN] GGML backend: Truncated {} tokens"sv,
-                       NSkipped);
-        }
+        spdlog::error(
+            "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
+            Embd.size(), MaxTokensListSize);
+        return ErrNo::RuntimeError;
       }
 
-      // Infinite text generation via context swapping.
+      // We do not swap context here. End the inference if the context is full.
       if (NPast + static_cast<int>(Embd.size()) > NCtx) {
-        const int NLeft = NPast + NKeep - 1;
-        const int NDiscard = NLeft / 2;
         if (GraphRef.EnableLog) {
           spdlog::info(
-              "[WASI-NN] GGML backend: Context full, swapping: NPast = {}, NLeft = {}, NKeep = {}, NDiscard = {}"sv,
-              NPast, NLeft, NKeep, NDiscard);
+              "[WASI-NN] GGML backend: the context if full ({} / {} tokens)"sv,
+              NPast + static_cast<int>(Embd.size()), NCtx);
         }
-        // llama_kv_cache_seq_rm(context, sequence_id, start_pos, end_pos)
-        // This will remove the tokens [start_pos, end_pos).
-        llama_kv_cache_seq_rm(CxtRef.LlamaContext, SequenceId, NKeep + 1,
-                              NKeep + NDiscard + 1);
-        // llama_kv_cache_seq_shift(context, sequence_id, start_pos, end_pos,
-        // delta)
-        // This will shift the tokens at [start_pos, end_pos) with delta
-        // distance.
-        llama_kv_cache_seq_shift(CxtRef.LlamaContext, SequenceId,
-                                 NKeep + 1 + NDiscard, NPast, -NDiscard);
-        NPast -= NDiscard;
-        if (GraphRef.EnableLog) {
-          spdlog::info(
-              "[WASI-NN] GGML backend: After context swapping: NPast = {}"sv,
-              NPast);
-        }
+        break;
       }
 
       // Evaluate tokens in batches.

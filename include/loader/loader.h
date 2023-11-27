@@ -281,8 +281,8 @@ private:
   Expect<void> loadSort(AST::Sort &Sort);
   Expect<void> loadAliasTarget(AST::AliasTarget &AliasTarget);
   Expect<void> loadCoreSort(AST::Sort &Sort);
-  Expect<void> loadSortIdx(AST::SortIdx &SortIdx);
-  Expect<void> loadCoreSortIdx(AST::SortIdx &SortIdx);
+  Expect<void> loadSortIndex(AST::SortIndex &SortIdx);
+  Expect<void> loadCoreSortIndex(AST::SortIndex &SortIdx);
   Expect<void> loadExpression(AST::Expression &Expr,
                               std::optional<uint64_t> SizeBound = std::nullopt);
   Expect<OpCode> loadOpCode();

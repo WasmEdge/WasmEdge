@@ -38,12 +38,12 @@ class InlineExport {
 public:
   std::string_view getName() const noexcept { return Name; }
   std::string &getName() noexcept { return Name; }
-  SortIdx getSortIdx() const noexcept { return SortIdx; }
-  SortIdx &getSortIdx() noexcept { return SortIdx; }
+  SortIndex getSortIdx() const noexcept { return SortIdx; }
+  SortIndex &getSortIdx() noexcept { return SortIdx; }
 
 private:
   std::string Name;
-  SortIdx SortIdx;
+  SortIndex SortIdx;
 };
 
 class Instantiate {

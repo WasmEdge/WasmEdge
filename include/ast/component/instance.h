@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/sort.h"
 #include "ast/expression.h"
 #include "ast/type.h"
 
@@ -23,34 +24,31 @@ namespace AST {
 
 class InstantiateArg {
 public:
-  InstantiateArg() noexcept : Name{""}, InstanceIndex{0} {}
-  InstantiateArg(std::string_view N, uint32_t Idx) noexcept
-      : Name{N}, InstanceIndex{Idx} {}
-
   std::string_view getName() const noexcept { return Name; }
+  std::string &getName() noexcept { return Name; }
   uint32_t getInstanceIdx() const noexcept { return InstanceIndex; }
+  uint32_t &getInstanceIdx() noexcept { return InstanceIndex; }
 
 private:
   std::string Name;
   uint32_t InstanceIndex;
 };
 
-// core:instanceexpr ::= 0x00 m:<moduleidx> arg*:vec(<core:instantiatearg>)
-//                          => (instantiate m arg*)
-//                     | 0x01 e*:vec(<core:inlineexport>)      => e*
-//
-// core:sortidx        ::= sort:<core:sort> idx:<u32>
-//            => (sort idx)
-// core:inlineexport   ::= n:<core:name> si:<core:sortidx>
-//      => (export n si)
-class CoreInstanceExpr {
+class InlineExport {
 public:
-  class Instantiate;
-  class InlineExports;
+  std::string_view getName() const noexcept { return Name; }
+  std::string &getName() noexcept { return Name; }
+  SortIdx getSortIdx() const noexcept { return SortIdx; }
+  SortIdx &getSortIdx() noexcept { return SortIdx; }
+
+private:
+  std::string Name;
+  SortIdx SortIdx;
 };
 
-class CoreInstanceExpr::Instantiate : public CoreInstanceExpr {
+class Instantiate {
 public:
+  Instantiate() noexcept : ModuleIdx{0}, Args{} {}
   Instantiate(uint32_t Idx, std::vector<InstantiateArg> Args) noexcept
       : ModuleIdx{Idx}, Args{Args} {}
 
@@ -62,7 +60,18 @@ private:
   std::vector<InstantiateArg> Args;
 };
 
-class CoreInstanceExpr::InlineExports : public CoreInstanceExpr {};
+class InlineExports {
+public:
+  InlineExports() noexcept : Exports{} {}
+  InlineExports(std::vector<InlineExport> Es) noexcept : Exports{Es} {}
+
+  Span<const InlineExport> getExports() const noexcept { return Exports; }
+
+private:
+  std::vector<InlineExport> Exports;
+};
+
+using CoreInstanceExpr = std::variant<Instantiate, InlineExports>;
 
 } // namespace AST
 } // namespace WasmEdge

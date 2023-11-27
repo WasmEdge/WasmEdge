@@ -81,9 +81,6 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::CoreInstanceSection>() noexcept {
   return ASTNodeAttr::Sec_CoreInstance;
 }
-template <> inline ASTNodeAttr NodeAttrFromAST<AST::InstantiateArg>() noexcept {
-  return ASTNodeAttr::Sec_CoreInstance;
-}
 
 } // namespace
 
@@ -217,8 +214,8 @@ private:
     return {};
   }
 
-  template <typename T, typename L>
-  Expect<void> loadVec(std::vector<T> &Vec, L &&Func) {
+  template <typename T, typename C, typename L>
+  Expect<void> loadVec(std::vector<C> &Vec, L &&Func) {
     uint32_t VecCnt = 0;
     // Read the vector size.
     if (auto Res = FMgr.readU32()) {
@@ -279,10 +276,13 @@ private:
   Expect<void> loadType(AST::GlobalType &GlobType);
   Expect<void> loadCoreInstance(AST::CoreInstanceExpr &InstanceExpr);
   Expect<void> loadInstantiateArg(AST::InstantiateArg &Arg);
+  Expect<void> loadInlineExport(AST::InlineExport &Exp);
   Expect<void> loadAlias(AST::Alias &Alias);
   Expect<void> loadSort(AST::Sort &Sort);
   Expect<void> loadAliasTarget(AST::AliasTarget &AliasTarget);
   Expect<void> loadCoreSort(AST::Sort &Sort);
+  Expect<void> loadSortIdx(AST::SortIdx &SortIdx);
+  Expect<void> loadCoreSortIdx(AST::SortIdx &SortIdx);
   Expect<void> loadExpression(AST::Expression &Expr,
                               std::optional<uint64_t> SizeBound = std::nullopt);
   Expect<OpCode> loadOpCode();

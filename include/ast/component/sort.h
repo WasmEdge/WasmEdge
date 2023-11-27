@@ -35,5 +35,18 @@ enum class Sort {
   Instance,
 };
 
+// core:sortidx        ::= sort:<core:sort> idx:<u32>
+class SortIdx {
+public:
+  Sort getSort() const noexcept { return S; }
+  Sort &getSort() noexcept { return S; }
+  uint32_t getSortIdx() const noexcept { return Idx; }
+  uint32_t &getSortIdx() noexcept { return Idx; }
+
+private:
+  Sort S;
+  uint32_t Idx;
+};
+
 } // namespace AST
 } // namespace WasmEdge

@@ -11,25 +11,37 @@ Expect<void> Loader::loadInstantiateArg(AST::InstantiateArg &Arg) {
   // syntax `(with n (instance i))`
   //
   // core:instantiatearg ::= n:<core:name> 0x12 i:<instanceidx>
-  auto RName = FMgr.readName();
-  if (!RName) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::CoreInstance));
-    return Unexpect(RName);
+  if (auto Res = FMgr.readName(); !Res) {
+    return Unexpect(Res);
+  } else {
+    Arg.getName() = *Res;
   }
   auto RMid = FMgr.readU32();
   if (!RMid) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::CoreInstance));
     return Unexpect(RMid);
   } else if (*RMid != 0x12) {
     return logLoadError(ErrCode::Value::MalformedCoreInstance,
                         FMgr.getLastOffset(), ASTNodeAttr::CoreInstance);
   }
-  auto RIdx = FMgr.readU32();
-  if (!RIdx) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::CoreInstance));
-    return Unexpect(RIdx);
+  if (auto Res = FMgr.readU32(); !Res) {
+    return Unexpect(Res);
+  } else {
+    Arg.getInstanceIdx() = *Res;
   }
-  Arg = AST::InstantiateArg(*RName, *RIdx);
+
+  return {};
+}
+
+Expect<void> Loader::loadInlineExport(AST::InlineExport &Exp) {
+  if (auto Res = FMgr.readName(); !Res) {
+    return Unexpect(Res);
+  } else {
+    Exp.getName() = *Res;
+  }
+  if (auto Res = loadCoreSortIdx(Exp.getSortIdx()); !Res) {
+    return Unexpect(Res);
+  }
+
   return {};
 }
 
@@ -45,20 +57,34 @@ Expect<void> Loader::loadCoreInstance(AST::CoreInstanceExpr &InstanceExpr) {
         return Unexpect(Res);
       }
       std::vector<AST::InstantiateArg> Args{};
-      if (auto Res = loadVec(Args,
-                             [this](AST::InstantiateArg &Arg) -> Expect<void> {
-                               return loadInstantiateArg(Arg);
-                             });
+      if (auto Res = loadVec<AST::CoreInstanceSection>(
+              Args,
+              [this](AST::InstantiateArg &Arg) -> Expect<void> {
+                return loadInstantiateArg(Arg);
+              });
           !Res) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::CoreInstance));
-        return Unexpect(Tag);
+        return Unexpect(Res);
       }
 
-      InstanceExpr = AST::CoreInstanceExpr::Instantiate(Idx, Args);
+      InstanceExpr.emplace<AST::Instantiate>(AST::Instantiate(Idx, Args));
+
       break;
     }
-    case 0x01:
+    case 0x01: {
+      std::vector<AST::InlineExport> Exports{};
+      if (auto Res = loadVec<AST::CoreInstanceSection>(
+              Exports,
+              [this](AST::InlineExport &Arg) -> Expect<void> {
+                return loadInlineExport(Arg);
+              });
+          !Res) {
+        return Unexpect(Res);
+      }
+
+      InstanceExpr.emplace<AST::InlineExports>(AST::InlineExports(Exports));
+
       break;
+    }
     default:
       return logLoadError(ErrCode::Value::MalformedCoreInstance,
                           FMgr.getLastOffset(), ASTNodeAttr::CoreInstance);

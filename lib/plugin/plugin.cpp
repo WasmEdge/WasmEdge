@@ -251,9 +251,9 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
   int Status =
       dladdr(reinterpret_cast<void *>(Plugin::getDefaultPluginPaths), &DLInfo);
   if (Status != 0 && DLInfo.dli_fname != nullptr) {
-    std::filesystem::path initialPath = std::filesystem::u8path(DLInfo.dli_fname);
-    std::filesystem::path parentPath = initialPath.parent_path();
-    std::filesystem::path LibPath = parentPath.lexically_normal(); 
+    auto initialPath = std::filesystem::u8path(DLInfo.dli_fname);
+    auto parentPath = initialPath.parent_path();
+    auto LibPath = parentPath.lexically_normal(); 
     const auto UsrStr = "/usr"sv;
     const auto LibStr = "/lib"sv;
     const auto &PathStr = LibPath.native();   
@@ -273,13 +273,10 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
                        std::filesystem::u8path("plugin"sv));
     }
   }
-
   else {
-    printf("Error: dladdr failed to find the shared object or symbol.\n");
+    fprintf(stderr, "Error: dladdr failed to find the shared object or symbol.\n");
     exit(EXIT_FAILURE);
   }
-
-
 #elif WASMEDGE_OS_WINDOWS
   // FIXME: Use the `dladdr`.
   // Global plugin directory.

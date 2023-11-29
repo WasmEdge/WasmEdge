@@ -311,6 +311,19 @@ private:
   /// @}
 };
 
+class InstanceSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const InstanceExpr> getContent() const noexcept { return Content; }
+  std::vector<InstanceExpr> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of InstanceSection.
+  /// @{
+  std::vector<InstanceExpr> Content;
+  /// @}
+};
+
 class Component;
 
 class ComponentSection : public Section {

@@ -22,7 +22,7 @@
 namespace WasmEdge {
 namespace AST {
 
-class InstantiateArg {
+class CoreInstantiateArg {
 public:
   std::string_view getName() const noexcept { return Name; }
   std::string &getName() noexcept { return Name; }
@@ -32,6 +32,55 @@ public:
 private:
   std::string Name;
   uint32_t InstanceIndex;
+};
+
+class CoreInlineExport {
+public:
+  std::string_view getName() const noexcept { return Name; }
+  std::string &getName() noexcept { return Name; }
+  SortIndex getSortIdx() const noexcept { return SortIdx; }
+  SortIndex &getSortIdx() noexcept { return SortIdx; }
+
+private:
+  std::string Name;
+  SortIndex SortIdx;
+};
+
+class CoreInstantiate {
+public:
+  CoreInstantiate() noexcept : ModuleIdx{0}, Args{} {}
+  CoreInstantiate(uint32_t Idx, std::vector<CoreInstantiateArg> Args) noexcept
+      : ModuleIdx{Idx}, Args{Args} {}
+
+  uint32_t getModuleIdx() const noexcept { return ModuleIdx; }
+  Span<const CoreInstantiateArg> getArgs() const noexcept { return Args; }
+
+private:
+  uint32_t ModuleIdx;
+  std::vector<CoreInstantiateArg> Args;
+};
+
+class CoreInlineExports {
+public:
+  CoreInlineExports() noexcept : Exports{} {}
+  CoreInlineExports(std::vector<CoreInlineExport> Es) noexcept : Exports{Es} {}
+
+  Span<const CoreInlineExport> getExports() const noexcept { return Exports; }
+
+private:
+  std::vector<CoreInlineExport> Exports;
+};
+
+class InstantiateArg {
+public:
+  std::string_view getName() const noexcept { return Name; }
+  std::string &getName() noexcept { return Name; }
+  SortIndex getSortIndex() const noexcept { return Idx; }
+  SortIndex &getSortIndex() noexcept { return Idx; }
+
+private:
+  std::string Name;
+  SortIndex Idx;
 };
 
 class InlineExport {
@@ -48,15 +97,15 @@ private:
 
 class Instantiate {
 public:
-  Instantiate() noexcept : ModuleIdx{0}, Args{} {}
+  Instantiate() noexcept : ComponentIndex{0}, Args{} {}
   Instantiate(uint32_t Idx, std::vector<InstantiateArg> Args) noexcept
-      : ModuleIdx{Idx}, Args{Args} {}
+      : ComponentIndex{Idx}, Args{Args} {}
 
-  uint32_t getModuleIdx() const noexcept { return ModuleIdx; }
+  uint32_t getComponentIdx() const noexcept { return ComponentIndex; }
   Span<const InstantiateArg> getArgs() const noexcept { return Args; }
 
 private:
-  uint32_t ModuleIdx;
+  uint32_t ComponentIndex;
   std::vector<InstantiateArg> Args;
 };
 
@@ -71,7 +120,8 @@ private:
   std::vector<InlineExport> Exports;
 };
 
-using CoreInstanceExpr = std::variant<Instantiate, InlineExports>;
+using CoreInstanceExpr = std::variant<CoreInstantiate, CoreInlineExports>;
+using InstanceExpr = std::variant<Instantiate, InlineExports>;
 
 } // namespace AST
 } // namespace WasmEdge

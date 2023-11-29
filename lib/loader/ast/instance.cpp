@@ -100,7 +100,7 @@ Expect<void> Loader::loadInstance(AST::InstanceExpr &InstanceExpr) {
       break;
     }
     default:
-      return logLoadError(ErrCode::Value::MalformedCoreInstance,
+      return logLoadError(ErrCode::Value::MalformedInstance,
                           FMgr.getLastOffset(), ASTNodeAttr::Instance);
     }
 

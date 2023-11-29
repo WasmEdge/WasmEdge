@@ -768,6 +768,8 @@ E(MalformedSort, 0x3C, "malformed sort")
 E(MalformedAliasTarget, 0x3D, "malformed alias target")
 // Malformed core instance
 E(MalformedCoreInstance, 0x3E, "malformed core instance")
+// Malformed instance
+E(MalformedInstance, 0x3F, "malformed instance")
 // @}
 
 // Validation phase

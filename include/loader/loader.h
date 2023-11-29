@@ -81,6 +81,10 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::CoreInstanceSection>() noexcept {
   return ASTNodeAttr::Sec_CoreInstance;
 }
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::InstanceSection>() noexcept {
+  return ASTNodeAttr::Sec_Instance;
+}
 
 } // namespace
 
@@ -258,6 +262,7 @@ private:
   Expect<void> loadSection(AST::DataCountSection &Sec);
   Expect<void> loadSection(AST::AliasSection &Sec);
   Expect<void> loadSection(AST::CoreInstanceSection &Sec);
+  Expect<void> loadSection(AST::InstanceSection &Sec);
   static Expect<void> loadSection(FileMgr &VecMgr, AST::AOTSection &Sec);
   Expect<void> loadSegment(AST::TableSegment &TabSeg);
   Expect<void> loadSegment(AST::GlobalSegment &GlobSeg);
@@ -275,7 +280,10 @@ private:
   Expect<void> loadType(AST::TableType &TabType);
   Expect<void> loadType(AST::GlobalType &GlobType);
   Expect<void> loadCoreInstance(AST::CoreInstanceExpr &InstanceExpr);
+  Expect<void> loadInstance(AST::InstanceExpr &InstanceExpr);
+  Expect<void> loadInstantiateArg(AST::CoreInstantiateArg &Arg);
   Expect<void> loadInstantiateArg(AST::InstantiateArg &Arg);
+  Expect<void> loadInlineExport(AST::CoreInlineExport &Exp);
   Expect<void> loadInlineExport(AST::InlineExport &Exp);
   Expect<void> loadAlias(AST::Alias &Alias);
   Expect<void> loadSort(AST::Sort &Sort);

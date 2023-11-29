@@ -22,11 +22,13 @@
 #define A Line
 
 A(Component, "component")
-A(Sec_Alias, "component alias section")
 A(Sec_CoreInstance, "component core:instance section")
+A(Sec_Alias, "component alias section")
+A(Sec_Instance, "component instance section")
 A(Alias, "alias")
 A(AliasTarget, "alias target")
 A(Sort, "sort")
+A(Instance, "instance expr")
 A(CoreInstance, "core:instance expr")
 A(Module, "module")
 A(Sec_Custom, "custom section")

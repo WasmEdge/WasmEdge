@@ -195,6 +195,16 @@ Expect<void> Loader::loadSection(AST::CoreInstanceSection &Sec) {
   });
 }
 
+// Load vector of component instance section.
+// See "include/loader/loader.h".
+Expect<void> Loader::loadSection(AST::InstanceSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(Sec, [this](AST::InstanceExpr &InstanceExpr) {
+      return loadInstance(InstanceExpr);
+    });
+  });
+}
+
 namespace {
 
 inline constexpr uint32_t HostVersion() noexcept {

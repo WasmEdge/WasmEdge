@@ -21,12 +21,16 @@
 namespace WasmEdge {
 namespace AST {
 
-enum class Sort {
-  CoreFunc,
-  CoreTable,
-  CoreMemory,
-  CoreGlobal,
-  CoreType,
+enum class CoreSort {
+  Func,
+  Table,
+  Memory,
+  Global,
+  Type,
+  Module,
+  Instance,
+};
+enum class SortCase {
   CoreInstance,
   Func,
   Value,
@@ -34,17 +38,18 @@ enum class Sort {
   Component,
   Instance,
 };
+using Sort = std::variant<CoreSort, SortCase>;
 
 // core:sortidx        ::= sort:<core:sort> idx:<u32>
-class SortIndex {
+template <typename SortType> class SortIndex {
 public:
-  Sort getSort() const noexcept { return S; }
-  Sort &getSort() noexcept { return S; }
+  SortType getSort() const noexcept { return St; }
+  SortType &getSort() noexcept { return St; }
   uint32_t getSortIdx() const noexcept { return Idx; }
   uint32_t &getSortIdx() noexcept { return Idx; }
 
 private:
-  Sort S;
+  SortType St;
   uint32_t Idx;
 };
 

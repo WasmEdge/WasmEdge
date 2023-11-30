@@ -14,32 +14,35 @@ Expect<void> Loader::loadSort(AST::Sort &Sort) {
   //        | 0x03                  => type
   //        | 0x04                  => component
   //        | 0x05                  => instance
-  auto Res = FMgr.readU32();
-  if (!Res) {
+  auto Tag = FMgr.readU32();
+  if (!Tag) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sort));
-    return Unexpect(Res);
+    return Unexpect(Tag);
   }
-  switch (*Res) {
-  case 0x00:
-    if (auto Res2 = loadCoreSort(Sort); !Res2) {
+  switch (*Tag) {
+  case 0x00: {
+    AST::CoreSort CS;
+    if (auto Res = loadCoreSort(CS); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sort));
-      return Unexpect(Res2);
+      return Unexpect(Res);
     }
+    Sort = CS;
     break;
+  }
   case 0x01:
-    Sort = AST::Sort::Func;
+    Sort = AST::SortCase::Func;
     break;
   case 0x02:
-    Sort = AST::Sort::Value;
+    Sort = AST::SortCase::Value;
     break;
   case 0x03:
-    Sort = AST::Sort::Type;
+    Sort = AST::SortCase::Type;
     break;
   case 0x04:
-    Sort = AST::Sort::Component;
+    Sort = AST::SortCase::Component;
     break;
   case 0x05:
-    Sort = AST::Sort::Instance;
+    Sort = AST::SortCase::Instance;
     break;
   default:
     return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
@@ -49,7 +52,7 @@ Expect<void> Loader::loadSort(AST::Sort &Sort) {
   return {};
 }
 
-Expect<void> Loader::loadCoreSort(AST::Sort &Sort) {
+Expect<void> Loader::loadCoreSort(AST::CoreSort &Sort) {
   // core:sort ::= 0x00     => func
   //           | 0x01       => table
   //           | 0x02       => memory
@@ -63,25 +66,25 @@ Expect<void> Loader::loadCoreSort(AST::Sort &Sort) {
   }
   switch (*Res) {
   case 0x00:
-    Sort = AST::Sort::CoreFunc;
+    Sort = AST::CoreSort::Func;
     break;
   case 0x01:
-    Sort = AST::Sort::CoreFunc;
+    Sort = AST::CoreSort::Table;
     break;
   case 0x02:
-    Sort = AST::Sort::CoreTable;
+    Sort = AST::CoreSort::Memory;
     break;
   case 0x03:
-    Sort = AST::Sort::CoreMemory;
+    Sort = AST::CoreSort::Global;
     break;
   case 0x10:
-    Sort = AST::Sort::CoreGlobal;
+    Sort = AST::CoreSort::Type;
     break;
   case 0x11:
-    Sort = AST::Sort::CoreType;
+    Sort = AST::CoreSort::Module;
     break;
   case 0x12:
-    Sort = AST::Sort::CoreInstance;
+    Sort = AST::CoreSort::Instance;
     break;
   default:
     return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
@@ -91,7 +94,7 @@ Expect<void> Loader::loadCoreSort(AST::Sort &Sort) {
   return {};
 }
 
-Expect<void> Loader::loadSortIndex(AST::SortIndex &SortIdx) {
+Expect<void> Loader::loadSortIndex(AST::SortIndex<AST::Sort> &SortIdx) {
   if (auto Res = loadSort(SortIdx.getSort()); !Res) {
     return Unexpect(Res);
   }
@@ -103,7 +106,7 @@ Expect<void> Loader::loadSortIndex(AST::SortIndex &SortIdx) {
 
   return {};
 }
-Expect<void> Loader::loadCoreSortIndex(AST::SortIndex &SortIdx) {
+Expect<void> Loader::loadCoreSortIndex(AST::SortIndex<AST::CoreSort> &SortIdx) {
   if (auto Res = loadCoreSort(SortIdx.getSort()); !Res) {
     return Unexpect(Res);
   }

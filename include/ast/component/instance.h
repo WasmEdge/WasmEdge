@@ -22,28 +22,30 @@
 namespace WasmEdge {
 namespace AST {
 
-class CoreInstantiateArg {
+template <typename IndexType> class InstantiateArg {
 public:
   std::string_view getName() const noexcept { return Name; }
   std::string &getName() noexcept { return Name; }
-  uint32_t getInstanceIdx() const noexcept { return InstanceIndex; }
-  uint32_t &getInstanceIdx() noexcept { return InstanceIndex; }
+  IndexType getIndex() const noexcept { return Idx; }
+  IndexType &getIndex() noexcept { return Idx; }
 
 private:
   std::string Name;
-  uint32_t InstanceIndex;
+  IndexType Idx;
 };
 
-class CoreInlineExport {
+using CoreInstantiateArg = InstantiateArg<uint32_t>;
+
+template <typename SortType> class InlineExport {
 public:
   std::string_view getName() const noexcept { return Name; }
   std::string &getName() noexcept { return Name; }
-  SortIndex getSortIdx() const noexcept { return SortIdx; }
-  SortIndex &getSortIdx() noexcept { return SortIdx; }
+  SortIndex<SortType> getSortIdx() const noexcept { return SortIdx; }
+  SortIndex<SortType> &getSortIdx() noexcept { return SortIdx; }
 
 private:
   std::string Name;
-  SortIndex SortIdx;
+  SortIndex<SortType> SortIdx;
 };
 
 class CoreInstantiate {
@@ -60,68 +62,42 @@ private:
   std::vector<CoreInstantiateArg> Args;
 };
 
-class CoreInlineExports {
-public:
-  CoreInlineExports() noexcept : Exports{} {}
-  CoreInlineExports(std::vector<CoreInlineExport> Es) noexcept : Exports{Es} {}
-
-  Span<const CoreInlineExport> getExports() const noexcept { return Exports; }
-
-private:
-  std::vector<CoreInlineExport> Exports;
-};
-
-class InstantiateArg {
-public:
-  std::string_view getName() const noexcept { return Name; }
-  std::string &getName() noexcept { return Name; }
-  SortIndex getSortIndex() const noexcept { return Idx; }
-  SortIndex &getSortIndex() noexcept { return Idx; }
-
-private:
-  std::string Name;
-  SortIndex Idx;
-};
-
-class InlineExport {
-public:
-  std::string_view getName() const noexcept { return Name; }
-  std::string &getName() noexcept { return Name; }
-  SortIndex getSortIdx() const noexcept { return SortIdx; }
-  SortIndex &getSortIdx() noexcept { return SortIdx; }
-
-private:
-  std::string Name;
-  SortIndex SortIdx;
-};
-
 class Instantiate {
 public:
   Instantiate() noexcept : ComponentIndex{0}, Args{} {}
-  Instantiate(uint32_t Idx, std::vector<InstantiateArg> Args) noexcept
+  Instantiate(uint32_t Idx,
+              std::vector<InstantiateArg<SortIndex<Sort>>> Args) noexcept
       : ComponentIndex{Idx}, Args{Args} {}
 
   uint32_t getComponentIdx() const noexcept { return ComponentIndex; }
-  Span<const InstantiateArg> getArgs() const noexcept { return Args; }
+  Span<const InstantiateArg<SortIndex<Sort>>> getArgs() const noexcept {
+    return Args;
+  }
 
 private:
   uint32_t ComponentIndex;
-  std::vector<InstantiateArg> Args;
+  std::vector<InstantiateArg<SortIndex<Sort>>> Args;
 };
 
-class InlineExports {
+template <typename SortType> class InlineExports {
 public:
   InlineExports() noexcept : Exports{} {}
-  InlineExports(std::vector<InlineExport> Es) noexcept : Exports{Es} {}
+  InlineExports(std::vector<InlineExport<SortType>> Es) noexcept
+      : Exports{Es} {}
 
-  Span<const InlineExport> getExports() const noexcept { return Exports; }
+  Span<const InlineExport<SortType>> getExports() const noexcept {
+    return Exports;
+  }
 
 private:
-  std::vector<InlineExport> Exports;
+  std::vector<InlineExport<SortType>> Exports;
 };
 
+using CoreInlineExports = InlineExports<CoreSort>;
+using CompInlineExports = InlineExports<Sort>;
+
 using CoreInstanceExpr = std::variant<CoreInstantiate, CoreInlineExports>;
-using InstanceExpr = std::variant<Instantiate, InlineExports>;
+using InstanceExpr = std::variant<Instantiate, CompInlineExports>;
 
 } // namespace AST
 } // namespace WasmEdge

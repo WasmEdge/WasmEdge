@@ -282,15 +282,16 @@ private:
   Expect<void> loadCoreInstance(AST::CoreInstanceExpr &InstanceExpr);
   Expect<void> loadInstance(AST::InstanceExpr &InstanceExpr);
   Expect<void> loadInstantiateArg(AST::CoreInstantiateArg &Arg);
-  Expect<void> loadInstantiateArg(AST::InstantiateArg &Arg);
-  Expect<void> loadInlineExport(AST::CoreInlineExport &Exp);
-  Expect<void> loadInlineExport(AST::InlineExport &Exp);
+  Expect<void>
+  loadInstantiateArg(AST::InstantiateArg<AST::SortIndex<AST::Sort>> &Arg);
+  Expect<void> loadInlineExport(AST::InlineExport<AST::CoreSort> &Exp);
+  Expect<void> loadInlineExport(AST::InlineExport<AST::Sort> &Exp);
   Expect<void> loadAlias(AST::Alias &Alias);
   Expect<void> loadSort(AST::Sort &Sort);
   Expect<void> loadAliasTarget(AST::AliasTarget &AliasTarget);
-  Expect<void> loadCoreSort(AST::Sort &Sort);
-  Expect<void> loadSortIndex(AST::SortIndex &SortIdx);
-  Expect<void> loadCoreSortIndex(AST::SortIndex &SortIdx);
+  Expect<void> loadCoreSort(AST::CoreSort &Sort);
+  Expect<void> loadSortIndex(AST::SortIndex<AST::Sort> &SortIdx);
+  Expect<void> loadCoreSortIndex(AST::SortIndex<AST::CoreSort> &SortIdx);
   Expect<void> loadExpression(AST::Expression &Expr,
                               std::optional<uint64_t> SizeBound = std::nullopt);
   Expect<OpCode> loadOpCode();

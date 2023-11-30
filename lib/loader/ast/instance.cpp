@@ -7,7 +7,8 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadInstantiateArg(AST::InstantiateArg &Arg) {
+Expect<void> Loader::loadInstantiateArg(
+    AST::InstantiateArg<AST::SortIndex<AST::Sort>> &Arg) {
   // syntax `(with n si)`
   //
   // instantiatearg ::= n:<string>  si:<sortidx>
@@ -16,10 +17,10 @@ Expect<void> Loader::loadInstantiateArg(AST::InstantiateArg &Arg) {
   } else {
     Arg.getName() = *Res;
   }
-  return loadSortIndex(Arg.getSortIndex());
+  return loadSortIndex(Arg.getIndex());
 }
 
-Expect<void> Loader::loadInlineExport(AST::InlineExport &Exp) {
+Expect<void> Loader::loadInlineExport(AST::InlineExport<AST::Sort> &Exp) {
   if (auto Res = FMgr.readName(); !Res) {
     return Unexpect(Res);
   } else {
@@ -46,13 +47,13 @@ Expect<void> Loader::loadInstantiateArg(AST::CoreInstantiateArg &Arg) {
   if (auto Res = FMgr.readU32(); !Res) {
     return Unexpect(Res);
   } else {
-    Arg.getInstanceIdx() = *Res;
+    Arg.getIndex() = *Res;
   }
 
   return {};
 }
 
-Expect<void> Loader::loadInlineExport(AST::CoreInlineExport &Exp) {
+Expect<void> Loader::loadInlineExport(AST::InlineExport<AST::CoreSort> &Exp) {
   if (auto Res = FMgr.readName(); !Res) {
     return Unexpect(Res);
   } else {
@@ -72,12 +73,11 @@ Expect<void> Loader::loadInstance(AST::InstanceExpr &InstanceExpr) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Instance));
         return Unexpect(Res);
       }
-      std::vector<AST::InstantiateArg> Args{};
+      std::vector<AST::InstantiateArg<AST::SortIndex<AST::Sort>>> Args{};
       if (auto Res = loadVec<AST::InstanceSection>(
               Args,
-              [this](AST::InstantiateArg &Arg) -> Expect<void> {
-                return loadInstantiateArg(Arg);
-              });
+              [this](AST::InstantiateArg<AST::SortIndex<AST::Sort>> &Arg)
+                  -> Expect<void> { return loadInstantiateArg(Arg); });
           !Res) {
         return Unexpect(Res);
       }
@@ -86,17 +86,17 @@ Expect<void> Loader::loadInstance(AST::InstanceExpr &InstanceExpr) {
       break;
     }
     case 0x01: {
-      std::vector<AST::InlineExport> Exports{};
+      std::vector<AST::InlineExport<AST::Sort>> Exports{};
       if (auto Res = loadVec<AST::InstanceSection>(
               Exports,
-              [this](AST::InlineExport &Arg) -> Expect<void> {
+              [this](AST::InlineExport<AST::Sort> &Arg) -> Expect<void> {
                 return loadInlineExport(Arg);
               });
           !Res) {
         return Unexpect(Res);
       }
 
-      InstanceExpr.emplace<AST::InlineExports>(AST::InlineExports(Exports));
+      InstanceExpr.emplace<AST::CompInlineExports>(AST::InlineExports(Exports));
       break;
     }
     default:
@@ -138,10 +138,10 @@ Expect<void> Loader::loadCoreInstance(AST::CoreInstanceExpr &InstanceExpr) {
       break;
     }
     case 0x01: {
-      std::vector<AST::CoreInlineExport> Exports{};
+      std::vector<AST::InlineExport<AST::CoreSort>> Exports{};
       if (auto Res = loadVec<AST::CoreInstanceSection>(
               Exports,
-              [this](AST::CoreInlineExport &Arg) -> Expect<void> {
+              [this](AST::InlineExport<AST::CoreSort> &Arg) -> Expect<void> {
                 return loadInlineExport(Arg);
               });
           !Res) {

@@ -25,7 +25,9 @@ A(Component, "component")
 A(Sec_CoreInstance, "component core:instance section")
 A(Sec_Alias, "component alias section")
 A(Sec_Instance, "component instance section")
+A(Sec_CompType, "component type section")
 A(Alias, "alias")
+A(DefType, "component defined type")
 A(AliasTarget, "alias target")
 A(Sort, "sort")
 A(Instance, "instance expr")
@@ -770,6 +772,8 @@ E(MalformedAliasTarget, 0x3D, "malformed alias target")
 E(MalformedCoreInstance, 0x3E, "malformed core instance")
 // Malformed instance
 E(MalformedInstance, 0x3F, "malformed instance")
+// Malformed defType
+E(MalformedDefType, 0x40, "malformed defined type")
 // @}
 
 // Validation phase

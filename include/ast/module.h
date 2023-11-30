@@ -171,8 +171,9 @@ public:
   CoreInstanceSection &getCoreInstanceSection() noexcept { return CoreInstSec; }
   TypeSection &getCoreTypeSection() noexcept { return CoreTypeSec; }
   ComponentSection &getComponentSection() noexcept { return CompSec; }
-  AliasSection &getAliasSection() noexcept { return AliasSec; }
   InstanceSection &getInstanceSection() noexcept { return InstSec; }
+  AliasSection &getAliasSection() noexcept { return AliasSec; }
+  CompTypeSection &getTypeSection() noexcept { return TySec; }
 
 private:
   /// \name Data of Module node.
@@ -185,8 +186,9 @@ private:
   CoreInstanceSection CoreInstSec;
   TypeSection CoreTypeSec;
   ComponentSection CompSec;
-  AliasSection AliasSec;
   InstanceSection InstSec;
+  AliasSection AliasSec;
+  CompTypeSection TySec;
   /// @}
 };
 

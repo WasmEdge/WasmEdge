@@ -15,6 +15,7 @@
 
 #include "ast/component/alias.h"
 #include "ast/component/instance.h"
+#include "ast/component/type.h"
 #include "ast/description.h"
 #include "ast/segment.h"
 
@@ -321,6 +322,19 @@ private:
   /// \name Data of InstanceSection.
   /// @{
   std::vector<InstanceExpr> Content;
+  /// @}
+};
+
+class CompTypeSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const DefType> getContent() const noexcept { return Content; }
+  std::vector<DefType> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of InstanceSection.
+  /// @{
+  std::vector<DefType> Content;
   /// @}
 };
 

@@ -122,10 +122,10 @@ Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
 
   const auto Ref = StackMgr.pop().get<RefVariant>();
   if (Ref.isNull()) {
-    spdlog::error(ErrCode::Value::InvokeNullFunc);
+    spdlog::error(ErrCode::Value::AccessNullFunc);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::InvokeNullFunc);
+    return Unexpect(ErrCode::Value::AccessNullFunc);
   }
 
   // Get Function address.

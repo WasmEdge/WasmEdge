@@ -3933,7 +3933,7 @@ private:
     auto IsRefNotNull =
         Builder.createLikely(Builder.createICmpNE(Ref, LLContext.getInt64(0)));
     Builder.createCondBr(IsRefNotNull, OkBB,
-                         getTrapBB(ErrCode::Value::InvokeNullFunc));
+                         getTrapBB(ErrCode::Value::AccessNullFunc));
     Builder.positionAtEnd(OkBB);
 
     const auto &FuncType = *Context.FunctionTypes[TypeIndex];
@@ -4055,7 +4055,7 @@ private:
     auto IsRefNotNull =
         Builder.createLikely(Builder.createICmpNE(Ref, LLContext.getInt64(0)));
     Builder.createCondBr(IsRefNotNull, OkBB,
-                         getTrapBB(ErrCode::Value::InvokeNullFunc));
+                         getTrapBB(ErrCode::Value::AccessNullFunc));
     Builder.positionAtEnd(OkBB);
 
     const auto &FuncType = *Context.FunctionTypes[TypeIndex];

@@ -1857,13 +1857,16 @@ void Poller::wait() noexcept {
     const auto Iter = FdDatas.find(EPollEvent.data.fd);
     assuming(Iter != FdDatas.end());
 
-    if (EPollEvent.events & EPOLLIN) {
+    const bool NoInOut = !(EPollEvent.events & (EPOLLIN | EPOLLOUT));
+    if ((EPollEvent.events & EPOLLIN) ||
+        (NoInOut && EPollEvent.events & EPOLLHUP && Iter->second.ReadEvent)) {
       assuming(Iter->second.ReadEvent);
       assuming(Iter->second.ReadEvent->type == __WASI_EVENTTYPE_CLOCK ||
                Iter->second.ReadEvent->type == __WASI_EVENTTYPE_FD_READ);
       ProcessEvent(EPollEvent, *Iter->second.ReadEvent);
     }
-    if (EPollEvent.events & EPOLLOUT) {
+    if (EPollEvent.events & EPOLLOUT ||
+        (NoInOut && EPollEvent.events & EPOLLHUP && Iter->second.WriteEvent)) {
       assuming(Iter->second.WriteEvent);
       assuming(Iter->second.WriteEvent->type == __WASI_EVENTTYPE_FD_WRITE);
       ProcessEvent(EPollEvent, *Iter->second.WriteEvent);

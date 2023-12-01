@@ -19,26 +19,27 @@ namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 struct Graph {
   llama_model *LlamaModel = nullptr;
-  llama_context *LlamaContext = nullptr;
   std::string ModelFilePath;
-};
-
-struct Context {
-public:
-  Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
-  size_t GraphId;
-  std::vector<llama_token> LlamaInputs;
-  std::string LlamaOutputs;
   // Plugin parameters:
   bool EnableLog;
   bool StreamStdout;
   uint64_t NPredict;
   std::string ReversePrompt;
   // Model parameters:
-  uint64_t NGPULayers;
+  int64_t NGPULayers;
   // Context parameters:
   uint64_t CtxSize;
   uint64_t BatchSize;
+};
+
+struct Context {
+public:
+  Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
+  size_t GraphId;
+  llama_context *LlamaContext = nullptr;
+  std::vector<llama_token> LlamaInputs;
+  std::string LlamaOutputs;
+  std::vector<llama_token> LlamaOutputTokens;
 };
 #else
 struct Graph {};

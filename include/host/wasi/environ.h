@@ -433,9 +433,10 @@ public:
     } else {
       if (const auto &Path = Node->name(); Path.empty()) {
         return WasiUnexpect(__WASI_ERRNO_INVAL);
+      } else if (Buffer.size() < Path.size()) {
+        return WasiUnexpect(__WASI_ERRNO_NAMETOOLONG);
       } else {
-        std::copy_n(Path.begin(), std::min(Path.size(), Buffer.size()),
-                    Buffer.begin());
+        std::copy_n(Path.begin(), Path.size(), Buffer.begin());
       }
     }
     return {};
@@ -526,6 +527,8 @@ public:
     std::unique_lock Lock(FdMutex);
     if (auto It = FdMap.find(Fd); It == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else if (Fd == To) {
+      return {};
     } else if (auto It2 = FdMap.find(To); It2 == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
@@ -827,6 +830,10 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     if (!VINode::isPathValid(NewPath)) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
+    // forbid absolute path
+    if (!OldPath.empty() && OldPath[0] == '/') {
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto NewNode = getNodeOrNull(New);

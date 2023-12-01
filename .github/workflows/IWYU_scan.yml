@@ -108,6 +108,8 @@ jobs:
     - name: Build and scan WasmEdge with IWYU
       shell: bash
       run: |
+        # Unlink python@3.11 to fix brew link 2to3 conflict.
+        brew unlink python@3.11
         brew install llvm ninja cmake
         export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
         export Clang_DIR="/usr/local/opt/llvm/lib/cmake/clang"

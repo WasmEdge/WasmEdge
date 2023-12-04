@@ -104,6 +104,24 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
   }
+  // The sampling parameters.
+  if (Doc.at_key("temp").error() == simdjson::SUCCESS) {
+    auto Err = Doc["temp"].get<double>().get(GraphRef.Temp);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the temp option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.Temp = std::max(0.0, GraphRef.Temp);
+  }
+  if (Doc.at_key("repeat-penalty").error() == simdjson::SUCCESS) {
+    auto Err = Doc["repeat-penalty"].get<double>().get(GraphRef.RepeatPenalty);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the repeat-penalty option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
 
   // Check if the model is updated.
   if (IsModelUpdated && ModelParams.n_gpu_layers != GraphRef.NGPULayers) {
@@ -376,6 +394,8 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   // Main predict loop.
   gpt_params GPTParams;
+  GPTParams.sparams.temp = GraphRef.Temp;
+  GPTParams.sparams.penalty_repeat = GraphRef.RepeatPenalty;
   struct llama_sampling_context *CtxSampling =
       llama_sampling_init(GPTParams.sparams);
   std::vector<llama_token> Embd;

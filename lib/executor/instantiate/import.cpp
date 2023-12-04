@@ -148,6 +148,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       const auto &TargetType = TargetInst->getFuncType();
       const auto *FuncType = *ModInst.getFuncType(TypeIdx);
       if (TargetType != *FuncType) {
+        bool IsMatchV2 = false;
         if (ModName == "wasi_snapshot_preview1") {
           /*
            * The following functions should provide V1 and V2.
@@ -176,11 +177,13 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
               if (TargetInstV2->getFuncType() == *FuncType) {
                 // Try to match the new version
                 TargetInst = TargetInstV2;
+                IsMatchV2 = true;
                 break;
               }
             }
           }
-        } else {
+        }
+        if (!IsMatchV2) {
           return logMatchError(
               ModName, ExtName, ExtType, FuncType->getParamTypes(),
               FuncType->getReturnTypes(), TargetType.getParamTypes(),

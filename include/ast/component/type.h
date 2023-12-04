@@ -36,8 +36,32 @@ enum class PrimValType {
   Char,
   String
 };
+
+using TypeIndex = uint32_t;
+using ValueType = std::variant<PrimValType, TypeIndex>;
+
+class LabelValType {
+public:
+  std::string_view getLabel() const noexcept { return Label; }
+  std::string &getLabel() noexcept { return Label; }
+  const ValueType getValType() const noexcept { return ValTy; }
+  ValueType &getValType() noexcept { return ValTy; }
+
+private:
+  std::string Label;
+  ValueType ValTy;
+};
+
+class Record {
+public:
+  Span<const LabelValType> getLabelTypes() const noexcept { return LabelTypes; }
+  std::vector<LabelValType> &getLabelTypes() noexcept { return LabelTypes; }
+
+private:
+  std::vector<LabelValType> LabelTypes;
+};
+
 // TODO: complete these class
-class Record {};
 class VariantTy {};
 class List {};
 class Tuple {};

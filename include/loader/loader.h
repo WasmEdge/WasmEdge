@@ -285,6 +285,11 @@ private:
   Expect<void> loadType(AST::TableType &TabType);
   Expect<void> loadType(AST::GlobalType &GlobType);
   Expect<void> loadType(AST::DefType &Ty);
+  Expect<void> loadType(uint32_t Tag, AST::PrimValType &Ty);
+  Expect<void> loadType(AST::Record &RecTy);
+  Expect<void> loadType(AST::LabelValType &Ty);
+  Expect<void> loadType(AST::ValueType &Ty);
+  Expect<void> loadLabel(std::string &Label);
   Expect<void> loadCoreInstance(AST::CoreInstanceExpr &InstanceExpr);
   Expect<void> loadInstance(AST::InstanceExpr &InstanceExpr);
   Expect<void> loadInstantiateArg(AST::CoreInstantiateArg &Arg);

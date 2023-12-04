@@ -774,6 +774,8 @@ E(MalformedCoreInstance, 0x3E, "malformed core instance")
 E(MalformedInstance, 0x3F, "malformed instance")
 // Malformed defType
 E(MalformedDefType, 0x40, "malformed defined type")
+// Malformed record type
+E(MalformedRecordType, 0x41, "malformed record type")
 // @}
 
 // Validation phase

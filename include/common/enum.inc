@@ -776,6 +776,12 @@ E(MalformedInstance, 0x3F, "malformed instance")
 E(MalformedDefType, 0x40, "malformed defined type")
 // Malformed record type
 E(MalformedRecordType, 0x41, "malformed record type")
+// Malformed variant type
+E(MalformedVariantType, 0x42, "malformed variant type")
+// Malformed tuple type
+E(MalformedTupleType, 0x43, "malformed tuple type")
+// Malformed flags type
+E(MalformedFlagsType, 0x44, "malformed flags type")
 // @}
 
 // Validation phase

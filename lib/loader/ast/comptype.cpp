@@ -113,7 +113,7 @@ Expect<void> Loader::loadCase(AST::Case &C) {
   }
   if (auto Res = FMgr.readU32()) {
     if (*Res != 0x00) {
-      return logLoadError(ErrCode::Value::MalformedRecordType,
+      return logLoadError(ErrCode::Value::MalformedVariantType,
                           FMgr.getLastOffset(), ASTNodeAttr::DefType);
     }
   } else {
@@ -126,6 +126,47 @@ Expect<void> Loader::loadType(VariantTy &Ty) {
   if (auto Res = loadVec<CompTypeSection>(
           Ty.getCases(),
           [this](Case C) -> Expect<void> { return loadCase(C); })) {
+    return {};
+  } else {
+    return Unexpect(Res);
+  }
+}
+
+Expect<void> Loader::loadType(List &Ty) { return loadType(Ty.getValType()); }
+
+Expect<void> Loader::loadType(Tuple &Ty) {
+  if (auto Res = loadVec<CompTypeSection>(
+          Ty.getTypes(),
+          [this](ValueType T) -> Expect<void> { return loadType(T); })) {
+    if (Ty.getTypes().size() == 0) {
+      return logLoadError(ErrCode::Value::MalformedTupleType,
+                          FMgr.getLastOffset(), ASTNodeAttr::DefType);
+    }
+    return {};
+  } else {
+    return Unexpect(Res);
+  }
+}
+Expect<void> Loader::loadType(Flags &Ty) {
+  if (auto Res = loadVec<CompTypeSection>(
+          Ty.getLabels(), [this](std::string Label) -> Expect<void> {
+            return loadLabel(Label);
+          })) {
+    if (Ty.getLabels().size() == 0) {
+      return logLoadError(ErrCode::Value::MalformedFlagsType,
+                          FMgr.getLastOffset(), ASTNodeAttr::DefType);
+    }
+    return {};
+  } else {
+    return Unexpect(Res);
+  }
+}
+
+Expect<void> Loader::loadType(Enum &Ty) {
+  if (auto Res = loadVec<CompTypeSection>(
+          Ty.getLabels(), [this](std::string Label) -> Expect<void> {
+            return loadLabel(Label);
+          })) {
     return {};
   } else {
     return Unexpect(Res);
@@ -224,18 +265,38 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
     Ty.emplace<DefValType>(VT);
     break;
   }
-  case 0x70: // t:<valtype>             => (list t)
-    Ty.emplace<DefValType>(List());
+  case 0x70: {
+    List V;
+    if (auto Res = loadType(V); !Res) {
+      return Unexpect(Res);
+    }
+    Ty.emplace<DefValType>(V);
     break;
-  case 0x6f: // t*:vec(<valtype>)    => (tuple t+)    (if |t*| >0)
-    Ty.emplace<DefValType>(Tuple());
+  }
+  case 0x6f: {
+    Tuple V;
+    if (auto Res = loadType(V); !Res) {
+      return Unexpect(Res);
+    }
+    Ty.emplace<DefValType>(V);
     break;
-  case 0x6e: // l*:vec(<label'>)     => (flags l+)    (if |l*| >0)
-    Ty.emplace<DefValType>(Flags());
+  }
+  case 0x6e: {
+    Flags V;
+    if (auto Res = loadType(V); !Res) {
+      return Unexpect(Res);
+    }
+    Ty.emplace<DefValType>(V);
     break;
-  case 0x6d: // l*:vec(<label'>)        => (enum l*)
-    Ty.emplace<DefValType>(Enum());
+  }
+  case 0x6d: {
+    Enum V;
+    if (auto Res = loadType(V); !Res) {
+      return Unexpect(Res);
+    }
+    Ty.emplace<DefValType>(V);
     break;
+  }
   case 0x6b: // t:<valtype>             => (option t)
     Ty.emplace<DefValType>(Option());
     break;

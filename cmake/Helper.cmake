@@ -190,7 +190,7 @@ function(wasmedge_add_executable target)
 endfunction()
 
 # Generate the list of static libs to statically link LLVM.
-if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_BUILD_AOT_RUNTIME)
+if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLVM)
   # Pack the LLVM and lld static libraries.
   find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}")
   execute_process(

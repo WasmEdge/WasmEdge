@@ -37,7 +37,7 @@ define Package/$(PKG_NAME)/install
 endef
 
 CMAKE_OPTIONS += \
-        -DWASMEDGE_BUILD_AOT_RUNTIME=OFF \
+        -DWASMEDGE_USE_LLVM=OFF \
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
 

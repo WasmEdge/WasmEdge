@@ -1,118 +1,31 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "aot/compiler.h"
+#include "llvm/compiler.h"
 
 #include "aot/version.h"
 #include "common/defines.h"
 #include "common/filesystem.h"
 #include "common/log.h"
+#include "data.h"
 #include "llvm.h"
 
 #include <algorithm>
 #include <array>
-#include <charconv>
 #include <cinttypes>
 #include <cstdint>
 #include <cstdlib>
-#include <fstream>
 #include <limits>
-#include <lld/Common/Driver.h>
 #include <memory>
 #include <numeric>
-#include <random>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
 
-#if LLVM_VERSION_MAJOR >= 14
-#include <lld/Common/CommonLinkerContext.h>
-#endif
-#if LLVM_VERSION_MAJOR >= 17
-#if WASMEDGE_OS_MACOS
-LLD_HAS_DRIVER(macho)
-#elif WASMEDGE_OS_LINUX
-LLD_HAS_DRIVER(elf)
-#elif WASMEDGE_OS_WINDOWS
-LLD_HAS_DRIVER(coff)
-#endif
-#endif
-
-#if WASMEDGE_OS_MACOS
-#include <sys/utsname.h>
-#include <unistd.h>
-#endif
-#if WASMEDGE_OS_WINDOWS
-#include <llvm/Object/COFF.h>
-#endif
-
-#if WASMEDGE_OS_LINUX
-#define SYMBOL(X) X
-#elif WASMEDGE_OS_MACOS
-#define SYMBOL(X) "_" X
-#elif WASMEDGE_OS_WINDOWS
-#define SYMBOL(X) X
-#endif
-
+namespace LLVM = WasmEdge::LLVM;
 using namespace std::literals;
-namespace LLVM = WasmEdge::AOT::LLVM;
 
 namespace {
-
-#if WASMEDGE_OS_MACOS
-// Get current OS version
-std::string getOSVersion() noexcept {
-  struct utsname Info;
-  if (::uname(&Info)) {
-    // default os version
-    return "13.0.0";
-  }
-  std::string_view Release = Info.release;
-  auto GetNum = [](std::string_view &String) noexcept {
-    uint64_t Result = 0;
-    while (!String.empty() && std::isdigit(String[0])) {
-      Result = Result * 10 + (String[0] - '0');
-      String = String.substr(1);
-    }
-    return Result;
-  };
-  auto SkipDot = [](std::string_view &String) noexcept {
-    if (!String.empty() && String[0] == '.')
-      String = String.substr(1);
-  };
-  uint64_t Major = GetNum(Release);
-  SkipDot(Release);
-  uint64_t Minor = GetNum(Release);
-  SkipDot(Release);
-  uint64_t Micro = GetNum(Release);
-
-  if (Major == 0) {
-    Major = 8;
-  }
-  if (Major <= 19) {
-    Micro = 0;
-    Minor = Major - 4;
-    Major = 10;
-  } else {
-    Micro = 0;
-    Minor = 0;
-    Major = 11 + Major - 20;
-  }
-
-  return fmt::format("{}.{}.{}"sv, Major, Minor, Micro);
-}
-// Get current SDK version
-std::string getSDKVersion() noexcept {
-  // TODO: parse SDKSettings.json to get real version
-  return "12.1"s;
-}
-// Get current SDK version in pair
-std::pair<uint32_t, uint32_t> getSDKVersionPair() noexcept {
-  // TODO: parse SDKSettings.json to get real version
-  return {UINT32_C(12), UINT32_C(1)};
-}
-#endif
 
 static bool
 isVoidReturn(WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
@@ -153,7 +66,7 @@ toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
   case OL::O0:
     return "default<O0>,function(tailcallelim)";
   case OL::O1:
-    return "default<O1>";
+    return "default<O1>,function(tailcallelim)";
   case OL::O2:
     return "default<O2>";
   case OL::O3:
@@ -209,83 +122,9 @@ static inline LLVMCodeGenOptLevel toLLVMCodeGenLevel(
     assumingUnreachable();
   }
 }
-
-WasmEdge::Expect<void> WriteByte(std::ostream &OS, uint8_t Data) noexcept {
-  OS.put(static_cast<char>(Data));
-  return {};
-}
-
-WasmEdge::Expect<void> WriteU32(std::ostream &OS, uint32_t Data) noexcept {
-  do {
-    uint8_t Byte = static_cast<uint8_t>(Data & UINT32_C(0x7f));
-    Data >>= 7;
-    if (Data > UINT32_C(0)) {
-      Byte |= UINT8_C(0x80);
-    }
-    WriteByte(OS, Byte);
-  } while (Data > UINT32_C(0));
-  return {};
-}
-
-WasmEdge::Expect<void> WriteU64(std::ostream &OS, uint64_t Data) noexcept {
-  do {
-    uint8_t Byte = static_cast<uint8_t>(Data & UINT64_C(0x7f));
-    Data >>= 7;
-    if (Data > UINT64_C(0)) {
-      Byte |= UINT8_C(0x80);
-    }
-    WriteByte(OS, Byte);
-  } while (Data > UINT64_C(0));
-  return {};
-}
-
-WasmEdge::Expect<void> WriteName(std::ostream &OS,
-                                 std::string_view Data) noexcept {
-  WriteU32(OS, static_cast<uint32_t>(Data.size()));
-  for (const auto C : Data) {
-    WriteByte(OS, static_cast<uint8_t>(C));
-  }
-  return {};
-}
-
-inline constexpr bool startsWith(std::string_view Value,
-                                 std::string_view Prefix) noexcept {
-  return Value.size() >= Prefix.size() &&
-         Value.substr(0, Prefix.size()) == Prefix;
-}
-
-std::filesystem::path uniquePath(const std::filesystem::path Model) noexcept {
-  using size_type = std::filesystem::path::string_type::size_type;
-  using value_type = std::filesystem::path::value_type;
-  static const auto Hex = "0123456789abcdef"sv;
-  std::random_device Device;
-  std::default_random_engine Engine(Device());
-  std::uniform_int_distribution<size_type> Distribution(0, Hex.size() - 1);
-  auto String = Model.native();
-  for (size_type N = String.size(), I = 0; I < N; ++I) {
-    if (String[I] == static_cast<value_type>('%')) {
-      String[I] = static_cast<value_type>(Hex[Distribution(Engine)]);
-    }
-  }
-  return String;
-}
-
-std::filesystem::path createTemp(const std::filesystem::path Model) noexcept {
-  while (true) {
-    auto Result = uniquePath(Model);
-    std::error_code Error;
-    if (!std::filesystem::exists(Result, Error)) {
-      if (Error) {
-        return {};
-      }
-      return Result;
-    }
-  }
-}
-
 } // namespace
 
-struct WasmEdge::AOT::Compiler::CompileContext {
+struct LLVM::Compiler::CompileContext {
   LLVM::Context &LLContext;
   LLVM::Module &LLModule;
   LLVM::Attribute Cold;
@@ -320,7 +159,6 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   LLVM::Type IntrinsicsTableTy;
   LLVM::Type IntrinsicsTablePtrTy;
   LLVM::Message SubtargetFeatures;
-  bool IsCustomSection;
 
 #if defined(__x86_64__)
 #if defined(__XOP__)
@@ -364,8 +202,8 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   std::vector<LLVM::Type> Globals;
   LLVM::Value IntrinsicsTable;
   LLVM::FunctionCallee Trap;
-  CompileContext(LLVM::Context &C, LLVM::Module &M, bool IsGenericBinary,
-                 bool IsCustomSection) noexcept
+  CompileContext(LLVM::Context &C, LLVM::Module &M,
+                 bool IsGenericBinary) noexcept
       : LLContext(C), LLModule(M),
         Cold(LLVM::Attribute::createEnum(C, LLVM::Core::Cold, 0)),
         NoAlias(LLVM::Attribute::createEnum(C, LLVM::Core::NoAlias, 0)),
@@ -415,7 +253,6 @@ struct WasmEdge::AOT::Compiler::CompileContext {
             Int8PtrTy,
             static_cast<uint32_t>(AST::Module::Intrinsics::kIntrinsicMax))),
         IntrinsicsTablePtrTy(IntrinsicsTableTy.getPointerTo()),
-        IsCustomSection(IsCustomSection),
         IntrinsicsTable(LLModule.addGlobal(IntrinsicsTablePtrTy, true,
                                            LLVMExternalLinkage, LLVM::Value(),
                                            "intrinsics")) {
@@ -431,7 +268,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
     Trap.Fn.addFnAttr(NoInline);
 
     LLModule.addGlobal(Int32Ty, true, LLVMExternalLinkage,
-                       LLVM::Value::getConstInt(Int32Ty, kBinaryVersion),
+                       LLVM::Value::getConstInt(Int32Ty, AOT::kBinaryVersion),
                        "version");
 
     if (!IsGenericBinary) {
@@ -565,7 +402,7 @@ namespace {
 
 using namespace WasmEdge;
 
-static bool isVoidReturn(Span<const WasmEdge::ValType> ValTypes) noexcept {
+static bool isVoidReturn(Span<const ValType> ValTypes) noexcept {
   return ValTypes.empty();
 }
 
@@ -657,13 +494,12 @@ class FunctionCompiler {
   struct Control;
 
 public:
-  FunctionCompiler(AOT::Compiler::CompileContext &Context,
+  FunctionCompiler(LLVM::Compiler::CompileContext &Context,
                    LLVM::FunctionCallee F, Span<const ValType> Locals,
                    bool Interruptible, bool InstructionCounting,
-                   bool GasMeasuring, bool OptNone) noexcept
+                   bool GasMeasuring) noexcept
       : Context(Context), LLContext(Context.LLContext),
-        Interruptible(Interruptible), OptNone(OptNone), F(F),
-        Builder(LLContext) {
+        Interruptible(Interruptible), F(F), Builder(LLContext) {
     if (F.Fn) {
       Builder.positionAtEnd(LLVM::BasicBlock::create(LLContext, F.Fn, "entry"));
       ExecCtx = Builder.createLoad(Context.ExecCtxTy, F.Fn.getFirstParam());
@@ -3489,7 +3325,7 @@ public:
         Offset);
 
     auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
-    auto Load = Builder.createLoad(TargetType, Ptr, OptNone);
+    auto Load = Builder.createLoad(TargetType, Ptr, true);
     Load.setAlignment(1 << Alignment);
     Load.setOrdering(LLVMAtomicOrderingSequentiallyConsistent);
 
@@ -3518,7 +3354,7 @@ public:
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
         Offset);
     auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
-    auto Store = Builder.createStore(V, Ptr, OptNone);
+    auto Store = Builder.createStore(V, Ptr, true);
     Store.setAlignment(1 << Alignment);
     Store.setOrdering(LLVMAtomicOrderingSequentiallyConsistent);
   }
@@ -4188,7 +4024,7 @@ private:
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
-    auto LoadInst = Builder.createLoad(LoadTy, Ptr, OptNone);
+    auto LoadInst = Builder.createLoad(LoadTy, Ptr, true);
     LoadInst.setAlignment(1 << Alignment);
     stackPush(LoadInst);
   }
@@ -4259,7 +4095,7 @@ private:
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
-    auto StoreInst = Builder.createStore(V, Ptr, OptNone);
+    auto StoreInst = Builder.createStore(V, Ptr, true);
     StoreInst.setAlignment(1 << Alignment);
   }
   void compileSplatOp(LLVM::Type VectorTy) noexcept {
@@ -5116,7 +4952,7 @@ private:
     return Value;
   }
 
-  AOT::Compiler::CompileContext &Context;
+  LLVM::Compiler::CompileContext &Context;
   LLVM::Context &LLContext;
   std::vector<std::pair<LLVM::Type, LLVM::Value>> Local;
   std::vector<LLVM::Value> Stack;
@@ -5125,7 +4961,6 @@ private:
   std::unordered_map<ErrCode::Value, LLVM::BasicBlock> TrapBB;
   bool IsUnreachable = false;
   bool Interruptible = false;
-  bool OptNone = false;
   struct Control {
     size_t StackSize;
     bool Unreachable;
@@ -5166,335 +5001,12 @@ std::vector<LLVM::Value> unpackStruct(LLVM::Builder &Builder,
   return Ret;
 }
 
-// Write output object and link
-Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
-                                 const LLVM::MemoryBuffer &OSVec) noexcept {
-  spdlog::info("output start");
-  std::filesystem::path ObjectName;
-  {
-    // tempfile
-    std::filesystem::path OPath(OutputPath);
-#if WASMEDGE_OS_WINDOWS
-    OPath.replace_extension("%%%%%%%%%%.obj"sv);
-#else
-    OPath.replace_extension("%%%%%%%%%%.o"sv);
-#endif
-    ObjectName = createTemp(OPath);
-    if (ObjectName.empty()) {
-      // TODO:return error
-      spdlog::error("so file creation failed:{}", OPath.u8string());
-      return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
-    }
-    std::ofstream OS(ObjectName, std::ios_base::binary);
-    OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
-    OS.close();
-  }
-
-  // link
-  bool LinkResult = false;
-#if WASMEDGE_OS_MACOS
-  const auto OSVersion = getOSVersion();
-  const auto SDKVersion = getSDKVersion();
-#if LLVM_VERSION_MAJOR >= 14
-  // LLVM 14 replaces the older mach_o lld implementation with the new one.
-  // So we need to change the namespace after LLVM 14.x released.
-  // Reference: https://reviews.llvm.org/D114842
-  LinkResult = lld::macho::link(
-#else
-  LinkResult = lld::mach_o::link(
-#endif
-      std::initializer_list<const char *> {
-        "lld", "-arch",
-#if defined(__x86_64__)
-            "x86_64",
-#elif defined(__aarch64__)
-            "arm64",
-#else
-#error Unsupported architecture on the MacOS!
-#endif
-#if LLVM_VERSION_MAJOR >= 14
-            // LLVM 14 replaces the older mach_o lld implementation with the new
-            // one. And it require -arch and -platform_version to always be
-            // specified. Reference: https://reviews.llvm.org/D97799
-            "-platform_version", "macos", OSVersion.c_str(), SDKVersion.c_str(),
-#else
-            "-sdk_version", SDKVersion.c_str(),
-#endif
-            "-dylib", "-demangle", "-macosx_version_min", OSVersion.c_str(),
-            "-syslibroot",
-            "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-            ObjectName.u8string().c_str(), "-o", OutputPath.u8string().c_str()
-      },
-#elif WASMEDGE_OS_LINUX
-  LinkResult = lld::elf::link(
-      std::initializer_list<const char *>{"ld.lld", "--eh-frame-hdr",
-                                          "--shared", "--gc-sections",
-                                          "--discard-all", ObjectName.c_str(),
-                                          "-o", OutputPath.u8string().c_str()},
-#elif WASMEDGE_OS_WINDOWS
-  LinkResult = lld::coff::link(
-      std::initializer_list<const char *>{
-          "lld-link", "-dll", "-base:0", "-nologo",
-          ObjectName.u8string().c_str(),
-          ("-out:" + OutputPath.u8string()).c_str()},
-#endif
-
-#if LLVM_VERSION_MAJOR >= 14
-      llvm::outs(), llvm::errs(), false, false
-#elif LLVM_VERSION_MAJOR >= 10
-      false, llvm::outs(), llvm::errs()
-#else
-      false, llvm::errs()
-#endif
-  );
-
-#if LLVM_VERSION_MAJOR >= 14
-  lld::CommonLinkerContext::destroy();
-#endif
-
-  if (LinkResult) {
-    std::error_code Error;
-    std::filesystem::remove(ObjectName, Error);
-#if WASMEDGE_OS_WINDOWS
-    std::filesystem::path LibPath(OutputPath);
-    LibPath.replace_extension(".lib"sv);
-    std::filesystem::remove(LibPath, Error);
-#endif
-
-    spdlog::info("compile done");
-  } else {
-    spdlog::error("link error");
-  }
-
-#if WASMEDGE_OS_MACOS
-  // codesign
-  if (LinkResult) {
-    pid_t PID = ::fork();
-    if (PID == -1) {
-      spdlog::error("codesign error on fork:{}", std::strerror(errno));
-    } else if (PID == 0) {
-      execlp("/usr/bin/codesign", "codesign", "-s", "-",
-             OutputPath.u8string().c_str(), nullptr);
-      std::exit(256);
-    } else {
-      int ChildStat;
-      waitpid(PID, &ChildStat, 0);
-      if (const int Status = WEXITSTATUS(ChildStat); Status != 0) {
-        spdlog::error("codesign exited with status {}", Status);
-      }
-    }
-  }
-#endif
-
-  return {};
-}
-
-Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
-                               Span<const Byte> Data,
-                               const LLVM::MemoryBuffer &OSVec) noexcept {
-  std::filesystem::path SharedObjectName;
-  {
-    // tempfile
-    std::filesystem::path SOPath(OutputPath);
-    SOPath.replace_extension("%%%%%%%%%%" WASMEDGE_LIB_EXTENSION);
-    SharedObjectName = createTemp(SOPath);
-    if (SharedObjectName.empty()) {
-      // TODO:return error
-      spdlog::error("so file creation failed:{}", SOPath.u8string());
-      return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
-    }
-    std::ofstream OS(SharedObjectName, std::ios_base::binary);
-    OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
-    OS.close();
-  }
-
-  if (auto Res = outputNativeLibrary(SharedObjectName, OSVec); unlikely(!Res)) {
-    return Unexpect(Res);
-  }
-
-  LLVM::MemoryBuffer SOFile;
-  if (auto [Res, ErrorMessage] =
-          LLVM::MemoryBuffer::getFile(SharedObjectName.u8string().c_str());
-      unlikely(ErrorMessage)) {
-    spdlog::error("object file open error:{}", ErrorMessage.string_view());
-    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
-  } else {
-    SOFile = std::move(Res);
-  }
-
-  LLVM::Context Context;
-  LLVM::Binary ObjFile;
-  if (auto [Res, ErrorMessage] = LLVM::Binary::create(SOFile, Context);
-      unlikely(ErrorMessage)) {
-    spdlog::error("object file parse error:{}", ErrorMessage.string_view());
-    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
-  } else {
-    ObjFile = std::move(Res);
-  }
-
-  std::string OSCustomSecVec;
-  {
-    std::ostringstream OS;
-    WriteName(OS, "wasmedge"sv);
-    WriteU32(OS, WasmEdge::AOT::kBinaryVersion);
-
-#if WASMEDGE_OS_LINUX
-    WriteByte(OS, UINT8_C(1));
-#elif WASMEDGE_OS_MACOS
-    WriteByte(OS, UINT8_C(2));
-#elif WASMEDGE_OS_WINDOWS
-    WriteByte(OS, UINT8_C(3));
-#else
-#error Unsupported operating system!
-#endif
-
-#if defined(__x86_64__)
-    WriteByte(OS, UINT8_C(1));
-#elif defined(__aarch64__)
-    WriteByte(OS, UINT8_C(2));
-#elif defined(__riscv) && __riscv_xlen == 64
-    WriteByte(OS, UINT8_C(3));
-#elif defined(__arm__) && __ARM_ARCH == 7
-    WriteByte(OS, UINT8_C(4));
-#else
-#error Unsupported hardware architecture!
-#endif
-
-    std::vector<std::pair<std::string, uint64_t>> SymbolTable;
-#if !WASMEDGE_OS_WINDOWS
-    for (auto Symbol = ObjFile.symbols();
-         Symbol && !ObjFile.isSymbolEnd(Symbol); Symbol.next()) {
-      SymbolTable.emplace_back(Symbol.getName(), Symbol.getAddress());
-    }
-#else
-    for (auto &Symbol :
-         llvm::object::unwrap<llvm::object::COFFObjectFile>(ObjFile.unwrap())
-             ->export_directories()) {
-      llvm::StringRef Name;
-      if (auto Error = Symbol.getSymbolName(Name); unlikely(!!Error)) {
-        continue;
-      } else if (Name.empty()) {
-        continue;
-      }
-      uint32_t Offset = 0;
-      if (auto Error = Symbol.getExportRVA(Offset); unlikely(!!Error)) {
-        continue;
-      }
-      SymbolTable.emplace_back(Name.str(), Offset);
-    }
-#endif
-    uint64_t VersionAddress = 0, IntrinsicsAddress = 0;
-    std::vector<uint64_t> Types;
-    std::vector<uint64_t> Codes;
-    uint64_t CodesMin = std::numeric_limits<uint64_t>::max();
-    for (const auto &[Name, Address] : SymbolTable) {
-      if (Name == SYMBOL("version"sv)) {
-        VersionAddress = Address;
-      } else if (Name == SYMBOL("intrinsics"sv)) {
-        IntrinsicsAddress = Address;
-      } else if (startsWith(Name, SYMBOL("t"sv))) {
-        uint64_t Index = 0;
-        std::from_chars(Name.data() + SYMBOL("t"sv).size(),
-                        Name.data() + Name.size(), Index);
-        if (Types.size() < Index + 1) {
-          Types.resize(Index + 1);
-        }
-        Types[Index] = Address;
-      } else if (startsWith(Name, SYMBOL("f"sv))) {
-        uint64_t Index = 0;
-        std::from_chars(Name.data() + SYMBOL("f"sv).size(),
-                        Name.data() + Name.size(), Index);
-        if (Codes.size() < Index + 1) {
-          Codes.resize(Index + 1);
-        }
-        CodesMin = std::min(CodesMin, Index);
-        Codes[Index] = Address;
-      }
-    }
-    if (CodesMin != std::numeric_limits<uint64_t>::max()) {
-      Codes.erase(Codes.begin(),
-                  Codes.begin() + static_cast<int64_t>(CodesMin));
-    }
-    WriteU64(OS, VersionAddress);
-    WriteU64(OS, IntrinsicsAddress);
-    WriteU64(OS, Types.size());
-    for (const uint64_t TypeAddress : Types) {
-      WriteU64(OS, TypeAddress);
-    }
-    WriteU64(OS, Codes.size());
-    for (const uint64_t CodeAddress : Codes) {
-      WriteU64(OS, CodeAddress);
-    }
-
-    uint32_t SectionCount = 0;
-    for (auto Section = ObjFile.sections(); !ObjFile.isSectionEnd(Section);
-         Section.next()) {
-      if (Section.getSize() == 0) {
-        continue;
-      }
-      if (!Section.isEHFrame() && !Section.isPData() && !Section.isText() &&
-          !Section.isData() && !Section.isBSS()) {
-        continue;
-      }
-      ++SectionCount;
-    }
-    WriteU32(OS, SectionCount);
-
-    for (auto Section = ObjFile.sections(); !ObjFile.isSectionEnd(Section);
-         Section.next()) {
-      if (Section.getSize() == 0) {
-        continue;
-      }
-      std::vector<char> Content;
-      if (auto Res = Section.getContents(); unlikely(Res.empty())) {
-        assumingUnreachable();
-      } else {
-        Content.assign(Res.begin(), Res.end());
-      }
-      if (Section.isEHFrame() || Section.isPData()) {
-        WriteByte(OS, UINT8_C(4));
-      } else if (Section.isText()) {
-        WriteByte(OS, UINT8_C(1));
-      } else if (Section.isData()) {
-        WriteByte(OS, UINT8_C(2));
-      } else if (Section.isBSS()) {
-        WriteByte(OS, UINT8_C(3));
-      } else {
-        continue;
-      }
-
-      WriteU64(OS, Section.getAddress());
-      WriteU64(OS, Content.size());
-      WriteName(OS, std::string_view(Content.data(), Content.size()));
-    }
-    OSCustomSecVec = OS.str();
-  }
-
-  spdlog::info("output start");
-
-  std::ofstream OS(OutputPath, std::ios_base::binary);
-  if (!OS) {
-    spdlog::error("output failed.");
-    return Unexpect(ErrCode::Value::IllegalPath);
-  }
-  OS.write(reinterpret_cast<const char *>(Data.data()),
-           static_cast<std::streamsize>(Data.size()));
-  // Custom section id
-  WriteByte(OS, UINT8_C(0x00));
-  WriteName(OS, std::string_view(OSCustomSecVec.data(), OSCustomSecVec.size()));
-
-  std::error_code Error;
-  std::filesystem::remove(SharedObjectName, Error);
-  return {};
-}
-
 } // namespace
 
 namespace WasmEdge {
-namespace AOT {
+namespace LLVM {
 
-Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
-                               std::filesystem::path OutputPath) noexcept {
+Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   // Check the module is validated.
   if (unlikely(!Module.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
@@ -5503,26 +5015,17 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 
   std::unique_lock Lock(Mutex);
   spdlog::info("compile start");
-  std::filesystem::path LLPath(OutputPath);
-  LLPath.replace_extension("ll"sv);
 
   LLVM::Core::init();
 
-  LLVM::Context LLContext;
-  LLVM::Module LLModule(LLContext, LLPath.u8string().c_str());
+  LLVM::Data D;
+  auto &LLContext = D.extract().LLContext;
+  auto &LLModule = D.extract().LLModule;
   LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
   LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
-#if WASMEDGE_OS_MACOS
-  {
-    const auto [Major, Minor] = getSDKVersionPair();
-    LLModule.addFlag(LLVMModuleFlagBehaviorError, "SDK Version"sv,
-                     LLVM::Value::getConstVector32(LLContext, {Major, Minor}));
-  }
-#endif
+
   CompileContext NewContext(LLContext, LLModule,
-                            Conf.getCompilerConfigure().isGenericBinary(),
-                            Conf.getCompilerConfigure().getOutputFormat() ==
-                                CompilerConfigure::OutputFormat::Wasm);
+                            Conf.getCompilerConfigure().isGenericBinary());
   struct RAIICleanup {
     RAIICleanup(CompileContext *&Context, CompileContext &NewContext)
         : Context(Context) {
@@ -5549,76 +5052,18 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   compile(Module.getExportSection());
   // StartSection is not required to compile
 
-#if WASMEDGE_OS_WINDOWS
-  {
-    // create dummy dllmain function
-    auto FTy = LLVM::Type::getFunctionType(Context->LLContext.getInt32Ty(), {});
-    auto F = Context->LLModule.addFunction(FTy, LLVMExternalLinkage,
-                                           "_DllMainCRTStartup");
-    F.setVisibility(LLVMProtectedVisibility);
-    F.setDSOLocal(true);
-    F.addFnAttr(Context->NoStackArgProbe);
-    F.addFnAttr(Context->StrictFP);
-    F.addFnAttr(Context->UWTable);
-    F.addFnAttr(Context->NoReturn);
-    LLVM::Builder Builder(Context->LLContext);
-    Builder.positionAtEnd(
-        LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
-    Builder.createRet(Context->LLContext.getInt32(1u));
-
-    auto A = LLModule.addAlias(F.getType(), F, "_fltused");
-    A.setLinkage(LLVMExternalLinkage);
-    A.setVisibility(LLVMProtectedVisibility);
-    A.setDSOLocal(true);
-  }
-#endif
-
-  if (!Context->IsCustomSection) {
-    // create wasm.code and wasm.size
-    auto Int32Ty = Context->Int32Ty;
-    auto Content = LLVM::Value::getConstString(
-        LLContext, {reinterpret_cast<const char *>(Data.data()), Data.size()},
-        true);
-    LLModule.addGlobal(Content.getType(), true, LLVMExternalLinkage, Content,
-                       "wasm.code");
-    LLModule.addGlobal(Int32Ty, true, LLVMExternalLinkage,
-                       LLVM::Value::getConstInt(Int32Ty, Data.size()),
-                       "wasm.size");
-  }
-
-  // set dllexport
-  for (auto GV = LLModule.getFirstGlobal(); GV; GV = GV.getNextGlobal()) {
-    if (GV.getLinkage() == LLVMExternalLinkage) {
-      GV.setVisibility(LLVMProtectedVisibility);
-      GV.setDSOLocal(true);
-      GV.setDLLStorageClass(LLVMDLLExportStorageClass);
-    }
-  }
-
-  if (Conf.getCompilerConfigure().isDumpIR()) {
-    if (auto ErrorMessage = LLModule.printModuleToFile("wasm.ll");
-        unlikely(ErrorMessage)) {
-      spdlog::error("wasm.ll open error:{}", ErrorMessage.string_view());
-      return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
-    }
-  }
-
   spdlog::info("verify start");
   LLModule.verify(LLVMPrintMessageAction);
+
   spdlog::info("optimize start");
-
-  // optimize + codegen
-  auto Triple = LLModule.getTarget();
+  auto &TM = D.extract().TM;
   {
-    LLVM::TargetMachine TM;
-    {
-      auto [TheTarget, ErrorMessage] = LLVM::Target::getFromTriple(Triple);
-      if (ErrorMessage) {
-        // TODO:return error
-        spdlog::error("lookupTarget failed:{}", ErrorMessage.string_view());
-        return Unexpect(ErrCode::Value::IllegalPath);
-      }
-
+    auto Triple = LLModule.getTarget();
+    auto [TheTarget, ErrorMessage] = LLVM::Target::getFromTriple(Triple);
+    if (ErrorMessage) {
+      spdlog::error("getFromTriple failed:{}", ErrorMessage.string_view());
+      return Unexpect(ErrCode::Value::IllegalPath);
+    } else {
       std::string CPUName;
 #if defined(__riscv) && __riscv_xlen == 64
       CPUName = "generic-rv64"s;
@@ -5632,90 +5077,69 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 
       TM = LLVM::TargetMachine::create(
           TheTarget, Triple, CPUName.c_str(),
-          Context->SubtargetFeatures.unwrap(),
+          LLVM::getHostCPUFeatures().unwrap(),
           toLLVMCodeGenLevel(
               Conf.getCompilerConfigure().getOptimizationLevel()),
           LLVMRelocPIC, LLVMCodeModelDefault);
     }
 
 #if LLVM_VERSION_MAJOR >= 13
-    {
-      auto PBO = LLVM::PassBuilderOptions::create();
-      LLVM::Error Error = PBO.runPasses(
-          LLModule,
-          toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel()), TM);
-      if (Error) {
-        spdlog::error("{}"sv, Error.message().string_view());
-      }
+    auto PBO = LLVM::PassBuilderOptions::create();
+    if (auto Error = PBO.runPasses(
+            LLModule,
+            toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
+            TM)) {
+      spdlog::error("{}"sv, Error.message().string_view());
     }
 #else
+    auto FP = LLVM::PassManager::createForModule(LLModule);
+    auto MP = LLVM::PassManager::create();
+
+    TM.addAnalysisPasses(MP);
+    TM.addAnalysisPasses(FP);
     {
-      auto FP = LLVM::PassManager::createForModule(LLModule);
-      auto MP = LLVM::PassManager::create();
-
-      TM.addAnalysisPasses(MP);
-      TM.addAnalysisPasses(FP);
-      {
-        auto PMB = LLVM::PassManagerBuilder::create();
-        auto [OptLevel, SizeLevel] =
-            toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel());
-        PMB.setOptLevel(OptLevel);
-        PMB.setSizeLevel(SizeLevel);
-        PMB.populateFunctionPassManager(FP);
-        PMB.populateModulePassManager(MP);
-      }
-      if (Conf.getCompilerConfigure().getOptimizationLevel() ==
-          CompilerConfigure::OptimizationLevel::O0) {
-        FP.addTailCallEliminationPass();
-      }
-
-      FP.initializeFunctionPassManager();
-      for (auto Fn = LLModule.getFirstFunction(); Fn;
-           Fn = Fn.getNextFunction()) {
-        FP.runFunctionPassManager(Fn);
-      }
-      FP.finalizeFunctionPassManager();
-      MP.runPassManager(LLModule);
+      auto PMB = LLVM::PassManagerBuilder::create();
+      auto [OptLevel, SizeLevel] =
+          toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel());
+      PMB.setOptLevel(OptLevel);
+      PMB.setSizeLevel(SizeLevel);
+      PMB.populateFunctionPassManager(FP);
+      PMB.populateModulePassManager(MP);
     }
+    switch (Conf.getCompilerConfigure().getOptimizationLevel()) {
+    case CompilerConfigure::OptimizationLevel::O0:
+    case CompilerConfigure::OptimizationLevel::O1:
+      FP.addTailCallEliminationPass();
+      break;
+    default:
+      break;
+    }
+
+    FP.initializeFunctionPassManager();
+    for (auto Fn = LLModule.getFirstFunction(); Fn; Fn = Fn.getNextFunction()) {
+      FP.runFunctionPassManager(Fn);
+    }
+    FP.finalizeFunctionPassManager();
+    MP.runPassManager(LLModule);
 #endif
-
-    // Set initializer for constant value
-    if (auto IntrinsicsTable = LLModule.getNamedGlobal("intrinsics")) {
-      IntrinsicsTable.setInitializer(
-          LLVM::Value::getConstNull(IntrinsicsTable.getType()));
-      IntrinsicsTable.setGlobalConstant(false);
-    }
-
-    if (Conf.getCompilerConfigure().isDumpIR()) {
-      if (auto ErrorMessage = LLModule.printModuleToFile("wasm-opt.ll")) {
-        // TODO:return error
-        spdlog::error("printModuleToFile failed");
-        return Unexpect(ErrCode::Value::IllegalPath);
-      }
-    }
-
-    spdlog::info("codegen start");
-    auto [OSVec, ErrorMessage] =
-        TM.emitToMemoryBuffer(LLModule, LLVMObjectFile);
-    if (ErrorMessage) {
-      // TODO:return error
-      spdlog::error("addPassesToEmitFile failed");
-      return Unexpect(ErrCode::Value::IllegalPath);
-    }
-
-    if (Context->IsCustomSection) {
-      if (auto Res = outputWasmLibrary(OutputPath, Data, OSVec);
-          unlikely(!Res)) {
-        return Unexpect(Res);
-      }
-    } else {
-      if (auto Res = outputNativeLibrary(OutputPath, OSVec); unlikely(!Res)) {
-        return Unexpect(Res);
-      }
-    }
   }
 
-  return {};
+  // Set initializer for constant value
+  if (auto IntrinsicsTable = LLModule.getNamedGlobal("intrinsics")) {
+    IntrinsicsTable.setInitializer(
+        LLVM::Value::getConstNull(IntrinsicsTable.getType()));
+    IntrinsicsTable.setGlobalConstant(false);
+  } else {
+    auto IntrinsicsTableTy = LLVM::Type::getArrayType(
+        LLContext.getInt8Ty().getPointerTo(),
+        static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax));
+    LLModule.addGlobal(
+        IntrinsicsTableTy.getPointerTo(), false, LLVMExternalLinkage,
+        LLVM::Value::getConstNull(IntrinsicsTableTy), "intrinsics");
+  }
+
+  spdlog::info("optimize done");
+  return Expect<Data>{std::move(D)};
 }
 
 void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
@@ -5747,7 +5171,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
           Context->FunctionTypes.push_back(&OldFuncType);
           auto F = Context->FunctionWrappers[J];
           Context->FunctionWrappers.push_back(F);
-          auto A = Context->LLModule.addAlias(F.getType(), F, Name.c_str());
+          auto A = Context->LLModule.addAlias(WrapperTy, F, Name.c_str());
           A.setLinkage(LLVMExternalLinkage);
           A.setVisibility(LLVMProtectedVisibility);
           A.setDSOLocal(true);
@@ -5852,16 +5276,12 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       auto FTy =
           toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
       auto RTy = FTy.getReturnType();
-      const auto Linkage =
-          Context->IsCustomSection ? LLVMPrivateLinkage : LLVMExternalLinkage;
       auto F = LLVM::FunctionCallee{
-          FTy, Context->LLModule.addFunction(
-                   FTy, Linkage, fmt::format("f{}"sv, FuncID).c_str())};
+          FTy,
+          Context->LLModule.addFunction(FTy, LLVMInternalLinkage,
+                                        fmt::format("f{}"sv, FuncID).c_str())};
       F.Fn.setVisibility(LLVMProtectedVisibility);
       F.Fn.setDSOLocal(true);
-      if (!Context->IsCustomSection) {
-        F.Fn.setDLLStorageClass(LLVMDLLExportStorageClass);
-      }
       F.Fn.addFnAttr(Context->NoStackArgProbe);
       F.Fn.addFnAttr(Context->StrictFP);
       F.Fn.addFnAttr(Context->UWTable);
@@ -6022,14 +5442,12 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
     FunctionCompiler FC(*Context, F, Locals,
                         Conf.getCompilerConfigure().isInterruptible(),
                         Conf.getStatisticsConfigure().isInstructionCounting(),
-                        Conf.getStatisticsConfigure().isCostMeasuring(),
-                        Conf.getCompilerConfigure().getOptimizationLevel() ==
-                            CompilerConfigure::OptimizationLevel::O0);
+                        Conf.getStatisticsConfigure().isCostMeasuring());
     auto Type = Context->resolveBlockType(T);
     FC.compile(*Code, std::move(Type));
     F.Fn.eliminateUnreachableBlocks();
   }
 }
 
-} // namespace AOT
+} // namespace LLVM
 } // namespace WasmEdge

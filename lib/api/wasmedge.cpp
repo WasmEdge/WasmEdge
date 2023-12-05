@@ -3,7 +3,6 @@
 
 #include "wasmedge/wasmedge.h"
 
-#include "aot/compiler.h"
 #include "common/defines.h"
 #include "driver/compiler.h"
 #include "driver/tool.h"
@@ -12,6 +11,8 @@
 #include "plugin/plugin.h"
 #include "system/winapi.h"
 #include "vm/vm.h"
+#include "llvm/codegen.h"
+#include "llvm/compiler.h"
 
 #ifdef WASMEDGE_BUILD_FUZZING
 #include "driver/fuzzPO.h"
@@ -66,10 +67,11 @@ struct WasmEdge_ExportTypeContext {};
 
 // WasmEdge_CompilerContext implementation.
 struct WasmEdge_CompilerContext {
-#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_USE_LLVM
   WasmEdge_CompilerContext(const WasmEdge::Configure &Conf) noexcept
-      : Compiler(Conf), Load(Conf), Valid(Conf) {}
-  WasmEdge::AOT::Compiler Compiler;
+      : Compiler(Conf), CodeGen(Conf), Load(Conf), Valid(Conf) {}
+  WasmEdge::LLVM::Compiler Compiler;
+  WasmEdge::LLVM::CodeGen CodeGen;
   WasmEdge::Loader::Loader Load;
   WasmEdge::Validator::Validator Valid;
 #endif
@@ -1584,7 +1586,7 @@ WasmEdge_ExportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
 WASMEDGE_CAPI_EXPORT WasmEdge_CompilerContext *
 WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt
                         [[maybe_unused]]) {
-#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_USE_LLVM
   // Set force interpreter here to load instructions of function body forcibly.
   if (ConfCxt) {
     WasmEdge::Configure CopyConf(ConfCxt->Conf);
@@ -1603,27 +1605,27 @@ WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompile(
     WasmEdge_CompilerContext *Cxt [[maybe_unused]],
     const char *InPath [[maybe_unused]], const char *OutPath [[maybe_unused]]) {
-#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_USE_LLVM
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         std::filesystem::path InputPath = std::filesystem::absolute(InPath);
         std::filesystem::path OutputPath = std::filesystem::absolute(OutPath);
         std::vector<WasmEdge::Byte> Data;
         std::unique_ptr<WasmEdge::AST::Module> Module;
-        if (auto Res = Cxt->Load.loadFile(InputPath)) {
-          Data = std::move(*Res);
-        } else {
-          return Unexpect(Res);
-        }
-        if (auto Res = Cxt->Load.parseModule(Data)) {
-          Module = std::move(*Res);
-        } else {
-          return Unexpect(Res);
-        }
-        if (auto Res = Cxt->Valid.validate(*Module.get()); !Res) {
-          return Unexpect(Res);
-        }
-        return Cxt->Compiler.compile(Data, *Module.get(), OutputPath);
+        return Cxt->Load.loadFile(InputPath)
+            .and_then([&](auto Result) noexcept {
+              Data = std::move(Result);
+              return Cxt->Load.parseModule(Data);
+            })
+            .and_then([&](auto Result) noexcept {
+              Module = std::move(Result);
+              return Cxt->Valid.validate(*Module.get());
+            })
+            .and_then(
+                [&]() noexcept { return Cxt->Compiler.compile(*Module.get()); })
+            .and_then([&](auto Result) noexcept {
+              return Cxt->CodeGen.codegen(Data, std::move(Result), OutputPath);
+            });
       },
       EmptyThen, Cxt);
 #else
@@ -1643,21 +1645,21 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBytes(
     WasmEdge_CompilerContext *Cxt [[maybe_unused]],
     const WasmEdge_Bytes Bytes [[maybe_unused]],
     const char *OutPath [[maybe_unused]]) {
-#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_USE_LLVM
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         std::filesystem::path OutputPath = std::filesystem::absolute(OutPath);
         auto Data = genSpan(Bytes.Buf, Bytes.Length);
         std::unique_ptr<WasmEdge::AST::Module> Module;
-        if (auto Res = Cxt->Load.parseModule(Data)) {
-          Module = std::move(*Res);
-        } else {
-          return Unexpect(Res);
-        }
-        if (auto Res = Cxt->Valid.validate(*Module.get()); !Res) {
-          return Unexpect(Res);
-        }
-        return Cxt->Compiler.compile(Data, *Module.get(), OutputPath);
+        return Cxt->Load.parseModule(Data)
+            .and_then([&](auto Result) noexcept {
+              Module = std::move(Result);
+              return Cxt->Valid.validate(*Module);
+            })
+            .and_then([&]() noexcept { return Cxt->Compiler.compile(*Module); })
+            .and_then([&](auto Result) noexcept {
+              return Cxt->CodeGen.codegen(Data, std::move(Result), OutputPath);
+            });
       },
       EmptyThen, Cxt);
 #else

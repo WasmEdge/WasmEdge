@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
+#pragma once
 
 #include "common/errcode.h"
 #include "common/span.h"
@@ -28,7 +29,7 @@
 #define __x86_64__ 1
 #endif
 
-namespace WasmEdge::AOT::LLVM {
+namespace WasmEdge::LLVM {
 
 class Core {
 public:
@@ -283,6 +284,7 @@ public:
                       uint32_t Val) noexcept;
   inline Value getFirstGlobal() noexcept;
   inline Value getFirstFunction() noexcept;
+  inline Value getNamedFunction(const char *Name) noexcept;
   inline Message printModuleToFile(const char *File) noexcept;
   inline Message verify(LLVMVerifierFailureAction Action) noexcept;
 
@@ -765,6 +767,11 @@ public:
   void setOrdering(LLVMAtomicOrdering Ordering) noexcept {
     LLVMSetOrdering(Ref, Ordering);
   }
+  std::string_view getName() noexcept {
+    size_t Length;
+    auto Data = LLVMGetValueName2(Ref, &Length);
+    return {Data, Length};
+  }
 
   inline void addCase(Value OnVal, BasicBlock Dest) noexcept;
   inline void addDestination(BasicBlock Dest) noexcept;
@@ -902,6 +909,10 @@ void Module::addFlag(LLVMModuleFlagBehavior Behavior, std::string_view Key,
 
 Value Module::getFirstGlobal() noexcept { return LLVMGetFirstGlobal(Ref); }
 Value Module::getFirstFunction() noexcept { return LLVMGetFirstFunction(Ref); }
+
+Value Module::getNamedFunction(const char *Name) noexcept {
+  return LLVMGetNamedFunction(Ref, Name);
+}
 
 Message Module::printModuleToFile(const char *Filename) noexcept {
   Message M;
@@ -1546,7 +1557,7 @@ public:
   Value getConstrainedFPExcept() noexcept {
     using namespace std::literals;
     auto Ctx = getCtx();
-    auto ExceptStr = "fpexcept.ignore"sv;
+    auto ExceptStr = "fpexcept.strict"sv;
     auto ExceptMDS =
         LLVMMDStringInContext2(Ctx, ExceptStr.data(), ExceptStr.size());
     return LLVMMetadataAsValue(Ctx, ExceptMDS);
@@ -1943,13 +1954,13 @@ private:
   LLVMBinaryRef Ref = nullptr;
 };
 
-} // namespace WasmEdge::AOT::LLVM
+} // namespace WasmEdge::LLVM
 
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/Object/ObjectFile.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 
-namespace WasmEdge::AOT::LLVM {
+namespace WasmEdge::LLVM {
 
 void Value::setDSOLocal(bool Local) noexcept {
   llvm::cast<llvm::GlobalValue>(reinterpret_cast<llvm::Value *>(Ref))
@@ -1997,4 +2008,4 @@ bool SectionIterator::isEHFrame() const noexcept {
 #endif
 }
 
-} // namespace WasmEdge::AOT::LLVM
+} // namespace WasmEdge::LLVM

@@ -1143,7 +1143,7 @@ TEST(APICoreTest, ExportType) {
   WasmEdge_ASTModuleDelete(Mod);
 }
 
-#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_USE_LLVM
 TEST(APICoreTest, Compiler) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   std::ifstream OutFile;
@@ -1328,7 +1328,7 @@ TEST(APICoreTest, Loader) {
       WasmEdge_ErrCode_WrongVMWorkflow,
       WasmEdge_LoaderParseFromBuffer(nullptr, nullptr, Buf.data(),
                                      static_cast<uint32_t>(Buf.size()))));
-#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_USE_LLVM
   // Failed case to parse from buffer with AOT compiled WASM
   EXPECT_TRUE(readToVector("test_aot" WASMEDGE_LIB_EXTENSION, Buf));
   Mod = nullptr;

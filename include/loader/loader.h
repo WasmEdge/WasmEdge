@@ -284,12 +284,36 @@ private:
   Expect<void> loadType(AST::MemoryType &MemType);
   Expect<void> loadType(AST::TableType &TabType);
   Expect<void> loadType(AST::GlobalType &GlobType);
+
   Expect<void> loadType(AST::DefType &Ty);
   Expect<void> loadType(uint32_t Tag, AST::PrimValType &Ty);
   Expect<void> loadType(AST::Record &RecTy);
+  Expect<void> loadType(AST::VariantTy &Ty);
   Expect<void> loadType(AST::LabelValType &Ty);
   Expect<void> loadType(AST::ValueType &Ty);
+  Expect<void> loadCase(AST::Case &C);
   Expect<void> loadLabel(std::string &Label);
+  template <typename T>
+  Expect<std::optional<T>> loadOption(std::function<Expect<void>(T &)> F) {
+    if (auto Res = FMgr.readU32()) {
+      switch (*Res) {
+      case 0x01: {
+        T V;
+        if (auto Res = F(V)) {
+          return std::optional<T>{V};
+        } else {
+          return Unexpect(Res);
+        }
+      }
+      case 0x00:
+      default:
+        return std::nullopt;
+      }
+    } else {
+      return Unexpect(Res);
+    }
+  }
+
   Expect<void> loadCoreInstance(AST::CoreInstanceExpr &InstanceExpr);
   Expect<void> loadInstance(AST::InstanceExpr &InstanceExpr);
   Expect<void> loadInstantiateArg(AST::CoreInstantiateArg &Arg);

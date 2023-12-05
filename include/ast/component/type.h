@@ -52,6 +52,18 @@ private:
   ValueType ValTy;
 };
 
+class Case {
+public:
+  std::string_view getLabel() const noexcept { return Label; }
+  std::string &getLabel() noexcept { return Label; }
+  const std::optional<ValueType> getValType() const noexcept { return ValTy; }
+  std::optional<ValueType> &getValType() noexcept { return ValTy; }
+
+private:
+  std::string Label;
+  std::optional<ValueType> ValTy;
+};
+
 class Record {
 public:
   Span<const LabelValType> getLabelTypes() const noexcept { return LabelTypes; }
@@ -61,8 +73,16 @@ private:
   std::vector<LabelValType> LabelTypes;
 };
 
+class VariantTy {
+public:
+  Span<const Case> getCases() const noexcept { return Cases; }
+  std::vector<Case> &getCases() noexcept { return Cases; }
+
+private:
+  std::vector<Case> Cases;
+};
+
 // TODO: complete these class
-class VariantTy {};
 class List {};
 class Tuple {};
 class Flags {};

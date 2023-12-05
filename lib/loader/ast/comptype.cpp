@@ -96,7 +96,39 @@ Expect<void> Loader::loadType(Record &RecTy) {
                           FMgr.getLastOffset(), ASTNodeAttr::DefType);
     }
   } else {
-    return Res;
+    return Unexpect(Res);
+  }
+}
+
+Expect<void> Loader::loadCase(AST::Case &C) {
+  // case ::= l:<label'> t?:<valtype>? 0x00
+  if (auto Res = loadLabel(C.getLabel()); !Res) {
+    return Unexpect(Res);
+  }
+  if (auto Res = loadOption<ValueType>(
+          [this](ValueType Ty) -> Expect<void> { return loadType(Ty); })) {
+    C.getValType() = *Res;
+  } else {
+    return Unexpect(Res);
+  }
+  if (auto Res = FMgr.readU32()) {
+    if (*Res != 0x00) {
+      return logLoadError(ErrCode::Value::MalformedRecordType,
+                          FMgr.getLastOffset(), ASTNodeAttr::DefType);
+    }
+  } else {
+    return Unexpect(Res);
+  }
+  return {};
+}
+
+Expect<void> Loader::loadType(VariantTy &Ty) {
+  if (auto Res = loadVec<CompTypeSection>(
+          Ty.getCases(),
+          [this](Case C) -> Expect<void> { return loadCase(C); })) {
+    return {};
+  } else {
+    return Unexpect(Res);
   }
 }
 
@@ -176,18 +208,22 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
     Ty.emplace<DefValType>(PrimTy);
     break;
   }
-
   case 0x72: {
-    Record R;
-    if (auto Res = loadType(R); !Res) {
+    Record Rec;
+    if (auto Res = loadType(Rec); !Res) {
       return Unexpect(Res);
     }
-    Ty.emplace<DefValType>(R);
+    Ty.emplace<DefValType>(Rec);
     break;
   }
-  case 0x71: // case*:vec(<case>)       => (variant case*)
-    Ty.emplace<DefValType>(VariantTy());
+  case 0x71: {
+    VariantTy VT;
+    if (auto Res = loadType(VT); !Res) {
+      return Unexpect(Res);
+    }
+    Ty.emplace<DefValType>(VT);
     break;
+  }
   case 0x70: // t:<valtype>             => (list t)
     Ty.emplace<DefValType>(List());
     break;

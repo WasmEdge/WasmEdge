@@ -82,11 +82,45 @@ private:
   std::vector<Case> Cases;
 };
 
+class List {
+public:
+  const ValueType getValType() const noexcept { return ValTy; }
+  ValueType &getValType() noexcept { return ValTy; }
+
+private:
+  ValueType ValTy;
+};
+
+// Tuple is the product of given non-empty type list
+// e.g. given [A, B, C], the tuple is a product A x B x C
+class Tuple {
+public:
+  Span<const ValueType> getTypes() const noexcept { return Types; }
+  std::vector<ValueType> &getTypes() noexcept { return Types; }
+
+private:
+  std::vector<ValueType> Types;
+};
+
+class Flags {
+public:
+  Span<const std::string> getLabels() const noexcept { return Labels; }
+  std::vector<std::string> &getLabels() noexcept { return Labels; }
+
+private:
+  std::vector<std::string> Labels;
+};
+
+class Enum {
+public:
+  Span<const std::string> getLabels() const noexcept { return Labels; }
+  std::vector<std::string> &getLabels() noexcept { return Labels; }
+
+private:
+  std::vector<std::string> Labels;
+};
+
 // TODO: complete these class
-class List {};
-class Tuple {};
-class Flags {};
-class Enum {};
 class Option {};
 class Result {};
 class Own {};

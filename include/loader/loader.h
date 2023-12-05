@@ -289,6 +289,10 @@ private:
   Expect<void> loadType(uint32_t Tag, AST::PrimValType &Ty);
   Expect<void> loadType(AST::Record &RecTy);
   Expect<void> loadType(AST::VariantTy &Ty);
+  Expect<void> loadType(AST::List &Ty);
+  Expect<void> loadType(AST::Tuple &Ty);
+  Expect<void> loadType(AST::Flags &Ty);
+  Expect<void> loadType(AST::Enum &Ty);
   Expect<void> loadType(AST::LabelValType &Ty);
   Expect<void> loadType(AST::ValueType &Ty);
   Expect<void> loadCase(AST::Case &C);

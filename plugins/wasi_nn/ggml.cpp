@@ -207,6 +207,10 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Initialize the context parameters.
   GraphRef.CtxSize = ContextDefault.n_ctx;
   GraphRef.BatchSize = ContextDefault.n_batch;
+  // Initialize the sampling parameters.
+  llama_sampling_params SamplingDefault;
+  GraphRef.Temp = SamplingDefault.temp;
+  GraphRef.RepeatPenalty = SamplingDefault.penalty_repeat;
 
   // If the graph builder length > 1, the data of builder[1] is the metadata.
   if (Builders.size() > 1) {

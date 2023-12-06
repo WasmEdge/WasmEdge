@@ -173,6 +173,42 @@ Expect<void> Loader::loadType(Enum &Ty) {
   }
 }
 
+Expect<void> Loader::loadType(Option &Ty) { return loadType(Ty.getValType()); }
+
+Expect<void> Loader::loadType(Result &Ty) {
+  if (auto Res = loadOption<ValueType>(
+          [this](ValueType Ty) -> Expect<void> { return loadType(Ty); })) {
+    Ty.getValType() = *Res;
+  } else {
+    return Unexpect(Res);
+  }
+  if (auto Res = loadOption<ValueType>(
+          [this](ValueType Ty) -> Expect<void> { return loadType(Ty); })) {
+    Ty.getErrorType() = *Res;
+  } else {
+    return Unexpect(Res);
+  }
+  return {};
+}
+
+Expect<void> Loader::loadType(Own &Ty) {
+  if (auto Res = FMgr.readU32()) {
+    Ty.getIndex() = *Res;
+  } else {
+    return Unexpect(Res);
+  }
+  return {};
+}
+
+Expect<void> Loader::loadType(Borrow &Ty) {
+  if (auto Res = FMgr.readU32()) {
+    Ty.getIndex() = *Res;
+  } else {
+    return Unexpect(Res);
+  }
+  return {};
+}
+
 Expect<void> Loader::loadType(uint32_t Tag, PrimValType &Ty) {
   switch (Tag) {
   case 0x7f: // bool
@@ -297,18 +333,38 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
     Ty.emplace<DefValType>(V);
     break;
   }
-  case 0x6b: // t:<valtype>             => (option t)
-    Ty.emplace<DefValType>(Option());
+  case 0x6b: {
+    Option V;
+    if (auto Res = loadType(V); !Res) {
+      return Unexpect(Res);
+    }
+    Ty.emplace<DefValType>(V);
     break;
-  case 0x6a: // t?:<valtype>? u?:<valtype>? => (result t? (error u)?)
-    Ty.emplace<DefValType>(Result());
+  }
+  case 0x6a: {
+    Result V;
+    if (auto Res = loadType(V); !Res) {
+      return Unexpect(Res);
+    }
+    Ty.emplace<DefValType>(V);
     break;
-  case 0x69: // i:<typeidx>             => (own i)
-    Ty.emplace<DefValType>(Own());
+  }
+  case 0x69: {
+    Own V;
+    if (auto Res = loadType(V); !Res) {
+      return Unexpect(Res);
+    }
+    Ty.emplace<DefValType>(V);
     break;
-  case 0x68: // i:<typeidx>             => (borrow i)
-    Ty.emplace<DefValType>(Borrow());
+  }
+  case 0x68: {
+    Borrow V;
+    if (auto Res = loadType(V); !Res) {
+      return Unexpect(Res);
+    }
+    Ty.emplace<DefValType>(V);
     break;
+  }
   case 0x40:
     // functype      ::= 0x40 ps:<paramlist> rs:<resultlist> => (func ps rs)
     Ty.emplace<FuncType>();

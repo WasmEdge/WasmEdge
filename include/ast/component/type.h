@@ -120,11 +120,46 @@ private:
   std::vector<std::string> Labels;
 };
 
-// TODO: complete these class
-class Option {};
-class Result {};
-class Own {};
-class Borrow {};
+class Option {
+public:
+  const ValueType getValType() const noexcept { return ValTy; }
+  ValueType &getValType() noexcept { return ValTy; }
+
+private:
+  ValueType ValTy;
+};
+
+class Result {
+public:
+  const std::optional<ValueType> getValType() const noexcept { return ValTy; }
+  std::optional<ValueType> &getValType() noexcept { return ValTy; }
+
+  const std::optional<ValueType> getErrorType() const noexcept { return ErrTy; }
+  std::optional<ValueType> &getErrorType() noexcept { return ErrTy; }
+
+private:
+  std::optional<ValueType> ValTy;
+  std::optional<ValueType> ErrTy;
+};
+
+class Own {
+public:
+  TypeIndex getIndex() const noexcept { return Idx; }
+  TypeIndex &getIndex() noexcept { return Idx; }
+
+private:
+  TypeIndex Idx;
+};
+
+class Borrow {
+public:
+  TypeIndex getIndex() const noexcept { return Idx; }
+  TypeIndex &getIndex() noexcept { return Idx; }
+
+private:
+  TypeIndex Idx;
+};
+
 using DefValType = std::variant<PrimValType, Record, VariantTy, List, Tuple,
                                 Flags, Enum, Option, Result, Own, Borrow>;
 

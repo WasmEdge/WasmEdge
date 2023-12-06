@@ -30,13 +30,15 @@ struct Graph {
   // Context parameters:
   uint64_t CtxSize;
   uint64_t BatchSize;
+  // Sampleing parameters:
+  double Temp;
+  double RepeatPenalty;
 };
 
 struct Context {
 public:
   Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
   size_t GraphId;
-  llama_context *LlamaContext = nullptr;
   std::vector<llama_token> LlamaInputs;
   std::string LlamaOutputs;
   std::vector<llama_token> LlamaOutputTokens;

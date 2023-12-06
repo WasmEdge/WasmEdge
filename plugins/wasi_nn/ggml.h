@@ -39,7 +39,6 @@ struct Context {
 public:
   Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
   size_t GraphId;
-  llama_context *LlamaContext = nullptr;
   std::vector<llama_token> LlamaInputs;
   std::string LlamaOutputs;
   std::vector<llama_token> LlamaOutputTokens;

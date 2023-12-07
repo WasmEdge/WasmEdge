@@ -287,8 +287,10 @@ private:
 
   Expect<void> loadType(AST::DefType &Ty);
   Expect<void> loadType(AST::FuncType &Ty);
+  Expect<void> loadType(AST::InstanceType &Ty);
+  // Expect<void> loadType(AST::ComponentType &Ty);
   Expect<void> loadType(AST::ResultList &Ty);
-  Expect<void> loadType(uint32_t Tag, AST::PrimValType &Ty);
+  Expect<void> loadType(Byte Tag, AST::PrimValType &Ty);
   Expect<void> loadType(AST::Record &RecTy);
   Expect<void> loadType(AST::VariantTy &Ty);
   Expect<void> loadType(AST::List &Ty);
@@ -325,6 +327,9 @@ private:
       return Unexpect(Res);
     }
   }
+  Expect<void> loadInstanceDecl(AST::InstanceDecl &Decl);
+  Expect<void> loadExternDesc(AST::ExternDesc &Desc);
+  Expect<void> loadExportName(std::string &ExportName);
 
   Expect<void> loadCoreInstance(AST::CoreInstanceExpr &InstanceExpr);
   Expect<void> loadInstance(AST::InstanceExpr &InstanceExpr);

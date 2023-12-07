@@ -32,7 +32,7 @@ Expect<void> Loader::loadLabel(std::string &Label) {
 }
 
 Expect<void> Loader::loadType(ValueType &Ty) {
-  auto RTag = FMgr.readU32();
+  auto RTag = FMgr.readByte();
   if (!RTag) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
     return Unexpect(RTag);
@@ -209,7 +209,7 @@ Expect<void> Loader::loadType(Borrow &Ty) {
   return {};
 }
 
-Expect<void> Loader::loadType(uint32_t Tag, PrimValType &Ty) {
+Expect<void> Loader::loadType(Byte Tag, PrimValType &Ty) {
   switch (Tag) {
   case 0x7f: // bool
     Ty = PrimValType::Bool;
@@ -257,7 +257,7 @@ Expect<void> Loader::loadType(uint32_t Tag, PrimValType &Ty) {
 }
 
 Expect<void> Loader::loadType(AST::DefType &Ty) {
-  auto RTag = FMgr.readU32();
+  auto RTag = FMgr.readByte();
   if (!RTag) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
     return Unexpect(RTag);
@@ -388,10 +388,15 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
     // componenttype ::= 0x41 cd*:vec(<componentdecl>)       => (component cd*)
     Ty.emplace<ComponentType>();
     break;
-  case 0x42:
-    // instancetype  ::= 0x42 id*:vec(<instancedecl>)        => (instance id*)
-    Ty.emplace<InstanceType>();
+  case 0x42: {
+    InstanceType V;
+    if (auto Res = loadType(V); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
+      return Unexpect(Res);
+    }
+    Ty.emplace<InstanceType>(V);
     break;
+  }
   default:
     return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
                         ASTNodeAttr::DefType);
@@ -401,7 +406,7 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
 }
 
 Expect<void> Loader::loadType(ResultList &Ty) {
-  if (auto RTag = FMgr.readU32(); !RTag) {
+  if (auto RTag = FMgr.readByte(); !RTag) {
     return Unexpect(RTag);
   } else {
     switch (*RTag) {
@@ -440,6 +445,82 @@ Expect<void> Loader::loadType(FuncType &Ty) {
     return Unexpect(Res);
   }
   return loadType(Ty.getResultList());
+}
+
+Expect<void> Loader::loadType(InstanceType &Ty) {
+  // instancetype  ::= 0x42 id*:vec(<instancedecl>)
+  // => (instance id*)
+  return loadVec<CompTypeSection>(Ty.getIdList(), [this](InstanceDecl Decl) {
+    return loadInstanceDecl(Decl);
+  });
+}
+
+Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
+  auto RTag = FMgr.readByte();
+  if (!RTag) {
+    return Unexpect(RTag);
+  }
+  switch (*RTag) {
+  case 0x00: {
+    // TODO core:type
+    break;
+  }
+  case 0x01: {
+    std::shared_ptr<Type> T;
+    if (auto Res = loadType(T->getType()); !Res) {
+      return Unexpect(Res);
+    }
+    Decl.emplace<std::shared_ptr<Type>>(T);
+    break;
+  }
+  case 0x02: {
+    Alias A;
+    if (auto Res = loadAlias(A); !Res) {
+      return Unexpect(Res);
+    }
+    Decl.emplace<Alias>(A);
+    break;
+  }
+  case 0x04: {
+    ExportDecl Ed;
+    if (auto Res = loadExportName(Ed.getExportName()); !Res) {
+      return Unexpect(Res);
+    }
+    if (auto Res = loadExternDesc(Ed.getExternDesc()); !Res) {
+      return Unexpect(Res);
+    }
+    Decl.emplace<ExportDecl>(Ed);
+    break;
+  }
+  default:
+    return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
+                        ASTNodeAttr::DefType);
+  }
+  return {};
+}
+
+Expect<void> Loader::loadExportName(std::string &ExportName) {
+  if (auto Res = FMgr.readName(); !Res) {
+    return Unexpect(Res);
+  } else {
+    ExportName = *Res;
+    return {};
+  }
+}
+
+Expect<void> Loader::loadExternDesc(AST::ExternDesc &Desc) {
+  if (auto Res = FMgr.readByte(0x00); !Res) {
+    return Unexpect(Res);
+  }
+  if (auto Res = FMgr.readByte(0x11); !Res) {
+    return Unexpect(Res);
+  }
+  if (auto Res = FMgr.readU32(); !Res) {
+    return Unexpect(Res);
+  } else {
+    Desc = *Res;
+  }
+  return {};
 }
 
 } // namespace Loader

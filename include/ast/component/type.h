@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/alias.h"
 #include "ast/expression.h"
 #include "ast/type.h"
 
@@ -176,15 +177,45 @@ private:
   ResultList ResList;
 };
 
-// TODO: complete these class
-class InstanceType {
-  // instancetype  ::= 0x42 id*:vec(<instancedecl>)    => (instance id*)
+using ExternDesc = TypeIndex;
+class ExportDecl {
+public:
+  std::string_view getExportName() const noexcept { return ExportName; }
+  std::string &getExportName() noexcept { return ExportName; }
+  ExternDesc getExternDesc() const noexcept { return Desc; }
+  ExternDesc &getExternDesc() noexcept { return Desc; }
+
+private:
+  std::string ExportName;
+  ExternDesc Desc;
 };
+
+class Type;
+// TODO: will need core:type
+using InstanceDecl = std::variant<Alias, std::shared_ptr<Type>, ExportDecl>;
+class InstanceType {
+public:
+  Span<const InstanceDecl> getIdList() const noexcept { return IdList; }
+  std::vector<InstanceDecl> &getIdList() noexcept { return IdList; }
+
+private:
+  std::vector<InstanceDecl> IdList;
+};
+
+// TODO: complete these class
 class ComponentType {
   // componenttype ::= 0x41 cd*:vec(<componentdecl>)   => (component cd*)
 };
 
 using DefType = std::variant<DefValType, FuncType, ComponentType, InstanceType>;
+class Type {
+public:
+  DefType getType() const noexcept { return T; }
+  DefType &getType() noexcept { return T; }
+
+private:
+  DefType T;
+};
 
 } // namespace AST
 } // namespace WasmEdge

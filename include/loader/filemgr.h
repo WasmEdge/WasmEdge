@@ -56,6 +56,8 @@ public:
 
   /// Read one byte.
   Expect<Byte> readByte();
+  /// Read one byte with predicate value.
+  Expect<void> readByte(Byte V);
 
   /// Read number of bytes into a vector.
   Expect<std::vector<Byte>> readBytes(size_t SizeToRead);

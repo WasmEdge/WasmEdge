@@ -191,20 +191,37 @@ private:
 };
 
 class Type;
-// TODO: will need core:type
-using InstanceDecl = std::variant<Alias, std::shared_ptr<Type>, ExportDecl>;
+class CoreType {
+  // TODO: complete core:type
+};
+using InstanceDecl =
+    std::variant<CoreType, Alias, std::shared_ptr<Type>, ExportDecl>;
 class InstanceType {
 public:
-  Span<const InstanceDecl> getIdList() const noexcept { return IdList; }
-  std::vector<InstanceDecl> &getIdList() noexcept { return IdList; }
+  Span<const InstanceDecl> getContent() const noexcept { return IdList; }
+  std::vector<InstanceDecl> &getContent() noexcept { return IdList; }
 
 private:
   std::vector<InstanceDecl> IdList;
 };
 
-// TODO: complete these class
+class ImportDecl {
+  std::string ImportName;
+  ExternDesc Desc;
+
+public:
+  std::string_view getImportName() const noexcept { return ImportName; }
+  std::string &getImportName() noexcept { return ImportName; }
+  ExternDesc getExternDesc() const noexcept { return Desc; }
+  ExternDesc &getExternDesc() noexcept { return Desc; }
+};
+using ComponentDecl = std::variant<ImportDecl, InstanceDecl>;
 class ComponentType {
-  // componenttype ::= 0x41 cd*:vec(<componentdecl>)   => (component cd*)
+  std::vector<ComponentDecl> CdList;
+
+public:
+  Span<const ComponentDecl> getContent() const noexcept { return CdList; }
+  std::vector<ComponentDecl> &getContent() noexcept { return CdList; }
 };
 
 using DefType = std::variant<DefValType, FuncType, ComponentType, InstanceType>;

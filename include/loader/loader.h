@@ -286,6 +286,8 @@ private:
   Expect<void> loadType(AST::GlobalType &GlobType);
 
   Expect<void> loadType(AST::DefType &Ty);
+  Expect<void> loadType(AST::FuncType &Ty);
+  Expect<void> loadType(AST::ResultList &Ty);
   Expect<void> loadType(uint32_t Tag, AST::PrimValType &Ty);
   Expect<void> loadType(AST::Record &RecTy);
   Expect<void> loadType(AST::VariantTy &Ty);

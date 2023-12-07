@@ -375,18 +375,17 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
     Ty.emplace<DefValType>(V);
     break;
   }
-  case 0x40: {
-    FuncType V;
-    if (auto Res = loadType(V); !Res) {
+  case 0x40:
+    if (auto Res = loadType(Ty.emplace<FuncType>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
-    Ty.emplace<FuncType>(V);
     break;
-  }
   case 0x41:
-    // componenttype ::= 0x41 cd*:vec(<componentdecl>)       => (component cd*)
-    Ty.emplace<ComponentType>();
+    if (auto Res = loadType(Ty.emplace<ComponentType>()); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
+      return Unexpect(Res);
+    }
     break;
   case 0x42: {
     InstanceType V;
@@ -403,6 +402,30 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
   }
 
   return {};
+}
+
+Expect<void> Loader::loadType(ComponentType &Ty) {
+  // componenttype ::= 0x41 cd*:vec(<componentdecl>)
+  // => (component cd*)
+  return loadVec<CompTypeSection>(Ty.getContent(), [this](ComponentDecl Decl) {
+    return loadComponentDecl(Decl);
+  });
+  return {};
+}
+
+Expect<void> Loader::loadComponentDecl(ComponentDecl &Decl) {
+  if (auto Res = FMgr.readByte(0x03)) {
+    return loadImportDecl(Decl.emplace<ImportDecl>());
+  } else {
+    return loadInstanceDecl(Decl.emplace<InstanceDecl>());
+  }
+}
+
+Expect<void> Loader::loadImportDecl(ImportDecl &Decl) {
+  if (auto Res = loadImportExportName(Decl.getImportName()); !Res) {
+    return Unexpect(Res);
+  }
+  return loadExternDesc(Decl.getExternDesc());
 }
 
 Expect<void> Loader::loadType(ResultList &Ty) {
@@ -450,7 +473,7 @@ Expect<void> Loader::loadType(FuncType &Ty) {
 Expect<void> Loader::loadType(InstanceType &Ty) {
   // instancetype  ::= 0x42 id*:vec(<instancedecl>)
   // => (instance id*)
-  return loadVec<CompTypeSection>(Ty.getIdList(), [this](InstanceDecl Decl) {
+  return loadVec<CompTypeSection>(Ty.getContent(), [this](InstanceDecl Decl) {
     return loadInstanceDecl(Decl);
   });
 }
@@ -463,7 +486,9 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
   switch (*RTag) {
   case 0x00: {
     // TODO core:type
-    break;
+    spdlog::error("component model core:type in type section is incomplete");
+    return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
+                        ASTNodeAttr::DefType);
   }
   case 0x01: {
     std::shared_ptr<Type> T;
@@ -483,7 +508,7 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
   }
   case 0x04: {
     ExportDecl Ed;
-    if (auto Res = loadExportName(Ed.getExportName()); !Res) {
+    if (auto Res = loadImportExportName(Ed.getExportName()); !Res) {
       return Unexpect(Res);
     }
     if (auto Res = loadExternDesc(Ed.getExternDesc()); !Res) {
@@ -499,11 +524,11 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
   return {};
 }
 
-Expect<void> Loader::loadExportName(std::string &ExportName) {
+Expect<void> Loader::loadImportExportName(std::string &Name) {
   if (auto Res = FMgr.readName(); !Res) {
     return Unexpect(Res);
   } else {
-    ExportName = *Res;
+    Name = *Res;
     return {};
   }
 }

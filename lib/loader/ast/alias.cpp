@@ -24,7 +24,7 @@ Expect<void> Loader::loadAliasTarget(AST::AliasTarget &AliasTarget) {
   // aliastarget ::= 0x00 i:<instanceidx> n:<string>          => export i n
   //               | 0x01 i:<core:instanceidx> n:<core:name>  => core export i n
   //               | 0x02 ct:<u32> idx:<u32>                  => outer ct idx
-  auto Res = FMgr.readU32();
+  auto Res = FMgr.readByte();
   if (!Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::AliasTarget));
     return Unexpect(Res);

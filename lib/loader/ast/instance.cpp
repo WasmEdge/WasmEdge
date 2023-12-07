@@ -63,7 +63,7 @@ Expect<void> Loader::loadInlineExport(AST::InlineExport<AST::CoreSort> &Exp) {
 }
 
 Expect<void> Loader::loadInstance(AST::InstanceExpr &InstanceExpr) {
-  if (auto Tag = FMgr.readU32()) {
+  if (auto Tag = FMgr.readByte()) {
     switch (*Tag) {
     case 0x00: {
       uint32_t Idx = 0;
@@ -112,7 +112,7 @@ Expect<void> Loader::loadInstance(AST::InstanceExpr &InstanceExpr) {
 }
 
 Expect<void> Loader::loadCoreInstance(AST::CoreInstanceExpr &InstanceExpr) {
-  if (auto Tag = FMgr.readU32()) {
+  if (auto Tag = FMgr.readByte()) {
     switch (*Tag) {
     case 0x00: {
       uint32_t Idx = 0;

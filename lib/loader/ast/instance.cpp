@@ -33,31 +33,29 @@ Expect<void> Loader::loadInstantiateArg(AST::CoreInstantiateArg &Arg) {
   // syntax `(with n (instance i))`
   //
   // core:instantiatearg ::= n:<core:name> 0x12 i:<instanceidx>
-  if (auto Res = FMgr.readName(); !Res) {
-    return Unexpect(Res);
-  } else {
+  if (auto Res = FMgr.readName()) {
     Arg.getName() = *Res;
-  }
-  if (auto Res = FMgr.readU32(); !Res) {
+  } else {
     return Unexpect(Res);
-  } else if (*Res != 0x12) {
+  }
+  if (auto Res = FMgr.readByte(0x12); !Res) {
     return logLoadError(ErrCode::Value::MalformedCoreInstance,
                         FMgr.getLastOffset(), ASTNodeAttr::CoreInstance);
   }
-  if (auto Res = FMgr.readU32(); !Res) {
-    return Unexpect(Res);
-  } else {
+  if (auto Res = FMgr.readU32()) {
     Arg.getIndex() = *Res;
+  } else {
+    return Unexpect(Res);
   }
 
   return {};
 }
 
 Expect<void> Loader::loadInlineExport(AST::InlineExport<AST::CoreSort> &Exp) {
-  if (auto Res = FMgr.readName(); !Res) {
-    return Unexpect(Res);
-  } else {
+  if (auto Res = FMgr.readName()) {
     Exp.getName() = *Res;
+  } else {
+    return Unexpect(Res);
   }
   return loadCoreSortIndex(Exp.getSortIdx());
 }

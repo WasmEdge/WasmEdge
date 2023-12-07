@@ -163,15 +163,25 @@ private:
 using DefValType = std::variant<PrimValType, Record, VariantTy, List, Tuple,
                                 Flags, Enum, Option, Result, Own, Borrow>;
 
-// TODO: complete these class
+using ResultList = std::variant<ValueType, std::vector<LabelValType>>;
 class FuncType {
-  // functype ::= 0x40 ps:<paramlist> rs:<resultlist>  => (func ps rs)
+public:
+  Span<const LabelValType> getParamList() const noexcept { return ParamList; }
+  std::vector<LabelValType> &getParamList() noexcept { return ParamList; }
+  ResultList getResultList() const noexcept { return ResList; }
+  ResultList &getResultList() noexcept { return ResList; }
+
+private:
+  std::vector<LabelValType> ParamList;
+  ResultList ResList;
+};
+
+// TODO: complete these class
+class InstanceType {
+  // instancetype  ::= 0x42 id*:vec(<instancedecl>)    => (instance id*)
 };
 class ComponentType {
   // componenttype ::= 0x41 cd*:vec(<componentdecl>)   => (component cd*)
-};
-class InstanceType {
-  // instancetype  ::= 0x42 id*:vec(<instancedecl>)    => (instance id*)
 };
 
 using DefType = std::variant<DefValType, FuncType, ComponentType, InstanceType>;

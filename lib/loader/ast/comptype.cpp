@@ -288,6 +288,7 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
   case 0x72: {
     Record Rec;
     if (auto Res = loadType(Rec); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     Ty.emplace<DefValType>(Rec);
@@ -296,6 +297,7 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
   case 0x71: {
     VariantTy VT;
     if (auto Res = loadType(VT); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     Ty.emplace<DefValType>(VT);
@@ -304,6 +306,7 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
   case 0x70: {
     List V;
     if (auto Res = loadType(V); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     Ty.emplace<DefValType>(V);
@@ -312,6 +315,7 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
   case 0x6f: {
     Tuple V;
     if (auto Res = loadType(V); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     Ty.emplace<DefValType>(V);
@@ -320,6 +324,7 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
   case 0x6e: {
     Flags V;
     if (auto Res = loadType(V); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     Ty.emplace<DefValType>(V);
@@ -328,6 +333,7 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
   case 0x6d: {
     Enum V;
     if (auto Res = loadType(V); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     Ty.emplace<DefValType>(V);
@@ -336,6 +342,7 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
   case 0x6b: {
     Option V;
     if (auto Res = loadType(V); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     Ty.emplace<DefValType>(V);
@@ -344,6 +351,7 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
   case 0x6a: {
     Result V;
     if (auto Res = loadType(V); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     Ty.emplace<DefValType>(V);
@@ -352,6 +360,7 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
   case 0x69: {
     Own V;
     if (auto Res = loadType(V); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     Ty.emplace<DefValType>(V);
@@ -360,15 +369,21 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
   case 0x68: {
     Borrow V;
     if (auto Res = loadType(V); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     Ty.emplace<DefValType>(V);
     break;
   }
-  case 0x40:
-    // functype      ::= 0x40 ps:<paramlist> rs:<resultlist> => (func ps rs)
-    Ty.emplace<FuncType>();
+  case 0x40: {
+    FuncType V;
+    if (auto Res = loadType(V); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
+      return Unexpect(Res);
+    }
+    Ty.emplace<FuncType>(V);
     break;
+  }
   case 0x41:
     // componenttype ::= 0x41 cd*:vec(<componentdecl>)       => (component cd*)
     Ty.emplace<ComponentType>();
@@ -383,6 +398,48 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
   }
 
   return {};
+}
+
+Expect<void> Loader::loadType(ResultList &Ty) {
+  if (auto RTag = FMgr.readU32(); !RTag) {
+    return Unexpect(RTag);
+  } else {
+    switch (*RTag) {
+    case 0x00: {
+      ValueType V;
+      if (auto Res = loadType(V); !Res) {
+        return Unexpect(Res);
+      }
+      Ty.emplace<ValueType>(V);
+      break;
+    }
+    case 0x01: {
+      std::vector<LabelValType> RList;
+      if (auto Res = loadVec<CompTypeSection>(
+              RList, [this](LabelValType LV) { return loadType(LV); });
+          !Res) {
+        return Unexpect(Res);
+      }
+      Ty.emplace<std::vector<LabelValType>>(RList);
+      break;
+    }
+    default:
+      return logLoadError(ErrCode::Value::MalformedDefType,
+                          FMgr.getLastOffset(), ASTNodeAttr::DefType);
+    }
+    return {};
+  }
+}
+
+Expect<void> Loader::loadType(FuncType &Ty) {
+  // ps:<paramlist> rs:<resultlist>
+  // => (func ps rs)
+  if (auto Res = loadVec<CompTypeSection>(
+          Ty.getParamList(), [this](LabelValType LV) { return loadType(LV); });
+      !Res) {
+    return Unexpect(Res);
+  }
+  return loadType(Ty.getResultList());
 }
 
 } // namespace Loader

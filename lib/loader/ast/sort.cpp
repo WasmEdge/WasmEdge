@@ -14,7 +14,7 @@ Expect<void> Loader::loadSort(AST::Sort &Sort) {
   //        | 0x03                  => type
   //        | 0x04                  => component
   //        | 0x05                  => instance
-  auto Tag = FMgr.readU32();
+  auto Tag = FMgr.readByte();
   if (!Tag) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sort));
     return Unexpect(Tag);
@@ -60,7 +60,7 @@ Expect<void> Loader::loadCoreSort(AST::CoreSort &Sort) {
   //           | 0x10       => type
   //           | 0x11       => module
   //           | 0x12       => instance
-  auto Res = FMgr.readU32();
+  auto Res = FMgr.readByte();
   if (!Res) {
     return Unexpect(Res);
   }

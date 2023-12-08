@@ -548,5 +548,55 @@ Expect<void> Loader::loadExternDesc(AST::ExternDesc &Desc) {
   return {};
 }
 
+Expect<void> Loader::loadType(CoreType &Ty) { return loadType(Ty.getType()); }
+Expect<void> Loader::loadType(CoreDefType &Ty) {
+  if (auto Res = loadType(Ty.emplace<FunctionType>())) {
+    return {};
+  } else if (auto Res = loadType(Ty.emplace<ModuleType>())) {
+    return {};
+  } else {
+    return Unexpect(Res);
+  }
+}
+
+Expect<void> Loader::loadType(ModuleType &Ty) {
+  if (auto Res = FMgr.readByte(0x50U); !Res) {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_Module);
+  }
+  return loadVec<CompTypeSection>(
+      Ty.getContent(),
+      [this](ModuleDecl Decl) -> Expect<void> { return loadModuleDecl(Decl); });
+}
+
+Expect<void> Loader::loadModuleDecl(ModuleDecl &Decl) {
+  auto RTag = FMgr.readByte();
+  if (!RTag) {
+    return logLoadError(RTag.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_Module);
+  }
+  switch (*RTag) {
+  case 0x00:
+    return loadDesc(Decl.emplace<ImportDesc>());
+  case 0x01:
+    return loadType(Decl.emplace<std::shared_ptr<CoreType>>()->getType());
+  case 0x02:
+    return loadAlias(Decl.emplace<Alias>());
+  case 0x03:
+    return loadExportDecl(Decl.emplace<CoreExportDecl>());
+  default:
+    return logLoadError(RTag.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_Module);
+  }
+}
+
+Expect<void> Loader::loadExportDecl(CoreExportDecl &Decl) {
+  if (auto Res = loadImportExportName(Decl.getName()); !Res) {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_Module);
+  }
+  return loadDesc(Decl.getImportDesc());
+}
+
 } // namespace Loader
 } // namespace WasmEdge

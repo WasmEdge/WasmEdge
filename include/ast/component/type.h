@@ -14,6 +14,7 @@
 #pragma once
 
 #include "ast/component/alias.h"
+#include "ast/description.h"
 #include "ast/expression.h"
 #include "ast/type.h"
 
@@ -190,10 +191,41 @@ private:
   ExternDesc Desc;
 };
 
-class Type;
-class CoreType {
-  // TODO: complete core:type
+class CoreExportDecl {
+  std::string Name;
+  ImportDesc Desc;
+
+public:
+  std::string_view getName() const noexcept { return Name; }
+  std::string &getName() noexcept { return Name; }
+  ImportDesc getImportDesc() const noexcept { return Desc; }
+  ImportDesc &getImportDesc() noexcept { return Desc; }
 };
+class CoreType;
+using ModuleDecl =
+    std::variant<ImportDesc, std::shared_ptr<CoreType>, Alias, CoreExportDecl>;
+class ModuleType {
+  std::vector<ModuleDecl> Decls;
+
+public:
+  Span<const ModuleDecl> getContent() const noexcept { return Decls; }
+  std::vector<ModuleDecl> &getContent() noexcept { return Decls; }
+};
+
+// TODO: wait GC proposal
+// st:<core:structtype>     => st   (GC proposal)
+// at:<core:arraytype>      => at   (GC proposal)
+using CoreDefType = std::variant<FunctionType, ModuleType>;
+class CoreType {
+public:
+  CoreDefType getType() const noexcept { return T; }
+  CoreDefType &getType() noexcept { return T; }
+
+private:
+  CoreDefType T;
+};
+
+class Type;
 using InstanceDecl =
     std::variant<CoreType, Alias, std::shared_ptr<Type>, ExportDecl>;
 class InstanceType {

@@ -78,7 +78,7 @@ Expect<void> FileMgr::readByte(Byte V) {
   if (*R != V) {
     Pos--;
     LastPos = Pos;
-    return Unexpect(ErrCode::Value::IllegalOpCode);
+    return Unexpect(ErrCode::Value::IntegerTooLong);
   }
   return {};
 }

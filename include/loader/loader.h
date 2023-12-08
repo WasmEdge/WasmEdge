@@ -303,6 +303,9 @@ private:
   Expect<void> loadType(AST::Borrow &Ty);
   Expect<void> loadType(AST::LabelValType &Ty);
   Expect<void> loadType(AST::ValueType &Ty);
+  Expect<void> loadType(AST::CoreType &Ty);
+  Expect<void> loadType(AST::CoreDefType &Ty);
+  Expect<void> loadType(AST::ModuleType &Ty);
   Expect<void> loadCase(AST::Case &C);
   Expect<void> loadLabel(std::string &Label);
   template <typename T>
@@ -327,6 +330,8 @@ private:
       return Unexpect(Res);
     }
   }
+  Expect<void> loadModuleDecl(AST::ModuleDecl &Decl);
+  Expect<void> loadExportDecl(AST::CoreExportDecl &Decl);
   Expect<void> loadComponentDecl(AST::ComponentDecl &Decl);
   Expect<void> loadImportDecl(AST::ImportDecl &Decl);
   Expect<void> loadInstanceDecl(AST::InstanceDecl &Decl);

@@ -765,24 +765,6 @@ E(SharedMemoryNoMax, 0x011A, "shared memory must have maximum")
 E(IntrinsicsTableNotFound, 0x011B, "intrinsics table not found")
 // Malformed table (Ref-types proposal)
 E(MalformedTable, 0x011C, "malformed table")
-// Malformed sort
-E(MalformedSort, 0x3C, "malformed sort")
-// Malformed alias target
-E(MalformedAliasTarget, 0x3D, "malformed alias target")
-// Malformed core instance
-E(MalformedCoreInstance, 0x3E, "malformed core instance")
-// Malformed instance
-E(MalformedInstance, 0x3F, "malformed instance")
-// Malformed defType
-E(MalformedDefType, 0x40, "malformed defined type")
-// Malformed record type
-E(MalformedRecordType, 0x41, "malformed record type")
-// Malformed variant type
-E(MalformedVariantType, 0x42, "malformed variant type")
-// Malformed tuple type
-E(MalformedTupleType, 0x43, "malformed tuple type")
-// Malformed flags type
-E(MalformedFlagsType, 0x44, "malformed flags type")
 // @}
 
 // Validation phase
@@ -925,6 +907,28 @@ E(AccessNullArray, 0x0415, "null array reference")
 E(AccessNullI31, 0x0416, "null i31 reference")
 // Fail to cast reference
 E(CastFailed, 0x0417, "cast failure")
+// @}
+
+// Component model phase
+// @{
+// Malformed sort
+E(MalformedSort, 0xA0, "malformed sort")
+// Malformed alias target
+E(MalformedAliasTarget, 0xA1, "malformed alias target")
+// Malformed core instance
+E(MalformedCoreInstance, 0xA2, "malformed core instance")
+// Malformed instance
+E(MalformedInstance, 0xA3, "malformed instance")
+// Malformed defType
+E(MalformedDefType, 0xA4, "malformed defined type")
+// Malformed record type
+E(MalformedRecordType, 0xA5, "malformed record type")
+// Malformed variant type
+E(MalformedVariantType, 0xA6, "malformed variant type")
+// Malformed tuple type
+E(MalformedTupleType, 0xA7, "malformed tuple type")
+// Malformed flags type
+E(MalformedFlagsType, 0xA8, "malformed flags type")
 // @}
 
 #undef E

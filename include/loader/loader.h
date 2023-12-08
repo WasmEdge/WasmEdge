@@ -310,24 +310,23 @@ private:
   Expect<void> loadLabel(std::string &Label);
   template <typename T>
   Expect<std::optional<T>> loadOption(std::function<Expect<void>(T &)> F) {
-    if (auto Res = FMgr.readU32()) {
-      switch (*Res) {
-      case 0x01: {
-        T V;
-        if (auto Res = F(V)) {
-          return std::optional<T>{V};
-        } else {
-          return Unexpect(Res);
-        }
+    auto RTag = FMgr.readByte();
+    if (!RTag) {
+      return Unexpect(RTag);
+    }
+    switch (*RTag) {
+    case 0x01: {
+      T V;
+      if (auto Res = F(V); !Res) {
+        return Unexpect(Res);
       }
-      case 0x00:
-        return std::nullopt;
-      default:
-        return logLoadError(ErrCode::Value::MalformedDefType,
-                            FMgr.getLastOffset(), ASTNodeAttr::DefType);
-      }
-    } else {
-      return Unexpect(Res);
+      return std::optional<T>{V};
+    }
+    case 0x00:
+      return std::nullopt;
+    default:
+      return logLoadError(ErrCode::Value::MalformedDefType,
+                          FMgr.getLastOffset(), ASTNodeAttr::DefType);
     }
   }
   Expect<void> loadModuleDecl(AST::ModuleDecl &Decl);

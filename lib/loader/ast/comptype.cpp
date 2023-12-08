@@ -177,13 +177,13 @@ Expect<void> Loader::loadType(Option &Ty) { return loadType(Ty.getValType()); }
 
 Expect<void> Loader::loadType(Result &Ty) {
   if (auto Res = loadOption<ValueType>(
-          [this](ValueType Ty) -> Expect<void> { return loadType(Ty); })) {
+          [this](ValueType VTy) -> Expect<void> { return loadType(VTy); })) {
     Ty.getValType() = *Res;
   } else {
     return Unexpect(Res);
   }
   if (auto Res = loadOption<ValueType>(
-          [this](ValueType Ty) -> Expect<void> { return loadType(Ty); })) {
+          [this](ValueType VTy) -> Expect<void> { return loadType(VTy); })) {
     Ty.getErrorType() = *Res;
   } else {
     return Unexpect(Res);
@@ -410,7 +410,6 @@ Expect<void> Loader::loadType(ComponentType &Ty) {
   return loadVec<CompTypeSection>(Ty.getContent(), [this](ComponentDecl Decl) {
     return loadComponentDecl(Decl);
   });
-  return {};
 }
 
 Expect<void> Loader::loadComponentDecl(ComponentDecl &Decl) {
@@ -550,9 +549,10 @@ Expect<void> Loader::loadExternDesc(AST::ExternDesc &Desc) {
 
 Expect<void> Loader::loadType(CoreType &Ty) { return loadType(Ty.getType()); }
 Expect<void> Loader::loadType(CoreDefType &Ty) {
-  if (auto Res = loadType(Ty.emplace<FunctionType>())) {
+  Expect<void> Res;
+  if (Res = loadType(Ty.emplace<FunctionType>()); Res) {
     return {};
-  } else if (auto Res = loadType(Ty.emplace<ModuleType>())) {
+  } else if (Res = loadType(Ty.emplace<ModuleType>()); Res) {
     return {};
   } else {
     return Unexpect(Res);

@@ -34,15 +34,15 @@ Expect<void> Loader::loadAliasTarget(AST::AliasTarget &AliasTarget) {
   case 0x01: {
     uint32_t InstanceIndex;
     std::string_view Name;
-    if (auto V = FMgr.readU32(); !Res) {
+    if (auto V = FMgr.readU32(); !V) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::AliasTarget));
-      return Unexpect(Res);
+      return Unexpect(V);
     } else {
       InstanceIndex = *V;
     }
-    if (auto V = FMgr.readName(); !Res) {
+    if (auto V = FMgr.readName(); !V) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::AliasTarget));
-      return Unexpect(Res);
+      return Unexpect(V);
     } else {
       Name = *V;
     }
@@ -52,15 +52,15 @@ Expect<void> Loader::loadAliasTarget(AST::AliasTarget &AliasTarget) {
   case 0x02: {
     uint32_t ComponentIndex;
     uint32_t Index;
-    if (auto V = FMgr.readU32(); !Res) {
+    if (auto V = FMgr.readU32(); !V) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::AliasTarget));
-      return Unexpect(Res);
+      return Unexpect(V);
     } else {
       ComponentIndex = *V;
     }
-    if (auto V = FMgr.readU32(); !Res) {
+    if (auto V = FMgr.readU32(); !V) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::AliasTarget));
-      return Unexpect(Res);
+      return Unexpect(V);
     } else {
       Index = *V;
     }

@@ -18,6 +18,7 @@
 #include "ast/expression.h"
 #include "ast/type.h"
 
+#include <optional>
 #include <vector>
 
 namespace WasmEdge {

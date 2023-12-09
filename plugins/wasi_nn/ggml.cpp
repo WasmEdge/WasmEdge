@@ -16,7 +16,6 @@ namespace WasmEdge::Host::WASINN::GGML {
 
 namespace details {
 Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
-                            bool *IsCxtUpdated = nullptr,
                             bool *IsModelUpdated = nullptr) noexcept {
   simdjson::dom::parser Parser;
   simdjson::dom::element Doc;
@@ -36,9 +35,6 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   // Get the current llama parameters.
   llama_model_params ModelParams = llama_model_default_params();
   ModelParams.n_gpu_layers = GraphRef.NGPULayers;
-  llama_context_params CxtParams = llama_context_default_params();
-  CxtParams.n_ctx = GraphRef.CtxSize;
-  CxtParams.n_batch = GraphRef.BatchSize;
 
   // The plugin parameters.
   if (Doc.at_key("enable-log").error() == simdjson::SUCCESS) {
@@ -104,16 +100,28 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
   }
+  // The sampling parameters.
+  if (Doc.at_key("temp").error() == simdjson::SUCCESS) {
+    auto Err = Doc["temp"].get<double>().get(GraphRef.Temp);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the temp option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.Temp = std::max(0.0, GraphRef.Temp);
+  }
+  if (Doc.at_key("repeat-penalty").error() == simdjson::SUCCESS) {
+    auto Err = Doc["repeat-penalty"].get<double>().get(GraphRef.RepeatPenalty);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the repeat-penalty option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
 
   // Check if the model is updated.
   if (IsModelUpdated && ModelParams.n_gpu_layers != GraphRef.NGPULayers) {
     *IsModelUpdated = true;
-  }
-
-  // Check if the context is updated.
-  if (IsCxtUpdated && (CxtParams.n_ctx != GraphRef.CtxSize ||
-                       CxtParams.n_batch != GraphRef.BatchSize)) {
-    *IsCxtUpdated = true;
   }
 
   return ErrNo::Success;
@@ -189,6 +197,10 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Initialize the context parameters.
   GraphRef.CtxSize = ContextDefault.n_ctx;
   GraphRef.BatchSize = ContextDefault.n_batch;
+  // Initialize the sampling parameters.
+  llama_sampling_params SamplingDefault;
+  GraphRef.Temp = SamplingDefault.temp;
+  GraphRef.RepeatPenalty = SamplingDefault.penalty_repeat;
 
   // If the graph builder length > 1, the data of builder[1] is the metadata.
   if (Builders.size() > 1) {
@@ -270,56 +282,57 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
 
-  bool IsCxtParamsUpdated = false;
   bool IsModelParamsUpdated = false;
   // Use index 1 for metadata.
   if (Index == 1) {
     const std::string Metadata(reinterpret_cast<char *>(Tensor.Tensor.data()),
                                Tensor.Tensor.size());
-    return details::parseMetadata(GraphRef, Metadata, &IsCxtParamsUpdated,
-                                  &IsModelParamsUpdated);
-  }
+    auto Res =
+        details::parseMetadata(GraphRef, Metadata, &IsModelParamsUpdated);
 
-  // XXX: Due to the limitation of WASI-NN proposal,
-  // we have no way to pass the metadata before the setInput phase
-  // when we want to do some configurations in the load phase.
-  // That's why we have this hack.
+    if (Res != ErrNo::Success) {
+      spdlog::error("[WASI-NN] GGML backend: Failed to parse metadata."sv);
+      return Res;
+    }
+
+    // XXX: Due to the limitation of WASI-NN proposal,
+    // we have no way to pass the metadata before the setInput phase
+    // when we want to do some configurations in the load phase.
+    // That's why we have this hack.
 #ifndef __APPLE__
-  {
-    if (IsModelParamsUpdated) {
-      llama_model_params ModelParams = llama_model_default_params();
-      ModelParams.n_gpu_layers = GraphRef.NGPULayers;
-      llama_free_model(GraphRef.LlamaModel);
-      GraphRef.LlamaModel = llama_load_model_from_file(
-          GraphRef.ModelFilePath.c_str(), ModelParams);
-      if (GraphRef.LlamaModel == nullptr) {
-        spdlog::error("[WASI-NN] GGML backend: Error: unable to init model."sv);
-        Env.NNGraph.pop_back();
-        return ErrNo::InvalidArgument;
+    {
+      if (IsModelParamsUpdated) {
+        llama_model_params ModelParams = llama_model_default_params();
+        ModelParams.n_gpu_layers = GraphRef.NGPULayers;
+        llama_free_model(GraphRef.LlamaModel);
+        GraphRef.LlamaModel = llama_load_model_from_file(
+            GraphRef.ModelFilePath.c_str(), ModelParams);
+        if (GraphRef.LlamaModel == nullptr) {
+          spdlog::error(
+              "[WASI-NN] GGML backend: Error: unable to init model."sv);
+          Env.NNGraph.pop_back();
+          return ErrNo::InvalidArgument;
+        }
       }
     }
-  }
 #endif
 
-  // Initialize the llama context.
-  if (CxtRef.LlamaContext == nullptr || IsCxtParamsUpdated) {
-    llama_context_params ContextParams = llama_context_default_params();
-    ContextParams.n_ctx = GraphRef.CtxSize;
-    ContextParams.n_batch = GraphRef.BatchSize;
-    if (CxtRef.LlamaContext != nullptr) {
-      llama_free(CxtRef.LlamaContext);
-    }
-    CxtRef.LlamaContext =
-        llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
+    return ErrNo::Success;
   }
+
+  // Initialize the llama context.
+  llama_context_params ContextParams = llama_context_default_params();
+  ContextParams.n_ctx = GraphRef.CtxSize;
+  ContextParams.n_batch = GraphRef.BatchSize;
+  auto LlamaContext =
+      llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
 
   // Set the input.
   const bool AddBos = llama_should_add_bos_token(GraphRef.LlamaModel);
   std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
                      Tensor.Tensor.size());
-  CxtRef.LlamaInputs =
-      llama_tokenize(CxtRef.LlamaContext, Prompt, AddBos, true);
-  const uint32_t MaxContextSize = llama_n_ctx(CxtRef.LlamaContext);
+  CxtRef.LlamaInputs = llama_tokenize(LlamaContext, Prompt, AddBos, true);
+  const uint32_t MaxContextSize = llama_n_ctx(LlamaContext);
   // Minus 4 for the special tokens.
   const uint32_t MaxTokensListSize = MaxContextSize - 4;
   if (CxtRef.LlamaInputs.size() > MaxTokensListSize) {
@@ -328,6 +341,10 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         CxtRef.LlamaInputs.size(), MaxTokensListSize);
     return ErrNo::InvalidArgument;
   }
+
+  // Delete the llama context.
+  llama_free(LlamaContext);
+
   return ErrNo::Success;
 }
 
@@ -376,6 +393,8 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   // Main predict loop.
   gpt_params GPTParams;
+  GPTParams.sparams.temp = GraphRef.Temp;
+  GPTParams.sparams.penalty_repeat = GraphRef.RepeatPenalty;
   struct llama_sampling_context *CtxSampling =
       llama_sampling_init(GPTParams.sparams);
   std::vector<llama_token> Embd;
@@ -386,9 +405,9 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   llama_context_params ContextParams = llama_context_default_params();
   ContextParams.n_ctx = GraphRef.CtxSize;
   ContextParams.n_batch = GraphRef.BatchSize;
-  CxtRef.LlamaContext =
+  auto LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
-  int NCtx = llama_n_ctx(CxtRef.LlamaContext);
+  int NCtx = llama_n_ctx(LlamaContext);
   // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
   const int MaxTokensListSize = NCtx - 4;
   // Use the const sequence id here.
@@ -425,7 +444,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
         // This will return batch for single sequence of tokens starting at
         // position.
         if (llama_decode(
-                CxtRef.LlamaContext,
+                LlamaContext,
                 llama_batch_get_one(&Embd[I], NEval, NPast, SequenceId))) {
           spdlog::error("[WASI-NN] GGML backend: failed to llama_decode"sv);
           return ErrNo::RuntimeError;
@@ -439,17 +458,16 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
     if (static_cast<int>(CxtRef.LlamaInputs.size()) <= NConsumed) {
       const llama_token Id =
-          llama_sampling_sample(CtxSampling, CxtRef.LlamaContext, nullptr);
-      llama_sampling_accept(CtxSampling, CxtRef.LlamaContext, Id, true);
+          llama_sampling_sample(CtxSampling, LlamaContext, nullptr);
+      llama_sampling_accept(CtxSampling, LlamaContext, Id, true);
       Embd.emplace_back(Id);
       --NRemain;
       // Save the output token.
       CxtRef.LlamaOutputTokens.emplace_back(Id);
-      CxtRef.LlamaOutputs += llama_token_to_piece(CxtRef.LlamaContext, Id);
+      CxtRef.LlamaOutputs += llama_token_to_piece(LlamaContext, Id);
       // When setting StreamStdout, we print the output to stdout.
       if (GraphRef.StreamStdout) {
-        std::cout << llama_token_to_piece(CxtRef.LlamaContext, Id)
-                  << std::flush;
+        std::cout << llama_token_to_piece(LlamaContext, Id) << std::flush;
       }
       // Break if reverse prompt is found.
       if (!GraphRef.ReversePrompt.empty() &&
@@ -472,7 +490,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       while (static_cast<int>(CxtRef.LlamaInputs.size()) > NConsumed) {
         Embd.push_back(CxtRef.LlamaInputs[NConsumed]);
         // Push the prompt in the sampling context.
-        llama_sampling_accept(CtxSampling, CxtRef.LlamaContext,
+        llama_sampling_accept(CtxSampling, LlamaContext,
                               CxtRef.LlamaInputs[NConsumed], false);
         ++NConsumed;
         if (Embd.size() >= GraphRef.BatchSize) {
@@ -483,13 +501,13 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
 
   if (GraphRef.EnableLog) {
-    llama_print_timings(CxtRef.LlamaContext);
+    llama_print_timings(LlamaContext);
   }
 
   // We free the contexts here to keep the ggml plugin stateless.
   // Users could fully control the contexts by themselves via their prompt.
   llama_sampling_free(CtxSampling);
-  llama_free(CxtRef.LlamaContext);
+  llama_free(LlamaContext);
 
   return ErrNo::Success;
 }

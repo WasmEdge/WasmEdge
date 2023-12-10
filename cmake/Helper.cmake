@@ -16,7 +16,7 @@ if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo
   endif()
 endif()
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   list(APPEND WASMEDGE_CFLAGS
     /std:c++17
     /WX
@@ -42,66 +42,78 @@ else()
       -Werror
       -Wno-error=pedantic
     )
-    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
+  endif()
+
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
       list(APPEND WASMEDGE_CFLAGS
         -Wno-error=dangling-reference
+        -Wno-error=psabi
+      )
+    endif()
+    list(APPEND WASMEDGE_CFLAGS
+      -Wshadow
+    )
+  endif()
+
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0.0)
+      list(APPEND WASMEDGE_CFLAGS
+        -Wno-error=return-std-move-in-c++11
+      )
+    endif()
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 10)
+      list(APPEND WASMEDGE_CFLAGS
+        -Wno-error=psabi
+      )
+    endif()
+
+    list(APPEND WASMEDGE_CFLAGS
+      -Wc++20-designator
+      -Wno-error=switch-enum
+      -Wno-error=covered-switch-default
+      -Wno-error=documentation-unknown-command
+      -Wno-error=ctad-maybe-unsupported
+      -Wno-error=undefined-func-template
+      -Wno-error=newline-eof
+      -Wno-error=keyword-macro
+      -Wno-error=nested-anon-types
+      -Wno-error=old-style-cast
+      -Wno-error=unused-command-line-argument
+      -Wno-error=unknown-warning-option
+      -Wc99-extensions
+      -Wgnu-anonymous-struct
+      -Wlanguage-extension-token
+      -Wsigned-enum-bitfield
+      -Wshadow
+      -Wshadow-field
+      -Wshadow-field-in-constructor
+      -Wno-exit-time-destructors
+      -Wno-global-constructors
+      -Wno-error=used-but-marked-unused
+    )
+
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+      list(APPEND WASMEDGE_CFLAGS
+        -Wno-error=reserved-identifier
       )
     endif()
   endif()
 
   if(WASMEDGE_ENABLE_UB_SANITIZER)
-    list(APPEND WASMEDGE_CFLAGS -fsanitize=undefined)
-  endif()
-
-  if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-    list(APPEND WASMEDGE_CFLAGS -Wno-psabi)
-  endif()
-endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  list(APPEND WASMEDGE_CFLAGS -Wno-c++20-designator)
-endif()
-
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  list(APPEND WASMEDGE_CFLAGS
-    -Wno-c99-extensions
-    -Wno-covered-switch-default
-    -Wno-documentation-unknown-command
-    -Wno-error=nested-anon-types
-    -Wno-error=old-style-cast
-    -Wno-error=unused-command-line-argument
-    -Wno-error=unknown-warning-option
-    -Wno-ctad-maybe-unsupported
-    -Wno-gnu-anonymous-struct
-    -Wno-keyword-macro
-    -Wno-language-extension-token
-    -Wno-newline-eof
-    -Wno-shadow-field-in-constructor
-    -Wno-signed-enum-bitfield
-    -Wno-switch-enum
-    -Wno-undefined-func-template
-  )
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0.0)
     list(APPEND WASMEDGE_CFLAGS
-      -Wno-error=return-std-move-in-c++11
-    )
-  elseif(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-    list(APPEND WASMEDGE_CFLAGS
-      -Wno-error=shadow-field
-      -Wno-reserved-identifier
+      -fsanitize=undefined
     )
   endif()
 endif()
 
 if(WIN32)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_ENABLE_EXTENDED_ALIGNED_STORAGE -DNOMINMAX -D_ITERATOR_DEBUG_LEVEL=0)
-  if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     list(APPEND WASMEDGE_CFLAGS
       "/EHa"
       -Wno-c++98-compat
       -Wno-c++98-compat-pedantic
-      -Wno-exit-time-destructors
-      -Wno-global-constructors
       -Wno-used-but-marked-unused
       -Wno-nonportable-system-include-path
       -Wno-float-equal

@@ -23,9 +23,9 @@ static inline constexpr const uint8_t kMaxNestedLinks = 8;
 
 }
 
-VINode::VINode(INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
+VINode::VINode(INode No, __wasi_rights_t FRB, __wasi_rights_t FRI,
                std::string N)
-    : Node(std::move(Node)), FsRightsBase(FRB), FsRightsInheriting(FRI),
+    : Node(std::move(No)), FsRightsBase(FRB), FsRightsInheriting(FRI),
       Name(std::move(N)) {}
 
 std::shared_ptr<VINode> VINode::stdIn(__wasi_rights_t FRB,

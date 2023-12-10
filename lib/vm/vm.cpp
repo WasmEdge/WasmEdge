@@ -33,18 +33,18 @@ createPluginModule(std::string_view PName, std::string_view MName) {
 }
 } // namespace
 
-VM::VM(const Configure &Conf)
-    : Conf(Conf), Stage(VMStage::Inited),
-      LoaderEngine(Conf, &Executor::Executor::Intrinsics),
-      ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat),
+VM::VM(const Configure &C)
+    : Conf(C), Stage(VMStage::Inited),
+      LoaderEngine(C, &Executor::Executor::Intrinsics), ValidatorEngine(C),
+      ExecutorEngine(C, &Stat),
       Store(std::make_unique<Runtime::StoreManager>()), StoreRef(*Store.get()) {
   unsafeInitVM();
 }
 
-VM::VM(const Configure &Conf, Runtime::StoreManager &S)
-    : Conf(Conf), Stage(VMStage::Inited),
-      LoaderEngine(Conf, &Executor::Executor::Intrinsics),
-      ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat), StoreRef(S) {
+VM::VM(const Configure &C, Runtime::StoreManager &S)
+    : Conf(C), Stage(VMStage::Inited),
+      LoaderEngine(C, &Executor::Executor::Intrinsics), ValidatorEngine(C),
+      ExecutorEngine(C, &Stat), StoreRef(S) {
   unsafeInitVM();
 }
 

@@ -15,17 +15,17 @@ namespace WasmEdge {
 namespace PO {
 
 struct Description {
-  Description(std::string_view Value) noexcept : Value(std::move(Value)) {}
+  Description(std::string_view V) noexcept : Value(std::move(V)) {}
   std::string_view Value;
 };
 
 struct MetaVar {
-  MetaVar(std::string_view Value) noexcept : Value(std::move(Value)) {}
+  MetaVar(std::string_view V) noexcept : Value(std::move(V)) {}
   std::string_view Value;
 };
 
 template <typename T> struct DefaultValue {
-  DefaultValue(T Value) noexcept : Value(std::move(Value)) {}
+  DefaultValue(T V) noexcept : Value(std::move(V)) {}
   T Value;
 };
 

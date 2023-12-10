@@ -125,8 +125,8 @@ private:
 /// Executor flow control class.
 class Executor {
 public:
-  Executor(const Configure &Conf, Statistics::Statistics *S = nullptr) noexcept
-      : Conf(Conf) {
+  Executor(const Configure &C, Statistics::Statistics *S = nullptr) noexcept
+      : Conf(C) {
     if (Conf.getStatisticsConfigure().isInstructionCounting() ||
         Conf.getStatisticsConfigure().isCostMeasuring() ||
         Conf.getStatisticsConfigure().isTimeMeasuring()) {

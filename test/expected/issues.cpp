@@ -152,8 +152,8 @@ TEST(RegressionTest, Issue89) {
 struct S {
   int i = 0;
   int j = 0;
-  S(int i) : i(i) {}
-  S(int i, int j) : i(i), j(j) {}
+  S(int x) : i(x) {}
+  S(int x, int y) : i(x), j(y) {}
 };
 
 TEST(RegressionTest, Issue107) {

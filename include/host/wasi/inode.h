@@ -66,8 +66,8 @@ struct FdHolder {
       reset();
     }
   }
-  explicit constexpr FdHolder(int Fd, bool Cleanup = true) noexcept
-      : Fd(Fd), Cleanup(Cleanup) {}
+  explicit constexpr FdHolder(int FdVal, bool DoCleanup = true) noexcept
+      : Fd(FdVal), Cleanup(DoCleanup) {}
   constexpr bool ok() const noexcept { return Fd >= 0; }
   void reset() noexcept;
   int release() noexcept { return std::exchange(Fd, -1); }
@@ -819,7 +819,7 @@ private:
 class PollerContext;
 class Poller
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
-    : public FdHolder
+    : private FdHolder
 #endif
 {
 public:

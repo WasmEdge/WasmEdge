@@ -70,7 +70,7 @@ Expect<Byte> FileMgr::readByte() {
   return Data[Pos++];
 }
 
-Expect<void> FileMgr::readByte(Byte V) {
+Expect<bool> FileMgr::readByte(Byte V) {
   auto R = readByte();
   if (!R) {
     return Unexpect(R);
@@ -78,9 +78,9 @@ Expect<void> FileMgr::readByte(Byte V) {
   if (*R != V) {
     Pos--;
     LastPos = Pos;
-    return Unexpect(ErrCode::Value::IntegerTooLong);
+    return false;
   }
-  return {};
+  return true;
 }
 
 // Read number of bytes. See "include/loader/filemgr.h".

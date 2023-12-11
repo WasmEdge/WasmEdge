@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2023 Second State INC
 
+#include "common/errcode.h"
 #include "loader/loader.h"
+#include "spdlog/spdlog.h"
 
 #include <cstdint>
 
@@ -382,11 +384,14 @@ Expect<void> Loader::loadType(ComponentType &Ty) {
 }
 
 Expect<void> Loader::loadComponentDecl(ComponentDecl &Decl) {
-  if (auto Res = FMgr.readByte(0x03)) {
-    return loadImportDecl(Decl.emplace<ImportDecl>());
-  } else {
-    return loadInstanceDecl(Decl.emplace<InstanceDecl>());
+  auto Res = FMgr.readByte(0x03);
+  if (!Res) {
+    return Unexpect(Res);
   }
+  if (*Res) {
+    return loadImportDecl(Decl.emplace<ImportDecl>());
+  }
+  return loadInstanceDecl(Decl.emplace<InstanceDecl>());
 }
 
 Expect<void> Loader::loadImportDecl(ImportDecl &Decl) {
@@ -487,6 +492,8 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
     break;
   }
   default:
+    spdlog::error("unknown instance decl, {} is not one of 0x00|0x01|0x02|0x04",
+                  *RTag);
     return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
                         ASTNodeAttr::DefType);
   }
@@ -512,7 +519,7 @@ Expect<void> Loader::loadExternDesc(AST::ExternDesc &Desc) {
 
   switch (*RTag) {
   case 0x00:
-    if (auto Res = FMgr.readByte(0x11); !Res) {
+    if (auto Res = FMgr.readByte(0x11); !Res || !(*Res)) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
       return Unexpect(Res);
     }
@@ -593,7 +600,7 @@ Expect<void> Loader::loadType(CoreDefType &Ty) {
 }
 
 Expect<void> Loader::loadType(ModuleType &Ty) {
-  if (auto Res = FMgr.readByte(0x50U); !Res) {
+  if (auto Res = FMgr.readByte(0x50U); !Res || !(*Res)) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Module);
   }

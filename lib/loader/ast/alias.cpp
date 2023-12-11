@@ -32,42 +32,37 @@ Expect<void> Loader::loadAliasTarget(AST::AliasTarget &AliasTarget) {
   switch (*Res) {
   case 0x00:
   case 0x01: {
-    uint32_t InstanceIndex;
-    std::string_view Name;
+    AST::AliasTargetExport &Ex = AliasTarget.emplace<AST::AliasTargetExport>();
     if (auto V = FMgr.readU32(); !V) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::AliasTarget));
       return Unexpect(V);
     } else {
-      InstanceIndex = *V;
+      Ex.getInstanceIdx() = *V;
     }
     if (auto V = FMgr.readName(); !V) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::AliasTarget));
       return Unexpect(V);
     } else {
-      Name = *V;
+      Ex.getName() = *V;
     }
-    AliasTarget = AST::AliasTarget::Export(InstanceIndex, Name);
     break;
   }
   case 0x02: {
-    uint32_t ComponentIndex;
-    uint32_t Index;
+    AST::AliasTargetOuter &Out = AliasTarget.emplace<AST::AliasTargetOuter>();
     if (auto V = FMgr.readU32(); !V) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::AliasTarget));
       return Unexpect(V);
     } else {
-      ComponentIndex = *V;
+      Out.getComponent() = *V;
     }
     if (auto V = FMgr.readU32(); !V) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::AliasTarget));
       return Unexpect(V);
     } else {
-      Index = *V;
+      Out.getIndex() = *V;
     }
-    AliasTarget = AST::AliasTarget::Outer(ComponentIndex, Index);
     break;
   }
-
   default:
     return logLoadError(ErrCode::Value::MalformedAliasTarget,
                         FMgr.getLastOffset(), ASTNodeAttr::AliasTarget);

@@ -22,35 +22,30 @@
 namespace WasmEdge {
 namespace AST {
 
-class AliasTarget {
+class AliasTargetExport {
 public:
-  class Export;
-  class Outer;
-};
-class AliasTarget::Export : public AliasTarget {
-public:
-  Export(uint32_t Idx, std::string_view N) noexcept
-      : InstanceIndex{Idx}, Name{N} {}
-
   uint32_t getInstanceIdx() const noexcept { return InstanceIndex; }
+  uint32_t &getInstanceIdx() noexcept { return InstanceIndex; }
   std::string_view getName() const noexcept { return Name; }
+  std::string &getName() noexcept { return Name; }
 
 private:
   uint32_t InstanceIndex;
   std::string Name;
 };
-class AliasTarget::Outer : public AliasTarget {
+class AliasTargetOuter {
 public:
-  Outer(uint32_t CIdx, uint32_t Idx) noexcept
-      : ComponentIndex{CIdx}, Index{Idx} {}
-
   uint32_t getComponent() const noexcept { return ComponentIndex; }
+  uint32_t &getComponent() noexcept { return ComponentIndex; }
   uint32_t getIndex() const noexcept { return Index; }
+  uint32_t &getIndex() noexcept { return Index; }
 
 private:
   uint32_t ComponentIndex;
   uint32_t Index;
 };
+
+using AliasTarget = std::variant<AliasTargetExport, AliasTargetOuter>;
 
 /// Alias
 class Alias {

@@ -179,7 +179,7 @@ private:
   ResultList ResList;
 };
 
-using ExternDesc = TypeIndex;
+using ExternDesc = std::variant<TypeIndex, ValueType>;
 class ExportDecl {
 public:
   std::string_view getExportName() const noexcept { return ExportName; }
@@ -230,12 +230,11 @@ class Type;
 using InstanceDecl =
     std::variant<CoreType, Alias, std::shared_ptr<Type>, ExportDecl>;
 class InstanceType {
+  std::vector<InstanceDecl> IdList;
+
 public:
   Span<const InstanceDecl> getContent() const noexcept { return IdList; }
   std::vector<InstanceDecl> &getContent() noexcept { return IdList; }
-
-private:
-  std::vector<InstanceDecl> IdList;
 };
 
 class ImportDecl {
@@ -260,6 +259,7 @@ public:
 using DefType = std::variant<DefValType, FuncType, ComponentType, InstanceType>;
 class Type {
 public:
+  Type(DefType V) : T{V} {}
   DefType getType() const noexcept { return T; }
   DefType &getType() noexcept { return T; }
 

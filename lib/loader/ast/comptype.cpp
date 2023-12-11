@@ -262,8 +262,9 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
     return Unexpect(RTag);
   }
+  Byte Tag = *RTag;
 
-  switch (*RTag) {
+  switch (Tag) {
   case 0x7f:
   case 0x7e:
   case 0x7d:
@@ -276,105 +277,75 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
   case 0x76:
   case 0x75:
   case 0x74:
-  case 0x73: {
-    PrimValType PrimTy;
-    if (auto Res = loadType(*RTag, PrimTy); !Res) {
+  case 0x73:
+    if (auto Res =
+            loadType(Tag, Ty.emplace<DefValType>().emplace<PrimValType>());
+        !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
+      return Unexpect(Res);
+    };
+    break;
+  case 0x72:
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Record>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
-    Ty.emplace<DefValType>(PrimTy);
     break;
-  }
-  case 0x72: {
-    Record Rec;
-    if (auto Res = loadType(Rec); !Res) {
+  case 0x71:
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<VariantTy>());
+        !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
-    Ty.emplace<DefValType>(Rec);
     break;
-  }
-  case 0x71: {
-    VariantTy VT;
-    if (auto Res = loadType(VT); !Res) {
+  case 0x70:
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<List>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
-    Ty.emplace<DefValType>(VT);
     break;
-  }
-  case 0x70: {
-    List V;
-    if (auto Res = loadType(V); !Res) {
+  case 0x6f:
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Tuple>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
-    Ty.emplace<DefValType>(V);
     break;
-  }
-  case 0x6f: {
-    Tuple V;
-    if (auto Res = loadType(V); !Res) {
+  case 0x6e:
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Flags>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
-    Ty.emplace<DefValType>(V);
     break;
-  }
-  case 0x6e: {
-    Flags V;
-    if (auto Res = loadType(V); !Res) {
+  case 0x6d:
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Enum>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
-    Ty.emplace<DefValType>(V);
     break;
-  }
-  case 0x6d: {
-    Enum V;
-    if (auto Res = loadType(V); !Res) {
+  case 0x6b:
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Option>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
-    Ty.emplace<DefValType>(V);
     break;
-  }
-  case 0x6b: {
-    Option V;
-    if (auto Res = loadType(V); !Res) {
+  case 0x6a:
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Result>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
-    Ty.emplace<DefValType>(V);
     break;
-  }
-  case 0x6a: {
-    Result V;
-    if (auto Res = loadType(V); !Res) {
+  case 0x69:
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Own>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
-    Ty.emplace<DefValType>(V);
     break;
-  }
-  case 0x69: {
-    Own V;
-    if (auto Res = loadType(V); !Res) {
+  case 0x68:
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Borrow>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
-    Ty.emplace<DefValType>(V);
     break;
-  }
-  case 0x68: {
-    Borrow V;
-    if (auto Res = loadType(V); !Res) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
-      return Unexpect(Res);
-    }
-    Ty.emplace<DefValType>(V);
-    break;
-  }
   case 0x40:
     if (auto Res = loadType(Ty.emplace<FuncType>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
@@ -388,12 +359,10 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
     }
     break;
   case 0x42: {
-    InstanceType V;
-    if (auto Res = loadType(V); !Res) {
+    if (auto Res = loadType(Ty.emplace<InstanceType>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
-    Ty.emplace<InstanceType>(V);
     break;
   }
   default:
@@ -487,33 +456,34 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
     // TODO core:type
     spdlog::error("component model core:type in type section is incomplete");
     return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
-                        ASTNodeAttr::DefType);
+                        ASTNodeAttr::InstanceDecl);
   }
   case 0x01: {
-    std::shared_ptr<Type> T;
-    if (auto Res = loadType(T->getType()); !Res) {
+    DefType Ty;
+    if (auto Res = loadType(Ty); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::InstanceDecl));
       return Unexpect(Res);
     }
-    Decl.emplace<std::shared_ptr<Type>>(T);
+    Decl.emplace<std::shared_ptr<Type>>(std::make_shared<Type>(Ty));
     break;
   }
   case 0x02: {
-    Alias A;
-    if (auto Res = loadAlias(A); !Res) {
+    if (auto Res = loadAlias(Decl.emplace<Alias>()); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::InstanceDecl));
       return Unexpect(Res);
     }
-    Decl.emplace<Alias>(A);
     break;
   }
   case 0x04: {
-    ExportDecl Ed;
+    ExportDecl &Ed = Decl.emplace<ExportDecl>();
     if (auto Res = loadImportExportName(Ed.getExportName()); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::InstanceDecl));
       return Unexpect(Res);
     }
     if (auto Res = loadExternDesc(Ed.getExternDesc()); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::InstanceDecl));
       return Unexpect(Res);
-    }
-    Decl.emplace<ExportDecl>(Ed);
+    };
     break;
   }
   default:
@@ -525,6 +495,7 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
 
 Expect<void> Loader::loadImportExportName(std::string &Name) {
   if (auto Res = FMgr.readName(); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Name));
     return Unexpect(Res);
   } else {
     Name = *Res;
@@ -533,17 +504,79 @@ Expect<void> Loader::loadImportExportName(std::string &Name) {
 }
 
 Expect<void> Loader::loadExternDesc(AST::ExternDesc &Desc) {
-  if (auto Res = FMgr.readByte(0x00); !Res) {
-    return Unexpect(Res);
+  auto RTag = FMgr.readByte();
+  if (!RTag) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
+    return Unexpect(RTag);
   }
-  if (auto Res = FMgr.readByte(0x11); !Res) {
-    return Unexpect(Res);
+
+  switch (*RTag) {
+  case 0x00:
+    if (auto Res = FMgr.readByte(0x11); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
+      return Unexpect(Res);
+    }
+    if (auto Res = FMgr.readU32(); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
+      return Unexpect(Res);
+    } else {
+      Desc.emplace<TypeIndex>(*Res);
+    }
+    break;
+  case 0x01:
+    // | 0x01 i:<typeidx>                        => (func (type i))
+    if (auto Res = FMgr.readU32(); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
+      return Unexpect(Res);
+    } else {
+      Desc.emplace<TypeIndex>(*Res);
+    }
+    break;
+  case 0x02:
+    // | 0x02 t:<valtype>                        => (value t) 🪙
+    if (auto Res = loadType(Desc.emplace<ValueType>()); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
+      return Unexpect(Res);
+    }
+    break;
+  case 0x03:
+    // | 0x03 b:<typebound>                      => (type b)
+    if (auto Res = FMgr.readU32(); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
+      return Unexpect(Res);
+    } else {
+      Desc = *Res;
+    }
+    break;
+  case 0x04:
+    // | 0x04 i:<typeidx>                        => (component (type i))
+    // typebound     ::= 0x00 i:<typeidx>        => (eq i)
+    // | 0x01                                    => (sub resource)
+    if (auto Res = FMgr.readByte(); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
+      return Unexpect(Res);
+    } else if (*Res == 0x00) {
+      Desc.emplace<TypeIndex>(*Res);
+      break;
+    } else if (*Res == 0x01) {
+      break;
+    } else {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
+      return Unexpect(Res);
+    }
+  case 0x05:
+    // | 0x05 i:<typeidx>                        => (instance (type i))
+    if (auto Res = FMgr.readU32(); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
+      return Unexpect(Res);
+    } else {
+      Desc.emplace<TypeIndex>(*Res);
+    }
+    break;
+  default:
+    break;
   }
-  if (auto Res = FMgr.readU32(); !Res) {
-    return Unexpect(Res);
-  } else {
-    Desc = *Res;
-  }
+
   return {};
 }
 

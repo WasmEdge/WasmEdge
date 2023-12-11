@@ -6,7 +6,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
-
 jobs:
   misc:
     name: misc linters

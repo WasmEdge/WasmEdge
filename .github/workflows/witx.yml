@@ -15,8 +15,7 @@ on:
       - master
     paths:
       - 'docs/witx/**'
-permisssions:
-  contents: read
+
 jobs:
   gen_doc:
     runs-on: ubuntu-latest

@@ -22,7 +22,6 @@ on:
       - "include/host/wasi/**"
       - "thirdparty/wasi/**"
       
-
 jobs:
   test:
     strategy:

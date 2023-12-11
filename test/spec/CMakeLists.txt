@@ -63,10 +63,6 @@ else()
   endif()
 
   FetchContent_MakeAvailable(simdjson)
-
-  set(SIMDJSON_JUST_LIBRARY ON CACHE INTERNAL "")
-  set(SIMDJSON_BUILD_STATIC ON CACHE INTERNAL "")
-
   message(STATUS "Downloading SIMDJSON source -- done")
 endif()
 

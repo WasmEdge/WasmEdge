@@ -233,7 +233,10 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
 template <typename T>
 inline constexpr Span<const T> genSpan(const T *Buf,
                                        const uint32_t Len) noexcept {
-  return Span<const T>(Buf, Len);
+  if (Buf && Len > 0) {
+    return Span<const T>(Buf, Len);
+  }
+  return Span<const T>();
 }
 
 // Helper functions for converting WasmEdge_String to std::String.
@@ -561,7 +564,7 @@ WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) {
 
 // <<<<<<<< WasmEdge value functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-// <<<<<<<< WasmEdge string functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// >>>>>>>> WasmEdge string functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_String
 WasmEdge_StringCreateByCString(const char *Str) {
@@ -614,7 +617,32 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_StringDelete(WasmEdge_String Str) {
   }
 }
 
-// >>>>>>>> WasmEdge string functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// <<<<<<<< WasmEdge string functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge bytes functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Bytes WasmEdge_BytesCreate(const uint8_t *Buf,
+                                                         const uint32_t Len) {
+  if (Buf && Len) {
+    uint8_t *Str = new uint8_t[Len];
+    std::copy_n(Buf, Len, Str);
+    return WasmEdge_Bytes{/* Length */ Len, /* Buf */ Str};
+  }
+  return WasmEdge_Bytes{/* Length */ 0, /* Buf */ nullptr};
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Bytes WasmEdge_BytesWrap(const uint8_t *Buf,
+                                                       const uint32_t Len) {
+  return WasmEdge_Bytes{/* Length */ Len, /* Buf */ Buf};
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_BytesDelete(WasmEdge_Bytes Bytes) {
+  if (Bytes.Buf) {
+    delete[] Bytes.Buf;
+  }
+}
+
+// <<<<<<<< WasmEdge bytes functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge result functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -676,7 +704,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_ConfigureContext *WasmEdge_ConfigureCreate(void) {
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureAddProposal(WasmEdge_ConfigureContext *Cxt,
-                              const WasmEdge_Proposal Prop) {
+                              const enum WasmEdge_Proposal Prop) {
   if (Cxt) {
     Cxt->Conf.addProposal(static_cast<WasmEdge::Proposal>(Prop));
   }
@@ -684,7 +712,7 @@ WasmEdge_ConfigureAddProposal(WasmEdge_ConfigureContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureRemoveProposal(WasmEdge_ConfigureContext *Cxt,
-                                 const WasmEdge_Proposal Prop) {
+                                 const enum WasmEdge_Proposal Prop) {
   if (Cxt) {
     Cxt->Conf.removeProposal(static_cast<WasmEdge::Proposal>(Prop));
   }
@@ -692,34 +720,32 @@ WasmEdge_ConfigureRemoveProposal(WasmEdge_ConfigureContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT bool
 WasmEdge_ConfigureHasProposal(const WasmEdge_ConfigureContext *Cxt,
-                              const WasmEdge_Proposal Prop) {
+                              const enum WasmEdge_Proposal Prop) {
   if (Cxt) {
     return Cxt->Conf.hasProposal(static_cast<WasmEdge::Proposal>(Prop));
   }
   return false;
 }
 
-WASMEDGE_CAPI_EXPORT void
-WasmEdge_ConfigureAddHostRegistration(WasmEdge_ConfigureContext *Cxt,
-                                      const WasmEdge_HostRegistration Host) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureAddHostRegistration(
+    WasmEdge_ConfigureContext *Cxt, const enum WasmEdge_HostRegistration Host) {
   if (Cxt) {
     Cxt->Conf.addHostRegistration(
         static_cast<WasmEdge::HostRegistration>(Host));
   }
 }
 
-WASMEDGE_CAPI_EXPORT void
-WasmEdge_ConfigureRemoveHostRegistration(WasmEdge_ConfigureContext *Cxt,
-                                         const WasmEdge_HostRegistration Host) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureRemoveHostRegistration(
+    WasmEdge_ConfigureContext *Cxt, const enum WasmEdge_HostRegistration Host) {
   if (Cxt) {
     Cxt->Conf.removeHostRegistration(
         static_cast<WasmEdge::HostRegistration>(Host));
   }
 }
 
-WASMEDGE_CAPI_EXPORT bool
-WasmEdge_ConfigureHasHostRegistration(const WasmEdge_ConfigureContext *Cxt,
-                                      const WasmEdge_HostRegistration Host) {
+WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureHasHostRegistration(
+    const WasmEdge_ConfigureContext *Cxt,
+    const enum WasmEdge_HostRegistration Host) {
   if (Cxt) {
     return Cxt->Conf.hasHostRegistration(
         static_cast<WasmEdge::HostRegistration>(Host));
@@ -1511,15 +1537,22 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompile(
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBuffer(
+    WasmEdge_CompilerContext *Cxt, const uint8_t *InBuffer,
+    const uint64_t InBufferLen, const char *OutPath) {
+  return WasmEdge_CompilerCompileFromBytes(
+      Cxt, WasmEdge_BytesWrap(InBuffer, static_cast<uint32_t>(InBufferLen)),
+      OutPath);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBytes(
     WasmEdge_CompilerContext *Cxt [[maybe_unused]],
-    const uint8_t *InBuffer [[maybe_unused]],
-    const uint64_t InBufferLen [[maybe_unused]],
+    const WasmEdge_Bytes Bytes [[maybe_unused]],
     const char *OutPath [[maybe_unused]]) {
 #ifdef WASMEDGE_BUILD_AOT_RUNTIME
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         std::filesystem::path OutputPath = std::filesystem::absolute(OutPath);
-        std::vector<WasmEdge::Byte> Data(InBuffer, InBuffer + InBufferLen);
+        auto Data = genSpan(Bytes.Buf, Bytes.Length);
         std::unique_ptr<WasmEdge::AST::Module> Module;
         if (auto Res = Cxt->Load.parseModule(Data)) {
           Module = std::move(*Res);
@@ -1571,10 +1604,37 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromFile(
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromBuffer(
     WasmEdge_LoaderContext *Cxt, WasmEdge_ASTModuleContext **Module,
     const uint8_t *Buf, const uint32_t BufLen) {
+  return WasmEdge_LoaderParseFromBytes(Cxt, Module,
+                                       WasmEdge_BytesWrap(Buf, BufLen));
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromBytes(
+    WasmEdge_LoaderContext *Cxt, WasmEdge_ASTModuleContext **Module,
+    const WasmEdge_Bytes Bytes) {
   return wrap(
-      [&]() { return fromLoaderCxt(Cxt)->parseModule(genSpan(Buf, BufLen)); },
+      [&]() {
+        return fromLoaderCxt(Cxt)->parseModule(
+            genSpan(Bytes.Buf, Bytes.Length));
+      },
       [&](auto &&Res) { *Module = toASTModCxt((*Res).release()); }, Cxt,
       Module);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderSerializeASTModule(
+    WasmEdge_LoaderContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,
+    WasmEdge_Bytes *Buf) {
+  return wrap(
+      [&]() {
+        return fromLoaderCxt(Cxt)->serializeModule(*fromASTModCxt(ASTCxt));
+      },
+      [&](auto &&Res) {
+        uint32_t Size = static_cast<uint32_t>((*Res).size());
+        uint8_t *Bytes = new uint8_t[Size];
+        std::copy_n((*Res).begin(), Size, Bytes);
+        Buf->Length = Size;
+        Buf->Buf = Bytes;
+      },
+      Cxt, ASTCxt, Buf);
 }
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_LoaderDelete(WasmEdge_LoaderContext *Cxt) {
@@ -2438,10 +2498,17 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromFile(
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromBuffer(
     WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
     const uint8_t *Buf, const uint32_t BufLen) {
+  return WasmEdge_VMRegisterModuleFromBytes(Cxt, ModuleName,
+                                            WasmEdge_BytesWrap(Buf, BufLen));
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromBytes(
+    WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_Bytes Bytes) {
   return wrap(
       [&]() {
         return Cxt->VM.registerModule(genStrView(ModuleName),
-                                      genSpan(Buf, BufLen));
+                                      genSpan(Bytes.Buf, Bytes.Length));
       },
       EmptyThen, Cxt);
 }
@@ -2482,11 +2549,22 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromBuffer(
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
     const uint32_t ParamLen, WasmEdge_Value *Returns,
     const uint32_t ReturnLen) {
+  return WasmEdge_VMRunWasmFromBytes(Cxt, WasmEdge_BytesWrap(Buf, BufLen),
+                                     FuncName, Params, ParamLen, Returns,
+                                     ReturnLen);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromBytes(
+    WasmEdge_VMContext *Cxt, const WasmEdge_Bytes Bytes,
+    const WasmEdge_String FuncName, const WasmEdge_Value *Params,
+    const uint32_t ParamLen, WasmEdge_Value *Returns,
+    const uint32_t ReturnLen) {
   auto ParamPair = genParamPair(Params, ParamLen);
   return wrap(
       [&]() {
-        return Cxt->VM.runWasmFile(genSpan(Buf, BufLen), genStrView(FuncName),
-                                   ParamPair.first, ParamPair.second);
+        return Cxt->VM.runWasmFile(genSpan(Bytes.Buf, Bytes.Length),
+                                   genStrView(FuncName), ParamPair.first,
+                                   ParamPair.second);
       },
       [&](auto &&Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); },
       Cxt);
@@ -2523,11 +2601,19 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBuffer(
     WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
     const uint32_t ParamLen) {
+  return WasmEdge_VMAsyncRunWasmFromBytes(Cxt, WasmEdge_BytesWrap(Buf, BufLen),
+                                          FuncName, Params, ParamLen);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBytes(
+    WasmEdge_VMContext *Cxt, const WasmEdge_Bytes Bytes,
+    const WasmEdge_String FuncName, const WasmEdge_Value *Params,
+    const uint32_t ParamLen) {
   auto ParamPair = genParamPair(Params, ParamLen);
   if (Cxt) {
-    return new WasmEdge_Async(
-        Cxt->VM.asyncRunWasmFile(genSpan(Buf, BufLen), genStrView(FuncName),
-                                 ParamPair.first, ParamPair.second));
+    return new WasmEdge_Async(Cxt->VM.asyncRunWasmFile(
+        genSpan(Bytes.Buf, Bytes.Length), genStrView(FuncName), ParamPair.first,
+        ParamPair.second));
   }
   return nullptr;
 }
@@ -2554,8 +2640,15 @@ WasmEdge_VMLoadWasmFromFile(WasmEdge_VMContext *Cxt, const char *Path) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMLoadWasmFromBuffer(
     WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen) {
-  return wrap([&]() { return Cxt->VM.loadWasm(genSpan(Buf, BufLen)); },
-              EmptyThen, Cxt);
+  return WasmEdge_VMLoadWasmFromBytes(Cxt, WasmEdge_BytesWrap(Buf, BufLen));
+}
+
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_VMLoadWasmFromBytes(WasmEdge_VMContext *Cxt,
+                             const WasmEdge_Bytes Bytes) {
+  return wrap(
+      [&]() { return Cxt->VM.loadWasm(genSpan(Bytes.Buf, Bytes.Length)); },
+      EmptyThen, Cxt);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMLoadWasmFromASTModule(

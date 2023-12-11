@@ -1,190 +1,57 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "loader/loader.h"
-
-#include <cstdint>
-#include <utility>
-#include <vector>
+#include "loader/serialize.h"
 
 namespace WasmEdge {
 namespace Loader {
 
-// OpCode loader. See "include/loader/loader.h".
-Expect<OpCode> Loader::loadOpCode() {
-  uint16_t Payload;
-  if (auto B1 = FMgr.readByte()) {
-    Payload = (*B1);
-  } else {
-    return Unexpect(B1);
+namespace {
+void serializeOpCode(OpCode Code, std::vector<uint8_t> &OutVec) {
+  if (static_cast<uint16_t>(Code) >= 0x100U) {
+    OutVec.push_back(static_cast<uint16_t>(Code) >> 8);
   }
-
-  if (Payload == 0xFCU || Payload == 0xFDU || Payload == 0xFEU) {
-    // 2-bytes OpCode case.
-    if (auto B2 = FMgr.readU32()) {
-      Payload <<= 8;
-      Payload += static_cast<uint16_t>(*B2);
-    } else {
-      return Unexpect(B2);
-    }
-  }
-  return static_cast<OpCode>(Payload);
+  OutVec.push_back(static_cast<uint16_t>(Code) & 0xFFU);
 }
+} // namespace
 
-// Load instruction sequence. See "include/loader/loader.h".
-Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
-  OpCode Code;
-  AST::InstrVec Instrs;
-  std::vector<std::pair<OpCode, uint32_t>> BlockStack;
-  uint32_t Cnt = 0;
-  bool IsReachEnd = false;
-  // Read opcode until the End code of the top block.
-  do {
-    // Read the opcode and check if error.
-    uint64_t Offset = FMgr.getOffset();
-    if (auto Res = loadOpCode()) {
-      Code = *Res;
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
-
-    // Check with proposals.
-    if (auto Res = Conf.checkInstrProposals(Code); !Res) {
-      return logNeedProposal(Res.error().getErrCode(),
-                             Res.error().getNeedProposal(), Offset,
-                             ASTNodeAttr::Instruction);
-    }
-
-    // Process the instructions which contain a block.
-    if (Code == OpCode::Block || Code == OpCode::Loop || Code == OpCode::If) {
-      BlockStack.push_back(std::make_pair(Code, Cnt));
-    } else if (Code == OpCode::Else) {
-      if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::If) {
-        // An Else instruction appeared outside the If-block.
-        if (SizeBound.has_value() && FMgr.getOffset() > SizeBound.value()) {
-          return logLoadError(ErrCode::Value::ENDCodeExpected, Offset,
-                              ASTNodeAttr::Instruction);
-        } else {
-          return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
-                              ASTNodeAttr::Instruction);
-        }
-      }
-      uint32_t Pos = BlockStack.back().second;
-      if (Instrs[Pos].getJumpElse() > 0) {
-        // An Else instruction appeared before in this If-block.
-        if (SizeBound.has_value() && FMgr.getOffset() > SizeBound.value()) {
-          return logLoadError(ErrCode::Value::ENDCodeExpected, Offset,
-                              ASTNodeAttr::Instruction);
-        } else {
-          return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
-                              ASTNodeAttr::Instruction);
-        }
-      }
-      Instrs[Pos].setJumpElse(Cnt - Pos);
-    } else if (Code == OpCode::End) {
-      if (BlockStack.size() > 0) {
-        uint32_t Pos = BlockStack.back().second;
-        Instrs[Pos].setJumpEnd(Cnt - Pos);
-        if (BlockStack.back().first == OpCode::If) {
-          if (Instrs[Pos].getJumpElse() == 0) {
-            // If block without else. Set the else jump the same as end jump.
-            Instrs[Pos].setJumpElse(Cnt - Pos);
-          } else {
-            const uint32_t ElsePos = Pos + Instrs[Pos].getJumpElse();
-            Instrs[ElsePos].setJumpEnd(Cnt - ElsePos);
-          }
-        }
-        BlockStack.pop_back();
-      } else {
-        IsReachEnd = true;
-      }
-    }
-
-    // Create the instruction node and load contents.
-    Instrs.emplace_back(Code, static_cast<uint32_t>(Offset));
-    if (auto Res = loadInstruction(Instrs.back()); !Res) {
-      return Unexpect(Res);
-    }
-    if (Code == OpCode::End) {
-      if (IsReachEnd) {
-        Instrs.back().setLast(true);
-      } else {
-        Instrs.back().setLast(false);
-      }
-    }
-    Cnt++;
-  } while (!IsReachEnd);
-
-  // Check the loaded offset should match the segment boundary.
-  if (SizeBound.has_value()) {
-    auto Offset = FMgr.getOffset();
-    if (Offset < SizeBound.value()) {
-      return logLoadError(ErrCode::Value::JunkSection, Offset,
-                          ASTNodeAttr::Instruction);
-    } else if (Offset > SizeBound.value()) {
-      return logLoadError(ErrCode::Value::SectionSizeMismatch, Offset,
-                          ASTNodeAttr::Instruction);
-    }
-  }
-  return Instrs;
-}
-
-// Load instruction node. See "include/loader/loader.h".
-Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
-  // Node: The instruction has checked for the proposals. Need to check their
-  // immediates.
-
-  auto readU8 = [this](uint8_t &Dst) -> Expect<void> {
-    if (auto Res = FMgr.readByte()) {
-      Dst = *Res;
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
-    return {};
-  };
-
-  auto readU32 = [this](uint32_t &Dst) -> Expect<void> {
-    if (auto Res = FMgr.readU32()) {
-      Dst = *Res;
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
-    return {};
-  };
-
-  auto readMemImmediate = [this, readU32, &Instr]() -> Expect<void> {
-    Instr.getTargetIndex() = 0;
-    if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+// Serialize instruction. See "include/loader/serialize.h".
+Expect<void>
+Serializer::serializeInstruction(const AST::Instruction &Instr,
+                                 std::vector<uint8_t> &OutVec) const noexcept {
+  auto serializeMemImmediate = [this, &Instr, &OutVec]() -> Expect<void> {
     if (Conf.hasProposal(Proposal::MultiMemories) &&
-        Instr.getMemoryAlign() >= 64) {
-      Instr.getMemoryAlign() -= 64;
-      if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
-        return Unexpect(Res);
-      }
+        Instr.getMemoryAlign() < 64 && Instr.getTargetIndex() != 0) {
+      serializeU32(Instr.getMemoryAlign() + 64, OutVec);
+      serializeU32(Instr.getTargetIndex(), OutVec);
+    } else {
+      serializeU32(Instr.getMemoryAlign(), OutVec);
     }
-    if (auto Res = readU32(Instr.getMemoryOffset()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    serializeU32(Instr.getMemoryOffset(), OutVec);
     return {};
   };
 
-  auto readCheckZero = [this, readU8](uint32_t &Dst) -> Expect<void> {
-    uint8_t C = 0;
-    if (auto Res = readU8(C); unlikely(!Res)) {
-      return Unexpect(Res);
+  auto serializeCheckZero = [this, &OutVec](uint32_t C) -> Expect<void> {
+    if (C != 0) {
+      return logSerializeError(ErrCode::Value::ExpectedZeroByte,
+                               ASTNodeAttr::Instruction);
     }
-    if (C != UINT8_C(0)) {
-      return logLoadError(ErrCode::Value::ExpectedZeroByte,
-                          FMgr.getLastOffset(), ASTNodeAttr::Instruction);
-    }
-    Dst = 0;
+    OutVec.push_back(0x00);
     return {};
   };
+
+  // Instruction: OpCode + immediate.
+  serializeOpCode(Instr.getOpCode(), OutVec);
+
+  // Check with proposals.
+  if (auto Res = Conf.checkInstrProposals(Instr.getOpCode()); unlikely(!Res)) {
+    spdlog::error(Res.error().getErrCode());
+    if (Res.error().isNeedProposal()) {
+      spdlog::error(ErrInfo::InfoProposal(Res.error().getNeedProposal()));
+    }
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Instruction));
+    return Unexpect(Res.error().getErrCode());
+  }
 
   switch (Instr.getOpCode()) {
   // Control instructions.
@@ -198,137 +65,96 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Block:
   case OpCode::Loop:
   case OpCode::If:
-    // Read the block return type.
-    if (auto Res = FMgr.readS33()) {
-      if (*Res < 0) {
-        // Value type case.
-        // TODO: may check whether the `TypeByte` exceed the range.
-        Byte TypeByte = static_cast<Byte>((*Res) & INT64_C(0x7F));
-        if (TypeByte == 0x40) {
-          Instr.setEmptyBlockType();
-        } else {
-          ValType VType = static_cast<ValType>(TypeByte);
-          if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
-                                                 ASTNodeAttr::Instruction);
-              unlikely(!Check)) {
-            return Unexpect(Check);
-          }
-          Instr.setBlockType(VType);
-        }
-      } else {
-        // Type index case.
-        if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
-          return logNeedProposal(ErrCode::Value::MalformedValType,
-                                 Proposal::MultiValue, FMgr.getLastOffset(),
-                                 ASTNodeAttr::Instruction);
-        }
-        Instr.setBlockType(static_cast<uint32_t>(*Res));
+    switch (Instr.getBlockType().TypeFlag) {
+    case BlockType::TypeEnum::Empty:
+      OutVec.push_back(0x40U);
+      break;
+
+    case BlockType::TypeEnum::ValType: {
+      auto VType = Instr.getBlockType().Data.Type;
+      if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Instruction);
+          unlikely(!Check)) {
+        return Unexpect(Check);
       }
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
+      OutVec.push_back(static_cast<uint8_t>(VType));
+      break;
+    }
+
+    case BlockType::TypeEnum::TypeIdx:
+      if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
+        return logNeedProposal(ErrCode::Value::MalformedValType,
+                               Proposal::MultiValue, ASTNodeAttr::Instruction);
+      }
+      serializeS33(static_cast<int64_t>(Instr.getBlockType().Data.Idx), OutVec);
+      break;
+
+    default:
+      return logSerializeError(ErrCode::Value::Unreachable,
+                               ASTNodeAttr::Instruction);
     }
     return {};
 
   case OpCode::Br:
   case OpCode::Br_if:
-    return readU32(Instr.getJump().TargetIndex);
+    serializeU32(Instr.getJump().TargetIndex, OutVec);
+    return {};
 
   case OpCode::Br_table: {
-    uint32_t VecCnt = 0;
-    // Read the vector of labels.
-    if (auto Res = readU32(VecCnt); unlikely(!Res)) {
-      return Unexpect(Res);
+    uint32_t VecCnt = static_cast<uint32_t>(Instr.getLabelList().size()) - 1;
+    serializeU32(VecCnt, OutVec);
+    for (auto &Label : Instr.getLabelList()) {
+      serializeU32(Label.TargetIndex, OutVec);
     }
-    if (VecCnt / 2 > FMgr.getRemainSize()) {
-      // Too many label for Br_table.
-      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
-    Instr.setLabelListSize(VecCnt + 1);
-    for (uint32_t I = 0; I < VecCnt; ++I) {
-      if (auto Res = readU32(Instr.getLabelList()[I].TargetIndex);
-          unlikely(!Res)) {
-        return Unexpect(Res);
-      }
-    }
-    // Read default label.
-    return readU32(Instr.getLabelList()[VecCnt].TargetIndex);
+    return {};
   }
 
   case OpCode::Call:
   case OpCode::Return_call:
-    return readU32(Instr.getTargetIndex());
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    return {};
 
   case OpCode::Call_indirect:
-  case OpCode::Return_call_indirect: {
-    // Read the type index.
-    if (auto Res = readU32(Instr.getTargetIndex()); !Res) {
-      return Unexpect(Res);
-    }
-    uint64_t SrcIdxOffset = FMgr.getOffset();
-    // Read the table index.
-    if (auto Res = readU32(Instr.getSourceIndex()); !Res) {
-      return Unexpect(Res);
-    }
-    if ((Instr.getSourceIndex() > 0 || FMgr.getOffset() - SrcIdxOffset > 1) &&
+  case OpCode::Return_call_indirect:
+    // Serialize the type index.
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    if (Instr.getSourceIndex() > 0 &&
         !Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
-                             Proposal::ReferenceTypes, FMgr.getLastOffset(),
+                             Proposal::ReferenceTypes,
                              ASTNodeAttr::Instruction);
     }
+    // Serialize the table index.
+    serializeU32(Instr.getSourceIndex(), OutVec);
     return {};
-  }
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    if (auto Res = FMgr.readByte(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    } else {
-      Instr.setRefType(static_cast<RefType>(*Res));
-      if (auto Check =
-              checkRefTypeProposals(Instr.getRefType(), FMgr.getLastOffset(),
-                                    ASTNodeAttr::Instruction);
-          unlikely(!Check)) {
-        return Unexpect(Check);
-      }
+    if (auto Check =
+            checkRefTypeProposals(Instr.getRefType(), ASTNodeAttr::Instruction);
+        unlikely(!Check)) {
+      return Unexpect(Check);
     }
+    OutVec.push_back(static_cast<uint8_t>(Instr.getRefType()));
     return {};
   case OpCode::Ref__is_null:
     return {};
   case OpCode::Ref__func:
-    return readU32(Instr.getTargetIndex());
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    return {};
 
   // Parametric Instructions.
   case OpCode::Drop:
   case OpCode::Select:
     return {};
   case OpCode::Select_t: {
-    // Read the vector of value types.
-    uint32_t VecCnt;
-    if (auto Res = readU32(VecCnt); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-    if (VecCnt / 2 > FMgr.getRemainSize()) {
-      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
-    Instr.setValTypeListSize(VecCnt);
-    for (uint32_t I = 0; I < VecCnt; ++I) {
-      ValType VType;
-      if (auto T = FMgr.readByte(); unlikely(!T)) {
-        return logLoadError(T.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::Instruction);
-      } else {
-        VType = static_cast<ValType>(*T);
-      }
-      if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
-                                             ASTNodeAttr::Instruction);
+    uint32_t VecCnt = static_cast<uint32_t>(Instr.getValTypeList().size());
+    serializeU32(VecCnt, OutVec);
+    for (auto &VType : Instr.getValTypeList()) {
+      if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Instruction);
           unlikely(!Check)) {
         return Unexpect(Check);
       }
-      Instr.getValTypeList()[I] = VType;
+      OutVec.push_back(static_cast<uint8_t>(VType));
     }
     return {};
   }
@@ -339,13 +165,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Local__tee:
   case OpCode::Global__get:
   case OpCode::Global__set:
-    return readU32(Instr.getTargetIndex());
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    return {};
 
   // Table Instructions.
   case OpCode::Table__init:
-    if (auto Res = readU32(Instr.getSourceIndex()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    serializeU32(Instr.getSourceIndex(), OutVec);
     [[fallthrough]];
   case OpCode::Table__get:
   case OpCode::Table__set:
@@ -353,12 +178,9 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Table__size:
   case OpCode::Table__fill:
   case OpCode::Elem__drop:
-    return readU32(Instr.getTargetIndex());
   case OpCode::Table__copy:
-    if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-    return readU32(Instr.getSourceIndex());
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    return {};
 
   // Memory Instructions.
   case OpCode::I32__load:
@@ -384,74 +206,51 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::I64__store8:
   case OpCode::I64__store16:
   case OpCode::I64__store32:
-    return readMemImmediate();
+    return serializeMemImmediate();
 
   case OpCode::Memory__init:
-    if (!HasDataSection) {
-      return logLoadError(ErrCode::Value::DataCountRequired, Instr.getOffset(),
-                          ASTNodeAttr::Instruction);
-    }
-    if (auto Res = readU32(Instr.getSourceIndex()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    serializeU32(Instr.getTargetIndex(), OutVec);
     [[fallthrough]];
   case OpCode::Memory__grow:
   case OpCode::Memory__size:
   case OpCode::Memory__fill:
     if (Conf.hasProposal(Proposal::MultiMemories)) {
-      return readU32(Instr.getTargetIndex());
+      serializeU32(Instr.getTargetIndex(), OutVec);
+      return {};
+    } else {
+      return serializeCheckZero(Instr.getTargetIndex());
     }
-    return readCheckZero(Instr.getTargetIndex());
+
   case OpCode::Memory__copy:
     if (Conf.hasProposal(Proposal::MultiMemories)) {
-      if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
+      serializeU32(Instr.getTargetIndex(), OutVec);
+      serializeU32(Instr.getSourceIndex(), OutVec);
+      return {};
+    } else {
+      if (auto Res = serializeCheckZero(Instr.getTargetIndex());
+          unlikely(!Res)) {
         return Unexpect(Res);
       }
-      return readU32(Instr.getSourceIndex());
+      return serializeCheckZero(Instr.getTargetIndex());
     }
-    if (auto Res = readCheckZero(Instr.getTargetIndex()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-    return readCheckZero(Instr.getSourceIndex());
+
   case OpCode::Data__drop:
-    if (!HasDataSection) {
-      return logLoadError(ErrCode::Value::DataCountRequired, Instr.getOffset(),
-                          ASTNodeAttr::Instruction);
-    }
-    return readU32(Instr.getTargetIndex());
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    return {};
 
   // Const Instructions.
   case OpCode::I32__const:
-    if (auto Res = FMgr.readS32(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    } else {
-      Instr.setNum(static_cast<uint128_t>(static_cast<uint32_t>(*Res)));
-    }
+    serializeS32(Instr.getNum().get<int32_t>(), OutVec);
     return {};
+
   case OpCode::I64__const:
-    if (auto Res = FMgr.readS64(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    } else {
-      Instr.setNum(static_cast<uint128_t>(static_cast<uint64_t>(*Res)));
-    }
+    serializeS64(Instr.getNum().get<int64_t>(), OutVec);
     return {};
   case OpCode::F32__const:
-    if (auto Res = FMgr.readF32(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    } else {
-      Instr.setNum(*Res);
-    }
+    serializeF32(Instr.getNum().get<float>(), OutVec);
     return {};
   case OpCode::F64__const:
-    if (auto Res = FMgr.readF64(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    } else {
-      Instr.setNum(*Res);
-    }
+    serializeF64(Instr.getNum().get<double>(), OutVec);
     return {};
 
   // Unary Numeric Instructions.
@@ -611,7 +410,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::V128__load32_zero:
   case OpCode::V128__load64_zero:
   case OpCode::V128__store:
-    return readMemImmediate();
+    return serializeMemImmediate();
   case OpCode::V128__load8_lane:
   case OpCode::V128__load16_lane:
   case OpCode::V128__load32_lane:
@@ -620,28 +419,21 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::V128__store16_lane:
   case OpCode::V128__store32_lane:
   case OpCode::V128__store64_lane:
-    // Read memory immediate.
-    if (auto Res = readMemImmediate(); unlikely(!Res)) {
+    if (auto Res = serializeMemImmediate(); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    // Read lane index.
-    return readU8(Instr.getMemoryLane());
+    OutVec.push_back(Instr.getMemoryLane());
+    return {};
 
   // SIMD Const Instruction.
   case OpCode::V128__const:
   // SIMD Shuffle Instruction.
   case OpCode::I8x16__shuffle: {
-    // Read value.
-    uint128_t Value = 0;
+    uint128_t Value = Instr.getNum().get<uint128_t>();
+    const std::uint8_t *Ptr = reinterpret_cast<const uint8_t *>(&Value);
     for (uint32_t I = 0; I < 16; ++I) {
-      if (auto Res = FMgr.readByte(); unlikely(!Res)) {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::Instruction);
-      } else {
-        Value |= static_cast<uint128_t>(*Res) << (I * 8);
-      }
+      OutVec.push_back(Ptr[15 - I]);
     }
-    Instr.setNum(Value);
     return {};
   }
 
@@ -660,8 +452,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::F32x4__replace_lane:
   case OpCode::F64x2__extract_lane:
   case OpCode::F64x2__replace_lane:
-    // Read lane index.
-    return readU8(Instr.getMemoryLane());
+    OutVec.push_back(Instr.getMemoryLane());
+    return {};
 
   // SIMD Numeric Instructions.
   case OpCode::I8x16__swizzle:
@@ -880,7 +672,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   // Atomic Memory Instructions.
   case OpCode::Atomic__fence:
-    return readCheckZero(Instr.getTargetIndex());
+    return serializeCheckZero(Instr.getTargetIndex());
 
   case OpCode::Memory__atomic__notify:
   case OpCode::Memory__atomic__wait32:
@@ -949,11 +741,11 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::I64__atomic__rmw8__cmpxchg_u:
   case OpCode::I64__atomic__rmw16__cmpxchg_u:
   case OpCode::I64__atomic__rmw32__cmpxchg_u:
-    return readMemImmediate();
+    return serializeMemImmediate();
 
   default:
-    return logLoadError(ErrCode::Value::IllegalOpCode, Instr.getOffset(),
-                        ASTNodeAttr::Instruction);
+    return logSerializeError(ErrCode::Value::IllegalOpCode,
+                             ASTNodeAttr::Instruction);
   }
 }
 

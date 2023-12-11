@@ -199,6 +199,8 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   } else {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Function);
+  } else if (!(*Res)) {
+    return Unexpect(ErrCode::Value::IntegerTooLong);
   }
 
   // Read vector of parameter types.

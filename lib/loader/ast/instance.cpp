@@ -38,7 +38,7 @@ Expect<void> Loader::loadInstantiateArg(AST::CoreInstantiateArg &Arg) {
   } else {
     return Unexpect(Res);
   }
-  if (auto Res = FMgr.readByte(0x12); !Res) {
+  if (auto Res = FMgr.readByte(0x12); !Res || !(*Res)) {
     return logLoadError(ErrCode::Value::MalformedCoreInstance,
                         FMgr.getLastOffset(), ASTNodeAttr::CoreInstance);
   }

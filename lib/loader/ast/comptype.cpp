@@ -384,14 +384,16 @@ Expect<void> Loader::loadType(ComponentType &Ty) {
 }
 
 Expect<void> Loader::loadComponentDecl(ComponentDecl &Decl) {
-  auto Res = FMgr.readByte(0x03);
+  auto Pos = FMgr.getLastOffset();
+  auto Res = FMgr.readByte();
   if (!Res) {
     return Unexpect(Res);
-  }
-  if (*Res) {
+  } else if (*Res != 0x03U) {
+    FMgr.seek(Pos);
+    return loadInstanceDecl(Decl.emplace<InstanceDecl>());
+  } else {
     return loadImportDecl(Decl.emplace<ImportDecl>());
   }
-  return loadInstanceDecl(Decl.emplace<InstanceDecl>());
 }
 
 Expect<void> Loader::loadImportDecl(ImportDecl &Decl) {
@@ -519,9 +521,12 @@ Expect<void> Loader::loadExternDesc(AST::ExternDesc &Desc) {
 
   switch (*RTag) {
   case 0x00:
-    if (auto Res = FMgr.readByte(0x11); !Res || !(*Res)) {
+    if (auto Res = FMgr.readByte(); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
       return Unexpect(Res);
+    } else if (*Res != 0x11U) {
+      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
+                          ASTNodeAttr::ExternDesc);
     }
     if (auto Res = FMgr.readU32(); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
@@ -600,8 +605,11 @@ Expect<void> Loader::loadType(CoreDefType &Ty) {
 }
 
 Expect<void> Loader::loadType(ModuleType &Ty) {
-  if (auto Res = FMgr.readByte(0x50U); !Res || !(*Res)) {
+  if (auto Res = FMgr.readByte(); !Res) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_Module);
+  } else if (*Res != 0x50U) {
+    return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Module);
   }
   return loadVec<CompTypeSection>(

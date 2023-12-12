@@ -70,19 +70,6 @@ Expect<Byte> FileMgr::readByte() {
   return Data[Pos++];
 }
 
-Expect<bool> FileMgr::readByte(Byte V) {
-  auto R = readByte();
-  if (!R) {
-    return Unexpect(R);
-  }
-  if (*R != V) {
-    Pos--;
-    LastPos = Pos;
-    return false;
-  }
-  return true;
-}
-
 // Read number of bytes. See "include/loader/filemgr.h".
 Expect<std::vector<Byte>> FileMgr::readBytes(size_t SizeToRead) {
   // Set the flag to the start offset.

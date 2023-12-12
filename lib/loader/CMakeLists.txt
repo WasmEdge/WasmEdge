@@ -27,6 +27,7 @@ wasmedge_add_library(wasmedgeLoader
   ast/instance.cpp
   ast/alias.cpp
   ast/comptype.cpp
+  ast/start.cpp
   ast/module.cpp
   ast/section.cpp
   ast/description.cpp

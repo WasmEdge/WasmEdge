@@ -185,10 +185,15 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
       spdlog::error("Component model is not fully parsed yet! canon section");
       return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
                           ASTNodeAttr::Component);
-    case 0x09:
-      spdlog::error("Component model is not fully parsed yet! start section");
-      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
-                          ASTNodeAttr::Component);
+    case 0x09: {
+      AST::Start S;
+      if (auto Res = loadStart(S); !Res) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+        return Unexpect(Res);
+      }
+      Comp.getStartSection().getContent().push_back(S);
+      break;
+    }
     case 0x0A:
       spdlog::error("Component model is not fully parsed yet! import section");
       return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),

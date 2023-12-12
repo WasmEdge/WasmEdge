@@ -174,6 +174,7 @@ public:
   InstanceSection &getInstanceSection() noexcept { return InstSec; }
   AliasSection &getAliasSection() noexcept { return AliasSec; }
   CompTypeSection &getTypeSection() noexcept { return TySec; }
+  CompStartSection &getStartSection() noexcept { return StartSec; }
 
 private:
   /// \name Data of Module node.
@@ -189,6 +190,7 @@ private:
   InstanceSection InstSec;
   AliasSection AliasSec;
   CompTypeSection TySec;
+  CompStartSection StartSec;
   /// @}
 };
 

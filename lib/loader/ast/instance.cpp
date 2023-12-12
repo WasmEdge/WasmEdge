@@ -38,9 +38,12 @@ Expect<void> Loader::loadInstantiateArg(AST::CoreInstantiateArg &Arg) {
   } else {
     return Unexpect(Res);
   }
-  if (auto Res = FMgr.readByte(0x12); !Res || !(*Res)) {
+  if (auto Res = FMgr.readByte(); !Res) {
     return logLoadError(ErrCode::Value::MalformedCoreInstance,
                         FMgr.getLastOffset(), ASTNodeAttr::CoreInstance);
+  } else if (*Res != 0x12U) {
+    return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
+                        ASTNodeAttr::CoreInstance);
   }
   if (auto Res = FMgr.readU32()) {
     Arg.getIndex() = *Res;

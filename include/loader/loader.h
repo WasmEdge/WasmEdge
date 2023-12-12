@@ -89,6 +89,10 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::CompTypeSection>() noexcept {
   return ASTNodeAttr::Sec_CompType;
 }
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::CompStartSection>() noexcept {
+  return ASTNodeAttr::Sec_CompStart;
+}
 
 } // namespace
 
@@ -336,7 +340,7 @@ private:
   Expect<void> loadInstanceDecl(AST::InstanceDecl &Decl);
   Expect<void> loadExternDesc(AST::ExternDesc &Desc);
   Expect<void> loadImportExportName(std::string &Name);
-
+  Expect<void> loadStart(AST::Start &S);
   Expect<void> loadCoreInstance(AST::CoreInstanceExpr &InstanceExpr);
   Expect<void> loadInstance(AST::InstanceExpr &InstanceExpr);
   Expect<void> loadInstantiateArg(AST::CoreInstantiateArg &Arg);

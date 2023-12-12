@@ -22,6 +22,7 @@ struct Graph {
   std::string ModelFilePath;
   // Plugin parameters:
   bool EnableLog;
+  bool EnableDebugLog;
   bool StreamStdout;
   uint64_t NPredict;
   std::string ReversePrompt;

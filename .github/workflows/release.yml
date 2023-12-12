@@ -754,3 +754,34 @@ jobs:
       - name: Push to DockerHub
         run: |
           docker push ${{ steps.docker_env.outputs.docker_image }}
+
+  generate_sbom:
+    runs-on: ubuntu-latest
+    needs: create_release
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3 
+
+      - name: Grant the safe directory for git
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - name: generate sbom
+        uses: advanced-security/sbom-generator-action@v0.0.1
+        id: sbom
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
+      - name: install gh
+        run: |
+          type -p curl >/dev/null || (apt update && apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && apt update \
+          && apt install gh -y
+        
+      - name: Generate tar.gz file and upload release
+        shell: bash
+        run: |
+          tar -zcvf sbom.tar.gz ${{steps.sbom.outputs.fileName}}
+          gh release upload ${{needs.create_release.outputs.version}} sbom.tar.gz --clobber

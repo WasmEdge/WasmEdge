@@ -106,9 +106,40 @@ private:
                                  uint32_t BytesWrittenPtr);
 };
 
+class WasiNNGetOutputSingle : public WasiNN<WasiNNGetOutputSingle> {
+public:
+  WasiNNGetOutputSingle(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t Context,
+                        uint32_t Index, uint32_t OutBufferPtr,
+                        uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr) {
+    return bodyImpl(Frame, Context, Index, OutBufferPtr, OutBufferMaxSize,
+                    BytesWrittenPtr)
+        .map(castErrNo);
+  }
+
+private:
+  Expect<WASINN::ErrNo> bodyImpl(const Runtime::CallingFrame &Frame,
+                                 uint32_t Context, uint32_t Index,
+                                 uint32_t OutBufferPtr,
+                                 uint32_t OutBufferMaxSize,
+                                 uint32_t BytesWrittenPtr);
+};
+
 class WasiNNCompute : public WasiNN<WasiNNCompute> {
 public:
   WasiNNCompute(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t Context) {
+    return bodyImpl(Frame, Context).map(castErrNo);
+  }
+
+private:
+  Expect<WASINN::ErrNo> bodyImpl(const Runtime::CallingFrame &Frame,
+                                 uint32_t Context);
+};
+
+class WasiNNComputeSingle : public WasiNN<WasiNNComputeSingle> {
+public:
+  WasiNNComputeSingle(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t Context) {
     return bodyImpl(Frame, Context).map(castErrNo);
   }

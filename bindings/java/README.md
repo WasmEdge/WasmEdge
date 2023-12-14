@@ -28,42 +28,47 @@
   WasmEdgeVM vm = new WasmEdgeVM();
   
   // Create param list
-  List<WasmEdgeValue> params = new ArrayList<>();
-  params.add(new WasmEdgeI32Value(4));
+  List<Value> params = new ArrayList<>();
+  params.add(new I32Value(4));
 
   // Create return list
-  List<WasmEdgeValue> returns = new ArrayList<>();
-  returns.add(new WasmEdgeI32Value());
+  List<Value> returns = new ArrayList<>();
+  returns.add(new I32Value());
 ```
 ### VM Run a wasm file 
 ```java
-  WasmEdgeAsync async = vm.asyncrunWasmFromFile("/root/fibonacci.wasm", "fib", params, returns);
+  String fibWasmPath = "/root/fibonacci.wasm";
+  String funcName = "fib";
+  
+  Async async = vm.asyncRunWasmFromFile(fibWasmPath, funcName, params);
 ```
 ### VM Run a wasm from buffer
 ```java
-  byte[] data = loadFile(getResourcePath(FIB_WASM_PATH));
-  WasmEdgeAsync async = vm.asyncRunWasmFromBuffer(buffer, funcName, params);
+  byte[] data = Files.readAllBytes(Paths.get(fibWasmPath));
+  Async async = vm.asyncRunWasmFromBuffer(data, funcName, params);
 ```
 
 ### VM Run a wasm from AST module
 ```java
-  ASTModuleContext mod = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
-  WasmEdgeAsync async = vm.asyncRunWasmFromBuffer(mod, funcName, params);
+  LoaderContext loaderContext = new LoaderContext(null);
+  AstModuleContext mod = loaderContext.parseFromFile(fibWasmPath);
+  Async async = vm.asyncRunWasmFromAstModule(mod, funcName, params);
 ```
 
 ### VM　Run a wasm step by step
 ```java
-  vm.loadWasmFromFile(getResourcePath(FIB_WASM_PATH));
+  vm.loadWasmFromFile(fibWasmPath);
   vm.validate();
   vm.instantiate();
-  WasmEdgeAsync async = vm.execute("fib", params);
+  vm.execute(funcName, params, returns);
 ```
 
 ### VM Execute Register Module
 ```java
-  String modName = ...;
-  vm.registerModuleFromBuffer(modName, loadFile(getResourcePath(FIB_WASM_PATH)));
-  WasmEdgeAsync async = vm.executeRegistered(modName, FUNC_NAME, params);
+  String modName = "fibonacciModule";
+  byte[] data = Files.readAllBytes(Paths.get(fibWasmPath));
+  vm.registerModuleFromBuffer(modName, data);
+  vm.executeRegistered(modName, funcName, params, returns);
 ```
 
 
@@ -71,38 +76,38 @@
 ### Developers can wait the execution until finished
 ```java
   WasmEdgeAsync async = ...;
-  async.wasmEdge_AsyncWait();
+  async.asyncWait();
 
-  // wasmEdge_AsyncDelete to delete and free the resource
-  async.wasmEdge_AsyncDelete();
+  // close to delete and free the resource
+  async.close();
 ```
 ### Or developers can wait for a time limit.
 ```java
   WasmEdgeAsync async = ...;
   // Get return values
-  boolean isEnd = async.wasmEdge_AsyncWaitFor(1000);
+  boolean isEnd = async.waitFor(1000);
   if (IsEnd) {
     /* The execution finished. Developers can get the result. */
-    async.wasmEdge_AsyncGet(returns);
+    async.get(returns);
   } else {
     /*
     * The time limit exceeded. Developers can keep waiting or cancel the execution.
     */
-    async.wasmEdge_AsyncCancel();
-    async.wasmEdge_AsyncGet(returns);
+    async.cancel();
+    async.get(returns);
   }
-  async.wasmEdge_AsyncDelete();
+  async.close();
 ```
 
 ### Get the execution result of the asynchronous execution　
-### Developers can use the wasmEdge_AsyncGetReturnsLength() API to get the return value list length. This function will block and wait for the execution. If the execution has finished, this function will return the length immediately. If the execution failed, this function will return 0. This function can help the developers to create the buffer to get the return values. If developers have already known the buffer length, they can skip this function and use the wasmEdge_AsyncGet() API to get the result.
+### Developers can use the getReturnsLength() API to get the return value list length. This function will block and wait for the execution. If the execution has finished, this function will return the length immediately. If the execution failed, this function will return 0. This function can help the developers to create the buffer to get the return values. If developers have already known the buffer length, they can skip this function and use the get() API to get the result.
 ```java
   WasmEdgeAsync async = ...;
-  int len = async.wasmEdge_AsyncGetReturnsLength();
-  async.wasmEdge_AsyncDelete();
+  int len = async.getReturnsLength();
+  async.close();
 ```
 
-### The wasmEdge_AsyncGet() API will block and wait for the execution. If the execution has finished, this function will fill the return values into the buffer and return the execution result immediately.
+### The get() API will block and wait for the execution. If the execution has finished, this function will fill the return values into the buffer and return the execution result immediately.
 
 ```java
   WasmEdgeAsync async = ...;
@@ -110,6 +115,6 @@
   List<WasmEdgeValue> returns = new ArrayList<>();
   returns.add(new WasmEdgeI32Value());
 
-  async.wasmEdge_AsyncGet(returns);
-  async.wasmEdge_AsyncDelete();
+  async.get(returns);
+  async.close();
 ```

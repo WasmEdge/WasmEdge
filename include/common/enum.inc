@@ -918,23 +918,23 @@ E(CastFailed, 0x0417, "cast failure")
 // Component model phase
 // @{
 // Malformed sort
-E(MalformedSort, 0xA0, "malformed sort")
+E(MalformedSort, 0x0500, "malformed sort")
 // Malformed alias target
-E(MalformedAliasTarget, 0xA1, "malformed alias target")
+E(MalformedAliasTarget, 0x0501, "malformed alias target")
 // Malformed core instance
-E(MalformedCoreInstance, 0xA2, "malformed core instance")
+E(MalformedCoreInstance, 0x0502, "malformed core instance")
 // Malformed instance
-E(MalformedInstance, 0xA3, "malformed instance")
+E(MalformedInstance, 0x0503, "malformed instance")
 // Malformed defType
-E(MalformedDefType, 0xA4, "malformed defined type")
+E(MalformedDefType, 0x0504, "malformed defined type")
 // Malformed record type
-E(MalformedRecordType, 0xA5, "malformed record type")
+E(MalformedRecordType, 0x0505, "malformed record type")
 // Malformed variant type
-E(MalformedVariantType, 0xA6, "malformed variant type")
+E(MalformedVariantType, 0x0506, "malformed variant type")
 // Malformed tuple type
-E(MalformedTupleType, 0xA7, "malformed tuple type")
+E(MalformedTupleType, 0x0507, "malformed tuple type")
 // Malformed flags type
-E(MalformedFlagsType, 0xA8, "malformed flags type")
+E(MalformedFlagsType, 0x0508, "malformed flags type")
 // @}
 
 #undef E

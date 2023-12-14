@@ -115,7 +115,7 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
       }
       auto WasmMagic = ResPreamble->first;
       auto Ver = ResPreamble->second;
-      if (Ver != ModuleVersion) {
+      if (unlikely(Ver != ModuleVersion)) {
         return logLoadError(ErrCode::Value::MalformedVersion,
                             FMgr.getLastOffset(), ASTNodeAttr::Component);
       }
@@ -148,7 +148,7 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
       }
       auto WasmMagic = ResPreamble->first;
       auto Ver = ResPreamble->second;
-      if (Ver != ComponentVersion) {
+      if (unlikely(Ver != ComponentVersion)) {
         return logLoadError(ErrCode::Value::MalformedVersion,
                             FMgr.getLastOffset(), ASTNodeAttr::Component);
       }

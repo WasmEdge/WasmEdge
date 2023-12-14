@@ -26,7 +26,7 @@ Expect<void> Loader::loadLabel(std::string &Label) {
                         FMgr.getLastOffset(), ASTNodeAttr::DefType);
   }
   Label = *RName;
-  if (Label.size() != *RLen) {
+  if (unlikely(Label.size() != *RLen)) {
     return logLoadError(ErrCode::Value::MalformedRecordType,
                         FMgr.getLastOffset(), ASTNodeAttr::DefType);
   }
@@ -69,10 +69,7 @@ Expect<void> Loader::loadType(LabelValType &Ty) {
   if (auto Res = loadLabel(Ty.getLabel()); !Res) {
     return Unexpect(Res);
   }
-  if (auto Res = loadType(Ty.getValType()); !Res) {
-    return Unexpect(Res);
-  }
-  return {};
+  return loadType(Ty.getValType());
 }
 
 Expect<void> Loader::loadType(Record &RecTy) {
@@ -80,17 +77,14 @@ Expect<void> Loader::loadType(Record &RecTy) {
   //     lt*:vec(<labelvaltype>)
   //
   // output: (record (field lt)*)  (if |lt*|>0)
-  auto Res = loadVec<CompTypeSection>(
-      RecTy.getLabelTypes(),
-      [this](LabelValType LT) -> Expect<void> { return loadType(LT); });
-
-  if (Res) {
-    if (RecTy.getLabelTypes().size() > 0) {
-      return {};
-    } else {
+  if (auto Res = loadVec<CompTypeSection>(
+          RecTy.getLabelTypes(),
+          [this](LabelValType LT) -> Expect<void> { return loadType(LT); })) {
+    if (RecTy.getLabelTypes().size() == 0) {
       return logLoadError(ErrCode::Value::MalformedRecordType,
                           FMgr.getLastOffset(), ASTNodeAttr::DefType);
     }
+    return {};
   } else {
     return Unexpect(Res);
   }
@@ -134,7 +128,7 @@ Expect<void> Loader::loadType(Tuple &Ty) {
   if (auto Res = loadVec<CompTypeSection>(
           Ty.getTypes(),
           [this](ValueType T) -> Expect<void> { return loadType(T); })) {
-    if (Ty.getTypes().size() == 0) {
+    if (unlikely(Ty.getTypes().size() == 0)) {
       return logLoadError(ErrCode::Value::MalformedTupleType,
                           FMgr.getLastOffset(), ASTNodeAttr::DefType);
     }
@@ -148,7 +142,7 @@ Expect<void> Loader::loadType(Flags &Ty) {
           Ty.getLabels(), [this](std::string Label) -> Expect<void> {
             return loadLabel(Label);
           })) {
-    if (Ty.getLabels().size() == 0) {
+    if (unlikely(Ty.getLabels().size() == 0)) {
       return logLoadError(ErrCode::Value::MalformedFlagsType,
                           FMgr.getLastOffset(), ASTNodeAttr::DefType);
     }
@@ -347,9 +341,7 @@ Expect<void> Loader::loadImportDecl(ImportDecl &Decl) {
 }
 
 Expect<void> Loader::loadType(ResultList &Ty) {
-  if (auto RTag = FMgr.readByte(); !RTag) {
-    return Unexpect(RTag);
-  } else {
+  if (auto RTag = FMgr.readByte()) {
     switch (*RTag) {
     case 0x00: {
       ValueType V;
@@ -374,6 +366,8 @@ Expect<void> Loader::loadType(ResultList &Ty) {
                           FMgr.getLastOffset(), ASTNodeAttr::DefType);
     }
     return {};
+  } else {
+    return Unexpect(RTag);
   }
 }
 

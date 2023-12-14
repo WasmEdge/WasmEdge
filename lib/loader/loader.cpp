@@ -60,7 +60,7 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
   return Buf;
 }
 
-Expect<std::variant<AST::Component, AST::Module>>
+Expect<std::variant<AST::Component::Component, AST::Module>>
 Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   std::lock_guard Lock(Mutex);
   // Set path and check the header.
@@ -152,7 +152,7 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   }
 }
 
-Expect<std::variant<AST::Component, AST::Module>>
+Expect<std::variant<AST::Component::Component, AST::Module>>
 Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
   if (auto Res = FMgr.setCode(Code); !Res) {

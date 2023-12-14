@@ -7,7 +7,9 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadSort(AST::Sort &Sort) {
+using namespace AST::Component;
+
+Expect<void> Loader::loadSort(Sort &Sort) {
   // sort ::= 0x00 cs:<core:sort>   => core cs
   //        | 0x01                  => func
   //        | 0x02                  => value 🪙
@@ -21,7 +23,7 @@ Expect<void> Loader::loadSort(AST::Sort &Sort) {
   }
   switch (*RTag) {
   case 0x00:
-    if (auto Res = loadCoreSort(Sort.emplace<AST::CoreSort>()); !Res) {
+    if (auto Res = loadCoreSort(Sort.emplace<CoreSort>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sort));
       return Unexpect(Res);
     }
@@ -31,7 +33,7 @@ Expect<void> Loader::loadSort(AST::Sort &Sort) {
   case 0x03:
   case 0x04:
   case 0x05:
-    Sort = static_cast<AST::SortCase>(*RTag);
+    Sort = static_cast<SortCase>(*RTag);
     break;
   default:
     return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
@@ -40,7 +42,7 @@ Expect<void> Loader::loadSort(AST::Sort &Sort) {
   return {};
 }
 
-Expect<void> Loader::loadCoreSort(AST::CoreSort &Sort) {
+Expect<void> Loader::loadCoreSort(CoreSort &Sort) {
   // core:sort ::= 0x00     => func
   //           | 0x01       => table
   //           | 0x02       => memory
@@ -60,7 +62,7 @@ Expect<void> Loader::loadCoreSort(AST::CoreSort &Sort) {
   case 0x10:
   case 0x11:
   case 0x12:
-    Sort = static_cast<AST::CoreSort>(*Res);
+    Sort = static_cast<CoreSort>(*Res);
     return {};
   default:
     return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
@@ -68,7 +70,7 @@ Expect<void> Loader::loadCoreSort(AST::CoreSort &Sort) {
   }
 }
 
-Expect<void> Loader::loadSortIndex(AST::SortIndex<AST::Sort> &SortIdx) {
+Expect<void> Loader::loadSortIndex(SortIndex<Sort> &SortIdx) {
   if (auto Res = loadSort(SortIdx.getSort()); !Res) {
     return Unexpect(Res);
   }
@@ -80,7 +82,7 @@ Expect<void> Loader::loadSortIndex(AST::SortIndex<AST::Sort> &SortIdx) {
 
   return {};
 }
-Expect<void> Loader::loadCoreSortIndex(AST::SortIndex<AST::CoreSort> &SortIdx) {
+Expect<void> Loader::loadCoreSortIndex(SortIndex<CoreSort> &SortIdx) {
   if (auto Res = loadCoreSort(SortIdx.getSort()); !Res) {
     return Unexpect(Res);
   }

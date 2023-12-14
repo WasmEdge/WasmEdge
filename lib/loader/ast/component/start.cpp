@@ -5,7 +5,9 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadStart(AST::Start &S) {
+using namespace AST::Component;
+
+Expect<void> Loader::loadStart(Start &S) {
   if (auto Res = FMgr.readU32()) {
     S.getFunctionIndex() = *Res;
   } else {
@@ -20,7 +22,7 @@ Expect<void> Loader::loadStart(AST::Start &S) {
       return Unexpect(Res);
     }
   };
-  if (auto Res = loadVec<AST::CompStartSection>(S.getArguments(), F); !Res) {
+  if (auto Res = loadVec<StartSection>(S.getArguments(), F); !Res) {
     return Unexpect(Res);
   }
 

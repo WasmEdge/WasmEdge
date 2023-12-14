@@ -21,6 +21,7 @@
 
 namespace WasmEdge {
 namespace AST {
+namespace Component {
 
 class AliasTargetExport {
 public:
@@ -61,5 +62,6 @@ private:
   AliasTarget Target;
 };
 
+} // namespace Component
 } // namespace AST
 } // namespace WasmEdge

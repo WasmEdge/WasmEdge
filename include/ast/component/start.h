@@ -10,6 +10,7 @@
 
 namespace WasmEdge {
 namespace AST {
+namespace Component {
 
 class Start {
   uint32_t FuncIdx;
@@ -25,5 +26,6 @@ public:
   uint32_t &getResult() noexcept { return Result; }
 };
 
+} // namespace Component
 } // namespace AST
 } // namespace WasmEdge

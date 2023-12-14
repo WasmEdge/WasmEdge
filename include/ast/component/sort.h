@@ -20,6 +20,7 @@
 
 namespace WasmEdge {
 namespace AST {
+namespace Component {
 
 enum class CoreSort : Byte {
   Func = 0x00,
@@ -53,5 +54,6 @@ private:
   uint32_t Idx;
 };
 
+} // namespace Component
 } // namespace AST
 } // namespace WasmEdge

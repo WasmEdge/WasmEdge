@@ -177,40 +177,41 @@ Expect<void> Loader::loadSection(AST::DataCountSection &Sec) {
 
 // Load vector of component alias section.
 // See "include/loader/loader.h".
-Expect<void> Loader::loadSection(AST::AliasSection &Sec) {
+Expect<void> Loader::loadSection(AST::Component::AliasSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
-        Sec, [this](AST::Alias &Alias) { return loadAlias(Alias); });
+        Sec, [this](AST::Component::Alias &Alias) { return loadAlias(Alias); });
   });
 }
 
 // Load vector of component core:instance section.
 // See "include/loader/loader.h".
-Expect<void> Loader::loadSection(AST::CoreInstanceSection &Sec) {
+Expect<void> Loader::loadSection(AST::Component::CoreInstanceSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
-    return loadSectionContentVec(Sec,
-                                 [this](AST::CoreInstanceExpr &InstanceExpr) {
-                                   return loadCoreInstance(InstanceExpr);
-                                 });
+    return loadSectionContentVec(
+        Sec, [this](AST::Component::CoreInstanceExpr &InstanceExpr) {
+          return loadCoreInstance(InstanceExpr);
+        });
   });
 }
 
 // Load vector of component type section.
 // See "include/loader/loader.h".
-Expect<void> Loader::loadSection(AST::CompTypeSection &Sec) {
+Expect<void> Loader::loadSection(AST::Component::TypeSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
-        Sec, [this](AST::DefType &Ty) { return loadType(Ty); });
+        Sec, [this](AST::Component::DefType &Ty) { return loadType(Ty); });
   });
 }
 
 // Load vector of component instance section.
 // See "include/loader/loader.h".
-Expect<void> Loader::loadSection(AST::InstanceSection &Sec) {
+Expect<void> Loader::loadSection(AST::Component::InstanceSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
-    return loadSectionContentVec(Sec, [this](AST::InstanceExpr &InstanceExpr) {
-      return loadInstance(InstanceExpr);
-    });
+    return loadSectionContentVec(
+        Sec, [this](AST::Component::InstanceExpr &InstanceExpr) {
+          return loadInstance(InstanceExpr);
+        });
   });
 }
 

@@ -212,8 +212,8 @@ VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
       return unsafeRunWasmFile(std::get<AST::Module>(*Res), Func, Params,
                                ParamTypes);
     } else {
-      return unsafeRunWasmFile(std::get<AST::Component>(*Res), Func, Params,
-                               ParamTypes);
+      return unsafeRunWasmFile(std::get<AST::Component::Component>(*Res), Func,
+                               Params, ParamTypes);
     }
   } else {
     return Unexpect(Res);
@@ -235,8 +235,8 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
       return unsafeRunWasmFile(std::get<AST::Module>(*Res), Func, Params,
                                ParamTypes);
     } else {
-      return unsafeRunWasmFile(std::get<AST::Component>(*Res), Func, Params,
-                               ParamTypes);
+      return unsafeRunWasmFile(std::get<AST::Component::Component>(*Res), Func,
+                               Params, ParamTypes);
     }
   } else {
     return Unexpect(Res);
@@ -244,8 +244,9 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
-VM::unsafeRunWasmFile(const AST::Component &Component, std::string_view,
-                      Span<const ValVariant>, Span<const ValType>) {
+VM::unsafeRunWasmFile(const AST::Component::Component &Component,
+                      std::string_view, Span<const ValVariant>,
+                      Span<const ValType>) {
   if (Stage == VMStage::Instantiated) {
     // When running another module, instantiated module in store will be reset.
     // Therefore the instantiation should restart.

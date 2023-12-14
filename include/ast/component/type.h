@@ -24,20 +24,20 @@
 namespace WasmEdge {
 namespace AST {
 
-enum class PrimValType {
-  Bool,
-  S8,
-  U8,
-  S16,
-  U16,
-  S32,
-  U32,
-  S64,
-  U64,
-  Float32,
-  Float64,
-  Char,
-  String
+enum class PrimValType : Byte {
+  Bool = 0x7f,
+  S8 = 0x7e,
+  U8 = 0x7d,
+  S16 = 0x7c,
+  U16 = 0x7b,
+  S32 = 0x7a,
+  U32 = 0x79,
+  S64 = 0x78,
+  U64 = 0x77,
+  Float32 = 0x76,
+  Float64 = 0x75,
+  Char = 0x74,
+  String = 0x73
 };
 
 using TypeIndex = uint32_t;

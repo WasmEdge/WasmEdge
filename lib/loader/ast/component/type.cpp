@@ -53,15 +53,9 @@ Expect<void> Loader::loadType(ValueType &Ty) {
   case 0x76:
   case 0x75:
   case 0x74:
-  case 0x73: {
-    PrimValType PrimTy;
-    if (auto Res = loadType(*RTag, PrimTy); !Res) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
-      return Unexpect(Res);
-    }
-    Ty.emplace<PrimValType>(PrimTy);
+  case 0x73:
+    Ty.emplace<PrimValType>(static_cast<PrimValType>(*RTag));
     break;
-  }
   default:
     Ty.emplace<TypeIndex>(*RTag);
     break;
@@ -211,53 +205,6 @@ Expect<void> Loader::loadType(Borrow &Ty) {
   return {};
 }
 
-Expect<void> Loader::loadType(Byte Tag, PrimValType &Ty) {
-  switch (Tag) {
-  case 0x7f: // bool
-    Ty = PrimValType::Bool;
-    break;
-  case 0x7e: // s8
-    Ty = PrimValType::S8;
-    break;
-  case 0x7d: // u8
-    Ty = PrimValType::U8;
-    break;
-  case 0x7c: // s16
-    Ty = PrimValType::S16;
-    break;
-  case 0x7b: // u16
-    Ty = PrimValType::U16;
-    break;
-  case 0x7a: // s32
-    Ty = PrimValType::S32;
-    break;
-  case 0x79: // u32
-    Ty = PrimValType::U32;
-    break;
-  case 0x78: // s64
-    Ty = PrimValType::S64;
-    break;
-  case 0x77: // u64
-    Ty = PrimValType::U64;
-    break;
-  case 0x76: // float32
-    Ty = PrimValType::Float32;
-    break;
-  case 0x75: // float64
-    Ty = PrimValType::Float64;
-    break;
-  case 0x74: // char
-    Ty = PrimValType::Char;
-    break;
-  case 0x73: // string
-    Ty = PrimValType::String;
-    break;
-  default:
-    break;
-  }
-  return {};
-}
-
 Expect<void> Loader::loadType(AST::DefType &Ty) {
   auto RTag = FMgr.readByte();
   if (!RTag) {
@@ -280,12 +227,8 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
   case 0x75:
   case 0x74:
   case 0x73:
-    if (auto Res =
-            loadType(Tag, Ty.emplace<DefValType>().emplace<PrimValType>());
-        !Res) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
-      return Unexpect(Res);
-    }
+    Ty.emplace<DefValType>().emplace<PrimValType>(
+        static_cast<PrimValType>(Tag));
     break;
   case 0x72:
     if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Record>()); !Res) {

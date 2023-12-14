@@ -294,7 +294,6 @@ private:
   Expect<void> loadType(AST::InstanceType &Ty);
   Expect<void> loadType(AST::ComponentType &Ty);
   Expect<void> loadType(AST::ResultList &Ty);
-  Expect<void> loadType(Byte Tag, AST::PrimValType &Ty);
   Expect<void> loadType(AST::Record &RecTy);
   Expect<void> loadType(AST::VariantTy &Ty);
   Expect<void> loadType(AST::List &Ty);

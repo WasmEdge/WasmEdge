@@ -12,19 +12,19 @@ Expect<void> Loader::loadInstantiateArg(
   // syntax `(with n si)`
   //
   // instantiatearg ::= n:<string>  si:<sortidx>
-  if (auto Res = FMgr.readName(); !Res) {
-    return Unexpect(Res);
-  } else {
+  if (auto Res = FMgr.readName()) {
     Arg.getName() = *Res;
+  } else {
+    return Unexpect(Res);
   }
   return loadSortIndex(Arg.getIndex());
 }
 
 Expect<void> Loader::loadInlineExport(AST::InlineExport<AST::Sort> &Exp) {
-  if (auto Res = FMgr.readName(); !Res) {
-    return Unexpect(Res);
-  } else {
+  if (auto Res = FMgr.readName()) {
     Exp.getName() = *Res;
+  } else {
+    return Unexpect(Res);
   }
   return loadSortIndex(Exp.getSortIdx());
 }

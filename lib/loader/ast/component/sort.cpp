@@ -14,41 +14,29 @@ Expect<void> Loader::loadSort(AST::Sort &Sort) {
   //        | 0x03                  => type
   //        | 0x04                  => component
   //        | 0x05                  => instance
-  auto Tag = FMgr.readByte();
-  if (!Tag) {
+  auto RTag = FMgr.readByte();
+  if (!RTag) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sort));
-    return Unexpect(Tag);
+    return Unexpect(RTag);
   }
-  switch (*Tag) {
-  case 0x00: {
-    AST::CoreSort CS;
-    if (auto Res = loadCoreSort(CS); !Res) {
+  switch (*RTag) {
+  case 0x00:
+    if (auto Res = loadCoreSort(Sort.emplace<AST::CoreSort>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sort));
       return Unexpect(Res);
     }
-    Sort = CS;
     break;
-  }
   case 0x01:
-    Sort = AST::SortCase::Func;
-    break;
   case 0x02:
-    Sort = AST::SortCase::Value;
-    break;
   case 0x03:
-    Sort = AST::SortCase::Type;
-    break;
   case 0x04:
-    Sort = AST::SortCase::Component;
-    break;
   case 0x05:
-    Sort = AST::SortCase::Instance;
+    Sort = static_cast<AST::SortCase>(*RTag);
     break;
   default:
     return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
                         ASTNodeAttr::Sort);
   }
-
   return {};
 }
 
@@ -66,32 +54,18 @@ Expect<void> Loader::loadCoreSort(AST::CoreSort &Sort) {
   }
   switch (*Res) {
   case 0x00:
-    Sort = AST::CoreSort::Func;
-    break;
   case 0x01:
-    Sort = AST::CoreSort::Table;
-    break;
   case 0x02:
-    Sort = AST::CoreSort::Memory;
-    break;
   case 0x03:
-    Sort = AST::CoreSort::Global;
-    break;
   case 0x10:
-    Sort = AST::CoreSort::Type;
-    break;
   case 0x11:
-    Sort = AST::CoreSort::Module;
-    break;
   case 0x12:
-    Sort = AST::CoreSort::Instance;
-    break;
+    Sort = static_cast<AST::CoreSort>(*Res);
+    return {};
   default:
     return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
                         ASTNodeAttr::Sort);
   }
-
-  return {};
 }
 
 Expect<void> Loader::loadSortIndex(AST::SortIndex<AST::Sort> &SortIdx) {

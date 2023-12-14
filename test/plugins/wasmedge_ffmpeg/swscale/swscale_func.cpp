@@ -28,6 +28,17 @@ TEST_F(FFmpegTest, SwsContext) {
 
   uint32_t SWScalePtr = UINT32_C(4);
   uint32_t SWCachedScalePtr = UINT32_C(8);
+  uint32_t FramePtr = UINT32_C(72);
+  uint32_t Frame2Ptr = UINT32_C(124);
+
+  std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
+  initFFmpegStructs(UINT32_C(12), UINT32_C(24), UINT32_C(28), FileName,
+                    UINT32_C(60), UINT32_C(64), UINT32_C(68), FramePtr);
+
+  initEmptyFrame(Frame2Ptr);
+
+  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  uint32_t Frame2Id = readUInt32(MemInst, Frame2Ptr);
 
   uint32_t YUV420PId = 1; // YUV420P AVPixFormatId (From Bindings.h)
   uint32_t RGB24Id = 3;   // RGB24  AVPixFormatId (From Bindings.h)
@@ -56,27 +67,23 @@ TEST_F(FFmpegTest, SwsContext) {
 
   uint32_t SWSScaleId = readUInt32(MemInst, SWScalePtr);
   ASSERT_TRUE(SWSScaleId > 0);
-  // Need a way to pass AVFrame with data to test the function.
-  // Actual Scale Function...
 
-  //  FuncInst =
-  //  SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_scale");
-  //  EXPECT_NE(FuncInst, nullptr);
-  //  EXPECT_TRUE(FuncInst->isHostFunction());
-  //  auto &HostFuncSwsScale =
-  //  dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsScale
-  //  &>(FuncInst->getHostFunc());
-  //
-  //  {
-  //    EXPECT_TRUE(HostFuncSwsScale.run(CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{
-  //
-  //    SWScalePtr,UINT32_C(100),UINT32_C(100),UINT32_C(1),UINT32_C(200),UINT32_C(200),UINT32_C(3),UINT32_C(8),UINT32_C(0),UINT32_C(0)},
-  //        Result));
-  //    EXPECT_EQ(Result[0].get<int32_t>(),
-  //    static_cast<int32_t>(ErrNo::Success));
-  //    ASSERT_TRUE(readUInt32(MemInst,SWScalePtr) > 0);
-  //  }
+  // Checking correctness of function. Returns Invalid Argument Error.
+  FuncInst = SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_scale");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSwsScale =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsScale &>(
+          FuncInst->getHostFunc());
+
+  {
+    EXPECT_TRUE(
+        HostFuncSwsScale.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 SWSScaleId, FrameId, 20, 40, Frame2Id},
+                             Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), -22);
+  }
 
   FuncInst = SWScaleMod->findFuncExports(
       "wasmedge_ffmpeg_swscale_sws_getCachedContext");

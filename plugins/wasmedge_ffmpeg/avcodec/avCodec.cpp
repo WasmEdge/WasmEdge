@@ -101,6 +101,8 @@ Expect<uint32_t> AVCodecPixFmtsIter::body(const Runtime::CallingFrame &,
 
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
   AVPixelFormat const *PixelFormat = AvCodec->pix_fmts;
+  if (PixelFormat == NULL)
+    return 0;
 
   uint32_t Curr = 0;
   while (Curr < Idx) {
@@ -135,6 +137,12 @@ AVCodecSupportedFrameratesIter::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
   AVRational const *Rational = AvCodec->supported_framerates;
 
+  if (Rational == NULL) {
+    *NumId = 0;
+    *DenId = 0;
+    return static_cast<int32_t>(ErrNo::Success);
+  }
+
   uint32_t Curr = 0;
   while (Curr < Idx) {
     Rational++;
@@ -162,6 +170,8 @@ AVCodecSupportedSampleRatesIter::body(const Runtime::CallingFrame &,
 
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
   const int32_t *SampleRates = AvCodec->supported_samplerates;
+  if (SampleRates == NULL)
+    return 0;
 
   uint32_t Curr = 0;
   while (Curr < Idx) {
@@ -187,6 +197,8 @@ Expect<uint64_t> AVCodecChannelLayoutIter::body(const Runtime::CallingFrame &,
 
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
   const uint64_t *ChannelLayout = AvCodec->channel_layouts;
+  if (ChannelLayout == NULL)
+    return 0;
 
   uint32_t Curr = 0;
   while (Curr < Idx) {
@@ -211,6 +223,8 @@ Expect<uint32_t> AVCodecSampleFmtsIter::body(const Runtime::CallingFrame &,
 
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
   AVSampleFormat const *SampleFormat = AvCodec->sample_fmts;
+  if (SampleFormat == NULL)
+    return 0;
 
   uint32_t Curr = 0;
   while (Curr < Idx) {

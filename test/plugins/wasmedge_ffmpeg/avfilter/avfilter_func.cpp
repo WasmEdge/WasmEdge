@@ -520,6 +520,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
     ASSERT_TRUE(Result[0].get<int32_t>());
   }
 
+  // Need to send the last frame. Then only this test will pass. Else Null
+  // pointer exception.
   //  FuncInst = AVFilterMod->findFuncExports(
   //      "wasmedge_ffmpeg_avfilter_av_buffersrc_close");
   //  EXPECT_NE(FuncInst, nullptr);

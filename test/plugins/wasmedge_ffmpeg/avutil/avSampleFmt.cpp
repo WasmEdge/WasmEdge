@@ -135,23 +135,6 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   uint32_t BufId = readUInt32(MemInst, BufferPtr);
   ASSERT_TRUE(BufId > 0);
 
-  //  FuncInst = AVUtilMod->findFuncExports(
-  //      "wasmedge_ffmpeg_avutil_av_samples_get_buffer");
-  //  auto &HostFuncAVSamplesGetBuffer = dynamic_cast<
-  //      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVSamplesGetBuffer &>(
-  //      FuncInst->getHostFunc());
-  //
-  //  {
-  //    uint32_t Size = readUInt32(MemInst, LinesizePtr);
-  //    HostFuncAVSamplesGetBuffer.run(
-  //        CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{BufId, NamePtr, Size,
-  //        1}, Result);
-  //
-  //    EXPECT_EQ(Result[0].get<int32_t>(),
-  //    static_cast<int32_t>(ErrNo::Success));
-  //  }
-
   int32_t Length;
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name_length");

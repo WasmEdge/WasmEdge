@@ -85,45 +85,6 @@ AVSamplesAllocArrayAndSamples::body(const Runtime::CallingFrame &Frame,
   return Res;
 }
 
-// Expect<int32_t> AVSamplesCopy::body(const Runtime::CallingFrame
-// &Frame,uint32_t DestBufPtr,uint32_t SrcBufId,int32_t DestOffset,int32_t
-// SrcOffset,int32_t NbSamples,int32_t NbChannels,uint32_t SampleFmtId){
-//   printf("Inside AVSample");
-//   MEMINST_CHECK(MemInst,Frame,0);
-//   MEM_PTR_CHECK(DestBufId,MemInst,uint32_t,DestBufPtr,"");
-//
-////  FFMPEG_PTR_FETCH(DestBuf,*DestBufId,uint8_t);
-//  uint8_t* DestBuf = NULL;
-//  FFMPEG_PTR_FETCH(SrcBuf,SrcBufId,uint8_t);
-//  AVSampleFormat const AvSampleFormat =
-//  FFmpegUtils::SampleFmt::fromSampleID(SampleFmtId); printf("I am here"); int
-//  Res =
-//  av_samples_copy(&DestBuf,&SrcBuf,DestOffset,SrcOffset,NbSamples,NbChannels,AvSampleFormat);
-//  FFMPEG_PTR_STORE(DestBuf,DestBufId);
-//  return Res;
-//}
-
-// Failingggg... Test
-// Expect<int32_t> AVSamplesGetBuffer::body(const Runtime::CallingFrame &Frame,
-//                                         uint32_t BufferID, uint32_t
-//                                         BufferPtr, uint32_t BufferSize,
-//                                         int32_t Idx) {
-//
-//  MEMINST_CHECK(MemInst, Frame, 0)
-//  MEM_SPAN_CHECK(Buffer, MemInst, uint8_t, BufferPtr, BufferSize, "");
-//  FFMPEG_PTR_FETCH(Buf, BufferID, uint8_t *);
-//
-//  uint8_t **Itr = Buf;
-//  int I = 1;
-//  while (I <= Idx) {
-//    Itr++;
-//    I++;
-//  }
-//
-//  memmove(Buffer.data(), *Itr, BufferSize);
-//  return static_cast<int32_t>(ErrNo::Success);
-//}
-
 Expect<int32_t> AVGetSampleFmtNameLength::body(const Runtime::CallingFrame &,
                                                uint32_t SampleFmtId) {
 

@@ -4,8 +4,6 @@
 
 #include <gtest/gtest.h>
 
-using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
-
 // Testing all AVCodecstruct
 
 namespace WasmEdge {
@@ -18,8 +16,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   uint32_t AVCodecPtr = UINT32_C(20);
   uint32_t StringPtr = UINT32_C(68);
-  //  uint32_t NumeratorPtr = UINT32_C(72);
-  //  uint32_t DenominatorPtr = UINT32_C(76);
+  uint32_t NumeratorPtr = UINT32_C(72);
+  uint32_t DenominatorPtr = UINT32_C(76);
   std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
   initFFmpegStructs(AVCodecPtr, UINT32_C(24), UINT32_C(28), FileName,
                     UINT32_C(60), UINT32_C(64), UINT32_C(68), UINT32_C(72));
@@ -195,25 +193,22 @@ TEST_F(FFmpegTest, AVCodec) {
     EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
 
-  //  FuncInst = AVCodecMod->findFuncExports(
-  //      "wasmedge_ffmpeg_avcodec_avcodec_pix_fmts_iter");
-  //  EXPECT_NE(FuncInst, nullptr);
-  //  EXPECT_TRUE(FuncInst->isHostFunction());
-  //
-  //  auto &HostFuncAVCodecPixFmtIter = dynamic_cast<
-  //      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecPixFmtsIter &>(
-  //      FuncInst->getHostFunc());
-  //
-  //  {
-  //    uint32_t Idx = 1;
-  //    EXPECT_TRUE(HostFuncAVCodecPixFmtIter.run(
-  //        CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{
-  //            AVCodecId, Idx, NumeratorPtr, DenominatorPtr},
-  //        Result));
-  //    EXPECT_EQ(Result[0].get<int32_t>(),
-  //    static_cast<int32_t>(ErrNo::Success));
-  //  }
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodec_pix_fmts_iter");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecPixFmtIter = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecPixFmtsIter &>(
+      FuncInst->getHostFunc());
+
+  {
+    uint32_t Idx = 0;
+    EXPECT_TRUE(HostFuncAVCodecPixFmtIter.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecId, Idx},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), 0);
+  }
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_supported_framerate_is_null");
@@ -231,25 +226,23 @@ TEST_F(FFmpegTest, AVCodec) {
     EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
 
-  //  FuncInst = AVCodecMod->findFuncExports(
-  //      "wasmedge_ffmpeg_avcodec_avcodec_supported_framerate_iter");
-  //  EXPECT_NE(FuncInst, nullptr);
-  //  EXPECT_TRUE(FuncInst->isHostFunction());
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodec_supported_framerate_iter");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
 
-  //  auto &HostFuncAVCodecSupportedFrameratesIter = dynamic_cast<
-  //      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSupportedFrameratesIter
-  //          &>(FuncInst->getHostFunc());
-  //
-  //  {
-  //    EXPECT_TRUE(HostFuncAVCodecSupportedFrameratesIter.run(
-  //        CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{AVCodecId, 1,
-  //        NumeratorPtr,
-  //                                                    DenominatorPtr},
-  //        Result));
-  //    EXPECT_EQ(Result[0].get<int32_t>(),
-  //    static_cast<int32_t>(ErrNo::Success));
-  //  }
+  auto &HostFuncAVCodecSupportedFrameratesIter = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSupportedFrameratesIter
+          &>(FuncInst->getHostFunc());
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecSupportedFrameratesIter.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVCodecId, 1, NumeratorPtr,
+                                                    DenominatorPtr},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_supported_samplerates_is_null");
@@ -267,22 +260,21 @@ TEST_F(FFmpegTest, AVCodec) {
     EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
 
-  //  FuncInst = AVCodecMod->findFuncExports(
-  //      "wasmedge_ffmpeg_avcodec_avcodec_supported_samplerates_iter");
-  //  EXPECT_NE(FuncInst, nullptr);
-  //  EXPECT_TRUE(FuncInst->isHostFunction());
-  //
-  //  auto &HostFuncAVCodecSupportedSampleRatesIter = dynamic_cast<
-  //      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSupportedSampleRatesIter
-  //          &>(FuncInst->getHostFunc());
-  //
-  //  {
-  //    EXPECT_TRUE(HostFuncAVCodecSupportedSampleRatesIter.run(
-  //        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecId,
-  //        0}, Result));
-  //    EXPECT_EQ(Result[0].get<int32_t>(),
-  //    static_cast<int32_t>(ErrNo::Success));
-  //  }
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodec_supported_samplerates_iter");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecSupportedSampleRatesIter = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSupportedSampleRatesIter
+          &>(FuncInst->getHostFunc());
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecSupportedSampleRatesIter.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecId, 0},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), 0);
+  }
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_channel_layouts_is_null");
@@ -299,23 +291,22 @@ TEST_F(FFmpegTest, AVCodec) {
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
-  //
-  //  FuncInst = AVCodecMod->findFuncExports(
-  //      "wasmedge_ffmpeg_avcodec_avcodec_channel_layouts_iter");
-  //  EXPECT_NE(FuncInst, nullptr);
-  //  EXPECT_TRUE(FuncInst->isHostFunction());
-  //
-  //  auto &HostFuncAVCodecChannelLayoutIter = dynamic_cast<
-  //      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecChannelLayoutIter &>(
-  //      FuncInst->getHostFunc());
-  //
-  //  {
-  //    EXPECT_TRUE(HostFuncAVCodecChannelLayoutIter.run(
-  //        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecId,
-  //        0}, Result));
-  //    EXPECT_EQ(Result[0].get<int32_t>(),
-  //    static_cast<int32_t>(ErrNo::Success));
-  //  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodec_channel_layouts_iter");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecChannelLayoutIter = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecChannelLayoutIter &>(
+      FuncInst->getHostFunc());
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecChannelLayoutIter.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecId, 0},
+        Result));
+    EXPECT_EQ(Result[0].get<int64_t>(), 0);
+  }
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_sample_fmts_is_null");
@@ -333,21 +324,21 @@ TEST_F(FFmpegTest, AVCodec) {
     EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
 
-  //  FuncInst = AVCodecMod->findFuncExports(
-  //      "wasmedge_ffmpeg_avcodec_avcodec_sample_fmts_iter");
-  //  EXPECT_NE(FuncInst, nullptr);
-  //  EXPECT_TRUE(FuncInst->isHostFunction());
-  //
-  //  auto &HostFuncAVCodecSampleFmtsIter = dynamic_cast<
-  //      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSampleFmtsIter &>(
-  //      FuncInst->getHostFunc());
-  //
-  //  {
-  //    EXPECT_TRUE(HostFuncAVCodecSampleFmtsIter.run(
-  //        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecId,
-  //        0}, Result));
-  //    EXPECT_EQ(Result[0].get<int32_t>(), 0);
-  //  }
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodec_sample_fmts_iter");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecSampleFmtsIter = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSampleFmtsIter &>(
+      FuncInst->getHostFunc());
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecSampleFmtsIter.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecId, 0},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), 0);
+  }
 }
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

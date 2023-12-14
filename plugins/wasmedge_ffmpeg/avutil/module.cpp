@@ -188,8 +188,6 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVSamplesGetBufferSize>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_samples_alloc_array_and_samples",
               std::make_unique<AVSamplesAllocArrayAndSamples>(Env));
-  //  addHostFunc("wasmedge_ffmpeg_avutil_av_samples_get_buffer", // test
-  //              std::make_unique<AVSamplesGetBuffer>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_get_sample_fmt_name_length",
               std::make_unique<AVGetSampleFmtNameLength>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_get_sample_fmt_name",

@@ -54,26 +54,6 @@ TEST_F(FFmpegTest, AVInputFormatFunc) {
         Result));
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
     EXPECT_TRUE(readUInt32(MemInst, FormatCtxPtr) > 0);
-
-    // AVInputFormat is same as AvFormatCtx
-    //    uint32_t AvInputFormatCtxId = readUInt32(MemInst, AvFormatCtxPtr);
-    //    EXPECT_TRUE(HostFuncAVFormatOpenInput.run(
-    //        CallFrame,
-    //        std::initializer_list<WasmEdge::ValVariant>{
-    //            AvFormatCtxPtr, UrlStart, UrlSize, AvInputFormatCtxId,
-    //            UINT32_C(0)},
-    //        Result));
-    //    EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
-    //    EXPECT_TRUE(readUInt32(MemInst, AvFormatCtxPtr) > 0);
-
-    // AVInputFormat && AVDictionary
-    //    EXPECT_TRUE(HostFuncAVFormatOpenInput.run(
-    //        CallFrame,
-    //        std::initializer_list<WasmEdge::ValVariant>{
-    //        AvFormatCtxPtr, INT32_C(1), UINT32_C(30), UINT32_C(0),
-    //        UINT32_C(0)}, Result));
-    //    EXPECT_EQ(Result[0].get<int32_t>() >= 0);
-    //    EXPECT_TRUE(readUInt32(MemInst, AvFormatCtxPtr) > 0);
   }
 
   uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
@@ -92,13 +72,6 @@ TEST_F(FFmpegTest, AVInputFormatFunc) {
         std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, UINT32_C(0)},
         Result));
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
-
-    // AVDictionaryID
-    //    EXPECT_TRUE(HostFuncAVFormatFindStreamInfo.run(
-    //        CallFrame,
-    //        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId,
-    //        AVDictId}, Result));
-    //    EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
 
   FuncInst =

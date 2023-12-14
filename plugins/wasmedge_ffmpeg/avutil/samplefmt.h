@@ -67,14 +67,6 @@ public:
                        int32_t NbSamples, uint32_t SampleFmtId, int32_t Align);
 };
 
-class AVSamplesGetBuffer : public WasmEdgeFFmpegAVUtil<AVSamplesGetBuffer> {
-public:
-  AVSamplesGetBuffer(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t BufferID,
-                       uint32_t BufferPtr, uint32_t BufferSize, int32_t Idx);
-};
-
 class AVGetSampleFmtNameLength
     : public WasmEdgeFFmpegAVUtil<AVGetSampleFmtNameLength> {
 public:
@@ -100,15 +92,6 @@ public:
                        uint32_t SampleFmtId);
 };
 
-// class AVSamplesCopy : public WasmEdgeFFmpegAVUtil<AVSamplesCopy> {
-// public:
-//   AVSamplesCopy(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-//       : WasmEdgeFFmpegAVUtil(HostEnv) {}
-//   Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t
-//   DestBufPtr,uint32_t SrcBufId,int32_t DestOffset,int32_t
-//   SourceOffset,int32_t NbSamples,int32_t NbChannels,uint32_t SampleFmtId);
-// };
-//
 class AVFreep : public WasmEdgeFFmpegAVUtil<AVFreep> {
 public:
   AVFreep(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)

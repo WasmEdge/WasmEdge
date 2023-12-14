@@ -303,6 +303,45 @@ WasiNNGetOutput::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t Context,
   }
 }
 
+Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
+    const Runtime::CallingFrame &Frame, uint32_t Context, uint32_t Index,
+    uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
+    uint32_t BytesWrittenPtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  if (Env.NNContext.size() <= Context) {
+    spdlog::error(
+        "[WASI-NN] get_output_single: Execution Context does not exist"sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  const auto OutBuffer =
+      MemInst->getSpan<uint8_t>(OutBufferPtr, OutBufferMaxSize);
+  if (unlikely(OutBuffer.data() == nullptr)) {
+    spdlog::error(
+        "[WASI-NN] Failed when accessing the Output Buffer memory."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+  uint32_t *BytesWritten = MemInst->getPointer<uint32_t *>(BytesWrittenPtr);
+  if (unlikely(BytesWritten == nullptr)) {
+    spdlog::error("[WASI-NN] Failed when accessing the BytesWritten memory."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  switch (Env.NNContext[Context].getBackend()) {
+  case WASINN::Backend::GGML:
+    return WASINN::GGML::getOutputSingle(Env, Context, Index, OutBuffer,
+                                         *BytesWritten);
+  default:
+    spdlog::error(
+        "[WASI-NN] get_output_single: Only GGML backend supports get_output_single."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+}
+
 Expect<WASINN::ErrNo>
 WasiNNCompute::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t Context) {
   auto *MemInst = Frame.getMemoryByIndex(0);
@@ -324,6 +363,30 @@ WasiNNCompute::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t Context) {
   default:
     reportUnknownBackend(Backend);
     return WASINN::ErrNo::InvalidEncoding;
+  }
+}
+
+Expect<WASINN::ErrNo>
+WasiNNComputeSingle::bodyImpl(const Runtime::CallingFrame &Frame,
+                              uint32_t Context) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  if (Env.NNContext.size() <= Context) {
+    spdlog::error(
+        "[WASI-NN] compute_single: Execution Context does not exist."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  switch (Env.NNContext[Context].getBackend()) {
+  case WASINN::Backend::GGML:
+    return WASINN::GGML::computeSingle(Env, Context);
+  default:
+    spdlog::error(
+        "[WASI-NN] compute_single: Only GGML backend supports compute_single."sv);
+    return WASINN::ErrNo::InvalidArgument;
   }
 }
 

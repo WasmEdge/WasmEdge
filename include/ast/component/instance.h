@@ -21,6 +21,7 @@
 
 namespace WasmEdge {
 namespace AST {
+namespace Component {
 
 template <typename IndexType> class InstantiateArg {
 public:
@@ -99,5 +100,6 @@ using CompInlineExports = InlineExports<Sort>;
 using CoreInstanceExpr = std::variant<CoreInstantiate, CoreInlineExports>;
 using InstanceExpr = std::variant<Instantiate, CompInlineExports>;
 
+} // namespace Component
 } // namespace AST
 } // namespace WasmEdge

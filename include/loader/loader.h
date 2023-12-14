@@ -74,23 +74,25 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::DataCountSection>() noexcept {
   return ASTNodeAttr::Sec_DataCount;
 }
-template <> inline ASTNodeAttr NodeAttrFromAST<AST::AliasSection>() noexcept {
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::AliasSection>() noexcept {
   return ASTNodeAttr::Sec_Alias;
 }
 template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::CoreInstanceSection>() noexcept {
+inline ASTNodeAttr
+NodeAttrFromAST<AST::Component::CoreInstanceSection>() noexcept {
   return ASTNodeAttr::Sec_CoreInstance;
 }
 template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::InstanceSection>() noexcept {
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::InstanceSection>() noexcept {
   return ASTNodeAttr::Sec_Instance;
 }
 template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::CompTypeSection>() noexcept {
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::TypeSection>() noexcept {
   return ASTNodeAttr::Sec_CompType;
 }
 template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::CompStartSection>() noexcept {
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::StartSection>() noexcept {
   return ASTNodeAttr::Sec_CompStart;
 }
 
@@ -108,17 +110,17 @@ public:
   static Expect<std::vector<Byte>>
   loadFile(const std::filesystem::path &FilePath);
 
-  Expect<std::variant<AST::Component, AST::Module>>
+  Expect<std::variant<AST::Component::Component, AST::Module>>
   parseWasmUnit(const std::filesystem::path &FilePath);
-  Expect<std::variant<AST::Component, AST::Module>>
+  Expect<std::variant<AST::Component::Component, AST::Module>>
   parseWasmUnit(Span<const uint8_t> Code);
 
   /// Parse component from file path.
-  Expect<std::unique_ptr<AST::Component>>
+  Expect<std::unique_ptr<AST::Component::Component>>
   parseComponent(const std::filesystem::path &FilePath);
 
   /// Parse component from byte code.
-  Expect<std::unique_ptr<AST::Component>>
+  Expect<std::unique_ptr<AST::Component::Component>>
   parseComponent(Span<const uint8_t> Code);
 
   /// Parse module from file path.
@@ -158,12 +160,12 @@ private:
   }
   /// @}
 
-  Expect<std::variant<AST::Component, AST::Module>> loadUnit();
+  Expect<std::variant<AST::Component::Component, AST::Module>> loadUnit();
   Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> loadPreamble();
 
   /// \name Load AST Component functions
   /// @{
-  Expect<void> loadComponent(AST::Component &Comp);
+  Expect<void> loadComponent(AST::Component::Component &Comp);
   /// @}
 
   /// \name Load AST Module functions
@@ -268,10 +270,10 @@ private:
   Expect<void> loadSection(AST::CodeSection &Sec);
   Expect<void> loadSection(AST::DataSection &Sec);
   Expect<void> loadSection(AST::DataCountSection &Sec);
-  Expect<void> loadSection(AST::CoreInstanceSection &Sec);
-  Expect<void> loadSection(AST::InstanceSection &Sec);
-  Expect<void> loadSection(AST::AliasSection &Sec);
-  Expect<void> loadSection(AST::CompTypeSection &Sec);
+  Expect<void> loadSection(AST::Component::CoreInstanceSection &Sec);
+  Expect<void> loadSection(AST::Component::InstanceSection &Sec);
+  Expect<void> loadSection(AST::Component::AliasSection &Sec);
+  Expect<void> loadSection(AST::Component::TypeSection &Sec);
   static Expect<void> loadSection(FileMgr &VecMgr, AST::AOTSection &Sec);
   Expect<void> loadSegment(AST::TableSegment &TabSeg);
   Expect<void> loadSegment(AST::GlobalSegment &GlobSeg);
@@ -289,27 +291,27 @@ private:
   Expect<void> loadType(AST::TableType &TabType);
   Expect<void> loadType(AST::GlobalType &GlobType);
 
-  Expect<void> loadType(AST::DefType &Ty);
-  Expect<void> loadType(AST::FuncType &Ty);
-  Expect<void> loadType(AST::InstanceType &Ty);
-  Expect<void> loadType(AST::ComponentType &Ty);
-  Expect<void> loadType(AST::ResultList &Ty);
-  Expect<void> loadType(AST::Record &RecTy);
-  Expect<void> loadType(AST::VariantTy &Ty);
-  Expect<void> loadType(AST::List &Ty);
-  Expect<void> loadType(AST::Tuple &Ty);
-  Expect<void> loadType(AST::Flags &Ty);
-  Expect<void> loadType(AST::Enum &Ty);
-  Expect<void> loadType(AST::Option &Ty);
-  Expect<void> loadType(AST::Result &Ty);
-  Expect<void> loadType(AST::Own &Ty);
-  Expect<void> loadType(AST::Borrow &Ty);
-  Expect<void> loadType(AST::LabelValType &Ty);
-  Expect<void> loadType(AST::ValueType &Ty);
-  Expect<void> loadType(AST::CoreType &Ty);
-  Expect<void> loadType(AST::CoreDefType &Ty);
-  Expect<void> loadType(AST::ModuleType &Ty);
-  Expect<void> loadCase(AST::Case &C);
+  Expect<void> loadType(AST::Component::DefType &Ty);
+  Expect<void> loadType(AST::Component::FuncType &Ty);
+  Expect<void> loadType(AST::Component::InstanceType &Ty);
+  Expect<void> loadType(AST::Component::ComponentType &Ty);
+  Expect<void> loadType(AST::Component::ResultList &Ty);
+  Expect<void> loadType(AST::Component::Record &RecTy);
+  Expect<void> loadType(AST::Component::VariantTy &Ty);
+  Expect<void> loadType(AST::Component::List &Ty);
+  Expect<void> loadType(AST::Component::Tuple &Ty);
+  Expect<void> loadType(AST::Component::Flags &Ty);
+  Expect<void> loadType(AST::Component::Enum &Ty);
+  Expect<void> loadType(AST::Component::Option &Ty);
+  Expect<void> loadType(AST::Component::Result &Ty);
+  Expect<void> loadType(AST::Component::Own &Ty);
+  Expect<void> loadType(AST::Component::Borrow &Ty);
+  Expect<void> loadType(AST::Component::LabelValType &Ty);
+  Expect<void> loadType(AST::Component::ValueType &Ty);
+  Expect<void> loadType(AST::Component::CoreType &Ty);
+  Expect<void> loadType(AST::Component::CoreDefType &Ty);
+  Expect<void> loadType(AST::Component::ModuleType &Ty);
+  Expect<void> loadCase(AST::Component::Case &C);
   Expect<void> loadLabel(std::string &Label);
   template <typename T>
   Expect<std::optional<T>> loadOption(std::function<Expect<void>(T &)> F) {
@@ -332,27 +334,32 @@ private:
                           FMgr.getLastOffset(), ASTNodeAttr::DefType);
     }
   }
-  Expect<void> loadModuleDecl(AST::ModuleDecl &Decl);
-  Expect<void> loadExportDecl(AST::CoreExportDecl &Decl);
-  Expect<void> loadComponentDecl(AST::ComponentDecl &Decl);
-  Expect<void> loadImportDecl(AST::ImportDecl &Decl);
-  Expect<void> loadInstanceDecl(AST::InstanceDecl &Decl);
-  Expect<void> loadExternDesc(AST::ExternDesc &Desc);
+  Expect<void> loadModuleDecl(AST::Component::ModuleDecl &Decl);
+  Expect<void> loadExportDecl(AST::Component::CoreExportDecl &Decl);
+  Expect<void> loadComponentDecl(AST::Component::ComponentDecl &Decl);
+  Expect<void> loadImportDecl(AST::Component::ImportDecl &Decl);
+  Expect<void> loadInstanceDecl(AST::Component::InstanceDecl &Decl);
+  Expect<void> loadExternDesc(AST::Component::ExternDesc &Desc);
   Expect<void> loadImportExportName(std::string &Name);
-  Expect<void> loadStart(AST::Start &S);
-  Expect<void> loadCoreInstance(AST::CoreInstanceExpr &InstanceExpr);
-  Expect<void> loadInstance(AST::InstanceExpr &InstanceExpr);
-  Expect<void> loadInstantiateArg(AST::CoreInstantiateArg &Arg);
+  Expect<void> loadStart(AST::Component::Start &S);
+  Expect<void> loadCoreInstance(AST::Component::CoreInstanceExpr &InstanceExpr);
+  Expect<void> loadInstance(AST::Component::InstanceExpr &InstanceExpr);
+  Expect<void> loadInstantiateArg(AST::Component::CoreInstantiateArg &Arg);
   Expect<void>
-  loadInstantiateArg(AST::InstantiateArg<AST::SortIndex<AST::Sort>> &Arg);
-  Expect<void> loadInlineExport(AST::InlineExport<AST::CoreSort> &Exp);
-  Expect<void> loadInlineExport(AST::InlineExport<AST::Sort> &Exp);
-  Expect<void> loadAlias(AST::Alias &Alias);
-  Expect<void> loadSort(AST::Sort &Sort);
-  Expect<void> loadAliasTarget(AST::AliasTarget &AliasTarget);
-  Expect<void> loadCoreSort(AST::CoreSort &Sort);
-  Expect<void> loadSortIndex(AST::SortIndex<AST::Sort> &SortIdx);
-  Expect<void> loadCoreSortIndex(AST::SortIndex<AST::CoreSort> &SortIdx);
+  loadInstantiateArg(AST::Component::InstantiateArg<
+                     AST::Component::SortIndex<AST::Component::Sort>> &Arg);
+  Expect<void>
+  loadInlineExport(AST::Component::InlineExport<AST::Component::CoreSort> &Exp);
+  Expect<void>
+  loadInlineExport(AST::Component::InlineExport<AST::Component::Sort> &Exp);
+  Expect<void> loadAlias(AST::Component::Alias &Alias);
+  Expect<void> loadSort(AST::Component::Sort &Sort);
+  Expect<void> loadAliasTarget(AST::Component::AliasTarget &AliasTarget);
+  Expect<void> loadCoreSort(AST::Component::CoreSort &Sort);
+  Expect<void>
+  loadSortIndex(AST::Component::SortIndex<AST::Component::Sort> &SortIdx);
+  Expect<void> loadCoreSortIndex(
+      AST::Component::SortIndex<AST::Component::CoreSort> &SortIdx);
   Expect<void> loadExpression(AST::Expression &Expr,
                               std::optional<uint64_t> SizeBound = std::nullopt);
   Expect<OpCode> loadOpCode();

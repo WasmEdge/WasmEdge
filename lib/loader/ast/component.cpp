@@ -43,7 +43,8 @@ Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> Loader::loadPreamble() {
   return std::make_pair(*Magic, *Ver);
 }
 
-Expect<std::variant<AST::Component, AST::Module>> Loader::loadUnit() {
+Expect<std::variant<AST::Component::Component, AST::Module>>
+Loader::loadUnit() {
   auto ResPreamble = Loader::loadPreamble();
   if (!ResPreamble) {
     return Unexpect(ResPreamble);
@@ -76,7 +77,7 @@ Expect<std::variant<AST::Component, AST::Module>> Loader::loadUnit() {
     }
     return *Mod;
   } else if (Ver == ComponentVersion) {
-    auto Comp = std::make_unique<AST::Component>();
+    auto Comp = std::make_unique<AST::Component::Component>();
     Comp->getMagic() = WasmMagic;
     Comp->getVersion() = {Ver[0], Ver[1]};
     Comp->getLayer() = {Ver[2], Ver[3]};
@@ -90,7 +91,7 @@ Expect<std::variant<AST::Component, AST::Module>> Loader::loadUnit() {
   }
 }
 
-Expect<void> Loader::loadComponent(AST::Component &Comp) {
+Expect<void> Loader::loadComponent(AST::Component::Component &Comp) {
   while (auto ResSecId = FMgr.readByte()) {
     if (!ResSecId) {
       return logLoadError(ResSecId.error(), FMgr.getLastOffset(),
@@ -152,7 +153,7 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
         return logLoadError(ErrCode::Value::MalformedVersion,
                             FMgr.getLastOffset(), ASTNodeAttr::Component);
       }
-      auto NestedComp = std::make_shared<AST::Component>();
+      auto NestedComp = std::make_shared<AST::Component::Component>();
       NestedComp->getMagic() = WasmMagic;
       NestedComp->getVersion() = {Ver[0], Ver[1]};
       NestedComp->getLayer() = {Ver[2], Ver[3]};
@@ -186,7 +187,7 @@ Expect<void> Loader::loadComponent(AST::Component &Comp) {
       return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
                           ASTNodeAttr::Component);
     case 0x09: {
-      AST::Start S;
+      AST::Component::Start S;
       if (auto Res = loadStart(S); !Res) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
         return Unexpect(Res);

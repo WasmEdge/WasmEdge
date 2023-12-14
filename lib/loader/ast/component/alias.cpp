@@ -7,7 +7,9 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadAlias(AST::Alias &Alias) {
+using namespace AST::Component;
+
+Expect<void> Loader::loadAlias(Alias &Alias) {
   // alias ::= s:<sort> t:<aliastarget>     => (alias t (s))
   if (auto Res = loadSort(Alias.getSort()); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Alias));
@@ -20,7 +22,7 @@ Expect<void> Loader::loadAlias(AST::Alias &Alias) {
   return {};
 }
 
-Expect<void> Loader::loadAliasTarget(AST::AliasTarget &AliasTarget) {
+Expect<void> Loader::loadAliasTarget(AliasTarget &AliasTarget) {
   // aliastarget ::= 0x00 i:<instanceidx> n:<string>          => export i n
   //               | 0x01 i:<core:instanceidx> n:<core:name>  => core export i n
   //               | 0x02 ct:<u32> idx:<u32>                  => outer ct idx
@@ -32,7 +34,7 @@ Expect<void> Loader::loadAliasTarget(AST::AliasTarget &AliasTarget) {
   switch (*Res) {
   case 0x00:
   case 0x01: {
-    AST::AliasTargetExport &Ex = AliasTarget.emplace<AST::AliasTargetExport>();
+    AliasTargetExport &Ex = AliasTarget.emplace<AliasTargetExport>();
     if (auto V = FMgr.readU32(); !V) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::AliasTarget));
       return Unexpect(V);
@@ -48,7 +50,7 @@ Expect<void> Loader::loadAliasTarget(AST::AliasTarget &AliasTarget) {
     break;
   }
   case 0x02: {
-    AST::AliasTargetOuter &Out = AliasTarget.emplace<AST::AliasTargetOuter>();
+    AliasTargetOuter &Out = AliasTarget.emplace<AliasTargetOuter>();
     if (auto V = FMgr.readU32(); !V) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::AliasTarget));
       return Unexpect(V);

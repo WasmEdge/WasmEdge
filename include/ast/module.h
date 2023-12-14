@@ -150,6 +150,7 @@ private:
   std::vector<Module> Content;
 };
 
+namespace Component {
 class Component {
 public:
   /// Getter of magic vector.
@@ -173,8 +174,8 @@ public:
   ComponentSection &getComponentSection() noexcept { return CompSec; }
   InstanceSection &getInstanceSection() noexcept { return InstSec; }
   AliasSection &getAliasSection() noexcept { return AliasSec; }
-  CompTypeSection &getTypeSection() noexcept { return TySec; }
-  CompStartSection &getStartSection() noexcept { return StartSec; }
+  TypeSection &getTypeSection() noexcept { return TySec; }
+  StartSection &getStartSection() noexcept { return StartSec; }
 
 private:
   /// \name Data of Module node.
@@ -189,10 +190,12 @@ private:
   ComponentSection CompSec;
   InstanceSection InstSec;
   AliasSection AliasSec;
-  CompTypeSection TySec;
-  CompStartSection StartSec;
+  TypeSection TySec;
+  StartSection StartSec;
   /// @}
 };
+
+} // namespace Component
 
 } // namespace AST
 } // namespace WasmEdge

@@ -31,7 +31,7 @@ public:
   ~Validator() noexcept = default;
 
   /// Validate AST::Component.
-  Expect<void> validate(const AST::Component &Comp);
+  Expect<void> validate(const AST::Component::Component &Comp);
   /// Validate AST::Module.
   Expect<void> validate(const AST::Module &Mod);
 

@@ -10,7 +10,7 @@
 namespace WasmEdge {
 namespace Loader {
 
-using namespace WasmEdge::AST;
+using namespace WasmEdge::AST::Component;
 
 Expect<void> Loader::loadLabel(std::string &Label) {
   // label' ::= len:<u32> l:<label>
@@ -77,7 +77,7 @@ Expect<void> Loader::loadType(Record &RecTy) {
   //     lt*:vec(<labelvaltype>)
   //
   // output: (record (field lt)*)  (if |lt*|>0)
-  if (auto Res = loadVec<CompTypeSection>(
+  if (auto Res = loadVec<TypeSection>(
           RecTy.getLabelTypes(),
           [this](LabelValType LT) -> Expect<void> { return loadType(LT); })) {
     if (RecTy.getLabelTypes().size() == 0) {
@@ -90,7 +90,7 @@ Expect<void> Loader::loadType(Record &RecTy) {
   }
 }
 
-Expect<void> Loader::loadCase(AST::Case &C) {
+Expect<void> Loader::loadCase(Case &C) {
   // case ::= l:<label'> t?:<valtype>? 0x00
   if (auto Res = loadLabel(C.getLabel()); !Res) {
     return Unexpect(Res);
@@ -113,9 +113,10 @@ Expect<void> Loader::loadCase(AST::Case &C) {
 }
 
 Expect<void> Loader::loadType(VariantTy &Ty) {
-  if (auto Res = loadVec<CompTypeSection>(
-          Ty.getCases(),
-          [this](Case C) -> Expect<void> { return loadCase(C); })) {
+  if (auto Res =
+          loadVec<TypeSection>(Ty.getCases(), [this](Case C) -> Expect<void> {
+            return loadCase(C);
+          })) {
     return {};
   } else {
     return Unexpect(Res);
@@ -125,7 +126,7 @@ Expect<void> Loader::loadType(VariantTy &Ty) {
 Expect<void> Loader::loadType(List &Ty) { return loadType(Ty.getValType()); }
 
 Expect<void> Loader::loadType(Tuple &Ty) {
-  if (auto Res = loadVec<CompTypeSection>(
+  if (auto Res = loadVec<TypeSection>(
           Ty.getTypes(),
           [this](ValueType T) -> Expect<void> { return loadType(T); })) {
     if (unlikely(Ty.getTypes().size() == 0)) {
@@ -138,7 +139,7 @@ Expect<void> Loader::loadType(Tuple &Ty) {
   }
 }
 Expect<void> Loader::loadType(Flags &Ty) {
-  if (auto Res = loadVec<CompTypeSection>(
+  if (auto Res = loadVec<TypeSection>(
           Ty.getLabels(), [this](std::string Label) -> Expect<void> {
             return loadLabel(Label);
           })) {
@@ -153,7 +154,7 @@ Expect<void> Loader::loadType(Flags &Ty) {
 }
 
 Expect<void> Loader::loadType(Enum &Ty) {
-  if (auto Res = loadVec<CompTypeSection>(
+  if (auto Res = loadVec<TypeSection>(
           Ty.getLabels(), [this](std::string Label) -> Expect<void> {
             return loadLabel(Label);
           })) {
@@ -199,7 +200,7 @@ Expect<void> Loader::loadType(Borrow &Ty) {
   return {};
 }
 
-Expect<void> Loader::loadType(AST::DefType &Ty) {
+Expect<void> Loader::loadType(DefType &Ty) {
   auto RTag = FMgr.readByte();
   if (!RTag) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
@@ -315,7 +316,7 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
 Expect<void> Loader::loadType(ComponentType &Ty) {
   // componenttype ::= 0x41 cd*:vec(<componentdecl>)
   // => (component cd*)
-  return loadVec<CompTypeSection>(Ty.getContent(), [this](ComponentDecl Decl) {
+  return loadVec<TypeSection>(Ty.getContent(), [this](ComponentDecl Decl) {
     return loadComponentDecl(Decl);
   });
 }
@@ -353,7 +354,7 @@ Expect<void> Loader::loadType(ResultList &Ty) {
     }
     case 0x01: {
       std::vector<LabelValType> RList;
-      if (auto Res = loadVec<CompTypeSection>(
+      if (auto Res = loadVec<TypeSection>(
               RList, [this](LabelValType LV) { return loadType(LV); });
           !Res) {
         return Unexpect(Res);
@@ -374,7 +375,7 @@ Expect<void> Loader::loadType(ResultList &Ty) {
 Expect<void> Loader::loadType(FuncType &Ty) {
   // ps:<paramlist> rs:<resultlist>
   // => (func ps rs)
-  if (auto Res = loadVec<CompTypeSection>(
+  if (auto Res = loadVec<TypeSection>(
           Ty.getParamList(), [this](LabelValType LV) { return loadType(LV); });
       !Res) {
     return Unexpect(Res);
@@ -385,7 +386,7 @@ Expect<void> Loader::loadType(FuncType &Ty) {
 Expect<void> Loader::loadType(InstanceType &Ty) {
   // instancetype  ::= 0x42 id*:vec(<instancedecl>)
   // => (instance id*)
-  return loadVec<CompTypeSection>(Ty.getContent(), [this](InstanceDecl Decl) {
+  return loadVec<TypeSection>(Ty.getContent(), [this](InstanceDecl Decl) {
     return loadInstanceDecl(Decl);
   });
 }
@@ -449,7 +450,7 @@ Expect<void> Loader::loadImportExportName(std::string &Name) {
   }
 }
 
-Expect<void> Loader::loadExternDesc(AST::ExternDesc &Desc) {
+Expect<void> Loader::loadExternDesc(ExternDesc &Desc) {
   auto RTag = FMgr.readByte();
   if (!RTag) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
@@ -532,7 +533,7 @@ Expect<void> Loader::loadExternDesc(AST::ExternDesc &Desc) {
 Expect<void> Loader::loadType(CoreType &Ty) { return loadType(Ty.getType()); }
 Expect<void> Loader::loadType(CoreDefType &Ty) {
   Expect<void> Res;
-  if (Res = loadType(Ty.emplace<FunctionType>()); Res) {
+  if (Res = loadType(Ty.emplace<AST::FunctionType>()); Res) {
     return {};
   } else if (Res = loadType(Ty.emplace<ModuleType>()); Res) {
     return {};
@@ -549,7 +550,7 @@ Expect<void> Loader::loadType(ModuleType &Ty) {
     return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Module);
   }
-  return loadVec<CompTypeSection>(
+  return loadVec<TypeSection>(
       Ty.getContent(),
       [this](ModuleDecl Decl) -> Expect<void> { return loadModuleDecl(Decl); });
 }
@@ -562,7 +563,7 @@ Expect<void> Loader::loadModuleDecl(ModuleDecl &Decl) {
   }
   switch (*RTag) {
   case 0x00:
-    return loadDesc(Decl.emplace<ImportDesc>());
+    return loadDesc(Decl.emplace<AST::ImportDesc>());
   case 0x01:
     return loadType(Decl.emplace<std::shared_ptr<CoreType>>()->getType());
   case 0x02:

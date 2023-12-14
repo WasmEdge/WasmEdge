@@ -287,6 +287,8 @@ private:
   /// @}
 };
 
+namespace Component {
+
 class AliasSection : public Section {
 public:
   /// Getter of content module.
@@ -326,7 +328,7 @@ private:
   /// @}
 };
 
-class CompTypeSection : public Section {
+class TypeSection : public Section {
 public:
   /// Getter of content module.
   Span<const DefType> getContent() const noexcept { return Content; }
@@ -339,7 +341,7 @@ private:
   /// @}
 };
 
-class CompStartSection : public Section {
+class StartSection : public Section {
 public:
   /// Getter of content module.
   Span<const Start> getContent() const noexcept { return Content; }
@@ -355,6 +357,7 @@ private:
 class Component;
 
 class ComponentSection : public Section {
+
 public:
   /// Getter of content.
   Span<const std::shared_ptr<Component>> getContent() const noexcept {
@@ -367,6 +370,8 @@ public:
 private:
   std::vector<std::shared_ptr<Component>> Content;
 };
+
+} // namespace Component
 
 } // namespace AST
 } // namespace WasmEdge

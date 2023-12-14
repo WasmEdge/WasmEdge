@@ -24,6 +24,8 @@
 namespace WasmEdge {
 namespace AST {
 
+namespace Component {
+
 enum class PrimValType : Byte {
   Bool = 0x7f,
   S8 = 0x7e,
@@ -267,5 +269,6 @@ private:
   DefType T;
 };
 
+} // namespace Component
 } // namespace AST
 } // namespace WasmEdge

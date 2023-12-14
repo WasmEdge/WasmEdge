@@ -285,7 +285,7 @@ Expect<void> Loader::loadType(AST::DefType &Ty) {
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
-    };
+    }
     break;
   case 0x72:
     if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Record>()); !Res) {
@@ -490,7 +490,7 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
     if (auto Res = loadExternDesc(Ed.getExternDesc()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::InstanceDecl));
       return Unexpect(Res);
-    };
+    }
     break;
   }
   default:

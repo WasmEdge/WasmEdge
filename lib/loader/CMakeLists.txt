@@ -23,11 +23,11 @@ endif()
 
 wasmedge_add_library(wasmedgeLoader
   ast/component.cpp
-  ast/sort.cpp
-  ast/instance.cpp
-  ast/alias.cpp
-  ast/comptype.cpp
-  ast/start.cpp
+  ast/component/sort.cpp
+  ast/component/instance.cpp
+  ast/component/alias.cpp
+  ast/component/type.cpp
+  ast/component/start.cpp
   ast/module.cpp
   ast/section.cpp
   ast/description.cpp

@@ -14,6 +14,9 @@ on:
 
 jobs:
   build_on_macos:
+    permissions:
+      contents: write
+      packages: write
     strategy:
       fail-fast: false
       matrix:

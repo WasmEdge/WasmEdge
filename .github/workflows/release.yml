@@ -785,3 +785,4 @@ jobs:
         run: |
           tar -zcvf sbom.tar.gz ${{steps.sbom.outputs.fileName}}
           gh release upload ${{needs.create_release.outputs.version}} sbom.tar.gz --clobber
+      

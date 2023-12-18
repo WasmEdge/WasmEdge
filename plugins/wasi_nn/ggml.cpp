@@ -167,8 +167,12 @@ Expect<ErrNo> parseModelConfig(Graph &GraphRef,
     Token = Config.substr(0, Pos);
     try {
       if (Token == "n_gpu_layers" || Token == "ngl") {
+#ifndef __APPLE__
         GraphRef.NGPULayers =
             std::stoi(Config.substr(Pos + Delimiter.length()));
+#else
+        GraphRef.NGPULayers = 1; // Force enabled Metal on macOS
+#endif
       }
     } catch (const std::invalid_argument &e) {
       spdlog::error(
@@ -333,11 +337,12 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       return Res;
     }
 
-    // XXX: Due to the limitation of WASI-NN proposal,
-    // we have no way to pass the metadata before the setInput phase
-    // when we want to do some configurations in the load phase.
-    // That's why we have this hack.
 #ifndef __APPLE__
+    // XXX: Due to the limitation of WASI-NN proposal,
+    // this is a workaround for non-macOS devices.
+    // However, if the model params is updated in Config stage,
+    // then, we doesn't encourage to use this to avoid the model
+    // reloading.
     {
       if (IsModelParamsUpdated) {
         llama_model_params ModelParams = llama_model_default_params();

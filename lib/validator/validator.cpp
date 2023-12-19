@@ -25,9 +25,11 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   // https://webassembly.github.io/spec/core/valid/modules.html
   Checker.reset(true);
 
-  // Register type definitions into FormChecker.
-  for (auto &Type : Mod.getTypeSection().getContent()) {
-    Checker.addType(Type);
+  // Validate and register type section.
+  if (auto Res = validate(Mod.getTypeSection()); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Type));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return Unexpect(Res);
   }
 
   // Validate and register import section into FormChecker.
@@ -134,8 +136,13 @@ Expect<void> Validator::validate(const AST::Limit &Lim) {
 
 // Validate Table type. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::TableType &Tab) {
+  // Validate value type.
+  if (auto Res = Checker.validate(Tab.getRefType()); !Res) {
+    return Unexpect(Res);
+  }
   // Validate table limits.
   if (auto Res = validate(Tab.getLimit()); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
     return Unexpect(Res);
   }
   return {};
@@ -146,6 +153,7 @@ Expect<void> Validator::validate(const AST::MemoryType &Mem) {
   // Validate memory limits.
   const auto &Lim = Mem.getLimit();
   if (auto Res = validate(Lim); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
     return Unexpect(Res);
   }
   if (Lim.getMin() > LIMIT_MEMORYTYPE ||
@@ -153,6 +161,46 @@ Expect<void> Validator::validate(const AST::MemoryType &Mem) {
     spdlog::error(ErrCode::Value::InvalidMemPages);
     spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
     return Unexpect(ErrCode::Value::InvalidMemPages);
+  }
+  return {};
+}
+
+// Validate Global type. See "include/validator/validator.h".
+Expect<void> Validator::validate(const AST::GlobalType &Glob) {
+  // Validate value type.
+  if (auto Res = Checker.validate(Glob.getValType()); !Res) {
+    return Unexpect(Res);
+  }
+  return {};
+}
+
+// Validate Table segment. See "include/validator/validator.h".
+Expect<void> Validator::validate(const AST::TableSegment &TabSeg) {
+  if (TabSeg.getExpr().getInstrs().size() > 0) {
+    // Check ref initialization is a const expression.
+    if (auto Res =
+            validateConstExpr(TabSeg.getExpr().getInstrs(),
+                              {ValType(TabSeg.getTableType().getRefType())});
+        !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
+      return Unexpect(Res);
+    }
+  } else {
+    // No init expression. Check the reference type is nullable.
+    if (!TabSeg.getTableType().getRefType().isNullableRefType()) {
+      spdlog::error(ErrCode::Value::TypeCheckFailed);
+      spdlog::error(ErrInfo::InfoMismatch(
+          ValType(TypeCode::RefNull,
+                  TabSeg.getTableType().getRefType().getHeapTypeCode(),
+                  TabSeg.getTableType().getRefType().getTypeIndex()),
+          TabSeg.getTableType().getRefType()));
+      return Unexpect(ErrCode::Value::TypeCheckFailed);
+    }
+  }
+  // Validate table type.
+  if (auto Res = validate(TabSeg.getTableType()); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Table));
+    return Unexpect(Res);
   }
   return {};
 }
@@ -166,6 +214,11 @@ Expect<void> Validator::validate(const AST::GlobalSegment &GlobSeg) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
     return Unexpect(Res);
   }
+  // Validate global type.
+  if (auto Res = validate(GlobSeg.getGlobalType()); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Global));
+    return Unexpect(Res);
+  }
   return {};
 }
 
@@ -174,14 +227,19 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
   // Check initialization expressions are const expressions.
   for (auto &Expr : ElemSeg.getInitExprs()) {
     if (auto Res = validateConstExpr(Expr.getInstrs(),
-                                     {ToValType(ElemSeg.getRefType())});
+                                     {ValType(ElemSeg.getRefType())});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
     }
   }
 
-  // Passive and declarative cases are always valid with reference type.
+  // The reference type should be valid.
+  if (auto Res = Checker.validate(ElemSeg.getRefType()); !Res) {
+    return Unexpect(Res);
+  }
+
+  // Passive and declarative cases are valid with the valid reference type.
   if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
     // Check table index and reference type in context.
     const auto &TableVec = Checker.getTables();
@@ -192,17 +250,23 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
           static_cast<uint32_t>(TableVec.size())));
       return Unexpect(ErrCode::Value::InvalidTableIdx);
     }
-    if (TableVec[ElemSeg.getIdx()] != ElemSeg.getRefType()) {
+    // TODO: Use Checker.matchType() to match types instead.
+    // For the element segments, the RefType may not record the strict type
+    // index, and should check the init exprs for the real type index to do type
+    // matching. But for the table type, the type index is recorded into the
+    // heap type. So it will fail here to do strict type matching. Therefore,
+    // only check the FuncRef and ExternRef here.
+    if (TableVec[ElemSeg.getIdx()].isFuncRefType() !=
+        ElemSeg.getRefType().isFuncRefType()) {
       // Reference type not matched.
       spdlog::error(ErrCode::Value::TypeCheckFailed);
-      spdlog::error(ErrInfo::InfoMismatch(
-          static_cast<ValType>(TableVec[ElemSeg.getIdx()]),
-          static_cast<ValType>(ElemSeg.getRefType())));
+      spdlog::error(ErrInfo::InfoMismatch(TableVec[ElemSeg.getIdx()],
+                                          ElemSeg.getRefType()));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
     // Check table initialization is a const expression.
-    if (auto Res =
-            validateConstExpr(ElemSeg.getExpr().getInstrs(), {ValType::I32});
+    if (auto Res = validateConstExpr(ElemSeg.getExpr().getInstrs(),
+                                     {ValType(TypeCode::I32)});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
@@ -218,12 +282,17 @@ Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
   Checker.reset();
   // Add parameters into this frame.
   for (auto Val : Checker.getTypes()[TypeIdx].first) {
-    Checker.addLocal(Val);
+    // Local passed as function parameters should be initialized
+    Checker.addLocal(Val, true);
   }
   // Add locals into this frame.
   for (auto Val : CodeSeg.getLocals()) {
     for (uint32_t Cnt = 0; Cnt < Val.first; ++Cnt) {
-      Checker.addLocal(Val.second);
+      // The local value type should be valid.
+      if (auto Res = Checker.validate(Val.second); !Res) {
+        return Unexpect(Res);
+      }
+      Checker.addLocal(Val.second, false);
     }
   }
   // Validate function body expression.
@@ -248,8 +317,8 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
       return Unexpect(ErrCode::Value::InvalidMemoryIdx);
     }
     // Check memory initialization is a const expression.
-    if (auto Res =
-            validateConstExpr(DataSeg.getExpr().getInstrs(), {ValType::I32});
+    if (auto Res = validateConstExpr(DataSeg.getExpr().getInstrs(),
+                                     {ValType(TypeCode::I32)});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
@@ -298,10 +367,16 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
     Checker.addMemory(MemType);
     return {};
   }
-  case ExternalType::Global:
-    // Global type always is valid.
-    Checker.addGlobal(ImpDesc.getExternalGlobalType(), true);
+  case ExternalType::Global: {
+    const auto &GlobType = ImpDesc.getExternalGlobalType();
+    // Global type must be valid.
+    if (auto Res = validate(GlobType); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Global));
+      return Unexpect(Res);
+    }
+    Checker.addGlobal(GlobType, true);
     return {};
+  }
   default:
     break;
   }
@@ -354,6 +429,23 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
   return {};
 }
 
+Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
+  for (const auto &Type : TypeSec.getContent()) {
+    for (auto &PType : Type.getParamTypes()) {
+      if (auto Res = Checker.validate(PType); !Res) {
+        return Unexpect(Res);
+      }
+    }
+    for (auto &RType : Type.getReturnTypes()) {
+      if (auto Res = Checker.validate(RType); !Res) {
+        return Unexpect(Res);
+      }
+    }
+    Checker.addType(Type);
+  }
+  return {};
+}
+
 // Validate Import section. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::ImportSection &ImportSec) {
   for (auto &ImportDesc : ImportSec.getContent()) {
@@ -388,9 +480,9 @@ Expect<void> Validator::validate(const AST::FunctionSection &FuncSec) {
 Expect<void> Validator::validate(const AST::TableSection &TabSec) {
   for (auto &Tab : TabSec.getContent()) {
     if (auto Res = validate(Tab)) {
-      Checker.addTable(Tab);
+      Checker.addTable(Tab.getTableType());
     } else {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Table));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Table));
       return Unexpect(Res);
     }
   }
@@ -416,7 +508,7 @@ Expect<void> Validator::validate(const AST::GlobalSection &GlobSec) {
     if (auto Res = validate(GlobSeg)) {
       Checker.addGlobal(GlobSeg.getGlobalType());
     } else {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Global));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Global));
       return Unexpect(Res);
     }
   }

@@ -69,8 +69,8 @@ Serializer::serializeSection(const AST::TableSection &Sec,
   // Table section: 0x04 + size:u32 + content:vec(tabletype).
   return serializeSectionContent(
       Sec, 0x04U, OutVec,
-      [=](const AST::TableType &R, std::vector<uint8_t> &V) {
-        return serializeType(R, V);
+      [=](const AST::TableSegment &R, std::vector<uint8_t> &V) {
+        return serializeSegment(R, V);
       });
 }
 

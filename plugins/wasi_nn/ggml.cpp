@@ -46,6 +46,14 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     }
     llama_log_set(nullptr, &GraphRef.EnableLog);
   }
+  if (Doc.at_key("enable-debug-log").error() == simdjson::SUCCESS) {
+    auto Err = Doc["enable-debug-log"].get<bool>().get(GraphRef.EnableDebugLog);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the enable-debug-log option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
   if (Doc.at_key("stream-stdout").error() == simdjson::SUCCESS) {
     auto Err = Doc["stream-stdout"].get<bool>().get(GraphRef.StreamStdout);
     if (Err) {
@@ -215,6 +223,9 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     }
   }
 
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: Handling model path."sv);
+  }
   // Handle the model path.
   auto Weight = Builders[0];
   std::string BinModel(reinterpret_cast<char *>(Weight.data()), Weight.size());
@@ -231,6 +242,10 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
       return Res;
     }
   } else {
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] GGML backend: Model path not found in nn-preload, write model into a tmpfile."sv);
+    }
     // TODO: pass the model directly to ggml
     // Write ggml model to file.
     std::istringstream BinRead(BinModel);
@@ -247,8 +262,20 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     }
     TempFile << BinModel;
     TempFile.close();
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] GGML backend: Write model into a tmpfile...Done"sv);
+    }
+  }
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: Finished handling model path."sv);
   }
 
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: Initialize ggml model with given parameters"sv);
+  }
   // Initialize ggml model with model parameters.
   GraphRef.ModelFilePath = ModelFilePath;
   llama_model_params ModelParams = llama_model_default_params();
@@ -259,6 +286,10 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     spdlog::error("[WASI-NN] GGML backend: Error: unable to init model."sv);
     Env.NNGraph.pop_back();
     return ErrNo::InvalidArgument;
+  }
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: Initialize ggml model with given parameters...Done"sv);
   }
 
   // Store the loaded graph.
@@ -281,10 +312,17 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                        uint32_t Index, const TensorData &Tensor) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: setInput"sv);
+  }
 
   bool IsModelParamsUpdated = false;
   // Use index 1 for metadata.
   if (Index == 1) {
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] GGML backend: found Metadata, processing"sv);
+    }
     const std::string Metadata(reinterpret_cast<char *>(Tensor.Tensor.data()),
                                Tensor.Tensor.size());
     auto Res =
@@ -317,17 +355,30 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     }
 #endif
 
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] GGML backend: found Metadata, processing...Done"sv);
+    }
     return ErrNo::Success;
   }
 
   // Initialize the llama context.
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: init llama context"sv);
+  }
   llama_context_params ContextParams = llama_context_default_params();
   ContextParams.n_ctx = GraphRef.CtxSize;
   ContextParams.n_batch = GraphRef.BatchSize;
   auto LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: init llama context...Done"sv);
+  }
 
   // Set the input.
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: set the input"sv);
+  }
   const bool AddBos = llama_should_add_bos_token(GraphRef.LlamaModel);
   std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
                      Tensor.Tensor.size());
@@ -341,10 +392,24 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         CxtRef.LlamaInputs.size(), MaxTokensListSize);
     return ErrNo::InvalidArgument;
   }
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: set the input...Done"sv);
+  }
 
   // Delete the llama context.
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: delete llama context to make it stateless"sv);
+  }
   llama_free(LlamaContext);
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: delete llama context to make it stateless...Done"sv);
+  }
 
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: setInput...Done"sv);
+  }
   return ErrNo::Success;
 }
 
@@ -377,6 +442,9 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
 Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: compute"sv);
+  }
   if (CxtRef.LlamaInputs.size() == 0) {
     spdlog::error("[WASI-NN] GGML backend: Llama input is not set!"sv);
     return ErrNo::InvalidArgument;
@@ -388,10 +456,21 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
 
   // Clear the outputs.
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: clear the previous output and tokens"sv);
+  }
   CxtRef.LlamaOutputs.clear();
   CxtRef.LlamaOutputTokens.clear();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: clear the previous output and tokens...Done"sv);
+  }
 
   // Main predict loop.
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: enter main predict loop"sv);
+  }
   gpt_params GPTParams;
   GPTParams.sparams.temp = GraphRef.Temp;
   GPTParams.sparams.penalty_repeat = GraphRef.RepeatPenalty;
@@ -499,6 +578,10 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       }
     }
   }
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: enter main predict loop...Done"sv);
+  }
 
   if (GraphRef.EnableLog) {
     llama_print_timings(LlamaContext);
@@ -508,6 +591,10 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   // Users could fully control the contexts by themselves via their prompt.
   llama_sampling_free(CtxSampling);
   llama_free(LlamaContext);
+
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: compute...Done"sv);
+  }
 
   return ErrNo::Success;
 }

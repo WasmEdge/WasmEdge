@@ -16,6 +16,7 @@
 
 #include "ast/module.h"
 #include "common/configure.h"
+#include "common/errcode.h"
 #include "common/errinfo.h"
 
 #include <vector>
@@ -65,6 +66,8 @@ public:
 private:
   /// \name Serialize functions for the other nodes of AST.
   /// @{
+  Expect<void> serializeSegment(const AST::TableSegment &Seg,
+                                std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeSegment(const AST::GlobalSegment &Seg,
                                 std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeSegment(const AST::ElementSegment &Seg,
@@ -77,6 +80,12 @@ private:
                              std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeDesc(const AST::ExportDesc &Desc,
                              std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeHeapType(const ValType &Type, ASTNodeAttr From,
+                                 std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeRefType(const ValType &Type, ASTNodeAttr From,
+                                std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeValType(const ValType &Type, ASTNodeAttr From,
+                                std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeLimit(const AST::Limit &Lim,
                               std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeType(const AST::FunctionType &Type,
@@ -108,30 +117,6 @@ private:
     spdlog::error(ErrInfo::InfoProposal(Prop));
     spdlog::error(ErrInfo::InfoAST(Node));
     return Unexpect(Code);
-  }
-  Expect<void> checkValTypeProposals(ValType VType,
-                                     ASTNodeAttr Node) const noexcept {
-    if (auto Res = Conf.checkValTypeProposals(VType); !Res) {
-      if (Res.error().isNeedProposal()) {
-        return logNeedProposal(Res.error().getErrCode(),
-                               Res.error().getNeedProposal(), Node);
-      } else {
-        return logSerializeError(Res.error().getErrCode(), Node);
-      }
-    }
-    return {};
-  }
-  Expect<void> checkRefTypeProposals(RefType RType,
-                                     ASTNodeAttr Node) const noexcept {
-    if (auto Res = Conf.checkRefTypeProposals(RType); !Res) {
-      if (Res.error().isNeedProposal()) {
-        return logNeedProposal(Res.error().getErrCode(),
-                               Res.error().getNeedProposal(), Node);
-      } else {
-        return logSerializeError(Res.error().getErrCode(), Node);
-      }
-    }
-    return {};
   }
 
   template <typename NumType, size_t N>

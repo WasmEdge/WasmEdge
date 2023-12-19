@@ -12,22 +12,26 @@ namespace {
 WasmEdge::Configure Conf;
 WasmEdge::Loader::Serializer Ser(Conf);
 
-WasmEdge::AST::TypeSection createTypeSec(WasmEdge::AST::FunctionType FuncType) {
+WasmEdge::AST::TypeSection
+createTypeSec(const WasmEdge::AST::FunctionType &FuncType) {
   WasmEdge::AST::TypeSection TypeSec;
-  TypeSec.getContent().push_back(FuncType);
+  TypeSec.getContent() = {FuncType};
   return TypeSec;
 }
 
-WasmEdge::AST::TableSection createTableSec(WasmEdge::AST::TableType TableType) {
+WasmEdge::AST::TableSection
+createTableSec(const WasmEdge::AST::TableType &TableType) {
   WasmEdge::AST::TableSection TableSec;
-  TableSec.getContent().push_back(TableType);
+  WasmEdge::AST::TableSegment TableSeg;
+  TableSeg.getTableType() = TableType;
+  TableSec.getContent() = {TableSeg};
   return TableSec;
 }
 
 WasmEdge::AST::MemorySection
 createMemorySec(WasmEdge::AST::MemoryType MemoryType) {
   WasmEdge::AST::MemorySection MemorySec;
-  MemorySec.getContent().push_back(MemoryType);
+  MemorySec.getContent() = {MemoryType};
   return MemorySec;
 }
 
@@ -80,8 +84,8 @@ TEST(serializeTypeTest, SerializeFunctionType) {
   };
   EXPECT_EQ(Output, Expected);
 
-  FuncType.getParamTypes() = {WasmEdge::ValType::F64, WasmEdge::ValType::F32,
-                              WasmEdge::ValType::I64, WasmEdge::ValType::I32};
+  FuncType.getParamTypes() = {WasmEdge::TypeCode::F64, WasmEdge::TypeCode::F32,
+                              WasmEdge::TypeCode::I64, WasmEdge::TypeCode::I32};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createTypeSec(FuncType), Output));
   Expected = {
@@ -96,7 +100,7 @@ TEST(serializeTypeTest, SerializeFunctionType) {
   EXPECT_EQ(Output, Expected);
 
   FuncType.getParamTypes() = {};
-  FuncType.getReturnTypes() = {WasmEdge::ValType::F64};
+  FuncType.getReturnTypes() = {WasmEdge::TypeCode::F64};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createTypeSec(FuncType), Output));
   Expected = {
@@ -110,8 +114,8 @@ TEST(serializeTypeTest, SerializeFunctionType) {
   };
   EXPECT_EQ(Output, Expected);
 
-  FuncType.getParamTypes() = {WasmEdge::ValType::F64, WasmEdge::ValType::F32,
-                              WasmEdge::ValType::I64, WasmEdge::ValType::I32};
+  FuncType.getParamTypes() = {WasmEdge::TypeCode::F64, WasmEdge::TypeCode::F32,
+                              WasmEdge::TypeCode::I64, WasmEdge::TypeCode::I32};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createTypeSec(FuncType), Output));
   Expected = {
@@ -126,15 +130,16 @@ TEST(serializeTypeTest, SerializeFunctionType) {
   };
   EXPECT_EQ(Output, Expected);
 
-  FuncType.getParamTypes() = {WasmEdge::ValType::ExternRef};
+  FuncType.getParamTypes() = {WasmEdge::TypeCode::ExternRef};
   FuncType.getReturnTypes() = {};
   EXPECT_FALSE(SerNoRefType.serializeSection(createTypeSec(FuncType), Output));
 
   FuncType.getParamTypes() = {};
-  FuncType.getReturnTypes() = {WasmEdge::ValType::ExternRef};
+  FuncType.getReturnTypes() = {WasmEdge::TypeCode::ExternRef};
   EXPECT_FALSE(SerNoRefType.serializeSection(createTypeSec(FuncType), Output));
 
-  FuncType.getReturnTypes() = {WasmEdge::ValType::I32, WasmEdge::ValType::I32};
+  FuncType.getReturnTypes() = {WasmEdge::TypeCode::I32,
+                               WasmEdge::TypeCode::I32};
   EXPECT_FALSE(SerNoMultiVal.serializeSection(createTypeSec(FuncType), Output));
 }
 
@@ -155,7 +160,7 @@ TEST(serializeTypeTest, SerializeTableType) {
 
   WasmEdge::AST::TableType TableType;
 
-  TableType.setRefType(WasmEdge::RefType::FuncRef);
+  TableType.setRefType(WasmEdge::TypeCode::FuncRef);
   TableType.getLimit().setMin(4294967295);
   TableType.getLimit().setType(WasmEdge::AST::Limit::LimitType::HasMin);
 
@@ -171,7 +176,7 @@ TEST(serializeTypeTest, SerializeTableType) {
   };
   EXPECT_EQ(Output, Expected);
 
-  TableType.setRefType(WasmEdge::RefType::FuncRef);
+  TableType.setRefType(WasmEdge::TypeCode::FuncRef);
   TableType.getLimit().setMin(4294967281);
   TableType.getLimit().setMax(4294967295);
   TableType.getLimit().setType(WasmEdge::AST::Limit::LimitType::HasMinMax);
@@ -189,7 +194,7 @@ TEST(serializeTypeTest, SerializeTableType) {
   };
   EXPECT_EQ(Output, Expected);
 
-  TableType.setRefType(WasmEdge::RefType::ExternRef);
+  TableType.setRefType(WasmEdge::TypeCode::ExternRef);
   EXPECT_FALSE(
       SerNoRefType.serializeSection(createTableSec(TableType), Output));
 }
@@ -252,7 +257,7 @@ TEST(serializeTypeTest, SerializeGlobalType) {
 
   WasmEdge::AST::GlobalType GlobalType;
 
-  GlobalType.setValType(WasmEdge::ValType::F64);
+  GlobalType.setValType(WasmEdge::TypeCode::F64);
   GlobalType.setValMut(WasmEdge::ValMut::Const);
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
@@ -266,7 +271,7 @@ TEST(serializeTypeTest, SerializeGlobalType) {
   };
   EXPECT_EQ(Output, Expected);
 
-  GlobalType.setValType(WasmEdge::ValType::ExternRef);
+  GlobalType.setValType(WasmEdge::TypeCode::ExternRef);
   EXPECT_FALSE(
       SerNoRefType.serializeSection(createGlobalSec(GlobalType), Output));
 }

@@ -608,6 +608,7 @@ TEST(InstructionTest, LoadTableInstruction) {
   //
   //   1.  Load table_get instruction with unexpected end of table index.
   //   2.  Load table_init instruction with unexpected end of table index.
+  //   3.  Load table_copy instruction with unexpected end of destination index.
 
   Vec = {
       0x0AU, // Code section
@@ -628,10 +629,24 @@ TEST(InstructionTest, LoadTableInstruction) {
       0xFCU, 0x0CU // OpCode Table__init.
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,       // Code section
+      0x05U,       // Content size = 5
+      0x01U,       // Vector length = 1
+      0x03U,       // Code segment size = 3
+      0x00U,       // Local vec(0)
+      0xFCU, 0x0EU // OpCode Table__copy.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
 
 TEST(InstructionTest, LoadMemoryInstruction) {
   std::vector<uint8_t> Vec;
+
+  Conf.removeProposal(WasmEdge::Proposal::MultiMemories);
+  WasmEdge::Loader::Loader LdrMultiMem(Conf);
+  Conf.addProposal(WasmEdge::Proposal::MultiMemories);
 
   // 10. Test memory instructions.
   //
@@ -642,6 +657,9 @@ TEST(InstructionTest, LoadMemoryInstruction) {
   //   5.  Load memory_grow instruction with valid checking byte.
   //   6.  Load memory_copy instruction with invalid checking byte.
   //   7.  Load memory_init instruction with unexpected end of data index.
+  //   8.  Load memory_copy instruction with unexpected end of source index with
+  //       multi-memories proposal.
+  //   9.  Load invalid memory index with multi-memories proposal.
 
   Vec = {
       0x0AU, // Code section
@@ -717,15 +735,39 @@ TEST(InstructionTest, LoadMemoryInstruction) {
       0x01U, // Content size = 1
       0x01U, // Content
       0x0AU, // Code section
-      0x07U, // Content size = 7
+      0x05U, // Content size = 5
       0x01U, // Vector length = 1
-      0x05U, // Code segment size = 5
+      0x03U, // Code segment size = 3
       0x00U, // Local vec(0)
       0xFCU,
       0x08U // OpCode Memory__init.
-            // 0x00  // Missed checking byte
+            // 0x00  // Missed data index
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU, // Code section
+      0x05U, // Content size = 5
+      0x01U, // Vector length = 1
+      0x03U, // Code segment size = 3
+      0x00U, // Local vec(0)
+      0xFCU,
+      0x0AU // OpCode Memory__copy.
+            // 0x01U, 0x02U  // Missed source and target index
+  };
+  EXPECT_FALSE(LdrMultiMem.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU, // Code section
+      0x04U, // Content size = 4
+      0x01U, // Vector length = 1
+      0x02U, // Code segment size = 2
+      0x00U, // Local vec(0)
+      0x28U, // OpCode I32__load.
+      0x40U  // Align specifies memory index.
+             // 0x01U  // Missed memory index
+  };
+  EXPECT_FALSE(LdrMultiMem.parseModule(prefixedVec(Vec)));
 }
 
 TEST(InstructionTest, LoadConstInstruction) {
@@ -841,6 +883,24 @@ TEST(InstructionTest, Proposals) {
   WasmEdge::Loader::Loader LdrNoSignExt(Conf);
   Conf.addProposal(WasmEdge::Proposal::SignExtensionOperators);
 
+  Conf.addProposal(WasmEdge::Proposal::Threads);
+  WasmEdge::Loader::Loader LdrThreads(Conf);
+  Conf.removeProposal(WasmEdge::Proposal::Threads);
+
+  Conf.addProposal(WasmEdge::Proposal::TailCall);
+  WasmEdge::Loader::Loader LdrTailCall(Conf);
+  Conf.removeProposal(WasmEdge::Proposal::TailCall);
+
+  Conf.addProposal(WasmEdge::Proposal::FunctionReferences);
+  WasmEdge::Loader::Loader LdrFuncRef(Conf);
+  Conf.removeProposal(WasmEdge::Proposal::FunctionReferences);
+
+  Conf.addProposal(WasmEdge::Proposal::TailCall);
+  Conf.addProposal(WasmEdge::Proposal::FunctionReferences);
+  WasmEdge::Loader::Loader LdrFuncRefAndTailCall(Conf);
+  Conf.removeProposal(WasmEdge::Proposal::TailCall);
+  Conf.removeProposal(WasmEdge::Proposal::FunctionReferences);
+
   // 12. Test ValTypes and instructions with disabled proposals
   //
   //   1.  Load if instruction with/without SIMD proposal.
@@ -854,6 +914,11 @@ TEST(InstructionTest, Proposals) {
   //   6.  Load saturating truncation instructions with/without NonTrap-Conv
   //       proposal.
   //   7.  Load sign extension instructions with/without Sign-Ext proposal.
+  //   8.  Load atomic instructions with/without threads proposal.
+  //   9.  Load return_call instructions with/without tail-call proposal.
+  //   10. Load reference instructions with/without typed function reference
+  //       proposal.
+  //   11. Load Return_call_ref instruction with/without tail-call proposal.
 
   Vec = {
       0x0AU,                      // Code section
@@ -982,6 +1047,57 @@ TEST(InstructionTest, Proposals) {
   };
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
   EXPECT_FALSE(LdrNoSignExt.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,                      // Code section
+      0x10U,                      // Content size = 16
+      0x01U,                      // Vector length = 1
+      0x0EU,                      // Code segment size = 14
+      0x00U,                      // Local vec(0)
+      0xFEU, 0x00U, 0x00U, 0x00U, // OpCode Memory__atomic__notify.
+      0xFEU, 0x10U, 0x00U, 0x00U, // OpCode I32__atomic__load.
+      0xFEU, 0x4EU, 0x00U, 0x00U, // OpCode I64__atomic__rmw32__cmpxchg_u
+      0x0BU                       // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(LdrThreads.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0x12U, 0x00U, // OpCode Return_call.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(LdrTailCall.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0x14U, 0x00U, // OpCode Call_ref.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0x15U, 0x00U, // OpCode Return_call_ref.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(LdrFuncRefAndTailCall.parseModule(prefixedVec(Vec)));
 }
 
 TEST(InstructionTest, LoadSIMDInstruction) {

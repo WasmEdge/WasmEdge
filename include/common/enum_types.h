@@ -15,31 +15,13 @@
 #ifndef WASMEDGE_C_API_ENUM_TYPES_H
 #define WASMEDGE_C_API_ENUM_TYPES_H
 
-/// WASM Value type C enumeration.
-enum WasmEdge_ValType {
-#define UseValType
-#define Line(NAME, VALUE, STRING) WasmEdge_ValType_##NAME = VALUE,
+/// WASM Type code C enumeration.
+enum WasmEdge_TypeCode {
+#define UseTypeCode
+#define Line(NAME, VALUE, STRING) WasmEdge_TypeCode_##NAME = VALUE,
 #include "enum.inc"
 #undef Line
-#undef UseValType
-};
-
-/// WASM Number type C enumeration.
-enum WasmEdge_NumType {
-#define UseNumType
-#define Line(NAME, VALUE) WasmEdge_NumType_##NAME = VALUE,
-#include "enum.inc"
-#undef Line
-#undef UseNumType
-};
-
-/// WASM Reference type C enumeration.
-enum WasmEdge_RefType {
-#define UseRefType
-#define Line(NAME, VALUE) WasmEdge_RefType_##NAME = VALUE,
-#include "enum.inc"
-#undef Line
-#undef UseRefType
+#undef UseTypeCode
 };
 
 /// WASM Mutability C enumeration.

@@ -32,14 +32,14 @@ auto logUnknownError(std::string_view ModName, std::string_view ExtName,
   return Unexpect(ErrCode::Value::UnknownImport);
 }
 
-bool isLimitMatched(const AST::Limit &Lim1, const AST::Limit &Lim2) {
-  if (Lim1.isShared() != Lim2.isShared()) {
+bool matchLimit(const AST::Limit &Exp, const AST::Limit &Got) {
+  if (Exp.isShared() != Got.isShared()) {
     return false;
   }
-  if ((Lim1.getMin() < Lim2.getMin()) || (!Lim1.hasMax() && Lim2.hasMax())) {
+  if ((Got.getMin() < Exp.getMin()) || (Exp.hasMax() && !Got.hasMax())) {
     return false;
   }
-  if (Lim1.hasMax() && Lim2.hasMax() && Lim1.getMax() > Lim2.getMax()) {
+  if (Exp.hasMax() && Got.hasMax() && Got.getMax() > Exp.getMax()) {
     return false;
   }
   return true;
@@ -147,7 +147,12 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       auto *TargetInst = TargetModInst->findFuncExports(ExtName);
       const auto &TargetType = TargetInst->getFuncType();
       const auto *FuncType = *ModInst.getFuncType(TypeIdx);
-      if (TargetType != *FuncType) {
+      // External function type should match the import function type in
+      // description.
+      if (!matchTypes(ModInst, FuncType->getParamTypes(), *TargetModInst,
+                      TargetType.getParamTypes()) ||
+          !matchTypes(ModInst, FuncType->getReturnTypes(), *TargetModInst,
+                      TargetType.getReturnTypes())) {
         bool IsMatchV2 = false;
         if (ModName == "wasi_snapshot_preview1") {
           /*
@@ -198,12 +203,18 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       // Get table type. External type checked in validation.
       const auto &TabType = ImpDesc.getExternalTableType();
       const auto &TabLim = TabType.getLimit();
-      // Import matching.
+      // Import matching. External table type should match the one in import
+      // description.
       auto *TargetInst = TargetModInst->findTableExports(ExtName);
       const auto &TargetType = TargetInst->getTableType();
       const auto &TargetLim = TargetType.getLimit();
-      if (TargetType.getRefType() != TabType.getRefType() ||
-          !isLimitMatched(TargetLim, TabLim)) {
+      // External table reference type should match the import table reference
+      // type in description, and vice versa.
+      if (!matchType(ModInst, TabType.getRefType(), *TargetModInst,
+                     TargetType.getRefType()) ||
+          !matchType(*TargetModInst, TargetType.getRefType(), ModInst,
+                     TabType.getRefType()) ||
+          !matchLimit(TabLim, TargetLim)) {
         return logMatchError(ModName, ExtName, ExtType, TabType.getRefType(),
                              TabLim.hasMax(), TabLim.getMin(), TabLim.getMax(),
                              TargetType.getRefType(), TargetLim.hasMax(),
@@ -217,10 +228,11 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       // Get memory type. External type checked in validation.
       const auto &MemType = ImpDesc.getExternalMemoryType();
       const auto &MemLim = MemType.getLimit();
-      // Import matching.
+      // Import matching. External memory type should match the one in import
+      // description.
       auto *TargetInst = TargetModInst->findMemoryExports(ExtName);
       const auto &TargetLim = TargetInst->getMemoryType().getLimit();
-      if (!isLimitMatched(TargetLim, MemLim)) {
+      if (!matchLimit(MemLim, TargetLim)) {
         return logMatchError(ModName, ExtName, ExtType, MemLim.hasMax(),
                              MemLim.getMin(), MemLim.getMax(),
                              TargetLim.hasMax(), TargetLim.getMin(),
@@ -233,10 +245,24 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     case ExternalType::Global: {
       // Get global type. External type checked in validation.
       const auto &GlobType = ImpDesc.getExternalGlobalType();
-      // Import matching.
+      // Import matching. External global type should match the one in
+      // import description.
       auto *TargetInst = TargetModInst->findGlobalExports(ExtName);
       const auto &TargetType = TargetInst->getGlobalType();
-      if (TargetType != GlobType) {
+      bool IsMatch = false;
+      if (TargetType.getValMut() == GlobType.getValMut()) {
+        // For both const or both var: external global value type should match
+        // the import global value type in description.
+        IsMatch = matchType(ModInst, GlobType.getValType(), *TargetModInst,
+                            TargetType.getValType());
+        if (TargetType.getValMut() == ValMut::Var) {
+          // If both var: import global value type in description should also
+          // match the external global value type.
+          IsMatch &= matchType(*TargetModInst, TargetType.getValType(), ModInst,
+                               GlobType.getValType());
+        }
+      }
+      if (!IsMatch) {
         return logMatchError(ModName, ExtName, ExtType, GlobType.getValType(),
                              GlobType.getValMut(), TargetType.getValType(),
                              TargetType.getValMut());

@@ -136,30 +136,6 @@ private:
     spdlog::error(ErrInfo::InfoAST(Node));
     return Unexpect(Code);
   }
-  Expect<void> checkValTypeProposals(ValType VType, uint64_t Off,
-                                     ASTNodeAttr Node) const noexcept {
-    if (auto Res = Conf.checkValTypeProposals(VType); !Res) {
-      if (Res.error().isNeedProposal()) {
-        return logNeedProposal(Res.error().getErrCode(),
-                               Res.error().getNeedProposal(), Off, Node);
-      } else {
-        return logLoadError(Res.error().getErrCode(), Off, Node);
-      }
-    }
-    return {};
-  }
-  Expect<void> checkRefTypeProposals(RefType RType, uint64_t Off,
-                                     ASTNodeAttr Node) const noexcept {
-    if (auto Res = Conf.checkRefTypeProposals(RType); !Res) {
-      if (Res.error().isNeedProposal()) {
-        return logNeedProposal(Res.error().getErrCode(),
-                               Res.error().getNeedProposal(), Off, Node);
-      } else {
-        return logLoadError(Res.error().getErrCode(), Off, Node);
-      }
-    }
-    return {};
-  }
   /// @}
 
   Expect<std::variant<AST::Component, AST::Module>> loadUnit();
@@ -240,12 +216,16 @@ private:
   Expect<void> loadSection(AST::DataSection &Sec);
   Expect<void> loadSection(AST::DataCountSection &Sec);
   static Expect<void> loadSection(FileMgr &VecMgr, AST::AOTSection &Sec);
+  Expect<void> loadSegment(AST::TableSegment &TabSeg);
   Expect<void> loadSegment(AST::GlobalSegment &GlobSeg);
   Expect<void> loadSegment(AST::ElementSegment &ElemSeg);
   Expect<void> loadSegment(AST::CodeSegment &CodeSeg);
   Expect<void> loadSegment(AST::DataSegment &DataSeg);
   Expect<void> loadDesc(AST::ImportDesc &ImpDesc);
   Expect<void> loadDesc(AST::ExportDesc &ExpDesc);
+  Expect<ValType> loadHeapType(TypeCode TC, ASTNodeAttr From);
+  Expect<ValType> loadRefType(ASTNodeAttr From);
+  Expect<ValType> loadValType(ASTNodeAttr From);
   Expect<void> loadLimit(AST::Limit &Lim);
   Expect<void> loadType(AST::FunctionType &FuncType);
   Expect<void> loadType(AST::MemoryType &MemType);

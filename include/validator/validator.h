@@ -40,9 +40,10 @@ private:
   Expect<void> validate(const AST::Limit &Lim);
   Expect<void> validate(const AST::TableType &Tab);
   Expect<void> validate(const AST::MemoryType &Mem);
-  /// GlobalType is always valid.
+  Expect<void> validate(const AST::GlobalType &Glob);
 
   /// Validate AST::Segments
+  Expect<void> validate(const AST::TableSegment &TabSeg);
   Expect<void> validate(const AST::GlobalSegment &GlobSeg);
   Expect<void> validate(const AST::ElementSegment &ElemSeg);
   Expect<void> validate(const AST::CodeSegment &CodeSeg,
@@ -54,6 +55,7 @@ private:
   Expect<void> validate(const AST::ExportDesc &ExpDesc);
 
   /// Validate AST::Sections
+  Expect<void> validate(const AST::TypeSection &TypeSec);
   Expect<void> validate(const AST::ImportSection &ImportSec);
   Expect<void> validate(const AST::FunctionSection &FuncSec);
   Expect<void> validate(const AST::TableSection &TabSec);

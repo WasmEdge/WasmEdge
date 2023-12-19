@@ -252,5 +252,65 @@ Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
   return ModInst->unsafeGetData(Idx);
 }
 
+bool Executor::matchType(const Runtime::Instance::ModuleInstance &ModExp,
+                         const ValType &Exp,
+                         const Runtime::Instance::ModuleInstance &ModGot,
+                         const ValType &Got) const noexcept {
+  if (!Exp.isRefType() && !Got.isRefType() && Exp.getCode() == Got.getCode()) {
+    // Match for the non-reference type case.
+    return true;
+  }
+  if (Exp.isRefType() && Got.isRefType()) {
+    // Nullable matching.
+    if (!Exp.isNullableRefType() && Got.isNullableRefType()) {
+      return false;
+    }
+
+    // Match the heap type.
+    if (Exp.getHeapTypeCode() == Got.getHeapTypeCode() &&
+        Exp.getHeapTypeCode() != TypeCode::TypeIndex) {
+      // Abs heap type are the same.
+      return true;
+    }
+    if (Exp.getHeapTypeCode() == TypeCode::FuncRef &&
+        Got.getHeapTypeCode() == TypeCode::TypeIndex) {
+      // Match type index to any funcref.
+      return true;
+    }
+    if (Exp.getHeapTypeCode() == TypeCode::TypeIndex &&
+        Got.getHeapTypeCode() == TypeCode::TypeIndex) {
+      // Match got type index to expected type index.
+      if (matchTypes(
+              ModExp, ModExp.FuncTypes[Exp.getTypeIndex()].getParamTypes(),
+              ModGot, ModGot.FuncTypes[Got.getTypeIndex()].getParamTypes()) &&
+          matchTypes(
+              ModExp, ModExp.FuncTypes[Exp.getTypeIndex()].getReturnTypes(),
+              ModGot, ModGot.FuncTypes[Got.getTypeIndex()].getReturnTypes())) {
+        // Note: In future versions of WebAssembly, subtyping on function types
+        // may be relaxed to support co- and contra-variance.
+        // Due to passing the validation of type section, this will not cause
+        // infinite recursion.
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool Executor::matchTypes(const Runtime::Instance::ModuleInstance &ModExp,
+                          Span<const ValType> Exp,
+                          const Runtime::Instance::ModuleInstance &ModGot,
+                          Span<const ValType> Got) const noexcept {
+  if (Exp.size() != Got.size()) {
+    return false;
+  }
+  for (uint32_t I = 0; I < Exp.size(); I++) {
+    if (!matchType(ModExp, Exp[I], ModGot, Got[I])) {
+      return false;
+    }
+  }
+  return true;
+}
+
 } // namespace Executor
 } // namespace WasmEdge

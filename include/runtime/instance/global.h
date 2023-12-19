@@ -23,8 +23,12 @@ class GlobalInstance {
 public:
   GlobalInstance() = delete;
   GlobalInstance(const AST::GlobalType &GType,
-                 ValVariant Val = uint32_t(0)) noexcept
-      : GlobType(GType), Value(Val) {}
+                 ValVariant Val = uint128_t(0)) noexcept
+      : GlobType(GType), Value(Val) {
+    assuming(GType.getValType().isNumType() ||
+             GType.getValType().isNullableRefType() ||
+             !Val.get<RefVariant>().isNull());
+  }
 
   /// Getter of global type.
   const AST::GlobalType &getGlobalType() const noexcept { return GlobType; }

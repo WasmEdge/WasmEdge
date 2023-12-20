@@ -137,61 +137,6 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   return ErrNo::Success;
 }
 
-Expect<ErrNo> parseModelConfig(Graph &GraphRef,
-                               std::string ModelFilePathWithConfig,
-                               std::string &ModelFilePath) noexcept {
-  std::vector<std::string> Configs;
-  std::string Delimiter = ",";
-  if (ModelFilePathWithConfig.find(Delimiter) == std::string::npos) {
-    ModelFilePath = ModelFilePathWithConfig;
-  } else {
-    // Handle model path with config.
-    size_t Pos = 0;
-    std::string Token;
-    Pos = ModelFilePathWithConfig.find(Delimiter);
-    ModelFilePath = ModelFilePathWithConfig.substr(0, Pos);
-    ModelFilePathWithConfig.erase(0, Pos + Delimiter.length());
-    while ((Pos = ModelFilePathWithConfig.find(Delimiter)) !=
-           std::string::npos) {
-      Token = ModelFilePathWithConfig.substr(0, Pos);
-      Configs.emplace_back(Token);
-      ModelFilePathWithConfig.erase(0, Pos + Delimiter.length());
-    }
-    Configs.emplace_back(ModelFilePathWithConfig);
-  }
-
-  // Parse the configs.
-  for (const auto &Config : Configs) {
-    std::string Delimiter = "=";
-    size_t Pos = 0;
-    std::string Token;
-    Pos = Config.find(Delimiter);
-    Token = Config.substr(0, Pos);
-    try {
-      if (Token == "n_gpu_layers" || Token == "ngl") {
-#ifndef __APPLE__
-        GraphRef.NGPULayers =
-            std::stoi(Config.substr(Pos + Delimiter.length()));
-#else
-        GraphRef.NGPULayers = 1; // Force enabled Metal on macOS
-#endif
-      }
-    } catch (const std::invalid_argument &e) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: parse model parameter failed: invalid_argument {}"sv,
-          e.what());
-      return ErrNo::InvalidArgument;
-    } catch (const std::out_of_range &e) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: parse parameter failed: out_of_range {}"sv,
-          e.what());
-      return ErrNo::InvalidArgument;
-    }
-  }
-
-  return ErrNo::Success;
-}
-
 Expect<ErrNo> buildOutputMetadata(Context &CxtRef,
                                   std::string &Metadata) noexcept {
   std::string MetadataTemplate = R"({"input_tokens": %d, "output_tokens": %d})";
@@ -223,6 +168,10 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.NPredict = ContextDefault.n_ctx;
   // Initialize the model parameters.
   GraphRef.NGPULayers = 0;
+#ifdef __APPLE__
+  // We will always set the ngl to 1 on macOS to enable Metal.
+  GraphRef.NGPULayers = 1;
+#endif
   // Initialize the context parameters.
   GraphRef.CtxSize = ContextDefault.n_ctx;
   GraphRef.BatchSize = ContextDefault.n_batch;
@@ -252,16 +201,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   std::string BinModel(reinterpret_cast<char *>(Weight.data()), Weight.size());
   std::string ModelFilePath;
   if (BinModel.substr(0, 8) == "preload:") {
-    // If BinModel starts with 'preload:', it means that the model name passed
-    // in as the --nn-preload parameter may have a config separated by ',' at
-    // the end. For example, "preload:./model.bin,n_gpu_layers=99"
-    auto Res =
-        details::parseModelConfig(GraphRef, BinModel.substr(8), ModelFilePath);
-    if (Res != ErrNo::Success) {
-      spdlog::error("[WASI-NN] GGML backend: Failed to parse model config."sv);
-      Env.NNGraph.pop_back();
-      return Res;
-    }
+    ModelFilePath = BinModel.substr(8);
   } else {
     if (GraphRef.EnableDebugLog) {
       spdlog::info(

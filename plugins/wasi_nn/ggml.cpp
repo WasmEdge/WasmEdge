@@ -90,6 +90,11 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
   }
+#ifdef __APPLE__
+  // Whatever the `n-gpu-layers` is given, we will always set the ngl to 1 on
+  // macOS to forcely enabled Metal.
+  GraphRef.NGPULayers = 1; // Force enabled Metal on macOS
+#endif
 
   // The context parameters.
   if (Doc.at_key("ctx-size").error() == simdjson::SUCCESS) {

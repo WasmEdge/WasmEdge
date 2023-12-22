@@ -27,10 +27,7 @@ struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StackManager &,
     if (unlikely(!Res)) {
       Fault::emitFault(Res.error());
     }
-    if constexpr (std::is_same_v<RetT, RefVariant>) {
-      // Take raw value for matching calling conventions
-      return Res->template get<UnknownRef>().Value;
-    } else if constexpr (!std::is_void_v<RetT>) {
+    if constexpr (!std::is_void_v<RetT>) {
       return *Res;
     }
   }
@@ -71,9 +68,11 @@ const AST::Module::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kTableInit, tableInit),
     ENTRY(kElemDrop, elemDrop),
     ENTRY(kRefFunc, refFunc),
-    ENTRY(kPtrFunc, ptrFunc),
+    ENTRY(kTableGetFuncSymbol, tableGetFuncSymbol),
     ENTRY(kMemoryAtomicNotify, memoryAtomicNotify),
     ENTRY(kMemoryAtomicWait, memoryAtomicWait),
+    ENTRY(kCallRef, callRef),
+    ENTRY(kRefGetFuncSymbol, refGetFuncSymbol),
 #undef ENTRY
 };
 
@@ -119,10 +118,10 @@ Expect<void> Executor::call(Runtime::StackManager &StackMgr,
   return {};
 }
 
-Expect<void *> Executor::ptrFunc(Runtime::StackManager &StackMgr,
-                                 const uint32_t TableIdx,
-                                 const uint32_t FuncTypeIdx,
-                                 const uint32_t FuncIdx) noexcept {
+Expect<void *> Executor::tableGetFuncSymbol(Runtime::StackManager &StackMgr,
+                                            const uint32_t TableIdx,
+                                            const uint32_t FuncTypeIdx,
+                                            const uint32_t FuncIdx) noexcept {
   const auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
   assuming(TabInst);
 
@@ -132,7 +131,7 @@ Expect<void *> Executor::ptrFunc(Runtime::StackManager &StackMgr,
 
   auto Ref = TabInst->getRefAddr(FuncIdx);
   assuming(Ref);
-  if (unlikely(isNullRef(*Ref))) {
+  if (unlikely(Ref->isNull())) {
     return Unexpect(ErrCode::Value::UninitializedElement);
   }
 
@@ -143,7 +142,10 @@ Expect<void *> Executor::ptrFunc(Runtime::StackManager &StackMgr,
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
   const auto &FuncType = FuncInst->getFuncType();
-  if (unlikely(**TargetFuncType != FuncType)) {
+  if (!matchTypes(*ModInst, (*TargetFuncType)->getParamTypes(),
+                  *FuncInst->getModule(), FuncType.getParamTypes()) ||
+      !matchTypes(*ModInst, (*TargetFuncType)->getReturnTypes(),
+                  *FuncInst->getModule(), FuncType.getReturnTypes())) {
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
@@ -167,7 +169,7 @@ Executor::callIndirect(Runtime::StackManager &StackMgr, const uint32_t TableIdx,
 
   auto Ref = TabInst->getRefAddr(FuncIdx);
   assuming(Ref);
-  if (unlikely(isNullRef(*Ref))) {
+  if (unlikely(Ref->isNull())) {
     return Unexpect(ErrCode::Value::UninitializedElement);
   }
 
@@ -400,7 +402,7 @@ Expect<RefVariant> Executor::refFunc(Runtime::StackManager &StackMgr,
   assuming(ModInst);
   const auto FuncInst = ModInst->getFunc(FuncIdx);
   assuming(FuncInst && *FuncInst);
-  return FuncRef(*FuncInst);
+  return RefVariant(*FuncInst);
 }
 
 Expect<uint32_t> Executor::memoryAtomicNotify(Runtime::StackManager &StackMgr,
@@ -430,6 +432,48 @@ Expect<uint32_t> Executor::memoryAtomicWait(Runtime::StackManager &StackMgr,
   }
 
   assumingUnreachable();
+}
+
+Expect<void> Executor::callRef(Runtime::StackManager &StackMgr,
+                               const RefVariant Ref, const ValVariant *Args,
+                               ValVariant *Rets) noexcept {
+  const auto *FuncInst = retrieveFuncRef(Ref);
+  const auto &FuncType = FuncInst->getFuncType();
+  const uint32_t ParamsSize =
+      static_cast<uint32_t>(FuncType.getParamTypes().size());
+  const uint32_t ReturnsSize =
+      static_cast<uint32_t>(FuncType.getReturnTypes().size());
+
+  for (uint32_t I = 0; I < ParamsSize; ++I) {
+    StackMgr.push(Args[I]);
+  }
+
+  auto Instrs = FuncInst->getInstrs();
+  AST::InstrView::iterator StartIt;
+  if (auto Res = enterFunction(StackMgr, *FuncInst, Instrs.end())) {
+    StartIt = *Res;
+  } else {
+    return Unexpect(Res);
+  }
+  if (auto Res = execute(StackMgr, StartIt, Instrs.end()); unlikely(!Res)) {
+    return Unexpect(Res);
+  }
+
+  for (uint32_t I = 0; I < ReturnsSize; ++I) {
+    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
+  }
+
+  return {};
+}
+
+Expect<void *> Executor::refGetFuncSymbol(Runtime::StackManager &,
+                                          const RefVariant Ref) noexcept {
+  const auto *FuncInst = retrieveFuncRef(Ref);
+  assuming(FuncInst);
+  if (unlikely(!FuncInst->isCompiledFunction())) {
+    return nullptr;
+  }
+  return FuncInst->getSymbol().get();
 }
 
 } // namespace Executor

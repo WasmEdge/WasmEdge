@@ -9,6 +9,57 @@
 namespace WasmEdge {
 namespace Loader {
 
+// Load binary of TableSegment node. See "include/loader/loader.h".
+Expect<void> Loader::loadSegment(AST::TableSegment &TabSeg) {
+  // Check the first byte is the reftype in table type or not.
+  auto StartOffset = FMgr.getOffset();
+  if (auto CheckByte = FMgr.readByte()) {
+    if (*CheckByte == 0x40U) {
+      // Table segment case is for FunctionReferences proposal.
+      if (!Conf.hasProposal(Proposal::FunctionReferences)) {
+        return logNeedProposal(ErrCode::Value::MalformedTable,
+                               Proposal::FunctionReferences,
+                               FMgr.getLastOffset(), ASTNodeAttr::Seg_Table);
+      }
+
+      // Check the second byte.
+      if (auto Res = FMgr.readByte()) {
+        if (*Res != 0x00U) {
+          return logLoadError(ErrCode::Value::MalformedTable,
+                              FMgr.getLastOffset(), ASTNodeAttr::Seg_Table);
+        }
+      } else {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::Seg_Table);
+      }
+
+      // Read the table type.
+      if (auto Res = loadType(TabSeg.getTableType()); unlikely(!Res)) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Table));
+        return Unexpect(Res);
+      }
+
+      // Read the expression.
+      if (auto Res = loadExpression(TabSeg.getExpr()); unlikely(!Res)) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Global));
+        return Unexpect(Res);
+      }
+    } else {
+      // The table type case. Seek back 1 byte and read the table type.
+      FMgr.seek(StartOffset);
+      if (auto Res = loadType(TabSeg.getTableType()); unlikely(!Res)) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Table));
+        return Unexpect(Res);
+      }
+    }
+  } else {
+    return logLoadError(CheckByte.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Seg_Table);
+  }
+
+  return {};
+}
+
 // Load binary of GlobalSegment node. See "include/loader/loader.h".
 Expect<void> Loader::loadSegment(AST::GlobalSegment &GlobSeg) {
   // Read global type node.
@@ -124,7 +175,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   }
 
   // Read element kind and init function indices.
-  ElemSeg.setRefType(RefType::FuncRef);
+  ElemSeg.setRefType(TypeCode::FuncRef);
   switch (Check) {
   case 0x01:
   case 0x02:
@@ -172,20 +223,13 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   case 0x05:
   case 0x06:
   case 0x07:
-    if (auto Res = FMgr.readByte(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Seg_Element);
+    if (auto Res = loadRefType(ASTNodeAttr::Seg_Element)) {
+      ElemSeg.setRefType(*Res);
     } else {
-      ElemSeg.setRefType(static_cast<RefType>(*Res));
-    }
-    if (auto Res =
-            checkRefTypeProposals(ElemSeg.getRefType(), FMgr.getLastOffset(),
-                                  ASTNodeAttr::Seg_Element);
-        unlikely(!Res)) {
+      // The AST node information is handled.
       return Unexpect(Res);
     }
     [[fallthrough]];
-
   case 0x04: {
     uint32_t VecCnt = 0;
     if (auto Res = FMgr.readU32(); unlikely(!Res)) {
@@ -260,16 +304,11 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
                           ASTNodeAttr::Seg_Code);
     }
     TotalLocalCnt += LocalCnt;
-    // Read the number type.
-    if (auto Res = FMgr.readByte(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Seg_Code);
+    // Read the value type.
+    if (auto Res = loadValType(ASTNodeAttr::Seg_Code)) {
+      LocalType = *Res;
     } else {
-      LocalType = static_cast<ValType>(*Res);
-    }
-    if (auto Res = checkValTypeProposals(LocalType, FMgr.getLastOffset(),
-                                         ASTNodeAttr::Seg_Code);
-        unlikely(!Res)) {
+      // The AST node information is handled.
       return Unexpect(Res);
     }
     CodeSeg.getLocals().push_back(std::make_pair(LocalCnt, LocalType));

@@ -72,8 +72,9 @@ public:
     addHostFunc("print_i32_f32", std::make_unique<SpecTestPrintI32F32>());
     addHostFunc("print_f64_f64", std::make_unique<SpecTestPrintF64F64>());
 
-    addHostTable("table", std::make_unique<Runtime::Instance::TableInstance>(
-                              AST::TableType(RefType::FuncRef, 10, 20)));
+    addHostTable("table",
+                 std::make_unique<Runtime::Instance::TableInstance>(
+                     AST::TableType(TypeCode::FuncRef, 10, 20), RefVariant()));
 
     addHostMemory("memory", std::make_unique<Runtime::Instance::MemoryInstance>(
                                 AST::MemoryType(1, 2)));
@@ -85,19 +86,19 @@ public:
     addHostGlobal(
         "global_i32",
         std::make_unique<Runtime::Instance::GlobalInstance>(
-            AST::GlobalType(ValType::I32, ValMut::Const), uint32_t(666)));
+            AST::GlobalType(TypeCode::I32, ValMut::Const), uint32_t(666)));
     addHostGlobal(
         "global_i64",
         std::make_unique<Runtime::Instance::GlobalInstance>(
-            AST::GlobalType(ValType::I64, ValMut::Const), uint64_t(666)));
+            AST::GlobalType(TypeCode::I64, ValMut::Const), uint64_t(666)));
     addHostGlobal(
         "global_f32",
         std::make_unique<Runtime::Instance::GlobalInstance>(
-            AST::GlobalType(ValType::F32, ValMut::Const), float(666)));
+            AST::GlobalType(TypeCode::F32, ValMut::Const), float(666)));
     addHostGlobal(
         "global_f64",
         std::make_unique<Runtime::Instance::GlobalInstance>(
-            AST::GlobalType(ValType::F64, ValMut::Const), double(666)));
+            AST::GlobalType(TypeCode::F64, ValMut::Const), double(666)));
   }
   ~SpecTestModule() noexcept override = default;
 };

@@ -175,7 +175,8 @@ def extract_archive(
                     fname = fname[:-5] + "lib"
                 if fname.startswith("/usr") and "lib64" in fname:
                     fname = fname.replace("lib64", "lib", 1)
-                if "Plugin" in fname:
+                # ggml-metal.metal is downloaded if we download ggml plugin on macOS
+                if "Plugin" in fname or fname == "ggml-metal.metal":
                     if is_default_path(args):
                         fname = fname.replace(
                             join(ipath, CONST_lib_dir, "wasmedge/"), ""

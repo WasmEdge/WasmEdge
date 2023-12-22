@@ -59,8 +59,11 @@ public:
   void setMode(ElemMode EMode) noexcept { Mode = EMode; }
 
   /// Getter of reference type.
-  RefType getRefType() const noexcept { return Type; }
-  void setRefType(RefType RType) noexcept { Type = RType; }
+  const ValType &getRefType() const noexcept { return Type; }
+  void setRefType(const ValType &RType) noexcept {
+    assuming(RType.isRefType());
+    Type = RType;
+  }
 
   /// Getter of table index.
   uint32_t getIdx() const noexcept { return TableIdx; }
@@ -74,9 +77,23 @@ private:
   /// \name Data of ElementSegment node.
   /// @{
   ElemMode Mode = ElemMode::Active;
-  RefType Type = RefType::FuncRef;
+  ValType Type = TypeCode::FuncRef;
   uint32_t TableIdx = 0;
   std::vector<Expression> InitExprs;
+  /// @}
+};
+
+/// AST TableSegment node.
+class TableSegment : public Segment {
+public:
+  /// Getter of table type.
+  const TableType &getTableType() const noexcept { return TType; }
+  TableType &getTableType() noexcept { return TType; }
+
+private:
+  /// \name Data of TableSegment node.
+  /// @{
+  TableType TType;
   /// @}
 };
 

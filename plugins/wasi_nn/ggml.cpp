@@ -192,6 +192,11 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
       return Res;
     }
   }
+  if (GraphRef.EnableLog) {
+    spdlog::info("[WASI-NN] GGML backend: LLAMA_COMMIT {}"sv, LLAMA_COMMIT);
+    spdlog::info("[WASI-NN] GGML backend: LLAMA_BUILD_NUMBER {}"sv,
+                 LLAMA_BUILD_NUMBER);
+  }
 
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: Handling model path."sv);

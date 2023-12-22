@@ -23,25 +23,80 @@ on:
         default: false
 
 env:
+  build_tests: ${{ inputs.release && 'Off' || 'On' }}
+  build_type: Release
   OPENVINO_VERSION: "2023.0.2"
   OPENVINO_YEAR: "2023"
   PYTORCH_VERSION: "1.8.2"
   PYTORCH_INSTALL_TO: "."
 
 jobs:
+  prepare:
+    name: Prepare files (${{ inputs.docker_tag }})
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: wasmedge/wasmedge:${{ inputs.docker_tag }}
+      # Required for mounting debugfs
+      # Tests of wasm_bpf also require privileges
+      options: --privileged
+    outputs:
+      cache_key1: ${{ steps.prep.outputs.cache_key1 }}
+      cache_path1: ${{ steps.prep.outputs.cache_path1 }}
+      cache_key2: ${{ steps.prep.outputs.cache_key2 }}
+      cache_path2: ${{ steps.prep.outputs.cache_path2 }}
+    steps:
+      - id: prep
+        run: |
+          echo "cache_key1=${{ github.workflow }}-${{ github.head_ref || github.ref }}-${{ inputs.docker_tag }}-1" >> $GITHUB_OUTPUT
+          echo "cache_path1=${{ github.workspace }}" >> $GITHUB_OUTPUT
+          echo "cache_key2=${{ github.workflow }}-${{ github.head_ref || github.ref }}-${{ inputs.docker_tag }}-2" >> $GITHUB_OUTPUT
+          echo "cache_path2=$HOME" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - name: Install dependencies
+        shell: bash
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
+          mkdir -p build
+          bash ./utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi
+          source "$HOME/.cargo/env"
+          bash ./utils/wasi-crypto/build-openssl.sh
+      - name: Build ${{ matrix.plugin }}
+        shell: bash
+        run: |
+          source "$HOME/.cargo/env"
+          export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
+          if [[ ${build_tests} != "On" ]]; then
+            target=${bin_name%.*}
+            target=${target#lib}
+          fi
+
+          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=${build_tests} -DCMAKE_BUILD_TYPE=${build_type} -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
+      - uses: actions/cache/save@v3
+        with:
+          key: ${{ steps.prep.outputs.cache_key1 }}
+          path: ${{ steps.prep.outputs.cache_path1 }}
+      - uses: actions/cache/save@v3
+        with:
+          key: ${{ steps.prep.outputs.cache_key2 }}
+          path: ${{ steps.prep.outputs.cache_path2 }}
+
   build_on_manylinux:
+    needs: [prepare]
     strategy:
       fail-fast: false
       max-parallel: 1
       matrix:
         include: ${{ fromJSON(inputs.plugins) }}
-    name: Build and upload ${{ matrix.plugin }} (${{ inputs.docker_tag }})
+    name: ${{ matrix.plugin }} (${{ inputs.docker_tag }})
     runs-on: ${{ inputs.runner }}
     container: wasmedge/wasmedge:${{ inputs.docker_tag }}
     env:
       bin_name: ${{ matrix.bin }}
-      build_tests: ${{ inputs.release && 'Off' || 'On' }}
-      build_type: Release
       target: ${{ inputs.release && matrix.bin || matrix.testBin }}
       test_dir: build/test/plugins/${{ matrix.dir }}
       output_dir: build/plugins/${{ matrix.dir }}
@@ -50,13 +105,15 @@ jobs:
         run: |
           echo "artifact=WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.docker_tag }}.tar.gz" >> $GITHUB_OUTPUT
           echo "filename=plugin_${{ matrix.plugin }}.tar.gz" >> $GITHUB_OUTPUT
-      - uses: actions/checkout@v3
+      - uses: actions/cache/restore@v3
         with:
-          fetch-depth: 0
-      - name: Ensure git safe directory
-        run: |
-          git config --global --add safe.directory $(pwd)
-      - name: Install WASI-NN dependencies
+          key: ${{ needs.prepare.outputs.cache_key1 }}
+          path: ${{ needs.prepare.outputs.cache_path1 }}
+      - uses: actions/cache/restore@v3
+        with:
+          key: ${{ needs.prepare.outputs.cache_key2 }}
+          path: ${{ needs.prepare.outputs.cache_path2 }}
+      - name: Install dependencies
         shell: bash
         run: |
           mkdir -p build
@@ -70,18 +127,17 @@ jobs:
             target=${target#lib}
           fi
 
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=${build_tests} -DCMAKE_BUILD_TYPE=${build_type} -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF
           cmake -Bbuild -GNinja ${{ matrix.options }}
           cmake --build build --target ${target}
 
-          if [[ ${build_tests} == "On" ]]; then
-            cd ${test_dir}
-            ./${target}
-            cd -
-          fi
-
           cp -f ${output_dir}/${bin_name} ${bin_name}
           tar -zcvf ${{ steps.prep.outputs.filename }} ${bin_name}
+      - name: Test ${{ matrix.plugin }}
+        if: ${{ !inputs.release }}
+        run: |
+          cd ${test_dir}
+          ./${target}
+          cd -
       - name: Upload artifact ${{ matrix.plugin }}
         if: ${{ !inputs.release }}
         uses: actions/upload-artifact@v3

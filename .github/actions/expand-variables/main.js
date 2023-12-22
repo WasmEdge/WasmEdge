@@ -4,11 +4,11 @@ const x86_64 = 'x86_64';
 const archList = [{
     arch: x86_64,
     runner: 'ubuntu-latest',
-    docker_tag: 'manylinux2014_x86_64',
+    docker_tag: 'manylinux2014_x86_64-plugins-deps',
 }, {
     arch: aarch64,
     runner: 'linux-arm64',
-    docker_tag: 'manylinux2014_aarch64',
+    docker_tag: 'manylinux2014_aarch64-plugins-deps',
 }];
 
 const pluginList = [{

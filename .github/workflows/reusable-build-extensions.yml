@@ -12,7 +12,7 @@ on:
 
 jobs:
   prepare:
-    name: Prepare matrix values for manylinux plugins
+    name: Prepare matrix values
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.prep.outputs.matrix }}

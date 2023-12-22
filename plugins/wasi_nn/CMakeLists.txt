@@ -49,7 +49,7 @@ if(BACKEND STREQUAL "ggml")
     GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
     GIT_TAG        b1656
     PATCH_COMMAND  test -f ggml.patched || git apply ${CMAKE_SOURCE_DIR}/thirdparty/ggml/ggml.patch && ${CMAKE_COMMAND} -E touch ggml.patched
-    GIT_SHALLOW    TRUE
+    GIT_SHALLOW    FALSE
   )
   FetchContent_MakeAvailable(llama)
   set_property(TARGET ggml PROPERTY POSITION_INDEPENDENT_CODE ON)

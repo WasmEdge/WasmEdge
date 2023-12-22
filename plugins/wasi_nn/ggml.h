@@ -7,6 +7,7 @@
 #include "types.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+#include <common.h>
 #include <llama.h>
 #endif
 
@@ -19,8 +20,21 @@ namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 struct Graph {
   llama_model *LlamaModel = nullptr;
-  llama_context *LlamaContext = nullptr;
   std::string ModelFilePath;
+  // Plugin parameters:
+  bool EnableLog;
+  bool EnableDebugLog;
+  bool StreamStdout;
+  uint64_t NPredict;
+  std::string ReversePrompt;
+  // Model parameters:
+  int64_t NGPULayers;
+  // Context parameters:
+  uint64_t CtxSize;
+  uint64_t BatchSize;
+  // Sampleing parameters:
+  double Temp;
+  double RepeatPenalty;
 };
 
 struct Context {
@@ -29,13 +43,13 @@ public:
   size_t GraphId;
   std::vector<llama_token> LlamaInputs;
   std::string LlamaOutputs;
-  bool EnableLog;
-  bool StreamStdout;
-  uint64_t CtxSize;
-  uint64_t NPredict;
-  uint64_t NGPULayers;
-  uint64_t BatchSize;
-  std::string ReversePrompt;
+  std::vector<llama_token> LlamaOutputTokens;
+  // Preserve for computing single token
+  llama_context *LlamaContext = nullptr;
+  struct llama_sampling_context *LlamaSampling = nullptr;
+  std::vector<llama_token> LlamaEmbd;
+  int LlamaNPast;
+  int LlamaNConsumed;
 };
 #else
 struct Graph {};
@@ -59,6 +73,12 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
                                 uint32_t ContextId, uint32_t Index,
                                 Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept;
+Expect<WASINN::ErrNo> getOutputSingle(WASINN::WasiNNEnvironment &Env,
+                                      uint32_t ContextId, uint32_t Index,
+                                      Span<uint8_t> OutBuffer,
+                                      uint32_t &BytesWritten) noexcept;
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
+Expect<WASINN::ErrNo> computeSingle(WASINN::WasiNNEnvironment &Env,
+                                    uint32_t ContextId) noexcept;
 } // namespace WasmEdge::Host::WASINN::GGML

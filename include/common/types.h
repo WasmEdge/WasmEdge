@@ -19,10 +19,10 @@
 #include "common/int128.h"
 #include "common/variant.h"
 
+#include <array>
 #include <cstdint>
 #include <type_traits>
 #include <variant>
-#include <vector>
 
 namespace WasmEdge {
 
@@ -60,80 +60,273 @@ using uint8x16_t = SIMDArray<uint8_t, 16>;
 using doublex2_t = SIMDArray<double, 16>;
 using floatx4_t = SIMDArray<float, 16>;
 
-/// UnknownRef definition.
-struct UnknownRef {
-  uint64_t Value = 0;
-  UnknownRef() = default;
-};
+// The bit pattern of the value types:
+// ----------------------------------------------------------------------------
+//  byte | 0th | 1st |      2nd     |         3rd         |      4th ~ 7th
+// ------|-----------|--------------|---------------------|--------------------
+//       |           | ValTypeCode  |         For the HeapType use
+//       |           | 0x7F, 0x7E,  | (Function references and GC proposal)
+//       |           | 0x7D, 0x7C,  | HeapTypeCode        |
+//       |           |   (numtype)  | 0x00, 0x40,         |    Type index
+//  code | Reserved  | 0x7B,        | 0x70, 0x6F,         |    (uint32_t)
+//       | (Padding) |   (vectype)  | (func-ref proposal) |
+//       |           | 0x78, 0x77,  | 0x73, 0x72, 0x71,   |
+//       |           | (packedtype) | 0x6E, 0x6D, 0x6C,   |
+//       |           | 0x64, 0x63   | 0x6B, 0x6A          |
+//       |           |   (reftype)  |    (GC proposal)    |
+// ----------------------------------------------------------------------------
+// In order to compress the various value type definitions into uint64_t length,
+// WasmEdge implements the ValType class for extending the value types.
+// As the definitions in the typed function references and GC proposal, the
+// `FuncRef` and `ExternRef` are reinterpreted as the `ref.null` types,
+// respectively. Therefore, WasmEdge hendles them into `ref null func` and `ref
+// null extern` in the ValType classes.
 
-/// FuncRef definition.
-namespace Runtime::Instance {
-class FunctionInstance;
-}
-struct FuncRef {
-#if __INTPTR_WIDTH__ == 32
-  uint32_t Padding = -1;
-#endif
-  const Runtime::Instance::FunctionInstance *Ptr = nullptr;
-  FuncRef() = default;
-  FuncRef(const Runtime::Instance::FunctionInstance *P) : Ptr(P) {}
-};
+/// ValType class definition.
+class ValType {
+public:
+  // Note: The padding bytes are reserved and should not be written.
+  ValType() noexcept = default;
+  // General constructors for initializing data.
+  ValType(TypeCode C, TypeCode HT, uint32_t I) noexcept {
+    Inner.Data.Code = C;
+    Inner.Data.HTCode = HT;
+    Inner.Data.Idx = I;
+  }
+  ValType(const std::array<uint8_t, 8> R) noexcept {
+    std::copy_n(R.cbegin(), 8, Inner.Raw);
+  }
+  // Constructor for the value type codes without heap type immediates.
+  ValType(TypeCode C) noexcept {
+    Inner.Data.Idx = 0;
+    switch (C) {
+    case TypeCode::I32:
+    case TypeCode::I64:
+    case TypeCode::F32:
+    case TypeCode::F64:
+      // Number type
+    case TypeCode::V128:
+      // Vector type
+    case TypeCode::I8:
+    case TypeCode::I16:
+      // Packed type
+      Inner.Data.Code = C;
+      Inner.Data.HTCode = TypeCode::Epsilon;
+      break;
+    case TypeCode::NullFuncRef:
+    case TypeCode::NullExternRef:
+    case TypeCode::NullRef:
+    case TypeCode::FuncRef:
+    case TypeCode::ExternRef:
+    case TypeCode::AnyRef:
+    case TypeCode::EqRef:
+    case TypeCode::I31Ref:
+    case TypeCode::StructRef:
+    case TypeCode::ArrayRef:
+      // Abstract heap type
+      Inner.Data.Code = TypeCode::RefNull;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::Ref:
+    case TypeCode::RefNull:
+      // Reference type with heap immediates should use the constructors below.
+    default:
+      assumingUnreachable();
+    }
+  }
+  // Constructor for the value type with abs heap type in reference type.
+  ValType(TypeCode C, TypeCode HT) noexcept {
+    Inner.Data.Code = C;
+    Inner.Data.HTCode = HT;
+    Inner.Data.Idx = 0;
+    assuming(isAbsHeapType());
+    assuming(isRefType());
+  }
+  // Constructor for the value type with type index in reference type.
+  ValType(TypeCode C, uint32_t I) noexcept {
+    Inner.Data.Code = C;
+    Inner.Data.HTCode = TypeCode::TypeIndex;
+    Inner.Data.Idx = I;
+    assuming(isRefType());
+  }
 
-/// ExternRef definition.
-struct ExternRef {
-#if __INTPTR_WIDTH__ == 32
-  uint32_t Padding = -1;
-#endif
-  void *Ptr = nullptr;
-  ExternRef() = default;
-  template <typename T> ExternRef(T *P) : Ptr(reinterpret_cast<void *>(P)) {}
-};
+  friend bool operator==(const ValType &LHS, const ValType &RHS) noexcept {
+    return (LHS.Inner.Data.Code == RHS.Inner.Data.Code) &&
+           (LHS.Inner.Data.HTCode == RHS.Inner.Data.HTCode) &&
+           (LHS.Inner.Data.Idx == RHS.Inner.Data.Idx);
+  }
+  friend bool operator!=(const ValType &LHS, const ValType &RHS) noexcept {
+    return !(LHS == RHS);
+  }
 
-/// NumType and RefType variant definitions.
-using RefVariant = Variant<UnknownRef, FuncRef, ExternRef>;
-using ValVariant =
-    Variant<uint32_t, int32_t, uint64_t, int64_t, float, double, uint128_t,
-            int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,
-            int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t, UnknownRef,
-            FuncRef, ExternRef>;
+  TypeCode getCode() const noexcept { return Inner.Data.Code; }
+  TypeCode getHeapTypeCode() const noexcept { return Inner.Data.HTCode; }
+  uint32_t getTypeIndex() const noexcept { return Inner.Data.Idx; }
+  const std::array<uint8_t, 8> getRawData() const noexcept {
+    std::array<uint8_t, 8> R;
+    std::copy_n(Inner.Raw, 8, R.begin());
+    return R;
+  }
+
+  bool isDefaultable() const noexcept {
+    return Inner.Data.Code != TypeCode::Ref;
+  }
+
+  bool isNumType() const noexcept {
+    switch (Inner.Data.Code) {
+    case TypeCode::I32:
+    case TypeCode::I64:
+    case TypeCode::F32:
+    case TypeCode::F64:
+    case TypeCode::V128:
+      return true;
+    default:
+      return false;
+    }
+  }
+
+  bool isRefType() const noexcept {
+    switch (Inner.Data.Code) {
+    case TypeCode::Ref:
+    case TypeCode::RefNull:
+      return true;
+    default:
+      return false;
+    }
+  }
+
+  bool isPackType() const noexcept {
+    switch (Inner.Data.Code) {
+    case TypeCode::I8:
+    case TypeCode::I16:
+      return true;
+    default:
+      return false;
+    }
+  }
+
+  bool isFuncRefType() const noexcept {
+    return (Inner.Data.HTCode == TypeCode::FuncRef) ||
+           (Inner.Data.HTCode == TypeCode::TypeIndex);
+  }
+
+  bool isExternRefType() const noexcept {
+    return (Inner.Data.HTCode == TypeCode::ExternRef);
+  }
+
+  bool isNullableRefType() const noexcept {
+    return (Inner.Data.Code == TypeCode::RefNull);
+  }
+
+  bool isAbsHeapType() const noexcept {
+    switch (Inner.Data.HTCode) {
+    case TypeCode::NullFuncRef:
+    case TypeCode::NullExternRef:
+    case TypeCode::NullRef:
+    case TypeCode::FuncRef:
+    case TypeCode::ExternRef:
+    case TypeCode::AnyRef:
+    case TypeCode::EqRef:
+    case TypeCode::I31Ref:
+    case TypeCode::StructRef:
+    case TypeCode::ArrayRef:
+      return true;
+    default:
+      return false;
+    }
+  }
+
+protected:
+  union {
+    uint8_t Raw[8];
+    struct {
+      uint8_t Paddings[2];
+      TypeCode Code;
+      TypeCode HTCode;
+      uint32_t Idx;
+    } Data;
+  } Inner;
+};
 
 /// BlockType definition.
-struct BlockType {
+class BlockType {
+public:
+  // Note: The BlockType should be compressed into 8 bytes to reduce the
+  // instruction class size.
   enum class TypeEnum : uint8_t {
     Empty,
     ValType,
     TypeIdx,
   };
-  TypeEnum TypeFlag;
+
+  BlockType() noexcept = default;
+  BlockType(const ValType &VType) noexcept { setData(VType); }
+  BlockType(uint32_t Idx) noexcept { setData(Idx); }
+
+  void setEmpty() noexcept { Inner.Data.TypeFlag = TypeEnum::Empty; }
+  void setData(const ValType &VType) noexcept {
+    Inner.Type = VType;
+    Inner.Data.TypeFlag = TypeEnum::ValType;
+  }
+  void setData(uint32_t Idx) noexcept {
+    Inner.Data.Idx = Idx;
+    Inner.Data.TypeFlag = TypeEnum::TypeIdx;
+  }
+  bool isEmpty() const noexcept {
+    return Inner.Data.TypeFlag == TypeEnum::Empty;
+  }
+  bool isValType() const noexcept {
+    return Inner.Data.TypeFlag == TypeEnum::ValType;
+  }
+  ValType getValType() const noexcept { return Inner.Type; }
+  uint32_t getTypeIndex() const noexcept { return Inner.Data.Idx; }
+
+private:
+  // The ValType has reserved the padding 2 bytes.
+  // Therefore, use the first byte to store the flag.
   union {
+    // The ValType has 8 bytes length.
     ValType Type;
-    uint32_t Idx;
-  } Data;
-  BlockType() = default;
-  BlockType(ValType VType) { setData(VType); }
-  BlockType(uint32_t Idx) { setData(Idx); }
-  void setEmpty() { TypeFlag = TypeEnum::Empty; }
-  void setData(ValType VType) {
-    TypeFlag = TypeEnum::ValType;
-    Data.Type = VType;
-  }
-  void setData(uint32_t Idx) {
-    TypeFlag = TypeEnum::TypeIdx;
-    Data.Idx = Idx;
-  }
-  bool isEmpty() const { return TypeFlag == TypeEnum::Empty; }
-  bool isValType() const { return TypeFlag == TypeEnum::ValType; }
+    // The Data struct has 8 bytes length.
+    struct {
+      TypeEnum TypeFlag;
+      uint8_t Paddings[3];
+      uint32_t Idx;
+    } Data;
+  } Inner;
 };
 
-/// NumType and RefType conversions.
-inline constexpr ValType ToValType(const NumType Val) noexcept {
-  return static_cast<ValType>(Val);
-}
-inline constexpr ValType ToValType(const RefType Val) noexcept {
-  return static_cast<ValType>(Val);
+// <<<<<<<< Type definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> Value definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// FuncRef definition.
+namespace Runtime::Instance {
+class FunctionInstance;
 }
 
-// <<<<<<<< Type definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+/// NumType and RefType variant definitions.
+struct RefVariant {
+#if __INTPTR_WIDTH__ == 32
+  uint32_t Padding = -1;
+#endif
+  void *Ptr = nullptr;
+  RefVariant() = default;
+  template <typename T>
+  RefVariant(const T *P) : Ptr(reinterpret_cast<void *>(const_cast<T *>(P))) {}
+  template <typename T> RefVariant(T *P) : Ptr(reinterpret_cast<void *>(P)) {}
+  bool isNull() const { return Ptr == nullptr; }
+
+  template <typename T> T *asPtr() const { return reinterpret_cast<T *>(Ptr); }
+};
+
+using ValVariant =
+    Variant<uint32_t, int32_t, uint64_t, int64_t, float, double, uint128_t,
+            int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,
+            int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t,
+            RefVariant>;
+
+// <<<<<<<< Value definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> Const expressions to checking value types >>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -175,9 +368,7 @@ inline constexpr const bool IsWasmFloatV = IsWasmFloat<T>::value;
 
 /// Return true if Wasm reference (funcref and externref).
 template <typename T>
-struct IsWasmRef
-    : std::bool_constant<std::is_same_v<RemoveCVRefT<T>, FuncRef> ||
-                         std::is_same_v<RemoveCVRefT<T>, ExternRef>> {};
+struct IsWasmRef : std::is_same<RemoveCVRefT<T>, RefVariant> {};
 template <typename T>
 inline constexpr const bool IsWasmRefV = IsWasmRef<T>::value;
 
@@ -238,55 +429,51 @@ toUnsigned(T Val) {
 template <typename T> inline ValType ValTypeFromType() noexcept;
 
 template <> inline ValType ValTypeFromType<uint32_t>() noexcept {
-  return ValType::I32;
+  return ValType(TypeCode::I32);
 }
 template <> inline ValType ValTypeFromType<int32_t>() noexcept {
-  return ValType::I32;
+  return ValType(TypeCode::I32);
 }
 template <> inline ValType ValTypeFromType<uint64_t>() noexcept {
-  return ValType::I64;
+  return ValType(TypeCode::I64);
 }
 template <> inline ValType ValTypeFromType<int64_t>() noexcept {
-  return ValType::I64;
+  return ValType(TypeCode::I64);
 }
 template <> inline ValType ValTypeFromType<uint128_t>() noexcept {
-  return ValType::V128;
+  return ValType(TypeCode::V128);
 }
 template <> inline ValType ValTypeFromType<int128_t>() noexcept {
-  return ValType::V128;
+  return ValType(TypeCode::V128);
 }
 template <> inline ValType ValTypeFromType<float>() noexcept {
-  return ValType::F32;
+  return ValType(TypeCode::F32);
 }
 template <> inline ValType ValTypeFromType<double>() noexcept {
-  return ValType::F64;
-}
-template <> inline ValType ValTypeFromType<FuncRef>() noexcept {
-  return ValType::FuncRef;
-}
-template <> inline ValType ValTypeFromType<ExternRef>() noexcept {
-  return ValType::ExternRef;
+  return ValType(TypeCode::F64);
 }
 
 // <<<<<<<< Template to get value type from type <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> Const expression to generate value from value type >>>>>>>>>>>>>>>>>
 
-inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
-  switch (Type) {
-  case ValType::I32:
+inline ValVariant ValueFromType(ValType Type) noexcept {
+  switch (Type.getCode()) {
+  case TypeCode::I32:
     return uint32_t(0U);
-  case ValType::I64:
+  case TypeCode::I64:
     return uint64_t(0U);
-  case ValType::F32:
+  case TypeCode::F32:
     return float(0.0F);
-  case ValType::F64:
+  case TypeCode::F64:
     return double(0.0);
-  case ValType::V128:
+  case TypeCode::V128:
     return uint128_t(0U);
-  case ValType::FuncRef:
-  case ValType::ExternRef:
-    return UnknownRef();
+  case TypeCode::FuncRef:
+  case TypeCode::ExternRef:
+  case TypeCode::Ref:
+  case TypeCode::RefNull:
+    return RefVariant();
   default:
     assumingUnreachable();
   }
@@ -296,38 +483,39 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
 
 // >>>>>>>> Functions to retrieve reference inners >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-inline constexpr bool isNullRef(const ValVariant &Val) {
-  return Val.get<UnknownRef>().Value == 0;
-}
-inline constexpr bool isNullRef(const RefVariant &Val) {
-  return Val.get<UnknownRef>().Value == 0;
-}
-
-inline const Runtime::Instance::FunctionInstance *
-retrieveFuncRef(const ValVariant &Val) {
-  return reinterpret_cast<const Runtime::Instance::FunctionInstance *>(
-      Val.get<FuncRef>().Ptr);
-}
 inline const Runtime::Instance::FunctionInstance *
 retrieveFuncRef(const RefVariant &Val) {
-  return reinterpret_cast<const Runtime::Instance::FunctionInstance *>(
-      Val.get<FuncRef>().Ptr);
-}
-inline const Runtime::Instance::FunctionInstance *
-retrieveFuncRef(const FuncRef &Val) {
-  return reinterpret_cast<const Runtime::Instance::FunctionInstance *>(Val.Ptr);
+  return Val.asPtr<Runtime::Instance::FunctionInstance>();
 }
 
-template <typename T> inline T &retrieveExternRef(const ValVariant &Val) {
-  return *reinterpret_cast<T *>(Val.get<ExternRef>().Ptr);
-}
 template <typename T> inline T &retrieveExternRef(const RefVariant &Val) {
-  return *reinterpret_cast<T *>(Val.get<ExternRef>().Ptr);
-}
-template <typename T> inline T &retrieveExternRef(const ExternRef &Val) {
-  return *reinterpret_cast<T *>(Val.Ptr);
+  return *Val.asPtr<T>();
 }
 
 // <<<<<<<< Functions to retrieve reference inners <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 } // namespace WasmEdge
+
+template <>
+struct fmt::formatter<WasmEdge::ValType> : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::ValType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace std::literals;
+    // For the number types, print the type directly.
+    if (!Type.isRefType()) {
+      return formatter<std::string_view>::format(
+          WasmEdge::TypeCodeStr[Type.getCode()], Ctx);
+    }
+    // For the reference types, print the details.
+    fmt::memory_buffer Buffer;
+    fmt::format_to(std::back_inserter(Buffer), "{} {}"sv,
+                   WasmEdge::TypeCodeStr[Type.getCode()],
+                   WasmEdge::TypeCodeStr[Type.getHeapTypeCode()]);
+    if (Type.getHeapTypeCode() == WasmEdge::TypeCode::TypeIndex) {
+      fmt::format_to(std::back_inserter(Buffer), "[{}]"sv, Type.getTypeIndex());
+    }
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};

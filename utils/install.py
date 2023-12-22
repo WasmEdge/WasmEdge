@@ -175,7 +175,8 @@ def extract_archive(
                     fname = fname[:-5] + "lib"
                 if fname.startswith("/usr") and "lib64" in fname:
                     fname = fname.replace("lib64", "lib", 1)
-                if "Plugin" in fname:
+                # ggml-metal.metal is downloaded if we download ggml plugin on macOS
+                if "Plugin" in fname or fname == "ggml-metal.metal":
                     if is_default_path(args):
                         fname = fname.replace(
                             join(ipath, CONST_lib_dir, "wasmedge/"), ""
@@ -334,6 +335,7 @@ WASI_NN_GGML_CUDA = "wasi_nn-ggml-cuda"
 WASMEDGE_TENSORFLOW_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW
 WASMEDGE_TENSORFLOW_LITE_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW_LITE_P
 WASMEDGE_IMAGE_PLUGIN = WASMEDGE.lower() + "_" + IMAGE
+WASMEDGE_RUSTLS = "wasmedge_rustls"
 WASM_BPF = "wasm_bpf"
 
 PLUGINS_AVAILABLE = [
@@ -346,6 +348,7 @@ PLUGINS_AVAILABLE = [
     WASMEDGE_TENSORFLOW_PLUGIN,
     WASMEDGE_TENSORFLOW_LITE_PLUGIN,
     WASMEDGE_IMAGE_PLUGIN,
+    WASMEDGE_RUSTLS,
     WASM_BPF,
 ]
 
@@ -387,6 +390,10 @@ SUPPORTTED_PLUGINS = {
     "manylinux2014" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "manylinux2014" + "aarch64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
+    "darwin" + "arm64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
+    "manylinux2014" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
+    "ubuntu20.04" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "ubuntu20.04" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
     "manylinux2014" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
 }

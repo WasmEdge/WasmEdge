@@ -7,7 +7,7 @@ message(STATUS "Downloading the WASM spec test suite")
 FetchContent_Declare(
   wasmedge_unit_test
   GIT_REPOSITORY https://github.com/second-state/WasmEdge-unittest
-  GIT_TAG        wasm-dev-0.13.0
+  GIT_TAG        wasm-dev
 )
 FetchContent_MakeAvailable(wasmedge_unit_test)
 message(STATUS "Downloading the WASM spec test suite -- done")
@@ -63,10 +63,6 @@ else()
   endif()
 
   FetchContent_MakeAvailable(simdjson)
-
-  set(SIMDJSON_JUST_LIBRARY ON CACHE INTERNAL "")
-  set(SIMDJSON_BUILD_STATIC ON CACHE INTERNAL "")
-
   message(STATUS "Downloading SIMDJSON source -- done")
 endif()
 
@@ -80,7 +76,7 @@ function(wasmedge_copy_spec_testsuite proposal)
   message(STATUS "Copying test suite to ${CMAKE_CURRENT_BINARY_DIR}/testSuites/${proposal} -- done")
 endfunction()
 
-foreach(PROPOSAL core multi-memory tail-call extended-const threads)
+foreach(PROPOSAL core multi-memory tail-call extended-const threads function-references)
   wasmedge_copy_spec_testsuite(${PROPOSAL})
 endforeach()
 

@@ -429,7 +429,7 @@ INLINE void round_fn4(__m128i v[16], __m128i m[16], size_t r) {
 }
 
 INLINE void transpose_vecs_128(__m128i vecs[4]) {
-  // Interleave 32-bit lates. The low unpack is lanes 00/11 and the high is
+  // Interleave 32-bit lanes. The low unpack is lanes 00/11 and the high is
   // 22/33. Note that this doesn't split the vector into two lanes, as the
   // AVX2 counterparts do.
   __m128i ab_01 = _mm_unpacklo_epi32(vecs[0], vecs[1]);
@@ -684,7 +684,7 @@ INLINE void transpose_vecs_256(__m256i vecs[8]) {
   __m256i gh_0145 = _mm256_unpacklo_epi32(vecs[6], vecs[7]);
   __m256i gh_2367 = _mm256_unpackhi_epi32(vecs[6], vecs[7]);
 
-  // Interleave 64-bit lates. The low unpack is lanes 00/22 and the high is
+  // Interleave 64-bit lanes. The low unpack is lanes 00/22 and the high is
   // 11/33.
   __m256i abcd_04 = _mm256_unpacklo_epi64(ab_0145, cd_0145);
   __m256i abcd_15 = _mm256_unpackhi_epi64(ab_0145, cd_0145);
@@ -959,7 +959,7 @@ INLINE void transpose_vecs_512(__m512i vecs[16]) {
   __m512i op_0 = _mm512_unpacklo_epi32(vecs[14], vecs[15]);
   __m512i op_2 = _mm512_unpackhi_epi32(vecs[14], vecs[15]);
 
-  // Interleave 64-bit lates. The _0 unpack is lanes
+  // Interleave 64-bit lanes. The _0 unpack is lanes
   // 0/0/0/0/4/4/4/4/8/8/8/8/12/12/12/12, the _1 unpack is lanes
   // 1/1/1/1/5/5/5/5/9/9/9/9/13/13/13/13, the _2 unpack is lanes
   // 2/2/2/2/6/6/6/6/10/10/10/10/14/14/14/14, and the _3 unpack is lanes

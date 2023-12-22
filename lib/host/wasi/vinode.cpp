@@ -188,6 +188,9 @@ VINode::pathOpen(std::shared_ptr<VINode> Fd, std::string_view Path,
                  __wasi_rights_t FsRightsInheriting, __wasi_fdflags_t FdFlags) {
   if (OpenFlags & __WASI_OFLAGS_DIRECTORY) {
     FsRightsBase &= ~__WASI_RIGHTS_FD_SEEK;
+  } else {
+    FsRightsBase &= ~__WASI_RIGHTS_PATH_FILESTAT_GET;
+    FsRightsInheriting &= ~__WASI_RIGHTS_PATH_FILESTAT_GET;
   }
 
   __wasi_rights_t RequiredRights = __WASI_RIGHTS_PATH_OPEN;
@@ -203,7 +206,7 @@ VINode::pathOpen(std::shared_ptr<VINode> Fd, std::string_view Path,
     RequiredRights |= __WASI_RIGHTS_PATH_CREATE_FILE;
   }
   if (OpenFlags & __WASI_OFLAGS_TRUNC) {
-    RequiredInheritingRights |= __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE;
+    RequiredRights |= __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE;
   }
   if (FdFlags & __WASI_FDFLAGS_RSYNC) {
     RequiredInheritingRights |= __WASI_RIGHTS_FD_SYNC;
@@ -235,7 +238,8 @@ WasiExpect<void> VINode::pathReadlink(std::shared_ptr<VINode> Fd,
                                       std::string_view Path, Span<char> Buffer,
                                       __wasi_size_t &NRead) {
   std::vector<char> PathBuffer;
-  if (auto Res = resolvePath(Fd, Path); unlikely(!Res)) {
+  if (auto Res = resolvePath(Fd, Path, static_cast<__wasi_lookupflags_t>(0));
+      unlikely(!Res)) {
     return WasiUnexpect(Res);
   } else if (!Fd->can(__WASI_RIGHTS_PATH_READLINK)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
@@ -249,7 +253,7 @@ WasiExpect<void> VINode::pathReadlink(std::shared_ptr<VINode> Fd,
 WasiExpect<void> VINode::pathRemoveDirectory(std::shared_ptr<VINode> Fd,
                                              std::string_view Path) {
   std::vector<char> Buffer;
-  if (auto Res = resolvePath(Fd, Path); unlikely(!Res)) {
+  if (auto Res = resolvePath(Fd, Path, false); unlikely(!Res)) {
     return WasiUnexpect(Res);
   } else if (!Fd->can(__WASI_RIGHTS_PATH_REMOVE_DIRECTORY)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
@@ -265,14 +269,14 @@ WasiExpect<void> VINode::pathRename(std::shared_ptr<VINode> Old,
                                     std::shared_ptr<VINode> New,
                                     std::string_view NewPath) {
   std::vector<char> OldBuffer, NewBuffer;
-  if (auto Res = resolvePath(Old, OldPath); unlikely(!Res)) {
+  if (auto Res = resolvePath(Old, OldPath, false); unlikely(!Res)) {
     return WasiUnexpect(Res);
   } else if (!Old->can(__WASI_RIGHTS_PATH_RENAME_SOURCE)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
   } else {
     OldBuffer = std::move(*Res);
   }
-  if (auto Res = resolvePath(New, NewPath); unlikely(!Res)) {
+  if (auto Res = resolvePath(New, NewPath, false); unlikely(!Res)) {
     return WasiUnexpect(Res);
   } else if (!New->can(__WASI_RIGHTS_PATH_RENAME_TARGET)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
@@ -388,7 +392,7 @@ VINode::directOpen(std::string_view Path, __wasi_oflags_t OpenFlags,
 WasiExpect<std::vector<char>>
 VINode::resolvePath(std::shared_ptr<VINode> &Fd, std::string_view &Path,
                     __wasi_lookupflags_t LookupFlags, VFS::Flags VFSFlags,
-                    uint8_t LinkCount) {
+                    uint8_t LinkCount, bool FollowTrailingSlashes) {
   std::vector<std::shared_ptr<VINode>> PartFds;
   std::vector<char> Buffer;
   do {
@@ -422,7 +426,8 @@ VINode::resolvePath(std::shared_ptr<VINode> &Fd, std::string_view &Path,
       while (!Remain.empty() && Remain[0] == '/') {
         Remain = Remain.substr(1);
       }
-      const bool LastPart = Remain.empty() && Slash == std::string_view::npos;
+      const bool LastPart = Remain.empty() && (!FollowTrailingSlashes ||
+                                               Slash == std::string_view::npos);
 
       if (!Part.empty() && Part[0] == '.') {
         if (Part.size() == 1) {

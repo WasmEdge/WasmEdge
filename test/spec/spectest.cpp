@@ -121,7 +121,7 @@ parseValueList(const simdjson::dom::array &Args) {
           I++;
         }
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t&>(I32x4);
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t &>(I32x4);
 #else
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I32x4);
 #endif
@@ -135,7 +135,7 @@ parseValueList(const simdjson::dom::array &Args) {
           I++;
         }
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t&>(I16x8);
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t &>(I16x8);
 #else
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I16x8);
 #endif
@@ -148,50 +148,50 @@ parseValueList(const simdjson::dom::array &Args) {
           I++;
         }
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t&>(I8x16);
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t &>(I8x16);
 #else
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I8x16);
 #endif
       }
       Result.emplace_back(I64x2);
-      ResultTypes.emplace_back(WasmEdge::ValType::V128);
+      ResultTypes.emplace_back(WasmEdge::TypeCode::V128);
     } else if (Value.type() == simdjson::dom::element_type::STRING) {
       std::string_view ValueStr = Value;
       if (Type == "externref"sv) {
         if (Value == "null"sv) {
-          Result.emplace_back(WasmEdge::UnknownRef());
+          Result.emplace_back(WasmEdge::RefVariant());
         } else {
           // Add 0x1 uint32_t prefix in this externref index case.
-          Result.emplace_back(WasmEdge::ExternRef(reinterpret_cast<void *>(
+          Result.emplace_back(WasmEdge::RefVariant(reinterpret_cast<void *>(
               std::stoul(std::string(ValueStr)) + 0x100000000ULL)));
         }
-        ResultTypes.emplace_back(WasmEdge::ValType::ExternRef);
+        ResultTypes.emplace_back(WasmEdge::TypeCode::ExternRef);
       } else if (Type == "funcref"sv) {
         if (Value == "null"sv) {
-          Result.emplace_back(WasmEdge::UnknownRef());
+          Result.emplace_back(WasmEdge::RefVariant());
         } else {
           // Add 0x1 uint32_t prefix in this funcref index case.
-          Result.emplace_back(WasmEdge::FuncRef(
+          Result.emplace_back(WasmEdge::RefVariant(
               reinterpret_cast<WasmEdge::Runtime::Instance::FunctionInstance *>(
                   std::stoul(std::string(ValueStr)) + 0x100000000ULL)));
         }
-        ResultTypes.emplace_back(WasmEdge::ValType::FuncRef);
+        ResultTypes.emplace_back(WasmEdge::TypeCode::FuncRef);
       } else if (Type == "i32"sv) {
         Result.emplace_back(
             static_cast<uint32_t>(std::stoul(std::string(ValueStr))));
-        ResultTypes.emplace_back(WasmEdge::ValType::I32);
+        ResultTypes.emplace_back(WasmEdge::TypeCode::I32);
       } else if (Type == "f32"sv) {
         Result.emplace_back(
             static_cast<uint32_t>(std::stoul(std::string(ValueStr))));
-        ResultTypes.emplace_back(WasmEdge::ValType::F32);
+        ResultTypes.emplace_back(WasmEdge::TypeCode::F32);
       } else if (Type == "i64"sv) {
         Result.emplace_back(
             static_cast<uint64_t>(std::stoull(std::string(ValueStr))));
-        ResultTypes.emplace_back(WasmEdge::ValType::I64);
+        ResultTypes.emplace_back(WasmEdge::TypeCode::I64);
       } else if (Type == "f64"sv) {
         Result.emplace_back(
             static_cast<uint64_t>(std::stoull(std::string(ValueStr))));
-        ResultTypes.emplace_back(WasmEdge::ValType::F64);
+        ResultTypes.emplace_back(WasmEdge::TypeCode::F64);
       } else {
         assumingUnreachable();
       }
@@ -209,23 +209,30 @@ parseExpectedList(const simdjson::dom::array &Args) {
   Result.reserve(Args.size());
   for (const simdjson::dom::object &Element : Args) {
     std::string_view Type = Element["type"];
-    simdjson::dom::element Value = Element["value"];
-    if (Value.type() == simdjson::dom::element_type::ARRAY) {
-      simdjson::dom::array ValueNodeArray = Value;
-      std::string StrValue;
-      std::string_view LaneType = Element["lane_type"];
-      for (std::string_view X : ValueNodeArray) {
-        StrValue += std::string(X);
-        StrValue += ' ';
-      }
-      StrValue.pop_back();
-      Result.emplace_back(std::string(Type) + std::string(LaneType),
-                          std::move(StrValue));
-    } else if (Value.type() == simdjson::dom::element_type::STRING) {
-      std::string_view ValueStr = Value;
-      Result.emplace_back(std::string(Type), std::string(ValueStr));
+    simdjson::dom::element Value;
+    auto NoValue = Element["value"].get(Value);
+    if (NoValue) {
+      // Only marked the result type, not check the opaque result reference
+      // value.
+      Result.emplace_back(std::string(Type), "");
     } else {
-      assumingUnreachable();
+      if (Value.type() == simdjson::dom::element_type::ARRAY) {
+        simdjson::dom::array ValueNodeArray = Value;
+        std::string StrValue;
+        std::string_view LaneType = Element["lane_type"];
+        for (std::string_view X : ValueNodeArray) {
+          StrValue += std::string(X);
+          StrValue += ' ';
+        }
+        StrValue.pop_back();
+        Result.emplace_back(std::string(Type) + std::string(LaneType),
+                            std::move(StrValue));
+      } else if (Value.type() == simdjson::dom::element_type::STRING) {
+        std::string_view ValueStr = Value;
+        Result.emplace_back(std::string(Type), std::string(ValueStr));
+      } else {
+        assumingUnreachable();
+      }
     }
   }
   return Result;
@@ -243,6 +250,8 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"tail-call"sv, {Proposal::TailCall}},
     {"extended-const"sv, {Proposal::ExtendedConst}},
     {"threads"sv, {Proposal::Threads}},
+    {"function-references"sv,
+     {Proposal::FunctionReferences, Proposal::TailCall}},
 };
 
 } // namespace
@@ -293,62 +302,71 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
     // Handle NaN case
     // TODO: nan:canonical and nan:arithmetic
     if (TypeStr == "f32"sv) {
-      if (Got.second != ValType::F32) {
+      if (Got.second.getCode() != TypeCode::F32) {
         return false;
       }
       return std::isnan(Got.first.get<float>());
     } else if (TypeStr == "f64"sv) {
-      if (Got.second != ValType::F64) {
+      if (Got.second.getCode() != TypeCode::F64) {
         return false;
       }
       return std::isnan(Got.first.get<double>());
     }
   } else if (TypeStr == "funcref"sv) {
-    if (Got.second != ValType::FuncRef) {
+    if (!Got.second.isFuncRefType()) {
       return false;
     }
     if (ValStr == "null"sv) {
-      return WasmEdge::isNullRef(Got.first);
+      return Got.first.get<RefVariant>().isNull();
     } else {
-      if (WasmEdge::isNullRef(Got.first)) {
-        return false;
-      }
-      return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
-                 WasmEdge::retrieveFuncRef(Got.first))) ==
-             static_cast<uint32_t>(std::stoul(ValStr));
+      // Due to the implementations of the embedders, the value of FuncRef is
+      // opaque. Therefore not to compare the value here.
+      return !Got.first.get<RefVariant>().isNull();
     }
   } else if (TypeStr == "externref"sv) {
-    if (Got.second != ValType::ExternRef) {
+    if (!Got.second.isExternRefType()) {
       return false;
     }
     if (ValStr == "null"sv) {
-      return WasmEdge::isNullRef(Got.first);
+      return Got.first.get<RefVariant>().isNull();
     } else {
-      if (WasmEdge::isNullRef(Got.first)) {
+      if (Got.first.get<RefVariant>().isNull()) {
         return false;
       }
       return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
-                 &WasmEdge::retrieveExternRef<uint32_t>(Got.first))) ==
+                 &WasmEdge::retrieveExternRef<uint32_t>(
+                     Got.first.get<RefVariant>()))) ==
              static_cast<uint32_t>(std::stoul(ValStr));
     }
+  } else if (TypeStr == "ref"sv) {
+    if (!Got.second.isNullableRefType()) {
+      return false;
+    }
+    if (ValStr == "null"sv) {
+      return Got.first.get<RefVariant>().isNull();
+    } else {
+      // Due to the implementations of the embedders, the value of Ref is
+      // opaque. Therefore not to compare the value here.
+      return !Got.first.get<RefVariant>().isNull();
+    }
   } else if (TypeStr == "i32"sv) {
-    if (Got.second != ValType::I32) {
+    if (Got.second.getCode() != TypeCode::I32) {
       return false;
     }
     return Got.first.get<uint32_t>() == uint32_t(std::stoul(ValStr));
   } else if (TypeStr == "f32"sv) {
-    if (Got.second != ValType::F32) {
+    if (Got.second.getCode() != TypeCode::F32) {
       return false;
     }
     // Compare the 32-bit pattern
     return Got.first.get<uint32_t>() == uint32_t(std::stoul(ValStr));
   } else if (TypeStr == "i64"sv) {
-    if (Got.second != ValType::I64) {
+    if (Got.second.getCode() != TypeCode::I64) {
       return false;
     }
     return Got.first.get<uint64_t>() == uint64_t(std::stoull(ValStr));
   } else if (TypeStr == "f64"sv) {
-    if (Got.second != ValType::F64) {
+    if (Got.second.getCode() != TypeCode::F64) {
       return false;
     }
     // Compare the 64-bit pattern
@@ -356,7 +374,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
   } else if (IsV128) {
     std::vector<std::string_view> Parts;
     std::string_view Ev = ValStr;
-    if (Got.second != ValType::V128) {
+    if (Got.second.getCode() != TypeCode::V128) {
       return false;
     }
     for (std::string::size_type Begin = 0, End = Ev.find(' ');
@@ -373,8 +391,8 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto VF = reinterpret_cast<const floatx4_t&>(V64);
-      const auto VI = reinterpret_cast<const uint32x4_t&>(V64);
+      const auto VF = reinterpret_cast<const floatx4_t &>(V64);
+      const auto VI = reinterpret_cast<const uint32x4_t &>(V64);
 #else
       const auto VF = reinterpret_cast<floatx4_t>(V64);
       const auto VI = reinterpret_cast<uint32x4_t>(V64);
@@ -397,8 +415,8 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto VF = reinterpret_cast<const doublex2_t&>(V64);
-      const auto VI = reinterpret_cast<const uint64x2_t&>(V64);
+      const auto VF = reinterpret_cast<const doublex2_t &>(V64);
+      const auto VI = reinterpret_cast<const uint64x2_t &>(V64);
 #else
       const auto VF = reinterpret_cast<doublex2_t>(V64);
       const auto VI = reinterpret_cast<uint64x2_t>(V64);
@@ -421,7 +439,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto V = reinterpret_cast<const uint8x16_t&>(V64);
+      const auto V = reinterpret_cast<const uint8x16_t &>(V64);
 #else
       const auto V = reinterpret_cast<uint8x16_t>(V64);
 #endif
@@ -438,7 +456,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto V = reinterpret_cast<const uint16x8_t&>(V64);
+      const auto V = reinterpret_cast<const uint16x8_t &>(V64);
 #else
       const auto V = reinterpret_cast<uint16x8_t>(V64);
 #endif
@@ -455,7 +473,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto V = reinterpret_cast<const uint32x4_t&>(V64);
+      const auto V = reinterpret_cast<const uint32x4_t &>(V64);
 #else
       const auto V = reinterpret_cast<uint32x4_t>(V64);
 #endif

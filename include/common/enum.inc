@@ -38,12 +38,13 @@ A(Sec_Data, "data section")
 A(Sec_DataCount, "data count section")
 A(Desc_Import, "import description")
 A(Desc_Export, "export description")
+A(Seg_Table, "table segment")
 A(Seg_Global, "global segment")
 A(Seg_Element, "element segment")
 A(Seg_Code, "code segment")
 A(Seg_Data, "data segment")
-A(Type_Function, "function type")
 A(Type_Limit, "limit")
+A(Type_Function, "function type")
 A(Type_Memory, "memory type")
 A(Type_Table, "table type")
 A(Type_Global, "global type")
@@ -57,7 +58,7 @@ A(Sec_AOT, "aot section")
 #ifdef UseOpCode
 #define O Line
 
-// Control instructions
+// Control instructions (part 1)
 O(Unreachable, 0x00, "unreachable")
 O(Nop, 0x01, "nop")
 O(Block, 0x02, "block")
@@ -73,11 +74,8 @@ O(Call, 0x10, "call")
 O(Call_indirect, 0x11, "call_indirect")
 O(Return_call, 0x12, "return_call")
 O(Return_call_indirect, 0x13, "return_call_indirect")
-
-// Reference Instructions
-O(Ref__null, 0xD0, "ref.null")
-O(Ref__is_null, 0xD1, "ref.is_null")
-O(Ref__func, 0xD2, "ref.func")
+O(Call_ref, 0x14, "call_ref")
+O(Return_call_ref, 0x15, "return_call_ref")
 
 // Parametric Instructions
 O(Drop, 0x1A, "drop")
@@ -257,6 +255,18 @@ O(I32__extend16_s, 0xC1, "i32.extend16_s")
 O(I64__extend8_s, 0xC2, "i64.extend8_s")
 O(I64__extend16_s, 0xC3, "i64.extend16_s")
 O(I64__extend32_s, 0xC4, "i64.extend32_s")
+
+// Reference Instructions
+O(Ref__null, 0xD0, "ref.null")
+O(Ref__is_null, 0xD1, "ref.is_null")
+O(Ref__func, 0xD2, "ref.func")
+O(Ref__as_non_null, 0xD4, "ref.as_non_null")
+
+// Control Instructions (part 2)
+O(Br_on_null, 0xD5, "br_on_null")
+O(Br_on_non_null, 0xD6, "br_on_non_null")
+
+// Saturating Truncation Instructions
 O(I32__trunc_sat_f32_s, 0xFC00, "i32.trunc_sat_f32_s")
 O(I32__trunc_sat_f32_u, 0xFC01, "i32.trunc_sat_f32_u")
 O(I32__trunc_sat_f64_s, 0xFC02, "i32.trunc_sat_f64_s")
@@ -656,186 +666,236 @@ C(UserLevelError, 0x01)
 #ifdef UseErrCode
 #define E Line
 
-E(Success, 0x00, "success")
+E(Success, 0x0000, "success")
 // Exit and return success.
-E(Terminated, 0x01, "terminated")
+E(Terminated, 0x0001, "terminated")
 // Generic runtime error.
-E(RuntimeError, 0x02, "generic runtime error")
+E(RuntimeError, 0x0002, "generic runtime error")
 // Exceeded cost limit (out of gas).
-E(CostLimitExceeded, 0x03, "cost limit exceeded")
+E(CostLimitExceeded, 0x0003, "cost limit exceeded")
 // Wrong VM's workflow
-E(WrongVMWorkflow, 0x04, "wrong VM workflow")
+E(WrongVMWorkflow, 0x0004, "wrong VM workflow")
 // Wasm function not found
-E(FuncNotFound, 0x05, "wasm function not found")
+E(FuncNotFound, 0x0005, "wasm function not found")
 // AOT runtime is disabled
-E(AOTDisabled, 0x06, "AOT runtime is disabled in this build")
+E(AOTDisabled, 0x0006, "AOT runtime is disabled in this build")
 // Execution interrupted
-E(Interrupted, 0x07, "execution interrupted")
+E(Interrupted, 0x0007, "execution interrupted")
 // Not validated module
-E(NotValidated, 0x08, "wasm module hasn't passed validation yet")
+E(NotValidated, 0x0008, "wasm module hasn't passed validation yet")
+// Non-Null value is required
+E(NonNullRequired, 0x0009, "set null value into non-nullable value type")
+// Unable to set value due to const
+E(SetValueToConst, 0x000A, "set value into const")
+// Set value failed due to mismatch value type
+E(SetValueErrorType, 0x000B, "set value type mismatch")
 // User defined error
-E(UserDefError, 0x09, "user defined error code")
+E(UserDefError, 0x000C, "user defined error code")
 
 // Load phase
 // @{
 // File not found
-E(IllegalPath, 0x20, "invalid path")
+E(IllegalPath, 0x0100, "invalid path")
 // Error when reading
-E(ReadError, 0x21, "read error")
+E(ReadError, 0x0101, "read error")
 // Reach end of file when reading
-E(UnexpectedEnd, 0x22, "unexpected end")
+E(UnexpectedEnd, 0x0102, "unexpected end")
 // Not detected magic header
-E(MalformedMagic, 0x23, "magic header not detected")
+E(MalformedMagic, 0x0103, "magic header not detected")
 // Unsupported version
-E(MalformedVersion, 0x24, "unknown binary version")
+E(MalformedVersion, 0x0104, "unknown binary version")
 // Malformed section ID
-E(MalformedSection, 0x25, "malformed section id")
+E(MalformedSection, 0x0105, "malformed section id")
 // Section size mismatched
-E(SectionSizeMismatch, 0x26, "section size mismatch")
+E(SectionSizeMismatch, 0x0106, "section size mismatch")
 // Length out of bounds
-E(LengthOutOfBounds, 0x27, "length out of bounds")
+E(LengthOutOfBounds, 0x0107, "length out of bounds")
 // Junk sections
-E(JunkSection, 0x28, "unexpected content after last section")
+E(JunkSection, 0x0108, "unexpected content after last section")
 // Incompatible function and code section
-E(IncompatibleFuncCode, 0x29,
+E(IncompatibleFuncCode, 0x0109,
   "function and code section have inconsistent lengths")
 // Incompatible data and datacount section
-E(IncompatibleDataCount, 0x2A,
+E(IncompatibleDataCount, 0x010A,
   "data count and data section have inconsistent lengths")
 // Datacount section required
-E(DataCountRequired, 0x2B, "data count section required")
+E(DataCountRequired, 0x010B, "data count section required")
 // Malformed import kind
-E(MalformedImportKind, 0x2C, "malformed import kind")
+E(MalformedImportKind, 0x010C, "malformed import kind")
 // Malformed export kind
-E(MalformedExportKind, 0x2D, "malformed export kind")
+E(MalformedExportKind, 0x010D, "malformed export kind")
 // Not loaded an expected zero byte
-E(ExpectedZeroByte, 0x2E, "zero byte expected")
+E(ExpectedZeroByte, 0x010E, "zero byte expected")
 // Malformed mutability
-E(InvalidMut, 0x2F, "malformed mutability")
+E(InvalidMut, 0x010F, "malformed mutability")
 // Local size too large
-E(TooManyLocals, 0x30, "too many locals")
+E(TooManyLocals, 0x0110, "too many locals")
 // Malformed value type
-E(MalformedValType, 0x31, "malformed value type")
+E(MalformedValType, 0x0111, "malformed value type")
 // Malformed element type (Bulk-mem proposal)
-E(MalformedElemType, 0x32, "malformed element type")
+E(MalformedElemType, 0x0112, "malformed element type")
 // Malformed reference type (Ref-types proposal)
-E(MalformedRefType, 0x33, "malformed reference type")
+E(MalformedRefType, 0x0113, "malformed reference type")
 // Invalid utf-8 encoding
-E(MalformedUTF8, 0x34, "malformed UTF-8 encoding")
+E(MalformedUTF8, 0x0114, "malformed UTF-8 encoding")
 // Invalid too large integer
-E(IntegerTooLarge, 0x35, "integer too large")
+E(IntegerTooLarge, 0x0115, "integer too large")
 // Invalid presentation too long integer
-E(IntegerTooLong, 0x36, "integer representation too long")
+E(IntegerTooLong, 0x0116, "integer representation too long")
 // Illegal OpCode
-E(IllegalOpCode, 0x37, "illegal opcode")
+E(IllegalOpCode, 0x0117, "illegal opcode")
 // END OpCode expected
-E(ENDCodeExpected, 0x38, "END opcode expected")
+E(ENDCodeExpected, 0x0118, "END opcode expected")
 // Parsing error
-E(IllegalGrammar, 0x39, "invalid wasm grammar")
+E(IllegalGrammar, 0x0119, "invalid wasm grammar")
 // Shared memory must have max
-E(SharedMemoryNoMax, 0x3A, "shared memory must have maximum")
+E(SharedMemoryNoMax, 0x011A, "shared memory must have maximum")
 // Intrinsics table not found
-E(IntrinsicsTableNotFound, 0x3B, "intrinsics table not found")
+E(IntrinsicsTableNotFound, 0x011B, "intrinsics table not found")
+// Malformed table (Ref-types proposal)
+E(MalformedTable, 0x011C, "malformed table")
 // @}
 
 // Validation phase
 // @{
 // Alignment > natural
-E(InvalidAlignment, 0x40, "alignment must not be larger than natural")
+E(InvalidAlignment, 0x0200, "alignment must not be larger than natural")
 // Got unexpected type when checking
-E(TypeCheckFailed, 0x41, "type mismatch")
+E(TypeCheckFailed, 0x0201, "type mismatch")
 // Branch to unknown label index
-E(InvalidLabelIdx, 0x42, "unknown label")
+E(InvalidLabelIdx, 0x0202, "unknown label")
 // Access unknown local index
-E(InvalidLocalIdx, 0x43, "unknown local")
+E(InvalidLocalIdx, 0x0203, "unknown local")
+// Access unknown field index
+E(InvalidFieldIdx, 0x0204, "unknown field")
 // Type index not defined
-E(InvalidFuncTypeIdx, 0x44, "unknown type")
+E(InvalidFuncTypeIdx, 0x0205, "unknown type")
 // Function index not defined
-E(InvalidFuncIdx, 0x45, "unknown function")
+E(InvalidFuncIdx, 0x0206, "unknown function")
 // Table index not defined
-E(InvalidTableIdx, 0x46, "unknown table")
+E(InvalidTableIdx, 0x0207, "unknown table")
 // Memory index not defined
-E(InvalidMemoryIdx, 0x47, "unknown memory")
+E(InvalidMemoryIdx, 0x0208, "unknown memory")
 // Global index not defined
-E(InvalidGlobalIdx, 0x48, "unknown global")
+E(InvalidGlobalIdx, 0x0209, "unknown global")
 // Element segment index not defined
-E(InvalidElemIdx, 0x49, "unknown elem segment")
+E(InvalidElemIdx, 0x020A, "unknown elem segment")
 // Data segment index not defined
-E(InvalidDataIdx, 0x4A, "unknown data segment")
+E(InvalidDataIdx, 0x020B, "unknown data segment")
 // Undeclared reference
-E(InvalidRefIdx, 0x4B, "undeclared function reference")
+E(InvalidRefIdx, 0x020C, "undeclared function reference")
 // Should be constant expression
-E(ConstExprRequired, 0x4C, "constant expression required")
+E(ConstExprRequired, 0x020D, "constant expression required")
 // Export name conflicted
-E(DupExportName, 0x4D, "duplicate export name")
+E(DupExportName, 0x020E, "duplicate export name")
 // Tried to store to const global value
-E(ImmutableGlobal, 0x4E, "global is immutable")
+E(ImmutableGlobal, 0x020F, "global is immutable")
+// Tried to store to const field of structure
+E(ImmutableField, 0x0210, "field is immutable")
+// Tried to store to const array
+E(ImmutableArray, 0x0211, "array is immutable")
 // Invalid result arity in select t* instruction
-E(InvalidResultArity, 0x4F, "invalid result arity")
+E(InvalidResultArity, 0x0212, "invalid result arity")
 // #Tables > 1 (without Ref-types proposal)
-E(MultiTables, 0x50, "multiple tables")
+E(MultiTables, 0x0213, "multiple tables")
 // #Memories > 1
-E(MultiMemories, 0x51, "multiple memories")
+E(MultiMemories, 0x0214, "multiple memories")
 // Invalid Limit grammar
-E(InvalidLimit, 0x52, "size minimum must not be greater than maximum")
+E(InvalidLimit, 0x0215, "size minimum must not be greater than maximum")
 // Memory pages > 65536
-E(InvalidMemPages, 0x53, "memory size must be at most 65536 pages (4GiB)")
+E(InvalidMemPages, 0x0216, "memory size must be at most 65536 pages (4GiB)")
 // Invalid start function signature
-E(InvalidStartFunc, 0x54, "start function")
+E(InvalidStartFunc, 0x0217, "start function")
 // Invalid lane index
-E(InvalidLaneIdx, 0x55, "invalid lane index")
+E(InvalidLaneIdx, 0x0218, "invalid lane index")
+// Invalid uninitialized local
+E(InvalidUninitLocal, 0x0219, "uninitialized local")
+// Defaultable field type required
+E(InvalidNotDefaultableField, 0x021A, "field type is not defaultable")
+// Defaultable array type required
+E(InvalidNotDefaultableArray, 0x021B, "array type is not defaultable")
+// Unpacked field type required, but got packed one
+E(InvalidPackedField, 0x021C, "field is packed")
+// Unpacked array type required, but got packed one
+E(InvalidPackedArray, 0x021D, "array is packed")
+// Packed field type required, but got unpacked one
+E(InvalidUnpackedField, 0x021E, "field is unpacked")
+// Packed array type required, but got unpacked one
+E(InvalidUnpackedArray, 0x021F, "array is unpacked")
+// Invalid Br ref type
+E(InvalidBrRefType, 0x0220, "invalid br ref type")
+// 2 array types not matched
+E(ArrayTypesMismatch, 0x0221, "array types do not match")
+// Should be numeric type in array type
+E(ArrayTypesNumtypeRequired, 0x0222, "array type is not numeric or vector")
+// Sub type matching or validation failed
+E(InvalidSubType, 0x0223, "sub type")
 // @}
 
 // Instantiation phase
 // @{
 // Module name conflicted when importing.
-E(ModuleNameConflict, 0x60, "module name conflict")
+E(ModuleNameConflict, 0x0300, "module name conflict")
 // Import matching failed
-E(IncompatibleImportType, 0x61, "incompatible import type")
+E(IncompatibleImportType, 0x0301, "incompatible import type")
 // Unknown import instances
-E(UnknownImport, 0x62, "unknown import")
+E(UnknownImport, 0x0302, "unknown import")
 // Init failed when instantiating data segment
-E(DataSegDoesNotFit, 0x63, "data segment does not fit")
+E(DataSegDoesNotFit, 0x0303, "data segment does not fit")
 // Init failed when instantiating element segment
-E(ElemSegDoesNotFit, 0x64, "elements segment does not fit")
+E(ElemSegDoesNotFit, 0x0304, "elements segment does not fit")
 // @}
 
 // Execution phase
 // @{
 // Wrong access of instances addresses
-E(WrongInstanceAddress, 0x80, "wrong instance address")
+E(WrongInstanceAddress, 0x0400, "wrong instance address")
 // Wrong access of instances indices
-E(WrongInstanceIndex, 0x81, "wrong instance index")
+E(WrongInstanceIndex, 0x0401, "wrong instance index")
 // Instruction type not match
-E(InstrTypeMismatch, 0x82, "instruction type mismatch")
+E(InstrTypeMismatch, 0x0402, "instruction type mismatch")
 // Function signature not match when invoking
-E(FuncSigMismatch, 0x83, "function signature mismatch")
+E(FuncSigMismatch, 0x0403, "function signature mismatch")
 // Divide by zero
-E(DivideByZero, 0x84, "integer divide by zero")
+E(DivideByZero, 0x0404, "integer divide by zero")
 // Integer overflow
-E(IntegerOverflow, 0x85, "integer overflow")
+E(IntegerOverflow, 0x0405, "integer overflow")
 // Cannot do convert to integer
-E(InvalidConvToInt, 0x86, "invalid conversion to integer")
+E(InvalidConvToInt, 0x0406, "invalid conversion to integer")
 // Out of bounds table access
-E(TableOutOfBounds, 0x87, "out of bounds table access")
+E(TableOutOfBounds, 0x0407, "out of bounds table access")
 // Out of bounds memory access
-E(MemoryOutOfBounds, 0x88, "out of bounds memory access")
+E(MemoryOutOfBounds, 0x0408, "out of bounds memory access")
+// Out of bounds array access
+E(ArrayOutOfBounds, 0x0409, "out of bounds array access")
 // Meet an unreachable instruction
-E(Unreachable, 0x89, "unreachable")
+E(Unreachable, 0x040A, "unreachable")
 // Uninitialized element in table instance
-E(UninitializedElement, 0x8A, "uninitialized element")
+E(UninitializedElement, 0x040B, "uninitialized element")
 // Access undefined element in table instances
-E(UndefinedElement, 0x8B, "undefined element")
+E(UndefinedElement, 0x040C, "undefined element")
 // Func type mismatch in call_indirect
-E(IndirectCallTypeMismatch, 0x8C, "indirect call type mismatch")
+E(IndirectCallTypeMismatch, 0x040D, "indirect call type mismatch")
 // Host function execution failed
-E(HostFuncError, 0x8D, "host function failed")
+E(HostFuncError, 0x040E, "host function failed")
 // Reference type not match
-E(RefTypeMismatch, 0x8E, "reference type mismatch")
+E(RefTypeMismatch, 0x040F, "reference type mismatch")
 // Unaligned atomic memory access
-E(UnalignedAtomicAccess, 0x8F, "unaligned atomic")
+E(UnalignedAtomicAccess, 0x0410, "unaligned atomic")
 // wait32/wait64 on unshared memory
-E(ExpectSharedMemory, 0x90, "expected shared memory")
+E(ExpectSharedMemory, 0x0411, "expected shared memory")
+// Cast null pointer to non null
+E(CastNullToNonNull, 0x0412, "null reference")
+// Access to null function reference
+E(AccessNullFunc, 0x0413, "null function reference")
+// Access to null structure reference
+E(AccessNullStruct, 0x0414, "null structure reference")
+// Access to null array reference
+E(AccessNullArray, 0x0415, "null array reference")
+// Access to null i31 reference
+E(AccessNullI31, 0x0416, "null i31 reference")
+// Fail to cast reference
+E(CastFailed, 0x0417, "cast failure")
 // @}
 
 #undef E
@@ -901,40 +961,39 @@ I(Lane, "lane")
 
 // enum_types.h
 
-#ifdef UseValType
-#define V Line
+#ifdef UseTypeCode
+#define T Line
 
-V(I32, 0x7F, "i32")
-V(I64, 0x7E, "i64")
-V(F32, 0x7D, "f32")
-V(F64, 0x7C, "f64")
-V(V128, 0x7B, "v128")
-V(FuncRef, 0x70, "funcref")
-V(ExternRef, 0x6F, "externref")
+T(TypeIndex, 0x00, "type_index")   // 0x00 reserved for type index case
+T(I32, 0x7F, "i32")                // -0x01 for number type
+T(I64, 0x7E, "i64")                // -0x02 for number type
+T(F32, 0x7D, "f32")                // -0x03 for number type
+T(F64, 0x7C, "f64")                // -0x04 for number type
+T(V128, 0x7B, "v128")              // -0x05 for vector type
+T(I8, 0x78, "i8")                  // -0x08 for packed type
+T(I16, 0x77, "i16")                // -0x09 for packed type
+T(NullFuncRef, 0x73, "nofunc")     // -0x0D for heap type
+T(NullExternRef, 0x72, "noextern") // -0x0E for heap type
+T(NullRef, 0x71, "none")           // -0x0F for heap type
+T(FuncRef, 0x70, "func")           // -0x10 for heap type
+T(ExternRef, 0x6F, "extern")       // -0x11 for heap type
+T(AnyRef, 0x6E, "any")             // -0x12 for heap type
+T(EqRef, 0x6D, "eq")               // -0x13 for heap type
+T(I31Ref, 0x6C, "i31")             // -0x14 for heap type
+T(StructRef, 0x6B, "struct")       // -0x15 for heap type
+T(ArrayRef, 0x6A, "array")         // -0x16 for heap type
+T(Ref, 0x64, "ref")                // -0x1C for reference type
+T(RefNull, 0x63, "ref_null")       // -0x1D for reference type
+T(Func, 0x60, "func")              // -0x20 for composite type
+T(Struct, 0x5F, "struct")          // -0x21 for composite type
+T(Array, 0x5E, "array")            // -0x22 for composite type
+T(Sub, 0x50, "sub")                // -0x30 for sub type
+T(SubFinal, 0x4F, "sub_final")     // -0x31 for sub type
+T(Rec, 0x4E, "rec")                // -0x32 for recursive type
+T(Epsilon, 0x40, "-")              // -0x40 for result type
 
-#undef V
-#endif // UseValType
-
-#ifdef UseNumType
-#define N Line
-
-N(I32, 0x7F)
-N(I64, 0x7E)
-N(F32, 0x7D)
-N(F64, 0x7C)
-N(V128, 0x7B)
-
-#undef N
-#endif // UseNumType
-
-#ifdef UseRefType
-#define R Line
-
-R(FuncRef, 0x70)
-R(ExternRef, 0x6F)
-
-#undef R
-#endif // UseRefType
+#undef T
+#endif // UseTypeCode
 
 #ifdef UseValMut
 #define M Line
@@ -955,5 +1014,3 @@ E(Global, 0x03U, "global")
 
 #undef E
 #endif // UseExternalType
-
-// vim: ft=cpp

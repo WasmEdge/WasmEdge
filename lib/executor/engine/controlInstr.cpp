@@ -50,6 +50,26 @@ Expect<void> Executor::runBrIfOp(Runtime::StackManager &StackMgr,
   return {};
 }
 
+Expect<void> Executor::runBrOnNull(Runtime::StackManager &StackMgr,
+                                   const AST::Instruction &Instr,
+                                   AST::InstrView::iterator &PC) noexcept {
+  if (StackMgr.getTop().get<RefVariant>().isNull()) {
+    StackMgr.pop();
+    return runBrOp(StackMgr, Instr, PC);
+  }
+  return {};
+}
+
+Expect<void> Executor::runBrOnNonNull(Runtime::StackManager &StackMgr,
+                                      const AST::Instruction &Instr,
+                                      AST::InstrView::iterator &PC) noexcept {
+  if (!StackMgr.getTop().get<RefVariant>().isNull()) {
+    return runBrOp(StackMgr, Instr, PC);
+  }
+  StackMgr.pop();
+  return {};
+}
+
 Expect<void> Executor::runBrTableOp(Runtime::StackManager &StackMgr,
                                     const AST::Instruction &Instr,
                                     AST::InstrView::iterator &PC) noexcept {
@@ -95,6 +115,29 @@ Expect<void> Executor::runCallOp(Runtime::StackManager &StackMgr,
   return {};
 }
 
+Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
+                                    const AST::Instruction &Instr,
+                                    AST::InstrView::iterator &PC,
+                                    bool IsTailCall) noexcept {
+
+  const auto Ref = StackMgr.pop().get<RefVariant>();
+  if (Ref.isNull()) {
+    spdlog::error(ErrCode::Value::AccessNullFunc);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::Value::AccessNullFunc);
+  }
+
+  // Get Function address.
+  const auto *FuncInst = retrieveFuncRef(Ref);
+  if (auto Res = enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall); !Res) {
+    return Unexpect(Res);
+  } else {
+    PC = (*Res) - 1;
+  }
+  return {};
+}
+
 Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
                                          const AST::Instruction &Instr,
                                          AST::InstrView::iterator &PC,
@@ -118,9 +161,9 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::UndefinedElement);
   }
 
-  // Get function address.
-  ValVariant Ref = TabInst->getRefAddr(Idx)->get<UnknownRef>();
-  if (isNullRef(Ref)) {
+  // Get function address. The bound is guaranteed.
+  RefVariant Ref = *TabInst->getRefAddr(Idx);
+  if (Ref.isNull()) {
     spdlog::error(ErrCode::Value::UninitializedElement);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
@@ -131,7 +174,10 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
   // Check function type.
   const auto *FuncInst = retrieveFuncRef(Ref);
   const auto &FuncType = FuncInst->getFuncType();
-  if (*TargetFuncType != FuncType) {
+  if (!matchTypes(*ModInst, TargetFuncType->getParamTypes(),
+                  *FuncInst->getModule(), FuncType.getParamTypes()) ||
+      !matchTypes(*ModInst, TargetFuncType->getReturnTypes(),
+                  *FuncInst->getModule(), FuncType.getReturnTypes())) {
     spdlog::error(ErrCode::Value::IndirectCallTypeMismatch);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},

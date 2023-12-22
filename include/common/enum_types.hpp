@@ -15,7 +15,7 @@
 #pragma once
 
 #include "dense_enum_map.h"
-#include "log.h"
+#include "errcode.h"
 #include "spare_enum_map.h"
 
 #include <cstdint>
@@ -24,44 +24,25 @@
 namespace WasmEdge {
 
 /// WASM Value type C++ enumeration class.
-enum class ValType : uint8_t {
-#define UseValType
+enum class TypeCode : uint8_t {
+#define UseTypeCode
 #define Line(NAME, VALUE, STRING) NAME = VALUE,
 #include "enum.inc"
 #undef Line
-#undef UseValType
+#undef UseTypeCode
 };
 
-static inline constexpr const auto ValTypeStr = []() constexpr {
+static inline constexpr const auto TypeCodeStr = []() constexpr {
   using namespace std::literals::string_view_literals;
-  std::pair<ValType, std::string_view> Array[] = {
-#define UseValType
-#define Line(NAME, VALUE, STRING) {ValType::NAME, STRING},
+  std::pair<TypeCode, std::string_view> Array[] = {
+#define UseTypeCode
+#define Line(NAME, VALUE, STRING) {TypeCode::NAME, STRING},
 #include "enum.inc"
 #undef Line
-#undef UseValType
+#undef UseTypeCode
   };
   return SpareEnumMap(Array);
-}
-();
-
-/// WASM Number type C++ enumeration class.
-enum class NumType : uint8_t {
-#define UseNumType
-#define Line(NAME, VALUE) NAME = VALUE,
-#include "enum.inc"
-#undef Line
-#undef UseNumType
-};
-
-/// WASM Reference type C++ enumeration class.
-enum class RefType : uint8_t {
-#define UseRefType
-#define Line(NAME, VALUE) NAME = VALUE,
-#include "enum.inc"
-#undef Line
-#undef UseRefType
-};
+}();
 
 /// WASM Mutability C++ enumeration class.
 enum class ValMut : uint8_t {
@@ -82,8 +63,7 @@ static inline constexpr auto ValMutStr = []() constexpr {
 #undef UseValMut
   };
   return DenseEnumMap(Array);
-}
-();
+}();
 
 /// WASM External type C++ enumeration class.
 enum class ExternalType : uint8_t {
@@ -104,19 +84,9 @@ static inline constexpr auto ExternalTypeStr = []() constexpr {
 #undef UseExternalType
   };
   return DenseEnumMap(Array);
-}
-();
+}();
 
 } // namespace WasmEdge
-
-template <>
-struct fmt::formatter<WasmEdge::ValType> : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::ValType &Type,
-         fmt::format_context &Ctx) const noexcept {
-    return formatter<std::string_view>::format(WasmEdge::ValTypeStr[Type], Ctx);
-  }
-};
 
 template <>
 struct fmt::formatter<WasmEdge::ValMut> : fmt::formatter<std::string_view> {

@@ -197,6 +197,14 @@ jobs:
         ls ~/new_wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         ${{ matrix.python3_ex }} utils/install.py -v 0.10.0-alpha.1 -p /usr
         ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    - name: Plugin install test - WasmEdge rustls
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
+      run: |
+        ${{ matrix.python2_ex }} utils/install.py -v 0.13.4 --plugins wasmedge_rustls
+        ls ~/.wasmedge/plugin/ | grep libwasmedge_rustls.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge Rustls Plugin not found" && exit 1)
+
+        ${{ matrix.python3_ex }} utils/install.py -v 0.13.4 --plugins wasmedge_rustls
+        ls ~/.wasmedge/plugin/ | grep libwasmedge_rustls.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge Rustls Plugin not found" && exit 1)
     - name: Externally Specified plugin install check (single)(Ubuntu)
       if: ${{ matrix.name == 'Ubuntu 20.04' }}
       run: |
@@ -380,6 +388,8 @@ jobs:
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         python3 utils/install.py -v 0.13.1 --plugins wasmedge_tensorflowlite
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        python3 utils/install.py -v 0.13.4 --plugins wasmedge_rustls
+        ls ~/.wasmedge/plugin/ | grep libwasmedge_rustls.dylib && echo "Pass: Plugins found" || (echo "Fail: Wasmedge Rustls Plugin not found" && exit 1)
         python3 utils/install.py -v 0.10.0-alpha.1 -p ~/new_wasmedge
         ls ~/new_wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         # MacOS container does not have access for /usr directory
@@ -393,6 +403,8 @@ jobs:
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         python3 utils/install.py -v 0.13.1 --plugins wasmedge_tensorflowlite
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        python3 utils/install.py -v 0.13.4 --plugins wasmedge_rustls
+        ls ~/.wasmedge/plugin/ | grep libwasmedge_rustls.dylib && echo "Pass: Plugins found" || (echo "Fail: Wasmedge Rustls Plugin not found" && exit 1)
 
     - name: Install multiple versions and Tensorflow extension/plugins for pre and post 0.13.x
       if: ${{ matrix.name != 'MacOS-arm64' }}

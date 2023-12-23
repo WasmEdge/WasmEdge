@@ -274,8 +274,7 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
     }
   } else {
     spdlog::error(ErrCode::Value::NonNullRequired);
-    spdlog::error("    Cannot pass a null reference as an argument of {}.",
-                    DLInfo.dli_fname);
+    spdlog::error("Cannot pass a null reference as an argument.");
     return std::vector<std::filesystem::path>();
   }
 #elif WASMEDGE_OS_WINDOWS

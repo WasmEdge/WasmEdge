@@ -273,7 +273,10 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
                        std::filesystem::u8path("plugin"sv));
     }
   } else {
-    spdlog::error("Error: dladdr failed to find the shared object or symbol.");
+    spdlog::error(ErrCode::Value::NonNullRequired);
+    spdlog::error("    Cannot pass a null reference as an argument of {}.",
+                    DLInfo.dli_fname);
+    return std::vector<std::filesystem::path>();
   }
 #elif WASMEDGE_OS_WINDOWS
   // FIXME: Use the `dladdr`.

@@ -27,6 +27,8 @@ A(Sec_Alias, "component alias section")
 A(Sec_Instance, "component instance section")
 A(Sec_CompType, "component type section")
 A(Sec_CompStart, "component start section")
+A(Sec_Canon, "component canonical section")
+A(Canonical, "canonical")
 A(Alias, "alias")
 A(DefType, "component defined type")
 A(InstanceDecl, "instance decl")
@@ -935,6 +937,10 @@ E(MalformedVariantType, 0x0506, "malformed variant type")
 E(MalformedTupleType, 0x0507, "malformed tuple type")
 // Malformed flags type
 E(MalformedFlagsType, 0x0508, "malformed flags type")
+// Malformed canonical
+E(MalformedCanonical, 0x0509, "malformed canonical")
+// Unknown canonical option
+E(UnknownCanonicalOption, 0x050A, "unknown canonical option")
 // @}
 
 #undef E

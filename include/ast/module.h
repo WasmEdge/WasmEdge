@@ -175,6 +175,7 @@ public:
   InstanceSection &getInstanceSection() noexcept { return InstSec; }
   AliasSection &getAliasSection() noexcept { return AliasSec; }
   TypeSection &getTypeSection() noexcept { return TySec; }
+  CanonSection &getCanonSection() noexcept { return CanonSec; }
   StartSection &getStartSection() noexcept { return StartSec; }
 
 private:
@@ -191,6 +192,7 @@ private:
   InstanceSection InstSec;
   AliasSection AliasSec;
   TypeSection TySec;
+  CanonSection CanonSec;
   StartSection StartSec;
   /// @}
 };

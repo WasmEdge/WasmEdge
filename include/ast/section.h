@@ -309,7 +309,7 @@ public:
   std::vector<CoreInstanceExpr> &getContent() noexcept { return Content; }
 
 private:
-  /// \name Data of InstanceSection.
+  /// \name Data of CoreInstanceSection.
   /// @{
   std::vector<CoreInstanceExpr> Content;
   /// @}
@@ -335,7 +335,7 @@ public:
   std::vector<DefType> &getContent() noexcept { return Content; }
 
 private:
-  /// \name Data of InstanceSection.
+  /// \name Data of TypeSection.
   /// @{
   std::vector<DefType> Content;
   /// @}
@@ -348,7 +348,7 @@ public:
   std::vector<Start> &getContent() noexcept { return Content; }
 
 private:
-  /// \name Data of CompStartSection.
+  /// \name Data of StartSection.
   /// @{
   std::vector<Start> Content;
   /// @}

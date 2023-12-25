@@ -204,6 +204,13 @@ Expect<void> Loader::loadSection(AST::Component::TypeSection &Sec) {
   });
 }
 
+Expect<void> Loader::loadSection(AST::Component::CanonSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::Component::Canon &C) { return loadCanonical(C); });
+  });
+}
+
 // Load vector of component instance section.
 // See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::Component::InstanceSection &Sec) {

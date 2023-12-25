@@ -14,6 +14,7 @@
 #pragma once
 
 #include "ast/component/alias.h"
+#include "ast/component/canonical.h"
 #include "ast/component/instance.h"
 #include "ast/component/start.h"
 #include "ast/component/type.h"
@@ -338,6 +339,19 @@ private:
   /// \name Data of TypeSection.
   /// @{
   std::vector<DefType> Content;
+  /// @}
+};
+
+class CanonSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const Canon> getContent() const noexcept { return Content; }
+  std::vector<Canon> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of CanonicalSection.
+  /// @{
+  std::vector<Canon> Content;
   /// @}
 };
 

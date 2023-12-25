@@ -95,6 +95,10 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::StartSection>() noexcept {
   return ASTNodeAttr::Sec_CompStart;
 }
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::CanonSection>() noexcept {
+  return ASTNodeAttr::Sec_Canon;
+}
 
 } // namespace
 
@@ -274,7 +278,12 @@ private:
   Expect<void> loadSection(AST::Component::InstanceSection &Sec);
   Expect<void> loadSection(AST::Component::AliasSection &Sec);
   Expect<void> loadSection(AST::Component::TypeSection &Sec);
+  Expect<void> loadSection(AST::Component::CanonSection &Sec);
   static Expect<void> loadSection(FileMgr &VecMgr, AST::AOTSection &Sec);
+  Expect<void> loadCanonical(AST::Component::Canon &C);
+  Expect<void> loadCanonical(AST::Component::Lift &C);
+  Expect<void> loadCanonical(AST::Component::Lower &C);
+  Expect<void> loadCanonicalOption(AST::Component::CanonOpt &C);
   Expect<void> loadSegment(AST::TableSegment &TabSeg);
   Expect<void> loadSegment(AST::GlobalSegment &GlobSeg);
   Expect<void> loadSegment(AST::ElementSegment &ElemSeg);

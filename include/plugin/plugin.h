@@ -130,7 +130,7 @@ public:
 
   Span<const PluginModule> modules() const noexcept {
     assuming(Desc);
-    return ModuleRegistory;
+    return ModuleRegistry;
   }
 
   WASMEDGE_EXPORT const PluginModule *
@@ -139,13 +139,13 @@ public:
   std::filesystem::path path() const noexcept { return Path; }
 
 private:
-  static std::vector<Plugin> &PluginRegistory;
+  static std::vector<Plugin> &PluginRegistry;
   static std::unordered_map<std::string_view, std::size_t> &PluginNameLookup;
 
   std::filesystem::path Path;
   const PluginDescriptor *Desc = nullptr;
   std::shared_ptr<Loader::SharedLibrary> Lib;
-  std::vector<PluginModule> ModuleRegistory;
+  std::vector<PluginModule> ModuleRegistry;
   std::unordered_map<std::string_view, std::size_t> ModuleNameLookup;
 
   static bool loadFile(const std::filesystem::path &Path) noexcept;

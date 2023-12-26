@@ -136,6 +136,8 @@ public:
   WASMEDGE_EXPORT const PluginModule *
   findModule(std::string_view Name) const noexcept;
 
+  std::filesystem::path path() const noexcept { return Path; }
+
 private:
   static std::vector<Plugin> &PluginRegistory;
   static std::unordered_map<std::string_view, std::size_t> &PluginNameLookup;

@@ -15,6 +15,7 @@
 
 #include "ast/component/alias.h"
 #include "ast/component/canonical.h"
+#include "ast/component/import_export.h"
 #include "ast/component/instance.h"
 #include "ast/component/start.h"
 #include "ast/component/type.h"
@@ -365,6 +366,32 @@ private:
   /// \name Data of StartSection.
   /// @{
   std::vector<Start> Content;
+  /// @}
+};
+
+class ImportSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const Import> getContent() const noexcept { return Content; }
+  std::vector<Import> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of ImportSection.
+  /// @{
+  std::vector<Import> Content;
+  /// @}
+};
+
+class ExportSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const Export> getContent() const noexcept { return Content; }
+  std::vector<Export> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of ExportSection.
+  /// @{
+  std::vector<Export> Content;
   /// @}
 };
 

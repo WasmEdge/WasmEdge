@@ -198,14 +198,17 @@ Expect<void> Loader::loadComponent(AST::Component::Component &Comp) {
       break;
     }
     case 0x0A:
-      spdlog::error("Component model is not fully parsed yet! import section");
-      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
-                          ASTNodeAttr::Component);
+      if (auto Res = loadSection(Comp.getImportSection()); !Res) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+        return Unexpect(Res);
+      }
+      break;
     case 0x0B:
-      spdlog::error("Component model is not fully parsed yet! export section");
-      return logLoadError(ErrCode::Value::Terminated, FMgr.getLastOffset(),
-                          ASTNodeAttr::Component);
-
+      if (auto Res = loadSection(Comp.getExportSection()); !Res) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+        return Unexpect(Res);
+      }
+      break;
     default:
       return logLoadError(ErrCode::Value::MalformedSection,
                           FMgr.getLastOffset(), ASTNodeAttr::Component);

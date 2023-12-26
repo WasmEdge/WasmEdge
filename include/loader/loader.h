@@ -99,6 +99,14 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::CanonSection>() noexcept {
   return ASTNodeAttr::Sec_Canon;
 }
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::ImportSection>() noexcept {
+  return ASTNodeAttr::Sec_CompImport;
+}
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::ExportSection>() noexcept {
+  return ASTNodeAttr::Sec_CompExport;
+}
 
 } // namespace
 
@@ -279,7 +287,11 @@ private:
   Expect<void> loadSection(AST::Component::AliasSection &Sec);
   Expect<void> loadSection(AST::Component::TypeSection &Sec);
   Expect<void> loadSection(AST::Component::CanonSection &Sec);
+  Expect<void> loadSection(AST::Component::ImportSection &Sec);
+  Expect<void> loadSection(AST::Component::ExportSection &Sec);
   static Expect<void> loadSection(FileMgr &VecMgr, AST::AOTSection &Sec);
+  Expect<void> loadImport(AST::Component::Import &Im);
+  Expect<void> loadExport(AST::Component::Export &Ex);
   Expect<void> loadCanonical(AST::Component::Canon &C);
   Expect<void> loadCanonical(AST::Component::Lift &C);
   Expect<void> loadCanonical(AST::Component::Lower &C);
@@ -350,6 +362,7 @@ private:
   Expect<void> loadInstanceDecl(AST::Component::InstanceDecl &Decl);
   Expect<void> loadExternDesc(AST::Component::ExternDesc &Desc);
   Expect<void> loadImportExportName(std::string &Name);
+  Expect<void> loadImportExportNameWithLen(std::string &Name);
   Expect<void> loadStart(AST::Component::Start &S);
   Expect<void> loadCoreInstance(AST::Component::CoreInstanceExpr &InstanceExpr);
   Expect<void> loadInstance(AST::Component::InstanceExpr &InstanceExpr);

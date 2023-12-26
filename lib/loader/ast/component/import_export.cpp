@@ -47,7 +47,7 @@ Expect<void> Loader::loadImportExportNameWithLen(std::string &Name) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ImportExportName));
     return Unexpect(RSplit);
   }
-  if (*RSplit != 0x00) {
+  if (unlikely(*RSplit != 0x00)) {
     return logLoadError(ErrCode::Value::MalformedName, FMgr.getLastOffset(),
                         ASTNodeAttr::ImportExportName);
   }
@@ -57,7 +57,7 @@ Expect<void> Loader::loadImportExportNameWithLen(std::string &Name) {
     return Unexpect(RLen);
   }
   if (auto Res = loadImportExportName(Name)) {
-    if (Name.size() != *RLen) {
+    if (unlikely(Name.size() != *RLen)) {
       return logLoadError(ErrCode::Value::MalformedName, FMgr.getLastOffset(),
                           ASTNodeAttr::ImportExportName);
     }

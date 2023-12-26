@@ -91,7 +91,7 @@ Expect<void> Loader::loadCanonical(AST::Component::Canon &C) {
   switch (*RTag) {
   case 0x00:
     if (auto Res = FMgr.readByte()) {
-      if (*Res != 0x00) {
+      if (unlikely(*Res != 0x00)) {
         return logLoadError(ErrCode::Value::MalformedCanonical,
                             FMgr.getLastOffset(), ASTNodeAttr::Canonical);
       }
@@ -103,7 +103,7 @@ Expect<void> Loader::loadCanonical(AST::Component::Canon &C) {
     break;
   case 0x01:
     if (auto Res = FMgr.readByte()) {
-      if (*Res != 0x00) {
+      if (unlikely(*Res != 0x00)) {
         return logLoadError(ErrCode::Value::MalformedCanonical,
                             FMgr.getLastOffset(), ASTNodeAttr::Canonical);
       }

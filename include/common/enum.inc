@@ -26,8 +26,13 @@ A(Sec_CoreInstance, "component core:instance section")
 A(Sec_Alias, "component alias section")
 A(Sec_Instance, "component instance section")
 A(Sec_CompType, "component type section")
-A(Sec_CompStart, "component start section")
 A(Sec_Canon, "component canonical section")
+A(Sec_CompStart, "component start section")
+A(Sec_CompImport, "component import section")
+A(Sec_CompExport, "component export section")
+A(ImportExportName, "import/export name")
+A(Import, "import")
+A(Export, "export")
 A(Canonical, "canonical")
 A(Alias, "alias")
 A(DefType, "component defined type")
@@ -941,6 +946,8 @@ E(MalformedFlagsType, 0x0508, "malformed flags type")
 E(MalformedCanonical, 0x0509, "malformed canonical")
 // Unknown canonical option
 E(UnknownCanonicalOption, 0x050A, "unknown canonical option")
+// Malformed name
+E(MalformedName, 0x050B, "malformed name")
 // @}
 
 #undef E

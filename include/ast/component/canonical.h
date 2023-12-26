@@ -13,8 +13,6 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/component/alias.h"
-#include "ast/description.h"
 #include "ast/expression.h"
 #include "ast/type.h"
 

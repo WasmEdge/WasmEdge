@@ -177,6 +177,8 @@ public:
   TypeSection &getTypeSection() noexcept { return TySec; }
   CanonSection &getCanonSection() noexcept { return CanonSec; }
   StartSection &getStartSection() noexcept { return StartSec; }
+  ImportSection &getImportSection() noexcept { return ImSec; }
+  ExportSection &getExportSection() noexcept { return ExSec; }
 
 private:
   /// \name Data of Module node.
@@ -194,6 +196,8 @@ private:
   TypeSection TySec;
   CanonSection CanonSec;
   StartSection StartSec;
+  ImportSection ImSec;
+  ExportSection ExSec;
   /// @}
 };
 

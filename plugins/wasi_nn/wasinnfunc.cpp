@@ -390,5 +390,28 @@ WasiNNComputeSingle::bodyImpl(const Runtime::CallingFrame &Frame,
   }
 }
 
+Expect<WASINN::ErrNo>
+WasiNNFiniSingle::bodyImpl(const Runtime::CallingFrame &Frame,
+                           uint32_t Context) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  if (Env.NNContext.size() <= Context) {
+    spdlog::error("[WASI-NN] fini_single: Execution Context does not exist."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  switch (Env.NNContext[Context].getBackend()) {
+  case WASINN::Backend::GGML:
+    return WASINN::GGML::finiSingle(Env, Context);
+  default:
+    spdlog::error(
+        "[WASI-NN] fini_single: Only GGML backend supports compute_single."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+}
+
 } // namespace Host
 } // namespace WasmEdge

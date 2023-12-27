@@ -81,4 +81,6 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
 Expect<WASINN::ErrNo> computeSingle(WASINN::WasiNNEnvironment &Env,
                                     uint32_t ContextId) noexcept;
+Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
+                                 uint32_t ContextId) noexcept;
 } // namespace WasmEdge::Host::WASINN::GGML

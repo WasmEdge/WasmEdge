@@ -85,7 +85,7 @@ jobs:
     with:
       version: ${{ needs.get_version.outputs.version }}
       matrix: "[{'name':'manylinux 2014 x86_64','runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},
-                {'name':'manylinux 2014 aarch64','runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
+                {'name':'manylinux 2014 aarch64','runner':'linux-arm64-beta','docker_tag':'manylinux2014_aarch64'}]"
 
   build_on_debian_static:
     needs: [get_version, lint]

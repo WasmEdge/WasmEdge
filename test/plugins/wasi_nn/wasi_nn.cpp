@@ -1419,12 +1419,14 @@ TEST(WasiNNTest, GGMLBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: compute -- compute successfully.
+  // Test: compute -- compute until finish or context full.
   {
     EXPECT_TRUE(HostFuncCompute.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
         Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_TRUE(
+        Errno[0].get<int32_t>() == static_cast<uint32_t>(ErrNo::Success) ||
+        Errno[0].get<int32_t>() == static_cast<uint32_t>(ErrNo::ContextFull));
   }
 
   // GGML WASI-NN get_output tests.

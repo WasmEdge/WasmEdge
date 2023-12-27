@@ -19,6 +19,7 @@ enum class ErrNo : uint32_t {
   TooLarge = 7,             // Too Large.
   NotFound = 8,             // Not Found.
   EndOfSequence = 9,        // End of Sequence Found.
+  ContextFull = 10,         // Context Full.
 };
 
 enum class TensorType : uint8_t { F16 = 0, F32 = 1, U8 = 2, I32 = 3 };

@@ -20,6 +20,7 @@ WasiNNModule::WasiNNModule() : ModuleInstance("wasi_ephemeral_nn") {
               std::make_unique<WasiNNGetOutputSingle>(Env));
   addHostFunc("compute", std::make_unique<WasiNNCompute>(Env));
   addHostFunc("compute_single", std::make_unique<WasiNNComputeSingle>(Env));
+  addHostFunc("fini_single", std::make_unique<WasiNNFiniSingle>(Env));
 }
 
 } // namespace Host

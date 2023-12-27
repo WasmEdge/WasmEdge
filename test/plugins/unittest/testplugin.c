@@ -67,10 +67,10 @@ CreateTestModule(const struct WasmEdge_ModuleDescriptor *Desc) {
   WasmEdge_String FuncName;
   WasmEdge_FunctionTypeContext *FType;
   WasmEdge_FunctionInstanceContext *FuncCxt;
-  enum WasmEdge_ValType ParamTypes[2], ReturnTypes[1];
-  ParamTypes[0] = WasmEdge_ValType_I32;
-  ParamTypes[1] = WasmEdge_ValType_I32;
-  ReturnTypes[0] = WasmEdge_ValType_I32;
+  WasmEdge_ValType ParamTypes[2], ReturnTypes[1];
+  ParamTypes[0] = WasmEdge_ValTypeGenI32();
+  ParamTypes[1] = WasmEdge_ValTypeGenI32();
+  ReturnTypes[0] = WasmEdge_ValTypeGenI32();
 
   /* Create the "add" function and add into the module instance. */
   FType = WasmEdge_FunctionTypeCreate(ParamTypes, 2, ReturnTypes, 1);

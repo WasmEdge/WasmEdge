@@ -463,4 +463,52 @@ TEST(TypeTest, LoadGlobalType) {
   };
   EXPECT_FALSE(LdrNoRefType.parseModule(prefixedVec(Vec)));
 }
+
+TEST(TypeTest, LoadHeapType) {
+  std::vector<uint8_t> Vec;
+
+  Conf.addProposal(WasmEdge::Proposal::FunctionReferences);
+  WasmEdge::Loader::Loader LdrFuncRef(Conf);
+  Conf.removeProposal(WasmEdge::Proposal::FunctionReferences);
+
+  // 5. Test load heap type.
+  //
+  //   1.  Load invalid empty heap type.
+  //   2.  Load invalid heap type with unknown heap type code.
+  //   3.  Load invalid heap type with type index with/without typed function
+  //       references proposal.
+
+  Vec = {
+      0x06U,        // Global section
+      0x04U,        // Content size = 4
+      0x01U,        // Vector length = 1
+      0x7FU, 0x00U, // Global type
+      0xD0U         // OpCode Ref__null
+                    // Missed heap type
+  };
+  EXPECT_FALSE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x06U,        // Global section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x7FU, 0x00U, // Global type
+      0xD0U,        // OpCode Ref__null
+      0x5CU,        // Invalid heap type code
+      0x0BU         // Expression End
+  };
+  EXPECT_FALSE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x06U,        // Global section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x7FU, 0x00U, // Global type
+      0xD0U,        // OpCode Ref__null
+      0x28U,        // Type index 40
+      0x0BU         // Expression End
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+}
 } // namespace

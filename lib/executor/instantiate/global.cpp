@@ -26,14 +26,6 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
   // Iterate through the global segments to instantiate and initialize global
   // instances.
   for (const auto &GlobSeg : GlobSec.getContent()) {
-    // Create and add the global instance into the module instance.
-    ModInst.addGlobal(GlobSeg.getGlobalType());
-    const auto Index = ModInst.getGlobalNum() - 1;
-    Runtime::Instance::GlobalInstance *GlobInst = *ModInst.getGlobal(Index);
-
-    // Set the global pointers of instantiated globals.
-    ModInst.GlobalPtrs[Index] = &(GlobInst->getValue());
-
     // Run initialize expression.
     if (auto Res = runExpression(StackMgr, GlobSeg.getExpr().getInstrs());
         !Res) {
@@ -42,7 +34,15 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
     }
 
     // Pop result from stack.
-    GlobInst->getValue() = StackMgr.pop();
+    ValVariant InitValue = StackMgr.pop();
+
+    // Create and add the global instance into the module instance.
+    ModInst.addGlobal(GlobSeg.getGlobalType(), InitValue);
+    const auto Index = ModInst.getGlobalNum() - 1;
+    Runtime::Instance::GlobalInstance *GlobInst = *ModInst.getGlobal(Index);
+
+    // Set the global pointers of instantiated globals.
+    ModInst.GlobalPtrs[Index] = &(GlobInst->getValue());
   }
   return {};
 }

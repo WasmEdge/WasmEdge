@@ -78,7 +78,7 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   EXPECT_EQ(Output, Expected);
 
   Desc.setExternalType(WasmEdge::ExternalType::Table);
-  Desc.getExternalTableType().setRefType(WasmEdge::RefType::FuncRef);
+  Desc.getExternalTableType().setRefType(WasmEdge::TypeCode::FuncRef);
   Desc.getExternalTableType().getLimit().setMin(4294967281);
   Desc.getExternalTableType().getLimit().setMax(4294967295);
   Desc.getExternalTableType().getLimit().setType(
@@ -122,7 +122,7 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   EXPECT_EQ(Output, Expected);
 
   Desc.setExternalType(WasmEdge::ExternalType::Global);
-  Desc.getExternalGlobalType().setValType(WasmEdge::ValType::F64);
+  Desc.getExternalGlobalType().setValType(WasmEdge::TypeCode::F64);
   Desc.getExternalGlobalType().setValMut(WasmEdge::ValMut::Const);
 
   Output = {};

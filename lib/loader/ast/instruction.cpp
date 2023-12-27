@@ -50,9 +50,8 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     }
 
     // Check with proposals.
-    if (auto Res = Conf.checkInstrProposals(Code); !Res) {
-      return logNeedProposal(Res.error().getErrCode(),
-                             Res.error().getNeedProposal(), Offset,
+    if (auto Res = Conf.isInstrNeedProposal(Code); unlikely(Res.has_value())) {
+      return logNeedProposal(ErrCode::Value::IllegalOpCode, Res.value(), Offset,
                              ASTNodeAttr::Instruction);
     }
 
@@ -197,23 +196,25 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Block:
   case OpCode::Loop:
-  case OpCode::If:
+  case OpCode::If: {
+    auto StartOffset = FMgr.getOffset();
     // Read the block return type.
     if (auto Res = FMgr.readS33()) {
       if (*Res < 0) {
-        // Value type case.
-        // TODO: may check whether the `TypeByte` exceed the range.
-        Byte TypeByte = static_cast<Byte>((*Res) & INT64_C(0x7F));
-        if (TypeByte == 0x40) {
+        TypeCode TypeByte = static_cast<TypeCode>((*Res) & INT64_C(0x7F));
+        if (TypeByte == TypeCode::Epsilon) {
+          // Empty case.
           Instr.setEmptyBlockType();
         } else {
-          ValType VType = static_cast<ValType>(TypeByte);
-          if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
-                                                 ASTNodeAttr::Instruction);
-              unlikely(!Check)) {
-            return Unexpect(Check);
+          // Value type case. Seek back to the origin offset and read the
+          // valtype.
+          FMgr.seek(StartOffset);
+          if (auto TypeRes = loadValType(ASTNodeAttr::Instruction)) {
+            Instr.setBlockType(*TypeRes);
+          } else {
+            // The AST node information is handled.
+            return Unexpect(TypeRes);
           }
-          Instr.setBlockType(VType);
         }
       } else {
         // Type index case.
@@ -229,9 +230,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
                           ASTNodeAttr::Instruction);
     }
     return {};
+  }
 
   case OpCode::Br:
   case OpCode::Br_if:
+  case OpCode::Br_on_null:
+  case OpCode::Br_on_non_null:
     return readU32(Instr.getJump().TargetIndex);
 
   case OpCode::Br_table: {
@@ -258,6 +262,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Call:
   case OpCode::Return_call:
+  case OpCode::Call_ref:
+  case OpCode::Return_call_ref:
     return readU32(Instr.getTargetIndex());
 
   case OpCode::Call_indirect:
@@ -282,20 +288,15 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    if (auto Res = FMgr.readByte(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
+    if (auto Res = loadHeapType(TypeCode::RefNull, ASTNodeAttr::Instruction)) {
+      Instr.setValType(*Res);
     } else {
-      Instr.setRefType(static_cast<RefType>(*Res));
-      if (auto Check =
-              checkRefTypeProposals(Instr.getRefType(), FMgr.getLastOffset(),
-                                    ASTNodeAttr::Instruction);
-          unlikely(!Check)) {
-        return Unexpect(Check);
-      }
+      // The AST node information is handled.
+      return Unexpect(Res);
     }
     return {};
   case OpCode::Ref__is_null:
+  case OpCode::Ref__as_non_null:
     return {};
   case OpCode::Ref__func:
     return readU32(Instr.getTargetIndex());
@@ -316,19 +317,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     }
     Instr.setValTypeListSize(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
-      ValType VType;
-      if (auto T = FMgr.readByte(); unlikely(!T)) {
-        return logLoadError(T.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::Instruction);
+      if (auto Res = loadValType(ASTNodeAttr::Instruction)) {
+        Instr.getValTypeList()[I] = *Res;
       } else {
-        VType = static_cast<ValType>(*T);
+        // The AST node information is handled.
+        return Unexpect(Res);
       }
-      if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
-                                             ASTNodeAttr::Instruction);
-          unlikely(!Check)) {
-        return Unexpect(Check);
-      }
-      Instr.getValTypeList()[I] = VType;
     }
     return {};
   }

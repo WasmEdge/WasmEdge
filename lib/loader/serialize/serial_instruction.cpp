@@ -44,13 +44,10 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   serializeOpCode(Instr.getOpCode(), OutVec);
 
   // Check with proposals.
-  if (auto Res = Conf.checkInstrProposals(Instr.getOpCode()); unlikely(!Res)) {
-    spdlog::error(Res.error().getErrCode());
-    if (Res.error().isNeedProposal()) {
-      spdlog::error(ErrInfo::InfoProposal(Res.error().getNeedProposal()));
-    }
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Instruction));
-    return Unexpect(Res.error().getErrCode());
+  if (auto Res = Conf.isInstrNeedProposal(Instr.getOpCode());
+      unlikely(Res.has_value())) {
+    return logNeedProposal(ErrCode::Value::IllegalOpCode, Res.value(),
+                           ASTNodeAttr::Instruction);
   }
 
   switch (Instr.getOpCode()) {
@@ -65,32 +62,21 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Block:
   case OpCode::Loop:
   case OpCode::If:
-    switch (Instr.getBlockType().TypeFlag) {
-    case BlockType::TypeEnum::Empty:
-      OutVec.push_back(0x40U);
-      break;
-
-    case BlockType::TypeEnum::ValType: {
-      auto VType = Instr.getBlockType().Data.Type;
-      if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Instruction);
-          unlikely(!Check)) {
-        return Unexpect(Check);
+    if (Instr.getBlockType().isEmpty()) {
+      OutVec.push_back(static_cast<uint8_t>(TypeCode::Epsilon));
+    } else if (Instr.getBlockType().isValType()) {
+      if (auto Res = serializeValType(Instr.getBlockType().getValType(),
+                                      ASTNodeAttr::Instruction, OutVec);
+          unlikely(!Res)) {
+        return Unexpect(Res);
       }
-      OutVec.push_back(static_cast<uint8_t>(VType));
-      break;
-    }
-
-    case BlockType::TypeEnum::TypeIdx:
+    } else {
       if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
         return logNeedProposal(ErrCode::Value::MalformedValType,
                                Proposal::MultiValue, ASTNodeAttr::Instruction);
       }
-      serializeS33(static_cast<int64_t>(Instr.getBlockType().Data.Idx), OutVec);
-      break;
-
-    default:
-      return logSerializeError(ErrCode::Value::Unreachable,
-                               ASTNodeAttr::Instruction);
+      serializeS33(static_cast<int64_t>(Instr.getBlockType().getTypeIndex()),
+                   OutVec);
     }
     return {};
 
@@ -129,12 +115,11 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    if (auto Check =
-            checkRefTypeProposals(Instr.getRefType(), ASTNodeAttr::Instruction);
-        unlikely(!Check)) {
-      return Unexpect(Check);
+    if (auto Res = serializeRefType(Instr.getValType(),
+                                    ASTNodeAttr::Instruction, OutVec);
+        unlikely(!Res)) {
+      return Unexpect(Res);
     }
-    OutVec.push_back(static_cast<uint8_t>(Instr.getRefType()));
     return {};
   case OpCode::Ref__is_null:
     return {};
@@ -150,11 +135,10 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     uint32_t VecCnt = static_cast<uint32_t>(Instr.getValTypeList().size());
     serializeU32(VecCnt, OutVec);
     for (auto &VType : Instr.getValTypeList()) {
-      if (auto Check = checkValTypeProposals(VType, ASTNodeAttr::Instruction);
-          unlikely(!Check)) {
-        return Unexpect(Check);
+      if (auto Res = serializeValType(VType, ASTNodeAttr::Instruction, OutVec);
+          unlikely(!Res)) {
+        return Unexpect(Res);
       }
-      OutVec.push_back(static_cast<uint8_t>(VType));
     }
     return {};
   }

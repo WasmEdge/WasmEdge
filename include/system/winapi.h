@@ -156,6 +156,7 @@ using LPVOID_ = void *;
 using LPCVOID_ = const void *;
 using HANDLE_ = void *;
 using PHANDLE_ = HANDLE_ *;
+using BCRYPT_ALG_HANDLE_ = PHANDLE_;
 
 using SHORT_ = short;
 using PSHORT_ = SHORT_ *;
@@ -1680,6 +1681,40 @@ using ::socket;
 using ::WSACleanup;
 using ::WSAGetLastError;
 using ::WSAStartup;
+} // namespace WasmEdge::winapi
+
+extern "C" {
+#ifndef BCRYPT_SUCCESS_
+#define BCRYPT_SUCCESS_(Status) (((WasmEdge::winapi::NTSTATUS_)(Status)) >= 0)
+#endif
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::NTSTATUS_
+    WASMEDGE_WINAPI_WINAPI_CC
+    BCryptOpenAlgorithmProvider(
+        WasmEdge::winapi::BCRYPT_ALG_HANDLE_ *phAlgorithm,
+        WasmEdge::winapi::LPCWSTR_ pszAlgId,
+        WasmEdge::winapi::LPCWSTR_ pszImplementation,
+        WasmEdge::winapi::ULONG_ dwFlags);
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::NTSTATUS_
+    WASMEDGE_WINAPI_WINAPI_CC
+    BCryptGenRandom(WasmEdge::winapi::BCRYPT_ALG_HANDLE_ phAlgorithm,
+                    WasmEdge::winapi::PUCHAR_ pbBuffer,
+                    WasmEdge::winapi::ULONG_ cbBuffer,
+                    WasmEdge::winapi::ULONG_ dwFlags);
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::NTSTATUS_
+    WASMEDGE_WINAPI_WINAPI_CC
+    BCryptCloseAlgorithmProvider(
+        WasmEdge::winapi::BCRYPT_ALG_HANDLE_ phAlgorithm,
+        WasmEdge::winapi::ULONG_ dwFlags);
+} // extern "C"
+
+static inline constexpr WasmEdge::winapi::LPCWSTR_ BCRYPT_RNG_ALGORITHM_ =
+    L"RNG";
+
+namespace WasmEdge::winapi {
+using ::BCryptCloseAlgorithmProvider;
+using ::BCryptGenRandom;
+using ::BCryptOpenAlgorithmProvider;
 } // namespace WasmEdge::winapi
 
 #if WINAPI_PARTITION_DESKTOP

@@ -490,10 +490,16 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
         // llama_batch_get_one(*token, n_tokens, position, sequence_id)
         // This will return batch for single sequence of tokens starting at
         // position.
-        if (llama_decode(
-                LlamaContext,
-                llama_batch_get_one(&Embd[I], NEval, NPast, SequenceId))) {
-          spdlog::error("[WASI-NN] GGML backend: failed to llama_decode"sv);
+        auto Status =
+            llama_decode(LlamaContext, llama_batch_get_one(&Embd[I], NEval,
+                                                           NPast, SequenceId));
+        if (Status == 1) {
+          spdlog::error(
+              "[WASI-NN] GGML backend: failed to llama_decode: try reducing the size of the batch or increasing the size of context"sv);
+          return ErrNo::RuntimeError;
+        } else if (Status < 0) {
+          spdlog::error(
+              "[WASI-NN] GGML backend: failed to llama_decode: internal fatal error. Please open an issue on GitHub"sv);
           return ErrNo::RuntimeError;
         }
 
@@ -672,10 +678,17 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
         // llama_batch_get_one(*token, n_tokens, position, sequence_id)
         // This will return batch for single sequence of tokens starting at
         // position.
-        if (llama_decode(CxtRef.LlamaContext,
+        auto Status =
+            llama_decode(CxtRef.LlamaContext,
                          llama_batch_get_one(&CxtRef.LlamaEmbd[I], NEval,
-                                             CxtRef.LlamaNPast, SequenceId))) {
-          spdlog::error("[WASI-NN] GGML backend: failed to llama_decode"sv);
+                                             CxtRef.LlamaNPast, SequenceId));
+        if (Status == 1) {
+          spdlog::error(
+              "[WASI-NN] GGML backend: failed to llama_decode: try reducing the size of the batch or increasing the size of context"sv);
+          return ErrNo::RuntimeError;
+        } else if (Status < 0) {
+          spdlog::error(
+              "[WASI-NN] GGML backend: failed to llama_decode: internal fatal error. Please open an issue on GitHub"sv);
           return ErrNo::RuntimeError;
         }
 

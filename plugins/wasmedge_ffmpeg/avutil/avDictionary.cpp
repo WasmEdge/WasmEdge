@@ -16,11 +16,11 @@ Expect<int32_t> AVDictSet::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(KeyBuf, MemInst, char, KeyPtr,
-                "Failed when accessing the return Key memory");
+                "Failed when accessing the return Key memory"sv);
   MEM_PTR_CHECK(ValueBuf, MemInst, char, ValuePtr,
-                "Failed when accessing the return Value memory");
+                "Failed when accessing the return Value memory"sv);
   MEM_PTR_CHECK(DictId, MemInst, uint32_t, DictPtr,
-                "Failed to access Memory for AVDict")
+                "Failed to access Memory for AVDict"sv)
 
   std::string Key;
   std::string Value;
@@ -49,13 +49,13 @@ Expect<int32_t> AVDictCopy::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(DestDictId, MemInst, uint32_t, DestDictPtr,
-                "Failed to access Memory for AVDict")
+                "Failed to access Memory for AVDict"sv)
 
   FFMPEG_PTR_FETCH(SrcAvDict, SrcDictId, AVDictionary *);
 
   int Res;
 
-  if (SrcAvDict == NULL)
+  if (SrcAvDict == nullptr)
     return static_cast<int32_t>(ErrNo::InternalError);
 
   if (*DestDictId) {
@@ -79,16 +79,16 @@ Expect<int32_t> AVDictGet::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(KeyStr, MemInst, char, KeyPtr,
-                "Failed when accessing the return Key memory");
+                "Failed when accessing the return Key memory"sv);
   MEM_PTR_CHECK(KeyLenId, MemInst, uint32_t, KeyLenPtr,
-                "Failed when accessing the return KeyLen memory");
+                "Failed when accessing the return KeyLen memory"sv);
   MEM_PTR_CHECK(ValueLenId, MemInst, uint32_t, ValueLenPtr,
-                "Failed when accessing the return ValueLen memory");
+                "Failed when accessing the return ValueLen memory"sv);
 
   FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
 
   // If Dict Not created return (i.e. 0 is passed as AVDictId)
-  if (AvDict == NULL)
+  if (AvDict == nullptr)
     return static_cast<int32_t>(ErrNo::InternalError);
   std::string Key;
   std::copy_n(KeyStr, KeyLen, std::back_inserter(Key));
@@ -115,14 +115,14 @@ Expect<int32_t> AVDictGetKeyValue::body(
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(KeyStr, MemInst, char, KeyPtr,
-                "Failed when accessing the return Key memory");
+                "Failed when accessing the return Key memory"sv);
   MEM_SPAN_CHECK(KeyBuf, MemInst, char, KeyBufPtr, KeyBufLen, "");
   MEM_SPAN_CHECK(ValBuf, MemInst, char, ValBufPtr, ValBufLen, "");
 
   FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
 
   // If Dict Not created return (i.e. 0 is passed as AVDictId)
-  if (AvDict == NULL)
+  if (AvDict == nullptr)
     return static_cast<int32_t>(ErrNo::InternalError);
 
   std::string Key;

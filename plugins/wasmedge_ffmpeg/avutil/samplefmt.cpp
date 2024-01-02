@@ -60,7 +60,8 @@ Expect<int32_t> AVSamplesGetBufferSize::body(const Runtime::CallingFrame &,
                                              int32_t Align) {
   AVSampleFormat const AvSampleFormat =
       FFmpegUtils::SampleFmt::fromSampleID(SampleFormatId);
-  return av_samples_get_buffer_size(NULL, NbChannels, NbSamples, AvSampleFormat,
+  return av_samples_get_buffer_size(nullptr, NbChannels, NbSamples,
+                                    AvSampleFormat,
                                     Align); // linesize is NULL in RustSDK.
 }
 

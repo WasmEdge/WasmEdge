@@ -78,7 +78,7 @@ Expect<int32_t> AVFilterInOutSetName::body(const Runtime::CallingFrame &Frame,
   std::string Name;
   std::copy_n(NameBuf.data(), NameLen, std::back_inserter(Name));
   char *CName = av_strdup(Name.c_str());
-  if (CName == NULL)
+  if (CName == nullptr)
     return static_cast<int32_t>(ErrNo::Success);
   InOut->name = CName;
   return static_cast<int32_t>(ErrNo::Success);
@@ -122,7 +122,7 @@ AVFilterGetInputsFilterPad::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(Filter, FilterId, struct AVFilter);
   const AVFilterPad *FilterPad = Filter->inputs;
-  if (FilterPad == NULL)
+  if (FilterPad == nullptr)
     return static_cast<int32_t>(ErrNo::Success);
   FFMPEG_PTR_STORE((void *)FilterPad, FilterPadId);
   return static_cast<int32_t>(ErrNo::Success);
@@ -137,7 +137,7 @@ AVFilterGetOutputsFilterPad::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(Filter, FilterId, struct AVFilter);
   const AVFilterPad *FilterPad = Filter->outputs;
-  if (FilterPad == NULL)
+  if (FilterPad == nullptr)
     return static_cast<int32_t>(ErrNo::Success);
   FFMPEG_PTR_STORE((void *)FilterPad, FilterPadId);
   return static_cast<int32_t>(ErrNo::Success);

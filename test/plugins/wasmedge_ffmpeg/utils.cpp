@@ -37,9 +37,15 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
   auto &HostFuncAVFindBestStream = dynamic_cast<
       WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFindBestStream &>(
       FuncInst->getHostFunc());
+  uint32_t MediaTypeId = 0; // Video
+  uint32_t WantedStream = -1;
+  uint32_t RelatedStream = -1;
+  uint32_t DecoderRetId = 0;
+  uint32_t Flags = 0;
   HostFuncAVFindBestStream.run(CallFrame,
                                std::initializer_list<WasmEdge::ValVariant>{
-                                   AvFormatCtxId, 0, -1, -1, 0, 0},
+                                   AvFormatCtxId, MediaTypeId, WantedStream,
+                                   RelatedStream, DecoderRetId, Flags},
                                Result);
 
   uint32_t StreamIdx = Result[0].get<int32_t>();
@@ -92,7 +98,7 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
       Result);
 
-  uint32_t codec_id = Result[0].get<int32_t>();
+  uint32_t CodecId = Result[0].get<int32_t>();
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_find_decoder");
@@ -102,8 +108,7 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
 
   HostFuncAVCodecFindDecoder.run(
       CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{codec_id, AVCodecPtr},
-      Result);
+      std::initializer_list<WasmEdge::ValVariant>{CodecId, AVCodecPtr}, Result);
 
   uint32_t AVCodecId = readUInt32(MemInst, AVCodecPtr);
 

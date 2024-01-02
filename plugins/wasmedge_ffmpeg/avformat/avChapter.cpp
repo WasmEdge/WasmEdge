@@ -150,7 +150,7 @@ Expect<int32_t> AVChapterMetadata::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(DictId, MemInst, uint32_t, DictPtr,
-                "Failed when accessing the return AVDictionary memory");
+                "Failed when accessing the return AVDictionary memory"sv);
 
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
 
@@ -182,8 +182,8 @@ Expect<int32_t> AVChapterSetMetadata::body(const Runtime::CallingFrame &,
   for (unsigned int I = 1; I <= ChapterIdx; I++)
     AvChapter++;
 
-  if (AvDictionary == NULL)
-    (*AvChapter)->metadata = NULL;
+  if (AvDictionary == nullptr)
+    (*AvChapter)->metadata = nullptr;
   else
     (*AvChapter)->metadata = *AvDictionary;
   return static_cast<int32_t>(ErrNo::Success);

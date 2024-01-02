@@ -14,7 +14,7 @@ Expect<int32_t> AVPacketAlloc::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(AvPacketId, MemInst, uint32_t, AvPacketPtr,
-                "Failed when accessing the return AVCodecContext Memory");
+                "Failed when accessing the return AVCodecContext Memory"sv);
 
   FFMPEG_PTR_FETCH(AvPacket, *AvPacketId, AVPacket); // Initialize the packet.
   AvPacket = av_packet_alloc();
@@ -165,7 +165,7 @@ Expect<int32_t> AVPacketIsDataNull::body(const Runtime::CallingFrame &,
                                          uint32_t AvPacketId) {
 
   FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
-  if (AvPacket->data == NULL)
+  if (AvPacket->data == nullptr)
     return 1;
   return 0;
 }

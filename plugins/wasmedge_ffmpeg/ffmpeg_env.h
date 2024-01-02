@@ -73,7 +73,7 @@ private:
   }
 
 #define FFMPEG_PTR_FETCH(StructPtr, FFmpegStructId, Type)                      \
-  Type *StructPtr = NULL;                                                      \
+  Type *StructPtr = nullptr;                                                   \
   if (FFmpegStructId != 0)                                                     \
     StructPtr = static_cast<Type *>(Env.get()->fetchData(FFmpegStructId));
 
@@ -102,7 +102,8 @@ enum class ErrNo : int32_t {
   Success = 0,          // No error occurred.
   MissingMemory = -201, // Caller module is missing a memory export.
   NullStructId = -202,  // Rust Sdk Passes null id.
-  InternalError = -203
+  InternalError = -203,
+  UnImplemented = -204 // Unimplemented funcs.
 };
 
 } // namespace WasmEdgeFFmpeg

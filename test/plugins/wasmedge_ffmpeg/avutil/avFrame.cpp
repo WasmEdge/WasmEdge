@@ -67,7 +67,6 @@ TEST_F(FFmpegTest, AVFrame) {
           FuncInst->getHostFunc());
 
   {
-
     HostFuncAVFrameWidth.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);
@@ -82,7 +81,6 @@ TEST_F(FFmpegTest, AVFrame) {
           FuncInst->getHostFunc());
 
   {
-
     HostFuncAVFrameHeight.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);
@@ -97,7 +95,6 @@ TEST_F(FFmpegTest, AVFrame) {
       FuncInst->getHostFunc());
 
   {
-
     HostFuncAVFrameVideoFormat.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);
@@ -112,7 +109,6 @@ TEST_F(FFmpegTest, AVFrame) {
           FuncInst->getHostFunc());
 
   {
-
     HostFuncAVFrameIsNull.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);

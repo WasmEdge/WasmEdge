@@ -23,7 +23,7 @@ Expect<int32_t> AVIOFormatNameLength::body(const Runtime::CallingFrame &,
     Name = AvOutputFormat->name;
   }
 
-  if (Name == NULL)
+  if (Name == nullptr)
     return 0;
   return strlen(Name);
 }
@@ -68,7 +68,7 @@ Expect<int32_t> AVIOFormatLongNameLength::body(const Runtime::CallingFrame &,
     LongName = AvOutputFormat->long_name;
   }
 
-  if (LongName == NULL)
+  if (LongName == nullptr)
     return 0;
   return strlen(LongName);
 }
@@ -115,7 +115,7 @@ Expect<int32_t> AVIOFormatExtensionsLength::body(const Runtime::CallingFrame &,
     Extensions = AvOutputFormat->extensions;
   }
 
-  if (Extensions == NULL)
+  if (Extensions == nullptr)
     return 0;
   return strlen(Extensions);
 }
@@ -163,7 +163,7 @@ Expect<int32_t> AVIOFormatMimeTypeLength::body(const Runtime::CallingFrame &,
     MimeType = AvOutputFormat->mime_type;
   }
 
-  if (MimeType == NULL)
+  if (MimeType == nullptr)
     return 0;
   return strlen(MimeType);
 }

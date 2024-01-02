@@ -14,7 +14,7 @@ Expect<int32_t> AVFrameAlloc::body(const Runtime::CallingFrame &Frame,
                                    uint32_t FramePtr) {
   MEMINST_CHECK(MemInst, Frame, 0)
   MEM_PTR_CHECK(FrameId, MemInst, uint32_t, FramePtr,
-                "Failed to access Memory for AVFrame")
+                "Failed to access Memory for AVFrame"sv)
 
   AVFrame *AvFrame = av_frame_alloc();
   FFMPEG_PTR_STORE(AvFrame, FrameId);
@@ -86,7 +86,7 @@ Expect<int32_t> AVFrameIsNull::body(const Runtime::CallingFrame &,
                                     uint32_t FrameId) {
 
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
-  return AvFrame->data[0] == NULL;
+  return AvFrame->data[0] == nullptr;
 }
 
 Expect<int32_t> AVFrameLinesize::body(const Runtime::CallingFrame &,
@@ -352,7 +352,7 @@ Expect<int32_t> AVFrameMetadata::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(DictId, MemInst, uint32_t, DictPtr,
-                "Failed when accessing the return AVDictionary memory");
+                "Failed when accessing the return AVDictionary memory"sv);
 
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
 
@@ -369,8 +369,8 @@ Expect<int32_t> AVFrameSetMetadata::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
 
-  if (AvDict == NULL)
-    AvFrame->metadata = NULL;
+  if (AvDict == nullptr)
+    AvFrame->metadata = nullptr;
   else
     AvFrame->metadata = *AvDict;
   return static_cast<int32_t>(ErrNo::Success);
@@ -428,9 +428,9 @@ AVFrameSampleAspectRatio::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
 
   MEM_PTR_CHECK(Num, MemInst, int32_t, NumPtr,
-                "Failed to access Numerator Ptr for AVRational");
+                "Failed to access Numerator Ptr for AVRational"sv);
   MEM_PTR_CHECK(Den, MemInst, int32_t, DenPtr,
-                "Failed to access Denominator Ptr for AVRational");
+                "Failed to access Denominator Ptr for AVRational"sv);
 
   AVRational const Rational = AvFrame->sample_aspect_ratio;
   *Num = Rational.num;

@@ -15,7 +15,7 @@ Expect<int32_t> AVFormatCtxIFormat::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(AvInputFormatId, MemInst, uint32_t, AvInputFormatPtr,
-                "Failed when accessing the return AVInputFormat Memory");
+                "Failed when accessing the return AVInputFormat Memory"sv);
 
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
 
@@ -30,7 +30,7 @@ Expect<int32_t> AVFormatCtxOFormat::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(AvOutputFormatId, MemInst, uint32_t, AvOutputFormatPtr,
-                "Failed when accessing the return AVOutputFormat Memory");
+                "Failed when accessing the return AVOutputFormat Memory"sv);
 
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
 
@@ -93,7 +93,7 @@ Expect<int32_t> AVFormatCtxMetadata::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(DictId, MemInst, uint32_t, DictPtr,
-                "Failed when accessing the return AVDictionary memory");
+                "Failed when accessing the return AVDictionary memory"sv);
 
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
 
@@ -111,8 +111,8 @@ Expect<int32_t> AVFormatCtxSetMetadata::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_FETCH(AvDictionary, DictId, AVDictionary *);
 
-  if (AvDictionary == NULL)
-    AvFormatCtx->metadata = NULL;
+  if (AvDictionary == nullptr)
+    AvFormatCtx->metadata = nullptr;
   else
     AvFormatCtx->metadata = *AvDictionary;
   return static_cast<int32_t>(ErrNo::Success);

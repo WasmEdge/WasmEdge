@@ -42,7 +42,7 @@ Expect<int32_t> AVStreamCodecPar::body(const Runtime::CallingFrame &Frame,
                                        uint32_t CodecParameterPtr) {
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(CodecParamId, MemInst, uint32_t, CodecParameterPtr,
-                "Failed when accessing the return CodecParameter Memory");
+                "Failed when accessing the return CodecParameter Memory"sv);
 
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   AVStream **AvStream = AvFormatContext->streams;
@@ -229,7 +229,7 @@ Expect<int32_t> AVStreamMetadata::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(DictId, MemInst, uint32_t, DictPtr,
-                "Failed when accessing the return AVDictPtr Memory");
+                "Failed when accessing the return AVDictPtr Memory"sv);
 
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
 
@@ -257,8 +257,8 @@ Expect<int32_t> AVStreamSetMetadata::body(const Runtime::CallingFrame &,
   for (unsigned int I = 1; I <= StreamIdx; I++)
     AvStream++;
 
-  if (AvDictionary == NULL)
-    (*AvStream)->metadata = NULL;
+  if (AvDictionary == nullptr)
+    (*AvStream)->metadata = nullptr;
   else
     (*AvStream)->metadata = *AvDictionary;
 

@@ -67,7 +67,7 @@ Expect<int32_t> AVGetChannelLayoutNameLen::body(const Runtime::CallingFrame &,
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
   const char *ChName = av_get_channel_name(ChannelLayout);
-  if (ChName == NULL)
+  if (ChName == nullptr)
     return 0;
   return strlen(ChName);
 }

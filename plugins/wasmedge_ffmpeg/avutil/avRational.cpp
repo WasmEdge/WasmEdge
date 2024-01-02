@@ -15,9 +15,9 @@ Expect<int32_t> AVAddQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(CNum, MemInst, int32_t, CNumPtr,
-                "Failed to access Numerator Ptr for AVRational");
+                "Failed to access Numerator Ptr for AVRational"sv);
   MEM_PTR_CHECK(CDen, MemInst, int32_t, CDenPtr,
-                "Failed to access Denominator Ptr for AVRational");
+                "Failed to access Denominator Ptr for AVRational"sv);
 
   AVRational const A = av_make_q(ANum, ADen);
   AVRational const B = av_make_q(BNum, BDen);
@@ -35,9 +35,9 @@ Expect<int32_t> AVSubQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(CNum, MemInst, int32_t, CNumPtr,
-                "Failed to access Numerator Ptr for AVRational");
+                "Failed to access Numerator Ptr for AVRational"sv);
   MEM_PTR_CHECK(CDen, MemInst, int32_t, CDenPtr,
-                "Failed to access Denominator Ptr for AVRational");
+                "Failed to access Denominator Ptr for AVRational"sv);
 
   AVRational const A = av_make_q(ANum, ADen);
   AVRational const B = av_make_q(BNum, BDen);
@@ -54,9 +54,9 @@ Expect<int32_t> AVMulQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(CNum, MemInst, int32_t, CNumPtr,
-                "Failed to access Numerator Ptr for AVRational");
+                "Failed to access Numerator Ptr for AVRational"sv);
   MEM_PTR_CHECK(CDen, MemInst, int32_t, CDenPtr,
-                "Failed to access Denominator Ptr for AVRational");
+                "Failed to access Denominator Ptr for AVRational"sv);
 
   AVRational const A = av_make_q(ANum, ADen);
   AVRational const B = av_make_q(BNum, BDen);
@@ -73,9 +73,9 @@ Expect<int32_t> AVDivQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(CNum, MemInst, int32_t, CNumPtr,
-                "Failed to access Numerator Ptr for AVRational");
+                "Failed to access Numerator Ptr for AVRational"sv);
   MEM_PTR_CHECK(CDen, MemInst, int32_t, CDenPtr,
-                "Failed to access Denominator Ptr for AVRational");
+                "Failed to access Denominator Ptr for AVRational"sv);
 
   AVRational const A = av_make_q(ANum, ADen);
   AVRational const B = av_make_q(BNum, BDen);
@@ -117,9 +117,9 @@ Expect<int32_t> AVD2Q::body(const Runtime::CallingFrame &Frame, double_t D,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(ANum, MemInst, int32_t, ANumPtr,
-                "Failed to access Numerator Ptr for AVRational");
+                "Failed to access Numerator Ptr for AVRational"sv);
   MEM_PTR_CHECK(ADen, MemInst, int32_t, ADenPtr,
-                "Failed to access Denominator Ptr for AVRational");
+                "Failed to access Denominator Ptr for AVRational"sv);
 
   AVRational const A = av_d2q(D, Max);
   *ANum = A.num;
@@ -139,9 +139,9 @@ Expect<int32_t> AVInvQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(BNum, MemInst, int32_t, BNumPtr,
-                "Failed to access Numerator Ptr for AVRational");
+                "Failed to access Numerator Ptr for AVRational"sv);
   MEM_PTR_CHECK(BDen, MemInst, int32_t, BDenPtr,
-                "Failed to access Denominator Ptr for AVRational");
+                "Failed to access Denominator Ptr for AVRational"sv);
 
   AVRational const A = av_make_q(ANum, ADen);
   AVRational const B = av_inv_q(A);
@@ -157,9 +157,9 @@ Expect<int32_t> AVReduce::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(ANum, MemInst, int32_t, ANumPtr,
-                "Failed to access Numerator Ptr for AVRational");
+                "Failed to access Numerator Ptr for AVRational"sv);
   MEM_PTR_CHECK(ADen, MemInst, int32_t, ADenPtr,
-                "Failed to access Denominator Ptr for AVRational");
+                "Failed to access Denominator Ptr for AVRational"sv);
   return av_reduce(ANum, ADen, BNum, BDen, Max);
 }
 

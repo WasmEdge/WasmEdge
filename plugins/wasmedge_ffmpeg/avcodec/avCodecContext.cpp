@@ -53,9 +53,9 @@ Expect<int32_t> AVCodecCtxTimeBase::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(Num, MemInst, int32_t, NumPtr,
-                "Failed to access Numerator Ptr for AVRational");
+                "Failed to access Numerator Ptr for AVRational"sv);
   MEM_PTR_CHECK(Den, MemInst, int32_t, DenPtr,
-                "Failed to access Denominator Ptr for AVRational");
+                "Failed to access Denominator Ptr for AVRational"sv);
 
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   AVRational const AvRational = AvCodecCtx->time_base;
@@ -102,9 +102,9 @@ AVCodecCtxSampleAspectRatio::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(Num, MemInst, int32_t, NumPtr,
-                "Failed to access Numerator Ptr for AVRational");
+                "Failed to access Numerator Ptr for AVRational"sv);
   MEM_PTR_CHECK(Den, MemInst, int32_t, DenPtr,
-                "Failed to access Denominator Ptr for AVRational");
+                "Failed to access Denominator Ptr for AVRational"sv);
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
 
   const AVRational AvRational = AvCodecCtx->sample_aspect_ratio;
@@ -557,9 +557,9 @@ Expect<int32_t> AVCodecCtxFrameRate::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(Num, MemInst, int32_t, NumPtr,
-                "Failed to access Numerator Ptr for AVRational");
+                "Failed to access Numerator Ptr for AVRational"sv);
   MEM_PTR_CHECK(Den, MemInst, int32_t, DenPtr,
-                "Failed to access Denominator Ptr for AVRational");
+                "Failed to access Denominator Ptr for AVRational"sv);
 
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
 
@@ -611,13 +611,13 @@ Expect<int32_t> AVCodecCtxCodec::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(AVCodecId, MemInst, uint32_t, AvCodecPtr,
-                "Failed to access Ptr for AvCodecPtr");
+                "Failed to access Ptr for AvCodecPtr"sv);
 
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   FFMPEG_PTR_FETCH(AvCodec, *AVCodecId, const AVCodec);
 
   AvCodec = AvCodecCtx->codec;
-  if (AvCodec == NULL)
+  if (AvCodec == nullptr)
     return -1;
 
   FFMPEG_PTR_STORE((void *)AvCodec, AVCodecId);

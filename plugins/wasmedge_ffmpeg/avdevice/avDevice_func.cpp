@@ -29,29 +29,33 @@ Expect<int32_t> AVDeviceListDevices::body(const Runtime::CallingFrame &Frame,
   AVDeviceInfoList **AvDeviceInfoList =
       (AVDeviceInfoList **)malloc(sizeof(AVDeviceInfoList *));
 
-  int res = avdevice_list_devices(AvFormatCtx, AvDeviceInfoList);
+  int Res = avdevice_list_devices(AvFormatCtx, AvDeviceInfoList);
   FFMPEG_PTR_STORE(AvDeviceInfoList, AVDeviceInfoListId);
-  return res;
+  return Res;
 }
 
 Expect<int32_t> AVInputAudioDeviceNext::body(const Runtime::CallingFrame &) {
-  return 1;
+  spdlog::error("[WasmEdge-FFmpeg] AVInputAudioDeviceNext unimplemented"sv);
   //  av_input_audio_device_next();
+  return static_cast<int32_t>(ErrNo::UnImplemented);
 }
 
 Expect<int32_t> AVInputVideoDeviceNext::body(const Runtime::CallingFrame &) {
-  return 1;
+  spdlog::error("[WasmEdge-FFmpeg] AVInputVideoDeviceNext unimplemented"sv);
   //  av_input_video_device_next();
+  return static_cast<int32_t>(ErrNo::UnImplemented);
 }
 
 Expect<int32_t> AVOutputAudioDeviceNext::body(const Runtime::CallingFrame &) {
-  return 1;
+  spdlog::error("[WasmEdge-FFmpeg] AVOutputAudioDeviceNext unimplemented"sv);
   //  av_output_audio_device_next();
+  return static_cast<int32_t>(ErrNo::UnImplemented);
 }
 
 Expect<int32_t> AVOutputVideoDeviceNext::body(const Runtime::CallingFrame &) {
-  return 1;
+  spdlog::error("[WasmEdge-FFmpeg] AVOutputVideoDeviceNext unimplemented"sv);
   //  av_output_video_device_next();
+  return static_cast<int32_t>(ErrNo::UnImplemented);
 }
 
 Expect<int32_t> AVDeviceFreeListDevices::body(const Runtime::CallingFrame &,

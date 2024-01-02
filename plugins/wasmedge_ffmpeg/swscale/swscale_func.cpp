@@ -18,7 +18,7 @@ SwsGetContext::body(const Runtime::CallingFrame &Frame, uint32_t SwsCtxPtr,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(SwsCtxId, MemInst, uint32_t, SwsCtxPtr,
-                "Failed when accessing the return SWSContext Memory")
+                "Failed when accessing the return SWSContext Memory"sv)
 
   FFMPEG_PTR_FETCH(SwsCtx, *SwsCtxId, SwsContext)
   FFMPEG_PTR_FETCH(SrcSwsFilter, SrcFilterId, SwsFilter)
@@ -30,8 +30,8 @@ SwsGetContext::body(const Runtime::CallingFrame &Frame, uint32_t SwsCtxPtr,
       FFmpegUtils::PixFmt::intoAVPixFmt(DesPixFormatId);
   SwsCtx = sws_getContext(SrcW, SrcH, SrcPixelFormat, DesW, DesH,
                           DestPixelFormat, Flags, SrcSwsFilter, DesSwsFilter,
-                          NULL); // Not using param anywhere in Rust SDK.
-  if (SwsCtx == NULL)
+                          nullptr); // Not using param anywhere in Rust SDK.
+  if (SwsCtx == nullptr)
     return static_cast<int32_t>(ErrNo::InternalError);
   FFMPEG_PTR_STORE(SwsCtx, SwsCtxId);
   return static_cast<int32_t>(ErrNo::Success);
@@ -77,8 +77,8 @@ Expect<int32_t> SwsGetCachedContext::body(
       FFmpegUtils::PixFmt::intoAVPixFmt(DesPixFormatId);
   SwsCachedCtx = sws_getCachedContext(SwsCtx, SrcW, SrcH, SrcPixelFormat, DesW,
                                       DesH, DestPixelFormat, Flags,
-                                      SrcSwsFilter, DesSwsFilter, NULL);
-  if (SwsCachedCtx == NULL)
+                                      SrcSwsFilter, DesSwsFilter, nullptr);
+  if (SwsCachedCtx == nullptr)
     return static_cast<int32_t>(ErrNo::InternalError);
 
   FFMPEG_PTR_STORE(SwsCachedCtx, SwsCachedCtxId);
@@ -118,7 +118,7 @@ Expect<int32_t> SwsGetDefaultFilter::body(
   SwsFilter *Filter =
       sws_getDefaultFilter(LumaGBlur, ChromaGBlur, LumaSharpen, ChromaSharpen,
                            ChromaHShift, ChromaVShift, Verbose);
-  if (Filter == NULL)
+  if (Filter == nullptr)
     return static_cast<int32_t>(ErrNo::InternalError);
   FFMPEG_PTR_STORE(Filter, SwsFilterId);
   return static_cast<int32_t>(ErrNo::Success);

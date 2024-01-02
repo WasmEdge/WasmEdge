@@ -52,7 +52,7 @@ SWRAllocSetOpts::body(const Runtime::CallingFrame &Frame, uint32_t SwrCtxPtr,
   CurrSwrCtx = swr_alloc_set_opts(
       ExistSWRContext, OutChLayout, OutSampleFmt, OutSampleRate, InChLayout,
       InSampleFmt, InSampleRate, LogOffset,
-      NULL); // Always being used as null in rust sdk.
+      nullptr); // Always being used as null in rust sdk.
   FFMPEG_PTR_STORE(CurrSwrCtx, SwrCtxId);
   return static_cast<int32_t>(ErrNo::Success);
 }

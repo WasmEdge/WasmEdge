@@ -196,7 +196,6 @@ TEST_F(FFmpegTest, AVStreamStruct) {
       FuncInst->getHostFunc());
 
   {
-
     int32_t Num = 3;
     int32_t Den = 4;
     EXPECT_TRUE(HostFuncAVStreamSetRFrameRate.run(

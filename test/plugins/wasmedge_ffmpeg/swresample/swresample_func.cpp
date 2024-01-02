@@ -193,7 +193,7 @@ TEST_F(FFmpegTest, SWResampleFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWResampleConfigurationLength
           &>(FuncInst->getHostFunc());
 
-  int32_t Length;
+  int32_t Length = 0;
   {
     SwrId = readUInt32(MemInst, SWResamplePtr);
     EXPECT_TRUE(HostFuncSwrConfigLength.run(

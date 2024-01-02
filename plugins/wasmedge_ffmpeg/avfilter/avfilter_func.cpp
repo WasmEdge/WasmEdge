@@ -18,7 +18,7 @@ Expect<int32_t> AVFilterGraphAlloc::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(FilterGraph, *FilterGraphId, AVFilterGraph);
 
   FilterGraph = avfilter_graph_alloc();
-  if (FilterGraph == NULL)
+  if (FilterGraph == nullptr)
     return static_cast<int32_t>(ErrNo::Success);
   FFMPEG_PTR_STORE(FilterGraph, FilterGraphId);
   return static_cast<int32_t>(ErrNo::Success);
@@ -29,7 +29,7 @@ Expect<int32_t> AVFilterGraphConfig::body(const Runtime::CallingFrame &,
 
   FFMPEG_PTR_FETCH(FilterGraph, FilterGraphId, AVFilterGraph);
   return avfilter_graph_config(FilterGraph,
-                               NULL); // log_ctx always NULL on Rust SDK.
+                               nullptr); // log_ctx always NULL on Rust SDK.
 }
 
 Expect<int32_t> AVFilterGraphFree::body(const Runtime::CallingFrame &,
@@ -49,7 +49,7 @@ Expect<int32_t> AVFilterGraphGetFilter::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(NameId, MemInst, char, NamePtr,
-                "Failed when accessing the return Name memory");
+                "Failed when accessing the return Name memory"sv);
   MEM_PTR_CHECK(FilterCtxId, MemInst, uint32_t, FilterCtxPtr, "");
 
   FFMPEG_PTR_FETCH(FilterGraph, FilterGraphId, AVFilterGraph);
@@ -59,7 +59,7 @@ Expect<int32_t> AVFilterGraphGetFilter::body(const Runtime::CallingFrame &Frame,
   std::copy_n(NameId, NameSize, std::back_inserter(Name));
 
   FilterCtx = avfilter_graph_get_filter(FilterGraph, Name.c_str());
-  if (FilterCtx == NULL)
+  if (FilterCtx == nullptr)
     return static_cast<int32_t>(ErrNo::Success);
   FFMPEG_PTR_STORE(FilterCtx, FilterCtxId);
   return static_cast<int32_t>(ErrNo::Success);
@@ -82,7 +82,7 @@ Expect<int32_t> AVFilterGraphParsePtr::body(const Runtime::CallingFrame &Frame,
   std::string Filters;
   std::copy_n(FiltersId, FiltersSize, std::back_inserter(Filters));
   return avfilter_graph_parse_ptr(FiltersGraph, Filters.c_str(), &Inputs,
-                                  &Outputs, NULL);
+                                  &Outputs, nullptr);
 }
 
 Expect<int32_t> AVFilterInOutFree::body(const Runtime::CallingFrame &,
@@ -104,16 +104,16 @@ Expect<int32_t> AVFilterGetByName::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(StrId, MemInst, char, StrPtr,
-                "Failed when accessing the return Str memory");
+                "Failed when accessing the return Str memory"sv);
   MEM_PTR_CHECK(FilterId, MemInst, uint32_t, FilterPtr,
-                "Failed when accessing the return Filter memory");
+                "Failed when accessing the return Filter memory"sv);
 
   FFMPEG_PTR_FETCH(Filter, *FilterId, const struct AVFilter);
   std::string Name;
   std::copy_n(StrId, StrLen, std::back_inserter(Name));
 
   Filter = avfilter_get_by_name(Name.c_str());
-  if (Filter == NULL)
+  if (Filter == nullptr)
     return static_cast<int32_t>(ErrNo::Success);
 
   FFMPEG_PTR_STORE((void *)Filter, FilterId);
@@ -177,7 +177,7 @@ Expect<int32_t> AVFilterGraphCreateFilter::body(
   std::copy_n(ArgsBuf.data(), ArgsLen, std::back_inserter(Args));
 
   int Res = avfilter_graph_create_filter(&FilterCtx, Filter, Name.c_str(),
-                                         Args.c_str(), NULL, FilterGraph);
+                                         Args.c_str(), nullptr, FilterGraph);
   if (Res < 0)
     return Res;
 
@@ -193,7 +193,7 @@ Expect<int32_t> AVFilterInOutAlloc::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(InOut, *InOutId, AVFilterInOut);
   InOut = avfilter_inout_alloc();
-  if (InOut == NULL)
+  if (InOut == nullptr)
     return static_cast<int32_t>(ErrNo::Success);
   FFMPEG_PTR_STORE(InOut, InOutId);
   return static_cast<int32_t>(ErrNo::Success);
@@ -235,7 +235,7 @@ Expect<int32_t> AVFilterGraphDumpLength::body(const Runtime::CallingFrame &,
                                               uint32_t FilterGraphId) {
 
   FFMPEG_PTR_FETCH(FilterGraph, FilterGraphId, AVFilterGraph);
-  char *Graph = avfilter_graph_dump(FilterGraph, NULL);
+  char *Graph = avfilter_graph_dump(FilterGraph, nullptr);
   return strlen(Graph);
 }
 
@@ -249,7 +249,7 @@ Expect<int32_t> AVFilterGraphDump::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(FilterGraph, FilterGraphId, AVFilterGraph);
 
-  char *Graph = avfilter_graph_dump(FilterGraph, NULL);
+  char *Graph = avfilter_graph_dump(FilterGraph, nullptr);
   memmove(GraphStr.data(), Graph, GraphStrLen);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -259,7 +259,7 @@ Expect<int32_t> AVFilterFreeGraphStr::body(const Runtime::CallingFrame &,
 
   FFMPEG_PTR_FETCH(FilterGraph, FilterGraphId, AVFilterGraph);
 
-  char *Graph = avfilter_graph_dump(FilterGraph, NULL);
+  char *Graph = avfilter_graph_dump(FilterGraph, nullptr);
   av_free(Graph);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -268,7 +268,7 @@ Expect<int32_t> AVFilterDrop::body(const Runtime::CallingFrame &,
                                    uint32_t FilterId) {
 
   FFMPEG_PTR_FETCH(Filter, FilterId, struct AVFilter);
-  if (Filter == NULL)
+  if (Filter == nullptr)
     return static_cast<int32_t>(ErrNo::Success);
   FFMPEG_PTR_DELETE(FilterId);
   return static_cast<int32_t>(ErrNo::Success);
@@ -278,7 +278,7 @@ Expect<int32_t> AVFilterPadDrop::body(const Runtime::CallingFrame &,
                                       uint32_t FilterPadId) {
 
   FFMPEG_PTR_FETCH(FilterPad, FilterPadId, AVFilterPad);
-  if (FilterPad == NULL)
+  if (FilterPad == nullptr)
     return static_cast<int32_t>(ErrNo::Success);
   FFMPEG_PTR_DELETE(FilterPadId);
   return static_cast<int32_t>(ErrNo::Success);
@@ -288,7 +288,7 @@ Expect<int32_t> AVFilterContextDrop::body(const Runtime::CallingFrame &,
                                           uint32_t FilterCtxId) {
 
   FFMPEG_PTR_FETCH(FilterCtx, FilterCtxId, AVFilterContext);
-  if (FilterCtx == NULL)
+  if (FilterCtx == nullptr)
     return static_cast<int32_t>(ErrNo::Success);
   FFMPEG_PTR_DELETE(FilterCtxId);
   return static_cast<int32_t>(ErrNo::Success);

@@ -16,7 +16,7 @@ Expect<int32_t> AVUtilAVStrError::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
 
   MEM_PTR_CHECK(ErrId, MemInst, char, ErrBuf,
-                "Failed when accessing the return URL memory");
+                "Failed when accessing the return URL memory"sv);
 
   std::string Error;
   std::copy_n(ErrId, BufLen, std::back_inserter(Error));

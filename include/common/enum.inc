@@ -667,6 +667,7 @@ P(ExceptionHandling, "Exception handling")
 P(ExtendedConst, "Extended const")
 P(Threads, "Threads")
 P(FunctionReferences, "Typed Function References")
+P(Component, "Component model")
 #undef P
 #endif // UseProposal
 

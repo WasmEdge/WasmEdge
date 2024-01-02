@@ -355,15 +355,6 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
                      Tensor.Tensor.size());
   CxtRef.LlamaInputs = llama_tokenize(LlamaContext, Prompt, AddBos, true);
-  const uint32_t MaxContextSize = llama_n_ctx(LlamaContext);
-  // Minus 4 for the special tokens.
-  const uint32_t MaxTokensListSize = MaxContextSize - 4;
-  if (CxtRef.LlamaInputs.size() > MaxTokensListSize) {
-    spdlog::error(
-        "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
-        CxtRef.LlamaInputs.size(), MaxTokensListSize);
-    return ErrNo::InvalidArgument;
-  }
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: set the input...Done"sv);
   }
@@ -451,6 +442,8 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   ContextParams.n_batch = GraphRef.BatchSize;
   auto LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
+
+  // Get the context size.
   int NCtx = llama_n_ctx(LlamaContext);
   // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
   const int MaxTokensListSize = NCtx - 4;
@@ -458,6 +451,16 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   const int SequenceId = 0;
   // Return value.
   auto ReturnCode = ErrNo::Success;
+
+  // Check if the input is too long.
+  if (static_cast<int>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
+    spdlog::error(
+        "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
+        CxtRef.LlamaInputs.size(), MaxTokensListSize);
+    return ErrNo::PromptTooLong;
+  }
+
+  // Main predict loop.
   while (NRemain >= 0) {
     // Preidct
     if (!Embd.empty()) {
@@ -466,7 +469,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
         spdlog::error(
             "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
             Embd.size(), MaxTokensListSize);
-        return ErrNo::RuntimeError;
+        return ErrNo::PromptTooLong;
       }
 
       // We do not swap context here. End the inference if the context is full.
@@ -640,12 +643,22 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     CxtRef.LlamaNConsumed = 0;
   }
 
+  // Get the context size.
   const int NCtx = llama_n_ctx(CxtRef.LlamaContext);
   // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
   const int MaxTokensListSize = NCtx - 4;
   // Use the const sequence id here.
   const int SequenceId = 0;
 
+  // Check if the input is too long.
+  if (static_cast<int>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
+    spdlog::error(
+        "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
+        CxtRef.LlamaInputs.size(), MaxTokensListSize);
+    return ErrNo::PromptTooLong;
+  }
+
+  // Main predict loop.
   while (true) {
     if (!CxtRef.LlamaEmbd.empty()) {
       // Input too long.
@@ -653,7 +666,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
         spdlog::error(
             "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
             CxtRef.LlamaEmbd.size(), MaxTokensListSize);
-        return ErrNo::RuntimeError;
+        return ErrNo::PromptTooLong;
       }
 
       // We do not swap context here. End the inference if the context is full.

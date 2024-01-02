@@ -433,9 +433,9 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   struct llama_sampling_context *CtxSampling =
       llama_sampling_init(GPTParams.sparams);
   std::vector<llama_token> Embd;
-  int NPast = 0;
-  int NConsumed = 0;
-  int NRemain = GraphRef.NPredict;
+  uint64_t NPast = 0;
+  uint64_t NConsumed = 0;
+  int32_t NRemain = GraphRef.NPredict;
   // Initialize the llama context.
   llama_context_params ContextParams = llama_context_default_params();
   ContextParams.n_ctx = GraphRef.CtxSize;
@@ -444,16 +444,16 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
 
   // Get the context size.
-  int NCtx = llama_n_ctx(LlamaContext);
+  const uint64_t NCtx = llama_n_ctx(LlamaContext);
   // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
-  const int MaxTokensListSize = NCtx - 4;
+  const uint64_t MaxTokensListSize = NCtx - 4;
   // Use the const sequence id here.
-  const int SequenceId = 0;
+  const llama_seq_id SequenceId = 0;
   // Return value.
   auto ReturnCode = ErrNo::Success;
 
   // Check if the input is too long.
-  if (static_cast<int>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
+  if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
     spdlog::error(
         "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
         CxtRef.LlamaInputs.size(), MaxTokensListSize);
@@ -465,7 +465,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     // Preidct
     if (!Embd.empty()) {
       // Input too long.
-      if (static_cast<int>(Embd.size()) > MaxTokensListSize) {
+      if (static_cast<uint64_t>(Embd.size()) > MaxTokensListSize) {
         spdlog::error(
             "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
             Embd.size(), MaxTokensListSize);
@@ -473,7 +473,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       }
 
       // We do not swap context here. End the inference if the context is full.
-      if (NPast + static_cast<int>(Embd.size()) > NCtx) {
+      if (NPast + static_cast<uint64_t>(Embd.size()) > NCtx) {
         if (GraphRef.EnableLog) {
           spdlog::info(
               "[WASI-NN] GGML backend: the context if full ({} / {} tokens)"sv,
@@ -486,8 +486,8 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       // Evaluate tokens in batches.
       for (int I = 0; I < static_cast<int>(Embd.size());
            I += GraphRef.BatchSize) {
-        int NEval = static_cast<int>(Embd.size()) - I;
-        if (NEval > static_cast<int>(GraphRef.BatchSize)) {
+        uint64_t NEval = static_cast<uint64_t>(Embd.size()) - I;
+        if (NEval > static_cast<uint64_t>(GraphRef.BatchSize)) {
           NEval = GraphRef.BatchSize;
         }
         // llama_batch_get_one(*token, n_tokens, position, sequence_id)
@@ -512,7 +512,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
     Embd.clear();
 
-    if (static_cast<int>(CxtRef.LlamaInputs.size()) <= NConsumed) {
+    if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) <= NConsumed) {
       const llama_token Id =
           llama_sampling_sample(CtxSampling, LlamaContext, nullptr);
       llama_sampling_accept(CtxSampling, LlamaContext, Id, true);
@@ -543,7 +543,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
         break;
       }
     } else {
-      while (static_cast<int>(CxtRef.LlamaInputs.size()) > NConsumed) {
+      while (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > NConsumed) {
         Embd.push_back(CxtRef.LlamaInputs[NConsumed]);
         // Push the prompt in the sampling context.
         llama_sampling_accept(CtxSampling, LlamaContext,
@@ -644,14 +644,14 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
   }
 
   // Get the context size.
-  const int NCtx = llama_n_ctx(CxtRef.LlamaContext);
+  const uint64_t NCtx = llama_n_ctx(CxtRef.LlamaContext);
   // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
-  const int MaxTokensListSize = NCtx - 4;
+  const uint64_t MaxTokensListSize = NCtx - 4;
   // Use the const sequence id here.
-  const int SequenceId = 0;
+  const llama_seq_id SequenceId = 0;
 
   // Check if the input is too long.
-  if (static_cast<int>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
+  if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
     spdlog::error(
         "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
         CxtRef.LlamaInputs.size(), MaxTokensListSize);
@@ -662,7 +662,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
   while (true) {
     if (!CxtRef.LlamaEmbd.empty()) {
       // Input too long.
-      if (static_cast<int>(CxtRef.LlamaEmbd.size()) > MaxTokensListSize) {
+      if (static_cast<uint64_t>(CxtRef.LlamaEmbd.size()) > MaxTokensListSize) {
         spdlog::error(
             "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
             CxtRef.LlamaEmbd.size(), MaxTokensListSize);
@@ -670,22 +670,23 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
       }
 
       // We do not swap context here. End the inference if the context is full.
-      if (CxtRef.LlamaNPast + static_cast<int>(CxtRef.LlamaEmbd.size()) >
+      if (CxtRef.LlamaNPast + static_cast<uint64_t>(CxtRef.LlamaEmbd.size()) >
           NCtx) {
         if (GraphRef.EnableLog) {
           spdlog::info(
               "[WASI-NN] GGML backend: the context if full ({} / {} tokens)"sv,
-              CxtRef.LlamaNPast + static_cast<int>(CxtRef.LlamaEmbd.size()),
+              CxtRef.LlamaNPast +
+                  static_cast<uint64_t>(CxtRef.LlamaEmbd.size()),
               NCtx);
         }
         return ErrNo::ContextFull;
       }
 
       // Evaluate tokens in batches.
-      for (int I = 0; I < static_cast<int>(CxtRef.LlamaEmbd.size());
+      for (uint64_t I = 0; I < static_cast<uint64_t>(CxtRef.LlamaEmbd.size());
            I += GraphRef.BatchSize) {
-        int NEval = static_cast<int>(CxtRef.LlamaEmbd.size()) - I;
-        if (NEval > static_cast<int>(GraphRef.BatchSize)) {
+        uint64_t NEval = static_cast<uint64_t>(CxtRef.LlamaEmbd.size()) - I;
+        if (NEval > static_cast<uint64_t>(GraphRef.BatchSize)) {
           NEval = GraphRef.BatchSize;
         }
         // llama_batch_get_one(*token, n_tokens, position, sequence_id)
@@ -711,7 +712,8 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
 
     CxtRef.LlamaEmbd.clear();
 
-    if (static_cast<int>(CxtRef.LlamaInputs.size()) <= CxtRef.LlamaNConsumed) {
+    if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) <=
+        CxtRef.LlamaNConsumed) {
       const llama_token Id = llama_sampling_sample(
           CxtRef.LlamaSampling, CxtRef.LlamaContext, nullptr);
       llama_sampling_accept(CxtRef.LlamaSampling, CxtRef.LlamaContext, Id,
@@ -730,7 +732,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
       }
       return ErrNo::Success;
     } else {
-      while (static_cast<int>(CxtRef.LlamaInputs.size()) >
+      while (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) >
              CxtRef.LlamaNConsumed) {
         CxtRef.LlamaEmbd.push_back(CxtRef.LlamaInputs[CxtRef.LlamaNConsumed]);
         // Push the prompt in the sampling context.

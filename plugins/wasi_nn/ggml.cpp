@@ -192,6 +192,11 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
       return Res;
     }
   }
+  if (GraphRef.EnableLog) {
+    spdlog::info("[WASI-NN] GGML backend: LLAMA_COMMIT {}"sv, LLAMA_COMMIT);
+    spdlog::info("[WASI-NN] GGML backend: LLAMA_BUILD_NUMBER {}"sv,
+                 LLAMA_BUILD_NUMBER);
+  }
 
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: Handling model path."sv);
@@ -451,6 +456,8 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   const int MaxTokensListSize = NCtx - 4;
   // Use the const sequence id here.
   const int SequenceId = 0;
+  // Return value.
+  auto ReturnCode = ErrNo::Success;
   while (NRemain >= 0) {
     // Preidct
     if (!Embd.empty()) {
@@ -469,6 +476,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
               "[WASI-NN] GGML backend: the context if full ({} / {} tokens)"sv,
               NPast + static_cast<int>(Embd.size()), NCtx);
         }
+        ReturnCode = ErrNo::ContextFull;
         break;
       }
 
@@ -482,10 +490,16 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
         // llama_batch_get_one(*token, n_tokens, position, sequence_id)
         // This will return batch for single sequence of tokens starting at
         // position.
-        if (llama_decode(
-                LlamaContext,
-                llama_batch_get_one(&Embd[I], NEval, NPast, SequenceId))) {
-          spdlog::error("[WASI-NN] GGML backend: failed to llama_decode"sv);
+        auto Status =
+            llama_decode(LlamaContext, llama_batch_get_one(&Embd[I], NEval,
+                                                           NPast, SequenceId));
+        if (Status == 1) {
+          spdlog::error(
+              "[WASI-NN] GGML backend: failed to llama_decode: try reducing the size of the batch or increasing the size of context"sv);
+          return ErrNo::RuntimeError;
+        } else if (Status < 0) {
+          spdlog::error(
+              "[WASI-NN] GGML backend: failed to llama_decode: internal fatal error. Please open an issue on GitHub"sv);
           return ErrNo::RuntimeError;
         }
 
@@ -556,7 +570,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     spdlog::info("[WASI-NN][Debug] GGML backend: compute...Done"sv);
   }
 
-  return ErrNo::Success;
+  return ReturnCode;
 }
 
 Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
@@ -651,7 +665,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
               CxtRef.LlamaNPast + static_cast<int>(CxtRef.LlamaEmbd.size()),
               NCtx);
         }
-        return ErrNo::RuntimeError;
+        return ErrNo::ContextFull;
       }
 
       // Evaluate tokens in batches.
@@ -664,10 +678,17 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
         // llama_batch_get_one(*token, n_tokens, position, sequence_id)
         // This will return batch for single sequence of tokens starting at
         // position.
-        if (llama_decode(CxtRef.LlamaContext,
+        auto Status =
+            llama_decode(CxtRef.LlamaContext,
                          llama_batch_get_one(&CxtRef.LlamaEmbd[I], NEval,
-                                             CxtRef.LlamaNPast, SequenceId))) {
-          spdlog::error("[WASI-NN] GGML backend: failed to llama_decode"sv);
+                                             CxtRef.LlamaNPast, SequenceId));
+        if (Status == 1) {
+          spdlog::error(
+              "[WASI-NN] GGML backend: failed to llama_decode: try reducing the size of the batch or increasing the size of context"sv);
+          return ErrNo::RuntimeError;
+        } else if (Status < 0) {
+          spdlog::error(
+              "[WASI-NN] GGML backend: failed to llama_decode: internal fatal error. Please open an issue on GitHub"sv);
           return ErrNo::RuntimeError;
         }
 
@@ -709,6 +730,44 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
       }
     }
   }
+
+  return ErrNo::Success;
+}
+
+Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
+  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+
+  // Clear the outputs.
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: finiSingle: clear the previous output and tokens"sv);
+  }
+  CxtRef.LlamaOutputs.clear();
+  CxtRef.LlamaOutputTokens.clear();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: finiSingle: clear the previous output and tokens...Done"sv);
+  }
+
+  // Delete the llama context.
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: finiSingle: free the llama context"sv);
+  }
+  llama_sampling_free(CxtRef.LlamaSampling);
+  llama_free(CxtRef.LlamaContext);
+  CxtRef.LlamaSampling = nullptr;
+  CxtRef.LlamaContext = nullptr;
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: finiSingle: free the llama context...Done"sv);
+  }
+
+  // Reset the context variables.
+  CxtRef.LlamaEmbd.clear();
+  CxtRef.LlamaNPast = 0;
+  CxtRef.LlamaNConsumed = 0;
 
   return ErrNo::Success;
 }

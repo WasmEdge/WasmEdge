@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "loader/loader.h"
+#include "spdlog/common.h"
+#include "spdlog/spdlog.h"
 
 #include <bitset>
 #include <cstddef>
@@ -77,6 +79,11 @@ Loader::loadUnit() {
     }
     return *Mod;
   } else if (Ver == ComponentVersion) {
+    if (!Conf.hasProposal(Proposal::Component)) {
+      return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::Component,
+                             FMgr.getLastOffset(), ASTNodeAttr::Component);
+    }
+    spdlog::warn("component model is an experimental proposal");
     auto Comp = std::make_unique<AST::Component::Component>();
     Comp->getMagic() = WasmMagic;
     Comp->getVersion() = {Ver[0], Ver[1]};

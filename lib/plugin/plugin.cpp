@@ -250,7 +250,11 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
   Dl_info DLInfo;
   int Status =
       dladdr(reinterpret_cast<void *>(Plugin::getDefaultPluginPaths), &DLInfo);
-  if (Status != 0 && DLInfo.dli_fname != nullptr) {
+  if (Status != 0) {
+    if (DLInfo.dli_fname == nullptr) {
+      spdlog::error("DLInfo is null.");
+      return std::vector<std::filesystem::path>();
+    }
     auto LibPath = std::filesystem::u8path(DLInfo.dli_fname)
                        .parent_path()
                        .lexically_normal();

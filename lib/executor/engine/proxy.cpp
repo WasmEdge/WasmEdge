@@ -27,7 +27,9 @@ struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StackManager &,
     if (unlikely(!Res)) {
       Fault::emitFault(Res.error());
     }
-    if constexpr (!std::is_void_v<RetT>) {
+    if constexpr (std::is_same_v<RetT, RefVariant>) {
+      return (*Res).Ptr;
+    } else if constexpr (!std::is_void_v<RetT>) {
       return *Res;
     }
   }

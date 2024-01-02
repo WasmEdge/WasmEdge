@@ -39,7 +39,7 @@ namespace {
 static unsigned int NiftyCounter = 0;
 static std::aligned_storage_t<sizeof(std::vector<Plugin>),
                               alignof(std::vector<Plugin>)>
-    PluginRegistoryStorage;
+    PluginRegistryStorage;
 static std::aligned_storage_t<
     sizeof(std::unordered_map<std::string_view, std::size_t>),
     alignof(std::unordered_map<std::string_view, std::size_t>)>
@@ -47,7 +47,7 @@ static std::aligned_storage_t<
 
 void IncreaseNiftyCounter() noexcept {
   if (NiftyCounter++ == 0) {
-    new (&PluginRegistoryStorage) std::vector<Plugin>();
+    new (&PluginRegistryStorage) std::vector<Plugin>();
     new (&PluginNameLookupStorage)
         std::unordered_map<std::string_view, std::size_t>();
   }
@@ -55,7 +55,7 @@ void IncreaseNiftyCounter() noexcept {
 
 void DecreaseNiftyCounter() noexcept {
   if (--NiftyCounter == 0) {
-    reinterpret_cast<std::vector<Plugin> &>(PluginRegistoryStorage)
+    reinterpret_cast<std::vector<Plugin> &>(PluginRegistryStorage)
         .~vector<Plugin>();
     reinterpret_cast<std::unordered_map<std::string_view, std::size_t> &>(
         PluginNameLookupStorage)
@@ -222,8 +222,8 @@ std::vector<std::unique_ptr<CAPIPluginRegister>> CAPIPluginRegisters;
 
 } // namespace
 
-std::vector<Plugin> &Plugin::PluginRegistory =
-    reinterpret_cast<std::vector<Plugin> &>(PluginRegistoryStorage);
+std::vector<Plugin> &Plugin::PluginRegistry =
+    reinterpret_cast<std::vector<Plugin> &>(PluginRegistryStorage);
 std::unordered_map<std::string_view, std::size_t> &Plugin::PluginNameLookup =
     reinterpret_cast<std::unordered_map<std::string_view, std::size_t> &>(
         PluginNameLookupStorage);
@@ -332,14 +332,14 @@ WASMEDGE_EXPORT bool Plugin::load(const std::filesystem::path &Path) noexcept {
 }
 
 bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
-  const auto Index = PluginRegistory.size();
+  const auto Index = PluginRegistry.size();
 
   auto Lib = std::make_shared<Loader::SharedLibrary>();
   if (auto Res = Lib->load(Path); unlikely(!Res)) {
     return false;
   }
 
-  if (PluginRegistory.size() != Index + 1) {
+  if (PluginRegistry.size() != Index + 1) {
     // Check C interface
     if (auto GetDescriptor = Lib->get<decltype(WasmEdge_Plugin_GetDescriptor)>(
             "WasmEdge_Plugin_GetDescriptor");
@@ -354,14 +354,14 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
     }
   }
 
-  auto &Plugin = PluginRegistory.back();
+  auto &Plugin = PluginRegistry.back();
   Plugin.Path = Path;
   Plugin.Lib = std::move(Lib);
   return true;
 }
 
 void Plugin::addPluginOptions(PO::ArgumentParser &Parser) noexcept {
-  for (const auto &Plugin : PluginRegistory) {
+  for (const auto &Plugin : PluginRegistry) {
     if (Plugin.Desc->AddOptions) {
       Plugin.Desc->AddOptions(Plugin.Desc, Parser);
     }
@@ -372,13 +372,13 @@ WASMEDGE_EXPORT const Plugin *Plugin::find(std::string_view Name) noexcept {
   if (NiftyCounter != 0) {
     if (auto Iter = PluginNameLookup.find(Name);
         Iter != PluginNameLookup.end()) {
-      return std::addressof(PluginRegistory[Iter->second]);
+      return std::addressof(PluginRegistry[Iter->second]);
     }
   }
   return nullptr;
 }
 
-Span<const Plugin> Plugin::plugins() noexcept { return PluginRegistory; }
+Span<const Plugin> Plugin::plugins() noexcept { return PluginRegistry; }
 
 WASMEDGE_EXPORT void
 Plugin::registerPlugin(const PluginDescriptor *Desc) noexcept {
@@ -387,8 +387,8 @@ Plugin::registerPlugin(const PluginDescriptor *Desc) noexcept {
     return;
   }
 
-  const auto Index = PluginRegistory.size();
-  PluginRegistory.push_back(Plugin(Desc));
+  const auto Index = PluginRegistry.size();
+  PluginRegistry.push_back(Plugin(Desc));
   PluginNameLookup.emplace(Desc->Name, Index);
 
   return;
@@ -397,8 +397,8 @@ Plugin::registerPlugin(const PluginDescriptor *Desc) noexcept {
 Plugin::Plugin(const PluginDescriptor *D) noexcept : Desc(D) {
   for (const auto &ModuleDesc : Span<const PluginModule::ModuleDescriptor>(
            D->ModuleDescriptions, D->ModuleCount)) {
-    const auto Index = ModuleRegistory.size();
-    ModuleRegistory.push_back(PluginModule(&ModuleDesc));
+    const auto Index = ModuleRegistry.size();
+    ModuleRegistry.push_back(PluginModule(&ModuleDesc));
     ModuleNameLookup.emplace(ModuleDesc.Name, Index);
   }
 }
@@ -406,7 +406,7 @@ Plugin::Plugin(const PluginDescriptor *D) noexcept : Desc(D) {
 WASMEDGE_EXPORT const PluginModule *
 Plugin::findModule(std::string_view Name) const noexcept {
   if (auto Iter = ModuleNameLookup.find(Name); Iter != ModuleNameLookup.end()) {
-    return std::addressof(ModuleRegistory[Iter->second]);
+    return std::addressof(ModuleRegistry[Iter->second]);
   }
   return nullptr;
 }

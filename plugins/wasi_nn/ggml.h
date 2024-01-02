@@ -48,8 +48,8 @@ public:
   llama_context *LlamaContext = nullptr;
   struct llama_sampling_context *LlamaSampling = nullptr;
   std::vector<llama_token> LlamaEmbd;
-  int LlamaNPast;
-  int LlamaNConsumed;
+  uint64_t LlamaNPast;
+  uint64_t LlamaNConsumed;
 };
 #else
 struct Graph {};

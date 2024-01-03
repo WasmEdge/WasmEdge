@@ -21,29 +21,6 @@
 namespace WasmEdge {
 namespace AST {
 
-class Component {
-public:
-  /// Getter of magic vector.
-  const std::vector<Byte> &getMagic() const noexcept { return Magic; }
-  std::vector<Byte> &getMagic() noexcept { return Magic; }
-
-  /// Getter of version vector.
-  const std::vector<Byte> &getVersion() const noexcept { return Version; }
-  std::vector<Byte> &getVersion() noexcept { return Version; }
-
-  /// Getter of layer vector.
-  const std::vector<Byte> &getLayer() const noexcept { return Layer; }
-  std::vector<Byte> &getLayer() noexcept { return Layer; }
-
-private:
-  /// \name Data of Module node.
-  /// @{
-  std::vector<Byte> Magic;
-  std::vector<Byte> Version;
-  std::vector<Byte> Layer;
-  /// @}
-};
-
 /// AST Module node.
 class Module {
 public:
@@ -162,6 +139,69 @@ private:
   bool IsValidated = false;
   /// @}
 };
+
+class CoreModuleSection : public Section {
+public:
+  /// Getter of content.
+  Span<const Module> getContent() const noexcept { return Content; }
+  std::vector<Module> &getContent() noexcept { return Content; }
+
+private:
+  std::vector<Module> Content;
+};
+
+namespace Component {
+class Component {
+public:
+  /// Getter of magic vector.
+  const std::vector<Byte> &getMagic() const noexcept { return Magic; }
+  std::vector<Byte> &getMagic() noexcept { return Magic; }
+
+  /// Getter of version vector.
+  const std::vector<Byte> &getVersion() const noexcept { return Version; }
+  std::vector<Byte> &getVersion() noexcept { return Version; }
+
+  /// Getter of layer vector.
+  const std::vector<Byte> &getLayer() const noexcept { return Layer; }
+  std::vector<Byte> &getLayer() noexcept { return Layer; }
+
+  std::vector<CustomSection> &getCustomSections() noexcept {
+    return CustomSecs;
+  }
+  CoreModuleSection &getCoreModuleSection() noexcept { return CoreModSec; }
+  CoreInstanceSection &getCoreInstanceSection() noexcept { return CoreInstSec; }
+  TypeSection &getCoreTypeSection() noexcept { return CoreTypeSec; }
+  ComponentSection &getComponentSection() noexcept { return CompSec; }
+  InstanceSection &getInstanceSection() noexcept { return InstSec; }
+  AliasSection &getAliasSection() noexcept { return AliasSec; }
+  TypeSection &getTypeSection() noexcept { return TySec; }
+  CanonSection &getCanonSection() noexcept { return CanonSec; }
+  StartSection &getStartSection() noexcept { return StartSec; }
+  ImportSection &getImportSection() noexcept { return ImSec; }
+  ExportSection &getExportSection() noexcept { return ExSec; }
+
+private:
+  /// \name Data of Module node.
+  /// @{
+  std::vector<Byte> Magic;
+  std::vector<Byte> Version;
+  std::vector<Byte> Layer;
+  std::vector<CustomSection> CustomSecs;
+  CoreModuleSection CoreModSec;
+  CoreInstanceSection CoreInstSec;
+  TypeSection CoreTypeSec;
+  ComponentSection CompSec;
+  InstanceSection InstSec;
+  AliasSection AliasSec;
+  TypeSection TySec;
+  CanonSection CanonSec;
+  StartSection StartSec;
+  ImportSection ImSec;
+  ExportSection ExSec;
+  /// @}
+};
+
+} // namespace Component
 
 } // namespace AST
 } // namespace WasmEdge

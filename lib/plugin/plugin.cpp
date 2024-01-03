@@ -251,6 +251,10 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
   int Status =
       dladdr(reinterpret_cast<void *>(Plugin::getDefaultPluginPaths), &DLInfo);
   if (Status != 0) {
+    if (DLInfo.dli_fname == nullptr) {
+      spdlog::error("DLInfo is null.");
+      return std::vector<std::filesystem::path>();
+    }
     auto LibPath = std::filesystem::u8path(DLInfo.dli_fname)
                        .parent_path()
                        .lexically_normal();
@@ -272,6 +276,10 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
       Result.push_back(LibPath / std::filesystem::u8path(".."sv) /
                        std::filesystem::u8path("plugin"sv));
     }
+  } else {
+    spdlog::error(ErrCode::Value::NonNullRequired);
+    spdlog::error("Cannot pass a null reference as an argument.");
+    return std::vector<std::filesystem::path>();
   }
 #elif WASMEDGE_OS_WINDOWS
   // FIXME: Use the `dladdr`.

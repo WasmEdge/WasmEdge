@@ -253,7 +253,7 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
   if (Status != 0) {
     if (DLInfo.dli_fname == nullptr) {
       spdlog::error("Address matched to a shared object but not to any symbol "
-              "within the object. dli_fname is null.");
+                    "within the object. dli_fname is null.");
       return std::vector<std::filesystem::path>();
     }
     auto LibPath = std::filesystem::u8path(DLInfo.dli_fname)
@@ -279,8 +279,8 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
     }
   } else {
     spdlog::error(ErrCode::Value::NonNullRequired);
-    spdlog::errorspdlog::error("Address could not be matched to any shared object. "
-              "Detailed error information is not available.");
+    spdlog::error("Address could not be matched to any shared object. "
+                  "Detailed error information is not available.");
     return std::vector<std::filesystem::path>();
   }
 #elif WASMEDGE_OS_WINDOWS

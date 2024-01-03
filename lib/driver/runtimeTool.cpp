@@ -68,6 +68,10 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   if (Opt.PropFunctionReference.value()) {
     Conf.addProposal(Proposal::FunctionReferences);
   }
+  if (Opt.PropComponent.value()) {
+    Conf.addProposal(Proposal::Component);
+    spdlog::warn("component model is enabled, this is experimental.");
+  }
   if (Opt.PropAll.value()) {
     Conf.addProposal(Proposal::MultiMemories);
     Conf.addProposal(Proposal::TailCall);

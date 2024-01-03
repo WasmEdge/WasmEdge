@@ -252,8 +252,9 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
       dladdr(reinterpret_cast<void *>(Plugin::getDefaultPluginPaths), &DLInfo);
   if (Status != 0) {
     if (DLInfo.dli_fname == nullptr) {
-      spdlog::error("Address matched to a shared object but not to any symbol "sv
-              "within the object. dli_fname is null."sv);
+      spdlog::error(
+          "Address matched to a shared object but not to any symbol "sv
+          "within the object. dli_fname is null."sv);
       return std::vector<std::filesystem::path>();
     }
     auto LibPath = std::filesystem::u8path(DLInfo.dli_fname)

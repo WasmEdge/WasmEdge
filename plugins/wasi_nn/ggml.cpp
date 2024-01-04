@@ -762,6 +762,11 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
 
+  // Logging for the llama timings.
+  if (GraphRef.EnableLog) {
+    llama_print_timings(CxtRef.LlamaContext);
+  }
+
   // Clear the outputs.
   if (GraphRef.EnableDebugLog) {
     spdlog::info(

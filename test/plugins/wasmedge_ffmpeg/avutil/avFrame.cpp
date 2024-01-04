@@ -17,7 +17,7 @@ TEST_F(FFmpegTest, AVFrame) {
   uint32_t DictPtr = UINT32_C(36);
   uint32_t NumPtr = UINT32_C(80);
   uint32_t DenPtr = UINT32_C(84);
-  //  uint32_t BufPtr = UINT32_C(200); // TO store Frame Data;
+  uint32_t BufPtr = UINT32_C(200); // TO store Frame Data;
 
   std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
   initFFmpegStructs(UINT32_C(12), UINT32_C(24), UINT32_C(28), FileName,
@@ -449,23 +449,20 @@ TEST_F(FFmpegTest, AVFrame) {
     EXPECT_EQ(Result[0].get<int32_t>(), Height);
   }
 
-  // Unable to test.
-  //  FuncInst =
-  //  AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_data"); auto
-  //  &HostFuncAVFrameData =
-  //      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameData &>(
-  //          FuncInst->getHostFunc());
-  //
-  //  {
-  //    int32_t Size = Stride * Height;
-  //    fillMemContent(MemInst, BufPtr, Size);
-  //    HostFuncAVFrameData.run(
-  //        CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, BufPtr, 0,
-  //        Idx}, Result);
-  //    EXPECT_EQ(Result[0].get<int32_t>(),
-  //    static_cast<int32_t>(ErrNo::Success));
-  //  }
+  FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_data");
+  auto &HostFuncAVFrameData =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameData &>(
+          FuncInst->getHostFunc());
+
+  {
+    int32_t Size = 1; // Just reading One byte data for test.
+    fillMemContent(MemInst, BufPtr, Size);
+    HostFuncAVFrameData.run(CallFrame,
+                            std::initializer_list<WasmEdge::ValVariant>{
+                                AVFrameId, BufPtr, Size, Idx},
+                            Result);
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_video_format");

@@ -88,7 +88,7 @@ TEST_F(FFmpegTest, AVCodec) {
     EXPECT_TRUE(Result[0].get<int32_t>() > 0);
   }
 
-  int32_t Length;
+  int32_t Length = 0;
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_get_name_len");
   EXPECT_NE(FuncInst, nullptr);

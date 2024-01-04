@@ -135,7 +135,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   uint32_t BufId = readUInt32(MemInst, BufferPtr);
   ASSERT_TRUE(BufId > 0);
 
-  int32_t Length;
+  int32_t Length = 0;
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name_length");
   auto &HostFuncAVGetSampleFmtNameLength = dynamic_cast<

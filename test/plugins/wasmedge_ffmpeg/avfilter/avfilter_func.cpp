@@ -54,9 +54,6 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   std::string SpecStr = std::string("anull");
   fillMemContent(MemInst, SpecPtr, SpecStr);
 
-  //  std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
-  //  initFFmpegStructs(UINT32_C(40), UINT32_C(44), UINT32_C(48), FileName,
-  //                    UINT32_C(80), UINT32_C(84), UINT32_C(88), FramePtr);
   initEmptyFrame(FramePtr);
   uint32_t FrameId = readUInt32(MemInst, FramePtr);
 
@@ -349,7 +346,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGraphDumpLength &>(
       FuncInst->getHostFunc());
 
-  int32_t GraphStrLen;
+  int32_t GraphStrLen = 0;
   {
     EXPECT_TRUE(HostFuncAVFilterGraphDumpLength.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{FilterGraphId},
@@ -426,7 +423,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterConfigurationLength &>(
       FuncInst->getHostFunc());
 
-  int32_t Length;
+  int32_t Length = 0;
   {
     EXPECT_TRUE(HostFuncAVFilterConfigurationLength.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));

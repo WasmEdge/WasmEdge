@@ -142,7 +142,7 @@ TEST_F(FFmpegTest, AVUtilFunc) {
     EXPECT_TRUE(Result[0].get<uint64_t>() > 0);
   }
 
-  uint32_t Length;
+  uint32_t Length = 0;
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_avutil_configuration_length");
   auto &HostFuncAVUtilConfigurationLength = dynamic_cast<

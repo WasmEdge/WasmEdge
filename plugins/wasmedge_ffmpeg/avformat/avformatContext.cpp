@@ -20,7 +20,7 @@ Expect<int32_t> AVFormatCtxIFormat::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
 
   AVInputFormat const *AvInputFormat = AvFormatCtx->iformat;
-  FFMPEG_PTR_STORE((void *)AvInputFormat, AvInputFormatId);
+  FFMPEG_PTR_STORE(const_cast<AVInputFormat *>(AvInputFormat), AvInputFormatId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -35,7 +35,8 @@ Expect<int32_t> AVFormatCtxOFormat::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
 
   AVOutputFormat const *AvOutputFormat = AvFormatCtx->oformat;
-  FFMPEG_PTR_STORE((void *)AvOutputFormat, AvOutputFormatId);
+  FFMPEG_PTR_STORE(const_cast<AVOutputFormat *>(AvOutputFormat),
+                   AvOutputFormatId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -72,10 +73,8 @@ Expect<int64_t> AVFormatCtxDuration::body(const Runtime::CallingFrame &,
 Expect<uint32_t> AVFormatCtxNbChapters::body(const Runtime::CallingFrame &,
                                              uint32_t AvFormatCtxId) {
 
-  auto ffmpegMemory = Env.get();
-  AVFormatContext *avFormatCtx =
-      static_cast<AVFormatContext *>(ffmpegMemory->fetchData(AvFormatCtxId));
-  return avFormatCtx->nb_chapters;
+  FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  return AvFormatContext->nb_chapters;
 }
 
 Expect<int32_t> AVFormatCtxSetNbChapters::body(const Runtime::CallingFrame &,

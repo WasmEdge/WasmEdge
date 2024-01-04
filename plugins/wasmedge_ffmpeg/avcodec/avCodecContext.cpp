@@ -620,7 +620,7 @@ Expect<int32_t> AVCodecCtxCodec::body(const Runtime::CallingFrame &Frame,
   if (AvCodec == nullptr)
     return -1;
 
-  FFMPEG_PTR_STORE((void *)AvCodec, AVCodecId);
+  FFMPEG_PTR_STORE(const_cast<AVCodec *>(AvCodec), AVCodecId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 

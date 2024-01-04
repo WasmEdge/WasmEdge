@@ -116,7 +116,7 @@ Expect<int32_t> AVFilterGetByName::body(const Runtime::CallingFrame &Frame,
   if (Filter == nullptr)
     return static_cast<int32_t>(ErrNo::Success);
 
-  FFMPEG_PTR_STORE((void *)Filter, FilterId);
+  FFMPEG_PTR_STORE(const_cast<struct AVFilter *>(Filter), FilterId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 

@@ -61,7 +61,7 @@ TEST_F(FFmpegTest, AVFilterStructs) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterNameLength &>(
       FuncInst->getHostFunc());
 
-  int32_t Length;
+  int32_t Length = 0;
   {
     EXPECT_TRUE(HostFuncAVFilterNameLength.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{FilterId},

@@ -57,7 +57,7 @@ TEST_F(FFmpegTest, AVPixFmt) {
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
 
-  int32_t Length;
+  int32_t Length = 0;
   int32_t TransferCharacteristicId = 6; // (SMPTE170M)
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_color_transfer_name_length");

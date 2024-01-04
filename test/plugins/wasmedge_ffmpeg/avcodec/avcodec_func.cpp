@@ -301,7 +301,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecConfigurationLength &>(
       FuncInst->getHostFunc());
 
-  int32_t Length;
+  int32_t Length = 0;
   {
     EXPECT_TRUE(HostFuncAVCodecConfigurationLength.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));

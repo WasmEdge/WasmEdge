@@ -251,7 +251,7 @@ TEST_F(FFmpegTest, AVInputFormatFunc) {
   auto &HostFuncAVFormatConfigurationLength = dynamic_cast<
       WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatConfigurationLength &>(
       FuncInst->getHostFunc());
-  int32_t Length;
+  int32_t Length = 0;
   {
     EXPECT_TRUE(HostFuncAVFormatConfigurationLength.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));

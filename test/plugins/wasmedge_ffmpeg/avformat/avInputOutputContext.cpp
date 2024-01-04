@@ -59,7 +59,7 @@ TEST_F(FFmpegTest, AVInputFormat) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVIOFormatNameLength &>(
       FuncInst->getHostFunc());
 
-  int32_t Length;
+  int32_t Length = 0;
   {
     EXPECT_TRUE(HostFuncAVIOFormatNameLength.run(
         CallFrame,

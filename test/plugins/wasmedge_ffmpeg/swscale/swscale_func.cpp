@@ -413,7 +413,7 @@ TEST_F(FFmpegTest, SwsVector) {
       WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetCoeffVecLength &>(
       FuncInst->getHostFunc());
 
-  int Length;
+  int Length = 0;
   {
     uint32_t swsVecId = readUInt32(MemInst, SwsVectorPtr);
     EXPECT_TRUE(HostFuncSwsGetCoeffVecLength.run(
@@ -464,7 +464,7 @@ TEST_F(FFmpegTest, SWScaleVersion) {
 
   ASSERT_TRUE(SWScaleMod != nullptr);
 
-  uint32_t Length;
+  uint32_t Length = 0;
   uint32_t NamePtr = UINT32_C(8);
 
   auto *FuncInst =

@@ -110,6 +110,14 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
   }
+  if (Doc.at_key("threads").error() == simdjson::SUCCESS) {
+    auto Err = Doc["threads"].get<uint64_t>().get(GraphRef.Threads);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the threads option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
   // The sampling parameters.
   if (Doc.at_key("temp").error() == simdjson::SUCCESS) {
     auto Err = Doc["temp"].get<double>().get(GraphRef.Temp);
@@ -175,6 +183,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Initialize the context parameters.
   GraphRef.CtxSize = ContextDefault.n_ctx;
   GraphRef.BatchSize = ContextDefault.n_batch;
+  GraphRef.Threads = ContextDefault.n_threads;
   // Initialize the sampling parameters.
   llama_sampling_params SamplingDefault;
   GraphRef.Temp = SamplingDefault.temp;
@@ -341,6 +350,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   llama_context_params ContextParams = llama_context_default_params();
   ContextParams.n_ctx = GraphRef.CtxSize;
   ContextParams.n_batch = GraphRef.BatchSize;
+  ContextParams.n_threads = GraphRef.Threads;
+  ContextParams.n_threads_batch = GraphRef.Threads;
   auto LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
   if (GraphRef.EnableDebugLog) {
@@ -641,6 +652,8 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     llama_context_params ContextParams = llama_context_default_params();
     ContextParams.n_ctx = GraphRef.CtxSize;
     ContextParams.n_batch = GraphRef.BatchSize;
+    ContextParams.n_threads = GraphRef.Threads;
+    ContextParams.n_threads_batch = GraphRef.Threads;
     CxtRef.LlamaContext =
         llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
     CxtRef.LlamaEmbd.clear();

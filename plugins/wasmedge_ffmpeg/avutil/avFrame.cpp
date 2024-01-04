@@ -105,7 +105,7 @@ Expect<int32_t> AVFrameData::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
 
   uint8_t *Data = AvFrame->data[Index];
-  memmove(Buffer.data(), Data, FrameBufLen);
+  std::copy_n(Data, FrameBufLen, Buffer.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 

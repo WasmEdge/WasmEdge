@@ -24,7 +24,7 @@ Expect<int32_t> AVFilterName::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(Filter, FilterId, struct AVFilter);
   const char *Name = Filter->name;
-  memmove(NameBuf.data(), Name, NameLen);
+  std::copy_n(Name, NameLen, NameBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -43,7 +43,7 @@ Expect<int32_t> AVFilterDescription::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(Filter, FilterId, struct AVFilter);
   const char *Desc = Filter->description;
-  memmove(DescBuf.data(), Desc, DescLen);
+  std::copy_n(Desc, DescLen, DescBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 

@@ -78,12 +78,13 @@ Expect<int32_t> AVGetChannelLayoutName::body(const Runtime::CallingFrame &Frame,
                                              uint32_t NameLen) {
 
   MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_SPAN_CHECK(Name, MemInst, char, NamePtr, NameLen, "");
+  MEM_SPAN_CHECK(NameBuf, MemInst, char, NamePtr, NameLen, "");
 
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
   const char *ChName = av_get_channel_name(ChannelLayout);
-  memmove(Name.data(), ChName, NameLen);
+
+  std::copy_n(ChName, NameLen, NameBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -114,7 +115,7 @@ Expect<int32_t> AVUtilConfiguration::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
 
   const char *Config = avutil_configuration();
-  memmove(ConfigBuf.data(), Config, ConfigLen);
+  std::copy_n(Config, ConfigLen, ConfigBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -131,7 +132,7 @@ Expect<int32_t> AVUtilLicense::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
 
   const char *License = avutil_license();
-  memmove(LicenseBuf.data(), License, LicenseLen);
+  std::copy_n(License, LicenseLen, LicenseBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 

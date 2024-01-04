@@ -135,7 +135,7 @@ Expect<int32_t> AVFilterConfiguration::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
 
   const char *Config = avfilter_configuration();
-  memmove(ConfigBuf.data(), Config, ConfigLen);
+  std::copy_n(Config, ConfigLen, ConfigBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -153,7 +153,7 @@ Expect<int32_t> AVFilterLicense::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
 
   const char *License = avfilter_license();
-  memmove(LicenseBuf.data(), License, LicenseLen);
+  std::copy_n(License, LicenseLen, LicenseBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -219,7 +219,7 @@ Expect<int32_t> AVFilterPadGetName::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(FilterPad, FilterPadId, AVFilterPad);
 
   const char *Name = avfilter_pad_get_name(FilterPad, Idx);
-  memmove(NameBuf.data(), Name, NameLen);
+  std::copy_n(Name, NameLen, NameBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -250,7 +250,7 @@ Expect<int32_t> AVFilterGraphDump::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(FilterGraph, FilterGraphId, AVFilterGraph);
 
   char *Graph = avfilter_graph_dump(FilterGraph, nullptr);
-  memmove(GraphStr.data(), Graph, GraphStrLen);
+  std::copy_n(Graph, GraphStrLen, GraphStr.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 

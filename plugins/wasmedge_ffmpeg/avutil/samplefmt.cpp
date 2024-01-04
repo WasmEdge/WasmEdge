@@ -108,7 +108,7 @@ Expect<int32_t> AVGetSampleFmtName::body(const Runtime::CallingFrame &Frame,
   AVSampleFormat const SampleFmt =
       FFmpegUtils::SampleFmt::fromSampleID(SampleFmtId);
   const char *Name = av_get_sample_fmt_name(SampleFmt);
-  memmove(SampleFmtBuf.data(), Name, SampleFmtNameLen);
+  std::copy_n(Name, SampleFmtNameLen, SampleFmtBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 

@@ -53,7 +53,7 @@ Expect<int32_t> AVCodecGetName::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
 
   const char *Name = AvCodec->name;
-  memmove(NameBuf.data(), Name, NameLen);
+  std::copy_n(Name, NameLen, NameBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -74,7 +74,7 @@ Expect<int32_t> AVCodecGetLongName::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
 
   const char *LongName = AvCodec->long_name;
-  memmove(LongNameBuf.data(), LongName, LongNameLen);
+  std::copy_n(LongName, LongNameLen, LongNameBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 

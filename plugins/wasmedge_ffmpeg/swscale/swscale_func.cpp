@@ -240,7 +240,7 @@ Expect<int32_t> SwsGetCoeff::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(Vector, SwsVectorId, SwsVector);
 
   double *Coeff = Vector->coeff;
-  memmove(Buffer.data(), Coeff, Len);
+  std::copy_n(Coeff, Len, Buffer.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -271,7 +271,7 @@ Expect<int32_t> SwscaleConfiguration::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
 
   const char *Config = swscale_configuration();
-  memmove(ConfigBuf.data(), Config, ConfigLen);
+  std::copy_n(Config, ConfigLen, ConfigBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -288,7 +288,7 @@ Expect<int32_t> SwscaleLicense::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
 
   const char *License = swscale_license();
-  memmove(LicenseBuf.data(), License, LicenseLen);
+  std::copy_n(License, LicenseLen, LicenseBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 

@@ -355,7 +355,7 @@ Expect<int32_t> AVFormatConfiguration::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
 
   const char *Config = avformat_configuration();
-  memmove(ConfigBuf.data(), Config, ConfigLen);
+  std::copy_n(Config, ConfigLen, ConfigBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -373,7 +373,7 @@ Expect<int32_t> AVFormatLicense::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
 
   const char *License = avformat_license();
-  memmove(LicenseBuf.data(), License, LicenseLen);
+  std::copy_n(License, LicenseLen, LicenseBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 

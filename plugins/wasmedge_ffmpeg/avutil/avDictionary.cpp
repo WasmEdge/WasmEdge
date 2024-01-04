@@ -136,8 +136,8 @@ Expect<int32_t> AVDictGetKeyValue::body(
   }
   if (DictEntry == nullptr)
     return static_cast<int32_t>(ErrNo::InternalError);
-  memmove(ValBuf.data(), DictEntry->value, strlen(DictEntry->value));
-  memmove(KeyBuf.data(), DictEntry->key, strlen(DictEntry->key));
+  std::copy_n(DictEntry->value, strlen(DictEntry->value), ValBuf.data());
+  std::copy_n(DictEntry->key, strlen(DictEntry->key), KeyBuf.data());
   return Curr;
 }
 

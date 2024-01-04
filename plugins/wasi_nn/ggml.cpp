@@ -454,9 +454,11 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   // Check if the input is too long.
   if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
-    spdlog::error(
-        "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
-        CxtRef.LlamaInputs.size(), MaxTokensListSize);
+    if (GraphRef.EnableLog) {
+      spdlog::info(
+          "[WASI-NN] GGML backend: the prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
+          CxtRef.LlamaInputs.size(), MaxTokensListSize);
+    }
     return ErrNo::PromptTooLong;
   }
 
@@ -466,17 +468,20 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     if (!Embd.empty()) {
       // Input too long.
       if (static_cast<uint64_t>(Embd.size()) > MaxTokensListSize) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
-            Embd.size(), MaxTokensListSize);
-        return ErrNo::PromptTooLong;
+        if (GraphRef.EnableLog) {
+          spdlog::info(
+              "[WASI-NN] GGML backend: the prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
+              Embd.size(), MaxTokensListSize);
+        }
+        ReturnCode = ErrNo::PromptTooLong;
+        break;
       }
 
       // We do not swap context here. End the inference if the context is full.
       if (NPast + static_cast<uint64_t>(Embd.size()) > NCtx) {
         if (GraphRef.EnableLog) {
           spdlog::info(
-              "[WASI-NN] GGML backend: the context if full ({} / {} tokens)"sv,
+              "[WASI-NN] GGML backend: the context if full ({} / {} tokens). Please increase your ctx-size."sv,
               NPast + static_cast<int>(Embd.size()), NCtx);
         }
         ReturnCode = ErrNo::ContextFull;
@@ -652,9 +657,11 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
 
   // Check if the input is too long.
   if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
-    spdlog::error(
-        "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
-        CxtRef.LlamaInputs.size(), MaxTokensListSize);
+    if (GraphRef.EnableLog) {
+      spdlog::info(
+          "[WASI-NN] GGML backend: the prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
+          CxtRef.LlamaInputs.size(), MaxTokensListSize);
+    }
     return ErrNo::PromptTooLong;
   }
 
@@ -663,9 +670,11 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     if (!CxtRef.LlamaEmbd.empty()) {
       // Input too long.
       if (static_cast<uint64_t>(CxtRef.LlamaEmbd.size()) > MaxTokensListSize) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
-            CxtRef.LlamaEmbd.size(), MaxTokensListSize);
+        if (GraphRef.EnableLog) {
+          spdlog::info(
+              "[WASI-NN] GGML backend: the prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
+              CxtRef.LlamaEmbd.size(), MaxTokensListSize);
+        }
         return ErrNo::PromptTooLong;
       }
 
@@ -674,7 +683,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
           NCtx) {
         if (GraphRef.EnableLog) {
           spdlog::info(
-              "[WASI-NN] GGML backend: the context if full ({} / {} tokens)"sv,
+              "[WASI-NN] GGML backend: the context if full ({} / {} tokens). Please increase your ctx-size."sv,
               CxtRef.LlamaNPast +
                   static_cast<uint64_t>(CxtRef.LlamaEmbd.size()),
               NCtx);

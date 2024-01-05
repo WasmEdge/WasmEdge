@@ -78,8 +78,8 @@ jobs:
     env:
       output_dir: build/plugins/wasi_nn
       test_dir: build/test/plugins/wasi_nn
-      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
-      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
+      tar_names: wasi_nn-pytorch wasi_nn-tensorflowlite wasi_nn-ggml
       test_bin: wasiNNTests
       output_bin: libwasmedgePluginWasiNN.so
       OPENVINO_VERSION: "2023.0.2"
@@ -101,7 +101,6 @@ jobs:
         run: |
           apt update
           apt install -y unzip libopenblas-dev pkg-config
-          bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
@@ -131,11 +130,6 @@ jobs:
         with:
           name: WasmEdge-plugin-wasi_nn-pytorch-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasi_nn-pytorch.tar.gz
-      - name: Upload artifact - wasi_nn-openvino
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-openvino-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
-          path: plugin_wasi_nn-openvino.tar.gz
       - name: Upload artifact - wasi_nn-tensorflowlite
         uses: actions/upload-artifact@v3
         with:

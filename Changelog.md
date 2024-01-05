@@ -67,7 +67,20 @@ Features:
   * This is the API-level feature. Developers can use the `WasmEdge_LoaderSerializeASTModule()` API to serialize a loaded WASM module into bytes.
 * [Tools]: Print the plug-in versions when using the `--version` option.
 * [Installer]: Enabled `ggml-blas` and `rustls` plugin supporting (#3032) (#3108).
-* [WASI-NN] ggml backend: (TBD)
+* [WASI-NN] ggml backend:
+  * Bump llama.cpp to b1743
+  * Support llama.cpp options:
+    * `threads`: the thread number for inference.
+    * `temp`: set temperature for inference.
+    * `repeat-penalty`: set repeat penalty for inference.
+  * Add `enable-debug-log` option to show more debug information.
+  * Default enable Metal on macOS.
+  * Introduce `load_by_name_with_config()` to load model with metadata.
+  * Introduce single token inference by `compute_single`, `get_output_single`, and `fini_single`
+  * Add some llama errors to WASI-NN
+    * `EndOfSequence`: returned when encounter `<EOS>` token on single token inferece.
+    * `ContextFull`: returned when the context is full.
+    * `PromptTooLong`: returned when the input size is too large.
 
 Fixed issues:
 

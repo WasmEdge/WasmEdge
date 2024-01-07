@@ -15,7 +15,7 @@
 namespace WasmEdge {
 namespace Validator {
 
-Expect<void> Validator::validate(const AST::Component &) {
+Expect<void> Validator::validate(const AST::Component::Component &) {
   spdlog::error("component validation is not done yet.");
   return Unexpect(ErrCode::Value::RuntimeError);
 }

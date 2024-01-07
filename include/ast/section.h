@@ -13,6 +13,12 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/alias.h"
+#include "ast/component/canonical.h"
+#include "ast/component/import_export.h"
+#include "ast/component/instance.h"
+#include "ast/component/start.h"
+#include "ast/component/type.h"
 #include "ast/description.h"
 #include "ast/segment.h"
 
@@ -282,6 +288,131 @@ private:
       Sections;
   /// @}
 };
+
+namespace Component {
+
+class AliasSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const Alias> getContent() const noexcept { return Content; }
+  std::vector<Alias> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of AliasSection.
+  /// @{
+  std::vector<Alias> Content;
+  /// @}
+};
+
+class CoreInstanceSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const CoreInstanceExpr> getContent() const noexcept { return Content; }
+  std::vector<CoreInstanceExpr> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of CoreInstanceSection.
+  /// @{
+  std::vector<CoreInstanceExpr> Content;
+  /// @}
+};
+
+class InstanceSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const InstanceExpr> getContent() const noexcept { return Content; }
+  std::vector<InstanceExpr> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of InstanceSection.
+  /// @{
+  std::vector<InstanceExpr> Content;
+  /// @}
+};
+
+class TypeSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const DefType> getContent() const noexcept { return Content; }
+  std::vector<DefType> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of TypeSection.
+  /// @{
+  std::vector<DefType> Content;
+  /// @}
+};
+
+class CanonSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const Canon> getContent() const noexcept { return Content; }
+  std::vector<Canon> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of CanonicalSection.
+  /// @{
+  std::vector<Canon> Content;
+  /// @}
+};
+
+class StartSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const Start> getContent() const noexcept { return Content; }
+  std::vector<Start> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of StartSection.
+  /// @{
+  std::vector<Start> Content;
+  /// @}
+};
+
+class ImportSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const Import> getContent() const noexcept { return Content; }
+  std::vector<Import> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of ImportSection.
+  /// @{
+  std::vector<Import> Content;
+  /// @}
+};
+
+class ExportSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const Export> getContent() const noexcept { return Content; }
+  std::vector<Export> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of ExportSection.
+  /// @{
+  std::vector<Export> Content;
+  /// @}
+};
+
+class Component;
+
+class ComponentSection : public Section {
+
+public:
+  /// Getter of content.
+  Span<const std::shared_ptr<Component>> getContent() const noexcept {
+    return Content;
+  }
+  std::vector<std::shared_ptr<Component>> &getContent() noexcept {
+    return Content;
+  }
+
+private:
+  std::vector<std::shared_ptr<Component>> Content;
+};
+
+} // namespace Component
 
 } // namespace AST
 } // namespace WasmEdge

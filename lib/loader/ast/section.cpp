@@ -175,6 +175,66 @@ Expect<void> Loader::loadSection(AST::DataCountSection &Sec) {
   });
 }
 
+// Load vector of component alias section.
+// See "include/loader/loader.h".
+Expect<void> Loader::loadSection(AST::Component::AliasSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::Component::Alias &Alias) { return loadAlias(Alias); });
+  });
+}
+
+// Load vector of component core:instance section.
+// See "include/loader/loader.h".
+Expect<void> Loader::loadSection(AST::Component::CoreInstanceSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::Component::CoreInstanceExpr &InstanceExpr) {
+          return loadCoreInstance(InstanceExpr);
+        });
+  });
+}
+
+// Load vector of component type section.
+// See "include/loader/loader.h".
+Expect<void> Loader::loadSection(AST::Component::TypeSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::Component::DefType &Ty) { return loadType(Ty); });
+  });
+}
+
+Expect<void> Loader::loadSection(AST::Component::CanonSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::Component::Canon &C) { return loadCanonical(C); });
+  });
+}
+
+Expect<void> Loader::loadSection(AST::Component::ImportSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::Component::Import &C) { return loadImport(C); });
+  });
+}
+Expect<void> Loader::loadSection(AST::Component::ExportSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::Component::Export &C) { return loadExport(C); });
+  });
+}
+
+// Load vector of component instance section.
+// See "include/loader/loader.h".
+Expect<void> Loader::loadSection(AST::Component::InstanceSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::Component::InstanceExpr &InstanceExpr) {
+          return loadInstance(InstanceExpr);
+        });
+  });
+}
+
 namespace {
 
 inline constexpr uint32_t HostVersion() noexcept {

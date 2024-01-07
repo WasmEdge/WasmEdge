@@ -11,7 +11,7 @@ project(WasmEdge)
 # Overwrite it if you want to use static MSVC runtime library.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 
-set(WASMEDGE_CAPI_VERSION "0.0.3" CACHE STRING "WasmEdge C API library version")
+set(WASMEDGE_CAPI_VERSION "0.1.0" CACHE STRING "WasmEdge C API library version")
 set(WASMEDGE_CAPI_SOVERSION "0" CACHE STRING "WasmEdge C API library soversion")
 
 find_program(GIT_CMD git)

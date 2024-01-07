@@ -22,6 +22,27 @@
 #define A Line
 
 A(Component, "component")
+A(Sec_CoreInstance, "component core:instance section")
+A(Sec_Alias, "component alias section")
+A(Sec_Instance, "component instance section")
+A(Sec_CompType, "component type section")
+A(Sec_Canon, "component canonical section")
+A(Sec_CompStart, "component start section")
+A(Sec_CompImport, "component import section")
+A(Sec_CompExport, "component export section")
+A(ImportExportName, "import/export name")
+A(Import, "import")
+A(Export, "export")
+A(Canonical, "canonical")
+A(Alias, "alias")
+A(DefType, "component defined type")
+A(InstanceDecl, "instance decl")
+A(ExternDesc, "extern desc")
+A(Name, "import/export name")
+A(AliasTarget, "alias target")
+A(Sort, "sort")
+A(Instance, "instance expr")
+A(CoreInstance, "core:instance expr")
 A(Module, "module")
 A(Sec_Custom, "custom section")
 A(Sec_Type, "type section")
@@ -43,11 +64,14 @@ A(Seg_Global, "global segment")
 A(Seg_Element, "element segment")
 A(Seg_Code, "code segment")
 A(Seg_Data, "data segment")
+A(Type_Module, "module type")
 A(Type_Limit, "limit")
 A(Type_Function, "function type")
 A(Type_Memory, "memory type")
 A(Type_Table, "table type")
 A(Type_Global, "global type")
+A(Type_Instance, "instance type")
+A(Type_Component, "component type")
 A(Expression, "expression")
 A(Instruction, "instruction")
 A(Sec_AOT, "aot section")
@@ -643,6 +667,7 @@ P(ExceptionHandling, "Exception handling")
 P(ExtendedConst, "Extended const")
 P(Threads, "Threads")
 P(FunctionReferences, "Typed Function References")
+P(Component, "Component model")
 #undef P
 #endif // UseProposal
 
@@ -896,6 +921,34 @@ E(AccessNullArray, 0x0415, "null array reference")
 E(AccessNullI31, 0x0416, "null i31 reference")
 // Fail to cast reference
 E(CastFailed, 0x0417, "cast failure")
+// @}
+
+// Component model phase
+// @{
+// Malformed sort
+E(MalformedSort, 0x0500, "malformed sort")
+// Malformed alias target
+E(MalformedAliasTarget, 0x0501, "malformed alias target")
+// Malformed core instance
+E(MalformedCoreInstance, 0x0502, "malformed core instance")
+// Malformed instance
+E(MalformedInstance, 0x0503, "malformed instance")
+// Malformed defType
+E(MalformedDefType, 0x0504, "malformed defined type")
+// Malformed record type
+E(MalformedRecordType, 0x0505, "malformed record type")
+// Malformed variant type
+E(MalformedVariantType, 0x0506, "malformed variant type")
+// Malformed tuple type
+E(MalformedTupleType, 0x0507, "malformed tuple type")
+// Malformed flags type
+E(MalformedFlagsType, 0x0508, "malformed flags type")
+// Malformed canonical
+E(MalformedCanonical, 0x0509, "malformed canonical")
+// Unknown canonical option
+E(UnknownCanonicalOption, 0x050A, "unknown canonical option")
+// Malformed name
+E(MalformedName, 0x050B, "malformed name")
 // @}
 
 #undef E

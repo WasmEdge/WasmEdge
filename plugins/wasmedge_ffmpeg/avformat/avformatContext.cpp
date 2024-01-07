@@ -96,7 +96,7 @@ Expect<int32_t> AVFormatCtxMetadata::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
 
-  AVDictionary **AvDictionary = (AVDictionary **)malloc(sizeof(AVDictionary *));
+  AVDictionary **AvDictionary = static_cast<AVDictionary **>(av_malloc(sizeof(AVDictionary *)));
 
   *AvDictionary = AvFormatCtx->metadata;
   FFMPEG_PTR_STORE(AvDictionary, DictId);

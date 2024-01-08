@@ -154,7 +154,8 @@ Expect<int32_t> AVChapterMetadata::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
 
-  AVDictionary **AvDictionary = static_cast<AVDictionary**>(av_malloc(sizeof(AVDictionary*)));
+  AVDictionary **AvDictionary =
+      static_cast<AVDictionary **>(av_malloc(sizeof(AVDictionary *)));
   AVChapter **AvChapter = AvFormatCtx->chapters;
 
   // No check here (Check)

@@ -35,7 +35,8 @@ Expect<int32_t> AVDictSet::body(const Runtime::CallingFrame &Frame,
     FFMPEG_PTR_FETCH(AvDict, *DictId, AVDictionary *);
     Res = av_dict_set(AvDict, Key.c_str(), Value.c_str(), Flags);
   } else {
-    AVDictionary **AvDict = static_cast<AVDictionary **>(av_mallocz(sizeof(AVDictionary *)));
+    AVDictionary **AvDict =
+        static_cast<AVDictionary **>(av_mallocz(sizeof(AVDictionary *)));
     Res = av_dict_set(AvDict, Key.c_str(), Value.c_str(), Flags);
     FFMPEG_PTR_STORE(AvDict, DictId);
   }

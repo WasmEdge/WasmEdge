@@ -224,6 +224,21 @@ TEST_F(FFmpegTest, AVPixFmt) {
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
+
+  FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_pix_format_mask");
+  auto &HostFuncAVPixFormatMask =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVPixelFormatMask &>(
+          FuncInst->getHostFunc());
+
+  {
+    uint32_t PixId = 3; //  AV_PIX_FMT_RGB24:
+    HostFuncAVPixFormatMask.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{PixId}, Result);
+
+    EXPECT_EQ(Result[0].get<int32_t>(),
+              2); // Verify Mask. Position of Pix in Enum.
+  }
 }
 
 } // namespace WasmEdgeFFmpeg

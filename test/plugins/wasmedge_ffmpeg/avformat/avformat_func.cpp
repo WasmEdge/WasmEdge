@@ -106,6 +106,8 @@ TEST_F(FFmpegTest, AVInputFormatFunc) {
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
 
+  // TODO: Write Test
+
   //  FuncInst =
   //      AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_av_read_frame");
   //  EXPECT_NE(FuncInst, nullptr);
@@ -392,6 +394,8 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
         Result));
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
+
+  // TODO: Write Test
 
   // Check this function, failing on CI
   //  FuncInst =

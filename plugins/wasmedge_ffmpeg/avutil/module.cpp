@@ -62,7 +62,7 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVFrameIsNull>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_linesize",
               std::make_unique<AVFrameLinesize>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_data", // test
+  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_data",
               std::make_unique<AVFrameData>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_get_buffer",
               std::make_unique<AVFrameGetBuffer>(Env));
@@ -170,7 +170,7 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVPixelFormatNameLength>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_pix_format_name",
               std::make_unique<AVPixelFormatName>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_pix_format_mask", // test
+  addHostFunc("wasmedge_ffmpeg_avutil_av_pix_format_mask",
               std::make_unique<AVPixelFormatMask>(Env));
 
   // samplefmt.h
@@ -192,7 +192,7 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVGetSampleFmtNameLength>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_get_sample_fmt_name",
               std::make_unique<AVGetSampleFmtName>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_get_sample_fmt_mask", // test
+  addHostFunc("wasmedge_ffmpeg_avutil_av_get_sample_fmt_mask",
               std::make_unique<AVGetSampleFmtMask>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_freep",
               std::make_unique<AVFreep>(Env));
@@ -224,12 +224,15 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVRescaleQRnd>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_get_channel_layout_nb_channels",
               std::make_unique<AVGetChannelLayoutNbChannels>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_get_channel_layout_name_len", // test
-              std::make_unique<AVGetChannelLayoutNameLen>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_get_channel_layout_name", // test
-              std::make_unique<AVGetChannelLayoutName>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_get_channel_layout_mask", // test
-              std::make_unique<AVGetChannelLayoutMask>(Env));
+  addHostFunc(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name_len", // TODO: Write
+      std::make_unique<AVGetChannelLayoutNameLen>(Env));
+  addHostFunc(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name", // TODO: Write Test
+      std::make_unique<AVGetChannelLayoutName>(Env));
+  addHostFunc(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_mask", // TODO: Write Test
+      std::make_unique<AVGetChannelLayoutMask>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_get_default_channel_layout",
               std::make_unique<AVGetDefaultChannelLayout>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_avutil_version",

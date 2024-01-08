@@ -168,6 +168,21 @@ TEST_F(FFmpegTest, AVSampleFmt) {
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_sample_fmt_mask");
+  auto &HostFuncAVGetSampleFmtMask = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtMask &>(
+      FuncInst->getHostFunc());
+
+  {
+    uint32_t SampleId = 2; // AV_SAMPLE_FMT_S16;
+    HostFuncAVGetSampleFmtMask.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{SampleId},
+        Result);
+
+    EXPECT_EQ(Result[0].get<int32_t>(), 1);
+  }
+
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_freep");
   auto &HostFuncAVFreep =
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFreep &>(

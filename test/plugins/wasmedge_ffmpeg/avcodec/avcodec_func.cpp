@@ -13,6 +13,8 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
+// TODO: Commented functions need to be tested.
+
 TEST_F(FFmpegTest, AVCodecFunc) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 

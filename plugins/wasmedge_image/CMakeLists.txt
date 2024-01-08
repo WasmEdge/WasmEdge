@@ -108,7 +108,7 @@ else()
   include(FetchContent)
   FetchContent_Declare(
     Boost
-    URL https://boostorg.jfrog.io/artifactory/main/release/1.82.0/source/boost_1_82_0.tar.bz2
+    URL http://sources.buildroot.net/boost/boost_1_82_0.tar.bz2
     URL_HASH SHA256=a6e1ab9b0860e6a2881dd7b21fe9f737a095e5f33a3a874afc6a345228597ee6
   )
   set(BOOST_ENABLE_CMAKE ON)

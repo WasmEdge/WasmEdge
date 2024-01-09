@@ -145,7 +145,7 @@ jobs:
         shell: bash
         run: |
           apt update
-          apt install -y unzip libopenblas-dev pkg-config
+          apt install -y unzip libopenblas-dev pkg-config protobuf-compiler-grpc libgrpc-dev libgrpc++-dev
           bash utils/wasi-nn/install-pytorch.sh
       - name: Build WASI-NN plugin
         shell: bash

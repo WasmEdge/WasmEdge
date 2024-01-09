@@ -13,6 +13,8 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 
 set(WASMEDGE_CAPI_VERSION "0.0.3" CACHE STRING "WasmEdge C API library version")
 set(WASMEDGE_CAPI_SOVERSION "0" CACHE STRING "WasmEdge C API library soversion")
+set(WASMEDGE_WASI_NN_VERSION "0.1.0" CACHE STRING "WasmEdge WASI-NN library version")
+set(WASMEDGE_WASI_NN_SOVERSION "0" CACHE STRING "WasmEdge WASI-NN library soversion")
 
 find_program(GIT_CMD git)
 execute_process(COMMAND
@@ -56,6 +58,7 @@ option(WASMEDGE_BUILD_TOOLS "Generate wasmedge and wasmedgec tools. Depend on an
 option(WASMEDGE_BUILD_FUZZING "Generate fuzzing test tools. Couldn't build with wasmedge tools and unit tests." OFF)
 option(WASMEDGE_BUILD_PLUGINS "Generate plugins." ON)
 option(WASMEDGE_BUILD_EXAMPLE "Generate examples." OFF)
+option(WASMEDGE_BUILD_WASI_NN_RPC "Generate Wasi-NN RPC." OFF)
 option(WASMEDGE_FORCE_DISABLE_LTO "Forcefully disable link time optimization when linking even in Release/RelWithDeb build." OFF)
 option(WASMEDGE_LINK_LLVM_STATIC "Statically link the LLVM library into the WasmEdge tools and libraries." OFF)
 option(WASMEDGE_LINK_TOOLS_STATIC "Statically link the wasmedge and wasmedgec tools. Will forcefully link the LLVM library statically." OFF)
@@ -106,6 +109,24 @@ if(WASMEDGE_BUILD_PLUGINS)
   if(WASMEDGE_BUILD_STATIC_LIB)
     set(WASMEDGE_LINK_PLUGINS_STATIC ON)
   endif()
+endif()
+
+# * Homebrew: grpc
+# * Debian, Ubuntu: libgrpc-dev, libgrpc++-dev
+find_package(PkgConfig)
+if(PkgConfig_FOUND)
+  pkg_check_modules(gRPCPP grpc++)
+endif()
+# Do not check find_package(gRPC), because libgrpc-dev for Ubuntu 22.04 does not contain cmake files.
+# https://packages.ubuntu.com/search?keywords=libgrpc-dev
+# Do not check find_package(protobuf), because libprotobuf-dev for Ubuntu does not contain cmake files.
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1027876
+if(gRPCPP_FOUND AND WASMEDGE_BUILD_SHARED_LIB)
+  message(STATUS "Setting WASMEDGE_BUILD_WASI_NN_RPC to ON. If you see an error related to gRPC or protobuf, try setting this to OFF.")
+  set(WASMEDGE_BUILD_WASI_NN_RPC ON)
+endif()
+if(WASMEDGE_BUILD_WASI_NN_RPC AND NOT WASMEDGE_BUILD_SHARED_LIB)
+  message(FATAL_ERROR "WASMEDGE_BUILD_WASI_NN_RPC depends on WASMEDGE_BUILD_SHARED_LIB")
 endif()
 
 set(WASMEDGE_BUILD_PACKAGE "DEB;RPM" CACHE STRING "Package generate types")

@@ -100,7 +100,7 @@ jobs:
         shell: bash
         run: |
           apt update
-          apt install -y unzip libopenblas-dev pkg-config
+          apt install -y unzip libopenblas-dev pkg-config protobuf-compiler-grpc libgrpc-dev libgrpc++-dev
           bash utils/wasi-nn/install-pytorch.sh
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
@@ -125,6 +125,21 @@ jobs:
             cp -f ${output_dir}/${output_bin} ${output_bin}
             tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${output_bin}
           done
+      - name: Test WASI-NN RPC mode with GGML
+        shell: bash
+        run: |
+          set -eux
+          # wasi_nn_rpcserver is built in a clean "build2" dir
+          cmake -Bbuild2 -GNinja
+          cmake --build build2
+          export WASI_NN_RPC_TEST_URI=unix:///tmp/wasi_nn_rpc.sock
+          WASMEDGE_PLUGIN_PATH=build/plugins/wasi_nn build2/tools/wasmedge/wasi_nn_rpcserver \
+            --nn-rpc-uri=$WASI_NN_RPC_TEST_URI \
+            --nn-preload=default:GGML:AUTO:build/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf &
+          sleep 3
+          cd ${test_dir}
+          # The test binary consumes $WASI_NN_RPC_TEST_URI
+          ./${test_bin} --gtest_filter=WasiNNTest.GGMLBackendWithRPC
       - name: Upload artifact - wasi_nn-pytorch
         uses: actions/upload-artifact@v3
         with:

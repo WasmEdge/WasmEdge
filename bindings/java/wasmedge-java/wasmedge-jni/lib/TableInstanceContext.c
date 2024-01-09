@@ -42,7 +42,8 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_TableInstanceContext_getData(
       getTableInstanceContext(env, thisObject);
 
   jclass typeClass = (*env)->GetObjectClass(env, jValType);
-  jmethodID typeGetter = (*env)->GetMethodID(env, typeClass, GET_VALUE, VOID_INT);
+  jmethodID typeGetter =
+      (*env)->GetMethodID(env, typeClass, GET_VALUE, VOID_INT);
 
   jint valType = (*env)->CallIntMethod(env, jValType, typeGetter);
 
@@ -60,12 +61,6 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_TableInstanceContext_getData(
     break;
   case WasmEdge_ValType_F64:
     val = WasmEdge_ValueGenF64(0.0);
-    break;
-  case WasmEdge_ValType_FuncRef:
-    val = WasmEdge_ValueGenNullRef(WasmEdge_RefType_FuncRef);
-    break;
-  case WasmEdge_ValType_ExternRef:
-    val = WasmEdge_ValueGenNullRef(WasmEdge_RefType_ExternRef);
     break;
   }
 
@@ -99,6 +94,7 @@ createJTableInstanceContext(JNIEnv *env,
   }
 
   jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_TABLEINSTANCECONTEXT);
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
+  jmethodID constructorId =
+      (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
   return (*env)->NewObject(env, clazz, constructorId, (long)tabInstance);
 }

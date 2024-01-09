@@ -17,6 +17,11 @@
 #include "torch.h"
 #include "types.h"
 
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+#include <grpc/grpc.h>
+#include <grpcpp/create_channel.h>
+#endif
+
 namespace WasmEdge {
 namespace Host {
 namespace WASINN {
@@ -197,7 +202,10 @@ struct WasiNNEnvironment :
   std::vector<Graph> NNGraph;
   std::vector<Context> NNContext;
   static PO::List<std::string> NNModels;
-
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+  static PO::Option<std::string> NNRPCURI; // For RPC client mode
+  std::shared_ptr<grpc::Channel> NNRPCChannel;
+#endif
   static Plugin::PluginRegister Register;
 };
 

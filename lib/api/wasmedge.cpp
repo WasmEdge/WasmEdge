@@ -18,6 +18,10 @@
 #include "driver/fuzzTool.h"
 #endif
 
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+#include "driver/wasiNNRPCServerTool.h"
+#endif
+
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -3133,6 +3137,15 @@ WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Tool(int Argc, const char *Argv[]) {
   return WasmEdge::Driver::UniTool(Argc, Argv,
                                    WasmEdge::Driver::ToolType::Tool);
 }
+
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_WasiNNRPCServer(int Argc,
+                                                         const char *Argv[]) {
+  // UniTool does not support ToolType::WasiNNRPCServer yet (to avoid #ifdef
+  // hell)
+  return WasmEdge::Driver::WasiNNRPCServer(Argc, Argv);
+}
+#endif
 
 WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_UniTool(int Argc, const char *Argv[]) {
   return WasmEdge::Driver::UniTool(Argc, Argv, WasmEdge::Driver::ToolType::All);

@@ -131,6 +131,9 @@ target_compile_options(wasmedgePluginWasiNN
   PUBLIC
   -DWASMEDGE_PLUGIN
 )
+if(WASMEDGE_BUILD_WASI_NN_RPC)
+  add_definitions(-DWASMEDGE_BUILD_WASI_NN_RPC)
+endif()
 
 target_include_directories(wasmedgePluginWasiNN
   PUBLIC
@@ -159,6 +162,16 @@ else()
   target_link_libraries(wasmedgePluginWasiNN
     PRIVATE
     wasmedge_shared
+  )
+endif()
+
+if(WASMEDGE_BUILD_WASI_NN_RPC)
+  target_include_directories(wasmedgePluginWasiNN
+    SYSTEM BEFORE PUBLIC ${Protobuf_INCLUDE_DIR}
+  )
+  target_link_libraries(wasmedgePluginWasiNN
+    PRIVATE
+    wasiNNRPC
   )
 endif()
 

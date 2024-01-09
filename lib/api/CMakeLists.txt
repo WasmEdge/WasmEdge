@@ -6,6 +6,9 @@ add_definitions(-DWASMEDGE_COMPILE_LIBRARY)
 if(WASMEDGE_BUILD_AOT_RUNTIME)
   add_definitions(-DWASMEDGE_BUILD_AOT_RUNTIME)
 endif()
+if(WASMEDGE_BUILD_WASI_NN_RPC)
+  add_definitions(-DWASMEDGE_BUILD_WASI_NN_RPC)
+endif()
 
 get_filename_component(CMAKE_AR_NAME "${CMAKE_AR}" NAME)
 

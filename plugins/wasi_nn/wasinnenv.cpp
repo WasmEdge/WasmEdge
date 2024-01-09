@@ -6,6 +6,10 @@
 
 #include <sstream>
 
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+#include <grpc/grpc.h>
+#endif
+
 namespace WasmEdge {
 namespace Host {
 
@@ -46,6 +50,25 @@ bool load(const std::filesystem::path &Path, std::vector<uint8_t> &Data) {
 }
 
 WasiNNEnvironment::WasiNNEnvironment() noexcept {
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+  if (getenv("_WASI_NN_RPCSERVER") == nullptr) {
+    // RPC client mode
+    auto URI = NNRPCURI.value();
+    if (!URI.empty()) {
+      std::string_view UnixPrefix = "unix://";
+      if (URI.substr(0, UnixPrefix.length()) != UnixPrefix) {
+        spdlog::warn("[WASI-NN] Expected \"unix://...\", got \"{}\""sv, URI);
+      }
+      auto Cred = grpc::InsecureChannelCredentials(); // safe for unix://...
+      NNRPCChannel = grpc::CreateChannel(URI, Cred);
+      if (NNModels.value().size() > 0) {
+        spdlog::warn(
+            "[WASI-NN] nn-preload has to be specified on the RPC server side, not on the client side"sv);
+      }
+      return;
+    }
+  }
+#endif
   // Preload NN Models
   for (const auto &M : NNModels.value()) {
     std::istringstream ISS(M);
@@ -100,9 +123,21 @@ PO::List<std::string> WasiNNEnvironment::NNModels(
         "Allow preload models from wasinn plugin. Each NN model can be specified as --nn-preload `COMMAND`."sv),
     PO::MetaVar("COMMANDS"sv));
 
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+PO::Option<std::string> WasiNNEnvironment::NNRPCURI(
+    PO::Description("Specify NN RPC URI to connect (\"unix://...\")"sv),
+    PO::MetaVar("URI"sv), PO::DefaultValue(std::string("")));
+#endif
+
 void addOptions(const Plugin::Plugin::PluginDescriptor *,
                 PO::ArgumentParser &Parser) noexcept {
   Parser.add_option("nn-preload"sv, WasiNNEnvironment::NNModels);
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+  if (getenv("_WASI_NN_RPCSERVER") == nullptr) {
+    // RPC client mode
+    Parser.add_option("nn-rpc-uri"sv, WasiNNEnvironment::NNRPCURI);
+  }
+#endif
 }
 
 Plugin::Plugin::PluginDescriptor Descriptor{

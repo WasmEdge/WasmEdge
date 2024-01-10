@@ -95,7 +95,7 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
       return Unexpect(Res);
     }
 
-    std::unique_ptr<AST::Module> Mod;
+    AST::Module Mod;
     if (auto Code = LMgr.getWasm()) {
       // Set the binary and load module.
       // Not to use parseModule() here to keep the `WASMType` value.
@@ -105,7 +105,7 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
       }
       if (auto Res = loadUnit()) {
         if (std::holds_alternative<AST::Module>(*Res)) {
-          Mod = std::make_unique<AST::Module>(std::get<AST::Module>(*Res));
+          Mod = std::get<AST::Module>(*Res);
         }
       } else {
         spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -118,12 +118,12 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
       // If the configure is set to force interpreter mode, not to load the AOT
       // related data.
-      if (auto Res = loadCompiled(*Mod.get()); unlikely(!Res)) {
+      if (auto Res = loadCompiled(Mod); unlikely(!Res)) {
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
       }
     }
-    return *Mod.get();
+    return Mod;
   }
   default:
     // Universal WASM, WASM, or other cases. Load and parse the module directly.

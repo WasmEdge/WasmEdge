@@ -501,13 +501,16 @@ Expect<void> Loader::loadExternDesc(ExternDesc &Desc) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
       return Unexpect(Res);
     } else if (*Res == 0x00) {
-      TypeBound &T = Desc.emplace<TypeBound>();
-      T = *Res;
-      break;
+      if (auto ResIdx = FMgr.readU32()) {
+        TypeBound &T = Desc.emplace<TypeBound>();
+        T = *ResIdx;
+      } else {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
+        return Unexpect(ResIdx);
+      }
     } else if (*Res == 0x01) {
       TypeBound &T = Desc.emplace<TypeBound>();
       T = std::nullopt;
-      break;
     } else {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
       return Unexpect(Res);
@@ -523,6 +526,7 @@ Expect<void> Loader::loadExternDesc(ExternDesc &Desc) {
       T.getKind() = static_cast<IndexKind>(*RTag);
       T.getIndex() = *Res;
     }
+    break;
   case 0x05:
     // | 0x05 i:<typeidx>                        => (instance (type i))
     if (auto Res = FMgr.readU32(); !Res) {

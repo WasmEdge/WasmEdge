@@ -348,7 +348,7 @@ Expect<void> Loader::loadType(ResultList &Ty) {
     case 0x00: {
       if (auto Res = loadType(Ty.emplace<ValueType>()); !Res) {
         return Unexpect(Res);
-      };
+      }
       break;
     }
     case 0x01: {
@@ -357,7 +357,7 @@ Expect<void> Loader::loadType(ResultList &Ty) {
               [this](LabelValType LV) { return loadType(LV); });
           !Res) {
         return Unexpect(Res);
-      };
+      }
       break;
     }
     default:

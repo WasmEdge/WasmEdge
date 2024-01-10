@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2023 Second State INC
 
+#include "ast/component/type.h"
 #include "common/errcode.h"
 #include "loader/loader.h"
 #include "spdlog/spdlog.h"
 
-#include <cstdint>
+#include <optional>
 
 namespace WasmEdge {
 namespace Loader {
@@ -345,21 +346,18 @@ Expect<void> Loader::loadType(ResultList &Ty) {
   if (auto RTag = FMgr.readByte()) {
     switch (*RTag) {
     case 0x00: {
-      ValueType V;
-      if (auto Res = loadType(V); !Res) {
+      if (auto Res = loadType(Ty.emplace<ValueType>()); !Res) {
         return Unexpect(Res);
-      }
-      Ty.emplace<ValueType>(V);
+      };
       break;
     }
     case 0x01: {
-      std::vector<LabelValType> RList;
       if (auto Res = loadVec<TypeSection>(
-              RList, [this](LabelValType LV) { return loadType(LV); });
+              Ty.emplace<std::vector<LabelValType>>(),
+              [this](LabelValType LV) { return loadType(LV); });
           !Res) {
         return Unexpect(Res);
-      }
-      Ty.emplace<std::vector<LabelValType>>(RList);
+      };
       break;
     }
     default:
@@ -470,7 +468,9 @@ Expect<void> Loader::loadExternDesc(ExternDesc &Desc) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
       return Unexpect(Res);
     } else {
-      Desc.emplace<TypeIndex>(*Res);
+      DescTypeIndex &T = Desc.emplace<DescTypeIndex>();
+      T.getKind() = static_cast<IndexKind>(*RTag);
+      T.getIndex() = *Res;
     }
     break;
   case 0x01:
@@ -479,7 +479,9 @@ Expect<void> Loader::loadExternDesc(ExternDesc &Desc) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
       return Unexpect(Res);
     } else {
-      Desc.emplace<TypeIndex>(*Res);
+      DescTypeIndex &T = Desc.emplace<DescTypeIndex>();
+      T.getKind() = static_cast<IndexKind>(*RTag);
+      T.getIndex() = *Res;
     }
     break;
   case 0x02:
@@ -491,28 +493,35 @@ Expect<void> Loader::loadExternDesc(ExternDesc &Desc) {
     break;
   case 0x03:
     // | 0x03 b:<typebound>                      => (type b)
-    if (auto Res = FMgr.readU32(); !Res) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
-      return Unexpect(Res);
-    } else {
-      Desc = *Res;
-    }
-    break;
-  case 0x04:
-    // | 0x04 i:<typeidx>                        => (component (type i))
-    // typebound     ::= 0x00 i:<typeidx>        => (eq i)
-    // | 0x01                                    => (sub resource)
+    //
+    // typebound     ::=
+    //   | 0x00 i:<typeidx>        => (eq i)
+    //   | 0x01                    => (sub resource)
     if (auto Res = FMgr.readByte(); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
       return Unexpect(Res);
     } else if (*Res == 0x00) {
-      Desc.emplace<TypeIndex>(*Res);
+      TypeBound &T = Desc.emplace<TypeBound>();
+      T = *Res;
       break;
     } else if (*Res == 0x01) {
+      TypeBound &T = Desc.emplace<TypeBound>();
+      T = std::nullopt;
       break;
     } else {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
       return Unexpect(Res);
+    }
+    break;
+  case 0x04:
+    // | 0x04 i:<typeidx>                        => (component (type i))
+    if (auto Res = FMgr.readU32(); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
+      return Unexpect(Res);
+    } else {
+      DescTypeIndex &T = Desc.emplace<DescTypeIndex>();
+      T.getKind() = static_cast<IndexKind>(*RTag);
+      T.getIndex() = *Res;
     }
   case 0x05:
     // | 0x05 i:<typeidx>                        => (instance (type i))
@@ -520,7 +529,9 @@ Expect<void> Loader::loadExternDesc(ExternDesc &Desc) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
       return Unexpect(Res);
     } else {
-      Desc.emplace<TypeIndex>(*Res);
+      DescTypeIndex &T = Desc.emplace<DescTypeIndex>();
+      T.getKind() = static_cast<IndexKind>(*RTag);
+      T.getIndex() = *Res;
     }
     break;
   default:

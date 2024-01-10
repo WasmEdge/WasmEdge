@@ -338,7 +338,8 @@ Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
     if (std::holds_alternative<AST::Module>(*Res)) {
       Mod = std::make_unique<AST::Module>(std::get<AST::Module>(*Res));
     } else if (std::holds_alternative<AST::Component::Component>(*Res)) {
-      spdlog::error("component execution is not done yet.");
+      Comp = std::make_unique<AST::Component::Component>(
+          std::get<AST::Component::Component>(*Res));
     } else {
       return Unexpect(Res);
     }
@@ -355,7 +356,8 @@ Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
     if (std::holds_alternative<AST::Module>(*Res)) {
       Mod = std::make_unique<AST::Module>(std::get<AST::Module>(*Res));
     } else if (std::holds_alternative<AST::Component::Component>(*Res)) {
-      spdlog::error("component execution is not done yet.");
+      Comp = std::make_unique<AST::Component::Component>(
+          std::get<AST::Component::Component>(*Res));
     } else {
       return Unexpect(Res);
     }

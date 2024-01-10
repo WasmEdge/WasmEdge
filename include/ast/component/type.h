@@ -181,7 +181,25 @@ private:
   ResultList ResList;
 };
 
-using ExternDesc = std::variant<TypeIndex, ValueType>;
+enum class IndexKind : Byte {
+  CoreType = 0x00,
+  FuncType = 0x02,
+  ComponentType = 0x04,
+  InstanceType = 0x05,
+};
+class DescTypeIndex {
+  TypeIndex TyIdx;
+  IndexKind Kind;
+
+public:
+  TypeIndex &getIndex() noexcept { return TyIdx; }
+  TypeIndex getIndex() const noexcept { return TyIdx; }
+  IndexKind &getKind() noexcept { return Kind; }
+  IndexKind getKind() const noexcept { return Kind; }
+};
+// use optional none as SubResource case
+using TypeBound = std::optional<TypeIndex>;
+using ExternDesc = std::variant<DescTypeIndex, TypeBound, ValueType>;
 class ExportDecl {
 public:
   std::string_view getExportName() const noexcept { return ExportName; }

@@ -195,6 +195,15 @@ Expect<void> Loader::loadSection(AST::Component::CoreInstanceSection &Sec) {
   });
 }
 
+// Load vector of core type section.
+// See "include/loader/loader.h".
+Expect<void> Loader::loadSection(AST::Component::CoreTypeSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::Component::CoreDefType &Ty) { return loadType(Ty); });
+  });
+}
+
 // Load vector of component type section.
 // See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::Component::TypeSection &Sec) {

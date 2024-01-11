@@ -17,7 +17,6 @@
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/errinfo.h"
-#include "common/log.h"
 #include "loader/filemgr.h"
 #include "loader/ldmgr.h"
 #include "loader/serialize.h"
@@ -86,6 +85,10 @@ NodeAttrFromAST<AST::Component::CoreInstanceSection>() noexcept {
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::InstanceSection>() noexcept {
   return ASTNodeAttr::Sec_Instance;
+}
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::CoreTypeSection>() noexcept {
+  return ASTNodeAttr::Sec_Type;
 }
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::TypeSection>() noexcept {
@@ -285,6 +288,7 @@ private:
   Expect<void> loadSection(AST::Component::CoreInstanceSection &Sec);
   Expect<void> loadSection(AST::Component::InstanceSection &Sec);
   Expect<void> loadSection(AST::Component::AliasSection &Sec);
+  Expect<void> loadSection(AST::Component::CoreTypeSection &Sec);
   Expect<void> loadSection(AST::Component::TypeSection &Sec);
   Expect<void> loadSection(AST::Component::CanonSection &Sec);
   Expect<void> loadSection(AST::Component::ImportSection &Sec);

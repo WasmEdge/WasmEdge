@@ -336,7 +336,7 @@ Expect<void> Loader::loadComponentDecl(ComponentDecl &Decl) {
 }
 
 Expect<void> Loader::loadImportDecl(ImportDecl &Decl) {
-  if (auto Res = loadImportExportName(Decl.getImportName()); !Res) {
+  if (auto Res = loadImportName(Decl.getImportName()); !Res) {
     return Unexpect(Res);
   }
   return loadExternDesc(Decl.getExternDesc());
@@ -420,7 +420,7 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
   }
   case 0x04: {
     ExportDecl &Ed = Decl.emplace<ExportDecl>();
-    if (auto Res = loadImportExportName(Ed.getExportName()); !Res) {
+    if (auto Res = loadExportName(Ed.getExportName()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::InstanceDecl));
       return Unexpect(Res);
     }
@@ -439,7 +439,23 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
   return {};
 }
 
-Expect<void> Loader::loadImportExportName(std::string &Name) {
+Expect<void> Loader::loadImportName(std::string &Name) {
+  if (auto Res = FMgr.readByte(); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Name));
+    return Unexpect(Res);
+  } else if (*Res != 0x01) {
+    return logLoadError(ErrCode::Value::MalformedName, FMgr.getLastOffset(),
+                        ASTNodeAttr::Name);
+  }
+  if (auto Res = FMgr.readName(); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Name));
+    return Unexpect(Res);
+  } else {
+    Name = *Res;
+    return {};
+  }
+}
+Expect<void> Loader::loadExportName(std::string &Name) {
   if (auto Res = FMgr.readByte(); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Name));
     return Unexpect(Res);
@@ -600,7 +616,7 @@ Expect<void> Loader::loadModuleDecl(ModuleDecl &Decl) {
 }
 
 Expect<void> Loader::loadExportDecl(CoreExportDecl &Decl) {
-  if (auto Res = loadImportExportName(Decl.getName()); !Res) {
+  if (auto Res = loadExportName(Decl.getName()); !Res) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Module);
   }

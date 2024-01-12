@@ -365,8 +365,8 @@ private:
   Expect<void> loadImportDecl(AST::Component::ImportDecl &Decl);
   Expect<void> loadInstanceDecl(AST::Component::InstanceDecl &Decl);
   Expect<void> loadExternDesc(AST::Component::ExternDesc &Desc);
-  Expect<void> loadImportExportName(std::string &Name);
-  Expect<void> loadImportExportNameWithLen(std::string &Name);
+  Expect<void> loadExportName(std::string &Name);
+  Expect<void> loadImportName(std::string &Name);
   Expect<void> loadStart(AST::Component::Start &S);
   Expect<void> loadCoreInstance(AST::Component::CoreInstanceExpr &InstanceExpr);
   Expect<void> loadInstance(AST::Component::InstanceExpr &InstanceExpr);

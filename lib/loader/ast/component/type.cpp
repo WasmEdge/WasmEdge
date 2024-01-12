@@ -396,10 +396,11 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
   }
   switch (*RTag) {
   case 0x00: {
-    // TODO core:type
-    spdlog::error("component model core:type in type section is incomplete");
-    return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
-                        ASTNodeAttr::InstanceDecl);
+    if (auto Res = loadType(Decl.emplace<CoreType>()); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::InstanceDecl));
+      return Unexpect(Res);
+    }
+    break;
   }
   case 0x01: {
     DefType Ty;
@@ -439,6 +440,13 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
 }
 
 Expect<void> Loader::loadImportExportName(std::string &Name) {
+  if (auto Res = FMgr.readByte(); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Name));
+    return Unexpect(Res);
+  } else if (*Res != 0x00) {
+    return logLoadError(ErrCode::Value::MalformedName, FMgr.getLastOffset(),
+                        ASTNodeAttr::Name);
+  }
   if (auto Res = FMgr.readName(); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Name));
     return Unexpect(Res);

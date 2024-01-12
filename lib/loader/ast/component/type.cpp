@@ -14,23 +14,12 @@ namespace Loader {
 using namespace WasmEdge::AST::Component;
 
 Expect<void> Loader::loadLabel(std::string &Label) {
-  // label' ::= len:<u32> l:<label>
-  // the length of loaded name must has same value as predicate value
-  auto RLen = FMgr.readU32();
-  if (!RLen) {
-    return logLoadError(ErrCode::Value::MalformedRecordType,
-                        FMgr.getLastOffset(), ASTNodeAttr::DefType);
-  }
   auto RName = FMgr.readName();
   if (!RName) {
     return logLoadError(ErrCode::Value::MalformedRecordType,
                         FMgr.getLastOffset(), ASTNodeAttr::DefType);
   }
   Label = *RName;
-  if (unlikely(Label.size() != *RLen)) {
-    return logLoadError(ErrCode::Value::MalformedRecordType,
-                        FMgr.getLastOffset(), ASTNodeAttr::DefType);
-  }
   return {};
 }
 

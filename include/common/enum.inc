@@ -22,8 +22,10 @@
 #define A Line
 
 A(Component, "component")
+A(Sec_CoreMod, "component core:module section")
 A(Sec_CoreInstance, "component core:instance section")
 A(Sec_Alias, "component alias section")
+A(Sec_Comp, "component component section")
 A(Sec_Instance, "component instance section")
 A(Sec_CompType, "component type section")
 A(Sec_Canon, "component canonical section")

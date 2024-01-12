@@ -110,6 +110,15 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::ExportSection>() noexcept {
   return ASTNodeAttr::Sec_CompExport;
 }
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::CoreModuleSection>() noexcept {
+  return ASTNodeAttr::Sec_CoreMod;
+}
+template <>
+inline ASTNodeAttr
+NodeAttrFromAST<AST::Component::ComponentSection>() noexcept {
+  return ASTNodeAttr::Sec_Comp;
+}
 
 } // namespace
 
@@ -285,6 +294,8 @@ private:
   Expect<void> loadSection(AST::CodeSection &Sec);
   Expect<void> loadSection(AST::DataSection &Sec);
   Expect<void> loadSection(AST::DataCountSection &Sec);
+  Expect<void> loadSection(AST::Component::ComponentSection &Sec);
+  Expect<void> loadSection(AST::CoreModuleSection &Sec);
   Expect<void> loadSection(AST::Component::CoreInstanceSection &Sec);
   Expect<void> loadSection(AST::Component::InstanceSection &Sec);
   Expect<void> loadSection(AST::Component::AliasSection &Sec);

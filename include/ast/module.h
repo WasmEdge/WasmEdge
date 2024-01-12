@@ -169,16 +169,22 @@ public:
     return CustomSecs;
   }
   CoreModuleSection &getCoreModuleSection() noexcept { return CoreModSec; }
-  CoreInstanceSection &getCoreInstanceSection() noexcept { return CoreInstSec; }
-  CoreTypeSection &getCoreTypeSection() noexcept { return CoreTypeSec; }
+  std::vector<CoreInstanceSection> &getCoreInstanceSection() noexcept {
+    return CoreInstSec;
+  }
+  std::vector<CoreTypeSection> &getCoreTypeSection() noexcept {
+    return CoreTypeSec;
+  }
   ComponentSection &getComponentSection() noexcept { return CompSec; }
-  InstanceSection &getInstanceSection() noexcept { return InstSec; }
-  AliasSection &getAliasSection() noexcept { return AliasSec; }
-  TypeSection &getTypeSection() noexcept { return TySec; }
-  CanonSection &getCanonSection() noexcept { return CanonSec; }
+  std::vector<InstanceSection> &getInstanceSection() noexcept {
+    return InstSec;
+  }
+  std::vector<AliasSection> &getAliasSection() noexcept { return AliasSec; }
+  std::vector<TypeSection> &getTypeSection() noexcept { return TySec; }
+  std::vector<CanonSection> &getCanonSection() noexcept { return CanonSec; }
   StartSection &getStartSection() noexcept { return StartSec; }
-  ImportSection &getImportSection() noexcept { return ImSec; }
-  ExportSection &getExportSection() noexcept { return ExSec; }
+  std::vector<ImportSection> &getImportSection() noexcept { return ImSec; }
+  std::vector<ExportSection> &getExportSection() noexcept { return ExSec; }
 
 private:
   /// \name Data of Module node.
@@ -188,16 +194,16 @@ private:
   std::vector<Byte> Layer;
   std::vector<CustomSection> CustomSecs;
   CoreModuleSection CoreModSec;
-  CoreInstanceSection CoreInstSec;
-  CoreTypeSection CoreTypeSec;
+  std::vector<CoreInstanceSection> CoreInstSec;
+  std::vector<CoreTypeSection> CoreTypeSec;
   ComponentSection CompSec;
-  InstanceSection InstSec;
-  AliasSection AliasSec;
-  TypeSection TySec;
-  CanonSection CanonSec;
+  std::vector<InstanceSection> InstSec;
+  std::vector<AliasSection> AliasSec;
+  std::vector<TypeSection> TySec;
+  std::vector<CanonSection> CanonSec;
   StartSection StartSec;
-  ImportSection ImSec;
-  ExportSection ExSec;
+  std::vector<ImportSection> ImSec;
+  std::vector<ExportSection> ExSec;
   /// @}
 };
 

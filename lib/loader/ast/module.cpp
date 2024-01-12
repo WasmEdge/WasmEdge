@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -14,14 +15,18 @@
 namespace WasmEdge {
 namespace Loader {
 
-// Load binary to construct Module node. See "include/loader/loader.h".
-Expect<void> Loader::loadModule(AST::Module &Mod) {
+Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
+                                       std::optional<uint64_t> Bound) {
+  uint64_t StartOffset = FMgr.getOffset();
+
   // Variables to record the loaded section types.
   HasDataSection = false;
   std::bitset<0x0DU> Secs;
 
+  uint64_t Offset = FMgr.getOffset();
+
   // Read Section index and create Section nodes.
-  while (true) {
+  while (!Bound.has_value() || Bound.value() > Offset - StartOffset) {
     uint8_t NewSectionId = 0x00;
     // If not read section ID, seems the end of file and break.
     if (auto Res = FMgr.readByte()) {
@@ -146,6 +151,8 @@ Expect<void> Loader::loadModule(AST::Module &Mod) {
       return logLoadError(ErrCode::Value::MalformedSection,
                           FMgr.getLastOffset(), ASTNodeAttr::Module);
     }
+
+    Offset = FMgr.getOffset();
   }
 
   // Verify the function section and code section are matched.
@@ -167,6 +174,11 @@ Expect<void> Loader::loadModule(AST::Module &Mod) {
   }
 
   return {};
+}
+
+// Load binary to construct Module node. See "include/loader/loader.h".
+Expect<void> Loader::loadModule(AST::Module &Mod) {
+  return loadModuleInBound(Mod, std::nullopt);
 }
 
 // Load compiled function from loadable manager. See "include/loader/loader.h".

@@ -200,6 +200,8 @@ Expect<void> Loader::loadSection(AST::Component::ComponentSection &Sec) {
 
 Expect<void> Loader::loadSection(AST::CoreModuleSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
+    auto ExpectedSize = Sec.getContentSize();
+    auto StartOffset = FMgr.getOffset();
     auto ResPreamble = Loader::loadPreamble();
     if (!ResPreamble) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
@@ -214,7 +216,11 @@ Expect<void> Loader::loadSection(AST::CoreModuleSection &Sec) {
     AST::Module CoreMod;
     CoreMod.getMagic() = WasmMagic;
     CoreMod.getVersion() = Ver;
-    if (auto Res = loadModule(CoreMod); !Res) {
+
+    auto Offset = FMgr.getOffset();
+    ExpectedSize -= (Offset - StartOffset);
+
+    if (auto Res = loadModuleInBound(CoreMod, ExpectedSize); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
       return Unexpect(Res);
     }

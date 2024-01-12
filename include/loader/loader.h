@@ -195,6 +195,8 @@ private:
   /// \name Load AST Module functions
   /// @{
   Expect<void> loadModule(AST::Module &Mod);
+  Expect<void> loadModuleInBound(AST::Module &Mod,
+                                 std::optional<uint64_t> Bound);
   Expect<void> loadCompiled(AST::Module &Mod);
   /// @}
 

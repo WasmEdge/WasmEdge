@@ -16,7 +16,8 @@ create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
 
 Plugin::Plugin::PluginDescriptor Descriptor{
     .Name = "wasi_ocr",
-    .Description = "",
+    .Description = "A WasmEdge Plugin for Optical Character Recognition (OCR) "
+                   "powered by the Tesseract API.",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
     .Version = {0, 10, 1, 0},
     .ModuleCount = 1,
@@ -24,7 +25,9 @@ Plugin::Plugin::PluginDescriptor Descriptor{
         (Plugin::PluginModule::ModuleDescriptor[]){
             {
                 .Name = "wasi_ocr",
-                .Description = "",
+                .Description =
+                    "A WasmEdge Plugin for Optical Character Recognition (OCR) "
+                    "powered by the Tesseract API.",
                 .Create = create,
             },
         },

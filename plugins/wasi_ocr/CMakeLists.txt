@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-wasmedge_add_library(wasmedgePluginWasiOCR
+add_library(wasmedgePluginWasiOCR
   SHARED
   wasiocrenv.cpp
   wasiocrfunc.cpp
@@ -12,14 +12,6 @@ target_compile_options(wasmedgePluginWasiOCR
   PUBLIC
   -DWASMEDGE_PLUGIN
 )
-
-if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  target_link_options(wasmedgePluginWasiOCR
-    PUBLIC
-    -Wl,-U,__ZN8WasmEdge6Plugin14PluginRegisterC1EPKNS0_6Plugin16PluginDescriptorE
-    -Wl,-U,__ZN8WasmEdge6Plugin14PluginRegisterD1Ev
-  )
-endif()
 
 target_include_directories(wasmedgePluginWasiOCR
   PUBLIC

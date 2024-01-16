@@ -125,7 +125,7 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
         return Unexpect(Res);
       }
     }
-    return std::move(Mod);
+    return Mod;
   }
   default:
     // Universal WASM, WASM, or other cases. Load and parse the module directly.
@@ -148,7 +148,7 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
           *Symbol = IntrinsicsTable;
         }
       }
-      return std::move(Mod);
+      return Mod;
     }
     }
   }

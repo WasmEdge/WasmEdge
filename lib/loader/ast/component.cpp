@@ -78,7 +78,7 @@ Loader::loadUnit() {
         return Unexpect(Res);
       }
     }
-    return std::move(Mod);
+    return Mod;
   } else if (Ver == ComponentVersion) {
     if (!Conf.hasProposal(Proposal::Component)) {
       return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::Component,
@@ -92,7 +92,7 @@ Loader::loadUnit() {
     if (auto Res = loadComponent(*Comp); !Res) {
       return Unexpect(Res);
     }
-    return std::move(Comp);
+    return Comp;
   } else {
     return logLoadError(ErrCode::Value::MalformedVersion, FMgr.getLastOffset(),
                         ASTNodeAttr::Component);

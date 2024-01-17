@@ -147,14 +147,21 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
 
 Expect<ErrNo> buildOutputMetadata(Context &CxtRef,
                                   std::string &Metadata) noexcept {
-  std::string MetadataTemplate = R"({"input_tokens": %d, "output_tokens": %d})";
+  std::string MetadataTemplate =
+      R"({"input_tokens": %d, "output_tokens": %d, "llama_build_number": %d, "llama_commit": "%s"})";
 
   // The 20 bytes are reserved to accommodate two %d placeholders in the
   // MetadataTemplate. This allows for a decimal integer value up to a
   // 12-digit number of input/output tokens.
-  char Buffer[MetadataTemplate.size() + 20];
+  // The 3 bytes are reserved to accommodate the %d placeholder for the build
+  // number. Allows for a decimal integer value up to a 5-digit number.
+  // The 5 bytes are reserved to accommodate the %s placeholder for the commit
+  // hash. The commit hash is 7 bytes long by default using `git rev-parse
+  // --short HEAD`.
+  char Buffer[MetadataTemplate.size() + 20 + 3 + 5];
   snprintf(Buffer, sizeof(Buffer), MetadataTemplate.c_str(),
-           CxtRef.LlamaInputs.size(), CxtRef.LlamaOutputTokens.size());
+           CxtRef.LlamaInputs.size(), CxtRef.LlamaOutputTokens.size(),
+           LLAMA_BUILD_NUMBER, LLAMA_COMMIT);
   Metadata = std::string(Buffer);
 
   return ErrNo::Success;

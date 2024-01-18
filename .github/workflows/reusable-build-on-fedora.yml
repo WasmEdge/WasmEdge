@@ -13,6 +13,8 @@ on:
 
 jobs:
   build_fedora:
+    permissions:
+      contents: write
     name: Fedora latest
     runs-on: ubuntu-latest
     container:

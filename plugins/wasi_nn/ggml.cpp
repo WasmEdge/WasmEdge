@@ -110,6 +110,14 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
   }
+  if (Doc.at_key("threads").error() == simdjson::SUCCESS) {
+    auto Err = Doc["threads"].get<uint64_t>().get(GraphRef.Threads);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the threads option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
   // The sampling parameters.
   if (Doc.at_key("temp").error() == simdjson::SUCCESS) {
     auto Err = Doc["temp"].get<double>().get(GraphRef.Temp);
@@ -139,14 +147,21 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
 
 Expect<ErrNo> buildOutputMetadata(Context &CxtRef,
                                   std::string &Metadata) noexcept {
-  std::string MetadataTemplate = R"({"input_tokens": %d, "output_tokens": %d})";
+  std::string MetadataTemplate =
+      R"({"input_tokens": %d, "output_tokens": %d, "llama_build_number": %d, "llama_commit": "%s"})";
 
   // The 20 bytes are reserved to accommodate two %d placeholders in the
   // MetadataTemplate. This allows for a decimal integer value up to a
   // 12-digit number of input/output tokens.
-  char Buffer[MetadataTemplate.size() + 20];
+  // The 3 bytes are reserved to accommodate the %d placeholder for the build
+  // number. Allows for a decimal integer value up to a 5-digit number.
+  // The 5 bytes are reserved to accommodate the %s placeholder for the commit
+  // hash. The commit hash is 7 bytes long by default using `git rev-parse
+  // --short HEAD`.
+  char Buffer[MetadataTemplate.size() + 20 + 3 + 5];
   snprintf(Buffer, sizeof(Buffer), MetadataTemplate.c_str(),
-           CxtRef.LlamaInputs.size(), CxtRef.LlamaOutputTokens.size());
+           CxtRef.LlamaInputs.size(), CxtRef.LlamaOutputTokens.size(),
+           LLAMA_BUILD_NUMBER, LLAMA_COMMIT);
   Metadata = std::string(Buffer);
 
   return ErrNo::Success;
@@ -175,6 +190,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Initialize the context parameters.
   GraphRef.CtxSize = ContextDefault.n_ctx;
   GraphRef.BatchSize = ContextDefault.n_batch;
+  GraphRef.Threads = ContextDefault.n_threads;
   // Initialize the sampling parameters.
   llama_sampling_params SamplingDefault;
   GraphRef.Temp = SamplingDefault.temp;
@@ -341,6 +357,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   llama_context_params ContextParams = llama_context_default_params();
   ContextParams.n_ctx = GraphRef.CtxSize;
   ContextParams.n_batch = GraphRef.BatchSize;
+  ContextParams.n_threads = GraphRef.Threads;
+  ContextParams.n_threads_batch = GraphRef.Threads;
   auto LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
   if (GraphRef.EnableDebugLog) {
@@ -454,29 +472,34 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   // Check if the input is too long.
   if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
-    spdlog::error(
-        "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
-        CxtRef.LlamaInputs.size(), MaxTokensListSize);
+    if (GraphRef.EnableLog) {
+      spdlog::info(
+          "[WASI-NN] GGML backend: the prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
+          CxtRef.LlamaInputs.size(), MaxTokensListSize);
+    }
     return ErrNo::PromptTooLong;
   }
 
   // Main predict loop.
-  while (NRemain >= 0) {
+  while (NRemain > 0) {
     // Preidct
     if (!Embd.empty()) {
       // Input too long.
       if (static_cast<uint64_t>(Embd.size()) > MaxTokensListSize) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
-            Embd.size(), MaxTokensListSize);
-        return ErrNo::PromptTooLong;
+        if (GraphRef.EnableLog) {
+          spdlog::info(
+              "[WASI-NN] GGML backend: the prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
+              Embd.size(), MaxTokensListSize);
+        }
+        ReturnCode = ErrNo::PromptTooLong;
+        break;
       }
 
       // We do not swap context here. End the inference if the context is full.
       if (NPast + static_cast<uint64_t>(Embd.size()) > NCtx) {
         if (GraphRef.EnableLog) {
           spdlog::info(
-              "[WASI-NN] GGML backend: the context if full ({} / {} tokens)"sv,
+              "[WASI-NN] GGML backend: the context if full ({} / {} tokens). Please increase your ctx-size."sv,
               NPast + static_cast<int>(Embd.size()), NCtx);
         }
         ReturnCode = ErrNo::ContextFull;
@@ -636,6 +659,8 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     llama_context_params ContextParams = llama_context_default_params();
     ContextParams.n_ctx = GraphRef.CtxSize;
     ContextParams.n_batch = GraphRef.BatchSize;
+    ContextParams.n_threads = GraphRef.Threads;
+    ContextParams.n_threads_batch = GraphRef.Threads;
     CxtRef.LlamaContext =
         llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
     CxtRef.LlamaEmbd.clear();
@@ -652,9 +677,11 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
 
   // Check if the input is too long.
   if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
-    spdlog::error(
-        "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
-        CxtRef.LlamaInputs.size(), MaxTokensListSize);
+    if (GraphRef.EnableLog) {
+      spdlog::info(
+          "[WASI-NN] GGML backend: the prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
+          CxtRef.LlamaInputs.size(), MaxTokensListSize);
+    }
     return ErrNo::PromptTooLong;
   }
 
@@ -663,9 +690,11 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     if (!CxtRef.LlamaEmbd.empty()) {
       // Input too long.
       if (static_cast<uint64_t>(CxtRef.LlamaEmbd.size()) > MaxTokensListSize) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: Error: The prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
-            CxtRef.LlamaEmbd.size(), MaxTokensListSize);
+        if (GraphRef.EnableLog) {
+          spdlog::info(
+              "[WASI-NN] GGML backend: the prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
+              CxtRef.LlamaEmbd.size(), MaxTokensListSize);
+        }
         return ErrNo::PromptTooLong;
       }
 
@@ -674,7 +703,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
           NCtx) {
         if (GraphRef.EnableLog) {
           spdlog::info(
-              "[WASI-NN] GGML backend: the context if full ({} / {} tokens)"sv,
+              "[WASI-NN] GGML backend: the context if full ({} / {} tokens). Please increase your ctx-size."sv,
               CxtRef.LlamaNPast +
                   static_cast<uint64_t>(CxtRef.LlamaEmbd.size()),
               NCtx);
@@ -752,6 +781,11 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
 Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+
+  // Logging for the llama timings.
+  if (GraphRef.EnableLog) {
+    llama_print_timings(CxtRef.LlamaContext);
+  }
 
   // Clear the outputs.
   if (GraphRef.EnableDebugLog) {

@@ -26,6 +26,10 @@ jobs:
       BUILD_TESTS: OFF
     container: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y pkg-config protobuf-compiler-grpc libgrpc-dev libgrpc++-dev
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0

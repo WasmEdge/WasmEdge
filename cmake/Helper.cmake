@@ -164,6 +164,13 @@ endfunction()
 function(wasmedge_add_library target)
   add_library(${target} ${ARGN})
   wasmedge_setup_target(${target})
+  # Linux needs an explicit INSTALL_RPATH to allow libwasmedge.so to find libwasiNNRPC.so
+  # in the same directory
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    set_target_properties(${target} PROPERTIES
+      INSTALL_RPATH "$ORIGIN"
+    )
+  endif()
 endfunction()
 
 function(wasmedge_add_executable target)

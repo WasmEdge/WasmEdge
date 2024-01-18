@@ -35,7 +35,7 @@ jobs:
       - name: Setup build environment
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm@16 ninja cmake wabt
+          brew install llvm@16 ninja cmake wabt grpc
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |

@@ -215,6 +215,7 @@ jobs:
           apt install -y cargo
           # Running tests of wasm_bpf requires proper ebpf running environment
           mount -t debugfs none /sys/kernel/debug
+          bash utils/ffmpeg/install-ffmpeg-v6.0.sh
       - name: Build plugins using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
         run: |
@@ -364,6 +365,7 @@ jobs:
           bash ./utils/wasi-crypto/build-openssl.sh
           # Running tests of wasm_bpf requires proper ebpf running environment
           mount -t debugfs none /sys/kernel/debug
+          bash utils/ffmpeg/install-ffmpeg-v6.0.sh
       - name: Build and test plugins using g++ with ${{ matrix.build_type }} mode
         shell: bash
         run: |

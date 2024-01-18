@@ -481,7 +481,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
 
   // Main predict loop.
-  while (NRemain >= 0) {
+  while (NRemain > 0) {
     // Preidct
     if (!Embd.empty()) {
       // Input too long.

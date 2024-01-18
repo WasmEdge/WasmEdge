@@ -32,6 +32,7 @@ struct Graph {
   // Context parameters:
   uint64_t CtxSize;
   uint64_t BatchSize;
+  uint64_t Threads;
   // Sampleing parameters:
   double Temp;
   double RepeatPenalty;
@@ -48,8 +49,8 @@ public:
   llama_context *LlamaContext = nullptr;
   struct llama_sampling_context *LlamaSampling = nullptr;
   std::vector<llama_token> LlamaEmbd;
-  int LlamaNPast;
-  int LlamaNConsumed;
+  uint64_t LlamaNPast;
+  uint64_t LlamaNConsumed;
 };
 #else
 struct Graph {};

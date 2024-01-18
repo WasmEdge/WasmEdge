@@ -1,6 +1,125 @@
+### 0.14.0-alpha.1 (2024-01-05)
+
+Breaking changes:
+
+* [Version]: Bump the version of the WasmEdge shared library.
+  * Due to the breaking change of API, bump the `SOVERSION` to `0.1.0`.
+  * Due to the breaking change of API, bump the plug-in `API_VERSION` to `3`.
+* [C API]: Changes for applying Typed Function References Proposal.
+  * New `WasmEdge_ValType` structure for replacing `enum WasmEdge_ValType`.
+    * Merge the `enum WasmEdge_ValType` and `enum WasmEdge_RefType` into the `enum WasmEdge_TypeCode`.
+  * Refactored the error code. The error code number may different from previous versions.
+    * Extend the error code to 2 bytes.
+  * Updated the related APIs for using `enum WasmEdge_ValType` as parameters.
+    * `WasmEdge_FunctionTypeCreate()`
+    * `WasmEdge_FunctionTypeGetParameters()`
+    * `WasmEdge_FunctionTypeGetReturns()`
+    * `WasmEdge_TableTypeCreate()`
+    * `WasmEdge_TableTypeGetRefType()`
+    * `WasmEdge_GlobalTypeCreate()`
+    * `WasmEdge_GlobalTypeGetValType()`
+  * Removed `WasmEdge_ValueGenNullRef()` API.
+  * Due to non-defaultable values after this proposal, the following APIs return the result instead of void.
+    * `WasmEdge_GlobalInstanceSetValue()`
+  * Introduced the `WasmEdge_Bytes` structure.
+    * This structure is for packaging the `uint8_t` buffers. The old `FromBuffer` related APIs will be replaced by the corresponding APIs in the future versions.
+    * `WasmEdge_CompilerCompileFromBytes()` API has the same function as `WasmEdge_CompilerCompileFromBuffer()` and will replace it in the future.
+    * `WasmEdge_LoaderParseFromBytes()` API has the same function as `WasmEdge_LoaderParseFromBuffer()` and will replace it in the future.
+    * `WasmEdge_VMRegisterModuleFromBytes()` API has the same function as `WasmEdge_VMRegisterModuleFromBuffer()` and will replace it in the future.
+    * `WasmEdge_VMRunWasmFromBytes()` API has the same function as `WasmEdge_VMRunWasmFromBuffer()` and will replace it in the future.
+    * `WasmEdge_VMAsyncRunWasmFromBytes()` API has the same function as `WasmEdge_VMAsyncRunWasmFromBuffer()` and will replace it in the future.
+    * `WasmEdge_VMLoadWasmFromBytes()` API has the same function as `WasmEdge_VMLoadWasmFromBuffer()` and will replace it in the future.
+
+Features:
+
+* [Proposal]: Apply new propoals.
+  * Supported WASM Typed Function References proposal.
+    * Added the `WasmEdge_Proposal_FunctionReferences` for the configuration in WasmEdge C API.
+    * Users can use the `--enable-function-reference` to enable the proposal in `wasmedge` and `wasmedgec` tools.
+  * Component Model proposal (experimental, loader phase only).
+    * Added the `WasmEdge_Proposal_Component` for the configuration in WasmEdge C API.
+    * Users can use the `--enable-function-reference` to enable the proposal in `wasmedge` tool.
+* [C API]: New C API for supporting the new proposals.
+  * `WasmEdge_ValType` related APIs can help developers to generate or compare value types.
+    * `WasmEdge_ValTypeGenI32()` (replacing `WasmEdge_ValType_I32`)
+    * `WasmEdge_ValTypeGenI64()` (replacing `WasmEdge_ValType_I64`)
+    * `WasmEdge_ValTypeGenF32()` (replacing `WasmEdge_ValType_F32`)
+    * `WasmEdge_ValTypeGenF64()` (replacing `WasmEdge_ValType_F64`)
+    * `WasmEdge_ValTypeGenV128()` (replacing `WasmEdge_ValType_V128`)
+    * `WasmEdge_ValTypeGenFuncRef()` (replacing `WasmEdge_ValType_FuncRef`)
+    * `WasmEdge_ValTypeGenExternRef()` (replacing `WasmEdge_ValType_ExternRef`)
+    * `WasmEdge_ValTypeIsEqual()`
+    * `WasmEdge_ValTypeIsI32()`
+    * `WasmEdge_ValTypeIsI64()`
+    * `WasmEdge_ValTypeIsF32()`
+    * `WasmEdge_ValTypeIsF64()`
+    * `WasmEdge_ValTypeIsV128()`
+    * `WasmEdge_ValTypeIsFuncRef()`
+    * `WasmEdge_ValTypeIsExternRef()`
+    * `WasmEdge_ValTypeIsRef()`
+    * `WasmEdge_ValTypeIsRefNull()`
+  * `WasmEdge_Bytes` related APIs can help developers to control the buffers.
+    * `WasmEdge_BytesCreate()`
+    * `WasmEdge_BytesWrap()`
+    * `WasmEdge_BytesDelete()`
+  * `WasmEdge_TableInstanceCreateWithInit()` to create a table instance with non-defaultable elements with assigning the initial value.
+* [Serializer]: Supported WASM module serialization (experimental).
+  * This is the API-level feature. Developers can use the `WasmEdge_LoaderSerializeASTModule()` API to serialize a loaded WASM module into bytes.
+* [Tools]: Print the plug-in versions when using the `--version` option.
+* [Installer]: Enabled `ggml-blas` and `rustls` plugin supporting (#3032) (#3108).
+* [WASI-NN] ggml backend:
+  * Bump llama.cpp to b1743
+  * Support llama.cpp options:
+    * `threads`: the thread number for inference.
+    * `temp`: set temperature for inference.
+    * `repeat-penalty`: set repeat penalty for inference.
+  * Add `enable-debug-log` option to show more debug information.
+  * Default enable Metal on macOS.
+  * Introduce `load_by_name_with_config()` to load model with metadata.
+  * Introduce single token inference by `compute_single`, `get_output_single`, and `fini_single`
+  * Add some llama errors to WASI-NN
+    * `EndOfSequence`: returned when encounter `<EOS>` token on single token inferece.
+    * `ContextFull`: returned when the context is full.
+    * `PromptTooLong`: returned when the input size is too large.
+
+Fixed issues:
+
+* Fixed some API document in the API header.
+* [WASI]: Minor fixes.
+  * Fixed the function signature matching for WASI imports when backwarding supporting older version. (#3073)
+  * Fixed large timestamp causing overflow (#3106).
+  * Handle HUP only events.
+  * Checking same file descriptor for `fd_renumber` (#3040).
+  * Fixed `path_unlink_file` for trailing slash path.
+  * Fixed `path_readlink` for not following symbolic link issue.
+  * Fixed `path_open` for checking `O_TRUNC` rights.
+  * Fixed `path_open` for removing path relative rights on file.
+  * Checking `path_symlink` for creating a symlink to an absolute path.
+  * Checking `fd_prestat_dir_name` buffer size.
+  * Checking `filestat_set_times` for invalid flags.
+  * Checking validation of file descriptor in `socket_accept` (#3041).
+
+Tests:
+
+* Updated the WASM spec tests to the date 2023/10/26.
+* Added the spec tests for the Typed Function Reference proposal.
+
+Known issues:
+
+* Universal WASM format failed on macOS platforms.
+  * In the current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause a bus error during execution.
+  * We are trying to fix this issue. For a working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+
+Thank all the contributors who made this release possible!
+
+Abhinandan Udupa, Akihiro Suda, Dhruv Jain, Draco, Little Willy, Lîm Tsú-thuàn, Meenu Yadav, Omkar Acharekar, Saiyam Pathak, Shen-Ta Hsieh, Shreyas Atre, Yage Hu, Yi-Ying He, alabulei1, am009, dm4, hydai, richzw, zhumeme
+
+If you want to build from source, please use WasmEdge-0.14.0-alpha.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.13.5 (2023-11-03)
 
 Features:
+
 * [Component] share loading entry for component and module (#2945)
   * Initial support for the component model proposal.
   * This PR allows WasmEdge to recognize the component and module format.
@@ -34,6 +153,7 @@ Features:
 * [AOT] Support LLVM 17
 
 Fixed issues:
+
 * [Installer]: Double quote the strings to prevent splitting in env file (#2994)
 * [AOT]:
   * Validate AOT section header fields
@@ -44,6 +164,7 @@ Fixed issues:
 * [CI] install llvm@16 to fix macOS build (#2878)
 
 Misc:
+
 * [Example] Update wit-bindgen version from 0.7.0 to 0.11.0 (#2770)
 
 Thank all the contributors who made this release possible!
@@ -183,8 +304,6 @@ Thank all the contributors that made this release possible!
 If you want to build from source, please use WasmEdge-0.13.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.13.0 (2023-06-30)
-
-Breaking changes:
 
 Features:
 

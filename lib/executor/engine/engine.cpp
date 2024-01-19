@@ -104,11 +104,13 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       if (Stat && Conf.getStatisticsConfigure().isCostMeasuring()) {
         // Reach here means end of if-statement.
         if (unlikely(!Stat->subInstrCost(Instr.getOpCode()))) {
+          spdlog::error(ErrCode::Value::CostLimitExceeded);
           spdlog::error(
               ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
           return Unexpect(ErrCode::Value::CostLimitExceeded);
         }
         if (unlikely(!Stat->addInstrCost(OpCode::End))) {
+          spdlog::error(ErrCode::Value::CostLimitExceeded);
           spdlog::error(
               ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
           return Unexpect(ErrCode::Value::CostLimitExceeded);

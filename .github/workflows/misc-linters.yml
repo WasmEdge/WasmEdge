@@ -8,6 +8,9 @@ concurrency:
 
 jobs:
   misc:
+    permissions:
+      contents: read
+      pull-requests: read
     name: misc linters
     runs-on: ubuntu-latest
     steps:

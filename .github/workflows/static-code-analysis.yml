@@ -41,6 +41,8 @@ on:
 
 jobs:
   static_analysis:
+    permissions:
+      contents: write
     name: Run Static Code Analysis using Infer
     runs-on: ubuntu-latest
 

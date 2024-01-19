@@ -13,6 +13,8 @@ on:
 
 jobs:
   build_on_android:
+    permissions:
+      contents: write
     name: Build on Android
     runs-on: ubuntu-latest
     container:

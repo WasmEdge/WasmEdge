@@ -11,6 +11,8 @@ on:
 
 jobs:
   build_on_windows:
+    permissions:
+      contents: write
     name: Build on Windows Server 2022
     runs-on: windows-2022
     env:

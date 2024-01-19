@@ -11,6 +11,8 @@ on:
 
 jobs:
   build_on_debian_static:
+    permissions:
+      contents: write
     name: Build on Alpine (static lib)
     runs-on: ubuntu-latest
     steps:

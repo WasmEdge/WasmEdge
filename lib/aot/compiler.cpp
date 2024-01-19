@@ -571,9 +571,9 @@ static LLVM::Type toLLVMType(LLVM::Context &LLContext,
   case TypeCode::I32:
     return LLContext.getInt32Ty();
   case TypeCode::I64:
+    return LLContext.getInt64Ty();
   case TypeCode::Ref:
   case TypeCode::RefNull:
-    return LLContext.getInt64Ty();
   case TypeCode::V128:
     return LLVM::Type::getVectorType(LLContext.getInt64Ty(), 2);
   case TypeCode::F32:
@@ -634,9 +634,9 @@ static LLVM::Value toLLVMConstantZero(LLVM::Context &LLContext,
   case TypeCode::I32:
     return LLVM::Value::getConstNull(LLContext.getInt32Ty());
   case TypeCode::I64:
+    return LLVM::Value::getConstNull(LLContext.getInt64Ty());
   case TypeCode::Ref:
   case TypeCode::RefNull:
-    return LLVM::Value::getConstNull(LLContext.getInt64Ty());
   case TypeCode::V128:
     return LLVM::Value::getConstNull(
         LLVM::Type::getVectorType(LLContext.getInt64Ty(), 2));
@@ -893,8 +893,10 @@ public:
       }
       case OpCode::Br_on_null: {
         const auto Label = Instr.getJump().TargetIndex;
-        auto Value = stackPop();
-        auto Cond = Builder.createICmpEQ(Value, LLContext.getInt64(0));
+        auto Value = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
+        auto Cond = Builder.createICmpEQ(
+            Builder.createExtractElement(Value, LLContext.getInt64(1)),
+            LLContext.getInt64(0));
         setLableJumpPHI(Label);
         auto Next = LLVM::BasicBlock::create(LLContext, F.Fn, "br_on_null.end");
         Builder.createCondBr(Cond, getLabel(Label), Next);
@@ -904,7 +906,11 @@ public:
       }
       case OpCode::Br_on_non_null: {
         const auto Label = Instr.getJump().TargetIndex;
-        auto Cond = Builder.createICmpNE(Stack.back(), LLContext.getInt64(0));
+        auto Cond = Builder.createICmpNE(
+            Builder.createExtractElement(
+                Builder.createBitCast(Stack.back(), Context.Int64x2Ty),
+                LLContext.getInt64(1)),
+            LLContext.getInt64(0));
         setLableJumpPHI(Label);
         auto Next =
             LLVM::BasicBlock::create(LLContext, F.Fn, "br_on_non_null.end");
@@ -953,18 +959,26 @@ public:
         Builder.positionAtEnd(
             LLVM::BasicBlock::create(LLContext, F.Fn, "ret_call_ref.end"));
         break;
-      case OpCode::Ref__null:
-        stackPush(LLContext.getInt64(0));
+      case OpCode::Ref__null: {
+        std::array<uint8_t, 16> Val = {0};
+        std::copy_n(Instr.getValType().getRawData().cbegin(), 8, Val.begin());
+        auto Vector = LLVM::Value::getConstVector8(LLContext, Val);
+        stackPush(Builder.createBitCast(Vector, Context.Int64x2Ty));
         break;
+      }
       case OpCode::Ref__is_null:
         stackPush(Builder.createZExt(
-            Builder.createICmpEQ(stackPop(), LLContext.getInt64(0)),
+            Builder.createICmpEQ(
+                Builder.createExtractElement(
+                    Builder.createBitCast(stackPop(), Context.Int64x2Ty),
+                    LLContext.getInt64(1)),
+                LLContext.getInt64(0)),
             Context.Int32Ty));
         break;
       case OpCode::Ref__func:
         stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, AST::Module::Intrinsics::kRefFunc,
-                                 LLVM::Type::getFunctionType(Context.Int64Ty,
+                                 LLVM::Type::getFunctionType(Context.Int64x2Ty,
                                                              {Context.Int32Ty},
                                                              false)),
             {LLContext.getInt32(Instr.getTargetIndex())}));
@@ -972,8 +986,10 @@ public:
       case OpCode::Ref__as_non_null: {
         auto Next =
             LLVM::BasicBlock::create(LLContext, F.Fn, "ref_as_non_null.ok");
-        auto IsNotNull = Builder.createLikely(
-            Builder.createICmpNE(Stack.back(), LLContext.getInt64(0)));
+        Stack.back() = Builder.createBitCast(Stack.back(), Context.Int64x2Ty);
+        auto IsNotNull = Builder.createLikely(Builder.createICmpNE(
+            Builder.createExtractElement(Stack.back(), LLContext.getInt64(1)),
+            LLContext.getInt64(0)));
         Builder.createCondBr(IsNotNull, Next,
                              getTrapBB(ErrCode::Value::CastNullToNonNull));
         Builder.positionAtEnd(Next);
@@ -1017,7 +1033,7 @@ public:
         stackPush(Builder.createCall(
             Context.getIntrinsic(
                 Builder, AST::Module::Intrinsics::kTableGet,
-                LLVM::Type::getFunctionType(Context.Int64Ty,
+                LLVM::Type::getFunctionType(Context.Int64x2Ty,
                                             {Context.Int32Ty, Context.Int32Ty},
                                             false)),
             {LLContext.getInt32(Instr.getTargetIndex()), Idx}));
@@ -1031,7 +1047,7 @@ public:
                 Builder, AST::Module::Intrinsics::kTableSet,
                 LLVM::Type::getFunctionType(
                     Context.Int64Ty,
-                    {Context.Int32Ty, Context.Int32Ty, Context.Int64Ty},
+                    {Context.Int32Ty, Context.Int32Ty, Context.Int64x2Ty},
                     false)),
             {LLContext.getInt32(Instr.getTargetIndex()), Idx, Ref});
         break;
@@ -1084,7 +1100,7 @@ public:
                 Builder, AST::Module::Intrinsics::kTableGrow,
                 LLVM::Type::getFunctionType(
                     Context.Int32Ty,
-                    {Context.Int32Ty, Context.Int64Ty, Context.Int32Ty},
+                    {Context.Int32Ty, Context.Int64x2Ty, Context.Int32Ty},
                     false)),
             {LLContext.getInt32(Instr.getTargetIndex()), Val, NewSize}));
         break;
@@ -1103,12 +1119,12 @@ public:
         auto Val = stackPop();
         auto Off = stackPop();
         Builder.createCall(
-            Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kTableFill,
-                LLVM::Type::getFunctionType(Context.Int32Ty,
-                                            {Context.Int32Ty, Context.Int32Ty,
-                                             Context.Int64Ty, Context.Int32Ty},
-                                            false)),
+            Context.getIntrinsic(Builder, AST::Module::Intrinsics::kTableFill,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int32Ty,
+                                     {Context.Int32Ty, Context.Int32Ty,
+                                      Context.Int64x2Ty, Context.Int32Ty},
+                                     false)),
             {LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
         break;
       }
@@ -3928,10 +3944,11 @@ private:
     auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.is_null");
     auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.end");
 
-    auto Ref = stackPop();
+    auto Ref = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
     auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.ref_not_null");
-    auto IsRefNotNull =
-        Builder.createLikely(Builder.createICmpNE(Ref, LLContext.getInt64(0)));
+    auto IsRefNotNull = Builder.createLikely(Builder.createICmpNE(
+        Builder.createExtractElement(Ref, LLContext.getInt64(1)),
+        LLContext.getInt64(0)));
     Builder.createCondBr(IsRefNotNull, OkBB,
                          getTrapBB(ErrCode::Value::AccessNullFunc));
     Builder.positionAtEnd(OkBB);
@@ -3956,8 +3973,8 @@ private:
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
               Builder, AST::Module::Intrinsics::kRefGetFuncSymbol,
-              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int64Ty},
-                                          false)),
+              LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                          {Context.Int64x2Ty}, false)),
           {Ref});
       Builder.createCondBr(
           Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
@@ -4015,7 +4032,7 @@ private:
               Builder, AST::Module::Intrinsics::kCallRef,
               LLVM::Type::getFunctionType(
                   Context.VoidTy,
-                  {Context.Int64Ty, Context.Int8PtrTy, Context.Int8PtrTy},
+                  {Context.Int64x2Ty, Context.Int8PtrTy, Context.Int8PtrTy},
                   false)),
           {Ref, Args, Rets});
 
@@ -4050,10 +4067,11 @@ private:
     auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.not_null");
     auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.is_null");
 
-    auto Ref = stackPop();
+    auto Ref = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
     auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.ref_not_null");
-    auto IsRefNotNull =
-        Builder.createLikely(Builder.createICmpNE(Ref, LLContext.getInt64(0)));
+    auto IsRefNotNull = Builder.createLikely(Builder.createICmpNE(
+        Builder.createExtractElement(Ref, LLContext.getInt64(1)),
+        LLContext.getInt64(0)));
     Builder.createCondBr(IsRefNotNull, OkBB,
                          getTrapBB(ErrCode::Value::AccessNullFunc));
     Builder.positionAtEnd(OkBB);
@@ -4076,8 +4094,8 @@ private:
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
               Builder, AST::Module::Intrinsics::kRefGetFuncSymbol,
-              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int64Ty},
-                                          false)),
+              LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                          {Context.Int64x2Ty}, false)),
           {Ref});
       Builder.createCondBr(
           Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
@@ -4129,7 +4147,7 @@ private:
               Builder, AST::Module::Intrinsics::kCallRef,
               LLVM::Type::getFunctionType(
                   Context.VoidTy,
-                  {Context.Int64Ty, Context.Int8PtrTy, Context.Int8PtrTy},
+                  {Context.Int64x2Ty, Context.Int8PtrTy, Context.Int8PtrTy},
                   false)),
           {Ref, Args, Rets});
 

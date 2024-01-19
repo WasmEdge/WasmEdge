@@ -303,21 +303,61 @@ private:
 /// FuncRef definition.
 namespace Runtime::Instance {
 class FunctionInstance;
-}
+} // namespace Runtime::Instance
 
 /// NumType and RefType variant definitions.
 struct RefVariant {
-#if __INTPTR_WIDTH__ == 32
-  uint32_t Padding = -1;
-#endif
-  void *Ptr = nullptr;
-  RefVariant() = default;
-  template <typename T>
-  RefVariant(const T *P) : Ptr(reinterpret_cast<void *>(const_cast<T *>(P))) {}
-  template <typename T> RefVariant(T *P) : Ptr(reinterpret_cast<void *>(P)) {}
-  bool isNull() const { return Ptr == nullptr; }
+  // Constructors.
+  RefVariant() noexcept { setData<void>(TypeCode::ExternRef); }
+  RefVariant(const ValType &VT) noexcept { setData<void>(VT); }
+  RefVariant(const ValType &VT, const RefVariant &Val) noexcept {
+    setData(VT, Val.getPtr<void>());
+  }
 
-  template <typename T> T *asPtr() const { return reinterpret_cast<T *>(Ptr); }
+  template <typename T> RefVariant(const T *P) noexcept {
+    setData(TypeCode::ExternRef, reinterpret_cast<const void *>(P));
+  }
+  RefVariant(const Runtime::Instance::FunctionInstance *P) noexcept {
+    setData(TypeCode::FuncRef, reinterpret_cast<const void *>(P));
+  }
+
+  // Getter of type.
+  const ValType &getType() const noexcept {
+    return reinterpret_cast<const ValType &>(toArray()[0]);
+  }
+  ValType &getType() noexcept {
+    return reinterpret_cast<ValType &>(toArray()[0]);
+  }
+
+  // Getter of pointer.
+  template <typename T> T *getPtr() const noexcept {
+    return reinterpret_cast<T *>(toArray()[1]);
+  }
+
+  // Check is null.
+  bool isNull() const { return getPtr<void>() == nullptr; }
+
+  // Getter of the raw data.
+  uint64x2_t getRawData() const noexcept { return Data; }
+
+private:
+  // Helper function of converting data to array.
+  const std::array<uint64_t, 2> &toArray() const noexcept {
+    return reinterpret_cast<const std::array<uint64_t, 2> &>(Data);
+  }
+  std::array<uint64_t, 2> &toArray() noexcept {
+    return reinterpret_cast<std::array<uint64_t, 2> &>(Data);
+  }
+
+  // Helper function to set the content.
+  template <typename T>
+  void setData(const ValType &VT, const T *Ptr = nullptr) noexcept {
+    getType() = VT;
+    toArray()[1] = reinterpret_cast<uintptr_t>(Ptr);
+  }
+
+  // Member data.
+  uint64x2_t Data;
 };
 
 using ValVariant =
@@ -469,11 +509,9 @@ inline ValVariant ValueFromType(ValType Type) noexcept {
     return double(0.0);
   case TypeCode::V128:
     return uint128_t(0U);
-  case TypeCode::FuncRef:
-  case TypeCode::ExternRef:
   case TypeCode::Ref:
   case TypeCode::RefNull:
-    return RefVariant();
+    return RefVariant(Type);
   default:
     assumingUnreachable();
   }
@@ -485,11 +523,11 @@ inline ValVariant ValueFromType(ValType Type) noexcept {
 
 inline const Runtime::Instance::FunctionInstance *
 retrieveFuncRef(const RefVariant &Val) {
-  return Val.asPtr<Runtime::Instance::FunctionInstance>();
+  return Val.getPtr<Runtime::Instance::FunctionInstance>();
 }
 
 template <typename T> inline T &retrieveExternRef(const RefVariant &Val) {
-  return *Val.asPtr<T>();
+  return *Val.getPtr<T>();
 }
 
 // <<<<<<<< Functions to retrieve reference inners <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

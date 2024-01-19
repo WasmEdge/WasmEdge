@@ -148,7 +148,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
 
     // Reference Instructions
     case OpCode::Ref__null:
-      StackMgr.push(RefVariant());
+      StackMgr.push(RefVariant(Instr.getValType()));
       return {};
     case OpCode::Ref__is_null: {
       ValVariant &Val = StackMgr.getTop();

@@ -90,8 +90,7 @@ Expect<void> Executor::trap(Runtime::StackManager &,
 Expect<void> Executor::call(Runtime::StackManager &StackMgr,
                             const uint32_t FuncIdx, const ValVariant *Args,
                             ValVariant *Rets) noexcept {
-  const auto *ModInst = StackMgr.getModule();
-  const auto *FuncInst = *ModInst->getFunc(FuncIdx);
+  const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());
@@ -401,11 +400,9 @@ Expect<void> Executor::elemDrop(Runtime::StackManager &StackMgr,
 
 Expect<RefVariant> Executor::refFunc(Runtime::StackManager &StackMgr,
                                      const uint32_t FuncIdx) noexcept {
-  const auto *ModInst = StackMgr.getModule();
-  assuming(ModInst);
-  const auto FuncInst = ModInst->getFunc(FuncIdx);
-  assuming(FuncInst && *FuncInst);
-  return RefVariant(*FuncInst);
+  auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
+  assuming(FuncInst);
+  return RefVariant(FuncInst);
 }
 
 Expect<uint32_t> Executor::memoryAtomicNotify(Runtime::StackManager &StackMgr,

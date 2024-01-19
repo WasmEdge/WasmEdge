@@ -92,29 +92,34 @@ public:
     return Span<const RefVariant>(Refs.begin() + Offset, Length);
   }
 
-  /// Replace the Refs[Offset :] by Slice[Start : Start + Length - 1]
-  Expect<void> setRefs(Span<const RefVariant> Slice, uint32_t Offset,
-                       uint32_t Start, uint32_t Length) noexcept {
+  /// Replace the Refs[Dst :] by Slice[Src : Src + Length)
+  Expect<void> setRefs(Span<const RefVariant> Slice, uint32_t Dst, uint32_t Src,
+                       uint32_t Length) noexcept {
     // Check the accessing boundary.
-    if (!checkAccessBound(Offset, Length)) {
+    if (!checkAccessBound(Dst, Length)) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Dst, Length, getBoundIdx()));
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
 
     // Check the input data validation.
-    if (static_cast<uint64_t>(Start) + static_cast<uint64_t>(Length) >
+    if (static_cast<uint64_t>(Src) + static_cast<uint64_t>(Length) >
         Slice.size()) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(
-          Start, Length,
-          std::max(static_cast<uint32_t>(Slice.size()), UINT32_C(1)) -
-              UINT32_C(1)));
+          Src, Length, std::max(static_cast<uint32_t>(Slice.size()), 1U) - 1U));
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
 
     // Copy the references.
-    std::copy_n(Slice.begin() + Start, Length, Refs.begin() + Offset);
+    if (Dst <= Src) {
+      std::copy(Slice.begin() + Src, Slice.begin() + Src + Length,
+                Refs.begin() + Dst);
+    } else {
+      std::copy(std::make_reverse_iterator(Slice.begin() + Src + Length),
+                std::make_reverse_iterator(Slice.begin() + Src),
+                std::make_reverse_iterator(Refs.begin() + Dst + Length));
+    }
     return {};
   }
 

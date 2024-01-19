@@ -327,10 +327,11 @@ Expect<void> Executor::tableCopy(Runtime::StackManager &StackMgr,
   auto *TabInstSrc = getTabInstByIdx(StackMgr, TableIdxSrc);
   assuming(TabInstSrc);
 
-  if (auto Refs = TabInstSrc->getRefs(SrcOff, Len); unlikely(!Refs)) {
+  if (auto Refs = TabInstSrc->getRefs(0, SrcOff + Len); unlikely(!Refs)) {
     return Unexpect(Refs);
   } else {
-    if (auto Res = TabInstDst->setRefs(*Refs, DstOff, 0, Len); unlikely(!Res)) {
+    if (auto Res = TabInstDst->setRefs(*Refs, DstOff, SrcOff, Len);
+        unlikely(!Res)) {
       return Unexpect(Res);
     }
   }

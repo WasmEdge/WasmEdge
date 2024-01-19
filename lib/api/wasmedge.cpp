@@ -647,7 +647,7 @@ WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val) {
       WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
           .get<WasmEdge::RefVariant>()
-          .asPtr<WasmEdge::Runtime::Instance::FunctionInstance>()));
+          .getPtr<WasmEdge::Runtime::Instance::FunctionInstance>()));
 }
 
 WASMEDGE_CAPI_EXPORT void *

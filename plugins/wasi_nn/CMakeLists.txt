@@ -12,6 +12,8 @@ if(BACKEND STREQUAL "ggml")
   if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
     message(STATUS "WASI-NN GGML LLAMA backend: Enable LLAMA_CUBLAS")
     set(LLAMA_CUBLAS ON)
+    # We need to set GGML_USE_CUBLAS for clip from llava.
+    add_compile_definitions(GGML_USE_CUBLAS)
     # If CUBLAS is ON, then OpenBLAS should be OFF.
     set(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS OFF)
   else()
@@ -142,8 +144,31 @@ target_include_directories(wasmedgePluginWasiNN
 )
 
 if(BACKEND STREQUAL "ggml")
-  target_include_directories(wasmedgePluginWasiNN PUBLIC ${CMAKE_BINARY_DIR}/_deps/llama-src)
-  target_link_libraries(wasmedgePluginWasiNN PRIVATE common simdjson::simdjson)
+  # Setup llava from llama.cpp
+  wasmedge_add_library(llava OBJECT
+    ${CMAKE_BINARY_DIR}/_deps/llama-src/examples/llava/clip.cpp
+    ${CMAKE_BINARY_DIR}/_deps/llama-src/examples/llava/llava.cpp
+  )
+  target_link_libraries(llava PRIVATE ggml llama)
+  target_include_directories(llava PUBLIC
+    ${CMAKE_BINARY_DIR}/_deps/llama-src
+    ${CMAKE_BINARY_DIR}/_deps/llama-src/common
+    ${CMAKE_BINARY_DIR}/_deps/llama-src/examples/llava
+  )
+  target_compile_options(llava PRIVATE
+    -Wno-error=unused-function
+    -Wno-error=unused-variable
+    -Wno-unused-function
+    -Wno-unused-variable
+  )
+  wasmedge_setup_target(llava)
+
+  # Setup include and link from llama.cpp
+  target_include_directories(wasmedgePluginWasiNN PUBLIC
+    ${CMAKE_BINARY_DIR}/_deps/llama-src
+    ${CMAKE_BINARY_DIR}/_deps/llama-src/examples/llava
+  )
+  target_link_libraries(wasmedgePluginWasiNN PRIVATE common simdjson::simdjson llava)
   if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
     add_custom_command(
       TARGET wasmedgePluginWasiNN

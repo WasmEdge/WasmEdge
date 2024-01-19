@@ -197,6 +197,17 @@ Expect<void> Executor::branchToLabel(Runtime::StackManager &StackMgr,
   return {};
 }
 
+Runtime::Instance::FunctionInstance *
+Executor::getFuncInstByIdx(Runtime::StackManager &StackMgr,
+                           const uint32_t Idx) const {
+  const auto *ModInst = StackMgr.getModule();
+  // When top frame is dummy frame, cannot find instance.
+  if (unlikely(ModInst == nullptr)) {
+    return nullptr;
+  }
+  return ModInst->unsafeGetFunction(Idx);
+}
+
 Runtime::Instance::TableInstance *
 Executor::getTabInstByIdx(Runtime::StackManager &StackMgr,
                           const uint32_t Idx) const {

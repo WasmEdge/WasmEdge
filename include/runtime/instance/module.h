@@ -270,6 +270,9 @@ protected:
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
+    return unsafeGetFunction(Idx);
+  }
+  FunctionInstance *unsafeGetFunction(uint32_t Idx) const noexcept {
     return FuncInsts[Idx];
   }
   Expect<TableInstance *> getTable(uint32_t Idx) const noexcept {

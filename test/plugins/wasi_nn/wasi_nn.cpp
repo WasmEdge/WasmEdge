@@ -166,7 +166,8 @@ TEST(WasiNNTest, OpenVINOBackend) {
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
         Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Busy));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::RuntimeError));
   }
 
   // Test: load -- graph id ptr out of bounds.
@@ -422,7 +423,8 @@ TEST(WasiNNTest, OpenVINOBackend) {
     EXPECT_TRUE(HostFuncCompute.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
         Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Busy));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::RuntimeError));
   }
   // Swap back.
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);

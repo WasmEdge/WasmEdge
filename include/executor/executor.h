@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2023 Second State INC
 
 //===-- wasmedge/executor/executor.h - Executor class definition ----------===//
 //
@@ -20,7 +20,9 @@
 #include "common/defines.h"
 #include "common/errcode.h"
 #include "common/statistics.h"
+#include "executor/executor.h"
 #include "runtime/callingframe.h"
+#include "runtime/instance/memory.h"
 #include "runtime/instance/module.h"
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"
@@ -292,7 +294,7 @@ private:
 
   /// Helper function for get memory instance by index.
   Runtime::Instance::MemoryInstance *
-  getMemInstByIdx(Runtime::StackManager &StackMgr, const uint32_t Idx) const;
+  getMemInstByIdx(Runtime::StackManager &StackMgr, const uint64_t Idx) const;
 
   /// Helper function for get global instance by index.
   Runtime::Instance::GlobalInstance *
@@ -304,7 +306,7 @@ private:
 
   /// Helper function for get data instance by index.
   Runtime::Instance::DataInstance *
-  getDataInstByIdx(Runtime::StackManager &StackMgr, const uint32_t Idx) const;
+  getDataInstByIdx(Runtime::StackManager &StackMgr, const uint64_t Idx) const;
   /// @}
 
   /// \name Run instructions functions
@@ -636,23 +638,23 @@ public:
                             const uint32_t TableIdx, const uint32_t FuncTypeIdx,
                             const uint32_t FuncIdx, const ValVariant *Args,
                             ValVariant *Rets) noexcept;
-  Expect<uint32_t> memGrow(Runtime::StackManager &StackMgr,
-                           const uint32_t MemIdx,
-                           const uint32_t NewSize) noexcept;
-  Expect<uint32_t> memSize(Runtime::StackManager &StackMgr,
-                           const uint32_t MemIdx) noexcept;
+  Expect<uint64_t> memGrow(Runtime::StackManager &StackMgr,
+                           const uint64_t MemIdx,
+                           const uint64_t NewSize) noexcept;
+  Expect<uint64_t> memSize(Runtime::StackManager &StackMgr,
+                           const uint64_t MemIdx) noexcept;
   Expect<void> memCopy(Runtime::StackManager &StackMgr,
-                       const uint32_t DstMemIdx, const uint32_t SrcMemIdx,
-                       const uint32_t DstOff, const uint32_t SrcOff,
-                       const uint32_t Len) noexcept;
-  Expect<void> memFill(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
-                       const uint32_t Off, const uint8_t Val,
-                       const uint32_t Len) noexcept;
-  Expect<void> memInit(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
-                       const uint32_t DataIdx, const uint32_t DstOff,
-                       const uint32_t SrcOff, const uint32_t Len) noexcept;
+                       const uint64_t DstMemIdx, const uint64_t SrcMemIdx,
+                       const uint64_t DstOff, const uint64_t SrcOff,
+                       const uint64_t Len) noexcept;
+  Expect<void> memFill(Runtime::StackManager &StackMgr, const uint64_t MemIdx,
+                       const uint64_t Off, const uint8_t Val,
+                       const uint64_t Len) noexcept;
+  Expect<void> memInit(Runtime::StackManager &StackMgr, const uint64_t MemIdx,
+                       const uint64_t DataIdx, const uint64_t DstOff,
+                       const uint64_t SrcOff, const uint64_t Len) noexcept;
   Expect<void> dataDrop(Runtime::StackManager &StackMgr,
-                        const uint32_t DataIdx) noexcept;
+                        const uint64_t DataIdx) noexcept;
 
   Expect<RefVariant> tableGet(Runtime::StackManager &StackMgr,
                               const uint32_t TableIdx,
@@ -684,13 +686,13 @@ public:
                                     const uint32_t TableIdx,
                                     const uint32_t FuncTypeIdx,
                                     const uint32_t FuncIdx) noexcept;
-  Expect<uint32_t> memoryAtomicNotify(Runtime::StackManager &StackMgr,
-                                      const uint32_t MemIdx,
-                                      const uint32_t Offset,
-                                      const uint32_t Count) noexcept;
-  Expect<uint32_t>
-  memoryAtomicWait(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
-                   const uint32_t Offset, const uint64_t Expected,
+  Expect<uint64_t> memoryAtomicNotify(Runtime::StackManager &StackMgr,
+                                      const uint64_t MemIdx,
+                                      const uint64_t Offset,
+                                      const uint64_t Count) noexcept;
+  Expect<uint64_t>
+  memoryAtomicWait(Runtime::StackManager &StackMgr, const uint64_t MemIdx,
+                   const uint64_t Offset, const uint64_t Expected,
                    const int64_t Timeout, const uint32_t BitWidth) noexcept;
   Expect<void> callRef(Runtime::StackManager &StackMgr, const RefVariant Ref,
                        const ValVariant *Args, ValVariant *Rets) noexcept;
@@ -704,11 +706,11 @@ public:
 
 private:
   template <typename T>
-  Expect<uint32_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
-                              uint32_t Address, T Expected,
+  Expect<uint64_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
+                              uint64_t Address, T Expected,
                               int64_t Timeout) noexcept;
-  Expect<uint32_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
-                                uint32_t Address, uint32_t Count) noexcept;
+  Expect<uint64_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
+                                uint64_t Address, uint64_t Count) noexcept;
   void atomicNotifyAll() noexcept;
 
   struct Waiter {
@@ -718,7 +720,7 @@ private:
     Waiter(Runtime::Instance::MemoryInstance *Inst) noexcept : MemInst(Inst) {}
   };
   std::mutex WaiterMapMutex;
-  std::unordered_multimap<uint32_t, Waiter> WaiterMap;
+  std::unordered_multimap<uint64_t, Waiter> WaiterMap;
 
 private:
   /// Prepare execution context
@@ -766,6 +768,45 @@ private:
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
 };
+
+// If `memoryOffset + instruction Value` is overflow, it's an out of bound
+// access, trap.
+template <uint32_t BitWidth>
+Expect<void> checkOutOfBound(const Runtime::Instance::MemoryInstance &MemInst,
+                             const AST::Instruction &Instr, uint64_t Val) {
+  switch (MemInst.getMemoryType().getIdxType()) {
+  case AST::MemoryType::IndexType::I64: {
+    if (Val > std::numeric_limits<uint64_t>::max() - Instr.getMemoryOffset()) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Val + Instr.getMemoryOffset(),
+                                          BitWidth / 8, MemInst.getBoundIdx()));
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+    break;
+  }
+  case AST::MemoryType::IndexType::I32:
+  default: {
+    if (static_cast<uint32_t>(Val) >
+        std::numeric_limits<uint32_t>::max() -
+            static_cast<uint32_t>(Instr.getMemoryOffset())) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(
+          Val + static_cast<uint32_t>(Instr.getMemoryOffset()), BitWidth / 8,
+          MemInst.getBoundIdx()));
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+    break;
+  }
+  }
+  return {};
+}
+
+uint64_t valToIndex(WasmEdge::ValVariant &Val,
+                    AST::MemoryType::IndexType IdxType);
 
 } // namespace Executor
 } // namespace WasmEdge

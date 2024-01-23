@@ -15,18 +15,14 @@ TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
                              const AST::Instruction &Instr) {
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
-  if (Val.get<uint32_t>() >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Val.get<uint32_t>() + static_cast<uint64_t>(Instr.getMemoryOffset()),
-        BitWidth / 8, MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  if (auto Res = checkOutOfBound<BitWidth>(
+          MemInst, Instr,
+          valToIndex(Val, MemInst.getMemoryType().getIdxType()));
+      !Res) {
+    return Unexpect(Res);
   }
-  uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
-
+  uint64_t EA = valToIndex(Val, MemInst.getMemoryType().getIdxType()) +
+                Instr.getMemoryOffset();
   // Value = Mem.Data[EA : N / 8]
   if (auto Res = MemInst.loadValue<T, BitWidth / 8>(Val.emplace<T>(), EA);
       !Res) {
@@ -45,17 +41,11 @@ TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
   T C = StackMgr.pop().get<T>();
 
   // Calculate EA = i + offset
-  uint32_t I = StackMgr.pop().get<uint32_t>();
-  if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        I + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  uint64_t I = StackMgr.popIndexType(MemInst.getMemoryType().getIdxType());
+  if (auto Res = checkOutOfBound<BitWidth>(MemInst, Instr, I); !Res) {
+    return Unexpect(Res);
   }
-  uint32_t EA = I + Instr.getMemoryOffset();
+  uint64_t EA = I + Instr.getMemoryOffset();
 
   // Store value to bytes.
   if (auto Res = MemInst.storeValue<T, BitWidth / 8>(C, EA); !Res) {
@@ -74,17 +64,14 @@ Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
   static_assert(sizeof(TOut) == sizeof(TIn) * 2);
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
-  if (Val.get<uint32_t>() >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Val.get<uint32_t>() + static_cast<uint64_t>(Instr.getMemoryOffset()), 8,
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  if (auto Res = checkOutOfBound<64>(
+          MemInst, Instr,
+          valToIndex(Val, MemInst.getMemoryType().getIdxType()));
+      !Res) {
+    return Unexpect(Res);
   }
-  uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
+  uint64_t EA = valToIndex(Val, MemInst.getMemoryType().getIdxType()) +
+                Instr.getMemoryOffset();
 
   // Value = Mem.Data[EA : N / 8]
   uint64_t Buffer;
@@ -118,17 +105,14 @@ Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
                          const AST::Instruction &Instr) {
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
-  if (Val.get<uint32_t>() >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Val.get<uint32_t>() + static_cast<uint64_t>(Instr.getMemoryOffset()),
-        sizeof(T), MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  if (auto Res = checkOutOfBound<sizeof(T) * 8>(
+          MemInst, Instr,
+          valToIndex(Val, MemInst.getMemoryType().getIdxType()));
+      !Res) {
+    return Unexpect(Res);
   }
-  uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
+  uint64_t EA = valToIndex(Val, MemInst.getMemoryType().getIdxType()) +
+                Instr.getMemoryOffset();
 
   // Value = Mem.Data[EA : N / 8]
   using VT = SIMDArray<T, 16>;
@@ -163,17 +147,14 @@ Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
 
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
-  const uint32_t Offset = Val.get<uint32_t>();
-  if (Offset > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Offset + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(T),
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  if (auto Res = checkOutOfBound<sizeof(T) * 8>(
+          MemInst, Instr,
+          valToIndex(Val, MemInst.getMemoryType().getIdxType()));
+      !Res) {
+    return Unexpect(Res);
   }
-  const uint32_t EA = Offset + Instr.getMemoryOffset();
+  uint64_t EA = valToIndex(Val, MemInst.getMemoryType().getIdxType()) +
+                Instr.getMemoryOffset();
 
   // Value = Mem.Data[EA : N / 8]
   uint64_t Buffer;
@@ -199,17 +180,11 @@ Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
   const TBuf C = StackMgr.pop().get<VT>()[Instr.getMemoryLane()];
 
   // Calculate EA = i + offset
-  uint32_t I = StackMgr.pop().get<uint32_t>();
-  if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        I + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(T),
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  uint64_t I = StackMgr.popIndexType(MemInst.getMemoryType().getIdxType());
+  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, I); !Res) {
+    return Unexpect(Res);
   }
-  uint32_t EA = I + Instr.getMemoryOffset();
+  uint64_t EA = I + Instr.getMemoryOffset();
 
   // Store value to bytes.
   if (auto Res = MemInst.storeValue<decltype(C), sizeof(T)>(C, EA); !Res) {

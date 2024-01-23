@@ -62,6 +62,9 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
   if (Opt.PropThreads.value()) {
     Conf.addProposal(Proposal::Threads);
   }
+  if (Opt.PropMemory64.value()) {
+    Conf.addProposal(Proposal::Memory64);
+  }
   if (Opt.PropAll.value()) {
     Conf.addProposal(Proposal::MultiMemories);
     Conf.addProposal(Proposal::TailCall);

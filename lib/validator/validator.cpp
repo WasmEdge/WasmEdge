@@ -66,7 +66,6 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
-
   // Validate export section.
   if (auto Res = validate(Mod.getExportSection()); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Export));
@@ -156,6 +155,24 @@ Expect<void> Validator::validate(const AST::MemoryType &Mem) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
     return Unexpect(Res);
   }
+  uint64_t LIMIT_MEMORYTYPE;
+  switch (Mem.getIdxType()) {
+  case AST::MemoryType::IndexType::I64: {
+    if (!Conf.hasProposal(Proposal::Memory64)) {
+      spdlog::error(ErrCode::Value::InvalidMemPages);
+      spdlog::error(ErrInfo::InfoProposal(Proposal::Memory64));
+      return Unexpect(ErrCode::Value::InvalidMemPages);
+    }
+    LIMIT_MEMORYTYPE = LIMIT_MEMORYTYPE_LIM64;
+    break;
+  }
+  case AST::MemoryType::IndexType::I32:
+  default: {
+    LIMIT_MEMORYTYPE = LIMIT_MEMORYTYPE_LIM32;
+    break;
+  }
+  }
+  Checker.setIndexType(Mem.getIdxType());
   if (Lim.getMin() > LIMIT_MEMORYTYPE ||
       (Lim.hasMax() && Lim.getMax() > LIMIT_MEMORYTYPE)) {
     spdlog::error(ErrCode::Value::InvalidMemPages);
@@ -318,7 +335,7 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
     }
     // Check memory initialization is a const expression.
     if (auto Res = validateConstExpr(DataSeg.getExpr().getInstrs(),
-                                     {ValType(TypeCode::I32)});
+                                     {Checker.getItTypeCode()});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);

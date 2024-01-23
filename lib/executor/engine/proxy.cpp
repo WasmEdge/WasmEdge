@@ -213,31 +213,37 @@ Executor::callIndirect(Runtime::StackManager &StackMgr, const uint32_t TableIdx,
   return {};
 }
 
-Expect<uint32_t> Executor::memGrow(Runtime::StackManager &StackMgr,
-                                   const uint32_t MemIdx,
-                                   const uint32_t NewSize) noexcept {
+Expect<uint64_t> Executor::memGrow(Runtime::StackManager &StackMgr,
+                                   const uint64_t MemIdx,
+                                   const uint64_t NewSize) noexcept {
   auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
   assuming(MemInst);
-  const uint32_t CurrPageSize = MemInst->getPageSize();
+  const uint64_t CurrPageSize = MemInst->getPageSize();
   if (MemInst->growPage(NewSize)) {
     return CurrPageSize;
   } else {
-    return static_cast<uint32_t>(-1);
+    switch (MemInst->getMemoryType().getIdxType()) {
+    case AST::MemoryType::IndexType::I64:
+      return static_cast<uint64_t>(-1);
+    case AST::MemoryType::IndexType::I32:
+    default:
+      return static_cast<uint32_t>(-1);
+    }
   }
 }
 
-Expect<uint32_t> Executor::memSize(Runtime::StackManager &StackMgr,
-                                   const uint32_t MemIdx) noexcept {
+Expect<uint64_t> Executor::memSize(Runtime::StackManager &StackMgr,
+                                   const uint64_t MemIdx) noexcept {
   auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
   assuming(MemInst);
   return MemInst->getPageSize();
 }
 
 Expect<void> Executor::memCopy(Runtime::StackManager &StackMgr,
-                               const uint32_t DstMemIdx,
-                               const uint32_t SrcMemIdx, const uint32_t DstOff,
-                               const uint32_t SrcOff,
-                               const uint32_t Len) noexcept {
+                               const uint64_t DstMemIdx,
+                               const uint64_t SrcMemIdx, const uint64_t DstOff,
+                               const uint64_t SrcOff,
+                               const uint64_t Len) noexcept {
   auto *MemInstDst = getMemInstByIdx(StackMgr, DstMemIdx);
   assuming(MemInstDst);
   auto *MemInstSrc = getMemInstByIdx(StackMgr, SrcMemIdx);
@@ -256,8 +262,8 @@ Expect<void> Executor::memCopy(Runtime::StackManager &StackMgr,
 }
 
 Expect<void> Executor::memFill(Runtime::StackManager &StackMgr,
-                               const uint32_t MemIdx, const uint32_t Off,
-                               const uint8_t Val, const uint32_t Len) noexcept {
+                               const uint64_t MemIdx, const uint64_t Off,
+                               const uint8_t Val, const uint64_t Len) noexcept {
   auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
   assuming(MemInst);
   if (auto Res = MemInst->fillBytes(Val, Off, Len); unlikely(!Res)) {
@@ -268,9 +274,9 @@ Expect<void> Executor::memFill(Runtime::StackManager &StackMgr,
 }
 
 Expect<void> Executor::memInit(Runtime::StackManager &StackMgr,
-                               const uint32_t MemIdx, const uint32_t DataIdx,
-                               const uint32_t DstOff, const uint32_t SrcOff,
-                               const uint32_t Len) noexcept {
+                               const uint64_t MemIdx, const uint64_t DataIdx,
+                               const uint64_t DstOff, const uint64_t SrcOff,
+                               const uint64_t Len) noexcept {
   auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
   assuming(MemInst);
   auto *DataInst = getDataInstByIdx(StackMgr, DataIdx);
@@ -285,7 +291,7 @@ Expect<void> Executor::memInit(Runtime::StackManager &StackMgr,
 }
 
 Expect<void> Executor::dataDrop(Runtime::StackManager &StackMgr,
-                                const uint32_t DataIdx) noexcept {
+                                const uint64_t DataIdx) noexcept {
   auto *DataInst = getDataInstByIdx(StackMgr, DataIdx);
   assuming(DataInst);
   DataInst->clear();
@@ -407,19 +413,19 @@ Expect<RefVariant> Executor::refFunc(Runtime::StackManager &StackMgr,
   return RefVariant(*FuncInst);
 }
 
-Expect<uint32_t> Executor::memoryAtomicNotify(Runtime::StackManager &StackMgr,
-                                              const uint32_t MemIdx,
-                                              const uint32_t Offset,
-                                              const uint32_t Count) noexcept {
+Expect<uint64_t> Executor::memoryAtomicNotify(Runtime::StackManager &StackMgr,
+                                              const uint64_t MemIdx,
+                                              const uint64_t Offset,
+                                              const uint64_t Count) noexcept {
   auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
   assuming(MemInst);
 
   return atomicNotify(*MemInst, Offset, Count);
 }
 
-Expect<uint32_t> Executor::memoryAtomicWait(Runtime::StackManager &StackMgr,
-                                            const uint32_t MemIdx,
-                                            const uint32_t Offset,
+Expect<uint64_t> Executor::memoryAtomicWait(Runtime::StackManager &StackMgr,
+                                            const uint64_t MemIdx,
+                                            const uint64_t Offset,
                                             const uint64_t Expected,
                                             const int64_t Timeout,
                                             const uint32_t BitWidth) noexcept {

@@ -71,7 +71,8 @@ private:
   Expect<void> validateConstExpr(AST::InstrView Instrs,
                                  Span<const ValType> Returns);
 
-  static inline const uint32_t LIMIT_MEMORYTYPE = 1U << 16;
+  static inline const uint64_t LIMIT_MEMORYTYPE_LIM64 = UINT64_C(1) << 48;
+  static inline const uint32_t LIMIT_MEMORYTYPE_LIM32 = UINT32_C(1) << 16;
   /// Proposal configure
   const Configure Conf;
   /// Formal checker

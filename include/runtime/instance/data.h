@@ -25,11 +25,11 @@ namespace Instance {
 class DataInstance {
 public:
   DataInstance() = delete;
-  DataInstance(const uint32_t Offset, Span<const Byte> Init) noexcept
+  DataInstance(const uint64_t Offset, Span<const Byte> Init) noexcept
       : Off(Offset), Data(Init.begin(), Init.end()) {}
 
   /// Get offset in data instance.
-  uint32_t getOffset() const noexcept { return Off; }
+  uint64_t getOffset() const noexcept { return Off; }
 
   /// Get data in data instance.
   Span<const Byte> getData() const noexcept { return Data; }
@@ -40,7 +40,7 @@ public:
 private:
   /// \name Data of data instance.
   /// @{
-  const uint32_t Off;
+  const uint64_t Off;
   std::vector<Byte> Data;
   /// @}
 };

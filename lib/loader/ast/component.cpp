@@ -42,7 +42,8 @@ Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> Loader::loadPreamble() {
   return std::make_pair(*Magic, *Ver);
 }
 
-Expect<std::variant<AST::Component::Component, AST::Module>>
+Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                    std::unique_ptr<AST::Module>>>
 Loader::loadUnit() {
   auto ResPreamble = Loader::loadPreamble();
   if (!ResPreamble) {
@@ -74,7 +75,7 @@ Loader::loadUnit() {
         return Unexpect(Res);
       }
     }
-    return *Mod;
+    return Mod;
   } else if (Ver == ComponentVersion) {
     if (!Conf.hasProposal(Proposal::Component)) {
       return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::Component,
@@ -88,7 +89,7 @@ Loader::loadUnit() {
     if (auto Res = loadComponent(*Comp); !Res) {
       return Unexpect(Res);
     }
-    return *Comp;
+    return Comp;
   } else {
     return logLoadError(ErrCode::Value::MalformedVersion, FMgr.getLastOffset(),
                         ASTNodeAttr::Component);

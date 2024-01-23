@@ -13,6 +13,7 @@
 #include "host/mock/wasmedge_process_module.h"
 #include "host/mock/wasmedge_tensorflow_module.h"
 #include "host/mock/wasmedge_tensorflowlite_module.h"
+#include <variant>
 
 namespace WasmEdge {
 namespace VM {
@@ -208,12 +209,13 @@ VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
   }
   // Load wasm unit.
   if (auto Res = LoaderEngine.parseWasmUnit(Path)) {
-    if (std::holds_alternative<AST::Module>(*Res)) {
-      return unsafeRunWasmFile(std::get<AST::Module>(*Res), Func, Params,
-                               ParamTypes);
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
+      auto M = std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
+      return unsafeRunWasmFile(*M, Func, Params, ParamTypes);
     } else {
-      return unsafeRunWasmFile(std::get<AST::Component::Component>(*Res), Func,
-                               Params, ParamTypes);
+      return unsafeRunWasmFile(
+          (*std::get<std::unique_ptr<AST::Component::Component>>(*Res)), Func,
+          Params, ParamTypes);
     }
   } else {
     return Unexpect(Res);
@@ -231,12 +233,14 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
   }
   // Load wasm unit.
   if (auto Res = LoaderEngine.parseWasmUnit(Code)) {
-    if (std::holds_alternative<AST::Module>(*Res)) {
-      return unsafeRunWasmFile(std::get<AST::Module>(*Res), Func, Params,
-                               ParamTypes);
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
+      std::unique_ptr<AST::Module> M =
+          std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
+      return unsafeRunWasmFile(*M, Func, Params, ParamTypes);
     } else {
-      return unsafeRunWasmFile(std::get<AST::Component::Component>(*Res), Func,
-                               Params, ParamTypes);
+      std::unique_ptr<AST::Component::Component> C =
+          std::move(std::get<std::unique_ptr<AST::Component::Component>>(*Res));
+      return unsafeRunWasmFile(*C, Func, Params, ParamTypes);
     }
   } else {
     return Unexpect(Res);
@@ -335,9 +339,10 @@ VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
 Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
   // If not load successfully, the previous status will be reserved.
   if (auto Res = LoaderEngine.parseWasmUnit(Path)) {
-    if (std::holds_alternative<AST::Module>(*Res)) {
-      Mod = std::make_unique<AST::Module>(std::get<AST::Module>(*Res));
-    } else if (std::holds_alternative<AST::Component::Component>(*Res)) {
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
+      Mod = std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
+    } else if (std::holds_alternative<
+                   std::unique_ptr<AST::Component::Component>>(*Res)) {
       spdlog::error("component execution is not done yet.");
     } else {
       return Unexpect(Res);
@@ -352,9 +357,10 @@ Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
 Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
   // If not load successfully, the previous status will be reserved.
   if (auto Res = LoaderEngine.parseWasmUnit(Code)) {
-    if (std::holds_alternative<AST::Module>(*Res)) {
-      Mod = std::make_unique<AST::Module>(std::get<AST::Module>(*Res));
-    } else if (std::holds_alternative<AST::Component::Component>(*Res)) {
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
+      Mod = std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
+    } else if (std::holds_alternative<
+                   std::unique_ptr<AST::Component::Component>>(*Res)) {
       spdlog::error("component execution is not done yet.");
     } else {
       return Unexpect(Res);

@@ -134,9 +134,11 @@ public:
   static Expect<std::vector<Byte>>
   loadFile(const std::filesystem::path &FilePath);
 
-  Expect<std::variant<AST::Component::Component, AST::Module>>
+  Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                      std::unique_ptr<AST::Module>>>
   parseWasmUnit(const std::filesystem::path &FilePath);
-  Expect<std::variant<AST::Component::Component, AST::Module>>
+  Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                      std::unique_ptr<AST::Module>>>
   parseWasmUnit(Span<const uint8_t> Code);
 
   /// Parse component from file path.
@@ -184,7 +186,9 @@ private:
   }
   /// @}
 
-  Expect<std::variant<AST::Component::Component, AST::Module>> loadUnit();
+  Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                      std::unique_ptr<AST::Module>>>
+  loadUnit();
   Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> loadPreamble();
 
   /// \name Load AST Component functions

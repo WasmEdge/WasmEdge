@@ -9,9 +9,10 @@
 #include <cstddef>
 #include <fstream>
 #include <limits>
-#include <string_view>
+#include <memory>
 #include <system_error>
 #include <utility>
+#include <variant>
 
 namespace WasmEdge {
 namespace Loader {
@@ -60,7 +61,8 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
   return Buf;
 }
 
-Expect<std::variant<AST::Component::Component, AST::Module>>
+Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                    std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   std::lock_guard Lock(Mutex);
   // Set path and check the header.
@@ -104,8 +106,8 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
         return Unexpect(Res);
       }
       if (auto Res = loadUnit()) {
-        if (std::holds_alternative<AST::Module>(*Res)) {
-          Mod = std::make_unique<AST::Module>(std::get<AST::Module>(*Res));
+        if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
+          Mod = std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
         }
       } else {
         spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -118,12 +120,12 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
       // If the configure is set to force interpreter mode, not to load the AOT
       // related data.
-      if (auto Res = loadCompiled(*Mod.get()); unlikely(!Res)) {
+      if (auto Res = loadCompiled(*Mod); unlikely(!Res)) {
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
       }
     }
-    return *Mod.get();
+    return Mod;
   }
   default:
     // Universal WASM, WASM, or other cases. Load and parse the module directly.
@@ -138,11 +140,11 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
       return Unit;
     case 1: // module
     default: {
-      auto Mod = std::get<AST::Module>(*Unit);
+      auto Mod = std::move(std::get<std::unique_ptr<AST::Module>>(*Unit));
       if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
         // If the configure is set to force interpreter mode, not to set the
         // symbol.
-        if (auto &Symbol = Mod.getSymbol()) {
+        if (auto &Symbol = Mod->getSymbol()) {
           *Symbol = IntrinsicsTable;
         }
       }
@@ -152,7 +154,8 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   }
 }
 
-Expect<std::variant<AST::Component::Component, AST::Module>>
+Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                    std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
   if (auto Res = FMgr.setCode(Code); !Res) {
@@ -183,12 +186,10 @@ Loader::parseWasmUnit(Span<const uint8_t> Code) {
 Expect<std::unique_ptr<AST::Module>>
 Loader::parseModule(const std::filesystem::path &FilePath) {
   if (auto R = parseWasmUnit(FilePath)) {
-    if (std::holds_alternative<AST::Module>(*R)) {
-      auto Res = std::make_unique<AST::Module>(std::get<AST::Module>(*R));
-      return Res;
-    } else {
-      return Unexpect(ErrCode::Value::MalformedVersion);
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*R)) {
+      return std::move(std::get<std::unique_ptr<AST::Module>>(*R));
     }
+    return Unexpect(ErrCode::Value::MalformedVersion);
   } else {
     return Unexpect(R);
   }
@@ -198,12 +199,10 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
 Expect<std::unique_ptr<AST::Module>>
 Loader::parseModule(Span<const uint8_t> Code) {
   if (auto R = parseWasmUnit(Code)) {
-    if (std::holds_alternative<AST::Module>(*R)) {
-      auto Res = std::make_unique<AST::Module>(std::get<AST::Module>(*R));
-      return Res;
-    } else {
-      return Unexpect(ErrCode::Value::MalformedVersion);
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*R)) {
+      return std::move(std::get<std::unique_ptr<AST::Module>>(*R));
     }
+    return Unexpect(ErrCode::Value::MalformedVersion);
   } else {
     return Unexpect(R);
   }

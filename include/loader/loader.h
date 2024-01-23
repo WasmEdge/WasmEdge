@@ -17,7 +17,6 @@
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/errinfo.h"
-#include "common/log.h"
 #include "loader/filemgr.h"
 #include "loader/ldmgr.h"
 #include "loader/serialize.h"
@@ -88,6 +87,10 @@ inline ASTNodeAttr NodeAttrFromAST<AST::Component::InstanceSection>() noexcept {
   return ASTNodeAttr::Sec_Instance;
 }
 template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::CoreTypeSection>() noexcept {
+  return ASTNodeAttr::Sec_Type;
+}
+template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::TypeSection>() noexcept {
   return ASTNodeAttr::Sec_CompType;
 }
@@ -106,6 +109,15 @@ inline ASTNodeAttr NodeAttrFromAST<AST::Component::ImportSection>() noexcept {
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::ExportSection>() noexcept {
   return ASTNodeAttr::Sec_CompExport;
+}
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::CoreModuleSection>() noexcept {
+  return ASTNodeAttr::Sec_CoreMod;
+}
+template <>
+inline ASTNodeAttr
+NodeAttrFromAST<AST::Component::ComponentSection>() noexcept {
+  return ASTNodeAttr::Sec_Comp;
 }
 
 } // namespace
@@ -187,6 +199,8 @@ private:
   /// \name Load AST Module functions
   /// @{
   Expect<void> loadModule(AST::Module &Mod);
+  Expect<void> loadModuleInBound(AST::Module &Mod,
+                                 std::optional<uint64_t> Bound);
   Expect<void> loadCompiled(AST::Module &Mod);
   /// @}
 
@@ -286,9 +300,12 @@ private:
   Expect<void> loadSection(AST::CodeSection &Sec);
   Expect<void> loadSection(AST::DataSection &Sec);
   Expect<void> loadSection(AST::DataCountSection &Sec);
+  Expect<void> loadSection(AST::Component::ComponentSection &Sec);
+  Expect<void> loadSection(AST::CoreModuleSection &Sec);
   Expect<void> loadSection(AST::Component::CoreInstanceSection &Sec);
   Expect<void> loadSection(AST::Component::InstanceSection &Sec);
   Expect<void> loadSection(AST::Component::AliasSection &Sec);
+  Expect<void> loadSection(AST::Component::CoreTypeSection &Sec);
   Expect<void> loadSection(AST::Component::TypeSection &Sec);
   Expect<void> loadSection(AST::Component::CanonSection &Sec);
   Expect<void> loadSection(AST::Component::ImportSection &Sec);
@@ -365,8 +382,8 @@ private:
   Expect<void> loadImportDecl(AST::Component::ImportDecl &Decl);
   Expect<void> loadInstanceDecl(AST::Component::InstanceDecl &Decl);
   Expect<void> loadExternDesc(AST::Component::ExternDesc &Desc);
-  Expect<void> loadImportExportName(std::string &Name);
-  Expect<void> loadImportExportNameWithLen(std::string &Name);
+  Expect<void> loadExportName(std::string &Name);
+  Expect<void> loadImportName(std::string &Name);
   Expect<void> loadStart(AST::Component::Start &S);
   Expect<void> loadCoreInstance(AST::Component::CoreInstanceExpr &InstanceExpr);
   Expect<void> loadInstance(AST::Component::InstanceExpr &InstanceExpr);

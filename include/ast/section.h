@@ -330,6 +330,19 @@ private:
   /// @}
 };
 
+class CoreTypeSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const CoreDefType> getContent() const noexcept { return Content; }
+  std::vector<CoreDefType> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of CoreTypeSection.
+  /// @{
+  std::vector<CoreDefType> Content;
+  /// @}
+};
+
 class TypeSection : public Section {
 public:
   /// Getter of content module.

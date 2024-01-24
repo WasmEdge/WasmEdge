@@ -33,9 +33,11 @@ struct Graph {
   uint64_t CtxSize;
   uint64_t BatchSize;
   uint64_t Threads;
-  // Sampleing parameters:
+  // Sampling parameters:
   double Temp;
+  double TopP;
   double RepeatPenalty;
+  double PresencePenalty;
 };
 
 struct Context {

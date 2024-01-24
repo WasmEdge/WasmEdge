@@ -123,11 +123,28 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     }
     GraphRef.Temp = std::max(0.0, GraphRef.Temp);
   }
+  if (Doc.at_key("top-p").error() == simdjson::SUCCESS) {
+    auto Err = Doc["top-p"].get<double>().get(GraphRef.TopP);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the top-p option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
   if (Doc.at_key("repeat-penalty").error() == simdjson::SUCCESS) {
     auto Err = Doc["repeat-penalty"].get<double>().get(GraphRef.RepeatPenalty);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the repeat-penalty option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("presence-penalty").error() == simdjson::SUCCESS) {
+    auto Err =
+        Doc["presence-penalty"].get<double>().get(GraphRef.PresencePenalty);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the presence-penalty option."sv);
       return ErrNo::InvalidArgument;
     }
   }
@@ -189,7 +206,9 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Initialize the sampling parameters.
   llama_sampling_params SamplingDefault;
   GraphRef.Temp = SamplingDefault.temp;
+  GraphRef.TopP = SamplingDefault.top_p;
   GraphRef.RepeatPenalty = SamplingDefault.penalty_repeat;
+  GraphRef.PresencePenalty = SamplingDefault.penalty_present;
 
   // If the graph builder length > 1, the data of builder[1] is the metadata.
   if (Builders.size() > 1) {
@@ -442,7 +461,9 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
   gpt_params GPTParams;
   GPTParams.sparams.temp = GraphRef.Temp;
+  GPTParams.sparams.top_p = GraphRef.TopP;
   GPTParams.sparams.penalty_repeat = GraphRef.RepeatPenalty;
+  GPTParams.sparams.penalty_present = GraphRef.PresencePenalty;
   struct llama_sampling_context *CtxSampling =
       llama_sampling_init(GPTParams.sparams);
   std::vector<llama_token> Embd;
@@ -649,7 +670,9 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     // Initialize the llama context.
     gpt_params GPTParams;
     GPTParams.sparams.temp = GraphRef.Temp;
+    GPTParams.sparams.top_p = GraphRef.TopP;
     GPTParams.sparams.penalty_repeat = GraphRef.RepeatPenalty;
+    GPTParams.sparams.penalty_present = GraphRef.PresencePenalty;
     CxtRef.LlamaSampling = llama_sampling_init(GPTParams.sparams);
     llama_context_params ContextParams = llama_context_default_params();
     ContextParams.n_ctx = GraphRef.CtxSize;

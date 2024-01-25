@@ -28,7 +28,11 @@ struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StackManager &,
       Fault::emitFault(Res.error());
     }
     if constexpr (std::is_same_v<RetT, RefVariant>) {
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      return *reinterpret_cast<__m128 *>((*Res).getRawData().data());
+#else
       return (*Res).getRawData();
+#endif // MSVC
     } else if constexpr (!std::is_void_v<RetT>) {
       return *Res;
     }

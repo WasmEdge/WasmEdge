@@ -24,7 +24,7 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
@@ -135,7 +135,7 @@ jobs:
       image: wasmedge/wasmedge:ubuntu-20.04-build-clang
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Grant the safe directory for git
@@ -214,7 +214,7 @@ jobs:
       image: wasmedge/wasmedge:ubuntu-build-clang-plugins-deps
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Grant the safe directory for git
@@ -474,7 +474,7 @@ jobs:
             darwin_version: darwin_21
             arch: x86_64
           - name: Plugins_MacOS_arm64
-            system: MacOS 13 (arm64)
+            system: MacOS 14 (arm64)
             host_runner: macos-14
             darwin_version: darwin_22
             arch: arm64
@@ -488,7 +488,7 @@ jobs:
     needs: create_release
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Grant the safe directory for git
@@ -630,7 +630,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Prepare tarball
         uses: actions/download-artifact@v3
         with:
@@ -686,7 +686,7 @@ jobs:
     needs: create_release
     steps:
       - name: checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Grant the safe directory for git
         run: |

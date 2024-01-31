@@ -25,6 +25,7 @@ struct Graph {
   bool EnableLog = false;
   bool EnableDebugLog = false;
   bool StreamStdout = false;
+  bool Embedding = false;
   uint64_t NPredict;
   std::string ReversePrompt;
   // Model parameters:

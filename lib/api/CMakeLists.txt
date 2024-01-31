@@ -163,38 +163,46 @@ if(WASMEDGE_BUILD_STATIC_LIB)
     wasmedge_add_static_lib_component_command(wasmedgeAOT)
   endif()
 
+  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(WASMEDGE_LIBRARY_NAME "libwasmedged.a")
+  else()
+    set(WASMEDGE_LIBRARY_NAME "libwasmedge.a")
+  endif()
+
   if(CMAKE_AR_NAME STREQUAL "libtool")
-    add_custom_command(OUTPUT "libwasmedge.a"
-      COMMAND ${CMAKE_AR} -static -o libwasmedge.a ${WASMEDGE_STATIC_LIB_LIBTOOL_FILES} $<TARGET_OBJECTS:wasmedgeCAPI>
+    add_custom_command(OUTPUT "${WASMEDGE_LIBRARY_NAME}"
+      COMMAND ${CMAKE_AR} -static -o "${WASMEDGE_LIBRARY_NAME}" ${WASMEDGE_STATIC_LIB_LIBTOOL_FILES} $<TARGET_OBJECTS:wasmedgeCAPI>
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       DEPENDS ${WASMEDGE_STATIC_LIB_DEPS} wasmedgeCAPI
     )
   else()
-    add_custom_command(OUTPUT "libwasmedge.a"
+    add_custom_command(OUTPUT "${WASMEDGE_LIBRARY_NAME}"
       ${WASMEDGE_STATIC_LIB_AR_CMDS}
       ${WASMEDGE_STATIC_LLVM_LIB_AR_CMDS}
-      COMMAND ${CMAKE_AR} -qcs libwasmedge.a $<TARGET_OBJECTS:wasmedgeCAPI> objs/*/*.o
+      COMMAND ${CMAKE_AR} -qcs "${WASMEDGE_LIBRARY_NAME}" $<TARGET_OBJECTS:wasmedgeCAPI> objs/*/*.o
       COMMAND ${CMAKE_COMMAND} -E remove_directory objs
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       DEPENDS ${WASMEDGE_STATIC_LIB_DEPS} wasmedgeCAPI
     )
   endif()
 
-  add_custom_target(wasmedge_static_target ALL DEPENDS "libwasmedge.a")
+  add_custom_target(wasmedge_static_target ALL DEPENDS "${WASMEDGE_LIBRARY_NAME}")
   add_library(wasmedge_static STATIC IMPORTED GLOBAL)
   add_dependencies(wasmedge_static wasmedge_static_target)
 
   set_target_properties(wasmedge_static
     PROPERTIES
-    IMPORTED_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/libwasmedge.a"
-    INTERFACE_INCLUDE_DIRECTORIES ${PROJECT_BINARY_DIR}/include/api
+    IMPORTED_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/${WASMEDGE_LIBRARY_NAME}"
+    INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_BINARY_DIR}/include/api"
   )
 
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libwasmedge.a
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${WASMEDGE_LIBRARY_NAME}"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
   install(FILES ${WASMEDGE_CAPI_HEADERS}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wasmedge
   )
+  install(FILES ${PROJECT_SOURCE_DIR}/cmake/wasmedge-config.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/wasmedge)
 
 endif()

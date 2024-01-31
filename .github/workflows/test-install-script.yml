@@ -175,6 +175,11 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Install zsh
+      run: |
+         eval $(/opt/homebrew/bin/brew shellenv)
+         ${{ matrix.package_manager }} install zsh
+
     - name: Install WasmEdge latest release
       run: |
         bash utils/install.sh -D

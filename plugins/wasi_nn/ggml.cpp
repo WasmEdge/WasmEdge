@@ -148,6 +148,15 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
   }
+  if (Doc.at_key("frequency-penalty").error() == simdjson::SUCCESS) {
+    auto Err =
+        Doc["frequency-penalty"].get<double>().get(GraphRef.FrequencyPenalty);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the frequency-penalty option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
 
   // Check if the model is updated.
   if (IsModelUpdated && ModelParams.n_gpu_layers != GraphRef.NGPULayers) {
@@ -209,6 +218,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.TopP = SamplingDefault.top_p;
   GraphRef.RepeatPenalty = SamplingDefault.penalty_repeat;
   GraphRef.PresencePenalty = SamplingDefault.penalty_present;
+  GraphRef.FrequencyPenalty = SamplingDefault.penalty_freq;
 
   // If the graph builder length > 1, the data of builder[1] is the metadata.
   if (Builders.size() > 1) {
@@ -464,6 +474,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   GPTParams.sparams.top_p = GraphRef.TopP;
   GPTParams.sparams.penalty_repeat = GraphRef.RepeatPenalty;
   GPTParams.sparams.penalty_present = GraphRef.PresencePenalty;
+  GPTParams.sparams.penalty_freq = GraphRef.FrequencyPenalty;
   struct llama_sampling_context *CtxSampling =
       llama_sampling_init(GPTParams.sparams);
   std::vector<llama_token> Embd;
@@ -673,6 +684,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     GPTParams.sparams.top_p = GraphRef.TopP;
     GPTParams.sparams.penalty_repeat = GraphRef.RepeatPenalty;
     GPTParams.sparams.penalty_present = GraphRef.PresencePenalty;
+    GPTParams.sparams.penalty_freq = GraphRef.FrequencyPenalty;
     CxtRef.LlamaSampling = llama_sampling_init(GPTParams.sparams);
     llama_context_params ContextParams = llama_context_default_params();
     ContextParams.n_ctx = GraphRef.CtxSize;

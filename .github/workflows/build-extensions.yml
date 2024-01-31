@@ -442,7 +442,7 @@ jobs:
             arch: x86_64
           - name: Plugins_MacOS_arm64
             system: MacOS 13 (arm64)
-            host_runner: mac-arm64
+            host_runner: macos-14
             darwin_version: darwin_22
             build_type: Release
             arch: arm64

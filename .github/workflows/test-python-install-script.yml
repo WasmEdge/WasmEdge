@@ -346,7 +346,7 @@ jobs:
       shell: zsh {0}
       run: |
          eval $(/opt/homebrew/bin/brew shellenv)
-         ${{ matrix.package_manager }} install python
+         ${{ matrix.package_manager }} install python zsh
 
     - name: Install WasmEdge latest release
       shell: zsh {0}

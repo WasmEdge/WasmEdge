@@ -754,6 +754,24 @@ private:
     std::atomic_uint32_t *StopToken;
   };
 
+  struct SavedThreadLocal {
+    SavedThreadLocal() : SavedThis(This), SavedCurrentStack(CurrentStack), SavedExecutionContext(ExecutionContext) {
+    }
+
+    SavedThreadLocal(const SavedThreadLocal &) = delete;
+    SavedThreadLocal(SavedThreadLocal &&) = delete;
+
+    ~SavedThreadLocal() {
+      This = SavedThis;
+      CurrentStack = SavedCurrentStack;
+      ExecutionContext = SavedExecutionContext;
+    }
+
+    Executor *SavedThis;
+    Runtime::StackManager *SavedCurrentStack;
+    ExecutionContextStruct SavedExecutionContext;
+  };
+
   /// Pointer to current object.
   static thread_local Executor *This;
   /// Stack for passing into compiled functions

@@ -115,6 +115,8 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
 
+    SavedThreadLocal SavedThreadLocal;
+
     {
       // Prepare the execution context.
       auto *ModInst =

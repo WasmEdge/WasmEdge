@@ -29,19 +29,19 @@ namespace {
 
 static bool
 isVoidReturn(WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
-static LLVM::Type toLLVMType(LLVM::Context &LLContext,
+static LLVM::Type toLLVMType(LLVM::Context LLContext,
                              const WasmEdge::ValType &ValType) noexcept;
 static std::vector<LLVM::Type>
-toLLVMArgsType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
+toLLVMArgsType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
                WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
 static LLVM::Type
-toLLVMRetsType(LLVM::Context &LLContext,
+toLLVMRetsType(LLVM::Context LLContext,
                WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
 static LLVM::Type
-toLLVMType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
+toLLVMType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
            const WasmEdge::AST::FunctionType &FuncType) noexcept;
 static LLVM::Value
-toLLVMConstantZero(LLVM::Context &LLContext,
+toLLVMConstantZero(LLVM::Context LLContext,
                    const WasmEdge::ValType &ValType) noexcept;
 static std::vector<LLVM::Value> unpackStruct(LLVM::Builder &Builder,
                                              LLVM::Value Struct) noexcept;
@@ -125,7 +125,7 @@ static inline LLVMCodeGenOptLevel toLLVMCodeGenLevel(
 } // namespace
 
 struct LLVM::Compiler::CompileContext {
-  LLVM::Context &LLContext;
+  LLVM::Context LLContext;
   LLVM::Module &LLModule;
   LLVM::Attribute Cold;
   LLVM::Attribute NoAlias;
@@ -202,7 +202,7 @@ struct LLVM::Compiler::CompileContext {
   std::vector<LLVM::Type> Globals;
   LLVM::Value IntrinsicsTable;
   LLVM::FunctionCallee Trap;
-  CompileContext(LLVM::Context &C, LLVM::Module &M,
+  CompileContext(LLVM::Context C, LLVM::Module &M,
                  bool IsGenericBinary) noexcept
       : LLContext(C), LLModule(M),
         Cold(LLVM::Attribute::createEnum(C, LLVM::Core::Cold, 0)),
@@ -258,7 +258,6 @@ struct LLVM::Compiler::CompileContext {
                                            "intrinsics")) {
     Trap.Ty = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
     Trap.Fn = LLModule.addFunction(Trap.Ty, LLVMPrivateLinkage, "trap");
-    Trap.Fn.setVisibility(LLVMProtectedVisibility);
     Trap.Fn.setDSOLocal(true);
     Trap.Fn.addFnAttr(NoStackArgProbe);
     Trap.Fn.addFnAttr(StrictFP);
@@ -406,7 +405,7 @@ static bool isVoidReturn(Span<const ValType> ValTypes) noexcept {
   return ValTypes.empty();
 }
 
-static LLVM::Type toLLVMType(LLVM::Context &LLContext,
+static LLVM::Type toLLVMType(LLVM::Context LLContext,
                              const ValType &ValType) noexcept {
   switch (ValType.getCode()) {
   case TypeCode::I32:
@@ -427,7 +426,7 @@ static LLVM::Type toLLVMType(LLVM::Context &LLContext,
 }
 
 static std::vector<LLVM::Type>
-toLLVMTypeVector(LLVM::Context &LLContext,
+toLLVMTypeVector(LLVM::Context LLContext,
                  Span<const ValType> ValTypes) noexcept {
   std::vector<LLVM::Type> Result;
   Result.reserve(ValTypes.size());
@@ -438,14 +437,14 @@ toLLVMTypeVector(LLVM::Context &LLContext,
 }
 
 static std::vector<LLVM::Type>
-toLLVMArgsType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
+toLLVMArgsType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
                Span<const ValType> ValTypes) noexcept {
   auto Result = toLLVMTypeVector(LLContext, ValTypes);
   Result.insert(Result.begin(), ExecCtxPtrTy);
   return Result;
 }
 
-static LLVM::Type toLLVMRetsType(LLVM::Context &LLContext,
+static LLVM::Type toLLVMRetsType(LLVM::Context LLContext,
                                  Span<const ValType> ValTypes) noexcept {
   if (isVoidReturn(ValTypes)) {
     return LLContext.getVoidTy();
@@ -461,7 +460,7 @@ static LLVM::Type toLLVMRetsType(LLVM::Context &LLContext,
   return LLVM::Type::getStructType(Result);
 }
 
-static LLVM::Type toLLVMType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
+static LLVM::Type toLLVMType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
                              const AST::FunctionType &FuncType) noexcept {
   auto ArgsTy =
       toLLVMArgsType(LLContext, ExecCtxPtrTy, FuncType.getParamTypes());
@@ -469,7 +468,7 @@ static LLVM::Type toLLVMType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
   return LLVM::Type::getFunctionType(RetTy, ArgsTy);
 }
 
-static LLVM::Value toLLVMConstantZero(LLVM::Context &LLContext,
+static LLVM::Value toLLVMConstantZero(LLVM::Context LLContext,
                                       const ValType &ValType) noexcept {
   switch (ValType.getCode()) {
   case TypeCode::I32:
@@ -4953,7 +4952,7 @@ private:
   }
 
   LLVM::Compiler::CompileContext &Context;
-  LLVM::Context &LLContext;
+  LLVM::Context LLContext;
   std::vector<std::pair<LLVM::Type, LLVM::Value>> Local;
   std::vector<LLVM::Value> Stack;
   LLVM::Value LocalInstrCount = nullptr;
@@ -5019,7 +5018,7 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   LLVM::Core::init();
 
   LLVM::Data D;
-  auto &LLContext = D.extract().LLContext;
+  auto LLContext = D.extract().LLContext();
   auto &LLModule = D.extract().LLModule;
   LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
   LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
@@ -5280,7 +5279,6 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
           FTy,
           Context->LLModule.addFunction(FTy, LLVMInternalLinkage,
                                         fmt::format("f{}"sv, FuncID).c_str())};
-      F.Fn.setVisibility(LLVMProtectedVisibility);
       F.Fn.setDSOLocal(true);
       F.Fn.addFnAttr(Context->NoStackArgProbe);
       F.Fn.addFnAttr(Context->StrictFP);

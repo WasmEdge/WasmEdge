@@ -8,6 +8,7 @@
 #include <llvm-c/Core.h>
 #include <llvm-c/Error.h>
 #include <llvm-c/Object.h>
+#include <llvm-c/Orc.h>
 #include <llvm-c/Target.h>
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Types.h>
@@ -208,16 +209,8 @@ class BasicBlock;
 class Context {
 public:
   constexpr Context(LLVMContextRef R) noexcept : Ref(R) {}
-  Context(const Context &) = delete;
-  Context &operator=(const Context &) = delete;
-  Context(Context &&C) noexcept : Context() { swap(*this, C); }
-  Context &operator=(Context &&C) noexcept {
-    swap(*this, C);
-    return *this;
-  }
-
-  Context() noexcept : Ref(LLVMContextCreate()) {}
-  ~Context() noexcept { LLVMContextDispose(Ref); }
+  Context(const Context &) = default;
+  Context &operator=(const Context &) = default;
 
   constexpr operator bool() const noexcept { return Ref != nullptr; }
   constexpr auto &unwrap() const noexcept { return Ref; }
@@ -263,7 +256,7 @@ public:
     return *this;
   }
 
-  Module(Context &C, const char *Name) noexcept
+  Module(const Context &C, const char *Name) noexcept
       : Ref(LLVMModuleCreateWithNameInContext(Name, C.unwrap())) {}
   ~Module() noexcept { LLVMDisposeModule(Ref); }
 
@@ -291,6 +284,7 @@ public:
   constexpr operator bool() const noexcept { return Ref != nullptr; }
   constexpr auto &unwrap() const noexcept { return Ref; }
   constexpr auto &unwrap() noexcept { return Ref; }
+  LLVMModuleRef release() noexcept { return std::exchange(Ref, nullptr); }
   friend void swap(Module &LHS, Module &RHS) noexcept {
     using std::swap;
     swap(LHS.Ref, RHS.Ref);
@@ -345,6 +339,7 @@ public:
   constexpr operator bool() const noexcept { return Ref != nullptr; }
   constexpr auto &unwrap() const noexcept { return Ref; }
   constexpr auto &unwrap() noexcept { return Ref; }
+  LLVMErrorRef release() noexcept { return std::exchange(Ref, nullptr); }
   friend void swap(Error &LHS, Error &RHS) noexcept {
     using std::swap;
     swap(LHS.Ref, RHS.Ref);
@@ -1819,7 +1814,8 @@ public:
     LLVMPassBuilderOptionsSetMergeFunctions(Ref, MergeFunctions);
   }
 
-  Error runPasses(Module &M, const char *Passes, TargetMachine &TM) noexcept {
+  Error runPasses(Module &M, const char *Passes,
+                  const TargetMachine &TM = nullptr) noexcept {
     return LLVMRunPasses(M.unwrap(), Passes, TM.unwrap(), Ref);
   }
 
@@ -1952,6 +1948,84 @@ public:
 
 private:
   LLVMBinaryRef Ref = nullptr;
+};
+
+class OrcThreadSafeContext {
+public:
+  constexpr OrcThreadSafeContext(LLVMOrcThreadSafeContextRef R) noexcept
+      : Ref(R) {}
+  OrcThreadSafeContext(const OrcThreadSafeContext &) = delete;
+  OrcThreadSafeContext &operator=(const OrcThreadSafeContext &) = delete;
+  OrcThreadSafeContext(OrcThreadSafeContext &&B) noexcept
+      : OrcThreadSafeContext() {
+    swap(*this, B);
+  }
+  OrcThreadSafeContext &operator=(OrcThreadSafeContext &&B) noexcept {
+    swap(*this, B);
+    return *this;
+  }
+
+  OrcThreadSafeContext() noexcept : Ref(LLVMOrcCreateNewThreadSafeContext()) {}
+  ~OrcThreadSafeContext() noexcept { LLVMOrcDisposeThreadSafeContext(Ref); }
+
+  constexpr operator bool() const noexcept { return Ref != nullptr; }
+  constexpr auto &unwrap() const noexcept { return Ref; }
+  constexpr auto &unwrap() noexcept { return Ref; }
+  LLVMOrcThreadSafeContextRef release() noexcept {
+    return std::exchange(Ref, nullptr);
+  }
+  friend void swap(OrcThreadSafeContext &LHS,
+                   OrcThreadSafeContext &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Ref, RHS.Ref);
+  }
+
+  Context getContext() noexcept {
+    return LLVMOrcThreadSafeContextGetContext(Ref);
+  }
+
+private:
+  LLVMOrcThreadSafeContextRef Ref = nullptr;
+};
+
+class OrcThreadSafeModule {
+public:
+  constexpr OrcThreadSafeModule() noexcept = default;
+  constexpr OrcThreadSafeModule(LLVMOrcThreadSafeModuleRef R) noexcept
+      : Ref(R) {}
+  OrcThreadSafeModule(const OrcThreadSafeModule &) = delete;
+  OrcThreadSafeModule &operator=(const OrcThreadSafeModule &) = delete;
+  OrcThreadSafeModule(OrcThreadSafeModule &&B) noexcept
+      : OrcThreadSafeModule() {
+    swap(*this, B);
+  }
+  OrcThreadSafeModule &operator=(OrcThreadSafeModule &&B) noexcept {
+    swap(*this, B);
+    return *this;
+  }
+
+  OrcThreadSafeModule(Module &&M, OrcThreadSafeContext &C) noexcept
+      : Ref(LLVMOrcCreateNewThreadSafeModule(M.release(), C.unwrap())) {}
+  ~OrcThreadSafeModule() noexcept { LLVMOrcDisposeThreadSafeModule(Ref); }
+
+  constexpr operator bool() const noexcept { return Ref != nullptr; }
+  constexpr auto &unwrap() const noexcept { return Ref; }
+  constexpr auto &unwrap() noexcept { return Ref; }
+  LLVMOrcThreadSafeModuleRef release() noexcept {
+    return std::exchange(Ref, nullptr);
+  }
+  friend void swap(OrcThreadSafeModule &LHS,
+                   OrcThreadSafeModule &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Ref, RHS.Ref);
+  }
+  Error withModuleDo(LLVMOrcGenericIRModuleOperationFunction F,
+                     void *Ctx) noexcept {
+    return LLVMOrcThreadSafeModuleWithModuleDo(Ref, F, Ctx);
+  }
+
+private:
+  LLVMOrcThreadSafeModuleRef Ref = nullptr;
 };
 
 } // namespace WasmEdge::LLVM

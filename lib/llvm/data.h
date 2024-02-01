@@ -6,8 +6,9 @@
 #include "llvm/data.h"
 
 struct WasmEdge::LLVM::Data::DataContext {
-  LLVM::Context LLContext;
+  LLVM::OrcThreadSafeContext TSContext;
   LLVM::Module LLModule;
   LLVM::TargetMachine TM;
-  DataContext() noexcept : LLContext(), LLModule(LLContext, "wasm") {}
+  DataContext() noexcept : TSContext(), LLModule(LLContext(), "wasm") {}
+  LLVM::Context LLContext() noexcept { return TSContext.getContext(); }
 };

@@ -251,22 +251,24 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_BUILD_A
     list(APPEND WASMEDGE_LLVM_LINK_SHARED_COMPONENTS
       rt
     )
-    if(WASMEDGE_BUILD_STATIC_LIB)
-      # Static library will forcefully turn off the LTO.
-      # Therefore, libz and libtinfo can be statically linked.
-      find_package(ZLIB REQUIRED)
-      get_filename_component(ZLIB_PATH "${ZLIB_LIBRARIES}" DIRECTORY)
-      list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS ${ZLIB_PATH}/libz.a)
-      if(NOT WASMEDGE_DISABLE_LIBTINFO)
-        list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS ${ZLIB_PATH}/libtinfo.a)
-      endif()
-    else()
-      # If not build static lib, dynamic link libz and libtinfo.
-      list(APPEND WASMEDGE_LLVM_LINK_SHARED_COMPONENTS
-        z
-      )
-      if(NOT WASMEDGE_DISABLE_LIBTINFO)
-        list(APPEND WASMEDGE_LLVM_LINK_SHARED_COMPONENTS tinfo)
+    if(WASMEDGE_PLUGIN_ZLIB)
+      if(WASMEDGE_BUILD_STATIC_LIB)
+        # Static library will forcefully turn off the LTO.
+        # Therefore, libz and libtinfo can be statically linked.
+        find_package(ZLIB REQUIRED)
+        get_filename_component(ZLIB_PATH "${ZLIB_LIBRARIES}" DIRECTORY)
+        list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS ${ZLIB_PATH}/libz.a)
+        if(NOT WASMEDGE_DISABLE_LIBTINFO)
+          list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS ${ZLIB_PATH}/libtinfo.a)
+        endif()
+      else()
+        # If not build static lib, dynamic link libz and libtinfo.
+        list(APPEND WASMEDGE_LLVM_LINK_SHARED_COMPONENTS
+          z
+        )
+        if(NOT WASMEDGE_DISABLE_LIBTINFO)
+          list(APPEND WASMEDGE_LLVM_LINK_SHARED_COMPONENTS tinfo)
+        endif()
       endif()
     endif()
   endif()

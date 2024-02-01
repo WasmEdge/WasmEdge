@@ -17,6 +17,31 @@
 #include <utility>
 #include <vector>
 
+#if LLVM_VERSION_MAJOR >= 12
+#include <llvm-c/LLJIT.h>
+#endif
+
+#if LLVM_VERSION_MAJOR < 13
+using LLVMOrcMaterializationResponsibilityRef =
+    struct LLVMOrcOpaqueMaterializationResponsibility *;
+using LLVMOrcIRTransformLayerRef = struct LLVMOrcOpaqueIRTransformLayer *;
+using LLVMOrcIRTransformLayerTransformFunction =
+    LLVMErrorRef (*)(void *Ctx, LLVMOrcThreadSafeModuleRef *ModInOut,
+                     LLVMOrcMaterializationResponsibilityRef MR) noexcept;
+using LLVMOrcGenericIRModuleOperationFunction =
+    LLVMErrorRef (*)(void *Ctx, LLVMModuleRef M) noexcept;
+static LLVMOrcIRTransformLayerRef
+LLVMOrcLLJITGetIRTransformLayer(LLVMOrcLLJITRef J) noexcept;
+static void LLVMOrcIRTransformLayerSetTransform(
+    LLVMOrcIRTransformLayerRef IRTransformLayer,
+    LLVMOrcIRTransformLayerTransformFunction TransformFunction,
+    void *Ctx) noexcept;
+static LLVMErrorRef
+LLVMOrcThreadSafeModuleWithModuleDo(LLVMOrcThreadSafeModuleRef TSM,
+                                    LLVMOrcGenericIRModuleOperationFunction F,
+                                    void *Ctx) noexcept;
+#endif
+
 #if LLVM_VERSION_MAJOR >= 13
 #include <llvm-c/Transforms/PassBuilder.h>
 #else
@@ -2028,11 +2053,130 @@ private:
   LLVMOrcThreadSafeModuleRef Ref = nullptr;
 };
 
+class OrcJITDylib {
+public:
+  constexpr OrcJITDylib() noexcept = default;
+  constexpr OrcJITDylib(LLVMOrcJITDylibRef R) noexcept : Ref(R) {}
+  OrcJITDylib(const OrcJITDylib &) = delete;
+  OrcJITDylib &operator=(const OrcJITDylib &) = delete;
+  OrcJITDylib(OrcJITDylib &&B) noexcept : OrcJITDylib() { swap(*this, B); }
+  OrcJITDylib &operator=(OrcJITDylib &&B) noexcept {
+    swap(*this, B);
+    return *this;
+  }
+
+  constexpr operator bool() const noexcept { return Ref != nullptr; }
+  constexpr auto &unwrap() const noexcept { return Ref; }
+  constexpr auto &unwrap() noexcept { return Ref; }
+  friend void swap(OrcJITDylib &LHS, OrcJITDylib &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Ref, RHS.Ref);
+  }
+
+private:
+  LLVMOrcJITDylibRef Ref = nullptr;
+};
+
+class OrcIRTransformLayer {
+public:
+  constexpr OrcIRTransformLayer() noexcept = default;
+  constexpr OrcIRTransformLayer(LLVMOrcIRTransformLayerRef R) noexcept
+      : Ref(R) {}
+  OrcIRTransformLayer(const OrcIRTransformLayer &) = delete;
+  OrcIRTransformLayer &operator=(const OrcIRTransformLayer &) = delete;
+  OrcIRTransformLayer(OrcIRTransformLayer &&B) noexcept
+      : OrcIRTransformLayer() {
+    swap(*this, B);
+  }
+  OrcIRTransformLayer &operator=(OrcIRTransformLayer &&B) noexcept {
+    swap(*this, B);
+    return *this;
+  }
+
+  constexpr operator bool() const noexcept { return Ref != nullptr; }
+  constexpr auto &unwrap() const noexcept { return Ref; }
+  constexpr auto &unwrap() noexcept { return Ref; }
+  friend void swap(OrcIRTransformLayer &LHS,
+                   OrcIRTransformLayer &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Ref, RHS.Ref);
+  }
+
+  void setTransform(LLVMOrcIRTransformLayerTransformFunction TransformFunction,
+                    void *Ctx) noexcept {
+    LLVMOrcIRTransformLayerSetTransform(Ref, TransformFunction, Ctx);
+  }
+
+private:
+  LLVMOrcIRTransformLayerRef Ref = nullptr;
+};
+
+class OrcLLJIT {
+public:
+  constexpr OrcLLJIT() noexcept = default;
+  constexpr OrcLLJIT(LLVMOrcLLJITRef R) noexcept : Ref(R) {}
+  OrcLLJIT(const OrcLLJIT &) = delete;
+  OrcLLJIT &operator=(const OrcLLJIT &) = delete;
+  OrcLLJIT(OrcLLJIT &&B) noexcept : OrcLLJIT() { swap(*this, B); }
+  OrcLLJIT &operator=(OrcLLJIT &&B) noexcept {
+    swap(*this, B);
+    return *this;
+  }
+
+  ~OrcLLJIT() noexcept { LLVMOrcDisposeLLJIT(Ref); }
+
+  constexpr operator bool() const noexcept { return Ref != nullptr; }
+  constexpr auto &unwrap() const noexcept { return Ref; }
+  constexpr auto &unwrap() noexcept { return Ref; }
+  friend void swap(OrcLLJIT &LHS, OrcLLJIT &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Ref, RHS.Ref);
+  }
+
+  static cxx20::expected<OrcLLJIT, Error> create() noexcept {
+    OrcLLJIT Result;
+    if (auto Err = LLVMOrcCreateLLJIT(&Result.Ref, nullptr)) {
+      return cxx20::unexpected(Err);
+    } else {
+      return Result;
+    }
+  }
+
+  OrcJITDylib getMainJITDylib() noexcept {
+    return LLVMOrcLLJITGetMainJITDylib(Ref);
+  }
+
+  Error addLLVMIRModule(const OrcJITDylib &L, OrcThreadSafeModule M) noexcept {
+    return LLVMOrcLLJITAddLLVMIRModule(Ref, L.unwrap(), M.release());
+  }
+
+  template <typename T>
+  cxx20::expected<T *, Error> lookup(const char *Name) noexcept {
+    LLVMOrcJITTargetAddress Addr;
+    if (auto Err = LLVMOrcLLJITLookup(Ref, &Addr, Name)) {
+      return cxx20::unexpected(Err);
+    }
+    return reinterpret_cast<T *>(Addr);
+  }
+
+  OrcIRTransformLayer getIRTransformLayer() noexcept {
+    return LLVMOrcLLJITGetIRTransformLayer(Ref);
+  }
+
+private:
+  LLVMOrcLLJITRef Ref = nullptr;
+};
+
 } // namespace WasmEdge::LLVM
 
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/Object/ObjectFile.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
+#if LLVM_VERSION_MAJOR < 13
+#include <llvm/ExecutionEngine/Orc/LLJIT.h>
+#include <llvm/Support/CBindingWrapping.h>
+#include <llvm/Support/Error.h>
+#endif
 
 namespace WasmEdge::LLVM {
 
@@ -2083,3 +2227,50 @@ bool SectionIterator::isEHFrame() const noexcept {
 }
 
 } // namespace WasmEdge::LLVM
+
+#if LLVM_VERSION_MAJOR < 13
+namespace llvm {
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::ThreadSafeModule,
+                                   LLVMOrcThreadSafeModuleRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::IRTransformLayer,
+                                   LLVMOrcIRTransformLayerRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::MaterializationResponsibility,
+                                   LLVMOrcMaterializationResponsibilityRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::LLJIT, LLVMOrcLLJITRef)
+} // namespace llvm
+
+LLVMOrcIRTransformLayerRef
+LLVMOrcLLJITGetIRTransformLayer(LLVMOrcLLJITRef J) noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  return wrap(&(unwrap(J)->getIRTransformLayer()));
+}
+void LLVMOrcIRTransformLayerSetTransform(
+    LLVMOrcIRTransformLayerRef IRTransformLayer,
+    LLVMOrcIRTransformLayerTransformFunction TransformFunction,
+    void *Ctx) noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  unwrap(IRTransformLayer)
+      ->setTransform([=](llvm::orc::ThreadSafeModule TSM,
+                         llvm::orc::MaterializationResponsibility &R)
+                         -> llvm::Expected<llvm::orc::ThreadSafeModule> {
+        LLVMOrcThreadSafeModuleRef TSMRef =
+            wrap(new llvm::orc::ThreadSafeModule(std::move(TSM)));
+        if (LLVMErrorRef Err = TransformFunction(Ctx, &TSMRef, wrap(&R))) {
+          return unwrap(Err);
+        }
+        return std::move(*unwrap(TSMRef));
+      });
+}
+
+LLVMErrorRef
+LLVMOrcThreadSafeModuleWithModuleDo(LLVMOrcThreadSafeModuleRef TSM,
+                                    LLVMOrcGenericIRModuleOperationFunction F,
+                                    void *Ctx) noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  return wrap(unwrap(TSM)->withModuleDo(
+      [&](llvm::Module &M) { return unwrap(F(Ctx, wrap(&M))); }));
+}
+#endif

@@ -66,37 +66,9 @@ public:
   const AOTSection &getAOTSection() const { return AOTSec; }
   AOTSection &getAOTSection() { return AOTSec; }
 
-  enum class Intrinsics : uint32_t {
-    kTrap,
-    kCall,
-    kCallIndirect,
-    kMemCopy,
-    kMemFill,
-    kMemGrow,
-    kMemSize,
-    kMemInit,
-    kDataDrop,
-    kTableGet,
-    kTableSet,
-    kTableCopy,
-    kTableFill,
-    kTableGrow,
-    kTableSize,
-    kTableInit,
-    kElemDrop,
-    kRefFunc,
-    kTableGetFuncSymbol,
-    kMemoryAtomicNotify,
-    kMemoryAtomicWait,
-    kCallRef,
-    kRefGetFuncSymbol,
-    kIntrinsicMax,
-  };
-  using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];
-
   /// Getter and setter of compiled symbol.
   const auto &getSymbol() const noexcept { return IntrSymbol; }
-  void setSymbol(Symbol<const IntrinsicsTable *> S) noexcept {
+  void setSymbol(Symbol<const Executable::IntrinsicsTable *> S) noexcept {
     IntrSymbol = std::move(S);
   }
 
@@ -131,7 +103,7 @@ private:
   /// \name Data of AOT.
   /// @{
   AOTSection AOTSec;
-  Symbol<const IntrinsicsTable *> IntrSymbol;
+  Symbol<const Executable::IntrinsicsTable *> IntrSymbol;
   /// @}
 
   /// \name Validated flag.

@@ -251,7 +251,7 @@ struct LLVM::Compiler::CompileContext {
         ExecCtxPtrTy(ExecCtxTy.getPointerTo()),
         IntrinsicsTableTy(LLVM::Type::getArrayType(
             Int8PtrTy,
-            static_cast<uint32_t>(AST::Module::Intrinsics::kIntrinsicMax))),
+            static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax))),
         IntrinsicsTablePtrTy(IntrinsicsTableTy.getPointerTo()),
         IntrinsicsTable(LLModule.addGlobal(IntrinsicsTablePtrTy, true,
                                            LLVMExternalLinkage, LLVM::Value(),
@@ -314,7 +314,7 @@ struct LLVM::Compiler::CompileContext {
           LLVM::BasicBlock::create(LLContext, Trap.Fn, "entry"));
       auto FnTy = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
       auto CallTrap = Builder.createCall(
-          getIntrinsic(Builder, AST::Module::Intrinsics::kTrap, FnTy),
+          getIntrinsic(Builder, Executable::Intrinsics::kTrap, FnTy),
           {Trap.Fn.getFirstParam()});
       CallTrap.addCallSiteAttribute(NoReturn);
       Builder.createUnreachable();
@@ -363,7 +363,7 @@ struct LLVM::Compiler::CompileContext {
     return Builder.createExtractValue(ExecCtx, 6);
   }
   LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
-                                    AST::Module::Intrinsics Index,
+                                    Executable::Intrinsics Index,
                                     LLVM::Type Ty) noexcept {
     const auto Value = static_cast<uint32_t>(Index);
     auto PtrTy = Ty.getPointerTo();
@@ -816,7 +816,7 @@ public:
         break;
       case OpCode::Ref__func:
         stackPush(Builder.createCall(
-            Context.getIntrinsic(Builder, AST::Module::Intrinsics::kRefFunc,
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kRefFunc,
                                  LLVM::Type::getFunctionType(Context.Int64x2Ty,
                                                              {Context.Int32Ty},
                                                              false)),
@@ -871,7 +871,7 @@ public:
         auto Idx = stackPop();
         stackPush(Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kTableGet,
+                Builder, Executable::Intrinsics::kTableGet,
                 LLVM::Type::getFunctionType(Context.Int64x2Ty,
                                             {Context.Int32Ty, Context.Int32Ty},
                                             false)),
@@ -883,7 +883,7 @@ public:
         auto Idx = stackPop();
         Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kTableSet,
+                Builder, Executable::Intrinsics::kTableSet,
                 LLVM::Type::getFunctionType(
                     Context.Int64Ty,
                     {Context.Int32Ty, Context.Int32Ty, Context.Int64x2Ty},
@@ -897,7 +897,7 @@ public:
         auto Dst = stackPop();
         Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kTableInit,
+                Builder, Executable::Intrinsics::kTableInit,
                 LLVM::Type::getFunctionType(Context.VoidTy,
                                             {Context.Int32Ty, Context.Int32Ty,
                                              Context.Int32Ty, Context.Int32Ty,
@@ -909,7 +909,7 @@ public:
       }
       case OpCode::Elem__drop: {
         Builder.createCall(
-            Context.getIntrinsic(Builder, AST::Module::Intrinsics::kElemDrop,
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kElemDrop,
                                  LLVM::Type::getFunctionType(
                                      Context.VoidTy, {Context.Int32Ty}, false)),
             {LLContext.getInt32(Instr.getTargetIndex())});
@@ -921,7 +921,7 @@ public:
         auto Dst = stackPop();
         Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kTableCopy,
+                Builder, Executable::Intrinsics::kTableCopy,
                 LLVM::Type::getFunctionType(Context.VoidTy,
                                             {Context.Int32Ty, Context.Int32Ty,
                                              Context.Int32Ty, Context.Int32Ty,
@@ -936,7 +936,7 @@ public:
         auto Val = stackPop();
         stackPush(Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kTableGrow,
+                Builder, Executable::Intrinsics::kTableGrow,
                 LLVM::Type::getFunctionType(
                     Context.Int32Ty,
                     {Context.Int32Ty, Context.Int64x2Ty, Context.Int32Ty},
@@ -946,7 +946,7 @@ public:
       }
       case OpCode::Table__size: {
         stackPush(Builder.createCall(
-            Context.getIntrinsic(Builder, AST::Module::Intrinsics::kTableSize,
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kTableSize,
                                  LLVM::Type::getFunctionType(Context.Int32Ty,
                                                              {Context.Int32Ty},
                                                              false)),
@@ -958,7 +958,7 @@ public:
         auto Val = stackPop();
         auto Off = stackPop();
         Builder.createCall(
-            Context.getIntrinsic(Builder, AST::Module::Intrinsics::kTableFill,
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kTableFill,
                                  LLVM::Type::getFunctionType(
                                      Context.Int32Ty,
                                      {Context.Int32Ty, Context.Int32Ty,
@@ -1066,7 +1066,7 @@ public:
         break;
       case OpCode::Memory__size:
         stackPush(Builder.createCall(
-            Context.getIntrinsic(Builder, AST::Module::Intrinsics::kMemSize,
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kMemSize,
                                  LLVM::Type::getFunctionType(Context.Int32Ty,
                                                              {Context.Int32Ty},
                                                              false)),
@@ -1076,7 +1076,7 @@ public:
         auto Diff = stackPop();
         stackPush(Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kMemGrow,
+                Builder, Executable::Intrinsics::kMemGrow,
                 LLVM::Type::getFunctionType(Context.Int32Ty,
                                             {Context.Int32Ty, Context.Int32Ty},
                                             false)),
@@ -1089,7 +1089,7 @@ public:
         auto Dst = stackPop();
         Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kMemInit,
+                Builder, Executable::Intrinsics::kMemInit,
                 LLVM::Type::getFunctionType(Context.VoidTy,
                                             {Context.Int32Ty, Context.Int32Ty,
                                              Context.Int32Ty, Context.Int32Ty,
@@ -1101,7 +1101,7 @@ public:
       }
       case OpCode::Data__drop: {
         Builder.createCall(
-            Context.getIntrinsic(Builder, AST::Module::Intrinsics::kDataDrop,
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kDataDrop,
                                  LLVM::Type::getFunctionType(
                                      Context.VoidTy, {Context.Int32Ty}, false)),
             {LLContext.getInt32(Instr.getTargetIndex())});
@@ -1113,7 +1113,7 @@ public:
         auto Dst = stackPop();
         Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kMemCopy,
+                Builder, Executable::Intrinsics::kMemCopy,
                 LLVM::Type::getFunctionType(Context.VoidTy,
                                             {Context.Int32Ty, Context.Int32Ty,
                                              Context.Int32Ty, Context.Int32Ty,
@@ -1129,7 +1129,7 @@ public:
         auto Off = stackPop();
         Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kMemFill,
+                Builder, Executable::Intrinsics::kMemFill,
                 LLVM::Type::getFunctionType(Context.VoidTy,
                                             {Context.Int32Ty, Context.Int32Ty,
                                              Context.Int8Ty, Context.Int32Ty},
@@ -3282,7 +3282,7 @@ public:
 
     stackPush(Builder.createCall(
         Context.getIntrinsic(
-            Builder, AST::Module::Intrinsics::kMemoryAtomicNotify,
+            Builder, Executable::Intrinsics::kMemoryAtomicNotify,
             LLVM::Type::getFunctionType(
                 Context.Int32Ty,
                 {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
@@ -3301,7 +3301,7 @@ public:
 
     stackPush(Builder.createCall(
         Context.getIntrinsic(
-            Builder, AST::Module::Intrinsics::kMemoryAtomicWait,
+            Builder, Executable::Intrinsics::kMemoryAtomicWait,
             LLVM::Type::getFunctionType(Context.Int32Ty,
                                         {Context.Int32Ty, Context.Int32Ty,
                                          Context.Int64Ty, Context.Int64Ty,
@@ -3556,7 +3556,7 @@ private:
     {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kTableGetFuncSymbol,
+              Builder, Executable::Intrinsics::kTableGetFuncSymbol,
               LLVM::Type::getFunctionType(
                   FTy.getPointerTo(),
                   {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
@@ -3615,7 +3615,7 @@ private:
 
       Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kCallIndirect,
+              Builder, Executable::Intrinsics::kCallIndirect,
               LLVM::Type::getFunctionType(Context.VoidTy,
                                           {Context.Int32Ty, Context.Int32Ty,
                                            Context.Int32Ty, Context.Int8PtrTy,
@@ -3696,7 +3696,7 @@ private:
     {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kTableGetFuncSymbol,
+              Builder, Executable::Intrinsics::kTableGetFuncSymbol,
               LLVM::Type::getFunctionType(
                   FTy.getPointerTo(),
                   {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
@@ -3749,7 +3749,7 @@ private:
 
       Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kCallIndirect,
+              Builder, Executable::Intrinsics::kCallIndirect,
               LLVM::Type::getFunctionType(Context.VoidTy,
                                           {Context.Int32Ty, Context.Int32Ty,
                                            Context.Int32Ty, Context.Int8PtrTy,
@@ -3811,7 +3811,7 @@ private:
     {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kRefGetFuncSymbol,
+              Builder, Executable::Intrinsics::kRefGetFuncSymbol,
               LLVM::Type::getFunctionType(FTy.getPointerTo(),
                                           {Context.Int64x2Ty}, false)),
           {Ref});
@@ -3868,7 +3868,7 @@ private:
 
       Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kCallRef,
+              Builder, Executable::Intrinsics::kCallRef,
               LLVM::Type::getFunctionType(
                   Context.VoidTy,
                   {Context.Int64x2Ty, Context.Int8PtrTy, Context.Int8PtrTy},
@@ -3932,7 +3932,7 @@ private:
     {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kRefGetFuncSymbol,
+              Builder, Executable::Intrinsics::kRefGetFuncSymbol,
               LLVM::Type::getFunctionType(FTy.getPointerTo(),
                                           {Context.Int64x2Ty}, false)),
           {Ref});
@@ -3983,7 +3983,7 @@ private:
 
       Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kCallRef,
+              Builder, Executable::Intrinsics::kCallRef,
               LLVM::Type::getFunctionType(
                   Context.VoidTy,
                   {Context.Int64x2Ty, Context.Int8PtrTy, Context.Int8PtrTy},
@@ -5325,7 +5325,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
 
       Builder.createCall(
           Context->getIntrinsic(
-              Builder, AST::Module::Intrinsics::kCall,
+              Builder, Executable::Intrinsics::kCall,
               LLVM::Type::getFunctionType(
                   Context->VoidTy,
                   {Context->Int32Ty, Context->Int8PtrTy, Context->Int8PtrTy},

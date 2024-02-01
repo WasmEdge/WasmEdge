@@ -15,6 +15,7 @@ if(WASMEDGE_LINK_LLVM_STATIC)
     compiler.cpp
     codegen.cpp
     data.cpp
+    jit.cpp
   )
 
   target_link_libraries(wasmedgeLLVM
@@ -50,6 +51,7 @@ else()
     compiler.cpp
     codegen.cpp
     data.cpp
+    jit.cpp
     LINK_LIBS
     wasmedgeCommon
     wasmedgeSystem

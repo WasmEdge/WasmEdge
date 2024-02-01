@@ -15,3 +15,10 @@ target_link_libraries(wasmedgeVM
   wasmedgeExecutor
   wasmedgeHostModuleWasi
 )
+
+if(WASMEDGE_USE_LLVM)
+  target_link_libraries(wasmedgeVM
+    PUBLIC
+    wasmedgeLLVM
+  )
+endif()

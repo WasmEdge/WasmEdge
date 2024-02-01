@@ -187,6 +187,9 @@ public:
     atomicNotifyAll();
   }
 
+  // [qdrvm]
+  Expect<uint32_t> dataSegmentOffset(Runtime::StackManager &StackMgr, const AST::DataSegment &DataSeg);
+
 private:
   /// Run Wasm bytecode expression for initialization.
   Expect<void> runExpression(Runtime::StackManager &StackMgr,

@@ -299,7 +299,8 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   return {};
 }
 
-Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
+Expect<void> outputWasmLibrary(LLVM::Context LLContext,
+                               const std::filesystem::path &OutputPath,
                                Span<const Byte> Data,
                                const LLVM::MemoryBuffer &OSVec) noexcept {
   std::filesystem::path SharedObjectName;
@@ -332,9 +333,8 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
     SOFile = std::move(Res);
   }
 
-  LLVM::Context Context;
   LLVM::Binary ObjFile;
-  if (auto [Res, ErrorMessage] = LLVM::Binary::create(SOFile, Context);
+  if (auto [Res, ErrorMessage] = LLVM::Binary::create(SOFile, LLContext);
       unlikely(ErrorMessage)) {
     spdlog::error("object file parse error:{}", ErrorMessage.string_view());
     return Unexpect(ErrCode::Value::IllegalPath);
@@ -506,7 +506,7 @@ namespace WasmEdge::LLVM {
 
 Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
                               std::filesystem::path OutputPath) noexcept {
-  auto &LLContext = D.extract().LLContext;
+  auto LLContext = D.extract().LLContext();
   auto &LLModule = D.extract().LLModule;
   auto &TM = D.extract().TM;
   std::filesystem::path LLPath(OutputPath);
@@ -570,7 +570,6 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
     for (auto Fn = LLModule.getFirstFunction(); Fn; Fn = Fn.getNextFunction()) {
       if (Fn.getLinkage() == LLVMInternalLinkage) {
         Fn.setLinkage(LLVMPrivateLinkage);
-        Fn.setVisibility(LLVMProtectedVisibility);
         Fn.setDSOLocal(true);
         Fn.setDLLStorageClass(LLVMDefaultStorageClass);
       }
@@ -615,7 +614,7 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
 
     if (Conf.getCompilerConfigure().getOutputFormat() ==
         CompilerConfigure::OutputFormat::Wasm) {
-      if (auto Res = outputWasmLibrary(OutputPath, WasmData, OSVec);
+      if (auto Res = outputWasmLibrary(LLContext, OutputPath, WasmData, OSVec);
           unlikely(!Res)) {
         return Unexpect(Res);
       }

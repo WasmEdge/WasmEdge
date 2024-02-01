@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/executable.h"
 #include "common/span.h"
 #include "common/symbol.h"
 #include "common/types.h"
@@ -74,15 +75,12 @@ private:
 /// AST FunctionType node.
 class FunctionType {
 public:
-  /// Function type wrapper for symbols.
-  using Wrapper = void(void *ExecCtx, void *Function, const ValVariant *Args,
-                       ValVariant *Rets);
-
   /// Constructors.
   FunctionType() = default;
   FunctionType(Span<const ValType> P, Span<const ValType> R)
       : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()) {}
-  FunctionType(Span<const ValType> P, Span<const ValType> R, Symbol<Wrapper> S)
+  FunctionType(Span<const ValType> P, Span<const ValType> R,
+               Symbol<Executable::Wrapper> S)
       : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()),
         WrapSymbol(std::move(S)) {}
 
@@ -112,14 +110,16 @@ public:
 
   /// Getter and setter of symbol.
   const auto &getSymbol() const noexcept { return WrapSymbol; }
-  void setSymbol(Symbol<Wrapper> S) noexcept { WrapSymbol = std::move(S); }
+  void setSymbol(Symbol<Executable::Wrapper> S) noexcept {
+    WrapSymbol = std::move(S);
+  }
 
 private:
   /// \name Data of FunctionType.
   /// @{
   std::vector<ValType> ParamTypes;
   std::vector<ValType> ReturnTypes;
-  Symbol<Wrapper> WrapSymbol;
+  Symbol<Executable::Wrapper> WrapSymbol;
   /// @}
 };
 

@@ -371,7 +371,7 @@ jobs:
       - name: Build and install dependencies
         run: |
           yum update -y
-          yum install -y zlib-devel zlib-static cmake curl wget unzip yasm
+          yum install -y zlib-devel zlib-static cmake curl wget unzip
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
           source "$HOME/.cargo/env"
           bash ./utils/wasi-crypto/build-openssl.sh

@@ -361,7 +361,7 @@ jobs:
       - name: Build and install dependencies
         run: |
           yum update -y
-          yum install -y zlib-devel zlib-static cmake curl yasm
+          yum install -y zlib-devel zlib-static cmake curl
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
           bash ./utils/wasi-crypto/build-openssl.sh
           # Running tests of wasm_bpf requires proper ebpf running environment

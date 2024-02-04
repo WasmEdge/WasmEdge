@@ -213,6 +213,7 @@ jobs:
           apt install -y libelf-dev zlib1g-dev pkg-config
           apt install -y clang-15
           apt install -y cargo
+          apt install -y yasm
           # Running tests of wasm_bpf requires proper ebpf running environment
           mount -t debugfs none /sys/kernel/debug
           bash utils/ffmpeg/install-ffmpeg-v6.0.sh
@@ -360,7 +361,7 @@ jobs:
       - name: Build and install dependencies
         run: |
           yum update -y
-          yum install -y zlib-devel zlib-static cmake curl
+          yum install -y zlib-devel zlib-static cmake curl yasm
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
           bash ./utils/wasi-crypto/build-openssl.sh
           # Running tests of wasm_bpf requires proper ebpf running environment

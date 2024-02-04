@@ -226,6 +226,7 @@ jobs:
           apt install -y libssl-dev cmake g++ wget unzip
           apt install -y libelf-dev zlib1g-dev pkg-config
           apt install -y cargo
+          apt install -y yasm
           bash utils/ffmpeg/install-ffmpeg-v6.0.sh
       - name: Build plugins
         shell: bash
@@ -370,7 +371,7 @@ jobs:
       - name: Build and install dependencies
         run: |
           yum update -y
-          yum install -y zlib-devel zlib-static cmake curl wget unzip
+          yum install -y zlib-devel zlib-static cmake curl wget unzip yasm
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
           source "$HOME/.cargo/env"
           bash ./utils/wasi-crypto/build-openssl.sh

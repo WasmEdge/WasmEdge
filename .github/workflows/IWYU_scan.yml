@@ -35,8 +35,6 @@ permissions:
   contents: read
 jobs:
   get_version:
-    permissions:
-      contents: read
     name: Retrieve version information
     runs-on: ubuntu-latest
     outputs:

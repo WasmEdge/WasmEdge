@@ -47,13 +47,9 @@ jobs:
   # TODO: Refactor `lint` with `on.workflow_run`
   # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
   lint:
-    permissions:
-      contents: read
     uses: ./.github/workflows/reusable-call-linter.yml
 
   get_version:
-    permissions:
-      contents: read
     needs: lint
     name: Retrieve version information
     runs-on: ubuntu-latest

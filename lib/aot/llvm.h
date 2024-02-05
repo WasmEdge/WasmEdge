@@ -172,7 +172,7 @@ private:
     StrictFP = getEnumAttributeKind("strictfp"sv);
     UWTable = getEnumAttributeKind("uwtable"sv);
 
-    InvariantGroup = getMetadataKind("invariant.group");
+    InvariantGroup = getMetadataKind("invariant.group"sv);
   }
 
   template <typename... ArgsT>
@@ -839,10 +839,10 @@ public:
                               uint64_t Val) noexcept {
     return LLVMCreateEnumAttribute(C.unwrap(), KindID, Val);
   }
-  static Attribute createString(Context &C, std::string_view KindID,
+  static Attribute createString(Context &C, std::string_view Kind,
                                 std::string_view Val) noexcept {
     return LLVMCreateStringAttribute(
-        C.unwrap(), KindID.data(), static_cast<unsigned int>(KindID.size()),
+        C.unwrap(), Kind.data(), static_cast<unsigned int>(Kind.size()),
         Val.data(), static_cast<unsigned int>(Val.size()));
   }
 
@@ -863,7 +863,9 @@ Value Module::addGlobal(Type Ty, bool IsConstant, LLVMLinkage Linkage,
   Value G = LLVMAddGlobal(Ref, Ty.unwrap(), Name);
   G.setLinkage(Linkage);
   G.setGlobalConstant(IsConstant);
-  G.setInitializer(Initializer);
+  if (Initializer) {
+    G.setInitializer(Initializer);
+  }
   return G;
 }
 

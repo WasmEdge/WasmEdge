@@ -372,8 +372,9 @@ struct WasmEdge::AOT::Compiler::CompileContext {
         NoInline(LLVM::Attribute::createEnum(C, LLVM::Core::NoInline, 0)),
         NoReturn(LLVM::Attribute::createEnum(C, LLVM::Core::NoReturn, 0)),
         ReadOnly(LLVM::Attribute::createEnum(C, LLVM::Core::ReadOnly, 0)),
-        StrictFP(LLVM::Attribute::createEnum(C, LLVM::Core::StrictFP, 1)),
-        UWTable(LLVM::Attribute::createEnum(C, LLVM::Core::UWTable, 0)),
+        StrictFP(LLVM::Attribute::createEnum(C, LLVM::Core::StrictFP, 0)),
+        // UWTable::Default = 2
+        UWTable(LLVM::Attribute::createEnum(C, LLVM::Core::UWTable, 2)),
         NoStackArgProbe(
             LLVM::Attribute::createString(C, "no-stack-arg-probe"sv, {})),
         VoidTy(LLContext.getVoidTy()), Int8Ty(LLContext.getInt8Ty()),

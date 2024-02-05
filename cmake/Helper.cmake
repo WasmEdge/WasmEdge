@@ -69,6 +69,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-documentation-unknown-command
     -Wno-error=nested-anon-types
     -Wno-error=old-style-cast
+    -Wno-error=shadow
     -Wno-error=unused-command-line-argument
     -Wno-error=unknown-warning-option
     -Wno-ctad-maybe-unsupported
@@ -80,6 +81,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-signed-enum-bitfield
     -Wno-switch-enum
     -Wno-undefined-func-template
+    -Wno-deprecated-literal-operator
   )
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0.0)
     list(APPEND WASMEDGE_CFLAGS
@@ -97,7 +99,6 @@ if(WIN32)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_ENABLE_EXTENDED_ALIGNED_STORAGE -DNOMINMAX -D_ITERATOR_DEBUG_LEVEL=0)
   if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     list(APPEND WASMEDGE_CFLAGS
-      "/EHa"
       -Wno-c++98-compat
       -Wno-c++98-compat-pedantic
       -Wno-exit-time-destructors

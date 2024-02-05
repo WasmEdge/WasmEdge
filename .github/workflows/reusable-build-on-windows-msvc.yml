@@ -28,7 +28,7 @@ jobs:
         uses: crazy-max/ghaction-chocolatey@v3
         with:
           args: install cmake ninja vswhere
-      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
+      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
         with:
           sdk-version: 19041
       - name: Set environment variables for release

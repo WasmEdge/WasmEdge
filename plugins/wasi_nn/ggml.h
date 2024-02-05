@@ -22,22 +22,24 @@ struct Graph {
   llama_model *LlamaModel = nullptr;
   std::string ModelFilePath;
   // Plugin parameters:
-  bool EnableLog;
-  bool EnableDebugLog;
-  bool StreamStdout;
+  bool EnableLog = false;
+  bool EnableDebugLog = false;
+  bool StreamStdout = false;
+  bool Embedding = false;
   uint64_t NPredict;
   std::string ReversePrompt;
   // Model parameters:
-  int64_t NGPULayers;
+  int64_t NGPULayers = 0;
   // Context parameters:
   uint64_t CtxSize;
   uint64_t BatchSize;
   uint64_t Threads;
   // Sampling parameters:
-  double Temp;
-  double TopP;
-  double RepeatPenalty;
-  double PresencePenalty;
+  double Temp = 0.80;
+  double TopP = 0.95;
+  double RepeatPenalty = 1.10;
+  double PresencePenalty = 0.00;
+  double FrequencyPenalty = 0.00;
 };
 
 struct Context {

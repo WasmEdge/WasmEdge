@@ -286,6 +286,10 @@ private:
 
   /// \name Helper Functions for getting instances.
   /// @{
+  /// Helper function for get function instance by index.
+  Runtime::Instance::FunctionInstance *
+  getFuncInstByIdx(Runtime::StackManager &StackMgr, const uint32_t Idx) const;
+
   /// Helper function for get table instance by index.
   Runtime::Instance::TableInstance *
   getTabInstByIdx(Runtime::StackManager &StackMgr, const uint32_t Idx) const;
@@ -653,7 +657,6 @@ public:
                        const uint32_t SrcOff, const uint32_t Len) noexcept;
   Expect<void> dataDrop(Runtime::StackManager &StackMgr,
                         const uint32_t DataIdx) noexcept;
-
   Expect<RefVariant> tableGet(Runtime::StackManager &StackMgr,
                               const uint32_t TableIdx,
                               const uint32_t Off) noexcept;

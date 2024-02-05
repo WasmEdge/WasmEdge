@@ -18,17 +18,17 @@ struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StackManager &,
                                                         ArgsT...) noexcept> {
   template <Expect<RetT> (Executor::*Func)(Runtime::StackManager &,
                                            ArgsT...) noexcept>
-  static auto proxy(ArgsT... Args)
-#if !WASMEDGE_OS_WINDOWS
-      noexcept
-#endif
-  {
+  static auto proxy(ArgsT... Args) {
     Expect<RetT> Res = (This->*Func)(*CurrentStack, Args...);
     if (unlikely(!Res)) {
       Fault::emitFault(Res.error());
     }
     if constexpr (std::is_same_v<RetT, RefVariant>) {
-      return (*Res).Ptr;
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+      return *reinterpret_cast<__m128 *>((*Res).getRawData().data());
+#else
+      return (*Res).getRawData();
+#endif // MSVC
     } else if constexpr (!std::is_void_v<RetT>) {
       return *Res;
     }
@@ -90,8 +90,7 @@ Expect<void> Executor::trap(Runtime::StackManager &,
 Expect<void> Executor::call(Runtime::StackManager &StackMgr,
                             const uint32_t FuncIdx, const ValVariant *Args,
                             ValVariant *Rets) noexcept {
-  const auto *ModInst = StackMgr.getModule();
-  const auto *FuncInst = *ModInst->getFunc(FuncIdx);
+  const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());
@@ -327,10 +326,11 @@ Expect<void> Executor::tableCopy(Runtime::StackManager &StackMgr,
   auto *TabInstSrc = getTabInstByIdx(StackMgr, TableIdxSrc);
   assuming(TabInstSrc);
 
-  if (auto Refs = TabInstSrc->getRefs(SrcOff, Len); unlikely(!Refs)) {
+  if (auto Refs = TabInstSrc->getRefs(0, SrcOff + Len); unlikely(!Refs)) {
     return Unexpect(Refs);
   } else {
-    if (auto Res = TabInstDst->setRefs(*Refs, DstOff, 0, Len); unlikely(!Res)) {
+    if (auto Res = TabInstDst->setRefs(*Refs, DstOff, SrcOff, Len);
+        unlikely(!Res)) {
       return Unexpect(Res);
     }
   }
@@ -400,11 +400,9 @@ Expect<void> Executor::elemDrop(Runtime::StackManager &StackMgr,
 
 Expect<RefVariant> Executor::refFunc(Runtime::StackManager &StackMgr,
                                      const uint32_t FuncIdx) noexcept {
-  const auto *ModInst = StackMgr.getModule();
-  assuming(ModInst);
-  const auto FuncInst = ModInst->getFunc(FuncIdx);
-  assuming(FuncInst && *FuncInst);
-  return RefVariant(*FuncInst);
+  auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
+  assuming(FuncInst);
+  return RefVariant(FuncInst);
 }
 
 Expect<uint32_t> Executor::memoryAtomicNotify(Runtime::StackManager &StackMgr,

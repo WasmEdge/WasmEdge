@@ -169,6 +169,9 @@ public:
     return CustomSecs;
   }
   CoreModuleSection &getCoreModuleSection() noexcept { return CoreModSec; }
+  const CoreModuleSection &getCoreModuleSection() const noexcept {
+    return CoreModSec;
+  }
   std::vector<CoreInstanceSection> &getCoreInstanceSection() noexcept {
     return CoreInstSec;
   }
@@ -176,6 +179,9 @@ public:
     return CoreTypeSec;
   }
   ComponentSection &getComponentSection() noexcept { return CompSec; }
+  const ComponentSection &getComponentSection() const noexcept {
+    return CompSec;
+  }
   std::vector<InstanceSection> &getInstanceSection() noexcept {
     return InstSec;
   }

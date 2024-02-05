@@ -15,7 +15,6 @@
 #pragma once
 
 #include "common/errcode.h"
-
 #include <csetjmp>
 
 namespace WasmEdge {

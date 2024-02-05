@@ -11,6 +11,9 @@ on:
       upload_asset_url:
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   build_fedora:
     permissions:

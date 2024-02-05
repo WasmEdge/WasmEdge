@@ -40,19 +40,15 @@ on:
       - "utils/wasi-crypto/**"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   # TODO: Refactor `lint` with `on.workflow_run`
   # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
   lint:
-    permissions:
-      contents: read
     uses: ./.github/workflows/reusable-call-linter.yml
 
   get_version:
-    permissions:
-      contents: read
     name: Retrieve version information
     needs: lint
     runs-on: ubuntu-latest
@@ -75,6 +71,8 @@ jobs:
 
   # Due to the dependencies and exclusions of WASI-NN, build them saperately.
   build_ubuntu_wasi_nn:
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
@@ -170,6 +168,8 @@ jobs:
           path: plugin_wasi_nn-ggml.tar.gz
 
   build_ubuntu:
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
@@ -290,6 +290,8 @@ jobs:
 
   # Due to the dependencies and exclusions of WASI-NN, build them saperately.
   build_wasinn_manylinux:
+    permissions:
+      contents: write
     name: WASI-NN (manylinux, g++, Release)
     needs: get_version
     uses: ./.github/workflows/reusable-build-extensions.yml
@@ -425,6 +427,8 @@ jobs:
           path: plugin_wasmedge_zlib.tar.gz
 
   build_macos:
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:

@@ -9,6 +9,8 @@ on:
       release:
         type: boolean
 
+permissions:
+  contents: read
 jobs:
   create_source_tarball:
     permissions:

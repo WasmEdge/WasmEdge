@@ -32,6 +32,10 @@ public:
     uint32_t StackEraseEnd;
     int32_t PCOffset;
   };
+  struct BrCastDescriptor {
+    struct JumpDescriptor Jump;
+    ValType RType1, RType2;
+  };
 
 public:
   /// Constructor assigns the OpCode and the Offset.
@@ -46,10 +50,11 @@ public:
 #endif
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
+    Flags.IsAllocBrCast = false;
   }
 
   /// Copy constructor.
-  Instruction(const Instruction &Instr)
+  Instruction(const Instruction &Instr) noexcept
       : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
         Flags(Instr.Flags) {
     if (Flags.IsAllocLabelList) {
@@ -60,15 +65,18 @@ public:
       Data.SelectT.ValTypeList = new ValType[Data.SelectT.ValTypeListSize];
       std::copy_n(Instr.Data.SelectT.ValTypeList, Data.SelectT.ValTypeListSize,
                   Data.SelectT.ValTypeList);
+    } else if (Flags.IsAllocBrCast) {
+      Data.BrCast = new BrCastDescriptor(*Instr.Data.BrCast);
     }
   }
 
   /// Move constructor.
-  Instruction(Instruction &&Instr)
+  Instruction(Instruction &&Instr) noexcept
       : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
         Flags(Instr.Flags) {
     Instr.Flags.IsAllocLabelList = false;
     Instr.Flags.IsAllocValTypeList = false;
+    Instr.Flags.IsAllocBrCast = false;
   }
 
   /// Destructor.
@@ -198,18 +206,31 @@ public:
 #endif
   }
 
+  /// Getter and setter of BrCast info for Br_cast instructions.
+  void setBrCast(uint32_t LabelIdx) {
+    reset();
+    Data.BrCast = new BrCastDescriptor();
+    Data.BrCast->Jump.TargetIndex = LabelIdx;
+    Flags.IsAllocBrCast = true;
+  }
+  const BrCastDescriptor &getBrCast() const noexcept { return *Data.BrCast; }
+  BrCastDescriptor &getBrCast() noexcept { return *Data.BrCast; }
+
 private:
   /// Release allocated resources.
-  void reset() {
+  void reset() noexcept {
     if (Flags.IsAllocLabelList) {
       Data.BrTable.LabelListSize = 0;
       delete[] Data.BrTable.LabelList;
     } else if (Flags.IsAllocValTypeList) {
       Data.SelectT.ValTypeListSize = 0;
       delete[] Data.SelectT.ValTypeList;
+    } else if (Flags.IsAllocBrCast) {
+      delete Data.BrCast;
     }
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
+    Flags.IsAllocBrCast = false;
   }
 
   /// Swap function.
@@ -268,12 +289,15 @@ private:
 #endif
     // Type 9: IsLast.
     bool IsLast;
+    // Type 10: TypeCastBranch.
+    BrCastDescriptor *BrCast;
   } Data;
   uint32_t Offset = 0;
   OpCode Code = OpCode::End;
   struct {
     bool IsAllocLabelList : 1;
     bool IsAllocValTypeList : 1;
+    bool IsAllocBrCast : 1;
   } Flags;
   /// @}
 };

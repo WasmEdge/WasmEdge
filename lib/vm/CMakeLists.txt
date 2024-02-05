@@ -17,6 +17,10 @@ target_link_libraries(wasmedgeVM
 )
 
 if(WASMEDGE_USE_LLVM)
+  target_compile_definitions(wasmedgeVM
+    PUBLIC
+    -DWASMEDGE_USE_LLVM
+  )
   target_link_libraries(wasmedgeVM
     PUBLIC
     wasmedgeLLVM

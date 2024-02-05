@@ -403,6 +403,7 @@ Expect<void> VM::unsafeInstantiate() {
 
   if (Mod) {
     if (Conf.getRuntimeConfigure().isEnableJIT() && !Mod->getSymbol()) {
+#ifdef WASMEDGE_USE_LLVM
       LLVM::Compiler Compiler(Conf);
       LLVM::JIT JIT(Conf);
       if (auto Res = Compiler.compile(*Mod); !Res) {
@@ -417,6 +418,9 @@ Expect<void> VM::unsafeInstantiate() {
       } else {
         LoaderEngine.loadExecutable(*Mod, std::move(*Res2));
       }
+#else
+      spdlog::error("LLVM disabled, JIT is unsupported!");
+#endif
     }
   }
 

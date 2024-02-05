@@ -131,23 +131,26 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       prepare(StackMgr, ModInst->MemoryPtrs.data(), ModInst->GlobalPtrs.data());
     }
 
+    ErrCode Err;
     try {
       // Get symbol and execute the function.
       Fault FaultHandler;
       uint32_t Code = PREPARE_FAULT(FaultHandler);
       if (Code != 0) {
-        throw ErrCode(static_cast<ErrCategory>(Code >> 24), Code);
+        Err = ErrCode(static_cast<ErrCategory>(Code >> 24), Code);
+      } else {
+        auto &Wrapper = FuncType.getSymbol();
+        Wrapper(&ExecutionContext, Func.getSymbol().get(), Args.data(),
+                Rets.data());
       }
-      auto &Wrapper = FuncType.getSymbol();
-      Wrapper(&ExecutionContext, Func.getSymbol().get(), Args.data(),
-              Rets.data());
-    } catch (const ErrCode &Err) {
-      if (unlikely(Err != ErrCode::Value::Success)) {
-        if (Err != ErrCode::Value::Terminated) {
-          spdlog::error(Err);
-        }
-        return Unexpect(Err);
+    } catch (const ErrCode &E) {
+      Err = E;
+    }
+    if (unlikely(Err)) {
+      if (Err != ErrCode::Value::Terminated) {
+        spdlog::error(Err);
       }
+      return Unexpect(Err);
     }
 
     // Push returns back to stack.

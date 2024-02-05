@@ -43,7 +43,7 @@ else()
 
   # Command line warning D9025 : overriding '/EHs' with '/EHs-'
   # prevent LLVM from adding /EHs-c-.
-  if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  if(WIN32)
     set(LLVM_REQUIRES_EH ON)
   endif()
 
@@ -93,8 +93,10 @@ if(SUPPORT_EXCLUDE_LIBS)
   file(GLOB LLD_ALL_LIBS ${LLVM_LIBRARY_DIR}/liblld*.a)
   list(TRANSFORM LLD_ALL_LIBS REPLACE "^.*/" "")
   string(JOIN : LLD_ALL_LIBS_COLON ${LLD_ALL_LIBS})
-  target_link_options(wasmedgeAOT
-    PUBLIC
-    "SHELL:-Wl,--exclude-libs=${LLD_ALL_LIBS_COLON}"
-  )
+  if(NOT LLD_ALL_LIBS_COLON STREQUAL "")
+    target_link_options(wasmedgeAOT
+      PUBLIC
+      "SHELL:-Wl,--exclude-libs=${LLD_ALL_LIBS_COLON}"
+    )
+  endif()
 endif()

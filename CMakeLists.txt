@@ -9,8 +9,8 @@ endif()
 
 include(cmake/HunterGate.cmake)
 HunterGate(
-  URL  https://github.com/qdrvm/hunter/archive/refs/tags/v0.25.3-qdrvm1.zip
-  SHA1 8c0faf2b0d643a97e00dd0520d66fe2faaf5e573
+  URL  https://github.com/qdrvm/hunter/archive/b6c44ccfd5d9d0e87628737303084b4cfa9e200e.zip
+  SHA1 cecd3a154449c1b39fcf5dfaf1bed2c6bce0f67a
   LOCAL
 )
 

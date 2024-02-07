@@ -194,7 +194,7 @@ Expect<void> Loader::loadSection(AST::Component::ComponentSection &Sec) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
     return Unexpect(Res);
   }
-  Sec.getContent().push_back(NestedComp);
+  Sec.getContent() = NestedComp;
   return {};
 }
 
@@ -224,7 +224,7 @@ Expect<void> Loader::loadSection(AST::CoreModuleSection &Sec) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
       return Unexpect(Res);
     }
-    Sec.getContent().push_back(CoreMod);
+    Sec.getContent() = CoreMod;
     return {};
   });
 }
@@ -264,6 +264,12 @@ Expect<void> Loader::loadSection(AST::Component::TypeSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
         Sec, [this](AST::Component::DefType &Ty) { return loadType(Ty); });
+  });
+}
+
+Expect<void> Loader::loadSection(AST::Component::StartSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
+    return loadStart(Sec.getContent());
   });
 }
 

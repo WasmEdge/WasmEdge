@@ -372,13 +372,13 @@ private:
 class StartSection : public Section {
 public:
   /// Getter of content module.
-  Span<const Start> getContent() const noexcept { return Content; }
-  std::vector<Start> &getContent() noexcept { return Content; }
+  const Start &getContent() const noexcept { return Content; }
+  Start &getContent() noexcept { return Content; }
 
 private:
   /// \name Data of StartSection.
   /// @{
-  std::vector<Start> Content;
+  Start Content;
   /// @}
 };
 
@@ -411,18 +411,13 @@ private:
 class Component;
 
 class ComponentSection : public Section {
-
 public:
   /// Getter of content.
-  Span<const std::shared_ptr<Component>> getContent() const noexcept {
-    return Content;
-  }
-  std::vector<std::shared_ptr<Component>> &getContent() noexcept {
-    return Content;
-  }
+  const Component &getContent() const noexcept { return *Content; }
+  std::shared_ptr<Component> getContent() noexcept { return Content; }
 
 private:
-  std::vector<std::shared_ptr<Component>> Content;
+  std::shared_ptr<Component> Content;
 };
 
 } // namespace Component

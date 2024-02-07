@@ -20,10 +20,10 @@ Expect<void> Validator::validate(const AST::Component::Component &Comp) {
 
   for (auto &Sec : Comp.getSections()) {
     if (std::holds_alternative<AST::CoreModuleSection>(Sec)) {
-      auto Mod = std::get<AST::CoreModuleSection>(Sec).getContent();
+      auto &Mod = std::get<AST::CoreModuleSection>(Sec).getContent();
       validate(Mod);
     } else if (std::holds_alternative<ComponentSection>(Sec)) {
-      auto C = std::get<ComponentSection>(Sec).getContent();
+      auto &C = std::get<ComponentSection>(Sec).getContent();
       validate(C);
     } else {
       // TODO: validate others section

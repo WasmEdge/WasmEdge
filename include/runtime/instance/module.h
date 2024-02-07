@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/runtime/instance/module.h - Module Instance definition ---===//
 //
@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/type.h"
+#include "ast/module.h"
 #include "ast/type.h"
 #include "common/errcode.h"
 #include "runtime/hostfunc.h"
@@ -66,6 +68,8 @@ inline constexpr const bool IsInstanceV =
     IsEntityV<T> || std::is_same_v<T, Instance::ElementInstance> ||
     std::is_same_v<T, Instance::DataInstance>;
 } // namespace
+
+class ComponentInstance;
 
 class ModuleInstance {
 public:
@@ -180,6 +184,10 @@ public:
     return std::forward<CallbackT>(CallBack)(ExpFuncs);
   }
   template <typename CallbackT>
+  auto unsafeGetFuncExports(CallbackT &&CallBack) const noexcept {
+    return std::forward<CallbackT>(CallBack)(ExpFuncs);
+  }
+  template <typename CallbackT>
   auto getTableExports(CallbackT &&CallBack) const noexcept {
     std::shared_lock Lock(Mutex);
     return std::forward<CallbackT>(CallBack)(ExpTables);
@@ -202,6 +210,7 @@ public:
 
 protected:
   friend class Executor::Executor;
+  friend class ComponentInstance;
   friend class Runtime::CallingFrame;
 
   /// Create and copy the defined type to this module instance.

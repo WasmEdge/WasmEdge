@@ -45,9 +45,9 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   }
 
   // Instantiate Function Types in Module Instance. (TypeSec)
-  for (auto &FuncType : Mod.getTypeSection().getContent()) {
-    // Copy param and return lists to module instance.
-    ModInst->addFuncType(FuncType);
+  for (auto &SubType : Mod.getTypeSection().getContent()) {
+    // Copy defined types to module instance.
+    ModInst->addDefinedType(SubType);
   }
 
   // Instantiate ImportSection and do import matching. (ImportSec)
@@ -70,18 +70,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // This function will always success.
   instantiate(*ModInst, MemSec);
 
-  // Add a temp module to Store with only imported globals for initialization.
-  std::unique_ptr<Runtime::Instance::ModuleInstance> TmpModInst =
-      std::make_unique<Runtime::Instance::ModuleInstance>("");
-  for (uint32_t I = 0; I < ModInst->getGlobalImportNum(); ++I) {
-    TmpModInst->importGlobal(*(ModInst->getGlobal(I)));
-  }
-  for (uint32_t I = 0; I < ModInst->getFuncNum(); ++I) {
-    TmpModInst->importFunction(*(ModInst->getFunc(I)));
-  }
-
-  // Push a new frame {TmpModInst:{globaddrs}, locals:none}
-  StackMgr.pushFrame(TmpModInst.get(), AST::InstrView::iterator(), 0, 0);
+  // Push a new frame {ModInst, locals:none}
+  StackMgr.pushFrame(ModInst.get(), AST::InstrView::iterator(), 0, 0);
 
   // Instantiate GlobalSection (GlobalSec)
   const AST::GlobalSection &GlobSec = Mod.getGlobalSection();
@@ -101,16 +91,10 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
     return Unexpect(Res);
   }
 
-  // Pop frame with the temp. module.
-  StackMgr.popFrame();
-
   // Instantiate ExportSection (ExportSec)
   const AST::ExportSection &ExportSec = Mod.getExportSection();
   // This function will always success.
   instantiate(*ModInst, ExportSec);
-
-  // Push a new frame {ModInst, locals:none}
-  StackMgr.pushFrame(ModInst.get(), AST::InstrView::iterator(), 0, 0);
 
   // Instantiate ElementSection (ElemSec)
   const AST::ElementSection &ElemSec = Mod.getElementSection();

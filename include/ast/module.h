@@ -143,15 +143,22 @@ private:
 class CoreModuleSection : public Section {
 public:
   /// Getter of content.
-  Span<const Module> getContent() const noexcept { return Content; }
-  std::vector<Module> &getContent() noexcept { return Content; }
+  const Module &getContent() const noexcept { return Content; }
+  Module &getContent() noexcept { return Content; }
 
 private:
-  std::vector<Module> Content;
+  Module Content;
 };
 
 namespace Component {
+
 class Component {
+  using Section =
+      std::variant<CustomSection, CoreModuleSection, CoreInstanceSection,
+                   CoreTypeSection, ComponentSection, InstanceSection,
+                   AliasSection, TypeSection, CanonSection, StartSection,
+                   ImportSection, ExportSection>;
+
 public:
   /// Getter of magic vector.
   const std::vector<Byte> &getMagic() const noexcept { return Magic; }
@@ -165,32 +172,8 @@ public:
   const std::vector<Byte> &getLayer() const noexcept { return Layer; }
   std::vector<Byte> &getLayer() noexcept { return Layer; }
 
-  std::vector<CustomSection> &getCustomSections() noexcept {
-    return CustomSecs;
-  }
-  CoreModuleSection &getCoreModuleSection() noexcept { return CoreModSec; }
-  const CoreModuleSection &getCoreModuleSection() const noexcept {
-    return CoreModSec;
-  }
-  std::vector<CoreInstanceSection> &getCoreInstanceSection() noexcept {
-    return CoreInstSec;
-  }
-  std::vector<CoreTypeSection> &getCoreTypeSection() noexcept {
-    return CoreTypeSec;
-  }
-  ComponentSection &getComponentSection() noexcept { return CompSec; }
-  const ComponentSection &getComponentSection() const noexcept {
-    return CompSec;
-  }
-  std::vector<InstanceSection> &getInstanceSection() noexcept {
-    return InstSec;
-  }
-  std::vector<AliasSection> &getAliasSection() noexcept { return AliasSec; }
-  std::vector<TypeSection> &getTypeSection() noexcept { return TySec; }
-  std::vector<CanonSection> &getCanonSection() noexcept { return CanonSec; }
-  StartSection &getStartSection() noexcept { return StartSec; }
-  std::vector<ImportSection> &getImportSection() noexcept { return ImSec; }
-  std::vector<ExportSection> &getExportSection() noexcept { return ExSec; }
+  std::vector<Section> &getSections() noexcept { return Secs; }
+  Span<const Section> getSections() const noexcept { return Secs; }
 
 private:
   /// \name Data of Module node.
@@ -198,18 +181,8 @@ private:
   std::vector<Byte> Magic;
   std::vector<Byte> Version;
   std::vector<Byte> Layer;
-  std::vector<CustomSection> CustomSecs;
-  CoreModuleSection CoreModSec;
-  std::vector<CoreInstanceSection> CoreInstSec;
-  std::vector<CoreTypeSection> CoreTypeSec;
-  ComponentSection CompSec;
-  std::vector<InstanceSection> InstSec;
-  std::vector<AliasSection> AliasSec;
-  std::vector<TypeSection> TySec;
-  std::vector<CanonSection> CanonSec;
-  StartSection StartSec;
-  std::vector<ImportSection> ImSec;
-  std::vector<ExportSection> ExSec;
+
+  std::vector<Section> Secs;
   /// @}
 };
 

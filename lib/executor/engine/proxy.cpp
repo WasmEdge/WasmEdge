@@ -138,15 +138,22 @@ Expect<void *> Executor::tableGetFuncSymbol(Runtime::StackManager &StackMgr,
 
   const auto *ModInst = StackMgr.getModule();
   assuming(ModInst);
-  const auto TargetFuncType = ModInst->getFuncType(FuncTypeIdx);
-  assuming(TargetFuncType && *TargetFuncType);
+  const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
-  const auto &FuncType = FuncInst->getFuncType();
-  if (!matchTypes(*ModInst, (*TargetFuncType)->getParamTypes(),
-                  *FuncInst->getModule(), FuncType.getParamTypes()) ||
-      !matchTypes(*ModInst, (*TargetFuncType)->getReturnTypes(),
-                  *FuncInst->getModule(), FuncType.getReturnTypes())) {
+  bool IsMatch = false;
+  if (FuncInst->getModule()) {
+    IsMatch = AST::TypeMatcher::matchType(
+        ModInst->getTypeList(), *ExpDefType.getTypeIndex(),
+        FuncInst->getModule()->getTypeList(), FuncInst->getTypeIndex());
+  } else {
+    // Independent host module instance case. Matching the composite type
+    // directly.
+    IsMatch = AST::TypeMatcher::matchType(
+        ModInst->getTypeList(), ExpDefType.getCompositeType(),
+        FuncInst->getHostFunc().getDefinedType().getCompositeType());
+  }
+  if (!IsMatch) {
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
@@ -176,15 +183,26 @@ Executor::callIndirect(Runtime::StackManager &StackMgr, const uint32_t TableIdx,
 
   const auto *ModInst = StackMgr.getModule();
   assuming(ModInst);
-  const auto TargetFuncType = ModInst->getFuncType(FuncTypeIdx);
-  assuming(TargetFuncType && *TargetFuncType);
+  const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
-  const auto &FuncType = FuncInst->getFuncType();
-  if (unlikely(**TargetFuncType != FuncType)) {
+  bool IsMatch = false;
+  if (FuncInst->getModule()) {
+    IsMatch = AST::TypeMatcher::matchType(
+        ModInst->getTypeList(), *ExpDefType.getTypeIndex(),
+        FuncInst->getModule()->getTypeList(), FuncInst->getTypeIndex());
+  } else {
+    // Independent host module instance case. Matching the composite type
+    // directly.
+    IsMatch = AST::TypeMatcher::matchType(
+        ModInst->getTypeList(), ExpDefType.getCompositeType(),
+        FuncInst->getHostFunc().getDefinedType().getCompositeType());
+  }
+  if (!IsMatch) {
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
+  const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());
   const uint32_t ReturnsSize =

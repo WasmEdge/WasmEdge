@@ -11,6 +11,7 @@ wasmedge_add_library(wasmedgeExecutor
   instantiate/data.cpp
   instantiate/export.cpp
   instantiate/module.cpp
+  instantiate/component.cpp
   engine/proxy.cpp
   engine/controlInstr.cpp
   engine/tableInstr.cpp

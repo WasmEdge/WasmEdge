@@ -23,10 +23,12 @@ on:
       - "lib/api/**"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build_ubuntu:
+    permissions:
+      contents: write
     name: Ubuntu 22.04
     runs-on: ${{ matrix.os }}
     strategy:
@@ -83,6 +85,8 @@ jobs:
             bindings/java/wasmedge-java/build/libs/wasmedge-java-*.jar
 
   build_macos:
+    permissions:
+      contents: write
     name: MacOS
     runs-on: ${{ matrix.os }}
     strategy:
@@ -145,6 +149,8 @@ jobs:
             bindings/java/wasmedge-java/build/libs/wasmedge-java-*.jar
 
   build_windows:
+    permissions:
+      contents: write
     name: Windows
     runs-on: windows-2022
     env:

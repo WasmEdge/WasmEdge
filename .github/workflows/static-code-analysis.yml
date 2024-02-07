@@ -39,6 +39,8 @@ on:
       - "CMakeLists.txt"
       - "cmake/**"
 
+permissions:
+  contents: read
 jobs:
   static_analysis:
     permissions:

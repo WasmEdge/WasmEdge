@@ -524,7 +524,8 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
         LLVM::Attribute::createString(LLContext, "no-stack-arg-probe"sv, {}));
     F.addFnAttr(
         LLVM::Attribute::createEnum(LLContext, LLVM::Core::StrictFP, 0));
-    F.addFnAttr(LLVM::Attribute::createEnum(LLContext, LLVM::Core::UWTable, 2));
+    F.addFnAttr(LLVM::Attribute::createEnum(LLContext, LLVM::Core::UWTable,
+                                            LLVM::Core::UWTableDefault));
     F.addFnAttr(
         LLVM::Attribute::createEnum(LLContext, LLVM::Core::NoReturn, 0));
     LLVM::Builder Builder(LLContext);

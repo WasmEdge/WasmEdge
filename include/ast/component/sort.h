@@ -32,7 +32,6 @@ enum class CoreSort : Byte {
   Instance = 0x12,
 };
 enum class SortCase : Byte {
-  CoreInstance,
   Func = 0x01,
   Value = 0x02,
   Type = 0x03,

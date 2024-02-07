@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "runtime/instance/component.h"
 #include "runtime/instance/module.h"
 
 #include <mutex>
@@ -51,8 +52,10 @@ public:
   /// Find module by name.
   const Instance::ModuleInstance *findModule(std::string_view Name) const {
     std::shared_lock Lock(Mutex);
-    auto Iter = NamedMod.find(Name);
-    if (likely(Iter != NamedMod.cend())) {
+    if (auto Iter = SoftNamedMod.find(Name); likely(Iter != NamedMod.cend())) {
+      return Iter->second;
+    }
+    if (auto Iter = NamedMod.find(Name); likely(Iter != NamedMod.cend())) {
       return Iter->second;
     }
     return nullptr;
@@ -66,12 +69,6 @@ public:
     }
     NamedMod.clear();
   }
-
-private:
-  /// \name Mutex for thread-safe.
-  mutable std::shared_mutex Mutex;
-
-  friend class Executor::Executor;
 
   /// Register named module into this store.
   Expect<void> registerModule(const Instance::ModuleInstance *ModInst) {
@@ -92,6 +89,32 @@ private:
     return {};
   }
 
+  void addNamedModule(std::string_view Name,
+                      const Instance::ModuleInstance *Inst) {
+    std::unique_lock Lock(Mutex);
+    SoftNamedMod.emplace(Name, Inst);
+  }
+
+  Expect<void> registerComponent(std::string_view Name,
+                                 const Instance::ComponentInstance *Inst) {
+    std::unique_lock Lock(Mutex);
+    auto Iter = NamedComp.find(Name);
+    if (likely(Iter != NamedComp.cend())) {
+      return Unexpect(ErrCode::Value::ModuleNameConflict);
+    }
+    NamedComp.emplace(Name, Inst);
+    return {};
+  }
+  Expect<void> registerComponent(const Instance::ComponentInstance *Inst) {
+    return registerComponent(Inst->getComponentName(), Inst);
+  }
+
+private:
+  /// \name Mutex for thread-safe.
+  mutable std::shared_mutex Mutex;
+
+  friend class Executor::Executor;
+
   /// Collect the instantiation failed module.
   void recycleModule(std::unique_ptr<Instance::ModuleInstance> &&Mod) {
     FailedMod = std::move(Mod);
@@ -99,6 +122,10 @@ private:
 
   /// \name Module name mapping.
   std::map<std::string, const Instance::ModuleInstance *, std::less<>> NamedMod;
+  std::map<std::string, const Instance::ModuleInstance *, std::less<>>
+      SoftNamedMod;
+  std::map<std::string, const Instance::ComponentInstance *, std::less<>>
+      NamedComp;
 
   /// \name Last instantiation failed module.
   /// According to the current spec, the instances should be able to be

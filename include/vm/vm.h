@@ -277,6 +277,11 @@ private:
                 std::string_view Func, Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});
 
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeExecute(const Runtime::Instance::ComponentInstance *CompInst,
+                std::string_view Func, Span<const ValVariant> Params = {},
+                Span<const ValType> ParamTypes = {});
+
   /// \name VM environment.
   /// @{
   const Configure Conf;
@@ -295,9 +300,11 @@ private:
   /// \name VM Storage.
   /// @{
   /// Loaded AST module.
-  std::unique_ptr<AST::Module> Mod;
+  std::variant<AST::Module, AST::Component::Component> Unit;
   /// Active module instance.
-  std::unique_ptr<Runtime::Instance::ModuleInstance> ActiveModInst;
+  std::variant<std::unique_ptr<Runtime::Instance::ModuleInstance>,
+               std::unique_ptr<Runtime::Instance::ComponentInstance>>
+      ActiveInst;
   /// Registered module instances by user.
   std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>> RegModInsts;
   /// Built-in module instances mapped to the configurations. For WASI.

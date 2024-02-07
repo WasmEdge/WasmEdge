@@ -129,6 +129,11 @@ public:
   static inline unsigned int ReadOnly = 0;
   static inline unsigned int StrictFP = 0;
   static inline unsigned int UWTable = 0;
+#if LLVM_VERSION_MAJOR >= 15
+  static constexpr inline const unsigned int UWTableDefault = 2;
+#else
+  static constexpr inline const unsigned int UWTableDefault = 0;
+#endif
 
   static inline unsigned int InvariantGroup = 0;
 

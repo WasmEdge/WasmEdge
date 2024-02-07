@@ -211,8 +211,8 @@ struct LLVM::Compiler::CompileContext {
         NoReturn(LLVM::Attribute::createEnum(C, LLVM::Core::NoReturn, 0)),
         ReadOnly(LLVM::Attribute::createEnum(C, LLVM::Core::ReadOnly, 0)),
         StrictFP(LLVM::Attribute::createEnum(C, LLVM::Core::StrictFP, 0)),
-        // UWTable::Default = 2
-        UWTable(LLVM::Attribute::createEnum(C, LLVM::Core::UWTable, 2)),
+        UWTable(LLVM::Attribute::createEnum(C, LLVM::Core::UWTable,
+                                            LLVM::Core::UWTableDefault)),
         NoStackArgProbe(
             LLVM::Attribute::createString(C, "no-stack-arg-probe"sv, {})),
         VoidTy(LLContext.getVoidTy()), Int8Ty(LLContext.getInt8Ty()),

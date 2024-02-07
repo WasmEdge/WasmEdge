@@ -307,6 +307,7 @@ private:
   Expect<void> loadSection(AST::Component::AliasSection &Sec);
   Expect<void> loadSection(AST::Component::CoreTypeSection &Sec);
   Expect<void> loadSection(AST::Component::TypeSection &Sec);
+  Expect<void> loadSection(AST::Component::StartSection &Sec);
   Expect<void> loadSection(AST::Component::CanonSection &Sec);
   Expect<void> loadSection(AST::Component::ImportSection &Sec);
   Expect<void> loadSection(AST::Component::ExportSection &Sec);

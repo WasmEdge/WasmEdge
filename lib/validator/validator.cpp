@@ -14,14 +14,20 @@ namespace WasmEdge {
 namespace Validator {
 
 Expect<void> Validator::validate(const AST::Component::Component &Comp) {
+  using namespace AST::Component;
+
   spdlog::warn("component validation is not done yet.");
 
-  for (auto &Mod : Comp.getCoreModuleSection().getContent()) {
-    validate(Mod);
-  }
-  for (const std::shared_ptr<AST::Component::Component> &C :
-       Comp.getComponentSection().getContent()) {
-    validate(*C);
+  for (auto &Sec : Comp.getSections()) {
+    if (std::holds_alternative<AST::CoreModuleSection>(Sec)) {
+      auto Mod = std::get<AST::CoreModuleSection>(Sec).getContent();
+      validate(Mod);
+    } else if (std::holds_alternative<ComponentSection>(Sec)) {
+      auto C = std::get<ComponentSection>(Sec).getContent();
+      validate(C);
+    } else {
+      // TODO: validate others section
+    }
   }
 
   return {};

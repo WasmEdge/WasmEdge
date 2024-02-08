@@ -34,9 +34,9 @@ endif()
 install(TARGETS wasmedgePluginWasiOCR DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
 
 message(STATUS "WASI-OCR: Build Tesseract backend for WASI-OCR")
-find_package( PkgConfig REQUIRED)
-pkg_search_module( TESSERACT REQUIRED tesseract )
-pkg_search_module( LEPTONICA REQUIRED lept )
+find_package(PkgConfig REQUIRED)
+pkg_search_module(TESSERACT REQUIRED tesseract)
+pkg_search_module(LEPTONICA REQUIRED lept)
 
 target_include_directories(wasmedgePluginWasiOCR
   PUBLIC

@@ -45,6 +45,7 @@ static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
 // Parameterized testing class.
 class NativeCoreTest : public testing::TestWithParam<std::string> {};
 class CustomWasmCoreTest : public testing::TestWithParam<std::string> {};
+class JITCoreTest : public testing::TestWithParam<std::string> {};
 
 TEST_P(NativeCoreTest, TestSuites) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
@@ -266,6 +267,79 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
   T.run(Proposal, UnitName);
 }
 
+TEST_P(JITCoreTest, TestSuites) {
+  const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
+  WasmEdge::Configure CopyConf = Conf;
+  CopyConf.getRuntimeConfigure().setEnableJIT(true);
+  CopyConf.getCompilerConfigure().setOptimizationLevel(
+      WasmEdge::CompilerConfigure::OptimizationLevel::O0);
+  CopyConf.getCompilerConfigure().setDumpIR(true);
+  WasmEdge::VM::VM VM(CopyConf);
+  WasmEdge::SpecTestModule SpecTestMod;
+  VM.registerModule(SpecTestMod);
+  T.onModule = [&VM](const std::string &ModName,
+                     const std::string &Filename) -> Expect<void> {
+    if (!ModName.empty()) {
+      return VM.registerModule(ModName, Filename);
+    } else {
+      return VM.loadWasm(Filename)
+          .and_then([&VM]() { return VM.validate(); })
+          .and_then([&VM]() { return VM.instantiate(); });
+    }
+  };
+  T.onLoad = [&VM](const std::string &Filename) -> Expect<void> {
+    return VM.loadWasm(Filename);
+  };
+  T.onValidate = [&VM](const std::string &Filename) -> Expect<void> {
+    return VM.loadWasm(Filename).and_then([&VM]() { return VM.validate(); });
+  };
+  T.onInstantiate = [&VM](const std::string &Filename) -> Expect<void> {
+    return VM.loadWasm(Filename)
+        .and_then([&VM]() { return VM.validate(); })
+        .and_then([&VM]() { return VM.instantiate(); });
+  };
+  // Helper function to call functions.
+  T.onInvoke = [&VM](const std::string &ModName, const std::string &Field,
+                     const std::vector<ValVariant> &Params,
+                     const std::vector<ValType> &ParamTypes)
+      -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
+    if (!ModName.empty()) {
+      // Invoke function of named module. Named modules are registered in Store
+      // Manager.
+      return VM.execute(ModName, Field, Params, ParamTypes);
+    } else {
+      // Invoke function of anonymous module. Anonymous modules are instantiated
+      // in VM.
+      return VM.execute(Field, Params, ParamTypes);
+    }
+  };
+  // Helper function to get values.
+  T.onGet = [&VM](const std::string &ModName, const std::string &Field)
+      -> Expect<std::pair<ValVariant, ValType>> {
+    // Get module instance.
+    const WasmEdge::Runtime::Instance::ModuleInstance *ModInst = nullptr;
+    if (ModName.empty()) {
+      ModInst = VM.getActiveModule();
+    } else {
+      ModInst = VM.getStoreManager().findModule(ModName);
+    }
+    if (ModInst == nullptr) {
+      return Unexpect(ErrCode::Value::WrongInstanceAddress);
+    }
+
+    // Get global instance.
+    WasmEdge::Runtime::Instance::GlobalInstance *GlobInst =
+        ModInst->findGlobalExports(Field);
+    if (unlikely(GlobInst == nullptr)) {
+      return Unexpect(ErrCode::Value::WrongInstanceAddress);
+    }
+    return std::make_pair(GlobInst->getValue(),
+                          GlobInst->getGlobalType().getValType());
+  };
+
+  T.run(Proposal, UnitName);
+}
+
 // Initiate test suite.
 INSTANTIATE_TEST_SUITE_P(
     TestUnit, NativeCoreTest,
@@ -273,6 +347,9 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     TestUnit, CustomWasmCoreTest,
     testing::ValuesIn(T.enumerate(SpecTest::TestMode::AOT)));
+INSTANTIATE_TEST_SUITE_P(
+    TestUnit, JITCoreTest,
+    testing::ValuesIn(T.enumerate(SpecTest::TestMode::JIT)));
 
 std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,

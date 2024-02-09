@@ -21,6 +21,15 @@
 #include <llvm-c/LLJIT.h>
 #endif
 
+#if LLVM_VERSION_MAJOR < 12 && WASMEDGE_OS_WINDOWS
+using LLVMOrcObjectLayerRef = struct LLVMOrcOpaqueObjectLayer *;
+using LLVMOrcLLJITBuilderObjectLinkingLayerCreatorFunction =
+    LLVMOrcObjectLayerRef (*)(void *Ctx, LLVMOrcExecutionSessionRef ES,
+                              const char *Triple) noexcept;
+static void LLVMOrcLLJITBuilderSetObjectLinkingLayerCreator(
+    LLVMOrcLLJITBuilderRef Builder,
+    LLVMOrcLLJITBuilderObjectLinkingLayerCreatorFunction F, void *Ctx) noexcept;
+#endif
 #if LLVM_VERSION_MAJOR < 13
 using LLVMOrcMaterializationResponsibilityRef =
     struct LLVMOrcOpaqueMaterializationResponsibility *;
@@ -2135,7 +2144,7 @@ public:
 
   static cxx20::expected<OrcLLJIT, Error> create() noexcept {
     OrcLLJIT Result;
-    if (auto Err = LLVMOrcCreateLLJIT(&Result.Ref, nullptr)) {
+    if (auto Err = LLVMOrcCreateLLJIT(&Result.Ref, getBuilder())) {
       return cxx20::unexpected(Err);
     } else {
       return Result;
@@ -2165,6 +2174,8 @@ public:
 
 private:
   LLVMOrcLLJITRef Ref = nullptr;
+
+  static inline LLVMOrcLLJITBuilderRef getBuilder() noexcept;
 };
 
 } // namespace WasmEdge::LLVM
@@ -2172,11 +2183,40 @@ private:
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/Object/ObjectFile.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
+#if LLVM_VERSION_MAJOR < 12 || WASMEDGE_OS_WINDOWS
+#include <llvm/ExecutionEngine/Orc/Core.h>
+#endif
 #if LLVM_VERSION_MAJOR < 13
 #include <llvm/ExecutionEngine/Orc/LLJIT.h>
 #include <llvm/Support/CBindingWrapping.h>
 #include <llvm/Support/Error.h>
 #endif
+
+#if WASMEDGE_OS_WINDOWS
+#include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
+#include <llvm/ExecutionEngine/SectionMemoryManager.h>
+#include <system/winapi.h>
+#endif
+
+namespace llvm {
+#if WASMEDGE_OS_WINDOWS
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::ExecutionSession,
+                                   LLVMOrcExecutionSessionRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::ObjectLayer, LLVMOrcObjectLayerRef)
+#endif
+#if LLVM_VERSION_MAJOR < 12
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::LLJITBuilder, LLVMOrcLLJITBuilderRef)
+#endif
+#if LLVM_VERSION_MAJOR < 13
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::ThreadSafeModule,
+                                   LLVMOrcThreadSafeModuleRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::IRTransformLayer,
+                                   LLVMOrcIRTransformLayerRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::MaterializationResponsibility,
+                                   LLVMOrcMaterializationResponsibilityRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::LLJIT, LLVMOrcLLJITRef)
+#endif
+} // namespace llvm
 
 namespace WasmEdge::LLVM {
 
@@ -2226,19 +2266,90 @@ bool SectionIterator::isEHFrame() const noexcept {
 #endif
 }
 
+#if WASMEDGE_OS_WINDOWS
+// Register stack unwind info for JIT functions
+class Win64EHManager : public llvm::SectionMemoryManager {
+  using Base = llvm::SectionMemoryManager;
+  uint64_t CodeAddress = 0;
+
+public:
+  ~Win64EHManager() noexcept override {}
+
+  uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
+                               unsigned SectionID,
+                               llvm::StringRef SectionName) override {
+    using namespace std::literals;
+    const auto Allocated =
+        Base::allocateCodeSection(Size, Alignment, SectionID, SectionName);
+    if (SectionName == llvm::StringRef(".text"sv)) {
+      CodeAddress = reinterpret_cast<uint64_t>(Allocated);
+    }
+    return Allocated;
+  }
+
+  void registerEHFrames(uint8_t *Addr, uint64_t /*LoadAddr*/,
+                        size_t Size) noexcept override {
+    using namespace std::literals;
+    winapi::RUNTIME_FUNCTION_ *const FunctionTable =
+        reinterpret_cast<winapi::RUNTIME_FUNCTION_ *>(Addr);
+    const uint32_t EntryCount =
+        static_cast<uint32_t>(Size / sizeof(winapi::RUNTIME_FUNCTION_));
+    if (EntryCount == 0)
+      return;
+    // Calculate object image base address by assuming that address of the first
+    // function is equal to the address of the code section
+    const auto ImageBase = CodeAddress - FunctionTable[0].BeginAddress;
+    winapi::RtlAddFunctionTable(FunctionTable, EntryCount, ImageBase);
+    EHFrames.push_back({Addr, Size});
+  }
+  void deregisterEHFrames() noexcept override {
+    using namespace std::literals;
+    for (auto &Frame : EHFrames) {
+      winapi::RtlDeleteFunctionTable(
+          reinterpret_cast<winapi::RUNTIME_FUNCTION_ *>(Frame.Addr));
+    }
+    EHFrames.clear();
+  }
+};
+
+LLVMOrcLLJITBuilderRef OrcLLJIT::getBuilder() noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  const LLVMOrcLLJITBuilderRef Builder = LLVMOrcCreateLLJITBuilder();
+  LLVMOrcLLJITBuilderSetObjectLinkingLayerCreator(
+      Builder,
+      [](void *, LLVMOrcExecutionSessionRef ES, const char *) noexcept {
+        auto Layer = std::make_unique<llvm::orc::RTDyldObjectLinkingLayer>(
+            *unwrap(ES), []() { return std::make_unique<Win64EHManager>(); });
+        Layer->setOverrideObjectFlagsWithResponsibilityFlags(true);
+        Layer->setAutoClaimResponsibilityForObjectSymbols(true);
+        return wrap(static_cast<llvm::orc::ObjectLayer *>(Layer.release()));
+      },
+      nullptr);
+  return Builder;
+}
+#else
+LLVMOrcLLJITBuilderRef OrcLLJIT::getBuilder() noexcept { return nullptr; }
+#endif
+
 } // namespace WasmEdge::LLVM
 
+#if LLVM_VERSION_MAJOR < 12 && WASMEDGE_OS_WINDOWS
+void LLVMOrcLLJITBuilderSetObjectLinkingLayerCreator(
+    LLVMOrcLLJITBuilderRef Builder,
+    LLVMOrcLLJITBuilderObjectLinkingLayerCreatorFunction F,
+    void *Ctx) noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  unwrap(Builder)->setObjectLinkingLayerCreator(
+      [=](llvm::orc::ExecutionSession &ES, const llvm::Triple &TT) {
+        auto TTStr = TT.str();
+        return std::unique_ptr<llvm::orc::ObjectLayer>(
+            unwrap(F(Ctx, wrap(&ES), TTStr.c_str())));
+      });
+}
+#endif
 #if LLVM_VERSION_MAJOR < 13
-namespace llvm {
-DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::ThreadSafeModule,
-                                   LLVMOrcThreadSafeModuleRef)
-DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::IRTransformLayer,
-                                   LLVMOrcIRTransformLayerRef)
-DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::MaterializationResponsibility,
-                                   LLVMOrcMaterializationResponsibilityRef)
-DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::LLJIT, LLVMOrcLLJITRef)
-} // namespace llvm
-
 LLVMOrcIRTransformLayerRef
 LLVMOrcLLJITGetIRTransformLayer(LLVMOrcLLJITRef J) noexcept {
   using llvm::unwrap;

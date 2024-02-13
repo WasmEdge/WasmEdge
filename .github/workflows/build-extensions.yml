@@ -211,13 +211,15 @@ jobs:
           apt update
           apt install -y libssl-dev
           apt install -y libelf-dev zlib1g-dev pkg-config
-          apt install -y clang llvm
+          apt install -y clang-15
           apt install -y cargo
           # Running tests of wasm_bpf requires proper ebpf running environment
           mount -t debugfs none /sys/kernel/debug
       - name: Build plugins using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
         run: |
+          update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100
+          update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-strip-15 100
           testbin_array=(${test_bins})
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options}
           for (( i=0; i<${#testbin_array[@]}; i++ ));

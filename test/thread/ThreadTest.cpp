@@ -15,8 +15,9 @@
 #include "common/log.h"
 #include "vm/vm.h"
 
-#ifdef WASMEDGE_BUILD_AOT_RUNTIME
-#include "aot/compiler.h"
+#ifdef WASMEDGE_USE_LLVM
+#include "llvm/codegen.h"
+#include "llvm/compiler.h"
 #endif
 
 #include "gtest/gtest.h"
@@ -225,7 +226,7 @@ TEST(AsyncExecute, GasThreadTest) {
   }
 }
 
-#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_USE_LLVM
 
 TEST(AOTAsyncExecute, ThreadTest) {
   WasmEdge::Configure Conf;
@@ -238,10 +239,13 @@ TEST(AOTAsyncExecute, ThreadTest) {
   {
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
-    WasmEdge::AOT::Compiler Compiler(Conf);
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    WasmEdge::LLVM::CodeGen CodeGen(Conf);
     auto Module = *Loader.parseModule(MersenneTwister19937);
     ASSERT_TRUE(ValidatorEngine.validate(*Module));
-    ASSERT_TRUE(Compiler.compile(MersenneTwister19937, *Module, Path));
+    auto Data = Compiler.compile(*Module);
+    ASSERT_TRUE(Data);
+    ASSERT_TRUE(CodeGen.codegen(MersenneTwister19937, std::move(*Data), Path));
   }
 
   WasmEdge::VM::VM VM(Conf);
@@ -287,10 +291,13 @@ TEST(AOTAsyncExecute, GasThreadTest) {
   {
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
-    WasmEdge::AOT::Compiler Compiler(Conf);
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    WasmEdge::LLVM::CodeGen CodeGen(Conf);
     auto Module = *Loader.parseModule(MersenneTwister19937);
     ASSERT_TRUE(ValidatorEngine.validate(*Module));
-    ASSERT_TRUE(Compiler.compile(MersenneTwister19937, *Module, Path));
+    auto Data = Compiler.compile(*Module);
+    ASSERT_TRUE(Data);
+    ASSERT_TRUE(CodeGen.codegen(MersenneTwister19937, std::move(*Data), Path));
   }
 
   WasmEdge::VM::VM VM(Conf);

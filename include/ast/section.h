@@ -286,6 +286,7 @@ private:
   std::vector<uintptr_t> CodesAddress;
   std::vector<std::tuple<uint8_t, uint64_t, uint64_t, std::vector<Byte>>>
       Sections;
+  std::vector<uint8_t> Bytecodes;
   /// @}
 };
 

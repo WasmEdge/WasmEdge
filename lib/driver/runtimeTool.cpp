@@ -108,6 +108,11 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       Conf.getStatisticsConfigure().setTimeMeasuring(true);
     }
   }
+  if (Opt.ConfEnableJIT.value()) {
+    Conf.getRuntimeConfigure().setEnableJIT(true);
+    Conf.getCompilerConfigure().setOptimizationLevel(
+        WasmEdge::CompilerConfigure::OptimizationLevel::O1);
+  }
   if (Opt.ConfForceInterpreter.value()) {
     Conf.getRuntimeConfigure().setForceInterpreter(true);
   }

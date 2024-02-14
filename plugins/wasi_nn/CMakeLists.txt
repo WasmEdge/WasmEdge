@@ -143,7 +143,7 @@ target_include_directories(wasmedgePluginWasiNN
 
 if(BACKEND STREQUAL "ggml")
   target_include_directories(wasmedgePluginWasiNN PUBLIC ${CMAKE_BINARY_DIR}/_deps/llama-src)
-  target_link_libraries(wasmedgePluginWasiNN PRIVATE common simdjson)
+  target_link_libraries(wasmedgePluginWasiNN PRIVATE common simdjson::simdjson)
   if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
     add_custom_command(
       TARGET wasmedgePluginWasiNN

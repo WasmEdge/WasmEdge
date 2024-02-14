@@ -82,11 +82,12 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     // AOT compiled shared-library-WASM cases. Use ldmgr to load the module.
     WASMType = InputType::SharedLibrary;
     FMgr.reset();
-    if (auto Res = LMgr.setPath(FilePath); !Res) {
+    std::shared_ptr<SharedLibrary> Library = std::make_shared<SharedLibrary>();
+    if (auto Res = Library->load(FilePath); !Res) {
       spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }
-    if (auto Res = LMgr.getVersion()) {
+    if (auto Res = Library->getVersion()) {
       if (*Res != AOT::kBinaryVersion) {
         spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, *Res));
         spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -98,7 +99,7 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     }
 
     std::unique_ptr<AST::Module> Mod;
-    if (auto Code = LMgr.getWasm()) {
+    if (auto Code = Library->getWasm()) {
       // Set the binary and load module.
       // Not to use parseModule() here to keep the `WASMType` value.
       if (auto Res = FMgr.setCode(*Code); !Res) {
@@ -120,7 +121,7 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
       // If the configure is set to force interpreter mode, not to load the AOT
       // related data.
-      if (auto Res = loadCompiled(*Mod); unlikely(!Res)) {
+      if (auto Res = loadExecutable(*Mod, Library); unlikely(!Res)) {
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
       }

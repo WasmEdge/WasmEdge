@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasmedge/aot/compiler.h - Compiler class definition ---------------===//
+//===-- wasmedge/llvm/compiler.h - Compiler class definition --------------===//
 //
 // Part of the WasmEdge Project.
 //
@@ -18,19 +18,18 @@
 #include "common/errcode.h"
 #include "common/filesystem.h"
 #include "common/span.h"
+#include "llvm/data.h"
 
 #include <mutex>
 
-namespace WasmEdge {
-namespace AOT {
+namespace WasmEdge::LLVM {
 
-/// Compiling Module into loadable executable binary.
+/// Compiling Module into LLVM Module.
 class Compiler {
 public:
   Compiler(const Configure &Conf) noexcept : Context(nullptr), Conf(Conf) {}
 
-  Expect<void> compile(Span<const Byte> Data, const AST::Module &Module,
-                       std::filesystem::path OutputPath) noexcept;
+  Expect<Data> compile(const AST::Module &Module) noexcept;
 
   struct CompileContext;
 
@@ -51,5 +50,4 @@ private:
   const Configure Conf;
 };
 
-} // namespace AOT
-} // namespace WasmEdge
+} // namespace WasmEdge::LLVM

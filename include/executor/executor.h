@@ -703,7 +703,7 @@ public:
   template <typename FuncPtr> struct ProxyHelper;
 
   /// Callbacks for compiled modules
-  static const AST::Module::IntrinsicsTable Intrinsics;
+  static const Executable::IntrinsicsTable Intrinsics;
 
 private:
   template <typename T>

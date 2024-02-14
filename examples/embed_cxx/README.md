@@ -7,7 +7,7 @@ First, download and extract [wasi-sdk](https://github.com/WebAssembly/wasi-sdk/r
 Build with cmake
 
 ```bash
-cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF; cmake --build build
+cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_USE_LLVM=OFF; cmake --build build
 ```
 
 Run `embed_cxx`

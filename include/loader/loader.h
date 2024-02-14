@@ -18,8 +18,8 @@
 #include "common/configure.h"
 #include "common/errinfo.h"
 #include "loader/filemgr.h"
-#include "loader/ldmgr.h"
 #include "loader/serialize.h"
+#include "loader/shared_library.h"
 
 #include <cstdint>
 #include <memory>
@@ -126,8 +126,8 @@ NodeAttrFromAST<AST::Component::ComponentSection>() noexcept {
 class Loader {
 public:
   Loader(const Configure &Conf,
-         const AST::Module::IntrinsicsTable *IT = nullptr) noexcept
-      : Conf(Conf), Ser(Conf), LMgr(IT), IntrinsicsTable(IT) {}
+         const Executable::IntrinsicsTable *IT = nullptr) noexcept
+      : Conf(Conf), Ser(Conf), IntrinsicsTable(IT) {}
   ~Loader() noexcept = default;
 
   /// Load data from file path.
@@ -160,10 +160,11 @@ public:
   Expect<std::vector<Byte>> serializeModule(const AST::Module &Mod);
 
   /// Reset status.
-  void reset() noexcept {
-    FMgr.reset();
-    LMgr.reset();
-  }
+  void reset() noexcept { FMgr.reset(); }
+
+  /// Setup Symbol from an Exetuable.
+  Expect<void> loadExecutable(AST::Module &Mod,
+                              std::shared_ptr<Executable> Library);
 
 private:
   /// \name Helper functions to print error log when loading AST nodes
@@ -201,7 +202,6 @@ private:
   Expect<void> loadModule(AST::Module &Mod);
   Expect<void> loadModuleInBound(AST::Module &Mod,
                                  std::optional<uint64_t> Bound);
-  Expect<void> loadCompiled(AST::Module &Mod);
   /// @}
 
   /// \name Load AST section node helper functions
@@ -416,8 +416,7 @@ private:
   const Configure Conf;
   const Serializer Ser;
   FileMgr FMgr;
-  LDMgr LMgr;
-  const AST::Module::IntrinsicsTable *IntrinsicsTable;
+  const Executable::IntrinsicsTable *IntrinsicsTable;
   std::recursive_mutex Mutex;
   bool HasDataSection;
 

@@ -1,9 +1,9 @@
 include $(TOPDIR)/rules.mk
- 
+
 PKG_NAME:=WasmEdge
-PKG_VERSION:=0.12.1
+PKG_VERSION:=0.14.0
 PKG_BUILD_DIR:= $(BUILD_DIR)/$(PKG_NAME)
-WASMEDGE_SOVERSION:=0.0.2
+WASMEDGE_SOVERSION:=0.0.3
 WASMEDGE_SONAME:=0
 
 include $(INCLUDE_DIR)/package.mk
@@ -37,7 +37,7 @@ define Package/$(PKG_NAME)/install
 endef
 
 CMAKE_OPTIONS += \
-        -DWASMEDGE_BUILD_AOT_RUNTIME=OFF \
+        -DWASMEDGE_USE_LLVM=OFF \
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
 

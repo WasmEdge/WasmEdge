@@ -4,9 +4,7 @@
 #include "validator/validator.h"
 
 #include "common/errinfo.h"
-#include "common/log.h"
 
-#include <array>
 #include <cstdint>
 #include <string>
 #include <unordered_set>
@@ -15,9 +13,24 @@
 namespace WasmEdge {
 namespace Validator {
 
-Expect<void> Validator::validate(const AST::Component::Component &) {
-  spdlog::error("component validation is not done yet.");
-  return Unexpect(ErrCode::Value::RuntimeError);
+Expect<void> Validator::validate(const AST::Component::Component &Comp) {
+  using namespace AST::Component;
+
+  spdlog::warn("component validation is not done yet.");
+
+  for (auto &Sec : Comp.getSections()) {
+    if (std::holds_alternative<AST::CoreModuleSection>(Sec)) {
+      auto &Mod = std::get<AST::CoreModuleSection>(Sec).getContent();
+      validate(Mod);
+    } else if (std::holds_alternative<ComponentSection>(Sec)) {
+      auto &C = std::get<ComponentSection>(Sec).getContent();
+      validate(C);
+    } else {
+      // TODO: validate others section
+    }
+  }
+
+  return {};
 }
 
 // Validate Module. See "include/validator/validator.h".

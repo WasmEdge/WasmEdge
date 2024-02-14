@@ -47,7 +47,7 @@ if(BACKEND STREQUAL "ggml")
   FetchContent_Declare(
     llama
     GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-    GIT_TAG        b1879
+    GIT_TAG        b2037
     PATCH_COMMAND  test -f ggml.patched || git apply ${CMAKE_SOURCE_DIR}/thirdparty/ggml/ggml.patch && ${CMAKE_COMMAND} -E touch ggml.patched
     GIT_SHALLOW    FALSE
   )
@@ -143,7 +143,7 @@ target_include_directories(wasmedgePluginWasiNN
 
 if(BACKEND STREQUAL "ggml")
   target_include_directories(wasmedgePluginWasiNN PUBLIC ${CMAKE_BINARY_DIR}/_deps/llama-src)
-  target_link_libraries(wasmedgePluginWasiNN PRIVATE common simdjson)
+  target_link_libraries(wasmedgePluginWasiNN PRIVATE common simdjson::simdjson)
   if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
     add_custom_command(
       TARGET wasmedgePluginWasiNN

@@ -10,7 +10,9 @@ on:
       - master
     paths:
       - ".github/workflows/build.yml"
-      - ".github/workflows/reusable**"
+      - ".github/workflows/reusable-build-on-**"
+      - ".github/workflows/reusable-call-linter.yml"
+      - ".github/workflows/reusable-create-source-tarball.yml"
       - "include/**"
       - "lib/**"
       - "plugins/**"
@@ -25,7 +27,9 @@ on:
       - "proposal/**"
     paths:
       - ".github/workflows/build.yml"
-      - ".github/workflows/reusable**"
+      - ".github/workflows/reusable-build-on-**"
+      - ".github/workflows/reusable-call-linter.yml"
+      - ".github/workflows/reusable-create-source-tarball.yml"
       - "include/**"
       - "lib/**"
       - "plugins/**"
@@ -35,13 +39,20 @@ on:
       - "CMakeLists.txt"
       - "cmake/**"
 
+permissions:
+  contents: write
+
 jobs:
   # TODO: Refactor `lint` with `on.workflow_run`
   # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
   lint:
+    permissions:
+      contents: read
     uses: ./.github/workflows/reusable-call-linter.yml
 
   get_version:
+    permissions:
+      contents: read
     needs: lint
     name: Retrieve version information
     runs-on: ubuntu-latest
@@ -76,7 +87,7 @@ jobs:
     with:
       version: ${{ needs.get_version.outputs.version }}
       matrix: "[{'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21,'arch':'x86_64'},
-                {'name':'MacOS 13 (arm64)','runner':'mac-arm64','darwin_version':22,'arch':'arm64'}]"
+                {'name':'MacOS 13 (arm64)','runner':'macos-14','darwin_version':22,'arch':'arm64'}]"
 
   build_on_manylinux_2014:
     needs: [get_version, lint]

@@ -152,6 +152,8 @@ parseValueList(const simdjson::dom::array &Args) {
 #else
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I8x16);
 #endif
+      } else {
+        assumingUnreachable();
       }
       Result.emplace_back(I64x2);
       ResultTypes.emplace_back(WasmEdge::TypeCode::V128);

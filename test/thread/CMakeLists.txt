@@ -14,13 +14,13 @@ target_link_libraries(wasmedgeThreadTests
   wasmedgeVM
 )
 
-if(WASMEDGE_BUILD_AOT_RUNTIME)
+if(WASMEDGE_USE_LLVM)
   target_compile_definitions(wasmedgeThreadTests
     PRIVATE
-    -DWASMEDGE_BUILD_AOT_RUNTIME
+    -DWASMEDGE_USE_LLVM
   )
   target_link_libraries(wasmedgeThreadTests
     PRIVATE
-    wasmedgeAOT
+    wasmedgeLLVM
   )
 endif()

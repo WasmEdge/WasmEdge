@@ -24,6 +24,8 @@ on:
 
 jobs:
   test:
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -66,7 +68,7 @@ jobs:
           path: wasi-testsuite
 
       - name: Initialize Python environment
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           cache: pip

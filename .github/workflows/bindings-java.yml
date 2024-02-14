@@ -22,6 +22,9 @@ on:
       - "include/api/wasmedge/**"
       - "lib/api/**"
 
+permissions:
+  contents: write
+
 jobs:
   build_ubuntu:
     name: Ubuntu 22.04
@@ -159,7 +162,7 @@ jobs:
         with:
           args: install cmake ninja vswhere
 
-      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
+      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
         with:
           sdk-version: 19041
 

@@ -286,6 +286,7 @@ private:
   std::vector<uintptr_t> CodesAddress;
   std::vector<std::tuple<uint8_t, uint64_t, uint64_t, std::vector<Byte>>>
       Sections;
+  std::vector<uint8_t> Bytecodes;
   /// @}
 };
 
@@ -330,6 +331,19 @@ private:
   /// @}
 };
 
+class CoreTypeSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const CoreDefType> getContent() const noexcept { return Content; }
+  std::vector<CoreDefType> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of CoreTypeSection.
+  /// @{
+  std::vector<CoreDefType> Content;
+  /// @}
+};
+
 class TypeSection : public Section {
 public:
   /// Getter of content module.
@@ -359,13 +373,13 @@ private:
 class StartSection : public Section {
 public:
   /// Getter of content module.
-  Span<const Start> getContent() const noexcept { return Content; }
-  std::vector<Start> &getContent() noexcept { return Content; }
+  const Start &getContent() const noexcept { return Content; }
+  Start &getContent() noexcept { return Content; }
 
 private:
   /// \name Data of StartSection.
   /// @{
-  std::vector<Start> Content;
+  Start Content;
   /// @}
 };
 
@@ -398,18 +412,13 @@ private:
 class Component;
 
 class ComponentSection : public Section {
-
 public:
   /// Getter of content.
-  Span<const std::shared_ptr<Component>> getContent() const noexcept {
-    return Content;
-  }
-  std::vector<std::shared_ptr<Component>> &getContent() noexcept {
-    return Content;
-  }
+  const Component &getContent() const noexcept { return *Content; }
+  std::shared_ptr<Component> getContent() noexcept { return Content; }
 
 private:
-  std::vector<std::shared_ptr<Component>> Content;
+  std::shared_ptr<Component> Content;
 };
 
 } // namespace Component

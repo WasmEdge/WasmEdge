@@ -175,6 +175,60 @@ Expect<void> Loader::loadSection(AST::DataCountSection &Sec) {
   });
 }
 
+Expect<void> Loader::loadSection(AST::Component::ComponentSection &Sec) {
+  auto ResPreamble = Loader::loadPreamble();
+  if (!ResPreamble) {
+    return Unexpect(ResPreamble);
+  }
+  auto WasmMagic = ResPreamble->first;
+  auto Ver = ResPreamble->second;
+  if (unlikely(Ver != ComponentVersion)) {
+    return logLoadError(ErrCode::Value::MalformedVersion, FMgr.getLastOffset(),
+                        ASTNodeAttr::Component);
+  }
+  auto NestedComp = std::make_shared<AST::Component::Component>();
+  NestedComp->getMagic() = WasmMagic;
+  NestedComp->getVersion() = {Ver[0], Ver[1]};
+  NestedComp->getLayer() = {Ver[2], Ver[3]};
+  if (auto Res = loadComponent(*NestedComp); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+    return Unexpect(Res);
+  }
+  Sec.getContent() = NestedComp;
+  return {};
+}
+
+Expect<void> Loader::loadSection(AST::CoreModuleSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
+    auto ExpectedSize = Sec.getContentSize();
+    auto StartOffset = FMgr.getOffset();
+    auto ResPreamble = Loader::loadPreamble();
+    if (!ResPreamble) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+      return Unexpect(ResPreamble);
+    }
+    auto WasmMagic = ResPreamble->first;
+    auto Ver = ResPreamble->second;
+    if (unlikely(Ver != ModuleVersion)) {
+      return logLoadError(ErrCode::Value::MalformedVersion,
+                          FMgr.getLastOffset(), ASTNodeAttr::Module);
+    }
+    AST::Module CoreMod;
+    CoreMod.getMagic() = WasmMagic;
+    CoreMod.getVersion() = Ver;
+
+    auto Offset = FMgr.getOffset();
+    ExpectedSize -= (Offset - StartOffset);
+
+    if (auto Res = loadModuleInBound(CoreMod, ExpectedSize); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+      return Unexpect(Res);
+    }
+    Sec.getContent() = CoreMod;
+    return {};
+  });
+}
+
 // Load vector of component alias section.
 // See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::Component::AliasSection &Sec) {
@@ -195,12 +249,27 @@ Expect<void> Loader::loadSection(AST::Component::CoreInstanceSection &Sec) {
   });
 }
 
+// Load vector of core type section.
+// See "include/loader/loader.h".
+Expect<void> Loader::loadSection(AST::Component::CoreTypeSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::Component::CoreDefType &Ty) { return loadType(Ty); });
+  });
+}
+
 // Load vector of component type section.
 // See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::Component::TypeSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
         Sec, [this](AST::Component::DefType &Ty) { return loadType(Ty); });
+  });
+}
+
+Expect<void> Loader::loadSection(AST::Component::StartSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
+    return loadStart(Sec.getContent());
   });
 }
 

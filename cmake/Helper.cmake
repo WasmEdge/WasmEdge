@@ -69,6 +69,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-documentation-unknown-command
     -Wno-error=nested-anon-types
     -Wno-error=old-style-cast
+    -Wno-error=shadow
     -Wno-error=unused-command-line-argument
     -Wno-error=unknown-warning-option
     -Wno-ctad-maybe-unsupported
@@ -80,6 +81,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-signed-enum-bitfield
     -Wno-switch-enum
     -Wno-undefined-func-template
+    -Wno-deprecated-literal-operator
   )
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0.0)
     list(APPEND WASMEDGE_CFLAGS
@@ -97,7 +99,6 @@ if(WIN32)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_ENABLE_EXTENDED_ALIGNED_STORAGE -DNOMINMAX -D_ITERATOR_DEBUG_LEVEL=0)
   if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     list(APPEND WASMEDGE_CFLAGS
-      "/EHa"
       -Wno-c++98-compat
       -Wno-c++98-compat-pedantic
       -Wno-exit-time-destructors
@@ -189,12 +190,12 @@ function(wasmedge_add_executable target)
 endfunction()
 
 # Generate the list of static libs to statically link LLVM.
-if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_BUILD_AOT_RUNTIME)
+if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLVM)
   # Pack the LLVM and lld static libraries.
   find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}")
   execute_process(
     COMMAND ${LLVM_BINARY_DIR}/bin/llvm-config --libs --link-static
-    core lto native nativecodegen option passes support transformutils all-targets
+    core lto native nativecodegen option passes support orcjit transformutils all-targets
     OUTPUT_VARIABLE WASMEDGE_LLVM_LINK_LIBS_NAME
   )
   string(REPLACE "-l" "" WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")

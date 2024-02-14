@@ -9,6 +9,7 @@
 #include <common.h>
 #include <cstdlib>
 #include <llama.h>
+#include <sstream>
 #endif
 
 namespace WasmEdge::Host::WASINN::GGML {
@@ -59,6 +60,14 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
   }
+  if (Doc.at_key("embedding").error() == simdjson::SUCCESS) {
+    auto Err = Doc["embedding"].get<bool>().get(GraphRef.Embedding);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the embedding option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
   if (Doc.at_key("n-predict").error() == simdjson::SUCCESS) {
     auto Err = Doc["n-predict"].get<uint64_t>().get(GraphRef.NPredict);
     if (Err) {
@@ -87,11 +96,6 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
   }
-#ifdef __APPLE__
-  // Whatever the `n-gpu-layers` is given, we will always set the ngl to 1 on
-  // macOS to forcely enabled Metal.
-  GraphRef.NGPULayers = 1; // Force enabled Metal on macOS
-#endif
 
   // The context parameters.
   if (Doc.at_key("ctx-size").error() == simdjson::SUCCESS) {
@@ -128,11 +132,37 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     }
     GraphRef.Temp = std::max(0.0, GraphRef.Temp);
   }
+  if (Doc.at_key("top-p").error() == simdjson::SUCCESS) {
+    auto Err = Doc["top-p"].get<double>().get(GraphRef.TopP);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the top-p option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
   if (Doc.at_key("repeat-penalty").error() == simdjson::SUCCESS) {
     auto Err = Doc["repeat-penalty"].get<double>().get(GraphRef.RepeatPenalty);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the repeat-penalty option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("presence-penalty").error() == simdjson::SUCCESS) {
+    auto Err =
+        Doc["presence-penalty"].get<double>().get(GraphRef.PresencePenalty);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the presence-penalty option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("frequency-penalty").error() == simdjson::SUCCESS) {
+    auto Err =
+        Doc["frequency-penalty"].get<double>().get(GraphRef.FrequencyPenalty);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the frequency-penalty option."sv);
       return ErrNo::InvalidArgument;
     }
   }
@@ -147,22 +177,137 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
 
 Expect<ErrNo> buildOutputMetadata(Context &CxtRef,
                                   std::string &Metadata) noexcept {
-  std::string MetadataTemplate =
-      R"({"input_tokens": %d, "output_tokens": %d, "llama_build_number": %d, "llama_commit": "%s"})";
+  std::ostringstream OS;
+  OS << R"({"input_tokens": )" << CxtRef.LlamaInputs.size()
+     << R"(, "output_tokens": )" << CxtRef.LlamaOutputTokens.size()
+     << R"(, "llama_build_number": )" << LLAMA_BUILD_NUMBER
+     << R"(, "llama_commit": ")" << LLAMA_COMMIT << R"("})";
+  Metadata = OS.str();
 
-  // The 20 bytes are reserved to accommodate two %d placeholders in the
-  // MetadataTemplate. This allows for a decimal integer value up to a
-  // 12-digit number of input/output tokens.
-  // The 3 bytes are reserved to accommodate the %d placeholder for the build
-  // number. Allows for a decimal integer value up to a 5-digit number.
-  // The 5 bytes are reserved to accommodate the %s placeholder for the commit
-  // hash. The commit hash is 7 bytes long by default using `git rev-parse
-  // --short HEAD`.
-  char Buffer[MetadataTemplate.size() + 20 + 3 + 5];
-  snprintf(Buffer, sizeof(Buffer), MetadataTemplate.c_str(),
-           CxtRef.LlamaInputs.size(), CxtRef.LlamaOutputTokens.size(),
-           LLAMA_BUILD_NUMBER, LLAMA_COMMIT);
-  Metadata = std::string(Buffer);
+  return ErrNo::Success;
+}
+
+void buildOutputEmbedding(std::string &Embedding, int32_t NEmbd,
+                          const float *Embeddings) noexcept {
+  // Embedding vector format
+  // | Content                             |
+  // | ----------------------------------- |
+  // | '{"number_embedding": '             |
+  // | n_embedding                         |
+  // | ', "embedding": '                   |
+  // | '['                                 |
+  // | n_embedding*(embedding value %.10f) |
+  // | (n_embedding-1)*(',')               |
+  // | ']'                                 |
+  // | '}'                                 |
+  std::ostringstream OS;
+  OS.precision(10);
+  OS << R"({"n_embedding": )" << NEmbd << R"(, "embedding": [)";
+  for (int32_t Idx = 0; Idx < NEmbd - 1; Idx++) {
+    OS << Embeddings[Idx] << ",";
+  }
+  OS << Embeddings[NEmbd - 1] << "]}";
+  Embedding = OS.str();
+}
+
+Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
+                           uint32_t ContextId) noexcept {
+  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: getEmbedding"sv);
+  }
+
+  if (CxtRef.LlamaInputs.size() == 0) {
+    spdlog::error("[WASI-NN] GGML backend: Llama input is not set!"sv);
+    return ErrNo::InvalidArgument;
+  }
+
+  // Clear the outputs.
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: clear the previous output and tokens"sv);
+  }
+  CxtRef.LlamaOutputs.clear();
+  CxtRef.LlamaOutputTokens.clear();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: clear the previous output and tokens...Done"sv);
+  }
+
+  // Main predict loop.
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: handle embedding"sv);
+  }
+  // Initialize the llama context.
+  llama_context_params ContextParams = llama_context_default_params();
+  ContextParams.n_ctx = GraphRef.CtxSize;
+  ContextParams.n_batch = GraphRef.BatchSize;
+  ContextParams.embedding = GraphRef.Embedding;
+  auto *LlamaContext =
+      llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
+
+  // Get the context size.
+  const uint64_t NCtx = llama_n_ctx(LlamaContext);
+  // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
+  const uint64_t MaxTokensListSize = NCtx - 4;
+  // Use the const sequence id here.
+  const llama_seq_id SequenceId = 0;
+
+  // Check if the input is too long.
+  if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
+    if (GraphRef.EnableLog) {
+      spdlog::info(
+          "[WASI-NN] GGML backend: the prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
+          CxtRef.LlamaInputs.size(), MaxTokensListSize);
+    }
+    return ErrNo::PromptTooLong;
+  }
+
+  int NPast = 0;
+  while (!CxtRef.LlamaInputs.empty()) {
+    const uint64_t NTokens = (ContextParams.n_batch > CxtRef.LlamaInputs.size())
+                                 ? CxtRef.LlamaInputs.size()
+                                 : ContextParams.n_batch;
+    auto Status = llama_decode(LlamaContext,
+                               llama_batch_get_one(CxtRef.LlamaInputs.data(),
+                                                   NTokens, NPast, SequenceId));
+    if (Status == 1) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: failed to llama_decode: try reducing the size of the batch or increasing the size of context"sv);
+      return ErrNo::RuntimeError;
+    }
+    if (Status < 0) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: failed to llama_decode: internal fatal error. Please open an issue on GitHub"sv);
+      return ErrNo::RuntimeError;
+    }
+
+    NPast += NTokens;
+    CxtRef.LlamaInputs.erase(CxtRef.LlamaInputs.begin(),
+                             CxtRef.LlamaInputs.begin() + NTokens);
+  }
+  const int32_t NEmbd = llama_n_embd(GraphRef.LlamaModel);
+  const auto *Embeddings = llama_get_embeddings(LlamaContext);
+
+  details::buildOutputEmbedding(CxtRef.LlamaOutputs, NEmbd, Embeddings);
+
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: enter embedding loop...Done"sv);
+  }
+
+  if (GraphRef.EnableLog) {
+    llama_print_timings(LlamaContext);
+  }
+
+  // We free the contexts here to keep the ggml plugin stateless.
+  // Users could fully control the contexts by themselves via their prompt.
+  llama_free(LlamaContext);
+
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: compute...Done"sv);
+  }
 
   return ErrNo::Success;
 }
@@ -192,14 +337,17 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.BatchSize = ContextDefault.n_batch;
   GraphRef.Threads = ContextDefault.n_threads;
   // Initialize the sampling parameters.
-  llama_sampling_params SamplingDefault;
+  const llama_sampling_params SamplingDefault;
   GraphRef.Temp = SamplingDefault.temp;
+  GraphRef.TopP = SamplingDefault.top_p;
   GraphRef.RepeatPenalty = SamplingDefault.penalty_repeat;
+  GraphRef.PresencePenalty = SamplingDefault.penalty_present;
+  GraphRef.FrequencyPenalty = SamplingDefault.penalty_freq;
 
   // If the graph builder length > 1, the data of builder[1] is the metadata.
   if (Builders.size() > 1) {
-    std::string Metadata(reinterpret_cast<char *>(Builders[1].data()),
-                         Builders[1].size());
+    const std::string Metadata(reinterpret_cast<char *>(Builders[1].data()),
+                               Builders[1].size());
     // Ignore context or model updates when initializing the graph.
     auto Res = details::parseMetadata(GraphRef, Metadata);
     if (Res != ErrNo::Success) {
@@ -219,7 +367,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   }
   // Handle the model path.
   auto Weight = Builders[0];
-  std::string BinModel(reinterpret_cast<char *>(Weight.data()), Weight.size());
+  const std::string BinModel(reinterpret_cast<char *>(Weight.data()),
+                             Weight.size());
   std::string ModelFilePath;
   if (BinModel.substr(0, 8) == "preload:") {
     ModelFilePath = BinModel.substr(8);
@@ -230,7 +379,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     }
     // TODO: pass the model directly to ggml
     // Write ggml model to file.
-    std::istringstream BinRead(BinModel);
     ModelFilePath = "ggml-model.bin"sv;
     std::ofstream TempFile(ModelFilePath);
     if (!TempFile) {
@@ -359,7 +507,9 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   ContextParams.n_batch = GraphRef.BatchSize;
   ContextParams.n_threads = GraphRef.Threads;
   ContextParams.n_threads_batch = GraphRef.Threads;
-  auto LlamaContext =
+  ContextParams.embedding = GraphRef.Embedding;
+
+  auto *LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: init llama context...Done"sv);
@@ -370,8 +520,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     spdlog::info("[WASI-NN][Debug] GGML backend: set the input"sv);
   }
   const bool AddBos = llama_should_add_bos_token(GraphRef.LlamaModel);
-  std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
-                     Tensor.Tensor.size());
+  const std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
+                           Tensor.Tensor.size());
   CxtRef.LlamaInputs = llama_tokenize(LlamaContext, Prompt, AddBos, true);
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: set the input...Done"sv);
@@ -424,6 +574,11 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: compute"sv);
   }
+
+  if (GraphRef.Embedding) {
+    return details::getEmbedding(Env, ContextId);
+  }
+
   if (CxtRef.LlamaInputs.size() == 0) {
     spdlog::error("[WASI-NN] GGML backend: Llama input is not set!"sv);
     return ErrNo::InvalidArgument;
@@ -447,7 +602,10 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
   gpt_params GPTParams;
   GPTParams.sparams.temp = GraphRef.Temp;
+  GPTParams.sparams.top_p = GraphRef.TopP;
   GPTParams.sparams.penalty_repeat = GraphRef.RepeatPenalty;
+  GPTParams.sparams.penalty_present = GraphRef.PresencePenalty;
+  GPTParams.sparams.penalty_freq = GraphRef.FrequencyPenalty;
   struct llama_sampling_context *CtxSampling =
       llama_sampling_init(GPTParams.sparams);
   std::vector<llama_token> Embd;
@@ -458,7 +616,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   llama_context_params ContextParams = llama_context_default_params();
   ContextParams.n_ctx = GraphRef.CtxSize;
   ContextParams.n_batch = GraphRef.BatchSize;
-  auto LlamaContext =
+  auto *LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
 
   // Get the context size.
@@ -481,7 +639,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
 
   // Main predict loop.
-  while (NRemain >= 0) {
+  while (NRemain > 0) {
     // Preidct
     if (!Embd.empty()) {
       // Input too long.
@@ -523,7 +681,8 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
           spdlog::error(
               "[WASI-NN] GGML backend: failed to llama_decode: try reducing the size of the batch or increasing the size of context"sv);
           return ErrNo::RuntimeError;
-        } else if (Status < 0) {
+        }
+        if (Status < 0) {
           spdlog::error(
               "[WASI-NN] GGML backend: failed to llama_decode: internal fatal error. Please open an issue on GitHub"sv);
           return ErrNo::RuntimeError;
@@ -654,7 +813,10 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     // Initialize the llama context.
     gpt_params GPTParams;
     GPTParams.sparams.temp = GraphRef.Temp;
+    GPTParams.sparams.top_p = GraphRef.TopP;
     GPTParams.sparams.penalty_repeat = GraphRef.RepeatPenalty;
+    GPTParams.sparams.penalty_present = GraphRef.PresencePenalty;
+    GPTParams.sparams.penalty_freq = GraphRef.FrequencyPenalty;
     CxtRef.LlamaSampling = llama_sampling_init(GPTParams.sparams);
     llama_context_params ContextParams = llama_context_default_params();
     ContextParams.n_ctx = GraphRef.CtxSize;
@@ -729,7 +891,8 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
           spdlog::error(
               "[WASI-NN] GGML backend: failed to llama_decode: try reducing the size of the batch or increasing the size of context"sv);
           return ErrNo::RuntimeError;
-        } else if (Status < 0) {
+        }
+        if (Status < 0) {
           spdlog::error(
               "[WASI-NN] GGML backend: failed to llama_decode: internal fatal error. Please open an issue on GitHub"sv);
           return ErrNo::RuntimeError;

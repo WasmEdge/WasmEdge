@@ -17,10 +17,9 @@
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/errinfo.h"
-#include "common/log.h"
 #include "loader/filemgr.h"
-#include "loader/ldmgr.h"
 #include "loader/serialize.h"
+#include "loader/shared_library.h"
 
 #include <cstdint>
 #include <memory>
@@ -88,6 +87,10 @@ inline ASTNodeAttr NodeAttrFromAST<AST::Component::InstanceSection>() noexcept {
   return ASTNodeAttr::Sec_Instance;
 }
 template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::CoreTypeSection>() noexcept {
+  return ASTNodeAttr::Sec_Type;
+}
+template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::TypeSection>() noexcept {
   return ASTNodeAttr::Sec_CompType;
 }
@@ -107,6 +110,15 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::ExportSection>() noexcept {
   return ASTNodeAttr::Sec_CompExport;
 }
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::CoreModuleSection>() noexcept {
+  return ASTNodeAttr::Sec_CoreMod;
+}
+template <>
+inline ASTNodeAttr
+NodeAttrFromAST<AST::Component::ComponentSection>() noexcept {
+  return ASTNodeAttr::Sec_Comp;
+}
 
 } // namespace
 
@@ -114,17 +126,19 @@ inline ASTNodeAttr NodeAttrFromAST<AST::Component::ExportSection>() noexcept {
 class Loader {
 public:
   Loader(const Configure &Conf,
-         const AST::Module::IntrinsicsTable *IT = nullptr) noexcept
-      : Conf(Conf), Ser(Conf), LMgr(IT), IntrinsicsTable(IT) {}
+         const Executable::IntrinsicsTable *IT = nullptr) noexcept
+      : Conf(Conf), Ser(Conf), IntrinsicsTable(IT) {}
   ~Loader() noexcept = default;
 
   /// Load data from file path.
   static Expect<std::vector<Byte>>
   loadFile(const std::filesystem::path &FilePath);
 
-  Expect<std::variant<AST::Component::Component, AST::Module>>
+  Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                      std::unique_ptr<AST::Module>>>
   parseWasmUnit(const std::filesystem::path &FilePath);
-  Expect<std::variant<AST::Component::Component, AST::Module>>
+  Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                      std::unique_ptr<AST::Module>>>
   parseWasmUnit(Span<const uint8_t> Code);
 
   /// Parse component from file path.
@@ -146,10 +160,11 @@ public:
   Expect<std::vector<Byte>> serializeModule(const AST::Module &Mod);
 
   /// Reset status.
-  void reset() noexcept {
-    FMgr.reset();
-    LMgr.reset();
-  }
+  void reset() noexcept { FMgr.reset(); }
+
+  /// Setup Symbol from an Exetuable.
+  Expect<void> loadExecutable(AST::Module &Mod,
+                              std::shared_ptr<Executable> Library);
 
 private:
   /// \name Helper functions to print error log when loading AST nodes
@@ -172,7 +187,9 @@ private:
   }
   /// @}
 
-  Expect<std::variant<AST::Component::Component, AST::Module>> loadUnit();
+  Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                      std::unique_ptr<AST::Module>>>
+  loadUnit();
   Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> loadPreamble();
 
   /// \name Load AST Component functions
@@ -183,7 +200,8 @@ private:
   /// \name Load AST Module functions
   /// @{
   Expect<void> loadModule(AST::Module &Mod);
-  Expect<void> loadCompiled(AST::Module &Mod);
+  Expect<void> loadModuleInBound(AST::Module &Mod,
+                                 std::optional<uint64_t> Bound);
   /// @}
 
   /// \name Load AST section node helper functions
@@ -282,10 +300,14 @@ private:
   Expect<void> loadSection(AST::CodeSection &Sec);
   Expect<void> loadSection(AST::DataSection &Sec);
   Expect<void> loadSection(AST::DataCountSection &Sec);
+  Expect<void> loadSection(AST::Component::ComponentSection &Sec);
+  Expect<void> loadSection(AST::CoreModuleSection &Sec);
   Expect<void> loadSection(AST::Component::CoreInstanceSection &Sec);
   Expect<void> loadSection(AST::Component::InstanceSection &Sec);
   Expect<void> loadSection(AST::Component::AliasSection &Sec);
+  Expect<void> loadSection(AST::Component::CoreTypeSection &Sec);
   Expect<void> loadSection(AST::Component::TypeSection &Sec);
+  Expect<void> loadSection(AST::Component::StartSection &Sec);
   Expect<void> loadSection(AST::Component::CanonSection &Sec);
   Expect<void> loadSection(AST::Component::ImportSection &Sec);
   Expect<void> loadSection(AST::Component::ExportSection &Sec);
@@ -361,8 +383,8 @@ private:
   Expect<void> loadImportDecl(AST::Component::ImportDecl &Decl);
   Expect<void> loadInstanceDecl(AST::Component::InstanceDecl &Decl);
   Expect<void> loadExternDesc(AST::Component::ExternDesc &Desc);
-  Expect<void> loadImportExportName(std::string &Name);
-  Expect<void> loadImportExportNameWithLen(std::string &Name);
+  Expect<void> loadExportName(std::string &Name);
+  Expect<void> loadImportName(std::string &Name);
   Expect<void> loadStart(AST::Component::Start &S);
   Expect<void> loadCoreInstance(AST::Component::CoreInstanceExpr &InstanceExpr);
   Expect<void> loadInstance(AST::Component::InstanceExpr &InstanceExpr);
@@ -394,8 +416,7 @@ private:
   const Configure Conf;
   const Serializer Ser;
   FileMgr FMgr;
-  LDMgr LMgr;
-  const AST::Module::IntrinsicsTable *IntrinsicsTable;
+  const Executable::IntrinsicsTable *IntrinsicsTable;
   std::recursive_mutex Mutex;
   bool HasDataSection;
 

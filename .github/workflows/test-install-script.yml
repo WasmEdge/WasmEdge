@@ -174,7 +174,7 @@ jobs:
             host_runner: macos-latest
             package_manager: brew
           - name: MacOS-arm64
-            host_runner: mac-arm64
+            host_runner: macos-14
             package_manager: brew
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.host_runner }}

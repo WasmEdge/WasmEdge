@@ -1,134 +1,47 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "aot/compiler.h"
+#include "llvm/compiler.h"
 
 #include "aot/version.h"
 #include "common/defines.h"
 #include "common/filesystem.h"
 #include "common/log.h"
+#include "data.h"
 #include "llvm.h"
 
 #include <algorithm>
 #include <array>
-#include <charconv>
 #include <cinttypes>
 #include <cstdint>
 #include <cstdlib>
-#include <fstream>
 #include <limits>
-#include <lld/Common/Driver.h>
 #include <memory>
 #include <numeric>
-#include <random>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
 
-#if LLVM_VERSION_MAJOR >= 14
-#include <lld/Common/CommonLinkerContext.h>
-#endif
-#if LLVM_VERSION_MAJOR >= 17
-#if WASMEDGE_OS_MACOS
-LLD_HAS_DRIVER(macho)
-#elif WASMEDGE_OS_LINUX
-LLD_HAS_DRIVER(elf)
-#elif WASMEDGE_OS_WINDOWS
-LLD_HAS_DRIVER(coff)
-#endif
-#endif
-
-#if WASMEDGE_OS_MACOS
-#include <sys/utsname.h>
-#include <unistd.h>
-#endif
-#if WASMEDGE_OS_WINDOWS
-#include <llvm/Object/COFF.h>
-#endif
-
-#if WASMEDGE_OS_LINUX
-#define SYMBOL(X) X
-#elif WASMEDGE_OS_MACOS
-#define SYMBOL(X) "_" X
-#elif WASMEDGE_OS_WINDOWS
-#define SYMBOL(X) X
-#endif
-
+namespace LLVM = WasmEdge::LLVM;
 using namespace std::literals;
-namespace LLVM = WasmEdge::AOT::LLVM;
 
 namespace {
 
-#if WASMEDGE_OS_MACOS
-// Get current OS version
-std::string getOSVersion() noexcept {
-  struct utsname Info;
-  if (::uname(&Info)) {
-    // default os version
-    return "13.0.0";
-  }
-  std::string_view Release = Info.release;
-  auto GetNum = [](std::string_view &String) noexcept {
-    uint64_t Result = 0;
-    while (!String.empty() && std::isdigit(String[0])) {
-      Result = Result * 10 + (String[0] - '0');
-      String = String.substr(1);
-    }
-    return Result;
-  };
-  auto SkipDot = [](std::string_view &String) noexcept {
-    if (!String.empty() && String[0] == '.')
-      String = String.substr(1);
-  };
-  uint64_t Major = GetNum(Release);
-  SkipDot(Release);
-  uint64_t Minor = GetNum(Release);
-  SkipDot(Release);
-  uint64_t Micro = GetNum(Release);
-
-  if (Major == 0) {
-    Major = 8;
-  }
-  if (Major <= 19) {
-    Micro = 0;
-    Minor = Major - 4;
-    Major = 10;
-  } else {
-    Micro = 0;
-    Minor = 0;
-    Major = 11 + Major - 20;
-  }
-
-  return fmt::format("{}.{}.{}"sv, Major, Minor, Micro);
-}
-// Get current SDK version
-std::string getSDKVersion() noexcept {
-  // TODO: parse SDKSettings.json to get real version
-  return "12.1"s;
-}
-// Get current SDK version in pair
-std::pair<uint32_t, uint32_t> getSDKVersionPair() noexcept {
-  // TODO: parse SDKSettings.json to get real version
-  return {UINT32_C(12), UINT32_C(1)};
-}
-#endif
-
 static bool
 isVoidReturn(WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
-static LLVM::Type toLLVMType(LLVM::Context &LLContext,
+static LLVM::Type toLLVMType(LLVM::Context LLContext,
                              const WasmEdge::ValType &ValType) noexcept;
 static std::vector<LLVM::Type>
-toLLVMArgsType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
+toLLVMArgsType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
                WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
 static LLVM::Type
-toLLVMRetsType(LLVM::Context &LLContext,
+toLLVMRetsType(LLVM::Context LLContext,
                WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
 static LLVM::Type
-toLLVMType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
+toLLVMType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
            const WasmEdge::AST::FunctionType &FuncType) noexcept;
 static LLVM::Value
-toLLVMConstantZero(LLVM::Context &LLContext,
+toLLVMConstantZero(LLVM::Context LLContext,
                    const WasmEdge::ValType &ValType) noexcept;
 static std::vector<LLVM::Value> unpackStruct(LLVM::Builder &Builder,
                                              LLVM::Value Struct) noexcept;
@@ -153,7 +66,7 @@ toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
   case OL::O0:
     return "default<O0>,function(tailcallelim)";
   case OL::O1:
-    return "default<O1>";
+    return "default<O1>,function(tailcallelim)";
   case OL::O2:
     return "default<O2>";
   case OL::O3:
@@ -209,84 +122,10 @@ static inline LLVMCodeGenOptLevel toLLVMCodeGenLevel(
     assumingUnreachable();
   }
 }
-
-WasmEdge::Expect<void> WriteByte(std::ostream &OS, uint8_t Data) noexcept {
-  OS.put(static_cast<char>(Data));
-  return {};
-}
-
-WasmEdge::Expect<void> WriteU32(std::ostream &OS, uint32_t Data) noexcept {
-  do {
-    uint8_t Byte = static_cast<uint8_t>(Data & UINT32_C(0x7f));
-    Data >>= 7;
-    if (Data > UINT32_C(0)) {
-      Byte |= UINT8_C(0x80);
-    }
-    WriteByte(OS, Byte);
-  } while (Data > UINT32_C(0));
-  return {};
-}
-
-WasmEdge::Expect<void> WriteU64(std::ostream &OS, uint64_t Data) noexcept {
-  do {
-    uint8_t Byte = static_cast<uint8_t>(Data & UINT64_C(0x7f));
-    Data >>= 7;
-    if (Data > UINT64_C(0)) {
-      Byte |= UINT8_C(0x80);
-    }
-    WriteByte(OS, Byte);
-  } while (Data > UINT64_C(0));
-  return {};
-}
-
-WasmEdge::Expect<void> WriteName(std::ostream &OS,
-                                 std::string_view Data) noexcept {
-  WriteU32(OS, static_cast<uint32_t>(Data.size()));
-  for (const auto C : Data) {
-    WriteByte(OS, static_cast<uint8_t>(C));
-  }
-  return {};
-}
-
-inline constexpr bool startsWith(std::string_view Value,
-                                 std::string_view Prefix) noexcept {
-  return Value.size() >= Prefix.size() &&
-         Value.substr(0, Prefix.size()) == Prefix;
-}
-
-std::filesystem::path uniquePath(const std::filesystem::path Model) noexcept {
-  using size_type = std::filesystem::path::string_type::size_type;
-  using value_type = std::filesystem::path::value_type;
-  static const auto Hex = "0123456789abcdef"sv;
-  std::random_device Device;
-  std::default_random_engine Engine(Device());
-  std::uniform_int_distribution<size_type> Distribution(0, Hex.size() - 1);
-  auto String = Model.native();
-  for (size_type N = String.size(), I = 0; I < N; ++I) {
-    if (String[I] == static_cast<value_type>('%')) {
-      String[I] = static_cast<value_type>(Hex[Distribution(Engine)]);
-    }
-  }
-  return String;
-}
-
-std::filesystem::path createTemp(const std::filesystem::path Model) noexcept {
-  while (true) {
-    auto Result = uniquePath(Model);
-    std::error_code Error;
-    if (!std::filesystem::exists(Result, Error)) {
-      if (Error) {
-        return {};
-      }
-      return Result;
-    }
-  }
-}
-
 } // namespace
 
-struct WasmEdge::AOT::Compiler::CompileContext {
-  LLVM::Context &LLContext;
+struct LLVM::Compiler::CompileContext {
+  LLVM::Context LLContext;
   LLVM::Module &LLModule;
   LLVM::Attribute Cold;
   LLVM::Attribute NoAlias;
@@ -294,6 +133,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   LLVM::Attribute NoReturn;
   LLVM::Attribute ReadOnly;
   LLVM::Attribute StrictFP;
+  LLVM::Attribute UWTable;
   LLVM::Attribute NoStackArgProbe;
   LLVM::Type VoidTy;
   LLVM::Type Int8Ty;
@@ -319,7 +159,6 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   LLVM::Type IntrinsicsTableTy;
   LLVM::Type IntrinsicsTablePtrTy;
   LLVM::Message SubtargetFeatures;
-  bool IsCustomSection;
 
 #if defined(__x86_64__)
 #if defined(__XOP__)
@@ -363,8 +202,8 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   std::vector<LLVM::Type> Globals;
   LLVM::Value IntrinsicsTable;
   LLVM::FunctionCallee Trap;
-  CompileContext(LLVM::Context &C, LLVM::Module &M, bool IsGenericBinary,
-                 bool IsCustomSection) noexcept
+  CompileContext(LLVM::Context C, LLVM::Module &M,
+                 bool IsGenericBinary) noexcept
       : LLContext(C), LLModule(M),
         Cold(LLVM::Attribute::createEnum(C, LLVM::Core::Cold, 0)),
         NoAlias(LLVM::Attribute::createEnum(C, LLVM::Core::NoAlias, 0)),
@@ -372,6 +211,8 @@ struct WasmEdge::AOT::Compiler::CompileContext {
         NoReturn(LLVM::Attribute::createEnum(C, LLVM::Core::NoReturn, 0)),
         ReadOnly(LLVM::Attribute::createEnum(C, LLVM::Core::ReadOnly, 0)),
         StrictFP(LLVM::Attribute::createEnum(C, LLVM::Core::StrictFP, 0)),
+        UWTable(LLVM::Attribute::createEnum(C, LLVM::Core::UWTable,
+                                            LLVM::Core::UWTableDefault)),
         NoStackArgProbe(
             LLVM::Attribute::createString(C, "no-stack-arg-probe"sv, {})),
         VoidTy(LLContext.getVoidTy()), Int8Ty(LLContext.getInt8Ty()),
@@ -410,24 +251,23 @@ struct WasmEdge::AOT::Compiler::CompileContext {
         ExecCtxPtrTy(ExecCtxTy.getPointerTo()),
         IntrinsicsTableTy(LLVM::Type::getArrayType(
             Int8PtrTy,
-            static_cast<uint32_t>(AST::Module::Intrinsics::kIntrinsicMax))),
+            static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax))),
         IntrinsicsTablePtrTy(IntrinsicsTableTy.getPointerTo()),
-        IsCustomSection(IsCustomSection),
         IntrinsicsTable(LLModule.addGlobal(IntrinsicsTablePtrTy, true,
                                            LLVMExternalLinkage, LLVM::Value(),
                                            "intrinsics")) {
     Trap.Ty = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
     Trap.Fn = LLModule.addFunction(Trap.Ty, LLVMPrivateLinkage, "trap");
-    Trap.Fn.setVisibility(LLVMProtectedVisibility);
     Trap.Fn.setDSOLocal(true);
     Trap.Fn.addFnAttr(NoStackArgProbe);
     Trap.Fn.addFnAttr(StrictFP);
+    Trap.Fn.addFnAttr(UWTable);
     Trap.Fn.addFnAttr(NoReturn);
     Trap.Fn.addFnAttr(Cold);
     Trap.Fn.addFnAttr(NoInline);
 
     LLModule.addGlobal(Int32Ty, true, LLVMExternalLinkage,
-                       LLVM::Value::getConstInt(Int32Ty, kBinaryVersion),
+                       LLVM::Value::getConstInt(Int32Ty, AOT::kBinaryVersion),
                        "version");
 
     if (!IsGenericBinary) {
@@ -474,7 +314,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
           LLVM::BasicBlock::create(LLContext, Trap.Fn, "entry"));
       auto FnTy = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
       auto CallTrap = Builder.createCall(
-          getIntrinsic(Builder, AST::Module::Intrinsics::kTrap, FnTy),
+          getIntrinsic(Builder, Executable::Intrinsics::kTrap, FnTy),
           {Trap.Fn.getFirstParam()});
       CallTrap.addCallSiteAttribute(NoReturn);
       Builder.createUnreachable();
@@ -523,7 +363,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
     return Builder.createExtractValue(ExecCtx, 6);
   }
   LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
-                                    AST::Module::Intrinsics Index,
+                                    Executable::Intrinsics Index,
                                     LLVM::Type Ty) noexcept {
     const auto Value = static_cast<uint32_t>(Index);
     auto PtrTy = Ty.getPointerTo();
@@ -561,19 +401,19 @@ namespace {
 
 using namespace WasmEdge;
 
-static bool isVoidReturn(Span<const WasmEdge::ValType> ValTypes) noexcept {
+static bool isVoidReturn(Span<const ValType> ValTypes) noexcept {
   return ValTypes.empty();
 }
 
-static LLVM::Type toLLVMType(LLVM::Context &LLContext,
+static LLVM::Type toLLVMType(LLVM::Context LLContext,
                              const ValType &ValType) noexcept {
   switch (ValType.getCode()) {
   case TypeCode::I32:
     return LLContext.getInt32Ty();
   case TypeCode::I64:
+    return LLContext.getInt64Ty();
   case TypeCode::Ref:
   case TypeCode::RefNull:
-    return LLContext.getInt64Ty();
   case TypeCode::V128:
     return LLVM::Type::getVectorType(LLContext.getInt64Ty(), 2);
   case TypeCode::F32:
@@ -586,7 +426,7 @@ static LLVM::Type toLLVMType(LLVM::Context &LLContext,
 }
 
 static std::vector<LLVM::Type>
-toLLVMTypeVector(LLVM::Context &LLContext,
+toLLVMTypeVector(LLVM::Context LLContext,
                  Span<const ValType> ValTypes) noexcept {
   std::vector<LLVM::Type> Result;
   Result.reserve(ValTypes.size());
@@ -597,14 +437,14 @@ toLLVMTypeVector(LLVM::Context &LLContext,
 }
 
 static std::vector<LLVM::Type>
-toLLVMArgsType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
+toLLVMArgsType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
                Span<const ValType> ValTypes) noexcept {
   auto Result = toLLVMTypeVector(LLContext, ValTypes);
   Result.insert(Result.begin(), ExecCtxPtrTy);
   return Result;
 }
 
-static LLVM::Type toLLVMRetsType(LLVM::Context &LLContext,
+static LLVM::Type toLLVMRetsType(LLVM::Context LLContext,
                                  Span<const ValType> ValTypes) noexcept {
   if (isVoidReturn(ValTypes)) {
     return LLContext.getVoidTy();
@@ -620,7 +460,7 @@ static LLVM::Type toLLVMRetsType(LLVM::Context &LLContext,
   return LLVM::Type::getStructType(Result);
 }
 
-static LLVM::Type toLLVMType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
+static LLVM::Type toLLVMType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
                              const AST::FunctionType &FuncType) noexcept {
   auto ArgsTy =
       toLLVMArgsType(LLContext, ExecCtxPtrTy, FuncType.getParamTypes());
@@ -628,15 +468,15 @@ static LLVM::Type toLLVMType(LLVM::Context &LLContext, LLVM::Type ExecCtxPtrTy,
   return LLVM::Type::getFunctionType(RetTy, ArgsTy);
 }
 
-static LLVM::Value toLLVMConstantZero(LLVM::Context &LLContext,
+static LLVM::Value toLLVMConstantZero(LLVM::Context LLContext,
                                       const ValType &ValType) noexcept {
   switch (ValType.getCode()) {
   case TypeCode::I32:
     return LLVM::Value::getConstNull(LLContext.getInt32Ty());
   case TypeCode::I64:
+    return LLVM::Value::getConstNull(LLContext.getInt64Ty());
   case TypeCode::Ref:
   case TypeCode::RefNull:
-    return LLVM::Value::getConstNull(LLContext.getInt64Ty());
   case TypeCode::V128:
     return LLVM::Value::getConstNull(
         LLVM::Type::getVectorType(LLContext.getInt64Ty(), 2));
@@ -653,13 +493,12 @@ class FunctionCompiler {
   struct Control;
 
 public:
-  FunctionCompiler(AOT::Compiler::CompileContext &Context,
+  FunctionCompiler(LLVM::Compiler::CompileContext &Context,
                    LLVM::FunctionCallee F, Span<const ValType> Locals,
                    bool Interruptible, bool InstructionCounting,
-                   bool GasMeasuring, bool OptNone) noexcept
+                   bool GasMeasuring) noexcept
       : Context(Context), LLContext(Context.LLContext),
-        Interruptible(Interruptible), OptNone(OptNone), F(F),
-        Builder(LLContext) {
+        Interruptible(Interruptible), F(F), Builder(LLContext) {
     if (F.Fn) {
       Builder.positionAtEnd(LLVM::BasicBlock::create(LLContext, F.Fn, "entry"));
       ExecCtx = Builder.createLoad(Context.ExecCtxTy, F.Fn.getFirstParam());
@@ -893,8 +732,10 @@ public:
       }
       case OpCode::Br_on_null: {
         const auto Label = Instr.getJump().TargetIndex;
-        auto Value = stackPop();
-        auto Cond = Builder.createICmpEQ(Value, LLContext.getInt64(0));
+        auto Value = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
+        auto Cond = Builder.createICmpEQ(
+            Builder.createExtractElement(Value, LLContext.getInt64(1)),
+            LLContext.getInt64(0));
         setLableJumpPHI(Label);
         auto Next = LLVM::BasicBlock::create(LLContext, F.Fn, "br_on_null.end");
         Builder.createCondBr(Cond, getLabel(Label), Next);
@@ -904,7 +745,11 @@ public:
       }
       case OpCode::Br_on_non_null: {
         const auto Label = Instr.getJump().TargetIndex;
-        auto Cond = Builder.createICmpNE(Stack.back(), LLContext.getInt64(0));
+        auto Cond = Builder.createICmpNE(
+            Builder.createExtractElement(
+                Builder.createBitCast(Stack.back(), Context.Int64x2Ty),
+                LLContext.getInt64(1)),
+            LLContext.getInt64(0));
         setLableJumpPHI(Label);
         auto Next =
             LLVM::BasicBlock::create(LLContext, F.Fn, "br_on_non_null.end");
@@ -953,18 +798,26 @@ public:
         Builder.positionAtEnd(
             LLVM::BasicBlock::create(LLContext, F.Fn, "ret_call_ref.end"));
         break;
-      case OpCode::Ref__null:
-        stackPush(LLContext.getInt64(0));
+      case OpCode::Ref__null: {
+        std::array<uint8_t, 16> Val = {0};
+        std::copy_n(Instr.getValType().getRawData().cbegin(), 8, Val.begin());
+        auto Vector = LLVM::Value::getConstVector8(LLContext, Val);
+        stackPush(Builder.createBitCast(Vector, Context.Int64x2Ty));
         break;
+      }
       case OpCode::Ref__is_null:
         stackPush(Builder.createZExt(
-            Builder.createICmpEQ(stackPop(), LLContext.getInt64(0)),
+            Builder.createICmpEQ(
+                Builder.createExtractElement(
+                    Builder.createBitCast(stackPop(), Context.Int64x2Ty),
+                    LLContext.getInt64(1)),
+                LLContext.getInt64(0)),
             Context.Int32Ty));
         break;
       case OpCode::Ref__func:
         stackPush(Builder.createCall(
-            Context.getIntrinsic(Builder, AST::Module::Intrinsics::kRefFunc,
-                                 LLVM::Type::getFunctionType(Context.Int64Ty,
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kRefFunc,
+                                 LLVM::Type::getFunctionType(Context.Int64x2Ty,
                                                              {Context.Int32Ty},
                                                              false)),
             {LLContext.getInt32(Instr.getTargetIndex())}));
@@ -972,8 +825,10 @@ public:
       case OpCode::Ref__as_non_null: {
         auto Next =
             LLVM::BasicBlock::create(LLContext, F.Fn, "ref_as_non_null.ok");
-        auto IsNotNull = Builder.createLikely(
-            Builder.createICmpNE(Stack.back(), LLContext.getInt64(0)));
+        Stack.back() = Builder.createBitCast(Stack.back(), Context.Int64x2Ty);
+        auto IsNotNull = Builder.createLikely(Builder.createICmpNE(
+            Builder.createExtractElement(Stack.back(), LLContext.getInt64(1)),
+            LLContext.getInt64(0)));
         Builder.createCondBr(IsNotNull, Next,
                              getTrapBB(ErrCode::Value::CastNullToNonNull));
         Builder.positionAtEnd(Next);
@@ -1016,8 +871,8 @@ public:
         auto Idx = stackPop();
         stackPush(Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kTableGet,
-                LLVM::Type::getFunctionType(Context.Int64Ty,
+                Builder, Executable::Intrinsics::kTableGet,
+                LLVM::Type::getFunctionType(Context.Int64x2Ty,
                                             {Context.Int32Ty, Context.Int32Ty},
                                             false)),
             {LLContext.getInt32(Instr.getTargetIndex()), Idx}));
@@ -1028,10 +883,10 @@ public:
         auto Idx = stackPop();
         Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kTableSet,
+                Builder, Executable::Intrinsics::kTableSet,
                 LLVM::Type::getFunctionType(
                     Context.Int64Ty,
-                    {Context.Int32Ty, Context.Int32Ty, Context.Int64Ty},
+                    {Context.Int32Ty, Context.Int32Ty, Context.Int64x2Ty},
                     false)),
             {LLContext.getInt32(Instr.getTargetIndex()), Idx, Ref});
         break;
@@ -1042,7 +897,7 @@ public:
         auto Dst = stackPop();
         Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kTableInit,
+                Builder, Executable::Intrinsics::kTableInit,
                 LLVM::Type::getFunctionType(Context.VoidTy,
                                             {Context.Int32Ty, Context.Int32Ty,
                                              Context.Int32Ty, Context.Int32Ty,
@@ -1054,7 +909,7 @@ public:
       }
       case OpCode::Elem__drop: {
         Builder.createCall(
-            Context.getIntrinsic(Builder, AST::Module::Intrinsics::kElemDrop,
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kElemDrop,
                                  LLVM::Type::getFunctionType(
                                      Context.VoidTy, {Context.Int32Ty}, false)),
             {LLContext.getInt32(Instr.getTargetIndex())});
@@ -1066,7 +921,7 @@ public:
         auto Dst = stackPop();
         Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kTableCopy,
+                Builder, Executable::Intrinsics::kTableCopy,
                 LLVM::Type::getFunctionType(Context.VoidTy,
                                             {Context.Int32Ty, Context.Int32Ty,
                                              Context.Int32Ty, Context.Int32Ty,
@@ -1081,17 +936,17 @@ public:
         auto Val = stackPop();
         stackPush(Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kTableGrow,
+                Builder, Executable::Intrinsics::kTableGrow,
                 LLVM::Type::getFunctionType(
                     Context.Int32Ty,
-                    {Context.Int32Ty, Context.Int64Ty, Context.Int32Ty},
+                    {Context.Int32Ty, Context.Int64x2Ty, Context.Int32Ty},
                     false)),
             {LLContext.getInt32(Instr.getTargetIndex()), Val, NewSize}));
         break;
       }
       case OpCode::Table__size: {
         stackPush(Builder.createCall(
-            Context.getIntrinsic(Builder, AST::Module::Intrinsics::kTableSize,
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kTableSize,
                                  LLVM::Type::getFunctionType(Context.Int32Ty,
                                                              {Context.Int32Ty},
                                                              false)),
@@ -1103,12 +958,12 @@ public:
         auto Val = stackPop();
         auto Off = stackPop();
         Builder.createCall(
-            Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kTableFill,
-                LLVM::Type::getFunctionType(Context.Int32Ty,
-                                            {Context.Int32Ty, Context.Int32Ty,
-                                             Context.Int64Ty, Context.Int32Ty},
-                                            false)),
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kTableFill,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int32Ty,
+                                     {Context.Int32Ty, Context.Int32Ty,
+                                      Context.Int64x2Ty, Context.Int32Ty},
+                                     false)),
             {LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
         break;
       }
@@ -1211,7 +1066,7 @@ public:
         break;
       case OpCode::Memory__size:
         stackPush(Builder.createCall(
-            Context.getIntrinsic(Builder, AST::Module::Intrinsics::kMemSize,
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kMemSize,
                                  LLVM::Type::getFunctionType(Context.Int32Ty,
                                                              {Context.Int32Ty},
                                                              false)),
@@ -1221,7 +1076,7 @@ public:
         auto Diff = stackPop();
         stackPush(Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kMemGrow,
+                Builder, Executable::Intrinsics::kMemGrow,
                 LLVM::Type::getFunctionType(Context.Int32Ty,
                                             {Context.Int32Ty, Context.Int32Ty},
                                             false)),
@@ -1234,7 +1089,7 @@ public:
         auto Dst = stackPop();
         Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kMemInit,
+                Builder, Executable::Intrinsics::kMemInit,
                 LLVM::Type::getFunctionType(Context.VoidTy,
                                             {Context.Int32Ty, Context.Int32Ty,
                                              Context.Int32Ty, Context.Int32Ty,
@@ -1246,7 +1101,7 @@ public:
       }
       case OpCode::Data__drop: {
         Builder.createCall(
-            Context.getIntrinsic(Builder, AST::Module::Intrinsics::kDataDrop,
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kDataDrop,
                                  LLVM::Type::getFunctionType(
                                      Context.VoidTy, {Context.Int32Ty}, false)),
             {LLContext.getInt32(Instr.getTargetIndex())});
@@ -1258,7 +1113,7 @@ public:
         auto Dst = stackPop();
         Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kMemCopy,
+                Builder, Executable::Intrinsics::kMemCopy,
                 LLVM::Type::getFunctionType(Context.VoidTy,
                                             {Context.Int32Ty, Context.Int32Ty,
                                              Context.Int32Ty, Context.Int32Ty,
@@ -1274,7 +1129,7 @@ public:
         auto Off = stackPop();
         Builder.createCall(
             Context.getIntrinsic(
-                Builder, AST::Module::Intrinsics::kMemFill,
+                Builder, Executable::Intrinsics::kMemFill,
                 LLVM::Type::getFunctionType(Context.VoidTy,
                                             {Context.Int32Ty, Context.Int32Ty,
                                              Context.Int8Ty, Context.Int32Ty},
@@ -3427,7 +3282,7 @@ public:
 
     stackPush(Builder.createCall(
         Context.getIntrinsic(
-            Builder, AST::Module::Intrinsics::kMemoryAtomicNotify,
+            Builder, Executable::Intrinsics::kMemoryAtomicNotify,
             LLVM::Type::getFunctionType(
                 Context.Int32Ty,
                 {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
@@ -3446,7 +3301,7 @@ public:
 
     stackPush(Builder.createCall(
         Context.getIntrinsic(
-            Builder, AST::Module::Intrinsics::kMemoryAtomicWait,
+            Builder, Executable::Intrinsics::kMemoryAtomicWait,
             LLVM::Type::getFunctionType(Context.Int32Ty,
                                         {Context.Int32Ty, Context.Int32Ty,
                                          Context.Int64Ty, Context.Int64Ty,
@@ -3469,7 +3324,7 @@ public:
         Offset);
 
     auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
-    auto Load = Builder.createLoad(TargetType, Ptr, OptNone);
+    auto Load = Builder.createLoad(TargetType, Ptr, true);
     Load.setAlignment(1 << Alignment);
     Load.setOrdering(LLVMAtomicOrderingSequentiallyConsistent);
 
@@ -3498,7 +3353,7 @@ public:
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
         Offset);
     auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
-    auto Store = Builder.createStore(V, Ptr, OptNone);
+    auto Store = Builder.createStore(V, Ptr, true);
     Store.setAlignment(1 << Alignment);
     Store.setOrdering(LLVMAtomicOrderingSequentiallyConsistent);
   }
@@ -3701,7 +3556,7 @@ private:
     {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kTableGetFuncSymbol,
+              Builder, Executable::Intrinsics::kTableGetFuncSymbol,
               LLVM::Type::getFunctionType(
                   FTy.getPointerTo(),
                   {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
@@ -3760,7 +3615,7 @@ private:
 
       Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kCallIndirect,
+              Builder, Executable::Intrinsics::kCallIndirect,
               LLVM::Type::getFunctionType(Context.VoidTy,
                                           {Context.Int32Ty, Context.Int32Ty,
                                            Context.Int32Ty, Context.Int8PtrTy,
@@ -3841,7 +3696,7 @@ private:
     {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kTableGetFuncSymbol,
+              Builder, Executable::Intrinsics::kTableGetFuncSymbol,
               LLVM::Type::getFunctionType(
                   FTy.getPointerTo(),
                   {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
@@ -3894,7 +3749,7 @@ private:
 
       Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kCallIndirect,
+              Builder, Executable::Intrinsics::kCallIndirect,
               LLVM::Type::getFunctionType(Context.VoidTy,
                                           {Context.Int32Ty, Context.Int32Ty,
                                            Context.Int32Ty, Context.Int8PtrTy,
@@ -3928,10 +3783,11 @@ private:
     auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.is_null");
     auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.end");
 
-    auto Ref = stackPop();
+    auto Ref = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
     auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.ref_not_null");
-    auto IsRefNotNull =
-        Builder.createLikely(Builder.createICmpNE(Ref, LLContext.getInt64(0)));
+    auto IsRefNotNull = Builder.createLikely(Builder.createICmpNE(
+        Builder.createExtractElement(Ref, LLContext.getInt64(1)),
+        LLContext.getInt64(0)));
     Builder.createCondBr(IsRefNotNull, OkBB,
                          getTrapBB(ErrCode::Value::AccessNullFunc));
     Builder.positionAtEnd(OkBB);
@@ -3955,9 +3811,9 @@ private:
     {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kRefGetFuncSymbol,
-              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int64Ty},
-                                          false)),
+              Builder, Executable::Intrinsics::kRefGetFuncSymbol,
+              LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                          {Context.Int64x2Ty}, false)),
           {Ref});
       Builder.createCondBr(
           Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
@@ -4012,10 +3868,10 @@ private:
 
       Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kCallRef,
+              Builder, Executable::Intrinsics::kCallRef,
               LLVM::Type::getFunctionType(
                   Context.VoidTy,
-                  {Context.Int64Ty, Context.Int8PtrTy, Context.Int8PtrTy},
+                  {Context.Int64x2Ty, Context.Int8PtrTy, Context.Int8PtrTy},
                   false)),
           {Ref, Args, Rets});
 
@@ -4050,10 +3906,11 @@ private:
     auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.not_null");
     auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.is_null");
 
-    auto Ref = stackPop();
+    auto Ref = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
     auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_r.ref_not_null");
-    auto IsRefNotNull =
-        Builder.createLikely(Builder.createICmpNE(Ref, LLContext.getInt64(0)));
+    auto IsRefNotNull = Builder.createLikely(Builder.createICmpNE(
+        Builder.createExtractElement(Ref, LLContext.getInt64(1)),
+        LLContext.getInt64(0)));
     Builder.createCondBr(IsRefNotNull, OkBB,
                          getTrapBB(ErrCode::Value::AccessNullFunc));
     Builder.positionAtEnd(OkBB);
@@ -4075,9 +3932,9 @@ private:
     {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kRefGetFuncSymbol,
-              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int64Ty},
-                                          false)),
+              Builder, Executable::Intrinsics::kRefGetFuncSymbol,
+              LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                          {Context.Int64x2Ty}, false)),
           {Ref});
       Builder.createCondBr(
           Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
@@ -4126,10 +3983,10 @@ private:
 
       Builder.createCall(
           Context.getIntrinsic(
-              Builder, AST::Module::Intrinsics::kCallRef,
+              Builder, Executable::Intrinsics::kCallRef,
               LLVM::Type::getFunctionType(
                   Context.VoidTy,
-                  {Context.Int64Ty, Context.Int8PtrTy, Context.Int8PtrTy},
+                  {Context.Int64x2Ty, Context.Int8PtrTy, Context.Int8PtrTy},
                   false)),
           {Ref, Args, Rets});
 
@@ -4166,7 +4023,7 @@ private:
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
-    auto LoadInst = Builder.createLoad(LoadTy, Ptr, OptNone);
+    auto LoadInst = Builder.createLoad(LoadTy, Ptr, true);
     LoadInst.setAlignment(1 << Alignment);
     stackPush(LoadInst);
   }
@@ -4237,7 +4094,7 @@ private:
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
-    auto StoreInst = Builder.createStore(V, Ptr, OptNone);
+    auto StoreInst = Builder.createStore(V, Ptr, true);
     StoreInst.setAlignment(1 << Alignment);
   }
   void compileSplatOp(LLVM::Type VectorTy) noexcept {
@@ -5094,8 +4951,8 @@ private:
     return Value;
   }
 
-  AOT::Compiler::CompileContext &Context;
-  LLVM::Context &LLContext;
+  LLVM::Compiler::CompileContext &Context;
+  LLVM::Context LLContext;
   std::vector<std::pair<LLVM::Type, LLVM::Value>> Local;
   std::vector<LLVM::Value> Stack;
   LLVM::Value LocalInstrCount = nullptr;
@@ -5103,7 +4960,6 @@ private:
   std::unordered_map<ErrCode::Value, LLVM::BasicBlock> TrapBB;
   bool IsUnreachable = false;
   bool Interruptible = false;
-  bool OptNone = false;
   struct Control {
     size_t StackSize;
     bool Unreachable;
@@ -5144,335 +5000,12 @@ std::vector<LLVM::Value> unpackStruct(LLVM::Builder &Builder,
   return Ret;
 }
 
-// Write output object and link
-Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
-                                 const LLVM::MemoryBuffer &OSVec) noexcept {
-  spdlog::info("output start");
-  std::filesystem::path ObjectName;
-  {
-    // tempfile
-    std::filesystem::path OPath(OutputPath);
-#if WASMEDGE_OS_WINDOWS
-    OPath.replace_extension("%%%%%%%%%%.obj"sv);
-#else
-    OPath.replace_extension("%%%%%%%%%%.o"sv);
-#endif
-    ObjectName = createTemp(OPath);
-    if (ObjectName.empty()) {
-      // TODO:return error
-      spdlog::error("so file creation failed:{}", OPath.u8string());
-      return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
-    }
-    std::ofstream OS(ObjectName, std::ios_base::binary);
-    OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
-    OS.close();
-  }
-
-  // link
-  bool LinkResult = false;
-#if WASMEDGE_OS_MACOS
-  const auto OSVersion = getOSVersion();
-  const auto SDKVersion = getSDKVersion();
-#if LLVM_VERSION_MAJOR >= 14
-  // LLVM 14 replaces the older mach_o lld implementation with the new one.
-  // So we need to change the namespace after LLVM 14.x released.
-  // Reference: https://reviews.llvm.org/D114842
-  LinkResult = lld::macho::link(
-#else
-  LinkResult = lld::mach_o::link(
-#endif
-      std::initializer_list<const char *> {
-        "lld", "-arch",
-#if defined(__x86_64__)
-            "x86_64",
-#elif defined(__aarch64__)
-            "arm64",
-#else
-#error Unsupported architecture on the MacOS!
-#endif
-#if LLVM_VERSION_MAJOR >= 14
-            // LLVM 14 replaces the older mach_o lld implementation with the new
-            // one. And it require -arch and -platform_version to always be
-            // specified. Reference: https://reviews.llvm.org/D97799
-            "-platform_version", "macos", OSVersion.c_str(), SDKVersion.c_str(),
-#else
-            "-sdk_version", SDKVersion.c_str(),
-#endif
-            "-dylib", "-demangle", "-macosx_version_min", OSVersion.c_str(),
-            "-syslibroot",
-            "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-            ObjectName.u8string().c_str(), "-o",
-            OutputPath.u8string().c_str() //,
-                                          //"-lSystem"
-      },
-#elif WASMEDGE_OS_LINUX
-  LinkResult = lld::elf::link(
-      std::initializer_list<const char *>{"ld.lld", "--shared", "--gc-sections",
-                                          "--discard-all", ObjectName.c_str(),
-                                          "-o", OutputPath.u8string().c_str()},
-#elif WASMEDGE_OS_WINDOWS
-  LinkResult = lld::coff::link(
-      std::initializer_list<const char *>{
-          "lld-link", "-dll", "-base:0", "-nologo",
-          ObjectName.u8string().c_str(),
-          ("-out:" + OutputPath.u8string()).c_str()},
-#endif
-
-#if LLVM_VERSION_MAJOR >= 14
-      llvm::outs(), llvm::errs(), false, false
-#elif LLVM_VERSION_MAJOR >= 10
-      false, llvm::outs(), llvm::errs()
-#else
-      false, llvm::errs()
-#endif
-  );
-
-#if LLVM_VERSION_MAJOR >= 14
-  lld::CommonLinkerContext::destroy();
-#endif
-
-  if (LinkResult) {
-    std::error_code Error;
-    std::filesystem::remove(ObjectName, Error);
-#if WASMEDGE_OS_WINDOWS
-    std::filesystem::path LibPath(OutputPath);
-    LibPath.replace_extension(".lib"sv);
-    std::filesystem::remove(LibPath, Error);
-#endif
-
-    spdlog::info("compile done");
-  } else {
-    spdlog::error("link error");
-  }
-
-#if WASMEDGE_OS_MACOS
-  // codesign
-  if (LinkResult) {
-    pid_t PID = ::fork();
-    if (PID == -1) {
-      spdlog::error("codesign error on fork:{}", std::strerror(errno));
-    } else if (PID == 0) {
-      execlp("/usr/bin/codesign", "codesign", "-s", "-",
-             OutputPath.u8string().c_str(), nullptr);
-      std::exit(256);
-    } else {
-      int ChildStat;
-      waitpid(PID, &ChildStat, 0);
-      if (const int Status = WEXITSTATUS(ChildStat); Status != 0) {
-        spdlog::error("codesign exited with status {}", Status);
-      }
-    }
-  }
-#endif
-
-  return {};
-}
-
-Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
-                               Span<const Byte> Data,
-                               const LLVM::MemoryBuffer &OSVec) noexcept {
-  std::filesystem::path SharedObjectName;
-  {
-    // tempfile
-    std::filesystem::path SOPath(OutputPath);
-    SOPath.replace_extension("%%%%%%%%%%" WASMEDGE_LIB_EXTENSION);
-    SharedObjectName = createTemp(SOPath);
-    if (SharedObjectName.empty()) {
-      // TODO:return error
-      spdlog::error("so file creation failed:{}", SOPath.u8string());
-      return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
-    }
-    std::ofstream OS(SharedObjectName, std::ios_base::binary);
-    OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
-    OS.close();
-  }
-
-  if (auto Res = outputNativeLibrary(SharedObjectName, OSVec); unlikely(!Res)) {
-    return Unexpect(Res);
-  }
-
-  LLVM::MemoryBuffer SOFile;
-  if (auto [Res, ErrorMessage] =
-          LLVM::MemoryBuffer::getFile(SharedObjectName.u8string().c_str());
-      unlikely(ErrorMessage)) {
-    spdlog::error("object file open error:{}", ErrorMessage.string_view());
-    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
-  } else {
-    SOFile = std::move(Res);
-  }
-
-  LLVM::Context Context;
-  LLVM::Binary ObjFile;
-  if (auto [Res, ErrorMessage] = LLVM::Binary::create(SOFile, Context);
-      unlikely(ErrorMessage)) {
-    spdlog::error("object file parse error:{}", ErrorMessage.string_view());
-    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
-  } else {
-    ObjFile = std::move(Res);
-  }
-
-  std::string OSCustomSecVec;
-  {
-    std::ostringstream OS;
-    WriteName(OS, "wasmedge"sv);
-    WriteU32(OS, WasmEdge::AOT::kBinaryVersion);
-
-#if WASMEDGE_OS_LINUX
-    WriteByte(OS, UINT8_C(1));
-#elif WASMEDGE_OS_MACOS
-    WriteByte(OS, UINT8_C(2));
-#elif WASMEDGE_OS_WINDOWS
-    WriteByte(OS, UINT8_C(3));
-#else
-#error Unsupported operating system!
-#endif
-
-#if defined(__x86_64__)
-    WriteByte(OS, UINT8_C(1));
-#elif defined(__aarch64__)
-    WriteByte(OS, UINT8_C(2));
-#elif defined(__riscv) && __riscv_xlen == 64
-    WriteByte(OS, UINT8_C(3));
-#elif defined(__arm__) && __ARM_ARCH == 7
-    WriteByte(OS, UINT8_C(4));
-#else
-#error Unsupported hardware architecture!
-#endif
-
-    std::vector<std::pair<std::string, uint64_t>> SymbolTable;
-#if !WASMEDGE_OS_WINDOWS
-    for (auto Symbol = ObjFile.symbols();
-         Symbol && !ObjFile.isSymbolEnd(Symbol); Symbol.next()) {
-      SymbolTable.emplace_back(Symbol.getName(), Symbol.getAddress());
-    }
-#else
-    for (auto &Symbol :
-         llvm::object::unwrap<llvm::object::COFFObjectFile>(ObjFile.unwrap())
-             ->export_directories()) {
-      llvm::StringRef Name;
-      if (auto Error = Symbol.getSymbolName(Name); unlikely(!!Error)) {
-        continue;
-      } else if (Name.empty()) {
-        continue;
-      }
-      uint32_t Offset = 0;
-      if (auto Error = Symbol.getExportRVA(Offset); unlikely(!!Error)) {
-        continue;
-      }
-      SymbolTable.emplace_back(Name.str(), Offset);
-    }
-#endif
-    uint64_t VersionAddress = 0, IntrinsicsAddress = 0;
-    std::vector<uint64_t> Types;
-    std::vector<uint64_t> Codes;
-    uint64_t CodesMin = std::numeric_limits<uint64_t>::max();
-    for (const auto &[Name, Address] : SymbolTable) {
-      if (Name == SYMBOL("version"sv)) {
-        VersionAddress = Address;
-      } else if (Name == SYMBOL("intrinsics"sv)) {
-        IntrinsicsAddress = Address;
-      } else if (startsWith(Name, SYMBOL("t"sv))) {
-        uint64_t Index = 0;
-        std::from_chars(Name.data() + SYMBOL("t"sv).size(),
-                        Name.data() + Name.size(), Index);
-        if (Types.size() < Index + 1) {
-          Types.resize(Index + 1);
-        }
-        Types[Index] = Address;
-      } else if (startsWith(Name, SYMBOL("f"sv))) {
-        uint64_t Index = 0;
-        std::from_chars(Name.data() + SYMBOL("f"sv).size(),
-                        Name.data() + Name.size(), Index);
-        if (Codes.size() < Index + 1) {
-          Codes.resize(Index + 1);
-        }
-        CodesMin = std::min(CodesMin, Index);
-        Codes[Index] = Address;
-      }
-    }
-    if (CodesMin != std::numeric_limits<uint64_t>::max()) {
-      Codes.erase(Codes.begin(),
-                  Codes.begin() + static_cast<int64_t>(CodesMin));
-    }
-    WriteU64(OS, VersionAddress);
-    WriteU64(OS, IntrinsicsAddress);
-    WriteU64(OS, Types.size());
-    for (const uint64_t TypeAddress : Types) {
-      WriteU64(OS, TypeAddress);
-    }
-    WriteU64(OS, Codes.size());
-    for (const uint64_t CodeAddress : Codes) {
-      WriteU64(OS, CodeAddress);
-    }
-
-    uint32_t SectionCount = 0;
-    for (auto Section = ObjFile.sections(); !ObjFile.isSectionEnd(Section);
-         Section.next()) {
-      if (Section.getSize() == 0) {
-        continue;
-      }
-      if (!Section.isText() && !Section.isData() && !Section.isBSS()) {
-        continue;
-      }
-      ++SectionCount;
-    }
-    WriteU32(OS, SectionCount);
-
-    for (auto Section = ObjFile.sections(); !ObjFile.isSectionEnd(Section);
-         Section.next()) {
-      if (Section.getSize() == 0) {
-        continue;
-      }
-      std::vector<char> Content;
-      if (auto Res = Section.getContents(); unlikely(Res.empty())) {
-        assumingUnreachable();
-      } else {
-        Content.assign(Res.begin(), Res.end());
-      }
-      if (Section.isPData()) {
-        WriteByte(OS, UINT8_C(4));
-      } else if (Section.isText()) {
-        WriteByte(OS, UINT8_C(1));
-      } else if (Section.isData()) {
-        WriteByte(OS, UINT8_C(2));
-      } else if (Section.isBSS()) {
-        WriteByte(OS, UINT8_C(3));
-      } else {
-        continue;
-      }
-
-      WriteU64(OS, Section.getAddress());
-      WriteU64(OS, Content.size());
-      WriteName(OS, std::string_view(Content.data(), Content.size()));
-    }
-    OSCustomSecVec = OS.str();
-  }
-
-  spdlog::info("output start");
-
-  std::ofstream OS(OutputPath, std::ios_base::binary);
-  if (!OS) {
-    spdlog::error("output failed.");
-    return Unexpect(ErrCode::Value::IllegalPath);
-  }
-  OS.write(reinterpret_cast<const char *>(Data.data()),
-           static_cast<std::streamsize>(Data.size()));
-  // Custom section id
-  WriteByte(OS, UINT8_C(0x00));
-  WriteName(OS, std::string_view(OSCustomSecVec.data(), OSCustomSecVec.size()));
-
-  std::error_code Error;
-  std::filesystem::remove(SharedObjectName, Error);
-  return {};
-}
-
 } // namespace
 
 namespace WasmEdge {
-namespace AOT {
+namespace LLVM {
 
-Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
-                               std::filesystem::path OutputPath) noexcept {
+Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   // Check the module is validated.
   if (unlikely(!Module.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
@@ -5481,26 +5014,17 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 
   std::unique_lock Lock(Mutex);
   spdlog::info("compile start");
-  std::filesystem::path LLPath(OutputPath);
-  LLPath.replace_extension("ll"sv);
 
   LLVM::Core::init();
 
-  LLVM::Context LLContext;
-  LLVM::Module LLModule(LLContext, LLPath.u8string().c_str());
+  LLVM::Data D;
+  auto LLContext = D.extract().LLContext();
+  auto &LLModule = D.extract().LLModule;
   LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
   LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
-#if WASMEDGE_OS_MACOS
-  {
-    const auto [Major, Minor] = getSDKVersionPair();
-    LLModule.addFlag(LLVMModuleFlagBehaviorError, "SDK Version"sv,
-                     LLVM::Value::getConstVector32(LLContext, {Major, Minor}));
-  }
-#endif
+
   CompileContext NewContext(LLContext, LLModule,
-                            Conf.getCompilerConfigure().isGenericBinary(),
-                            Conf.getCompilerConfigure().getOutputFormat() ==
-                                CompilerConfigure::OutputFormat::Wasm);
+                            Conf.getCompilerConfigure().isGenericBinary());
   struct RAIICleanup {
     RAIICleanup(CompileContext *&Context, CompileContext &NewContext)
         : Context(Context) {
@@ -5527,75 +5051,18 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   compile(Module.getExportSection());
   // StartSection is not required to compile
 
-#if WASMEDGE_OS_WINDOWS
-  {
-    // create dummy dllmain function
-    auto FTy = LLVM::Type::getFunctionType(Context->LLContext.getInt32Ty(), {});
-    auto F = Context->LLModule.addFunction(FTy, LLVMExternalLinkage,
-                                           "_DllMainCRTStartup");
-    F.setVisibility(LLVMProtectedVisibility);
-    F.setDSOLocal(true);
-    F.addFnAttr(Context->NoStackArgProbe);
-    F.addFnAttr(Context->StrictFP);
-    F.addFnAttr(Context->NoReturn);
-    LLVM::Builder Builder(Context->LLContext);
-    Builder.positionAtEnd(
-        LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
-    Builder.createRet(Context->LLContext.getInt32(1u));
-
-    auto A = LLModule.addAlias(F.getType(), F, "_fltused");
-    A.setLinkage(LLVMExternalLinkage);
-    A.setVisibility(LLVMProtectedVisibility);
-    A.setDSOLocal(true);
-  }
-#endif
-
-  if (!Context->IsCustomSection) {
-    // create wasm.code and wasm.size
-    auto Int32Ty = Context->Int32Ty;
-    auto Content = LLVM::Value::getConstString(
-        LLContext, {reinterpret_cast<const char *>(Data.data()), Data.size()},
-        true);
-    LLModule.addGlobal(Content.getType(), true, LLVMExternalLinkage, Content,
-                       "wasm.code");
-    LLModule.addGlobal(Int32Ty, true, LLVMExternalLinkage,
-                       LLVM::Value::getConstInt(Int32Ty, Data.size()),
-                       "wasm.size");
-  }
-
-  // set dllexport
-  for (auto GV = LLModule.getFirstGlobal(); GV; GV = GV.getNextGlobal()) {
-    if (GV.getLinkage() == LLVMExternalLinkage) {
-      GV.setVisibility(LLVMProtectedVisibility);
-      GV.setDSOLocal(true);
-      GV.setDLLStorageClass(LLVMDLLExportStorageClass);
-    }
-  }
-
-  if (Conf.getCompilerConfigure().isDumpIR()) {
-    if (auto ErrorMessage = LLModule.printModuleToFile("wasm.ll");
-        unlikely(ErrorMessage)) {
-      spdlog::error("wasm.ll open error:{}", ErrorMessage.string_view());
-      return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
-    }
-  }
-
   spdlog::info("verify start");
   LLModule.verify(LLVMPrintMessageAction);
+
   spdlog::info("optimize start");
-
-  // optimize + codegen
-  auto Triple = LLModule.getTarget();
+  auto &TM = D.extract().TM;
   {
-    LLVM::TargetMachine TM;
-    {
-      auto [TheTarget, ErrorMessage] = LLVM::Target::getFromTriple(Triple);
-      if (ErrorMessage) {
-        // TODO:return error
-        spdlog::error("lookupTarget failed:{}", ErrorMessage.string_view());
-        return Unexpect(ErrCode::Value::IllegalPath);
-      }
-
+    auto Triple = LLModule.getTarget();
+    auto [TheTarget, ErrorMessage] = LLVM::Target::getFromTriple(Triple);
+    if (ErrorMessage) {
+      spdlog::error("getFromTriple failed:{}", ErrorMessage.string_view());
+      return Unexpect(ErrCode::Value::IllegalPath);
+    } else {
       std::string CPUName;
 #if defined(__riscv) && __riscv_xlen == 64
       CPUName = "generic-rv64"s;
@@ -5609,90 +5076,69 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 
       TM = LLVM::TargetMachine::create(
           TheTarget, Triple, CPUName.c_str(),
-          Context->SubtargetFeatures.unwrap(),
+          LLVM::getHostCPUFeatures().unwrap(),
           toLLVMCodeGenLevel(
               Conf.getCompilerConfigure().getOptimizationLevel()),
           LLVMRelocPIC, LLVMCodeModelDefault);
     }
 
 #if LLVM_VERSION_MAJOR >= 13
-    {
-      auto PBO = LLVM::PassBuilderOptions::create();
-      LLVM::Error Error = PBO.runPasses(
-          LLModule,
-          toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel()), TM);
-      if (Error) {
-        spdlog::error("{}"sv, Error.message().string_view());
-      }
+    auto PBO = LLVM::PassBuilderOptions::create();
+    if (auto Error = PBO.runPasses(
+            LLModule,
+            toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
+            TM)) {
+      spdlog::error("{}"sv, Error.message().string_view());
     }
 #else
+    auto FP = LLVM::PassManager::createForModule(LLModule);
+    auto MP = LLVM::PassManager::create();
+
+    TM.addAnalysisPasses(MP);
+    TM.addAnalysisPasses(FP);
     {
-      auto FP = LLVM::PassManager::createForModule(LLModule);
-      auto MP = LLVM::PassManager::create();
-
-      TM.addAnalysisPasses(MP);
-      TM.addAnalysisPasses(FP);
-      {
-        auto PMB = LLVM::PassManagerBuilder::create();
-        auto [OptLevel, SizeLevel] =
-            toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel());
-        PMB.setOptLevel(OptLevel);
-        PMB.setSizeLevel(SizeLevel);
-        PMB.populateFunctionPassManager(FP);
-        PMB.populateModulePassManager(MP);
-      }
-      if (Conf.getCompilerConfigure().getOptimizationLevel() ==
-          CompilerConfigure::OptimizationLevel::O0) {
-        FP.addTailCallEliminationPass();
-      }
-
-      FP.initializeFunctionPassManager();
-      for (auto Fn = LLModule.getFirstFunction(); Fn;
-           Fn = Fn.getNextFunction()) {
-        FP.runFunctionPassManager(Fn);
-      }
-      FP.finalizeFunctionPassManager();
-      MP.runPassManager(LLModule);
+      auto PMB = LLVM::PassManagerBuilder::create();
+      auto [OptLevel, SizeLevel] =
+          toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel());
+      PMB.setOptLevel(OptLevel);
+      PMB.setSizeLevel(SizeLevel);
+      PMB.populateFunctionPassManager(FP);
+      PMB.populateModulePassManager(MP);
     }
+    switch (Conf.getCompilerConfigure().getOptimizationLevel()) {
+    case CompilerConfigure::OptimizationLevel::O0:
+    case CompilerConfigure::OptimizationLevel::O1:
+      FP.addTailCallEliminationPass();
+      break;
+    default:
+      break;
+    }
+
+    FP.initializeFunctionPassManager();
+    for (auto Fn = LLModule.getFirstFunction(); Fn; Fn = Fn.getNextFunction()) {
+      FP.runFunctionPassManager(Fn);
+    }
+    FP.finalizeFunctionPassManager();
+    MP.runPassManager(LLModule);
 #endif
-
-    // Set initializer for constant value
-    if (auto IntrinsicsTable = LLModule.getNamedGlobal("intrinsics")) {
-      IntrinsicsTable.setInitializer(
-          LLVM::Value::getConstNull(IntrinsicsTable.getType()));
-      IntrinsicsTable.setGlobalConstant(false);
-    }
-
-    if (Conf.getCompilerConfigure().isDumpIR()) {
-      if (auto ErrorMessage = LLModule.printModuleToFile("wasm-opt.ll")) {
-        // TODO:return error
-        spdlog::error("printModuleToFile failed");
-        return Unexpect(ErrCode::Value::IllegalPath);
-      }
-    }
-
-    spdlog::info("codegen start");
-    auto [OSVec, ErrorMessage] =
-        TM.emitToMemoryBuffer(LLModule, LLVMObjectFile);
-    if (ErrorMessage) {
-      // TODO:return error
-      spdlog::error("addPassesToEmitFile failed");
-      return Unexpect(ErrCode::Value::IllegalPath);
-    }
-
-    if (Context->IsCustomSection) {
-      if (auto Res = outputWasmLibrary(OutputPath, Data, OSVec);
-          unlikely(!Res)) {
-        return Unexpect(Res);
-      }
-    } else {
-      if (auto Res = outputNativeLibrary(OutputPath, OSVec); unlikely(!Res)) {
-        return Unexpect(Res);
-      }
-    }
   }
 
-  return {};
+  // Set initializer for constant value
+  if (auto IntrinsicsTable = LLModule.getNamedGlobal("intrinsics")) {
+    IntrinsicsTable.setInitializer(
+        LLVM::Value::getConstNull(IntrinsicsTable.getType()));
+    IntrinsicsTable.setGlobalConstant(false);
+  } else {
+    auto IntrinsicsTableTy = LLVM::Type::getArrayType(
+        LLContext.getInt8Ty().getPointerTo(),
+        static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax));
+    LLModule.addGlobal(
+        IntrinsicsTableTy.getPointerTo(), false, LLVMExternalLinkage,
+        LLVM::Value::getConstNull(IntrinsicsTableTy), "intrinsics");
+  }
+
+  spdlog::info("optimize done");
+  return Expect<Data>{std::move(D)};
 }
 
 void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
@@ -5724,7 +5170,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
           Context->FunctionTypes.push_back(&OldFuncType);
           auto F = Context->FunctionWrappers[J];
           Context->FunctionWrappers.push_back(F);
-          auto A = Context->LLModule.addAlias(F.getType(), F, Name.c_str());
+          auto A = Context->LLModule.addAlias(WrapperTy, F, Name.c_str());
           A.setLinkage(LLVMExternalLinkage);
           A.setVisibility(LLVMProtectedVisibility);
           A.setDSOLocal(true);
@@ -5746,6 +5192,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
       F.setDLLStorageClass(LLVMDLLExportStorageClass);
       F.addFnAttr(Context->NoStackArgProbe);
       F.addFnAttr(Context->StrictFP);
+      F.addFnAttr(Context->UWTable);
       F.addParamAttr(0, Context->ReadOnly);
       F.addParamAttr(0, Context->NoAlias);
       F.addParamAttr(1, Context->NoAlias);
@@ -5828,18 +5275,14 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       auto FTy =
           toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
       auto RTy = FTy.getReturnType();
-      const auto Linkage =
-          Context->IsCustomSection ? LLVMPrivateLinkage : LLVMExternalLinkage;
       auto F = LLVM::FunctionCallee{
-          FTy, Context->LLModule.addFunction(
-                   FTy, Linkage, fmt::format("f{}"sv, FuncID).c_str())};
-      F.Fn.setVisibility(LLVMProtectedVisibility);
+          FTy,
+          Context->LLModule.addFunction(FTy, LLVMInternalLinkage,
+                                        fmt::format("f{}"sv, FuncID).c_str())};
       F.Fn.setDSOLocal(true);
-      if (!Context->IsCustomSection) {
-        F.Fn.setDLLStorageClass(LLVMDLLExportStorageClass);
-      }
       F.Fn.addFnAttr(Context->NoStackArgProbe);
       F.Fn.addFnAttr(Context->StrictFP);
+      F.Fn.addFnAttr(Context->UWTable);
       F.Fn.addParamAttr(0, Context->ReadOnly);
       F.Fn.addParamAttr(0, Context->NoAlias);
 
@@ -5882,7 +5325,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
 
       Builder.createCall(
           Context->getIntrinsic(
-              Builder, AST::Module::Intrinsics::kCall,
+              Builder, Executable::Intrinsics::kCall,
               LLVM::Type::getFunctionType(
                   Context->VoidTy,
                   {Context->Int32Ty, Context->Int8PtrTy, Context->Int8PtrTy},
@@ -5976,6 +5419,7 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
     F.Fn.setDLLStorageClass(LLVMDLLExportStorageClass);
     F.Fn.addFnAttr(Context->NoStackArgProbe);
     F.Fn.addFnAttr(Context->StrictFP);
+    F.Fn.addFnAttr(Context->UWTable);
     F.Fn.addParamAttr(0, Context->ReadOnly);
     F.Fn.addParamAttr(0, Context->NoAlias);
 
@@ -5996,14 +5440,12 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
     FunctionCompiler FC(*Context, F, Locals,
                         Conf.getCompilerConfigure().isInterruptible(),
                         Conf.getStatisticsConfigure().isInstructionCounting(),
-                        Conf.getStatisticsConfigure().isCostMeasuring(),
-                        Conf.getCompilerConfigure().getOptimizationLevel() ==
-                            CompilerConfigure::OptimizationLevel::O0);
+                        Conf.getStatisticsConfigure().isCostMeasuring());
     auto Type = Context->resolveBlockType(T);
     FC.compile(*Code, std::move(Type));
     F.Fn.eliminateUnreachableBlocks();
   }
 }
 
-} // namespace AOT
+} // namespace LLVM
 } // namespace WasmEdge

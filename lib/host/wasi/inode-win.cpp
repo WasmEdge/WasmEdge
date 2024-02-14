@@ -86,6 +86,10 @@ WasiExpect<std::tuple<DWORD_, DWORD_, DWORD_>> inline constexpr getOpenFlags(
     AttributeFlags |= FILE_FLAG_WRITE_THROUGH_;
     FdFlags &= ~__WASI_FDFLAGS_DSYNC;
   }
+  if (FdFlags & __WASI_FDFLAGS_NONBLOCK) {
+    // Ignore NONBLOCK flag
+    FdFlags &= ~__WASI_FDFLAGS_NONBLOCK;
+  }
   if (OpenFlags & __WASI_OFLAGS_DIRECTORY) {
     AttributeFlags |= FILE_ATTRIBUTE_DIRECTORY_;
     OpenFlags &= ~__WASI_OFLAGS_DIRECTORY;

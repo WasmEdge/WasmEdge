@@ -114,6 +114,7 @@ public:
   RuntimeConfigure() noexcept = default;
   RuntimeConfigure(const RuntimeConfigure &RHS) noexcept
       : MaxMemPage(RHS.MaxMemPage.load(std::memory_order_relaxed)),
+        EnableJIT(RHS.EnableJIT.load(std::memory_order_relaxed)),
         ForceInterpreter(RHS.ForceInterpreter.load(std::memory_order_relaxed)),
         AllowAFUNIX(RHS.AllowAFUNIX.load(std::memory_order_relaxed)) {}
 
@@ -123,6 +124,14 @@ public:
 
   uint32_t getMaxMemoryPage() const noexcept {
     return MaxMemPage.load(std::memory_order_relaxed);
+  }
+
+  void setEnableJIT(bool IsEnableJIT) noexcept {
+    EnableJIT.store(IsEnableJIT, std::memory_order_relaxed);
+  }
+
+  bool isEnableJIT() const noexcept {
+    return EnableJIT.load(std::memory_order_relaxed);
   }
 
   void setForceInterpreter(bool IsForceInterpreter) noexcept {
@@ -143,6 +152,7 @@ public:
 
 private:
   std::atomic<uint32_t> MaxMemPage = 65536;
+  std::atomic<bool> EnableJIT = false;
   std::atomic<bool> ForceInterpreter = false;
   std::atomic<bool> AllowAFUNIX = false;
 };

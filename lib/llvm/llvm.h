@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
+#pragma once
 
 #include "common/errcode.h"
 #include "common/span.h"
@@ -7,6 +8,7 @@
 #include <llvm-c/Core.h>
 #include <llvm-c/Error.h>
 #include <llvm-c/Object.h>
+#include <llvm-c/Orc.h>
 #include <llvm-c/Target.h>
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Types.h>
@@ -14,6 +16,40 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#if LLVM_VERSION_MAJOR >= 12
+#include <llvm-c/LLJIT.h>
+#endif
+
+#if LLVM_VERSION_MAJOR < 12 && WASMEDGE_OS_WINDOWS
+using LLVMOrcObjectLayerRef = struct LLVMOrcOpaqueObjectLayer *;
+using LLVMOrcLLJITBuilderObjectLinkingLayerCreatorFunction =
+    LLVMOrcObjectLayerRef (*)(void *Ctx, LLVMOrcExecutionSessionRef ES,
+                              const char *Triple) noexcept;
+static void LLVMOrcLLJITBuilderSetObjectLinkingLayerCreator(
+    LLVMOrcLLJITBuilderRef Builder,
+    LLVMOrcLLJITBuilderObjectLinkingLayerCreatorFunction F, void *Ctx) noexcept;
+#endif
+#if LLVM_VERSION_MAJOR < 13
+using LLVMOrcMaterializationResponsibilityRef =
+    struct LLVMOrcOpaqueMaterializationResponsibility *;
+using LLVMOrcIRTransformLayerRef = struct LLVMOrcOpaqueIRTransformLayer *;
+using LLVMOrcIRTransformLayerTransformFunction =
+    LLVMErrorRef (*)(void *Ctx, LLVMOrcThreadSafeModuleRef *ModInOut,
+                     LLVMOrcMaterializationResponsibilityRef MR) noexcept;
+using LLVMOrcGenericIRModuleOperationFunction =
+    LLVMErrorRef (*)(void *Ctx, LLVMModuleRef M) noexcept;
+static LLVMOrcIRTransformLayerRef
+LLVMOrcLLJITGetIRTransformLayer(LLVMOrcLLJITRef J) noexcept;
+static void LLVMOrcIRTransformLayerSetTransform(
+    LLVMOrcIRTransformLayerRef IRTransformLayer,
+    LLVMOrcIRTransformLayerTransformFunction TransformFunction,
+    void *Ctx) noexcept;
+static LLVMErrorRef
+LLVMOrcThreadSafeModuleWithModuleDo(LLVMOrcThreadSafeModuleRef TSM,
+                                    LLVMOrcGenericIRModuleOperationFunction F,
+                                    void *Ctx) noexcept;
+#endif
 
 #if LLVM_VERSION_MAJOR >= 13
 #include <llvm-c/Transforms/PassBuilder.h>
@@ -28,7 +64,7 @@
 #define __x86_64__ 1
 #endif
 
-namespace WasmEdge::AOT::LLVM {
+namespace WasmEdge::LLVM {
 
 class Core {
 public:
@@ -93,6 +129,11 @@ public:
   static inline unsigned int ReadOnly = 0;
   static inline unsigned int StrictFP = 0;
   static inline unsigned int UWTable = 0;
+#if LLVM_VERSION_MAJOR >= 15
+  static constexpr inline const unsigned int UWTableDefault = 2;
+#else
+  static constexpr inline const unsigned int UWTableDefault = 0;
+#endif
 
   static inline unsigned int InvariantGroup = 0;
 
@@ -207,16 +248,8 @@ class BasicBlock;
 class Context {
 public:
   constexpr Context(LLVMContextRef R) noexcept : Ref(R) {}
-  Context(const Context &) = delete;
-  Context &operator=(const Context &) = delete;
-  Context(Context &&C) noexcept : Context() { swap(*this, C); }
-  Context &operator=(Context &&C) noexcept {
-    swap(*this, C);
-    return *this;
-  }
-
-  Context() noexcept : Ref(LLVMContextCreate()) {}
-  ~Context() noexcept { LLVMContextDispose(Ref); }
+  Context(const Context &) = default;
+  Context &operator=(const Context &) = default;
 
   constexpr operator bool() const noexcept { return Ref != nullptr; }
   constexpr auto &unwrap() const noexcept { return Ref; }
@@ -262,7 +295,7 @@ public:
     return *this;
   }
 
-  Module(Context &C, const char *Name) noexcept
+  Module(const Context &C, const char *Name) noexcept
       : Ref(LLVMModuleCreateWithNameInContext(Name, C.unwrap())) {}
   ~Module() noexcept { LLVMDisposeModule(Ref); }
 
@@ -283,12 +316,14 @@ public:
                       uint32_t Val) noexcept;
   inline Value getFirstGlobal() noexcept;
   inline Value getFirstFunction() noexcept;
+  inline Value getNamedFunction(const char *Name) noexcept;
   inline Message printModuleToFile(const char *File) noexcept;
   inline Message verify(LLVMVerifierFailureAction Action) noexcept;
 
   constexpr operator bool() const noexcept { return Ref != nullptr; }
   constexpr auto &unwrap() const noexcept { return Ref; }
   constexpr auto &unwrap() noexcept { return Ref; }
+  LLVMModuleRef release() noexcept { return std::exchange(Ref, nullptr); }
   friend void swap(Module &LHS, Module &RHS) noexcept {
     using std::swap;
     swap(LHS.Ref, RHS.Ref);
@@ -343,6 +378,7 @@ public:
   constexpr operator bool() const noexcept { return Ref != nullptr; }
   constexpr auto &unwrap() const noexcept { return Ref; }
   constexpr auto &unwrap() noexcept { return Ref; }
+  LLVMErrorRef release() noexcept { return std::exchange(Ref, nullptr); }
   friend void swap(Error &LHS, Error &RHS) noexcept {
     using std::swap;
     swap(LHS.Ref, RHS.Ref);
@@ -765,6 +801,11 @@ public:
   void setOrdering(LLVMAtomicOrdering Ordering) noexcept {
     LLVMSetOrdering(Ref, Ordering);
   }
+  std::string_view getName() noexcept {
+    size_t Length;
+    auto Data = LLVMGetValueName2(Ref, &Length);
+    return {Data, Length};
+  }
 
   inline void addCase(Value OnVal, BasicBlock Dest) noexcept;
   inline void addDestination(BasicBlock Dest) noexcept;
@@ -902,6 +943,10 @@ void Module::addFlag(LLVMModuleFlagBehavior Behavior, std::string_view Key,
 
 Value Module::getFirstGlobal() noexcept { return LLVMGetFirstGlobal(Ref); }
 Value Module::getFirstFunction() noexcept { return LLVMGetFirstFunction(Ref); }
+
+Value Module::getNamedFunction(const char *Name) noexcept {
+  return LLVMGetNamedFunction(Ref, Name);
+}
 
 Message Module::printModuleToFile(const char *Filename) noexcept {
   Message M;
@@ -1546,7 +1591,7 @@ public:
   Value getConstrainedFPExcept() noexcept {
     using namespace std::literals;
     auto Ctx = getCtx();
-    auto ExceptStr = "fpexcept.ignore"sv;
+    auto ExceptStr = "fpexcept.strict"sv;
     auto ExceptMDS =
         LLVMMDStringInContext2(Ctx, ExceptStr.data(), ExceptStr.size());
     return LLVMMetadataAsValue(Ctx, ExceptMDS);
@@ -1808,7 +1853,8 @@ public:
     LLVMPassBuilderOptionsSetMergeFunctions(Ref, MergeFunctions);
   }
 
-  Error runPasses(Module &M, const char *Passes, TargetMachine &TM) noexcept {
+  Error runPasses(Module &M, const char *Passes,
+                  const TargetMachine &TM = nullptr) noexcept {
     return LLVMRunPasses(M.unwrap(), Passes, TM.unwrap(), Ref);
   }
 
@@ -1943,13 +1989,241 @@ private:
   LLVMBinaryRef Ref = nullptr;
 };
 
-} // namespace WasmEdge::AOT::LLVM
+class OrcThreadSafeContext {
+public:
+  constexpr OrcThreadSafeContext(LLVMOrcThreadSafeContextRef R) noexcept
+      : Ref(R) {}
+  OrcThreadSafeContext(const OrcThreadSafeContext &) = delete;
+  OrcThreadSafeContext &operator=(const OrcThreadSafeContext &) = delete;
+  OrcThreadSafeContext(OrcThreadSafeContext &&B) noexcept
+      : OrcThreadSafeContext() {
+    swap(*this, B);
+  }
+  OrcThreadSafeContext &operator=(OrcThreadSafeContext &&B) noexcept {
+    swap(*this, B);
+    return *this;
+  }
+
+  OrcThreadSafeContext() noexcept : Ref(LLVMOrcCreateNewThreadSafeContext()) {}
+  ~OrcThreadSafeContext() noexcept { LLVMOrcDisposeThreadSafeContext(Ref); }
+
+  constexpr operator bool() const noexcept { return Ref != nullptr; }
+  constexpr auto &unwrap() const noexcept { return Ref; }
+  constexpr auto &unwrap() noexcept { return Ref; }
+  LLVMOrcThreadSafeContextRef release() noexcept {
+    return std::exchange(Ref, nullptr);
+  }
+  friend void swap(OrcThreadSafeContext &LHS,
+                   OrcThreadSafeContext &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Ref, RHS.Ref);
+  }
+
+  Context getContext() noexcept {
+    return LLVMOrcThreadSafeContextGetContext(Ref);
+  }
+
+private:
+  LLVMOrcThreadSafeContextRef Ref = nullptr;
+};
+
+class OrcThreadSafeModule {
+public:
+  constexpr OrcThreadSafeModule() noexcept = default;
+  constexpr OrcThreadSafeModule(LLVMOrcThreadSafeModuleRef R) noexcept
+      : Ref(R) {}
+  OrcThreadSafeModule(const OrcThreadSafeModule &) = delete;
+  OrcThreadSafeModule &operator=(const OrcThreadSafeModule &) = delete;
+  OrcThreadSafeModule(OrcThreadSafeModule &&B) noexcept
+      : OrcThreadSafeModule() {
+    swap(*this, B);
+  }
+  OrcThreadSafeModule &operator=(OrcThreadSafeModule &&B) noexcept {
+    swap(*this, B);
+    return *this;
+  }
+
+  OrcThreadSafeModule(Module &&M, OrcThreadSafeContext &C) noexcept
+      : Ref(LLVMOrcCreateNewThreadSafeModule(M.release(), C.unwrap())) {}
+  ~OrcThreadSafeModule() noexcept { LLVMOrcDisposeThreadSafeModule(Ref); }
+
+  constexpr operator bool() const noexcept { return Ref != nullptr; }
+  constexpr auto &unwrap() const noexcept { return Ref; }
+  constexpr auto &unwrap() noexcept { return Ref; }
+  LLVMOrcThreadSafeModuleRef release() noexcept {
+    return std::exchange(Ref, nullptr);
+  }
+  friend void swap(OrcThreadSafeModule &LHS,
+                   OrcThreadSafeModule &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Ref, RHS.Ref);
+  }
+  Error withModuleDo(LLVMOrcGenericIRModuleOperationFunction F,
+                     void *Ctx) noexcept {
+    return LLVMOrcThreadSafeModuleWithModuleDo(Ref, F, Ctx);
+  }
+
+private:
+  LLVMOrcThreadSafeModuleRef Ref = nullptr;
+};
+
+class OrcJITDylib {
+public:
+  constexpr OrcJITDylib() noexcept = default;
+  constexpr OrcJITDylib(LLVMOrcJITDylibRef R) noexcept : Ref(R) {}
+  OrcJITDylib(const OrcJITDylib &) = delete;
+  OrcJITDylib &operator=(const OrcJITDylib &) = delete;
+  OrcJITDylib(OrcJITDylib &&B) noexcept : OrcJITDylib() { swap(*this, B); }
+  OrcJITDylib &operator=(OrcJITDylib &&B) noexcept {
+    swap(*this, B);
+    return *this;
+  }
+
+  constexpr operator bool() const noexcept { return Ref != nullptr; }
+  constexpr auto &unwrap() const noexcept { return Ref; }
+  constexpr auto &unwrap() noexcept { return Ref; }
+  friend void swap(OrcJITDylib &LHS, OrcJITDylib &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Ref, RHS.Ref);
+  }
+
+private:
+  LLVMOrcJITDylibRef Ref = nullptr;
+};
+
+class OrcIRTransformLayer {
+public:
+  constexpr OrcIRTransformLayer() noexcept = default;
+  constexpr OrcIRTransformLayer(LLVMOrcIRTransformLayerRef R) noexcept
+      : Ref(R) {}
+  OrcIRTransformLayer(const OrcIRTransformLayer &) = delete;
+  OrcIRTransformLayer &operator=(const OrcIRTransformLayer &) = delete;
+  OrcIRTransformLayer(OrcIRTransformLayer &&B) noexcept
+      : OrcIRTransformLayer() {
+    swap(*this, B);
+  }
+  OrcIRTransformLayer &operator=(OrcIRTransformLayer &&B) noexcept {
+    swap(*this, B);
+    return *this;
+  }
+
+  constexpr operator bool() const noexcept { return Ref != nullptr; }
+  constexpr auto &unwrap() const noexcept { return Ref; }
+  constexpr auto &unwrap() noexcept { return Ref; }
+  friend void swap(OrcIRTransformLayer &LHS,
+                   OrcIRTransformLayer &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Ref, RHS.Ref);
+  }
+
+  void setTransform(LLVMOrcIRTransformLayerTransformFunction TransformFunction,
+                    void *Ctx) noexcept {
+    LLVMOrcIRTransformLayerSetTransform(Ref, TransformFunction, Ctx);
+  }
+
+private:
+  LLVMOrcIRTransformLayerRef Ref = nullptr;
+};
+
+class OrcLLJIT {
+public:
+  constexpr OrcLLJIT() noexcept = default;
+  constexpr OrcLLJIT(LLVMOrcLLJITRef R) noexcept : Ref(R) {}
+  OrcLLJIT(const OrcLLJIT &) = delete;
+  OrcLLJIT &operator=(const OrcLLJIT &) = delete;
+  OrcLLJIT(OrcLLJIT &&B) noexcept : OrcLLJIT() { swap(*this, B); }
+  OrcLLJIT &operator=(OrcLLJIT &&B) noexcept {
+    swap(*this, B);
+    return *this;
+  }
+
+  ~OrcLLJIT() noexcept { LLVMOrcDisposeLLJIT(Ref); }
+
+  constexpr operator bool() const noexcept { return Ref != nullptr; }
+  constexpr auto &unwrap() const noexcept { return Ref; }
+  constexpr auto &unwrap() noexcept { return Ref; }
+  friend void swap(OrcLLJIT &LHS, OrcLLJIT &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Ref, RHS.Ref);
+  }
+
+  static cxx20::expected<OrcLLJIT, Error> create() noexcept {
+    OrcLLJIT Result;
+    if (auto Err = LLVMOrcCreateLLJIT(&Result.Ref, getBuilder())) {
+      return cxx20::unexpected(Err);
+    } else {
+      return Result;
+    }
+  }
+
+  OrcJITDylib getMainJITDylib() noexcept {
+    return LLVMOrcLLJITGetMainJITDylib(Ref);
+  }
+
+  Error addLLVMIRModule(const OrcJITDylib &L, OrcThreadSafeModule M) noexcept {
+    return LLVMOrcLLJITAddLLVMIRModule(Ref, L.unwrap(), M.release());
+  }
+
+  template <typename T>
+  cxx20::expected<T *, Error> lookup(const char *Name) noexcept {
+    LLVMOrcJITTargetAddress Addr;
+    if (auto Err = LLVMOrcLLJITLookup(Ref, &Addr, Name)) {
+      return cxx20::unexpected(Err);
+    }
+    return reinterpret_cast<T *>(Addr);
+  }
+
+  OrcIRTransformLayer getIRTransformLayer() noexcept {
+    return LLVMOrcLLJITGetIRTransformLayer(Ref);
+  }
+
+private:
+  LLVMOrcLLJITRef Ref = nullptr;
+
+  static inline LLVMOrcLLJITBuilderRef getBuilder() noexcept;
+};
+
+} // namespace WasmEdge::LLVM
 
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/Object/ObjectFile.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
+#if LLVM_VERSION_MAJOR < 12 || WASMEDGE_OS_WINDOWS
+#include <llvm/ExecutionEngine/Orc/Core.h>
+#endif
+#if LLVM_VERSION_MAJOR < 13
+#include <llvm/ExecutionEngine/Orc/LLJIT.h>
+#include <llvm/Support/CBindingWrapping.h>
+#include <llvm/Support/Error.h>
+#endif
 
-namespace WasmEdge::AOT::LLVM {
+#if WASMEDGE_OS_WINDOWS
+#include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
+#include <llvm/ExecutionEngine/SectionMemoryManager.h>
+#include <system/winapi.h>
+#endif
+
+namespace llvm {
+#if WASMEDGE_OS_WINDOWS
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::ExecutionSession,
+                                   LLVMOrcExecutionSessionRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::ObjectLayer, LLVMOrcObjectLayerRef)
+#endif
+#if LLVM_VERSION_MAJOR < 12
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::LLJITBuilder, LLVMOrcLLJITBuilderRef)
+#endif
+#if LLVM_VERSION_MAJOR < 13
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::ThreadSafeModule,
+                                   LLVMOrcThreadSafeModuleRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::IRTransformLayer,
+                                   LLVMOrcIRTransformLayerRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::MaterializationResponsibility,
+                                   LLVMOrcMaterializationResponsibilityRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::LLJIT, LLVMOrcLLJITRef)
+#endif
+} // namespace llvm
+
+namespace WasmEdge::LLVM {
 
 void Value::setDSOLocal(bool Local) noexcept {
   llvm::cast<llvm::GlobalValue>(reinterpret_cast<llvm::Value *>(Ref))
@@ -1997,4 +2271,122 @@ bool SectionIterator::isEHFrame() const noexcept {
 #endif
 }
 
-} // namespace WasmEdge::AOT::LLVM
+#if WASMEDGE_OS_WINDOWS
+// Register stack unwind info for JIT functions
+class Win64EHManager : public llvm::SectionMemoryManager {
+  using Base = llvm::SectionMemoryManager;
+  uint64_t CodeAddress = 0;
+
+public:
+  ~Win64EHManager() noexcept override {}
+
+  uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
+                               unsigned SectionID,
+                               llvm::StringRef SectionName) override {
+    using namespace std::literals;
+    const auto Allocated =
+        Base::allocateCodeSection(Size, Alignment, SectionID, SectionName);
+    if (SectionName == llvm::StringRef(".text"sv)) {
+      CodeAddress = reinterpret_cast<uint64_t>(Allocated);
+    }
+    return Allocated;
+  }
+
+  void registerEHFrames(uint8_t *Addr, uint64_t /*LoadAddr*/,
+                        size_t Size) noexcept override {
+    using namespace std::literals;
+    winapi::RUNTIME_FUNCTION_ *const FunctionTable =
+        reinterpret_cast<winapi::RUNTIME_FUNCTION_ *>(Addr);
+    const uint32_t EntryCount =
+        static_cast<uint32_t>(Size / sizeof(winapi::RUNTIME_FUNCTION_));
+    if (EntryCount == 0)
+      return;
+    // Calculate object image base address by assuming that address of the first
+    // function is equal to the address of the code section
+    const auto ImageBase = CodeAddress - FunctionTable[0].BeginAddress;
+    winapi::RtlAddFunctionTable(FunctionTable, EntryCount, ImageBase);
+    EHFrames.push_back({Addr, Size});
+  }
+  void deregisterEHFrames() noexcept override {
+    using namespace std::literals;
+    for (auto &Frame : EHFrames) {
+      winapi::RtlDeleteFunctionTable(
+          reinterpret_cast<winapi::RUNTIME_FUNCTION_ *>(Frame.Addr));
+    }
+    EHFrames.clear();
+  }
+};
+
+LLVMOrcLLJITBuilderRef OrcLLJIT::getBuilder() noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  const LLVMOrcLLJITBuilderRef Builder = LLVMOrcCreateLLJITBuilder();
+  LLVMOrcLLJITBuilderSetObjectLinkingLayerCreator(
+      Builder,
+      [](void *, LLVMOrcExecutionSessionRef ES, const char *) noexcept {
+        auto Layer = std::make_unique<llvm::orc::RTDyldObjectLinkingLayer>(
+            *unwrap(ES), []() { return std::make_unique<Win64EHManager>(); });
+        Layer->setOverrideObjectFlagsWithResponsibilityFlags(true);
+        Layer->setAutoClaimResponsibilityForObjectSymbols(true);
+        return wrap(static_cast<llvm::orc::ObjectLayer *>(Layer.release()));
+      },
+      nullptr);
+  return Builder;
+}
+#else
+LLVMOrcLLJITBuilderRef OrcLLJIT::getBuilder() noexcept { return nullptr; }
+#endif
+
+} // namespace WasmEdge::LLVM
+
+#if LLVM_VERSION_MAJOR < 12 && WASMEDGE_OS_WINDOWS
+void LLVMOrcLLJITBuilderSetObjectLinkingLayerCreator(
+    LLVMOrcLLJITBuilderRef Builder,
+    LLVMOrcLLJITBuilderObjectLinkingLayerCreatorFunction F,
+    void *Ctx) noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  unwrap(Builder)->setObjectLinkingLayerCreator(
+      [=](llvm::orc::ExecutionSession &ES, const llvm::Triple &TT) {
+        auto TTStr = TT.str();
+        return std::unique_ptr<llvm::orc::ObjectLayer>(
+            unwrap(F(Ctx, wrap(&ES), TTStr.c_str())));
+      });
+}
+#endif
+#if LLVM_VERSION_MAJOR < 13
+LLVMOrcIRTransformLayerRef
+LLVMOrcLLJITGetIRTransformLayer(LLVMOrcLLJITRef J) noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  return wrap(&(unwrap(J)->getIRTransformLayer()));
+}
+void LLVMOrcIRTransformLayerSetTransform(
+    LLVMOrcIRTransformLayerRef IRTransformLayer,
+    LLVMOrcIRTransformLayerTransformFunction TransformFunction,
+    void *Ctx) noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  unwrap(IRTransformLayer)
+      ->setTransform([=](llvm::orc::ThreadSafeModule TSM,
+                         llvm::orc::MaterializationResponsibility &R)
+                         -> llvm::Expected<llvm::orc::ThreadSafeModule> {
+        LLVMOrcThreadSafeModuleRef TSMRef =
+            wrap(new llvm::orc::ThreadSafeModule(std::move(TSM)));
+        if (LLVMErrorRef Err = TransformFunction(Ctx, &TSMRef, wrap(&R))) {
+          return unwrap(Err);
+        }
+        return std::move(*unwrap(TSMRef));
+      });
+}
+
+LLVMErrorRef
+LLVMOrcThreadSafeModuleWithModuleDo(LLVMOrcThreadSafeModuleRef TSM,
+                                    LLVMOrcGenericIRModuleOperationFunction F,
+                                    void *Ctx) noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  return wrap(unwrap(TSM)->withModuleDo(
+      [&](llvm::Module &M) { return unwrap(F(Ctx, wrap(&M))); }));
+}
+#endif

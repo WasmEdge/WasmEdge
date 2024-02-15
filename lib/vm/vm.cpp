@@ -5,6 +5,8 @@
 
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
+#include "llvm/compiler.h"
+#include "llvm/jit.h"
 
 #include "host/mock/wasi_crypto_module.h"
 #include "host/mock/wasi_logging_module.h"
@@ -398,6 +400,30 @@ Expect<void> VM::unsafeInstantiate() {
     spdlog::error(ErrCode::Value::WrongVMWorkflow);
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
+
+  if (Mod) {
+    if (Conf.getRuntimeConfigure().isEnableJIT() && !Mod->getSymbol()) {
+#ifdef WASMEDGE_USE_LLVM
+      LLVM::Compiler Compiler(Conf);
+      LLVM::JIT JIT(Conf);
+      if (auto Res = Compiler.compile(*Mod); !Res) {
+        const auto Err = static_cast<uint32_t>(Res.error());
+        spdlog::error(
+            "Compilation failed. Error code: {}, use interpreter mode instead."sv,
+            Err);
+      } else if (auto Res2 = JIT.load(std::move(*Res)); !Res2) {
+        const auto Err = static_cast<uint32_t>(Res2.error());
+        spdlog::warn(
+            "JIT failed. Error code: {}, use interpreter mode instead."sv, Err);
+      } else {
+        LoaderEngine.loadExecutable(*Mod, std::move(*Res2));
+      }
+#else
+      spdlog::error("LLVM disabled, JIT is unsupported!");
+#endif
+    }
+  }
+
   if (auto Res = ExecutorEngine.instantiateModule(StoreRef, *Mod.get())) {
     Stage = VMStage::Instantiated;
     ActiveModInst = std::move(*Res);

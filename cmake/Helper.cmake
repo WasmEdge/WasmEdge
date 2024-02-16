@@ -81,8 +81,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-signed-enum-bitfield
     -Wno-switch-enum
     -Wno-undefined-func-template
-    -Wno-deprecated-literal-operator
   )
+
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 17.0.0)
+    list(APPEND WASMEDGE_CFLAGS
+      -Wno-deprecated-literal-operator
+    )
+  endif()
+
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0.0)
     list(APPEND WASMEDGE_CFLAGS
       -Wno-error=return-std-move-in-c++11

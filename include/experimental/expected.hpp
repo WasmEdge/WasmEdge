@@ -1615,7 +1615,14 @@ public:
   }
   constexpr const_rvalue_reference_type value() const && {
     if (!has_value()) {
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:5272)
+#endif
       throw(bad_expected_access<E>(std::move(error())));
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
     }
     return std::move(impl_base::val());
   }
@@ -1627,7 +1634,14 @@ public:
   }
   constexpr rvalue_reference_type value() && {
     if (!has_value()) {
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:5272)
+#endif
       throw(bad_expected_access<E>(std::move(error())));
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
     }
     return std::move(impl_base::val());
   }

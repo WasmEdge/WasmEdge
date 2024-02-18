@@ -33,10 +33,112 @@ std::vector<uint8_t> prefixedVec(const std::vector<uint8_t> &Vec) {
   return PrefixVec;
 }
 
+TEST(SegmentTest, LoadTableSegment) {
+  std::vector<uint8_t> Vec;
+
+  Conf.addProposal(WasmEdge::Proposal::FunctionReferences);
+  WasmEdge::Loader::Loader LdrFuncRef(Conf);
+  Conf.removeProposal(WasmEdge::Proposal::FunctionReferences);
+
+  // 1. Test load table segment.
+  //
+  //   1.  Load invalid empty table segment.
+  //   2.  Load table segment contains only table type with typed function
+  //       reference proposal.
+  //   3.  Load table segment contains initialization expression without
+  //       typed function reference proposal.
+  //   4.  Load table segment contains initialization expression with
+  //       typed function reference proposal.
+  //   5.  Load table segment in unexpected end of checking byte with
+  //       typed function reference proposal.
+  //   6.  Load table segment in wrong checking byte with typed function
+  //       reference proposal.
+  //   7.  Load table segment in unexpected end of table type with
+  //       typed function reference proposal.
+  //   8.  Load table segment in unexpected end of initialization expression
+  //       with typed function reference proposal.
+
+  Vec = {
+      0x04U, // Table section
+      0x01U, // Content size = 1
+      0x01U, // Vector length = 1
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x04U,                             // Table section
+      0x0DU,                             // Content size = 13
+      0x01U,                             // Vector length = 1
+      0x70U,                             // Reference type
+      0x01U,                             // Has min and max
+      0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Min = 4294967281
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  // Max = 4294967295
+  };
+  EXPECT_TRUE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x04U,                             // Table section
+      0x13U,                             // Content size = 19
+      0x01U,                             // Vector length = 1
+      0x40U, 0x00U,                      // Table segment with init
+      0x70U,                             // Reference type
+      0x01U,                             // Has min and max
+      0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Min = 4294967281
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Max = 4294967295
+      0x45U, 0x46U, 0x47U, 0x0BU         // Expression
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  EXPECT_TRUE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x04U, // Table section
+      0x02U, // Content size = 2
+      0x01U, // Vector length = 1
+      0x40U  // Table segment with init
+             // 0x00U     Missed checking byte
+             // Missed table type and initialization expression
+  };
+  EXPECT_FALSE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x04U,       // Table section
+      0x03U,       // Content size = 3
+      0x01U,       // Vector length = 1
+      0x40U, 0x01U // Wrong checking byte
+                   // Missed table type and initialization expression
+  };
+  EXPECT_FALSE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x04U,        // Table section
+      0x04U,        // Content size = 4
+      0x01U,        // Vector length = 1
+      0x40U, 0x00U, // Table segment with init
+      0x70U         // Reference type
+                    // Missed limit and initialization expression
+  };
+  EXPECT_FALSE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x04U,                             // Table section
+      0x12U,                             // Content size = 18
+      0x01U,                             // Vector length = 1
+      0x40U, 0x00U,                      // Table segment with init
+      0x70U,                             // Reference type
+      0x01U,                             // Has min and max
+      0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Min = 4294967281
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Max = 4294967295
+      0x45U, 0x46U, 0x47U                // Expression
+                                         // 0x0BU     Missed end of expression
+  };
+  EXPECT_FALSE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+}
+
 TEST(SegmentTest, LoadGlobalSegment) {
   std::vector<uint8_t> Vec;
 
-  // 1. Test load global segment.
+  // 2. Test load global segment.
   //
   //   1.  Load invalid empty global segment.
   //   2.  Load global segment with expression of only End operation.
@@ -77,7 +179,7 @@ TEST(SegmentTest, LoadElementSegment) {
   Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
   Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
 
-  // 2. Test load element segment.
+  // 3. Test load element segment.
   //
   //   1.  Load invalid empty element segment.
   //   2.  Load element segment with expression of only End operation and empty
@@ -254,7 +356,7 @@ TEST(SegmentTest, LoadCodeSegment) {
   Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
   Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
 
-  // 3. Test load code segment.
+  // 4. Test load code segment.
   //
   //   1.  Load invalid empty code segment.
   //   2.  Load invalid code segment of zero content size.
@@ -364,7 +466,7 @@ TEST(SegmentTest, LoadDataSegment) {
   Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
   Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
 
-  // 4. Test load data segment.
+  // 5. Test load data segment.
   //
   //   1.  Load invalid empty data segment.
   //   2.  Load data segment of expression with only End operation and empty

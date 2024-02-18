@@ -1,6 +1,6 @@
 <div align="right">
 
-  [Readme in English](README.md) | [中文文档](README-zh.md)
+  [Readme in English](README.md) | [中文文档](README-zh.md) | [日本語で読む](README-ja.md)
 
 </div>
 
@@ -8,7 +8,7 @@
   
 ![WasmEdge Logo](/docs/wasmedge-runtime-logo.png)
 
-WasmEdge （前名為 SSVM ） 是為邊緣運算最佳化的輕量級、高性能、可擴充的 WebAssembly (Wasm) 虛擬機器，可運用在雲端原生、邊緣運算、去中心化的應用程式。 WasmEdge 現今是目前市面上 [最快的 Wasm 虛擬機器之一](https://ieeexplore.ieee.org/document/9214403)。 WasmEdge 是由 [CNCF](https://www.cncf.io/) （Cloud Native Computing Foundation ，雲端原生運算基金會）託管的官方沙箱項目之一。其[使用情境](docs/use_cases-en.md)包含 serverless apps 、嵌入式函數、微型服務、智慧合約和 IoT 裝置。
+WasmEdge （前名為 SSVM ） 是為邊緣運算最佳化的輕量級、高性能、可擴充的 WebAssembly (Wasm) 虛擬機器，可運用在雲端原生、邊緣運算、去中心化的應用程式。 WasmEdge 現今是目前市面上 [最快的 Wasm 虛擬機器之一](https://ieeexplore.ieee.org/document/9214403)。 WasmEdge 是由 [CNCF](https://www.cncf.io/) （Cloud Native Computing Foundation ，雲端原生運算基金會）託管的官方沙箱項目之一。其[使用情境](https://wasmedge.org/docs/zh-tw/start/usage/use-cases)包含 serverless apps 、嵌入式函數、微型服務、智慧合約和 IoT 裝置。
 
 ![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/alerts/)
@@ -22,10 +22,10 @@ WasmEdge （前名為 SSVM ） 是為邊緣運算最佳化的輕量級、高性�
 
 # 快速開始指引
 
-🚀 [安装](docs/book/en/src/start/install.md) WasmEdge\
-🤖 [編譯](docs/book/en/src/extend/build.md) 並[貢獻](docs/book/en/src/contribute.md) WasmEdge\
-⌨️ [從 CLI 執行](docs/book/en/src/start/cli.md)一個獨立的 Wasm 程式或 [JavaScript 程式](docs/book/en/src/intro/use/js.md) \
-🔌 在 [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) 、 [Go 語言](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)、或是 [Rust 應用程式](https://www.secondstate.io/articles/getting-started-with-rust-function/)嵌入 Wasm 函式 \
+🚀 [安装](https://wasmedge.org/docs/zh-tw/start/install) WasmEdge\
+🤖 [編譯](https://wasmedge.org/docs/zh-tw/category/build-wasmedge-from-source) 並[貢獻](docs/book/en/src/contribute.md) WasmEdge\
+⌨️ [從 CLI 執行](https://wasmedge.org/docs/zh-tw/category/running-with-wasmedge)一個獨立的 Wasm 程式或 [JavaScript 程式](https://wasmedge.org/docs/zh-tw/category/develop-wasm-apps-in-javascript) \
+🔌 在 [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) 、 [Go 語言](https://wasmedge.org/docs/zh-tw/category/go-sdk-for-embedding-wasmedge)、或是 [Rust 應用程式](https://www.secondstate.io/articles/getting-started-with-rust-function/)嵌入 Wasm 函式 \
 🛠 使用 [Docker 工具](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/)、[即時資料流框架](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/), 和 [區塊鏈](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) 管理和編排 Wasm runtimes
 
 # 簡介
@@ -34,7 +34,7 @@ WasmEdge 為其執行的 Wasm bytecode 程式提供了一個有良好定義的�
 
 <div align="center">
   
-**檢視 WasmEdge 的[使用情境](docs/book/en/src/intro/use.md)。**
+**檢視 WasmEdge 的[使用情境](https://wasmedge.org/docs/zh-tw/contribute/users)。**
 
 </div>
 
@@ -45,7 +45,7 @@ WasmEdge 為其執行的 Wasm bytecode 程式提供了一個有良好定義的�
 
 ## 特性
 
-WasmEdge 可以執行從 C/C++ 、 Rust 、 Swift 、 AssemblyScript 或 Kotlin 原始碼編譯的標準 WebAssembly bytecode 應用程式，也可以透過嵌入式 [QuickJS 引擎](https://github.com/second-state/wasmedge-quickjs)[執行 JavaScript](docs/run_javascript.md)。 WasmEdge 支援所有標準的 WebAssembly 特性和擴充提案，還支援許多為了原生雲端運算與邊緣運算量身定制的擴充（例如： [WasmEdge Tensorflow 擴充](https://www.secondstate.io/articles/wasi-tensorflow/)）。
+WasmEdge 可以執行從 C/C++ 、 Rust 、 Swift 、 AssemblyScript 或 Kotlin 原始碼編譯的標準 WebAssembly bytecode 應用程式，也可以透過嵌入式 [QuickJS 引擎](https://github.com/second-state/wasmedge-quickjs)[執行 JavaScript](https://wasmedge.org/docs/zh-tw/category/develop-wasm-apps-in-javascript)。 WasmEdge 支援所有標準的 WebAssembly 特性和擴充提案，還支援許多為了原生雲端運算與邊緣運算量身定制的擴充（例如： [WasmEdge Tensorflow 擴充](https://www.secondstate.io/articles/wasi-tensorflow/)）。
 
 * [WebAssembly 標準擴充](docs/extensions.md#webassembly-standard-extensions)
 * [WasmEdge 擴充](docs/extensions.md#wasmedge-extensions)
@@ -56,15 +56,15 @@ WebAssembly 的 WasmEdge 擴充通常作為 Rust SDK 或 [JavaScript APIs](docs/
 
 WasmEdge 及其執行的 Wasm 應用程式可以作為新應用程序或以現有的程序從 CLI 啟動。如果從現有程序啟動（例如，從正在執行的 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 、 [Golang](https://github.com/second-state/wasmedge-go) 或 [Rust](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust) 程序）， WasmEdge 將簡單地作為一個函式在程序內運行。目前， WasmEdge 還不是執行緒安全的。如您想在自己的應用程式或者原生雲端框架中使用 WasmEdge ，請參考以下指南。
 
-* [在應用程式中嵌入 WasmEdge](docs/integrations.md#embed-wasmedge-into-a-host-application)
-* [使用容器工具管理和編排 WasmEdge 實例](docs/integrations.md#use-wasmedge-as-a-docker-like-container)
+* [在應用程式中嵌入 WasmEdge](https://wasmedge.org/docs/zh-tw/embed/overview)
+* [使用容器工具管理和編排 WasmEdge 實例](https://wasmedge.org/docs/zh-tw/category/deploy-wasmedge-apps-in-kubernetes)
 * [從 WasmEdge 呼叫原生 host 函式](docs/integrations.md#call-native-host-functions-from-wasmedge)
 
 ## 社群
 
 ### 貢獻
 
-如果您想為 WasmEdge 專案做出貢獻，請參閱我們的 [CONTRIBUTING](docs/CONTRIBUTING.md) 文件瞭解詳情。 想要獲得靈感，可查看 [需求清單](docs/wish_list.md)。
+如果您想為 WasmEdge 專案做出貢獻，請參閱我們的 [CONTRIBUTING](https://wasmedge.org/docs/contribute/overview/) 文件瞭解詳情。 想要獲得靈感，可查看 [需求清單](https://github.com/WasmEdge/WasmEdge/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)。
 
 ### 聯繫
 

@@ -3,10 +3,11 @@
 
 #ifdef WASMEDGE_BUILD_FUZZING
 #include "driver/fuzzTool.h"
-#include "aot/compiler.h"
 #include "common/configure.h"
 #include "loader/loader.h"
 #include "validator/validator.h"
+#include "llvm/codegen.h"
+#include "llvm/compiler.h"
 
 namespace WasmEdge {
 namespace Driver {
@@ -17,6 +18,7 @@ int FuzzTool(const uint8_t *Data, size_t Size) noexcept {
   spdlog::set_level(spdlog::level::critical);
 
   Configure Conf;
+  Conf.getRuntimeConfigure().setForceInterpreter(true);
   Loader::Loader Loader(Conf);
 
   std::unique_ptr<AST::Module> Module;
@@ -37,12 +39,17 @@ int FuzzTool(const uint8_t *Data, size_t Size) noexcept {
     }
   }
 
-  AOT::Compiler Compiler(Conf);
-  if (auto Res = Compiler.compile(Span<const uint8_t>(Data, Size), *Module,
-                                  "/dev/null"sv);
-      !Res) {
+  LLVM::Compiler Compiler(Conf);
+  LLVM::CodeGen CodeGen(Conf);
+  if (auto Res = Compiler.compile(*Module); !Res) {
     const auto Err = static_cast<uint32_t>(Res.error());
     spdlog::error("Compilation failed. Error code: {}"sv, Err);
+    return EXIT_FAILURE;
+  } else if (auto Res2 = CodeGen.codegen(Span<const uint8_t>(Data, Size),
+                                         std::move(*Res), "/dev/null"sv);
+             !Res2) {
+    const auto Err = static_cast<uint32_t>(Res2.error());
+    spdlog::error("Code Generation failed. Error code: {}"sv, Err);
     return EXIT_FAILURE;
   }
 

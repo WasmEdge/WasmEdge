@@ -9,9 +9,10 @@
 #include <cstddef>
 #include <fstream>
 #include <limits>
-#include <string_view>
+#include <memory>
 #include <system_error>
 #include <utility>
+#include <variant>
 
 namespace WasmEdge {
 namespace Loader {
@@ -60,10 +61,9 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
   return Buf;
 }
 
-// Parse module from file path. See "include/loader/loader.h".
-Expect<std::unique_ptr<AST::Module>>
-Loader::parseModule(const std::filesystem::path &FilePath) {
-  using namespace std::literals::string_view_literals;
+Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                    std::unique_ptr<AST::Module>>>
+Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   std::lock_guard Lock(Mutex);
   // Set path and check the header.
   if (auto Res = FMgr.setPath(FilePath); !Res) {
@@ -73,6 +73,8 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
   }
 
   switch (FMgr.getHeaderType()) {
+  // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
+  // shared-library-WASM.
   case FileMgr::FileHeader::ELF:
   case FileMgr::FileHeader::DLL:
   case FileMgr::FileHeader::MachO_32:
@@ -80,11 +82,12 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
     // AOT compiled shared-library-WASM cases. Use ldmgr to load the module.
     WASMType = InputType::SharedLibrary;
     FMgr.reset();
-    if (auto Res = LMgr.setPath(FilePath); !Res) {
+    std::shared_ptr<SharedLibrary> Library = std::make_shared<SharedLibrary>();
+    if (auto Res = Library->load(FilePath); !Res) {
       spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }
-    if (auto Res = LMgr.getVersion()) {
+    if (auto Res = Library->getVersion()) {
       if (*Res != AOT::kBinaryVersion) {
         spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, *Res));
         spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -96,15 +99,17 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
     }
 
     std::unique_ptr<AST::Module> Mod;
-    if (auto Code = LMgr.getWasm()) {
+    if (auto Code = Library->getWasm()) {
       // Set the binary and load module.
       // Not to use parseModule() here to keep the `WASMType` value.
       if (auto Res = FMgr.setCode(*Code); !Res) {
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
       }
-      if (auto Res = loadModule()) {
-        Mod = std::move(*Res);
+      if (auto Res = loadUnit()) {
+        if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
+          Mod = std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
+        }
       } else {
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
@@ -116,7 +121,7 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
     if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
       // If the configure is set to force interpreter mode, not to load the AOT
       // related data.
-      if (auto Res = loadCompiled(*Mod.get()); unlikely(!Res)) {
+      if (auto Res = loadExecutable(*Mod, Library); unlikely(!Res)) {
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
       }
@@ -126,30 +131,37 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
   default:
     // Universal WASM, WASM, or other cases. Load and parse the module directly.
     WASMType = InputType::WASM;
-    if (auto Res = loadModule()) {
+    auto Unit = loadUnit();
+    if (!Unit) {
+      spdlog::error(ErrInfo::InfoFile(FilePath));
+      return Unexpect(Unit);
+    }
+    switch (Unit->index()) {
+    case 0: // component
+      return Unit;
+    case 1: // module
+    default: {
+      auto Mod = std::move(std::get<std::unique_ptr<AST::Module>>(*Unit));
       if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
         // If the configure is set to force interpreter mode, not to set the
         // symbol.
-        if (auto &Symbol = (*Res)->getSymbol()) {
+        if (auto &Symbol = Mod->getSymbol()) {
           *Symbol = IntrinsicsTable;
         }
       }
-      return std::move(*Res);
-    } else {
-      spdlog::error(ErrInfo::InfoFile(FilePath));
-      return Unexpect(Res);
+      return Mod;
+    }
     }
   }
 }
 
-// Parse module from byte code. See "include/loader/loader.h".
-Expect<std::unique_ptr<AST::Module>>
-Loader::parseModule(Span<const uint8_t> Code) {
+Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                    std::unique_ptr<AST::Module>>>
+Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
   if (auto Res = FMgr.setCode(Code); !Res) {
     return Unexpect(Res);
   }
-
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
   // shared-library-WASM.
@@ -168,57 +180,38 @@ Loader::parseModule(Span<const uint8_t> Code) {
   }
   // For malformed header checking, handle in the module loading.
   WASMType = InputType::WASM;
-  return loadModule();
+  return loadUnit();
 }
 
-// Helper function of checking the valid value types.
-Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
-                                              ASTNodeAttr Node) const noexcept {
-  if (VType == ValType::V128 && !Conf.hasProposal(Proposal::SIMD)) {
-    return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::SIMD,
-                           Off, Node);
-  }
-  if ((VType == ValType::FuncRef &&
-       !Conf.hasProposal(Proposal::ReferenceTypes) &&
-       !Conf.hasProposal(Proposal::BulkMemoryOperations)) ||
-      (VType == ValType::ExternRef &&
-       !Conf.hasProposal(Proposal::ReferenceTypes))) {
-    return logNeedProposal(ErrCode::Value::MalformedElemType,
-                           Proposal::ReferenceTypes, Off, Node);
-  }
-  switch (VType) {
-  case ValType::I32:
-  case ValType::I64:
-  case ValType::F32:
-  case ValType::F64:
-  case ValType::V128:
-  case ValType::ExternRef:
-  case ValType::FuncRef:
-    return VType;
-  default:
-    return logLoadError(ErrCode::Value::MalformedValType, Off, Node);
+// Parse module from file path. See "include/loader/loader.h".
+Expect<std::unique_ptr<AST::Module>>
+Loader::parseModule(const std::filesystem::path &FilePath) {
+  if (auto R = parseWasmUnit(FilePath)) {
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*R)) {
+      return std::move(std::get<std::unique_ptr<AST::Module>>(*R));
+    }
+    return Unexpect(ErrCode::Value::MalformedVersion);
+  } else {
+    return Unexpect(R);
   }
 }
 
-// Helper function of checking the valid reference types.
-Expect<RefType> Loader::checkRefTypeProposals(RefType RType, uint64_t Off,
-                                              ASTNodeAttr Node) const noexcept {
-  switch (RType) {
-  case RefType::ExternRef:
-    if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logNeedProposal(ErrCode::Value::MalformedElemType,
-                             Proposal::ReferenceTypes, Off, Node);
+// Parse module from byte code. See "include/loader/loader.h".
+Expect<std::unique_ptr<AST::Module>>
+Loader::parseModule(Span<const uint8_t> Code) {
+  if (auto R = parseWasmUnit(Code)) {
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*R)) {
+      return std::move(std::get<std::unique_ptr<AST::Module>>(*R));
     }
-    [[fallthrough]];
-  case RefType::FuncRef:
-    return RType;
-  default:
-    if (Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logLoadError(ErrCode::Value::MalformedRefType, Off, Node);
-    } else {
-      return logLoadError(ErrCode::Value::MalformedElemType, Off, Node);
-    }
+    return Unexpect(ErrCode::Value::MalformedVersion);
+  } else {
+    return Unexpect(R);
   }
+}
+
+// Serialize module into byte code. See "include/loader/loader.h".
+Expect<std::vector<Byte>> Loader::serializeModule(const AST::Module &Mod) {
+  return Ser.serializeModule(Mod);
 }
 
 } // namespace Loader

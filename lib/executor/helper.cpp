@@ -131,20 +131,26 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       prepare(StackMgr, ModInst->MemoryPtrs.data(), ModInst->GlobalPtrs.data());
     }
 
-    {
+    ErrCode Err;
+    try {
       // Get symbol and execute the function.
       Fault FaultHandler;
       uint32_t Code = PREPARE_FAULT(FaultHandler);
-      if (auto Err = ErrCode(static_cast<ErrCategory>(Code >> 24), Code);
-          unlikely(Err != ErrCode::Value::Success)) {
-        if (Err != ErrCode::Value::Terminated) {
-          spdlog::error(Err);
-        }
-        return Unexpect(Err);
+      if (Code != 0) {
+        Err = ErrCode(static_cast<ErrCategory>(Code >> 24), Code);
+      } else {
+        auto &Wrapper = FuncType.getSymbol();
+        Wrapper(&ExecutionContext, Func.getSymbol().get(), Args.data(),
+                Rets.data());
       }
-      auto &Wrapper = FuncType.getSymbol();
-      Wrapper(&ExecutionContext, Func.getSymbol().get(), Args.data(),
-              Rets.data());
+    } catch (const ErrCode &E) {
+      Err = E;
+    }
+    if (unlikely(Err)) {
+      if (Err != ErrCode::Value::Terminated) {
+        spdlog::error(Err);
+      }
+      return Unexpect(Err);
     }
 
     // Push returns back to stack.
@@ -195,6 +201,17 @@ Expect<void> Executor::branchToLabel(Runtime::StackManager &StackMgr,
   // PC need to -1 here because the PC will increase in the next iteration.
   PC += (PCOffset - 1);
   return {};
+}
+
+Runtime::Instance::FunctionInstance *
+Executor::getFuncInstByIdx(Runtime::StackManager &StackMgr,
+                           const uint32_t Idx) const {
+  const auto *ModInst = StackMgr.getModule();
+  // When top frame is dummy frame, cannot find instance.
+  if (unlikely(ModInst == nullptr)) {
+    return nullptr;
+  }
+  return ModInst->unsafeGetFunction(Idx);
 }
 
 Runtime::Instance::TableInstance *
@@ -250,6 +267,66 @@ Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
     return nullptr;
   }
   return ModInst->unsafeGetData(Idx);
+}
+
+bool Executor::matchType(const Runtime::Instance::ModuleInstance &ModExp,
+                         const ValType &Exp,
+                         const Runtime::Instance::ModuleInstance &ModGot,
+                         const ValType &Got) const noexcept {
+  if (!Exp.isRefType() && !Got.isRefType() && Exp.getCode() == Got.getCode()) {
+    // Match for the non-reference type case.
+    return true;
+  }
+  if (Exp.isRefType() && Got.isRefType()) {
+    // Nullable matching.
+    if (!Exp.isNullableRefType() && Got.isNullableRefType()) {
+      return false;
+    }
+
+    // Match the heap type.
+    if (Exp.getHeapTypeCode() == Got.getHeapTypeCode() &&
+        Exp.getHeapTypeCode() != TypeCode::TypeIndex) {
+      // Abs heap type are the same.
+      return true;
+    }
+    if (Exp.getHeapTypeCode() == TypeCode::FuncRef &&
+        Got.getHeapTypeCode() == TypeCode::TypeIndex) {
+      // Match type index to any funcref.
+      return true;
+    }
+    if (Exp.getHeapTypeCode() == TypeCode::TypeIndex &&
+        Got.getHeapTypeCode() == TypeCode::TypeIndex) {
+      // Match got type index to expected type index.
+      if (matchTypes(
+              ModExp, ModExp.FuncTypes[Exp.getTypeIndex()].getParamTypes(),
+              ModGot, ModGot.FuncTypes[Got.getTypeIndex()].getParamTypes()) &&
+          matchTypes(
+              ModExp, ModExp.FuncTypes[Exp.getTypeIndex()].getReturnTypes(),
+              ModGot, ModGot.FuncTypes[Got.getTypeIndex()].getReturnTypes())) {
+        // Note: In future versions of WebAssembly, subtyping on function types
+        // may be relaxed to support co- and contra-variance.
+        // Due to passing the validation of type section, this will not cause
+        // infinite recursion.
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool Executor::matchTypes(const Runtime::Instance::ModuleInstance &ModExp,
+                          Span<const ValType> Exp,
+                          const Runtime::Instance::ModuleInstance &ModGot,
+                          Span<const ValType> Got) const noexcept {
+  if (Exp.size() != Got.size()) {
+    return false;
+  }
+  for (uint32_t I = 0; I < Exp.size(); I++) {
+    if (!matchType(ModExp, Exp[I], ModGot, Got[I])) {
+      return false;
+    }
+  }
+  return true;
 }
 
 } // namespace Executor

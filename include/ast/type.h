@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/executable.h"
 #include "common/span.h"
 #include "common/symbol.h"
 #include "common/types.h"
@@ -46,7 +47,6 @@ public:
       Type = LimitType::HasMinMax;
     }
   }
-  Limit(const Limit &L) noexcept : Type(L.Type), Min(L.Min), Max(L.Max) {}
 
   /// Getter and setter of limit mode.
   bool hasMax() const noexcept {
@@ -75,15 +75,12 @@ private:
 /// AST FunctionType node.
 class FunctionType {
 public:
-  /// Function type wrapper for symbols.
-  using Wrapper = void(void *ExecCtx, void *Function, const ValVariant *Args,
-                       ValVariant *Rets);
-
   /// Constructors.
   FunctionType() = default;
   FunctionType(Span<const ValType> P, Span<const ValType> R)
       : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()) {}
-  FunctionType(Span<const ValType> P, Span<const ValType> R, Symbol<Wrapper> S)
+  FunctionType(Span<const ValType> P, Span<const ValType> R,
+               Symbol<Executable::Wrapper> S)
       : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()),
         WrapSymbol(std::move(S)) {}
 
@@ -113,14 +110,16 @@ public:
 
   /// Getter and setter of symbol.
   const auto &getSymbol() const noexcept { return WrapSymbol; }
-  void setSymbol(Symbol<Wrapper> S) noexcept { WrapSymbol = std::move(S); }
+  void setSymbol(Symbol<Executable::Wrapper> S) noexcept {
+    WrapSymbol = std::move(S);
+  }
 
 private:
   /// \name Data of FunctionType.
   /// @{
   std::vector<ValType> ParamTypes;
   std::vector<ValType> ReturnTypes;
-  Symbol<Wrapper> WrapSymbol;
+  Symbol<Executable::Wrapper> WrapSymbol;
   /// @}
 };
 
@@ -149,16 +148,28 @@ private:
 class TableType {
 public:
   /// Constructors.
-  TableType() noexcept : Type(RefType::FuncRef), Lim() {}
-  TableType(RefType RType, uint32_t MinVal) noexcept
-      : Type(RType), Lim(MinVal) {}
-  TableType(RefType RType, uint32_t MinVal, uint32_t MaxVal) noexcept
-      : Type(RType), Lim(MinVal, MaxVal) {}
-  TableType(RefType RType, const Limit &L) noexcept : Type(RType), Lim(L) {}
+  TableType() noexcept : Type(TypeCode::FuncRef), Lim() {
+    assuming(Type.isRefType());
+  }
+  TableType(const ValType &RType, uint32_t MinVal) noexcept
+      : Type(RType), Lim(MinVal) {
+    assuming(Type.isRefType());
+  }
+  TableType(const ValType &RType, uint32_t MinVal, uint32_t MaxVal) noexcept
+      : Type(RType), Lim(MinVal, MaxVal) {
+    assuming(Type.isRefType());
+  }
+  TableType(const ValType &RType, const Limit &L) noexcept
+      : Type(RType), Lim(L) {
+    assuming(Type.isRefType());
+  }
 
   /// Getter of reference type.
-  RefType getRefType() const noexcept { return Type; }
-  void setRefType(RefType RType) noexcept { Type = RType; }
+  const ValType &getRefType() const noexcept { return Type; }
+  void setRefType(const ValType &RType) noexcept {
+    assuming(RType.isRefType());
+    Type = RType;
+  }
 
   /// Getter of limit.
   const Limit &getLimit() const noexcept { return Lim; }
@@ -167,7 +178,7 @@ public:
 private:
   /// \name Data of TableType.
   /// @{
-  RefType Type;
+  ValType Type;
   Limit Lim;
   /// @}
 };
@@ -176,23 +187,13 @@ private:
 class GlobalType {
 public:
   /// Constructors.
-  GlobalType() noexcept : Type(ValType::I32), Mut(ValMut::Const) {}
-  GlobalType(ValType VType, ValMut VMut) noexcept : Type(VType), Mut(VMut) {}
-
-  /// `==` and `!=` operator overloadings.
-  friend bool operator==(const GlobalType &LHS,
-                         const GlobalType &RHS) noexcept {
-    return LHS.Type == RHS.Type && LHS.Mut == RHS.Mut;
-  }
-
-  friend bool operator!=(const GlobalType &LHS,
-                         const GlobalType &RHS) noexcept {
-    return !(LHS == RHS);
-  }
+  GlobalType() noexcept : Type(TypeCode::I32), Mut(ValMut::Const) {}
+  GlobalType(const ValType &VType, ValMut VMut) noexcept
+      : Type(VType), Mut(VMut) {}
 
   /// Getter and setter of value type.
-  ValType getValType() const noexcept { return Type; }
-  void setValType(ValType VType) noexcept { Type = VType; }
+  const ValType &getValType() const noexcept { return Type; }
+  void setValType(const ValType &VType) noexcept { Type = VType; }
 
   /// Getter and setter of value mutation.
   ValMut getValMut() const noexcept { return Mut; }

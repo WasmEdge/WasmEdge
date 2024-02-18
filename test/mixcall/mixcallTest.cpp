@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "aot/compiler.h"
 #include "common/configure.h"
 #include "common/errinfo.h"
 #include "common/filesystem.h"
@@ -9,6 +8,8 @@
 #include "runtime/instance/module.h"
 #include "validator/validator.h"
 #include "vm/vm.h"
+#include "llvm/codegen.h"
+#include "llvm/compiler.h"
 
 #include <gtest/gtest.h>
 #include <iostream>
@@ -111,20 +112,24 @@ bool compileModule(const WasmEdge::Configure &Conf, std::string_view InPath,
                    std::string_view OutPath) {
   WasmEdge::Loader::Loader Load(Conf);
   WasmEdge::Validator::Validator Valid(Conf);
-  WasmEdge::AOT::Compiler Compiler(Conf);
+  WasmEdge::LLVM::Compiler Compiler(Conf);
+  WasmEdge::LLVM::CodeGen CodeGen(Conf);
 
-  auto Mod = Load.parseModule(InPath);
-  auto Data = Load.loadFile(InPath);
-  if (!Mod || !Data) {
-    return false;
-  }
-  if (auto Res = Valid.validate(*(*Mod).get()); !Res) {
-    return false;
-  }
-  if (auto Res = Compiler.compile(*Data, *(*Mod).get(), OutPath); !Res) {
-    return false;
-  }
-  return true;
+  std::vector<WasmEdge::Byte> Data;
+  std::unique_ptr<WasmEdge::AST::Module> Module;
+  return Load.loadFile(InPath)
+      .and_then([&](auto Result) noexcept {
+        Data = std::move(Result);
+        return Load.parseModule(InPath);
+      })
+      .and_then([&](auto Result) noexcept {
+        Module = std::move(Result);
+        return Valid.validate(*Module);
+      })
+      .and_then([&]() noexcept { return Compiler.compile(*Module); })
+      .and_then([&](auto Result) noexcept {
+        return CodeGen.codegen(Data, std::move(Result), OutPath);
+      }).has_value();
 }
 
 TEST(MixCallTest, Call__InterpCallAOT) {
@@ -159,28 +164,28 @@ TEST(MixCallTest, Call__InterpCallAOT) {
 
   // Run `printAdd`
   FuncArgs = {uint32_t(1234), uint32_t(5678)};
-  FuncArgTypes = {WasmEdge::ValType::I32, WasmEdge::ValType::I32};
+  FuncArgTypes = {WasmEdge::TypeCode::I32, WasmEdge::TypeCode::I32};
   auto Ret = VM.execute("printAdd", FuncArgs, FuncArgTypes);
   EXPECT_TRUE(Ret);
   EXPECT_EQ((*Ret).size(), 0);
 
   // Run `printDiv`
   FuncArgs = {double(9876.0), double(4321.0)};
-  FuncArgTypes = {WasmEdge::ValType::F64, WasmEdge::ValType::F64};
+  FuncArgTypes = {WasmEdge::TypeCode::F64, WasmEdge::TypeCode::F64};
   Ret = VM.execute("printDiv", FuncArgs, FuncArgTypes);
   EXPECT_TRUE(Ret);
   EXPECT_EQ((*Ret).size(), 0);
 
   // Run `printI32`
   FuncArgs = {uint32_t(87654321)};
-  FuncArgTypes = {WasmEdge::ValType::I32};
+  FuncArgTypes = {WasmEdge::TypeCode::I32};
   Ret = VM.execute("printI32", FuncArgs, FuncArgTypes);
   EXPECT_TRUE(Ret);
   EXPECT_EQ((*Ret).size(), 0);
 
   // Run `printF64`
   FuncArgs = {double(5566.1122)};
-  FuncArgTypes = {WasmEdge::ValType::F64};
+  FuncArgTypes = {WasmEdge::TypeCode::F64};
   Ret = VM.execute("printF64", FuncArgs, FuncArgTypes);
   EXPECT_TRUE(Ret);
   EXPECT_EQ((*Ret).size(), 0);
@@ -219,28 +224,28 @@ TEST(MixCallTest, Call__AOTCallInterp) {
 
   // Run `printAdd`
   FuncArgs = {uint32_t(1234), uint32_t(5678)};
-  FuncArgTypes = {WasmEdge::ValType::I32, WasmEdge::ValType::I32};
+  FuncArgTypes = {WasmEdge::TypeCode::I32, WasmEdge::TypeCode::I32};
   auto Ret = VM.execute("printAdd", FuncArgs, FuncArgTypes);
   EXPECT_TRUE(Ret);
   EXPECT_EQ((*Ret).size(), 0);
 
   // Run `printDiv`
   FuncArgs = {double(9876.0), double(4321.0)};
-  FuncArgTypes = {WasmEdge::ValType::F64, WasmEdge::ValType::F64};
+  FuncArgTypes = {WasmEdge::TypeCode::F64, WasmEdge::TypeCode::F64};
   Ret = VM.execute("printDiv", FuncArgs, FuncArgTypes);
   EXPECT_TRUE(Ret);
   EXPECT_EQ((*Ret).size(), 0);
 
   // Run `printI32`
   FuncArgs = {uint32_t(87654321)};
-  FuncArgTypes = {WasmEdge::ValType::I32};
+  FuncArgTypes = {WasmEdge::TypeCode::I32};
   Ret = VM.execute("printI32", FuncArgs, FuncArgTypes);
   EXPECT_TRUE(Ret);
   EXPECT_EQ((*Ret).size(), 0);
 
   // Run `printF64`
   FuncArgs = {double(5566.1122)};
-  FuncArgTypes = {WasmEdge::ValType::F64};
+  FuncArgTypes = {WasmEdge::TypeCode::F64};
   Ret = VM.execute("printF64", FuncArgs, FuncArgTypes);
   EXPECT_TRUE(Ret);
   EXPECT_EQ((*Ret).size(), 0);

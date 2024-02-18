@@ -5,6 +5,8 @@
 
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
+#include "llvm/compiler.h"
+#include "llvm/jit.h"
 
 #include "host/mock/wasi_crypto_module.h"
 #include "host/mock/wasi_logging_module.h"
@@ -13,6 +15,7 @@
 #include "host/mock/wasmedge_process_module.h"
 #include "host/mock/wasmedge_tensorflow_module.h"
 #include "host/mock/wasmedge_tensorflowlite_module.h"
+#include <variant>
 
 namespace WasmEdge {
 namespace VM {
@@ -206,9 +209,16 @@ VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
     // Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
-  // Load module.
-  if (auto Res = LoaderEngine.parseModule(Path)) {
-    return unsafeRunWasmFile(*(*Res).get(), Func, Params, ParamTypes);
+  // Load wasm unit.
+  if (auto Res = LoaderEngine.parseWasmUnit(Path)) {
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
+      auto M = std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
+      return unsafeRunWasmFile(*M, Func, Params, ParamTypes);
+    } else {
+      return unsafeRunWasmFile(
+          (*std::get<std::unique_ptr<AST::Component::Component>>(*Res)), Func,
+          Params, ParamTypes);
+    }
   } else {
     return Unexpect(Res);
   }
@@ -223,12 +233,36 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
     // Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
-  // Load module.
-  if (auto Res = LoaderEngine.parseModule(Code)) {
-    return unsafeRunWasmFile(*(*Res).get(), Func, Params, ParamTypes);
+  // Load wasm unit.
+  if (auto Res = LoaderEngine.parseWasmUnit(Code)) {
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
+      std::unique_ptr<AST::Module> M =
+          std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
+      return unsafeRunWasmFile(*M, Func, Params, ParamTypes);
+    } else {
+      std::unique_ptr<AST::Component::Component> C =
+          std::move(std::get<std::unique_ptr<AST::Component::Component>>(*Res));
+      return unsafeRunWasmFile(*C, Func, Params, ParamTypes);
+    }
   } else {
     return Unexpect(Res);
   }
+}
+
+Expect<std::vector<std::pair<ValVariant, ValType>>>
+VM::unsafeRunWasmFile(const AST::Component::Component &Component,
+                      std::string_view, Span<const ValVariant>,
+                      Span<const ValType>) {
+  if (Stage == VMStage::Instantiated) {
+    // When running another module, instantiated module in store will be reset.
+    // Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
+  if (auto Res = ValidatorEngine.validate(Component); !Res) {
+    return Unexpect(Res);
+  }
+  spdlog::error("component execution is not done yet.");
+  return Unexpect(ErrCode::Value::RuntimeError);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -306,8 +340,15 @@ VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
 
 Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
   // If not load successfully, the previous status will be reserved.
-  if (auto Res = LoaderEngine.parseModule(Path)) {
-    Mod = std::move(*Res);
+  if (auto Res = LoaderEngine.parseWasmUnit(Path)) {
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
+      Mod = std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
+    } else if (std::holds_alternative<
+                   std::unique_ptr<AST::Component::Component>>(*Res)) {
+      spdlog::error("component execution is not done yet.");
+    } else {
+      return Unexpect(Res);
+    }
     Stage = VMStage::Loaded;
   } else {
     return Unexpect(Res);
@@ -317,8 +358,15 @@ Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
 
 Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
   // If not load successfully, the previous status will be reserved.
-  if (auto Res = LoaderEngine.parseModule(Code)) {
-    Mod = std::move(*Res);
+  if (auto Res = LoaderEngine.parseWasmUnit(Code)) {
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
+      Mod = std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
+    } else if (std::holds_alternative<
+                   std::unique_ptr<AST::Component::Component>>(*Res)) {
+      spdlog::error("component execution is not done yet.");
+    } else {
+      return Unexpect(Res);
+    }
     Stage = VMStage::Loaded;
   } else {
     return Unexpect(Res);
@@ -352,6 +400,30 @@ Expect<void> VM::unsafeInstantiate() {
     spdlog::error(ErrCode::Value::WrongVMWorkflow);
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
+
+  if (Mod) {
+    if (Conf.getRuntimeConfigure().isEnableJIT() && !Mod->getSymbol()) {
+#ifdef WASMEDGE_USE_LLVM
+      LLVM::Compiler Compiler(Conf);
+      LLVM::JIT JIT(Conf);
+      if (auto Res = Compiler.compile(*Mod); !Res) {
+        const auto Err = static_cast<uint32_t>(Res.error());
+        spdlog::error(
+            "Compilation failed. Error code: {}, use interpreter mode instead."sv,
+            Err);
+      } else if (auto Res2 = JIT.load(std::move(*Res)); !Res2) {
+        const auto Err = static_cast<uint32_t>(Res2.error());
+        spdlog::warn(
+            "JIT failed. Error code: {}, use interpreter mode instead."sv, Err);
+      } else {
+        LoaderEngine.loadExecutable(*Mod, std::move(*Res2));
+      }
+#else
+      spdlog::error("LLVM disabled, JIT is unsupported!");
+#endif
+    }
+  }
+
   if (auto Res = ExecutorEngine.instantiateModule(StoreRef, *Mod.get())) {
     Stage = VMStage::Instantiated;
     ActiveModInst = std::move(*Res);

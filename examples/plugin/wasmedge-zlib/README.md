@@ -31,7 +31,7 @@ export WASMEDGE_PLUGIN_PATH=$WASMEDGE_PATH/build/plugins/wasmedge_zlib
 mkdir build; cd build
 cmake .. -DWASMEDGE_PLUGIN_WASMEDGE_ZLIB=ON
 # In case you don't want `AOT` support, try the variant below
-# cmake .. -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF
+# cmake .. -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_USE_LLVM=OFF
 cmake --build . -j
 # Compiled Wasmedge is located in ./tools/wasmedge/wasmedge
 ```

@@ -62,7 +62,7 @@ RUN --mount=type=bind,target=/src,source=. \
         # For cross compiling
         -DCMAKE_TOOLCHAIN_FILE="$(xx-toolchain)" \
         -DWASMEDGE_BUILD_PACKAGE="TGZ" \
-        -DWASMEDGE_BUILD_AOT_RUNTIME=ON \
+        -DWASMEDGE_USE_LLVM=ON \
         # Build just what we need
         -DWASMEDGE_BUILD_STATIC_LIB=ON \
         -DWASMEDGE_BUILD_TESTS=OFF \

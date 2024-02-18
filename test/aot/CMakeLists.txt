@@ -1,22 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-wasmedge_add_executable(wasmedgeAOTCoreTests
-  AOTcoreTest.cpp
-)
-
-add_test(wasmedgeAOTCoreTests wasmedgeAOTCoreTests)
-
-target_link_libraries(wasmedgeAOTCoreTests
-  PRIVATE
-  std::filesystem
-  ${GTEST_BOTH_LIBRARIES}
-  wasmedgeTestSpec
-  wasmedgeLoader
-  wasmedgeAOT
-  wasmedgeVM
-)
-
 wasmedge_add_executable(wasmedgeAOTCacheTests
   AOTCacheTest.cpp
 )

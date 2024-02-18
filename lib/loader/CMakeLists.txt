@@ -3,8 +3,8 @@
 
 wasmedge_add_library(wasmedgeLoaderFileMgr
   filemgr.cpp
-  ldmgr.cpp
   shared_library.cpp
+  aot_section.cpp
 )
 
 target_link_libraries(wasmedgeLoaderFileMgr
@@ -22,6 +22,14 @@ if(NOT WIN32)
 endif()
 
 wasmedge_add_library(wasmedgeLoader
+  ast/component.cpp
+  ast/component/sort.cpp
+  ast/component/instance.cpp
+  ast/component/alias.cpp
+  ast/component/type.cpp
+  ast/component/canonical.cpp
+  ast/component/start.cpp
+  ast/component/import_export.cpp
   ast/module.cpp
   ast/section.cpp
   ast/description.cpp
@@ -29,6 +37,13 @@ wasmedge_add_library(wasmedgeLoader
   ast/type.cpp
   ast/expression.cpp
   ast/instruction.cpp
+  serialize/serial_description.cpp
+  serialize/serial_expression.cpp
+  serialize/serial_instruction.cpp
+  serialize/serial_module.cpp
+  serialize/serial_section.cpp
+  serialize/serial_segment.cpp
+  serialize/serial_type.cpp
   loader.cpp
 )
 

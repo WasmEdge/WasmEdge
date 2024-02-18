@@ -13,6 +13,8 @@ on:
 
 jobs:
   build_fedora:
+    permissions:
+      contents: write
     name: Fedora latest
     runs-on: ubuntu-latest
     container:
@@ -21,7 +23,8 @@ jobs:
       - name: Install dependency
         run: |
           dnf update -y
-          dnf install -y cmake ninja-build llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev spdlog-devel
+          dnf install -y cmake ninja-build llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev spdlog-devel \
+            pkgconf-pkg-config protobuf-c-compiler grpc-cpp grpc-plugins grpc-devel
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0

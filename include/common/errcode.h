@@ -65,7 +65,7 @@ struct fmt::formatter<WasmEdge::ErrCode> : fmt::formatter<std::string_view> {
          fmt::format_context &Ctx) const noexcept {
     using namespace std::literals;
     std::string Output =
-        fmt::format("{} failed: {}, Code: 0x{:02x}"sv, Code.getErrCodePhase(),
+        fmt::format("{} failed: {}, Code: 0x{:03x}"sv, Code.getErrCodePhase(),
                     WasmEdge::ErrCodeStr[Code.getEnum()], Code.getCode());
     return formatter<std::string_view>::format(Output, Ctx);
   }

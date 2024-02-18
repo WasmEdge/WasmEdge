@@ -53,6 +53,13 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
   }
   if (Parser.isVersion()) {
     std::cout << Argv[0] << " version "sv << kVersionString << '\n';
+    for (const auto &Plugin : Plugin::Plugin::plugins()) {
+      auto PluginVersion = Plugin.version();
+      std::cout << Plugin.path().string() << " (plugin \""sv << Plugin.name()
+                << "\") version "sv << PluginVersion.Major << '.'
+                << PluginVersion.Minor << '.' << PluginVersion.Patch << '.'
+                << PluginVersion.Build << '\n';
+    }
     return EXIT_SUCCESS;
   }
   if (Parser.isHelp()) {

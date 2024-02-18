@@ -14,13 +14,16 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/enum_ast.hpp"
 #include "common/enum_configure.hpp"
+#include "common/errcode.h"
 
 #include <atomic>
 #include <bitset>
 #include <cstdint>
 #include <initializer_list>
 #include <mutex>
+#include <optional>
 #include <shared_mutex>
 #include <unordered_set>
 
@@ -111,6 +114,7 @@ public:
   RuntimeConfigure() noexcept = default;
   RuntimeConfigure(const RuntimeConfigure &RHS) noexcept
       : MaxMemPage(RHS.MaxMemPage.load(std::memory_order_relaxed)),
+        EnableJIT(RHS.EnableJIT.load(std::memory_order_relaxed)),
         ForceInterpreter(RHS.ForceInterpreter.load(std::memory_order_relaxed)),
         AllowAFUNIX(RHS.AllowAFUNIX.load(std::memory_order_relaxed)) {}
 
@@ -120,6 +124,14 @@ public:
 
   uint32_t getMaxMemoryPage() const noexcept {
     return MaxMemPage.load(std::memory_order_relaxed);
+  }
+
+  void setEnableJIT(bool IsEnableJIT) noexcept {
+    EnableJIT.store(IsEnableJIT, std::memory_order_relaxed);
+  }
+
+  bool isEnableJIT() const noexcept {
+    return EnableJIT.load(std::memory_order_relaxed);
   }
 
   void setForceInterpreter(bool IsForceInterpreter) noexcept {
@@ -140,6 +152,7 @@ public:
 
 private:
   std::atomic<uint32_t> MaxMemPage = 65536;
+  std::atomic<bool> EnableJIT = false;
   std::atomic<bool> ForceInterpreter = false;
   std::atomic<bool> AllowAFUNIX = false;
 };
@@ -266,6 +279,68 @@ public:
   }
   StatisticsConfigure &getStatisticsConfigure() noexcept {
     return StatisticsConf;
+  }
+
+  /// Helper function of checking the proposal of instructions.
+  std::optional<Proposal> isInstrNeedProposal(OpCode Code) const noexcept {
+    if (Code >= OpCode::I32__trunc_sat_f32_s &&
+        Code <= OpCode::I64__trunc_sat_f64_u) {
+      // These instructions are for NonTrapFloatToIntConversions proposal.
+      if (unlikely(!hasProposal(Proposal::NonTrapFloatToIntConversions))) {
+        return Proposal::NonTrapFloatToIntConversions;
+      }
+    } else if (Code >= OpCode::I32__extend8_s &&
+               Code <= OpCode::I64__extend32_s) {
+      // These instructions are for SignExtensionOperators proposal.
+      if (unlikely(!hasProposal(Proposal::SignExtensionOperators))) {
+        return Proposal::SignExtensionOperators;
+      }
+    } else if ((Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
+               (Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||
+               (Code >= OpCode::Memory__init && Code <= OpCode::Memory__fill)) {
+      // These instructions are for ReferenceTypes or BulkMemoryOperations
+      // proposal.
+      if (unlikely(!hasProposal(Proposal::ReferenceTypes)) &&
+          unlikely(!hasProposal(Proposal::BulkMemoryOperations))) {
+        return Proposal::ReferenceTypes;
+      }
+    } else if (Code == OpCode::Select_t ||
+               (Code >= OpCode::Table__get && Code <= OpCode::Table__set) ||
+               (Code >= OpCode::Table__grow && Code <= OpCode::Table__fill)) {
+      // These instructions are for ReferenceTypes proposal.
+      if (unlikely(!hasProposal(Proposal::ReferenceTypes))) {
+        return Proposal::ReferenceTypes;
+      }
+    } else if (Code >= OpCode::V128__load &&
+               Code <= OpCode::F64x2__convert_low_i32x4_u) {
+      // These instructions are for SIMD proposal.
+      if (!hasProposal(Proposal::SIMD)) {
+        return Proposal::SIMD;
+      }
+    } else if (Code == OpCode::Return_call ||
+               Code == OpCode::Return_call_indirect) {
+      // These instructions are for TailCall proposal.
+      if (!hasProposal(Proposal::TailCall)) {
+        return Proposal::TailCall;
+      }
+    } else if (Code >= OpCode::I32__atomic__load &&
+               Code <= OpCode::I64__atomic__rmw32__cmpxchg_u) {
+      // These instructions are for Thread proposal.
+      if (!hasProposal(Proposal::Threads)) {
+        return Proposal::Threads;
+      }
+    } else if (Code == OpCode::Call_ref || Code == OpCode::Return_call_ref ||
+               Code == OpCode::Ref__as_non_null || Code == OpCode::Br_on_null ||
+               Code == OpCode::Br_on_non_null) {
+      // These instructions are for TypedFunctionReferences proposal.
+      if (!hasProposal(Proposal::FunctionReferences)) {
+        return Proposal::FunctionReferences;
+      }
+      if (Code == OpCode::Return_call_ref && !hasProposal(Proposal::TailCall)) {
+        return Proposal::TailCall;
+      }
+    }
+    return {};
   }
 
 private:

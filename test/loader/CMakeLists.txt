@@ -36,3 +36,21 @@ target_link_libraries(wasmedgeLoaderASTTests
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeLoader
 )
+
+wasmedge_add_executable(wasmedgeLoaderSerializerTests
+  serializeModuleTest.cpp
+  serializeSectionTest.cpp
+  serializeDescriptionTest.cpp
+  serializeSegmentTest.cpp
+  serializeTypeTest.cpp
+  serializeExpressionTest.cpp
+  serializeInstructionTest.cpp
+)
+
+add_test(wasmedgeLoaderSerializerTests wasmedgeLoaderSerializerTests)
+
+target_link_libraries(wasmedgeLoaderSerializerTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedgeLoader
+)

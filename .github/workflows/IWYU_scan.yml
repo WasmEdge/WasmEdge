@@ -33,6 +33,8 @@ on:
 
 jobs:
   get_version:
+    permissions:
+      contents: read
     name: Retrieve version information
     runs-on: ubuntu-latest
     outputs:
@@ -53,6 +55,8 @@ jobs:
         echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> $GITHUB_OUTPUT
 
   build_fedora:
+    permissions:
+      contents: write
     name: Fedora latest
     needs: get_version
     runs-on: ubuntu-latest
@@ -91,6 +95,8 @@ jobs:
 
 
   build_macos:
+    permissions:
+      contents: write
     name: macOS
     runs-on: macos-latest
     needs: get_version
@@ -106,6 +112,8 @@ jobs:
     - name: Build and scan WasmEdge with IWYU
       shell: bash
       run: |
+        # Unlink python@3.11 to fix brew link 2to3 conflict.
+        brew unlink python@3.11
         brew install llvm ninja cmake
         export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
         export Clang_DIR="/usr/local/opt/llvm/lib/cmake/clang"

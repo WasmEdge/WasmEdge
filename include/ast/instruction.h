@@ -90,8 +90,8 @@ public:
   uint32_t getOffset() const noexcept { return Offset; }
 
   /// Getter and setter of block type.
-  BlockType getBlockType() const noexcept { return Data.Blocks.ResType; }
-  void setBlockType(ValType VType) noexcept {
+  const BlockType &getBlockType() const noexcept { return Data.Blocks.ResType; }
+  void setBlockType(const ValType &VType) noexcept {
     Data.Blocks.ResType.setData(VType);
   }
   void setBlockType(uint32_t Idx) noexcept { Data.Blocks.ResType.setData(Idx); }
@@ -105,9 +105,9 @@ public:
   uint32_t getJumpElse() const noexcept { return Data.Blocks.JumpElse; }
   void setJumpElse(const uint32_t Cnt) noexcept { Data.Blocks.JumpElse = Cnt; }
 
-  /// Getter and setter of reference type.
-  RefType getRefType() const noexcept { return Data.ReferenceType; }
-  void setRefType(RefType RType) noexcept { Data.ReferenceType = RType; }
+  /// Getter and setter of value type.
+  const ValType &getValType() const noexcept { return Data.VType; }
+  void setValType(const ValType &VType) noexcept { Data.VType = VType; }
 
   /// Getter and setter of label list.
   void setLabelListSize(uint32_t Size) {
@@ -242,8 +242,8 @@ private:
       uint32_t LabelListSize;
       JumpDescriptor *LabelList;
     } BrTable;
-    // Type 5: RefType.
-    RefType ReferenceType;
+    // Type 5: ValType.
+    ValType VType;
     // Type 6: ValTypeList.
     struct {
       uint32_t ValTypeListSize;

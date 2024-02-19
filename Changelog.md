@@ -1,4 +1,4 @@
-### 0.14.0-alpha.1 (2024-01-05)
+### 0.14.0-alpha.2 (2024-02-19)
 
 Breaking changes:
 
@@ -36,9 +36,13 @@ Features:
   * Supported WASM Typed Function References proposal.
     * Added the `WasmEdge_Proposal_FunctionReferences` for the configuration in WasmEdge C API.
     * Users can use the `--enable-function-reference` to enable the proposal in `wasmedge` and `wasmedgec` tools.
+  * Supported WASM GC proposal (interpreter only).
+    * Added the `WasmEdge_Proposal_GC` for the configuration in WasmEdge C API.
+    * Users can use the `--enable-gc` to enable the proposal in `wasmedge` and `wasmedgec` tools.
   * Component Model proposal (experimental, loader phase only).
     * Added the `WasmEdge_Proposal_Component` for the configuration in WasmEdge C API.
     * Users can use the `--enable-function-reference` to enable the proposal in `wasmedge` tool.
+* [JIT]: Support LLVM JIT.
 * [C API]: New C API for supporting the new proposals.
   * `WasmEdge_ValType` related APIs can help developers to generate or compare value types.
     * `WasmEdge_ValTypeGenI32()` (replacing `WasmEdge_ValType_I32`)
@@ -85,6 +89,9 @@ Features:
 Fixed issues:
 
 * Fixed some API document in the API header.
+* [Executor]: Minor fixes.
+  * Fixed integer overflow on `memGrow` boundary check.
+  * Refined the slice copy in table instances.
 * [WASI]: Minor fixes.
   * Fixed the function signature matching for WASI imports when backwarding supporting older version. (#3073)
   * Fixed large timestamp causing overflow (#3106).
@@ -114,7 +121,7 @@ Thank all the contributors who made this release possible!
 
 Abhinandan Udupa, Akihiro Suda, Dhruv Jain, Draco, Little Willy, Lîm Tsú-thuàn, Meenu Yadav, Omkar Acharekar, Saiyam Pathak, Shen-Ta Hsieh, Shreyas Atre, Yage Hu, Yi-Ying He, alabulei1, am009, dm4, hydai, richzw, zhumeme
 
-If you want to build from source, please use WasmEdge-0.14.0-alpha.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.14.0-alpha.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.13.5 (2023-11-03)
 

@@ -4,20 +4,20 @@
 wasmedge_add_executable(wasmedgeFFmpegTests
   main.cpp
 
-  avcodec/avcodec_func.cpp
-  avcodec/avCodec.cpp
-  avcodec/avCodecParameters.cpp
-  avcodec/avPacket.cpp
-  avcodec/avCodecCtx.cpp
-
-  avfilter/avfilter_func.cpp
-  avfilter/avfilter.cpp
-
-  avformat/avformat_func.cpp
-  avformat/avformatContext.cpp
-  avformat/avInputOutputContext.cpp
-  avformat/avStream.cpp
-  avformat/avChapter.cpp
+  #  avcodec/avcodec_func.cpp
+  #  avcodec/avCodec.cpp
+  #  avcodec/avCodecParameters.cpp
+  #  avcodec/avPacket.cpp
+  #  avcodec/avCodecCtx.cpp
+  #
+  #  avfilter/avfilter_func.cpp
+  #  avfilter/avfilter.cpp
+  #
+  #  avformat/avformat_func.cpp
+  #  avformat/avformatContext.cpp
+  #  avformat/avInputOutputContext.cpp
+  #  avformat/avStream.cpp
+  #  avformat/avChapter.cpp
 
   avutil/avRational.cpp
   avutil/avDictionary.cpp
@@ -27,9 +27,9 @@ wasmedge_add_executable(wasmedgeFFmpegTests
   avutil/avSampleFmt.cpp
   avutil/avPixfmt.cpp
 
-  swscale/swscale_func.cpp
-
-  swresample/swresample_func.cpp
+  #  swscale/swscale_func.cpp
+  #
+  #  swresample/swresample_func.cpp
 
   utils.cpp
 )

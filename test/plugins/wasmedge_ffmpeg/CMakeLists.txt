@@ -9,10 +9,10 @@ wasmedge_add_executable(wasmedgeFFmpegTests
   #  avcodec/avCodecParameters.cpp
   #  avcodec/avPacket.cpp
   #  avcodec/avCodecCtx.cpp
-  #
-  #  avfilter/avfilter_func.cpp
-  #  avfilter/avfilter.cpp
-  #
+
+  avfilter/avfilter_func.cpp
+  avfilter/avfilter.cpp
+
   #  avformat/avformat_func.cpp
   #  avformat/avformatContext.cpp
   #  avformat/avInputOutputContext.cpp

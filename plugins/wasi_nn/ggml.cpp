@@ -639,7 +639,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       if (GraphRef.CtxSize < 4096) {
         spdlog::info(
             "[WASI-NN] GGML backend: Context size is {}, "
-            "we recommand context size >= 2048 when using llava-v1.5 "
+            "we recommend context size >= 2048 when using llava-v1.5 "
             "and context size >= 4096 when using llava-v1.6 for better results."sv,
             GraphRef.CtxSize);
       }
@@ -999,7 +999,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
                                  GraphRef.BatchSize, &CxtRef.LlamaNPast);
       if (!EvalImageStatus) {
         spdlog::error(
-            "[WASI-NN] GGML backend: failed to evaluate embed image tokens ."sv);
+            "[WASI-NN] GGML backend: failed to evaluate embed image tokens."sv);
         return ErrNo::RuntimeError;
       }
       ReturnCode =

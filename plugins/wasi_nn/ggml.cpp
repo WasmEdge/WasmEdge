@@ -178,7 +178,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
 Expect<ErrNo> buildOutputMetadata(Context &CxtRef,
                                   std::string &Metadata) noexcept {
   std::ostringstream OS;
-  OS << R"({"input_tokens": )" << CxtRef.LlamaInputs.size()
+  OS << R"({"input_tokens": )" << CxtRef.LlamaNInputs
      << R"(, "output_tokens": )" << CxtRef.LlamaOutputTokens.size()
      << R"(, "llama_build_number": )" << LLAMA_BUILD_NUMBER
      << R"(, "llama_commit": ")" << LLAMA_COMMIT << R"("})";
@@ -523,6 +523,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   const std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
                            Tensor.Tensor.size());
   CxtRef.LlamaInputs = llama_tokenize(LlamaContext, Prompt, AddBos, true);
+  CxtRef.LlamaNInputs = CxtRef.LlamaInputs.size();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: set the input...Done"sv);
   }

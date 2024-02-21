@@ -53,6 +53,7 @@ public:
   llama_context *LlamaContext = nullptr;
   struct llama_sampling_context *LlamaSampling = nullptr;
   std::vector<llama_token> LlamaEmbd;
+  uint64_t LlamaNInputs;
   uint64_t LlamaNPast;
   uint64_t LlamaNConsumed;
 };

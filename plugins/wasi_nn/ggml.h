@@ -32,7 +32,9 @@ struct Graph {
   std::string MMProjModelPath;
   std::string ImagePath;
   // Model parameters:
+  int64_t MainGPU = 0; // Use GPU 0 by default
   int64_t NGPULayers = 0;
+  std::vector<float> TensorSplit;
   // Context parameters:
   uint64_t CtxSize;
   uint64_t BatchSize;

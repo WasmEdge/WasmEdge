@@ -1,8 +1,8 @@
 diff --git a/examples/llava/clip.cpp b/examples/llava/clip.cpp
-index 9129052a..482a84e5 100644
+index ef9e4ba7..a1b49793 100644
 --- a/examples/llava/clip.cpp
 +++ b/examples/llava/clip.cpp
-@@ -768,6 +768,7 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
+@@ -859,6 +859,7 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
  
      // kv
      const int n_kv = gguf_get_n_kv(ctx);
@@ -10,15 +10,15 @@ index 9129052a..482a84e5 100644
      printf("%s: loaded meta data with %d key-value pairs and %d tensors from %s\n",
          __func__, n_kv, n_tensors, fname);
      {
-@@ -807,6 +808,7 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
+@@ -898,6 +899,7 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
              printf("%s: - type %4s: %4d tensors\n", __func__, ggml_type_name(kv.first), kv.second);
          }
      }
 +    }
  
      // data
-     size_t buffer_size = 0;
-@@ -848,18 +850,18 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
+     size_t model_size = 0;
+@@ -937,18 +939,18 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
  
  #ifdef GGML_USE_CUBLAS
      new_clip->backend = ggml_backend_cuda_init(0);
@@ -40,29 +40,35 @@ index 9129052a..482a84e5 100644
      }
  
      // model size and capabilities
-@@ -891,7 +893,7 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
+@@ -980,7 +982,7 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
          }
      }
  
--    printf("%s: params backend buffer size = % 6.2f MB (%i tensors)\n", __func__, buffer_size / (1024.0 * 1024.0), n_tensors);
-+    if (verbosity >= 1) printf("%s: params backend buffer size = % 6.2f MB (%i tensors)\n", __func__, buffer_size / (1024.0 * 1024.0), n_tensors);
+-    printf("%s: params backend buffer size = % 6.2f MB (%i tensors)\n", __func__, model_size / (1024.0 * 1024.0), n_tensors);
++    if (verbosity >= 1) printf("%s: params backend buffer size = % 6.2f MB (%i tensors)\n", __func__, model_size / (1024.0 * 1024.0), n_tensors);
  
      // load tensors
      {
-@@ -1086,7 +1088,7 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
-         new_clip->compute_buffer = ggml_backend_alloc_buffer(new_clip->backend, compute_memory_buffer_size);
-         new_clip->compute_alloc = ggml_allocr_new_from_buffer(new_clip->compute_buffer);
- 
+@@ -1216,7 +1218,7 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
+         ggml_cgraph * gf = clip_image_build_graph(new_clip, &batch);
+         ggml_gallocr_reserve(new_clip->compute_alloc, gf);
+         size_t compute_memory_buffer_size = ggml_gallocr_get_buffer_size(new_clip->compute_alloc, 0);
 -        printf("%s: compute allocated memory: %.2f MB\n", __func__, compute_memory_buffer_size /1024.0/1024.0);
 +        if (verbosity >= 1) printf("%s: compute allocated memory: %.2f MB\n", __func__, compute_memory_buffer_size /1024.0/1024.0);
      }
  
      return new_clip;
 diff --git a/examples/llava/llava.cpp b/examples/llava/llava.cpp
-index d42e7582..30833df0 100644
+index 1a1cf7c7..b84a9404 100644
 --- a/examples/llava/llava.cpp
 +++ b/examples/llava/llava.cpp
-@@ -31,7 +31,7 @@ static bool encode_image_with_clip(clip_ctx * ctx_clip, int n_threads, const cli
+@@ -290,12 +290,12 @@ static bool encode_image_with_clip(clip_ctx * ctx_clip, int n_threads, const cli
+         // clip_image_save_to_bmp(*tmp, "image_feature.bmp");
+     }
+ 
+-    printf("%s: image embedding created: %d tokens\n", __func__, *n_img_pos);
++    // printf("%s: image embedding created: %d tokens\n", __func__, *n_img_pos);
+ 
      const int64_t t_img_enc_end_us = ggml_time_us();
      float t_img_enc_ms = (t_img_enc_end_us - t_img_enc_start_us) / 1000.0;
  
@@ -71,11 +77,23 @@ index d42e7582..30833df0 100644
  
      return true;
  }
+diff --git a/examples/llava/llava.h b/examples/llava/llava.h
+index 2d40f3f1..8897b3d8 100644
+--- a/examples/llava/llava.h
++++ b/examples/llava/llava.h
+@@ -18,6 +18,7 @@
+ #endif
+ 
+ struct clip_ctx;
++struct clip_image_u8;
+ 
+ #ifdef __cplusplus
+ extern "C" {
 diff --git a/llama.cpp b/llama.cpp
-index 02b0a485..2088b5a9 100644
+index 4296eca3..5ac03032 100644
 --- a/llama.cpp
 +++ b/llama.cpp
-@@ -11516,7 +11516,9 @@ static void llama_log_internal(ggml_log_level level, const char * format, ...) {
+@@ -12757,7 +12757,9 @@ static void llama_log_internal(ggml_log_level level, const char * format, ...) {
  
  static void llama_log_callback_default(ggml_log_level level, const char * text, void * user_data) {
      (void) level;

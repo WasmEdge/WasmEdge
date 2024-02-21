@@ -11,7 +11,7 @@ else()
     GIT_TAG release-1.11.0
     GIT_SHALLOW TRUE
   )
-  set(BUILD_GMOCK OFF CACHE BOOL "Builds the googlemock subproject" FORCE)
+  set(BUILD_GMOCK ON CACHE BOOL "Builds the googlemock subproject" FORCE)
   set(INSTALL_GTEST OFF CACHE BOOL "Enable installation of googletest. (Projects embedding googletest may want to turn this OFF.)" FORCE)
   get_property(
     compile_options

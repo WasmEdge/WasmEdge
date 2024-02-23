@@ -231,6 +231,18 @@ public:
 
   void removeProposal(const Proposal Type) noexcept {
     std::unique_lock Lock(Mutex);
+    if (Type == Proposal::FunctionReferences &&
+        Proposals.test(static_cast<uint8_t>(Proposal::GC))) {
+      // Proposal dependency: GC depends FunctionReferences.
+      return;
+    }
+    if (Type == Proposal::ReferenceTypes &&
+        (Proposals.test(static_cast<uint8_t>(Proposal::GC)) ||
+         Proposals.test(static_cast<uint8_t>(Proposal::FunctionReferences)))) {
+      // Proposal dependency: GC and FunctionReferences depend on
+      // ReferenceTypes.
+      return;
+    }
     Proposals.reset(static_cast<uint8_t>(Type));
   }
 
@@ -339,6 +351,11 @@ public:
       if (Code == OpCode::Return_call_ref && !hasProposal(Proposal::TailCall)) {
         return Proposal::TailCall;
       }
+    } else if (Code == OpCode::Ref__eq ||
+               (Code >= OpCode::Struct__new && Code <= OpCode::I31__get_u)) {
+      if (!hasProposal(Proposal::GC)) {
+        return Proposal::GC;
+      }
     }
     return {};
   }
@@ -351,6 +368,15 @@ private:
 
   void unsafeAddProposal(const Proposal Type) noexcept {
     Proposals.set(static_cast<uint8_t>(Type));
+    // Proposal dependency: FunctionReferences depends on ReferenceTypes.
+    if (Type == Proposal::FunctionReferences) {
+      Proposals.set(static_cast<uint8_t>(Proposal::ReferenceTypes));
+    }
+    // Proposal dependency: GC depends on FunctionReferences and ReferenceTypes.
+    if (Type == Proposal::GC) {
+      Proposals.set(static_cast<uint8_t>(Proposal::FunctionReferences));
+      Proposals.set(static_cast<uint8_t>(Proposal::ReferenceTypes));
+    }
   }
 
   void unsafeAddHostRegistration(const HostRegistration Host) noexcept {

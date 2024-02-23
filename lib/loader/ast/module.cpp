@@ -186,7 +186,17 @@ Expect<void> Loader::loadModule(AST::Module &Mod) {
 // Setup symbols from loaded binary. See "include/loader/loader.h".
 Expect<void> Loader::loadExecutable(AST::Module &Mod,
                                     std::shared_ptr<Executable> Exec) {
-  auto &FuncTypes = Mod.getTypeSection().getContent();
+  auto &SubTypes = Mod.getTypeSection().getContent();
+  for (auto &SubType : SubTypes) {
+    if (unlikely(!SubType.getCompositeType().isFunc())) {
+      // TODO: GC - AOT: implement other composite types.
+      spdlog::error(ErrCode::Value::MalformedSection);
+      spdlog::error("    Currently AOT not support GC proposal yet.");
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+      return Unexpect(ErrCode::Value::MalformedSection);
+    }
+  }
+
   size_t Offset = 0;
   for (const auto &ImpDesc : Mod.getImportSection().getContent()) {
     if (ImpDesc.getExternalType() == ExternalType::Function) {
@@ -196,13 +206,13 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
   auto &CodeSegs = Mod.getCodeSection().getContent();
 
   // Check the symbols.
-  auto FuncTypeSymbols = Exec->getTypes(FuncTypes.size());
+  auto FuncTypeSymbols = Exec->getTypes(SubTypes.size());
   auto CodeSymbols = Exec->getCodes(Offset, CodeSegs.size());
   auto IntrinsicsSymbol = Exec->getIntrinsics();
-  if (unlikely(FuncTypeSymbols.size() != FuncTypes.size())) {
+  if (unlikely(FuncTypeSymbols.size() != SubTypes.size())) {
     spdlog::error("    AOT section -- number of types not matching:{} {}, "
                   "use interpreter mode instead.",
-                  FuncTypeSymbols.size(), FuncTypes.size());
+                  FuncTypeSymbols.size(), SubTypes.size());
     return Unexpect(ErrCode::Value::IllegalGrammar);
   }
   if (unlikely(CodeSymbols.size() != CodeSegs.size())) {
@@ -218,8 +228,9 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
   }
 
   // Set the symbols into the module.
-  for (size_t I = 0; I < FuncTypes.size(); ++I) {
-    FuncTypes[I].setSymbol(std::move(FuncTypeSymbols[I]));
+  for (size_t I = 0; I < SubTypes.size(); ++I) {
+    SubTypes[I].getCompositeType().getFuncType().setSymbol(
+        std::move(FuncTypeSymbols[I]));
   }
   for (size_t I = 0; I < CodeSegs.size(); ++I) {
     CodeSegs[I].setSymbol(std::move(CodeSymbols[I]));

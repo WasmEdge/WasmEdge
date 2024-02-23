@@ -70,13 +70,13 @@ private:
 class TypeSection : public Section {
 public:
   /// Getter of content vector.
-  Span<const FunctionType> getContent() const noexcept { return Content; }
-  std::vector<FunctionType> &getContent() noexcept { return Content; }
+  Span<const SubType> getContent() const noexcept { return Content; }
+  std::vector<SubType> &getContent() noexcept { return Content; }
 
 private:
   /// \name Data of TypeSection.
   /// @{
-  std::vector<FunctionType> Content;
+  std::vector<SubType> Content;
   /// @}
 };
 

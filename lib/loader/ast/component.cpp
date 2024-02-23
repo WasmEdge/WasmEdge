@@ -56,7 +56,6 @@ Loader::loadUnit() {
     Mod->getMagic() = WasmMagic;
     Mod->getVersion() = Ver;
     if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
-
       if (auto Res = loadModuleAOT(Mod->getAOTSection()); !Res) {
         return Unexpect(Res);
       }

@@ -23,9 +23,7 @@ enum class DataType : uint32_t {
   BGR32F = 3,
 };
 
-struct ImgEnv {
-  static Plugin::PluginRegister Register;
-};
+struct ImgEnv {};
 
 } // namespace WasmEdgeImage
 } // namespace Host

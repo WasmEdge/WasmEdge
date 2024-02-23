@@ -358,7 +358,6 @@ private:
 
   static std::shared_mutex Mutex;
   static std::weak_ptr<Context> Instance;
-  static Plugin::PluginRegister Register;
 };
 
 } // namespace WasiCrypto

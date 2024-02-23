@@ -26,10 +26,16 @@ jobs:
       BUILD_TESTS: OFF
     container: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
-      - name: Install dependencies
+      - name: Install dependencies - non-release
+        if: ${{ !inputs.release }}
         run: |
           apt-get update
           apt-get install -y pkg-config protobuf-compiler-grpc libgrpc-dev libgrpc++-dev
+      - name: Install dependencies - release
+        if: ${{ inputs.release }}
+        run: |
+          apt-get update
+          apt-get install -y pkg-config
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0

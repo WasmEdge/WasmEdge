@@ -33,9 +33,8 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .AddOptions = nullptr,
 };
 
+EXPORT_GET_DESCRIPTOR(Descriptor)
+
 } // namespace
-
-Plugin::PluginRegister WasmEdgeOpenCVMiniEnvironment::Register(&Descriptor);
-
 } // namespace Host
 } // namespace WasmEdge

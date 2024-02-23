@@ -145,7 +145,7 @@ jobs:
         shell: bash
         run: |
           apt update
-          apt install -y unzip libopenblas-dev pkg-config protobuf-compiler-grpc libgrpc-dev libgrpc++-dev
+          apt install -y unzip libopenblas-dev pkg-config
           bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
       - name: Build WASI-NN plugin

@@ -16,6 +16,7 @@
 #include "ast/instruction.h"
 #include "common/symbol.h"
 #include "runtime/hostfunc.h"
+#include "runtime/instance/composite.h"
 
 #include <memory>
 #include <numeric>
@@ -28,30 +29,44 @@ namespace Instance {
 
 class ModuleInstance;
 
-class FunctionInstance {
+class FunctionInstance : public CompositeBase {
 public:
   using CompiledFunction = void;
 
   FunctionInstance() = delete;
   /// Move constructor.
   FunctionInstance(FunctionInstance &&Inst) noexcept
-      : ModInst(Inst.ModInst), FuncType(Inst.FuncType),
-        Data(std::move(Inst.Data)) {}
+      : CompositeBase(Inst.ModInst, Inst.TypeIdx), FuncType(Inst.FuncType),
+        Data(std::move(Inst.Data)) {
+    assuming(ModInst);
+  }
   /// Constructor for native function.
-  FunctionInstance(const ModuleInstance *Mod, const AST::FunctionType &Type,
+  FunctionInstance(const ModuleInstance *Mod, const uint32_t TIdx,
+                   const AST::FunctionType &Type,
                    Span<const std::pair<uint32_t, ValType>> Locs,
                    AST::InstrView Expr) noexcept
-      : ModInst(Mod), FuncType(Type),
-        Data(std::in_place_type_t<WasmFunction>(), Locs, Expr) {}
+      : CompositeBase(Mod, TIdx), FuncType(Type),
+        Data(std::in_place_type_t<WasmFunction>(), Locs, Expr) {
+    assuming(ModInst);
+  }
   /// Constructor for compiled function.
-  FunctionInstance(const ModuleInstance *Mod, const AST::FunctionType &Type,
+  FunctionInstance(const ModuleInstance *Mod, const uint32_t TIdx,
+                   const AST::FunctionType &Type,
                    Symbol<CompiledFunction> S) noexcept
-      : ModInst(Mod), FuncType(Type),
-        Data(std::in_place_type_t<Symbol<CompiledFunction>>(), std::move(S)) {}
-  /// Constructor for host function.
-  FunctionInstance(const ModuleInstance *Mod,
+      : CompositeBase(Mod, TIdx), FuncType(Type),
+        Data(std::in_place_type_t<Symbol<CompiledFunction>>(), std::move(S)) {
+    assuming(ModInst);
+  }
+  /// Constructors for host function.
+  FunctionInstance(const ModuleInstance *Mod, const uint32_t TIdx,
                    std::unique_ptr<HostFunctionBase> &&Func) noexcept
-      : ModInst(Mod), FuncType(Func->getFuncType()),
+      : CompositeBase(Mod, TIdx), FuncType(Func->getFuncType()),
+        Data(std::in_place_type_t<std::unique_ptr<HostFunctionBase>>(),
+             std::move(Func)) {
+    assuming(ModInst);
+  }
+  FunctionInstance(std::unique_ptr<HostFunctionBase> &&Func) noexcept
+      : CompositeBase(), FuncType(Func->getFuncType()),
         Data(std::in_place_type_t<std::unique_ptr<HostFunctionBase>>(),
              std::move(Func)) {}
 
@@ -69,9 +84,6 @@ public:
   bool isHostFunction() const noexcept {
     return std::holds_alternative<std::unique_ptr<HostFunctionBase>>(Data);
   }
-
-  /// Getter of module instance of this function instance.
-  const ModuleInstance *getModule() const noexcept { return ModInst; }
 
   /// Getter of function type.
   const AST::FunctionType &getFuncType() const noexcept { return FuncType; }
@@ -124,12 +136,9 @@ private:
     }
   };
 
-  friend class ModuleInstance;
-  void setModule(const ModuleInstance *Mod) noexcept { ModInst = Mod; }
-
   /// \name Data of function instance.
   /// @{
-  const ModuleInstance *ModInst;
+
   const AST::FunctionType &FuncType;
   std::variant<WasmFunction, Symbol<CompiledFunction>,
                std::unique_ptr<HostFunctionBase>>

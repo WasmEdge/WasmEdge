@@ -88,6 +88,8 @@ private:
                                 std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeLimit(const AST::Limit &Lim,
                               std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeType(const AST::SubType &SType,
+                             std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeType(const AST::FunctionType &Type,
                              std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeType(const AST::TableType &Type,

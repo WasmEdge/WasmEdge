@@ -800,7 +800,34 @@ public:
         break;
       case OpCode::Ref__null: {
         std::array<uint8_t, 16> Val = {0};
-        std::copy_n(Instr.getValType().getRawData().cbegin(), 8, Val.begin());
+        // For null references, the dynamic type down scaling is needed.
+        ValType VType;
+        if (Instr.getValType().isAbsHeapType()) {
+          switch (Instr.getValType().getHeapTypeCode()) {
+          case TypeCode::NullFuncRef:
+          case TypeCode::FuncRef:
+            VType = TypeCode::NullFuncRef;
+            break;
+          case TypeCode::NullExternRef:
+          case TypeCode::ExternRef:
+            VType = TypeCode::NullExternRef;
+            break;
+          case TypeCode::NullRef:
+          case TypeCode::AnyRef:
+          case TypeCode::EqRef:
+          case TypeCode::I31Ref:
+          case TypeCode::StructRef:
+          case TypeCode::ArrayRef:
+            VType = TypeCode::NullRef;
+            break;
+          default:
+            assumingUnreachable();
+          }
+        } else {
+          // TODO: GC - AOT: support other composite here.
+          VType = TypeCode::NullFuncRef;
+        }
+        std::copy_n(VType.getRawData().cbegin(), 8, Val.begin());
         auto Vector = LLVM::Value::getConstVector8(LLContext, Val);
         stackPush(Builder.createBitCast(Vector, Context.Int64x2Ty));
         break;
@@ -5147,17 +5174,22 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
                                   {Context->ExecCtxPtrTy, Context->Int8PtrTy,
                                    Context->Int8PtrTy, Context->Int8PtrTy},
                                   false);
-  const auto &FuncTypes = TypeSec.getContent();
-  const auto Size = FuncTypes.size();
+  auto SubTypes = TypeSec.getContent();
+  const auto Size = SubTypes.size();
   if (Size == 0) {
     return;
   }
-  Context->FunctionTypes.reserve(Size);
-  Context->FunctionWrappers.reserve(Size);
+  Context->FunctionTypes.reserve(SubTypes.size());
+  Context->FunctionWrappers.reserve(SubTypes.size());
 
   // Iterate and compile types.
-  for (size_t I = 0; I < Size; ++I) {
-    const auto &FuncType = FuncTypes[I];
+  for (size_t I = 0; I < SubTypes.size(); ++I) {
+    // TODO: GC - AOT: implement other composite types.
+    if (!SubTypes[I].getCompositeType().isFunc()) {
+      spdlog::error("GC proposal not supported for AOT currently.");
+      return;
+    }
+    const auto &FuncType = SubTypes[I].getCompositeType().getFuncType();
     const auto Name = fmt::format("t{}"sv, Context->FunctionTypes.size());
 
     // Check function type is unique

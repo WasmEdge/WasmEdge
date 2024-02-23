@@ -62,6 +62,7 @@ struct DriverToolOptions {
         PropThreads(PO::Description("Enable Threads proposal"sv)),
         PropFunctionReference(
             PO::Description("Enable Function Reference proposal"sv)),
+        PropGC(PO::Description("Enable GC proposal, this is experimental"sv)),
         PropComponent(PO::Description(
             "Enable Component Model proposal, this is experimental"sv)),
         PropAll(PO::Description("Enable all features"sv)),
@@ -110,6 +111,7 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> PropExtendConst;
   PO::Option<PO::Toggle> PropThreads;
   PO::Option<PO::Toggle> PropFunctionReference;
+  PO::Option<PO::Toggle> PropGC;
   PO::Option<PO::Toggle> PropComponent;
   PO::Option<PO::Toggle> PropAll;
   PO::Option<PO::Toggle> ConfEnableInstructionCounting;
@@ -149,6 +151,7 @@ struct DriverToolOptions {
         .add_option("enable-extended-const"sv, PropExtendConst)
         .add_option("enable-threads"sv, PropThreads)
         .add_option("enable-function-reference"sv, PropFunctionReference)
+        .add_option("enable-gc"sv, PropGC)
         .add_option("enable-component"sv, PropComponent)
         .add_option("enable-all"sv, PropAll)
         .add_option("time-limit"sv, TimeLim)

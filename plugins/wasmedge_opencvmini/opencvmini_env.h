@@ -16,8 +16,6 @@ class WasmEdgeOpenCVMiniEnvironment {
 public:
   WasmEdgeOpenCVMiniEnvironment() noexcept;
 
-  static Plugin::PluginRegister Register;
-
   std::map<uint32_t, cv::Mat> MatPool;
 
   Expect<cv::Mat> getMat(uint32_t MatKey) {

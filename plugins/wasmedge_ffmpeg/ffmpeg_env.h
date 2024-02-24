@@ -59,7 +59,6 @@ private:
   uint32_t FfmpegPtrAllocateKey = 1;
   // Can update this to uint64_t to get more memory.
   std::map<uint32_t, void *> FfmpegPtrMap;
-  static Plugin::PluginRegister Register;
   static std::weak_ptr<WasmEdgeFFmpegEnv> Instance;
   static std::shared_mutex Mutex;
 };

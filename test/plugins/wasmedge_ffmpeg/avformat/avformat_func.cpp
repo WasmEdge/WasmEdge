@@ -4,8 +4,6 @@
 
 #include <gtest/gtest.h>
 
-using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
-
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
@@ -395,29 +393,22 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
 
-  // TODO: Write Test
-
-  // Check this function, failing on CI
-  //  FuncInst =
-  //      AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_av_guess_codec");
-  //  EXPECT_NE(FuncInst, nullptr);
-  //  EXPECT_TRUE(FuncInst->isHostFunction());
-  //  auto &HostFuncAVGuessCodec =
-  //      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVGuessCodec
-  //      &>(
-  //          FuncInst->getHostFunc());
-  //
-  //  uint32_t EmptyStrPtr = UINT32_C(500);
+  // TODO: This test modifies the input file. Unable to test.
+  // Added test on rust side.
+  //  spdlog::info("Testing AVGuessCodec");
+  //  uint32_t EmptyStrPtr = UINT32_C(520);
   //  writeUInt32(MemInst, 0, EmptyStrPtr);
   //  {
   //    uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
   //    int32_t MediaTypeId = 0; // Video
-  //    EXPECT_TRUE(
-  //        HostFuncAVGuessCodec.run(CallFrame,
-  //                                 std::initializer_list<WasmEdge::ValVariant>{
-  //                                     FormatCtxId, EmptyStrPtr, 0, FileStart,
-  //                                     FileLen, EmptyStrPtr, 0, MediaTypeId},
-  //                                 Result));
+  //    EXPECT_TRUE(HostFuncAVGuessCodec.run(
+  //        CallFrame,
+  //        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId,
+  //        EmptyStrPtr, 0,
+  //                                                    FilePtr, 32,
+  //                                                    EmptyStrPtr, 0,
+  //                                                    MediaTypeId},
+  //        Result));
   //    EXPECT_EQ(Result[0].get<int32_t>(), 1); // AV_CODEC_ID_MPEG1VIDEO:
   //  }
 

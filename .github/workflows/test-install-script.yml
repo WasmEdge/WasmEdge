@@ -205,7 +205,7 @@ jobs:
       run: |
         rm -f ~/.zshenv
         bash utils/install.sh -D
-        if ls -a ~ | grep .zshenv; then echo echo "Pass: zshenv found"; else "Fail: zshenv not found" && exit 1; fi;
+        if ls -a ~ | grep .zshenv; then echo "Pass: zshenv found"; else echo "Fail: zshenv not found" && exit 1; fi;
     - name: Uninstall WasmEdge
       shell: zsh {0}
       run: |

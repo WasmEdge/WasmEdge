@@ -243,9 +243,13 @@ class VersionString:
         if ignorecase:
             v = v.lower()
         return [
-            int(x)
-            if x.isdigit()
-            else [int(y) if y.isdigit() else y for y in re.findall("\d+|[a-zA-Z]+", x)]
+            (
+                int(x)
+                if x.isdigit()
+                else [
+                    int(y) if y.isdigit() else y for y in re.findall("\d+|[a-zA-Z]+", x)
+                ]
+            )
             for x in re.split(separator, v)
         ]
 

@@ -6,14 +6,6 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVUtil {
-//
-// class AVPixFmtDescGet : public WasmEdgeFFmpegAVUtil<AVPixFmtDescGet> {
-// public:
-//  AVPixFmtDescGet(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-//      : WasmEdgeFFmpegAVUtil(HostEnv) {}
-//  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t AvPixFmtId,
-//  uint32_t AvPixFmtDescPtr);
-//};
 
 class AvPixFmtDescriptorNbComponents
     : public WasmEdgeFFmpegAVUtil<AvPixFmtDescriptorNbComponents> {
@@ -133,14 +125,6 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t PixFormatId);
 };
-//
-// class AvPixFmtDescriptorName : public
-// WasmEdgeFFmpegAVUtil<AvPixFmtDescriptorName> { public:
-//  AvPixFmtDescriptorName(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-//      : WasmEdgeFFmpegAVUtil(HostEnv) {}
-//  Expect<int32_t> body(const Runtime::CallingFrame &Frame,uint32_t
-//  AvPixFormatId);
-//};
 
 } // namespace AVUtil
 } // namespace WasmEdgeFFmpeg

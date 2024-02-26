@@ -122,7 +122,7 @@ TEST_F(FFmpegTest, AVFrame) {
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameLinesize &>(
           FuncInst->getHostFunc());
 
-  int32_t Stride;
+  int32_t Stride = 0;
   uint32_t Idx = 0;
   {
     HostFuncAVFrameLinesize.run(

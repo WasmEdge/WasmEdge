@@ -75,7 +75,7 @@ AVSamplesAllocArrayAndSamples::body(const Runtime::CallingFrame &Frame,
   MEM_PTR_CHECK(LineSize, MemInst, int32_t, LinesizePtr, "");
 
   FFMPEG_PTR_FETCH(Buf, *BufId, uint8_t *);
-  int LineSizeValue;
+  int LineSizeValue = 0;
   AVSampleFormat const AvSampleFormat =
       FFmpegUtils::SampleFmt::fromSampleID(SampleFmtId);
   int Res = av_samples_alloc_array_and_samples(

@@ -50,10 +50,8 @@ Expect<int32_t> AVFormatCtxProbeScore::body(const Runtime::CallingFrame &,
 Expect<uint32_t> AVFormatCtxNbStreams::body(const Runtime::CallingFrame &,
                                             uint32_t AvFormatCtxId) {
 
-  auto ffmpegMemory = Env.get();
-  AVFormatContext *avFormatCtx =
-      static_cast<AVFormatContext *>(ffmpegMemory->fetchData(AvFormatCtxId));
-  return avFormatCtx->nb_streams;
+  FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  return AvFormatContext->nb_streams;
 };
 
 Expect<int64_t> AVFormatCtxBitRate::body(const Runtime::CallingFrame &,

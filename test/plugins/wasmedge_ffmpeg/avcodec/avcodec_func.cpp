@@ -25,7 +25,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   uint32_t CodecNamePtr = UINT32_C(150);
   std::string CodecName = "mpeg1video";
-  spdlog::info("Filling memory CodecName into CodecNamePtr");
+  spdlog::info("Filling memory CodecName into CodecNamePtr"sv);
   fillMemContent(MemInst, CodecNamePtr, CodecName);
 
   uint32_t ID = 1;
@@ -39,7 +39,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecAllocContext3 &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AvCodecAllocContext3");
+  spdlog::info("Testing AvCodecAllocContext3"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecAllocContext3.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{0, CodecCtxPtr},
@@ -59,7 +59,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParametersAlloc &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecParametersAlloc");
+  spdlog::info("Testing AVCodecParametersAlloc"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecParametersAlloc.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{CodecParamPtr},
@@ -79,7 +79,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
   ASSERT_TRUE(AVCodecParamId2 > 0);
 
   FuncInst = AVCodecMod->findFuncExports(
-      "wasmedge_ffmpeg_avcodec_avcodec_parameters_from_context");
+      "wasmedge_ffmpeg_avcodec_avcodec_parameters_from_context"sv);
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
@@ -87,7 +87,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParametersFromContext &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecParametersFromContext");
+  spdlog::info("Testing AVCodecParametersFromContext"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecParametersFromContext.run(
         CallFrame,
@@ -106,7 +106,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecGetType &>(
           FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecGetType");
+  spdlog::info("Testing AVCodecGetType"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecGetType.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{ID}, Result));
@@ -122,7 +122,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecFindDecoder &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecFindDecoder");
+  spdlog::info("Testing AVCodecFindDecoder"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecFindDecoder.run(
         CallFrame,
@@ -143,7 +143,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecFindEncoder &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecFindEncoder");
+  spdlog::info("Testing AVCodecFindEncoder"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecFindEncoder.run(
         CallFrame,
@@ -164,7 +164,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecOpen2 &>(
           FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecOpen2");
+  spdlog::info("Testing AVCodecOpen2"sv);
   // Invalid argument passed. Return -22 Error code. Means functionality
   // working.
   {
@@ -185,7 +185,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecIsEncoder &>(
           FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecIsEncoder");
+  spdlog::info("Testing AVCodecIsEncoder"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecIsEncoder.run(
         CallFrame,
@@ -202,7 +202,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecIsDecoder &>(
           FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecIsDecoder");
+  spdlog::info("Testing AVCodecIsDecoder"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecIsDecoder.run(
         CallFrame,
@@ -219,7 +219,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecFindDecoderByName &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecFindDecoderByName");
+  spdlog::info("Testing AVCodecFindDecoderByName"sv);
   {
     uint32_t Length = CodecName.length();
     EXPECT_TRUE(HostFuncAVCodecFindDecoderByName.run(
@@ -239,7 +239,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecFindEncoderByName &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecFindEncoderByName");
+  spdlog::info("Testing AVCodecFindEncoderByName"sv);
   {
     uint32_t Length = CodecName.length();
     EXPECT_TRUE(HostFuncAVCodecFindEncoderByName.run(
@@ -259,7 +259,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParametersToContext &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecParametersToContext");
+  spdlog::info("Testing AVCodecParametersToContext"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecParametersToContext.run(
         CallFrame,
@@ -294,7 +294,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecVersion &>(
           FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecVersion");
+  spdlog::info("Testing AVCodecVersion"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecVersion.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));
@@ -310,7 +310,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecConfigurationLength &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecConfigurationLength");
+  spdlog::info("Testing AVCodecConfigurationLength"sv);
   int32_t Length = 0;
   {
     EXPECT_TRUE(HostFuncAVCodecConfigurationLength.run(
@@ -328,7 +328,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecConfiguration &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecConfiguration");
+  spdlog::info("Testing AVCodecConfiguration"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecConfiguration.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{StrPtr, Length},
@@ -345,7 +345,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecLicenseLength &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecLicenseLength");
+  spdlog::info("Testing AVCodecLicenseLength"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecLicenseLength.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));
@@ -363,7 +363,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecLicense &>(
           FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecLicense");
+  spdlog::info("Testing AVCodecLicense"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecLicense.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{StrPtr, Length},
@@ -380,7 +380,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecFreeContext &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecFreeContext");
+  spdlog::info("Testing AVCodecFreeContext"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecFreeContext.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
@@ -397,7 +397,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParametersFree &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecParametersFree");
+  spdlog::info("Testing AVCodecParametersFree"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecParametersFree.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecParamId},
@@ -428,7 +428,7 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSendFrame &>(
           FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecSendFrame");
+  spdlog::info("Testing AVCodecSendFrame"sv);
   // Invalid Argument Error. Should Use Encoder, I'm using decoder
   // Aim is to test the functionality.
   {
@@ -450,7 +450,7 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecReceivePacket &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecReceivePacket");
+  spdlog::info("Testing AVCodecReceivePacket"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecReceivePacket.run(
         CallFrame,
@@ -468,7 +468,7 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSendPacket &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecSendPacket");
+  spdlog::info("Testing AVCodecSendPacket"sv);
   // Send packet to Decoder.
   {
     EXPECT_TRUE(HostFuncAVCodecSendPacket.run(
@@ -488,7 +488,7 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecReceiveFrame &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecReceiveFrame");
+  spdlog::info("Testing AVCodecReceiveFrame"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecReceiveFrame.run(
         CallFrame,
@@ -506,7 +506,7 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketRescaleTs &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVPacketRescaleTs");
+  spdlog::info("Testing AVPacketRescaleTs"sv);
   {
     int32_t SrcNum = 2;
     int32_t SrcDen = 3;
@@ -529,7 +529,7 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketMakeWritable &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVPacketMakeWritable");
+  spdlog::info("Testing AVPacketMakeWritable"sv);
   {
     EXPECT_TRUE(HostFuncAVPacketMakeWritable.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketId},
@@ -546,7 +546,7 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecFlushBuffers &>(
       FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecFlushBuffers");
+  spdlog::info("Testing AVCodecFlushBuffers"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecFlushBuffers.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{CodecCtxId},
@@ -563,7 +563,7 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecClose &>(
           FuncInst->getHostFunc());
 
-  spdlog::info("Testing AVCodecClose");
+  spdlog::info("Testing AVCodecClose"sv);
   {
     EXPECT_TRUE(HostFuncAVCodecClose.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{CodecCtxId},

@@ -493,9 +493,6 @@ public:
       return AV_CODEC_ID_SHEERVIDEO;
     case 215:
       return AV_CODEC_ID_YLC;
-      // =================================
-      // =================================
-      // =================================
     case 216:
       return AV_CODEC_ID_PCM_S16LE;
     case 217:
@@ -562,9 +559,6 @@ public:
       return AV_CODEC_ID_PCM_S64LE;
     case 248:
       return AV_CODEC_ID_PCM_S64BE;
-
-      //////////////////////////
-
     case 249:
       return AV_CODEC_ID_ADPCM_IMA_QT;
     case 250:
@@ -647,10 +641,6 @@ public:
       return AV_CODEC_ID_ADPCM_IMA_DAT4;
     case 289:
       return AV_CODEC_ID_ADPCM_MTAF;
-      /////////////////////
-      /////////////////////
-      /////////////////////
-
     case 290:
       return AV_CODEC_ID_AMR_NB;
     case 291:
@@ -669,10 +659,6 @@ public:
       return AV_CODEC_ID_SOL_DPCM;
     case 298:
       return AV_CODEC_ID_SDX2_DPCM;
-      ///////////////////
-      //////////////////
-      //////////////////
-
     case 299:
       return AV_CODEC_ID_MP2;
     case 300:
@@ -1632,9 +1618,6 @@ public:
       return 247;
     case AV_CODEC_ID_PCM_S64BE:
       return 248;
-
-      //////////////////////////
-
     case AV_CODEC_ID_ADPCM_IMA_QT:
       return 249;
     case AV_CODEC_ID_ADPCM_IMA_WAV:
@@ -1717,10 +1700,6 @@ public:
       return 288;
     case AV_CODEC_ID_ADPCM_MTAF:
       return 289;
-      /////////////////////
-      /////////////////////
-      /////////////////////
-
     case AV_CODEC_ID_AMR_NB:
       return 290;
     case AV_CODEC_ID_AMR_WB:
@@ -1739,10 +1718,6 @@ public:
       return 297;
     case AV_CODEC_ID_SDX2_DPCM:
       return 298;
-      ///////////////////
-      //////////////////
-      //////////////////
-
     case AV_CODEC_ID_MP2:
       return 299;
     case AV_CODEC_ID_MP3:
@@ -1910,9 +1885,6 @@ public:
       return 380;
     case AV_CODEC_ID_DST:
       return 381;
-      /////////////
-      /////////////
-      /////////////
     case AV_CODEC_ID_DVD_SUBTITLE:
       return 382;
     case AV_CODEC_ID_DVB_SUBTITLE:
@@ -2697,7 +2669,6 @@ public:
       return 248;
     case AV_PIX_FMT_DRM_PRIME:
       return 249;
-
     // Above ffmpeg 4.0  Need to add versions.
     case AV_PIX_FMT_OPENCL:
       return 250;

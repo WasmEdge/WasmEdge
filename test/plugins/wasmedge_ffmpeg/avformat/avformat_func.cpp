@@ -395,7 +395,7 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
 
   // TODO: This test modifies the input file. Unable to test.
   // Added test on rust side.
-  //  spdlog::info("Testing AVGuessCodec");
+  //  spdlog::info("Testing AVGuessCodec"sv);
   //  uint32_t EmptyStrPtr = UINT32_C(520);
   //  writeUInt32(MemInst, 0, EmptyStrPtr);
   //  {

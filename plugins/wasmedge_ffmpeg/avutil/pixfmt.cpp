@@ -8,21 +8,6 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVUtil {
 
-// Expect<int32_t> AVPixFmtDescGet::body(const Runtime::CallingFrame
-// &Frame,uint32_t AvPixFmtId, uint32_t AvPixFmtDescPtr){
-//
-//   MEMINST_CHECK(MemInst,Frame,0);
-//   MEM_PTR_CHECK(AvPixFmtDescId,MemInst,uint32_t,AvPixFmtDescPtr,"Failed to
-//   access Memory for AvPixFmtDesc")
-//
-//   FFMPEG_PTR_FETCH(AvPixFmtDesc,*AvPixFmtDescId,const AVPixFmtDescriptor);
-//
-//   AVPixelFormat const AvPixelFormat =
-//   FFmpegUtils::PixFmt::intoAVPixFmt(AvPixFmtId); AvPixFmtDesc =
-//   av_pix_fmt_desc_get(AvPixelFormat); return
-//   static_cast<int32_t>(ErrNo::Success);
-// }
-
 Expect<int32_t>
 AvPixFmtDescriptorNbComponents::body(const Runtime::CallingFrame &,
                                      uint32_t PixFormatId) {
@@ -182,16 +167,6 @@ Expect<int32_t> AVPixelFormatMask::body(const Runtime::CallingFrame &,
       FFmpegUtils::PixFmt::intoAVPixFmt(PixFormatId);
   return static_cast<int32_t>(PixelFormat);
 }
-
-// Expect<int32_t> AvPixFmtDescriptorName::body(const Runtime::CallingFrame
-// &Frame,uint32_t AvPixFormatId){
-//
-//   AVPixelFormat const AvPixelFormat =
-//   FFmpegUtils::PixFmt::intoAVPixFmt(AvPixFormatId); const AVPixFmtDescriptor*
-//   AvPixFmtDescriptor = av_pix_fmt_desc_get(AvPixelFormat);
-//   AvPixFmtDescriptor->name;
-//   return 0;
-// }
 
 } // namespace AVUtil
 } // namespace WasmEdgeFFmpeg

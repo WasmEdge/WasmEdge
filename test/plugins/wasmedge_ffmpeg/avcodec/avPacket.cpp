@@ -127,7 +127,7 @@ TEST_F(FFmpegTest, AVPacketTest) {
     EXPECT_EQ(Result[0].get<int32_t>(), StreamIdx);
   }
 
-  uint32_t Size;
+  uint32_t Size = 0;
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_size");
   EXPECT_NE(FuncInst, nullptr);

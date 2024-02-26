@@ -27,7 +27,7 @@ Expect<int32_t> AVDictSet::body(const Runtime::CallingFrame &Frame,
   std::copy_n(KeyBuf, KeyLen, std::back_inserter(Key));
   std::copy_n(ValueBuf, ValueLen, std::back_inserter(Value));
 
-  int Res;
+  int Res = 0;
 
   // Using Maybe::uninit(); in Rust. If Uninitialized, zero is
   // passed. Else the Ptr contains a Number.
@@ -54,7 +54,7 @@ Expect<int32_t> AVDictCopy::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(SrcAvDict, SrcDictId, AVDictionary *);
 
-  int Res;
+  int Res = 0;
 
   if (SrcAvDict == nullptr)
     return static_cast<int32_t>(ErrNo::InternalError);

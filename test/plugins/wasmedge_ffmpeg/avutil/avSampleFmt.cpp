@@ -104,7 +104,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   int32_t NbChannels = 1;
   int32_t NbSamples = 5;
   int32_t Align = 1;
-  int32_t BufSize;
+  int32_t BufSize = 0;
   {
     HostFuncAVSamplesGetBufferSize.run(
         CallFrame,

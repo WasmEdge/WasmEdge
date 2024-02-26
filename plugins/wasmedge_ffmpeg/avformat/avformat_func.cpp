@@ -184,7 +184,7 @@ Expect<int32_t> AVFormatAllocOutputContext2::body(
   AVFormatContext *AvFormatContext = nullptr;
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
 
-  int Res;
+  int Res = 0;
   if (FormatLen == 0) {
     Res = avformat_alloc_output_context2(&AvFormatContext, AvOutputFormat,
                                          nullptr, File.c_str());

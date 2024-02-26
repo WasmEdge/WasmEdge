@@ -166,18 +166,80 @@ jobs:
         (echo "Fail: Fetched version does not equal GitHub Ref\nFetched:$_res_git_\nCI:$_res_curl_" && exit 1)
 
 
-  macos:
-    strategy:
-      matrix:
-        include:
-          - name: MacOS-latest
-            host_runner: macos-latest
-            package_manager: brew
-          - name: MacOS-arm64
-            host_runner: macos-14
-            package_manager: brew
-    name: ${{ matrix.name }}
-    runs-on: ${{ matrix.host_runner }}
+  macos_amd64:
+    name: macos-amd64
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Install WasmEdge latest release
+      run: |
+        bash utils/install.sh -D
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Check for bashrc generation
+      run: |
+        rm -f ~/.bashrc
+        bash utils/install.sh -D
+        if ls -a ~ | grep .bashrc; then echo "Fail: Bashrc found" && exit 1; else echo "Pass: Bashrc not found"; fi;
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge latest release with all extensions
+      run: |
+        bash utils/install.sh -e all -D
+    - name: Uninstall WasmEdge with all extensions
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install deprecated WasmEdge specific release (0.10.0)
+      run: |
+        bash utils/install.sh -v 0.10.0 -D
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge specific release (0.10.0) with all extensions
+      run: |
+        bash utils/install.sh -e all -v 0.10.0 -D
+    - name: Uninstall WasmEdge with all extensions
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Plugins Install check MacOS-x86
+      run: |
+        bash utils/install.sh -v 0.10.0-alpha.1
+        ls ~/.wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        bash utils/install.sh -v 0.13.1 --plugins wasmedge_tensorflow
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        bash utils/install.sh -v 0.13.1 --plugins wasmedge_tensorflowlite
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        bash utils/install.sh -v 0.10.0-alpha.1 -p ~/new_wasmedge
+        ls ~/new_wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        # MacOS container does not have access for /usr directory
+        # bash utils/install.sh -v 0.10.0-alpha.1 -p /usr
+        # ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+
+    - name: Tensorflow changes - libtensorflow_cc 2.6.0 will replace the old libtensorflow 2.6.0
+      run: |
+        bash utils/install.sh -v 0.12.0-alpha.2 -e tensorflow --tf-version 0.12.0-alpha.2 --tf-deps-version 0.12.0-alpha.2 --tf-tools-version 0.12.0-alpha.2
+        ls ~/.wasmedge/lib/ | grep libtensorflow_cc* && echo "Pass: libtensorflow_cc found" || (echo "Fail: libtensorflow_cc found not found" && exit 1)
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Latest Release Check
+      run: |
+        _res_git_=$(git ls-remote --refs --tags "https://github.com/WasmEdge/WasmEdge.git" | cut -d '/' -f 3 | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' | grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' | tail -1)
+        _res_curl_=$(curl -w "%{url_effective}\n" -I -L -s -S https://github.com/WasmEdge/WasmEdge/releases/latest -o /dev/null | grep -Eo '[0-9]+.[0-9]+.[0-9]+')
+        [ "$_res_git_" = "$_res_curl_" ] && echo "Pass: Fetched version equals release" ||
+        (echo "Fail: Fetched version does not equal GitHub Ref\nFetched:$_res_git_\nCI:$_res_curl_" && exit 1)
+
+  macos-arm64:
+    name: macos-arm64
+    runs-on: macos-14
+    env:
+      SHELL: zsh
 
     steps:
     - uses: actions/checkout@v3
@@ -194,30 +256,12 @@ jobs:
         bash utils/uninstall.sh -q -V
     - name: Check for bashrc generation
       shell: zsh {0}
-      if: ${{ matrix.name != 'MacOS-arm64' }}
-      run: |
-        rm -f ~/.bashrc
-        bash utils/install.sh -D
-        if ls -a ~ | grep .bashrc; then echo "Fail: Bashrc found" && exit 1; else echo "Pass: Bashrc not found"; fi;
-    - name: Check for bashrc generation
-      shell: zsh {0}
-      if: ${{ matrix.name == 'MacOS-arm64' }}
       run: |
         rm -f ~/.zshenv
         bash utils/install.sh -D
         if ls -a ~ | grep .zshenv; then echo "Pass: zshenv found"; else echo "Fail: zshenv not found" && exit 1; fi;
     - name: Uninstall WasmEdge
       shell: zsh {0}
-      run: |
-        bash utils/uninstall.sh -q -V
-    - name: Install WasmEdge latest release with all extensions
-      shell: zsh {0}
-      if: ${{ matrix.name != 'MacOS-arm64' }}
-      run: |
-        bash utils/install.sh -e all -D
-    - name: Uninstall WasmEdge with all extensions
-      shell: zsh {0}
-      if: ${{ matrix.name != 'MacOS-arm64' }}
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install deprecated WasmEdge specific release (0.10.0)
@@ -228,47 +272,14 @@ jobs:
       shell: zsh {0}
       run: |
         bash utils/uninstall.sh -q -V
-    - name: Install WasmEdge specific release (0.10.0) with all extensions
-      shell: zsh {0}
-      if: ${{ matrix.name != 'MacOS-arm64' }}
-      run: |
-        bash utils/install.sh -e all -v 0.10.0 -D
-    - name: Uninstall WasmEdge with all extensions
-      shell: zsh {0}
-      if: ${{ matrix.name != 'MacOS-arm64' }}
-      run: |
-        bash utils/uninstall.sh -q -V
-    - name: Plugins Install check MacOS-x86
-      shell: zsh {0}
-      if: ${{ matrix.name != 'MacOS-arm64' }}
-      run: |
-        bash utils/install.sh -v 0.10.0-alpha.1
-        ls ~/.wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        bash utils/install.sh -v 0.13.1 --plugins wasmedge_tensorflow
-        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        bash utils/install.sh -v 0.13.1 --plugins wasmedge_tensorflowlite
-        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        bash utils/install.sh -v 0.10.0-alpha.1 -p ~/new_wasmedge
-        ls ~/new_wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        # MacOS container does not have access for /usr directory
-        # bash utils/install.sh -v 0.10.0-alpha.1 -p /usr
-        # ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-
     - name: Plugins Install check MacOS-arm64
       shell: zsh {0}
-      if: ${{ matrix.name == 'MacOS-arm64' }}
       run: |
         bash utils/install.sh -v 0.13.1 --plugins wasmedge_tensorflow
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         bash utils/install.sh -v 0.13.1 --plugins wasmedge_tensorflowlite
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
 
-    - name: Tensorflow changes - libtensorflow_cc 2.6.0 will replace the old libtensorflow 2.6.0
-      shell: zsh {0}
-      if: ${{ matrix.name != 'MacOS-arm64' }}
-      run: |
-        bash utils/install.sh -v 0.12.0-alpha.2 -e tensorflow --tf-version 0.12.0-alpha.2 --tf-deps-version 0.12.0-alpha.2 --tf-tools-version 0.12.0-alpha.2
-        ls ~/.wasmedge/lib/ | grep libtensorflow_cc* && echo "Pass: libtensorflow_cc found" || (echo "Fail: libtensorflow_cc found not found" && exit 1)
     - name: Uninstall WasmEdge
       shell: zsh {0}
       run: |

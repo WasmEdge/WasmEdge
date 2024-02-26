@@ -193,13 +193,13 @@ jobs:
     - name: Check for bashrc generation
       if: ${{ matrix.name != 'MacOS-arm64' }}
       run: |
-        rm ~/.bashrc
+        rm -f ~/.bashrc
         bash utils/install.sh -D
         if ls -a ~ | grep .bashrc; then echo "Fail: Bashrc found" && exit 1; else echo "Pass: Bashrc not found"; fi;
     - name: Check for bashrc generation
       if: ${{ matrix.name == 'MacOS-arm64' }}
       run: |
-        rm ~/.zshenv
+        rm -f ~/.zshenv
         bash utils/install.sh -D
         if ls -a ~ | grep .zshenv; then echo echo "Pass: zshenv found"; else "Fail: zshenv not found" && exit 1; fi;
     - name: Uninstall WasmEdge

@@ -32,10 +32,16 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - name: Setup build environment
+      - name: Setup build environment - non-release
+        if: ${{ !inputs.release }}
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
           brew install llvm ninja cmake wabt grpc
+      - name: Setup build environment - release
+        if: ${{ inputs.release }}
+        run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
+          brew install llvm ninja cmake wabt
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |

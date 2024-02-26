@@ -2039,13 +2039,24 @@ WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
 }
 
 WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
-                                   __wasi_sock_opt_so_t SockOptName,
+                                   __wasi_sock_opt_t SockOptName,
                                    Span<const uint8_t> Flag) const noexcept {
   if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
     return WasiUnexpect(Res);
   }
   auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
-  auto SysSockOptName = toSockOptSoName(SockOptName);
+
+  int SysSockOptName;
+  switch (SysSockOptLevel) {
+  case __WASI_SOCK_OPT_LEVEL_SOL_SOCKET:
+    SysSockOptName =
+        toSockOptSoName(static_cast<__wasi_sock_opt_so_t>(SockOptName));
+    break;
+  case __WASI_SOCK_OPT_LEVEL_IPPROTO_TCP:
+    SysSockOptName =
+        toSockOptTcpName(static_cast<__wasi_sock_opt_tcp_t>(SockOptName));
+    break;
+  }
 
   if (auto Res = setsockopt(Socket, SysSockOptLevel, SysSockOptName,
                             reinterpret_cast<const char *>(Flag.data()),

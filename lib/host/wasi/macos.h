@@ -18,6 +18,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <netinet/tcp.h>
 #include <sys/event.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -366,6 +367,16 @@ inline constexpr int toSockOptSoName(__wasi_sock_opt_so_t SoName) noexcept {
     return SO_SNDTIMEO;
   case __WASI_SOCK_OPT_SO_ACCEPTCONN:
     return SO_ACCEPTCONN;
+
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline constexpr int toSockOptTcpName(__wasi_sock_opt_tcp_t TcpName) noexcept {
+  switch (TcpName) {
+  case __WASI_SOCK_OPT_TCP_NODELAY:
+    return TCP_NODELAY;
 
   default:
     assumingUnreachable();

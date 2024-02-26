@@ -5179,113 +5179,115 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
   if (Size == 0) {
     return;
   }
-  Context->FunctionTypes.reserve(SubTypes.size());
-  Context->FunctionWrappers.reserve(SubTypes.size());
+  Context->FunctionTypes.reserve(Size);
+  Context->FunctionWrappers.reserve(Size);
 
   // Iterate and compile types.
-  for (size_t I = 0; I < SubTypes.size(); ++I) {
-    // TODO: GC - AOT: implement other composite types.
-    if (!SubTypes[I].getCompositeType().isFunc()) {
-      spdlog::error("GC proposal not supported for AOT currently.");
-      return;
-    }
-    const auto &FuncType = SubTypes[I].getCompositeType().getFuncType();
-    const auto Name = fmt::format("t{}"sv, Context->FunctionTypes.size());
+  for (size_t I = 0; I < Size; ++I) {
+    if (SubTypes[I].getCompositeType().isFunc()) {
+      const auto &FuncType = SubTypes[I].getCompositeType().getFuncType();
+      const auto Name = fmt::format("t{}"sv, Context->FunctionTypes.size());
 
-    // Check function type is unique
-    {
-      bool Unique = true;
-      for (size_t J = 0; J < I; ++J) {
-        const auto &OldFuncType = *Context->FunctionTypes[J];
-        if (OldFuncType == FuncType) {
-          Unique = false;
-          Context->FunctionTypes.push_back(&OldFuncType);
-          auto F = Context->FunctionWrappers[J];
-          Context->FunctionWrappers.push_back(F);
-          auto A = Context->LLModule.addAlias(WrapperTy, F, Name.c_str());
-          A.setLinkage(LLVMExternalLinkage);
-          A.setVisibility(LLVMProtectedVisibility);
-          A.setDSOLocal(true);
-          A.setDLLStorageClass(LLVMDLLExportStorageClass);
-          break;
+      // Check function type is unique
+      {
+        bool Unique = true;
+        for (size_t J = 0; J < I; ++J) {
+          if (const auto OldFuncType = Context->FunctionTypes[J]) {
+            if (*OldFuncType == FuncType) {
+              Unique = false;
+              Context->FunctionTypes.push_back(OldFuncType);
+              auto F = Context->FunctionWrappers[J];
+              Context->FunctionWrappers.push_back(F);
+              auto A = Context->LLModule.addAlias(WrapperTy, F, Name.c_str());
+              A.setLinkage(LLVMExternalLinkage);
+              A.setVisibility(LLVMProtectedVisibility);
+              A.setDSOLocal(true);
+              A.setDLLStorageClass(LLVMDLLExportStorageClass);
+              break;
+            }
+          }
+        }
+        if (!Unique) {
+          continue;
         }
       }
-      if (!Unique) {
-        continue;
-      }
-    }
 
-    // Create Wrapper
-    auto F = Context->LLModule.addFunction(WrapperTy, LLVMExternalLinkage,
-                                           Name.c_str());
-    {
-      F.setVisibility(LLVMProtectedVisibility);
-      F.setDSOLocal(true);
-      F.setDLLStorageClass(LLVMDLLExportStorageClass);
-      F.addFnAttr(Context->NoStackArgProbe);
-      F.addFnAttr(Context->StrictFP);
-      F.addFnAttr(Context->UWTable);
-      F.addParamAttr(0, Context->ReadOnly);
-      F.addParamAttr(0, Context->NoAlias);
-      F.addParamAttr(1, Context->NoAlias);
-      F.addParamAttr(2, Context->NoAlias);
-      F.addParamAttr(3, Context->NoAlias);
+      // Create Wrapper
+      auto F = Context->LLModule.addFunction(WrapperTy, LLVMExternalLinkage,
+                                             Name.c_str());
+      {
+        F.setVisibility(LLVMProtectedVisibility);
+        F.setDSOLocal(true);
+        F.setDLLStorageClass(LLVMDLLExportStorageClass);
+        F.addFnAttr(Context->NoStackArgProbe);
+        F.addFnAttr(Context->StrictFP);
+        F.addFnAttr(Context->UWTable);
+        F.addParamAttr(0, Context->ReadOnly);
+        F.addParamAttr(0, Context->NoAlias);
+        F.addParamAttr(1, Context->NoAlias);
+        F.addParamAttr(2, Context->NoAlias);
+        F.addParamAttr(3, Context->NoAlias);
 
-      LLVM::Builder Builder(Context->LLContext);
-      Builder.positionAtEnd(
-          LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
+        LLVM::Builder Builder(Context->LLContext);
+        Builder.positionAtEnd(
+            LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
 
-      auto FTy =
-          toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
-      auto RTy = FTy.getReturnType();
-      std::vector<LLVM::Type> FPTy(FTy.getNumParams());
-      FTy.getParamTypes(FPTy);
+        auto FTy =
+            toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
+        auto RTy = FTy.getReturnType();
+        std::vector<LLVM::Type> FPTy(FTy.getNumParams());
+        FTy.getParamTypes(FPTy);
 
-      const size_t ArgCount = FPTy.size() - 1;
-      const size_t RetCount =
-          RTy.isVoidTy() ? 0
-                         : (RTy.isStructTy() ? RTy.getStructNumElements() : 1);
-      auto ExecCtxPtr = F.getFirstParam();
-      auto RawFunc = LLVM::FunctionCallee{
-          FTy,
-          Builder.createBitCast(ExecCtxPtr.getNextParam(), FTy.getPointerTo())};
-      auto RawArgs = ExecCtxPtr.getNextParam().getNextParam();
-      auto RawRets = RawArgs.getNextParam();
+        const size_t ArgCount = FPTy.size() - 1;
+        const size_t RetCount =
+            RTy.isVoidTy()
+                ? 0
+                : (RTy.isStructTy() ? RTy.getStructNumElements() : 1);
+        auto ExecCtxPtr = F.getFirstParam();
+        auto RawFunc = LLVM::FunctionCallee{
+            FTy, Builder.createBitCast(ExecCtxPtr.getNextParam(),
+                                       FTy.getPointerTo())};
+        auto RawArgs = ExecCtxPtr.getNextParam().getNextParam();
+        auto RawRets = RawArgs.getNextParam();
 
-      std::vector<LLVM::Value> Args;
-      Args.reserve(FTy.getNumParams());
-      Args.push_back(ExecCtxPtr);
-      for (size_t J = 0; J < ArgCount; ++J) {
-        auto ArgTy = FPTy[J + 1];
-        auto VPtr = Builder.createConstInBoundsGEP1_64(Context->Int8Ty, RawArgs,
-                                                       J * kValSize);
-        auto Ptr = Builder.createBitCast(VPtr, ArgTy.getPointerTo());
-        Args.push_back(Builder.createLoad(ArgTy, Ptr));
-      }
-
-      auto Ret = Builder.createCall(RawFunc, Args);
-      if (RTy.isVoidTy()) {
-        // nothing to do
-      } else if (RTy.isStructTy()) {
-        auto Rets = unpackStruct(Builder, Ret);
-        for (size_t J = 0; J < RetCount; ++J) {
+        std::vector<LLVM::Value> Args;
+        Args.reserve(FTy.getNumParams());
+        Args.push_back(ExecCtxPtr);
+        for (size_t J = 0; J < ArgCount; ++J) {
+          auto ArgTy = FPTy[J + 1];
           auto VPtr = Builder.createConstInBoundsGEP1_64(Context->Int8Ty,
-                                                         RawRets, J * kValSize);
-          auto Ptr =
-              Builder.createBitCast(VPtr, Rets[J].getType().getPointerTo());
-          Builder.createStore(Rets[J], Ptr);
+                                                         RawArgs, J * kValSize);
+          auto Ptr = Builder.createBitCast(VPtr, ArgTy.getPointerTo());
+          Args.push_back(Builder.createLoad(ArgTy, Ptr));
         }
-      } else {
-        auto VPtr =
-            Builder.createConstInBoundsGEP1_64(Context->Int8Ty, RawRets, 0);
-        auto Ptr = Builder.createBitCast(VPtr, Ret.getType().getPointerTo());
-        Builder.createStore(Ret, Ptr);
+
+        auto Ret = Builder.createCall(RawFunc, Args);
+        if (RTy.isVoidTy()) {
+          // nothing to do
+        } else if (RTy.isStructTy()) {
+          auto Rets = unpackStruct(Builder, Ret);
+          for (size_t J = 0; J < RetCount; ++J) {
+            auto VPtr = Builder.createConstInBoundsGEP1_64(
+                Context->Int8Ty, RawRets, J * kValSize);
+            auto Ptr =
+                Builder.createBitCast(VPtr, Rets[J].getType().getPointerTo());
+            Builder.createStore(Rets[J], Ptr);
+          }
+        } else {
+          auto VPtr =
+              Builder.createConstInBoundsGEP1_64(Context->Int8Ty, RawRets, 0);
+          auto Ptr = Builder.createBitCast(VPtr, Ret.getType().getPointerTo());
+          Builder.createStore(Ret, Ptr);
+        }
+        Builder.createRetVoid();
       }
-      Builder.createRetVoid();
+      // Copy wrapper, param and return lists to module instance.
+      Context->FunctionTypes.push_back(&FuncType);
+      Context->FunctionWrappers.push_back(F);
+    } else {
+      Context->FunctionTypes.push_back(nullptr);
+      Context->FunctionWrappers.push_back(LLVM::Value());
     }
-    // Copy wrapper, param and return lists to module instance.
-    Context->FunctionTypes.push_back(&FuncType);
-    Context->FunctionWrappers.push_back(F);
   }
 }
 

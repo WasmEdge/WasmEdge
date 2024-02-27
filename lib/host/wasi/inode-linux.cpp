@@ -610,7 +610,7 @@ INode::pathFilestatGet(std::string Path,
 
   Filestat.dev = SysFStat.st_dev;
   Filestat.ino = SysFStat.st_ino;
-  Filestat.filetype = fromFileType(SysFStat.st_mode);
+  Filestat.filetype = fromFileType(static_cast<mode_t>(SysFStat.st_mode));
   Filestat.nlink = SysFStat.st_nlink;
   Filestat.size = SysFStat.st_size;
   Filestat.atim = fromTimespec(SysFStat.st_atim);
@@ -1371,7 +1371,7 @@ INode::sockGetPeerAddr(__wasi_address_family_t *AddressFamilyPtr,
 }
 
 __wasi_filetype_t INode::unsafeFiletype() const noexcept {
-  return fromFileType(Stat->st_mode);
+  return fromFileType(static_cast<mode_t>(Stat->st_mode));
 }
 
 WasiExpect<__wasi_filetype_t> INode::filetype() const noexcept {

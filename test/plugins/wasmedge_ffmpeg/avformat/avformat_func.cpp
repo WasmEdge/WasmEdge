@@ -492,7 +492,6 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
   auto &HostFuncAVFormatAVFreep =
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFreeP &>(
           FuncInst->getHostFunc());
-
   {
     uint32_t ChapterId = readUInt32(MemInst, ChapterPtr);
     EXPECT_TRUE(HostFuncAVFormatAVFreep.run(

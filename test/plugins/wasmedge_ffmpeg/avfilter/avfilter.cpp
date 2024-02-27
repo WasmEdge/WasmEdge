@@ -5,8 +5,6 @@
 
 #include <gtest/gtest.h>
 
-using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
-
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
@@ -283,8 +281,6 @@ TEST_F(FFmpegTest, AVFilterStructs) {
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 }
-
-TEST_F(FFmpegTest, AVFilterBuffer) {}
 
 } // namespace WasmEdgeFFmpeg
 } // namespace Host

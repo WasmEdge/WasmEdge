@@ -101,8 +101,8 @@ class AVCodecParametersToContext
 public:
   AVCodecParametersToContext(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : WasmEdgeFFmpegAVCodec(HostEnv) {}
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t avCodecId,
-                       uint32_t avCodecParamId);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t AvCodecId,
+                       uint32_t AvCodecParamId);
 };
 
 class AVCodecReceiveFrame : public WasmEdgeFFmpegAVCodec<AVCodecReceiveFrame> {

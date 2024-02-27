@@ -64,7 +64,7 @@ public:
       : WasmEdgeFFmpegAVFormat(HostEnv) {}
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AvFormatCtxId, int32_t Idx, uint32_t UrlPtr,
-                       uint32_t urlSize, int32_t IsOutput);
+                       uint32_t UrlSize, int32_t IsOutput);
 };
 
 class AVFormatFreeContext : public WasmEdgeFFmpegAVFormat<AVFormatFreeContext> {

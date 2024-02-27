@@ -4,8 +4,6 @@
 
 #include <gtest/gtest.h>
 
-using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
-
 // Testing all AVCodecCtxstruct
 namespace WasmEdge {
 namespace Host {

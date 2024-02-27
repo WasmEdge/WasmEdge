@@ -4,8 +4,6 @@
 #include "utils.h"
 #include <gtest/gtest.h>
 
-using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
-
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {

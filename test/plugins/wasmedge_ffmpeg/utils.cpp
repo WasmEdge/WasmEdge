@@ -1,6 +1,5 @@
 #include "utils.h"
 #include "avcodec/avCodecContext.h"
-#include "avcodec/avCodecParameters.h"
 #include "avcodec/avPacket.h"
 #include "avcodec/avcodec_func.h"
 #include "avformat/avStream.h"

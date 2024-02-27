@@ -4,8 +4,6 @@
 
 #include <gtest/gtest.h>
 
-using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
-
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
@@ -135,7 +133,6 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
       WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxNbChapters &>(
       FuncInst->getHostFunc());
   {
-
     uint32_t NbChapters = 200;
     EXPECT_TRUE(HostFuncAVFormatCtxSetNbChapters.run(
         CallFrame,

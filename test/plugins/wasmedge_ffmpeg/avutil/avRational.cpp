@@ -4,8 +4,6 @@
 
 #include <gtest/gtest.h>
 
-using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
-
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
@@ -75,7 +73,6 @@ TEST_F(FFmpegTest, AVRational) {
           FuncInst->getHostFunc());
 
   {
-
     int32_t ANum = -6;
     int32_t ADen = 7;
     int32_t BNum = 3;
@@ -128,7 +125,6 @@ TEST_F(FFmpegTest, AVRational) {
           FuncInst->getHostFunc());
 
   {
-
     double D = 5;
     int32_t Max = 10;
 

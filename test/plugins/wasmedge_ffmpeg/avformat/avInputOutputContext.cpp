@@ -1,12 +1,9 @@
 #include "avformat/avInputOutputFormat.h"
 #include "avformat/avformatContext.h"
-#include "avformat/avformat_func.h"
 #include "avformat/module.h"
 #include "utils.h"
 
 #include <gtest/gtest.h>
-
-using WasmEdge::Host::WasmEdgeFFmpeg::ErrNo;
 
 namespace WasmEdge {
 namespace Host {

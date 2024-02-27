@@ -164,6 +164,9 @@ def extract_archive(
             for filename in files_extracted:
                 fname = filename.replace(CONST_ipkg, ipath)
 
+                if "._" in filename:
+                    remove(join(to_path, filename))
+                    continue
                 # Skip if it ends with "wasmedge" as it is going to be removed at a later stage
                 if fname.endswith("wasmedge") and not fname.endswith("bin/wasmedge"):
                     continue
@@ -1618,8 +1621,6 @@ def main(args):
         logging.info("Installing WasmEdge")
         # Copy the tree
         for sub_dir in listdir(join(TEMP_PATH, CONST_ipkg)):
-            if "._" in sub_dir:
-                continue
             if sub_dir == "lib64":
                 copytree(join(TEMP_PATH, CONST_ipkg, sub_dir), join(args.path, "lib"))
             else:

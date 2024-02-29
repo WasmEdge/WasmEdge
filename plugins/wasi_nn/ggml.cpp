@@ -566,10 +566,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.ImagePath = ""sv;
   // Initialize the model parameters.
   GraphRef.NGPULayers = 0;
-#ifdef __APPLE__
-  // We will always set the ngl to 1 on macOS to enable Metal.
-  GraphRef.NGPULayers = 1;
-#endif
   // Initialize the context parameters.
   GraphRef.CtxSize = ContextDefault.n_ctx;
   GraphRef.BatchSize = ContextDefault.n_batch;

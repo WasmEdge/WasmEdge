@@ -525,7 +525,13 @@ loadBase64ImageFromPrompt(Graph &GraphRef, clip_ctx *ClipContext,
   // Decode the base64 image.
   auto RequiredBytes = base64::required_encode_size(Base64Str.size());
   auto ImageBytes = std::vector<unsigned char>(RequiredBytes);
-  base64::decode(Base64Str.begin(), Base64Str.end(), ImageBytes.begin());
+  try {
+    base64::decode(Base64Str.begin(), Base64Str.end(), ImageBytes.begin());
+  } catch (const base64_error &E) {
+    spdlog::error("[WASI-NN] GGML backend: Error when base64::decode: {}"sv,
+                  E.what());
+    return nullptr;
+  }
 
   return llava_image_embed_make_with_bytes(
       ClipContext, GraphRef.Threads, ImageBytes.data(), ImageBytes.size());
@@ -817,8 +823,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     clip_free(ClipContext);
     if (CxtRef.LlavaImageEmbd == nullptr) {
       spdlog::error(
-          "[WASI-NN] GGML backend: Error: unable to load the image {}."sv,
-          GraphRef.ImagePath);
+          "[WASI-NN] GGML backend: Error: unable to load the image."sv);
       return ErrNo::InvalidArgument;
     }
 

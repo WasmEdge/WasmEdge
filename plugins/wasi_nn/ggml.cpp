@@ -460,23 +460,31 @@ ErrNo evaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
   return ErrNo::Success;
 }
 
-const std::string_view Base64ImageTagPrefix = "<img src=\"data:image/";
-const std::string_view Base64ImageBytesPrefix = ";base64,";
-const std::string_view Base64ImageTagSuffix = "\">";
-const std::string_view PromptImagePlaceholder = "<image>";
+const std::string_view Base64ImageTagPrefix = "<img src=\"data:image/"sv;
+const std::string_view Base64ImageBytesPrefix = ";base64,"sv;
+const std::string_view Base64ImageTagSuffix = "\">"sv;
+const std::string_view PromptImagePlaceholder = "<image>"sv;
 
-bool checkBase64Image(const std::string Prompt) noexcept {
+bool containsBase64Image(Graph &GraphRef, std::string Prompt) noexcept {
   // Check if the prompt contains a base64 image.
   // Follow this link for the supported image formats:
   // https://github.com/ggerganov/llama.cpp/blob/master/common/stb_image.h
 
   auto Base64ImageTagBeginPos = Prompt.find(Base64ImageTagPrefix);
   if (Base64ImageTagBeginPos == std::string::npos) {
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] GGML backend: No base64 image tag found in the prompt."sv);
+    }
     return false;
   }
   auto Base64ImageTagEndPos =
       Prompt.find(Base64ImageTagSuffix, Base64ImageTagBeginPos);
   if (Base64ImageTagEndPos == std::string::npos) {
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] GGML backend: Found an unclosed base64 image tag."sv);
+    }
     return false;
   }
   return true;
@@ -762,8 +770,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     // Handle llava format prompt.
 
     // Check if the prompt contains a base64 image.
-    bool ContainBase64Image = details::checkBase64Image(Prompt);
-    if (GraphRef.ImagePath == ""sv && ContainBase64Image == false) {
+    bool ContainsBase64Image = details::containsBase64Image(GraphRef, Prompt);
+    if (GraphRef.ImagePath == ""sv && ContainsBase64Image == false) {
       spdlog::error(
           "[WASI-NN] GGML backend: Error: when using llava model, "
           "you need to specify the image path or have the base64 encoded "
@@ -789,7 +797,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     }
     auto ClipContext =
         clip_model_load(GraphRef.MMProjModelPath.c_str(), LlavaVerbosity);
-    if (ContainBase64Image) {
+    if (ContainsBase64Image) {
       // Load the base64 image from the prompt.
       CxtRef.LlavaImageEmbd =
           details::loadBase64ImageFromPrompt(GraphRef, ClipContext, Prompt);

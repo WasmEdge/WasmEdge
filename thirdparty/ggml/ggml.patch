@@ -59,9 +59,18 @@ index ef9e4ba7..a1b49793 100644
  
      return new_clip;
 diff --git a/examples/llava/llava.cpp b/examples/llava/llava.cpp
-index 1a1cf7c7..b84a9404 100644
+index 98012816..e8567d8f 100644
 --- a/examples/llava/llava.cpp
 +++ b/examples/llava/llava.cpp
+@@ -257,7 +257,7 @@ static bool encode_image_with_clip(clip_ctx * ctx_clip, int n_threads, const cli
+             }
+         }
+         const int64_t t_img_enc_batch_us = ggml_time_us();
+-        printf("%s: %d segments encoded in %8.2f ms\n", __func__, (int)img_res_v.size, (t_img_enc_batch_us - t_img_enc_start_us) / 1000.0);
++        // printf("%s: %d segments encoded in %8.2f ms\n", __func__, (int)img_res_v.size, (t_img_enc_batch_us - t_img_enc_start_us) / 1000.0);
+ 
+         const int32_t * image_grid = clip_image_grid(ctx_clip);
+ 
 @@ -290,12 +290,12 @@ static bool encode_image_with_clip(clip_ctx * ctx_clip, int n_threads, const cli
          // clip_image_save_to_bmp(*tmp, "image_feature.bmp");
      }
@@ -90,10 +99,10 @@ index 2d40f3f1..8897b3d8 100644
  #ifdef __cplusplus
  extern "C" {
 diff --git a/llama.cpp b/llama.cpp
-index 4296eca3..5ac03032 100644
+index 30d5eb32..9c940162 100644
 --- a/llama.cpp
 +++ b/llama.cpp
-@@ -12757,7 +12757,9 @@ static void llama_log_internal(ggml_log_level level, const char * format, ...) {
+@@ -13266,7 +13266,9 @@ static void llama_log_internal(ggml_log_level level, const char * format, ...) {
  
  static void llama_log_callback_default(ggml_log_level level, const char * text, void * user_data) {
      (void) level;

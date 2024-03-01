@@ -76,11 +76,11 @@ jobs:
           fi
 
           cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=${build_tests} -DCMAKE_BUILD_TYPE=${build_type} -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
-      - uses: actions/cache/save@v3
+      - uses: actions/cache/save@v4
         with:
           key: ${{ steps.prep.outputs.cache_key1 }}
           path: ${{ steps.prep.outputs.cache_path1 }}
-      - uses: actions/cache/save@v3
+      - uses: actions/cache/save@v4
         with:
           key: ${{ steps.prep.outputs.cache_key2 }}
           path: ${{ steps.prep.outputs.cache_path2 }}
@@ -105,11 +105,11 @@ jobs:
         run: |
           echo "artifact=WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.docker_tag }}.tar.gz" >> $GITHUB_OUTPUT
           echo "filename=plugin_${{ matrix.plugin }}.tar.gz" >> $GITHUB_OUTPUT
-      - uses: actions/cache/restore@v3
+      - uses: actions/cache/restore@v4
         with:
           key: ${{ needs.prepare.outputs.cache_key1 }}
           path: ${{ needs.prepare.outputs.cache_path1 }}
-      - uses: actions/cache/restore@v3
+      - uses: actions/cache/restore@v4
         with:
           key: ${{ needs.prepare.outputs.cache_key2 }}
           path: ${{ needs.prepare.outputs.cache_path2 }}

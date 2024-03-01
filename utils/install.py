@@ -405,6 +405,7 @@ SUPPORTTED_PLUGINS = {
     "darwin" + "arm64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "manylinux2014" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
+    "ubuntu20.04" + "aarch64" + WASMEDGE_RUSTLS: VersionString("0.13.5"),
     "ubuntu20.04" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
     "manylinux2014" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
 }

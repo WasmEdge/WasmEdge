@@ -75,7 +75,7 @@ jobs:
             target=${target#lib}
           fi
 
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=${build_tests} -DCMAKE_BUILD_TYPE=${build_type} -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
+          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=${build_tests} -DCMAKE_BUILD_TYPE=${build_type} -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
       - uses: actions/cache/save@v3
         with:
           key: ${{ steps.prep.outputs.cache_key1 }}

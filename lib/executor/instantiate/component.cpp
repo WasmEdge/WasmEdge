@@ -27,37 +27,64 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   }
 
   for (auto &Sec : Comp.getSections()) {
-    spdlog::info("section processing...");
     if (std::holds_alternative<AST::CustomSection>(Sec)) {
     } else if (std::holds_alternative<AST::CoreModuleSection>(Sec)) {
       CompInst->addModule(std::get<AST::CoreModuleSection>(Sec).getContent());
     } else if (std::holds_alternative<ComponentSection>(Sec)) {
       CompInst->addComponent(std::get<ComponentSection>(Sec).getContent());
     } else if (std::holds_alternative<CoreInstanceSection>(Sec)) {
-      instantiate(StoreMgr, *CompInst, std::get<CoreInstanceSection>(Sec));
+      auto Res =
+          instantiate(StoreMgr, *CompInst, std::get<CoreInstanceSection>(Sec));
+      if (!Res) {
+        return Unexpect(Res);
+      }
     } else if (std::holds_alternative<InstanceSection>(Sec)) {
-      instantiate(StoreMgr, *CompInst, std::get<InstanceSection>(Sec));
+      auto Res =
+          instantiate(StoreMgr, *CompInst, std::get<InstanceSection>(Sec));
+      if (!Res) {
+        return Unexpect(Res);
+      }
     } else if (std::holds_alternative<ImportSection>(Sec)) {
-      instantiate(StoreMgr, *CompInst, std::get<ImportSection>(Sec));
+      auto Res = instantiate(StoreMgr, *CompInst, std::get<ImportSection>(Sec));
+      if (!Res) {
+        return Unexpect(Res);
+      }
     } else if (std::holds_alternative<CoreTypeSection>(Sec)) {
-      instantiate(StoreMgr, *CompInst, std::get<CoreTypeSection>(Sec));
+      auto Res =
+          instantiate(StoreMgr, *CompInst, std::get<CoreTypeSection>(Sec));
+      if (!Res) {
+        return Unexpect(Res);
+      }
     } else if (std::holds_alternative<TypeSection>(Sec)) {
-      instantiate(StoreMgr, *CompInst, std::get<TypeSection>(Sec));
+      auto Res = instantiate(StoreMgr, *CompInst, std::get<TypeSection>(Sec));
+      if (!Res) {
+        return Unexpect(Res);
+      }
     } else if (std::holds_alternative<StartSection>(Sec)) {
-      instantiate(StoreMgr, *CompInst, std::get<StartSection>(Sec));
+      auto Res = instantiate(StoreMgr, *CompInst, std::get<StartSection>(Sec));
+      if (!Res) {
+        return Unexpect(Res);
+      }
     } else if (std::holds_alternative<CanonSection>(Sec)) {
-      instantiate(StoreMgr, *CompInst, std::get<CanonSection>(Sec));
+      auto Res = instantiate(StoreMgr, *CompInst, std::get<CanonSection>(Sec));
+      if (!Res) {
+        return Unexpect(Res);
+      }
     } else if (std::holds_alternative<AliasSection>(Sec)) {
-      instantiate(StoreMgr, *CompInst, std::get<AliasSection>(Sec));
+      auto Res = instantiate(StoreMgr, *CompInst, std::get<AliasSection>(Sec));
+      if (!Res) {
+        return Unexpect(Res);
+      }
     } else if (std::holds_alternative<ExportSection>(Sec)) {
-      instantiate(StoreMgr, *CompInst, std::get<ExportSection>(Sec));
+      auto Res = instantiate(StoreMgr, *CompInst, std::get<ExportSection>(Sec));
+      if (!Res) {
+        return Unexpect(Res);
+      }
     }
-    spdlog::info("section complete");
   }
 
   StoreMgr.registerComponent(CompInst.get());
 
-  spdlog::info("complete component instantiation");
   return CompInst;
 }
 
@@ -89,15 +116,12 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       // instance.
       auto Sorts =
           std::get<AST::Component::CoreInlineExports>(InstExpr).getExports();
-      spdlog::info("[core inline exports] size {}", Sorts.size());
       for (auto S : Sorts) {
-        spdlog::info("[core inline exports] exports name: {}", S.getName());
         auto SortIdx = S.getSortIdx();
         switch (SortIdx.getSort()) {
         case CoreSort::Func: {
           auto Idx = SortIdx.getSortIdx();
           CompInst.getFunctionInstance(Idx);
-          spdlog::info("nice");
           break;
         }
         default:
@@ -105,7 +129,6 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           break;
         }
       }
-      // TODO:
     }
   }
   return {};
@@ -134,23 +157,24 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
         auto Idx = Arg.getIndex();
         auto S = Idx.getSort();
         if (std::holds_alternative<CoreSort>(S)) {
+          // TODO: insert these into mapping
           switch (std::get<CoreSort>(S)) {
-          case CoreSort::Func: // TODO:
+          case CoreSort::Func:
             spdlog::info("with {} core:func", Arg.getName());
             break;
-          case CoreSort::Table: // TODO:
+          case CoreSort::Table:
             spdlog::info("with {} core:table", Arg.getName());
             break;
-          case CoreSort::Memory: // TODO:
+          case CoreSort::Memory:
             spdlog::info("with {} core:memory", Arg.getName());
             break;
-          case CoreSort::Global: // TODO:
+          case CoreSort::Global:
             spdlog::info("with {} core:global", Arg.getName());
             break;
-          case CoreSort::Type: // TODO:
+          case CoreSort::Type:
             spdlog::info("with {} core:type", Arg.getName());
             break;
-          case CoreSort::Module: // TODO:
+          case CoreSort::Module:
             spdlog::info("with {} core:module", Arg.getName());
             break;
           case CoreSort::Instance:
@@ -191,9 +215,9 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       auto Inst = std::move(*Res);
       CompInst.addComponentInstance(std::move(Inst));
     } else {
-      spdlog::info("component inline exports");
       std::get<CompInlineExports>(InstExpr).getExports();
-      // TODO:
+      // TODO: complete inline exports
+      spdlog::warn("TODO: component inline exports");
     }
   }
   return {};
@@ -215,9 +239,6 @@ Executor::instantiate(Runtime::StoreManager &,
           auto Exp = std::get<AliasTargetExport>(T);
           const auto *ModInst =
               CompInst.getModuleInstance(Exp.getInstanceIdx());
-
-          spdlog::info("[core func] instance {} export function '{}'",
-                       Exp.getInstanceIdx(), Exp.getName());
 
           auto *FuncInst = ModInst->getFuncExports(
               [&](const std::map<std::string,
@@ -252,9 +273,6 @@ Executor::instantiate(Runtime::StoreManager &,
           // This means instance exports a function
           auto Exp = std::get<AliasTargetExport>(T);
 
-          spdlog::warn("[alias func] instance {} export function '{}'",
-                       Exp.getInstanceIdx(), Exp.getName());
-
           // FIXME: this should, however, get a component instance, but we
           // haven't change anything at plugin part, and hence we do not have
           // anything create a component plugin.
@@ -262,7 +280,8 @@ Executor::instantiate(Runtime::StoreManager &,
           auto *FuncInst = ModInst->findFuncExports(Exp.getName());
           CompInst.addComponentFunctionInstance(FuncInst);
         } else {
-          spdlog::warn("[alias function] outer export");
+          // TODO:
+          spdlog::warn("TODO [alias function] outer export");
           auto Out = std::get<AliasTargetOuter>(T);
           auto NestedCompInst =
               CompInst.getComponentInstance(Out.getComponent());
@@ -318,8 +337,6 @@ Executor::instantiate(Runtime::StoreManager &,
       // TODO: apply options
       // L.getOptions();
 
-      spdlog::info("[canonical lower] function index {}", L.getFuncIndex());
-
       auto *FuncInst = CompInst.getComponentFunctionInstance(L.getFuncIndex());
       CompInst.addFunctionInstance(FuncInst);
     } else if (std::holds_alternative<ResourceNew>(C)) {
@@ -363,10 +380,15 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
         // TODO
         break;
       case IndexKind::InstanceType:
-        spdlog::info("import an instance named {}", ImportStatement.getName());
-        const auto *Inst = StoreMgr.findModule(ImportStatement.getName());
-        spdlog::warn("pointer of imported instance: {}", Inst == nullptr);
-        CompInst.addModuleInstance(Inst);
+        auto ModName = ImportStatement.getName();
+        const auto *ImportedModInst = StoreMgr.findModule(ModName);
+        if (unlikely(ImportedModInst == nullptr)) {
+          spdlog::error(ErrCode::Value::UnknownImport);
+          spdlog::error("module name: {}", ModName);
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_CompImport));
+          return Unexpect(ErrCode::Value::UnknownImport);
+        }
+        CompInst.addModuleInstance(ImportedModInst);
         break;
       }
     } else if (std::holds_alternative<TypeBound>(Desc)) {

@@ -63,9 +63,6 @@ public:
   }
   const Instance::ModuleInstance *
   getModuleInstance(uint32_t Index) const noexcept {
-    if (ModInstList[Index] == nullptr) {
-      spdlog::error("oops, null module instance");
-    }
     return ModInstList[Index];
   }
 

@@ -281,33 +281,19 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
     return Unexpect(Res);
   }
   if (auto Res = ExecutorEngine.instantiateModule(StoreRef, Module)) {
-    ActiveInst = std::move(*Res);
+    ActiveModInst = std::move(*Res);
   } else {
     return Unexpect(Res);
   }
   // Get module instance.
-  if (std::holds_alternative<
-
-          std::unique_ptr<Runtime::Instance::ModuleInstance>>(ActiveInst)) {
-    auto I =
-        std::move(std::get<std::unique_ptr<Runtime::Instance::ModuleInstance>>(
-            ActiveInst));
-    if (I) {
-      // Execute function and return values with the module instance.
-      return unsafeExecute(I.get(), Func, Params, ParamTypes);
-    }
+  if (ActiveModInst) {
+    // Execute function and return values with the module instance.
+    return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
   } else {
-    auto I = std::move(
-        std::get<std::unique_ptr<Runtime::Instance::ComponentInstance>>(
-            ActiveInst));
-    if (I) {
-      // Execute function and return values with the module instance.
-      return unsafeExecute(I.get(), Func, Params, ParamTypes);
-    }
+    spdlog::error(ErrCode::Value::WrongInstanceAddress);
+    spdlog::error(ErrInfo::InfoExecuting("", Func));
+    return Unexpect(ErrCode::Value::WrongInstanceAddress);
   }
-  spdlog::error(ErrCode::Value::WrongInstanceAddress);
-  spdlog::error(ErrInfo::InfoExecuting("", Func));
-  return Unexpect(ErrCode::Value::WrongInstanceAddress);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -473,7 +459,7 @@ Expect<void> VM::unsafeInstantiate() {
 
     if (auto Res = ExecutorEngine.instantiateModule(StoreRef, Mod)) {
       Stage = VMStage::Instantiated;
-      ActiveInst = std::move(*Res);
+      ActiveModInst = std::move(*Res);
       return {};
     } else {
       return Unexpect(Res);
@@ -482,7 +468,7 @@ Expect<void> VM::unsafeInstantiate() {
     if (auto Res = ExecutorEngine.instantiateComponent(
             StoreRef, std::get<AST::Component::Component>(Unit))) {
       Stage = VMStage::Instantiated;
-      ActiveInst = std::move(*Res);
+      ActiveCompInst = std::move(*Res);
       return {};
     } else {
       return Unexpect(Res);
@@ -493,22 +479,11 @@ Expect<void> VM::unsafeInstantiate() {
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
                   Span<const ValType> ParamTypes) {
-  if (std::holds_alternative<
-          std::unique_ptr<Runtime::Instance::ModuleInstance>>(ActiveInst)) {
-    auto I =
-        std::move(std::get<std::unique_ptr<Runtime::Instance::ModuleInstance>>(
-            ActiveInst));
-    if (I) {
-      // Execute function and return values with the module instance.
-      return unsafeExecute(I.get(), Func, Params, ParamTypes);
-    }
-  } else {
-    auto I = std::move(
-        std::get<std::unique_ptr<Runtime::Instance::ComponentInstance>>(
-            ActiveInst));
-    if (I) {
-      return unsafeExecute(I.get(), Func, Params, ParamTypes);
-    }
+  if (ActiveModInst) {
+    // Execute function and return values with the module instance.
+    return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
+  } else if (ActiveCompInst) {
+    return unsafeExecute(ActiveCompInst.get(), Func, Params, ParamTypes);
   }
   spdlog::error(ErrCode::Value::WrongInstanceAddress);
   spdlog::error(ErrInfo::InfoExecuting("", Func));
@@ -578,13 +553,11 @@ VM::asyncExecute(std::string_view ModName, std::string_view Func,
 }
 
 void VM::unsafeCleanup() {
-  if (std::holds_alternative<
-          std::unique_ptr<Runtime::Instance::ModuleInstance>>(ActiveInst)) {
-    std::get<std::unique_ptr<Runtime::Instance::ModuleInstance>>(ActiveInst)
-        .reset();
-  } else {
-    std::get<std::unique_ptr<Runtime::Instance::ComponentInstance>>(ActiveInst)
-        .reset();
+  if (ActiveModInst) {
+    ActiveModInst.reset();
+  }
+  if (ActiveCompInst) {
+    ActiveCompInst.reset();
   }
   StoreRef.reset();
   RegModInsts.clear();
@@ -600,20 +573,14 @@ void VM::unsafeCleanup() {
 std::vector<std::pair<std::string, const AST::FunctionType &>>
 VM::unsafeGetFunctionList() const {
   std::vector<std::pair<std::string, const AST::FunctionType &>> Map;
-  if (std::holds_alternative<
-          std::unique_ptr<Runtime::Instance::ModuleInstance>>(ActiveInst)) {
-    auto &I =
-        std::move(std::get<std::unique_ptr<Runtime::Instance::ModuleInstance>>(
-            ActiveInst));
-    if (I) {
-      I->getFuncExports([&](const auto &FuncExports) {
-        Map.reserve(FuncExports.size());
-        for (auto &&Func : FuncExports) {
-          const auto &FuncType = (Func.second)->getFuncType();
-          Map.emplace_back(Func.first, FuncType);
-        }
-      });
-    }
+  if (ActiveModInst) {
+    ActiveModInst->getFuncExports([&](const auto &FuncExports) {
+      Map.reserve(FuncExports.size());
+      for (auto &&Func : FuncExports) {
+        const auto &FuncType = (Func.second)->getFuncType();
+        Map.emplace_back(Func.first, FuncType);
+      }
+    });
   }
   return Map;
 }
@@ -627,14 +594,8 @@ VM::unsafeGetImportModule(const HostRegistration Type) const {
 }
 
 const Runtime::Instance::ModuleInstance *VM::unsafeGetActiveModule() const {
-  if (std::holds_alternative<
-          std::unique_ptr<Runtime::Instance::ModuleInstance>>(ActiveInst)) {
-    if (std::get<std::unique_ptr<Runtime::Instance::ModuleInstance>>(
-            ActiveInst)) {
-      return std::get<std::unique_ptr<Runtime::Instance::ModuleInstance>>(
-                 ActiveInst)
-          .get();
-    }
+  if (ActiveModInst) {
+    return ActiveModInst.get();
   }
   return nullptr;
 };

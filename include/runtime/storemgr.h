@@ -52,7 +52,8 @@ public:
   /// Find module by name.
   const Instance::ModuleInstance *findModule(std::string_view Name) const {
     std::shared_lock Lock(Mutex);
-    if (auto Iter = SoftNamedMod.find(Name); likely(Iter != NamedMod.cend())) {
+    if (auto Iter = SoftNamedMod.find(Name);
+        likely(Iter != SoftNamedMod.cend())) {
       return Iter->second;
     }
     if (auto Iter = NamedMod.find(Name); likely(Iter != NamedMod.cend())) {
@@ -122,6 +123,7 @@ private:
 
   /// \name Module name mapping.
   std::map<std::string, const Instance::ModuleInstance *, std::less<>> NamedMod;
+  /// \name Soft module are those temporary added by component linking process
   std::map<std::string, const Instance::ModuleInstance *, std::less<>>
       SoftNamedMod;
   std::map<std::string, const Instance::ComponentInstance *, std::less<>>

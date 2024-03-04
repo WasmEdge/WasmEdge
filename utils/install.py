@@ -164,6 +164,9 @@ def extract_archive(
             for filename in files_extracted:
                 fname = filename.replace(CONST_ipkg, ipath)
 
+                if "._" in filename:
+                    remove(join(to_path, filename))
+                    continue
                 # Skip if it ends with "wasmedge" as it is going to be removed at a later stage
                 if fname.endswith("wasmedge") and not fname.endswith("bin/wasmedge"):
                     continue
@@ -240,9 +243,13 @@ class VersionString:
         if ignorecase:
             v = v.lower()
         return [
-            int(x)
-            if x.isdigit()
-            else [int(y) if y.isdigit() else y for y in re.findall("\d+|[a-zA-Z]+", x)]
+            (
+                int(x)
+                if x.isdigit()
+                else [
+                    int(y) if y.isdigit() else y for y in re.findall("\d+|[a-zA-Z]+", x)
+                ]
+            )
             for x in re.split(separator, v)
         ]
 
@@ -398,6 +405,7 @@ SUPPORTTED_PLUGINS = {
     "darwin" + "arm64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "manylinux2014" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
+    "ubuntu20.04" + "aarch64" + WASMEDGE_RUSTLS: VersionString("0.13.5"),
     "ubuntu20.04" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
     "manylinux2014" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
 }
@@ -1614,8 +1622,6 @@ def main(args):
         logging.info("Installing WasmEdge")
         # Copy the tree
         for sub_dir in listdir(join(TEMP_PATH, CONST_ipkg)):
-            if "._" in sub_dir:
-                continue
             if sub_dir == "lib64":
                 copytree(join(TEMP_PATH, CONST_ipkg, sub_dir), join(args.path, "lib"))
             else:

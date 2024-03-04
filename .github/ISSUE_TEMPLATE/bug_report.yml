@@ -100,6 +100,6 @@ body:
       placeholder: |
         - C++ Compiler version:
         - CMake version:
-        - CMake flags: (e.g. `-DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=ON`)
+        - CMake flags: (e.g. `-DCMAKE_BUILD_TYPE=Release -DWASMEDGE_USE_LLVM=ON`)
     validations:
       required: false

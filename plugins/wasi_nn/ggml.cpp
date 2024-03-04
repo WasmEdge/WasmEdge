@@ -7,6 +7,7 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 #include "simdjson.h"
 #include <algorithm>
+#include <base64.hpp>
 #include <clip.h>
 #include <common.h>
 #include <cstdlib>
@@ -417,7 +418,7 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
   return ErrNo::Success;
 }
 
-ErrNo EvaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
+ErrNo evaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
                      std::vector<llama_token> Tokens, int &NPast) noexcept {
   uint32_t NCtx = llama_n_ctx(LlamaContext);
 
@@ -459,6 +460,107 @@ ErrNo EvaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
   return ErrNo::Success;
 }
 
+const std::string_view Base64ImageTagPrefix = "<img src=\"data:image/"sv;
+const std::string_view Base64ImageBytesPrefix = ";base64,"sv;
+const std::string_view Base64ImageTagSuffix = "\">"sv;
+const std::string_view PromptImagePlaceholder = "<image>"sv;
+
+bool containsBase64Image(Graph &GraphRef, std::string Prompt) noexcept {
+  // Check if the prompt contains a base64 image.
+  // Follow this link for the supported image formats:
+  // https://github.com/ggerganov/llama.cpp/blob/master/common/stb_image.h
+
+  auto Base64ImageTagBeginPos = Prompt.find(Base64ImageTagPrefix);
+  if (Base64ImageTagBeginPos == std::string::npos) {
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] GGML backend: No base64 image tag found in the prompt."sv);
+    }
+    return false;
+  }
+  auto Base64ImageTagEndPos =
+      Prompt.find(Base64ImageTagSuffix, Base64ImageTagBeginPos);
+  if (Base64ImageTagEndPos == std::string::npos) {
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] GGML backend: Found an unclosed base64 image tag."sv);
+    }
+    return false;
+  }
+  return true;
+}
+
+struct llava_image_embed *
+loadBase64ImageFromPrompt(Graph &GraphRef, clip_ctx *ClipContext,
+                          std::string Prompt) noexcept {
+  // Load the base64 image from the prompt.
+  // Follow this link for the supported image formats:
+  // https://github.com/ggerganov/llama.cpp/blob/master/common/stb_image.h
+
+  // Find `<img src="data:image/`
+  auto Base64ImageTagBeginPos = Prompt.find(Base64ImageTagPrefix);
+  if (Base64ImageTagBeginPos == std::string::npos) {
+    return nullptr;
+  }
+
+  // Find `;base64,` (skip the image type part)
+  auto Base64ImageBytesBeginPos =
+      Prompt.find(Base64ImageBytesPrefix, Base64ImageTagBeginPos);
+  if (Base64ImageTagBeginPos == std::string::npos) {
+    return nullptr;
+  }
+
+  // Find `">`
+  auto Base64ImageTagEndPos =
+      Prompt.find(Base64ImageTagSuffix, Base64ImageBytesBeginPos);
+  if (Base64ImageTagEndPos == std::string::npos) {
+    return nullptr;
+  }
+
+  auto Base64Str =
+      Prompt.substr(Base64ImageBytesBeginPos + Base64ImageBytesPrefix.size(),
+                    Base64ImageTagEndPos - Base64ImageBytesBeginPos -
+                        Base64ImageBytesPrefix.size());
+
+  // Decode the base64 image.
+  auto RequiredBytes = base64::required_encode_size(Base64Str.size());
+  auto ImageBytes = std::vector<unsigned char>(RequiredBytes);
+  try {
+    base64::decode(Base64Str.begin(), Base64Str.end(), ImageBytes.begin());
+  } catch (const base64_error &E) {
+    spdlog::error("[WASI-NN] GGML backend: Error when base64::decode: {}"sv,
+                  E.what());
+    return nullptr;
+  }
+
+  return llava_image_embed_make_with_bytes(
+      ClipContext, GraphRef.Threads, ImageBytes.data(), ImageBytes.size());
+}
+
+ErrNo replaceBase64ImagePlaceholderInPrompt(std::string &Prompt) noexcept {
+  // Replace the base64 image in the prompt with a placeholder.
+
+  // Find `<img src="data:image/`
+  auto Base64ImageTagBeginPos = Prompt.find(Base64ImageTagPrefix);
+  if (Base64ImageTagBeginPos == std::string::npos) {
+    return ErrNo::InvalidArgument;
+  }
+
+  // Find `">`
+  auto Base64ImageTagEndPos =
+      Prompt.find(Base64ImageTagSuffix, Base64ImageTagBeginPos);
+  if (Base64ImageTagEndPos == std::string::npos) {
+    return ErrNo::InvalidArgument;
+  }
+
+  auto Base64ImageTagLength = Base64ImageTagEndPos - Base64ImageTagBeginPos +
+                              Base64ImageTagSuffix.size();
+  Prompt.replace(Base64ImageTagBeginPos, Base64ImageTagLength,
+                 PromptImagePlaceholder);
+
+  return ErrNo::Success;
+}
+
 } // namespace details
 
 Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
@@ -478,10 +580,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.ImagePath = ""sv;
   // Initialize the model parameters.
   GraphRef.NGPULayers = 0;
-#ifdef __APPLE__
-  // We will always set the ngl to 1 on macOS to enable Metal.
-  GraphRef.NGPULayers = 1;
-#endif
   // Initialize the context parameters.
   GraphRef.CtxSize = ContextDefault.n_ctx;
   GraphRef.BatchSize = ContextDefault.n_batch;
@@ -668,8 +766,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     spdlog::info("[WASI-NN][Debug] GGML backend: set the input"sv);
   }
   const bool AddBos = llama_should_add_bos_token(GraphRef.LlamaModel);
-  const std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
-                           Tensor.Tensor.size());
+  std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
+                     Tensor.Tensor.size());
   if (GraphRef.MMProjModelPath == ""sv) {
     // Text only prompt.
     CxtRef.LlamaInputs = llama_tokenize(LlamaContext, Prompt, AddBos, true);
@@ -677,12 +775,18 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   } else {
     // Handle llava format prompt.
 
+    // Check if the prompt contains a base64 image.
+    bool ContainsBase64Image = details::containsBase64Image(GraphRef, Prompt);
+    if (GraphRef.ImagePath == ""sv && ContainsBase64Image == false) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Error: when using llava model, "
+          "you need to specify the image path or have the base64 encoded "
+          "image in the prompt."sv);
+      return ErrNo::InvalidArgument;
+    }
+
     // Show some warnings.
     if (GraphRef.EnableLog) {
-      if (GraphRef.ImagePath == ""sv) {
-        spdlog::info(
-            "[WASI-NN] GGML backend: Image path is not set, will process as text-only prompt"sv);
-      }
       if (GraphRef.CtxSize < 4096) {
         spdlog::info(
             "[WASI-NN] GGML backend: Context size is {}, "
@@ -692,17 +796,47 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       }
     }
 
+    // Load image for llava.
+    int LlavaVerbosity = 0;
+    if (GraphRef.EnableLog) {
+      LlavaVerbosity = 1;
+    }
+    auto ClipContext =
+        clip_model_load(GraphRef.MMProjModelPath.c_str(), LlavaVerbosity);
+    if (ContainsBase64Image) {
+      // Load the base64 image from the prompt.
+      CxtRef.LlavaImageEmbd =
+          details::loadBase64ImageFromPrompt(GraphRef, ClipContext, Prompt);
+      // Replace the base64 image in the prompt with a placeholder.
+      auto Res = details::replaceBase64ImagePlaceholderInPrompt(Prompt);
+      if (Res != ErrNo::Success) {
+        spdlog::error(
+            "[WASI-NN] GGML backend: Error: unable to replace the base64 image in the prompt."sv);
+        clip_free(ClipContext);
+        return Res;
+      }
+    } else {
+      // Load the image from the file.
+      CxtRef.LlavaImageEmbd = llava_image_embed_make_with_filename(
+          ClipContext, GraphRef.Threads, GraphRef.ImagePath.c_str());
+    }
+    clip_free(ClipContext);
+    if (CxtRef.LlavaImageEmbd == nullptr) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Error: unable to load the image."sv);
+      return ErrNo::InvalidArgument;
+    }
+
     // We split prompt by <image> as placeholder and save the position.
-    const std::string_view PromptPlaceholder = "<image>";
-    auto PlaceholderPosition = Prompt.find(PromptPlaceholder);
+    auto PlaceholderPosition = Prompt.find(details::PromptImagePlaceholder);
     if (PlaceholderPosition == std::string::npos) {
       spdlog::error(
           "[WASI-NN] GGML backend: Error: unable to find the placeholder in the llava prompt."sv);
       return ErrNo::InvalidArgument;
     }
     std::string PromptBeforeImage = Prompt.substr(0, PlaceholderPosition);
-    std::string PromptAfterImage =
-        Prompt.substr(PlaceholderPosition + PromptPlaceholder.length());
+    std::string PromptAfterImage = Prompt.substr(
+        PlaceholderPosition + details::PromptImagePlaceholder.length());
     std::vector<llama_token> EmbdInputBeforeImage =
         llama_tokenize(LlamaContext, PromptBeforeImage, AddBos, true);
     std::vector<llama_token> EmbdInputAfterImage =
@@ -716,17 +850,6 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.end(),
                               EmbdInputAfterImage.begin(),
                               EmbdInputAfterImage.end());
-
-    // Load image for llava.
-    int LlavaVerbosity = 0;
-    if (GraphRef.EnableLog) {
-      LlavaVerbosity = 1;
-    }
-    auto ClipContext =
-        clip_model_load(GraphRef.MMProjModelPath.c_str(), LlavaVerbosity);
-    CxtRef.LlavaImageEmbd = llava_image_embed_make_with_filename(
-        ClipContext, GraphRef.Threads, GraphRef.ImagePath.c_str());
-    clip_free(ClipContext);
   }
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: set the input...Done"sv);
@@ -833,7 +956,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   // Evaluate input tokens.
   if (CxtRef.LlavaImageEmbd == nullptr) {
     // Text only prompt.
-    ReturnCode = details::EvaluateTokens(GraphRef, LlamaContext,
+    ReturnCode = details::evaluateTokens(GraphRef, LlamaContext,
                                          CxtRef.LlamaInputs, NPast);
     if (ReturnCode != ErrNo::Success) {
       spdlog::error(
@@ -848,7 +971,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     std::vector<llama_token> EmbdInputAfterImage(CxtRef.LlamaInputs.begin() +
                                                      CxtRef.LlavaImagePosition,
                                                  CxtRef.LlamaInputs.end());
-    ReturnCode = details::EvaluateTokens(GraphRef, LlamaContext,
+    ReturnCode = details::evaluateTokens(GraphRef, LlamaContext,
                                          EmbdInputBeforeImage, NPast);
     if (ReturnCode != ErrNo::Success) {
       spdlog::error(
@@ -862,7 +985,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
           "[WASI-NN] GGML backend: failed to evaluate embed image tokens."sv);
       return ErrNo::RuntimeError;
     }
-    ReturnCode = details::EvaluateTokens(GraphRef, LlamaContext,
+    ReturnCode = details::evaluateTokens(GraphRef, LlamaContext,
                                          EmbdInputAfterImage, NPast);
     if (ReturnCode != ErrNo::Success) {
       spdlog::error(
@@ -905,7 +1028,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       break;
     }
     // Evaluate the output token.
-    ReturnCode = details::EvaluateTokens(GraphRef, LlamaContext, {Id}, NPast);
+    ReturnCode = details::evaluateTokens(GraphRef, LlamaContext, {Id}, NPast);
     if (ReturnCode != ErrNo::Success) {
       break;
     }
@@ -1018,7 +1141,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     // Evaluate input tokens.
     if (CxtRef.LlavaImageEmbd == nullptr) {
       // Text only prompt.
-      ReturnCode = details::EvaluateTokens(
+      ReturnCode = details::evaluateTokens(
           GraphRef, CxtRef.LlamaContext, CxtRef.LlamaInputs, CxtRef.LlamaNPast);
       if (ReturnCode != ErrNo::Success) {
         spdlog::error(
@@ -1034,7 +1157,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
           CxtRef.LlamaInputs.begin() + CxtRef.LlavaImagePosition,
           CxtRef.LlamaInputs.end());
       ReturnCode =
-          details::EvaluateTokens(GraphRef, CxtRef.LlamaContext,
+          details::evaluateTokens(GraphRef, CxtRef.LlamaContext,
                                   EmbdInputBeforeImage, CxtRef.LlamaNPast);
       if (ReturnCode != ErrNo::Success) {
         spdlog::error(
@@ -1050,7 +1173,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
         return ErrNo::RuntimeError;
       }
       ReturnCode =
-          details::EvaluateTokens(GraphRef, CxtRef.LlamaContext,
+          details::evaluateTokens(GraphRef, CxtRef.LlamaContext,
                                   EmbdInputAfterImage, CxtRef.LlamaNPast);
       if (ReturnCode != ErrNo::Success) {
         spdlog::error(
@@ -1083,7 +1206,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
   }
   // Evaluate the output token if not EOS.
   if (ReturnCode != ErrNo::EndOfSequence) {
-    ReturnCode = details::EvaluateTokens(GraphRef, CxtRef.LlamaContext, {Id},
+    ReturnCode = details::evaluateTokens(GraphRef, CxtRef.LlamaContext, {Id},
                                          CxtRef.LlamaNPast);
   }
   if (GraphRef.EnableDebugLog) {

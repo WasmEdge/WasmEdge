@@ -40,19 +40,15 @@ on:
       - "cmake/**"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   # TODO: Refactor `lint` with `on.workflow_run`
   # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
   lint:
-    permissions:
-      contents: read
     uses: ./.github/workflows/reusable-call-linter.yml
 
   get_version:
-    permissions:
-      contents: read
     needs: lint
     name: Retrieve version information
     runs-on: ubuntu-latest
@@ -74,6 +70,8 @@ jobs:
           echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> $GITHUB_OUTPUT
 
   create_source_tarball:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Source Tarball
     uses: ./.github/workflows/reusable-create-source-tarball.yml
@@ -81,6 +79,8 @@ jobs:
       version: ${{ needs.get_version.outputs.version }}
 
   build_on_macos:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: macOS
     uses: ./.github/workflows/reusable-build-on-macos.yml
@@ -90,6 +90,8 @@ jobs:
                 {'name':'MacOS 13 (arm64)','runner':'macos-14','darwin_version':22,'arch':'arm64'}]"
 
   build_on_manylinux_2014:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Manylinux2014
     uses: ./.github/workflows/reusable-build-on-manylinux.yml
@@ -99,6 +101,8 @@ jobs:
                 {'name':'manylinux 2014 aarch64','runner':'linux-arm64-v2','docker_tag':'manylinux2014_aarch64'}]"
 
   build_on_debian_static:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Debian (static)
     uses: ./.github/workflows/reusable-build-on-debian-static.yml
@@ -106,6 +110,8 @@ jobs:
       version: ${{ needs.get_version.outputs.version }}
 
   build_on_alpine_static:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Alpine (static)
     uses: ./.github/workflows/reusable-build-on-alpine-static.yml
@@ -113,6 +119,8 @@ jobs:
       version: ${{ needs.get_version.outputs.version }}
 
   build_on_ubuntu_22_04:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Ubuntu
     uses: ./.github/workflows/reusable-build-on-ubuntu.yml
@@ -126,6 +134,8 @@ jobs:
                 {'name':'ubuntu-22.04-coverage','compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-build-gcc','coverage':true,'tests':true}]"
 
   build_on_windows:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Windows
     uses: ./.github/workflows/reusable-build-on-windows.yml
@@ -133,6 +143,8 @@ jobs:
       version: ${{ needs.get_version.outputs.version }}
 
   build_on_windows_msvc:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Windows-MSVC
     uses: ./.github/workflows/reusable-build-on-windows-msvc.yml
@@ -140,6 +152,8 @@ jobs:
       version: ${{ needs.get_version.outputs.version }}
 
   build_on_android:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Android
     uses: ./.github/workflows/reusable-build-on-android.yml
@@ -147,6 +161,8 @@ jobs:
       version: ${{ needs.get_version.outputs.version }}
 
   build_on_fedora:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Fedora
     uses: ./.github/workflows/reusable-build-on-fedora.yml

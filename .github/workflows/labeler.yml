@@ -7,6 +7,8 @@ on:
       - reopened
       - closed
 
+permissions:
+  contents: read
 jobs:
   labeler:
     permissions:

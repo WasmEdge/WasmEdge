@@ -35,6 +35,7 @@ jobs:
       arch: ${{ matrix.arch }}
       runner: ${{ matrix.runner }}
       docker_tag: ${{ matrix.docker_tag }}
+      asset_tag: ${{ matrix.asset_tag }}
       plugins: ${{ toJSON(matrix.plugins) }}
       version: ${{ inputs.version }}
       release: ${{ inputs.release }}

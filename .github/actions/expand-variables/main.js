@@ -5,10 +5,12 @@ const archList = [{
     arch: x86_64,
     runner: 'ubuntu-latest',
     docker_tag: 'manylinux2014_x86_64-plugins-deps',
+    asset_tag: 'manylinux2014_x86_64',
 }, {
     arch: aarch64,
     runner: 'linux-arm64',
     docker_tag: 'manylinux2014_aarch64-plugins-deps',
+    asset_tag: 'manylinux2014_aarch64',
 }];
 
 const pluginList = [{

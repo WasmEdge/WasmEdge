@@ -12,6 +12,9 @@ on:
       docker_tag:
         type: string
         required: true
+      asset_tag:
+        type: string
+        required: true
       plugins:
         type: string
         required: true
@@ -103,7 +106,7 @@ jobs:
     steps:
       - id: prep
         run: |
-          echo "artifact=WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.docker_tag }}.tar.gz" >> $GITHUB_OUTPUT
+          echo "artifact=WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.asset_tag }}.tar.gz" >> $GITHUB_OUTPUT
           echo "filename=plugin_${{ matrix.plugin }}.tar.gz" >> $GITHUB_OUTPUT
       - uses: actions/cache/restore@v3
         with:

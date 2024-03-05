@@ -11,6 +11,7 @@ on:
         
 permissions:
       contents: read
+      
 jobs:
   build_on_debian_static:
     permissions:

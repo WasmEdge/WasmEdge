@@ -121,7 +121,7 @@ jobs:
           ldconfig
           plugin_array=(${tar_names})
           option_array=(${build_options})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Building ${plugin_array[$i]} backend:"
@@ -221,7 +221,7 @@ jobs:
           update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100
           update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-strip-15 100
           testbin_array=(${test_bins})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options}
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options}
           for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
             echo "Building ${testbin_array[$i]} :"
@@ -317,7 +317,7 @@ jobs:
             docker_tag: manylinux2014_x86_64-plugins-deps
             build_type: Release
           - name: Plugins_aarch64
-            host_runner: linux-arm64
+            host_runner: linux-arm64-v2
             docker_tag: manylinux2014_aarch64-plugins-deps
             build_type: Release
     name: Plugins (${{ matrix.docker_tag }}, g++, ${{ matrix.build_type }})
@@ -360,7 +360,7 @@ jobs:
         run: |
           source "$HOME/.cargo/env"
           testbin_array=(${test_bins_all_platforms} ${test_bins_${{ matrix.docker_tag }}})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options_all_platforms} ${build_options_${{ matrix.docker_tag }}} -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options_all_platforms} ${build_options_${{ matrix.docker_tag }}} -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
           for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
             echo "Building ${testbin_array[$i]} :"
@@ -480,7 +480,7 @@ jobs:
           export LLVM_DIR="$(brew --prefix)/opt/llvm@16/lib/cmake"
           export CC=clang
           export CXX=clang++
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options} -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options} -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl
           for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
             echo "Building ${testbin_array[$i]} :"

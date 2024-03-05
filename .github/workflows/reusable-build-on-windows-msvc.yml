@@ -8,6 +8,7 @@ on:
         required: true
       release:
         type: boolean
+        
 permissions:
   contents: read
 jobs:

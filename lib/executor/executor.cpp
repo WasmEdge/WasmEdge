@@ -85,8 +85,14 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
   const auto &FuncType = FuncInst->getFuncType();
   const auto &PTypes = FuncType.getParamTypes();
   const auto &RTypes = FuncType.getReturnTypes();
-  if (!AST::TypeMatcher::matchTypes(FuncInst->getModule()->getTypeList(),
-                                    ParamTypes, PTypes)) {
+  // The defined type list may be empty if the function is an independent
+  // function instance, that is, the module instance will be nullptr. For this
+  // case, all of value types are number types or abstract heap types.
+  WasmEdge::Span<const WasmEdge::AST::SubType *const> TypeList = {};
+  if (FuncInst->getModule()) {
+    TypeList = FuncInst->getModule()->getTypeList();
+  }
+  if (!AST::TypeMatcher::matchTypes(TypeList, ParamTypes, PTypes)) {
     spdlog::error(ErrCode::Value::FuncSigMismatch);
     spdlog::error(ErrInfo::InfoMismatch(
         PTypes, RTypes, std::vector(ParamTypes.begin(), ParamTypes.end()),

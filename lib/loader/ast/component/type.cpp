@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2023 Second State INC
 
+#include "ast/component/type.h"
 #include "common/errcode.h"
 #include "loader/loader.h"
 #include "spdlog/spdlog.h"
 
-#include <cstdint>
+#include <optional>
 
 namespace WasmEdge {
 namespace Loader {
@@ -13,23 +14,12 @@ namespace Loader {
 using namespace WasmEdge::AST::Component;
 
 Expect<void> Loader::loadLabel(std::string &Label) {
-  // label' ::= len:<u32> l:<label>
-  // the length of loaded name must has same value as predicate value
-  auto RLen = FMgr.readU32();
-  if (!RLen) {
-    return logLoadError(ErrCode::Value::MalformedRecordType,
-                        FMgr.getLastOffset(), ASTNodeAttr::DefType);
-  }
   auto RName = FMgr.readName();
   if (!RName) {
     return logLoadError(ErrCode::Value::MalformedRecordType,
                         FMgr.getLastOffset(), ASTNodeAttr::DefType);
   }
   Label = *RName;
-  if (unlikely(Label.size() != *RLen)) {
-    return logLoadError(ErrCode::Value::MalformedRecordType,
-                        FMgr.getLastOffset(), ASTNodeAttr::DefType);
-  }
   return {};
 }
 
@@ -322,20 +312,19 @@ Expect<void> Loader::loadType(ComponentType &Ty) {
 }
 
 Expect<void> Loader::loadComponentDecl(ComponentDecl &Decl) {
-  auto Pos = FMgr.getLastOffset();
-  auto Res = FMgr.readByte();
+  auto Res = FMgr.peekByte();
   if (!Res) {
     return Unexpect(Res);
   } else if (*Res != 0x03U) {
-    FMgr.seek(Pos);
     return loadInstanceDecl(Decl.emplace<InstanceDecl>());
   } else {
+    FMgr.readByte();
     return loadImportDecl(Decl.emplace<ImportDecl>());
   }
 }
 
 Expect<void> Loader::loadImportDecl(ImportDecl &Decl) {
-  if (auto Res = loadImportExportName(Decl.getImportName()); !Res) {
+  if (auto Res = loadImportName(Decl.getImportName()); !Res) {
     return Unexpect(Res);
   }
   return loadExternDesc(Decl.getExternDesc());
@@ -345,21 +334,18 @@ Expect<void> Loader::loadType(ResultList &Ty) {
   if (auto RTag = FMgr.readByte()) {
     switch (*RTag) {
     case 0x00: {
-      ValueType V;
-      if (auto Res = loadType(V); !Res) {
+      if (auto Res = loadType(Ty.emplace<ValueType>()); !Res) {
         return Unexpect(Res);
       }
-      Ty.emplace<ValueType>(V);
       break;
     }
     case 0x01: {
-      std::vector<LabelValType> RList;
       if (auto Res = loadVec<TypeSection>(
-              RList, [this](LabelValType LV) { return loadType(LV); });
+              Ty.emplace<std::vector<LabelValType>>(),
+              [this](LabelValType LV) { return loadType(LV); });
           !Res) {
         return Unexpect(Res);
       }
-      Ty.emplace<std::vector<LabelValType>>(RList);
       break;
     }
     default:
@@ -398,10 +384,11 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
   }
   switch (*RTag) {
   case 0x00: {
-    // TODO core:type
-    spdlog::error("component model core:type in type section is incomplete");
-    return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
-                        ASTNodeAttr::InstanceDecl);
+    if (auto Res = loadType(Decl.emplace<CoreType>()); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::InstanceDecl));
+      return Unexpect(Res);
+    }
+    break;
   }
   case 0x01: {
     DefType Ty;
@@ -421,7 +408,7 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
   }
   case 0x04: {
     ExportDecl &Ed = Decl.emplace<ExportDecl>();
-    if (auto Res = loadImportExportName(Ed.getExportName()); !Res) {
+    if (auto Res = loadExportName(Ed.getExportName()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::InstanceDecl));
       return Unexpect(Res);
     }
@@ -440,7 +427,30 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
   return {};
 }
 
-Expect<void> Loader::loadImportExportName(std::string &Name) {
+Expect<void> Loader::loadImportName(std::string &Name) {
+  if (auto Res = FMgr.readByte(); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Name));
+    return Unexpect(Res);
+  } else if (*Res != 0x01) {
+    return logLoadError(ErrCode::Value::MalformedName, FMgr.getLastOffset(),
+                        ASTNodeAttr::Name);
+  }
+  if (auto Res = FMgr.readName(); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Name));
+    return Unexpect(Res);
+  } else {
+    Name = *Res;
+    return {};
+  }
+}
+Expect<void> Loader::loadExportName(std::string &Name) {
+  if (auto Res = FMgr.readByte(); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Name));
+    return Unexpect(Res);
+  } else if (*Res != 0x00) {
+    return logLoadError(ErrCode::Value::MalformedName, FMgr.getLastOffset(),
+                        ASTNodeAttr::Name);
+  }
   if (auto Res = FMgr.readName(); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Name));
     return Unexpect(Res);
@@ -470,7 +480,9 @@ Expect<void> Loader::loadExternDesc(ExternDesc &Desc) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
       return Unexpect(Res);
     } else {
-      Desc.emplace<TypeIndex>(*Res);
+      DescTypeIndex &T = Desc.emplace<DescTypeIndex>();
+      T.getKind() = static_cast<IndexKind>(*RTag);
+      T.getIndex() = *Res;
     }
     break;
   case 0x01:
@@ -479,7 +491,9 @@ Expect<void> Loader::loadExternDesc(ExternDesc &Desc) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
       return Unexpect(Res);
     } else {
-      Desc.emplace<TypeIndex>(*Res);
+      DescTypeIndex &T = Desc.emplace<DescTypeIndex>();
+      T.getKind() = static_cast<IndexKind>(*RTag);
+      T.getIndex() = *Res;
     }
     break;
   case 0x02:
@@ -491,36 +505,49 @@ Expect<void> Loader::loadExternDesc(ExternDesc &Desc) {
     break;
   case 0x03:
     // | 0x03 b:<typebound>                      => (type b)
-    if (auto Res = FMgr.readU32(); !Res) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
-      return Unexpect(Res);
-    } else {
-      Desc = *Res;
-    }
-    break;
-  case 0x04:
-    // | 0x04 i:<typeidx>                        => (component (type i))
-    // typebound     ::= 0x00 i:<typeidx>        => (eq i)
-    // | 0x01                                    => (sub resource)
+    //
+    // typebound     ::=
+    //   | 0x00 i:<typeidx>        => (eq i)
+    //   | 0x01                    => (sub resource)
     if (auto Res = FMgr.readByte(); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
       return Unexpect(Res);
     } else if (*Res == 0x00) {
-      Desc.emplace<TypeIndex>(*Res);
-      break;
+      if (auto ResIdx = FMgr.readU32()) {
+        TypeBound &T = Desc.emplace<TypeBound>();
+        T = *ResIdx;
+      } else {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
+        return Unexpect(ResIdx);
+      }
     } else if (*Res == 0x01) {
-      break;
+      TypeBound &T = Desc.emplace<TypeBound>();
+      T = std::nullopt;
     } else {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
       return Unexpect(Res);
     }
+    break;
+  case 0x04:
+    // | 0x04 i:<typeidx>                        => (component (type i))
+    if (auto Res = FMgr.readU32(); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
+      return Unexpect(Res);
+    } else {
+      DescTypeIndex &T = Desc.emplace<DescTypeIndex>();
+      T.getKind() = static_cast<IndexKind>(*RTag);
+      T.getIndex() = *Res;
+    }
+    break;
   case 0x05:
     // | 0x05 i:<typeidx>                        => (instance (type i))
     if (auto Res = FMgr.readU32(); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::ExternDesc));
       return Unexpect(Res);
     } else {
-      Desc.emplace<TypeIndex>(*Res);
+      DescTypeIndex &T = Desc.emplace<DescTypeIndex>();
+      T.getKind() = static_cast<IndexKind>(*RTag);
+      T.getIndex() = *Res;
     }
     break;
   default:
@@ -577,7 +604,7 @@ Expect<void> Loader::loadModuleDecl(ModuleDecl &Decl) {
 }
 
 Expect<void> Loader::loadExportDecl(CoreExportDecl &Decl) {
-  if (auto Res = loadImportExportName(Decl.getName()); !Res) {
+  if (auto Res = loadExportName(Decl.getName()); !Res) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Module);
   }

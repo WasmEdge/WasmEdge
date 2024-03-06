@@ -10,7 +10,9 @@ on:
       - master
     paths:
       - ".github/workflows/build.yml"
-      - ".github/workflows/reusable**"
+      - ".github/workflows/reusable-build-on-**"
+      - ".github/workflows/reusable-call-linter.yml"
+      - ".github/workflows/reusable-create-source-tarball.yml"
       - "include/**"
       - "lib/**"
       - "plugins/**"
@@ -25,7 +27,9 @@ on:
       - "proposal/**"
     paths:
       - ".github/workflows/build.yml"
-      - ".github/workflows/reusable**"
+      - ".github/workflows/reusable-build-on-**"
+      - ".github/workflows/reusable-call-linter.yml"
+      - ".github/workflows/reusable-create-source-tarball.yml"
       - "include/**"
       - "lib/**"
       - "plugins/**"
@@ -34,6 +38,9 @@ on:
       - "tools/**"
       - "CMakeLists.txt"
       - "cmake/**"
+
+permissions:
+  contents: read
 
 jobs:
   # TODO: Refactor `lint` with `on.workflow_run`
@@ -63,6 +70,8 @@ jobs:
           echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> $GITHUB_OUTPUT
 
   create_source_tarball:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Source Tarball
     uses: ./.github/workflows/reusable-create-source-tarball.yml
@@ -70,24 +79,30 @@ jobs:
       version: ${{ needs.get_version.outputs.version }}
 
   build_on_macos:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: macOS
     uses: ./.github/workflows/reusable-build-on-macos.yml
     with:
       version: ${{ needs.get_version.outputs.version }}
       matrix: "[{'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21,'arch':'x86_64'},
-                {'name':'MacOS 13 (arm64)','runner':'mac-arm64','darwin_version':22,'arch':'arm64'}]"
+                {'name':'MacOS 13 (arm64)','runner':'macos-14','darwin_version':22,'arch':'arm64'}]"
 
   build_on_manylinux_2014:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Manylinux2014
     uses: ./.github/workflows/reusable-build-on-manylinux.yml
     with:
       version: ${{ needs.get_version.outputs.version }}
       matrix: "[{'name':'manylinux 2014 x86_64','runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},
-                {'name':'manylinux 2014 aarch64','runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
+                {'name':'manylinux 2014 aarch64','runner':'linux-arm64-v2','docker_tag':'manylinux2014_aarch64'}]"
 
   build_on_debian_static:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Debian (static)
     uses: ./.github/workflows/reusable-build-on-debian-static.yml
@@ -95,6 +110,8 @@ jobs:
       version: ${{ needs.get_version.outputs.version }}
 
   build_on_alpine_static:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Alpine (static)
     uses: ./.github/workflows/reusable-build-on-alpine-static.yml
@@ -102,6 +119,8 @@ jobs:
       version: ${{ needs.get_version.outputs.version }}
 
   build_on_ubuntu_22_04:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Ubuntu
     uses: ./.github/workflows/reusable-build-on-ubuntu.yml
@@ -115,6 +134,8 @@ jobs:
                 {'name':'ubuntu-22.04-coverage','compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-build-gcc','coverage':true,'tests':true}]"
 
   build_on_windows:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Windows
     uses: ./.github/workflows/reusable-build-on-windows.yml
@@ -122,6 +143,8 @@ jobs:
       version: ${{ needs.get_version.outputs.version }}
 
   build_on_windows_msvc:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Windows-MSVC
     uses: ./.github/workflows/reusable-build-on-windows-msvc.yml
@@ -129,6 +152,8 @@ jobs:
       version: ${{ needs.get_version.outputs.version }}
 
   build_on_android:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Android
     uses: ./.github/workflows/reusable-build-on-android.yml
@@ -136,6 +161,8 @@ jobs:
       version: ${{ needs.get_version.outputs.version }}
 
   build_on_fedora:
+    permissions:
+      contents: write
     needs: [get_version, lint]
     name: Fedora
     uses: ./.github/workflows/reusable-build-on-fedora.yml

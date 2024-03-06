@@ -51,7 +51,6 @@ find_package(Threads REQUIRED)
 # List of WasmEdge options
 option(WASMEDGE_BUILD_TESTS "Generate build targets for the wasmedge unit tests." OFF)
 option(WASMEDGE_BUILD_COVERAGE "Generate coverage report. Require WASMEDGE_BUILD_TESTS." OFF)
-option(WASMEDGE_BUILD_AOT_RUNTIME "Enable WasmEdge LLVM-based ahead of time compilation runtime." ON)
 option(WASMEDGE_BUILD_SHARED_LIB "Generate the WasmEdge shared library." ON)
 option(WASMEDGE_BUILD_STATIC_LIB "Generate the WasmEdge static library." OFF)
 option(WASMEDGE_BUILD_TOOLS "Generate wasmedge and wasmedgec tools. Depend on and will build the WasmEdge shared library." ON)
@@ -59,6 +58,12 @@ option(WASMEDGE_BUILD_FUZZING "Generate fuzzing test tools. Couldn't build with 
 option(WASMEDGE_BUILD_PLUGINS "Generate plugins." ON)
 option(WASMEDGE_BUILD_EXAMPLE "Generate examples." OFF)
 option(WASMEDGE_BUILD_WASI_NN_RPC "Generate Wasi-NN RPC." OFF)
+option(WASMEDGE_USE_LLVM "Enable WasmEdge LLVM-based compilation runtime." ON)
+if(WASMEDGE_BUILD_AOT_RUNTIME)
+  message(WARNING "WASMEDGE_BUILD_AOT_RUNTIME option was renamed to WASMEDGE_USE_LLVM")
+  set(WASMEDGE_USE_LLVM "${WASMEDGE_BUILD_AOT_RUNTIME}" CACHE STRING "Enable WasmEdge LLVM-based compilation runtime.")
+  unset(WASMEDGE_BUILD_AOT_RUNTIME CACHE)
+endif()
 option(WASMEDGE_FORCE_DISABLE_LTO "Forcefully disable link time optimization when linking even in Release/RelWithDeb build." OFF)
 option(WASMEDGE_LINK_LLVM_STATIC "Statically link the LLVM library into the WasmEdge tools and libraries." OFF)
 option(WASMEDGE_LINK_TOOLS_STATIC "Statically link the wasmedge and wasmedgec tools. Will forcefully link the LLVM library statically." OFF)
@@ -71,6 +76,7 @@ option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL "Enable LLAMA_METAL in the WASI-
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge Wasi-crypto plugin." OFF)
 option(WASMEDGE_PLUGIN_WASI_LOGGING "Enable WasmEdge wasi-logging plugin." OFF)
 option(WASMEDGE_PLUGIN_WASM_BPF "Enable WasmEdge wasm-bpf plugin." OFF)
+option(WASMEDGE_PLUGIN_WASI_OCR "Enable WasmEdge wasm-ocr plugin." OFF)
 option(WASMEDGE_PLUGIN_OPENCVMINI "Enable WasmEdge opencvmini plugin." OFF)
 option(WASMEDGE_PLUGIN_PROCESS "Enable WasmEdge process plugin." OFF)
 option(WASMEDGE_PLUGIN_IMAGE "Enable WasmEdge image plugin." OFF)
@@ -111,22 +117,23 @@ if(WASMEDGE_BUILD_PLUGINS)
   endif()
 endif()
 
-# * Homebrew: grpc
-# * Debian, Ubuntu: libgrpc-dev, libgrpc++-dev
-find_package(PkgConfig)
-if(PkgConfig_FOUND)
-  pkg_check_modules(gRPCPP grpc++)
-endif()
-# Do not check find_package(gRPC), because libgrpc-dev for Ubuntu 22.04 does not contain cmake files.
-# https://packages.ubuntu.com/search?keywords=libgrpc-dev
-# Do not check find_package(protobuf), because libprotobuf-dev for Ubuntu does not contain cmake files.
-# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1027876
-if(gRPCPP_FOUND AND WASMEDGE_BUILD_SHARED_LIB)
-  message(STATUS "Setting WASMEDGE_BUILD_WASI_NN_RPC to ON. If you see an error related to gRPC or protobuf, try setting this to OFF.")
-  set(WASMEDGE_BUILD_WASI_NN_RPC ON)
-endif()
-if(WASMEDGE_BUILD_WASI_NN_RPC AND NOT WASMEDGE_BUILD_SHARED_LIB)
-  message(FATAL_ERROR "WASMEDGE_BUILD_WASI_NN_RPC depends on WASMEDGE_BUILD_SHARED_LIB")
+if(WASMEDGE_BUILD_WASI_NN_RPC)
+  # * Homebrew: grpc
+  # * Debian, Ubuntu: libgrpc-dev, libgrpc++-dev
+  find_package(PkgConfig)
+  if(PkgConfig_FOUND)
+    pkg_check_modules(gRPCPP grpc++)
+  endif()
+  # Do not check find_package(gRPC), because libgrpc-dev for Ubuntu 22.04 does not contain cmake files.
+  # https://packages.ubuntu.com/search?keywords=libgrpc-dev
+  # Do not check find_package(protobuf), because libprotobuf-dev for Ubuntu does not contain cmake files.
+  # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1027876
+  if(gRPCPP_FOUND AND WASMEDGE_BUILD_SHARED_LIB)
+    message(STATUS "If you see an error related to gRPC or protobuf, try setting WASMEDGE_BUILD_WASI_NN_RPC to OFF.")
+  endif()
+  if(WASMEDGE_BUILD_WASI_NN_RPC AND NOT WASMEDGE_BUILD_SHARED_LIB)
+    message(FATAL_ERROR "WASMEDGE_BUILD_WASI_NN_RPC depends on WASMEDGE_BUILD_SHARED_LIB")
+  endif()
 endif()
 
 set(WASMEDGE_BUILD_PACKAGE "DEB;RPM" CACHE STRING "Package generate types")
@@ -182,4 +189,3 @@ endif()
 
 include(CPack)
 include(CPackComponent)
-

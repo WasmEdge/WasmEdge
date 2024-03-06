@@ -157,9 +157,9 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .AddOptions = addOptions,
 };
 
-} // namespace WASINN
+EXPORT_GET_DESCRIPTOR(Descriptor)
 
-Plugin::PluginRegister WASINN::WasiNNEnvironment::Register(&Descriptor);
+} // namespace WASINN
 
 } // namespace Host
 } // namespace WasmEdge

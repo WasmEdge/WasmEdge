@@ -76,7 +76,7 @@ function(wasmedge_copy_spec_testsuite proposal)
   message(STATUS "Copying test suite to ${CMAKE_CURRENT_BINARY_DIR}/testSuites/${proposal} -- done")
 endfunction()
 
-foreach(PROPOSAL core multi-memory tail-call extended-const threads function-references)
+foreach(PROPOSAL core multi-memory tail-call extended-const threads function-references gc)
   wasmedge_copy_spec_testsuite(${PROPOSAL})
 endforeach()
 
@@ -86,7 +86,7 @@ wasmedge_add_library(wasmedgeTestSpec
 
 target_link_libraries(wasmedgeTestSpec
   PRIVATE
-  simdjson
+  simdjson::simdjson
   PUBLIC
   std::filesystem
   wasmedgeCommon

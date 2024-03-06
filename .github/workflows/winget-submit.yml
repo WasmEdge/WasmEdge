@@ -5,8 +5,13 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: read
+
 jobs:
   winget:
+    permissions:
+      packages: write
     name: Publish WinGet Package
     runs-on: windows-latest
     steps:

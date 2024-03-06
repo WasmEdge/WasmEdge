@@ -17,10 +17,9 @@
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/errinfo.h"
-#include "common/log.h"
 #include "loader/filemgr.h"
-#include "loader/ldmgr.h"
 #include "loader/serialize.h"
+#include "loader/shared_library.h"
 
 #include <cstdint>
 #include <memory>
@@ -74,6 +73,15 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::DataCountSection>() noexcept {
   return ASTNodeAttr::Sec_DataCount;
 }
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::SubType>() noexcept {
+  return ASTNodeAttr::Type_Rec;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::FunctionType>() noexcept {
+  return ASTNodeAttr::Type_Function;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::ElementSegment>() noexcept {
+  return ASTNodeAttr::Seg_Element;
+}
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::AliasSection>() noexcept {
   return ASTNodeAttr::Sec_Alias;
@@ -86,6 +94,10 @@ NodeAttrFromAST<AST::Component::CoreInstanceSection>() noexcept {
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::InstanceSection>() noexcept {
   return ASTNodeAttr::Sec_Instance;
+}
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::CoreTypeSection>() noexcept {
+  return ASTNodeAttr::Sec_Type;
 }
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::TypeSection>() noexcept {
@@ -107,6 +119,15 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::ExportSection>() noexcept {
   return ASTNodeAttr::Sec_CompExport;
 }
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::CoreModuleSection>() noexcept {
+  return ASTNodeAttr::Sec_CoreMod;
+}
+template <>
+inline ASTNodeAttr
+NodeAttrFromAST<AST::Component::ComponentSection>() noexcept {
+  return ASTNodeAttr::Sec_Comp;
+}
 
 } // namespace
 
@@ -114,17 +135,19 @@ inline ASTNodeAttr NodeAttrFromAST<AST::Component::ExportSection>() noexcept {
 class Loader {
 public:
   Loader(const Configure &Conf,
-         const AST::Module::IntrinsicsTable *IT = nullptr) noexcept
-      : Conf(Conf), Ser(Conf), LMgr(IT), IntrinsicsTable(IT) {}
+         const Executable::IntrinsicsTable *IT = nullptr) noexcept
+      : Conf(Conf), Ser(Conf), IntrinsicsTable(IT) {}
   ~Loader() noexcept = default;
 
   /// Load data from file path.
   static Expect<std::vector<Byte>>
   loadFile(const std::filesystem::path &FilePath);
 
-  Expect<std::variant<AST::Component::Component, AST::Module>>
+  Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                      std::unique_ptr<AST::Module>>>
   parseWasmUnit(const std::filesystem::path &FilePath);
-  Expect<std::variant<AST::Component::Component, AST::Module>>
+  Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                      std::unique_ptr<AST::Module>>>
   parseWasmUnit(Span<const uint8_t> Code);
 
   /// Parse component from file path.
@@ -146,10 +169,11 @@ public:
   Expect<std::vector<Byte>> serializeModule(const AST::Module &Mod);
 
   /// Reset status.
-  void reset() noexcept {
-    FMgr.reset();
-    LMgr.reset();
-  }
+  void reset() noexcept { FMgr.reset(); }
+
+  /// Setup Symbol from an Exetuable.
+  Expect<void> loadExecutable(AST::Module &Mod,
+                              std::shared_ptr<Executable> Library);
 
 private:
   /// \name Helper functions to print error log when loading AST nodes
@@ -172,100 +196,91 @@ private:
   }
   /// @}
 
-  Expect<std::variant<AST::Component::Component, AST::Module>> loadUnit();
-  Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> loadPreamble();
-
-  /// \name Load AST Component functions
-  /// @{
-  Expect<void> loadComponent(AST::Component::Component &Comp);
-  /// @}
-
   /// \name Load AST Module functions
   /// @{
+  Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                      std::unique_ptr<AST::Module>>>
+  loadUnit();
+  Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> loadPreamble();
   Expect<void> loadModule(AST::Module &Mod);
-  Expect<void> loadCompiled(AST::Module &Mod);
+  Expect<void> loadModuleInBound(AST::Module &Mod,
+                                 std::optional<uint64_t> Bound);
+  Expect<void> loadUniversalWASM(AST::Module &Mod);
+  Expect<void> loadModuleAOT(AST::AOTSection &AOTSection);
+  Expect<void> loadComponent(AST::Component::Component &Comp);
   /// @}
 
   /// \name Load AST section node helper functions
   /// @{
-  Expect<void> loadUniversalWASM(AST::Module &Mod);
-  Expect<void> loadModuleAOT(AST::AOTSection &AOTSection);
+  Expect<uint32_t> loadVecCnt() {
+    // Read the vector size.
+    if (auto Res = FMgr.readU32()) {
+      if ((*Res) / 2 > FMgr.getRemainSize()) {
+        return Unexpect(ErrCode::Value::IntegerTooLong);
+      }
+      return *Res;
+    } else {
+      return Unexpect(Res);
+    }
+  }
 
-  Expect<uint32_t> loadSectionSize(ASTNodeAttr Node);
-  template <typename T, typename L>
-  Expect<void> loadSectionContent(T &Sec, L &&Func) {
+  template <typename ASTType, typename T, typename ElemLoader>
+  Expect<void> loadVec(std::vector<T> &Vec, ElemLoader &&Func) {
+    uint32_t VecCnt = 0;
+    // Read the vector size.
+    if (auto Res = loadVecCnt()) {
+      VecCnt = *Res;
+      Vec.resize(*Res);
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          NodeAttrFromAST<ASTType>());
+    }
+
+    // Sequently create the AST node T and read data.
+    for (uint32_t I = 0; I < VecCnt; ++I) {
+      if (auto Res = Func(Vec[I]); !Res) {
+        spdlog::error(ErrInfo::InfoAST(NodeAttrFromAST<ASTType>()));
+        return Unexpect(Res);
+      }
+    }
+    return {};
+  }
+
+  template <typename T, typename ElemLoader>
+  Expect<void> loadSectionContent(T &Sec, ElemLoader &&Func) {
     Sec.setStartOffset(FMgr.getOffset());
-    if (auto Res = loadSectionSize(NodeAttrFromAST<T>())) {
+    if (auto Res = FMgr.readU32()) {
+      // Load the section size first.
+      if (unlikely(FMgr.getRemainSize() < (*Res))) {
+        return logLoadError(ErrCode::Value::LengthOutOfBounds,
+                            FMgr.getLastOffset(), NodeAttrFromAST<T>());
+      }
       // Set the section size.
       Sec.setContentSize(*Res);
       auto StartOffset = FMgr.getOffset();
+      // Invoke the callback function.
       auto ResContent = Func();
       if (!ResContent) {
         return Unexpect(ResContent);
       }
-      // Check the read size match the section size.
+      // Check the read size matches the section size.
       auto EndOffset = FMgr.getOffset();
       if (EndOffset - StartOffset != Sec.getContentSize()) {
         return logLoadError(ErrCode::Value::SectionSizeMismatch, EndOffset,
                             NodeAttrFromAST<T>());
       }
     } else {
-      return Unexpect(Res);
-    }
-    return {};
-  }
-  template <typename T, typename L>
-  Expect<void> loadSectionContentVec(T &Sec, L &&Func) {
-    uint32_t VecCnt = 0;
-    // Read the vector size.
-    if (auto Res = FMgr.readU32()) {
-      VecCnt = *Res;
-      if (VecCnt / 2 > FMgr.getRemainSize()) {
-        return logLoadError(ErrCode::Value::IntegerTooLong,
-                            FMgr.getLastOffset(), NodeAttrFromAST<T>());
-      }
-      Sec.getContent().resize(VecCnt);
-    } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           NodeAttrFromAST<T>());
     }
-
-    // Sequently create the AST node T and read data.
-    for (uint32_t I = 0; I < VecCnt; ++I) {
-      if (auto Res = Func(Sec.getContent()[I]); !Res) {
-        spdlog::error(ErrInfo::InfoAST(NodeAttrFromAST<T>()));
-        return Unexpect(Res);
-      }
-    }
     return {};
   }
 
-  template <typename T, typename C, typename L>
-  Expect<void> loadVec(std::vector<C> &Vec, L &&Func) {
-    uint32_t VecCnt = 0;
-    // Read the vector size.
-    if (auto Res = FMgr.readU32()) {
-      VecCnt = *Res;
-      if (VecCnt / 2 > FMgr.getRemainSize()) {
-        return logLoadError(ErrCode::Value::IntegerTooLong,
-                            FMgr.getLastOffset(), NodeAttrFromAST<T>());
-      }
-      Vec.resize(VecCnt);
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          NodeAttrFromAST<T>());
-    }
-
-    // Sequently create the AST node T and read data.
-    for (uint32_t I = 0; I < VecCnt; ++I) {
-      if (auto Res = Func(Vec[I]); !Res) {
-        spdlog::error(ErrInfo::InfoAST(NodeAttrFromAST<T>()));
-        return Unexpect(Res);
-      }
-    }
-
-    return {};
+  template <typename T, typename ElemLoader>
+  Expect<void> loadSectionContentVec(T &Sec, ElemLoader &&Func) {
+    return loadVec<T>(Sec.getContent(), std::move(Func));
   }
+  /// @}
 
   /// \name Load AST nodes functions
   /// @{
@@ -282,10 +297,14 @@ private:
   Expect<void> loadSection(AST::CodeSection &Sec);
   Expect<void> loadSection(AST::DataSection &Sec);
   Expect<void> loadSection(AST::DataCountSection &Sec);
+  Expect<void> loadSection(AST::Component::ComponentSection &Sec);
+  Expect<void> loadSection(AST::CoreModuleSection &Sec);
   Expect<void> loadSection(AST::Component::CoreInstanceSection &Sec);
   Expect<void> loadSection(AST::Component::InstanceSection &Sec);
   Expect<void> loadSection(AST::Component::AliasSection &Sec);
+  Expect<void> loadSection(AST::Component::CoreTypeSection &Sec);
   Expect<void> loadSection(AST::Component::TypeSection &Sec);
+  Expect<void> loadSection(AST::Component::StartSection &Sec);
   Expect<void> loadSection(AST::Component::CanonSection &Sec);
   Expect<void> loadSection(AST::Component::ImportSection &Sec);
   Expect<void> loadSection(AST::Component::ExportSection &Sec);
@@ -305,8 +324,12 @@ private:
   Expect<void> loadDesc(AST::ExportDesc &ExpDesc);
   Expect<ValType> loadHeapType(TypeCode TC, ASTNodeAttr From);
   Expect<ValType> loadRefType(ASTNodeAttr From);
-  Expect<ValType> loadValType(ASTNodeAttr From);
+  Expect<ValType> loadValType(ASTNodeAttr From, bool IsStorageType = false);
+  Expect<ValMut> loadMutability(ASTNodeAttr From);
+  Expect<void> loadFieldType(AST::FieldType &FType);
+  Expect<void> loadCompositeType(AST::CompositeType &CType);
   Expect<void> loadLimit(AST::Limit &Lim);
+  Expect<void> loadType(AST::SubType &SType);
   Expect<void> loadType(AST::FunctionType &FuncType);
   Expect<void> loadType(AST::MemoryType &MemType);
   Expect<void> loadType(AST::TableType &TabType);
@@ -361,8 +384,8 @@ private:
   Expect<void> loadImportDecl(AST::Component::ImportDecl &Decl);
   Expect<void> loadInstanceDecl(AST::Component::InstanceDecl &Decl);
   Expect<void> loadExternDesc(AST::Component::ExternDesc &Desc);
-  Expect<void> loadImportExportName(std::string &Name);
-  Expect<void> loadImportExportNameWithLen(std::string &Name);
+  Expect<void> loadExportName(std::string &Name);
+  Expect<void> loadImportName(std::string &Name);
   Expect<void> loadStart(AST::Component::Start &S);
   Expect<void> loadCoreInstance(AST::Component::CoreInstanceExpr &InstanceExpr);
   Expect<void> loadInstance(AST::Component::InstanceExpr &InstanceExpr);
@@ -394,8 +417,7 @@ private:
   const Configure Conf;
   const Serializer Ser;
   FileMgr FMgr;
-  LDMgr LMgr;
-  const AST::Module::IntrinsicsTable *IntrinsicsTable;
+  const Executable::IntrinsicsTable *IntrinsicsTable;
   std::recursive_mutex Mutex;
   bool HasDataSection;
 

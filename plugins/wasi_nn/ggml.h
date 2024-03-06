@@ -9,6 +9,7 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 #include <common.h>
 #include <llama.h>
+#include <llava.h>
 #endif
 
 namespace WasmEdge::Host::WASINN {
@@ -22,20 +23,28 @@ struct Graph {
   llama_model *LlamaModel = nullptr;
   std::string ModelFilePath;
   // Plugin parameters:
-  bool EnableLog;
-  bool EnableDebugLog;
-  bool StreamStdout;
+  bool EnableLog = false;
+  bool EnableDebugLog = false;
+  bool StreamStdout = false;
+  bool Embedding = false;
   uint64_t NPredict;
   std::string ReversePrompt;
+  std::string MMProjModelPath;
+  std::string ImagePath;
   // Model parameters:
-  int64_t NGPULayers;
+  int64_t MainGPU = 0; // Use GPU 0 by default
+  int64_t NGPULayers = 0;
+  std::vector<float> TensorSplit;
   // Context parameters:
   uint64_t CtxSize;
   uint64_t BatchSize;
   uint64_t Threads;
-  // Sampleing parameters:
-  double Temp;
-  double RepeatPenalty;
+  // Sampling parameters:
+  double Temp = 0.80;
+  double TopP = 0.95;
+  double RepeatPenalty = 1.10;
+  double PresencePenalty = 0.00;
+  double FrequencyPenalty = 0.00;
 };
 
 struct Context {
@@ -43,14 +52,16 @@ public:
   Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
   size_t GraphId;
   std::vector<llama_token> LlamaInputs;
+  uint64_t LlamaNInputs = 0;
   std::string LlamaOutputs;
   std::vector<llama_token> LlamaOutputTokens;
   // Preserve for computing single token
   llama_context *LlamaContext = nullptr;
   struct llama_sampling_context *LlamaSampling = nullptr;
-  std::vector<llama_token> LlamaEmbd;
-  uint64_t LlamaNPast;
-  uint64_t LlamaNConsumed;
+  int32_t LlamaNPast = 0;
+  // Preserve for llava
+  struct llava_image_embed *LlavaImageEmbd = nullptr;
+  size_t LlavaImagePosition = 0;
 };
 #else
 struct Graph {};

@@ -49,16 +49,16 @@ public:
   /// Getter of stack size.
   size_t size() const noexcept { return ValueStack.size(); }
 
-  /// Unsafe Getter of top entry of stack.
+  /// Unsafe getter of top entry of stack.
   Value &getTop() { return ValueStack.back(); }
 
-  /// Unsafe Getter of top N-th value entry of stack.
+  /// Unsafe getter of top N-th value entry of stack.
   Value &getTopN(uint32_t Offset) noexcept {
     assuming(0 < Offset && Offset <= ValueStack.size());
     return ValueStack[ValueStack.size() - Offset];
   }
 
-  /// Unsafe Getter of top N value entries of stack.
+  /// Unsafe getter of top N value entries of stack.
   Span<Value> getTopSpan(uint32_t N) {
     return Span<Value>(ValueStack.end() - N, N);
   }
@@ -68,11 +68,20 @@ public:
     ValueStack.push_back(std::forward<T>(Val));
   }
 
-  /// Unsafe Pop and return the top entry.
+  /// Unsafe pop and return the top entry.
   Value pop() {
     Value V = std::move(ValueStack.back());
     ValueStack.pop_back();
     return V;
+  }
+
+  /// Unsafe pop and return the top N entries.
+  std::vector<Value> pop(uint32_t N) {
+    std::vector<Value> Vec;
+    Vec.reserve(N);
+    std::move(ValueStack.end() - N, ValueStack.end(), std::back_inserter(Vec));
+    ValueStack.erase(ValueStack.end() - N, ValueStack.end());
+    return Vec;
   }
 
   /// Push a new frame entry to stack.

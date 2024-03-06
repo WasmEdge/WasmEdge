@@ -152,28 +152,34 @@ parseValueList(const simdjson::dom::array &Args) {
 #else
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I8x16);
 #endif
+      } else {
+        assumingUnreachable();
       }
       Result.emplace_back(I64x2);
       ResultTypes.emplace_back(WasmEdge::TypeCode::V128);
     } else if (Value.type() == simdjson::dom::element_type::STRING) {
       std::string_view ValueStr = Value;
-      if (Type == "externref"sv) {
+      if (Type == "externref"sv || Type == "anyref"sv) {
+        WasmEdge::TypeCode Code = Type == "externref"sv
+                                      ? WasmEdge::TypeCode::ExternRef
+                                      : WasmEdge::TypeCode::AnyRef;
         if (Value == "null"sv) {
-          Result.emplace_back(WasmEdge::RefVariant());
+          Result.emplace_back(WasmEdge::RefVariant(Code));
         } else {
-          // Add 0x1 uint32_t prefix in this externref index case.
-          Result.emplace_back(WasmEdge::RefVariant(reinterpret_cast<void *>(
-              std::stoul(std::string(ValueStr)) + 0x100000000ULL)));
+          // ExternRef and AnyRef are non-opaque references. Add 0x1 uint32_t
+          // prefix in this case to present non-null.
+          Result.emplace_back(WasmEdge::RefVariant(
+              Code, reinterpret_cast<void *>(std::stoul(std::string(ValueStr)) +
+                                             0x100000000ULL)));
         }
-        ResultTypes.emplace_back(WasmEdge::TypeCode::ExternRef);
+        ResultTypes.emplace_back(Code);
       } else if (Type == "funcref"sv) {
         if (Value == "null"sv) {
-          Result.emplace_back(WasmEdge::RefVariant());
+          Result.emplace_back(
+              WasmEdge::RefVariant(WasmEdge::TypeCode::FuncRef));
         } else {
-          // Add 0x1 uint32_t prefix in this funcref index case.
-          Result.emplace_back(WasmEdge::RefVariant(
-              reinterpret_cast<WasmEdge::Runtime::Instance::FunctionInstance *>(
-                  std::stoul(std::string(ValueStr)) + 0x100000000ULL)));
+          // Not support input value of opaque references for testing.
+          assumingUnreachable();
         }
         ResultTypes.emplace_back(WasmEdge::TypeCode::FuncRef);
       } else if (Type == "i32"sv) {
@@ -252,6 +258,7 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"threads"sv, {Proposal::Threads}},
     {"function-references"sv,
      {Proposal::FunctionReferences, Proposal::TailCall}},
+    {"gc"sv, {Proposal::GC}, WasmEdge::SpecTest::TestMode::Interpreter},
 };
 
 } // namespace
@@ -297,6 +304,21 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
                        const std::pair<ValVariant, ValType> &Got) const {
   const auto &TypeStr = Expected.first;
   const auto &ValStr = Expected.second;
+
+  auto IsRefMatch = [&ValStr](const WasmEdge::RefVariant &R) {
+    if (ValStr == "null"sv) {
+      // If explicitly expected a `null`, the reference must be null.
+      return R.isNull();
+    }
+    if (ValStr == ""sv) {
+      // Opaque expected reference. Always true.
+      return true;
+    }
+    // Explicitly expected the reference value.
+    return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
+               R.getPtr<void>())) == static_cast<uint32_t>(std::stoul(ValStr));
+  };
+
   bool IsV128 = (std::string_view(TypeStr).substr(0, 4) == "v128"sv);
   if (!IsV128 && ValStr.substr(0, 4) == "nan:"sv) {
     // Handle NaN case
@@ -312,43 +334,103 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       }
       return std::isnan(Got.first.get<double>());
     }
+  } else if (TypeStr == "ref"sv) {
+    // "ref" fits all reference types.
+    if (!Got.second.isRefType()) {
+      return false;
+    }
+    return IsRefMatch(Got.first.get<RefVariant>());
+  } else if (TypeStr == "anyref"sv) {
+    // "anyref" fits all internal reference types.
+    if (!Got.second.isRefType() || Got.second.isExternRefType()) {
+      return false;
+    }
+    return IsRefMatch(Got.first.get<RefVariant>());
+  } else if (TypeStr == "eqref"sv) {
+    // "eqref" fits eqref, structref, arrayref, i31ref, and nullref.
+    if (!Got.second.isRefType()) {
+      return false;
+    }
+    switch (Got.second.getHeapTypeCode()) {
+    case TypeCode::EqRef:
+    case TypeCode::I31Ref:
+    case TypeCode::StructRef:
+    case TypeCode::ArrayRef:
+    case TypeCode::NullRef:
+      break;
+    default:
+      return false;
+    }
+    return IsRefMatch(Got.first.get<RefVariant>());
+  } else if (TypeStr == "structref"sv) {
+    // "structref" structref and nullref.
+    if (!Got.second.isRefType()) {
+      return false;
+    }
+    switch (Got.second.getHeapTypeCode()) {
+    case TypeCode::StructRef:
+    case TypeCode::NullRef:
+      break;
+    default:
+      return false;
+    }
+    return IsRefMatch(Got.first.get<RefVariant>());
+  } else if (TypeStr == "arrayref"sv) {
+    // "arrayref" arrayref and nullref.
+    if (!Got.second.isRefType()) {
+      return false;
+    }
+    switch (Got.second.getHeapTypeCode()) {
+    case TypeCode::ArrayRef:
+    case TypeCode::NullRef:
+      break;
+    default:
+      return false;
+    }
+    return IsRefMatch(Got.first.get<RefVariant>());
+  } else if (TypeStr == "i31ref"sv) {
+    // "i31ref" i31ref and nullref.
+    if (!Got.second.isRefType()) {
+      return false;
+    }
+    switch (Got.second.getHeapTypeCode()) {
+    case TypeCode::I31Ref:
+    case TypeCode::NullRef:
+      break;
+    default:
+      return false;
+    }
+    return IsRefMatch(Got.first.get<RefVariant>());
+  } else if (TypeStr == "nullref"sv) {
+    if (!Got.second.isRefType() ||
+        Got.second.getHeapTypeCode() != TypeCode::NullRef) {
+      return false;
+    }
+    return IsRefMatch(Got.first.get<RefVariant>());
   } else if (TypeStr == "funcref"sv) {
+    // "funcref" fits funcref and nullfuncref.
     if (!Got.second.isFuncRefType()) {
       return false;
     }
-    if (ValStr == "null"sv) {
-      return Got.first.get<RefVariant>().isNull();
-    } else {
-      // Due to the implementations of the embedders, the value of FuncRef is
-      // opaque. Therefore not to compare the value here.
-      return !Got.first.get<RefVariant>().isNull();
+    return IsRefMatch(Got.first.get<RefVariant>());
+  } else if (TypeStr == "nullfuncref"sv) {
+    if (!Got.second.isRefType() ||
+        Got.second.getHeapTypeCode() != TypeCode::NullFuncRef) {
+      return false;
     }
+    return IsRefMatch(Got.first.get<RefVariant>());
   } else if (TypeStr == "externref"sv) {
+    // "externref" fits externref and nullexternref.
     if (!Got.second.isExternRefType()) {
       return false;
     }
-    if (ValStr == "null"sv) {
-      return Got.first.get<RefVariant>().isNull();
-    } else {
-      if (Got.first.get<RefVariant>().isNull()) {
-        return false;
-      }
-      return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
-                 &WasmEdge::retrieveExternRef<uint32_t>(
-                     Got.first.get<RefVariant>()))) ==
-             static_cast<uint32_t>(std::stoul(ValStr));
-    }
-  } else if (TypeStr == "ref"sv) {
-    if (!Got.second.isNullableRefType()) {
+    return IsRefMatch(Got.first.get<RefVariant>());
+  } else if (TypeStr == "nullexternref"sv) {
+    if (!Got.second.isRefType() ||
+        Got.second.getHeapTypeCode() != TypeCode::NullExternRef) {
       return false;
     }
-    if (ValStr == "null"sv) {
-      return Got.first.get<RefVariant>().isNull();
-    } else {
-      // Due to the implementations of the embedders, the value of Ref is
-      // opaque. Therefore not to compare the value here.
-      return !Got.first.get<RefVariant>().isNull();
-    }
+    return IsRefMatch(Got.first.get<RefVariant>());
   } else if (TypeStr == "i32"sv) {
     if (Got.second.getCode() != TypeCode::I32) {
       return false;

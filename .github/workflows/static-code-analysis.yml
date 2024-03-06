@@ -39,8 +39,13 @@ on:
       - "CMakeLists.txt"
       - "cmake/**"
 
+permissions:
+  contents: read
+  
 jobs:
   static_analysis:
+    permissions:
+      contents: write
     name: Run Static Code Analysis using Infer
     runs-on: ubuntu-latest
 

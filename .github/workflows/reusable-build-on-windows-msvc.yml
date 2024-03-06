@@ -8,9 +8,14 @@ on:
         required: true
       release:
         type: boolean
-
+        
+permissions:
+  contents: read
+  
 jobs:
   build_on_windows:
+    permissions:
+      contents: write
     name: Build on Windows Server 2022
     runs-on: windows-2022
     env:
@@ -26,7 +31,7 @@ jobs:
         uses: crazy-max/ghaction-chocolatey@v3
         with:
           args: install cmake ninja vswhere
-      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
+      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
         with:
           sdk-version: 19041
       - name: Set environment variables for release

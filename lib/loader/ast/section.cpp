@@ -12,19 +12,6 @@
 namespace WasmEdge {
 namespace Loader {
 
-// Load content size. See "include/loader/loader.h".
-Expect<uint32_t> Loader::loadSectionSize(ASTNodeAttr Node) {
-  if (auto Res = FMgr.readU32()) {
-    if (unlikely(FMgr.getRemainSize() < (*Res))) {
-      return logLoadError(ErrCode::Value::LengthOutOfBounds,
-                          FMgr.getLastOffset(), Node);
-    }
-    return *Res;
-  } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(), Node);
-  }
-}
-
 // Load content of custom section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::CustomSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
@@ -55,10 +42,57 @@ Expect<void> Loader::loadSection(AST::CustomSection &Sec) {
 
 // Load vector of type section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::TypeSection &Sec) {
-  return loadSectionContent(Sec, [this, &Sec]() {
-    return loadSectionContentVec(Sec, [this](AST::FunctionType &FuncType) {
-      return loadType(FuncType);
-    });
+  return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
+    // Read the recursive type vector size.
+    uint32_t VecCnt = 0;
+    if (auto Res = loadVecCnt()) {
+      VecCnt = *Res;
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Sec_Type);
+    }
+    // Read the recursive types.
+    Sec.getContent().clear();
+    uint32_t SubTypeCnt = 0;
+    for (uint32_t I = 0; I < VecCnt; I++) {
+      if (auto CodeByte = FMgr.peekByte()) {
+        TypeCode Code = static_cast<TypeCode>(*CodeByte);
+        if (Code == TypeCode::Rec) {
+          // Case: 0x4E vec(subtype).
+          FMgr.readByte();
+          uint32_t RecVecCnt = 0;
+          if (auto Res = loadVecCnt()) {
+            RecVecCnt = *Res;
+          } else {
+            return logLoadError(Res.error(), FMgr.getLastOffset(),
+                                ASTNodeAttr::Sec_Type);
+          }
+          for (uint32_t J = 0; J < RecVecCnt; ++J) {
+            Sec.getContent().emplace_back();
+            if (auto Res = loadType(Sec.getContent().back()); unlikely(!Res)) {
+              spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Type));
+              return Unexpect(Res);
+            }
+            Sec.getContent().back().setRecursiveInfo(J, RecVecCnt);
+            Sec.getContent().back().setTypeIndex(SubTypeCnt);
+            SubTypeCnt++;
+          }
+        } else {
+          // Case: subtype.
+          Sec.getContent().emplace_back();
+          Sec.getContent().back().setTypeIndex(SubTypeCnt);
+          SubTypeCnt++;
+          if (auto Res = loadType(Sec.getContent().back()); unlikely(!Res)) {
+            spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Type));
+            return Unexpect(Res);
+          }
+        }
+      } else {
+        return logLoadError(CodeByte.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::Sec_Type);
+      }
+    }
+    return {};
   });
 }
 
@@ -175,6 +209,60 @@ Expect<void> Loader::loadSection(AST::DataCountSection &Sec) {
   });
 }
 
+Expect<void> Loader::loadSection(AST::Component::ComponentSection &Sec) {
+  auto ResPreamble = Loader::loadPreamble();
+  if (!ResPreamble) {
+    return Unexpect(ResPreamble);
+  }
+  auto WasmMagic = ResPreamble->first;
+  auto Ver = ResPreamble->second;
+  if (unlikely(Ver != ComponentVersion)) {
+    return logLoadError(ErrCode::Value::MalformedVersion, FMgr.getLastOffset(),
+                        ASTNodeAttr::Component);
+  }
+  auto NestedComp = std::make_shared<AST::Component::Component>();
+  NestedComp->getMagic() = WasmMagic;
+  NestedComp->getVersion() = {Ver[0], Ver[1]};
+  NestedComp->getLayer() = {Ver[2], Ver[3]};
+  if (auto Res = loadComponent(*NestedComp); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+    return Unexpect(Res);
+  }
+  Sec.getContent() = NestedComp;
+  return {};
+}
+
+Expect<void> Loader::loadSection(AST::CoreModuleSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
+    auto ExpectedSize = Sec.getContentSize();
+    auto StartOffset = FMgr.getOffset();
+    auto ResPreamble = Loader::loadPreamble();
+    if (!ResPreamble) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+      return Unexpect(ResPreamble);
+    }
+    auto WasmMagic = ResPreamble->first;
+    auto Ver = ResPreamble->second;
+    if (unlikely(Ver != ModuleVersion)) {
+      return logLoadError(ErrCode::Value::MalformedVersion,
+                          FMgr.getLastOffset(), ASTNodeAttr::Module);
+    }
+    AST::Module CoreMod;
+    CoreMod.getMagic() = WasmMagic;
+    CoreMod.getVersion() = Ver;
+
+    auto Offset = FMgr.getOffset();
+    ExpectedSize -= (Offset - StartOffset);
+
+    if (auto Res = loadModuleInBound(CoreMod, ExpectedSize); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+      return Unexpect(Res);
+    }
+    Sec.getContent() = CoreMod;
+    return {};
+  });
+}
+
 // Load vector of component alias section.
 // See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::Component::AliasSection &Sec) {
@@ -195,12 +283,27 @@ Expect<void> Loader::loadSection(AST::Component::CoreInstanceSection &Sec) {
   });
 }
 
+// Load vector of core type section.
+// See "include/loader/loader.h".
+Expect<void> Loader::loadSection(AST::Component::CoreTypeSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::Component::CoreDefType &Ty) { return loadType(Ty); });
+  });
+}
+
 // Load vector of component type section.
 // See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::Component::TypeSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
         Sec, [this](AST::Component::DefType &Ty) { return loadType(Ty); });
+  });
+}
+
+Expect<void> Loader::loadSection(AST::Component::StartSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
+    return loadStart(Sec.getContent());
   });
 }
 

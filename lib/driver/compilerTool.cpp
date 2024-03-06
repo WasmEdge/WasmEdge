@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "aot/compiler.h"
 #include "common/configure.h"
 #include "common/defines.h"
 #include "common/filesystem.h"
@@ -9,6 +8,8 @@
 #include "driver/compiler.h"
 #include "loader/loader.h"
 #include "validator/validator.h"
+#include "llvm/codegen.h"
+#include "llvm/compiler.h"
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -26,7 +27,7 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
   std::ios::sync_with_stdio(false);
   Log::setInfoLoggingLevel();
 
-#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_USE_LLVM
 
   Configure Conf;
   if (Opt.PropMutGlobals.value()) {
@@ -154,10 +155,16 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
       Conf.getCompilerConfigure().setOutputFormat(
           CompilerConfigure::OutputFormat::Native);
     }
-    AOT::Compiler Compiler(Conf);
-    if (auto Res = Compiler.compile(Data, *Module, OutputPath); !Res) {
+    LLVM::Compiler Compiler(Conf);
+    LLVM::CodeGen CodeGen(Conf);
+    if (auto Res = Compiler.compile(*Module); !Res) {
       const auto Err = static_cast<uint32_t>(Res.error());
       spdlog::error("Compilation failed. Error code: {}", Err);
+      return EXIT_FAILURE;
+    } else if (auto Res2 = CodeGen.codegen(Data, std::move(*Res), OutputPath);
+               !Res2) {
+      const auto Err = static_cast<uint32_t>(Res2.error());
+      spdlog::error("Code Generation failed. Error code: {}", Err);
       return EXIT_FAILURE;
     }
   }

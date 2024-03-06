@@ -10,6 +10,9 @@ on:
       - master
     paths:
       - ".github/workflows/build-extensions.yml"
+      - ".github/actions/expand-variables/**"
+      - ".github/workflows/reusable-build-extensions**"
+      - ".github/workflows/reusable-call-linter.yml"
       - "plugins/**"
       - "test/**"
       - "thirdparty/**"
@@ -24,6 +27,9 @@ on:
       - "proposal/**"
     paths:
       - ".github/workflows/build-extensions.yml"
+      - ".github/actions/expand-variables/**"
+      - ".github/workflows/reusable-build-extensions**"
+      - ".github/workflows/reusable-call-linter.yml"
       - "plugins/**"
       - "test/**"
       - "thirdparty/**"
@@ -32,6 +38,9 @@ on:
       - "cmake/**"
       - "utils/wasi-nn/**"
       - "utils/wasi-crypto/**"
+
+permissions:
+  contents: read
 
 jobs:
   # TODO: Refactor `lint` with `on.workflow_run`
@@ -62,6 +71,8 @@ jobs:
 
   # Due to the dependencies and exclusions of WASI-NN, build them saperately.
   build_ubuntu_wasi_nn:
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
@@ -78,8 +89,8 @@ jobs:
     env:
       output_dir: build/plugins/wasi_nn
       test_dir: build/test/plugins/wasi_nn
-      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
-      tar_names: wasi_nn-pytorch wasi_nn-tensorflowlite wasi_nn-ggml
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
+      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml
       test_bin: wasiNNTests
       output_bin: libwasmedgePluginWasiNN.so
       OPENVINO_VERSION: "2023.0.2"
@@ -101,6 +112,7 @@ jobs:
         run: |
           apt update
           apt install -y unzip libopenblas-dev pkg-config protobuf-compiler-grpc libgrpc-dev libgrpc++-dev
+          bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
@@ -109,7 +121,7 @@ jobs:
           ldconfig
           plugin_array=(${tar_names})
           option_array=(${build_options})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Building ${plugin_array[$i]} backend:"
@@ -145,6 +157,11 @@ jobs:
         with:
           name: WasmEdge-plugin-wasi_nn-pytorch-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasi_nn-pytorch.tar.gz
+      - name: Upload artifact - wasi_nn-openvino
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_nn-openvino-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          path: plugin_wasi_nn-openvino.tar.gz
       - name: Upload artifact - wasi_nn-tensorflowlite
         uses: actions/upload-artifact@v3
         with:
@@ -157,6 +174,8 @@ jobs:
           path: plugin_wasi_nn-ggml.tar.gz
 
   build_ubuntu:
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
@@ -192,15 +211,17 @@ jobs:
           apt update
           apt install -y libssl-dev
           apt install -y libelf-dev zlib1g-dev pkg-config
-          apt install -y clang llvm
+          apt install -y clang-15
           apt install -y cargo
           # Running tests of wasm_bpf requires proper ebpf running environment
           mount -t debugfs none /sys/kernel/debug
       - name: Build plugins using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
         run: |
+          update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100
+          update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-strip-15 100
           testbin_array=(${test_bins})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options}
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options}
           for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
             echo "Building ${testbin_array[$i]} :"
@@ -276,111 +297,46 @@ jobs:
           path: plugin_wasmedge_zlib.tar.gz
 
   # Due to the dependencies and exclusions of WASI-NN, build them saperately.
-  build_manylinux_wasi_nn:
-    strategy:
-      matrix:
-        include:
-          - name: Plugins_x86_64
-            host_runner: ubuntu-latest
-            docker_tag: manylinux2014_x86_64
-            build_type: Release
-          - name: Plugins_aarch64
-            host_runner: linux-arm64
-            docker_tag: manylinux2014_aarch64
-            build_type: Release
-    name: WASI-NN (${{ matrix.docker_tag }}, g++, ${{ matrix.build_type }})
-    runs-on: ${{ matrix.host_runner }}
-    env:
-      output_dir: build/plugins/wasi_nn
-      test_dir: build/test/plugins/wasi_nn
-      build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
-      build_options_manylinux2014_x86_64: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch
-      build_options_manylinux2014_aarch64:
-      tar_names_all_platforms: wasi_nn-tensorflowlite wasi_nn-ggml
-      tar_names_manylinux2014_x86_64: wasi_nn-pytorch
-      tar_names_manylinux2014_aarch64:
-      test_bin: wasiNNTests
-      output_bin: libwasmedgePluginWasiNN.so
-      PYTORCH_VERSION: "1.8.2"
-      PYTORCH_INSTALL_TO: "."
-    needs: [get_version]
-    container:
-      image: wasmedge/wasmedge:${{ matrix.docker_tag }}
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Install dependencies
-        shell: bash
-        run: |
-          bash ./utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi
-      - name: Build and test WASI-NN using g++ with ${{ matrix.build_type }} mode
-        shell: bash
-        run: |
-          export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
-          plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.docker_tag }}})
-          option_array=(${build_options_all_platforms} ${build_options_${{ matrix.docker_tag }}})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS=OFF
-          for (( i=0; i<${#plugin_array[@]}; i++ ));
-          do
-            echo "Building ${plugin_array[$i]} backend:"
-            cmake -Bbuild -GNinja ${option_array[$i]} -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS=OFF
-            cmake --build build --target ${test_bin}
-
-            echo "Testing ${plugin_array[$i]} backend:"
-            cd ${test_dir}
-            echo "Testing ${plugin_array[$i]} backend:"
-            ./${test_bin}
-            cd -
-
-            echo "Copying ${plugin_array[$i]} backend:"
-            cp -f ${output_dir}/${output_bin} ${output_bin}
-            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${output_bin}
-          done
-      - name: Upload artifact - wasi_nn-pytorch
-        if: contains(matrix.docker_tag, 'manylinux2014_x86_64')
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-pytorch-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasi_nn-pytorch.tar.gz
-      - name: Upload artifact - wasi_nn-tensorflowlite
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasi_nn-tensorflowlite.tar.gz
-      - name: Upload artifact - wasi_nn-ggml
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-ggml-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasi_nn-ggml.tar.gz
+  build_wasinn_manylinux:
+    permissions:
+      contents: write
+    name: WASI-NN (manylinux, g++, Release)
+    needs: get_version
+    uses: ./.github/workflows/reusable-build-extensions.yml
+    with:
+      version: ${{ needs.get_version.outputs.version }}
 
   build_manylinux:
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
           - name: Plugins_x86_64
             host_runner: ubuntu-latest
             docker_tag: manylinux2014_x86_64-plugins-deps
+            asset_tag: manylinux2014_x86_64
             build_type: Release
           - name: Plugins_aarch64
-            host_runner: linux-arm64
+            host_runner: linux-arm64-v2
             docker_tag: manylinux2014_aarch64-plugins-deps
+            asset_tag: manylinux2014_aarch64
             build_type: Release
     name: Plugins (${{ matrix.docker_tag }}, g++, ${{ matrix.build_type }})
     runs-on: ${{ matrix.host_runner }}
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON
+      build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON
       build_options_manylinux2014_x86_64: -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF=OFF
       build_options_manylinux2014_aarch64:
-      tar_names_all_platforms: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasmedge_zlib
+      tar_names_all_platforms: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini
       tar_names_manylinux2014_x86_64: wasm_bpf
       tar_names_manylinux2014_aarch64:
-      test_bins_all_platforms: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests wasmedgeZlibTests
+      test_bins_all_platforms: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests
       test_bins_manylinux2014_x86_64: wasmBpfTests
       test_bins_manylinux2014_aarch64:
-      output_bins_all_platforms: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasmEdgeZlib.so
+      output_bins_all_platforms: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmEdgeOpenCVMini.so
       output_bins_manylinux2014_x86_64: libwasmedgePluginWasmBpf.so
       output_bins_manylinux2014_aarch64:
     needs: [get_version]
@@ -405,8 +361,8 @@ jobs:
         shell: bash
         run: |
           source "$HOME/.cargo/env"
-          testbin_array=(${test_bins_all_platforms} ${test_bins_${{ matrix.docker_tag }}})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options_all_platforms} ${build_options_${{ matrix.docker_tag }}} -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
+          testbin_array=(${test_bins_all_platforms} ${test_bins_${{ matrix.asset_tag }}})
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options_all_platforms} ${build_options_${{ matrix.asset_tag }}} -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
           for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
             echo "Building ${testbin_array[$i]} :"
@@ -415,8 +371,8 @@ jobs:
       - name: Test plugins
         shell: bash
         run: |
-          plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.docker_tag }}})
-          testbin_array=(${test_bins_all_platforms} ${test_bins_${{ matrix.docker_tag }}})
+          plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.asset_tag }}})
+          testbin_array=(${test_bins_all_platforms} ${test_bins_${{ matrix.asset_tag }}})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Testing ${plugin_array[$i]} :"
@@ -427,8 +383,8 @@ jobs:
       - name: Prepare the WasmEdge plugins tar.gz package
         shell: bash
         run: |
-          plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.docker_tag }}})
-          outbin_array=(${output_bins_all_platforms} ${output_bins_${{ matrix.docker_tag }}})
+          plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.asset_tag }}})
+          outbin_array=(${output_bins_all_platforms} ${output_bins_${{ matrix.asset_tag }}})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Copying ${plugin_array[$i]} :"
@@ -438,51 +394,53 @@ jobs:
       - name: Upload artifact - wasi_crypto
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasi_crypto-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasi_crypto-${{ needs.get_version.outputs.version }}-${{ matrix.asset_tag }}.tar.gz
           path: plugin_wasi_crypto.tar.gz
       - name: Upload artifact - wasi_logging
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version.outputs.version }}-${{ matrix.asset_tag }}.tar.gz
           path: plugin_wasi_logging.tar.gz
       - name: Upload artifact - wasmedge_process
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_process-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_process-${{ needs.get_version.outputs.version }}-${{ matrix.asset_tag }}.tar.gz
           path: plugin_wasmedge_process.tar.gz
       - name: Upload artifact - wasmedge_tensorflow
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_tensorflow-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_tensorflow-${{ needs.get_version.outputs.version }}-${{ matrix.asset_tag }}.tar.gz
           path: plugin_wasmedge_tensorflow.tar.gz
       - name: Upload artifact - wasmedge_tensorflowlite
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_tensorflowlite-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_tensorflowlite-${{ needs.get_version.outputs.version }}-${{ matrix.asset_tag }}.tar.gz
           path: plugin_wasmedge_tensorflowlite.tar.gz
       - name: Upload artifact - wasmedge_image
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_image-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_image-${{ needs.get_version.outputs.version }}-${{ matrix.asset_tag }}.tar.gz
           path: plugin_wasmedge_image.tar.gz
       - name: Upload artifact - wasm_bpf
         if: contains(matrix.docker_tag, 'manylinux2014_x86_64')
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasm_bpf-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasm_bpf-${{ needs.get_version.outputs.version }}-${{ matrix.asset_tag }}.tar.gz
           path: plugin_wasm_bpf.tar.gz
       - name: Upload artifact - wasmedge_opencvmini
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version.outputs.version }}-${{ matrix.asset_tag }}.tar.gz
           path: plugin_wasmedge_opencvmini.tar.gz
       - name: Upload artifact - wasmedge_zlib
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_zlib-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_zlib-${{ needs.get_version.outputs.version }}-${{ matrix.asset_tag }}.tar.gz
           path: plugin_wasmedge_zlib.tar.gz
 
   build_macos:
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
@@ -494,7 +452,7 @@ jobs:
             arch: x86_64
           - name: Plugins_MacOS_arm64
             system: MacOS 13 (arm64)
-            host_runner: mac-arm64
+            host_runner: macos-14
             darwin_version: darwin_22
             build_type: Release
             arch: arm64
@@ -524,7 +482,7 @@ jobs:
           export LLVM_DIR="$(brew --prefix)/opt/llvm@16/lib/cmake"
           export CC=clang
           export CXX=clang++
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options} -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options} -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl
           for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
             echo "Building ${testbin_array[$i]} :"

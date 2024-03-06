@@ -403,6 +403,7 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "darwin" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "darwin" + "arm64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
+    "manylinux2014" + "aarch64" + WASMEDGE_RUSTLS: VersionString("0.13.5"),
     "manylinux2014" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "ubuntu20.04" + "aarch64" + WASMEDGE_RUSTLS: VersionString("0.13.5"),

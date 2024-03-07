@@ -270,10 +270,7 @@ private:
 
   /// Helper function for branching to label.
   Expect<void> branchToLabel(Runtime::StackManager &StackMgr,
-                             uint32_t ValueStackEraseBegin,
-                             uint32_t ValueStackEraseEnd,
-                             uint32_t HandlerStackOffset,
-                             uint32_t CaughtStackOffset, int32_t PCOffset,
+                             const AST::Instruction::JumpDescriptor &JumpDesc,
                              AST::InstrView::iterator &PC) noexcept;
 
   /// Helper function for throwing an exception.

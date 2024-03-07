@@ -753,13 +753,14 @@ Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
   return {};
 }
 
+// Validate Tag section. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::TagSection &TagSec) {
   const auto &TagVec = TagSec.getContent();
   const auto &TypeVec = Checker.getTypes();
 
   // Check if type id of tag is valid in context.
-  for (auto &T : TagVec) {
-    auto TagTypeIdx = T.getTypeIdx();
+  for (auto &TagType : TagVec) {
+    auto TagTypeIdx = TagType.getTypeIdx();
     if (TagTypeIdx >= TypeVec.size()) {
       spdlog::error(ErrCode::Value::InvalidTagIdx);
       spdlog::error(
@@ -767,8 +768,14 @@ Expect<void> Validator::validate(const AST::TagSection &TagSec) {
                                    static_cast<uint32_t>(TypeVec.size())));
       return Unexpect(ErrCode::Value::InvalidTagIdx);
     }
-    auto &[T1, T2] = TypeVec[TagTypeIdx];
-    if (!T2.empty()) {
+    auto &CompType = TypeVec[TagTypeIdx]->getCompositeType();
+    if (!CompType.isFunc()) {
+      spdlog::error(ErrCode::Value::InvalidTagIdx);
+      spdlog::error("    Defined type index {} is not a function type.",
+                    TagTypeIdx);
+      return Unexpect(ErrCode::Value::InvalidTagIdx);
+    }
+    if (!CompType.getFuncType().getReturnTypes().empty()) {
       spdlog::error(ErrCode::Value::InvalidTag);
       return Unexpect(ErrCode::Value::InvalidTag);
     }

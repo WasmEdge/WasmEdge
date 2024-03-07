@@ -152,13 +152,13 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
       // Import matching.
       auto *ImpInst = ImpModInst->findFuncExports(ExtName);
-      const auto &ExpDefType = **ModInst.getType(TypeIdx);
       // External function type should match the import function type in
       // description.
 
-      if (!AST::TypeMatcher::matchType(
-              ModInst.getTypeList(), *ExpDefType.getTypeIndex(),
-              ImpModInst->getTypeList(), ImpInst->getTypeIndex())) {
+      if (!AST::TypeMatcher::matchType(ModInst.getTypeList(), TypeIdx,
+                                       ImpModInst->getTypeList(),
+                                       ImpInst->getTypeIndex())) {
+        const auto &ExpDefType = **ModInst.getType(TypeIdx);
         bool IsMatchV2 = false;
         const auto &ExpFuncType = ExpDefType.getCompositeType().getFuncType();
         const auto &ImpFuncType = ImpInst->getFuncType();
@@ -254,18 +254,22 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     }
     case ExternalType::Tag: {
       // Get tag type. External type checked in validation.
-      const auto &T = ImpDesc.getExternalTagType();
+      const auto &TagType = ImpDesc.getExternalTagType();
       // Import matching.
-      auto *TargetInst = TargetModInst->findTagExports(ExtName);
-      const auto &TargetType = TargetInst->getTagType().getFuncType();
-      const auto *TType = *ModInst.getFuncType(T.getTypeIdx());
-      if (TargetType != *TType) {
-        return logMatchError(ModName, ExtName, ExtType, TType->getParamTypes(),
-                             TType->getReturnTypes(),
-                             TargetType.getParamTypes(),
-                             TargetType.getReturnTypes());
+      auto *ImpInst = ImpModInst->findTagExports(ExtName);
+      if (!AST::TypeMatcher::matchType(
+              ModInst.getTypeList(), TagType.getTypeIdx(),
+              ImpModInst->getTypeList(), ImpInst->getTagType().getTypeIdx())) {
+        const auto &ExpFuncType =
+            TagType.getDefType().getCompositeType().getFuncType();
+        const auto &ImpFuncType =
+            ImpInst->getTagType().getDefType().getCompositeType().getFuncType();
+        return logMatchError(
+            ModName, ExtName, ExtType, ExpFuncType.getParamTypes(),
+            ExpFuncType.getReturnTypes(), ImpFuncType.getParamTypes(),
+            ImpFuncType.getReturnTypes());
       }
-      ModInst.importTag(TargetInst);
+      ModInst.importTag(ImpInst);
       break;
     }
     case ExternalType::Global: {

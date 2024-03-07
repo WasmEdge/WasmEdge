@@ -411,15 +411,13 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       const_cast<AST::Instruction &>(Instr).setTryLast();
     }
     if (auto Res = popCtrl()) {
-      auto N = Instr.getTargetIndex();
-      if (N >= Tags.size()) {
-        return logOutOfRange(ErrCode::Value::InvalidTagIdx,
-                             ErrInfo::IndexCategory::Tag, N,
-                             static_cast<uint32_t>(Tags.size()));
+      if (auto CompType =
+              checkDefinedType(Instr.getTargetIndex(), TypeCode::Func)) {
+        pushCtrl((*CompType)->getFuncType().getParamTypes(), Res->EndTypes,
+                 Res->Jump, Instr.getOpCode());
+      } else {
+        return Unexpect(CompType);
       }
-      // Validity of the tag type has been checked in tag section
-      const auto &[T3, T4] = Types[Tags[N]];
-      pushCtrl(T3, Res->EndTypes, Res->Jump, Instr.getOpCode());
     } else {
       return Unexpect(Res);
     }
@@ -454,19 +452,17 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
     return {};
 
-  case OpCode::Throw: {
-    auto N = Instr.getTargetIndex();
-    if (N >= Tags.size()) {
-      return logOutOfRange(ErrCode::Value::InvalidTagIdx,
-                           ErrInfo::IndexCategory::Tag, N,
-                           static_cast<uint32_t>(Tags.size()));
+  case OpCode::Throw:
+    if (auto CompType =
+            checkDefinedType(Instr.getTargetIndex(), TypeCode::Func)) {
+      const auto &FType = (*CompType)->getFuncType();
+      if (auto Res = popTypes(FType.getParamTypes()); !Res) {
+        return Unexpect(Res);
+      }
+      return unreachable();
+    } else {
+      return Unexpect(CompType);
     }
-    auto &[TTypes, _] = Types[Tags[N]];
-    if (auto Res = popTypes(TTypes); !Res) {
-      return Unexpect(Res);
-    }
-    return unreachable();
-  }
   case OpCode::Rethrow: {
     auto LabelIdx = Instr.getJump().TargetIndex;
     if (auto D = checkCtrlStackDepth(LabelIdx); !D) {

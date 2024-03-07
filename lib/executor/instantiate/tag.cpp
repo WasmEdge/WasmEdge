@@ -9,12 +9,11 @@ namespace Executor {
 // Instantiate tag instance. See "include/executor/executor.h".
 Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::TagSection &TagSec) {
-
-  // Iterate through tags from tag section to instantiate
+  // Iterate through the tags to instantiate the tag instances.
   for (const auto &TgType : TagSec.getContent()) {
     // Add Tag with corresponding Type.
-    auto FuncTypePtr = *ModInst.getFuncType(TgType.getTypeIdx());
-    ModInst.addTag(TgType, FuncTypePtr);
+    auto SubTypePtr = *ModInst.getType(TgType.getTypeIdx());
+    ModInst.addTag(TgType, SubTypePtr);
   }
   return {};
 }

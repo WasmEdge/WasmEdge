@@ -192,24 +192,22 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
   }
 }
 
-Expect<void> Executor::branchToLabel(Runtime::StackManager &StackMgr,
-                                     uint32_t ValueStackEraseBegin,
-                                     uint32_t ValueStackEraseEnd,
-                                     uint32_t HandlerStackOffset,
-                                     uint32_t CaughtStackOffset,
-                                     int32_t PCOffset,
-                                     AST::InstrView::iterator &PC) noexcept {
-  // Check stop token
+Expect<void>
+Executor::branchToLabel(Runtime::StackManager &StackMgr,
+                        const AST::Instruction::JumpDescriptor &JumpDesc,
+                        AST::InstrView::iterator &PC) noexcept {
+  // Check the stop token.
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
     spdlog::error(ErrCode::Value::Interrupted);
     return Unexpect(ErrCode::Value::Interrupted);
   }
 
-  StackMgr.eraseValueStack(ValueStackEraseBegin, ValueStackEraseEnd);
-  StackMgr.eraseHandlerStack(HandlerStackOffset);
-  StackMgr.eraseCaughtStack(CaughtStackOffset);
+  StackMgr.eraseValueStack(JumpDesc.ValueStackEraseBegin,
+                           JumpDesc.ValueStackEraseEnd);
+  StackMgr.eraseHandlerStack(JumpDesc.HandlerStackOffset);
+  StackMgr.eraseCaughtStack(JumpDesc.CaughtStackOffset);
   // PC need to -1 here because the PC will increase in the next iteration.
-  PC += (PCOffset - 1);
+  PC += (JumpDesc.PCOffset - 1);
   return {};
 }
 
@@ -217,7 +215,7 @@ Expect<void> Executor::throwException(Runtime::StackManager &StackMgr,
                                       Runtime::Instance::TagInstance *TagInst,
                                       AST::InstrView::iterator &PC) noexcept {
   while (!StackMgr.isHandlerStackEmpty()) {
-    auto AssocValSize = TagInst->getAssocValSize();
+    auto AssocValSize = TagInst->getTagType().getAssocValSize();
     // The value that associated with the exception should remain on the stack
     auto ExceptionHandler = StackMgr.popToTopHandler(AssocValSize);
     if (!ExceptionHandler.CatchCaluse.empty()) {

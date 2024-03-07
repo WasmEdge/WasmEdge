@@ -76,10 +76,7 @@ Expect<void> Executor::runRethrowOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runBrOp(Runtime::StackManager &StackMgr,
                                const AST::Instruction &Instr,
                                AST::InstrView::iterator &PC) noexcept {
-  auto &JumpDesc = Instr.getJump();
-  return branchToLabel(StackMgr, JumpDesc.ValueStackEraseBegin,
-                       JumpDesc.ValueStackEraseEnd, JumpDesc.HandlerStackOffset,
-                       JumpDesc.CaughtStackOffset, JumpDesc.PCOffset, PC);
+  return branchToLabel(StackMgr, Instr.getJump(), PC);
 }
 
 Expect<void> Executor::runBrIfOp(Runtime::StackManager &StackMgr,
@@ -121,16 +118,9 @@ Expect<void> Executor::runBrTableOp(Runtime::StackManager &StackMgr,
   auto LabelTable = Instr.getLabelList();
   const auto LabelTableSize = static_cast<uint32_t>(LabelTable.size() - 1);
   if (Value < LabelTableSize) {
-    auto &JumpDesc = LabelTable[Value];
-    return branchToLabel(StackMgr, JumpDesc.ValueStackEraseBegin,
-                         JumpDesc.ValueStackEraseEnd,
-                         JumpDesc.HandlerStackOffset,
-                         JumpDesc.CaughtStackOffset, JumpDesc.PCOffset, PC);
+    return branchToLabel(StackMgr, LabelTable[Value], PC);
   }
-  auto &JumpDesc = LabelTable[LabelTableSize];
-  return branchToLabel(StackMgr, JumpDesc.ValueStackEraseBegin,
-                       JumpDesc.ValueStackEraseEnd, JumpDesc.HandlerStackOffset,
-                       JumpDesc.CaughtStackOffset, JumpDesc.PCOffset, PC);
+  return branchToLabel(StackMgr, LabelTable[LabelTableSize], PC);
 }
 
 Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
@@ -154,9 +144,7 @@ Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
   if (AST::TypeMatcher::matchType(ModInst->getTypeList(),
                                   Instr.getBrCast().RType2, GotTypeList,
                                   VT) != IsReverse) {
-    return branchToLabel(StackMgr, Instr.getBrCast().Jump.StackEraseBegin,
-                         Instr.getBrCast().Jump.StackEraseEnd,
-                         Instr.getBrCast().Jump.PCOffset, PC);
+    return branchToLabel(StackMgr, Instr.getBrCast().Jump, PC);
   }
   return {};
 }

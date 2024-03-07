@@ -222,17 +222,19 @@ void Loader::setTagFunctionType(AST::TagSection &TagSec,
   auto &TypeVec = TypeSec.getContent();
   for (auto &TgType : TagSec.getContent()) {
     auto TypeIdx = TgType.getTypeIdx();
-    // Invalid type index would be checked during validation
+    // Invalid type index would be checked during validation.
     if (TypeIdx < TypeVec.size()) {
-      TgType.setFuncType(&TypeVec[TypeIdx]);
+      TgType.setDefType(&TypeVec[TypeIdx]);
     }
   }
   for (auto &Desc : ImportSec.getContent()) {
-    auto &TgType = Desc.getExternalTagType();
-    auto TypeIdx = TgType.getTypeIdx();
-    // Invalid type index would be checked during validation
-    if (TypeIdx < TypeVec.size()) {
-      TgType.setFuncType(&TypeVec[TypeIdx]);
+    if (Desc.getExternalType() == ExternalType::Tag) {
+      auto &TgType = Desc.getExternalTagType();
+      auto TypeIdx = TgType.getTypeIdx();
+      // Invalid type index would be checked during validation.
+      if (TypeIdx < TypeVec.size()) {
+        TgType.setDefType(&TypeVec[TypeIdx]);
+      }
     }
   }
 }

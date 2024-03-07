@@ -734,30 +734,30 @@ private:
 class TagType {
 public:
   TagType() = default;
-  TagType(const TagType &T, const FunctionType *F) noexcept
-      : Attribute(T.getAttribute()), TypeIdx(T.getTypeIdx()), Type(F) {}
-
-  /// Getter and setter of Attribute.
-  uint8_t getAttribute() const noexcept { return Attribute; }
-  void setAttribute(uint8_t Attr) noexcept { Attribute = Attr; }
+  TagType(const uint32_t TIdx, const SubType *S) noexcept
+      : TypeIdx(TIdx), Type(S) {}
 
   /// Getter and setter of TypeIdx.
   uint32_t getTypeIdx() const noexcept { return TypeIdx; }
-  void setTypeIdx(uint32_t TyIdx) noexcept { TypeIdx = TyIdx; }
+  void setTypeIdx(uint32_t TIdx) noexcept { TypeIdx = TIdx; }
 
-  // Getter and setter of FunctionType.
-  const FunctionType &getFuncType() const noexcept { return *Type; }
-  void setFuncType(FunctionType *FuncType) noexcept { Type = FuncType; }
+  // Getter and setter of Defined Type.
+  const SubType &getDefType() const noexcept { return *Type; }
+  void setDefType(const SubType *DefType) noexcept { Type = DefType; }
 
   // Getter of the size of value that is associated with the tag.
   uint32_t getAssocValSize() const noexcept {
-    return static_cast<uint32_t>(Type->getParamTypes().size());
+    if (Type && Type->getCompositeType().isFunc()) {
+      return static_cast<uint32_t>(
+          Type->getCompositeType().getFuncType().getParamTypes().size());
+    } else {
+      return 0;
+    }
   }
 
 private:
-  uint8_t Attribute;
   uint32_t TypeIdx;
-  const FunctionType *Type;
+  const SubType *Type;
 };
 
 } // namespace AST

@@ -438,19 +438,21 @@ Expect<void> Loader::loadType(AST::TagType &TgType) {
     // The preserved byte for future extension possibility for tag
     // It supports only 0x00 currently, which is for exception handling.
     if (unlikely(*Res != 0x00)) {
-      return logLoadError(ErrCode::Value::ExpectedZeroByte,
-                          FMgr.getLastOffset(), ASTNodeAttr::Sec_Tag);
+      spdlog::error(ErrCode::Value::ExpectedZeroByte);
+      spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
+      return Unexpect(ErrCode::Value::ExpectedZeroByte);
     }
-    TgType.setAttribute(*Res);
   } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Sec_Tag);
+    spdlog::error(Res.error());
+    spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
+    return Unexpect(Res);
   }
   if (auto Res = FMgr.readU32()) {
     TgType.setTypeIdx(*Res);
   } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Sec_Tag);
+    spdlog::error(Res.error());
+    spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
+    return Unexpect(Res);
   }
   return {};
 }

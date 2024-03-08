@@ -31,9 +31,8 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .AddOptions = nullptr,
 };
 
+EXPORT_GET_DESCRIPTOR(Descriptor)
+
 } // namespace
-
-Plugin::PluginRegister WasmEdgeZlibEnvironment::Register(&Descriptor);
-
 } // namespace Host
 } // namespace WasmEdge

@@ -53,7 +53,7 @@
               -DCMAKE_BUILD_TYPE=Debug \
               -DWASMEDGE_BUILD_PLUGINS=OFF \
               -DWASMEDGE_BUILD_TESTS=OFF \
-              -DWASMEDGE_BUILD_AOT_RUNTIME=ON \
+              -DWASMEDGE_USE_LLVM=ON \
               .
           '';
           buildPhase = ''

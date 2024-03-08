@@ -279,16 +279,17 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
 
   // In the following several steps we will prepare for polling
   // Create an instance of the polling callback function
-  auto callbackFuncInst =
-      std::make_unique<WasmEdge::Runtime::Instance::FunctionInstance>(
-          &moduleInst, std::make_unique<PollCallbackFunction>());
+  moduleInst.addHostFunc("__polling_callback_hostfunc"sv,
+                         std::make_unique<PollCallbackFunction>());
+  auto *callbackFuncInst =
+      moduleInst.findFuncExports("__polling_callback_hostfunc");
   // Create a function table, and fill the callback function into it
   auto funcTableInst =
       std::make_unique<WasmEdge::Runtime::Instance::TableInstance>(
           WasmEdge::AST::TableType(WasmEdge::TypeCode::FuncRef, 1));
   EXPECT_TRUE(funcTableInst->setRefs(
-      std::initializer_list<const WasmEdge::RefVariant>{callbackFuncInst.get()},
-      0, 0, 1));
+      std::initializer_list<const WasmEdge::RefVariant>{callbackFuncInst}, 0, 0,
+      1));
   // Add the table to the main module
   moduleInst.addHostTable("__indirect_function_table"sv,
                           std::move(funcTableInst));

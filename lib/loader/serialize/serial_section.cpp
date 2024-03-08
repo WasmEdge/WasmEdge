@@ -29,12 +29,43 @@ Serializer::serializeSection(const AST::CustomSection &Sec,
 Expect<void>
 Serializer::serializeSection(const AST::TypeSection &Sec,
                              std::vector<uint8_t> &OutVec) const noexcept {
-  // Type section: 0x01 + size:u32 + content:vec(functype).
-  return serializeSectionContent(
-      Sec, 0x01U, OutVec,
-      [=](const AST::FunctionType &R, std::vector<uint8_t> &V) {
-        return serializeType(R, V);
-      });
+  // Type section: 0x01 + size:u32 + content:vec(rectype).
+  auto STypes = Sec.getContent();
+
+  // record the recursive type vector size.
+  if (STypes.size() > 0) {
+    // Section ID.
+    OutVec.push_back(0x01U);
+    auto OrgSize = OutVec.size();
+    uint32_t RecCnt = 0;
+    // Content: vec(rectype).
+    for (uint32_t I = 0; I < STypes.size(); I++) {
+      auto RecInfo = STypes[I].getRecursiveInfo();
+      if (!RecInfo.has_value()) {
+        RecCnt++;
+      } else if (RecInfo->Index == 0) {
+        // First element of recursive type.
+        if (!Conf.hasProposal(Proposal::GC)) {
+          return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::GC,
+                                 ASTNodeAttr::Sec_Type);
+        }
+        OutVec.push_back(static_cast<uint8_t>(TypeCode::Rec));
+        serializeU32(RecInfo->RecTypeSize, OutVec);
+        RecCnt++;
+      }
+      if (auto Res = serializeType(STypes[I], OutVec); unlikely(!Res)) {
+        spdlog::error(ASTNodeAttr::Sec_Type);
+        return Unexpect(Res);
+      }
+    }
+    // Backward insert the recursive type vector size.
+    serializeU32(RecCnt, OutVec,
+                 std::next(OutVec.begin(), static_cast<ptrdiff_t>(OrgSize)));
+    // Backward insert the section size.
+    serializeU32(static_cast<uint32_t>(OutVec.size() - OrgSize), OutVec,
+                 std::next(OutVec.begin(), static_cast<ptrdiff_t>(OrgSize)));
+  }
+  return {};
 }
 
 // Serialize import section. See "include/loader/serialize.h".
@@ -175,7 +206,7 @@ Serializer::serializeSection(const AST::DataCountSection &Sec,
         !Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logNeedProposal(ErrCode::Value::MalformedSection,
                              Proposal::BulkMemoryOperations,
-                             ASTNodeAttr::Module);
+                             ASTNodeAttr::Sec_DataCount);
     }
     // Section ID.
     OutVec.push_back(0x0CU);

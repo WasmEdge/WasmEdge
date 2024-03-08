@@ -20,7 +20,6 @@ public:
 
   static PO::List<std::string> CmdArgs;
   static PO::Option<std::string> CmdName;
-  static Plugin::PluginRegister Register;
 };
 
 template <typename T>

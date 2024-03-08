@@ -39,7 +39,7 @@ Expect<void> Executor::runGlobalSetOp(Runtime::StackManager &StackMgr,
                                       uint32_t Idx) const noexcept {
   auto *GlobInst = getGlobInstByIdx(StackMgr, Idx);
   assuming(GlobInst);
-  GlobInst->getValue() = StackMgr.pop();
+  GlobInst->setValue(StackMgr.pop());
   return {};
 }
 

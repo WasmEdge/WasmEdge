@@ -164,6 +164,9 @@ def extract_archive(
             for filename in files_extracted:
                 fname = filename.replace(CONST_ipkg, ipath)
 
+                if "._" in filename:
+                    remove(join(to_path, filename))
+                    continue
                 # Skip if it ends with "wasmedge" as it is going to be removed at a later stage
                 if fname.endswith("wasmedge") and not fname.endswith("bin/wasmedge"):
                     continue
@@ -175,7 +178,8 @@ def extract_archive(
                     fname = fname[:-5] + "lib"
                 if fname.startswith("/usr") and "lib64" in fname:
                     fname = fname.replace("lib64", "lib", 1)
-                if "Plugin" in fname:
+                # ggml-metal.metal is downloaded if we download ggml plugin on macOS
+                if "Plugin" in fname or fname == "ggml-metal.metal":
                     if is_default_path(args):
                         fname = fname.replace(
                             join(ipath, CONST_lib_dir, "wasmedge/"), ""
@@ -239,9 +243,13 @@ class VersionString:
         if ignorecase:
             v = v.lower()
         return [
-            int(x)
-            if x.isdigit()
-            else [int(y) if y.isdigit() else y for y in re.findall("\d+|[a-zA-Z]+", x)]
+            (
+                int(x)
+                if x.isdigit()
+                else [
+                    int(y) if y.isdigit() else y for y in re.findall("\d+|[a-zA-Z]+", x)
+                ]
+            )
             for x in re.split(separator, v)
         ]
 
@@ -331,6 +339,7 @@ WASI_NN_PYTORCH = "wasi_nn-pytorch"
 WASI_NN_TENSORFLOW_LITE = "wasi_nn-tensorflowlite"
 WASI_NN_GGML = "wasi_nn-ggml"
 WASI_NN_GGML_CUDA = "wasi_nn-ggml-cuda"
+WASI_NN_GGML_BLAS = "wasi_nn-ggml-blas"
 WASMEDGE_TENSORFLOW_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW
 WASMEDGE_TENSORFLOW_LITE_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW_LITE_P
 WASMEDGE_IMAGE_PLUGIN = WASMEDGE.lower() + "_" + IMAGE
@@ -344,6 +353,7 @@ PLUGINS_AVAILABLE = [
     WASI_NN_TENSORFLOW_LITE,
     WASI_NN_GGML,
     WASI_NN_GGML_CUDA,
+    WASI_NN_GGML_BLAS,
     WASMEDGE_TENSORFLOW_PLUGIN,
     WASMEDGE_TENSORFLOW_LITE_PLUGIN,
     WASMEDGE_IMAGE_PLUGIN,
@@ -362,6 +372,8 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "aarch64" + WASI_NN_GGML: VersionString("0.13.5"),
     "ubuntu20.04" + "x86_64" + WASI_NN_GGML_CUDA: VersionString("0.13.4"),
     "ubuntu20.04" + "aarch64" + WASI_NN_GGML_CUDA: VersionString("0.13.5"),
+    "ubuntu20.04" + "x86_64" + WASI_NN_GGML_BLAS: VersionString("0.13.5"),
+    "ubuntu20.04" + "aarch64" + WASI_NN_GGML_BLAS: VersionString("0.13.5"),
     "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.2-alpha.1"),
     "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
     "manylinux2014" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
@@ -391,8 +403,10 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "darwin" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "darwin" + "arm64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
+    "manylinux2014" + "aarch64" + WASMEDGE_RUSTLS: VersionString("0.13.5"),
     "manylinux2014" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
+    "ubuntu20.04" + "aarch64" + WASMEDGE_RUSTLS: VersionString("0.13.5"),
     "ubuntu20.04" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
     "manylinux2014" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
 }
@@ -628,8 +642,26 @@ def check_nvcc(platform):
         logging.debug("%s: %s", cmd, output)
         if "nvcc: NVIDIA (R) Cuda compiler driver" in output:
             return True
+        else:
+            logging.info("CUDA cannot be detected via nvcc")
+            return False
     else:
-        logging.warning("CUDA should be only available on Linux")
+        logging.info("CUDA is only supported on Linux")
+    return False
+
+
+def check_nvidia_smi(platform):
+    if platform == "Linux":
+        cmd = "nvidia-smi -q 2>/dev/null | grep CUDA | cut -f2 -d ':'"
+        output = run_shell_command(cmd)
+        logging.debug("%s: %s", cmd, output)
+        if "12" in output:  # Check if CUDA 12.x is installed
+            return True
+        else:
+            logging.info("CUDA 12.x cannot be detected via nvidia-smi")
+            return False
+    else:
+        logging.info("CUDA is only supported on Linux")
     return False
 
 
@@ -1287,6 +1319,8 @@ def run_shell_command(cmd):
     except subprocess.CalledProcessError as e:
         if "Cannot detect installation path" in str(e.output):
             logging.warning("Uninstaller did not find previous installation")
+        elif "nvcc" in str(e.cmd):
+            logging.debug("Cannot detect CUDA via nvcc")
         else:
             logging.error(
                 "Exception on process - rc= %s output= %s command= %s",
@@ -1344,7 +1378,7 @@ class Compat:
         self.ld_library_path = None
         self.dist = dist_
         self.release_package_wasmedge = None
-        self.cuda = check_nvcc(self.platform)
+        self.cuda = check_nvcc(self.platform) or check_nvidia_smi(self.platform)
 
         if self.platform == "Linux":
             self.install_package_name = "WasmEdge-{0}-Linux".format(self.version)
@@ -1589,8 +1623,6 @@ def main(args):
         logging.info("Installing WasmEdge")
         # Copy the tree
         for sub_dir in listdir(join(TEMP_PATH, CONST_ipkg)):
-            if "._" in sub_dir:
-                continue
             if sub_dir == "lib64":
                 copytree(join(TEMP_PATH, CONST_ipkg, sub_dir), join(args.path, "lib"))
             else:

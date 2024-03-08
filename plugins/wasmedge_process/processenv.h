@@ -46,7 +46,6 @@ public:
 
   static PO::List<std::string> AllowCmd;
   static PO::Option<PO::Toggle> AllowCmdAll;
-  static Plugin::PluginRegister Register;
 };
 
 } // namespace Host

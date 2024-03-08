@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-if(WASMEDGE_BUILD_AOT_RUNTIME)
+if(WASMEDGE_USE_LLVM)
   add_subdirectory(aot)
+  add_subdirectory(llvm)
 endif()
 add_subdirectory(common)
 add_subdirectory(system)
@@ -16,4 +17,7 @@ add_subdirectory(vm)
 add_subdirectory(driver)
 if(WASMEDGE_BUILD_SHARED_LIB OR WASMEDGE_BUILD_STATIC_LIB OR WASMEDGE_BUILD_TOOLS)
   add_subdirectory(api)
+endif()
+if(WASMEDGE_BUILD_WASI_NN_RPC)
+  add_subdirectory(wasi_nn_rpc)
 endif()

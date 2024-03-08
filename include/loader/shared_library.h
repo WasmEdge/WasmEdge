@@ -15,10 +15,8 @@
 #pragma once
 
 #include "ast/section.h"
-#include "common/defines.h"
-#include "common/errcode.h"
+#include "common/executable.h"
 #include "common/filesystem.h"
-#include "common/symbol.h"
 #include "system/winapi.h"
 
 #include <cstdint>
@@ -29,12 +27,7 @@ namespace WasmEdge {
 namespace Loader {
 
 /// Holder class for library handle
-class SharedLibrary : public std::enable_shared_from_this<SharedLibrary> {
-  SharedLibrary(const SharedLibrary &) = delete;
-  SharedLibrary &operator=(const SharedLibrary &) = delete;
-  SharedLibrary(SharedLibrary &&) = delete;
-  SharedLibrary &operator=(SharedLibrary &&) = delete;
-
+class SharedLibrary : public Executable {
 public:
 #if WASMEDGE_OS_WINDOWS
   using NativeHandle = winapi::HMODULE_;
@@ -43,64 +36,78 @@ public:
 #endif
 
   SharedLibrary() noexcept = default;
-  ~SharedLibrary() noexcept { unload(); }
+  ~SharedLibrary() noexcept override { unload(); }
   Expect<void> load(const std::filesystem::path &Path) noexcept;
-  Expect<void> load(const AST::AOTSection &AOTSec) noexcept;
   void unload() noexcept;
 
+  Symbol<const IntrinsicsTable *> getIntrinsics() noexcept override {
+    return get<const IntrinsicsTable *>("intrinsics");
+  }
+
+  std::vector<Symbol<Wrapper>> getTypes(size_t Size) noexcept override {
+    using namespace std::literals;
+    std::vector<Symbol<Wrapper>> Result;
+    Result.reserve(Size);
+    for (size_t I = 0; I < Size; ++I) {
+      // "t" prefix is for type helper function
+      const std::string Name = fmt::format("t{}"sv, I);
+      if (auto Symbol = get<Wrapper>(Name.c_str())) {
+        Result.push_back(std::move(Symbol));
+      }
+    }
+
+    return Result;
+  }
+
+  std::vector<Symbol<void>> getCodes(size_t Offset,
+                                     size_t Size) noexcept override {
+    using namespace std::literals;
+    std::vector<Symbol<void>> Result;
+    Result.reserve(Size);
+    for (size_t I = 0; I < Size; ++I) {
+      // "f" prefix is for code function
+      const std::string Name = fmt::format("f{}"sv, I + Offset);
+      if (auto Symbol = get<void>(Name.c_str())) {
+        Result.push_back(std::move(Symbol));
+      }
+    }
+
+    return Result;
+  }
+
+  /// Read embedded Wasm binary.
+  Expect<std::vector<Byte>> getWasm() noexcept {
+    const auto Size = get<uint32_t>("wasm.size");
+    if (unlikely(!Size)) {
+      spdlog::error(ErrCode::Value::IllegalGrammar);
+      return Unexpect(ErrCode::Value::IllegalGrammar);
+    }
+    const auto Code = get<uint8_t>("wasm.code");
+    if (unlikely(!Code)) {
+      spdlog::error(ErrCode::Value::IllegalGrammar);
+      return Unexpect(ErrCode::Value::IllegalGrammar);
+    }
+
+    return std::vector<Byte>(Code.get(), Code.get() + *Size);
+  }
+
+  /// Read wasmedge version.
+  Expect<uint32_t> getVersion() noexcept {
+    const auto Version = get<uint32_t>("version");
+    if (unlikely(!Version)) {
+      spdlog::error(ErrCode::Value::IllegalGrammar);
+      return Unexpect(ErrCode::Value::IllegalGrammar);
+    }
+    return *Version;
+  }
+
   template <typename T> Symbol<T> get(const char *Name) {
-    return Symbol<T>(shared_from_this(),
-                     reinterpret_cast<T *>(getSymbolAddr(Name)));
-  }
-
-  uintptr_t getOffset() const noexcept;
-
-  template <typename T> T *getPointer(uint64_t Address) const noexcept {
-    return reinterpret_cast<T *>(getOffset() + Address);
-  }
-
-  template <typename T> Symbol<T> getIntrinsics() noexcept {
-    if (Binary) {
-      return Symbol<T>(shared_from_this(), getPointer<T>(IntrinsicsAddress));
-    }
-    return {};
-  }
-
-  template <typename T> std::vector<Symbol<T>> getTypes() noexcept {
-    std::vector<Symbol<T>> Result;
-    if (Binary) {
-      Result.reserve(TypesAddress.size());
-      for (const auto Address : TypesAddress) {
-        Result.push_back(Symbol<T>(shared_from_this(), getPointer<T>(Address)));
-      }
-    }
-    return Result;
-  }
-
-  template <typename T> std::vector<Symbol<T>> getCodes() noexcept {
-    std::vector<Symbol<T>> Result;
-    if (Binary) {
-      Result.reserve(CodesAddress.size());
-      for (const auto Address : CodesAddress) {
-        Result.push_back(Symbol<T>(shared_from_this(), getPointer<T>(Address)));
-      }
-    }
-    return Result;
+    return createSymbol<T>(reinterpret_cast<T *>(getSymbolAddr(Name)));
   }
 
 private:
   void *getSymbolAddr(const char *Name) const noexcept;
   NativeHandle Handle{};
-
-  uint8_t *Binary = nullptr;
-  uint64_t BinarySize = 0;
-  uint64_t IntrinsicsAddress = 0;
-  std::vector<uintptr_t> TypesAddress;
-  std::vector<uintptr_t> CodesAddress;
-#if WASMEDGE_OS_WINDOWS
-  void *PDataAddress = 0;
-  uint32_t PDataSize = 0;
-#endif
 };
 
 } // namespace Loader

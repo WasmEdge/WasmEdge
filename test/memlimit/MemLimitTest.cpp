@@ -35,6 +35,10 @@ TEST(MemLimitTest, Limit__Pages) {
   ASSERT_FALSE(Inst5.getDataPtr() == nullptr);
   ASSERT_FALSE(Inst5.growPage(128));
   ASSERT_TRUE(Inst5.growPage(127));
+
+  MemInst Inst6(WasmEdge::AST::MemoryType(1),
+                Conf.getRuntimeConfigure().getMaxMemoryPage());
+  ASSERT_FALSE(Inst6.growPage(0xFFFFFFFF));
 }
 
 } // namespace

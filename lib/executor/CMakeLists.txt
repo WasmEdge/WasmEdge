@@ -17,6 +17,7 @@ wasmedge_add_library(wasmedgeExecutor
   engine/threadInstr.cpp
   engine/memoryInstr.cpp
   engine/variableInstr.cpp
+  engine/refInstr.cpp
   engine/engine.cpp
   helper.cpp
   executor.cpp

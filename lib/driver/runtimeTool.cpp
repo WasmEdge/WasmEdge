@@ -68,11 +68,23 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   if (Opt.PropFunctionReference.value()) {
     Conf.addProposal(Proposal::FunctionReferences);
   }
+  if (Opt.PropGC.value()) {
+    Conf.addProposal(Proposal::GC);
+    spdlog::warn("GC proposal is enabled, this is experimental.");
+  }
+  if (Opt.PropComponent.value()) {
+    Conf.addProposal(Proposal::Component);
+    spdlog::warn("component model is enabled, this is experimental.");
+  }
   if (Opt.PropAll.value()) {
     Conf.addProposal(Proposal::MultiMemories);
     Conf.addProposal(Proposal::TailCall);
     Conf.addProposal(Proposal::ExtendedConst);
     Conf.addProposal(Proposal::Threads);
+    Conf.addProposal(Proposal::GC);
+    Conf.addProposal(Proposal::Component);
+    spdlog::warn("GC proposal is enabled, this is experimental.");
+    spdlog::warn("component model is enabled, this is experimental.");
   }
 
   std::optional<std::chrono::system_clock::time_point> Timeout;
@@ -103,6 +115,11 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     if (Opt.ConfEnableTimeMeasuring.value()) {
       Conf.getStatisticsConfigure().setTimeMeasuring(true);
     }
+  }
+  if (Opt.ConfEnableJIT.value()) {
+    Conf.getRuntimeConfigure().setEnableJIT(true);
+    Conf.getCompilerConfigure().setOptimizationLevel(
+        WasmEdge::CompilerConfigure::OptimizationLevel::O1);
   }
   if (Opt.ConfForceInterpreter.value()) {
     Conf.getRuntimeConfigure().setForceInterpreter(true);

@@ -22,8 +22,13 @@ on:
       - "include/api/wasmedge/**"
       - "lib/api/**"
 
+permissions:
+  contents: read
+
 jobs:
   build_ubuntu:
+    permissions:
+      contents: write
     name: Ubuntu 22.04
     runs-on: ${{ matrix.os }}
     strategy:
@@ -80,6 +85,8 @@ jobs:
             bindings/java/wasmedge-java/build/libs/wasmedge-java-*.jar
 
   build_macos:
+    permissions:
+      contents: write
     name: MacOS
     runs-on: ${{ matrix.os }}
     strategy:
@@ -142,6 +149,8 @@ jobs:
             bindings/java/wasmedge-java/build/libs/wasmedge-java-*.jar
 
   build_windows:
+    permissions:
+      contents: write
     name: Windows
     runs-on: windows-2022
     env:
@@ -159,7 +168,7 @@ jobs:
         with:
           args: install cmake ninja vswhere
 
-      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
+      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
         with:
           sdk-version: 19041
 

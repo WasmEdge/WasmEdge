@@ -370,6 +370,16 @@ Expect<std::string> FileMgr::readName() {
   return Str;
 }
 
+// Peek one byte. See "include/loader/filemgr.h".
+Expect<Byte> FileMgr::peekByte() {
+  if (auto Res = readByte()) {
+    Pos--;
+    return Res;
+  } else {
+    return Unexpect(Res);
+  }
+}
+
 // Get the file header type. See "include/loader/filemgr.h".
 FileMgr::FileHeader FileMgr::getHeaderType() {
   if (Size >= 4) {

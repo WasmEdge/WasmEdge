@@ -25,8 +25,7 @@ std::atomic_uint handlerCount = 0;
 thread_local Fault *localHandler = nullptr;
 
 #if defined(SA_SIGINFO)
-[[noreturn]] void signalHandler(int Signal, siginfo_t *Siginfo [[maybe_unused]],
-                                void *) noexcept {
+void signalHandler(int Signal, siginfo_t *Siginfo, void *) {
   {
     // Unblock current signal
     sigset_t Set;

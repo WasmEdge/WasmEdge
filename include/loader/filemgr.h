@@ -86,6 +86,9 @@ public:
   /// Read a string, which is size(unsigned int) + bytes.
   Expect<std::string> readName();
 
+  /// Peek one byte.
+  Expect<Byte> peekByte();
+
   /// Get the file header type.
   FileHeader getHeaderType();
 

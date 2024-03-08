@@ -1,0 +1,36 @@
+name: Submit WasmEdge MSI package to the Windows Package Manager Community Repository
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  winget:
+    permissions:
+      packages: write
+    name: Publish WinGet Package
+    runs-on: windows-latest
+    steps:
+      - name: Submit WasmEdge MSI package with WinGet Create
+        run: |
+
+          $packageId = "WasmEdge.WasmEdge"
+          $gitToken = "${{ secrets.GITHUB_TOKEN }}"
+
+          # Fetching latest release from GitHub
+          $github = Invoke-RestMethod -uri "https://api.github.com/repos/WasmEdge/WasmEdge/releases"
+          $targetRelease = $github | Where-Object -Property name -match 'WasmEdge'| Select-Object -First 1
+          $installerUrl = $targetRelease | Select-Object -ExpandProperty assets -First 1 | Where-Object -Property name -match 'WasmEdge.*.msi' | Select-Object -ExpandProperty browser_download_url
+          $packageVersion = $targetRelease.tag_name
+
+          # Install .NET Runtime
+          Invoke-WebRequest https://dot.net/v1/dotnet-install.ps1 -OutFile dotnet-install.ps1
+          .\dotnet-install.ps1 -Runtime dotnet -Architecture x64 -Version 6.0.13 -InstallDir $env:ProgramFiles\dotnet
+
+          # Update package using wingetcreate
+          Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+          .\wingetcreate.exe update $packageId --version $packageVersion --urls "$installerUrl" --submit --token $gitToken

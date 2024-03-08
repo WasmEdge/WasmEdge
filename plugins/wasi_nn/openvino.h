@@ -7,65 +7,7 @@
 #include "types.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-#include "common/log.h"
-#include <c_api/ie_c_api.h>
-#include <vector>
-
-template <>
-struct fmt::formatter<IEStatusCode> : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator format(IEStatusCode Code,
-                                       fmt::format_context &Ctx) const {
-    using namespace std::literals;
-    std::string_view Name;
-    switch (Code) {
-    case OK:
-      Name = "OK"sv;
-      break;
-    case GENERAL_ERROR:
-      Name = "GENERAL_ERROR"sv;
-      break;
-    case NOT_IMPLEMENTED:
-      Name = "NOT_IMPLEMENTED"sv;
-      break;
-    case NETWORK_NOT_LOADED:
-      Name = "NETWORK_NOT_LOADED"sv;
-      break;
-    case PARAMETER_MISMATCH:
-      Name = "PARAMETER_MISMATCH"sv;
-      break;
-    case NOT_FOUND:
-      Name = "NOT_FOUND"sv;
-      break;
-    case OUT_OF_BOUNDS:
-      Name = "OUT_OF_BOUNDS"sv;
-      break;
-    case UNEXPECTED:
-      Name = "UNEXPECTED"sv;
-      break;
-    case REQUEST_BUSY:
-      Name = "REQUEST_BUSY"sv;
-      break;
-    case RESULT_NOT_READY:
-      Name = "RESULT_NOT_READY"sv;
-      break;
-    case NOT_ALLOCATED:
-      Name = "NOT_ALLOCATED"sv;
-      break;
-    case INFER_NOT_STARTED:
-      Name = "INFER_NOT_STARTED"sv;
-      break;
-    case NETWORK_NOT_READ:
-      Name = "NETWORK_NOT_READ"sv;
-      break;
-    case INFER_CANCELLED:
-      Name = "INFER_CANCELLED"sv;
-      break;
-    default:
-      Name = "Unknown"sv;
-    }
-    return fmt::formatter<std::string_view>::format(Name, Ctx);
-  }
-};
+#include "openvino/openvino.hpp"
 #endif
 
 namespace WasmEdge::Host::WASINN {
@@ -75,65 +17,23 @@ struct WasiNNEnvironment;
 namespace WasmEdge::Host::WASINN::OpenVINO {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
 struct Graph {
-  ~Graph() noexcept {
-    if (OpenVINONetwork) {
-      ie_network_free(&OpenVINONetwork);
-    }
-    if (OpenVINOExecNetwork) {
-      ie_exec_network_free(&OpenVINOExecNetwork);
-    }
-    if (OpenVINOWeightBlob) {
-      ie_blob_free(&OpenVINOWeightBlob);
-    }
-    for (auto &I : OpenVINOInputNames) {
-      if (I) {
-        ie_network_name_free(&I);
-      }
-    }
-    for (auto &I : OpenVINOOutputNames) {
-      if (I) {
-        ie_network_name_free(&I);
-      }
-    }
-  }
-  ie_network_t *OpenVINONetwork = nullptr;
-  ie_executable_network_t *OpenVINOExecNetwork = nullptr;
-  ie_blob_t *OpenVINOWeightBlob = nullptr;
-  std::vector<char *> OpenVINOInputNames;
-  std::vector<char *> OpenVINOOutputNames;
+  ~Graph() noexcept {}
+  ov::Tensor OpenVINOIWeightTensor;
+  std::shared_ptr<ov::Model> OpenVINOModel;
+  Device TargetDevice = Device::AUTO;
 };
 
 struct Context {
-  Context(size_t GId, Graph &G) noexcept : GraphId(GId) {
-    IEStatusCode Status = ie_exec_network_create_infer_request(
-        G.OpenVINOExecNetwork, &OpenVINOInferRequest);
-    if (Status != IEStatusCode::OK) {
-      OpenVINOInferRequest = nullptr;
-      spdlog::error("[WASI-NN] Unable to create infer request for OpenVINO");
-    }
-  }
-  ~Context() noexcept {
-    if (OpenVINOInferRequest) {
-      ie_infer_request_free(&OpenVINOInferRequest);
-    }
-  }
+  Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
+  ~Context() noexcept {}
   size_t GraphId;
-  ie_infer_request_t *OpenVINOInferRequest = nullptr;
+  ov::InferRequest OpenVINOInferRequest;
 };
 
 struct Environ {
-  Environ() noexcept {
-    if (ie_core_create("", &OpenVINOCore) != IEStatusCode::OK) {
-      spdlog::error(
-          "[WASI-NN] Error happened when initializing OpenVINO core.");
-    }
-  }
-  ~Environ() noexcept {
-    if (OpenVINOCore) {
-      ie_core_free(&OpenVINOCore);
-    }
-  }
-  ie_core_t *OpenVINOCore = nullptr;
+  Environ() noexcept {}
+  ~Environ() noexcept {}
+  ov::Core OpenVINOCore;
 };
 #else
 struct Graph {};

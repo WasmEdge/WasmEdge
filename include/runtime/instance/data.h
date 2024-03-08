@@ -34,6 +34,20 @@ public:
   /// Get data in data instance.
   Span<const Byte> getData() const noexcept { return Data; }
 
+  /// Load bytes to value.
+  ValVariant loadValue(uint32_t Offset, uint32_t N) const noexcept {
+    assuming(N <= 16);
+    // Check the data boundary.
+    if (unlikely(static_cast<uint64_t>(Offset) + static_cast<uint64_t>(N) >
+                 Data.size())) {
+      return 0;
+    }
+    // Load the data to the value.
+    uint128_t Value;
+    std::memcpy(&Value, &Data[Offset], N);
+    return Value;
+  }
+
   /// Clear data in data instance.
   void clear() { Data.clear(); }
 

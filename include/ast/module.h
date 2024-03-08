@@ -21,29 +21,6 @@
 namespace WasmEdge {
 namespace AST {
 
-class Component {
-public:
-  /// Getter of magic vector.
-  const std::vector<Byte> &getMagic() const noexcept { return Magic; }
-  std::vector<Byte> &getMagic() noexcept { return Magic; }
-
-  /// Getter of version vector.
-  const std::vector<Byte> &getVersion() const noexcept { return Version; }
-  std::vector<Byte> &getVersion() noexcept { return Version; }
-
-  /// Getter of layer vector.
-  const std::vector<Byte> &getLayer() const noexcept { return Layer; }
-  std::vector<Byte> &getLayer() noexcept { return Layer; }
-
-private:
-  /// \name Data of Module node.
-  /// @{
-  std::vector<Byte> Magic;
-  std::vector<Byte> Version;
-  std::vector<Byte> Layer;
-  /// @}
-};
-
 /// AST Module node.
 class Module {
 public:
@@ -89,37 +66,9 @@ public:
   const AOTSection &getAOTSection() const { return AOTSec; }
   AOTSection &getAOTSection() { return AOTSec; }
 
-  enum class Intrinsics : uint32_t {
-    kTrap,
-    kCall,
-    kCallIndirect,
-    kMemCopy,
-    kMemFill,
-    kMemGrow,
-    kMemSize,
-    kMemInit,
-    kDataDrop,
-    kTableGet,
-    kTableSet,
-    kTableCopy,
-    kTableFill,
-    kTableGrow,
-    kTableSize,
-    kTableInit,
-    kElemDrop,
-    kRefFunc,
-    kTableGetFuncSymbol,
-    kMemoryAtomicNotify,
-    kMemoryAtomicWait,
-    kCallRef,
-    kRefGetFuncSymbol,
-    kIntrinsicMax,
-  };
-  using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];
-
   /// Getter and setter of compiled symbol.
   const auto &getSymbol() const noexcept { return IntrSymbol; }
-  void setSymbol(Symbol<const IntrinsicsTable *> S) noexcept {
+  void setSymbol(Symbol<const Executable::IntrinsicsTable *> S) noexcept {
     IntrSymbol = std::move(S);
   }
 
@@ -154,7 +103,7 @@ private:
   /// \name Data of AOT.
   /// @{
   AOTSection AOTSec;
-  Symbol<const IntrinsicsTable *> IntrSymbol;
+  Symbol<const Executable::IntrinsicsTable *> IntrSymbol;
   /// @}
 
   /// \name Validated flag.
@@ -162,6 +111,54 @@ private:
   bool IsValidated = false;
   /// @}
 };
+
+class CoreModuleSection : public Section {
+public:
+  /// Getter of content.
+  const Module &getContent() const noexcept { return Content; }
+  Module &getContent() noexcept { return Content; }
+
+private:
+  Module Content;
+};
+
+namespace Component {
+
+class Component {
+  using Section =
+      std::variant<CustomSection, CoreModuleSection, CoreInstanceSection,
+                   CoreTypeSection, ComponentSection, InstanceSection,
+                   AliasSection, TypeSection, CanonSection, StartSection,
+                   ImportSection, ExportSection>;
+
+public:
+  /// Getter of magic vector.
+  const std::vector<Byte> &getMagic() const noexcept { return Magic; }
+  std::vector<Byte> &getMagic() noexcept { return Magic; }
+
+  /// Getter of version vector.
+  const std::vector<Byte> &getVersion() const noexcept { return Version; }
+  std::vector<Byte> &getVersion() noexcept { return Version; }
+
+  /// Getter of layer vector.
+  const std::vector<Byte> &getLayer() const noexcept { return Layer; }
+  std::vector<Byte> &getLayer() noexcept { return Layer; }
+
+  std::vector<Section> &getSections() noexcept { return Secs; }
+  Span<const Section> getSections() const noexcept { return Secs; }
+
+private:
+  /// \name Data of Module node.
+  /// @{
+  std::vector<Byte> Magic;
+  std::vector<Byte> Version;
+  std::vector<Byte> Layer;
+
+  std::vector<Section> Secs;
+  /// @}
+};
+
+} // namespace Component
 
 } // namespace AST
 } // namespace WasmEdge

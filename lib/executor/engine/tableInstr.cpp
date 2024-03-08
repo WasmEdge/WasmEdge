@@ -81,8 +81,8 @@ Executor::runTableCopyOp(Runtime::StackManager &StackMgr,
   uint32_t Dst = StackMgr.pop().get<uint32_t>();
 
   // Replace tab_dst[Dst : Dst + Len] with tab_src[Src : Src + Len].
-  if (auto Refs = TabInstSrc.getRefs(Src, Len)) {
-    if (auto Res = TabInstDst.setRefs(*Refs, Dst, 0, Len)) {
+  if (auto Refs = TabInstSrc.getRefs(0, Src + Len)) {
+    if (auto Res = TabInstDst.setRefs(*Refs, Dst, Src, Len)) {
       return {};
     } else {
       spdlog::error(

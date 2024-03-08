@@ -1143,7 +1143,7 @@ TEST(APICoreTest, ExportType) {
   WasmEdge_ASTModuleDelete(Mod);
 }
 
-#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_USE_LLVM
 TEST(APICoreTest, Compiler) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   std::ifstream OutFile;
@@ -1328,7 +1328,7 @@ TEST(APICoreTest, Loader) {
       WasmEdge_ErrCode_WrongVMWorkflow,
       WasmEdge_LoaderParseFromBuffer(nullptr, nullptr, Buf.data(),
                                      static_cast<uint32_t>(Buf.size()))));
-#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_USE_LLVM
   // Failed case to parse from buffer with AOT compiled WASM
   EXPECT_TRUE(readToVector("test_aot" WASMEDGE_LIB_EXTENSION, Buf));
   Mod = nullptr;
@@ -1690,6 +1690,19 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   EXPECT_TRUE(
       isErrMatch(WasmEdge_ErrCategory_UserLevelError, 0x5678U,
                  WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 0, R, 1)));
+
+  // Invoke independent host functions
+  // host function "func-add": {externref, i32} -> {i32}
+  WasmEdge_ValType Result[1] = {WasmEdge_ValTypeGenI32()};
+  WasmEdge_FunctionTypeContext *FuncType =
+      WasmEdge_FunctionTypeCreate(nullptr, 0, Result, 1);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, ExternTerm, nullptr, 0);
+  WasmEdge_FunctionTypeDelete(FuncType);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 0, R, 1)));
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  EXPECT_TRUE(true);
 
   // Statistics get instruction count
   EXPECT_GT(WasmEdge_StatisticsGetInstrCount(Stat), 0ULL);

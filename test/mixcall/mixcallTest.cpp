@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "aot/compiler.h"
 #include "common/configure.h"
 #include "common/errinfo.h"
 #include "common/filesystem.h"
@@ -9,6 +8,8 @@
 #include "runtime/instance/module.h"
 #include "validator/validator.h"
 #include "vm/vm.h"
+#include "llvm/codegen.h"
+#include "llvm/compiler.h"
 
 #include <gtest/gtest.h>
 #include <iostream>
@@ -111,20 +112,24 @@ bool compileModule(const WasmEdge::Configure &Conf, std::string_view InPath,
                    std::string_view OutPath) {
   WasmEdge::Loader::Loader Load(Conf);
   WasmEdge::Validator::Validator Valid(Conf);
-  WasmEdge::AOT::Compiler Compiler(Conf);
+  WasmEdge::LLVM::Compiler Compiler(Conf);
+  WasmEdge::LLVM::CodeGen CodeGen(Conf);
 
-  auto Mod = Load.parseModule(InPath);
-  auto Data = Load.loadFile(InPath);
-  if (!Mod || !Data) {
-    return false;
-  }
-  if (auto Res = Valid.validate(*(*Mod).get()); !Res) {
-    return false;
-  }
-  if (auto Res = Compiler.compile(*Data, *(*Mod).get(), OutPath); !Res) {
-    return false;
-  }
-  return true;
+  std::vector<WasmEdge::Byte> Data;
+  std::unique_ptr<WasmEdge::AST::Module> Module;
+  return Load.loadFile(InPath)
+      .and_then([&](auto Result) noexcept {
+        Data = std::move(Result);
+        return Load.parseModule(InPath);
+      })
+      .and_then([&](auto Result) noexcept {
+        Module = std::move(Result);
+        return Valid.validate(*Module);
+      })
+      .and_then([&]() noexcept { return Compiler.compile(*Module); })
+      .and_then([&](auto Result) noexcept {
+        return CodeGen.codegen(Data, std::move(Result), OutPath);
+      }).has_value();
 }
 
 TEST(MixCallTest, Call__InterpCallAOT) {

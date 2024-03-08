@@ -35,9 +35,10 @@ public:
 
   /// Getter of value.
   const ValVariant &getValue() const noexcept { return Value; }
-
-  /// Getter of value.
   ValVariant &getValue() noexcept { return Value; }
+
+  /// Setter of value.
+  void setValue(const ValVariant &Val) noexcept { Value = Val; }
 
 private:
   /// \name Data of global instance.

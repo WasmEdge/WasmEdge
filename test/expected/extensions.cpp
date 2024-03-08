@@ -548,7 +548,7 @@ TEST(ExtensionsTest, OrElse) {
     EXPECT_EQ(ret.error(), 21);
   }
 }
-struct S {
+struct E {
   int x;
 };
 
@@ -557,7 +557,7 @@ struct F {
 };
 
 TEST(ExtensionsTest, Issue14) {
-  auto res = expected<S, F>{unexpect, F{}};
+  auto res = expected<E, F>{unexpect, F{}};
 
   res.map_error([](F) {});
 }

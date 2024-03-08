@@ -100,3 +100,11 @@ else()
 endif()
 
 add_test(wasiNNTests wasiNNTests)
+
+if(WASMEDGE_BUILD_WASI_NN_RPC)
+  add_definitions(-DWASMEDGE_BUILD_WASI_NN_RPC)
+  target_link_libraries(wasiNNTests
+    PRIVATE
+    wasiNNRPC
+  )
+endif()

@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+// The services are expected to be exposed to another host via a UNIX socket with ssh forwarding
+// (`ssh -R remote.sock:local.sock`).
+// Must not be exposed to an untrusted host.
+
+package wasi_ephemeral_nn;
+
+enum TensorType {
+  FP16 = 0;
+  FP32 = 1;
+  FP64 = 2;
+  BF16 = 3;
+  U8 = 4;
+  I32 = 5;
+  I64 = 6;
+}
+
+message Tensor {
+  repeated uint32 dimensions = 1 [packed=true];
+  TensorType ty = 2;
+  bytes data = 3;
+}
+
+message InitExecutionContextRequest {
+  uint32 resource_handle = 1;
+}
+
+message InitExecutionContextResult {
+  uint32 ctx_handle = 1;
+}
+
+service GraphResource {
+  rpc InitExecutionContext(InitExecutionContextRequest) returns (InitExecutionContextResult) {};
+}
+
+message LoadByNameRequest {
+  string name = 1;
+}
+
+message LoadByNameResult {
+  uint32 graph_handle = 1;
+}
+
+service Graph {
+  // No support for Load yet
+  rpc LoadByName(LoadByNameRequest) returns (LoadByNameResult) {};
+}
+
+message SetInputRequest {
+  uint32 resource_handle = 1;
+  uint32 index = 2; // defined as a string in wit
+  Tensor tensor = 3;
+}
+
+message ComputeRequest{
+  uint32 resource_handle = 1;
+}
+
+message GetOutputRequest {
+  uint32 resource_handle = 1;
+  uint32 index = 2; // defined as a string in wit
+}
+
+message GetOutputResult {
+  bytes data = 1; // defined as a tensor in wit
+}
+
+service GraphExecutionContextResource {
+  rpc SetInput(SetInputRequest) returns (google.protobuf.Empty) {};
+  rpc Compute(ComputeRequest) returns (google.protobuf.Empty) {};
+  rpc GetOutput(GetOutputRequest) returns (GetOutputResult) {};
+}
+
+// ref:
+// - https://github.com/WebAssembly/wasi-nn/blob/06c30c0e12e39e674b6503614352dcf6dc0c96e0/wasi-nn.witx
+// - https://github.com/second-state/wasmedge-wasi-nn/blob/d6124116bc106ea2a453c72ca4222d8917b66820/assemblyscript/assembly/wasi_ephemeral_nn.ts
+// - https://github.com/second-state/wasmedge-wasi-nn/blob/d6124116bc106ea2a453c72ca4222d8917b66820/rust/src/generated.rs#L303-L313
+// - https://github.com/WebAssembly/wasi-nn/blob/06c30c0e12e39e674b6503614352dcf6dc0c96e0/wit/wasi-nn.wit (WasmEdge implementation currently follows witx, not wit)

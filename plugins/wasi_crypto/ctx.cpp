@@ -72,9 +72,10 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .AddOptions = nullptr,
 };
 
+EXPORT_GET_DESCRIPTOR(Descriptor)
+
 } // namespace
 
-Plugin::PluginRegister WasiCrypto::Context::Register(&Descriptor);
 std::shared_mutex WasiCrypto::Context::Mutex;
 std::weak_ptr<WasiCrypto::Context> WasiCrypto::Context::Instance;
 

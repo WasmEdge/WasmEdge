@@ -94,14 +94,17 @@ public:
     // Maximum pages count, 65536
     uint32_t MaxPageCaped = k4G / kPageSize;
     uint32_t Min = MemType.getLimit().getMin();
-    uint32_t Max = MemType.getLimit().getMax();
+    assuming(MaxPageCaped >= Min);
     if (MemType.getLimit().hasMax()) {
+      uint32_t Max = MemType.getLimit().getMax();
+      assuming(Max >= Min);
       MaxPageCaped = std::min(Max, MaxPageCaped);
     }
-    if (Count + Min > MaxPageCaped) {
+    if (Count > MaxPageCaped - Min) {
       return false;
     }
-    if (Count + Min > PageLimit) {
+    assuming(PageLimit >= Min);
+    if (Count > PageLimit - Min) {
       spdlog::error("Memory grow page failed -- exceeded limit page size: {}",
                     PageLimit);
       return false;

@@ -9,8 +9,13 @@ on:
       release:
         type: boolean
 
+permissions:
+  contents: read
+
 jobs:
   create_source_tarball:
+    permissions:
+      contents: write
     name: Create source tarball
     runs-on: ubuntu-latest
     steps:

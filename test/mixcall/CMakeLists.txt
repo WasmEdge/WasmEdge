@@ -17,6 +17,6 @@ target_link_libraries(wasmedgeMixcallTests
   PRIVATE
   std::filesystem
   ${GTEST_BOTH_LIBRARIES}
-  wasmedgeAOT
+  wasmedgeLLVM
   wasmedgeVM
 )

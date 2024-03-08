@@ -31,7 +31,14 @@ TEST(NoExceptTest, ThrowAll) {
     [[noreturn]] [[maybe_unused]] throw_all(throw_all &&) noexcept(false) {
       throw 0;
     }
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4722)
+#endif
     [[noreturn]] ~throw_all() noexcept(false) { throw 0; }
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
     [[noreturn]] throw_all &operator=(const throw_all &) noexcept(false) {
       throw 0;
     }

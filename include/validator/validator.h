@@ -31,12 +31,13 @@ public:
   ~Validator() noexcept = default;
 
   /// Validate AST::Component.
-  Expect<void> validate(const AST::Component &Comp);
+  Expect<void> validate(const AST::Component::Component &Comp);
   /// Validate AST::Module.
   Expect<void> validate(const AST::Module &Mod);
 
 private:
   /// Validate AST::Types
+  Expect<void> validate(const AST::SubType &Type);
   Expect<void> validate(const AST::Limit &Lim);
   Expect<void> validate(const AST::TableType &Tab);
   Expect<void> validate(const AST::MemoryType &Mem);

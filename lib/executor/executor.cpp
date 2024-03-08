@@ -81,12 +81,18 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
     return Unexpect(ErrCode::Value::FuncNotFound);
   }
 
-  // Check parameter and function type.
+  // Matching arguments and function type.
   const auto &FuncType = FuncInst->getFuncType();
   const auto &PTypes = FuncType.getParamTypes();
   const auto &RTypes = FuncType.getReturnTypes();
-  if (!matchTypes(*FuncInst->getModule(), ParamTypes, *FuncInst->getModule(),
-                  PTypes)) {
+  // The defined type list may be empty if the function is an independent
+  // function instance, that is, the module instance will be nullptr. For this
+  // case, all of value types are number types or abstract heap types.
+  WasmEdge::Span<const WasmEdge::AST::SubType *const> TypeList = {};
+  if (FuncInst->getModule()) {
+    TypeList = FuncInst->getModule()->getTypeList();
+  }
+  if (!AST::TypeMatcher::matchTypes(TypeList, ParamTypes, PTypes)) {
     spdlog::error(ErrCode::Value::FuncSigMismatch);
     spdlog::error(ErrInfo::InfoMismatch(
         PTypes, RTypes, std::vector(ParamTypes.begin(), ParamTypes.end()),
@@ -115,8 +121,37 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
   // Get return values.
   std::vector<std::pair<ValVariant, ValType>> Returns(RTypes.size());
   for (uint32_t I = 0; I < RTypes.size(); ++I) {
-    Returns[RTypes.size() - I - 1] =
-        std::make_pair(StackMgr.pop(), RTypes[RTypes.size() - I - 1]);
+    auto Val = StackMgr.pop();
+    const auto &RType = RTypes[RTypes.size() - I - 1];
+    if (RType.isRefType()) {
+      // For the types of the return values, they should be transformed into
+      // abstract heap types due to the opaque of type indices.
+      auto &RefType = Val.get<RefVariant>().getType();
+      if (RefType.isExternalized()) {
+        // First handle the forced externalized value type case.
+        RefType = ValType(TypeCode::Ref, TypeCode::ExternRef);
+      }
+      if (!RefType.isAbsHeapType()) {
+        // The instance must not be nullptr because the null references are
+        // already dynamic typed into the top abstract heap type.
+        auto *Inst =
+            Val.get<RefVariant>().getPtr<Runtime::Instance::CompositeBase>();
+        assuming(Inst);
+        // The ModInst may be nullptr only in the independent host function
+        // instance. Therefore the module instance here must not be nullptr
+        // because the independent host function instance cannot be imported and
+        // be referred by instructions.
+        const auto *ModInst = Inst->getModule();
+        auto *DefType = *ModInst->getType(RefType.getTypeIndex());
+        RefType =
+            ValType(RefType.getCode(), DefType->getCompositeType().expand());
+      }
+      // Should use the value type from the reference here due to the dynamic
+      // typing rule of the null references.
+      Returns[RTypes.size() - I - 1] = std::make_pair(Val, RefType);
+    } else {
+      Returns[RTypes.size() - I - 1] = std::make_pair(Val, RType);
+    }
   }
 
   // After execution, the value stack size should be 0.

@@ -32,14 +32,6 @@ typedef std::optional<ValType> VType;
 
 static inline constexpr VType unreachableVType() { return VType(); }
 
-static inline constexpr bool isNumType(const VType V) {
-  return !V || V->isNumType();
-}
-
-static inline constexpr bool isRefType(const VType V) {
-  return !V || V->isRefType();
-}
-
 class FormChecker {
 public:
   FormChecker() = default;
@@ -50,7 +42,7 @@ public:
   Expect<void> validate(const ValType &VT) const noexcept;
 
   /// Adder of contexts
-  void addType(const AST::FunctionType &Func);
+  void addType(const AST::SubType &Type);
   void addFunc(const uint32_t TypeIdx, const bool IsImport = false);
   void addTable(const AST::TableType &Tab);
   void addMemory(const AST::MemoryType &Mem);
@@ -72,11 +64,7 @@ public:
   /// Helper function
   ValType VTypeToAST(const VType &V);
 
-  /// ValType matcher
-  bool matchType(const ValType &Exp, const ValType &Got) const noexcept;
-  bool matchTypes(Span<const ValType> Exp,
-                  Span<const ValType> Got) const noexcept;
-
+  /// Control frame
   struct CtrlFrame {
     CtrlFrame() = default;
     CtrlFrame(struct CtrlFrame &&F)
@@ -136,7 +124,7 @@ private:
   Expect<void> StackPopAny();
 
   /// Contexts.
-  std::vector<std::pair<std::vector<ValType>, std::vector<ValType>>> Types;
+  std::vector<const AST::SubType *> Types;
   std::vector<uint32_t> Funcs;
   std::vector<ValType> Tables;
   uint32_t Mems = 0;

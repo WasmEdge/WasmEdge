@@ -13,7 +13,7 @@ cd ${WASMEDGE_ROOT_PATH}
 
 mkdir build
 cd build
-if ! cmake .. -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_ON_OHOS=ON -DOHOS_DIR_PATH=${OHOS_DIR_PATH} -DOHOS_SYSROOT_PATH="${OHOS_DIR_PATH}/out/ohos-arm-release/obj/third_party/musl/"; then
+if ! cmake .. -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_ON_OHOS=ON -DOHOS_DIR_PATH=${OHOS_DIR_PATH} -DOHOS_SYSROOT_PATH="${OHOS_DIR_PATH}/out/ohos-arm-release/obj/third_party/musl/"; then
     echo === CMakeOutput.log ===
     cat build/CMakeFiles/CMakeOutput.log
     echo === CMakeError.log ===

@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-if(WASMEDGE_BUILD_AOT_RUNTIME)
-  add_definitions(-DWASMEDGE_BUILD_AOT_RUNTIME)
+if(WASMEDGE_USE_LLVM)
+  add_definitions(-DWASMEDGE_USE_LLVM)
 endif()
 if(WASMEDGE_BUILD_PLUGINS)
   add_definitions(-DWASMEDGE_BUILD_PLUGINS)
@@ -74,7 +74,7 @@ target_link_libraries(wasmedgeAPIStepsCoreTests
   wasmedge_shared
 )
 
-if(WASMEDGE_BUILD_AOT_RUNTIME)
+if(WASMEDGE_USE_LLVM)
   wasmedge_add_executable(wasmedgeAPIAOTCoreTests
     APIAOTCoreTest.cpp
   )

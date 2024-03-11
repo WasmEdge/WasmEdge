@@ -135,6 +135,7 @@ protected:
 
   void initFormatCtx(uint32_t AVFormatCtxPtr, uint32_t FilePtr,
                      std::string FileName);
+  void allocPacket(uint32_t PacketPtr);
 
   // Result of Funcs to be stored here.
   std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};

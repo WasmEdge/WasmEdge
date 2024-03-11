@@ -13,7 +13,6 @@ namespace WasmEdgeFFmpeg {
 TEST_F(FFmpegTest, AVCodecFunc) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
-  //  std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
   uint32_t CodecCtxPtr = UINT32_C(4);
   uint32_t CodecParamPtr = UINT32_C(8);
   uint32_t CodecParamPtr2 = UINT32_C(20);

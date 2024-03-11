@@ -132,12 +132,6 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
       FuncInst->getHostFunc());
 
   FuncInst =
-      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_alloc");
-  auto &HostFuncAVPacketAlloc =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketAlloc &>(
-          FuncInst->getHostFunc());
-
-  FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_av_read_frame");
   auto &HostFuncAVReadFrame =
       dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVReadFrame &>(
@@ -168,9 +162,7 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
     if (Error == EAGAIN) {
       while (true) {
 
-        HostFuncAVPacketAlloc.run(
-            CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketPtr},
-            Result);
+        allocPacket(PacketPtr);
 
         uint32_t PackedId = readUInt32(MemInst, PacketPtr);
 
@@ -247,6 +239,19 @@ void FFmpegTest::initDict(uint32_t DictPtr, uint32_t KeyPtr, std::string Key,
                         std::initializer_list<WasmEdge::ValVariant>{
                             DictPtr, KeyPtr, KeyLen, ValuePtr, ValueLen, 0},
                         Result);
+}
+
+void FFmpegTest::allocPacket(uint32_t PacketPtr) {
+
+  auto *FuncInst =
+      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_alloc");
+  auto &HostFuncAVPacketAlloc =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketAlloc &>(
+          FuncInst->getHostFunc());
+
+  HostFuncAVPacketAlloc.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketPtr},
+      Result);
 }
 
 } // namespace WasmEdgeFFmpeg

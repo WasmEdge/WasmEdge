@@ -214,9 +214,9 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       auto Inst = std::move(*Res);
       CompInst.addComponentInstance(std::move(Inst));
     } else {
-      spdlog::info("component inline exports");
       std::get<CompInlineExports>(InstExpr).getExports();
       // TODO:
+      spdlog::info("component inline exports");
     }
   }
   return {};
@@ -279,6 +279,7 @@ Executor::instantiate(Runtime::StoreManager &,
           auto *FuncInst = ModInst->findFuncExports(Exp.getName());
           CompInst.addComponentFunctionInstance(FuncInst);
         } else {
+          // TODO:
           spdlog::warn("TODO [alias function] outer export");
           auto Out = std::get<AliasTargetOuter>(T);
           auto NestedCompInst =

@@ -69,8 +69,6 @@ public:
   CAPIPluginRegister &operator=(const CAPIPluginRegister &) = delete;
 
   CAPIPluginRegister(const WasmEdge_PluginDescriptor *Desc) noexcept {
-    IncreaseNiftyCounter();
-
     ModuleDescriptions.resize(Desc->ModuleCount);
     for (size_t I = 0; I < ModuleDescriptions.size(); ++I) {
       ModuleDescriptions[I].Name = Desc->ModuleDescriptions[I].Name;
@@ -352,7 +350,12 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
 
   if (auto GetDescriptor =
           Lib->get<Plugin::PluginDescriptor const *()>("GetDescriptor")) {
-    Plugin::registerPlugin(GetDescriptor());
+    if (find(GetDescriptor()->Name)) {
+      spdlog::debug("Plugin: {} has already loaded."sv, GetDescriptor()->Name);
+      return true;
+    } else {
+      Plugin::registerPlugin(GetDescriptor());
+    }
   }
 
   if (PluginRegistry.size() != Index + 1) {
@@ -365,8 +368,13 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
                unlikely(!Descriptor)) {
       return false;
     } else {
-      CAPIPluginRegisters.push_back(
-          std::make_unique<CAPIPluginRegister>(Descriptor));
+      if (find(Descriptor->Name)) {
+        spdlog::debug("Plugin: {} has already loaded."sv, Descriptor->Name);
+        return true;
+      } else {
+        CAPIPluginRegisters.push_back(
+            std::make_unique<CAPIPluginRegister>(Descriptor));
+      }
     }
   }
 
@@ -398,11 +406,12 @@ Span<const Plugin> Plugin::plugins() noexcept { return PluginRegistry; }
 
 WASMEDGE_EXPORT void
 Plugin::registerPlugin(const PluginDescriptor *Desc) noexcept {
-  IncreaseNiftyCounter();
-  assuming(NiftyCounter != 0);
   if (Desc->APIVersion != CurrentAPIVersion) {
     return;
   }
+
+  IncreaseNiftyCounter();
+  assuming(NiftyCounter != 0);
 
   const auto Index = PluginRegistry.size();
   PluginRegistry.emplace_back(Desc);

@@ -11,6 +11,7 @@
 #include "host/mock/wasi_crypto_module.h"
 #include "host/mock/wasi_logging_module.h"
 #include "host/mock/wasi_nn_module.h"
+#include "host/mock/wasi_threads_module.h"
 #include "host/mock/wasmedge_image_module.h"
 #include "host/mock/wasmedge_process_module.h"
 #include "host/mock/wasmedge_tensorflow_module.h"
@@ -59,6 +60,8 @@ void VM::unsafeInitVM() {
   // Register all module instances.
   unsafeRegisterBuiltInHosts();
   unsafeRegisterPlugInHosts();
+
+  ExecutorEngine.setHostCallback(unsafeGetRegisterHostsCallback());
 }
 
 void VM::unsafeLoadBuiltInHosts() {
@@ -104,6 +107,8 @@ void VM::unsafeLoadPlugInHosts() {
           "wasmedge_tensorflowlite"sv, "wasmedge_tensorflowlite"sv));
   PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeImageModuleMock>(
       "wasmedge_image"sv, "wasmedge_image"sv));
+  PlugInModInsts.push_back(createPluginModule<Host::WasiThreadsModuleMock>(
+      "wasi_threads"sv, "wasi_threads"sv));
 
   // Load the other non-official plugins.
   for (const auto &Plugin : Plugin::Plugin::plugins()) {
@@ -117,7 +122,8 @@ void VM::unsafeLoadPlugInHosts() {
         Plugin.name() == "wasmedge_process"sv ||
         Plugin.name() == "wasmedge_tensorflow"sv ||
         Plugin.name() == "wasmedge_tensorflowlite"sv ||
-        Plugin.name() == "wasmedge_image"sv) {
+        Plugin.name() == "wasmedge_image"sv ||
+        Plugin.name() == "wasi_threads"sv) {
       continue;
     }
     for (const auto &Module : Plugin.modules()) {
@@ -138,6 +144,42 @@ void VM::unsafeRegisterPlugInHosts() {
   for (auto &It : PlugInModInsts) {
     ExecutorEngine.registerModule(StoreRef, *(It.get()));
   }
+}
+
+std::function<
+    std::vector<std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance>>()>
+VM::unsafeGetRegisterHostsCallback() {
+  auto Callback = [&]() {
+    // Note: if copy unsafeLoadPlugInHosts() and unsafeLoadBuiltInHosts() to
+    // here can make this to lock-free
+    static std::shared_mutex Mutex;
+    std::unique_lock Lock(Mutex);
+
+    std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>> Res;
+    /// Built-in module instances mapped to the configurations. For WASI.
+    std::unordered_map<HostRegistration,
+                       std::unique_ptr<Runtime::Instance::ModuleInstance>>
+        BuiltInModInstsBackUp;
+    /// Loaded module instances from plug-ins.
+    std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+        PlugInModInstsBackUp;
+
+    BuiltInModInstsBackUp.swap(BuiltInModInsts);
+    PlugInModInstsBackUp.swap(PlugInModInsts);
+    unsafeLoadBuiltInHosts();
+    unsafeLoadPlugInHosts();
+
+    for (auto &It : BuiltInModInsts)
+      Res.emplace_back(std::move(It.second));
+    for (auto &It : PlugInModInsts)
+      Res.emplace_back(std::move(It));
+    spdlog::info("add {} mods", Res.size());
+    // restore
+    BuiltInModInstsBackUp.swap(BuiltInModInsts);
+    PlugInModInstsBackUp.swap(PlugInModInsts);
+    return Res;
+  };
+  return Callback;
 }
 
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,

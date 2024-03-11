@@ -40,6 +40,7 @@ if(WASMEDGE_PLUGIN_PROCESS)
   # Only Linux systems support wasmedge_process now.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux")
     add_subdirectory(wasmedge_process)
+    add_subdirectory(wasi_threads)
   else()
     message(WARNING "Only Linux platforms support WasmEdge_Process plug-in now.")
   endif()

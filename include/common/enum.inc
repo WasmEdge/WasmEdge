@@ -765,7 +765,7 @@ E(ReadError, 0x0101, "read error")
 // Reach end of file when reading
 E(UnexpectedEnd, 0x0102, "unexpected end")
 // Not detected magic header
-E(MalformedMagic, 0x0103, "magic header not detected")
+E(MalformedMagic, 0x0103, "magic header not detected, might an invalid wasm file")
 // Unsupported version
 E(MalformedVersion, 0x0104, "unknown binary version")
 // Malformed section ID

@@ -85,6 +85,7 @@ option(WASMEDGE_PLUGIN_TENSORFLOWLITE "Enable WasmEdge TensorFlow-Lite plugin." 
 option(WASMEDGE_PLUGIN_RUSTLS "Enable WasmEdge Rustls plugin." OFF)
 option(WASMEDGE_PLUGIN_ZLIB "Enable WasmEdge zlib plugin." OFF)
 option(WASMEDGE_DISABLE_LIBTINFO "Disable linking against libtinfo when linking LLVM" OFF)
+option(WASMEDGE_PLUGIN_FFMPEG "Enable WasmEdge ffmpeg plugin." OFF)
 
 if(WASMEDGE_BUILD_TOOLS AND WASMEDGE_BUILD_FUZZING)
   message(FATAL_ERROR "wasmedge tool and fuzzing tool are exclusive options.")

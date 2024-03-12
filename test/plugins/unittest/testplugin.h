@@ -20,6 +20,7 @@ public:
 
   static PO::List<std::string> CmdArgs;
   static PO::Option<std::string> CmdName;
+  static PO::Option<PO::Toggle> CmdOpt;
 };
 
 template <typename T>
@@ -62,6 +63,16 @@ public:
   }
 };
 
+class WasmEdgePluginTestFuncOpt
+    : public WasmEdgePluginTestFunc<WasmEdgePluginTestFuncOpt> {
+public:
+  WasmEdgePluginTestFuncOpt(WasmEdgePluginTestEnv &HostEnv)
+      : WasmEdgePluginTestFunc(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &) {
+    return static_cast<uint32_t>(Env.CmdOpt.value());
+  }
+};
+
 class WasmEdgePluginTestFuncNameSize
     : public WasmEdgePluginTestFunc<WasmEdgePluginTestFuncNameSize> {
 public:
@@ -79,6 +90,7 @@ public:
     addHostFunc("add", std::make_unique<WasmEdgePluginTestFuncAdd>(Env));
     addHostFunc("sub", std::make_unique<WasmEdgePluginTestFuncSub>(Env));
     addHostFunc("arg_len", std::make_unique<WasmEdgePluginTestFuncArgLen>(Env));
+    addHostFunc("opt", std::make_unique<WasmEdgePluginTestFuncOpt>(Env));
     addHostFunc("name_size",
                 std::make_unique<WasmEdgePluginTestFuncNameSize>(Env));
   }

@@ -19,12 +19,16 @@ PO::Option<std::string>
     WasmEdgePluginTestEnv::CmdName(PO::Description("Test for input name."sv),
                                    PO::DefaultValue(std::string("")));
 
+PO::Option<PO::Toggle>
+    WasmEdgePluginTestEnv::CmdOpt(PO::Description("Test for option."sv));
+
 namespace {
 
 void addOptions(const Plugin::Plugin::PluginDescriptor *,
                 PO::ArgumentParser &Parser) noexcept {
   Parser.add_option("arg"sv, WasmEdgePluginTestEnv::CmdArgs)
-      .add_option("name"sv, WasmEdgePluginTestEnv::CmdName);
+      .add_option("name"sv, WasmEdgePluginTestEnv::CmdName)
+      .add_option("opt"sv, WasmEdgePluginTestEnv::CmdOpt);
 }
 
 Runtime::Instance::ModuleInstance *

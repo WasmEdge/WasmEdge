@@ -206,9 +206,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       output_prefix: build/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON
-      tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasm_bpf wasmedge_opencvmini wasmedge_zlib
-      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmBpf.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasmEdgeZlib.so
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_FFMPEG=ON
+      tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasm_bpf wasmedge_opencvmini wasmedge_zlib wasmedge_ffmpeg
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmBpf.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasmEdgeZlib.so libwasmedgePluginWasmEdgeFFmpeg.so
     needs: create_release
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang-plugins-deps
@@ -226,10 +226,13 @@ jobs:
           apt install -y libssl-dev cmake g++ wget unzip
           apt install -y libelf-dev zlib1g-dev pkg-config
           apt install -y cargo
+          apt install -y yasm
+          bash utils/ffmpeg/install-ffmpeg-v6.0.sh
       - name: Build plugins
         shell: bash
         run: |
           outbin_array=(${output_bins})
+          export PKG_CONFIG_PATH=$(pwd)/FFmpeg-n6.0/output/lib/pkgconfig
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options}
           for (( i=0; i<${#outbin_array[@]}; i++ ));
           do
@@ -242,6 +245,7 @@ jobs:
       - name: Prepare the plugins tar.gz package
         shell: bash
         run: |
+          export LD_LIBRARY_PATH=$(pwd)/FFmpeg-n6.0/output/lib:$LD_LIBRARY_PATH
           plugin_array=(${tar_names})
           outbin_array=(${output_bins})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
@@ -312,6 +316,12 @@ jobs:
         run: |
           mv plugin_wasmedge_zlib.tar.gz WasmEdge-plugin-wasmedge_zlib-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_zlib-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+      - name: Upload wasmedge_ffmpeg plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasmedge_ffmpeg.tar.gz WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
 
   build_and_upload_wasinn_manylinux:
     name: Build and upload WASI-NN on manylinux
@@ -338,13 +348,13 @@ jobs:
     runs-on: ${{ matrix.host_runner }}
     env:
       output_prefix: build/plugins
-      build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON
+      build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_FFMPEG=ON
       build_options_manylinux2014_x86_64: -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF=OFF
       build_options_manylinux2014_aarch64:
-      tar_names_all_platforms: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini
+      tar_names_all_platforms: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasmedge_ffmpeg
       tar_names_manylinux2014_x86_64: wasm_bpf
       tar_names_manylinux2014_aarch64:
-      output_bins_all_platforms: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmEdgeOpenCVMini.so
+      output_bins_all_platforms: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasmEdgeFFmpeg.so
       output_bins_manylinux2014_x86_64: libwasmedgePluginWasmBpf.so
       output_bins_manylinux2014_aarch64:
     needs: create_release
@@ -365,11 +375,13 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
           source "$HOME/.cargo/env"
           bash ./utils/wasi-crypto/build-openssl.sh
+          bash utils/ffmpeg/install-ffmpeg-v6.0.sh
       - name: Build plugins
         shell: bash
         run: |
           source "$HOME/.cargo/env"
           outbin_array=(${output_bins_all_platforms} ${output_bins_${{ matrix.asset_tag }}})
+          export PKG_CONFIG_PATH=$(pwd)/FFmpeg-n6.0/output/lib/pkgconfig
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options_all_platforms} ${build_options_${{ matrix.asset_tag }}} -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
           for (( i=0; i<${#outbin_array[@]}; i++ ));
           do
@@ -382,6 +394,7 @@ jobs:
       - name: Prepare the plugins tar.gz package
         shell: bash
         run: |
+          export LD_LIBRARY_PATH=$(pwd)/FFmpeg-n6.0/output/lib:$LD_LIBRARY_PATH
           plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.asset_tag }}})
           outbin_array=(${output_bins_all_platforms} ${output_bins_${{ matrix.asset_tag }}})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
@@ -444,6 +457,12 @@ jobs:
         run: |
           mv plugin_wasmedge_opencvmini.tar.gz WasmEdge-plugin-wasmedge_opencvmini-${{ needs.create_release.outputs.version }}-${{ matrix.asset_tag }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_opencvmini-${{ needs.create_release.outputs.version }}-${{ matrix.asset_tag }}.tar.gz --clobber
+      - name: Upload wasmedge_ffmpeg plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasmedge_ffmpeg.tar.gz WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.create_release.outputs.version }}-${{ matrix.asset_tag }}.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.create_release.outputs.version }}-${{ matrix.asset_tag }}.tar.gz --clobber
 
   build_and_upload_plugin_macos:
     strategy:
@@ -463,9 +482,9 @@ jobs:
     runs-on: ${{ matrix.host_runner }}
     env:
       output_prefix: build/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON
-      tar_names: wasi_crypto wasi_logging wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasmedge_zlib
-      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib libwasmedgePluginWasmEdgeZlib.dylib
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_FFMPEG=ON
+      tar_names: wasi_crypto wasi_logging wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasmedge_zlib wasmedge_ffmpeg
+      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib libwasmedgePluginWasmEdgeZlib.dylib libwasmedgePluginWasmEdgeFFmpeg.dylib
     needs: create_release
     steps:
       - name: Checkout code
@@ -478,7 +497,7 @@ jobs:
       - name: Install dependencies
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm@16 ninja cmake openssl wabt opencv rust gh
+          brew install llvm@16 ninja cmake openssl wabt opencv rust gh ffmpeg@6
       - name: Build plugins
         shell: bash
         run: |
@@ -556,6 +575,12 @@ jobs:
           eval $(/opt/homebrew/bin/brew shellenv)
           mv plugin_wasmedge_zlib.tar.gz WasmEdge-plugin-wasmedge_zlib-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_zlib-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
+      - name: Upload wasmedge_ffmpeg plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasmedge_ffmpeg.tar.gz WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
 
   build_manylinux2014_runtime_only:
     name: Build runtime only on manylinux2014 platform
@@ -601,7 +626,7 @@ jobs:
             include_bin: "--include-bin /usr/local/bin/wasmedge"
     name: Build DockerSlim Images
     needs:
-      [create_release, build_on_manylinux2014, build_manylinux2014_runtime_only]
+      [ create_release, build_on_manylinux2014, build_manylinux2014_runtime_only ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

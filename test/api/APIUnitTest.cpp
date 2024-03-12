@@ -3677,7 +3677,7 @@ TEST(APICoreTest, Plugin) {
   EXPECT_EQ(ModCxt, nullptr);
   ModCxt = WasmEdge_PluginCreateModule(PluginCxt, Names[0]);
   EXPECT_NE(ModCxt, nullptr);
-  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, Names, 15), 4U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, Names, 15), 5U);
   WasmEdge_ModuleInstanceDelete(ModCxt);
 }
 #endif

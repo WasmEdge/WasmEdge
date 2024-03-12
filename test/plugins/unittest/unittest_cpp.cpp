@@ -40,6 +40,7 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModuleCPP() {
     Parser.set_raw_value<std::string>("name"sv, std::string("test_name"));
     Parser.set_raw_value<std::vector<std::string>>(
         "arg"sv, std::vector<std::string>({"arg0", "arg1", "arg2", "arg3"}));
+    Parser.set_raw_value("opt"sv);
     if (const auto *Module =
             Plugin->findModule("wasmedge_plugintest_cpp_module"sv)) {
       return Module->create().release();
@@ -83,6 +84,18 @@ TEST(wasmedgePluginTests, CPP_Run) {
   EXPECT_TRUE(HostFuncInst2.run(CallFrame, {}, RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), 9);
 
+  // Get the function "opt".
+  auto *FuncInst3 = TestModCPP->findFuncExports("opt");
+  EXPECT_NE(FuncInst3, nullptr);
+  EXPECT_TRUE(FuncInst3->isHostFunction());
+  auto &HostFuncInst3 =
+      dynamic_cast<WasmEdge::Host::WasmEdgePluginTestFuncOpt &>(
+          FuncInst3->getHostFunc());
+
+  // Test: Run function successfully.
+  EXPECT_TRUE(HostFuncInst3.run(CallFrame, {}, RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), 1);
+
   delete TestModCPP;
 
   // Create the wasmedge_plugintest_c_module module instance.
@@ -98,10 +111,11 @@ TEST(wasmedgePluginTests, CPP_Module) {
   auto *TestModCPP = dynamic_cast<WasmEdge::Host::WasmEdgePluginTestModule *>(
       createModuleCPP());
   ASSERT_FALSE(TestModCPP == nullptr);
-  EXPECT_EQ(TestModCPP->getFuncExportNum(), 4U);
+  EXPECT_EQ(TestModCPP->getFuncExportNum(), 5U);
   EXPECT_NE(TestModCPP->findFuncExports("add"), nullptr);
   EXPECT_NE(TestModCPP->findFuncExports("sub"), nullptr);
   EXPECT_NE(TestModCPP->findFuncExports("arg_len"), nullptr);
+  EXPECT_NE(TestModCPP->findFuncExports("opt"), nullptr);
   EXPECT_NE(TestModCPP->findFuncExports("name_size"), nullptr);
   delete TestModCPP;
 

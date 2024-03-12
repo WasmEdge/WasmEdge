@@ -29,18 +29,17 @@ public:
   ArrayInstance() = delete;
   ArrayInstance(const ModuleInstance *Mod, const uint32_t Idx,
                 const uint32_t Size) noexcept
-      : CompositeBase(Mod, Idx), RefCount(1),
-        Data(Size, static_cast<uint128_t>(0)) {
+      : CompositeBase(Mod, Idx), Data(Size, static_cast<uint128_t>(0)) {
     assuming(ModInst);
   }
   ArrayInstance(const ModuleInstance *Mod, const uint32_t Idx,
                 const uint32_t Size, const ValVariant &Init) noexcept
-      : CompositeBase(Mod, Idx), RefCount(1), Data(Size, Init) {
+      : CompositeBase(Mod, Idx), Data(Size, Init) {
     assuming(ModInst);
   }
   ArrayInstance(const ModuleInstance *Mod, const uint32_t Idx,
                 std::vector<ValVariant> &&Init) noexcept
-      : CompositeBase(Mod, Idx), RefCount(1), Data(std::move(Init)) {
+      : CompositeBase(Mod, Idx), Data(std::move(Init)) {
     assuming(ModInst);
   }
 
@@ -57,9 +56,6 @@ public:
     return static_cast<uint32_t>(Data.size());
   }
 
-  /// Get reference count.
-  uint32_t getRefCount() const noexcept { return RefCount; }
-
   /// Get boundary index.
   uint32_t getBoundIdx() const noexcept {
     return std::max(static_cast<uint32_t>(Data.size()), UINT32_C(1)) -
@@ -69,7 +65,6 @@ public:
 private:
   /// \name Data of array instance.
   /// @{
-  uint32_t RefCount;
   std::vector<ValVariant> Data;
   /// @}
 };

@@ -8,7 +8,7 @@ const archList = [{
     asset_tag: 'manylinux2014_x86_64',
 }, {
     arch: aarch64,
-    runner: 'linux-arm64',
+    runner: 'linux-arm64-v2',
     docker_tag: 'manylinux2014_aarch64-plugins-deps',
     asset_tag: 'manylinux2014_aarch64',
 }];

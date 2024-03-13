@@ -31,6 +31,7 @@ Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> Loader::loadPreamble() {
   }
   std::vector<Byte> WasmMagic = {0x00, 0x61, 0x73, 0x6D};
   if (*Magic != WasmMagic) {
+    spdlog::error("Might an invalid wasm file");
     return logLoadError(ErrCode::Value::MalformedMagic, FMgr.getLastOffset(),
                         ASTNodeAttr::Component);
   }

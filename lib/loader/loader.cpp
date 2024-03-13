@@ -169,6 +169,7 @@ Loader::parseWasmUnit(Span<const uint8_t> Code) {
   case FileMgr::FileHeader::DLL:
   case FileMgr::FileHeader::MachO_32:
   case FileMgr::FileHeader::MachO_64:
+    spdlog::error("Might an invalid wasm file");
     spdlog::error(ErrCode::Value::MalformedMagic);
     spdlog::error(
         "    The AOT compiled WASM shared library is not supported for loading "

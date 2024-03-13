@@ -35,6 +35,23 @@ env:
 
 jobs:
   prepare:
+    name: Prepare variables
+    runs-on: ${{ inputs.runner }}
+    outputs:
+      cache_key_ws: ${{ steps.prep.outputs.cache_key_ws }}
+      cache_path_ws: ${{ steps.prep.outputs.cache_path_ws }}
+      cache_key_h: ${{ steps.prep.outputs.cache_key_h }}
+      cache_path_h: ${{ steps.prep.outputs.cache_path_h }}
+    steps:
+      - id: prep
+        run: |
+          echo "cache_key_ws=${{ github.workflow }}-${{ github.head_ref || github.ref }}-${{ inputs.docker_tag }}-1-${{ github.run_id }}" >> $GITHUB_OUTPUT
+          echo "cache_path_ws=${{ github.workspace }}" >> $GITHUB_OUTPUT
+          echo "cache_key_h=${{ github.workflow }}-${{ github.head_ref || github.ref }}-${{ inputs.docker_tag }}-2-${{ github.run_id }}" >> $GITHUB_OUTPUT
+          echo "cache_path_h=$HOME" >> $GITHUB_OUTPUT
+
+  prepare_cache:
+    needs: [prepare]
     name: Prepare files (${{ inputs.docker_tag }})
     runs-on: ${{ inputs.runner }}
     container:
@@ -42,18 +59,7 @@ jobs:
       # Required for mounting debugfs
       # Tests of wasm_bpf also require privileges
       options: --privileged
-    outputs:
-      cache_key1: ${{ steps.prep.outputs.cache_key1 }}
-      cache_path1: ${{ steps.prep.outputs.cache_path1 }}
-      cache_key2: ${{ steps.prep.outputs.cache_key2 }}
-      cache_path2: ${{ steps.prep.outputs.cache_path2 }}
     steps:
-      - id: prep
-        run: |
-          echo "cache_key1=${{ github.workflow }}-${{ github.head_ref || github.ref }}-${{ inputs.docker_tag }}-1-${{ github.run_id }}" >> $GITHUB_OUTPUT
-          echo "cache_path1=${{ github.workspace }}" >> $GITHUB_OUTPUT
-          echo "cache_key2=${{ github.workflow }}-${{ github.head_ref || github.ref }}-${{ inputs.docker_tag }}-2-${{ github.run_id }}" >> $GITHUB_OUTPUT
-          echo "cache_path2=$HOME" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
@@ -64,14 +70,15 @@ jobs:
         shell: bash
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
+          source "$HOME/.cargo/env"
+
           mkdir -p build
           bash ./utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi
-          source "$HOME/.cargo/env"
           bash ./utils/wasi-crypto/build-openssl.sh
+          bash ./utils/ffmpeg/install-ffmpeg-v6.0.sh
       - name: Build ${{ matrix.plugin }}
         shell: bash
         run: |
-          source "$HOME/.cargo/env"
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
           if [[ ${build_tests} != "On" ]]; then
             target=${bin_name%.*}
@@ -81,15 +88,15 @@ jobs:
           cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=${build_tests} -DCMAKE_BUILD_TYPE=${build_type} -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
       - uses: actions/cache/save@v3
         with:
-          key: ${{ steps.prep.outputs.cache_key1 }}
-          path: ${{ steps.prep.outputs.cache_path1 }}
+          key: ${{ needs.prepare.outputs.cache_key_ws }}
+          path: ${{ needs.prepare.outputs.cache_path_ws }}
       - uses: actions/cache/save@v3
         with:
-          key: ${{ steps.prep.outputs.cache_key2 }}
-          path: ${{ steps.prep.outputs.cache_path2 }}
+          key: ${{ needs.prepare.outputs.cache_key_h }}
+          path: ${{ needs.prepare.outputs.cache_path_h }}
 
   build_on_manylinux:
-    needs: [prepare]
+    needs: [prepare, prepare_cache]
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -97,7 +104,11 @@ jobs:
         include: ${{ fromJSON(inputs.plugins) }}
     name: ${{ matrix.plugin }} (${{ inputs.docker_tag }})
     runs-on: ${{ inputs.runner }}
-    container: wasmedge/wasmedge:${{ inputs.docker_tag }}
+    container:
+      image: wasmedge/wasmedge:${{ inputs.docker_tag }}
+      # Required for mounting debugfs
+      # Tests of wasm_bpf also require privileges
+      options: --privileged
     env:
       bin_name: ${{ matrix.bin }}
       target: ${{ inputs.release && matrix.bin || matrix.testBin }}
@@ -110,21 +121,22 @@ jobs:
           echo "filename=plugin_${{ matrix.plugin }}.tar.gz" >> $GITHUB_OUTPUT
       - uses: actions/cache/restore@v3
         with:
-          key: ${{ needs.prepare.outputs.cache_key1 }}
-          path: ${{ needs.prepare.outputs.cache_path1 }}
+          key: ${{ needs.prepare.outputs.cache_key_ws }}
+          path: ${{ needs.prepare.outputs.cache_path_ws }}
       - uses: actions/cache/restore@v3
         with:
-          key: ${{ needs.prepare.outputs.cache_key2 }}
-          path: ${{ needs.prepare.outputs.cache_path2 }}
+          key: ${{ needs.prepare.outputs.cache_key_h }}
+          path: ${{ needs.prepare.outputs.cache_path_h }}
       - name: Install dependencies
         shell: bash
         run: |
-          mkdir -p build
-          bash ./utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi
+          # Running tests of wasm_bpf requires proper ebpf running environment
+          mount -t debugfs none /sys/kernel/debug
       - name: Build ${{ matrix.plugin }}
         shell: bash
         run: |
           export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
+          export PKG_CONFIG_PATH=$(pwd)/FFmpeg-n6.0/output/lib/pkgconfig:$PKG_CONFIG_PATH
           if [[ ${build_tests} != "On" ]]; then
             target=${bin_name%.*}
             target=${target#lib}
@@ -138,6 +150,7 @@ jobs:
       - name: Test ${{ matrix.plugin }}
         if: ${{ !inputs.release }}
         run: |
+          export LD_LIBRARY_PATH=$(pwd)/FFmpeg-n6.0/output/lib:$LD_LIBRARY_PATH
           cd ${test_dir}
           ./${target}
           cd -

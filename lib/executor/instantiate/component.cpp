@@ -53,6 +53,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       auto Res =
           instantiate(StoreMgr, *CompInst, std::get<CoreTypeSection>(Sec));
       if (!Res) {
+        return Unexpect(Res);
       }
     } else if (std::holds_alternative<TypeSection>(Sec)) {
       auto Res = instantiate(StoreMgr, *CompInst, std::get<TypeSection>(Sec));
@@ -128,7 +129,6 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           break;
         }
       }
-      // TODO:
     }
   }
   return {};
@@ -157,23 +157,24 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
         auto Idx = Arg.getIndex();
         auto S = Idx.getSort();
         if (std::holds_alternative<CoreSort>(S)) {
+          // TODO: insert these into mapping
           switch (std::get<CoreSort>(S)) {
-          case CoreSort::Func: // TODO:
+          case CoreSort::Func: 
             spdlog::info("with {} core:func", Arg.getName());
             break;
-          case CoreSort::Table: // TODO:
+          case CoreSort::Table: 
             spdlog::info("with {} core:table", Arg.getName());
             break;
-          case CoreSort::Memory: // TODO:
+          case CoreSort::Memory:
             spdlog::info("with {} core:memory", Arg.getName());
             break;
-          case CoreSort::Global: // TODO:
+          case CoreSort::Global:
             spdlog::info("with {} core:global", Arg.getName());
             break;
-          case CoreSort::Type: // TODO:
+          case CoreSort::Type:
             spdlog::info("with {} core:type", Arg.getName());
             break;
-          case CoreSort::Module: // TODO:
+          case CoreSort::Module:
             spdlog::info("with {} core:module", Arg.getName());
             break;
           case CoreSort::Instance:
@@ -215,8 +216,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       CompInst.addComponentInstance(std::move(Inst));
     } else {
       std::get<CompInlineExports>(InstExpr).getExports();
-      // TODO:
-      spdlog::info("component inline exports");
+      // TODO: complete inline exports
+      spdlog::warn("TODO: component inline exports");
     }
   }
   return {};

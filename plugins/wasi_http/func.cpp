@@ -15,7 +15,7 @@ namespace Host {
 
 Expect<void> WasiHttpPrint::body(const Runtime::CallingFrame &, uint64_t Ptr,
                                  uint64_t Len) {
-  std::string S{(const char *)Ptr, Len};
+  std::string S{reinterpret_cast<const char *>(Ptr), Len};
   spdlog::info("[WASI-HTTP] print: {}", S);
   return {};
 }

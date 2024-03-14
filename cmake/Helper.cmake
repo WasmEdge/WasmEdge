@@ -89,6 +89,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     )
   endif()
 
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 18.0.0)
+    list(APPEND WASMEDGE_CFLAGS
+      -Wno-switch-default
+    )
+  endif()
+
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0.0)
     list(APPEND WASMEDGE_CFLAGS
       -Wno-error=return-std-move-in-c++11

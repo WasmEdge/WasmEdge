@@ -159,10 +159,10 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
         if (std::holds_alternative<CoreSort>(S)) {
           // TODO: insert these into mapping
           switch (std::get<CoreSort>(S)) {
-          case CoreSort::Func: 
+          case CoreSort::Func:
             spdlog::info("with {} core:func", Arg.getName());
             break;
-          case CoreSort::Table: 
+          case CoreSort::Table:
             spdlog::info("with {} core:table", Arg.getName());
             break;
           case CoreSort::Memory:

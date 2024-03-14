@@ -16,7 +16,7 @@ namespace Host {
 Expect<void> WasiHttpPrint::body(const Runtime::CallingFrame &, uint64_t Ptr,
                                  uint64_t Len) {
   std::string S{(const char *)Ptr, Len};
-  spdlog::info("print: {}", S);
+  spdlog::info("[WASI-HTTP] print: {}", S);
   return {};
 }
 
@@ -25,7 +25,7 @@ Expect<Str> WasiHttpGet::body(const Runtime::CallingFrame &, uint64_t Idx) {
 
   cpr::Response Res = cpr::Get(
       cpr::Url{URI}, cpr::Authentication{"user", "pass", cpr::AuthMode::BASIC});
-  spdlog::info("status: {}", Res.status_code);
+  spdlog::info("[WASI-HTTP] status: {}", Res.status_code);
   Env.Bodies.push_back(Res.text);
 
   return Str((uint64_t)Env.Bodies.back().data(), Env.Bodies.back().size());

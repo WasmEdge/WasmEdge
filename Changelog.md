@@ -1,4 +1,4 @@
-### 0.14.0-alpha.3 (2024-03-05)
+### 0.14.0-rc.1 (2024-03-15)
 
 Breaking changes:
 
@@ -32,6 +32,7 @@ Breaking changes:
 
 Features:
 
+* Bumpped `spdlog` to `v1.13.0`.
 * [Proposal]: Apply new propoals.
   * Supported WASM Typed Function References proposal.
     * Added the `WasmEdge_Proposal_FunctionReferences` for the configuration in WasmEdge C API.
@@ -89,6 +90,7 @@ Features:
     * Add `mmproj` option to set the projection model.
     * Add `image` option to set the image.
   * Support embedding generation.
+* [Plugin] Initial support for `wasmedge_ffmpeg` plug-in.
 
 Fixed issues:
 
@@ -109,6 +111,8 @@ Fixed issues:
   * Checking `fd_prestat_dir_name` buffer size.
   * Checking `filestat_set_times` for invalid flags.
   * Checking validation of file descriptor in `socket_accept` (#3041).
+* Fixed duplicated loading of the same plug-in.
+* Fixed option toggle for `wasmedge_process` plug-in.
 
 Tests:
 
@@ -123,9 +127,9 @@ Known issues:
 
 Thank all the contributors who made this release possible!
 
-Abhinandan Udupa, Akihiro Suda, Dhruv Jain, Draco, Ikko Eltociear Ashimine, Khagan (Khan) Karimov, LO, CHIN-HAO, Little Willy, Lîm Tsú-thuàn, Meenu Yadav, Omkar Acharekar, Saiyam Pathak, Sarrah Bastawala, Shen-Ta Hsieh, Shreyas Atre, Yage Hu, Yi Huang, Yi-Ying He, alabulei1, am009, dm4, hetvishastri, hydai, richzw, tannal, vincent, zhumeme
+Abhinandan Udupa, Akihiro Suda, Charlie chan, Dhruv Jain, Draco, Hrushikesh, Ikko Eltociear Ashimine, Khagan (Khan) Karimov, LO, CHIN-HAO, Little Willy, Lîm Tsú-thuàn, Meenu Yadav, Omkar Acharekar, Saiyam Pathak, Sarrah Bastawala, Shen-Ta Hsieh, Shreyas Atre, Yage Hu, Yi Huang, Yi-Ying He, alabulei1, am009, dm4, hetvishastri, hydai, richzw, tannal, vincent, zhumeme
 
-If you want to build from source, please use WasmEdge-0.14.0-alpha.3-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.14.0-rc.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.13.5 (2023-11-03)
 

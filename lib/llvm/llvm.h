@@ -2200,6 +2200,7 @@ private:
 #if WASMEDGE_OS_WINDOWS
 #include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
+#include <llvm/Support/Process.h>
 #include <system/winapi.h>
 #endif
 
@@ -2272,9 +2273,167 @@ bool SectionIterator::isEHFrame() const noexcept {
 }
 
 #if WASMEDGE_OS_WINDOWS
+class DefaultMMapper final : public llvm::SectionMemoryManager::MemoryMapper {
+public:
+  llvm::sys::MemoryBlock allocateMappedMemory(
+      llvm::SectionMemoryManager::AllocationPurpose /*Purpose*/,
+      size_t NumBytes, const llvm::sys::MemoryBlock *const NearBlock,
+      unsigned Flags, std::error_code &EC) override {
+    return llvm::sys::Memory::allocateMappedMemory(NumBytes, NearBlock, Flags,
+                                                   EC);
+  }
+  std::error_code protectMappedMemory(const llvm::sys::MemoryBlock &Block,
+                                      unsigned Flags) override {
+    return llvm::sys::Memory::protectMappedMemory(Block, Flags);
+  }
+
+  std::error_code releaseMappedMemory(llvm::sys::MemoryBlock &M) override {
+    return llvm::sys::Memory::releaseMappedMemory(M);
+  }
+};
+
+class ContiguousSectionMemoryManager : public llvm::RTDyldMemoryManager {
+public:
+  explicit ContiguousSectionMemoryManager(
+      llvm::SectionMemoryManager::MemoryMapper *UnownedMM = nullptr)
+      : MMapper(UnownedMM), OwnedMMapper(nullptr) {
+    if (!MMapper) {
+      OwnedMMapper = std::make_unique<DefaultMMapper>();
+      MMapper = OwnedMMapper.get();
+    }
+  }
+
+  ~ContiguousSectionMemoryManager() noexcept override {
+    using namespace std::literals;
+    if (Preallocated.allocatedSize() != 0) {
+      auto EC = MMapper->releaseMappedMemory(Preallocated);
+      if (EC) {
+        spdlog::error("releaseMappedMemory failed with error: {}"sv,
+                      EC.message());
+      }
+    }
+  }
+
+  bool needsToReserveAllocationSpace() override { return true; }
+
+  void reserveAllocationSpace(uintptr_t CodeSize, llvm::Align CodeAlign,
+                              uintptr_t RODataSize, llvm::Align RODataAlign,
+                              uintptr_t RWDataSize,
+                              llvm::Align RWDataAlign) override {
+    using namespace std::literals;
+    assuming(Preallocated.allocatedSize() == 0);
+
+    static const size_t PageSize = llvm::sys::Process::getPageSizeEstimate();
+    assuming(CodeAlign.value() <= PageSize);
+    assuming(RODataAlign.value() <= PageSize);
+    assuming(RWDataAlign.value() <= PageSize);
+    CodeSize = roundUpTo(CodeSize + CodeAlign.value(), PageSize);
+    RODataSize = roundUpTo(RODataSize + RODataAlign.value(), PageSize);
+    RWDataSize = roundUpTo(RWDataSize + RWDataAlign.value(), PageSize);
+    const uintptr_t TotalSize =
+        CodeSize + RODataSize + RWDataSize + PageSize * 3;
+
+    std::error_code EC;
+    Preallocated = MMapper->allocateMappedMemory(
+        llvm::SectionMemoryManager::AllocationPurpose::Code, TotalSize, nullptr,
+        llvm::sys::Memory::MF_READ | llvm::sys::Memory::MF_WRITE, EC);
+    if (EC) {
+      spdlog::error("allocateMappedMemory failed with error: {}"sv,
+                    EC.message());
+      return;
+    }
+
+    auto base = reinterpret_cast<std::uintptr_t>(Preallocated.base());
+    CodeMem = CodeFree =
+        llvm::sys::MemoryBlock(reinterpret_cast<void *>(base), CodeSize);
+    base += CodeSize;
+    RODataMem = RODataFree =
+        llvm::sys::MemoryBlock(reinterpret_cast<void *>(base), RODataSize);
+    base += RODataSize;
+    RWDataMem = RWDataFree =
+        llvm::sys::MemoryBlock(reinterpret_cast<void *>(base), RWDataSize);
+  }
+
+  uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
+                               unsigned /*SectionID*/,
+                               llvm::StringRef /*SectionName*/,
+                               bool IsReadOnly) override {
+    if (IsReadOnly) {
+      return Allocate(RODataFree, Size, Alignment);
+    } else {
+      return Allocate(RWDataFree, Size, Alignment);
+    }
+  }
+
+  uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
+                               unsigned /*SectionID*/,
+                               llvm::StringRef /*SectionName*/) override {
+    return Allocate(CodeFree, Size, Alignment);
+  }
+
+  bool finalizeMemory(std::string *ErrMsg) override {
+    std::error_code EC;
+
+    EC = MMapper->protectMappedMemory(CodeMem, llvm::sys::Memory::MF_READ |
+                                                   llvm::sys::Memory::MF_EXEC);
+    if (EC) {
+      if (ErrMsg) {
+        *ErrMsg = EC.message();
+      }
+      return true;
+    }
+    EC = MMapper->protectMappedMemory(RODataMem, llvm::sys::Memory::MF_READ);
+    if (EC) {
+      if (ErrMsg) {
+        *ErrMsg = EC.message();
+      }
+      return true;
+    }
+
+    llvm::sys::Memory::InvalidateInstructionCache(CodeMem.base(),
+                                                  CodeMem.allocatedSize());
+    return false;
+  }
+
+private:
+  llvm::sys::MemoryBlock Preallocated;
+
+  // Sections must be in the order code < rodata < rwdata.
+  llvm::sys::MemoryBlock CodeMem;
+  llvm::sys::MemoryBlock RODataMem;
+  llvm::sys::MemoryBlock RWDataMem;
+
+  llvm::sys::MemoryBlock CodeFree;
+  llvm::sys::MemoryBlock RODataFree;
+  llvm::sys::MemoryBlock RWDataFree;
+
+  llvm::SectionMemoryManager::MemoryMapper *MMapper;
+  std::unique_ptr<llvm::SectionMemoryManager::MemoryMapper> OwnedMMapper;
+
+  uint8_t *Allocate(llvm::sys::MemoryBlock &FreeBlock, std::uintptr_t Size,
+                    unsigned alignment) {
+    using namespace std::literals;
+    const auto Base = reinterpret_cast<uintptr_t>(FreeBlock.base());
+    const auto Start = roundUpTo(Base, alignment);
+    const uintptr_t PaddedSize = (Start - Base) + Size;
+    if (PaddedSize > FreeBlock.allocatedSize()) {
+      spdlog::error("Failed to satisfy suballocation request for {}"sv, Size);
+      return nullptr;
+    }
+    FreeBlock =
+        llvm::sys::MemoryBlock(reinterpret_cast<void *>(Base + PaddedSize),
+                               FreeBlock.allocatedSize() - PaddedSize);
+    return reinterpret_cast<uint8_t *>(Start);
+  }
+
+  static uintptr_t roundUpTo(uintptr_t Value, uintptr_t Divisor) noexcept {
+    return ((Value + (Divisor - 1)) / Divisor) * Divisor;
+  }
+};
+
 // Register stack unwind info for JIT functions
-class Win64EHManager : public llvm::SectionMemoryManager {
-  using Base = llvm::SectionMemoryManager;
+class Win64EHManager : public ContiguousSectionMemoryManager {
+  using Base = ContiguousSectionMemoryManager;
   uint64_t CodeAddress = 0;
 
 public:

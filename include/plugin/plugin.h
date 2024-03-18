@@ -18,6 +18,7 @@
 #include "common/version.h"
 #include "loader/shared_library.h"
 #include "po/argument_parser.h"
+#include "runtime/instance/component.h"
 #include "runtime/instance/module.h"
 #include <cstdint>
 #include <memory>
@@ -77,6 +78,47 @@ private:
   friend class Plugin;
 };
 
+class PluginComponent {
+public:
+  PluginComponent(const PluginComponent &) = delete;
+  PluginComponent &operator=(const PluginComponent &) = delete;
+  PluginComponent(PluginComponent &&) noexcept = default;
+  PluginComponent &operator=(PluginComponent &&) noexcept = default;
+
+  struct ComponentDescriptor {
+    const char *Name;
+    const char *Description;
+    Runtime::Instance::ComponentInstance *(*Create)(
+        const ComponentDescriptor *) noexcept;
+  };
+
+  constexpr PluginComponent() noexcept {}
+
+  constexpr const char *name() const noexcept {
+    assuming(Desc);
+    return Desc->Name;
+  }
+
+  constexpr const char *description() const noexcept {
+    assuming(Desc);
+    return Desc->Description;
+  }
+
+  std::unique_ptr<Runtime::Instance::ComponentInstance>
+  create() const noexcept {
+    assuming(Desc);
+    return std::unique_ptr<Runtime::Instance::ComponentInstance>(
+        Desc->Create(Desc));
+  }
+
+private:
+  const ComponentDescriptor *Desc = nullptr;
+
+  constexpr explicit PluginComponent(const ComponentDescriptor *D) noexcept
+      : Desc(D) {}
+  friend class Plugin;
+};
+
 class Plugin {
 public:
   struct VersionData {
@@ -92,6 +134,9 @@ public:
     VersionData Version;
     size_t ModuleCount;
     PluginModule::ModuleDescriptor *ModuleDescriptions;
+    size_t ComponentCount = 0;
+    PluginComponent::ComponentDescriptor *ComponentDescriptions =
+        (PluginComponent::ComponentDescriptor[]){};
     void (*AddOptions)(const PluginDescriptor *D,
                        PO::ArgumentParser &Parser) noexcept;
   };

@@ -12,6 +12,13 @@ wasmedge_add_library(wasmedgeExecutor
   instantiate/export.cpp
   instantiate/module.cpp
   instantiate/component.cpp
+  instantiate/component/alias.cpp
+  instantiate/component/canon.cpp
+  instantiate/component/instance.cpp
+  instantiate/component/import.cpp
+  instantiate/component/export.cpp
+  instantiate/component/start.cpp
+  instantiate/component/type.cpp
   instantiate/tag.cpp
   engine/proxy.cpp
   engine/controlInstr.cpp

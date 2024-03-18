@@ -18,6 +18,7 @@
 #include "common/version.h"
 #include "loader/shared_library.h"
 #include "po/argument_parser.h"
+#include "runtime/instance/component.h"
 #include "runtime/instance/module.h"
 #include <cstdint>
 #include <memory>
@@ -78,6 +79,47 @@ private:
   friend class Plugin;
 };
 
+class PluginComponent {
+public:
+  PluginComponent(const PluginComponent &) = delete;
+  PluginComponent &operator=(const PluginComponent &) = delete;
+  PluginComponent(PluginComponent &&) noexcept = default;
+  PluginComponent &operator=(PluginComponent &&) noexcept = default;
+
+  struct ComponentDescriptor {
+    const char *Name;
+    const char *Description;
+    Runtime::Instance::ComponentInstance *(*Create)(
+        const ComponentDescriptor *) noexcept;
+  };
+
+  constexpr PluginComponent() noexcept {}
+
+  constexpr const char *name() const noexcept {
+    assuming(Desc);
+    return Desc->Name;
+  }
+
+  constexpr const char *description() const noexcept {
+    assuming(Desc);
+    return Desc->Description;
+  }
+
+  std::unique_ptr<Runtime::Instance::ComponentInstance>
+  create() const noexcept {
+    assuming(Desc);
+    return std::unique_ptr<Runtime::Instance::ComponentInstance>(
+        Desc->Create(Desc));
+  }
+
+private:
+  const ComponentDescriptor *Desc = nullptr;
+
+  constexpr explicit PluginComponent(const ComponentDescriptor *D) noexcept
+      : Desc(D) {}
+  friend class Plugin;
+};
+
 class Plugin {
 public:
   struct VersionData {
@@ -93,6 +135,9 @@ public:
     VersionData Version;
     size_t ModuleCount;
     PluginModule::ModuleDescriptor *ModuleDescriptions;
+    size_t ComponentCount = 0;
+    PluginComponent::ComponentDescriptor *ComponentDescriptions =
+        (PluginComponent::ComponentDescriptor[]){};
     void (*AddOptions)(const PluginDescriptor *D,
                        PO::ArgumentParser &Parser) noexcept;
   };
@@ -139,9 +184,15 @@ public:
     assuming(Desc);
     return ModuleRegistry;
   }
+  Span<const PluginComponent> components() const noexcept {
+    assuming(Desc);
+    return ComponentRegistry;
+  }
 
   WASMEDGE_EXPORT const PluginModule *
   findModule(std::string_view Name) const noexcept;
+  WASMEDGE_EXPORT const PluginComponent *
+  findComponent(std::string_view Name) const noexcept;
 
   std::filesystem::path path() const noexcept { return Path; }
 
@@ -153,7 +204,9 @@ private:
   const PluginDescriptor *Desc = nullptr;
   std::shared_ptr<Loader::SharedLibrary> Lib;
   std::vector<PluginModule> ModuleRegistry;
+  std::vector<PluginComponent> ComponentRegistry;
   std::unordered_map<std::string_view, std::size_t> ModuleNameLookup;
+  std::unordered_map<std::string_view, std::size_t> ComponentNameLookup;
 
   static bool loadFile(const std::filesystem::path &Path) noexcept;
 

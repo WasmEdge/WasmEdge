@@ -952,6 +952,8 @@ E(UnknownImport, 0x0302, "unknown import")
 E(DataSegDoesNotFit, 0x0303, "data segment does not fit")
 // Init failed when instantiating element segment
 E(ElemSegDoesNotFit, 0x0304, "elements segment does not fit")
+// Invalid core sort for component export
+E(InvalidCoreSort, 0x0305, "invalid core sort")
 // @}
 
 // Execution phase
@@ -1136,6 +1138,8 @@ T(Sub, 0x50, "sub")                // -0x30 for sub type
 T(SubFinal, 0x4F, "sub_final")     // -0x31 for sub type
 T(Rec, 0x4E, "rec")                // -0x32 for recursive type
 T(Epsilon, 0x40, "-")              // -0x40 for result type
+// component model types
+T(String, 0x30, "string") // string type
 
 #undef T
 #endif // UseTypeCode

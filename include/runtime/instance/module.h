@@ -24,6 +24,7 @@
 #include "runtime/instance/function.h"
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
+#include "runtime/instance/string.h"
 #include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
 #include "runtime/instance/tag.h"
@@ -114,6 +115,31 @@ public:
     unsafeAddHostInstance(Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
                           std::move(Func));
   }
+  /// Export functions with name, these functions are suppose not owned by this
+  /// module, because the module is just a wrapper for component functions.
+  ///
+  /// See the example below, with statement below shows why we need this kind of
+  /// exporting
+  ///
+  /// (component
+  ///   (core module $A
+  ///     (func (export "one") (result i32) (i32.const 1))
+  ///   )
+  ///   (core module $B
+  ///     (func (import "a" "one") (result i32))
+  ///   )
+  ///   (core instance $a (instantiate $A))
+  ///   (core instance $b (instantiate $B (with "a" (instance $a))))
+  /// )
+  void exportFunction(std::string_view Name, FunctionInstance *Func) {
+    std::unique_lock Lock(Mutex);
+    assuming(Func->isHostFunction());
+    unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
+    Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
+    FuncInsts.push_back(Func);
+    ExpFuncs.insert_or_assign(std::string(Name), FuncInsts.back());
+  }
+
   void addHostTable(std::string_view Name,
                     std::unique_ptr<TableInstance> &&Tab) {
     std::unique_lock Lock(Mutex);

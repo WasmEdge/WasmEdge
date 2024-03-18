@@ -430,12 +430,28 @@ Plugin::Plugin(const PluginDescriptor *D) noexcept : Desc(D) {
     ModuleRegistry.push_back(PluginModule(&ModuleDesc));
     ModuleNameLookup.emplace(ModuleDesc.Name, Index);
   }
+  for (const auto &ComponentDesc :
+       Span<const PluginComponent::ComponentDescriptor>(
+           D->ComponentDescriptions, D->ComponentCount)) {
+    const auto Index = ComponentRegistry.size();
+    ComponentRegistry.push_back(PluginComponent(&ComponentDesc));
+    ComponentNameLookup.emplace(ComponentDesc.Name, Index);
+  }
 }
 
 WASMEDGE_EXPORT const PluginModule *
 Plugin::findModule(std::string_view Name) const noexcept {
   if (auto Iter = ModuleNameLookup.find(Name); Iter != ModuleNameLookup.end()) {
     return std::addressof(ModuleRegistry[Iter->second]);
+  }
+  return nullptr;
+}
+
+WASMEDGE_EXPORT const PluginComponent *
+Plugin::findComponent(std::string_view Name) const noexcept {
+  if (auto Iter = ComponentNameLookup.find(Name);
+      Iter != ComponentNameLookup.end()) {
+    return std::addressof(ComponentRegistry[Iter->second]);
   }
   return nullptr;
 }

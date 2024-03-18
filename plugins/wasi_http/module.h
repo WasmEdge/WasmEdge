@@ -10,7 +10,7 @@
 namespace WasmEdge {
 namespace Host {
 
-class WasiHttpModule : public Runtime::Instance::ModuleInstance {
+class WasiHttpModule : public Runtime::Instance::ComponentInstance {
 public:
   WasiHttpModule();
 

@@ -313,6 +313,8 @@ private:
   /// Loaded module instances from plug-ins.
   std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>>
       PlugInModInsts;
+  std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+      PlugInCompInsts;
   /// Self-owned store (nullptr if an outside store is assigned in constructor).
   std::unique_ptr<Runtime::StoreManager> Store;
   /// Reference to the store.

@@ -61,6 +61,14 @@ public:
     }
     return nullptr;
   }
+  const Instance::ComponentInstance *
+  findComponent(std::string_view Name) const {
+    std::shared_lock Lock(Mutex);
+    if (auto Iter = NamedComp.find(Name); likely(Iter != NamedComp.cend())) {
+      return Iter->second;
+    }
+    return nullptr;
+  }
 
   /// Reset this store manager and unlink all the registered module instances.
   void reset() noexcept {

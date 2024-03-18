@@ -9,7 +9,7 @@
 namespace WasmEdge {
 namespace Host {
 
-WasiHttpModule::WasiHttpModule() : ModuleInstance("wasi:http/test") {
+WasiHttpModule::WasiHttpModule() : ComponentInstance("wasi:http/test") {
   addHostFunc("http-get", std::make_unique<WasiHttpGet>(Env));
   addHostFunc("print", std::make_unique<WasiHttpPrint>(Env));
 }

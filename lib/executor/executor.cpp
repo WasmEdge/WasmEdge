@@ -74,6 +74,16 @@ Executor::registerModule(Runtime::StoreManager &StoreMgr,
   }
   return {};
 }
+Expect<void> Executor::registerComponent(
+    Runtime::StoreManager &StoreMgr,
+    const Runtime::Instance::ComponentInstance &CompInst) {
+  if (auto Res = StoreMgr.registerComponent(&CompInst); !Res) {
+    spdlog::error(ErrCode::Value::ModuleNameConflict);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+    return Unexpect(ErrCode::Value::ModuleNameConflict);
+  }
+  return {};
+}
 
 /// Register a host function which will be invoked before calling a
 /// host function.

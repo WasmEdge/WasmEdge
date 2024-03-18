@@ -362,6 +362,7 @@ namespace Runtime::Instance {
 class FunctionInstance;
 class StructInstance;
 class ArrayInstance;
+class StringInstance;
 } // namespace Runtime::Instance
 
 /// NumType and RefType variant definitions.
@@ -387,6 +388,9 @@ struct RefVariant {
   }
   RefVariant(const Runtime::Instance::ArrayInstance *P) noexcept {
     setData(TypeCode::ArrayRef, reinterpret_cast<const void *>(P));
+  }
+  RefVariant(const Runtime::Instance::StringInstance *P) noexcept {
+    setData(TypeCode::String, reinterpret_cast<const void *>(P));
   }
 
   // Getter of type.

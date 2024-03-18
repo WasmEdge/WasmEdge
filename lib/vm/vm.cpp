@@ -126,6 +126,9 @@ void VM::unsafeLoadPlugInHosts() {
     for (const auto &Module : Plugin.modules()) {
       PlugInModInsts.push_back(Module.create());
     }
+    for (const auto &Component : Plugin.components()) {
+      PlugInCompInsts.push_back(Component.create());
+    }
   }
 }
 
@@ -140,6 +143,9 @@ void VM::unsafeRegisterPlugInHosts() {
   // Register all created module instances from plugins.
   for (auto &It : PlugInModInsts) {
     ExecutorEngine.registerModule(StoreRef, *(It.get()));
+  }
+  for (auto &It : PlugInCompInsts) {
+    ExecutorEngine.registerComponent(StoreRef, *(It.get()));
   }
 }
 

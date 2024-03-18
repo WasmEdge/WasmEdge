@@ -14,8 +14,8 @@ WasiHttpEnvironment::WasiHttpEnvironment() noexcept {
 
 namespace {
 
-Runtime::Instance::ModuleInstance *
-create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
+Runtime::Instance::ComponentInstance *
+create(const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
   return new WasiHttpModule();
 }
 
@@ -24,9 +24,11 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .Description = "",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
     .Version = {0, 1, 0, 0},
-    .ModuleCount = 1,
-    .ModuleDescriptions =
-        (Plugin::PluginModule::ModuleDescriptor[]){
+    .ModuleCount = 0,
+    .ModuleDescriptions = {},
+    .ComponentCount = 1,
+    .ComponentDescriptions =
+        (Plugin::PluginComponent::ComponentDescriptor[]){
             {
                 .Name = "wasi:http/test",
                 .Description = "",

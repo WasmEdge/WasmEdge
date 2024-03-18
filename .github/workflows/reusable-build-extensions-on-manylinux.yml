@@ -127,6 +127,9 @@ jobs:
         with:
           key: ${{ needs.prepare.outputs.cache_key_h }}
           path: ${{ needs.prepare.outputs.cache_path_h }}
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
       - name: Install dependencies
         shell: bash
         run: |

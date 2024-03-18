@@ -771,7 +771,6 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   if (GraphRef.MMProjModelPath == ""sv) {
     // Text only prompt.
     CxtRef.LlamaInputs = llama_tokenize(LlamaContext, Prompt, AddBos, true);
-    CxtRef.LlamaNInputs = CxtRef.LlamaInputs.size();
   } else {
     // Handle llava format prompt.
 
@@ -851,6 +850,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                               EmbdInputAfterImage.begin(),
                               EmbdInputAfterImage.end());
   }
+  CxtRef.LlamaNInputs = CxtRef.LlamaInputs.size();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: set the input...Done"sv);
   }

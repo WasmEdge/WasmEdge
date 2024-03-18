@@ -348,7 +348,7 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
   llama_context_params ContextParams = llama_context_default_params();
   ContextParams.n_ctx = GraphRef.CtxSize;
   ContextParams.n_batch = GraphRef.BatchSize;
-  ContextParams.embedding = GraphRef.Embedding;
+  ContextParams.embeddings = GraphRef.Embedding;
   auto *LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
 

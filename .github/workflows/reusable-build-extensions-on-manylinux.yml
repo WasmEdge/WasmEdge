@@ -99,7 +99,6 @@ jobs:
     needs: [prepare, prepare_cache]
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         include: ${{ fromJSON(inputs.plugins) }}
     name: ${{ matrix.plugin }} (${{ inputs.docker_tag }})

@@ -28,11 +28,6 @@ class StructInstance : public CompositeBase {
 public:
   StructInstance() = delete;
   StructInstance(const ModuleInstance *Mod, const uint32_t Idx,
-                 const uint32_t MemberCnt) noexcept
-      : CompositeBase(Mod, Idx), Data(MemberCnt, static_cast<uint128_t>(0)) {
-    assuming(ModInst);
-  }
-  StructInstance(const ModuleInstance *Mod, const uint32_t Idx,
                  std::vector<ValVariant> &&Init) noexcept
       : CompositeBase(Mod, Idx), Data(std::move(Init)) {
     assuming(ModInst);

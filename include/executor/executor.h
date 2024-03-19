@@ -271,7 +271,7 @@ private:
                              AST::InstrView::iterator &PC) noexcept;
   /// @}
 
-  /// \name Helper Functions for getting instances.
+  /// \name Helper Functions for getting instances or types.
   /// @{
   /// Helper function for get defined type by index.
   const AST::SubType *getDefTypeByIdx(Runtime::StackManager &StackMgr,
@@ -300,6 +300,10 @@ private:
   /// Helper function for get data instance by index.
   Runtime::Instance::DataInstance *
   getDataInstByIdx(Runtime::StackManager &StackMgr, const uint32_t Idx) const;
+
+  /// Helper function for converting into bottom abstract heap type.
+  TypeCode toBottomType(Runtime::StackManager &StackMgr,
+                        const ValType &Type) const;
   /// @}
 
   /// \name Run instructions functions

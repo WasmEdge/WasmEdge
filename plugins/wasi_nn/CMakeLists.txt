@@ -174,6 +174,7 @@ if(BACKEND STREQUAL "ggml")
       TARGET wasmedgePluginWasiNN
       POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/_deps/llama-src/ggml-metal.metal ggml-metal.metal
+      COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/bin/default.metallib default.metallib
     )
   endif()
 endif()

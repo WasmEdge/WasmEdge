@@ -56,39 +56,8 @@ std::vector<ValVariant> packVals(const ValType &Type,
 
 Expect<void> Executor::runRefNullOp(Runtime::StackManager &StackMgr,
                                     const ValType &Type) const noexcept {
-  TypeCode Bot;
   // A null reference is typed with the least type in its respective hierarchy.
-  if (Type.isAbsHeapType()) {
-    switch (Type.getHeapTypeCode()) {
-    case TypeCode::NullFuncRef:
-    case TypeCode::FuncRef:
-      Bot = TypeCode::NullFuncRef;
-      break;
-    case TypeCode::NullExternRef:
-    case TypeCode::ExternRef:
-      Bot = TypeCode::NullExternRef;
-      break;
-    case TypeCode::NullRef:
-    case TypeCode::AnyRef:
-    case TypeCode::EqRef:
-    case TypeCode::I31Ref:
-    case TypeCode::StructRef:
-    case TypeCode::ArrayRef:
-      Bot = TypeCode::NullRef;
-      break;
-    default:
-      assumingUnreachable();
-    }
-  } else {
-    const auto &CompType = (*StackMgr.getModule()->getType(Type.getTypeIndex()))
-                               ->getCompositeType();
-    if (CompType.isFunc()) {
-      Bot = TypeCode::NullFuncRef;
-    } else {
-      Bot = TypeCode::NullRef;
-    }
-  }
-  StackMgr.push(RefVariant(Bot));
+  StackMgr.push(RefVariant(toBottomType(StackMgr, Type)));
   return {};
 }
 
@@ -135,21 +104,26 @@ Expect<void> Executor::runStructNewOp(Runtime::StackManager &StackMgr,
   const auto &CompType =
       getDefTypeByIdx(StackMgr, DefIndex)->getCompositeType();
   uint32_t N = static_cast<uint32_t>(CompType.getFieldTypes().size());
+  std::vector<WasmEdge::ValVariant> Vals;
   if (IsDefault) {
-    auto *Inst =
-        const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule())
-            ->newStruct(DefIndex, N);
-    StackMgr.push(RefVariant(Inst->getDefType(), Inst));
+    Vals.resize(N);
+    for (uint32_t I = 0; I < N; I++) {
+      const auto &VType = CompType.getFieldTypes()[I].getStorageType();
+      Vals[I] = VType.isRefType()
+                    ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
+                    : ValVariant(static_cast<uint128_t>(0));
+    }
   } else {
-    auto Vals = StackMgr.pop(N);
+    Vals = StackMgr.pop(N);
     for (uint32_t I = 0; I < N; I++) {
       Vals[I] = packVal(CompType.getFieldTypes()[I].getStorageType(), Vals[I]);
     }
-    auto *Inst =
-        const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule())
-            ->newStruct(DefIndex, std::move(Vals));
-    StackMgr.push(RefVariant(Inst->getDefType(), Inst));
   }
+  auto *Inst =
+      const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule())
+          ->newStruct(DefIndex, std::move(Vals));
+  StackMgr.push(RefVariant(Inst->getDefType(), Inst));
+
   return {};
 }
 
@@ -197,9 +171,12 @@ Expect<void> Executor::runArrayNewOp(Runtime::StackManager &StackMgr,
       getDefTypeByIdx(StackMgr, DefIndex)->getCompositeType();
   const auto &VType = CompType.getFieldTypes()[0].getStorageType();
   if (InitCnt == 0) {
+    auto InitVal = VType.isRefType()
+                       ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
+                       : ValVariant(static_cast<uint128_t>(0));
     auto *Inst =
         const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule())
-            ->newArray(DefIndex, ValCnt);
+            ->newArray(DefIndex, ValCnt, InitVal);
     StackMgr.push(RefVariant(Inst->getDefType(), Inst));
   } else if (InitCnt == 1) {
     auto *Inst =
@@ -242,7 +219,7 @@ Executor::runArrayNewDataOp(Runtime::StackManager &StackMgr,
   /// This may be changed after applying the garbage collection mechanism.
   auto *Inst =
       const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule())
-          ->newArray(Instr.getTargetIndex(), N);
+          ->newArray(Instr.getTargetIndex(), N, 0U);
   for (uint32_t Idx = 0; Idx < N; Idx++) {
     // The value has been packed.
     Inst->getData(Idx) = DataInst.loadValue(S + Idx * BSize, BSize);
@@ -509,7 +486,7 @@ Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
                        ValVariant &Val, const AST::Instruction &Instr,
                        bool IsCast) const noexcept {
   // Copy the value type here due to handling the externalized case.
-  auto VT = Val.get<RefVariant>().getType();
+  auto &VT = Val.get<RefVariant>().getType();
   if (VT.isExternalized()) {
     VT = ValType(TypeCode::Ref, TypeCode::ExternRef);
   }

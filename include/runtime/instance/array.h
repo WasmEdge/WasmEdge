@@ -28,11 +28,6 @@ class ArrayInstance : public CompositeBase {
 public:
   ArrayInstance() = delete;
   ArrayInstance(const ModuleInstance *Mod, const uint32_t Idx,
-                const uint32_t Size) noexcept
-      : CompositeBase(Mod, Idx), Data(Size, static_cast<uint128_t>(0)) {
-    assuming(ModInst);
-  }
-  ArrayInstance(const ModuleInstance *Mod, const uint32_t Idx,
                 const uint32_t Size, const ValVariant &Init) noexcept
       : CompositeBase(Mod, Idx), Data(Size, Init) {
     assuming(ModInst);

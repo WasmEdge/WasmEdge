@@ -101,11 +101,11 @@ O(Block, "block", 0x02)
 O(Loop, "loop", 0x03)
 O(If, "if", 0x04)
 O(Else, "else", 0x05)
-O(Try, "try", 0x06)
-O(Catch, "catch", 0x07)
+// 0x06: Reserved
+// 0x07: Reserved
 O(Throw, "throw", 0x08)
-O(Rethrow, "rethrow", 0x09)
-// 0x0A: Reserved
+// 0x09: Reserved
+O(Throw_ref, "throw_ref", 0x0A)
 O(End, "end", 0x0B)
 O(Br, "br", 0x0C)
 O(Br_if, "br_if", 0x0D)
@@ -119,14 +119,18 @@ O(Call_ref, "call_ref", 0x14)
 O(Return_call_ref, "return_call_ref", 0x15)
 // 0x16: Reserved
 // 0x17: Reserved
-O(Delegate, "delegate", 0x18)
-O(Catch_all, "catch_all", 0x19)
+// 0x18: Reserved
+// 0x19: Reserved
 
 // Parametric Instructions
 O(Drop, "drop", 0x1A)
 O(Select, "select", 0x1B)
 O(Select_t, "select", 0x1C)
-// 0x1D ~ 0x1F: Reserved
+// 0x1D: Reserved
+// 0x1E: Reserved
+
+// Control instructions (part 2)
+O(Try_table, "try_table", 0x1F)
 
 // Variable Instructions
 O(Local__get, "local.get", 0x20)
@@ -928,9 +932,7 @@ E(ArrayTypesNumtypeRequired, 0x0223, "array type is not numeric or vector")
 // Sub type matching or validation failed
 E(InvalidSubType, 0x0224, "sub type")
 // Invalid Tag type
-E(InvalidTag, 0x0225, "non-empty tag result type")
-// Invalid rethrow label
-E(InvalidRethrowLabel, 0x0226, "invalid rethrow label")
+E(InvalidTagResultType, 0x0225, "non-empty tag result type")
 // @}
 
 // Instantiation phase
@@ -995,10 +997,12 @@ E(AccessNullStruct, 0x0414, "null structure reference")
 E(AccessNullArray, 0x0415, "null array reference")
 // Access to null i31 reference
 E(AccessNullI31, 0x0416, "null i31 reference")
+// Access to null exception reference
+E(AccessNullException, 0x0417, "null exception reference")
 // Fail to cast reference
-E(CastFailed, 0x0417, "cast failure")
+E(CastFailed, 0x0418, "cast failure")
 // Uncaught Exception
-E(UncaughtException, 0x0418, "uncaught exception")
+E(UncaughtException, 0x0419, "uncaught exception")
 // @}
 
 // Component model phase
@@ -1117,6 +1121,7 @@ T(EqRef, 0x6D, "eq")               // -0x13 for heap type
 T(I31Ref, 0x6C, "i31")             // -0x14 for heap type
 T(StructRef, 0x6B, "struct")       // -0x15 for heap type
 T(ArrayRef, 0x6A, "array")         // -0x16 for heap type
+T(ExnRef, 0x69, "exn")             // -0x17 for reference type
 T(Ref, 0x64, "ref")                // -0x1C for reference type
 T(RefNull, 0x63, "ref_null")       // -0x1D for reference type
 T(Func, 0x60, "func")              // -0x20 for composite type

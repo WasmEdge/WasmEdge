@@ -435,6 +435,12 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       return false;
     }
     return IsRefMatch(Got.first.get<RefVariant>());
+  } else if (TypeStr == "exnref"sv) {
+    if (!Got.second.isRefType() ||
+        Got.second.getHeapTypeCode() != TypeCode::ExnRef) {
+      return false;
+    }
+    return IsRefMatch(Got.first.get<RefVariant>());
   } else if (TypeStr == "i32"sv) {
     if (Got.second.getCode() != TypeCode::I32) {
       return false;

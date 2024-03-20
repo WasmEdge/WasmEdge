@@ -205,7 +205,6 @@ Executor::branchToLabel(Runtime::StackManager &StackMgr,
   StackMgr.eraseValueStack(JumpDesc.ValueStackEraseBegin,
                            JumpDesc.ValueStackEraseEnd);
   StackMgr.eraseHandlerStack(JumpDesc.HandlerStackOffset);
-  StackMgr.eraseCaughtStack(JumpDesc.CaughtStackOffset);
   // PC need to -1 here because the PC will increase in the next iteration.
   PC += (JumpDesc.PCOffset - 1);
   return {};
@@ -214,26 +213,28 @@ Executor::branchToLabel(Runtime::StackManager &StackMgr,
 Expect<void> Executor::throwException(Runtime::StackManager &StackMgr,
                                       Runtime::Instance::TagInstance *TagInst,
                                       AST::InstrView::iterator &PC) noexcept {
+  assuming(TagInst);
   while (!StackMgr.isHandlerStackEmpty()) {
     auto AssocValSize = TagInst->getTagType().getAssocValSize();
-    // The value that associated with the exception should remain on the stack
-    auto ExceptionHandler = StackMgr.popToTopHandler(AssocValSize);
-    if (!ExceptionHandler.CatchCaluse.empty()) {
-      for (auto &[CatchTagInst, StartIt] : ExceptionHandler.CatchCaluse) {
-        if (CatchTagInst == nullptr || TagInst == CatchTagInst) {
-          PC = StartIt;
-          StackMgr.pushCaught(TagInst, StackMgr.getTopSpan(AssocValSize),
-                              ExceptionHandler.EndIt);
-          if (CatchTagInst == nullptr) {
-            StackMgr.eraseValueStack(AssocValSize, 0);
-          }
-          return {};
-        }
+    // The value that associated with the exception should remain on the stack.
+    auto ExnHandler = StackMgr.popTopHandler(AssocValSize);
+    // Checking through the catch clause.
+    for (const auto &C : ExnHandler.CatchClause) {
+      if (!C.IsAll && getTagInstByIdx(StackMgr, C.TagIndex) != TagInst) {
+        // For catching a specific tag, should check the equivalence of tag
+        // address.
+        continue;
       }
-    } else {
-      // The stack has transformed to the state after jumping to the label by
-      // StackMgr.popToTopHandler(AssocValSize)
-      return throwException(StackMgr, TagInst, PC);
+      if (C.IsRef) {
+        // For catching a exception reference, push the reference value onto
+        // stack.
+        StackMgr.push(
+            RefVariant(ValType(TypeCode::Ref, TypeCode::ExnRef), TagInst));
+      }
+      // When being here, an exception is caught. Move the PC to the try block
+      // and branch to the label.
+      PC = ExnHandler.Try;
+      return branchToLabel(StackMgr, C.Jump, PC);
     }
   }
   spdlog::error(ErrCode::Value::UncaughtException);
@@ -345,6 +346,8 @@ TypeCode Executor::toBottomType(Runtime::StackManager &StackMgr,
       case TypeCode::StructRef:
       case TypeCode::ArrayRef:
         return TypeCode::NullRef;
+      case TypeCode::ExnRef:
+        return TypeCode::ExnRef;
       default:
         assumingUnreachable();
       }

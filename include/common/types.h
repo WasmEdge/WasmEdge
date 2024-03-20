@@ -72,8 +72,10 @@ using floatx4_t = SIMDArray<float, 16>;
 //       |             |   (vectype)  | (func-ref proposal) |
 //       |   1st:      | 0x78, 0x77,  | 0x73, 0x72, 0x71,   |
 //       | Externalize | (packedtype) | 0x6E, 0x6D, 0x6C,   |
-//       |             | 0x64, 0x63   | 0x6B, 0x6A          |
+//       |             | 0x64, 0x63   | 0x6B, 0x6A,         |
 //       |             |   (reftype)  |    (GC proposal)    |
+//       |             |              | 0x69                |
+//       |             |              | (Exception handling proposal)
 // -----------------------------------------------------------------------------
 // In order to compress the various value type definitions into uint64_t length,
 // WasmEdge implements the ValType class for extending the value types.
@@ -125,6 +127,7 @@ public:
     case TypeCode::I31Ref:
     case TypeCode::StructRef:
     case TypeCode::ArrayRef:
+    case TypeCode::ExnRef:
       // Abstract heap type
       Inner.Data.Code = TypeCode::RefNull;
       Inner.Data.HTCode = C;
@@ -237,6 +240,7 @@ public:
       case TypeCode::I31Ref:
       case TypeCode::StructRef:
       case TypeCode::ArrayRef:
+      case TypeCode::ExnRef:
         return true;
       default:
         return false;

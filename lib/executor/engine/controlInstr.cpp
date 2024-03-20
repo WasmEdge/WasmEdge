@@ -33,44 +33,26 @@ Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
   return {};
 }
 
-Expect<void> Executor::runTryOp(Runtime::StackManager &StackMgr,
-                                const AST::Instruction &Instr,
-                                AST::InstrView::iterator &PC) noexcept {
-  if (Instr.isDelegate()) {
-    StackMgr.pushHandler(PC + Instr.getTryBlockJumpEnd(),
-                         Instr.getTryBlockVSize(), Instr.getTryBlockHOffset(),
-                         Instr.getTryBlockCOffset());
-
-  } else {
-    StackMgr.pushHandler(PC + Instr.getTryBlockJumpEnd(),
-                         Instr.getTryBlockParamNum());
-    for (auto CatchOffset : Instr.getJumpCatchList()) {
-      auto CatchInstrIt = PC + CatchOffset;
-      StackMgr.addCatchCaluseToLastHandler(
-          getTagInstByIdx(StackMgr, CatchInstrIt->getTargetIndex()),
-          CatchInstrIt);
-    }
-    if (auto CatchAllOffset = Instr.getJumpCatchAll(); CatchAllOffset) {
-      auto CatchAllInstrIt = PC + CatchAllOffset;
-      StackMgr.addCatchCaluseToLastHandler(nullptr, CatchAllInstrIt);
-    }
-  }
-  return {};
-}
-
 Expect<void> Executor::runThrowOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr,
                                   AST::InstrView::iterator &PC) noexcept {
   auto *TagInst = getTagInstByIdx(StackMgr, Instr.getTargetIndex());
+  // The args will be popped from stack in the throw function.
   return throwException(StackMgr, TagInst, PC);
 }
 
-Expect<void> Executor::runRethrowOp(Runtime::StackManager &StackMgr,
-                                    const AST::Instruction &Instr,
-                                    AST::InstrView::iterator &PC) noexcept {
-  auto Exception = StackMgr.getCaughtTopN(Instr.getJump().CaughtStackOffset);
-  StackMgr.pushValVec(Exception.Val);
-  return throwException(StackMgr, Exception.TagInst, PC);
+Expect<void> Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
+                                     const AST::Instruction &Instr,
+                                     AST::InstrView::iterator &PC) noexcept {
+  const auto Ref = StackMgr.pop().get<RefVariant>();
+  if (Ref.isNull()) {
+    spdlog::error(ErrCode::Value::AccessNullException);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::Value::AccessNullException);
+  }
+  auto *TagInst = Ref.getPtr<Runtime::Instance::TagInstance>();
+  return throwException(StackMgr, TagInst, PC);
 }
 
 Expect<void> Executor::runBrOp(Runtime::StackManager &StackMgr,
@@ -178,7 +160,6 @@ Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
                                     const AST::Instruction &Instr,
                                     AST::InstrView::iterator &PC,
                                     bool IsTailCall) noexcept {
-
   const auto Ref = StackMgr.pop().get<RefVariant>();
   if (Ref.isNull()) {
     spdlog::error(ErrCode::Value::AccessNullFunc);
@@ -263,6 +244,14 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
   } else {
     PC = (*Res) - 1;
   }
+  return {};
+}
+
+Expect<void> Executor::runTryTableOp(Runtime::StackManager &StackMgr,
+                                     const AST::Instruction &Instr,
+                                     AST::InstrView::iterator &PC) noexcept {
+  const auto &TryDesc = Instr.getTryCatch();
+  StackMgr.pushHandler(PC, TryDesc.BlockParamNum, TryDesc.Catch);
   return {};
 }
 

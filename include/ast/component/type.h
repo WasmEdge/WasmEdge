@@ -167,10 +167,13 @@ private:
 
 using DefValType = std::variant<PrimValType, Record, VariantTy, List, Tuple,
                                 Flags, Enum, Option, Result, Own, Borrow>;
-
 using ResultList = std::variant<ValueType, std::vector<LabelValType>>;
 class FuncType {
 public:
+  FuncType() : ParamList{}, ResList{} {}
+  FuncType(std::vector<LabelValType> P, ResultList R)
+      : ParamList{P}, ResList{R} {}
+
   Span<const LabelValType> getParamList() const noexcept { return ParamList; }
   std::vector<LabelValType> &getParamList() noexcept { return ParamList; }
   ResultList getResultList() const noexcept { return ResList; }

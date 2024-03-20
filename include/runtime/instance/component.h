@@ -35,6 +35,9 @@ namespace WasmEdge {
 namespace Runtime {
 
 namespace Instance {
+
+using namespace AST::Component;
+
 class ComponentInstance {
 public:
   ComponentInstance(std::string_view Name) : CompName(Name) {}
@@ -79,20 +82,35 @@ public:
     return CompInstList[Index];
   }
 
+  void addHostFunc(std::string_view Name,
+                   std::unique_ptr<HostFunctionBase> &&Func) {
+    addType(FuncType());
+    auto FuncInst = std::make_unique<FunctionInstance>(
+        this, static_cast<uint32_t>(Types.size()) - 1, std::move(Func));
+    unsafeAddHostFunc(Name, std::move(FuncInst));
+  }
+  void addHostFunc(std::string_view Name,
+                   std::unique_ptr<Instance::FunctionInstance> &&Func) {
+    assuming(Func->isHostFunction());
+    addType(FuncType());
+    Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
+    unsafeAddHostFunc(Name, std::move(Func));
+  }
+
+  void addCoreFunctionInstance(Instance::FunctionInstance *Inst) noexcept {
+    CoreFuncInstList.push_back(Inst);
+  }
+  Instance::FunctionInstance *
+  getCoreFunctionInstance(uint32_t Index) const noexcept {
+    return CoreFuncInstList[Index];
+  }
+
   void addFunctionInstance(Instance::FunctionInstance *Inst) noexcept {
     FuncInstList.push_back(Inst);
   }
   Instance::FunctionInstance *
   getFunctionInstance(uint32_t Index) const noexcept {
     return FuncInstList[Index];
-  }
-
-  void addComponentFunctionInstance(Instance::FunctionInstance *Inst) noexcept {
-    CompFuncInstList.push_back(Inst);
-  }
-  Instance::FunctionInstance *
-  getComponentFunctionInstance(uint32_t Index) const noexcept {
-    return CompFuncInstList[Index];
   }
 
   void addExport(std::string_view Name, Instance::FunctionInstance *Inst) {
@@ -102,10 +120,8 @@ public:
     return ExportFuncMap.at(std::string(Name));
   }
 
-  void addCoreType(const AST::Component::CoreDefType &Ty) {
-    CoreTypes.emplace_back(Ty);
-  }
-  void addType(const AST::Component::DefType &Ty) { Types.emplace_back(Ty); }
+  void addCoreType(const CoreDefType &Ty) { CoreTypes.emplace_back(Ty); }
+  void addType(const DefType &Ty) { Types.emplace_back(Ty); }
   void mapCoreType(std::string_view Name, uint32_t Index) {
     CoreTypeMap[std::string(Name)] = CoreTypes[Index];
   }
@@ -114,10 +130,16 @@ public:
   }
 
 private:
-  std::string CompName;
+  void
+  unsafeAddHostFunc(std::string_view Name,
+                    std::unique_ptr<Instance::FunctionInstance> Inst) noexcept {
+    addFunctionInstance(Inst.get());
+    ExportFuncMap.insert_or_assign(std::string(Name), FuncInstList.back());
+    OwnedFuncInstList.push_back(std::move(Inst));
+  }
 
-  std::map<std::string, Instance::FunctionInstance *, std::less<>>
-      ExportFuncMap;
+private:
+  std::string CompName;
 
   std::vector<AST::Module> ModList;
   std::vector<AST::Component::Component> CompList;
@@ -127,9 +149,14 @@ private:
   std::vector<std::unique_ptr<Instance::ComponentInstance>> OwnedCompInstList;
   std::vector<const Instance::ComponentInstance *> CompInstList;
 
-  std::vector<Instance::FunctionInstance *> FuncInstList;
+  // core function
+  std::vector<Instance::FunctionInstance *> CoreFuncInstList;
 
-  std::vector<Instance::FunctionInstance *> CompFuncInstList;
+  // component function
+  std::vector<std::unique_ptr<Instance::FunctionInstance>> OwnedFuncInstList;
+  std::vector<Instance::FunctionInstance *> FuncInstList;
+  std::map<std::string, Instance::FunctionInstance *, std::less<>>
+      ExportFuncMap;
 
   std::vector<AST::Component::CoreDefType> CoreTypes;
   std::vector<AST::Component::DefType> Types;

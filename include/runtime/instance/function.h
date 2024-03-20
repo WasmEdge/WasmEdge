@@ -65,6 +65,13 @@ public:
              std::move(Func)) {
     assuming(ModInst);
   }
+  FunctionInstance(const ComponentInstance *Comp, const uint32_t TIdx,
+                   std::unique_ptr<HostFunctionBase> &&Func) noexcept
+      : CompositeBase(Comp, TIdx), FuncType(Func->getFuncType()),
+        Data(std::in_place_type_t<std::unique_ptr<HostFunctionBase>>(),
+             std::move(Func)) {
+    assuming(CompInst);
+  }
   FunctionInstance(std::unique_ptr<HostFunctionBase> &&Func) noexcept
       : CompositeBase(), FuncType(Func->getFuncType()),
         Data(std::in_place_type_t<std::unique_ptr<HostFunctionBase>>(),

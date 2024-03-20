@@ -168,6 +168,9 @@ public:
   /// Register an instantiated module into a named module instance.
   Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
                               const Runtime::Instance::ModuleInstance &ModInst);
+  Expect<void>
+  registerComponent(Runtime::StoreManager &StoreMgr,
+                    const Runtime::Instance::ComponentInstance &CompInst);
 
   /// Register a host function which will be invoked before calling a
   /// host function.

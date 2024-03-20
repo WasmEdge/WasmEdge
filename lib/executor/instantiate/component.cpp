@@ -101,10 +101,13 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       auto Instantiate = std::get<CoreInstantiate>(InstExpr);
 
       for (auto Arg : Instantiate.getArgs()) {
+        // instantiate a list of `(with (name $instance))`
+        // each $instance get named as `name` as statement tell
         StoreMgr.addNamedModule(Arg.getName(),
                                 CompInst.getModuleInstance(Arg.getIndex()));
       }
       const AST::Module &Mod = CompInst.getModule(Instantiate.getModuleIdx());
+      // FIXME: The instantiate here broke
       auto Res = instantiate(StoreMgr, Mod);
       if (!Res) {
         return Unexpect(Res);
@@ -114,14 +117,21 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       // TODO: create a module instance and insert the following function
       // instances into it, then put the new module instance into the component
       // instance.
-      auto Sorts =
+
+      auto Exports =
           std::get<AST::Component::CoreInlineExports>(InstExpr).getExports();
-      for (auto S : Sorts) {
+
+      // create an internal module, which has no name
+      auto M = std::make_unique<Runtime::Instance::ModuleInstance>("");
+
+      for (auto S : Exports) {
+        auto Name = S.getName();
         auto SortIdx = S.getSortIdx();
         switch (SortIdx.getSort()) {
         case CoreSort::Func: {
           auto Idx = SortIdx.getSortIdx();
-          CompInst.getFunctionInstance(Idx);
+          auto *CoreFunc = CompInst.getCoreFunctionInstance(Idx);
+          M->exportFunction(Name, CoreFunc);
           break;
         }
         default:
@@ -129,6 +139,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           break;
         }
       }
+
+      CompInst.addModuleInstance(std::move(M));
     }
   }
   return {};
@@ -246,24 +258,20 @@ Executor::instantiate(Runtime::StoreManager &,
                                  std::less<>> &Map) {
                 return ModInst->unsafeFindExports(Map, Exp.getName());
               });
-          CompInst.addFunctionInstance(FuncInst);
+          CompInst.addCoreFunctionInstance(FuncInst);
         } else {
           auto Out = std::get<AliasTargetOuter>(T);
           Out.getComponent();
           Out.getIndex();
         }
         break;
-      case CoreSort::Table: // TODO:
-        break;
-      case CoreSort::Memory: // TODO:
-        break;
-      case CoreSort::Global: // TODO:
-        break;
-      case CoreSort::Type: // TODO:
-        break;
-      case CoreSort::Module: // TODO:
-        break;
-      case CoreSort::Instance: // TODO:
+      case CoreSort::Table:
+      case CoreSort::Memory:
+      case CoreSort::Global:
+      case CoreSort::Type:
+      case CoreSort::Module:
+      case CoreSort::Instance:
+        spdlog::warn("unsupported core alias sort");
         break;
       }
     } else if (std::holds_alternative<SortCase>(S)) {
@@ -273,29 +281,24 @@ Executor::instantiate(Runtime::StoreManager &,
           // This means instance exports a function
           auto Exp = std::get<AliasTargetExport>(T);
 
-          // FIXME: this should, however, get a component instance, but we
-          // haven't change anything at plugin part, and hence we do not have
-          // anything create a component plugin.
-          auto *ModInst = CompInst.getModuleInstance(Exp.getInstanceIdx());
-          auto *FuncInst = ModInst->findFuncExports(Exp.getName());
-          CompInst.addComponentFunctionInstance(FuncInst);
+          auto *CInst = CompInst.getComponentInstance(Exp.getInstanceIdx());
+          auto *FuncInst = CInst->findFuncExports(Exp.getName());
+          CompInst.addFunctionInstance(FuncInst);
         } else {
           // TODO:
           spdlog::warn("TODO [alias function] outer export");
           auto Out = std::get<AliasTargetOuter>(T);
-          auto NestedCompInst =
+          auto const *NestedCompInst =
               CompInst.getComponentInstance(Out.getComponent());
-          NestedCompInst->getFunctionInstance(Out.getIndex());
+          NestedCompInst->getCoreFunctionInstance(Out.getIndex());
         }
 
         break;
-      case SortCase::Value: // TODO:
-        break;
-      case SortCase::Type: // TODO:
-        break;
-      case SortCase::Component: // TODO:
-        break;
-      case SortCase::Instance: // TODO:
+      case SortCase::Value:
+      case SortCase::Type:
+      case SortCase::Component:
+      case SortCase::Instance:
+        spdlog::warn("unsupported alias sort");
         break;
       }
     }
@@ -327,8 +330,8 @@ Executor::instantiate(Runtime::StoreManager &,
       // TODO: apply options
       // L.getOptions();
 
-      auto *FuncInst = CompInst.getFunctionInstance(L.getCoreFuncIndex());
-      CompInst.addComponentFunctionInstance(FuncInst);
+      auto *FuncInst = CompInst.getCoreFunctionInstance(L.getCoreFuncIndex());
+      CompInst.addFunctionInstance(FuncInst);
     } else if (std::holds_alternative<Lower>(C)) {
       // lower sends a component function to a core wasm function, with proper
       // modification about canonical ABI.
@@ -337,14 +340,14 @@ Executor::instantiate(Runtime::StoreManager &,
       // TODO: apply options
       // L.getOptions();
 
-      auto *FuncInst = CompInst.getComponentFunctionInstance(L.getFuncIndex());
-      CompInst.addFunctionInstance(FuncInst);
+      auto *FuncInst = CompInst.getFunctionInstance(L.getFuncIndex());
+      CompInst.addCoreFunctionInstance(FuncInst);
     } else if (std::holds_alternative<ResourceNew>(C)) {
-      // TODO:
+      spdlog::warn("resource is not supported yet");
     } else if (std::holds_alternative<ResourceDrop>(C)) {
-      // TODO:
+      spdlog::warn("resource is not supported yet");
     } else if (std::holds_alternative<ResourceRep>(C)) {
-      // TODO:
+      spdlog::warn("resource is not supported yet");
     }
   }
   return {};
@@ -353,7 +356,7 @@ Executor::instantiate(Runtime::StoreManager &,
 Expect<void> Executor::instantiate(Runtime::StoreManager &,
                                    Runtime::Instance::ComponentInstance &,
                                    const AST::Component::StartSection &) {
-  spdlog::warn("TODO: start section");
+  spdlog::warn("start section is not supported yet");
   return {};
 }
 
@@ -380,15 +383,15 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
         // TODO
         break;
       case IndexKind::InstanceType:
-        auto ModName = ImportStatement.getName();
-        const auto *ImportedModInst = StoreMgr.findModule(ModName);
-        if (unlikely(ImportedModInst == nullptr)) {
+        auto CompName = ImportStatement.getName();
+        const auto *ImportedCompInst = StoreMgr.findComponent(CompName);
+        if (unlikely(ImportedCompInst == nullptr)) {
           spdlog::error(ErrCode::Value::UnknownImport);
-          spdlog::error("module name: {}", ModName);
+          spdlog::error("component name: {}", CompName);
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_CompImport));
           return Unexpect(ErrCode::Value::UnknownImport);
         }
-        CompInst.addModuleInstance(ImportedModInst);
+        CompInst.addComponentInstance(ImportedCompInst);
         break;
       }
     } else if (std::holds_alternative<TypeBound>(Desc)) {
@@ -418,7 +421,7 @@ Executor::instantiate(Runtime::StoreManager &,
       switch (std::get<SortCase>(S)) {
       case SortCase::Func:
         CompInst.addExport(Export.getName(),
-                           CompInst.getComponentFunctionInstance(Index));
+                           CompInst.getFunctionInstance(Index));
         break;
 
       default:

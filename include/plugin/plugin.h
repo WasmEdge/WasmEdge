@@ -183,9 +183,15 @@ public:
     assuming(Desc);
     return ModuleRegistry;
   }
+  Span<const PluginComponent> components() const noexcept {
+    assuming(Desc);
+    return ComponentRegistry;
+  }
 
   WASMEDGE_EXPORT const PluginModule *
   findModule(std::string_view Name) const noexcept;
+  WASMEDGE_EXPORT const PluginComponent *
+  findComponent(std::string_view Name) const noexcept;
 
   std::filesystem::path path() const noexcept { return Path; }
 
@@ -197,7 +203,9 @@ private:
   const PluginDescriptor *Desc = nullptr;
   std::shared_ptr<Loader::SharedLibrary> Lib;
   std::vector<PluginModule> ModuleRegistry;
+  std::vector<PluginComponent> ComponentRegistry;
   std::unordered_map<std::string_view, std::size_t> ModuleNameLookup;
+  std::unordered_map<std::string_view, std::size_t> ComponentNameLookup;
 
   static bool loadFile(const std::filesystem::path &Path) noexcept;
 

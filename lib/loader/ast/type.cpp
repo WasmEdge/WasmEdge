@@ -42,6 +42,13 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
                                  FMgr.getLastOffset(), From);
         }
         return ValType(TC, HTCode);
+      case TypeCode::ExnRef:
+        if (!Conf.hasProposal(Proposal::ExceptionHandling)) {
+          return logNeedProposal(ErrCode::Value::MalformedValType,
+                                 Proposal::ExceptionHandling,
+                                 FMgr.getLastOffset(), From);
+        }
+        return ValType(TC, HTCode);
       default:
         return logLoadError(ErrCode::Value::MalformedRefType,
                             FMgr.getLastOffset(), From);
@@ -159,6 +166,13 @@ Expect<ValType> Loader::loadValType(ASTNodeAttr From, bool IsStorageType) {
     case TypeCode::ArrayRef:
       if (!Conf.hasProposal(Proposal::GC)) {
         return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::GC,
+                               FMgr.getLastOffset(), From);
+      }
+      return ValType(Code);
+    case TypeCode::ExnRef:
+      if (!Conf.hasProposal(Proposal::ExceptionHandling)) {
+        return logNeedProposal(ErrCode::Value::MalformedValType,
+                               Proposal::ExceptionHandling,
                                FMgr.getLastOffset(), From);
       }
       return ValType(Code);

@@ -94,10 +94,8 @@ O(Block, 0x02, "block")
 O(Loop, 0x03, "loop")
 O(If, 0x04, "if")
 O(Else, 0x05, "else")
-O(Try, 0x06, "try")
-O(Catch, 0x07, "catch")
 O(Throw, 0x08, "throw")
-O(Rethrow, 0x09, "rethrow")
+O(Throw_ref, 0x0A, "throw_ref")
 O(End, 0x0B, "end")
 O(Br, 0x0C, "br")
 O(Br_if, 0x0D, "br_if")
@@ -109,13 +107,14 @@ O(Return_call, 0x12, "return_call")
 O(Return_call_indirect, 0x13, "return_call_indirect")
 O(Call_ref, 0x14, "call_ref")
 O(Return_call_ref, 0x15, "return_call_ref")
-O(Delegate, 0x18, "delegate")
-O(Catch_all, 0x19, "catch_all")
 
 // Parametric Instructions
 O(Drop, 0x1A, "drop")
 O(Select, 0x1B, "select")
 O(Select_t, 0x1C, "select")
+
+// Control instructions (part 2)
+O(Try_table, 0x1F, "try_table")
 
 // Variable Instructions
 O(Local__get, 0x20, "local.get")
@@ -298,7 +297,7 @@ O(Ref__func, 0xD2, "ref.func")
 O(Ref__eq, 0xD3, "ref.eq")
 O(Ref__as_non_null, 0xD4, "ref.as_non_null")
 
-// Control Instructions (part 2)
+// Control Instructions (part 3)
 O(Br_on_null, 0xD5, "br_on_null")
 O(Br_on_non_null, 0xD6, "br_on_non_null")
 
@@ -904,9 +903,7 @@ E(ArrayTypesNumtypeRequired, 0x0223, "array type is not numeric or vector")
 // Sub type matching or validation failed
 E(InvalidSubType, 0x0224, "sub type")
 // Invalid Tag type
-E(InvalidTag, 0x0225, "non-empty tag result type")
-// Invalid rethrow label
-E(InvalidRethrowLabel, 0x0226, "invalid rethrow label")
+E(InvalidTagResultType, 0x0225, "non-empty tag result type")
 // @}
 
 // Instantiation phase
@@ -971,10 +968,12 @@ E(AccessNullStruct, 0x0414, "null structure reference")
 E(AccessNullArray, 0x0415, "null array reference")
 // Access to null i31 reference
 E(AccessNullI31, 0x0416, "null i31 reference")
+// Access to null exception reference
+E(AccessNullException, 0x0417, "null exception reference")
 // Fail to cast reference
-E(CastFailed, 0x0417, "cast failure")
+E(CastFailed, 0x0418, "cast failure")
 // Uncaught Exception
-E(UncaughtException, 0x0418, "uncaught exception")
+E(UncaughtException, 0x0419, "uncaught exception")
 // @}
 
 // Component model phase
@@ -1093,6 +1092,7 @@ T(EqRef, 0x6D, "eq")               // -0x13 for heap type
 T(I31Ref, 0x6C, "i31")             // -0x14 for heap type
 T(StructRef, 0x6B, "struct")       // -0x15 for heap type
 T(ArrayRef, 0x6A, "array")         // -0x16 for heap type
+T(ExnRef, 0x69, "exn")             // -0x17 for reference type
 T(Ref, 0x64, "ref")                // -0x1C for reference type
 T(RefNull, 0x63, "ref_null")       // -0x1D for reference type
 T(Func, 0x60, "func")              // -0x20 for composite type

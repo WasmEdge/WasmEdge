@@ -357,8 +357,8 @@ public:
       if (!hasProposal(Proposal::GC)) {
         return Proposal::GC;
       }
-    } else if ((Code >= OpCode::Try && Code <= OpCode::Rethrow) ||
-               Code == OpCode::Delegate || Code == OpCode::Catch_all) {
+    } else if (Code == OpCode::Throw || Code == OpCode::Throw_ref ||
+               Code == OpCode::Try_table) {
       // These instructions are for ExceptionHandling proposal.
       if (!hasProposal(Proposal::ExceptionHandling)) {
         return Proposal::ExceptionHandling;

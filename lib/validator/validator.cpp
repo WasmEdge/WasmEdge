@@ -776,8 +776,8 @@ Expect<void> Validator::validate(const AST::TagSection &TagSec) {
       return Unexpect(ErrCode::Value::InvalidTagIdx);
     }
     if (!CompType.getFuncType().getReturnTypes().empty()) {
-      spdlog::error(ErrCode::Value::InvalidTag);
-      return Unexpect(ErrCode::Value::InvalidTag);
+      spdlog::error(ErrCode::Value::InvalidTagResultType);
+      return Unexpect(ErrCode::Value::InvalidTagResultType);
     }
     Checker.addTag(TagTypeIdx);
   }

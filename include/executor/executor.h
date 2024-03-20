@@ -324,15 +324,12 @@ private:
   Expect<void> runIfElseOp(Runtime::StackManager &StackMgr,
                            const AST::Instruction &Instr,
                            AST::InstrView::iterator &PC) noexcept;
-  Expect<void> runTryOp(Runtime::StackManager &StackMgr,
-                        const AST::Instruction &Instr,
-                        AST::InstrView::iterator &PC) noexcept;
   Expect<void> runThrowOp(Runtime::StackManager &StackMgr,
                           const AST::Instruction &Instr,
                           AST::InstrView::iterator &PC) noexcept;
-  Expect<void> runRethrowOp(Runtime::StackManager &StackMgr,
-                            const AST::Instruction &Instr,
-                            AST::InstrView::iterator &PC) noexcept;
+  Expect<void> runThrowRefOp(Runtime::StackManager &StackMgr,
+                             const AST::Instruction &Instr,
+                             AST::InstrView::iterator &PC) noexcept;
   Expect<void> runBrOp(Runtime::StackManager &StackMgr,
                        const AST::Instruction &Instr,
                        AST::InstrView::iterator &PC) noexcept;
@@ -366,6 +363,9 @@ private:
                                  const AST::Instruction &Instr,
                                  AST::InstrView::iterator &PC,
                                  bool IsTailCall = false) noexcept;
+  Expect<void> runTryTableOp(Runtime::StackManager &StackMgr,
+                             const AST::Instruction &Instr,
+                             AST::InstrView::iterator &PC) noexcept;
   /// ======= Variable instructions =======
   Expect<void> runLocalGetOp(Runtime::StackManager &StackMgr,
                              uint32_t StackOffset) const noexcept;

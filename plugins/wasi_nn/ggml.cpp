@@ -277,6 +277,7 @@ Expect<ErrNo> setupContextParam(Graph &GraphRef,
   ContextParams.n_batch = GraphRef.BatchSize;
   ContextParams.n_threads = GraphRef.Threads;
   ContextParams.n_threads_batch = GraphRef.Threads;
+  ContextParams.embeddings = GraphRef.Embedding;
   return ErrNo::Success;
 }
 
@@ -313,109 +314,6 @@ void buildOutputEmbedding(std::string &Embedding, int32_t NEmbd,
   }
   OS << Embeddings[NEmbd - 1] << "]}";
   Embedding = OS.str();
-}
-
-Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
-                           uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: getEmbedding"sv);
-  }
-
-  if (CxtRef.LlamaInputs.size() == 0) {
-    spdlog::error("[WASI-NN] GGML backend: Llama input is not set!"sv);
-    return ErrNo::InvalidArgument;
-  }
-
-  // Clear the outputs.
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: clear the previous output and tokens"sv);
-  }
-  CxtRef.LlamaOutputs.clear();
-  CxtRef.LlamaOutputTokens.clear();
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: clear the previous output and tokens...Done"sv);
-  }
-
-  // Main predict loop.
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: handle embedding"sv);
-  }
-  // Initialize the llama context.
-  llama_context_params ContextParams = llama_context_default_params();
-  ContextParams.n_ctx = GraphRef.CtxSize;
-  ContextParams.n_batch = GraphRef.BatchSize;
-  ContextParams.embedding = GraphRef.Embedding;
-  auto *LlamaContext =
-      llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
-
-  // Get the context size.
-  const uint64_t NCtx = llama_n_ctx(LlamaContext);
-  // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
-  const uint64_t MaxTokensListSize = NCtx - 4;
-  // Use the const sequence id here.
-  const llama_seq_id SequenceId = 0;
-
-  // Check if the input is too long.
-  if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
-    if (GraphRef.EnableLog) {
-      spdlog::info("[WASI-NN] GGML backend: the prompt is too long. Your input "
-                   "has {} tokens. Please reduce it to {} tokens."sv,
-                   CxtRef.LlamaInputs.size(), MaxTokensListSize);
-    }
-    return ErrNo::PromptTooLong;
-  }
-
-  int NPast = 0;
-  while (!CxtRef.LlamaInputs.empty()) {
-    const uint64_t NTokens = (ContextParams.n_batch > CxtRef.LlamaInputs.size())
-                                 ? CxtRef.LlamaInputs.size()
-                                 : ContextParams.n_batch;
-    auto Status = llama_decode(LlamaContext,
-                               llama_batch_get_one(CxtRef.LlamaInputs.data(),
-                                                   NTokens, NPast, SequenceId));
-    if (Status == 1) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: failed to llama_decode: try "
-          "reducing the size of the batch or increasing the size of context"sv);
-      return ErrNo::RuntimeError;
-    }
-    if (Status < 0) {
-      spdlog::error("[WASI-NN] GGML backend: failed to llama_decode: internal "
-                    "fatal error. Please open an issue on GitHub"sv);
-      return ErrNo::RuntimeError;
-    }
-
-    NPast += NTokens;
-    CxtRef.LlamaInputs.erase(CxtRef.LlamaInputs.begin(),
-                             CxtRef.LlamaInputs.begin() + NTokens);
-  }
-  const int32_t NEmbd = llama_n_embd(GraphRef.LlamaModel);
-  const auto *Embeddings = llama_get_embeddings(LlamaContext);
-
-  details::buildOutputEmbedding(CxtRef.LlamaOutputs, NEmbd, Embeddings);
-
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: enter embedding loop...Done"sv);
-  }
-
-  if (GraphRef.EnableLog) {
-    llama_print_timings(LlamaContext);
-  }
-
-  // We free the contexts here to keep the ggml plugin stateless.
-  // Users could fully control the contexts by themselves via their prompt.
-  llama_free(LlamaContext);
-
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: compute...Done"sv);
-  }
-
-  return ErrNo::Success;
 }
 
 ErrNo evaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
@@ -455,6 +353,106 @@ ErrNo evaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
       return ErrNo::RuntimeError;
     }
     NPast += NEval;
+  }
+
+  return ErrNo::Success;
+}
+
+Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
+                           uint32_t ContextId) noexcept {
+  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: getEmbedding"sv);
+  }
+
+  if (CxtRef.LlamaInputs.size() == 0) {
+    spdlog::error("[WASI-NN] GGML backend: Llama input is not set!"sv);
+    return ErrNo::InvalidArgument;
+  }
+
+  // Clear the outputs.
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: clear the previous output and tokens"sv);
+  }
+  CxtRef.LlamaOutputs.clear();
+  CxtRef.LlamaOutputTokens.clear();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: clear the previous output and tokens...Done"sv);
+  }
+
+  // Main predict loop.
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: handle embedding"sv);
+  }
+  // Initialize the llama context.
+  llama_context_params ContextParams = llama_context_default_params();
+  setupContextParam(GraphRef, ContextParams);
+  auto *LlamaContext =
+      llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
+
+  // Prepare variables;
+  int32_t NPast = 0;
+  // Get the context size.
+  const uint64_t NCtx = llama_n_ctx(LlamaContext);
+  // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
+  const uint64_t MaxTokensListSize = NCtx - 4;
+  // Use the const sequence id here.
+  const llama_seq_id SequenceId = 0;
+  // Return value.
+  auto ReturnCode = ErrNo::Success;
+
+  // Add BOS if not present.
+  if (CxtRef.LlamaInputs.front() != llama_token_bos(GraphRef.LlamaModel)) {
+    CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.begin(),
+                              llama_token_bos(GraphRef.LlamaModel));
+  }
+  // Add EOS if not present.
+  if (CxtRef.LlamaInputs.back() != llama_token_eos(GraphRef.LlamaModel)) {
+    CxtRef.LlamaInputs.push_back(llama_token_eos(GraphRef.LlamaModel));
+  }
+
+  // Check if the input is too long.
+  if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
+    if (GraphRef.EnableLog) {
+      spdlog::info("[WASI-NN] GGML backend: the prompt is too long. Your input "
+                   "has {} tokens. Please reduce it to {} tokens."sv,
+                   CxtRef.LlamaInputs.size(), MaxTokensListSize);
+    }
+    return ErrNo::PromptTooLong;
+  }
+
+  // Evaluate input tokens.
+  ReturnCode = details::evaluateTokens(GraphRef, LlamaContext,
+                                       CxtRef.LlamaInputs, NPast);
+  if (ReturnCode != ErrNo::Success) {
+    spdlog::error("[WASI-NN] GGML backend: failed to evaluate input tokens."sv);
+    return ReturnCode;
+  }
+
+  const int32_t NEmbd = llama_n_embd(GraphRef.LlamaModel);
+  auto *Embeddings = llama_get_embeddings_seq(LlamaContext, SequenceId);
+  llama_embd_normalize(Embeddings, Embeddings, NEmbd);
+
+  details::buildOutputEmbedding(CxtRef.LlamaOutputs, NEmbd, Embeddings);
+
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: enter embedding loop...Done"sv);
+  }
+
+  if (GraphRef.EnableLog) {
+    llama_print_timings(LlamaContext);
+  }
+
+  // We free the contexts here to keep the ggml plugin stateless.
+  // Users could fully control the contexts by themselves via their prompt.
+  llama_free(LlamaContext);
+
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: compute...Done"sv);
   }
 
   return ErrNo::Success;

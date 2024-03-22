@@ -1,4 +1,4 @@
-### 0.14.0-rc.2 (2024-03-20)
+### 0.14.0-rc.3 (2024-03-22)
 
 Breaking changes:
 
@@ -73,7 +73,7 @@ Features:
 * [Tools]: Print the plug-in versions when using the `--version` option.
 * [Installer]: Enabled `ggml-blas` and `rustls` plugin supporting (#3032) (#3108).
 * [WASI-NN] ggml backend:
-  * Bump llama.cpp to b2334.
+  * Bump llama.cpp to b2479.
   * Support llama.cpp options:
     * `threads`: the thread number for inference.
     * `temp`: set temperature for inference.
@@ -129,7 +129,7 @@ Thank all the contributors who made this release possible!
 
 Abhinandan Udupa, Akihiro Suda, Charlie chan, Dhruv Jain, Draco, Hrushikesh, Ikko Eltociear Ashimine, Khagan (Khan) Karimov, LO, CHIN-HAO, Little Willy, Lîm Tsú-thuàn, Meenu Yadav, Omkar Acharekar, Saiyam Pathak, Sarrah Bastawala, Shen-Ta Hsieh, Shreyas Atre, Yage Hu, Yi Huang, Yi-Ying He, alabulei1, am009, dm4, hetvishastri, hydai, richzw, tannal, vincent, zhumeme
 
-If you want to build from source, please use WasmEdge-0.14.0-rc.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.14.0-rc.3-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.13.5 (2023-11-03)
 

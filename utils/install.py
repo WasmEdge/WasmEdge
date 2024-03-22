@@ -1155,6 +1155,11 @@ def install_plugins(args, compat):
 
     if len(args.plugins) >= 1:
         for plugin_name in args.plugins:
+            # Reset the url_root, due to the wasi-nn-ggml plugin with the build number will change the url
+            url_root = "https://github.com/WasmEdge/WasmEdge/releases/download/"
+            url_root += (
+                "$VERSION$/WasmEdge-plugin-$PLUGIN_NAME$-$VERSION$-$DIST$_$ARCH$.tar.gz"
+            )
             plugin_version_supplied = None
             plugin_wasi_nn_ggml_bypass_check = False
             if plugin_name.find(":") != -1:

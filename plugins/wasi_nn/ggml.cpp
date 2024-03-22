@@ -766,6 +766,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   const bool AddBos = llama_should_add_bos_token(GraphRef.LlamaModel);
   std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
                      Tensor.Tensor.size());
+  CxtRef.LlamaInputs.clear();
   if (GraphRef.MMProjModelPath == ""sv) {
     // Text only prompt.
     CxtRef.LlamaInputs = llama_tokenize(LlamaContext, Prompt, AddBos, true);

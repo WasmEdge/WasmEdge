@@ -736,6 +736,18 @@ private:
   template <typename T> Expect<void> runVectorFloorOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorTruncOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorNearestOp(ValVariant &Val) const;
+
+  /// ======= Relaxed SIMD instructions =======
+  template <typename T>
+  Expect<void> runVectorRelaxedLaneselect(ValVariant &Val1,
+                                          const ValVariant &Val2,
+                                          const ValVariant &Mask) const;
+  inline Expect<void>
+  runVectorRelaxedIntegerDotProduct(ValVariant &Val1,
+                                    const ValVariant &Val2) const;
+  inline Expect<void>
+  runVectorRelaxedIntegerDotProductAdd(ValVariant &Val1, const ValVariant &Val2,
+                                       const ValVariant &C) const;
   /// ======= Atomic instructions =======
   Expect<void> runAtomicNotifyOp(Runtime::StackManager &StackMgr,
                                  Runtime::Instance::MemoryInstance &MemInst,

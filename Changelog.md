@@ -42,7 +42,7 @@ Features:
     * Users can use the `--enable-gc` to enable the proposal in `wasmedge` and `wasmedgec` tools.
   * Component Model proposal (experimental, loader phase only).
     * Added the `WasmEdge_Proposal_Component` for the configuration in WasmEdge C API.
-    * Users can use the `--enable-function-reference` to enable the proposal in `wasmedge` tool.
+    * Users can use the `--enable-component` to enable the proposal in `wasmedge` tool.
 * [JIT]: Support LLVM JIT.
 * [C API]: New C API for supporting the new proposals.
   * `WasmEdge_ValType` related APIs can help developers to generate or compare value types.

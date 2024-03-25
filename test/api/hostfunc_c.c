@@ -19,23 +19,22 @@
 
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
 #define MAYBE_UNUSED
-#pragma warning( disable : 4100 ) // unreferenced formal parameter
+#pragma warning(disable : 4100) // unreferenced formal parameter
 #else
 #define MAYBE_UNUSED __attribute__((unused))
 #endif
 
-WasmEdge_Result SpecTestPrint(void *Data MAYBE_UNUSED,
-                              const WasmEdge_CallingFrameContext *CallFrameCxt
-                              MAYBE_UNUSED,
-                              const WasmEdge_Value *In MAYBE_UNUSED,
-                              WasmEdge_Value *Out MAYBE_UNUSED) {
+WasmEdge_Result
+SpecTestPrint(void *Data MAYBE_UNUSED,
+              const WasmEdge_CallingFrameContext *CallFrameCxt MAYBE_UNUSED,
+              const WasmEdge_Value *In MAYBE_UNUSED,
+              WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
 WasmEdge_Result
 SpecTestPrintI32(void *Data MAYBE_UNUSED,
-                 const WasmEdge_CallingFrameContext *CallFrameCxt
-                 MAYBE_UNUSED,
+                 const WasmEdge_CallingFrameContext *CallFrameCxt MAYBE_UNUSED,
                  const WasmEdge_Value *In MAYBE_UNUSED,
                  WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
@@ -43,8 +42,7 @@ SpecTestPrintI32(void *Data MAYBE_UNUSED,
 
 WasmEdge_Result
 SpecTestPrintI64(void *Data MAYBE_UNUSED,
-                 const WasmEdge_CallingFrameContext *CallFrameCxt
-                 MAYBE_UNUSED,
+                 const WasmEdge_CallingFrameContext *CallFrameCxt MAYBE_UNUSED,
                  const WasmEdge_Value *In MAYBE_UNUSED,
                  WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
@@ -52,8 +50,7 @@ SpecTestPrintI64(void *Data MAYBE_UNUSED,
 
 WasmEdge_Result
 SpecTestPrintF32(void *Data MAYBE_UNUSED,
-                 const WasmEdge_CallingFrameContext *CallFrameCxt
-                 MAYBE_UNUSED,
+                 const WasmEdge_CallingFrameContext *CallFrameCxt MAYBE_UNUSED,
                  const WasmEdge_Value *In MAYBE_UNUSED,
                  WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
@@ -61,28 +58,23 @@ SpecTestPrintF32(void *Data MAYBE_UNUSED,
 
 WasmEdge_Result
 SpecTestPrintF64(void *Data MAYBE_UNUSED,
-                 const WasmEdge_CallingFrameContext *CallFrameCxt
-                 MAYBE_UNUSED,
+                 const WasmEdge_CallingFrameContext *CallFrameCxt MAYBE_UNUSED,
                  const WasmEdge_Value *In MAYBE_UNUSED,
                  WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result
-SpecTestPrintI32F32(void *Data MAYBE_UNUSED,
-                    const WasmEdge_CallingFrameContext *CallFrameCxt
-                    MAYBE_UNUSED,
-                    const WasmEdge_Value *In MAYBE_UNUSED,
-                    WasmEdge_Value *Out MAYBE_UNUSED) {
+WasmEdge_Result SpecTestPrintI32F32(
+    void *Data MAYBE_UNUSED,
+    const WasmEdge_CallingFrameContext *CallFrameCxt MAYBE_UNUSED,
+    const WasmEdge_Value *In MAYBE_UNUSED, WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result
-SpecTestPrintF64F64(void *Data MAYBE_UNUSED,
-                    const WasmEdge_CallingFrameContext *CallFrameCxt
-                    MAYBE_UNUSED,
-                    const WasmEdge_Value *In MAYBE_UNUSED,
-                    WasmEdge_Value *Out MAYBE_UNUSED) {
+WasmEdge_Result SpecTestPrintF64F64(
+    void *Data MAYBE_UNUSED,
+    const WasmEdge_CallingFrameContext *CallFrameCxt MAYBE_UNUSED,
+    const WasmEdge_Value *In MAYBE_UNUSED, WasmEdge_Value *Out MAYBE_UNUSED) {
   return WasmEdge_Result_Success;
 }
 
@@ -235,8 +227,8 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   // Add host global "global_f32": const 666.0
   HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValTypeGenF32(),
                                         WasmEdge_Mutability_Const);
-  HostGlobal =
-      WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenF32(666.0));
+  HostGlobal = WasmEdge_GlobalInstanceCreate(
+      HostGType, WasmEdge_ValueGenF32((float)666.6));
   WasmEdge_GlobalTypeDelete(HostGType);
   HostName = WasmEdge_StringCreateByCString("global_f32");
   WasmEdge_ModuleInstanceAddGlobal(HostMod, HostName, HostGlobal);
@@ -245,8 +237,8 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   // Add host global "global_f64": const 666.0
   HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValTypeGenF64(),
                                         WasmEdge_Mutability_Const);
-  HostGlobal =
-      WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenF64(666.0));
+  HostGlobal = WasmEdge_GlobalInstanceCreate(
+      HostGType, WasmEdge_ValueGenF64((double)666.6));
   WasmEdge_GlobalTypeDelete(HostGType);
   HostName = WasmEdge_StringCreateByCString("global_f64");
   WasmEdge_ModuleInstanceAddGlobal(HostMod, HostName, HostGlobal);

@@ -20,7 +20,7 @@ index ef9e4ba7..a1b49793 100644
      size_t model_size = 0;
 @@ -937,18 +939,18 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
  
- #ifdef GGML_USE_CUBLAS
+ #ifdef GGML_USE_CUDA
      new_clip->backend = ggml_backend_cuda_init(0);
 -    printf("%s: CLIP using CUDA backend\n", __func__);
 +    if (verbosity >= 1) printf("%s: CLIP using CUDA backend\n", __func__);

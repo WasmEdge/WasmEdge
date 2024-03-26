@@ -38,6 +38,7 @@ if(BACKEND STREQUAL "ggml")
   if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
     message(STATUS "WASI-NN GGML LLAMA backend: Enable LLAMA_METAL")
     set(LLAMA_METAL ON)
+    set(LLAMA_METAL_EMBED_LIBRARY ON)
   else()
     message(STATUS "WASI-NN GGML LLAMA backend: Disable LLAMA_METAL")
     set(LLAMA_METAL OFF)
@@ -174,7 +175,7 @@ if(BACKEND STREQUAL "ggml")
       TARGET wasmedgePluginWasiNN
       POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/_deps/llama-src/ggml-metal.metal ggml-metal.metal
-      COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/bin/default.metallib default.metallib
+      COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/_deps/llama-src/ggml-common.h ggml-common.h
     )
   endif()
 endif()

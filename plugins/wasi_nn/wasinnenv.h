@@ -16,6 +16,7 @@
 #include "tfl.h"
 #include "torch.h"
 #include "types.h"
+#include "whisper.h"
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 #include <grpc/grpc.h>

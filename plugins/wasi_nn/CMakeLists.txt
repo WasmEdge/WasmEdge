@@ -64,7 +64,7 @@ if(BACKEND STREQUAL "whisper")
   message(STATUS "Downloading whisper.cpp source")
   include(FetchContent)
   FetchContent_Declare(
-    llama
+    whisper
     GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp
     GIT_SHALLOW    FALSE
   )

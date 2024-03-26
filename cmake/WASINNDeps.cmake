@@ -174,7 +174,7 @@ function(wasmedge_setup_wasinn_target target)
       message(STATUS "WASI-NN: Build ggml backend for WASI-NN")
       add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML)
     elseif(BACKEND STREQUAL "whisper")
-      message(STATUS "WASI-NN: Build ggml whisper backend for WASI-NN")
+      message(STATUS "WASI-NN: Build whisper backend for WASI-NN")
       add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML)
     else()
       # Add the other backends here.

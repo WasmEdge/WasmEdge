@@ -66,6 +66,62 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphId = Env.NNGraph.size() - 1;
   return ErrNo::Success;
 }
+Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &, uint32_t,
+                                  uint32_t &) noexcept {
+  return WASINN::ErrNo::Success;
+}
+Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
+                               const TensorData &) noexcept {
+  return WASINN::ErrNo::Success;
+}
+Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
+                                Span<uint8_t>, uint32_t &) noexcept {
+  return WASINN::ErrNo::Success;
+}
+Expect<WASINN::ErrNo> getOutputSingle(WASINN::WasiNNEnvironment &Env,
+                                      uint32_t ContextId, uint32_t Index,
+                                      Span<uint8_t> OutBuffer,
+                                      uint32_t &BytesWritten) noexcept {
+  return WASINN::ErrNo::Success;
+}
+Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
+  return WASINN::ErrNo::Success;
+}
+Expect<WASINN::ErrNo> computeSingle(WASINN::WasiNNEnvironment &Env,
+                                    uint32_t ContextId) noexcept {
+  return WASINN::ErrNo::Success;
+}
+Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
+                                 uint32_t ContextId) noexcept {
+  return WASINN::ErrNo::Success;
+}
+#else
+namespace {
+Expect<ErrNo> reportBackendNotSupported() noexcept {
+  spdlog::error("[WASI-NN] Whisper backend is not built. use "
+                "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"whisper\" to build it."sv);
+  return ErrNo::InvalidArgument;
+}
+} // namespace
+
+Expect<ErrNo> load(WasiNNEnvironment &, Span<const Span<uint8_t>>, Device,
+                   uint32_t &) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> initExecCtx(WasiNNEnvironment &, uint32_t, uint32_t &) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> setInput(WasiNNEnvironment &, uint32_t, uint32_t,
+                       const TensorData &) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> getOutput(WasiNNEnvironment &, uint32_t, uint32_t, Span<uint8_t>,
+                        uint32_t &) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> compute(WasiNNEnvironment &, uint32_t) noexcept {
+  return reportBackendNotSupported();
+}
 
 #endif
 } // namespace WasmEdge::Host::WASINN::WHISPER

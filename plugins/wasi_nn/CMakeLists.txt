@@ -56,8 +56,25 @@ if(BACKEND STREQUAL "ggml")
   FetchContent_MakeAvailable(llama)
   set_property(TARGET ggml PROPERTY POSITION_INDEPENDENT_CODE ON)
   set_property(TARGET common PROPERTY POSITION_INDEPENDENT_CODE ON)
-  set_property(TARGET llama PROPERTY POSITION_INDEPENDENT_CODE ON)
+  set_property(TARGET llama PROPERTY POSITION_INDEPENDENT_CODE ON)  
+endif()
 
+if(BACKEND STREQUAL "whisper")
+  # setup whisper.cpp
+  message(STATUS "Downloading whisper.cpp source")
+  include(FetchContent)
+  FetchContent_Declare(
+    llama
+    GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp
+    GIT_SHALLOW    FALSE
+  )
+  FetchContent_MakeAvailable(llama)
+  set_property(TARGET ggml PROPERTY POSITION_INDEPENDENT_CODE ON)
+  set_property(TARGET common PROPERTY POSITION_INDEPENDENT_CODE ON)
+  set_property(TARGET whisper PROPERTY POSITION_INDEPENDENT_CODE ON)
+endif() 
+ 
+if(BACKEND STREQUAL "ggml" OR BACKEND STREQUAL "whisper" )
   # setup simdjson
   find_package(simdjson QUIET)
   if(simdjson_FOUND)
@@ -114,7 +131,7 @@ if(BACKEND STREQUAL "ggml")
 
     message(STATUS "Downloading SIMDJSON source -- done")
   endif()
-endif()
+endif()  
 
 wasmedge_add_library(wasmedgePluginWasiNN
   SHARED
@@ -127,6 +144,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   torch.cpp
   tfl.cpp
   ggml.cpp
+  whisper.cpp
 )
 
 target_compile_options(wasmedgePluginWasiNN

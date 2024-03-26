@@ -9,6 +9,7 @@
 #include <functional>
 #include <vector>
 
+#include "whisper.h"
 #include "ggml.h"
 #include "onnx.h"
 #include "openvino.h"

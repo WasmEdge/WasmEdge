@@ -17,8 +17,8 @@ namespace {
 WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/wasmedge_image/"
-      "libwasmedgePluginWasmEdgeImage" WASMEDGE_LIB_EXTENSION));
+      "../../../plugins/wasmedge_image/" WASMEDGE_LIB_PREFIX
+      "wasmedgePluginWasmEdgeImage" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasmedge_image"sv)) {
     if (const auto *Module = Plugin->findModule("wasmedge_image"sv)) {
       return Module->create().release();

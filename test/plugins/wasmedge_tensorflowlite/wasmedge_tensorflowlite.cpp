@@ -17,8 +17,8 @@ namespace {
 WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/wasmedge_tensorflowlite/"
-      "libwasmedgePluginWasmEdgeTensorflowLite" WASMEDGE_LIB_EXTENSION));
+      "../../../plugins/wasmedge_tensorflowlite/" WASMEDGE_LIB_PREFIX
+      "wasmedgePluginWasmEdgeTensorflowLite" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin =
           WasmEdge::Plugin::Plugin::find("wasmedge_tensorflowlite"sv)) {
     if (const auto *Module = Plugin->findModule("wasmedge_tensorflowlite"sv)) {

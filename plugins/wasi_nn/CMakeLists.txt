@@ -46,12 +46,25 @@ if(BACKEND STREQUAL "ggml")
 
   # setup llama.cpp
   message(STATUS "Downloading llama.cpp source")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(
+      -Wno-cast-align
+      -Wno-cast-qual
+      -Wno-disabled-macro-expansion
+      -Wno-exceptions
+      -Wno-float-conversion
+      -Wno-implicit-fallthrough
+      -Wno-implicit-float-conversion
+      -Wno-unused-macros
+    )
+  endif()
   include(FetchContent)
   FetchContent_Declare(
     llama
     GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
     GIT_TAG        b2534
-    PATCH_COMMAND  test -f ggml.patched || git apply ${CMAKE_SOURCE_DIR}/thirdparty/ggml/ggml.patch && ${CMAKE_COMMAND} -E touch ggml.patched
+    PATCH_COMMAND  git checkout .
+    COMMAND        git apply ${CMAKE_SOURCE_DIR}/thirdparty/ggml/ggml.patch
     GIT_SHALLOW    FALSE
   )
   FetchContent_MakeAvailable(llama)

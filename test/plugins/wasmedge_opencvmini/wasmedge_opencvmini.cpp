@@ -17,8 +17,8 @@ namespace {
 WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/wasmedge_opencvmini/"
-      "libwasmedgePluginWasmEdgeOpenCVMini" WASMEDGE_LIB_EXTENSION));
+      "../../../plugins/wasmedge_opencvmini/" WASMEDGE_LIB_PREFIX
+      "wasmedgePluginWasmEdgeOpenCVMini" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin =
           WasmEdge::Plugin::Plugin::find("wasmedge_opencvmini"sv)) {
     if (const auto *Module = Plugin->findModule("wasmedge_opencvmini"sv)) {

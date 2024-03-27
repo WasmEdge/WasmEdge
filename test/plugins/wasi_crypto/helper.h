@@ -63,8 +63,8 @@ public:
 
     using namespace std::literals::string_view_literals;
     Plugin::Plugin::load(std::filesystem::u8path(
-        "../../../plugins/wasi_crypto/"
-        "libwasmedgePluginWasiCrypto" WASMEDGE_LIB_EXTENSION));
+        "../../../plugins/wasi_crypto/" WASMEDGE_LIB_PREFIX
+        "wasmedgePluginWasiCrypto" WASMEDGE_LIB_EXTENSION));
     if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_crypto"sv)) {
       if (const auto *Module =
               Plugin->findModule("wasi_crypto_asymmetric_common"sv)) {

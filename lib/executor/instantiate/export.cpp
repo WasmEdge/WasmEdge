@@ -33,6 +33,9 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
     case ExternalType::Table:
       ModInst.exportTable(ExtName, ExtIdx);
       break;
+    case ExternalType::Tag:
+      ModInst.exportTag(ExtName, ExtIdx);
+      break;
     default:
       break;
     }

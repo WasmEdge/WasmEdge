@@ -23,7 +23,7 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
 
   // Variables to record the loaded section types.
   HasDataSection = false;
-  std::bitset<0x0DU> Secs;
+  std::bitset<0x0EU> Secs;
 
   uint64_t Offset = FMgr.getOffset();
 
@@ -149,6 +149,19 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
       HasDataSection = true;
       Secs.set(NewSectionId);
       break;
+    case 0x0D:
+      // This section is for ExceptionHandling proposal.
+      if (!Conf.hasProposal(Proposal::ExceptionHandling)) {
+        return logNeedProposal(ErrCode::Value::MalformedSection,
+                               Proposal::ExceptionHandling,
+                               FMgr.getLastOffset(), ASTNodeAttr::Module);
+      }
+      if (auto Res = loadSection(Mod.getTagSection()); !Res) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+        return Unexpect(Res);
+      }
+      Secs.set(NewSectionId);
+      break;
     default:
       return logLoadError(ErrCode::Value::MalformedSection,
                           FMgr.getLastOffset(), ASTNodeAttr::Module);
@@ -156,6 +169,9 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
 
     Offset = FMgr.getOffset();
   }
+
+  setTagFunctionType(Mod.getTagSection(), Mod.getImportSection(),
+                     Mod.getTypeSection());
 
   // Verify the function section and code section are matched.
   if (Mod.getFunctionSection().getContent().size() !=

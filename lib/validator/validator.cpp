@@ -81,6 +81,13 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     return Unexpect(Res);
   }
 
+  // Validate tag section and register tags into FormChecker.
+  if (auto Res = validate(Mod.getTagSection()); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Tag));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return Unexpect(Res);
+  }
+
   // Validate export section.
   if (auto Res = validate(Mod.getExportSection()); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Export));
@@ -448,6 +455,20 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
     Checker.addMemory(MemType);
     return {};
   }
+  case ExternalType::Tag: {
+    const auto &T = ImpDesc.getExternalTagType();
+    // Tag type index must exist in context.
+    auto TagTypeIdx = T.getTypeIdx();
+    if (TagTypeIdx >= Checker.getTypes().size()) {
+      spdlog::error(ErrCode::Value::InvalidTagIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::TagType, TagTypeIdx,
+          static_cast<uint32_t>(Checker.getTypes().size())));
+      return Unexpect(ErrCode::Value::InvalidTagIdx);
+    }
+    Checker.addTag(TagTypeIdx);
+    return {};
+  }
   case ExternalType::Global: {
     const auto &GlobType = ImpDesc.getExternalGlobalType();
     // Global type must be valid.
@@ -493,6 +514,15 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
       spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, Id,
                                              Checker.getMemories()));
       return Unexpect(ErrCode::Value::InvalidMemoryIdx);
+    }
+    return {};
+  case ExternalType::Tag:
+    if (Id >= Checker.getTags().size()) {
+      spdlog::error(ErrCode::Value::InvalidTagIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Tag, Id,
+          static_cast<uint32_t>(Checker.getTags().size())));
+      return Unexpect(ErrCode::Value::InvalidTagIdx);
     }
     return {};
   case ExternalType::Global:
@@ -719,6 +749,37 @@ Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Desc_Export));
       return Unexpect(Res);
     }
+  }
+  return {};
+}
+
+// Validate Tag section. See "include/validator/validator.h".
+Expect<void> Validator::validate(const AST::TagSection &TagSec) {
+  const auto &TagVec = TagSec.getContent();
+  const auto &TypeVec = Checker.getTypes();
+
+  // Check if type id of tag is valid in context.
+  for (auto &TagType : TagVec) {
+    auto TagTypeIdx = TagType.getTypeIdx();
+    if (TagTypeIdx >= TypeVec.size()) {
+      spdlog::error(ErrCode::Value::InvalidTagIdx);
+      spdlog::error(
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::TagType, TagTypeIdx,
+                                   static_cast<uint32_t>(TypeVec.size())));
+      return Unexpect(ErrCode::Value::InvalidTagIdx);
+    }
+    auto &CompType = TypeVec[TagTypeIdx]->getCompositeType();
+    if (!CompType.isFunc()) {
+      spdlog::error(ErrCode::Value::InvalidTagIdx);
+      spdlog::error("    Defined type index {} is not a function type.",
+                    TagTypeIdx);
+      return Unexpect(ErrCode::Value::InvalidTagIdx);
+    }
+    if (!CompType.getFuncType().getReturnTypes().empty()) {
+      spdlog::error(ErrCode::Value::InvalidTagResultType);
+      return Unexpect(ErrCode::Value::InvalidTagResultType);
+    }
+    Checker.addTag(TagTypeIdx);
   }
   return {};
 }

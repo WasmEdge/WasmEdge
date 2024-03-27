@@ -56,6 +56,9 @@ struct WasmEdge_TableTypeContext {};
 // WasmEdge_MemoryTypeContext implementation.
 struct WasmEdge_MemoryTypeContext {};
 
+// WasmEdge_TagTypeContext implementation.
+struct WasmEdge_TagTypeContext {};
+
 // WasmEdge_GlobalTypeContext implementation.
 struct WasmEdge_GlobalTypeContext {};
 
@@ -100,6 +103,9 @@ struct WasmEdge_TableInstanceContext {};
 
 // WasmEdge_MemoryInstanceContext implementation.
 struct WasmEdge_MemoryInstanceContext {};
+
+// WasmEdge_TagInstanceContext implementation.
+struct WasmEdge_TagInstanceContext {};
 
 // WasmEdge_GlobalInstanceContext implementation.
 struct WasmEdge_GlobalInstanceContext {};
@@ -332,6 +338,7 @@ CONVTO(TabType, AST::TableType, TableType, )
 CONVTO(TabType, AST::TableType, TableType, const)
 CONVTO(MemType, AST::MemoryType, MemoryType, )
 CONVTO(MemType, AST::MemoryType, MemoryType, const)
+CONVTO(TagType, AST::TagType, TagType, const)
 CONVTO(GlobType, AST::GlobalType, GlobalType, )
 CONVTO(GlobType, AST::GlobalType, GlobalType, const)
 CONVTO(ImpType, AST::ImportDesc, ImportType, const)
@@ -346,6 +353,7 @@ CONVTO(Func, Runtime::Instance::FunctionInstance, FunctionInstance, )
 CONVTO(Func, Runtime::Instance::FunctionInstance, FunctionInstance, const)
 CONVTO(Tab, Runtime::Instance::TableInstance, TableInstance, )
 CONVTO(Mem, Runtime::Instance::MemoryInstance, MemoryInstance, )
+CONVTO(Tag, Runtime::Instance::TagInstance, TagInstance, )
 CONVTO(Glob, Runtime::Instance::GlobalInstance, GlobalInstance, )
 CONVTO(CallFrame, Runtime::CallingFrame, CallingFrame, const)
 CONVTO(Plugin, Plugin::Plugin, Plugin, const)
@@ -366,6 +374,7 @@ CONVFROM(TabType, AST::TableType, TableType, )
 CONVFROM(TabType, AST::TableType, TableType, const)
 CONVFROM(MemType, AST::MemoryType, MemoryType, )
 CONVFROM(MemType, AST::MemoryType, MemoryType, const)
+CONVFROM(TagType, AST::TagType, TagType, const)
 CONVFROM(GlobType, AST::GlobalType, GlobalType, )
 CONVFROM(GlobType, AST::GlobalType, GlobalType, const)
 CONVFROM(ImpType, AST::ImportDesc, ImportType, const)
@@ -383,6 +392,7 @@ CONVFROM(Tab, Runtime::Instance::TableInstance, TableInstance, )
 CONVFROM(Tab, Runtime::Instance::TableInstance, TableInstance, const)
 CONVFROM(Mem, Runtime::Instance::MemoryInstance, MemoryInstance, )
 CONVFROM(Mem, Runtime::Instance::MemoryInstance, MemoryInstance, const)
+CONVFROM(Tag, Runtime::Instance::TagInstance, TagInstance, const)
 CONVFROM(Glob, Runtime::Instance::GlobalInstance, GlobalInstance, )
 CONVFROM(Glob, Runtime::Instance::GlobalInstance, GlobalInstance, const)
 CONVFROM(CallFrame, Runtime::CallingFrame, CallingFrame, const)
@@ -1306,6 +1316,21 @@ WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt) {
 
 // <<<<<<<< WasmEdge memory type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> WasmEdge tag type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
+WasmEdge_TagTypeGetFunctionType(const WasmEdge_TagTypeContext *Cxt) {
+  if (Cxt) {
+    const auto &CompType = fromTagTypeCxt(Cxt)->getDefType().getCompositeType();
+    if (CompType.isFunc()) {
+      return toFuncTypeCxt(&CompType.getFuncType());
+    }
+  }
+  return nullptr;
+}
+
+// <<<<<<<< WasmEdge tag type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 // >>>>>>>> WasmEdge global type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_GlobalTypeContext *
@@ -1401,6 +1426,16 @@ WasmEdge_ImportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
       fromImpTypeCxt(Cxt)->getExternalType() ==
           WasmEdge::ExternalType::Memory) {
     return toMemTypeCxt(&fromImpTypeCxt(Cxt)->getExternalMemoryType());
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_TagTypeContext *
+WasmEdge_ImportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
+                              const WasmEdge_ImportTypeContext *Cxt) {
+  if (ASTCxt && Cxt &&
+      fromImpTypeCxt(Cxt)->getExternalType() == WasmEdge::ExternalType::Tag) {
+    return toTagTypeCxt(&fromImpTypeCxt(Cxt)->getExternalTagType());
   }
   return nullptr;
 }
@@ -1541,6 +1576,30 @@ WasmEdge_ExportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
       // Invalid memory type index.
       return nullptr;
     }
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_TagTypeContext *
+WasmEdge_ExportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
+                              const WasmEdge_ExportTypeContext *Cxt) {
+  if (ASTCxt && Cxt &&
+      fromExpTypeCxt(Cxt)->getExternalType() == WasmEdge::ExternalType::Tag) {
+    // `external_index` = `tag_type_index` + `import_tag_nums`
+    uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
+    const auto &ImpDescs =
+        fromASTModCxt(ASTCxt)->getImportSection().getContent();
+    for (auto &&ImpDesc : ImpDescs) {
+      if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Tag) {
+        ExtIdx--;
+      }
+    }
+    // Get the tag type
+    const auto &TagDescs = fromASTModCxt(ASTCxt)->getTagSection().getContent();
+    if (ExtIdx >= TagDescs.size()) {
+      return nullptr;
+    }
+    return toTagTypeCxt(&TagDescs[ExtIdx]);
   }
   return nullptr;
 }
@@ -2065,6 +2124,15 @@ WasmEdge_ModuleInstanceFindMemory(const WasmEdge_ModuleInstanceContext *Cxt,
   return nullptr;
 }
 
+WASMEDGE_CAPI_EXPORT WasmEdge_TagInstanceContext *
+WasmEdge_ModuleInstanceFindTag(const WasmEdge_ModuleInstanceContext *Cxt,
+                               const WasmEdge_String Name) {
+  if (Cxt) {
+    return toTagCxt(fromModCxt(Cxt)->findTagExports(genStrView(Name)));
+  }
+  return nullptr;
+}
+
 WASMEDGE_CAPI_EXPORT WasmEdge_GlobalInstanceContext *
 WasmEdge_ModuleInstanceFindGlobal(const WasmEdge_ModuleInstanceContext *Cxt,
                                   const WasmEdge_String Name) {
@@ -2124,6 +2192,24 @@ WasmEdge_ModuleInstanceListMemory(const WasmEdge_ModuleInstanceContext *Cxt,
                                   WasmEdge_String *Names, const uint32_t Len) {
   if (Cxt) {
     return fromModCxt(Cxt)->getMemoryExports(
+        [&](auto &Map) { return fillMap(Map, Names, Len); });
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceListTagLength(
+    const WasmEdge_ModuleInstanceContext *Cxt) {
+  if (Cxt) {
+    return fromModCxt(Cxt)->getTagExportNum();
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_ModuleInstanceListTag(const WasmEdge_ModuleInstanceContext *Cxt,
+                               WasmEdge_String *Names, const uint32_t Len) {
+  if (Cxt) {
+    return fromModCxt(Cxt)->getTagExports(
         [&](auto &Map) { return fillMap(Map, Names, Len); });
   }
   return 0;
@@ -2470,6 +2556,18 @@ WasmEdge_MemoryInstanceDelete(WasmEdge_MemoryInstanceContext *Cxt) {
 }
 
 // <<<<<<<< WasmEdge memory instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge tag instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_TagTypeContext *
+WasmEdge_TagInstanceGetTagType(const WasmEdge_TagInstanceContext *Cxt) {
+  if (Cxt) {
+    return toTagTypeCxt(&fromTagCxt(Cxt)->getTagType());
+  }
+  return nullptr;
+}
+
+// <<<<<<<< WasmEdge tag instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge global instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

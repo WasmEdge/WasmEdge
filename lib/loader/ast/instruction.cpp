@@ -57,7 +57,8 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     }
 
     // Process the instructions which contain a block.
-    if (Code == OpCode::Block || Code == OpCode::Loop || Code == OpCode::If) {
+    if (Code == OpCode::Block || Code == OpCode::Loop || Code == OpCode::If ||
+        Code == OpCode::Try_table) {
       BlockStack.push_back(std::make_pair(Code, Cnt));
     } else if (Code == OpCode::Else) {
       if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::If) {
@@ -82,23 +83,6 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
         }
       }
       Instrs[Pos].setJumpElse(Cnt - Pos);
-    } else if (Code == OpCode::End) {
-      if (BlockStack.size() > 0) {
-        uint32_t Pos = BlockStack.back().second;
-        Instrs[Pos].setJumpEnd(Cnt - Pos);
-        if (BlockStack.back().first == OpCode::If) {
-          if (Instrs[Pos].getJumpElse() == 0) {
-            // If block without else. Set the else jump the same as end jump.
-            Instrs[Pos].setJumpElse(Cnt - Pos);
-          } else {
-            const uint32_t ElsePos = Pos + Instrs[Pos].getJumpElse();
-            Instrs[ElsePos].setJumpEnd(Cnt - ElsePos);
-          }
-        }
-        BlockStack.pop_back();
-      } else {
-        IsReachEnd = true;
-      }
     }
 
     // Create the instruction node and load contents.
@@ -106,11 +90,33 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     if (auto Res = loadInstruction(Instrs.back()); !Res) {
       return Unexpect(Res);
     }
+
+    // Process the End instruction.
     if (Code == OpCode::End) {
-      if (IsReachEnd) {
-        Instrs.back().setLast(true);
+      if (BlockStack.size() > 0) {
+        Instrs.back().setExprLast(false);
+        const auto &[BackOp, Pos] = BlockStack.back();
+        if (BackOp == OpCode::Block || BackOp == OpCode::Loop ||
+            BackOp == OpCode::If) {
+          Instrs.back().setTryBlockLast(false);
+          Instrs[Pos].setJumpEnd(Cnt - Pos);
+          if (BackOp == OpCode::If) {
+            if (Instrs[Pos].getJumpElse() == 0) {
+              // If block without else. Set the else jump the same as end jump.
+              Instrs[Pos].setJumpElse(Cnt - Pos);
+            } else {
+              const uint32_t ElsePos = Pos + Instrs[Pos].getJumpElse();
+              Instrs[ElsePos].setJumpEnd(Cnt - ElsePos);
+            }
+          }
+        } else if (BackOp == OpCode::Try_table) {
+          Instrs.back().setTryBlockLast(true);
+          Instrs[Pos].getTryCatch().JumpEnd = Cnt - Pos;
+        }
+        BlockStack.pop_back();
       } else {
-        Instrs.back().setLast(false);
+        Instrs.back().setExprLast(true);
+        IsReachEnd = true;
       }
     }
     Cnt++;
@@ -186,18 +192,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   };
 
-  switch (Instr.getOpCode()) {
-  // Control instructions.
-  case OpCode::Unreachable:
-  case OpCode::Nop:
-  case OpCode::Return:
-  case OpCode::End:
-  case OpCode::Else:
-    return {};
-
-  case OpCode::Block:
-  case OpCode::Loop:
-  case OpCode::If: {
+  auto readBlockType = [this](BlockType &Dst) -> Expect<void> {
     auto StartOffset = FMgr.getOffset();
     // Read the block return type.
     if (auto Res = FMgr.readS33()) {
@@ -205,13 +200,13 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
         TypeCode TypeByte = static_cast<TypeCode>((*Res) & INT64_C(0x7F));
         if (TypeByte == TypeCode::Epsilon) {
           // Empty case.
-          Instr.setEmptyBlockType();
+          Dst.setEmpty();
         } else {
           // Value type case. Seek back to the origin offset and read the
           // valtype.
           FMgr.seek(StartOffset);
           if (auto TypeRes = loadValType(ASTNodeAttr::Instruction)) {
-            Instr.setBlockType(*TypeRes);
+            Dst.setData(*TypeRes);
           } else {
             // The AST node information is handled.
             return Unexpect(TypeRes);
@@ -224,20 +219,87 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
                                  Proposal::MultiValue, FMgr.getLastOffset(),
                                  ASTNodeAttr::Instruction);
         }
-        Instr.setBlockType(static_cast<uint32_t>(*Res));
+        Dst.setData(static_cast<uint32_t>(*Res));
       }
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     return {};
+  };
+
+  switch (Instr.getOpCode()) {
+  // Control instructions.
+  case OpCode::Unreachable:
+  case OpCode::Nop:
+  case OpCode::Return:
+  case OpCode::Throw_ref:
+  case OpCode::End:
+  case OpCode::Else:
+    return {};
+
+  case OpCode::Block:
+  case OpCode::Loop:
+  case OpCode::If:
+    return readBlockType(Instr.getBlockType());
+
+  case OpCode::Try_table: {
+    Instr.setTryCatch();
+    // Read the result type.
+    if (auto Res = readBlockType(Instr.getTryCatch().ResType); !Res) {
+      return Unexpect(Res);
+    }
+    uint32_t VecCnt = 0;
+    // Read the vector of catch.
+    if (auto Res = loadVecCnt()) {
+      VecCnt = *Res;
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    Instr.getTryCatch().Catch.resize(VecCnt);
+    for (uint32_t I = 0; I < VecCnt; ++I) {
+      auto &Desc = Instr.getTryCatch().Catch[I];
+      // Read the catch flag.
+      if (auto Res = FMgr.readByte()) {
+        if (*Res & 0x01U) {
+          Desc.IsRef = true;
+        }
+        if (*Res & 0x02U) {
+          Desc.IsAll = true;
+        }
+      } else {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::Instruction);
+      }
+      if (!Desc.IsAll) {
+        // Read the tag index.
+        if (auto Res = readU32(Desc.TagIndex); !Res) {
+          return Unexpect(Res);
+        }
+      }
+      // Read the label index.
+      if (auto Res = readU32(Desc.LabelIndex); !Res) {
+        return Unexpect(Res);
+      }
+    }
+    return {};
   }
+
+  case OpCode::Throw:
+    return readU32(Instr.getTargetIndex());
 
   case OpCode::Br:
   case OpCode::Br_if:
   case OpCode::Br_on_null:
-  case OpCode::Br_on_non_null:
-    return readU32(Instr.getJump().TargetIndex);
+  case OpCode::Br_on_non_null: {
+    uint32_t LabelIdx = 0;
+    if (auto Res = readU32(LabelIdx); !Res) {
+      return Unexpect(Res);
+    }
+    Instr.setJump(LabelIdx);
+    return {};
+  }
 
   case OpCode::Br_table: {
     uint32_t VecCnt = 0;

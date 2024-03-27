@@ -59,6 +59,7 @@ A(Sec_Element, "element section")
 A(Sec_Code, "code section")
 A(Sec_Data, "data section")
 A(Sec_DataCount, "data count section")
+A(Sec_Tag, "tag section")
 A(Desc_Import, "import description")
 A(Desc_Export, "export description")
 A(Seg_Table, "table segment")
@@ -93,6 +94,8 @@ O(Block, 0x02, "block")
 O(Loop, 0x03, "loop")
 O(If, 0x04, "if")
 O(Else, 0x05, "else")
+O(Throw, 0x08, "throw")
+O(Throw_ref, 0x0A, "throw_ref")
 O(End, 0x0B, "end")
 O(Br, 0x0C, "br")
 O(Br_if, 0x0D, "br_if")
@@ -109,6 +112,9 @@ O(Return_call_ref, 0x15, "return_call_ref")
 O(Drop, 0x1A, "drop")
 O(Select, 0x1B, "select")
 O(Select_t, 0x1C, "select")
+
+// Control instructions (part 2)
+O(Try_table, 0x1F, "try_table")
 
 // Variable Instructions
 O(Local__get, 0x20, "local.get")
@@ -291,7 +297,7 @@ O(Ref__func, 0xD2, "ref.func")
 O(Ref__eq, 0xD3, "ref.eq")
 O(Ref__as_non_null, 0xD4, "ref.as_non_null")
 
-// Control Instructions (part 2)
+// Control Instructions (part 3)
 O(Br_on_null, 0xD5, "br_on_null")
 O(Br_on_non_null, 0xD6, "br_on_non_null")
 
@@ -842,58 +848,62 @@ E(InvalidTableIdx, 0x0207, "unknown table")
 E(InvalidMemoryIdx, 0x0208, "unknown memory")
 // Global index not defined
 E(InvalidGlobalIdx, 0x0209, "unknown global")
+// Tag index not defined
+E(InvalidTagIdx, 0x020A, "unknown tag")
 // Element segment index not defined
-E(InvalidElemIdx, 0x020A, "unknown elem segment")
+E(InvalidElemIdx, 0x020B, "unknown elem segment")
 // Data segment index not defined
-E(InvalidDataIdx, 0x020B, "unknown data segment")
+E(InvalidDataIdx, 0x020C, "unknown data segment")
 // Undeclared reference
-E(InvalidRefIdx, 0x020C, "undeclared function reference")
+E(InvalidRefIdx, 0x020D, "undeclared function reference")
 // Should be constant expression
-E(ConstExprRequired, 0x020D, "constant expression required")
+E(ConstExprRequired, 0x020E, "constant expression required")
 // Export name conflicted
-E(DupExportName, 0x020E, "duplicate export name")
+E(DupExportName, 0x020F, "duplicate export name")
 // Tried to store to const global value
-E(ImmutableGlobal, 0x020F, "global is immutable")
+E(ImmutableGlobal, 0x0210, "global is immutable")
 // Tried to store to const field of structure
-E(ImmutableField, 0x0210, "field is immutable")
+E(ImmutableField, 0x0211, "field is immutable")
 // Tried to store to const array
-E(ImmutableArray, 0x0211, "array is immutable")
+E(ImmutableArray, 0x0212, "array is immutable")
 // Invalid result arity in select t* instruction
-E(InvalidResultArity, 0x0212, "invalid result arity")
+E(InvalidResultArity, 0x0213, "invalid result arity")
 // #Tables > 1 (without Ref-types proposal)
-E(MultiTables, 0x0213, "multiple tables")
+E(MultiTables, 0x0214, "multiple tables")
 // #Memories > 1
-E(MultiMemories, 0x0214, "multiple memories")
+E(MultiMemories, 0x0215, "multiple memories")
 // Invalid Limit grammar
-E(InvalidLimit, 0x0215, "size minimum must not be greater than maximum")
+E(InvalidLimit, 0x0216, "size minimum must not be greater than maximum")
 // Memory pages > 65536
-E(InvalidMemPages, 0x0216, "memory size must be at most 65536 pages (4GiB)")
+E(InvalidMemPages, 0x0217, "memory size must be at most 65536 pages (4GiB)")
 // Invalid start function signature
-E(InvalidStartFunc, 0x0217, "start function")
+E(InvalidStartFunc, 0x0218, "start function")
 // Invalid lane index
-E(InvalidLaneIdx, 0x0218, "invalid lane index")
+E(InvalidLaneIdx, 0x0219, "invalid lane index")
 // Invalid uninitialized local
-E(InvalidUninitLocal, 0x0219, "uninitialized local")
+E(InvalidUninitLocal, 0x021A, "uninitialized local")
 // Defaultable field type required
-E(InvalidNotDefaultableField, 0x021A, "field type is not defaultable")
+E(InvalidNotDefaultableField, 0x021B, "field type is not defaultable")
 // Defaultable array type required
-E(InvalidNotDefaultableArray, 0x021B, "array type is not defaultable")
+E(InvalidNotDefaultableArray, 0x021C, "array type is not defaultable")
 // Unpacked field type required, but got packed one
-E(InvalidPackedField, 0x021C, "field is packed")
+E(InvalidPackedField, 0x021D, "field is packed")
 // Unpacked array type required, but got packed one
-E(InvalidPackedArray, 0x021D, "array is packed")
+E(InvalidPackedArray, 0x021E, "array is packed")
 // Packed field type required, but got unpacked one
-E(InvalidUnpackedField, 0x021E, "field is unpacked")
+E(InvalidUnpackedField, 0x021F, "field is unpacked")
 // Packed array type required, but got unpacked one
-E(InvalidUnpackedArray, 0x021F, "array is unpacked")
+E(InvalidUnpackedArray, 0x0220, "array is unpacked")
 // Invalid Br ref type
-E(InvalidBrRefType, 0x0220, "invalid br ref type")
+E(InvalidBrRefType, 0x0221, "invalid br ref type")
 // 2 array types not matched
-E(ArrayTypesMismatch, 0x0221, "array types do not match")
+E(ArrayTypesMismatch, 0x0222, "array types do not match")
 // Should be numeric type in array type
-E(ArrayTypesNumtypeRequired, 0x0222, "array type is not numeric or vector")
+E(ArrayTypesNumtypeRequired, 0x0223, "array type is not numeric or vector")
 // Sub type matching or validation failed
-E(InvalidSubType, 0x0223, "sub type")
+E(InvalidSubType, 0x0224, "sub type")
+// Invalid Tag type
+E(InvalidTagResultType, 0x0225, "non-empty tag result type")
 // @}
 
 // Instantiation phase
@@ -958,8 +968,12 @@ E(AccessNullStruct, 0x0414, "null structure reference")
 E(AccessNullArray, 0x0415, "null array reference")
 // Access to null i31 reference
 E(AccessNullI31, 0x0416, "null i31 reference")
+// Access to null exception reference
+E(AccessNullException, 0x0417, "null exception reference")
 // Fail to cast reference
-E(CastFailed, 0x0417, "cast failure")
+E(CastFailed, 0x0418, "cast failure")
+// Uncaught Exception
+E(UncaughtException, 0x0419, "uncaught exception")
 // @}
 
 // Component model phase
@@ -1049,6 +1063,8 @@ I(Element, "element")
 I(Data, "data")
 I(Lane, "lane")
 I(Field, "field")
+I(TagType, "tag type")
+I(Tag, "tag")
 
 #undef I
 #endif // UseIndexCategory
@@ -1076,6 +1092,7 @@ T(EqRef, 0x6D, "eq")               // -0x13 for heap type
 T(I31Ref, 0x6C, "i31")             // -0x14 for heap type
 T(StructRef, 0x6B, "struct")       // -0x15 for heap type
 T(ArrayRef, 0x6A, "array")         // -0x16 for heap type
+T(ExnRef, 0x69, "exn")             // -0x17 for reference type
 T(Ref, 0x64, "ref")                // -0x1C for reference type
 T(RefNull, 0x63, "ref_null")       // -0x1D for reference type
 T(Func, 0x60, "func")              // -0x20 for composite type
@@ -1105,6 +1122,7 @@ E(Function, 0x00U, "function")
 E(Table, 0x01U, "table")
 E(Memory, 0x02U, "memory")
 E(Global, 0x03U, "global")
+E(Tag, 0x04U, "tag")
 
 #undef E
 #endif // UseExternalType

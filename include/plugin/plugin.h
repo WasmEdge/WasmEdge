@@ -30,6 +30,7 @@
 #endif
 
 #define EXPORT_GET_DESCRIPTOR(Descriptor)                                      \
+  extern "C" WASMEDGE_EXPORT decltype(&Descriptor) GetDescriptor();            \
   extern "C" WASMEDGE_EXPORT decltype(&Descriptor) GetDescriptor() {           \
     return &Descriptor;                                                        \
   }

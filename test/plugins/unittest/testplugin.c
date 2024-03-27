@@ -12,15 +12,15 @@ static WasmEdge_String NameString;
 static const char NameCString[] = "name";
 static const WasmEdge_String NameStringDefaultValue = {.Buf = NameCString,
                                                        .Length = 4};
-void Finalizer(void *Data) {
+static void Finalizer(void *Data) {
   printf("Deallocate host data\n");
   free((int32_t *)Data);
 }
 
-WasmEdge_Result HostFuncAdd(void *Data,
-                            const WasmEdge_CallingFrameContext *CallFrameCxt
-                            __attribute__((unused)),
-                            const WasmEdge_Value *In, WasmEdge_Value *Out) {
+static WasmEdge_Result
+HostFuncAdd(void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
+            const WasmEdge_Value *In, WasmEdge_Value *Out) {
+  (void)CallFrameCxt;
   /*
    * Host function to calculate A + B,
    * and accumulate (A + B) to the host data.
@@ -34,10 +34,10 @@ WasmEdge_Result HostFuncAdd(void *Data,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result HostFuncSub(void *Data,
-                            const WasmEdge_CallingFrameContext *CallFrameCxt
-                            __attribute__((unused)),
-                            const WasmEdge_Value *In, WasmEdge_Value *Out) {
+static WasmEdge_Result
+HostFuncSub(void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
+            const WasmEdge_Value *In, WasmEdge_Value *Out) {
+  (void)CallFrameCxt;
   /*
    * Host function to calculate A - B,
    * and accumulate (A - B) to the host data.
@@ -51,7 +51,7 @@ WasmEdge_Result HostFuncSub(void *Data,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_ModuleInstanceContext *
+static WasmEdge_ModuleInstanceContext *
 CreateTestModule(const struct WasmEdge_ModuleDescriptor *Desc) {
   /* Allocate and initialize a host data. */
   printf("Allocate host data\n");

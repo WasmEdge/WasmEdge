@@ -18,7 +18,8 @@ namespace {
 WasmEdge::Runtime::Instance::ModuleInstance *createModuleC() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "./libwasmedgePluginTestModuleC" WASMEDGE_LIB_EXTENSION));
+      "./" WASMEDGE_LIB_PREFIX
+      "wasmedgePluginTestModuleC" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin =
           WasmEdge::Plugin::Plugin::find("wasmedge_plugintest_c"sv)) {
     if (const auto *Module =
@@ -32,7 +33,8 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModuleC() {
 WasmEdge::Runtime::Instance::ModuleInstance *createModuleCPP() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "./libwasmedgePluginTestModuleCPP" WASMEDGE_LIB_EXTENSION));
+      "./" WASMEDGE_LIB_PREFIX
+      "wasmedgePluginTestModuleCPP" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin =
           WasmEdge::Plugin::Plugin::find("wasmedge_plugintest_cpp"sv)) {
     WasmEdge::PO::ArgumentParser Parser;

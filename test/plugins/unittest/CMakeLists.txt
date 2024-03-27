@@ -2,13 +2,20 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 # The test plugin module in C API
+enable_language(C)
+
 wasmedge_add_library(wasmedgePluginTestModuleC
   SHARED
   testplugin.c
-)
+  )
 
 set_target_properties(wasmedgePluginTestModuleC PROPERTIES
   C_STANDARD 11
+)
+
+# remove cxx_standard for msvc
+set_property(TARGET wasmedgePluginTestModuleC PROPERTY
+  CXX_STANDARD
 )
 
 target_compile_options(wasmedgePluginTestModuleC

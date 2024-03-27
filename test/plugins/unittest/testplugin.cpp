@@ -36,21 +36,22 @@ create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
   return new WasmEdgePluginTestModule;
 }
 
+static Plugin::PluginModule::ModuleDescriptor MD[]{
+    {
+        /* Name */ "wasmedge_plugintest_cpp_module",
+        /* Description */ "This is for the plugin tests in WasmEdge.",
+        /* Create */ create,
+    },
+};
+
 Plugin::Plugin::PluginDescriptor Descriptor{
-    .Name = "wasmedge_plugintest_cpp",
-    .Description = "",
-    .APIVersion = Plugin::Plugin::CurrentAPIVersion,
-    .Version = {0, 10, 0, 0},
-    .ModuleCount = 1,
-    .ModuleDescriptions =
-        (Plugin::PluginModule::ModuleDescriptor[]){
-            {
-                .Name = "wasmedge_plugintest_cpp_module",
-                .Description = "This is for the plugin tests in WasmEdge.",
-                .Create = create,
-            },
-        },
-    .AddOptions = addOptions,
+    /* Name */ "wasmedge_plugintest_cpp",
+    /* Description */ "",
+    /* APIVersion */ Plugin::Plugin::CurrentAPIVersion,
+    /* Version */ {0, 10, 0, 0},
+    /* ModuleCount */ 1,
+    /* ModuleDescriptions */ MD,
+    /* AddOptions */ addOptions,
 };
 
 EXPORT_GET_DESCRIPTOR(Descriptor)

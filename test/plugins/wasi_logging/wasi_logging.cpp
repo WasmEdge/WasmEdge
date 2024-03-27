@@ -14,8 +14,8 @@ namespace {
 WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/wasi_logging/"
-      "libwasmedgePluginWasiLogging" WASMEDGE_LIB_EXTENSION));
+      "../../../plugins/wasi_logging/" WASMEDGE_LIB_PREFIX
+      "wasmedgePluginWasiLogging" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_logging"sv)) {
     if (const auto *Module = Plugin->findModule("wasi:logging/logging"sv)) {
       return Module->create().release();

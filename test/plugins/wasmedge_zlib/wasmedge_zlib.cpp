@@ -20,8 +20,8 @@ WasmEdge::Runtime::CallingFrame DummyCallFrame(nullptr, nullptr);
 WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/wasmedge_zlib/"
-      "libwasmedgePluginWasmEdgeZlib" WASMEDGE_LIB_EXTENSION));
+      "../../../plugins/wasmedge_zlib/" WASMEDGE_LIB_PREFIX
+      "wasmedgePluginWasmEdgeZlib" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasmedge_zlib"sv)) {
     if (const auto *Module = Plugin->findModule("wasmedge_zlib"sv)) {
       return Module->create().release();

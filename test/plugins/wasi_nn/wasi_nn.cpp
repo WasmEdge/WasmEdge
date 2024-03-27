@@ -24,9 +24,9 @@ namespace {
 WasmEdge::Runtime::Instance::ModuleInstance *
 createModule(std::string_view NNRPCURI = "") {
   using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/wasi_nn/"
-      "libwasmedgePluginWasiNN" WASMEDGE_LIB_EXTENSION));
+  WasmEdge::Plugin::Plugin::load(
+      std::filesystem::u8path("../../../plugins/wasi_nn/" WASMEDGE_LIB_PREFIX
+                              "wasmedgePluginWasiNN" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_nn"sv)) {
     WasmEdge::PO::ArgumentParser Parser;
     Plugin->registerOptions(Parser);

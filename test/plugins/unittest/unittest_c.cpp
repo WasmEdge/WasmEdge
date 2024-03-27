@@ -11,7 +11,7 @@
 namespace {
 WasmEdge_ModuleInstanceContext *createModuleC() {
   WasmEdge_PluginLoadFromPath(
-      "./libwasmedgePluginTestModuleC" WASMEDGE_LIB_EXTENSION);
+      WASMEDGE_LIB_PREFIX "wasmedgePluginTestModuleC" WASMEDGE_LIB_EXTENSION);
   WasmEdge_String Str = WasmEdge_StringCreateByCString("wasmedge_plugintest_c");
   const WasmEdge_PluginContext *PluginCxt = WasmEdge_PluginFind(Str);
   WasmEdge_StringDelete(Str);
@@ -28,7 +28,7 @@ WasmEdge_ModuleInstanceContext *createModuleC() {
 
 WasmEdge_ModuleInstanceContext *createModuleCPP() {
   WasmEdge_PluginLoadFromPath(
-      "./libwasmedgePluginTestModuleCPP" WASMEDGE_LIB_EXTENSION);
+      WASMEDGE_LIB_PREFIX "wasmedgePluginTestModuleCPP" WASMEDGE_LIB_EXTENSION);
   WasmEdge_String Str =
       WasmEdge_StringCreateByCString("wasmedge_plugintest_cpp");
   const WasmEdge_PluginContext *PluginCxt = WasmEdge_PluginFind(Str);

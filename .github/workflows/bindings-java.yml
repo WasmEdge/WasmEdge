@@ -184,10 +184,10 @@ jobs:
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $llvm = "LLVM-16.0.6-win64-MultiThreadedDLL.zip"
-          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-16.0.6/LLVM-16.0.6-win64-MultiThreadedDLL.zip -o $llvm
+          $llvm = "LLVM-17.0.6-win64-MultiThreadedDLL.zip"
+          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-17.0.6/LLVM-17.0.6-win64-MultiThreadedDLL.zip -o $llvm
           Expand-Archive -Path $llvm
-          $llvm_dir = "$pwd\\LLVM-16.0.6-win64-MultiThreadedDLL\\LLVM-16.0.6-win64\\lib\\cmake\\llvm"
+          $llvm_dir = "$pwd\\LLVM-17.0.6-win64-MultiThreadedDLL\\LLVM-17.0.6-win64\\lib\\cmake\\llvm"
           $Env:CC = "clang-cl"
           $Env:CXX = "clang-cl"
           $cmake_sys_version = "10.0.19041.0"
@@ -212,10 +212,10 @@ jobs:
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $llvm = "LLVM-16.0.6-win64-MultiThreadedDLL.zip"
-          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-16.0.6/LLVM-16.0.6-win64-MultiThreadedDLL.zip -o $llvm
+          $llvm = "LLVM-17.0.6-win64-MultiThreadedDLL.zip"
+          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-17.0.6/LLVM-17.0.6-win64-MultiThreadedDLL.zip -o $llvm
           Expand-Archive -Path $llvm
-          $llvm_dir = "$pwd\\LLVM-16.0.6-win64-MultiThreadedDLL\\LLVM-16.0.6-win64\\lib\\cmake\\llvm"
+          $llvm_dir = "$pwd\\LLVM-17.0.6-win64-MultiThreadedDLL\\LLVM-17.0.6-win64\\lib\\cmake\\llvm"
           $Env:CC = "clang-cl"
           $Env:CXX = "clang-cl"
           $cmake_sys_version = "10.0.19041.0"

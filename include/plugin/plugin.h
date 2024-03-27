@@ -29,6 +29,12 @@
 #define WASMEDGE_EXPORT [[gnu::visibility("default")]]
 #endif
 
+#define EXPORT_GET_DESCRIPTOR(Descriptor)                                      \
+  extern "C" WASMEDGE_EXPORT decltype(&Descriptor) GetDescriptor();            \
+  extern "C" WASMEDGE_EXPORT decltype(&Descriptor) GetDescriptor() {           \
+    return &Descriptor;                                                        \
+  }
+
 namespace WasmEdge {
 namespace Plugin {
 

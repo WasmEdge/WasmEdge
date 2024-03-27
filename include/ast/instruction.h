@@ -53,52 +53,37 @@ public:
 
 public:
   /// Constructor assigns the OpCode and the Offset.
-  Instruction(OpCode Byte, uint32_t Off = 0) noexcept
-      : Offset(Off), Code(Byte) {
-#if defined(__x86_64__) || defined(__aarch64__) ||                             \
-    (defined(__riscv) && __riscv_xlen == 64)
-    Data.Num = static_cast<uint128_t>(0);
-#else
-    Data.Num.Low = static_cast<uint64_t>(0);
-    Data.Num.High = static_cast<uint64_t>(0);
-#endif
-    Flags.IsAllocJump = false;
-    Flags.IsAllocLabelList = false;
-    Flags.IsAllocValTypeList = false;
-    Flags.IsAllocBrCast = false;
-    Flags.IsAllocTryCatch = false;
+  Instruction(OpCode Code, uint32_t Off = 0) noexcept {
+    std::fill_n(Raw, 8, 0U);
+    Raw[5] = Off;
+    Raw[6] = static_cast<uint32_t>(Code);
   }
 
   /// Copy constructor.
-  Instruction(const Instruction &Instr) noexcept
-      : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
-        Flags(Instr.Flags) {
-    if (Flags.IsAllocJump) {
-      Data.Jump = new JumpDescriptor(*Instr.Data.Jump);
-    } else if (Flags.IsAllocLabelList) {
+  Instruction(const Instruction &Instr) noexcept {
+    std::copy_n(Instr.Raw, 8, Raw);
+    const auto &F = getFlags();
+    const auto &SrcData = Instr.getInner();
+    auto &Data = getInner();
+    if (F.IsAllocLabelList) {
       Data.BrTable.LabelList = new JumpDescriptor[Data.BrTable.LabelListSize];
-      std::copy_n(Instr.Data.BrTable.LabelList, Data.BrTable.LabelListSize,
+      std::copy_n(SrcData.BrTable.LabelList, Data.BrTable.LabelListSize,
                   Data.BrTable.LabelList);
-    } else if (Flags.IsAllocValTypeList) {
+    } else if (F.IsAllocValTypeList) {
       Data.SelectT.ValTypeList = new ValType[Data.SelectT.ValTypeListSize];
-      std::copy_n(Instr.Data.SelectT.ValTypeList, Data.SelectT.ValTypeListSize,
+      std::copy_n(SrcData.SelectT.ValTypeList, Data.SelectT.ValTypeListSize,
                   Data.SelectT.ValTypeList);
-    } else if (Flags.IsAllocBrCast) {
-      Data.BrCast = new BrCastDescriptor(*Instr.Data.BrCast);
-    } else if (Flags.IsAllocTryCatch) {
-      Data.TryCatch = new TryDescriptor(*Instr.Data.TryCatch);
+    } else if (F.IsAllocBrCast) {
+      Data.BrCast = new BrCastDescriptor(*SrcData.BrCast);
+    } else if (F.IsAllocTryCatch) {
+      Data.TryCatch = new TryDescriptor(*SrcData.TryCatch);
     }
   }
 
   /// Move constructor.
-  Instruction(Instruction &&Instr) noexcept
-      : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
-        Flags(Instr.Flags) {
-    Instr.Flags.IsAllocJump = false;
-    Instr.Flags.IsAllocLabelList = false;
-    Instr.Flags.IsAllocValTypeList = false;
-    Instr.Flags.IsAllocBrCast = false;
-    Instr.Flags.IsAllocTryCatch = false;
+  Instruction(Instruction &&Instr) noexcept {
+    std::copy_n(Instr.Raw, 8, Raw);
+    Instr.Raw[7] = 0;
   }
 
   /// Destructor.
@@ -114,179 +99,188 @@ public:
   }
 
   /// Getter of OpCode.
-  OpCode getOpCode() const noexcept { return Code; }
+  OpCode getOpCode() const noexcept { return static_cast<OpCode>(Raw[6]); }
 
   /// Getter of Offset.
-  uint32_t getOffset() const noexcept { return Offset; }
+  uint32_t getOffset() const noexcept { return Raw[5]; }
 
   /// Getter and setter of block type.
-  const BlockType &getBlockType() const noexcept { return Data.Blocks.ResType; }
-  BlockType &getBlockType() noexcept { return Data.Blocks.ResType; }
+  const BlockType &getBlockType() const noexcept {
+    return getInner().Blocks.ResType;
+  }
+  BlockType &getBlockType() noexcept { return getInner().Blocks.ResType; }
 
   /// Getter and setter of jump count to End instruction.
-  uint32_t getJumpEnd() const noexcept { return Data.Blocks.JumpEnd; }
-  void setJumpEnd(const uint32_t Cnt) noexcept { Data.Blocks.JumpEnd = Cnt; }
+  uint32_t getJumpEnd() const noexcept { return getInner().Blocks.JumpEnd; }
+  void setJumpEnd(const uint32_t Cnt) noexcept {
+    getInner().Blocks.JumpEnd = Cnt;
+  }
 
   /// Getter and setter of jump count to Else instruction.
-  uint32_t getJumpElse() const noexcept { return Data.Blocks.JumpElse; }
-  void setJumpElse(const uint32_t Cnt) noexcept { Data.Blocks.JumpElse = Cnt; }
+  uint32_t getJumpElse() const noexcept { return getInner().Blocks.JumpElse; }
+  void setJumpElse(const uint32_t Cnt) noexcept {
+    getInner().Blocks.JumpElse = Cnt;
+  }
 
   /// Getter and setter of value type.
-  const ValType &getValType() const noexcept { return Data.VType; }
-  void setValType(const ValType &VType) noexcept { Data.VType = VType; }
+  const ValType &getValType() const noexcept { return getInner().VType; }
+  void setValType(const ValType &VType) noexcept { getInner().VType = VType; }
 
   /// Getter and setter of label list.
   void setLabelListSize(uint32_t Size) {
     reset();
     if (Size > 0) {
-      Data.BrTable.LabelListSize = Size;
-      Data.BrTable.LabelList = new JumpDescriptor[Size];
-      Flags.IsAllocLabelList = true;
+      getInner().BrTable.LabelListSize = Size;
+      getInner().BrTable.LabelList = new JumpDescriptor[Size];
+      getFlags().IsAllocLabelList = true;
     }
   }
   Span<const JumpDescriptor> getLabelList() const noexcept {
     return Span<const JumpDescriptor>(
-        Data.BrTable.LabelList,
-        Flags.IsAllocLabelList ? Data.BrTable.LabelListSize : 0);
+        getInner().BrTable.LabelList,
+        getFlags().IsAllocLabelList ? getInner().BrTable.LabelListSize : 0);
   }
   Span<JumpDescriptor> getLabelList() noexcept {
     return Span<JumpDescriptor>(
-        Data.BrTable.LabelList,
-        Flags.IsAllocLabelList ? Data.BrTable.LabelListSize : 0);
+        getInner().BrTable.LabelList,
+        getFlags().IsAllocLabelList ? getInner().BrTable.LabelListSize : 0);
   }
 
   /// Getter and setter of expression end for End instruction.
-  bool isExprLast() const noexcept { return Data.EndFlags.IsExprLast; }
+  bool isExprLast() const noexcept { return getInner().EndFlags.IsExprLast; }
   void setExprLast(bool Last = true) noexcept {
-    Data.EndFlags.IsExprLast = Last;
+    getInner().EndFlags.IsExprLast = Last;
   }
 
   /// Getter and setter of try block end for End instruction.
-  bool isTryBlockLast() const noexcept { return Data.EndFlags.IsTryBlockLast; }
+  bool isTryBlockLast() const noexcept {
+    return getInner().EndFlags.IsTryBlockLast;
+  }
   void setTryBlockLast(bool Last = true) noexcept {
-    Data.EndFlags.IsTryBlockLast = Last;
+    getInner().EndFlags.IsTryBlockLast = Last;
   }
 
   /// Getter and setter of Jump for Br* instruction.
-  void setJump(uint32_t LabelIdx) {
-    reset();
-    Data.Jump = new JumpDescriptor();
-    Flags.IsAllocJump = true;
-    Data.Jump->TargetIndex = LabelIdx;
-  }
-  const JumpDescriptor &getJump() const noexcept { return *Data.Jump; }
-  JumpDescriptor &getJump() noexcept { return *Data.Jump; }
+  void setJump(uint32_t LabelIdx) { getInner().Jump.TargetIndex = LabelIdx; }
+  const JumpDescriptor &getJump() const noexcept { return getInner().Jump; }
+  JumpDescriptor &getJump() noexcept { return getInner().Jump; }
 
   /// Getter and setter of selecting value types list.
   void setValTypeListSize(uint32_t Size) {
     reset();
     if (Size > 0) {
-      Data.SelectT.ValTypeListSize = Size;
-      Data.SelectT.ValTypeList = new ValType[Size];
-      Flags.IsAllocValTypeList = true;
+      getInner().SelectT.ValTypeListSize = Size;
+      getInner().SelectT.ValTypeList = new ValType[Size];
+      getFlags().IsAllocValTypeList = true;
     }
   }
   Span<const ValType> getValTypeList() const noexcept {
-    return Span<const ValType>(Data.SelectT.ValTypeList,
-                               Data.SelectT.ValTypeListSize);
+    return Span<const ValType>(getInner().SelectT.ValTypeList,
+                               getInner().SelectT.ValTypeListSize);
   }
   Span<ValType> getValTypeList() noexcept {
-    return Span<ValType>(Data.SelectT.ValTypeList,
-                         Data.SelectT.ValTypeListSize);
+    return Span<ValType>(getInner().SelectT.ValTypeList,
+                         getInner().SelectT.ValTypeListSize);
   }
 
   /// Getter and setter of target index.
-  uint32_t getTargetIndex() const noexcept { return Data.Indices.TargetIdx; }
-  uint32_t &getTargetIndex() noexcept { return Data.Indices.TargetIdx; }
+  uint32_t getTargetIndex() const noexcept {
+    return getInner().Indices.TargetIdx;
+  }
+  uint32_t &getTargetIndex() noexcept { return getInner().Indices.TargetIdx; }
 
   /// Getter and setter of source index.
-  uint32_t getSourceIndex() const noexcept { return Data.Indices.SourceIdx; }
-  uint32_t &getSourceIndex() noexcept { return Data.Indices.SourceIdx; }
+  uint32_t getSourceIndex() const noexcept {
+    return getInner().Indices.SourceIdx;
+  }
+  uint32_t &getSourceIndex() noexcept { return getInner().Indices.SourceIdx; }
 
   /// Getter and setter of stack offset.
-  uint32_t getStackOffset() const noexcept { return Data.Indices.StackOffset; }
-  uint32_t &getStackOffset() noexcept { return Data.Indices.StackOffset; }
+  uint32_t getStackOffset() const noexcept {
+    return getInner().Indices.StackOffset;
+  }
+  uint32_t &getStackOffset() noexcept { return getInner().Indices.StackOffset; }
 
   /// Getter and setter of memory alignment.
-  uint32_t getMemoryAlign() const noexcept { return Data.Memories.MemAlign; }
-  uint32_t &getMemoryAlign() noexcept { return Data.Memories.MemAlign; }
+  uint32_t getMemoryAlign() const noexcept {
+    return getInner().Memories.MemAlign;
+  }
+  uint32_t &getMemoryAlign() noexcept { return getInner().Memories.MemAlign; }
 
   /// Getter of memory offset.
-  uint32_t getMemoryOffset() const noexcept { return Data.Memories.MemOffset; }
-  uint32_t &getMemoryOffset() noexcept { return Data.Memories.MemOffset; }
+  uint32_t getMemoryOffset() const noexcept {
+    return getInner().Memories.MemOffset;
+  }
+  uint32_t &getMemoryOffset() noexcept { return getInner().Memories.MemOffset; }
 
   /// Getter of memory lane.
-  uint8_t getMemoryLane() const noexcept { return Data.Memories.MemLane; }
-  uint8_t &getMemoryLane() noexcept { return Data.Memories.MemLane; }
+  uint8_t getMemoryLane() const noexcept { return getInner().Memories.MemLane; }
+  uint8_t &getMemoryLane() noexcept { return getInner().Memories.MemLane; }
 
   /// Getter and setter of the constant value.
   ValVariant getNum() const noexcept {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64)
-    return ValVariant(Data.Num);
+    return ValVariant(getInner().Num);
 #else
-    uint128_t N(Data.Num.High, Data.Num.Low);
+    uint128_t N(getInner().Num.High, getInner().Num.Low);
     return ValVariant(N);
 #endif
   }
   void setNum(ValVariant N) noexcept {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64)
-    Data.Num = N.get<uint128_t>();
+    getInner().Num = N.get<uint128_t>();
 #else
-    std::memcpy(&Data.Num, &N.get<uint128_t>(), sizeof(uint128_t));
+    std::memcpy(&(getInner().Num), &N.get<uint128_t>(), sizeof(uint128_t));
 #endif
   }
 
   /// Getter and setter of BrCast info for Br_cast instructions.
   void setBrCast(uint32_t LabelIdx) {
     reset();
-    Data.BrCast = new BrCastDescriptor();
-    Data.BrCast->Jump.TargetIndex = LabelIdx;
-    Flags.IsAllocBrCast = true;
+    getInner().BrCast = new BrCastDescriptor();
+    getInner().BrCast->Jump.TargetIndex = LabelIdx;
+    getFlags().IsAllocBrCast = true;
   }
-  const BrCastDescriptor &getBrCast() const noexcept { return *Data.BrCast; }
-  BrCastDescriptor &getBrCast() noexcept { return *Data.BrCast; }
+  const BrCastDescriptor &getBrCast() const noexcept {
+    return *getInner().BrCast;
+  }
+  BrCastDescriptor &getBrCast() noexcept { return *getInner().BrCast; }
 
   /// Getter and setter of try block info for try_table instruction.
   void setTryCatch() {
     reset();
-    Data.TryCatch = new TryDescriptor();
-    Flags.IsAllocTryCatch = true;
+    getInner().TryCatch = new TryDescriptor();
+    getFlags().IsAllocTryCatch = true;
   }
-  const TryDescriptor &getTryCatch() const noexcept { return *Data.TryCatch; }
-  TryDescriptor &getTryCatch() noexcept { return *Data.TryCatch; }
+  const TryDescriptor &getTryCatch() const noexcept {
+    return *getInner().TryCatch;
+  }
+  TryDescriptor &getTryCatch() noexcept { return *getInner().TryCatch; }
 
 private:
   /// Release allocated resources.
   void reset() noexcept {
-    if (Flags.IsAllocJump) {
-      delete Data.Jump;
-    } else if (Flags.IsAllocLabelList) {
-      Data.BrTable.LabelListSize = 0;
-      delete[] Data.BrTable.LabelList;
-    } else if (Flags.IsAllocValTypeList) {
-      Data.SelectT.ValTypeListSize = 0;
-      delete[] Data.SelectT.ValTypeList;
-    } else if (Flags.IsAllocBrCast) {
-      delete Data.BrCast;
-    } else if (Flags.IsAllocTryCatch) {
-      delete Data.TryCatch;
+    if (getFlags().IsAllocLabelList) {
+      getInner().BrTable.LabelListSize = 0;
+      delete[] getInner().BrTable.LabelList;
+    } else if (getFlags().IsAllocValTypeList) {
+      getInner().SelectT.ValTypeListSize = 0;
+      delete[] getInner().SelectT.ValTypeList;
+    } else if (getFlags().IsAllocBrCast) {
+      delete getInner().BrCast;
+    } else if (getFlags().IsAllocTryCatch) {
+      delete getInner().TryCatch;
     }
-    Flags.IsAllocJump = false;
-    Flags.IsAllocLabelList = false;
-    Flags.IsAllocValTypeList = false;
-    Flags.IsAllocBrCast = false;
-    Flags.IsAllocTryCatch = false;
+    getFlags().IsAllocLabelList = false;
+    getFlags().IsAllocValTypeList = false;
+    getFlags().IsAllocBrCast = false;
+    getFlags().IsAllocTryCatch = false;
   }
 
   /// Swap function.
-  void swap(Instruction &Instr) noexcept {
-    std::swap(Data, Instr.Data);
-    std::swap(Offset, Instr.Offset);
-    std::swap(Code, Instr.Code);
-    std::swap(Flags, Instr.Flags);
-  }
+  void swap(Instruction &Instr) noexcept { std::swap(Raw, Instr.Raw); }
 
   /// \name Data of instructions.
   /// @{
@@ -304,7 +298,7 @@ private:
       uint32_t StackOffset;
     } Indices;
     // Type 3: Jump.
-    JumpDescriptor *Jump;
+    JumpDescriptor Jump;
     // Type 4: LabelList.
     struct {
       uint32_t LabelListSize;
@@ -343,16 +337,35 @@ private:
     BrCastDescriptor *BrCast;
     // Type 11: Try Block.
     TryDescriptor *TryCatch;
-  } Data;
-  uint32_t Offset = 0;
-  OpCode Code = OpCode::End;
-  struct {
-    bool IsAllocJump : 1;
+  };
+
+  union Inner &getInner() noexcept {
+    return reinterpret_cast<union Inner &>(Raw[0]);
+  }
+  const union Inner &getInner() const noexcept {
+    return reinterpret_cast<const union Inner &>(Raw[0]);
+  }
+
+  struct Flags {
     bool IsAllocLabelList : 1;
     bool IsAllocValTypeList : 1;
     bool IsAllocBrCast : 1;
     bool IsAllocTryCatch : 1;
-  } Flags;
+  };
+
+  struct Flags &getFlags() noexcept {
+    return reinterpret_cast<struct Flags &>(Raw[7]);
+  }
+  const struct Flags &getFlags() const noexcept {
+    return reinterpret_cast<const struct Flags &>(Raw[7]);
+  }
+
+  // Raw data in 8 uint32_t length.
+  // 0th - 4th: Instruction immediate.
+  // 5th: Offset.
+  // 6th: OpCode.
+  // 7th: Flags.
+  uint32_t Raw[8];
   /// @}
 };
 

@@ -157,14 +157,6 @@ WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
 Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
     const Runtime::CallingFrame &Frame, uint32_t NamePtr, uint32_t NameLen,
     uint32_t ConfigPtr, uint32_t ConfigLen, uint32_t GraphIdPtr) {
-#ifdef WASMEDGE_BUILD_WASI_NN_RPC
-  if (Env.NNRPCChannel != nullptr) {
-    // TODO: implement RPC for LoadByNameWithConfig
-    spdlog::error(
-        "[WASI-NN] RPC client is not implemented for LoadByNameWithConfig"sv);
-    return WASINN::ErrNo::UnsupportedOperation;
-  }
-#endif
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -191,6 +183,28 @@ Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
         "[WASI-NN] Failed when accessing the return Config memory."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
+
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+  if (Env.NNRPCChannel != nullptr) {
+    auto Stub = wasi_ephemeral_nn::Graph::NewStub(Env.NNRPCChannel);
+    grpc::ClientContext ClientContext;
+    wasi_ephemeral_nn::LoadByNameWithConfigRequest Req;
+    auto NameStrView = MemInst->getStringView(NamePtr, NameLen);
+    auto ConfigStrView = MemInst->getStringView(ConfigPtr, ConfigLen);
+    Req.set_name(NameStrView.data(), NameStrView.size());
+    Req.set_config(ConfigStrView.data(), ConfigStrView.size());
+    wasi_ephemeral_nn::LoadByNameWithConfigResult Res;
+    auto Status = Stub->LoadByNameWithConfig(&ClientContext, Req, &Res);
+    if (!Status.ok()) {
+      spdlog::error(
+          "[WASI-NN] Failed when calling remote LoadByNameWithConfig: {}"sv,
+          Status.error_message());
+      return WASINN::ErrNo::RuntimeError;
+    }
+    *GraphId = Res.graph_handle();
+    return WASINN::ErrNo::Success;
+  }
+#endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
   // Get the model
   std::string ModelName(reinterpret_cast<const char *>(Name), NameLen);

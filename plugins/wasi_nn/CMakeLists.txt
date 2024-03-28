@@ -10,15 +10,15 @@ if(BACKEND STREQUAL "ggml")
   set(LLAMA_ACCELERATE OFF)
 
   if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
-    message(STATUS "WASI-NN GGML LLAMA backend: Enable LLAMA_CUBLAS")
-    set(LLAMA_CUBLAS ON)
-    # We need to set GGML_USE_CUBLAS for clip from llava.
-    add_compile_definitions(GGML_USE_CUBLAS)
-    # If CUBLAS is ON, then OpenBLAS should be OFF.
+    message(STATUS "WASI-NN GGML LLAMA backend: Enable LLAMA_CUDA")
+    set(LLAMA_CUDA ON)
+    # We need to set GGML_USE_CUDA for clip from llava.
+    add_compile_definitions(GGML_USE_CUDA)
+    # If CUDA is ON, then OpenBLAS should be OFF.
     set(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS OFF)
   else()
-    message(STATUS "WASI-NN GGML LLAMA backend: Disable LLAMA_CUBLAS")
-    set(LLAMA_CUBLAS OFF)
+    message(STATUS "WASI-NN GGML LLAMA backend: Disable LLAMA_CUDA")
+    set(LLAMA_CUDA OFF)
   endif()
 
   if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS)
@@ -38,6 +38,7 @@ if(BACKEND STREQUAL "ggml")
   if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
     message(STATUS "WASI-NN GGML LLAMA backend: Enable LLAMA_METAL")
     set(LLAMA_METAL ON)
+    set(LLAMA_METAL_EMBED_LIBRARY ON)
   else()
     message(STATUS "WASI-NN GGML LLAMA backend: Disable LLAMA_METAL")
     set(LLAMA_METAL OFF)
@@ -49,7 +50,7 @@ if(BACKEND STREQUAL "ggml")
   FetchContent_Declare(
     llama
     GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-    GIT_TAG        b2334
+    GIT_TAG        b2534
     PATCH_COMMAND  test -f ggml.patched || git apply ${CMAKE_SOURCE_DIR}/thirdparty/ggml/ggml.patch && ${CMAKE_COMMAND} -E touch ggml.patched
     GIT_SHALLOW    FALSE
   )
@@ -174,6 +175,7 @@ if(BACKEND STREQUAL "ggml")
       TARGET wasmedgePluginWasiNN
       POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/_deps/llama-src/ggml-metal.metal ggml-metal.metal
+      COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/_deps/llama-src/ggml-common.h ggml-common.h
     )
   endif()
 endif()

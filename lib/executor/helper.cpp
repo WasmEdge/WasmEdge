@@ -279,5 +279,40 @@ Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
   return ModInst->unsafeGetData(Idx);
 }
 
+TypeCode Executor::toBottomType(Runtime::StackManager &StackMgr,
+                                const ValType &Type) const {
+  if (Type.isRefType()) {
+    if (Type.isAbsHeapType()) {
+      switch (Type.getHeapTypeCode()) {
+      case TypeCode::NullFuncRef:
+      case TypeCode::FuncRef:
+        return TypeCode::NullFuncRef;
+      case TypeCode::NullExternRef:
+      case TypeCode::ExternRef:
+        return TypeCode::NullExternRef;
+      case TypeCode::NullRef:
+      case TypeCode::AnyRef:
+      case TypeCode::EqRef:
+      case TypeCode::I31Ref:
+      case TypeCode::StructRef:
+      case TypeCode::ArrayRef:
+        return TypeCode::NullRef;
+      default:
+        assumingUnreachable();
+      }
+    } else {
+      const auto &CompType =
+          (*StackMgr.getModule()->getType(Type.getTypeIndex()))
+              ->getCompositeType();
+      if (CompType.isFunc()) {
+        return TypeCode::NullFuncRef;
+      } else {
+        return TypeCode::NullRef;
+      }
+    }
+  } else {
+    return Type.getCode();
+  }
+}
 } // namespace Executor
 } // namespace WasmEdge

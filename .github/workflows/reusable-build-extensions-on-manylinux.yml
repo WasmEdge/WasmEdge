@@ -28,10 +28,6 @@ on:
 env:
   build_tests: ${{ inputs.release && 'Off' || 'On' }}
   build_type: Release
-  OPENVINO_VERSION: "2023.0.2"
-  OPENVINO_YEAR: "2023"
-  PYTORCH_VERSION: "1.8.2"
-  PYTORCH_INSTALL_TO: "."
 
 jobs:
   prepare:
@@ -71,21 +67,17 @@ jobs:
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
           source "$HOME/.cargo/env"
-
-          mkdir -p build
-          bash ./utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi
-          bash ./utils/wasi-crypto/build-openssl.sh
-          bash ./utils/ffmpeg/install-ffmpeg-v6.0.sh
       - name: Build ${{ matrix.plugin }}
         shell: bash
         run: |
-          export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
           if [[ ${build_tests} != "On" ]]; then
             target=${bin_name%.*}
             target=${target#lib}
           fi
 
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=${build_tests} -DCMAKE_BUILD_TYPE=${build_type} -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
+          mkdir -p build
+          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=${build_tests} -DCMAKE_BUILD_TYPE=${build_type} -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DWASMEDGE_PLUGIN_WASI_LOGGING=ON
+          cmake --build build --target wasmedgePluginWasiLogging
       - uses: actions/cache/save@v3
         with:
           key: ${{ needs.prepare.outputs.cache_key_ws }}
@@ -99,7 +91,6 @@ jobs:
     needs: [prepare, prepare_cache]
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         include: ${{ fromJSON(inputs.plugins) }}
     name: ${{ matrix.plugin }} (${{ inputs.docker_tag }})
@@ -138,8 +129,6 @@ jobs:
       - name: Build ${{ matrix.plugin }}
         shell: bash
         run: |
-          export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
-          export PKG_CONFIG_PATH=$(pwd)/FFmpeg-n6.0/output/lib/pkgconfig:$PKG_CONFIG_PATH
           if [[ ${build_tests} != "On" ]]; then
             target=${bin_name%.*}
             target=${target#lib}
@@ -153,7 +142,6 @@ jobs:
       - name: Test ${{ matrix.plugin }}
         if: ${{ !inputs.release }}
         run: |
-          export LD_LIBRARY_PATH=$(pwd)/FFmpeg-n6.0/output/lib:$LD_LIBRARY_PATH
           cd ${test_dir}
           ./${target}
           cd -
@@ -163,12 +151,6 @@ jobs:
         with:
           name: ${{ steps.prep.outputs.artifact }}
           path: ${{ steps.prep.outputs.filename }}
-      - name: Install gh on manylinux
-        if: ${{ inputs.release }}
-        run: |
-          type -p yum-config-manager >/dev/null || sudo yum install yum-utils
-          yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
-          yum install -y gh
       - name: Upload WasmEdge ${{ matrix.plugin }} plugin tar.gz package
         if: ${{ inputs.release }}
         env:

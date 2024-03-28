@@ -44,9 +44,19 @@ message LoadByNameResult {
   uint32 graph_handle = 1;
 }
 
+message LoadByNameWithConfigRequest {
+  string name = 1;
+  string config = 2;
+}
+
+message LoadByNameWithConfigResult {
+  uint32 graph_handle = 1;
+}
+
 service Graph {
   // No support for Load yet
   rpc LoadByName(LoadByNameRequest) returns (LoadByNameResult) {};
+  rpc LoadByNameWithConfig(LoadByNameWithConfigRequest) returns (LoadByNameWithConfigResult) {};
 }
 
 message SetInputRequest {

@@ -9,6 +9,26 @@
 namespace WasmEdge {
 namespace Executor {
 
+Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+Executor::instantiateComponent(Runtime::StoreManager &StoreMgr,
+                               const AST::Component::Component &Comp) {
+  auto Res = instantiate(StoreMgr, Comp);
+  if (!Res) {
+    return Unexpect(Res);
+  }
+  return Res;
+}
+Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+Executor::instantiateComponent(Runtime::StoreManager &StoreMgr,
+                               const AST::Component::Component &Comp,
+                               std::string_view Name) {
+  auto Res = instantiate(StoreMgr, Comp, Name);
+  if (!Res) {
+    return Unexpect(Res);
+  }
+  return Res;
+}
+
 /// Instantiate a WASM Module. See "include/executor/executor.h".
 Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
@@ -50,6 +70,16 @@ Executor::registerModule(Runtime::StoreManager &StoreMgr,
   if (auto Res = StoreMgr.registerModule(&ModInst); !Res) {
     spdlog::error(ErrCode::Value::ModuleNameConflict);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return Unexpect(ErrCode::Value::ModuleNameConflict);
+  }
+  return {};
+}
+Expect<void> Executor::registerComponent(
+    Runtime::StoreManager &StoreMgr,
+    const Runtime::Instance::ComponentInstance &CompInst) {
+  if (auto Res = StoreMgr.registerComponent(&CompInst); !Res) {
+    spdlog::error(ErrCode::Value::ModuleNameConflict);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
     return Unexpect(ErrCode::Value::ModuleNameConflict);
   }
   return {};

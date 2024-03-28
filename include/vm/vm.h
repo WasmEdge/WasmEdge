@@ -277,6 +277,11 @@ private:
                 std::string_view Func, Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});
 
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeExecute(const Runtime::Instance::ComponentInstance *CompInst,
+                std::string_view Func, Span<const ValVariant> Params = {},
+                Span<const ValType> ParamTypes = {});
+
   /// \name VM environment.
   /// @{
   const Configure Conf;
@@ -295,9 +300,10 @@ private:
   /// \name VM Storage.
   /// @{
   /// Loaded AST module.
-  std::unique_ptr<AST::Module> Mod;
+  std::variant<AST::Module, AST::Component::Component> Unit;
   /// Active module instance.
   std::unique_ptr<Runtime::Instance::ModuleInstance> ActiveModInst;
+  std::unique_ptr<Runtime::Instance::ComponentInstance> ActiveCompInst;
   /// Registered module instances by user.
   std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>> RegModInsts;
   /// Built-in module instances mapped to the configurations. For WASI.
@@ -307,6 +313,8 @@ private:
   /// Loaded module instances from plug-ins.
   std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>>
       PlugInModInsts;
+  std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+      PlugInCompInsts;
   /// Self-owned store (nullptr if an outside store is assigned in constructor).
   std::unique_ptr<Runtime::StoreManager> Store;
   /// Reference to the store.

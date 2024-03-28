@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/runtime/instance/module.h - Module Instance definition ---===//
 //
@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/type.h"
+#include "ast/module.h"
 #include "ast/type.h"
 #include "common/errcode.h"
 #include "runtime/hostfunc.h"
@@ -22,6 +24,7 @@
 #include "runtime/instance/function.h"
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
+#include "runtime/instance/string.h"
 #include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
 
@@ -64,6 +67,8 @@ inline constexpr const bool IsInstanceV =
     IsEntityV<T> || std::is_same_v<T, Instance::ElementInstance> ||
     std::is_same_v<T, Instance::DataInstance>;
 } // namespace
+
+class ComponentInstance;
 
 class ModuleInstance {
 public:
@@ -108,6 +113,31 @@ public:
     unsafeAddHostInstance(Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
                           std::move(Func));
   }
+  /// Export functions with name, these functions are suppose not owned by this
+  /// module, because the module is just a wrapper for component functions.
+  ///
+  /// See the example below, with statement below shows why we need this kind of
+  /// exporting
+  ///
+  /// (component
+  ///   (core module $A
+  ///     (func (export "one") (result i32) (i32.const 1))
+  ///   )
+  ///   (core module $B
+  ///     (func (import "a" "one") (result i32))
+  ///   )
+  ///   (core instance $a (instantiate $A))
+  ///   (core instance $b (instantiate $B (with "a" (instance $a))))
+  /// )
+  void exportFunction(std::string_view Name, FunctionInstance *Func) {
+    std::unique_lock Lock(Mutex);
+    assuming(Func->isHostFunction());
+    unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
+    Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
+    FuncInsts.push_back(Func);
+    ExpFuncs.insert_or_assign(std::string(Name), FuncInsts.back());
+  }
+
   void addHostTable(std::string_view Name,
                     std::unique_ptr<TableInstance> &&Tab) {
     std::unique_lock Lock(Mutex);
@@ -170,6 +200,10 @@ public:
     return std::forward<CallbackT>(CallBack)(ExpFuncs);
   }
   template <typename CallbackT>
+  auto unsafeGetFuncExports(CallbackT &&CallBack) const noexcept {
+    return std::forward<CallbackT>(CallBack)(ExpFuncs);
+  }
+  template <typename CallbackT>
   auto getTableExports(CallbackT &&CallBack) const noexcept {
     std::shared_lock Lock(Mutex);
     return std::forward<CallbackT>(CallBack)(ExpTables);
@@ -187,6 +221,7 @@ public:
 
 protected:
   friend class Executor::Executor;
+  friend class ComponentInstance;
   friend class Runtime::CallingFrame;
 
   /// Create and copy the defined type to this module instance.

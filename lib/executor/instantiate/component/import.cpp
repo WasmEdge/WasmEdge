@@ -1,0 +1,62 @@
+#include "ast/component/instance.h"
+#include "ast/module.h"
+#include "common/errcode.h"
+#include "executor/executor.h"
+
+#include "runtime/instance/module.h"
+
+#include <string_view>
+#include <variant>
+
+namespace WasmEdge {
+namespace Executor {
+
+using namespace AST::Component;
+
+Expect<void>
+Executor::instantiate(Runtime::StoreManager &StoreMgr,
+                      Runtime::Instance::ComponentInstance &CompInst,
+                      const ImportSection &Sec) {
+  for (auto ImportStatement : Sec.getContent()) {
+    auto Desc = ImportStatement.getDesc();
+    if (std::holds_alternative<DescTypeIndex>(Desc)) {
+      auto TypeIndex = std::get<DescTypeIndex>(Desc);
+
+      // TODO: get type via index, then use the type to check the imported thing
+      TypeIndex.getIndex();
+
+      switch (TypeIndex.getKind()) {
+      case IndexKind::CoreType: // TODO
+        spdlog::warn("incomplete import core type");
+        break;
+      case IndexKind::FuncType: // TODO
+        spdlog::warn("incomplete import function");
+        break;
+      case IndexKind::ComponentType: // TODO
+        spdlog::warn("incomplete import component");
+        break;
+      case IndexKind::InstanceType:
+        auto CompName = ImportStatement.getName();
+        const auto *ImportedCompInst = StoreMgr.findComponent(CompName);
+        if (unlikely(ImportedCompInst == nullptr)) {
+          spdlog::error(ErrCode::Value::UnknownImport);
+          spdlog::error("component name: {}", CompName);
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_CompImport));
+          return Unexpect(ErrCode::Value::UnknownImport);
+        }
+        CompInst.addComponentInstance(ImportedCompInst);
+        break;
+      }
+    } else if (std::holds_alternative<TypeBound>(Desc)) {
+      // TODO: import a type or resource
+      spdlog::warn("incomplete import type bound");
+    } else if (std::holds_alternative<ValueType>(Desc)) {
+      // TODO: import a value and check its type
+      spdlog::warn("incomplete import value type");
+    }
+  }
+  return {};
+}
+
+} // namespace Executor
+} // namespace WasmEdge

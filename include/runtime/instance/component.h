@@ -56,29 +56,25 @@ public:
     return CompList[Index];
   }
 
-  void addModuleInstance(const Instance::ModuleInstance *Inst) noexcept {
+  void addModuleInstance(ModuleInstance *Inst) noexcept {
     ModInstList.push_back(std::move(Inst));
   }
-  void
-  addModuleInstance(std::unique_ptr<Instance::ModuleInstance> Inst) noexcept {
+  void addModuleInstance(std::unique_ptr<ModuleInstance> Inst) noexcept {
     ModInstList.push_back(Inst.get());
     OwnedModInstList.push_back(std::move(Inst));
   }
-  const Instance::ModuleInstance *
-  getModuleInstance(uint32_t Index) const noexcept {
+  const ModuleInstance *getModuleInstance(uint32_t Index) const noexcept {
     return ModInstList[Index];
   }
 
-  void addComponentInstance(const Instance::ComponentInstance *Inst) noexcept {
+  void addComponentInstance(const ComponentInstance *Inst) noexcept {
     CompInstList.push_back(Inst);
   }
-  void addComponentInstance(
-      std::unique_ptr<Instance::ComponentInstance> Inst) noexcept {
+  void addComponentInstance(std::unique_ptr<ComponentInstance> Inst) noexcept {
     CompInstList.push_back(Inst.get());
     OwnedCompInstList.push_back(std::move(Inst));
   }
-  const Instance::ComponentInstance *
-  getComponentInstance(uint32_t Index) const noexcept {
+  const ComponentInstance *getComponentInstance(uint32_t Index) const noexcept {
     return CompInstList[Index];
   }
 
@@ -90,34 +86,46 @@ public:
     unsafeAddHostFunc(Name, std::move(FuncInst));
   }
   void addHostFunc(std::string_view Name,
-                   std::unique_ptr<Instance::FunctionInstance> &&Func) {
+                   std::unique_ptr<FunctionInstance> &&Func) {
     assuming(Func->isHostFunction());
     addType(FuncType());
     Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
     unsafeAddHostFunc(Name, std::move(Func));
   }
 
-  void addCoreFunctionInstance(Instance::FunctionInstance *Inst) noexcept {
+  void addCoreFunctionInstance(FunctionInstance *Inst) noexcept {
     CoreFuncInstList.push_back(Inst);
   }
-  Instance::FunctionInstance *
-  getCoreFunctionInstance(uint32_t Index) const noexcept {
+  FunctionInstance *getCoreFunctionInstance(uint32_t Index) const noexcept {
     return CoreFuncInstList[Index];
   }
 
-  void addFunctionInstance(Instance::FunctionInstance *Inst) noexcept {
+  void addFunctionInstance(FunctionInstance *Inst) noexcept {
     FuncInstList.push_back(Inst);
   }
-  Instance::FunctionInstance *
-  getFunctionInstance(uint32_t Index) const noexcept {
+  FunctionInstance *getFunctionInstance(uint32_t Index) const noexcept {
     return FuncInstList[Index];
   }
 
-  void addExport(std::string_view Name, Instance::FunctionInstance *Inst) {
+  void addExport(std::string_view Name, const ModuleInstance *Inst) {
+    ExportModuleMap.emplace(Name, Inst);
+  }
+  const ModuleInstance *
+  findModuleExports(std::string_view Name) const noexcept {
+    return ExportModuleMap.at(std::string(Name));
+  }
+  void addExport(std::string_view Name, FunctionInstance *Inst) {
     ExportFuncMap.emplace(Name, Inst);
   }
   FunctionInstance *findFuncExports(std::string_view Name) const noexcept {
     return ExportFuncMap.at(std::string(Name));
+  }
+
+  void addCoreMemoryInstance(MemoryInstance *Inst) noexcept {
+    CoreMemInstList.push_back(Inst);
+  }
+  MemoryInstance *getCoreMemoryInstance(uint32_t Index) const noexcept {
+    return CoreMemInstList[Index];
   }
 
   void addCoreType(const CoreDefType &Ty) { CoreTypes.emplace_back(Ty); }
@@ -130,9 +138,8 @@ public:
   }
 
 private:
-  void
-  unsafeAddHostFunc(std::string_view Name,
-                    std::unique_ptr<Instance::FunctionInstance> Inst) noexcept {
+  void unsafeAddHostFunc(std::string_view Name,
+                         std::unique_ptr<FunctionInstance> Inst) noexcept {
     addFunctionInstance(Inst.get());
     ExportFuncMap.insert_or_assign(std::string(Name), FuncInstList.back());
     OwnedFuncInstList.push_back(std::move(Inst));
@@ -144,19 +151,32 @@ private:
   std::vector<AST::Module> ModList;
   std::vector<AST::Component::Component> CompList;
 
-  std::vector<std::unique_ptr<Instance::ModuleInstance>> OwnedModInstList;
-  std::vector<const Instance::ModuleInstance *> ModInstList;
-  std::vector<std::unique_ptr<Instance::ComponentInstance>> OwnedCompInstList;
-  std::vector<const Instance::ComponentInstance *> CompInstList;
+  std::vector<std::unique_ptr<ModuleInstance>> OwnedModInstList;
+  std::vector<const ModuleInstance *> ModInstList;
+  std::vector<std::unique_ptr<ComponentInstance>> OwnedCompInstList;
+  std::vector<const ComponentInstance *> CompInstList;
 
   // core function
-  std::vector<Instance::FunctionInstance *> CoreFuncInstList;
+  std::vector<FunctionInstance *> CoreFuncInstList;
 
   // component function
-  std::vector<std::unique_ptr<Instance::FunctionInstance>> OwnedFuncInstList;
-  std::vector<Instance::FunctionInstance *> FuncInstList;
-  std::map<std::string, Instance::FunctionInstance *, std::less<>>
-      ExportFuncMap;
+  std::vector<std::unique_ptr<FunctionInstance>> OwnedFuncInstList;
+  std::vector<FunctionInstance *> FuncInstList;
+  std::map<std::string, FunctionInstance *, std::less<>> ExportFuncMap;
+
+  std::map<std::string, const ModuleInstance *, std::less<>> ExportModuleMap;
+
+  // core memory, this is prepared for canonical ABI
+  //
+  // when a function is lowering or lifting, it can have options
+  // 1. memory of a module instance
+  // 2. realloc of the same module instance
+  // these data will help a component function encode its high-level data to
+  // core module data, for example, `string` converted to `(i32, i32)`. Which is
+  // a pair of pointer and length, where pointer stored in the memory
+  // instance from option.
+  std::vector<MemoryInstance *> CoreMemInstList;
+  std::map<std::string, MemoryInstance *, std::less<>> CoreMemInstMap;
 
   std::vector<AST::Component::CoreDefType> CoreTypes;
   std::vector<AST::Component::DefType> Types;

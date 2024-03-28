@@ -908,6 +908,8 @@ E(UnknownImport, 0x0302, "unknown import")
 E(DataSegDoesNotFit, 0x0303, "data segment does not fit")
 // Init failed when instantiating element segment
 E(ElemSegDoesNotFit, 0x0304, "elements segment does not fit")
+// Invalid core sort for component export
+E(InvalidCoreSort, 0x0305, "invalid core sort")
 // @}
 
 // Execution phase

@@ -69,7 +69,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Ensure git safe directory
       run: |
         git config --global --add safe.directory $(pwd)

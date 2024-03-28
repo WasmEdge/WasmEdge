@@ -11,10 +11,10 @@ on:
         required: true
       release:
         type: boolean
-        
+
 permissions:
   contents: read
-  
+
 jobs:
   build_on_ubuntu:
     permissions:
@@ -39,7 +39,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y pkg-config
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Ensure git safe directory

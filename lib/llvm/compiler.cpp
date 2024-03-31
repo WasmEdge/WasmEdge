@@ -2039,66 +2039,9 @@ public:
       case OpCode::F64x2__replace_lane:
         compileReplaceLaneOp(Context.Doublex2Ty, Instr.getMemoryLane());
         break;
-      case OpCode::I8x16__swizzle: {
-        auto Index = Builder.createBitCast(stackPop(), Context.Int8x16Ty);
-        auto Vector = Builder.createBitCast(stackPop(), Context.Int8x16Ty);
-
-#if defined(__x86_64__)
-        if (Context.SupportSSSE3) {
-          auto Magic = Builder.createVectorSplat(16, LLContext.getInt8(112));
-          auto Added = Builder.createAdd(Index, Magic);
-          auto NewIndex = Builder.createSelect(
-              Builder.createICmpUGT(Index, Added),
-              LLVM::Value::getConstAllOnes(Context.Int8x16Ty), Added);
-          assuming(LLVM::Core::X86SSSE3PShufB128 != LLVM::Core::NotIntrinsic);
-          stackPush(Builder.createBitCast(
-              Builder.createIntrinsic(LLVM::Core::X86SSSE3PShufB128, {},
-                                      {Vector, NewIndex}),
-              Context.Int64x2Ty));
-          break;
-        }
-#endif
-
-#if defined(__aarch64__)
-        if (Context.SupportNEON) {
-          assuming(LLVM::Core::AArch64NeonTbl1 != LLVM::Core::NotIntrinsic);
-          stackPush(Builder.createBitCast(
-              Builder.createIntrinsic(LLVM::Core::AArch64NeonTbl1,
-                                      {Context.Int8x16Ty}, {Vector, Index}),
-              Context.Int64x2Ty));
-          break;
-        }
-#endif
-
-        // Fallback case.
-        // If the SSSE3 is not supported on the x86_64 platform or
-        // the NEON is not supported on the aarch64 platform,
-        // then fallback to this.
-        auto Mask = Builder.createVectorSplat(16, LLContext.getInt8(15));
-        auto Zero = Builder.createVectorSplat(16, LLContext.getInt8(0));
-        auto IsOver = Builder.createICmpUGT(Index, Mask);
-        auto InboundIndex = Builder.createAnd(Index, Mask);
-        auto Array =
-            Builder.createArrayAlloca(Context.Int8Ty, LLContext.getInt64(16));
-        for (size_t I = 0; I < 16; ++I) {
-          Builder.createStore(
-              Builder.createExtractElement(Vector, LLContext.getInt64(I)),
-              Builder.createInBoundsGEP1(Context.Int8Ty, Array,
-                                         LLContext.getInt64(I)));
-        }
-        LLVM::Value Ret = LLVM::Value::getUndef(Context.Int8x16Ty);
-        for (size_t I = 0; I < 16; ++I) {
-          auto Idx =
-              Builder.createExtractElement(InboundIndex, LLContext.getInt64(I));
-          auto Value = Builder.createLoad(
-              Context.Int8Ty,
-              Builder.createInBoundsGEP1(Context.Int8Ty, Array, Idx));
-          Ret = Builder.createInsertElement(Ret, Value, LLContext.getInt64(I));
-        }
-        Ret = Builder.createSelect(IsOver, Zero, Ret);
-        stackPush(Builder.createBitCast(Ret, Context.Int64x2Ty));
+      case OpCode::I8x16__swizzle:
+        compileVectorSwizzle();
         break;
-      }
       case OpCode::I8x16__splat:
         compileSplatOp(Context.Int8x16Ty);
         break;
@@ -2733,6 +2676,65 @@ public:
         break;
       case OpCode::F64x2__promote_low_f32x4:
         compileVectorPromote();
+        break;
+      case OpCode::I8x16__relaxed_swizzle:
+        compileVectorSwizzle();
+        break;
+      case OpCode::I32x4__relaxed_trunc_f32x4_s:
+        compileVectorTruncSatS32(Context.Floatx4Ty, false);
+        break;
+      case OpCode::I32x4__relaxed_trunc_f32x4_u:
+        compileVectorTruncSatU32(Context.Floatx4Ty, false);
+        break;
+      case OpCode::I32x4__relaxed_trunc_f64x2_s_zero:
+        compileVectorTruncSatS32(Context.Doublex2Ty, true);
+        break;
+      case OpCode::I32x4__relaxed_trunc_f64x2_u_zero:
+        compileVectorTruncSatU32(Context.Doublex2Ty, true);
+        break;
+      case OpCode::F32x4__relaxed_madd:
+        compileVectorVectorMAdd(Context.Floatx4Ty);
+        break;
+      case OpCode::F32x4__relaxed_nmadd:
+        compileVectorVectorNMAdd(Context.Floatx4Ty);
+        break;
+      case OpCode::F64x2__relaxed_madd:
+        compileVectorVectorMAdd(Context.Doublex2Ty);
+        break;
+      case OpCode::F64x2__relaxed_nmadd:
+        compileVectorVectorNMAdd(Context.Doublex2Ty);
+        break;
+      case OpCode::I8x16__relaxed_laneselect:
+      case OpCode::I16x8__relaxed_laneselect:
+      case OpCode::I32x4__relaxed_laneselect:
+      case OpCode::I64x2__relaxed_laneselect: {
+        auto C = stackPop();
+        auto V2 = stackPop();
+        auto V1 = stackPop();
+        stackPush(Builder.createXor(
+            Builder.createAnd(Builder.createXor(V1, V2), C), V2));
+        break;
+      }
+      case OpCode::F32x4__relaxed_min:
+        compileVectorVectorFMin(Context.Floatx4Ty);
+        break;
+      case OpCode::F32x4__relaxed_max:
+        compileVectorVectorFMax(Context.Floatx4Ty);
+        break;
+      case OpCode::F64x2__relaxed_min:
+        compileVectorVectorFMin(Context.Doublex2Ty);
+        break;
+      case OpCode::F64x2__relaxed_max:
+        compileVectorVectorFMax(Context.Doublex2Ty);
+        break;
+      case OpCode::I16x8__relaxed_q15mulr_s:
+        compileVectorVectorQ15MulSat();
+        break;
+      case OpCode::I16x8__relaxed_dot_i8x16_i7x16_s:
+        compileVectorRelaxedIntegerDotProduct();
+        break;
+      case OpCode::I32x4__relaxed_dot_i8x16_i7x16_add_s:
+        compileVectorRelaxedIntegerDotProductAdd();
         break;
       case OpCode::Atomic__fence:
         return compileMemoryFence();
@@ -4293,6 +4295,66 @@ private:
       return Builder.createMul(LHS, RHS);
     });
   }
+  void compileVectorSwizzle() noexcept {
+    auto Index = Builder.createBitCast(stackPop(), Context.Int8x16Ty);
+    auto Vector = Builder.createBitCast(stackPop(), Context.Int8x16Ty);
+
+#if defined(__x86_64__)
+    if (Context.SupportSSSE3) {
+      auto Magic = Builder.createVectorSplat(16, LLContext.getInt8(112));
+      auto Added = Builder.createAdd(Index, Magic);
+      auto NewIndex = Builder.createSelect(
+          Builder.createICmpUGT(Index, Added),
+          LLVM::Value::getConstAllOnes(Context.Int8x16Ty), Added);
+      assuming(LLVM::Core::X86SSSE3PShufB128 != LLVM::Core::NotIntrinsic);
+      stackPush(Builder.createBitCast(
+          Builder.createIntrinsic(LLVM::Core::X86SSSE3PShufB128, {},
+                                  {Vector, NewIndex}),
+          Context.Int64x2Ty));
+      return;
+    }
+#endif
+
+#if defined(__aarch64__)
+    if (Context.SupportNEON) {
+      assuming(LLVM::Core::AArch64NeonTbl1 != LLVM::Core::NotIntrinsic);
+      stackPush(Builder.createBitCast(
+          Builder.createIntrinsic(LLVM::Core::AArch64NeonTbl1,
+                                  {Context.Int8x16Ty}, {Vector, Index}),
+          Context.Int64x2Ty));
+      return;
+    }
+#endif
+
+    // Fallback case.
+    // If the SSSE3 is not supported on the x86_64 platform or
+    // the NEON is not supported on the aarch64 platform,
+    // then fallback to this.
+    auto Mask = Builder.createVectorSplat(16, LLContext.getInt8(15));
+    auto Zero = Builder.createVectorSplat(16, LLContext.getInt8(0));
+    auto IsOver = Builder.createICmpUGT(Index, Mask);
+    auto InboundIndex = Builder.createAnd(Index, Mask);
+    auto Array =
+        Builder.createArrayAlloca(Context.Int8Ty, LLContext.getInt64(16));
+    for (size_t I = 0; I < 16; ++I) {
+      Builder.createStore(
+          Builder.createExtractElement(Vector, LLContext.getInt64(I)),
+          Builder.createInBoundsGEP1(Context.Int8Ty, Array,
+                                     LLContext.getInt64(I)));
+    }
+    LLVM::Value Ret = LLVM::Value::getUndef(Context.Int8x16Ty);
+    for (size_t I = 0; I < 16; ++I) {
+      auto Idx =
+          Builder.createExtractElement(InboundIndex, LLContext.getInt64(I));
+      auto Value = Builder.createLoad(
+          Context.Int8Ty,
+          Builder.createInBoundsGEP1(Context.Int8Ty, Array, Idx));
+      Ret = Builder.createInsertElement(Ret, Value, LLContext.getInt64(I));
+    }
+    Ret = Builder.createSelect(IsOver, Zero, Ret);
+    stackPush(Builder.createBitCast(Ret, Context.Int64x2Ty));
+  }
+
   void compileVectorVectorQ15MulSat() noexcept {
     compileVectorVectorOp(
         Context.Int16x8Ty, [this](auto LHS, auto RHS) noexcept -> LLVM::Value {
@@ -4827,6 +4889,90 @@ private:
       return Builder.createFPExt(
           Low, LLVM::Type::getVectorType(Context.DoubleTy, 2));
     });
+  }
+
+  void compileVectorVectorMAdd(LLVM::Type VectorTy) noexcept {
+    auto C = Builder.createBitCast(stackPop(), VectorTy);
+    auto RHS = Builder.createBitCast(stackPop(), VectorTy);
+    auto LHS = Builder.createBitCast(stackPop(), VectorTy);
+    stackPush(Builder.createFAdd(Builder.createFMul(LHS, RHS), C));
+  }
+
+  void compileVectorVectorNMAdd(LLVM::Type VectorTy) noexcept {
+    auto C = Builder.createBitCast(stackPop(), VectorTy);
+    auto RHS = Builder.createBitCast(stackPop(), VectorTy);
+    auto LHS = Builder.createBitCast(stackPop(), VectorTy);
+    stackPush(Builder.createFAdd(
+        Builder.createFMul(Builder.createFNeg(LHS), RHS), C));
+  }
+
+  void compileVectorRelaxedIntegerDotProduct() noexcept {
+    auto OriTy = Context.Int8x16Ty;
+    auto ExtTy = Context.Int16x8Ty;
+    auto RHS = Builder.createBitCast(stackPop(), OriTy);
+    auto LHS = Builder.createBitCast(stackPop(), OriTy);
+#if defined(__x86_64__)
+    if (Context.SupportSSSE3) {
+      assuming(LLVM::Core::X86SSSE3PMAddUbSw128 != LLVM::Core::NotIntrinsic);
+      return stackPush(Builder.createIntrinsic(LLVM::Core::X86SSSE3PMAddUbSw128,
+                                               {}, {LHS, RHS}));
+    }
+#endif
+    auto Width = LLVM::Value::getConstInt(
+        ExtTy.getElementType(), OriTy.getElementType().getIntegerBitWidth());
+    Width = Builder.createVectorSplat(ExtTy.getVectorSize(), Width);
+    auto EA = Builder.createBitCast(LHS, ExtTy);
+    auto EB = Builder.createBitCast(RHS, ExtTy);
+
+    LLVM::Value AL, AR, BL, BR;
+    AL = Builder.createAShr(EA, Width);
+    AR = Builder.createAShr(Builder.createShl(EA, Width), Width);
+    BL = Builder.createAShr(EB, Width);
+    BR = Builder.createAShr(Builder.createShl(EB, Width), Width);
+
+    return stackPush(Builder.createAdd(Builder.createMul(AL, BL),
+                                       Builder.createMul(AR, BR)));
+  }
+
+  void compileVectorRelaxedIntegerDotProductAdd() noexcept {
+    auto OriTy = Context.Int8x16Ty;
+    auto ExtTy = Context.Int16x8Ty;
+    auto FinTy = Context.Int32x4Ty;
+    auto VC = Builder.createBitCast(stackPop(), FinTy);
+    auto RHS = Builder.createBitCast(stackPop(), OriTy);
+    auto LHS = Builder.createBitCast(stackPop(), OriTy);
+    LLVM::Value IM;
+#if defined(__x86_64__)
+    if (Context.SupportSSSE3) {
+      assuming(LLVM::Core::X86SSSE3PMAddUbSw128 != LLVM::Core::NotIntrinsic);
+      IM = Builder.createIntrinsic(LLVM::Core::X86SSSE3PMAddUbSw128, {},
+                                   {LHS, RHS});
+    } else
+#endif
+    {
+      auto Width = LLVM::Value::getConstInt(
+          ExtTy.getElementType(), OriTy.getElementType().getIntegerBitWidth());
+      Width = Builder.createVectorSplat(ExtTy.getVectorSize(), Width);
+      auto EA = Builder.createBitCast(LHS, ExtTy);
+      auto EB = Builder.createBitCast(RHS, ExtTy);
+
+      LLVM::Value AL, AR, BL, BR;
+      AL = Builder.createAShr(EA, Width);
+      AR = Builder.createAShr(Builder.createShl(EA, Width), Width);
+      BL = Builder.createAShr(EB, Width);
+      BR = Builder.createAShr(Builder.createShl(EB, Width), Width);
+      IM = Builder.createAdd(Builder.createMul(AL, BL),
+                             Builder.createMul(AR, BR));
+    }
+
+    auto Width = LLVM::Value::getConstInt(
+        FinTy.getElementType(), ExtTy.getElementType().getIntegerBitWidth());
+    Width = Builder.createVectorSplat(FinTy.getVectorSize(), Width);
+    auto IME = Builder.createBitCast(IM, FinTy);
+    auto L = Builder.createAShr(IME, Width);
+    auto R = Builder.createAShr(Builder.createShl(IME, Width), Width);
+
+    return stackPush(Builder.createAdd(Builder.createAdd(L, R), VC));
   }
 
   void

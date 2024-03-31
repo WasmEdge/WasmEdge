@@ -531,7 +531,7 @@ inline Expect<void> Executor::runVectorRelaxedIntegerDotProductAdd(
 
   const int8x16_t &V1 = Val1.get<int8x16_t>();
   const int8x16_t &V2 = Val2.get<int8x16_t>();
-  const int32x4_t &VC = Val2.get<int32x4_t>();
+  const int32x4_t &VC = C.get<int32x4_t>();
 
   int32x4_t Result{0, 0, 0, 0};
 

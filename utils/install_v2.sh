@@ -373,6 +373,14 @@ get_wasmedge_ggml_plugin() {
 	_extractor -C "${TMP_PLUGIN_DIR}" -vxzf "${TMP_DIR}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}-${VERSION}-${RELEASE_PKG}"
 }
 
+get_wasmedge_rustls_plugin() {
+	info "Fetching WasmEdge-Rustls-Plugin"
+	_downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-plugin-wasmedge_rustls-$VERSION-$RELEASE_PKG"
+	local TMP_PLUGIN_DIR="${TMP_DIR}/${IPKG}/plugin"
+	mkdir -p "${TMP_PLUGIN_DIR}"
+	_extractor -C "${TMP_PLUGIN_DIR}" -vxzf "${TMP_DIR}/WasmEdge-plugin-wasmedge_rustls-${VERSION}-${RELEASE_PKG}"
+}
+
 wasmedge_checks() {
 	if [ "${ARCH}" == $(uname -m) ] && [ "${OS}" == $(uname) ] ; then
 		# Check only MAJOR.MINOR.PATCH
@@ -505,6 +513,7 @@ main() {
 
 		get_wasmedge_release
 		get_wasmedge_ggml_plugin
+		get_wasmedge_rustls_plugin
 		install "$IPKG" "include" "lib" "bin" "plugin"
 		wasmedge_checks "$VERSION" "wasmedge"
 	else

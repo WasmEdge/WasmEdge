@@ -171,9 +171,14 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
+
+    - name: Install zsh
+      run: |
+         eval $(/opt/homebrew/bin/brew shellenv)
+         ${{ matrix.package_manager }} install zsh
 
     - name: Install WasmEdge latest release
       run: |
@@ -186,6 +191,12 @@ jobs:
         rm -f ~/.bashrc
         bash utils/install.sh -D
         if ls -a ~ | grep .bashrc; then echo "Fail: Bashrc found" && exit 1; else echo "Pass: Bashrc not found"; fi;
+    - name: Check for bashrc generation
+      if: ${{ matrix.name == 'MacOS-arm64' }}
+      run: |
+        rm -rf ~/.zshenv
+        bash utils/install.sh -D
+        if ls -a ~ | grep .zshenv; then echo echo "Pass: zshenv found"; else "Fail: zshenv not found" && exit 1; fi;
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V

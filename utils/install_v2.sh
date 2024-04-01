@@ -28,6 +28,24 @@ eprintf() {
 	command printf '%s\n' "$1" 1>&2
 }
 
+detect_cuda() {
+	local cuda=""
+	cuda=$(/usr/local/cuda/bin/nvcc --version 2>/dev/null | grep "Cuda compilation tools" | cut -f5 -d ' ' | cut -f1 -d ',')
+	if [[ "${cuda}" =~ "12" ]]; then
+		cuda="12"
+	elif [[ "${cuda}" =~ "11" ]]; then
+		cuda="11"
+	fi
+
+	cuda=$(nvidia-smi -q 2>/dev/null | grep CUDA | cut -f2 -d ':' | cut -f2 -d ' ')
+	if [[ "${cuda}" =~ "12" ]]; then
+		cuda="12"
+	elif [[ "${cuda}" =~ "11" ]]; then
+		cuda="11"
+	fi
+	echo ${cuda}
+}
+
 _realpath() {
 	[[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
 }
@@ -334,10 +352,20 @@ get_wasmedge_release() {
 
 get_wasmedge_ggml_plugin() {
 	info "Fetching WasmEdge-GGML-Plugin"
-	_downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-plugin-wasi_nn-ggml-$VERSION-$RELEASE_PKG"
+	local CUDA_EXT=""
+	cuda=$(detect_cuda)
+	info "Detected CUDA version: ${cuda}"
+	if [ "${cuda}" == "12" ]; then
+		CUDA_EXT="-cuda"
+	elif [ "${cuda}" == "11" ]; then
+		CUDA_EXT="-cuda-11"
+	else
+		CUDA_EXT=""
+	fi
+	_downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}-$VERSION-$RELEASE_PKG"
 	local TMP_PLUGIN_DIR="${TMP_DIR}/${IPKG}/plugin"
 	mkdir -p "${TMP_PLUGIN_DIR}"
-	_extractor -C "${TMP_PLUGIN_DIR}" -vxzf "${TMP_DIR}/WasmEdge-plugin-wasi_nn-ggml-${VERSION}-${RELEASE_PKG}"
+	_extractor -C "${TMP_PLUGIN_DIR}" -vxzf "${TMP_DIR}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}-${VERSION}-${RELEASE_PKG}"
 }
 
 wasmedge_checks() {

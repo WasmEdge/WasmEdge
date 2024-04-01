@@ -35,14 +35,15 @@ detect_cuda() {
 		cuda="12"
 	elif [[ "${cuda}" =~ "11" ]]; then
 		cuda="11"
+	else
+		cuda=$(nvidia-smi -q 2>/dev/null | grep CUDA | cut -f2 -d ':' | cut -f2 -d ' ')
+		if [[ "${cuda}" =~ "12" ]]; then
+			cuda="12"
+		elif [[ "${cuda}" =~ "11" ]]; then
+			cuda="11"
+		fi
 	fi
 
-	cuda=$(nvidia-smi -q 2>/dev/null | grep CUDA | cut -f2 -d ':' | cut -f2 -d ' ')
-	if [[ "${cuda}" =~ "12" ]]; then
-		cuda="12"
-	elif [[ "${cuda}" =~ "11" ]]; then
-		cuda="11"
-	fi
 	echo ${cuda}
 }
 
@@ -358,7 +359,11 @@ get_wasmedge_ggml_plugin() {
 	if [ "${cuda}" == "12" ]; then
 		CUDA_EXT="-cuda"
 	elif [ "${cuda}" == "11" ]; then
-		CUDA_EXT="-cuda-11"
+		if [ "${ARCH}" == "aarch64" ]; then
+			CUDA_EXT="-cuda"
+		else
+			CUDA_EXT="-cuda-11"
+		fi
 	else
 		CUDA_EXT=""
 	fi

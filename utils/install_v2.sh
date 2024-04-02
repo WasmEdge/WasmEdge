@@ -63,7 +63,7 @@ _downloader() {
 		fi
 	else
 		pushd "$TMP_DIR"
-		curl -L -OC0 "$url"
+		curl --progress-bar -L -OC0 "$url"
 		popd
 	fi
 }

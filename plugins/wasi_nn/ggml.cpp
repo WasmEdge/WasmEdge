@@ -254,6 +254,16 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
   }
+  if (Doc.at_key("grammar").error() == simdjson::SUCCESS) {
+    std::string_view Grammar;
+    auto Err = Doc["grammar"].get<std::string_view>().get(Grammar);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the grammar option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.Grammar = Grammar;
+  }
 
   // Check if the model is updated.
   if (IsModelUpdated && ModelParams.n_gpu_layers != GraphRef.NGPULayers) {
@@ -269,6 +279,7 @@ Expect<ErrNo> setupGPTParam(Graph &GraphRef, gpt_params &GPTParams) {
   GPTParams.sparams.penalty_repeat = static_cast<float>(GraphRef.RepeatPenalty);
   GPTParams.sparams.penalty_present =
       static_cast<float>(GraphRef.PresencePenalty);
+  GPTParams.sparams.grammar = GraphRef.Grammar;
   return ErrNo::Success;
 }
 
@@ -590,6 +601,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.RepeatPenalty = SamplingDefault.penalty_repeat;
   GraphRef.PresencePenalty = SamplingDefault.penalty_present;
   GraphRef.FrequencyPenalty = SamplingDefault.penalty_freq;
+  GraphRef.Grammar = SamplingDefault.grammar;
 
   // If the graph builder length > 1, the data of builder[1] is the metadata.
   if (Builders.size() > 1) {

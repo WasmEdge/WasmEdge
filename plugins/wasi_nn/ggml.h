@@ -45,6 +45,7 @@ struct Graph {
   double RepeatPenalty = 1.10;
   double PresencePenalty = 0.00;
   double FrequencyPenalty = 0.00;
+  std::string Grammar;
 };
 
 struct Context {

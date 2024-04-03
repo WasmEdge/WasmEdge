@@ -132,6 +132,11 @@ public:
       Inner.Data.Code = TypeCode::RefNull;
       Inner.Data.HTCode = C;
       break;
+    case TypeCode::String:
+      // Abstract heap type
+      Inner.Data.Code = TypeCode::String;
+      Inner.Data.HTCode = C;
+      break;
     case TypeCode::Ref:
     case TypeCode::RefNull:
       // Reference type with heap immediates should use the constructors below.
@@ -241,6 +246,7 @@ public:
       case TypeCode::StructRef:
       case TypeCode::ArrayRef:
       case TypeCode::ExnRef:
+      case TypeCode::String:
         return true;
       default:
         return false;
@@ -432,11 +438,57 @@ private:
   uint64x2_t Data;
 };
 
+struct StrVariant {
+  // Constructors.
+  StrVariant() noexcept { setData(); }
+  StrVariant(const Runtime::Instance::StringInstance *P) noexcept {
+    setData(P);
+  }
+
+  // Getter of type.
+  const ValType &getType() const noexcept {
+    return reinterpret_cast<const ValType &>(toArray()[0]);
+  }
+  ValType &getType() noexcept {
+    return reinterpret_cast<ValType &>(toArray()[0]);
+  }
+
+  // Getter of pointer.
+  Runtime::Instance::StringInstance *getPtr() const noexcept {
+    return reinterpret_cast<Runtime::Instance::StringInstance *>(toArray()[1]);
+  }
+
+  // Check is null.
+  bool isNull() const { return getPtr() == nullptr; }
+
+  // Getter of the raw data.
+  uint64x2_t getRawData() const noexcept { return Data; }
+
+private:
+  // Helper function of converting data to array.
+  const std::array<uint64_t, 2> &toArray() const noexcept {
+    return reinterpret_cast<const std::array<uint64_t, 2> &>(Data);
+  }
+  std::array<uint64_t, 2> &toArray() noexcept {
+    return reinterpret_cast<std::array<uint64_t, 2> &>(Data);
+  }
+
+  // Helper function to set the content.
+  void
+  setData(const Runtime::Instance::StringInstance *Ptr = nullptr) noexcept {
+    getType() = TypeCode::String;
+    toArray()[1] = reinterpret_cast<uintptr_t>(Ptr);
+  }
+
+  // Member data.
+  uint64x2_t Data;
+};
+
 using ValVariant =
     Variant<uint32_t, int32_t, uint64_t, int64_t, float, double, uint128_t,
             int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,
-            int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t,
-            RefVariant>;
+            int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t, RefVariant,
+            StrVariant>;
 
 // <<<<<<<< Value definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -564,6 +616,10 @@ template <> inline ValType ValTypeFromType<float>() noexcept {
 template <> inline ValType ValTypeFromType<double>() noexcept {
   return ValType(TypeCode::F64);
 }
+// wasm interface types
+template <> inline ValType ValTypeFromType<StrVariant>() noexcept {
+  return ValType(TypeCode::String);
+}
 
 // <<<<<<<< Template to get value type from type <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -584,6 +640,9 @@ inline ValVariant ValueFromType(ValType Type) noexcept {
   case TypeCode::Ref:
   case TypeCode::RefNull:
     return RefVariant(Type);
+  // wasm interface types
+  case TypeCode::String:
+    return StrVariant();
   default:
     assumingUnreachable();
   }

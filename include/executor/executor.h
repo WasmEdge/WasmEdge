@@ -307,6 +307,14 @@ private:
                            const AST::Component::ExportSection &);
   /// @}
 
+  /// \name Helper Functions for canonical ABI
+  /// @{
+  std::unique_ptr<Runtime::Instance::FunctionInstance>
+  lowering(Runtime::Instance::FunctionInstance *F,
+           Runtime::Instance::MemoryInstance *Memory,
+           Runtime::Instance::FunctionInstance *Realloc);
+  /// @}
+
   /// \name Helper Functions for block controls.
   /// @{
   /// Helper function for calling functions. Return the continuation iterator.

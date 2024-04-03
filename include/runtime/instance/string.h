@@ -14,24 +14,15 @@ namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
-class StringInstance : public CompositeBase {
+// String instance is assumed to be used in component model
+//
+// The data will be stored in an assigned memory instance, which is dynamic, and
+// hence we can not give any fixed memory instance here.
+class StringInstance {
 public:
   StringInstance() = delete;
-  StringInstance(const ModuleInstance *Mod, const uint32_t Idx,
-                 const uint32_t Size) noexcept
-      : CompositeBase(Mod, Idx), Data(nullptr, Size) {
-    assuming(ModInst);
-  }
-  StringInstance(const ModuleInstance *Mod, const uint32_t Idx,
-                 const uint32_t Size, const char &Init) noexcept
-      : CompositeBase(Mod, Idx), Data(Init, Size) {
-    assuming(ModInst);
-  }
-  StringInstance(const ModuleInstance *Mod, const uint32_t Idx,
-                 std::string &&Init) noexcept
-      : CompositeBase(Mod, Idx), Data(std::move(Init)) {
-    assuming(ModInst);
-  }
+  // in this case, we assume no module instance there, this is because
+  StringInstance(std::string &&Init) noexcept : Data(std::move(Init)) {}
 
   std::string &getString() noexcept { return Data; }
   std::string_view getString() const noexcept { return Data; }

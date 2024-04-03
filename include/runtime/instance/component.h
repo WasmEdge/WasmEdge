@@ -93,6 +93,11 @@ public:
     unsafeAddHostFunc(Name, std::move(Func));
   }
 
+  void
+  addCoreFunctionInstance(std::unique_ptr<FunctionInstance> &&Inst) noexcept {
+    addCoreFunctionInstance(Inst.get());
+    OwnedCoreFuncInstList.emplace_back(std::move(Inst));
+  }
   void addCoreFunctionInstance(FunctionInstance *Inst) noexcept {
     CoreFuncInstList.push_back(Inst);
   }
@@ -128,8 +133,14 @@ public:
     return CoreMemInstList[Index];
   }
 
-  void addCoreType(const CoreDefType &Ty) { CoreTypes.emplace_back(Ty); }
-  void addType(const DefType &Ty) { Types.emplace_back(Ty); }
+  void addCoreType(const CoreDefType &Ty) noexcept {
+    CoreTypes.emplace_back(Ty);
+  }
+  const CoreDefType &getCoreType(uint32_t Idx) const noexcept {
+    return CoreTypes[Idx];
+  }
+  void addType(const DefType &Ty) noexcept { Types.emplace_back(Ty); }
+  const DefType &getType(uint32_t Idx) const noexcept { return Types[Idx]; }
   void mapCoreType(std::string_view Name, uint32_t Index) {
     CoreTypeMap[std::string(Name)] = CoreTypes[Index];
   }
@@ -157,6 +168,9 @@ private:
   std::vector<const ComponentInstance *> CompInstList;
 
   // core function
+  //
+  // The owned core functions are created by lowering process
+  std::vector<std::unique_ptr<FunctionInstance>> OwnedCoreFuncInstList;
   std::vector<FunctionInstance *> CoreFuncInstList;
 
   // component function

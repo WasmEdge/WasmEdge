@@ -34,8 +34,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       }
       CompInst.addModuleInstance(std::move(*Res));
     } else {
-      auto Exports =
-          std::get<AST::Component::CoreInlineExports>(InstExpr).getExports();
+      auto InstantiateExpr =
+          std::get<AST::Component::CoreInlineExports>(InstExpr);
 
       // create an immediate module instance, which has no name
       //
@@ -43,15 +43,15 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       // module instance expression.
       auto M = std::make_unique<Runtime::Instance::ModuleInstance>("");
 
-      for (auto S : Exports) {
-        auto Name = S.getName();
+      for (auto const &S : InstantiateExpr.getExports()) {
         auto SortIdx = S.getSortIdx();
         switch (SortIdx.getSort()) {
         case CoreSort::Func: {
-          auto *CoreFunc =
-              CompInst.getCoreFunctionInstance(SortIdx.getSortIdx());
           // The module instance takes functions and export them
-          M->exportFunction(Name, CoreFunc);
+          M->exportFunction(
+              S.getName(),
+              // get stored core function
+              CompInst.getCoreFunctionInstance(SortIdx.getSortIdx()));
           break;
         }
         default:

@@ -954,6 +954,7 @@ E(DataSegDoesNotFit, 0x0303, "data segment does not fit")
 E(ElemSegDoesNotFit, 0x0304, "elements segment does not fit")
 // Invalid core sort for component export
 E(InvalidCoreSort, 0x0305, "invalid core sort")
+E(InvalidCanonOption, 0x0306, "invalid canonical option")
 // @}
 
 // Execution phase
@@ -1139,7 +1140,7 @@ T(SubFinal, 0x4F, "sub_final")     // -0x31 for sub type
 T(Rec, 0x4E, "rec")                // -0x32 for recursive type
 T(Epsilon, 0x40, "-")              // -0x40 for result type
 // component model types
-T(String, 0x30, "string") // string type
+T(String, 0x80, "string") // string type
 
 #undef T
 #endif // UseTypeCode

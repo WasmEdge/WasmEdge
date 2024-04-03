@@ -51,8 +51,11 @@ public:
   ValType getDefType() const noexcept {
     if (ModInst) {
       return ValType(TypeCode::Ref, TypeIdx);
+    } else if (CompInst) {
+      return ValType(TypeCode::Ref, TypeIdx);
     } else {
-      // nullptr `ModInst` case is only for host function instance case.
+      // nullptr `ModInst` and `CompInst` case is only for host function
+      // instance case.
       return ValType(TypeCode::Ref, TypeCode::FuncRef);
     }
   }

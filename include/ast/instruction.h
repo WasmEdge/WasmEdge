@@ -28,9 +28,8 @@ class Instruction {
 public:
   struct JumpDescriptor {
     uint32_t TargetIndex;
-    uint32_t ValueStackEraseBegin;
-    uint32_t ValueStackEraseEnd;
-    uint32_t HandlerStackOffset;
+    uint32_t StackEraseBegin;
+    uint32_t StackEraseEnd;
     int32_t PCOffset;
   };
   struct BrCastDescriptor {
@@ -62,7 +61,6 @@ public:
     Data.Num.Low = static_cast<uint64_t>(0);
     Data.Num.High = static_cast<uint64_t>(0);
 #endif
-    Flags.IsAllocJump = false;
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
     Flags.IsAllocBrCast = false;
@@ -73,9 +71,7 @@ public:
   Instruction(const Instruction &Instr) noexcept
       : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
         Flags(Instr.Flags) {
-    if (Flags.IsAllocJump) {
-      Data.Jump = new JumpDescriptor(*Instr.Data.Jump);
-    } else if (Flags.IsAllocLabelList) {
+    if (Flags.IsAllocLabelList) {
       Data.BrTable.LabelList = new JumpDescriptor[Data.BrTable.LabelListSize];
       std::copy_n(Instr.Data.BrTable.LabelList, Data.BrTable.LabelListSize,
                   Data.BrTable.LabelList);
@@ -94,7 +90,6 @@ public:
   Instruction(Instruction &&Instr) noexcept
       : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
         Flags(Instr.Flags) {
-    Instr.Flags.IsAllocJump = false;
     Instr.Flags.IsAllocLabelList = false;
     Instr.Flags.IsAllocValTypeList = false;
     Instr.Flags.IsAllocBrCast = false;
@@ -168,14 +163,8 @@ public:
   }
 
   /// Getter and setter of Jump for Br* instruction.
-  void setJump(uint32_t LabelIdx) {
-    reset();
-    Data.Jump = new JumpDescriptor();
-    Flags.IsAllocJump = true;
-    Data.Jump->TargetIndex = LabelIdx;
-  }
-  const JumpDescriptor &getJump() const noexcept { return *Data.Jump; }
-  JumpDescriptor &getJump() noexcept { return *Data.Jump; }
+  const JumpDescriptor &getJump() const noexcept { return Data.Jump; }
+  JumpDescriptor &getJump() noexcept { return Data.Jump; }
 
   /// Getter and setter of selecting value types list.
   void setValTypeListSize(uint32_t Size) {
@@ -260,9 +249,7 @@ public:
 private:
   /// Release allocated resources.
   void reset() noexcept {
-    if (Flags.IsAllocJump) {
-      delete Data.Jump;
-    } else if (Flags.IsAllocLabelList) {
+    if (Flags.IsAllocLabelList) {
       Data.BrTable.LabelListSize = 0;
       delete[] Data.BrTable.LabelList;
     } else if (Flags.IsAllocValTypeList) {
@@ -273,7 +260,6 @@ private:
     } else if (Flags.IsAllocTryCatch) {
       delete Data.TryCatch;
     }
-    Flags.IsAllocJump = false;
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
     Flags.IsAllocBrCast = false;
@@ -304,7 +290,7 @@ private:
       uint32_t StackOffset;
     } Indices;
     // Type 3: Jump.
-    JumpDescriptor *Jump;
+    JumpDescriptor Jump;
     // Type 4: LabelList.
     struct {
       uint32_t LabelListSize;
@@ -347,7 +333,6 @@ private:
   uint32_t Offset = 0;
   OpCode Code = OpCode::End;
   struct {
-    bool IsAllocJump : 1;
     bool IsAllocLabelList : 1;
     bool IsAllocValTypeList : 1;
     bool IsAllocBrCast : 1;

@@ -202,25 +202,26 @@ Executor::branchToLabel(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::Interrupted);
   }
 
-  StackMgr.eraseValueStack(JumpDesc.ValueStackEraseBegin,
-                           JumpDesc.ValueStackEraseEnd);
-  StackMgr.eraseHandlerStack(JumpDesc.HandlerStackOffset);
+  StackMgr.eraseValueStack(JumpDesc.StackEraseBegin, JumpDesc.StackEraseEnd);
   // PC need to -1 here because the PC will increase in the next iteration.
   PC += (JumpDesc.PCOffset - 1);
   return {};
 }
 
 Expect<void> Executor::throwException(Runtime::StackManager &StackMgr,
-                                      Runtime::Instance::TagInstance *TagInst,
+                                      Runtime::Instance::TagInstance &TagInst,
                                       AST::InstrView::iterator &PC) noexcept {
-  assuming(TagInst);
-  while (!StackMgr.isHandlerStackEmpty()) {
-    auto AssocValSize = TagInst->getTagType().getAssocValSize();
-    // The value that associated with the exception should remain on the stack.
-    auto ExnHandler = StackMgr.popTopHandler(AssocValSize);
+  StackMgr.removeInactiveHandler(PC);
+  auto AssocValSize = TagInst.getTagType().getAssocValSize();
+  while (true) {
+    // Pop the top handler.
+    auto Handler = StackMgr.popTopHandler(AssocValSize);
+    if (!Handler.has_value()) {
+      break;
+    }
     // Checking through the catch clause.
-    for (const auto &C : ExnHandler.CatchClause) {
-      if (!C.IsAll && getTagInstByIdx(StackMgr, C.TagIndex) != TagInst) {
+    for (const auto &C : Handler->CatchClause) {
+      if (!C.IsAll && getTagInstByIdx(StackMgr, C.TagIndex) != &TagInst) {
         // For catching a specific tag, should check the equivalence of tag
         // address.
         continue;
@@ -229,11 +230,11 @@ Expect<void> Executor::throwException(Runtime::StackManager &StackMgr,
         // For catching a exception reference, push the reference value onto
         // stack.
         StackMgr.push(
-            RefVariant(ValType(TypeCode::Ref, TypeCode::ExnRef), TagInst));
+            RefVariant(ValType(TypeCode::Ref, TypeCode::ExnRef), &TagInst));
       }
       // When being here, an exception is caught. Move the PC to the try block
       // and branch to the label.
-      PC = ExnHandler.Try;
+      PC = Handler->Try;
       return branchToLabel(StackMgr, C.Jump, PC);
     }
   }

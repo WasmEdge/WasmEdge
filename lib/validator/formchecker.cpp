@@ -202,17 +202,6 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return static_cast<uint32_t>(CtrlStack.size()) - UINT32_C(1) - N;
   };
 
-  // Helper lambda for counting the try and catch.
-  auto countCtrlStackType = [this](uint32_t N) -> uint32_t {
-    uint32_t TryCnt = 0;
-    for (auto It = CtrlStack.begin() + N; It != CtrlStack.end(); It++) {
-      if (It->Code == OpCode::Try_table) {
-        TryCnt++;
-      }
-    }
-    return TryCnt;
-  };
-
   // Helper lambda for checking memory index and perform transformation.
   auto checkMemAndTrans = [this,
                            &Instr](Span<const ValType> Take,
@@ -275,14 +264,12 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   };
 
   // Helper lambda for recording jump data.
-  auto recordJump = [this, &Instr, &countCtrlStackType](
-                        AST::Instruction::JumpDescriptor &Jump, uint32_t Arity,
-                        uint32_t D) -> void {
+  auto recordJump = [this, &Instr](AST::Instruction::JumpDescriptor &Jump,
+                                   uint32_t Arity, uint32_t D) -> void {
     const uint32_t Remain =
         static_cast<uint32_t>(ValStack.size() - CtrlStack[D].Height);
-    Jump.ValueStackEraseBegin = Remain + Arity;
-    Jump.ValueStackEraseEnd = Arity;
-    Jump.HandlerStackOffset = countCtrlStackType(D);
+    Jump.StackEraseBegin = Remain + Arity;
+    Jump.StackEraseEnd = Arity;
     Jump.PCOffset = static_cast<int32_t>(CtrlStack[D].Jump - &Instr);
   };
 

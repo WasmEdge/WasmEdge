@@ -19,7 +19,8 @@ using WasmEdge::Host::WASINN::ErrNo;
 #if defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO) ||                       \
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH) ||                          \
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE) ||                         \
-    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML)
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML) ||                           \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED)
 namespace {
 WasmEdge::Runtime::Instance::ModuleInstance *
 createModule(std::string_view NNRPCURI = "") {
@@ -1744,3 +1745,140 @@ TEST(WasiNNTest, GGMLBackendWithRPC) {
 }
 #endif // WASMEDGE_BUILD_WASI_NN_RPC
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
+TEST(WasiNNTest, NeuralSpeedBackend) {
+  // Create the wasmedge_process module instance.
+  auto *NNMod = dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule());
+  ASSERT_TRUE(NNMod != nullptr);
+
+  // Create the calling frame with memory instance.
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(400)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  // Load the files.
+  std::string Prompt = "Once upon a time, ";
+  std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
+  std::vector<uint8_t> WeightRead =
+      readEntireFile("./wasinn_neuralspeed_fixtures/llama-2-7b-chat.Q4_0.gguf");
+
+  std::vector<uint32_t> TensorDim{1};
+  uint32_t BuilderPtr = UINT32_C(0);
+  uint32_t LoadEntryPtr = UINT32_C(0);
+  uint32_t SetInputEntryPtr = UINT32_C(0);
+//   uint32_t OutBoundPtr = UINT32_C(61000 * 65536);
+  uint32_t StorePtr = UINT32_C(65536);
+
+  // Return value.
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  // Get the function "load".
+  auto *FuncInst = NNMod->findFuncExports("load");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncLoad =
+      dynamic_cast<WasmEdge::Host::WasiNNLoad &>(FuncInst->getHostFunc());
+  // Get the function "init_execution_context".
+  FuncInst = NNMod->findFuncExports("init_execution_context");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
+      FuncInst->getHostFunc());
+  // Get the function "set_input".
+  FuncInst = NNMod->findFuncExports("set_input");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSetInput =
+      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  // Get the function "get_output".
+  FuncInst = NNMod->findFuncExports("get_output");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncGetOutput =
+      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
+  // Get the function "compute".
+  FuncInst = NNMod->findFuncExports("compute");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncCompute =
+      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+
+  // Neural Speed WASI-NN load tests.
+  // Test: load -- load successfully.
+  BuilderPtr = LoadEntryPtr;
+  writeFatPointer(MemInst, StorePtr, WeightRead.size(), BuilderPtr);
+  writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr);
+  StorePtr += WeightRead.size();
+  {
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, UINT32_C(1), static_cast<uint32_t>(Backend::NeuralSpeed), UINT32_C(0), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
+    BuilderPtr += 4;
+  }
+
+  // Neural Speed WASI-NN init_execution_context tests.
+  // Test: init_execution_context -- init second context.
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 1);
+    BuilderPtr += 4;
+  }
+
+  // Neural Speed WASI-NN set_input tests.
+  SetInputEntryPtr = BuilderPtr;
+  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
+                  BuilderPtr);
+  writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+  writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
+
+  // Test: set_input -- set input successfully.
+  {
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(1), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+  StorePtr += (TensorDim.size() * 4 + TensorData.size());
+
+  // Neural Speed WASI-NN compute tests.
+  // Test: compute -- compute successfully.
+  {
+    EXPECT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Neural Speed WASI-NN get_output tests.
+  // Test: get_output -- get output successfully.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    // Should output more than 50 bytes.
+    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_GE(BytesWritten, 50);
+  }
+}
+#endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED

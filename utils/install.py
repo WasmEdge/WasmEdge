@@ -1188,6 +1188,8 @@ def install_plugins(args, compat):
                 # Re-write the plugin name if CUDA is available
                 if plugin_name == WASI_NN_GGML and compat.cuda:
                     plugin_name = WASI_NN_GGML_CUDA
+                    # If CUDA is detected, we will use the ubuntu20.04 assets instead of any other linux distro
+                    compat.dist = "ubuntu20.04"
 
             # Normal plugin
             if (

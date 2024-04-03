@@ -392,14 +392,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Br:
   case OpCode::Br_if:
   case OpCode::Br_on_null:
-  case OpCode::Br_on_non_null: {
-    uint32_t LabelIdx = 0;
-    if (auto Res = readU32(LabelIdx); !Res) {
-      return Unexpect(Res);
-    }
-    Instr.setJump(LabelIdx);
-    return {};
-  }
+  case OpCode::Br_on_non_null:
+    return readU32(Instr.getJump().TargetIndex);
 
   case OpCode::Br_table: {
     uint32_t VecCnt = 0;

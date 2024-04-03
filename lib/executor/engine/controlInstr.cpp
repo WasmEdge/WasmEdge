@@ -38,7 +38,7 @@ Expect<void> Executor::runThrowOp(Runtime::StackManager &StackMgr,
                                   AST::InstrView::iterator &PC) noexcept {
   auto *TagInst = getTagInstByIdx(StackMgr, Instr.getTargetIndex());
   // The args will be popped from stack in the throw function.
-  return throwException(StackMgr, TagInst, PC);
+  return throwException(StackMgr, *TagInst, PC);
 }
 
 Expect<void> Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
@@ -52,7 +52,7 @@ Expect<void> Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::AccessNullException);
   }
   auto *TagInst = Ref.getPtr<Runtime::Instance::TagInstance>();
-  return throwException(StackMgr, TagInst, PC);
+  return throwException(StackMgr, *TagInst, PC);
 }
 
 Expect<void> Executor::runBrOp(Runtime::StackManager &StackMgr,

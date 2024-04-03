@@ -220,7 +220,7 @@ TEST(SerializeInstructionTest, SerializeBrControlInstruction) {
   WasmEdge::AST::Instruction BrIf(WasmEdge::OpCode::Br_if);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
-  Br.setJump(0xFFFFFFFFU);
+  Br.getJump().TargetIndex = 0xFFFFFFFFU;
   Instructions = {Br, End};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
@@ -236,7 +236,7 @@ TEST(SerializeInstructionTest, SerializeBrControlInstruction) {
   };
   EXPECT_EQ(Output, Expected);
 
-  BrIf.setJump(0xFFFFFFFFU);
+  BrIf.getJump().TargetIndex = 0xFFFFFFFFU;
   Instructions = {BrIf, End};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));

@@ -148,7 +148,7 @@ check_os_arch() {
 				'amd64') ARCH="x86_64" ;;
 				*)
 					error "Detected ${OS}-${ARCH} - currently unsupported"
-					eprintf "Use --OS and --ARCH to specify the OS and ARCH"
+					eprintf "Use --os and --arch to specify the OS and ARCH"
 					exit 1
 					;;
 			esac
@@ -166,7 +166,7 @@ check_os_arch() {
 				'arm64' | 'arm' | 'aarch64') ARCH="arm64" ;;
 				*)
 					error "Detected ${OS}-${ARCH} - currently unsupported"
-					eprintf "Use --OS and --ARCH to specify the OS and ARCH"
+					eprintf "Use --os and --arch to specify the OS and ARCH"
 					exit 1
 					;;
 			esac
@@ -176,7 +176,7 @@ check_os_arch() {
 			;;
 		*)
 			error "Detected ${OS}-${ARCH} - currently unsupported"
-			eprintf "Use --OS and --ARCH to specify the OS and ARCH"
+			eprintf "Use --os and --arch to specify the OS and ARCH"
 			exit 1
 			;;
 	esac
@@ -187,6 +187,7 @@ check_os_arch() {
 IPATH="$__HOME__/.wasmedge"
 VERBOSE=0
 LEGACY=0
+ENABLE_RUSTLS=0
 
 set_ENV() {
 	ENV="#!/bin/sh
@@ -260,14 +261,25 @@ usage() {
 
 	-h,             --help                      Display help
 
-	-p,             --path=[/usr/local]         Prefix / Path to install
+	--legacy                                    Enable legacy OS support.
+													E.g., CentOS 7.
 
-	-l,             --legacy                    Enable legacy OS support.
-													For CentOS 7.
+	-v,             --version                   Install the specific version.
 
 	-V,             --verbose                   Run script in verbose mode.
 													Will print out each step
 													of execution.
+
+	-p,             --path=[/usr/local]         Prefix / Path to install
+
+	--rustls                                    Install the Rustls plugin.
+													Default is disabled.
+
+	--os=[Linux/Darwin]                         Set the OS.
+													Default is detected OS.
+
+	--arch[x86_64/aarch64/arm64]                Set the ARCH.
+													Default is detected ARCH.
 
 	Example:
 	./$0 -p $IPATH --verbose
@@ -436,6 +448,9 @@ main() {
 			p | path)
 				IPATH="$(_realpath "${OPTARG}")"
 				;;
+			rustls)
+				ENABLE_RUSTLS=1
+				;;
 			os)
 				OS="${OPTARG^}"
 				;;
@@ -513,7 +528,11 @@ main() {
 
 		get_wasmedge_release
 		get_wasmedge_ggml_plugin
-		get_wasmedge_rustls_plugin
+
+		if [ "${ENABLE_RUSTLS}" == 1 ]; then
+			get_wasmedge_rustls_plugin
+		fi
+
 		install "$IPKG" "include" "lib" "bin" "plugin"
 		wasmedge_checks "$VERSION" "wasmedge"
 	else

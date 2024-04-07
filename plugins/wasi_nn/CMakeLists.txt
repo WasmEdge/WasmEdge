@@ -197,6 +197,36 @@ if(WASMEDGE_BUILD_WASI_NN_RPC)
   )
 endif()
 
+if(BACKEND STREQUAL "neuralspeed")
+  find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+  execute_process(COMMAND python3-config --cflags
+                OUTPUT_VARIABLE PYTHON_CFLAGS
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+  execute_process(COMMAND python3-config --ldflags --embed
+                OUTPUT_VARIABLE PYTHON_LDFLAGS
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+  separate_arguments(PYTHON_INCLUDES UNIX_COMMAND "${PYTHON_CFLAGS}")
+  foreach(flag ${PYTHON_INCLUDES})
+    if(flag MATCHES "^-I")
+      string(SUBSTRING "${flag}" 2 -1 path)
+      # message(STATUS "Include: ${path}")
+      target_include_directories(wasmedgePluginWasiNN PUBLIC ${path})
+    endif()
+  endforeach()
+  separate_arguments(PYTHON_LIBS UNIX_COMMAND "${PYTHON_LDFLAGS}")
+  foreach(flag ${PYTHON_LIBS})
+    if(flag MATCHES "^-lpython")
+      string(SUBSTRING "${flag}" 2 -1 path)
+      # message(STATUS "LINK: ${path}")
+      target_link_libraries(wasmedgePluginWasiNN PUBLIC ${path})
+    elseif(flag MATCHES "^-L")
+      string(SUBSTRING "${flag}" 2 -1 path)
+      # message(STATUS "LINK: ${path}")
+      target_link_directories(wasmedgePluginWasiNN PUBLIC ${path})
+    endif()
+  endforeach()
+endif()
+
 include(WASINNDeps)
 wasmedge_setup_wasinn_target(wasmedgePluginWasiNN)
 

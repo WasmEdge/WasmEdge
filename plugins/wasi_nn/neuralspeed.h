@@ -2,16 +2,56 @@
 
 #include "plugin/plugin.h"
 #include "types.h"
-
+#include <mutex>
 namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
 }
 
 namespace WasmEdge::Host::WASINN::NeuralSpeed {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
+#include <Python.h>
+struct Graph {
+  bool EnableDebugLog = true;
+  static std::mutex py_mutex;
+  inline static int GraphNumber = 0;
+  Graph() noexcept {
+    py_mutex.lock();
+    if (GraphNumber == 0) {
+      Py_Initialize();
+    }
+    GraphNumber++;
+    py_mutex.unlock();
+  }
+  ~Graph() noexcept {
+    Py_XDECREF(Model);
+    Py_XDECREF(ModelClass);
+    Py_XDECREF(NeuralSpeedModule);
+    py_mutex.lock();
+    if (GraphNumber == 1) {
+      Py_Finalize();
+    }
+    GraphNumber--;
+    py_mutex.unlock();
+  }
+
+  PyObject *Model;
+  PyObject *NeuralSpeedModule;
+  PyObject *ModelClass;
+};
+struct Context {
+  Context(size_t Gid, Graph &) noexcept : GraphId(Gid) {}
+  size_t GraphId;
+  std::vector<long long int> Inputs;
+  std::vector<long long int> Outputs;
+};
+#else
 struct Graph {};
 struct Context {
   Context(size_t, Graph &) noexcept {}
 };
+#endif
+
+
 
 struct Environ {};
 

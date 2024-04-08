@@ -2,6 +2,20 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 string(TOLOWER ${WASMEDGE_PLUGIN_WASI_NN_BACKEND} BACKEND)
+if(BACKEND STREQUAL "whisper")
+  # setup whisper.cpp
+  message(STATUS "Downloading whisper.cpp source")
+  include(FetchContent)
+  FetchContent_Declare(
+    whisper
+    GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
+    GIT_SHALLOW    FALSE
+  )
+  FetchContent_MakeAvailable(whisper)
+  set_property(TARGET whisper PROPERTY POSITION_INDEPENDENT_CODE ON)
+  message(STATUS "Downloading whisper.cpp source -- done")
+endif()
+
 if(BACKEND STREQUAL "ggml")
   # llama.cpp options
   # Disable warnings and debug messages
@@ -57,8 +71,10 @@ if(BACKEND STREQUAL "ggml")
   set_property(TARGET ggml PROPERTY POSITION_INDEPENDENT_CODE ON)
   set_property(TARGET common PROPERTY POSITION_INDEPENDENT_CODE ON)
   set_property(TARGET llama PROPERTY POSITION_INDEPENDENT_CODE ON)
+endif()
 
-  # setup simdjson
+if(BACKEND STREQUAL "whisper" OR BACKEND STREQUAL "ggml" )
+# setup simdjson
   find_package(simdjson QUIET)
   if(simdjson_FOUND)
     message(STATUS "SIMDJSON found")
@@ -70,14 +86,13 @@ if(BACKEND STREQUAL "ggml")
       GIT_REPOSITORY https://github.com/simdjson/simdjson.git
       GIT_TAG  tags/v3.2.1
       GIT_SHALLOW TRUE)
-
     if(MSVC)
       if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         get_property(
           compile_options
           DIRECTORY
           PROPERTY COMPILE_OPTIONS
-          )
+        )
         set_property(
           DIRECTORY
           APPEND
@@ -97,24 +112,26 @@ if(BACKEND STREQUAL "ggml")
           -Wno-format-nonliteral
           -Wno-unused-exception-parameter
           -Wno-unused-member-function
-          )
-        unset(compile_options)
-      elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-        set_property(
-          DIRECTORY
-          APPEND
-          PROPERTY COMPILE_OPTIONS
-          /wd4100 # unreferenced formal parameter
-          )
-      endif()
+        )
+      unset(compile_options)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+      set_property(
+        DIRECTORY
+        APPEND
+        PROPERTY COMPILE_OPTIONS
+        /wd4100 # unreferenced formal parameter
+        )
     endif()
+  endif()
 
-    FetchContent_MakeAvailable(simdjson)
-    set_property(TARGET simdjson PROPERTY POSITION_INDEPENDENT_CODE ON)
+  FetchContent_MakeAvailable(simdjson)
+  set_property(TARGET simdjson PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-    message(STATUS "Downloading SIMDJSON source -- done")
+  message(STATUS "Downloading SIMDJSON source -- done")
   endif()
 endif()
+
+
 
 wasmedge_add_library(wasmedgePluginWasiNN
   SHARED
@@ -123,10 +140,10 @@ wasmedge_add_library(wasmedgePluginWasiNN
   wasinnmodule.cpp
   openvino.cpp
   onnx.cpp
-  tf.cpp
   torch.cpp
   tfl.cpp
   ggml.cpp
+  whispercpp.cpp
 )
 
 target_compile_options(wasmedgePluginWasiNN

@@ -18,7 +18,7 @@ struct WasiNNEnvironment;
 namespace WasmEdge::Host::WASINN::WHISPER {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 struct Graph {
-  // whisper_model *WhisperModel = nullptr;
+  whisper_model *WhisperModel = nullptr;
   std::string ModelFilePath;
   // Plugin parameters:
   bool EnableLog = false;

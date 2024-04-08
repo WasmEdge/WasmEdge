@@ -22,7 +22,7 @@ Expect<ErrNo> load([[maybe_unused]] WasiNNEnvironment &Env,
                    [[maybe_unused]] uint32_t &GraphId) noexcept {
   Env.NNGraph.emplace_back(Backend::WHISPER);
   auto &GraphRef = Env.NNGraph.back().get<Graph>();
-  truct whisper_context_params ContextDefault =
+  struct whisper_context_params ContextDefault =
       whisper_context_default_params(); // from whisper.cpp
   GraphRef.EnableLog = false;
   GraphRef.EnableDebugLog = false;

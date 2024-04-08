@@ -6,8 +6,8 @@ TODIR=$1
 if [[ $# -eq 0 ]]; then
     TODIR=.
 fi
-MODEL=orca_mini.gguf
-FIXTURE=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/blob/main/llama-2-7b-chat.Q4_0.gguf
+MODEL=llama-2-7b-chat.Q4_0.gguf
+FIXTURE=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q4_0.gguf
 if [ ! -d $TODIR ]; then
     mkdir $TODIR
 fi

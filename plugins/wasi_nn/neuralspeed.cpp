@@ -1,21 +1,27 @@
 #include "neuralspeed.h"
 #include "wasinnenv.h"
-
+#include <variant>
 namespace WasmEdge::Host::WASINN::NeuralSpeed {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            Span<const Span<uint8_t>> Builders, WASINN::Device,
                            uint32_t &) noexcept {
+  spdlog::info("[WASI-NN][Debug] Neural speed: test"sv);
   // Add a new graph.
-  Env.NNGraph.emplace_back(Backend::GGML);
+  Env.NNGraph.emplace_back(Backend::NeuralSpeed);
   auto &GraphRef = Env.NNGraph.back().get<Graph>();
 
   // Initialize the plugin parameters.
   GraphRef.EnableDebugLog = true;
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] Neural speed backend: Load."sv);
+  }
   // Handle the model path.
   auto Weight = Builders[0];
   const std::string BinModel(reinterpret_cast<char *>(Weight.data()),
                              Weight.size());
+  spdlog::info("[WASI-NN][Debug] Neural speed: BinModel: {}"sv,
+               BinModel.size());
   std::string ModelFilePath;
   if (BinModel.substr(0, 8) == "preload:") {
     ModelFilePath = BinModel.substr(8);
@@ -28,7 +34,9 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     // TODO: pass the model directly to ggml
     // Write neural speed model to file.
     ModelFilePath = "neural-speed-model.bin"sv;
-    std::ofstream TempFile(ModelFilePath);
+    std::ofstream TempFile(ModelFilePath, std::ios::binary);
+    TempFile.imbue(
+        std::locale(TempFile.getloc(), new std::codecvt_utf8<wchar_t>));
     if (!TempFile) {
       spdlog::error(
           "[WASI-NN] Neural speed: Failed to create the temporary file. "
@@ -51,9 +59,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   }
 
   // Create Model class
-  PyObject *moduleName = PyUnicode_FromString("neural_speed");
-  GraphRef.NeuralSpeedModule = PyImport_Import(moduleName);
-  Py_DECREF(moduleName);
+  GraphRef.NeuralSpeedModule =
+      PyImport_Import(PyUnicode_FromString("neural_speed"));
   if (GraphRef.NeuralSpeedModule == nullptr) {
     spdlog::error(
         "[WASI-NN] neural speed backend: Can not find neural speed library."sv);
@@ -68,9 +75,10 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     return WASINN::ErrNo::RuntimeError;
   }
   GraphRef.Model = PyObject_CallObject(GraphRef.ModelClass, NULL);
-  PyObject *LoadResult = PyObject_CallMethod(GraphRef.Model, "init_from_bin",
-                                             "llama", ModelFilePath);
+  PyObject *LoadResult = PyObject_CallMethod(
+      GraphRef.Model, "init_from_bin", "(ss)", "llama", ModelFilePath.c_str());
   if (LoadResult == nullptr) {
+    PyErr_Print();
     spdlog::error("[WASI-NN] neural speed backend: Load model error."sv);
     return WASINN::ErrNo::RuntimeError;
   }
@@ -101,7 +109,7 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                   "4 bytes."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
-  std::vector<long long int> Prompt{
+  const std::vector<long long int> Prompt{
       reinterpret_cast<const long int *>(Tensor.Tensor.data()),
       reinterpret_cast<const long *>(Tensor.Tensor.data() +
                                      Tensor.Tensor.size())};
@@ -118,10 +126,10 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Neural speed backend: getOutput"sv);
   }
-  std::string stmp(reinterpret_cast<const char *>(CxtRef.Outputs.data()),
-                   CxtRef.Outputs.size() * sizeof(long long int));
-  std::copy_n(stmp.data(), stmp.length(), OutBuffer.data());
-  BytesWritten = stmp.length();
+  std::string StringTmp(reinterpret_cast<const char *>(CxtRef.Outputs.data()),
+                        CxtRef.Outputs.size() * sizeof(long long int));
+  std::copy_n(StringTmp.data(), StringTmp.length(), OutBuffer.data());
+  BytesWritten = StringTmp.length();
   return WASINN::ErrNo::Success;
 }
 Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
@@ -137,24 +145,24 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   }
   CxtRef.Outputs.clear();
   PyObject *TensorList = PyList_New(0);
-  for (size_t i = 0; i < CxtRef.Inputs.size(); ++i) {
-    PyObject *num = PyLong_FromLong(CxtRef.Inputs[i]);
-    PyList_Append(TensorList, num);
-    Py_DECREF(num);
+  for (size_t Cnt = 0; Cnt < CxtRef.Inputs.size(); ++Cnt) {
+    PyObject *Num = PyLong_FromLong(CxtRef.Inputs[Cnt]);
+    PyList_Append(TensorList, Num);
+    Py_DECREF(Num);
   }
   PyObject *TmpArg = PyList_New(0);
   PyList_Append(TmpArg, TensorList);
-  Py_DECREF(TensorList);
-  PyObject *torchModule = PyImport_ImportModule("torch");
-  if (torchModule == nullptr) {
+  PyObject *TorchModule = PyImport_ImportModule("torch");
+  if (TorchModule == nullptr) {
     spdlog::error(
         "[WASI-NN] neural speed backend: Can not find torch library."sv);
     return WASINN::ErrNo::RuntimeError;
   }
-  PyObject *LongTensorFunc = PyObject_GetAttrString(torchModule, "LongTensor");
+  PyObject *LongTensorFunc = PyObject_GetAttrString(TorchModule, "LongTensor");
   PyObject *LongTensorArgs = PyTuple_Pack(1, TmpArg);
   PyObject *LongTensor = PyObject_CallObject(LongTensorFunc, LongTensorArgs);
-  Py_DECREF(torchModule);
+  Py_DECREF(TensorList);
+  Py_DECREF(TorchModule);
   Py_DECREF(LongTensorFunc);
   Py_DECREF(TmpArg);
   Py_DECREF(LongTensorArgs);
@@ -163,33 +171,34 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
         "[WASI-NN] neural speed backend: Input transfer tensor failed."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
-  PyObject *GenerateArgs = PyTuple_Pack(1, LongTensor);
-  PyObject *result = PyObject_CallMethodObjArgs(
-      GraphRef.Model, PyUnicode_FromString("generate"), GenerateArgs, NULL);
-  if (result == nullptr) {
+  // PyObject *GenerateArgs = PyTuple_Pack(1, LongTensor);
+  PyObject *Result = PyObject_CallMethodObjArgs(
+      GraphRef.Model, PyUnicode_FromString("generate"), LongTensor, NULL);
+  if (Result == nullptr) {
+    PyErr_Print();
     spdlog::error(
         "[WASI-NN] neural speed backend: Neural Speed runtime error."sv);
     return WASINN::ErrNo::RuntimeError;
   }
-  if (PyList_Check(result)) {
-    Py_ssize_t outerSize = PyList_Size(result);
-    for (Py_ssize_t i = 0; i < outerSize; ++i) {
-      PyObject *innerList = PyList_GetItem(result, i);
-      if (PyList_Check(innerList)) {
-        std::vector<long long int> innerVec;
-        Py_ssize_t innerSize = PyList_Size(innerList);
-        for (Py_ssize_t j = 0; j < innerSize; ++j) {
-          PyObject *num = PyList_GetItem(innerList, j);
-          if (PyLong_Check(num)) {
-            innerVec.push_back(PyLong_AsLong(num));
+  if (PyList_Check(Result)) {
+    const Py_ssize_t OuterSize = PyList_Size(Result);
+    for (Py_ssize_t OutterCnt = 0; OutterCnt < OuterSize; ++OutterCnt) {
+      PyObject *InnerList = PyList_GetItem(Result, OutterCnt);
+      if (PyList_Check(InnerList)) {
+        std::vector<long long int> InnerVec;
+        const Py_ssize_t InnerSize = PyList_Size(InnerList);
+        for (Py_ssize_t InnerCnt = 0; InnerCnt < InnerSize; ++InnerCnt) {
+          PyObject *Num = PyList_GetItem(InnerList, InnerCnt);
+          if (PyLong_Check(Num)) {
+            InnerVec.push_back(PyLong_AsLong(Num));
           }
         }
-        CxtRef.Outputs = innerVec;
+        CxtRef.Outputs = InnerVec;
       }
     }
   }
-  Py_DECREF(result);
-  Py_DECREF(GenerateArgs);
+  Py_DECREF(Result);
+  // Py_DECREF(GenerateArgs);
   Py_DECREF(LongTensor);
   return WASINN::ErrNo::Success;
 }

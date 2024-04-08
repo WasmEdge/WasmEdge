@@ -1756,23 +1756,26 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
       "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(400)));
+                    WasmEdge::AST::MemoryType(60000)));
   auto *MemInstPtr = Mod.findMemoryExports("memory");
   ASSERT_TRUE(MemInstPtr != nullptr);
   auto &MemInst = *MemInstPtr;
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
   // Load the files.
-  std::string Prompt = "Once upon a time, ";
-  std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
-  std::vector<uint8_t> WeightRead =
-      readEntireFile("./wasinn_neuralspeed_fixtures/llama-2-7b-chat.Q4_0.gguf");
+  std::vector<long long int> Prompt = {1,   9038,  2501, 263,  931,  29892,
+                                       727, 22856, 263,  2217, 7826, 29892};
+  std::string tmp(reinterpret_cast<const char *>(Prompt.data()),
+                  Prompt.size() * sizeof(long long int));
+  std::vector<uint8_t> TensorData(tmp.begin(), tmp.end());
+  std::vector<uint8_t> WeightRead = readEntireFile(
+      "./wasinn_neural_speed_fixtures/llama-2-7b-chat.Q4_0.gguf");
 
   std::vector<uint32_t> TensorDim{1};
   uint32_t BuilderPtr = UINT32_C(0);
   uint32_t LoadEntryPtr = UINT32_C(0);
   uint32_t SetInputEntryPtr = UINT32_C(0);
-//   uint32_t OutBoundPtr = UINT32_C(61000 * 65536);
+  //   uint32_t OutBoundPtr = UINT32_C(61000 * 65536);
   uint32_t StorePtr = UINT32_C(65536);
 
   // Return value.
@@ -1816,11 +1819,13 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
   writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr);
   StorePtr += WeightRead.size();
   {
-    EXPECT_TRUE(HostFuncLoad.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{
-            LoadEntryPtr, UINT32_C(1), static_cast<uint32_t>(Backend::NeuralSpeed), UINT32_C(0), BuilderPtr},
-        Errno));
+    EXPECT_TRUE(
+        HostFuncLoad.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             LoadEntryPtr, UINT32_C(1),
+                             static_cast<uint32_t>(Backend::NeuralSpeed),
+                             UINT32_C(0), BuilderPtr},
+                         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
     BuilderPtr += 4;
@@ -1831,10 +1836,10 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1), BuilderPtr},
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), BuilderPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
-    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 1);
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
     BuilderPtr += 4;
   }
 
@@ -1852,7 +1857,7 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
     EXPECT_TRUE(
         HostFuncSetInput.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
-                                 UINT32_C(1), UINT32_C(0), SetInputEntryPtr},
+                                 UINT32_C(0), UINT32_C(0), SetInputEntryPtr},
                              Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }

@@ -59,8 +59,8 @@ public:
 
     using namespace std::literals::string_view_literals;
     WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-        "../../../plugins/wasmedge_ffmpeg/"
-        "libwasmedgePluginWasmEdgeFFmpeg" WASMEDGE_LIB_EXTENSION));
+        "../../../plugins/wasmedge_ffmpeg/" WASMEDGE_LIB_PREFIX
+        "wasmedgePluginWasmEdgeFFmpeg" WASMEDGE_LIB_EXTENSION));
     if (const auto *Plugin =
             WasmEdge::Plugin::Plugin::find("wasmedge_ffmpeg"sv)) {
       if (const auto *Module =

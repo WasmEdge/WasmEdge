@@ -427,7 +427,7 @@ INLINE void hasher_merge_cv_stack(blake3_hasher *self, uint64_t total_len) {
 //    of the whole tree, and it would need to be ROOT finalized. We can't
 //    compress it until we know.
 // 2) This 64 KiB input might complete a larger tree, whose root node is
-//    similarly going to be the the root of the whole tree. For example, maybe
+//    similarly going to be the root of the whole tree. For example, maybe
 //    we have 196 KiB (that is, 128 + 64) hashed so far. We can't compress the
 //    node at the root of the 256 KiB subtree until we know how to finalize it.
 //

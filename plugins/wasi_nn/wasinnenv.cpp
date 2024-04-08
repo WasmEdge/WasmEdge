@@ -15,6 +15,7 @@ namespace Host {
 
 namespace WASINN {
 
+namespace {
 Runtime::Instance::ModuleInstance *
 create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
   return new WasiNNModule;
@@ -49,6 +50,7 @@ bool load(const std::filesystem::path &Path, std::vector<uint8_t> &Data) {
   File.close();
   return true;
 }
+} // namespace
 
 WasiNNEnvironment::WasiNNEnvironment() noexcept {
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
@@ -130,6 +132,7 @@ PO::Option<std::string> WasiNNEnvironment::NNRPCURI(
     PO::MetaVar("URI"sv), PO::DefaultValue(std::string("")));
 #endif
 
+namespace {
 void addOptions(const Plugin::Plugin::PluginDescriptor *,
                 PO::ArgumentParser &Parser) noexcept {
   Parser.add_option("nn-preload"sv, WasiNNEnvironment::NNModels);
@@ -157,6 +160,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
         },
     .AddOptions = addOptions,
 };
+} // namespace
 
 EXPORT_GET_DESCRIPTOR(Descriptor)
 

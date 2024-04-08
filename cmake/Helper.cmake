@@ -18,7 +18,6 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   list(APPEND WASMEDGE_CFLAGS
-    /std:c++17
     /WX
     /W4
     /we5030 # treat unknown attribute as error

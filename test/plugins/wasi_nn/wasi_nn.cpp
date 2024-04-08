@@ -24,9 +24,9 @@ namespace {
 WasmEdge::Runtime::Instance::ModuleInstance *
 createModule(std::string_view NNRPCURI = "") {
   using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/wasi_nn/"
-      "libwasmedgePluginWasiNN" WASMEDGE_LIB_EXTENSION));
+  WasmEdge::Plugin::Plugin::load(
+      std::filesystem::u8path("../../../plugins/wasi_nn/" WASMEDGE_LIB_PREFIX
+                              "wasmedgePluginWasiNN" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_nn"sv)) {
     WasmEdge::PO::ArgumentParser Parser;
     Plugin->registerOptions(Parser);
@@ -46,10 +46,10 @@ inline std::vector<uint8_t> readEntireFile(const std::string &Path) {
     return {};
   }
   Fin.seekg(0, std::ios::end);
-  std::vector<uint8_t> Buf(static_cast<size_t>(Fin.tellg()));
+  std::vector<uint8_t> Buf(static_cast<std::size_t>(Fin.tellg()));
   Fin.seekg(0, std::ios::beg);
   if (!Fin.read(reinterpret_cast<char *>(Buf.data()),
-                static_cast<size_t>(Buf.size()))) {
+                static_cast<std::streamsize>(Buf.size()))) {
     return {};
   }
   Fin.close();
@@ -75,6 +75,9 @@ void writeFatPointer(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
   writeUInt32(MemInst, PtrSize, Ptr);
 }
 
+#if defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO) ||                       \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH) ||                          \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE)
 template <typename T>
 std::vector<size_t> classSort(WasmEdge::Span<const T> Array) {
   std::vector<size_t> Indices(Array.size());
@@ -86,6 +89,7 @@ std::vector<size_t> classSort(WasmEdge::Span<const T> Array) {
             });
   return Indices;
 }
+#endif
 } // namespace
 #endif
 
@@ -194,9 +198,10 @@ TEST(WasiNNTest, OpenVINOBackend) {
 
   // Test: load -- OpenVINO model xml ptr out of bounds.
   BuilderPtr = LoadEntryPtr;
-  writeFatPointer(MemInst, OutBoundPtr, XmlRead.size(), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + XmlRead.size(), WeightRead.size(),
+  writeFatPointer(MemInst, OutBoundPtr, static_cast<uint32_t>(XmlRead.size()),
                   BuilderPtr);
+  writeFatPointer(MemInst, StorePtr + static_cast<uint32_t>(XmlRead.size()),
+                  static_cast<uint32_t>(WeightRead.size()), BuilderPtr);
   {
     EXPECT_TRUE(HostFuncLoad.run(
         CallFrame,
@@ -209,8 +214,10 @@ TEST(WasiNNTest, OpenVINOBackend) {
 
   // Test: load -- OpenVINO model bin ptr out of bounds.
   BuilderPtr = LoadEntryPtr;
-  writeFatPointer(MemInst, StorePtr, XmlRead.size(), BuilderPtr);
-  writeFatPointer(MemInst, OutBoundPtr, WeightRead.size(), BuilderPtr);
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(XmlRead.size()),
+                  BuilderPtr);
+  writeFatPointer(MemInst, OutBoundPtr,
+                  static_cast<uint32_t>(WeightRead.size()), BuilderPtr);
   {
     EXPECT_TRUE(HostFuncLoad.run(
         CallFrame,
@@ -223,9 +230,10 @@ TEST(WasiNNTest, OpenVINOBackend) {
 
   // Test: load -- wrong builders' length.
   BuilderPtr = LoadEntryPtr;
-  writeFatPointer(MemInst, StorePtr, XmlRead.size(), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + XmlRead.size(), WeightRead.size(),
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(XmlRead.size()),
                   BuilderPtr);
+  writeFatPointer(MemInst, StorePtr + static_cast<uint32_t>(XmlRead.size()),
+                  static_cast<uint32_t>(WeightRead.size()), BuilderPtr);
   writeBinaries<uint8_t>(MemInst, XmlRead, StorePtr);
   writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr + XmlRead.size());
   StorePtr += (XmlRead.size() + WeightRead.size());
@@ -326,10 +334,12 @@ TEST(WasiNNTest, OpenVINOBackend) {
 
   // OpenVINO WASI-NN set_input tests.
   SetInputEntryPtr = BuilderPtr;
-  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
                   BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
   writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
   writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
 
@@ -375,10 +385,12 @@ TEST(WasiNNTest, OpenVINOBackend) {
 
   // Test: set_input -- tensor type not FP32.
   BuilderPtr = SetInputEntryPtr;
-  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(2), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
                   BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(2), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
   {
     EXPECT_TRUE(
         HostFuncSetInput.run(CallFrame,
@@ -391,10 +403,12 @@ TEST(WasiNNTest, OpenVINOBackend) {
 
   // Test: set_input -- set input successfully.
   BuilderPtr = SetInputEntryPtr;
-  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
                   BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
   {
     EXPECT_TRUE(
         HostFuncSetInput.run(CallFrame,
@@ -598,7 +612,8 @@ TEST(WasiNNTest, PyTorchBackend) {
   }
   // Test: load -- Torch model bin ptr out of bounds.
   BuilderPtr = LoadEntryPtr;
-  writeFatPointer(MemInst, OutBoundPtr, WeightRead.size(), BuilderPtr);
+  writeFatPointer(MemInst, OutBoundPtr,
+                  static_cast<uint32_t>(WeightRead.size()), BuilderPtr);
   {
     EXPECT_TRUE(HostFuncLoad.run(CallFrame,
                                  std::initializer_list<WasmEdge::ValVariant>{
@@ -612,7 +627,8 @@ TEST(WasiNNTest, PyTorchBackend) {
 
   // Test: load -- wrong builders' length.
   BuilderPtr = LoadEntryPtr;
-  writeFatPointer(MemInst, StorePtr, WeightRead.size(), BuilderPtr);
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(WeightRead.size()),
+                  BuilderPtr);
   writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr);
   StorePtr += WeightRead.size();
   {
@@ -717,10 +733,12 @@ TEST(WasiNNTest, PyTorchBackend) {
 
   // Torch WASI-NN set_input tests.
   SetInputEntryPtr = BuilderPtr;
-  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
                   BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
   writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
   writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
 
@@ -739,10 +757,12 @@ TEST(WasiNNTest, PyTorchBackend) {
 
   // Test: set_input -- tensor type not FP32.
   BuilderPtr = SetInputEntryPtr;
-  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(2), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
                   BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(2), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
   {
     EXPECT_TRUE(
         HostFuncSetInput.run(CallFrame,
@@ -755,10 +775,12 @@ TEST(WasiNNTest, PyTorchBackend) {
 
   // Test: set_input -- set input successfully.
   BuilderPtr = SetInputEntryPtr;
-  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
                   BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
   {
     EXPECT_TRUE(
         HostFuncSetInput.run(CallFrame,
@@ -966,7 +988,8 @@ TEST(WasiNNTest, TFLiteBackend) {
   }
   // Test: load -- model bin ptr out of bounds.
   BuilderPtr = LoadEntryPtr;
-  writeFatPointer(MemInst, OutBoundPtr, WeightRead.size(), BuilderPtr);
+  writeFatPointer(MemInst, OutBoundPtr,
+                  static_cast<uint32_t>(WeightRead.size()), BuilderPtr);
   {
     EXPECT_TRUE(
         HostFuncLoad.run(CallFrame,
@@ -981,7 +1004,8 @@ TEST(WasiNNTest, TFLiteBackend) {
 
   // Test: load -- wrong builders' length.
   BuilderPtr = LoadEntryPtr;
-  writeFatPointer(MemInst, StorePtr, WeightRead.size(), BuilderPtr);
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(WeightRead.size()),
+                  BuilderPtr);
   writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr);
   StorePtr += WeightRead.size();
   {
@@ -1089,10 +1113,12 @@ TEST(WasiNNTest, TFLiteBackend) {
 
   // Torch WASI-NN set_input tests.
   SetInputEntryPtr = BuilderPtr;
-  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
                   BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
   writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
   writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
 
@@ -1111,11 +1137,13 @@ TEST(WasiNNTest, TFLiteBackend) {
 
   // Test: set_input -- set input successfully.
   BuilderPtr = SetInputEntryPtr;
-  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                  BuilderPtr);
   // Tensor type U8
   writeUInt32(MemInst, UINT32_C(2), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
-                  BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
   {
     EXPECT_TRUE(
         HostFuncSetInput.run(CallFrame,
@@ -1318,7 +1346,8 @@ TEST(WasiNNTest, GGMLBackend) {
 
   // Test: load -- GGML model bin ptr out of bounds.
   BuilderPtr = LoadEntryPtr;
-  writeFatPointer(MemInst, OutBoundPtr, WeightRead.size(), BuilderPtr);
+  writeFatPointer(MemInst, OutBoundPtr,
+                  static_cast<uint32_t>(WeightRead.size()), BuilderPtr);
   {
     EXPECT_TRUE(HostFuncLoad.run(CallFrame,
                                  std::initializer_list<WasmEdge::ValVariant>{
@@ -1332,7 +1361,8 @@ TEST(WasiNNTest, GGMLBackend) {
 
   // Test: load -- wrong metadata encoding when builders length > 1.
   BuilderPtr = LoadEntryPtr;
-  writeFatPointer(MemInst, StorePtr, WeightRead.size(), BuilderPtr);
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(WeightRead.size()),
+                  BuilderPtr);
   writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr);
   StorePtr += WeightRead.size();
   {
@@ -1383,12 +1413,16 @@ TEST(WasiNNTest, GGMLBackend) {
 
   // GGML WASI-NN set_input tests.
   SetInputEntryPtr = BuilderPtr;
-  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
                   BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
   writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
-  writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
+  writeBinaries<uint8_t>(MemInst, TensorData,
+                         StorePtr +
+                             static_cast<uint32_t>(TensorDim.size()) * 4);
 
   // Test: set_input -- context id exceeds.
   {
@@ -1403,10 +1437,12 @@ TEST(WasiNNTest, GGMLBackend) {
 
   // Test: set_input -- set input successfully.
   BuilderPtr = SetInputEntryPtr;
-  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
                   BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
   {
     EXPECT_TRUE(
         HostFuncSetInput.run(CallFrame,
@@ -1615,10 +1651,12 @@ TEST(WasiNNTest, GGMLBackendWithRPC) {
 
   // GGML WASI-NN set_input tests.
   SetInputEntryPtr = BuilderPtr;
-  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
                   BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
   writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
   writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
 
@@ -1634,10 +1672,12 @@ TEST(WasiNNTest, GGMLBackendWithRPC) {
 
   // Test: set_input -- set input successfully.
   BuilderPtr = SetInputEntryPtr;
-  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
                   BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
   {
     EXPECT_TRUE(
         HostFuncSetInput.run(CallFrame,

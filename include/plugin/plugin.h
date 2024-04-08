@@ -146,8 +146,8 @@ public:
   std::filesystem::path path() const noexcept { return Path; }
 
 private:
-  static std::vector<Plugin> &PluginRegistry;
-  static std::unordered_map<std::string_view, std::size_t> &PluginNameLookup;
+  static std::vector<Plugin> PluginRegistry;
+  static std::unordered_map<std::string_view, std::size_t> PluginNameLookup;
 
   std::filesystem::path Path;
   const PluginDescriptor *Desc = nullptr;
@@ -158,7 +158,7 @@ private:
   static bool loadFile(const std::filesystem::path &Path) noexcept;
 
 public:
-  WASMEDGE_EXPORT static void
+  WASMEDGE_EXPORT static bool
   registerPlugin(const PluginDescriptor *Desc) noexcept;
 };
 

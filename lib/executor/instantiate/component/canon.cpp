@@ -5,6 +5,7 @@
 
 #include "runtime/instance/module.h"
 
+#include <sstream>
 #include <string_view>
 #include <variant>
 
@@ -14,17 +15,135 @@ namespace Executor {
 using namespace AST::Component;
 using namespace Runtime;
 
-std::string funcType_fmt(const WasmEdge::AST::FunctionType &FT) {
-  std::string TyStr{};
-  std::ostringstream TyInfo;
-  for (auto P : FT.getParamTypes()) {
-    TyInfo << fmt::format("{} ", P);
+namespace {
+void pushType(Runtime::Instance::ComponentInstance &Comp,
+              std::vector<ValType> &Types, const ValueType &T) {
+  // notice that we might need to convert one type to multiple types, and hence,
+  // we must let this function control the vector need to be modified.
+  if (std::holds_alternative<PrimValType>(T)) {
+    switch (std::get<PrimValType>(T)) {
+    case PrimValType::Bool:
+    case PrimValType::Char:
+    case PrimValType::S8:
+    case PrimValType::U8:
+      Types.push_back(TypeCode::I8);
+      break;
+    case PrimValType::S16:
+    case PrimValType::U16:
+      Types.push_back(TypeCode::I16);
+      break;
+    case PrimValType::S32:
+    case PrimValType::U32:
+      Types.push_back(TypeCode::I32);
+      break;
+    case PrimValType::S64:
+    case PrimValType::U64:
+      Types.push_back(TypeCode::I64);
+      break;
+    case PrimValType::Float32:
+      Types.push_back(TypeCode::F32);
+      break;
+    case PrimValType::Float64:
+      Types.push_back(TypeCode::F64);
+      break;
+    case PrimValType::String:
+      Types.push_back(TypeCode::I32);
+      Types.push_back(TypeCode::I32);
+      break;
+    }
+  } else {
+    auto Idx = std::get<TypeIndex>(T);
+    spdlog::info("index: {}", T);
+    const auto &T = Comp.getType(Idx);
+    spdlog::info("{} ", T);
   }
-  TyInfo << "-> ";
-  for (auto R : FT.getReturnTypes()) {
-    TyInfo << fmt::format("{} ", R);
+}
+
+AST::FunctionType convert(Runtime::Instance::ComponentInstance &Comp,
+                          const FuncType &DT) {
+  std::vector<ValType> ParamTypes{};
+  for (const auto &P : DT.getParamList()) {
+    pushType(Comp, ParamTypes, P.getValType());
   }
-  return TyInfo.str();
+
+  std::vector<ValType> ResultTypes{};
+  if (std::holds_alternative<ValueType>(DT.getResultList())) {
+    pushType(Comp, ResultTypes, std::get<ValueType>(DT.getResultList()));
+  } else {
+    const auto &RL = DT.getResultList();
+    for (const auto &R : std::get<std::vector<LabelValType>>(RL)) {
+      pushType(Comp, ResultTypes, R.getValType());
+    }
+  }
+
+  return AST::FunctionType(ParamTypes, ResultTypes);
+}
+} // namespace
+
+class LiftTrans : public HostFunctionBase {
+public:
+  LiftTrans(Executor *Exec, const FuncType &DefinedType,
+            Instance::FunctionInstance *Func,
+            Runtime::Instance::ComponentInstance &Comp)
+      : HostFunctionBase(0), Exec(Exec), LowerFunc(Func) {
+    auto &FT = DefType.getCompositeType().getFuncType();
+    FT = convert(Comp, DefinedType);
+    spdlog::info("lifted: {}", FT);
+  }
+
+  Expect<void> run(const Runtime::CallingFrame &, Span<const ValVariant> Args,
+                   Span<ValVariant>) override {
+    auto LowerFuncType = LowerFunc->getFuncType();
+
+    uint32_t PI = 0;
+    std::vector<ValVariant> LowerArgs{};
+    for (auto &ParamTy : LowerFuncType.getParamTypes()) {
+      switch (ParamTy.getCode()) {
+      case TypeCode::String: {
+        const StrVariant &Str = Args[PI++].get<StrVariant>();
+        // TODO: use variant position instead of fixed 0
+        LowerArgs.push_back(ValVariant(0));
+        // size of string
+        LowerArgs.push_back(ValVariant(Str.getPtr()->getLength()));
+        break;
+      }
+      default: {
+        // usual type has no need conversion
+        const ValVariant &Arg = Args[PI++];
+        LowerArgs.push_back(Arg);
+        break;
+      }
+      }
+    }
+
+    auto Res =
+        Exec->invoke(LowerFunc, LowerArgs, LowerFuncType.getParamTypes());
+    if (!Res) {
+      return Unexpect(Res);
+    }
+
+    // TODO: push `Res` into result span
+    return {};
+  }
+
+private:
+  Executor *Exec;
+  Instance::FunctionInstance *LowerFunc;
+  // Instance::MemoryInstance *Memory;
+  // Instance::FunctionInstance *Realloc;
+};
+
+std::unique_ptr<Instance::FunctionInstance>
+Executor::lifting(Runtime::Instance::ComponentInstance &Comp,
+                  const FuncType &FuncType, Instance::FunctionInstance *Func,
+                  Instance::MemoryInstance *, Instance::FunctionInstance *) {
+  // TODO:
+  // 1. convert `FuncType` to wasmedge internal function type
+  // 2. load data from lower instance
+
+  auto R = std::make_unique<Instance::FunctionInstance>(
+      std::make_unique<LiftTrans>(this, FuncType, Func, Comp));
+  return R;
 }
 
 class LowerTrans : public HostFunctionBase {
@@ -36,8 +155,7 @@ public:
         Realloc(Realloc) {
     const auto HigherType = HigherFunc->getFuncType();
 
-    auto &CompositeType = DefType.getCompositeType();
-    auto &FuncType = CompositeType.getFuncType();
+    auto &FuncType = DefType.getCompositeType().getFuncType();
     for (auto &ParamTy : HigherType.getParamTypes()) {
       switch (ParamTy.getCode()) {
       case TypeCode::String:
@@ -61,14 +179,16 @@ public:
         break;
       }
     }
+
+    spdlog::info("lower: {}", FuncType);
   }
 
   Expect<void> run(const Runtime::CallingFrame &, Span<const ValVariant> Args,
-                   Span<ValVariant> Rets) {
+                   Span<ValVariant> Rets) override {
     auto HigherFuncType = HigherFunc->getFuncType();
 
     uint32_t PI = 0;
-    std::vector<const ValVariant> HigherArgs{};
+    std::vector<ValVariant> HigherArgs{};
     for (auto &ParamTy : HigherFuncType.getParamTypes()) {
       switch (ParamTy.getCode()) {
       case TypeCode::String: {
@@ -76,20 +196,21 @@ public:
         auto Len = Args[PI++];
         std::string_view V =
             Memory->getStringView(Idx.get<uint32_t>(), Len.get<uint32_t>());
-        std::string S = {V.begin(), V.end()};
-        HigherArgs.emplace_back(
+        std::string S{V.begin(), V.end()};
+        HigherArgs.push_back(
             StrVariant(new Instance::StringInstance(std::move(S))));
         break;
       }
       default:
         // usual type has no need conversion
-        HigherArgs.emplace_back(Args[PI++]);
+        const ValVariant &Arg = Args[PI++];
+        HigherArgs.push_back(Arg);
         break;
       }
     }
 
     auto Res =
-        Exec->invoke(HigherFunc, HigherArgs, HigherFuncType.getReturnTypes());
+        Exec->invoke(HigherFunc, HigherArgs, HigherFuncType.getParamTypes());
     if (!Res) {
       return Unexpect(Res);
     }
@@ -98,20 +219,22 @@ public:
     for (auto &[RetVal, RetTy] : *Res) {
       switch (RetTy.getCode()) {
       case TypeCode::String: {
-        auto Ptr = RetVal.get<StrVariant>().getPtr();
-        auto const Str = Ptr->getString();
-        ValVariant StrSize = static_cast<uint32_t>(Str.size());
+        auto const &Str = RetVal.get<StrVariant>().getPtr()->getString();
 
-        std::vector<const ValVariant> ReallocArgs{0, 0, 0, StrSize};
+        auto StrSize = static_cast<uint32_t>(Str.size());
+        std::vector<ValVariant> ReallocArgs{ValVariant(0), ValVariant(0),
+                                            ValVariant(0), ValVariant(StrSize)};
         auto RPtr = Exec->invoke(Realloc, ReallocArgs,
-                                 Realloc->getFuncType().getReturnTypes());
+                                 Realloc->getFuncType().getParamTypes());
         if (!RPtr) {
           return Unexpect(RPtr);
         }
-        // notice a higher function is expected only returning one result
         ValVariant V = (*RPtr)[0].first;
+
+        Memory->setBytes(std::vector<Byte>{Str.begin(), Str.end()},
+                         V.get<uint32_t>(), 0, Str.size());
         Rets[RI++] = V;
-        Rets[RI++] = StrSize;
+        Rets[RI++] = ValVariant(StrSize);
         break;
       }
       default:
@@ -150,35 +273,48 @@ Executor::instantiate(Runtime::StoreManager &,
 
       auto L = std::get<Lift>(C);
 
-      auto *FuncInst = CompInst.getCoreFunctionInstance(L.getCoreFuncIndex());
-
       auto &Opts = L.getOptions();
-      // TODO
+
+      Runtime::Instance::MemoryInstance *Mem = nullptr;
+      Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
       for (auto &Opt : Opts) {
         if (std::holds_alternative<StringEncoding>(Opt)) {
           spdlog::warn("incomplete canonical option `string-encoding`");
         } else if (std::holds_alternative<Memory>(Opt)) {
-          spdlog::warn("incomplete canonical option `memory`");
+          auto MemIdx = std::get<Memory>(Opt).getMemIndex();
+          Mem = CompInst.getCoreMemoryInstance(MemIdx);
         } else if (std::holds_alternative<Realloc>(Opt)) {
-          spdlog::warn("incomplete canonical option `realloc`");
+          ReallocFunc = CompInst.getCoreFunctionInstance(
+              std::get<Realloc>(Opt).getFuncIndex());
         } else if (std::holds_alternative<PostReturn>(Opt)) {
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
           return Unexpect(ErrCode::Value::InvalidCanonOption);
         }
       }
 
-      CompInst.addFunctionInstance(FuncInst);
+      const auto &AstFuncType = CompInst.getType(L.getFuncTypeIndex());
+      if (std::holds_alternative<FuncType>(AstFuncType)) {
+        auto *FuncInst = CompInst.getCoreFunctionInstance(L.getCoreFuncIndex());
+        CompInst.addFunctionInstance(lifting(CompInst,
+                                             std::get<FuncType>(AstFuncType),
+                                             FuncInst, Mem, ReallocFunc));
+      } else {
+        spdlog::error("cannot lift a non-function");
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
+        return Unexpect(ErrCode::Value::InvalidCanonOption);
+      }
     } else if (std::holds_alternative<Lower>(C)) {
       // lower sends a component function to a core wasm function, with proper
       // modification about canonical ABI.
       auto L = std::get<Lower>(C);
 
-      Runtime::Instance::MemoryInstance *Mem;
-      Runtime::Instance::FunctionInstance *ReallocFunc;
+      Runtime::Instance::MemoryInstance *Mem = nullptr;
+      Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
       auto &Opts = L.getOptions();
       for (auto &Opt : Opts) {
         if (std::holds_alternative<StringEncoding>(Opt)) {
           spdlog::warn("incomplete canonical option `string-encoding`");
+          return Unexpect(ErrCode::Value::InvalidCanonOption);
         } else if (std::holds_alternative<Memory>(Opt)) {
           auto MemIdx = std::get<Memory>(Opt).getMemIndex();
           Mem = CompInst.getCoreMemoryInstance(MemIdx);
@@ -195,10 +331,13 @@ Executor::instantiate(Runtime::StoreManager &,
       CompInst.addCoreFunctionInstance(lowering(FuncInst, Mem, ReallocFunc));
     } else if (std::holds_alternative<ResourceNew>(C)) {
       spdlog::warn("resource is not supported yet");
+      return Unexpect(ErrCode::Value::InvalidCanonOption);
     } else if (std::holds_alternative<ResourceDrop>(C)) {
       spdlog::warn("resource is not supported yet");
+      return Unexpect(ErrCode::Value::InvalidCanonOption);
     } else if (std::holds_alternative<ResourceRep>(C)) {
       spdlog::warn("resource is not supported yet");
+      return Unexpect(ErrCode::Value::InvalidCanonOption);
     }
   }
 

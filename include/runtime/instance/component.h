@@ -38,6 +38,39 @@ namespace Instance {
 
 using namespace AST::Component;
 
+namespace {
+void typeConvert(ValueType &VT, const ValType &ValTy) noexcept {
+  switch (ValTy.getCode()) {
+  case TypeCode::I32:
+    VT.emplace<PrimValType>(PrimValType::S32);
+    break;
+
+  default:
+    break;
+  }
+}
+
+void typeConvert(FuncType &FT, const AST::FunctionType &Ty) noexcept {
+  auto &PL = FT.getParamList();
+  for (auto const &PT : Ty.getParamTypes()) {
+    LabelValType L{};
+    typeConvert(L.getValType(), PT);
+    PL.emplace_back(L);
+  }
+  auto &RL = FT.getResultList();
+  if (Ty.getReturnTypes().size() == 1) {
+    typeConvert(RL.emplace<ValueType>(), Ty.getReturnTypes()[0]);
+  } else {
+    auto &LL = RL.emplace<std::vector<LabelValType>>();
+    for (auto const &RT : Ty.getReturnTypes()) {
+      LabelValType L{};
+      typeConvert(L.getValType(), RT);
+      LL.emplace_back(L);
+    }
+  }
+}
+} // namespace
+
 class ComponentInstance {
 public:
   ComponentInstance(std::string_view Name) : CompName(Name) {}
@@ -80,7 +113,7 @@ public:
 
   void addHostFunc(std::string_view Name,
                    std::unique_ptr<HostFunctionBase> &&Func) {
-    addType(FuncType());
+    addType(Func->getFuncType());
     auto FuncInst = std::make_unique<FunctionInstance>(
         this, static_cast<uint32_t>(Types.size()) - 1, std::move(Func));
     unsafeAddHostFunc(Name, std::move(FuncInst));
@@ -88,7 +121,7 @@ public:
   void addHostFunc(std::string_view Name,
                    std::unique_ptr<FunctionInstance> &&Func) {
     assuming(Func->isHostFunction());
-    addType(FuncType());
+    addType(Func->getFuncType());
     Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
     unsafeAddHostFunc(Name, std::move(Func));
   }
@@ -105,6 +138,10 @@ public:
     return CoreFuncInstList[Index];
   }
 
+  void addFunctionInstance(std::unique_ptr<FunctionInstance> Inst) noexcept {
+    addFunctionInstance(Inst.get());
+    OwnedFuncInstList.emplace_back(std::move(Inst));
+  }
   void addFunctionInstance(FunctionInstance *Inst) noexcept {
     FuncInstList.push_back(Inst);
   }
@@ -138,6 +175,12 @@ public:
   }
   const CoreDefType &getCoreType(uint32_t Idx) const noexcept {
     return CoreTypes[Idx];
+  }
+
+  void addType(const AST::FunctionType &Ty) noexcept {
+    FuncType FT{};
+    typeConvert(FT, Ty);
+    addType(FT);
   }
   void addType(const DefType &Ty) noexcept { Types.emplace_back(Ty); }
   const DefType &getType(uint32_t Idx) const noexcept { return Types[Idx]; }

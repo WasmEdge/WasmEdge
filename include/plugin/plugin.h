@@ -136,8 +136,7 @@ public:
     size_t ModuleCount;
     PluginModule::ModuleDescriptor *ModuleDescriptions;
     size_t ComponentCount = 0;
-    PluginComponent::ComponentDescriptor *ComponentDescriptions =
-        (PluginComponent::ComponentDescriptor[]){};
+    PluginComponent::ComponentDescriptor *ComponentDescriptions = nullptr;
     void (*AddOptions)(const PluginDescriptor *D,
                        PO::ArgumentParser &Parser) noexcept;
   };

@@ -118,6 +118,9 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
   // The defined type list may be empty if the function is an independent
   // function instance, that is, the module instance will be nullptr. For this
   // case, all of value types are number types or abstract heap types.
+  //
+  // If a function belongs to component instance, we should totally get
+  // converted type, so should no need type list.
   WasmEdge::Span<const WasmEdge::AST::SubType *const> TypeList = {};
   if (FuncInst->getModule()) {
     TypeList = FuncInst->getModule()->getTypeList();

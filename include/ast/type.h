@@ -762,3 +762,28 @@ private:
 
 } // namespace AST
 } // namespace WasmEdge
+
+template <>
+struct fmt::formatter<WasmEdge::AST::FunctionType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::FunctionType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "[ "sv);
+    for (const auto &P : Type.getParamTypes()) {
+      fmt::format_to(std::back_inserter(Buffer), "{} "sv, P);
+    }
+    fmt::format_to(std::back_inserter(Buffer), "] -> [ "sv);
+    for (auto R : Type.getReturnTypes()) {
+      fmt::format_to(std::back_inserter(Buffer), "{} "sv, R);
+    }
+    fmt::format_to(std::back_inserter(Buffer), "]"sv);
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};

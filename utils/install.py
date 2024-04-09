@@ -178,8 +178,8 @@ def extract_archive(
                     fname = fname[:-5] + "lib"
                 if fname.startswith("/usr") and "lib64" in fname:
                     fname = fname.replace("lib64", "lib", 1)
-                # ggml-metal.metal is downloaded if we download ggml plugin on macOS
-                if "Plugin" in fname or fname == "ggml-metal.metal":
+
+                if to_path.endswith("Plugins"):
                     if is_default_path(args):
                         fname = fname.replace(
                             join(ipath, CONST_lib_dir, "wasmedge/"), ""
@@ -403,6 +403,7 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "darwin" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "darwin" + "arm64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
+    "manylinux2014" + "aarch64" + WASMEDGE_RUSTLS: VersionString("0.13.5"),
     "manylinux2014" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "ubuntu20.04" + "aarch64" + WASMEDGE_RUSTLS: VersionString("0.13.5"),
@@ -1154,11 +1155,45 @@ def install_plugins(args, compat):
 
     if len(args.plugins) >= 1:
         for plugin_name in args.plugins:
+            # Reset the url_root, due to the wasi-nn-ggml plugin with the build number will change the url
+            url_root = "https://github.com/WasmEdge/WasmEdge/releases/download/"
+            url_root += (
+                "$VERSION$/WasmEdge-plugin-$PLUGIN_NAME$-$VERSION$-$DIST$_$ARCH$.tar.gz"
+            )
             plugin_version_supplied = None
+            plugin_wasi_nn_ggml_bypass_check = False
             if plugin_name.find(":") != -1:
                 plugin_name, plugin_version_supplied = plugin_name.split(":")
 
-            if plugin_name not in PLUGINS_AVAILABLE:
+            # Split the WASI-NN-GGML plugin and the others
+            if plugin_name.startswith(WASI_NN_GGML):
+                # Re-write the plugin name if the build number is supplied
+                # E.g. wasi_nn-ggml-b2330, wasi_nn-ggml-cuda-b2330, wasi_nn-ggml-cuda-11-b2330
+                # "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/raw/main/"
+                # "$VERSION$/"
+                # "$BUILD_NUMBER$/"
+                # "WasmEdge-plugin"
+                # "-$PLUGIN_NAME$"
+                # "-$VERSION$"
+                # "-$DIST$"
+                # "_$ARCH$" # ".tar.gz"
+                # If the build number is supplied, bypass the checks
+                plugin_wasi_nn_ggml_bypass_check = True
+                if plugin_name.startswith(WASI_NN_GGML) and "-b" in plugin_name:
+                    [plugin_name, plugin_build_number] = plugin_name.split("-b")
+                    url_root = "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/raw/main/"
+                    url_root += "$VERSION$/b$BUILD_NUMBER$/WasmEdge-plugin-$PLUGIN_NAME$-$VERSION$-$DIST$_$ARCH$.tar.gz"
+                    url_root = url_root.replace("$BUILD_NUMBER$", plugin_build_number)
+
+                # Re-write the plugin name if CUDA is available
+                if plugin_name == WASI_NN_GGML and compat.cuda:
+                    plugin_name = WASI_NN_GGML_CUDA
+
+            # Normal plugin
+            if (
+                plugin_name not in PLUGINS_AVAILABLE
+                and not plugin_wasi_nn_ggml_bypass_check
+            ):
                 logging.error(
                     "%s plugin not found, available names - %s",
                     plugin_name,
@@ -1166,11 +1201,10 @@ def install_plugins(args, compat):
                 )
                 continue
 
-            # Re-write the plugin name if CUDA is available
-            if plugin_name == WASI_NN_GGML and compat.cuda:
-                plugin_name = WASI_NN_GGML_CUDA
-
-            if compat.dist + compat.machine + plugin_name not in SUPPORTTED_PLUGINS:
+            if (
+                compat.dist + compat.machine + plugin_name not in SUPPORTTED_PLUGINS
+                and not plugin_wasi_nn_ggml_bypass_check
+            ):
                 logging.error(
                     "Plugin not compatible: %s",
                     compat.dist + compat.machine + plugin_name,

@@ -131,6 +131,47 @@ public:
     return grpc::Status::OK;
   }
 
+  /*
+    Expect<WASINN::ErrNo>
+    WasiNNLoadByNameWithConfig::bodyImpl(
+      const Runtime::CallingFrame &Frame,
+      uint32_t NamePtr, uint32_t NameLen,
+      uint32_t ConfigPtr, uint32_t ConfigLen,
+      uint32_t GraphIdPtr
+    )
+  */
+  virtual grpc::Status LoadByNameWithConfig(
+      grpc::ServerContext * /*RPCContext*/,
+      const wasi_ephemeral_nn::LoadByNameWithConfigRequest *RPCRequest,
+      wasi_ephemeral_nn::LoadByNameWithConfigResult *RPCResult) {
+    std::string_view FuncName = "load_by_name_with_config"sv;
+    auto Name = RPCRequest->name();
+    auto Config = RPCRequest->config();
+    uint32_t NamePtr = UINT32_C(0);
+    uint32_t NameLen = Name.size(); // does not include the '\0' terminator
+    uint32_t ConfigPtr =
+        Name.size() + 1;                // 1 is for the '\0' terminator of Name
+    uint32_t ConfigLen = Config.size(); // does not include the '\0' terminator
+    uint32_t OutPtr =
+        NamePtr + NameLen + 1 + ConfigLen + 1; // 1 is for the '\0' terminator
+    uint32_t MemorySize = OutPtr + 4;          // 4 is for sizeof(OutPtr)
+
+    HostFuncCaller HostFuncCaller(NNMod, FuncName, MemorySize);
+    auto &MemInst = HostFuncCaller.getMemInst();
+    std::vector<char> NameVec(Name.begin(), Name.end());
+    std::vector<char> ConfigVec(Config.begin(), Config.end());
+    writeBinaries(MemInst, NameVec, NamePtr);
+    writeBinaries(MemInst, ConfigVec, ConfigPtr);
+    uint32_t Errno =
+        HostFuncCaller.call({NamePtr, NameLen, ConfigPtr, ConfigLen, OutPtr});
+    if (Errno != 0) {
+      return createRPCStatusFromErrno(FuncName, Errno);
+    }
+    uint32_t GraphHandle = *MemInst.getPointer<uint32_t *>(OutPtr);
+    RPCResult->set_graph_handle(GraphHandle);
+    return grpc::Status::OK;
+  }
+
 private:
   const Runtime::Instance::ModuleInstance &NNMod;
 };

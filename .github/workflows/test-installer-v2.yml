@@ -1,0 +1,98 @@
+name: test-installer-v2
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/test-installer-v2.yml'
+      - 'utils/install_v2.sh'
+      - 'utils/uninstall.sh'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/test-installer-v2.yml'
+      - 'utils/install_v2.sh'
+      - 'utils/uninstall.sh'
+
+jobs:
+  verify-installer-v2:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: CentOS 9 Stream
+            host_runner: ubuntu-latest
+            docker_image: quay.io/centos/centos:stream9
+            extra_setup_command: yum update -y && yum install -y which
+          - name: Ubuntu 20.04
+            host_runner: ubuntu-latest
+            docker_image: ubuntu:20.04
+            extra_setup_command: apt update -y && apt install -y curl
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.host_runner }}
+    container:
+      image: ${{ matrix.docker_image }}
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Setup
+      run: |
+        ${{ matrix.extra_setup_command }}
+    - name: Run installer-v2
+      run: |
+        # It will install WasmEdge and the GGML plugin
+        bash utils/install_v2.sh -V
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
+    - name: Re-install installer-v2
+      run: |
+        # It should uninstall the previous installation and install WasmEdge and the GGML plugin again
+        bash utils/install_v2.sh -V
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Mac M1
+            host_runner: macos-14
+          - name: Mac Intel
+            host_runner: macos-latest
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.host_runner }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install zsh
+      run: |
+         eval $(/opt/homebrew/bin/brew shellenv)
+         brew install zsh
+
+    - name: Run installer-v2
+      run: |
+        # It will install WasmEdge and the GGML plugin
+        bash utils/install_v2.sh -V
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.dylib && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
+    - name: Re-install installer-v2
+      run: |
+        # It should uninstall the previous installation and install WasmEdge and the GGML plugin again
+        bash utils/install_v2.sh -V
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.dylib && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V

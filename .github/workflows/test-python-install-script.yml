@@ -197,6 +197,21 @@ jobs:
         ls ~/new_wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         ${{ matrix.python3_ex }} utils/install.py -v 0.10.0-alpha.1 -p /usr
         ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    - name: Plugin install test - WasmEdge WASI-NN-GGML
+      run: |
+        # Without the build number
+        ${{ matrix.python2_ex }} utils/install.py -v 0.13.5 --plugins wasi_nn-ggml
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge WASI-NN GGML Plugin not found" && exit 1)
+
+        ${{ matrix.python3_ex }} utils/install.py -v 0.13.5 --plugins wasi_nn-ggml
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge WASI-NN GGML Plugin not found" && exit 1)
+
+        # With the build number
+        ${{ matrix.python2_ex }} utils/install.py -v 0.13.5 --plugins wasi_nn-ggml-b2334
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge WASI-NN GGML Plugin not found" && exit 1)
+
+        ${{ matrix.python3_ex }} utils/install.py -v 0.13.5 --plugins wasi_nn-ggml-b2334
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge WASI-NN GGML Plugin not found" && exit 1)
     - name: Plugin install test - WasmEdge rustls
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
@@ -346,7 +361,7 @@ jobs:
       shell: zsh {0}
       run: |
          eval $(/opt/homebrew/bin/brew shellenv)
-         ${{ matrix.package_manager }} install python
+         ${{ matrix.package_manager }} install python zsh
 
     - name: Install WasmEdge latest release
       shell: zsh {0}

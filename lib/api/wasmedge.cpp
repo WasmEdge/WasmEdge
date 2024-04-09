@@ -2014,7 +2014,9 @@ WasmEdge_ModuleInstanceInitWasmEdgeProcess(const char *const *AllowedCmds,
     Parser.set_raw_value<std::vector<std::string>>(
         "allow-command"sv,
         std::vector<std::string>(AllowedCmds, AllowedCmds + CmdsLen));
-    Parser.set_raw_value<bool>("allow-command-all"sv, AllowAll);
+    if (AllowAll) {
+      Parser.set_raw_value("allow-command-all"sv);
+    }
   }
 }
 

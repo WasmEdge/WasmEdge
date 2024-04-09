@@ -8,7 +8,7 @@ const archList = [{
     asset_tag: 'manylinux2014_x86_64',
 }, {
     arch: aarch64,
-    runner: 'linux-arm64',
+    runner: 'linux-arm64-v2',
     docker_tag: 'manylinux2014_aarch64-plugins-deps',
     asset_tag: 'manylinux2014_aarch64',
 }];
@@ -30,6 +30,60 @@ const pluginList = [{
         options: '-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch',
         archList: [x86_64],
     }],
+}, {
+    name: 'wasm_bpf',
+    bin: 'libwasmedgePluginWasmBpf.so',
+    testBin: 'wasmBpfTests',
+    options: '-DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF=OFF',
+    archList: [x86_64],
+}, {
+    name: 'wasi_crypto',
+    bin: 'libwasmedgePluginWasiCrypto.so',
+    testBin: 'wasiCryptoTests',
+    options: '-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON',
+    archList: [aarch64, x86_64],
+}, {
+    name: 'wasi_logging',
+    bin: 'libwasmedgePluginWasiLogging.so',
+    testBin: 'wasiLoggingTests',
+    options: '-DWASMEDGE_PLUGIN_WASI_LOGGING=ON',
+    archList: [aarch64, x86_64],
+}, {
+    name: 'wasmedge_process',
+    bin: 'libwasmedgePluginWasmEdgeProcess.so',
+    testBin: 'wasmedgeProcessTests',
+    options: '-DWASMEDGE_PLUGIN_PROCESS=ON',
+    archList: [aarch64, x86_64],
+}, {
+    name: 'wasmedge_tensorflow',
+    bin: 'libwasmedgePluginWasmEdgeTensorflow.so',
+    testBin: 'wasmedgeTensorflowTests',
+    options: '-DWASMEDGE_PLUGIN_TENSORFLOW=ON',
+    archList: [aarch64, x86_64],
+}, {
+    name: 'wasmedge_tensorflowlite',
+    bin: 'libwasmedgePluginWasmEdgeTensorflowLite.so',
+    testBin: 'wasmedgeTensorflowLiteTests',
+    options: '-DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON',
+    archList: [aarch64, x86_64],
+}, {
+    name: 'wasmedge_image',
+    bin: 'libwasmedgePluginWasmEdgeImage.so',
+    testBin: 'wasmedgeImageTests',
+    options: '-DWASMEDGE_PLUGIN_IMAGE=ON',
+    archList: [aarch64, x86_64],
+}, {
+    name: 'wasmedge_opencvmini',
+    bin: 'libwasmedgePluginWasmEdgeOpenCVMini.so',
+    testBin: 'wasmedgeOpencvminiTests',
+    options: '-DWASMEDGE_PLUGIN_OPENCVMINI=ON',
+    archList: [aarch64, x86_64],
+}, {
+    name: 'wasmedge_ffmpeg',
+    bin: 'libwasmedgePluginWasmEdgeFFmpeg.so',
+    testBin: 'wasmedgeFFmpegTests',
+    options: '-DWASMEDGE_PLUGIN_FFMPEG=ON',
+    archList: [aarch64, x86_64],
 }];
 
 let expandVariables = () => {

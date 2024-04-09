@@ -1,4 +1,4 @@
-### 0.14.0-alpha.2 (2024-02-23)
+### 0.14.0-rc.4 (2024-04-03)
 
 Breaking changes:
 
@@ -32,6 +32,7 @@ Breaking changes:
 
 Features:
 
+* Bumpped `spdlog` to `v1.13.0`.
 * [Proposal]: Apply new propoals.
   * Supported WASM Typed Function References proposal.
     * Added the `WasmEdge_Proposal_FunctionReferences` for the configuration in WasmEdge C API.
@@ -41,7 +42,7 @@ Features:
     * Users can use the `--enable-gc` to enable the proposal in `wasmedge` and `wasmedgec` tools.
   * Component Model proposal (experimental, loader phase only).
     * Added the `WasmEdge_Proposal_Component` for the configuration in WasmEdge C API.
-    * Users can use the `--enable-function-reference` to enable the proposal in `wasmedge` tool.
+    * Users can use the `--enable-component` to enable the proposal in `wasmedge` tool.
 * [JIT]: Support LLVM JIT.
 * [C API]: New C API for supporting the new proposals.
   * `WasmEdge_ValType` related APIs can help developers to generate or compare value types.
@@ -72,7 +73,7 @@ Features:
 * [Tools]: Print the plug-in versions when using the `--version` option.
 * [Installer]: Enabled `ggml-blas` and `rustls` plugin supporting (#3032) (#3108).
 * [WASI-NN] ggml backend:
-  * Bump llama.cpp to b2230.
+  * Bump llama.cpp to b2534.
   * Support llama.cpp options:
     * `threads`: the thread number for inference.
     * `temp`: set temperature for inference.
@@ -89,6 +90,8 @@ Features:
     * Add `mmproj` option to set the projection model.
     * Add `image` option to set the image.
   * Support embedding generation.
+  * Support Windows build.
+* [Plugin] Initial support for `wasmedge_ffmpeg` plug-in.
 
 Fixed issues:
 
@@ -109,11 +112,14 @@ Fixed issues:
   * Checking `fd_prestat_dir_name` buffer size.
   * Checking `filestat_set_times` for invalid flags.
   * Checking validation of file descriptor in `socket_accept` (#3041).
+* Fixed duplicated loading of the same plug-in.
+* Fixed option toggle for `wasmedge_process` plug-in.
 
 Tests:
 
-* Updated the WASM spec tests to the date 2023/10/26.
+* Updated the WASM spec tests to the date 2024/02/17.
 * Added the spec tests for the Typed Function Reference proposal.
+* Added the spec tests for the GC proposal.
 
 Known issues:
 
@@ -123,9 +129,9 @@ Known issues:
 
 Thank all the contributors who made this release possible!
 
-Abhinandan Udupa, Akihiro Suda, Dhruv Jain, Draco, Ikko Eltociear Ashimine, Khagan (Khan) Karimov, LO, CHIN-HAO, Little Willy, Lîm Tsú-thuàn, Meenu Yadav, Omkar Acharekar, Saiyam Pathak, Sarrah Bastawala, Shen-Ta Hsieh, Shreyas Atre, Yage Hu, Yi Huang, Yi-Ying He, alabulei1, am009, dm4, hydai, richzw, vincent, zhumeme
+Abhinandan Udupa, Akihiro Suda, Charlie chan, Dhruv Jain, Draco, Hrushikesh, Ikko Eltociear Ashimine, Khagan (Khan) Karimov, LO, CHIN-HAO, Little Willy, Lîm Tsú-thuàn, Meenu Yadav, Omkar Acharekar, Saiyam Pathak, Sarrah Bastawala, Shen-Ta Hsieh, Shreyas Atre, Yage Hu, Yi Huang, Yi-Ying He, alabulei1, am009, dm4, hetvishastri, hydai, richzw, tannal, vincent, zhumeme
 
-If you want to build from source, please use WasmEdge-0.14.0-alpha.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.14.0-rc.4-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.13.5 (2023-11-03)
 

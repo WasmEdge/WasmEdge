@@ -6,7 +6,7 @@ cmake_policy(SET CMP0091 NEW)
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
   cmake_policy(SET CMP0135 NEW)
 endif()
-project(WasmEdge)
+project(WasmEdge LANGUAGES CXX C)
 
 # Overwrite it if you want to use static MSVC runtime library.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
@@ -85,6 +85,7 @@ option(WASMEDGE_PLUGIN_TENSORFLOWLITE "Enable WasmEdge TensorFlow-Lite plugin." 
 option(WASMEDGE_PLUGIN_RUSTLS "Enable WasmEdge Rustls plugin." OFF)
 option(WASMEDGE_PLUGIN_ZLIB "Enable WasmEdge zlib plugin." OFF)
 option(WASMEDGE_DISABLE_LIBTINFO "Disable linking against libtinfo when linking LLVM" OFF)
+option(WASMEDGE_PLUGIN_FFMPEG "Enable WasmEdge ffmpeg plugin." OFF)
 
 if(WASMEDGE_BUILD_TOOLS AND WASMEDGE_BUILD_FUZZING)
   message(FATAL_ERROR "wasmedge tool and fuzzing tool are exclusive options.")

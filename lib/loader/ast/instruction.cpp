@@ -12,24 +12,124 @@ namespace Loader {
 
 // OpCode loader. See "include/loader/loader.h".
 Expect<OpCode> Loader::loadOpCode() {
-  uint16_t Payload;
+  uint8_t Prefix;
   if (auto B1 = FMgr.readByte()) {
-    Payload = (*B1);
+    Prefix = (*B1);
   } else {
     return Unexpect(B1);
   }
 
-  if (Payload == 0xFBU || Payload == 0xFCU || Payload == 0xFDU ||
-      Payload == 0xFEU) {
-    // 2-bytes OpCode case.
+  if (Prefix >= 0xFBU && Prefix <= 0xFEU) {
+    // Multi-byte OpCode case.
+    uint32_t Extend;
     if (auto B2 = FMgr.readU32()) {
-      Payload <<= 8;
-      Payload += static_cast<uint16_t>(*B2);
+      Extend = (*B2);
     } else {
       return Unexpect(B2);
     }
+    if (Prefix == 0xFBU) {
+      switch (Extend) {
+#define UseOpCode
+#define Line(NAME, STRING, PREFIX)
+#define Line_FB(NAME, STRING, PREFIX, EXTEND)                                  \
+  case EXTEND:                                                                 \
+    return OpCode::NAME;
+#define Line_FC(NAME, STRING, PREFIX, EXTEND)
+#define Line_FD(NAME, STRING, PREFIX, EXTEND)
+#define Line_FE(NAME, STRING, PREFIX, EXTEND)
+#include "common/enum.inc"
+#undef Line
+#undef Line_FB
+#undef Line_FC
+#undef Line_FD
+#undef Line_FE
+#undef UseOpCode
+      default:
+        return Unexpect(ErrCode::Value::IllegalOpCode);
+      }
+    } else if (Prefix == 0xFCU) {
+      switch (Extend) {
+#define UseOpCode
+#define Line(NAME, STRING, PREFIX)
+#define Line_FB(NAME, STRING, PREFIX, EXTEND)
+#define Line_FC(NAME, STRING, PREFIX, EXTEND)                                  \
+  case EXTEND:                                                                 \
+    return OpCode::NAME;
+#define Line_FD(NAME, STRING, PREFIX, EXTEND)
+#define Line_FE(NAME, STRING, PREFIX, EXTEND)
+#include "common/enum.inc"
+#undef Line
+#undef Line_FB
+#undef Line_FC
+#undef Line_FD
+#undef Line_FE
+#undef UseOpCode
+      default:
+        return Unexpect(ErrCode::Value::IllegalOpCode);
+      }
+    } else if (Prefix == 0xFDU) {
+      switch (Extend) {
+#define UseOpCode
+#define Line(NAME, STRING, PREFIX)
+#define Line_FB(NAME, STRING, PREFIX, EXTEND)
+#define Line_FC(NAME, STRING, PREFIX, EXTEND)
+#define Line_FD(NAME, STRING, PREFIX, EXTEND)                                  \
+  case EXTEND:                                                                 \
+    return OpCode::NAME;
+#define Line_FE(NAME, STRING, PREFIX, EXTEND)
+#include "common/enum.inc"
+#undef Line
+#undef Line_FB
+#undef Line_FC
+#undef Line_FD
+#undef Line_FE
+#undef UseOpCode
+      default:
+        return Unexpect(ErrCode::Value::IllegalOpCode);
+      }
+    } else {
+      switch (Extend) {
+#define UseOpCode
+#define Line(NAME, STRING, PREFIX)
+#define Line_FB(NAME, STRING, PREFIX, EXTEND)
+#define Line_FC(NAME, STRING, PREFIX, EXTEND)
+#define Line_FD(NAME, STRING, PREFIX, EXTEND)
+#define Line_FE(NAME, STRING, PREFIX, EXTEND)                                  \
+  case EXTEND:                                                                 \
+    return OpCode::NAME;
+#include "common/enum.inc"
+#undef Line
+#undef Line_FB
+#undef Line_FC
+#undef Line_FD
+#undef Line_FE
+#undef UseOpCode
+      default:
+        return Unexpect(ErrCode::Value::IllegalOpCode);
+      }
+    }
+  } else {
+    // Single-byte OpCode case.
+    switch (Prefix) {
+#define UseOpCode
+#define Line(NAME, STRING, PREFIX)                                             \
+  case PREFIX:                                                                 \
+    return OpCode::NAME;
+#define Line_FB(NAME, STRING, PREFIX, EXTEND)
+#define Line_FC(NAME, STRING, PREFIX, EXTEND)
+#define Line_FD(NAME, STRING, PREFIX, EXTEND)
+#define Line_FE(NAME, STRING, PREFIX, EXTEND)
+#include "common/enum.inc"
+#undef Line
+#undef Line_FB
+#undef Line_FC
+#undef Line_FD
+#undef Line_FE
+#undef UseOpCode
+    default:
+      return Unexpect(ErrCode::Value::IllegalOpCode);
+    }
   }
-  return static_cast<OpCode>(Payload);
 }
 
 // Load instruction sequence. See "include/loader/loader.h".
@@ -1020,8 +1120,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return readMemImmediate();
 
   default:
-    return logLoadError(ErrCode::Value::IllegalOpCode, Instr.getOffset(),
-                        ASTNodeAttr::Instruction);
+    assumingUnreachable();
   }
 }
 

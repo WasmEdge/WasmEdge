@@ -39,12 +39,41 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   }
 
   // Serialize OpCode.
-  uint32_t Num = static_cast<uint32_t>(Instr.getOpCode());
-  if (Num >= 0x100U) {
-    OutVec.push_back(static_cast<uint8_t>(Num >> 8));
-    serializeU32(Num & 0xFFU, OutVec);
-  } else {
-    OutVec.push_back(static_cast<uint8_t>(Num & 0xFFU));
+  switch (Instr.getOpCode()) {
+#define UseOpCode
+#define Line(NAME, STRING, PREFIX)                                             \
+  case OpCode::NAME:                                                           \
+    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
+    break;
+#define Line_FB(NAME, STRING, PREFIX, EXTEND)                                  \
+  case OpCode::NAME:                                                           \
+    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
+    serializeU32(EXTEND, OutVec);                                              \
+    break;
+#define Line_FC(NAME, STRING, PREFIX, EXTEND)                                  \
+  case OpCode::NAME:                                                           \
+    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
+    serializeU32(EXTEND, OutVec);                                              \
+    break;
+#define Line_FD(NAME, STRING, PREFIX, EXTEND)                                  \
+  case OpCode::NAME:                                                           \
+    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
+    serializeU32(EXTEND, OutVec);                                              \
+    break;
+#define Line_FE(NAME, STRING, PREFIX, EXTEND)                                  \
+  case OpCode::NAME:                                                           \
+    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
+    serializeU32(EXTEND, OutVec);                                              \
+    break;
+#include "common/enum.inc"
+#undef Line
+#undef Line_FB
+#undef Line_FC
+#undef Line_FD
+#undef Line_FE
+#undef UseOpCode
+  default:
+    assumingUnreachable();
   }
 
   // Serialize immediate.
@@ -726,8 +755,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     return serializeMemImmediate();
 
   default:
-    return logSerializeError(ErrCode::Value::IllegalOpCode,
-                             ASTNodeAttr::Instruction);
+    assumingUnreachable();
   }
 }
 

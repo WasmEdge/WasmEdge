@@ -1,8 +1,10 @@
 #include "neuralspeed.h"
 #include "wasinnenv.h"
+#include <dlfcn.h>
 #include <variant>
 namespace WasmEdge::Host::WASINN::NeuralSpeed {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
+void *SharedLib = dlopen(PYTHON_LIB_PATH, RTLD_GLOBAL | RTLD_NOW);
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            Span<const Span<uint8_t>> Builders, WASINN::Device,
                            uint32_t &) noexcept {
@@ -62,6 +64,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   GraphRef.NeuralSpeedModule =
       PyImport_Import(PyUnicode_FromString("neural_speed"));
   if (GraphRef.NeuralSpeedModule == nullptr) {
+    PyErr_Print();
     spdlog::error(
         "[WASI-NN] neural speed backend: Can not find neural speed library."sv);
     return WASINN::ErrNo::RuntimeError;
@@ -78,7 +81,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   PyObject *LoadResult = PyObject_CallMethod(
       GraphRef.Model, "init_from_bin", "(ss)", "llama", ModelFilePath.c_str());
   if (LoadResult == nullptr) {
-    PyErr_Print();
     spdlog::error("[WASI-NN] neural speed backend: Load model error."sv);
     return WASINN::ErrNo::RuntimeError;
   }

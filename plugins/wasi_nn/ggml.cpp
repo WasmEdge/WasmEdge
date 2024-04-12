@@ -370,6 +370,57 @@ ErrNo evaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
   return ErrNo::Success;
 }
 
+void batchAddSeq(llama_batch &Batch, const std::vector<llama_token> &Tokens,
+                 llama_seq_id SequenceId) noexcept {
+  for (int I = 0; I < static_cast<int>(Tokens.size()); I++) {
+    // llama_batch_add_seq(llama_batch, llama_token, llama_pos,
+    // std::vector<llama_seq_id>, logits);
+    llama_batch_add(Batch, Tokens[I], I, {SequenceId},
+                    I == static_cast<int>(Tokens.size()) - 1);
+  }
+}
+
+ErrNo batchDecode(llama_context *LlamaContext, llama_batch &Batch,
+                  float *Output, int NEmbd) noexcept {
+  // Clear previous kv_cache values (irrelevant for embeddings)
+  llama_kv_cache_clear(LlamaContext);
+
+  // Decode the batch.
+  auto Status = llama_decode(LlamaContext, Batch);
+  if (Status == 1) {
+    spdlog::error(
+        "[WASI-NN] GGML backend: failed to llama_decode: try reducing the size of the batch or increasing the size of context"sv);
+    return ErrNo::RuntimeError;
+  } else if (Status < 0) {
+    spdlog::error(
+        "[WASI-NN] GGML backend: failed to llama_decode: internal fatal error. Please open an issue on GitHub"sv);
+    return ErrNo::RuntimeError;
+  }
+
+  for (int I = 0; I < Batch.n_tokens; I++) {
+    if (!Batch.logits[I]) {
+      continue;
+    }
+
+    // Try to get sequence embeddings.
+    auto *Embd = llama_get_embeddings_seq(LlamaContext, Batch.seq_id[I][0]);
+    if (Embd == nullptr) {
+      Embd = llama_get_embeddings_ith(LlamaContext, I);
+      if (Embd == nullptr) {
+        spdlog::error(
+            "[WASI-NN] GGML backend: failed to get embeddings for token {}"sv,
+            I);
+        continue;
+      }
+    }
+
+    // Normalize the embeddings.
+    llama_embd_normalize(Embd, Output, NEmbd);
+  }
+
+  return ErrNo::Success;
+}
+
 Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
                            uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
@@ -405,8 +456,6 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
   auto *LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
 
-  // Prepare variables;
-  int32_t NPast = 0;
   // Get the context size.
   const uint64_t NCtx = llama_n_ctx(LlamaContext);
   // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
@@ -436,19 +485,18 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
     return ErrNo::PromptTooLong;
   }
 
-  // Evaluate input tokens.
-  ReturnCode = evaluateTokens(GraphRef, LlamaContext,
-                              std::move(CxtRef.LlamaInputs), NPast);
+  const int32_t NEmbd = llama_n_embd(GraphRef.LlamaModel);
+  struct llama_batch Batch =
+      llama_batch_init(GraphRef.BatchSize, /* embd */ 0, /* n_seq_max */ 1);
+  std::vector<float> Embeddings(NEmbd);
+  batchAddSeq(Batch, CxtRef.LlamaInputs, SequenceId);
+  ReturnCode = batchDecode(LlamaContext, Batch, Embeddings.data(), NEmbd);
   if (ReturnCode != ErrNo::Success) {
     spdlog::error("[WASI-NN] GGML backend: failed to evaluate input tokens."sv);
     return ReturnCode;
   }
 
-  const int32_t NEmbd = llama_n_embd(GraphRef.LlamaModel);
-  auto *Embeddings = llama_get_embeddings_seq(LlamaContext, SequenceId);
-  llama_embd_normalize(Embeddings, Embeddings, NEmbd);
-
-  buildOutputEmbedding(CxtRef.LlamaOutputs, NEmbd, Embeddings);
+  buildOutputEmbedding(CxtRef.LlamaOutputs, NEmbd, Embeddings.data());
 
   if (GraphRef.EnableDebugLog) {
     spdlog::info(

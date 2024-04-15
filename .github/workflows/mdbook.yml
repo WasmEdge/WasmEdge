@@ -55,7 +55,7 @@ jobs:
           git config --global --add safe.directory $(pwd)
 
       - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@v1
+        uses: peaceiris/actions-mdbook@v2
         with:
           mdbook-version: 'latest'
 

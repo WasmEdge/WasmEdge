@@ -1151,13 +1151,15 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: computeSingleToken"sv);
   }
-  if (CxtRef.LlamaInputs.size() == 0) {
-    spdlog::error("[WASI-NN] GGML backend: Llama input is not set!"sv);
-    return ErrNo::InvalidArgument;
-  }
 
   // New compute single token context.
   if (CxtRef.LlamaContext == nullptr) {
+    // Check if the input is set before setting up the context.
+    if (CxtRef.LlamaInputs.size() == 0) {
+      spdlog::error("[WASI-NN] GGML backend: Llama input is not set!"sv);
+      return ErrNo::InvalidArgument;
+    }
+
     // Clear the outputs.
     if (GraphRef.EnableDebugLog) {
       spdlog::info(

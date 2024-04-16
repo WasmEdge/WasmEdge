@@ -21,6 +21,7 @@ enum class ErrNo : uint32_t {
   EndOfSequence = 100,      // End of Sequence Found.
   ContextFull = 101,        // Context Full.
   PromptTooLong = 102,      // Prompt Too Long.
+  ModelNotFound = 103,      // Model Not Found.
 };
 
 enum class TensorType : uint8_t { F16 = 0, F32 = 1, U8 = 2, I32 = 3 };

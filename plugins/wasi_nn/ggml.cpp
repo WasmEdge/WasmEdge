@@ -11,6 +11,7 @@
 #include <clip.h>
 #include <common.h>
 #include <cstdlib>
+#include <filesystem>
 #include <llama.h>
 #include <llava.h>
 #include <sstream>
@@ -708,6 +709,12 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   if (GraphRef.EnableDebugLog) {
     spdlog::info(
         "[WASI-NN][Debug] GGML backend: Finished handling model path."sv);
+  }
+  // Check if the model exists.
+  if (!std::filesystem::exists(std::filesystem::u8path(ModelFilePath))) {
+    spdlog::error("[WASI-NN] GGML backend: Model file not found."sv);
+    Env.NNGraph.pop_back();
+    return ErrNo::ModelNotFound;
   }
 
   if (GraphRef.EnableDebugLog) {

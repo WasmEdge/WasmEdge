@@ -234,6 +234,15 @@ Expect<void> Executor::throwException(Runtime::StackManager &StackMgr,
       }
       // When being here, an exception is caught. Move the PC to the try block
       // and branch to the label.
+
+      // LEGACY-EH: remove this condition after deprecating legacy EH.
+      // For legacy catch/catch_all, the target block to jump is inside the try
+      // block, and it must pass through the end instruction of the try block
+      // and pop the handler. Therefore push the handler back here.
+      if (C.IsLegacy) {
+        StackMgr.pushHandler(Handler->Try, 0, {});
+      }
+
       PC = Handler->Try;
       return branchToLabel(StackMgr, C.Jump, PC);
     }

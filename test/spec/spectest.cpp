@@ -263,6 +263,10 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"exception-handling"sv,
      {Proposal::ExceptionHandling, Proposal::TailCall},
      WasmEdge::SpecTest::TestMode::Interpreter},
+    // LEGACY-EH: remove the legacy EH test after deprecating legacy EH.
+    {"exception-handling-legacy"sv,
+     {Proposal::ExceptionHandling, Proposal::TailCall},
+     WasmEdge::SpecTest::TestMode::Interpreter},
 };
 
 } // namespace

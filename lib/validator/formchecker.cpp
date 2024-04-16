@@ -322,11 +322,15 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::Block:
   case OpCode::Loop:
   case OpCode::If:
+  // LEGACY-EH: remove the `Try` case after deprecating legacy EH.
+  case OpCode::Try:
   case OpCode::Try_table: {
     // Get blocktype [t1*] -> [t2*] and check valtype first.
     std::vector<ValType> Buffer(1);
     Span<const ValType> T1, T2;
-    const auto &BType = (Instr.getOpCode() == OpCode::Try_table)
+    // LEGACY-EH: remove the `Try` case after deprecating legacy EH.
+    const auto &BType = (Instr.getOpCode() == OpCode::Try ||
+                         Instr.getOpCode() == OpCode::Try_table)
                             ? Instr.getTryCatch().ResType
                             : Instr.getBlockType();
     if (auto Res = checkBlockType(Buffer, BType)) {
@@ -384,6 +388,11 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
           return Unexpect(D);
         }
       }
+    } else if (Instr.getOpCode() == OpCode::Try) {
+      // LEGACY-EH: remove the `Try` case after deprecating legacy EH.
+      const auto &TryDesc = Instr.getTryCatch();
+      const_cast<AST::Instruction::TryDescriptor &>(TryDesc).BlockParamNum =
+          static_cast<uint32_t>(T1.size());
     }
     // Push ctrl frame ([t1*], [t2*])
     const AST::Instruction *From = Instr.getOpCode() == OpCode::Loop
@@ -408,6 +417,36 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
     return {};
 
+  // LEGACY-EH: remove the `Catch` after deprecating legacy EH.
+  case OpCode::Catch: {
+    const auto &CatchDesc = Instr.getCatchLegacy();
+    // Check tag index.
+    if (unlikely(CatchDesc.TagIndex >= Tags.size())) {
+      return logOutOfRange(ErrCode::Value::InvalidTagIdx,
+                           ErrInfo::IndexCategory::Tag, CatchDesc.TagIndex,
+                           static_cast<uint32_t>(Tags.size()));
+    }
+    const auto &NTypes = Types[Tags[CatchDesc.TagIndex]]
+                             ->getCompositeType()
+                             .getFuncType()
+                             .getParamTypes();
+    const auto &TryInstr = *(&Instr - CatchDesc.CatchPCOffset);
+    const auto &Catch = TryInstr.getTryCatch().Catch[CatchDesc.CatchIndex];
+    if (auto Res = popCtrl()) {
+      // The continue block PC offset is the next of this instruction.
+      auto &Jump = const_cast<AST::Instruction::JumpDescriptor &>(Catch.Jump);
+      Jump.StackEraseBegin =
+          static_cast<uint32_t>(ValStack.size() - Res->Height) +
+          static_cast<uint32_t>(NTypes.size());
+      Jump.StackEraseEnd = static_cast<uint32_t>(NTypes.size());
+      Jump.PCOffset = static_cast<int32_t>(CatchDesc.CatchPCOffset + 1);
+      pushCtrl(NTypes, Res->EndTypes, Res->Jump, Instr.getOpCode());
+    } else {
+      return Unexpect(Res);
+    }
+    return {};
+  }
+
   case OpCode::Throw:
     if (unlikely(Instr.getTargetIndex() >= Tags.size())) {
       return logOutOfRange(ErrCode::Value::InvalidTagIdx,
@@ -424,6 +463,13 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     } else {
       return Unexpect(CompType);
     }
+
+  // LEGACY-EH: remove the `Rethrow` after deprecating legacy EH.
+  case OpCode::Rethrow:
+    spdlog::error(ErrCode::Value::TypeCheckFailed);
+    spdlog::error("    Deprecated `rethrow` instruction.");
+    return Unexpect(ErrCode::Value::TypeCheckFailed);
+
   case OpCode::Throw_ref:
     if (auto Res = popType(TypeCode::ExnRef); !Res) {
       return Unexpect(Res);
@@ -550,6 +596,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     } else {
       return Unexpect(D);
     }
+
   case OpCode::Br_on_non_null:
     if (auto D = checkCtrlStackDepth(Instr.getJump().TargetIndex)) {
       // Get the result type of the label. (Should be [t* rt].)
@@ -703,6 +750,31 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(CompType);
     }
   }
+
+  // LEGACY-EH: remove the `Catch_all` after deprecating legacy EH.
+  case OpCode::Catch_all: {
+    const auto &CatchDesc = Instr.getCatchLegacy();
+    const auto &TryInstr = *(&Instr - CatchDesc.CatchPCOffset);
+    const auto &Catch = TryInstr.getTryCatch().Catch[CatchDesc.CatchIndex];
+    if (auto Res = popCtrl()) {
+      // The continue block PC offset is the next of this instruction.
+      auto &Jump = const_cast<AST::Instruction::JumpDescriptor &>(Catch.Jump);
+      Jump.StackEraseBegin =
+          static_cast<uint32_t>(ValStack.size() - Res->Height);
+      Jump.StackEraseEnd = 0;
+      Jump.PCOffset = static_cast<int32_t>(CatchDesc.CatchPCOffset + 1);
+      pushCtrl({}, Res->EndTypes, Res->Jump, Instr.getOpCode());
+    } else {
+      return Unexpect(Res);
+    }
+    return {};
+  }
+
+  // LEGACY-EH: remove the `Delegate` after deprecating legacy EH.
+  case OpCode::Delegate:
+    spdlog::error(ErrCode::Value::TypeCheckFailed);
+    spdlog::error("    Deprecated `delegate` instruction.");
+    return Unexpect(ErrCode::Value::TypeCheckFailed);
 
   // Reference Instructions.
   case OpCode::Ref__null:

@@ -101,10 +101,10 @@ O(Block, "block", 0x02)
 O(Loop, "loop", 0x03)
 O(If, "if", 0x04)
 O(Else, "else", 0x05)
-// 0x06: Reserved
-// 0x07: Reserved
+O(Try, "try", 0x06)     // For legacy EH proposal
+O(Catch, "catch", 0x07) // For legacy EH proposal
 O(Throw, "throw", 0x08)
-// 0x09: Reserved
+O(Rethrow, "rethrow", 0x09) // For legacy EH proposal
 O(Throw_ref, "throw_ref", 0x0A)
 O(End, "end", 0x0B)
 O(Br, "br", 0x0C)
@@ -119,8 +119,8 @@ O(Call_ref, "call_ref", 0x14)
 O(Return_call_ref, "return_call_ref", 0x15)
 // 0x16: Reserved
 // 0x17: Reserved
-// 0x18: Reserved
-// 0x19: Reserved
+O(Delegate, "delegate", 0x18)   // For legacy EH proposal
+O(Catch_all, "catch_all", 0x19) // For legacy EH proposal
 
 // Parametric Instructions
 O(Drop, "drop", 0x1A)
@@ -315,7 +315,7 @@ O(Ref__func, "ref.func", 0xD2)
 O(Ref__eq, "ref.eq", 0xD3)
 O(Ref__as_non_null, "ref.as_non_null", 0xD4)
 
-// Control Instructions (part 2)
+// Control Instructions (part 3)
 O(Br_on_null, "br_on_null", 0xD5)
 O(Br_on_non_null, "br_on_non_null", 0xD6)
 // 0xD7 ~ 0xFA: Reserved

@@ -37,6 +37,8 @@ public:
     ValType RType1, RType2;
   };
   struct CatchDescriptor {
+    // LEGACY-EH: remove this flag after deprecating legacy EH.
+    bool IsLegacy : 1;
     bool IsAll : 1;
     bool IsRef : 1;
     uint32_t TagIndex;
@@ -48,6 +50,13 @@ public:
     uint32_t BlockParamNum;
     uint32_t JumpEnd;
     std::vector<CatchDescriptor> Catch;
+  };
+  // LEGACY-EH: remove this struct after deprecating legacy EH.
+  struct CatchDescriptorLegacy {
+    uint32_t TagIndex;
+    uint32_t LabelIndex;
+    uint32_t CatchIndex;
+    uint32_t CatchPCOffset;
   };
 
 public:
@@ -208,6 +217,13 @@ public:
   uint8_t getMemoryLane() const noexcept { return Data.Memories.MemLane; }
   uint8_t &getMemoryLane() noexcept { return Data.Memories.MemLane; }
 
+  // LEGACY-EH: remove these functions after deprecating legacy EH.
+  /// Getter and setter of legacy Catch for Catch* instructions.
+  const CatchDescriptorLegacy &getCatchLegacy() const noexcept {
+    return Data.CatchLegacy;
+  }
+  CatchDescriptorLegacy &getCatchLegacy() noexcept { return Data.CatchLegacy; }
+
   /// Getter and setter of the constant value.
   ValVariant getNum() const noexcept {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
@@ -329,6 +345,9 @@ private:
     BrCastDescriptor *BrCast;
     // Type 11: Try Block.
     TryDescriptor *TryCatch;
+    // LEGACY-EH: remove the this case after deprecating legacy EH.
+    // Type 12: Legacy Catch descriptor.
+    CatchDescriptorLegacy CatchLegacy;
   } Data;
   uint32_t Offset = 0;
   OpCode Code = OpCode::End;

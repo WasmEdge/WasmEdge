@@ -362,7 +362,7 @@ Expect<void> Loader::loadType(FuncType &Ty) {
   // ps:<paramlist> rs:<resultlist>
   // => (func ps rs)
   if (auto Res = loadVec<TypeSection>(
-          Ty.getParamList(), [this](LabelValType LV) { return loadType(LV); });
+          Ty.getParamList(), [this](LabelValType &LV) { return loadType(LV); });
       !Res) {
     return Unexpect(Res);
   }

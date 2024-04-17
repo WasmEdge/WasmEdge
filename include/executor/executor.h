@@ -310,7 +310,8 @@ private:
   /// \name Helper Functions for canonical ABI
   /// @{
   std::unique_ptr<Runtime::Instance::FunctionInstance>
-  lifting(const WasmEdge::AST::Component::FuncType &FuncType,
+  lifting(Runtime::Instance::ComponentInstance &Comp,
+          const WasmEdge::AST::Component::FuncType &FuncType,
           Runtime::Instance::FunctionInstance *F,
           Runtime::Instance::MemoryInstance *Memory,
           Runtime::Instance::FunctionInstance *Realloc);

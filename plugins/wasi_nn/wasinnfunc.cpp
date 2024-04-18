@@ -569,6 +569,8 @@ WasiNNFiniSingle::bodyImpl(const Runtime::CallingFrame &Frame,
   switch (Env.NNContext[Context].getBackend()) {
   case WASINN::Backend::GGML:
     return WASINN::GGML::finiSingle(Env, Context);
+  case WASINN::Backend::NeuralSpeed:
+    return WASINN::NeuralSpeed::finiSingle(Env, Context);
   default:
     spdlog::error(
         "[WASI-NN] fini_single: Only GGML backend supports compute_single."sv);

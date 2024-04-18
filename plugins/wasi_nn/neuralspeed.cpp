@@ -1,4 +1,5 @@
 #include "neuralspeed.h"
+#include "simdjson.h"
 #include "wasinnenv.h"
 #include <dlfcn.h>
 #include <variant>
@@ -18,6 +19,29 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Neural speed backend: Load."sv);
   }
+
+  if (Builders.size() > 1) {
+    std::string Metadata = std::string(
+        reinterpret_cast<char *>(Builders[1].data()), Builders[1].size());
+    simdjson::dom::parser Parser;
+    simdjson::dom::element Doc;
+    auto ParseError = Parser.parse(Metadata).get(Doc);
+    if (ParseError) {
+      spdlog::error("[WASI-NN] neural speed backend: Parse metadata error"sv);
+      return ErrNo::InvalidEncoding;
+    }
+    if (Doc.at_key("model_type").error() == simdjson::SUCCESS) {
+      std::string_view model_type;
+      auto Err = Doc["model_type-log"].get<std::string_view>().get(model_type);
+      if (Err) {
+        spdlog::error(
+            "[WASI-NN] GGML backend: Unable to retrieve the enable-log option."sv);
+        return ErrNo::InvalidArgument;
+      }
+      GraphRef.model_type = model_type;
+    }
+  }
+
   // Handle the model path.
   auto Weight = Builders[0];
   const std::string BinModel(reinterpret_cast<char *>(Weight.data()),
@@ -42,9 +66,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (!TempFile) {
       spdlog::error(
           "[WASI-NN] Neural speed: Failed to create the temporary file. "
-          "Currently, our workaround involves creating a temporary model "
-          "file named \"ggml-model.bin\" and passing this filename as a "
-          "parameter to the ggml llama library."sv);
+          "Currently, our workaround involves creating a temporary model."sv);
       Env.NNGraph.pop_back();
       return ErrNo::InvalidArgument;
     }
@@ -78,8 +100,9 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     return WASINN::ErrNo::RuntimeError;
   }
   GraphRef.Model = PyObject_CallObject(GraphRef.ModelClass, NULL);
-  PyObject *LoadResult = PyObject_CallMethod(
-      GraphRef.Model, "init_from_bin", "(ss)", "llama", ModelFilePath.c_str());
+  PyObject *LoadResult =
+      PyObject_CallMethod(GraphRef.Model, "init_from_bin", "(ss)",
+                          GraphRef.model_type.c_str(), ModelFilePath.c_str());
   if (LoadResult == nullptr) {
     spdlog::error("[WASI-NN] neural speed backend: Load model error."sv);
     return WASINN::ErrNo::RuntimeError;

@@ -124,6 +124,7 @@ jobs:
     needs: [get_version, lint]
     name: Ubuntu
     uses: ./.github/workflows/reusable-build-on-ubuntu.yml
+    secrets: inherit
     with:
       version: ${{ needs.get_version.outputs.version }}
       matrix: "[{'name':'ubuntu-22.04','compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-build-gcc','tests':true},

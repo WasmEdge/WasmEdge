@@ -217,14 +217,22 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
           if (PyLong_Check(Num)) {
             InnerVec.push_back(PyLong_AsLong(Num));
           }
+          Py_DECREF(Num);
         }
         CxtRef.Outputs = InnerVec;
       }
+      Py_DECREF(InnerList);
     }
   }
   Py_DECREF(Result);
   // Py_DECREF(GenerateArgs);
   Py_DECREF(LongTensor);
+  return WASINN::ErrNo::Success;
+}
+
+Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &,
+                                 uint32_t) noexcept {
+  Py_Finalize();
   return WASINN::ErrNo::Success;
 }
 #else
@@ -253,6 +261,10 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
   return reportBackendNotSupported();
 }
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &,
+                                 uint32_t) noexcept {
   return reportBackendNotSupported();
 }
 #endif

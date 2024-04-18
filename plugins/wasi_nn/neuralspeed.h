@@ -14,28 +14,9 @@ namespace WasmEdge::Host::WASINN::NeuralSpeed {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
 struct Graph {
   bool EnableDebugLog = true;
-  // TODO add mutex
-  // static std::mutex py_mutex;
+  std::string model_type = "llama";
   inline static int GraphNumber = 0;
-  Graph() noexcept {
-    // py_mutex.lock();
-    if (GraphNumber == 0) {
-      Py_Initialize();
-    }
-    GraphNumber++;
-    // py_mutex.unlock();
-  }
-  ~Graph() noexcept {
-    Py_XDECREF(Model);
-    Py_XDECREF(ModelClass);
-    Py_XDECREF(NeuralSpeedModule);
-    // py_mutex.lock();
-    if (GraphNumber == 1) {
-      Py_Finalize();
-    }
-    GraphNumber--;
-    // py_mutex.unlock();
-  }
+  Graph() noexcept { Py_Initialize(); }
 
   PyObject *Model;
   PyObject *NeuralSpeedModule;
@@ -71,5 +52,7 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
                                 uint32_t &BytesWritten) noexcept;
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
+Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
+                                 uint32_t ContextId) noexcept;
 
 } // namespace WasmEdge::Host::WASINN::NeuralSpeed

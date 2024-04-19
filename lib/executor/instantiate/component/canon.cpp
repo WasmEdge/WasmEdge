@@ -93,7 +93,7 @@ public:
   }
 
   Expect<void> run(const Runtime::CallingFrame &, Span<const ValVariant> Args,
-                   Span<ValVariant>) override {
+                   Span<ValVariant> Rets) override {
     const auto &HigherFuncType = DefType.getCompositeType().getFuncType();
 
     uint32_t PI = 0;
@@ -136,7 +136,26 @@ public:
       return Unexpect(Res);
     }
 
-    // TODO: push `Res` into result span
+    uint32_t RI = 0;
+    uint32_t TakeI = 0;
+    auto &ResultList = *Res;
+    for (auto &HighTy : HigherFuncType.getReturnTypes()) {
+      switch (HighTy.getCode()) {
+      case TypeCode::String: {
+        auto Idx = ResultList[TakeI++].first.get<uint32_t>();
+        auto Size = ResultList[TakeI++].first.get<uint32_t>();
+        auto Str = Memory->getStringView(Idx, Size);
+        const auto *R = new Instance::StringInstance(Str);
+        Rets[RI++] = StrVariant(R);
+        break;
+      }
+      default: {
+        Rets[RI++] = ResultList[TakeI++].first;
+        break;
+      }
+      }
+    }
+
     return {};
   }
 
@@ -305,16 +324,18 @@ Executor::instantiate(Runtime::StoreManager &,
       }
 
       const auto &AstFuncType = CompInst.getType(L.getFuncTypeIndex());
-      if (std::holds_alternative<FuncType>(AstFuncType)) {
-        auto *FuncInst = CompInst.getCoreFunctionInstance(L.getCoreFuncIndex());
-        CompInst.addFunctionInstance(lifting(CompInst,
-                                             std::get<FuncType>(AstFuncType),
-                                             FuncInst, Mem, ReallocFunc));
-      } else {
+      if (unlikely(!std::holds_alternative<FuncType>(AstFuncType))) {
+        // It doesn't make sense if one tries to lift an instance not a
+        // function, so unlikely happen.
         spdlog::error("cannot lift a non-function");
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
         return Unexpect(ErrCode::Value::InvalidCanonOption);
       }
+
+      auto *FuncInst = CompInst.getCoreFunctionInstance(L.getCoreFuncIndex());
+      CompInst.addFunctionInstance(lifting(CompInst,
+                                           std::get<FuncType>(AstFuncType),
+                                           FuncInst, Mem, ReallocFunc));
     } else if (std::holds_alternative<Lower>(C)) {
       // lower sends a component function to a core wasm function, with proper
       // modification about canonical ABI.

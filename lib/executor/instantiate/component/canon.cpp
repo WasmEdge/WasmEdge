@@ -47,15 +47,13 @@ void pushType(Runtime::Instance::ComponentInstance &Comp,
       Types.push_back(TypeCode::F64);
       break;
     case PrimValType::String:
-      Types.push_back(TypeCode::I32);
-      Types.push_back(TypeCode::I32);
+      Types.push_back(TypeCode::String);
       break;
     }
   } else {
     auto Idx = std::get<TypeIndex>(T);
-    spdlog::info("index: {}", T);
-    const auto &T = Comp.getType(Idx);
-    spdlog::info("{} ", T);
+    const auto &Ty = Comp.getType(Idx);
+    spdlog::warn("Type {} is not handled yet", Ty);
   }
 }
 
@@ -83,28 +81,43 @@ AST::FunctionType convert(Runtime::Instance::ComponentInstance &Comp,
 class LiftTrans : public HostFunctionBase {
 public:
   LiftTrans(Executor *Exec, const FuncType &DefinedType,
-            Instance::FunctionInstance *Func,
+            Instance::FunctionInstance *Func, Instance::MemoryInstance *M,
+            Instance::FunctionInstance *R,
             Runtime::Instance::ComponentInstance &Comp)
-      : HostFunctionBase(0), Exec(Exec), LowerFunc(Func) {
+      : HostFunctionBase(0), Exec(Exec), LowerFunc(Func), Memory(M),
+        Realloc(R) {
     auto &FT = DefType.getCompositeType().getFuncType();
+    // The convert is simply let component type to internal type.
     FT = convert(Comp, DefinedType);
     spdlog::info("lifted: {}", FT);
   }
 
   Expect<void> run(const Runtime::CallingFrame &, Span<const ValVariant> Args,
                    Span<ValVariant>) override {
-    auto LowerFuncType = LowerFunc->getFuncType();
+    const auto &HigherFuncType = DefType.getCompositeType().getFuncType();
 
     uint32_t PI = 0;
     std::vector<ValVariant> LowerArgs{};
-    for (auto &ParamTy : LowerFuncType.getParamTypes()) {
+    for (auto &ParamTy : HigherFuncType.getParamTypes()) {
       switch (ParamTy.getCode()) {
       case TypeCode::String: {
-        const StrVariant &Str = Args[PI++].get<StrVariant>();
-        // TODO: use variant position instead of fixed 0
-        LowerArgs.push_back(ValVariant(0));
-        // size of string
-        LowerArgs.push_back(ValVariant(Str.getPtr()->getLength()));
+        auto const &Str = Args[PI++].get<StrVariant>().getPtr()->getString();
+
+        auto StrSize = static_cast<uint32_t>(Str.size());
+        std::vector<ValVariant> ReallocArgs{ValVariant(0), ValVariant(0),
+                                            ValVariant(0), ValVariant(StrSize)};
+        auto RPtr = Exec->invoke(Realloc, ReallocArgs,
+                                 Realloc->getFuncType().getParamTypes());
+        if (!RPtr) {
+          return Unexpect(RPtr);
+        }
+        ValVariant PtrInMem = (*RPtr)[0].first;
+
+        Memory->setBytes(std::vector<Byte>{Str.begin(), Str.end()},
+                         PtrInMem.get<uint32_t>(), 0,
+                         static_cast<uint32_t>(Str.size()));
+        LowerArgs.push_back(PtrInMem);
+        LowerArgs.push_back(StrSize);
         break;
       }
       default: {
@@ -116,6 +129,7 @@ public:
       }
     }
 
+    auto LowerFuncType = LowerFunc->getFuncType();
     auto Res =
         Exec->invoke(LowerFunc, LowerArgs, LowerFuncType.getParamTypes());
     if (!Res) {
@@ -129,20 +143,17 @@ public:
 private:
   Executor *Exec;
   Instance::FunctionInstance *LowerFunc;
-  // Instance::MemoryInstance *Memory;
-  // Instance::FunctionInstance *Realloc;
+  Instance::MemoryInstance *Memory;
+  Instance::FunctionInstance *Realloc;
 };
 
 std::unique_ptr<Instance::FunctionInstance>
 Executor::lifting(Runtime::Instance::ComponentInstance &Comp,
                   const FuncType &FuncType, Instance::FunctionInstance *Func,
-                  Instance::MemoryInstance *, Instance::FunctionInstance *) {
-  // TODO:
-  // 1. convert `FuncType` to wasmedge internal function type
-  // 2. load data from lower instance
-
+                  Instance::MemoryInstance *Memory,
+                  Instance::FunctionInstance *Realloc) {
   auto R = std::make_unique<Instance::FunctionInstance>(
-      std::make_unique<LiftTrans>(this, FuncType, Func, Comp));
+      std::make_unique<LiftTrans>(this, FuncType, Func, Memory, Realloc, Comp));
   return R;
 }
 
@@ -232,7 +243,8 @@ public:
         ValVariant V = (*RPtr)[0].first;
 
         Memory->setBytes(std::vector<Byte>{Str.begin(), Str.end()},
-                         V.get<uint32_t>(), 0, Str.size());
+                         V.get<uint32_t>(), 0,
+                         static_cast<uint32_t>(Str.size()));
         Rets[RI++] = V;
         Rets[RI++] = ValVariant(StrSize);
         break;

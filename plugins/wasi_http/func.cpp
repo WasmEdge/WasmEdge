@@ -20,11 +20,11 @@ Expect<void> WasiHttpPrint::body(const Runtime::CallingFrame &,
 }
 
 Expect<StrVariant> WasiHttpGet::body(const Runtime::CallingFrame &,
-                                     uint64_t Idx) {
-  auto URI = Env.loadURI(Idx);
-
+                                     StrVariant URI) {
+  const auto &S = URI.getPtr()->getString();
+  spdlog::info("[WASI-HTTP] URI: {}", S);
   cpr::Response Res = cpr::Get(
-      cpr::Url{URI}, cpr::Authentication{"user", "pass", cpr::AuthMode::BASIC});
+      cpr::Url{S}, cpr::Authentication{"user", "pass", cpr::AuthMode::BASIC});
   spdlog::info("[WASI-HTTP] status: {}", Res.status_code);
 
   const auto *R = new Runtime::Instance::StringInstance(std::move(Res.text));

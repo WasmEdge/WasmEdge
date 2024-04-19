@@ -162,6 +162,15 @@ public:
   FunctionInstance *findFuncExports(std::string_view Name) const noexcept {
     return ExportFuncMap.at(std::string(Name));
   }
+  std::vector<std::pair<std::string, const AST::FunctionType &>>
+  getFuncExports() {
+    std::vector<std::pair<std::string, const AST::FunctionType &>> R;
+    for (auto &&[Name, Func] : ExportFuncMap) {
+      const auto &FuncType = Func->getFuncType();
+      R.emplace_back(Name, FuncType);
+    }
+    return R;
+  }
 
   void addCoreMemoryInstance(MemoryInstance *Inst) noexcept {
     CoreMemInstList.push_back(Inst);

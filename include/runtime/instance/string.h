@@ -22,6 +22,8 @@ class StringInstance {
 public:
   StringInstance() = delete;
   // in this case, we assume no module instance there, this is because
+  StringInstance(std::string_view Init) noexcept
+      : Data(std::string{Init.begin(), Init.end()}) {}
   StringInstance(std::string &&Init) noexcept : Data(std::move(Init)) {}
 
   std::string &getString() noexcept { return Data; }

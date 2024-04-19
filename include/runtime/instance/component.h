@@ -193,12 +193,6 @@ public:
   }
   void addType(const DefType &Ty) noexcept { Types.emplace_back(Ty); }
   const DefType &getType(uint32_t Idx) const noexcept { return Types[Idx]; }
-  void mapCoreType(std::string_view Name, uint32_t Index) {
-    CoreTypeMap[std::string(Name)] = CoreTypes[Index];
-  }
-  void mapType(std::string_view Name, uint32_t Index) {
-    TypeMap[std::string(Name)] = Types[Index];
-  }
 
 private:
   void unsafeAddHostFunc(std::string_view Name,
@@ -242,13 +236,9 @@ private:
   // a pair of pointer and length, where pointer stored in the memory
   // instance from option.
   std::vector<MemoryInstance *> CoreMemInstList;
-  std::map<std::string, MemoryInstance *, std::less<>> CoreMemInstMap;
 
   std::vector<AST::Component::CoreDefType> CoreTypes;
   std::vector<AST::Component::DefType> Types;
-
-  std::map<std::string, AST::Component::CoreDefType, std::less<>> CoreTypeMap;
-  std::map<std::string, AST::Component::DefType, std::less<>> TypeMap;
 };
 
 } // namespace Instance

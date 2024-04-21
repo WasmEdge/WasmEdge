@@ -430,14 +430,6 @@ Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
     const Runtime::CallingFrame &Frame, uint32_t Context, uint32_t Index,
     uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
     uint32_t BytesWrittenPtr) {
-#ifdef WASMEDGE_BUILD_WASI_NN_RPC
-  if (Env.NNRPCChannel != nullptr) {
-    // TODO: implement RPC for GetOutputSingle
-    spdlog::error(
-        "[WASI-NN] RPC client is not implemented for GetOutputSingle"sv);
-    return WASINN::ErrNo::UnsupportedOperation;
-  }
-#endif
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -461,6 +453,29 @@ Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
     spdlog::error("[WASI-NN] Failed when accessing the BytesWritten memory."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
+
+  #ifdef WASMEDGE_BUILD_WASI_NN_RPC
+  if (Env.NNRPCChannel != nullptr) {
+    auto Stub = wasi_ephemeral_nn::GraphExecutionContextResource::NewStub(
+        Env.NNRPCChannel);
+    grpc::ClientContext ClientContext;
+    wasi_ephemeral_nn::GetOutputRequest Req;
+    Req.set_resource_handle(Context);
+    Req.set_index(Index);
+    wasi_ephemeral_nn::GetOutputResult Res;
+    auto Status = Stub->GetOutput(&ClientContext, Req, &Res);
+    if (!Status.ok()) {
+      spdlog::error("[WASI-NN] Failed when calling remote GetOutput: {}"sv,
+                    Status.error_message());
+      return WASINN::ErrNo::RuntimeError;
+    }
+    uint32_t BytesWrittenVal =
+        std::min(static_cast<uint32_t>(Res.data().size()), OutBufferMaxSize);
+    std::copy_n(Res.data().begin(), BytesWrittenVal, OutBuffer.begin());
+    *BytesWritten = BytesWrittenVal;
+    return WASINN::ErrNo::Success;
+  }
+  #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
   switch (Env.NNContext[Context].getBackend()) {
   case WASINN::Backend::GGML:

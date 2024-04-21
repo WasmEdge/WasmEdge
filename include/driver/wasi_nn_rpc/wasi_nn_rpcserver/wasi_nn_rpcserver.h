@@ -320,6 +320,41 @@ public:
     return grpc::Status::OK;
   }
 
+/*
+    Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
+                            uint32_t Index, Span<uint8_t> OutBuffer,
+                            uint32_t &BytesWritten) noexcept
+  */
+  virtual grpc::Status
+  GetOutputSingle(grpc::ServerContext * /*RPCContext*/,
+            const wasi_ephemeral_nn::GetOutputRequest *RPCRequest,
+            wasi_ephemeral_nn::GetOutputResult *RPCResult) {
+    std::string_view FuncName = "get_output_single"sv;
+    uint32_t ResourceHandle = RPCRequest->resource_handle();
+    uint32_t Index = RPCRequest->index();
+    uint32_t MemorySize = UINT32_C(8);
+    uint32_t BytesWrittenPtr = UINT32_C(0);
+    uint32_t BufPtr = BytesWrittenPtr + UINT32_C(4);
+    uint32_t BufMaxSize = MemorySize - BufPtr;
+    HostFuncCaller HostFuncCaller(NNMod, FuncName, MemorySize);
+    auto &MemInst = HostFuncCaller.getMemInst();
+    uint32_t Errno = HostFuncCaller.call(
+        {ResourceHandle, Index, BufPtr, BufMaxSize, BytesWrittenPtr});
+    if (Errno != 0) {
+      return createRPCStatusFromErrno(FuncName, Errno);
+    }
+    /* clang-format off */
+    /**
+       0                    : BytesWritten
+       4                    : Buf
+    */
+    /* clang-format on */
+    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
+    auto *Buf = MemInst.getPointer<char *>(BufPtr);
+    RPCResult->set_data(Buf, BytesWritten);
+    return grpc::Status::OK;
+  }
+
 private:
   const Runtime::Instance::ModuleInstance &NNMod;
 };

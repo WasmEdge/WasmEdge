@@ -155,6 +155,12 @@ TEST(WasiNNTest, OpenVINOBackend) {
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncGetOutput =
       dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
+  // Get the function "get_output_single".
+  FuncInst = NNMod->findFuncExports("get_output_single");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncGetOutputSingle =
+      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
@@ -489,6 +495,59 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: get_output -- get output successfully.
   {
     EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(1), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), UINT32_C(4004));
+    const auto OutputClassification =
+        MemInst.getSpan<const float>(StorePtr, 1001).subspan(1);
+    std::vector<size_t> SortedIndex, CorrectClasses{963, 762, 909, 926, 567};
+    SortedIndex = classSort<float>(OutputClassification);
+    // The probability of class i is placed at buffer[i].
+    for (size_t I = 0; I < CorrectClasses.size(); I++) {
+      EXPECT_EQ(SortedIndex[I], CorrectClasses[I]);
+    }
+  }
+
+  // OpenVINO WASI-NN get_output_single tests.
+  // Test: get_output_single -- output bytes ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), BuilderPtr, 8, OutBoundPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output_single -- output buffer ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), OutBoundPtr, 8, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output_single -- output index exceeds.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(10), StorePtr, 8, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output_single -- get output successfully.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             UINT32_C(1), UINT32_C(0), StorePtr, 65532, BuilderPtr},

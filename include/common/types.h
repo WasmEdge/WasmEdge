@@ -368,7 +368,6 @@ namespace Runtime::Instance {
 class FunctionInstance;
 class StructInstance;
 class ArrayInstance;
-class StringInstance;
 } // namespace Runtime::Instance
 
 /// NumType and RefType variant definitions.
@@ -394,9 +393,6 @@ struct RefVariant {
   }
   RefVariant(const Runtime::Instance::ArrayInstance *P) noexcept {
     setData(TypeCode::ArrayRef, reinterpret_cast<const void *>(P));
-  }
-  RefVariant(const Runtime::Instance::StringInstance *P) noexcept {
-    setData(TypeCode::String, reinterpret_cast<const void *>(P));
   }
 
   // Getter of type.
@@ -440,29 +436,18 @@ private:
 
 struct StrVariant {
   // Constructors.
-  StrVariant() noexcept { setData(); }
-  StrVariant(const Runtime::Instance::StringInstance *P) noexcept {
-    setData(P);
-  }
+  // StrVariant() noexcept { setData(""); }
+  StrVariant(std::string &&P) noexcept { setData(std::move(P)); }
 
   // Getter of type.
-  const ValType &getType() const noexcept {
-    return reinterpret_cast<const ValType &>(toArray()[0]);
-  }
-  ValType &getType() noexcept {
-    return reinterpret_cast<ValType &>(toArray()[0]);
-  }
+  const ValType getType() const noexcept { return TypeCode::String; }
 
   // Getter of pointer.
-  Runtime::Instance::StringInstance *getPtr() const noexcept {
-    return reinterpret_cast<Runtime::Instance::StringInstance *>(toArray()[1]);
+  std::string_view getString() const noexcept {
+    auto Ptr = reinterpret_cast<const char *>(toArray()[0]);
+    auto Size = static_cast<size_t>(toArray()[1]);
+    return std::string_view(Ptr, Size);
   }
-
-  // Check is null.
-  bool isNull() const { return getPtr() == nullptr; }
-
-  // Getter of the raw data.
-  uint64x2_t getRawData() const noexcept { return Data; }
 
 private:
   // Helper function of converting data to array.
@@ -474,10 +459,9 @@ private:
   }
 
   // Helper function to set the content.
-  void
-  setData(const Runtime::Instance::StringInstance *Ptr = nullptr) noexcept {
-    getType() = TypeCode::String;
-    toArray()[1] = reinterpret_cast<uintptr_t>(Ptr);
+  void setData(std::string &&S) noexcept {
+    toArray()[0] = reinterpret_cast<uintptr_t>(S.c_str());
+    toArray()[1] = static_cast<uint64_t>(S.size());
   }
 
   // Member data.
@@ -642,7 +626,7 @@ inline ValVariant ValueFromType(ValType Type) noexcept {
     return RefVariant(Type);
   // wasm interface types
   case TypeCode::String:
-    return StrVariant();
+    return StrVariant("");
   default:
     assumingUnreachable();
   }

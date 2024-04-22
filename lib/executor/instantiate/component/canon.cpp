@@ -101,7 +101,7 @@ public:
     for (auto &ParamTy : HigherFuncType.getParamTypes()) {
       switch (ParamTy.getCode()) {
       case TypeCode::String: {
-        auto const &Str = Args[PI++].get<StrVariant>().getPtr()->getString();
+        std::string_view Str = Args[PI++].get<StrVariant>().getString();
 
         auto StrSize = static_cast<uint32_t>(Str.size());
         std::vector<ValVariant> ReallocArgs{ValVariant(0), ValVariant(0),
@@ -145,8 +145,7 @@ public:
         auto Idx = ResultList[TakeI++].first.get<uint32_t>();
         auto Size = ResultList[TakeI++].first.get<uint32_t>();
         auto Str = Memory->getStringView(Idx, Size);
-        const auto *R = new Instance::StringInstance(Str);
-        Rets[RI++] = StrVariant(R);
+        Rets[RI++] = StrVariant(std::string(Str.begin(), Str.end()));
         break;
       }
       default: {
@@ -227,8 +226,7 @@ public:
         std::string_view V =
             Memory->getStringView(Idx.get<uint32_t>(), Len.get<uint32_t>());
         std::string S{V.begin(), V.end()};
-        HigherArgs.push_back(
-            StrVariant(new Instance::StringInstance(std::move(S))));
+        HigherArgs.push_back(StrVariant(std::move(S)));
         break;
       }
       default:
@@ -249,7 +247,7 @@ public:
     for (auto &[RetVal, RetTy] : *Res) {
       switch (RetTy.getCode()) {
       case TypeCode::String: {
-        auto const &Str = RetVal.get<StrVariant>().getPtr()->getString();
+        auto const &Str = RetVal.get<StrVariant>().getString();
 
         auto StrSize = static_cast<uint32_t>(Str.size());
         std::vector<ValVariant> ReallocArgs{ValVariant(0), ValVariant(0),

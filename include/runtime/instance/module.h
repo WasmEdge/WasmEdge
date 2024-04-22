@@ -24,7 +24,6 @@
 #include "runtime/instance/function.h"
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
-#include "runtime/instance/string.h"
 #include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
 #include "runtime/instance/tag.h"

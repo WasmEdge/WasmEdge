@@ -5,6 +5,10 @@ if(WASMEDGE_PLUGIN_WASI_HTTP)
   add_subdirectory(wasi_http)
 endif()
 
+if(WASMEDGE_PLUGIN_WASI_POLL)
+  add_subdirectory(wasi_poll)
+endif()
+
 if(WASMEDGE_PLUGIN_WASI_NN_BACKEND)
   add_subdirectory(wasi_nn)
 endif()

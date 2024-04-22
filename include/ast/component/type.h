@@ -165,9 +165,8 @@ private:
   TypeIndex Idx;
 };
 
-using DefValType = std::variant<PrimValType, Record, VariantTy, List, Tuple,
-                                Flags, Enum, Option, Result, Own, Borrow>;
-
+using DefValType =
+    std::variant<PrimValType, Record, VariantTy, List, Flags, Own, Borrow>;
 using ResultList = std::variant<ValueType, std::vector<LabelValType>>;
 class FuncType {
 public:

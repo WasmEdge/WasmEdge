@@ -234,36 +234,85 @@ Expect<void> Loader::loadType(DefType &Ty) {
       return Unexpect(Res);
     }
     break;
-  case 0x6f:
-    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Tuple>()); !Res) {
+  case 0x6f: {
+    Tuple TupleTy;
+    if (auto Res = loadType(TupleTy); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
+    auto &Rec = Ty.emplace<DefValType>().emplace<Record>();
+
+    auto Cnt = 0;
+    for (auto &T : TupleTy.getTypes()) {
+      LabelValType LT;
+      LT.getLabel() = fmt::format("{}", Cnt++);
+      LT.getValType().swap(T);
+      Rec.getLabelTypes().emplace_back(LT);
+    }
+
     break;
+  }
   case 0x6e:
     if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Flags>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     break;
-  case 0x6d:
-    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Enum>()); !Res) {
+  case 0x6d: {
+    Enum E;
+    if (auto Res = loadType(E); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
+
+    auto &V = Ty.emplace<DefValType>().emplace<VariantTy>();
+    for (auto Label : E.getLabels()) {
+      Case C;
+      C.getLabel() = Label;
+      C.getValType() = std::nullopt;
+      V.getCases().emplace_back(C);
+    }
+
     break;
-  case 0x6b:
-    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Option>()); !Res) {
+  }
+  case 0x6b: {
+    Option O;
+    if (auto Res = loadType(O); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
+
+    auto &V = Ty.emplace<DefValType>().emplace<VariantTy>();
+    Case N;
+    N.getLabel() = "none";
+    N.getValType() = std::nullopt;
+    V.getCases().emplace_back(N);
+    Case S;
+    S.getLabel() = "some";
+    S.getValType() = O.getValType();
+    V.getCases().emplace_back(S);
+
     break;
-  case 0x6a:
-    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Result>()); !Res) {
+  }
+  case 0x6a: {
+    Result R;
+    if (auto Res = loadType(R); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
+
+    auto &V = Ty.emplace<DefValType>().emplace<VariantTy>();
+    Case Ok;
+    Ok.getLabel() = "ok";
+    Ok.getValType() = R.getValType();
+    V.getCases().emplace_back(Ok);
+    Case Err;
+    Err.getLabel() = "error";
+    Err.getValType() = R.getErrorType();
+    V.getCases().emplace_back(Err);
+
     break;
+  }
   case 0x69:
     if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Own>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));

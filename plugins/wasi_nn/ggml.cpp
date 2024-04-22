@@ -1336,6 +1336,17 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   return ErrNo::Success;
 }
 
+Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
+  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
+  if (GraphRef.LlamaModel != nullptr) {
+    llama_free_model(GraphRef.LlamaModel);
+    GraphRef.LlamaModel = nullptr;
+  }
+  Env.NNGraph.erase(Env.NNGraph.begin() + GraphId);
+  Env.mdRemoveById(GraphId);
+  return ErrNo::Success;
+}
+
 #else
 namespace {
 Expect<ErrNo> reportBackendNotSupported() noexcept {

@@ -645,7 +645,7 @@ public:
   }
 
   WasiExpect<void> sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
-                              __wasi_sock_opt_so_t SockOptName,
+                              __wasi_sock_opt_t SockOptName,
                               Span<const uint8_t> Flag) const noexcept {
     return Node.sockSetOpt(SockOptLevel, SockOptName, Flag);
   }

@@ -7,6 +7,7 @@
 #include "executor/executor.h"
 #include "host/wasi/environ.h"
 #include "runtime/instance/memory.h"
+#include "wasi/api.hpp"
 
 #include <algorithm>
 #include <array>
@@ -305,6 +306,8 @@ cast<__wasi_sock_opt_level_t>(uint64_t SockOptLevel) noexcept {
   switch (WasiRawTypeT<__wasi_sock_opt_level_t>(SockOptLevel)) {
   case __WASI_SOCK_OPT_LEVEL_SOL_SOCKET:
     return static_cast<__wasi_sock_opt_level_t>(SockOptLevel);
+  case __WASI_SOCK_OPT_LEVEL_IPPROTO_TCP:
+    return static_cast<__wasi_sock_opt_level_t>(SockOptLevel);
   default:
     return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
   }
@@ -330,6 +333,17 @@ cast<__wasi_sock_opt_so_t>(uint64_t SockOptName) noexcept {
   case __WASI_SOCK_OPT_SO_ACCEPTCONN:
   case __WASI_SOCK_OPT_SO_BINDTODEVICE:
     return static_cast<__wasi_sock_opt_so_t>(SockOptName);
+  default:
+    return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
+}
+
+template <>
+WASI::WasiExpect<__wasi_sock_opt_tcp_t>
+cast<__wasi_sock_opt_tcp_t>(uint64_t SockOptName) noexcept {
+  switch (WasiRawTypeT<__wasi_sock_opt_so_t>(SockOptName)) {
+  case __WASI_SOCK_OPT_TCP_NODELAY:
+    return static_cast<__wasi_sock_opt_tcp_t>(SockOptName);
   default:
     return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
   }
@@ -2135,13 +2149,24 @@ Expect<uint32_t> WasiSockSetOpt::body(const Runtime::CallingFrame &Frame,
   } else {
     WasiSockOptLevel = *Res;
   }
+  __wasi_sock_opt_t WasiSockOptName;
 
-  __wasi_sock_opt_so_t WasiSockOptName;
-  if (auto Res = cast<__wasi_sock_opt_so_t>(SockOptName); unlikely(!Res)) {
-    return Res.error();
-  } else {
-    WasiSockOptName = *Res;
-  }
+  switch (WasiSockOptLevel) {
+  case __WASI_SOCK_OPT_LEVEL_SOL_SOCKET:
+    if (auto Res = cast<__wasi_sock_opt_so_t>(SockOptName); unlikely(!Res)) {
+      return Res.error();
+    } else {
+      WasiSockOptName = *Res;
+    }
+    break;
+  case __WASI_SOCK_OPT_LEVEL_IPPROTO_TCP:
+    if (auto Res = cast<__wasi_sock_opt_tcp_t>(SockOptName); unlikely(!Res)) {
+      return Res.error();
+    } else {
+      WasiSockOptName = *Res;
+    }
+    break;
+  };
 
   const auto Flag = MemInst->getSpan<uint8_t>(FlagPtr, FlagSize);
   if (Flag.size() != FlagSize) {

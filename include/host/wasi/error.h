@@ -4,7 +4,7 @@
 #pragma once
 
 #include "common/expected.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "wasi/api.hpp"
 #include <string_view>
 

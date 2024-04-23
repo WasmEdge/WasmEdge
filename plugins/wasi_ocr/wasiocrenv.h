@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "plugin/plugin.h"
 #include <cstdint>
 

@@ -3,7 +3,7 @@
 
 #ifdef WASMEDGE_BUILD_FUZZING
 #include "driver/fuzzPO.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "common/version.h"
 #include "po/argument_parser.h"
 

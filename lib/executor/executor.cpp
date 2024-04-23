@@ -4,7 +4,7 @@
 #include "executor/executor.h"
 
 #include "common/errinfo.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 
 namespace WasmEdge {
 namespace Executor {

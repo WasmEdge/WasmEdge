@@ -1,4 +1,4 @@
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "driver/wasi_nn_rpc/wasi_nn_rpcserver/wasi_nn_rpcserver.h"
 #include "plugin/plugin.h"
 #include "po/argument_parser.h"

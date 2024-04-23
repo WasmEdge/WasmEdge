@@ -12,7 +12,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "vm/vm.h"
 
 #ifdef WASMEDGE_USE_LLVM

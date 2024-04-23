@@ -3,7 +3,7 @@
 
 #include "common/configure.h"
 #include "common/filesystem.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "common/types.h"
 #include "common/version.h"
 #include "driver/tool.h"

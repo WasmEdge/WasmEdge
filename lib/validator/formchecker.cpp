@@ -4,7 +4,7 @@
 #include "validator/formchecker.h"
 
 #include "common/errinfo.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 
 #include <algorithm>
 #include <array>

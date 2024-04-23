@@ -3,7 +3,7 @@
 
 #include "executor/executor.h"
 
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "system/fault.h"
 
 #include <cstdint>

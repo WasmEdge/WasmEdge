@@ -35,7 +35,7 @@ endif()
 
 wasmedge_add_library(wasmedgeCommon
   hexstr.cpp
-  log.cpp
+  spdlog.cpp
   errinfo.cpp
   int128.cpp
 )

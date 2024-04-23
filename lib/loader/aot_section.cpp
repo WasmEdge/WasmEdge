@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "loader/aot_section.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "system/allocator.h"
 
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS

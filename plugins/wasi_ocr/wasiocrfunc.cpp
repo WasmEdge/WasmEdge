@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Second State INC
 
 #include "wasiocrfunc.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 
 #include <iostream>
 #include <string>

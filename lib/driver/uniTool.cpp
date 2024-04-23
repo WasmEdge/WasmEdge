@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "driver/unitool.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "driver/compiler.h"
 #include "driver/tool.h"
 #include "po/argument_parser.h"

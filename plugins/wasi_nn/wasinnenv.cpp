@@ -143,21 +143,22 @@ void addOptions(const Plugin::Plugin::PluginDescriptor *,
 #endif
 }
 
+static Plugin::PluginModule::ModuleDescriptor MD[] = {
+    {
+        /* Name */ "wasi_nn",
+        /* Description */ "",
+        /* Create */ create,
+    },
+};
+
 Plugin::Plugin::PluginDescriptor Descriptor{
-    .Name = "wasi_nn",
-    .Description = "",
-    .APIVersion = Plugin::Plugin::CurrentAPIVersion,
-    .Version = {0, 10, 1, 0},
-    .ModuleCount = 1,
-    .ModuleDescriptions =
-        (Plugin::PluginModule::ModuleDescriptor[]){
-            {
-                .Name = "wasi_nn",
-                .Description = "",
-                .Create = create,
-            },
-        },
-    .AddOptions = addOptions,
+    /* Name */ "wasi_nn",
+    /* Description */ "",
+    /* APIVersion */ Plugin::Plugin::CurrentAPIVersion,
+    /* Version */ {0, 10, 1, 0},
+    /* ModuleCount */ 1,
+    /* ModuleDescriptions */ MD,
+    /* AddOptions */ addOptions,
 };
 } // namespace
 

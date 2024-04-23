@@ -114,7 +114,8 @@ public:
     std::string_view FuncName = "load_by_name"sv;
     auto Name = RPCRequest->name();
     uint32_t NamePtr = UINT32_C(0);
-    uint32_t NameLen = Name.size(); // does not include the '\0' terminator
+    uint32_t NameLen = static_cast<uint32_t>(
+        Name.size()); // does not include the '\0' terminator
     uint32_t OutPtr = NamePtr + NameLen + 1; // 1 is for the '\0' terminator
     uint32_t MemorySize = OutPtr + 4;        // 4 is for sizeof(OutPtr)
 
@@ -148,9 +149,10 @@ public:
     auto Name = RPCRequest->name();
     auto Config = RPCRequest->config();
     uint32_t NamePtr = UINT32_C(0);
-    uint32_t NameLen = Name.size(); // does not include the '\0' terminator
-    uint32_t ConfigPtr =
-        Name.size() + 1;                // 1 is for the '\0' terminator of Name
+    uint32_t NameLen = static_cast<uint32_t>(
+        Name.size()); // does not include the '\0' terminator
+    uint32_t ConfigPtr = static_cast<uint32_t>(
+        Name.size() + 1);               // 1 is for the '\0' terminator of Name
     uint32_t ConfigLen = Config.size(); // does not include the '\0' terminator
     uint32_t OutPtr =
         NamePtr + NameLen + 1 + ConfigLen + 1; // 1 is for the '\0' terminator
@@ -232,7 +234,7 @@ public:
     uint32_t TensorDimSize = TensorDim.size();
     uint32_t TensorTy = Tensor.ty();
     auto TensorData = Tensor.data();
-    uint32_t TensorDataSize = TensorData.size();
+    uint32_t TensorDataSize = static_cast<uint32_t>(TensorData.size());
 
     /* clang-format off */
     /**

@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #pragma once
-#include "common/log.h"
 #include "common/span.h"
+#include "common/spdlog.h"
 #include <cstdint>
 
 namespace WasmEdge::Host::WASINN {

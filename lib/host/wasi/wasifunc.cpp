@@ -3,7 +3,7 @@
 
 #include "host/wasi/wasifunc.h"
 #include "common/filesystem.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "executor/executor.h"
 #include "host/wasi/environ.h"
 #include "runtime/instance/memory.h"

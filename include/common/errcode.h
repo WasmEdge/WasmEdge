@@ -16,7 +16,7 @@
 #include "common/enum_errcode.hpp"
 #include "common/expected.h"
 #include "common/hexstr.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 
 #include <cassert>
 #include <ostream>

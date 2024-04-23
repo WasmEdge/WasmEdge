@@ -5,7 +5,7 @@
 #if WASMEDGE_OS_MACOS
 
 #include "common/errcode.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "common/variant.h"
 #include "host/wasi/environ.h"
 #include "host/wasi/inode.h"

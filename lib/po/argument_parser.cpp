@@ -3,7 +3,7 @@
 
 #include "po/argument_parser.h"
 #include "common/defines.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "system/winapi.h"
 #include <cstdio>
 

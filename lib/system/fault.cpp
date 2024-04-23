@@ -5,7 +5,7 @@
 
 #include "common/config.h"
 #include "common/defines.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 
 #include <atomic>
 #include <csetjmp>

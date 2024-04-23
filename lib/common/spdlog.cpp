@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "common/log.h"
+#include "common/spdlog.h"
 
 namespace WasmEdge {
 namespace Log {

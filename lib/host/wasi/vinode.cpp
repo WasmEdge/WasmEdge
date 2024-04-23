@@ -3,7 +3,7 @@
 
 #include "host/wasi/vinode.h"
 #include "common/errcode.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "host/wasi/environ.h"
 #include "host/wasi/vfs.h"
 #include <algorithm>

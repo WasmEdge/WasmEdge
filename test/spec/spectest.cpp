@@ -15,7 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "spectest.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 
 #include "simdjson.h"
 #include <algorithm>

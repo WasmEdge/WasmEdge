@@ -702,10 +702,10 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   }
   // Handle the model path.
   auto Weight = Builders[0];
-  const std::string BinModel(reinterpret_cast<char *>(Weight.data()),
-                             Weight.size());
+  const std::string_view BinModel(reinterpret_cast<char *>(Weight.data()),
+                                  Weight.size());
   std::string ModelFilePath;
-  if (BinModel.substr(0, 8) == "preload:") {
+  if (BinModel.substr(0, 8) == "preload:"sv) {
     ModelFilePath = BinModel.substr(8);
   } else {
     if (GraphRef.EnableDebugLog) {
@@ -716,7 +716,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     // TODO: pass the model directly to ggml
     // Write ggml model to file.
     ModelFilePath = "ggml-model.bin"sv;
-    std::ofstream TempFile(ModelFilePath);
+    std::ofstream TempFile(ModelFilePath, std::ios::out | std::ios::binary);
     if (!TempFile) {
       spdlog::error(
           "[WASI-NN] GGML backend: Failed to create the temporary file. "
@@ -726,7 +726,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
       Env.NNGraph.pop_back();
       return ErrNo::InvalidArgument;
     }
-    TempFile << BinModel;
+    TempFile.write(BinModel.data(), BinModel.size());
     TempFile.close();
     if (GraphRef.EnableDebugLog) {
       spdlog::info(

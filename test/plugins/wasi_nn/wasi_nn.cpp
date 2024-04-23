@@ -41,11 +41,10 @@ createModule(std::string_view NNRPCURI = "") {
 }
 
 inline std::vector<uint8_t> readEntireFile(const std::string &Path) {
-  std::ifstream Fin(Path, std::ios::binary | std::ios::ate);
+  std::ifstream Fin(Path, std::ios::in | std::ios::binary | std::ios::ate);
   if (!Fin) {
     return {};
   }
-  Fin.seekg(0, std::ios::end);
   std::vector<uint8_t> Buf(static_cast<std::size_t>(Fin.tellg()));
   Fin.seekg(0, std::ios::beg);
   if (!Fin.read(reinterpret_cast<char *>(Buf.data()),
@@ -58,7 +57,7 @@ inline std::vector<uint8_t> readEntireFile(const std::string &Path) {
 
 template <typename T>
 void writeBinaries(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
-                   std::vector<T> Binaries, uint32_t Ptr) noexcept {
+                   WasmEdge::Span<const T> Binaries, uint32_t Ptr) noexcept {
   std::copy(Binaries.begin(), Binaries.end(), MemInst.getPointer<T *>(Ptr));
 }
 
@@ -1364,7 +1363,7 @@ TEST(WasiNNTest, GGMLBackend) {
   writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(WeightRead.size()),
                   BuilderPtr);
   writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr);
-  StorePtr += WeightRead.size();
+  StorePtr += static_cast<uint32_t>(WeightRead.size());
   {
     EXPECT_TRUE(HostFuncLoad.run(CallFrame,
                                  std::initializer_list<WasmEdge::ValVariant>{
@@ -1451,7 +1450,7 @@ TEST(WasiNNTest, GGMLBackend) {
                              Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
-  StorePtr += (TensorDim.size() * 4 + TensorData.size());
+  StorePtr += static_cast<uint32_t>(TensorDim.size() * 4 + TensorData.size());
 
   // GGML WASI-NN compute tests.
   // Test: compute -- context id exceeds.

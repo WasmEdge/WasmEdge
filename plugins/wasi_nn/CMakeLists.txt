@@ -89,7 +89,7 @@ if(BACKEND STREQUAL "ggml")
     FetchContent_Declare(
       simdjson
       GIT_REPOSITORY https://github.com/simdjson/simdjson.git
-      GIT_TAG  tags/v3.2.1
+      GIT_TAG  tags/v3.9.1
       GIT_SHALLOW TRUE)
 
     if(MSVC)

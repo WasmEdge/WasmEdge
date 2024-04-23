@@ -59,12 +59,17 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       MD5=ad51c39cfe35d2ef35c4052b78cb3c55
     )
   elseif(BACKEND STREQUAL "ggml")
-  message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures")
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures")
     download(
       https://huggingface.co/TheBloke/orca_mini_v3_7B-GGUF/resolve/main/orca_mini_v3_7b.Q2_K.gguf
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/orca_mini.gguf
       MD5=f895f00678bfbf89f70d6d25f20a7b5f
     )
+    if(MSVC)
+      target_compile_options(wasiNNTests PUBLIC
+        /wd4067 # unexpected tokens following preprocessor directive - expected a newline
+      )
+    endif()
   else()
     # Add the other backend test files fetching here.
   endif()

@@ -53,16 +53,42 @@ if(BACKEND STREQUAL "ggml")
 
   # setup llama.cpp
   message(STATUS "Downloading llama.cpp source")
-  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  if(MSVC)
     add_compile_options(
+      /utf-8
+      /wd4067 # unexpected tokens following preprocessor directive - expected a newline
+      /wd4101 # 'identifier' : unreferenced local variable
+      /wd4189 # 'identifier' : local variable is initialized but not referenced
+      /wd4244 # 'argument' : conversion from 'type1' to 'type2', possible loss of data
+      /wd4267 # 'var' : conversion from 'size_t' to 'type', possible loss of data
+      /wd4297 # 'function' : function assumed not to throw an exception but does
+      /wd4456 # declaration of 'identifier' hides previous local declaration
+      /wd4505 # 'function' : unreferenced local function has been removed
+    )
+  endif()
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    add_compile_options(
+      $<$<COMPILE_LANGUAGE:CXX>:-Wno-exceptions>
+      -Wno-cast-align
+      -Wno-cast-qual
+      -Wno-float-conversion
+      -Wno-implicit-fallthrough
+      -Wno-unused-macros
+      -Wno-unused-function
+      -Wno-unused-variable
+    )
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(
+      $<$<COMPILE_LANGUAGE:CXX>:-Wno-exceptions>
       -Wno-cast-align
       -Wno-cast-qual
       -Wno-disabled-macro-expansion
-      -Wno-exceptions
       -Wno-float-conversion
       -Wno-implicit-fallthrough
       -Wno-implicit-float-conversion
       -Wno-unused-macros
+      -Wno-unused-function
+      -Wno-unused-variable
     )
   endif()
   include(FetchContent)
@@ -92,15 +118,7 @@ if(BACKEND STREQUAL "ggml")
 
     if(MSVC)
       if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        get_property(
-          compile_options
-          DIRECTORY
-          PROPERTY COMPILE_OPTIONS
-          )
-        set_property(
-          DIRECTORY
-          APPEND
-          PROPERTY COMPILE_OPTIONS
+        add_compile_options(
           -Wno-undef
           -Wno-suggest-override
           -Wno-documentation
@@ -116,15 +134,11 @@ if(BACKEND STREQUAL "ggml")
           -Wno-format-nonliteral
           -Wno-unused-exception-parameter
           -Wno-unused-member-function
-          )
-        unset(compile_options)
+        )
       elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-        set_property(
-          DIRECTORY
-          APPEND
-          PROPERTY COMPILE_OPTIONS
+        add_compile_options(
           /wd4100 # unreferenced formal parameter
-          )
+        )
       endif()
     endif()
 
@@ -165,35 +179,39 @@ target_include_directories(wasmedgePluginWasiNN
 if(BACKEND STREQUAL "ggml")
   # Setup llava from llama.cpp
   wasmedge_add_library(llava OBJECT
-    ${CMAKE_BINARY_DIR}/_deps/llama-src/examples/llava/clip.cpp
-    ${CMAKE_BINARY_DIR}/_deps/llama-src/examples/llava/llava.cpp
+    ${llama_SOURCE_DIR}/examples/llava/clip.cpp
+    ${llama_SOURCE_DIR}/examples/llava/llava.cpp
   )
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(llava PRIVATE -Wno-error=unused-variable -Wno-error=unused-function)
+  endif()
   target_link_libraries(llava PRIVATE ggml llama)
   target_include_directories(llava PUBLIC
-    ${CMAKE_BINARY_DIR}/_deps/llama-src
-    ${CMAKE_BINARY_DIR}/_deps/llama-src/common
-    ${CMAKE_BINARY_DIR}/_deps/llama-src/examples/llava
+    ${llama_SOURCE_DIR}
+    ${llama_SOURCE_DIR}/common
+    ${llama_SOURCE_DIR}/examples/llava
   )
-  target_compile_options(llava PRIVATE
-    -Wno-error=unused-function
-    -Wno-error=unused-variable
-    -Wno-unused-function
-    -Wno-unused-variable
-  )
-  wasmedge_setup_target(llava)
-
   # Setup include and link from llama.cpp
-  target_include_directories(wasmedgePluginWasiNN PUBLIC
-    ${CMAKE_BINARY_DIR}/_deps/llama-src
-    ${CMAKE_BINARY_DIR}/_deps/llama-src/examples/llava
+  target_include_directories(wasmedgePluginWasiNN PRIVATE
+    ${llama_SOURCE_DIR}
+    ${llama_SOURCE_DIR}examples/llava
   )
-  target_link_libraries(wasmedgePluginWasiNN PRIVATE common simdjson::simdjson llava)
+  target_link_libraries(wasmedgePluginWasiNN PRIVATE
+    common
+    simdjson::simdjson
+    llava
+  )
+  if(MSVC)
+    target_compile_options(wasmedgePluginWasiNN PUBLIC
+      /wd4067 # unexpected tokens following preprocessor directive - expected a newline
+    )
+  endif()
   if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
     add_custom_command(
       TARGET wasmedgePluginWasiNN
       POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/_deps/llama-src/ggml-metal.metal ggml-metal.metal
-      COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/_deps/llama-src/ggml-common.h ggml-common.h
+      COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml-metal.metal ggml-metal.metal
+      COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml-common.h ggml-common.h
     )
   endif()
 endif()

@@ -26,15 +26,7 @@ else()
 
   if(MSVC)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      get_property(
-        compile_options
-        DIRECTORY
-        PROPERTY COMPILE_OPTIONS
-        )
-      set_property(
-        DIRECTORY
-        APPEND
-        PROPERTY COMPILE_OPTIONS
+      add_compile_options(
         -Wno-undef
         -Wno-suggest-override
         -Wno-documentation
@@ -50,15 +42,13 @@ else()
         -Wno-format-nonliteral
         -Wno-unused-exception-parameter
         -Wno-unused-member-function
-        )
-      unset(compile_options)
+        -Wno-missing-prototypes
+      )
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-      set_property(
-        DIRECTORY
-        APPEND
-        PROPERTY COMPILE_OPTIONS
+      add_compile_options(
         /wd4100 # unreferenced formal parameter
-        )
+        /wd4505 # unreferenced local function has been removed
+      )
     endif()
   endif()
 

@@ -799,7 +799,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       }
       case CommandID::AssertTrap: {
         const simdjson::dom::object &Action = Cmd["action"];
-        const std::string_view &Text = Cmd["text"];
+        const std::string_view Text = Cmd["text"];
         const uint64_t LineNumber = Cmd["line"];
         TrapInvoke(Action, std::string(Text), LineNumber);
         return;
@@ -809,32 +809,32 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         return;
       }
       case CommandID::AssertMalformed: {
-        const std::string_view &ModType = Cmd["module_type"];
+        const std::string_view ModType = Cmd["module_type"];
         if (ModType != "binary"sv) {
           // TODO: Wat is not supported in WasmEdge yet.
           return;
         }
-        const std::string_view &Name = Cmd["filename"];
+        const std::string_view Name = Cmd["filename"];
         const auto Filename =
             (TestsuiteRoot / Proposal / UnitName / Name).u8string();
-        const std::string_view &Text = Cmd["text"];
+        const std::string_view Text = Cmd["text"];
         TrapLoad(Filename, std::string(Text));
         return;
       }
       case CommandID::AssertInvalid: {
-        const std::string_view &Name = Cmd["filename"];
+        const std::string_view Name = Cmd["filename"];
         const auto Filename =
             (TestsuiteRoot / Proposal / UnitName / Name).u8string();
-        const std::string_view &Text = Cmd["text"];
+        const std::string_view Text = Cmd["text"];
         TrapValidate(Filename, std::string(Text));
         return;
       }
       case CommandID::AssertUnlinkable:
       case CommandID::AssertUninstantiable: {
-        const std::string_view &Name = Cmd["filename"];
+        const std::string_view Name = Cmd["filename"];
         const auto Filename =
             (TestsuiteRoot / Proposal / UnitName / Name).u8string();
-        const std::string_view &Text = Cmd["text"];
+        const std::string_view Text = Cmd["text"];
         TrapInstantiate(Filename, std::string(Text));
         return;
       }

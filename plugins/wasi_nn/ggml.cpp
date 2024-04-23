@@ -472,7 +472,7 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
                               llama_token_bos(GraphRef.LlamaModel));
   }
   // Add EOS if not present.
-  if (CxtRef.LlamaInputs.back() != llama_token_eos(GraphRef.LlamaModel)) {
+  if (!llama_token_is_eog(GraphRef.LlamaModel, CxtRef.LlamaInputs.back())) {
     CxtRef.LlamaInputs.push_back(llama_token_eos(GraphRef.LlamaModel));
   }
 
@@ -1086,8 +1086,8 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       break;
     }
     // Deal with end of text token.
-    if (llama_sampling_last(CtxSampling) ==
-        llama_token_eos(GraphRef.LlamaModel)) {
+    if (llama_token_is_eog(GraphRef.LlamaModel,
+                           llama_sampling_last(CtxSampling))) {
       if (GraphRef.EnableLog) {
         spdlog::info("[WASI-NN] GGML backend: EOS token found"sv);
       }
@@ -1266,8 +1266,8 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
   CxtRef.LlamaOutputTokens.emplace_back(Id);
   CxtRef.LlamaOutputs += llama_token_to_piece(CxtRef.LlamaContext, Id);
   // Deal with end of text token.
-  if (llama_sampling_last(CxtRef.LlamaSampling) ==
-      llama_token_eos(GraphRef.LlamaModel)) {
+  if (llama_token_is_eog(GraphRef.LlamaModel,
+                         llama_sampling_last(CxtRef.LlamaSampling))) {
     ReturnCode = ErrNo::EndOfSequence;
     if (GraphRef.EnableLog) {
       spdlog::info("[WASI-NN] GGML backend: EOS token found"sv);

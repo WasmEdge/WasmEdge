@@ -259,11 +259,11 @@ if(BACKEND STREQUAL "neuralspeed")
 find_package (Python3 COMPONENTS Interpreter Development)
 if(Python3_FOUND)
     target_compile_definitions(wasmedgePluginWasiNN
-    PUBLIC PYTHON_LIB_PATH="${Python3_LIBRARIES}"
+    PRIVATE PYTHON_LIB_PATH="${Python3_LIBRARIES}"
     )
     include_directories(${Python3_INCLUDE_DIRS})
-    target_link_libraries(wasmedgePluginWasiNN PUBLIC ${Python3_LIBRARIES})
-    target_link_directories(wasmedgePluginWasiNN PUBLIC ${Python3_RUNTIME_LIBRARY_DIRS})
+    target_link_libraries(wasmedgePluginWasiNN PRIVATE ${Python3_LIBRARIES})
+    target_link_directories(wasmedgePluginWasiNN PRIVATE ${Python3_RUNTIME_LIBRARY_DIRS})
   elseif()
     message(FATAL_ERROR "Can not find python3.") 
   endif()

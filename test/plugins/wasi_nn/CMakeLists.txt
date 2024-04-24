@@ -72,14 +72,11 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     endif()
   elseif(BACKEND STREQUAL "neuralspeed")
     message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_neural_speed_fixtures")
-    execute_process(
-      COMMAND bash ${CMAKE_SOURCE_DIR}/utils/wasi-nn/download-neuralspeed-fixtures.sh ${CMAKE_CURRENT_BINARY_DIR}/wasinn_neural_speed_fixtures
-      RESULT_VARIABLE DOWNLOAD_ERROR
-      OUTPUT_STRIP_TRAILING_WHITESPACE)
-    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_neural_speed_fixtures/llama-2-7b-chat.Q4_0.gguf CHECKSUM_MODEL)
-    if(NOT CHECKSUM_MODEL STREQUAL "09ff9df730d4b5a8b60fcd89e97ee6f4")
-      message(FATAL_ERROR "llama-2-7b-chat.Q4_0.gguf downloaded with wrong md5")
-    endif()
+    download(
+      https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q4_0.gguf
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_neural_speed_fixtures/llama-2-7b-chat.Q4_0.gguf
+      MD5=09ff9df730d4b5a8b60fcd89e97ee6f4
+    )
   else()
     # Add the other backend test files fetching here.
   endif()

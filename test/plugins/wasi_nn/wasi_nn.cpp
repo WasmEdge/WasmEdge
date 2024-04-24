@@ -1811,6 +1811,12 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncCompute =
       dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+  // Get the function "unload".
+  FuncInst = NNMod->findFuncExports("unload");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncUnload =
+      dynamic_cast<WasmEdge::Host::WasiNNUnload &>(FuncInst->getHostFunc());
 
   // Neural Speed WASI-NN load tests.
   // Test: load -- load successfully.
@@ -1884,6 +1890,15 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
     // Should output more than 50 bytes.
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GE(BytesWritten, 50);
+  }
+
+  // Neural Speed WASI-NN unload tests.
+  // Test: unload -- unload successfully.
+  {
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED

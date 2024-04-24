@@ -27,15 +27,15 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     simdjson::dom::element Doc;
     auto ParseError = Parser.parse(Metadata).get(Doc);
     if (ParseError) {
-      spdlog::error("[WASI-NN] neural speed backend: Parse metadata error"sv);
+      spdlog::error("[WASI-NN] Neural speed backend: Parse metadata error"sv);
       return ErrNo::InvalidEncoding;
     }
     if (Doc.at_key("model_type").error() == simdjson::SUCCESS) {
       std::string_view model_type;
-      auto Err = Doc["model_type-log"].get<std::string_view>().get(model_type);
+      auto Err = Doc["model_type"].get<std::string_view>().get(model_type);
       if (Err) {
         spdlog::error(
-            "[WASI-NN] GGML backend: Unable to retrieve the enable-log option."sv);
+            "[WASI-NN] Neural speed backend: Unable to retrieve the enable-log option."sv);
         return ErrNo::InvalidArgument;
       }
       GraphRef.model_type = model_type;
@@ -83,6 +83,9 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   }
 
   // Create Model class
+  if (!Py_IsInitialized()) {
+    Py_Initialize();
+  }
   GraphRef.NeuralSpeedModule =
       PyImport_Import(PyUnicode_FromString("neural_speed"));
   if (GraphRef.NeuralSpeedModule == nullptr) {
@@ -114,6 +117,11 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
 
 Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
                                   uint32_t &ContextId) noexcept {
+  if (!Py_IsInitialized()) {
+    spdlog::info(
+        "[WASI-NN][Error] Neural speed backend: Model has been realse, please reload it."sv);
+    return WASINN::ErrNo::RuntimeError;
+  }
   Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
   ContextId = Env.NNContext.size() - 1;
   return ErrNo::Success;
@@ -123,6 +131,11 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                                uint32_t, const TensorData &Tensor) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  if (!Py_IsInitialized()) {
+    spdlog::info(
+        "[WASI-NN][Error] Neural speed backend: Model has been realse, please reload it."sv);
+    return WASINN::ErrNo::RuntimeError;
+  }
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Neural speed backend: setInput"sv);
   }
@@ -159,6 +172,11 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
 }
 Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept {
+  if (!Py_IsInitialized()) {
+    spdlog::info(
+        "[WASI-NN][Error] Neural speed backend: Model has been realse, please reload it."sv);
+    return WASINN::ErrNo::RuntimeError;
+  }
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   if (GraphRef.EnableDebugLog) {
@@ -230,9 +248,25 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &,
-                                 uint32_t) noexcept {
-  Py_Finalize();
+Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
+                                 uint32_t ContextId) noexcept {
+  spdlog::info("[WASI-NN] neural speed backend: start finiSingle."sv);
+  if (NeuralSpeed::unload(Env, ContextId) == WASINN::ErrNo::Success) {
+    return WASINN::ErrNo::Success;
+  }
+  return WASINN::ErrNo::RuntimeError;
+}
+Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
+                             uint32_t ContextId) noexcept {
+  spdlog::info("[WASI-NN] neural speed backend: start unload."sv);
+  if (Py_IsInitialized()) {
+    auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+    auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+    Py_XDECREF(GraphRef.Model);
+    Py_XDECREF(GraphRef.ModelClass);
+    Py_XDECREF(GraphRef.NeuralSpeedModule);
+    Py_Finalize();
+  }
   return WASINN::ErrNo::Success;
 }
 #else
@@ -265,6 +299,9 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
 }
 Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &,
                                  uint32_t) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
 #endif

@@ -17,7 +17,13 @@ struct Graph {
   std::string model_type = "llama";
   inline static int GraphNumber = 0;
   Graph() noexcept { Py_Initialize(); }
-
+  ~Graph() noexcept {
+    if (Py_IsInitialized()) {
+      Py_XDECREF(Model);
+      Py_XDECREF(ModelClass);
+      Py_XDECREF(NeuralSpeedModule);
+    }
+  }
   PyObject *Model;
   PyObject *NeuralSpeedModule;
   PyObject *ModelClass;
@@ -53,6 +59,7 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
 Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
-                                 uint32_t ContextId) noexcept;
-
+                                 uint32_t GraphId) noexcept;
+Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
+                             uint32_t GraphId) noexcept;
 } // namespace WasmEdge::Host::WASINN::NeuralSpeed

@@ -172,11 +172,23 @@ public:
     return R;
   }
 
+  void addCoreTableInstance(TableInstance *Inst) noexcept {
+    CoreTabInstList.push_back(Inst);
+  }
+  TableInstance *getCoreTableInstance(uint32_t Index) const noexcept {
+    return CoreTabInstList[Index];
+  }
   void addCoreMemoryInstance(MemoryInstance *Inst) noexcept {
     CoreMemInstList.push_back(Inst);
   }
   MemoryInstance *getCoreMemoryInstance(uint32_t Index) const noexcept {
     return CoreMemInstList[Index];
+  }
+  void addCoreGlobalInstance(GlobalInstance *Inst) noexcept {
+    CoreGlobInstList.push_back(Inst);
+  }
+  GlobalInstance *getCoreGlobalInstance(uint32_t Index) const noexcept {
+    return CoreGlobInstList[Index];
   }
 
   void addCoreType(const CoreDefType &Ty) noexcept {
@@ -235,7 +247,9 @@ private:
   // core module data, for example, `string` converted to `(i32, i32)`. Which is
   // a pair of pointer and length, where pointer stored in the memory
   // instance from option.
+  std::vector<TableInstance *> CoreTabInstList;
   std::vector<MemoryInstance *> CoreMemInstList;
+  std::vector<GlobalInstance *> CoreGlobInstList;
 
   std::vector<AST::Component::CoreDefType> CoreTypes;
   std::vector<AST::Component::DefType> Types;

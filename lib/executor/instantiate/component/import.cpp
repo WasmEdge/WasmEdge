@@ -1,11 +1,8 @@
-#include "ast/component/instance.h"
-#include "ast/module.h"
 #include "common/errcode.h"
 #include "executor/executor.h"
 
 #include "runtime/instance/module.h"
 
-#include <string_view>
 #include <variant>
 
 namespace WasmEdge {
@@ -22,8 +19,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
     if (std::holds_alternative<DescTypeIndex>(Desc)) {
       auto TypeIndex = std::get<DescTypeIndex>(Desc);
 
-      // TODO: get type via index, then use the type to check the imported thing
-      TypeIndex.getIndex();
+      // TODO: get type via index `TypeIndex.getIndex()`, then use the type to
+      // check the imported thing
 
       switch (TypeIndex.getKind()) {
       case IndexKind::CoreType: // TODO
@@ -51,7 +48,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       // TODO: import a type or resource
       spdlog::warn("incomplete import type bound");
     } else if (std::holds_alternative<ValueType>(Desc)) {
-      // TODO: import a value and check its type
+      // TODO: import a value and check its type, this is a new concept, so a
+      // plugin of component should allow this
       spdlog::warn("incomplete import value type");
     }
   }

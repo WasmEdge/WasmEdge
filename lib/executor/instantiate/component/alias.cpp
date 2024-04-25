@@ -1,11 +1,8 @@
-#include "ast/component/instance.h"
-#include "ast/module.h"
 #include "common/errcode.h"
 #include "executor/executor.h"
 
 #include "runtime/instance/module.h"
 
-#include <string_view>
 #include <variant>
 
 namespace WasmEdge {
@@ -77,11 +74,18 @@ Executor::instantiate(Runtime::StoreManager &,
           CompInst.addFunctionInstance(FuncInst);
           break;
         }
-        case SortCase::Value: // TODO
+        case SortCase::Value: // TODO: need real use cases to analysis how to
+                              // implement these cases
+          spdlog::warn("incomplete alias sort target export: value");
+          break;
         case SortCase::Type:
+          spdlog::warn("incomplete alias sort target export: type");
+          break;
         case SortCase::Component:
+          spdlog::warn("incomplete alias sort target export: component");
+          break;
         case SortCase::Instance:
-          spdlog::warn("incomplete alias sort target export");
+          spdlog::warn("incomplete alias sort target export: instance");
           break;
         }
       } else {
@@ -94,7 +98,8 @@ Executor::instantiate(Runtime::StoreManager &,
           CompInst.addFunctionInstance(FuncInst);
           break;
         }
-        case SortCase::Value: // TODO
+        case SortCase::Value: // TODO: need real use cases to analysis how to
+                              // implement these cases
           spdlog::warn("incomplete alias sort outer: value");
           break;
         case SortCase::Type:

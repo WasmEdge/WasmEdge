@@ -17,6 +17,8 @@ Expect<void>
 Executor::instantiate(Runtime::StoreManager &StoreMgr,
                       Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::CoreInstanceSection &Sec) {
+  // In this function, we will create a new module instance and insert it into
+  // component module instance index space.
   for (const CoreInstanceExpr &InstExpr : Sec.getContent()) {
     if (std::holds_alternative<CoreInstantiate>(InstExpr)) {
       auto Instantiate = std::get<CoreInstantiate>(InstExpr);
@@ -54,10 +56,28 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
               CompInst.getCoreFunctionInstance(SortIdx.getSortIdx()));
           break;
         }
-        default:
-          // TODO: figure out if this is invalid, then we should return an error
-          spdlog::warn("incomplete core inline export non-function");
+        case CoreSort::Table: {
+          M->exportTable(S.getName(),
+                         CompInst.getCoreTableInstance(SortIdx.getSortIdx()));
           break;
+        }
+        case CoreSort::Memory: {
+          M->exportMemory(S.getName(),
+                          CompInst.getCoreMemoryInstance(SortIdx.getSortIdx()));
+          break;
+        }
+        case CoreSort::Global: {
+          M->exportGlobal(S.getName(),
+                          CompInst.getCoreGlobalInstance(SortIdx.getSortIdx()));
+          break;
+        }
+        case CoreSort::Type:
+        case CoreSort::Module:
+        case CoreSort::Instance: {
+          spdlog::error(
+              "A module instance cannot exports types, modules, or instances");
+          return Unexpect(ErrCode::Value::CoreInvalidExport);
+        }
         }
       }
 
@@ -80,7 +100,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
         auto Idx = Arg.getIndex();
         auto S = Idx.getSort();
         if (std::holds_alternative<CoreSort>(S)) {
-          // TODO: insert these into mapping
+          // TODO: insert below into mapping
           switch (std::get<CoreSort>(S)) {
           case CoreSort::Func:
             spdlog::warn("incomplete (with {}) core:func", Arg.getName());

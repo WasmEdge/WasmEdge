@@ -1013,7 +1013,7 @@ E(CastFailed, 0x0418, "cast failure")
 E(UncaughtException, 0x0419, "uncaught exception")
 // @}
 
-// Component model phase
+// Component model load phase
 // @{
 // Malformed sort
 E(MalformedSort, 0x0500, "malformed sort")
@@ -1039,6 +1039,11 @@ E(MalformedCanonical, 0x0509, "malformed canonical")
 E(UnknownCanonicalOption, 0x050A, "unknown canonical option")
 // Malformed name
 E(MalformedName, 0x050B, "malformed name")
+// @}
+
+// Component model instantiation phase
+// @{
+E(CoreInvalidExport, 0x0600, "invalid export in core module")
 // @}
 
 #undef E

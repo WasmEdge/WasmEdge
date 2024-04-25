@@ -44,7 +44,7 @@ Executor::instantiate(Runtime::StoreManager &,
         CompInst.addExport(ExportName, Func);
         break;
       }
-      default: // TODO
+      default: // TODO:
         spdlog::warn("incomplete sort {}",
                      static_cast<Byte>(std::get<SortCase>(S)));
         break;

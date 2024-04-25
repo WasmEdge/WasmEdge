@@ -1,5 +1,7 @@
 #include "neuralspeed.h"
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
 #include "simdjson.h"
+#endif
 #include "wasinnenv.h"
 #include <dlfcn.h>
 #include <variant>

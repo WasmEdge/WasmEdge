@@ -124,8 +124,8 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
     auto Val = StackMgr.pop();
     const auto &RType = RTypes[RTypes.size() - I - 1];
     if (RType.isRefType()) {
-      // For the types of the return values, they should be transformed into
-      // abstract heap types due to the opaque of type indices.
+      // For the reference type cases of the return values, they should be
+      // transformed into abstract heap types due to the opaque of type indices.
       auto &RefType = Val.get<RefVariant>().getType();
       if (RefType.isExternalized()) {
         // First handle the forced externalized value type case.
@@ -150,6 +150,9 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
       // typing rule of the null references.
       Returns[RTypes.size() - I - 1] = std::make_pair(Val, RefType);
     } else {
+      // For the number type cases of the return values, the unused bits should
+      // be erased due to the security issue.
+      cleanNumericVal(Val, RType);
       Returns[RTypes.size() - I - 1] = std::make_pair(Val, RType);
     }
   }

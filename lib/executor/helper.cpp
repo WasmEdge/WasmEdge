@@ -69,6 +69,11 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
 
     // Run host function.
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
+    for (uint32_t I = 0; I < ArgsN; I++) {
+      // For the number type cases of the arguments, the unused bits should be
+      // erased due to the security issue.
+      cleanNumericVal(Args[I], FuncType.getParamTypes()[I]);
+    }
     std::vector<ValVariant> Rets(RetsN);
     auto Ret = HostFunc.run(CallFrame, std::move(Args), Rets);
 
@@ -314,5 +319,40 @@ TypeCode Executor::toBottomType(Runtime::StackManager &StackMgr,
     return Type.getCode();
   }
 }
+
+void Executor::cleanNumericVal(ValVariant &Val,
+                               const ValType &Type) const noexcept {
+  if (Type.isNumType()) {
+    switch (Type.getCode()) {
+    case TypeCode::I32: {
+      uint32_t V = Val.get<uint32_t>();
+      Val.emplace<uint128_t>(static_cast<uint128_t>(0));
+      Val.emplace<uint32_t>(V);
+      break;
+    }
+    case TypeCode::F32: {
+      float V = Val.get<float>();
+      Val.emplace<uint128_t>(static_cast<uint128_t>(0));
+      Val.emplace<float>(V);
+      break;
+    }
+    case TypeCode::I64: {
+      uint64_t V = Val.get<uint64_t>();
+      Val.emplace<uint128_t>(static_cast<uint128_t>(0));
+      Val.emplace<uint64_t>(V);
+      break;
+    }
+    case TypeCode::F64: {
+      double V = Val.get<double>();
+      Val.emplace<uint128_t>(static_cast<uint128_t>(0));
+      Val.emplace<double>(V);
+      break;
+    }
+    default:
+      break;
+    }
+  }
+}
+
 } // namespace Executor
 } // namespace WasmEdge

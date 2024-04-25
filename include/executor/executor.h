@@ -304,6 +304,9 @@ private:
   /// Helper function for converting into bottom abstract heap type.
   TypeCode toBottomType(Runtime::StackManager &StackMgr,
                         const ValType &Type) const;
+
+  /// Helper function for clean the unused bits of numeric values in ValVariant.
+  void cleanNumericVal(ValVariant &Val, const ValType &Type) const noexcept;
   /// @}
 
   /// \name Run instructions functions

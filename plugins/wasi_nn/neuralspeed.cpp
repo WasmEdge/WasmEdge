@@ -11,7 +11,6 @@ void *SharedLib = dlopen(PYTHON_LIB_PATH, RTLD_GLOBAL | RTLD_NOW);
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            Span<const Span<uint8_t>> Builders, WASINN::Device,
                            uint32_t &) noexcept {
-  spdlog::info("[WASI-NN][Debug] Neural speed: test"sv);
   // Add a new graph.
   Env.NNGraph.emplace_back(Backend::NeuralSpeed);
   auto &GraphRef = Env.NNGraph.back().get<Graph>();
@@ -37,7 +36,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       auto Err = Doc["model_type"].get<std::string_view>().get(model_type);
       if (Err) {
         spdlog::error(
-            "[WASI-NN] Neural speed backend: Unable to retrieve the enable-log option."sv);
+            "[WASI-NN] Neural speed backend: Unable to retrieve the model_type option."sv);
         return ErrNo::InvalidArgument;
       }
       GraphRef.model_type = model_type;
@@ -249,21 +248,14 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   Py_DECREF(LongTensor);
   return WASINN::ErrNo::Success;
 }
-
-Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
-                                 uint32_t ContextId) noexcept {
-  spdlog::info("[WASI-NN] neural speed backend: start finiSingle."sv);
-  if (NeuralSpeed::unload(Env, ContextId) == WASINN::ErrNo::Success) {
-    return WASINN::ErrNo::Success;
-  }
-  return WASINN::ErrNo::RuntimeError;
-}
 Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
                              uint32_t ContextId) noexcept {
-  spdlog::info("[WASI-NN] neural speed backend: start unload."sv);
+  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] Neural speed backend: start unload."sv);
+  }
   if (Py_IsInitialized()) {
-    auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-    auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
     Py_XDECREF(GraphRef.Model);
     Py_XDECREF(GraphRef.ModelClass);
     Py_XDECREF(GraphRef.NeuralSpeedModule);
@@ -297,10 +289,6 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
   return reportBackendNotSupported();
 }
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
-  return reportBackendNotSupported();
-}
-Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &,
-                                 uint32_t) noexcept {
   return reportBackendNotSupported();
 }
 Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &, uint32_t) noexcept {

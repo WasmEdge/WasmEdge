@@ -70,8 +70,6 @@ if(BACKEND STREQUAL "ggml")
     llama
     GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
     GIT_TAG        b2734
-    PATCH_COMMAND  git checkout .
-    COMMAND        git apply ${CMAKE_SOURCE_DIR}/thirdparty/ggml/ggml.patch
     GIT_SHALLOW    FALSE
   )
   FetchContent_MakeAvailable(llama)

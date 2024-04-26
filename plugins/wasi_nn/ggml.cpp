@@ -21,6 +21,31 @@ namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 
 namespace {
+
+void LlamaLogCallback(ggml_log_level LogLevel, const char *LogText,
+                      void *UserData) {
+  Graph GraphRef = *static_cast<Graph *>(UserData);
+  if (!GraphRef.EnableLog) {
+    return;
+  }
+  std::string Text(LogText);
+  // Remove the trailing newlines.
+  Text = Text.erase(Text.find_last_not_of("\n") + 1);
+  // Skip for "."
+  if (Text == ".") {
+    return;
+  }
+  if (LogLevel == GGML_LOG_LEVEL_ERROR) {
+    spdlog::error("[WASI-NN] llama.cpp: {}"sv, Text);
+  } else if (LogLevel == GGML_LOG_LEVEL_WARN) {
+    spdlog::warn("[WASI-NN] llama.cpp: {}"sv, Text);
+  } else if (LogLevel == GGML_LOG_LEVEL_INFO) {
+    spdlog::info("[WASI-NN] llama.cpp: {}"sv, Text);
+  } else if (LogLevel == GGML_LOG_LEVEL_DEBUG) {
+    spdlog::debug("[WASI-NN] llama.cpp: {}"sv, Text);
+  }
+}
+
 Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
                             bool *IsModelUpdated = nullptr) noexcept {
   simdjson::dom::parser Parser;
@@ -72,7 +97,6 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
           "[WASI-NN] GGML backend: Unable to retrieve the enable-log option."sv);
       return ErrNo::InvalidArgument;
     }
-    llama_log_set(nullptr, &GraphRef.EnableLog);
   }
   if (Doc.at_key("enable-debug-log").error() == simdjson::SUCCESS) {
     auto Err = Doc["enable-debug-log"].get<bool>().get(GraphRef.EnableDebugLog);
@@ -651,6 +675,9 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.PresencePenalty = SamplingDefault.penalty_present;
   GraphRef.FrequencyPenalty = SamplingDefault.penalty_freq;
   GraphRef.Grammar = SamplingDefault.grammar;
+
+  // Set llama log callback.
+  llama_log_set(LlamaLogCallback, &GraphRef);
 
   // If the graph builder length > 1, the data of builder[1] is the metadata.
   if (Builders.size() > 1) {

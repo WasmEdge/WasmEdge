@@ -58,8 +58,6 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
                                 uint32_t &BytesWritten) noexcept;
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
-Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
-                                 uint32_t GraphId) noexcept;
 Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
                              uint32_t GraphId) noexcept;
 } // namespace WasmEdge::Host::WASINN::NeuralSpeed

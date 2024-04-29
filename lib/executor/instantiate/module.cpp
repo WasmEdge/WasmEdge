@@ -70,6 +70,11 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // This function will always success.
   instantiate(*ModInst, MemSec);
 
+  // Instantiate TagSection (TagSec)
+  const AST::TagSection &TagSec = Mod.getTagSection();
+  // This function will always success.
+  instantiate(*ModInst, TagSec);
+
   // Push a new frame {ModInst, locals:none}
   StackMgr.pushFrame(ModInst.get(), AST::InstrView::iterator(), 0, 0);
 

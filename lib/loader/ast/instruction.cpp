@@ -156,49 +156,58 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
                              ASTNodeAttr::Instruction);
     }
 
-    // Process the instructions which contain a block.
-    if (Code == OpCode::Block || Code == OpCode::Loop || Code == OpCode::If) {
-      BlockStack.push_back(std::make_pair(Code, Cnt));
-    } else if (Code == OpCode::Else) {
+    auto logIllegalOpCode = [this, &Offset,
+                             &SizeBound]() -> Unexpected<ErrCode> {
+      if (SizeBound.has_value() && FMgr.getOffset() > SizeBound.value()) {
+        return logLoadError(ErrCode::Value::ENDCodeExpected, Offset,
+                            ASTNodeAttr::Instruction);
+      } else {
+        return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
+                            ASTNodeAttr::Instruction);
+      }
+    };
+
+    // Process the instruction which contains a block.
+    switch (Code) {
+    case OpCode::Block:
+    case OpCode::Loop:
+    case OpCode::If:
+    // LEGACY-EH: remove the `Try` after deprecating legacy EH.
+    case OpCode::Try:
+    case OpCode::Try_table:
+      BlockStack.emplace_back(Code, Cnt);
+      break;
+    case OpCode::Else: {
       if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::If) {
         // An Else instruction appeared outside the If-block.
-        if (SizeBound.has_value() && FMgr.getOffset() > SizeBound.value()) {
-          return logLoadError(ErrCode::Value::ENDCodeExpected, Offset,
-                              ASTNodeAttr::Instruction);
-        } else {
-          return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
-                              ASTNodeAttr::Instruction);
-        }
+        return logIllegalOpCode();
       }
       uint32_t Pos = BlockStack.back().second;
       if (Instrs[Pos].getJumpElse() > 0) {
         // An Else instruction appeared before in this If-block.
-        if (SizeBound.has_value() && FMgr.getOffset() > SizeBound.value()) {
-          return logLoadError(ErrCode::Value::ENDCodeExpected, Offset,
-                              ASTNodeAttr::Instruction);
-        } else {
-          return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
-                              ASTNodeAttr::Instruction);
-        }
+        return logIllegalOpCode();
       }
       Instrs[Pos].setJumpElse(Cnt - Pos);
-    } else if (Code == OpCode::End) {
-      if (BlockStack.size() > 0) {
-        uint32_t Pos = BlockStack.back().second;
-        Instrs[Pos].setJumpEnd(Cnt - Pos);
-        if (BlockStack.back().first == OpCode::If) {
-          if (Instrs[Pos].getJumpElse() == 0) {
-            // If block without else. Set the else jump the same as end jump.
-            Instrs[Pos].setJumpElse(Cnt - Pos);
-          } else {
-            const uint32_t ElsePos = Pos + Instrs[Pos].getJumpElse();
-            Instrs[ElsePos].setJumpEnd(Cnt - ElsePos);
-          }
-        }
-        BlockStack.pop_back();
-      } else {
-        IsReachEnd = true;
+      break;
+    }
+    // LEGACY-EH: remove the `Catch` cases after deprecating legacy EH.
+    case OpCode::Catch:
+    case OpCode::Catch_all: {
+      if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::Try) {
+        // A Catch/Catch_all instruction appeared outside a try-block.
+        return logIllegalOpCode();
       }
+      auto Pos = BlockStack.back().second;
+      auto &CatchClause = Instrs[Pos].getTryCatch().Catch;
+      if (CatchClause.size() > 0 && CatchClause.back().IsAll) {
+        // A Catch shouldn't behind a Catch_all in the same block.
+        // And also a try block may contain only one Catch_all instruction.
+        return logIllegalOpCode();
+      }
+      break;
+    }
+    default:
+      break;
     }
 
     // Create the instruction node and load contents.
@@ -206,12 +215,48 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     if (auto Res = loadInstruction(Instrs.back()); !Res) {
       return Unexpect(Res);
     }
+
     if (Code == OpCode::End) {
-      if (IsReachEnd) {
-        Instrs.back().setLast(true);
+      // Post process the End instruction.
+      if (BlockStack.size() > 0) {
+        Instrs.back().setExprLast(false);
+        const auto &[BackOp, Pos] = BlockStack.back();
+        if (BackOp == OpCode::Block || BackOp == OpCode::Loop ||
+            BackOp == OpCode::If) {
+          Instrs.back().setTryBlockLast(false);
+          Instrs[Pos].setJumpEnd(Cnt - Pos);
+          if (BackOp == OpCode::If) {
+            if (Instrs[Pos].getJumpElse() == 0) {
+              // If block without else. Set the else jump the same as end jump.
+              Instrs[Pos].setJumpElse(Cnt - Pos);
+            } else {
+              const uint32_t ElsePos = Pos + Instrs[Pos].getJumpElse();
+              Instrs[ElsePos].setJumpEnd(Cnt - ElsePos);
+            }
+          }
+        } else if (BackOp == OpCode::Try || BackOp == OpCode::Try_table) {
+          // LEGACY-EH: remove the `Try` case after deprecating legacy EH.
+          Instrs.back().setTryBlockLast(true);
+          Instrs[Pos].getTryCatch().JumpEnd = Cnt - Pos;
+        }
+        BlockStack.pop_back();
       } else {
-        Instrs.back().setLast(false);
+        Instrs.back().setExprLast(true);
+        IsReachEnd = true;
       }
+    } else if (Code == OpCode::Catch || Code == OpCode::Catch_all) {
+      // LEGACY-EH: remove these cases after deprecating legacy EH.
+      uint32_t Pos = BlockStack.back().second;
+      auto &CatchClause = Instrs[Pos].getTryCatch().Catch;
+      auto &CatchDesc = Instrs.back().getCatchLegacy();
+      CatchDesc.CatchPCOffset = Cnt - Pos;
+      CatchDesc.CatchIndex = static_cast<uint32_t>(CatchClause.size());
+      CatchClause.push_back({true,
+                             Code == OpCode::Catch_all,
+                             false,
+                             Code == OpCode::Catch ? CatchDesc.TagIndex : 0,
+                             0,
+                             {0, 0, 0, 0}});
     }
     Cnt++;
   } while (!IsReachEnd);
@@ -286,18 +331,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   };
 
-  switch (Instr.getOpCode()) {
-  // Control instructions.
-  case OpCode::Unreachable:
-  case OpCode::Nop:
-  case OpCode::Return:
-  case OpCode::End:
-  case OpCode::Else:
-    return {};
-
-  case OpCode::Block:
-  case OpCode::Loop:
-  case OpCode::If: {
+  auto readBlockType = [this](BlockType &Dst) -> Expect<void> {
     auto StartOffset = FMgr.getOffset();
     // Read the block return type.
     if (auto Res = FMgr.readS33()) {
@@ -305,13 +339,13 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
         TypeCode TypeByte = static_cast<TypeCode>((*Res) & INT64_C(0x7F));
         if (TypeByte == TypeCode::Epsilon) {
           // Empty case.
-          Instr.setEmptyBlockType();
+          Dst.setEmpty();
         } else {
           // Value type case. Seek back to the origin offset and read the
           // valtype.
           FMgr.seek(StartOffset);
           if (auto TypeRes = loadValType(ASTNodeAttr::Instruction)) {
-            Instr.setBlockType(*TypeRes);
+            Dst.setData(*TypeRes);
           } else {
             // The AST node information is handled.
             return Unexpect(TypeRes);
@@ -324,20 +358,102 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
                                  Proposal::MultiValue, FMgr.getLastOffset(),
                                  ASTNodeAttr::Instruction);
         }
-        Instr.setBlockType(static_cast<uint32_t>(*Res));
+        Dst.setData(static_cast<uint32_t>(*Res));
       }
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     return {};
+  };
+
+  switch (Instr.getOpCode()) {
+  // Control instructions.
+  case OpCode::Unreachable:
+  case OpCode::Nop:
+  case OpCode::Return:
+  case OpCode::Throw_ref:
+  case OpCode::End:
+  case OpCode::Else:
+  // LEGACY-EH: remove the `Catch_all` case after deprecating legacy EH.
+  case OpCode::Catch_all:
+    return {};
+
+  case OpCode::Block:
+  case OpCode::Loop:
+  case OpCode::If:
+    return readBlockType(Instr.getBlockType());
+
+  case OpCode::Try_table: {
+    Instr.setTryCatch();
+    // Read the result type.
+    if (auto Res = readBlockType(Instr.getTryCatch().ResType); !Res) {
+      return Unexpect(Res);
+    }
+    uint32_t VecCnt = 0;
+    // Read the vector of catch.
+    if (auto Res = loadVecCnt()) {
+      VecCnt = *Res;
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    Instr.getTryCatch().Catch.resize(VecCnt);
+    for (uint32_t I = 0; I < VecCnt; ++I) {
+      auto &Desc = Instr.getTryCatch().Catch[I];
+      // Read the catch flag.
+      if (auto Res = FMgr.readByte()) {
+        // LEGACY-EH: remove this flag after deprecating legacy EH.
+        Desc.IsLegacy = false;
+        Desc.IsRef = (*Res & 0x01U) ? true : false;
+        Desc.IsAll = (*Res & 0x02U) ? true : false;
+      } else {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::Instruction);
+      }
+      if (!Desc.IsAll) {
+        // Read the tag index.
+        if (auto Res = readU32(Desc.TagIndex); !Res) {
+          return Unexpect(Res);
+        }
+      }
+      // Read the label index.
+      if (auto Res = readU32(Desc.LabelIndex); !Res) {
+        return Unexpect(Res);
+      }
+    }
+    return {};
   }
+
+  // LEGACY-EH: remove the `Try` case after deprecating legacy EH.
+  case OpCode::Try:
+    Instr.setTryCatch();
+    return readBlockType(Instr.getTryCatch().ResType);
+
+  // LEGACY-EH: remove the `Catch` case after deprecating legacy EH.
+  case OpCode::Catch:
+    return readU32(Instr.getCatchLegacy().TagIndex);
+
+  case OpCode::Throw:
+    return readU32(Instr.getTargetIndex());
+
+  // LEGACY-EH: remove the `Rethrow` case after deprecating legacy EH.
+  case OpCode::Rethrow:
+    spdlog::error(ErrCode::Value::IllegalOpCode);
+    spdlog::error("    Deprecated `rethrow` instruction.");
+    return Unexpect(ErrCode::Value::IllegalOpCode);
 
   case OpCode::Br:
   case OpCode::Br_if:
   case OpCode::Br_on_null:
   case OpCode::Br_on_non_null:
     return readU32(Instr.getJump().TargetIndex);
+
+  // LEGACY-EH: remove the `Delegate` case after deprecating legacy EH.
+  case OpCode::Delegate:
+    spdlog::error(ErrCode::Value::IllegalOpCode);
+    spdlog::error("    Deprecated `delegate` instruction.");
+    return Unexpect(ErrCode::Value::IllegalOpCode);
 
   case OpCode::Br_table: {
     uint32_t VecCnt = 0;

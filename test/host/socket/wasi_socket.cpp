@@ -9,12 +9,12 @@
 #include "system/winapi.h"
 #include <algorithm>
 #include <array>
+#include <climits>
 #include <cstdint>
 #include <cstring>
 #include <gtest/gtest.h>
 #include <string>
 #include <string_view>
-#include <climits>
 
 #if !WASMEDGE_OS_WINDOWS
 #include <netinet/in.h>

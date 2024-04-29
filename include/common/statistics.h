@@ -16,8 +16,8 @@
 #include "common/configure.h"
 #include "common/enum_ast.hpp"
 #include "common/errcode.h"
-#include "common/log.h"
 #include "common/span.h"
+#include "common/spdlog.h"
 #include "common/timer.h"
 
 #include <atomic>

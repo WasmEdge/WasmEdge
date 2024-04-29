@@ -4,7 +4,7 @@
 #include "executor/executor.h"
 
 #include "common/errinfo.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 
 #include <cstdint>
 #include <string_view>
@@ -69,6 +69,11 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   const AST::MemorySection &MemSec = Mod.getMemorySection();
   // This function will always success.
   instantiate(*ModInst, MemSec);
+
+  // Instantiate TagSection (TagSec)
+  const AST::TagSection &TagSec = Mod.getTagSection();
+  // This function will always success.
+  instantiate(*ModInst, TagSec);
 
   // Push a new frame {ModInst, locals:none}
   StackMgr.pushFrame(ModInst.get(), AST::InstrView::iterator(), 0, 0);

@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "dense_enum_map.h"
-#include "log.h"
-#include "spare_enum_map.h"
+#include "common/dense_enum_map.h"
+#include "common/spare_enum_map.h"
+#include "common/spdlog.h"
 
 #include <cstdint>
 #include <string>

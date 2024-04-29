@@ -3,8 +3,8 @@
 
 #include "tensorflowlite_func.h"
 
-#include "common/log.h"
 #include "common/span.h"
+#include "common/spdlog.h"
 
 #include "tensorflow/lite/c/c_api.h"
 

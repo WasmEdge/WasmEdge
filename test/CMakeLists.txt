@@ -13,50 +13,30 @@ else()
   )
   set(BUILD_GMOCK OFF CACHE BOOL "Builds the googlemock subproject" FORCE)
   set(INSTALL_GTEST OFF CACHE BOOL "Enable installation of googletest. (Projects embedding googletest may want to turn this OFF.)" FORCE)
-  get_property(
-    compile_options
-    DIRECTORY
-    PROPERTY COMPILE_OPTIONS
-  )
   if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    set_property(
-      DIRECTORY
-      APPEND
-      PROPERTY COMPILE_OPTIONS
+    add_compile_options(
       ${WASMEDGE_CFLAGS}
     )
   else()
-    set_property(
-      DIRECTORY
-      APPEND
-      PROPERTY COMPILE_OPTIONS
+    add_compile_options(
       ${WASMEDGE_CFLAGS}
       -Wno-language-extension-token
       -Wno-missing-noreturn
       -Wno-shift-sign-overflow
       -Wno-undef
       -Wno-unused-member-function
-      -Wno-zero-as-null-pointer-constant
+      $<$<COMPILE_LANGUAGE:CXX>:-Wno-zero-as-null-pointer-constant>
       -Wno-deprecated
     )
     if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-      set_property(
-        DIRECTORY
-        APPEND
-        PROPERTY COMPILE_OPTIONS
+      add_compile_options(
         -Wno-suggest-destructor-override
-        -Wno-suggest-override
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>
       )
     endif()
   endif()
 
   FetchContent_MakeAvailable(GTest)
-  set_property(
-    DIRECTORY
-    PROPERTY COMPILE_OPTIONS
-    ${compile_options}
-  )
-  unset(compile_options)
   set(GTEST_BOTH_LIBRARIES "gtest;gtest_main")
 endif()
 

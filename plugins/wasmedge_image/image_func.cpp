@@ -3,8 +3,8 @@
 
 #include "image_func.h"
 
-#include "common/log.h"
 #include "common/span.h"
+#include "common/spdlog.h"
 
 #include <boost/gil.hpp>
 #include <boost/gil/extension/io/jpeg.hpp>

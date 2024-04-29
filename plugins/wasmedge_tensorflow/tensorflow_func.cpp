@@ -3,8 +3,8 @@
 
 #include "tensorflow_func.h"
 
-#include "common/log.h"
 #include "common/span.h"
+#include "common/spdlog.h"
 
 #include "tensorflow/c/c_api.h"
 

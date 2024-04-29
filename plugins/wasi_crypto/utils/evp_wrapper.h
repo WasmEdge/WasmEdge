@@ -17,8 +17,8 @@
 #include "utils/error.h"
 #include "utils/secret_vec.h"
 
-#include "common/log.h"
 #include "common/span.h"
+#include "common/spdlog.h"
 
 #include <openssl/bio.h>
 #include <openssl/bn.h>

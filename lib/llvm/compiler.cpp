@@ -6,7 +6,7 @@
 #include "aot/version.h"
 #include "common/defines.h"
 #include "common/filesystem.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "data.h"
 #include "llvm.h"
 

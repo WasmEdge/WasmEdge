@@ -15,7 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "common/defines.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "vm/vm.h"
 #include "llvm/codegen.h"
 #include "llvm/compiler.h"

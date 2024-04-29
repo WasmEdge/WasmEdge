@@ -65,6 +65,8 @@ struct DriverToolOptions {
         PropGC(PO::Description("Enable GC proposal, this is experimental"sv)),
         PropComponent(PO::Description(
             "Enable Component Model proposal, this is experimental"sv)),
+        PropExceptionHandling(
+            PO::Description("Enable Exception handling proposal"sv)),
         PropAll(PO::Description("Enable all features"sv)),
         ConfEnableInstructionCounting(PO::Description(
             "Enable generating code for counting Wasm instructions executed."sv)),
@@ -113,6 +115,7 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> PropFunctionReference;
   PO::Option<PO::Toggle> PropGC;
   PO::Option<PO::Toggle> PropComponent;
+  PO::Option<PO::Toggle> PropExceptionHandling;
   PO::Option<PO::Toggle> PropAll;
   PO::Option<PO::Toggle> ConfEnableInstructionCounting;
   PO::Option<PO::Toggle> ConfEnableGasMeasuring;
@@ -153,6 +156,7 @@ struct DriverToolOptions {
         .add_option("enable-function-reference"sv, PropFunctionReference)
         .add_option("enable-gc"sv, PropGC)
         .add_option("enable-component"sv, PropComponent)
+        .add_option("enable-exception-handling"sv, PropExceptionHandling)
         .add_option("enable-all"sv, PropAll)
         .add_option("time-limit"sv, TimeLim)
         .add_option("gas-limit"sv, GasLim)

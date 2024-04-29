@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "llvm/jit.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 
 #include "data.h"
 #include "llvm.h"

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "wasinnfunc.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "wasinnenv.h"
 
 #include <string>

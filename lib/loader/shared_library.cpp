@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "loader/shared_library.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 
 #include <algorithm>
 #include <cerrno>

@@ -1393,7 +1393,7 @@ WasiExpect<void> INode::pathReadlink(std::string Path, Span<char> Buffer,
 
   // Fill the Buffer with the contents of the link
   HandleHolder Link(FullPath, FILE_GENERIC_READ_, FILE_SHARE_READ_,
-                    OPEN_EXISTING_, FILE_FLAG_OPEN_REPARSE_POINT_);
+                    OPEN_EXISTING_, 0);
 
   if (unlikely(!Link.ok())) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));

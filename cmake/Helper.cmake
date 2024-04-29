@@ -41,11 +41,6 @@ else()
       -Werror
       -Wno-error=pedantic
     )
-    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
-      list(APPEND WASMEDGE_CFLAGS
-        -Wno-error=dangling-reference
-      )
-    endif()
   endif()
 
   if(WASMEDGE_ENABLE_UB_SANITIZER)
@@ -104,11 +99,17 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       -Wno-reserved-identifier
     )
   endif()
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
-  list(APPEND WASMEDGE_CFLAGS
-    -Wno-error=template-id-cdtor
-    -Wno-error=dangling-reference
-  )
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
+    list(APPEND WASMEDGE_CFLAGS
+      -Wno-error=dangling-reference
+    )
+  endif()
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 14)
+    list(APPEND WASMEDGE_CFLAGS
+      -Wno-error=template-id-cdtor
+    )
+  endif()
 endif()
 
 if(WIN32)

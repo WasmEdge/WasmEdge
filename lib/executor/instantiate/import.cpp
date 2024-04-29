@@ -70,6 +70,11 @@ checkImportMatched(std::string_view ModName, std::string_view ExtName,
       return {};
     }
     break;
+  case ExternalType::Tag:
+    if (auto Res = ModInst.findTagExports(ExtName); likely(Res != nullptr)) {
+      return {};
+    }
+    break;
   default:
     return logUnknownError(ModName, ExtName, ExtType);
   }
@@ -86,6 +91,9 @@ checkImportMatched(std::string_view ModName, std::string_view ExtName,
   if (ModInst.findMemoryExports(ExtName)) {
     return logMatchError(ModName, ExtName, ExtType, ExtType,
                          ExternalType::Memory);
+  }
+  if (ModInst.findTagExports(ExtName)) {
+    return logMatchError(ModName, ExtName, ExtType, ExtType, ExternalType::Tag);
   }
   if (ModInst.findGlobalExports(ExtName)) {
     return logMatchError(ModName, ExtName, ExtType, ExtType,
@@ -144,13 +152,13 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
       // Import matching.
       auto *ImpInst = ImpModInst->findFuncExports(ExtName);
-      const auto &ExpDefType = **ModInst.getType(TypeIdx);
       // External function type should match the import function type in
       // description.
 
-      if (!AST::TypeMatcher::matchType(
-              ModInst.getTypeList(), *ExpDefType.getTypeIndex(),
-              ImpModInst->getTypeList(), ImpInst->getTypeIndex())) {
+      if (!AST::TypeMatcher::matchType(ModInst.getTypeList(), TypeIdx,
+                                       ImpModInst->getTypeList(),
+                                       ImpInst->getTypeIndex())) {
+        const auto &ExpDefType = **ModInst.getType(TypeIdx);
         bool IsMatchV2 = false;
         const auto &ExpFuncType = ExpDefType.getCompositeType().getFuncType();
         const auto &ImpFuncType = ImpInst->getFuncType();
@@ -242,6 +250,26 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       }
       // Set the matched memory address to module instance.
       ModInst.importMemory(ImpInst);
+      break;
+    }
+    case ExternalType::Tag: {
+      // Get tag type. External type checked in validation.
+      const auto &TagType = ImpDesc.getExternalTagType();
+      // Import matching.
+      auto *ImpInst = ImpModInst->findTagExports(ExtName);
+      if (!AST::TypeMatcher::matchType(
+              ModInst.getTypeList(), TagType.getTypeIdx(),
+              ImpModInst->getTypeList(), ImpInst->getTagType().getTypeIdx())) {
+        const auto &ExpFuncType =
+            TagType.getDefType().getCompositeType().getFuncType();
+        const auto &ImpFuncType =
+            ImpInst->getTagType().getDefType().getCompositeType().getFuncType();
+        return logMatchError(
+            ModName, ExtName, ExtType, ExpFuncType.getParamTypes(),
+            ExpFuncType.getReturnTypes(), ImpFuncType.getParamTypes(),
+            ImpFuncType.getReturnTypes());
+      }
+      ModInst.importTag(ImpInst);
       break;
     }
     case ExternalType::Global: {

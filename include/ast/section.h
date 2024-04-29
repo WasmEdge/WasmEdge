@@ -223,7 +223,7 @@ private:
 /// AST DataCountSection node.
 class DataCountSection : public Section {
 public:
-  /// Getter and of content.
+  /// Getter and setter of content.
   std::optional<uint32_t> getContent() const noexcept { return Content; }
   void setContent(uint32_t Val) noexcept { Content = Val; }
 
@@ -231,6 +231,20 @@ private:
   /// \name Data of DataCountSection.
   /// @{
   std::optional<uint32_t> Content = std::nullopt;
+  /// @}
+};
+
+/// AST TagSection node.
+class TagSection : public Section {
+public:
+  /// Getter of content vector.
+  Span<const TagType> getContent() const noexcept { return Content; }
+  std::vector<TagType> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of TagSection.
+  /// @{
+  std::vector<TagType> Content;
   /// @}
 };
 

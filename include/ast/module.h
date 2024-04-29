@@ -63,6 +63,8 @@ public:
   DataSection &getDataSection() { return DataSec; }
   const DataCountSection &getDataCountSection() const { return DataCountSec; }
   DataCountSection &getDataCountSection() { return DataCountSec; }
+  const TagSection &getTagSection() const { return TagSec; }
+  TagSection &getTagSection() { return TagSec; }
   const AOTSection &getAOTSection() const { return AOTSec; }
   AOTSection &getAOTSection() { return AOTSec; }
 
@@ -98,6 +100,7 @@ private:
   CodeSection CodeSec;
   DataSection DataSec;
   DataCountSection DataCountSec;
+  TagSection TagSec;
   /// @}
 
   /// \name Data of AOT.

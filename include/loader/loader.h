@@ -82,6 +82,9 @@ template <> inline ASTNodeAttr NodeAttrFromAST<AST::FunctionType>() noexcept {
 template <> inline ASTNodeAttr NodeAttrFromAST<AST::ElementSegment>() noexcept {
   return ASTNodeAttr::Seg_Element;
 }
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::TagSection>() noexcept {
+  return ASTNodeAttr::Sec_Tag;
+}
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::AliasSection>() noexcept {
   return ASTNodeAttr::Sec_Alias;
@@ -275,6 +278,14 @@ private:
     }
     return {};
   }
+  /// @}
+
+  /// \name Helper function to set the function type for tag
+  /// @{
+  void setTagFunctionType(AST::TagSection &TagSec,
+                          AST::ImportSection &ImportSec,
+                          AST::TypeSection &TypeSec);
+  /// @}
 
   template <typename T, typename ElemLoader>
   Expect<void> loadSectionContentVec(T &Sec, ElemLoader &&Func) {
@@ -297,6 +308,7 @@ private:
   Expect<void> loadSection(AST::CodeSection &Sec);
   Expect<void> loadSection(AST::DataSection &Sec);
   Expect<void> loadSection(AST::DataCountSection &Sec);
+  Expect<void> loadSection(AST::TagSection &Sec);
   Expect<void> loadSection(AST::Component::ComponentSection &Sec);
   Expect<void> loadSection(AST::CoreModuleSection &Sec);
   Expect<void> loadSection(AST::Component::CoreInstanceSection &Sec);
@@ -334,6 +346,7 @@ private:
   Expect<void> loadType(AST::MemoryType &MemType);
   Expect<void> loadType(AST::TableType &TabType);
   Expect<void> loadType(AST::GlobalType &GlobType);
+  Expect<void> loadType(AST::TagType &TgType);
 
   Expect<void> loadType(AST::Component::DefType &Ty);
   Expect<void> loadType(AST::Component::FuncType &Ty);

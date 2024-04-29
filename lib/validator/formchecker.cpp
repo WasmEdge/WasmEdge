@@ -41,6 +41,7 @@ void FormChecker::reset(bool CleanGlobal) {
     Datas.clear();
     Elems.clear();
     Refs.clear();
+    Tags.clear();
     NumImportFuncs = 0;
     NumImportGlobals = 0;
   }
@@ -110,6 +111,8 @@ void FormChecker::addLocal(const ValType &V, bool Initialized) {
     Locals.back().IsInit = true;
   }
 }
+
+void FormChecker::addTag(const uint32_t TypeIdx) { Tags.push_back(TypeIdx); }
 
 ValType FormChecker::VTypeToAST(const VType &V) {
   if (!V) {
@@ -262,12 +265,12 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   // Helper lambda for recording jump data.
   auto recordJump = [this, &Instr](AST::Instruction::JumpDescriptor &Jump,
-                                   uint32_t Arity, CtrlFrame &Frame) -> void {
+                                   uint32_t Arity, uint32_t D) -> void {
     const uint32_t Remain =
-        static_cast<uint32_t>(ValStack.size() - Frame.Height);
+        static_cast<uint32_t>(ValStack.size() - CtrlStack[D].Height);
     Jump.StackEraseBegin = Remain + Arity;
     Jump.StackEraseEnd = Arity;
-    Jump.PCOffset = static_cast<int32_t>(Frame.Jump - &Instr);
+    Jump.PCOffset = static_cast<int32_t>(CtrlStack[D].Jump - &Instr);
   };
 
   // Helper lambda for unpacking a value type.
@@ -315,13 +318,22 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return unreachable();
   case OpCode::Nop:
     return {};
-  case OpCode::If:
+
   case OpCode::Block:
-  case OpCode::Loop: {
+  case OpCode::Loop:
+  case OpCode::If:
+  // LEGACY-EH: remove the `Try` case after deprecating legacy EH.
+  case OpCode::Try:
+  case OpCode::Try_table: {
     // Get blocktype [t1*] -> [t2*] and check valtype first.
     std::vector<ValType> Buffer(1);
     Span<const ValType> T1, T2;
-    if (auto Res = checkBlockType(Buffer, Instr.getBlockType())) {
+    // LEGACY-EH: remove the `Try` case after deprecating legacy EH.
+    const auto &BType = (Instr.getOpCode() == OpCode::Try ||
+                         Instr.getOpCode() == OpCode::Try_table)
+                            ? Instr.getTryCatch().ResType
+                            : Instr.getBlockType();
+    if (auto Res = checkBlockType(Buffer, BType)) {
       std::tie(T1, T2) = std::move(*Res);
     } else {
       return Unexpect(Res);
@@ -335,6 +347,52 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     // Pop and check [t1*]
     if (auto Res = popTypes(T1); !Res) {
       return Unexpect(Res);
+    }
+    // For the try_table instruction, validate the handlers.
+    if (Instr.getOpCode() == OpCode::Try_table) {
+      const auto &TryDesc = Instr.getTryCatch();
+      const_cast<AST::Instruction::TryDescriptor &>(TryDesc).BlockParamNum =
+          static_cast<uint32_t>(T1.size());
+      // Validate catch clause.
+      for (const auto &C : TryDesc.Catch) {
+        if (!C.IsAll) {
+          // Check tag index.
+          if (unlikely(C.TagIndex >= Tags.size())) {
+            return logOutOfRange(ErrCode::Value::InvalidTagIdx,
+                                 ErrInfo::IndexCategory::Tag, C.TagIndex,
+                                 static_cast<uint32_t>(Tags.size()));
+          }
+          // Result type of tag index are checked in tag section.
+        }
+        if (auto D = checkCtrlStackDepth(C.LabelIndex)) {
+          pushCtrl({}, getLabelTypes(CtrlStack[*D]), &Instr + TryDesc.JumpEnd,
+                   Instr.getOpCode());
+          std::vector<ValType> NTypes;
+          if (!C.IsAll) {
+            // The type is checked as a function type.
+            NTypes = Types[Tags[C.TagIndex]]
+                         ->getCompositeType()
+                         .getFuncType()
+                         .getParamTypes();
+          }
+          if (C.IsRef) {
+            NTypes.emplace_back(ValType(TypeCode::ExnRef));
+          }
+          pushTypes(NTypes);
+          if (auto Res = popCtrl(); !Res) {
+            return Unexpect(Res);
+          }
+          recordJump(const_cast<AST::Instruction::JumpDescriptor &>(C.Jump),
+                     static_cast<uint32_t>(NTypes.size()), *D);
+        } else {
+          return Unexpect(D);
+        }
+      }
+    } else if (Instr.getOpCode() == OpCode::Try) {
+      // LEGACY-EH: remove the `Try` case after deprecating legacy EH.
+      const auto &TryDesc = Instr.getTryCatch();
+      const_cast<AST::Instruction::TryDescriptor &>(TryDesc).BlockParamNum =
+          static_cast<uint32_t>(T1.size());
     }
     // Push ctrl frame ([t1*], [t2*])
     const AST::Instruction *From = Instr.getOpCode() == OpCode::Loop
@@ -353,15 +411,74 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   case OpCode::Else:
     if (auto Res = popCtrl()) {
-      pushCtrl((*Res).StartTypes, (*Res).EndTypes, Res->Jump,
-               Instr.getOpCode());
+      pushCtrl(Res->StartTypes, Res->EndTypes, Res->Jump, Instr.getOpCode());
     } else {
       return Unexpect(Res);
     }
     return {};
+
+  // LEGACY-EH: remove the `Catch` after deprecating legacy EH.
+  case OpCode::Catch: {
+    const auto &CatchDesc = Instr.getCatchLegacy();
+    // Check tag index.
+    if (unlikely(CatchDesc.TagIndex >= Tags.size())) {
+      return logOutOfRange(ErrCode::Value::InvalidTagIdx,
+                           ErrInfo::IndexCategory::Tag, CatchDesc.TagIndex,
+                           static_cast<uint32_t>(Tags.size()));
+    }
+    const auto &NTypes = Types[Tags[CatchDesc.TagIndex]]
+                             ->getCompositeType()
+                             .getFuncType()
+                             .getParamTypes();
+    const auto &TryInstr = *(&Instr - CatchDesc.CatchPCOffset);
+    const auto &Catch = TryInstr.getTryCatch().Catch[CatchDesc.CatchIndex];
+    if (auto Res = popCtrl()) {
+      // The continue block PC offset is the next of this instruction.
+      auto &Jump = const_cast<AST::Instruction::JumpDescriptor &>(Catch.Jump);
+      Jump.StackEraseBegin =
+          static_cast<uint32_t>(ValStack.size() - Res->Height) +
+          static_cast<uint32_t>(NTypes.size());
+      Jump.StackEraseEnd = static_cast<uint32_t>(NTypes.size());
+      Jump.PCOffset = static_cast<int32_t>(CatchDesc.CatchPCOffset + 1);
+      pushCtrl(NTypes, Res->EndTypes, Res->Jump, Instr.getOpCode());
+    } else {
+      return Unexpect(Res);
+    }
+    return {};
+  }
+
+  case OpCode::Throw:
+    if (unlikely(Instr.getTargetIndex() >= Tags.size())) {
+      return logOutOfRange(ErrCode::Value::InvalidTagIdx,
+                           ErrInfo::IndexCategory::Tag, Instr.getTargetIndex(),
+                           static_cast<uint32_t>(Tags.size()));
+    }
+    if (auto CompType =
+            checkDefinedType(Tags[Instr.getTargetIndex()], TypeCode::Func)) {
+      std::vector<ValType> Input = (*CompType)->getFuncType().getParamTypes();
+      if (auto Res = popTypes(Input); !Res) {
+        return Unexpect(Res);
+      }
+      return unreachable();
+    } else {
+      return Unexpect(CompType);
+    }
+
+  // LEGACY-EH: remove the `Rethrow` after deprecating legacy EH.
+  case OpCode::Rethrow:
+    spdlog::error(ErrCode::Value::TypeCheckFailed);
+    spdlog::error("    Deprecated `rethrow` instruction.");
+    return Unexpect(ErrCode::Value::TypeCheckFailed);
+
+  case OpCode::Throw_ref:
+    if (auto Res = popType(TypeCode::ExnRef); !Res) {
+      return Unexpect(Res);
+    }
+    return unreachable();
+
   case OpCode::End:
     if (auto Res = popCtrl()) {
-      pushTypes((*Res).EndTypes);
+      pushTypes(Res->EndTypes);
     } else {
       return Unexpect(Res);
     }
@@ -377,7 +494,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         return Unexpect(Res);
       }
       recordJump(const_cast<AST::Instruction &>(Instr).getJump(),
-                 static_cast<uint32_t>(NTypes.size()), CtrlStack[*D]);
+                 static_cast<uint32_t>(NTypes.size()), *D);
       return unreachable();
     }
   case OpCode::Br_if:
@@ -393,7 +510,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         return Unexpect(Res);
       }
       recordJump(const_cast<AST::Instruction &>(Instr).getJump(),
-                 static_cast<uint32_t>(NTypes.size()), CtrlStack[*D]);
+                 static_cast<uint32_t>(NTypes.size()), *D);
       pushTypes(NTypes);
       return {};
     }
@@ -434,7 +551,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
             }
           }
           recordJump(LabelTable[LabelIdx], static_cast<uint32_t>(NTypes.size()),
-                     CtrlStack[*N]);
+                     *N);
           pushTypes(TypeBuf);
         } else {
           return Unexpect(N);
@@ -445,7 +562,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         return Unexpect(Res);
       }
       recordJump(LabelTable[LabelTableSize],
-                 static_cast<uint32_t>(NTypes.size()), CtrlStack[*M]);
+                 static_cast<uint32_t>(NTypes.size()), *M);
       return unreachable();
     } else {
       return Unexpect(M);
@@ -454,7 +571,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   case OpCode::Br_on_null:
     // D is the last D element of control stack.
-    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex())) {
+    if (auto D = checkCtrlStackDepth(Instr.getJump().TargetIndex)) {
       const auto NTypes = getLabelTypes(CtrlStack[*D]);
       if (auto ResT = popType()) {
         if ((*ResT).has_value() && !(*ResT)->isRefType()) {
@@ -465,7 +582,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
           return Unexpect(Res);
         }
         recordJump(const_cast<AST::Instruction &>(Instr).getJump(),
-                   static_cast<uint32_t>(NTypes.size()), CtrlStack[*D]);
+                   static_cast<uint32_t>(NTypes.size()), *D);
         pushTypes(NTypes);
         if ((*ResT).has_value()) {
           pushType((*ResT)->toNonNullableRef());
@@ -479,8 +596,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     } else {
       return Unexpect(D);
     }
+
   case OpCode::Br_on_non_null:
-    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex())) {
+    if (auto D = checkCtrlStackDepth(Instr.getJump().TargetIndex)) {
       // Get the result type of the label. (Should be [t* rt].)
       auto LabelTypes = getLabelTypes(CtrlStack[*D]);
       std::vector<ValType> NTypes(LabelTypes.begin(), LabelTypes.end());
@@ -499,7 +617,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         return Unexpect(Res);
       }
       recordJump(const_cast<AST::Instruction &>(Instr).getJump(),
-                 static_cast<uint32_t>(NTypes.size()), CtrlStack[*D]);
+                 static_cast<uint32_t>(NTypes.size()), *D);
       // Push types [t*].
       NTypes.pop_back();
       pushTypes(NTypes);
@@ -632,6 +750,31 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(CompType);
     }
   }
+
+  // LEGACY-EH: remove the `Catch_all` after deprecating legacy EH.
+  case OpCode::Catch_all: {
+    const auto &CatchDesc = Instr.getCatchLegacy();
+    const auto &TryInstr = *(&Instr - CatchDesc.CatchPCOffset);
+    const auto &Catch = TryInstr.getTryCatch().Catch[CatchDesc.CatchIndex];
+    if (auto Res = popCtrl()) {
+      // The continue block PC offset is the next of this instruction.
+      auto &Jump = const_cast<AST::Instruction::JumpDescriptor &>(Catch.Jump);
+      Jump.StackEraseBegin =
+          static_cast<uint32_t>(ValStack.size() - Res->Height);
+      Jump.StackEraseEnd = 0;
+      Jump.PCOffset = static_cast<int32_t>(CatchDesc.CatchPCOffset + 1);
+      pushCtrl({}, Res->EndTypes, Res->Jump, Instr.getOpCode());
+    } else {
+      return Unexpect(Res);
+    }
+    return {};
+  }
+
+  // LEGACY-EH: remove the `Delegate` after deprecating legacy EH.
+  case OpCode::Delegate:
+    spdlog::error(ErrCode::Value::TypeCheckFailed);
+    spdlog::error("    Deprecated `delegate` instruction.");
+    return Unexpect(ErrCode::Value::TypeCheckFailed);
 
   // Reference Instructions.
   case OpCode::Ref__null:
@@ -999,7 +1142,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         return Unexpect(Res);
       }
       recordJump(const_cast<AST::Instruction &>(Instr).getBrCast().Jump,
-                 static_cast<uint32_t>(NTypes.size()), CtrlStack[*D]);
+                 static_cast<uint32_t>(NTypes.size()), *D);
       // For br_on_cast, push types [t* rt1'].
       // For Br_on_cast_fail, push types [t* rt2].
       RTP = Instr.getOpCode() == OpCode::Br_on_cast ? RT1P : RT2;

@@ -33,12 +33,32 @@ Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
   return {};
 }
 
+Expect<void> Executor::runThrowOp(Runtime::StackManager &StackMgr,
+                                  const AST::Instruction &Instr,
+                                  AST::InstrView::iterator &PC) noexcept {
+  auto *TagInst = getTagInstByIdx(StackMgr, Instr.getTargetIndex());
+  // The args will be popped from stack in the throw function.
+  return throwException(StackMgr, *TagInst, PC);
+}
+
+Expect<void> Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
+                                     const AST::Instruction &Instr,
+                                     AST::InstrView::iterator &PC) noexcept {
+  const auto Ref = StackMgr.pop().get<RefVariant>();
+  if (Ref.isNull()) {
+    spdlog::error(ErrCode::Value::AccessNullException);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::Value::AccessNullException);
+  }
+  auto *TagInst = Ref.getPtr<Runtime::Instance::TagInstance>();
+  return throwException(StackMgr, *TagInst, PC);
+}
+
 Expect<void> Executor::runBrOp(Runtime::StackManager &StackMgr,
                                const AST::Instruction &Instr,
                                AST::InstrView::iterator &PC) noexcept {
-  return branchToLabel(StackMgr, Instr.getJump().StackEraseBegin,
-                       Instr.getJump().StackEraseEnd, Instr.getJump().PCOffset,
-                       PC);
+  return branchToLabel(StackMgr, Instr.getJump(), PC);
 }
 
 Expect<void> Executor::runBrIfOp(Runtime::StackManager &StackMgr,
@@ -80,13 +100,9 @@ Expect<void> Executor::runBrTableOp(Runtime::StackManager &StackMgr,
   auto LabelTable = Instr.getLabelList();
   const auto LabelTableSize = static_cast<uint32_t>(LabelTable.size() - 1);
   if (Value < LabelTableSize) {
-    return branchToLabel(StackMgr, LabelTable[Value].StackEraseBegin,
-                         LabelTable[Value].StackEraseEnd,
-                         LabelTable[Value].PCOffset, PC);
+    return branchToLabel(StackMgr, LabelTable[Value], PC);
   }
-  return branchToLabel(StackMgr, LabelTable[LabelTableSize].StackEraseBegin,
-                       LabelTable[LabelTableSize].StackEraseEnd,
-                       LabelTable[LabelTableSize].PCOffset, PC);
+  return branchToLabel(StackMgr, LabelTable[LabelTableSize], PC);
 }
 
 Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
@@ -110,9 +126,7 @@ Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
   if (AST::TypeMatcher::matchType(ModInst->getTypeList(),
                                   Instr.getBrCast().RType2, GotTypeList,
                                   VT) != IsReverse) {
-    return branchToLabel(StackMgr, Instr.getBrCast().Jump.StackEraseBegin,
-                         Instr.getBrCast().Jump.StackEraseEnd,
-                         Instr.getBrCast().Jump.PCOffset, PC);
+    return branchToLabel(StackMgr, Instr.getBrCast().Jump, PC);
   }
   return {};
 }
@@ -146,7 +160,6 @@ Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
                                     const AST::Instruction &Instr,
                                     AST::InstrView::iterator &PC,
                                     bool IsTailCall) noexcept {
-
   const auto Ref = StackMgr.pop().get<RefVariant>();
   if (Ref.isNull()) {
     spdlog::error(ErrCode::Value::AccessNullFunc);
@@ -231,6 +244,14 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
   } else {
     PC = (*Res) - 1;
   }
+  return {};
+}
+
+Expect<void> Executor::runTryTableOp(Runtime::StackManager &StackMgr,
+                                     const AST::Instruction &Instr,
+                                     AST::InstrView::iterator &PC) noexcept {
+  const auto &TryDesc = Instr.getTryCatch();
+  StackMgr.pushHandler(PC, TryDesc.BlockParamNum, TryDesc.Catch);
   return {};
 }
 

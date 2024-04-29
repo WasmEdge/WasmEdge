@@ -92,17 +92,26 @@ Features:
     * `threads`: the thread number for inference.
     * `temp`: set temperature for inference.
     * `repeat-penalty`: set repeat penalty for inference.
+    * `top-p`: set top-p for inference.
+    * `grammar`: set grammar syntax for inference.
+    * `main-gpu`: set the main GPU for inference.
+    * `tensor-split`: set the tensor split for inference.
   * Add `enable-debug-log` option to show more debug information.
   * Default enable Metal on macOS.
   * Introduce `load_by_name_with_config()` to load model with metadata.
   * Introduce single token inference by `compute_single`, `get_output_single`, and `fini_single`
+  * Introduce `unload()` function to release the model.
   * Add some llama errors to WASI-NN.
     * `EndOfSequence`: returned when encounter `<EOS>` token on single token inferece.
     * `ContextFull`: returned when the context is full.
     * `PromptTooLong`: returned when the input size is too large.
+    * `ModelNotFound`: returned when the model is not found.
   * Support Llava and Gemma inference.
     * Add `mmproj` option to set the projection model.
     * Add `image` option to set the image.
+  * Improve logging mechanism.
+  * Show the version of `llama.cpp` in the metadata.
+  * Support Phi-3-Mini model.
   * Support embedding generation.
   * Support Windows build.
 * [Plugin] Initial support for `wasmedge_ffmpeg` plug-in.

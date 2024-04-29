@@ -1,0 +1,17 @@
+[package]
+name = "wasi_nn_rust"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+name = "wasmedgePluginWasiNN"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+squeezenet-burn = { git = "https://github.com/tracel-ai/models.git", features = ["weights_file"], default-features = false }
+burn = { version = "0.13.2", features = ["ndarray", "wgpu"] }
+wasmedge_plugin_sdk = { git = "https://github.com/second-state/wasmedge_plugin_rust_sdk.git" }
+wasi-nn = { git = "https://github.com/CaptainVincent/wasi-nn.git", branch = "burn" }
+lazy_static = "1.4.0"
+bytemuck = "1.16.0"

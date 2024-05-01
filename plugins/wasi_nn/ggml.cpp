@@ -1401,6 +1401,19 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &, uint32_t, uint32_t, Span<uint8_t>,
 Expect<ErrNo> compute(WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
+Expect<ErrNo> getOutputSingle(WasiNNEnvironment &, uint32_t, uint32_t,
+                              Span<uint8_t>, uint32_t &) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> computeSingle(WasiNNEnvironment &, uint32_t) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> finiSingle(WasiNNEnvironment &, uint32_t) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> unload(WasiNNEnvironment &, uint32_t) noexcept {
+  return reportBackendNotSupported();
+}
 
 #endif
 } // namespace WasmEdge::Host::WASINN::GGML

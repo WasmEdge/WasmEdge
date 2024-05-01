@@ -27,6 +27,8 @@ struct Graph {
   PyObject *Model;
   PyObject *NeuralSpeedModule;
   PyObject *ModelClass;
+  int64_t LoadTime;
+  int64_t ComputeTime;
 };
 struct Context {
   Context(size_t Gid, Graph &) noexcept : GraphId(Gid) {}

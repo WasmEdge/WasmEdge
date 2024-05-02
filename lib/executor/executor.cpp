@@ -206,5 +206,44 @@ Executor::asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
+Expect<std::vector<std::pair<ValInterface, ValType>>>
+Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
+                 Span<const ValInterface> Params,
+                 Span<const ValType> ParamTypes) {
+  if (unlikely(FuncInst == nullptr)) {
+    spdlog::error(ErrCode::Value::FuncNotFound);
+    return Unexpect(ErrCode::Value::FuncNotFound);
+  }
+
+  // Matching arguments and function type.
+  const auto &FuncType = FuncInst->getFuncType();
+  const auto &PTypes = FuncType.getParamTypes();
+
+  auto ExpPType = PTypes.begin();
+  for (auto &ComingInPType : ParamTypes) {
+    if (ComingInPType != *ExpPType) {
+      spdlog::error("expected {} but got {}", *ExpPType, ComingInPType);
+      return Unexpect(ErrCode::Value::TypeCheckFailed);
+    }
+  }
+
+  const auto &RTypes = FuncType.getReturnTypes();
+
+  auto &HostFunc = FuncInst->getHostFunc();
+  Span<ValInterface> Rets;
+
+  if (auto Res = HostFunc.run(std::move(Params), Rets); !Res) {
+    return Unexpect(Res);
+  }
+
+  std::vector<std::pair<ValInterface, ValType>> R;
+  auto RType = RTypes.begin();
+  for (auto &&V : Rets) {
+    R.push_back(std::pair(V, *RType));
+    RType++;
+  }
+  return R;
+}
+
 } // namespace Executor
 } // namespace WasmEdge

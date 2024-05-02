@@ -14,7 +14,7 @@ using Pollable = uint32_t;
 class Drop : public WasiPoll<Drop> {
 public:
   Drop(WasiPollEnvironment &HostEnv) : WasiPoll(HostEnv) {}
-  Expect<void> body(const Runtime::CallingFrame &Frame, Pollable This);
+  Expect<void> body(Pollable This);
 };
 
 // poll-oneoff: func(in: list<pollable>) -> list<bool>

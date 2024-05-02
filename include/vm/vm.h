@@ -141,6 +141,13 @@ public:
     return unsafeExecute(Func, Params, ParamTypes);
   }
 
+  Expect<std::vector<std::pair<ValInterface, ValType>>>
+  execute(std::string_view Func, Span<const ValInterface> Params,
+          Span<const ValType> ParamTypes) {
+    std::shared_lock Lock(Mutex);
+    return unsafeExecute(Func, Params, ParamTypes);
+  }
+
   /// Execute function of registered module with given input.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   execute(std::string_view ModName, std::string_view Func,
@@ -148,6 +155,14 @@ public:
           Span<const ValType> ParamTypes = {}) {
     std::shared_lock Lock(Mutex);
     return unsafeExecute(ModName, Func, Params, ParamTypes);
+  }
+
+  /// Execute function of registered component with given input.
+  Expect<std::vector<std::pair<ValInterface, ValType>>>
+  execute(std::string_view CompName, std::string_view Func,
+          Span<const ValInterface> Params, Span<const ValType> ParamTypes) {
+    std::shared_lock Lock(Mutex);
+    return unsafeExecute(CompName, Func, Params, ParamTypes);
   }
 
   /// Asynchronous execute wasm with given input.
@@ -160,6 +175,16 @@ public:
   asyncExecute(std::string_view ModName, std::string_view Func,
                Span<const ValVariant> Params = {},
                Span<const ValType> ParamTypes = {});
+
+  /// Asynchronous execute wasm with given input.
+  Async<Expect<std::vector<std::pair<ValInterface, ValType>>>>
+  asyncExecute(std::string_view Func, Span<const ValInterface> Params,
+               Span<const ValType> ParamTypes);
+
+  /// Asynchronous execute function of registered component with given input.
+  Async<Expect<std::vector<std::pair<ValInterface, ValType>>>>
+  asyncExecute(std::string_view ModName, std::string_view Func,
+               Span<const ValInterface> Params, Span<const ValType> ParamTypes);
 
   /// Stop execution
   void stop() noexcept { ExecutorEngine.stop(); }
@@ -247,10 +272,19 @@ private:
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeExecute(std::string_view Func, Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});
-
   Expect<std::vector<std::pair<ValVariant, ValType>>>
+
   unsafeExecute(std::string_view Mod, std::string_view Func,
                 Span<const ValVariant> Params = {},
+                Span<const ValType> ParamTypes = {});
+
+  Expect<std::vector<std::pair<ValInterface, ValType>>>
+  unsafeExecute(std::string_view Func, Span<const ValInterface> Params = {},
+                Span<const ValType> ParamTypes = {});
+
+  Expect<std::vector<std::pair<ValInterface, ValType>>>
+  unsafeExecute(std::string_view Comp, std::string_view Func,
+                Span<const ValInterface> Params = {},
                 Span<const ValType> ParamTypes = {});
 
   void unsafeCleanup();
@@ -277,9 +311,9 @@ private:
                 std::string_view Func, Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});
 
-  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  Expect<std::vector<std::pair<ValInterface, ValType>>>
   unsafeExecute(const Runtime::Instance::ComponentInstance *CompInst,
-                std::string_view Func, Span<const ValVariant> Params = {},
+                std::string_view Func, Span<const ValInterface> Params = {},
                 Span<const ValType> ParamTypes = {});
 
   /// \name VM environment.

@@ -31,4 +31,3 @@
 | yb              | @yanghaku     | Nanjing University                            | <bo.yang@smail.nju.edu.cn>   |
 | WenYuan Huang   | @michael1017  | Purdue University                             | <huan2086@purdue.edu>        |
 | 王纪开          | @am009        | Huazhong University of Science and Technology | <warrenwjk@qq.com>           |
-

@@ -4,6 +4,8 @@
 #include "vm/vm.h"
 
 #include "ast/module.h"
+#include "common/errcode.h"
+#include "common/types.h"
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
 #include "llvm/compiler.h"
@@ -333,12 +335,12 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
   return Unexpect(ErrCode::Value::WrongInstanceAddress);
 }
 
-Expect<std::vector<std::pair<ValVariant, ValType>>>
+Expect<std::vector<std::pair<ValInterface, ValType>>>
 VM::unsafeExecute(const Runtime::Instance::ComponentInstance *CompInst,
-                  std::string_view Func, Span<const ValVariant> Params,
+                  std::string_view Func, Span<const ValInterface> Params,
                   Span<const ValType> ParamTypes) {
   // Find exported function by name.
-  Runtime::Instance::FunctionInstance *FuncInst =
+  Runtime::Instance::Component::FunctionInstance *FuncInst =
       CompInst->findFuncExports(Func);
 
   // Execute function.
@@ -523,13 +525,44 @@ VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
                   Span<const ValType> ParamTypes) {
   if (ActiveModInst) {
     // Execute function and return values with the module instance.
-    return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
+    auto Res = unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
+    if (!Res) {
+      return Unexpect(Res);
+    }
+    return *Res;
   }
+  spdlog::error(ErrCode::Value::WrongInstanceAddress);
+  spdlog::error(ErrInfo::InfoExecuting("", Func));
+  return Unexpect(ErrCode::Value::WrongInstanceAddress);
+}
+
+Expect<std::vector<std::pair<ValInterface, ValType>>>
+VM::unsafeExecute(std::string_view Func, Span<const ValInterface> Params,
+                  Span<const ValType> ParamTypes) {
   if (ActiveCompInst) {
     return unsafeExecute(ActiveCompInst.get(), Func, Params, ParamTypes);
   }
   spdlog::error(ErrCode::Value::WrongInstanceAddress);
   spdlog::error(ErrInfo::InfoExecuting("", Func));
+  return Unexpect(ErrCode::Value::WrongInstanceAddress);
+}
+
+Expect<std::vector<std::pair<ValInterface, ValType>>>
+VM::unsafeExecute(std::string_view CompName, std::string_view Func,
+                  Span<const ValInterface> Params,
+                  Span<const ValType> ParamTypes) {
+  // Find module instance by name.
+  const auto *FindCompInst = StoreRef.findComponent(CompName);
+  if (FindCompInst != nullptr) {
+    // Execute function and return values with the component instance.
+    auto Res = unsafeExecute(FindCompInst, Func, Params, ParamTypes);
+    if (!Res) {
+      return Unexpect(Res);
+    }
+    return *Res;
+  }
+  spdlog::error(ErrCode::Value::WrongInstanceAddress);
+  spdlog::error(ErrInfo::InfoExecuting(CompName, Func));
   return Unexpect(ErrCode::Value::WrongInstanceAddress);
 }
 
@@ -541,12 +574,15 @@ VM::unsafeExecute(std::string_view ModName, std::string_view Func,
   const auto *FindModInst = StoreRef.findModule(ModName);
   if (FindModInst != nullptr) {
     // Execute function and return values with the module instance.
-    return unsafeExecute(FindModInst, Func, Params, ParamTypes);
-  } else {
-    spdlog::error(ErrCode::Value::WrongInstanceAddress);
-    spdlog::error(ErrInfo::InfoExecuting(ModName, Func));
-    return Unexpect(ErrCode::Value::WrongInstanceAddress);
+    auto Res = unsafeExecute(FindModInst, Func, Params, ParamTypes);
+    if (!Res) {
+      return Unexpect(Res);
+    }
+    return *Res;
   }
+  spdlog::error(ErrCode::Value::WrongInstanceAddress);
+  spdlog::error(ErrInfo::InfoExecuting(ModName, Func));
+  return Unexpect(ErrCode::Value::WrongInstanceAddress);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -595,6 +631,32 @@ VM::asyncExecute(std::string_view ModName, std::string_view Func,
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
+Async<Expect<std::vector<std::pair<ValInterface, ValType>>>>
+VM::asyncExecute(std::string_view Func, Span<const ValInterface> Params,
+                 Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValInterface, ValType>>> (VM::*FPtr)(
+      std::string_view, Span<const ValInterface>, Span<const ValType>) =
+      &VM::execute;
+  return {FPtr, *this, std::string(Func),
+          std::vector(Params.begin(), Params.end()),
+          std::vector(ParamTypes.begin(), ParamTypes.end())};
+}
+
+Async<Expect<std::vector<std::pair<ValInterface, ValType>>>>
+VM::asyncExecute(std::string_view CompName, std::string_view Func,
+                 Span<const ValInterface> Params,
+                 Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValInterface, ValType>>> (VM::*FPtr)(
+      std::string_view, std::string_view, Span<const ValInterface>,
+      Span<const ValType>) = &VM::execute;
+  return {FPtr,
+          *this,
+          std::string(CompName),
+          std::string(Func),
+          std::vector(Params.begin(), Params.end()),
+          std::vector(ParamTypes.begin(), ParamTypes.end())};
+}
+
 void VM::unsafeCleanup() {
   if (Mod) {
     Mod.reset();
@@ -631,7 +693,7 @@ VM::unsafeGetFunctionList() const {
       }
     });
   } else if (ActiveCompInst) {
-    return ActiveCompInst->getFuncExports();
+    ActiveCompInst->getFuncExports();
   }
   return Map;
 }

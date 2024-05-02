@@ -4,16 +4,12 @@
 #include <time.h>
 #endif
 #include "wasinnenv.h"
+#include <chrono>
 #include <dlfcn.h>
-#include <variant>
+
 namespace WasmEdge::Host::WASINN::NeuralSpeed {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
 void *SharedLib = dlopen(PYTHON_LIB_PATH, RTLD_GLOBAL | RTLD_NOW);
-int64_t nowTime_ms() {
-  struct timespec Time;
-  clock_gettime(CLOCK_REALTIME, &Time);
-  return (int64_t)Time.tv_sec * 1000 + (int64_t)Time.tv_nsec / 1000000;
-}
 void printImformation(Graph &GraphRef, Context &CxtRef) {
   spdlog::info(
       "[WASI-NN][Info] Neural speed backend: Number of input tokens: {}"sv,
@@ -21,9 +17,9 @@ void printImformation(Graph &GraphRef, Context &CxtRef) {
   spdlog::info(
       "[WASI-NN][Info] Neural speed backend: Number of Output tokens: {}"sv,
       CxtRef.Outputs.size());
-  spdlog::info("[WASI-NN][Info] Neural speed backend: Load time: {}ms"sv,
+  spdlog::info("[WASI-NN][Info] Neural speed backend: Load time: {} ms"sv,
                GraphRef.LoadTime);
-  spdlog::info("[WASI-NN][Info] Neural speed backend: Compute time: {}ms "sv,
+  spdlog::info("[WASI-NN][Info] Neural speed backend: Compute time: {} ms "sv,
                GraphRef.ComputeTime);
 }
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
@@ -32,7 +28,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   // Add a new graph.
   Env.NNGraph.emplace_back(Backend::NeuralSpeed);
   auto &GraphRef = Env.NNGraph.back().get<Graph>();
-  GraphRef.LoadTime = nowTime_ms();
+  const auto StartTime = std::chrono::steady_clock::now();
   // Initialize the plugin parameters.
   GraphRef.EnableDebugLog = true;
   if (GraphRef.EnableDebugLog) {
@@ -130,7 +126,9 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     return WASINN::ErrNo::RuntimeError;
   }
   Py_XDECREF(LoadResult);
-  GraphRef.LoadTime = nowTime_ms() - GraphRef.LoadTime;
+  GraphRef.LoadTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          std::chrono::steady_clock::now() - StartTime)
+                          .count();
   return WASINN::ErrNo::Success;
 }
 
@@ -198,7 +196,7 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   }
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  GraphRef.ComputeTime = nowTime_ms();
+  const auto StartTime = std::chrono::steady_clock::now();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Neural speed backend: compute"sv);
   }
@@ -265,7 +263,9 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   Py_DECREF(Result);
   // Py_DECREF(GenerateArgs);
   Py_DECREF(LongTensor);
-  GraphRef.ComputeTime = nowTime_ms() - GraphRef.ComputeTime;
+  GraphRef.ComputeTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+                             std::chrono::steady_clock::now() - StartTime)
+                             .count();
   if (GraphRef.EnableDebugLog) {
     printImformation(GraphRef, CxtRef);
   }

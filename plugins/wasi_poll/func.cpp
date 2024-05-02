@@ -8,7 +8,7 @@
 namespace WasmEdge {
 namespace Host {
 
-Expect<void> Drop::body(const Runtime::CallingFrame &, Pollable) { return {}; }
+Expect<void> Drop::body(Pollable) { return {}; }
 
 } // namespace Host
 } // namespace WasmEdge

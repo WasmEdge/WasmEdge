@@ -12,13 +12,13 @@ namespace Host {
 class WasiHttpPrint : public WasiHttp<WasiHttpPrint> {
 public:
   WasiHttpPrint(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
-  Expect<void> body(const Runtime::CallingFrame &Frame, StrVariant Str);
+  Expect<void> body(std::string Str);
 };
 
 class WasiHttpGet : public WasiHttp<WasiHttpGet> {
 public:
   WasiHttpGet(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
-  Expect<StrVariant> body(const Runtime::CallingFrame &Frame, StrVariant URI);
+  Expect<std::string> body(std::string URI);
 };
 
 } // namespace Host

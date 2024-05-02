@@ -187,6 +187,11 @@ public:
   invoke(const Runtime::Instance::FunctionInstance *FuncInst,
          Span<const ValVariant> Params, Span<const ValType> ParamTypes);
 
+  /// Invoke a Component function by function instance.
+  Expect<std::vector<std::pair<ValInterface, ValType>>>
+  invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
+         Span<const ValInterface> Params, Span<const ValType> ParamTypes);
+
   /// Asynchronous invoke a WASM function by function instance.
   Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
   asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
@@ -309,7 +314,7 @@ private:
 
   /// \name Helper Functions for canonical ABI
   /// @{
-  std::unique_ptr<Runtime::Instance::FunctionInstance>
+  std::unique_ptr<Runtime::Instance::Component::FunctionInstance>
   lifting(Runtime::Instance::ComponentInstance &Comp,
           const WasmEdge::AST::Component::FuncType &FuncType,
           Runtime::Instance::FunctionInstance *F,
@@ -317,7 +322,7 @@ private:
           Runtime::Instance::FunctionInstance *Realloc);
 
   std::unique_ptr<Runtime::Instance::FunctionInstance>
-  lowering(Runtime::Instance::FunctionInstance *F,
+  lowering(Runtime::Instance::Component::FunctionInstance *F,
            Runtime::Instance::MemoryInstance *Memory,
            Runtime::Instance::FunctionInstance *Realloc);
   /// @}

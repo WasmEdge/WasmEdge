@@ -238,7 +238,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       }
     }
 
-    std::vector<ValVariant> FuncArgs;
+    std::vector<ValInterface> FuncArgs;
     std::vector<ValType> FuncArgTypes;
     for (size_t I = 0;
          I < FuncType.getParamTypes().size() && I + 1 < Opt.Args.value().size();
@@ -272,7 +272,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       }
       case TypeCode::String: {
         std::string &Value = Opt.Args.value()[I + 1];
-        FuncArgs.emplace_back(StrVariant(std::move(Value)));
+        FuncArgs.emplace_back(std::move(Value));
         FuncArgTypes.emplace_back(TypeCode::String);
         break;
       }
@@ -302,19 +302,24 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       for (size_t I = 0; I < Result->size(); ++I) {
         switch ((*Result)[I].second.getCode()) {
         case TypeCode::I32:
-          fmt::print("{}\n"sv, (*Result)[I].first.get<uint32_t>());
+          fmt::print("{}\n"sv,
+                     std::get<ValVariant>((*Result)[I].first).get<uint32_t>());
           break;
         case TypeCode::I64:
-          fmt::print("{}\n"sv, (*Result)[I].first.get<uint64_t>());
+          fmt::print("{}\n"sv,
+                     std::get<ValVariant>((*Result)[I].first).get<uint64_t>());
           break;
         case TypeCode::F32:
-          fmt::print("{}\n"sv, (*Result)[I].first.get<float>());
+          fmt::print("{}\n"sv,
+                     std::get<ValVariant>((*Result)[I].first).get<float>());
           break;
         case TypeCode::F64:
-          fmt::print("{}\n"sv, (*Result)[I].first.get<double>());
+          fmt::print("{}\n"sv,
+                     std::get<ValVariant>((*Result)[I].first).get<double>());
           break;
         case TypeCode::V128:
-          fmt::print("{}\n"sv, (*Result)[I].first.get<uint128_t>());
+          fmt::print("{}\n"sv,
+                     std::get<ValVariant>((*Result)[I].first).get<uint128_t>());
           break;
         /// TODO: FuncRef and ExternRef
         default:

@@ -1,6 +1,7 @@
 #include "ast/component/instance.h"
 #include "ast/module.h"
 #include "common/errcode.h"
+#include "common/types.h"
 #include "executor/executor.h"
 
 #include "runtime/instance/module.h"
@@ -27,28 +28,28 @@ void pushType(Runtime::Instance::ComponentInstance &Comp,
     case PrimValType::Char:
     case PrimValType::S8:
     case PrimValType::U8:
-      Types.push_back(TypeCode::I8);
+      Types.push_back(ValType(TypeCode::I8));
       break;
     case PrimValType::S16:
     case PrimValType::U16:
-      Types.push_back(TypeCode::I16);
+      Types.push_back(ValType(TypeCode::I16));
       break;
     case PrimValType::S32:
     case PrimValType::U32:
-      Types.push_back(TypeCode::I32);
+      Types.push_back(ValType(TypeCode::I32));
       break;
     case PrimValType::S64:
     case PrimValType::U64:
-      Types.push_back(TypeCode::I64);
+      Types.push_back(ValType(TypeCode::I64));
       break;
     case PrimValType::Float32:
-      Types.push_back(TypeCode::F32);
+      Types.push_back(ValType(TypeCode::F32));
       break;
     case PrimValType::Float64:
-      Types.push_back(TypeCode::F64);
+      Types.push_back(ValType(TypeCode::F64));
       break;
     case PrimValType::String:
-      Types.push_back(TypeCode::String);
+      Types.push_back(ValType(TypeCode::String));
       break;
     }
   } else {
@@ -79,30 +80,28 @@ AST::FunctionType convert(Runtime::Instance::ComponentInstance &Comp,
 }
 } // namespace
 
-class LiftTrans : public HostFunctionBase {
+class LiftTrans : public WasmEdge::Runtime::Component::HostFunctionBase {
 public:
-  LiftTrans(Executor *Exec, const FuncType &DefinedType,
+  LiftTrans(Executor *Exec, const AST::Component::FuncType &DefinedType,
             Instance::FunctionInstance *Func, Instance::MemoryInstance *M,
             Instance::FunctionInstance *R,
             Runtime::Instance::ComponentInstance &Comp)
-      : HostFunctionBase(0), Exec(Exec), LowerFunc(Func), Memory(M),
-        Realloc(R) {
-    auto &FT = DefType.getCompositeType().getFuncType();
+      : HostFunctionBase(), Exec(Exec), LowerFunc(Func), Memory(M), Realloc(R) {
     // The convert is simply let component type to internal type.
-    FT = convert(Comp, DefinedType);
-    spdlog::info("lifted: {}"sv, FT);
+    FuncType = convert(Comp, DefinedType);
+    spdlog::info("lifted: {}"sv, FuncType);
   }
 
-  Expect<void> run(const Runtime::CallingFrame &, Span<const ValVariant> Args,
-                   Span<ValVariant> Rets) override {
-    const auto &HigherFuncType = DefType.getCompositeType().getFuncType();
+  Expect<void> run(Span<const ValInterface> Args,
+                   Span<ValInterface> Rets) override {
+    const auto &HigherFuncType = FuncType;
 
     uint32_t PI = 0;
     std::vector<ValVariant> LowerArgs{};
     for (auto &ParamTy : HigherFuncType.getParamTypes()) {
       switch (ParamTy.getCode()) {
       case TypeCode::String: {
-        std::string_view Str = Args[PI++].get<StrVariant>().getString();
+        std::string_view Str = std::get<std::string>(Args[PI++]);
 
         auto StrSize = static_cast<uint32_t>(Str.size());
         std::vector<ValVariant> ReallocArgs{ValVariant(0), ValVariant(0),
@@ -123,7 +122,7 @@ public:
       }
       default: {
         // usual type has no need conversion
-        const ValVariant &Arg = Args[PI++];
+        const ValVariant &Arg = std::get<ValVariant>(Args[PI++]);
         LowerArgs.push_back(Arg);
         break;
       }
@@ -146,11 +145,12 @@ public:
         auto Idx = ResultList[TakeI++].first.get<uint32_t>();
         auto Size = ResultList[TakeI++].first.get<uint32_t>();
         auto Str = Memory->getStringView(Idx, Size);
-        Rets[RI++] = StrVariant(std::string(Str.begin(), Str.end()));
+        Rets[RI++] = std::string(Str.begin(), Str.end());
         break;
       }
       default: {
-        Rets[RI++] = ResultList[TakeI++].first;
+        auto &R = ResultList[TakeI++];
+        Rets[RI++] = R.first;
         break;
       }
       }
@@ -166,19 +166,19 @@ private:
   Instance::FunctionInstance *Realloc;
 };
 
-std::unique_ptr<Instance::FunctionInstance>
+std::unique_ptr<Instance::Component::FunctionInstance>
 Executor::lifting(Runtime::Instance::ComponentInstance &Comp,
                   const FuncType &FuncType, Instance::FunctionInstance *Func,
                   Instance::MemoryInstance *Memory,
                   Instance::FunctionInstance *Realloc) {
-  auto R = std::make_unique<Instance::FunctionInstance>(
+  auto R = std::make_unique<Instance::Component::FunctionInstance>(
       std::make_unique<LiftTrans>(this, FuncType, Func, Memory, Realloc, Comp));
   return R;
 }
 
 class LowerTrans : public HostFunctionBase {
 public:
-  LowerTrans(Executor *Exec, Instance::FunctionInstance *Func,
+  LowerTrans(Executor *Exec, Instance::Component::FunctionInstance *Func,
              Instance::MemoryInstance *Memory,
              Instance::FunctionInstance *Realloc)
       : HostFunctionBase(0), Exec(Exec), HigherFunc(Func), Memory(Memory),
@@ -193,7 +193,8 @@ public:
         FuncType.getParamTypes().push_back(TypeCode::I32);
         break;
       default:
-        FuncType.getParamTypes().push_back(ParamTy);
+        // FIXME: need to narrowing the type
+        // FuncType.getParamTypes().push_back(ParamTy);
         break;
       }
     }
@@ -205,7 +206,8 @@ public:
         FuncType.getReturnTypes().push_back(TypeCode::I32);
         break;
       default:
-        FuncType.getReturnTypes().push_back(ReturnTy);
+        // FIXME: need to narrowing the type
+        // FuncType.getReturnTypes().push_back(ReturnTy);
         break;
       }
     }
@@ -218,7 +220,7 @@ public:
     auto &HigherFuncType = HigherFunc->getFuncType();
 
     uint32_t PI = 0;
-    std::vector<ValVariant> HigherArgs{};
+    std::vector<ValInterface> HigherArgs{};
     for (auto &ParamTy : HigherFuncType.getParamTypes()) {
       switch (ParamTy.getCode()) {
       case TypeCode::String: {
@@ -227,12 +229,11 @@ public:
         std::string_view V =
             Memory->getStringView(Idx.get<uint32_t>(), Len.get<uint32_t>());
         std::string S{V.begin(), V.end()};
-        HigherArgs.push_back(StrVariant(std::move(S)));
+        HigherArgs.push_back(std::move(S));
         break;
       }
       default:
-        // usual type has no need conversion
-        const ValVariant &Arg = Args[PI++];
+        auto Arg = Args[PI++];
         HigherArgs.push_back(Arg);
         break;
       }
@@ -248,7 +249,7 @@ public:
     for (auto &[RetVal, RetTy] : *Res) {
       switch (RetTy.getCode()) {
       case TypeCode::String: {
-        auto const &Str = RetVal.get<StrVariant>().getString();
+        auto const &Str = std::get<std::string>(RetVal);
 
         auto StrSize = static_cast<uint32_t>(Str.size());
         std::vector<ValVariant> ReallocArgs{ValVariant(0), ValVariant(0),
@@ -268,7 +269,7 @@ public:
         break;
       }
       default:
-        Rets[RI++] = RetVal;
+        Rets[RI++] = std::get<ValVariant>(RetVal);
         break;
       }
     }
@@ -278,13 +279,13 @@ public:
 
 private:
   Executor *Exec;
-  Instance::FunctionInstance *HigherFunc;
+  Instance::Component::FunctionInstance *HigherFunc;
   Instance::MemoryInstance *Memory;
   Instance::FunctionInstance *Realloc;
 };
 
 std::unique_ptr<Instance::FunctionInstance>
-Executor::lowering(Instance::FunctionInstance *Func,
+Executor::lowering(Instance::Component::FunctionInstance *Func,
                    Instance::MemoryInstance *Memory,
                    Instance::FunctionInstance *Realloc) {
   auto R = std::make_unique<Instance::FunctionInstance>(

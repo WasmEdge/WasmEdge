@@ -367,35 +367,43 @@ VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
+struct UpdateUnit {
+  using UnitType =
+      std::variant<WasmEdge::AST::Module, WasmEdge::AST::Component::Component>;
+
+  // borrow unit of VM and emplace its value
+  UpdateUnit(UnitType &U) : Unit(U) {}
+
+  void operator()(std::unique_ptr<AST::Module> &Mod) noexcept {
+    Unit.emplace<AST::Module>(*Mod);
+  }
+  void operator()(std::unique_ptr<AST::Component::Component> &Comp) noexcept {
+    Unit.emplace<AST::Component::Component>(*Comp);
+  }
+
+private:
+  UnitType &Unit;
+};
+
 Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
   // If not load successfully, the previous status will be reserved.
-  if (auto Res = LoaderEngine.parseWasmUnit(Path)) {
-    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
-      Unit.emplace<AST::Module>(*std::get<std::unique_ptr<AST::Module>>(*Res));
-    } else {
-      Unit.emplace<AST::Component::Component>(
-          *std::get<std::unique_ptr<AST::Component::Component>>(*Res));
-    }
-    Stage = VMStage::Loaded;
-  } else {
+  auto Res = LoaderEngine.parseWasmUnit(Path);
+  if (!Res) {
     return Unexpect(Res);
   }
+  std::visit(UpdateUnit{Unit}, *Res);
+  Stage = VMStage::Loaded;
   return {};
 }
 
 Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
   // If not load successfully, the previous status will be reserved.
-  if (auto Res = LoaderEngine.parseWasmUnit(Code)) {
-    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
-      Unit.emplace<AST::Module>(*std::get<std::unique_ptr<AST::Module>>(*Res));
-    } else {
-      Unit.emplace<AST::Component::Component>(
-          *std::get<std::unique_ptr<AST::Component::Component>>(*Res));
-    }
-    Stage = VMStage::Loaded;
-  } else {
+  auto Res = LoaderEngine.parseWasmUnit(Code);
+  if (!Res) {
     return Unexpect(Res);
   }
+  std::visit(UpdateUnit{Unit}, *Res);
+  Stage = VMStage::Loaded;
   return {};
 }
 

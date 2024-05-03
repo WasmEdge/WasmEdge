@@ -15,7 +15,7 @@ Expect<void>
 Executor::instantiate(Runtime::StoreManager &,
                       Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::CoreTypeSection &CoreTypeSec) {
-  for (auto Ty : CoreTypeSec.getContent()) {
+  for (auto &Ty : CoreTypeSec.getContent()) {
     CompInst.addCoreType(Ty);
   }
   return {};
@@ -25,7 +25,7 @@ Expect<void>
 Executor::instantiate(Runtime::StoreManager &,
                       Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::TypeSection &TySec) {
-  for (auto Ty : TySec.getContent()) {
+  for (auto &Ty : TySec.getContent()) {
     CompInst.addType(Ty);
   }
   return {};

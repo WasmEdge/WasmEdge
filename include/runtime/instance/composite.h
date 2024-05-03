@@ -49,9 +49,7 @@ public:
 
   /// Getter of value type in defined type form.
   ValType getDefType() const noexcept {
-    if (ModInst) {
-      return ValType(TypeCode::Ref, TypeIdx);
-    } else if (CompInst) {
+    if (ModInst || CompInst) {
       return ValType(TypeCode::Ref, TypeIdx);
     } else {
       // nullptr `ModInst` and `CompInst` case is only for host function

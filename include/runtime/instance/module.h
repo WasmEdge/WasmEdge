@@ -185,10 +185,6 @@ public:
     return std::forward<CallbackT>(CallBack)(ExpFuncs);
   }
   template <typename CallbackT>
-  auto unsafeGetFuncExports(CallbackT &&CallBack) const noexcept {
-    return std::forward<CallbackT>(CallBack)(ExpFuncs);
-  }
-  template <typename CallbackT>
   auto getTableExports(CallbackT &&CallBack) const noexcept {
     std::shared_lock Lock(Mutex);
     return std::forward<CallbackT>(CallBack)(ExpTables);

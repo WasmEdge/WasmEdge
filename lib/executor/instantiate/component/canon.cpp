@@ -129,7 +129,7 @@ public:
       }
     }
 
-    auto LowerFuncType = LowerFunc->getFuncType();
+    auto &LowerFuncType = LowerFunc->getFuncType();
     auto Res =
         Exec->invoke(LowerFunc, LowerArgs, LowerFuncType.getParamTypes());
     if (!Res) {
@@ -182,7 +182,7 @@ public:
              Instance::FunctionInstance *Realloc)
       : HostFunctionBase(0), Exec(Exec), HigherFunc(Func), Memory(Memory),
         Realloc(Realloc) {
-    const auto HigherType = HigherFunc->getFuncType();
+    auto &HigherType = HigherFunc->getFuncType();
 
     auto &FuncType = DefType.getCompositeType().getFuncType();
     for (auto &ParamTy : HigherType.getParamTypes()) {
@@ -214,7 +214,7 @@ public:
 
   Expect<void> run(const Runtime::CallingFrame &, Span<const ValVariant> Args,
                    Span<ValVariant> Rets) override {
-    auto HigherFuncType = HigherFunc->getFuncType();
+    auto &HigherFuncType = HigherFunc->getFuncType();
 
     uint32_t PI = 0;
     std::vector<ValVariant> HigherArgs{};
@@ -300,9 +300,9 @@ Executor::instantiate(Runtime::StoreManager &,
       // lift wrap a core wasm function to a component function, with proper
       // modification about canonical ABI.
 
-      auto L = std::get<Lift>(C);
+      const auto &L = std::get<Lift>(C);
 
-      auto &Opts = L.getOptions();
+      const auto &Opts = L.getOptions();
 
       Runtime::Instance::MemoryInstance *Mem = nullptr;
       Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
@@ -337,11 +337,11 @@ Executor::instantiate(Runtime::StoreManager &,
     } else if (std::holds_alternative<Lower>(C)) {
       // lower sends a component function to a core wasm function, with proper
       // modification about canonical ABI.
-      auto L = std::get<Lower>(C);
+      const auto &L = std::get<Lower>(C);
 
       Runtime::Instance::MemoryInstance *Mem = nullptr;
       Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
-      auto &Opts = L.getOptions();
+      const auto &Opts = L.getOptions();
       for (auto &Opt : Opts) {
         if (std::holds_alternative<StringEncoding>(Opt)) {
           spdlog::warn("incomplete canonical option `string-encoding`");

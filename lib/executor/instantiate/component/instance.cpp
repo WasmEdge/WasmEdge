@@ -21,9 +21,9 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   // component module instance index space.
   for (const CoreInstanceExpr &InstExpr : Sec.getContent()) {
     if (std::holds_alternative<CoreInstantiate>(InstExpr)) {
-      auto Instantiate = std::get<CoreInstantiate>(InstExpr);
+      auto &Instantiate = std::get<CoreInstantiate>(InstExpr);
 
-      for (auto Arg : Instantiate.getArgs()) {
+      for (auto &Arg : Instantiate.getArgs()) {
         // instantiate a list of `(with (name $instance))`
         // each $instance get named as `name` as statement tell
         StoreMgr.addNamedModule(Arg.getName(),
@@ -36,7 +36,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       }
       CompInst.addModuleInstance(std::move(*Res));
     } else {
-      auto InstantiateExpr =
+      auto &InstantiateExpr =
           std::get<AST::Component::CoreInlineExports>(InstExpr);
 
       // create an immediate module instance, which has no name
@@ -45,8 +45,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       // module instance expression.
       auto M = std::make_unique<Runtime::Instance::ModuleInstance>("");
 
-      for (auto const &S : InstantiateExpr.getExports()) {
-        auto SortIdx = S.getSortIdx();
+      for (auto &S : InstantiateExpr.getExports()) {
+        const auto &SortIdx = S.getSortIdx();
         switch (SortIdx.getSort()) {
         case CoreSort::Func: {
           // The module instance takes functions and export them
@@ -92,13 +92,13 @@ Expect<void>
 Executor::instantiate(Runtime::StoreManager &StoreMgr,
                       Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::InstanceSection &Sec) {
-  for (const auto &InstExpr : Sec.getContent()) {
+  for (auto &InstExpr : Sec.getContent()) {
     if (std::holds_alternative<AST::Component::Instantiate>(InstExpr)) {
-      auto Instantiate = std::get<AST::Component::Instantiate>(InstExpr);
+      auto &Instantiate = std::get<AST::Component::Instantiate>(InstExpr);
 
-      for (auto Arg : Instantiate.getArgs()) {
-        auto Idx = Arg.getIndex();
-        auto S = Idx.getSort();
+      for (auto &Arg : Instantiate.getArgs()) {
+        const auto &Idx = Arg.getIndex();
+        const auto &S = Idx.getSort();
         if (std::holds_alternative<CoreSort>(S)) {
           // TODO: insert below into mapping
           switch (std::get<CoreSort>(S)) {
@@ -151,7 +151,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           }
         }
       }
-      auto C = CompInst.getComponent(Instantiate.getComponentIdx());
+      auto &C = CompInst.getComponent(Instantiate.getComponentIdx());
       auto Res = instantiate(StoreMgr, C);
       if (!Res) {
         return Unexpect(Res);

@@ -14,13 +14,13 @@ Expect<void>
 Executor::instantiate(Runtime::StoreManager &,
                       Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::AliasSection &AliasSec) {
-  for (auto A : AliasSec.getContent()) {
-    auto T = A.getTarget();
-    auto S = A.getSort();
+  for (auto &A : AliasSec.getContent()) {
+    auto &T = A.getTarget();
+    auto &S = A.getSort();
     if (std::holds_alternative<CoreSort>(S)) {
       if (std::holds_alternative<AliasTargetExport>(T)) {
         // This means instance exports a function
-        auto Exp = std::get<AliasTargetExport>(T);
+        auto &Exp = std::get<AliasTargetExport>(T);
         const auto *ModInst = CompInst.getModuleInstance(Exp.getInstanceIdx());
 
         switch (std::get<CoreSort>(S)) {
@@ -65,7 +65,7 @@ Executor::instantiate(Runtime::StoreManager &,
       }
     } else if (std::holds_alternative<SortCase>(S)) {
       if (std::holds_alternative<AliasTargetExport>(T)) {
-        auto Exp = std::get<AliasTargetExport>(T);
+        auto &Exp = std::get<AliasTargetExport>(T);
 
         switch (std::get<SortCase>(S)) {
         case SortCase::Func: {
@@ -89,7 +89,7 @@ Executor::instantiate(Runtime::StoreManager &,
           break;
         }
       } else {
-        auto Out = std::get<AliasTargetOuter>(T);
+        auto &Out = std::get<AliasTargetOuter>(T);
 
         switch (std::get<SortCase>(S)) {
         case SortCase::Func: {

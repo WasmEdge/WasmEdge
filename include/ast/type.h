@@ -774,11 +774,11 @@ struct fmt::formatter<WasmEdge::AST::FunctionType>
     fmt::memory_buffer Buffer;
 
     fmt::format_to(std::back_inserter(Buffer), "[ "sv);
-    for (const auto &P : Type.getParamTypes()) {
+    for (auto &P : Type.getParamTypes()) {
       fmt::format_to(std::back_inserter(Buffer), "{} "sv, P);
     }
     fmt::format_to(std::back_inserter(Buffer), "] -> [ "sv);
-    for (auto R : Type.getReturnTypes()) {
+    for (auto &R : Type.getReturnTypes()) {
       fmt::format_to(std::back_inserter(Buffer), "{} "sv, R);
     }
     fmt::format_to(std::back_inserter(Buffer), "]"sv);

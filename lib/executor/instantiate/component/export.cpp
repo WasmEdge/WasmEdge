@@ -18,11 +18,11 @@ Executor::instantiate(Runtime::StoreManager &,
   using namespace WasmEdge::AST::Component;
 
   for (const auto &Export : Sec.getContent()) {
-    auto SortIndex = Export.getSortIndex();
-    auto ExportName = Export.getName();
+    auto &SortIndex = Export.getSortIndex();
+    const auto &ExportName = Export.getName();
 
     auto Index = SortIndex.getSortIdx();
-    auto S = SortIndex.getSort();
+    const auto &S = SortIndex.getSort();
     if (std::holds_alternative<CoreSort>(S)) {
       switch (std::get<CoreSort>(S)) {
       case CoreSort::Module: {

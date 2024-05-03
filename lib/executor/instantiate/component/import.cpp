@@ -14,10 +14,10 @@ Expect<void>
 Executor::instantiate(Runtime::StoreManager &StoreMgr,
                       Runtime::Instance::ComponentInstance &CompInst,
                       const ImportSection &Sec) {
-  for (auto ImportStatement : Sec.getContent()) {
-    auto Desc = ImportStatement.getDesc();
+  for (auto &ImportStatement : Sec.getContent()) {
+    auto &Desc = ImportStatement.getDesc();
     if (std::holds_alternative<DescTypeIndex>(Desc)) {
-      auto TypeIndex = std::get<DescTypeIndex>(Desc);
+      auto &TypeIndex = std::get<DescTypeIndex>(Desc);
 
       // TODO: get type via index `TypeIndex.getIndex()`, then use the type to
       // check the imported thing

@@ -38,6 +38,7 @@ struct Graph {
   // Context parameters:
   uint64_t CtxSize;
   uint64_t BatchSize;
+  uint64_t UBatchSize;
   uint64_t Threads;
   // Sampling parameters:
   double Temp = 0.80;

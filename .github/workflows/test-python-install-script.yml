@@ -207,10 +207,19 @@ jobs:
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge WASI-NN GGML Plugin not found" && exit 1)
 
         # With the build number
-        ${{ matrix.python2_ex }} utils/install.py -v 0.13.5 --plugins wasi_nn-ggml-b2334
+        ${{ matrix.python2_ex }} utils/install.py -v 0.13.5 --plugins wasi_nn-ggml-b2781
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge WASI-NN GGML Plugin not found" && exit 1)
 
-        ${{ matrix.python3_ex }} utils/install.py -v 0.13.5 --plugins wasi_nn-ggml-b2334
+        ${{ matrix.python3_ex }} utils/install.py -v 0.13.5 --plugins wasi_nn-ggml-b2781
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge WASI-NN GGML Plugin not found" && exit 1)
+    - name: Plugin install test - WasmEdge WASI-NN-GGML-noavx
+      if: ${{ matrix.name == 'Ubuntu 20.04' }}
+      run: |
+        # Without the build number
+        ${{ matrix.python2_ex }} utils/install.py -v 0.13.5 --plugins wasi_nn-ggml-noavx
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge WASI-NN GGML Plugin not found" && exit 1)
+
+        ${{ matrix.python3_ex }} utils/install.py -v 0.13.5 --plugins wasi_nn-ggml-noavx
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge WASI-NN GGML Plugin not found" && exit 1)
     - name: Plugin install test - WasmEdge rustls
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}

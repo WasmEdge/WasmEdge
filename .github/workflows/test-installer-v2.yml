@@ -57,6 +57,12 @@ jobs:
         # It should uninstall the previous installation and install WasmEdge and the GGML plugin again
         bash utils/install_v2.sh -V
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
+    - name: Run installer-v2 with noavx option
+      if: ${{ matrix.docker_image == 'ubuntu:20.04' }}
+      run: |
+        # It will install WasmEdge and the noavx GGML plugin
+        bash utils/install_v2.sh -V --noavx
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V

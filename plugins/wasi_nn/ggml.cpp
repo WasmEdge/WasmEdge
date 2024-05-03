@@ -75,6 +75,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   // Context parameters (used by the llama context):
   //   ctx-size: uint64_t
   //   batch-size: uint64_t
+  //   ubatch-size: uint64_t
   //   threads: uint64_t
   // Sampling parameters (used by the llama sampling context).
   //   temp: double
@@ -82,6 +83,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   //   repeat-penalty: double
   //   presence-penalty: double
   //   frequency-penalty: double
+  //   grammar: string
 
   // Get the current llama parameters.
   llama_model_params ModelParams = llama_model_default_params();
@@ -226,6 +228,14 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
   }
+  if (Doc.at_key("ubatch-size").error() == simdjson::SUCCESS) {
+    auto Err = Doc["ubatch-size"].get<uint64_t>().get(GraphRef.UBatchSize);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the ubatch-size option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
   if (Doc.at_key("threads").error() == simdjson::SUCCESS) {
     auto Err = Doc["threads"].get<uint64_t>().get(GraphRef.Threads);
     if (Err) {
@@ -312,6 +322,7 @@ Expect<ErrNo> setupContextParam(Graph &GraphRef,
                                 llama_context_params &ContextParams) {
   ContextParams.n_ctx = GraphRef.CtxSize;
   ContextParams.n_batch = GraphRef.BatchSize;
+  ContextParams.n_ubatch = GraphRef.UBatchSize;
   ContextParams.n_threads = GraphRef.Threads;
   ContextParams.n_threads_batch = GraphRef.Threads;
   ContextParams.embeddings = GraphRef.Embedding;
@@ -478,34 +489,30 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
   // Initialize the llama context.
   llama_context_params ContextParams = llama_context_default_params();
   setupContextParam(GraphRef, ContextParams);
+  // For non-causal models, batch size must be equal to ubatch size
+  ContextParams.n_ubatch = ContextParams.n_batch;
   auto *LlamaContext =
       llama_new_context_with_model(GraphRef.LlamaModel, ContextParams);
 
-  // Get the context size.
-  const uint64_t NCtx = llama_n_ctx(LlamaContext);
-  // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
-  const uint64_t MaxTokensListSize = NCtx - 4;
   // Use the const sequence id here.
   const llama_seq_id SequenceId = 0;
   // Return value.
   auto ReturnCode = ErrNo::Success;
 
-  // Add BOS if not present.
-  if (CxtRef.LlamaInputs.front() != llama_token_bos(GraphRef.LlamaModel)) {
-    CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.begin(),
-                              llama_token_bos(GraphRef.LlamaModel));
-  }
-  // Add EOS if not present.
-  if (!llama_token_is_eog(GraphRef.LlamaModel, CxtRef.LlamaInputs.back())) {
-    CxtRef.LlamaInputs.push_back(llama_token_eos(GraphRef.LlamaModel));
+  // Add SEP if not present.
+  if (CxtRef.LlamaInputs.back() != llama_token_sep(GraphRef.LlamaModel)) {
+    CxtRef.LlamaInputs.push_back(llama_token_sep(GraphRef.LlamaModel));
   }
 
   // Check if the input is too long.
-  if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
+  if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) >
+      ContextParams.n_batch) {
     if (GraphRef.EnableLog) {
-      spdlog::info("[WASI-NN] GGML backend: the prompt is too long. Your input "
-                   "has {} tokens. Please reduce it to {} tokens."sv,
-                   CxtRef.LlamaInputs.size(), MaxTokensListSize);
+      spdlog::info(
+          "[WASI-NN] GGML backend: the prompt is too long. "
+          "Your input has {} tokens exceeds batch size {}. "
+          "Please reduce the input size or increase your batch-size."sv,
+          CxtRef.LlamaInputs.size(), ContextParams.n_batch);
     }
     return ErrNo::PromptTooLong;
   }
@@ -857,13 +864,15 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: set the input"sv);
   }
-  const bool AddBos = llama_should_add_bos_token(GraphRef.LlamaModel);
+  const bool AddSpecial = true;
+  const bool ParseSpecial = true;
   std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
                      Tensor.Tensor.size());
   CxtRef.LlamaInputs.clear();
   if (GraphRef.MMProjModelPath == ""sv) {
     // Text only prompt.
-    CxtRef.LlamaInputs = llama_tokenize(LlamaContext, Prompt, AddBos, true);
+    CxtRef.LlamaInputs =
+        llama_tokenize(LlamaContext, Prompt, AddSpecial, ParseSpecial);
   } else {
     // Handle llava format prompt.
 
@@ -929,10 +938,12 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     std::string PromptBeforeImage = Prompt.substr(0, PlaceholderPosition);
     std::string PromptAfterImage =
         Prompt.substr(PlaceholderPosition + PromptImagePlaceholder.length());
-    std::vector<llama_token> EmbdInputBeforeImage =
-        llama_tokenize(LlamaContext, PromptBeforeImage, AddBos, true);
+    std::vector<llama_token> EmbdInputBeforeImage = llama_tokenize(
+        LlamaContext, PromptBeforeImage, AddSpecial, ParseSpecial);
+    // Do not add special token (such as <BOS>, <EOS>, ... tokens.) to the
+    // tokens after the image.
     std::vector<llama_token> EmbdInputAfterImage =
-        llama_tokenize(LlamaContext, PromptAfterImage, false, true);
+        llama_tokenize(LlamaContext, PromptAfterImage, false, ParseSpecial);
     CxtRef.LlavaImagePosition = EmbdInputBeforeImage.size();
     CxtRef.LlamaInputs.reserve(EmbdInputBeforeImage.size() +
                                EmbdInputAfterImage.size());

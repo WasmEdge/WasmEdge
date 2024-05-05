@@ -133,6 +133,16 @@ jobs:
     - name: Uninstall WasmEdge with wasi_nn-ggml
       run: |
         bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge and wasi_nn-ggml-noavx plugin (0.13.5)
+      if: ${{ matrix.docker_image == 'ubuntu:20.04' }}
+      run: |
+        # Currently, we only support noavx build on ubuntu 20.04
+        bash utils/install.sh -v 0.13.5 --plugins wasi_nn-ggml-noavx -D
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
+    - name: Uninstall WasmEdge with wasi_nn-ggml-noavx
+      if: ${{ matrix.docker_image == 'ubuntu:20.04' }}
+      run: |
+        bash utils/uninstall.sh -q -V
     - name: Install versions multiple times
       run: |
         bash utils/install.sh -e all -D

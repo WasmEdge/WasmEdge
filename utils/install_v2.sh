@@ -188,6 +188,7 @@ IPATH="$__HOME__/.wasmedge"
 VERBOSE=0
 LEGACY=0
 ENABLE_RUSTLS=0
+ENABLE_NOAVX=0
 
 set_ENV() {
 	ENV="#!/bin/sh
@@ -271,6 +272,9 @@ usage() {
 													of execution.
 
 	-p,             --path=[/usr/local]         Prefix / Path to install
+
+	--noavx                                     Install the GGML noavx plugin.
+													Default is disabled.
 
 	--rustls                                    Install the Rustls plugin.
 													Default is disabled.
@@ -366,23 +370,30 @@ get_wasmedge_release() {
 get_wasmedge_ggml_plugin() {
 	info "Fetching WasmEdge-GGML-Plugin"
 	local CUDA_EXT=""
-	cuda=$(detect_cuda)
-	info "Detected CUDA version: ${cuda}"
-	if [ "${cuda}" == "12" ]; then
-		CUDA_EXT="-cuda"
-	elif [ "${cuda}" == "11" ]; then
-		if [ "${ARCH}" == "aarch64" ]; then
-			CUDA_EXT="-cuda"
-		else
-			CUDA_EXT="-cuda-11"
-		fi
+	local NOAVX_EXT=""
+	if [ "${ENABLE_NOAVX}" == "1" ]; then
+		# If noavx is given, it will only use CPU with noavx instructions.
+		info "NOAVX option is given: Use the noavx CPU version."
+		NOAVX_EXT="-noavx"
 	else
-		CUDA_EXT=""
+		cuda=$(detect_cuda)
+		info "Detected CUDA version: ${cuda}"
+		if [ "${cuda}" == "12" ]; then
+			CUDA_EXT="-cuda"
+		elif [ "${cuda}" == "11" ]; then
+			if [ "${ARCH}" == "aarch64" ]; then
+				CUDA_EXT="-cuda"
+			else
+				CUDA_EXT="-cuda-11"
+			fi
+		else
+			CUDA_EXT=""
+		fi
 	fi
-	_downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}-$VERSION-$RELEASE_PKG"
+	_downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-$VERSION-$RELEASE_PKG"
 	local TMP_PLUGIN_DIR="${TMP_DIR}/${IPKG}/plugin"
 	mkdir -p "${TMP_PLUGIN_DIR}"
-	_extractor -C "${TMP_PLUGIN_DIR}" -vxzf "${TMP_DIR}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}-${VERSION}-${RELEASE_PKG}"
+	_extractor -C "${TMP_PLUGIN_DIR}" -vxzf "${TMP_DIR}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-${VERSION}-${RELEASE_PKG}"
 }
 
 get_wasmedge_rustls_plugin() {
@@ -447,6 +458,9 @@ main() {
 				;;
 			p | path)
 				IPATH="$(_realpath "${OPTARG}")"
+				;;
+			noavx)
+				ENABLE_NOAVX=1
 				;;
 			rustls)
 				ENABLE_RUSTLS=1

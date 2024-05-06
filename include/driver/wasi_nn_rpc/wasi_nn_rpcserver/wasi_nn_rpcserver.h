@@ -373,6 +373,24 @@ public:
     return grpc::Status::OK;
   }
 
+  /*
+    Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept
+  */
+  virtual grpc::Status
+  FiniSingle(grpc::ServerContext * /*RPCContext*/,
+          const wasi_ephemeral_nn::ComputeRequest *RPCRequest,
+          google::protobuf::Empty * /*RPCResult*/) {
+    std::string_view FuncName = "fini_single"sv;
+    uint32_t ResourceHandle = RPCRequest->resource_handle();
+    uint32_t MemorySize = UINT32_C(0);
+    HostFuncCaller HostFuncCaller(NNMod, FuncName, MemorySize);
+    uint32_t Errno = HostFuncCaller.call({ResourceHandle});
+    if (Errno != 0) {
+      return createRPCStatusFromErrno(FuncName, Errno);
+    }
+    return grpc::Status::OK;
+  }
+
 private:
   const Runtime::Instance::ModuleInstance &NNMod;
 };

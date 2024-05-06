@@ -173,6 +173,12 @@ TEST(WasiNNTest, OpenVINOBackend) {
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncComputeSingle =
       dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+  // Get the function "fini_single".
+  FuncInst = NNMod->findFuncExports("fini_single");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncFiniSingle =
+      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
 
   // OpenVINO WASI-NN load tests.
   // Test: load -- meaningless binaries.
@@ -492,6 +498,39 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: compute_single -- compute successfully.
   {
     EXPECT_TRUE(HostFuncComputeSingle.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // OpenVINO WASI-NN fini_single tests.
+  // Test: fini_single -- context id exceeds.
+  {
+    EXPECT_TRUE(HostFuncFiniSingle.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(3)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Swap to the tmp. env.
+  NNGraphTmp.swap(NNMod->getEnv().NNGraph);
+  NNContextTmp.swap(NNMod->getEnv().NNContext);
+  // Test: fini_single -- empty context.
+  {
+    EXPECT_TRUE(HostFuncFiniSingle.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::RuntimeError));
+  }
+  // Swap back.
+  NNGraphTmp.swap(NNMod->getEnv().NNGraph);
+  NNContextTmp.swap(NNMod->getEnv().NNContext);
+
+  // Test: fini_single -- compute successfully.
+  {
+    EXPECT_TRUE(HostFuncFiniSingle.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1)},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));

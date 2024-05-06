@@ -534,12 +534,21 @@ WasiNNComputeSingle::bodyImpl(const Runtime::CallingFrame &Frame,
                               uint32_t Context) {
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
-    // TODO: implement RPC for ComputeSingle
-    spdlog::error(
-        "[WASI-NN] RPC client is not implemented for ComputeSingle"sv);
-    return WASINN::ErrNo::UnsupportedOperation;
+      auto Stub = wasi_ephemeral_nn::GraphExecutionContextResource::NewStub(
+          Env.NNRPCChannel);
+      grpc::ClientContext ClientContext;
+      wasi_ephemeral_nn::ComputeRequest Req;
+      Req.set_resource_handle(Context);
+      google::protobuf::Empty Res;
+      auto Status = Stub->ComputeSingle(&ClientContext, Req, &Res);
+      if (!Status.ok()) {
+          spdlog::error("[WASI-NN] Failed when calling remote Compute: {}"sv,
+                          Status.error_message());
+          return WASINN::ErrNo::RuntimeError;
+      }
+      return WASINN::ErrNo::Success;
   }
-#endif
+#endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);

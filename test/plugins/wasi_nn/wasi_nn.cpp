@@ -167,6 +167,12 @@ TEST(WasiNNTest, OpenVINOBackend) {
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncCompute =
       dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+  // Get the function "compute_single".
+  FuncInst = NNMod->findFuncExports("compute_single");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncComputeSingle =
+      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
 
   // OpenVINO WASI-NN load tests.
   // Test: load -- meaningless binaries.
@@ -458,6 +464,39 @@ TEST(WasiNNTest, OpenVINOBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
 
+  // OpenVINO WASI-NN compute_single tests.
+  // Test: compute_single -- context id exceeds.
+  {
+    EXPECT_TRUE(HostFuncComputeSingle.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(3)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Swap to the tmp. env.
+  NNGraphTmp.swap(NNMod->getEnv().NNGraph);
+  NNContextTmp.swap(NNMod->getEnv().NNContext);
+  // Test: compute_single -- empty context.
+  {
+    EXPECT_TRUE(HostFuncComputeSingle.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::RuntimeError));
+  }
+  // Swap back.
+  NNGraphTmp.swap(NNMod->getEnv().NNGraph);
+  NNContextTmp.swap(NNMod->getEnv().NNContext);
+
+  // Test: compute_single -- compute successfully.
+  {
+    EXPECT_TRUE(HostFuncComputeSingle.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
   // OpenVINO WASI-NN get_output tests.
   // Test: get_output -- output bytes ptr out of bounds.
   {
@@ -550,10 +589,10 @@ TEST(WasiNNTest, OpenVINOBackend) {
     EXPECT_TRUE(HostFuncGetOutputSingle.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
-            UINT32_C(1), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+            UINT32_C(1), UINT32_C(0), StorePtr, 64, BuilderPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
-    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), UINT32_C(4004));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), UINT32_C(8));
     const auto OutputClassification =
         MemInst.getSpan<const float>(StorePtr, 1001).subspan(1);
     std::vector<size_t> SortedIndex, CorrectClasses{963, 762, 909, 926, 567};

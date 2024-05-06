@@ -69,6 +69,10 @@ message ComputeRequest{
   uint32 resource_handle = 1;
 }
 
+message ComputeSingleRequest{
+  uint32 resource_handle = 1;
+}
+
 message GetOutputRequest {
   uint32 resource_handle = 1;
   uint32 index = 2; // defined as a string in wit
@@ -90,6 +94,7 @@ message GetOutputSingleResult {
 service GraphExecutionContextResource {
   rpc SetInput(SetInputRequest) returns (google.protobuf.Empty) {};
   rpc Compute(ComputeRequest) returns (google.protobuf.Empty) {};
+  rpc ComputeSingle(ComputeRequest) returns (google.protobuf.Empty) {};
   rpc GetOutput(GetOutputRequest) returns (GetOutputResult) {};
   rpc GetOutputSingle(GetOutputSingleRequest) returns (GetOutputSingleResult) {};
 }

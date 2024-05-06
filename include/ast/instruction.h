@@ -171,6 +171,15 @@ public:
     Data.EndFlags.IsTryBlockLast = Last;
   }
 
+  // LEGACY-EH: remove these functions after deprecating legacy EH.
+  /// Getter and setter of try block end for End instruction.
+  bool isLegacyTryBlockLast() const noexcept {
+    return Data.EndFlags.IsLegacyTryBlockLast;
+  }
+  void setLegacyTryBlockLast(bool Last = true) noexcept {
+    Data.EndFlags.IsLegacyTryBlockLast = Last;
+  }
+
   /// Getter and setter of Jump for Br* instruction.
   const JumpDescriptor &getJump() const noexcept { return Data.Jump; }
   JumpDescriptor &getJump() noexcept { return Data.Jump; }
@@ -340,12 +349,14 @@ private:
     struct {
       bool IsExprLast : 1;
       bool IsTryBlockLast : 1;
+      // LEGACY-EH: remove this flag after deprecating legacy EH.
+      bool IsLegacyTryBlockLast : 1;
     } EndFlags;
     // Type 10: TypeCastBranch.
     BrCastDescriptor *BrCast;
     // Type 11: Try Block.
     TryDescriptor *TryCatch;
-    // LEGACY-EH: remove the this case after deprecating legacy EH.
+    // LEGACY-EH: remove this case after deprecating legacy EH.
     // Type 12: Legacy Catch descriptor.
     CatchDescriptorLegacy CatchLegacy;
   } Data;

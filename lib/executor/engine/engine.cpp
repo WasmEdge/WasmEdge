@@ -136,8 +136,8 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
           return Unexpect(ErrCode::Value::CostLimitExceeded);
         }
       }
-      PC += PC->getJumpEnd();
-      [[fallthrough]];
+      PC += PC->getJumpEnd() - 1;
+      return {};
     case OpCode::End:
       PC = StackMgr.maybePopFrameOrHandler(PC);
       return {};

@@ -224,6 +224,8 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
         if (BackOp == OpCode::Block || BackOp == OpCode::Loop ||
             BackOp == OpCode::If) {
           Instrs.back().setTryBlockLast(false);
+          // LEGACY-EH: remove this after deprecating legacy EH.
+          Instrs.back().setLegacyTryBlockLast(false);
           Instrs[Pos].setJumpEnd(Cnt - Pos);
           if (BackOp == OpCode::If) {
             if (Instrs[Pos].getJumpElse() == 0) {
@@ -234,9 +236,15 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
               Instrs[ElsePos].setJumpEnd(Cnt - ElsePos);
             }
           }
-        } else if (BackOp == OpCode::Try || BackOp == OpCode::Try_table) {
-          // LEGACY-EH: remove the `Try` case after deprecating legacy EH.
+        } else if (BackOp == OpCode::Try_table) {
           Instrs.back().setTryBlockLast(true);
+          // LEGACY-EH: remove this after deprecating legacy EH.
+          Instrs.back().setLegacyTryBlockLast(false);
+          Instrs[Pos].getTryCatch().JumpEnd = Cnt - Pos;
+        } else if (BackOp == OpCode::Try) {
+          // LEGACY-EH: remove the `Try` case after deprecating legacy EH.
+          Instrs.back().setTryBlockLast(false);
+          Instrs.back().setLegacyTryBlockLast(true);
           Instrs[Pos].getTryCatch().JumpEnd = Cnt - Pos;
         }
         BlockStack.pop_back();

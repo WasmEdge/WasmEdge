@@ -436,7 +436,6 @@ private:
 
 struct StrVariant {
   // Constructors.
-  // StrVariant() noexcept { setData(""); }
   StrVariant(std::string &&P) noexcept { setData(std::move(P)); }
 
   // Getter of type.
@@ -444,7 +443,7 @@ struct StrVariant {
 
   // Getter of pointer.
   std::string_view getString() const noexcept {
-    auto Ptr = reinterpret_cast<const char *>(toArray()[0]);
+    const auto *Ptr = reinterpret_cast<const char *>(toArray()[0]);
     auto Size = static_cast<size_t>(toArray()[1]);
     return std::string_view(Ptr, Size);
   }

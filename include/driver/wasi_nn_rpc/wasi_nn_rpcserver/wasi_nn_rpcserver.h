@@ -286,12 +286,13 @@ public:
   }
 
   /*
-    Expect<ErrNo> computeSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept
+    Expect<ErrNo> computeSingle(WasiNNEnvironment &Env, uint32_t ContextId)
+    noexcept
   */
   virtual grpc::Status
   ComputeSingle(grpc::ServerContext * /*RPCContext*/,
-          const wasi_ephemeral_nn::ComputeRequest *RPCRequest,
-          google::protobuf::Empty * /*RPCResult*/) {
+                const wasi_ephemeral_nn::ComputeRequest *RPCRequest,
+                google::protobuf::Empty * /*RPCResult*/) {
     std::string_view FuncName = "compute_single"sv;
     uint32_t ResourceHandle = RPCRequest->resource_handle();
     uint32_t MemorySize = UINT32_C(0);
@@ -338,15 +339,15 @@ public:
     return grpc::Status::OK;
   }
 
-/*
-    Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
-                            uint32_t Index, Span<uint8_t> OutBuffer,
-                            uint32_t &BytesWritten) noexcept
-  */
+  /*
+      Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
+                              uint32_t Index, Span<uint8_t> OutBuffer,
+                              uint32_t &BytesWritten) noexcept
+    */
   virtual grpc::Status
   GetOutputSingle(grpc::ServerContext * /*RPCContext*/,
-            const wasi_ephemeral_nn::GetOutputRequest *RPCRequest,
-            wasi_ephemeral_nn::GetOutputResult *RPCResult) {
+                  const wasi_ephemeral_nn::GetOutputRequest *RPCRequest,
+                  wasi_ephemeral_nn::GetOutputResult *RPCResult) {
     std::string_view FuncName = "get_output_single"sv;
     uint32_t ResourceHandle = RPCRequest->resource_handle();
     uint32_t Index = RPCRequest->index();
@@ -374,12 +375,13 @@ public:
   }
 
   /*
-    Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept
+    Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId)
+    noexcept
   */
   virtual grpc::Status
   FiniSingle(grpc::ServerContext * /*RPCContext*/,
-          const wasi_ephemeral_nn::ComputeRequest *RPCRequest,
-          google::protobuf::Empty * /*RPCResult*/) {
+             const wasi_ephemeral_nn::ComputeRequest *RPCRequest,
+             google::protobuf::Empty * /*RPCResult*/) {
     std::string_view FuncName = "fini_single"sv;
     uint32_t ResourceHandle = RPCRequest->resource_handle();
     uint32_t MemorySize = UINT32_C(0);

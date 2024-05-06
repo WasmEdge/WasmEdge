@@ -98,7 +98,7 @@ message GetOutputSingleResult {
 service GraphExecutionContextResource {
   rpc SetInput(SetInputRequest) returns (google.protobuf.Empty) {};
   rpc Compute(ComputeRequest) returns (google.protobuf.Empty) {};
-  rpc ComputeSingle(ComputeRequest) returns (google.protobuf.Empty) {};
+  rpc ComputeSingle(ComputeSingleRequest) returns (google.protobuf.Empty) {};
   rpc GetOutput(GetOutputRequest) returns (GetOutputResult) {};
   rpc GetOutputSingle(GetOutputSingleRequest) returns (GetOutputSingleResult) {};
   rpc FiniSingle(FiniSingleRequest) returns (google.protobuf.Empty) {};

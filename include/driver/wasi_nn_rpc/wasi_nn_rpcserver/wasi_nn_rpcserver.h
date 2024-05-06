@@ -291,7 +291,7 @@ public:
   */
   virtual grpc::Status
   ComputeSingle(grpc::ServerContext * /*RPCContext*/,
-                const wasi_ephemeral_nn::ComputeRequest *RPCRequest,
+                const wasi_ephemeral_nn::ComputeSingleRequest *RPCRequest,
                 google::protobuf::Empty * /*RPCResult*/) {
     std::string_view FuncName = "compute_single"sv;
     uint32_t ResourceHandle = RPCRequest->resource_handle();
@@ -346,8 +346,8 @@ public:
     */
   virtual grpc::Status
   GetOutputSingle(grpc::ServerContext * /*RPCContext*/,
-                  const wasi_ephemeral_nn::GetOutputRequest *RPCRequest,
-                  wasi_ephemeral_nn::GetOutputResult *RPCResult) {
+                  const wasi_ephemeral_nn::GetOutputSingleRequest *RPCRequest,
+                  wasi_ephemeral_nn::GetOutputSingleResult *RPCResult) {
     std::string_view FuncName = "get_output_single"sv;
     uint32_t ResourceHandle = RPCRequest->resource_handle();
     uint32_t Index = RPCRequest->index();
@@ -380,7 +380,7 @@ public:
   */
   virtual grpc::Status
   FiniSingle(grpc::ServerContext * /*RPCContext*/,
-             const wasi_ephemeral_nn::ComputeRequest *RPCRequest,
+             const wasi_ephemeral_nn::FiniSingleRequest *RPCRequest,
              google::protobuf::Empty * /*RPCResult*/) {
     std::string_view FuncName = "fini_single"sv;
     uint32_t ResourceHandle = RPCRequest->resource_handle();

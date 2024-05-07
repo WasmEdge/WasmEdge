@@ -2854,6 +2854,78 @@ TEST(WasiTest, Directory) {
   }
 }
 
+// A Linux bug prevents this behavior on Linux hosts for now.
+#if WASMEDGE_OS_MACOS
+TEST(WasiTest, FdPwrite) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiFdPwrite WasiFdPwrite(Env);
+  WasmEdge::Host::WasiPathOpen WasiPathOpen(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  const uint32_t BaseFd = 3;
+  uint32_t PathPtr = 0;
+  uint32_t BufPtr = 128;
+  uint32_t IovsPtr = 1024;
+  const uint64_t Rights =
+      static_cast<uint64_t>(__WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_FD_SEEK);
+
+  // According to POSIX, pwrite should override the append fd flag.
+  {
+    const uint32_t FdPtr = 2048;
+    Env.init({"/:."s}, "test"s, {}, {});
+    const auto Path = "test"sv;
+
+    std::filesystem::remove_all(Path);
+
+    const uint32_t PathSize = static_cast<uint32_t>(Path.size());
+    writeString(MemInst, Path, PathPtr);
+    EXPECT_TRUE(WasiPathOpen.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     BaseFd, UINT32_C(0), PathPtr, PathSize,
+                                     UINT32_C(1), Rights, UINT64_C(0),
+                                     UINT32_C(1), FdPtr},
+                                 Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    int32_t Fd = -1;
+    EXPECT_TRUE((MemInst.loadValue(Fd, FdPtr)));
+
+    __wasi_ciovec_t Iovs[1];
+    writeString(MemInst, "a"sv, BufPtr);
+    Iovs[0].buf = BufPtr;
+    Iovs[0].buf_len = 1;
+    MemInst.setArray(reinterpret_cast<uint8_t *>(Iovs), IovsPtr,
+                     sizeof(__wasi_ciovec_t));
+
+    EXPECT_TRUE(WasiFdPwrite.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            Fd, IovsPtr, UINT32_C(1), UINT64_C(0), UINT32_C(2048)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    EXPECT_TRUE(WasiFdPwrite.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            Fd, IovsPtr, UINT32_C(1), UINT64_C(16), UINT32_C(2048)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    EXPECT_EQ(std::filesystem::file_size(Path), 17);
+
+    Env.fini();
+  }
+}
+#endif
+
 #if !WASMEDGE_OS_WINDOWS
 TEST(WasiTest, SymbolicLink) {
   WasmEdge::Host::WASI::Environ Env;

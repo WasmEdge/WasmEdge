@@ -401,20 +401,23 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
     ++SysIOVsSize;
   }
 
-  const auto OldOffset = ::lseek(Fd, 0, SEEK_CUR);
-  if (OldOffset < 0) {
-    return WasiUnexpect(fromErrNo(errno));
+  size_t TotalSize = 0;
+
+  for (size_t i = 0; i < SysIOVsSize; i++)
+    TotalSize += SysIOVs[i].iov_len;
+
+  auto Buffer = std::vector<char>(TotalSize);
+  size_t BufOffset = 0;
+  for (size_t i = 0; i < SysIOVsSize; i++) {
+    memcpy(Buffer.data() + BufOffset, SysIOVs[i].iov_base, SysIOVs[i].iov_len);
+    BufOffset += SysIOVs[i].iov_len;
   }
-  if (::lseek(Fd, Offset, SEEK_SET) < 0) {
-    return WasiUnexpect(fromErrNo(errno));
-  }
-  if (auto Res = ::writev(Fd, SysIOVs, SysIOVsSize); unlikely(Res < 0)) {
-    ::lseek(Fd, OldOffset, SEEK_SET);
+
+  // Perform a single write operation.
+  if (auto Res = ::pwrite(Fd, Buffer.data(), TotalSize, Offset);
+      unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
-    if (::lseek(Fd, OldOffset, SEEK_SET) < 0) {
-      return WasiUnexpect(fromErrNo(errno));
-    }
     NWritten = Res;
   }
 

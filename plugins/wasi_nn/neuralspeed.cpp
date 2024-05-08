@@ -5,11 +5,18 @@
 #endif
 #include "wasinnenv.h"
 #include <chrono>
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(__WIN32__) &&             \
+    !defined(__TOS_WIN__) && !defined(__WINDOWS__)
 #include <dlfcn.h>
-
+#endif
 namespace WasmEdge::Host::WASINN::NeuralSpeed {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
+#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
+    defined(__TOS_WIN__) || defined(__WINDOWS__)
+HINSTANCE SharedLib = LoadLibrary(PYTHON_LIB_PATH);
+#else
 void *SharedLib = dlopen(PYTHON_LIB_PATH, RTLD_GLOBAL | RTLD_NOW);
+#endif
 void printImformation(Graph &GraphRef, Context &CxtRef) {
   spdlog::info(
       "[WASI-NN][Info] Neural speed backend: Number of input tokens: {}"sv,

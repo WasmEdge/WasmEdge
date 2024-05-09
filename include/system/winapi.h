@@ -34,9 +34,6 @@
 #else
 #define WASMEDGE_WINAPI_WINAPI_CC __stdcall
 #endif
-#else
-#define WASMEDGE_WINAPI_WINAPI_CC
-#endif
 
 // _WIN32_WINNT version constants
 #define _WIN32_WINNT_NT4 0x0400     // Windows NT 4.0

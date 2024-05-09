@@ -12,7 +12,11 @@ namespace Loader {
 Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
   if (auto Res = FMgr.readS33()) {
     if (*Res < 0) {
-      // FuncRef or ExternRef case.
+      if (*Res < -64) {
+        // For checking the invalid s33 value which is larger than 1 byte.
+        return logLoadError(ErrCode::Value::MalformedRefType,
+                            FMgr.getLastOffset(), From);
+      }
       TypeCode HTCode =
           static_cast<TypeCode>(static_cast<uint8_t>((*Res) & INT64_C(0x7F)));
       switch (HTCode) {

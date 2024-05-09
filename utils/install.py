@@ -638,6 +638,19 @@ def fix_gnu_sparse(args):
                     shutil.rmtree(join(args.path, dir, sub_dir))
 
 
+def check_avx(platform):
+    if platform == "Linux":
+        cmd = "[[ '$(cat /proc/cpuinfo 2>/dev/null)' =~ 'avx' ]] && echo 'on' || echo 'off'"
+        output = run_shell_command(cmd)
+        logging.debug("%s: %s", cmd, output)
+        if "on" in output:
+            return True
+        else:
+            logging.info("CPU has no avx support")
+            return False
+    return False
+
+
 def check_nvcc(platform):
     if platform == "Linux":
         cmd = "/usr/local/cuda/bin/nvcc --version 2>/dev/null"
@@ -1192,6 +1205,10 @@ def install_plugins(args, compat):
                 if plugin_name == WASI_NN_GGML and compat.cuda:
                     plugin_name = WASI_NN_GGML_CUDA
 
+                # Re-write the plugin name if noavx is found
+                if plugin_name == WASI_NN_GGML and not compat.avx:
+                    plugin_name = WASI_NN_GGML_NOAVX
+
             # Normal plugin
             if (
                 plugin_name not in PLUGINS_AVAILABLE
@@ -1414,6 +1431,7 @@ class Compat:
         self.ld_library_path = None
         self.dist = dist_
         self.release_package_wasmedge = None
+        self.avx = check_avx(self.platform)
         self.cuda = check_nvcc(self.platform) or check_nvidia_smi(self.platform)
 
         if self.platform == "Linux":

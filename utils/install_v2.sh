@@ -28,6 +28,21 @@ eprintf() {
 	command printf '%s\n' "$1" 1>&2
 }
 
+detect_avx() {
+	local avx="on"
+	if [[ "$(cat /proc/cpuinfo 2>/dev/null)" =~ "avx" ]]; then
+		avx="on"
+	else
+		avx="off"
+	fi
+
+	# AVX detection is only valid on linux
+	if [[ "${OS}" == "Darwin" ]]; then
+		avx="on"
+	fi
+	echo ${avx}
+}
+
 detect_cuda() {
 	local cuda=""
 	cuda=$(/usr/local/cuda/bin/nvcc --version 2>/dev/null | grep "Cuda compilation tools" | cut -f5 -d ' ' | cut -f1 -d ',')
@@ -371,6 +386,17 @@ get_wasmedge_ggml_plugin() {
 	info "Fetching WasmEdge-GGML-Plugin"
 	local CUDA_EXT=""
 	local NOAVX_EXT=""
+
+	# Version selection:
+	#  1. NOAVX is given: CPU + noavx
+	#  2. NOAVX is not given, use detected noavx
+	#  3. NOAVX is not given and avx is detected, then detect cuda version
+	avx=$(detect_avx)
+	info "Detected AVX: ${avx}"
+	if [ "${avx}" == "off" ]; then
+		NOAVX_EXT="-noavx"
+	fi
+
 	if [ "${ENABLE_NOAVX}" == "1" ]; then
 		# If noavx is given, it will only use CPU with noavx instructions.
 		info "NOAVX option is given: Use the noavx CPU version."

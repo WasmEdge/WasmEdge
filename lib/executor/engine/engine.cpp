@@ -1831,7 +1831,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       ValVariant &Val1 = StackMgr.getTop();
       const uint8x16_t &Index = Val2.get<uint8x16_t>();
       uint8x16_t &Vector = Val1.get<uint8x16_t>();
-      uint8x16_t Result;
+      uint8x16_t Result{};
       for (size_t I = 0; I < 16; ++I) {
         const uint8_t SwizzleIndex = Index[I];
         if (SwizzleIndex < 16) {

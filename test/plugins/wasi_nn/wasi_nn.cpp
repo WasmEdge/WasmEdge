@@ -1775,7 +1775,7 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
   uint32_t BuilderPtr = UINT32_C(0);
   uint32_t LoadEntryPtr = UINT32_C(0);
   uint32_t SetInputEntryPtr = UINT32_C(0);
-  //   uint32_t OutBoundPtr = UINT32_C(61000 * 65536);
+  uint32_t OutBoundPtr = UINT32_C(61000 * 65536);
   uint32_t StorePtr = UINT32_C(65536);
 
   // Return value.
@@ -1819,6 +1819,59 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
       dynamic_cast<WasmEdge::Host::WasiNNUnload &>(FuncInst->getHostFunc());
 
   // Neural Speed WASI-NN load tests.
+  // Test: load -- meaningless binaries.
+  {
+    EXPECT_TRUE(
+        HostFuncLoad.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             LoadEntryPtr, UINT32_C(1),
+                             static_cast<uint32_t>(Backend::NeuralSpeed),
+                             UINT32_C(0), BuilderPtr},
+                         Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+  // Test: load -- graph id ptr out of bounds.
+  {
+    EXPECT_TRUE(
+        HostFuncLoad.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             LoadEntryPtr, UINT32_C(1),
+                             static_cast<uint32_t>(Backend::NeuralSpeed),
+                             UINT32_C(0), OutBoundPtr},
+                         Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: load -- graph builder ptr out of bounds.
+  {
+    EXPECT_TRUE(
+        HostFuncLoad.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             OutBoundPtr, UINT32_C(1),
+                             static_cast<uint32_t>(Backend::NeuralSpeed),
+                             UINT32_C(0), BuilderPtr},
+                         Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: load -- Neural Speed model bin ptr out of bounds.
+  BuilderPtr = LoadEntryPtr;
+  writeFatPointer(MemInst, OutBoundPtr,
+                  static_cast<uint32_t>(WeightRead.size()), BuilderPtr);
+  {
+    EXPECT_TRUE(
+        HostFuncLoad.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             LoadEntryPtr, UINT32_C(1),
+                             static_cast<uint32_t>(Backend::NeuralSpeed),
+                             UINT32_C(0), BuilderPtr},
+                         Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
   // Test: load -- load successfully.
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, WeightRead.size(), BuilderPtr);
@@ -1838,6 +1891,16 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
   }
 
   // Neural Speed WASI-NN init_execution_context tests.
+  // Test: init_execution_context -- graph id invalid.
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(2), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
   // Test: init_execution_context -- init second context.
   {
     EXPECT_TRUE(HostFuncInit.run(
@@ -1858,6 +1921,16 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
   writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
   writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
 
+  // Test: set_input -- context id exceeds.
+  {
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(3), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
   // Test: set_input -- set input successfully.
   {
     EXPECT_TRUE(
@@ -1870,6 +1943,14 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
   StorePtr += (TensorDim.size() * 4 + TensorData.size());
 
   // Neural Speed WASI-NN compute tests.
+  // Test: compute -- context id exceeds.
+  {
+    EXPECT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(3)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
   // Test: compute -- compute successfully.
   {
     EXPECT_TRUE(HostFuncCompute.run(
@@ -1879,6 +1960,27 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
   }
 
   // Neural Speed WASI-NN get_output tests.
+  // Test: get_output -- output bytes ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, OutBoundPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output -- output buffer ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), OutBoundPtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
   // Test: get_output -- get output successfully.
   {
     EXPECT_TRUE(HostFuncGetOutput.run(

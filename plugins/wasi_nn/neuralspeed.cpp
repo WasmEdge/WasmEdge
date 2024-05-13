@@ -122,15 +122,25 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       !PyCallable_Check(GraphRef.ModelClass)) {
     spdlog::error(
         "[WASI-NN] neural speed backend: Can not find Model class in neural speed."sv);
+    Py_XDECREF(GraphRef.Model);
     return WASINN::ErrNo::RuntimeError;
   }
   GraphRef.Model = PyObject_CallObject(GraphRef.ModelClass, NULL);
+  if (GraphRef.Model == nullptr) {
+    spdlog::error("[WASI-NN] neural speed backend: Load model error."sv);
+    Py_XDECREF(GraphRef.ModelClass);
+    Py_XDECREF(GraphRef.NeuralSpeedModule);
+    return WASINN::ErrNo::InvalidArgument;
+  }
   PyObject *LoadResult =
       PyObject_CallMethod(GraphRef.Model, "init_from_bin", "(ss)",
                           GraphRef.model_type.c_str(), ModelFilePath.c_str());
   if (LoadResult == nullptr) {
     spdlog::error("[WASI-NN] neural speed backend: Load model error."sv);
-    return WASINN::ErrNo::RuntimeError;
+    Py_XDECREF(GraphRef.Model);
+    Py_XDECREF(GraphRef.ModelClass);
+    Py_XDECREF(GraphRef.NeuralSpeedModule);
+    return WASINN::ErrNo::InvalidArgument;
   }
   Py_XDECREF(LoadResult);
   GraphRef.LoadTime = std::chrono::duration_cast<std::chrono::milliseconds>(

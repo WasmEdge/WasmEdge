@@ -223,7 +223,7 @@ convertFiletime(WasmEdge::winapi::FILETIME_ FileTime) noexcept {
                                     std::chrono::nanoseconds::period>>;
   /// from 1601-01-01 to 1970-01-01, 134774 days
   constexpr const FiletimeDuration NTToUnixEpoch =
-      std::chrono::seconds{134774u * 86400u};
+      std::chrono::seconds{134774LL * 86400LL};
   WasmEdge::winapi::ULARGE_INTEGER_ Temp = {
       /* LowPart */ FileTime.dwLowDateTime, /* HighPart */ FileTime.dwHighDateTime};
   auto Duration = duration_cast<nanoseconds>(FiletimeDuration{Temp.QuadPart} -

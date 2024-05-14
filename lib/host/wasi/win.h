@@ -208,7 +208,10 @@ using FiletimeDuration = std::chrono::duration<
     std::ratio_multiply<std::ratio<100, 1>, std::chrono::nanoseconds::period>>;
 /// from 1601-01-01 to 1970-01-01, 134774 days
 static inline constexpr const FiletimeDuration NTToUnixEpoch =
-    std::chrono::seconds{134774u * 86400u};
+    std::chrono::seconds{134774LL * 86400LL};
+
+static_assert(std::chrono::duration_cast<std::chrono::seconds>(NTToUnixEpoch)
+                  .count() == 11644473600LL);
 
 static constexpr __wasi_timestamp_t fromFiletime(FILETIME_ FileTime) noexcept {
   using std::chrono::duration_cast;

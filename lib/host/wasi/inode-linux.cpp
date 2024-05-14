@@ -193,7 +193,9 @@ WasiExpect<void> INode::fdAdvise(__wasi_filesize_t Offset,
 WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
                                    __wasi_filesize_t Len) const noexcept {
   if (auto Res = ::posix_fallocate(Fd, Offset, Len); unlikely(Res != 0)) {
-    return WasiUnexpect(fromErrNo(errno));
+    // https://man7.org/linux/man-pages/man3/posix_fallocate.3.html
+    // posix_fallocate will not set errno, use return the value directly.
+    return WasiUnexpect(fromErrNo(Res));
   }
 
   return {};

@@ -542,6 +542,7 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
   // We free the contexts here to keep the ggml plugin stateless.
   // Users could fully control the contexts by themselves via their prompt.
   llama_free(LlamaContext);
+  llama_batch_free(Batch);
 
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: getEmbedding...Done"sv);

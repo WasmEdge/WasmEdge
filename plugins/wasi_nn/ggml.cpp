@@ -544,7 +544,7 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
   llama_free(LlamaContext);
 
   if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: compute...Done"sv);
+    spdlog::info("[WASI-NN][Debug] GGML backend: getEmbedding...Done"sv);
   }
 
   return ErrNo::Success;
@@ -587,6 +587,10 @@ loadBase64ImageFromPrompt(Graph &GraphRef, clip_ctx *ClipContext,
   // Follow this link for the supported image formats:
   // https://github.com/ggerganov/llama.cpp/blob/master/common/stb_image.h
 
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: loadBase64ImageFromPrompt"sv);
+  }
+
   // Find `<img src="data:image/`
   auto Base64ImageTagBeginPos = Prompt.find(Base64ImageTagPrefix);
   if (Base64ImageTagBeginPos == std::string::npos) {
@@ -621,6 +625,11 @@ loadBase64ImageFromPrompt(Graph &GraphRef, clip_ctx *ClipContext,
     spdlog::error("[WASI-NN] GGML backend: Error when base64::decode: {}"sv,
                   E.what());
     return nullptr;
+  }
+
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: loadBase64ImageFromPrompt...Done"sv);
   }
 
   return llava_image_embed_make_with_bytes(
@@ -784,12 +793,18 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
 Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
                           uint32_t &ContextId) noexcept {
+  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: initExecCtx"sv);
+  }
   Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
   ContextId = Env.NNContext.size() - 1;
-  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
   if (GraphRef.EnableLog) {
     spdlog::info("[WASI-NN] GGML backend: llama_system_info: {}"sv,
                  llama_print_system_info());
+  }
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: initExecCtx...Done"sv);
   }
   return ErrNo::Success;
 }
@@ -871,11 +886,21 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   CxtRef.LlamaInputs.clear();
   if (GraphRef.MMProjModelPath == ""sv) {
     // Text only prompt.
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info("[WASI-NN][Debug] GGML backend: tokenize text prompt"sv);
+    }
     CxtRef.LlamaInputs =
         llama_tokenize(LlamaContext, Prompt, AddSpecial, ParseSpecial);
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] GGML backend: tokenize text prompt...Done"sv);
+    }
   } else {
     // Handle llava format prompt.
-
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] GGML backend: handle llava format prompt"sv);
+    }
     // Check if the prompt contains a base64 image.
     bool ContainsBase64Image = containsBase64Image(GraphRef, Prompt);
     if (GraphRef.ImagePath == ""sv && ContainsBase64Image == false) {
@@ -953,6 +978,10 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.end(),
                               EmbdInputAfterImage.begin(),
                               EmbdInputAfterImage.end());
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] GGML backend: handle llava format prompt...Done"sv);
+    }
   }
   CxtRef.LlamaNInputs = CxtRef.LlamaInputs.size();
   if (GraphRef.EnableDebugLog) {
@@ -980,6 +1009,11 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
                         uint32_t Index, Span<uint8_t> OutBuffer,
                         uint32_t &BytesWritten) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: getOutput with Index {}"sv,
+                 Index);
+  }
   // Index 1 is for the metadata of the outputs.
   if (Index == 1) {
     std::string Metadata;
@@ -991,12 +1025,22 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
     }
     std::copy_n(Metadata.data(), Metadata.length(), OutBuffer.data());
     BytesWritten = Metadata.length();
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] GGML backend: getOutput with Index {}...Done"sv,
+          Index);
+    }
     return ErrNo::Success;
   }
 
   std::copy_n(CxtRef.LlamaOutputs.data(), CxtRef.LlamaOutputs.length(),
               OutBuffer.data());
   BytesWritten = CxtRef.LlamaOutputs.length();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: getOutput with Index {}...Done"sv,
+        Index);
+  }
   return ErrNo::Success;
 }
 
@@ -1149,11 +1193,19 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   // We free the contexts here to keep the ggml plugin stateless.
   // Users could fully control the contexts by themselves via their prompt.
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: delete llama context to make it stateless"sv);
+  }
   llama_sampling_free(CtxSampling);
   llama_free(LlamaContext);
   if (CxtRef.LlavaImageEmbd != nullptr) {
     llava_image_embed_free(CxtRef.LlavaImageEmbd);
     CxtRef.LlavaImageEmbd = nullptr;
+  }
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: delete llama context to make it stateless...Done"sv);
   }
 
   if (GraphRef.EnableDebugLog) {
@@ -1167,6 +1219,12 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
                               uint32_t Index, Span<uint8_t> OutBuffer,
                               uint32_t &BytesWritten) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: getOutputSingle with Index {}"sv,
+        Index);
+  }
   // Index 1 is for the metadata of the outputs.
   if (Index == 1) {
     std::string Metadata;
@@ -1178,12 +1236,22 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
     }
     std::copy_n(Metadata.data(), Metadata.length(), OutBuffer.data());
     BytesWritten = Metadata.length();
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] GGML backend: getOutputSingle with Index {}...Done"sv,
+          Index);
+    }
     return ErrNo::Success;
   }
   std::string LastToken = llama_token_to_piece(CxtRef.LlamaContext,
                                                CxtRef.LlamaOutputTokens.back());
   std::copy_n(LastToken.data(), LastToken.length(), OutBuffer.data());
   BytesWritten = LastToken.length();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] GGML backend: getOutputSingle with Index {}...Done"sv,
+        Index);
+  }
   return ErrNo::Success;
 }
 
@@ -1333,6 +1401,10 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
 
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: finiSingle"sv);
+  }
+
   // Logging for the llama timings.
   if (GraphRef.EnableLog) {
     llama_print_timings(CxtRef.LlamaContext);
@@ -1371,17 +1443,34 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   // Reset the context variables.
   CxtRef.LlamaNPast = 0;
 
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: finiSingle...Done"sv);
+  }
+
   return ErrNo::Success;
 }
 
 Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
   auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: unload"sv);
+  }
   if (GraphRef.LlamaModel != nullptr) {
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info("[WASI-NN][Debug] GGML backend: unload: free llama model"sv);
+    }
     llama_free_model(GraphRef.LlamaModel);
     GraphRef.LlamaModel = nullptr;
+    if (GraphRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] GGML backend: unload: free llama model...Done"sv);
+    }
   }
   Env.NNGraph.erase(Env.NNGraph.begin() + GraphId);
   Env.mdRemoveById(GraphId);
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] GGML backend: unload...Done"sv);
+  }
   return ErrNo::Success;
 }
 

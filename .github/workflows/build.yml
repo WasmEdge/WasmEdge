@@ -89,16 +89,27 @@ jobs:
       matrix: "[{'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21,'arch':'x86_64'},
                 {'name':'MacOS 13 (arm64)','runner':'macos-14','darwin_version':22,'arch':'arm64'}]"
 
-  build_on_manylinux_2014:
+  build_on_manylinux2014:
     permissions:
       contents: write
     needs: [get_version, lint]
-    name: Manylinux2014
+    name: Manylinux2014 (deprecated)
     uses: ./.github/workflows/reusable-build-on-manylinux.yml
     with:
       version: ${{ needs.get_version.outputs.version }}
-      matrix: "[{'name':'manylinux 2014 x86_64','runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},
-                {'name':'manylinux 2014 aarch64','runner':'linux-arm64-v2','docker_tag':'manylinux2014_aarch64'}]"
+      matrix: "[{'name':'manylinux2014 x86_64','runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},
+                {'name':'manylinux2014 aarch64','runner':'linux-arm64-v2','docker_tag':'manylinux2014_aarch64'}]"
+
+  # TODO: add aarch64
+  build_on_manylinux_2_28:
+    permissions:
+      contents: write
+    needs: [get_version, lint]
+    name: Manylinux_2_28
+    uses: ./.github/workflows/reusable-build-on-manylinux.yml
+    with:
+      version: ${{ needs.get_version.outputs.version }}
+      matrix: "[{'name':'manylinux_2_28 x86_64','runner':'ubuntu-latest','docker_tag':'manylinux_2_28_x86_64'}]"
 
   build_on_debian_static:
     permissions:

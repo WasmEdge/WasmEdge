@@ -5,10 +5,10 @@ use wasi::logging::logging::{
     log,
 };
 
-fn title_bar(context: &str, message: &str) {
-  log(Level::Info, "", "===================================");
-  log(Level::Info, context, message);
-  log(Level::Info, "", "-----------------------------------");
+fn title_bar(message: &str) {
+  log(Level::Info, "stdout", "===================================");
+  log(Level::Info, "stdout", message);
+  log(Level::Info, "stdout", "-----------------------------------");
 }
 
 fn demo_template(context: &str) {
@@ -21,10 +21,14 @@ fn demo_template(context: &str) {
 }
 
 pub fn wasi_logging_demo() {
-  title_bar("Demo 1", "Stdout Message Demo");
-  demo_template("Context");
-  title_bar("Demo 2", "Stdout Message Without Context");
-  demo_template("");
-  title_bar("Demo 3", "Stderr Message Demo");
+  title_bar("Stdout Message Demo");
+  demo_template("stdout");
+  title_bar("Stderr Message Demo");
   demo_template("stderr");
+  title_bar("File Message Demo: log/output.log");
+  demo_template("log/output.log");
+  title_bar("File Message Demo: log/output2.log");
+  demo_template("log/output2.log");
+  title_bar("File Message Demo: continue to log/output.log");
+  demo_template("log/output.log");
 }

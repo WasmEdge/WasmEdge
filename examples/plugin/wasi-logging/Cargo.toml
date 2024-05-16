@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-wit-bindgen = { git = "https://github.com/bytecodealliance/wit-bindgen",  rev="2ec8e3e256f493b62c561a68300ec09c03d040c4" }
+wit-bindgen = { git = "https://github.com/bytecodealliance/wit-bindgen", rev = "9b50b8e78940af080ed3b7c0238e11b04a4bd17b" }

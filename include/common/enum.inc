@@ -725,23 +725,28 @@ OFE(I64__atomic__rmw32__cmpxchg_u, "i64.atomic.rmw32.cmpxchg_u", 0xFE, 78)
 
 #ifdef UseProposal
 #define P Line
-P(ImportExportMutGlobals, "Import/Export of mutable globals")
-P(NonTrapFloatToIntConversions, "Non-trapping float-to-int conversions")
-P(SignExtensionOperators, "Sign-extension operators")
-P(MultiValue, "Multi-value returns")
-P(BulkMemoryOperations, "Bulk memory operations")
-P(ReferenceTypes, "Reference types")
+// Finished and standardized proposals
+P(ImportExportMutGlobals, "Import/Export of Mutable Globals")
+P(NonTrapFloatToIntConversions, "Non-trapping float-to-int Conversions")
+P(SignExtensionOperators, "Sign-extension Operators")
+P(MultiValue, "Multi-value")
+P(BulkMemoryOperations, "Bulk Memory Operations")
+P(ReferenceTypes, "Reference Types")
 P(SIMD, "Fixed-width SIMD")
-P(TailCall, "Tail call")
-P(MultiMemories, "Multiple memories")
+// Phase 4 proposals
+P(TailCall, "Tail Call")
+P(ExtendedConst, "Extended Const Expressions")
+P(FunctionReferences, "Typed Function References")
+P(GC, "Garbage Collection")
+P(MultiMemories, "Multiple Memories")
+P(Threads, "Threads")
+P(RelaxSIMD, "Relaxed SIMD")
+// Phase 3 proposals
 P(Annotations, "Custom Annotation Syntax in the Text Format")
 P(Memory64, "Memory64")
-P(ExceptionHandling, "Exception handling")
-P(ExtendedConst, "Extended const")
-P(Threads, "Threads")
-P(FunctionReferences, "Typed Function References")
-P(Component, "Component model")
-P(GC, "GC proposal")
+P(ExceptionHandling, "Exception Handling")
+// Phase 1 proposals
+P(Component, "Component Model")
 #undef P
 #endif // UseProposal
 

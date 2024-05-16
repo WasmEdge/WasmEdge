@@ -42,7 +42,7 @@ TEST(SerializeInstructionTest, SerializeBlockControlInstruction) {
   WasmEdge::AST::Instruction I32Eq(WasmEdge::OpCode::I32__eq);
   WasmEdge::AST::Instruction I32Ne(WasmEdge::OpCode::I32__ne);
 
-  Block.setEmptyBlockType();
+  Block.getBlockType().setEmpty();
   Instructions = {Block, End, End};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
@@ -59,7 +59,7 @@ TEST(SerializeInstructionTest, SerializeBlockControlInstruction) {
   };
   EXPECT_EQ(Output, Expected);
 
-  Loop.setEmptyBlockType();
+  Loop.getBlockType().setEmpty();
   Instructions = {Loop, End, End};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
@@ -76,7 +76,7 @@ TEST(SerializeInstructionTest, SerializeBlockControlInstruction) {
   };
   EXPECT_EQ(Output, Expected);
 
-  Loop.setEmptyBlockType();
+  Loop.getBlockType().setEmpty();
   Instructions = {Block, I32Eqz, I32Eq, I32Ne, End, End};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
@@ -94,7 +94,7 @@ TEST(SerializeInstructionTest, SerializeBlockControlInstruction) {
   };
   EXPECT_EQ(Output, Expected);
 
-  Loop.setEmptyBlockType();
+  Loop.getBlockType().setEmpty();
   Instructions = {Loop, I32Eqz, I32Eq, I32Ne, End, End};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
@@ -132,7 +132,7 @@ TEST(SerializeInstructionTest, SerializeIfElseControlInstruction) {
   WasmEdge::AST::Instruction I32Eq(WasmEdge::OpCode::I32__eq);
   WasmEdge::AST::Instruction I32Ne(WasmEdge::OpCode::I32__ne);
 
-  If.setEmptyBlockType();
+  If.getBlockType().setEmpty();
   Instructions = {If, End, End};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
@@ -149,7 +149,7 @@ TEST(SerializeInstructionTest, SerializeIfElseControlInstruction) {
   };
   EXPECT_EQ(Output, Expected);
 
-  If.setEmptyBlockType();
+  If.getBlockType().setEmpty();
   Instructions = {If, Else, End, End};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
@@ -167,7 +167,7 @@ TEST(SerializeInstructionTest, SerializeIfElseControlInstruction) {
   };
   EXPECT_EQ(Output, Expected);
 
-  If.setEmptyBlockType();
+  If.getBlockType().setEmpty();
   Instructions = {If, I32Eqz, I32Eq, I32Ne, End, End};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
@@ -185,7 +185,7 @@ TEST(SerializeInstructionTest, SerializeIfElseControlInstruction) {
   };
   EXPECT_EQ(Output, Expected);
 
-  If.setEmptyBlockType();
+  If.getBlockType().setEmpty();
   Instructions = {If,     I32Eqz, I32Eq, I32Ne, Else,
                   I32Eqz, I32Eq,  I32Ne, End,   End};
   Output = {};

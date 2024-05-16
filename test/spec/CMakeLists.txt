@@ -26,15 +26,7 @@ else()
 
   if(MSVC)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      get_property(
-        compile_options
-        DIRECTORY
-        PROPERTY COMPILE_OPTIONS
-        )
-      set_property(
-        DIRECTORY
-        APPEND
-        PROPERTY COMPILE_OPTIONS
+      add_compile_options(
         -Wno-undef
         -Wno-suggest-override
         -Wno-documentation
@@ -50,15 +42,13 @@ else()
         -Wno-format-nonliteral
         -Wno-unused-exception-parameter
         -Wno-unused-member-function
-        )
-      unset(compile_options)
+        -Wno-missing-prototypes
+      )
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-      set_property(
-        DIRECTORY
-        APPEND
-        PROPERTY COMPILE_OPTIONS
+      add_compile_options(
         /wd4100 # unreferenced formal parameter
-        )
+        /wd4505 # unreferenced local function has been removed
+      )
     endif()
   endif()
 
@@ -76,7 +66,7 @@ function(wasmedge_copy_spec_testsuite proposal)
   message(STATUS "Copying test suite to ${CMAKE_CURRENT_BINARY_DIR}/testSuites/${proposal} -- done")
 endfunction()
 
-foreach(PROPOSAL core multi-memory tail-call extended-const threads function-references)
+foreach(PROPOSAL core multi-memory tail-call extended-const threads function-references gc exception-handling exception-handling-legacy)
   wasmedge_copy_spec_testsuite(${PROPOSAL})
 endforeach()
 
@@ -86,7 +76,7 @@ wasmedge_add_library(wasmedgeTestSpec
 
 target_link_libraries(wasmedgeTestSpec
   PRIVATE
-  simdjson
+  simdjson::simdjson
   PUBLIC
   std::filesystem
   wasmedgeCommon

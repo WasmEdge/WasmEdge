@@ -78,22 +78,22 @@ create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
 }
 
 Plugin::Plugin::PluginDescriptor Descriptor{
-    .Name = "plugin_name",
-    .Description = "Example plugin",
-    .APIVersion = Plugin::Plugin::CurrentAPIVersion,
-    .Version = {0, 13, 4, 0},
-    .ModuleCount = 1,
-    .ModuleDescriptions =
-        (Plugin::PluginModule::ModuleDescriptor[]){
-            {
-                .Name = "module_name",
-                .Description = "Example module",
-                .Create = create,
-            },
+    /* Name */ "plugin_name",
+    /* Description */ "Example plugin",
+    /* APIVersion */ Plugin::Plugin::CurrentAPIVersion,
+    /* Version */ {0, 13, 5, 0},
+    /* ModuleCount */ 1,
+    /* ModuleDescriptions */
+    (Plugin::PluginModule::ModuleDescriptor[]){
+        {
+            /* Name */ "module_name",
+            /* Description */ "Example module",
+            /* Create */ create,
         },
-    .AddOptions = addOptions,
+    },
+    /* AddOptions */ addOptions,
 };
 
-Plugin::PluginRegister Register(&Descriptor);
+EXPORT_GET_DESCRIPTOR(Descriptor)
 
 } // namespace

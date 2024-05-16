@@ -12,6 +12,9 @@ on:
       release:
         type: boolean
 
+permissions:
+  contents: read
+
 jobs:
   build_on_ubuntu:
     permissions:
@@ -26,11 +29,17 @@ jobs:
       BUILD_TESTS: OFF
     container: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
-      - name: Install dependencies
+      - name: Install dependencies - non-release
+        if: ${{ !inputs.release }}
         run: |
           apt-get update
           apt-get install -y pkg-config protobuf-compiler-grpc libgrpc-dev libgrpc++-dev
-      - uses: actions/checkout@v3
+      - name: Install dependencies - release
+        if: ${{ inputs.release }}
+        run: |
+          apt-get update
+          apt-get install -y pkg-config
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -93,9 +102,10 @@ jobs:
           gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
       - name: Create and upload coverage report to Codecov
         if: ${{ matrix.coverage }}
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./build/codecov.xml
           name: codecov-wasmedge
           fail_ci_if_error: true
+          verbose: true

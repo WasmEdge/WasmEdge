@@ -5,64 +5,70 @@ wasmedge_add_executable(wasiNNTests
   wasi_nn.cpp
 )
 
+function(download URL OUTPUT HASH)
+  file(DOWNLOAD
+    ${URL}
+    ${OUTPUT}
+    SHOW_PROGRESS
+    EXPECTED_HASH ${HASH}
+  )
+endfunction()
+
 # Prepare the testing data for each backends.
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   string(TOLOWER ${BACKEND} BACKEND)
   if(BACKEND MATCHES "openvino")
-    message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures") 
-    execute_process(
-      COMMAND bash ${CMAKE_SOURCE_DIR}/utils/wasi-nn/download-openvino-fixtures.sh ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures
-      RESULT_VARIABLE DOWNLOAD_ERROR
-      OUTPUT_STRIP_TRAILING_WHITESPACE)
-    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/mobilenet.bin CHECKSUM_WEIGHT)
-    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/mobilenet.xml CHECKSUM_DESCRIP)
-    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/tensor-1x224x224x3-f32.bgr CHECKSUM_TENSOR)
-    if(NOT CHECKSUM_WEIGHT STREQUAL "ae096b1f735f1e8e54bac8b2a42303bd")
-      message(FATAL_ERROR "mobilenet.bin downloaded with wrong md5") 
-    endif()
-    if(NOT CHECKSUM_DESCRIP STREQUAL "4ea3a14273587ce5c1662018878f9f90")
-      message(FATAL_ERROR "mobilenet.xml downloaded with wrong md5") 
-    endif()
-    if(NOT CHECKSUM_TENSOR STREQUAL "bfca546f4a3b5e6da49b7bd728e2799a")
-      message(FATAL_ERROR "tensor-1x224x224x3-f32.bgr downloaded with wrong md5") 
-    endif()
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures")
+    download(
+      https://github.com/intel/openvino-rs/raw/v0.3.3/crates/openvino/tests/fixtures/mobilenet/mobilenet.bin
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/mobilenet.bin
+      MD5=ae096b1f735f1e8e54bac8b2a42303bd
+    )
+    download(
+      https://github.com/intel/openvino-rs/raw/v0.3.3/crates/openvino/tests/fixtures/mobilenet/mobilenet.xml
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/mobilenet.xml
+      MD5=4ea3a14273587ce5c1662018878f9f90
+    )
+    download(
+      https://github.com/intel/openvino-rs/raw/v0.3.3/crates/openvino/tests/fixtures/mobilenet/tensor-1x224x224x3-f32.bgr
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/tensor-1x224x224x3-f32.bgr
+      MD5=bfca546f4a3b5e6da49b7bd728e2799a
+    )
   elseif(BACKEND MATCHES "pytorch")
-    message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures") 
-    execute_process(
-      COMMAND bash ${CMAKE_SOURCE_DIR}/utils/wasi-nn/download-pytorch-fixtures.sh ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures
-      RESULT_VARIABLE DOWNLOAD_ERROR
-      OUTPUT_STRIP_TRAILING_WHITESPACE)
-    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures/mobilenet.pt CHECKSUM_WEIGHT)
-    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures/image-1x3x224x224.rgb CHECKSUM_IMAGE)
-    if(NOT CHECKSUM_WEIGHT STREQUAL "234f446d2446e0f6fd8ed700c0b4b63b")
-      message(FATAL_ERROR "mobilenet.pt downloaded with wrong md5") 
-    endif()
-    if(NOT CHECKSUM_IMAGE STREQUAL "551caa6f3b66c1d953655228462570a1")
-      message(FATAL_ERROR "image-1x3x224x224.rgb downloaded with wrong md5") 
-    endif()
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures")
+    download(
+      https://github.com/second-state/WasmEdge-WASINN-examples/raw/master/pytorch-mobilenet-image/mobilenet.pt
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures/mobilenet.pt
+      MD5=234f446d2446e0f6fd8ed700c0b4b63b
+    )
+    download(
+      https://github.com/second-state/WasmEdge-WASINN-examples/raw/master/pytorch-mobilenet-image/image-1x3x224x224.rgb
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures/image-1x3x224x224.rgb
+      MD5=551caa6f3b66c1d953655228462570a1
+    )
   elseif(BACKEND STREQUAL "tensorflowlite")
-    message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures") 
-    execute_process(
-      COMMAND bash ${CMAKE_SOURCE_DIR}/utils/wasi-nn/download-tflite-fixtures.sh ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures
-      RESULT_VARIABLE DOWNLOAD_ERROR
-      OUTPUT_STRIP_TRAILING_WHITESPACE)
-    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures/lite-model_aiy_vision_classifier_birds_V1_3.tflite CHECKSUM_WEIGHT)
-    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures/birdx224x224x3.rgb CHECKSUM_IMAGE)
-    if(NOT CHECKSUM_WEIGHT STREQUAL "3e59cc3a99afeeb819c2c38b319a7938")
-      message(FATAL_ERROR "downloaded tflite model with wrong md5") 
-    endif()
-    if(NOT CHECKSUM_IMAGE STREQUAL "ad51c39cfe35d2ef35c4052b78cb3c55")
-      message(FATAL_ERROR "downloaded bird.jpg fixture with wrong md5") 
-    endif()
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures")
+    download(
+      https://raw.githubusercontent.com/gusye1234/WasmEdge-WASINN-examples/demo-tflite-image/tflite-birds_v1-image/lite-model_aiy_vision_classifier_birds_V1_3.tflite
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures/lite-model_aiy_vision_classifier_birds_V1_3.tflite
+      MD5=3e59cc3a99afeeb819c2c38b319a7938
+    )
+    download(
+      https://raw.githubusercontent.com/gusye1234/WasmEdge-WASINN-examples/demo-tflite-image/tflite-birds_v1-image/birdx224x224x3.rgb
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures/birdx224x224x3.rgb
+      MD5=ad51c39cfe35d2ef35c4052b78cb3c55
+    )
   elseif(BACKEND STREQUAL "ggml")
-  message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures")
-    execute_process(
-      COMMAND bash ${CMAKE_SOURCE_DIR}/utils/wasi-nn/download-ggml-fixtures.sh ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures
-      RESULT_VARIABLE DOWNLOAD_ERROR
-      OUTPUT_STRIP_TRAILING_WHITESPACE)
-    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/orca_mini.gguf CHECKSUM_MODEL)
-    if(NOT CHECKSUM_MODEL STREQUAL "f895f00678bfbf89f70d6d25f20a7b5f")
-      message(FATAL_ERROR "orca_mini.gguf downloaded with wrong md5")
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures")
+    download(
+      https://huggingface.co/TheBloke/orca_mini_v3_7B-GGUF/resolve/main/orca_mini_v3_7b.Q2_K.gguf
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/orca_mini.gguf
+      MD5=f895f00678bfbf89f70d6d25f20a7b5f
+    )
+    if(MSVC)
+      target_compile_options(wasiNNTests PUBLIC
+        /wd4067 # unexpected tokens following preprocessor directive - expected a newline
+      )
     endif()
   else()
     # Add the other backend test files fetching here.

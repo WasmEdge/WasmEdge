@@ -53,7 +53,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
         },
     .AddOptions = nullptr};
 
-Plugin::PluginRegister Register(&Descriptor);
+EXPORT_GET_DESCRIPTOR(Descriptor)
 
 } // namespace Host
 } // namespace WasmEdge

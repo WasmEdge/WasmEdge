@@ -15,9 +15,9 @@
 namespace {
 WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(
-      std::filesystem::u8path("../../../plugins/wasmedge_rustls/"
-                              "libwasmedge_rustls" WASMEDGE_LIB_EXTENSION));
+  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
+      "../../../plugins/wasmedge_rustls/" WASMEDGE_LIB_PREFIX
+      "wasmedge_rustls" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("rustls"sv)) {
     if (const auto *Module = Plugin->findModule("rustls_client"sv)) {
       return Module->create().release();

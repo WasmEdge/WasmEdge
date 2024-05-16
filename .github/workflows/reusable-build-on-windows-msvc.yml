@@ -8,7 +8,10 @@ on:
         required: true
       release:
         type: boolean
-
+        
+permissions:
+  contents: read
+  
 jobs:
   build_on_windows:
     permissions:
@@ -18,7 +21,7 @@ jobs:
     env:
       build_tests: ON
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -28,7 +31,7 @@ jobs:
         uses: crazy-max/ghaction-chocolatey@v3
         with:
           args: install cmake ninja vswhere
-      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
+      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
         with:
           sdk-version: 19041
       - name: Set environment variables for release

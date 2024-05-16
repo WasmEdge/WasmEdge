@@ -2,14 +2,15 @@ name: Clang-Format
 
 on:
   workflow_call:
-
+    
+permissions:
+  contents: read
+  
 jobs:
   lint:
-    permissions:
-      contents: read
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Ensure git safe directory

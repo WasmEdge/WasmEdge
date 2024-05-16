@@ -16,12 +16,15 @@
 #include "ast/type.h"
 #include "common/errcode.h"
 #include "runtime/hostfunc.h"
+#include "runtime/instance/array.h"
 #include "runtime/instance/data.h"
 #include "runtime/instance/elem.h"
 #include "runtime/instance/function.h"
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
+#include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
+#include "runtime/instance/tag.h"
 
 #include <atomic>
 #include <functional>
@@ -54,7 +57,8 @@ inline constexpr const bool IsEntityV =
     std::is_same_v<T, Instance::FunctionInstance> ||
     std::is_same_v<T, Instance::TableInstance> ||
     std::is_same_v<T, Instance::MemoryInstance> ||
-    std::is_same_v<T, Instance::GlobalInstance>;
+    std::is_same_v<T, Instance::GlobalInstance> ||
+    std::is_same_v<T, Instance::TagInstance>;
 
 /// Return true if T is an instance.
 template <typename T>
@@ -91,31 +95,35 @@ public:
   void addHostFunc(std::string_view Name,
                    std::unique_ptr<HostFunctionBase> &&Func) {
     std::unique_lock Lock(Mutex);
-    unsafeAddHostInstance(Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
-                          std::make_unique<Runtime::Instance::FunctionInstance>(
-                              this, std::move(Func)));
+    unsafeImportDefinedType(Func->getDefinedType());
+    unsafeAddHostInstance(
+        Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
+        std::make_unique<FunctionInstance>(
+            this, static_cast<uint32_t>(Types.size()) - 1, std::move(Func)));
   }
   void addHostFunc(std::string_view Name,
-                   std::unique_ptr<Instance::FunctionInstance> &&Func) {
+                   std::unique_ptr<FunctionInstance> &&Func) {
     std::unique_lock Lock(Mutex);
-    Func->setModule(this);
+    assuming(Func->isHostFunction());
+    unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
+    Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
     unsafeAddHostInstance(Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
                           std::move(Func));
   }
   void addHostTable(std::string_view Name,
-                    std::unique_ptr<Instance::TableInstance> &&Tab) {
+                    std::unique_ptr<TableInstance> &&Tab) {
     std::unique_lock Lock(Mutex);
     unsafeAddHostInstance(Name, OwnedTabInsts, TabInsts, ExpTables,
                           std::move(Tab));
   }
   void addHostMemory(std::string_view Name,
-                     std::unique_ptr<Instance::MemoryInstance> &&Mem) {
+                     std::unique_ptr<MemoryInstance> &&Mem) {
     std::unique_lock Lock(Mutex);
     unsafeAddHostInstance(Name, OwnedMemInsts, MemInsts, ExpMems,
                           std::move(Mem));
   }
   void addHostGlobal(std::string_view Name,
-                     std::unique_ptr<Instance::GlobalInstance> &&Glob) {
+                     std::unique_ptr<GlobalInstance> &&Glob) {
     std::unique_lock Lock(Mutex);
     unsafeAddHostInstance(Name, OwnedGlobInsts, GlobInsts, ExpGlobals,
                           std::move(Glob));
@@ -134,6 +142,10 @@ public:
     std::shared_lock Lock(Mutex);
     return unsafeFindExports(ExpMems, ExtName);
   }
+  TagInstance *findTagExports(std::string_view ExtName) const noexcept {
+    std::shared_lock Lock(Mutex);
+    return unsafeFindExports(ExpTags, ExtName);
+  }
   GlobalInstance *findGlobalExports(std::string_view ExtName) const noexcept {
     std::shared_lock Lock(Mutex);
     return unsafeFindExports(ExpGlobals, ExtName);
@@ -151,6 +163,10 @@ public:
   uint32_t getMemoryExportNum() const noexcept {
     std::shared_lock Lock(Mutex);
     return static_cast<uint32_t>(ExpMems.size());
+  }
+  uint32_t getTagExportNum() const noexcept {
+    std::shared_lock Lock(Mutex);
+    return static_cast<uint32_t>(ExpTags.size());
   }
   uint32_t getGlobalExportNum() const noexcept {
     std::shared_lock Lock(Mutex);
@@ -174,6 +190,11 @@ public:
     return std::forward<CallbackT>(CallBack)(ExpMems);
   }
   template <typename CallbackT>
+  auto getTagExports(CallbackT &&CallBack) const noexcept {
+    std::shared_lock Lock(Mutex);
+    return std::forward<CallbackT>(CallBack)(ExpTags);
+  }
+  template <typename CallbackT>
   auto getGlobalExports(CallbackT &&CallBack) const noexcept {
     std::shared_lock Lock(Mutex);
     return std::forward<CallbackT>(CallBack)(ExpGlobals);
@@ -183,10 +204,11 @@ protected:
   friend class Executor::Executor;
   friend class Runtime::CallingFrame;
 
-  /// Copy the function types in type section to this module instance.
-  void addFuncType(const AST::FunctionType &FuncType) {
+  /// Create and copy the defined type to this module instance.
+  void addDefinedType(const AST::SubType &SType) {
     std::unique_lock Lock(Mutex);
-    FuncTypes.emplace_back(FuncType);
+    OwnedTypes.push_back(std::make_unique<AST::SubType>(SType));
+    Types.push_back(OwnedTypes.back().get());
   }
 
   /// Create and add instances into this module instance.
@@ -203,6 +225,10 @@ protected:
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedMemInsts, MemInsts, std::forward<Args>(Values)...);
   }
+  template <typename... Args> void addTag(Args &&...Values) {
+    std::unique_lock Lock(Mutex);
+    unsafeAddInstance(OwnedTagInsts, TagInsts, std::forward<Args>(Values)...);
+  }
   template <typename... Args> void addGlobal(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedGlobInsts, GlobInsts, std::forward<Args>(Values)...);
@@ -214,6 +240,18 @@ protected:
   template <typename... Args> void addData(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedDataInsts, DataInsts, std::forward<Args>(Values)...);
+  }
+  template <typename... Args> ArrayInstance *newArray(Args &&...Values) {
+    std::unique_lock Lock(Mutex);
+    OwnedArrayInsts.push_back(
+        std::make_unique<ArrayInstance>(this, std::forward<Args>(Values)...));
+    return OwnedArrayInsts.back().get();
+  }
+  template <typename... Args> StructInstance *newStruct(Args &&...Values) {
+    std::unique_lock Lock(Mutex);
+    OwnedStructInsts.push_back(
+        std::make_unique<StructInstance>(this, std::forward<Args>(Values)...));
+    return OwnedStructInsts.back().get();
   }
 
   /// Import instances into this module instance.
@@ -228,6 +266,10 @@ protected:
   void importMemory(MemoryInstance *Mem) {
     std::unique_lock Lock(Mutex);
     unsafeImportInstance(MemInsts, Mem);
+  }
+  void importTag(TagInstance *Tg) {
+    std::unique_lock Lock(Mutex);
+    unsafeImportInstance(TagInsts, Tg);
   }
   void importGlobal(GlobalInstance *Glob) {
     std::unique_lock Lock(Mutex);
@@ -252,18 +294,26 @@ protected:
     std::unique_lock Lock(Mutex);
     ExpGlobals.insert_or_assign(std::string(Name), GlobInsts[Idx]);
   }
+  void exportTag(std::string_view Name, uint32_t Idx) {
+    std::unique_lock Lock(Mutex);
+    ExpTags.insert_or_assign(std::string(Name), TagInsts[Idx]);
+  }
 
-  /// Get function type by index.
-  Expect<const AST::FunctionType *> getFuncType(uint32_t Idx) const noexcept {
+  /// Get defined type list.
+  Span<const AST::SubType *const> getTypeList() const noexcept { return Types; }
+
+  /// Get instance pointer by index.
+  Expect<const AST::SubType *> getType(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
-    if (unlikely(Idx >= FuncTypes.size())) {
+    if (unlikely(Idx >= Types.size())) {
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
-    return &FuncTypes[Idx];
+    return unsafeGetType(Idx);
   }
-
-  /// Get instance pointer by index.
+  const AST::SubType *unsafeGetType(uint32_t Idx) const noexcept {
+    return Types[Idx];
+  }
   Expect<FunctionInstance *> getFunc(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (Idx >= FuncInsts.size()) {
@@ -296,6 +346,9 @@ protected:
   }
   MemoryInstance *unsafeGetMemory(uint32_t Idx) const noexcept {
     return MemInsts[Idx];
+  }
+  TagInstance *unsafeGetTag(uint32_t Idx) const noexcept {
+    return TagInsts[Idx];
   }
   Expect<GlobalInstance *> getGlobal(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
@@ -360,11 +413,18 @@ protected:
     return StartFunc;
   }
 
-  /// Add the instances under the module by pointers.
+  /// Unsafe import instance into this module.
   template <typename T>
   std::enable_if_t<IsEntityV<T>, void>
   unsafeImportInstance(std::vector<T *> &Vec, T *Ptr) {
     Vec.push_back(Ptr);
+  }
+
+  /// Unsafe import defined type from host function into this module.
+  void unsafeImportDefinedType(const AST::SubType &SType) {
+    Types.push_back(&SType);
+    const_cast<AST::SubType *>(Types.back())
+        ->setTypeIndex(static_cast<uint32_t>(Types.size()) - 1);
   }
 
   /// Unsafe create and add the instance into this module.
@@ -429,21 +489,26 @@ protected:
   /// Module name.
   const std::string ModName;
 
-  /// Function types.
-  std::vector<AST::FunctionType> FuncTypes;
+  /// Defined types.
+  std::vector<const AST::SubType *> Types;
+  std::vector<std::unique_ptr<const AST::SubType>> OwnedTypes;
 
   /// Owned instances in this module.
-  std::vector<std::unique_ptr<Instance::FunctionInstance>> OwnedFuncInsts;
-  std::vector<std::unique_ptr<Instance::TableInstance>> OwnedTabInsts;
-  std::vector<std::unique_ptr<Instance::MemoryInstance>> OwnedMemInsts;
-  std::vector<std::unique_ptr<Instance::GlobalInstance>> OwnedGlobInsts;
-  std::vector<std::unique_ptr<Instance::ElementInstance>> OwnedElemInsts;
-  std::vector<std::unique_ptr<Instance::DataInstance>> OwnedDataInsts;
+  std::vector<std::unique_ptr<FunctionInstance>> OwnedFuncInsts;
+  std::vector<std::unique_ptr<TableInstance>> OwnedTabInsts;
+  std::vector<std::unique_ptr<MemoryInstance>> OwnedMemInsts;
+  std::vector<std::unique_ptr<TagInstance>> OwnedTagInsts;
+  std::vector<std::unique_ptr<GlobalInstance>> OwnedGlobInsts;
+  std::vector<std::unique_ptr<ElementInstance>> OwnedElemInsts;
+  std::vector<std::unique_ptr<DataInstance>> OwnedDataInsts;
+  std::vector<std::unique_ptr<ArrayInstance>> OwnedArrayInsts;
+  std::vector<std::unique_ptr<StructInstance>> OwnedStructInsts;
 
   /// Imported and added instances in this module.
   std::vector<FunctionInstance *> FuncInsts;
   std::vector<TableInstance *> TabInsts;
   std::vector<MemoryInstance *> MemInsts;
+  std::vector<TagInstance *> TagInsts;
   std::vector<GlobalInstance *> GlobInsts;
   std::vector<ElementInstance *> ElemInsts;
   std::vector<DataInstance *> DataInsts;
@@ -455,6 +520,7 @@ protected:
   std::map<std::string, FunctionInstance *, std::less<>> ExpFuncs;
   std::map<std::string, TableInstance *, std::less<>> ExpTables;
   std::map<std::string, MemoryInstance *, std::less<>> ExpMems;
+  std::map<std::string, TagInstance *, std::less<>> ExpTags;
   std::map<std::string, GlobalInstance *, std::less<>> ExpGlobals;
 
   /// Start function instance.

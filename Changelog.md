@@ -1,4 +1,4 @@
-### 0.14.0-alpha.1 (2024-01-05)
+### 0.14.0-rc.5 (2024-05-08)
 
 Breaking changes:
 
@@ -29,16 +29,35 @@ Breaking changes:
     * `WasmEdge_VMRunWasmFromBytes()` API has the same function as `WasmEdge_VMRunWasmFromBuffer()` and will replace it in the future.
     * `WasmEdge_VMAsyncRunWasmFromBytes()` API has the same function as `WasmEdge_VMAsyncRunWasmFromBuffer()` and will replace it in the future.
     * `WasmEdge_VMLoadWasmFromBytes()` API has the same function as `WasmEdge_VMLoadWasmFromBuffer()` and will replace it in the future.
+  * New APIs for WASM Exception-Handling proposal.
+    * Added the `WasmEdge_TagTypeContext` struct.
+    * Added the `WasmEdge_TagInstanceContext` struct.
+    * Added the `WasmEdge_TagTypeGetFunctionType()` API for retrieving the function type from a tag type.
+    * Added the `WasmEdge_ImportTypeGetTagType()` API for retrieving the tag type from an import type.
+    * Added the `WasmEdge_ExportTypeGetTagType()` API for retrieving the tag type from an export type.
+    * Added the `WasmEdge_ModuleInstanceFindTag()` API for finding an exported tag instance from a module instance.
+    * Added the `WasmEdge_ModuleInstanceListTagLength()` and `WasmEdge_ModuleInstanceListTag()` APIs for listing the exported tag instances of a module instance.
+* Refactored the `OpCode` mechanism for speeding up and supporting WASM multi-bytes instruction OpCodes.
 
 Features:
 
+* Bumpped `spdlog` to `v1.13.0`.
+* Bumpped `simdjson` to `v3.9.1`.
 * [Proposal]: Apply new propoals.
   * Supported WASM Typed Function References proposal.
     * Added the `WasmEdge_Proposal_FunctionReferences` for the configuration in WasmEdge C API.
     * Users can use the `--enable-function-reference` to enable the proposal in `wasmedge` and `wasmedgec` tools.
+  * Supported WASM GC proposal (interpreter only).
+    * Added the `WasmEdge_Proposal_GC` for the configuration in WasmEdge C API.
+    * Users can use the `--enable-gc` to enable the proposal in `wasmedge` and `wasmedgec` tools.
+  * Supported WASM Exception-Handling proposal (interpreter only).
+    * Added the `WasmEdge_Proposal_ExceptionHandling` for the configuration in WasmEdge C API.
+    * Users can use the `--enable-exception-handling` to enable the proposal in `wasmedge` and `wasmedgec` tools.
+    * This proposal supports old deprecated `try`, `catch`, and `catch_all` instructions, and will remove them in the future version.
   * Component Model proposal (experimental, loader phase only).
     * Added the `WasmEdge_Proposal_Component` for the configuration in WasmEdge C API.
-    * Users can use the `--enable-function-reference` to enable the proposal in `wasmedge` tool.
+    * Users can use the `--enable-component` to enable the proposal in `wasmedge` tool.
+* [JIT]: Support LLVM JIT.
 * [C API]: New C API for supporting the new proposals.
   * `WasmEdge_ValType` related APIs can help developers to generate or compare value types.
     * `WasmEdge_ValTypeGenI32()` (replacing `WasmEdge_ValType_I32`)
@@ -68,23 +87,42 @@ Features:
 * [Tools]: Print the plug-in versions when using the `--version` option.
 * [Installer]: Enabled `ggml-blas` and `rustls` plugin supporting (#3032) (#3108).
 * [WASI-NN] ggml backend:
-  * Bump llama.cpp to b1743
+  * Bump llama.cpp to b2781.
   * Support llama.cpp options:
     * `threads`: the thread number for inference.
     * `temp`: set temperature for inference.
     * `repeat-penalty`: set repeat penalty for inference.
+    * `top-p`: set top-p for inference.
+    * `grammar`: set grammar syntax for inference.
+    * `main-gpu`: set the main GPU for inference.
+    * `tensor-split`: set the tensor split for inference.
   * Add `enable-debug-log` option to show more debug information.
   * Default enable Metal on macOS.
   * Introduce `load_by_name_with_config()` to load model with metadata.
   * Introduce single token inference by `compute_single`, `get_output_single`, and `fini_single`
-  * Add some llama errors to WASI-NN
+  * Introduce `unload()` function to release the model.
+  * Add some llama errors to WASI-NN.
     * `EndOfSequence`: returned when encounter `<EOS>` token on single token inferece.
     * `ContextFull`: returned when the context is full.
     * `PromptTooLong`: returned when the input size is too large.
+    * `ModelNotFound`: returned when the model is not found.
+  * Support Llava and Gemma inference.
+    * Add `mmproj` option to set the projection model.
+    * Add `image` option to set the image.
+  * Improve logging mechanism.
+  * Show the version of `llama.cpp` in the metadata.
+  * Support Phi-3-Mini model.
+  * Support embedding generation.
+  * Support Windows build.
+* [Plugin] Initial support for `wasmedge_ffmpeg` plug-in.
 
 Fixed issues:
 
 * Fixed some API document in the API header.
+* [Executor]: Minor fixes.
+  * Fixed integer overflow on `memGrow` boundary check.
+  * Refined the slice copy in table instances.
+  * Cleaned the unused bits of WASM return values to avoid security issues.
 * [WASI]: Minor fixes.
   * Fixed the function signature matching for WASI imports when backwarding supporting older version. (#3073)
   * Fixed large timestamp causing overflow (#3106).
@@ -98,11 +136,15 @@ Fixed issues:
   * Checking `fd_prestat_dir_name` buffer size.
   * Checking `filestat_set_times` for invalid flags.
   * Checking validation of file descriptor in `socket_accept` (#3041).
+* Fixed duplicated loading of the same plug-in.
+* Fixed option toggle for `wasmedge_process` plug-in.
 
 Tests:
 
-* Updated the WASM spec tests to the date 2023/10/26.
+* Updated the WASM spec tests to the date 2024/02/17.
+* Updated the spec tests for the Exception Handling proposal.
 * Added the spec tests for the Typed Function Reference proposal.
+* Added the spec tests for the GC proposal.
 
 Known issues:
 
@@ -112,9 +154,9 @@ Known issues:
 
 Thank all the contributors who made this release possible!
 
-Abhinandan Udupa, Akihiro Suda, Dhruv Jain, Draco, Little Willy, Lîm Tsú-thuàn, Meenu Yadav, Omkar Acharekar, Saiyam Pathak, Shen-Ta Hsieh, Shreyas Atre, Yage Hu, Yi-Ying He, alabulei1, am009, dm4, hydai, richzw, zhumeme
+Abhinandan Udupa, Akihiro Suda, Charlie chan, Dhruv Jain, Draco, Harry Chiang, Hrushikesh, Ikko Eltociear Ashimine, Khagan (Khan) Karimov, LFsWang, LO, CHIN-HAO, Little Willy, Lîm Tsú-thuàn, Meenu Yadav, Omkar Acharekar, Saiyam Pathak, Sarrah Bastawala, Shen-Ta Hsieh, Shreyas Atre, Yage Hu, Yi Huang, Yi-Ying He, alabulei1, am009, dm4, hetvishastri, hugo-syn, hydai, redismongo, richzw, tannal, vincent, zhumeme
 
-If you want to build from source, please use WasmEdge-0.14.0-alpha.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.14.0-rc.5-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.13.5 (2023-11-03)
 

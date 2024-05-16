@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+#include "loader/aot_section.h"
 #include "loader/loader.h"
+#include "loader/shared_library.h"
 
 #include <bitset>
 #include <cstddef>
@@ -21,7 +23,7 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
 
   // Variables to record the loaded section types.
   HasDataSection = false;
-  std::bitset<0x0DU> Secs;
+  std::bitset<0x0EU> Secs;
 
   uint64_t Offset = FMgr.getOffset();
 
@@ -147,6 +149,19 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
       HasDataSection = true;
       Secs.set(NewSectionId);
       break;
+    case 0x0D:
+      // This section is for ExceptionHandling proposal.
+      if (!Conf.hasProposal(Proposal::ExceptionHandling)) {
+        return logNeedProposal(ErrCode::Value::MalformedSection,
+                               Proposal::ExceptionHandling,
+                               FMgr.getLastOffset(), ASTNodeAttr::Module);
+      }
+      if (auto Res = loadSection(Mod.getTagSection()); !Res) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+        return Unexpect(Res);
+      }
+      Secs.set(NewSectionId);
+      break;
     default:
       return logLoadError(ErrCode::Value::MalformedSection,
                           FMgr.getLastOffset(), ASTNodeAttr::Module);
@@ -154,6 +169,9 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
 
     Offset = FMgr.getOffset();
   }
+
+  setTagFunctionType(Mod.getTagSection(), Mod.getImportSection(),
+                     Mod.getTypeSection());
 
   // Verify the function section and code section are matched.
   if (Mod.getFunctionSection().getContent().size() !=
@@ -181,16 +199,20 @@ Expect<void> Loader::loadModule(AST::Module &Mod) {
   return loadModuleInBound(Mod, std::nullopt);
 }
 
-// Load compiled function from loadable manager. See "include/loader/loader.h".
-Expect<void> Loader::loadCompiled(AST::Module &Mod) {
-  auto &FuncTypes = Mod.getTypeSection().getContent();
-  for (size_t I = 0; I < FuncTypes.size(); ++I) {
-    const std::string Name = "t" + std::to_string(I);
-    if (auto Symbol =
-            LMgr.getSymbol<AST::FunctionType::Wrapper>(Name.c_str())) {
-      FuncTypes[I].setSymbol(std::move(Symbol));
+// Setup symbols from loaded binary. See "include/loader/loader.h".
+Expect<void> Loader::loadExecutable(AST::Module &Mod,
+                                    std::shared_ptr<Executable> Exec) {
+  auto &SubTypes = Mod.getTypeSection().getContent();
+  for (auto &SubType : SubTypes) {
+    if (unlikely(!SubType.getCompositeType().isFunc())) {
+      // TODO: GC - AOT: implement other composite types.
+      spdlog::error(ErrCode::Value::MalformedSection);
+      spdlog::error("    Currently AOT not support GC proposal yet.");
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+      return Unexpect(ErrCode::Value::MalformedSection);
     }
   }
+
   size_t Offset = 0;
   for (const auto &ImpDesc : Mod.getImportSection().getContent()) {
     if (ImpDesc.getExternalType() == ExternalType::Function) {
@@ -198,69 +220,71 @@ Expect<void> Loader::loadCompiled(AST::Module &Mod) {
     }
   }
   auto &CodeSegs = Mod.getCodeSection().getContent();
+
+  // Check the symbols.
+  auto FuncTypeSymbols = Exec->getTypes(SubTypes.size());
+  auto CodeSymbols = Exec->getCodes(Offset, CodeSegs.size());
+  auto IntrinsicsSymbol = Exec->getIntrinsics();
+  if (unlikely(FuncTypeSymbols.size() != SubTypes.size())) {
+    spdlog::error("    AOT section -- number of types not matching:{} {}, "
+                  "use interpreter mode instead.",
+                  FuncTypeSymbols.size(), SubTypes.size());
+    return Unexpect(ErrCode::Value::IllegalGrammar);
+  }
+  if (unlikely(CodeSymbols.size() != CodeSegs.size())) {
+    spdlog::error("    AOT section -- number of codes not matching:{} {}, "
+                  "use interpreter mode instead.",
+                  CodeSymbols.size(), CodeSegs.size());
+    return Unexpect(ErrCode::Value::IllegalGrammar);
+  }
+  if (unlikely(!IntrinsicsSymbol)) {
+    spdlog::error("    AOT section -- intrinsics table symbol not found, use "
+                  "interpreter mode instead.");
+    return Unexpect(ErrCode::Value::IllegalGrammar);
+  }
+
+  // Set the symbols into the module.
+  for (size_t I = 0; I < SubTypes.size(); ++I) {
+    SubTypes[I].getCompositeType().getFuncType().setSymbol(
+        std::move(FuncTypeSymbols[I]));
+  }
   for (size_t I = 0; I < CodeSegs.size(); ++I) {
-    const std::string Name = "f" + std::to_string(I + Offset);
-    if (auto Symbol = LMgr.getSymbol<void>(Name.c_str())) {
-      CodeSegs[I].setSymbol(std::move(Symbol));
+    CodeSegs[I].setSymbol(std::move(CodeSymbols[I]));
+  }
+  Mod.setSymbol(std::move(IntrinsicsSymbol));
+  if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
+    // If the configure is set to force interpreter mode, not to set the
+    // symbol.
+    if (auto &Symbol = Mod.getSymbol()) {
+      *Symbol = IntrinsicsTable;
     }
   }
+
   return {};
 }
 
 Expect<void> Loader::loadUniversalWASM(AST::Module &Mod) {
-  bool FallBackInterpreter = false;
-  auto Library = std::make_shared<SharedLibrary>();
-  if (auto Res = Library->load(Mod.getAOTSection()); unlikely(!Res)) {
-    spdlog::error("    AOT section -- library load failed:{} , use "
-                  "interpreter mode instead.",
-                  Res.error());
-    FallBackInterpreter = true;
+  if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
+    auto Exec = std::make_shared<AOTSection>();
+    if (auto Res = Exec->load(Mod.getAOTSection()); unlikely(!Res)) {
+      spdlog::error("    AOT section -- library load failed:{} , use "
+                    "interpreter mode instead.",
+                    Res.error());
+    } else {
+      if (loadExecutable(Mod, Exec)) {
+        return {};
+      }
+    }
   }
 
-  // Check the symbols.
-  auto FuncTypeSymbols = Library->getTypes<AST::FunctionType::Wrapper>();
-  auto CodeSymbols = Library->getCodes<void>();
-  auto IntrinsicsSymbol =
-      Library->getIntrinsics<const AST::Module::IntrinsicsTable *>();
-  auto &FuncTypes = Mod.getTypeSection().getContent();
-  auto &CodeSegs = Mod.getCodeSection().getContent();
-  if (!FallBackInterpreter &&
-      unlikely(FuncTypeSymbols.size() != FuncTypes.size())) {
-    spdlog::error("    AOT section -- number of types not matching:{} {}, "
-                  "use interpreter mode instead.",
-                  FuncTypeSymbols.size(), FuncTypes.size());
-    FallBackInterpreter = true;
-  }
-  if (!FallBackInterpreter && unlikely(CodeSymbols.size() != CodeSegs.size())) {
-    spdlog::error("    AOT section -- number of codes not matching:{} {}, "
-                  "use interpreter mode instead.",
-                  CodeSymbols.size(), CodeSegs.size());
-    FallBackInterpreter = true;
-  }
-  if (!FallBackInterpreter && unlikely(!IntrinsicsSymbol)) {
-    spdlog::error("    AOT section -- intrinsics table symbol not found, use "
-                  "interpreter mode instead.");
-    FallBackInterpreter = true;
+  // Fallback to the interpreter mode case: Re-read the code section.
+  WASMType = InputType::WASM;
+  FMgr.seek(Mod.getCodeSection().getStartOffset());
+  if (auto Res = loadSection(Mod.getCodeSection()); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return Unexpect(Res);
   }
 
-  // Set the symbols into the module.
-  if (!FallBackInterpreter) {
-    for (size_t I = 0; I < FuncTypes.size(); ++I) {
-      FuncTypes[I].setSymbol(std::move(FuncTypeSymbols[I]));
-    }
-    for (size_t I = 0; I < CodeSegs.size(); ++I) {
-      CodeSegs[I].setSymbol(std::move(CodeSymbols[I]));
-    }
-    Mod.setSymbol(std::move(IntrinsicsSymbol));
-  } else {
-    // Fallback to the interpreter mode case: Re-read the code section.
-    WASMType = InputType::WASM;
-    FMgr.seek(Mod.getCodeSection().getStartOffset());
-    if (auto Res = loadSection(Mod.getCodeSection()); !Res) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-      return Unexpect(Res);
-    }
-  }
   return {};
 }
 

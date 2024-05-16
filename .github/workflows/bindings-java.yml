@@ -23,10 +23,12 @@ on:
       - "lib/api/**"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build_ubuntu:
+    permissions:
+      contents: write
     name: Ubuntu 22.04
     runs-on: ${{ matrix.os }}
     strategy:
@@ -36,7 +38,7 @@ jobs:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Ensure git safe directory
         run: |
@@ -83,6 +85,8 @@ jobs:
             bindings/java/wasmedge-java/build/libs/wasmedge-java-*.jar
 
   build_macos:
+    permissions:
+      contents: write
     name: MacOS
     runs-on: ${{ matrix.os }}
     strategy:
@@ -91,7 +95,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -145,6 +149,8 @@ jobs:
             bindings/java/wasmedge-java/build/libs/wasmedge-java-*.jar
 
   build_windows:
+    permissions:
+      contents: write
     name: Windows
     runs-on: windows-2022
     env:
@@ -153,7 +159,7 @@ jobs:
       WASMEDGE_PLUGIN_PATH: ${{ github.workspace }}\build\wasmedge\plugins\wasmedge_process
       LD_LIBRARY_PATH: ${{ github.workspace }}\build\lib\api
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -162,7 +168,7 @@ jobs:
         with:
           args: install cmake ninja vswhere
 
-      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
+      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
         with:
           sdk-version: 19041
 

@@ -61,20 +61,22 @@ using doublex2_t = SIMDArray<double, 16>;
 using floatx4_t = SIMDArray<float, 16>;
 
 // The bit pattern of the value types:
-// ----------------------------------------------------------------------------
-//  byte | 0th | 1st |      2nd     |         3rd         |      4th ~ 7th
-// ------|-----------|--------------|---------------------|--------------------
-//       |           | ValTypeCode  |         For the HeapType use
-//       |           | 0x7F, 0x7E,  | (Function references and GC proposal)
-//       |           | 0x7D, 0x7C,  | HeapTypeCode        |
-//       |           |   (numtype)  | 0x00, 0x40,         |    Type index
-//  code | Reserved  | 0x7B,        | 0x70, 0x6F,         |    (uint32_t)
-//       | (Padding) |   (vectype)  | (func-ref proposal) |
-//       |           | 0x78, 0x77,  | 0x73, 0x72, 0x71,   |
-//       |           | (packedtype) | 0x6E, 0x6D, 0x6C,   |
-//       |           | 0x64, 0x63   | 0x6B, 0x6A          |
-//       |           |   (reftype)  |    (GC proposal)    |
-// ----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+//  byte | 0th  | 1st  |      2nd     |         3rd         |     4th ~ 7th
+// ------|-------------|--------------|---------------------|-------------------
+//       |             | ValTypeCode  |         For the HeapType use
+//       |   0th:      | 0x7F, 0x7E,  | (Function references and GC proposal)
+//       | Reserved    | 0x7D, 0x7C,  | HeapTypeCode        |
+//       | (Padding)   |   (numtype)  | 0x00, 0x40,         |    Type index
+//  code |             | 0x7B,        | 0x70, 0x6F,         |    (uint32_t)
+//       |             |   (vectype)  | (func-ref proposal) |
+//       |   1st:      | 0x78, 0x77,  | 0x73, 0x72, 0x71,   |
+//       | Externalize | (packedtype) | 0x6E, 0x6D, 0x6C,   |
+//       |             | 0x64, 0x63   | 0x6B, 0x6A,         |
+//       |             |   (reftype)  |    (GC proposal)    |
+//       |             |              | 0x69                |
+//       |             |              | (Exception handling proposal)
+// -----------------------------------------------------------------------------
 // In order to compress the various value type definitions into uint64_t length,
 // WasmEdge implements the ValType class for extending the value types.
 // As the definitions in the typed function references and GC proposal, the
@@ -89,6 +91,7 @@ public:
   ValType() noexcept = default;
   // General constructors for initializing data.
   ValType(TypeCode C, TypeCode HT, uint32_t I) noexcept {
+    Inner.Data.Externalize = 0;
     Inner.Data.Code = C;
     Inner.Data.HTCode = HT;
     Inner.Data.Idx = I;
@@ -98,6 +101,7 @@ public:
   }
   // Constructor for the value type codes without heap type immediates.
   ValType(TypeCode C) noexcept {
+    Inner.Data.Externalize = 0;
     Inner.Data.Idx = 0;
     switch (C) {
     case TypeCode::I32:
@@ -123,6 +127,7 @@ public:
     case TypeCode::I31Ref:
     case TypeCode::StructRef:
     case TypeCode::ArrayRef:
+    case TypeCode::ExnRef:
       // Abstract heap type
       Inner.Data.Code = TypeCode::RefNull;
       Inner.Data.HTCode = C;
@@ -136,14 +141,15 @@ public:
   }
   // Constructor for the value type with abs heap type in reference type.
   ValType(TypeCode C, TypeCode HT) noexcept {
+    Inner.Data.Externalize = 0;
     Inner.Data.Code = C;
     Inner.Data.HTCode = HT;
     Inner.Data.Idx = 0;
     assuming(isAbsHeapType());
-    assuming(isRefType());
   }
   // Constructor for the value type with type index in reference type.
   ValType(TypeCode C, uint32_t I) noexcept {
+    Inner.Data.Externalize = 0;
     Inner.Data.Code = C;
     Inner.Data.HTCode = TypeCode::TypeIndex;
     Inner.Data.Idx = I;
@@ -207,11 +213,14 @@ public:
 
   bool isFuncRefType() const noexcept {
     return (Inner.Data.HTCode == TypeCode::FuncRef) ||
+           (Inner.Data.HTCode == TypeCode::NullFuncRef) ||
            (Inner.Data.HTCode == TypeCode::TypeIndex);
   }
 
   bool isExternRefType() const noexcept {
-    return (Inner.Data.HTCode == TypeCode::ExternRef);
+    return (Inner.Data.HTCode == TypeCode::ExternRef) ||
+           (Inner.Data.HTCode == TypeCode::NullExternRef) ||
+           Inner.Data.Externalize;
   }
 
   bool isNullableRefType() const noexcept {
@@ -219,28 +228,76 @@ public:
   }
 
   bool isAbsHeapType() const noexcept {
-    switch (Inner.Data.HTCode) {
-    case TypeCode::NullFuncRef:
-    case TypeCode::NullExternRef:
-    case TypeCode::NullRef:
-    case TypeCode::FuncRef:
-    case TypeCode::ExternRef:
-    case TypeCode::AnyRef:
-    case TypeCode::EqRef:
-    case TypeCode::I31Ref:
-    case TypeCode::StructRef:
-    case TypeCode::ArrayRef:
-      return true;
+    if (isRefType()) {
+      switch (Inner.Data.HTCode) {
+      case TypeCode::NullFuncRef:
+      case TypeCode::NullExternRef:
+      case TypeCode::NullRef:
+      case TypeCode::FuncRef:
+      case TypeCode::ExternRef:
+      case TypeCode::AnyRef:
+      case TypeCode::EqRef:
+      case TypeCode::I31Ref:
+      case TypeCode::StructRef:
+      case TypeCode::ArrayRef:
+      case TypeCode::ExnRef:
+        return true;
+      default:
+        return false;
+      }
+    }
+    return false;
+  }
+
+  uint32_t getBitWidth() const noexcept {
+    switch (Inner.Data.Code) {
+    case TypeCode::I8:
+      return 8U;
+    case TypeCode::I16:
+      return 16U;
+    case TypeCode::I32:
+    case TypeCode::F32:
+      return 32U;
+    case TypeCode::I64:
+    case TypeCode::F64:
+      return 64U;
+    case TypeCode::V128:
+      return 128U;
     default:
-      return false;
+      // Bit width not available for reftypes.
+      assumingUnreachable();
     }
   }
 
-protected:
+  ValType getNullableRef() const noexcept {
+    assuming(isRefType());
+    return ValType(TypeCode::RefNull, Inner.Data.HTCode, Inner.Data.Idx);
+  }
+  ValType &toNullableRef() noexcept {
+    assuming(isRefType());
+    Inner.Data.Code = TypeCode::RefNull;
+    return *this;
+  }
+  ValType getNonNullableRef() const noexcept {
+    assuming(isRefType());
+    return ValType(TypeCode::Ref, Inner.Data.HTCode, Inner.Data.Idx);
+  }
+  ValType &toNonNullableRef() noexcept {
+    assuming(isRefType());
+    Inner.Data.Code = TypeCode::Ref;
+    return *this;
+  }
+
+  void setExternalized() noexcept { Inner.Data.Externalize = 1U; }
+  void setInternalized() noexcept { Inner.Data.Externalize = 0U; }
+  bool isExternalized() noexcept { return Inner.Data.Externalize != 0U; }
+
+private:
   union {
     uint8_t Raw[8];
     struct {
-      uint8_t Paddings[2];
+      uint8_t Padding;
+      uint8_t Externalize;
       TypeCode Code;
       TypeCode HTCode;
       uint32_t Idx;
@@ -303,6 +360,8 @@ private:
 /// FuncRef definition.
 namespace Runtime::Instance {
 class FunctionInstance;
+class StructInstance;
+class ArrayInstance;
 } // namespace Runtime::Instance
 
 /// NumType and RefType variant definitions.
@@ -317,8 +376,17 @@ struct RefVariant {
   template <typename T> RefVariant(const T *P) noexcept {
     setData(TypeCode::ExternRef, reinterpret_cast<const void *>(P));
   }
+  template <typename T> RefVariant(const ValType &VT, const T *P) noexcept {
+    setData(VT, reinterpret_cast<const void *>(P));
+  }
   RefVariant(const Runtime::Instance::FunctionInstance *P) noexcept {
     setData(TypeCode::FuncRef, reinterpret_cast<const void *>(P));
+  }
+  RefVariant(const Runtime::Instance::StructInstance *P) noexcept {
+    setData(TypeCode::StructRef, reinterpret_cast<const void *>(P));
+  }
+  RefVariant(const Runtime::Instance::ArrayInstance *P) noexcept {
+    setData(TypeCode::ArrayRef, reinterpret_cast<const void *>(P));
   }
 
   // Getter of type.

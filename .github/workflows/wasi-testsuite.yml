@@ -22,6 +22,9 @@ on:
       - "include/host/wasi/**"
       - "thirdparty/wasi/**"
 
+permissions:
+  contents: read
+  
 jobs:
   test:
     permissions:
@@ -32,7 +35,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: WasmEdge
       - name: Ensure git safe directory
@@ -44,7 +47,7 @@ jobs:
         working-directory: WasmEdge
         run: |
           sudo apt install -y software-properties-common cmake clang ninja-build
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .
+          cmake -Bbuild -GNinja -DWASMEDGE_USE_LLVM=OFF .
           cmake --build build
           echo "$GITHUB_WORKSPACE/WasmEdge/build/tools/wasmedge" >> $GITHUB_PATH
 
@@ -56,19 +59,19 @@ jobs:
           export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .
+          cmake -Bbuild -GNinja -DWASMEDGE_USE_LLVM=OFF .
           cmake --build build
           echo "$GITHUB_WORKSPACE/WasmEdge/build/tools/wasmedge" >> $GITHUB_PATH
 
       - name: Checkout wasi-testsuite
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: WebAssembly/wasi-testsuite
           ref: prod/testsuite-base
           path: wasi-testsuite
 
       - name: Initialize Python environment
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           cache: pip

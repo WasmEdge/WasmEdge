@@ -11,7 +11,10 @@ on:
         required: true
       release:
         type: boolean
-
+        
+permissions:
+  contents: read
+  
 jobs:
   build_on_macos:
     permissions:
@@ -26,16 +29,22 @@ jobs:
       BUILD_TESTS: ON
       BUILD_TYPE: Debug
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - name: Setup build environment
+      - name: Setup build environment - non-release
+        if: ${{ !inputs.release }}
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm@16 ninja cmake wabt grpc
+          brew install llvm ninja cmake wabt grpc
+      - name: Setup build environment - release
+        if: ${{ inputs.release }}
+        run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
+          brew install llvm ninja cmake wabt
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |
@@ -44,7 +53,7 @@ jobs:
       - name: Build WasmEdge
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          export LLVM_DIR="$(brew --prefix)/opt/llvm@16/lib/cmake"
+          export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
           rm -rf build output

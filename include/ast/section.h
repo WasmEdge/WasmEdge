@@ -70,13 +70,13 @@ private:
 class TypeSection : public Section {
 public:
   /// Getter of content vector.
-  Span<const FunctionType> getContent() const noexcept { return Content; }
-  std::vector<FunctionType> &getContent() noexcept { return Content; }
+  Span<const SubType> getContent() const noexcept { return Content; }
+  std::vector<SubType> &getContent() noexcept { return Content; }
 
 private:
   /// \name Data of TypeSection.
   /// @{
-  std::vector<FunctionType> Content;
+  std::vector<SubType> Content;
   /// @}
 };
 
@@ -223,7 +223,7 @@ private:
 /// AST DataCountSection node.
 class DataCountSection : public Section {
 public:
-  /// Getter and of content.
+  /// Getter and setter of content.
   std::optional<uint32_t> getContent() const noexcept { return Content; }
   void setContent(uint32_t Val) noexcept { Content = Val; }
 
@@ -231,6 +231,20 @@ private:
   /// \name Data of DataCountSection.
   /// @{
   std::optional<uint32_t> Content = std::nullopt;
+  /// @}
+};
+
+/// AST TagSection node.
+class TagSection : public Section {
+public:
+  /// Getter of content vector.
+  Span<const TagType> getContent() const noexcept { return Content; }
+  std::vector<TagType> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of TagSection.
+  /// @{
+  std::vector<TagType> Content;
   /// @}
 };
 
@@ -286,6 +300,7 @@ private:
   std::vector<uintptr_t> CodesAddress;
   std::vector<std::tuple<uint8_t, uint64_t, uint64_t, std::vector<Byte>>>
       Sections;
+  std::vector<uint8_t> Bytecodes;
   /// @}
 };
 
@@ -372,13 +387,13 @@ private:
 class StartSection : public Section {
 public:
   /// Getter of content module.
-  Span<const Start> getContent() const noexcept { return Content; }
-  std::vector<Start> &getContent() noexcept { return Content; }
+  const Start &getContent() const noexcept { return Content; }
+  Start &getContent() noexcept { return Content; }
 
 private:
   /// \name Data of StartSection.
   /// @{
-  std::vector<Start> Content;
+  Start Content;
   /// @}
 };
 
@@ -411,18 +426,13 @@ private:
 class Component;
 
 class ComponentSection : public Section {
-
 public:
   /// Getter of content.
-  Span<const std::shared_ptr<Component>> getContent() const noexcept {
-    return Content;
-  }
-  std::vector<std::shared_ptr<Component>> &getContent() noexcept {
-    return Content;
-  }
+  const Component &getContent() const noexcept { return *Content; }
+  std::shared_ptr<Component> getContent() noexcept { return Content; }
 
 private:
-  std::vector<std::shared_ptr<Component>> Content;
+  std::shared_ptr<Component> Content;
 };
 
 } // namespace Component

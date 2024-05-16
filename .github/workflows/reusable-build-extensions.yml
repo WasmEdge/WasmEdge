@@ -29,12 +29,13 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
-    name: Build all plugins on ${{ matrix.docker_tag }}
+    name: ${{ matrix.arch }}
     uses: ./.github/workflows/reusable-build-extensions-on-manylinux.yml
     with:
       arch: ${{ matrix.arch }}
       runner: ${{ matrix.runner }}
       docker_tag: ${{ matrix.docker_tag }}
+      asset_tag: ${{ matrix.asset_tag }}
       plugins: ${{ toJSON(matrix.plugins) }}
       version: ${{ inputs.version }}
       release: ${{ inputs.release }}

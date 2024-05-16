@@ -3,7 +3,7 @@
 
 #include "executor/executor.h"
 
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "system/fault.h"
 
 #include <cstdint>
@@ -30,6 +30,10 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
   const uint32_t ArgsN = static_cast<uint32_t>(FuncType.getParamTypes().size());
   const uint32_t RetsN =
       static_cast<uint32_t>(FuncType.getReturnTypes().size());
+
+  // For the exception handler, remove the inactive handlers caused by the
+  // branches.
+  StackMgr.removeInactiveHandler(RetIt - 1);
 
   if (Func.isHostFunction()) {
     // Host function case: Push args and call function.
@@ -69,6 +73,11 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
 
     // Run host function.
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
+    for (uint32_t I = 0; I < ArgsN; I++) {
+      // For the number type cases of the arguments, the unused bits should be
+      // erased due to the security issue.
+      cleanNumericVal(Args[I], FuncType.getParamTypes()[I]);
+    }
     std::vector<ValVariant> Rets(RetsN);
     auto Ret = HostFunc.run(CallFrame, std::move(Args), Rets);
 
@@ -133,20 +142,26 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       prepare(StackMgr, ModInst->MemoryPtrs.data(), ModInst->GlobalPtrs.data());
     }
 
-    {
+    ErrCode Err;
+    try {
       // Get symbol and execute the function.
       Fault FaultHandler;
       uint32_t Code = PREPARE_FAULT(FaultHandler);
-      if (auto Err = ErrCode(static_cast<ErrCategory>(Code >> 24), Code);
-          unlikely(Err != ErrCode::Value::Success)) {
-        if (Err != ErrCode::Value::Terminated) {
-          spdlog::error(Err);
-        }
-        return Unexpect(Err);
+      if (Code != 0) {
+        Err = ErrCode(static_cast<ErrCategory>(Code >> 24), Code);
+      } else {
+        auto &Wrapper = FuncType.getSymbol();
+        Wrapper(&ExecutionContext, Func.getSymbol().get(), Args.data(),
+                Rets.data());
       }
-      auto &Wrapper = FuncType.getSymbol();
-      Wrapper(&ExecutionContext, Func.getSymbol().get(), Args.data(),
-              Rets.data());
+    } catch (const ErrCode &E) {
+      Err = E;
+    }
+    if (unlikely(Err)) {
+      if (Err != ErrCode::Value::Terminated) {
+        spdlog::error(Err);
+      }
+      return Unexpect(Err);
     }
 
     // Push returns back to stack.
@@ -183,20 +198,65 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
   }
 }
 
-Expect<void> Executor::branchToLabel(Runtime::StackManager &StackMgr,
-                                     uint32_t EraseBegin, uint32_t EraseEnd,
-                                     int32_t PCOffset,
-                                     AST::InstrView::iterator &PC) noexcept {
-  // Check stop token
+Expect<void>
+Executor::branchToLabel(Runtime::StackManager &StackMgr,
+                        const AST::Instruction::JumpDescriptor &JumpDesc,
+                        AST::InstrView::iterator &PC) noexcept {
+  // Check the stop token.
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
     spdlog::error(ErrCode::Value::Interrupted);
     return Unexpect(ErrCode::Value::Interrupted);
   }
 
-  StackMgr.stackErase(EraseBegin, EraseEnd);
+  StackMgr.eraseValueStack(JumpDesc.StackEraseBegin, JumpDesc.StackEraseEnd);
   // PC need to -1 here because the PC will increase in the next iteration.
-  PC += (PCOffset - 1);
+  PC += (JumpDesc.PCOffset - 1);
   return {};
+}
+
+Expect<void> Executor::throwException(Runtime::StackManager &StackMgr,
+                                      Runtime::Instance::TagInstance &TagInst,
+                                      AST::InstrView::iterator &PC) noexcept {
+  StackMgr.removeInactiveHandler(PC);
+  auto AssocValSize = TagInst.getTagType().getAssocValSize();
+  while (true) {
+    // Pop the top handler.
+    auto Handler = StackMgr.popTopHandler(AssocValSize);
+    if (!Handler.has_value()) {
+      break;
+    }
+    // Checking through the catch clause.
+    for (const auto &C : Handler->CatchClause) {
+      if (!C.IsAll && getTagInstByIdx(StackMgr, C.TagIndex) != &TagInst) {
+        // For catching a specific tag, should check the equivalence of tag
+        // address.
+        continue;
+      }
+      if (C.IsRef) {
+        // For catching a exception reference, push the reference value onto
+        // stack.
+        StackMgr.push(
+            RefVariant(ValType(TypeCode::Ref, TypeCode::ExnRef), &TagInst));
+      }
+      // When being here, an exception is caught. Move the PC to the try block
+      // and branch to the label.
+
+      PC = Handler->Try;
+      return branchToLabel(StackMgr, C.Jump, PC);
+    }
+  }
+  spdlog::error(ErrCode::Value::UncaughtException);
+  return Unexpect(ErrCode::Value::UncaughtException);
+}
+
+const AST::SubType *Executor::getDefTypeByIdx(Runtime::StackManager &StackMgr,
+                                              const uint32_t Idx) const {
+  const auto *ModInst = StackMgr.getModule();
+  // When top frame is dummy frame, cannot find instance.
+  if (unlikely(ModInst == nullptr)) {
+    return nullptr;
+  }
+  return ModInst->unsafeGetType(Idx);
 }
 
 Runtime::Instance::FunctionInstance *
@@ -232,6 +292,17 @@ Executor::getMemInstByIdx(Runtime::StackManager &StackMgr,
   return ModInst->unsafeGetMemory(Idx);
 }
 
+Runtime::Instance::TagInstance *
+Executor::getTagInstByIdx(Runtime::StackManager &StackMgr,
+                          const uint32_t Idx) const {
+  const auto *ModInst = StackMgr.getModule();
+  // When top frame is dummy frame, cannot find instance.
+  if (unlikely(ModInst == nullptr)) {
+    return nullptr;
+  }
+  return ModInst->unsafeGetTag(Idx);
+}
+
 Runtime::Instance::GlobalInstance *
 Executor::getGlobInstByIdx(Runtime::StackManager &StackMgr,
                            const uint32_t Idx) const {
@@ -265,64 +336,76 @@ Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
   return ModInst->unsafeGetData(Idx);
 }
 
-bool Executor::matchType(const Runtime::Instance::ModuleInstance &ModExp,
-                         const ValType &Exp,
-                         const Runtime::Instance::ModuleInstance &ModGot,
-                         const ValType &Got) const noexcept {
-  if (!Exp.isRefType() && !Got.isRefType() && Exp.getCode() == Got.getCode()) {
-    // Match for the non-reference type case.
-    return true;
-  }
-  if (Exp.isRefType() && Got.isRefType()) {
-    // Nullable matching.
-    if (!Exp.isNullableRefType() && Got.isNullableRefType()) {
-      return false;
-    }
-
-    // Match the heap type.
-    if (Exp.getHeapTypeCode() == Got.getHeapTypeCode() &&
-        Exp.getHeapTypeCode() != TypeCode::TypeIndex) {
-      // Abs heap type are the same.
-      return true;
-    }
-    if (Exp.getHeapTypeCode() == TypeCode::FuncRef &&
-        Got.getHeapTypeCode() == TypeCode::TypeIndex) {
-      // Match type index to any funcref.
-      return true;
-    }
-    if (Exp.getHeapTypeCode() == TypeCode::TypeIndex &&
-        Got.getHeapTypeCode() == TypeCode::TypeIndex) {
-      // Match got type index to expected type index.
-      if (matchTypes(
-              ModExp, ModExp.FuncTypes[Exp.getTypeIndex()].getParamTypes(),
-              ModGot, ModGot.FuncTypes[Got.getTypeIndex()].getParamTypes()) &&
-          matchTypes(
-              ModExp, ModExp.FuncTypes[Exp.getTypeIndex()].getReturnTypes(),
-              ModGot, ModGot.FuncTypes[Got.getTypeIndex()].getReturnTypes())) {
-        // Note: In future versions of WebAssembly, subtyping on function types
-        // may be relaxed to support co- and contra-variance.
-        // Due to passing the validation of type section, this will not cause
-        // infinite recursion.
-        return true;
+TypeCode Executor::toBottomType(Runtime::StackManager &StackMgr,
+                                const ValType &Type) const {
+  if (Type.isRefType()) {
+    if (Type.isAbsHeapType()) {
+      switch (Type.getHeapTypeCode()) {
+      case TypeCode::NullFuncRef:
+      case TypeCode::FuncRef:
+        return TypeCode::NullFuncRef;
+      case TypeCode::NullExternRef:
+      case TypeCode::ExternRef:
+        return TypeCode::NullExternRef;
+      case TypeCode::NullRef:
+      case TypeCode::AnyRef:
+      case TypeCode::EqRef:
+      case TypeCode::I31Ref:
+      case TypeCode::StructRef:
+      case TypeCode::ArrayRef:
+        return TypeCode::NullRef;
+      case TypeCode::ExnRef:
+        return TypeCode::ExnRef;
+      default:
+        assumingUnreachable();
+      }
+    } else {
+      const auto &CompType =
+          (*StackMgr.getModule()->getType(Type.getTypeIndex()))
+              ->getCompositeType();
+      if (CompType.isFunc()) {
+        return TypeCode::NullFuncRef;
+      } else {
+        return TypeCode::NullRef;
       }
     }
+  } else {
+    return Type.getCode();
   }
-  return false;
 }
 
-bool Executor::matchTypes(const Runtime::Instance::ModuleInstance &ModExp,
-                          Span<const ValType> Exp,
-                          const Runtime::Instance::ModuleInstance &ModGot,
-                          Span<const ValType> Got) const noexcept {
-  if (Exp.size() != Got.size()) {
-    return false;
-  }
-  for (uint32_t I = 0; I < Exp.size(); I++) {
-    if (!matchType(ModExp, Exp[I], ModGot, Got[I])) {
-      return false;
+void Executor::cleanNumericVal(ValVariant &Val,
+                               const ValType &Type) const noexcept {
+  if (Type.isNumType()) {
+    switch (Type.getCode()) {
+    case TypeCode::I32: {
+      uint32_t V = Val.get<uint32_t>();
+      Val.emplace<uint128_t>(static_cast<uint128_t>(0));
+      Val.emplace<uint32_t>(V);
+      break;
+    }
+    case TypeCode::F32: {
+      float V = Val.get<float>();
+      Val.emplace<uint128_t>(static_cast<uint128_t>(0));
+      Val.emplace<float>(V);
+      break;
+    }
+    case TypeCode::I64: {
+      uint64_t V = Val.get<uint64_t>();
+      Val.emplace<uint128_t>(static_cast<uint128_t>(0));
+      Val.emplace<uint64_t>(V);
+      break;
+    }
+    case TypeCode::F64: {
+      double V = Val.get<double>();
+      Val.emplace<uint128_t>(static_cast<uint128_t>(0));
+      Val.emplace<double>(V);
+      break;
+    }
+    default:
+      break;
     }
   }
-  return true;
 }
 
 } // namespace Executor

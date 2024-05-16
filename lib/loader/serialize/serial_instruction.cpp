@@ -6,15 +6,6 @@
 namespace WasmEdge {
 namespace Loader {
 
-namespace {
-void serializeOpCode(OpCode Code, std::vector<uint8_t> &OutVec) {
-  if (static_cast<uint16_t>(Code) >= 0x100U) {
-    OutVec.push_back(static_cast<uint16_t>(Code) >> 8);
-  }
-  OutVec.push_back(static_cast<uint16_t>(Code) & 0xFFU);
-}
-} // namespace
-
 // Serialize instruction. See "include/loader/serialize.h".
 Expect<void>
 Serializer::serializeInstruction(const AST::Instruction &Instr,
@@ -40,9 +31,6 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     return {};
   };
 
-  // Instruction: OpCode + immediate.
-  serializeOpCode(Instr.getOpCode(), OutVec);
-
   // Check with proposals.
   if (auto Res = Conf.isInstrNeedProposal(Instr.getOpCode());
       unlikely(Res.has_value())) {
@@ -50,6 +38,45 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
                            ASTNodeAttr::Instruction);
   }
 
+  // Serialize OpCode.
+  switch (Instr.getOpCode()) {
+#define UseOpCode
+#define Line(NAME, STRING, PREFIX)                                             \
+  case OpCode::NAME:                                                           \
+    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
+    break;
+#define Line_FB(NAME, STRING, PREFIX, EXTEND)                                  \
+  case OpCode::NAME:                                                           \
+    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
+    serializeU32(EXTEND, OutVec);                                              \
+    break;
+#define Line_FC(NAME, STRING, PREFIX, EXTEND)                                  \
+  case OpCode::NAME:                                                           \
+    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
+    serializeU32(EXTEND, OutVec);                                              \
+    break;
+#define Line_FD(NAME, STRING, PREFIX, EXTEND)                                  \
+  case OpCode::NAME:                                                           \
+    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
+    serializeU32(EXTEND, OutVec);                                              \
+    break;
+#define Line_FE(NAME, STRING, PREFIX, EXTEND)                                  \
+  case OpCode::NAME:                                                           \
+    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
+    serializeU32(EXTEND, OutVec);                                              \
+    break;
+#include "common/enum.inc"
+#undef Line
+#undef Line_FB
+#undef Line_FC
+#undef Line_FD
+#undef Line_FE
+#undef UseOpCode
+  default:
+    assumingUnreachable();
+  }
+
+  // Serialize immediate.
   switch (Instr.getOpCode()) {
   // Control instructions.
   case OpCode::Unreachable:
@@ -728,8 +755,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     return serializeMemImmediate();
 
   default:
-    return logSerializeError(ErrCode::Value::IllegalOpCode,
-                             ASTNodeAttr::Instruction);
+    assumingUnreachable();
   }
 }
 

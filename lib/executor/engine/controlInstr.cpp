@@ -33,12 +33,32 @@ Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
   return {};
 }
 
+Expect<void> Executor::runThrowOp(Runtime::StackManager &StackMgr,
+                                  const AST::Instruction &Instr,
+                                  AST::InstrView::iterator &PC) noexcept {
+  auto *TagInst = getTagInstByIdx(StackMgr, Instr.getTargetIndex());
+  // The args will be popped from stack in the throw function.
+  return throwException(StackMgr, *TagInst, PC);
+}
+
+Expect<void> Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
+                                     const AST::Instruction &Instr,
+                                     AST::InstrView::iterator &PC) noexcept {
+  const auto Ref = StackMgr.pop().get<RefVariant>();
+  if (Ref.isNull()) {
+    spdlog::error(ErrCode::Value::AccessNullException);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::Value::AccessNullException);
+  }
+  auto *TagInst = Ref.getPtr<Runtime::Instance::TagInstance>();
+  return throwException(StackMgr, *TagInst, PC);
+}
+
 Expect<void> Executor::runBrOp(Runtime::StackManager &StackMgr,
                                const AST::Instruction &Instr,
                                AST::InstrView::iterator &PC) noexcept {
-  return branchToLabel(StackMgr, Instr.getJump().StackEraseBegin,
-                       Instr.getJump().StackEraseEnd, Instr.getJump().PCOffset,
-                       PC);
+  return branchToLabel(StackMgr, Instr.getJump(), PC);
 }
 
 Expect<void> Executor::runBrIfOp(Runtime::StackManager &StackMgr,
@@ -50,9 +70,9 @@ Expect<void> Executor::runBrIfOp(Runtime::StackManager &StackMgr,
   return {};
 }
 
-Expect<void> Executor::runBrOnNull(Runtime::StackManager &StackMgr,
-                                   const AST::Instruction &Instr,
-                                   AST::InstrView::iterator &PC) noexcept {
+Expect<void> Executor::runBrOnNullOp(Runtime::StackManager &StackMgr,
+                                     const AST::Instruction &Instr,
+                                     AST::InstrView::iterator &PC) noexcept {
   if (StackMgr.getTop().get<RefVariant>().isNull()) {
     StackMgr.pop();
     return runBrOp(StackMgr, Instr, PC);
@@ -60,9 +80,9 @@ Expect<void> Executor::runBrOnNull(Runtime::StackManager &StackMgr,
   return {};
 }
 
-Expect<void> Executor::runBrOnNonNull(Runtime::StackManager &StackMgr,
-                                      const AST::Instruction &Instr,
-                                      AST::InstrView::iterator &PC) noexcept {
+Expect<void> Executor::runBrOnNonNullOp(Runtime::StackManager &StackMgr,
+                                        const AST::Instruction &Instr,
+                                        AST::InstrView::iterator &PC) noexcept {
   if (!StackMgr.getTop().get<RefVariant>().isNull()) {
     return runBrOp(StackMgr, Instr, PC);
   }
@@ -80,13 +100,35 @@ Expect<void> Executor::runBrTableOp(Runtime::StackManager &StackMgr,
   auto LabelTable = Instr.getLabelList();
   const auto LabelTableSize = static_cast<uint32_t>(LabelTable.size() - 1);
   if (Value < LabelTableSize) {
-    return branchToLabel(StackMgr, LabelTable[Value].StackEraseBegin,
-                         LabelTable[Value].StackEraseEnd,
-                         LabelTable[Value].PCOffset, PC);
+    return branchToLabel(StackMgr, LabelTable[Value], PC);
   }
-  return branchToLabel(StackMgr, LabelTable[LabelTableSize].StackEraseBegin,
-                       LabelTable[LabelTableSize].StackEraseEnd,
-                       LabelTable[LabelTableSize].PCOffset, PC);
+  return branchToLabel(StackMgr, LabelTable[LabelTableSize], PC);
+}
+
+Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
+                                     const AST::Instruction &Instr,
+                                     AST::InstrView::iterator &PC,
+                                     bool IsReverse) noexcept {
+  // Get value on top of stack.
+  const auto *ModInst = StackMgr.getModule();
+  const auto &Val = StackMgr.getTop().get<RefVariant>();
+  const auto &VT = Val.getType();
+  Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
+  if (!VT.isAbsHeapType()) {
+    auto *Inst = Val.getPtr<Runtime::Instance::CompositeBase>();
+    // Reference must not be nullptr here because the null references are typed
+    // with the least abstract heap type.
+    if (Inst->getModule()) {
+      GotTypeList = Inst->getModule()->getTypeList();
+    }
+  }
+
+  if (AST::TypeMatcher::matchType(ModInst->getTypeList(),
+                                  Instr.getBrCast().RType2, GotTypeList,
+                                  VT) != IsReverse) {
+    return branchToLabel(StackMgr, Instr.getBrCast().Jump, PC);
+  }
+  return {};
 }
 
 Expect<void> Executor::runReturnOp(Runtime::StackManager &StackMgr,
@@ -105,8 +147,7 @@ Expect<void> Executor::runCallOp(Runtime::StackManager &StackMgr,
                                  AST::InstrView::iterator &PC,
                                  bool IsTailCall) noexcept {
   // Get Function address.
-  const auto *ModInst = StackMgr.getModule();
-  const auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
+  const auto *FuncInst = getFuncInstByIdx(StackMgr, Instr.getTargetIndex());
   if (auto Res = enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall); !Res) {
     return Unexpect(Res);
   } else {
@@ -119,7 +160,6 @@ Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
                                     const AST::Instruction &Instr,
                                     AST::InstrView::iterator &PC,
                                     bool IsTailCall) noexcept {
-
   const auto Ref = StackMgr.pop().get<RefVariant>();
   if (Ref.isNull()) {
     spdlog::error(ErrCode::Value::AccessNullFunc);
@@ -147,7 +187,7 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
 
   // Get function type at index x.
   const auto *ModInst = StackMgr.getModule();
-  const auto *TargetFuncType = *ModInst->getFuncType(Instr.getTargetIndex());
+  const auto &ExpDefType = **ModInst->getType(Instr.getTargetIndex());
 
   // Pop the value i32.const i from the Stack.
   uint32_t Idx = StackMgr.pop().get<uint32_t>();
@@ -173,18 +213,28 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
 
   // Check function type.
   const auto *FuncInst = retrieveFuncRef(Ref);
-  const auto &FuncType = FuncInst->getFuncType();
-  if (!matchTypes(*ModInst, TargetFuncType->getParamTypes(),
-                  *FuncInst->getModule(), FuncType.getParamTypes()) ||
-      !matchTypes(*ModInst, TargetFuncType->getReturnTypes(),
-                  *FuncInst->getModule(), FuncType.getReturnTypes())) {
+  bool IsMatch = false;
+  if (FuncInst->getModule()) {
+    IsMatch = AST::TypeMatcher::matchType(
+        ModInst->getTypeList(), *ExpDefType.getTypeIndex(),
+        FuncInst->getModule()->getTypeList(), FuncInst->getTypeIndex());
+  } else {
+    // Independent host module instance case. Matching the composite type
+    // directly.
+    IsMatch = AST::TypeMatcher::matchType(
+        ModInst->getTypeList(), ExpDefType.getCompositeType(),
+        FuncInst->getHostFunc().getDefinedType().getCompositeType());
+  }
+  if (!IsMatch) {
+    auto &ExpFuncType = ExpDefType.getCompositeType().getFuncType();
+    auto &GotFuncType = FuncInst->getFuncType();
     spdlog::error(ErrCode::Value::IndirectCallTypeMismatch);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
                                            {ValTypeFromType<uint32_t>()}));
     spdlog::error(ErrInfo::InfoMismatch(
-        TargetFuncType->getParamTypes(), TargetFuncType->getReturnTypes(),
-        FuncType.getParamTypes(), FuncType.getReturnTypes()));
+        ExpFuncType.getParamTypes(), ExpFuncType.getReturnTypes(),
+        GotFuncType.getParamTypes(), GotFuncType.getReturnTypes()));
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
@@ -194,6 +244,14 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
   } else {
     PC = (*Res) - 1;
   }
+  return {};
+}
+
+Expect<void> Executor::runTryTableOp(Runtime::StackManager &StackMgr,
+                                     const AST::Instruction &Instr,
+                                     AST::InstrView::iterator &PC) noexcept {
+  const auto &TryDesc = Instr.getTryCatch();
+  StackMgr.pushHandler(PC, TryDesc.BlockParamNum, TryDesc.Catch);
   return {};
 }
 

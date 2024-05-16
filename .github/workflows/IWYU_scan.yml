@@ -40,7 +40,7 @@ jobs:
     outputs:
       version: ${{ steps.prep.outputs.version }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Ensure git safe directory
@@ -68,15 +68,12 @@ jobs:
       run: |
         dnf update -y
         dnf install -y cmake ninja-build llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev clang-devel spdlog-devel
-        curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.20.zip
-        unzip 0.20.zip
-        mkdir build && cd build
-        cmake -G "Unix Makefiles" ../include-what-you-use-0.20
-        make -j
-        make install
-        cd ..
+        curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.22.zip
+        unzip 0.22.zip
+        cmake -Bbuild-iwyu -GNinja -DCMAKE_BUILD_TYPE=Release include-what-you-use-0.22
+        cmake --build build-iwyu --target install
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Ensure git safe directory
@@ -102,7 +99,7 @@ jobs:
     needs: get_version
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Ensure git safe directory
@@ -115,21 +112,38 @@ jobs:
         # Unlink python@3.11 to fix brew link 2to3 conflict.
         brew unlink python@3.11
         brew install llvm ninja cmake
-        export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
-        export Clang_DIR="/usr/local/opt/llvm/lib/cmake/clang"
+        export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
+        export Clang_DIR="$(brew --prefix)/opt/llvm/lib/cmake/clang"
+        export IWYU_PREFIX="$(brew --prefix)/opt/iwyu"
         export CC=clang
         export CXX=clang++
 
         cd ../../
-        curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.20.zip
-        unzip 0.20.zip
-        mkdir build && cd build
-        cmake -G "Unix Makefiles" ../include-what-you-use-0.20
-        make -j install
-        cd ../WasmEdge/WasmEdge
+        curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.21.zip
+        unzip 0.21.zip
+        patch -p1 -d include-what-you-use-0.21 <<EOF
+        diff --git a/iwyu.cc b/iwyu.cc
+        --- a/iwyu.cc
+        +++ b/iwyu.cc
+        @@ -3476,6 +3476,12 @@ class InstantiatedTemplateVisitor
+             if (ReplayClassMemberUsesFromPrecomputedList(type))
+               return true;
+        
+        +    // Sometimes, an implicit specialization occurs to be not instantiated.
+        +    // TODO(bolshakov): don't report them at all as full uses or figure out
+        +    // how to scan them.
+        +    if (!class_decl->hasDefinition())
+        +      return true;
+        +
+             // Make sure all the types we report in the recursive TraverseDecl
+             // calls, below, end up in the cache for class_decl.
+        EOF
+        cmake -Bbuild-iwyu -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$IWYU_PREFIX" include-what-you-use-0.21
+        cmake --build build-iwyu --target install
+        cd WasmEdge/WasmEdge
 
-        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DCMAKE_CXX_INCLUDE_WHAT_YOU_USE=include-what-you-use -DWASMEDGE_BUILD_PACKAGE="TGZ" .
-        cmake --build build > iwyu_macos.log
+        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DCMAKE_CXX_INCLUDE_WHAT_YOU_USE="xcrun;$IWYU_PREFIX/bin/include-what-you-use" -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+        cmake --build build > iwyu_macOS.log
 
     - uses: actions/upload-artifact@v3
       with:

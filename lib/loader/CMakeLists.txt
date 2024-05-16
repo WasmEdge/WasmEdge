@@ -3,8 +3,8 @@
 
 wasmedge_add_library(wasmedgeLoaderFileMgr
   filemgr.cpp
-  ldmgr.cpp
   shared_library.cpp
+  aot_section.cpp
 )
 
 target_link_libraries(wasmedgeLoaderFileMgr

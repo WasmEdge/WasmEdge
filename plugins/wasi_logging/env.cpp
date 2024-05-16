@@ -28,9 +28,8 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .AddOptions = nullptr,
 };
 
+EXPORT_GET_DESCRIPTOR(Descriptor)
+
 } // namespace
-
-Plugin::PluginRegister WasiLoggingEnvironment::Register(&Descriptor);
-
 } // namespace Host
 } // namespace WasmEdge

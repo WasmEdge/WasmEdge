@@ -82,11 +82,12 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     // AOT compiled shared-library-WASM cases. Use ldmgr to load the module.
     WASMType = InputType::SharedLibrary;
     FMgr.reset();
-    if (auto Res = LMgr.setPath(FilePath); !Res) {
+    std::shared_ptr<SharedLibrary> Library = std::make_shared<SharedLibrary>();
+    if (auto Res = Library->load(FilePath); !Res) {
       spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }
-    if (auto Res = LMgr.getVersion()) {
+    if (auto Res = Library->getVersion()) {
       if (*Res != AOT::kBinaryVersion) {
         spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, *Res));
         spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -98,7 +99,7 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     }
 
     std::unique_ptr<AST::Module> Mod;
-    if (auto Code = LMgr.getWasm()) {
+    if (auto Code = Library->getWasm()) {
       // Set the binary and load module.
       // Not to use parseModule() here to keep the `WASMType` value.
       if (auto Res = FMgr.setCode(*Code); !Res) {
@@ -120,7 +121,7 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
       // If the configure is set to force interpreter mode, not to load the AOT
       // related data.
-      if (auto Res = loadCompiled(*Mod); unlikely(!Res)) {
+      if (auto Res = loadExecutable(*Mod, Library); unlikely(!Res)) {
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
       }
@@ -168,6 +169,7 @@ Loader::parseWasmUnit(Span<const uint8_t> Code) {
   case FileMgr::FileHeader::DLL:
   case FileMgr::FileHeader::MachO_32:
   case FileMgr::FileHeader::MachO_64:
+    spdlog::error("Might an invalid wasm file");
     spdlog::error(ErrCode::Value::MalformedMagic);
     spdlog::error(
         "    The AOT compiled WASM shared library is not supported for loading "
@@ -211,6 +213,30 @@ Loader::parseModule(Span<const uint8_t> Code) {
 // Serialize module into byte code. See "include/loader/loader.h".
 Expect<std::vector<Byte>> Loader::serializeModule(const AST::Module &Mod) {
   return Ser.serializeModule(Mod);
+}
+
+// Helper function to set the function type for tag.
+void Loader::setTagFunctionType(AST::TagSection &TagSec,
+                                AST::ImportSection &ImportSec,
+                                AST::TypeSection &TypeSec) {
+  auto &TypeVec = TypeSec.getContent();
+  for (auto &TgType : TagSec.getContent()) {
+    auto TypeIdx = TgType.getTypeIdx();
+    // Invalid type index would be checked during validation.
+    if (TypeIdx < TypeVec.size()) {
+      TgType.setDefType(&TypeVec[TypeIdx]);
+    }
+  }
+  for (auto &Desc : ImportSec.getContent()) {
+    if (Desc.getExternalType() == ExternalType::Tag) {
+      auto &TgType = Desc.getExternalTagType();
+      auto TypeIdx = TgType.getTypeIdx();
+      // Invalid type index would be checked during validation.
+      if (TypeIdx < TypeVec.size()) {
+        TgType.setDefType(&TypeVec[TypeIdx]);
+      }
+    }
+  }
 }
 
 } // namespace Loader

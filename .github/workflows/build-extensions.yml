@@ -40,26 +40,22 @@ on:
       - "utils/wasi-crypto/**"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   # TODO: Refactor `lint` with `on.workflow_run`
   # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
   lint:
-    permissions:
-      contents: read
     uses: ./.github/workflows/reusable-call-linter.yml
 
   get_version:
-    permissions:
-      contents: read
     name: Retrieve version information
     needs: lint
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.prep.outputs.version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -75,6 +71,8 @@ jobs:
 
   # Due to the dependencies and exclusions of WASI-NN, build them saperately.
   build_ubuntu_wasi_nn:
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
@@ -99,11 +97,11 @@ jobs:
       OPENVINO_YEAR: "2023"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."
-    needs: [get_version]
+    needs: [ get_version ]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -123,7 +121,7 @@ jobs:
           ldconfig
           plugin_array=(${tar_names})
           option_array=(${build_options})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Building ${plugin_array[$i]} backend:"
@@ -175,7 +173,68 @@ jobs:
           name: WasmEdge-plugin-wasi_nn-ggml-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasi_nn-ggml.tar.gz
 
+  build_windows_wasi_nn:
+    permissions:
+      contents: write
+    name: WASI-NN (Windows Server 2022)
+    runs-on: windows-2022
+    env:
+      output_dir: build/plugins/wasi_nn
+      test_dir: build/test/plugins/wasi_nn
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
+      tar_names: wasi_nn-ggml
+      test_bin: wasiNNTests
+      output_bin: wasmedgePluginWasiNN.dll
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - name: Install dependency
+        uses: crazy-max/ghaction-chocolatey@v3
+        with:
+          args: install cmake ninja vswhere
+      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
+        with:
+          sdk-version: 19041
+      - name: Build WasmEdge
+        run: |
+          $vsPath = (vswhere -latest -property installationPath)
+          Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
+          $llvm = "LLVM-16.0.6-win64-MultiThreadedDLL.zip"
+          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-16.0.6/LLVM-16.0.6-win64-MultiThreadedDLL.zip -o $llvm
+          Expand-Archive -Path $llvm
+          $llvm_dir = "$pwd\\LLVM-16.0.6-win64-MultiThreadedDLL\\LLVM-16.0.6-win64\\lib\\cmake\\llvm"
+          $cmake_sys_version = "10.0.19041.0"
+          cmake -Bbuild -GNinja "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF
+
+          Write-Output "Building $Env:tar_names backend:"
+          cmake -Bbuild -GNinja "$Env:build_options"
+          cmake --build build --target "$Env:test_bin"
+
+          $Env:PATH += ";$pwd\\build\\lib\\api"
+          Write-Output "Testing $Env:tar_names backend:"
+          cmake -E chdir "$Env:test_dir" "$Env:test_bin"
+
+          Write-Output "Copying $Env:tar_names backend:"
+          Copy-Item "$Env:output_dir/$Env:output_bin" -Destination "./$Env:output_bin"
+
+          Write-Output "Compress-Archive -Path $Env:output_bin -DestinationPath plugin_${Env:tar_names}.zip -CompressionLevel Optimal"
+          Compress-Archive -Path "$Env:output_bin" -DestinationPath "plugin_${Env:tar_names}.zip" -CompressionLevel Optimal
+          ls "plugin_${Env:tar_names}.zip"
+      - name: Upload artifact - wasi_nn-ggml
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_nn-ggml-${{ needs.get_version.outputs.version }}-windows.zip
+          path: plugin_wasi_nn-ggml.zip
+
+
   build_ubuntu:
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
@@ -192,18 +251,18 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON
-      tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasm_bpf wasmedge_opencvmini wasmedge_zlib
-      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmBpfTests wasmedgeOpencvminiTests wasmedgeZlibTests
-      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmBpf.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasmEdgeZlib.so
-    needs: [get_version]
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_FFMPEG=ON
+      tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasm_bpf wasmedge_opencvmini wasmedge_zlib wasmedge_ffmpeg
+      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmBpfTests wasmedgeOpencvminiTests wasmedgeZlibTests wasmedgeFFmpegTests
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmBpf.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasmEdgeZlib.so libwasmedgePluginWasmEdgeFFmpeg.so
+    needs: [ get_version ]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
       # Required for mounting debugfs
       # Tests of wasm_bpf also require privileges
       options: --privileged
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Install dependencies
@@ -211,15 +270,20 @@ jobs:
           apt update
           apt install -y libssl-dev
           apt install -y libelf-dev zlib1g-dev pkg-config
-          apt install -y clang llvm
+          apt install -y clang-15
           apt install -y cargo
+          apt install -y yasm
           # Running tests of wasm_bpf requires proper ebpf running environment
           mount -t debugfs none /sys/kernel/debug
+          bash utils/ffmpeg/install-ffmpeg-v6.0.sh
       - name: Build plugins using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
         run: |
+          update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100
+          update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-strip-15 100
           testbin_array=(${test_bins})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options}
+          export PKG_CONFIG_PATH=$(pwd)/FFmpeg-n6.0/output/lib/pkgconfig
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options}
           for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
             echo "Building ${testbin_array[$i]} :"
@@ -228,6 +292,7 @@ jobs:
       - name: Test plugins
         shell: bash
         run: |
+          export LD_LIBRARY_PATH=$(pwd)/FFmpeg-n6.0/output/lib:$LD_LIBRARY_PATH 
           plugin_array=(${tar_names})
           testbin_array=(${test_bins})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
@@ -293,144 +358,24 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_zlib-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasmedge_zlib.tar.gz
+      - name: Upload artifact - wasmedge_ffmpeg
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          path: plugin_wasmedge_ffmpeg.tar.gz
 
-  # Due to the dependencies and exclusions of WASI-NN, build them saperately.
-  build_wasinn_manylinux:
-    name: WASI-NN (manylinux, g++, Release)
+  build_manylinux:
+    permissions:
+      contents: write
+    name: manylinux, g++, Release
     needs: get_version
     uses: ./.github/workflows/reusable-build-extensions.yml
     with:
       version: ${{ needs.get_version.outputs.version }}
 
-  build_manylinux:
-    strategy:
-      matrix:
-        include:
-          - name: Plugins_x86_64
-            host_runner: ubuntu-latest
-            docker_tag: manylinux2014_x86_64-plugins-deps
-            build_type: Release
-          - name: Plugins_aarch64
-            host_runner: linux-arm64
-            docker_tag: manylinux2014_aarch64-plugins-deps
-            build_type: Release
-    name: Plugins (${{ matrix.docker_tag }}, g++, ${{ matrix.build_type }})
-    runs-on: ${{ matrix.host_runner }}
-    env:
-      output_prefix: build/plugins
-      test_prefix: build/test/plugins
-      build_options_all_platforms: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON
-      build_options_manylinux2014_x86_64: -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF=OFF
-      build_options_manylinux2014_aarch64:
-      tar_names_all_platforms: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasmedge_zlib
-      tar_names_manylinux2014_x86_64: wasm_bpf
-      tar_names_manylinux2014_aarch64:
-      test_bins_all_platforms: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests wasmedgeZlibTests
-      test_bins_manylinux2014_x86_64: wasmBpfTests
-      test_bins_manylinux2014_aarch64:
-      output_bins_all_platforms: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasmEdgeZlib.so
-      output_bins_manylinux2014_x86_64: libwasmedgePluginWasmBpf.so
-      output_bins_manylinux2014_aarch64:
-    needs: [get_version]
-    container:
-      image: wasmedge/wasmedge:${{ matrix.docker_tag }}
-      # Required for mounting debugfs
-      # Tests of wasm_bpf also require privileges
-      options: --privileged
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Build and install dependencies
-        run: |
-          yum update -y
-          yum install -y zlib-devel zlib-static cmake curl
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
-          bash ./utils/wasi-crypto/build-openssl.sh
-          # Running tests of wasm_bpf requires proper ebpf running environment
-          mount -t debugfs none /sys/kernel/debug
-      - name: Build and test plugins using g++ with ${{ matrix.build_type }} mode
-        shell: bash
-        run: |
-          source "$HOME/.cargo/env"
-          testbin_array=(${test_bins_all_platforms} ${test_bins_${{ matrix.docker_tag }}})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options_all_platforms} ${build_options_${{ matrix.docker_tag }}} -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
-          for (( i=0; i<${#testbin_array[@]}; i++ ));
-          do
-            echo "Building ${testbin_array[$i]} :"
-            cmake --build build --target ${testbin_array[$i]}
-          done
-      - name: Test plugins
-        shell: bash
-        run: |
-          plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.docker_tag }}})
-          testbin_array=(${test_bins_all_platforms} ${test_bins_${{ matrix.docker_tag }}})
-          for (( i=0; i<${#plugin_array[@]}; i++ ));
-          do
-            echo "Testing ${plugin_array[$i]} :"
-            cd ${test_prefix}/${plugin_array[$i]}
-            ./${testbin_array[$i]}
-            cd -
-          done
-      - name: Prepare the WasmEdge plugins tar.gz package
-        shell: bash
-        run: |
-          plugin_array=(${tar_names_all_platforms} ${tar_names_${{ matrix.docker_tag }}})
-          outbin_array=(${output_bins_all_platforms} ${output_bins_${{ matrix.docker_tag }}})
-          for (( i=0; i<${#plugin_array[@]}; i++ ));
-          do
-            echo "Copying ${plugin_array[$i]} :"
-            cp ${output_prefix}/${plugin_array[$i]}/${outbin_array[$i]} ${outbin_array[$i]}
-            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${outbin_array[$i]}
-          done
-      - name: Upload artifact - wasi_crypto
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_crypto-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasi_crypto.tar.gz
-      - name: Upload artifact - wasi_logging
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasi_logging.tar.gz
-      - name: Upload artifact - wasmedge_process
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasmedge_process-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasmedge_process.tar.gz
-      - name: Upload artifact - wasmedge_tensorflow
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasmedge_tensorflow-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasmedge_tensorflow.tar.gz
-      - name: Upload artifact - wasmedge_tensorflowlite
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasmedge_tensorflowlite-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasmedge_tensorflowlite.tar.gz
-      - name: Upload artifact - wasmedge_image
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasmedge_image-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasmedge_image.tar.gz
-      - name: Upload artifact - wasm_bpf
-        if: contains(matrix.docker_tag, 'manylinux2014_x86_64')
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasm_bpf-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasm_bpf.tar.gz
-      - name: Upload artifact - wasmedge_opencvmini
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasmedge_opencvmini.tar.gz
-      - name: Upload artifact - wasmedge_zlib
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasmedge_zlib-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          path: plugin_wasmedge_zlib.tar.gz
-
   build_macos:
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
@@ -441,7 +386,7 @@ jobs:
             build_type: Release
             arch: x86_64
           - name: Plugins_MacOS_arm64
-            system: MacOS 13 (arm64)
+            system: MacOS 14 (arm64)
             host_runner: macos-14
             darwin_version: darwin_22
             build_type: Release
@@ -451,28 +396,29 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON
-      tar_names: wasi_crypto wasi_logging wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini
-      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests
-      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib
-    needs: [get_version]
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_FFMPEG=ON
+      tar_names: wasi_crypto wasi_logging wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasmedge_ffmpeg
+      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests wasmedgeFFmpegTests
+      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib libwasmedgePluginWasmEdgeFFmpeg.dylib
+    needs: [ get_version ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Build and install dependencies
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm@16 ninja cmake openssl opencv rust
+          brew install llvm@16 ninja cmake openssl opencv rust ffmpeg@6
       - name: Build WasmEdge plugins using clang++ with ${{ matrix.build_type }} mode
         shell: bash
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
           testbin_array=(${test_bins})
+          export PKG_CONFIG_PATH="$(brew --prefix)/opt/ffmpeg@6/lib/pkgconfig:$PKG_CONFIG_PATH"
           export LLVM_DIR="$(brew --prefix)/opt/llvm@16/lib/cmake"
           export CC=clang
           export CXX=clang++
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options} -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF ${build_options} -DOPENSSL_ROOT_DIR=$(brew --prefix)/opt/openssl
           for (( i=0; i<${#testbin_array[@]}; i++ ));
           do
             echo "Building ${testbin_array[$i]} :"
@@ -537,3 +483,8 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasmedge_opencvmini.tar.gz
+      - name: Upload artifact - wasmedge_ffmpeg
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
+          path: plugin_wasmedge_ffmpeg.tar.gz

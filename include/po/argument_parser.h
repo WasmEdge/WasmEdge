@@ -140,8 +140,6 @@ private:
       const ArgumentDescriptor &CurrentDesc = ArgumentDescriptors[Iter->second];
       if (CurrentDesc.max_nargs() == 0) {
         return false;
-        CurrentDesc.default_value();
-        return true;
       }
 
       CurrentDesc.raw_value(Value);

@@ -3,7 +3,7 @@
 
 #include "host/wasi/vinode.h"
 #include "common/errcode.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "host/wasi/environ.h"
 #include "host/wasi/vfs.h"
 #include <algorithm>
@@ -106,7 +106,7 @@ WasiExpect<std::shared_ptr<VINode>> VINode::bind(__wasi_rights_t FRB,
 WasiExpect<void> VINode::pathCreateDirectory(std::shared_ptr<VINode> Fd,
                                              std::string_view Path) {
   std::vector<char> Buffer;
-  if (auto Res = resolvePath(Fd, Path); unlikely(!Res)) {
+  if (auto Res = resolvePath(Fd, Path, false); unlikely(!Res)) {
     return WasiUnexpect(Res);
   } else if (!Fd->can(__WASI_RIGHTS_PATH_CREATE_DIRECTORY)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);

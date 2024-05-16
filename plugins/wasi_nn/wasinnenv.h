@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "common/log.h"
+#include "common/spdlog.h"
 #include "plugin/plugin.h"
 #include <cstdint>
 #include <functional>
@@ -168,6 +168,17 @@ struct WasiNNEnvironment :
     return false;
   }
 
+  void mdRemoveById(uint32_t GraphId) noexcept {
+    std::unique_lock Lock(MdMutex);
+    for (auto It = MdMap.begin(); It != MdMap.end();) {
+      if (It->second == static_cast<uint32_t>(GraphId)) {
+        It = MdMap.erase(It);
+      } else {
+        ++It;
+      }
+    }
+  }
+
   Expect<WASINN::ErrNo>
   mdBuild(std::string Name, uint32_t &GraphId, Callback Load,
           std::vector<uint8_t> Config = std::vector<uint8_t>()) noexcept {
@@ -206,7 +217,6 @@ struct WasiNNEnvironment :
   static PO::Option<std::string> NNRPCURI; // For RPC client mode
   std::shared_ptr<grpc::Channel> NNRPCChannel;
 #endif
-  static Plugin::PluginRegister Register;
 };
 
 } // namespace WASINN

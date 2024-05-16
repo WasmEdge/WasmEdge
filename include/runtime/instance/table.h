@@ -17,7 +17,7 @@
 #include "ast/type.h"
 #include "common/errcode.h"
 #include "common/errinfo.h"
-#include "common/log.h"
+#include "common/spdlog.h"
 
 #include <algorithm>
 #include <cstdint>

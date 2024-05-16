@@ -19,12 +19,16 @@ PO::Option<std::string>
     WasmEdgePluginTestEnv::CmdName(PO::Description("Test for input name."sv),
                                    PO::DefaultValue(std::string("")));
 
+PO::Option<PO::Toggle>
+    WasmEdgePluginTestEnv::CmdOpt(PO::Description("Test for option."sv));
+
 namespace {
 
 void addOptions(const Plugin::Plugin::PluginDescriptor *,
                 PO::ArgumentParser &Parser) noexcept {
   Parser.add_option("arg"sv, WasmEdgePluginTestEnv::CmdArgs)
-      .add_option("name"sv, WasmEdgePluginTestEnv::CmdName);
+      .add_option("name"sv, WasmEdgePluginTestEnv::CmdName)
+      .add_option("opt"sv, WasmEdgePluginTestEnv::CmdOpt);
 }
 
 Runtime::Instance::ModuleInstance *
@@ -32,26 +36,26 @@ create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
   return new WasmEdgePluginTestModule;
 }
 
-Plugin::Plugin::PluginDescriptor Descriptor{
-    .Name = "wasmedge_plugintest_cpp",
-    .Description = "",
-    .APIVersion = Plugin::Plugin::CurrentAPIVersion,
-    .Version = {0, 10, 0, 0},
-    .ModuleCount = 1,
-    .ModuleDescriptions =
-        (Plugin::PluginModule::ModuleDescriptor[]){
-            {
-                .Name = "wasmedge_plugintest_cpp_module",
-                .Description = "This is for the plugin tests in WasmEdge.",
-                .Create = create,
-            },
-        },
-    .AddOptions = addOptions,
+static Plugin::PluginModule::ModuleDescriptor MD[]{
+    {
+        /* Name */ "wasmedge_plugintest_cpp_module",
+        /* Description */ "This is for the plugin tests in WasmEdge.",
+        /* Create */ create,
+    },
 };
 
+Plugin::Plugin::PluginDescriptor Descriptor{
+    /* Name */ "wasmedge_plugintest_cpp",
+    /* Description */ "",
+    /* APIVersion */ Plugin::Plugin::CurrentAPIVersion,
+    /* Version */ {0, 10, 0, 0},
+    /* ModuleCount */ 1,
+    /* ModuleDescriptions */ MD,
+    /* AddOptions */ addOptions,
+};
+
+EXPORT_GET_DESCRIPTOR(Descriptor)
+
 } // namespace
-
-Plugin::PluginRegister WasmEdgePluginTestEnv::Register(&Descriptor);
-
 } // namespace Host
 } // namespace WasmEdge

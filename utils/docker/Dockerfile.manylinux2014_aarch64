@@ -5,7 +5,7 @@ FROM quay.io/pypa/manylinux2014_aarch64
 
 MAINTAINER hydai hydai@secondstate.io
 
-ADD SHA256SUM /root/
+ADD SHA256SUM.manylinux2014 /root/
 
 ENV PATH /opt/rh/devtoolset-10/root/usr/bin${PATH:+:${PATH}}
 ENV MANPATH /opt/rh/devtoolset-10/root/usr/share/man${MANPATH:+:${MANPATH}}
@@ -27,7 +27,7 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
         https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.5/cmake-16.0.5.src.tar.xz \
         https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.5/third-party-16.0.5.src.tar.xz \
         https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.5/clang-16.0.5.src.tar.xz && \
-    sha256sum -c SHA256SUM && \
+    sha256sum -c SHA256SUM.manylinux2014 && \
     gzip -dc zstd-1.5.5.tar.gz | tar -xf - && \
     gzip -dc cmake-3.26.4.tar.gz | tar -xf - && \
     gzip -dc v1.11.1.tar.gz | tar -xf - && \

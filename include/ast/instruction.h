@@ -32,6 +32,32 @@ public:
     uint32_t StackEraseEnd;
     int32_t PCOffset;
   };
+  struct BrCastDescriptor {
+    struct JumpDescriptor Jump;
+    ValType RType1, RType2;
+  };
+  struct CatchDescriptor {
+    // LEGACY-EH: remove this flag after deprecating legacy EH.
+    bool IsLegacy : 1;
+    bool IsAll : 1;
+    bool IsRef : 1;
+    uint32_t TagIndex;
+    uint32_t LabelIndex;
+    struct JumpDescriptor Jump;
+  };
+  struct TryDescriptor {
+    BlockType ResType;
+    uint32_t BlockParamNum;
+    uint32_t JumpEnd;
+    std::vector<CatchDescriptor> Catch;
+  };
+  // LEGACY-EH: remove this struct after deprecating legacy EH.
+  struct CatchDescriptorLegacy {
+    uint32_t TagIndex;
+    uint32_t LabelIndex;
+    uint32_t CatchIndex;
+    uint32_t CatchPCOffset;
+  };
 
 public:
   /// Constructor assigns the OpCode and the Offset.
@@ -46,10 +72,12 @@ public:
 #endif
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
+    Flags.IsAllocBrCast = false;
+    Flags.IsAllocTryCatch = false;
   }
 
   /// Copy constructor.
-  Instruction(const Instruction &Instr)
+  Instruction(const Instruction &Instr) noexcept
       : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
         Flags(Instr.Flags) {
     if (Flags.IsAllocLabelList) {
@@ -60,15 +88,21 @@ public:
       Data.SelectT.ValTypeList = new ValType[Data.SelectT.ValTypeListSize];
       std::copy_n(Instr.Data.SelectT.ValTypeList, Data.SelectT.ValTypeListSize,
                   Data.SelectT.ValTypeList);
+    } else if (Flags.IsAllocBrCast) {
+      Data.BrCast = new BrCastDescriptor(*Instr.Data.BrCast);
+    } else if (Flags.IsAllocTryCatch) {
+      Data.TryCatch = new TryDescriptor(*Instr.Data.TryCatch);
     }
   }
 
   /// Move constructor.
-  Instruction(Instruction &&Instr)
+  Instruction(Instruction &&Instr) noexcept
       : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
         Flags(Instr.Flags) {
     Instr.Flags.IsAllocLabelList = false;
     Instr.Flags.IsAllocValTypeList = false;
+    Instr.Flags.IsAllocBrCast = false;
+    Instr.Flags.IsAllocTryCatch = false;
   }
 
   /// Destructor.
@@ -91,11 +125,7 @@ public:
 
   /// Getter and setter of block type.
   const BlockType &getBlockType() const noexcept { return Data.Blocks.ResType; }
-  void setBlockType(const ValType &VType) noexcept {
-    Data.Blocks.ResType.setData(VType);
-  }
-  void setBlockType(uint32_t Idx) noexcept { Data.Blocks.ResType.setData(Idx); }
-  void setEmptyBlockType() noexcept { Data.Blocks.ResType.setEmpty(); }
+  BlockType &getBlockType() noexcept { return Data.Blocks.ResType; }
 
   /// Getter and setter of jump count to End instruction.
   uint32_t getJumpEnd() const noexcept { return Data.Blocks.JumpEnd; }
@@ -129,9 +159,26 @@ public:
         Flags.IsAllocLabelList ? Data.BrTable.LabelListSize : 0);
   }
 
-  /// Getter and setter of IsLast for End instruction.
-  bool isLast() const noexcept { return Data.IsLast; }
-  void setLast(bool Last = true) noexcept { Data.IsLast = Last; }
+  /// Getter and setter of expression end for End instruction.
+  bool isExprLast() const noexcept { return Data.EndFlags.IsExprLast; }
+  void setExprLast(bool Last = true) noexcept {
+    Data.EndFlags.IsExprLast = Last;
+  }
+
+  /// Getter and setter of try block end for End instruction.
+  bool isTryBlockLast() const noexcept { return Data.EndFlags.IsTryBlockLast; }
+  void setTryBlockLast(bool Last = true) noexcept {
+    Data.EndFlags.IsTryBlockLast = Last;
+  }
+
+  // LEGACY-EH: remove these functions after deprecating legacy EH.
+  /// Getter and setter of try block end for End instruction.
+  bool isLegacyTryBlockLast() const noexcept {
+    return Data.EndFlags.IsLegacyTryBlockLast;
+  }
+  void setLegacyTryBlockLast(bool Last = true) noexcept {
+    Data.EndFlags.IsLegacyTryBlockLast = Last;
+  }
 
   /// Getter and setter of Jump for Br* instruction.
   const JumpDescriptor &getJump() const noexcept { return Data.Jump; }
@@ -179,6 +226,13 @@ public:
   uint8_t getMemoryLane() const noexcept { return Data.Memories.MemLane; }
   uint8_t &getMemoryLane() noexcept { return Data.Memories.MemLane; }
 
+  // LEGACY-EH: remove these functions after deprecating legacy EH.
+  /// Getter and setter of legacy Catch for Catch* instructions.
+  const CatchDescriptorLegacy &getCatchLegacy() const noexcept {
+    return Data.CatchLegacy;
+  }
+  CatchDescriptorLegacy &getCatchLegacy() noexcept { return Data.CatchLegacy; }
+
   /// Getter and setter of the constant value.
   ValVariant getNum() const noexcept {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
@@ -198,18 +252,43 @@ public:
 #endif
   }
 
+  /// Getter and setter of BrCast info for Br_cast instructions.
+  void setBrCast(uint32_t LabelIdx) {
+    reset();
+    Data.BrCast = new BrCastDescriptor();
+    Data.BrCast->Jump.TargetIndex = LabelIdx;
+    Flags.IsAllocBrCast = true;
+  }
+  const BrCastDescriptor &getBrCast() const noexcept { return *Data.BrCast; }
+  BrCastDescriptor &getBrCast() noexcept { return *Data.BrCast; }
+
+  /// Getter and setter of try block info for try_table instruction.
+  void setTryCatch() {
+    reset();
+    Data.TryCatch = new TryDescriptor();
+    Flags.IsAllocTryCatch = true;
+  }
+  const TryDescriptor &getTryCatch() const noexcept { return *Data.TryCatch; }
+  TryDescriptor &getTryCatch() noexcept { return *Data.TryCatch; }
+
 private:
   /// Release allocated resources.
-  void reset() {
+  void reset() noexcept {
     if (Flags.IsAllocLabelList) {
       Data.BrTable.LabelListSize = 0;
       delete[] Data.BrTable.LabelList;
     } else if (Flags.IsAllocValTypeList) {
       Data.SelectT.ValTypeListSize = 0;
       delete[] Data.SelectT.ValTypeList;
+    } else if (Flags.IsAllocBrCast) {
+      delete Data.BrCast;
+    } else if (Flags.IsAllocTryCatch) {
+      delete Data.TryCatch;
     }
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
+    Flags.IsAllocBrCast = false;
+    Flags.IsAllocTryCatch = false;
   }
 
   /// Swap function.
@@ -266,14 +345,28 @@ private:
       uint64_t High;
     } Num;
 #endif
-    // Type 9: IsLast.
-    bool IsLast;
+    // Type 9: End flags.
+    struct {
+      bool IsExprLast : 1;
+      bool IsTryBlockLast : 1;
+      // LEGACY-EH: remove this flag after deprecating legacy EH.
+      bool IsLegacyTryBlockLast : 1;
+    } EndFlags;
+    // Type 10: TypeCastBranch.
+    BrCastDescriptor *BrCast;
+    // Type 11: Try Block.
+    TryDescriptor *TryCatch;
+    // LEGACY-EH: remove this case after deprecating legacy EH.
+    // Type 12: Legacy Catch descriptor.
+    CatchDescriptorLegacy CatchLegacy;
   } Data;
   uint32_t Offset = 0;
   OpCode Code = OpCode::End;
   struct {
     bool IsAllocLabelList : 1;
     bool IsAllocValTypeList : 1;
+    bool IsAllocBrCast : 1;
+    bool IsAllocTryCatch : 1;
   } Flags;
   /// @}
 };

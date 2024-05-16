@@ -9,6 +9,9 @@ on:
       release:
         type: boolean
 
+permissions:
+  contents: read
+
 jobs:
   create_source_tarball:
     permissions:
@@ -16,7 +19,7 @@ jobs:
     name: Create source tarball
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Ensure git safe directory

@@ -30,7 +30,8 @@ class CallingFrame;
 class HostFunctionBase {
 public:
   HostFunctionBase() = delete;
-  HostFunctionBase(const uint64_t FuncCost) : Cost(FuncCost) {}
+  HostFunctionBase(const uint64_t FuncCost)
+      : DefType(AST::FunctionType()), Cost(FuncCost) {}
   virtual ~HostFunctionBase() = default;
 
   /// Run host function body.
@@ -39,13 +40,18 @@ public:
                            Span<ValVariant> Rets) = 0;
 
   /// Getter of function type.
-  const AST::FunctionType &getFuncType() const { return FuncType; }
+  const AST::FunctionType &getFuncType() const noexcept {
+    return DefType.getCompositeType().getFuncType();
+  }
 
   /// Getter of host function cost.
   uint64_t getCost() const { return Cost; }
 
+  /// Getter of defined type.
+  const AST::SubType &getDefinedType() const noexcept { return DefType; }
+
 protected:
-  AST::FunctionType FuncType;
+  AST::SubType DefType;
   const uint64_t Cost;
 };
 
@@ -93,6 +99,7 @@ protected:
   }
 
   void initializeFuncType() {
+    auto &FuncType = DefType.getCompositeType().getFuncType();
     using F = FuncTraits<decltype(&T::body)>;
     using ArgsT = typename F::ArgsT;
     FuncType.getParamTypes().reserve(F::ArgsN);
@@ -145,6 +152,7 @@ private:
 
   template <typename Tuple, std::size_t... Indices>
   void pushValType(std::index_sequence<Indices...>) {
+    auto &FuncType = DefType.getCompositeType().getFuncType();
     (FuncType.getParamTypes().push_back(
          ValTypeFromType<std::tuple_element_t<Indices, Tuple>>()),
      ...);
@@ -152,6 +160,7 @@ private:
 
   template <typename Tuple, std::size_t... Indices>
   void pushRetType(std::index_sequence<Indices...>) {
+    auto &FuncType = DefType.getCompositeType().getFuncType();
     (FuncType.getReturnTypes().push_back(
          ValTypeFromType<std::tuple_element_t<Indices, Tuple>>()),
      ...);

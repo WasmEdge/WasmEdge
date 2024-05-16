@@ -6,6 +6,7 @@
 #include "common/errinfo.h"
 
 #include <cstdint>
+#include <numeric>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -14,14 +15,20 @@ namespace WasmEdge {
 namespace Validator {
 
 Expect<void> Validator::validate(const AST::Component::Component &Comp) {
+  using namespace AST::Component;
+
   spdlog::warn("component validation is not done yet.");
 
-  for (auto &Mod : Comp.getCoreModuleSection().getContent()) {
-    validate(Mod);
-  }
-  for (const std::shared_ptr<AST::Component::Component> &C :
-       Comp.getComponentSection().getContent()) {
-    validate(*C);
+  for (auto &Sec : Comp.getSections()) {
+    if (std::holds_alternative<AST::CoreModuleSection>(Sec)) {
+      auto &Mod = std::get<AST::CoreModuleSection>(Sec).getContent();
+      validate(Mod);
+    } else if (std::holds_alternative<ComponentSection>(Sec)) {
+      auto &C = std::get<ComponentSection>(Sec).getContent();
+      validate(C);
+    } else {
+      // TODO: validate others section
+    }
   }
 
   return {};
@@ -70,6 +77,13 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   // Validate global section and register globals into FormChecker.
   if (auto Res = validate(Mod.getGlobalSection()); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Global));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return Unexpect(Res);
+  }
+
+  // Validate tag section and register tags into FormChecker.
+  if (auto Res = validate(Mod.getTagSection()); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Tag));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
@@ -128,6 +142,64 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
 
   // Set the validated flag.
   const_cast<AST::Module &>(Mod).setIsValidated();
+  return {};
+}
+
+// Validate Sub type. See "include/validator/validator.h".
+Expect<void> Validator::validate(const AST::SubType &Type) {
+  const auto &TypeVec = Checker.getTypes();
+  const auto &CompType = Type.getCompositeType();
+
+  // Check the validation of the composite type.
+  if (CompType.isFunc()) {
+    const auto &FType = CompType.getFuncType();
+    for (auto &PType : FType.getParamTypes()) {
+      if (auto Res = Checker.validate(PType); !Res) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Function));
+        return Unexpect(Res);
+      }
+    }
+    for (auto &RType : FType.getReturnTypes()) {
+      if (auto Res = Checker.validate(RType); !Res) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Function));
+        return Unexpect(Res);
+      }
+    }
+  } else {
+    const auto &FTypes = CompType.getFieldTypes();
+    for (auto &FieldType : FTypes) {
+      if (auto Res = Checker.validate(FieldType.getStorageType()); !Res) {
+        return Unexpect(Res);
+      }
+    }
+  }
+
+  // In current version, the length of type index vector will be <= 1.
+  if (Type.getSuperTypeIndices().size() > 1) {
+    spdlog::error(ErrCode::Value::InvalidSubType);
+    spdlog::error("    Accepts 1 super type currently.");
+    return Unexpect(ErrCode::Value::InvalidSubType);
+  }
+  for (auto Index : Type.getSuperTypeIndices()) {
+    if (Index >= TypeVec.size()) {
+      spdlog::error(ErrCode::Value::InvalidSubType);
+      spdlog::error(
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::DefinedType, Index,
+                                   static_cast<uint32_t>(TypeVec.size())));
+      return Unexpect(ErrCode::Value::InvalidSubType);
+    }
+    if (TypeVec[Index]->isFinal()) {
+      spdlog::error(ErrCode::Value::InvalidSubType);
+      spdlog::error("    Super type should not be final.");
+      return Unexpect(ErrCode::Value::InvalidSubType);
+    }
+    auto &SuperType = TypeVec[Index]->getCompositeType();
+    if (!AST::TypeMatcher::matchType(Checker.getTypes(), SuperType, CompType)) {
+      spdlog::error(ErrCode::Value::InvalidSubType);
+      spdlog::error("    Super type not matched.");
+      return Unexpect(ErrCode::Value::InvalidSubType);
+    }
+  }
   return {};
 }
 
@@ -257,7 +329,7 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
           static_cast<uint32_t>(TableVec.size())));
       return Unexpect(ErrCode::Value::InvalidTableIdx);
     }
-    // TODO: Use Checker.matchType() to match types instead.
+    // TODO: Use AST::TypeMatcher::matchType() to match types instead.
     // For the element segments, the RefType may not record the strict type
     // index, and should check the init exprs for the real type index to do type
     // matching. But for the table type, the type index is recorded into the
@@ -285,12 +357,16 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
 // Validate Code segment. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
                                  const uint32_t TypeIdx) {
+  // Due to the validation of the function section, the type of index bust be a
+  // function type.
+  const auto &FuncType =
+      Checker.getTypes()[TypeIdx]->getCompositeType().getFuncType();
   // Reset stack in FormChecker.
   Checker.reset();
   // Add parameters into this frame.
-  for (auto Val : Checker.getTypes()[TypeIdx].first) {
-    // Local passed as function parameters should be initialized
-    Checker.addLocal(Val, true);
+  for (auto &Type : FuncType.getParamTypes()) {
+    // Local passed as function parameters should be initialized.
+    Checker.addLocal(Type, true);
   }
   // Add locals into this frame.
   for (auto Val : CodeSeg.getLocals()) {
@@ -304,7 +380,7 @@ Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
   }
   // Validate function body expression.
   if (auto Res = Checker.validate(CodeSeg.getExpr().getInstrs(),
-                                  Checker.getTypes()[TypeIdx].second);
+                                  FuncType.getReturnTypes());
       !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
     return Unexpect(Res);
@@ -342,12 +418,17 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
   // loader phase.
   case ExternalType::Function: {
     const auto TId = ImpDesc.getExternalFuncTypeIdx();
-    // Function type index must exist in context.
+    // Function type index must exist in context and be valid.
     if (TId >= Checker.getTypes().size()) {
       spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
       spdlog::error(ErrInfo::InfoForbidIndex(
           ErrInfo::IndexCategory::FunctionType, TId,
           static_cast<uint32_t>(Checker.getTypes().size())));
+      return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+    }
+    if (!Checker.getTypes()[TId]->getCompositeType().isFunc()) {
+      spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
+      spdlog::error("    Defined type index {} is not a function type.", TId);
       return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
     }
     Checker.addRef(static_cast<uint32_t>(Checker.getFunctions().size()));
@@ -372,6 +453,20 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
       return Unexpect(Res);
     }
     Checker.addMemory(MemType);
+    return {};
+  }
+  case ExternalType::Tag: {
+    const auto &T = ImpDesc.getExternalTagType();
+    // Tag type index must exist in context.
+    auto TagTypeIdx = T.getTypeIdx();
+    if (TagTypeIdx >= Checker.getTypes().size()) {
+      spdlog::error(ErrCode::Value::InvalidTagIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::TagType, TagTypeIdx,
+          static_cast<uint32_t>(Checker.getTypes().size())));
+      return Unexpect(ErrCode::Value::InvalidTagIdx);
+    }
+    Checker.addTag(TagTypeIdx);
     return {};
   }
   case ExternalType::Global: {
@@ -421,6 +516,15 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
       return Unexpect(ErrCode::Value::InvalidMemoryIdx);
     }
     return {};
+  case ExternalType::Tag:
+    if (Id >= Checker.getTags().size()) {
+      spdlog::error(ErrCode::Value::InvalidTagIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Tag, Id,
+          static_cast<uint32_t>(Checker.getTags().size())));
+      return Unexpect(ErrCode::Value::InvalidTagIdx);
+    }
+    return {};
   case ExternalType::Global:
     if (Id >= Checker.getGlobals().size()) {
       spdlog::error(ErrCode::Value::InvalidGlobalIdx);
@@ -437,18 +541,41 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
 }
 
 Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
-  for (const auto &Type : TypeSec.getContent()) {
-    for (auto &PType : Type.getParamTypes()) {
-      if (auto Res = Checker.validate(PType); !Res) {
-        return Unexpect(Res);
+  const auto STypeList = TypeSec.getContent();
+  uint32_t Idx = 0;
+  while (Idx < STypeList.size()) {
+    const auto &SType = STypeList[Idx];
+    if (SType.getRecursiveInfo().has_value()) {
+      // Recursive type case. Add types first for referring recursively.
+      uint32_t RecSize = SType.getRecursiveInfo()->RecTypeSize;
+      for (uint32_t I = Idx; I < Idx + RecSize; I++) {
+        Checker.addType(STypeList[I]);
       }
-    }
-    for (auto &RType : Type.getReturnTypes()) {
-      if (auto Res = Checker.validate(RType); !Res) {
-        return Unexpect(Res);
+      for (uint32_t I = Idx; I < Idx + RecSize; I++) {
+        if (auto Res = validate(STypeList[I]); !Res) {
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Rec));
+          return Unexpect(Res);
+        }
       }
+      Idx += RecSize;
+    } else {
+      // SubType case.
+      if (Conf.hasProposal(Proposal::GC)) {
+        // For the GC proposal, the subtype is seemed as a self-recursive type.
+        // Add types first for referring recursively.
+        Checker.addType(SType);
+        if (auto Res = validate(*Checker.getTypes().back()); !Res) {
+          return Unexpect(Res);
+        }
+      } else {
+        // Validating first.
+        if (auto Res = validate(SType); !Res) {
+          return Unexpect(Res);
+        }
+        Checker.addType(SType);
+      }
+      Idx++;
     }
-    Checker.addType(Type);
   }
   return {};
 }
@@ -476,6 +603,11 @@ Expect<void> Validator::validate(const AST::FunctionSection &FuncSec) {
       spdlog::error(
           ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::FunctionType, TId,
                                    static_cast<uint32_t>(TypeVec.size())));
+      return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+    }
+    if (!TypeVec[TId]->getCompositeType().isFunc()) {
+      spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
+      spdlog::error("    Defined type index {} is not a function type.", TId);
       return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
     }
     Checker.addFunc(TId);
@@ -584,18 +716,18 @@ Expect<void> Validator::validate(const AST::StartSection &StartSec) {
       return Unexpect(ErrCode::Value::InvalidFuncIdx);
     }
     auto TId = Checker.getFunctions()[FId];
-    auto &Type = Checker.getTypes()[TId];
-    if (Type.first.size() != 0 || Type.second.size() != 0) {
-      // Start function signature should be {}->{}
-      std::vector<ValType> Params, Returns;
-      for (auto &V : Type.first) {
-        Params.push_back(Checker.VTypeToAST(V));
-      }
-      for (auto &V : Type.second) {
-        Returns.push_back(Checker.VTypeToAST(V));
-      }
+    assuming(TId < Checker.getTypes().size());
+    if (!Checker.getTypes()[TId]->getCompositeType().isFunc()) {
       spdlog::error(ErrCode::Value::InvalidStartFunc);
-      spdlog::error(ErrInfo::InfoMismatch({}, {}, Params, Returns));
+      spdlog::error("    Defined type index {} is not a function type.", TId);
+      return Unexpect(ErrCode::Value::InvalidStartFunc);
+    }
+    auto &Type = Checker.getTypes()[TId]->getCompositeType().getFuncType();
+    if (Type.getParamTypes().size() != 0 || Type.getReturnTypes().size() != 0) {
+      // Start function signature should be {}->{}
+      spdlog::error(ErrCode::Value::InvalidStartFunc);
+      spdlog::error(ErrInfo::InfoMismatch({}, {}, Type.getParamTypes(),
+                                          Type.getReturnTypes()));
       return Unexpect(ErrCode::Value::InvalidStartFunc);
     }
   }
@@ -621,6 +753,37 @@ Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
   return {};
 }
 
+// Validate Tag section. See "include/validator/validator.h".
+Expect<void> Validator::validate(const AST::TagSection &TagSec) {
+  const auto &TagVec = TagSec.getContent();
+  const auto &TypeVec = Checker.getTypes();
+
+  // Check if type id of tag is valid in context.
+  for (auto &TagType : TagVec) {
+    auto TagTypeIdx = TagType.getTypeIdx();
+    if (TagTypeIdx >= TypeVec.size()) {
+      spdlog::error(ErrCode::Value::InvalidTagIdx);
+      spdlog::error(
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::TagType, TagTypeIdx,
+                                   static_cast<uint32_t>(TypeVec.size())));
+      return Unexpect(ErrCode::Value::InvalidTagIdx);
+    }
+    auto &CompType = TypeVec[TagTypeIdx]->getCompositeType();
+    if (!CompType.isFunc()) {
+      spdlog::error(ErrCode::Value::InvalidTagIdx);
+      spdlog::error("    Defined type index {} is not a function type.",
+                    TagTypeIdx);
+      return Unexpect(ErrCode::Value::InvalidTagIdx);
+    }
+    if (!CompType.getFuncType().getReturnTypes().empty()) {
+      spdlog::error(ErrCode::Value::InvalidTagResultType);
+      return Unexpect(ErrCode::Value::InvalidTagResultType);
+    }
+    Checker.addTag(TagTypeIdx);
+  }
+  return {};
+}
+
 // Validate constant expression. See "include/validator/validator.h".
 Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
                                           Span<const ValType> Returns) {
@@ -630,11 +793,14 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
     case OpCode::Global__get: {
       // For initialization case, global indices must be imported globals.
       auto GlobIdx = Instr.getTargetIndex();
-      if (GlobIdx >= Checker.getNumImportGlobals()) {
+      uint32_t ValidGlobalSize = Checker.getNumImportGlobals();
+      if (Conf.hasProposal(Proposal::GC)) {
+        ValidGlobalSize = static_cast<uint32_t>(Checker.getGlobals().size());
+      }
+      if (GlobIdx >= ValidGlobalSize) {
         spdlog::error(ErrCode::Value::InvalidGlobalIdx);
-        spdlog::error(ErrInfo::InfoForbidIndex(
-            ErrInfo::IndexCategory::Global, GlobIdx,
-            static_cast<uint32_t>(Checker.getNumImportGlobals())));
+        spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Global,
+                                               GlobIdx, ValidGlobalSize));
         spdlog::error(
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return Unexpect(ErrCode::Value::InvalidGlobalIdx);
@@ -670,6 +836,14 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
     case OpCode::Ref__null:
     case OpCode::V128__const:
     case OpCode::End:
+    case OpCode::Struct__new:
+    case OpCode::Struct__new_default:
+    case OpCode::Array__new:
+    case OpCode::Array__new_default:
+    case OpCode::Array__new_fixed:
+    case OpCode::Any__convert_extern:
+    case OpCode::Extern__convert_any:
+    case OpCode::Ref__i31:
       break;
 
     // For the Extended-const proposal, these instructions are accepted.

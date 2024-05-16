@@ -164,6 +164,9 @@ def extract_archive(
             for filename in files_extracted:
                 fname = filename.replace(CONST_ipkg, ipath)
 
+                if "._" in filename:
+                    remove(join(to_path, filename))
+                    continue
                 # Skip if it ends with "wasmedge" as it is going to be removed at a later stage
                 if fname.endswith("wasmedge") and not fname.endswith("bin/wasmedge"):
                     continue
@@ -175,8 +178,8 @@ def extract_archive(
                     fname = fname[:-5] + "lib"
                 if fname.startswith("/usr") and "lib64" in fname:
                     fname = fname.replace("lib64", "lib", 1)
-                # ggml-metal.metal is downloaded if we download ggml plugin on macOS
-                if "Plugin" in fname or fname == "ggml-metal.metal":
+
+                if to_path.endswith("Plugins"):
                     if is_default_path(args):
                         fname = fname.replace(
                             join(ipath, CONST_lib_dir, "wasmedge/"), ""
@@ -240,9 +243,13 @@ class VersionString:
         if ignorecase:
             v = v.lower()
         return [
-            int(x)
-            if x.isdigit()
-            else [int(y) if y.isdigit() else y for y in re.findall("\d+|[a-zA-Z]+", x)]
+            (
+                int(x)
+                if x.isdigit()
+                else [
+                    int(y) if y.isdigit() else y for y in re.findall("\d+|[a-zA-Z]+", x)
+                ]
+            )
             for x in re.split(separator, v)
         ]
 
@@ -332,6 +339,7 @@ WASI_NN_PYTORCH = "wasi_nn-pytorch"
 WASI_NN_TENSORFLOW_LITE = "wasi_nn-tensorflowlite"
 WASI_NN_GGML = "wasi_nn-ggml"
 WASI_NN_GGML_CUDA = "wasi_nn-ggml-cuda"
+WASI_NN_GGML_NOAVX = "wasi_nn-ggml-noavx"
 WASI_NN_GGML_BLAS = "wasi_nn-ggml-blas"
 WASMEDGE_TENSORFLOW_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW
 WASMEDGE_TENSORFLOW_LITE_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW_LITE_P
@@ -346,6 +354,7 @@ PLUGINS_AVAILABLE = [
     WASI_NN_TENSORFLOW_LITE,
     WASI_NN_GGML,
     WASI_NN_GGML_CUDA,
+    WASI_NN_GGML_NOAVX,
     WASI_NN_GGML_BLAS,
     WASMEDGE_TENSORFLOW_PLUGIN,
     WASMEDGE_TENSORFLOW_LITE_PLUGIN,
@@ -363,6 +372,7 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.1-alpha.1"),
     "ubuntu20.04" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
     "ubuntu20.04" + "aarch64" + WASI_NN_GGML: VersionString("0.13.5"),
+    "ubuntu20.04" + "x86_64" + WASI_NN_GGML_NOAVX: VersionString("0.13.5"),
     "ubuntu20.04" + "x86_64" + WASI_NN_GGML_CUDA: VersionString("0.13.4"),
     "ubuntu20.04" + "aarch64" + WASI_NN_GGML_CUDA: VersionString("0.13.5"),
     "ubuntu20.04" + "x86_64" + WASI_NN_GGML_BLAS: VersionString("0.13.5"),
@@ -396,8 +406,10 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "darwin" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "darwin" + "arm64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
+    "manylinux2014" + "aarch64" + WASMEDGE_RUSTLS: VersionString("0.13.5"),
     "manylinux2014" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
+    "ubuntu20.04" + "aarch64" + WASMEDGE_RUSTLS: VersionString("0.13.5"),
     "ubuntu20.04" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
     "manylinux2014" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
 }
@@ -1146,11 +1158,45 @@ def install_plugins(args, compat):
 
     if len(args.plugins) >= 1:
         for plugin_name in args.plugins:
+            # Reset the url_root, due to the wasi-nn-ggml plugin with the build number will change the url
+            url_root = "https://github.com/WasmEdge/WasmEdge/releases/download/"
+            url_root += (
+                "$VERSION$/WasmEdge-plugin-$PLUGIN_NAME$-$VERSION$-$DIST$_$ARCH$.tar.gz"
+            )
             plugin_version_supplied = None
+            plugin_wasi_nn_ggml_bypass_check = False
             if plugin_name.find(":") != -1:
                 plugin_name, plugin_version_supplied = plugin_name.split(":")
 
-            if plugin_name not in PLUGINS_AVAILABLE:
+            # Split the WASI-NN-GGML plugin and the others
+            if plugin_name.startswith(WASI_NN_GGML):
+                # Re-write the plugin name if the build number is supplied
+                # E.g. wasi_nn-ggml-b2330, wasi_nn-ggml-cuda-b2330, wasi_nn-ggml-cuda-11-b2330
+                # "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/raw/main/"
+                # "$VERSION$/"
+                # "$BUILD_NUMBER$/"
+                # "WasmEdge-plugin"
+                # "-$PLUGIN_NAME$"
+                # "-$VERSION$"
+                # "-$DIST$"
+                # "_$ARCH$" # ".tar.gz"
+                # If the build number is supplied, bypass the checks
+                plugin_wasi_nn_ggml_bypass_check = True
+                if plugin_name.startswith(WASI_NN_GGML) and "-b" in plugin_name:
+                    [plugin_name, plugin_build_number] = plugin_name.split("-b")
+                    url_root = "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/raw/main/"
+                    url_root += "$VERSION$/b$BUILD_NUMBER$/WasmEdge-plugin-$PLUGIN_NAME$-$VERSION$-$DIST$_$ARCH$.tar.gz"
+                    url_root = url_root.replace("$BUILD_NUMBER$", plugin_build_number)
+
+                # Re-write the plugin name if CUDA is available
+                if plugin_name == WASI_NN_GGML and compat.cuda:
+                    plugin_name = WASI_NN_GGML_CUDA
+
+            # Normal plugin
+            if (
+                plugin_name not in PLUGINS_AVAILABLE
+                and not plugin_wasi_nn_ggml_bypass_check
+            ):
                 logging.error(
                     "%s plugin not found, available names - %s",
                     plugin_name,
@@ -1158,11 +1204,10 @@ def install_plugins(args, compat):
                 )
                 continue
 
-            # Re-write the plugin name if CUDA is available
-            if plugin_name == WASI_NN_GGML and compat.cuda:
-                plugin_name = WASI_NN_GGML_CUDA
-
-            if compat.dist + compat.machine + plugin_name not in SUPPORTTED_PLUGINS:
+            if (
+                compat.dist + compat.machine + plugin_name not in SUPPORTTED_PLUGINS
+                and not plugin_wasi_nn_ggml_bypass_check
+            ):
                 logging.error(
                     "Plugin not compatible: %s",
                     compat.dist + compat.machine + plugin_name,
@@ -1614,8 +1659,6 @@ def main(args):
         logging.info("Installing WasmEdge")
         # Copy the tree
         for sub_dir in listdir(join(TEMP_PATH, CONST_ipkg)):
-            if "._" in sub_dir:
-                continue
             if sub_dir == "lib64":
                 copytree(join(TEMP_PATH, CONST_ipkg, sub_dir), join(args.path, "lib"))
             else:

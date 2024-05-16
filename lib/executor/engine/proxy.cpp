@@ -18,11 +18,7 @@ struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StackManager &,
                                                         ArgsT...) noexcept> {
   template <Expect<RetT> (Executor::*Func)(Runtime::StackManager &,
                                            ArgsT...) noexcept>
-  static auto proxy(ArgsT... Args)
-#if !WASMEDGE_OS_WINDOWS
-      noexcept
-#endif
-  {
+  static auto proxy(ArgsT... Args) {
     Expect<RetT> Res = (This->*Func)(*CurrentStack, Args...);
     if (unlikely(!Res)) {
       Fault::emitFault(Res.error());
@@ -45,14 +41,14 @@ struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StackManager &,
 #endif
 
 // Intrinsics table
-const AST::Module::IntrinsicsTable Executor::Intrinsics = {
+const Executable::IntrinsicsTable Executor::Intrinsics = {
 #if defined(_MSC_VER) && !defined(__clang__)
 #define ENTRY(NAME, FUNC)                                                      \
   reinterpret_cast<void *>(&Executor::ProxyHelper<                             \
                            decltype(&Executor::FUNC)>::proxy<&Executor::FUNC>)
 #else
 #define ENTRY(NAME, FUNC)                                                      \
-  [uint8_t(AST::Module::Intrinsics::NAME)] = reinterpret_cast<void *>(         \
+  [uint8_t(Executable::Intrinsics::NAME)] = reinterpret_cast<void *>(          \
       &Executor::ProxyHelper<decltype(&Executor::FUNC)>::proxy<                \
           &Executor::FUNC>)
 #endif
@@ -142,15 +138,22 @@ Expect<void *> Executor::tableGetFuncSymbol(Runtime::StackManager &StackMgr,
 
   const auto *ModInst = StackMgr.getModule();
   assuming(ModInst);
-  const auto TargetFuncType = ModInst->getFuncType(FuncTypeIdx);
-  assuming(TargetFuncType && *TargetFuncType);
+  const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
-  const auto &FuncType = FuncInst->getFuncType();
-  if (!matchTypes(*ModInst, (*TargetFuncType)->getParamTypes(),
-                  *FuncInst->getModule(), FuncType.getParamTypes()) ||
-      !matchTypes(*ModInst, (*TargetFuncType)->getReturnTypes(),
-                  *FuncInst->getModule(), FuncType.getReturnTypes())) {
+  bool IsMatch = false;
+  if (FuncInst->getModule()) {
+    IsMatch = AST::TypeMatcher::matchType(
+        ModInst->getTypeList(), *ExpDefType.getTypeIndex(),
+        FuncInst->getModule()->getTypeList(), FuncInst->getTypeIndex());
+  } else {
+    // Independent host module instance case. Matching the composite type
+    // directly.
+    IsMatch = AST::TypeMatcher::matchType(
+        ModInst->getTypeList(), ExpDefType.getCompositeType(),
+        FuncInst->getHostFunc().getDefinedType().getCompositeType());
+  }
+  if (!IsMatch) {
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
@@ -180,15 +183,26 @@ Executor::callIndirect(Runtime::StackManager &StackMgr, const uint32_t TableIdx,
 
   const auto *ModInst = StackMgr.getModule();
   assuming(ModInst);
-  const auto TargetFuncType = ModInst->getFuncType(FuncTypeIdx);
-  assuming(TargetFuncType && *TargetFuncType);
+  const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
-  const auto &FuncType = FuncInst->getFuncType();
-  if (unlikely(**TargetFuncType != FuncType)) {
+  bool IsMatch = false;
+  if (FuncInst->getModule()) {
+    IsMatch = AST::TypeMatcher::matchType(
+        ModInst->getTypeList(), *ExpDefType.getTypeIndex(),
+        FuncInst->getModule()->getTypeList(), FuncInst->getTypeIndex());
+  } else {
+    // Independent host module instance case. Matching the composite type
+    // directly.
+    IsMatch = AST::TypeMatcher::matchType(
+        ModInst->getTypeList(), ExpDefType.getCompositeType(),
+        FuncInst->getHostFunc().getDefinedType().getCompositeType());
+  }
+  if (!IsMatch) {
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
+  const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());
   const uint32_t ReturnsSize =

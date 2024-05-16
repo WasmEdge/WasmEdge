@@ -15,6 +15,7 @@ namespace Host {
 
 namespace WASINN {
 
+namespace {
 Runtime::Instance::ModuleInstance *
 create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
   return new WasiNNModule;
@@ -48,6 +49,7 @@ bool load(const std::filesystem::path &Path, std::vector<uint8_t> &Data) {
   File.close();
   return true;
 }
+} // namespace
 
 WasiNNEnvironment::WasiNNEnvironment() noexcept {
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
@@ -129,6 +131,7 @@ PO::Option<std::string> WasiNNEnvironment::NNRPCURI(
     PO::MetaVar("URI"sv), PO::DefaultValue(std::string("")));
 #endif
 
+namespace {
 void addOptions(const Plugin::Plugin::PluginDescriptor *,
                 PO::ArgumentParser &Parser) noexcept {
   Parser.add_option("nn-preload"sv, WasiNNEnvironment::NNModels);
@@ -140,26 +143,28 @@ void addOptions(const Plugin::Plugin::PluginDescriptor *,
 #endif
 }
 
-Plugin::Plugin::PluginDescriptor Descriptor{
-    .Name = "wasi_nn",
-    .Description = "",
-    .APIVersion = Plugin::Plugin::CurrentAPIVersion,
-    .Version = {0, 10, 1, 0},
-    .ModuleCount = 1,
-    .ModuleDescriptions =
-        (Plugin::PluginModule::ModuleDescriptor[]){
-            {
-                .Name = "wasi_nn",
-                .Description = "",
-                .Create = create,
-            },
-        },
-    .AddOptions = addOptions,
+static Plugin::PluginModule::ModuleDescriptor MD[] = {
+    {
+        /* Name */ "wasi_nn",
+        /* Description */ "",
+        /* Create */ create,
+    },
 };
 
-} // namespace WASINN
+Plugin::Plugin::PluginDescriptor Descriptor{
+    /* Name */ "wasi_nn",
+    /* Description */ "",
+    /* APIVersion */ Plugin::Plugin::CurrentAPIVersion,
+    /* Version */ {0, 10, 1, 0},
+    /* ModuleCount */ 1,
+    /* ModuleDescriptions */ MD,
+    /* AddOptions */ addOptions,
+};
+} // namespace
 
-Plugin::PluginRegister WASINN::WasiNNEnvironment::Register(&Descriptor);
+EXPORT_GET_DESCRIPTOR(Descriptor)
+
+} // namespace WASINN
 
 } // namespace Host
 } // namespace WasmEdge

@@ -6,6 +6,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   misc:
     permissions:
@@ -14,7 +17,7 @@ jobs:
     name: misc linters
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)

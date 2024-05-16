@@ -63,8 +63,6 @@ struct TFLiteEnv {
     }
   }
 
-  static Plugin::PluginRegister Register;
-
 private:
   std::unordered_set<uint32_t> RecycledIdx;
   std::vector<Context> TFLiteContext;

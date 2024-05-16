@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "dense_enum_map.h"
-#include "log.h"
-#include "spare_enum_map.h"
+#include "common/dense_enum_map.h"
+#include "common/spare_enum_map.h"
+#include "common/spdlog.h"
 
 #include <cstdint>
 #include <string>
@@ -46,15 +46,22 @@ static inline constexpr auto ASTNodeAttrStr = []() constexpr {
 #undef UseASTNodeAttr
   };
   return DenseEnumMap(Array);
-}
-();
+}();
 
 /// Instruction opcode enumeration class.
-enum class OpCode : uint16_t {
+enum class OpCode : uint32_t {
 #define UseOpCode
-#define Line(NAME, VALUE, STRING) NAME = VALUE,
+#define Line(NAME, STRING, PREFIX) NAME,
+#define Line_FB(NAME, STRING, PREFIX, EXTEND) NAME,
+#define Line_FC(NAME, STRING, PREFIX, EXTEND) NAME,
+#define Line_FD(NAME, STRING, PREFIX, EXTEND) NAME,
+#define Line_FE(NAME, STRING, PREFIX, EXTEND) NAME,
 #include "enum.inc"
 #undef Line
+#undef Line_FB
+#undef Line_FC
+#undef Line_FD
+#undef Line_FE
 #undef UseOpCode
 };
 
@@ -63,14 +70,21 @@ static inline constexpr const auto OpCodeStr = []() constexpr {
   using namespace std::literals::string_view_literals;
   std::pair<OpCode, std::string_view> Array[] = {
 #define UseOpCode
-#define Line(NAME, VALUE, STRING) {OpCode::NAME, STRING},
+#define Line(NAME, STRING, PREFIX) {OpCode::NAME, STRING},
+#define Line_FB(NAME, STRING, PREFIX, EXTEND) {OpCode::NAME, STRING},
+#define Line_FC(NAME, STRING, PREFIX, EXTEND) {OpCode::NAME, STRING},
+#define Line_FD(NAME, STRING, PREFIX, EXTEND) {OpCode::NAME, STRING},
+#define Line_FE(NAME, STRING, PREFIX, EXTEND) {OpCode::NAME, STRING},
 #include "enum.inc"
 #undef Line
+#undef Line_FB
+#undef Line_FC
+#undef Line_FD
+#undef Line_FE
 #undef UseOpCode
   };
   return SpareEnumMap(Array);
-}
-();
+}();
 
 } // namespace WasmEdge
 

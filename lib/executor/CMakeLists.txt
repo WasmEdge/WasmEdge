@@ -11,12 +11,14 @@ wasmedge_add_library(wasmedgeExecutor
   instantiate/data.cpp
   instantiate/export.cpp
   instantiate/module.cpp
+  instantiate/tag.cpp
   engine/proxy.cpp
   engine/controlInstr.cpp
   engine/tableInstr.cpp
   engine/threadInstr.cpp
   engine/memoryInstr.cpp
   engine/variableInstr.cpp
+  engine/refInstr.cpp
   engine/engine.cpp
   helper.cpp
   executor.cpp

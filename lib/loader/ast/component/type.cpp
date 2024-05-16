@@ -312,14 +312,13 @@ Expect<void> Loader::loadType(ComponentType &Ty) {
 }
 
 Expect<void> Loader::loadComponentDecl(ComponentDecl &Decl) {
-  auto Pos = FMgr.getLastOffset();
-  auto Res = FMgr.readByte();
+  auto Res = FMgr.peekByte();
   if (!Res) {
     return Unexpect(Res);
   } else if (*Res != 0x03U) {
-    FMgr.seek(Pos);
     return loadInstanceDecl(Decl.emplace<InstanceDecl>());
   } else {
+    FMgr.readByte();
     return loadImportDecl(Decl.emplace<ImportDecl>());
   }
 }
@@ -363,7 +362,7 @@ Expect<void> Loader::loadType(FuncType &Ty) {
   // ps:<paramlist> rs:<resultlist>
   // => (func ps rs)
   if (auto Res = loadVec<TypeSection>(
-          Ty.getParamList(), [this](LabelValType LV) { return loadType(LV); });
+          Ty.getParamList(), [this](LabelValType &LV) { return loadType(LV); });
       !Res) {
     return Unexpect(Res);
   }

@@ -5,7 +5,7 @@
 
 #include <string_view>
 
-#include "common/log.h"
+#include "common/spdlog.h"
 
 namespace WasmEdge {
 namespace Host {

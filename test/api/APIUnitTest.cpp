@@ -19,6 +19,8 @@
 #include "system/winapi.h"
 #endif
 
+using namespace std::literals;
+
 namespace {
 
 std::vector<uint8_t> TestWasm = {
@@ -91,86 +93,90 @@ std::vector<uint8_t> TestWasm = {
     0xd,  0x2,  0x0,  0x4,  0x67, 0x2d, 0x6d, 0x69, 0x1,  0x4,  0x67, 0x2d,
     0x63, 0x66};
 std::vector<uint8_t> ImportWasm = {
-    0x0,  0x61, 0x73, 0x6d, 0x1,  0x0,  0x0,  0x0,  0x1,  0x1d, 0x5,  0x60,
-    0x0,  0x1,  0x7f, 0x60, 0x2,  0x6f, 0x7f, 0x1,  0x7f, 0x60, 0x2,  0x7f,
-    0x7f, 0x1,  0x7f, 0x60, 0x2,  0x7f, 0x7f, 0x2,  0x7f, 0x7f, 0x60, 0x1,
-    0x7f, 0x1,  0x7f, 0x2,  0xfb, 0x1,  0xe,  0x6,  0x65, 0x78, 0x74, 0x65,
-    0x72, 0x6e, 0x8,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x61, 0x64, 0x64, 0x0,
-    0x1,  0x6,  0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x8,  0x66, 0x75, 0x6e,
-    0x63, 0x2d, 0x73, 0x75, 0x62, 0x0,  0x1,  0x6,  0x65, 0x78, 0x74, 0x65,
-    0x72, 0x6e, 0x8,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x6d, 0x75, 0x6c, 0x0,
-    0x1,  0x6,  0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x8,  0x66, 0x75, 0x6e,
-    0x63, 0x2d, 0x64, 0x69, 0x76, 0x0,  0x1,  0x6,  0x65, 0x78, 0x74, 0x65,
-    0x72, 0x6e, 0x9,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x74, 0x65, 0x72, 0x6d,
-    0x0,  0x0,  0x6,  0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x9,  0x66, 0x75,
-    0x6e, 0x63, 0x2d, 0x66, 0x61, 0x69, 0x6c, 0x0,  0x0,  0x5,  0x64, 0x75,
-    0x6d, 0x6d, 0x79, 0x8,  0x67, 0x6c, 0x6f, 0x62, 0x2d, 0x69, 0x33, 0x32,
-    0x3,  0x7f, 0x1,  0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x8,  0x67, 0x6c,
-    0x6f, 0x62, 0x2d, 0x69, 0x36, 0x34, 0x3,  0x7e, 0x0,  0x5,  0x64, 0x75,
-    0x6d, 0x6d, 0x79, 0x8,  0x67, 0x6c, 0x6f, 0x62, 0x2d, 0x66, 0x33, 0x32,
-    0x3,  0x7d, 0x1,  0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x8,  0x67, 0x6c,
-    0x6f, 0x62, 0x2d, 0x66, 0x36, 0x34, 0x3,  0x7c, 0x0,  0x5,  0x64, 0x75,
-    0x6d, 0x6d, 0x79, 0x8,  0x74, 0x61, 0x62, 0x2d, 0x66, 0x75, 0x6e, 0x63,
-    0x1,  0x70, 0x1,  0xa,  0x14, 0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x7,
-    0x74, 0x61, 0x62, 0x2d, 0x65, 0x78, 0x74, 0x1,  0x6f, 0x1,  0xa,  0x1e,
-    0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x4,  0x6d, 0x65, 0x6d, 0x31, 0x2,
-    0x1,  0x1,  0x3,  0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x4,  0x6d, 0x65,
-    0x6d, 0x32, 0x2,  0x0,  0x2,  0x3,  0xc,  0xb,  0x0,  0x0,  0x0,  0x0,
-    0x2,  0x3,  0x4,  0x4,  0x4,  0x4,  0x4,  0x4,  0x7,  0x2,  0x70, 0x0,
-    0xa,  0x6f, 0x0,  0xa,  0x5,  0x4,  0x1,  0x1,  0x1,  0x3,  0x6,  0xf,
-    0x2,  0x7f, 0x1,  0x41, 0x8e, 0x1,  0xb,  0x7d, 0x0,  0x43, 0xae, 0x47,
-    0x45, 0x44, 0xb,  0x7,  0xcd, 0x1,  0x10, 0x6,  0x66, 0x75, 0x6e, 0x63,
-    0x2d, 0x31, 0x0,  0x6,  0x6,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x32, 0x0,
-    0x7,  0x6,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x33, 0x0,  0x8,  0x6,  0x66,
-    0x75, 0x6e, 0x63, 0x2d, 0x34, 0x0,  0x9,  0x8,  0x66, 0x75, 0x6e, 0x63,
-    0x2d, 0x61, 0x64, 0x64, 0x0,  0xa,  0xa,  0x66, 0x75, 0x6e, 0x63, 0x2d,
-    0x6d, 0x75, 0x6c, 0x2d, 0x32, 0x0,  0xb,  0x12, 0x66, 0x75, 0x6e, 0x63,
-    0x2d, 0x63, 0x61, 0x6c, 0x6c, 0x2d, 0x69, 0x6e, 0x64, 0x69, 0x72, 0x65,
-    0x63, 0x74, 0x0,  0xc,  0xd,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x68, 0x6f,
-    0x73, 0x74, 0x2d, 0x61, 0x64, 0x64, 0x0,  0xd,  0xd,  0x66, 0x75, 0x6e,
-    0x63, 0x2d, 0x68, 0x6f, 0x73, 0x74, 0x2d, 0x73, 0x75, 0x62, 0x0,  0xe,
-    0xd,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x68, 0x6f, 0x73, 0x74, 0x2d, 0x6d,
-    0x75, 0x6c, 0x0,  0xf,  0xd,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x68, 0x6f,
-    0x73, 0x74, 0x2d, 0x64, 0x69, 0x76, 0x0,  0x10, 0x8,  0x74, 0x61, 0x62,
-    0x2d, 0x66, 0x75, 0x6e, 0x63, 0x1,  0x2,  0x7,  0x74, 0x61, 0x62, 0x2d,
-    0x65, 0x78, 0x74, 0x1,  0x3,  0x3,  0x6d, 0x65, 0x6d, 0x2,  0x2,  0xc,
-    0x67, 0x6c, 0x6f, 0x62, 0x2d, 0x6d, 0x75, 0x74, 0x2d, 0x69, 0x33, 0x32,
-    0x3,  0x4,  0xe,  0x67, 0x6c, 0x6f, 0x62, 0x2d, 0x63, 0x6f, 0x6e, 0x73,
-    0x74, 0x2d, 0x66, 0x33, 0x32, 0x3,  0x5,  0x9,  0xc,  0x1,  0x2,  0x2,
-    0x41, 0x2,  0xb,  0x0,  0x4,  0x6,  0x7,  0x8,  0x9,  0xa,  0x5e, 0xb,
-    0x4,  0x0,  0x41, 0x1,  0xb,  0x4,  0x0,  0x41, 0x2,  0xb,  0x4,  0x0,
-    0x41, 0x3,  0xb,  0x4,  0x0,  0x41, 0x4,  0xb,  0x7,  0x0,  0x20, 0x0,
-    0x20, 0x1,  0x6a, 0xb,  0xc,  0x0,  0x20, 0x0,  0x41, 0x2,  0x6c, 0x20,
-    0x1,  0x41, 0x2,  0x6c, 0xb,  0x7,  0x0,  0x20, 0x0,  0x11, 0x0,  0x2,
-    0xb,  0xa,  0x0,  0x41, 0x0,  0x25, 0x3,  0x20, 0x0,  0x10, 0x0,  0xb,
-    0xa,  0x0,  0x41, 0x1,  0x25, 0x3,  0x20, 0x0,  0x10, 0x1,  0xb,  0xa,
-    0x0,  0x41, 0x2,  0x25, 0x3,  0x20, 0x0,  0x10, 0x2,  0xb,  0xa,  0x0,
-    0x41, 0x3,  0x25, 0x3,  0x20, 0x0,  0x10, 0x3,  0xb,  0xb,  0x10, 0x1,
-    0x0,  0x41, 0xa,  0xb,  0xa,  0x0,  0x1,  0x2,  0x3,  0x4,  0x5,  0x6,
-    0x7,  0x8,  0x9,  0x0,  0x8f, 0x2,  0x4,  0x6e, 0x61, 0x6d, 0x65, 0x1,
-    0x8d, 0x1,  0x11, 0x0,  0x7,  0x65, 0x2d, 0x66, 0x2d, 0x61, 0x64, 0x64,
-    0x1,  0x7,  0x65, 0x2d, 0x66, 0x2d, 0x73, 0x75, 0x62, 0x2,  0x7,  0x65,
-    0x2d, 0x66, 0x2d, 0x6d, 0x75, 0x6c, 0x3,  0x7,  0x65, 0x2d, 0x66, 0x2d,
-    0x64, 0x69, 0x76, 0x4,  0x8,  0x65, 0x2d, 0x66, 0x2d, 0x74, 0x65, 0x72,
-    0x6d, 0x5,  0x8,  0x65, 0x2d, 0x66, 0x2d, 0x66, 0x61, 0x69, 0x6c, 0x6,
-    0x3,  0x66, 0x2d, 0x31, 0x7,  0x3,  0x66, 0x2d, 0x32, 0x8,  0x3,  0x66,
-    0x2d, 0x33, 0x9,  0x3,  0x66, 0x2d, 0x34, 0xa,  0x5,  0x66, 0x2d, 0x61,
-    0x64, 0x64, 0xb,  0x7,  0x66, 0x2d, 0x6d, 0x75, 0x6c, 0x2d, 0x32, 0xc,
-    0xa,  0x66, 0x2d, 0x63, 0x61, 0x6c, 0x6c, 0x2d, 0x69, 0x6e, 0x64, 0xd,
-    0x7,  0x66, 0x2d, 0x65, 0x2d, 0x61, 0x64, 0x64, 0xe,  0x7,  0x66, 0x2d,
-    0x65, 0x2d, 0x73, 0x75, 0x62, 0xf,  0x7,  0x66, 0x2d, 0x65, 0x2d, 0x6d,
-    0x75, 0x6c, 0x10, 0x7,  0x66, 0x2d, 0x65, 0x2d, 0x64, 0x69, 0x76, 0x2,
-    0x45, 0x11, 0x0,  0x2,  0x0,  0x0,  0x1,  0x0,  0x1,  0x2,  0x0,  0x0,
-    0x1,  0x0,  0x2,  0x2,  0x0,  0x0,  0x1,  0x0,  0x3,  0x2,  0x0,  0x0,
-    0x1,  0x0,  0x4,  0x0,  0x5,  0x0,  0x6,  0x0,  0x7,  0x0,  0x8,  0x0,
-    0x9,  0x0,  0xa,  0x2,  0x0,  0x0,  0x1,  0x0,  0xb,  0x2,  0x0,  0x0,
-    0x1,  0x0,  0xc,  0x1,  0x0,  0x0,  0xd,  0x1,  0x0,  0x0,  0xe,  0x1,
-    0x0,  0x0,  0xf,  0x1,  0x0,  0x0,  0x10, 0x1,  0x0,  0x0,  0x4,  0xf,
-    0x2,  0x0,  0x5,  0x74, 0x79, 0x70, 0x65, 0x30, 0x1,  0x5,  0x74, 0x79,
-    0x70, 0x65, 0x31, 0x5,  0xb,  0x2,  0x2,  0x3,  0x74, 0x2d, 0x66, 0x3,
-    0x3,  0x74, 0x2d, 0x65, 0x6,  0x4,  0x1,  0x0,  0x1,  0x6d, 0x7,  0xd,
-    0x2,  0x4,  0x4,  0x67, 0x2d, 0x6d, 0x69, 0x5,  0x4,  0x67, 0x2d, 0x63,
-    0x66};
+    0x0,  0x61, 0x73, 0x6d, 0x1,  0x0,  0x0,  0x0,  0x1,  0x34, 0xa,  0x60,
+    0x0,  0x1,  0x7f, 0x60, 0x2,  0x6f, 0x7f, 0x1,  0x7f, 0x60, 0x1,  0x7c,
+    0x0,  0x60, 0x2,  0x7c, 0x7e, 0x0,  0x60, 0x0,  0x0,  0x60, 0x4,  0x7f,
+    0x7e, 0x7d, 0x7c, 0x0,  0x60, 0x1,  0x7d, 0x0,  0x60, 0x2,  0x7f, 0x7f,
+    0x1,  0x7f, 0x60, 0x2,  0x7f, 0x7f, 0x2,  0x7f, 0x7f, 0x60, 0x1,  0x7f,
+    0x1,  0x7f, 0x2,  0xa5, 0x2,  0x11, 0x6,  0x65, 0x78, 0x74, 0x65, 0x72,
+    0x6e, 0x8,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x61, 0x64, 0x64, 0x0,  0x1,
+    0x6,  0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x8,  0x66, 0x75, 0x6e, 0x63,
+    0x2d, 0x73, 0x75, 0x62, 0x0,  0x1,  0x6,  0x65, 0x78, 0x74, 0x65, 0x72,
+    0x6e, 0x8,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x6d, 0x75, 0x6c, 0x0,  0x1,
+    0x6,  0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x8,  0x66, 0x75, 0x6e, 0x63,
+    0x2d, 0x64, 0x69, 0x76, 0x0,  0x1,  0x6,  0x65, 0x78, 0x74, 0x65, 0x72,
+    0x6e, 0x9,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x74, 0x65, 0x72, 0x6d, 0x0,
+    0x0,  0x6,  0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x9,  0x66, 0x75, 0x6e,
+    0x63, 0x2d, 0x66, 0x61, 0x69, 0x6c, 0x0,  0x0,  0x5,  0x64, 0x75, 0x6d,
+    0x6d, 0x79, 0x8,  0x67, 0x6c, 0x6f, 0x62, 0x2d, 0x69, 0x33, 0x32, 0x3,
+    0x7f, 0x1,  0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x8,  0x67, 0x6c, 0x6f,
+    0x62, 0x2d, 0x69, 0x36, 0x34, 0x3,  0x7e, 0x0,  0x5,  0x64, 0x75, 0x6d,
+    0x6d, 0x79, 0x8,  0x67, 0x6c, 0x6f, 0x62, 0x2d, 0x66, 0x33, 0x32, 0x3,
+    0x7d, 0x1,  0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x8,  0x67, 0x6c, 0x6f,
+    0x62, 0x2d, 0x66, 0x36, 0x34, 0x3,  0x7c, 0x0,  0x5,  0x64, 0x75, 0x6d,
+    0x6d, 0x79, 0x8,  0x74, 0x61, 0x62, 0x2d, 0x66, 0x75, 0x6e, 0x63, 0x1,
+    0x70, 0x1,  0xa,  0x14, 0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x7,  0x74,
+    0x61, 0x62, 0x2d, 0x65, 0x78, 0x74, 0x1,  0x6f, 0x1,  0xa,  0x1e, 0x5,
+    0x64, 0x75, 0x6d, 0x6d, 0x79, 0x4,  0x6d, 0x65, 0x6d, 0x31, 0x2,  0x1,
+    0x1,  0x3,  0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x4,  0x6d, 0x65, 0x6d,
+    0x32, 0x2,  0x0,  0x2,  0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x4,  0x74,
+    0x61, 0x67, 0x31, 0x4,  0x0,  0x2,  0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79,
+    0x4,  0x74, 0x61, 0x67, 0x32, 0x4,  0x0,  0x3,  0x5,  0x64, 0x75, 0x6d,
+    0x6d, 0x79, 0x4,  0x74, 0x61, 0x67, 0x33, 0x4,  0x0,  0x4,  0x3,  0xc,
+    0xb,  0x0,  0x0,  0x0,  0x0,  0x7,  0x8,  0x9,  0x9,  0x9,  0x9,  0x9,
+    0x4,  0x7,  0x2,  0x70, 0x0,  0xa,  0x6f, 0x0,  0xa,  0x5,  0x4,  0x1,
+    0x1,  0x1,  0x3,  0xd,  0x7,  0x3,  0x0,  0x5,  0x0,  0x4,  0x0,  0x6,
+    0x6,  0xf,  0x2,  0x7f, 0x1,  0x41, 0x8e, 0x1,  0xb,  0x7d, 0x0,  0x43,
+    0xae, 0x47, 0x45, 0x44, 0xb,  0x7,  0xe5, 0x1,  0x13, 0x6,  0x66, 0x75,
+    0x6e, 0x63, 0x2d, 0x31, 0x0,  0x6,  0x6,  0x66, 0x75, 0x6e, 0x63, 0x2d,
+    0x32, 0x0,  0x7,  0x6,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x33, 0x0,  0x8,
+    0x6,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x34, 0x0,  0x9,  0x8,  0x66, 0x75,
+    0x6e, 0x63, 0x2d, 0x61, 0x64, 0x64, 0x0,  0xa,  0xa,  0x66, 0x75, 0x6e,
+    0x63, 0x2d, 0x6d, 0x75, 0x6c, 0x2d, 0x32, 0x0,  0xb,  0x12, 0x66, 0x75,
+    0x6e, 0x63, 0x2d, 0x63, 0x61, 0x6c, 0x6c, 0x2d, 0x69, 0x6e, 0x64, 0x69,
+    0x72, 0x65, 0x63, 0x74, 0x0,  0xc,  0xd,  0x66, 0x75, 0x6e, 0x63, 0x2d,
+    0x68, 0x6f, 0x73, 0x74, 0x2d, 0x61, 0x64, 0x64, 0x0,  0xd,  0xd,  0x66,
+    0x75, 0x6e, 0x63, 0x2d, 0x68, 0x6f, 0x73, 0x74, 0x2d, 0x73, 0x75, 0x62,
+    0x0,  0xe,  0xd,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x68, 0x6f, 0x73, 0x74,
+    0x2d, 0x6d, 0x75, 0x6c, 0x0,  0xf,  0xd,  0x66, 0x75, 0x6e, 0x63, 0x2d,
+    0x68, 0x6f, 0x73, 0x74, 0x2d, 0x64, 0x69, 0x76, 0x0,  0x10, 0x8,  0x74,
+    0x61, 0x62, 0x2d, 0x66, 0x75, 0x6e, 0x63, 0x1,  0x2,  0x7,  0x74, 0x61,
+    0x62, 0x2d, 0x65, 0x78, 0x74, 0x1,  0x3,  0x3,  0x6d, 0x65, 0x6d, 0x2,
+    0x2,  0x5,  0x74, 0x61, 0x67, 0x2d, 0x31, 0x4,  0x3,  0x5,  0x74, 0x61,
+    0x67, 0x2d, 0x32, 0x4,  0x4,  0x5,  0x74, 0x61, 0x67, 0x2d, 0x33, 0x4,
+    0x5,  0xc,  0x67, 0x6c, 0x6f, 0x62, 0x2d, 0x6d, 0x75, 0x74, 0x2d, 0x69,
+    0x33, 0x32, 0x3,  0x4,  0xe,  0x67, 0x6c, 0x6f, 0x62, 0x2d, 0x63, 0x6f,
+    0x6e, 0x73, 0x74, 0x2d, 0x66, 0x33, 0x32, 0x3,  0x5,  0x9,  0xc,  0x1,
+    0x2,  0x2,  0x41, 0x2,  0xb,  0x0,  0x4,  0x6,  0x7,  0x8,  0x9,  0xa,
+    0x5e, 0xb,  0x4,  0x0,  0x41, 0x1,  0xb,  0x4,  0x0,  0x41, 0x2,  0xb,
+    0x4,  0x0,  0x41, 0x3,  0xb,  0x4,  0x0,  0x41, 0x4,  0xb,  0x7,  0x0,
+    0x20, 0x0,  0x20, 0x1,  0x6a, 0xb,  0xc,  0x0,  0x20, 0x0,  0x41, 0x2,
+    0x6c, 0x20, 0x1,  0x41, 0x2,  0x6c, 0xb,  0x7,  0x0,  0x20, 0x0,  0x11,
+    0x0,  0x2,  0xb,  0xa,  0x0,  0x41, 0x0,  0x25, 0x3,  0x20, 0x0,  0x10,
+    0x0,  0xb,  0xa,  0x0,  0x41, 0x1,  0x25, 0x3,  0x20, 0x0,  0x10, 0x1,
+    0xb,  0xa,  0x0,  0x41, 0x2,  0x25, 0x3,  0x20, 0x0,  0x10, 0x2,  0xb,
+    0xa,  0x0,  0x41, 0x3,  0x25, 0x3,  0x20, 0x0,  0x10, 0x3,  0xb,  0xb,
+    0x10, 0x1,  0x0,  0x41, 0xa,  0xb,  0xa,  0x0,  0x1,  0x2,  0x3,  0x4,
+    0x5,  0x6,  0x7,  0x8,  0x9,  0x0,  0xe0, 0x1,  0x4,  0x6e, 0x61, 0x6d,
+    0x65, 0x1,  0x8d, 0x1,  0x11, 0x0,  0x7,  0x65, 0x2d, 0x66, 0x2d, 0x61,
+    0x64, 0x64, 0x1,  0x7,  0x65, 0x2d, 0x66, 0x2d, 0x73, 0x75, 0x62, 0x2,
+    0x7,  0x65, 0x2d, 0x66, 0x2d, 0x6d, 0x75, 0x6c, 0x3,  0x7,  0x65, 0x2d,
+    0x66, 0x2d, 0x64, 0x69, 0x76, 0x4,  0x8,  0x65, 0x2d, 0x66, 0x2d, 0x74,
+    0x65, 0x72, 0x6d, 0x5,  0x8,  0x65, 0x2d, 0x66, 0x2d, 0x66, 0x61, 0x69,
+    0x6c, 0x6,  0x3,  0x66, 0x2d, 0x31, 0x7,  0x3,  0x66, 0x2d, 0x32, 0x8,
+    0x3,  0x66, 0x2d, 0x33, 0x9,  0x3,  0x66, 0x2d, 0x34, 0xa,  0x5,  0x66,
+    0x2d, 0x61, 0x64, 0x64, 0xb,  0x7,  0x66, 0x2d, 0x6d, 0x75, 0x6c, 0x2d,
+    0x32, 0xc,  0xa,  0x66, 0x2d, 0x63, 0x61, 0x6c, 0x6c, 0x2d, 0x69, 0x6e,
+    0x64, 0xd,  0x7,  0x66, 0x2d, 0x65, 0x2d, 0x61, 0x64, 0x64, 0xe,  0x7,
+    0x66, 0x2d, 0x65, 0x2d, 0x73, 0x75, 0x62, 0xf,  0x7,  0x66, 0x2d, 0x65,
+    0x2d, 0x6d, 0x75, 0x6c, 0x10, 0x7,  0x66, 0x2d, 0x65, 0x2d, 0x64, 0x69,
+    0x76, 0x4,  0xf,  0x2,  0x0,  0x5,  0x74, 0x79, 0x70, 0x65, 0x30, 0x1,
+    0x5,  0x74, 0x79, 0x70, 0x65, 0x31, 0x5,  0xb,  0x2,  0x2,  0x3,  0x74,
+    0x2d, 0x66, 0x3,  0x3,  0x74, 0x2d, 0x65, 0x6,  0x4,  0x1,  0x2,  0x1,
+    0x6d, 0x7,  0xd,  0x2,  0x4,  0x4,  0x67, 0x2d, 0x6d, 0x69, 0x5,  0x4,
+    0x67, 0x2d, 0x63, 0x66, 0xb,  0x16, 0x3,  0x3,  0x5,  0x74, 0x61, 0x67,
+    0x2d, 0x31, 0x4,  0x5,  0x74, 0x61, 0x67, 0x2d, 0x32, 0x5,  0x5,  0x74,
+    0x61, 0x67, 0x2d, 0x33};
 
 std::vector<uint8_t> FibonacciWasm = {
     0x0,  0x61, 0x73, 0x6d, 0x1,  0x0,  0x0,  0x0,  0x1,  0x6,  0x1,
@@ -459,7 +465,8 @@ bool isErrMatch(WasmEdge_ErrCategory ErrCate, uint32_t Code,
 }
 
 TEST(APICoreTest, Version) {
-  EXPECT_EQ(std::string(WASMEDGE_VERSION), std::string(WasmEdge_VersionGet()));
+  EXPECT_EQ(std::string_view(WASMEDGE_VERSION),
+            std::string_view(WasmEdge_VersionGet()));
   EXPECT_EQ(static_cast<uint32_t>(WASMEDGE_VERSION_MAJOR),
             WasmEdge_VersionGetMajor());
   EXPECT_EQ(static_cast<uint32_t>(WASMEDGE_VERSION_MINOR),
@@ -811,7 +818,10 @@ TEST(APICoreTest, ImportType) {
   const WasmEdge_ImportTypeContext *ImpTypes[20];
   WasmEdge_Limit Lim;
   WasmEdge_String Name;
-  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(nullptr);
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ExceptionHandling);
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
+  WasmEdge_ConfigureDelete(Conf);
 
   // Load AST module from buffer
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBytes(
@@ -822,97 +832,115 @@ TEST(APICoreTest, ImportType) {
 
   // AST list imports
   EXPECT_EQ(WasmEdge_ASTModuleListImportsLength(nullptr), 0U);
-  EXPECT_EQ(WasmEdge_ASTModuleListImportsLength(Mod), 14U);
+  EXPECT_EQ(WasmEdge_ASTModuleListImportsLength(Mod), 17U);
   EXPECT_EQ(WasmEdge_ASTModuleListImports(nullptr, ImpTypes, 20), 0U);
-  EXPECT_EQ(WasmEdge_ASTModuleListImports(Mod, nullptr, 20), 14U);
+  EXPECT_EQ(WasmEdge_ASTModuleListImports(Mod, nullptr, 20), 17U);
   std::memset(ImpTypes, 0, sizeof(const WasmEdge_ImportTypeContext *) * 20);
-  EXPECT_EQ(WasmEdge_ASTModuleListImports(Mod, ImpTypes, 4), 14U);
+  EXPECT_EQ(WasmEdge_ASTModuleListImports(Mod, ImpTypes, 4), 17U);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[0]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[0]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-add"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-add"sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[0]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("extern"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[1]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[1]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-sub"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-sub"sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[1]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("extern"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[2]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[2]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-mul"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-mul"sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[2]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("extern"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[3]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[3]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-div"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-div"sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[3]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("extern"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
   std::memset(ImpTypes, 0, sizeof(const WasmEdge_ImportTypeContext *) * 20);
-  EXPECT_EQ(WasmEdge_ASTModuleListImports(Mod, ImpTypes, 20), 14U);
+  EXPECT_EQ(WasmEdge_ASTModuleListImports(Mod, ImpTypes, 20), 17U);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[4]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[4]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-term"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-term"sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[4]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("extern"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[5]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[5]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-fail"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-fail"sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[5]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("extern"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[6]),
             WasmEdge_ExternalType_Global);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[6]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("glob-i32"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "glob-i32"sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[6]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[7]),
             WasmEdge_ExternalType_Global);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[7]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("glob-i64"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "glob-i64"sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[7]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[8]),
             WasmEdge_ExternalType_Global);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[8]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("glob-f32"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "glob-f32"sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[8]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[9]),
             WasmEdge_ExternalType_Global);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[9]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("glob-f64"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "glob-f64"sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[9]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[10]),
             WasmEdge_ExternalType_Table);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[10]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("tab-func"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tab-func"sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[10]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[11]),
             WasmEdge_ExternalType_Table);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[11]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("tab-ext"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tab-ext"sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[11]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[12]),
             WasmEdge_ExternalType_Memory);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[12]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("mem1"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "mem1"sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[12]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[13]),
             WasmEdge_ExternalType_Memory);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[13]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("mem2"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "mem2"sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[13]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[14]),
+            WasmEdge_ExternalType_Tag);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[14]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tag1"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[14]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[15]),
+            WasmEdge_ExternalType_Tag);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[15]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tag2"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[15]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[16]),
+            WasmEdge_ExternalType_Tag);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[16]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tag3"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[16]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
 
   // Import type get external type
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(nullptr),
@@ -922,15 +950,15 @@ TEST(APICoreTest, ImportType) {
 
   // Import type get module name
   Name = WasmEdge_ImportTypeGetModuleName(nullptr);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string(""));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), ""sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[0]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("extern"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
 
   // Import type get external name
   Name = WasmEdge_ImportTypeGetExternalName(nullptr);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string(""));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), ""sv);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[0]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-add"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-add"sv);
 
   // Import type get function type
   EXPECT_EQ(WasmEdge_ImportTypeGetFunctionType(nullptr, nullptr), nullptr);
@@ -971,6 +999,25 @@ TEST(APICoreTest, ImportType) {
           WasmEdge_ImportTypeGetMemoryType(Mod, ImpTypes[13])),
       Lim));
 
+  // Import type get tag type
+  EXPECT_EQ(WasmEdge_ImportTypeGetTagType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetTagType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetTagType(nullptr, ImpTypes[15]), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetTagType(Mod, ImpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ImportTypeGetTagType(Mod, ImpTypes[15]), nullptr);
+  EXPECT_EQ(WasmEdge_TagTypeGetFunctionType(nullptr), nullptr);
+  EXPECT_NE(WasmEdge_TagTypeGetFunctionType(
+                WasmEdge_ImportTypeGetTagType(Mod, ImpTypes[15])),
+            nullptr);
+  EXPECT_EQ(
+      WasmEdge_FunctionTypeGetParametersLength(WasmEdge_TagTypeGetFunctionType(
+          WasmEdge_ImportTypeGetTagType(Mod, ImpTypes[15]))),
+      2U);
+  EXPECT_EQ(
+      WasmEdge_FunctionTypeGetReturnsLength(WasmEdge_TagTypeGetFunctionType(
+          WasmEdge_ImportTypeGetTagType(Mod, ImpTypes[15]))),
+      0U);
+
   // Import type get global type
   EXPECT_EQ(WasmEdge_ImportTypeGetGlobalType(nullptr, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ImportTypeGetGlobalType(Mod, nullptr), nullptr);
@@ -992,7 +1039,10 @@ TEST(APICoreTest, ExportType) {
   const WasmEdge_ExportTypeContext *ExpTypes[20];
   WasmEdge_Limit Lim;
   WasmEdge_String Name;
-  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(nullptr);
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ExceptionHandling);
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
+  WasmEdge_ConfigureDelete(Conf);
 
   // Load AST module from buffer
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBytes(
@@ -1003,90 +1053,101 @@ TEST(APICoreTest, ExportType) {
 
   // AST list exports
   EXPECT_EQ(WasmEdge_ASTModuleListExportsLength(nullptr), 0U);
-  EXPECT_EQ(WasmEdge_ASTModuleListExportsLength(Mod), 16U);
+  EXPECT_EQ(WasmEdge_ASTModuleListExportsLength(Mod), 19U);
   EXPECT_EQ(WasmEdge_ASTModuleListExports(nullptr, ExpTypes, 20), 0U);
-  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, nullptr, 20), 16U);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, nullptr, 20), 19U);
   std::memset(ExpTypes, 0, sizeof(const WasmEdge_ExportTypeContext *) * 20);
-  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, ExpTypes, 4), 16U);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, ExpTypes, 4), 19U);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[0]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[0]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-1"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-1"sv);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[1]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[1]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-2"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-2"sv);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[2]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[2]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-3"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-3"sv);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[3]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[3]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-4"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-4"sv);
   std::memset(ExpTypes, 0, sizeof(const WasmEdge_ExportTypeContext *) * 20);
-  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, ExpTypes, 20), 16U);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, ExpTypes, 20), 19U);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[4]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[4]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-add"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-add"sv);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[5]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[5]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-mul-2"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-mul-2"sv);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[6]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[6]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length),
-            std::string("func-call-indirect"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-call-indirect"sv);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[7]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[7]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-host-add"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-host-add"sv);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[8]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[8]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-host-sub"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-host-sub"sv);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[9]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[9]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-host-mul"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-host-mul"sv);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[10]),
             WasmEdge_ExternalType_Function);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[10]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-host-div"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-host-div"sv);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[11]),
             WasmEdge_ExternalType_Table);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[11]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("tab-func"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tab-func"sv);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[12]),
             WasmEdge_ExternalType_Table);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[12]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("tab-ext"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tab-ext"sv);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[13]),
             WasmEdge_ExternalType_Memory);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[13]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("mem"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "mem"sv);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[14]),
-            WasmEdge_ExternalType_Global);
+            WasmEdge_ExternalType_Tag);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[14]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("glob-mut-i32"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tag-1"sv);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[15]),
-            WasmEdge_ExternalType_Global);
+            WasmEdge_ExternalType_Tag);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[15]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("glob-const-f32"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tag-2"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[16]),
+            WasmEdge_ExternalType_Tag);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[16]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tag-3"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[17]),
+            WasmEdge_ExternalType_Global);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[17]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "glob-mut-i32"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[18]),
+            WasmEdge_ExternalType_Global);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[18]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "glob-const-f32"sv);
 
   // Export type get external type
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(nullptr),
             WasmEdge_ExternalType_Function);
-  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[15]),
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[18]),
             WasmEdge_ExternalType_Global);
 
   // Export type get external name
   Name = WasmEdge_ExportTypeGetExternalName(nullptr);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string(""));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), ""sv);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[0]);
-  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-1"));
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-1"sv);
 
   // Export type get function type
   EXPECT_EQ(WasmEdge_ExportTypeGetFunctionType(nullptr, nullptr), nullptr);
@@ -1127,23 +1188,42 @@ TEST(APICoreTest, ExportType) {
           WasmEdge_ExportTypeGetMemoryType(Mod, ExpTypes[13])),
       Lim));
 
+  // Export type get tag type
+  EXPECT_EQ(WasmEdge_ExportTypeGetTagType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetTagType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetTagType(nullptr, ExpTypes[14]), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetTagType(Mod, ExpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ExportTypeGetTagType(Mod, ExpTypes[14]), nullptr);
+  EXPECT_EQ(WasmEdge_TagTypeGetFunctionType(nullptr), nullptr);
+  EXPECT_NE(WasmEdge_TagTypeGetFunctionType(
+                WasmEdge_ExportTypeGetTagType(Mod, ExpTypes[14])),
+            nullptr);
+  EXPECT_EQ(
+      WasmEdge_FunctionTypeGetParametersLength(WasmEdge_TagTypeGetFunctionType(
+          WasmEdge_ExportTypeGetTagType(Mod, ExpTypes[14]))),
+      4U);
+  EXPECT_EQ(
+      WasmEdge_FunctionTypeGetReturnsLength(WasmEdge_TagTypeGetFunctionType(
+          WasmEdge_ExportTypeGetTagType(Mod, ExpTypes[14]))),
+      0U);
+
   // Export type get global type
   EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(nullptr, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(Mod, nullptr), nullptr);
-  EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(nullptr, ExpTypes[15]), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(nullptr, ExpTypes[18]), nullptr);
   EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[0]), nullptr);
-  EXPECT_NE(WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[15]), nullptr);
+  EXPECT_NE(WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[18]), nullptr);
   EXPECT_TRUE(WasmEdge_ValTypeIsF32(WasmEdge_GlobalTypeGetValType(
-      WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[15]))));
+      WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[18]))));
   EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(
-                WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[15])),
+                WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[18])),
             WasmEdge_Mutability_Const);
 
   WasmEdge_LoaderDelete(Loader);
   WasmEdge_ASTModuleDelete(Mod);
 }
 
-#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_USE_LLVM
 TEST(APICoreTest, Compiler) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   std::ifstream OutFile;
@@ -1328,7 +1408,7 @@ TEST(APICoreTest, Loader) {
       WasmEdge_ErrCode_WrongVMWorkflow,
       WasmEdge_LoaderParseFromBuffer(nullptr, nullptr, Buf.data(),
                                      static_cast<uint32_t>(Buf.size()))));
-#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_USE_LLVM
   // Failed case to parse from buffer with AOT compiled WASM
   EXPECT_TRUE(readToVector("test_aot" WASMEDGE_LIB_EXTENSION, Buf));
   Mod = nullptr;
@@ -1691,6 +1771,19 @@ TEST(APICoreTest, ExecutorWithStatistics) {
       isErrMatch(WasmEdge_ErrCategory_UserLevelError, 0x5678U,
                  WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 0, R, 1)));
 
+  // Invoke independent host functions
+  // host function "func-add": {externref, i32} -> {i32}
+  WasmEdge_ValType Result[1] = {WasmEdge_ValTypeGenI32()};
+  WasmEdge_FunctionTypeContext *FuncType =
+      WasmEdge_FunctionTypeCreate(nullptr, 0, Result, 1);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, ExternTerm, nullptr, 0);
+  WasmEdge_FunctionTypeDelete(FuncType);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 0, R, 1)));
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  EXPECT_TRUE(true);
+
   // Statistics get instruction count
   EXPECT_GT(WasmEdge_StatisticsGetInstrCount(Stat), 0ULL);
   EXPECT_EQ(WasmEdge_StatisticsGetInstrCount(nullptr), 0ULL);
@@ -1766,21 +1859,21 @@ TEST(APICoreTest, Store) {
   EXPECT_EQ(WasmEdge_StoreListModule(Store, nullptr, 15), 2U);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListModule(Store, Names, 1), 2U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListModule(Store, Names, 15), 2U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
-  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("module"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "module"sv);
 
   // Module instance get module name
   Names[0] = WasmEdge_ModuleInstanceGetModuleName(nullptr);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string(""));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), ""sv);
   Names[0] = WasmEdge_ModuleInstanceGetModuleName(ModCxt);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string(""));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), ""sv);
   Names[0] = WasmEdge_ModuleInstanceGetModuleName(ModRegCxt);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("module"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "module"sv);
   Names[0] = WasmEdge_ModuleInstanceGetModuleName(HostMod);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
 
   // Module instance list function exports
   EXPECT_EQ(WasmEdge_ModuleInstanceListFunctionLength(ModCxt), 11U);
@@ -1789,30 +1882,24 @@ TEST(APICoreTest, Store) {
   EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, nullptr, 15), 11U);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, Names, 4), 11U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("func-1"));
-  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("func-2"));
-  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length), std::string("func-3"));
-  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length), std::string("func-4"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "func-1"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "func-2"sv);
+  EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length), "func-3"sv);
+  EXPECT_EQ(std::string_view(Names[3].Buf, Names[3].Length), "func-4"sv);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, Names, 15), 11U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("func-1"));
-  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("func-2"));
-  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length), std::string("func-3"));
-  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length), std::string("func-4"));
-  EXPECT_EQ(std::string(Names[4].Buf, Names[4].Length),
-            std::string("func-add"));
-  EXPECT_EQ(std::string(Names[5].Buf, Names[5].Length),
-            std::string("func-call-indirect"));
-  EXPECT_EQ(std::string(Names[6].Buf, Names[6].Length),
-            std::string("func-host-add"));
-  EXPECT_EQ(std::string(Names[7].Buf, Names[7].Length),
-            std::string("func-host-div"));
-  EXPECT_EQ(std::string(Names[8].Buf, Names[8].Length),
-            std::string("func-host-mul"));
-  EXPECT_EQ(std::string(Names[9].Buf, Names[9].Length),
-            std::string("func-host-sub"));
-  EXPECT_EQ(std::string(Names[10].Buf, Names[10].Length),
-            std::string("func-mul-2"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "func-1"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "func-2"sv);
+  EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length), "func-3"sv);
+  EXPECT_EQ(std::string_view(Names[3].Buf, Names[3].Length), "func-4"sv);
+  EXPECT_EQ(std::string_view(Names[4].Buf, Names[4].Length), "func-add"sv);
+  EXPECT_EQ(std::string_view(Names[5].Buf, Names[5].Length),
+            "func-call-indirect"sv);
+  EXPECT_EQ(std::string_view(Names[6].Buf, Names[6].Length), "func-host-add"sv);
+  EXPECT_EQ(std::string_view(Names[7].Buf, Names[7].Length), "func-host-div"sv);
+  EXPECT_EQ(std::string_view(Names[8].Buf, Names[8].Length), "func-host-mul"sv);
+  EXPECT_EQ(std::string_view(Names[9].Buf, Names[9].Length), "func-host-sub"sv);
+  EXPECT_EQ(std::string_view(Names[10].Buf, Names[10].Length), "func-mul-2"sv);
 
   // Module instance find function
   EXPECT_NE(WasmEdge_ModuleInstanceFindFunction(ModCxt, Names[7]), nullptr);
@@ -1826,12 +1913,11 @@ TEST(APICoreTest, Store) {
   EXPECT_EQ(WasmEdge_ModuleInstanceListTable(ModCxt, nullptr, 15), 2U);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_ModuleInstanceListTable(ModCxt, Names, 1), 2U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("tab-ext"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "tab-ext"sv);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_ModuleInstanceListTable(ModCxt, Names, 15), 2U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("tab-ext"));
-  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length),
-            std::string("tab-func"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "tab-ext"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "tab-func"sv);
 
   // Module instance find table
   EXPECT_NE(WasmEdge_ModuleInstanceFindTable(ModCxt, Names[1]), nullptr);
@@ -1846,7 +1932,7 @@ TEST(APICoreTest, Store) {
   EXPECT_EQ(WasmEdge_ModuleInstanceListMemory(ModCxt, Names, 0), 1U);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_ModuleInstanceListMemory(ModCxt, Names, 15), 1U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("mem"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "mem"sv);
 
   // Module instance find memory
   EXPECT_NE(WasmEdge_ModuleInstanceFindMemory(ModCxt, Names[0]), nullptr);
@@ -1860,14 +1946,13 @@ TEST(APICoreTest, Store) {
   EXPECT_EQ(WasmEdge_ModuleInstanceListGlobal(ModCxt, nullptr, 15), 2U);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_ModuleInstanceListGlobal(ModCxt, Names, 1), 2U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
-            std::string("glob-const-f32"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length),
+            "glob-const-f32"sv);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_ModuleInstanceListGlobal(ModCxt, Names, 15), 2U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
-            std::string("glob-const-f32"));
-  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length),
-            std::string("glob-mut-i32"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length),
+            "glob-const-f32"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "glob-mut-i32"sv);
 
   // Module instance find global
   EXPECT_NE(WasmEdge_ModuleInstanceFindGlobal(ModCxt, Names[1]), nullptr);
@@ -3289,17 +3374,15 @@ TEST(APICoreTest, VM) {
   EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 20), 16U);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 20);
   EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 16U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
-  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string(""));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), ""sv);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 20);
   EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 20), 16U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
-  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length),
-            std::string("reg-wasm-ast"));
-  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length),
-            std::string("reg-wasm-buffer"));
-  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length),
-            std::string("reg-wasm-file"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "reg-wasm-ast"sv);
+  EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length),
+            "reg-wasm-buffer"sv);
+  EXPECT_EQ(std::string_view(Names[3].Buf, Names[3].Length), "reg-wasm-file"sv);
 
   // VM load wasm from file
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromFile(VM, TPath)));
@@ -3499,54 +3582,42 @@ TEST(APICoreTest, VM) {
 
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, Names, nullptr, 15), 11U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("func-1"));
-  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("func-2"));
-  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length), std::string("func-3"));
-  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length), std::string("func-4"));
-  EXPECT_EQ(std::string(Names[4].Buf, Names[4].Length),
-            std::string("func-add"));
-  EXPECT_EQ(std::string(Names[5].Buf, Names[5].Length),
-            std::string("func-call-indirect"));
-  EXPECT_EQ(std::string(Names[6].Buf, Names[6].Length),
-            std::string("func-host-add"));
-  EXPECT_EQ(std::string(Names[7].Buf, Names[7].Length),
-            std::string("func-host-div"));
-  EXPECT_EQ(std::string(Names[8].Buf, Names[8].Length),
-            std::string("func-host-mul"));
-  EXPECT_EQ(std::string(Names[9].Buf, Names[9].Length),
-            std::string("func-host-sub"));
-  EXPECT_EQ(std::string(Names[10].Buf, Names[10].Length),
-            std::string("func-mul-2"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "func-1"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "func-2"sv);
+  EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length), "func-3"sv);
+  EXPECT_EQ(std::string_view(Names[3].Buf, Names[3].Length), "func-4"sv);
+  EXPECT_EQ(std::string_view(Names[4].Buf, Names[4].Length), "func-add"sv);
+  EXPECT_EQ(std::string_view(Names[5].Buf, Names[5].Length),
+            "func-call-indirect"sv);
+  EXPECT_EQ(std::string_view(Names[6].Buf, Names[6].Length), "func-host-add"sv);
+  EXPECT_EQ(std::string_view(Names[7].Buf, Names[7].Length), "func-host-div"sv);
+  EXPECT_EQ(std::string_view(Names[8].Buf, Names[8].Length), "func-host-mul"sv);
+  EXPECT_EQ(std::string_view(Names[9].Buf, Names[9].Length), "func-host-sub"sv);
+  EXPECT_EQ(std::string_view(Names[10].Buf, Names[10].Length), "func-mul-2"sv);
 
   EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, nullptr, nullptr, 15), 11U);
 
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, Names, FuncTypes, 4), 11U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("func-1"));
-  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("func-2"));
-  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length), std::string("func-3"));
-  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length), std::string("func-4"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "func-1"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "func-2"sv);
+  EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length), "func-3"sv);
+  EXPECT_EQ(std::string_view(Names[3].Buf, Names[3].Length), "func-4"sv);
 
   std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, Names, FuncTypes, 15), 11U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("func-1"));
-  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("func-2"));
-  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length), std::string("func-3"));
-  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length), std::string("func-4"));
-  EXPECT_EQ(std::string(Names[4].Buf, Names[4].Length),
-            std::string("func-add"));
-  EXPECT_EQ(std::string(Names[5].Buf, Names[5].Length),
-            std::string("func-call-indirect"));
-  EXPECT_EQ(std::string(Names[6].Buf, Names[6].Length),
-            std::string("func-host-add"));
-  EXPECT_EQ(std::string(Names[7].Buf, Names[7].Length),
-            std::string("func-host-div"));
-  EXPECT_EQ(std::string(Names[8].Buf, Names[8].Length),
-            std::string("func-host-mul"));
-  EXPECT_EQ(std::string(Names[9].Buf, Names[9].Length),
-            std::string("func-host-sub"));
-  EXPECT_EQ(std::string(Names[10].Buf, Names[10].Length),
-            std::string("func-mul-2"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "func-1"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "func-2"sv);
+  EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length), "func-3"sv);
+  EXPECT_EQ(std::string_view(Names[3].Buf, Names[3].Length), "func-4"sv);
+  EXPECT_EQ(std::string_view(Names[4].Buf, Names[4].Length), "func-add"sv);
+  EXPECT_EQ(std::string_view(Names[5].Buf, Names[5].Length),
+            "func-call-indirect"sv);
+  EXPECT_EQ(std::string_view(Names[6].Buf, Names[6].Length), "func-host-add"sv);
+  EXPECT_EQ(std::string_view(Names[7].Buf, Names[7].Length), "func-host-div"sv);
+  EXPECT_EQ(std::string_view(Names[8].Buf, Names[8].Length), "func-host-mul"sv);
+  EXPECT_EQ(std::string_view(Names[9].Buf, Names[9].Length), "func-host-sub"sv);
+  EXPECT_EQ(std::string_view(Names[10].Buf, Names[10].Length), "func-mul-2"sv);
 
   // VM get active module
   EXPECT_NE(WasmEdge_VMGetActiveModule(VM), nullptr);
@@ -3609,15 +3680,15 @@ TEST(APICoreTest, VM) {
   WasmEdge_VMDelete(VM);
 }
 
-#if defined(WASMEDGE_BUILD_PLUGINS) && WASMEDGE_OS_LINUX
+#if defined(WASMEDGE_BUILD_PLUGINS)
 TEST(APICoreTest, Plugin) {
   WasmEdge_String Names[15];
 
   // Load from the specific path
   EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 0U);
   WasmEdge_PluginLoadFromPath(
-      "../plugins/unittest/"
-      "libwasmedgePluginTestModuleCPP" WASMEDGE_LIB_EXTENSION);
+      "../plugins/unittest/" WASMEDGE_LIB_PREFIX
+      "wasmedgePluginTestModuleCPP" WASMEDGE_LIB_EXTENSION);
   EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 1U);
 
   // Get the loaded plugin length
@@ -3625,8 +3696,8 @@ TEST(APICoreTest, Plugin) {
   EXPECT_EQ(WasmEdge_PluginListPlugins(nullptr, 0), 1U);
   EXPECT_EQ(WasmEdge_PluginListPlugins(Names, 0), 1U);
   EXPECT_EQ(WasmEdge_PluginListPlugins(Names, 15), 1U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
-            std::string("wasmedge_plugintest_cpp"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length),
+            "wasmedge_plugintest_cpp"sv);
 
   // Find the plugin context
   const WasmEdge_PluginContext *PluginCxt =
@@ -3637,10 +3708,10 @@ TEST(APICoreTest, Plugin) {
 
   // Get plugin name
   Names[0] = WasmEdge_PluginGetPluginName(PluginCxt);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
-            std::string("wasmedge_plugintest_cpp"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length),
+            "wasmedge_plugintest_cpp"sv);
   Names[0] = WasmEdge_PluginGetPluginName(nullptr);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string(""));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), ""sv);
 
   // List modules in the plugin
   EXPECT_EQ(WasmEdge_PluginListModuleLength(nullptr), 0U);
@@ -3650,10 +3721,10 @@ TEST(APICoreTest, Plugin) {
   EXPECT_EQ(WasmEdge_PluginListModule(nullptr, nullptr, 0), 0U);
   EXPECT_EQ(WasmEdge_PluginListModule(PluginCxt, nullptr, 0), 1U);
   EXPECT_EQ(WasmEdge_PluginListModule(PluginCxt, Names, 0), 1U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string(""));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), ""sv);
   EXPECT_EQ(WasmEdge_PluginListModule(PluginCxt, Names, 15), 1U);
-  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
-            std::string("wasmedge_plugintest_cpp_module"));
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length),
+            "wasmedge_plugintest_cpp_module"sv);
 
   // Create the module
   WasmEdge_ModuleInstanceContext *ModCxt =
@@ -3664,7 +3735,7 @@ TEST(APICoreTest, Plugin) {
   EXPECT_EQ(ModCxt, nullptr);
   ModCxt = WasmEdge_PluginCreateModule(PluginCxt, Names[0]);
   EXPECT_NE(ModCxt, nullptr);
-  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, Names, 15), 4U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, Names, 15), 5U);
   WasmEdge_ModuleInstanceDelete(ModCxt);
 }
 #endif

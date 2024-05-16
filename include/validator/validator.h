@@ -37,6 +37,7 @@ public:
 
 private:
   /// Validate AST::Types
+  Expect<void> validate(const AST::SubType &Type);
   Expect<void> validate(const AST::Limit &Lim);
   Expect<void> validate(const AST::TableType &Tab);
   Expect<void> validate(const AST::MemoryType &Mem);
@@ -66,6 +67,7 @@ private:
   Expect<void> validate(const AST::DataSection &DataSec);
   Expect<void> validate(const AST::StartSection &StartSec);
   Expect<void> validate(const AST::ExportSection &ExportSec);
+  Expect<void> validate(const AST::TagSection &TagSec);
 
   /// Validate const expression
   Expect<void> validateConstExpr(AST::InstrView Instrs,

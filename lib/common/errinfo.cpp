@@ -305,7 +305,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoProposal>::format(
       Iter != WasmEdge::ProposalStr.end()) {
     fmt::format_to(
         std::back_inserter(Buffer),
-        "    This instruction or syntax requires enabling proposal {}"sv,
+        "    This instruction or syntax requires enabling {} proposal"sv,
         Iter->second);
   } else {
     fmt::format_to(std::back_inserter(Buffer),

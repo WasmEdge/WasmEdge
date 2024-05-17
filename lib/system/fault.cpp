@@ -46,18 +46,19 @@ void signalHandler(int Signal, siginfo_t *Siginfo, void *) {
 }
 
 void enableHandler() noexcept {
+  [[maybe_unused]]
   struct sigaction Action {};
   Action.sa_sigaction = &signalHandler;
   Action.sa_flags = SA_SIGINFO;
-  sigaction(SIGFPE, &Action, nullptr);
-  sigaction(SIGBUS, &Action, nullptr);
-  sigaction(SIGSEGV, &Action, nullptr);
+  // sigaction(SIGFPE, &Action, nullptr);
+  // sigaction(SIGBUS, &Action, nullptr);
+  // sigaction(SIGSEGV, &Action, nullptr);
 }
 
 void disableHandler() noexcept {
-  std::signal(SIGFPE, SIG_DFL);
-  std::signal(SIGBUS, SIG_DFL);
-  std::signal(SIGSEGV, SIG_DFL);
+  // std::signal(SIGFPE, SIG_DFL);
+  // std::signal(SIGBUS, SIG_DFL);
+  // std::signal(SIGSEGV, SIG_DFL);
 }
 
 #elif WASMEDGE_OS_WINDOWS

@@ -3384,6 +3384,37 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ExecutorExperimentalRegisterPostHostFunction(
 }
 
 // <<<<<<<< WasmEdge Experimental Functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> [qdrvm] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ASTModuleListDataSegments(
+    const WasmEdge_ASTModuleContext *Cxt, WasmEdge_DataSegment *Segments,
+    const uint32_t Len) {
+  if (!Cxt) {
+    return 0;
+  }
+  const auto &DataSegSpan = fromASTModCxt(Cxt)->getDataSection().getContent();
+  WasmEdge::Configure Conf;
+  WasmEdge::Executor::Executor Executor{Conf};
+  WasmEdge::Runtime::StackManager StackMgr;
+  uint32_t I = 0;
+  for (const auto &DataSeg : DataSegSpan) {
+    auto Offset = Executor.dataSegmentOffset(StackMgr, DataSeg);
+    if (!Offset) {
+      return 0;
+    }
+    if (I < Len) {
+      Segments[I].Offset = Offset.value();
+      Segments[I].Data = DataSeg.getData().data();
+      Segments[I].Length = DataSeg.getData().size();
+    }
+    ++I;
+  }
+  return DataSegSpan.size();
+}
+
+// <<<<<<<< [qdrvm] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

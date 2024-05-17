@@ -187,6 +187,9 @@ public:
     atomicNotifyAll();
   }
 
+  // [qdrvm]
+  Expect<uint32_t> dataSegmentOffset(Runtime::StackManager &StackMgr, const AST::DataSegment &DataSeg);
+
 private:
   /// Run Wasm bytecode expression for initialization.
   Expect<void> runExpression(Runtime::StackManager &StackMgr,
@@ -842,6 +845,24 @@ private:
     std::atomic_uint64_t *Gas;
     uint64_t GasLimit;
     std::atomic_uint32_t *StopToken;
+  };
+
+  struct SavedThreadLocal {
+    SavedThreadLocal() : SavedThis(This), SavedCurrentStack(CurrentStack), SavedExecutionContext(ExecutionContext) {
+    }
+
+    SavedThreadLocal(const SavedThreadLocal &) = delete;
+    SavedThreadLocal(SavedThreadLocal &&) = delete;
+
+    ~SavedThreadLocal() {
+      This = SavedThis;
+      CurrentStack = SavedCurrentStack;
+      ExecutionContext = SavedExecutionContext;
+    }
+
+    Executor *SavedThis;
+    Runtime::StackManager *SavedCurrentStack;
+    ExecutionContextStruct SavedExecutionContext;
   };
 
   /// Pointer to current object.

@@ -58,6 +58,14 @@ if(WASMEDGE_PLUGIN_WASI_OCR)
   add_subdirectory(wasi_ocr)
 endif()
 
+if(WASMEDGE_PLUGIN_STABLEDIFFUSION)
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    add_subdirectory(wasmedge_stablediffusion)
+  else()
+    message(WARNING "Only Linux platforms support wasm_bpf plug-in now.")
+  endif()
+endif()
+
 if(WASMEDGE_PLUGIN_OPENCVMINI)
   # Only Linux and MacOS support wasmedge_opencvmini now.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")

@@ -14,6 +14,33 @@
 #include <unistd.h>
 #elif WASMEDGE_OS_WINDOWS
 #include "system/winapi.h"
+
+static bool GetFunctionModuleFileName(void *FuncPtr,
+                                      std::filesystem::path &Path) {
+  WasmEdge::winapi::HMODULE_ Module = nullptr;
+
+  if (!WasmEdge::winapi::GetModuleHandleExW(
+          WasmEdge::winapi::GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS_ |
+              WasmEdge::winapi::GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT_,
+          reinterpret_cast<WasmEdge::winapi::LPCWSTR_>(FuncPtr), &Module)) {
+    return false;
+  }
+
+  std::vector<wchar_t> Buffer;
+  WasmEdge::winapi::DWORD_ CopiedSize;
+  do {
+    Buffer.resize(Buffer.size() + WasmEdge::winapi::MAX_PATH_);
+    CopiedSize = WasmEdge::winapi::GetModuleFileNameW(
+        Module, Buffer.data(),
+        static_cast<WasmEdge::winapi::DWORD_>(Buffer.size()));
+    if (CopiedSize == 0) {
+      return false;
+    }
+  } while (CopiedSize >= Buffer.size());
+
+  Path.assign(std::wstring_view(Buffer.data(), CopiedSize));
+  return true;
+}
 #endif
 
 namespace WasmEdge {
@@ -257,9 +284,15 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
     return std::vector<std::filesystem::path>();
   }
 #elif WASMEDGE_OS_WINDOWS
-  // FIXME: Use the `dladdr`.
   // Global plugin directory.
-  Result.push_back(std::filesystem::u8path(kGlobalPluginDir));
+  if (std::filesystem::path Path; GetFunctionModuleFileName(
+          reinterpret_cast<void *>(Plugin::getDefaultPluginPaths), Path)) {
+    Result.push_back(Path.parent_path());
+  } else {
+    spdlog::error("Failed to get the path of the current module."sv);
+    return std::vector<std::filesystem::path>();
+  }
+
   // Local home plugin directory.
   std::filesystem::path Home;
   if (const auto HomeEnv = ::getenv("USERPROFILE")) {

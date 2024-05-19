@@ -1694,4 +1694,30 @@ inline ULONG_ RtlNtStatusToDosError(NTSTATUS_ Status) noexcept {
 } // namespace WasmEdge::winapi
 #endif
 
+extern "C" {
+WASMEDGE_WINAPI_SYMBOL_IMPORT
+WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC GetModuleHandleExW(
+    WasmEdge::winapi::DWORD_ dwFlags, WasmEdge::winapi::LPCWSTR_ lpModuleName,
+    WasmEdge::winapi::HMODULE_ *phModule);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT
+WasmEdge::winapi::DWORD_ WASMEDGE_WINAPI_WINAPI_CC GetModuleFileNameW(
+    WasmEdge::winapi::HMODULE_ hModule, WasmEdge::winapi::LPWSTR_ lpFilename,
+    WasmEdge::winapi::DWORD_ nSize);
+} // extern "C"
+
+namespace WasmEdge::winapi {
+using ::GetModuleFileNameW;
+using ::GetModuleHandleExW;
+} // namespace WasmEdge::winapi
+
+namespace WasmEdge::winapi {
+static inline constexpr const DWORD_ GET_MODULE_HANDLE_EX_FLAG_PIN_ =
+    0x00000001L;
+static inline constexpr const DWORD_
+    GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT_ = 0x00000002L;
+static inline constexpr const DWORD_ GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS_ =
+    0x00000004L;
+} // namespace WasmEdge::winapi
+
 #endif

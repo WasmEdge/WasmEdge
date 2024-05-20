@@ -55,15 +55,16 @@ if(BACKEND STREQUAL "ggml")
   message(STATUS "Downloading llama.cpp source")
   if(MSVC)
     add_compile_options(
-      /utf-8
-      /wd4067 # unexpected tokens following preprocessor directive - expected a newline
-      /wd4101 # 'identifier' : unreferenced local variable
-      /wd4189 # 'identifier' : local variable is initialized but not referenced
-      /wd4244 # 'argument' : conversion from 'type1' to 'type2', possible loss of data
-      /wd4267 # 'var' : conversion from 'size_t' to 'type', possible loss of data
-      /wd4297 # 'function' : function assumed not to throw an exception but does
-      /wd4456 # declaration of 'identifier' hides previous local declaration
-      /wd4505 # 'function' : unreferenced local function has been removed
+      $<$<COMPILE_LANGUAGE:C,CXX>:/utf-8>
+      $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/utf-8>
+      $<$<COMPILE_LANGUAGE:C,CXX>:/wd4067> # unexpected tokens following preprocessor directive - expected a newline
+      $<$<COMPILE_LANGUAGE:C,CXX>:/wd4101> # 'identifier' : unreferenced local variable
+      $<$<COMPILE_LANGUAGE:C,CXX>:/wd4189> # 'identifier' : local variable is initialized but not referenced
+      $<$<COMPILE_LANGUAGE:C,CXX>:/wd4244> # 'argument' : conversion from 'type1' to 'type2', possible loss of data
+      $<$<COMPILE_LANGUAGE:C,CXX>:/wd4267> # 'var' : conversion from 'size_t' to 'type', possible loss of data
+      $<$<COMPILE_LANGUAGE:C,CXX>:/wd4297> # 'function' : function assumed not to throw an exception but does
+      $<$<COMPILE_LANGUAGE:C,CXX>:/wd4456> # declaration of 'identifier' hides previous local declaration
+      $<$<COMPILE_LANGUAGE:C,CXX>:/wd4505> # 'function' : unreferenced local function has been removed
     )
   endif()
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
@@ -95,7 +96,7 @@ if(BACKEND STREQUAL "ggml")
   FetchContent_Declare(
     llama
     GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-    GIT_TAG        b2879
+    GIT_TAG        b2943
     GIT_SHALLOW    FALSE
   )
   FetchContent_MakeAvailable(llama)

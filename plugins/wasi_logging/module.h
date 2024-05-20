@@ -1,7 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #pragma once
 
+#include "env.h"
+
 #include "runtime/instance/module.h"
-#include "wasi_logging/env.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -10,10 +14,10 @@ class WasiLoggingModule : public Runtime::Instance::ModuleInstance {
 public:
   WasiLoggingModule();
 
-  WasiLoggingEnvironment &getEnv() { return Env; }
+  WASILogging::LogEnv &getEnv() { return Env; }
 
 private:
-  WasiLoggingEnvironment Env;
+  WASILogging::LogEnv Env;
 };
 
 } // namespace Host

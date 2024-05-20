@@ -1,17 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #pragma once
 
-#include "wasi_logging/base.h"
+#include "base.h"
 
 namespace WasmEdge {
 namespace Host {
+namespace WASILogging {
 
-class WasiLoggingLog : public WasiLogging<WasiLoggingLog> {
+class Log : public Func<Log> {
 public:
-  WasiLoggingLog(WasiLoggingEnvironment &HostEnv) : WasiLogging(HostEnv) {}
+  Log(LogEnv &HostEnv) : Func(HostEnv) {}
   Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t Level,
                     uint32_t CxtPtr, uint32_t CxtLen, uint32_t MsgPtr,
                     uint32_t MsgLen);
 };
 
+} // namespace WASILogging
 } // namespace Host
 } // namespace WasmEdge

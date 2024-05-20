@@ -76,7 +76,7 @@ jobs:
           fi
 
           mkdir -p build
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=${build_tests} -DCMAKE_BUILD_TYPE=${build_type} -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DWASMEDGE_PLUGIN_WASI_LOGGING=ON
+          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=${build_tests} -DCMAKE_BUILD_TYPE=${build_type} -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DOPENSSL_ROOT_DIR=${OpenSSL_DIR}
           cmake --build build --target wasmedgePluginWasiLogging
       - uses: actions/cache/save@v3
         with:

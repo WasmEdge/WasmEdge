@@ -1,13 +1,14 @@
 #pragma once
 
 #include "runtime/callingframe.h"
-#include "sb_base.h"
+#include "sd_base.h"
 
 namespace WasmEdge {
 namespace Host {
-class SBCreateContext : public StableDiffusion::Func<SBCreateContext> {
+namespace StableDiffusion {
+class SDCreateContext : public StableDiffusion::Func<SDCreateContext> {
 public:
-  SBCreateContext(StableDiffusion::SBEnviornment &HostEnv) : Func(HostEnv) {}
+  SDCreateContext(StableDiffusion::SDEnviornment &HostEnv) : Func(HostEnv) {}
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame) {
     return bodyImpl(Frame).map(castErrNo);
   }
@@ -15,5 +16,6 @@ public:
 private:
   Expect<StableDiffusion::ErrNo> bodyImpl(const Runtime::CallingFrame &Frame);
 };
+} // namespace StableDiffusion
 } // namespace Host
 } // namespace WasmEdge

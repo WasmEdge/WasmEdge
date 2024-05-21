@@ -48,7 +48,8 @@ public:
   BaseHandlesManager &operator=(BaseHandlesManager &&) noexcept = delete;
 
   /// @param TypeID A unique number
-  BaseHandlesManager(uint8_t TypeID) noexcept : LastHandle{TypeID, 0} {}
+  explicit BaseHandlesManager(uint8_t TypeID) noexcept
+      : LastHandle{TypeID, 0} {}
 
   WasiCryptoExpect<void> close(HandleType Handle) noexcept {
     std::unique_lock<std::shared_mutex> Lock{Mutex};
@@ -140,6 +141,8 @@ class RcHandlesManager
                                           ManagerType>::HandleWrapper;
 
 public:
+  using detail::BaseHandlesManager<HandleType, ManagerType>::BaseHandlesManager;
+
   /// Get the return copy.
   WasiCryptoExpect<ManagerType> get(HandleType Handle) noexcept {
     std::shared_lock<std::shared_mutex> Lock{this->Mutex};
@@ -184,6 +187,8 @@ class RefHandlesManager
                                           ManagerType>::HandleWrapper;
 
 public:
+  using detail::BaseHandlesManager<HandleType, ManagerType>::BaseHandlesManager;
+
   /// Get the return reference.
   WasiCryptoExpect<std::reference_wrapper<ManagerType>>
   get(HandleType Handle) noexcept {

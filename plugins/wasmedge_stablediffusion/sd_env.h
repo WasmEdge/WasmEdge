@@ -3,7 +3,6 @@
 #include "stable-diffusion.h"
 
 #include "plugin/plugin.h"
-#include "stdint.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -23,7 +22,7 @@ struct Context {
   ~Context() noexcept {}
 };
 
-class SBEnviornment {};
+class SDEnviornment {};
 
 } // namespace StableDiffusion
 } // namespace Host

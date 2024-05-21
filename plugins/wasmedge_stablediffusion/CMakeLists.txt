@@ -28,9 +28,9 @@ set_property(TARGET stable-diffusion PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 wasmedge_add_library(wasmedgePluginStableDiffusion
   SHARED
-  sb_env.cpp
-  sb_func.cpp
-  sb_module.cpp
+  sd_env.cpp
+  sd_func.cpp
+  sd_module.cpp
   stablediffusion.cpp
 )
 

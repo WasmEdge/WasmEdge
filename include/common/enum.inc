@@ -793,8 +793,10 @@ E(NonNullRequired, 0x0009, "set null value into non-nullable value type")
 E(SetValueToConst, 0x000A, "set value into const")
 // Set value failed due to mismatch value type
 E(SetValueErrorType, 0x000B, "set value type mismatch")
+// JIT is disabled
+E(JITDisabled, 0x000C, "JIT is disabled in this build")
 // User defined error
-E(UserDefError, 0x000C, "user defined error code")
+E(UserDefError, 0x000D, "user defined error code")
 
 // Load phase
 // @{

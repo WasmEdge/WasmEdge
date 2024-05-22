@@ -4,6 +4,7 @@
 #include "wasmedge/wasmedge.h"
 
 #include "common/defines.h"
+#include "common/enum_errcode.hpp"
 #include "driver/compiler.h"
 #include "driver/tool.h"
 #include "driver/unitool.h"
@@ -13,6 +14,7 @@
 #include "vm/vm.h"
 #include "llvm/codegen.h"
 #include "llvm/compiler.h"
+#include "llvm/jit.h"
 
 #ifdef WASMEDGE_BUILD_FUZZING
 #include "driver/fuzzPO.h"
@@ -1791,6 +1793,29 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderSerializeASTModule(
         Buf->Buf = Bytes;
       },
       Cxt, ASTCxt, Buf);
+}
+
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_LoaderPrepareForJIT(WasmEdge_LoaderContext *Ctx,
+                             WasmEdge_ASTModuleContext *ASTCxt,
+                             const WasmEdge_ConfigureContext *ConfCxt) {
+#ifdef WASMEDGE_USE_LLVM
+  LLVM::Compiler Compiler(ConfCxt->Conf);
+  LLVM::JIT JIT(ConfCxt->Conf);
+  auto *Mod = fromASTModCxt(ASTCxt);
+  if (auto Res = Compiler.compile(*Mod); !Res) {
+    const auto Err = static_cast<uint32_t>(Res.error());
+    return genWasmEdge_Result(Err);
+  } else if (auto Res2 = JIT.load(std::move(*Res)); !Res2) {
+    const auto Err = static_cast<uint32_t>(Res2.error());
+    return genWasmEdge_Result(Err);
+  } else {
+    fromLoaderCxt(Ctx)->loadExecutable(*Mod, std::move(*Res2));
+  }
+  return genWasmEdge_Result(ErrCode::Value::Success);
+#else
+  return genWasmEdge_Result(ErrCode::Value::JITDisabled);
+#endif
 }
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_LoaderDelete(WasmEdge_LoaderContext *Cxt) {

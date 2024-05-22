@@ -7,10 +7,15 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
   cmake_policy(SET CMP0135 NEW)
 endif()
 
+set(HUNTER_CACHE_SERVERS
+    "https://github.com/qdrvm/hunter-binary-cache"
+    CACHE STRING "Binary cache server"
+)
+
 include(cmake/HunterGate.cmake)
 HunterGate(
-  URL  https://github.com/qdrvm/hunter/archive/refs/tags/v0.25.3-qdrvm11.zip
-  SHA1 20620ee1e2e9738b2d4561be2622d71e8c73bee9
+  URL  https://github.com/qdrvm/hunter/archive/refs/heads/update/boost-1.85.zip
+  SHA1 40c34d168dfa7d2a44d146928befa2d9d5680a71
   LOCAL
 )
 

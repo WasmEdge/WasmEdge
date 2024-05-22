@@ -202,6 +202,7 @@ Expect<void> Loader::loadModule(AST::Module &Mod) {
 // Setup symbols from loaded binary. See "include/loader/loader.h".
 Expect<void> Loader::loadExecutable(AST::Module &Mod,
                                     std::shared_ptr<Executable> Exec) {
+  spdlog::info("load executable start");
   auto &SubTypes = Mod.getTypeSection().getContent();
   for (auto &SubType : SubTypes) {
     if (unlikely(!SubType.getCompositeType().isFunc())) {
@@ -259,6 +260,7 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
       *Symbol = IntrinsicsTable;
     }
   }
+  spdlog::info("load executable end");
 
   return {};
 }

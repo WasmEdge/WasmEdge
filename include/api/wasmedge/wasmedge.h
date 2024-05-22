@@ -1790,6 +1790,11 @@ WasmEdge_LoaderSerializeASTModule(WasmEdge_LoaderContext *Cxt,
                                   const WasmEdge_ASTModuleContext *ASTCxt,
                                   WasmEdge_Bytes *Buf);
 
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_LoaderPrepareForJIT(WasmEdge_LoaderContext *Ctx,
+                             WasmEdge_ASTModuleContext *ASTCxt,
+                             const WasmEdge_ConfigureContext *ConfCxt);
+
 /// Deletion of the WasmEdge_LoaderContext.
 ///
 /// After calling this function, the context will be destroyed and should
@@ -4196,9 +4201,10 @@ typedef struct WasmEdge_DataSegment {
 /// \param Len the buffer length.
 ///
 /// \returns actual data segment list size.
-WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ASTModuleListDataSegments(
-    const WasmEdge_ASTModuleContext *Cxt, WasmEdge_DataSegment *Segments,
-    const uint32_t Len);
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ASTModuleListDataSegments(const WasmEdge_ASTModuleContext *Cxt,
+                                   WasmEdge_DataSegment *Segments,
+                                   const uint32_t Len);
 
 // <<<<<<<< [qdrvm] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

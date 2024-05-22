@@ -152,7 +152,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           build-args: BASE=wasmedge/wasmedge:ubuntu-build-clang
-          context: ./utils/docker
+          context: ./utils
           file: ./utils/docker/Dockerfile.build-plugins-deps
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
@@ -170,7 +170,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           build-args: BASE=wasmedge/wasmedge:ubuntu-build-gcc
-          context: ./utils/docker
+          context: ./utils
           file: ./utils/docker/Dockerfile.build-plugins-deps
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}

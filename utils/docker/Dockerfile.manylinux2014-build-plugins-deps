@@ -13,7 +13,7 @@ RUN yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.rep
 
 WORKDIR /root
 
-COPY docker/install-opencvmini.sh .
+COPY opencvmini/install-opencvmini.sh .
 ENV OPENCV_VERSION "4.8.0"
 RUN [ "/bin/bash", "install-opencvmini.sh" ]
 

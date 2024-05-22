@@ -15,7 +15,7 @@ function docker_build
     local NAME_TAG=${NAME}:${TAG}
     echo "Building docker image \"${NAME_TAG}\" from file \"${FILENAME}\"."
 
-    ( set -x; docker build "$@" -f "${FILENAME}" -t "${NAME_TAG}" . )
+    ( set -x; docker build "$@" -f "docker/${FILENAME}" -t "${NAME_TAG}" . )
 
     if [[ "${TAG}" == im-* ]]; then
         INTERMEDIATES+=( "${NAME_TAG}" )

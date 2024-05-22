@@ -68,10 +68,12 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   //   reverse-prompt: string
   //   mmproj: string
   //   image: string
+  //   use-mmap: bool
   // Model parameters (need to reload the model if updated):
   //   n-gpu-layers: int64_t
   //   main-gpu: int64_t
   //   tensor-split: string, comma-separated floating number list
+  //   use-mmap: use mmap
   // Context parameters (used by the llama context):
   //   ctx-size: uint64_t
   //   batch-size: uint64_t
@@ -90,6 +92,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   ModelParams.n_gpu_layers = GraphRef.NGPULayers;
   ModelParams.main_gpu = GraphRef.MainGPU;
   ModelParams.tensor_split = GraphRef.TensorSplit.data();
+  ModelParams.use_mmap = GraphRef.UseMMap;
 
   // The plugin parameters.
   if (Doc.at_key("enable-log").error() == simdjson::SUCCESS) {
@@ -208,6 +211,14 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     }
     for (uint32_t Idx = GraphRef.TensorSplit.size(); Idx < NDevices; Idx++) {
       GraphRef.TensorSplit.push_back(0.0f);
+    }
+  }
+  if (Doc.at_key("use-mmap").error() == simdjson::SUCCESS) {
+    auto Err = Doc["use-mmap"].get<bool>().get(GraphRef.UseMMap);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the use-mmap option."sv);
+      return ErrNo::InvalidArgument;
     }
   }
 
@@ -771,6 +782,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   ModelParams.n_gpu_layers = GraphRef.NGPULayers;
   ModelParams.main_gpu = GraphRef.MainGPU;
   ModelParams.tensor_split = GraphRef.TensorSplit.data();
+  ModelParams.use_mmap = GraphRef.UseMMap;
   GraphRef.LlamaModel =
       llama_load_model_from_file(GraphRef.ModelFilePath.c_str(), ModelParams);
   if (GraphRef.LlamaModel == nullptr) {

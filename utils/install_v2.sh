@@ -28,20 +28,35 @@ eprintf() {
 	command printf '%s\n' "$1" 1>&2
 }
 
-detect_cuda() {
+detect_cuda_nvcc() {
 	local cuda=""
 	cuda=$(/usr/local/cuda/bin/nvcc --version 2>/dev/null | grep "Cuda compilation tools" | cut -f5 -d ' ' | cut -f1 -d ',')
 	if [[ "${cuda}" =~ "12" ]]; then
 		cuda="12"
 	elif [[ "${cuda}" =~ "11" ]]; then
 		cuda="11"
-	else
-		cuda=$(nvidia-smi -q 2>/dev/null | grep CUDA | cut -f2 -d ':' | cut -f2 -d ' ')
-		if [[ "${cuda}" =~ "12" ]]; then
-			cuda="12"
-		elif [[ "${cuda}" =~ "11" ]]; then
-			cuda="11"
-		fi
+	fi
+
+	echo ${cuda}
+}
+
+detect_cuda_nvidia_smi() {
+	local cuda=""
+	cuda=$(nvidia-smi -q 2>/dev/null | grep CUDA | cut -f2 -d ':' | cut -f2 -d ' ')
+	if [[ "${cuda}" =~ "12" ]]; then
+		cuda="12"
+	elif [[ "${cuda}" =~ "11" ]]; then
+		cuda="11"
+	fi
+
+	echo ${cuda}
+}
+
+detect_cuda() {
+	local cuda=""
+	cuda=$(detect_cuda_nvcc)
+	if [[ "${cuda}" == "" ]]; then
+		cuda=$(detect_cuda_nvidia_smi)
 	fi
 
 	echo ${cuda}
@@ -189,6 +204,7 @@ VERBOSE=0
 LEGACY=0
 ENABLE_RUSTLS=0
 ENABLE_NOAVX=0
+GGML_BUILD_NUMBER=""
 
 set_ENV() {
 	ENV="#!/bin/sh
@@ -278,6 +294,9 @@ usage() {
 
 	--rustls                                    Install the Rustls plugin.
 													Default is disabled.
+
+	--ggmlbn=[b2963]                            Install the specific GGML plugin.
+													Default is the latest.
 
 	--os=[Linux/Darwin]                         Set the OS.
 													Default is detected OS.
@@ -378,6 +397,9 @@ get_wasmedge_ggml_plugin() {
 	else
 		cuda=$(detect_cuda)
 		info "Detected CUDA version: ${cuda}"
+		info "CUDA version from nvcc: $(detect_cuda_nvcc)"
+		info "CUDA version from nvidia-smi: $(detect_cuda_nvidia_smi)"
+
 		if [ "${cuda}" == "12" ]; then
 			CUDA_EXT="-cuda"
 		elif [ "${cuda}" == "11" ]; then
@@ -390,7 +412,15 @@ get_wasmedge_ggml_plugin() {
 			CUDA_EXT=""
 		fi
 	fi
-	_downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-$VERSION-$RELEASE_PKG"
+
+	if [ "$GGML_BUILD_NUMBER" == "" ]; then
+		info "Use default GGML plugin"
+		_downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-$VERSION-$RELEASE_PKG"
+	else
+		info "Use ${GGML_BUILD_NUMBER} GGML plugin"
+		_downloader "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/raw/main/${VERSION}/${GGML_BUILD_NUMBER}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-$VERSION-$RELEASE_PKG"
+	fi
+
 	local TMP_PLUGIN_DIR="${TMP_DIR}/${IPKG}/plugin"
 	mkdir -p "${TMP_PLUGIN_DIR}"
 	_extractor -C "${TMP_PLUGIN_DIR}" -vxzf "${TMP_DIR}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-${VERSION}-${RELEASE_PKG}"
@@ -458,6 +488,9 @@ main() {
 				;;
 			p | path)
 				IPATH="$(_realpath "${OPTARG}")"
+				;;
+			ggmlbn)
+				GGML_BUILD_NUMBER="${OPTARG}"
 				;;
 			noavx)
 				ENABLE_NOAVX=1

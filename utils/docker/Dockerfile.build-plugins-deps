@@ -7,6 +7,6 @@ RUN apt update && apt install -y \
 
 RUN rm -rf /var/lib/apt/lists/*
 
-COPY install-opencvmini.sh .
+COPY opencvmini/install-opencvmini.sh .
 ENV OPENCV_VERSION=4.8.0
 RUN [ "/bin/bash", "install-opencvmini.sh" ]

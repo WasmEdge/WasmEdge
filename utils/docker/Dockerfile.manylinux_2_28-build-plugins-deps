@@ -14,7 +14,7 @@ RUN yum install -y yum-utils && \
 
 WORKDIR /root
 
-COPY docker/install-opencvmini.sh .
+COPY opencvmini/install-opencvmini.sh .
 ENV OPENCV_VERSION "4.8.0"
 RUN [ "/bin/bash", "install-opencvmini.sh" ]
 

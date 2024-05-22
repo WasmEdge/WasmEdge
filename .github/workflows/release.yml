@@ -484,7 +484,7 @@ jobs:
           path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.gz
       - name: Install gh on manylinux
         run: |
-          type -p yum-config-manager >/dev/null || sudo yum install yum-utils
+          type -p yum-config-manager >/dev/null || yum install yum-utils
           yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
           yum install -y gh
       - name: Upload ${{ matrix.name }} tar.gz package

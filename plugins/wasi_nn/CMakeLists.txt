@@ -161,7 +161,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   torch.cpp
   tfl.cpp
   ggml.cpp
-  # mlx.cpp
+  mlx.cpp
 )
 
 target_compile_options(wasmedgePluginWasiNN
@@ -177,6 +177,13 @@ target_include_directories(wasmedgePluginWasiNN
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+if (BACKEND STREQL "mlx")
+  find_package(MLX CONFIG REQUIRED)
+  target_link_libraries(wasmedgePluginWasiNN PUBLIC mlx) 
+  # Add path for including mlx_llm
+endif()
+
 
 if(BACKEND STREQUAL "ggml")
   # Setup llava from llama.cpp

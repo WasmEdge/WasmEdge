@@ -26602,6 +26602,11 @@ const archList = [{
     runner: 'linux-arm64-v2',
     docker_tag: 'manylinux2014_aarch64-plugins-deps',
     asset_tag: 'manylinux2014_aarch64',
+}, {
+    arch: aarch64,
+    runner: 'linux-arm64-v2',
+    docker_tag: 'manylinux_2_28_aarch64-plugins-deps',
+    asset_tag: 'manylinux_2_28_aarch64',
 }];
 
 const pluginList = [{

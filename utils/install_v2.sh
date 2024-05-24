@@ -202,6 +202,7 @@ check_os_arch() {
 IPATH="$__HOME__/.wasmedge"
 VERBOSE=0
 LEGACY=0
+ENABLE_WASI_LOGGING=0
 ENABLE_RUSTLS=0
 ENABLE_NOAVX=0
 GGML_BUILD_NUMBER=""
@@ -293,6 +294,9 @@ usage() {
 													Default is disabled.
 
 	--rustls                                    Install the Rustls plugin.
+													Default is disabled.
+
+	--wasi_logging                              Install the WASI Logging plugin.
 													Default is disabled.
 
 	--ggmlbn=[b2963]                            Install the specific GGML plugin.
@@ -432,6 +436,14 @@ get_wasmedge_rustls_plugin() {
 	local TMP_PLUGIN_DIR="${TMP_DIR}/${IPKG}/plugin"
 	mkdir -p "${TMP_PLUGIN_DIR}"
 	_extractor -C "${TMP_PLUGIN_DIR}" -vxzf "${TMP_DIR}/WasmEdge-plugin-wasmedge_rustls-${VERSION}-${RELEASE_PKG}"
+}
+
+get_wasmedge_wasi_logging_plugin() {
+	info "Fetching WASI-Logging-Plugin"
+	_downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-plugin-wasi_logging-$VERSION-$RELEASE_PKG"
+	local TMP_PLUGIN_DIR="${TMP_DIR}/${IPKG}/plugin"
+	mkdir -p "${TMP_PLUGIN_DIR}"
+	_extractor -C "${TMP_PLUGIN_DIR}" -vxzf "${TMP_DIR}/WasmEdge-plugin-wasi_logging-${VERSION}-${RELEASE_PKG}"
 }
 
 wasmedge_checks() {

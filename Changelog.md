@@ -378,7 +378,7 @@ Features:
 * Added helper functions for Windows CLI.
   * Added the `WasmEdge_Driver_ArgvCreate()` and `WasmEdge_Driver_ArgvDelete()` APIs to convert UTF-16 arguments to UTF-8.
   * Added the `WasmEdge_Driver_SetConsoleOutputCPtoUTF8()` API to set the output code page to UTF-8.
-* Added the unifed tool API.
+* Added the unified tool API.
   * Added the `WasmEdge_Driver_UniTool()` API to trigger the WasmEdge CLI tool with command line arguments.
 
 Fixed issues:

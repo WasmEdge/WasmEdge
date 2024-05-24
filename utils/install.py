@@ -341,6 +341,7 @@ WASI_NN_GGML = "wasi_nn-ggml"
 WASI_NN_GGML_CUDA = "wasi_nn-ggml-cuda"
 WASI_NN_GGML_NOAVX = "wasi_nn-ggml-noavx"
 WASI_NN_GGML_BLAS = "wasi_nn-ggml-blas"
+WASI_LOGGING = "wasi_logging"
 WASMEDGE_TENSORFLOW_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW
 WASMEDGE_TENSORFLOW_LITE_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW_LITE_P
 WASMEDGE_IMAGE_PLUGIN = WASMEDGE.lower() + "_" + IMAGE
@@ -356,6 +357,7 @@ PLUGINS_AVAILABLE = [
     WASI_NN_GGML_CUDA,
     WASI_NN_GGML_NOAVX,
     WASI_NN_GGML_BLAS,
+    WASI_LOGGING,
     WASMEDGE_TENSORFLOW_PLUGIN,
     WASMEDGE_TENSORFLOW_LITE_PLUGIN,
     WASMEDGE_IMAGE_PLUGIN,
@@ -404,6 +406,12 @@ SUPPORTTED_PLUGINS = {
     "manylinux2014" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "manylinux2014" + "aarch64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
+    "darwin" + "x86_64" + WASI_LOGGING: VersionString("0.14.0"),
+    "darwin" + "arm64" + WASI_LOGGING: VersionString("0.13.5"),
+    "manylinux2014" + "aarch64" + WASI_LOGGING: VersionString("0.13.5"),
+    "manylinux2014" + "x86_64" + WASI_LOGGING: VersionString("0.13.5"),
+    "ubuntu20.04" + "x86_64" + WASI_LOGGING: VersionString("0.13.5"),
+    "ubuntu20.04" + "aarch64" + WASI_LOGGING: VersionString("0.14.0"),
     "darwin" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "darwin" + "arm64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
     "manylinux2014" + "aarch64" + WASMEDGE_RUSTLS: VersionString("0.13.5"),

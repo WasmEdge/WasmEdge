@@ -352,8 +352,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: MacOS-latest
-            host_runner: macos-latest
+          - name: MacOS-amd64
+            host_runner: macos-13
             package_manager: brew
           - name: MacOS-arm64
             host_runner: macos-14

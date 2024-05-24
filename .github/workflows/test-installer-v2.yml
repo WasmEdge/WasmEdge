@@ -80,7 +80,7 @@ jobs:
           - name: Mac M1
             host_runner: macos-14
           - name: Mac Intel
-            host_runner: macos-latest
+            host_runner: macos-13
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.host_runner }}
 

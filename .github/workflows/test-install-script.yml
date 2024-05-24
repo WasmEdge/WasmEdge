@@ -178,7 +178,7 @@ jobs:
 
   macos_amd64:
     name: macos-amd64
-    runs-on: macos-latest
+    runs-on: macos-13
 
     steps:
     - uses: actions/checkout@v4

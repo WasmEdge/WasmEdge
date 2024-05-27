@@ -148,6 +148,72 @@ if(BACKEND STREQUAL "ggml")
 
     message(STATUS "Downloading SIMDJSON source -- done")
   endif()
+elseif(BACKEND STREQUAL "piper")
+  # setup piper
+  message(STATUS "Downloading piper source")
+  find_program(GIT_CMD git REQUIRED)
+  include(FetchContent)
+  FetchContent_Declare(
+    piper
+    GIT_REPOSITORY      https://github.com/rhasspy/piper.git
+    GIT_TAG             2023.11.14-2
+    GIT_SHALLOW         FALSE
+  )
+  if(NOT piper_POPULATED)
+      FetchContent_Populate(piper)
+      find_program(GIT_CMD git REQUIRED)
+      execute_process(
+          COMMAND ${GIT_CMD} apply ${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch
+          WORKING_DIRECTORY ${piper_SOURCE_DIR}
+      )
+      add_subdirectory(${piper_SOURCE_DIR} ${piper_BINARY_DIR})
+  endif()
+  set_property(TARGET piper PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+  # setup simdjson
+  find_package(simdjson QUIET)
+  if(simdjson_FOUND)
+    message(STATUS "SIMDJSON found")
+  else()
+    message(STATUS "Downloading SIMDJSON source")
+    include(FetchContent)
+    FetchContent_Declare(
+      simdjson
+      GIT_REPOSITORY https://github.com/simdjson/simdjson.git
+      GIT_TAG  tags/v3.9.1
+      GIT_SHALLOW TRUE)
+
+    if(MSVC)
+      if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        add_compile_options(
+          -Wno-undef
+          -Wno-suggest-override
+          -Wno-documentation
+          -Wno-sign-conversion
+          -Wno-extra-semi-stmt
+          -Wno-old-style-cast
+          -Wno-error=unused-parameter
+          -Wno-error=unused-template
+          -Wno-conditional-uninitialized
+          -Wno-implicit-int-conversion
+          -Wno-shorten-64-to-32
+          -Wno-range-loop-bind-reference
+          -Wno-format-nonliteral
+          -Wno-unused-exception-parameter
+          -Wno-unused-member-function
+        )
+      elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+        add_compile_options(
+          /wd4100 # unreferenced formal parameter
+        )
+      endif()
+    endif()
+
+    FetchContent_MakeAvailable(simdjson)
+    set_property(TARGET simdjson PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+    message(STATUS "Downloading SIMDJSON source -- done")
+  endif()
 endif()
 
 wasmedge_add_library(wasmedgePluginWasiNN
@@ -161,6 +227,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   torch.cpp
   tfl.cpp
   ggml.cpp
+  piper.cpp
 )
 
 target_compile_options(wasmedgePluginWasiNN
@@ -215,6 +282,14 @@ if(BACKEND STREQUAL "ggml")
       COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml-common.h ggml-common.h
     )
   endif()
+elseif(BACKEND STREQUAL "piper")
+  target_include_directories(wasmedgePluginWasiNN PRIVATE
+    ${piper_SOURCE_DIR}/src/cpp
+  )
+  target_link_libraries(wasmedgePluginWasiNN PRIVATE
+    piper
+    simdjson::simdjson
+  )
 endif()
 
 if(WASMEDGE_LINK_PLUGINS_STATIC)

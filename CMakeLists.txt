@@ -75,6 +75,7 @@ option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS "Enable LLAMA_CUBLAS in the WAS
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL "Enable LLAMA_METAL in the WASI-NN GGML backend" OFF)
 # Currently supported WASI-NN backend: "OpenVINO" on Linux x86_64
 option(WASMEDGE_PLUGIN_WASI_HTTP "Enable WasmEdge wasi-http plugin." OFF)
+option(WASMEDGE_PLUGIN_WASI_POLL "Enable WasmEdge wasi-poll plugin." OFF)
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge wasi-crypto plugin." OFF)
 option(WASMEDGE_PLUGIN_WASI_LOGGING "Enable WasmEdge wasi-logging plugin." OFF)
 option(WASMEDGE_PLUGIN_WASM_BPF "Enable WasmEdge wasm-bpf plugin." OFF)

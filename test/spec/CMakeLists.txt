@@ -3,6 +3,8 @@
 
 include(FetchContent)
 
+wasmedge_setup_simdjson()
+
 message(STATUS "Downloading the WASM spec test suite")
 FetchContent_Declare(
   wasmedge_unit_test
@@ -11,50 +13,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(wasmedge_unit_test)
 message(STATUS "Downloading the WASM spec test suite -- done")
-
-find_package(simdjson QUIET)
-if(simdjson_FOUND)
-  message(STATUS "SIMDJSON found")
-else()
-  message(STATUS "Downloading SIMDJSON source")
-  include(FetchContent)
-  FetchContent_Declare(
-    simdjson
-    GIT_REPOSITORY https://github.com/simdjson/simdjson.git
-    GIT_TAG  tags/v3.2.1
-    GIT_SHALLOW TRUE)
-
-  if(MSVC)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      add_compile_options(
-        -Wno-undef
-        -Wno-suggest-override
-        -Wno-documentation
-        -Wno-sign-conversion
-        -Wno-extra-semi-stmt
-        -Wno-old-style-cast
-        -Wno-error=unused-parameter
-        -Wno-error=unused-template
-        -Wno-conditional-uninitialized
-        -Wno-implicit-int-conversion
-        -Wno-shorten-64-to-32
-        -Wno-range-loop-bind-reference
-        -Wno-format-nonliteral
-        -Wno-unused-exception-parameter
-        -Wno-unused-member-function
-        -Wno-missing-prototypes
-      )
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-      add_compile_options(
-        /wd4100 # unreferenced formal parameter
-        /wd4505 # unreferenced local function has been removed
-      )
-    endif()
-  endif()
-
-  FetchContent_MakeAvailable(simdjson)
-  message(STATUS "Downloading SIMDJSON source -- done")
-endif()
 
 function(wasmedge_copy_spec_testsuite proposal)
   message(STATUS "Copying test suite to ${CMAKE_CURRENT_BINARY_DIR}/testSuites/${proposal}")

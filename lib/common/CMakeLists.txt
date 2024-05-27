@@ -10,6 +10,7 @@ else()
     GIT_TAG        10.2.1
     GIT_SHALLOW    TRUE
   )
+  set(FMT_INSTALL OFF CACHE BOOL "Generate the install target." FORCE)
   FetchContent_MakeAvailable(fmt)
   wasmedge_setup_target(fmt)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")

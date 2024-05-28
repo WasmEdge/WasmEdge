@@ -36,7 +36,7 @@ enum class Backend : uint8_t {
   TensorflowLite = 4,
   Autodetect = 5,
   GGML = 6,
-  MLX = 7
+  MLX = 7,
 };
 
 #define FOR_EACH_BACKEND(F)                                                    \

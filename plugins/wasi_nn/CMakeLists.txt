@@ -150,6 +150,46 @@ if(BACKEND STREQUAL "ggml")
   endif()
 endif()
 
+
+if (BACKEND STREQUAL "mlx")
+  # setup mlx_llm.cpp
+  message(STATUS "Downloading mlx_llm.cpp source")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    add_compile_options(
+      $<$<COMPILE_LANGUAGE:CXX>:-Wno-exceptions>
+      -Wno-cast-align
+      -Wno-cast-qual
+      -Wno-float-conversion
+      -Wno-implicit-fallthrough
+      -Wno-unused-macros
+      -Wno-unused-function
+      -Wno-unused-variable
+    )
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(
+      $<$<COMPILE_LANGUAGE:CXX>:-Wno-exceptions>
+      -Wno-cast-align
+      -Wno-cast-qual
+      -Wno-disabled-macro-expansion
+      -Wno-float-conversion
+      -Wno-implicit-fallthrough
+      -Wno-implicit-float-conversion
+      -Wno-unused-macros
+      -Wno-unused-function
+      -Wno-unused-variable
+    )
+  endif()
+  include(FetchContent)
+  FetchContent_Declare(
+    mlx_llm
+    GIT_REPOSITORY https://github.com/guptaaryan16/mlx_llm.cpp
+    GIT_TAG        main
+    GIT_SHALLOW    FALSE
+  )
+  FetchContent_MakeAvailable(mlx_llm)
+
+endif()
+
 wasmedge_add_library(wasmedgePluginWasiNN
   SHARED
   wasinnenv.cpp
@@ -168,6 +208,7 @@ target_compile_options(wasmedgePluginWasiNN
   PUBLIC
   -DWASMEDGE_PLUGIN
 )
+
 if(WASMEDGE_BUILD_WASI_NN_RPC)
   add_definitions(-DWASMEDGE_BUILD_WASI_NN_RPC)
 endif()
@@ -178,10 +219,14 @@ target_include_directories(wasmedgePluginWasiNN
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-if (BACKEND STREQL "mlx")
+if (BACKEND STREQUAL "mlx")
   find_package(MLX CONFIG REQUIRED)
+  # find_package(mlx_llm CONFIG REQUIRED)
+  # set(mlx_llm_DIR "/Users/guptaaryan16/Desktop/OSS/mlx_llm.cpp/mlx_llm/build")
+  # find_package(mlx_llm CONFIG REQUIRED)
+  
   target_link_libraries(wasmedgePluginWasiNN PUBLIC mlx) 
-  # Add path for including mlx_llm
+  target_link_libraries(wasmedgePluginWasiNN PUBLIC mlx_llm)  
 endif()
 
 

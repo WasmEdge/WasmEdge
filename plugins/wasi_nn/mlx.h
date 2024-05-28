@@ -7,7 +7,8 @@
 #include "types.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
-#include <mlx/mlx.h>
+#include "mlx/mlx.h"
+#include "mlx_llm/llm.cpp"
 #endif
 namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
@@ -16,10 +17,10 @@ namespace WasmEdge::Host::WASINN::MLX {
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 struct Graph {
+  size_t GraphId; 
   mlx::core::nn::Module MLXModel;
-  mlx::core StreamOrDevice MLXDevice =
-      metal::is_available() ? Device::gpu : Device::cpu;
-  ;
+  mlx::core::StreamOrDevice MLXDevice =
+  mlx::core::metal::is_available() ? mlx::core::Device::gpu : mlx::core::Device::cpu;
 };
 
 struct Context {
@@ -27,8 +28,8 @@ public:
   Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
   size_t GraphId;
   mlx::core::StreamOrDevice MLXDevice =
-      metal::is_available() ? Device::gpu : Device::cpu;
-  mlx::core::SafeTensorLoad Model;
+      mlx::core::metal::is_available() ? mlx::core::Device::gpu : mlx::core::Device::cpu;
+  mlx::core::SafetensorsLoad Model;
   std::vector<mlx::core::array> MLXInputs;
   std::vector<mlx::core::array> MLXOutputs;
 };

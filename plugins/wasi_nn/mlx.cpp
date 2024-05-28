@@ -3,10 +3,9 @@
 #include "wasinnenv.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
-#include <mlx/mlx.h>
-#include <mlx_llm/llm.h>
+#include "mlx/mlx.h"
+#include "mlx_llm/llm.cpp"
 #endif
-
 namespace WasmEdge::Host::WASINN::MLX {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 
@@ -47,16 +46,12 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
       std::string(reinterpret_cast<char *>(Weight.data()), Weight.size()));
 
   std::string ModelFilePath;
+  const std::string_view BinModel(reinterpret_cast<char *>(Weight.data()),
+                                  Weight.size());
 
   if (BinModel.substr(0, 8) == "preload:") {
     ModelFilePath = BinModel.substr(8);
   } else {
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] MLX backend: Model path not found in nn-preload, write model into a tmpfile."sv);
-    }
-    // TODO: pass the model directly to mlx
-    // Write mlx model to file.
     ModelFilePath = "mlx-safetensors-model.bin"sv;
     std::ofstream TempFile(ModelFilePath);
     if (!TempFile) {
@@ -70,23 +65,15 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     }
     TempFile << BinModel;
     TempFile.close();
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] MLX backend: Write model into a tmpfile...Done"sv);
-    }
   }
-
-  // Initialize MLX model with model parameters.
-  GraphRef.ModelFilePath = ModelFilePath;
-
   try {
     // TODO:: Replace the TestModel with LLM API after mlx_llm gets completed
-    auto GraphRef.Model = mlx::core::nn::TestModel(); 
-    GraphRef.Model.load_weights(ModelFilePath);
-  } catch (const c10::Error &e) {
+    GraphRef.MLXModel = TestModel();
+    GraphRef.MLXModel.load_weights(ModelFilePath);
+  } catch (const int e){
     spdlog::error("[WASI-NN] Failed when load the MLX model.");
-    Env.NNGraph.pop_back();
-    return ErrNo::InvalidArgument;
+      Env.NNGraph.pop_back();
+      return ErrNo::InvalidArgument;
   }
   // Store the loaded graph.
   GraphId = Env.NNGraph.size() - 1;
@@ -103,43 +90,40 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
 }
 
 Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
-                       uint32_t Index, const mlx::core::array &InputArray) noexcept {
+                       uint32_t Index, const TensorData &Tensor) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  if (Index >= CxtRef.TorchInputs.size()) {
-    CxtRef.TorchInputs.resize(Index + 1);
+  if (Index >= CxtRef.MLXInputs.size()) {
+    CxtRef.MLXInputs.resize(Index + 1);
   }
-  if (InputArray.dtype != mlx::core::float32) {
+  if (Tensor.RType != TensorType::F32) {
     spdlog::error(
         "[WASI-NN] Only F32 inputs and outputs are supported for now.");
     return ErrNo::InvalidArgument;
   }
   std::vector<int64_t> Dims;
-  for (size_t I = 0; I < InputArray.shape().size(); I++) {
-    Dims.push_back(static_cast<int64_t>(InputArray.Dimension[I]));
+  for (size_t I = 0; I < Tensor.Dimension.size(); I++) {
+    Dims.push_back(static_cast<int64_t>(Tensor.Dimension[I]));
   }
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  mlx::core::array InTensor = mlx::core::array(
-      reinterpret_cast<float *>(InputArray.item()), Dims, mlx::core::float32, mlx::core::to_stream());
-
-  CxtRef.MLXInputs[Index] = InTensor.copy();
+  CxtRef.MLXInputs[Index] = mlx::core::array(
+      reinterpret_cast<float *>(Tensor.Tensor.data()), mlx::core::float32);
   return ErrNo::Success;
 }
 Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
                         uint32_t Index, Span<uint8_t> OutBuffer,
                         uint32_t &BytesWritten) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  if (CxtRef.Outputs.size() <= Index) {
+  if (CxtRef.MLXOutputs.size() <= Index) {
     spdlog::error(
         "[WASI-NN] The output index {} exceeds the outputs number {}.", Index,
-        CxtRef.Outputs.size());
+        CxtRef.MLXOutputs.size());
     return ErrNo::InvalidArgument;
   }
-  torch::Tensor Tensor =
-      CxtRef.Outputs[Index].to(at::kCPU).toType(torch::kFloat32);
-  float *TensorBuffer = OutTensor.data_ptr<float>();
+  mlx::core::array OutTensor = CxtRef.MLXOutputs[Index];
+  float *TensorBuffer = OutTensor.data<float>();
 
   size_t BlobSize = 1;
-  for (auto I : OutTensor.sizes()) {
+  for (auto I : OutTensor.shape()) {
     BlobSize *= I;
   }
   uint32_t BytesToWrite =
@@ -155,27 +139,11 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     spdlog::error("[WASI-NN] Input is not set!");
     return ErrNo::InvalidArgument;
   }
-  for (size_t I = 0; I < CxtRef.MLXInputs.shape().size(); I++) {
-    mlx::core::array InTensor = CxtRef.TorchInputs[I];
-    if (InTensor.isNone()) {
-      spdlog::error("[WASI-NN] Input [{}] is not set!", I);
-      return ErrNo::InvalidArgument;
-    }
-  }
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  mlx::core::array RawOutput =
-      GraphRef.MLXModel.forward(CxtRef.MLXInputs);
-  // TODO: Output does not seem correct for now
-  // if (mlx::core::is_array_v<RawOutput>()) {
-  //   auto OutTensors = mlx::core::array(
-  // reinterpret_cast<float *>(InputArray.item()), Dims, mlx::core::float32, mlx::core::to_stream());
-  //   for (auto &OneOf : OutTensors) {
-  //     CxtRef.MLXOutputs.push_back(OneOf.clone());
-  //   } else {
-  //   spdlog::error("[WASI-NN] PyTorch backend only supports output a tensor, "
-  //                 "a list of tensor or a tuple of tensor");
-  //   return ErrNo::InvalidArgument;
-  // }
+
+  for (size_t I = 0; I < CxtRef.MLXInputs.size(); I++){
+    CxtRef.MLXOutputs.push_back(GraphRef.MLXModel.forward(CxtRef.MLXInputs[I]));
+  }
   return ErrNo::Success;
 }
 

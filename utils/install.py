@@ -340,7 +340,6 @@ WASI_NN_TENSORFLOW_LITE = "wasi_nn-tensorflowlite"
 WASI_NN_GGML = "wasi_nn-ggml"
 WASI_NN_GGML_CUDA = "wasi_nn-ggml-cuda"
 WASI_NN_GGML_NOAVX = "wasi_nn-ggml-noavx"
-WASI_NN_GGML_BLAS = "wasi_nn-ggml-blas"
 WASI_LOGGING = "wasi_logging"
 WASMEDGE_TENSORFLOW_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW
 WASMEDGE_TENSORFLOW_LITE_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW_LITE_P
@@ -356,7 +355,6 @@ PLUGINS_AVAILABLE = [
     WASI_NN_GGML,
     WASI_NN_GGML_CUDA,
     WASI_NN_GGML_NOAVX,
-    WASI_NN_GGML_BLAS,
     WASI_LOGGING,
     WASMEDGE_TENSORFLOW_PLUGIN,
     WASMEDGE_TENSORFLOW_LITE_PLUGIN,
@@ -377,8 +375,6 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "x86_64" + WASI_NN_GGML_NOAVX: VersionString("0.13.5"),
     "ubuntu20.04" + "x86_64" + WASI_NN_GGML_CUDA: VersionString("0.13.4"),
     "ubuntu20.04" + "aarch64" + WASI_NN_GGML_CUDA: VersionString("0.13.5"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_GGML_BLAS: VersionString("0.13.5"),
-    "ubuntu20.04" + "aarch64" + WASI_NN_GGML_BLAS: VersionString("0.13.5"),
     "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.2-alpha.1"),
     "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
     "manylinux2014" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),

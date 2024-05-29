@@ -1172,6 +1172,17 @@ def install_plugins(args, compat):
             if plugin_name.find(":") != -1:
                 plugin_name, plugin_version_supplied = plugin_name.split(":")
 
+            # Deprecated rustls after 0.14.0
+            # Only allow users to install rustls with 0.13.5
+            if (
+                plugin_name.startswith(WASMEDGE_RUSTLS)
+                and compat.version.compare("0.13.5") != 0
+            ):
+                logging.warning("WasmEdge Rustls plugin is only available in 0.13.5")
+                logging.warning("Please use -v 0.13.5 as a workaround")
+                logging.warning("Skip installing WasmEdge Rustls plugin")
+                continue
+
             # Split the WASI-NN-GGML plugin and the others
             if plugin_name.startswith(WASI_NN_GGML):
                 # Re-write the plugin name if the build number is supplied

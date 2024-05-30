@@ -52,11 +52,30 @@ detect_cuda_nvidia_smi() {
 	echo ${cuda}
 }
 
+detect_cudart() {
+	local cudart_available="no"
+	if [[ ${OS} == "Linux" ]]; then
+		# Use ldconfig on Linux
+		# macOS does not have libcudart.so
+		local check=$(ldconfig -p | grep libcudart.so)
+		if [[ "${check}" != "" ]]; then
+			cudart_available="yes"
+		fi
+	fi
+	echo ${cudart_available}
+}
+
 detect_cuda() {
 	local cuda=""
 	cuda=$(detect_cuda_nvcc)
 	if [[ "${cuda}" == "" ]]; then
 		cuda=$(detect_cuda_nvidia_smi)
+	fi
+
+	local cudart=$(detect_cudart)
+	if [[ "${cudart}" == "no" ]]; then
+		# If cudart is not available, it will not use the GPU version.
+		cuda=""
 	fi
 
 	echo ${cuda}
@@ -400,9 +419,16 @@ get_wasmedge_ggml_plugin() {
 		NOAVX_EXT="-noavx"
 	else
 		cuda=$(detect_cuda)
+		cudart=$(detect_cudart)
 		info "Detected CUDA version: ${cuda}"
 		info "CUDA version from nvcc: $(detect_cuda_nvcc)"
 		info "CUDA version from nvidia-smi: $(detect_cuda_nvidia_smi)"
+		info "Is CUDART found?: ${cudart}"
+		if [ "${cuda}" != "" ] && [ "${cudart}" == "yes" ]; then
+			info "CUDA version is detected and CUDART is found: Use the GPU version."
+		else
+			info "CUDA version is not detected or CUDART is not found: Use the CPU version."
+		fi
 
 		if [ "${cuda}" == "12" ]; then
 			CUDA_EXT="-cuda"

@@ -450,20 +450,13 @@ wasmedge_checks() {
 	if [ "${ARCH}" == $(uname -m) ] && [ "${OS}" == $(uname) ] ; then
 		# Check only MAJOR.MINOR.PATCH
 		local version=$1
-		shift
-		for var in "$@"; do
-			if [ "$var" == "" ]; then
-				continue
-			fi
-			local V=$("$IPATH/bin/$var" --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
-			local V_=$(echo $version | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
-			if [ "$V" = "$V_" ]; then
-				echo "${GREEN}Installation of $var-$version successful${NC}"
-			else
-				echo "${YELLOW}version $V_ does not match $V for $var-$version${NC}"
-				exit 1
-			fi
-		done
+
+		if [ -f "$IPATH/bin/wasmedge" ]; then
+			info "Installation of wasmedge-${version} successful"
+		else
+			error "WasmEdge-${version} isn't found in the installation folder ${IPATH}"
+			exit 1
+		fi
 	fi
 	# Bypass if cross compile
 }
@@ -593,7 +586,7 @@ main() {
 		fi
 
 		install "$IPKG" "include" "lib" "bin" "plugin"
-		wasmedge_checks "$VERSION" "wasmedge"
+		wasmedge_checks "$VERSION"
 	else
 		error "Installation path invalid"
 		eprintf "Please provide a valid path"

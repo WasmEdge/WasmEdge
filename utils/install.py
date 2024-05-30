@@ -672,6 +672,19 @@ def check_nvidia_smi(platform):
     return False
 
 
+def check_libcudart(platform):
+    if platform == "Linux":
+        cmd = "ldconfig -p | grep libcudart.so"
+        output = run_shell_command(cmd)
+        logging.debug("%s: %s", cmd, output)
+        if "libcudart.so" in output:
+            return True
+        else:
+            logging.info("Cannot find libcudart.so")
+            return False
+    return False
+
+
 def ldconfig(args, compat):
     if geteuid() == 0:
         # Only run ldconfig or update_dyld_shared_cache when user is root/sudoer
@@ -1370,6 +1383,8 @@ def run_shell_command(cmd):
     except subprocess.CalledProcessError as e:
         if "Cannot detect installation path" in str(e.output):
             logging.warning("Uninstaller did not find previous installation")
+        elif "ldconfig" in str(e.cmd):
+            logging.debug("Cannot detect libcudart via ldconfig")
         elif "nvcc" in str(e.cmd):
             logging.debug("Cannot detect CUDA via nvcc")
         else:
@@ -1429,7 +1444,9 @@ class Compat:
         self.ld_library_path = None
         self.dist = dist_
         self.release_package_wasmedge = None
-        self.cuda = check_nvcc(self.platform) or check_nvidia_smi(self.platform)
+        self.cuda = check_libcudart(self.platform) and (
+            check_nvcc(self.platform) or check_nvidia_smi(self.platform)
+        )
 
         if self.platform == "Linux":
             self.install_package_name = "WasmEdge-{0}-Linux".format(self.version)

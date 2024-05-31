@@ -529,6 +529,9 @@ main() {
 			rustls)
 				ENABLE_RUSTLS=1
 				;;
+			wasi_logging)
+				ENABLE_WASI_LOGGING=1
+				;;
 			os)
 				OS="${OPTARG^}"
 				;;

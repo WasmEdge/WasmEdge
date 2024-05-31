@@ -57,8 +57,4 @@ if(WASMEDGE_PLUGIN_WASI_LOGGING)
   add_subdirectory(wasi_logging)
 endif()
 
-if(WASMEDGE_PLUGIN_RUSTLS)
-  add_subdirectory(wasmedge_rustls)
-endif()
-
 add_subdirectory(unittest)

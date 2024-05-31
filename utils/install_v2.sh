@@ -614,6 +614,10 @@ main() {
 			get_wasmedge_rustls_plugin
 		fi
 
+		if [ "${ENABLE_WASI_LOGGING}" == 1 ]; then
+			get_wasmedge_wasi_logging_plugin
+		fi
+
 		install "$IPKG" "include" "lib" "bin" "plugin"
 		wasmedge_checks "$VERSION"
 	else

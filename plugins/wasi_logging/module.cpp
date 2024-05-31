@@ -1,5 +1,9 @@
-#include "wasi_logging/module.h"
-#include "wasi_logging/func.h"
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
+#include "module.h"
+#include "func.h"
+
 #include <string_view>
 
 namespace WasmEdge {
@@ -9,7 +13,7 @@ using namespace std::literals;
 
 WasiLoggingModule::WasiLoggingModule()
     : ModuleInstance("wasi:logging/logging"sv) {
-  addHostFunc("log"sv, std::make_unique<WasiLoggingLog>(Env));
+  addHostFunc("log"sv, std::make_unique<WASILogging::Log>(Env));
 }
 
 } // namespace Host

@@ -1,12 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
+#include "func.h"
+#include "module.h"
+
 #include "common/defines.h"
 #include "runtime/instance/module.h"
-#include "wasi_logging/func.h"
-#include "wasi_logging/module.h"
 
 #include <gtest/gtest.h>
-#include <iostream>
 #include <spdlog/sinks/ostream_sink.h>
 #include <spdlog/spdlog.h>
+
+#include <iostream>
 #include <sstream>
 
 namespace {
@@ -56,7 +61,7 @@ TEST(WasiLoggingTests, func_log) {
   // Clear the memory[0, 32].
   fillMemContent(MemInst, 0, 32);
   // Set strings in memory
-  fillMemContent(MemInst, 0, std::string("CxtStr"));
+  fillMemContent(MemInst, 0, std::string("stdout"));
   fillMemContent(MemInst, 8, std::string("stderr"));
   fillMemContent(MemInst, 16, std::string("MsgStr"));
 
@@ -65,7 +70,7 @@ TEST(WasiLoggingTests, func_log) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncInst =
-      dynamic_cast<WasmEdge::Host::WasiLoggingLog &>(FuncInst->getHostFunc());
+      dynamic_cast<WasmEdge::Host::WASILogging::Log &>(FuncInst->getHostFunc());
 
   // Show All Level
   EXPECT_TRUE(HostFuncInst.run(
@@ -99,7 +104,6 @@ TEST(WasiLoggingTests, func_log) {
       std::initializer_list<WasmEdge::ValVariant>{
           UINT32_C(5), UINT32_C(0), UINT32_C(6), UINT32_C(16), UINT32_C(6)},
       {}));
-  EXPECT_FALSE(WasiLoggingMod->getEnv().isCxtStrStderr);
 
   // Stderr Context
   EXPECT_TRUE(HostFuncInst.run(
@@ -107,7 +111,6 @@ TEST(WasiLoggingTests, func_log) {
       std::initializer_list<WasmEdge::ValVariant>{
           UINT32_C(0), UINT32_C(8), UINT32_C(6), UINT32_C(16), UINT32_C(6)},
       {}));
-  EXPECT_TRUE(WasiLoggingMod->getEnv().isCxtStrStderr);
 
   // UnKnown Level
   EXPECT_FALSE(HostFuncInst.run(
@@ -115,7 +118,6 @@ TEST(WasiLoggingTests, func_log) {
       std::initializer_list<WasmEdge::ValVariant>{
           UINT32_C(6), UINT32_C(0), UINT32_C(6), UINT32_C(16), UINT32_C(6)},
       {}));
-  EXPECT_FALSE(WasiLoggingMod->getEnv().isCxtStrStderr);
 
   delete WasiLoggingMod;
 }

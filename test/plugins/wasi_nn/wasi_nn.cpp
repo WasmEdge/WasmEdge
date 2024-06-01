@@ -1763,19 +1763,19 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
   // Load the files.
-  std::vector<long long int> Prompt = {1,   9038,  2501, 263,  931,  29892,
-                                       727, 22856, 263,  2217, 7826, 29892};
+  std::vector<long long int> Prompt = {7454,  2402, 257,  640,  11, 612,
+                                       11196, 257,  1310, 2576, 11};
   std::string tmp(reinterpret_cast<const char *>(Prompt.data()),
                   Prompt.size() * sizeof(long long int));
   std::vector<uint8_t> TensorData(tmp.begin(), tmp.end());
   std::vector<uint8_t> WeightRead = readEntireFile(
-      "./wasinn_neural_speed_fixtures/llama-2-7b-chat.Q4_0.gguf");
+      "./wasinn_neural_speed_fixtures/ne_phi_q_nf4_bestla_cfp32_g32.bin");
 
   std::vector<uint32_t> TensorDim{1};
   uint32_t BuilderPtr = UINT32_C(0);
   uint32_t LoadEntryPtr = UINT32_C(0);
   uint32_t SetInputEntryPtr = UINT32_C(0);
-  uint32_t OutBoundPtr = UINT32_C(61000 * 65536);
+  uint32_t OutBoundPtr = UINT32_C(61000) * UINT32_C(65536);
   uint32_t StorePtr = UINT32_C(65536);
 
   // Return value.
@@ -1873,15 +1873,20 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
   // Test: load -- load successfully.
+  std::string Config = "{\"model_type\":\"phi\"}";
+  std::vector<uint8_t> ConfigData(Config.begin(), Config.end());
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, WeightRead.size(), BuilderPtr);
+  writeFatPointer(MemInst, StorePtr + WeightRead.size(), ConfigData.size(),
+                  BuilderPtr);
   writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr);
-  StorePtr += WeightRead.size();
+  writeBinaries<uint8_t>(MemInst, ConfigData, StorePtr + WeightRead.size());
+  StorePtr += WeightRead.size() + ConfigData.size();
   {
     EXPECT_TRUE(
         HostFuncLoad.run(CallFrame,
                          std::initializer_list<WasmEdge::ValVariant>{
-                             LoadEntryPtr, UINT32_C(1),
+                             LoadEntryPtr, UINT32_C(2),
                              static_cast<uint32_t>(Backend::NeuralSpeed),
                              UINT32_C(0), BuilderPtr},
                          Errno));

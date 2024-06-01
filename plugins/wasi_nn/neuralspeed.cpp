@@ -18,28 +18,26 @@ HINSTANCE SharedLib = LoadLibrary(PYTHON_LIB_PATH);
 void *SharedLib = dlopen(PYTHON_LIB_PATH, RTLD_GLOBAL | RTLD_NOW);
 #endif
 void printImformation(Graph &GraphRef, Context &CxtRef) {
-  spdlog::info(
-      "[WASI-NN][Info] Neural speed backend: Number of input tokens: {}"sv,
-      CxtRef.Inputs.size());
-  spdlog::info(
-      "[WASI-NN][Info] Neural speed backend: Number of Output tokens: {}"sv,
-      CxtRef.Outputs.size());
-  spdlog::info("[WASI-NN][Info] Neural speed backend: Load time: {} ms"sv,
+  spdlog::info("[WASI-NN] Neural speed backend: Number of input tokens: {}"sv,
+               CxtRef.Inputs.size());
+  spdlog::info("[WASI-NN] Neural speed backend: Number of Output tokens: {}"sv,
+               CxtRef.Outputs.size());
+  spdlog::info("[WASI-NN] Neural speed backend: Load time: {} ms"sv,
                GraphRef.LoadTime);
-  spdlog::info("[WASI-NN][Info] Neural speed backend: Compute time: {} ms "sv,
+  spdlog::info("[WASI-NN] Neural speed backend: Compute time: {} ms "sv,
                GraphRef.ComputeTime);
 }
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            Span<const Span<uint8_t>> Builders, WASINN::Device,
-                           uint32_t &) noexcept {
+                           uint32_t &GraphId) noexcept {
   // Add a new graph.
   Env.NNGraph.emplace_back(Backend::NeuralSpeed);
   auto &GraphRef = Env.NNGraph.back().get<Graph>();
   const auto StartTime = std::chrono::steady_clock::now();
   // Initialize the plugin parameters.
-  GraphRef.EnableDebugLog = true;
+  GraphRef.EnableDebugLog = false;
   if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] Neural speed backend: Load."sv);
+    spdlog::info("[WASI-NN] Neural speed backend: Load."sv);
   }
 
   if (Builders.size() > 1) {
@@ -50,6 +48,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     auto ParseError = Parser.parse(Metadata).get(Doc);
     if (ParseError) {
       spdlog::error("[WASI-NN] Neural speed backend: Parse metadata error"sv);
+      Env.NNGraph.pop_back();
       return ErrNo::InvalidEncoding;
     }
     if (Doc.at_key("model_type").error() == simdjson::SUCCESS) {
@@ -58,6 +57,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       if (Err) {
         spdlog::error(
             "[WASI-NN] Neural speed backend: Unable to retrieve the model_type option."sv);
+        Env.NNGraph.pop_back();
         return ErrNo::InvalidArgument;
       }
       GraphRef.model_type = model_type;
@@ -68,18 +68,16 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   auto Weight = Builders[0];
   const std::string BinModel(reinterpret_cast<char *>(Weight.data()),
                              Weight.size());
-  spdlog::info("[WASI-NN][Debug] Neural speed: BinModel: {}"sv,
-               BinModel.size());
+  spdlog::info("[WASI-NN] Neural speed: BinModel: {}"sv, BinModel.size());
   std::string ModelFilePath;
   if (BinModel.substr(0, 8) == "preload:") {
     ModelFilePath = BinModel.substr(8);
   } else {
     if (GraphRef.EnableDebugLog) {
       spdlog::info(
-          "[WASI-NN][Debug] Neural speed: Model path not found in nn-preload, "
+          "[WASI-NN] Neural speed: Model path not found in nn-preload, "
           "write model into a tmpfile."sv);
     }
-    // TODO: pass the model directly to ggml
     // Write neural speed model to file.
     ModelFilePath = "neural-speed-model.bin"sv;
     std::ofstream TempFile(ModelFilePath, std::ios::binary);
@@ -96,12 +94,11 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     TempFile.close();
     if (GraphRef.EnableDebugLog) {
       spdlog::info(
-          "[WASI-NN][Debug] Neural speed: Write model into a tmpfile...Done"sv);
+          "[WASI-NN] Neural speed: Write model into a tmpfile...Done"sv);
     }
   }
   if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] Neural speed: Finished handling model path."sv);
+    spdlog::info("[WASI-NN] Neural speed: Finished handling model path."sv);
   }
 
   // Create Model class
@@ -114,6 +111,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     PyErr_Print();
     spdlog::error(
         "[WASI-NN] neural speed backend: Can not find neural speed library."sv);
+    Env.NNGraph.pop_back();
     return WASINN::ErrNo::RuntimeError;
   }
   GraphRef.ModelClass =
@@ -123,6 +121,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     spdlog::error(
         "[WASI-NN] neural speed backend: Can not find Model class in neural speed."sv);
     Py_XDECREF(GraphRef.Model);
+    Env.NNGraph.pop_back();
     return WASINN::ErrNo::RuntimeError;
   }
   GraphRef.Model = PyObject_CallObject(GraphRef.ModelClass, NULL);
@@ -130,6 +129,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     spdlog::error("[WASI-NN] neural speed backend: Load model error."sv);
     Py_XDECREF(GraphRef.ModelClass);
     Py_XDECREF(GraphRef.NeuralSpeedModule);
+    Env.NNGraph.pop_back();
     return WASINN::ErrNo::InvalidArgument;
   }
   PyObject *LoadResult =
@@ -140,20 +140,25 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     Py_XDECREF(GraphRef.Model);
     Py_XDECREF(GraphRef.ModelClass);
     Py_XDECREF(GraphRef.NeuralSpeedModule);
+    Env.NNGraph.pop_back();
     return WASINN::ErrNo::InvalidArgument;
   }
   Py_XDECREF(LoadResult);
   GraphRef.LoadTime = std::chrono::duration_cast<std::chrono::milliseconds>(
                           std::chrono::steady_clock::now() - StartTime)
                           .count();
+
+  // Store the loaded graph.
+  GraphId = Env.NNGraph.size() - 1;
+
   return WASINN::ErrNo::Success;
 }
 
 Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
                                   uint32_t &ContextId) noexcept {
   if (!Py_IsInitialized()) {
-    spdlog::info(
-        "[WASI-NN][Error] Neural speed backend: Model has been realse, please reload it."sv);
+    spdlog::error(
+        "[WASI-NN] Neural speed backend: Model has been realse, please reload it."sv);
     return WASINN::ErrNo::RuntimeError;
   }
   Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
@@ -166,12 +171,12 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   if (!Py_IsInitialized()) {
-    spdlog::info(
-        "[WASI-NN][Error] Neural speed backend: Model has been realse, please reload it."sv);
+    spdlog::error(
+        "[WASI-NN] Neural speed backend: Model has been realse, please reload it."sv);
     return WASINN::ErrNo::RuntimeError;
   }
   if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] Neural speed backend: setInput"sv);
+    spdlog::info("[WASI-NN] Neural speed backend: setInput"sv);
   }
 
   // Set the input.
@@ -196,7 +201,7 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] Neural speed backend: getOutput"sv);
+    spdlog::info("[WASI-NN] Neural speed backend: getOutput"sv);
   }
   std::string StringTmp(reinterpret_cast<const char *>(CxtRef.Outputs.data()),
                         CxtRef.Outputs.size() * sizeof(long long int));
@@ -207,15 +212,15 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
 Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept {
   if (!Py_IsInitialized()) {
-    spdlog::info(
-        "[WASI-NN][Error] Neural speed backend: Model has been realse, please reload it."sv);
+    spdlog::error(
+        "[WASI-NN]Neural speed backend: Model has been realse, please reload it."sv);
     return WASINN::ErrNo::RuntimeError;
   }
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   const auto StartTime = std::chrono::steady_clock::now();
   if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] Neural speed backend: compute"sv);
+    spdlog::info("[WASI-NN] Neural speed backend: compute"sv);
   }
   if (CxtRef.Inputs.size() == 0) {
     spdlog::error("[WASI-NN] Neural speed backend: Llama input is not set!"sv);
@@ -249,7 +254,6 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
         "[WASI-NN] neural speed backend: Input transfer tensor failed."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
-  // PyObject *GenerateArgs = PyTuple_Pack(1, LongTensor);
   PyObject *Result = PyObject_CallMethodObjArgs(
       GraphRef.Model, PyUnicode_FromString("generate"), LongTensor, NULL);
   if (Result == nullptr) {
@@ -278,7 +282,6 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
     }
   }
   Py_DECREF(Result);
-  // Py_DECREF(GenerateArgs);
   Py_DECREF(LongTensor);
   GraphRef.ComputeTime = std::chrono::duration_cast<std::chrono::milliseconds>(
                              std::chrono::steady_clock::now() - StartTime)
@@ -293,7 +296,7 @@ Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] Neural speed backend: start unload."sv);
+    spdlog::info("[WASI-NN] Neural speed backend: start unload."sv);
   }
   if (Py_IsInitialized()) {
     Py_XDECREF(GraphRef.Model);

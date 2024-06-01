@@ -73,9 +73,9 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   elseif(BACKEND STREQUAL "neuralspeed")
     message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_neural_speed_fixtures")
     download(
-      https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q4_0.gguf
-      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_neural_speed_fixtures/llama-2-7b-chat.Q4_0.gguf
-      MD5=09ff9df730d4b5a8b60fcd89e97ee6f4
+      https://huggingface.co/grorge123/phi-2-GPTQ/resolve/main/ne_phi_q_nf4_bestla_cfp32_g32.bin
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_neural_speed_fixtures/ne_phi_q_nf4_bestla_cfp32_g32.bin
+      MD5=5e055b41f8cc1a42f26ff8742719ef1e
     )
   else()
     # Add the other backend test files fetching here.

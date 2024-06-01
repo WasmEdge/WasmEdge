@@ -108,61 +108,7 @@ if(BACKEND STREQUAL "ggml")
 endif()
 
 if(BACKEND STREQUAL "neuralspeed")
-  find_package(simdjson QUIET)
-  if(simdjson_FOUND)
-    message(STATUS "SIMDJSON found")
-  else()
-    message(STATUS "Downloading SIMDJSON source")
-    include(FetchContent)
-    FetchContent_Declare(
-      simdjson
-      GIT_REPOSITORY https://github.com/simdjson/simdjson.git
-      GIT_TAG  tags/v3.9.1
-      GIT_SHALLOW TRUE)
-
-    if(MSVC)
-      if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        get_property(
-          compile_options
-          DIRECTORY
-          PROPERTY COMPILE_OPTIONS
-          )
-        set_property(
-          DIRECTORY
-          APPEND
-          PROPERTY COMPILE_OPTIONS
-          -Wno-undef
-          -Wno-suggest-override
-          -Wno-documentation
-          -Wno-sign-conversion
-          -Wno-extra-semi-stmt
-          -Wno-old-style-cast
-          -Wno-error=unused-parameter
-          -Wno-error=unused-template
-          -Wno-conditional-uninitialized
-          -Wno-implicit-int-conversion
-          -Wno-shorten-64-to-32
-          -Wno-range-loop-bind-reference
-          -Wno-format-nonliteral
-          -Wno-unused-exception-parameter
-          -Wno-unused-member-function
-          )
-        unset(compile_options)
-      elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-        set_property(
-          DIRECTORY
-          APPEND
-          PROPERTY COMPILE_OPTIONS
-          /wd4100 # unreferenced formal parameter
-          )
-      endif()
-    endif()
-
-    FetchContent_MakeAvailable(simdjson)
-    set_property(TARGET simdjson PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-    message(STATUS "Downloading SIMDJSON source -- done")
-  endif()
+  wasmedge_setup_simdjson()
 endif()
 
 wasmedge_add_library(wasmedgePluginWasiNN

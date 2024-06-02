@@ -9,8 +9,10 @@ path = "src/lib.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-squeezenet-burn = { git = "https://github.com/tracel-ai/models.git", features = ["weights_file"], default-features = false }
 burn = { version = "0.13.2", features = ["ndarray", "wgpu"] }
+squeezenet-burn = { git = "https://github.com/CaptainVincent/models.git", branch = "prebuilt-feature", features = [
+    "weights_file",
+], default-features = false }
 wasmedge_plugin_sdk = { git = "https://github.com/second-state/wasmedge_plugin_rust_sdk.git" }
 wasi-nn = { git = "https://github.com/CaptainVincent/wasi-nn.git", branch = "burn" }
 lazy_static = "1.4.0"

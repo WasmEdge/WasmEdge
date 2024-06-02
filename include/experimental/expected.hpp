@@ -1380,7 +1380,6 @@ public:
   template <class U> using rebind = expected<U, error_type>;
 
   // 4.1, constructors
-  using impl_base::impl_base;
   constexpr expected() = default;
   constexpr expected(const expected &) = default;
   constexpr expected(expected &&) = default;

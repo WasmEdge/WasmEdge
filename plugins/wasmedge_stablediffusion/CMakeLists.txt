@@ -25,6 +25,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(stable-diffusion)
 set_property(TARGET stable-diffusion PROPERTY POSITION_INDEPENDENT_CODE ON)
+get_target_property(SD_DEPS stable-diffusion LINK_LIBRARIES)
+foreach(dep ${SD_DEPS})
+if(TARGET ${dep})
+    set_target_properties(${dep} PROPERTIES
+      POSITION_INDEPENDENT_CODE ON
+    )
+  endif()
+endforeach()
 
 wasmedge_add_library(wasmedgePluginStableDiffusion
   SHARED

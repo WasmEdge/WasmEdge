@@ -1,4 +1,5 @@
 mod helper;
+mod models;
 
 pub enum ErrNo {
     Success = 0,              // No error occurred.
@@ -13,17 +14,20 @@ pub enum ErrNo {
 }
 mod wasi_nn {
     use crate::helper::get_slice;
+    #[cfg(feature = "squeezenet")]
+    use crate::models::squeezenet::*;
+    #[cfg(feature = "whisper")]
+    use crate::models::whisper::*;
     use crate::ErrNo;
-    use burn::backend::wgpu::{AutoGraphicsApi, Wgpu};
+    use burn::backend::wgpu::{AutoGraphicsApi, Wgpu, WgpuDevice};
     use burn::backend::NdArray;
-    use burn::prelude::Backend;
-    use burn::tensor::Tensor;
     use lazy_static::lazy_static;
-    use squeezenet_burn::model::squeezenet1::Model;
     use std::collections::HashMap;
     use std::env;
     use std::mem;
+    use std::process;
     use std::sync::Mutex;
+
     use wasi_nn::TensorType;
     use wasmedge_plugin_sdk::{
         error::CoreError,
@@ -35,69 +39,40 @@ mod wasi_nn {
     type NdArrayBackend = NdArray<f32>;
     type WgpuBackend = Wgpu<AutoGraphicsApi, f32, i32>;
 
-    enum GraphType {
+    pub enum Graph {
         /// The model is loaded to the NdArray backend
-        WithNdArrayBackend(Graph<NdArrayBackend>),
+        WithNdArrayBackend(GraphInner<NdArrayBackend>),
         /// The model is loaded to the Wgpu backend
-        WithWgpuBackend(Graph<WgpuBackend>),
+        WithWgpuBackend(GraphInner<WgpuBackend>),
     }
 
-    struct Graph<B: Backend> {
-        model: Model<B>,
-    }
-
-    impl<B: Backend> Graph<B> {
-        /// Constructor
-        pub fn new(device: &B::Device, path: &str) -> Self {
-            Self {
-                model: Model::from_file(path, device),
-            }
-        }
-    }
-
-    enum ExecutionContextType {
+    enum ExecutionContext {
         /// The model is loaded to the NdArray backend
-        WithNdArrayBackend(ExecutionContext<NdArrayBackend>),
+        WithNdArrayBackend(ContextInner<NdArrayBackend>),
         /// The model is loaded to the Wgpu backend
-        WithWgpuBackend(ExecutionContext<WgpuBackend>),
-    }
-
-    const INPUT_DIM: usize = 4;
-    const OUTPUT_DIM: usize = 2;
-    struct ExecutionContext<B: Backend> {
-        inputs: HashMap<u32, Tensor<B, INPUT_DIM>>,
-        outputs: Vec<Tensor<B, OUTPUT_DIM>>,
+        WithWgpuBackend(ContextInner<WgpuBackend>),
     }
 
     lazy_static! {
-        static ref GRAPH_HANDLE_MAP: Mutex<HashMap<u32, GraphType>> = Mutex::new(HashMap::new());
+        static ref GRAPH_HANDLE_MAP: Mutex<HashMap<u32, Graph>> = Mutex::new(HashMap::new());
         static ref GRAPH_NAME_MAP: Mutex<HashMap<String, u32>> = Mutex::new(HashMap::new());
-        static ref CONTEXT_HANDLE_MAP: Mutex<HashMap<u32, (u32, ExecutionContextType)>> =
+        static ref CONTEXT_HANDLE_MAP: Mutex<HashMap<u32, (u32, ExecutionContext)>> =
             Mutex::new(HashMap::new());
     }
 
     fn parse_opts() {
         fn process_nn_preload(nn_preload: String) {
             let parts: Vec<&str> = nn_preload.split(':').collect();
+
             if parts.len() < 4 {
-                panic!("[WASI_NN] Invalid nn-preload format. {:?} len < 4", parts);
+                eprintln!("[WASI_NN] Invalid nn-preload format. {:?} len < 4", parts);
+                process::exit(1);
             }
 
             let graph_encoding = parts[1].to_string();
             if graph_encoding.to_lowercase() != "burn" {
-                panic!("[WASI_NN] Unsupported graph encoding. {:?}", graph_encoding);
-            }
-
-            let file_path = parts[3].to_string();
-            if let Ok(metadata) = fs::metadata(&file_path) {
-                if !metadata.is_file() {
-                    panic!("[WASI_NN] File does not exist. {:?}", file_path);
-                }
-            } else {
-                panic!(
-                    "[WASI_NN] Failed to retrieve metadata for file. {:?}",
-                    file_path
-                );
+                eprintln!("[WASI_NN] Unsupported graph encoding. {:?}", graph_encoding);
+                process::exit(1);
             }
 
             let name = parts[0].to_string();
@@ -105,25 +80,24 @@ mod wasi_nn {
             let graph_handle = graph_map.len() as u32;
             let mut name_map = GRAPH_NAME_MAP.lock().unwrap();
             name_map.insert(name.clone(), graph_handle);
-            let execution_target = parts[2].to_string().to_lowercase();
-            if execution_target == "gpu" {
-                let device = Default::default();
+            let target = parts[2].to_string().to_lowercase();
+            if target == "gpu" {
+                let device = WgpuDevice::BestAvailable;
                 graph_map.insert(
                     graph_handle,
-                    GraphType::WithWgpuBackend(Graph::new(&device, &file_path)),
+                    Graph::WithWgpuBackend(GraphInner::create(parts[3..].to_vec(), &device)),
                 );
             } else {
                 let device = Default::default();
                 graph_map.insert(
                     graph_handle,
-                    GraphType::WithNdArrayBackend(Graph::new(&device, &file_path)),
+                    Graph::WithNdArrayBackend(GraphInner::create(parts[3..].to_vec(), &device)),
                 );
             };
         }
 
         unsafe {
             if let Ok(nn_preload) = (*crate::nn_preload()).to_string() {
-                println!("nn-preload: {:?}", nn_preload);
                 process_nn_preload(nn_preload);
             } else if let Ok(env_nn_preload) = env::var("WASMEDGE_WASINN_PRELOAD") {
                 process_nn_preload(env_nn_preload);
@@ -180,27 +154,21 @@ mod wasi_nn {
                     .get(&(*graph_handle as u32))
                     .unwrap_or_else(|| unreachable!());
                 match graph {
-                    GraphType::WithNdArrayBackend(_) => {
+                    Graph::WithNdArrayBackend(_) => {
                         context_map.insert(
                             context_handle,
                             (
                                 *graph_handle as u32,
-                                ExecutionContextType::WithNdArrayBackend(ExecutionContext {
-                                    inputs: HashMap::new(),
-                                    outputs: vec![],
-                                }),
+                                ExecutionContext::WithNdArrayBackend(ContextInner::new()),
                             ),
                         );
                     }
-                    GraphType::WithWgpuBackend(_) => {
+                    Graph::WithWgpuBackend(_) => {
                         context_map.insert(
                             context_handle,
                             (
                                 *graph_handle as u32,
-                                ExecutionContextType::WithWgpuBackend(ExecutionContext {
-                                    inputs: HashMap::new(),
-                                    outputs: vec![],
-                                }),
+                                ExecutionContext::WithWgpuBackend(ContextInner::new()),
                             ),
                         );
                     }
@@ -238,7 +206,7 @@ mod wasi_nn {
                             INPUT_DIM * mem::size_of::<u32>(),
                             u32
                         );
-                        let dimens: [usize; 4] = raw_dimens
+                        let dimens: [usize; INPUT_DIM] = raw_dimens
                             .iter()
                             .map(|&x| x as usize)
                             .collect::<Vec<usize>>()
@@ -259,20 +227,11 @@ mod wasi_nn {
                             .unwrap_or_else(|| unreachable!());
 
                         match context {
-                            ExecutionContextType::WithNdArrayBackend(inner) => {
-                                let device = Default::default();
-                                let tensor =
-                                    Tensor::<NdArrayBackend, 1>::from_data(&tensor[..], &device)
-                                        .reshape(dimens);
-
-                                inner.inputs.insert(*input_index as u32, tensor);
+                            ExecutionContext::WithNdArrayBackend(inner) => {
+                                inner.set_input(*input_index as u32, tensor, dimens);
                             }
-                            ExecutionContextType::WithWgpuBackend(inner) => {
-                                let device = Default::default();
-                                let tensor =
-                                    Tensor::<WgpuBackend, 1>::from_data(&tensor[..], &device)
-                                        .reshape(dimens);
-                                inner.inputs.insert(*input_index as u32, tensor);
+                            ExecutionContext::WithWgpuBackend(inner) => {
+                                inner.set_input(*input_index as u32, tensor, dimens);
                             }
                         }
                         Ok(vec![WasmVal::I32(ErrNo::Success as i32)])
@@ -302,22 +261,20 @@ mod wasi_nn {
                     .unwrap_or_else(|| unreachable!());
 
                 match context {
-                    ExecutionContextType::WithNdArrayBackend(ctx_inner) => {
-                        let GraphType::WithNdArrayBackend(graph_inner) = graph else {
+                    ExecutionContext::WithNdArrayBackend(ctx_inner) => {
+                        let Graph::WithNdArrayBackend(graph_inner) = graph else {
                             unreachable!()
                         };
-                        let output = graph_inner
-                            .model
-                            .forward((*ctx_inner.inputs.get(&0).unwrap()).clone());
+                        let output =
+                            graph_inner.compute((*ctx_inner.inputs.get(&0).unwrap()).clone());
                         ctx_inner.outputs.push(output);
                     }
-                    ExecutionContextType::WithWgpuBackend(ctx_inner) => {
-                        let GraphType::WithWgpuBackend(graph_inner) = graph else {
+                    ExecutionContext::WithWgpuBackend(ctx_inner) => {
+                        let Graph::WithWgpuBackend(graph_inner) = graph else {
                             unreachable!()
                         };
-                        let output = graph_inner
-                            .model
-                            .forward((*ctx_inner.inputs.get(&0).unwrap()).clone());
+                        let output =
+                            graph_inner.compute((*ctx_inner.inputs.get(&0).unwrap()).clone());
                         ctx_inner.outputs.push(output);
                     }
                 };
@@ -341,17 +298,11 @@ mod wasi_nn {
                     .get_mut(&(*context_handle as u32))
                     .unwrap_or_else(|| unreachable!());
                 let raw_output = match context {
-                    ExecutionContextType::WithNdArrayBackend(ctx_inner) => {
-                        ctx_inner.outputs[*output_index as usize]
-                            .clone()
-                            .into_data()
-                            .value
+                    ExecutionContext::WithNdArrayBackend(ctx_inner) => {
+                        ctx_inner.get_output(*output_index as usize)
                     }
-                    ExecutionContextType::WithWgpuBackend(ctx_inner) => {
-                        ctx_inner.outputs[*output_index as usize]
-                            .clone()
-                            .into_data()
-                            .value
+                    ExecutionContext::WithWgpuBackend(ctx_inner) => {
+                        ctx_inner.get_output(*output_index as usize)
                     }
                 };
                 let output: &[u8] = bytemuck::cast_slice(&raw_output);

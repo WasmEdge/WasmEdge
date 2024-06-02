@@ -3,6 +3,7 @@
 #include "stable-diffusion.h"
 
 #include "plugin/plugin.h"
+#include <vector>
 
 namespace WasmEdge {
 namespace Host {
@@ -17,12 +18,14 @@ enum class ErrNo : uint32_t {
   RuntimeError = 5,    // Runtime Error.
 };
 
-struct Context {
-  Context() noexcept {}
-  ~Context() noexcept {}
-};
+class SDEnviornment {
+public:
+  uint32_t addContext(sd_ctx_t *sd_ctx) noexcept;
+  sd_ctx_t *getContext(const uint32_t Id) noexcept;
 
-class SDEnviornment {};
+private:
+  std::vector<sd_ctx_t *> Contexts;
+};
 
 } // namespace StableDiffusion
 } // namespace Host

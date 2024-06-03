@@ -377,7 +377,7 @@ Executor::runVectorQ15MulSatOp(ValVariant &Val1, const ValVariant &Val2) const {
 template <typename T>
 Expect<void>
 Executor::runVectorRelaxedLaneselectOp(ValVariant &Val1, const ValVariant &Val2,
-                                     const ValVariant &Mask) const {
+                                       const ValVariant &Mask) const {
   using VT [[gnu::vector_size(16)]] = T;
 
   VT &V1 = Val1.get<VT>();
@@ -390,7 +390,7 @@ Executor::runVectorRelaxedLaneselectOp(ValVariant &Val1, const ValVariant &Val2,
 
 inline Expect<void>
 Executor::runVectorRelaxedIntegerDotProductOp(ValVariant &Val1,
-                                            const ValVariant &Val2) const {
+                                              const ValVariant &Val2) const {
   using int16x8_t [[gnu::vector_size(16)]] = int16_t;
 
   const int16x8_t &V1 = Val1.get<int16x8_t>();

@@ -488,7 +488,7 @@ Executor::runVectorQ15MulSatOp(ValVariant &Val1, const ValVariant &Val2) const {
 template <typename T>
 Expect<void>
 Executor::runVectorRelaxedLaneselectOp(ValVariant &Val1, const ValVariant &Val2,
-                                     const ValVariant &Mask) const {
+                                       const ValVariant &Mask) const {
   using VT = SIMDArray<T, 16>;
 
   VT &V1 = Val1.get<VT>();
@@ -504,7 +504,7 @@ Executor::runVectorRelaxedLaneselectOp(ValVariant &Val1, const ValVariant &Val2,
 
 inline Expect<void>
 Executor::runVectorRelaxedIntegerDotProductOp(ValVariant &Val1,
-                                            const ValVariant &Val2) const {
+                                              const ValVariant &Val2) const {
   using int8x16_t = SIMDArray<int8_t, 16>;
   using int16x8_t = SIMDArray<int16_t, 16>;
 

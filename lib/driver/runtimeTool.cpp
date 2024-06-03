@@ -53,6 +53,9 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   if (Opt.PropSIMD.value()) {
     Conf.removeProposal(Proposal::SIMD);
   }
+  if (Opt.PropRelaxedSIMD.value()) {
+    Conf.addProposal(Proposal::RelaxSIMD);
+  }
   if (Opt.PropMultiMem.value()) {
     Conf.addProposal(Proposal::MultiMemories);
   }

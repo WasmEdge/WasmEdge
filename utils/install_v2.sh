@@ -221,7 +221,6 @@ check_os_arch() {
 IPATH="$__HOME__/.wasmedge"
 VERBOSE=0
 LEGACY=0
-ENABLE_WASI_LOGGING=0
 ENABLE_NOAVX=0
 GGML_BUILD_NUMBER=""
 
@@ -309,9 +308,6 @@ usage() {
 	-p,             --path=[/usr/local]         Prefix / Path to install
 
 	--noavx                                     Install the GGML noavx plugin.
-													Default is disabled.
-
-	--wasi_logging                              Install the WASI Logging plugin.
 													Default is disabled.
 
 	--ggmlbn=[b2963]                            Install the specific GGML plugin.
@@ -514,9 +510,6 @@ main() {
 			noavx)
 				ENABLE_NOAVX=1
 				;;
-			wasi_logging)
-				ENABLE_WASI_LOGGING=1
-				;;
 			os)
 				OS="${OPTARG^}"
 				;;
@@ -594,10 +587,7 @@ main() {
 
 		get_wasmedge_release
 		get_wasmedge_ggml_plugin
-
-		if [ "${ENABLE_WASI_LOGGING}" == 1 ]; then
-			get_wasmedge_wasi_logging_plugin
-		fi
+		get_wasmedge_wasi_logging_plugin
 
 		install "$IPKG" "include" "lib" "bin" "plugin"
 		wasmedge_checks "$VERSION"

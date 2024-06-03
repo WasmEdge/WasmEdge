@@ -1880,24 +1880,24 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::I8x16__relaxed_laneselect: {
       const ValVariant Mask = StackMgr.pop();
       const ValVariant Val2 = StackMgr.pop();
-      return runVectorRelaxedLaneselect<uint8_t>(StackMgr.getTop(), Val2, Mask);
+      return runVectorRelaxedLaneselectOp<uint8_t>(StackMgr.getTop(), Val2, Mask);
     }
     case OpCode::I16x8__relaxed_laneselect: {
       const ValVariant Mask = StackMgr.pop();
       const ValVariant Val2 = StackMgr.pop();
-      return runVectorRelaxedLaneselect<uint16_t>(StackMgr.getTop(), Val2,
+      return runVectorRelaxedLaneselectOp<uint16_t>(StackMgr.getTop(), Val2,
                                                   Mask);
     }
     case OpCode::I32x4__relaxed_laneselect: {
       const ValVariant Mask = StackMgr.pop();
       const ValVariant Val2 = StackMgr.pop();
-      return runVectorRelaxedLaneselect<uint32_t>(StackMgr.getTop(), Val2,
+      return runVectorRelaxedLaneselectOp<uint32_t>(StackMgr.getTop(), Val2,
                                                   Mask);
     }
     case OpCode::I64x2__relaxed_laneselect: {
       const ValVariant Mask = StackMgr.pop();
       const ValVariant Val2 = StackMgr.pop();
-      return runVectorRelaxedLaneselect<uint8_t>(StackMgr.getTop(), Val2, Mask);
+      return runVectorRelaxedLaneselectOp<uint64_t>(StackMgr.getTop(), Val2, Mask);
     }
     case OpCode::F32x4__relaxed_min: {
       const ValVariant Val2 = StackMgr.pop();
@@ -1921,12 +1921,12 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     }
     case OpCode::I16x8__relaxed_dot_i8x16_i7x16_s: {
       ValVariant Rhs = StackMgr.pop();
-      return runVectorRelaxedIntegerDotProduct(StackMgr.getTop(), Rhs);
+      return runVectorRelaxedIntegerDotProductOp(StackMgr.getTop(), Rhs);
     }
     case OpCode::I32x4__relaxed_dot_i8x16_i7x16_add_s: {
       ValVariant C = StackMgr.pop();
       ValVariant Rhs = StackMgr.pop();
-      return runVectorRelaxedIntegerDotProductAdd(StackMgr.getTop(), Rhs, C);
+      return runVectorRelaxedIntegerDotProductOpAdd(StackMgr.getTop(), Rhs, C);
     }
 
     // Threads instructions

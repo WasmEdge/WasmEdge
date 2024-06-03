@@ -487,7 +487,7 @@ Executor::runVectorQ15MulSatOp(ValVariant &Val1, const ValVariant &Val2) const {
 
 template <typename T>
 Expect<void>
-Executor::runVectorRelaxedLaneselect(ValVariant &Val1, const ValVariant &Val2,
+Executor::runVectorRelaxedLaneselectOp(ValVariant &Val1, const ValVariant &Val2,
                                      const ValVariant &Mask) const {
   using VT = SIMDArray<T, 16>;
 
@@ -503,7 +503,7 @@ Executor::runVectorRelaxedLaneselect(ValVariant &Val1, const ValVariant &Val2,
 }
 
 inline Expect<void>
-Executor::runVectorRelaxedIntegerDotProduct(ValVariant &Val1,
+Executor::runVectorRelaxedIntegerDotProductOp(ValVariant &Val1,
                                             const ValVariant &Val2) const {
   using int8x16_t = SIMDArray<int8_t, 16>;
   using int16x8_t = SIMDArray<int16_t, 16>;
@@ -523,7 +523,7 @@ Executor::runVectorRelaxedIntegerDotProduct(ValVariant &Val1,
   return {};
 }
 
-inline Expect<void> Executor::runVectorRelaxedIntegerDotProductAdd(
+inline Expect<void> Executor::runVectorRelaxedIntegerDotProductOpAdd(
     ValVariant &Val1, const ValVariant &Val2, const ValVariant &C) const {
   using int8x16_t = SIMDArray<int8_t, 16>;
   using int16x8_t = SIMDArray<int16_t, 16>;

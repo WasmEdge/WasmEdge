@@ -96,7 +96,7 @@ if(BACKEND STREQUAL "ggml")
   FetchContent_Declare(
     llama
     GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-    GIT_TAG        b3067
+    GIT_TAG        b3075
     GIT_SHALLOW    FALSE
   )
   FetchContent_MakeAvailable(llama)

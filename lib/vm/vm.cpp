@@ -368,17 +368,17 @@ VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
 }
 
 struct UpdateUnit {
-  using UnitType =
-      std::variant<WasmEdge::AST::Module, WasmEdge::AST::Component::Component>;
+  using UnitType = std::variant<std::unique_ptr<AST::Module>,
+                                std::unique_ptr<AST::Component::Component>>;
 
   // borrow unit of VM and emplace its value
   UpdateUnit(UnitType &U) : Unit(U) {}
 
   void operator()(std::unique_ptr<AST::Module> &Mod) noexcept {
-    Unit.emplace<AST::Module>(*Mod);
+    Unit.emplace<std::unique_ptr<AST::Module>>(std::move(Mod));
   }
   void operator()(std::unique_ptr<AST::Component::Component> &Comp) noexcept {
-    Unit.emplace<AST::Component::Component>(*Comp);
+    Unit.emplace<std::unique_ptr<AST::Component::Component>>(std::move(Comp));
   }
 
 private:
@@ -408,7 +408,8 @@ Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
 }
 
 Expect<void> VM::unsafeLoadWasm(const AST::Module &Module) {
-  Unit.emplace<AST::Module>(Module);
+  Unit.emplace<std::unique_ptr<AST::Module>>(
+      std::make_unique<AST::Module>(Module));
   Stage = VMStage::Loaded;
   return {};
 }
@@ -416,11 +417,12 @@ Expect<void> VM::unsafeLoadWasm(const AST::Module &Module) {
 struct Validate {
   // borrow validator to pass control to it
   Validate(Validator::Validator &Engine) : ValidatorEngine(Engine) {}
-  Expect<void> operator()(const AST::Module &Mod) const {
-    return ValidatorEngine.validate(Mod);
+  Expect<void> operator()(const std::unique_ptr<AST::Module> &Mod) const {
+    return ValidatorEngine.validate(*Mod.get());
   }
-  Expect<void> operator()(const AST::Component::Component &Comp) const {
-    return ValidatorEngine.validate(Comp);
+  Expect<void>
+  operator()(const std::unique_ptr<AST::Component::Component> &Comp) const {
+    return ValidatorEngine.validate(*Comp.get());
   }
 
 private:
@@ -448,13 +450,13 @@ Expect<void> VM::unsafeInstantiate() {
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
 
-  if (std::holds_alternative<AST::Module>(Unit)) {
-    auto &Mod = std::get<AST::Module>(Unit);
-    if (Conf.getRuntimeConfigure().isEnableJIT() && !Mod.getSymbol()) {
+  if (std::holds_alternative<std::unique_ptr<AST::Module>>(Unit)) {
+    auto &Mod = std::get<std::unique_ptr<AST::Module>>(Unit);
+    if (Conf.getRuntimeConfigure().isEnableJIT() && !Mod->getSymbol()) {
 #ifdef WASMEDGE_USE_LLVM
       LLVM::Compiler Compiler(Conf);
       LLVM::JIT JIT(Conf);
-      if (auto Res = Compiler.compile(Mod); !Res) {
+      if (auto Res = Compiler.compile(*Mod); !Res) {
         const auto Err = static_cast<uint32_t>(Res.error());
         spdlog::error(
             "Compilation failed. Error code: {}, use interpreter mode instead."sv,
@@ -464,14 +466,14 @@ Expect<void> VM::unsafeInstantiate() {
         spdlog::warn(
             "JIT failed. Error code: {}, use interpreter mode instead."sv, Err);
       } else {
-        LoaderEngine.loadExecutable(Mod, std::move(*Res2));
+        LoaderEngine.loadExecutable(*Mod, std::move(*Res2));
       }
 #else
       spdlog::error("LLVM disabled, JIT is unsupported!");
 #endif
     }
 
-    if (auto Res = ExecutorEngine.instantiateModule(StoreRef, Mod)) {
+    if (auto Res = ExecutorEngine.instantiateModule(StoreRef, *Mod)) {
       Stage = VMStage::Instantiated;
       ActiveModInst = std::move(*Res);
       return {};
@@ -479,8 +481,8 @@ Expect<void> VM::unsafeInstantiate() {
       return Unexpect(Res);
     }
   } else {
-    if (auto Res = ExecutorEngine.instantiateComponent(
-            StoreRef, std::get<AST::Component::Component>(Unit))) {
+    auto &Comp = std::get<std::unique_ptr<AST::Component::Component>>(Unit);
+    if (auto Res = ExecutorEngine.instantiateComponent(StoreRef, *Comp)) {
       Stage = VMStage::Instantiated;
       ActiveCompInst = std::move(*Res);
       return {};

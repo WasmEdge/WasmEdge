@@ -300,7 +300,9 @@ private:
   /// \name VM Storage.
   /// @{
   /// Loaded AST module.
-  std::variant<AST::Module, AST::Component::Component> Unit;
+  std::variant<std::unique_ptr<AST::Module>,
+               std::unique_ptr<AST::Component::Component>>
+      Unit;
   /// Active module instance.
   std::unique_ptr<Runtime::Instance::ModuleInstance> ActiveModInst;
   std::unique_ptr<Runtime::Instance::ComponentInstance> ActiveCompInst;

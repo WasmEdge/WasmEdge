@@ -739,14 +739,14 @@ private:
 
   /// ======= Relaxed SIMD instructions =======
   template <typename T>
-  Expect<void> runVectorRelaxedLaneselect(ValVariant &Val1,
+  Expect<void> runVectorRelaxedLaneselectOp(ValVariant &Val1,
                                           const ValVariant &Val2,
                                           const ValVariant &Mask) const;
   inline Expect<void>
-  runVectorRelaxedIntegerDotProduct(ValVariant &Val1,
+  runVectorRelaxedIntegerDotProductOp(ValVariant &Val1,
                                     const ValVariant &Val2) const;
   inline Expect<void>
-  runVectorRelaxedIntegerDotProductAdd(ValVariant &Val1, const ValVariant &Val2,
+  runVectorRelaxedIntegerDotProductOpAdd(ValVariant &Val1, const ValVariant &Val2,
                                        const ValVariant &C) const;
   /// ======= Atomic instructions =======
   Expect<void> runAtomicNotifyOp(Runtime::StackManager &StackMgr,

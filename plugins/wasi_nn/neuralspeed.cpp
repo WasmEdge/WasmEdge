@@ -52,15 +52,15 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       return ErrNo::InvalidEncoding;
     }
     if (Doc.at_key("model_type").error() == simdjson::SUCCESS) {
-      std::string_view model_type;
-      auto Err = Doc["model_type"].get<std::string_view>().get(model_type);
+      std::string_view ModelType;
+      auto Err = Doc["model_type"].get<std::string_view>().get(ModelType);
       if (Err) {
         spdlog::error(
             "[WASI-NN] Neural speed backend: Unable to retrieve the model_type option."sv);
         Env.NNGraph.pop_back();
         return ErrNo::InvalidArgument;
       }
-      GraphRef.model_type = model_type;
+      GraphRef.model_type = ModelType;
     }
   }
 

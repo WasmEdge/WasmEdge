@@ -206,6 +206,7 @@ public:
 
 protected:
   friend class Executor::Executor;
+  friend class ComponentInstance;
   friend class Runtime::CallingFrame;
 
   /// Create and copy the defined type to this module instance.

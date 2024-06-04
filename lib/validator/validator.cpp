@@ -4,6 +4,7 @@
 #include "validator/validator.h"
 
 #include "common/errinfo.h"
+#include "common/hash.h"
 
 #include <cstdint>
 #include <numeric>
@@ -736,7 +737,7 @@ Expect<void> Validator::validate(const AST::StartSection &StartSec) {
 
 // Validate Export section. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
-  std::unordered_set<std::string> ExportNames;
+  std::unordered_set<std::string_view, Hash::Hash> ExportNames;
   for (auto &ExportDesc : ExportSec.getContent()) {
     auto Result = ExportNames.emplace(ExportDesc.getExternalName());
     if (!Result.second) {

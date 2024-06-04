@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "common/hash.h"
 #include "plugin/plugin.h"
 #include "po/argument_parser.h"
 #include "po/list.h"
@@ -37,9 +38,12 @@ public:
   std::vector<uint8_t> StdErr;
 
   /// Configurations
-  uint32_t TimeOut = DEFAULT_TIMEOUT;         /// Timeout in milliseconds.
-  std::unordered_set<std::string> AllowedCmd; /// Programs in white list.
-  bool AllowedAll;                            /// Flag to allow all programs.
+  /// Timeout in milliseconds.
+  uint32_t TimeOut = DEFAULT_TIMEOUT;
+  /// Programs in white list.
+  std::unordered_set<std::string> AllowedCmd;
+  /// Flag to allow all programs.
+  bool AllowedAll;
 
   /// Results
   uint32_t ExitCode = 0;

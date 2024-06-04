@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "spectest.h"
+#include "common/hash.h"
 #include "common/spdlog.h"
 
 #include "simdjson.h"
@@ -72,7 +73,8 @@ void resolveRegister(std::map<std::string, std::string> &Alias,
 }
 
 SpecTest::CommandID resolveCommand(std::string_view Name) {
-  static const std::unordered_map<std::string_view, SpecTest::CommandID>
+  static const std::unordered_map<std::string_view, SpecTest::CommandID,
+                                  Hash::Hash>
       CommandMapping = {
           {"module"sv, SpecTest::CommandID::Module},
           {"action"sv, SpecTest::CommandID::Action},

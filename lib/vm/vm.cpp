@@ -527,25 +527,29 @@ Expect<void> VM::unsafeInstantiate() {
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
                   Span<const ValType> ParamTypes) {
-  auto Res = std::visit(
+  return std::visit(
       VisitActiveInst<Expect<std::vector<std::pair<ValVariant, ValType>>>>(
           [&](auto &Mod)
               -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
             // Execute function and return values with the module
             // instance.
-            return unsafeExecute(Mod.get(), Func, Params, ParamTypes);
+            if (Mod.get()) {
+              return unsafeExecute(Mod.get(), Func, Params, ParamTypes);
+            }
+            spdlog::error(ErrCode::Value::WrongInstanceAddress);
+            spdlog::error(ErrInfo::InfoExecuting("", Func));
+            return Unexpect(ErrCode::Value::WrongInstanceAddress);
           },
           [&](auto &Comp)
               -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            return unsafeExecute(Comp.get(), Func, Params, ParamTypes);
+            if (Comp.get()) {
+              return unsafeExecute(Comp.get(), Func, Params, ParamTypes);
+            }
+            spdlog::error(ErrCode::Value::WrongInstanceAddress);
+            spdlog::error(ErrInfo::InfoExecuting("", Func));
+            return Unexpect(ErrCode::Value::WrongInstanceAddress);
           }),
       ActiveInst);
-  if (!Res) {
-    spdlog::error(ErrCode::Value::WrongInstanceAddress);
-    spdlog::error(ErrInfo::InfoExecuting("", Func));
-    return Unexpect(ErrCode::Value::WrongInstanceAddress);
-  }
-  return *Res;
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>

@@ -268,6 +268,42 @@ private:
                            const AST::ExportSection &ExportSec);
   /// @}
 
+  /// @{
+  /// Instantiation of Component Instance.
+  Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+  instantiate(Runtime::StoreManager &StoreMgr,
+              const AST::Component::Component &Comp,
+              std::optional<std::string_view> Name = std::nullopt);
+
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::CoreInstanceSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::CoreTypeSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::InstanceSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::AliasSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::TypeSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::CanonSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::StartSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::ImportSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::ExportSection &);
+  /// @}
+
   /// \name Helper Functions for block controls.
   /// @{
   /// Helper function for calling functions. Return the continuation iterator.

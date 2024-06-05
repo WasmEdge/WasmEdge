@@ -56,7 +56,7 @@ struct RandomEngine {
   result_type Seed;
 };
 
-static inline RandomEngine RandEngine;
+static inline thread_local RandomEngine RandEngine;
 
 struct Hash {
   WASMEDGE_EXPORT static uint64_t

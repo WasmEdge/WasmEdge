@@ -302,9 +302,8 @@ private:
   /// Loaded AST module.
   std::variant<AST::Module, AST::Component::Component> Unit;
   /// Active module instance.
-  std::variant<std::unique_ptr<Runtime::Instance::ModuleInstance>,
-               std::unique_ptr<Runtime::Instance::ComponentInstance>>
-      ActiveInst;
+  std::unique_ptr<Runtime::Instance::ModuleInstance> ActiveModInst;
+  std::unique_ptr<Runtime::Instance::ComponentInstance> ActiveCompInst;
   /// Registered module instances by user.
   std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>> RegModInsts;
   /// Built-in module instances mapped to the configurations. For WASI.

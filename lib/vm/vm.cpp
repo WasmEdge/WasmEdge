@@ -39,26 +39,6 @@ private:
   CT VisitComp;
 };
 
-template <typename T> struct VisitActiveInst {
-  using MT =
-      std::function<T(std::unique_ptr<Runtime::Instance::ModuleInstance> &)>;
-  using CT =
-      std::function<T(std::unique_ptr<Runtime::Instance::ComponentInstance> &)>;
-
-  VisitActiveInst(MT F, CT G) : VisitMod{F}, VisitComp{G} {}
-  T operator()(std::unique_ptr<Runtime::Instance::ModuleInstance> &Mod) const {
-    return VisitMod(Mod);
-  }
-  T operator()(
-      std::unique_ptr<Runtime::Instance::ComponentInstance> &Comp) const {
-    return VisitComp(Comp);
-  }
-
-private:
-  MT VisitMod;
-  CT VisitComp;
-};
-
 template <typename T>
 std::unique_ptr<Runtime::Instance::ModuleInstance>
 createPluginModule(std::string_view PName, std::string_view MName) {
@@ -316,34 +296,20 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
     return Unexpect(Res);
   }
   if (auto Res = ExecutorEngine.instantiateModule(StoreRef, Module)) {
-    ActiveInst = std::move(*Res);
+    ActiveModInst = std::move(*Res);
   } else {
     return Unexpect(Res);
   }
 
-  return std::visit(
-      VisitActiveInst<Expect<std::vector<std::pair<ValVariant, ValType>>>>(
-          [&](auto &Mod)
-              -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            // Execute function and return values with the module
-            // instance.
-            if (Mod.get()) {
-              return unsafeExecute(Mod.get(), Func, Params, ParamTypes);
-            }
-            spdlog::error(ErrCode::Value::WrongInstanceAddress);
-            spdlog::error(ErrInfo::InfoExecuting("", Func));
-            return Unexpect(ErrCode::Value::WrongInstanceAddress);
-          },
-          [&](auto &Comp)
-              -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            if (Comp.get()) {
-              return unsafeExecute(Comp.get(), Func, Params, ParamTypes);
-            }
-            spdlog::error(ErrCode::Value::WrongInstanceAddress);
-            spdlog::error(ErrInfo::InfoExecuting("", Func));
-            return Unexpect(ErrCode::Value::WrongInstanceAddress);
-          }),
-      ActiveInst);
+  if (ActiveModInst) {
+    return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
+  } else if (ActiveCompInst) {
+    return unsafeExecute(ActiveCompInst.get(), Func, Params, ParamTypes);
+  } else {
+    spdlog::error(ErrCode::Value::WrongInstanceAddress);
+    spdlog::error(ErrInfo::InfoExecuting("", Func));
+    return Unexpect(ErrCode::Value::WrongInstanceAddress);
+  }
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -508,7 +474,7 @@ Expect<void> VM::unsafeInstantiate() {
               return Unexpect(Res);
             }
             Stage = VMStage::Instantiated;
-            ActiveInst = std::move(*Res);
+            ActiveModInst = std::move(*Res);
             return {};
           },
 
@@ -518,7 +484,7 @@ Expect<void> VM::unsafeInstantiate() {
               return Unexpect(Res);
             }
             Stage = VMStage::Instantiated;
-            ActiveInst = std::move(*Res);
+            ActiveCompInst = std::move(*Res);
             return {};
           }},
       Unit);
@@ -527,29 +493,15 @@ Expect<void> VM::unsafeInstantiate() {
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
                   Span<const ValType> ParamTypes) {
-  return std::visit(
-      VisitActiveInst<Expect<std::vector<std::pair<ValVariant, ValType>>>>(
-          [&](auto &Mod)
-              -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            // Execute function and return values with the module
-            // instance.
-            if (Mod.get()) {
-              return unsafeExecute(Mod.get(), Func, Params, ParamTypes);
-            }
-            spdlog::error(ErrCode::Value::WrongInstanceAddress);
-            spdlog::error(ErrInfo::InfoExecuting("", Func));
-            return Unexpect(ErrCode::Value::WrongInstanceAddress);
-          },
-          [&](auto &Comp)
-              -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            if (Comp.get()) {
-              return unsafeExecute(Comp.get(), Func, Params, ParamTypes);
-            }
-            spdlog::error(ErrCode::Value::WrongInstanceAddress);
-            spdlog::error(ErrInfo::InfoExecuting("", Func));
-            return Unexpect(ErrCode::Value::WrongInstanceAddress);
-          }),
-      ActiveInst);
+  if (ActiveModInst) {
+    return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
+  } else if (ActiveCompInst) {
+    return unsafeExecute(ActiveCompInst.get(), Func, Params, ParamTypes);
+  } else {
+    spdlog::error(ErrCode::Value::WrongInstanceAddress);
+    spdlog::error(ErrInfo::InfoExecuting("", Func));
+    return Unexpect(ErrCode::Value::WrongInstanceAddress);
+  }
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -615,9 +567,12 @@ VM::asyncExecute(std::string_view ModName, std::string_view Func,
 }
 
 void VM::unsafeCleanup() {
-  std::visit(VisitActiveInst<void>([](auto &Mod) { Mod.reset(); },
-                                   [](auto &Comp) { Comp.reset(); }),
-             ActiveInst);
+  if (ActiveModInst) {
+    ActiveModInst.reset();
+  }
+  if (ActiveCompInst) {
+    ActiveCompInst.reset();
+  }
   StoreRef.reset();
   RegModInsts.clear();
   Stat.clear();
@@ -632,20 +587,16 @@ void VM::unsafeCleanup() {
 std::vector<std::pair<std::string, const AST::FunctionType &>>
 VM::unsafeGetFunctionList() const {
   std::vector<std::pair<std::string, const AST::FunctionType &>> Map;
-  if (std::holds_alternative<
-          std::unique_ptr<Runtime::Instance::ModuleInstance>>(ActiveInst)) {
-    auto &I =
-        std::move(std::get<std::unique_ptr<Runtime::Instance::ModuleInstance>>(
-            ActiveInst));
-    if (I) {
-      I->getFuncExports([&](const auto &FuncExports) {
-        Map.reserve(FuncExports.size());
-        for (auto &&Func : FuncExports) {
-          const auto &FuncType = (Func.second)->getFuncType();
-          Map.emplace_back(Func.first, FuncType);
-        }
-      });
-    }
+  if (ActiveModInst) {
+    ActiveModInst->getFuncExports([&](const auto &FuncExports) {
+      Map.reserve(FuncExports.size());
+      for (auto &&Func : FuncExports) {
+        const auto &FuncType = (Func.second)->getFuncType();
+        Map.emplace_back(Func.first, FuncType);
+      }
+    });
+  } else if (ActiveCompInst) {
+    // TODO
   }
   return Map;
 }
@@ -659,14 +610,8 @@ VM::unsafeGetImportModule(const HostRegistration Type) const {
 }
 
 const Runtime::Instance::ModuleInstance *VM::unsafeGetActiveModule() const {
-  if (std::holds_alternative<
-          std::unique_ptr<Runtime::Instance::ModuleInstance>>(ActiveInst)) {
-    if (std::get<std::unique_ptr<Runtime::Instance::ModuleInstance>>(
-            ActiveInst)) {
-      return std::get<std::unique_ptr<Runtime::Instance::ModuleInstance>>(
-                 ActiveInst)
-          .get();
-    }
+  if (ActiveModInst) {
+    return ActiveModInst.get();
   }
   return nullptr;
 };

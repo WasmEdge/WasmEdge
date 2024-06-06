@@ -24,21 +24,6 @@ namespace WasmEdge {
 namespace VM {
 
 namespace {
-struct VisitUnit {
-  using MT = std::function<Expect<void>(AST::Module &)>;
-  using CT = std::function<Expect<void>(AST::Component::Component &)>;
-
-  VisitUnit(MT F, CT G) : VisitMod{F}, VisitComp{G} {}
-  Expect<void> operator()(AST::Module &Mod) const { return VisitMod(Mod); }
-  Expect<void> operator()(AST::Component::Component &Comp) const {
-    return VisitComp(Comp);
-  }
-
-private:
-  MT VisitMod;
-  CT VisitComp;
-};
-
 template <typename T>
 std::unique_ptr<Runtime::Instance::ModuleInstance>
 createPluginModule(std::string_view PName, std::string_view MName) {
@@ -230,12 +215,12 @@ VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
   // Load wasm unit.
   if (auto Res = LoaderEngine.parseWasmUnit(Path)) {
     if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
-      auto M = std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
-      return unsafeRunWasmFile(*M, Func, Params, ParamTypes);
+      Mod = std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
+      return unsafeRunWasmFile(*Mod.get(), Func, Params, ParamTypes);
     } else {
-      return unsafeRunWasmFile(
-          (*std::get<std::unique_ptr<AST::Component::Component>>(*Res)), Func,
-          Params, ParamTypes);
+      Comp =
+          std::move(std::get<std::unique_ptr<AST::Component::Component>>(*Res));
+      return unsafeRunWasmFile(*Comp.get(), Func, Params, ParamTypes);
     }
   } else {
     return Unexpect(Res);
@@ -254,13 +239,12 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
   // Load wasm unit.
   if (auto Res = LoaderEngine.parseWasmUnit(Code)) {
     if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
-      std::unique_ptr<AST::Module> M =
-          std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
-      return unsafeRunWasmFile(*M, Func, Params, ParamTypes);
+      Mod = std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
+      return unsafeRunWasmFile(*Mod.get(), Func, Params, ParamTypes);
     } else {
-      std::unique_ptr<AST::Component::Component> C =
+      Comp =
           std::move(std::get<std::unique_ptr<AST::Component::Component>>(*Res));
-      return unsafeRunWasmFile(*C, Func, Params, ParamTypes);
+      return unsafeRunWasmFile(*Comp.get(), Func, Params, ParamTypes);
     }
   } else {
     return Unexpect(Res);
@@ -381,11 +365,11 @@ Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
   // If not load successfully, the previous status will be reserved.
   if (auto Res = LoaderEngine.parseWasmUnit(Path)) {
     if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
-      Unit.emplace<AST::Module>(*std::get<std::unique_ptr<AST::Module>>(*Res));
+      Mod = std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
     } else if (std::holds_alternative<
                    std::unique_ptr<AST::Component::Component>>(*Res)) {
-      Unit.emplace<AST::Component::Component>(
-          *std::get<std::unique_ptr<AST::Component::Component>>(*Res));
+      Comp =
+          std::move(std::get<std::unique_ptr<AST::Component::Component>>(*Res));
     } else {
       return Unexpect(Res);
     }
@@ -400,11 +384,11 @@ Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
   // If not load successfully, the previous status will be reserved.
   if (auto Res = LoaderEngine.parseWasmUnit(Code)) {
     if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
-      Unit.emplace<AST::Module>(*std::get<std::unique_ptr<AST::Module>>(*Res));
+      Mod = std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
     } else if (std::holds_alternative<
                    std::unique_ptr<AST::Component::Component>>(*Res)) {
-      Unit.emplace<AST::Component::Component>(
-          *std::get<std::unique_ptr<AST::Component::Component>>(*Res));
+      Comp =
+          std::move(std::get<std::unique_ptr<AST::Component::Component>>(*Res));
     } else {
       return Unexpect(Res);
     }
@@ -416,7 +400,7 @@ Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
 }
 
 Expect<void> VM::unsafeLoadWasm(const AST::Module &Module) {
-  Unit.emplace<AST::Module>(Module);
+  Mod = std::make_unique<AST::Module>(Module);
   Stage = VMStage::Loaded;
   return {};
 }
@@ -427,12 +411,13 @@ Expect<void> VM::unsafeValidate() {
     spdlog::error(ErrCode::Value::WrongVMWorkflow);
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
-  if (auto Res = std::visit(
-          VisitUnit{[&](auto &Mod) { return ValidatorEngine.validate(Mod); },
-                    [&](auto &Comp) { return ValidatorEngine.validate(Comp); }},
-          Unit);
-      !Res) {
-    return Unexpect(Res);
+  if (Mod) {
+    ValidatorEngine.validate(*Mod.get());
+  } else if (Comp) {
+    ValidatorEngine.validate(*Comp.get());
+  } else {
+    spdlog::error(ErrCode::Value::WrongVMWorkflow);
+    return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
   Stage = VMStage::Validated;
   return {};
@@ -445,49 +430,46 @@ Expect<void> VM::unsafeInstantiate() {
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
 
-  return std::visit(
-      VisitUnit{
-          [&](auto &Mod) -> Expect<void> {
-            if (Conf.getRuntimeConfigure().isEnableJIT() && !Mod.getSymbol()) {
+  if (Mod) {
+    if (Conf.getRuntimeConfigure().isEnableJIT() && !Mod->getSymbol()) {
 #ifdef WASMEDGE_USE_LLVM
-              LLVM::Compiler Compiler(Conf);
-              LLVM::JIT JIT(Conf);
-              if (auto Res = Compiler.compile(Mod); !Res) {
-                const auto Err = static_cast<uint32_t>(Res.error());
-                spdlog::error(
-                    "Compilation failed. Error code: {}, use interpreter mode instead."sv,
-                    Err);
-              } else if (auto Res2 = JIT.load(std::move(*Res)); !Res2) {
-                const auto Err = static_cast<uint32_t>(Res2.error());
-                spdlog::warn(
-                    "JIT failed. Error code: {}, use interpreter mode instead."sv,
-                    Err);
-              } else {
-                LoaderEngine.loadExecutable(Mod, std::move(*Res2));
-              }
+      LLVM::Compiler Compiler(Conf);
+      LLVM::JIT JIT(Conf);
+      if (auto Res = Compiler.compile(*Mod.get()); !Res) {
+        const auto Err = static_cast<uint32_t>(Res.error());
+        spdlog::error(
+            "Compilation failed. Error code: {}, use interpreter mode instead."sv,
+            Err);
+      } else if (auto Res2 = JIT.load(std::move(*Res)); !Res2) {
+        const auto Err = static_cast<uint32_t>(Res2.error());
+        spdlog::warn(
+            "JIT failed. Error code: {}, use interpreter mode instead."sv, Err);
+      } else {
+        LoaderEngine.loadExecutable(*Mod.get(), std::move(*Res2));
+      }
 #else
-              spdlog::error("LLVM disabled, JIT is unsupported!");
+      spdlog::error("LLVM disabled, JIT is unsupported!");
 #endif
-            }
-            auto Res = ExecutorEngine.instantiateModule(StoreRef, Mod);
-            if (!Res) {
-              return Unexpect(Res);
-            }
-            Stage = VMStage::Instantiated;
-            ActiveModInst = std::move(*Res);
-            return {};
-          },
-
-          [&](auto &Comp) -> Expect<void> {
-            auto Res = ExecutorEngine.instantiateComponent(StoreRef, Comp);
-            if (!Res) {
-              return Unexpect(Res);
-            }
-            Stage = VMStage::Instantiated;
-            ActiveCompInst = std::move(*Res);
-            return {};
-          }},
-      Unit);
+    }
+    auto Res = ExecutorEngine.instantiateModule(StoreRef, *Mod.get());
+    if (!Res) {
+      return Unexpect(Res);
+    }
+    Stage = VMStage::Instantiated;
+    ActiveModInst = std::move(*Res);
+    return {};
+  } else if (Comp) {
+    auto Res = ExecutorEngine.instantiateComponent(StoreRef, *Comp.get());
+    if (!Res) {
+      return Unexpect(Res);
+    }
+    Stage = VMStage::Instantiated;
+    ActiveCompInst = std::move(*Res);
+    return {};
+  } else {
+    spdlog::error(ErrCode::Value::WrongVMWorkflow);
+    return Unexpect(ErrCode::Value::WrongVMWorkflow);
+  }
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -567,6 +549,12 @@ VM::asyncExecute(std::string_view ModName, std::string_view Func,
 }
 
 void VM::unsafeCleanup() {
+  if (Mod) {
+    Mod.reset();
+  }
+  if (Comp) {
+    Comp.reset();
+  }
   if (ActiveModInst) {
     ActiveModInst.reset();
   }

@@ -322,11 +322,10 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
   if (ActiveModInst) {
     // Execute function and return values with the module instance.
     return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
-  } else {
-    spdlog::error(ErrCode::Value::WrongInstanceAddress);
-    spdlog::error(ErrInfo::InfoExecuting("", Func));
-    return Unexpect(ErrCode::Value::WrongInstanceAddress);
   }
+  spdlog::error(ErrCode::Value::WrongInstanceAddress);
+  spdlog::error(ErrInfo::InfoExecuting("", Func));
+  return Unexpect(ErrCode::Value::WrongInstanceAddress);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -520,7 +519,8 @@ VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
   if (ActiveModInst) {
     // Execute function and return values with the module instance.
     return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
-  } else if (ActiveCompInst) {
+  }
+  if (ActiveCompInst) {
     return unsafeExecute(ActiveCompInst.get(), Func, Params, ParamTypes);
   }
   spdlog::error(ErrCode::Value::WrongInstanceAddress);

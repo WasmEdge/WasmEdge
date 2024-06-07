@@ -180,3 +180,12 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-fedora.yml
     with:
       version: ${{ needs.get_version.outputs.version }}
+
+  build_on_debian:
+    permissions:
+      contents: write
+    needs: [get_version, lint]
+    name: Debian
+    uses: ./.github/workflows/reusable-build-on-debian.yml
+    with:
+      version: ${{ needs.get_version.outputs.version }}

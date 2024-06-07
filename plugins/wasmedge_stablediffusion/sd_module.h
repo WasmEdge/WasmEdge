@@ -5,7 +5,6 @@
 
 namespace WasmEdge {
 namespace Host {
-namespace StableDiffusion {
 class SDModule : public Runtime::Instance::ModuleInstance {
 public:
   SDModule();
@@ -15,6 +14,5 @@ private:
   StableDiffusion::SDEnviornment Env;
 };
 
-} // namespace StableDiffusion
 } // namespace Host
 } // namespace WasmEdge

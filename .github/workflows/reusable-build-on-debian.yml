@@ -1,4 +1,4 @@
-name: Build on Fedora
+name: Build on Debian
 
 on:
   workflow_call:
@@ -15,19 +15,19 @@ permissions:
   contents: read
 
 jobs:
-  build_fedora:
+  build_debian:
     permissions:
       contents: write
-    name: Fedora Rawhide
+    name: Debian Testing
     runs-on: ubuntu-latest
     container:
-      image: fedora:rawhide
+      image: debian:testing
     steps:
       - name: Install dependency
         run: |
-          dnf update -y
-          dnf install -y cmake ninja-build llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev spdlog-devel \
-            pkgconf-pkg-config protobuf-c-compiler grpc-cpp grpc-plugins grpc-devel
+          apt update && apt upgrade -y && apt install -y \
+          software-properties-common wget cmake ninja-build curl \
+          git dpkg-dev llvm-dev liblld-dev gcc rpm dpkg-dev g++
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -36,7 +36,7 @@ jobs:
           git config --global --add safe.directory $(pwd)
       - name: Build WasmEdge
         run: |
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
           cmake --build build
       - name: Test WasmEdge
         run: |
@@ -52,5 +52,5 @@ jobs:
         if: ${{ !inputs.release }}
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-${{ inputs.version }}-fedora.tar.gz
+          name: WasmEdge-${{ inputs.version }}-debian.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz

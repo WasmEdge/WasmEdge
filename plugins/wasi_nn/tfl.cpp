@@ -28,7 +28,24 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   auto &GraphRef = Env.NNGraph.back().get<Graph>();
 
   // Copy graph builder data to TfLiteModData and create a new TfLiteModel.
-  GraphRef.TfLiteModData.assign(Builders[0].begin(), Builders[0].end());
+  GraphRef.TfLiteModExpect<WASINN::ErrNo> initExecCtx(
+      WASINN::WasiNNEnvironment &, uint32_t, uint32_t &) noexcept {
+    return reportBackendNotSupported();
+  }
+  Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, uint32_t,
+                                 uint32_t, const TensorData &) noexcept {
+    return reportBackendNotSupported();
+  }
+  Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, uint32_t,
+                                  uint32_t, Span<uint8_t>,
+                                  uint32_t &) noexcept {
+    return reportBackendNotSupported();
+  }
+  Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &,
+                                uint32_t) noexcept {
+    return reportBackendNotSupported();
+  }
+  Data.assign(Builders[0].begin(), Builders[0].end());
   GraphRef.TFLiteMod = TfLiteModelCreate(GraphRef.TfLiteModData.data(),
                                          GraphRef.TfLiteModData.size());
   if (unlikely(GraphRef.TFLiteMod == nullptr)) {

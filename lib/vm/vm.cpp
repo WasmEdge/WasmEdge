@@ -14,6 +14,7 @@
 #include "host/mock/wasi_nn_module.h"
 #include "host/mock/wasmedge_image_module.h"
 #include "host/mock/wasmedge_process_module.h"
+#include "host/mock/wasmedge_stablediffusion_module.h"
 #include "host/mock/wasmedge_tensorflow_module.h"
 #include "host/mock/wasmedge_tensorflowlite_module.h"
 #include "validator/validator.h"
@@ -125,6 +126,9 @@ void VM::unsafeLoadPlugInHosts() {
           "wasmedge_tensorflowlite"sv, "wasmedge_tensorflowlite"sv));
   PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeImageModuleMock>(
       "wasmedge_image"sv, "wasmedge_image"sv));
+  PlugInModInsts.push_back(
+      createPluginModule<Host::WasmEdgeStableDiffusionModuleMock>(
+          "wasmedge_stablediffusion"sv, "wasmedge_stablediffusion"sv));
 
   // Load the other non-official plugins.
   for (const auto &Plugin : Plugin::Plugin::plugins()) {
@@ -138,7 +142,8 @@ void VM::unsafeLoadPlugInHosts() {
         Plugin.name() == "wasmedge_process"sv ||
         Plugin.name() == "wasmedge_tensorflow"sv ||
         Plugin.name() == "wasmedge_tensorflowlite"sv ||
-        Plugin.name() == "wasmedge_image"sv) {
+        Plugin.name() == "wasmedge_image"sv ||
+        Plugin.name() == "wasmedge_stablediffusion"sv) {
       continue;
     }
     for (const auto &Module : Plugin.modules()) {

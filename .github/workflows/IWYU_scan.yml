@@ -119,9 +119,9 @@ jobs:
         export CXX=clang++
 
         cd ../../
-        curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.21.zip
-        unzip 0.21.zip
-        patch -p1 -d include-what-you-use-0.21 <<EOF
+        curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.22.zip
+        unzip 0.22.zip
+        patch -p1 -d include-what-you-use-0.22 <<EOF
         diff --git a/iwyu.cc b/iwyu.cc
         --- a/iwyu.cc
         +++ b/iwyu.cc
@@ -138,7 +138,7 @@ jobs:
              // Make sure all the types we report in the recursive TraverseDecl
              // calls, below, end up in the cache for class_decl.
         EOF
-        cmake -Bbuild-iwyu -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$IWYU_PREFIX" include-what-you-use-0.21
+        cmake -Bbuild-iwyu -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$IWYU_PREFIX" include-what-you-use-0.22
         cmake --build build-iwyu --target install
         cd WasmEdge/WasmEdge
 

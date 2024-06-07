@@ -33,7 +33,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
 
 } // namespace
 
-Plugin::PluginRegister WasiLoggingEnvironment::Register(&Descriptor);
+Plugin::PluginRegister WASILogging::LogEnv::Register(&Descriptor);
 
 } // namespace Host
 } // namespace WasmEdge

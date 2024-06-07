@@ -29,6 +29,8 @@ public:
   const std::string DefFormat = "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v";
   std::shared_ptr<spdlog::logger> FileLogger;
   std::string LogFileName;
+
+  static Plugin::PluginRegister Register;
 };
 
 } // namespace WASILogging

@@ -1,0 +1,56 @@
+name: Build on Debian
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+      upload_asset_url:
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build_debian:
+    permissions:
+      contents: write
+    name: Debian Testing
+    runs-on: ubuntu-latest
+    container:
+      image: debian:testing
+    steps:
+      - name: Install dependency
+        run: |
+          apt update && apt upgrade -y && apt install -y \
+          software-properties-common wget cmake ninja-build curl \
+          git dpkg-dev llvm-dev liblld-dev gcc rpm dpkg-dev g++
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Grant the safe directory for git
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - name: Build WasmEdge
+        run: |
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          cmake --build build
+      - name: Test WasmEdge
+        run: |
+          export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
+          cd build
+          ./tools/wasmedge/wasmedge -v
+          ctest
+          cd -
+      - name: Create package tarball
+        run: |
+          cmake --build build --target package
+      - name: Upload artifact
+        if: ${{ !inputs.release }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-${{ inputs.version }}-debian.tar.gz
+          path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz

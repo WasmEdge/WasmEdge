@@ -10,18 +10,18 @@ on:
         type: boolean
       upload_asset_url:
         type: string
-        
+
 permissions:
   contents: read
-  
+
 jobs:
   build_fedora:
     permissions:
       contents: write
-    name: Fedora latest
+    name: Fedora Rawhide
     runs-on: ubuntu-latest
     container:
-      image: fedora:latest
+      image: fedora:rawhide
     steps:
       - name: Install dependency
         run: |

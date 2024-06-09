@@ -1880,24 +1880,26 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::I8x16__relaxed_laneselect: {
       const ValVariant Mask = StackMgr.pop();
       const ValVariant Val2 = StackMgr.pop();
-      return runVectorRelaxedLaneselectOp<uint8_t>(StackMgr.getTop(), Val2, Mask);
+      return runVectorRelaxedLaneselectOp<uint8_t>(StackMgr.getTop(), Val2,
+                                                   Mask);
     }
     case OpCode::I16x8__relaxed_laneselect: {
       const ValVariant Mask = StackMgr.pop();
       const ValVariant Val2 = StackMgr.pop();
       return runVectorRelaxedLaneselectOp<uint16_t>(StackMgr.getTop(), Val2,
-                                                  Mask);
+                                                    Mask);
     }
     case OpCode::I32x4__relaxed_laneselect: {
       const ValVariant Mask = StackMgr.pop();
       const ValVariant Val2 = StackMgr.pop();
       return runVectorRelaxedLaneselectOp<uint32_t>(StackMgr.getTop(), Val2,
-                                                  Mask);
+                                                    Mask);
     }
     case OpCode::I64x2__relaxed_laneselect: {
       const ValVariant Mask = StackMgr.pop();
       const ValVariant Val2 = StackMgr.pop();
-      return runVectorRelaxedLaneselectOp<uint64_t>(StackMgr.getTop(), Val2, Mask);
+      return runVectorRelaxedLaneselectOp<uint64_t>(StackMgr.getTop(), Val2,
+                                                    Mask);
     }
     case OpCode::F32x4__relaxed_min: {
       const ValVariant Val2 = StackMgr.pop();

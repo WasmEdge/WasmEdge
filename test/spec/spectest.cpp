@@ -278,6 +278,7 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"exception-handling-legacy"sv,
      {Proposal::ExceptionHandling, Proposal::TailCall},
      WasmEdge::SpecTest::TestMode::Interpreter},
+    {"relaxed-simd"sv, {Proposal::RelaxSIMD}},
 };
 
 } // namespace

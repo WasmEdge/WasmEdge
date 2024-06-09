@@ -9,7 +9,7 @@ message(STATUS "Downloading the WASM spec test suite")
 FetchContent_Declare(
   wasmedge_unit_test
   GIT_REPOSITORY https://github.com/second-state/WasmEdge-unittest
-  GIT_TAG        wasm-dev-0.14.0
+  GIT_TAG        wasm-dev
 )
 FetchContent_MakeAvailable(wasmedge_unit_test)
 message(STATUS "Downloading the WASM spec test suite -- done")
@@ -24,7 +24,7 @@ function(wasmedge_copy_spec_testsuite proposal)
   message(STATUS "Copying test suite to ${CMAKE_CURRENT_BINARY_DIR}/testSuites/${proposal} -- done")
 endfunction()
 
-foreach(PROPOSAL core multi-memory tail-call extended-const threads function-references gc exception-handling exception-handling-legacy)
+foreach(PROPOSAL core multi-memory tail-call extended-const threads function-references gc exception-handling exception-handling-legacy relaxed-simd)
   wasmedge_copy_spec_testsuite(${PROPOSAL})
 endforeach()
 

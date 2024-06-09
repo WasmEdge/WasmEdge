@@ -536,7 +536,7 @@ inline Expect<void> Executor::runVectorRelaxedIntegerDotProductOpAdd(
   int32x4_t Result{0, 0, 0, 0};
 
   for (size_t I = 0; I < V1.size(); ++I) {
-    Result[I] += static_cast<int16_t>(V1[I]) * static_cast<int16_t>(V2[I]);
+    Result[I / 4] += static_cast<int16_t>(V1[I]) * static_cast<int16_t>(V2[I]);
   }
 
   for (size_t I = 0; I < VC.size(); ++I) {

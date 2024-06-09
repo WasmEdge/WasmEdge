@@ -4914,8 +4914,11 @@ private:
 #if defined(__x86_64__)
     if (Context.SupportSSSE3) {
       assuming(LLVM::Core::X86SSSE3PMAddUbSw128 != LLVM::Core::NotIntrinsic);
+      // WebAssembly Relaxed SIMD spec: signed(LHS) * unsigned/signed(RHS)
+      // But PMAddUbSw128 is unsigned(LHS) * signed(RHS). Therefore swap both
+      // side to match the WebAssembly spec
       return stackPush(Builder.createIntrinsic(LLVM::Core::X86SSSE3PMAddUbSw128,
-                                               {}, {LHS, RHS}));
+                                               {}, {RHS, LHS}));
     }
 #endif
     auto Width = LLVM::Value::getConstInt(
@@ -4945,8 +4948,11 @@ private:
 #if defined(__x86_64__)
     if (Context.SupportSSSE3) {
       assuming(LLVM::Core::X86SSSE3PMAddUbSw128 != LLVM::Core::NotIntrinsic);
+      // WebAssembly Relaxed SIMD spec: signed(LHS) * unsigned/signed(RHS)
+      // But PMAddUbSw128 is unsigned(LHS) * signed(RHS). Therefore swap both
+      // side to match the WebAssembly spec
       IM = Builder.createIntrinsic(LLVM::Core::X86SSSE3PMAddUbSw128, {},
-                                   {LHS, RHS});
+                                   {RHS, LHS});
     } else
 #endif
     {

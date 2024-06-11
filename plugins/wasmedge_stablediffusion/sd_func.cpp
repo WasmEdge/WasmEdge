@@ -49,14 +49,14 @@ namespace StableDiffusion {
     return static_cast<uint32_t>(ErrNo::MissingMemory);                        \
   }
 
-sd_image_t *ReadControlImage(Span<uint8_t> ControlImage,
+sd_image_t *readControlImage(Span<uint8_t> ControlImage,
                              uint8_t *ControlImageBuf, int Width, int Height,
                              bool CannyPreprocess) {
-  sd_image_t *ControlImg = NULL;
+  sd_image_t *ControlImg = nullptr;
   int Channel = 0;
   ControlImageBuf = stbi_load_from_memory(
       ControlImage.data(), ControlImage.size(), &Width, &Height, &Channel, 3);
-  if (ControlImageBuf == NULL) {
+  if (ControlImageBuf == nullptr) {
     spdlog::error("[StableDiffusion] Load image from control image failed."sv);
     return nullptr;
   }
@@ -69,6 +69,50 @@ sd_image_t *ReadControlImage(Span<uint8_t> ControlImage,
                          ControlImg->height, 0.08f, 0.08f, 0.8f, 1.0f, false);
   }
   return ControlImg;
+}
+
+Expect<uint32_t> SDConvert::body(const Runtime::CallingFrame &Frame,
+                                 uint32_t ModelPathPtr, uint32_t ModelPathLen,
+                                 uint32_t VaeModelPathPtr,
+                                 uint32_t VaeModelPathLen,
+                                 uint32_t OutputPathPtr, uint32_t OutputPathLen,
+                                 uint32_t WType) {
+  // Check memory instance from module.
+  MEMINST_CHECK(MemInst, Frame, 0)
+
+  // Check the input model buffer.
+  MEM_SPAN_CHECK(ModelPathSpan, MemInst, char, ModelPathPtr, ModelPathLen,
+                 "Failed when accessing the input model path memory."sv)
+  MEM_SPAN_CHECK(VaeModelPathSpan, MemInst, char, VaeModelPathPtr,
+                 VaeModelPathLen,
+                 "Failed when accessing the input vae model path memory."sv)
+  MEM_SPAN_CHECK(OutputPathSpan, MemInst, char, OutputPathPtr, OutputPathLen,
+                 "Failed when accessing the output path memory."sv)
+  std::string ModelPath = std::string(
+      ModelPathSpan.begin(), ModelPathSpan.begin() + ModelPathSpan.size());
+  std::string VaeModelPath =
+      std::string(VaeModelPathSpan.begin(),
+                  VaeModelPathSpan.begin() + VaeModelPathSpan.size());
+  std::string OutputPath = std::string(
+      OutputPathSpan.begin(), OutputPathSpan.begin() + OutputPathSpan.size());
+
+  spdlog::info("[WasmEdge-StableDiffusion] Convert model: {} to {}."sv,
+               ModelPath.data(), OutputPath.data());
+  std::ifstream Fin(ModelPath.data(),
+                    std::ios::in | std::ios::binary | std::ios::ate);
+  if (!Fin) {
+    spdlog::error("[WasmEdge-StableDiffusion] Model not found.");
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  }
+  // Convert model.
+  bool Ret = convert(ModelPath.data(), VaeModelPath.data(), OutputPath.data(),
+                     static_cast<sd_type_t>(WType));
+  if (!Ret) {
+    spdlog::error("[WasmEdge-StableDiffusion] Failed to convert model.");
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  }
+
+  return static_cast<uint32_t>(ErrNo::Success);
 }
 
 Expect<uint32_t> SDCreateContext::body(
@@ -113,7 +157,7 @@ Expect<uint32_t> SDCreateContext::body(
       static_cast<bool>(VaeTiling), true, NThreads,
       static_cast<sd_type_t>(Wtype), static_cast<rng_type_t>(RngType),
       static_cast<schedule_t>(Schedule), ClipOnCpu, ControlNetCpu, VaeOnCpu);
-  if (Ctx == NULL) {
+  if (Ctx == nullptr) {
     spdlog::error("[WasmEdge-StableDiffusion] Failed to create context.");
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
@@ -169,7 +213,7 @@ Expect<uint32_t> SDTextToImage::body(
     MEM_SPAN_CHECK(ControlImageSpan, MemInst, uint8_t, ControlImagePtr,
                    ControlImageLen,
                    "Failed when accessing the control image memory."sv)
-    ControlImage = ReadControlImage(ControlImageSpan, ControlImageBuffer, Width,
+    ControlImage = readControlImage(ControlImageSpan, ControlImageBuffer, Width,
                                     Height, CannyPreprocess);
   }
 
@@ -182,7 +226,7 @@ Expect<uint32_t> SDTextToImage::body(
   int Len;
   unsigned char *Png = stbi_write_png_to_mem(
       reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
-      Results->height, Results->channel, &Len, NULL);
+      Results->height, Results->channel, &Len, nullptr);
   *BytesWritten = Len;
   std::copy_n(Png, *BytesWritten, OutputBufferSpan.data());
   free(Results);

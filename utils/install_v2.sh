@@ -30,11 +30,15 @@ eprintf() {
 
 detect_cuda_nvcc() {
 	local cuda=""
-	cuda=$(/usr/local/cuda/bin/nvcc --version 2>/dev/null | grep "Cuda compilation tools" | cut -f5 -d ' ' | cut -f1 -d ',')
-	if [[ "${cuda}" =~ "12" ]]; then
-		cuda="12"
-	elif [[ "${cuda}" =~ "11" ]]; then
-		cuda="11"
+	if [[ "${BY_PASS_CUDA_VERSION}" != "0" ]]; then
+		cuda="${BY_PASS_CUDA_VERSION}"
+	else
+		cuda=$(/usr/local/cuda/bin/nvcc --version 2>/dev/null | grep "Cuda compilation tools" | cut -f5 -d ' ' | cut -f1 -d ',')
+		if [[ "${cuda}" =~ "12" ]]; then
+			cuda="12"
+		elif [[ "${cuda}" =~ "11" ]]; then
+			cuda="11"
+		fi
 	fi
 
 	echo ${cuda}
@@ -42,24 +46,32 @@ detect_cuda_nvcc() {
 
 detect_cuda_nvidia_smi() {
 	local cuda=""
-	cuda=$(nvidia-smi -q 2>/dev/null | grep CUDA | cut -f2 -d ':' | cut -f2 -d ' ')
-	if [[ "${cuda}" =~ "12" ]]; then
-		cuda="12"
-	elif [[ "${cuda}" =~ "11" ]]; then
-		cuda="11"
+	if [[ "${BY_PASS_CUDA_VERSION}" != "0" ]]; then
+		cuda="${BY_PASS_CUDA_VERSION}"
+	else
+		cuda=$(nvidia-smi -q 2>/dev/null | grep CUDA | cut -f2 -d ':' | cut -f2 -d ' ')
+		if [[ "${cuda}" =~ "12" ]]; then
+			cuda="12"
+		elif [[ "${cuda}" =~ "11" ]]; then
+			cuda="11"
+		fi
 	fi
 
 	echo ${cuda}
 }
 
 detect_cudart() {
-	local cudart_available="no"
+	local cudart_available="0"
 	if [[ ${OS} == "Linux" ]]; then
-		# Use ldconfig on Linux
-		# macOS does not have libcudart.so
-		local check=$(ldconfig -p | grep libcudart.so)
-		if [[ "${check}" != "" ]]; then
-			cudart_available="yes"
+		if [[ "${BY_PASS_CUDART}" != 0 ]]; then
+			cudart_available="1"
+		else
+			# Use ldconfig on Linux
+			# macOS does not have libcudart.so
+			local check=$(ldconfig -p | grep libcudart.so)
+			if [[ "${check}" != "" ]]; then
+				cudart_available="1"
+			fi
 		fi
 	fi
 	echo ${cudart_available}
@@ -73,7 +85,7 @@ detect_cuda() {
 	fi
 
 	local cudart=$(detect_cudart)
-	if [[ "${cudart}" == "no" ]]; then
+	if [[ "${cudart}" == "0" ]]; then
 		# If cudart is not available, it will not use the GPU version.
 		cuda=""
 	fi
@@ -223,6 +235,8 @@ VERBOSE=0
 LEGACY=0
 ENABLE_NOAVX=0
 GGML_BUILD_NUMBER=""
+BY_PASS_CUDA_VERSION="0"
+BY_PASS_CUDART="0"
 
 set_ENV() {
 	ENV="#!/bin/sh
@@ -312,6 +326,9 @@ usage() {
 
 	--ggmlbn=[b2963]                            Install the specific GGML plugin.
 													Default is the latest.
+
+	--ggmlcuda=[11/12]                          Install the specific CUDA enabled GGML plugin.
+													Default is the none.
 
 	--os=[Linux/Darwin]                         Set the OS.
 													Default is detected OS.
@@ -419,7 +436,7 @@ get_wasmedge_ggml_plugin() {
 		info "CUDA version from nvcc: $(detect_cuda_nvcc)"
 		info "CUDA version from nvidia-smi: $(detect_cuda_nvidia_smi)"
 		info "Is CUDART found?: ${cudart}"
-		if [ "${cuda}" != "" ] && [ "${cudart}" == "yes" ]; then
+		if [ "${cuda}" != "" ] && [ "${cudart}" == "1" ]; then
 			info "CUDA version is detected and CUDART is found: Use the GPU version."
 		else
 			info "CUDA version is not detected or CUDART is not found: Use the CPU version."
@@ -509,6 +526,10 @@ main() {
 				;;
 			ggmlbn)
 				GGML_BUILD_NUMBER="${OPTARG}"
+				;;
+			ggmlcuda)
+				BY_PASS_CUDA_VERSION="${OPTARG}"
+				BY_PASS_CUDART="1"
 				;;
 			noavx)
 				ENABLE_NOAVX=1

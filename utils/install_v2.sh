@@ -316,8 +316,11 @@ usage() {
 	--os=[Linux/Darwin]                         Set the OS.
 													Default is detected OS.
 
-	--arch[x86_64/aarch64/arm64]                Set the ARCH.
+	--arch=[x86_64/aarch64/arm64]               Set the ARCH.
 													Default is detected ARCH.
+
+	--tmpdir=[/tmp]                             Set the temporary directory.
+													Default is /tmp.
 
 	Example:
 	./$0 -p $IPATH --verbose
@@ -515,6 +518,9 @@ main() {
 				;;
 			arch)
 				ARCH="${OPTARG}"
+				;;
+			tmpdir)
+				TMP_DIR="${OPTARG}"
 				;;
 			?)
 				exit 2

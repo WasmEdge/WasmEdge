@@ -37,7 +37,14 @@ public:
     return kStableDiffusionError;
   }
 };
-
+class Convert : public Runtime::HostFunction<Convert> {
+public:
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t, uint32_t,
+                        uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) {
+    printPluginMock("WasmEdge-Stable-Diffusion"sv);
+    return kStableDiffusionError;
+  }
+};
 } // namespace WasmEdgeStableDiffusionMock
 } // namespace Host
 } // namespace WasmEdge

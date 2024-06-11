@@ -20,7 +20,7 @@ enum class ErrNo : uint32_t {
 
 class SDEnviornment {
 public:
-  uint32_t addContext(sd_ctx_t *sd_ctx) noexcept;
+  uint32_t addContext(sd_ctx_t *Ctx) noexcept;
   sd_ctx_t *getContext(const uint32_t Id) noexcept;
 
 private:

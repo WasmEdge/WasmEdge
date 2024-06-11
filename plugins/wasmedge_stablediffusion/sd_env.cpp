@@ -33,8 +33,8 @@ EXPORT_GET_DESCRIPTOR(Descriptor)
 } // namespace
 
 namespace StableDiffusion {
-uint32_t SDEnviornment::addContext(sd_ctx_t *sd_ctx) noexcept {
-  Contexts.push_back(sd_ctx);
+uint32_t SDEnviornment::addContext(sd_ctx_t *Ctx) noexcept {
+  Contexts.push_back(Ctx);
   return Contexts.size() - 1;
 }
 sd_ctx_t *SDEnviornment::getContext(const uint32_t Id) noexcept {

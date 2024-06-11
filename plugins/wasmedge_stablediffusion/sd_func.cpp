@@ -50,24 +50,25 @@ namespace StableDiffusion {
   }
 
 sd_image_t *ReadControlImage(Span<uint8_t> ControlImage,
-                             uint8_t *control_image_buffer, int Width,
-                             int Height, bool canny_preprocess) {
-  sd_image_t *control_image = NULL;
+                             uint8_t *ControlImageBuf, int Width, int Height,
+                             bool CannyPreprocess) {
+  sd_image_t *ControlImg = NULL;
   int Channel = 0;
-  control_image_buffer = stbi_load_from_memory(
+  ControlImageBuf = stbi_load_from_memory(
       ControlImage.data(), ControlImage.size(), &Width, &Height, &Channel, 3);
-  if (control_image_buffer == NULL) {
+  if (ControlImageBuf == NULL) {
     spdlog::error("[StableDiffusion] Load image from control image failed."sv);
     return nullptr;
   }
-  control_image = new sd_image_t{(uint32_t)Width, (uint32_t)Height, 3,
-                                 control_image_buffer};
-  if (canny_preprocess) { // apply preprocessor
-    control_image->data = preprocess_canny(
-        control_image->data, control_image->width, control_image->height, 0.08f,
-        0.08f, 0.8f, 1.0f, false);
+  ControlImg =
+      new sd_image_t{static_cast<uint32_t>(Width),
+                     static_cast<uint32_t>(Height), 3, ControlImageBuf};
+  if (CannyPreprocess) { // apply preprocessor
+    ControlImg->data =
+        preprocess_canny(ControlImg->data, ControlImg->width,
+                         ControlImg->height, 0.08f, 0.08f, 0.8f, 1.0f, false);
   }
-  return control_image;
+  return ControlImg;
 }
 
 Expect<uint32_t> SDCreateContext::body(
@@ -105,18 +106,18 @@ Expect<uint32_t> SDCreateContext::body(
                 "Failed when accessing the return SessionID memory."sv)
 
   // Create context and import graph.
-  sd_ctx_t *sd_ctx =
-      new_sd_ctx(ModelPathSpan.data(), VaePathSpan.data(), TaesdPathSpan.data(),
-                 ControlNetPathSpan.data(), LoraModelDirSpan.data(),
-                 EmbedDirSpan.data(), IdEmbedDirSpan.data(),
-                 static_cast<bool>(VaeDecodeOnly), static_cast<bool>(VaeTiling),
-                 true, NThreads, sd_type_t(Wtype), rng_type_t(RngType),
-                 schedule_t(Schedule), ClipOnCpu, ControlNetCpu, VaeOnCpu);
-  if (sd_ctx == NULL) {
+  sd_ctx_t *Ctx = new_sd_ctx(
+      ModelPathSpan.data(), VaePathSpan.data(), TaesdPathSpan.data(),
+      ControlNetPathSpan.data(), LoraModelDirSpan.data(), EmbedDirSpan.data(),
+      IdEmbedDirSpan.data(), static_cast<bool>(VaeDecodeOnly),
+      static_cast<bool>(VaeTiling), true, NThreads,
+      static_cast<sd_type_t>(Wtype), static_cast<rng_type_t>(RngType),
+      static_cast<schedule_t>(Schedule), ClipOnCpu, ControlNetCpu, VaeOnCpu);
+  if (Ctx == NULL) {
     spdlog::error("[WasmEdge-StableDiffusion] Failed to create context.");
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
-  *SessionId = Env.addContext(sd_ctx);
+  *SessionId = Env.addContext(Ctx);
 
   return static_cast<uint32_t>(ErrNo::Success);
 }
@@ -129,7 +130,7 @@ Expect<uint32_t> SDTextToImage::body(
     uint32_t SampleSteps, uint32_t Strength, uint32_t Seed, uint32_t BatchCount,
     uint32_t ControlStrength, uint32_t StyleRatio, uint32_t NormalizeInput,
     uint32_t InputIdImagesPathPtr, uint32_t InputIdImagesPathLen,
-    uint32_t canny_preprocess, uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
+    uint32_t CannyPreprocess, uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
     uint32_t BytesWrittenPtr) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
@@ -155,7 +156,7 @@ Expect<uint32_t> SDTextToImage::body(
   sd_ctx_t *SDCtx = Env.getContext(SessionId);
 
   uint8_t *InputImageBuffer = nullptr;
-  uint8_t *control_image_buffer = nullptr;
+  uint8_t *ControlImageBuffer = nullptr;
   int Channel = 0;
   int ImageWidth = 0;
   int ImageHeight = 0;
@@ -168,25 +169,25 @@ Expect<uint32_t> SDTextToImage::body(
     MEM_SPAN_CHECK(ControlImageSpan, MemInst, uint8_t, ControlImagePtr,
                    ControlImageLen,
                    "Failed when accessing the control image memory."sv)
-    ControlImage = ReadControlImage(ControlImageSpan, control_image_buffer,
-                                    Width, Height, canny_preprocess);
+    ControlImage = ReadControlImage(ControlImageSpan, ControlImageBuffer, Width,
+                                    Height, CannyPreprocess);
   }
 
-  sd_image_t *results;
-  results = img2img(SDCtx, InputImage, PromptSpan.data(),
+  sd_image_t *Results;
+  Results = img2img(SDCtx, InputImage, PromptSpan.data(),
                     NegativePromptSpan.data(), ClipSkip, CfgScale, Width,
                     Height, sample_method_t(SampleMethod), SampleSteps,
                     Strength, Seed, BatchCount, ControlImage, ControlStrength,
                     StyleRatio, NormalizeInput, InputIdImagesPathSpan.data());
-  int len;
-  unsigned char *png =
-      stbi_write_png_to_mem((const unsigned char *)results, 0, results->width,
-                            results->height, results->channel, &len, NULL);
-  *BytesWritten = len;
-  std::copy_n(png, *BytesWritten, OutputBufferSpan.data());
-  free(results);
+  int Len;
+  unsigned char *Png = stbi_write_png_to_mem(
+      reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
+      Results->height, Results->channel, &Len, NULL);
+  *BytesWritten = Len;
+  std::copy_n(Png, *BytesWritten, OutputBufferSpan.data());
+  free(Results);
   free(InputImageBuffer);
-  free(control_image_buffer);
+  free(ControlImageBuffer);
   return static_cast<uint32_t>(ErrNo::RuntimeError);
 }
 } // namespace StableDiffusion

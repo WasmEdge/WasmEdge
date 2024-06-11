@@ -36,6 +36,15 @@ public:
        uint32_t canny_preprocess, uint32_t OutBufferPtr,
        uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr);
 };
+class SDConvert : public StableDiffusion::Func<SDConvert> {
+public:
+  SDConvert(StableDiffusion::SDEnviornment &HostEnv) : Func(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
+                        uint32_t ModelPathPtr, uint32_t ModelPathLen,
+                        uint32_t VaeModelPathPtr, uint32_t VaeModelPathLen,
+                        uint32_t OutputPathPtr, uint32_t OutputPathLen,
+                        uint32_t WType);
+};
 } // namespace StableDiffusion
 } // namespace Host
 } // namespace WasmEdge

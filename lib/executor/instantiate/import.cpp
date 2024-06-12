@@ -108,6 +108,32 @@ checkImportMatched(std::string_view ModName, std::string_view ExtName,
 Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::ImportSection &ImportSec) {
+  // Find the first shared memory and create it
+  if (Conf.hasProposal(Proposal::Threads)) {
+    // Inject an shared memory in env
+    // TODO: if env is existing?
+    if (StoreMgr.findModule("env") == nullptr) {
+      for (const auto &ImpDesc : ImportSec.getContent()) {
+        auto ExtType = ImpDesc.getExternalType();
+        auto ModName = ImpDesc.getModuleName();
+        auto ExtName = ImpDesc.getExternalName();
+        if (ExtType == ExternalType::Memory && ModName == "env") {
+          auto MemType = ImpDesc.getExternalMemoryType();
+          if (MemType.getLimit().isShared()) {
+            spdlog::error("isShared");
+            spdlog::error(ExtName);
+            auto EnvMod = new Runtime::Instance::ModuleInstance("env");
+            EnvMod->addHostMemory(
+                ExtName,
+                std::make_unique<WasmEdge::Runtime::Instance::SharedMemory>(
+                    MemType));
+            StoreMgr.registerModule(EnvMod);
+          }
+        }
+      }
+    }
+  }
+
   // Iterate and instantiate import descriptions.
   for (const auto &ImpDesc : ImportSec.getContent()) {
     // Get data from import description and find import module.

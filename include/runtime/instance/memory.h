@@ -25,6 +25,7 @@
 #include <fstream>
 #include <memory>
 #include <set>
+#include <shared_mutex>
 #include <utility>
 
 namespace WasmEdge {
@@ -339,6 +340,17 @@ private:
   uint8_t *DataPtr = nullptr;
   const uint32_t PageLimit;
   /// @}
+};
+
+class SharedMemory: public MemoryInstance {
+public:
+  SharedMemory() = delete;
+  SharedMemory(const AST::MemoryType &MType,
+                 uint32_t PageLim = UINT32_C(65536)) noexcept
+      : MemoryInstance(MType, PageLim) {
+  }
+private:
+  mutable std::shared_mutex Lock;
 };
 
 } // namespace Instance

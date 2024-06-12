@@ -91,6 +91,18 @@ public:
 
   void *getHostData() const noexcept { return HostData; }
 
+  std::unique_ptr<ModuleInstance> CloneMemoryInEnv() const {
+    std::unique_lock Lock(Mutex);
+    return UnsafeCloneMemoryInEnv();
+  }
+
+  std::unique_ptr<ModuleInstance> UnsafeCloneMemoryInEnv() const {
+    std::unique_ptr<ModuleInstance> Res(new ModuleInstance("env"));
+    Res->MemInsts = MemInsts;
+    Res->ExpMems = ExpMems;
+    return Res;
+  }
+
   /// Add exist instances and move ownership with exporting name.
   void addHostFunc(std::string_view Name,
                    std::unique_ptr<HostFunctionBase> &&Func) {

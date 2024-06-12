@@ -152,6 +152,19 @@ public:
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   instantiateModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod);
 
+  ///
+  void setHostCallback(
+      std::function<std::vector<
+          std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance>>()>
+          Func);
+
+  /// Reinstantiate a WASM Module into an anonymous module instance.
+  Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+  reinstantiateModule(
+      Runtime::StoreManager &StoreMgr,
+      std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+          &HostModsHolder);
+
   /// Instantiate and register a WASM module into a named module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   registerModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
@@ -861,6 +874,17 @@ private:
   std::atomic_uint32_t StopToken = 0;
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
+
+private:
+  /// For reinstantiateModule on threads
+  struct ExecutionModuleSourceStruct {
+    const AST::Module *SourceMod = nullptr;
+    std::function<std::vector<
+        std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance>>()>
+        HostCallback;
+  };
+
+  ExecutionModuleSourceStruct ModuleSourceStructContext;
 };
 
 } // namespace Executor

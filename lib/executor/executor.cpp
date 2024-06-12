@@ -13,6 +13,7 @@ namespace Executor {
 Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
                             const AST::Module &Mod) {
+  ModuleSourceStructContext.SourceMod = &Mod;
   if (auto Res = instantiate(StoreMgr, Mod)) {
     return Res;
   } else {
@@ -24,6 +25,24 @@ Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
     }
     return Unexpect(Res);
   }
+}
+
+void Executor::setHostCallback(
+    std::function<std::vector<
+        std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance>>()>
+        Func) {
+  ModuleSourceStructContext.HostCallback = Func;
+}
+
+Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+Executor::reinstantiateModule(
+    Runtime::StoreManager &StoreMgr,
+    std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+        &HostModsHolder) {
+  HostModsHolder = ModuleSourceStructContext.HostCallback();
+  for (auto &It : HostModsHolder)
+    registerModule(StoreMgr, *It.get());
+  return instantiateModule(StoreMgr, *ModuleSourceStructContext.SourceMod);
 }
 
 /// Register a named WASM module. See "include/executor/executor.h".

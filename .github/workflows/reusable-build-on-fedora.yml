@@ -16,12 +16,22 @@ permissions:
 
 jobs:
   build_fedora:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Fedora Rawhide
+            image: fedora:rawhide
+            asset_postfix: fedora-rawhide
+          - name: Fedora Latest
+            image: fedora:latest
+            asset_postfix: fedora
     permissions:
       contents: write
-    name: Fedora Rawhide
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     container:
-      image: fedora:rawhide
+      image: ${{ matrix.image }}
     steps:
       - name: Install dependency
         run: |
@@ -52,5 +62,5 @@ jobs:
         if: ${{ !inputs.release }}
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-${{ inputs.version }}-fedora.tar.gz
+          name: WasmEdge-${{ inputs.version }}-${{ matrix.asset_postfix }}.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz

@@ -63,7 +63,7 @@ detect_cuda_nvidia_smi() {
 detect_cudart() {
 	local cudart_available="0"
 	if [[ ${OS} == "Linux" ]]; then
-		if [[ "${BY_PASS_CUDART}" != 0 ]]; then
+		if [[ "${BY_PASS_CUDART}" != "0" ]]; then
 			cudart_available="1"
 		else
 			# Use ldconfig on Linux
@@ -308,36 +308,36 @@ usage() {
 	Mandatory arguments to long options are mandatory for short options too.
 	Long options should be assigned with '='
 
-	-h,             --help                      Display help
+	-h,             --help                          Display help
 
-	--legacy                                    Enable legacy OS support.
-													E.g., CentOS 7.
+	-l,             --legacy                        Enable legacy OS support.
+														E.g., CentOS 7.
 
-	-v,             --version                   Install the specific version.
+	-v,             --version                       Install the specific version.
 
-	-V,             --verbose                   Run script in verbose mode.
-													Will print out each step
-													of execution.
+	-V,             --verbose                       Run script in verbose mode.
+														Will print out each step
+														of execution.
 
-	-p,             --path=[/usr/local]         Prefix / Path to install
+	-p,             --path=[/usr/local]             Prefix / Path to install
 
-	--noavx                                     Install the GGML noavx plugin.
-													Default is disabled.
+	--noavx                                         Install the GGML noavx plugin.
+														Default is disabled.
 
-	--ggmlbn=[b2963]                            Install the specific GGML plugin.
-													Default is the latest.
+	-b,             --ggmlbn=[b2963]                Install the specific GGML plugin.
+														Default is the latest.
 
-	--ggmlcuda=[11/12]                          Install the specific CUDA enabled GGML plugin.
-													Default is the none.
+	-c,             --ggmlcuda=[11/12]              Install the specific CUDA enabled GGML plugin.
+														Default is the none.
 
-	--os=[Linux/Darwin]                         Set the OS.
-													Default is detected OS.
+	-o,             --os=[Linux/Darwin]             Set the OS.
+														Default is detected OS.
 
-	--arch=[x86_64/aarch64/arm64]               Set the ARCH.
-													Default is detected ARCH.
+	-a,             --arch=[x86_64/aarch64/arm64]   Set the ARCH.
+														Default is detected ARCH.
 
-	--tmpdir=[/tmp]                             Set the temporary directory.
-													Default is /tmp.
+	-t,             --tmpdir=[/tmp]                 Set the temporary directory.
+														Default is /tmp.
 
 	Example:
 	./$0 -p $IPATH --verbose
@@ -499,7 +499,8 @@ main() {
 	# it'll probably be fine, but it's of course a good thing to keep in mind.
 
 	local OPTIND
-	while getopts "e:hp:v:r:u:V-:" OPT; do
+	OPTLIST="e:h:l:v:p:b:c:o:a:t:V-:"
+	while getopts $OPTLIST OPT; do
 		# support long options: https://stackoverflow.com/a/28466267/519360
 		if [ "$OPT" = "-" ]; then   # long option: reformulate OPT and OPTARG
 			OPT="${OPTARG%%=*}"     # extract long option name
@@ -524,23 +525,23 @@ main() {
 			p | path)
 				IPATH="$(_realpath "${OPTARG}")"
 				;;
-			ggmlbn)
+			b | ggmlbn)
 				GGML_BUILD_NUMBER="${OPTARG}"
 				;;
-			ggmlcuda)
+			c | ggmlcuda)
 				BY_PASS_CUDA_VERSION="${OPTARG}"
 				BY_PASS_CUDART="1"
 				;;
 			noavx)
 				ENABLE_NOAVX=1
 				;;
-			os)
+			o | os)
 				OS="${OPTARG^}"
 				;;
-			arch)
+			a | arch)
 				ARCH="${OPTARG}"
 				;;
-			tmpdir)
+			t | tmpdir)
 				TMP_DIR="${OPTARG}"
 				;;
 			?)

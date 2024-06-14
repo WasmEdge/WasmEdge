@@ -972,6 +972,8 @@ private:
   uint64_t NextTimerId = 0;
 #endif
 #if WASMEDGE_OS_WINDOWS
+  std::unordered_map<winapi::HANDLE_, OptionalEvent *> ConsoleReadEvent;
+  std::unordered_map<winapi::HANDLE_, OptionalEvent *> ConsoleWriteEvent;
   OptionalEvent *TimeoutEvent = nullptr;
   winapi::TIMEVAL_ MinimumTimeout;
 #endif

@@ -35,7 +35,7 @@ jobs:
       - name: Install Windows SDK
         uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
         with:
-          sdk-version: 19041
+          sdk-version: 22621
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |
@@ -50,7 +50,7 @@ jobs:
           $Env:CC = "$pwd\\LLVM-17.0.6-win64-MultiThreadedDLL\\LLVM-17.0.6-win64\\bin\\clang-cl.exe"
           $Env:CXX = "$pwd\\LLVM-17.0.6-win64-MultiThreadedDLL\\LLVM-17.0.6-win64\\bin\\clang-cl.exe"
           $llvm_mt = "$Env:ProgramFiles\\LLVM\\bin\\llvm-mt.exe"
-          $cmake_sys_version = "10.0.19041.0"
+          $cmake_sys_version = "10.0.22621.0"
           cmake -Bbuild -GNinja "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_MT="$llvm_mt" "-DLLVM_DIR=$llvm_dir" "-DWASMEDGE_BUILD_TESTS=$Env:build_tests" -DWASMEDGE_BUILD_PACKAGE="ZIP" .
           cmake --build build
       - name: Test WasmEdge

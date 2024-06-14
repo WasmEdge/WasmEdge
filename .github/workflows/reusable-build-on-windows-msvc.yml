@@ -8,10 +8,10 @@ on:
         required: true
       release:
         type: boolean
-        
+
 permissions:
   contents: read
-  
+
 jobs:
   build_on_windows:
     permissions:
@@ -34,7 +34,7 @@ jobs:
       - name: Install Windows SDK
         uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
         with:
-          sdk-version: 19041
+          sdk-version: 22621
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |
@@ -43,20 +43,20 @@ jobs:
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.22621.0"
           $uri = "https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-17.0.6/LLVM-17.0.6-win64-MultiThreadedDLL.zip"
           $llvm = "LLVM-17.0.6-win64-MultiThreadedDLL.zip"
           Invoke-WebRequest -Uri "$uri" -HttpVersion 2.0 -OutFile "$llvm"
           Expand-Archive -Path $llvm
           $llvm_dir = "$pwd\\LLVM-17.0.6-win64-MultiThreadedDLL\\LLVM-17.0.6-win64\\lib\\cmake\\llvm"
-          $cmake_sys_version = "10.0.19041.0"
+          $cmake_sys_version = "10.0.22621.0"
           cmake -Bbuild -GNinja "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" "-DWASMEDGE_BUILD_TESTS=$Env:build_tests" -DWASMEDGE_BUILD_PACKAGE="ZIP" .
           cmake --build build
       - name: Test WasmEdge
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.22621.0"
           $Env:PATH += ";$pwd\\build\\lib\\api"
           cd build
           tools\wasmedge\wasmedge -v
@@ -66,7 +66,7 @@ jobs:
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.22621.0"
           cmake --build build --target package
           Get-ChildItem -Path "$pwd\\build"
       - name: Generate product version and package Windows installer

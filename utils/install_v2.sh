@@ -44,53 +44,16 @@ detect_cuda_nvcc() {
 	echo ${cuda}
 }
 
-detect_cuda_nvidia_smi() {
-	local cuda=""
+detect_libcudart() {
+	local cudart="0"
+	LIBCUDART_PATH="/usr/local/cuda/lib64/libcudart.so"
 	if [[ "${BY_PASS_CUDA_VERSION}" != "0" ]]; then
-		cuda="${BY_PASS_CUDA_VERSION}"
-	else
-		cuda=$(nvidia-smi -q 2>/dev/null | grep CUDA | cut -f2 -d ':' | cut -f2 -d ' ')
-		if [[ "${cuda}" =~ "12" ]]; then
-			cuda="12"
-		elif [[ "${cuda}" =~ "11" ]]; then
-			cuda="11"
-		fi
+		cudart="1"
+	elif [ -f ${LIBCUDART_PATH} ]; then
+		cudart="1"
 	fi
 
-	echo ${cuda}
-}
-
-detect_cudart() {
-	local cudart_available="0"
-	if [[ ${OS} == "Linux" ]]; then
-		if [[ "${BY_PASS_CUDART}" != "0" ]]; then
-			cudart_available="1"
-		else
-			# Use ldconfig on Linux
-			# macOS does not have libcudart.so
-			local check=$(ldconfig -p | grep libcudart.so)
-			if [[ "${check}" != "" ]]; then
-				cudart_available="1"
-			fi
-		fi
-	fi
-	echo ${cudart_available}
-}
-
-detect_cuda() {
-	local cuda=""
-	cuda=$(detect_cuda_nvcc)
-	if [[ "${cuda}" == "" ]]; then
-		cuda=$(detect_cuda_nvidia_smi)
-	fi
-
-	local cudart=$(detect_cudart)
-	if [[ "${cudart}" == "0" ]]; then
-		# If cudart is not available, it will not use the GPU version.
-		cuda=""
-	fi
-
-	echo ${cuda}
+	echo ${cudart}
 }
 
 _realpath() {
@@ -430,21 +393,23 @@ get_wasmedge_ggml_plugin() {
 		info "NOAVX option is given: Use the noavx CPU version."
 		NOAVX_EXT="-noavx"
 	else
-		cuda=$(detect_cuda)
-		cudart=$(detect_cudart)
-		info "Detected CUDA version: ${cuda}"
-		info "CUDA version from nvcc: $(detect_cuda_nvcc)"
-		info "CUDA version from nvidia-smi: $(detect_cuda_nvidia_smi)"
-		info "Is CUDART found?: ${cudart}"
-		if [ "${cuda}" != "" ] && [ "${cudart}" == "1" ]; then
-			info "CUDA version is detected and CUDART is found: Use the GPU version."
-		else
-			info "CUDA version is not detected or CUDART is not found: Use the CPU version."
+		cuda=$(detect_cuda_nvcc)
+		cudart=$(detect_libcudart)
+		info "Detected CUDA version from nvcc: ${cuda}"
+		if [ "${cuda}" == "" ]; then
+			info "CUDA version is not detected from nvcc: Use the CPU version."
+			info "Or you can use '-c 11' or '-c 12' to install the cuda-11 or cuda-12 version manually."
+		elif [ "${cudart}" == "0" ]; then
+			info "libcudart.so is not found in the default installation path of CUDA: Use the CPU version."
+			info "Or you can use '-c 11' or '-c 12' to install the cuda-11 or cuda-12 version manually."
+			cuda="" # Reset cuda detection result because of the libcudart.so is not found.
 		fi
 
 		if [ "${cuda}" == "12" ]; then
+			info "CUDA version 12 is detected from nvcc: Use the GPU version."
 			CUDA_EXT="-cuda"
 		elif [ "${cuda}" == "11" ]; then
+			info "CUDA version 11 is detected from nvcc: Use the GPU version."
 			if [ "${ARCH}" == "aarch64" ]; then
 				CUDA_EXT="-cuda"
 			else

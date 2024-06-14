@@ -1297,6 +1297,13 @@ Expect<uint32_t> WasiPathOpen::body(
     return __WASI_ERRNO_FAULT;
   }
 
+  // Open directory and read/write rights should fail with isdir
+  if ((WasiOFlags & __WASI_OFLAGS_DIRECTORY) &&
+      (WasiFsRightsBase & __WASI_RIGHTS_FD_READ) &&
+      (WasiFsRightsBase & __WASI_RIGHTS_FD_WRITE)) {
+    return __WASI_ERRNO_ISDIR;
+  }
+
   const __wasi_fd_t WasiDirFd = DirFd;
 
   if (auto Res =

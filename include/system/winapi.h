@@ -247,6 +247,14 @@ using CREATEFILE2_EXTENDED_PARAMETERS_ =
 using LPCREATEFILE2_EXTENDED_PARAMETERS_ = CREATEFILE2_EXTENDED_PARAMETERS_ *;
 #endif
 
+#if WINAPI_PARTITION_DESKTOP || NTDDI_VERSION >= NTDDI_WIN10
+using LPPROGRESS_ROUTINE_ = DWORD_(WASMEDGE_WINAPI_WINAPI_CC *)(
+    LARGE_INTEGER_ TotalFileSize, LARGE_INTEGER_ TotalBytesTransferred,
+    LARGE_INTEGER_ StreamSize, LARGE_INTEGER_ StreamBytesTransferred,
+    DWORD_ dwStreamNumber, DWORD_ dwCallbackReason, HANDLE_ hSourceFile,
+    HANDLE_ hDestinationFile, LPVOID_ lpData);
+#endif
+
 using FILETIME_ = struct _FILETIME {
   DWORD_ dwLowDateTime;
   DWORD_ dwHighDateTime;
@@ -512,8 +520,10 @@ static inline constexpr const DWORD_ ERROR_HANDLE_EOF_ = 38;
 static inline constexpr const DWORD_ ERROR_FILE_EXISTS_ = 80;
 static inline constexpr const DWORD_ ERROR_INVALID_PARAMETER_ = 87;
 static inline constexpr const DWORD_ ERROR_INSUFFICIENT_BUFFER_ = 122;
+static inline constexpr const DWORD_ ERROR_DIR_NOT_EMPTY_ = 145;
 static inline constexpr const DWORD_ ERROR_ALREADY_EXISTS_ = 183;
 static inline constexpr const DWORD_ ERROR_PIPE_BUSY_ = 231;
+static inline constexpr const DWORD_ ERROR_DIRECTORY_ = 267;
 static inline constexpr const DWORD_ ERROR_IO_PENDING_ = 997;
 static inline constexpr const DWORD_ ERROR_INVALID_FLAGS_ = 1004;
 static inline constexpr const DWORD_ ERROR_NO_UNICODE_TRANSLATION_ = 1113;
@@ -522,6 +532,14 @@ static inline constexpr const DWORD_ ERROR_PRIVILEGE_NOT_HELD_ = 1314;
 
 static inline const HANDLE_ INVALID_HANDLE_VALUE_ =
     reinterpret_cast<HANDLE_>(-1);
+
+static inline constexpr const DWORD_ INFINITE_ =
+    static_cast<DWORD_>(0xffffffff);
+static inline constexpr const DWORD_ WAIT_TIMEOUT_ = 258;
+static inline constexpr const DWORD_ WAIT_OBJECT_0_ = 0;
+static inline constexpr const DWORD_ WAIT_FAILED_ =
+    static_cast<DWORD_>(0xffffffff);
+static inline constexpr const DWORD_ MAXIMUM_WAIT_OBJECTS_ = 64;
 
 static inline constexpr const DWORD_ VOLUME_NAME_DOS_ = 0x0;
 static inline constexpr const DWORD_ FILE_NAME_NORMALIZED_ = 0x0;
@@ -756,6 +774,11 @@ WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
 UnmapViewOfFile(WasmEdge::winapi::LPCVOID_ lpBaseAddress);
 
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::DWORD_ WASMEDGE_WINAPI_WINAPI_CC
+WaitForMultipleObjects(WasmEdge::winapi::DWORD_ nCount,
+                       const WasmEdge::winapi::HANDLE_ *lpHandles,
+                       bool bWaitAll, WasmEdge::winapi::DWORD_ dwMilliseconds);
+
 WASMEDGE_WINAPI_SYMBOL_IMPORT
 int WASMEDGE_WINAPI_WINAPI_CC WideCharToMultiByte(
     WasmEdge::winapi::UINT_ CodePage, WasmEdge::winapi::DWORD_ dwFlags,
@@ -856,11 +879,28 @@ SetConsoleOutputCP(WasmEdge::winapi::UINT_ wCodePageID);
 #endif
 
 #if NTDDI_VERSION >= NTDDI_VISTA
+WASMEDGE_WINAPI_SYMBOL_IMPORT bool WASMEDGE_WINAPI_WINAPI_CC
+CommitTransaction(WasmEdge::winapi::HANDLE_ TransactionHandle);
+
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOLEAN_
     WASMEDGE_WINAPI_WINAPI_CC
     CreateSymbolicLinkW(WasmEdge::winapi::LPCWSTR_ lpSymlinkFileName,
                         WasmEdge::winapi::LPCWSTR_ lpTargetFileName,
                         WasmEdge::winapi::DWORD_ dwFlags);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HANDLE_
+    WASMEDGE_WINAPI_WINAPI_CC
+    CreateTransaction(
+        WasmEdge::winapi::LPSECURITY_ATTRIBUTES_ lpTransactionAttributes,
+        void *UOW, WasmEdge::winapi::DWORD_ CreateOptions,
+        WasmEdge::winapi::DWORD_ IsolationLevel,
+        WasmEdge::winapi::DWORD_ IsolationFlags,
+        WasmEdge::winapi::DWORD_ Timeout,
+        WasmEdge::winapi::LPWSTR_ Description);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT bool WASMEDGE_WINAPI_WINAPI_CC
+RemoveDirectoryTransactedW(WasmEdge::winapi::LPCWSTR_ lpPathName,
+                           WasmEdge::winapi::HANDLE_ hTransaction);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT
 WasmEdge::winapi::HANDLE_ WASMEDGE_WINAPI_WINAPI_CC
@@ -868,6 +908,16 @@ ReOpenFile(WasmEdge::winapi::HANDLE_ hOriginalFile,
            WasmEdge::winapi::DWORD_ dwDesiredAccess,
            WasmEdge::winapi::DWORD_ dwShareMode,
            WasmEdge::winapi::DWORD_ dwFlagsAndAttributes);
+#endif
+
+#if WINAPI_PARTITION_DESKTOP && NTDDI_VERSION >= NTDDI_VISTA
+WASMEDGE_WINAPI_SYMBOL_IMPORT bool WASMEDGE_WINAPI_WINAPI_CC
+MoveFileTransactedW(WasmEdge::winapi::LPCWSTR_ lpExistingFileName,
+                    WasmEdge::winapi::LPCWSTR_ lpNewFileName,
+                    WasmEdge::winapi::LPPROGRESS_ROUTINE_ lpProgressRoutine,
+                    WasmEdge::winapi::LPVOID_ lpData,
+                    WasmEdge::winapi::DWORD_ dwFlags,
+                    WasmEdge::winapi::HANDLE_ hTransaction);
 #endif
 
 #if !WINAPI_PARTITION_DESKTOP || NTDDI_VERSION >= NTDDI_VISTA
@@ -950,6 +1000,7 @@ using ::SetFilePointerEx;
 using ::SetFileTime;
 using ::SwitchToThread;
 using ::UnmapViewOfFile;
+using ::WaitForMultipleObjects;
 using ::WideCharToMultiByte;
 using ::WriteFileEx;
 
@@ -970,8 +1021,15 @@ using ::SetConsoleOutputCP;
 #endif
 
 #if NTDDI_VERSION >= NTDDI_VISTA
+using ::CommitTransaction;
 using ::CreateSymbolicLinkW;
+using ::CreateTransaction;
+using ::RemoveDirectoryTransactedW;
 using ::ReOpenFile;
+#endif
+
+#if WINAPI_PARTITION_DESKTOP && NTDDI_VERSION >= NTDDI_VISTA
+using ::MoveFileTransactedW;
 #endif
 
 #if !WINAPI_PARTITION_DESKTOP || NTDDI_VERSION >= NTDDI_VISTA

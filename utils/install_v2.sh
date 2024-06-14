@@ -30,55 +30,30 @@ eprintf() {
 
 detect_cuda_nvcc() {
 	local cuda=""
-	cuda=$(/usr/local/cuda/bin/nvcc --version 2>/dev/null | grep "Cuda compilation tools" | cut -f5 -d ' ' | cut -f1 -d ',')
-	if [[ "${cuda}" =~ "12" ]]; then
-		cuda="12"
-	elif [[ "${cuda}" =~ "11" ]]; then
-		cuda="11"
-	fi
-
-	echo ${cuda}
-}
-
-detect_cuda_nvidia_smi() {
-	local cuda=""
-	cuda=$(nvidia-smi -q 2>/dev/null | grep CUDA | cut -f2 -d ':' | cut -f2 -d ' ')
-	if [[ "${cuda}" =~ "12" ]]; then
-		cuda="12"
-	elif [[ "${cuda}" =~ "11" ]]; then
-		cuda="11"
-	fi
-
-	echo ${cuda}
-}
-
-detect_cudart() {
-	local cudart_available="no"
-	if [[ ${OS} == "Linux" ]]; then
-		# Use ldconfig on Linux
-		# macOS does not have libcudart.so
-		local check=$(ldconfig -p | grep libcudart.so)
-		if [[ "${check}" != "" ]]; then
-			cudart_available="yes"
+	if [[ "${BY_PASS_CUDA_VERSION}" != "0" ]]; then
+		cuda="${BY_PASS_CUDA_VERSION}"
+	else
+		cuda=$(/usr/local/cuda/bin/nvcc --version 2>/dev/null | grep "Cuda compilation tools" | cut -f5 -d ' ' | cut -f1 -d ',')
+		if [[ "${cuda}" =~ "12" ]]; then
+			cuda="12"
+		elif [[ "${cuda}" =~ "11" ]]; then
+			cuda="11"
 		fi
 	fi
-	echo ${cudart_available}
-}
-
-detect_cuda() {
-	local cuda=""
-	cuda=$(detect_cuda_nvcc)
-	if [[ "${cuda}" == "" ]]; then
-		cuda=$(detect_cuda_nvidia_smi)
-	fi
-
-	local cudart=$(detect_cudart)
-	if [[ "${cudart}" == "no" ]]; then
-		# If cudart is not available, it will not use the GPU version.
-		cuda=""
-	fi
 
 	echo ${cuda}
+}
+
+detect_libcudart() {
+	local cudart="0"
+	LIBCUDART_PATH="/usr/local/cuda/lib64/libcudart.so"
+	if [[ "${BY_PASS_CUDA_VERSION}" != "0" ]]; then
+		cudart="1"
+	elif [ -f ${LIBCUDART_PATH} ]; then
+		cudart="1"
+	fi
+
+	echo ${cudart}
 }
 
 _realpath() {
@@ -223,6 +198,8 @@ VERBOSE=0
 LEGACY=0
 ENABLE_NOAVX=0
 GGML_BUILD_NUMBER=""
+BY_PASS_CUDA_VERSION="0"
+BY_PASS_CUDART="0"
 
 set_ENV() {
 	ENV="#!/bin/sh
@@ -294,30 +271,36 @@ usage() {
 	Mandatory arguments to long options are mandatory for short options too.
 	Long options should be assigned with '='
 
-	-h,             --help                      Display help
+	-h,             --help                          Display help
 
-	--legacy                                    Enable legacy OS support.
-													E.g., CentOS 7.
+	-l,             --legacy                        Enable legacy OS support.
+														E.g., CentOS 7.
 
-	-v,             --version                   Install the specific version.
+	-v,             --version                       Install the specific version.
 
-	-V,             --verbose                   Run script in verbose mode.
-													Will print out each step
-													of execution.
+	-V,             --verbose                       Run script in verbose mode.
+														Will print out each step
+														of execution.
 
-	-p,             --path=[/usr/local]         Prefix / Path to install
+	-p,             --path=[/usr/local]             Prefix / Path to install
 
-	--noavx                                     Install the GGML noavx plugin.
-													Default is disabled.
+	--noavx                                         Install the GGML noavx plugin.
+														Default is disabled.
 
-	--ggmlbn=[b2963]                            Install the specific GGML plugin.
-													Default is the latest.
+	-b,             --ggmlbn=[b2963]                Install the specific GGML plugin.
+														Default is the latest.
 
-	--os=[Linux/Darwin]                         Set the OS.
-													Default is detected OS.
+	-c,             --ggmlcuda=[11/12]              Install the specific CUDA enabled GGML plugin.
+														Default is the none.
 
-	--arch[x86_64/aarch64/arm64]                Set the ARCH.
-													Default is detected ARCH.
+	-o,             --os=[Linux/Darwin]             Set the OS.
+														Default is detected OS.
+
+	-a,             --arch=[x86_64/aarch64/arm64]   Set the ARCH.
+														Default is detected ARCH.
+
+	-t,             --tmpdir=[/tmp]                 Set the temporary directory.
+														Default is /tmp.
 
 	Example:
 	./$0 -p $IPATH --verbose
@@ -410,21 +393,23 @@ get_wasmedge_ggml_plugin() {
 		info "NOAVX option is given: Use the noavx CPU version."
 		NOAVX_EXT="-noavx"
 	else
-		cuda=$(detect_cuda)
-		cudart=$(detect_cudart)
-		info "Detected CUDA version: ${cuda}"
-		info "CUDA version from nvcc: $(detect_cuda_nvcc)"
-		info "CUDA version from nvidia-smi: $(detect_cuda_nvidia_smi)"
-		info "Is CUDART found?: ${cudart}"
-		if [ "${cuda}" != "" ] && [ "${cudart}" == "yes" ]; then
-			info "CUDA version is detected and CUDART is found: Use the GPU version."
-		else
-			info "CUDA version is not detected or CUDART is not found: Use the CPU version."
+		cuda=$(detect_cuda_nvcc)
+		cudart=$(detect_libcudart)
+		info "Detected CUDA version from nvcc: ${cuda}"
+		if [ "${cuda}" == "" ]; then
+			info "CUDA version is not detected from nvcc: Use the CPU version."
+			info "Or you can use '-c 11' or '-c 12' to install the cuda-11 or cuda-12 version manually."
+		elif [ "${cudart}" == "0" ]; then
+			info "libcudart.so is not found in the default installation path of CUDA: Use the CPU version."
+			info "Or you can use '-c 11' or '-c 12' to install the cuda-11 or cuda-12 version manually."
+			cuda="" # Reset cuda detection result because of the libcudart.so is not found.
 		fi
 
 		if [ "${cuda}" == "12" ]; then
+			info "CUDA version 12 is detected from nvcc: Use the GPU version."
 			CUDA_EXT="-cuda"
 		elif [ "${cuda}" == "11" ]; then
+			info "CUDA version 11 is detected from nvcc: Use the GPU version."
 			if [ "${ARCH}" == "aarch64" ]; then
 				CUDA_EXT="-cuda"
 			else
@@ -479,7 +464,8 @@ main() {
 	# it'll probably be fine, but it's of course a good thing to keep in mind.
 
 	local OPTIND
-	while getopts "e:hp:v:r:u:V-:" OPT; do
+	OPTLIST="e:h:l:v:p:b:c:o:a:t:V-:"
+	while getopts $OPTLIST OPT; do
 		# support long options: https://stackoverflow.com/a/28466267/519360
 		if [ "$OPT" = "-" ]; then   # long option: reformulate OPT and OPTARG
 			OPT="${OPTARG%%=*}"     # extract long option name
@@ -504,17 +490,24 @@ main() {
 			p | path)
 				IPATH="$(_realpath "${OPTARG}")"
 				;;
-			ggmlbn)
+			b | ggmlbn)
 				GGML_BUILD_NUMBER="${OPTARG}"
+				;;
+			c | ggmlcuda)
+				BY_PASS_CUDA_VERSION="${OPTARG}"
+				BY_PASS_CUDART="1"
 				;;
 			noavx)
 				ENABLE_NOAVX=1
 				;;
-			os)
+			o | os)
 				OS="${OPTARG^}"
 				;;
-			arch)
+			a | arch)
 				ARCH="${OPTARG}"
+				;;
+			t | tmpdir)
+				TMP_DIR="${OPTARG}"
 				;;
 			?)
 				exit 2

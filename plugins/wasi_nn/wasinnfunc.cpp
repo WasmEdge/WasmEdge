@@ -598,8 +598,11 @@ Expect<WASINN::ErrNo> WasiNNUnload::bodyImpl(const Runtime::CallingFrame &Frame,
   switch (Env.NNGraph[GraphId].getBackend()) {
   case WASINN::Backend::GGML:
     return WASINN::GGML::unload(Env, GraphId);
+  case WASINN::Backend::NeuralSpeed:
+    return WASINN::NeuralSpeed::unload(Env, GraphId);
   default:
-    spdlog::error("[WASI-NN] unlaod: Only GGML backend supports unload."sv);
+    spdlog::error(
+        "[WASI-NN] unlaod: Only GGML and Neural speed backend supports unload."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 }

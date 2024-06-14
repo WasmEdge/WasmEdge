@@ -96,7 +96,7 @@ if(BACKEND STREQUAL "ggml")
   FetchContent_Declare(
     llama
     GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-    GIT_TAG        b3075
+    GIT_TAG        b3135
     GIT_SHALLOW    FALSE
   )
   FetchContent_MakeAvailable(llama)
@@ -104,6 +104,10 @@ if(BACKEND STREQUAL "ggml")
   set_property(TARGET common PROPERTY POSITION_INDEPENDENT_CODE ON)
   set_property(TARGET llama PROPERTY POSITION_INDEPENDENT_CODE ON)
 
+  wasmedge_setup_simdjson()
+endif()
+
+if(BACKEND STREQUAL "neuralspeed")
   wasmedge_setup_simdjson()
 endif()
 
@@ -118,6 +122,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   torch.cpp
   tfl.cpp
   ggml.cpp
+  neuralspeed.cpp
 )
 
 target_compile_options(wasmedgePluginWasiNN
@@ -194,6 +199,21 @@ if(WASMEDGE_BUILD_WASI_NN_RPC)
     PRIVATE
     wasiNNRPC
   )
+endif()
+
+if(BACKEND STREQUAL "neuralspeed")
+find_package (Python3 COMPONENTS Interpreter Development)
+if(Python3_FOUND)
+    target_compile_definitions(wasmedgePluginWasiNN
+    PRIVATE PYTHON_LIB_PATH="${Python3_LIBRARIES}"
+    )
+    include_directories(${Python3_INCLUDE_DIRS})
+    target_link_libraries(wasmedgePluginWasiNN PRIVATE ${Python3_LIBRARIES})
+    target_link_directories(wasmedgePluginWasiNN PRIVATE ${Python3_RUNTIME_LIBRARY_DIRS})
+  elseif()
+    message(FATAL_ERROR "Can not find python3.") 
+  endif()
+  target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
 endif()
 
 include(WASINNDeps)

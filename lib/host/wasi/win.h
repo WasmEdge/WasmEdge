@@ -179,6 +179,7 @@ inline __wasi_errno_t fromLastError(DWORD_ Code) noexcept {
   switch (Code) {
   case ERROR_INVALID_PARAMETER_: // MultiByteToWideChar
   case ERROR_INVALID_HANDLE_:    // GetFinalPathNameByHandleW
+  case ERROR_NEGATIVE_SEEK_:     // SetFilePointerEx
     return __WASI_ERRNO_INVAL;
   case ERROR_SHARING_VIOLATION_: // CreateFile2
   case ERROR_PIPE_BUSY_:         // CreateFile2
@@ -189,9 +190,14 @@ inline __wasi_errno_t fromLastError(DWORD_ Code) noexcept {
   case ERROR_FILE_EXISTS_:    // CreateFile2
     return __WASI_ERRNO_EXIST;
   case ERROR_FILE_NOT_FOUND_: // CreateFile2
+  case ERROR_INVALID_NAME_:   // CreateFile2
     return __WASI_ERRNO_NOENT;
   case ERROR_PRIVILEGE_NOT_HELD_: // CreateSymbolicLinkW
     return __WASI_ERRNO_PERM;
+  case ERROR_DIRECTORY_: // RemoveDirectoryW
+    return __WASI_ERRNO_NOTDIR;
+  case ERROR_DIR_NOT_EMPTY_: // RemoveDirectoryW
+    return __WASI_ERRNO_NOTEMPTY;
 
   case ERROR_IO_PENDING_:             // ReadFileEx
   case ERROR_HANDLE_EOF_:             // ReadFileEx

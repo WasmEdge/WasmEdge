@@ -284,14 +284,14 @@ SUPPORTED_PLATFORM_MACHINE = {
 }
 
 SUPPORTED_MIN_VERSION = {
-    "Linux" + "x86_64": VersionString("0.10.0"),
-    "Linux" + "amd64": VersionString("0.10.0"),
-    "Linux" + "arm64": VersionString("0.10.0"),
-    "Linux" + "armv8": VersionString("0.10.0"),
-    "Linux" + "aarch64": VersionString("0.10.0"),
-    "Darwin" + "x86_64": VersionString("0.10.0"),
-    "Darwin" + "arm64": VersionString("0.10.0"),
-    "Darwin" + "arm": VersionString("0.10.0"),
+    "Linux" + "x86_64": VersionString("0.13.0"),
+    "Linux" + "amd64": VersionString("0.13.0"),
+    "Linux" + "arm64": VersionString("0.13.0"),
+    "Linux" + "armv8": VersionString("0.13.0"),
+    "Linux" + "aarch64": VersionString("0.13.0"),
+    "Darwin" + "x86_64": VersionString("0.13.0"),
+    "Darwin" + "arm64": VersionString("0.13.0"),
+    "Darwin" + "arm": VersionString("0.13.0"),
 }
 
 WASMEDGE = "WasmEdge"
@@ -301,9 +301,8 @@ TENSORFLOW_LITE = "tensorflow_lite"
 TENSORFLOW_LITE_P = "tensorflowlite"
 TENSORFLOW_DEPS = "tensorflow_deps"
 TENSORFLOW_LITE_DEPS = "tensorflow_lite_deps"
-TENSORFLOW_TOOLS = "tensorflow_tools"
 IMAGE = "image"
-EXTENSIONS = [TENSORFLOW, IMAGE]
+EXTENSIONS = [TENSORFLOW]
 
 SUPPORTED_EXTENSIONS = {
     "Linux" + "x86_64": EXTENSIONS,
@@ -317,20 +316,14 @@ SUPPORTED_EXTENSIONS = {
 }
 
 SUPPORTED_EXTENSIONS_VERSION = {
-    "Linux" + "x86_64" + TENSORFLOW: VersionString("0.10.0"),
-    "Linux" + "x86_64" + IMAGE: VersionString("0.10.0"),
-    "Linux" + "amd64" + TENSORFLOW: VersionString("0.10.0"),
-    "Linux" + "amd64" + IMAGE: VersionString("0.10.0"),
-    "Linux" + "arm64" + TENSORFLOW: VersionString("0.10.0"),
-    "Linux" + "arm64" + IMAGE: VersionString("0.10.0"),
-    "Linux" + "armv8" + TENSORFLOW: VersionString("0.10.0"),
-    "Linux" + "armv8" + IMAGE: VersionString("0.10.0"),
-    "Linux" + "aarch64" + TENSORFLOW: VersionString("0.10.0"),
-    "Linux" + "aarch64" + IMAGE: VersionString("0.10.0"),
-    "Darwin" + "x86_64" + TENSORFLOW: VersionString("0.10.0"),
-    "Darwin" + "x86_64" + IMAGE: VersionString("0.10.0"),
-    "Darwin" + "arm64" + TENSORFLOW: VersionString("0.10.0"),
-    "Darwin" + "arm" + TENSORFLOW: VersionString("0.10.0"),
+    "Linux" + "x86_64" + TENSORFLOW: VersionString("0.13.0"),
+    "Linux" + "amd64" + TENSORFLOW: VersionString("0.13.0"),
+    "Linux" + "arm64" + TENSORFLOW: VersionString("0.13.0"),
+    "Linux" + "armv8" + TENSORFLOW: VersionString("0.13.0"),
+    "Linux" + "aarch64" + TENSORFLOW: VersionString("0.13.0"),
+    "Darwin" + "x86_64" + TENSORFLOW: VersionString("0.13.0"),
+    "Darwin" + "arm64" + TENSORFLOW: VersionString("0.13.0"),
+    "Darwin" + "arm" + TENSORFLOW: VersionString("0.13.0"),
 }
 
 WASI_NN_OPENVINO = "wasi_nn-openvino"
@@ -340,6 +333,7 @@ WASI_NN_TENSORFLOW_LITE = "wasi_nn-tensorflowlite"
 WASI_NN_GGML = "wasi_nn-ggml"
 WASI_NN_GGML_CUDA = "wasi_nn-ggml-cuda"
 WASI_NN_GGML_NOAVX = "wasi_nn-ggml-noavx"
+WASI_NN_GGML_BLAS = "wasi_nn-ggml-blas"
 WASI_LOGGING = "wasi_logging"
 WASMEDGE_TENSORFLOW_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW
 WASMEDGE_TENSORFLOW_LITE_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW_LITE_P
@@ -355,6 +349,7 @@ PLUGINS_AVAILABLE = [
     WASI_NN_GGML,
     WASI_NN_GGML_CUDA,
     WASI_NN_GGML_NOAVX,
+    WASI_NN_GGML_BLAS,
     WASI_LOGGING,
     WASMEDGE_TENSORFLOW_PLUGIN,
     WASMEDGE_TENSORFLOW_LITE_PLUGIN,
@@ -364,25 +359,27 @@ PLUGINS_AVAILABLE = [
 ]
 
 SUPPORTTED_PLUGINS = {
-    "ubuntu20.04" + "x86_64" + WASI_CRYPTO: VersionString("0.10.1-rc.1"),
-    "manylinux2014" + "x86_64" + WASI_CRYPTO: VersionString("0.10.1-rc.1"),
-    "manylinux2014" + "aarch64" + WASI_CRYPTO: VersionString("0.10.1-rc.1"),
-    "manylinux2014" + "arm64" + WASI_CRYPTO: VersionString("0.10.1-rc.1"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_OPENVINO: VersionString("0.10.1-alpha.1"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.1-alpha.1"),
+    "ubuntu20.04" + "x86_64" + WASI_CRYPTO: VersionString("0.13.0"),
+    "manylinux2014" + "x86_64" + WASI_CRYPTO: VersionString("0.13.0"),
+    "manylinux2014" + "aarch64" + WASI_CRYPTO: VersionString("0.13.0"),
+    "manylinux2014" + "arm64" + WASI_CRYPTO: VersionString("0.13.0"),
+    "ubuntu20.04" + "x86_64" + WASI_NN_OPENVINO: VersionString("0.13.0"),
+    "ubuntu20.04" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.13.0"),
     "ubuntu20.04" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
     "ubuntu20.04" + "aarch64" + WASI_NN_GGML: VersionString("0.13.5"),
     "ubuntu20.04" + "x86_64" + WASI_NN_GGML_NOAVX: VersionString("0.13.5"),
     "ubuntu20.04" + "x86_64" + WASI_NN_GGML_CUDA: VersionString("0.13.4"),
     "ubuntu20.04" + "aarch64" + WASI_NN_GGML_CUDA: VersionString("0.13.5"),
-    "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.2-alpha.1"),
-    "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
+    "ubuntu20.04" + "x86_64" + WASI_NN_GGML_BLAS: VersionString("0.13.5"),
+    "ubuntu20.04" + "aarch64" + WASI_NN_GGML_BLAS: VersionString("0.13.5"),
+    "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.13.0"),
+    "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.13.0"),
     "manylinux2014" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
-    "manylinux2014" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
+    "manylinux2014" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.13.0"),
     "manylinux2014" + "aarch64" + WASI_NN_GGML: VersionString("0.13.4"),
     "darwin" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
     "darwin" + "arm64" + WASI_NN_GGML: VersionString("0.13.4"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.11.2-rc.1"),
+    "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.13.0"),
     "darwin" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
     "darwin" + "arm64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
     "manylinux2014" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
@@ -707,98 +704,6 @@ def is_default_path(args):
     return args.path == abspath(PATH) or args.path[:4] != "/usr"
 
 
-def install_image_extension(args, compat):
-    global CONST_release_pkg, CONST_lib_dir
-
-    if not get_remote_version_availability(
-        "second-state/WasmEdge-image", args.image_version
-    ):
-        logging.error(
-            "Image extension version incorrect: {0}".format(args.image_version)
-        )
-        return -1
-    if compat.prefix() + IMAGE not in SUPPORTED_EXTENSIONS_VERSION:
-        logging.error("Image extensions not compatible: {0}".format(compat.prefix()))
-        return -1
-    elif (
-        SUPPORTED_EXTENSIONS_VERSION[compat.prefix() + IMAGE].compare(
-            args.image_version
-        )
-        > 0
-    ):
-        logging.error(
-            "Min image extensions version: {0}".format(
-                SUPPORTED_EXTENSIONS_VERSION[compat.prefix() + IMAGE],
-            )
-        )
-        return -1
-
-    logging.info("Downloading image extension")
-
-    local_release_package = CONST_release_pkg
-
-    # From WasmEdge 0.11.1, we have the Ubuntu release.
-    # Installation of ubuntu version extensions when the ubuntu version of WasmEdge selected.
-    if VersionString(args.image_version).compare("0.11.1") >= 0:
-        local_release_package = compat.release_package_wasmedge
-        logging.debug("Downloading dist package: {0}".format(local_release_package))
-
-    image_pkg = "WasmEdge-image-" + args.image_version + "-" + local_release_package
-
-    download_url(CONST_urls[IMAGE], join(TEMP_PATH, image_pkg), show_progress)
-
-    # Extract archive
-    extract_archive(
-        join(TEMP_PATH, image_pkg),
-        args.path,
-        join(TEMP_PATH, "WasmEdge-image"),
-        env_file_path=CONST_env_path,
-        remove_finished=True,
-    )
-
-    wasmedge_image_temp = join(TEMP_PATH, "WasmEdge-image")
-    for dir in listdir(wasmedge_image_temp):
-        wasmedge_image_temp_dir = join(wasmedge_image_temp, dir)
-        for file in listdir(wasmedge_image_temp_dir):
-            if isdir(join(wasmedge_image_temp_dir, file)) and "wasmedge" == file:
-                copytree(
-                    join(wasmedge_image_temp_dir, file),
-                    join(args.path, "include", "wasmedge"),
-                )
-            elif CONST_lib_ext in file:
-                if isdir(join(args.path, CONST_lib_dir)):
-                    shutil.move(
-                        join(wasmedge_image_temp_dir, file),
-                        join(args.path, CONST_lib_dir, file),
-                    )
-                else:
-                    logging.error(
-                        "%s directory not found", join(args.path, CONST_lib_dir)
-                    )
-                    try:
-                        mkdir(join(args.path, CONST_lib_dir))
-                        shutil.move(
-                            join(wasmedge_image_temp_dir, file),
-                            join(args.path, "lib", file),
-                        )
-                    except:
-                        pass
-            elif isdir(join(wasmedge_image_temp_dir, file)):
-                copytree(
-                    join(wasmedge_image_temp_dir, file),
-                    join(args.path, file),
-                )
-            else:
-                shutil.move(
-                    join(wasmedge_image_temp_dir, file),
-                    join(args.path, "bin", file),
-                )
-
-    fix_gnu_sparse(args)
-
-    return 0
-
-
 def install_tensorflow_extension(
     args,
     compat,
@@ -806,7 +711,6 @@ def install_tensorflow_extension(
     download_tf_lite_=False,
     download_tf_deps_=False,
     download_tf_lite_deps_=False,
-    download_tf_tools_=False,
 ):
     global CONST_release_pkg, CONST_lib_ext, CONST_lib_dir, CONST_env_path
 
@@ -814,22 +718,19 @@ def install_tensorflow_extension(
     download_tf_lite = download_tf_lite_
     download_tf_deps = download_tf_deps_
     download_tf_lite_deps = download_tf_lite_deps_
-    download_tf_tools = download_tf_tools_
 
     logging.debug(
-        "install_tensorflow_extension: %s %s %s %s %s",
+        "install_tensorflow_extension: %s %s %s %s",
         download_tf,
         download_tf_lite,
         download_tf_deps,
         download_tf_lite_deps,
-        download_tf_tools,
     )
 
     if VersionString(args.version).compare("0.13.0") >= 0:
         # if greater than 0.13.0 then No WasmEdge-tensorflow and WasmEdge-tensorflow-tools
         download_tf = False
         download_tf_lite = False
-        download_tf_tools = False
         logging.debug("No WasmEdge-tensorflow and WasmEdge-tensorflow-tools")
 
     if (
@@ -855,17 +756,6 @@ def install_tensorflow_extension(
             )
         )
         download_tf_deps = False
-
-    if (
-        not get_remote_version_availability(
-            "second-state/WasmEdge-tensorflow", args.tf_tools_version
-        )
-        and download_tf_tools
-    ):
-        logging.debug(
-            "Tensorflow Tools version not found: {0}".format(args.tf_tools_version)
-        )
-        download_tf_tools = False
 
     if compat.prefix() + TENSORFLOW not in SUPPORTED_EXTENSIONS_VERSION:
         logging.error(
@@ -980,30 +870,6 @@ def install_tensorflow_extension(
         )
 
         copytree(join(TEMP_PATH, "WasmEdge-tensorflow-lite-deps"), args.path)
-
-    if download_tf_tools:
-        tf_tools_pkg = (
-            "WasmEdge-tensorflow-tools-"
-            + args.tf_tools_version
-            + "-"
-            + CONST_release_pkg
-        )
-
-        logging.info("Downloading tensorflow-tools extension")
-        download_url(
-            CONST_urls[TENSORFLOW_TOOLS], join(TEMP_PATH, tf_tools_pkg), show_progress
-        )
-
-        # Extract archive
-        extract_archive(
-            join(TEMP_PATH, tf_tools_pkg),
-            join(args.path, "bin"),
-            join(TEMP_PATH, "WasmEdge-tensorflow-tools", "bin"),
-            env_file_path=CONST_env_path,
-            remove_finished=True,
-        )
-
-        copytree(join(TEMP_PATH, "WasmEdge-tensorflow-tools"), args.path)
 
     fix_gnu_sparse(args)
 
@@ -1134,36 +1000,6 @@ def install_tensorflow_extension(
                             join(wasmedge_tf_folder, _file),
                             join(args.path, "bin", _file),
                         )
-
-    if download_tf_tools and download_tf:
-        # Check if wasmedge binary works
-        wasmedge_tf_output = run_shell_command(
-            ". {0}/env &&{0}/bin/wasmedge-tensorflow --version".format(args.path)
-        )
-
-        if args.tf_version in wasmedge_tf_output:
-            logging.info("WasmEdge Successfully installed")
-        else:
-            logging.critical(
-                "WasmEdge Tensorflow installation incorrect: {0}".format(
-                    wasmedge_tf_output
-                )
-            )
-
-    if download_tf_tools and download_tf_lite:
-        # Check if wasmedge binary works
-        wasmedge_tf_lite_output = run_shell_command(
-            ". {0}/env && {0}/bin/wasmedge-tensorflow-lite --version".format(args.path)
-        )
-
-        if args.tf_version in wasmedge_tf_lite_output:
-            logging.info("WasmEdge Tensorflow Lite Successfully installed")
-        else:
-            logging.critical(
-                "WasmEdge Tensorflow installation incorrect: {0}".format(
-                    wasmedge_tf_lite_output
-                )
-            )
 
     return 0
 
@@ -1340,23 +1176,12 @@ def set_consts(args, compat):
         local_release_package_tf = compat.release_package_wasmedge
         logging.debug("Tensorflow release pkg: {0}".format(local_release_package_tf))
 
-    local_release_package_im = CONST_release_pkg
-
-    # From WasmEdge 0.11.1, we have the Ubuntu release.
-    # Installation of ubuntu version extensions when the ubuntu version of WasmEdge selected.
-    if VersionString(args.image_version).compare("0.11.1") >= 0:
-        local_release_package_im = compat.release_package_wasmedge
-        logging.debug("Image release pkg: {0}".format(local_release_package_im))
-
     CONST_urls = {
         WASMEDGE: "https://github.com/WasmEdge/WasmEdge/releases/download/{0}/WasmEdge-{0}-{1}".format(
             args.version, compat.release_package_wasmedge
         ),
         WASMEDGE_UNINSTALLER: "https://raw.githubusercontent.com/WasmEdge/WasmEdge/{0}/utils/uninstall.sh".format(
             args.uninstall_script_tag
-        ),
-        IMAGE: "https://github.com/second-state/WasmEdge-image/releases/download/{0}/WasmEdge-image-{0}-{1}".format(
-            args.image_version, local_release_package_im
         ),
         TENSORFLOW_DEPS: "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{0}/WasmEdge-tensorflow-deps-TF-{0}-{1}".format(
             args.tf_deps_version, CONST_release_pkg
@@ -1369,9 +1194,6 @@ def set_consts(args, compat):
         ),
         TENSORFLOW_LITE: "https://github.com/second-state/WasmEdge-tensorflow/releases/download/{0}/WasmEdge-tensorflowlite-{0}-{1}".format(
             args.tf_version, local_release_package_tf
-        ),
-        TENSORFLOW_TOOLS: "https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/{0}/WasmEdge-tensorflow-tools-{0}-{1}".format(
-            args.tf_tools_version, CONST_release_pkg
         ),
     }
 
@@ -1635,8 +1457,8 @@ def main(args):
 
         set_consts(args, compat)
 
-        if compat.version.compare("0.10.0") == -1:
-            logging.error("Please install the 0.10.0 or above versions.")
+        if compat.version.compare("0.13.0") == -1:
+            logging.error("Please install the 0.13.0 or above versions.")
             exit(1)
 
         # Run uninstaller
@@ -1727,10 +1549,7 @@ def main(args):
             or "all" in args.extensions
             and VersionString(args.version).compare("0.13.0") == -1
         ):
-            if install_image_extension(args, compat) != 0:
-                logging.error("Error in installing image extensions")
-            else:
-                logging.info("Image extension installed")
+            logging.info("Image extensions are deprecated since 0.13.0")
 
         if (
             TENSORFLOW in args.extensions
@@ -1745,7 +1564,6 @@ def main(args):
                     download_tf_deps_=True,
                     download_tf_lite_=True,
                     download_tf_lite_deps_=True,
-                    download_tf_tools_=True,
                 )
                 != 0
             ):
@@ -1860,20 +1678,6 @@ if __name__ == "__main__":
         help="Tensorflow and tensorflow lite deps version",
     )
     parser.add_argument(
-        "--tf-tools-version",
-        dest="tf_tools_version",
-        required=False,
-        default=None,
-        help="Tensorflow and tensorflow lite tools version",
-    )
-    parser.add_argument(
-        "--image-version",
-        dest="image_version",
-        required=False,
-        default=None,
-        help="Image extension version",
-    )
-    parser.add_argument(
         "--platform",
         "--os",
         dest="platform",
@@ -1920,12 +1724,6 @@ if __name__ == "__main__":
             args.tf_deps_version = "TF-2.12.0-CC"
         else:
             reraise("Should not reach here")
-
-    if args.tf_tools_version is None:
-        args.tf_tools_version = args.version
-
-    if args.image_version is None:
-        args.image_version = args.version
 
     logging.debug("Python Version: %s", sys.version_info)
     main(args)

@@ -29,7 +29,8 @@ std::map<std::string_view, Backend> BackendMap = {
     {"tensorflowlite"sv, Backend::TensorflowLite},
     {"autodetect"sv, Backend::Autodetect},
     {"ggml"sv, Backend::GGML},
-    {"neuralspeed"sv, Backend::NeuralSpeed}};
+    {"neuralspeed"sv, Backend::NeuralSpeed},
+    {"whisper"sv, Backend::Whisper}};
 
 std::map<std::string_view, Device> DeviceMap = {{"cpu"sv, Device::CPU},
                                                 {"gpu"sv, Device::GPU},

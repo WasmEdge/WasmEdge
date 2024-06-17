@@ -13,6 +13,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   tfl.cpp
   ggml.cpp
   neuralspeed.cpp
+  whispercpp.cpp
 )
 
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
@@ -161,6 +162,20 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       message(FATAL_ERROR "Can not find python3.") 
     endif()
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
+  elseif(BACKEND STREQUAL "whisper")
+    set(WHISPER_NO_ACCELERATE ON CACHE INTERNAL "Whisper turn off accelerate")
+    set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Whisper not build shared")
+    include(FetchContent)
+    FetchContent_Declare(
+      whisper
+      GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
+      GIT_TAG        v1.6.2
+      GIT_SHALLOW    FALSE
+    )
+    FetchContent_MakeAvailable(whisper)
+    target_link_libraries(wasmedgePluginWasiNN PRIVATE
+      whisper
+    )
   endif()
 endforeach()
 

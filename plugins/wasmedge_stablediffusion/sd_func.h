@@ -20,21 +20,37 @@ public:
        uint32_t Schedule, uint32_t ClipOnCpu, uint32_t ControlNetCpu,
        uint32_t VaeOnCpu, uint32_t SessiontIdPtr);
 };
-class SDTextToImage : public StableDiffusion::Func<SDTextToImage> {
+class SDImageToImage : public StableDiffusion::Func<SDImageToImage> {
 public:
-  SDTextToImage(StableDiffusion::SDEnviornment &HostEnv) : Func(HostEnv) {}
+  SDImageToImage(StableDiffusion::SDEnviornment &HostEnv) : Func(HostEnv) {}
   Expect<uint32_t>
   body(const Runtime::CallingFrame &Frame, uint32_t ImagePtr, uint32_t ImageLen,
        uint32_t SessionId, uint32_t Width, uint32_t Height,
        uint32_t ControlImagePtr, uint32_t ControlImageLen, uint32_t PromptPtr,
        uint32_t PromptLen, uint32_t NegativePromptPtr,
-       uint32_t NegativePromptLen, uint32_t ClipSkip, uint32_t CfgScale,
-       uint32_t SampleMethod, uint32_t SampleSteps, uint32_t Strength,
-       uint32_t Seed, uint32_t BatchCount, uint32_t ControlStrength,
-       uint32_t StyleRatio, uint32_t NormalizeInput,
-       uint32_t InputIdImagesPathPtr, uint32_t InputIdImagesPathLen,
-       uint32_t canny_preprocess, uint32_t OutBufferPtr,
+       uint32_t NegativePromptLen, int32_t ClipSkip, float CfgScale,
+       uint32_t SampleMethod, uint32_t SampleSteps, float Strength,
+       uint32_t Seed, uint32_t BatchCount, float ControlStrength,
+       float StyleRatio, uint32_t NormalizeInput, uint32_t InputIdImagesPathPtr,
+       uint32_t InputIdImagesPathLen, uint32_t canny_preprocess,
+       uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
        uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr);
+};
+class SDTextToImage : public StableDiffusion::Func<SDTextToImage> {
+public:
+  SDTextToImage(StableDiffusion::SDEnviornment &HostEnv) : Func(HostEnv) {}
+  Expect<uint32_t>
+  body(const Runtime::CallingFrame &Frame, uint32_t PromptPtr,
+       uint32_t PromptLen, uint32_t SessionId, uint32_t ControlImagePtr,
+       uint32_t ControlImageLen, uint32_t NegativePromptPtr,
+       uint32_t NegativePromptLen, uint32_t Width, uint32_t Height,
+       int32_t ClipSkip, float CfgScale, uint32_t SampleMethod,
+       uint32_t SampleSteps, uint32_t Seed, uint32_t BatchCount,
+       float ControlStrength, float StyleRatio, uint32_t NormalizeInput,
+       uint32_t InputIdImagesPathPtr, uint32_t InputIdImagesPathLen,
+       uint32_t CannyPreprocess, uint32_t OutputPathPtr, uint32_t OutputPathLen,
+       uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
+       uint32_t BytesWrittenPtr);
 };
 class SDConvert : public StableDiffusion::Func<SDConvert> {
 public:

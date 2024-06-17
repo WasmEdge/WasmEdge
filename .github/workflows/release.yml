@@ -134,8 +134,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       output_dir: build/plugins/wasi_nn
-      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=NeuralSpeed
-      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml wasi_nn-neuralspeed
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=NeuralSpeed -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper
+      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml wasi_nn-neuralspeed wasi_nn-whisper
       output_bin: libwasmedgePluginWasiNN.so
       OPENVINO_VERSION: "2024.2.0"
       OPENVINO_YEAR: "2024"
@@ -217,6 +217,12 @@ jobs:
         run: |
           mv plugin_wasi_nn-neuralspeed.tar.gz WasmEdge-plugin-wasi_nn-neuralspeed-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-neuralspeed-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+      - name: Upload wasi_nn-whisper plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasi_nn-whisper.tar.gz WasmEdge-plugin-wasi_nn-whisper-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-whisper-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
 
   build_and_upload_plugin_ubuntu:
     name: Build and upload plugins on Ubuntu 20.04

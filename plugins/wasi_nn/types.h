@@ -37,13 +37,20 @@ enum class Backend : uint8_t {
   Autodetect = 5,
   GGML = 6,
   NeuralSpeed = 7,
+  Whisper = 9,
   Piper = 11,
 };
 
 #define FOR_EACH_BACKEND(F)                                                    \
   F(OpenVINO)                                                                  \
   F(ONNX)                                                                      \
-  F(Tensorflow) F(PyTorch) F(TensorflowLite) F(GGML) F(NeuralSpeed) F(Piper)
+  F(Tensorflow)                                                                \
+  F(PyTorch)                                                                   \
+  F(TensorflowLite)                                                            \
+  F(GGML)                                                                      \
+  F(NeuralSpeed)                                                               \
+  F(Whisper)                                                                   \
+  F(Piper)
 
 struct TensorData {
   Span<uint32_t> Dimension;

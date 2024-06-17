@@ -14,6 +14,8 @@ public:
                 std::make_unique<WasmEdgeStableDiffusionMock::CreateContext>());
     addHostFunc("text_to_image",
                 std::make_unique<WasmEdgeStableDiffusionMock::TextToImage>());
+    addHostFunc("image_to_image",
+                std::make_unique<WasmEdgeStableDiffusionMock::ImageToImage>());
     addHostFunc("convert",
                 std::make_unique<WasmEdgeStableDiffusionMock::Convert>());
   }

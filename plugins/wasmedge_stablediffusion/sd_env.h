@@ -8,7 +8,7 @@
 namespace WasmEdge {
 namespace Host {
 namespace StableDiffusion {
-
+void SBLog(enum sd_log_level_t level, const char *log, void *);
 enum class ErrNo : uint32_t {
   Success = 0,         // No error occurred.
   InvalidArgument = 1, // Caller module passed an invalid argument.
@@ -20,11 +20,17 @@ enum class ErrNo : uint32_t {
 
 class SDEnviornment {
 public:
+  SDEnviornment() noexcept {
+    if (EnableSDLog) {
+      sd_set_log_callback(SBLog, nullptr);
+    }
+  };
   uint32_t addContext(sd_ctx_t *Ctx) noexcept;
   sd_ctx_t *getContext(const uint32_t Id) noexcept;
 
 private:
   std::vector<sd_ctx_t *> Contexts;
+  bool EnableSDLog = false;
 };
 
 } // namespace StableDiffusion

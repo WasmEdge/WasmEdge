@@ -54,10 +54,20 @@ sd_image_t *readControlImage(Span<uint8_t> ControlImage,
                              bool CannyPreprocess) {
   sd_image_t *ControlImg = nullptr;
   int Channel = 0;
-  ControlImageBuf = stbi_load_from_memory(
-      ControlImage.data(), ControlImage.size(), &Width, &Height, &Channel, 3);
+  std::string ControlImagePath(ControlImage.begin(), ControlImage.end());
+
+  if (ControlImagePath.substr(0, 5) == "path:"sv) {
+    ControlImageBuf = stbi_load(ControlImagePath.substr(5).data(), &Width,
+                                &Height, &Channel, 3);
+  } else {
+
+    ControlImageBuf = stbi_load_from_memory(
+        ControlImage.data(), ControlImage.size(), &Width, &Height, &Channel, 3);
+  }
+
   if (ControlImageBuf == nullptr) {
-    spdlog::error("[StableDiffusion] Load image from control image failed."sv);
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] Load image from control image failed."sv);
     return nullptr;
   }
   ControlImg =
@@ -80,7 +90,7 @@ Expect<uint32_t> SDConvert::body(const Runtime::CallingFrame &Frame,
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  // Check the input model buffer.
+  // Check the input parameter value.
   MEM_SPAN_CHECK(ModelPathSpan, MemInst, char, ModelPathPtr, ModelPathLen,
                  "Failed when accessing the input model path memory."sv)
   MEM_SPAN_CHECK(VaeModelPathSpan, MemInst, char, VaeModelPathPtr,
@@ -98,12 +108,13 @@ Expect<uint32_t> SDConvert::body(const Runtime::CallingFrame &Frame,
 
   spdlog::info("[WasmEdge-StableDiffusion] Convert model: {} to {}."sv,
                ModelPath.data(), OutputPath.data());
-  std::ifstream Fin(ModelPath.data(),
-                    std::ios::in | std::ios::binary | std::ios::ate);
+  std::ifstream Fin(ModelPath.data(), std::ios::in | std::ios::binary);
   if (!Fin) {
+    Fin.close();
     spdlog::error("[WasmEdge-StableDiffusion] Model not found.");
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
+  Fin.close();
   // Convert model.
   bool Ret = convert(ModelPath.data(), VaeModelPath.data(), OutputPath.data(),
                      static_cast<sd_type_t>(WType));
@@ -149,13 +160,30 @@ Expect<uint32_t> SDCreateContext::body(
   MEM_PTR_CHECK(SessionId, MemInst, uint32_t, SessiontIdPtr,
                 "Failed when accessing the return SessionID memory."sv)
 
+  std::string ModelPath =
+      std::string(ModelPathSpan.begin(), ModelPathSpan.end());
+  std::string VaePath = std::string(VaePathSpan.begin(), VaePathSpan.end());
+  std::string TaesdPath =
+      std::string(TaesdPathSpan.begin(), TaesdPathSpan.end());
+  std::string ControlNetPath =
+      std::string(ControlNetPathSpan.begin(), ControlNetPathSpan.end());
+  std::string LoraModelDir =
+      std::string(LoraModelDirSpan.begin(), LoraModelDirSpan.end());
+  std::string EmbedDir = std::string(EmbedDirSpan.begin(), EmbedDirSpan.end());
+  std::string IdEmbedDir =
+      std::string(IdEmbedDirSpan.begin(), IdEmbedDirSpan.end());
+  if (NThreads == -1) {
+    NThreads = get_num_physical_cores();
+  }
+
+  spdlog::info("[WasmEdge-StableDiffusion] Create context."sv);
   // Create context and import graph.
+
   sd_ctx_t *Ctx = new_sd_ctx(
-      ModelPathSpan.data(), VaePathSpan.data(), TaesdPathSpan.data(),
-      ControlNetPathSpan.data(), LoraModelDirSpan.data(), EmbedDirSpan.data(),
-      IdEmbedDirSpan.data(), static_cast<bool>(VaeDecodeOnly),
-      static_cast<bool>(VaeTiling), true, NThreads,
-      static_cast<sd_type_t>(Wtype), static_cast<rng_type_t>(RngType),
+      ModelPath.data(), VaePath.data(), TaesdPath.data(), ControlNetPath.data(),
+      LoraModelDir.data(), EmbedDir.data(), IdEmbedDir.data(),
+      static_cast<bool>(VaeDecodeOnly), static_cast<bool>(VaeTiling), true,
+      NThreads, static_cast<sd_type_t>(Wtype), static_cast<rng_type_t>(RngType),
       static_cast<schedule_t>(Schedule), ClipOnCpu, ControlNetCpu, VaeOnCpu);
   if (Ctx == nullptr) {
     spdlog::error("[WasmEdge-StableDiffusion] Failed to create context.");
@@ -166,20 +194,88 @@ Expect<uint32_t> SDCreateContext::body(
   return static_cast<uint32_t>(ErrNo::Success);
 }
 Expect<uint32_t> SDTextToImage::body(
+    const Runtime::CallingFrame &Frame, uint32_t PromptPtr, uint32_t PromptLen,
+    uint32_t SessionId, uint32_t ControlImagePtr, uint32_t ControlImageLen,
+    uint32_t NegativePromptPtr, uint32_t NegativePromptLen, uint32_t Width,
+    uint32_t Height, int32_t ClipSkip, float CfgScale, uint32_t SampleMethod,
+    uint32_t SampleSteps, uint32_t Seed, uint32_t BatchCount,
+    float ControlStrength, float StyleRatio, uint32_t NormalizeInput,
+    uint32_t InputIdImagesPathPtr, uint32_t InputIdImagesPathLen,
+    uint32_t CannyPreprocess, uint32_t OutputPathPtr, uint32_t OutputPathLen,
+    uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
+    uint32_t BytesWrittenPtr) {
+  // Check memory instance from module.
+  MEMINST_CHECK(MemInst, Frame, 0)
+  // Check the input model buffer.
+  MEM_SPAN_CHECK(PromptSpan, MemInst, char, PromptPtr, PromptLen,
+                 "Failed when accessing the promp memory."sv)
+  MEM_SPAN_CHECK(NegativePromptSpan, MemInst, char, NegativePromptPtr,
+                 NegativePromptLen,
+                 "Failed when accessing the input negative prompt memory."sv)
+  MEM_SPAN_CHECK(InputIdImagesPathSpan, MemInst, char, InputIdImagesPathPtr,
+                 InputIdImagesPathLen,
+                 "Failed when accessing the input id images path memory."sv)
+  MEM_SPAN_CHECK(OutputBufferSpan, MemInst, uint8_t, OutBufferPtr,
+                 OutBufferMaxSize,
+                 "Failed when accessing the Output Buffer memory."sv)
+  MEM_PTR_CHECK(BytesWritten, MemInst, uint32_t, BytesWrittenPtr,
+                "Failed when accessing the return bytes written memory."sv)
+  MEM_SPAN_CHECK(OutputPathSpan, MemInst, char, OutputPathPtr, OutputPathLen,
+                 "Failed when accessing the output path memory."sv)
+  std::string Prompt(PromptSpan.begin(), PromptSpan.end());
+  std::string NegativePrompt(NegativePromptSpan.begin(),
+                             NegativePromptSpan.end());
+  std::string InputIdImagesPath(InputIdImagesPathSpan.begin(),
+                                InputIdImagesPathSpan.end());
+  std::string OutputPath(OutputPathSpan.begin(), OutputPathSpan.end());
+  sd_ctx_t *SDCtx = Env.getContext(SessionId);
+  sd_image_t *Results = nullptr;
+  sd_image_t *ControlImage = nullptr;
+  uint8_t *ControlImageBuffer = nullptr;
+  if (ControlImageLen != 0) {
+    MEM_SPAN_CHECK(ControlImageSpan, MemInst, uint8_t, ControlImagePtr,
+                   ControlImageLen,
+                   "Failed when accessing the control image memory."sv)
+    ControlImage = readControlImage(ControlImageSpan, ControlImageBuffer, Width,
+                                    Height, CannyPreprocess);
+  }
+  spdlog::info("[WasmEdge-StableDiffusion] Start to generate image."sv);
+  Results =
+      txt2img(SDCtx, Prompt.data(), NegativePrompt.data(), ClipSkip, CfgScale,
+              Width, Height, sample_method_t(SampleMethod), SampleSteps, Seed,
+              BatchCount, ControlImage, ControlStrength, StyleRatio,
+              NormalizeInput, InputIdImagesPath.data());
+  int Len;
+  unsigned char *Png = stbi_write_png_to_mem(
+      reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
+      Results->height, Results->channel, &Len, nullptr);
+  if (OutputPathLen != 0) {
+    stbi_write_png(OutputPath.data(), Results->width, Results->height,
+                   Results->channel, Results->data, 0, nullptr);
+  }
+  *BytesWritten = Len;
+  std::copy_n(Png, *BytesWritten, OutputBufferSpan.data());
+  free(Png);
+  free(Results);
+  free(ControlImageBuffer);
+  return static_cast<uint32_t>(ErrNo::Success);
+}
+Expect<uint32_t> SDImageToImage::body(
     const Runtime::CallingFrame &Frame, uint32_t ImagePtr, uint32_t ImageLen,
     uint32_t SessionId, uint32_t Width, uint32_t Height,
     uint32_t ControlImagePtr, uint32_t ControlImageLen, uint32_t PromptPtr,
     uint32_t PromptLen, uint32_t NegativePromptPtr, uint32_t NegativePromptLen,
-    uint32_t ClipSkip, uint32_t CfgScale, uint32_t SampleMethod,
-    uint32_t SampleSteps, uint32_t Strength, uint32_t Seed, uint32_t BatchCount,
-    uint32_t ControlStrength, uint32_t StyleRatio, uint32_t NormalizeInput,
+    int32_t ClipSkip, float CfgScale, uint32_t SampleMethod,
+    uint32_t SampleSteps, float Strength, uint32_t Seed, uint32_t BatchCount,
+    float ControlStrength, float StyleRatio, uint32_t NormalizeInput,
     uint32_t InputIdImagesPathPtr, uint32_t InputIdImagesPathLen,
-    uint32_t CannyPreprocess, uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
+    uint32_t CannyPreprocess, uint32_t OutputPathPtr, uint32_t OutputPathLen,
+    uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
     uint32_t BytesWrittenPtr) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  // Check the input model buffer.
+  // Check the input parameter valud.
   MEM_SPAN_CHECK(ImageSpan, MemInst, uint8_t, ImagePtr, ImageLen,
                  "Failed when accessing the input image memory."sv)
 
@@ -188,27 +284,47 @@ Expect<uint32_t> SDTextToImage::body(
   MEM_SPAN_CHECK(NegativePromptSpan, MemInst, char, NegativePromptPtr,
                  NegativePromptLen,
                  "Failed when accessing the input negative prompt memory."sv)
-  MEM_SPAN_CHECK(
-      InputIdImagesPathSpan, MemInst, char, InputIdImagesPathPtr,
-      InputIdImagesPathLen,
-      "Failed when accessing the input input id images path memory."sv)
+  MEM_SPAN_CHECK(InputIdImagesPathSpan, MemInst, char, InputIdImagesPathPtr,
+                 InputIdImagesPathLen,
+                 "Failed when accessing the input id images path memory."sv)
   MEM_SPAN_CHECK(OutputBufferSpan, MemInst, uint8_t, OutBufferPtr,
                  OutBufferMaxSize,
                  "Failed when accessing the Output Buffer memory."sv)
   MEM_PTR_CHECK(BytesWritten, MemInst, uint32_t, BytesWrittenPtr,
                 "Failed when accessing the return bytes written memory."sv)
+  MEM_SPAN_CHECK(OutputPathSpan, MemInst, char, OutputPathPtr, OutputPathLen,
+                 "Failed when accessing the output path memory."sv)
   sd_ctx_t *SDCtx = Env.getContext(SessionId);
-
+  std::string Prompt(PromptSpan.begin(), PromptSpan.end());
+  std::string NegativePrompt(NegativePromptSpan.begin(),
+                             NegativePromptSpan.end());
+  std::string InputIdImagesPath(InputIdImagesPathSpan.begin(),
+                                InputIdImagesPathSpan.end());
+  std::string OutputPath(OutputPathSpan.begin(), OutputPathSpan.end());
   uint8_t *InputImageBuffer = nullptr;
   uint8_t *ControlImageBuffer = nullptr;
   int Channel = 0;
   int ImageWidth = 0;
   int ImageHeight = 0;
-  InputImageBuffer =
-      stbi_load_from_memory(ImageSpan.data(), ImageSpan.size(), &ImageWidth,
-                            &ImageHeight, &Channel, 3);
+  std::string ImagePath(ImageSpan.begin(), ImageSpan.end());
+  if (ImagePath.substr(0, 5) == "path:"sv) {
+    InputImageBuffer = stbi_load(ImagePath.substr(5).data(), &ImageWidth,
+                                 &ImageHeight, &Channel, 3);
+    if (InputImageBuffer == nullptr) {
+      spdlog::error(
+          "[WasmEdge-StableDiffusion] Load image from input image failed."sv);
+      return static_cast<uint32_t>(ErrNo::InvalidArgument);
+    }
+  } else {
+
+    InputImageBuffer =
+        stbi_load_from_memory(ImageSpan.data(), ImageSpan.size(), &ImageWidth,
+                              &ImageHeight, &Channel, 3);
+  }
+
+  // TODO: Resize image when image size not matches weight and height
   sd_image_t InputImage = {Width, Height, 3, InputImageBuffer};
-  sd_image_t *ControlImage;
+  sd_image_t *ControlImage = nullptr;
   if (ControlImageLen != 0) {
     MEM_SPAN_CHECK(ControlImageSpan, MemInst, uint8_t, ControlImagePtr,
                    ControlImageLen,
@@ -216,23 +332,28 @@ Expect<uint32_t> SDTextToImage::body(
     ControlImage = readControlImage(ControlImageSpan, ControlImageBuffer, Width,
                                     Height, CannyPreprocess);
   }
-
-  sd_image_t *Results;
-  Results = img2img(SDCtx, InputImage, PromptSpan.data(),
-                    NegativePromptSpan.data(), ClipSkip, CfgScale, Width,
-                    Height, sample_method_t(SampleMethod), SampleSteps,
-                    Strength, Seed, BatchCount, ControlImage, ControlStrength,
-                    StyleRatio, NormalizeInput, InputIdImagesPathSpan.data());
+  sd_image_t *Results = nullptr;
+  spdlog::info("[WasmEdge-StableDiffusion] Start to generate image."sv);
+  Results = img2img(SDCtx, InputImage, Prompt.data(), NegativePrompt.data(),
+                    ClipSkip, CfgScale, Width, Height,
+                    sample_method_t(SampleMethod), SampleSteps, Strength, Seed,
+                    BatchCount, ControlImage, ControlStrength, StyleRatio,
+                    NormalizeInput, InputIdImagesPath.data());
   int Len;
   unsigned char *Png = stbi_write_png_to_mem(
       reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
       Results->height, Results->channel, &Len, nullptr);
+  if (OutputPathLen != 0) {
+    stbi_write_png(OutputPath.data(), Results->width, Results->height,
+                   Results->channel, Results->data, 0, nullptr);
+  }
   *BytesWritten = Len;
   std::copy_n(Png, *BytesWritten, OutputBufferSpan.data());
+  free(Png);
   free(Results);
   free(InputImageBuffer);
   free(ControlImageBuffer);
-  return static_cast<uint32_t>(ErrNo::RuntimeError);
+  return static_cast<uint32_t>(ErrNo::Success);
 }
 } // namespace StableDiffusion
 } // namespace Host

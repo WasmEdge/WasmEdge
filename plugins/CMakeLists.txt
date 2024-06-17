@@ -67,11 +67,7 @@ if(WASMEDGE_PLUGIN_WASI_OCR)
 endif()
 
 if(WASMEDGE_PLUGIN_STABLEDIFFUSION)
-  if(CMAKE_SYSTEM_NAME MATCHES "Linux")
     add_subdirectory(wasmedge_stablediffusion)
-  else()
-    message(WARNING "Only Linux platforms support wasm_bpf plug-in now.")
-  endif()
 endif()
 
 if(WASMEDGE_PLUGIN_OPENCVMINI)

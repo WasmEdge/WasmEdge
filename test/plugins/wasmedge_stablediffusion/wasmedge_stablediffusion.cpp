@@ -53,9 +53,7 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
   // Create the stable diffusion module instance.
   auto *SBMod = dynamic_cast<WasmEdge::Host::SDModule *>(createModule());
   EXPECT_FALSE(SBMod == nullptr);
-  EXPECT_EQ(SBMod->getFuncExportNum(), 3U);
-  EXPECT_NE(SBMod->findFuncExports("create_context"), nullptr);
-  EXPECT_NE(SBMod->findFuncExports("text_to_image"), nullptr);
+  EXPECT_EQ(SBMod->getFuncExportNum(), 4U);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -70,6 +68,9 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
   // Return value.
   std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
 
+  uint32_t SessionPtr = UINT32_C(0);
+  uint32_t SessionId = UINT32_C(0);
+  uint32_t OutputPtr = UINT32_C(0);
   // uint32_t OutBoundPtr = UINT32_C(61000) * UINT32_C(65536);
 
   // Get the function "convert".
@@ -79,26 +80,58 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
   auto &HostFuncConvert =
       dynamic_cast<WasmEdge::Host::StableDiffusion::SDConvert &>(
           FuncInst->getHostFunc());
+  // Get the function "create_context".
+  FuncInst = SBMod->findFuncExports("create_context");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncCreateContext =
+      dynamic_cast<WasmEdge::Host::StableDiffusion::SDCreateContext &>(
+          FuncInst->getHostFunc());
+  // Get the function "text_to_image".
+  FuncInst = SBMod->findFuncExports("text_to_image");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncTextToImage =
+      dynamic_cast<WasmEdge::Host::StableDiffusion::SDTextToImage &>(
+          FuncInst->getHostFunc());
+  // Get the function "image_to_image".
+  FuncInst = SBMod->findFuncExports("image_to_image");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncImageToImage =
+      dynamic_cast<WasmEdge::Host::StableDiffusion::SDImageToImage &>(
+          FuncInst->getHostFunc());
+
   std::string Prompt = "a lovely cat";
-  std::vector<char> TensorData(Prompt.begin(), Prompt.end());
+  std::string Prompt2 = "with blue eyes";
+  std::string OutputPathString = "./stableDiffusion/output.png";
+  std::vector<char> OutputPath(OutputPathString.begin(),
+                               OutputPathString.end());
+  std::string InputPathString = "path:" + OutputPathString;
+  std::vector<char> InputPath(InputPathString.begin(), InputPathString.end());
+  std::string OutputPathString2 = "./stableDiffusion/output2.png";
+  std::vector<char> OutputPath2(OutputPathString2.begin(),
+                                OutputPathString2.end());
+  std::vector<char> PromptData(Prompt.begin(), Prompt.end());
+  std::vector<char> PromptData2(Prompt2.begin(), Prompt2.end());
   std::string ModelPathString = "./stableDiffusion/sd-v1-4.ckpt";
   std::vector<char> ModelPath(ModelPathString.begin(), ModelPathString.end());
-  std::string QuantModelPathString = "./stableDiffusion/sd-v1-4-Q4_K.gguf";
+  std::string QuantModelPathString = "./stableDiffusion/sd-v1-4-Q8_0.gguf";
   std::vector<char> QuantModelPath(QuantModelPathString.begin(),
                                    QuantModelPathString.end());
 
+  uint32_t ModelPathPtr = UINT32_C(0);
+  uint32_t QuantModelPathPtr = ModelPathPtr + ModelPath.size();
+  writeBinaries<char>(MemInst, ModelPath, ModelPathPtr);
+  writeBinaries<char>(MemInst, QuantModelPath, QuantModelPathPtr);
   // Test: convert -- convert successfully.
   {
-    uint32_t ModelPathPtr = UINT32_C(0);
-    writeBinaries<char>(MemInst, ModelPath, ModelPathPtr);
-    uint32_t QuantModelPathPtr = ModelPathPtr + ModelPath.size();
-    writeBinaries<char>(MemInst, QuantModelPath, QuantModelPathPtr);
     EXPECT_TRUE(HostFuncConvert.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             ModelPathPtr, static_cast<uint32_t>(ModelPath.size()), 0, 0,
             QuantModelPathPtr, static_cast<uint32_t>(QuantModelPath.size()),
-            12}, // SD_TYPE_Q4_K    = 12
+            8}, // SD_TYPE_Q8_0    = 8
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     std::ifstream Fin(QuantModelPath.data(),
@@ -106,7 +139,174 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     EXPECT_FALSE(Fin.fail());
     Fin.close();
   }
+  // Test: create_context -- create context for text to image.
+  {
+    EXPECT_TRUE(HostFuncCreateContext.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            QuantModelPathPtr,
+            static_cast<uint32_t>(QuantModelPath.size()),
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -1,
+            31,
+            1,
+            0,
+            0,
+            0,
+            0,
+            SessionPtr}, // vaeDecodeOnly=true, NThreads=-1,
+                         // wtype=31(SD_TYPE_COUNT), RngType=CUDA_RNG,
+                         // Schedule=DEFAULT, Other is false
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    SessionId = *MemInst.getPointer<uint32_t *>(SessionPtr);
+    EXPECT_EQ(SessionId, 0);
+  }
 
+  // Test: text_to_image -- generate image from text.
+  {
+    uint32_t PromptPtr = UINT32_C(0);
+    uint32_t OutputPathPtr = PromptPtr + PromptData.size();
+    uint32_t BytesWrittenPtr = OutputPathPtr + OutputPath.size();
+    OutputPtr = BytesWrittenPtr + 4;
+    writeBinaries<char>(MemInst, PromptData, PromptPtr);
+    writeBinaries<char>(MemInst, OutputPath, OutputPathPtr);
+    EXPECT_TRUE(HostFuncTextToImage.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{PromptPtr,
+                                                    PromptData.size(),
+                                                    SessionId,
+                                                    0,
+                                                    0,
+                                                    0,
+                                                    0,
+                                                    512,
+                                                    512,
+                                                    -1,
+                                                    7.0f,
+                                                    0,
+                                                    20,
+                                                    42,
+                                                    1,
+                                                    0.90f,
+                                                    20.0f,
+                                                    0,
+                                                    0,
+                                                    0,
+                                                    0,
+                                                    OutputPathPtr,
+                                                    OutputPath.size(),
+                                                    OutputPtr,
+                                                    65532,
+                                                    BytesWrittenPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
+    EXPECT_GE(BytesWritten, 50);
+    std::ifstream Fin(OutputPath.data(), std::ios::in | std::ios::binary);
+    EXPECT_FALSE(Fin.fail());
+    Fin.close();
+  }
+  writeBinaries<char>(MemInst, ModelPath, ModelPathPtr);
+  writeBinaries<char>(MemInst, QuantModelPath, QuantModelPathPtr);
+  // Test: create_context -- create context for image to image.
+  {
+    EXPECT_TRUE(HostFuncCreateContext.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            QuantModelPathPtr,
+            static_cast<uint32_t>(QuantModelPath.size()),
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            31,
+            1,
+            0,
+            0,
+            0,
+            0,
+            SessionPtr}, // NThreads=-1,
+                         //  wtype=31(SD_TYPE_COUNT), RngType=CUDA_RNG,
+                         //  Schedule=DEFAULT, Other is false
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    SessionId = *MemInst.getPointer<uint32_t *>(SessionPtr);
+    EXPECT_EQ(SessionId, 1);
+  }
+  // Test: image_to_image -- generate image from image.
+  {
+    uint32_t PromptPtr = UINT32_C(0);
+    uint32_t InputPathPtr = PromptPtr + PromptData2.size();
+    uint32_t OutputPathPtr = InputPathPtr + InputPath.size();
+    uint32_t BytesWrittenPtr = OutputPathPtr + OutputPath2.size();
+    OutputPtr = BytesWrittenPtr + 4;
+    writeBinaries<char>(MemInst, PromptData2, PromptPtr);
+    writeBinaries<char>(MemInst, InputPath, InputPathPtr);
+    writeBinaries<char>(MemInst, OutputPath2, OutputPathPtr);
+    EXPECT_TRUE(HostFuncImageToImage.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{InputPathPtr,
+                                                    InputPath.size(),
+                                                    SessionId,
+                                                    512,
+                                                    512,
+                                                    0,
+                                                    0,
+                                                    PromptPtr,
+                                                    PromptData2.size(),
+                                                    0,
+                                                    0,
+                                                    -1,
+                                                    7.0f,
+                                                    0,
+                                                    20,
+                                                    0.75f,
+                                                    42,
+                                                    1,
+                                                    0.9f,
+                                                    20.0f,
+                                                    0,
+                                                    0,
+                                                    0,
+                                                    0,
+                                                    OutputPathPtr,
+                                                    OutputPath2.size(),
+                                                    OutputPtr,
+                                                    65532,
+                                                    BytesWrittenPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
+    EXPECT_GE(BytesWritten, 50);
+    std::ifstream Fin(OutputPath2.data(), std::ios::in | std::ios::binary);
+    EXPECT_FALSE(Fin.fail());
+    Fin.close();
+  }
   delete SBMod;
 }
 

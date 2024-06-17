@@ -40,6 +40,31 @@ uint32_t SDEnviornment::addContext(sd_ctx_t *Ctx) noexcept {
 sd_ctx_t *SDEnviornment::getContext(const uint32_t Id) noexcept {
   return Contexts[Id];
 }
+void SBLog(enum sd_log_level_t level, const char *log, void *) {
+  if (!log) {
+    return;
+  }
+  std::string levelStr;
+  switch (level) {
+  case SD_LOG_DEBUG:
+    levelStr = "DEBUG";
+    break;
+  case SD_LOG_INFO:
+    levelStr = "INFO";
+    break;
+  case SD_LOG_WARN:
+    levelStr = "WARN";
+    break;
+  case SD_LOG_ERROR:
+    levelStr = "ERROR";
+    break;
+  default:
+    levelStr = "?????";
+    break;
+  }
+
+  spdlog::info("[WasmEdge-StableDiffusion] SD-log: [{}] {}", levelStr, log);
+}
 } // namespace StableDiffusion
 } // namespace Host
 } // namespace WasmEdge

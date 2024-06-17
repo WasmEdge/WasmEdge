@@ -20,8 +20,8 @@ endif()
 FetchContent_Declare(
   stable-diffusion
   GIT_REPOSITORY https://github.com/leejet/stable-diffusion.cpp.git
-  GIT_TAG        master-1d2af5c
-  GIT_SHALLOW    FALSE
+  GIT_TAG        master-9c51d87
+  GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(stable-diffusion)
 set_property(TARGET stable-diffusion PROPERTY POSITION_INDEPENDENT_CODE ON)

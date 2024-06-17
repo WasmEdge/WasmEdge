@@ -1,28 +1,129 @@
 # Global rule:
-*                               @hydai
-.devcontainer/                  @hydai
-.github/                        @hydai
-bindings/                       @hydai
-bindings/rust/                  @hydai @yanganto
-bindings/java/                  @dannypsnl
-cmake/                          @ibmibmibm
-docs/                           @hydai
-include/                        @q82419
-lib/                            @q82419
-**/aot/                         @ibmibmibm
-**/host/wasi/                   @ibmibmibm
-**/system/                      @ibmibmibm
-**/api/                         @q82419
-plugins/                        @ibmibmibm
-plugins/wasi_logging/           @michael1017
-rpm/                            @hydai @dm4
-test/                           @q82419
-test/aot/                       @ibmibmibm
-test/host/wasi/                 @ibmibmibm
-test/po/                        @ibmibmibm
-test/span/                      @ibmibmibm
-thirdparty/                     @ibmibmibm
-tools/                          @hydai @ibmibmibm @q82419
-utils/                          @hydai @ibmibmibm @q82419
-utils/install.sh                @SAtacker
-utils/uninstall.sh              @SAtacker
+# General Owner: @hydai
+*                                       @hydai
+
+# Specific Files
+# General Owner: @dannypsnl
+*.nix                                   @dannypsnl
+
+# GitHub Actions
+# General Owner: @hydai
+.devcontainer/                          @hydai
+.github/                                @hydai
+.github/actions/                        @0yi0
+.github/workflows/                      @0yi0
+
+# Language Bindings
+# General Owner: @hydai
+bindings/                               @hydai
+bindings/java/                          @dannypsnl
+
+# CMake
+# General Owner: @ibmibmibm
+cmake/                                  @ibmibmibm
+
+# Documentation
+# General Owner: @hydai
+docs/                                   @hydai
+
+# Examples
+# General Owner: @q82419
+examples/                               @q82419
+examples/capi/unix_domain_socket/       @hydai
+examples/capi/wasi-env/                 @hydai
+examples/js/                            @hydai
+
+# Source Codes
+# General Owner: @ibmibmibm @q82419
+include/                                @q82419 @ibmibmibm
+lib/                                    @q82419 @ibmibmibm
+
+**/aot/                                 @ibmibmibm
+**/api/                                 @q82419
+**/common/                              @ibmibmibm
+**/driver/                              @ibmibmibm
+**/executor/                            @q82419
+**/host/                                @q82419
+**/host/wasi/                           @ibmibmibm
+**/llvm/                                @ibmibmibm
+**/loader/                              @q82419 @ibmibmibm @dannypsnl
+**/plugin/                              @ibmibmibm
+**/po/                                  @ibmibmibm
+**/system/                              @ibmibmibm
+**/validator/                           @q82419 @dannypsnl
+**/vm/                                  @q82419 @dannypsnl
+
+include/ast/                            @q82419
+include/ast/component/                  @dannypsnl
+include/driver/wasi_nn_rpc/             @dm4
+include/experimental/                   @ibmibmibm
+include/runtime/                        @q82419 @dannypsnl
+lib/loader/ast/                         @q82419
+lib/loader/ast/component/               @dannypsnl
+lib/loader/serialize/                   @q82419
+lib/wasi_nn_rpc/                        @dm4
+
+plugins/                                @hydai
+plugins/wasi_crypto/                    @sonder-joker
+plugins/wasi_logging/                   @michael1017 @q82419
+plugins/wasi_nn/                        @dm4 @hydai
+plugins/wasmedge_image/                 @q82419
+plugins/wasmedge_opencvmini/            @dannypsnl
+plugins/wasmedge_process/               @q82419
+plugins/wasmedge_tensorflow/            @q82419
+plugins/wasmedge_tensorflowlite/        @q82419
+
+# Tests
+test/                                   @q82419 @ibmibmibm
+test/aot/                               @ibmibmibm
+test/api/                               @q82419
+test/common/                            @ibmibmibm
+test/errinfo/                           @q82419
+test/executor/                          @q82419
+test/expected/                          @ibmibmibm
+test/externref/                         @q82419
+test/host/                              @q82419 @ibmibmibm
+test/host/mock/                         @q82419
+test/host/socket/                       @ibmibmibm
+test/host/wasi/                         @ibmibmibm
+test/llvm/                              @ibmibmibm
+test/loader/                            @q82419 @dannypsnl
+test/memlimit/                          @q82419
+test/mixcall/                           @q82419
+test/plugins/                           @hydai
+test/plugins/unittest/                  @q82419
+test/plugins/wasi_crypto/               @sonder-joker @hydai
+test/plugins/wasi_logging/              @michael1017 @q82419
+test/plugins/wasi_nn/                   @dm4 @hydai
+test/plugins/wasm_bpf/                  @hydai
+test/plugins/wasmedge_ffmpeg/           @hydai
+test/plugins/wasmedge_image/            @q82419
+test/plugins/wasmedge_opencvmini/       @dannypsnl
+test/plugins/wasmedge_process/          @q82419
+test/plugins/wasmedge_tensorflow/       @q82419
+test/plugins/wasmedge_tensorflowlite/   @q82419
+test/plugins/wasmedge_zlib/             @hydai
+test/po/                                @ibmibmibm
+test/span/                              @ibmibmibm
+test/spec/                              @q82419
+test/thread/                            @ibmibmibm
+
+# Thirdparty Libraries
+thirdparty/                             @ibmibmibm
+thirdparty/wasi_crypto/                 @sonder-joker @hydai
+
+# Tools
+tools/                                  @ibmibmibm
+
+# Utils
+utils/                                  @hydai
+utils/corpus/                           @ibmibmibm
+utils/docker/                           @hydai @0yi0
+utils/install*                          @SAtacker
+utils/uninstall.sh                      @SAtacker
+utils/opencvmini/                       @dannypsnl
+utils/openwrt/                          @ibmibmibm
+utils/wasi-cpp-header/                  @ibmibmibm
+utils/wasi-crypto/                      @sonder-joker
+utils/wasi-nn/                          @dm4
+utils/wasi-test/                        @ibmibmibm

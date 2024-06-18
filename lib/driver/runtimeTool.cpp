@@ -267,6 +267,12 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
         FuncArgTypes.emplace_back(TypeCode::F64);
         break;
       }
+      case TypeCode::String: {
+        std::string &Value = Opt.Args.value()[I + 1];
+        FuncArgs.emplace_back(StrVariant(std::move(Value)));
+        FuncArgTypes.emplace_back(TypeCode::String);
+        break;
+      }
       /// TODO: FuncRef and ExternRef
       default:
         break;

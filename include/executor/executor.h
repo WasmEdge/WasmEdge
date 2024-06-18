@@ -152,6 +152,14 @@ public:
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   instantiateModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod);
 
+  Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+  instantiateComponent(Runtime::StoreManager &StoreMgr,
+                       const AST::Component::Component &Comp);
+  Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+  instantiateComponent(Runtime::StoreManager &StoreMgr,
+                       const AST::Component::Component &Comp,
+                       std::string_view Name);
+
   /// Instantiate and register a WASM module into a named module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   registerModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
@@ -160,6 +168,9 @@ public:
   /// Register an instantiated module into a named module instance.
   Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
                               const Runtime::Instance::ModuleInstance &ModInst);
+  Expect<void>
+  registerComponent(Runtime::StoreManager &StoreMgr,
+                    const Runtime::Instance::ComponentInstance &CompInst);
 
   /// Register a host function which will be invoked before calling a
   /// host function.
@@ -258,6 +269,57 @@ private:
   /// Instantiation of Exports.
   Expect<void> instantiate(Runtime::Instance::ModuleInstance &ModInst,
                            const AST::ExportSection &ExportSec);
+  /// @}
+
+  /// @{
+  /// Instantiation of Component Instance.
+  Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+  instantiate(Runtime::StoreManager &StoreMgr,
+              const AST::Component::Component &Comp,
+              std::optional<std::string_view> Name = std::nullopt);
+
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::CoreInstanceSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::CoreTypeSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::InstanceSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::AliasSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::TypeSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::CanonSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::StartSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::ImportSection &);
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::ExportSection &);
+  /// @}
+
+  /// \name Helper Functions for canonical ABI
+  /// @{
+  std::unique_ptr<Runtime::Instance::FunctionInstance>
+  lifting(Runtime::Instance::ComponentInstance &Comp,
+          const WasmEdge::AST::Component::FuncType &FuncType,
+          Runtime::Instance::FunctionInstance *F,
+          Runtime::Instance::MemoryInstance *Memory,
+          Runtime::Instance::FunctionInstance *Realloc);
+
+  std::unique_ptr<Runtime::Instance::FunctionInstance>
+  lowering(Runtime::Instance::FunctionInstance *F,
+           Runtime::Instance::MemoryInstance *Memory,
+           Runtime::Instance::FunctionInstance *Realloc);
   /// @}
 
   /// \name Helper Functions for block controls.

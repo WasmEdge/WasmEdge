@@ -1,22 +1,5 @@
  # setup stable diffusion
 message(STATUS "Downloading stable diffusion source")
-if (MSVC)
-  add_compile_options(
-    /wd4996
-    /wd4456
-    /wd4459
-    /wd4100
-    /wd4127
-    /wd4701
-  )
-else()
-	add_compile_options(
-		-Wno-unused-function
-		-Wno-unused-variable
-		-Wno-unused-parameter
-		-Wno-missing-field-initializers
-	)
-endif()
 FetchContent_Declare(
   stable-diffusion
   GIT_REPOSITORY https://github.com/leejet/stable-diffusion.cpp.git
@@ -66,5 +49,23 @@ target_include_directories(wasmedgePluginStableDiffusion
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
-
+if (MSVC)
+target_compile_options(
+    wasmedgePluginStableDiffusion
+    PRIVATE
+    /wd4459
+    /wd4100
+    /wd4127
+    /wd4701
+  )
+else()
+  target_compile_options(
+    wasmedgePluginStableDiffusion
+    PRIVATE
+		-Wno-unused-function
+		-Wno-unused-variable
+		-Wno-unused-parameter
+		-Wno-missing-field-initializers
+	)
+endif()
 install(TARGETS wasmedgePluginStableDiffusion DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)

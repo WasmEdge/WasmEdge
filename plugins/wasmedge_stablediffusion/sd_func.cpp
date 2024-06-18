@@ -254,6 +254,13 @@ Expect<uint32_t> SDTextToImage::body(
                    Results->channel, Results->data, 0, nullptr);
   }
   *BytesWritten = Len;
+  if (OutBufferMaxSize < *BytesWritten) {
+    spdlog::error("[WasmEdge-StableDiffusion] Output buffer is not enough."sv);
+    free(Png);
+    free(Results);
+    free(ControlImageBuffer);
+    return static_cast<uint32_t>(ErrNo::RuntimeError);
+  }
   std::copy_n(Png, *BytesWritten, OutputBufferSpan.data());
   free(Png);
   free(Results);
@@ -275,7 +282,7 @@ Expect<uint32_t> SDImageToImage::body(
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  // Check the input parameter valud.
+  // Check the input parameter valid.
   MEM_SPAN_CHECK(ImageSpan, MemInst, uint8_t, ImagePtr, ImageLen,
                  "Failed when accessing the input image memory."sv)
 
@@ -322,7 +329,7 @@ Expect<uint32_t> SDImageToImage::body(
                               &ImageHeight, &Channel, 3);
   }
 
-  // TODO: Resize image when image size not matches weight and height
+  // TODO: Resize image when image size not matches width and height
   sd_image_t InputImage = {Width, Height, 3, InputImageBuffer};
   sd_image_t *ControlImage = nullptr;
   if (ControlImageLen != 0) {
@@ -348,6 +355,14 @@ Expect<uint32_t> SDImageToImage::body(
                    Results->channel, Results->data, 0, nullptr);
   }
   *BytesWritten = Len;
+  if (OutBufferMaxSize < *BytesWritten) {
+    spdlog::error("[WasmEdge-StableDiffusion] Output buffer is not enough."sv);
+    free(Png);
+    free(Results);
+    free(InputImageBuffer);
+    free(ControlImageBuffer);
+    return static_cast<uint32_t>(ErrNo::RuntimeError);
+  }
   std::copy_n(Png, *BytesWritten, OutputBufferSpan.data());
   free(Png);
   free(Results);

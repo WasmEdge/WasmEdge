@@ -45,7 +45,7 @@ PackageName: cpr
 SPDXID: SPDXRef-cpr
 PackageFileName: ./plugins/wasi_http/CMakeLists.txt
 PackageHomePage: https://github.com/libcpr/cpr
-PackageOriginator: 
+PackageOriginator: Huu Nguyen
 PackageLicenseDeclared: MIT
 PackageDownloadLocation: git@github.com:libcpr/cpr.git
 

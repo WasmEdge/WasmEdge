@@ -302,29 +302,6 @@ TENSORFLOW_LITE_P = "tensorflowlite"
 TENSORFLOW_DEPS = "tensorflow_deps"
 TENSORFLOW_LITE_DEPS = "tensorflow_lite_deps"
 IMAGE = "image"
-EXTENSIONS = [TENSORFLOW]
-
-SUPPORTED_EXTENSIONS = {
-    "Linux" + "x86_64": EXTENSIONS,
-    "Linux" + "amd64": EXTENSIONS,
-    "Linux" + "arm64": EXTENSIONS,
-    "Linux" + "armv8": EXTENSIONS,
-    "Linux" + "aarch64": EXTENSIONS,
-    "Darwin" + "x86_64": EXTENSIONS,
-    "Darwin" + "arm64": EXTENSIONS,
-    "Darwin" + "arm": EXTENSIONS,
-}
-
-SUPPORTED_EXTENSIONS_VERSION = {
-    "Linux" + "x86_64" + TENSORFLOW: VersionString("0.13.0"),
-    "Linux" + "amd64" + TENSORFLOW: VersionString("0.13.0"),
-    "Linux" + "arm64" + TENSORFLOW: VersionString("0.13.0"),
-    "Linux" + "armv8" + TENSORFLOW: VersionString("0.13.0"),
-    "Linux" + "aarch64" + TENSORFLOW: VersionString("0.13.0"),
-    "Darwin" + "x86_64" + TENSORFLOW: VersionString("0.13.0"),
-    "Darwin" + "arm64" + TENSORFLOW: VersionString("0.13.0"),
-    "Darwin" + "arm" + TENSORFLOW: VersionString("0.13.0"),
-}
 
 WASI_NN_OPENVINO = "wasi_nn-openvino"
 WASI_CRYPTO = "wasi_crypto"
@@ -752,24 +729,6 @@ def install_tensorflow_extension(
             )
         )
         download_tf_deps = False
-
-    if compat.prefix() + TENSORFLOW not in SUPPORTED_EXTENSIONS_VERSION:
-        logging.error(
-            "Tensorflow extensions not compatible: {0}".format(compat.prefix())
-        )
-        return -1
-    elif (
-        SUPPORTED_EXTENSIONS_VERSION[compat.prefix() + TENSORFLOW].compare(
-            args.tf_version
-        )
-        > 0
-    ):
-        logging.error(
-            "Min tensorflow extensions version: {0}".format(
-                SUPPORTED_EXTENSIONS_VERSION[compat.prefix() + TENSORFLOW],
-            )
-        )
-        return -1
 
     if compat.machine == "aarch64":
         download_tf = False
@@ -1250,12 +1209,10 @@ class Compat:
         machine=platform.machine(),
         dist_=None,
         version=None,
-        extensions=None,
     ):
         self.platform = platform_  # Linux, Darwin
         self.machine = machine  # x86_64, arm
         self.version = VersionString(version)
-        self.extensions = extensions
         self.release_package = None
         self.install_package_name = None
         self.lib_extension = None
@@ -1342,10 +1299,8 @@ class Compat:
                 self.dist = "darwin"
 
     def __str__(self):
-        return (
-            "Platform:{0}\nMachine:{1}\nVersion:{2}\nExtensions:{3}\nDist:{4}\n".format(
-                self.platform, self.machine, self.version, self.extensions, self.dist
-            )
+        return "Platform:{0}\nMachine:{1}\nVersion:{2}\nDist:{3}\n".format(
+            self.platform, self.machine, self.version, self.dist
         )
 
     if sys.version_info[0] == 2:
@@ -1363,31 +1318,7 @@ class Compat:
             reraise(Exception("Unsupported platform: {0}".format(self.platform)))
         if self.machine not in SUPPORTED_PLATFORM_MACHINE[self.platform]:
             reraise(Exception("Unsupported machine: {0}".format(self.machine)))
-        if self.extensions is not None and len(self.extensions) > 0:
-            if not (
-                set(self.extensions)
-                <= set(SUPPORTED_EXTENSIONS[self.platform + self.machine])
-            ):
-                logging.error("Supported platforms and corresponding extensions:")
-                for key in SUPPORTED_EXTENSIONS:
-                    _extensions = None
-                    if len(SUPPORTED_EXTENSIONS[key]) >= 1:
-                        _extensions = ",".join(SUPPORTED_EXTENSIONS[key])
-                    else:
-                        _extensions = "None"
-                    logging.error(
-                        "Platform: {0} Supported Extensions: {1}".format(
-                            key, _extensions
-                        )
-                    )
-                reraise(
-                    Exception(
-                        "Extensions not supported: {0}. Supported extensions: {1}".format(
-                            self.extensions,
-                            SUPPORTED_EXTENSIONS[self.platform + self.machine],
-                        )
-                    )
-                )
+
         if (
             self.version.compare(
                 version2=SUPPORTED_MIN_VERSION[self.platform + self.machine].version
@@ -1424,7 +1355,6 @@ def main(args):
 
     compat = Compat(
         version=args.version,
-        extensions=args.extensions,
         platform_=args.platform,
         machine=args.machine,
         dist_=args.dist,
@@ -1442,11 +1372,6 @@ def main(args):
         if "all" in args.plugins:
             args.plugins = PLUGINS_AVAILABLE[:]
             logging.debug("Selected all of the available plugins: %s", args.plugins)
-
-    if len(args.extensions) >= 1 and compat.version.compare("0.13.0") != -1:
-        logging.warning(
-            "Extensions exist only for versions below 0.13.0, use plugins instead"
-        )
 
     if compat:
         logging.info("Compatible with current configuration")
@@ -1540,33 +1465,6 @@ def main(args):
                 "WasmEdge installation incorrect: {0}".format(wasmedge_output)
             )
 
-        if (
-            IMAGE in args.extensions
-            or "all" in args.extensions
-            and VersionString(args.version).compare("0.13.0") == -1
-        ):
-            logging.info("Image extensions are deprecated since 0.13.0")
-
-        if (
-            TENSORFLOW in args.extensions
-            or "all" in args.extensions
-            and VersionString(args.version).compare("0.13.0") == -1
-        ):
-            if (
-                install_tensorflow_extension(
-                    args,
-                    compat,
-                    download_tf_=True,
-                    download_tf_deps_=True,
-                    download_tf_lite_=True,
-                    download_tf_lite_deps_=True,
-                )
-                != 0
-            ):
-                logging.error("Error in installing tensorflow extensions")
-            else:
-                logging.info("Tensorflow extension installed")
-
         install_plugins(args, compat)
 
         ldconfig(args, compat)
@@ -1592,17 +1490,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="WasmEdge installation, uninstallation and extensions install"
-    )
-    parser.add_argument(
-        "-e",
-        "--extension",
-        dest="extensions",
-        choices=EXTENSIONS.append("all"),
-        required=False,
-        default=[],
-        nargs="*",
-        help="Supported Extensions - {0}".format(EXTENSIONS),
+        description="WasmEdge installation, uninstallation and plugins install"
     )
     parser.add_argument(
         "-v",

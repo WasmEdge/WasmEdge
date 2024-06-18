@@ -11,12 +11,13 @@
 namespace WasmEdge {
 namespace Executor {
 
+using namespace std::literals;
 using namespace AST::Component;
 
 Expect<void> Executor::instantiate(Runtime::StoreManager &,
                                    Runtime::Instance::ComponentInstance &,
                                    const AST::Component::StartSection &) {
-  spdlog::warn("start section is not supported yet");
+  spdlog::warn("start section is not supported yet"sv);
   return {};
 }
 

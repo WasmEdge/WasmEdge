@@ -11,6 +11,7 @@
 namespace WasmEdge {
 namespace Executor {
 
+using namespace std::literals;
 using namespace AST::Component;
 
 Expect<void>
@@ -75,7 +76,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
         case CoreSort::Module:
         case CoreSort::Instance: {
           spdlog::error(
-              "A module instance cannot exports types, modules, or instances");
+              "A module instance cannot exports types, modules, or instances"sv);
           return Unexpect(ErrCode::Value::CoreInvalidExport);
         }
         }
@@ -103,22 +104,22 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           // TODO: insert below into mapping
           switch (std::get<CoreSort>(S)) {
           case CoreSort::Func:
-            spdlog::warn("incomplete (with {}) core:func", Arg.getName());
+            spdlog::warn("incomplete (with {}) core:func"sv, Arg.getName());
             break;
           case CoreSort::Table:
-            spdlog::warn("incomplete (with {}) core:table", Arg.getName());
+            spdlog::warn("incomplete (with {}) core:table"sv, Arg.getName());
             break;
           case CoreSort::Memory:
-            spdlog::warn("incomplete (with {}) core:memory", Arg.getName());
+            spdlog::warn("incomplete (with {}) core:memory"sv, Arg.getName());
             break;
           case CoreSort::Global:
-            spdlog::warn("incomplete (with {}) core:global", Arg.getName());
+            spdlog::warn("incomplete (with {}) core:global"sv, Arg.getName());
             break;
           case CoreSort::Type:
-            spdlog::warn("incomplete (with {}) core:type", Arg.getName());
+            spdlog::warn("incomplete (with {}) core:type"sv, Arg.getName());
             break;
           case CoreSort::Module:
-            spdlog::warn("incomplete (with {}) core:module", Arg.getName());
+            spdlog::warn("incomplete (with {}) core:module"sv, Arg.getName());
             break;
           case CoreSort::Instance:
             StoreMgr.addNamedModule(
@@ -127,26 +128,27 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           }
         } else if (std::holds_alternative<SortCase>(S)) {
           switch (std::get<SortCase>(S)) {
-          case SortCase::Func: // TODO:
-            spdlog::warn("incomplete (with {}) function", Arg.getName());
+          case SortCase::Func: // TODO: figure out how to do this registry
+            spdlog::warn("incomplete (with {}) function"sv, Arg.getName());
             break;
-          case SortCase::Value: // TODO:
-            spdlog::warn("incomplete (with {}) value", Arg.getName());
+          case SortCase::Value: // TODO: figure out how to do this registry
+            spdlog::warn("incomplete (with {}) value"sv, Arg.getName());
             break;
-          case SortCase::Type: // TODO:
-            spdlog::warn("incomplete (with {}) type", Arg.getName());
+          case SortCase::Type: // TODO: figure out how to do this registry
+            spdlog::warn("incomplete (with {}) type"sv, Arg.getName());
             break;
           case SortCase::Component:
             if (auto Res = StoreMgr.registerComponent(
                     Arg.getName(),
                     CompInst.getComponentInstance(Idx.getSortIdx()));
                 !Res) {
-              spdlog::error("failed to register component instance");
+              spdlog::error("failed to register component instance"sv);
               return Unexpect(Res);
             }
             break;
-          case SortCase::Instance: // TODO:
-            spdlog::warn("incomplete (with {}) instance", Arg.getName());
+          case SortCase::Instance:
+            // TODO: figure out how to do this registry
+            spdlog::warn("incomplete (with {}) instance"sv, Arg.getName());
             break;
           }
         }
@@ -161,7 +163,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
     } else {
       std::get<CompInlineExports>(InstExpr).getExports();
       // TODO: complete inline exports
-      spdlog::warn("incomplete component inline exports");
+      spdlog::warn("incomplete component inline exports"sv);
     }
   }
   return {};

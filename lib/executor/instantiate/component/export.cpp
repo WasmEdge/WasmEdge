@@ -11,6 +11,8 @@
 namespace WasmEdge {
 namespace Executor {
 
+using namespace std::literals;
+
 Expect<void>
 Executor::instantiate(Runtime::StoreManager &,
                       Runtime::Instance::ComponentInstance &CompInst,
@@ -33,7 +35,7 @@ Executor::instantiate(Runtime::StoreManager &,
       default:
         // Any exported sortidx, which disallows core sorts other than core
         // module.
-        spdlog::error("export core sort other than core module is invalid.");
+        spdlog::error("export core sort other than core module is invalid."sv);
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_CompExport));
         return Unexpect(ErrCode::Value::InvalidCoreSort);
       }
@@ -44,8 +46,12 @@ Executor::instantiate(Runtime::StoreManager &,
         CompInst.addExport(ExportName, Func);
         break;
       }
-      default: // TODO:
-        spdlog::warn("incomplete sort {}",
+      default: // TODO: There are four sorts haven't get handled
+               // 1. Value
+               // 2. Type
+               // 3. Component
+               // 4. Instance
+        spdlog::warn("incomplete sort {}"sv,
                      static_cast<Byte>(std::get<SortCase>(S)));
         break;
       }

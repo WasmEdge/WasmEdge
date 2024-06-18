@@ -12,6 +12,7 @@
 namespace WasmEdge {
 namespace Executor {
 
+using namespace std::literals;
 using namespace AST::Component;
 using namespace Runtime;
 
@@ -53,7 +54,7 @@ void pushType(Runtime::Instance::ComponentInstance &Comp,
   } else {
     auto Idx = std::get<TypeIndex>(T);
     const auto &Ty = Comp.getType(Idx);
-    spdlog::warn("Type {} is not handled yet", Ty);
+    spdlog::warn("Type {} is not handled yet"sv, Ty);
   }
 }
 
@@ -89,7 +90,7 @@ public:
     auto &FT = DefType.getCompositeType().getFuncType();
     // The convert is simply let component type to internal type.
     FT = convert(Comp, DefinedType);
-    spdlog::info("lifted: {}", FT);
+    spdlog::info("lifted: {}"sv, FT);
   }
 
   Expect<void> run(const Runtime::CallingFrame &, Span<const ValVariant> Args,
@@ -209,7 +210,7 @@ public:
       }
     }
 
-    spdlog::info("lower: {}", FuncType);
+    spdlog::info("lower: {}"sv, FuncType);
   }
 
   Expect<void> run(const Runtime::CallingFrame &, Span<const ValVariant> Args,
@@ -308,7 +309,7 @@ Executor::instantiate(Runtime::StoreManager &,
       Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
       for (auto &Opt : Opts) {
         if (std::holds_alternative<StringEncoding>(Opt)) {
-          spdlog::warn("incomplete canonical option `string-encoding`");
+          spdlog::warn("incomplete canonical option `string-encoding`"sv);
         } else if (std::holds_alternative<Memory>(Opt)) {
           auto MemIdx = std::get<Memory>(Opt).getMemIndex();
           Mem = CompInst.getCoreMemoryInstance(MemIdx);
@@ -325,7 +326,7 @@ Executor::instantiate(Runtime::StoreManager &,
       if (unlikely(!std::holds_alternative<FuncType>(AstFuncType))) {
         // It doesn't make sense if one tries to lift an instance not a
         // function, so unlikely happen.
-        spdlog::error("cannot lift a non-function");
+        spdlog::error("cannot lift a non-function"sv);
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
         return Unexpect(ErrCode::Value::InvalidCanonOption);
       }
@@ -344,7 +345,7 @@ Executor::instantiate(Runtime::StoreManager &,
       const auto &Opts = L.getOptions();
       for (auto &Opt : Opts) {
         if (std::holds_alternative<StringEncoding>(Opt)) {
-          spdlog::warn("incomplete canonical option `string-encoding`");
+          spdlog::warn("incomplete canonical option `string-encoding`"sv);
           return Unexpect(ErrCode::Value::InvalidCanonOption);
         } else if (std::holds_alternative<Memory>(Opt)) {
           auto MemIdx = std::get<Memory>(Opt).getMemIndex();
@@ -361,13 +362,13 @@ Executor::instantiate(Runtime::StoreManager &,
       auto *FuncInst = CompInst.getFunctionInstance(L.getFuncIndex());
       CompInst.addCoreFunctionInstance(lowering(FuncInst, Mem, ReallocFunc));
     } else if (std::holds_alternative<ResourceNew>(C)) {
-      spdlog::warn("resource is not supported yet");
+      spdlog::warn("resource is not supported yet"sv);
       return Unexpect(ErrCode::Value::InvalidCanonOption);
     } else if (std::holds_alternative<ResourceDrop>(C)) {
-      spdlog::warn("resource is not supported yet");
+      spdlog::warn("resource is not supported yet"sv);
       return Unexpect(ErrCode::Value::InvalidCanonOption);
     } else if (std::holds_alternative<ResourceRep>(C)) {
-      spdlog::warn("resource is not supported yet");
+      spdlog::warn("resource is not supported yet"sv);
       return Unexpect(ErrCode::Value::InvalidCanonOption);
     }
   }

@@ -3,11 +3,13 @@
 
 #include "runtime/instance/module.h"
 
+#include <string_view>
 #include <variant>
 
 namespace WasmEdge {
 namespace Executor {
 
+using namespace std::literals;
 using namespace AST::Component;
 
 Expect<void>
@@ -48,20 +50,20 @@ Executor::instantiate(Runtime::StoreManager &,
           break;
         }
         case CoreSort::Global:
-          spdlog::warn("incomplete core alias sort: global");
+          spdlog::warn("incomplete core alias sort: global"sv);
           break;
         case CoreSort::Type:
-          spdlog::warn("incomplete core alias sort: type");
+          spdlog::warn("incomplete core alias sort: type"sv);
           break;
         case CoreSort::Module:
-          spdlog::warn("incomplete core alias sort: module");
+          spdlog::warn("incomplete core alias sort: module"sv);
           break;
         case CoreSort::Instance:
-          spdlog::warn("incomplete core alias sort: instance");
+          spdlog::warn("incomplete core alias sort: instance"sv);
           break;
         }
       } else {
-        spdlog::warn("incomplete alias target outer");
+        spdlog::warn("incomplete alias target outer"sv);
       }
     } else if (std::holds_alternative<SortCase>(S)) {
       if (std::holds_alternative<AliasTargetExport>(T)) {
@@ -76,16 +78,16 @@ Executor::instantiate(Runtime::StoreManager &,
         }
         case SortCase::Value: // TODO: need real use cases to analysis how to
                               // implement these cases
-          spdlog::warn("incomplete alias sort target export: value");
+          spdlog::warn("incomplete alias sort target export: value"sv);
           break;
         case SortCase::Type:
-          spdlog::warn("incomplete alias sort target export: type");
+          spdlog::warn("incomplete alias sort target export: type"sv);
           break;
         case SortCase::Component:
-          spdlog::warn("incomplete alias sort target export: component");
+          spdlog::warn("incomplete alias sort target export: component"sv);
           break;
         case SortCase::Instance:
-          spdlog::warn("incomplete alias sort target export: instance");
+          spdlog::warn("incomplete alias sort target export: instance"sv);
           break;
         }
       } else {
@@ -100,16 +102,16 @@ Executor::instantiate(Runtime::StoreManager &,
         }
         case SortCase::Value: // TODO: need real use cases to analysis how to
                               // implement these cases
-          spdlog::warn("incomplete alias sort outer: value");
+          spdlog::warn("incomplete alias sort outer: value"sv);
           break;
         case SortCase::Type:
-          spdlog::warn("incomplete alias sort outer: type");
+          spdlog::warn("incomplete alias sort outer: type"sv);
           break;
         case SortCase::Component:
-          spdlog::warn("incomplete alias sort outer: component");
+          spdlog::warn("incomplete alias sort outer: component"sv);
           break;
         case SortCase::Instance:
-          spdlog::warn("incomplete alias sort outer: instance");
+          spdlog::warn("incomplete alias sort outer: instance"sv);
           break;
         }
       }

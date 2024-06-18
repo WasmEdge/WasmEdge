@@ -3,11 +3,13 @@
 
 #include "runtime/instance/module.h"
 
+#include <string_view>
 #include <variant>
 
 namespace WasmEdge {
 namespace Executor {
 
+using namespace std::literals;
 using namespace AST::Component;
 
 Expect<void>
@@ -24,20 +26,20 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
 
       switch (TypeIndex.getKind()) {
       case IndexKind::CoreType: // TODO
-        spdlog::warn("incomplete import core type");
+        spdlog::warn("incomplete import core type"sv);
         break;
       case IndexKind::FuncType: // TODO
-        spdlog::warn("incomplete import function");
+        spdlog::warn("incomplete import function"sv);
         break;
       case IndexKind::ComponentType: // TODO
-        spdlog::warn("incomplete import component");
+        spdlog::warn("incomplete import component"sv);
         break;
       case IndexKind::InstanceType:
         auto CompName = ImportStatement.getName();
         const auto *ImportedCompInst = StoreMgr.findComponent(CompName);
         if (unlikely(ImportedCompInst == nullptr)) {
           spdlog::error(ErrCode::Value::UnknownImport);
-          spdlog::error("component name: {}", CompName);
+          spdlog::error("component name: {}"sv, CompName);
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_CompImport));
           return Unexpect(ErrCode::Value::UnknownImport);
         }
@@ -46,11 +48,11 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       }
     } else if (std::holds_alternative<TypeBound>(Desc)) {
       // TODO: import a type or resource
-      spdlog::warn("incomplete import type bound");
+      spdlog::warn("incomplete import type bound"sv);
     } else if (std::holds_alternative<ValueType>(Desc)) {
       // TODO: import a value and check its type, this is a new concept, so a
       // plugin of component should allow this
-      spdlog::warn("incomplete import value type");
+      spdlog::warn("incomplete import value type"sv);
     }
   }
   return {};

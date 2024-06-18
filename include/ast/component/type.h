@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2023 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/ast/component/type.h - type class definitions ----===//
 //
@@ -503,7 +503,7 @@ struct fmt::formatter<WasmEdge::AST::Component::ComponentType>
   format(const WasmEdge::AST::Component::ComponentType &,
          fmt::format_context &Ctx) const noexcept {
     using namespace std::literals;
-    return formatter<std::string_view>::format("component type", Ctx);
+    return formatter<std::string_view>::format("component type"sv, Ctx);
   }
 };
 
@@ -556,10 +556,14 @@ struct fmt::formatter<WasmEdge::AST::Component::DefType>
     return formatter<std::string_view>::format(
         std::visit(
             Overloaded{
-                [](const DefValType &Arg) { return fmt::format("{}", Arg); },
-                [](const FuncType &Arg) { return fmt::format("{}", Arg); },
-                [](const ComponentType &Arg) { return fmt::format("{}", Arg); },
-                [](const InstanceType &Arg) { return fmt::format("{}", Arg); }},
+                [](const DefValType &Arg) { return fmt::format("{}"sv, Arg); },
+                [](const FuncType &Arg) { return fmt::format("{}"sv, Arg); },
+                [](const ComponentType &Arg) {
+                  return fmt::format("{}"sv, Arg);
+                },
+                [](const InstanceType &Arg) {
+                  return fmt::format("{}"sv, Arg);
+                }},
             Type),
         Ctx);
   }

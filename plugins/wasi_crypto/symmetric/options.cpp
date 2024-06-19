@@ -18,7 +18,7 @@ constexpr std::array<std::string_view, 3> ValidNames{"context"sv, "salt"sv,
 std::string toLower(std::string_view Name) noexcept {
   std::string Ret{Name};
   std::transform(Ret.begin(), Ret.end(), Ret.begin(),
-                 [](char C) { return std::tolower(C); });
+                 [](char C) { return static_cast<char>(std::tolower(C)); });
   return Ret;
 }
 

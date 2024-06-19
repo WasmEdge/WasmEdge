@@ -65,7 +65,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/orca_mini.gguf
       MD5=f895f00678bfbf89f70d6d25f20a7b5f
     )
-    if(MSVC)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       target_compile_options(wasiNNTests PUBLIC
         /wd4067 # unexpected tokens following preprocessor directive - expected a newline
       )

@@ -90,22 +90,26 @@ WasiNNEnvironment::WasiNNEnvironment() noexcept {
     std::vector<std::vector<uint8_t>> Models;
     Models.reserve(Paths.size());
     std::transform(Encode.begin(), Encode.end(), Encode.begin(),
-                   [](unsigned char C) { return std::tolower(C); });
+                   [](unsigned char C) {
+                     return static_cast<unsigned char>(std::tolower(C));
+                   });
     std::transform(Target.begin(), Target.end(), Target.begin(),
-                   [](unsigned char C) { return std::tolower(C); });
+                   [](unsigned char C) {
+                     return static_cast<unsigned char>(std::tolower(C));
+                   });
     auto Backend = BackendMap.find(Encode);
     auto Device = DeviceMap.find(Target);
     if (Backend != BackendMap.end() && Device != DeviceMap.end()) {
-      for (const std::string &Path : Paths) {
+      for (const std::string &P : Paths) {
         if (Backend->second == Backend::GGML) {
           // We write model path to model data to avoid file IO in llama.cpp.
-          std::string ModelPath = "preload:" + Path;
+          std::string ModelPath = "preload:" + P;
           std::vector<uint8_t> ModelPathData(ModelPath.begin(),
                                              ModelPath.end());
           Models.push_back(std::move(ModelPathData));
         } else {
           std::vector<uint8_t> Model;
-          if (load(std::filesystem::u8path(Path), Model)) {
+          if (load(std::filesystem::u8path(P), Model)) {
             Models.push_back(std::move(Model));
           }
         }

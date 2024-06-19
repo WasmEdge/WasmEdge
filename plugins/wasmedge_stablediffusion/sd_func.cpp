@@ -48,7 +48,24 @@ namespace StableDiffusion {
     spdlog::error("[WasmEdge-StableDiffusion] "sv Message);                    \
     return static_cast<uint32_t>(ErrNo::MissingMemory);                        \
   }
-
+bool parameterCheck(SDEnviornment &Env, uint32_t width, uint32_t height,
+                    uint32_t SessionId) {
+  if (SessionId < 0 || SessionId >= Env.getContextSize()) {
+    spdlog::error("[WasmEdge-StableDiffusion] Session ID is invalid.");
+    return false;
+  }
+  if (width <= 0 || width % 64 != 0) {
+    spdlog::error("[WasmEdge-StableDiffusion] Width must be a multiple of 64 "
+                  "and greater than 0");
+    return false;
+  }
+  if (height <= 0 || height % 64 != 0) {
+    spdlog::error("[WasmEdge-StableDiffusion] Height must be a multiple of 64 "
+                  "and greater than 0");
+    return false;
+  }
+  return true;
+}
 sd_image_t *readControlImage(Span<uint8_t> ControlImage,
                              uint8_t *ControlImageBuf, int Width, int Height,
                              bool CannyPreprocess) {
@@ -201,9 +218,10 @@ Expect<uint32_t> SDTextToImage::body(
     uint32_t SampleSteps, uint32_t Seed, uint32_t BatchCount,
     float ControlStrength, float StyleRatio, uint32_t NormalizeInput,
     uint32_t InputIdImagesPathPtr, uint32_t InputIdImagesPathLen,
-    uint32_t CannyPreprocess, uint32_t OutputPathPtr, uint32_t OutputPathLen,
-    uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
-    uint32_t BytesWrittenPtr) {
+    uint32_t CannyPreprocess, uint32_t UpscaleModelPathPtr,
+    uint32_t UpscaleModelPathLen, uint32_t UpscaleRepeats,
+    uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
+    uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
   // Check the input model buffer.
@@ -228,6 +246,9 @@ Expect<uint32_t> SDTextToImage::body(
   std::string InputIdImagesPath(InputIdImagesPathSpan.begin(),
                                 InputIdImagesPathSpan.end());
   std::string OutputPath(OutputPathSpan.begin(), OutputPathSpan.end());
+  if (!parameterCheck(Env, Width, Height, SessionId)) {
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  }
   sd_ctx_t *SDCtx = Env.getContext(SessionId);
   sd_image_t *Results = nullptr;
   sd_image_t *ControlImage = nullptr;
@@ -245,6 +266,7 @@ Expect<uint32_t> SDTextToImage::body(
               Width, Height, sample_method_t(SampleMethod), SampleSteps, Seed,
               BatchCount, ControlImage, ControlStrength, StyleRatio,
               NormalizeInput, InputIdImagesPath.data());
+  // TODO upscale image
   int Len;
   unsigned char *Png = stbi_write_png_to_mem(
       reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
@@ -276,9 +298,10 @@ Expect<uint32_t> SDImageToImage::body(
     uint32_t SampleSteps, float Strength, uint32_t Seed, uint32_t BatchCount,
     float ControlStrength, float StyleRatio, uint32_t NormalizeInput,
     uint32_t InputIdImagesPathPtr, uint32_t InputIdImagesPathLen,
-    uint32_t CannyPreprocess, uint32_t OutputPathPtr, uint32_t OutputPathLen,
-    uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
-    uint32_t BytesWrittenPtr) {
+    uint32_t CannyPreprocess, uint32_t UpscaleModelPathPtr,
+    uint32_t UpscaleModelPathLen, uint32_t UpscaleRepeats,
+    uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
+    uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
 
@@ -301,6 +324,9 @@ Expect<uint32_t> SDImageToImage::body(
                 "Failed when accessing the return bytes written memory."sv)
   MEM_SPAN_CHECK(OutputPathSpan, MemInst, char, OutputPathPtr, OutputPathLen,
                  "Failed when accessing the output path memory."sv)
+  if (!parameterCheck(Env, Width, Height, SessionId)) {
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  }
   sd_ctx_t *SDCtx = Env.getContext(SessionId);
   std::string Prompt(PromptSpan.begin(), PromptSpan.end());
   std::string NegativePrompt(NegativePromptSpan.begin(),
@@ -346,6 +372,7 @@ Expect<uint32_t> SDImageToImage::body(
                     sample_method_t(SampleMethod), SampleSteps, Strength, Seed,
                     BatchCount, ControlImage, ControlStrength, StyleRatio,
                     NormalizeInput, InputIdImagesPath.data());
+  // TODO upscale image
   int Len;
   unsigned char *Png = stbi_write_png_to_mem(
       reinterpret_cast<const unsigned char *>(Results), 0, Results->width,

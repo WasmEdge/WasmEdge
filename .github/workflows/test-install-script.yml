@@ -31,14 +31,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: CentOS 8 Stream
-            host_runner: ubuntu-latest
-            package_manager: yum
-            docker_image: quay.io/centos/centos:stream8
-            python_package: python3 python2
-            python2_ex: python2
-            python3_ex: python3
-            extra_setup_command: yum install -y which
           - name: CentOS 7
             host_runner: ubuntu-latest
             package_manager: yum

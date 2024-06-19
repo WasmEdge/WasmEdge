@@ -49,7 +49,7 @@ void pushType(Runtime::Instance::ComponentInstance &Comp,
       Types.push_back(ValType(TypeCode::F64));
       break;
     case PrimValType::String:
-      Types.push_back(ValType(TypeCode::String));
+      Types.push_back(InterfaceType(TypeCode::String));
       break;
     }
   } else {
@@ -193,8 +193,7 @@ public:
         FuncType.getParamTypes().push_back(TypeCode::I32);
         break;
       default:
-        // FIXME: need to narrowing the type
-        // FuncType.getParamTypes().push_back(ParamTy);
+        FuncType.getParamTypes().push_back(ParamTy);
         break;
       }
     }
@@ -206,8 +205,7 @@ public:
         FuncType.getReturnTypes().push_back(TypeCode::I32);
         break;
       default:
-        // FIXME: need to narrowing the type
-        // FuncType.getReturnTypes().push_back(ReturnTy);
+        FuncType.getReturnTypes().push_back(ReturnTy);
         break;
       }
     }
@@ -279,7 +277,11 @@ public:
 
 private:
   Executor *Exec;
+  /* HigherFunc: a component function we are wrapping
+   */
   Instance::Component::FunctionInstance *HigherFunc;
+  /* Memory: the shared memory from a certain core module defined in component
+   */
   Instance::MemoryInstance *Memory;
   Instance::FunctionInstance *Realloc;
 };

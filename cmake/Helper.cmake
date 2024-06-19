@@ -305,38 +305,38 @@ function(wasmedge_setup_simdjson)
       GIT_TAG  tags/v3.9.1
       GIT_SHALLOW TRUE)
 
-    if(MSVC)
-      if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        add_compile_options(
-          -Wno-undef
-          -Wno-suggest-override
-          -Wno-documentation
-          -Wno-sign-conversion
-          -Wno-extra-semi-stmt
-          -Wno-old-style-cast
-          -Wno-error=unused-parameter
-          -Wno-error=unused-template
-          -Wno-conditional-uninitialized
-          -Wno-implicit-int-conversion
-          -Wno-shorten-64-to-32
-          -Wno-range-loop-bind-reference
-          -Wno-format-nonliteral
-          -Wno-unused-exception-parameter
-          -Wno-unused-macros
-          -Wno-unused-member-function
-          -Wno-missing-prototypes
-        )
-      elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-        add_compile_options(
-          /wd4100 # unreferenced formal parameter
-          /wd4505 # unreferenced local function has been removed
-        )
-      endif()
-    endif()
-
     FetchContent_MakeAvailable(simdjson)
     set_property(TARGET simdjson PROPERTY POSITION_INDEPENDENT_CODE ON)
-
     message(STATUS "Downloading SIMDJSON source -- done")
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+      target_compile_options(simdjson
+        PUBLIC
+        -Wno-undef
+        -Wno-suggest-override
+        -Wno-documentation
+        -Wno-sign-conversion
+        -Wno-extra-semi-stmt
+        -Wno-old-style-cast
+        -Wno-error=unused-parameter
+        -Wno-error=unused-template
+        -Wno-conditional-uninitialized
+        -Wno-implicit-int-conversion
+        -Wno-shorten-64-to-32
+        -Wno-range-loop-bind-reference
+        -Wno-format-nonliteral
+        -Wno-unused-exception-parameter
+        -Wno-unused-macros
+        -Wno-unused-member-function
+        -Wno-missing-prototypes
+      )
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+      target_compile_options(simdjson
+        PUBLIC
+        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4100> # unreferenced formal parameter
+        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4505> # unreferenced local function has been removed
+      )
+    endif()
+
   endif()
 endfunction()

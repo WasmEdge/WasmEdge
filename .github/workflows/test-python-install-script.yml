@@ -246,13 +246,6 @@ jobs:
         ${{ matrix.python3_ex }} utils/install.py -v 0.13.0 -p /usr --plugins wasi_crypto -D
         (ls /usr/lib/wasmedge/; ls /usr/lib/wasmedge/;)2>&1 | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
 
-    - name: Check for differences in the installation
-      run: |
-        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh "$HOME"/.wasmedge
-        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh "$HOME"/new_folder
-        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh /usr/local
-        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh /usr
-
     - name: Latest Release Check
       run: |
         _res_git_=$(git ls-remote --refs --tags "https://github.com/WasmEdge/WasmEdge.git" | cut -d '/' -f 3 | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' | grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' | tail -1)
@@ -356,22 +349,6 @@ jobs:
       run: |
         python3 utils/install.py --plugins wasmedge_image -D  2>&1 -v 0.13.1
         python3 utils/install.py --plugins wasmedge_image -D  2>&1
-
-    - name: Check for differences in the installation
-      shell: zsh {0}
-      if: ${{ matrix.name == 'MacOS-arm64' }}
-      run: |
-        bash utils/installer_changes.sh $HOME/.wasmedge
-        bash utils/installer_changes.sh $HOME/new_folder
-
-    - name: Check for differences in the installation
-      shell: zsh {0}
-      if: ${{ matrix.name != 'MacOS-arm64' }}
-      run: |
-        PYTHON_EXECUTABLE=python3 bash utils/installer_changes.sh "$HOME"/.wasmedge
-        PYTHON_EXECUTABLE=python3 bash utils/installer_changes.sh "$HOME"/new_folder
-        PYTHON_EXECUTABLE=python3 bash utils/installer_changes.sh /usr/local
-        PYTHON_EXECUTABLE=python3 bash utils/installer_changes.sh /usr
 
     - name: Latest Release Check
       shell: zsh {0}

@@ -26,6 +26,7 @@ public:
 
   /// Getter of function type.
   const AST::FunctionType &getFuncType() const noexcept { return FuncType; }
+  AST::FunctionType &getFuncType() noexcept { return FuncType; }
 
 protected:
   AST::FunctionType FuncType;
@@ -33,6 +34,8 @@ protected:
 
 template <typename T> class HostFunction : public HostFunctionBase {
 public:
+  HostFunction() : HostFunctionBase() { initializeFuncType(); }
+
   Expect<void> run(Span<const ValInterface> Args,
                    Span<ValInterface> Rets) override {
     using F = FuncTraits<decltype(&T::body)>;
@@ -70,6 +73,7 @@ protected:
   }
 
   void initializeFuncType() {
+    auto &FuncType = getFuncType();
     using F = FuncTraits<decltype(&T::body)>;
     using ArgsT = typename F::ArgsT;
     FuncType.getParamTypes().reserve(F::ArgsN);
@@ -129,14 +133,14 @@ private:
   template <typename Tuple, std::size_t... Indices>
   void pushValType(std::index_sequence<Indices...>) {
     (FuncType.getParamTypes().push_back(
-         ValTypeFromType<std::tuple_element_t<Indices, Tuple>>()),
+         Wit<std::tuple_element_t<Indices, Tuple>>::type()),
      ...);
   }
 
   template <typename Tuple, std::size_t... Indices>
   void pushRetType(std::index_sequence<Indices...>) {
     (FuncType.getReturnTypes().push_back(
-         ValTypeFromType<std::tuple_element_t<Indices, Tuple>>()),
+         Wit<std::tuple_element_t<Indices, Tuple>>::type()),
      ...);
   }
 };

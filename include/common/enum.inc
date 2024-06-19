@@ -1175,8 +1175,9 @@ T(Sub, 0x50, "sub")                // -0x30 for sub type
 T(SubFinal, 0x4F, "sub_final")     // -0x31 for sub type
 T(Rec, 0x4E, "rec")                // -0x32 for recursive type
 T(Epsilon, 0x40, "-")              // -0x40 for result type
-// component model types
+// component model: wasm interface types
 T(String, 0x80, "string") // string type
+T(List, 0x81, "list")     // list type
 
 #undef T
 #endif // UseTypeCode

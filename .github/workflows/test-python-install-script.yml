@@ -45,14 +45,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: CentOS 8 Stream
-            host_runner: ubuntu-latest
-            package_manager: yum
-            docker_image: quay.io/centos/centos:stream8
-            python_package: python3 python2
-            python2_ex: python2
-            python3_ex: python3
-            extra_setup_command: yum install -y diffutils
           - name: CentOS 7
             host_runner: ubuntu-latest
             package_manager: yum
@@ -169,10 +161,10 @@ jobs:
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge WASI-NN GGML Plugin not found" && exit 1)
 
         # With the build number
-        ${{ matrix.python2_ex }} utils/install.py -v 0.13.5 --plugins wasi_nn-ggml-b2781
+        ${{ matrix.python2_ex }} utils/install.py -v 0.13.5 --plugins wasi_nn-ggml-b3075
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge WASI-NN GGML Plugin not found" && exit 1)
 
-        ${{ matrix.python3_ex }} utils/install.py -v 0.13.5 --plugins wasi_nn-ggml-b2781
+        ${{ matrix.python3_ex }} utils/install.py -v 0.13.5 --plugins wasi_nn-ggml-b3075
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Wasmedge WASI-NN GGML Plugin not found" && exit 1)
     - name: Plugin install test - WasmEdge WASI-NN-GGML-noavx
       if: ${{ matrix.name == 'Ubuntu 20.04' }}

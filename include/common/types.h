@@ -315,7 +315,7 @@ private:
 class InterfaceType : public ValType {
 public:
   InterfaceType(TypeCode C) : ValType(C) {}
-  InterfaceType(TypeCode C, std::vector<ValType> Args)
+  InterfaceType(TypeCode C, std::initializer_list<ValType> Args)
       : ValType(C), TyArgs(Args) {}
 
   Span<const ValType> getArgs() const noexcept { return TyArgs; }

@@ -27,6 +27,7 @@ public:
   };
   uint32_t addContext(sd_ctx_t *Ctx) noexcept;
   sd_ctx_t *getContext(const uint32_t Id) noexcept;
+  size_t getContextSize() noexcept { return Contexts.size(); }
 
 private:
   std::vector<sd_ctx_t *> Contexts;

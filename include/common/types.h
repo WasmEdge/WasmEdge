@@ -580,9 +580,20 @@ template <> inline ValType ValTypeFromType<float>() noexcept {
 template <> inline ValType ValTypeFromType<double>() noexcept {
   return ValType(TypeCode::F64);
 }
-template <> inline ValType ValTypeFromType<std::string>() noexcept {
-  return InterfaceType(TypeCode::String);
-}
+
+template <typename T> struct Wit {
+  static inline ValType type() noexcept { return ValTypeFromType<T>(); }
+};
+template <> struct Wit<std::string> {
+  static inline ValType type() noexcept {
+    return InterfaceType(TypeCode::String);
+  }
+};
+template <typename T> struct Wit<std::vector<T>> {
+  static inline ValType type() noexcept {
+    return InterfaceType(TypeCode::List, Wit<T>::type());
+  }
+};
 
 // <<<<<<<< Template to get value type from type <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

@@ -105,10 +105,16 @@ private:
     static inline constexpr const bool hasReturn = false;
   };
 
+  template <typename ArgT> static ArgT convert(const ValInterface &V) {
+    return std::get<ValVariant>(V).template get<ArgT>();
+  }
+  template <> static std::string convert<std::string>(const ValInterface &V) {
+    return std::get<std::string>(V);
+  }
   template <typename Tuple, typename SpanT, size_t... Indices>
   static Tuple toTuple(SpanT &&Args, std::index_sequence<Indices...>) {
-    return Tuple(std::forward<SpanT>(Args)[Indices]
-                     .template get<std::tuple_element_t<Indices, Tuple>>()...);
+    return Tuple(convert<std::tuple_element_t<Indices, Tuple>>(
+        std::forward<SpanT>(Args)[Indices])...);
   }
 
   template <typename Tuple, typename SpanT, size_t... Indices>

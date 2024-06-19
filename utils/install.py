@@ -680,42 +680,19 @@ def is_default_path(args):
 def install_tensorflow_extension(
     args,
     compat,
-    download_tf_=False,
-    download_tf_lite_=False,
     download_tf_deps_=False,
     download_tf_lite_deps_=False,
 ):
     global CONST_release_pkg, CONST_lib_ext, CONST_lib_dir, CONST_env_path
 
-    download_tf = download_tf_
-    download_tf_lite = download_tf_lite_
     download_tf_deps = download_tf_deps_
     download_tf_lite_deps = download_tf_lite_deps_
 
     logging.debug(
-        "install_tensorflow_extension: %s %s %s %s",
-        download_tf,
-        download_tf_lite,
+        "install_tensorflow_extension: %s %s",
         download_tf_deps,
         download_tf_lite_deps,
     )
-
-    if VersionString(args.version).compare("0.13.0") >= 0:
-        # if greater than 0.13.0 then No WasmEdge-tensorflow and WasmEdge-tensorflow-tools
-        download_tf = False
-        download_tf_lite = False
-        logging.debug("No WasmEdge-tensorflow and WasmEdge-tensorflow-tools")
-
-    if (
-        not get_remote_version_availability(
-            "second-state/WasmEdge-tensorflow", args.tf_version
-        )
-        and download_tf
-    ):
-        logging.debug(
-            "Tensorflow extension version not found: {0}".format(args.tf_version)
-        )
-        download_tf = False
 
     if (
         not get_remote_version_availability(
@@ -731,7 +708,6 @@ def install_tensorflow_extension(
         download_tf_deps = False
 
     if compat.machine == "aarch64":
-        download_tf = False
         download_tf_deps = False
         logging.warning(
             "Cannot download WasmEdge Tensorflow, Tools & Deps because it is aarch64"
@@ -744,20 +720,6 @@ def install_tensorflow_extension(
     if VersionString(args.version).compare("0.11.1") >= 0:
         local_release_package = compat.release_package_wasmedge
         logging.debug("Downloading dist package: {0}".format(local_release_package))
-
-    if download_tf:
-        tf_pkg = "WasmEdge-tensorflow-" + args.tf_version + "-" + local_release_package
-        logging.info("Downloading tensorflow extension")
-        download_url(CONST_urls[TENSORFLOW], join(TEMP_PATH, tf_pkg), show_progress)
-        # Extract archive
-        extract_archive(
-            join(TEMP_PATH, tf_pkg),
-            args.path,
-            join(TEMP_PATH, "WasmEdge-tensorflow"),
-            env_file_path=CONST_env_path,
-            remove_finished=True,
-        )
-        copytree(join(TEMP_PATH, "WasmEdge-tensorflow"), args.path)
 
     if download_tf_deps:
         tf_deps_pkg = (
@@ -781,24 +743,6 @@ def install_tensorflow_extension(
             remove_finished=True,
         )
         copytree(join(TEMP_PATH, "WasmEdge-tensorflow-deps"), args.path)
-
-    if download_tf_lite:
-        tf_lite_pkg = (
-            "WasmEdge-tensorflowlite-" + args.tf_version + "-" + local_release_package
-        )
-        logging.info("Downloading tensorflow-lite extension")
-        download_url(
-            CONST_urls[TENSORFLOW_LITE], join(TEMP_PATH, tf_lite_pkg), show_progress
-        )
-        # Extract archive
-        extract_archive(
-            join(TEMP_PATH, tf_lite_pkg),
-            args.path,
-            join(TEMP_PATH, "WasmEdge-tensorflow-lite"),
-            env_file_path=CONST_env_path,
-            remove_finished=True,
-        )
-        copytree(join(TEMP_PATH, "WasmEdge-tensorflow-lite"), args.path)
 
     if download_tf_lite_deps:
         tf_deps_lite_pkg = (

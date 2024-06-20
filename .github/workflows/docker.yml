@@ -69,7 +69,7 @@ jobs:
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
       - name: Bake and Push
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v5
         with:
           files: utils/docker/docker-bake.ci-image-base
           push: ${{ github.event_name != 'pull_request' }}

@@ -133,14 +133,14 @@ private:
   template <typename Tuple, std::size_t... Indices>
   void pushValType(std::index_sequence<Indices...>) {
     (FuncType.getParamTypes().push_back(
-         ValTypeFromType<std::tuple_element_t<Indices, Tuple>>()),
+         Wit<std::tuple_element_t<Indices, Tuple>>::type()),
      ...);
   }
 
   template <typename Tuple, std::size_t... Indices>
   void pushRetType(std::index_sequence<Indices...>) {
     (FuncType.getReturnTypes().push_back(
-         ValTypeFromType<std::tuple_element_t<Indices, Tuple>>()),
+         Wit<std::tuple_element_t<Indices, Tuple>>::type()),
      ...);
   }
 };

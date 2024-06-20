@@ -138,19 +138,18 @@ public:
 
     uint32_t RI = 0;
     uint32_t TakeI = 0;
-    auto &ResultList = *Res;
-    for (auto &HighTy : HigherFuncType.getReturnTypes()) {
+    auto ResultList = *Res;
+    for (auto const &HighTy : HigherFuncType.getReturnTypes()) {
       switch (HighTy.getCode()) {
       case TypeCode::String: {
         auto Idx = ResultList[TakeI++].first.get<uint32_t>();
         auto Size = ResultList[TakeI++].first.get<uint32_t>();
         auto Str = Memory->getStringView(Idx, Size);
-        Rets[RI++] = std::string(Str.begin(), Str.end());
+        Rets[RI++].emplace<std::string>(std::string(Str.begin(), Str.end()));
         break;
       }
       default: {
-        auto &R = ResultList[TakeI++];
-        Rets[RI++] = R.first;
+        Rets[RI++].emplace<ValVariant>(ResultList[TakeI++].first);
         break;
       }
       }

@@ -137,6 +137,10 @@ public:
       Inner.Data.Code = TypeCode::String;
       Inner.Data.HTCode = C;
       break;
+    case TypeCode::List:
+      Inner.Data.Code = TypeCode::List;
+      Inner.Data.HTCode = C;
+      break;
     case TypeCode::Ref:
     case TypeCode::RefNull:
       // Reference type with heap immediates should use the constructors below.
@@ -452,7 +456,7 @@ using ValVariant =
             int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t,
             RefVariant>;
 
-using ValInterface = std::variant<ValVariant, std::string>;
+using ValInterface = std::variant<std::string, ValVariant>;
 
 // <<<<<<<< Value definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

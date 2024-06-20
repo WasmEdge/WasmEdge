@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "executor/executor.h"
 
@@ -218,19 +218,19 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
   // Matching arguments and function type.
   const auto &FuncType = FuncInst->getFuncType();
   const auto &PTypes = FuncType.getParamTypes();
-
-  auto ExpPType = PTypes.begin();
-  for (auto &ComingInPType : ParamTypes) {
-    if (ComingInPType != *ExpPType) {
-      spdlog::error("expected {} but got {}", *ExpPType, ComingInPType);
-      return Unexpect(ErrCode::Value::TypeCheckFailed);
-    }
-  }
-
   const auto &RTypes = FuncType.getReturnTypes();
 
+  Span<const WasmEdge::AST::SubType *const> TypeList = {};
+  if (!AST::TypeMatcher::matchTypes(TypeList, ParamTypes, PTypes)) {
+    spdlog::error(ErrCode::Value::FuncSigMismatch);
+    spdlog::error(ErrInfo::InfoMismatch(
+        PTypes, RTypes, std::vector(ParamTypes.begin(), ParamTypes.end()),
+        RTypes));
+    return Unexpect(ErrCode::Value::FuncSigMismatch);
+  }
+
   auto &HostFunc = FuncInst->getHostFunc();
-  Span<ValInterface> Rets;
+  std::vector<ValInterface> Rets(RTypes.size());
 
   if (auto Res = HostFunc.run(std::move(Params), Rets); !Res) {
     return Unexpect(Res);

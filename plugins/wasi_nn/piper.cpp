@@ -391,14 +391,16 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
   }
 
   if (CxtRef.Output->size() >= std::numeric_limits<uint32_t>::max()) {
-    spdlog::error("[WASI-NN] ONNX backend: Output size is greater than "
-                  "std::numeric_limits<uint32_t>::max().");
+    spdlog::error("[WASI-NN] Piper backend: Output size {} is greater than "
+                  "std::numeric_limits<uint32_t>::max() {}.",
+                  CxtRef.Output->size(), std::numeric_limits<uint32_t>::max());
     return WASINN::ErrNo::InvalidArgument;
   }
 
   if (CxtRef.Output->size() > OutBuffer.size_bytes()) {
-    spdlog::error(
-        "[WASI-NN] Piper backend: Output size is greater than buffer size.");
+    spdlog::error("[WASI-NN] Piper backend: Output size {} is greater than "
+                  "buffer size {}.",
+                  CxtRef.Output->size(), OutBuffer.size_bytes());
     return WASINN::ErrNo::InvalidArgument;
   }
 

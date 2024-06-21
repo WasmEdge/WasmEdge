@@ -18,7 +18,7 @@ namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
 }
 
-namespace WasmEdge::Host::WASINN::PIPER {
+namespace WasmEdge::Host::WASINN::Piper {
 enum class RunConfigOutputType { OUTPUT_WAV, OUTPUT_RAW };
 struct RunConfig {
   // Path to .onnx voice file
@@ -94,4 +94,4 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
                                 uint32_t &BytesWritten) noexcept;
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
-} // namespace WasmEdge::Host::WASINN::PIPER
+} // namespace WasmEdge::Host::WASINN::Piper

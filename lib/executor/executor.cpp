@@ -9,6 +9,26 @@
 namespace WasmEdge {
 namespace Executor {
 
+Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+Executor::instantiateComponent(Runtime::StoreManager &StoreMgr,
+                               const AST::Component::Component &Comp) {
+  auto Res = instantiate(StoreMgr, Comp);
+  if (!Res) {
+    return Unexpect(Res);
+  }
+  return Res;
+}
+Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+Executor::instantiateComponent(Runtime::StoreManager &StoreMgr,
+                               const AST::Component::Component &Comp,
+                               std::string_view Name) {
+  auto Res = instantiate(StoreMgr, Comp, Name);
+  if (!Res) {
+    return Unexpect(Res);
+  }
+  return Res;
+}
+
 /// Instantiate a WASM Module. See "include/executor/executor.h".
 Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
@@ -54,6 +74,16 @@ Executor::registerModule(Runtime::StoreManager &StoreMgr,
   }
   return {};
 }
+Expect<void> Executor::registerComponent(
+    Runtime::StoreManager &StoreMgr,
+    const Runtime::Instance::ComponentInstance &CompInst) {
+  if (auto Res = StoreMgr.registerComponent(&CompInst); !Res) {
+    spdlog::error(ErrCode::Value::ModuleNameConflict);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+    return Unexpect(ErrCode::Value::ModuleNameConflict);
+  }
+  return {};
+}
 
 /// Register a host function which will be invoked before calling a
 /// host function.
@@ -88,6 +118,9 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
   // The defined type list may be empty if the function is an independent
   // function instance, that is, the module instance will be nullptr. For this
   // case, all of value types are number types or abstract heap types.
+  //
+  // If a function belongs to component instance, we should totally get
+  // converted type, so should no need type list.
   WasmEdge::Span<const WasmEdge::AST::SubType *const> TypeList = {};
   if (FuncInst->getModule()) {
     TypeList = FuncInst->getModule()->getTypeList();

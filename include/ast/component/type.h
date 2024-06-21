@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2023 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/ast/component/type.h - type class definitions ----===//
 //
@@ -43,7 +43,7 @@ enum class PrimValType : Byte {
 };
 
 using TypeIndex = uint32_t;
-using ValueType = std::variant<PrimValType, TypeIndex>;
+using ValueType = std::variant<TypeIndex, PrimValType>;
 
 class LabelValType {
 public:
@@ -167,10 +167,13 @@ private:
 
 using DefValType = std::variant<PrimValType, Record, VariantTy, List, Tuple,
                                 Flags, Enum, Option, Result, Own, Borrow>;
-
 using ResultList = std::variant<ValueType, std::vector<LabelValType>>;
 class FuncType {
 public:
+  FuncType() : ParamList{}, ResList{} {}
+  FuncType(std::vector<LabelValType> P, ResultList R)
+      : ParamList{P}, ResList{R} {}
+
   Span<const LabelValType> getParamList() const noexcept { return ParamList; }
   std::vector<LabelValType> &getParamList() noexcept { return ParamList; }
   ResultList getResultList() const noexcept { return ResList; }
@@ -290,3 +293,278 @@ private:
 } // namespace Component
 } // namespace AST
 } // namespace WasmEdge
+
+template <class... Ts> struct Overloaded : Ts... {
+  using Ts::operator()...;
+};
+template <class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::PrimValType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::PrimValType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+    switch (Type) {
+    case PrimValType::Bool:
+      return formatter<std::string_view>::format("bool"sv, Ctx);
+    case PrimValType::S8:
+      return formatter<std::string_view>::format("s8"sv, Ctx);
+    case PrimValType::U8:
+      return formatter<std::string_view>::format("u8"sv, Ctx);
+    case PrimValType::S16:
+      return formatter<std::string_view>::format("s16"sv, Ctx);
+    case PrimValType::U16:
+      return formatter<std::string_view>::format("u16"sv, Ctx);
+    case PrimValType::S32:
+      return formatter<std::string_view>::format("s32"sv, Ctx);
+    case PrimValType::U32:
+      return formatter<std::string_view>::format("u32"sv, Ctx);
+    case PrimValType::S64:
+      return formatter<std::string_view>::format("s64"sv, Ctx);
+    case PrimValType::U64:
+      return formatter<std::string_view>::format("u64"sv, Ctx);
+    case PrimValType::Float32:
+      return formatter<std::string_view>::format("float32"sv, Ctx);
+    case PrimValType::Float64:
+      return formatter<std::string_view>::format("float64"sv, Ctx);
+    case PrimValType::Char:
+      return formatter<std::string_view>::format("char"sv, Ctx);
+    case PrimValType::String:
+      return formatter<std::string_view>::format("string"sv, Ctx);
+    default:
+      return formatter<std::string_view>::format("unknown primvaltype"sv, Ctx);
+    }
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::ValueType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::ValueType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    if (std::holds_alternative<PrimValType>(Type)) {
+      return formatter<std::string_view>::format(
+          fmt::format("{}", std::get<PrimValType>(Type)), Ctx);
+    }
+    // or it's an type index
+    const auto Idx = std::get<TypeIndex>(Type);
+    return formatter<std::string_view>::format(fmt::format("!({})", Idx), Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::DefValType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::DefValType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+    return formatter<std::string_view>::format(
+        std::visit(
+            Overloaded{
+                [](const PrimValType &Arg) {
+                  fmt::memory_buffer Buffer;
+                  fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
+                  return std::string_view(Buffer.data(), Buffer.size());
+                },
+                [](const Record &Arg) {
+                  fmt::memory_buffer Buffer;
+                  fmt::format_to(std::back_inserter(Buffer), "record <"sv);
+                  for (const auto &LabelTyp : Arg.getLabelTypes()) {
+                    fmt::format_to(std::back_inserter(Buffer), "| {} : {} "sv,
+                                   LabelTyp.getLabel(), LabelTyp.getValType());
+                  }
+                  fmt::format_to(std::back_inserter(Buffer), ">"sv);
+                  return std::string_view(Buffer.data(), Buffer.size());
+                },
+                [](const VariantTy &Arg) {
+                  fmt::memory_buffer Buffer;
+                  fmt::format_to(std::back_inserter(Buffer), "variant <"sv);
+                  for (const auto &Case : Arg.getCases()) {
+                    if (Case.getValType().has_value()) {
+                      fmt::format_to(std::back_inserter(Buffer), "| {} : {} "sv,
+                                     Case.getLabel(),
+                                     Case.getValType().value());
+                    } else {
+                      fmt::format_to(std::back_inserter(Buffer), "| {} "sv,
+                                     Case.getLabel());
+                    }
+                  }
+                  fmt::format_to(std::back_inserter(Buffer), ">"sv);
+                  return std::string_view(Buffer.data(), Buffer.size());
+                },
+                [](const List &Arg) {
+                  fmt::memory_buffer Buffer;
+                  fmt::format_to(std::back_inserter(Buffer), "list<{}>"sv,
+                                 Arg.getValType());
+                  return std::string_view(Buffer.data(), Buffer.size());
+                },
+                [](const Tuple &Arg) {
+                  fmt::memory_buffer Buffer;
+                  fmt::format_to(std::back_inserter(Buffer), "tuple <"sv);
+                  for (const auto &Ty : Arg.getTypes()) {
+                    fmt::format_to(std::back_inserter(Buffer), "| {} "sv, Ty);
+                  }
+                  fmt::format_to(std::back_inserter(Buffer), ">"sv);
+                  return std::string_view(Buffer.data(), Buffer.size());
+                },
+                [](const Flags &) {
+                  fmt::memory_buffer Buffer;
+                  fmt::format_to(std::back_inserter(Buffer), "flags"sv);
+                  return std::string_view(Buffer.data(), Buffer.size());
+                },
+                [](const Enum &) {
+                  fmt::memory_buffer Buffer;
+                  fmt::format_to(std::back_inserter(Buffer), "enum"sv);
+                  return std::string_view(Buffer.data(), Buffer.size());
+                },
+                [](const Option &Arg) {
+                  fmt::memory_buffer Buffer;
+                  fmt::format_to(std::back_inserter(Buffer), "option<{}>"sv,
+                                 Arg.getValType());
+                  return std::string_view(Buffer.data(), Buffer.size());
+                },
+                [](const Result &Arg) {
+                  fmt::memory_buffer Buffer;
+                  if (Arg.getValType().has_value()) {
+                    fmt::format_to(std::back_inserter(Buffer), "result<{}>"sv,
+                                   Arg.getValType().value());
+                  } else {
+                    fmt::format_to(std::back_inserter(Buffer), "result<>"sv);
+                  }
+                  return std::string_view(Buffer.data(), Buffer.size());
+                },
+                [](const Own &Arg) {
+                  fmt::memory_buffer Buffer;
+                  fmt::format_to(std::back_inserter(Buffer), "own<!({})>"sv,
+                                 Arg.getIndex());
+                  return std::string_view(Buffer.data(), Buffer.size());
+                },
+                [](const Borrow &Arg) {
+                  fmt::memory_buffer Buffer;
+                  fmt::format_to(std::back_inserter(Buffer), "borrow<!({})>"sv,
+                                 Arg.getIndex());
+                  return std::string_view(Buffer.data(), Buffer.size());
+                },
+            },
+            Type),
+        Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::FuncType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::FuncType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "[ "sv);
+    for (const auto &PL : Type.getParamList()) {
+      fmt::format_to(std::back_inserter(Buffer), "({} : {}) "sv, PL.getLabel(),
+                     PL.getValType());
+    }
+    fmt::format_to(std::back_inserter(Buffer), "] -> "sv);
+
+    const auto &ResList = Type.getResultList();
+    if (std::holds_alternative<ValueType>(ResList)) {
+      fmt::format_to(std::back_inserter(Buffer), "{}"sv,
+                     std::get<ValueType>(ResList));
+    } else {
+      fmt::format_to(std::back_inserter(Buffer), "[ "sv);
+      for (const auto &RL : std::get<std::vector<LabelValType>>(ResList)) {
+        fmt::format_to(std::back_inserter(Buffer), "({} : {}) "sv,
+                       RL.getLabel(), RL.getValType());
+      }
+      fmt::format_to(std::back_inserter(Buffer), "]"sv);
+    }
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::ComponentType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::ComponentType &,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace std::literals;
+    return formatter<std::string_view>::format("component type"sv, Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::InstanceType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::InstanceType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "instance <"sv);
+    for (const auto &T : Type.getContent()) {
+      fmt::format_to(std::back_inserter(Buffer), "|"sv);
+      std::visit(
+          Overloaded{
+              [&](const CoreType &) {
+                fmt::format_to(std::back_inserter(Buffer), "core type"sv);
+              },
+              [&](const Alias &) {
+                fmt::format_to(std::back_inserter(Buffer), "alias type"sv);
+              },
+              [&](const std::shared_ptr<WasmEdge::AST::Component::Type> &) {
+                fmt::format_to(std::back_inserter(Buffer), "type"sv);
+              },
+              [&](const ExportDecl &) {
+                fmt::format_to(std::back_inserter(Buffer),
+                               "export decl type"sv);
+              }},
+          T);
+    }
+    fmt::format_to(std::back_inserter(Buffer), ">"sv);
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::DefType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::DefType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    return formatter<std::string_view>::format(
+        std::visit(
+            Overloaded{
+                [](const DefValType &Arg) { return fmt::format("{}"sv, Arg); },
+                [](const FuncType &Arg) { return fmt::format("{}"sv, Arg); },
+                [](const ComponentType &Arg) {
+                  return fmt::format("{}"sv, Arg);
+                },
+                [](const InstanceType &Arg) {
+                  return fmt::format("{}"sv, Arg);
+                }},
+            Type),
+        Ctx);
+  }
+};

@@ -41,7 +41,16 @@ PackageOriginator: Georgi Gerganov
 PackageLicenseDeclared: MIT
 PackageDownloadLocation: git://github.com/ggerganov/llama.cpp.git
 
+PackageName: cpr
+SPDXID: SPDXRef-cpr
+PackageFileName: ./plugins/wasi_http/CMakeLists.txt
+PackageHomePage: https://github.com/libcpr/cpr
+PackageOriginator: Huu Nguyen
+PackageLicenseDeclared: MIT
+PackageDownloadLocation: git@github.com:libcpr/cpr.git
+
 ## Relationships
 Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-blake3
 Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-wasi-cpp-header
 Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-llama.cpp
+Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-cpr

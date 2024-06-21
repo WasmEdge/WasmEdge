@@ -51,6 +51,8 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     /* Version */ {0, 10, 0, 0},
     /* ModuleCount */ 1,
     /* ModuleDescriptions */ MD,
+    /* ComponentCount */ 0,
+    /* ComponentDescriptions */ nullptr,
     /* AddOptions */ addOptions,
 };
 

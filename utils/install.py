@@ -340,7 +340,6 @@ WASI_NN_TENSORFLOW_LITE = "wasi_nn-tensorflowlite"
 WASI_NN_GGML = "wasi_nn-ggml"
 WASI_NN_GGML_CUDA = "wasi_nn-ggml-cuda"
 WASI_NN_GGML_NOAVX = "wasi_nn-ggml-noavx"
-WASI_NN_GGML_BLAS = "wasi_nn-ggml-blas"
 WASI_LOGGING = "wasi_logging"
 WASMEDGE_TENSORFLOW_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW
 WASMEDGE_TENSORFLOW_LITE_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW_LITE_P
@@ -356,7 +355,6 @@ PLUGINS_AVAILABLE = [
     WASI_NN_GGML,
     WASI_NN_GGML_CUDA,
     WASI_NN_GGML_NOAVX,
-    WASI_NN_GGML_BLAS,
     WASI_LOGGING,
     WASMEDGE_TENSORFLOW_PLUGIN,
     WASMEDGE_TENSORFLOW_LITE_PLUGIN,
@@ -377,8 +375,6 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "x86_64" + WASI_NN_GGML_NOAVX: VersionString("0.13.5"),
     "ubuntu20.04" + "x86_64" + WASI_NN_GGML_CUDA: VersionString("0.13.4"),
     "ubuntu20.04" + "aarch64" + WASI_NN_GGML_CUDA: VersionString("0.13.5"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_GGML_BLAS: VersionString("0.13.5"),
-    "ubuntu20.04" + "aarch64" + WASI_NN_GGML_BLAS: VersionString("0.13.5"),
     "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.11.2-alpha.1"),
     "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.10.0"),
     "manylinux2014" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
@@ -673,6 +669,19 @@ def check_nvidia_smi(platform):
             return False
     else:
         logging.info("CUDA is only supported on Linux")
+    return False
+
+
+def check_libcudart(platform):
+    if platform == "Linux":
+        cmd = "ldconfig -p | grep libcudart.so"
+        output = run_shell_command(cmd)
+        logging.debug("%s: %s", cmd, output)
+        if "libcudart.so" in output:
+            return True
+        else:
+            logging.info("Cannot find libcudart.so")
+            return False
     return False
 
 
@@ -1176,6 +1185,17 @@ def install_plugins(args, compat):
             if plugin_name.find(":") != -1:
                 plugin_name, plugin_version_supplied = plugin_name.split(":")
 
+            # Deprecated rustls after 0.14.0
+            # Only allow users to install rustls with 0.13.5
+            if (
+                plugin_name.startswith(WASMEDGE_RUSTLS)
+                and compat.version.compare("0.13.5") != 0
+            ):
+                logging.warning("WasmEdge Rustls plugin is only available in 0.13.5")
+                logging.warning("Please use -v 0.13.5 as a workaround")
+                logging.warning("Skip installing WasmEdge Rustls plugin")
+                continue
+
             # Split the WASI-NN-GGML plugin and the others
             if plugin_name.startswith(WASI_NN_GGML):
                 # Re-write the plugin name if the build number is supplied
@@ -1363,6 +1383,8 @@ def run_shell_command(cmd):
     except subprocess.CalledProcessError as e:
         if "Cannot detect installation path" in str(e.output):
             logging.warning("Uninstaller did not find previous installation")
+        elif "ldconfig" in str(e.cmd):
+            logging.debug("Cannot detect libcudart via ldconfig")
         elif "nvcc" in str(e.cmd):
             logging.debug("Cannot detect CUDA via nvcc")
         else:
@@ -1422,7 +1444,9 @@ class Compat:
         self.ld_library_path = None
         self.dist = dist_
         self.release_package_wasmedge = None
-        self.cuda = check_nvcc(self.platform) or check_nvidia_smi(self.platform)
+        self.cuda = check_libcudart(self.platform) and (
+            check_nvcc(self.platform) or check_nvidia_smi(self.platform)
+        )
 
         if self.platform == "Linux":
             self.install_package_name = "WasmEdge-{0}-Linux".format(self.version)

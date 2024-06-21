@@ -65,11 +65,18 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/orca_mini.gguf
       MD5=f895f00678bfbf89f70d6d25f20a7b5f
     )
-    if(MSVC)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       target_compile_options(wasiNNTests PUBLIC
         /wd4067 # unexpected tokens following preprocessor directive - expected a newline
       )
     endif()
+  elseif(BACKEND STREQUAL "neuralspeed")
+    message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_neural_speed_fixtures")
+    download(
+      https://huggingface.co/grorge123/phi-2-GPTQ/resolve/main/ne_phi_q_nf4_bestla_cfp32_g32.bin
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_neural_speed_fixtures/ne_phi_q_nf4_bestla_cfp32_g32.bin
+      MD5=5e055b41f8cc1a42f26ff8742719ef1e
+    )
   else()
     # Add the other backend test files fetching here.
   endif()

@@ -1,6 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+if(WASMEDGE_PLUGIN_WASI_HTTP)
+  add_subdirectory(wasi_http)
+endif()
+
+if(WASMEDGE_PLUGIN_WASI_POLL)
+  add_subdirectory(wasi_poll)
+endif()
+
 if(WASMEDGE_PLUGIN_WASI_NN_BACKEND)
   add_subdirectory(wasi_nn)
 endif()
@@ -69,10 +77,6 @@ endif()
 
 if(WASMEDGE_PLUGIN_WASI_LOGGING)
   add_subdirectory(wasi_logging)
-endif()
-
-if(WASMEDGE_PLUGIN_RUSTLS)
-  add_subdirectory(wasmedge_rustls)
 endif()
 
 if(WASMEDGE_PLUGIN_ZLIB)

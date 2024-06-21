@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "ggml.h"
+#include "neuralspeed.h"
 #include "onnx.h"
 #include "openvino.h"
 #include "piper.h"

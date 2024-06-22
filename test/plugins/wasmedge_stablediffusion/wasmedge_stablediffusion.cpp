@@ -144,32 +144,30 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     EXPECT_TRUE(HostFuncCreateContext.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
-            QuantModelPathPtr,
-            static_cast<uint32_t>(QuantModelPath.size()),
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            -1,
-            31,
-            1,
-            0,
-            0,
-            0,
-            0,
-            SessionPtr}, // vaeDecodeOnly=true, NThreads=-1,
-                         // wtype=31(SD_TYPE_COUNT), RngType=CUDA_RNG,
-                         // Schedule=DEFAULT, Other is false
+            QuantModelPathPtr,                            // ModelPathPtr
+            static_cast<uint32_t>(QuantModelPath.size()), // ModelPathLen
+            0,                                            // VaePathPtr
+            0,                                            // VaePathLen
+            0,                                            // TaesdPathPtr
+            0,                                            // TaesdPathLen
+            0,                                            // ControlNetPathPtr
+            0,                                            // ControlNetPathLen
+            0,                                            // LoraModelDirPtr
+            0,                                            // LoraModelDirLen
+            0,                                            // EmbedDirPtr
+            0,                                            // EmbedDirLen
+            0,                                            // IdEmbedDirPtr
+            0,                                            // IdEmbedDirLen
+            1,                                            // VaeDecodeOnly
+            0,                                            // VaeTiling
+            -1,                                           // NThreads
+            31,                                           // Wtype
+            1,                                            // RngType
+            0,                                            // Schedule
+            0,                                            // ClipOnCpu
+            0,                                            // ControlNetCpu
+            0,                                            // VaeOnCpu
+            SessionPtr},                                  // SessiontIdPtr
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     SessionId = *MemInst.getPointer<uint32_t *>(SessionPtr);
@@ -184,38 +182,39 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     OutputPtr = BytesWrittenPtr + 4;
     writeBinaries<char>(MemInst, PromptData, PromptPtr);
     writeBinaries<char>(MemInst, OutputPath, OutputPathPtr);
-    EXPECT_TRUE(HostFuncTextToImage.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{PromptPtr,
-                                                    PromptData.size(),
-                                                    SessionId,
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    64,
-                                                    64,
-                                                    -1,
-                                                    7.0f,
-                                                    0,
-                                                    20,
-                                                    42,
-                                                    1,
-                                                    0.90f,
-                                                    20.0f,
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    OutputPathPtr,
-                                                    OutputPath.size(),
-                                                    OutputPtr,
-                                                    65532,
-                                                    BytesWrittenPtr},
-        Errno));
+    EXPECT_TRUE(
+        HostFuncTextToImage.run(CallFrame,
+                                std::initializer_list<WasmEdge::ValVariant>{
+                                    PromptPtr,         // PromptPtr
+                                    PromptData.size(), // PromptLen
+                                    SessionId,         // SessionId
+                                    0,                 // ControlImagePtr
+                                    0,                 // ControlImageLen
+                                    0,                 // NegativePromptPtr
+                                    0,                 // NegativePromptLen
+                                    64,                // Width
+                                    64,                // Height
+                                    -1,                // ClipSkip
+                                    7.0f,              // CfgScale
+                                    0,                 // SampleMethod
+                                    20,                // SampleSteps
+                                    42,                // Seed
+                                    1,                 // BatchCount
+                                    0.90f,             // ControlStrength
+                                    20.0f,             // StyleRatio
+                                    0,                 // NormalizeInput
+                                    0,                 // InputIdImagesDirPtr
+                                    0,                 // InputIdImagesDirLen
+                                    0,                 // CannyPreprocess
+                                    0,                 // UpscaleModelPathPtr
+                                    0,                 // UpscaleModelPathLen
+                                    1,                 // UpscaleRepeats
+                                    OutputPathPtr,     // OutputPathPtr
+                                    OutputPath.size(), // OutputPathLen
+                                    OutputPtr,         // OutBufferPtr
+                                    65532,             // OutBufferMaxSize
+                                    BytesWrittenPtr},  // BytesWrittenPtr
+                                Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
     EXPECT_GE(BytesWritten, 50);
@@ -230,32 +229,30 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     EXPECT_TRUE(HostFuncCreateContext.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
-            QuantModelPathPtr,
-            static_cast<uint32_t>(QuantModelPath.size()),
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            -1,
-            31,
-            1,
-            0,
-            0,
-            0,
-            0,
-            SessionPtr}, // NThreads=-1,
-                         //  wtype=31(SD_TYPE_COUNT), RngType=CUDA_RNG,
-                         //  Schedule=DEFAULT, Other is false
+            QuantModelPathPtr,                            // ModelPathPtr
+            static_cast<uint32_t>(QuantModelPath.size()), // ModelPathLen
+            0,                                            // VaePathPtr
+            0,                                            // VaePathLen
+            0,                                            // TaesdPathPtr
+            0,                                            // TaesdPathLen
+            0,                                            // ControlNetPathPtr
+            0,                                            // ControlNetPathLen
+            0,                                            // LoraModelDirPtr
+            0,                                            // LoraModelDirLen
+            0,                                            // EmbedDirPtr
+            0,                                            // EmbedDirLen
+            0,                                            // IdEmbedDirPtr
+            0,                                            // IdEmbedDirLen
+            0,                                            // VaeDecodeOnly
+            0,                                            // VaeTiling
+            -1,                                           // NThreads
+            31,                                           // Wtype
+            1,                                            // RngType
+            0,                                            // Schedule
+            0,                                            // ClipOnCpu
+            0,                                            // ControlNetCpu
+            0,                                            // VaeOnCpu
+            SessionPtr},                                  // SessiontIdPtr
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     SessionId = *MemInst.getPointer<uint32_t *>(SessionPtr);
@@ -271,41 +268,42 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     writeBinaries<char>(MemInst, PromptData2, PromptPtr);
     writeBinaries<char>(MemInst, InputPath, InputPathPtr);
     writeBinaries<char>(MemInst, OutputPath2, OutputPathPtr);
-    EXPECT_TRUE(HostFuncImageToImage.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{InputPathPtr,
-                                                    InputPath.size(),
-                                                    SessionId,
-                                                    64,
-                                                    64,
-                                                    0,
-                                                    0,
-                                                    PromptPtr,
-                                                    PromptData2.size(),
-                                                    0,
-                                                    0,
-                                                    -1,
-                                                    7.0f,
-                                                    0,
-                                                    20,
-                                                    0.75f,
-                                                    42,
-                                                    1,
-                                                    0.9f,
-                                                    20.0f,
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    OutputPathPtr,
-                                                    OutputPath2.size(),
-                                                    OutputPtr,
-                                                    65532,
-                                                    BytesWrittenPtr},
-        Errno));
+    EXPECT_TRUE(
+        HostFuncImageToImage.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     InputPathPtr,       // ImagePtr
+                                     InputPath.size(),   // ImageLen
+                                     SessionId,          // SessionId
+                                     64,                 // Width
+                                     64,                 // Height
+                                     0,                  // ControlImagePtr
+                                     0,                  // ControlImageLen
+                                     PromptPtr,          // PromptPtr
+                                     PromptData2.size(), // PromptLen
+                                     0,                  // NegativePromptPtr
+                                     0,                  // NegativePromptLen
+                                     -1,                 // ClipSkip
+                                     7.0f,               // CfgScale
+                                     0,                  // SampleMethod
+                                     20,                 // SampleSteps
+                                     0.75f,              // Strength
+                                     42,                 // Seed
+                                     1,                  // BatchCount
+                                     0.9f,               // ControlStrength
+                                     20.0f,              // StyleRatio
+                                     0,                  // NormalizeInput
+                                     0,                  // InputIdImagesDirPtr
+                                     0,                  // InputIdImagesDirLen
+                                     0,                  // CannyPreprocess
+                                     0,                  // UpscaleModelPathPtr
+                                     0,                  // UpscaleModelPathLen
+                                     1,                  // UpscaleRepeats
+                                     OutputPathPtr,      // OutputPathPtr
+                                     OutputPath2.size(), // OutputPathLen
+                                     OutputPtr,          // OutBufferPtr
+                                     65532,              // OutBufferMaxSize
+                                     BytesWrittenPtr},   // BytesWrittenPtr
+                                 Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
     EXPECT_GE(BytesWritten, 50);

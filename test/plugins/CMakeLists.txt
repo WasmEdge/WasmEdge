@@ -54,9 +54,7 @@ if(WASMEDGE_PLUGIN_WASM_BPF)
 endif()
 
 if(WASMEDGE_PLUGIN_STABLEDIFFUSION)
-  if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-    add_subdirectory(wasmedge_stablediffusion)
-  endif()
+  add_subdirectory(wasmedge_stablediffusion)
 endif()
 
 if(WASMEDGE_PLUGIN_WASI_LOGGING)

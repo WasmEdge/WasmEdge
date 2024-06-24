@@ -137,8 +137,8 @@ jobs:
       build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
       tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml
       output_bin: libwasmedgePluginWasiNN.so
-      OPENVINO_VERSION: "2023.0.2"
-      OPENVINO_YEAR: "2023"
+      OPENVINO_VERSION: "2024.2.0"
+      OPENVINO_YEAR: "2024"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."
     needs: create_release

@@ -192,6 +192,10 @@ inline __wasi_errno_t fromLastError(DWORD_ Code) noexcept {
     return __WASI_ERRNO_NOENT;
   case ERROR_PRIVILEGE_NOT_HELD_: // CreateSymbolicLinkW
     return __WASI_ERRNO_PERM;
+  case ERROR_DIRECTORY_: // RemoveDirectoryW
+    return __WASI_ERRNO_NOTDIR;
+  case ERROR_DIR_NOT_EMPTY_: // RemoveDirectoryW
+    return __WASI_ERRNO_NOTEMPTY;
 
   case ERROR_IO_PENDING_:             // ReadFileEx
   case ERROR_HANDLE_EOF_:             // ReadFileEx

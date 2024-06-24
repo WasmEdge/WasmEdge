@@ -105,19 +105,14 @@ WasiExpect<std::tuple<DWORD_, DWORD_, DWORD_>> inline constexpr getOpenFlags(
     AccessFlags |= FILE_APPEND_DATA_;
     FdFlags &= ~__WASI_FDFLAGS_APPEND;
   }
-  if (VFSFlags & VFS::Read) {
+  if ((VFSFlags & VFS::Read) || (VFSFlags == 0)) {
     AccessFlags |= FILE_GENERIC_READ_;
-    VFSFlags &= ~VFS::Read;
   }
   if (VFSFlags & VFS::Write) {
     AccessFlags |= FILE_GENERIC_WRITE_;
-    VFSFlags &= ~VFS::Write;
   }
 
   if (FdFlags) {
-    return WasiUnexpect(__WASI_ERRNO_INVAL);
-  }
-  if (VFSFlags) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
   if (OpenFlags &
@@ -143,7 +138,11 @@ WasiExpect<std::tuple<DWORD_, DWORD_, DWORD_>> inline constexpr getOpenFlags(
     break;
   case __WASI_OFLAGS_TRUNC:
   case __WASI_OFLAGS_EXCL | __WASI_OFLAGS_TRUNC:
-    CreationDisposition = TRUNCATE_EXISTING_;
+    if (VFSFlags & VFS::Write) {
+      CreationDisposition = TRUNCATE_EXISTING_;
+    } else {
+      CreationDisposition = OPEN_EXISTING_;
+    }
     break;
   default:
     assumingUnreachable();
@@ -979,12 +978,15 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
     DWORD_ NumberOfBytesRead = 0;
     if (unlikely(
             !GetOverlappedResult(Handle, &Query, &NumberOfBytesRead, true))) {
-      Result = WasiUnexpect(detail::fromLastError(GetLastError()));
-      CancelIo(Handle);
-      for (size_t J = I + 1; J < Queries.size(); ++J) {
-        GetOverlappedResult(Handle, &Queries[J], nullptr, true);
+      if (const auto Error = GetLastError();
+          unlikely(Error != ERROR_HANDLE_EOF_)) {
+        Result = WasiUnexpect(detail::fromLastError(Error));
+        CancelIo(Handle);
+        for (size_t J = I + 1; J < Queries.size(); ++J) {
+          GetOverlappedResult(Handle, &Queries[J], &NumberOfBytesRead, true);
+        }
+        break;
       }
-      break;
     }
     NRead += NumberOfBytesRead;
   }
@@ -995,7 +997,6 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
 WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
                                  __wasi_filesize_t Offset,
                                  __wasi_size_t &NWritten) const noexcept {
-  const bool Append = SavedFdFlags & __WASI_FDFLAGS_APPEND;
   WasiExpect<void> Result;
   std::vector<OVERLAPPED_> Queries(IOVs.size());
   ULARGE_INTEGER_ LocalOffset = _ULARGE_INTEGER(Offset);
@@ -1003,13 +1004,8 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
   for (size_t I = 0; I < IOVs.size(); ++I) {
     auto &IOV = IOVs[I];
     auto &Query = Queries[I];
-    if (!Append) {
-      Query.Offset = LocalOffset.LowPart;
-      Query.OffsetHigh = LocalOffset.HighPart;
-    } else {
-      Query.Offset = 0xFFFFFFFF;
-      Query.OffsetHigh = 0xFFFFFFFF;
-    }
+    Query.Offset = LocalOffset.LowPart;
+    Query.OffsetHigh = LocalOffset.HighPart;
     Query.hEvent = nullptr;
     if (!WriteFileEx(Handle, IOV.data(), static_cast<uint32_t>(IOV.size()),
                      &Query, &EmptyOverlappedCompletionRoutine)) {
@@ -1020,9 +1016,7 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
         break;
       }
     }
-    if (!Append) {
-      LocalOffset.QuadPart += IOV.size();
-    }
+    LocalOffset.QuadPart += IOV.size();
   }
 
   NWritten = 0;
@@ -1031,12 +1025,15 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
     DWORD_ NumberOfBytesWrite = 0;
     if (unlikely(
             !GetOverlappedResult(Handle, &Query, &NumberOfBytesWrite, true))) {
-      Result = WasiUnexpect(detail::fromLastError(GetLastError()));
-      CancelIo(Handle);
-      for (size_t J = I + 1; J < Queries.size(); ++J) {
-        GetOverlappedResult(Handle, &Queries[J], nullptr, true);
+      if (const auto Error = GetLastError();
+          unlikely(Error != ERROR_HANDLE_EOF_)) {
+        Result = WasiUnexpect(detail::fromLastError(Error));
+        CancelIo(Handle);
+        for (size_t J = I + 1; J < Queries.size(); ++J) {
+          GetOverlappedResult(Handle, &Queries[J], &NumberOfBytesWrite, true);
+        }
+        break;
       }
-      break;
     }
     NWritten += NumberOfBytesWrite;
   }
@@ -1078,12 +1075,15 @@ WasiExpect<void> INode::fdRead(Span<Span<uint8_t>> IOVs,
     DWORD_ NumberOfBytesRead = 0;
     if (unlikely(
             !GetOverlappedResult(Handle, &Query, &NumberOfBytesRead, true))) {
-      Result = WasiUnexpect(detail::fromLastError(GetLastError()));
-      CancelIo(Handle);
-      for (size_t J = I + 1; J < Queries.size(); ++J) {
-        GetOverlappedResult(Handle, &Queries[J], nullptr, true);
+      if (const auto Error = GetLastError();
+          unlikely(Error != ERROR_HANDLE_EOF_)) {
+        Result = WasiUnexpect(detail::fromLastError(Error));
+        CancelIo(Handle);
+        for (size_t J = I + 1; J < Queries.size(); ++J) {
+          GetOverlappedResult(Handle, &Queries[J], &NumberOfBytesRead, true);
+        }
+        break;
       }
-      break;
     }
     NRead += NumberOfBytesRead;
   }
@@ -1213,12 +1213,15 @@ WasiExpect<void> INode::fdWrite(Span<Span<const uint8_t>> IOVs,
     DWORD_ NumberOfBytesWrite = 0;
     if (unlikely(
             !GetOverlappedResult(Handle, &Query, &NumberOfBytesWrite, true))) {
-      Result = WasiUnexpect(detail::fromLastError(GetLastError()));
-      CancelIo(Handle);
-      for (size_t J = I + 1; J < Queries.size(); ++J) {
-        GetOverlappedResult(Handle, &Queries[J], nullptr, true);
+      if (const auto Error = GetLastError();
+          unlikely(Error != ERROR_HANDLE_EOF_)) {
+        Result = WasiUnexpect(detail::fromLastError(Error));
+        CancelIo(Handle);
+        for (size_t J = I + 1; J < Queries.size(); ++J) {
+          GetOverlappedResult(Handle, &Queries[J], &NumberOfBytesWrite, true);
+        }
+        break;
       }
-      break;
     }
     NWritten += NumberOfBytesWrite;
   }
@@ -1445,6 +1448,25 @@ WasiExpect<void> INode::pathRename(const INode &Old, std::string OldPath,
   // Rename the file from the paths
   if (unlikely(!MoveFileExW(OldFullPath.c_str(), NewFullPath.c_str(),
                             MOVEFILE_REPLACE_EXISTING_))) {
+#if NTDDI_VERSION >= NTDDI_VISTA
+    if (const auto Error = GetLastError(); Error != ERROR_ACCESS_DENIED_) {
+      return WasiUnexpect(detail::fromLastError(Error));
+    }
+    // If NewFullPath is an empty directory, remove it and rename.
+    HandleHolder Transaction{
+        CreateTransaction(nullptr, nullptr, 0, 0, 0, 0, nullptr), false};
+    if (Transaction.ok()) {
+      if (RemoveDirectoryTransactedW(NewFullPath.c_str(), Transaction.Handle)) {
+        if (MoveFileTransactedW(OldFullPath.c_str(), NewFullPath.c_str(),
+                                nullptr, nullptr, MOVEFILE_REPLACE_EXISTING_,
+                                Transaction.Handle)) {
+          if (CommitTransaction(Transaction.Handle)) {
+            return {};
+          }
+        }
+      }
+    }
+#endif
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
 
@@ -2263,10 +2285,40 @@ void Poller::close(const INode &) noexcept {}
 
 void Poller::read(const INode &Node, TriggerType Trigger,
                   __wasi_userdata_t UserData) noexcept {
+  if (Node.Type == HandleHolder::HandleType::StdHandle) {
+    if (ReadFds.fd_count > 0 || WriteFds.fd_count > 0) {
+      // Cannot wait on socket and console at the same time
+      error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_READ);
+      return;
+    }
+
+    assuming(Events.size() < WasiEvents.size());
+    auto &Event = Events.emplace_back();
+    Event.Valid = false;
+    Event.userdata = UserData;
+    Event.type = __WASI_EVENTTYPE_FD_READ;
+
+    try {
+      auto [Iter, Added] = ConsoleReadEvent.try_emplace(Node.Handle);
+      Iter->second = &Event;
+    } catch (std::bad_alloc &) {
+      Event.Valid = true;
+      Event.error = __WASI_ERRNO_NOMEM;
+      return;
+    }
+
+    return;
+  }
+
   if (Node.Type != HandleHolder::HandleType::NormalSocket ||
       Trigger != TriggerType::Level) {
     // Windows does not support polling other then socket, and only with level
     // triggering.
+    error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_READ);
+    return;
+  }
+  if (!ConsoleReadEvent.empty() || !ConsoleWriteEvent.empty()) {
+    // Cannot wait on socket and console at the same time
     error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_READ);
     return;
   }
@@ -2307,10 +2359,39 @@ void Poller::read(const INode &Node, TriggerType Trigger,
 
 void Poller::write(const INode &Node, TriggerType Trigger,
                    __wasi_userdata_t UserData) noexcept {
+  if (Node.Type == HandleHolder::HandleType::StdHandle) {
+    if (ReadFds.fd_count > 0 || WriteFds.fd_count > 0) {
+      // Cannot wait on socket and console at the same time
+      error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_WRITE);
+      return;
+    }
+
+    assuming(Events.size() < WasiEvents.size());
+    auto &Event = Events.emplace_back();
+    Event.Valid = false;
+    Event.userdata = UserData;
+    Event.type = __WASI_EVENTTYPE_FD_WRITE;
+
+    try {
+      auto [Iter, Added] = ConsoleWriteEvent.try_emplace(Node.Handle);
+      Iter->second = &Event;
+    } catch (std::bad_alloc &) {
+      Event.Valid = true;
+      Event.error = __WASI_ERRNO_NOMEM;
+      return;
+    }
+
+    return;
+  }
   if (Node.Type != HandleHolder::HandleType::NormalSocket ||
       Trigger != TriggerType::Level) {
     // Windows does not support polling other then socket, and only with level
     // triggering.
+    error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_WRITE);
+    return;
+  }
+  if (!ConsoleReadEvent.empty() || !ConsoleWriteEvent.empty()) {
+    // Cannot wait on socket and console at the same time
     error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_WRITE);
     return;
   }
@@ -2344,6 +2425,66 @@ void Poller::write(const INode &Node, TriggerType Trigger,
 }
 
 void Poller::wait() noexcept {
+  if (!ConsoleWriteEvent.empty()) {
+    assuming(ReadFds.fd_count == 0 && WriteFds.fd_count == 0);
+    // Console can always write
+    for (const auto &[NodeHandle, Event] : ConsoleWriteEvent) {
+      Event->Valid = true;
+      Event->error = __WASI_ERRNO_SUCCESS;
+    }
+    ConsoleWriteEvent.clear();
+    ConsoleReadEvent.clear();
+    TimeoutEvent = nullptr;
+    return;
+  }
+  if (!ConsoleReadEvent.empty()) {
+    assuming(ReadFds.fd_count == 0 && WriteFds.fd_count == 0);
+    DWORD_ Timeout = INFINITE_;
+    if (TimeoutEvent != nullptr) {
+      const std::chrono::microseconds MicroSecs =
+          std::chrono::seconds(MinimumTimeout.tv_sec) +
+          std::chrono::microseconds(MinimumTimeout.tv_sec);
+      Timeout = static_cast<DWORD_>(MicroSecs.count());
+    }
+    std::vector<HANDLE_> Handles;
+    DWORD_ Count = std::min(static_cast<DWORD_>(ConsoleReadEvent.size()),
+                            MAXIMUM_WAIT_OBJECTS_);
+    Handles.reserve(Count);
+    for (const auto &[NodeHandle, Event] : ConsoleReadEvent) {
+      if (likely(Handles.size() < Count)) {
+        Handles.push_back(NodeHandle);
+      }
+    }
+    const auto Result =
+        WaitForMultipleObjects(Count, Handles.data(), false, Timeout);
+    assuming(static_cast<DWORD_>(0) <= Result);
+    if (likely(Result < Count)) {
+      ConsoleReadEvent[Handles[Result]]->Valid = true;
+      ConsoleReadEvent[Handles[Result]]->error = __WASI_ERRNO_SUCCESS;
+    } else {
+      switch (Result) {
+      case WAIT_TIMEOUT_:
+        if (likely(TimeoutEvent)) {
+          TimeoutEvent->Valid = true;
+          TimeoutEvent->error = __WASI_ERRNO_SUCCESS;
+        }
+        break;
+      case WAIT_FAILED_:
+      default: {
+        const auto Error = detail::fromLastError(GetLastError());
+        for (const auto &[NodeHandle, Event] : ConsoleWriteEvent) {
+          Event->Valid = true;
+          Event->error = Error;
+        }
+        break;
+      }
+      }
+    }
+    assuming(ConsoleWriteEvent.empty());
+    ConsoleReadEvent.clear();
+    TimeoutEvent = nullptr;
+    return;
+  }
   if (const int Count =
           select(0, &ReadFds, &WriteFds, nullptr,
                  TimeoutEvent != nullptr ? &MinimumTimeout : nullptr);

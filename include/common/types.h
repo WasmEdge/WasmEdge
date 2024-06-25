@@ -456,7 +456,18 @@ using ValVariant =
             int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t,
             RefVariant>;
 
-using ValInterface = std::variant<std::string, ValVariant>;
+// Here are some high-level composited type, provided by component model
+struct ValComp {};
+template <typename T> struct List : public ValComp {
+  List() : Content() {}
+  List(std::initializer_list<T> As) : Content(As) {}
+  List(std::vector<T> &&As) : Content(As) {}
+
+private:
+  std::vector<T> Content;
+};
+
+using ValInterface = std::variant<std::string, ValComp, ValVariant>;
 
 // <<<<<<<< Value definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

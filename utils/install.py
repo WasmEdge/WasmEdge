@@ -1088,12 +1088,6 @@ def set_consts(args, compat):
         TENSORFLOW_LITE_DEPS: "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{0}/WasmEdge-tensorflow-deps-TFLite-{0}-{1}".format(
             args.tf_deps_version, CONST_release_pkg
         ),
-        TENSORFLOW: "https://github.com/second-state/WasmEdge-tensorflow/releases/download/{0}/WasmEdge-tensorflow-{0}-{1}".format(
-            args.tf_version, local_release_package_tf
-        ),
-        TENSORFLOW_LITE: "https://github.com/second-state/WasmEdge-tensorflow/releases/download/{0}/WasmEdge-tensorflowlite-{0}-{1}".format(
-            args.tf_version, local_release_package_tf
-        ),
     }
 
 

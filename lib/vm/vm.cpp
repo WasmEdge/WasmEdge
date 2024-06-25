@@ -693,7 +693,7 @@ VM::unsafeGetFunctionList() const {
       }
     });
   } else if (ActiveCompInst) {
-    ActiveCompInst->getFuncExports();
+    return ActiveCompInst->getFuncExports();
   }
   return Map;
 }

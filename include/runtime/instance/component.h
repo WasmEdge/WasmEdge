@@ -175,7 +175,7 @@ public:
     return ExportModuleMap.at(std::string(Name));
   }
   void addExport(std::string_view Name, Component::FunctionInstance *Inst) {
-    ExportFuncMap.emplace(Name, Inst);
+    ExportFuncMap.insert_or_assign(std::string(Name), Inst);
   }
   Component::FunctionInstance *
   findFuncExports(std::string_view Name) const noexcept {
@@ -184,6 +184,7 @@ public:
   std::vector<std::pair<std::string, const AST::FunctionType &>>
   getFuncExports() {
     std::vector<std::pair<std::string, const AST::FunctionType &>> R;
+    R.reserve(ExportFuncMap.size());
     for (auto &&[Name, Func] : ExportFuncMap) {
       const auto &FuncType = Func->getFuncType();
       R.emplace_back(Name, FuncType);

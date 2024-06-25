@@ -32,6 +32,20 @@ protected:
   AST::FunctionType FuncType;
 };
 
+template <typename ArgT> struct convert {
+  static ArgT run(const ValInterface &V) {
+    return std::get<ValVariant>(V).template get<ArgT>();
+  }
+};
+template <> struct convert<std::string> {
+  static std::string run(const ValInterface &V) {
+    return std::get<std::string>(V);
+  }
+};
+template <typename T> struct convert<List<T>> {
+  static List<T> run(const ValInterface &V) { return std::get<List<T>>(V); }
+};
+
 template <typename T> class HostFunction : public HostFunctionBase {
 public:
   HostFunction() : HostFunctionBase() { initializeFuncType(); }
@@ -109,15 +123,9 @@ private:
     static inline constexpr const bool hasReturn = false;
   };
 
-  template <typename ArgT> static ArgT convert(const ValInterface &V) {
-    return std::get<ValVariant>(V).template get<ArgT>();
-  }
-  template <> static std::string convert<std::string>(const ValInterface &V) {
-    return std::get<std::string>(V);
-  }
   template <typename Tuple, typename SpanT, size_t... Indices>
   static Tuple toTuple(SpanT &&Args, std::index_sequence<Indices...>) {
-    return Tuple(convert<std::tuple_element_t<Indices, Tuple>>(
+    return Tuple(convert<std::tuple_element_t<Indices, Tuple>>::run(
         std::forward<SpanT>(Args)[Indices])...);
   }
 

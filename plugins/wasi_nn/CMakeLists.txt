@@ -176,9 +176,9 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     include(FetchContent)
     FetchContent_Declare(
       piper
-      GIT_REPOSITORY      https://github.com/rhasspy/piper.git
-      GIT_TAG             2023.11.14-2
-      GIT_SHALLOW         FALSE
+      GIT_REPOSITORY  https://github.com/rhasspy/piper.git
+      GIT_TAG         38917ffd8c0e219c6581d73e07b30ef1d572fce1 # 2023.11.14-2
+      GIT_SHALLOW     FALSE
     )
     if(NOT piper_POPULATED)
         FetchContent_Populate(piper)

@@ -430,23 +430,9 @@ Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
     const Runtime::CallingFrame &Frame, uint32_t Context, uint32_t Index,
     uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
     uint32_t BytesWrittenPtr) {
-#ifdef WASMEDGE_BUILD_WASI_NN_RPC
-  if (Env.NNRPCChannel != nullptr) {
-    // TODO: implement RPC for GetOutputSingle
-    spdlog::error(
-        "[WASI-NN] RPC client is not implemented for GetOutputSingle"sv);
-    return WASINN::ErrNo::UnsupportedOperation;
-  }
-#endif
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  if (Env.NNContext.size() <= Context) {
-    spdlog::error(
-        "[WASI-NN] get_output_single: Execution Context does not exist"sv);
-    return WASINN::ErrNo::InvalidArgument;
   }
 
   const auto OutBuffer =
@@ -459,6 +445,36 @@ Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
   uint32_t *BytesWritten = MemInst->getPointer<uint32_t *>(BytesWrittenPtr);
   if (unlikely(BytesWritten == nullptr)) {
     spdlog::error("[WASI-NN] Failed when accessing the BytesWritten memory."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+  if (Env.NNRPCChannel != nullptr) {
+    auto Stub = wasi_ephemeral_nn::GraphExecutionContextResource::NewStub(
+        Env.NNRPCChannel);
+    grpc::ClientContext ClientContext;
+    wasi_ephemeral_nn::GetOutputRequest Req;
+    Req.set_resource_handle(Context);
+    Req.set_index(Index);
+    wasi_ephemeral_nn::GetOutputResult Res;
+    auto Status = Stub->GetOutputSingle(&ClientContext, Req, &Res);
+    if (!Status.ok()) {
+      spdlog::error(
+          "[WASI-NN] Failed when calling remote GetOutputSingle: {}"sv,
+          Status.error_message());
+      return WASINN::ErrNo::RuntimeError;
+    }
+    uint32_t BytesWrittenVal =
+        std::min(static_cast<uint32_t>(Res.data().size()), OutBufferMaxSize);
+    std::copy_n(Res.data().begin(), BytesWrittenVal, OutBuffer.begin());
+    *BytesWritten = BytesWrittenVal;
+    return WASINN::ErrNo::Success;
+  }
+#endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
+
+  if (Env.NNContext.size() <= Context) {
+    spdlog::error(
+        "[WASI-NN] get_output_single: Execution Context does not exist"sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 
@@ -519,10 +535,19 @@ WasiNNComputeSingle::bodyImpl(const Runtime::CallingFrame &Frame,
                               uint32_t Context) {
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
-    // TODO: implement RPC for ComputeSingle
-    spdlog::error(
-        "[WASI-NN] RPC client is not implemented for ComputeSingle"sv);
-    return WASINN::ErrNo::UnsupportedOperation;
+    auto Stub = wasi_ephemeral_nn::GraphExecutionContextResource::NewStub(
+        Env.NNRPCChannel);
+    grpc::ClientContext ClientContext;
+    wasi_ephemeral_nn::ComputeRequest Req;
+    Req.set_resource_handle(Context);
+    wasi_ephemeral_nn::ComputeSingleResult Res;
+    auto Status = Stub->ComputeSingle(&ClientContext, Req, &Res);
+    if (!Status.ok()) {
+      spdlog::error("[WASI-NN] Failed when calling remote ComputeSingle: {}"sv,
+                    Status.error_message());
+      return WASINN::ErrNo::RuntimeError;
+    }
+    return static_cast<WASINN::ErrNo>(Res.error());
   }
 #endif
   auto *MemInst = Frame.getMemoryByIndex(0);
@@ -551,11 +576,21 @@ WasiNNFiniSingle::bodyImpl(const Runtime::CallingFrame &Frame,
                            uint32_t Context) {
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
-    // TODO: implement RPC for FiniSingle
-    spdlog::error("[WASI-NN] RPC client is not implemented for FiniSingle"sv);
-    return WASINN::ErrNo::UnsupportedOperation;
+    auto Stub = wasi_ephemeral_nn::GraphExecutionContextResource::NewStub(
+        Env.NNRPCChannel);
+    grpc::ClientContext ClientContext;
+    wasi_ephemeral_nn::FiniSingleRequest Req;
+    Req.set_resource_handle(Context);
+    google::protobuf::Empty Res;
+    auto Status = Stub->FiniSingle(&ClientContext, Req, &Res);
+    if (!Status.ok()) {
+      spdlog::error("[WASI-NN] Failed when calling remote Compute: {}"sv,
+                    Status.error_message());
+      return WASINN::ErrNo::RuntimeError;
+    }
+    return WASINN::ErrNo::Success;
   }
-#endif
+#endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);

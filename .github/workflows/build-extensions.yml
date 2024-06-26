@@ -143,17 +143,35 @@ jobs:
         shell: bash
         run: |
           set -eux
-          # wasi_nn_rpcserver is built in a clean "build2" dir
-          cmake -Bbuild2 -GNinja
-          cmake --build build2
+          # wasi_nn_rpcserver is built in a clean "build_rpc" dir
+          export nnrpc_test_dir=build_rpc/test/plugins/wasi_nn
+          cmake -Bbuild_rpc -GNinja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DWASMEDGE_BUILD_TESTS=ON \
+            -DWASMEDGE_USE_LLVM=OFF \
+            -DWASMEDGE_BUILD_TOOLS=ON \
+            -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML \
+            -DWASMEDGE_BUILD_WASI_NN_RPC=ON
+          cmake --build build_rpc
           export WASI_NN_RPC_TEST_URI=unix:///tmp/wasi_nn_rpc.sock
-          WASMEDGE_PLUGIN_PATH=build/plugins/wasi_nn build2/tools/wasmedge/wasi_nn_rpcserver \
-            --nn-rpc-uri=$WASI_NN_RPC_TEST_URI \
-            --nn-preload=default:GGML:AUTO:build/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf &
+          export WASMEDGE_PLUGIN_PATH=build_rpc/plugins/wasi_nn
+          build_rpc/tools/wasmedge/wasi_nn_rpcserver \
+            --nn-rpc-uri $WASI_NN_RPC_TEST_URI \
+            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf &
+          RPC_SERVER_PID=$!
           sleep 3
-          cd ${test_dir}
           # The test binary consumes $WASI_NN_RPC_TEST_URI
-          ./${test_bin} --gtest_filter=WasiNNTest.GGMLBackendWithRPC
+          (cd ${nnrpc_test_dir} && ./${test_bin} --gtest_filter=WasiNNTest.GGMLBackendWithRPC)
+          kill -9 "$RPC_SERVER_PID"
+
+          # Restart the server for the compute single test
+          build_rpc/tools/wasmedge/wasi_nn_rpcserver \
+            --nn-rpc-uri $WASI_NN_RPC_TEST_URI \
+            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf &
+          RPC_SERVER_PID=$!
+          sleep 3
+          (cd ${nnrpc_test_dir} && ./${test_bin} --gtest_filter=WasiNNTest.GGMLBackendComputeSingleWithRPC)
+          kill -9 "$RPC_SERVER_PID"
       - name: Upload artifact - wasi_nn-pytorch
         uses: actions/upload-artifact@v3
         with:

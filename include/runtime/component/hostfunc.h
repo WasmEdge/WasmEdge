@@ -37,13 +37,38 @@ template <typename ArgT> struct convert {
     return std::get<ValVariant>(V).template get<ArgT>();
   }
 };
+template <> struct convert<bool> {
+  static bool run(const ValInterface &V) { return std::get<bool>(V); }
+};
 template <> struct convert<std::string> {
   static std::string run(const ValInterface &V) {
     return std::get<std::string>(V);
   }
 };
 template <typename T> struct convert<List<T>> {
-  static List<T> run(const ValInterface &V) { return std::get<List<T>>(V); }
+  static List<T> run(const ValInterface &V) {
+    auto *C = std::get<std::shared_ptr<ValComp>>(V).get();
+    return *dynamic_cast<List<T> *>(C);
+  }
+};
+
+template <typename ArgT> struct emplace {
+  static void run(ValInterface &V, ArgT Arg) {
+    std::get<ValVariant>(V).emplace<ArgT>(Arg);
+  }
+};
+template <> struct emplace<bool> {
+  static void run(ValInterface &V, bool Arg) { V.emplace<bool>(Arg); }
+};
+template <> struct emplace<std::string> {
+  static void run(ValInterface &V, std::string Arg) {
+    V.emplace<std::string>(Arg);
+  }
+};
+template <typename T> struct emplace<List<T>> {
+  static void run(ValInterface &V, List<T> Arg) {
+    V.emplace<std::shared_ptr<ValComp>>(std::make_shared<List<T>>(Arg));
+  }
 };
 
 template <typename T> class HostFunction : public HostFunctionBase {
@@ -132,9 +157,9 @@ private:
   template <typename Tuple, typename SpanT, size_t... Indices>
   static void fromTuple(SpanT &&Rets, Tuple &&V,
                         std::index_sequence<Indices...>) {
-    (std::forward<SpanT>(Rets)[Indices]
-         .template emplace<std::tuple_element_t<Indices, Tuple>>(
-             std::get<Indices>(std::forward<Tuple>(V))),
+    (emplace<std::tuple_element_t<Indices, Tuple>>::run(
+         std::forward<SpanT>(Rets)[Indices],
+         std::get<Indices>(std::forward<Tuple>(V))),
      ...);
   }
 

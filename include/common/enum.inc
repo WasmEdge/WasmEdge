@@ -1170,6 +1170,7 @@ T(Epsilon, 0x40, "-")              // -0x40 for result type
 // component model: wasm interface types
 T(String, 0x80, "string") // string type
 T(List, 0x81, "list")     // list type
+T(Bool, 0x82, "bool")     // bool type
 
 #undef T
 #endif // UseTypeCode
